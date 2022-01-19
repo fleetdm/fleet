@@ -2,6 +2,7 @@ package redis_test
 
 import (
 	"fmt"
+	"net"
 	"testing"
 	"time"
 
@@ -17,7 +18,7 @@ func TestRedisPoolConfigureDoer(t *testing.T) {
 	const prefix = "TestRedisPoolConfigureDoer:"
 
 	t.Run("standalone", func(t *testing.T) {
-		pool := redistest.SetupRedis(t, false, false, false)
+		pool := redistest.SetupRedis(t, prefix, false, false, false)
 
 		c1 := pool.Get()
 		defer c1.Close()
@@ -38,7 +39,7 @@ func TestRedisPoolConfigureDoer(t *testing.T) {
 	})
 
 	t.Run("cluster", func(t *testing.T) {
-		pool := redistest.SetupRedis(t, true, true, false)
+		pool := redistest.SetupRedis(t, prefix, true, true, false)
 
 		c1 := pool.Get()
 		defer c1.Close()
@@ -100,12 +101,12 @@ func TestEachNode(t *testing.T) {
 	}
 
 	t.Run("standalone", func(t *testing.T) {
-		pool := redistest.SetupRedis(t, false, false, false)
+		pool := redistest.SetupRedis(t, prefix, false, false, false)
 		runTest(t, pool)
 	})
 
 	t.Run("cluster", func(t *testing.T) {
-		pool := redistest.SetupRedis(t, true, false, false)
+		pool := redistest.SetupRedis(t, prefix, true, false, false)
 		runTest(t, pool)
 	})
 }
@@ -114,7 +115,7 @@ func TestBindConn(t *testing.T) {
 	const prefix = "TestBindConn:"
 
 	t.Run("standalone", func(t *testing.T) {
-		pool := redistest.SetupRedis(t, false, false, false)
+		pool := redistest.SetupRedis(t, prefix, false, false, false)
 
 		conn := pool.Get()
 		defer conn.Close()
@@ -130,7 +131,7 @@ func TestBindConn(t *testing.T) {
 	})
 
 	t.Run("cluster", func(t *testing.T) {
-		pool := redistest.SetupRedis(t, true, false, false)
+		pool := redistest.SetupRedis(t, prefix, true, false, false)
 
 		conn := pool.Get()
 		defer conn.Close()
@@ -154,7 +155,7 @@ func TestPublishHasListeners(t *testing.T) {
 	const prefix = "TestPublishHasListeners:"
 
 	t.Run("standalone", func(t *testing.T) {
-		pool := redistest.SetupRedis(t, false, false, false)
+		pool := redistest.SetupRedis(t, prefix, false, false, false)
 
 		pconn := pool.Get()
 		defer pconn.Close()
@@ -202,7 +203,7 @@ func TestPublishHasListeners(t *testing.T) {
 	})
 
 	t.Run("cluster", func(t *testing.T) {
-		pool := redistest.SetupRedis(t, true, false, false)
+		pool := redistest.SetupRedis(t, prefix, true, false, false)
 
 		pconn := pool.Get()
 		defer pconn.Close()
@@ -252,7 +253,7 @@ func TestReadOnlyConn(t *testing.T) {
 	const prefix = "TestReadOnlyConn:"
 
 	t.Run("standalone", func(t *testing.T) {
-		pool := redistest.SetupRedis(t, false, false, true)
+		pool := redistest.SetupRedis(t, prefix, false, false, true)
 		conn := redis.ReadOnlyConn(pool, pool.Get())
 		defer conn.Close()
 
@@ -261,7 +262,7 @@ func TestReadOnlyConn(t *testing.T) {
 	})
 
 	t.Run("cluster", func(t *testing.T) {
-		pool := redistest.SetupRedis(t, true, false, true)
+		pool := redistest.SetupRedis(t, prefix, true, false, true)
 		conn := redis.ReadOnlyConn(pool, pool.Get())
 		defer conn.Close()
 
@@ -273,12 +274,78 @@ func TestReadOnlyConn(t *testing.T) {
 
 func TestRedisMode(t *testing.T) {
 	t.Run("standalone", func(t *testing.T) {
-		pool := redistest.SetupRedis(t, false, false, false)
+		pool := redistest.SetupRedis(t, "zz", false, false, false)
 		require.Equal(t, pool.Mode(), fleet.RedisStandalone)
 	})
 
 	t.Run("cluster", func(t *testing.T) {
-		pool := redistest.SetupRedis(t, true, false, false)
+		pool := redistest.SetupRedis(t, "zz", true, false, false)
 		require.Equal(t, pool.Mode(), fleet.RedisCluster)
 	})
+}
+
+func rawTCPServer(t *testing.T, handler func(c net.Conn, done <-chan struct{})) (addr string) {
+	// start a server on localhost, on a random free port
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err, "net.Listen")
+	_, port, _ := net.SplitHostPort(l.Addr().String())
+	done, exited := make(chan struct{}), make(chan struct{})
+
+	go func() {
+		defer close(exited)
+		for {
+			conn, err := l.Accept()
+			if err != nil {
+				return
+			}
+			handler(conn, done)
+		}
+	}()
+
+	t.Cleanup(func() {
+		require.NoError(t, l.Close())
+		close(done)
+		select {
+		case <-exited:
+		case <-time.After(time.Second):
+			t.Fatalf("timed out stopping TCP server")
+		}
+	})
+
+	return "127.0.0.1:" + port
+}
+
+func TestReadTimeout(t *testing.T) {
+	var count int
+	addr := rawTCPServer(t, func(c net.Conn, done <-chan struct{}) {
+		count++
+		if count == 1 {
+			// the CLUSTER REFRESH request, return error so that it is not seen as a
+			// cluster setup
+			fmt.Fprint(c, "-ERR unknown command `CLUSTER`\r\n")
+			return
+		}
+		select {
+		case <-done:
+			return
+		case <-time.After(10 * time.Second):
+			fmt.Fprint(c, "+OK\r\n") // the "simple string OK result" in redis protocol
+		}
+	})
+
+	pool, err := redis.NewPool(redis.PoolConfig{
+		Server:       addr,
+		ConnTimeout:  2 * time.Second,
+		KeepAlive:    2 * time.Second,
+		ReadTimeout:  time.Second,
+		WriteTimeout: time.Second,
+	})
+	require.NoError(t, err)
+
+	start := time.Now()
+	conn := pool.Get()
+	_, err = redigo.String(conn.Do("PING"))
+	require.Less(t, time.Since(start), 2*time.Second)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "i/o timeout")
 }

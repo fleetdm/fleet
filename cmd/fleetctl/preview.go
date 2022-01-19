@@ -35,6 +35,8 @@ const (
 	tagFlagName             = "tag"
 	previewConfigFlagName   = "preview-config"
 	noHostsFlagName         = "no-hosts"
+	orbitChannel            = "orbit-channel"
+	osquerydChannel         = "osqueryd-channel"
 )
 
 func previewCommand() *cli.Command {
@@ -70,6 +72,16 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 				Name:  noHostsFlagName,
 				Usage: "Start the server without adding any hosts",
 				Value: false,
+			},
+			&cli.StringFlag{
+				Name:  orbitChannel,
+				Usage: "Use a custom orbit channel",
+				Value: "stable",
+			},
+			&cli.StringFlag{
+				Name:  osquerydChannel,
+				Usage: "Use a custom osqueryd channel",
+				Value: "stable",
 			},
 		},
 		Action: func(c *cli.Context) error {
@@ -226,11 +238,6 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 				return fmt.Errorf("failed to apply updated app config: %w", err)
 			}
 
-			fmt.Println("Applying Policies...")
-			if err := loadPolicies(client); err != nil {
-				fmt.Println("WARNING: Couldn't load policies:", err)
-			}
-
 			secrets, err := client.GetEnrollSecretSpec()
 			if err != nil {
 				return fmt.Errorf("Error retrieving enroll secret: %w", err)
@@ -256,7 +263,7 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			if !c.Bool(noHostsFlagName) {
 				fmt.Println("Enrolling local host...")
 
-				if err := downloadOrbitAndStart(previewDir, secrets.Secrets[0].Secret, address); err != nil {
+				if err := downloadOrbitAndStart(previewDir, secrets.Secrets[0].Secret, address, c.String(orbitChannel), c.String(osquerydChannel)); err != nil {
 					return fmt.Errorf("downloading orbit and osqueryd: %w", err)
 				}
 
@@ -610,7 +617,7 @@ func processNameMatches(pid int, expectedPrefix string) (bool, error) {
 	return strings.HasPrefix(strings.ToLower(process.Executable()), strings.ToLower(expectedPrefix)), nil
 }
 
-func downloadOrbitAndStart(destDir string, enrollSecret string, address string) error {
+func downloadOrbitAndStart(destDir, enrollSecret, address, orbitChannel, osquerydChannel string) error {
 	// Stop any current intance of orbit running, otherwise the configured enroll secret
 	// won't match the generated in the preview run.
 	if err := stopOrbit(destDir); err != nil {
@@ -639,6 +646,8 @@ func downloadOrbitAndStart(destDir string, enrollSecret string, address string) 
 	}
 	updateOpt.ServerURL = "https://tuf.fleetctl.com"
 	updateOpt.RootDirectory = destDir
+	updateOpt.OrbitChannel = orbitChannel
+	updateOpt.OsquerydChannel = osquerydChannel
 
 	if err := packaging.InitializeUpdates(updateOpt); err != nil {
 		return fmt.Errorf("initialize updates: %w", err)
@@ -651,6 +660,8 @@ func downloadOrbitAndStart(destDir string, enrollSecret string, address string) 
 		"--insecure",
 		"--debug",
 		"--enroll-secret", enrollSecret,
+		"--orbit-channel", updateOpt.OrbitChannel,
+		"--osqueryd-channel", updateOpt.OsquerydChannel,
 		"--log-file", path.Join(destDir, "orbit.log"),
 	)
 	if err := cmd.Start(); err != nil {
@@ -697,43 +708,6 @@ func killFromPIDFile(destDir string, pidFileName string, expectedExecName string
 	if err := killPID(pid); err != nil {
 		return fmt.Errorf("killing %d: %w", pid, err)
 	}
-	return nil
-}
-
-func loadPolicies(client *service.Client) error {
-	policies := []struct {
-		name, query, description, resolution, platform string
-	}{
-		{
-			"Is Gatekeeper enabled on macOS devices?",
-			"SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
-			"Checks to make sure that the Gatekeeper feature is enabled on macOS devices. Gatekeeper tries to ensure only trusted software is run on a mac machine.",
-			"Run the following command in the Terminal app: /usr/sbin/spctl --master-enable",
-			"darwin",
-		},
-		{
-			"Is disk encryption enabled on Windows devices?",
-			"SELECT 1 FROM bitlocker_info where protection_status = 1;",
-			"Checks to make sure that device encryption is enabled on Windows devices.",
-			"Option 1: Select the Start button. Select Settings > Update & Security > Device encryption. If Device encryption doesn't appear, skip to Option 2. If device encryption is turned off, select Turn on. Option 2: Select the Start button. Under Windows System, select Control Panel. Select System and Security. Under BitLocker Drive Encryption, select Manage BitLocker. Select Turn on BitLocker and then follow the instructions.",
-			"windows",
-		},
-		{
-			"Is Filevault enabled on macOS devices?",
-			`SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT "" AND filevault_status = 'on' LIMIT 1;`,
-			"Checks to make sure that the Filevault feature is enabled on macOS devices.",
-			"Choose Apple menu > System Preferences, then click Security & Privacy. Click the FileVault tab. Click the Lock icon, then enter an administrator name and password. Click Turn On FileVault.",
-			"darwin",
-		},
-	}
-
-	for _, policy := range policies {
-		err := client.CreateGlobalPolicy(policy.name, policy.query, policy.description, policy.resolution, policy.platform)
-		if err != nil {
-			return fmt.Errorf("creating policy: %w", err)
-		}
-	}
-
 	return nil
 }
 

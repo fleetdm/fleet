@@ -1,11 +1,9 @@
 /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
 import sendRequest from "services";
 import endpoints from "fleet/endpoints";
-import { IPolicyFormData } from "interfaces/policy";
-// const endpoints = { TEAMS: "/v1/fleet/team" };
+import { ILoadAllPoliciesResponse, IPolicyFormData } from "interfaces/policy";
 
 export default {
-  // TODO: How does the frontend need to support legacy policies?
   create: (data: IPolicyFormData) => {
     const { name, description, query, team_id, resolution, platform } = data;
     const { TEAMS } = endpoints;
@@ -44,9 +42,12 @@ export default {
 
     return sendRequest("GET", path);
   },
-  loadAll: (team_id: number) => {
+  loadAll: (team_id?: number): Promise<ILoadAllPoliciesResponse> => {
     const { TEAMS } = endpoints;
     const path = `${TEAMS}/${team_id}/policies`;
+    if (!team_id) {
+      throw new Error("Invalid team id");
+    }
 
     return sendRequest("GET", path);
   },

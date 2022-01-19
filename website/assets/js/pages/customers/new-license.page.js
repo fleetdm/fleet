@@ -82,10 +82,9 @@ parasails.registerPage('new-license', {
 
     clickResetForm: async function() {
       // When the "X" is clicked...
-      // this.formData = {};
       this.formErrors = {};
       this.showBillingForm = false;
-      this.showQuotedPrice = false;
+      this.numberOfHostsQuoted = undefined;
       // When the input field has been rendered back into existence, focus it for our friendly user.
       await this.forceRender();
       this.$focus('[purpose="quote-input"]');

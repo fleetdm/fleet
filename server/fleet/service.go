@@ -13,6 +13,7 @@ type OsqueryService interface {
 	EnrollAgent(
 		ctx context.Context, enrollSecret, hostIdentifier string, hostDetails map[string](map[string]string),
 	) (nodeKey string, err error)
+	// AuthenticateHost loads host identified by nodeKey. Returns an error if the nodeKey doesn't exist.
 	AuthenticateHost(ctx context.Context, nodeKey string) (host *Host, debug bool, err error)
 	GetClientConfig(ctx context.Context) (config map[string]interface{}, err error)
 	// GetDistributedQueries retrieves the distributed queries to run for the host in
@@ -228,7 +229,7 @@ type Service interface {
 
 	// AgentOptionsForHost gets the agent options for the provided host. The host information should be used for
 	// filtering based on team, platform, etc.
-	AgentOptionsForHost(ctx context.Context, host *Host) (json.RawMessage, error)
+	AgentOptionsForHost(ctx context.Context, hostTeamID *uint, hostPlatform string) (json.RawMessage, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// HostService
@@ -373,6 +374,8 @@ type Service interface {
 	ListTeams(ctx context.Context, opt ListOptions) ([]*Team, error)
 	// ListTeamUsers lists users on the team with the provided list options.
 	ListTeamUsers(ctx context.Context, teamID uint, opt ListOptions) ([]*User, error)
+	// ListAvailableTeamsForUser lists the teams the user is permitted to view
+	ListAvailableTeamsForUser(ctx context.Context, user *User) ([]*TeamSummary, error)
 	// TeamEnrollSecrets lists the enroll secrets for the team.
 	TeamEnrollSecrets(ctx context.Context, teamID uint) ([]*EnrollSecret, error)
 	// ModifyTeamEnrollSecrets modifies enroll secrets for a team.

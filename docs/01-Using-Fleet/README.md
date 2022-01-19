@@ -21,8 +21,5 @@ Provides documentation for load balancer health checks and working with Fleet se
 ### [Security best practices](./07-Security-best-practices.md) 
 Includes resources for ways to mitigate against the OWASP top 10 issues
 
-### [Updating Fleet](./08-Updating-Fleet.md) 
-Includes a guide for how to update and run new versions of Fleet
-
 ### [FAQ](./FAQ.md) 
 Includes commonly asked questions and answers about using Fleet from the Fleet community

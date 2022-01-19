@@ -1,5 +1,4 @@
 import React from "react";
-import { useSelector } from "react-redux";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import { ITeam } from "interfaces/team";

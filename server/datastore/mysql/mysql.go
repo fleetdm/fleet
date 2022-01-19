@@ -69,15 +69,12 @@ type entity struct {
 }
 
 var (
-	hostsTable            = entity{"hosts"}
-	invitesTable          = entity{"invites"}
-	labelsTable           = entity{"labels"}
-	packsTable            = entity{"packs"}
-	queriesTable          = entity{"queries"}
-	scheduledQueriesTable = entity{"scheduled_queries"}
-	sessionsTable         = entity{"sessions"}
-	teamsTable            = entity{"teams"}
-	usersTable            = entity{"users"}
+	hostsTable    = entity{"hosts"}
+	invitesTable  = entity{"invites"}
+	packsTable    = entity{"packs"}
+	queriesTable  = entity{"queries"}
+	sessionsTable = entity{"sessions"}
+	usersTable    = entity{"users"}
 )
 
 // retryableError determines whether a MySQL error can be retried. By default
@@ -242,7 +239,7 @@ func (d *Datastore) writeChanLoop() {
 	for item := range d.writeCh {
 		switch actualItem := item.item.(type) {
 		case *fleet.Host:
-			item.errCh <- d.SaveHost(item.ctx, actualItem)
+			item.errCh <- d.UpdateHost(item.ctx, actualItem)
 		case hostXUpdatedAt:
 			query := fmt.Sprintf(`UPDATE hosts SET %s = ? WHERE id=?`, actualItem.what)
 			_, err := d.writer.ExecContext(item.ctx, query, actualItem.updatedAt, actualItem.hostID)

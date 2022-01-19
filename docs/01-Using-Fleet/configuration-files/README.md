@@ -432,19 +432,19 @@ The following options are available when configuring SMTP authentication:
 
 ##### Host Status
 
-The following options allow the configuration of a webhook that will be triggered if the specified percentage of hosts 
+The following options allow the configuration of a webhook that will be triggered if the specified percentage of hosts
 are offline for the specified amount of time.
 
 - `webhook_settings.host_status_webhook.enable_host_status_webhook`: true or false. Defines whether the check for host status will run or not.
 - `webhook_settings.host_status_webhook.destination_url`: the URL to POST to when the condition for the webhook triggers.
-- `webhook_settings.host_status_webhook.host_percentage`: the percentage of hosts that need to be offline  
+- `webhook_settings.host_status_webhook.host_percentage`: the percentage of hosts that need to be offline
 - `webhook_settings.host_status_webhook.days_count`: amount of days that hosts need to be offline for to count as part of the percentage.
 
 ##### Failing Policies
 
 The following options allow the configuration of a webhook that will be triggered if selected policies are not passing for some hosts.
 
-- `webhook_settings.failing_policies_webhook.enable_failing_policies_webhook`: true or false. Defines whether to enable the failing policies webhook.
+- `webhook_settings.failing_policies_webhook.enable_failing_policies_webhook`: true or false. Defines whether to enable the failing policies webhook. Note that currently, if the failing policies webhook *and* the `osquery.enable_async_host_processing` options are set, some failing policies webhooks could be missing (some transitions from succeeding to failing or vice-versa could happen without triggering a webhook request).
 - `webhook_settings.failing_policies_webhook.destination_url`: the URL to POST to when the condition for the webhook triggers.
 - `webhook_settings.failing_policies_webhook.policy_ids`: the IDs of the policies for which the webhook will be enabled.
 - `webhook_settings.failing_policies_webhook.host_batch_size`: Maximum number of hosts to batch on POST requests. A value of `0`, the default, means no batching, all hosts failing a policy will be sent on one POST request.
@@ -454,7 +454,7 @@ The following options allow the configuration of a webhook that will be triggere
 There's a lot of information coming from hosts, but it's sometimes useful to see exactly what a host is returning in order
 to debug different scenarios.
 
-So for example, let's say the hosts with ids 342 and 98 are not behaving as you expect in Fleet, you can enable verbose 
+So for example, let's say the hosts with ids 342 and 98 are not behaving as you expect in Fleet, you can enable verbose
 logging with the following configuration:
 
 ```yaml

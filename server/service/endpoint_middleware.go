@@ -58,7 +58,7 @@ func authenticatedHost(svc fleet.Service, logger log.Logger, next endpoint.Endpo
 			logJSON(hlogger, request, "request")
 		}
 
-		ctx = hostctx.NewContext(ctx, *host)
+		ctx = hostctx.NewContext(ctx, host)
 		instrumentHostLogger(ctx)
 
 		resp, err := next(ctx, request)

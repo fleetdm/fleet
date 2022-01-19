@@ -26,7 +26,7 @@ Documentation on completing the release process can be found
 
 This section outlines the on-call rotation at Fleet.
 
-The on-call engineer is responsible for responding to technical Slack comments, Slack threads, and GitHub issues raised by customers and the community which cannot handled by the [Customer Success team](./customer-experience.md).
+The on-call engineer is responsible for responding to technical Slack comments, Slack threads, and GitHub issues raised by customers and the community which cannot handled by the [Customer Success team](./customers.md).
 
 ### Goals
 At Fleet, our primary quality objectives are *customer service* and *defect reduction*. This entails Key Performance Indicators such as customer response time and number of bugs resolved per cycle and. 

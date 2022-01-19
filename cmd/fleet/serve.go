@@ -247,6 +247,8 @@ the way that the Fleet server works.
 				ConnMaxLifetime:           config.Redis.ConnMaxLifetime,
 				IdleTimeout:               config.Redis.IdleTimeout,
 				ConnWaitTimeout:           config.Redis.ConnWaitTimeout,
+				WriteTimeout:              config.Redis.WriteTimeout,
+				ReadTimeout:               config.Redis.ReadTimeout,
 			})
 			if err != nil {
 				initFatal(err, "initialize Redis")
@@ -276,8 +278,13 @@ the way that the Fleet server works.
 				UpdateBatch:        config.Osquery.AsyncHostUpdateBatch,
 				RedisPopCount:      config.Osquery.AsyncHostRedisPopCount,
 				RedisScanKeysCount: config.Osquery.AsyncHostRedisScanKeysCount,
+				CollectorInterval:  config.Osquery.AsyncHostCollectInterval,
 			}
-			svc, err := service.NewService(ds, task, resultStore, logger, osqueryLogger, config, mailService, clock.C, ssoSessionStore, liveQueryStore, carveStore, *license, failingPolicySet)
+
+			// TODO: gather all the different contexts and use just one
+			ctx, cancelFunc := context.WithCancel(context.Background())
+			defer cancelFunc()
+			svc, err := service.NewService(ctx, ds, task, resultStore, logger, osqueryLogger, config, mailService, clock.C, ssoSessionStore, liveQueryStore, carveStore, *license, failingPolicySet)
 			if err != nil {
 				initFatal(err, "initializing service")
 			}
@@ -367,9 +374,6 @@ the way that the Fleet server works.
 			// Instantiate a gRPC service to handle launcher requests.
 			launcher := launcher.New(svc, logger, grpc.NewServer(), healthCheckers)
 
-			// TODO: gather all the different contexts and use just one
-			ctx, cancelFunc := context.WithCancel(context.Background())
-			defer cancelFunc()
 			eh := errorstore.NewHandler(ctx, redisPool, logger, config.Logging.ErrorRetentionPeriod)
 
 			rootMux := http.NewServeMux()
@@ -532,8 +536,7 @@ func runCrons(ds fleet.Datastore, task *async.Task, logger kitlog.Logger, config
 	}
 
 	// StartCollectors starts a goroutine per collector, using ctx to cancel.
-	task.StartCollectors(ctx, config.Osquery.AsyncHostCollectInterval,
-		config.Osquery.AsyncHostCollectMaxJitterPercent, kitlog.With(logger, "cron", "async_task"))
+	task.StartCollectors(ctx, config.Osquery.AsyncHostCollectMaxJitterPercent, kitlog.With(logger, "cron", "async_task"))
 
 	go cronCleanups(ctx, ds, kitlog.With(logger, "cron", "cleanups"), ourIdentifier, license)
 	go cronVulnerabilities(
@@ -570,14 +573,6 @@ func cronCleanups(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 		_, err = ds.CleanupCarves(ctx, time.Now())
 		if err != nil {
 			level.Error(logger).Log("err", "cleaning carves", "details", err)
-		}
-		err = ds.CleanupOrphanScheduledQueryStats(ctx)
-		if err != nil {
-			level.Error(logger).Log("err", "cleaning scheduled query stats", "details", err)
-		}
-		err = ds.CleanupOrphanLabelMembership(ctx)
-		if err != nil {
-			level.Error(logger).Log("err", "cleaning label_membership", "details", err)
 		}
 		err = ds.UpdateQueryAggregatedStats(ctx)
 		if err != nil {

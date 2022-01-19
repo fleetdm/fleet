@@ -63,6 +63,8 @@ type RedisConfig struct {
 	ConnMaxLifetime time.Duration `yaml:"conn_max_lifetime"`
 	IdleTimeout     time.Duration `yaml:"idle_timeout"`
 	ConnWaitTimeout time.Duration `yaml:"conn_wait_timeout"`
+	WriteTimeout    time.Duration `yaml:"write_timeout"`
+	ReadTimeout     time.Duration `yaml:"read_timeout"`
 }
 
 const (
@@ -346,6 +348,8 @@ func (man Manager) addConfigs() {
 	man.addConfigDuration("redis.conn_max_lifetime", 0, "Redis maximum amount of time a connection may be reused, 0 means no limit")
 	man.addConfigDuration("redis.idle_timeout", 240*time.Second, "Redis maximum amount of time a connection may stay idle, 0 means no limit")
 	man.addConfigDuration("redis.conn_wait_timeout", 0, "Redis maximum amount of time to wait for a connection if the maximum is reached (0 for no wait, ignored in non-cluster Redis)")
+	man.addConfigDuration("redis.write_timeout", 10*time.Second, "Redis maximum amount of time to wait for a write (send) on a connection")
+	man.addConfigDuration("redis.read_timeout", 10*time.Second, "Redis maximum amount of time to wait for a read (receive) on a connection")
 
 	// Server
 	man.addConfigString("server.address", "0.0.0.0:8080",
@@ -580,6 +584,8 @@ func (man Manager) LoadConfig() FleetConfig {
 			ConnMaxLifetime:           man.getConfigDuration("redis.conn_max_lifetime"),
 			IdleTimeout:               man.getConfigDuration("redis.idle_timeout"),
 			ConnWaitTimeout:           man.getConfigDuration("redis.conn_wait_timeout"),
+			WriteTimeout:              man.getConfigDuration("redis.write_timeout"),
+			ReadTimeout:               man.getConfigDuration("redis.read_timeout"),
 		},
 		Server: ServerConfig{
 			Address:    man.getConfigString("server.address"),

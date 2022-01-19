@@ -10,6 +10,7 @@ To configure each log destination, you must set the correct osquery logging conf
 - [Kinesis](#kinesis)
 - [Lambda](#lambda)
 - [PubSub](#pubsub)
+- [Kafka REST Proxy](#kafka)
 - [Stdout](#stdout)
 - [Filesystem](#filesystem)
 
@@ -92,6 +93,17 @@ Logs are written to Google Cloud PubSub topics.
 With the PubSub plugin, osquery result and/or status logs are written to [PubSub](https://cloud.google.com/pubsub/) topics.
 
 Note that messages over 10MB will be dropped, with a notification sent to the fleet logs, as these can never be processed by PubSub.
+
+### Kafka
+
+Logs are written to Apache Kafka topics.
+
+- Plugin name: `kafkarest`
+- Flag namespace: [kafka](../02-Deploying/03-Configuration.md#kafka)
+
+With the Kafka REST plugin, osquery result and/or status logs are written to [Kafka](https://kafka.apache.org/) topics using the [Kafka REST proxy](https://github.com/confluentinc/kafka-rest).
+
+Note that the REST proxy must be in place in order to send osquery logs to Kafka topics. 
 
 ### Stdout
 

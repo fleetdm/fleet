@@ -66,7 +66,7 @@ Scaling Fleet horizontally is as simple as running more Fleet server processes c
 
 The Fleet/osquery system is resilient to loss of availability. Osquery agents will continue executing the existing configuration and buffering result logs during downtime due to lack of network connectivity, server maintenance, or any other reason. Buffering in osquery can be configured with the `--buffered_log_max` flag.
 
-Note that short downtimes are expected during [Fleet server upgrades](./08-Updating-Fleet.md)-fleet.md) that require database migrations.
+Note that short downtimes are expected during [Fleet server upgrades](../02-Deploying/06-Upgrading-Fleet.md) that require database migrations.
 
 ### Debugging performance issues
 

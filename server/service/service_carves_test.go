@@ -23,7 +23,11 @@ func TestCarveBegin(t *testing.T) {
 		RequestId:  "carve_request",
 	}
 	ms := new(mock.Store)
-	svc := &Service{carveStore: ms}
+	ds := new(mock.Store)
+	svc := &Service{
+		carveStore: ms,
+		ds:         ds,
+	}
 	expectedMetadata := fleet.CarveMetadata{
 		ID:         7,
 		HostId:     host.ID,
@@ -36,8 +40,16 @@ func TestCarveBegin(t *testing.T) {
 		metadata.ID = 7
 		return metadata, nil
 	}
+	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+		if host.ID != id {
+			return nil, errors.New("not found")
+		}
+		return &fleet.Host{
+			Hostname: host.Hostname,
+		}, nil
+	}
 
-	ctx := hostctx.NewContext(context.Background(), host)
+	ctx := hostctx.NewContext(context.Background(), &host)
 
 	metadata, err := svc.CarveBegin(ctx, payload)
 	require.NoError(t, err)
@@ -57,12 +69,24 @@ func TestCarveBeginNewCarveError(t *testing.T) {
 		RequestId:  "carve_request",
 	}
 	ms := new(mock.Store)
-	svc := &Service{carveStore: ms}
+	ds := new(mock.Store)
+	svc := &Service{
+		carveStore: ms,
+		ds:         ds,
+	}
 	ms.NewCarveFunc = func(ctx context.Context, metadata *fleet.CarveMetadata) (*fleet.CarveMetadata, error) {
 		return nil, errors.New("ouch!")
 	}
+	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+		if host.ID != id {
+			return nil, errors.New("not found")
+		}
+		return &fleet.Host{
+			Hostname: host.Hostname,
+		}, nil
+	}
 
-	ctx := hostctx.NewContext(context.Background(), host)
+	ctx := hostctx.NewContext(context.Background(), &host)
 
 	_, err := svc.CarveBegin(ctx, payload)
 	require.Error(t, err)
@@ -71,8 +95,19 @@ func TestCarveBeginNewCarveError(t *testing.T) {
 
 func TestCarveBeginEmptyError(t *testing.T) {
 	ms := new(mock.Store)
-	svc := &Service{carveStore: ms}
-	ctx := hostctx.NewContext(context.Background(), fleet.Host{})
+	ds := new(mock.Store)
+	svc := &Service{
+		carveStore: ms,
+		ds:         ds,
+	}
+	ctx := hostctx.NewContext(context.Background(), &fleet.Host{ID: 1})
+
+	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+		if id != 1 {
+			return nil, errors.New("not found")
+		}
+		return &fleet.Host{}, nil
+	}
 
 	_, err := svc.CarveBegin(ctx, fleet.CarveBeginPayload{})
 	require.Error(t, err)
@@ -97,9 +132,22 @@ func TestCarveBeginBlockSizeMaxError(t *testing.T) {
 		RequestId:  "carve_request",
 	}
 	ms := new(mock.Store)
-	svc := &Service{carveStore: ms}
+	ds := new(mock.Store)
+	svc := &Service{
+		carveStore: ms,
+		ds:         ds,
+	}
 
-	ctx := hostctx.NewContext(context.Background(), host)
+	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+		if host.ID != id {
+			return nil, errors.New("not found")
+		}
+		return &fleet.Host{
+			Hostname: host.Hostname,
+		}, nil
+	}
+
+	ctx := hostctx.NewContext(context.Background(), &host)
 
 	_, err := svc.CarveBegin(ctx, payload)
 	require.Error(t, err)
@@ -115,9 +163,22 @@ func TestCarveBeginCarveSizeMaxError(t *testing.T) {
 		RequestId:  "carve_request",
 	}
 	ms := new(mock.Store)
-	svc := &Service{carveStore: ms}
+	ds := new(mock.Store)
+	svc := &Service{
+		carveStore: ms,
+		ds:         ds,
+	}
 
-	ctx := hostctx.NewContext(context.Background(), host)
+	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+		if host.ID != id {
+			return nil, errors.New("not found")
+		}
+		return &fleet.Host{
+			Hostname: host.Hostname,
+		}, nil
+	}
+
+	ctx := hostctx.NewContext(context.Background(), &host)
 
 	_, err := svc.CarveBegin(ctx, payload)
 	require.Error(t, err)
@@ -133,8 +194,21 @@ func TestCarveBeginCarveSizeError(t *testing.T) {
 		RequestId:  "carve_request",
 	}
 	ms := new(mock.Store)
-	svc := &Service{carveStore: ms}
-	ctx := hostctx.NewContext(context.Background(), host)
+	ds := new(mock.Store)
+	svc := &Service{
+		carveStore: ms,
+		ds:         ds,
+	}
+	ctx := hostctx.NewContext(context.Background(), &host)
+
+	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+		if host.ID != id {
+			return nil, errors.New("not found")
+		}
+		return &fleet.Host{
+			Hostname: host.Hostname,
+		}, nil
+	}
 
 	// Too big
 	_, err := svc.CarveBegin(ctx, payload)

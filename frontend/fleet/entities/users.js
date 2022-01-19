@@ -63,7 +63,6 @@ export default (client) => {
         .authenticatedPost(endpoint, JSON.stringify({ enabled }))
         .then((response) => helpers.addGravatarUrlToResource(response.user));
     },
-
     loadAll: ({
       page = 0,
       perPage = 100,
@@ -109,9 +108,13 @@ export default (client) => {
       const { ME } = endpoints;
       const endpoint = client.baseURL + ME;
 
-      return client
-        .authenticatedGet(endpoint)
-        .then((response) => helpers.addGravatarUrlToResource(response.user));
+      return client.authenticatedGet(endpoint).then((response) => {
+        const { user, available_teams } = response;
+        return {
+          user: helpers.addGravatarUrlToResource(user),
+          available_teams,
+        };
+      });
     },
     performRequiredPasswordReset: ({ password }) => {
       // Perform a password reset for the currently logged in user that has had a reset required

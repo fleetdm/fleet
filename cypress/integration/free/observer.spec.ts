@@ -60,7 +60,7 @@ describe("Free tier - Observer user", () => {
 
     // Queries pages: Observer can or cannot run UI
     cy.visit("/queries/manage");
-    cy.get("thead").within(() => {
+    cy.getAttached("thead").within(() => {
       cy.findByText(/observer can run/i).should("not.exist");
     });
 
@@ -85,14 +85,15 @@ describe("Free tier - Observer user", () => {
     // Not see the "Add a policy", "delete", "save", "run" policy
     cy.findByRole("button", { name: /add a policy/i }).should("not.exist");
 
-    cy.get("tbody").within(() => {
+    cy.getAttached("tbody").within(() => {
       cy.get("tr")
         .first()
         .within(() => {
           cy.get(".fleet-checkbox__input").should("not.exist");
         });
+      cy.findByText(/filevault enabled/i).click();
     });
-    cy.findByText(/filevault enabled/i).click();
+
     cy.getAttached(".policy-form__wrapper").within(() => {
       cy.findByRole("button", { name: /run/i }).should("not.exist");
       cy.findByRole("button", { name: /save/i }).should("not.exist");
@@ -102,10 +103,11 @@ describe("Free tier - Observer user", () => {
     // See Observer in Role section, and no Team section
     cy.visit("/profile");
 
-    cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
-    cy.findByText(/teams/i).should("not.exist");
-    cy.findByText("Role")
-      .next()
-      .contains(/observer/i);
+    cy.getAttached(".user-settings__additional").within(() => {
+      cy.findByText(/teams/i).should("not.exist");
+      cy.findByText("Role")
+        .next()
+        .contains(/observer/i);
+    });
   });
 });

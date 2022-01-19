@@ -180,10 +180,13 @@ describe(
       // On the Profile page, they should…
       // See Maintainer in Role section, and no Team section
       cy.visit("/profile");
-      cy.findByText(/teams/i).should("not.exist");
-      cy.findByText("Role")
-        .next()
-        .contains(/maintainer/i);
+
+      cy.getAttached(".user-settings__additional").within(() => {
+        cy.findByText(/teams/i).should("not.exist");
+        cy.findByText("Role")
+          .next()
+          .contains(/maintainer/i);
+      });
     });
   }
 );

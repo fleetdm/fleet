@@ -134,8 +134,20 @@ You can deploy MySQL or Maria any way you want. We recommend using managed/hoste
 
 ## What is duplicate enrollment and how do I fix it?
 
-Duplicate host enrollment is when more than one host enrolls in Fleet using the same identifier (hardware UUID or osquery generated UUID). This can be caused by cloning a VM Image with an already enrolled
-osquery client. To resolve the issues, it's advised to configure `--osquery_host_identifier` to `uuid`, and then delete the single host record for that whole set of hosts in the Fleet UI. You can find more information about
+Duplicate host enrollment is when more than one host enrolls in Fleet using the same identifier
+(hardware UUID or osquery generated UUID).
+
+Typically, this is caused by cloning a VM Image with an already enrolled
+osquery client, which results in duplicate osquery generated UUIDs. To resolve this issue, it is
+advised to configure `--osquery_host_identifier=uuid` (which will use the hardware UUID), and then
+delete the associated host in the Fleet UI.
+
+In rare instances, VM Hypervisors have been seen to duplicate hardware UUIDs. When this happens,
+using `--osquery_host_identifier=uuid` will not resolve the duplicate enrollment problem. Sometimes
+the problem can be resolved by setting `--osquery_host_identifier=instance` (which will use the
+osquery generated UUID), and then delete the associated host in the Fleet UI.
+
+Find more information about
 [host identifiers here](./03-Configuration.md#osquery_host_identifier).
 
 ## How long are osquery enroll secrets valid?
@@ -208,3 +220,9 @@ complete.
 
 A similar process may be followed for rotating team-specific enroll secrets. For teams, the secrets
 are managed in the team yaml.
+
+## How do I resolve an "unknown column" error when upgrading Fleet?
+
+The `unknown column` error typically occurs when the database migrations haven't been run during the upgrade process.
+
+Check out the [documentation on running database migrations](./06-Upgrading-Fleet.md#running-database-migrations) to resolve this issue.

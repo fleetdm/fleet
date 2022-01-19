@@ -49,12 +49,12 @@ func TestSessionStore(t *testing.T) {
 	}
 
 	t.Run("standalone", func(t *testing.T) {
-		p := redistest.SetupRedis(t, false, false, false)
+		p := redistest.SetupRedis(t, "request", false, false, false)
 		runTest(t, p)
 	})
 
 	t.Run("cluster", func(t *testing.T) {
-		p := redistest.SetupRedis(t, true, false, false)
+		p := redistest.SetupRedis(t, "request", true, false, false)
 		runTest(t, p)
 	})
 }

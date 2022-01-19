@@ -12,7 +12,8 @@ import (
 )
 
 type redisFailingPolicySet struct {
-	pool fleet.RedisPool
+	pool       fleet.RedisPool
+	testPrefix string // for tests, the key prefix to use to avoid conflicts
 }
 
 var _ fleet.FailingPolicySet = (*redisFailingPolicySet)(nil)
@@ -21,6 +22,19 @@ var _ fleet.FailingPolicySet = (*redisFailingPolicySet)(nil)
 func NewFailing(pool fleet.RedisPool) *redisFailingPolicySet {
 	return &redisFailingPolicySet{
 		pool: pool,
+	}
+}
+
+type TestNamer interface {
+	Name() string
+}
+
+// NewFailingTest creates a redis policy set for failing policies to be used
+// only in tests.
+func NewFailingTest(t TestNamer, pool fleet.RedisPool) *redisFailingPolicySet {
+	return &redisFailingPolicySet{
+		pool:       pool,
+		testPrefix: t.Name() + ":",
 	}
 }
 
@@ -35,7 +49,7 @@ func (r *redisFailingPolicySet) ListSets() ([]uint, error) {
 	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
 	defer conn.Close()
 
-	ids, err := redigo.Ints(conn.Do("SMEMBERS", policySetsSetKey))
+	ids, err := redigo.Ints(conn.Do("SMEMBERS", r.policySetOfSetsKey()))
 	if err != nil && err != redigo.ErrNil {
 		return nil, err
 	}
@@ -48,18 +62,21 @@ func (r *redisFailingPolicySet) ListSets() ([]uint, error) {
 
 // AddHost adds the given host to the policy sets.
 func (r *redisFailingPolicySet) AddHost(policyID uint, host fleet.PolicySetHost) error {
-	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
-	defer conn.Close()
-
 	// The order of the following two operations is important.
 	//
 	// The ordering of operations in AddHost and RemoveSet has been chosen to avoid
 	// ending up with a policySetKey with a host entry, but without its corresponding entry
 	// in the set of sets.
-	if _, err := conn.Do("SADD", policySetKey(policyID), hostEntry(host)); err != nil {
+	//
+	// The commands are run in different functions with different connections in
+	// case it is running in redis cluster mode - the keys may not live on the
+	// same node.  There is no additional connection cost for standalone mode, as
+	// the second connection will come from the pool (same for cluster mode if
+	// both key happen to live on the same node).
+	if err := r.addHostToPolicySet(policyID, host); err != nil {
 		return err
 	}
-	if _, err := conn.Do("SADD", policySetsSetKey, policyID); err != nil {
+	if err := r.addPolicyToSetOfSets(policyID); err != nil {
 		return err
 	}
 	return nil
@@ -69,12 +86,16 @@ func (r *redisFailingPolicySet) AddHost(policyID uint, host fleet.PolicySetHost)
 //
 // SMEMBERS blocks the Redis instance for the duration of the call, so if the set is big
 // it could impact performance overall.
-func (r *redisFailingPolicySet) scanPolicySet(conn redigo.Conn, policyID uint, count int) ([]string, error) {
+func (r *redisFailingPolicySet) scanPolicySet(policyID uint) ([]string, error) {
+	const hostsScanCount = 100
 	var hosts []string
+
+	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
+	defer conn.Close()
 
 	cursor := 0
 	for {
-		res, err := redigo.Values(conn.Do("SSCAN", policySetKey(policyID), cursor, "COUNT", count))
+		res, err := redigo.Values(conn.Do("SSCAN", r.policySetKey(policyID), cursor, "COUNT", hostsScanCount))
 		if err != nil {
 			return nil, fmt.Errorf("scan keys: %w", err)
 		}
@@ -93,11 +114,7 @@ func (r *redisFailingPolicySet) scanPolicySet(conn redigo.Conn, policyID uint, c
 
 // ListHosts returns the list of hosts present in the policy set.
 func (r *redisFailingPolicySet) ListHosts(policyID uint) ([]fleet.PolicySetHost, error) {
-	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
-	defer conn.Close()
-
-	const hostsScanCount = 100
-	hostEntries, err := r.scanPolicySet(conn, policyID, hostsScanCount)
+	hostEntries, err := r.scanPolicySet(policyID)
 	if err != nil {
 		return nil, err
 	}
@@ -122,7 +139,7 @@ func (r *redisFailingPolicySet) RemoveHosts(policyID uint, hosts []fleet.PolicyS
 	defer conn.Close()
 
 	var args redigo.Args
-	args = args.Add(policySetKey(policyID))
+	args = args.Add(r.policySetKey(policyID))
 	for _, host := range hosts {
 		args = args.Add(hostEntry(host))
 	}
@@ -132,23 +149,64 @@ func (r *redisFailingPolicySet) RemoveHosts(policyID uint, hosts []fleet.PolicyS
 
 // RemoveSet removes a policy set.
 func (r *redisFailingPolicySet) RemoveSet(policyID uint) error {
-	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
-	defer conn.Close()
-
 	// The order of the following two operations is important.
 	//
 	// See comment in AddHost.
-	if _, err := conn.Do("SREM", policySetsSetKey, policyID); err != nil {
+	if err := r.removePolicyFromSetOfSets(policyID); err != nil {
 		return err
 	}
-	if _, err := conn.Do("DEL", policySetKey(policyID)); err != nil {
+	if err := r.removePolicySet(policyID); err != nil {
 		return err
 	}
 	return nil
 }
 
-func policySetKey(policyID uint) string {
-	return policySetKeyPrefix + strconv.Itoa(int(policyID))
+func (r *redisFailingPolicySet) addHostToPolicySet(policyID uint, host fleet.PolicySetHost) error {
+	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
+	defer conn.Close()
+
+	if _, err := conn.Do("SADD", r.policySetKey(policyID), hostEntry(host)); err != nil {
+		return fmt.Errorf("add host entry to policy set: %w", err)
+	}
+	return nil
+}
+
+func (r *redisFailingPolicySet) removePolicySet(policyID uint) error {
+	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
+	defer conn.Close()
+
+	if _, err := conn.Do("DEL", r.policySetKey(policyID)); err != nil {
+		return fmt.Errorf("remove policy set: %w", err)
+	}
+	return nil
+}
+
+func (r *redisFailingPolicySet) addPolicyToSetOfSets(policyID uint) error {
+	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
+	defer conn.Close()
+
+	if _, err := conn.Do("SADD", r.policySetOfSetsKey(), policyID); err != nil {
+		return fmt.Errorf("add policy id to set of failing sets: %w", err)
+	}
+	return nil
+}
+
+func (r *redisFailingPolicySet) removePolicyFromSetOfSets(policyID uint) error {
+	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
+	defer conn.Close()
+
+	if _, err := conn.Do("SREM", r.policySetOfSetsKey(), policyID); err != nil {
+		return fmt.Errorf("remove policy id from set of failing sets: %w", err)
+	}
+	return nil
+}
+
+func (r *redisFailingPolicySet) policySetKey(policyID uint) string {
+	return r.testPrefix + policySetKeyPrefix + strconv.Itoa(int(policyID))
+}
+
+func (r *redisFailingPolicySet) policySetOfSetsKey() string {
+	return r.testPrefix + policySetsSetKey
 }
 
 func hostEntry(host fleet.PolicySetHost) string {

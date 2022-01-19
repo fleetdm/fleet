@@ -15,5 +15,8 @@ Information about running an update server with fleetctl.
 ### [Load Testing](./05-Load-testing.md)
 Information about running an update server with fleetctl.
 
+### [Upgrading Fleet](./06-Upgrading-Fleet.md) 
+Includes a guide for how to update and run new versions of Fleet
+
 ### [FAQ](./FAQ.md) 
 Includes commonly asked questions and answers about deployment from the Fleet community.
