@@ -74,7 +74,6 @@ var (
 	packsTable    = entity{"packs"}
 	queriesTable  = entity{"queries"}
 	sessionsTable = entity{"sessions"}
-	teamsTable    = entity{"teams"}
 	usersTable    = entity{"users"}
 )
 
