@@ -47,6 +47,8 @@ type Service struct {
 	authz *authz.Authorizer
 
 	jitterSeed int64
+	jitterMu   sync.Mutex
+	jitterH    map[time.Duration]*jitterHashTable
 }
 
 // NewService creates a new service from the config struct
@@ -87,6 +89,7 @@ func NewService(
 		license:          license,
 		failingPolicySet: failingPolicySet,
 		authz:            authorizer,
+		jitterH:          make(map[time.Duration]*jitterHashTable),
 	}
 
 	// Try setting a first seed

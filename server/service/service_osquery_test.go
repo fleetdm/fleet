@@ -3,10 +3,13 @@ package service
 import (
 	"bytes"
 	"context"
+	crand "crypto/rand"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"math"
+	"math/big"
 	"reflect"
 	"sort"
 	"strconv"
@@ -2457,4 +2460,57 @@ func TestLiveQueriesFailing(t *testing.T) {
 	require.NoError(t, err)
 	require.Contains(t, string(logs), "level=error")
 	require.Contains(t, string(logs), "failed to get queries for host")
+}
+
+func TestShouldUpdate(t *testing.T) {
+	v, err := crand.Int(crand.Reader, big.NewInt(math.MaxInt64))
+	require.NoError(t, err)
+	histogram := make(map[int64]int)
+	for i := 0; i < 1000; i++ {
+		hostID, err := crand.Int(crand.Reader, big.NewInt(10000))
+		require.NoError(t, err)
+		jitter := jitterForHost(50, v.Int64(), 1*time.Hour, uint(hostID.Int64()))
+		jitterMinutes := int64(jitter.Minutes())
+		histogram[jitterMinutes]++
+	}
+	min, max := math.MaxInt, 0
+	for jitterMinutes, count := range histogram {
+		if count < min {
+			min = count
+		}
+		if count > max {
+			max = count
+		}
+		fmt.Printf("jitterMinutes=%d \t count=%d\n", jitterMinutes, count)
+	}
+	fmt.Printf("min=%d \t max=%d \t variation=%d\n", min, max, max-min)
+}
+
+func TestJitterForHost(t *testing.T) {
+	jh := jitterHashTable{
+		maxCapacity: 1,
+		bucketCount: 30,
+		buckets:     make(map[int]int),
+		cache:       make(map[uint]time.Duration),
+	}
+
+	histogram := make(map[int64]int)
+	for i := 0; i < 1000; i++ {
+		hostID, err := crand.Int(crand.Reader, big.NewInt(10000))
+		require.NoError(t, err)
+		jitter := jh.jitterForHost(uint(hostID.Int64()))
+		jitterMinutes := int64(jitter.Minutes())
+		histogram[jitterMinutes]++
+	}
+	min, max := math.MaxInt, 0
+	for jitterMinutes, count := range histogram {
+		if count < min {
+			min = count
+		}
+		if count > max {
+			max = count
+		}
+		fmt.Printf("jitterMinutes=%d \t count=%d\n", jitterMinutes, count)
+	}
+	fmt.Printf("min=%d \t max=%d \t variation=%d\n", min, max, max-min)
 }

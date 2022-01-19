@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -446,14 +447,79 @@ func (svc *Service) detailQueriesForHost(ctx context.Context, host *fleet.Host) 
 }
 
 func (svc *Service) shouldUpdate(lastUpdated time.Time, interval time.Duration, hostID uint) bool {
-	jitter := jitterForHost(
-		svc.config.Osquery.MaxJitterPercent,
-		svc.getJitterSeed(),
-		interval,
-		hostID,
-	)
+	svc.jitterMu.Lock()
+	defer svc.jitterMu.Unlock()
+
+	if svc.jitterH[interval] == nil {
+		svc.jitterH[interval] = &jitterHashTable{
+			maxCapacity: 1,
+			bucketCount: int(int64(svc.config.Osquery.MaxJitterPercent) * int64(interval) / 100.0),
+			buckets:     make(map[int]int),
+			cache:       make(map[uint]time.Duration),
+		}
+	}
+
+	jitter := svc.jitterH[interval].jitterForHost(hostID)
+	//jitter := jitterForHost(
+	//	svc.config.Osquery.MaxJitterPercent,
+	//	svc.getJitterSeed(),
+	//	interval,
+	//	hostID,
+	//)
 	cutoff := svc.clock.Now().Add(-(interval + jitter))
 	return lastUpdated.Before(cutoff)
+}
+
+type jitterHashTable struct {
+	mu          sync.Mutex
+	maxCapacity int
+	bucketCount int
+	buckets     map[int]int
+	cache       map[uint]time.Duration
+}
+
+func (jh *jitterHashTable) jitterForHost(hostID uint) time.Duration {
+	jh.mu.Lock()
+	if jitter, ok := jh.cache[hostID]; ok {
+		jh.mu.Unlock()
+		return jitter
+	}
+
+	possibleBucket := int(hostID) % jh.bucketCount
+	if jh.buckets[possibleBucket] < jh.maxCapacity {
+		jh.buckets[possibleBucket]++
+		jitter := time.Duration(possibleBucket) * time.Minute
+		jh.cache[hostID] = jitter
+
+		jh.mu.Unlock()
+		return jitter
+	}
+
+	lastChecked := possibleBucket
+	for {
+		possibleBucket = (possibleBucket + 1) % jh.bucketCount
+
+		// if we went around already, there's no more capacity
+		if possibleBucket == lastChecked {
+			break
+		}
+
+		// if the next bucket has capacity, great!
+		if jh.buckets[possibleBucket] < jh.maxCapacity {
+			jh.buckets[possibleBucket]++
+			jitter := time.Duration(possibleBucket) * time.Minute
+			jh.cache[hostID] = jitter
+
+			jh.mu.Unlock()
+			return jitter
+		}
+	}
+
+	// otherwise, bump the capacity and restart the process
+	jh.maxCapacity++
+
+	jh.mu.Unlock()
+	return jh.jitterForHost(hostID)
 }
 
 func jitterForHost(maxJitterPercent int, jitterSeed int64, interval time.Duration, hostID uint) time.Duration {
