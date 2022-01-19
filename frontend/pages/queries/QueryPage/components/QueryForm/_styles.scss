@@ -172,43 +172,4 @@
     display: inline-block;
     font-size: $large;
   }
-
-  &__platform-compatibility {
-    display: flex;
-    align-items: center;
-    padding-top: $pad-medium;
-
-    b,
-    img,
-    span {
-      display: flex;
-      align-items: center;
-    }
-
-    b {
-      padding-right: $pad-xsmall;
-    }
-
-    img {
-      height: 16px;
-      width: auto;
-      padding-left: $pad-xsmall;
-    }
-
-    .tooltip {
-      padding-right: 12px;
-
-      img {
-        padding: 0px;
-      }
-
-      &__tooltip-text {
-        text-align: center;
-      }
-    }
-
-    .platform {
-      padding-right: 12px;
-    }
-  }
 }
