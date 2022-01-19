@@ -3,27 +3,9 @@ name: Docker publish
 on: push
 
 jobs:
-  # This check-secrets job is used to gate execution of the main job. External PRs will not have
-  # access to the necessary secrets for pushing an image, so we want to skip that job if the secret
-  # is unavailable.
-  check-secrets:
-    environment: Docker Hub
-    runs-on: ubuntu-latest
-    outputs:
-      available: ${{ steps.check-secrets.outputs.available }}
-    steps:
-      - name: Check Secrets availability
-        id: check-secrets
-        run: |
-          if [ ! -z "${{ secrets.DOCKERHUB_USERNAME }}" ]; then
-            echo "::set-output name=available::true"
-          fi
-
   # If the secrets are available, build and publish a Docker image.
   publish:
-    needs:
-      - check-secrets
-    if: ${{ needs.check-secrets.outputs.available == 'true' }}
+    if: ${{ secrets.DOCKERHUB_USERNAME }} != ""
     runs-on: ubuntu-latest
     environment: Docker Hub
     steps:
