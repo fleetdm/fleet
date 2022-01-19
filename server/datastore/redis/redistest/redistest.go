@@ -42,6 +42,9 @@ func SetupRedis(tb testing.TB, cleanupKeyPrefix string, cluster, redir, readRepl
 	if cluster && (runtime.GOOS == "darwin" || runtime.GOOS == "windows") {
 		tb.Skipf("docker networking limitations prevent running redis cluster tests on %s", runtime.GOOS)
 	}
+	if cleanupKeyPrefix == "" {
+		tb.Fatal("missing cleanup key prefix: all redis tests need to specify a key prefix to delete on test cleanup, otherwise different packages' tests running concurrently might delete other tests' keys")
+	}
 
 	var (
 		addr     = "127.0.0.1:"
@@ -73,29 +76,16 @@ func SetupRedis(tb testing.TB, cleanupKeyPrefix string, cluster, redir, readRepl
 	require.Nil(tb, err)
 
 	tb.Cleanup(func() {
-		if cleanupKeyPrefix != "" {
-			keys, err := redis.ScanKeys(pool, cleanupKeyPrefix+"*", 1000)
-			require.NoError(tb, err)
-			for _, k := range keys {
-				func() {
-					conn := pool.Get()
-					defer conn.Close()
-					if _, err := conn.Do("DEL", k); err != nil {
-						require.NoError(tb, err)
-					}
-				}()
-			}
-		} else {
-			// NOTE: it's definitely best to avoid this - can create random failures for other
-			// packages' tests when run in parallel (their keys will suddenly disappear).
-			// Try to use a common prefix for you test's redis keys, or if it doesn't use any
-			// key per se (e.g. just publish-listen), make it not delete anything by providing
-			// an improbable prefix (e.g. zz).
-			err := redis.EachNode(pool, false, func(conn redigo.Conn) error {
-				_, err := conn.Do("FLUSHDB")
-				return err
-			})
-			require.NoError(tb, err)
+		keys, err := redis.ScanKeys(pool, cleanupKeyPrefix+"*", 1000)
+		require.NoError(tb, err)
+		for _, k := range keys {
+			func() {
+				conn := pool.Get()
+				defer conn.Close()
+				if _, err := conn.Do("DEL", k); err != nil {
+					require.NoError(tb, err)
+				}
+			}()
 		}
 		pool.Close()
 	})
