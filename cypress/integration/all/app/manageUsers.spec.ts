@@ -5,7 +5,7 @@ describe("Manage Users", () => {
     cy.setupSMTP();
   });
 
-  it("Search for, create, edit, delete a user", () => {
+  it("Search for, create, edit, and delete a user successfully", () => {
     cy.visit("/settings/users");
     cy.url().should("match", /\/settings\/users$/i);
 
