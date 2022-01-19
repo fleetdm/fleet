@@ -305,7 +305,13 @@ FROM logical_drives WHERE file_system = 'NTFS' LIMIT 1;`,
 }
 
 var softwareMacOS = DetailQuery{
+	// Note that we create the cached_users CTE (the WITH clause) in order to suggest to SQLite
+	// that it generates the users once instead of once for each UNIONed query. We use CROSS JOIN to
+	// ensure that the nested loops in the query generation are ordered correctly for the _extensions
+	// tables that need a uid parameter. CROSS JOIN ensures that SQLite does not reorder the loop
+	// nesting, which is important as described in https://youtu.be/hcn3HIcHAAo?t=77.
 	Query: `
+WITH cached_users AS (SELECT * FROM users)
 SELECT
   name AS name,
   bundle_short_version AS version,
@@ -328,7 +334,7 @@ SELECT
   'Browser plugin (Chrome)' AS type,
   '' AS bundle_identifier,
   'chrome_extensions' AS source
-FROM chrome_extensions
+FROM cached_users CROSS JOIN chrome_extensions USING (uid)
 UNION
 SELECT
   name AS name,
@@ -336,7 +342,7 @@ SELECT
   'Browser plugin (Firefox)' AS type,
   '' AS bundle_identifier,
   'firefox_addons' AS source
-FROM firefox_addons
+FROM cached_users CROSS JOIN firefox_addons USING (uid)
 UNION
 SELECT
   name As name,
@@ -344,7 +350,15 @@ SELECT
   'Browser plugin (Safari)' AS type,
   '' AS bundle_identifier,
   'safari_extensions' AS source
-FROM safari_extensions
+FROM cached_users CROSS JOIN safari_extensions USING (uid)
+UNION
+SELECT
+  name AS name,
+  version AS version,
+  'Package (Atom)' AS type,
+  '' AS bundle_identifier,
+  'atom_packages' AS source
+FROM cached_users CROSS JOIN atom_packages USING (uid)
 UNION
 SELECT
   name AS name,
@@ -360,6 +374,7 @@ FROM homebrew_packages;
 
 var softwareLinux = DetailQuery{
 	Query: `
+WITH cached_users AS (SELECT * FROM users)
 SELECT
   name AS name,
   version AS version,
@@ -391,9 +406,23 @@ UNION
 SELECT
   name AS name,
   version AS version,
+  'Browser plugin (Chrome)' AS type,
+  'chrome_extensions' AS source
+FROM cached_users CROSS JOIN chrome_extensions USING (uid)
+UNION
+SELECT
+  name AS name,
+  version AS version,
+  'Browser plugin (Firefox)' AS type,
+  'firefox_addons' AS source
+FROM cached_users CROSS JOIN firefox_addons USING (uid)
+UNION
+SELECT
+  name AS name,
+  version AS version,
   'Package (Atom)' AS type,
   'atom_packages' AS source
-FROM atom_packages
+FROM users CROSS JOIN atom_packages USING (uid)
 UNION
 SELECT
   name AS name,
@@ -408,6 +437,7 @@ FROM python_packages;
 
 var softwareWindows = DetailQuery{
 	Query: `
+WITH cached_users AS (SELECT * FROM users)
 SELECT
   name AS name,
   version AS version,
@@ -434,14 +464,14 @@ SELECT
   version AS version,
   'Browser plugin (Chrome)' AS type,
   'chrome_extensions' AS source
-FROM chrome_extensions
+FROM cached_users CROSS JOIN chrome_extensions USING (uid)
 UNION
 SELECT
   name AS name,
   version AS version,
   'Browser plugin (Firefox)' AS type,
   'firefox_addons' AS source
-FROM firefox_addons
+FROM cached_users CROSS JOIN firefox_addons USING (uid)
 UNION
 SELECT
   name AS name,
@@ -455,7 +485,7 @@ SELECT
   version AS version,
   'Package (Atom)' AS type,
   'atom_packages' AS source
-FROM atom_packages
+FROM cached_users CROSS JOIN atom_packages USING (uid)
 UNION
 SELECT
   name AS name,
