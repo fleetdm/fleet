@@ -1,11 +1,6 @@
 name: Docker publish
 
-on:
-  push:
-    branches:
-      - main
-      - patch-*
-  pull_request:
+on: push
 
 jobs:
   # This check-secrets job is used to gate execution of the main job. External PRs will not have
