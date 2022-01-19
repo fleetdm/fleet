@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"sort"
 	"strings"
@@ -67,6 +68,9 @@ func policyDB(ctx context.Context, q sqlx.QueryerContext, id uint, teamID *uint)
 		WHERE p.id=? AND %s`, teamWhere),
 		args...)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("Policy").WithID(id))
+		}
 		return nil, ctxerr.Wrap(ctx, err, "getting policy")
 	}
 	return &policy, nil
@@ -198,6 +202,13 @@ func (ds *Datastore) RecordPolicyQueryExecutions(ctx context.Context, host *flee
 		bindvars = append(bindvars, "(?,?,?,?)")
 		vals = append(vals, updated, policyID, host.ID, matches)
 	}
+
+	// NOTE: the insert of policy membership that follows must be kept in sync
+	// with the async implementation in AsyncBatchInsertPolicyMembership, and the
+	// update of the policy_updated_at timestamp in sync with the
+	// AsyncBatchUpdatePolicyTimestamp method (that is, their processing must be
+	// semantically equivalent, even though here it processes a single host and
+	// in async mode it processes a batch of hosts).
 
 	query := fmt.Sprintf(
 		`INSERT INTO policy_membership (updated_at, policy_id, host_id, passes)
@@ -430,4 +441,49 @@ func amountPoliciesDB(db sqlx.Queryer) (int, error) {
 		return 0, err
 	}
 	return amount, nil
+}
+
+// AsyncBatchInsertPolicyMembership inserts into the policy_membership table
+// the batch of policy membership results.
+func (ds *Datastore) AsyncBatchInsertPolicyMembership(ctx context.Context, batch []fleet.PolicyMembershipResult) error {
+	// NOTE: this is tested via the server/service/async package tests.
+
+	// INSERT IGNORE, to avoid failing if policy / host does not exist (as this
+	// runs asynchronously, they could get deleted in between the data being
+	// received and being upserted).
+	sql := `INSERT IGNORE INTO policy_membership (policy_id, host_id, passes) VALUES `
+	sql += strings.Repeat(`(?, ?, ?),`, len(batch))
+	sql = strings.TrimSuffix(sql, ",")
+	sql += ` ON DUPLICATE KEY UPDATE updated_at = VALUES(updated_at), passes = VALUES(passes)`
+
+	vals := make([]interface{}, 0, len(batch)*3)
+	for _, tup := range batch {
+		vals = append(vals, tup.PolicyID, tup.HostID, tup.Passes)
+	}
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, sql, vals...)
+		return ctxerr.Wrap(ctx, err, "insert into policy_membership")
+	})
+}
+
+// AsyncBatchUpdatePolicyTimestamp updates the hosts' policy_updated_at timestamp
+// for the batch of host ids provided.
+func (ds *Datastore) AsyncBatchUpdatePolicyTimestamp(ctx context.Context, ids []uint, ts time.Time) error {
+	// NOTE: this is tested via the server/service/async package tests.
+
+	sql := `
+	    UPDATE
+	      hosts
+	    SET
+	      policy_updated_at = ?
+	    WHERE
+	      id IN (?)`
+	query, args, err := sqlx.In(sql, ts, ids)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "building query to update hosts.policy_updated_at")
+	}
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, query, args...)
+		return ctxerr.Wrap(ctx, err, "update hosts.policy_updated_at")
+	})
 }

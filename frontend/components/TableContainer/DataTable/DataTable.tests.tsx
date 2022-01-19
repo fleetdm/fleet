@@ -24,6 +24,8 @@ describe("DataTable - component", () => {
       <DataTable
         columns={columns}
         data={data}
+        sortHeader={"name"}
+        sortDirection={"desc"}
         isLoading={false}
         onSort={noop}
         showMarkAllPages={false}
@@ -31,6 +33,7 @@ describe("DataTable - component", () => {
         resultsTitle="users"
         defaultPageSize={DEFAULT_PAGE_SIZE}
         disableMultiRowSelect={false}
+        onPrimarySelectActionClick={noop}
       />
     );
 
@@ -73,6 +76,7 @@ describe("DataTable - component", () => {
         resultsTitle="users"
         defaultPageSize={DEFAULT_PAGE_SIZE}
         disableMultiRowSelect={false}
+        onPrimarySelectActionClick={noop}
       />
     );
 
@@ -99,6 +103,7 @@ describe("DataTable - component", () => {
         resultsTitle="users"
         defaultPageSize={DEFAULT_PAGE_SIZE}
         disableMultiRowSelect={false}
+        onPrimarySelectActionClick={noop}
       />
     );
 
@@ -133,6 +138,7 @@ describe("DataTable - component", () => {
         resultsTitle="users"
         defaultPageSize={DEFAULT_PAGE_SIZE}
         disableMultiRowSelect={false}
+        onPrimarySelectActionClick={noop}
       />
     );
 
@@ -156,6 +162,7 @@ describe("DataTable - component", () => {
         resultsTitle="users"
         defaultPageSize={DEFAULT_PAGE_SIZE}
         disableMultiRowSelect={false}
+        onPrimarySelectActionClick={noop}
       />
     );
 

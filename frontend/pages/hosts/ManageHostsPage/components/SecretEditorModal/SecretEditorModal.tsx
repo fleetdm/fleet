@@ -1,5 +1,4 @@
-import React, { useState, useCallback } from "react";
-import { useSelector } from "react-redux";
+import React, { useState } from "react";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 // @ts-ignore

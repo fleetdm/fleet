@@ -48,6 +48,12 @@ type Team struct {
 	Secrets []*EnrollSecret `json:"secrets,omitempty"`
 }
 
+type TeamSummary struct {
+	ID          uint   `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+}
+
 func (t Team) AuthzType() string {
 	return "team"
 }

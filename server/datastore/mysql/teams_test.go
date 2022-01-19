@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"context"
+	"encoding/json"
 	"sort"
 	"testing"
 	"time"
@@ -23,8 +24,10 @@ func TestTeams(t *testing.T) {
 		{"GetSetDelete", testTeamsGetSetDelete},
 		{"Users", testTeamsUsers},
 		{"List", testTeamsList},
+		{"Summary", testTeamsSummary},
 		{"Search", testTeamsSearch},
 		{"EnrollSecrets", testTeamsEnrollSecrets},
+		{"TeamAgentOptions", testTeamsAgentOptions},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -35,7 +38,7 @@ func TestTeams(t *testing.T) {
 }
 
 func testTeamsGetSetDelete(t *testing.T, ds *Datastore) {
-	var createTests = []struct {
+	createTests := []struct {
 		name, description string
 	}{
 		{"foo_team", "foobar is the description"},
@@ -180,6 +183,20 @@ func testTeamsList(t *testing.T, ds *Datastore) {
 	assert.Equal(t, 1, teams[1].UserCount)
 }
 
+func testTeamsSummary(t *testing.T, ds *Datastore) {
+	_, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "ts1"})
+	require.NoError(t, err)
+	_, err = ds.NewTeam(context.Background(), &fleet.Team{Name: "ts2"})
+	require.NoError(t, err)
+
+	teams, err := ds.TeamsSummary(context.Background())
+	require.NoError(t, err)
+	sort.Slice(teams, func(i, j int) bool { return teams[i].Name < teams[j].Name })
+
+	assert.Equal(t, "ts1", teams[0].Name)
+	assert.Equal(t, "ts2", teams[1].Name)
+}
+
 func testTeamsSearch(t *testing.T, ds *Datastore) {
 	team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
@@ -234,4 +251,26 @@ func testTeamsEnrollSecrets(t *testing.T, ds *Datastore) {
 		justSecrets = append(justSecrets, &fleet.EnrollSecret{Secret: secret.Secret})
 	}
 	test.ElementsMatchSkipTimestampsID(t, secrets, justSecrets)
+}
+
+func testTeamsAgentOptions(t *testing.T, ds *Datastore) {
+	team1, err := ds.NewTeam(context.Background(), &fleet.Team{
+		Name: "team1",
+	})
+	require.NoError(t, err)
+
+	teamAgentOptions1, err := ds.TeamAgentOptions(context.Background(), team1.ID)
+	require.NoError(t, err)
+	require.Nil(t, teamAgentOptions1)
+
+	agentOptions := json.RawMessage(`{"config":{"foo":"bar"},"overrides":{"platforms":{"darwin":{"foo":"override"}}}}`)
+	team2, err := ds.NewTeam(context.Background(), &fleet.Team{
+		Name:         "team2",
+		AgentOptions: &agentOptions,
+	})
+	require.NoError(t, err)
+
+	teamAgentOptions2, err := ds.TeamAgentOptions(context.Background(), team2.ID)
+	require.NoError(t, err)
+	require.JSONEq(t, string(agentOptions), string(*teamAgentOptions2))
 }

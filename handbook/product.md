@@ -1,5 +1,9 @@
 # Product
 
+🛸 Product team (weekly) board: https://github.com/orgs/fleetdm/projects/17
+
+🧱📡 Fleet core roadmap board: https://github.com/orgs/fleetdm/projects/8
+
 ## Product design process
 
 The product team is responsible for product design tasks. These include drafting
@@ -8,15 +12,14 @@ these changes to the engineering team.
 
 ### Drafting
 
-* Move an issue that is assigned to you from the "Ready" column of the ["Product team" GitHub
-  project](https://github.com/orgs/fleetdm/projects/17) to the "In progress" column.
+* Move an issue that is assigned to you from the "Ready" column of the [🛸 Product team (weekly) board](https://github.com/orgs/fleetdm/projects/17) to the "In progress" column.
 
-* Create a page in the [Fleet EE (scratchpad, dev-ready) Figma file](https://www.figma.com/file/hdALBDsrti77QuDNSzLdkx/%F0%9F%9A%A7-Fleet-EE-(dev-ready%2C-scratchpad)?node-id=3923%3A208793) and combine your issue's number and
+* Create a page in the [Fleet EE (scratchpad, dev-ready) Figma file](https://www.figma.com/file/hdALBDsrti77QuDNSzLdkx/%F0%9F%9A%A7-Fleet-EE-dev-ready%2C-scratchpad?node-id=3923%3A208793) and combine your issue's number and
   title to name the Figma page.
 
 * Draft changes to the Fleet product that solve the problem specified in the issue. Constantly place
-  yourself in the shoes of a user while drafting changes. Place these drafts in the corresponding
-  Figma page in Fleet EE (scratchpad, dev-ready)
+  yourself in the shoes of a user while drafting changes. Place these drafts in the appropriate
+  Figma page in Fleet EE (scratchpad, dev-ready).
 
 * While drafting, reach out to sales, customer success, and marketing for a new perspective.
 
@@ -35,9 +38,9 @@ these changes to the engineering team.
   a link to the correct page in the Fleet EE (scratchpad) Figma. This page is where the design
   specifications live.
 
-* Add the ":product" and ":architect" labels to the issue and remove all other labels. This will add the issue to the product
-  board on ZenHub. In the ZenHub board, move the issue into the "Architect" column in the product
-  board so an architect on the engineering team knows that this issue is ready for engineering specification and later,
+* Add the ":product" and ":architect" labels to the issue and remove all other labels. This will add the issue to the [🛸 Product
+  board on ZenHub](https://app.zenhub.com/workspaces/--product-6192dd66ea2562000faea25c/board?repos=309820286). In the ZenHub board, move the issue into the "Architect" column in the product
+  board. This way, an architect on the engineering team knows that the issue is ready for engineering specification and later,
   engineering estimation.
 
 #### Priority drafting
@@ -326,7 +329,7 @@ An example release blog post issue can be found [here](https://github.com/fleetd
 
 ### Customer announcement
 
-The product team is responsible for providing the [customer success team](./customer-experience.md) with necessary information
+The product team is responsible for providing the [customer success team](./customers.md) with necessary information
 for writing a release customer announcement. This is accomplished by filing a release customer announcement issue and adding
 the issue to the customer success board on GitHub. 
 

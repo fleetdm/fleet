@@ -228,10 +228,7 @@ describe(
         .contains("button", /schedule/i)
         .click();
 
-      cy.visit("/schedule/manage");
-
-      cy.wait(2000); // eslint-disable-line cypress/no-unnecessary-waiting
-      cy.findByText(/detect presence/i).should("exist");
+      cy.get(".flash-message--success").should("exist");
 
       cy.visit("/hosts/manage");
       cy.contains(".table-container .data-table__table th", "Team").should(
@@ -268,12 +265,15 @@ describe(
       // On the Profile page, they should…
       // See 2 Teams in the Team section and Various in the Role section
       cy.visit("/profile");
-      cy.findByText("Teams")
-        .next()
-        .contains(/2 teams/i);
-      cy.findByText("Role")
-        .next()
-        .contains(/various/i);
+
+      cy.getAttached(".user-settings__additional").within(() => {
+        cy.findByText("Teams")
+          .next()
+          .contains(/2 teams/i);
+        cy.findByText("Role")
+          .next()
+          .contains(/various/i);
+      });
     });
   }
 );

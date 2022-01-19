@@ -40,7 +40,7 @@ func TestUsers(t *testing.T) {
 }
 
 func testUsersCreate(t *testing.T, ds *Datastore) {
-	var createTests = []struct {
+	createTests := []struct {
 		password, email             string
 		isAdmin, passwordReset, sso bool
 		resultingPasswordReset      bool
@@ -87,7 +87,7 @@ func testUsersByID(t *testing.T, ds *Datastore) {
 }
 
 func createTestUsers(t *testing.T, ds fleet.Datastore) []*fleet.User {
-	var createTests = []struct {
+	createTests := []struct {
 		password, email        string
 		isAdmin, passwordReset bool
 	}{
@@ -123,7 +123,7 @@ func testUsersSave(t *testing.T, ds *Datastore) {
 
 func testPasswordAttribute(t *testing.T, ds fleet.Datastore, users []*fleet.User) {
 	for _, user := range users {
-		randomText, err := server.GenerateRandomText(8) //GenerateRandomText(8)
+		randomText, err := server.GenerateRandomText(8) // GenerateRandomText(8)
 		assert.Nil(t, err)
 		user.Password = []byte(randomText)
 		err = ds.SaveUser(context.Background(), user)
@@ -228,6 +228,7 @@ func testUsersTeams(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	assert.Len(t, users[0].Teams, 1)
+	// For user with a global role, Teams should be empty
 	assert.Len(t, users[1].Teams, 0)
 
 	users[1].Teams = []fleet.UserTeam{

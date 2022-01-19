@@ -231,6 +231,10 @@ const ManageHostsPage = ({
   );
   const [tableQueryData, setTableQueryData] = useState<ITableQueryProps>();
   const [clearSelectionCount, setClearSelectionCount] = useState<number>(0);
+  const [
+    currentQueryOptions,
+    setCurrentQueryOptions,
+  ] = useState<ILoadHostsOptions>();
 
   // ======== end states
 
@@ -298,10 +302,12 @@ const ManageHostsPage = ({
     }
   );
 
-  const generateInstallerTeam = currentTeam || {
-    name: "No team",
-    secrets: globalSecrets || null,
-  };
+  const generateInstallerTeam = currentTeam
+    ? { name: currentTeam.name, secrets: teamSecrets || null }
+    : {
+        name: "No team",
+        secrets: globalSecrets || null,
+      };
 
   const {
     data: teams,
@@ -477,15 +483,17 @@ const ManageHostsPage = ({
       policyId,
       policyResponse,
       softwareId,
+      page: tableQueryData ? tableQueryData.pageIndex : 0,
+      perPage: tableQueryData ? tableQueryData.pageSize : 100,
     };
 
-    if (tableQueryData) {
-      options.page = tableQueryData.pageIndex;
-      options.perPage = tableQueryData.pageSize;
+    if (isEqual(options, currentQueryOptions)) {
+      return;
     }
 
     retrieveHosts(options);
     retrieveHostCount(options);
+    setCurrentQueryOptions(options);
   }, [location, labels]);
 
   const handleLabelChange = ({ slug }: ILabel): boolean => {
@@ -657,10 +665,8 @@ const ManageHostsPage = ({
   // NOTE: this is called once on initial render and every time the query changes
   const onTableQueryChange = async (newTableQuery: ITableQueryProps) => {
     if (isEqual(newTableQuery, tableQueryData)) {
-      return false;
+      return;
     }
-
-    setIsHostsLoading(true);
 
     setTableQueryData({ ...newTableQuery });
 
@@ -1383,10 +1389,6 @@ const ManageHostsPage = ({
   };
 
   const renderSidePanel = () => {
-    if (!labels) {
-      return null;
-    }
-
     let SidePanel;
 
     if (isAddLabel) {
@@ -1406,6 +1408,7 @@ const ManageHostsPage = ({
           onLabelClick={onLabelClick}
           selectedFilter={getLabelSelected() || getStatusSelected()}
           canAddNewLabel={canAddNewLabels as boolean}
+          isLabelsLoading={isLabelsLoading}
         />
       );
     }
@@ -1591,7 +1594,7 @@ const ManageHostsPage = ({
           {config && (!isPremiumTier || teams) ? renderTable() : <Spinner />}
         </div>
       )}
-      {!isLabelsLoading && renderSidePanel()}
+      {renderSidePanel()}
       {renderDeleteSecretModal()}
       {renderSecretEditorModal()}
       {renderEnrollSecretModal()}

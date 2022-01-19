@@ -273,12 +273,13 @@ describe(
         // On the Profile page, they should…
         // See Global in the Team section and Admin in the Role section
         cy.visit("/profile");
-        cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
 
-        cy.findByText(/team/i)
-          .next()
-          .contains(/global/i);
-        cy.findByText("Role").next().contains(/admin/i);
+        cy.getAttached(".user-settings__additional").within(() => {
+          cy.findByText(/team/i)
+            .next()
+            .contains(/global/i);
+          cy.findByText("Role").next().contains(/admin/i);
+        });
       }
     );
   }

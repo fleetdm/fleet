@@ -318,8 +318,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestFailsToCreateCampaign() {
 	require.Len(t, liveQueryResp.Results, 1)
 	assert.Equal(t, 0, liveQueryResp.Summary.RespondedHostCount)
 	require.NotNil(t, liveQueryResp.Results[0].Error)
-	assert.Contains(t, *liveQueryResp.Results[0].Error, "selecting query: ")
-	assert.Contains(t, *liveQueryResp.Results[0].Error, "sql: no rows in result set")
+	assert.Contains(t, *liveQueryResp.Results[0].Error, "Query 999 was not found in the datastore")
 }
 
 func (s *liveQueriesTestSuite) TestLiveQueriesRestFailsOnSomeHost() {

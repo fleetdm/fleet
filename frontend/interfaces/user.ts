@@ -48,3 +48,22 @@ export interface IUserFormErrors {
   password: string | null;
   sso_enabled: boolean | null;
 }
+
+export interface ICreateUserFormData {
+  email: string;
+  global_role: string | null;
+  name: string;
+  password?: string | null;
+  sso_enabled?: boolean | undefined;
+  teams: ITeam[];
+}
+
+export interface IUpdateUserFormData {
+  currentUserId?: number;
+  email?: string;
+  global_role?: string | null;
+  name?: string;
+  password?: string | null;
+  sso_enabled?: boolean;
+  teams?: ITeam[];
+}

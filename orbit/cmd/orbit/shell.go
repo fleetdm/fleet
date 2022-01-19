@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/osquery"
@@ -79,8 +80,11 @@ var shellCommand = &cli.Command{
 		)
 		g.Add(r.Execute, r.Interrupt)
 
-		ext := table.NewRunner(r.ExtensionSocketPath())
-		g.Add(ext.Execute, ext.Interrupt)
+		if runtime.GOOS != "windows" {
+			// We are disabling extensions for Windows until #3679 is fixed.
+			ext := table.NewRunner(r.ExtensionSocketPath())
+			g.Add(ext.Execute, ext.Interrupt)
+		}
 
 		// Install a signal handler
 		ctx, cancel := context.WithCancel(context.Background())

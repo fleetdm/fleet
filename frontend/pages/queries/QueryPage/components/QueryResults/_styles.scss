@@ -1,6 +1,6 @@
 .query-results {
   padding: $pad-xxxlarge $pad-xxlarge;
-  
+
   &__text-wrapper {
     margin-top: 20px;
     display: flex;
@@ -64,6 +64,8 @@
   }
 
   &__export-btn {
+    padding-top: 28px;
+
     img {
       width: 13px;
       height: 13px;
@@ -73,81 +75,35 @@
     }
   }
 
-  &__results-table-container,
-  &__error-table-container {
-    margin-top: $pad-large;
+  .table-container {
+    padding-top: $pad-large;
+
+    &__header {
+      display: none;
+    }
   }
 
-  &__results-table-wrapper,
-  &__error-table-wrapper {
-    width: calc(100vw - 80px); // minus padding left and right
-    border: solid 1px $ui-fleet-blue-15;
-    border-radius: 3px;
-    margin-top: $pad-large;
-    box-sizing: border-box;
-    overflow: auto;
+  .data-table__wrapper {
+    overflow-x: scroll;
   }
 
-  &__table {
-    background-color: $core-white;
-    width: 100%;
-    box-sizing: border-box;
-    font-size: $x-small;
-    border-collapse: collapse;
-    color: $core-fleet-black;
-  
-    &__filter-icon {
-      color: $ui-fleet-black-25;
-  
-      &--is-active {
-        color: $core-vibrant-blue;
-      }
+  .data-table-container .data-table thead th {
+    min-width: 140px;
+    padding-left: 0px;
+    padding-right: $pad-large;
+    border-right: 0;
+
+    &:first-of-type {
+      padding-left: $pad-large;
     }
-  
-    thead {
-      background-color: $ui-off-white;
-      color: $core-fleet-black;
-      text-align: left;
-      border-bottom: 1px solid $ui-fleet-blue-15;
-  
-      th {
-        padding: 12px $pad-large;
-        min-width: 125px;
-  
-        .form-field {
-          margin-bottom: 0;
-        }
-  
-        span {
-          white-space: nowrap;
-  
-          .fleeticon {
-            margin-right: 5px;
-          }
-        }
-      }
-  
-      .input-field {
-        width: 100%;
-        height: 28px;
-      }
-    }
-  
-    tbody {
-      background-color: $core-white;
-  
-      td {
-        padding: 12px $pad-large;
-        white-space: nowrap;
-      }
-  
-      tr {
-        border-bottom: 1px solid $ui-fleet-blue-15;
-  
-        &:last-child {
-          border-bottom: 0;
-        }
-      }
+  }
+
+  .data-table-container .data-table tbody td {
+    padding-left: 0px;
+    padding-right: $pad-large;
+
+    &:first-of-type {
+      padding-left: $pad-large;
     }
   }
 }

@@ -965,7 +965,9 @@ to the amount of time it takes for fleet to give the host the label queries.
 
 ##### osquery_enable_async_host_processing
 
-**Experimental feature**. Enable asynchronous processing of hosts query results. Currently, only supported for label query execution results. This may improve performance and CPU usage of the fleet instances and MySQL database servers for setups with a large number of hosts (100 000+), while requiring more resources from Redis server(s). Using Redis Cluster is recommended to enable this mode.
+**Experimental feature**. Enable asynchronous processing of hosts query results. Currently, only supported for label query execution and policy membership results. This may improve performance and CPU usage of the fleet instances and MySQL database servers for setups with a large number of hosts, while requiring more resources from Redis server(s).
+
+Note that currently, if both the failing policies webhook *and* this `osquery.enable_async_host_processing` option are set, some failing policies webhooks could be missing (some transitions from succeeding to failing or vice-versa could happen without triggering a webhook request).
 
 - Default value: false
 - Environment variable: `FLEET_OSQUERY_ENABLE_ASYNC_HOST_PROCESSING`

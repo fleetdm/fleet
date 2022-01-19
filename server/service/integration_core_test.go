@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -66,6 +67,17 @@ func (s *integrationTestSuite) TearDownTest() {
 			err := s.ds.DeleteUser(ctx, u.ID)
 			require.NoError(t, err)
 		}
+	}
+
+	globalPolicies, err := s.ds.ListGlobalPolicies(ctx)
+	require.NoError(t, err)
+	if len(globalPolicies) > 0 {
+		var globalPolicyIDs []uint
+		for _, gp := range globalPolicies {
+			globalPolicyIDs = append(globalPolicyIDs, gp.ID)
+		}
+		_, err = s.ds.DeleteGlobalPolicies(ctx, globalPolicyIDs)
+		require.NoError(t, err)
 	}
 }
 
@@ -346,15 +358,11 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	require.NoError(t, err)
 	require.NotNil(t, host)
 
-	soft := fleet.HostSoftware{
-		Modified: true,
-		Software: []fleet.Software{
-			{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
-			{Name: "bar", Version: "0.0.3", Source: "apps"},
-		},
+	software := []fleet.Software{
+		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
+		{Name: "bar", Version: "0.0.3", Source: "apps"},
 	}
-	host.HostSoftware = soft
-	require.NoError(t, s.ds.SaveHostSoftware(context.Background(), host))
+	require.NoError(t, s.ds.UpdateHostSoftware(context.Background(), host.ID, software))
 	require.NoError(t, s.ds.LoadHostSoftware(context.Background(), host))
 
 	soft1 := host.Software[0]
@@ -454,6 +462,9 @@ func (s *integrationTestSuite) TestGlobalPolicies() {
 	assert.Equal(t, qr.Name, policiesResponse.Policies[0].Name)
 	assert.Equal(t, qr.Query, policiesResponse.Policies[0].Query)
 	assert.Equal(t, qr.Description, policiesResponse.Policies[0].Description)
+
+	// Get an unexistent policy
+	s.Do("GET", fmt.Sprintf("/api/v1/fleet/global/policies/%d", 9999), nil, http.StatusNotFound)
 
 	singlePolicyResponse := getPolicyByIDResponse{}
 	singlePolicyURL := fmt.Sprintf("/api/v1/fleet/global/policies/%d", policiesResponse.Policies[0].ID)
@@ -743,13 +754,10 @@ func (s *integrationTestSuite) TestListHosts() {
 	require.Len(t, resp.Hosts, len(hosts)-2)
 
 	host := hosts[2]
-	host.HostSoftware = fleet.HostSoftware{
-		Modified: true,
-		Software: []fleet.Software{
-			{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
-		},
+	software := []fleet.Software{
+		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
 	}
-	require.NoError(t, s.ds.SaveHostSoftware(context.Background(), host))
+	require.NoError(t, s.ds.UpdateHostSoftware(context.Background(), host.ID, software))
 	require.NoError(t, s.ds.LoadHostSoftware(context.Background(), host))
 
 	s.DoJSON("GET", "/api/v1/fleet/hosts", nil, http.StatusOK, &resp, "software_id", fmt.Sprint(host.Software[0].ID))
@@ -1476,6 +1484,9 @@ func (s *integrationTestSuite) TestScheduledQueries() {
 	s.DoJSON("POST", "/api/v1/fleet/packs", reqPack, http.StatusOK, &createPackResp)
 	pack := createPackResp.Pack.Pack
 
+	// try a non existent query
+	s.Do("GET", fmt.Sprintf("/api/v1/fleet/queries/%d", 9999), nil, http.StatusNotFound)
+
 	// create a query
 	var createQueryResp createQueryResponse
 	reqQuery := &fleet.QueryPayload{
@@ -1520,7 +1531,7 @@ func (s *integrationTestSuite) TestScheduledQueries() {
 		QueryID:  query.ID + 1,
 		Interval: 3,
 	}
-	s.DoJSON("POST", "/api/v1/fleet/schedule", reqSQ, http.StatusInternalServerError, &createResp)
+	s.DoJSON("POST", "/api/v1/fleet/schedule", reqSQ, http.StatusNotFound, &createResp)
 
 	// list scheduled queries in pack
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/packs/%d/scheduled", pack.ID), nil, http.StatusOK, &getInPackResp)
@@ -1890,6 +1901,27 @@ func (s *integrationTestSuite) TestUsers() {
 	s.DoJSON("GET", "/api/v1/fleet/users", nil, http.StatusOK, &listResp)
 	assert.Len(t, listResp.Users, len(s.users))
 
+	// test available teams returned by `/me` endpoint for existing user
+	var getMeResp getUserResponse
+	key := make([]byte, 64)
+	sessionKey := base64.StdEncoding.EncodeToString(key)
+	session := &fleet.Session{
+		UserID:     uint(1),
+		Key:        sessionKey,
+		AccessedAt: time.Now().UTC(),
+	}
+	_, err := s.ds.NewSession(context.Background(), session)
+	require.NoError(t, err)
+	resp := s.DoRawWithHeaders("GET", "/api/v1/fleet/me", []byte(""), http.StatusOK, map[string]string{
+		"Authorization": fmt.Sprintf("Bearer %s", sessionKey),
+	})
+	err = json.NewDecoder(resp.Body).Decode(&getMeResp)
+	require.NoError(t, err)
+	assert.Equal(t, uint(1), getMeResp.User.ID)
+	assert.NotNil(t, getMeResp.User.GlobalRole)
+	assert.Len(t, getMeResp.User.Teams, 0)
+	assert.Len(t, getMeResp.AvailableTeams, 0)
+
 	// create a new user
 	var createResp createUserResponse
 	params := fleet.UserPayload{
@@ -1902,10 +1934,19 @@ func (s *integrationTestSuite) TestUsers() {
 	assert.NotZero(t, createResp.User.ID)
 	u := *createResp.User
 
-	// get that user
+	// login as that user and check that teams info is empty
+	var loginResp loginResponse
+	s.DoJSON("POST", "/api/v1/fleet/login", params, http.StatusOK, &loginResp)
+	require.Equal(t, loginResp.User.ID, u.ID)
+	assert.Len(t, loginResp.User.Teams, 0)
+	assert.Len(t, loginResp.AvailableTeams, 0)
+
+	// get that user from `/users` endpoint and check that teams info is empty
 	var getResp getUserResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/users/%d", u.ID), nil, http.StatusOK, &getResp)
 	assert.Equal(t, u.ID, getResp.User.ID)
+	assert.Len(t, getResp.User.Teams, 0)
+	assert.Len(t, getResp.AvailableTeams, 0)
 
 	// get non-existing user
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/users/%d", u.ID+1), nil, http.StatusNotFound, &getResp)
@@ -1967,6 +2008,7 @@ func (s *integrationTestSuite) TestGlobalPoliciesAutomationConfig() {
 	}
 	gpResp := globalPolicyResponse{}
 	s.DoJSON("POST", "/api/v1/fleet/global/policies", gpParams, http.StatusOK, &gpResp)
+	require.NotNil(t, gpResp.Policy)
 
 	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
 		"webhook_settings": {
@@ -1993,4 +2035,53 @@ func (s *integrationTestSuite) TestGlobalPoliciesAutomationConfig() {
 
 	config = s.getConfig()
 	require.Empty(t, config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
+}
+
+// TestGlobalPoliciesBrowsing tests that team users can browse (read) global policies (see #3722).
+func (s *integrationTestSuite) TestGlobalPoliciesBrowsing() {
+	t := s.T()
+
+	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+		ID:          42,
+		Name:        "team_for_global_policies_browsing",
+		Description: "desc team1",
+	})
+	require.NoError(t, err)
+
+	gpParams0 := globalPolicyRequest{
+		Name:  "global policy",
+		Query: "select * from osquery;",
+	}
+	gpResp0 := globalPolicyResponse{}
+	s.DoJSON("POST", "/api/v1/fleet/global/policies", gpParams0, http.StatusOK, &gpResp0)
+	require.NotNil(t, gpResp0.Policy)
+
+	email := "team.observer@example.com"
+	teamObserver := &fleet.User{
+		Name:       "team observer user",
+		Email:      email,
+		GlobalRole: nil,
+		Teams: []fleet.UserTeam{
+			{
+				Team: *team,
+				Role: fleet.RoleObserver,
+			},
+		},
+	}
+	password := "p4ssw0rd."
+	require.NoError(t, teamObserver.SetPassword(password, 10, 10))
+	_, err = s.ds.NewUser(context.Background(), teamObserver)
+	require.NoError(t, err)
+
+	oldToken := s.token
+	s.token = s.getTestToken(email, password)
+	t.Cleanup(func() {
+		s.token = oldToken
+	})
+
+	policiesResponse := listGlobalPoliciesResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/global/policies", nil, http.StatusOK, &policiesResponse)
+	require.Len(t, policiesResponse.Policies, 1)
+	assert.Equal(t, "global policy", policiesResponse.Policies[0].Name)
+	assert.Equal(t, "select * from osquery;", policiesResponse.Policies[0].Query)
 }

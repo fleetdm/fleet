@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -219,6 +220,14 @@ func loadSecretsForTeamsDB(ctx context.Context, q sqlx.QueryerContext, teams []*
 	return nil
 }
 
+func (d *Datastore) TeamsSummary(ctx context.Context) ([]*fleet.TeamSummary, error) {
+	teamsSummary := []*fleet.TeamSummary{}
+	if err := sqlx.SelectContext(ctx, d.reader, &teamsSummary, "SELECT id, name, description FROM teams"); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "teams summary")
+	}
+	return teamsSummary, nil
+}
+
 func (d *Datastore) SearchTeams(ctx context.Context, filter fleet.TeamFilter, matchQuery string, omit ...uint) ([]*fleet.Team, error) {
 	sql := fmt.Sprintf(`
 			SELECT *,
@@ -260,4 +269,14 @@ func amountTeamsDB(db sqlx.Queryer) (int, error) {
 		return 0, err
 	}
 	return amount, nil
+}
+
+// TeamAgentOptions loads the agents options of a team.
+func (d *Datastore) TeamAgentOptions(ctx context.Context, tid uint) (*json.RawMessage, error) {
+	sql := `SELECT agent_options FROM teams WHERE id = ?`
+	var agentOptions *json.RawMessage
+	if err := sqlx.GetContext(ctx, d.reader, &agentOptions, sql, tid); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "select team")
+	}
+	return agentOptions, nil
 }
