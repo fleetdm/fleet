@@ -25,6 +25,7 @@ describe("Manage Users", () => {
 
     cy.findByPlaceholderText("Search").clear();
 
+    // Create user
     cy.contains("button:enabled", /create user/i).click();
 
     cy.findByPlaceholderText("Full name").type("New Name");
@@ -46,6 +47,7 @@ describe("Manage Users", () => {
 
     cy.findByText(/new name/i).should("exist");
 
+    // Edit user
     cy.getAttached("tbody>tr")
       .should("have.length", 5)
       .eq(1)
@@ -71,6 +73,7 @@ describe("Manage Users", () => {
 
     cy.findByText(/successfully edited/i).should("exist");
 
+    // Delete user
     cy.getAttached("tbody>tr")
       .eq(1)
       .within(() => {

@@ -15,9 +15,9 @@ describe(
       cy.findByRole("button", { name: /add label/i }).click();
 
       // Using class selector because third party element doesn't work with Cypress Testing Selector Library
-      cy.getAttached(".ace_content")
-        .click()
-        .type("{selectall}{backspace}SELECT * FROM users;");
+      cy.getAttached(".ace_content").type(
+        "{selectall}{backspace}SELECT * FROM users;"
+      );
 
       cy.findByLabelText(/name/i).click().type("Show all MAC users");
 
@@ -33,14 +33,14 @@ describe(
 
       cy.findByRole("button", { name: /save label/i }).click();
 
-      // edit custom label
+      // Edit custom label
       cy.getAttached(".host-side-panel").within(() => {
         cy.findByText(/show all mac users/i).click();
       });
 
       cy.getAttached(".manage-hosts__label-block button").first().click();
 
-      // // Label SQL not editable to test
+      // SQL and Platform are immutable fields
 
       cy.findByLabelText(/name/i).clear().type("Show all mac usernames");
 
@@ -56,7 +56,7 @@ describe(
         cy.findByText(/show all mac usernames/i).click();
       });
 
-      // delete custom label
+      // Delete custom label
       cy.getAttached(".manage-hosts__label-block button").last().click();
 
       cy.getAttached(".manage-hosts__modal-buttons > .button--alert")
