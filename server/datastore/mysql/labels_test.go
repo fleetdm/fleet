@@ -773,4 +773,6 @@ func testDeleteLabel(t *testing.T, db *Datastore) {
 	newP, err := db.Pack(context.Background(), p.ID)
 	require.NoError(t, err)
 	require.Empty(t, newP.Labels)
+
+	require.NoError(t, db.DeletePack(context.Background(), newP.Name))
 }

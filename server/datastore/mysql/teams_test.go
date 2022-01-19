@@ -79,6 +79,8 @@ func testTeamsGetSetDelete(t *testing.T, ds *Datastore) {
 
 			team, err = ds.TeamByName(context.Background(), tt.name)
 			require.Error(t, err)
+
+			require.NoError(t, ds.DeletePack(context.Background(), newP.Name))
 		})
 	}
 }
