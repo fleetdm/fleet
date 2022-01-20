@@ -1,3 +1,42 @@
+## Fleet 4.9.0 (Jan 20, 2022)
+
+* Add ability to apply a `policy` yaml document so that GitOps workflows can be used to create and
+  modify policies.
+
+* Add ability to run a live query that returns 1,000+ results in the Fleet UI by adding
+  client-side pagination to the results table.
+
+* Improve the accuracy of query platform compatibility detection by adding recognition for queries
+  with the `WITH` expression.
+
+* Add ability to open a page in the Fleet UI in a new tab by "right-clicking" an item in the navigation.
+
+* Improve the [live query API route (`GET /api/v1/queries/run`)](https://fleetdm.com/docs/using-fleet/rest-api#run-live-query) so that it successfully return results for Fleet
+  instances using a load balancer by reducing the wait period to 25 seconds.
+
+* Improve performance of the Fleet UI by updating loading states and reducing the number of requests
+  made to the Fleet API.
+
+* Improve performance of the MySQL database by updating the queries used to populate host vitals and
+  caching the results.
+
+* Add [`read_timeout` Redis configuration
+  option](https://fleetdm.com/docs/deploying/configuration#redis-read-timeout) to customize the
+  maximum amount of time Fleet should wait to receive a response from a Redis server.
+
+* Add [`write_timeout` Redis configuration
+  option](https://fleetdm.com/docs/deploying/configuration#redis-write-timeout) to customize the
+  maximum amount of time Fleet should wait to send a command to a Redis server.
+
+* Fix a bug in which browser extensions (Google Chrome, Firefox, and Safari) were not included in
+  software inventory.
+
+* Fix aggregated stats query to support MySQL 8 (#3219).
+
+* Fix a bug in which an existing pack's targets were not cleaned up after deleting hosts, labels, and teams.
+
+* Fix a bug in which non-existent queries and policies would not return a 404 not found response.
+
 ## Fleet 4.8.0 (Dec 31, 2021)
 
 * Add ability to configure Fleet to send a webhook request with all hosts that failed a
