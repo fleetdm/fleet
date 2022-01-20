@@ -280,11 +280,7 @@ the way that the Fleet server works.
 				RedisScanKeysCount: config.Osquery.AsyncHostRedisScanKeysCount,
 				CollectorInterval:  config.Osquery.AsyncHostCollectInterval,
 			}
-
-			// TODO: gather all the different contexts and use just one
-			ctx, cancelFunc := context.WithCancel(context.Background())
-			defer cancelFunc()
-			svc, err := service.NewService(ctx, ds, task, resultStore, logger, osqueryLogger, config, mailService, clock.C, ssoSessionStore, liveQueryStore, carveStore, *license, failingPolicySet)
+			svc, err := service.NewService(ds, task, resultStore, logger, osqueryLogger, config, mailService, clock.C, ssoSessionStore, liveQueryStore, carveStore, *license, failingPolicySet)
 			if err != nil {
 				initFatal(err, "initializing service")
 			}
@@ -374,6 +370,9 @@ the way that the Fleet server works.
 			// Instantiate a gRPC service to handle launcher requests.
 			launcher := launcher.New(svc, logger, grpc.NewServer(), healthCheckers)
 
+			// TODO: gather all the different contexts and use just one
+			ctx, cancelFunc := context.WithCancel(context.Background())
+			defer cancelFunc()
 			eh := errorstore.NewHandler(ctx, redisPool, logger, config.Logging.ErrorRetentionPeriod)
 
 			rootMux := http.NewServeMux()

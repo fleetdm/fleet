@@ -2,9 +2,11 @@ package service
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/big"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -411,7 +413,7 @@ const hostDistributedQueryPrefix = "fleet_distributed_query_"
 // detailQueriesForHost returns the map of detail+additional queries that should be executed by
 // osqueryd to fill in the host details.
 func (svc *Service) detailQueriesForHost(ctx context.Context, host *fleet.Host) (map[string]string, error) {
-	if !svc.shouldUpdate(host.DetailUpdatedAt, svc.config.Osquery.DetailUpdateInterval, host.ID) && !host.RefetchRequested {
+	if !svc.shouldUpdate(host.DetailUpdatedAt, svc.config.Osquery.DetailUpdateInterval) && !host.RefetchRequested {
 		return nil, nil
 	}
 
@@ -445,11 +447,14 @@ func (svc *Service) detailQueriesForHost(ctx context.Context, host *fleet.Host) 
 	return queries, nil
 }
 
-func (svc *Service) shouldUpdate(lastUpdated time.Time, interval time.Duration, hostID uint) bool {
+func (svc *Service) shouldUpdate(lastUpdated time.Time, interval time.Duration) bool {
 	var jitter time.Duration
 	if svc.config.Osquery.MaxJitterPercent > 0 {
-		maxJitter := int64(svc.config.Osquery.MaxJitterPercent) * int64(interval) / 100.0
-		jitter = time.Duration((int64(hostID) + svc.getJitterSeed()) % maxJitter)
+		maxJitter := time.Duration(svc.config.Osquery.MaxJitterPercent) * interval / time.Duration(100.0)
+		randDuration, err := rand.Int(rand.Reader, big.NewInt(int64(maxJitter)))
+		if err == nil {
+			jitter = time.Duration(randDuration.Int64())
+		}
 	}
 	cutoff := svc.clock.Now().Add(-(interval + jitter))
 	return lastUpdated.Before(cutoff)
@@ -457,7 +462,7 @@ func (svc *Service) shouldUpdate(lastUpdated time.Time, interval time.Duration, 
 
 func (svc *Service) labelQueriesForHost(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 	labelReportedAt := svc.task.GetHostLabelReportedAt(ctx, host)
-	if !svc.shouldUpdate(labelReportedAt, svc.config.Osquery.LabelUpdateInterval, host.ID) && !host.RefetchRequested {
+	if !svc.shouldUpdate(labelReportedAt, svc.config.Osquery.LabelUpdateInterval) && !host.RefetchRequested {
 		return nil, nil
 	}
 	labelQueries, err := svc.ds.LabelQueriesForHost(ctx, host)
@@ -469,7 +474,7 @@ func (svc *Service) labelQueriesForHost(ctx context.Context, host *fleet.Host) (
 
 func (svc *Service) policyQueriesForHost(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 	policyReportedAt := svc.task.GetHostPolicyReportedAt(ctx, host)
-	if !svc.shouldUpdate(policyReportedAt, svc.config.Osquery.PolicyUpdateInterval, host.ID) && !host.RefetchRequested {
+	if !svc.shouldUpdate(policyReportedAt, svc.config.Osquery.PolicyUpdateInterval) && !host.RefetchRequested {
 		return nil, nil
 	}
 	policyQueries, err := svc.ds.PolicyQueriesForHost(ctx, host)
