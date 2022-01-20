@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"context"
+	"encoding/json"
 	"sort"
 	"testing"
 	"time"
@@ -26,6 +27,7 @@ func TestTeams(t *testing.T) {
 		{"Summary", testTeamsSummary},
 		{"Search", testTeamsSearch},
 		{"EnrollSecrets", testTeamsEnrollSecrets},
+		{"TeamAgentOptions", testTeamsAgentOptions},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -62,11 +64,23 @@ func testTeamsGetSetDelete(t *testing.T, ds *Datastore) {
 			assert.Equal(t, tt.name, team.Name)
 			assert.Equal(t, tt.description, team.Description)
 
+			p, err := ds.NewPack(context.Background(), &fleet.Pack{
+				Name:    tt.name,
+				TeamIDs: []uint{team.ID},
+			})
+			require.NoError(t, err)
+
 			err = ds.DeleteTeam(context.Background(), team.ID)
 			require.NoError(t, err)
 
+			newP, err := ds.Pack(context.Background(), p.ID)
+			require.NoError(t, err)
+			require.Empty(t, newP.Teams)
+
 			team, err = ds.TeamByName(context.Background(), tt.name)
 			require.Error(t, err)
+
+			require.NoError(t, ds.DeletePack(context.Background(), newP.Name))
 		})
 	}
 }
@@ -249,4 +263,26 @@ func testTeamsEnrollSecrets(t *testing.T, ds *Datastore) {
 		justSecrets = append(justSecrets, &fleet.EnrollSecret{Secret: secret.Secret})
 	}
 	test.ElementsMatchSkipTimestampsID(t, secrets, justSecrets)
+}
+
+func testTeamsAgentOptions(t *testing.T, ds *Datastore) {
+	team1, err := ds.NewTeam(context.Background(), &fleet.Team{
+		Name: "team1",
+	})
+	require.NoError(t, err)
+
+	teamAgentOptions1, err := ds.TeamAgentOptions(context.Background(), team1.ID)
+	require.NoError(t, err)
+	require.Nil(t, teamAgentOptions1)
+
+	agentOptions := json.RawMessage(`{"config":{"foo":"bar"},"overrides":{"platforms":{"darwin":{"foo":"override"}}}}`)
+	team2, err := ds.NewTeam(context.Background(), &fleet.Team{
+		Name:         "team2",
+		AgentOptions: &agentOptions,
+	})
+	require.NoError(t, err)
+
+	teamAgentOptions2, err := ds.TeamAgentOptions(context.Background(), team2.ID)
+	require.NoError(t, err)
+	require.JSONEq(t, string(agentOptions), string(*teamAgentOptions2))
 }

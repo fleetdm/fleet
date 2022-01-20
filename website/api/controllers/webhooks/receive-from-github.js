@@ -46,6 +46,7 @@ module.exports = {
       'lucasmrod',
       'tgauda',
       'ksatter',
+      'guillaumeross',
       'dominuskelvin'
     ];
     let GITHUB_USERNAME_OF_DRI_FOR_LABELS = 'noahtalerman';// « Used below

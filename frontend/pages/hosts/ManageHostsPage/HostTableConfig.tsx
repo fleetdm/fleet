@@ -18,7 +18,7 @@ import {
   hostTeamName,
 } from "fleet/helpers";
 import { IConfig } from "interfaces/config";
-import { ITeam } from "interfaces/team";
+import { ITeamSummary } from "interfaces/team";
 import { IUser } from "interfaces/user";
 import PATHS from "router/paths";
 import permissionUtils from "utilities/permissions";
@@ -298,7 +298,7 @@ const defaultHiddenColumns = [
 const generateAvailableTableHeaders = (
   config: IConfig,
   currentUser: IUser,
-  currentTeam: ITeam | undefined
+  currentTeam: ITeamSummary | undefined
 ): IHostDataColumn[] => {
   return allHostTableHeaders.reduce(
     (columns: IHostDataColumn[], currentColumn: IHostDataColumn) => {
@@ -348,7 +348,7 @@ const generateVisibleTableColumns = (
   hiddenColumns: string[],
   config: IConfig,
   currentUser: IUser,
-  currentTeam: ITeam | undefined
+  currentTeam: ITeamSummary | undefined
 ): IHostDataColumn[] => {
   // remove columns set as hidden by the user.
   return generateAvailableTableHeaders(config, currentUser, currentTeam).filter(

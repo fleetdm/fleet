@@ -49,6 +49,22 @@ For more developed thoughts about __spending guidelines and limits__, please rea
 * It's okay to spend the first minute or two of a meeting to be present and make small talk, if you want.  Being all-remote, it's easy to miss out on hallway chatter and human connections that happen in [meatspace](https://www.dictionary.com/browse/meatspace).  Why not use this time together during the first minute to say "hi".  Then you can jump right in to the topics being discussed?
 * Turning on your camera allows for more complete and intuitive verbal and non-verbal communication.  When joining meetings with new participants who you might not be familiar with yet, feel free to leave your camera on or to turn it off.  When you lead or cohost a meeting, turn your camera on.
 
+## Slack
 
+At Fleet, we do not send internal emails to each other. Instead, we prefer to use Slack to communicate with other folks who work at Fleet.
+
+We use threads in Slack as much as possible. Threads help limit noise for other people following the channel and reduce notification overload.
+
+We configure our working hours in Slack to ensure everyone knows when they can get in touch with others.
+
+### Slack Channels
+
+We have specific channels for various topics, but we also have more general channels for the teams at Fleet.
+
+We use these prefixes to organize the Fleet Slack:
+ * ***g-***: for team/group channels. *(Note: "g-" is short for "grupo")*
+ * ***oooh-***: used to discuss and share interesting information about a topic.
+ * ***help-***: for asking for help on specific topics.
+ * ***at*** or ***fleet-at***: for customer channels.
 
 <meta name="maintainedBy" value="eashaw">

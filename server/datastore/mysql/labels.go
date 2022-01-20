@@ -245,6 +245,12 @@ func (d *Datastore) DeleteLabel(ctx context.Context, name string) error {
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "delete label_membership")
 		}
+
+		_, err = tx.ExecContext(ctx, `DELETE FROM pack_targets WHERE type=? AND target_id=?`, fleet.TargetLabel, labelID)
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err, "deleting pack_targets for label %d", labelID)
+		}
+
 		return nil
 	})
 }
@@ -362,6 +368,14 @@ func (d *Datastore) RecordLabelQueryExecutions(ctx context.Context, host *fleet.
 			removes = append(removes, labelID)
 		}
 	}
+
+	// NOTE: the insert/delete of label membership that follows must be kept in
+	// sync with the async implementations in
+	// AsyncBatch{Insert,Delete}LabelMembership, and the update of the
+	// label_updated_at timestamp in sync with the
+	// AsyncBatchUpdateLabelTimestamp method (that is, their processing must be
+	// semantically equivalent, even though here it processes a single host and
+	// in async mode it processes a batch of hosts).
 
 	err := d.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		// Complete inserts if necessary
@@ -755,7 +769,7 @@ func (d *Datastore) AsyncBatchDeleteLabelMembership(ctx context.Context, batch [
 	})
 }
 
-// AsyncBatchUpdateLabelTimestamp updates the  table the hosts' label_updated_at timestamp
+// AsyncBatchUpdateLabelTimestamp updates the hosts' label_updated_at timestamp
 // for the batch of host ids provided.
 func (d *Datastore) AsyncBatchUpdateLabelTimestamp(ctx context.Context, ids []uint, ts time.Time) error {
 	// NOTE: this is tested via the server/service/async package tests.

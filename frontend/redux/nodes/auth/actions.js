@@ -30,11 +30,12 @@ export const SSO_SETTINGS_FAILURE = "SSO_SETTINGS_FAILURE";
 
 export const clearAuthErrors = { type: CLEAR_AUTH_ERRORS };
 export const loginRequest = { type: LOGIN_REQUEST };
-export const loginSuccess = ({ user, token }) => {
+export const loginSuccess = ({ user, available_teams, token }) => {
   return {
     type: LOGIN_SUCCESS,
     payload: {
       user,
+      available_teams,
       token,
     },
   };
@@ -53,8 +54,8 @@ export const fetchCurrentUser = () => {
     dispatch(loginRequest);
     return Fleet.users
       .me()
-      .then((user) => {
-        return dispatch(loginSuccess({ user }));
+      .then((response) => {
+        return dispatch(loginSuccess(response));
       })
       .catch((response) => {
         dispatch(
@@ -150,7 +151,7 @@ export const loginUser = (formData) => {
         .then((response) => {
           dispatch(loginSuccess(response));
 
-          return resolve(response.user);
+          return resolve(response);
         })
         .catch((response) => {
           const errorObject = formatErrorResponse(response);

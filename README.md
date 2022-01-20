@@ -18,7 +18,7 @@ sudo npm install -g fleetctl
 sudo fleetctl preview
 ```
 
-> Windows users can omit `sudo`.
+> Windows users can omit `sudo`, and should run the command in `Cmd`/`PowerShell` as administrators.
 
 The Fleet UI is now available at http://localhost:1337.
 

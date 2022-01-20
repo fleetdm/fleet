@@ -1,0 +1,2 @@
+* Migrate manage policies page to use react-query for policies endpoints
+* Incorporate `available_teams` into app context for UI

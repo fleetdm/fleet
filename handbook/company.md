@@ -27,12 +27,6 @@ When Kolide's attention shifted away from Fleet and towards their separate, user
 Zach partnered with our CEO, Mike McNeil, to found a new, independent company: Fleet Device Management Inc.  In November 2020, we [announced](https://medium.com/fleetdm/a-new-fleet-d4096c7de978) the transition and kicked off the logistics of moving the GitHub repository.
 
 
-## Culture
-
-### All remote
-Fleet Device Management Inc. is an all-remote company, with team members spread across 4 continents and 7 time zones.  The wider team of contributors from [all over the world](https://github.com/fleetdm/fleet/graphs/contributors) submit patches, bug reports, troubleshooting tips, improvements, and real-world insights to Fleet's open source code base, documentation, website, and company handbook.
-
-
 ## Values
 
 ### 允 Openness
@@ -107,10 +101,11 @@ The majority of the code, documentation, and content we create at Fleet is publi
   - focus on fewer tasks at one time
 - legendary execution
 
-### 出来 Think, fast
+### 出来 Balance
 
 Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.org/wiki/Golden_mean_%28philosophy%29).
 
+- think, fast
 - think for yourself (only you can)
 - from first principles
 - use reason
@@ -153,6 +148,15 @@ Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.
 - beware sunk cost fallacy (avoid getting attached to something just because you invested time working on it, or came up with it)
 - be curious
 - legendary rigour
+
+
+
+
+## Culture
+
+### All remote
+Fleet Device Management Inc. is an all-remote company, with team members spread across 4 continents and 7 time zones.  The wider team of contributors from [all over the world](https://github.com/fleetdm/fleet/graphs/contributors) submit patches, bug reports, troubleshooting tips, improvements, and real-world insights to Fleet's open source code base, documentation, website, and company handbook.
+
 
 
 

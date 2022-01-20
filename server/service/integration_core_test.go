@@ -68,6 +68,17 @@ func (s *integrationTestSuite) TearDownTest() {
 			require.NoError(t, err)
 		}
 	}
+
+	globalPolicies, err := s.ds.ListGlobalPolicies(ctx)
+	require.NoError(t, err)
+	if len(globalPolicies) > 0 {
+		var globalPolicyIDs []uint
+		for _, gp := range globalPolicies {
+			globalPolicyIDs = append(globalPolicyIDs, gp.ID)
+		}
+		_, err = s.ds.DeleteGlobalPolicies(ctx, globalPolicyIDs)
+		require.NoError(t, err)
+	}
 }
 
 func TestIntegrations(t *testing.T) {
@@ -347,15 +358,11 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	require.NoError(t, err)
 	require.NotNil(t, host)
 
-	soft := fleet.HostSoftware{
-		Modified: true,
-		Software: []fleet.Software{
-			{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
-			{Name: "bar", Version: "0.0.3", Source: "apps"},
-		},
+	software := []fleet.Software{
+		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
+		{Name: "bar", Version: "0.0.3", Source: "apps"},
 	}
-	host.HostSoftware = soft
-	require.NoError(t, s.ds.SaveHostSoftware(context.Background(), host))
+	require.NoError(t, s.ds.UpdateHostSoftware(context.Background(), host.ID, software))
 	require.NoError(t, s.ds.LoadHostSoftware(context.Background(), host))
 
 	soft1 := host.Software[0]
@@ -504,6 +511,17 @@ func (s *integrationTestSuite) TestBulkDeleteHostsFromTeam() {
 	team1, err := s.ds.NewTeam(context.Background(), &fleet.Team{Name: t.Name() + "team1"})
 	require.NoError(t, err)
 
+	p, err := s.ds.NewPack(context.Background(), &fleet.Pack{
+		Name: t.Name(),
+		Hosts: []fleet.Target{
+			{
+				Type:     fleet.TargetHost,
+				TargetID: hosts[0].ID,
+			},
+		},
+	})
+	require.NoError(t, err)
+
 	require.NoError(t, s.ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{hosts[0].ID}))
 
 	req := deleteHostsRequest{
@@ -526,6 +544,11 @@ func (s *integrationTestSuite) TestBulkDeleteHostsFromTeam() {
 
 	err = s.ds.DeleteHosts(context.Background(), []uint{hosts[1].ID, hosts[2].ID})
 	require.NoError(t, err)
+
+	newP, err := s.ds.Pack(context.Background(), p.ID)
+	require.NoError(t, err)
+	require.Empty(t, newP.Hosts)
+	require.NoError(t, s.ds.DeletePack(context.Background(), newP.Name))
 }
 
 func (s *integrationTestSuite) TestBulkDeleteHostsInLabel() {
@@ -747,13 +770,10 @@ func (s *integrationTestSuite) TestListHosts() {
 	require.Len(t, resp.Hosts, len(hosts)-2)
 
 	host := hosts[2]
-	host.HostSoftware = fleet.HostSoftware{
-		Modified: true,
-		Software: []fleet.Software{
-			{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
-		},
+	software := []fleet.Software{
+		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
 	}
-	require.NoError(t, s.ds.SaveHostSoftware(context.Background(), host))
+	require.NoError(t, s.ds.UpdateHostSoftware(context.Background(), host.ID, software))
 	require.NoError(t, s.ds.LoadHostSoftware(context.Background(), host))
 
 	s.DoJSON("GET", "/api/v1/fleet/hosts", nil, http.StatusOK, &resp, "software_id", fmt.Sprint(host.Software[0].ID))
@@ -1157,6 +1177,12 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietaryInvalid() {
 			tname:      "empty name",
 			testUpdate: true,
 			name:       "",
+			query:      "select 1;",
+		},
+		{
+			tname:      "empty with space",
+			testUpdate: true,
+			name:       " ", // #3704
 			query:      "select 1;",
 		},
 		{
@@ -2004,6 +2030,7 @@ func (s *integrationTestSuite) TestGlobalPoliciesAutomationConfig() {
 	}
 	gpResp := globalPolicyResponse{}
 	s.DoJSON("POST", "/api/v1/fleet/global/policies", gpParams, http.StatusOK, &gpResp)
+	require.NotNil(t, gpResp.Policy)
 
 	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
 		"webhook_settings": {
@@ -2030,4 +2057,202 @@ func (s *integrationTestSuite) TestGlobalPoliciesAutomationConfig() {
 
 	config = s.getConfig()
 	require.Empty(t, config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
+}
+
+func (s *integrationTestSuite) TestQueriesBadRequests() {
+	t := s.T()
+
+	reqQuery := &fleet.QueryPayload{
+		Name:  ptr.String("existing query"),
+		Query: ptr.String("select 42;"),
+	}
+	createQueryResp := createQueryResponse{}
+	s.DoJSON("POST", "/api/v1/fleet/queries", reqQuery, http.StatusOK, &createQueryResp)
+	require.NotNil(t, createQueryResp.Query)
+	existingQueryID := createQueryResp.Query.ID
+
+	for _, tc := range []struct {
+		tname string
+		name  string
+		query string
+	}{
+		{
+			tname: "empty name",
+			name:  " ", // #3704
+			query: "select 42;",
+		},
+		{
+			tname: "empty query",
+			name:  "Some name",
+			query: "",
+		},
+		{
+			tname: "Invalid query",
+			name:  "Invalid query",
+			query: "ATTACH 'foo' AS bar;",
+		},
+	} {
+		t.Run(tc.tname, func(t *testing.T) {
+			reqQuery := &fleet.QueryPayload{
+				Name:  ptr.String(tc.name),
+				Query: ptr.String(tc.query),
+			}
+			createQueryResp := createQueryResponse{}
+			s.DoJSON("POST", "/api/v1/fleet/queries", reqQuery, http.StatusBadRequest, &createQueryResp)
+			require.Nil(t, createQueryResp.Query)
+
+			payload := fleet.QueryPayload{
+				Name:  ptr.String(tc.name),
+				Query: ptr.String(tc.query),
+			}
+			mResp := modifyQueryResponse{}
+			s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/queries/%d", existingQueryID), &payload, http.StatusBadRequest, &mResp)
+			require.Nil(t, mResp.Query)
+		})
+	}
+}
+
+func (s *integrationTestSuite) TestPacksBadRequests() {
+	t := s.T()
+
+	reqPacks := &fleet.PackPayload{
+		Name: ptr.String("existing pack"),
+	}
+	createPackResp := createPackResponse{}
+	s.DoJSON("POST", "/api/v1/fleet/packs", reqPacks, http.StatusOK, &createPackResp)
+	existingPackID := createPackResp.Pack.ID
+
+	for _, tc := range []struct {
+		tname string
+		name  string
+	}{
+		{
+			tname: "empty name",
+			name:  " ", // #3704
+		},
+	} {
+		t.Run(tc.tname, func(t *testing.T) {
+			reqQuery := &fleet.PackPayload{
+				Name: ptr.String(tc.name),
+			}
+			createPackResp := createQueryResponse{}
+			s.DoJSON("POST", "/api/v1/fleet/packs", reqQuery, http.StatusBadRequest, &createPackResp)
+
+			payload := fleet.PackPayload{
+				Name: ptr.String(tc.name),
+			}
+			mResp := modifyPackResponse{}
+			s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/packs/%d", existingPackID), &payload, http.StatusBadRequest, &mResp)
+		})
+	}
+}
+
+func (s *integrationTestSuite) TestTeamsEndpointsWithoutLicense() {
+	t := s.T()
+
+	// list teams, none
+	var listResp listTeamsResponse
+	s.DoJSON("GET", "/api/v1/fleet/teams", nil, http.StatusPaymentRequired, &listResp)
+	assert.Len(t, listResp.Teams, 0)
+
+	// create team
+	var tmResp teamResponse
+	s.DoJSON("POST", "/api/v1/fleet/teams", &createTeamRequest{}, http.StatusPaymentRequired, &tmResp)
+	assert.Nil(t, tmResp.Team)
+
+	// modify team
+	s.DoJSON("PATCH", "/api/v1/fleet/teams/123", fleet.TeamPayload{}, http.StatusPaymentRequired, &tmResp)
+	assert.Nil(t, tmResp.Team)
+
+	// delete team
+	var delResp deleteTeamResponse
+	s.DoJSON("DELETE", "/api/v1/fleet/teams/123", nil, http.StatusPaymentRequired, &delResp)
+
+	// apply team specs - does succeed unlike others, no license required for this one
+	var specResp applyTeamSpecsResponse
+	teamSpecs := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: "newteam", Secrets: []fleet.EnrollSecret{{Secret: "ABC"}}}}}
+	s.DoJSON("POST", "/api/v1/fleet/spec/teams", teamSpecs, http.StatusOK, &specResp)
+
+	// modify team agent options
+	s.DoJSON("POST", "/api/v1/fleet/teams/123/agent_options", nil, http.StatusPaymentRequired, &tmResp)
+	assert.Nil(t, tmResp.Team)
+
+	// list team users
+	var usersResp listUsersResponse
+	s.DoJSON("GET", "/api/v1/fleet/teams/123/users", nil, http.StatusPaymentRequired, &usersResp, "page", "1")
+	assert.Len(t, usersResp.Users, 0)
+
+	// add team users
+	s.DoJSON("PATCH", "/api/v1/fleet/teams/123/users", modifyTeamUsersRequest{Users: []fleet.TeamUser{{User: fleet.User{ID: 1}}}}, http.StatusPaymentRequired, &tmResp)
+	assert.Nil(t, tmResp.Team)
+
+	// delete team users
+	s.DoJSON("DELETE", "/api/v1/fleet/teams/123/users", modifyTeamUsersRequest{Users: []fleet.TeamUser{{User: fleet.User{ID: 1}}}}, http.StatusPaymentRequired, &tmResp)
+	assert.Nil(t, tmResp.Team)
+
+	// get team enroll secrets
+	var secResp teamEnrollSecretsResponse
+	s.DoJSON("GET", "/api/v1/fleet/teams/123/secrets", nil, http.StatusPaymentRequired, &secResp)
+	assert.Len(t, secResp.Secrets, 0)
+
+	// modify team enroll secrets
+	s.DoJSON("PATCH", "/api/v1/fleet/teams/123/secrets", modifyTeamEnrollSecretsRequest{Secrets: []fleet.EnrollSecret{{Secret: "DEF"}}}, http.StatusPaymentRequired, &secResp)
+	assert.Len(t, secResp.Secrets, 0)
+}
+
+// TestGlobalPoliciesBrowsing tests that team users can browse (read) global policies (see #3722).
+func (s *integrationTestSuite) TestGlobalPoliciesBrowsing() {
+	t := s.T()
+
+	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+		ID:          42,
+		Name:        "team_for_global_policies_browsing",
+		Description: "desc team1",
+	})
+	require.NoError(t, err)
+
+	gpParams0 := globalPolicyRequest{
+		Name:  "global policy",
+		Query: "select * from osquery;",
+	}
+	gpResp0 := globalPolicyResponse{}
+	s.DoJSON("POST", "/api/v1/fleet/global/policies", gpParams0, http.StatusOK, &gpResp0)
+	require.NotNil(t, gpResp0.Policy)
+
+	email := "team.observer@example.com"
+	teamObserver := &fleet.User{
+		Name:       "team observer user",
+		Email:      email,
+		GlobalRole: nil,
+		Teams: []fleet.UserTeam{
+			{
+				Team: *team,
+				Role: fleet.RoleObserver,
+			},
+		},
+	}
+	password := "p4ssw0rd."
+	require.NoError(t, teamObserver.SetPassword(password, 10, 10))
+	_, err = s.ds.NewUser(context.Background(), teamObserver)
+	require.NoError(t, err)
+
+	oldToken := s.token
+	s.token = s.getTestToken(email, password)
+	t.Cleanup(func() {
+		s.token = oldToken
+	})
+
+	policiesResponse := listGlobalPoliciesResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/global/policies", nil, http.StatusOK, &policiesResponse)
+	require.Len(t, policiesResponse.Policies, 1)
+	assert.Equal(t, "global policy", policiesResponse.Policies[0].Name)
+	assert.Equal(t, "select * from osquery;", policiesResponse.Policies[0].Query)
+}
+
+func (s *integrationTestSuite) TestTeamPoliciesTeamNotExists() {
+	t := s.T()
+
+	teamPoliciesResponse := listTeamPoliciesResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/teams/%d/policies", 9999999), nil, http.StatusNotFound, &teamPoliciesResponse)
+	require.Len(t, teamPoliciesResponse.Policies, 0)
 }
