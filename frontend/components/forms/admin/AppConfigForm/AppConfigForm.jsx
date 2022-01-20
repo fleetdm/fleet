@@ -225,11 +225,16 @@ class AppConfigForm extends Component {
 
     return (
       <div className={`${baseClass}__smtp-section`}>
-        <InputField {...fields.user_name} label="SMTP username" />
+        <InputField
+          {...fields.user_name}
+          label="SMTP username"
+          blockAutoComplete
+        />
         <InputField
           {...fields.password}
           label="SMTP password"
           type="password"
+          blockAutoComplete
         />
         <Dropdown
           {...fields.authentication_method}
