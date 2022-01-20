@@ -337,6 +337,10 @@ const ManagePolicyPage = ({
     }
   }, [availableTeams]);
 
+  useEffect(() => {
+    getFailingPoliciesWebhook();
+  }, []);
+
   return !availableTeams ? (
     <Spinner />
   ) : (
