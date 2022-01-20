@@ -19,48 +19,63 @@ describe("Premium tier - Observer user", () => {
     cy.visit("/hosts/manage");
 
     // Ensure page is loaded
-    cy.wait(3000); // eslint-disable-line cypress/no-unnecessary-waiting
-    cy.contains("All hosts");
+    cy.getAttached(".Select-value-label").contains("All teams");
 
     // Not see the "Manage enroll secret” or "Generate installer" button
     cy.contains("button", /manage enroll secret/i).should("not.exist");
     cy.contains("button", /generate installer/i).should("not.exist");
 
-    cy.get("thead").within(() => {
+    cy.getAttached("thead").within(() => {
       cy.findByText(/team/i).should("exist");
     });
 
-    // Host details page: Can see team on host
-    cy.get("tbody").within(() => {
+    // Navigate to host details page
+    cy.getAttached("tbody").within(() => {
       // Test host text varies
       cy.findByRole("button").click();
     });
 
-    cy.wait(2000); // eslint-disable-line cypress/no-unnecessary-waiting
-    cy.findByText("Team").should("exist");
-    cy.contains("button", /transfer/i).should("not.exist");
-    cy.contains("button", /delete/i).should("not.exist");
-    cy.contains("button", /query/i).click();
+    // Click query button and confirm observer cannot create custom query
+    cy.getAttached(".host-details__query-button").click();
     cy.contains("button", /create custom query/i).should("not.exist");
-    cy.get(".modal__ex").click();
+    cy.getAttached(".modal__ex").click();
 
-    // See and not select operating system
-    // TODO
+    // Confirm other actions are not available to observer
+    cy.getAttached(".host-details__action-button-container").within(() => {
+      cy.contains("button", /transfer/i).should("not.exist");
+      cy.contains("button", /delete/i).should("not.exist");
+    });
 
-    // TODO - Fix tests according to improved query experience - MP
+    // Confirm additional host details for observer
+    cy.getAttached(".info-flex").within(() => {
+      // Team is shown for host
+      cy.findByText(/apples/i).should("exist");
+      // OS is shown for host
+      cy.findByText(/ubuntu/i).should("exist");
+      // Observer cannot create a new OS policy
+      cy.findByRole("button").should("not.exist");
+    });
+
     // Query pages: Can see team in select targets dropdown
-    // cy.visit("/queries/manage");
+    cy.visit("/queries/manage");
 
-    // cy.findByText(/detect presence/i).click();
+    cy.getAttached("tbody").within(() => {
+      cy.getAttached("tr")
+        .first()
+        .within(() => {
+          cy.contains(".fleet-checkbox__input").should("not.exist");
+          cy.findByText(/detect presence/i).click();
+        });
+    });
 
-    // cy.findByRole("button", { name: /run/i }).click();
+    cy.getAttached(".query-form__button-wrap").within(() => {
+      cy.findByRole("button", { name: /run/i }).click();
+    });
 
-    // cy.get(".target-select").within(() => {
-    //   cy.findByText(/Label name, host name, IP address, etc./i).click();
-    //   cy.findByText(/teams/i).should("exist");
-    // });
+    cy.contains("h3", /teams/i).should("exist");
+    cy.contains(".selector-name", /apples/i).should("exist");
 
-    // On the policies manage page, they should…
+    // Navigate to manage policies page
     cy.contains("a", "Policies").click();
     // Not see the "Manage automations" button
     cy.findByRole("button", { name: /manage automations/i }).should(
@@ -72,39 +87,38 @@ describe("Premium tier - Observer user", () => {
 
     // No global policies seeded, switch to team apples to ensure cannot create, delete, edit
     cy.findByText(/ask yes or no questions/i).should("exist");
-    cy.findByText(/all teams/i).click();
-    cy.findByText(/apples/i).click();
-    cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
+    cy.getAttached(".Select-control").within(() => {
+      cy.findByText(/all teams/i).click();
+    });
+    cy.getAttached(".Select-menu")
+      .contains(/apples/i)
+      .click();
 
     // Not see the "Add a policy", "delete", "save", "run" policy
     cy.findByRole("button", { name: /add a policy/i }).should("not.exist");
 
-    cy.get("tbody").within(() => {
-      cy.get("tr")
+    cy.getAttached("tbody").within(() => {
+      cy.getAttached("tr")
         .first()
         .within(() => {
-          cy.get(".fleet-checkbox__input").should("not.exist");
+          cy.contains(".fleet-checkbox__input").should("not.exist");
+          cy.findByText(/filevault enabled/i).click();
         });
     });
-    cy.findByText(/filevault enabled/i).click();
     cy.getAttached(".policy-form__wrapper").within(() => {
       cy.findByRole("button", { name: /run/i }).should("not.exist");
       cy.findByRole("button", { name: /save/i }).should("not.exist");
     });
   });
 
-  // Pseudo code for team observer only
-  // TODO: Rebuild this test according to new manual QA
   it("Can perform the appropriate basic team observer only actions", () => {
     cy.login("toni@organization.com", "user123#");
     cy.visit("/hosts/manage");
-    cy.wait(3000); // eslint-disable-line cypress/no-unnecessary-waiting
 
     // Ensure the page is loaded and teams are visible
-    cy.findByText("Hosts").should("exist");
-    cy.contains(".table-container .data-table__table th", "Team").should(
-      "be.visible"
-    );
+    cy.getAttached(".data-table__table th")
+      .contains("Team")
+      .should("be.visible");
 
     // Nav restrictions
     cy.findByText(/settings/i).should("not.exist");
@@ -123,12 +137,12 @@ describe("Premium tier - Observer user", () => {
     cy.findByRole("button", { name: /add a policy/i }).should("not.exist");
     cy.findByText(/all teams/i).should("not.exist");
     cy.getAttached("tbody").within(() => {
-      cy.get("tr")
+      cy.getAttached("tr")
         .first()
         .within(() => {
-          cy.get(".fleet-checkbox__input").should("not.exist");
+          cy.contains(".fleet-checkbox__input").should("not.exist");
+          cy.findByText(/filevault enabled/i).click();
         });
-      cy.findByText(/filevault enabled/i).click();
     });
 
     cy.getAttached(".policy-form__wrapper").within(() => {
