@@ -22,6 +22,7 @@ import hostCountAPI, {
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
+import { TableContext } from "context/table";
 import {
   IEnrollSecret,
   IEnrollSecretsResponse,
@@ -148,6 +149,7 @@ const ManageHostsPage = ({
   const { selectedOsqueryTable, setSelectedOsqueryTable } = useContext(
     QueryContext
   );
+  const { setResetSelectedRows } = useContext(TableContext);
 
   const hostHiddenColumns = localStorage.getItem("hostHiddenColumns");
   const storedHiddenColumns = hostHiddenColumns
@@ -230,7 +232,6 @@ const ManageHostsPage = ({
     null
   );
   const [tableQueryData, setTableQueryData] = useState<ITableQueryProps>();
-  const [clearSelectionCount, setClearSelectionCount] = useState<number>(0);
   const [
     currentQueryOptions,
     setCurrentQueryOptions,
@@ -968,6 +969,7 @@ const ManageHostsPage = ({
           : `Hosts successfully transferred to  ${team.name}.`;
 
       dispatch(renderFlash("success", successMessage));
+      setResetSelectedRows(true);
       refetchHosts({
         selectedLabels: selectedFilters,
         globalFilter: searchQuery,
@@ -981,7 +983,6 @@ const ManageHostsPage = ({
       toggleTransferHostModal();
       setSelectedHostIds([]);
       setIsAllMatchingHostsSelected(false);
-      setClearSelectionCount(clearSelectionCount + 1);
     } catch (error) {
       dispatch(
         renderFlash("error", "Could not transfer hosts. Please try again.")
@@ -1015,6 +1016,7 @@ const ManageHostsPage = ({
       } successfully deleted.`;
 
       dispatch(renderFlash("success", successMessage));
+      setResetSelectedRows(true);
       refetchHosts({
         selectedLabels: selectedFilters,
         globalFilter: searchQuery,
@@ -1505,7 +1507,6 @@ const ManageHostsPage = ({
         searchToolTipText={
           "Search hosts by hostname, UUID, machine serial or IP address"
         }
-        clearSelectionCount={clearSelectionCount}
         emptyComponent={EmptyHosts}
         customControl={renderStatusDropdown}
         onActionButtonClick={onEditColumnsClick}

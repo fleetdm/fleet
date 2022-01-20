@@ -5,6 +5,7 @@ import { noop } from "lodash";
 
 import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
+import { TableContext } from "context/table";
 import { inMilliseconds, secondsToHms } from "fleet/helpers";
 import { IPolicyStats, ILoadAllPoliciesResponse } from "interfaces/policy";
 import { IWebhookFailingPolicies } from "interfaces/webhook";
@@ -69,6 +70,8 @@ const ManagePolicyPage = ({
     setLastEditedQueryResolution,
     setLastEditedQueryPlatform,
   } = useContext(PolicyContext);
+
+  const { setResetSelectedRows } = useContext(TableContext);
 
   const [selectedPolicyIds, setSelectedPolicyIds] = useState<number[]>([]);
   const [showManageAutomationsModal, setShowManageAutomationsModal] = useState(
@@ -260,6 +263,8 @@ const ManagePolicyPage = ({
             }.`
           )
         );
+        setResetSelectedRows(true);
+        refetchPolicies(id);
       });
     } catch {
       dispatch(
@@ -272,7 +277,6 @@ const ManagePolicyPage = ({
       );
     } finally {
       toggleRemovePoliciesModal();
-      refetchPolicies(id);
     }
   };
 

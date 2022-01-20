@@ -56,7 +56,6 @@ interface IDataTableProps {
   searchQuery?: string;
   searchQueryColumn?: string;
   selectedDropdownFilter?: string;
-  clearSelectionCount?: number;
   onSelectSingleRow?: (value: Row) => void;
   onResultsCountChange?: (value: number) => void;
 }
@@ -90,7 +89,6 @@ const DataTable = ({
   searchQuery,
   searchQueryColumn,
   selectedDropdownFilter,
-  clearSelectionCount,
   onSelectSingleRow,
   onResultsCountChange,
 }: IDataTableProps): JSX.Element => {
@@ -200,10 +198,6 @@ const DataTable = ({
         : setDebouncedClientFilter("platforms", selectedDropdownFilter);
     }
   }, [selectedDropdownFilter]);
-
-  useEffect(() => {
-    toggleAllRowsSelected(false);
-  }, [clearSelectionCount]);
 
   // This is used to listen for changes to sort. If there is a change
   // Then the sortHandler change is fired.
