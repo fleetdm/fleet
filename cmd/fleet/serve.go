@@ -874,6 +874,8 @@ func (in *devSQLInterceptor) logQuery(start time.Time, query string, args []driv
 	if err != nil {
 		logLevel = level.Error
 	}
+	space := regexp.MustCompile(`\s+`)
+	query = strings.TrimSpace(space.ReplaceAllString(query, " "))
 	logLevel(in.logger).Log("duration", time.Since(start), "query", query, "args", argsToString(args), "err", err)
 }
 
