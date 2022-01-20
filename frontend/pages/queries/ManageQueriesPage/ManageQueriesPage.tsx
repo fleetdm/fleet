@@ -153,9 +153,6 @@ const ManageQueriesPage = (): JSX.Element => {
         setResetSelectedRows(true);
         refetchFleetQueries();
       });
-      dispatch(
-        renderFlash("success", `Successfully removed ${queryOrQueries}.`)
-      );
     } catch (errorResponse) {
       dispatch(
         renderFlash(
