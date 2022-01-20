@@ -460,7 +460,7 @@ const UserManagementPage = (): JSX.Element => {
           renderFlash(
             "success",
             "User required to reset password",
-            usersAPI.requirePasswordReset(user.id, { require: false }) // this is an undo action.
+            () => usersAPI.requirePasswordReset(user.id, { require: false }) // this is an undo action.
           )
         );
         toggleResetPasswordUserModal();
