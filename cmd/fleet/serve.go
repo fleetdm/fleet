@@ -42,6 +42,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities"
 	"github.com/fleetdm/fleet/v4/server/webhooks"
+	"github.com/getsentry/sentry-go"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
@@ -279,6 +280,21 @@ the way that the Fleet server works.
 				RedisPopCount:      config.Osquery.AsyncHostRedisPopCount,
 				RedisScanKeysCount: config.Osquery.AsyncHostRedisScanKeysCount,
 				CollectorInterval:  config.Osquery.AsyncHostCollectInterval,
+			}
+
+			if config.Sentry.Dsn != "" {
+				v := version.Version()
+				err = sentry.Init(sentry.ClientOptions{
+					Dsn:     config.Sentry.Dsn,
+					Release: fmt.Sprintf("%s_%s_%s", v.Version, v.Branch, v.Revision),
+				})
+				if err != nil {
+					initFatal(err, "initializing sentry")
+				}
+				level.Info(logger).Log("msg", "sentry initialized", "dsn", config.Sentry.Dsn)
+
+				defer sentry.Recover()
+				defer sentry.Flush(2 * time.Second)
 			}
 
 			// TODO: gather all the different contexts and use just one
@@ -565,31 +581,38 @@ func cronCleanups(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 		_, err := ds.CleanupDistributedQueryCampaigns(ctx, time.Now())
 		if err != nil {
 			level.Error(logger).Log("err", "cleaning distributed query campaigns", "details", err)
+			sentry.CaptureException(err)
 		}
 		err = ds.CleanupIncomingHosts(ctx, time.Now())
 		if err != nil {
 			level.Error(logger).Log("err", "cleaning incoming hosts", "details", err)
+			sentry.CaptureException(err)
 		}
 		_, err = ds.CleanupCarves(ctx, time.Now())
 		if err != nil {
 			level.Error(logger).Log("err", "cleaning carves", "details", err)
+			sentry.CaptureException(err)
 		}
 		err = ds.UpdateQueryAggregatedStats(ctx)
 		if err != nil {
 			level.Error(logger).Log("err", "aggregating query stats", "details", err)
+			sentry.CaptureException(err)
 		}
 		err = ds.UpdateScheduledQueryAggregatedStats(ctx)
 		if err != nil {
 			level.Error(logger).Log("err", "aggregating scheduled query stats", "details", err)
+			sentry.CaptureException(err)
 		}
 		err = ds.CleanupExpiredHosts(ctx)
 		if err != nil {
 			level.Error(logger).Log("err", "cleaning expired hosts", "details", err)
+			sentry.CaptureException(err)
 		}
 
 		err = trySendStatistics(ctx, ds, fleet.StatisticsFrequency, "https://fleetdm.com/api/v1/webhooks/receive-usage-analytics", license)
 		if err != nil {
 			level.Error(logger).Log("err", "sending statistics", "details", err)
+			sentry.CaptureException(err)
 		}
 		level.Debug(logger).Log("loop", "done")
 	}
@@ -666,12 +689,14 @@ func cronVulnerabilities(
 		err := vulnerabilities.TranslateSoftwareToCPE(ctx, ds, vulnPath, logger, config)
 		if err != nil {
 			level.Error(logger).Log("msg", "analyzing vulnerable software: Software->CPE", "err", err)
+			sentry.CaptureException(err)
 			continue
 		}
 
 		err = vulnerabilities.TranslateCPEToCVE(ctx, ds, vulnPath, logger, config)
 		if err != nil {
 			level.Error(logger).Log("msg", "analyzing vulnerable software: CPE->CVE", "err", err)
+			sentry.CaptureException(err)
 			continue
 		}
 
@@ -704,6 +729,7 @@ func cronWebhooks(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 		appConfig, err = ds.AppConfig(ctx)
 		if err != nil {
 			level.Error(logger).Log("config", "couldn't read app config", "err", err)
+			sentry.CaptureException(err)
 		} else {
 			interval = appConfig.WebhookSettings.Interval.ValueOr(24 * time.Hour)
 			ticker.Reset(interval)
@@ -733,6 +759,7 @@ func maybeTriggerHostStatus(
 		ctx, ds, kitlog.With(logger, "webhook", "host_status"), appConfig,
 	); err != nil {
 		level.Error(logger).Log("err", "triggering host status webhook", "details", err)
+		sentry.CaptureException(err)
 	}
 }
 
@@ -754,6 +781,7 @@ func maybeTriggerGlobalFailingPoliciesWebhook(
 		ctx, ds, kitlog.With(logger, "webhook", "failing_policies"), appConfig, failingPoliciesSet, time.Now(),
 	); err != nil {
 		level.Error(logger).Log("err", "triggering failing policies webhook", "details", err)
+		sentry.CaptureException(err)
 	}
 }
 
