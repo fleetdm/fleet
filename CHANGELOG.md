@@ -31,7 +31,8 @@
 * Fix a bug in which browser extensions (Google Chrome, Firefox, and Safari) were not included in
   software inventory.
 
-* Fix aggregated stats query to support MySQL 8 (#3219).
+* Improve the security of the **Organization settings** page by preventing the browser from requesting
+  to save SMTP credentials.
 
 * Fix a bug in which an existing pack's targets were not cleaned up after deleting hosts, labels, and teams.
 
