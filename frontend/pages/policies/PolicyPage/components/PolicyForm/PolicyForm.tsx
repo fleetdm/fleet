@@ -362,11 +362,11 @@ const PolicyForm = ({
   };
 
   const renderPlatformCompatibility = () => {
-    const displayPlatforms = displayOrder
-      .filter((platform) => platform.selected)
-      .map((platform) => {
-        return platform.displayName;
-      });
+    let chosenPlatforms = displayOrder.filter((platform) => platform.selected);
+    chosenPlatforms = chosenPlatforms.length ? chosenPlatforms : displayOrder;
+    const displayPlatforms = chosenPlatforms.map(
+      (platform) => platform.displayName
+    );
 
     return (
       <span className={`${baseClass}__platform-compatibility`}>
