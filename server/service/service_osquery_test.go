@@ -286,7 +286,14 @@ func TestHostDetailQueries(t *testing.T) {
 		UUID:            "test_uuid",
 	}
 
-	svc := &Service{clock: mockClock, config: config.TestConfig(), ds: ds}
+	svc := &Service{
+		clock:    mockClock,
+		logger:   log.NewNopLogger(),
+		config:   config.TestConfig(),
+		ds:       ds,
+		jitterMu: new(sync.Mutex),
+		jitterH:  make(map[time.Duration]*jitterHashTable),
+	}
 
 	queries, err := svc.detailQueriesForHost(context.Background(), &host)
 	require.NoError(t, err)
