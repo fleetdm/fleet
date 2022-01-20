@@ -64,9 +64,9 @@ func (svc Service) NewTeamPolicy(ctx context.Context, teamID uint, p fleet.Polic
 	}
 
 	if err := p.Verify(); err != nil {
-		return nil, &badRequestError{
+		return nil, ctxerr.Wrap(ctx, &badRequestError{
 			message: fmt.Sprintf("policy payload verification: %s", err),
-		}
+		})
 	}
 	policy, err := svc.ds.NewTeamPolicy(ctx, teamID, ptr.Uint(vc.UserID()), p)
 	if err != nil {
@@ -106,6 +106,10 @@ func (svc Service) ListTeamPolicies(ctx context.Context, teamID uint) ([]*fleet.
 		},
 	}, fleet.ActionRead); err != nil {
 		return nil, err
+	}
+
+	if _, err := svc.ds.Team(ctx, teamID); err != nil {
+		return nil, ctxerr.Wrapf(ctx, err, "loading team %d", teamID)
 	}
 
 	return svc.ds.ListTeamPolicies(ctx, teamID)
@@ -245,9 +249,9 @@ func (svc Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p fl
 	}
 
 	if err := p.Verify(); err != nil {
-		return nil, &badRequestError{
+		return nil, ctxerr.Wrap(ctx, &badRequestError{
 			message: fmt.Sprintf("policy payload verification: %s", err),
-		}
+		})
 	}
 
 	if p.Name != nil {

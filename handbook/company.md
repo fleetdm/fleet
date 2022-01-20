@@ -101,10 +101,11 @@ The majority of the code, documentation, and content we create at Fleet is publi
   - focus on fewer tasks at one time
 - legendary execution
 
-### 出来 Think, fast
+### 出来 Balance
 
 Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.org/wiki/Golden_mean_%28philosophy%29).
 
+- think, fast
 - think for yourself (only you can)
 - from first principles
 - use reason

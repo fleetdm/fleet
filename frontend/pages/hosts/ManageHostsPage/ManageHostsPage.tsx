@@ -1452,10 +1452,14 @@ const ManageHostsPage = ({
       searchQuery === "" &&
       !isHostsLoading
     ) {
+      const { software_id, policy_id } = queryParams || {};
+      const includesSoftwareOrPolicyFilter = !!(software_id || policy_id);
+
       return (
         <NoHosts
           toggleGenerateInstallerModal={toggleGenerateInstallerModal}
           canEnrollHosts={canEnrollHosts}
+          includesSoftwareOrPolicyFilter={includesSoftwareOrPolicyFilter}
         />
       );
     }

@@ -1,5 +1,9 @@
 package fleet
 
+import (
+	"errors"
+)
+
 type PackListOptions struct {
 	ListOptions
 
@@ -22,6 +26,14 @@ type Pack struct {
 	HostIDs     []uint   `json:"host_ids"`
 	Teams       []Target `json:"teams"`
 	TeamIDs     []uint   `json:"team_ids"`
+}
+
+// Verify verifies the pack's fields are valid.
+func (p *Pack) Verify() error {
+	if emptyString(p.Name) {
+		return errPackEmptyName
+	}
+	return nil
 }
 
 // EditablePackType only returns true when the pack doesn't have a specific Type set, only nil & empty string Pack.Type
@@ -49,6 +61,18 @@ type PackPayload struct {
 	TeamIDs     *[]uint `json:"team_ids"`
 }
 
+var errPackEmptyName = errors.New("pack name cannot be empty")
+
+// Verify verifies the pack's payload fields are valid.
+func (p *PackPayload) Verify() error {
+	if p.Name != nil {
+		if emptyString(*p.Name) {
+			return errPackEmptyName
+		}
+	}
+	return nil
+}
+
 type PackSpec struct {
 	ID          uint            `json:"id,omitempty"`
 	Name        string          `json:"name"`
@@ -57,6 +81,14 @@ type PackSpec struct {
 	Disabled    bool            `json:"disabled"`
 	Targets     PackSpecTargets `json:"targets,omitempty"`
 	Queries     []PackSpecQuery `json:"queries,omitempty"`
+}
+
+// Verify verifies the pack's spec fields are valid.
+func (p *PackSpec) Verify() error {
+	if emptyString(p.Name) {
+		return errPackEmptyName
+	}
+	return nil
 }
 
 type PackSpecTargets struct {

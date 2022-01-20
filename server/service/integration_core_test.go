@@ -1180,6 +1180,12 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietaryInvalid() {
 			query:      "select 1;",
 		},
 		{
+			tname:      "empty with space",
+			testUpdate: true,
+			name:       " ", // #3704
+			query:      "select 1;",
+		},
+		{
 			tname:      "Invalid query",
 			testUpdate: true,
 			name:       "Invalid query",
@@ -2053,6 +2059,147 @@ func (s *integrationTestSuite) TestGlobalPoliciesAutomationConfig() {
 	require.Empty(t, config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
 }
 
+func (s *integrationTestSuite) TestQueriesBadRequests() {
+	t := s.T()
+
+	reqQuery := &fleet.QueryPayload{
+		Name:  ptr.String("existing query"),
+		Query: ptr.String("select 42;"),
+	}
+	createQueryResp := createQueryResponse{}
+	s.DoJSON("POST", "/api/v1/fleet/queries", reqQuery, http.StatusOK, &createQueryResp)
+	require.NotNil(t, createQueryResp.Query)
+	existingQueryID := createQueryResp.Query.ID
+
+	for _, tc := range []struct {
+		tname string
+		name  string
+		query string
+	}{
+		{
+			tname: "empty name",
+			name:  " ", // #3704
+			query: "select 42;",
+		},
+		{
+			tname: "empty query",
+			name:  "Some name",
+			query: "",
+		},
+		{
+			tname: "Invalid query",
+			name:  "Invalid query",
+			query: "ATTACH 'foo' AS bar;",
+		},
+	} {
+		t.Run(tc.tname, func(t *testing.T) {
+			reqQuery := &fleet.QueryPayload{
+				Name:  ptr.String(tc.name),
+				Query: ptr.String(tc.query),
+			}
+			createQueryResp := createQueryResponse{}
+			s.DoJSON("POST", "/api/v1/fleet/queries", reqQuery, http.StatusBadRequest, &createQueryResp)
+			require.Nil(t, createQueryResp.Query)
+
+			payload := fleet.QueryPayload{
+				Name:  ptr.String(tc.name),
+				Query: ptr.String(tc.query),
+			}
+			mResp := modifyQueryResponse{}
+			s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/queries/%d", existingQueryID), &payload, http.StatusBadRequest, &mResp)
+			require.Nil(t, mResp.Query)
+		})
+	}
+}
+
+func (s *integrationTestSuite) TestPacksBadRequests() {
+	t := s.T()
+
+	reqPacks := &fleet.PackPayload{
+		Name: ptr.String("existing pack"),
+	}
+	createPackResp := createPackResponse{}
+	s.DoJSON("POST", "/api/v1/fleet/packs", reqPacks, http.StatusOK, &createPackResp)
+	existingPackID := createPackResp.Pack.ID
+
+	for _, tc := range []struct {
+		tname string
+		name  string
+	}{
+		{
+			tname: "empty name",
+			name:  " ", // #3704
+		},
+	} {
+		t.Run(tc.tname, func(t *testing.T) {
+			reqQuery := &fleet.PackPayload{
+				Name: ptr.String(tc.name),
+			}
+			createPackResp := createQueryResponse{}
+			s.DoJSON("POST", "/api/v1/fleet/packs", reqQuery, http.StatusBadRequest, &createPackResp)
+
+			payload := fleet.PackPayload{
+				Name: ptr.String(tc.name),
+			}
+			mResp := modifyPackResponse{}
+			s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/packs/%d", existingPackID), &payload, http.StatusBadRequest, &mResp)
+		})
+	}
+}
+
+func (s *integrationTestSuite) TestTeamsEndpointsWithoutLicense() {
+	t := s.T()
+
+	// list teams, none
+	var listResp listTeamsResponse
+	s.DoJSON("GET", "/api/v1/fleet/teams", nil, http.StatusPaymentRequired, &listResp)
+	assert.Len(t, listResp.Teams, 0)
+
+	// create team
+	var tmResp teamResponse
+	s.DoJSON("POST", "/api/v1/fleet/teams", &createTeamRequest{}, http.StatusPaymentRequired, &tmResp)
+	assert.Nil(t, tmResp.Team)
+
+	// modify team
+	s.DoJSON("PATCH", "/api/v1/fleet/teams/123", fleet.TeamPayload{}, http.StatusPaymentRequired, &tmResp)
+	assert.Nil(t, tmResp.Team)
+
+	// delete team
+	var delResp deleteTeamResponse
+	s.DoJSON("DELETE", "/api/v1/fleet/teams/123", nil, http.StatusPaymentRequired, &delResp)
+
+	// apply team specs - does succeed unlike others, no license required for this one
+	var specResp applyTeamSpecsResponse
+	teamSpecs := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: "newteam", Secrets: []fleet.EnrollSecret{{Secret: "ABC"}}}}}
+	s.DoJSON("POST", "/api/v1/fleet/spec/teams", teamSpecs, http.StatusOK, &specResp)
+
+	// modify team agent options
+	s.DoJSON("POST", "/api/v1/fleet/teams/123/agent_options", nil, http.StatusPaymentRequired, &tmResp)
+	assert.Nil(t, tmResp.Team)
+
+	// list team users
+	var usersResp listUsersResponse
+	s.DoJSON("GET", "/api/v1/fleet/teams/123/users", nil, http.StatusPaymentRequired, &usersResp, "page", "1")
+	assert.Len(t, usersResp.Users, 0)
+
+	// add team users
+	s.DoJSON("PATCH", "/api/v1/fleet/teams/123/users", modifyTeamUsersRequest{Users: []fleet.TeamUser{{User: fleet.User{ID: 1}}}}, http.StatusPaymentRequired, &tmResp)
+	assert.Nil(t, tmResp.Team)
+
+	// delete team users
+	s.DoJSON("DELETE", "/api/v1/fleet/teams/123/users", modifyTeamUsersRequest{Users: []fleet.TeamUser{{User: fleet.User{ID: 1}}}}, http.StatusPaymentRequired, &tmResp)
+	assert.Nil(t, tmResp.Team)
+
+	// get team enroll secrets
+	var secResp teamEnrollSecretsResponse
+	s.DoJSON("GET", "/api/v1/fleet/teams/123/secrets", nil, http.StatusPaymentRequired, &secResp)
+	assert.Len(t, secResp.Secrets, 0)
+
+	// modify team enroll secrets
+	s.DoJSON("PATCH", "/api/v1/fleet/teams/123/secrets", modifyTeamEnrollSecretsRequest{Secrets: []fleet.EnrollSecret{{Secret: "DEF"}}}, http.StatusPaymentRequired, &secResp)
+	assert.Len(t, secResp.Secrets, 0)
+}
+
 // TestGlobalPoliciesBrowsing tests that team users can browse (read) global policies (see #3722).
 func (s *integrationTestSuite) TestGlobalPoliciesBrowsing() {
 	t := s.T()
@@ -2100,4 +2247,12 @@ func (s *integrationTestSuite) TestGlobalPoliciesBrowsing() {
 	require.Len(t, policiesResponse.Policies, 1)
 	assert.Equal(t, "global policy", policiesResponse.Policies[0].Name)
 	assert.Equal(t, "select * from osquery;", policiesResponse.Policies[0].Query)
+}
+
+func (s *integrationTestSuite) TestTeamPoliciesTeamNotExists() {
+	t := s.T()
+
+	teamPoliciesResponse := listTeamPoliciesResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/teams/%d/policies", 9999999), nil, http.StatusNotFound, &teamPoliciesResponse)
+	require.Len(t, teamPoliciesResponse.Policies, 0)
 }
