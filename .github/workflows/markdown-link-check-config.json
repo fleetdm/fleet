@@ -1,38 +1,41 @@
 {
-    "ignorePatterns": [
-        {
-            "pattern": "localhost"
-        },
-        {
-            "pattern": "osquery.io/downloads"
-        },
-        {
-            "pattern": "fleet.acme.org"
-        },
-        {
-            "pattern": "fleet.corp.example.com"
-        },
-        {
-            "pattern": "fleet.example.com"
-        },
-        {
-            "pattern": "/server/datastore/mysql/migrations/"
-        },
-        {
-            "pattern": "linkedin.com/company/fleetdm"
-        },
-        {
-            "pattern": "github.com/fleetdm/confidential"
-        },
-        {
-            "pattern": "osquery.io/schema"
-        },
-        {
-            "pattern": "github.com/issues"
-        }
-    ],
-    "retryOn429": true,
-    "retryCount": 2,
-    "fallbackRetryDelay": "2s",
-    "aliveStatusCodes": [200, 206, 999]
+  "ignorePatterns": [
+    {
+      "pattern": "localhost"
+    },
+    {
+      "pattern": "osquery.io/downloads"
+    },
+    {
+      "pattern": "fleet.acme.org"
+    },
+    {
+      "pattern": "fleet.corp.example.com"
+    },
+    {
+      "pattern": "fleet.example.com"
+    },
+    {
+      "pattern": "/server/datastore/mysql/migrations/"
+    },
+    {
+      "pattern": "linkedin.com/company/fleetdm"
+    },
+    {
+      "pattern": "github.com/fleetdm/confidential"
+    },
+    {
+      "pattern": "osquery.io/schema"
+    },
+    {
+      "pattern": "github.com/issues"
+    },
+    {
+      "pattern": "goreportcard.com"
+    }
+  ],
+  "retryOn429": true,
+  "retryCount": 2,
+  "fallbackRetryDelay": "2s",
+  "aliveStatusCodes": [200, 206, 999]
 }
