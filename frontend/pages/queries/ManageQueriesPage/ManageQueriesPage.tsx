@@ -16,8 +16,6 @@ import { performanceIndicator } from "fleet/helpers";
 import { IQuery } from "interfaces/query";
 import fleetQueriesAPI from "services/entities/queries";
 // @ts-ignore
-// import queryActions from "redux/nodes/entities/queries/actions"; // TODO: Delete this after redux dependencies have been removed.
-// @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions";
 import PATHS from "router/paths";
 // @ts-ignore

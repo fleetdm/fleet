@@ -232,7 +232,6 @@ const ManageHostsPage = ({
     null
   );
   const [tableQueryData, setTableQueryData] = useState<ITableQueryProps>();
-  const [clearSelectionCount, setClearSelectionCount] = useState<number>(0);
   const [
     currentQueryOptions,
     setCurrentQueryOptions,
@@ -970,7 +969,7 @@ const ManageHostsPage = ({
           : `Hosts successfully transferred to  ${team.name}.`;
 
       dispatch(renderFlash("success", successMessage));
-      setResetSelectedRows(true); // TODO: Consider this an an alternative approach to setClearSelectionCount
+      setResetSelectedRows(true);
       refetchHosts({
         selectedLabels: selectedFilters,
         globalFilter: searchQuery,
@@ -984,7 +983,6 @@ const ManageHostsPage = ({
       toggleTransferHostModal();
       setSelectedHostIds([]);
       setIsAllMatchingHostsSelected(false);
-      // setClearSelectionCount(clearSelectionCount + 1);
     } catch (error) {
       dispatch(
         renderFlash("error", "Could not transfer hosts. Please try again.")
@@ -1505,7 +1503,6 @@ const ManageHostsPage = ({
         searchToolTipText={
           "Search hosts by hostname, UUID, machine serial or IP address"
         }
-        clearSelectionCount={clearSelectionCount}
         emptyComponent={EmptyHosts}
         customControl={renderStatusDropdown}
         onActionButtonClick={onEditColumnsClick}
