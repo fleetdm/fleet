@@ -7,6 +7,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/getsentry/sentry-go"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	redigo "github.com/gomodule/redigo/redis"
@@ -43,6 +44,7 @@ func (t *Task) StartCollectors(ctx context.Context, jitterPct int, logger kitlog
 
 	collectorErrHandler := func(name string, err error) {
 		level.Error(logger).Log("err", fmt.Sprintf("%s collector", name), "details", err)
+		sentry.CaptureException(err)
 	}
 
 	labelColl := &collector{
