@@ -47,7 +47,7 @@ A browser compatibility check of [fleetdm.com](https://fleetdm.com/) should be c
 
 At Fleet, our voice and tone should be clear, simple, friendly, and inspiring - like [Mr. Rogers](https://en.wikipedia.org/wiki/Fred_Rogers) who had a deep understanding of these communication values.
 
-Consider the examples below. What would Mr Rogers say?
+Consider the example tweets below. What would Mr. Rogers say?
 
 > *Distributed workforces aren’t going anywhere anytime soon. **It’s past time** to **start engaging meaningfully** with your **workforce** and **getting them** to work with your security team instead of around them.*
  
