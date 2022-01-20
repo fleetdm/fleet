@@ -53,6 +53,7 @@ require (
 	github.com/mitchellh/go-ps v1.0.0
 	github.com/mitchellh/gon v0.2.3
 	github.com/mna/redisc v1.3.2
+	github.com/ngrok/sqlmw v0.0.0-20211220175533-9d16fdc47b31
 	github.com/oklog/run v1.1.0
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/open-policy-agent/opa v0.24.0

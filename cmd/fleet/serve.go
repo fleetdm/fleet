@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"crypto/tls"
+	"database/sql/driver"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -46,6 +47,7 @@ import (
 	"github.com/go-kit/kit/log/level"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/kolide/kit/version"
+	"github.com/ngrok/sqlmw"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
@@ -153,11 +155,17 @@ the way that the Fleet server works.
 			var carveStore fleet.CarveStore
 			mailService := mail.NewService()
 
-			var replicaOpt mysql.DBOption
+			opts := []mysql.DBOption{mysql.Logger(logger)}
 			if config.MysqlReadReplica.Address != "" {
-				replicaOpt = mysql.Replica(&config.MysqlReadReplica)
+				opts = append(opts, mysql.Replica(&config.MysqlReadReplica))
 			}
-			ds, err = mysql.New(config.Mysql, clock.C, mysql.Logger(logger), replicaOpt)
+			if dev && os.Getenv("FLEET_ENABLE_DEV_SQL_INTERCEPTOR") != "" {
+				opts = append(opts, mysql.WithInterceptor(&devSQLInterceptor{
+					logger: kitlog.With(logger, "component", "sql-interceptor"),
+				}))
+			}
+
+			ds, err = mysql.New(config.Mysql, clock.C, opts...)
 			if err != nil {
 				initFatal(err, "initializing datastore")
 			}
@@ -810,4 +818,49 @@ func getTLSConfig(profile string) *tls.Config {
 	}
 
 	return &cfg
+}
+
+// devSQLInterceptor is a sql interceptor to be used for development purposes.
+type devSQLInterceptor struct {
+	sqlmw.NullInterceptor
+
+	logger kitlog.Logger
+}
+
+func (in *devSQLInterceptor) StmtQueryContext(ctx context.Context, stmt driver.StmtQueryContext, query string, args []driver.NamedValue) (driver.Rows, error) {
+	start := time.Now()
+	rows, err := stmt.QueryContext(ctx, args)
+	in.logQuery(start, query, args, err)
+	return rows, err
+}
+
+func (in *devSQLInterceptor) StmtExecContext(ctx context.Context, stmt driver.StmtExecContext, query string, args []driver.NamedValue) (driver.Result, error) {
+	start := time.Now()
+	result, err := stmt.ExecContext(ctx, args)
+	in.logQuery(start, query, args, err)
+	return result, err
+}
+
+func (in *devSQLInterceptor) logQuery(start time.Time, query string, args []driver.NamedValue, err error) {
+	logLevel := level.Debug
+	if err != nil {
+		logLevel = level.Error
+	}
+	logLevel(in.logger).Log("duration", time.Since(start), "query", query, "args", argsToString(args), "err", err)
+}
+
+func argsToString(args []driver.NamedValue) string {
+	var allArgs strings.Builder
+	allArgs.WriteString("{")
+	for i, arg := range args {
+		if i > 0 {
+			allArgs.WriteString(", ")
+		}
+		if arg.Name != "" {
+			allArgs.WriteString(fmt.Sprintf("%s=", arg.Name))
+		}
+		allArgs.WriteString(fmt.Sprintf("%v", arg.Value))
+	}
+	allArgs.WriteString("}")
+	return allArgs.String()
 }
