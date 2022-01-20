@@ -10,15 +10,15 @@ describe(
     });
     it("Can create, update, delete a policy successfully, and turn on failing policies webhook", () => {
       cy.visit("/policies/manage");
-      cy.get(".manage-policies-page__description")
-        .should("contain", /add policies/i)
-        .and("contain", /manage automations/i); // Ensure page load
 
       // Add a policy
-      cy.findByText(/add a policy/i).click();
+      cy.getAttached(".manage-policies-page__description").within(() => {
+        cy.findByText(/add a policy/i).click();
+      });
+
       cy.findByText(/create your own policy/i).click();
 
-      cy.get(".ace_scroller")
+      cy.getAttached(".ace_scroller")
         .click({ force: true })
         .type(
           "{selectall}SELECT 1 FROM users WHERE username = 'backup' LIMIT 1;"
@@ -27,37 +27,32 @@ describe(
       cy.findByRole("button", { name: /save policy/i }).click();
 
       // save modal
-      cy.get(".policy-form__policy-save-modal-name")
+      cy.getAttached(".policy-form__policy-save-modal-name")
         .click()
         .type("Does the device have a user named 'backup'?");
 
-      cy.get(".policy-form__policy-save-modal-description")
+      cy.getAttached(".policy-form__policy-save-modal-description")
         .click()
         .type("Returns yes or no for having a user named 'backup'");
 
-      cy.get(".policy-form__policy-save-modal-resolution")
+      cy.getAttached(".policy-form__policy-save-modal-resolution")
         .click()
         .type("Create a user named 'backup'");
 
       cy.findByRole("button", { name: /^Save$/ }).click();
 
-      // Confirm that policy was added successfully
       cy.findByText(/policy created/i).should("exist");
 
-      cy.visit("/policies/manage");
-      cy.get(".manage-policies-page__description").should(
-        "contain",
-        /add policies/i
-      ); // Ensure page load
-
       // Add a default policy
-      cy.findByText(/add a policy/i).click();
+      cy.visit("/policies/manage");
+      cy.getAttached(".manage-policies-page__description").within(() => {
+        cy.findByText(/add a policy/i).click();
+      });
 
       cy.findByText(/gatekeeper enabled/i).click();
       cy.findByRole("button", { name: /save policy/i }).click();
       cy.findByRole("button", { name: /^Save$/ }).click();
 
-      // Confirm that policy was added successfully
       cy.findByText(/policy created/i).should("exist");
 
       cy.visit("/policies/manage");
@@ -70,8 +65,8 @@ describe(
           cy.getAttached(".button--text-link").click();
         });
 
-      // confirm policy functionality on manage host page
-      cy.get(".manage-hosts__policies-filter-block").within(() => {
+      // Confirm policy functionality on manage host page
+      cy.getAttached(".manage-hosts__policies-filter-block").within(() => {
         cy.findByText(/user named 'backup'/i).should("exist");
         cy.findByText(/no/i).should("exist").click();
         cy.findByText(/yes/i).should("exist");
@@ -79,9 +74,8 @@ describe(
         cy.findByText(/user named 'backup'/i).should("not.exist");
       });
 
-      cy.visit("/policies/manage");
-
       // Update policy
+      cy.visit("/policies/manage");
       cy.getAttached(".name__cell .button--text-link").last().click();
 
       cy.getAttached(".ace_scroller")
@@ -92,7 +86,6 @@ describe(
 
       cy.getAttached(".policy-form__save").click();
 
-      // Confirm that policy was added successfully
       cy.findByText(/policy updated/i).should("exist");
 
       // Delete policy
