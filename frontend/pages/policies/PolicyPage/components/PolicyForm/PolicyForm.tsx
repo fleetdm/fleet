@@ -123,9 +123,15 @@ const PolicyForm = ({
       enableLinking: true,
     });
 
-    setIsWindowsCompatible(!!lastEditedQueryPlatform?.includes("windows"));
-    setIsDarwinCompatible(!!lastEditedQueryPlatform?.includes("darwin"));
-    setIsLinuxCompatible(!!lastEditedQueryPlatform?.includes("linux"));
+    if (policyIdForEdit) {
+      setIsWindowsCompatible(!!lastEditedQueryPlatform?.includes("windows"));
+      setIsDarwinCompatible(!!lastEditedQueryPlatform?.includes("darwin"));
+      setIsLinuxCompatible(!!lastEditedQueryPlatform?.includes("linux"));
+    } else {
+      setIsWindowsCompatible(true);
+      setIsDarwinCompatible(true);
+      setIsLinuxCompatible(true);
+    }
 
     // @ts-expect-error
     // the string "linkClick" is not officially in the lib but we need it
