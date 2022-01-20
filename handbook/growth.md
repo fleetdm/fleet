@@ -45,7 +45,7 @@ A browser compatibility check of [fleetdm.com](https://fleetdm.com/) should be c
 
 ### What would Mr Rogers say?
 
-At Fleet, our voice and tone should be clear, simple, friendly, and inspiring - like [Mr Rogers](https://en.wikipedia.org/wiki/Fred_Rogers) who had a deep understanding of these communication values.
+At Fleet, our voice and tone should be clear, simple, friendly, and inspiring - like [Mr. Rogers](https://en.wikipedia.org/wiki/Fred_Rogers) who had a deep understanding of these communication values.
 
 Consider the examples below. What would Mr Rogers say?
 
