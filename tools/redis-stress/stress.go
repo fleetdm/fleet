@@ -40,7 +40,7 @@ func main() {
 		for {
 			select {
 			case <-ticker.C:
-				err := conn.Do("SET", fmt.Sprintf("error:%d", i), 1, "EX", (10 * time.Minute).Seconds())
+				_, err := conn.Do("SET", fmt.Sprintf("error:%d", i), 1, "EX", (10 * time.Minute).Seconds())
 				if debugFlag != nil && *debugFlag {
 					log.Println("SET", i)
 					if err != nil {
