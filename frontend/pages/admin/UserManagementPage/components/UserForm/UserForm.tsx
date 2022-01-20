@@ -28,8 +28,8 @@ import Dropdown from "components/forms/fields/Dropdown";
 import Radio from "components/forms/fields/Radio";
 import InfoBanner from "components/InfoBanner/InfoBanner";
 import SelectedTeamsForm from "../SelectedTeamsForm/SelectedTeamsForm";
-import OpenNewTabIcon from "../../../../../../assets/images/open-new-tab-12x12@2x.png";
 import SelectRoleForm from "../SelectRoleForm/SelectRoleForm";
+import OpenNewTabIcon from "../../../../../../assets/images/open-new-tab-12x12@2x.png";
 
 const baseClass = "create-user-form";
 
@@ -91,7 +91,9 @@ interface ICreateUserFormProps {
   canUseSso: boolean; // corresponds to whether SSO is enabled for the organization
   isSsoEnabled?: boolean; // corresponds to whether SSO is enabled for the individual user
   isNewUser?: boolean;
-  serverErrors?: IUserFormErrors; // "server" because this form does its own client validation
+  serverErrors?: { base: string; email: string }; // "server" because this form does its own client validation
+  createUserErrors?: IUserFormErrors;
+  editUserErrors?: IUserFormErrors;
   dispatch: Dispatch;
 }
 
@@ -621,6 +623,7 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
                     hint={[
                       "Must include 7 characters, at least 1 number (e.g. 0 - 9), and at least 1 symbol (e.g. &*#)",
                     ]}
+                    blockAutoComplete
                   />
                 </div>
                 <div className={`${baseClass}__details`}>

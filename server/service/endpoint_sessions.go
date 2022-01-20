@@ -3,9 +3,11 @@ package service
 import (
 	"bytes"
 	"context"
+	"errors"
 	"html/template"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/kit/endpoint"
 )
@@ -20,9 +22,10 @@ type loginRequest struct {
 }
 
 type loginResponse struct {
-	User  *fleet.User `json:"user,omitempty"`
-	Token string      `json:"token,omitempty"`
-	Err   error       `json:"error,omitempty"`
+	User           *fleet.User          `json:"user,omitempty"`
+	AvailableTeams []*fleet.TeamSummary `json:"available_teams"`
+	Token          string               `json:"token,omitempty"`
+	Err            error                `json:"error,omitempty"`
 }
 
 func (r loginResponse) error() error { return r.Err }
@@ -34,7 +37,21 @@ func makeLoginEndpoint(svc fleet.Service) endpoint.Endpoint {
 		if err != nil {
 			return loginResponse{Err: err}, nil
 		}
-		return loginResponse{user, token, nil}, nil
+		// Add viewer context allow access to service teams for list of available teams
+		v, err := authViewer(ctx, token, svc)
+		if err != nil {
+			return loginResponse{Err: err}, nil
+		}
+		ctx = viewer.NewContext(ctx, *v)
+		availableTeams, err := svc.ListAvailableTeamsForUser(ctx, user)
+		if err != nil {
+			if errors.Is(err, fleet.ErrMissingLicense) {
+				availableTeams = []*fleet.TeamSummary{}
+			} else {
+				return loginResponse{Err: err}, nil
+			}
+		}
+		return loginResponse{user, availableTeams, token, nil}, nil
 	}
 }
 

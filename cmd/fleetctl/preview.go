@@ -35,13 +35,16 @@ const (
 	tagFlagName             = "tag"
 	previewConfigFlagName   = "preview-config"
 	noHostsFlagName         = "no-hosts"
+	orbitChannel            = "orbit-channel"
+	osquerydChannel         = "osqueryd-channel"
 )
 
 func previewCommand() *cli.Command {
 	return &cli.Command{
-		Name:  "preview",
-		Usage: "Start a preview deployment of the Fleet server",
-		Description: `Start a preview deployment of the Fleet server using Docker and docker-compose. Docker tools must be available in the environment.
+		Name:    "preview",
+		Aliases: []string{"sandbox"},
+		Usage:   "Start a sandbox deployment of the Fleet server",
+		Description: `Start a sandbox deployment of the Fleet server using Docker and docker-compose. Docker tools must be available in the environment.
 
 Use the stop and reset subcommands to manage the server and dependencies once started.`,
 		Subcommands: []*cli.Command{
@@ -70,6 +73,16 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 				Name:  noHostsFlagName,
 				Usage: "Start the server without adding any hosts",
 				Value: false,
+			},
+			&cli.StringFlag{
+				Name:  orbitChannel,
+				Usage: "Use a custom orbit channel",
+				Value: "stable",
+			},
+			&cli.StringFlag{
+				Name:  osquerydChannel,
+				Usage: "Use a custom osqueryd channel",
+				Value: "stable",
 			},
 		},
 		Action: func(c *cli.Context) error {
@@ -251,7 +264,7 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			if !c.Bool(noHostsFlagName) {
 				fmt.Println("Enrolling local host...")
 
-				if err := downloadOrbitAndStart(previewDir, secrets.Secrets[0].Secret, address); err != nil {
+				if err := downloadOrbitAndStart(previewDir, secrets.Secrets[0].Secret, address, c.String(orbitChannel), c.String(osquerydChannel)); err != nil {
 					return fmt.Errorf("downloading orbit and osqueryd: %w", err)
 				}
 
@@ -605,7 +618,7 @@ func processNameMatches(pid int, expectedPrefix string) (bool, error) {
 	return strings.HasPrefix(strings.ToLower(process.Executable()), strings.ToLower(expectedPrefix)), nil
 }
 
-func downloadOrbitAndStart(destDir string, enrollSecret string, address string) error {
+func downloadOrbitAndStart(destDir, enrollSecret, address, orbitChannel, osquerydChannel string) error {
 	// Stop any current intance of orbit running, otherwise the configured enroll secret
 	// won't match the generated in the preview run.
 	if err := stopOrbit(destDir); err != nil {
@@ -634,6 +647,8 @@ func downloadOrbitAndStart(destDir string, enrollSecret string, address string) 
 	}
 	updateOpt.ServerURL = "https://tuf.fleetctl.com"
 	updateOpt.RootDirectory = destDir
+	updateOpt.OrbitChannel = orbitChannel
+	updateOpt.OsquerydChannel = osquerydChannel
 
 	if err := packaging.InitializeUpdates(updateOpt); err != nil {
 		return fmt.Errorf("initialize updates: %w", err)
@@ -646,6 +661,8 @@ func downloadOrbitAndStart(destDir string, enrollSecret string, address string) 
 		"--insecure",
 		"--debug",
 		"--enroll-secret", enrollSecret,
+		"--orbit-channel", updateOpt.OrbitChannel,
+		"--osqueryd-channel", updateOpt.OsquerydChannel,
 		"--log-file", path.Join(destDir, "orbit.log"),
 	)
 	if err := cmd.Start(); err != nil {

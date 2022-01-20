@@ -3,12 +3,8 @@ package async
 import (
 	"context"
 	"fmt"
-	"math"
-	"regexp"
-	"strconv"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/getsentry/sentry-go"
@@ -17,12 +13,7 @@ import (
 	redigo "github.com/gomodule/redigo/redis"
 )
 
-const (
-	labelMembershipHostKeyPattern = "label_membership:{*}"
-	labelMembershipHostKey        = "label_membership:{%d}"
-	labelMembershipReportedKey    = "label_membership_reported:{%d}"
-	collectorLockKey              = "locks:async_collector:{%s}"
-)
+const collectorLockKey = "locks:async_collector:{%s}"
 
 type Task struct {
 	Datastore fleet.Datastore
@@ -38,32 +29,50 @@ type Task struct {
 	UpdateBatch        int
 	RedisPopCount      int
 	RedisScanKeysCount int
+	CollectorInterval  time.Duration
 }
 
 // Collect runs the various collectors as distinct background goroutines if
 // async processing is enabled.  Each collector will stop processing when ctx
 // is done.
-func (t *Task) StartCollectors(ctx context.Context, interval time.Duration, jitterPct int, logger kitlog.Logger) {
+func (t *Task) StartCollectors(ctx context.Context, jitterPct int, logger kitlog.Logger) {
 	if !t.AsyncEnabled {
 		level.Debug(logger).Log("task", "async disabled, not starting collectors")
 		return
 	}
-	level.Debug(logger).Log("task", "async enabled, starting collectors", "interval", interval, "jitter", jitterPct)
+	level.Debug(logger).Log("task", "async enabled, starting collectors", "interval", t.CollectorInterval, "jitter", jitterPct)
+
+	collectorErrHandler := func(name string, err error) {
+		level.Error(logger).Log("err", fmt.Sprintf("%s collector", name), "details", err)
+		sentry.CaptureException(err)
+	}
 
 	labelColl := &collector{
 		name:         "collect_labels",
 		pool:         t.Pool,
 		ds:           t.Datastore,
-		execInterval: interval,
+		execInterval: t.CollectorInterval,
 		jitterPct:    jitterPct,
 		lockTimeout:  t.LockTimeout,
 		handler:      t.collectLabelQueryExecutions,
-		errHandler: func(name string, err error) {
-			level.Error(logger).Log("err", fmt.Sprintf("%s collector", name), "details", err)
-			sentry.CaptureException(err)
-		},
+		errHandler:   collectorErrHandler,
 	}
-	go labelColl.Start(ctx)
+
+	policyColl := &collector{
+		name:         "collect_policies",
+		pool:         t.Pool,
+		ds:           t.Datastore,
+		execInterval: t.CollectorInterval,
+		jitterPct:    jitterPct,
+		lockTimeout:  t.LockTimeout,
+		handler:      t.collectPolicyQueryExecutions,
+		errHandler:   collectorErrHandler,
+	}
+
+	colls := []*collector{labelColl, policyColl}
+	for _, coll := range colls {
+		go coll.Start(ctx)
+	}
 
 	// log stats at regular intervals
 	if t.LogStatsInterval > 0 {
@@ -72,8 +81,10 @@ func (t *Task) StartCollectors(ctx context.Context, interval time.Duration, jitt
 			for {
 				select {
 				case <-tick:
-					stats := labelColl.ReadStats()
-					level.Debug(logger).Log("stats", fmt.Sprintf("%#v", stats), "name", labelColl.name)
+					for _, coll := range colls {
+						stats := coll.ReadStats()
+						level.Debug(logger).Log("stats", fmt.Sprintf("%#v", stats), "name", coll.name)
+					}
 				case <-ctx.Done():
 					return
 				}
@@ -82,198 +93,116 @@ func (t *Task) StartCollectors(ctx context.Context, interval time.Duration, jitt
 	}
 }
 
-func (t *Task) RecordLabelQueryExecutions(ctx context.Context, host *fleet.Host, results map[uint]*bool, ts time.Time) error {
-	if !t.AsyncEnabled {
-		host.LabelUpdatedAt = ts
-		return t.Datastore.RecordLabelQueryExecutions(ctx, host, results, ts, false)
-	}
-
-	keySet := fmt.Sprintf(labelMembershipHostKey, host.ID)
-	keyTs := fmt.Sprintf(labelMembershipReportedKey, host.ID)
-
-	script := redigo.NewScript(2, `
-    redis.call('ZADD', KEYS[1], unpack(ARGV, 2))
-    return redis.call('SET', KEYS[2], ARGV[1])
+func storePurgeActiveHostID(pool fleet.RedisPool, zsetKey string, hid uint, reportedAt, purgeOlder time.Time) (int, error) {
+	// KEYS[1]: the zsetKey
+	// ARGV[1]: the host ID to add
+	// ARGV[2]: the added host's reported-at timestamp
+	// ARGV[3]: purge any entry with score older than this (purgeOlder timestamp)
+	//
+	// returns how many hosts were removed
+	script := redigo.NewScript(1, `
+    redis.call('ZADD', KEYS[1], ARGV[2], ARGV[1])
+    return redis.call('ZREMRANGEBYSCORE', KEYS[1], '-inf', ARGV[3])
   `)
 
-	// convert results to ZADD arguments, store as -1 for delete, +1 for insert
-	args := make(redigo.Args, 0, 3+(len(results)*2))
-	args = args.Add(keySet, keyTs, ts.Unix())
-	for k, v := range results {
-		score := -1
-		if v != nil && *v {
-			score = 1
-		}
-		args = args.Add(score, k)
-	}
-
-	conn := t.Pool.Get()
+	conn := pool.Get()
 	defer conn.Close()
-	if err := redis.BindConn(t.Pool, conn, keySet, keyTs); err != nil {
-		return ctxerr.Wrap(ctx, err, "bind redis connection")
+
+	if err := redis.BindConn(pool, conn, zsetKey); err != nil {
+		return 0, fmt.Errorf("bind redis connection: %w", err)
 	}
 
-	if _, err := script.Do(conn, args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "run redis script")
-	}
-	return nil
-}
-
-var reHostFromKey = regexp.MustCompile(`\{(\d+)\}$`)
-
-func (t *Task) collectLabelQueryExecutions(ctx context.Context, ds fleet.Datastore, pool fleet.RedisPool, stats *collectorExecStats) error {
-	keys, err := redis.ScanKeys(pool, labelMembershipHostKeyPattern, t.RedisScanKeysCount)
+	count, err := redigo.Int(script.Do(conn, zsetKey, hid, reportedAt.Unix(), purgeOlder.Unix()))
 	if err != nil {
-		return err
+		return 0, fmt.Errorf("run redis script: %w", err)
 	}
-	stats.Keys = len(keys)
-
-	getKeyTuples := func(key string) (hostID uint, inserts, deletes [][2]uint, err error) {
-		if matches := reHostFromKey.FindStringSubmatch(key); matches != nil {
-			id, err := strconv.ParseInt(matches[1], 10, 64)
-			if err == nil && id > 0 && id <= math.MaxUint32 { // required for CodeQL vulnerability scanning in CI
-				hostID = uint(id)
-			}
-		}
-
-		// just ignore if there is no valid host id
-		if hostID == 0 {
-			return hostID, nil, nil, nil
-		}
-
-		conn := redis.ConfigureDoer(pool, pool.Get())
-		defer conn.Close()
-
-		for {
-			stats.RedisCmds++
-
-			vals, err := redigo.Ints(conn.Do("ZPOPMIN", key, t.RedisPopCount))
-			if err != nil {
-				return hostID, nil, nil, ctxerr.Wrap(ctx, err, "redis ZPOPMIN")
-			}
-			items := len(vals) / 2 // each item has the label id and the score (-1=delete, +1=insert)
-			stats.Items += items
-
-			for i := 0; i < len(vals); i += 2 {
-				labelID := vals[i]
-
-				var score int
-				if i+1 < len(vals) { // just to be safe we received all pairs
-					score = vals[i+1]
-				}
-
-				switch score {
-				case 1:
-					inserts = append(inserts, [2]uint{uint(labelID), hostID})
-				case -1:
-					deletes = append(deletes, [2]uint{uint(labelID), hostID})
-				}
-			}
-			if items < t.RedisPopCount {
-				return hostID, inserts, deletes, nil
-			}
-		}
-	}
-
-	// Based on those pages, the best approach appears to be INSERT with multiple
-	// rows in the VALUES section (short of doing LOAD FILE, which we can't):
-	// https://www.databasejournal.com/features/mysql/optimize-mysql-inserts-using-batch-processing.html
-	// https://dev.mysql.com/doc/refman/5.7/en/insert-optimization.html
-	// https://dev.mysql.com/doc/refman/5.7/en/optimizing-innodb-bulk-data-loading.html
-	//
-	// Given that there are no UNIQUE constraints in label_membership (well,
-	// apart from the primary key columns), no AUTO_INC column and no FOREIGN
-	// KEY, there is no obvious setting to tweak (based on the recommendations of
-	// the third link above).
-	//
-	// However, in label_membership, updated_at defaults to the current timestamp
-	// both on INSERT and when UPDATEd, so it does not need to be provided.
-
-	runInsertBatch := func(batch [][2]uint) error {
-		stats.Inserts++
-		return ds.AsyncBatchInsertLabelMembership(ctx, batch)
-	}
-
-	runDeleteBatch := func(batch [][2]uint) error {
-		stats.Deletes++
-		return ds.AsyncBatchDeleteLabelMembership(ctx, batch)
-	}
-
-	runUpdateBatch := func(ids []uint, ts time.Time) error {
-		stats.Updates++
-		return ds.AsyncBatchUpdateLabelTimestamp(ctx, ids, ts)
-	}
-
-	insertBatch := make([][2]uint, 0, t.InsertBatch)
-	deleteBatch := make([][2]uint, 0, t.DeleteBatch)
-	hostIDs := make([]uint, 0, len(keys))
-	for _, key := range keys {
-		hostID, ins, del, err := getKeyTuples(key)
-		if err != nil {
-			return err
-		}
-		insertBatch = append(insertBatch, ins...)
-		deleteBatch = append(deleteBatch, del...)
-
-		if len(insertBatch) >= t.InsertBatch {
-			if err := runInsertBatch(insertBatch); err != nil {
-				return err
-			}
-			insertBatch = insertBatch[:0]
-		}
-		if len(deleteBatch) >= t.DeleteBatch {
-			if err := runDeleteBatch(deleteBatch); err != nil {
-				return err
-			}
-			deleteBatch = deleteBatch[:0]
-		}
-		if hostID > 0 {
-			hostIDs = append(hostIDs, hostID)
-		}
-	}
-
-	// process any remaining batch that did not reach the batchSize limit in the
-	// loop.
-	if len(insertBatch) > 0 {
-		if err := runInsertBatch(insertBatch); err != nil {
-			return err
-		}
-	}
-	if len(deleteBatch) > 0 {
-		if err := runDeleteBatch(deleteBatch); err != nil {
-			return err
-		}
-	}
-	if len(hostIDs) > 0 {
-		ts := time.Now()
-		updateBatch := make([]uint, t.UpdateBatch)
-		for {
-			n := copy(updateBatch, hostIDs)
-			if n == 0 {
-				break
-			}
-			if err := runUpdateBatch(updateBatch[:n], ts); err != nil {
-				return err
-			}
-			hostIDs = hostIDs[n:]
-		}
-	}
-
-	return nil
+	return count, nil
 }
 
-func (t *Task) GetHostLabelReportedAt(ctx context.Context, host *fleet.Host) time.Time {
-	if t.AsyncEnabled {
-		conn := redis.ConfigureDoer(t.Pool, t.Pool.Get())
-		defer conn.Close()
+type hostIDLastReported struct {
+	HostID       uint
+	LastReported int64 // timestamp in unix epoch
+}
 
-		key := fmt.Sprintf(labelMembershipReportedKey, host.ID)
-		epoch, err := redigo.Int64(conn.Do("GET", key))
-		if err == nil {
-			if reported := time.Unix(epoch, 0); reported.After(host.LabelUpdatedAt) {
-				return reported
-			}
+func loadActiveHostIDs(pool fleet.RedisPool, zsetKey string, scanCount int) ([]hostIDLastReported, error) {
+	conn := redis.ConfigureDoer(pool, pool.Get())
+	defer conn.Close()
+
+	// using ZSCAN instead of fetching in one shot, as there may be 100K+ hosts
+	// and we don't want to block the redis server too long.
+	var hosts []hostIDLastReported
+	cursor := 0
+	for {
+		res, err := redigo.Values(conn.Do("ZSCAN", zsetKey, cursor, "COUNT", scanCount))
+		if err != nil {
+			return nil, fmt.Errorf("scan active host ids: %w", err)
+		}
+		var hostVals []uint
+		if _, err := redigo.Scan(res, &cursor, &hostVals); err != nil {
+			return nil, fmt.Errorf("convert scan results: %w", err)
+		}
+		for i := 0; i < len(hostVals); i += 2 {
+			hosts = append(hosts, hostIDLastReported{HostID: hostVals[i], LastReported: int64(hostVals[i+1])})
+		}
+
+		if cursor == 0 {
+			// iteration completed
+			return hosts, nil
 		}
 	}
-	return host.LabelUpdatedAt
+}
+
+func removeProcessedHostIDs(pool fleet.RedisPool, zsetKey string, batch []hostIDLastReported) (int, error) {
+	// This script removes from the set of active hosts all those that still have
+	// the same score as when the batch was read (via loadActiveHostIDs). This is
+	// so that any host that would've reported new data since the call to
+	// loadActiveHostIDs would *not* get deleted (as the score would change if
+	// that was the case).
+	//
+	// Note that this approach is correct - in that it is safe and won't delete
+	// any host that has unsaved reported data - but it is potentially slow, as
+	// it needs to check the score of each member before deleting it. Should that
+	// become too slow, we have some options:
+	//
+	// * split the batch in smaller, capped ones (that would be if the redis
+	//   server gets blocked for too long processing a single batch)
+	// * use ZREMRANGEBYSCORE to remove in one command all members with a score
+	//   (reported-at timestamp) lower than the maximum timestamp in batch.
+	//   While this would be almost certainly faster, it might be incorrect as
+	//   new data could be reported with timestamps older than the maximum one,
+	//   e.g. if the clocks are not exactly in sync between fleet instances, or
+	//   if hosts report new data while the ZSCAN is going on and don't get picked
+	//   up by the SCAN (this is possible, as part of the guarantees of SCAN).
+
+	// KEYS[1]: zsetKey
+	// ARGV...: the list of host ID-last reported timestamp pairs
+	// returns the count of hosts removed
+	script := redigo.NewScript(1, `
+    local count = 0
+    for i = 1, #ARGV, 2 do
+      local member, ts = ARGV[i], ARGV[i+1]
+      if redis.call('ZSCORE', KEYS[1], member) == ts then
+        count = count + 1
+        redis.call('ZREM', KEYS[1], member)
+      end
+    end
+    return count
+  `)
+
+	conn := pool.Get()
+	defer conn.Close()
+
+	if err := redis.BindConn(pool, conn, zsetKey); err != nil {
+		return 0, fmt.Errorf("bind redis connection: %w", err)
+	}
+
+	args := redigo.Args{zsetKey}
+	for _, host := range batch {
+		args = args.Add(host.HostID, host.LastReported)
+	}
+	count, err := redigo.Int(script.Do(conn, args...))
+	if err != nil {
+		return 0, fmt.Errorf("run redis script: %w", err)
+	}
+	return count, nil
 }

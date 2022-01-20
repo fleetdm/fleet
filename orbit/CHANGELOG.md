@@ -1,3 +1,9 @@
+## Orbit 0.0.6 (Jan 13, 2022)
+
+* Add logging when running as a Windows Service (because Windows discards stdout/stderr).
+
+* Improve flaky startups by adding wait for osquery extension socket.
+
 ## Orbit 0.0.5 (Dec 22, 2021)
 
 * Fix handling of enroll secrets to address 0.0.4 enrollment issue.
@@ -13,4 +19,3 @@
 * Add support for osquery flagfile (loaded automatically if it exists in the Orbit root).
 
 * Fix permissions for building MSI when packaging as root user. Fixes fleetdm/fleet#1424.
-

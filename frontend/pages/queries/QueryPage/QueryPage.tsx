@@ -50,6 +50,7 @@ const QueryPage = ({
   const {
     selectedOsqueryTable,
     setSelectedOsqueryTable,
+    setLastEditedQueryId,
     setLastEditedQueryName,
     setLastEditedQueryDescription,
     setLastEditedQueryBody,
@@ -74,7 +75,6 @@ const QueryPage = ({
     isLoading: isStoredQueryLoading,
     data: storedQuery,
     error: storedQueryError,
-    refetch: refetchStoredQuery,
   } = useQuery<IStoredQueryResponse, Error, IQuery>(
     ["query", queryIdForEdit],
     () => queryAPI.load(queryIdForEdit as number),
@@ -83,6 +83,7 @@ const QueryPage = ({
       refetchOnWindowFocus: false,
       select: (data: IStoredQueryResponse) => data.query,
       onSuccess: (returnedQuery) => {
+        setLastEditedQueryId(returnedQuery.id);
         setLastEditedQueryName(returnedQuery.name);
         setLastEditedQueryDescription(returnedQuery.description);
         setLastEditedQueryBody(returnedQuery.query);
@@ -122,6 +123,7 @@ const QueryPage = ({
 
   useEffect(() => {
     detectIsFleetQueryRunnable();
+    setLastEditedQueryId(DEFAULT_QUERY.id);
     setLastEditedQueryName(DEFAULT_QUERY.name);
     setLastEditedQueryDescription(DEFAULT_QUERY.description);
     setLastEditedQueryBody(DEFAULT_QUERY.query);

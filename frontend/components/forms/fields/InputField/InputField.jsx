@@ -20,6 +20,7 @@ class InputField extends Component {
     onFocus: PropTypes.func,
     placeholder: PropTypes.string,
     type: PropTypes.string,
+    blockAutoComplete: PropTypes.boolean,
     value: PropTypes.oneOfType([
       PropTypes.bool,
       PropTypes.string,
@@ -35,6 +36,7 @@ class InputField extends Component {
     labelClassName: "",
     onFocus: noop,
     type: "text",
+    blockAutoComplete: false,
     value: "",
   };
 
@@ -69,6 +71,7 @@ class InputField extends Component {
       onFocus,
       placeholder,
       type,
+      blockAutoComplete,
       value,
     } = this.props;
     const { onInputChange } = this;
@@ -123,6 +126,7 @@ class InputField extends Component {
           type={type}
           {...inputOptions}
           value={value}
+          autoComplete={blockAutoComplete ? "new-password" : ""}
         />
       </FormField>
     );

@@ -2475,10 +2475,17 @@ Deletes the queries specified by ID. Returns the count of queries successfully d
 
 ### Run live query
 
-Runs one or more live queries against the specified hosts and responds with the results
-over a fixed period of 90 seconds.
+Run one or more live queries against the specified hosts and responds with the results
+collected after 25 seconds.
 
-If you are using this API to run multiple queries at the same time, they are started simultaneously.  Response time is capped at 90 seconds from when the API request was received, regardless of how many queries you are running, and regardless whether all results have been gathered or not.
+If multiple queries are provided, they run concurrently. Response time is capped at 25 seconds from
+when the API request was received, regardless of how many queries you are running, and regardless
+whether all results have been gathered or not. This API does not return any results until the fixed
+time period elapses, at which point all of the collected results are returned.
+
+The fixed time period is configurable via environment variable on the Fleet server (eg.
+`FLEET_LIVE_QUERY_REST_PERIOD=90s`). If setting a higher value, be sure that you do not exceed your
+load balancer timeout.
 
 > WARNING: This API endpoint collects responses in-memory (RAM) on the Fleet compute instance handling this request, which can overflow if the result set is large enough.  This has the potential to crash the process and/or cause an autoscaling event in your cloud provider, depending on how Fleet is deployed.
 
@@ -2489,8 +2496,8 @@ If you are using this API to run multiple queries at the same time, they are sta
 
 | Name      | Type   | In   | Description                                   |
 | --------- | ------ | ---- | --------------------------------------------- |
-| query_ids | array  | body | **Required**. The IDs of the queries to run as live queries.               |
-| host_ids  | array  | body | **Required**. The IDs of the hosts to run the live queries against. |
+| query_ids | array  | body | **Required**. The IDs of the saved queries to run. |
+| host_ids  | array  | body | **Required**. The IDs of the hosts to target. |
 
 #### Example
 
@@ -5769,6 +5776,8 @@ _Available in Fleet Premium_
 ## Translator
 
 ### Translate IDs
+
+Transforms a host name into a host id. For example, the Fleet UI use this endpoint when sending live queries to a set of hosts.
 
 `POST /api/v1/fleet/translate`
 

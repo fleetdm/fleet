@@ -73,6 +73,7 @@ The following table depicts various permissions levels in a team.
 | ------------------------------------------------------------ | -------- | ---------- | ------- |
 | Browse hosts assigned to team                                | ✅       | ✅         | ✅       |
 | Browse policies for hosts assigned to team                   | ✅       | ✅         | ✅       |
+| Browse global (inherited) policies                           | ✅       | ✅         | ✅       |
 | Filter hosts assigned to team using policies                 | ✅       | ✅         | ✅       |
 | Filter hosts assigned to team using labels                   | ✅       | ✅         | ✅       |
 | Target hosts assigned to team using labels                   | ✅       | ✅         | ✅       |

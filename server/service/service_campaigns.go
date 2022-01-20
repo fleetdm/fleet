@@ -70,8 +70,7 @@ func (svc Service) NewDistributedQueryCampaign(ctx context.Context, queryString 
 			Saved:    false,
 			AuthorID: ptr.Uint(vc.UserID()),
 		}
-		err := query.ValidateSQL()
-		if err != nil {
+		if err := query.Verify(); err != nil {
 			return nil, err
 		}
 		query, err = svc.ds.NewQuery(ctx, query)

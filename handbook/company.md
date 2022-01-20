@@ -2,8 +2,15 @@
 
 ## About Fleet
 
-Fleet Device Management Inc is an open core company that sells subscriptions that offer more features and support for Fleet.
-We are dedicated to making Fleet the best management platform for [osquery](https://osquery.io), the leading open source endpoint agent.
+Fleet Device Management Inc is an open core company that sells subscriptions that offer more features and support for Fleet and [osquery](https://osquery.io), the leading open source endpoint agent.
+
+We are dedicated to:
+- 💍 growing the adoption of osquery (one agent to rule them all)
+- 👁️ remaining the freshest, simplest source of truth for every kind of device and OS
+- 🧑‍🚀 making IT developer-friendly
+- 🪟 open source, as a more private, transparent, and trustworthy future for humanity
+- 💻 building a better way to manage computers
+
 
 ## History
 
@@ -18,12 +25,6 @@ When Kolide's attention shifted away from Fleet and towards their separate, user
 
 ### 2020: Fleet was incorporated
 Zach partnered with our CEO, Mike McNeil, to found a new, independent company: Fleet Device Management Inc.  In November 2020, we [announced](https://medium.com/fleetdm/a-new-fleet-d4096c7de978) the transition and kicked off the logistics of moving the GitHub repository.
-
-
-## Culture
-
-### All remote
-Fleet Device Management Inc. is an all-remote company, with team members spread across 4 continents and 7 time zones.  The wider team of contributors from [all over the world](https://github.com/fleetdm/fleet/graphs/contributors) submit patches, bug reports, troubleshooting tips, improvements, and real-world insights to Fleet's open source code base, documentation, website, and company handbook.
 
 
 ## Values
@@ -83,7 +84,7 @@ The majority of the code, documentation, and content we create at Fleet is publi
 - be valuable (consider business impact)
 - work on things that matter
   - fast forward 12 months, consider total cost of ownership (the eternity of maintenance)
-  - understand why
+  - understand why, or tell me why I'm wrong
   - agree, or disagree and commit anyway
 - make time for self-care (to help you bring your best self when communicating with others, making decisions, etc)
    - consider taking a break and going for a walk
@@ -99,9 +100,12 @@ The majority of the code, documentation, and content we create at Fleet is publi
   - finish what you start, or at least throw it away loudly in case someone wants it
   - focus on fewer tasks at one time
 - legendary execution
-- 
 
-### 出来 Think, fast
+### 出来 Balance
+
+Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.org/wiki/Golden_mean_%28philosophy%29).
+
+- think, fast
 - think for yourself (only you can)
 - from first principles
 - use reason
@@ -113,6 +117,7 @@ The majority of the code, documentation, and content we create at Fleet is publi
   - even boring tasks are more motivating, fun, and effective when you care
   - motivate yourself intrinsically with self-talk
   - understand "why?"
+- be crafty
 - take pride in your results
   - reread anything you write for users
   - you don't need permission to be thoughtful
@@ -134,6 +139,7 @@ The majority of the code, documentation, and content we create at Fleet is publi
 - speak computer to computers (assume it's your fault)
 - question yourself (why do I think this?)
 - use the scientific method when something isn't working
+  - when something isn't working, don't make assumptions
 - listen intently, and genuinely try to understand
 - facts, over commentary
 - ask great questions & take the time to truly listen
@@ -142,6 +148,15 @@ The majority of the code, documentation, and content we create at Fleet is publi
 - beware sunk cost fallacy (avoid getting attached to something just because you invested time working on it, or came up with it)
 - be curious
 - legendary rigour
+
+
+
+
+## Culture
+
+### All remote
+Fleet Device Management Inc. is an all-remote company, with team members spread across 4 continents and 7 time zones.  The wider team of contributors from [all over the world](https://github.com/fleetdm/fleet/graphs/contributors) submit patches, bug reports, troubleshooting tips, improvements, and real-world insights to Fleet's open source code base, documentation, website, and company handbook.
+
 
 
 

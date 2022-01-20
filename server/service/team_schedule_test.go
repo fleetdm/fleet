@@ -17,7 +17,7 @@ func TestTeamScheduleAuth(t *testing.T) {
 	ds.EnsureTeamPackFunc = func(ctx context.Context, teamID uint) (*fleet.Pack, error) {
 		return &fleet.Pack{ID: 999}, nil
 	}
-	ds.ListScheduledQueriesInPackFunc = func(ctx context.Context, id uint, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error) {
+	ds.ListScheduledQueriesInPackWithStatsFunc = func(ctx context.Context, id uint, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error) {
 		return nil, nil
 	}
 	ds.QueryFunc = func(ctx context.Context, id uint) (*fleet.Query, error) {
@@ -36,7 +36,7 @@ func TestTeamScheduleAuth(t *testing.T) {
 		return nil
 	}
 
-	var testCases = []struct {
+	testCases := []struct {
 		name            string
 		user            *fleet.User
 		shouldFailWrite bool

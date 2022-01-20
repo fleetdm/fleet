@@ -1,10 +1,5 @@
 # Growth
 
-## Promoting blog posts on social media
-
-Once a blog post has been written, approved, and published, please ensure that it has been promoted on social media. Please refer to our [Publishing as Fleet](https://docs.google.com/document/d/1cmyVgUAqAWKZj1e_Sgt6eY-nNySAYHH3qoEnhQusph0/edit?usp=sharing) guide for more detailed information. 
-
-
 ## Fleet website
 
 ### How to export images
@@ -48,11 +43,25 @@ A browser compatibility check of [fleetdm.com](https://fleetdm.com/) should be c
 
 - **Manage risk, not fear**. Educate users about security threats positively. Risk management is smart, but focusing on fear can lead to poor decisions. We NEVER use fear as a communication and marketing tactic. 
 
-## Voice and grammar guidelines
+### What would Mr Rogers say?
+
+At Fleet, our voice and tone should be clear, simple, friendly, and inspiring - like [Mr. Rogers](https://en.wikipedia.org/wiki/Fred_Rogers) who had a deep understanding of these communication values.
+
+Consider the example tweets below. What would Mr. Rogers say?
+
+> *Distributed workforces aren’t going anywhere anytime soon. **It’s past time** to **start engaging meaningfully** with your **workforce** and **getting them** to work with your security team instead of around them.*
+ 
+becomes...
+
+> *Distributed workforces aren’t going anywhere anytime soon, **so it’s a great time** to **engage** with your **crew** and **help them** to work with your security team instead of around them.*
+
+By Mr Rogering our writing we can emphasize positivity, optimism and encourage our readers to succeed. The example above also considers sentence flow and use of synonyms to reduce repetition.
+
+## Voice and tone guidelines
 
 ### How to write headings & subheadings
-Fleet uses sentence case capitalization for all headings across Fleet EE, fleetdm.com, our documentation, and our social media channels.
-In sentence case, we write titles as if they were sentences. For example:
+Fleet uses **sentence case** capitalization for all headings across Fleet EE, fleetdm.com, our documentation, and our social media channels.
+In **sentence case**, we write titles as if they were sentences. For example:
 > **A**sk questions about your servers, containers, and laptops running **L**inux, **W**indows, and macOS
 
 As we are using sentence case, only the first word of a heading and subheading is capitalized. However, if a word in the sentence would normally be capitalized (e.g. a [proper noun](https://www.grammarly.com/blog/proper-nouns/?&utm_source=google&utm_medium=cpc&utm_campaign=11862361094&utm_targetid=dsa-1233402314764&gclid=Cj0KCQjwg7KJBhDyARIsAHrAXaFwpnEyL9qrS4z1PEAgFwh3RXmQ24zmwmowAyOQbHngsI8W_F730aAaArrwEALw_wcB&gclsrc=aw.ds),) these words should also be capitalized in the heading.

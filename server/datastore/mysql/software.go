@@ -57,18 +57,17 @@ func softwareSliceToIdMap(softwareSlice []fleet.Software) map[string]uint {
 	return result
 }
 
-func (d *Datastore) SaveHostSoftware(ctx context.Context, host *fleet.Host) error {
-	if !host.HostSoftware.Modified {
-		return nil
-	}
-
+// UpdateHostSoftware updates the software list of a host.
+// The update consists of deleting existing entries that are not in the given `software`
+// slice, updating existing entries and inserting new entries.
+func (d *Datastore) UpdateHostSoftware(ctx context.Context, hostID uint, software []fleet.Software) error {
 	return d.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		return saveHostSoftwareDB(ctx, tx, host)
+		return applyChangesForNewSoftwareDB(ctx, tx, hostID, software)
 	})
 }
 
 func saveHostSoftwareDB(ctx context.Context, tx sqlx.ExtContext, host *fleet.Host) error {
-	if err := applyChangesForNewSoftwareDB(ctx, tx, host); err != nil {
+	if err := applyChangesForNewSoftwareDB(ctx, tx, host.ID, host.Software); err != nil {
 		return err
 	}
 
@@ -94,24 +93,24 @@ func nothingChanged(current []fleet.Software, incoming []fleet.Software) bool {
 	return true
 }
 
-func applyChangesForNewSoftwareDB(ctx context.Context, tx sqlx.ExtContext, host *fleet.Host) error {
-	storedCurrentSoftware, err := listSoftwareDB(ctx, tx, &host.ID, fleet.SoftwareListOptions{SkipLoadingCVEs: true})
+func applyChangesForNewSoftwareDB(ctx context.Context, tx sqlx.ExtContext, hostID uint, software []fleet.Software) error {
+	storedCurrentSoftware, err := listSoftwareDB(ctx, tx, &hostID, fleet.SoftwareListOptions{SkipLoadingCVEs: true})
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "loading current software for host")
 	}
 
-	if nothingChanged(storedCurrentSoftware, host.Software) {
+	if nothingChanged(storedCurrentSoftware, software) {
 		return nil
 	}
 
 	current := softwareSliceToIdMap(storedCurrentSoftware)
-	incoming := softwareSliceToSet(host.Software)
+	incoming := softwareSliceToSet(software)
 
-	if err = deleteUninstalledHostSoftwareDB(ctx, tx, host.ID, current, incoming); err != nil {
+	if err = deleteUninstalledHostSoftwareDB(ctx, tx, hostID, current, incoming); err != nil {
 		return err
 	}
 
-	if err = insertNewInstalledHostSoftwareDB(ctx, tx, host.ID, current, incoming); err != nil {
+	if err = insertNewInstalledHostSoftwareDB(ctx, tx, hostID, current, incoming); err != nil {
 		return err
 	}
 

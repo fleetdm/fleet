@@ -5,8 +5,6 @@ import { Params } from "react-router/lib/Router";
 import { useDispatch } from "react-redux";
 import { push } from "react-router-redux";
 
-import { IHost } from "interfaces/host";
-import { ILabel } from "interfaces/label";
 import { IPack } from "interfaces/pack";
 import { IQuery } from "interfaces/query";
 import {
@@ -14,7 +12,6 @@ import {
   IScheduledQuery,
 } from "interfaces/scheduled_query";
 import { ITarget, ITargetsAPIResponse } from "interfaces/target";
-import { ITeam } from "interfaces/team";
 import { AppContext } from "context/app";
 
 import packsAPI from "services/entities/packs";

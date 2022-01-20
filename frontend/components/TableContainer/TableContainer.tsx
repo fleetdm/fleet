@@ -64,7 +64,6 @@ interface ITableContainerProps {
   isClientSideFilter?: boolean;
   highlightOnHover?: boolean;
   pageSize?: number;
-  clearSelectionCount?: number;
   onActionButtonClick?: () => void;
   onQueryChange?: (queryData: ITableSearchData) => void;
   onPrimarySelectActionClick?: (selectedItemIds: number[]) => void;
@@ -116,7 +115,6 @@ const TableContainer = ({
   pageSize = DEFAULT_PAGE_SIZE,
   selectedDropdownFilter,
   searchQueryColumn,
-  clearSelectionCount,
   onActionButtonClick,
   onQueryChange,
   onPrimarySelectActionClick,
@@ -205,6 +203,8 @@ const TableContainer = ({
     return data.length;
   }, [filteredCount, clientFilterCount, data]);
 
+  const opacity = isLoading ? { opacity: 0.4 } : { opacity: 1 };
+
   return (
     <div className={wrapperClasses}>
       {wideSearch && searchable && (
@@ -217,10 +217,12 @@ const TableContainer = ({
       )}
       <div className={`${baseClass}__header`}>
         {renderCount && (
-          <p className={`${baseClass}__results-count`}>{renderCount()}</p>
+          <p className={`${baseClass}__results-count`} style={opacity}>
+            {renderCount()}
+          </p>
         )}
         {!renderCount && data && displayCount() && !disableCount ? (
-          <p className={`${baseClass}__results-count`}>
+          <p className={`${baseClass}__results-count`} style={opacity}>
             {TableContainerUtils.generateResultsCountText(
               resultsTitle,
               displayCount()
@@ -342,7 +344,6 @@ const TableContainer = ({
                 searchQuery={searchQuery}
                 searchQueryColumn={searchQueryColumn}
                 selectedDropdownFilter={selectedDropdownFilter}
-                clearSelectionCount={clearSelectionCount}
               />
               {!disablePagination && !isClientSidePagination && (
                 <Pagination
