@@ -27,7 +27,7 @@ Load Balancer can also [offload SSL termination](https://docs.aws.amazon.com/ela
 to its core functionality. More details about ALB can be found [here](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/introduction.html).
 
 _**Note if using [terraform reference architecture](https://github.com/fleetdm/fleet/tree/main/tools/terraform#terraform) all configurations can dynamically scale based on load(cpu/memory) and all configurations
-assume On-Demand pricing. Calculations do not take into account NAT gateway charges or other networking related ingress/egress costs.**_
+assume On-Demand pricing (savings are available through Reserved Instances). Calculations do not take into account NAT gateway charges or other networking related ingress/egress costs.**_
 
 ### Example Configuration breakpoints
 #### [Up to 1000 hosts](https://calculator.aws/#/estimate?id=ae7d7ddec64bb979f3f6611d23616b1dff0e8dbd)
