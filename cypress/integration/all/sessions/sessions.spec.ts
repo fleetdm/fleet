@@ -7,19 +7,20 @@ describe("Sessions", () => {
 
   it("Logs in and out successfully", () => {
     cy.visit("/");
-    cy.contains(/forgot password/i);
+
+    cy.getAttached(".login-form__forgot-link").should("exist");
 
     // Log in
-    cy.get("input").first().type("admin@example.com");
-    cy.get("input").last().type("user123#");
-    cy.get("button").click();
+    cy.getAttached("input").first().type("admin@example.com");
+    cy.getAttached("input").last().type("user123#");
+    cy.getAttached("button").click();
 
     // Verify dashboard
     cy.url().should("include", "/dashboard");
     cy.contains("Host");
 
     // Log out
-    cy.get(".avatar").first().click();
+    cy.getAttached(".avatar").first().click();
     cy.contains("button", "Sign out").click();
 
     cy.url().should("match", /\/login$/);
@@ -27,9 +28,9 @@ describe("Sessions", () => {
 
   it("Fails login with invalid password", () => {
     cy.visit("/");
-    cy.get("input").first().type("admin@example.com");
-    cy.get("input").last().type("bad_password");
-    cy.get(".button").click();
+    cy.getAttached("input").first().type("admin@example.com");
+    cy.getAttached("input").last().type("bad_password");
+    cy.getAttached(".button").click();
 
     cy.url().should("match", /\/login$/);
     cy.contains("Authentication failed");

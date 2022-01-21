@@ -12,17 +12,19 @@ describe("Settings flow", () => {
     () => {
       cy.visit("/settings/organization");
 
-      cy.findByLabelText(/organization name/i)
-        .click()
-        .type("{selectall}{backspace}TJ's Run");
+      cy.getAttached(".app-config-form").within(() => {
+        cy.findByLabelText(/organization name/i)
+          .clear()
+          .type("TJ's Run");
+      });
 
       cy.findByLabelText(/organization avatar url/i)
         .click()
         .type("http://tjsrun.com/img/logo.png");
 
       cy.findByLabelText(/fleet app url/i)
-        .click()
-        .type("{selectall}{backspace}https://localhost:5000");
+        .clear()
+        .type("https://localhost:5000");
 
       cy.findByLabelText(/enable single sign on/i).check({ force: true });
 
@@ -59,7 +61,7 @@ describe("Settings flow", () => {
         .click()
         .type("localhost");
 
-      cy.get("#smtpPort").click().type("{selectall}{backspace}1025");
+      cy.get("#smtpPort").clear().type("1025");
 
       cy.findByLabelText(/use ssl\/tls/i).check({ force: true });
 
@@ -91,16 +93,13 @@ describe("Settings flow", () => {
         .click()
         .type("http://www.fleetdm.com");
 
-      // can't grab button from the label because the button is a child element and doesn't have a for attribute
-      // couldn't figure out how to write a for attribute on kolide button
-      // Repeated Error Message: Timed out retrying after 4000ms: Found a label with the text of: /verify ssl certs/i, however no form control was found associated to that label. Make sure you're using the "for" attribute or "aria-labelledby" attribute correctly.
       cy.findByLabelText(/verify ssl certs/i).check({ force: true });
       cy.findByLabelText(/enable starttls/i).check({ force: true });
       cy.findByLabelText(/^host expiry$/i).check({ force: true });
 
       cy.findByLabelText(/host expiry window/i)
-        .click()
-        .type("{selectall}{backspace}5");
+        .clear()
+        .type("5");
 
       cy.findByLabelText(/disable live queries/i).check({ force: true });
 
@@ -111,7 +110,12 @@ describe("Settings flow", () => {
 
       cy.visit("/settings/organization");
 
-      cy.findByLabelText(/organization name/i).should("have.value", "TJ's Run");
+      cy.getAttached(".app-config-form").within(() => {
+        cy.findByLabelText(/organization name/i).should(
+          "have.value",
+          "TJ's Run"
+        );
+      });
 
       cy.findByLabelText(/organization avatar url/i).should(
         "have.value",

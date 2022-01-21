@@ -9,11 +9,12 @@ describe("SSO Sessions", () => {
     cy.logout();
 
     cy.visit("/");
-    cy.contains(/forgot password/i);
+
+    cy.getAttached(".login-form__forgot-link").should("exist");
 
     // Log in
-    cy.get("input").first().type("admin@example.com");
-    cy.get("input").last().type("user123#");
+    cy.getAttached("input").first().type("admin@example.com");
+    cy.getAttached("input").last().type("user123#");
     cy.contains("button", "Login").click();
 
     // Verify dashboard
@@ -21,7 +22,7 @@ describe("SSO Sessions", () => {
     cy.contains("Hosts");
 
     // Log out
-    cy.get(".avatar").first().click();
+    cy.getAttached(".avatar").first().click();
     cy.contains("button", "Sign out").click();
 
     cy.url().should("match", /\/login$/);
