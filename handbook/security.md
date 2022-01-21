@@ -17,6 +17,8 @@ Our macOS configuration baseline is simple, and has limited impact on daily use 
 
 The setting number in this document are the recommendation numbers from the CIS document.
 
+The detailed configuration deployed to your Mac can always be inspected by using the *Profiles* app under *System Preferences*.
+
 Our policy, which applies to Fleet owned laptops purchased via Apple's DEP (Device Enrollment Program), consists of: 
 
 #### Enabling automatic updates
@@ -68,6 +70,31 @@ Accurate time is important for two main reasons.
 
 * Minimal. Inability to set the wrong time. Time zones remain user configurable.
 
+#### Passwords
+
+| #     | Setting                                                                                  |
+| ----- | ---------------------------------------------------------------------------------------- |
+| 5.2.2 | Ensure Password Minimum Length Is Configured (our minimum: 8 characters)                                             |
+| 5.2.3 | Ensure Complex Password Must Contain Alphabetic Characters is Configured                 |
+| 5.8   | Ensure a password is required to wake the computer from sleep or screen saver is enabled |
+
+**Why?**
+
+This category of setting is special, because there are more settings that we do *not* configure than ones we do.
+
+We follow the CIS benchmark where it makes sense, and in this case, take guidance from [NIST SP800-63B - Digital Identity Guidelines](https://pages.nist.gov/800-63-3/sp800-63b.html), especially [Appendix A -Strength of Memorized Secrets](https://pages.nist.gov/800-63-3/sp800-63b.html#appA).
+
+Essentially, length the most important factor, while enforcing password expiration, special characters and other restrictive patterns not as effective as previously believed. Everyone has updated a password by simply changing a number at the end of it, or capitalized the first letter of a password because they had to use at least one uppercase character.
+
+* As we only use recent Macs with T2 chips or Apple Silicon, brute-force attacks against the hardware are [mitigated](https://www.apple.com/mideast/mac/docs/Apple_T2_Security_Chip_Overview.pdf), we do not need to enforce an extremely long password. Therefore, we will use the minimum recommended by SP800-63B, **8** characters.
+* We will NOT enforce special complexity beyond requiring letters to be in the password, as that leads to people updating passwords in predictable ways, or storing them insecurely, and generates headaches and support cost.
+* We disable many services, and enable the firewall, reducing the odds that the passwords could be broken online by attempting to connect to a service, such as a file share, or HTTP server using local accounts. Since we can't eliminate this 100%, we still require 8 character long passwords with letters, to be safe.
+
+**User experience impact**
+
+* A password is required to boot, as well as to unlock the laptop. Touch ID and Apple Watch unlock are allowed, and we recommend using a longer password and using one of those techniques to reduce the annoyances through the day.
+
+
 
 #### Disabling various services
 
@@ -98,12 +125,21 @@ Accurate time is important for two main reasons.
 | 2.5.2.1 | Ensure Gatekeeper is Enabled                      |
 | 2.5.2.2 | Ensure firewall is enabled                        |
 | 2.5.2.3 | Ensure Firewall Stealth Mode is Enabled           |
+| 3.6     | Ensure firewall logging is enabled and configured |
 
 **Why?**
 
 * Using FileVault protects the data on our laptops, which includes not only confidential data but also session material (browser cookies), SSH keys, and more. By enforcing the use of FileVault, we ensure a lost laptop is a minor inconvenience and not an incident. We also escrow the keys, to be sure we can recover the data if needed.
 * [Gatekeeper](https://support.apple.com/en-ca/HT202491) is a feature on macOS that verifies if applications are properly signed by the developer, and notarized by Apple, a process where they do some testing on the application before "stamping" it. The certificates used by applications can be revoked, for example, if a vendor is discovered to be bundling malware in legitimate applications. With Gatekeeper enabled, unsigned and/or unnotarized applications will not be executed with the standard double-click of the icon. This is a very useful first line of defense to have.
 * Using the firewall will ensure that we limit the exposure to our computers, especially in dangerous network environmnets, which is where we assume they always are. Stealth mode will make it more difficult to discover. 
+* Firewall logging allows us to troubleshoot and investigate, by letting us know if some applications or connections are being blocked by it.
+
+**User experience impact**
+
+* A password will be needed as soon as the laptop is turned on, due to the encryption process, instead of once the laptop has booted.
+* No performance impact - macOS encrypts the system drive by default. Enabling FileVault makes it so the password of an authorized user is necessary to boot and decrypt, and does not change throughput or latency negatively.
+* Unsigned or unnotarized applications will require extra steps to execute.
+* Unsigned applications will not be allowed to open a firewall port for inbound connections.
 
 #### Screen saver and automatic locking
 
@@ -127,24 +163,58 @@ Accurate time is important for two main reasons.
 * Forgotten passwords will have to be fixed via MDM, instead of relying on potentially dangerous hints.
 * Guest accounts will not be available.
 
+#### iCloud
+We do not apply ultra restrictive [Data Loss Prevention](https://en.wikipedia.org/wiki/Data_loss_prevention_software) style policies to our workstations. A computer that is used for day to day work, with full access to the Internet can never be protected from voluntary malicious actors willing to upload data. Instead, we focus on ensuring the most critical data never reaches our laptops, so it can remain secure, while our laptops can remain productive.
 
 
----
+| #       | Setting                                                   |
+| ------- | --------------------------------------------------------- |
+| 2.6.1.4 | Ensure iCloud Drive Document and Desktop Sync is Disabled |
 
-* Ensures the operating system and applications are kept as up-to-date as possible, while allowing leeway to avoid a situation where an enforced update prevents you from working on Monday morning!
-* Encrypts the disk and escrows the key, to ensure we can recover data if needed, and to ensure that lost or stolen devices are a minor inconvenience and not a breach.
-* Prevents the use of Kernel Extensions that have not been explicitly allow-listed. 
-* Ensures that "server" features of macOS are disabled, to avoid accidentally exposing data from the laptop to other devices on the network. These features include: Web server, file sharing, caching server, Internet sharing and more.
-* Disables guest accounts.
-* Enables the firewall.
-* Enables Gatekeeper, to protect the Mac from unsigned software.
-* Enforces DNS-over-HTTPS, to protect your DNS queries on dangerous networks, for privacy and security reasons.
-* Enforces other built-in operating system security features, such as library validation.
-* Requires a 10 character long password. We recommend using a longer one and leveraging Touch ID, to have to type it less.
+**Why?**
+* We do not use managed Apple IDs, and allow employees to use their own iCloud accounts. We disable this to avoid "accidental" copying of data to iCloud, but still allow iCloud drive.
 
-The detailed configuration deployed to your Mac can always be inspected by using the *Profiles* app under *System Preferences*, but at a high level, the configuration does the following:
+**User experience impact**
 
+* iCloud remains allowed, but the defautl Desktop and Documents folders will not be synchronized. Ensure you put your documents in our Google Drive, so you do not lose them if your laptop has an issue.
+
+#### Miscellaneous security settings
+
+| #     | Setting                                                      |
+| ----- | ------------------------------------------------------------ |
+| 2.5.6 | Ensure Limit Ad Tracking is Enabled                          |
+| 2.10  | Ensure Secure Keyboard Entry terminal.app is Enabled         |
+| 5.1.4 | Ensure Library Validation is Enabled                         |
+| 6.3   | Ensure Automatic Opening of Safe FIles in Safari is Disabled |
+
+**Why?**
+
+* Limiting ad tracking has privacy benefits, and no downside beyond receiving less targeted advertising.
+* Protecting keyboard entry into the terminal app could prevent malicious applications, or non-malicious but inappropriate applications from receiving passwords and other secrets.
+* Library validation ensures that applications can't be tricked into loading a library in a different location, leaving it open to abuse.
+* Safari opening files automatically can lead to negative scenarios where files are downloaded and automatically opened in another application. Though the setting specifically relates to files deemed "safe", it includes PDFs and other file formats where malicious documents exploiting vulnerabilities have been seen before, and it is just plain annoying in any case when a website is able to pop-up multiple Preview application windows.
+
+**User experience impact**
+
+* Minimal to invisible for most of these settings, however, applications used to create custom keyboard macros will not be able to receive keystrokes when Terminal.app is the active application window.
 
 ### Personal mobile devices
 
 The use of personal devices is allowed for some applications. Your iOS or Android device must however be kept up to date.
+
+#### Enforce DNS-over-HTTPs (DoH)
+
+| #  | Setting                |
+| -- | ---------------------- |
+| NA | Enforce DNS over HTTPS |
+
+**Why?**
+
+* We assume laptops are used on dangerous networks at all times. Therefore, DNS queries could be exposed, and leak private data. An attacker on the same wireless network could easily see DNS queries, determine who your employer is, or even intercept them and respond with malicious answers. Using DoH protects the DNS queries from eavesdropping and tampering.
+* We use Cloudflare's DoH servers with basic malware blocking. No censorship should be applied on these servers, except towards destinations known as malware related.
+
+
+**User experience impact**
+
+* Some misconfigured captive portals, such as in hotels, could be unreachable, as they essentially perform an attack on DNS traffic to redirect you, and some of them misuse IP addresses such as *1.1.1.1*. In some cases, you can work around this by performing a *nslookup* in the terminal,f or any domain, and manually browsing to the IP being provided as the response. **This should be relatively rare, and getting rarer by the day. The best workaround is to use tethering on a phone or hotspot**.
+* Some rare false positives could happen, preventing access to a site. Please report those, as if they become frequent, we will define a strategy for handling them.
