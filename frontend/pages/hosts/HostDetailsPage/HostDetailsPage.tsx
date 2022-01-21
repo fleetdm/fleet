@@ -434,7 +434,7 @@ const HostDetailsPage = ({
       : setLastEditedQueryName(osPolicyLabel);
     setPolicyTeamId(host?.team_id ? host?.team_id : 0);
     setLastEditedQueryDescription(
-      "Checks to see if the required mimimum operating system version is installed."
+      "Checks to see if the required minimum operating system version is installed."
     );
     setLastEditedQueryBody(osPolicy);
     setLastEditedQueryResolution("");
