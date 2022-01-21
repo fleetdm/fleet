@@ -4513,7 +4513,7 @@ None.
   "webhook_settings": {
     "host_status_webhook": {
       "enable_host_status_webhook": true,
-       "destination_url": "https://server.com",
+      "destination_url": "https://server.com",
       "host_percentage": 5,
       "days_count": 7
     },
@@ -4670,10 +4670,6 @@ Modifies the Fleet's configuration with the supplied information.
   },
   "host_settings": {
     "additional_queries": null
-  },
-  "license": {
-    "tier": "free",
-    "expiration": "0001-01-01T00:00:00Z"
   },
   "license": {
     "tier": "free",
