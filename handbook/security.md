@@ -206,7 +206,7 @@ The use of personal devices is allowed for some applications. Your iOS or Androi
 
 | #  | Setting                |
 | -- | ---------------------- |
-| NA | Enforce DNS over HTTPS |
+| NA | Enforce [DNS over HTTPS](https://en.wikipedia.org/wiki/DNS_over_HTTPS) |
 
 **Why?**
 
@@ -218,3 +218,6 @@ The use of personal devices is allowed for some applications. Your iOS or Androi
 
 * Some misconfigured captive portals, such as in hotels, could be unreachable, as they essentially perform an attack on DNS traffic to redirect you, and some of them misuse IP addresses such as *1.1.1.1*. In some cases, you can work around this by performing a *nslookup* in the terminal,f or any domain, and manually browsing to the IP being provided as the response. **This should be relatively rare, and getting rarer by the day. The best workaround is to use tethering on a phone or hotspot**.
 * Some rare false positives could happen, preventing access to a site. Please report those, as if they become frequent, we will define a strategy for handling them.
+* If your ISP's DNS service goes down, you'll be able to continue working 😎
+
+*Note: Implementing DoH in an office environment where other network controls are in place has significantly different downsides than doing it for a fully remote company. In those cases, **disabling** DoH often makes more sense, so network controls can retain visibility. Please evaluate your situation fully before implementing any of our recommendations at your organization, but especially DoH.*
