@@ -176,7 +176,7 @@ func (u *Updater) Get(target, channel string) (string, error) {
 		return "", err
 	}
 
-	if err := CheckFileHash(meta, localPath); err != nil {
+	if err := checkFileHash(meta, localPath); err != nil {
 		log.Debug().Str("info", err.Error()).Msg("change detected")
 		return localPath, u.Download(repoPath, localPath)
 	}

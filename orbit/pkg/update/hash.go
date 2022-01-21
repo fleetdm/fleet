@@ -12,29 +12,34 @@ import (
 	"github.com/theupdateframework/go-tuf/data"
 )
 
-// CheckFileHash checks the file at the local path against the provided hash
-// functions.
-func CheckFileHash(meta *data.TargetFileMeta, localPath string) error {
-	hashFunc, hashVal, err := selectHashFunction(meta)
+// checkFileHash checks the file at the local path against the provided hash functions.
+func checkFileHash(meta *data.TargetFileMeta, localPath string) error {
+	localHash, metaHash, err := fileHashes(meta, localPath)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to calculate local file hash: %s", err)
+	}
+	if !bytes.Equal(localHash, metaHash) {
+		return fmt.Errorf("hash %s does not match expected: %s", data.HexBytes(localHash), data.HexBytes(metaHash))
+	}
+	return nil
+}
+
+func fileHashes(meta *data.TargetFileMeta, localPath string) (localHash []byte, metaHash []byte, err error) {
+	hashFn, metaHash, err := selectHashFunction(meta)
+	if err != nil {
+		return nil, nil, err
 	}
 
 	f, err := os.Open(localPath)
 	if err != nil {
-		return fmt.Errorf("open file for hash: %w", err)
+		return nil, nil, fmt.Errorf("open file for hash: %w", err)
 	}
 	defer f.Close()
 
-	if _, err := io.Copy(hashFunc, f); err != nil {
-		return fmt.Errorf("read file for hash: %w", err)
+	if _, err := io.Copy(hashFn, f); err != nil {
+		return nil, nil, fmt.Errorf("read file for hash: %w", err)
 	}
-
-	if !bytes.Equal(hashVal, hashFunc.Sum(nil)) {
-		return fmt.Errorf("hash %s does not match expected: %s", data.HexBytes(hashFunc.Sum(nil)), data.HexBytes(hashVal))
-	}
-
-	return nil
+	return hashFn.Sum(nil), metaHash, nil
 }
 
 // selectHashFunction returns the first matching hash function and expected
