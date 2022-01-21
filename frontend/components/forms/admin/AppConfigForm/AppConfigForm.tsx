@@ -18,6 +18,8 @@ import InputField from "components/forms/fields/InputField";
 import OrgLogoIcon from "components/icons/OrgLogoIcon";
 // @ts-ignore
 import validateYaml from "components/forms/validators/validate_yaml";
+import validEmail from "components/forms/validators/valid_email";
+
 import IconToolTip from "components/IconToolTip";
 import InfoBanner from "components/InfoBanner/InfoBanner";
 // @ts-ignore
@@ -179,7 +181,10 @@ const AppConfigFormFunctional = ({
     if (enableSMTP) {
       if (!smtpSenderAddress) {
         errors.sender_address = "SMTP sender address must be present";
+      } else if (!validEmail(smtpSenderAddress)) {
+        errors.sender_address = `${smtpSenderAddress} is not a valid email`;
       }
+
       if (!smtpServer) {
         errors.server = "SMTP server must be present";
       }
