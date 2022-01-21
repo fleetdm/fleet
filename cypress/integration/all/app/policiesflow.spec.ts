@@ -8,7 +8,7 @@ describe(
       cy.setup();
       cy.login();
     });
-    it("Can create, update, delete a policy successfully, and turn on failing policies webhook", () => {
+    it("Create, update, and delete a policy successfully; turn on failing policies webhook", () => {
       cy.visit("/policies/manage");
 
       // Add a policy

@@ -20,7 +20,7 @@ describe(
     });
 
     it(
-      "Can add new host from manage hosts page, run policy on host, and delete a host",
+      "Add new host, run policy on host, and delete a host successfully",
       {
         retries: {
           runMode: 2,
@@ -28,11 +28,18 @@ describe(
       },
       () => {
         let hostname = "";
-        cy.visit("/hosts/manage");
-        cy.get(".manage-hosts").should("contain", /hostname/i); // Ensures page load
 
-        cy.contains("button", /generate installer/i).click();
-        cy.findByText(/rpm/i).should("exist").click();
+        // Download installer
+        cy.visit("/hosts/manage");
+
+        cy.getAttached(".manage-hosts").within(() => {
+          cy.contains("button", /generate installer/i).click();
+        });
+
+        cy.getAttached(".react-tabs").within(() => {
+          cy.findByText(/rpm/i).should("exist").click();
+        });
+
         cy.contains("a", /download/i)
           .first()
           .click();
@@ -51,14 +58,12 @@ describe(
         }
 
         cy.visit("/hosts/manage");
-        cy.location("pathname").should("match", /hosts\/manage/i);
-        cy.get(".manage-hosts").should("contain", /hostname/i); // Ensures page load
 
-        cy.get("tbody").within(() => {
+        cy.getAttached("tbody").within(() => {
           cy.get(".button--text-link").first().as("hostLink");
         });
 
-        cy.get("@hostLink")
+        cy.getAttached("@hostLink")
           // Set hostname variable for later assertions
           .then((el) => {
             console.log(el);
@@ -79,7 +84,7 @@ describe(
           cy.get(".button--text-link").first().as("policyLink");
         });
 
-        cy.get("@policyLink")
+        cy.getAttached("@policyLink")
           // Set policyname variable for later assertions
           .then((el) => {
             console.log(el);
@@ -91,7 +96,7 @@ describe(
           .should("exist")
           .click();
 
-        cy.findByText(/run/i).should("exist").click(); // Ensures page load
+        cy.findByText(/run/i).should("exist").click();
 
         cy.findByText(/all hosts/i)
           .should("exist")
@@ -109,33 +114,33 @@ describe(
           cy.get(".button--text-link").first().as("hostLink");
         });
 
-        cy.get("@hostLink")
+        // Select a query to run on a specified host on host details page
+        cy.getAttached("@hostLink")
           .click()
           .then(() => {
             cy.findByText(/about this host/i).should("exist");
             cy.findByText(hostname).should("exist");
 
-            // Open query host modal and select query
-            cy.get('img[alt="Query host icon"]').click();
-            cy.get(".modal__modal_container")
+            cy.getAttached('img[alt="Query host icon"]').click();
+            cy.getAttached(".modal__modal_container")
               .within(() => {
                 cy.findByText(/select a query/i).should("exist");
                 cy.findByText(/detect presence/i).click();
               })
               .then(() => {
                 cy.findByText(/run query/i).click();
-                cy.get(".data-table").within(() => {
+                cy.getAttached(".data-table").within(() => {
                   cy.findByText(hostname).should("exist");
                 });
               });
           });
 
+        // Delete host
         cy.visit("/hosts/manage");
 
         cy.getAttached("@hostLink")
           .click()
           .then(() => {
-            // Open delete host modal and delete host
             cy.get('img[alt="Delete host icon"]').click();
             cy.get(".modal__modal_container")
               .within(() => {

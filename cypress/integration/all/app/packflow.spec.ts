@@ -7,9 +7,11 @@ describe(
     beforeEach(() => {
       cy.setup();
       cy.login();
+      cy.seedQueries();
     });
 
     it("Create, edit, and delete a pack and pack query successfully", () => {
+      // Create pack
       cy.visit("/packs/manage");
 
       cy.findByRole("button", { name: /create new pack/i }).click();
@@ -22,42 +24,7 @@ describe(
 
       cy.findByRole("button", { name: /save query pack/i }).click();
 
-      cy.visit("/packs/manage");
-
-      cy.getAttached(".name__cell > .button--text-link").click();
-
-      cy.findByLabelText(/name/i).clear().type("Server errors");
-
-      cy.findByLabelText(/description/i)
-        .clear()
-        .type("See all server errors.");
-
-      cy.findByRole("button", { name: /save/i }).click();
-
-      cy.visit("/packs/manage");
-
-      cy.getAttached(".fleet-checkbox__input").check({ force: true });
-
-      cy.getAttached(".selection__header .fleet-checkbox__tick").click();
-
-      cy.visit("/queries/manage");
-
-      cy.getAttached(".queries-list-wrapper__create-button").click();
-
-      cy.getAttached(".ace_scroller")
-        .click({ force: true })
-        .type("{selectall}SELECT * FROM windows_crashes;");
-
-      cy.findByRole("button", { name: /save/i }).click();
-
-      cy.findByLabelText(/name/i).click().type("Query all window crashes");
-
-      cy.findByLabelText(/description/i)
-        .click()
-        .type("See all window crashes");
-
-      cy.findByRole("button", { name: /save query/i }).click();
-
+      // Add query to pack
       cy.visit("/packs/manage");
 
       cy.getAttached(".name__cell > .button--text-link").click();
@@ -65,7 +32,7 @@ describe(
       cy.findByRole("button", { name: /add query/i }).click();
 
       cy.findByText(/select query/i).click();
-      cy.findByText(/query all/i).click();
+      cy.findByText(/get authorized/i).click();
       cy.getAttached(
         ".pack-query-editor-modal__form-field--frequency > .input-field"
       )
@@ -85,7 +52,8 @@ describe(
         .contains("button", /add query/i)
         .click();
 
-      cy.findByText(/query all window crashes/i).should("exist");
+      // Remove query from pack
+      cy.findByText(/get authorized/i).should("exist");
       cy.getAttached(".fleet-checkbox__input").check({ force: true });
 
       cy.findByRole("button", { name: /remove/i }).click();
@@ -93,6 +61,20 @@ describe(
         .contains("button", /remove/i)
         .click();
 
+      // Edit pack
+      cy.visit("/packs/manage");
+
+      cy.getAttached(".name__cell > .button--text-link").click();
+
+      cy.findByLabelText(/name/i).clear().type("Server errors");
+
+      cy.findByLabelText(/description/i)
+        .clear()
+        .type("See all server errors.");
+
+      cy.findByRole("button", { name: /save/i }).click();
+
+      // Delete pack
       cy.visit("/packs/manage");
 
       cy.getAttached(".fleet-checkbox__input").check({ force: true });
@@ -107,7 +89,9 @@ describe(
 
       cy.visit("/packs/manage");
 
-      cy.findByText(/server errors/i).should("not.exist");
+      cy.getAttached(".table-container").within(() => {
+        cy.findByText(/server errors/i).should("not.exist");
+      });
     });
   }
 );

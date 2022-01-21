@@ -5,29 +5,36 @@ describe("User invite and activation", () => {
     cy.setupSMTP();
   });
 
-  it("Invites and activates a user", () => {
+  it("Invite and activate a user successfully", () => {
+    // Invite user
     cy.visit("/settings/organization");
-    cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
 
-    cy.findByRole("tab", { name: /^users$/i }).click();
-
-    cy.contains("button", /create user/i).click();
-
-    cy.findByLabelText(/name/i).click().type("Ash Ketchum");
-
-    cy.findByLabelText(/email/i).click().type("ash@example.com");
-
-    cy.get(".create-user-form__new-user-radios").within(() => {
-      cy.findByRole("radio", { name: "Invite user" }).parent().click();
+    cy.getAttached(".component__tabs-wrapper").within(() => {
+      cy.findByRole("tab", { name: /^users$/i }).click();
     });
 
-    cy.findByRole("button", { name: /^create$/i }).click();
+    cy.getAttached(".user-management").within(() => {
+      cy.contains("button", /create user/i).click();
+    });
+
+    cy.getAttached(".create-user-modal").within(() => {
+      cy.findByLabelText(/name/i).click().type("Ash Ketchum");
+
+      cy.findByLabelText(/email/i).click().type("ash@example.com");
+
+      cy.getAttached(".create-user-form__new-user-radios").within(() => {
+        cy.findByRole("radio", { name: "Invite user" }).parent().click();
+      });
+
+      cy.findByRole("button", { name: /^create$/i }).click();
+    });
 
     // Ensure the email has been delivered
     cy.wait(3000); // eslint-disable-line cypress/no-unnecessary-waiting
 
     cy.logout();
 
+    // Retrieve user invite in email
     const inviteLink = {};
 
     const regex = /\/login\/invites\/[a-zA-Z0-9=?%&@._-]*/gm;
@@ -43,31 +50,35 @@ describe("User invite and activation", () => {
       inviteLink.url = match[0];
     });
 
+    // Activate user
     cy.visit(inviteLink);
 
-    cy.findByLabelText(/full name/i)
-      .click()
-      .type("{selectall}{backspace}Ash Ketchum");
+    cy.getAttached(".confirm-invite-page").within(() => {
+      cy.findByLabelText(/full name/i)
+        .click()
+        .type("{selectall}{backspace}Ash Ketchum");
 
-    // ^$ exact match
-    cy.findByLabelText(/^password$/i)
-      .click()
-      .type("#pikachu1");
+      cy.findByLabelText(/^password$/i)
+        .click()
+        .type("#pikachu1");
 
-    cy.findByLabelText(/confirm password/i)
-      .click()
-      .type("#pikachu1");
+      cy.findByLabelText(/confirm password/i)
+        .click()
+        .type("#pikachu1");
 
-    cy.findByRole("button", { name: /submit/i }).click();
+      cy.findByRole("button", { name: /submit/i }).click();
+    });
 
+    // View user as admin
     cy.login();
 
     cy.visit("/settings/organization");
-    cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
 
-    cy.findByRole("tab", { name: /^users$/i }).click();
+    cy.getAttached(".component__tabs-wrapper").within(() => {
+      cy.findByRole("tab", { name: /^users$/i }).click();
+    });
 
-    cy.get("tbody>tr>td")
+    cy.getAttached("tbody>tr>td")
       .contains("Ash Ketchum")
       .parent()
       .next()
