@@ -1,26 +1,32 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useContext, useEffect } from "react";
 import { useDispatch } from "react-redux";
 import { useQuery } from "react-query";
 // @ts-ignore
-import deepDifference from "utilities/deep_difference";
-
-import { IConfigNested } from "interfaces/config";
+import { getConfig } from "redux/nodes/app/actions";
 // @ts-ignore
-import AppConfigForm from "components/forms/admin/AppConfigForm";
+import { renderFlash } from "redux/nodes/notifications/actions";
+
+import { AppContext } from "context/app";
+import enrollSecretsAPI from "services/entities/enroll_secret";
+import configAPI from "services/entities/config";
+
+// @ts-ignore
+import deepDifference from "utilities/deep_difference";
+import { IConfig, IConfigNested } from "interfaces/config";
 import {
   IEnrollSecret,
   IEnrollSecretsResponse,
 } from "interfaces/enroll_secret";
 
-import enrollSecretsAPI from "services/entities/enroll_secret";
-import configAPI from "services/entities/config";
 // @ts-ignore
-import { renderFlash } from "redux/nodes/notifications/actions";
+import AppConfigForm from "components/forms/admin/AppConfigForm";
 
 export const baseClass = "app-settings";
 
 const AppSettingsPage = (): JSX.Element => {
   const dispatch = useDispatch();
+
+  const { config, setConfig } = useContext(AppContext);
 
   const {
     data: appConfig,
@@ -59,9 +65,15 @@ const AppSettingsPage = (): JSX.Element => {
         })
         .finally(() => {
           refetchConfig();
+          // Config must be updated in both Redux and AppContext
+          dispatch(getConfig())
+            .then((config: IConfig) => {
+              setConfig(config);
+            })
+            .catch(() => false);
         });
     },
-    [dispatch, appConfig]
+    [dispatch, appConfig, getConfig, setConfig]
   );
 
   return (
