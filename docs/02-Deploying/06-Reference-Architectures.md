@@ -86,7 +86,7 @@ AWS reference architecture can be found [here](https://github.com/fleetdm/fleet/
 - [Monitoring via Cloudwatch alarms](https://github.com/fleetdm/fleet/tree/main/tools/terraform/monitoring)
 
 Some AWS services used in the provider reference architecture are billed as pay-per-use such as Firehose. This means that osquery scheduled query frequency can have
-a direct correlation to how much these services cost, something to at least keep in mind when configuring Fleet in AWS while using some logging destinations.
+a direct correlation to how much these services cost, something to keep in mind when configuring Fleet in AWS.
 
 #### AWS Terraform CI/CD IAM Permissions
 The following permissions are the minimum required to apply AWS terraform resources:
