@@ -730,14 +730,12 @@ func TestGetEnrollmentSecrets(t *testing.T) {
 	ds.GetEnrollSecretsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.EnrollSecret, error) {
 		return []*fleet.EnrollSecret{
 			{
-				Secret:    "abcd",
-				CreatedAt: time.UnixMilli(99999),
-				TeamID:    nil,
+				Secret: "abcd",
+				TeamID: nil,
 			},
 			{
-				Secret:    "efgh",
-				CreatedAt: time.UnixMilli(99999),
-				TeamID:    nil,
+				Secret: "efgh",
+				TeamID: nil,
 			},
 		}, nil
 	}
@@ -747,12 +745,12 @@ apiVersion: v1
 kind: enroll_secret
 spec:
   secrets:
-  - created_at: "1969-12-31T21:01:39.999-03:00"
+  - created_at: "0001-01-01T00:00:00Z"
     secret: abcd
-  - created_at: "1969-12-31T21:01:39.999-03:00"
+  - created_at: "0001-01-01T00:00:00Z"
     secret: efgh
 `
-	expectedJson := `{"kind":"enroll_secret","apiVersion":"v1","spec":{"secrets":[{"secret":"abcd","created_at":"1969-12-31T21:01:39.999-03:00"},{"secret":"efgh","created_at":"1969-12-31T21:01:39.999-03:00"}]}}
+	expectedJson := `{"kind":"enroll_secret","apiVersion":"v1","spec":{"secrets":[{"secret":"abcd","created_at":"0001-01-01T00:00:00Z"},{"secret":"efgh","created_at":"0001-01-01T00:00:00Z"}]}}
 `
 
 	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "enroll_secrets"}))
@@ -816,13 +814,19 @@ func TestGetPack(t *testing.T) {
 			Disabled:    false,
 		}, true, nil
 	}
+	ds.GetPackSpecFunc = func(ctx context.Context, name string) (*fleet.PackSpec, error) {
+		if name != "pack1" {
+			return nil, nil
+		}
+		return &fleet.PackSpec{
+			ID:          7,
+			Name:        "pack1",
+			Description: "some desc",
+			Platform:    "darwin",
+			Disabled:    false,
+		}, nil
+	}
 
-	expected := `+-------+----------+-------------+----------+
-| NAME  | PLATFORM | DESCRIPTION | DISABLED |
-+-------+----------+-------------+----------+
-| pack1 | darwin   | some desc   | false    |
-+-------+----------+-------------+----------+
-`
 	expectedYaml := `---
 apiVersion: v1
 kind: pack
@@ -838,7 +842,7 @@ spec:
 	expectedJson := `{"kind":"pack","apiVersion":"v1","spec":{"id":7,"name":"pack1","description":"some desc","platform":"darwin","disabled":false,"targets":{"labels":null}}}
 `
 
-	assert.Equal(t, expected, runAppForTest(t, []string{"get", "packs", "pack1"}))
+	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "packs", "pack1"}))
 	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "packs", "--yaml", "pack1"}))
 	assert.Equal(t, expectedJson, runAppForTest(t, []string{"get", "packs", "--json", "pack1"}))
 }
