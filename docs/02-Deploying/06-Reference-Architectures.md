@@ -80,7 +80,7 @@ AWS reference architecture can be found [here](https://github.com/fleetdm/fleet/
   - Fargate for underlying compute
   - Task roles via IAM
 - RDS Aurora MySQL 5.7
-- Elasicache Redis Engine
+- Elasticache Redis Engine
 - Firehose osquery log destination
   - S3 bucket sync to allow further ingestion/processing
 - [Monitoring via Cloudwatch alarms](https://github.com/fleetdm/fleet/tree/main/tools/terraform/monitoring)
