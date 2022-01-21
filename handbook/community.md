@@ -28,7 +28,7 @@ Fleet's users and broader audience are spread across many different online commu
 - [reddit.com/r/sysadmins](https://www.reddit.com/r/sysadmin/)
 - [reddit.com/r/SysAdminBlogs](https://www.reddit.com/r/SysAdminBlogs/)
 - [r/sysadmin Discord](https://discord.gg/sysadmin)
-- [Hackernews](https://news.ycombinator.com/)
+- [HackerNews](https://news.ycombinator.com/)
 
 ## Community contributions (pull requests)
 
