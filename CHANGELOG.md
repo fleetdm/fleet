@@ -38,6 +38,38 @@
 
 * Fix a bug in which non-existent queries and policies would not return a 404 not found response.
 
+### Performance
+
+* In v4.9.0, the maximum amount of hosts Fleet can handle, with the infrastructure specified below,
+increased to 70,000 hosts from 60,000 hosts in v4.8.0.
+
+#### Infrastructure
+
+* Fleet server
+  * AWS Fargate
+  * 2 tasks with 1024 CPU units and 2048 MiB of RAM.
+
+* MySQL
+  * Amazon RDS
+  * db.r5.2xlarge
+
+* Redis
+  * Amazon ElastiCache 
+  * cache.m5.large with 2 replicas (no cluster mode)
+
+#### What was changed to accomplish these improvements?
+
+* Optimized the updating and fetching of host data to only send and receive the bare minimum data
+  needed. 
+
+* Reduced the number of times host information is updated by caching more data.
+
+* Updated cleanup jobs and deletion logic.
+
+#### Future improvements
+
+* At intense usage, we found that some hosts fail to respond to live queries. Future releases of Fleet will improve upon this.
+
 ## Fleet 4.8.0 (Dec 31, 2021)
 
 * Add ability to configure Fleet to send a webhook request with all hosts that failed a
