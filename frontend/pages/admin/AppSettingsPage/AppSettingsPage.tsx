@@ -67,8 +67,8 @@ const AppSettingsPage = (): JSX.Element => {
           refetchConfig();
           // Config must be updated in both Redux and AppContext
           dispatch(getConfig())
-            .then((config: IConfig) => {
-              setConfig(config);
+            .then((configState: IConfig) => {
+              setConfig(configState);
             })
             .catch(() => false);
         });
