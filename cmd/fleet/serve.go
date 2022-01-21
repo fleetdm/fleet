@@ -869,13 +869,14 @@ func (in *devSQLInterceptor) StmtExecContext(ctx context.Context, stmt driver.St
 	return result, err
 }
 
+var spaceRegex = regexp.MustCompile(`\s+`)
+
 func (in *devSQLInterceptor) logQuery(start time.Time, query string, args []driver.NamedValue, err error) {
 	logLevel := level.Debug
 	if err != nil {
 		logLevel = level.Error
 	}
-	space := regexp.MustCompile(`\s+`)
-	query = strings.TrimSpace(space.ReplaceAllString(query, " "))
+	query = strings.TrimSpace(spaceRegex.ReplaceAllString(query, " "))
 	logLevel(in.logger).Log("duration", time.Since(start), "query", query, "args", argsToString(args), "err", err)
 }
 
