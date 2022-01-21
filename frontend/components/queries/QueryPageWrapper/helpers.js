@@ -14,6 +14,11 @@ export const fetchQuery = (dispatch, queryID) => {
       errorMessage = "The query you requested does not exist in Fleet.";
     }
 
+    if (errorMessage.includes("was not found in the datastore")) {
+      dispatch(push("/404"));
+      return;
+    }
+
     dispatch(push(MANAGE_QUERIES));
     dispatch(renderFlash("error", errorMessage));
 

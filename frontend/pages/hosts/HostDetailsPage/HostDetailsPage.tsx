@@ -312,9 +312,14 @@ const HostDetailsPage = ({
       },
       onError: (error) => {
         console.log(error);
-        dispatch(
-          renderFlash("error", `Unable to load host. Please try again.`)
-        );
+
+        if (error.message && error.message === "Resource Not Found") {
+          router.push("/404");
+        } else {
+          dispatch(
+            renderFlash("error", `Unable to load host. Please try again.`)
+          );
+        }
       },
     }
   );

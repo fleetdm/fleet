@@ -1,10 +1,13 @@
 import React, { useState, useEffect, useContext } from "react";
 import { useQuery, useMutation } from "react-query";
+import { useDispatch } from "react-redux";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 
 // @ts-ignore
 import Fleet from "fleet"; // @ts-ignore
 import { AppContext } from "context/app";
+// @ts-ignore
+import { renderFlash } from "redux/nodes/notifications/actions";
 import { PolicyContext } from "context/policy";
 import { QUERIES_PAGE_STEPS, DEFAULT_POLICY } from "utilities/constants";
 import globalPoliciesAPI from "services/entities/global_policies"; // @ts-ignore
@@ -13,7 +16,6 @@ import hostAPI from "services/entities/hosts"; // @ts-ignore
 import { IPolicyFormData, IPolicy } from "interfaces/policy";
 import { ITarget } from "interfaces/target";
 import { IHost } from "interfaces/host";
-import PATHS from "router/paths";
 
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
 import QueryEditor from "pages/policies/PolicyPage/screens/QueryEditor";
@@ -44,6 +46,7 @@ const PolicyPage = ({
 }: IPolicyPageProps): JSX.Element => {
   const policyIdForEdit = paramsPolicyId ? parseInt(paramsPolicyId, 10) : null;
   const policyTeamId = parseInt(URLQuerySearch.team_id, 10) || 0;
+  const dispatch = useDispatch();
   const {
     currentUser,
     currentTeam,
@@ -111,6 +114,17 @@ const PolicyPage = ({
         setLastEditedQueryResolution(returnedQuery.resolution);
         setLastEditedQueryPlatform(returnedQuery.platform);
         setPolicyTeamId(returnedQuery.team_id || 0);
+      },
+      onError: (error) => {
+        console.log(error);
+
+        if (error.message && error.message === "Resource Not Found") {
+          router.push("/404");
+        } else {
+          dispatch(
+            renderFlash("error", `Unable to load policy. Please try again.`)
+          );
+        }
       },
     }
   );

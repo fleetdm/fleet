@@ -138,6 +138,12 @@ const TeamDetailsWrapper = ({
     dispatch(teamActions.loadAll({ perPage: 500 }));
   }, [dispatch]);
 
+  useEffect(() => {
+    if (!isLoadingTeams && team === undefined) {
+      return router.push("/404");
+    }
+  }, [isLoadingTeams, team]);
+
   const [teamMenuIsOpen, setTeamMenuIsOpen] = useState<boolean>(false);
 
   const toggleAddHostsRedirectModal = useCallback(() => {
