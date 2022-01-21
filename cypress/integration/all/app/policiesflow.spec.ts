@@ -12,7 +12,7 @@ describe(
       cy.visit("/policies/manage");
 
       // Add a policy
-      cy.getAttached(".manage-policies-page__description").within(() => {
+      cy.getAttached(".manage-policies-page__header-wrap").within(() => {
         cy.findByText(/add a policy/i).click();
       });
 
@@ -45,7 +45,7 @@ describe(
 
       // Add a default policy
       cy.visit("/policies/manage");
-      cy.getAttached(".manage-policies-page__description").within(() => {
+      cy.getAttached(".manage-policies-page__header-wrap").within(() => {
         cy.findByText(/add a policy/i).click();
       });
 
@@ -57,8 +57,7 @@ describe(
 
       cy.visit("/policies/manage");
 
-      // Click on link in table and confirm that policies filter block diplays as expected on manage
-      // hosts page
+      // Policy filter diplays on manage hosts page
       cy.getAttached(".failing_host_count__cell")
         .first()
         .within(() => {
@@ -114,7 +113,7 @@ describe(
       cy.getAttached("#webhook-url").click().type("www.foo.com/bar");
       cy.findByRole("button", { name: /^Save$/ }).click();
 
-      // Confirm that failing policies webhook was added successfully
+      // Confirm failing policies webhook was added successfully
       cy.findByText(/updated policy automations/i).should("exist");
       cy.findByRole("button", { name: /manage automations/i }).click();
       cy.getAttached(".manage-automations-modal").within(() => {

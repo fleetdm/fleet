@@ -112,7 +112,7 @@ const ScheduleListWrapper = ({
                 </>
               )}
             </p>
-            <div className={`${noScheduleClass}__-cta-buttons`}>
+            <div className={`${noScheduleClass}__cta-buttons`}>
               <Button
                 variant="brand"
                 className={`${noScheduleClass}__schedule-button`}
