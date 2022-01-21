@@ -1,7 +1,7 @@
 # Reference Architectures
 
 You can easily run Fleet on a single VPS that would be capable of supporting hundreds if not thousands of hosts, but
-this page will detail what an [opinionated view](https://github.com/fleetdm/fleet/tree/main/tools/terraform) of running Fleet in a production environment, as
+this page details an [opinionated view](https://github.com/fleetdm/fleet/tree/main/tools/terraform) of running Fleet in a production environment, as
 well as different configuration strategies to enable High Availability (HA).
 
 ## Availability Components
