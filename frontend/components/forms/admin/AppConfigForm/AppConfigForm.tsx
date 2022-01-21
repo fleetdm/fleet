@@ -527,6 +527,7 @@ const AppConfigFormFunctional = ({
             parseTarget
             onBlur={validateForm}
             error={formErrors.user_name}
+            blockAutoComplete
           />
           <InputField
             label="SMTP password"
@@ -537,6 +538,7 @@ const AppConfigFormFunctional = ({
             parseTarget
             onBlur={validateForm}
             error={formErrors.password}
+            blockAutoComplete
           />
           <Dropdown
             label="Auth method"
