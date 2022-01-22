@@ -73,7 +73,6 @@ require (
 	github.com/spf13/viper v1.8.1
 	github.com/stretchr/objx v0.3.0 // indirect
 	github.com/stretchr/testify v1.7.0
-	github.com/tent/canonical-json-go v0.0.0-20130607151641-96e4ba3a7613 // indirect
 	github.com/theupdateframework/go-tuf v0.0.0-20220121203041-e3557e322879
 	github.com/throttled/throttled/v2 v2.8.0
 	github.com/urfave/cli/v2 v2.3.0
