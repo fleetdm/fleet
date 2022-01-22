@@ -42,7 +42,7 @@
 
 * Our testing demonstrated an increase in max devices served in our load test infrastructure to 70,000 from 60,000 in v4.8.0.
 
-#### Infrastructure
+#### Load Test Infrastructure
 
 * Fleet server
   * AWS Fargate
