@@ -1,4 +1,4 @@
-## Fleet 4.9.0 (Jan 20, 2022)
+## Fleet 4.9.0 (Jan 21, 2022)
 
 * Add ability to apply a `policy` yaml document so that GitOps workflows can be used to create and
   modify policies.
@@ -40,8 +40,7 @@
 
 ### Performance
 
-* In v4.9.0, the maximum amount of hosts Fleet can handle, with the infrastructure specified below,
-increased to 70,000 hosts from 60,000 hosts in v4.8.0.
+* Our testing demonstrated an increase in max devices served in our load test infrastructure to 70,000 from 60,000 in v4.8.0.
 
 #### Infrastructure
 
@@ -68,7 +67,7 @@ increased to 70,000 hosts from 60,000 hosts in v4.8.0.
 
 #### Future improvements
 
-* At intense usage, we found that some hosts fail to respond to live queries. Future releases of Fleet will improve upon this.
+* At maximum DB utilization, we found that some hosts fail to respond to live queries. Future releases of Fleet will improve upon this.
 
 ## Fleet 4.8.0 (Dec 31, 2021)
 
