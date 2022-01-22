@@ -63,9 +63,7 @@ describe("Premium tier - Maintainer user", () => {
       });
       it("allows global maintainer to create an operating system policy", () => {
         cy.getAttached(".info-flex").within(() => {
-          // OS is shown for host
           cy.findByText(/ubuntu/i).should("exist");
-          // Observer cannot create a new OS policy
           cy.getAttached(".host-details__os-policy-button").click();
         });
         cy.getAttached(".modal__content")
@@ -73,7 +71,6 @@ describe("Premium tier - Maintainer user", () => {
           .should("exist");
       });
       it("allows global maintainer to create a custom query", () => {
-        // Click query button and confirm maintainer can see "create custom query" button
         cy.getAttached(".host-details__query-button").click();
         cy.contains("button", /create custom query/i).should("exist");
         cy.getAttached(".modal__ex").click();
@@ -87,6 +84,25 @@ describe("Premium tier - Maintainer user", () => {
           cy.contains("button", /delete/i).should("exist");
           cy.getAttached(".modal__ex").click();
         });
+      });
+    });
+    describe("Query pages", () => {
+      beforeEach(() => cy.visit("/queries/manage"));
+      it("allows global maintainer to select teams targets for query", () => {
+        cy.getAttached("tbody").within(() => {
+          cy.getAttached("tr")
+            .first()
+            .within(() => {
+              cy.getAttached(".fleet-checkbox__input").check({ force: true });
+            });
+          cy.findAllByText(/detect presence/i).click();
+        });
+
+        cy.getAttached(".query-form__button-wrap").within(() => {
+          cy.findByRole("button", { name: /run/i }).click();
+        });
+        cy.contains("h3", /teams/i).should("exist");
+        cy.contains(".selector-name", /apples/i).should("exist");
       });
     });
     describe("Manage policies page", () => {
@@ -110,43 +126,47 @@ describe("Premium tier - Maintainer user", () => {
         cy.findByRole("button", { name: /^Save$/ }).click();
         cy.findByText(/policy created/i).should("exist");
       });
-    });
-    it("allows global maintainer to delete a team policy", () => {
-      cy.visit("/policies/manage");
-      cy.getAttached(".Select-control").within(() => {
+      it("allows global maintainer to delete a team policy", () => {
+        cy.visit("/policies/manage");
+        cy.getAttached(".Select-control").within(() => {
+          cy.findByText(/all teams/i).click();
+        });
+        cy.getAttached(".Select-menu")
+          .contains(/apples/i)
+          .click();
+        cy.getAttached("tbody").within(() => {
+          cy.getAttached("tr")
+            .first()
+            .within(() => {
+              cy.getAttached(".fleet-checkbox__input").check({
+                force: true,
+              });
+            });
+        });
+        cy.findByRole("button", { name: /delete/i }).click();
+        cy.getAttached(".remove-policies-modal").within(() => {
+          cy.findByRole("button", { name: /delete/i }).should("exist");
+          cy.findByRole("button", { name: /cancel/i }).click();
+        });
+      });
+      it("allows global maintainer to edit a team policy", () => {
+        cy.visit("policies/manage");
         cy.findByText(/all teams/i).click();
-      });
-      cy.getAttached(".Select-menu")
-        .contains(/apples/i)
-        .click();
-      cy.getAttached("tbody").within(() => {
-        cy.getAttached("tr")
-          .first()
-          .within(() => {
-            cy.getAttached(".fleet-checkbox__input").check({ force: true });
-          });
-      });
-      cy.findByRole("button", { name: /delete/i }).click();
-      cy.getAttached(".remove-policies-modal").within(() => {
-        cy.findByRole("button", { name: /delete/i }).should("exist");
-        cy.findByRole("button", { name: /cancel/i }).click();
-      });
-    });
-    it("allows global maintainer to edit a team policy", () => {
-      cy.visit("policies/manage");
-      cy.findByText(/all teams/i).click();
-      cy.findByText(/apples/i).click();
-      cy.getAttached("tbody").within(() => {
-        cy.getAttached("tr")
-          .first()
-          .within(() => {
-            cy.getAttached(".fleet-checkbox__input").check({ force: true });
-          });
-      });
-      cy.findByText(/filevault enabled/i).click();
-      cy.getAttached(".policy-form__button-wrap").within(() => {
-        cy.findByRole("button", { name: /run/i }).should("exist");
-        cy.findByRole("button", { name: /save/i }).should("exist");
+        cy.findByText(/apples/i).click();
+        cy.getAttached("tbody").within(() => {
+          cy.getAttached("tr")
+            .first()
+            .within(() => {
+              cy.getAttached(".fleet-checkbox__input").check({
+                force: true,
+              });
+            });
+        });
+        cy.findByText(/filevault enabled/i).click();
+        cy.getAttached(".policy-form__button-wrap").within(() => {
+          cy.findByRole("button", { name: /run/i }).should("exist");
+          cy.findByRole("button", { name: /save/i }).should("exist");
+        });
       });
     });
     describe("User profile page", () => {
