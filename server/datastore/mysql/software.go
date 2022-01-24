@@ -220,9 +220,6 @@ func listSoftwareDB(
 		return nil, ctxerr.Wrap(ctx, err, "sql build")
 	}
 
-	// TODO(mna): join with a new table, software_host_counts, and only select software with
-	// a host count > 0.
-
 	var result []fleet.Software
 	if err := sqlx.SelectContext(ctx, q, &result, sql, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "load host software")
@@ -315,7 +312,7 @@ func selectSoftwareSQL(hostID *uint, opts fleet.SoftwareListOptions) (string, []
 			goqu.On(
 				goqu.I("s.id").Eq(goqu.I("shc.software_id")),
 			),
-		).Where(goqu.I("shc.host_count").Gt(0)).Select("shc.host_count", "shc.updated_at")
+		).Where(goqu.I("shc.hosts_count").Gt(0)).Select("shc.hosts_count", "shc.updated_at")
 	}
 
 	return ds.ToSQL()

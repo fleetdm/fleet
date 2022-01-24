@@ -553,7 +553,7 @@ CREATE TABLE `software_cve` (
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `software_host_counts` (
   `software_id` bigint(20) unsigned NOT NULL,
-  `host_count` int(10) unsigned NOT NULL,
+  `hosts_count` int(10) unsigned NOT NULL,
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`software_id`)
