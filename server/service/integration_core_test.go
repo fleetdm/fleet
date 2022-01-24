@@ -888,6 +888,9 @@ func (s *integrationTestSuite) TestGetHostSummary() {
 	s.DoJSON("GET", "/api/v1/fleet/host_summary", nil, http.StatusOK, &resp, "platform", "linux")
 	require.Equal(t, resp.TotalsHostsCount, uint(3))
 	require.Equal(t, "linux", resp.Platforms[0].Platform)
+
+	s.DoJSON("GET", "/api/v1/fleet/host_summary", nil, http.StatusOK, &resp, "platform", "darwin")
+	require.Equal(t, resp.TotalsHostsCount, uint(0))
 }
 
 func (s *integrationTestSuite) TestGlobalPoliciesProprietary() {
