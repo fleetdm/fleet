@@ -135,6 +135,8 @@ Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.
 ### 真 Objectivity
 - be wrong
 - show your work
+- "may the best product win."
+  - be fair to competitors
 - be realistic (practical about your limits and what's possible with the time and resources we have)
 - speak computer to computers (assume it's your fault)
 - question yourself (why do I think this?)
