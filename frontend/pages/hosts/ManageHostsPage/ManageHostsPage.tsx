@@ -74,9 +74,10 @@ import {
   getNextLocationPath,
 } from "./helpers";
 
-import DeleteSecretModal from "./components/DeleteSecretModal";
-import SecretEditorModal from "./components/SecretEditorModal";
-import EnrollSecretModal from "./components/EnrollSecretModal";
+import DeleteSecretModal from "../../../components/DeleteSecretModal";
+import SecretEditorModal from "../../../components/SecretEditorModal";
+import GenerateInstallerModal from "../../../components/GenerateInstallerModal";
+import EnrollSecretModal from "../../../components/EnrollSecretModal";
 // @ts-ignore
 import NoHosts from "./components/NoHosts";
 import EmptyHosts from "./components/EmptyHosts";
@@ -86,8 +87,6 @@ import EditColumnsModal from "./components/EditColumnsModal/EditColumnsModal";
 import TransferHostModal from "./components/TransferHostModal";
 import DeleteHostModal from "./components/DeleteHostModal";
 import SoftwareVulnerabilities from "./components/SoftwareVulnerabilities";
-// @ts-ignore
-import GenerateInstallerModal from "./components/GenerateInstallerModal";
 import EditColumnsIcon from "../../../../assets/images/icon-edit-columns-16x16@2x.png";
 import PencilIcon from "../../../../assets/images/icon-pencil-14x14@2x.png";
 import TrashIcon from "../../../../assets/images/icon-trash-14x14@2x.png";

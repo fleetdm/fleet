@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useContext } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { useQuery } from "react-query";
 import { InjectedRouter, Link, RouteProps } from "react-router";
 import { push } from "react-router-redux";
 import { Tab, TabList, Tabs } from "react-tabs";
@@ -13,7 +14,15 @@ import { AppContext } from "context/app";
 // ignore TS error for now until these are rewritten in ts.
 // @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions";
+import teamsAPI from "services/entities/teams";
+import enrollSecretsAPI from "services/entities/enroll_secret";
 import teamActions from "redux/nodes/entities/teams/actions";
+import {
+  IEnrollSecret,
+  IEnrollSecretsResponse,
+} from "interfaces/enroll_secret";
+import sortUtils from "utilities/sort";
+import Modal from "components/Modal";
 import Spinner from "components/Spinner";
 import Button from "components/buttons/Button";
 import TabsWrapper from "components/TabsWrapper";
@@ -23,8 +32,13 @@ import DeleteTeamModal from "../components/DeleteTeamModal";
 import EditTeamModal from "../components/EditTeamModal";
 import { IEditTeamFormData } from "../components/EditTeamModal/EditTeamModal";
 import AddHostsRedirectModal from "./components/AddHostsModal/AddHostsRedirectModal";
+import DeleteSecretModal from "../../../../components/DeleteSecretModal";
+import SecretEditorModal from "../../../../components/SecretEditorModal";
+import GenerateInstallerModal from "../../../../components/GenerateInstallerModal";
+import EnrollSecretModal from "../../../../components/EnrollSecretModal";
 
 import BackChevron from "../../../../../assets/images/icon-chevron-down-9x6@2x.png";
+import EyeIcon from "../../../../../assets/images/icon-eye-16x16@2x.png";
 import PencilIcon from "../../../../../assets/images/icon-pencil-14x14@2x.png";
 import TrashIcon from "../../../../../assets/images/icon-trash-14x14@2x.png";
 
@@ -56,6 +70,10 @@ interface IRootState {
       data: { [id: number]: ITeam };
     };
   };
+}
+
+interface ITeamsResponse {
+  teams: ITeam[];
 }
 
 interface ITeamDetailsPageProps {
@@ -103,31 +121,81 @@ const TeamDetailsWrapper = ({
   location: { pathname },
   params: routeParams,
 }: ITeamDetailsPageProps): JSX.Element => {
-  const { isGlobalAdmin, isOnGlobalTeam, setCurrentTeam } = useContext(
-    AppContext
-  );
+  const dispatch = useDispatch();
 
-  const isLoadingTeams = useSelector(
-    (state: IRootState) => state.entities.teams.loading
-  );
+  const {
+    isGlobalAdmin,
+    isGlobalMaintainer,
+    isTeamMaintainer,
+    isTeamAdmin,
+    currentTeam,
+    isOnGlobalTeam,
+    isPremiumTier,
+    setCurrentTeam,
+  } = useContext(AppContext);
+
   const team = useSelector((state: IRootState) => {
     return state.entities.teams.data[routeParams.team_id];
   });
-  const teams = useSelector((state: IRootState) => {
-    return memoizedGetTeams(state.entities.teams.data);
-  });
+
   const userTeams = useSelector((state: IRootState) => {
     return state.auth.user.teams;
   });
   const routeTemplate = route && route.path ? route.path : "";
 
-  const [showAddHostsRedirectModal, setShowAddHostsRedirectModal] = useState(
+  const [selectedSecret, setSelectedSecret] = useState<IEnrollSecret>();
+  const [showGenerateInstallerModal, setShowGenerateInstallerModal] = useState(
     false
   );
+  const [
+    showManageEnrollSecretsModal,
+    setShowManageEnrollSecretsModal,
+  ] = useState(false);
+  const [showDeleteSecretModal, setShowDeleteSecretModal] = useState(false);
+  const [showEnrollSecretModal, setShowEnrollSecretModal] = useState(false);
+  const [showSecretEditorModal, setShowSecretEditorModal] = useState(false);
   const [showDeleteTeamModal, setShowDeleteTeamModal] = useState(false);
   const [showEditTeamModal, setShowEditTeamModal] = useState(false);
 
-  const dispatch = useDispatch();
+  const canEnrollHosts =
+    isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
+
+  const {
+    data: teams,
+    isLoading: isLoadingTeams,
+    refetch: refetchTeams,
+  } = useQuery<ITeamsResponse, Error, ITeam[]>(
+    ["teams"],
+    () => teamsAPI.loadAll(),
+    {
+      enabled: !!isPremiumTier,
+      select: (data: ITeamsResponse) =>
+        data.teams.sort((a, b) => sortUtils.caseInsensitiveAsc(a.name, b.name)),
+      onSuccess: (responseTeams: ITeam[]) => {
+        if (!currentTeam && !isOnGlobalTeam && responseTeams.length) {
+          setCurrentTeam(responseTeams[0]);
+        }
+      },
+    }
+  );
+
+  const {
+    isLoading: isTeamSecretsLoading,
+    data: teamSecrets,
+    refetch: refetchTeamSecrets,
+  } = useQuery<IEnrollSecretsResponse, Error, IEnrollSecret[]>(
+    ["team secrets", routeParams],
+    () => {
+      if (routeParams.team_id) {
+        return enrollSecretsAPI.getTeamEnrollSecrets(routeParams.team_id);
+      }
+      return { secrets: [] };
+    },
+    {
+      enabled: !!routeParams.team_id && !!canEnrollHosts,
+      select: (data: IEnrollSecretsResponse) => data.secrets,
+    }
+  );
 
   const navigateToNav = (i: number): void => {
     const navPath = teamDetailsSubNav[i].getPathname(routeParams.team_id);
@@ -140,9 +208,38 @@ const TeamDetailsWrapper = ({
 
   const [teamMenuIsOpen, setTeamMenuIsOpen] = useState<boolean>(false);
 
-  const toggleAddHostsRedirectModal = useCallback(() => {
-    setShowAddHostsRedirectModal(!showAddHostsRedirectModal);
-  }, [showAddHostsRedirectModal, setShowAddHostsRedirectModal]);
+  const toggleGenerateInstallerModal = useCallback(() => {
+    setShowGenerateInstallerModal(!showGenerateInstallerModal);
+  }, [showGenerateInstallerModal, setShowGenerateInstallerModal]);
+
+  const toggleManageEnrollSecretsModal = useCallback(() => {
+    setShowManageEnrollSecretsModal(!showManageEnrollSecretsModal);
+  }, [showManageEnrollSecretsModal, setShowManageEnrollSecretsModal]);
+
+  const toggleDeleteSecretModal = useCallback(() => {
+    // open and closes delete modal
+    setShowDeleteSecretModal(!showDeleteSecretModal);
+    // open and closes main enroll secret modal
+    setShowEnrollSecretModal(!showEnrollSecretModal);
+  }, [
+    setShowDeleteSecretModal,
+    showDeleteSecretModal,
+    setShowEnrollSecretModal,
+    showEnrollSecretModal,
+  ]);
+
+  // this is called when we click add or edit
+  const toggleSecretEditorModal = useCallback(() => {
+    // open and closes add/edit modal
+    setShowSecretEditorModal(!showSecretEditorModal);
+    // open and closes main enroll secret modall
+    setShowEnrollSecretModal(!showEnrollSecretModal);
+  }, [
+    setShowSecretEditorModal,
+    showSecretEditorModal,
+    setShowEnrollSecretModal,
+    showEnrollSecretModal,
+  ]);
 
   const toggleDeleteTeamModal = useCallback(() => {
     setShowDeleteTeamModal(!showDeleteTeamModal);
@@ -155,6 +252,95 @@ const TeamDetailsWrapper = ({
   const onAddHostsRedirectClick = useCallback(() => {
     dispatch(push(PATHS.MANAGE_HOSTS));
   }, [dispatch]);
+
+  const onSaveSecret = async (enrollSecretString: string) => {
+    const { MANAGE_HOSTS } = PATHS;
+
+    // Creates new list of secrets removing selected secret and adding new secret
+    const currentSecrets = teamSecrets || [];
+
+    const newSecrets = currentSecrets.filter(
+      (s) => s.secret !== selectedSecret?.secret
+    );
+
+    if (enrollSecretString) {
+      newSecrets.push({ secret: enrollSecretString });
+    }
+
+    try {
+      await enrollSecretsAPI.modifyTeamEnrollSecrets(
+        routeParams.team_id,
+        newSecrets
+      );
+      refetchTeamSecrets();
+
+      toggleSecretEditorModal();
+      isPremiumTier && refetchTeams();
+
+      router.push(
+        getNextLocationPath({
+          pathPrefix: MANAGE_HOSTS,
+          routeTemplate: routeTemplate.replace("/labels/:label_id", ""),
+          routeParams,
+          queryParams,
+        })
+      );
+      dispatch(
+        renderFlash(
+          "success",
+          `Successfully ${selectedSecret ? "edited" : "added"} enroll secret.`
+        )
+      );
+    } catch (error) {
+      console.error(error);
+      dispatch(
+        renderFlash(
+          "error",
+          `Could not ${
+            selectedSecret ? "edit" : "add"
+          } enroll secret. Please try again.`
+        )
+      );
+    }
+  };
+
+  const onDeleteSecret = async () => {
+    const { MANAGE_HOSTS } = PATHS;
+
+    // create new list of secrets removing selected secret
+    const currentSecrets = teamSecrets || [];
+
+    const newSecrets = currentSecrets.filter(
+      (s) => s.secret !== selectedSecret?.secret
+    );
+
+    try {
+      await enrollSecretsAPI.modifyTeamEnrollSecrets(
+        routeParams.team_id,
+        newSecrets
+      );
+      refetchTeamSecrets();
+      toggleDeleteSecretModal();
+      refetchTeams();
+      router.push(
+        getNextLocationPath({
+          pathPrefix: MANAGE_HOSTS,
+          routeTemplate: routeTemplate.replace("/labels/:label_id", ""),
+          routeParams,
+          queryParams,
+        })
+      );
+      dispatch(renderFlash("success", `Successfully deleted enroll secret.`));
+    } catch (error) {
+      console.error(error);
+      dispatch(
+        renderFlash(
+          "error",
+          "Could not delete enroll secret. Please try again."
+        )
+      );
+    }
+  };
 
   const onDeleteSubmit = useCallback(() => {
     dispatch(teamActions.destroy(team?.id))
@@ -267,18 +453,27 @@ const TeamDetailsWrapper = ({
             </span>
           </div>
           <div className={`${baseClass}__team-actions`}>
-            <Button onClick={toggleAddHostsRedirectModal}>Add hosts</Button>
+            <Button onClick={toggleGenerateInstallerModal}>
+              Generate installer
+            </Button>
+            <Button
+              onClick={toggleManageEnrollSecretsModal}
+              variant={"text-icon"}
+            >
+              <>
+                Manage enroll secrets{" "}
+                <img src={EyeIcon} alt="Manage enroll secrets icon" />
+              </>
+            </Button>
             <Button onClick={toggleEditTeamModal} variant={"text-icon"}>
               <>
-                <img src={PencilIcon} alt="Edit team icon" />
-                Edit team
+                Edit team <img src={PencilIcon} alt="Edit team icon" />
               </>
             </Button>
             {isGlobalAdmin && (
               <Button onClick={toggleDeleteTeamModal} variant={"text-icon"}>
                 <>
-                  <img src={TrashIcon} alt="Delete team icon" />
-                  Delete team
+                  Delete team <img src={TrashIcon} alt="Delete team icon" />
                 </>
               </Button>
             )}
@@ -301,10 +496,43 @@ const TeamDetailsWrapper = ({
           </TabList>
         </Tabs>
       </TabsWrapper>
-      {showAddHostsRedirectModal ? (
+      {showGenerateInstallerModal ? (
         <AddHostsRedirectModal
-          onCancel={toggleAddHostsRedirectModal}
+          onCancel={toggleGenerateInstallerModal}
           onSubmit={onAddHostsRedirectClick}
+        />
+      ) : null}
+      {showManageEnrollSecretsModal ? (
+        <Modal
+          title="Enroll secret"
+          onExit={() => setShowEnrollSecretModal(false)}
+          className={`${baseClass}__enroll-secret-modal`}
+        >
+          <EnrollSecretModal
+            selectedTeam={routeParams.team_id}
+            teams={teams || []}
+            onReturnToApp={() => setShowEnrollSecretModal(false)}
+            toggleSecretEditorModal={toggleSecretEditorModal}
+            toggleDeleteSecretModal={toggleDeleteSecretModal}
+            setSelectedSecret={setSelectedSecret}
+          />
+        </Modal>
+      ) : null}
+      {showSecretEditorModal ? (
+        <SecretEditorModal
+          selectedTeam={routeParams.team_id}
+          teams={teams || []}
+          onSaveSecret={onSaveSecret}
+          toggleSecretEditorModal={toggleSecretEditorModal}
+          selectedSecret={selectedSecret}
+        />
+      ) : null}
+      {showDeleteSecretModal ? (
+        <DeleteSecretModal
+          onDeleteSecret={onDeleteSecret}
+          selectedTeam={routeParams.team_id}
+          teams={teams || []}
+          toggleDeleteSecretModal={toggleDeleteSecretModal}
         />
       ) : null}
       {showDeleteTeamModal ? (
