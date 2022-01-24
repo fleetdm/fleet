@@ -252,7 +252,7 @@ func TestGetHostSummary(t *testing.T) {
 	ds := new(mock.Store)
 	svc := newTestService(ds, nil, nil)
 
-	ds.GenerateHostStatusStatisticsFunc = func(ctx context.Context, filter fleet.TeamFilter, now time.Time) (*fleet.HostSummary, error) {
+	ds.GenerateHostStatusStatisticsFunc = func(ctx context.Context, filter fleet.TeamFilter, now time.Time, platform *string) (*fleet.HostSummary, error) {
 		return &fleet.HostSummary{
 			OnlineCount:      1,
 			OfflineCount:     2,
