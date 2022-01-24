@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -1925,19 +1926,11 @@ func (s *integrationTestSuite) TestUsers() {
 
 	// test available teams returned by `/me` endpoint for existing user
 	var getMeResp getUserResponse
-	key := make([]byte, 64)
-	sessionKey := base64.StdEncoding.EncodeToString(key)
-	session := &fleet.Session{
-		UserID:     uint(1),
-		Key:        sessionKey,
-		AccessedAt: time.Now().UTC(),
-	}
-	_, err := s.ds.NewSession(context.Background(), session)
-	require.NoError(t, err)
+	ssn := createSession(t, 1, s.ds)
 	resp := s.DoRawWithHeaders("GET", "/api/v1/fleet/me", []byte(""), http.StatusOK, map[string]string{
-		"Authorization": fmt.Sprintf("Bearer %s", sessionKey),
+		"Authorization": fmt.Sprintf("Bearer %s", ssn.Key),
 	})
-	err = json.NewDecoder(resp.Body).Decode(&getMeResp)
+	err := json.NewDecoder(resp.Body).Decode(&getMeResp)
 	require.NoError(t, err)
 	assert.Equal(t, uint(1), getMeResp.User.ID)
 	assert.NotNil(t, getMeResp.User.GlobalRole)
@@ -2255,4 +2248,53 @@ func (s *integrationTestSuite) TestTeamPoliciesTeamNotExists() {
 	teamPoliciesResponse := listTeamPoliciesResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/teams/%d/policies", 9999999), nil, http.StatusNotFound, &teamPoliciesResponse)
 	require.Len(t, teamPoliciesResponse.Policies, 0)
+}
+
+func (s *integrationTestSuite) TestSessionInfo() {
+	t := s.T()
+
+	ssn := createSession(t, 1, s.ds)
+
+	var meResp getUserResponse
+	resp := s.DoRawWithHeaders("GET", "/api/v1/fleet/me", nil, http.StatusOK, map[string]string{
+		"Authorization": fmt.Sprintf("Bearer %s", ssn.Key),
+	})
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&meResp))
+	assert.Equal(t, uint(1), meResp.User.ID)
+
+	// get info about session
+	var getResp getInfoAboutSessionResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/sessions/%d", ssn.ID), nil, http.StatusOK, &getResp)
+	assert.Equal(t, ssn.ID, getResp.SessionID)
+	assert.Equal(t, uint(1), getResp.UserID)
+
+	// get info about session - non-existing: appears to deliberately return 500 due to forbidden,
+	// which takes precedence vs the not found returned by the datastore (it still shouldn't be a
+	// 500 though).
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/sessions/%d", ssn.ID+1), nil, http.StatusInternalServerError, &getResp)
+
+	// delete session
+	var delResp deleteSessionResponse
+	s.DoJSON("DELETE", fmt.Sprintf("/api/v1/fleet/sessions/%d", ssn.ID), nil, http.StatusOK, &delResp)
+
+	// delete session - non-existing: again, 500 due to forbidden instead of 404.
+	s.DoJSON("DELETE", fmt.Sprintf("/api/v1/fleet/sessions/%d", ssn.ID), nil, http.StatusInternalServerError, &delResp)
+}
+
+// creates a session and returns it, its key is to be passed as authorization header.
+func createSession(t *testing.T, uid uint, ds fleet.Datastore) *fleet.Session {
+	key := make([]byte, 64)
+	_, err := rand.Read(key)
+	require.NoError(t, err)
+
+	sessionKey := base64.StdEncoding.EncodeToString(key)
+	session := &fleet.Session{
+		UserID:     uid,
+		Key:        sessionKey,
+		AccessedAt: time.Now().UTC(),
+	}
+	ssn, err := ds.NewSession(context.Background(), session)
+	require.NoError(t, err)
+
+	return ssn
 }

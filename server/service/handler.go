@@ -27,11 +27,8 @@ type FleetEndpoints struct {
 	Logout                                endpoint.Endpoint
 	ForgotPassword                        endpoint.Endpoint
 	ResetPassword                         endpoint.Endpoint
-	Me                                    endpoint.Endpoint
 	CreateUserWithInvite                  endpoint.Endpoint
 	PerformRequiredPasswordReset          endpoint.Endpoint
-	GetSessionInfo                        endpoint.Endpoint
-	DeleteSession                         endpoint.Endpoint
 	GetAppConfig                          endpoint.Endpoint
 	ModifyAppConfig                       endpoint.Endpoint
 	ApplyEnrollSecretSpec                 endpoint.Endpoint
@@ -96,16 +93,15 @@ func MakeFleetServerEndpoints(svc fleet.Service, urlPrefix string, limitStore th
 		PerformRequiredPasswordReset: logged(canPerformPasswordReset(makePerformRequiredPasswordResetEndpoint(svc))),
 
 		// Standard user authentication routes
-		Me:                                    authenticatedUser(svc, makeGetSessionUserEndpoint(svc)),
-		GetSessionInfo:                        authenticatedUser(svc, makeGetInfoAboutSessionEndpoint(svc)),
-		DeleteSession:                         authenticatedUser(svc, makeDeleteSessionEndpoint(svc)),
-		GetAppConfig:                          authenticatedUser(svc, makeGetAppConfigEndpoint(svc)),
-		ModifyAppConfig:                       authenticatedUser(svc, makeModifyAppConfigEndpoint(svc)),
-		ApplyEnrollSecretSpec:                 authenticatedUser(svc, makeApplyEnrollSecretSpecEndpoint(svc)),
-		GetEnrollSecretSpec:                   authenticatedUser(svc, makeGetEnrollSecretSpecEndpoint(svc)),
-		CreateInvite:                          authenticatedUser(svc, makeCreateInviteEndpoint(svc)),
-		ListInvites:                           authenticatedUser(svc, makeListInvitesEndpoint(svc)),
-		DeleteInvite:                          authenticatedUser(svc, makeDeleteInviteEndpoint(svc)),
+		GetAppConfig:          authenticatedUser(svc, makeGetAppConfigEndpoint(svc)),
+		ModifyAppConfig:       authenticatedUser(svc, makeModifyAppConfigEndpoint(svc)),
+		ApplyEnrollSecretSpec: authenticatedUser(svc, makeApplyEnrollSecretSpecEndpoint(svc)),
+		GetEnrollSecretSpec:   authenticatedUser(svc, makeGetEnrollSecretSpecEndpoint(svc)),
+
+		CreateInvite: authenticatedUser(svc, makeCreateInviteEndpoint(svc)),
+		ListInvites:  authenticatedUser(svc, makeListInvitesEndpoint(svc)),
+		DeleteInvite: authenticatedUser(svc, makeDeleteInviteEndpoint(svc)),
+
 		GetQuery:                              authenticatedUser(svc, makeGetQueryEndpoint(svc)),
 		ListQueries:                           authenticatedUser(svc, makeListQueriesEndpoint(svc)),
 		CreateQuery:                           authenticatedUser(svc, makeCreateQueryEndpoint(svc)),
@@ -147,11 +143,8 @@ type fleetHandlers struct {
 	Logout                                http.Handler
 	ForgotPassword                        http.Handler
 	ResetPassword                         http.Handler
-	Me                                    http.Handler
 	CreateUserWithInvite                  http.Handler
 	PerformRequiredPasswordReset          http.Handler
-	GetSessionInfo                        http.Handler
-	DeleteSession                         http.Handler
 	GetAppConfig                          http.Handler
 	ModifyAppConfig                       http.Handler
 	ApplyEnrollSecretSpec                 http.Handler
@@ -200,11 +193,8 @@ func makeKitHandlers(e FleetEndpoints, opts []kithttp.ServerOption) *fleetHandle
 		Logout:                                newServer(e.Logout, decodeNoParamsRequest),
 		ForgotPassword:                        newServer(e.ForgotPassword, decodeForgotPasswordRequest),
 		ResetPassword:                         newServer(e.ResetPassword, decodeResetPasswordRequest),
-		Me:                                    newServer(e.Me, decodeNoParamsRequest),
 		CreateUserWithInvite:                  newServer(e.CreateUserWithInvite, decodeCreateUserRequest),
 		PerformRequiredPasswordReset:          newServer(e.PerformRequiredPasswordReset, decodePerformRequiredPasswordResetRequest),
-		GetSessionInfo:                        newServer(e.GetSessionInfo, decodeGetInfoAboutSessionRequest),
-		DeleteSession:                         newServer(e.DeleteSession, decodeDeleteSessionRequest),
 		GetAppConfig:                          newServer(e.GetAppConfig, decodeNoParamsRequest),
 		ModifyAppConfig:                       newServer(e.ModifyAppConfig, decodeModifyAppConfigRequest),
 		ApplyEnrollSecretSpec:                 newServer(e.ApplyEnrollSecretSpec, decodeApplyEnrollSecretSpecRequest),
@@ -415,16 +405,12 @@ func attachFleetAPIRoutes(r *mux.Router, h *fleetHandlers) {
 	r.Handle("/api/v1/fleet/logout", h.Logout).Methods("POST").Name("logout")
 	r.Handle("/api/v1/fleet/forgot_password", h.ForgotPassword).Methods("POST").Name("forgot_password")
 	r.Handle("/api/v1/fleet/reset_password", h.ResetPassword).Methods("POST").Name("reset_password")
-	r.Handle("/api/v1/fleet/me", h.Me).Methods("GET").Name("me")
 	r.Handle("/api/v1/fleet/perform_required_password_reset", h.PerformRequiredPasswordReset).Methods("POST").Name("perform_required_password_reset")
 	r.Handle("/api/v1/fleet/sso", h.InitiateSSO).Methods("POST").Name("intiate_sso")
 	r.Handle("/api/v1/fleet/sso", h.SettingsSSO).Methods("GET").Name("sso_config")
 	r.Handle("/api/v1/fleet/sso/callback", h.CallbackSSO).Methods("POST").Name("callback_sso")
 
 	r.Handle("/api/v1/fleet/users", h.CreateUserWithInvite).Methods("POST").Name("create_user_with_invite")
-
-	r.Handle("/api/v1/fleet/sessions/{id:[0-9]+}", h.GetSessionInfo).Methods("GET").Name("get_session_info")
-	r.Handle("/api/v1/fleet/sessions/{id:[0-9]+}", h.DeleteSession).Methods("DELETE").Name("delete_session")
 
 	r.Handle("/api/v1/fleet/config/certificate", h.GetCertificate).Methods("GET").Name("get_certificate")
 	r.Handle("/api/v1/fleet/config", h.GetAppConfig).Methods("GET").Name("get_app_config")
@@ -469,6 +455,10 @@ func attachFleetAPIRoutes(r *mux.Router, h *fleetHandlers) {
 
 func attachNewStyleFleetAPIRoutes(r *mux.Router, svc fleet.Service, opts []kithttp.ServerOption) {
 	e := NewUserAuthenticatedEndpointer(svc, opts, r, "v1")
+
+	e.GET("/api/_version_/fleet/me", meEndpoint, nil)
+	e.GET("/api/_version_/fleet/sessions/{id:[0-9]+}", getInfoAboutSessionEndpoint, getInfoAboutSessionRequest{})
+	e.DELETE("/api/_version_/fleet/sessions/{id:[0-9]+}", deleteSessionEndpoint, deleteSessionRequest{})
 
 	e.POST("/api/_version_/fleet/users/roles/spec", applyUserRoleSpecsEndpoint, applyUserRoleSpecsRequest{})
 	e.POST("/api/_version_/fleet/translate", translatorEndpoint, translatorRequest{})

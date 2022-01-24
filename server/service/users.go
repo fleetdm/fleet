@@ -98,6 +98,42 @@ func (svc *Service) ListUsers(ctx context.Context, opt fleet.UserListOptions) ([
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// Me (get own current user)
+////////////////////////////////////////////////////////////////////////////////
+
+func meEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	user, err := svc.AuthenticatedUser(ctx)
+	if err != nil {
+		return getUserResponse{Err: err}, nil
+	}
+	availableTeams, err := svc.ListAvailableTeamsForUser(ctx, user)
+	if err != nil {
+		if errors.Is(err, fleet.ErrMissingLicense) {
+			availableTeams = []*fleet.TeamSummary{}
+		} else {
+			return getUserResponse{Err: err}, nil
+		}
+	}
+	return getUserResponse{User: user, AvailableTeams: availableTeams}, nil
+}
+
+func (svc *Service) AuthenticatedUser(ctx context.Context) (*fleet.User, error) {
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return nil, fleet.ErrNoContext
+	}
+
+	if err := svc.authz.Authorize(ctx, &fleet.User{ID: vc.UserID()}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	if !vc.IsLoggedIn() {
+		return nil, fleet.NewPermissionError("not logged in")
+	}
+	return vc.User, nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // Get User
 ////////////////////////////////////////////////////////////////////////////////
 
