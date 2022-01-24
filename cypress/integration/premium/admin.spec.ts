@@ -106,9 +106,10 @@ describe("Premium tier - Admin user", () => {
     });
     // describe("Manage schedules page", () => {
     //   beforeEach(() => cy.visit("/schedule/manage"));
-    //   it("shows inherited queries") {
+    //   it("shows inherited queries", () => {
+    //     cy.getAttached(".no-schedule__schedule-button").click();
     //     // TODO: Unable to add tests because "Schedule a query" button detattaches even when using `getAttached`
-    //   }
+    //   });
     // });
 
     describe("Manage policies page", () => {
