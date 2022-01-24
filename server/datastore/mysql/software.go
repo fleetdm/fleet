@@ -534,6 +534,9 @@ func (d *Datastore) SoftwareByID(ctx context.Context, id uint) (*fleet.Software,
 // software installed and stores that information in the software_host_counts
 // table.
 func (d *Datastore) CalculateHostsPerSoftware(ctx context.Context, updatedAt time.Time) error {
+	// TODO(mna): are we concerned that this could have performance issues? Also, should
+	// it just truncate the software_host_counts before inserting, or just update all rows
+	// counts to 0, so that any software not in host_software is reset to 0?
 	queryStmt := `SELECT count(*), software_id
     FROM host_software
     GROUP BY software_id`

@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
@@ -15,8 +16,9 @@ type listSoftwareRequest struct {
 }
 
 type listSoftwareResponse struct {
-	Software []fleet.Software `json:"software,omitempty"`
-	Err      error            `json:"error,omitempty"`
+	CountsUpdatedAt time.Time        `json:"counts_updated_at,omitempty"`
+	Software        []fleet.Software `json:"software,omitempty"`
+	Err             error            `json:"error,omitempty"`
 }
 
 func (r listSoftwareResponse) error() error { return r.Err }
@@ -27,7 +29,14 @@ func listSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 	if err != nil {
 		return listSoftwareResponse{Err: err}, nil
 	}
-	return listSoftwareResponse{Software: resp}, nil
+
+	var latest time.Time
+	for _, sw := range resp {
+		if !sw.CountsUpdatedAt.IsZero() && sw.CountsUpdatedAt.After(latest) {
+			latest = sw.CountsUpdatedAt
+		}
+	}
+	return listSoftwareResponse{CountsUpdatedAt: latest, Software: resp}, nil
 }
 
 func (svc Service) ListSoftware(ctx context.Context, opt fleet.SoftwareListOptions) ([]fleet.Software, error) {

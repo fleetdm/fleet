@@ -407,13 +407,14 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	var lsResp listSoftwareResponse
 	s.DoJSON("GET", "/api/v1/fleet/software", nil, http.StatusOK, &lsResp, "vulnerable", "true", "order_key", "generated_cpe", "order_direction", "desc")
 	require.Len(t, lsResp.Software, 0)
+	assert.True(t, lsResp.CountsUpdatedAt.IsZero())
 
 	// the software/count endpoint is different, it doesn't care about hosts counts
 	s.DoJSON("GET", "/api/v1/fleet/software/count", countReq, http.StatusOK, &countResp, "vulnerable", "true", "order_key", "generated_cpe", "order_direction", "desc")
 	assert.Equal(t, 1, countResp.Count)
 
 	// calculate hosts counts
-	hostsCountTs := time.Now()
+	hostsCountTs := time.Now().UTC()
 	require.NoError(t, s.ds.CalculateHostsPerSoftware(context.Background(), hostsCountTs))
 
 	// now the list software endpoint returns the software
@@ -421,6 +422,7 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	require.Len(t, lsResp.Software, 1)
 	assert.Equal(t, soft1.ID, lsResp.Software[0].ID)
 	assert.Len(t, lsResp.Software[0].Vulnerabilities, 1)
+	assert.WithinDuration(t, hostsCountTs, lsResp.CountsUpdatedAt, time.Second)
 
 	// the count endpoint still returns 1
 	s.DoJSON("GET", "/api/v1/fleet/software/count", countReq, http.StatusOK, &countResp, "vulnerable", "true", "order_key", "generated_cpe", "order_direction", "desc")
@@ -429,6 +431,7 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	// default sort, not only vulnerable
 	s.DoJSON("GET", "/api/v1/fleet/software", nil, http.StatusOK, &lsResp)
 	require.True(t, len(lsResp.Software) >= len(software))
+	assert.WithinDuration(t, hostsCountTs, lsResp.CountsUpdatedAt, time.Second)
 }
 
 func (s *integrationTestSuite) TestGlobalPolicies() {
