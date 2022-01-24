@@ -10,10 +10,6 @@ variable "domain_fleetdm" {
   default = "dogfood.fleetdm.com"
 }
 
-variable "domain_fleetctl" {
-  default = "dogfood.fleetctl.com"
-}
-
 variable "osquery_results_s3_bucket" {
   default = "fleet-osquery-results-archive"
 }
@@ -60,7 +56,7 @@ variable "database_name" {
 
 variable "fleet_image" {
   description = "the name of the container image to run"
-  default     = "fleetdm/fleet:v4.8.0"
+  default     = "fleetdm/fleet:v4.9.0"
 }
 
 variable "software_inventory" {
