@@ -152,7 +152,7 @@ type SearchHostsFunc func(ctx context.Context, filter fleet.TeamFilter, query st
 
 type CleanupIncomingHostsFunc func(ctx context.Context, now time.Time) error
 
-type GenerateHostStatusStatisticsFunc func(ctx context.Context, filter fleet.TeamFilter, now time.Time) (*fleet.HostSummary, error)
+type GenerateHostStatusStatisticsFunc func(ctx context.Context, filter fleet.TeamFilter, now time.Time, platform *string) (*fleet.HostSummary, error)
 
 type HostIDsByNameFunc func(ctx context.Context, filter fleet.TeamFilter, hostnames []string) ([]uint, error)
 
@@ -1236,7 +1236,7 @@ func (s *DataStore) CleanupIncomingHosts(ctx context.Context, now time.Time) err
 
 func (s *DataStore) GenerateHostStatusStatistics(ctx context.Context, filter fleet.TeamFilter, now time.Time, platform *string) (*fleet.HostSummary, error) {
 	s.GenerateHostStatusStatisticsFuncInvoked = true
-	return s.GenerateHostStatusStatisticsFunc(ctx, filter, now)
+	return s.GenerateHostStatusStatisticsFunc(ctx, filter, now, platform)
 }
 
 func (s *DataStore) HostIDsByName(ctx context.Context, filter fleet.TeamFilter, hostnames []string) ([]uint, error) {
