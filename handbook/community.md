@@ -19,7 +19,7 @@ If we are doing a press release, we are probably pitching it to one or more repo
 
 ## Communities
 
-Fleet's users and broader audience are spread across many different online communities and platforms.  Here are the most active communities where each of Fleet's developer relations and social media team members participate at least once (and usually much more often) every weekday:
+Fleet's users and broader audience are spread across many online platforms.  Here are the most active communities where Fleet's developer relations and social media team members participate at least once every weekday:
 
 - [Osquery Slack](https://join.slack.com/t/osquery/shared_invite/zt-h29zm0gk-s2DBtGUTW4CFel0f0IjTEw) (`#fleet` channel)
 - [MacAdmins Slack](https://www.macadmins.org/) (`#fleet` channel)
