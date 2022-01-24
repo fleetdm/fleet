@@ -452,11 +452,7 @@ const UserManagementPage = (): JSX.Element => {
       .requirePasswordReset(user.id, { require: true })
       .then(() => {
         dispatch(
-          renderFlash(
-            "success",
-            "Successfully required a password reset.",
-            usersAPI.requirePasswordReset(user.id, { require: false }) // this is an undo action.
-          )
+          renderFlash("success", "Successfully required a password reset.")
         );
       })
       .catch(() => {
