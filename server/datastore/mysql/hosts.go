@@ -569,12 +569,17 @@ func (d *Datastore) CleanupIncomingHosts(ctx context.Context, now time.Time) err
 	return nil
 }
 
-func (d *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fleet.TeamFilter, now time.Time) (*fleet.HostSummary, error) {
+func (d *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fleet.TeamFilter, now time.Time, platform *string) (*fleet.HostSummary, error) {
 	// The logic in this function should remain synchronized with
 	// host.Status and CountHostsInTargets - that is, the intervals associated
 	// with each status must be the same.
 
+	args := []interface{}{now, now, now, now, now}
 	whereClause := d.whereFilterHostsByTeams(filter, "h")
+	if platform != nil {
+		whereClause += " AND h.platform=? "
+		args = append(args, *platform)
+	}
 	sqlStatement := fmt.Sprintf(`
 			SELECT
 				COUNT(*) total,
@@ -587,13 +592,17 @@ func (d *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fle
 		`, fleet.OnlineIntervalBuffer, fleet.OnlineIntervalBuffer, whereClause)
 
 	summary := fleet.HostSummary{TeamID: filter.TeamID}
-	err := sqlx.GetContext(ctx, d.reader, &summary, sqlStatement, now, now, now, now, now)
+	err := sqlx.GetContext(ctx, d.reader, &summary, sqlStatement, args...)
 	if err != nil && err != sql.ErrNoRows {
 		return nil, ctxerr.Wrap(ctx, err, "generating host statistics")
 	}
 
 	// get the counts per platform, the `h` alias for hosts is required so that
 	// reusing the whereClause is ok.
+	args = []interface{}{}
+	if platform != nil {
+		args = append(args, *platform)
+	}
 	sqlStatement = fmt.Sprintf(`
 			SELECT
 			  COUNT(*) total,
@@ -604,7 +613,7 @@ func (d *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fle
 		`, whereClause)
 
 	var platforms []*fleet.HostSummaryPlatform
-	err = sqlx.SelectContext(ctx, d.reader, &platforms, sqlStatement)
+	err = sqlx.SelectContext(ctx, d.reader, &platforms, sqlStatement, args...)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "generating host platforms statistics")
 	}

@@ -1234,7 +1234,7 @@ func (s *DataStore) CleanupIncomingHosts(ctx context.Context, now time.Time) err
 	return s.CleanupIncomingHostsFunc(ctx, now)
 }
 
-func (s *DataStore) GenerateHostStatusStatistics(ctx context.Context, filter fleet.TeamFilter, now time.Time) (*fleet.HostSummary, error) {
+func (s *DataStore) GenerateHostStatusStatistics(ctx context.Context, filter fleet.TeamFilter, now time.Time, platform *string) (*fleet.HostSummary, error) {
 	s.GenerateHostStatusStatisticsFuncInvoked = true
 	return s.GenerateHostStatusStatisticsFunc(ctx, filter, now)
 }
