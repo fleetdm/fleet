@@ -18,8 +18,7 @@ func (d *Datastore) SessionByKey(ctx context.Context, key string) (*fleet.Sessio
 	err := sqlx.GetContext(ctx, d.reader, session, sqlStatement, key)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			// TODO(mna): a bit concerned this may log or somehow print the key somewhere?
-			return nil, ctxerr.Wrap(ctx, notFound("Session").WithName(key))
+			return nil, ctxerr.Wrap(ctx, notFound("Session").WithName("<key redacted>"))
 		}
 		return nil, ctxerr.Wrap(ctx, err, "selecting sessions")
 	}
