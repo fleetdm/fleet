@@ -183,10 +183,6 @@ func testSaveHost(t *testing.T, ds *Datastore, saveHostFunc func(context.Context
 	require.NoError(t, err)
 	require.Empty(t, newP.Hosts)
 
-	newP, err := ds.Pack(context.Background(), p.ID)
-	require.NoError(t, err)
-	require.Empty(t, newP.Hosts)
-
 	host, err = ds.Host(context.Background(), host.ID, false)
 	assert.NotNil(t, err)
 	assert.Nil(t, host)
