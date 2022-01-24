@@ -13,8 +13,8 @@ func init() {
 func Up_20220124113953(tx *sql.Tx) error {
 	softwareHostCountsTable := `
 		CREATE TABLE IF NOT EXISTS software_host_counts (
-      software_id bigint(20) unsigned NOT NULL,
-      hosts_count int(10) unsigned NOT NULL,
+			software_id bigint(20) unsigned NOT NULL,
+			hosts_count int(10) unsigned NOT NULL,
 			created_at  timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			updated_at  timestamp NOT NULL NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
