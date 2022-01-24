@@ -708,6 +708,11 @@ func cronVulnerabilities(
 			continue
 		}
 
+		// TODO(mna): implement count of hosts per software here, keeping the same timestamp
+		// of "updated_counts_at" for all the batch. Maybe include in the processing the
+		// deletion of software counts for software ids that don't exist anymore, unless
+		// there's already a place for that kind of cleanup.
+
 		level.Debug(logger).Log("loop", "done")
 	}
 }

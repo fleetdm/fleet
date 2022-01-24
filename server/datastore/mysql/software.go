@@ -220,6 +220,9 @@ func listSoftwareDB(
 		return nil, ctxerr.Wrap(ctx, err, "sql build")
 	}
 
+	// TODO(mna): join with a new table, software_host_counts, and only select software with
+	// a host count > 0.
+
 	var result []fleet.Software
 	if err := sqlx.SelectContext(ctx, q, &result, sql, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "load host software")
