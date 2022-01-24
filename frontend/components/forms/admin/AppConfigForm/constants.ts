@@ -18,6 +18,8 @@ export interface IAppConfigFormErrors {
   idp_name?: string | null;
   server_url?: string | null;
   org_name?: string | null;
+  org_logo_url?: string | null;
+  idp_image_url?: string | null;
   sender_address?: string | null;
   server?: string | null;
   server_port?: string | null;
