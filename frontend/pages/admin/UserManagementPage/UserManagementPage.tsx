@@ -435,16 +435,11 @@ const UserManagementPage = (): JSX.Element => {
           dispatch({ type: "LOGOUT_SUCCESS" });
           return;
         }
-        dispatch(
-          renderFlash("success", "Sessions reset for the selected user.")
-        );
+        dispatch(renderFlash("success", "Successfully reset sessions."));
       })
       .catch(() => {
         dispatch(
-          renderFlash(
-            "error",
-            "Could not reset sessions for the selected user. Please try again."
-          )
+          renderFlash("error", "Could not reset sessions. Please try again.")
         );
       })
       .finally(() => {
@@ -459,10 +454,20 @@ const UserManagementPage = (): JSX.Element => {
         dispatch(
           renderFlash(
             "success",
-            "User required to reset password",
+            "Successfully required a password reset.",
             usersAPI.requirePasswordReset(user.id, { require: false }) // this is an undo action.
           )
         );
+      })
+      .catch(() => {
+        dispatch(
+          renderFlash(
+            "error",
+            "Could not require a password reset. Please try again."
+          )
+        );
+      })
+      .finally(() => {
         toggleResetPasswordUserModal();
       });
   };
