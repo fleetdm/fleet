@@ -15,8 +15,8 @@ parasails.registerPage('new-password', {
 
     // Form rules
     formRules: {
-      password: {required: true},
-      confirmPassword: {required: true, sameAs: 'password'},
+      password: {required: true, minLength: 8},
+      confirmPassword: {required: true, minLength: 8, sameAs: 'password'},
     },
 
     // Server error state for the form
