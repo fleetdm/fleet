@@ -401,19 +401,19 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 	bar003 := fleet.Software{Name: "bar", Version: "0.0.3", Source: "deb_packages"}
 
 	t.Run("lists everything", func(t *testing.T) {
-		software := listSoftwareCheckCount(t, ds, 4, 4, fleet.SoftwareListOptions{})
+		software := listSoftwareCheckCount(t, ds, 4, 4, fleet.SoftwareListOptions{}, true)
 		expected := []fleet.Software{bar003, foo001, foo003, foo002}
 		test.ElementsMatchSkipID(t, software, expected)
 	})
 
 	t.Run("limits the results", func(t *testing.T) {
-		software := listSoftwareCheckCount(t, ds, 1, 4, fleet.SoftwareListOptions{ListOptions: fleet.ListOptions{PerPage: 1, OrderKey: "version"}})
+		software := listSoftwareCheckCount(t, ds, 1, 4, fleet.SoftwareListOptions{ListOptions: fleet.ListOptions{PerPage: 1, OrderKey: "version"}}, true)
 		expected := []fleet.Software{foo001}
 		test.ElementsMatchSkipID(t, software, expected)
 	})
 
 	t.Run("paginates", func(t *testing.T) {
-		software := listSoftwareCheckCount(t, ds, 1, 4, fleet.SoftwareListOptions{ListOptions: fleet.ListOptions{Page: 1, PerPage: 1, OrderKey: "version"}})
+		software := listSoftwareCheckCount(t, ds, 1, 4, fleet.SoftwareListOptions{ListOptions: fleet.ListOptions{Page: 1, PerPage: 1, OrderKey: "version"}}, true)
 		expected := []fleet.Software{foo003}
 		test.ElementsMatchSkipID(t, software, expected)
 	})
@@ -423,7 +423,7 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.NoError(t, ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{host1.ID}))
 
-		software := listSoftwareCheckCount(t, ds, 2, 2, fleet.SoftwareListOptions{ListOptions: fleet.ListOptions{OrderKey: "version"}, TeamID: &team1.ID})
+		software := listSoftwareCheckCount(t, ds, 2, 2, fleet.SoftwareListOptions{ListOptions: fleet.ListOptions{OrderKey: "version"}, TeamID: &team1.ID}, true)
 		expected := []fleet.Software{foo001, foo003}
 		test.ElementsMatchSkipID(t, software, expected)
 	})
@@ -440,34 +440,34 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 				OrderKey: "id",
 			},
 			TeamID: &team1.ID,
-		})
+		}, true)
 		expected := []fleet.Software{foo003}
 		test.ElementsMatchSkipID(t, software, expected)
 	})
 
 	t.Run("filters vulnerable software", func(t *testing.T) {
-		software := listSoftwareCheckCount(t, ds, 1, 1, fleet.SoftwareListOptions{VulnerableOnly: true})
+		software := listSoftwareCheckCount(t, ds, 1, 1, fleet.SoftwareListOptions{VulnerableOnly: true}, true)
 		expected := []fleet.Software{foo001}
 		test.ElementsMatchSkipID(t, software, expected)
 	})
 
 	t.Run("filters by query", func(t *testing.T) {
 		// query by name (case insensitive)
-		software := listSoftwareCheckCount(t, ds, 1, 1, fleet.SoftwareListOptions{ListOptions: fleet.ListOptions{MatchQuery: "baR"}})
+		software := listSoftwareCheckCount(t, ds, 1, 1, fleet.SoftwareListOptions{ListOptions: fleet.ListOptions{MatchQuery: "baR"}}, true)
 		expected := []fleet.Software{bar003}
 		test.ElementsMatchSkipID(t, software, expected)
 		// query by version
-		software = listSoftwareCheckCount(t, ds, 2, 2, fleet.SoftwareListOptions{ListOptions: fleet.ListOptions{MatchQuery: "0.0.3"}})
+		software = listSoftwareCheckCount(t, ds, 2, 2, fleet.SoftwareListOptions{ListOptions: fleet.ListOptions{MatchQuery: "0.0.3"}}, true)
 		expected = []fleet.Software{foo003, bar003}
 		test.ElementsMatchSkipID(t, software, expected)
 		// query by version (case insensitive)
-		software = listSoftwareCheckCount(t, ds, 1, 1, fleet.SoftwareListOptions{ListOptions: fleet.ListOptions{MatchQuery: "V0.0.2"}})
+		software = listSoftwareCheckCount(t, ds, 1, 1, fleet.SoftwareListOptions{ListOptions: fleet.ListOptions{MatchQuery: "V0.0.2"}}, true)
 		expected = []fleet.Software{foo002}
 		test.ElementsMatchSkipID(t, software, expected)
 	})
 
 	t.Run("can order by name and id", func(t *testing.T) {
-		software := listSoftwareCheckCount(t, ds, 4, 4, fleet.SoftwareListOptions{ListOptions: fleet.ListOptions{OrderKey: "name,id", OrderDirection: fleet.OrderAscending}})
+		software := listSoftwareCheckCount(t, ds, 4, 4, fleet.SoftwareListOptions{ListOptions: fleet.ListOptions{OrderKey: "name,id", OrderDirection: fleet.OrderAscending}}, false)
 		assert.Equal(t, bar003.Name, software[0].Name)
 		assert.Equal(t, bar003.Version, software[0].Version)
 		assert.Equal(t, bar003.Source, software[0].Source)
@@ -476,9 +476,21 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 		assert.Greater(t, software[2].ID, software[1].ID)
 		assert.Greater(t, software[3].ID, software[2].ID)
 	})
+
+	t.Run("hosts count", func(t *testing.T) {
+		defer TruncateTables(t, ds, "software_host_counts")
+		listSoftwareCheckCount(t, ds, 0, 0, fleet.SoftwareListOptions{WithHostCounts: true}, false)
+
+		// create the counts for those software and re-run
+		require.NoError(t, ds.CalculateHostsPerSoftware(context.Background(), time.Now()))
+		software := listSoftwareCheckCount(t, ds, 4, 4, fleet.SoftwareListOptions{ListOptions: fleet.ListOptions{OrderKey: "shc.hosts_count", OrderDirection: fleet.OrderDescending}, WithHostCounts: true}, false)
+		// ordered by counts descending, so foo003 is first
+		assert.Equal(t, foo003.Name, software[0].Name)
+		assert.Equal(t, 2, software[0].HostsCount)
+	})
 }
 
-func listSoftwareCheckCount(t *testing.T, ds *Datastore, expectedListCount int, expectedFullCount int, opts fleet.SoftwareListOptions) []fleet.Software {
+func listSoftwareCheckCount(t *testing.T, ds *Datastore, expectedListCount int, expectedFullCount int, opts fleet.SoftwareListOptions, returnSorted bool) []fleet.Software {
 	software, err := ds.ListSoftware(context.Background(), opts)
 	require.NoError(t, err)
 	require.Len(t, software, expectedListCount)
@@ -490,8 +502,11 @@ func listSoftwareCheckCount(t *testing.T, ds *Datastore, expectedListCount int, 
 			return s.Vulnerabilities[i].CVE < s.Vulnerabilities[j].CVE
 		})
 	}
-	sort.Slice(software, func(i, j int) bool {
-		return software[i].Name+software[i].Version < software[j].Name+software[j].Version
-	})
+
+	if returnSorted {
+		sort.Slice(software, func(i, j int) bool {
+			return software[i].Name+software[i].Version < software[j].Name+software[j].Version
+		})
+	}
 	return software
 }

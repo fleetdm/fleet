@@ -34,5 +34,17 @@ func TestService_ListSoftware(t *testing.T) {
 
 	assert.True(t, ds.ListSoftwareFuncInvoked)
 	assert.Equal(t, ptr.Uint(42), calledWithTeamID)
-	assert.Equal(t, fleet.ListOptions{PerPage: 77, Page: 4}, calledWithOpt.ListOptions)
+	// sort order defaults to hosts_count descending, automatically, if not explicitly provided
+	assert.Equal(t, fleet.ListOptions{PerPage: 77, Page: 4, OrderKey: "shc.hosts_count", OrderDirection: fleet.OrderDescending}, calledWithOpt.ListOptions)
+	assert.True(t, calledWithOpt.WithHostCounts)
+
+	// call again, this time with an explicit sort
+	ds.ListSoftwareFuncInvoked = false
+	_, err = svc.ListSoftware(ctx, fleet.SoftwareListOptions{TeamID: nil, ListOptions: fleet.ListOptions{PerPage: 11, Page: 2, OrderKey: "id", OrderDirection: fleet.OrderAscending}})
+	require.NoError(t, err)
+
+	assert.True(t, ds.ListSoftwareFuncInvoked)
+	assert.Nil(t, calledWithTeamID)
+	assert.Equal(t, fleet.ListOptions{PerPage: 11, Page: 2, OrderKey: "id", OrderDirection: fleet.OrderAscending}, calledWithOpt.ListOptions)
+	assert.True(t, calledWithOpt.WithHostCounts)
 }

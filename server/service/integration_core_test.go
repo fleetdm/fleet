@@ -403,20 +403,32 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	s.DoJSON("GET", "/api/v1/fleet/software/count", countReq, http.StatusOK, &countResp)
 	assert.Equal(t, 2, countResp.Count)
 
-	lsReq := listSoftwareRequest{}
-	lsResp := listSoftwareResponse{}
-	s.DoJSON("GET", "/api/v1/fleet/software", lsReq, http.StatusOK, &lsResp, "vulnerable", "true", "order_key", "generated_cpe", "order_direction", "desc")
-	assert.Len(t, lsResp.Software, 1)
-	assert.Equal(t, soft1.ID, lsResp.Software[0].ID)
-	assert.Len(t, lsResp.Software[0].Vulnerabilities, 1)
+	// no software host counts have been calculated yet, so this returns nothing
+	var lsResp listSoftwareResponse
+	s.DoJSON("GET", "/api/v1/fleet/software", nil, http.StatusOK, &lsResp, "vulnerable", "true", "order_key", "generated_cpe", "order_direction", "desc")
+	require.Len(t, lsResp.Software, 0)
 
+	// the software/count endpoint is different, it doesn't care about hosts counts
 	s.DoJSON("GET", "/api/v1/fleet/software/count", countReq, http.StatusOK, &countResp, "vulnerable", "true", "order_key", "generated_cpe", "order_direction", "desc")
 	assert.Equal(t, 1, countResp.Count)
 
-	s.DoJSON("GET", "/api/v1/fleet/software", lsReq, http.StatusOK, &lsResp, "vulnerable", "true", "order_key", "name,id", "order_direction", "desc")
-	assert.Len(t, lsResp.Software, 1)
+	// calculate hosts counts
+	hostsCountTs := time.Now()
+	require.NoError(t, s.ds.CalculateHostsPerSoftware(context.Background(), hostsCountTs))
+
+	// now the list software endpoint returns the software
+	s.DoJSON("GET", "/api/v1/fleet/software", nil, http.StatusOK, &lsResp, "vulnerable", "true", "order_key", "generated_cpe", "order_direction", "desc")
+	require.Len(t, lsResp.Software, 1)
 	assert.Equal(t, soft1.ID, lsResp.Software[0].ID)
 	assert.Len(t, lsResp.Software[0].Vulnerabilities, 1)
+
+	// the count endpoint still returns 1
+	s.DoJSON("GET", "/api/v1/fleet/software/count", countReq, http.StatusOK, &countResp, "vulnerable", "true", "order_key", "generated_cpe", "order_direction", "desc")
+	assert.Equal(t, 1, countResp.Count)
+
+	// default sort, not only vulnerable
+	s.DoJSON("GET", "/api/v1/fleet/software", nil, http.StatusOK, &lsResp)
+	require.True(t, len(lsResp.Software) >= len(software))
 }
 
 func (s *integrationTestSuite) TestGlobalPolicies() {

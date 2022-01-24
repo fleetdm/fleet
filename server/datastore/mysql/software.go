@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/doug-martin/goqu/v9"
 	_ "github.com/doug-martin/goqu/v9/dialect/mysql"
@@ -312,7 +313,7 @@ func selectSoftwareSQL(hostID *uint, opts fleet.SoftwareListOptions) (string, []
 			goqu.On(
 				goqu.I("s.id").Eq(goqu.I("shc.software_id")),
 			),
-		).Where(goqu.I("shc.hosts_count").Gt(0)).Select("shc.hosts_count", "shc.updated_at")
+		).Where(goqu.I("shc.hosts_count").Gt(0)).SelectAppend("shc.hosts_count", goqu.I("shc.updated_at").As("counts_updated_at"))
 	}
 
 	return ds.ToSQL()
@@ -527,4 +528,45 @@ func (d *Datastore) SoftwareByID(ctx context.Context, id uint) (*fleet.Software,
 	}
 
 	return &software, nil
+}
+
+// CalculateHostsPerSoftware calculates the number of hosts having each
+// software installed and stores that information in the software_host_counts
+// table.
+func (d *Datastore) CalculateHostsPerSoftware(ctx context.Context, updatedAt time.Time) error {
+	queryStmt := `SELECT count(*), software_id
+    FROM host_software
+    GROUP BY software_id`
+
+	insertStmt := `INSERT INTO software_host_counts
+      (software_id, hosts_count, updated_at)
+    VALUES
+      (?, ?, ?)
+    ON DUPLICATE KEY UPDATE
+      hosts_count = VALUES(hosts_count),
+      updated_at = VALUES(updated_at)`
+
+	rows, err := d.reader.QueryContext(ctx, queryStmt)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "read counts from host_software")
+	}
+	defer rows.Close()
+
+	// use a loop to iterate to prevent loading all in one go in memory, as it
+	// could get pretty big at >100K hosts with 1000+ software each.
+	for rows.Next() {
+		var count int
+		var sid uint
+
+		if err := rows.Scan(&count, &sid); err != nil {
+			return ctxerr.Wrap(ctx, err, "scan row into variables")
+		}
+		if _, err := d.writer.ExecContext(ctx, insertStmt, sid, count, updatedAt); err != nil {
+			return ctxerr.Wrap(ctx, err, "insert into software_host_counts")
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return ctxerr.Wrap(ctx, err, "iterate over host_software counts")
+	}
+	return nil
 }
