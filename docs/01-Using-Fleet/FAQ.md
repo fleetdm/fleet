@@ -181,3 +181,7 @@ Fleet relies on UUIDs so any overlap with host IP addresses should not cause a p
 ## Can Orbit run alongside osquery?
 
 Yes, Orbit can be run alongside osquery. The osquery instance that Orbit runs uses its own database directory that is stored within the Orbit directory.
+
+## What happens to osquery logs if my Fleet server or my logging destination is offline?
+
+If Fleet can't send logs to the destination, it will return an error to osquery. This causes osquery to retry sending the logs. The logs will then be stored in osquery's internal buffer until they are sent successfully, or they get expired if the `buffered_log_max` is exceeded. Check out the [Remote logging buffering section](https://osquery.readthedocs.io/en/latest/deployment/remote/#remote-logging-buffering) on the osquery docs for more on this behavior.
