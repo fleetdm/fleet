@@ -54,4 +54,9 @@ type SoftwareListOptions struct {
 	VulnerableOnly bool  `query:"vulnerable,optional"`
 
 	SkipLoadingCVEs bool
+
+	// WithHostCounts indicates that the list of software should incluode the
+	// counts of hosts per software, and include only those software that have
+	// a count of hosts > 0.
+	WithHostCounts bool
 }

@@ -35,6 +35,7 @@ func (svc Service) ListSoftware(ctx context.Context, opt fleet.SoftwareListOptio
 		return nil, err
 	}
 
+	opt.WithHostCounts = true
 	return svc.ds.ListSoftware(ctx, opt)
 }
 

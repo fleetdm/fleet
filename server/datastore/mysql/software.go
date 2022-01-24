@@ -309,6 +309,15 @@ func selectSoftwareSQL(hostID *uint, opts fleet.SoftwareListOptions) (string, []
 		)
 	}
 
+	if opts.WithHostCounts {
+		ds = ds.Join(
+			goqu.I("software_host_counts").As("shc"),
+			goqu.On(
+				goqu.I("s.id").Eq(goqu.I("shc.software_id")),
+			),
+		).Where(goqu.I("shc.host_count").Gt(0)).Select("shc.host_count", "shc.updated_at")
+	}
+
 	return ds.ToSQL()
 }
 
