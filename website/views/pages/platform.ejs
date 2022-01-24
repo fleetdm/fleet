@@ -1,19 +1,32 @@
 <div id="platform" v-cloak>
+
   <div purpose="platform-banner-background">
     <div purpose="platform-banner" class="container-fluid">
-      <div style="max-width:1200px;" class="flex-row row mx-xl-auto justify-content-xl-between justify-content-start">
-        <div purpose="platform-banner-text" class="col-xl-5 col-md-8 px-0 col-12 text-center flex-grow-1 text-md-left mx-auto">
+      <div style="max-width:1200px;" class="flex-row row mx-xl-auto justify-content-md-around justify-content-start">
+        <div purpose="platform-banner-text" class="col-lg-5 col-md-6 px-0 col-12 text-center flex-grow-1 text-lg-left mx-auto">
           <h1>Developer-friendly IT</h1>
           <h4>One agent, any platform, up-to-the-minute data</h4>
           <p>Fleet allows you to harness the power of osquery to stream accurate, real-time data from all of your devices. It’s easy to deploy at scale, granular and open source.</p>
-          <div style="padding-bottom: 140px;" class="flex-row row justify-content-around mx-md-0 mx-4">
+          <div class="flex-row row justify-content-around mx-md-0 mx-4">
             <a href="/get-started" class="btn btn-primary col-md-6 col-12">Try it out</a>
             <a style="color:#F9FAFC;" href="https://calendly.com/fleetdm/demo" target="_blank" class="btn col-md-6 col-12">Schedule a demo <img class="d-inline" src="/images/platform/icon-right-arrow-white-16x16@2x.png"></a>
           </div>
         </div>
-        <div class="col-xl-7 col-lg col-4"></div>
-        <div class="flex-col" purpose="platform-banner-hero"><img src="/images/platform/platform-hero-660x430@2x.png"></div>
-        <div purpose="platform-curve">
+        <div class="col-lg-1"></div>
+        <div class="col-lg-6 col-12 px-0 px-sm-auto" purpose="platform-banner-hero">
+          <img class="d-none d-lg-inline" src="/images/platform/platform-hero-850x523@2x.png">
+          <img class="d-inline d-lg-none" src="/images/platform/platform-hero-660x430@2x.png">
+          <svg viewBox="0 0 1240 506" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M1645.32 114.355C1730.67 87.0884 1753.93 -11.1946 1841.61 1.67706C1964.19 19.673 1882.29 323.194 1882.29 323.194L41.7563 726.003L0.151166 517.511C0.151166 517.511 127.085 421.332 225.114 397.767C320.823 374.759 379.484 418.817 476.159 400.012C595.706 376.758 636.359 294.476 755.117 267.643C864.664 242.892 931.9 285.026 1041.82 261.868C1169.73 234.916 1216.19 152.715 1343.77 124.257C1459.04 98.5424 1533.07 150.215 1645.32 114.355Z" fill="white" fill-opacity="0.05"/>
+          </svg>
+          <svg viewBox="0 0 1120 520" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M1431.07 -121.429C1503.63 -168.844 1500.04 -266.296 1585.09 -276.967C1704.01 -291.886 1690.82 -23.9738 1690.82 -23.9738L80.9263 830.805L0.959998 678.617C0.959998 678.617 94.565 556.344 179.897 509.098C263.21 462.97 329.232 488.81 414.526 446.343C520 393.828 536.738 306.77 640.556 251.13C736.322 199.805 809.843 221.64 906.361 171.703C1018.69 113.586 1040.86 25.1036 1152.48 -34.3258C1253.34 -88.0274 1335.65 -59.0704 1431.07 -121.429Z" fill="white" fill-opacity="0.15"/>
+          </svg>
+          <svg viewBox="0 0 969 520" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M1100.17 -227.133C1153.27 -299.302 1114.42 -392.527 1192.96 -433.567C1302.77 -490.944 1414.61 -197.136 1414.61 -197.136L160.863 1209.26L4.80768 1064.88C4.80768 1064.88 51.1279 912.505 116.665 835.89C180.651 761.088 254.004 762.328 321.238 690.362C404.38 601.369 388.999 510.89 469.402 419.462C543.568 335.126 622.735 329.776 698.134 246.514C785.883 149.614 775.252 55.7925 861.837 -42.1246C940.078 -130.604 1030.34 -132.216 1100.17 -227.133Z" fill="white" fill-opacity="0.15" shape-rendering="crispEdges"/>
+          </svg>
+        </div>
+        <div purpose="banner-curve">
           <svg width="803" height="116" viewBox="0 0 803 116" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path d="M765.665 116H0V0C270.295 89.7291 601.721 114.209 765.665 116H803C791.804 116.141 779.315 116.149 765.665 116Z" fill="white"/>
           </svg>
@@ -21,10 +34,11 @@
       </div>
     </div>
   </div>
+
   <div purpose="platform-content" class="container-fluid">
     <div  class="mx-auto">
       <h2 class="text-center">Maintain secure laptops & servers</h2>
-      <div purpose="platform-logos" class="row pb-2 justify-content-center">
+      <div purpose="platform-logos" class="row pb-2 justify-content-around">
         <div class="col-12 col-sm-6 justify-content-sm-end justify-content-center d-flex pr-sm-0">
           <img src="/images/platform/icon-laptop-112x92@2x.png" alt="A laptop">
           <img src="/images/platform/icon-aws-112x92@2x.png" alt="Amazon Web Services">
@@ -34,20 +48,22 @@
           <img src="/images/platform/icon-azure-112x92@2x.png" alt="Microsoft Azure">
         </div>
       </div>
+
       <div style="max-width: 673px;" purpose="platform-bullet-list" class="pt-3 mx-auto">
-        <div class="row">
+        <div class="row px-3">
           <div class="col-md-6 col-12"><p>Identify vulnerabilities on devices.</p></div>
           <div class="col-md-6 col-12"><p>Recognize out-of-policy user behavior.</p></div>
         </div>
-        <div class="row">
+        <div class="row px-3">
           <div class="col-md-6 col-12"><p>Pinpoint potential data leaks.</p></div>
           <div class="col-md-6 col-12"><p>Verify changes made with other systems.</p></div>
         </div>
       </div>
     </div>
+
     <div purpose="platform-section">
       <div class="flex-row row justify-content-around">
-        <div class="col-md-5 col-12 pr-lg-5">
+        <div class="col-md-6 col-12">
           <h2>Respond to incidents before they become emergencies</h2>
           <div purpose="platform-bullet-list">
             <p>Interpret incidents accurately and make decisions using real device data.</p>
@@ -56,11 +72,12 @@
             <p>Perform custom remediation actions using osquery extensions.</p>
           </div>
         </div>
-        <div class="col-md-6 col-12 pl-lg-5">
+        <div class="col-md-6 col-12 px-0 px-sm-auto">
           <img purpose="platform-feature-image" src="/images/platform/platform-feature-image-1-598x345@2x.png">
         </div>
       </div>
     </div>
+
     <div purpose="platform-section">
       <h2 class="text-md-center">Trust but verify</h2>
       <div purpose="platform-bullet-list" class="text-md-center text-left">
@@ -77,12 +94,13 @@
         <img src="/images/platform/icon-simple-mdm-112x92@2x.png" alt="Simple MDM">
       </div>
     </div>
+
     <div purpose="platform-section">
       <div class="flex-row row justify-content-around">
-        <div class="col-md-6 col-12 pl-lg-0 pr-lg-5 order-last order-md-first">
-          <img style="transform-origin:bottom left;" purpose="platform-feature-image" src="/images/platform/platform-feature-image-2-598x410@2x.png">
+        <div class="col-md-6 col-12 px-0 px-sm-auto order-last order-md-first">
+          <img style="transform-origin: bottom left;" purpose="platform-feature-image" src="/images/platform/platform-feature-image-2-598x410@2x.png">
         </div>
-        <div class="col-md-6 col-12 pl-lg-5">
+        <div class="col-md-6 col-12 ">
           <h2>Keep an accurate inventory of all your devices</h2>
           <div purpose="platform-bullet-list">
             <p>Enroll macOS, Windows, and Linux laptops.</p>
@@ -95,9 +113,10 @@
         </div>
       </div>
     </div>
+
     <div purpose="platform-section">
       <div class="flex-row row justify-content-around">
-        <div class="col-md-6 col-12 pr-lg-5">
+        <div class="col-md-6 col-12">
           <h2>Meet compliance goals</h2>
           <div purpose="platform-bullet-list">
             <p>Verify compliance with accurate, up-to-the-minute data from actual devices.</p>
@@ -108,14 +127,15 @@
             <p>Audit historical compliance of devices, computers, and teams.</p>
           </div>
         </div>
-        <div class="col-md-6 col-12 pl-lg-5">
+        <div class="col-md-6 col-12 px-0 px-sm-auto">
           <img purpose="platform-feature-image" src="/images/platform/platform-feature-image-3-598x367@2x.png">
         </div>
       </div>
     </div>
+
     <div purpose="platform-section">
       <div class="flex-row row">
-        <div class="col-12 text-center">
+        <div class="col-12">
           <h2>Automate security workflows in a single application</h2>
           <div purpose="platform-bullet-list">
             <p>Collect and send accurate security events to any external SIEM or data platform.</p>
@@ -134,6 +154,7 @@
         </div>
     </div>
   </div>
+
   <div class="container-fluid p-lg-0">
     <div purpose="platform-user-story" class="mx-auto">
       <div class="flex-sm-row flex-column row justify-content-around justify-content-sm-between text-center text-sm-left">
@@ -146,21 +167,24 @@
           <circle cx="172.5" cy="-7.22607" r="183.5" fill="white"/>
           </svg>
         </div>
-        <div class="col-12 col-sm-7 col-md-8 flex-grow-1 justify-content-end align-self-end pt-4 pt-sm-0 pl-sm-4 pl-md-3 pr-sm-0">
+        <div class="col-12 col-sm-7 col-md-8 flex-grow-1 justify-content-end align-self-end pt-sm-0 pl-sm-4 pl-md-3 pr-sm-0">
           <h3>Fleet user story</h3>
           <p>Jason Walton gives insight into how his team uses Fleet and osquery at Schrödinger.</p>
-          <a>Read more <img src="/images/platform/icon-right-arrow-vibrant-blue-16x16@2x.png"></a>
+          <a class="mt-3 mt-sm-0">Read more <img src="/images/platform/icon-right-arrow-vibrant-blue-16x16@2x.png"></a>
         </div>
       </div>
     </div>
   </div>
+
   <div purpose="platform-content" class="container-fluid pt-0">
+
     <div style="padding-top: 80px; max-width: 640px;" purpose="platform-section" class="mx-auto">
       <div class="text-center">
         <h2>Explore Fleet</h2>
         <p>Find out how Fleet can benefit your organization by exploring our docs and community. Want to get up and running quicker? Then try out Fleet locally on your device - you’ll be up and running in minutes.</p>
       </div>
     </div>
+
     <div purpose="next-steps" class="row card-deck flex-md-row flex-column">
       <div class="card card-body text-center">
         <img class="mx-auto" style="width: 40px; height: 40px; margin-bottom: 16px;" src="/images/platform/logo-fleet-brandmark-40x40@2x.png">
