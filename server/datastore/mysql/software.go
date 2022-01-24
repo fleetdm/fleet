@@ -539,11 +539,13 @@ func (d *Datastore) CalculateHostsPerSoftware(ctx context.Context, updatedAt tim
 	// counts to 0, so that any software not in host_software is reset to 0? And should
 	// it remove from software the unused ids? There's a TODO elsewhere in this file to
 	// cleanup orphan software entries.
-	queryStmt := `SELECT count(*), software_id
+	queryStmt := `
+    SELECT count(*), software_id
     FROM host_software
     GROUP BY software_id`
 
-	insertStmt := `INSERT INTO software_host_counts
+	insertStmt := `
+    INSERT INTO software_host_counts
       (software_id, hosts_count, updated_at)
     VALUES
       (?, ?, ?)
