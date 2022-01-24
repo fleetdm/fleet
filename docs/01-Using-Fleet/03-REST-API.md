@@ -611,9 +611,10 @@ Returns the count of all hosts organized by status. `online_count` includes all 
 
 #### Parameters
 
-| Name    | Type    | In    | Description                                                                     |
-| ------- | ------- | ----  | ------------------------------------------------------------------------------- |
-| team_id | integer | query | The ID of the team whose host counts should be included. Defaults to all teams. |
+| Name     | Type    | In    | Description                                                                     |
+| -------- | ------- | ----  | ------------------------------------------------------------------------------- |
+| team_id  | integer | query | The ID of the team whose host counts should be included. Defaults to all teams. |
+| platform | string  | query | Platform to filter by when counting. Defaults to all platforms.                 |
 
 #### Example
 

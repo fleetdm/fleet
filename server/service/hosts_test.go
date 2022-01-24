@@ -252,7 +252,7 @@ func TestGetHostSummary(t *testing.T) {
 	ds := new(mock.Store)
 	svc := newTestService(ds, nil, nil)
 
-	ds.GenerateHostStatusStatisticsFunc = func(ctx context.Context, filter fleet.TeamFilter, now time.Time) (*fleet.HostSummary, error) {
+	ds.GenerateHostStatusStatisticsFunc = func(ctx context.Context, filter fleet.TeamFilter, now time.Time, platform *string) (*fleet.HostSummary, error) {
 		return &fleet.HostSummary{
 			OnlineCount:      1,
 			OfflineCount:     2,
@@ -262,7 +262,7 @@ func TestGetHostSummary(t *testing.T) {
 		}, nil
 	}
 
-	summary, err := svc.GetHostSummary(test.UserContext(test.UserAdmin), nil)
+	summary, err := svc.GetHostSummary(test.UserContext(test.UserAdmin), nil, nil)
 	require.NoError(t, err)
 	require.Nil(t, summary.TeamID)
 	require.Equal(t, uint(1), summary.OnlineCount)
@@ -271,11 +271,11 @@ func TestGetHostSummary(t *testing.T) {
 	require.Equal(t, uint(4), summary.NewCount)
 	require.Equal(t, uint(5), summary.TotalsHostsCount)
 
-	_, err = svc.GetHostSummary(test.UserContext(test.UserNoRoles), nil)
+	_, err = svc.GetHostSummary(test.UserContext(test.UserNoRoles), nil, nil)
 	require.NoError(t, err)
 
 	// a user is required
-	_, err = svc.GetHostSummary(context.Background(), nil)
+	_, err = svc.GetHostSummary(context.Background(), nil, nil)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), authz.ForbiddenErrorMessage)
 }

@@ -13,9 +13,11 @@ terraform {
     }
   }
 }
+
 provider "aws" {
   region = "us-east-2"
 }
+
 data "aws_caller_identity" "current" {}
 data "aws_region" "current" {}
 
@@ -278,7 +280,7 @@ resource "aws_cloudwatch_metric_alarm" "redis-current-connections" {
   alarm_name                = "redis-current-connections-${each.key}-${terraform.workspace}"
   alarm_description         = "Redis current connections for node ${each.key}"
   comparison_operator       = "LessThanLowerOrGreaterThanUpperThreshold"
-  evaluation_periods        = "3"
+  evaluation_periods        = "5"
   threshold_metric_id       = "e1"
   alarm_actions             = [aws_sns_topic.cloudwatch_alarm_topic.arn]
   ok_actions                = [aws_sns_topic.cloudwatch_alarm_topic.arn]
@@ -286,7 +288,7 @@ resource "aws_cloudwatch_metric_alarm" "redis-current-connections" {
 
   metric_query {
     id          = "e1"
-    expression  = "ANOMALY_DETECTION_BAND(m1)"
+    expression  = "ANOMALY_DETECTION_BAND(m1,20)"
     label       = "Current Connections (Expected)"
     return_data = "true"
   }
@@ -297,7 +299,7 @@ resource "aws_cloudwatch_metric_alarm" "redis-current-connections" {
     metric {
       metric_name = "CurrConnections"
       namespace   = "AWS/ElastiCache"
-      period      = "300"
+      period      = "600"
       stat        = "Average"
       unit        = "Count"
 
