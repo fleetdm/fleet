@@ -1438,7 +1438,7 @@ const ManageHostsPage = ({
       selectedFilters.length === 0 ||
       selectedLabel === undefined
     ) {
-      return null;
+      return <Spinner />;
     }
 
     if (hasHostErrors || hasHostCountErrors) {
@@ -1596,7 +1596,7 @@ const ManageHostsPage = ({
                 {renderSoftwareVulnerabilities()}
               </div>
             ))}
-          {config && (!isPremiumTier || teams) ? renderTable() : <Spinner />}
+          {renderTable()}
         </div>
       )}
       {renderSidePanel()}

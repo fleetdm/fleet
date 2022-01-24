@@ -248,6 +248,7 @@ const TeamManagementPage = (): JSX.Element => {
           showMarkAllPages={false}
           isAllPagesSelected={false}
           searchable={teams && teams.length > 0 && searchString !== ""}
+          disablePagination
         />
       )}
       {showCreateTeamModal ? (
