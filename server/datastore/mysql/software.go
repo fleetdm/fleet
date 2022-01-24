@@ -536,7 +536,9 @@ func (d *Datastore) SoftwareByID(ctx context.Context, id uint) (*fleet.Software,
 func (d *Datastore) CalculateHostsPerSoftware(ctx context.Context, updatedAt time.Time) error {
 	// TODO(mna): are we concerned that this could have performance issues? Also, should
 	// it just truncate the software_host_counts before inserting, or just update all rows
-	// counts to 0, so that any software not in host_software is reset to 0?
+	// counts to 0, so that any software not in host_software is reset to 0? And should
+	// it remove from software the unused ids? There's a TODO elsewhere in this file to
+	// cleanup orphan software entries.
 	queryStmt := `SELECT count(*), software_id
     FROM host_software
     GROUP BY software_id`
