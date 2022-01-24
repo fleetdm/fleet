@@ -25,13 +25,13 @@ func TestCollectQueryExecutions(t *testing.T) {
 	t.Run("Label", func(t *testing.T) {
 		t.Run("standalone", func(t *testing.T) {
 			defer mysql.TruncateTables(t, ds)
-			pool := redistest.SetupRedis(t, false, false, false)
+			pool := redistest.SetupRedis(t, "label_membership", false, false, false)
 			testCollectLabelQueryExecutions(t, ds, pool)
 		})
 
 		t.Run("cluster", func(t *testing.T) {
 			defer mysql.TruncateTables(t, ds)
-			pool := redistest.SetupRedis(t, true, true, false)
+			pool := redistest.SetupRedis(t, "label_membership", true, true, false)
 			testCollectLabelQueryExecutions(t, ds, pool)
 		})
 	})
@@ -39,13 +39,13 @@ func TestCollectQueryExecutions(t *testing.T) {
 	t.Run("Policy", func(t *testing.T) {
 		t.Run("standalone", func(t *testing.T) {
 			defer mysql.TruncateTables(t, ds)
-			pool := redistest.SetupRedis(t, false, false, false)
+			pool := redistest.SetupRedis(t, "policy_pass", false, false, false)
 			testCollectPolicyQueryExecutions(t, ds, pool)
 		})
 
 		t.Run("cluster", func(t *testing.T) {
 			defer mysql.TruncateTables(t, ds)
-			pool := redistest.SetupRedis(t, true, true, false)
+			pool := redistest.SetupRedis(t, "policy_pass", true, true, false)
 			testCollectPolicyQueryExecutions(t, ds, pool)
 		})
 	})
@@ -71,13 +71,13 @@ func TestRecordQueryExecutions(t *testing.T) {
 
 	t.Run("Label", func(t *testing.T) {
 		t.Run("standalone", func(t *testing.T) {
-			pool := redistest.SetupRedis(t, false, false, false)
+			pool := redistest.SetupRedis(t, "label_membership", false, false, false)
 			t.Run("sync", func(t *testing.T) { testRecordLabelQueryExecutionsSync(t, ds, pool) })
 			t.Run("async", func(t *testing.T) { testRecordLabelQueryExecutionsAsync(t, ds, pool) })
 		})
 
 		t.Run("cluster", func(t *testing.T) {
-			pool := redistest.SetupRedis(t, true, true, false)
+			pool := redistest.SetupRedis(t, "label_membership", true, true, false)
 			t.Run("sync", func(t *testing.T) { testRecordLabelQueryExecutionsSync(t, ds, pool) })
 			t.Run("async", func(t *testing.T) { testRecordLabelQueryExecutionsAsync(t, ds, pool) })
 		})
@@ -85,13 +85,13 @@ func TestRecordQueryExecutions(t *testing.T) {
 
 	t.Run("Policy", func(t *testing.T) {
 		t.Run("standalone", func(t *testing.T) {
-			pool := redistest.SetupRedis(t, false, false, false)
+			pool := redistest.SetupRedis(t, "policy_pass", false, false, false)
 			t.Run("sync", func(t *testing.T) { testRecordPolicyQueryExecutionsSync(t, ds, pool) })
 			t.Run("async", func(t *testing.T) { testRecordPolicyQueryExecutionsAsync(t, ds, pool) })
 		})
 
 		t.Run("cluster", func(t *testing.T) {
-			pool := redistest.SetupRedis(t, true, true, false)
+			pool := redistest.SetupRedis(t, "policy_pass", true, true, false)
 			t.Run("sync", func(t *testing.T) { testRecordPolicyQueryExecutionsSync(t, ds, pool) })
 			t.Run("async", func(t *testing.T) { testRecordPolicyQueryExecutionsAsync(t, ds, pool) })
 		})
@@ -99,9 +99,9 @@ func TestRecordQueryExecutions(t *testing.T) {
 }
 
 func TestActiveHostIDsSet(t *testing.T) {
-	runTest := func(t *testing.T, pool fleet.RedisPool) {
-		const zkey = "testActiveHostIDsSet"
+	const zkey = "testActiveHostIDsSet"
 
+	runTest := func(t *testing.T, pool fleet.RedisPool) {
 		activeHosts, err := loadActiveHostIDs(pool, zkey, 10)
 		require.NoError(t, err)
 		require.Len(t, activeHosts, 0)
@@ -179,12 +179,12 @@ func TestActiveHostIDsSet(t *testing.T) {
 	}
 
 	t.Run("standalone", func(t *testing.T) {
-		pool := redistest.SetupRedis(t, false, false, false)
+		pool := redistest.SetupRedis(t, zkey, false, false, false)
 		t.Run("sync", func(t *testing.T) { runTest(t, pool) })
 	})
 
 	t.Run("cluster", func(t *testing.T) {
-		pool := redistest.SetupRedis(t, true, true, false)
+		pool := redistest.SetupRedis(t, zkey, true, true, false)
 		t.Run("sync", func(t *testing.T) { runTest(t, pool) })
 	})
 }

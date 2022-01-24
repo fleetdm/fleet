@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -322,4 +323,137 @@ func (s *integrationEnterpriseTestSuite) TestAvailableTeams() {
 	assert.Equal(t, getResp.User.Teams[0].Name, "Available Team")
 	assert.Len(t, getResp.AvailableTeams, 1)
 	assert.Equal(t, getResp.AvailableTeams[0].Name, "Available Team")
+}
+
+func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
+	t := s.T()
+
+	name := strings.ReplaceAll(t.Name(), "/", "_")
+	// create a new team
+	team := &fleet.Team{
+		Name:        name,
+		Description: "Team description",
+		Secrets:     []*fleet.EnrollSecret{{Secret: "DEF"}},
+	}
+
+	var tmResp teamResponse
+	s.DoJSON("POST", "/api/v1/fleet/teams", team, http.StatusOK, &tmResp)
+	assert.Equal(t, team.Name, tmResp.Team.Name)
+	require.Len(t, tmResp.Team.Secrets, 1)
+	assert.Equal(t, "DEF", tmResp.Team.Secrets[0].Secret)
+
+	// create a duplicate team (same name)
+	team2 := &fleet.Team{
+		Name:        name,
+		Description: "Team2 description",
+		Secrets:     []*fleet.EnrollSecret{{Secret: "GHI"}},
+	}
+	tmResp.Team = nil
+	s.DoJSON("POST", "/api/v1/fleet/teams", team2, http.StatusConflict, &tmResp)
+
+	// list teams
+	var listResp listTeamsResponse
+	s.DoJSON("GET", "/api/v1/fleet/teams", nil, http.StatusOK, &listResp, "query", name, "per_page", "2")
+	require.Len(t, listResp.Teams, 1)
+	require.Equal(t, team.Name, listResp.Teams[0].Name)
+	tm1ID := listResp.Teams[0].ID
+
+	// modify team
+	team.Description = "Alt " + team.Description
+	tmResp.Team = nil
+	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/teams/%d", tm1ID), team, http.StatusOK, &tmResp)
+	assert.Contains(t, tmResp.Team.Description, "Alt ")
+
+	// modify non-existing team
+	tmResp.Team = nil
+	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/teams/%d", tm1ID+1), team, http.StatusNotFound, &tmResp)
+
+	// list team users
+	var usersResp listUsersResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/teams/%d/users", tm1ID), nil, http.StatusOK, &usersResp)
+	assert.Len(t, usersResp.Users, 0)
+
+	// list team users - non-existing team
+	usersResp.Users = nil
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/teams/%d/users", tm1ID+1), nil, http.StatusNotFound, &usersResp)
+
+	// create a new user
+	user := &fleet.User{
+		Name:       "Team User",
+		Email:      "user@example.com",
+		GlobalRole: ptr.String("observer"),
+	}
+	require.NoError(t, user.SetPassword("foobar123#", 10, 10))
+	user, err := s.ds.NewUser(context.Background(), user)
+	require.NoError(t, err)
+
+	// add a team user
+	tmResp.Team = nil
+	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/teams/%d/users", tm1ID), modifyTeamUsersRequest{Users: []fleet.TeamUser{{User: *user, Role: fleet.RoleObserver}}}, http.StatusOK, &tmResp)
+	require.Len(t, tmResp.Team.Users, 1)
+	assert.Equal(t, user.ID, tmResp.Team.Users[0].ID)
+
+	// add a team user - non-existing team
+	tmResp.Team = nil
+	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/teams/%d/users", tm1ID+1), modifyTeamUsersRequest{Users: []fleet.TeamUser{{User: *user, Role: fleet.RoleObserver}}}, http.StatusNotFound, &tmResp)
+
+	// add a team user - invalid user role
+	tmResp.Team = nil
+	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/teams/%d/users", tm1ID), modifyTeamUsersRequest{Users: []fleet.TeamUser{{User: *user, Role: "foobar"}}}, http.StatusUnprocessableEntity, &tmResp)
+
+	// search for that user
+	usersResp.Users = nil
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/teams/%d/users", tm1ID), nil, http.StatusOK, &usersResp, "query", "user")
+	require.Len(t, usersResp.Users, 1)
+	assert.Equal(t, user.ID, usersResp.Users[0].ID)
+
+	// search for unknown user
+	usersResp.Users = nil
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/teams/%d/users", tm1ID), nil, http.StatusOK, &usersResp, "query", "notauser")
+	require.Len(t, usersResp.Users, 0)
+
+	// delete team user
+	tmResp.Team = nil
+	s.DoJSON("DELETE", fmt.Sprintf("/api/v1/fleet/teams/%d/users", tm1ID), modifyTeamUsersRequest{Users: []fleet.TeamUser{{User: fleet.User{ID: user.ID}}}}, http.StatusOK, &tmResp)
+	require.Len(t, tmResp.Team.Users, 0)
+
+	// delete team user - unknown user
+	tmResp.Team = nil
+	s.DoJSON("DELETE", fmt.Sprintf("/api/v1/fleet/teams/%d/users", tm1ID), modifyTeamUsersRequest{Users: []fleet.TeamUser{{User: fleet.User{ID: user.ID + 1}}}}, http.StatusOK, &tmResp)
+	require.Len(t, tmResp.Team.Users, 0)
+
+	// delete team user - unknown team
+	tmResp.Team = nil
+	s.DoJSON("DELETE", fmt.Sprintf("/api/v1/fleet/teams/%d/users", tm1ID+1), modifyTeamUsersRequest{Users: []fleet.TeamUser{{User: fleet.User{ID: user.ID}}}}, http.StatusNotFound, &tmResp)
+
+	// modify team agent options (options for orbit/osquery)
+	tmResp.Team = nil
+	opts := map[string]string{"x": "y"}
+	s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/teams/%d/agent_options", tm1ID), opts, http.StatusOK, &tmResp)
+	var m map[string]string
+	require.NoError(t, json.Unmarshal(*tmResp.Team.AgentOptions, &m))
+	assert.Equal(t, opts, m)
+
+	// modify team agent options - unknown team
+	tmResp.Team = nil
+	s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/teams/%d/agent_options", tm1ID+1), opts, http.StatusNotFound, &tmResp)
+
+	// get team enroll secrets
+	var secResp teamEnrollSecretsResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/teams/%d/secrets", tm1ID), nil, http.StatusOK, &secResp)
+	require.Len(t, secResp.Secrets, 1)
+	assert.Equal(t, team.Secrets[0].Secret, secResp.Secrets[0].Secret)
+
+	// get team enroll secrets- unknown team: does not return 404 because reads directly
+	// the secrets table, does not load the team first (which would be unnecessary except
+	// for checking that it exists)
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/teams/%d/secrets", tm1ID+1), nil, http.StatusOK, &secResp)
+	assert.Len(t, secResp.Secrets, 0)
+
+	// delete team
+	var delResp deleteTeamResponse
+	s.DoJSON("DELETE", fmt.Sprintf("/api/v1/fleet/teams/%d", tm1ID), nil, http.StatusOK, &delResp)
+
+	// delete team again, now an unknown team
+	s.DoJSON("DELETE", fmt.Sprintf("/api/v1/fleet/teams/%d", tm1ID), nil, http.StatusNotFound, &delResp)
 }

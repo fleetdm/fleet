@@ -429,11 +429,11 @@ allow {
   action == [read, write][_]
 }
 
-# Team admin and maintainers can read global policies
+# Team admin, maintainers and observers can read global policies
 allow {
   is_null(object.team_id)
   object.type == "policy"
-  team_role(subject, subject.teams[_].id) == [admin,maintainer][_]
+  team_role(subject, subject.teams[_].id) == [admin,maintainer,observer][_]
   action == read
 }
 

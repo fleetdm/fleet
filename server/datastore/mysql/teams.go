@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -50,13 +51,16 @@ func (d *Datastore) Team(ctx context.Context, tid uint) (*fleet.Team, error) {
 }
 
 func teamDB(ctx context.Context, q sqlx.QueryerContext, tid uint) (*fleet.Team, error) {
-	sql := `
+	stmt := `
 		SELECT * FROM teams
 			WHERE id = ?
 	`
 	team := &fleet.Team{}
 
-	if err := sqlx.GetContext(ctx, q, team, sql, tid); err != nil {
+	if err := sqlx.GetContext(ctx, q, team, stmt, tid); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("Team").WithID(tid))
+		}
 		return nil, ctxerr.Wrap(ctx, err, "select team")
 	}
 

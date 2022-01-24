@@ -611,9 +611,10 @@ Returns the count of all hosts organized by status. `online_count` includes all 
 
 #### Parameters
 
-| Name    | Type    | In    | Description                                                                     |
-| ------- | ------- | ----  | ------------------------------------------------------------------------------- |
-| team_id | integer | query | The ID of the team whose host counts should be included. Defaults to all teams. |
+| Name     | Type    | In    | Description                                                                     |
+| -------- | ------- | ----  | ------------------------------------------------------------------------------- |
+| team_id  | integer | query | The ID of the team whose host counts should be included. Defaults to all teams. |
+| platform | string  | query | Platform to filter by when counting. Defaults to all platforms.                 |
 
 #### Example
 
@@ -4513,7 +4514,7 @@ None.
   "webhook_settings": {
     "host_status_webhook": {
       "enable_host_status_webhook": true,
-       "destination_url": "https://server.com",
+      "destination_url": "https://server.com",
       "host_percentage": 5,
       "days_count": 7
     },
@@ -4670,10 +4671,6 @@ Modifies the Fleet's configuration with the supplied information.
   },
   "host_settings": {
     "additional_queries": null
-  },
-  "license": {
-    "tier": "free",
-    "expiration": "0001-01-01T00:00:00Z"
   },
   "license": {
     "tier": "free",
@@ -5776,6 +5773,8 @@ _Available in Fleet Premium_
 ## Translator
 
 ### Translate IDs
+
+Transforms a host name into a host id. For example, the Fleet UI use this endpoint when sending live queries to a set of hosts.
 
 `POST /api/v1/fleet/translate`
 

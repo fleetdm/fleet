@@ -58,14 +58,18 @@ func (p PolicyPayload) Verify() error {
 }
 
 func verifyPolicyName(name string) error {
-	if name == "" {
+	if emptyString(name) {
 		return errPolicyEmptyName
 	}
 	return nil
 }
 
+func emptyString(s string) bool {
+	return len(strings.TrimSpace(s)) == 0
+}
+
 func verifyPolicyQuery(query string) error {
-	if query == "" {
+	if emptyString(query) {
 		return errPolicyEmptyQuery
 	}
 	if validateSQLRegexp.MatchString(query) {

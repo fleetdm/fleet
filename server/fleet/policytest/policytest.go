@@ -17,13 +17,17 @@ func RunFailing1000hosts(t *testing.T, r fleet.FailingPolicySet) {
 			Hostname: fmt.Sprintf("test.hostname.%d", i+1),
 		}
 	}
-	policyID1k := uint(999)
-	for i := range hosts {
-		err := r.AddHost(policyID1k, hosts[i])
+
+	policyID1k := uint(9999)
+	for _, h := range hosts {
+		err := r.AddHost(policyID1k, h)
 		require.NoError(t, err)
 	}
+
 	fetchedHosts, err := r.ListHosts(policyID1k)
 	require.NoError(t, err)
+	require.Len(t, fetchedHosts, len(hosts))
+
 	sort.Slice(fetchedHosts, func(i, j int) bool {
 		return fetchedHosts[i].ID < fetchedHosts[j].ID
 	})
