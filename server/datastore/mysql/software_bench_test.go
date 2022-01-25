@@ -78,21 +78,21 @@ func BenchmarkCalculateHostsPerSoftware(b *testing.B) {
 		//	}
 		//})
 
-		b.Run("singleSelectGroupByInsertBatch100", func(b *testing.B) {
-			for _, c := range cases {
-				b.Run(fmt.Sprintf("%d:%d", c.hs, c.sws), func(b *testing.B) {
-					ds := CreateMySQLDS(b)
-					generateHostsWithSoftware(b, ds, c.hs, c.sws)
-					b.ResetTimer()
+		//b.Run("singleSelectGroupByInsertBatch100", func(b *testing.B) {
+		//	for _, c := range cases {
+		//		b.Run(fmt.Sprintf("%d:%d", c.hs, c.sws), func(b *testing.B) {
+		//			ds := CreateMySQLDS(b)
+		//			generateHostsWithSoftware(b, ds, c.hs, c.sws)
+		//			b.ResetTimer()
 
-					for i := 0; i < b.N; i++ {
-						resetUpdateAllZero(b, ds)
-						singleSelectGroupByInsertBatch(b, ds, ts, 100)
-					}
-					checkCounts(b, ds, c.hs, c.sws)
-				})
-			}
-		})
+		//			for i := 0; i < b.N; i++ {
+		//				resetUpdateAllZero(b, ds)
+		//				singleSelectGroupByInsertBatch(b, ds, ts, 100)
+		//			}
+		//			checkCounts(b, ds, c.hs, c.sws)
+		//		})
+		//	}
+		//})
 
 		b.Run("singleSelectGroupByInsertBatch100AggStats", func(b *testing.B) {
 			for _, c := range cases {
