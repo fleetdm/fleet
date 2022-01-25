@@ -1202,6 +1202,7 @@ const HostDetailsPage = ({
         <Tabs>
           <TabList>
             <Tab>Details</Tab>
+            <Tab>Software</Tab>
             <Tab>Schedule</Tab>
             <Tab>Policies</Tab>
           </TabList>
@@ -1295,10 +1296,9 @@ const HostDetailsPage = ({
               </div>
               {renderLabels()}
             </div>
-
-            {host?.software && renderSoftware()}
             {renderUsers()}
           </TabPanel>
+          <TabPanel>{renderSoftware()}</TabPanel>
           <TabPanel>
             {renderSchedule()}
             {renderPacks()}
