@@ -254,8 +254,6 @@ const TeamDetailsWrapper = ({
   }, [dispatch]);
 
   const onSaveSecret = async (enrollSecretString: string) => {
-    const { MANAGE_HOSTS } = PATHS;
-
     // Creates new list of secrets removing selected secret and adding new secret
     const currentSecrets = teamSecrets || [];
 
@@ -276,15 +274,6 @@ const TeamDetailsWrapper = ({
 
       toggleSecretEditorModal();
       isPremiumTier && refetchTeams();
-
-      router.push(
-        getNextLocationPath({
-          pathPrefix: MANAGE_HOSTS,
-          routeTemplate: routeTemplate.replace("/labels/:label_id", ""),
-          routeParams,
-          queryParams,
-        })
-      );
       dispatch(
         renderFlash(
           "success",
@@ -305,8 +294,6 @@ const TeamDetailsWrapper = ({
   };
 
   const onDeleteSecret = async () => {
-    const { MANAGE_HOSTS } = PATHS;
-
     // create new list of secrets removing selected secret
     const currentSecrets = teamSecrets || [];
 
@@ -322,14 +309,6 @@ const TeamDetailsWrapper = ({
       refetchTeamSecrets();
       toggleDeleteSecretModal();
       refetchTeams();
-      router.push(
-        getNextLocationPath({
-          pathPrefix: MANAGE_HOSTS,
-          routeTemplate: routeTemplate.replace("/labels/:label_id", ""),
-          routeParams,
-          queryParams,
-        })
-      );
       dispatch(renderFlash("success", `Successfully deleted enroll secret.`));
     } catch (error) {
       console.error(error);
@@ -433,7 +412,7 @@ const TeamDetailsWrapper = ({
         </>
         <div className={`${baseClass}__team-header`}>
           <div className={`${baseClass}__team-details`}>
-            {adminTeams.length === 1 ? (
+            {adminTeams?.length === 1 ? (
               <h1>{team.name}</h1>
             ) : (
               <TeamsDropdown
@@ -505,13 +484,13 @@ const TeamDetailsWrapper = ({
       {showManageEnrollSecretsModal ? (
         <Modal
           title="Enroll secret"
-          onExit={() => setShowEnrollSecretModal(false)}
+          onExit={toggleManageEnrollSecretsModal}
           className={`${baseClass}__enroll-secret-modal`}
         >
           <EnrollSecretModal
             selectedTeam={routeParams.team_id}
             teams={teams || []}
-            onReturnToApp={() => setShowEnrollSecretModal(false)}
+            onReturnToApp={toggleManageEnrollSecretsModal}
             toggleSecretEditorModal={toggleSecretEditorModal}
             toggleDeleteSecretModal={toggleDeleteSecretModal}
             setSelectedSecret={setSelectedSecret}
