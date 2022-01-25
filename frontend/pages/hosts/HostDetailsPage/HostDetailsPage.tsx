@@ -58,7 +58,7 @@ import {
   secondsToHms,
 } from "fleet/helpers";
 
-import SoftwareTab from "./SoftwareTable/SoftwareTab";
+import SoftwareTab from "./SoftwareTab/SoftwareTab";
 // @ts-ignore
 import SelectQueryModal from "./SelectQueryModal";
 import TransferHostModal from "./TransferHostModal";
