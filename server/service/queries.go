@@ -434,3 +434,146 @@ func (svc *Service) DeleteQueries(ctx context.Context, ids []uint) (uint, error)
 
 	return n, nil
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// Apply Query Spec
+////////////////////////////////////////////////////////////////////////////////
+
+type applyQuerySpecsRequest struct {
+	Specs []*fleet.QuerySpec `json:"specs"`
+}
+
+type applyQuerySpecsResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r applyQuerySpecsResponse) error() error { return r.Err }
+
+func applyQuerySpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*applyQuerySpecsRequest)
+	err := svc.ApplyQuerySpecs(ctx, req.Specs)
+	if err != nil {
+		return applyQuerySpecsResponse{Err: err}, nil
+	}
+	return applyQuerySpecsResponse{}, nil
+}
+
+func (svc *Service) ApplyQuerySpecs(ctx context.Context, specs []*fleet.QuerySpec) error {
+	if err := svc.authz.Authorize(ctx, &fleet.Query{}, fleet.ActionWrite); err != nil {
+		return err
+	}
+
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return ctxerr.New(ctx, "user must be authenticated to apply queries")
+	}
+
+	queries := []*fleet.Query{}
+	for _, spec := range specs {
+		queries = append(queries, queryFromSpec(spec))
+	}
+
+	for _, query := range queries {
+		if err := query.Verify(); err != nil {
+			return ctxerr.Wrap(ctx, &badRequestError{
+				message: fmt.Sprintf("query payload verification: %s", err),
+			})
+		}
+	}
+
+	err := svc.ds.ApplyQueries(ctx, vc.UserID(), queries)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "applying queries")
+	}
+
+	return svc.ds.NewActivity(
+		ctx,
+		authz.UserFromContext(ctx),
+		fleet.ActivityTypeAppliedSpecSavedQuery,
+		&map[string]interface{}{"specs": specs},
+	)
+}
+
+func queryFromSpec(spec *fleet.QuerySpec) *fleet.Query {
+	return &fleet.Query{
+		Name:        spec.Name,
+		Description: spec.Description,
+		Query:       spec.Query,
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Get Query Specs
+////////////////////////////////////////////////////////////////////////////////
+
+type getQuerySpecsResponse struct {
+	Specs []*fleet.QuerySpec `json:"specs"`
+	Err   error              `json:"error,omitempty"`
+}
+
+func (r getQuerySpecsResponse) error() error { return r.Err }
+
+func getQuerySpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	specs, err := svc.GetQuerySpecs(ctx)
+	if err != nil {
+		return getQuerySpecsResponse{Err: err}, nil
+	}
+	return getQuerySpecsResponse{Specs: specs}, nil
+}
+
+func (svc *Service) GetQuerySpecs(ctx context.Context) ([]*fleet.QuerySpec, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Query{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	queries, err := svc.ds.ListQueries(ctx, fleet.ListQueryOptions{})
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting queries")
+	}
+
+	specs := []*fleet.QuerySpec{}
+	for _, query := range queries {
+		specs = append(specs, specFromQuery(query))
+	}
+	return specs, nil
+}
+
+func specFromQuery(query *fleet.Query) *fleet.QuerySpec {
+	return &fleet.QuerySpec{
+		Name:        query.Name,
+		Description: query.Description,
+		Query:       query.Query,
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Get Query Spec
+////////////////////////////////////////////////////////////////////////////////
+
+type getQuerySpecResponse struct {
+	Spec *fleet.QuerySpec `json:"specs,omitempty"`
+	Err  error            `json:"error,omitempty"`
+}
+
+func (r getQuerySpecResponse) error() error { return r.Err }
+
+func getQuerySpecEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*getGenericSpecRequest)
+	spec, err := svc.GetQuerySpec(ctx, req.Name)
+	if err != nil {
+		return getQuerySpecResponse{Err: err}, nil
+	}
+	return getQuerySpecResponse{Spec: spec}, nil
+}
+
+func (svc *Service) GetQuerySpec(ctx context.Context, name string) (*fleet.QuerySpec, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Query{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	query, err := svc.ds.QueryByName(ctx, name)
+	if err != nil {
+		return nil, err
+	}
+	return specFromQuery(query), nil
+}

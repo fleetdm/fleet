@@ -33,9 +33,6 @@ type FleetEndpoints struct {
 	ListInvites                           endpoint.Endpoint
 	DeleteInvite                          endpoint.Endpoint
 	VerifyInvite                          endpoint.Endpoint
-	ApplyQuerySpecs                       endpoint.Endpoint
-	GetQuerySpecs                         endpoint.Endpoint
-	GetQuerySpec                          endpoint.Endpoint
 	CreateDistributedQueryCampaign        endpoint.Endpoint
 	CreateDistributedQueryCampaignByNames endpoint.Endpoint
 	EnrollAgent                           endpoint.Endpoint
@@ -84,9 +81,6 @@ func MakeFleetServerEndpoints(svc fleet.Service, urlPrefix string, limitStore th
 		ListInvites:  authenticatedUser(svc, makeListInvitesEndpoint(svc)),
 		DeleteInvite: authenticatedUser(svc, makeDeleteInviteEndpoint(svc)),
 
-		ApplyQuerySpecs:                       authenticatedUser(svc, makeApplyQuerySpecsEndpoint(svc)),
-		GetQuerySpecs:                         authenticatedUser(svc, makeGetQuerySpecsEndpoint(svc)),
-		GetQuerySpec:                          authenticatedUser(svc, makeGetQuerySpecEndpoint(svc)),
 		CreateDistributedQueryCampaign:        authenticatedUser(svc, makeCreateDistributedQueryCampaignEndpoint(svc)),
 		CreateDistributedQueryCampaignByNames: authenticatedUser(svc, makeCreateDistributedQueryCampaignByNamesEndpoint(svc)),
 		SearchTargets:                         authenticatedUser(svc, makeSearchTargetsEndpoint(svc)),
@@ -122,9 +116,6 @@ type fleetHandlers struct {
 	ListInvites                           http.Handler
 	DeleteInvite                          http.Handler
 	VerifyInvite                          http.Handler
-	ApplyQuerySpecs                       http.Handler
-	GetQuerySpecs                         http.Handler
-	GetQuerySpec                          http.Handler
 	CreateDistributedQueryCampaign        http.Handler
 	CreateDistributedQueryCampaignByNames http.Handler
 	EnrollAgent                           http.Handler
@@ -159,9 +150,6 @@ func makeKitHandlers(e FleetEndpoints, opts []kithttp.ServerOption) *fleetHandle
 		ListInvites:                           newServer(e.ListInvites, decodeListInvitesRequest),
 		DeleteInvite:                          newServer(e.DeleteInvite, decodeDeleteInviteRequest),
 		VerifyInvite:                          newServer(e.VerifyInvite, decodeVerifyInviteRequest),
-		ApplyQuerySpecs:                       newServer(e.ApplyQuerySpecs, decodeApplyQuerySpecsRequest),
-		GetQuerySpecs:                         newServer(e.GetQuerySpecs, decodeNoParamsRequest),
-		GetQuerySpec:                          newServer(e.GetQuerySpec, decodeGetGenericSpecRequest),
 		CreateDistributedQueryCampaign:        newServer(e.CreateDistributedQueryCampaign, decodeCreateDistributedQueryCampaignRequest),
 		CreateDistributedQueryCampaignByNames: newServer(e.CreateDistributedQueryCampaignByNames, decodeCreateDistributedQueryCampaignByNamesRequest),
 		EnrollAgent:                           newServer(e.EnrollAgent, decodeEnrollAgentRequest),
@@ -366,9 +354,6 @@ func attachFleetAPIRoutes(r *mux.Router, h *fleetHandlers) {
 
 	r.Handle("/api/v1/fleet/email/change/{token}", h.ChangeEmail).Methods("GET").Name("change_email")
 
-	r.Handle("/api/v1/fleet/spec/queries", h.ApplyQuerySpecs).Methods("POST").Name("apply_query_specs")
-	r.Handle("/api/v1/fleet/spec/queries", h.GetQuerySpecs).Methods("GET").Name("get_query_specs")
-	r.Handle("/api/v1/fleet/spec/queries/{name}", h.GetQuerySpec).Methods("GET").Name("get_query_spec")
 	r.Handle("/api/v1/fleet/queries/run", h.CreateDistributedQueryCampaign).Methods("POST").Name("create_distributed_query_campaign")
 	r.Handle("/api/v1/fleet/queries/run_by_names", h.CreateDistributedQueryCampaignByNames).Methods("POST").Name("create_distributed_query_campaign_by_names")
 
@@ -451,6 +436,9 @@ func attachNewStyleFleetAPIRoutes(r *mux.Router, svc fleet.Service, opts []kitht
 	e.DELETE("/api/_version_/fleet/queries/{name}", deleteQueryEndpoint, deleteQueryRequest{})
 	e.DELETE("/api/_version_/fleet/queries/id/{id:[0-9]+}", deleteQueryByIDEndpoint, deleteQueryByIDRequest{})
 	e.POST("/api/_version_/fleet/queries/delete", deleteQueriesEndpoint, deleteQueriesRequest{})
+	e.POST("/api/_version_/fleet/spec/queries", applyQuerySpecsEndpoint, applyQuerySpecsRequest{})
+	e.GET("/api/_version_/fleet/spec/queries", getQuerySpecsEndpoint, nil)
+	e.GET("/api/_version_/fleet/spec/queries/{name}", getQuerySpecEndpoint, getGenericSpecRequest{})
 
 	e.GET("/api/_version_/fleet/packs/{id:[0-9]+}/scheduled", getScheduledQueriesInPackEndpoint, getScheduledQueriesInPackRequest{})
 	e.POST("/api/_version_/fleet/schedule", scheduleQueryEndpoint, scheduleQueryRequest{})
