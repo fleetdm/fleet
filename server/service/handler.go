@@ -33,13 +33,6 @@ type FleetEndpoints struct {
 	ListInvites                           endpoint.Endpoint
 	DeleteInvite                          endpoint.Endpoint
 	VerifyInvite                          endpoint.Endpoint
-	GetQuery                              endpoint.Endpoint
-	ListQueries                           endpoint.Endpoint
-	CreateQuery                           endpoint.Endpoint
-	ModifyQuery                           endpoint.Endpoint
-	DeleteQuery                           endpoint.Endpoint
-	DeleteQueryByID                       endpoint.Endpoint
-	DeleteQueries                         endpoint.Endpoint
 	ApplyQuerySpecs                       endpoint.Endpoint
 	GetQuerySpecs                         endpoint.Endpoint
 	GetQuerySpec                          endpoint.Endpoint
@@ -91,13 +84,6 @@ func MakeFleetServerEndpoints(svc fleet.Service, urlPrefix string, limitStore th
 		ListInvites:  authenticatedUser(svc, makeListInvitesEndpoint(svc)),
 		DeleteInvite: authenticatedUser(svc, makeDeleteInviteEndpoint(svc)),
 
-		GetQuery:                              authenticatedUser(svc, makeGetQueryEndpoint(svc)),
-		ListQueries:                           authenticatedUser(svc, makeListQueriesEndpoint(svc)),
-		CreateQuery:                           authenticatedUser(svc, makeCreateQueryEndpoint(svc)),
-		ModifyQuery:                           authenticatedUser(svc, makeModifyQueryEndpoint(svc)),
-		DeleteQuery:                           authenticatedUser(svc, makeDeleteQueryEndpoint(svc)),
-		DeleteQueryByID:                       authenticatedUser(svc, makeDeleteQueryByIDEndpoint(svc)),
-		DeleteQueries:                         authenticatedUser(svc, makeDeleteQueriesEndpoint(svc)),
 		ApplyQuerySpecs:                       authenticatedUser(svc, makeApplyQuerySpecsEndpoint(svc)),
 		GetQuerySpecs:                         authenticatedUser(svc, makeGetQuerySpecsEndpoint(svc)),
 		GetQuerySpec:                          authenticatedUser(svc, makeGetQuerySpecEndpoint(svc)),
@@ -136,13 +122,6 @@ type fleetHandlers struct {
 	ListInvites                           http.Handler
 	DeleteInvite                          http.Handler
 	VerifyInvite                          http.Handler
-	GetQuery                              http.Handler
-	ListQueries                           http.Handler
-	CreateQuery                           http.Handler
-	ModifyQuery                           http.Handler
-	DeleteQuery                           http.Handler
-	DeleteQueryByID                       http.Handler
-	DeleteQueries                         http.Handler
 	ApplyQuerySpecs                       http.Handler
 	GetQuerySpecs                         http.Handler
 	GetQuerySpec                          http.Handler
@@ -180,13 +159,6 @@ func makeKitHandlers(e FleetEndpoints, opts []kithttp.ServerOption) *fleetHandle
 		ListInvites:                           newServer(e.ListInvites, decodeListInvitesRequest),
 		DeleteInvite:                          newServer(e.DeleteInvite, decodeDeleteInviteRequest),
 		VerifyInvite:                          newServer(e.VerifyInvite, decodeVerifyInviteRequest),
-		GetQuery:                              newServer(e.GetQuery, decodeGetQueryRequest),
-		ListQueries:                           newServer(e.ListQueries, decodeListQueriesRequest),
-		CreateQuery:                           newServer(e.CreateQuery, decodeCreateQueryRequest),
-		ModifyQuery:                           newServer(e.ModifyQuery, decodeModifyQueryRequest),
-		DeleteQuery:                           newServer(e.DeleteQuery, decodeDeleteQueryRequest),
-		DeleteQueryByID:                       newServer(e.DeleteQueryByID, decodeDeleteQueryByIDRequest),
-		DeleteQueries:                         newServer(e.DeleteQueries, decodeDeleteQueriesRequest),
 		ApplyQuerySpecs:                       newServer(e.ApplyQuerySpecs, decodeApplyQuerySpecsRequest),
 		GetQuerySpecs:                         newServer(e.GetQuerySpecs, decodeNoParamsRequest),
 		GetQuerySpec:                          newServer(e.GetQuerySpec, decodeGetGenericSpecRequest),
@@ -394,13 +366,6 @@ func attachFleetAPIRoutes(r *mux.Router, h *fleetHandlers) {
 
 	r.Handle("/api/v1/fleet/email/change/{token}", h.ChangeEmail).Methods("GET").Name("change_email")
 
-	r.Handle("/api/v1/fleet/queries/{id:[0-9]+}", h.GetQuery).Methods("GET").Name("get_query")
-	r.Handle("/api/v1/fleet/queries", h.ListQueries).Methods("GET").Name("list_queries")
-	r.Handle("/api/v1/fleet/queries", h.CreateQuery).Methods("POST").Name("create_query")
-	r.Handle("/api/v1/fleet/queries/{id:[0-9]+}", h.ModifyQuery).Methods("PATCH").Name("modify_query")
-	r.Handle("/api/v1/fleet/queries/{name}", h.DeleteQuery).Methods("DELETE").Name("delete_query")
-	r.Handle("/api/v1/fleet/queries/id/{id:[0-9]+}", h.DeleteQueryByID).Methods("DELETE").Name("delete_query_by_id")
-	r.Handle("/api/v1/fleet/queries/delete", h.DeleteQueries).Methods("POST").Name("delete_queries")
 	r.Handle("/api/v1/fleet/spec/queries", h.ApplyQuerySpecs).Methods("POST").Name("apply_query_specs")
 	r.Handle("/api/v1/fleet/spec/queries", h.GetQuerySpecs).Methods("GET").Name("get_query_specs")
 	r.Handle("/api/v1/fleet/spec/queries/{name}", h.GetQuerySpec).Methods("GET").Name("get_query_spec")
@@ -478,6 +443,14 @@ func attachNewStyleFleetAPIRoutes(r *mux.Router, svc fleet.Service, opts []kitht
 	e.WithAltPaths("/api/_version_/fleet/team/{team_id}/policies/delete").POST("/api/_version_/fleet/teams/{team_id}/policies/delete", deleteTeamPoliciesEndpoint, deleteTeamPoliciesRequest{})
 	e.PATCH("/api/_version_/fleet/teams/{team_id}/policies/{policy_id}", modifyTeamPolicyEndpoint, modifyTeamPolicyRequest{})
 	e.POST("/api/_version_/fleet/spec/policies", applyPolicySpecsEndpoint, applyPolicySpecsRequest{})
+
+	e.GET("/api/_version_/fleet/queries/{id:[0-9]+}", getQueryEndpoint, getQueryRequest{})
+	e.GET("/api/_version_/fleet/queries", listQueriesEndpoint, listQueriesRequest{})
+	e.POST("/api/_version_/fleet/queries", createQueryEndpoint, createQueryRequest{})
+	e.PATCH("/api/_version_/fleet/queries/{id:[0-9]+}", modifyQueryEndpoint, modifyQueryRequest{})
+	e.DELETE("/api/_version_/fleet/queries/{name}", deleteQueryEndpoint, deleteQueryRequest{})
+	e.DELETE("/api/_version_/fleet/queries/id/{id:[0-9]+}", deleteQueryByIDEndpoint, deleteQueryByIDRequest{})
+	e.POST("/api/_version_/fleet/queries/delete", deleteQueriesEndpoint, deleteQueriesRequest{})
 
 	e.GET("/api/_version_/fleet/packs/{id:[0-9]+}/scheduled", getScheduledQueriesInPackEndpoint, getScheduledQueriesInPackRequest{})
 	e.POST("/api/_version_/fleet/schedule", scheduleQueryEndpoint, scheduleQueryRequest{})
