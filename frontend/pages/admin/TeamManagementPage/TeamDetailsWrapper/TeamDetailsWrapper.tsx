@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useContext } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch } from "react-redux";
 import { useQuery } from "react-query";
 import { InjectedRouter, Link, RouteProps } from "react-router";
 import { push } from "react-router-redux";
@@ -8,8 +8,7 @@ import { find, toNumber } from "lodash";
 import classnames from "classnames";
 
 import PATHS from "router/paths";
-import { ITeam } from "interfaces/team";
-import { IUser } from "interfaces/user";
+import { ITeam, ITeamSummary } from "interfaces/team";
 import { AppContext } from "context/app";
 // ignore TS error for now until these are rewritten in ts.
 // @ts-ignore
@@ -58,18 +57,6 @@ const teamDetailsSubNav: ITeamDetailsSubNavItem[] = [
   },
 ];
 
-interface IRootState {
-  auth: {
-    user: IUser;
-  };
-  entities: {
-    teams: {
-      loading: boolean;
-      data: { [id: number]: ITeam };
-    };
-  };
-}
-
 interface ITeamsResponse {
   teams: ITeam[];
 }
@@ -87,10 +74,10 @@ interface ITeamDetailsPageProps {
 }
 
 const generateUpdateData = (
-  currentTeamData: ITeam,
+  currentTeam: ITeamSummary,
   formData: IEditTeamFormData
 ): IEditTeamFormData | null => {
-  if (currentTeamData.name !== formData.name) {
+  if (currentTeam.name !== formData.name) {
     return {
       name: formData.name,
     };
@@ -114,23 +101,15 @@ const TeamDetailsWrapper = ({
   const dispatch = useDispatch();
 
   const {
+    currentUser,
     isGlobalAdmin,
-    isGlobalMaintainer,
-    isTeamMaintainer,
-    isTeamAdmin,
     currentTeam,
     isOnGlobalTeam,
     isPremiumTier,
     setCurrentTeam,
   } = useContext(AppContext);
 
-  const team = useSelector((state: IRootState) => {
-    return state.entities.teams.data[routeParams.team_id];
-  });
-
-  const userTeams = useSelector((state: IRootState) => {
-    return state.auth.user.teams;
-  });
+  const userTeams = currentUser?.teams || [];
   const routeTemplate = route && route.path ? route.path : "";
 
   const [selectedSecret, setSelectedSecret] = useState<IEnrollSecret>();
@@ -147,9 +126,6 @@ const TeamDetailsWrapper = ({
   const [showDeleteTeamModal, setShowDeleteTeamModal] = useState(false);
   const [showEditTeamModal, setShowEditTeamModal] = useState(false);
 
-  const canEnrollHosts =
-    isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
-
   const {
     data: teams,
     isLoading: isLoadingTeams,
@@ -158,13 +134,13 @@ const TeamDetailsWrapper = ({
     ["teams"],
     () => teamsAPI.loadAll(),
     {
-      enabled: !!isPremiumTier,
       select: (data: ITeamsResponse) =>
         data.teams.sort((a, b) => sortUtils.caseInsensitiveAsc(a.name, b.name)),
       onSuccess: (responseTeams: ITeam[]) => {
-        if (!currentTeam && !isOnGlobalTeam && responseTeams.length) {
-          setCurrentTeam(responseTeams[0]);
-        }
+        const findTeam = responseTeams.find(
+          (team) => team.id === Number(routeParams.team_id)
+        );
+        setCurrentTeam(findTeam);
       },
     }
   );
@@ -176,13 +152,9 @@ const TeamDetailsWrapper = ({
   } = useQuery<IEnrollSecretsResponse, Error, IEnrollSecret[]>(
     ["team secrets", routeParams],
     () => {
-      if (routeParams.team_id) {
-        return enrollSecretsAPI.getTeamEnrollSecrets(routeParams.team_id);
-      }
-      return { secrets: [] };
+      return enrollSecretsAPI.getTeamEnrollSecrets(routeParams.team_id);
     },
     {
-      enabled: !!routeParams.team_id && !!canEnrollHosts,
       select: (data: IEnrollSecretsResponse) => data.secrets,
     }
   );
@@ -308,7 +280,7 @@ const TeamDetailsWrapper = ({
   };
 
   const onDeleteSubmit = useCallback(() => {
-    dispatch(teamActions.destroy(team?.id))
+    dispatch(teamActions.destroy(currentTeam?.id))
       .then(() => {
         dispatch(renderFlash("success", "Team removed"));
         dispatch(push(PATHS.ADMIN_TEAMS));
@@ -316,17 +288,18 @@ const TeamDetailsWrapper = ({
       })
       .catch(() => null);
     toggleDeleteTeamModal();
-  }, [dispatch, toggleDeleteTeamModal, team?.id]);
+  }, [dispatch, toggleDeleteTeamModal, currentTeam?.id]);
 
   const onEditSubmit = useCallback(
     (formData: IEditTeamFormData) => {
-      const updatedAttrs = generateUpdateData(team, formData);
+      const updatedAttrs =
+        currentTeam && generateUpdateData(currentTeam, formData);
       // no updates, so no need for a request.
       if (updatedAttrs === null) {
         toggleEditTeamModal();
         return;
       }
-      dispatch(teamActions.update(team?.id, updatedAttrs))
+      dispatch(teamActions.update(currentTeam?.id, updatedAttrs))
         .then(() => {
           dispatch(teamActions.loadAll({ perPage: 500 }));
           dispatch(renderFlash("success", "Team updated"));
@@ -335,7 +308,7 @@ const TeamDetailsWrapper = ({
         .catch(() => null);
       toggleEditTeamModal();
     },
-    [dispatch, toggleEditTeamModal, team]
+    [dispatch, toggleEditTeamModal, currentTeam]
   );
 
   const handleTeamSelect = (teamId: number) => {
@@ -371,14 +344,16 @@ const TeamDetailsWrapper = ({
     "team-settings": !isOnGlobalTeam,
   });
 
-  if (isLoadingTeams || isTeamSecretsLoading || team === undefined) {
+  if (isLoadingTeams || isTeamSecretsLoading || currentTeam === undefined) {
     return (
       <div className={`${baseClass}__loading-spinner`}>
         <Spinner />
       </div>
     );
   }
-  const hostsCount = team.host_count;
+
+  // const hostsCount = currentTeam.host_count;
+  const hostsCount = teams?.length || 1;
   const hostsTotalDisplay = hostsCount === 1 ? "1 host" : `${hostsCount} hosts`;
   const userAdminTeams = userTeams.filter(
     (thisTeam) => thisTeam.role === "admin"
@@ -399,7 +374,7 @@ const TeamDetailsWrapper = ({
         <div className={`${baseClass}__team-header`}>
           <div className={`${baseClass}__team-details`}>
             {adminTeams?.length === 1 ? (
-              <h1>{team.name}</h1>
+              <h1>{currentTeam.name}</h1>
             ) : (
               <TeamsDropdown
                 selectedTeamId={toNumber(routeParams.team_id)}
@@ -465,7 +440,7 @@ const TeamDetailsWrapper = ({
         <GenerateInstallerModal
           onCancel={toggleGenerateInstallerModal}
           selectedTeam={{
-            name: team.name,
+            name: currentTeam.name,
             secrets: teamSecrets || null,
           }}
         />
@@ -501,14 +476,14 @@ const TeamDetailsWrapper = ({
         <DeleteTeamModal
           onCancel={toggleDeleteTeamModal}
           onSubmit={onDeleteSubmit}
-          name={team.name}
+          name={currentTeam.name}
         />
       )}
       {showEditTeamModal && (
         <EditTeamModal
           onCancel={toggleEditTeamModal}
           onSubmit={onEditSubmit}
-          defaultName={team.name}
+          defaultName={currentTeam.name}
         />
       )}
       {children}
