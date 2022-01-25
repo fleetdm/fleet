@@ -204,6 +204,7 @@ const ManageSchedulePage = ({
     select: (data) => data.global_schedule,
   });
 
+  console.log("teamId", teamId);
   const {
     data: teamScheduledQueries,
     error: teamScheduledQueriesError,
@@ -233,6 +234,13 @@ const ManageSchedulePage = ({
     selectedTeamId = team_id ? parseInt(team_id, 10) : 0;
   }
 
+  const refetchScheduledQueries = () => {
+    refetchGlobalScheduledQueries();
+    if (teamId !== 0) {
+      refetchTeamScheduledQueries();
+    }
+  };
+
   const handleTeamSelect = (teamId: number) => {
     if (teamId) {
       dispatch(push(MANAGE_TEAM_SCHEDULE(teamId)));
@@ -246,15 +254,6 @@ const ManageSchedulePage = ({
   if (!isOnGlobalTeam && !selectedTeamId && teams) {
     handleTeamSelect(teams[0].id);
   }
-
-  const allScheduledQueries = useSelector((state: IRootState) => {
-    if (selectedTeamId) {
-      return state.entities.team_scheduled_queries;
-    }
-    return state.entities.global_scheduled_queries;
-  });
-
-  console.log("allScheduledQueries", allScheduledQueries);
 
   const allScheduledQueriesList =
     (teamId ? teamScheduledQueries : globalScheduledQueries) || [];
@@ -322,11 +321,9 @@ const ManageSchedulePage = ({
 
   const onRemoveScheduledQuerySubmit = useCallback(() => {
     const promises = selectedQueryIds.map((id: number) => {
-      return dispatch(
-        selectedTeamId
-          ? teamScheduledQueryActions.destroy(selectedTeamId, id)
-          : globalScheduledQueryActions.destroy({ id })
-      );
+      selectedTeamId
+        ? teamScheduledQueriesAPI.destroy(selectedTeamId, id)
+        : globalScheduledQueriesAPI.destroy({ id });
     });
     const queryOrQueries = selectedQueryIds.length === 1 ? "query" : "queries";
     return Promise.all(promises)
@@ -338,11 +335,7 @@ const ManageSchedulePage = ({
           )
         );
         toggleRemoveScheduledQueryModal();
-        dispatch(
-          selectedTeamId
-            ? teamScheduledQueryActions.loadAll(selectedTeamId)
-            : globalScheduledQueryActions.loadAll()
-        );
+        refetchScheduledQueries();
       })
       .catch(() => {
         dispatch(
@@ -379,11 +372,8 @@ const ManageSchedulePage = ({
                 `Successfully updated ${formData.name} in the schedule.`
               )
             );
-            dispatch(
-              selectedTeamId
-                ? teamScheduledQueryActions.loadAll(selectedTeamId)
-                : globalScheduledQueryActions.loadAll()
-            );
+            console.log("editQuery onAddScheduledQuerySubmit firing!!!");
+            refetchScheduledQueries();
           })
           .catch(() => {
             dispatch(
@@ -406,11 +396,8 @@ const ManageSchedulePage = ({
                 `Successfully added ${formData.name} to the schedule.`
               )
             );
-            dispatch(
-              selectedTeamId
-                ? teamScheduledQueryActions.loadAll(selectedTeamId)
-                : globalScheduledQueryActions.loadAll()
-            );
+            console.log("onAddScheduledQuerySubmit added query firing!!!");
+            refetchScheduledQueries();
           })
           .catch(() => {
             dispatch(
