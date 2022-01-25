@@ -41,3 +41,7 @@ export interface ITeamScheduledQuery {
   denylist?: boolean;
   stats?: IScheduledQueryStats;
 }
+
+export interface ILoadAllTeamScheduledQueriesResponse {
+  scheduled: ITeamScheduledQuery[];
+}
