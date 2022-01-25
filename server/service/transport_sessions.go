@@ -10,22 +10,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/sso"
 )
 
-func decodeGetInfoAboutSessionRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	id, err := uintFromRequest(r, "id")
-	if err != nil {
-		return nil, err
-	}
-	return getInfoAboutSessionRequest{ID: uint(id)}, nil
-}
-
-func decodeDeleteSessionRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	id, err := uintFromRequest(r, "id")
-	if err != nil {
-		return nil, err
-	}
-	return deleteSessionRequest{ID: uint(id)}, nil
-}
-
 func decodeLoginRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	var req loginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {

@@ -11,38 +11,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestDecodeGetInfoAboutSessionRequest(t *testing.T) {
-	router := mux.NewRouter()
-	router.HandleFunc("/api/v1/fleet/sessions/{id}", func(writer http.ResponseWriter, request *http.Request) {
-		r, err := decodeGetInfoAboutSessionRequest(context.Background(), request)
-		assert.Nil(t, err)
-
-		params := r.(getInfoAboutSessionRequest)
-		assert.Equal(t, uint(1), params.ID)
-	}).Methods("GET")
-
-	router.ServeHTTP(
-		httptest.NewRecorder(),
-		httptest.NewRequest("GET", "/api/v1/fleet/sessions/1", nil),
-	)
-}
-
-func TestDecodeDeleteSessionRequest(t *testing.T) {
-	router := mux.NewRouter()
-	router.HandleFunc("/api/v1/fleet/sessions/{id}", func(writer http.ResponseWriter, request *http.Request) {
-		r, err := decodeDeleteSessionRequest(context.Background(), request)
-		assert.Nil(t, err)
-
-		params := r.(deleteSessionRequest)
-		assert.Equal(t, uint(1), params.ID)
-	}).Methods("DELETE")
-
-	router.ServeHTTP(
-		httptest.NewRecorder(),
-		httptest.NewRequest("DELETE", "/api/v1/fleet/sessions/1", nil),
-	)
-}
-
 func TestDecodeLoginRequest(t *testing.T) {
 	router := mux.NewRouter()
 	router.HandleFunc("/api/v1/fleet/login", func(writer http.ResponseWriter, request *http.Request) {
