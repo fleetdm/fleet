@@ -22,58 +22,61 @@ func BenchmarkCalculateHostsPerSoftware(b *testing.B) {
 		{100, 100},
 		{1000, 100},
 		{10000, 100},
+		{10000, 1000},
 	}
 
-	b.Run("resetTruncate", func(b *testing.B) {
-		b.Run("singleSelectGroupByInsertOneAtTime", func(b *testing.B) {
-			for _, c := range cases {
-				b.Run(fmt.Sprintf("%d:%d", c.hs, c.sws), func(b *testing.B) {
-					ds := CreateMySQLDS(b)
-					generateHostsWithSoftware(b, ds, c.hs, c.sws)
-					b.ResetTimer()
+	/*
+		b.Run("resetTruncate", func(b *testing.B) {
+			b.Run("singleSelectGroupByInsertOneAtTime", func(b *testing.B) {
+				for _, c := range cases {
+					b.Run(fmt.Sprintf("%d:%d", c.hs, c.sws), func(b *testing.B) {
+						ds := CreateMySQLDS(b)
+						generateHostsWithSoftware(b, ds, c.hs, c.sws)
+						b.ResetTimer()
 
-					for i := 0; i < b.N; i++ {
-						resetTruncateTable(b, ds)
-						singleSelectGroupByInsertOneAtTime(b, ds, ts)
-					}
-					checkCounts(b, ds, c.hs, c.sws)
-				})
-			}
+						for i := 0; i < b.N; i++ {
+							resetTruncateTable(b, ds)
+							singleSelectGroupByInsertOneAtTime(b, ds, ts)
+						}
+						checkCounts(b, ds, c.hs, c.sws)
+					})
+				}
+			})
+
+			b.Run("singleSelectGroupByInsertBatch100", func(b *testing.B) {
+				for _, c := range cases {
+					b.Run(fmt.Sprintf("%d:%d", c.hs, c.sws), func(b *testing.B) {
+						ds := CreateMySQLDS(b)
+						generateHostsWithSoftware(b, ds, c.hs, c.sws)
+						b.ResetTimer()
+
+						for i := 0; i < b.N; i++ {
+							resetTruncateTable(b, ds)
+							singleSelectGroupByInsertBatch(b, ds, ts, 100)
+						}
+						checkCounts(b, ds, c.hs, c.sws)
+					})
+				}
+			})
 		})
-
-		b.Run("singleSelectGroupByInsertBatch100", func(b *testing.B) {
-			for _, c := range cases {
-				b.Run(fmt.Sprintf("%d:%d", c.hs, c.sws), func(b *testing.B) {
-					ds := CreateMySQLDS(b)
-					generateHostsWithSoftware(b, ds, c.hs, c.sws)
-					b.ResetTimer()
-
-					for i := 0; i < b.N; i++ {
-						resetTruncateTable(b, ds)
-						singleSelectGroupByInsertBatch(b, ds, ts, 100)
-					}
-					checkCounts(b, ds, c.hs, c.sws)
-				})
-			}
-		})
-	})
+	*/
 
 	b.Run("resetUpdate", func(b *testing.B) {
-		b.Run("singleSelectGroupByInsertOneAtTime", func(b *testing.B) {
-			for _, c := range cases {
-				b.Run(fmt.Sprintf("%d:%d", c.hs, c.sws), func(b *testing.B) {
-					ds := CreateMySQLDS(b)
-					generateHostsWithSoftware(b, ds, c.hs, c.sws)
-					b.ResetTimer()
+		//b.Run("singleSelectGroupByInsertOneAtTime", func(b *testing.B) {
+		//	for _, c := range cases {
+		//		b.Run(fmt.Sprintf("%d:%d", c.hs, c.sws), func(b *testing.B) {
+		//			ds := CreateMySQLDS(b)
+		//			generateHostsWithSoftware(b, ds, c.hs, c.sws)
+		//			b.ResetTimer()
 
-					for i := 0; i < b.N; i++ {
-						resetUpdateAllZero(b, ds)
-						singleSelectGroupByInsertOneAtTime(b, ds, ts)
-					}
-					checkCounts(b, ds, c.hs, c.sws)
-				})
-			}
-		})
+		//			for i := 0; i < b.N; i++ {
+		//				resetUpdateAllZero(b, ds)
+		//				singleSelectGroupByInsertOneAtTime(b, ds, ts)
+		//			}
+		//			checkCounts(b, ds, c.hs, c.sws)
+		//		})
+		//	}
+		//})
 
 		b.Run("singleSelectGroupByInsertBatch100", func(b *testing.B) {
 			for _, c := range cases {
@@ -87,6 +90,22 @@ func BenchmarkCalculateHostsPerSoftware(b *testing.B) {
 						singleSelectGroupByInsertBatch(b, ds, ts, 100)
 					}
 					checkCounts(b, ds, c.hs, c.sws)
+				})
+			}
+		})
+
+		b.Run("singleSelectGroupByInsertBatch100AggStats", func(b *testing.B) {
+			for _, c := range cases {
+				b.Run(fmt.Sprintf("%d:%d", c.hs, c.sws), func(b *testing.B) {
+					ds := CreateMySQLDS(b)
+					generateHostsWithSoftware(b, ds, c.hs, c.sws)
+					b.ResetTimer()
+
+					for i := 0; i < b.N; i++ {
+						resetUpdateAllZeroAgg(b, ds)
+						singleSelectGroupByInsertBatchAgg(b, ds, ts, 100)
+					}
+					checkCountsAgg(b, ds, c.hs, c.sws)
 				})
 			}
 		})
@@ -100,9 +119,22 @@ func checkCounts(b *testing.B, ds *Datastore, hs, sws int) {
 	err := ds.writer.GetContext(context.Background(), &rowsCount, rowsStmt)
 	require.NoError(b, err)
 	require.Equal(b, sws, rowsCount)
-	_ = invalidHostsCount
 
 	invalidStmt := `SELECT COUNT(*) FROM software_host_counts WHERE hosts_count != ?`
+	err = ds.writer.GetContext(context.Background(), &invalidHostsCount, invalidStmt, hs)
+	require.NoError(b, err)
+	require.Equal(b, 0, invalidHostsCount)
+}
+
+func checkCountsAgg(b *testing.B, ds *Datastore, hs, sws int) {
+	var rowsCount, invalidHostsCount int
+
+	rowsStmt := `SELECT COUNT(*) FROM aggregated_stats WHERE type = "software_hosts_count"`
+	err := ds.writer.GetContext(context.Background(), &rowsCount, rowsStmt)
+	require.NoError(b, err)
+	require.Equal(b, sws, rowsCount)
+
+	invalidStmt := `SELECT COUNT(*) FROM aggregated_stats WHERE type = "software_hosts_count" AND json_value != CAST(? AS json)`
 	err = ds.writer.GetContext(context.Background(), &invalidHostsCount, invalidStmt, hs)
 	require.NoError(b, err)
 	require.Equal(b, 0, invalidHostsCount)
@@ -177,6 +209,12 @@ func resetUpdateAllZero(b *testing.B, ds *Datastore) {
 	require.NoError(b, err)
 }
 
+func resetUpdateAllZeroAgg(b *testing.B, ds *Datastore) {
+	updateStmt := `UPDATE aggregated_stats SET json_value = CAST(0 AS json) WHERE type = "software_hosts_count"`
+	_, err := ds.writer.ExecContext(context.Background(), updateStmt)
+	require.NoError(b, err)
+}
+
 func singleSelectGroupByInsertOneAtTime(b *testing.B, ds *Datastore, updatedAt time.Time) {
 	queryStmt := `
     SELECT count(*), software_id
@@ -231,6 +269,54 @@ func singleSelectGroupByInsertBatch(b *testing.B, ds *Datastore, updatedAt time.
 
 	// use a loop to iterate to prevent loading all in one go in memory, as it
 	// could get pretty big at >100K hosts with 1000+ software each.
+	var batchCount int
+	args := make([]interface{}, 0, batchSize*3)
+	for rows.Next() {
+		var count int
+		var sid uint
+
+		require.NoError(b, rows.Scan(&count, &sid))
+		args = append(args, sid, count, updatedAt)
+		batchCount++
+
+		if batchCount == batchSize {
+			values := strings.TrimSuffix(strings.Repeat(valuesPart, batchCount), ",")
+			_, err := ds.writer.ExecContext(context.Background(), fmt.Sprintf(insertStmt, values), args...)
+			require.NoError(b, err)
+
+			args = args[:0]
+			batchCount = 0
+		}
+	}
+
+	if batchCount > 0 {
+		values := strings.TrimSuffix(strings.Repeat(valuesPart, batchCount), ",")
+		_, err := ds.writer.ExecContext(context.Background(), fmt.Sprintf(insertStmt, values), args...)
+		require.NoError(b, err)
+	}
+	require.NoError(b, rows.Err())
+}
+
+func singleSelectGroupByInsertBatchAgg(b *testing.B, ds *Datastore, updatedAt time.Time, batchSize int) {
+	queryStmt := `
+    SELECT count(*), software_id
+    FROM host_software
+    GROUP BY software_id`
+
+	insertStmt := `
+    INSERT INTO aggregated_stats
+      (id, type, json_value, updated_at)
+    VALUES
+      %s
+    ON DUPLICATE KEY UPDATE
+      json_value = VALUES(json_value),
+      updated_at = VALUES(updated_at)`
+	valuesPart := `(?, "software_hosts_count", CAST(? AS json), ?),`
+
+	rows, err := ds.reader.QueryContext(context.Background(), queryStmt)
+	require.NoError(b, err)
+	defer rows.Close()
+
 	var batchCount int
 	args := make([]interface{}, 0, batchSize*3)
 	for rows.Next() {
