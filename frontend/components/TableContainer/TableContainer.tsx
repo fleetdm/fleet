@@ -70,6 +70,7 @@ interface ITableContainerProps {
   customControl?: () => JSX.Element;
   onSelectSingleRow?: (value: Row) => void;
   renderCount?: () => JSX.Element;
+  filters?: Record<string, string | number | boolean>;
 }
 
 const baseClass = "table-container";
@@ -80,6 +81,7 @@ const DEFAULT_PAGE_INDEX = 0;
 const TableContainer = ({
   columns,
   data,
+  filters,
   isLoading,
   manualSortBy = false,
   defaultSortHeader = "name",
@@ -319,6 +321,7 @@ const TableContainer = ({
                 isLoading={isLoading}
                 columns={columns}
                 data={data}
+                filters={filters}
                 manualSortBy={manualSortBy}
                 sortHeader={sortHeader}
                 sortDirection={sortDirection}
