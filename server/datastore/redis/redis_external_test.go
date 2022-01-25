@@ -153,6 +153,7 @@ func TestBindConn(t *testing.T) {
 
 func TestPublishHasListeners(t *testing.T) {
 	const prefix = "TestPublishHasListeners:"
+	const defaultTimeout = 5 * time.Second
 
 	waitForSub := func(t *testing.T, psc redigo.PubSubConn, timeout time.Duration) {
 		start := time.Now()
@@ -184,7 +185,7 @@ func TestPublishHasListeners(t *testing.T) {
 
 		psc := redigo.PubSubConn{Conn: sconn}
 		require.NoError(t, psc.Subscribe(prefix+"a"))
-		waitForSub(t, psc, 2*time.Second)
+		waitForSub(t, psc, defaultTimeout)
 
 		ok, err = redis.PublishHasListeners(pool, pconn, prefix+"a", "B")
 		require.NoError(t, err)
@@ -193,7 +194,7 @@ func TestPublishHasListeners(t *testing.T) {
 		start := time.Now()
 		loopOk := false
 	loop:
-		for time.Since(start) < 2*time.Second {
+		for time.Since(start) < defaultTimeout {
 			msg := psc.ReceiveWithTimeout(time.Second)
 			switch msg := msg.(type) {
 			case redigo.Message:
@@ -221,7 +222,7 @@ func TestPublishHasListeners(t *testing.T) {
 		redis.BindConn(pool, sconn, "b")
 		psc := redigo.PubSubConn{Conn: sconn}
 		require.NoError(t, psc.Subscribe(prefix+"{a}"))
-		waitForSub(t, psc, 2*time.Second)
+		waitForSub(t, psc, defaultTimeout)
 
 		// a standard PUBLISH returns 0, because there are no subscribers *on this
 		// particular node*
@@ -243,7 +244,7 @@ func TestPublishHasListeners(t *testing.T) {
 		want := map[string]bool{"B": false, "C": false}
 		var loopOk bool
 	loop:
-		for time.Since(start) < 2*time.Second {
+		for time.Since(start) < defaultTimeout {
 			msg := psc.ReceiveWithTimeout(time.Second)
 			switch msg := msg.(type) {
 			case redigo.Message:
