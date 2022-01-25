@@ -25,75 +25,7 @@ func BenchmarkCalculateHostsPerSoftware(b *testing.B) {
 		{10_000, 1_000},
 	}
 
-	/*
-		b.Run("resetTruncate", func(b *testing.B) {
-			b.Run("singleSelectGroupByInsertOneAtTime", func(b *testing.B) {
-				for _, c := range cases {
-					b.Run(fmt.Sprintf("%d:%d", c.hs, c.sws), func(b *testing.B) {
-						ds := CreateMySQLDS(b)
-						generateHostsWithSoftware(b, ds, c.hs, c.sws)
-						b.ResetTimer()
-
-						for i := 0; i < b.N; i++ {
-							resetTruncateTable(b, ds)
-							singleSelectGroupByInsertOneAtTime(b, ds, ts)
-						}
-						checkCounts(b, ds, c.hs, c.sws)
-					})
-				}
-			})
-
-			b.Run("singleSelectGroupByInsertBatch100", func(b *testing.B) {
-				for _, c := range cases {
-					b.Run(fmt.Sprintf("%d:%d", c.hs, c.sws), func(b *testing.B) {
-						ds := CreateMySQLDS(b)
-						generateHostsWithSoftware(b, ds, c.hs, c.sws)
-						b.ResetTimer()
-
-						for i := 0; i < b.N; i++ {
-							resetTruncateTable(b, ds)
-							singleSelectGroupByInsertBatch(b, ds, ts, 100)
-						}
-						checkCounts(b, ds, c.hs, c.sws)
-					})
-				}
-			})
-		})
-	*/
-
 	b.Run("resetUpdate", func(b *testing.B) {
-		//b.Run("singleSelectGroupByInsertOneAtTime", func(b *testing.B) {
-		//	for _, c := range cases {
-		//		b.Run(fmt.Sprintf("%d:%d", c.hs, c.sws), func(b *testing.B) {
-		//			ds := CreateMySQLDS(b)
-		//			generateHostsWithSoftware(b, ds, c.hs, c.sws)
-		//			b.ResetTimer()
-
-		//			for i := 0; i < b.N; i++ {
-		//				resetUpdateAllZero(b, ds)
-		//				singleSelectGroupByInsertOneAtTime(b, ds, ts)
-		//			}
-		//			checkCounts(b, ds, c.hs, c.sws)
-		//		})
-		//	}
-		//})
-
-		//b.Run("singleSelectGroupByInsertBatch100", func(b *testing.B) {
-		//	for _, c := range cases {
-		//		b.Run(fmt.Sprintf("%d:%d", c.hs, c.sws), func(b *testing.B) {
-		//			ds := CreateMySQLDS(b)
-		//			generateHostsWithSoftware(b, ds, c.hs, c.sws)
-		//			b.ResetTimer()
-
-		//			for i := 0; i < b.N; i++ {
-		//				resetUpdateAllZero(b, ds)
-		//				singleSelectGroupByInsertBatch(b, ds, ts, 100)
-		//			}
-		//			checkCounts(b, ds, c.hs, c.sws)
-		//		})
-		//	}
-		//})
-
 		b.Run("singleSelectGroupByInsertBatch100AggStats", func(b *testing.B) {
 			for _, c := range cases {
 				b.Run(fmt.Sprintf("%d:%d", c.hs, c.sws), func(b *testing.B) {
