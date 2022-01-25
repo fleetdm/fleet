@@ -46,7 +46,7 @@ func (svc Service) ListSoftware(ctx context.Context, opt fleet.SoftwareListOptio
 
 	// default sort order to hosts_count descending
 	if opt.OrderKey == "" {
-		opt.OrderKey = "shc.hosts_count"
+		opt.OrderKey = "hosts_count"
 		opt.OrderDirection = fleet.OrderDescending
 	}
 	opt.WithHostCounts = true

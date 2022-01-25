@@ -478,12 +478,12 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 	})
 
 	t.Run("hosts count", func(t *testing.T) {
-		defer TruncateTables(t, ds, "software_host_counts")
+		defer TruncateTables(t, ds, "aggregated_stats")
 		listSoftwareCheckCount(t, ds, 0, 0, fleet.SoftwareListOptions{WithHostCounts: true}, false)
 
 		// create the counts for those software and re-run
 		require.NoError(t, ds.CalculateHostsPerSoftware(context.Background(), time.Now()))
-		software := listSoftwareCheckCount(t, ds, 4, 4, fleet.SoftwareListOptions{ListOptions: fleet.ListOptions{OrderKey: "shc.hosts_count", OrderDirection: fleet.OrderDescending}, WithHostCounts: true}, false)
+		software := listSoftwareCheckCount(t, ds, 4, 4, fleet.SoftwareListOptions{ListOptions: fleet.ListOptions{OrderKey: "hosts_count", OrderDirection: fleet.OrderDescending}, WithHostCounts: true}, false)
 		// ordered by counts descending, so foo003 is first
 		assert.Equal(t, foo003.Name, software[0].Name)
 		assert.Equal(t, 2, software[0].HostsCount)

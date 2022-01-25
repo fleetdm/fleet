@@ -220,6 +220,7 @@ func listSoftwareDB(
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "sql build")
 	}
+	fmt.Println(">>>>>>>> SQL: \n\n", sql, "\n\n<<")
 
 	var result []fleet.Software
 	if err := sqlx.SelectContext(ctx, q, &result, sql, args...); err != nil {
@@ -309,11 +310,15 @@ func selectSoftwareSQL(hostID *uint, opts fleet.SoftwareListOptions) (string, []
 
 	if opts.WithHostCounts {
 		ds = ds.Join(
-			goqu.I("software_host_counts").As("shc"),
+			goqu.I("aggregated_stats").As("shc"),
 			goqu.On(
-				goqu.I("s.id").Eq(goqu.I("shc.software_id")),
+				goqu.I("s.id").Eq(goqu.I("shc.id")),
 			),
-		).Where(goqu.I("shc.hosts_count").Gt(0)).SelectAppend("shc.hosts_count", goqu.I("shc.updated_at").As("counts_updated_at"))
+		).Where(goqu.I("shc.type").Eq("software_hosts_count"), goqu.I("shc.json_value").Gt(0)).
+			SelectAppend(
+				goqu.I("shc.json_value").As("hosts_count"),
+				goqu.I("shc.updated_at").As("counts_updated_at"),
+			)
 	}
 
 	return ds.ToSQL()
@@ -531,7 +536,7 @@ func (d *Datastore) SoftwareByID(ctx context.Context, id uint) (*fleet.Software,
 }
 
 // CalculateHostsPerSoftware calculates the number of hosts having each
-// software installed and stores that information in the software_host_counts
+// software installed and stores that information in the aggregated_stats
 // table.
 func (d *Datastore) CalculateHostsPerSoftware(ctx context.Context, updatedAt time.Time) error {
 	// NOTE(mna): for reference, on my laptop I get ~1.5ms for 10_000 hosts / 100 software each,
