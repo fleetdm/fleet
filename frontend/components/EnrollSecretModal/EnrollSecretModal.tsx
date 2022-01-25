@@ -6,7 +6,7 @@ import EnrollSecretTable from "components/EnrollSecretTable";
 import { ITeam } from "interfaces/team";
 import { IEnrollSecret } from "interfaces/enroll_secret";
 
-import PlusIcon from "../../../../../../assets/images/icon-plus-16x16@2x.png";
+import PlusIcon from "../../../assets/images/icon-plus-16x16@2x.png";
 
 interface IEnrollSecretModal {
   selectedTeam: number;
@@ -17,7 +17,7 @@ interface IEnrollSecretModal {
   setSelectedSecret: React.Dispatch<
     React.SetStateAction<IEnrollSecret | undefined>
   >;
-  globalSecrets: IEnrollSecret[] | undefined;
+  globalSecrets?: IEnrollSecret[] | undefined;
 }
 
 const baseClass = "enroll-secret-modal";

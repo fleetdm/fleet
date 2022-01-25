@@ -18,10 +18,10 @@ import Button from "components/buttons/Button";
 import InputField from "components/forms/fields/InputField";
 import TabsWrapper from "components/TabsWrapper";
 
-import { isValidPemCertificate } from "../../../helpers";
+import { isValidPemCertificate } from "../../../pages/hosts/ManageHostsPage/helpers";
 
-import CopyIcon from "../../../../../../../assets/images/icon-copy-clipboard-fleet-blue-20x20@2x.png";
-import DownloadIcon from "../../../../../../../assets/images/icon-download-12x12@2x.png";
+import CopyIcon from "../../../../assets/images/icon-copy-clipboard-fleet-blue-20x20@2x.png";
+import DownloadIcon from "../../../../assets/images/icon-download-12x12@2x.png";
 
 interface IPlatformSubNav {
   name: string;
