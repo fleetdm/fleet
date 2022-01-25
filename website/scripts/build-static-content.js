@@ -34,12 +34,10 @@ module.exports = {
           let query = yamlDocument.toJSON().spec;
           query.kind = yamlDocument.toJSON().kind;
           query.slug = _.kebabCase(query.name);// « unique slug to use for routing to this query's detail page
-          if (false) {
-          // if ((query.resolution !== undefined && !_.isString(query.resolution)) || (query.kind !== 'policy' && _.isString(query.resolution))) { TODO: maybe bring this back later
+          if ((query.resolution !== undefined && !_.isString(query.resolution)) || (query.kind !== 'policy' && _.isString(query.resolution))) {
             // console.log(typeof query.resolution);
             queriesWithProblematicResolutions.push(query);
-          // } else if (query.resolution === undefined) {
-          } else { // « For now set resolution to N/A for all queries until we reinstate checks that are commented out above.  TODO: finish that
+          } else if (query.resolution === undefined) {
             query.resolution = 'N/A';// « We set this to a string here so that the data type is always string.  We use N/A so folks can see there's no remediation and contribute if desired.
           }
 

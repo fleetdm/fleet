@@ -633,3 +633,37 @@ spec:
   query: SELECT * FROM apps WHERE path LIKE '/Applications/%' AND name IN ("Photoshop.app", "Adobe XD.app", "Sketch.app", "Illustrator.app") AND last_opened_time < (( SELECT unix_time FROM time ) - 2592000000000 );
   purpose: Informational
   contributors: DominusKelvin
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: Is Gatekeeper enabled on macOS devices?
+  query: SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;
+  description: Checks to make sure that the Gatekeeper feature is enabled on macOS devices. Gatekeeper tries to ensure only trusted software is run on a mac machine.
+  resolution: "To enable Gatekeeper, on the failing device, run the following command in the Terminal app: /usr/sbin/spctl --master-enable."
+  platforms: macOS
+  contributors: groob
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: Is disk encryption enabled on Windows devices?
+  query: SELECT 1 FROM bitlocker_info where protection_status = 1;
+  description: Checks to make sure that device encryption is enabled on Windows devices.
+  resolution: "To get additional information, run the following osquery query on the failing device: SELECT * FROM bitlocker_info. In the
+  query results, if protection_status is 2, then the status cannot be determined. If it is 0, it is
+  considered unprotected. Use the additional results (percent_encrypted, conversion_status, etc.) to
+  help narrow down the specific reason why Windows considers the volume unprotected."
+  platforms: Windows
+  contributors: defensivedepth
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: Is FileVault enabled on macOS devices?
+  query: SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT "" AND filevault_status = 'on' LIMIT 1;
+  description: Checks to make sure that the Filevault feature is enabled on macOS devices.
+  resolution: "To enable FileVault, on the failing device, select System Preferences >
+  Security & Privacy > FileVault > Turn On FileVault."
+  platforms: macOS
+  contributors: groob
