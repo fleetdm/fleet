@@ -435,9 +435,7 @@ func getInfoAboutSessionsForUserEndpoint(ctx context.Context, request interface{
 }
 
 func (svc *Service) GetInfoAboutSessionsForUser(ctx context.Context, id uint) ([]*fleet.Session, error) {
-	// TODO(mna): should that be ActionRead? It does update the session's access
-	// time, but the same-ish access in GetInfoAboutSession is an ActionRead.
-	if err := svc.authz.Authorize(ctx, &fleet.Session{UserID: id}, fleet.ActionWrite); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.Session{UserID: id}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 

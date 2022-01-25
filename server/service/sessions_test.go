@@ -75,7 +75,7 @@ func TestSessionAuth(t *testing.T) {
 			ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: tt.user})
 
 			_, err := svc.GetInfoAboutSessionsForUser(ctx, 999)
-			checkAuthErr(t, tt.shouldFailWrite, err)
+			checkAuthErr(t, tt.shouldFailRead, err)
 
 			_, err = svc.GetInfoAboutSession(ctx, 1)
 			checkAuthErr(t, tt.shouldFailRead, err)
