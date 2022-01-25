@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/rs/zerolog/log"
-	"github.com/theupdateframework/go-tuf/data"
 )
 
 // RunnerOptions is options provided for the update runner.
@@ -42,7 +41,7 @@ func NewRunner(client *Updater, opt RunnerOptions) (*Runner, error) {
 	// Initialize the hashes of the local files for all tracked targets.
 	//
 	// This is an optimization to not compute the hash of the local files every opt.CheckInterval
-	// (knowing that they will never change during the execution of the runner).
+	// (knowing that they are not expected to change during the execution of the runner).
 	localHashes := make(map[string][]byte)
 	for target, channel := range opt.Targets {
 		meta, err := client.Lookup(target, channel)
@@ -50,12 +49,12 @@ func NewRunner(client *Updater, opt RunnerOptions) (*Runner, error) {
 			return nil, fmt.Errorf("initialize update cache: %w", err)
 		}
 		localPath := client.LocalPath(target, channel)
-		localHash, _, err := fileHashes(meta, localPath)
+		_, localHash, err := fileHashes(meta, localPath)
 		if err != nil {
 			return nil, fmt.Errorf("%s file hash: %w", target, err)
 		}
 		localHashes[target] = localHash
-		log.Info().Msgf("hash(%s)=%s", target, data.HexBytes(localHash))
+		log.Info().Msgf("hash(%s)=%x", target, localHash)
 	}
 
 	return &Runner{

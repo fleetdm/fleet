@@ -14,17 +14,17 @@ import (
 
 // checkFileHash checks the file at the local path against the provided hash functions.
 func checkFileHash(meta *data.TargetFileMeta, localPath string) error {
-	localHash, metaHash, err := fileHashes(meta, localPath)
+	metaHash, localHash, err := fileHashes(meta, localPath)
 	if err != nil {
 		return fmt.Errorf("failed to calculate local file hash: %s", err)
 	}
 	if !bytes.Equal(localHash, metaHash) {
-		return fmt.Errorf("hash %s does not match expected: %s", data.HexBytes(localHash), data.HexBytes(metaHash))
+		return fmt.Errorf("hash %x does not match expected: %x", localHash, metaHash)
 	}
 	return nil
 }
 
-func fileHashes(meta *data.TargetFileMeta, localPath string) (localHash []byte, metaHash []byte, err error) {
+func fileHashes(meta *data.TargetFileMeta, localPath string) (metaHash []byte, localHash []byte, err error) {
 	hashFn, metaHash, err := selectHashFunction(meta)
 	if err != nil {
 		return nil, nil, err
@@ -39,14 +39,13 @@ func fileHashes(meta *data.TargetFileMeta, localPath string) (localHash []byte, 
 	if _, err := io.Copy(hashFn, f); err != nil {
 		return nil, nil, fmt.Errorf("read file for hash: %w", err)
 	}
-	return hashFn.Sum(nil), metaHash, nil
+	return metaHash, hashFn.Sum(nil), nil
 }
 
 // selectHashFunction returns the first matching hash function and expected
 // hash, otherwise returning an error if no matching hash can be found.
 //
 // SHA512 is preferred, and SHA256 is returned if 512 is not available.
-
 func selectHashFunction(meta *data.TargetFileMeta) (hash.Hash, []byte, error) {
 	for hashName, hashVal := range meta.Hashes {
 		if hashName == "sha512" {
