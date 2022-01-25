@@ -220,7 +220,6 @@ func listSoftwareDB(
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "sql build")
 	}
-	fmt.Println(">>>>>>>> SQL: \n\n", sql, "\n\n<<")
 
 	var result []fleet.Software
 	if err := sqlx.SelectContext(ctx, q, &result, sql, args...); err != nil {
