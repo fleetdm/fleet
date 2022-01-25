@@ -475,29 +475,26 @@ const TeamDetailsWrapper = ({
           </TabList>
         </Tabs>
       </TabsWrapper>
-      {showGenerateInstallerModal ? (
-        <AddHostsRedirectModal
+      {showGenerateInstallerModal && (
+        <GenerateInstallerModal
           onCancel={toggleGenerateInstallerModal}
-          onSubmit={onAddHostsRedirectClick}
+          selectedTeam={{
+            name: team.name,
+            secrets: teamSecrets || null,
+          }}
         />
-      ) : null}
-      {showManageEnrollSecretsModal ? (
-        <Modal
-          title="Enroll secret"
-          onExit={toggleManageEnrollSecretsModal}
-          className={`${baseClass}__enroll-secret-modal`}
-        >
-          <EnrollSecretModal
-            selectedTeam={routeParams.team_id}
-            teams={teams || []}
-            onReturnToApp={toggleManageEnrollSecretsModal}
-            toggleSecretEditorModal={toggleSecretEditorModal}
-            toggleDeleteSecretModal={toggleDeleteSecretModal}
-            setSelectedSecret={setSelectedSecret}
-          />
-        </Modal>
-      ) : null}
-      {showSecretEditorModal ? (
+      )}
+      {showManageEnrollSecretsModal && (
+        <EnrollSecretModal
+          selectedTeam={routeParams.team_id}
+          teams={teams || []}
+          onReturnToApp={toggleManageEnrollSecretsModal}
+          toggleSecretEditorModal={toggleSecretEditorModal}
+          toggleDeleteSecretModal={toggleDeleteSecretModal}
+          setSelectedSecret={setSelectedSecret}
+        />
+      )}
+      {showSecretEditorModal && (
         <SecretEditorModal
           selectedTeam={routeParams.team_id}
           teams={teams || []}
@@ -505,29 +502,29 @@ const TeamDetailsWrapper = ({
           toggleSecretEditorModal={toggleSecretEditorModal}
           selectedSecret={selectedSecret}
         />
-      ) : null}
-      {showDeleteSecretModal ? (
+      )}
+      {showDeleteSecretModal && (
         <DeleteSecretModal
           onDeleteSecret={onDeleteSecret}
           selectedTeam={routeParams.team_id}
           teams={teams || []}
           toggleDeleteSecretModal={toggleDeleteSecretModal}
         />
-      ) : null}
-      {showDeleteTeamModal ? (
+      )}
+      {showDeleteTeamModal && (
         <DeleteTeamModal
           onCancel={toggleDeleteTeamModal}
           onSubmit={onDeleteSubmit}
           name={team.name}
         />
-      ) : null}
-      {showEditTeamModal ? (
+      )}
+      {showEditTeamModal && (
         <EditTeamModal
           onCancel={toggleEditTeamModal}
           onSubmit={onEditSubmit}
           defaultName={team.name}
         />
-      ) : null}
+      )}
       {children}
     </div>
   );
