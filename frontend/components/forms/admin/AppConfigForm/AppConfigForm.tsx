@@ -18,6 +18,9 @@ import InputField from "components/forms/fields/InputField";
 import OrgLogoIcon from "components/icons/OrgLogoIcon";
 // @ts-ignore
 import validateYaml from "components/forms/validators/validate_yaml";
+import validEmail from "components/forms/validators/valid_email";
+import validUrl from "components/forms/validators/valid_url";
+
 import IconToolTip from "components/IconToolTip";
 import InfoBanner from "components/InfoBanner/InfoBanner";
 // @ts-ignore
@@ -160,14 +163,27 @@ const AppConfigFormFunctional = ({
       errors.org_name = "Organization name must be present";
     }
 
+    if (orgLogoURL && !validUrl(orgLogoURL)) {
+      errors.org_logo_url = `${orgLogoURL} is not a valid URL`;
+    }
+
     if (!serverURL) {
       errors.server_url = "Fleet server URL must be present";
     }
 
     if (enableSSO) {
-      if (metadata === "" && metadataURL === "") {
-        errors.metadata_url = "Metadata URL must be present";
+      if (idpImageURL && !validUrl(idpImageURL)) {
+        errors.idp_image_url = `${idpImageURL} is not a valid URL`;
       }
+
+      if (metadata === "") {
+        if (metadataURL === "") {
+          errors.metadata_url = "Metadata URL must be present";
+        } else if (!validUrl(metadataURL)) {
+          errors.metadata_url = `${metadataURL} is not a valid URL`;
+        }
+      }
+
       if (!entityID) {
         errors.entity_id = "Entity ID must be present";
       }
@@ -179,7 +195,10 @@ const AppConfigFormFunctional = ({
     if (enableSMTP) {
       if (!smtpSenderAddress) {
         errors.sender_address = "SMTP sender address must be present";
+      } else if (!validEmail(smtpSenderAddress)) {
+        errors.sender_address = `${smtpSenderAddress} is not a valid email`;
       }
+
       if (!smtpServer) {
         errors.server = "SMTP server must be present";
       }
@@ -204,6 +223,11 @@ const AppConfigFormFunctional = ({
     if (enableHostStatusWebhook) {
       if (!hostStatusWebhookDestinationURL) {
         errors.destination_url = "Destination URL must be present";
+      } else if (
+        hostStatusWebhookDestinationURL &&
+        !validUrl(hostStatusWebhookDestinationURL)
+      ) {
+        errors.destination_url = `${hostStatusWebhookDestinationURL} is not a valid URL`;
       }
     }
 
@@ -328,6 +352,8 @@ const AppConfigFormFunctional = ({
             name="orgLogoURL"
             value={orgLogoURL}
             parseTarget
+            onBlur={validateForm}
+            error={formErrors.org_logo_url}
           />
         </div>
         <div className={`${baseClass}__details ${baseClass}__avatar-preview`}>
@@ -447,6 +473,8 @@ const AppConfigFormFunctional = ({
             name="idpImageURL"
             value={idpImageURL}
             parseTarget
+            onBlur={validateForm}
+            error={formErrors.idp_image_url}
           />
         </div>
         <div className={`${baseClass}__details`}>
