@@ -534,25 +534,37 @@ func (d *Datastore) SoftwareByID(ctx context.Context, id uint) (*fleet.Software,
 // software installed and stores that information in the software_host_counts
 // table.
 func (d *Datastore) CalculateHostsPerSoftware(ctx context.Context, updatedAt time.Time) error {
-	// TODO(mna): are we concerned that this could have performance issues? Also, should
-	// it just truncate the software_host_counts before inserting, or just update all rows
-	// counts to 0, so that any software not in host_software is reset to 0? And should
-	// it remove from software the unused ids? There's a TODO elsewhere in this file to
-	// cleanup orphan software entries.
+	// NOTE(mna): for reference, on my laptop I get ~1.5ms for 10_000 hosts / 100 software each,
+	// ~1.5s for 10_000 hosts / 1_000 software each (but this is with an otherwise empty
+	// aggregated_stats table, but still reasonable numbers give that this runs as a cron
+	// task in the background).
+
+	resetStmt := `
+    UPDATE aggregated_stats
+    SET json_value = CAST(0 AS json)
+    WHERE type = "software_hosts_count"`
+
 	queryStmt := `
     SELECT count(*), software_id
     FROM host_software
     GROUP BY software_id`
 
 	insertStmt := `
-    INSERT INTO software_host_counts
-      (software_id, hosts_count, updated_at)
+    INSERT INTO aggregated_stats
+      (id, type, json_value, updated_at)
     VALUES
-      (?, ?, ?)
+      %s
     ON DUPLICATE KEY UPDATE
-      hosts_count = VALUES(hosts_count),
+      json_value = VALUES(json_value),
       updated_at = VALUES(updated_at)`
+	valuesPart := `(?, "software_hosts_count", CAST(? AS json), ?),`
 
+	// first, reset all counts to 0
+	if _, err := d.writer.ExecContext(ctx, resetStmt); err != nil {
+		return ctxerr.Wrap(ctx, err, "reset all software_hosts_count to 0 in aggregated_stats")
+	}
+
+	// next get a cursor for the counts for each software
 	rows, err := d.reader.QueryContext(ctx, queryStmt)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "read counts from host_software")
@@ -561,6 +573,9 @@ func (d *Datastore) CalculateHostsPerSoftware(ctx context.Context, updatedAt tim
 
 	// use a loop to iterate to prevent loading all in one go in memory, as it
 	// could get pretty big at >100K hosts with 1000+ software each.
+	const batchSize = 100
+	var batchCount int
+	args := make([]interface{}, 0, batchSize*3)
 	for rows.Next() {
 		var count int
 		var sid uint
@@ -568,8 +583,24 @@ func (d *Datastore) CalculateHostsPerSoftware(ctx context.Context, updatedAt tim
 		if err := rows.Scan(&count, &sid); err != nil {
 			return ctxerr.Wrap(ctx, err, "scan row into variables")
 		}
-		if _, err := d.writer.ExecContext(ctx, insertStmt, sid, count, updatedAt); err != nil {
-			return ctxerr.Wrap(ctx, err, "insert into software_host_counts")
+
+		args = append(args, sid, count, updatedAt)
+		batchCount++
+
+		if batchCount == batchSize {
+			values := strings.TrimSuffix(strings.Repeat(valuesPart, batchCount), ",")
+			if _, err := d.writer.ExecContext(ctx, fmt.Sprintf(insertStmt, values), args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "insert batch into aggregated_stats")
+			}
+
+			args = args[:0]
+			batchCount = 0
+		}
+	}
+	if batchCount > 0 {
+		values := strings.TrimSuffix(strings.Repeat(valuesPart, batchCount), ",")
+		if _, err := d.writer.ExecContext(ctx, fmt.Sprintf(insertStmt, values), args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "insert batch into aggregated_stats")
 		}
 	}
 	if err := rows.Err(); err != nil {

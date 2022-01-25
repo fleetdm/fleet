@@ -20,9 +20,9 @@ func BenchmarkCalculateHostsPerSoftware(b *testing.B) {
 		{1, 1},
 		{10, 10},
 		{100, 100},
-		{1000, 100},
-		{10000, 100},
-		{10000, 1000},
+		{1_000, 100},
+		{10_000, 100},
+		{10_000, 1_000},
 	}
 
 	/*
@@ -112,20 +112,6 @@ func BenchmarkCalculateHostsPerSoftware(b *testing.B) {
 	})
 }
 
-func checkCounts(b *testing.B, ds *Datastore, hs, sws int) {
-	var rowsCount, invalidHostsCount int
-
-	rowsStmt := `SELECT COUNT(*) FROM software_host_counts`
-	err := ds.writer.GetContext(context.Background(), &rowsCount, rowsStmt)
-	require.NoError(b, err)
-	require.Equal(b, sws, rowsCount)
-
-	invalidStmt := `SELECT COUNT(*) FROM software_host_counts WHERE hosts_count != ?`
-	err = ds.writer.GetContext(context.Background(), &invalidHostsCount, invalidStmt, hs)
-	require.NoError(b, err)
-	require.Equal(b, 0, invalidHostsCount)
-}
-
 func checkCountsAgg(b *testing.B, ds *Datastore, hs, sws int) {
 	var rowsCount, invalidHostsCount int
 
@@ -197,104 +183,10 @@ func generateHostsWithSoftware(b *testing.B, ds *Datastore, hs, sws int) {
 	require.NoError(b, err)
 }
 
-func resetTruncateTable(b *testing.B, ds *Datastore) {
-	truncStmt := `TRUNCATE TABLE software_host_counts`
-	_, err := ds.writer.ExecContext(context.Background(), truncStmt)
-	require.NoError(b, err)
-}
-
-func resetUpdateAllZero(b *testing.B, ds *Datastore) {
-	updateStmt := `UPDATE software_host_counts SET hosts_count = 0`
-	_, err := ds.writer.ExecContext(context.Background(), updateStmt)
-	require.NoError(b, err)
-}
-
 func resetUpdateAllZeroAgg(b *testing.B, ds *Datastore) {
 	updateStmt := `UPDATE aggregated_stats SET json_value = CAST(0 AS json) WHERE type = "software_hosts_count"`
 	_, err := ds.writer.ExecContext(context.Background(), updateStmt)
 	require.NoError(b, err)
-}
-
-func singleSelectGroupByInsertOneAtTime(b *testing.B, ds *Datastore, updatedAt time.Time) {
-	queryStmt := `
-    SELECT count(*), software_id
-    FROM host_software
-    GROUP BY software_id`
-
-	insertStmt := `
-    INSERT INTO software_host_counts
-      (software_id, hosts_count, updated_at)
-    VALUES
-      (?, ?, ?)
-    ON DUPLICATE KEY UPDATE
-      hosts_count = VALUES(hosts_count),
-      updated_at = VALUES(updated_at)`
-
-	rows, err := ds.reader.QueryContext(context.Background(), queryStmt)
-	require.NoError(b, err)
-	defer rows.Close()
-
-	// use a loop to iterate to prevent loading all in one go in memory, as it
-	// could get pretty big at >100K hosts with 1000+ software each.
-	for rows.Next() {
-		var count int
-		var sid uint
-
-		require.NoError(b, rows.Scan(&count, &sid))
-		_, err := ds.writer.ExecContext(context.Background(), insertStmt, sid, count, updatedAt)
-		require.NoError(b, err)
-	}
-	require.NoError(b, rows.Err())
-}
-
-func singleSelectGroupByInsertBatch(b *testing.B, ds *Datastore, updatedAt time.Time, batchSize int) {
-	queryStmt := `
-    SELECT count(*), software_id
-    FROM host_software
-    GROUP BY software_id`
-
-	insertStmt := `
-    INSERT INTO software_host_counts
-      (software_id, hosts_count, updated_at)
-    VALUES
-      %s
-    ON DUPLICATE KEY UPDATE
-      hosts_count = VALUES(hosts_count),
-      updated_at = VALUES(updated_at)`
-	valuesPart := `(?, ?, ?),`
-
-	rows, err := ds.reader.QueryContext(context.Background(), queryStmt)
-	require.NoError(b, err)
-	defer rows.Close()
-
-	// use a loop to iterate to prevent loading all in one go in memory, as it
-	// could get pretty big at >100K hosts with 1000+ software each.
-	var batchCount int
-	args := make([]interface{}, 0, batchSize*3)
-	for rows.Next() {
-		var count int
-		var sid uint
-
-		require.NoError(b, rows.Scan(&count, &sid))
-		args = append(args, sid, count, updatedAt)
-		batchCount++
-
-		if batchCount == batchSize {
-			values := strings.TrimSuffix(strings.Repeat(valuesPart, batchCount), ",")
-			_, err := ds.writer.ExecContext(context.Background(), fmt.Sprintf(insertStmt, values), args...)
-			require.NoError(b, err)
-
-			args = args[:0]
-			batchCount = 0
-		}
-	}
-
-	if batchCount > 0 {
-		values := strings.TrimSuffix(strings.Repeat(valuesPart, batchCount), ",")
-		_, err := ds.writer.ExecContext(context.Background(), fmt.Sprintf(insertStmt, values), args...)
-		require.NoError(b, err)
-	}
-	require.NoError(b, rows.Err())
 }
 
 func singleSelectGroupByInsertBatchAgg(b *testing.B, ds *Datastore, updatedAt time.Time, batchSize int) {
