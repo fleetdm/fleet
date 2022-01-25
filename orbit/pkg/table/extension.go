@@ -87,15 +87,28 @@ func (r *Runner) Interrupt(err error) {
 }
 
 // waitExtensionSocket waits until the osquery extension manager socket is ready.
+// First, it waits for the unix socket/Windows pipe to be available.
+// Then, it tries connecting as a client and sending a ping to ensure that osquery
+// is ready for extensions.
 //
-// We can't rely on osquery-go's option.ServerTimeout. Such timeout is used both for waiting
-// for the socket and for the thrift transport.
+// This method is a workaround for https://github.com/osquery/osquery-go/issues/80.
 func waitExtensionSocket(sockPath string, timeout time.Duration) error {
-	ticker := time.NewTicker(200 * time.Millisecond)
-	defer ticker.Stop()
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
-FOR_LOOP:
+
+	if err := waitSocketExists(ctx, sockPath); err != nil {
+		return err
+	}
+	if err := waitSocketReady(ctx, sockPath); err != nil {
+		return err
+	}
+	return nil
+}
+
+func waitSocketExists(ctx context.Context, sockPath string) error {
+	ticker := time.NewTicker(200 * time.Millisecond)
+	defer ticker.Stop()
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -103,7 +116,7 @@ FOR_LOOP:
 		case <-ticker.C:
 			switch _, err := os.Stat(sockPath); {
 			case err == nil:
-				break FOR_LOOP
+				return nil
 			case os.IsNotExist(err):
 				continue
 			default:
@@ -111,28 +124,37 @@ FOR_LOOP:
 			}
 		}
 	}
+}
 
+func waitSocketReady(ctx context.Context, sockPath string) error {
 	serverClient, err := osquery.NewClient(sockPath, 3*time.Second)
 	if err != nil {
 		return err
 	}
 	defer serverClient.Close()
 
+	ticker := time.NewTicker(200 * time.Millisecond)
+	defer ticker.Stop()
+
 	for {
-		status, err := serverClient.Ping()
-		if err == nil && status.Code == 0 {
-			log.Debug().Msg("extension manager checked")
-			return nil
-		}
-		log.Debug().Msgf(
-			"extension socket ping failed: {code: %d, message: %s, err: %s}, retrying...",
-			status.Code, status.Message, err,
-		)
 		select {
 		case <-ctx.Done():
 			return errors.New("extension socket ping timeout")
 		case <-ticker.C:
-			// OK
+			status, err := serverClient.Ping()
+			if err != nil {
+				log.Debug().Err(err).Msgf(
+					"failed to ping extension socket, retrying...",
+				)
+				continue
+			}
+			if status.Code == 0 {
+				log.Debug().Msg("extension manager checked")
+				return nil
+			}
+			log.Debug().Int32("status_code", status.Code).Str("status_message", status.Message).Msgf(
+				"extension socket not ready, retrying...",
+			)
 		}
 	}
 }
