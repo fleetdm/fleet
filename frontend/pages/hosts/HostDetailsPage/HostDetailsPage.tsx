@@ -3,6 +3,7 @@ import { useDispatch } from "react-redux";
 import { Link } from "react-router";
 import { Params } from "react-router/lib/Router";
 import { useQuery } from "react-query";
+import { useErrorHandler } from "react-error-boundary";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 
 import classnames from "classnames";
@@ -130,6 +131,7 @@ const HostDetailsPage = ({
     setLastEditedQueryResolution,
     setPolicyTeamId,
   } = useContext(PolicyContext);
+  const handlePageError = useErrorHandler();
   const canTransferTeam =
     isPremiumTier && (isGlobalAdmin || isGlobalMaintainer);
 
@@ -310,17 +312,7 @@ const HostDetailsPage = ({
           setScheduleState(packStatsByType.schedule);
         }
       },
-      onError: (error) => {
-        console.log(error);
-
-        if (error.message && error.message === "Resource Not Found") {
-          router.push("/404");
-        } else {
-          dispatch(
-            renderFlash("error", `Unable to load host. Please try again.`)
-          );
-        }
-      },
+      onError: (error) => handlePageError(error),
     }
   );
 

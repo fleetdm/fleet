@@ -1,16 +1,18 @@
 import React, { useState, useEffect, useCallback, useContext } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { useQuery } from "react-query";
+import { useErrorHandler } from "react-error-boundary";
 import { InjectedRouter, Link, RouteProps } from "react-router";
 import { push } from "react-router-redux";
 import { Tab, TabList, Tabs } from "react-tabs";
 import { find, memoize, toNumber } from "lodash";
 import classnames from "classnames";
 
+import teamsAPI from "services/entities/teams";
 import PATHS from "router/paths";
 import { ITeam } from "interfaces/team";
 import { IUser } from "interfaces/user";
 import { AppContext } from "context/app";
-// ignore TS error for now until these are rewritten in ts.
 // @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions";
 import teamActions from "redux/nodes/entities/teams/actions";
@@ -61,13 +63,17 @@ interface IRootState {
 interface ITeamDetailsPageProps {
   children: JSX.Element;
   params: {
-    team_id: number;
+    team_id: string;
   };
   location: {
     pathname: string;
   };
   route: RouteProps;
   router: InjectedRouter;
+}
+
+interface ITeamsResponse {
+  teams: ITeam[];
 }
 
 const getTeams = (data: { [id: string]: ITeam }) => {
@@ -103,24 +109,16 @@ const TeamDetailsWrapper = ({
   location: { pathname },
   params: routeParams,
 }: ITeamDetailsPageProps): JSX.Element => {
+  const teamIdFromURL = parseInt(routeParams.team_id, 10);
   const { isGlobalAdmin, isOnGlobalTeam, setCurrentTeam } = useContext(
     AppContext
   );
-
-  const isLoadingTeams = useSelector(
-    (state: IRootState) => state.entities.teams.loading
-  );
-  const team = useSelector((state: IRootState) => {
-    return state.entities.teams.data[routeParams.team_id];
-  });
-  const teams = useSelector((state: IRootState) => {
-    return memoizedGetTeams(state.entities.teams.data);
-  });
   const userTeams = useSelector((state: IRootState) => {
     return state.auth.user.teams;
   });
   const routeTemplate = route && route.path ? route.path : "";
 
+  const [selectedTeam, setSelectedTeam] = useState<ITeam | undefined>();
   const [showAddHostsRedirectModal, setShowAddHostsRedirectModal] = useState(
     false
   );
@@ -128,21 +126,34 @@ const TeamDetailsWrapper = ({
   const [showEditTeamModal, setShowEditTeamModal] = useState(false);
 
   const dispatch = useDispatch();
+  const handlePageError = useErrorHandler();
+
+  const { isLoading: isLoadingTeams, data: teams } = useQuery<
+    ITeamsResponse,
+    Error,
+    ITeam[]
+  >(["teams"], () => teamsAPI.loadAll(), {
+    select: (data: ITeamsResponse) => data.teams,
+    onSuccess: (data) => {
+      const selected = data.find((team) => team.id === teamIdFromURL);
+
+      if (selected) {
+        setSelectedTeam(selected);
+      } else {
+        handlePageError({ status: 404 });
+      }
+    },
+    onError: (error) => handlePageError(error),
+  });
 
   const navigateToNav = (i: number): void => {
-    const navPath = teamDetailsSubNav[i].getPathname(routeParams.team_id);
+    const navPath = teamDetailsSubNav[i].getPathname(teamIdFromURL);
     dispatch(push(navPath));
   };
 
   useEffect(() => {
     dispatch(teamActions.loadAll({ perPage: 500 }));
   }, [dispatch]);
-
-  useEffect(() => {
-    if (!isLoadingTeams && team === undefined) {
-      return router.push("/404");
-    }
-  }, [isLoadingTeams, team]);
 
   const [teamMenuIsOpen, setTeamMenuIsOpen] = useState<boolean>(false);
 
@@ -163,7 +174,7 @@ const TeamDetailsWrapper = ({
   }, [dispatch]);
 
   const onDeleteSubmit = useCallback(() => {
-    dispatch(teamActions.destroy(team?.id))
+    dispatch(teamActions.destroy(selectedTeam?.id))
       .then(() => {
         dispatch(renderFlash("success", "Team removed"));
         dispatch(push(PATHS.ADMIN_TEAMS));
@@ -171,17 +182,21 @@ const TeamDetailsWrapper = ({
       })
       .catch(() => null);
     toggleDeleteTeamModal();
-  }, [dispatch, toggleDeleteTeamModal, team?.id]);
+  }, [dispatch, toggleDeleteTeamModal, selectedTeam?.id]);
 
   const onEditSubmit = useCallback(
     (formData: IEditTeamFormData) => {
-      const updatedAttrs = generateUpdateData(team, formData);
+      if (!selectedTeam) {
+        return false;
+      }
+
+      const updatedAttrs = generateUpdateData(selectedTeam, formData);
       // no updates, so no need for a request.
       if (updatedAttrs === null) {
         toggleEditTeamModal();
         return;
       }
-      dispatch(teamActions.update(team?.id, updatedAttrs))
+      dispatch(teamActions.update(selectedTeam?.id, updatedAttrs))
         .then(() => {
           dispatch(teamActions.loadAll({ perPage: 500 }));
           dispatch(renderFlash("success", "Team updated"));
@@ -190,16 +205,16 @@ const TeamDetailsWrapper = ({
         .catch(() => null);
       toggleEditTeamModal();
     },
-    [dispatch, toggleEditTeamModal, team]
+    [dispatch, toggleEditTeamModal, selectedTeam]
   );
 
   const handleTeamSelect = (teamId: number) => {
-    const selectedTeam = find(teams, ["id", teamId]);
+    const newSelectedTeam = find(teams, ["id", teamId]);
     const { ADMIN_TEAMS } = PATHS;
 
     const newRouteParams = {
       ...routeParams,
-      team_id: selectedTeam ? selectedTeam.id : teamId,
+      team_id: newSelectedTeam ? newSelectedTeam.id : teamId,
     };
 
     const nextLocation = getNextLocationPath({
@@ -210,7 +225,7 @@ const TeamDetailsWrapper = ({
 
     router.replace(`${nextLocation}/members`);
 
-    setCurrentTeam(selectedTeam);
+    setCurrentTeam(newSelectedTeam);
   };
 
   const handleTeamMenuOpen = () => {
@@ -226,14 +241,14 @@ const TeamDetailsWrapper = ({
     "team-settings": !isOnGlobalTeam,
   });
 
-  if (isLoadingTeams || team === undefined) {
+  if (isLoadingTeams || !selectedTeam) {
     return (
       <div className={`${baseClass}__loading-spinner`}>
         <Spinner />
       </div>
     );
   }
-  const hostsCount = team.host_count;
+  const hostsCount = selectedTeam.host_count;
   const hostsTotalDisplay = hostsCount === 1 ? "1 host" : `${hostsCount} hosts`;
   const userAdminTeams = userTeams.filter(
     (thisTeam) => thisTeam.role === "admin"
@@ -253,8 +268,8 @@ const TeamDetailsWrapper = ({
         </>
         <div className={`${baseClass}__team-header`}>
           <div className={`${baseClass}__team-details`}>
-            {adminTeams.length === 1 ? (
-              <h1>{team.name}</h1>
+            {adminTeams?.length === 1 ? (
+              <h1>{selectedTeam.name}</h1>
             ) : (
               <TeamsDropdown
                 selectedTeamId={toNumber(routeParams.team_id)}
@@ -291,7 +306,7 @@ const TeamDetailsWrapper = ({
           </div>
         </div>
         <Tabs
-          selectedIndex={getTabIndex(pathname, routeParams.team_id)}
+          selectedIndex={getTabIndex(pathname, teamIdFromURL)}
           onSelect={(i) => navigateToNav(i)}
         >
           <TabList>
@@ -317,14 +332,14 @@ const TeamDetailsWrapper = ({
         <DeleteTeamModal
           onCancel={toggleDeleteTeamModal}
           onSubmit={onDeleteSubmit}
-          name={team.name}
+          name={selectedTeam.name}
         />
       ) : null}
       {showEditTeamModal ? (
         <EditTeamModal
           onCancel={toggleEditTeamModal}
           onSubmit={onEditSubmit}
-          defaultName={team.name}
+          defaultName={selectedTeam.name}
         />
       ) : null}
       {children}

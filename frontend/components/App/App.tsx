@@ -1,6 +1,8 @@
 import React, { useContext, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import classnames from "classnames";
+import { AxiosResponse } from "axios";
+import { RouteProps } from "react-router/lib/Route";
 
 import { QueryClient, QueryClientProvider } from "react-query";
 
@@ -16,7 +18,10 @@ import TableProvider from "context/table";
 import QueryProvider from "context/query";
 import PolicyProvider from "context/policy";
 import { AppContext } from "context/app";
-import FleetErrorBoundary from "pages/errors/FleetErrorBoundary";
+
+import { ErrorBoundary } from "react-error-boundary"; // @ts-ignore
+import Fleet404 from "pages/errors/Fleet404"; // @ts-ignore
+import Fleet500 from "pages/errors/Fleet500";
 import Spinner from "components/Spinner";
 
 interface IAppProps {
@@ -96,6 +101,19 @@ const App = ({ children }: IAppProps): JSX.Element => {
     }
   }, [currentUser, isGlobalObserver, isOnlyObserver]);
 
+  // "any" is used on purpose. We are using Axios but this
+  // function expects a native React Error type, which is incompatible.
+  const renderErrorOverlay = ({ error }: any) => {
+    console.error(error);
+
+    const overlayError = error as AxiosResponse;
+    if (overlayError.status === 404) {
+      return <Fleet404 />;
+    }
+
+    return <Fleet500 />;
+  };
+
   const wrapperStyles = classnames("wrapper");
   return isLoading ? (
     <Spinner />
@@ -104,9 +122,12 @@ const App = ({ children }: IAppProps): JSX.Element => {
       <TableProvider>
         <QueryProvider>
           <PolicyProvider>
-            <FleetErrorBoundary>
+            <ErrorBoundary
+              fallbackRender={renderErrorOverlay}
+              resetKeys={[location.pathname]}
+            >
               <div className={wrapperStyles}>{children}</div>
-            </FleetErrorBoundary>
+            </ErrorBoundary>
           </PolicyProvider>
         </QueryProvider>
       </TableProvider>
