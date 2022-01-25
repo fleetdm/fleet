@@ -28,7 +28,6 @@ Fleet's users and broader audience are spread across many online platforms.  Her
 - [reddit.com/r/sysadmins](https://www.reddit.com/r/sysadmin/)
 - [reddit.com/r/SysAdminBlogs](https://www.reddit.com/r/SysAdminBlogs/)
 - [r/sysadmin Discord](https://discord.gg/sysadmin)
-- [HackerNews](https://news.ycombinator.com/)
 
 ## Community contributions (pull requests)
 
@@ -64,4 +63,4 @@ SQL works properly and they attributed correctly. Please use your best judgement
 Larger changes and new features should be approved by the appropriate [Product
 DRI](./product.md#product-dris). Ask in the `#g-product` channel in Fleet Slack.
 
-<meta name="maintainedBy" value="zwass">
+<meta name="maintainedBy" value="mike-j-thomas">
