@@ -137,6 +137,15 @@ module.exports.routes = {
     }
   },
 
+  'GET /platform': {
+    action: 'view-platform',
+    locals: {
+      currentPage: 'platform',
+      pageTitleForMeta: 'Platform | Fleet for osquery',
+      pageDescriptionForMeta: 'Learn about the Fleet\'s features.',
+    }
+  },
+
 
 
   //  ╦  ╔═╗╔═╗╔═╗╔═╗╦ ╦  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗
