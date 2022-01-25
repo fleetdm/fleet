@@ -4,7 +4,7 @@ import { useQuery } from "react-query";
 import { InjectedRouter, Link, RouteProps } from "react-router";
 import { push } from "react-router-redux";
 import { Tab, TabList, Tabs } from "react-tabs";
-import { find, memoize, toNumber } from "lodash";
+import { find, toNumber } from "lodash";
 import classnames from "classnames";
 
 import PATHS from "router/paths";
@@ -22,7 +22,6 @@ import {
   IEnrollSecretsResponse,
 } from "interfaces/enroll_secret";
 import sortUtils from "utilities/sort";
-import Modal from "components/Modal";
 import Spinner from "components/Spinner";
 import Button from "components/buttons/Button";
 import TabsWrapper from "components/TabsWrapper";
@@ -31,7 +30,6 @@ import { getNextLocationPath } from "pages/admin/UserManagementPage/helpers/user
 import DeleteTeamModal from "../components/DeleteTeamModal";
 import EditTeamModal from "../components/EditTeamModal";
 import { IEditTeamFormData } from "../components/EditTeamModal/EditTeamModal";
-import AddHostsRedirectModal from "./components/AddHostsModal/AddHostsRedirectModal";
 import DeleteSecretModal from "../../../../components/DeleteSecretModal";
 import SecretEditorModal from "../../../../components/SecretEditorModal";
 import GenerateInstallerModal from "../../../../components/GenerateInstallerModal";
@@ -87,14 +85,6 @@ interface ITeamDetailsPageProps {
   route: RouteProps;
   router: InjectedRouter;
 }
-
-const getTeams = (data: { [id: string]: ITeam }) => {
-  return Object.keys(data).map((teamId) => {
-    return data[teamId];
-  });
-};
-
-const memoizedGetTeams = memoize(getTeams);
 
 const generateUpdateData = (
   currentTeamData: ITeam,
@@ -249,10 +239,6 @@ const TeamDetailsWrapper = ({
     setShowEditTeamModal(!showEditTeamModal);
   }, [showEditTeamModal, setShowEditTeamModal]);
 
-  const onAddHostsRedirectClick = useCallback(() => {
-    dispatch(push(PATHS.MANAGE_HOSTS));
-  }, [dispatch]);
-
   const onSaveSecret = async (enrollSecretString: string) => {
     // Creates new list of secrets removing selected secret and adding new secret
     const currentSecrets = teamSecrets || [];
@@ -385,7 +371,7 @@ const TeamDetailsWrapper = ({
     "team-settings": !isOnGlobalTeam,
   });
 
-  if (isLoadingTeams || team === undefined) {
+  if (isLoadingTeams || isTeamSecretsLoading || team === undefined) {
     return (
       <div className={`${baseClass}__loading-spinner`}>
         <Spinner />
