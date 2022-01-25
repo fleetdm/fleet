@@ -243,6 +243,11 @@ func createMySQLDSWithOptions(t testing.TB, opts *DatastoreTestOptions) *Datasto
 		strings.TrimPrefix(details.Name(), "github.com/fleetdm/fleet/v4/"), "/", "_",
 	)
 	cleanName = strings.ReplaceAll(cleanName, ".", "_")
+	if len(cleanName) > 60 {
+		// the later parts are more unique than the start, with the package names,
+		// so trim from the start.
+		cleanName = cleanName[len(cleanName)-60:]
+	}
 	ds := initializeDatabase(t, cleanName, opts)
 	t.Cleanup(func() { ds.Close() })
 	return ds
