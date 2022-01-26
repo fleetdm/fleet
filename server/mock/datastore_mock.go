@@ -176,6 +176,12 @@ type GetMunkiVersionFunc func(ctx context.Context, hostID uint) (string, error)
 
 type GetMDMFunc func(ctx context.Context, hostID uint) (enrolled bool, serverURL string, installedFromDep bool, err error)
 
+type AggregatedMunkiVersionFunc func(ctx context.Context, teamID *uint) ([]fleet.AggregatedMunkiVersion, error)
+
+type AggregatedMDMStatusFunc func(ctx context.Context, teamID *uint) (fleet.AggregatedMDMStatus, error)
+
+type GenerateAggregatedMunkiAndMDMFunc func(ctx context.Context) error
+
 type CountHostsInTargetsFunc func(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error)
 
 type HostIDsInTargetsFunc func(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets) ([]uint, error)
@@ -606,6 +612,15 @@ type DataStore struct {
 
 	GetMDMFunc        GetMDMFunc
 	GetMDMFuncInvoked bool
+
+	AggregatedMunkiVersionFunc        AggregatedMunkiVersionFunc
+	AggregatedMunkiVersionFuncInvoked bool
+
+	AggregatedMDMStatusFunc        AggregatedMDMStatusFunc
+	AggregatedMDMStatusFuncInvoked bool
+
+	GenerateAggregatedMunkiAndMDMFunc        GenerateAggregatedMunkiAndMDMFunc
+	GenerateAggregatedMunkiAndMDMFuncInvoked bool
 
 	CountHostsInTargetsFunc        CountHostsInTargetsFunc
 	CountHostsInTargetsFuncInvoked bool
@@ -1292,6 +1307,21 @@ func (s *DataStore) GetMunkiVersion(ctx context.Context, hostID uint) (string, e
 func (s *DataStore) GetMDM(ctx context.Context, hostID uint) (enrolled bool, serverURL string, installedFromDep bool, err error) {
 	s.GetMDMFuncInvoked = true
 	return s.GetMDMFunc(ctx, hostID)
+}
+
+func (s *DataStore) AggregatedMunkiVersion(ctx context.Context, teamID *uint) ([]fleet.AggregatedMunkiVersion, error) {
+	s.AggregatedMunkiVersionFuncInvoked = true
+	return s.AggregatedMunkiVersionFunc(ctx, teamID)
+}
+
+func (s *DataStore) AggregatedMDMStatus(ctx context.Context, teamID *uint) (fleet.AggregatedMDMStatus, error) {
+	s.AggregatedMDMStatusFuncInvoked = true
+	return s.AggregatedMDMStatusFunc(ctx, teamID)
+}
+
+func (s *DataStore) GenerateAggregatedMunkiAndMDM(ctx context.Context) error {
+	s.GenerateAggregatedMunkiAndMDMFuncInvoked = true
+	return s.GenerateAggregatedMunkiAndMDMFunc(ctx)
 }
 
 func (s *DataStore) CountHostsInTargets(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error) {

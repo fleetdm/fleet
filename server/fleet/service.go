@@ -257,6 +257,7 @@ type Service interface {
 	ListHostDeviceMapping(ctx context.Context, id uint) ([]*HostDeviceMapping, error)
 
 	MacadminsData(ctx context.Context, id uint) (*MacadminsData, error)
+	AggregatedMacadminsData(ctx context.Context, teamID *uint) (*AggregatedMacadminsData, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// AppConfigService provides methods for configuring  the Fleet application
