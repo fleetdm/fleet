@@ -47,7 +47,6 @@ export default {
     const { GLOBAL_SCHEDULE } = endpoints;
     const path = GLOBAL_SCHEDULE;
 
-    console.log("global scheduled queries loadAll called");
     return sendRequest("GET", path);
   },
   update: (
