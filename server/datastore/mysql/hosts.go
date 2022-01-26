@@ -1287,7 +1287,7 @@ func (d *Datastore) AggregatedMDMStatus(ctx context.Context, teamID *uint) (flee
 
 	var status fleet.AggregatedMDMStatus
 	var statusJson []byte
-	err := d.writer.GetContext(ctx, &statusJson, `select json_value from aggregated_stats where id=? and type='mdm_status'`, id)
+	err := sqlx.GetContext(ctx, d.reader, &statusJson, `select json_value from aggregated_stats where id=? and type='mdm_status'`, id)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			// not having stats is not an error
