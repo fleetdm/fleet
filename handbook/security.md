@@ -139,7 +139,7 @@ Since we can't eliminate the risk of passwords being cracked remotely, we requir
 **Why?**
 
 * Using FileVault protects the data on our laptops, including confidential data and session material (browser cookies), SSH keys, and more. Using FileVault ensures a lost laptop is a minor inconvenience and not an incident. We escrow the keys to be sure we can recover the data if needed.
-* [Gatekeeper](https://support.apple.com/en-ca/HT202491) is a feature on macOS that verifies if applications are properly signed by the developer, and notarized by Apple, a process where they do some testing on the application before "stamping" it. The certificates used by applications can be revoked, for example, if a vendor is discovered to be bundling malware in legitimate applications. With Gatekeeper enabled, unsigned and/or unnotarized applications will not be executed with the standard double-click of the icon. This is a useful first line of defense to have.
+* [Gatekeeper](https://support.apple.com/en-ca/HT202491) is a macOS feature that ensures users can safely open software on their Mac. With Gatekeeper enabled, users may execute only trustworthy apps (signed by the software developer and/or checked for malicious software by Apple). This is a useful first line of defense to have.
 * Using the firewall will ensure that we limit the exposure to our devices, while Stealth mode makes them more difficult to discover. 
 * Firewall logging allows us to troubleshoot and investigate whether the firewall blocks applications or connections.
 
