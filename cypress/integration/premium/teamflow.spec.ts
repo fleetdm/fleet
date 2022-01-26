@@ -43,7 +43,7 @@ describe("Teams flow (seeded)", () => {
       cy.loginWithCySession();
       cy.visit("/settings/teams");
     });
-    it("edit name of an existing team", () => {
+    it("edits name of an existing team", () => {
       cy.getAttached(".table-container").within(() => {
         cy.contains("Apples");
         cy.getAttached("tbody").within(() => {
@@ -121,10 +121,10 @@ describe("Teams flow (seeded)", () => {
         .click();
       cy.getAttached(".modal__content").contains("button", /done/i).click();
     });
-    it("edit agent options of an existing team", () => {
+    it("edits agent options of an existing team", () => {
       cy.findByText(/agent options/i).click();
       cy.contains(".ace_content", "config:");
-      cy.get(".ace_text-input")
+      cy.getAttached(".ace_text-input")
         .first()
         .focus()
         .type("{selectall}{backspace}config:\n  options:");
