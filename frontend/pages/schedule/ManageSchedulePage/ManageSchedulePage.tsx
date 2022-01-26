@@ -83,6 +83,8 @@ const renderAllTeamsTable = (
         allScheduledQueriesList={allTeamsScheduledQueriesList}
         isOnGlobalTeam={isOnGlobalTeam}
         selectedTeamData={selectedTeamData}
+        loadingInheritedQueriesTableData={isLoadingGlobalScheduledQueries}
+        loadingTeamQueriesTableData={isLoadingTeamScheduledQueries}
       />
     </div>
   );
