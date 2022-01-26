@@ -63,6 +63,10 @@ describe("Premium tier - Team observer/maintainer user", () => {
   });
 
   describe("Team maintainer", () => {
+    Cypress.on("uncaught:exception", () => {
+      return false;
+    });
+    
     beforeEach(() => {
       cy.loginWithCySession("marco@organization.com", "user123#");
     });
@@ -165,20 +169,13 @@ describe("Premium tier - Team observer/maintainer user", () => {
     // 403 error overlay which will hide the nav and make the test fail
     describe("Nav restrictions", () => {
       it("should restrict navigation according to role-based access controls", () => {
-        Cypress.on("uncaught:exception", () => {
-          return false;
-        });
         cy.visit("/dashboard");
         cy.findByText(/settings/i).should("not.exist");
         cy.findByText(/schedule/i).should("exist");
         cy.visit("/settings/organization");
-        cy.getAttached(".flash-message__content").within(() => {
-          cy.findByText(/you do not have permissions/i).should("exist");
-        });
+        cy.findByText(/you do not have permissions/i).should("exist");
         cy.visit("/packs/manage");
-        cy.getAttached(".flash-message__content").within(() => {
-          cy.findByText(/you do not have permissions/i).should("exist");
-        });
+        cy.findByText(/you do not have permissions/i).should("exist");
       });
     });
   });
