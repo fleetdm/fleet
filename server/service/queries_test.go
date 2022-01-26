@@ -86,6 +86,7 @@ func TestListQueries(t *testing.T) {
 func TestQueryAuth(t *testing.T) {
 	ds := new(mock.Store)
 	svc := newTestService(ds, nil, nil)
+
 	authoredQueryID := uint(1)
 	authoredQueryName := "authored"
 	queryName := map[uint]string{
