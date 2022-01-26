@@ -42,6 +42,21 @@ func BenchmarkCalculateHostsPerSoftware(b *testing.B) {
 			}
 		})
 	})
+	b.Run("CalculateHostsPerSoftware", func(b *testing.B) {
+		for _, c := range cases {
+			b.Run(fmt.Sprintf("%d:%d", c.hs, c.sws), func(b *testing.B) {
+				ctx := context.Background()
+				ds := CreateMySQLDS(b)
+				generateHostsWithSoftware(b, ds, c.hs, c.sws)
+				b.ResetTimer()
+
+				for i := 0; i < b.N; i++ {
+					require.NoError(b, ds.CalculateHostsPerSoftware(ctx, ts))
+				}
+				checkCountsAgg(b, ds, c.hs, c.sws)
+			})
+		}
+	})
 }
 
 func checkCountsAgg(b *testing.B, ds *Datastore, hs, sws int) {

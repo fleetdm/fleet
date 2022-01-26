@@ -32,6 +32,7 @@ func TestSoftware(t *testing.T) {
 		{"NothingChanged", testSoftwareNothingChanged},
 		{"LoadSupportsTonsOfCVEs", testSoftwareLoadSupportsTonsOfCVEs},
 		{"List", testSoftwareList},
+		{"CalculateHostsPerSoftware", testSoftwareCalculateHostsPerSoftware},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -509,4 +510,90 @@ func listSoftwareCheckCount(t *testing.T, ds *Datastore, expectedListCount int, 
 		})
 	}
 	return software
+}
+
+func testSoftwareCalculateHostsPerSoftware(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	cmpNameVersionCount := func(want, got []fleet.Software) {
+		cmp := make([]fleet.Software, len(got))
+		for i, sw := range got {
+			cmp[i] = fleet.Software{Name: sw.Name, Version: sw.Version, HostsCount: sw.HostsCount}
+		}
+		require.ElementsMatch(t, want, cmp)
+	}
+
+	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+	host2 := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now())
+
+	software1 := []fleet.Software{
+		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
+		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
+	}
+	software2 := []fleet.Software{
+		{Name: "foo", Version: "v0.0.2", Source: "chrome_extensions"},
+		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
+		{Name: "bar", Version: "0.0.3", Source: "deb_packages"},
+	}
+
+	require.NoError(t, ds.UpdateHostSoftware(context.Background(), host1.ID, software1))
+	require.NoError(t, ds.UpdateHostSoftware(context.Background(), host2.ID, software2))
+
+	err := ds.CalculateHostsPerSoftware(ctx, time.Now())
+	require.NoError(t, err)
+
+	swOpts := fleet.SoftwareListOptions{WithHostCounts: true, ListOptions: fleet.ListOptions{OrderKey: "hosts_count", OrderDirection: fleet.OrderDescending}}
+	swCounts := listSoftwareCheckCount(t, ds, 4, 4, swOpts, false)
+
+	want := []fleet.Software{
+		{Name: "foo", Version: "0.0.3", HostsCount: 2},
+		{Name: "foo", Version: "0.0.1", HostsCount: 1},
+		{Name: "foo", Version: "v0.0.2", HostsCount: 1},
+		{Name: "bar", Version: "0.0.3", HostsCount: 1},
+	}
+	cmpNameVersionCount(want, swCounts)
+
+	// update host2, remove "bar" software
+	software2 = []fleet.Software{
+		{Name: "foo", Version: "v0.0.2", Source: "chrome_extensions"},
+		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
+	}
+	require.NoError(t, ds.UpdateHostSoftware(context.Background(), host2.ID, software2))
+
+	err = ds.CalculateHostsPerSoftware(ctx, time.Now())
+	require.NoError(t, err)
+
+	swCounts = listSoftwareCheckCount(t, ds, 3, 3, swOpts, false)
+	want = []fleet.Software{
+		{Name: "foo", Version: "0.0.3", HostsCount: 2},
+		{Name: "foo", Version: "0.0.1", HostsCount: 1},
+		{Name: "foo", Version: "v0.0.2", HostsCount: 1},
+	}
+	cmpNameVersionCount(want, swCounts)
+
+	// create a software entry without any host and any counts
+	_, err = ds.writer.ExecContext(ctx, `INSERT INTO software (name, version, source) VALUES ('baz', '0.0.1', 'testing')`)
+	require.NoError(t, err)
+
+	// listing without the counts gets that new software entry
+	allSw := listSoftwareCheckCount(t, ds, 4, 4, fleet.SoftwareListOptions{}, false)
+	want = []fleet.Software{
+		{Name: "foo", Version: "0.0.3", HostsCount: 0},
+		{Name: "foo", Version: "0.0.1", HostsCount: 0},
+		{Name: "foo", Version: "v0.0.2", HostsCount: 0},
+		{Name: "baz", Version: "0.0.1", HostsCount: 0},
+	}
+	cmpNameVersionCount(want, allSw)
+
+	// after a call to Calculate, the unused software entry is removed
+	err = ds.CalculateHostsPerSoftware(ctx, time.Now())
+	require.NoError(t, err)
+
+	allSw = listSoftwareCheckCount(t, ds, 3, 3, fleet.SoftwareListOptions{}, false)
+	want = []fleet.Software{
+		{Name: "foo", Version: "0.0.3", HostsCount: 0},
+		{Name: "foo", Version: "0.0.1", HostsCount: 0},
+		{Name: "foo", Version: "v0.0.2", HostsCount: 0},
+	}
+	cmpNameVersionCount(want, allSw)
 }

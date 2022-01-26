@@ -131,7 +131,6 @@ func deleteUninstalledHostSoftwareDB(
 	for currentKey := range currentIdmap {
 		if _, ok := incomingBitmap[currentKey]; !ok {
 			deletesHostSoftware = append(deletesHostSoftware, currentIdmap[currentKey])
-			// TODO: delete from software if no host has it
 		}
 	}
 	if len(deletesHostSoftware) <= 1 {
@@ -611,9 +610,23 @@ func (d *Datastore) CalculateHostsPerSoftware(ctx context.Context, updatedAt tim
 		return ctxerr.Wrap(ctx, err, "iterate over host_software counts")
 	}
 
-	// TODO(mna): delete any unused software from the software table (any that
-	// isn't in that list with a host count > 0). This also addresses another
-	// TODO in this file.
+	// delete any unused software from the software table (any that
+	// isn't in that list with a host count > 0).
+	cleanupStmt := `
+  DELETE FROM
+    software
+  WHERE
+    NOT EXISTS (
+      SELECT 1
+      FROM
+        aggregated_stats shc
+      WHERE
+        software.id = shc.id AND
+		    shc.type = "software_hosts_count" AND
+		    json_value > 0)`
+	if _, err := d.writer.ExecContext(ctx, cleanupStmt); err != nil {
+		return ctxerr.Wrap(ctx, err, "delete unused software")
+	}
 
 	return nil
 }
