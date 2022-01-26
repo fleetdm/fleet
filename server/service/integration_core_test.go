@@ -164,7 +164,9 @@ func (s *integrationTestSuite) TestQueryCreationLogsActivity() {
 		Name:  ptr.String("user1"),
 		Query: ptr.String("select * from time;"),
 	}
-	s.Do("POST", "/api/v1/fleet/queries", &params, http.StatusOK)
+	var createQueryResp createQueryResponse
+	s.DoJSON("POST", "/api/v1/fleet/queries", &params, http.StatusOK, &createQueryResp)
+	defer cleanupQuery(s, createQueryResp.Query.ID)
 
 	activities := listActivitiesResponse{}
 	s.DoJSON("GET", "/api/v1/fleet/activities", nil, http.StatusOK, &activities)
@@ -799,6 +801,7 @@ func (s *integrationTestSuite) TestListHosts() {
 
 	user1 := test.NewUser(t, s.ds, "Alice", "alice@example.com", true)
 	q := test.NewQuery(t, s.ds, "query1", "select 1", 0, true)
+	defer cleanupQuery(s, q.ID)
 	p, err := s.ds.NewGlobalPolicy(context.Background(), &user1.ID, fleet.PolicyPayload{
 		QueryID: &q.ID,
 	})
@@ -1536,14 +1539,33 @@ func (s *integrationTestSuite) TestScheduledQueries() {
 	// try a non existent query
 	s.Do("GET", fmt.Sprintf("/api/v1/fleet/queries/%d", 9999), nil, http.StatusNotFound)
 
+	// list queries
+	var listQryResp listQueriesResponse
+	s.DoJSON("GET", "/api/v1/fleet/queries", nil, http.StatusOK, &listQryResp)
+	assert.Len(t, listQryResp.Queries, 0)
+
 	// create a query
 	var createQueryResp createQueryResponse
 	reqQuery := &fleet.QueryPayload{
-		Name:  ptr.String(t.Name()),
+		Name:  ptr.String(strings.ReplaceAll(t.Name(), "/", "_")),
 		Query: ptr.String("select * from time;"),
 	}
 	s.DoJSON("POST", "/api/v1/fleet/queries", reqQuery, http.StatusOK, &createQueryResp)
 	query := createQueryResp.Query
+
+	// listing returns that query
+	s.DoJSON("GET", "/api/v1/fleet/queries", nil, http.StatusOK, &listQryResp)
+	require.Len(t, listQryResp.Queries, 1)
+	assert.Equal(t, query.Name, listQryResp.Queries[0].Name)
+
+	// next page returns nothing
+	s.DoJSON("GET", "/api/v1/fleet/queries", nil, http.StatusOK, &listQryResp, "per_page", "2", "page", "1")
+	require.Len(t, listQryResp.Queries, 0)
+
+	// getting that query works
+	var getQryResp getQueryResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/queries/%d", query.ID), nil, http.StatusOK, &getQryResp)
+	assert.Equal(t, query.ID, getQryResp.Query.ID)
 
 	// list scheduled queries in pack, none yet
 	var getInPackResp getScheduledQueriesInPackResponse
@@ -1624,6 +1646,56 @@ func (s *integrationTestSuite) TestScheduledQueries() {
 
 	// get the now-deleted scheduled query
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/schedule/%d", sq1.ID), nil, http.StatusNotFound, &getResp)
+
+	// modify the query
+	var modQryResp modifyQueryResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/queries/%d", query.ID), fleet.QueryPayload{Description: ptr.String("updated")}, http.StatusOK, &modQryResp)
+	assert.Equal(t, "updated", modQryResp.Query.Description)
+
+	// modify a non-existing query
+	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/queries/%d", query.ID+1), fleet.QueryPayload{Description: ptr.String("updated")}, http.StatusNotFound, &modQryResp)
+
+	// delete the query by name
+	var delByNameResp deleteQueryResponse
+	s.DoJSON("DELETE", fmt.Sprintf("/api/v1/fleet/queries/%s", query.Name), nil, http.StatusOK, &delByNameResp)
+
+	// delete unknown query by name (i.e. the same, now deleted)
+	s.DoJSON("DELETE", fmt.Sprintf("/api/v1/fleet/queries/%s", query.Name), nil, http.StatusNotFound, &delByNameResp)
+
+	// create another query
+	reqQuery = &fleet.QueryPayload{
+		Name:  ptr.String(strings.ReplaceAll(t.Name(), "/", "_") + "_2"),
+		Query: ptr.String("select 2"),
+	}
+	s.DoJSON("POST", "/api/v1/fleet/queries", reqQuery, http.StatusOK, &createQueryResp)
+	query2 := createQueryResp.Query
+
+	// delete it by id
+	var delByIDResp deleteQueryByIDResponse
+	s.DoJSON("DELETE", fmt.Sprintf("/api/v1/fleet/queries/id/%d", query2.ID), nil, http.StatusOK, &delByIDResp)
+
+	// delete unknown query by id (same id just deleted)
+	s.DoJSON("DELETE", fmt.Sprintf("/api/v1/fleet/queries/id/%d", query2.ID), nil, http.StatusNotFound, &delByIDResp)
+
+	// create another query
+	reqQuery = &fleet.QueryPayload{
+		Name:  ptr.String(strings.ReplaceAll(t.Name(), "/", "_") + "_3"),
+		Query: ptr.String("select 3"),
+	}
+	s.DoJSON("POST", "/api/v1/fleet/queries", reqQuery, http.StatusOK, &createQueryResp)
+	query3 := createQueryResp.Query
+
+	// batch-delete by id, 3 ids, only one exists
+	var delBatchResp deleteQueriesResponse
+	s.DoJSON("POST", "/api/v1/fleet/queries/delete", map[string]interface{}{
+		"ids": []uint{query.ID, query2.ID, query3.ID}}, http.StatusOK, &delBatchResp)
+	assert.Equal(t, uint(1), delBatchResp.Deleted)
+
+	// batch-delete by id, none exist
+	delBatchResp.Deleted = 0
+	s.DoJSON("POST", "/api/v1/fleet/queries/delete", map[string]interface{}{
+		"ids": []uint{query.ID, query2.ID, query3.ID}}, http.StatusNotFound, &delBatchResp)
+	assert.Equal(t, uint(0), delBatchResp.Deleted)
 }
 
 func (s *integrationTestSuite) TestHostDeviceMapping() {
@@ -2147,6 +2219,7 @@ func (s *integrationTestSuite) TestQueriesBadRequests() {
 	s.DoJSON("POST", "/api/v1/fleet/queries", reqQuery, http.StatusOK, &createQueryResp)
 	require.NotNil(t, createQueryResp.Query)
 	existingQueryID := createQueryResp.Query.ID
+	defer cleanupQuery(s, existingQueryID)
 
 	for _, tc := range []struct {
 		tname string
@@ -2431,4 +2504,9 @@ func createSession(t *testing.T, uid uint, ds fleet.Datastore) *fleet.Session {
 	require.NoError(t, err)
 
 	return ssn
+}
+
+func cleanupQuery(s *integrationTestSuite, queryID uint) {
+	var delResp deleteQueryByIDResponse
+	s.DoJSON("DELETE", fmt.Sprintf("/api/v1/fleet/queries/id/%d", queryID), nil, http.StatusOK, &delResp)
 }
