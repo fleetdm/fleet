@@ -82,7 +82,7 @@ const getTeams = (data: { [id: string]: ITeam }) => {
   });
 };
 
-const memoizedGetTeams = memoize(getTeams);
+// const memoizedGetTeams = memoize(getTeams);
 
 const generateUpdateData = (
   currentTeamData: ITeam,
@@ -151,9 +151,9 @@ const TeamDetailsWrapper = ({
     dispatch(push(navPath));
   };
 
-  useEffect(() => {
-    dispatch(teamActions.loadAll({ perPage: 500 }));
-  }, [dispatch]);
+  // useEffect(() => {
+  //   dispatch(teamActions.loadAll({ perPage: 500 }));
+  // }, [dispatch]);
 
   const [teamMenuIsOpen, setTeamMenuIsOpen] = useState<boolean>(false);
 

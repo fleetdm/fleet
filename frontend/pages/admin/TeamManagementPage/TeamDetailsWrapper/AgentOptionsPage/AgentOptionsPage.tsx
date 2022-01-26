@@ -1,8 +1,11 @@
-import React from "react";
+import React, { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { useQuery } from "react-query";
+import { useErrorHandler } from "react-error-boundary";
 import yaml from "js-yaml";
 import { ITeam } from "interfaces/team";
 import endpoints from "fleet/endpoints";
+import teamsAPI from "services/entities/teams";
 // ignore TS error for now until these are rewritten in ts.
 // @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions";
@@ -23,27 +26,56 @@ interface IAgentOptionsPageProps {
   };
 }
 
-interface IRootState {
-  entities: {
-    teams: {
-      loading: boolean;
-      data: { [id: number]: ITeam };
-    };
-  };
+// interface IRootState {
+//   entities: {
+//     teams: {
+//       loading: boolean;
+//       data: { [id: number]: ITeam };
+//     };
+//   };
+// }
+
+interface ITeamsResponse {
+  teams: ITeam[];
 }
 
 const AgentOptionsPage = ({
   params: { team_id },
 }: IAgentOptionsPageProps): JSX.Element => {
-  const teamId = parseInt(team_id, 10);
+  const teamIdFromURL = parseInt(team_id, 10);
   const dispatch = useDispatch();
-  const team = useSelector((state: IRootState) => {
-    return state.entities.teams.data[teamId];
-  });
+  // const team = useSelector((state: IRootState) => {
+  //   return state.entities.teams.data[teamId];
+  // });
 
-  const formData = {
-    osquery_options: yaml.dump(team.agent_options),
-  };
+  const [selectedTeam, setSelectedTeam] = useState<ITeam | undefined>();
+  const [formData, setFormData] = useState<any>({});
+  const handlePageError = useErrorHandler();
+
+  useQuery<ITeamsResponse, Error, ITeam[]>(
+    ["teams"],
+    () => teamsAPI.loadAll(),
+    {
+      select: (data: ITeamsResponse) => data.teams,
+      onSuccess: (data) => {
+        const selected = data.find((team) => team.id === teamIdFromURL);
+
+        if (selected) {
+          setSelectedTeam(selected);
+          setFormData({
+            osquery_options: yaml.dump(selected.agent_options),
+          });
+        } else {
+          handlePageError({ status: 404 });
+        }
+      },
+      onError: (error) => handlePageError(error),
+    }
+  );
+
+  // const formData = {
+  //   osquery_options: yaml.dump(selectedTeam?.agent_options),
+  // };
 
   const onSaveOsqueryOptionsFormSubmit = (updatedForm: any): void | false => {
     const { TEAMS_AGENT_OPTIONS } = endpoints;
@@ -55,7 +87,7 @@ const AgentOptionsPage = ({
     dispatch(
       osqueryOptionsActions.updateOsqueryOptions(
         updatedForm,
-        TEAMS_AGENT_OPTIONS(teamId)
+        TEAMS_AGENT_OPTIONS(teamIdFromURL)
       )
     )
       .then(() => {

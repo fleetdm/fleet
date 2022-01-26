@@ -96,6 +96,10 @@ describe("Premium tier - Observer user", () => {
   // Pseudo code for team observer only
   // TODO: Rebuild this test according to new manual QA
   it("Can perform the appropriate basic team observer only actions", () => {
+    Cypress.on("uncaught:exception", () => {
+      return false;
+    });
+
     cy.login("toni@organization.com", "user123#");
     cy.visit("/hosts/manage");
     cy.wait(3000); // eslint-disable-line cypress/no-unnecessary-waiting

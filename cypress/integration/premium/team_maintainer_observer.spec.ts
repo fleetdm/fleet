@@ -19,6 +19,10 @@ describe(
     });
 
     it("Can perform the appropriate team observer actions", () => {
+      Cypress.on("uncaught:exception", () => {
+        return false;
+      });
+
       cy.login("marco@organization.com", "user123#");
       cy.visit("/hosts/manage");
 
@@ -34,16 +38,6 @@ describe(
 
       // See the “Teams” column in the Hosts table
       cy.get("thead").contains(/team/i).should("exist");
-
-      // Nav restrictions
-      cy.findByText(/settings/i).should("not.exist");
-      cy.findByText(/schedule/i).should("exist");
-      cy.visit("/settings/organization");
-      cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
-      cy.findByText(/you do not have permissions/i).should("exist");
-      cy.visit("/packs/manage");
-      cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
-      cy.findByText(/you do not have permissions/i).should("exist");
 
       // NOT see and select "add label"
       cy.findByRole("button", { name: /new label/i }).should("not.exist");
@@ -135,6 +129,17 @@ describe(
 
       // NOT see a the “Teams” section in the Select target picker. This picker is summoned when the “Select targets” field is selected.
       // ^^ TODO confirm if this restriction applies to a dual-role user like Marco
+
+      // Nav restrictions - at the end because we expect permission overlays
+      // and will not see the nav
+      cy.findByText(/settings/i).should("not.exist");
+      cy.findByText(/schedule/i).should("exist");
+      cy.visit("/settings/organization");
+      cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
+      cy.findByText(/you do not have permissions/i).should("exist");
+      cy.visit("/packs/manage");
+      cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
+      cy.findByText(/you do not have permissions/i).should("exist");
     });
 
     it("Can perform the appropriate team maintainer actions", () => {

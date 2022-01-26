@@ -20,6 +20,7 @@ import PolicyProvider from "context/policy";
 import { AppContext } from "context/app";
 
 import { ErrorBoundary } from "react-error-boundary"; // @ts-ignore
+import Fleet403 from "pages/errors/Fleet403"; // @ts-ignore
 import Fleet404 from "pages/errors/Fleet404"; // @ts-ignore
 import Fleet500 from "pages/errors/Fleet500";
 import Spinner from "components/Spinner";
@@ -107,6 +108,10 @@ const App = ({ children }: IAppProps): JSX.Element => {
     console.error(error);
 
     const overlayError = error as AxiosResponse;
+    if (overlayError.status === 403) {
+      return <Fleet403 />;
+    }
+
     if (overlayError.status === 404) {
       return <Fleet404 />;
     }
