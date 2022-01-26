@@ -2488,6 +2488,77 @@ func (s *integrationTestSuite) TestAppConfig() {
 	require.Len(t, specResp.Spec.Secrets, 0)
 }
 
+func (s *integrationTestSuite) TestQuerySpecs() {
+	t := s.T()
+
+	// list specs, none yet
+	var getSpecsResp getQuerySpecsResponse
+	s.DoJSON("GET", "/api/v1/fleet/spec/queries", nil, http.StatusOK, &getSpecsResp)
+	assert.Len(t, getSpecsResp.Specs, 0)
+
+	// get unknown one
+	var getSpecResp getQuerySpecResponse
+	s.DoJSON("GET", "/api/v1/fleet/spec/queries/nonesuch", nil, http.StatusNotFound, &getSpecResp)
+
+	// create some queries via apply specs
+	q1 := strings.ReplaceAll(t.Name(), "/", "_")
+	q2 := q1 + "_2"
+	var applyResp applyQuerySpecsResponse
+	s.DoJSON("POST", "/api/v1/fleet/spec/queries", applyQuerySpecsRequest{
+		Specs: []*fleet.QuerySpec{
+			{Name: q1, Query: "SELECT 1"},
+			{Name: q2, Query: "SELECT 2"},
+		},
+	}, http.StatusOK, &applyResp)
+
+	// get the queries back
+	var listQryResp listQueriesResponse
+	s.DoJSON("GET", "/api/v1/fleet/queries", nil, http.StatusOK, &listQryResp, "order_key", "name")
+	require.Len(t, listQryResp.Queries, 2)
+	assert.Equal(t, q1, listQryResp.Queries[0].Name)
+	assert.Equal(t, q2, listQryResp.Queries[1].Name)
+	q1ID, q2ID := listQryResp.Queries[0].ID, listQryResp.Queries[1].ID
+
+	// list specs
+	s.DoJSON("GET", "/api/v1/fleet/spec/queries", nil, http.StatusOK, &getSpecsResp)
+	require.Len(t, getSpecsResp.Specs, 2)
+	names := []string{getSpecsResp.Specs[0].Name, getSpecsResp.Specs[1].Name}
+	assert.ElementsMatch(t, []string{q1, q2}, names)
+
+	// get specific spec
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/spec/queries/%s", q1), nil, http.StatusOK, &getSpecResp)
+	assert.Equal(t, getSpecResp.Spec.Query, "SELECT 1")
+
+	// apply specs again - create q3 and update q2
+	q3 := q1 + "_3"
+	s.DoJSON("POST", "/api/v1/fleet/spec/queries", applyQuerySpecsRequest{
+		Specs: []*fleet.QuerySpec{
+			{Name: q2, Query: "SELECT -2"},
+			{Name: q3, Query: "SELECT 3"},
+		},
+	}, http.StatusOK, &applyResp)
+
+	// list specs - has 3, not 4 (one was an update)
+	s.DoJSON("GET", "/api/v1/fleet/spec/queries", nil, http.StatusOK, &getSpecsResp)
+	require.Len(t, getSpecsResp.Specs, 3)
+	names = []string{getSpecsResp.Specs[0].Name, getSpecsResp.Specs[1].Name, getSpecsResp.Specs[2].Name}
+	assert.ElementsMatch(t, []string{q1, q2, q3}, names)
+
+	// get the queries back again
+	s.DoJSON("GET", "/api/v1/fleet/queries", nil, http.StatusOK, &listQryResp, "order_key", "name")
+	require.Len(t, listQryResp.Queries, 3)
+	assert.Equal(t, q1ID, listQryResp.Queries[0].ID)
+	assert.Equal(t, q2ID, listQryResp.Queries[1].ID)
+	assert.Equal(t, "SELECT -2", listQryResp.Queries[1].Query)
+	q3ID := listQryResp.Queries[2].ID
+
+	// delete all queries created
+	var delBatchResp deleteQueriesResponse
+	s.DoJSON("POST", "/api/v1/fleet/queries/delete", map[string]interface{}{
+		"ids": []uint{q1ID, q2ID, q3ID}}, http.StatusOK, &delBatchResp)
+	assert.Equal(t, uint(3), delBatchResp.Deleted)
+}
+
 // creates a session and returns it, its key is to be passed as authorization header.
 func createSession(t *testing.T, uid uint, ds fleet.Datastore) *fleet.Session {
 	key := make([]byte, 64)
