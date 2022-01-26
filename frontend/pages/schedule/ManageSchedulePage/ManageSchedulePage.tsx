@@ -1,6 +1,6 @@
 /* Conditionally renders global schedule and team schedules */
 
-import React, { useState, useCallback, useEffect, useContext } from "react";
+import React, { useState, useCallback, useContext } from "react";
 import { useQuery } from "react-query";
 import { useDispatch } from "react-redux";
 import { AppContext } from "context/app";
@@ -120,8 +120,6 @@ const ManageSchedulePage = ({
     setCurrentTeam,
   } = useContext(AppContext);
 
-  const teamId = parseInt(team_id, 10) || 0;
-
   const filterAndSortTeamOptions = (allTeams: ITeam[], userTeams: ITeam[]) => {
     const filteredSortedTeams = allTeams
       .sort((teamA: ITeam, teamB: ITeam) =>
@@ -183,7 +181,6 @@ const ManageSchedulePage = ({
     select: (data) => data.global_schedule,
   });
 
-  console.log("teamId", teamId);
   const {
     data: teamScheduledQueries,
     error: teamScheduledQueriesError,
@@ -194,10 +191,10 @@ const ManageSchedulePage = ({
     Error,
     ITeamScheduledQuery[]
   >(
-    ["teamScheduledQueries", teamId],
-    () => teamScheduledQueriesAPI.loadAll(teamId),
+    ["teamScheduledQueries", team_id],
+    () => teamScheduledQueriesAPI.loadAll(parseInt(team_id, 10)),
     {
-      enabled: !!availableTeams && isPremiumTier && !!teamId,
+      enabled: !!availableTeams && isPremiumTier && !!team_id,
       select: (data) => data.scheduled,
     }
   );
@@ -212,7 +209,7 @@ const ManageSchedulePage = ({
 
   const refetchScheduledQueries = () => {
     refetchGlobalScheduledQueries();
-    if (teamId !== 0) {
+    if (selectedTeamId !== 0) {
       refetchTeamScheduledQueries();
     }
   };
@@ -232,8 +229,8 @@ const ManageSchedulePage = ({
   }
 
   const allScheduledQueriesList =
-    (teamId ? teamScheduledQueries : globalScheduledQueries) || [];
-  const allScheduledQueriesError = teamId
+    (team_id ? teamScheduledQueries : globalScheduledQueries) || [];
+  const allScheduledQueriesError = team_id
     ? teamScheduledQueriesError
     : globalScheduledQueriesError;
 
@@ -297,7 +294,7 @@ const ManageSchedulePage = ({
 
   const onRemoveScheduledQuerySubmit = useCallback(() => {
     const promises = selectedQueryIds.map((id: number) => {
-      selectedTeamId
+      return selectedTeamId
         ? teamScheduledQueriesAPI.destroy(selectedTeamId, id)
         : globalScheduledQueriesAPI.destroy({ id });
     });
