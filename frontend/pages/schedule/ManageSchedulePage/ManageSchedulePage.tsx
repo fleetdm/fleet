@@ -88,6 +88,7 @@ interface ITeamSchedulesPageProps {
   params: {
     team_id: string;
   };
+  router: InjectedRouter; // v3
 }
 interface IFormData {
   interval: number;
@@ -103,10 +104,11 @@ interface IFormData {
 
 const ManageSchedulePage = ({
   params: { team_id },
+  router,
 }: ITeamSchedulesPageProps): JSX.Element => {
   const dispatch = useDispatch();
   const { MANAGE_PACKS, MANAGE_SCHEDULE, MANAGE_TEAM_SCHEDULE } = paths;
-  const handleAdvanced = () => dispatch(push(MANAGE_PACKS));
+  const handleAdvanced = () => router.push(MANAGE_PACKS);
 
   const {
     availableTeams,
@@ -216,9 +218,9 @@ const ManageSchedulePage = ({
 
   const handleTeamSelect = (teamId: number) => {
     if (teamId) {
-      dispatch(push(MANAGE_TEAM_SCHEDULE(teamId)));
+      router.push(MANAGE_TEAM_SCHEDULE(teamId));
     } else {
-      dispatch(push(MANAGE_SCHEDULE));
+      router.push(MANAGE_SCHEDULE);
     }
     const selectedTeam = find(teams, ["id", teamId]);
     setCurrentTeam(selectedTeam);
