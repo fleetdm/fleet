@@ -50,12 +50,6 @@ func packageCommand() *cli.Command {
 				Value:       "com.fleetdm.orbit",
 				Destination: &opt.Identifier,
 			},
-			&cli.StringFlag{
-				Name:        "version",
-				Usage:       "Version for package product",
-				Value:       "0.0.5",
-				Destination: &opt.Version,
-			},
 			&cli.BoolFlag{
 				Name:        "insecure",
 				Usage:       "Disable TLS certificate verification",

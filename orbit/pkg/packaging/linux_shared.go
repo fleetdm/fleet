@@ -45,9 +45,11 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 		updateOpt.RootKeys = opt.UpdateRoots
 	}
 
-	if err := InitializeUpdates(updateOpt); err != nil {
+	updatesData, err := InitializeUpdates(updateOpt)
+	if err != nil {
 		return "", fmt.Errorf("initialize updates: %w", err)
 	}
+	log.Debug().Stringer("data", updatesData).Msg("updates initialized")
 
 	// Write files
 
@@ -116,7 +118,7 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 
 	info := &nfpm.Info{
 		Name:        "fleet-osquery",
-		Version:     opt.Version,
+		Version:     updatesData.OrbitVersion,
 		Description: "Fleet osquery -- runtime and autoupdater",
 		Arch:        "amd64",
 		Maintainer:  "Fleet Engineers <engineering@fleetdm.com>",

@@ -3,6 +3,7 @@ package packaging
 
 import (
 	_ "embed"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -23,8 +24,6 @@ type Options struct {
 	// EnrollSecret is the enroll secret used to authenticate to the Fleet
 	// server.
 	EnrollSecret string
-	// Version is the version number for this package.
-	Version string
 	// Identifier is the identifier (eg. com.fleetdm.orbit) for the package product.
 	Identifier string
 	// StartService is a boolean indicating whether to start a system-specific
@@ -68,37 +67,75 @@ func initializeTempDir() (string, error) {
 	return tmpDir, nil
 }
 
-func InitializeUpdates(updateOpt update.Options) error {
+type UpdatesData struct {
+	OrbitPath    string
+	OrbitVersion string
+
+	OsquerydPath    string
+	OsquerydVersion string
+}
+
+func (u UpdatesData) String() string {
+	return fmt.Sprintf(
+		"orbit={%s,%s}, osqueryd={%s,%s}",
+		u.OrbitPath, u.OrbitVersion,
+		u.OsquerydPath, u.OsquerydVersion,
+	)
+}
+
+func InitializeUpdates(updateOpt update.Options) (*UpdatesData, error) {
 	localStore, err := filestore.New(filepath.Join(updateOpt.RootDirectory, "tuf-metadata.json"))
 	if err != nil {
-		return fmt.Errorf("failed to create local metadata store: %w", err)
+		return nil, fmt.Errorf("failed to create local metadata store: %w", err)
 	}
 	updateOpt.LocalStore = localStore
 
 	updater, err := update.New(updateOpt)
 	if err != nil {
-		return fmt.Errorf("failed to init updater: %w", err)
+		return nil, fmt.Errorf("failed to init updater: %w", err)
 	}
 	if err := updater.UpdateMetadata(); err != nil {
-		return fmt.Errorf("failed to update metadata: %w", err)
+		return nil, fmt.Errorf("failed to update metadata: %w", err)
 	}
 	osquerydPath, err := updater.Get("osqueryd", updateOpt.OsquerydChannel)
 	if err != nil {
-		return fmt.Errorf("failed to get osqueryd: %w", err)
+		return nil, fmt.Errorf("failed to get osqueryd: %w", err)
 	}
-	log.Debug().Str("path", osquerydPath).Msg("got osqueryd")
-
+	osquerydMeta, err := updater.Lookup("osqueryd", updateOpt.OsquerydChannel)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get osqueryd metadata: %w", err)
+	}
+	type custom struct {
+		Version string `json:"version"`
+	}
+	var osquerydCustom custom
+	if err := json.Unmarshal(*osquerydMeta.Custom, &osquerydCustom); err != nil {
+		return nil, fmt.Errorf("failed to get osqueryd version: %w", err)
+	}
 	orbitPath, err := updater.Get("orbit", updateOpt.OrbitChannel)
 	if err != nil {
-		return fmt.Errorf("failed to get orbit: %w", err)
+		return nil, fmt.Errorf("failed to get orbit: %w", err)
 	}
-	log.Debug().Str("path", orbitPath).Msg("got orbit")
+	orbitMeta, err := updater.Lookup("orbit", updateOpt.OrbitChannel)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get orbit metadata: %w", err)
+	}
+	var orbitCustom custom
+	if err := json.Unmarshal(*orbitMeta.Custom, &orbitCustom); err != nil {
+		return nil, fmt.Errorf("failed to get orbit version: %w", err)
+	}
 
 	if devBuildPath := os.Getenv("FLEETCTL_ORBIT_DEV_BUILD_PATH"); devBuildPath != "" {
 		updater.CopyDevBuild("orbit", updateOpt.OrbitChannel, devBuildPath)
 	}
 
-	return nil
+	return &UpdatesData{
+		OrbitPath:    orbitPath,
+		OrbitVersion: orbitCustom.Version,
+
+		OsquerydPath:    osquerydPath,
+		OsquerydVersion: osquerydCustom.Version,
+	}, nil
 }
 
 func writeSecret(opt Options, orbitRoot string) error {

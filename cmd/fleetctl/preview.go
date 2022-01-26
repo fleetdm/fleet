@@ -650,7 +650,7 @@ func downloadOrbitAndStart(destDir, enrollSecret, address, orbitChannel, osquery
 	updateOpt.OrbitChannel = orbitChannel
 	updateOpt.OsquerydChannel = osquerydChannel
 
-	if err := packaging.InitializeUpdates(updateOpt); err != nil {
+	if _, err := packaging.InitializeUpdates(updateOpt); err != nil {
 		return fmt.Errorf("initialize updates: %w", err)
 	}
 
