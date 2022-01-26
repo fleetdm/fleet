@@ -2478,7 +2478,8 @@ func TestJitterForHost(t *testing.T) {
 	}
 
 	histogram := make(map[int64]int)
-	for i := 0; i < 1000; i++ {
+	hostCount := 3000
+	for i := 0; i < hostCount; i++ {
 		hostID, err := crand.Int(crand.Reader, big.NewInt(10000))
 		require.NoError(t, err)
 		jitter := jh.jitterForHost(uint(hostID.Int64() + 10000))
@@ -2493,7 +2494,29 @@ func TestJitterForHost(t *testing.T) {
 		if count > max {
 			max = count
 		}
-		fmt.Printf("jitterMinutes=%d \t count=%d\n", jitterMinutes, count)
+		t.Logf("jitterMinutes=%d \t count=%d\n", jitterMinutes, count)
 	}
-	fmt.Printf("min=%d \t max=%d \t variation=%d\n", min, max, max-min)
+	variation := max - min
+	t.Logf("min=%d \t max=%d \t variation=%d\n", min, max, variation)
+
+	// check that variation is below 1% of the total amount of hosts
+	require.Less(t, variation, int(float32(hostCount)/0.01))
+}
+
+func TestNoJitter(t *testing.T) {
+	jh := jitterHashTable{
+		maxCapacity: 1,
+		bucketCount: 0,
+		buckets:     make(map[int]int),
+		cache:       make(map[uint]time.Duration),
+	}
+
+	hostCount := 3000
+	for i := 0; i < hostCount; i++ {
+		hostID, err := crand.Int(crand.Reader, big.NewInt(10000))
+		require.NoError(t, err)
+		jitter := jh.jitterForHost(uint(hostID.Int64() + 10000))
+		jitterMinutes := int64(jitter.Minutes())
+		require.Equal(t, int64(0), jitterMinutes)
+	}
 }
