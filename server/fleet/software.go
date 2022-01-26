@@ -63,7 +63,7 @@ type SoftwareListOptions struct {
 
 	SkipLoadingCVEs bool
 
-	// WithHostCounts indicates that the list of software should incluode the
+	// WithHostCounts indicates that the list of software should include the
 	// counts of hosts per software, and include only those software that have
 	// a count of hosts > 0.
 	WithHostCounts bool
