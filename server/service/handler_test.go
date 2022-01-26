@@ -68,10 +68,6 @@ func TestAPIRoutes(t *testing.T) {
 		},
 		{
 			verb: "POST",
-			uri:  "/api/v1/fleet/queries/run",
-		},
-		{
-			verb: "POST",
 			uri:  "/api/v1/osquery/enroll",
 		},
 		{

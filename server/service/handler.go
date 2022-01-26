@@ -23,32 +23,30 @@ import (
 
 // FleetEndpoints is a collection of RPC endpoints implemented by the Fleet API.
 type FleetEndpoints struct {
-	Login                                 endpoint.Endpoint
-	Logout                                endpoint.Endpoint
-	ForgotPassword                        endpoint.Endpoint
-	ResetPassword                         endpoint.Endpoint
-	CreateUserWithInvite                  endpoint.Endpoint
-	PerformRequiredPasswordReset          endpoint.Endpoint
-	CreateInvite                          endpoint.Endpoint
-	ListInvites                           endpoint.Endpoint
-	DeleteInvite                          endpoint.Endpoint
-	VerifyInvite                          endpoint.Endpoint
-	CreateDistributedQueryCampaign        endpoint.Endpoint
-	CreateDistributedQueryCampaignByNames endpoint.Endpoint
-	EnrollAgent                           endpoint.Endpoint
-	GetClientConfig                       endpoint.Endpoint
-	GetDistributedQueries                 endpoint.Endpoint
-	SubmitDistributedQueryResults         endpoint.Endpoint
-	SubmitLogs                            endpoint.Endpoint
-	CarveBegin                            endpoint.Endpoint
-	CarveBlock                            endpoint.Endpoint
-	SearchTargets                         endpoint.Endpoint
-	ChangeEmail                           endpoint.Endpoint
-	InitiateSSO                           endpoint.Endpoint
-	CallbackSSO                           endpoint.Endpoint
-	SSOSettings                           endpoint.Endpoint
-	StatusResultStore                     endpoint.Endpoint
-	StatusLiveQuery                       endpoint.Endpoint
+	Login                         endpoint.Endpoint
+	Logout                        endpoint.Endpoint
+	ForgotPassword                endpoint.Endpoint
+	ResetPassword                 endpoint.Endpoint
+	CreateUserWithInvite          endpoint.Endpoint
+	PerformRequiredPasswordReset  endpoint.Endpoint
+	CreateInvite                  endpoint.Endpoint
+	ListInvites                   endpoint.Endpoint
+	DeleteInvite                  endpoint.Endpoint
+	VerifyInvite                  endpoint.Endpoint
+	EnrollAgent                   endpoint.Endpoint
+	GetClientConfig               endpoint.Endpoint
+	GetDistributedQueries         endpoint.Endpoint
+	SubmitDistributedQueryResults endpoint.Endpoint
+	SubmitLogs                    endpoint.Endpoint
+	CarveBegin                    endpoint.Endpoint
+	CarveBlock                    endpoint.Endpoint
+	SearchTargets                 endpoint.Endpoint
+	ChangeEmail                   endpoint.Endpoint
+	InitiateSSO                   endpoint.Endpoint
+	CallbackSSO                   endpoint.Endpoint
+	SSOSettings                   endpoint.Endpoint
+	StatusResultStore             endpoint.Endpoint
+	StatusLiveQuery               endpoint.Endpoint
 }
 
 // MakeFleetServerEndpoints creates the Fleet API endpoints.
@@ -81,10 +79,8 @@ func MakeFleetServerEndpoints(svc fleet.Service, urlPrefix string, limitStore th
 		ListInvites:  authenticatedUser(svc, makeListInvitesEndpoint(svc)),
 		DeleteInvite: authenticatedUser(svc, makeDeleteInviteEndpoint(svc)),
 
-		CreateDistributedQueryCampaign:        authenticatedUser(svc, makeCreateDistributedQueryCampaignEndpoint(svc)),
-		CreateDistributedQueryCampaignByNames: authenticatedUser(svc, makeCreateDistributedQueryCampaignByNamesEndpoint(svc)),
-		SearchTargets:                         authenticatedUser(svc, makeSearchTargetsEndpoint(svc)),
-		ChangeEmail:                           authenticatedUser(svc, makeChangeEmailEndpoint(svc)),
+		SearchTargets: authenticatedUser(svc, makeSearchTargetsEndpoint(svc)),
+		ChangeEmail:   authenticatedUser(svc, makeChangeEmailEndpoint(svc)),
 
 		// Authenticated status endpoints
 		StatusResultStore: authenticatedUser(svc, makeStatusResultStoreEndpoint(svc)),
@@ -106,32 +102,30 @@ func MakeFleetServerEndpoints(svc fleet.Service, urlPrefix string, limitStore th
 }
 
 type fleetHandlers struct {
-	Login                                 http.Handler
-	Logout                                http.Handler
-	ForgotPassword                        http.Handler
-	ResetPassword                         http.Handler
-	CreateUserWithInvite                  http.Handler
-	PerformRequiredPasswordReset          http.Handler
-	CreateInvite                          http.Handler
-	ListInvites                           http.Handler
-	DeleteInvite                          http.Handler
-	VerifyInvite                          http.Handler
-	CreateDistributedQueryCampaign        http.Handler
-	CreateDistributedQueryCampaignByNames http.Handler
-	EnrollAgent                           http.Handler
-	GetClientConfig                       http.Handler
-	GetDistributedQueries                 http.Handler
-	SubmitDistributedQueryResults         http.Handler
-	SubmitLogs                            http.Handler
-	CarveBegin                            http.Handler
-	CarveBlock                            http.Handler
-	SearchTargets                         http.Handler
-	ChangeEmail                           http.Handler
-	InitiateSSO                           http.Handler
-	CallbackSSO                           http.Handler
-	SettingsSSO                           http.Handler
-	StatusResultStore                     http.Handler
-	StatusLiveQuery                       http.Handler
+	Login                         http.Handler
+	Logout                        http.Handler
+	ForgotPassword                http.Handler
+	ResetPassword                 http.Handler
+	CreateUserWithInvite          http.Handler
+	PerformRequiredPasswordReset  http.Handler
+	CreateInvite                  http.Handler
+	ListInvites                   http.Handler
+	DeleteInvite                  http.Handler
+	VerifyInvite                  http.Handler
+	EnrollAgent                   http.Handler
+	GetClientConfig               http.Handler
+	GetDistributedQueries         http.Handler
+	SubmitDistributedQueryResults http.Handler
+	SubmitLogs                    http.Handler
+	CarveBegin                    http.Handler
+	CarveBlock                    http.Handler
+	SearchTargets                 http.Handler
+	ChangeEmail                   http.Handler
+	InitiateSSO                   http.Handler
+	CallbackSSO                   http.Handler
+	SettingsSSO                   http.Handler
+	StatusResultStore             http.Handler
+	StatusLiveQuery               http.Handler
 }
 
 func makeKitHandlers(e FleetEndpoints, opts []kithttp.ServerOption) *fleetHandlers {
@@ -140,32 +134,30 @@ func makeKitHandlers(e FleetEndpoints, opts []kithttp.ServerOption) *fleetHandle
 		return kithttp.NewServer(e, decodeFn, encodeResponse, opts...)
 	}
 	return &fleetHandlers{
-		Login:                                 newServer(e.Login, decodeLoginRequest),
-		Logout:                                newServer(e.Logout, decodeNoParamsRequest),
-		ForgotPassword:                        newServer(e.ForgotPassword, decodeForgotPasswordRequest),
-		ResetPassword:                         newServer(e.ResetPassword, decodeResetPasswordRequest),
-		CreateUserWithInvite:                  newServer(e.CreateUserWithInvite, decodeCreateUserRequest),
-		PerformRequiredPasswordReset:          newServer(e.PerformRequiredPasswordReset, decodePerformRequiredPasswordResetRequest),
-		CreateInvite:                          newServer(e.CreateInvite, decodeCreateInviteRequest),
-		ListInvites:                           newServer(e.ListInvites, decodeListInvitesRequest),
-		DeleteInvite:                          newServer(e.DeleteInvite, decodeDeleteInviteRequest),
-		VerifyInvite:                          newServer(e.VerifyInvite, decodeVerifyInviteRequest),
-		CreateDistributedQueryCampaign:        newServer(e.CreateDistributedQueryCampaign, decodeCreateDistributedQueryCampaignRequest),
-		CreateDistributedQueryCampaignByNames: newServer(e.CreateDistributedQueryCampaignByNames, decodeCreateDistributedQueryCampaignByNamesRequest),
-		EnrollAgent:                           newServer(e.EnrollAgent, decodeEnrollAgentRequest),
-		GetClientConfig:                       newServer(e.GetClientConfig, decodeGetClientConfigRequest),
-		GetDistributedQueries:                 newServer(e.GetDistributedQueries, decodeGetDistributedQueriesRequest),
-		SubmitDistributedQueryResults:         newServer(e.SubmitDistributedQueryResults, decodeSubmitDistributedQueryResultsRequest),
-		SubmitLogs:                            newServer(e.SubmitLogs, decodeSubmitLogsRequest),
-		CarveBegin:                            newServer(e.CarveBegin, decodeCarveBeginRequest),
-		CarveBlock:                            newServer(e.CarveBlock, decodeCarveBlockRequest),
-		SearchTargets:                         newServer(e.SearchTargets, decodeSearchTargetsRequest),
-		ChangeEmail:                           newServer(e.ChangeEmail, decodeChangeEmailRequest),
-		InitiateSSO:                           newServer(e.InitiateSSO, decodeInitiateSSORequest),
-		CallbackSSO:                           newServer(e.CallbackSSO, decodeCallbackSSORequest),
-		SettingsSSO:                           newServer(e.SSOSettings, decodeNoParamsRequest),
-		StatusResultStore:                     newServer(e.StatusResultStore, decodeNoParamsRequest),
-		StatusLiveQuery:                       newServer(e.StatusLiveQuery, decodeNoParamsRequest),
+		Login:                         newServer(e.Login, decodeLoginRequest),
+		Logout:                        newServer(e.Logout, decodeNoParamsRequest),
+		ForgotPassword:                newServer(e.ForgotPassword, decodeForgotPasswordRequest),
+		ResetPassword:                 newServer(e.ResetPassword, decodeResetPasswordRequest),
+		CreateUserWithInvite:          newServer(e.CreateUserWithInvite, decodeCreateUserRequest),
+		PerformRequiredPasswordReset:  newServer(e.PerformRequiredPasswordReset, decodePerformRequiredPasswordResetRequest),
+		CreateInvite:                  newServer(e.CreateInvite, decodeCreateInviteRequest),
+		ListInvites:                   newServer(e.ListInvites, decodeListInvitesRequest),
+		DeleteInvite:                  newServer(e.DeleteInvite, decodeDeleteInviteRequest),
+		VerifyInvite:                  newServer(e.VerifyInvite, decodeVerifyInviteRequest),
+		EnrollAgent:                   newServer(e.EnrollAgent, decodeEnrollAgentRequest),
+		GetClientConfig:               newServer(e.GetClientConfig, decodeGetClientConfigRequest),
+		GetDistributedQueries:         newServer(e.GetDistributedQueries, decodeGetDistributedQueriesRequest),
+		SubmitDistributedQueryResults: newServer(e.SubmitDistributedQueryResults, decodeSubmitDistributedQueryResultsRequest),
+		SubmitLogs:                    newServer(e.SubmitLogs, decodeSubmitLogsRequest),
+		CarveBegin:                    newServer(e.CarveBegin, decodeCarveBeginRequest),
+		CarveBlock:                    newServer(e.CarveBlock, decodeCarveBlockRequest),
+		SearchTargets:                 newServer(e.SearchTargets, decodeSearchTargetsRequest),
+		ChangeEmail:                   newServer(e.ChangeEmail, decodeChangeEmailRequest),
+		InitiateSSO:                   newServer(e.InitiateSSO, decodeInitiateSSORequest),
+		CallbackSSO:                   newServer(e.CallbackSSO, decodeCallbackSSORequest),
+		SettingsSSO:                   newServer(e.SSOSettings, decodeNoParamsRequest),
+		StatusResultStore:             newServer(e.StatusResultStore, decodeNoParamsRequest),
+		StatusLiveQuery:               newServer(e.StatusLiveQuery, decodeNoParamsRequest),
 	}
 }
 
@@ -354,9 +346,6 @@ func attachFleetAPIRoutes(r *mux.Router, h *fleetHandlers) {
 
 	r.Handle("/api/v1/fleet/email/change/{token}", h.ChangeEmail).Methods("GET").Name("change_email")
 
-	r.Handle("/api/v1/fleet/queries/run", h.CreateDistributedQueryCampaign).Methods("POST").Name("create_distributed_query_campaign")
-	r.Handle("/api/v1/fleet/queries/run_by_names", h.CreateDistributedQueryCampaignByNames).Methods("POST").Name("create_distributed_query_campaign_by_names")
-
 	r.Handle("/api/v1/fleet/targets", h.SearchTargets).Methods("POST").Name("search_targets")
 
 	r.Handle("/api/v1/fleet/status/result_store", h.StatusResultStore).Methods("GET").Name("status_result_store")
@@ -483,6 +472,8 @@ func attachNewStyleFleetAPIRoutes(r *mux.Router, svc fleet.Service, opts []kitht
 	e.GET("/api/_version_/fleet/spec/labels/{name}", getLabelSpecEndpoint, getGenericSpecRequest{})
 
 	e.GET("/api/_version_/fleet/queries/run", runLiveQueryEndpoint, runLiveQueryRequest{})
+	e.POST("/api/_version_/fleet/queries/run", createDistributedQueryCampaignEndpoint, createDistributedQueryCampaignRequest{})
+	e.POST("/api/_version_/fleet/queries/run_by_names", createDistributedQueryCampaignByNamesEndpoint, createDistributedQueryCampaignByNamesRequest{})
 
 	e.PATCH("/api/_version_/fleet/invites/{id:[0-9]+}", updateInviteEndpoint, updateInviteRequest{})
 
