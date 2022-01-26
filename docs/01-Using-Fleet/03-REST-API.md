@@ -1138,6 +1138,66 @@ Retrieves a host's MDM enrollment status, MDM server URL, and Munki version.
 
 ---
 
+### Get aggregated host's mobile device management (MDM) and Munki information
+
+Requires the [macadmins osquery
+extension](https://github.com/macadmins/osquery-extension) which comes bundled in [Fleet's osquery
+installers](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
+
+Retrieves aggregated host's MDM enrollment status and Munki versions.
+
+`GET /api/v1/fleet/macadmins`
+
+#### Parameters
+
+| Name    | Type    | In    | Description                                                                                                                                                                                                                                                                                                                        |
+| ------- | ------- | ----- | ---------------------------------------------------------------------------------------------------------------- |
+| team_id | integer | query | _Available in Fleet Premium_ Filters the aggregate host information to only include hosts in the specified team. |                           |
+
+#### Example
+
+`GET /api/v1/fleet/macadmins`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "macadmins": {
+    "munki_versions": [
+      {
+        "version": "5.5",
+        "hosts_count": 8360
+      },
+      {
+        "version": "5.4",
+        "hosts_count": 1700
+      },
+      {
+        "version": "5.3",
+        "hosts_count": 400
+      },
+      {
+        "version": "5.2.3",
+        "hosts_count": 112
+      },
+      {
+        "version": "5.2.2",
+        "hosts_count": 50
+      }
+    ],
+    "mobile_device_management_enrollment_status": {
+      "enrolled_manual_hosts_count": 124,
+      "enrolled_automatic_hosts_count": 124,
+      "unenrolled_hosts_count": 112
+    }
+  }
+}
+```
+
+---
+
 ## Labels
 
 - [Create label](#create-label)
