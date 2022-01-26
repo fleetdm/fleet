@@ -776,25 +776,30 @@ func getAggregatedMacadminsDataEndpoint(ctx context.Context, request interface{}
 }
 
 func (svc *Service) AggregatedMacadminsData(ctx context.Context, teamID *uint) (*fleet.AggregatedMacadminsData, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionList); err != nil {
 		return nil, err
+	}
+
+	if teamID != nil {
+		_, err := svc.ds.Team(ctx, *teamID)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	agg := &fleet.AggregatedMacadminsData{}
 
-	switch versions, err := svc.ds.AggregatedMunkiVersion(ctx, teamID); {
-	case err != nil && !fleet.IsNotFound(err):
+	versions, err := svc.ds.AggregatedMunkiVersion(ctx, teamID)
+	if err != nil {
 		return nil, err
-	case err == nil:
-		agg.MunkiVersions = versions
 	}
+	agg.MunkiVersions = versions
 
-	switch status, err := svc.ds.AggregatedMDMStatus(ctx, teamID); {
-	case err != nil && !fleet.IsNotFound(err):
+	status, err := svc.ds.AggregatedMDMStatus(ctx, teamID)
+	if err != nil {
 		return nil, err
-	case err == nil:
-		agg.MDMStatus = status
 	}
+	agg.MDMStatus = status
 
 	return agg, nil
 }

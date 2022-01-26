@@ -1789,11 +1789,20 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 	assert.Equal(t, agg.Macadmins.MDMStatus.UnenrolledHostsCount, 1)
 	assert.Equal(t, agg.Macadmins.MDMStatus.HostsCount, 2)
 
+	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+		Name:        "team1" + t.Name(),
+		Description: "desc team1",
+	})
+	require.NoError(t, err)
+
 	agg = getAggregatedMacadminsDataResponse{}
-	s.DoJSON("GET", "/api/v1/fleet/macadmins", nil, http.StatusOK, &agg, "team_id", "3")
+	s.DoJSON("GET", "/api/v1/fleet/macadmins", nil, http.StatusOK, &agg, "team_id", fmt.Sprint(team.ID))
 	require.NotNil(t, agg.Macadmins)
 	require.Empty(t, agg.Macadmins.MunkiVersions)
 	require.Empty(t, agg.Macadmins.MDMStatus)
+
+	agg = getAggregatedMacadminsDataResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/macadmins", nil, http.StatusNotFound, &agg, "team_id", "9999999")
 }
 
 func (s *integrationTestSuite) TestLabels() {

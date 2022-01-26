@@ -1293,10 +1293,10 @@ func (d *Datastore) AggregatedMDMStatus(ctx context.Context, teamID *uint) (flee
 			// not having stats is not an error
 			return fleet.AggregatedMDMStatus{}, nil
 		}
-		return fleet.AggregatedMDMStatus{}, ctxerr.Wrap(ctx, err, "selecting munki versions")
+		return fleet.AggregatedMDMStatus{}, ctxerr.Wrap(ctx, err, "selecting mdm status")
 	}
 	if err := json.Unmarshal(statusJson, &status); err != nil {
-		return fleet.AggregatedMDMStatus{}, ctxerr.Wrap(ctx, err, "unmarshaling munki versions")
+		return fleet.AggregatedMDMStatus{}, ctxerr.Wrap(ctx, err, "unmarshaling mdm status")
 	}
 	return status, nil
 }
@@ -1361,17 +1361,11 @@ func (d *Datastore) generateAggregatedMDMStatus(ctx context.Context, teamID *uin
 
 	var status fleet.AggregatedMDMStatus
 	query := `SELECT
-       		count(*) as hosts_count,
-			COALESCE(SUM(unenrolled), 0) as unenrolled_hosts_count,
-			COALESCE(SUM(enrolled_automated), 0) as enrolled_automated_hosts_count,
-			COALESCE(SUM(enrolled_manual), 0) as enrolled_manual_hosts_count
-       	FROM (
-       	     SELECT host_id,
-       	            COALESCE(CASE WHEN NOT enrolled THEN 1 ELSE 0 END, 0) as unenrolled,
-       				COALESCE(CASE WHEN enrolled AND installed_from_dep THEN 1 ELSE 0 END, 0) as enrolled_automated,
-       				COALESCE(CASE WHEN enrolled AND NOT installed_from_dep THEN 1 ELSE 0 END, 0) as enrolled_manual
-			 FROM host_mdm
-       	) hm
+				COUNT(DISTINCT host_id) as hosts_count,
+				COALESCE(SUM(CASE WHEN NOT enrolled THEN 1 ELSE 0 END), 0) as unenrolled_hosts_count,
+				COALESCE(SUM(CASE WHEN enrolled AND installed_from_dep THEN 1 ELSE 0 END), 0) as enrolled_automated_hosts_count,
+				COALESCE(SUM(CASE WHEN enrolled AND NOT installed_from_dep THEN 1 ELSE 0 END), 0) as enrolled_manual_hosts_count
+			 FROM host_mdm hm
        	`
 	args := []interface{}{}
 	if teamID != nil {
