@@ -4,7 +4,7 @@ import React, { useState, useCallback, useContext } from "react";
 import { useQuery } from "react-query";
 import { useDispatch } from "react-redux";
 import { AppContext } from "context/app";
-import { push } from "react-router-redux";
+import { InjectedRouter } from "react-router/lib/Router";
 import { find } from "lodash";
 
 // @ts-ignore
