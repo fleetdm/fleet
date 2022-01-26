@@ -121,7 +121,7 @@ describe("Teams flow (seeded)", () => {
         .click();
       cy.getAttached(".modal__content").contains("button", /done/i).click();
     });
-    it("edit agent options an existing team", () => {
+    it("edit agent options of an existing team", () => {
       cy.findByText(/agent options/i).click();
       cy.contains(".ace_content", "config:");
       cy.get(".ace_text-input")
