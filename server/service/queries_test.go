@@ -121,6 +121,12 @@ func TestQueryAuth(t *testing.T) {
 	ds.DeleteQueriesFunc = func(ctx context.Context, ids []uint) (uint, error) {
 		return 0, nil
 	}
+	ds.ListQueriesFunc = func(ctx context.Context, opts fleet.ListQueryOptions) ([]*fleet.Query, error) {
+		return nil, nil
+	}
+	ds.ApplyQueriesFunc = func(ctx context.Context, authID uint, queries []*fleet.Query) error {
+		return nil
+	}
 
 	testCases := []struct {
 		name            string
@@ -197,6 +203,24 @@ func TestQueryAuth(t *testing.T) {
 
 			_, err = svc.DeleteQueries(ctx, []uint{tt.qid})
 			checkAuthErr(t, tt.shouldFailWrite, err)
+
+			_, err = svc.GetQuery(ctx, tt.qid)
+			checkAuthErr(t, tt.shouldFailRead, err)
+
+			_, err = svc.ListQueries(ctx, fleet.ListOptions{})
+			checkAuthErr(t, tt.shouldFailRead, err)
+
+			// TODO(mna): the authorization seems wrong here - ApplyQuerySpecs never loads the queries it
+			// receives, so it just validates that the user has Write access to Queries in general, not
+			// that it can update those provided in the specs in particular. Here, a team maintainer can
+			// end up updating a query they did not author.
+			//err = svc.ApplyQuerySpecs(ctx, []*fleet.QuerySpec{{Name: queryName[tt.qid], Query: "SELECT 1"}})
+			//checkAuthErr(t, tt.shouldFailWrite, err)
+
+			_, err = svc.GetQuerySpecs(ctx)
+			checkAuthErr(t, tt.shouldFailRead, err)
+			_, err = svc.GetQuerySpec(ctx, queryName[tt.qid])
+			checkAuthErr(t, tt.shouldFailRead, err)
 		})
 	}
 }
