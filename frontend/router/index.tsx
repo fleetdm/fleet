@@ -33,6 +33,7 @@ import Homepage from "pages/Homepage";
 import LoginRoutes from "components/LoginRoutes";
 import LogoutPage from "pages/LogoutPage";
 import ManageHostsPage from "pages/hosts/ManageHostsPage";
+import ManageSoftwarePage from "pages/software/ManageSoftwarePage";
 import ManageQueriesPage from "pages/queries/ManageQueriesPage";
 import ManagePacksPage from "pages/packs/ManagePacksPage";
 import ManagePoliciesPage from "pages/policies/ManagePoliciesPage";
@@ -45,6 +46,7 @@ import QueryPage from "pages/queries/QueryPage";
 import QueryPageWrapper from "components/queries/QueryPageWrapper";
 import RegistrationPage from "pages/RegistrationPage";
 import SchedulePageWrapper from "components/schedule/SchedulePageWrapper";
+import SoftwarePageWrapper from "components/software/SoftwarePageWrapper";
 import ApiOnlyUser from "pages/ApiOnlyUser";
 import Fleet403 from "pages/errors/Fleet403";
 import Fleet404 from "pages/errors/Fleet404";
@@ -130,6 +132,9 @@ const routes = (
                   component={ManageHostsPage}
                 />
                 <Route path=":host_id" component={HostDetailsPage} />
+              </Route>
+              <Route path="software" component={SoftwarePageWrapper}>
+                <Route path="manage" component={ManageSoftwarePage} />
               </Route>
               <Route component={AuthGlobalAdminMaintainerRoutes}>
                 <Route path="packs" component={PackPageWrapper}>

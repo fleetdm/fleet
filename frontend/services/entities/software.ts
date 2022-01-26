@@ -1,3 +1,5 @@
+import { snakeCase } from "lodash";
+
 import sendRequest from "services";
 import endpoints from "fleet/endpoints";
 import { ISoftware } from "interfaces/software";
@@ -35,7 +37,7 @@ const buildQueryStringFromParams = (params: ISoftwareParams) => {
   return `?${filteredParams
     .map(
       ([key, value]) =>
-        `${encodeURIComponent(key)}=${encodeURIComponent(value)}`
+        `${encodeURIComponent(snakeCase(key))}=${encodeURIComponent(value)}`
     )
     .join("&")}`;
 };
