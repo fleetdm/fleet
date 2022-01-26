@@ -10,7 +10,7 @@ module.exports = {
   inputs: {
 
     numberOfHosts: {
-      type: 'string',
+      type: 'number',
       required: true,
     },
 

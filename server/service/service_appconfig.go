@@ -1,9 +1,7 @@
 package service
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"html/template"
 	"strings"
@@ -13,7 +11,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mail"
-	"github.com/kolide/kit/version"
 )
 
 // mailError is set when an error performing mail operations
@@ -61,14 +58,6 @@ func (svc *Service) NewAppConfig(ctx context.Context, p fleet.AppConfig) (*fleet
 	return newConfig, nil
 }
 
-func (svc *Service) AppConfig(ctx context.Context) (*fleet.AppConfig, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionRead); err != nil {
-		return nil, err
-	}
-
-	return svc.ds.AppConfig(ctx)
-}
-
 func (svc *Service) sendTestEmail(ctx context.Context, config *fleet.AppConfig) error {
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
@@ -91,75 +80,8 @@ func (svc *Service) sendTestEmail(ctx context.Context, config *fleet.AppConfig) 
 	return nil
 }
 
-func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppConfig, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionWrite); err != nil {
-		return nil, err
-	}
-
-	appConfig, err := svc.AppConfig(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	// We apply the config that is incoming to the old one
-	decoder := json.NewDecoder(bytes.NewReader(p))
-	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(&appConfig); err != nil {
-		return nil, &badRequestError{message: err.Error()}
-	}
-
-	if appConfig.SMTPSettings.SMTPEnabled || appConfig.SMTPSettings.SMTPConfigured {
-		if err = svc.sendTestEmail(ctx, appConfig); err != nil {
-			return nil, err
-		}
-		appConfig.SMTPSettings.SMTPConfigured = true
-	} else if appConfig.SMTPSettings.SMTPEnabled {
-		appConfig.SMTPSettings.SMTPConfigured = false
-	}
-
-	if err := svc.ds.SaveAppConfig(ctx, appConfig); err != nil {
-		return nil, err
-	}
-	return appConfig, nil
-}
-
 func cleanupURL(url string) string {
 	return strings.TrimRight(strings.Trim(url, " \t\n"), "/")
-}
-
-func (svc *Service) ApplyEnrollSecretSpec(ctx context.Context, spec *fleet.EnrollSecretSpec) error {
-	if err := svc.authz.Authorize(ctx, &fleet.EnrollSecret{}, fleet.ActionWrite); err != nil {
-		return err
-	}
-
-	for _, s := range spec.Secrets {
-		if s.Secret == "" {
-			return ctxerr.New(ctx, "enroll secret must not be empty")
-		}
-	}
-
-	return svc.ds.ApplyEnrollSecrets(ctx, nil, spec.Secrets)
-}
-
-func (svc *Service) GetEnrollSecretSpec(ctx context.Context) (*fleet.EnrollSecretSpec, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.EnrollSecret{}, fleet.ActionRead); err != nil {
-		return nil, err
-	}
-
-	secrets, err := svc.ds.GetEnrollSecrets(ctx, nil)
-	if err != nil {
-		return nil, err
-	}
-	return &fleet.EnrollSecretSpec{Secrets: secrets}, nil
-}
-
-func (svc *Service) Version(ctx context.Context) (*version.Info, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionRead); err != nil {
-		return nil, err
-	}
-
-	info := version.Version()
-	return &info, nil
 }
 
 func (svc *Service) License(ctx context.Context) (*fleet.LicenseInfo, error) {

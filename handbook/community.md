@@ -17,6 +17,17 @@ Once a blog post has been written, approved, and published, please ensure that i
 
 If we are doing a press release, we are probably pitching it to one or more reporters as an exclusive story, if they choose to take it.  Consider not sharing or publicizing any information related to the upcoming press release before the announcement.  See also https://www.quora.com/What-is-a-press-exclusive-and-how-does-it-work
 
+## Communities
+
+Fleet's users and broader audience are spread across many online platforms.  Here are the most active communities where Fleet's developer relations and social media team members participate at least once every weekday:
+
+- [Osquery Slack](https://join.slack.com/t/osquery/shared_invite/zt-h29zm0gk-s2DBtGUTW4CFel0f0IjTEw) (`#fleet` channel)
+- [MacAdmins Slack](https://www.macadmins.org/) (`#fleet` channel)
+- [osquery discussions on LinkedIn](https://www.linkedin.com/search/results/all/?keywords=osquery)
+- [osquery discussions on Twitter](https://twitter.com/search?q=osquery&src=typed_query)
+- [reddit.com/r/sysadmins](https://www.reddit.com/r/sysadmin/)
+- [reddit.com/r/SysAdminBlogs](https://www.reddit.com/r/SysAdminBlogs/)
+- [r/sysadmin Discord](https://discord.gg/sysadmin)
 
 ## Community contributions (pull requests)
 
@@ -52,4 +63,4 @@ SQL works properly and they attributed correctly. Please use your best judgement
 Larger changes and new features should be approved by the appropriate [Product
 DRI](./product.md#product-dris). Ask in the `#g-product` channel in Fleet Slack.
 
-<meta name="maintainedBy" value="zwass">
+<meta name="maintainedBy" value="mike-j-thomas">

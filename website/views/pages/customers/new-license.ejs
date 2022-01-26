@@ -29,7 +29,7 @@
                 <strong>Order total</strong>
               </div>
               <div class="ml-auto">
-                <strong>${{!showQuotedPrice ? quotedPrice : formData.numberOfHosts * 12}}.00 /year</strong>
+                <strong>${{(!showQuotedPrice || _.isNaN(formData.numberOfHosts * 12)) ? quotedPrice : formData.numberOfHosts * 12}}.00 /year</strong>
               </div>
             </div>
             <div  :class="[showBillingForm ? 'pt-2' : '' ]" v-if="!showBillingForm">

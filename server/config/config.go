@@ -56,9 +56,8 @@ type RedisConfig struct {
 	TLSCA                     string        `yaml:"tls_ca"`
 	TLSServerName             string        `yaml:"tls_server_name"`
 	TLSHandshakeTimeout       time.Duration `yaml:"tls_handshake_timeout"`
-	// TODO(mna): should we allow insecure skip verify option?
-	MaxIdleConns int `yaml:"max_idle_conns"`
-	MaxOpenConns int `yaml:"max_open_conns"`
+	MaxIdleConns              int           `yaml:"max_idle_conns"`
+	MaxOpenConns              int           `yaml:"max_open_conns"`
 	// this config is an int on MysqlConfig, but it should be a time.Duration.
 	ConnMaxLifetime time.Duration `yaml:"conn_max_lifetime"`
 	IdleTimeout     time.Duration `yaml:"idle_timeout"`

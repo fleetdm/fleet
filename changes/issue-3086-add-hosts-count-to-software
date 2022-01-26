@@ -1,0 +1,1 @@
+* Add `hosts_count` field for each software (and `counts_updated_at` timestamp as a top-level field) to the response payload of `GET /api/v1/fleet/software`
