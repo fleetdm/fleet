@@ -1782,6 +1782,43 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 	require.Nil(t, macadminsData.Macadmins.Munki)
 	assert.Equal(t, "AAA", macadminsData.Macadmins.MDM.ServerURL)
 	assert.Equal(t, "Enrolled (automated)", macadminsData.Macadmins.MDM.EnrollmentStatus)
+
+	// generate aggregated data
+	require.NoError(t, s.ds.GenerateAggregatedMunkiAndMDM(context.Background()))
+
+	agg := getAggregatedMacadminsDataResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/macadmins", nil, http.StatusOK, &agg)
+	require.NotNil(t, agg.Macadmins)
+	assert.Len(t, agg.Macadmins.MunkiVersions, 2)
+	assert.ElementsMatch(t, agg.Macadmins.MunkiVersions, []fleet.AggregatedMunkiVersion{
+		{
+			HostMunkiInfo: fleet.HostMunkiInfo{Version: "1.5.0"},
+			HostsCount:    1,
+		},
+		{
+			HostMunkiInfo: fleet.HostMunkiInfo{Version: "3.2.0"},
+			HostsCount:    1,
+		},
+	})
+	assert.Equal(t, agg.Macadmins.MDMStatus.EnrolledManualHostsCount, 0)
+	assert.Equal(t, agg.Macadmins.MDMStatus.EnrolledAutomatedHostsCount, 1)
+	assert.Equal(t, agg.Macadmins.MDMStatus.UnenrolledHostsCount, 1)
+	assert.Equal(t, agg.Macadmins.MDMStatus.HostsCount, 2)
+
+	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+		Name:        "team1" + t.Name(),
+		Description: "desc team1",
+	})
+	require.NoError(t, err)
+
+	agg = getAggregatedMacadminsDataResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/macadmins", nil, http.StatusOK, &agg, "team_id", fmt.Sprint(team.ID))
+	require.NotNil(t, agg.Macadmins)
+	require.Empty(t, agg.Macadmins.MunkiVersions)
+	require.Empty(t, agg.Macadmins.MDMStatus)
+
+	agg = getAggregatedMacadminsDataResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/macadmins", nil, http.StatusNotFound, &agg, "team_id", "9999999")
 }
 
 func (s *integrationTestSuite) TestLabels() {
