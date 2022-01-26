@@ -1,17 +1,22 @@
-describe("Settings flow", () => {
-  beforeEach(() => {
+describe("App settings flow", () => {
+  before(() => {
+    Cypress.session.clearAllSavedSessions();
     cy.setup();
-    cy.login();
+    cy.loginWithCySession();
+    cy.viewport(1200, 660);
+  });
+  after(() => {
+    cy.logout();
   });
 
-  // We're using `scrollBehavior: 'center'` as a default
-  // because the sticky header blocks the elements.
-  it(
-    "Modifies and updates all setting successfully",
-    { scrollBehavior: "center" },
-    () => {
+  describe("Teams settings page", () => {
+    beforeEach(() => {
+      cy.loginWithCySession();
       cy.visit("/settings/organization");
-
+    });
+    // We're using `scrollBehavior: 'center'` as a default
+    // because the sticky header blocks the elements.
+    it("edits existing app settings", { scrollBehavior: "center" }, () => {
       cy.getAttached(".app-config-form").within(() => {
         cy.findByLabelText(/organization name/i)
           .clear()
@@ -73,7 +78,9 @@ describe("Settings flow", () => {
         .click()
         .type("rachelspassword");
 
-      cy.findByLabelText(/enable host status webhook/i).check({ force: true });
+      cy.findByLabelText(/enable host status webhook/i).check({
+        force: true,
+      });
 
       cy.findByLabelText(/destination url/i)
         .click()
@@ -103,11 +110,11 @@ describe("Settings flow", () => {
 
       cy.findByLabelText(/disable live queries/i).check({ force: true });
 
-      // Update settings
       cy.findByRole("button", { name: /update settings/i }).click();
 
       cy.findByText(/updated settings/i).should("exist");
 
+      // confirm edits
       cy.visit("/settings/organization");
 
       cy.getAttached(".app-config-form").within(() => {
@@ -183,6 +190,6 @@ describe("Settings flow", () => {
           "Hello from Fleet"
         );
       });
-    }
-  );
+    });
+  });
 });

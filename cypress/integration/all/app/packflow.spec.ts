@@ -1,19 +1,20 @@
-describe(
-  "Pack flow",
-  {
-    defaultCommandTimeout: 20000,
-  },
-  () => {
+describe("Pack flow (empty)", () => {
+  before(() => {
+    Cypress.session.clearAllSavedSessions();
+    cy.setup();
+    cy.loginWithCySession();
+    cy.viewport(1200, 660);
+  });
+  after(() => {
+    cy.logout();
+  });
+
+  describe("Manage packs page", () => {
     beforeEach(() => {
-      cy.setup();
-      cy.login();
-      cy.seedQueries();
-    });
-
-    it("Create, edit, and delete a pack and pack query successfully", () => {
-      // Create pack
+      cy.loginWithCySession();
       cy.visit("/packs/manage");
-
+    });
+    it("creates a new pack", () => {
       cy.findByRole("button", { name: /create new pack/i }).click();
 
       cy.findByLabelText(/name/i).click().type("Errors and crashes");
@@ -23,12 +24,29 @@ describe(
         .type("See all user errors and window crashes.");
 
       cy.findByRole("button", { name: /save query pack/i }).click();
+    });
+  });
+});
+describe("Pack flow (seeded)", () => {
+  before(() => {
+    Cypress.session.clearAllSavedSessions();
+    cy.setup();
+    cy.loginWithCySession();
+    cy.seedQueries();
+    cy.seedPacks();
+    cy.viewport(1200, 660);
+  });
+  after(() => {
+    cy.logout();
+  });
 
-      // Add query to pack
+  describe("Pack details page", () => {
+    beforeEach(() => {
+      cy.loginWithCySession();
       cy.visit("/packs/manage");
-
-      cy.getAttached(".name__cell > .button--text-link").click();
-
+      cy.getAttached(".name__cell > .button--text-link").first().click();
+    });
+    it("adds a query to an existing pack", () => {
       cy.findByRole("button", { name: /add query/i }).click();
 
       cy.findByText(/select query/i).click();
@@ -51,21 +69,17 @@ describe(
       cy.getAttached(".pack-query-editor-modal__btn-wrap")
         .contains("button", /add query/i)
         .click();
-
-      // Remove query from pack
       cy.findByText(/get authorized/i).should("exist");
+    });
+    it("removes a query from an existing pack", () => {
       cy.getAttached(".fleet-checkbox__input").check({ force: true });
 
       cy.findByRole("button", { name: /remove/i }).click();
       cy.getAttached(".remove-pack-query-modal__btn-wrap")
         .contains("button", /remove/i)
         .click();
-
-      // Edit pack
-      cy.visit("/packs/manage");
-
-      cy.getAttached(".name__cell > .button--text-link").click();
-
+    });
+    it("edits an existing pack", () => {
       cy.findByLabelText(/name/i).clear().type("Server errors");
 
       cy.findByLabelText(/description/i)
@@ -73,12 +87,21 @@ describe(
         .type("See all server errors.");
 
       cy.findByRole("button", { name: /save/i }).click();
-
-      // Delete pack
+    });
+  });
+  describe("Manage packs page", () => {
+    beforeEach(() => {
+      cy.loginWithCySession();
       cy.visit("/packs/manage");
-
-      cy.getAttached(".fleet-checkbox__input").check({ force: true });
-
+    });
+    it("deletes an existing pack", () => {
+      cy.getAttached("tbody").within(() => {
+        cy.getAttached("tr")
+          .first()
+          .within(() => {
+            cy.getAttached(".fleet-checkbox__input").check({ force: true });
+          });
+      });
       cy.findByRole("button", { name: /delete/i }).click();
 
       cy.getAttached(".remove-pack-modal__btn-wrap > .button--alert")
@@ -90,8 +113,8 @@ describe(
       cy.visit("/packs/manage");
 
       cy.getAttached(".table-container").within(() => {
-        cy.findByText(/server errors/i).should("not.exist");
+        cy.findByText(/windows starter pack/i).should("not.exist");
       });
     });
-  }
-);
+  });
+});
