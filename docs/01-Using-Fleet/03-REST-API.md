@@ -1063,7 +1063,7 @@ Request (`filters` is specified):
 
 Requires the [macadmins osquery
 extension](https://github.com/macadmins/osquery-extension) which comes bundled in [Fleet's osquery
-installers](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer). 
+installers](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
 
 Retrieves a host's Google Chrome profile information which can be used to link a host to a specific
 user by email.
@@ -1098,11 +1098,11 @@ user by email.
 
 ---
 
-### Get host's mobile device management (MDM) and Munki information 
+### Get host's mobile device management (MDM) and Munki information
 
 Requires the [macadmins osquery
 extension](https://github.com/macadmins/osquery-extension) which comes bundled in [Fleet's osquery
-installers](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer). 
+installers](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
 
 Retrieves a host's MDM enrollment status, MDM server URL, and Munki version.
 
@@ -5872,10 +5872,10 @@ Transforms a host name into a host id. For example, the Fleet UI use this endpoi
 | ----------------------- | ------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | page                    | integer | query | Page number of the results to fetch.                                                                                                                                                                                                                                                                                                        |
 | per_page                | integer | query | Results per page.                                                                                                                                                                                                                                                                                                                           |
-| order_key               | string  | query | What to order results by. Can be ordered by the following fields: `name`.                                                                                                                                                                                                                                                                             |
-| order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`.                                                                                                                                                                                                               |
-| query                   | string  | query | Search query keywords. Searchable fields include `name`.                                                                                                                                                                                                                                          |
-| team_id                 | integer | query | _Available in Fleet Premium_ Filters the software to only include the software installed on the hosts that are assigned to the specified team.                                                                                                                                                                                                                                                 |
+| order_key               | string  | query | What to order results by. Can be ordered by the following fields: `name`, `hosts_count`. Defaults to the hosts count, descending.                                                                                                                                                                                                           |
+| order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default if not provided is `asc`.                                                                                                                                                                                               |
+| query                   | string  | query | Search query keywords. Searchable fields include `name`.                                                                                                                                                                                                                                                                                    |
+| team_id                 | integer | query | _Available in Fleet Premium_ Filters the software to only include the software installed on the hosts that are assigned to the specified team.                                                                                                                                                                                              |
 | vulnerable              | bool    | query | If true or 1, only list software that has detected vulnerabilities                                                                                                                                                                                                                                                                          |
 
 #### Example
@@ -5888,22 +5888,16 @@ Transforms a host name into a host id. For example, the Fleet UI use this endpoi
 
 ```json
 {
+    "counts_updated_at": "2022-01-01 12:32:00",
     "software": [
       {
-        "id": 1,
-        "name": "Chrome.app",
+        "id": 4,
+        "name": "osquery",
         "version": "2.1.11",
-        "source": "Application (macOS)",
+        "source": "rpm_packages",
         "generated_cpe": "",
-        "vulnerabilities": null
-      },
-      {
-        "id": 2,
-        "name": "Figma.app",
-        "version": "2.1.11",
-        "source": "Application (macOS)",
-        "generated_cpe": "",
-        "vulnerabilities": null
+        "vulnerabilities": null,
+        "hosts_count": 456
       },
       {
         "id": 3,
@@ -5911,15 +5905,26 @@ Transforms a host name into a host id. For example, the Fleet UI use this endpoi
         "version": "2.1.11",
         "source": "rpm_packages",
         "generated_cpe": "",
-        "vulnerabilities": null
+        "vulnerabilities": null,
+        "hosts_count": 345
       },
       {
-        "id": 4,
-        "name": "osquery",
+        "id": 2,
+        "name": "Figma.app",
         "version": "2.1.11",
-        "source": "rpm_packages",
+        "source": "Application (macOS)",
         "generated_cpe": "",
-        "vulnerabilities": null
+        "vulnerabilities": null,
+        "hosts_count": 234
+      },
+      {
+        "id": 1,
+        "name": "Chrome.app",
+        "version": "2.1.11",
+        "source": "Application (macOS)",
+        "generated_cpe": "",
+        "vulnerabilities": null,
+        "hosts_count": 123
       }
     ]
   }
