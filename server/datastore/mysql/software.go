@@ -610,5 +610,10 @@ func (d *Datastore) CalculateHostsPerSoftware(ctx context.Context, updatedAt tim
 	if err := rows.Err(); err != nil {
 		return ctxerr.Wrap(ctx, err, "iterate over host_software counts")
 	}
+
+	// TODO(mna): delete any unused software from the software table (any that
+	// isn't in that list with a host count > 0). This also addresses another
+	// TODO in this file.
+
 	return nil
 }
