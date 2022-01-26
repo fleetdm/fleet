@@ -1264,7 +1264,7 @@ func (d *Datastore) AggregatedMunkiVersion(ctx context.Context, teamID *uint) ([
 	}
 	var versions []fleet.AggregatedMunkiVersion
 	var versionsJson []byte
-	err := d.writer.GetContext(ctx, &versionsJson, `select json_value from aggregated_stats where id=? and type='munki_versions'`, id)
+	err := sqlx.GetContext(ctx, d.reader, &versionsJson, `select json_value from aggregated_stats where id=? and type='munki_versions'`, id)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			// not having stats is not an error
