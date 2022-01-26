@@ -1,9 +1,7 @@
 package service
 
 import (
-	"encoding/json"
 	"fmt"
-	"net/http"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
@@ -18,29 +16,11 @@ func (c *Client) SearchTargets(query string, hostIDs, labelIDs []uint) (*fleet.T
 			// TODO handle TeamIDs
 		},
 	}
-
-	response, err := c.AuthenticatedDo("POST", "/api/v1/fleet/targets", "", req)
-	if err != nil {
-		return nil, fmt.Errorf("POST /api/v1/fleet/targets: %w", err)
-	}
-	defer response.Body.Close()
-
-	if response.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf(
-			"SearchTargets received status %d %s",
-			response.StatusCode,
-			extractServerErrorText(response.Body),
-		)
-	}
-
+	verb, path := "POST", "/api/v1/fleet/targets"
 	var responseBody searchTargetsResponse
-	err = json.NewDecoder(response.Body).Decode(&responseBody)
+	err := c.authenticatedRequest(req, verb, path, &responseBody)
 	if err != nil {
-		return nil, fmt.Errorf("decode SearchTargets response: %w", err)
-	}
-
-	if responseBody.Err != nil {
-		return nil, fmt.Errorf("SearchTargets: %s", responseBody.Err)
+		return nil, fmt.Errorf("SearchTargets: %s", err)
 	}
 
 	hosts := make([]*fleet.Host, len(responseBody.Targets.Hosts))

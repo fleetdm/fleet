@@ -611,9 +611,10 @@ Returns the count of all hosts organized by status. `online_count` includes all 
 
 #### Parameters
 
-| Name    | Type    | In    | Description                                                                     |
-| ------- | ------- | ----  | ------------------------------------------------------------------------------- |
-| team_id | integer | query | The ID of the team whose host counts should be included. Defaults to all teams. |
+| Name     | Type    | In    | Description                                                                     |
+| -------- | ------- | ----  | ------------------------------------------------------------------------------- |
+| team_id  | integer | query | The ID of the team whose host counts should be included. Defaults to all teams. |
+| platform | string  | query | Platform to filter by when counting. Defaults to all platforms.                 |
 
 #### Example
 
@@ -1062,7 +1063,7 @@ Request (`filters` is specified):
 
 Requires the [macadmins osquery
 extension](https://github.com/macadmins/osquery-extension) which comes bundled in [Fleet's osquery
-installers](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer). 
+installers](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
 
 Retrieves a host's Google Chrome profile information which can be used to link a host to a specific
 user by email.
@@ -1097,11 +1098,11 @@ user by email.
 
 ---
 
-### Get host's mobile device management (MDM) and Munki information 
+### Get host's mobile device management (MDM) and Munki information
 
 Requires the [macadmins osquery
 extension](https://github.com/macadmins/osquery-extension) which comes bundled in [Fleet's osquery
-installers](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer). 
+installers](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
 
 Retrieves a host's MDM enrollment status, MDM server URL, and Munki version.
 
@@ -2475,10 +2476,17 @@ Deletes the queries specified by ID. Returns the count of queries successfully d
 
 ### Run live query
 
-Runs one or more live queries against the specified hosts and responds with the results
-over a fixed period of 90 seconds.
+Run one or more live queries against the specified hosts and responds with the results
+collected after 25 seconds.
 
-If you are using this API to run multiple queries at the same time, they are started simultaneously.  Response time is capped at 90 seconds from when the API request was received, regardless of how many queries you are running, and regardless whether all results have been gathered or not.
+If multiple queries are provided, they run concurrently. Response time is capped at 25 seconds from
+when the API request was received, regardless of how many queries you are running, and regardless
+whether all results have been gathered or not. This API does not return any results until the fixed
+time period elapses, at which point all of the collected results are returned.
+
+The fixed time period is configurable via environment variable on the Fleet server (eg.
+`FLEET_LIVE_QUERY_REST_PERIOD=90s`). If setting a higher value, be sure that you do not exceed your
+load balancer timeout.
 
 > WARNING: This API endpoint collects responses in-memory (RAM) on the Fleet compute instance handling this request, which can overflow if the result set is large enough.  This has the potential to crash the process and/or cause an autoscaling event in your cloud provider, depending on how Fleet is deployed.
 
@@ -2489,8 +2497,8 @@ If you are using this API to run multiple queries at the same time, they are sta
 
 | Name      | Type   | In   | Description                                   |
 | --------- | ------ | ---- | --------------------------------------------- |
-| query_ids | array  | body | **Required**. The IDs of the queries to run as live queries.               |
-| host_ids  | array  | body | **Required**. The IDs of the hosts to run the live queries against. |
+| query_ids | array  | body | **Required**. The IDs of the saved queries to run. |
+| host_ids  | array  | body | **Required**. The IDs of the hosts to target. |
 
 #### Example
 
@@ -4506,7 +4514,7 @@ None.
   "webhook_settings": {
     "host_status_webhook": {
       "enable_host_status_webhook": true,
-       "destination_url": "https://server.com",
+      "destination_url": "https://server.com",
       "host_percentage": 5,
       "days_count": 7
     },
@@ -4663,10 +4671,6 @@ Modifies the Fleet's configuration with the supplied information.
   },
   "host_settings": {
     "additional_queries": null
-  },
-  "license": {
-    "tier": "free",
-    "expiration": "0001-01-01T00:00:00Z"
   },
   "license": {
     "tier": "free",
@@ -5868,10 +5872,10 @@ Transforms a host name into a host id. For example, the Fleet UI use this endpoi
 | ----------------------- | ------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | page                    | integer | query | Page number of the results to fetch.                                                                                                                                                                                                                                                                                                        |
 | per_page                | integer | query | Results per page.                                                                                                                                                                                                                                                                                                                           |
-| order_key               | string  | query | What to order results by. Can be ordered by the following fields: `name`.                                                                                                                                                                                                                                                                             |
-| order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`.                                                                                                                                                                                                               |
-| query                   | string  | query | Search query keywords. Searchable fields include `name`.                                                                                                                                                                                                                                          |
-| team_id                 | integer | query | _Available in Fleet Premium_ Filters the software to only include the software installed on the hosts that are assigned to the specified team.                                                                                                                                                                                                                                                 |
+| order_key               | string  | query | What to order results by. Can be ordered by the following fields: `name`, `hosts_count`. Defaults to the hosts count, descending.                                                                                                                                                                                                           |
+| order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default if not provided is `asc`.                                                                                                                                                                                               |
+| query                   | string  | query | Search query keywords. Searchable fields include `name`.                                                                                                                                                                                                                                                                                    |
+| team_id                 | integer | query | _Available in Fleet Premium_ Filters the software to only include the software installed on the hosts that are assigned to the specified team.                                                                                                                                                                                              |
 | vulnerable              | bool    | query | If true or 1, only list software that has detected vulnerabilities                                                                                                                                                                                                                                                                          |
 
 #### Example
@@ -5884,22 +5888,16 @@ Transforms a host name into a host id. For example, the Fleet UI use this endpoi
 
 ```json
 {
+    "counts_updated_at": "2022-01-01 12:32:00",
     "software": [
       {
-        "id": 1,
-        "name": "Chrome.app",
+        "id": 4,
+        "name": "osquery",
         "version": "2.1.11",
-        "source": "Application (macOS)",
+        "source": "rpm_packages",
         "generated_cpe": "",
-        "vulnerabilities": null
-      },
-      {
-        "id": 2,
-        "name": "Figma.app",
-        "version": "2.1.11",
-        "source": "Application (macOS)",
-        "generated_cpe": "",
-        "vulnerabilities": null
+        "vulnerabilities": null,
+        "hosts_count": 456
       },
       {
         "id": 3,
@@ -5907,15 +5905,26 @@ Transforms a host name into a host id. For example, the Fleet UI use this endpoi
         "version": "2.1.11",
         "source": "rpm_packages",
         "generated_cpe": "",
-        "vulnerabilities": null
+        "vulnerabilities": null,
+        "hosts_count": 345
       },
       {
-        "id": 4,
-        "name": "osquery",
+        "id": 2,
+        "name": "Figma.app",
         "version": "2.1.11",
-        "source": "rpm_packages",
+        "source": "Application (macOS)",
         "generated_cpe": "",
-        "vulnerabilities": null
+        "vulnerabilities": null,
+        "hosts_count": 234
+      },
+      {
+        "id": 1,
+        "name": "Chrome.app",
+        "version": "2.1.11",
+        "source": "Application (macOS)",
+        "generated_cpe": "",
+        "vulnerabilities": null,
+        "hosts_count": 123
       }
     ]
   }

@@ -38,8 +38,8 @@ func TestRedisFailingPolicySet(t *testing.T) {
 }
 
 func setupRedis(t testing.TB, cluster, redir bool) *redisFailingPolicySet {
-	pool := redistest.SetupRedis(t, cluster, redir, true)
-	return NewFailing(pool)
+	pool := redistest.SetupRedis(t, t.Name(), cluster, redir, true)
+	return NewFailingTest(t, pool)
 }
 
 func BenchmarkFailingPolicySetStandaloneP10H10(b *testing.B) {

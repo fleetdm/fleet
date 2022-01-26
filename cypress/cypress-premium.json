@@ -1,6 +1,7 @@
 {
   "baseUrl": "https://localhost:8642",
   "fixturesFolder": false,
+  "experimentalSessionSupport": true,
   "testFiles": "{all,premium}/**/*.spec.ts",
   "retries": {
     "runMode": 1,

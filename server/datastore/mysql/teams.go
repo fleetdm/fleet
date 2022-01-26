@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -50,13 +51,16 @@ func (d *Datastore) Team(ctx context.Context, tid uint) (*fleet.Team, error) {
 }
 
 func teamDB(ctx context.Context, q sqlx.QueryerContext, tid uint) (*fleet.Team, error) {
-	sql := `
+	stmt := `
 		SELECT * FROM teams
 			WHERE id = ?
 	`
 	team := &fleet.Team{}
 
-	if err := sqlx.GetContext(ctx, q, team, sql, tid); err != nil {
+	if err := sqlx.GetContext(ctx, q, team, stmt, tid); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("Team").WithID(tid))
+		}
 		return nil, ctxerr.Wrap(ctx, err, "select team")
 	}
 
@@ -80,10 +84,19 @@ func saveTeamSecretsDB(ctx context.Context, exec sqlx.ExecerContext, team *fleet
 }
 
 func (d *Datastore) DeleteTeam(ctx context.Context, tid uint) error {
-	if err := d.deleteEntity(ctx, teamsTable, tid); err != nil {
-		return ctxerr.Wrapf(ctx, err, "delete team id %d", tid)
-	}
-	return nil
+	return d.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, `DELETE FROM teams WHERE id = ?`, tid)
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err, "delete team %d", tid)
+		}
+
+		_, err = tx.ExecContext(ctx, `DELETE FROM pack_targets WHERE type=? AND target_id=?`, fleet.TargetTeam, tid)
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err, "deleting pack_targets for team %d", tid)
+		}
+
+		return nil
+	})
 }
 
 func (d *Datastore) TeamByName(ctx context.Context, name string) (*fleet.Team, error) {

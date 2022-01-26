@@ -22,6 +22,7 @@ import hostCountAPI, {
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
+import { TableContext } from "context/table";
 import {
   IEnrollSecret,
   IEnrollSecretsResponse,
@@ -73,9 +74,10 @@ import {
   getNextLocationPath,
 } from "./helpers";
 
-import DeleteSecretModal from "./components/DeleteSecretModal";
-import SecretEditorModal from "./components/SecretEditorModal";
-import EnrollSecretModal from "./components/EnrollSecretModal";
+import DeleteSecretModal from "../../../components/DeleteSecretModal";
+import SecretEditorModal from "../../../components/SecretEditorModal";
+import GenerateInstallerModal from "../../../components/GenerateInstallerModal";
+import EnrollSecretModal from "../../../components/EnrollSecretModal";
 // @ts-ignore
 import NoHosts from "./components/NoHosts";
 import EmptyHosts from "./components/EmptyHosts";
@@ -85,8 +87,6 @@ import EditColumnsModal from "./components/EditColumnsModal/EditColumnsModal";
 import TransferHostModal from "./components/TransferHostModal";
 import DeleteHostModal from "./components/DeleteHostModal";
 import SoftwareVulnerabilities from "./components/SoftwareVulnerabilities";
-// @ts-ignore
-import GenerateInstallerModal from "./components/GenerateInstallerModal";
 import EditColumnsIcon from "../../../../assets/images/icon-edit-columns-16x16@2x.png";
 import PencilIcon from "../../../../assets/images/icon-pencil-14x14@2x.png";
 import TrashIcon from "../../../../assets/images/icon-trash-14x14@2x.png";
@@ -148,6 +148,7 @@ const ManageHostsPage = ({
   const { selectedOsqueryTable, setSelectedOsqueryTable } = useContext(
     QueryContext
   );
+  const { setResetSelectedRows } = useContext(TableContext);
 
   const hostHiddenColumns = localStorage.getItem("hostHiddenColumns");
   const storedHiddenColumns = hostHiddenColumns
@@ -230,7 +231,6 @@ const ManageHostsPage = ({
     null
   );
   const [tableQueryData, setTableQueryData] = useState<ITableQueryProps>();
-  const [clearSelectionCount, setClearSelectionCount] = useState<number>(0);
   const [
     currentQueryOptions,
     setCurrentQueryOptions,
@@ -968,6 +968,7 @@ const ManageHostsPage = ({
           : `Hosts successfully transferred to  ${team.name}.`;
 
       dispatch(renderFlash("success", successMessage));
+      setResetSelectedRows(true);
       refetchHosts({
         selectedLabels: selectedFilters,
         globalFilter: searchQuery,
@@ -981,7 +982,6 @@ const ManageHostsPage = ({
       toggleTransferHostModal();
       setSelectedHostIds([]);
       setIsAllMatchingHostsSelected(false);
-      setClearSelectionCount(clearSelectionCount + 1);
     } catch (error) {
       dispatch(
         renderFlash("error", "Could not transfer hosts. Please try again.")
@@ -1015,6 +1015,7 @@ const ManageHostsPage = ({
       } successfully deleted.`;
 
       dispatch(renderFlash("success", successMessage));
+      setResetSelectedRows(true);
       refetchHosts({
         selectedLabels: selectedFilters,
         globalFilter: searchQuery,
@@ -1184,21 +1185,15 @@ const ManageHostsPage = ({
     }
 
     return (
-      <Modal
-        title="Enroll secret"
-        onExit={() => setShowEnrollSecretModal(false)}
-        className={`${baseClass}__enroll-secret-modal`}
-      >
-        <EnrollSecretModal
-          selectedTeam={currentTeam?.id || 0}
-          teams={teams || []}
-          onReturnToApp={() => setShowEnrollSecretModal(false)}
-          toggleSecretEditorModal={toggleSecretEditorModal}
-          toggleDeleteSecretModal={toggleDeleteSecretModal}
-          setSelectedSecret={setSelectedSecret}
-          globalSecrets={globalSecrets}
-        />
-      </Modal>
+      <EnrollSecretModal
+        selectedTeam={currentTeam?.id || 0}
+        teams={teams || []}
+        onReturnToApp={() => setShowEnrollSecretModal(false)}
+        toggleSecretEditorModal={toggleSecretEditorModal}
+        toggleDeleteSecretModal={toggleDeleteSecretModal}
+        setSelectedSecret={setSelectedSecret}
+        globalSecrets={globalSecrets}
+      />
     );
   };
 
@@ -1436,7 +1431,7 @@ const ManageHostsPage = ({
       selectedFilters.length === 0 ||
       selectedLabel === undefined
     ) {
-      return null;
+      return <Spinner />;
     }
 
     if (hasHostErrors || hasHostCountErrors) {
@@ -1450,10 +1445,14 @@ const ManageHostsPage = ({
       searchQuery === "" &&
       !isHostsLoading
     ) {
+      const { software_id, policy_id } = queryParams || {};
+      const includesSoftwareOrPolicyFilter = !!(software_id || policy_id);
+
       return (
         <NoHosts
           toggleGenerateInstallerModal={toggleGenerateInstallerModal}
           canEnrollHosts={canEnrollHosts}
+          includesSoftwareOrPolicyFilter={includesSoftwareOrPolicyFilter}
         />
       );
     }
@@ -1501,7 +1500,6 @@ const ManageHostsPage = ({
         searchToolTipText={
           "Search hosts by hostname, UUID, machine serial or IP address"
         }
-        clearSelectionCount={clearSelectionCount}
         emptyComponent={EmptyHosts}
         customControl={renderStatusDropdown}
         onActionButtonClick={onEditColumnsClick}
@@ -1524,28 +1522,30 @@ const ManageHostsPage = ({
       !isGlobalSecretsLoading &&
       !globalSecrets?.length;
 
-    return ((canEnrollHosts && noTeamEnrollSecrets) ||
-      (canEnrollGlobalHosts && noGlobalEnrollSecrets)) &&
-      showNoEnrollSecretBanner ? (
-      <div className={`${baseClass}__no-enroll-secret-banner`}>
-        <div>
-          <span>
-            You have no enroll secrets. Manage enroll secrets to enroll hosts to{" "}
-            <b>{currentTeam?.id ? currentTeam.name : "Fleet"}</b>.
-          </span>
+    return (
+      ((canEnrollHosts && noTeamEnrollSecrets) ||
+        (canEnrollGlobalHosts && noGlobalEnrollSecrets)) &&
+      showNoEnrollSecretBanner && (
+        <div className={`${baseClass}__no-enroll-secret-banner`}>
+          <div>
+            <span>
+              You have no enroll secrets. Manage enroll secrets to enroll hosts
+              to <b>{currentTeam?.id ? currentTeam.name : "Fleet"}</b>.
+            </span>
+          </div>
+          <div className={`dismiss-banner-button`}>
+            <button
+              className="button button--unstyled"
+              onClick={() =>
+                setShowNoEnrollSecretBanner(!showNoEnrollSecretBanner)
+              }
+            >
+              <img alt="Dismiss no enroll secret banner" src={CloseIconBlack} />
+            </button>
+          </div>
         </div>
-        <div className={`dismiss-banner-button`}>
-          <button
-            className="button button--unstyled"
-            onClick={() =>
-              setShowNoEnrollSecretBanner(!showNoEnrollSecretBanner)
-            }
-          >
-            <img alt="Dismiss no enroll secret banner" src={CloseIconBlack} />
-          </button>
-        </div>
-      </div>
-    ) : null;
+      )
+    );
   };
 
   return (
@@ -1591,7 +1591,7 @@ const ManageHostsPage = ({
                 {renderSoftwareVulnerabilities()}
               </div>
             ))}
-          {config && (!isPremiumTier || teams) ? renderTable() : <Spinner />}
+          {renderTable()}
         </div>
       )}
       {renderSidePanel()}

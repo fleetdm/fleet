@@ -28,6 +28,7 @@ import (
 	"github.com/go-kit/kit/log/level"
 	"github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
+	"github.com/ngrok/sqlmw"
 )
 
 const (
@@ -74,7 +75,6 @@ var (
 	packsTable    = entity{"packs"}
 	queriesTable  = entity{"queries"}
 	sessionsTable = entity{"sessions"}
-	teamsTable    = entity{"teams"}
 	usersTable    = entity{"users"}
 )
 
@@ -250,8 +250,14 @@ func (d *Datastore) writeChanLoop() {
 }
 
 func newDB(conf *config.MysqlConfig, opts *dbOptions) (*sqlx.DB, error) {
+	driverName := "mysql"
+	if opts.interceptor != nil {
+		driverName = "mysql-mw"
+		sql.Register(driverName, sqlmw.Driver(mysql.MySQLDriver{}, opts.interceptor))
+	}
+
 	dsn := generateMysqlConnectionString(*conf)
-	db, err := sqlx.Open("mysql", dsn)
+	db, err := sqlx.Open(driverName, dsn)
 	if err != nil {
 		return nil, err
 	}

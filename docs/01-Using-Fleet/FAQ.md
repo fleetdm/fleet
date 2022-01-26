@@ -25,7 +25,7 @@ The upgrade from kolide/fleet to fleetdm/fleet works the same as any minor versi
 
 Minor version upgrades in Kolide Fleet often included database migrations and the recommendation to back up the database before migrating. The same goes for FleetDM Fleet versions.
 
-To migrate from Kolide Fleet to FleetDM Fleet, please follow the steps outlined in the [Updating Fleet section](./08-Updating-Fleet.md) of the documentation.
+To migrate from Kolide Fleet to FleetDM Fleet, please follow the steps outlined in the [Upgrading Fleet section](../02-Deploying/06-Upgrading-Fleet.md) of the documentation.
 
 ## Has anyone stress tested Fleet? How many clients can the Fleet server handle?
 
@@ -143,12 +143,6 @@ You can also do this by setting the `targets` field in the [YAML configuration f
 
 [Team enroll secrets](https://github.com/fleetdm/fleet/blob/main/docs/01-Using-Fleet/10-Teams.md#enroll-hosts-to-a-team) allow you to automatically assign a host to a team.
 
-## How do I resolve an "unknown column" error when upgrading Fleet?
-
-The `unknown column` error typically occurs when the database migrations haven't been run during the upgrade process.
-
-Check out the [documentation on running database migrations](./08-Updating-Fleet.md#running-database-migrations) to resolve this issue.
-
 ## Why my host is not updating a policy's response.
 
 The following are reasons why a host may not be updating a policy's response:
@@ -183,3 +177,11 @@ You are probably running an old version of Docker. You should download the insta
 ## How does Fleet deal with IP duplication?
 
 Fleet relies on UUIDs so any overlap with host IP addresses should not cause a problem. The only time this might be an issue is if you are running a query that involves a specific IP address that exists in multiple locations as it might return multiple results - [Fleet's teams feature](https://fleetdm.com/docs/using-fleet/teams) can be used to restrict queries to specific hosts.
+
+## Can Orbit run alongside osquery?
+
+Yes, Orbit can be run alongside osquery. The osquery instance that Orbit runs uses its own database directory that is stored within the Orbit directory.
+
+## What happens to osquery logs if my Fleet server or my logging destination is offline?
+
+If Fleet can't send logs to the destination, it will return an error to osquery. This causes osquery to retry sending the logs. The logs will then be stored in osquery's internal buffer until they are sent successfully, or they get expired if the `buffered_log_max`(defaults to 1,000,000 logs) is exceeded. Check out the [Remote logging buffering section](https://osquery.readthedocs.io/en/latest/deployment/remote/#remote-logging-buffering) on the osquery docs for more on this behavior.

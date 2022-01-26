@@ -17,6 +17,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 	"github.com/go-kit/kit/log"

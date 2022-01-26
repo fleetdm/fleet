@@ -56,6 +56,9 @@ func TestTeamPoliciesAuth(t *testing.T) {
 	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {
 		return nil
 	}
+	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+		return &fleet.Team{ID: 1}, nil
+	}
 
 	testCases := []struct {
 		name            string
