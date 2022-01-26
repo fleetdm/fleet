@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback, useEffect, useContext } from "react";
 import { useQuery } from "react-query";
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch } from "react-redux";
 import { AppContext } from "context/app";
 import { push } from "react-router-redux";
 import { find } from "lodash";
@@ -18,10 +18,6 @@ import {
   ITeamScheduledQuery,
   ILoadAllTeamScheduledQueriesResponse,
 } from "interfaces/team_scheduled_query";
-// @ts-ignore
-import globalScheduledQueryActions from "redux/nodes/entities/global_scheduled_queries/actions";
-// @ts-ignore
-import teamScheduledQueryActions from "redux/nodes/entities/team_scheduled_queries/actions";
 import fleetQueriesAPI from "services/entities/queries";
 import globalScheduledQueriesAPI from "services/entities/global_scheduled_queries";
 import teamScheduledQueriesAPI from "services/entities/team_scheduled_queries";
@@ -91,23 +87,6 @@ const renderAllTeamsTable = (
 interface ITeamSchedulesPageProps {
   params: {
     team_id: string;
-  };
-  location: any; // no type in react-router v3
-}
-
-// TODO: move team scheduled queries and global scheduled queries into services entities, remove redux
-interface IRootState {
-  entities: {
-    global_scheduled_queries: {
-      isLoading: boolean;
-      data: IGlobalScheduledQuery[];
-      errors: { name: string; reason: string }[];
-    };
-    team_scheduled_queries: {
-      isLoading: boolean;
-      data: ITeamScheduledQuery[];
-      errors: { name: string; reason: string }[];
-    };
   };
 }
 interface IFormData {
@@ -222,9 +201,6 @@ const ManageSchedulePage = ({
       select: (data) => data.scheduled,
     }
   );
-
-  console.log("globalScheduledQueries", globalScheduledQueries);
-  console.log("teamScheduledQueries", teamScheduledQueries);
 
   let selectedTeamId: number;
 
@@ -351,6 +327,7 @@ const ManageSchedulePage = ({
     selectedTeamId,
     selectedQueryIds,
     toggleRemoveScheduledQueryModal,
+    refetchScheduledQueries,
   ]);
 
   const onAddScheduledQuerySubmit = useCallback(
@@ -360,11 +337,12 @@ const ManageSchedulePage = ({
     ) => {
       if (editQuery) {
         const updatedAttributes = deepDifference(formData, editQuery);
-        dispatch(
-          selectedTeamId
-            ? teamScheduledQueryActions.update(editQuery, updatedAttributes)
-            : globalScheduledQueryActions.update(editQuery, updatedAttributes)
-        )
+
+        const edit = selectedTeamId
+          ? teamScheduledQueriesAPI.update(editQuery, updatedAttributes)
+          : globalScheduledQueriesAPI.update(editQuery, updatedAttributes);
+
+        edit
           .then(() => {
             dispatch(
               renderFlash(
@@ -372,7 +350,6 @@ const ManageSchedulePage = ({
                 `Successfully updated ${formData.name} in the schedule.`
               )
             );
-            console.log("editQuery onAddScheduledQuerySubmit firing!!!");
             refetchScheduledQueries();
           })
           .catch(() => {
@@ -384,11 +361,11 @@ const ManageSchedulePage = ({
             );
           });
       } else {
-        dispatch(
-          selectedTeamId
-            ? teamScheduledQueryActions.create({ ...formData })
-            : globalScheduledQueryActions.create({ ...formData })
-        )
+        const create = selectedTeamId
+          ? teamScheduledQueriesAPI.create({ ...formData })
+          : globalScheduledQueriesAPI.create({ ...formData });
+
+        create
           .then(() => {
             dispatch(
               renderFlash(
@@ -396,7 +373,6 @@ const ManageSchedulePage = ({
                 `Successfully added ${formData.name} to the schedule.`
               )
             );
-            console.log("onAddScheduledQuerySubmit added query firing!!!");
             refetchScheduledQueries();
           })
           .catch(() => {
@@ -413,7 +389,6 @@ const ManageSchedulePage = ({
     [dispatch, selectedTeamId, toggleScheduleEditorModal]
   );
 
-  console.log("selectedTeamId", selectedTeamId);
   return (
     <div className={baseClass}>
       <div className={`${baseClass}__wrapper body-wrap`}>
