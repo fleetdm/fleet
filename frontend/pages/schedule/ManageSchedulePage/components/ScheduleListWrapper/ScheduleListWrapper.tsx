@@ -1,8 +1,8 @@
 /**
  * Component when there is an error retrieving schedule set up in fleet
  */
-import React, { useCallback } from "react";
-import { useSelector, useDispatch } from "react-redux";
+import React from "react";
+import { useDispatch } from "react-redux";
 import { push } from "react-router-redux";
 import paths from "router/paths";
 
@@ -10,8 +10,6 @@ import Button from "components/buttons/Button";
 import { IGlobalScheduledQuery } from "interfaces/global_scheduled_query";
 import { ITeamScheduledQuery } from "interfaces/team_scheduled_query";
 import { ITeam } from "interfaces/team";
-// @ts-ignore
-import globalScheduledQueryActions from "redux/nodes/entities/global_scheduled_queries/actions";
 
 import TableContainer from "components/TableContainer";
 import {
@@ -40,6 +38,8 @@ interface IScheduleListWrapperProps {
   inheritedQueries?: boolean;
   isOnGlobalTeam: boolean;
   selectedTeamData: ITeam | undefined;
+  loadingInheritedQueriesTableData: boolean;
+  loadingTeamQueriesTableData: boolean;
 }
 interface IRootState {
   entities: {
@@ -62,6 +62,8 @@ const ScheduleListWrapper = ({
   inheritedQueries,
   isOnGlobalTeam,
   selectedTeamData,
+  loadingInheritedQueriesTableData,
+  loadingTeamQueriesTableData,
 }: IScheduleListWrapperProps): JSX.Element => {
   const dispatch = useDispatch();
   const { MANAGE_PACKS, MANAGE_HOSTS } = paths;
@@ -153,31 +155,9 @@ const ScheduleListWrapper = ({
   };
 
   const tableHeaders = generateTableHeaders(onActionSelection);
-  const loadingTableData = useSelector((state: IRootState) => {
-    if (selectedTeamData?.id) {
-      return state.entities.team_scheduled_queries.isLoading;
-    }
-    return state.entities.global_scheduled_queries.isLoading;
-  });
-
-  // Search functionality disabled, needed if enabled
-  const onQueryChange = useCallback(
-    (queryData) => {
-      const { pageIndex, pageSize, searchQuery } = queryData;
-      dispatch(
-        globalScheduledQueryActions.loadAll({
-          page: pageIndex,
-          perPage: pageSize,
-          globalFilter: searchQuery,
-        })
-      );
-    },
-    [dispatch]
-  );
-
-  const loadingInheritedQueriesTableData = useSelector((state: IRootState) => {
-    return state.entities.global_scheduled_queries.isLoading;
-  });
+  const loadingTableData = selectedTeamData?.id
+    ? loadingTeamQueriesTableData
+    : loadingInheritedQueriesTableData;
 
   if (inheritedQueries) {
     const inheritedQueriesTableHeaders = generateInheritedQueriesTableHeaders();
@@ -213,7 +193,6 @@ const ScheduleListWrapper = ({
         defaultSortDirection={"desc"}
         showMarkAllPages={false}
         isAllPagesSelected={false}
-        onQueryChange={onQueryChange}
         inputPlaceHolder="Search"
         searchable={false}
         disablePagination
