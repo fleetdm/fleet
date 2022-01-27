@@ -592,6 +592,7 @@ const UserManagementPage = (): JSX.Element => {
           searchable
           showMarkAllPages={false}
           isAllPagesSelected={false}
+          isClientSidePagination
         />
       )}
       {showCreateUserModal && renderCreateUserModal()}
