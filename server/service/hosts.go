@@ -304,7 +304,8 @@ func (svc *Service) checkWriteForHostIDs(ctx context.Context, ids []uint) error 
 ////////////////////////////////////////////////////////////////////////////////
 
 type getHostSummaryRequest struct {
-	TeamID *uint `query:"team_id,optional"`
+	TeamID   *uint   `query:"team_id,optional"`
+	Platform *string `query:"platform,optional"`
 }
 
 type getHostSummaryResponse struct {
@@ -316,7 +317,7 @@ func (r getHostSummaryResponse) error() error { return r.Err }
 
 func getHostSummaryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
 	req := request.(*getHostSummaryRequest)
-	summary, err := svc.GetHostSummary(ctx, req.TeamID)
+	summary, err := svc.GetHostSummary(ctx, req.TeamID, req.Platform)
 	if err != nil {
 		return getHostSummaryResponse{Err: err}, nil
 	}
@@ -327,7 +328,7 @@ func getHostSummaryEndpoint(ctx context.Context, request interface{}, svc fleet.
 	return resp, nil
 }
 
-func (svc *Service) GetHostSummary(ctx context.Context, teamID *uint) (*fleet.HostSummary, error) {
+func (svc *Service) GetHostSummary(ctx context.Context, teamID *uint, platform *string) (*fleet.HostSummary, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionList); err != nil {
 		return nil, err
 	}
@@ -337,7 +338,7 @@ func (svc *Service) GetHostSummary(ctx context.Context, teamID *uint) (*fleet.Ho
 	}
 	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true, TeamID: teamID}
 
-	summary, err := svc.ds.GenerateHostStatusStatistics(ctx, filter, svc.clock.Now())
+	summary, err := svc.ds.GenerateHostStatusStatistics(ctx, filter, svc.clock.Now(), platform)
 	if err != nil {
 		return nil, err
 	}
@@ -748,4 +749,57 @@ func (svc *Service) MacadminsData(ctx context.Context, id uint) (*fleet.Macadmin
 	}
 
 	return data, nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Aggregated Macadmins
+////////////////////////////////////////////////////////////////////////////////
+
+type getAggregatedMacadminsDataRequest struct {
+	TeamID *uint `query:"team_id,optional"`
+}
+
+type getAggregatedMacadminsDataResponse struct {
+	Err       error                          `json:"error,omitempty"`
+	Macadmins *fleet.AggregatedMacadminsData `json:"macadmins"`
+}
+
+func (r getAggregatedMacadminsDataResponse) error() error { return r.Err }
+
+func getAggregatedMacadminsDataEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*getAggregatedMacadminsDataRequest)
+	data, err := svc.AggregatedMacadminsData(ctx, req.TeamID)
+	if err != nil {
+		return getAggregatedMacadminsDataResponse{Err: err}, nil
+	}
+	return getAggregatedMacadminsDataResponse{Macadmins: data}, nil
+}
+
+func (svc *Service) AggregatedMacadminsData(ctx context.Context, teamID *uint) (*fleet.AggregatedMacadminsData, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionList); err != nil {
+		return nil, err
+	}
+
+	if teamID != nil {
+		_, err := svc.ds.Team(ctx, *teamID)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	agg := &fleet.AggregatedMacadminsData{}
+
+	versions, err := svc.ds.AggregatedMunkiVersion(ctx, teamID)
+	if err != nil {
+		return nil, err
+	}
+	agg.MunkiVersions = versions
+
+	status, err := svc.ds.AggregatedMDMStatus(ctx, teamID)
+	if err != nil {
+		return nil, err
+	}
+	agg.MDMStatus = status
+
+	return agg, nil
 }

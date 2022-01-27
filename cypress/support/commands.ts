@@ -46,6 +46,18 @@ Cypress.Commands.add("login", (email, password) => {
   );
 });
 
+Cypress.Commands.add("loginWithCySession", (email, password) => {
+  email ||= "admin@example.com";
+  password ||= "user123#";
+  cy.session([email, password], () => {
+    cy.request("POST", "/api/v1/fleet/login", { email, password }).then(
+      (resp) => {
+        window.localStorage.setItem("FLEET::auth_token", resp.body.token);
+      }
+    );
+  });
+});
+
 Cypress.Commands.add("logout", () => {
   cy.request({
     url: "/api/v1/fleet/logout",

@@ -1846,7 +1846,7 @@ When `current_instance_checks` is set to `auto` (the default), Fleet instances w
 
 ##### periodicity
 
-How often vulnerabilities are checked.
+How often vulnerabilities are checked. This is also the interval at which the counts of hosts per software is calculated.
 
 - Default value: `1h`
 - Environment variable: `FLEET_VULNERABILITIES_PERIODICITY`

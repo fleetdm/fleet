@@ -16,6 +16,10 @@
     flex-direction: row;
     align-items: center;
     padding-bottom: $pad-large;
+
+    .avatar-wrapper {
+      position: relative;
+    }
   }
 
   &__block:before {
