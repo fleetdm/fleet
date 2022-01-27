@@ -84,10 +84,10 @@ const softwareTableHeaders = [
           >
             <span className={`vulnerabilities tooltip__tooltip-text`}>
               {vulnerabilities.map((v) => (
-                <>
+                <span key={v.cve}>
                   {v.cve}
                   <br />
-                </>
+                </span>
               ))}
             </span>
           </ReactTooltip>

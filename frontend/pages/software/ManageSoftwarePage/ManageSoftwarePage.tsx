@@ -8,7 +8,6 @@ import PATHS from "router/paths";
 import softwareAPI, {
   ISoftwareCountResponse,
 } from "services/entities/software";
-import usersAPI, { IGetMeResponse } from "services/entities/users";
 
 import Button from "components/buttons/Button";
 // @ts-ignore
@@ -16,13 +15,16 @@ import Dropdown from "components/forms/fields/Dropdown";
 import Spinner from "components/Spinner";
 import TableContainer from "components/TableContainer";
 import TableDataError from "components/TableDataError";
-import TeamsDropdown from "components/TeamsDropdown";
+import TeamsDropdownHeader, {
+  ITeamsDropdownContext,
+} from "components/TeamsDropdown/TeamsDropdownHeader";
 
 import generateTableHeaders from "./SoftwareTableConfig";
 
 interface IManageSoftwarePageProps {
   router: any;
   location: any;
+  params: any;
 }
 
 interface ITableQueryProps {
@@ -57,18 +59,7 @@ const ManageSoftwarePage = ({
   router,
   location,
 }: IManageSoftwarePageProps): JSX.Element => {
-  const {
-    availableTeams,
-    isGlobalAdmin,
-    isGlobalMaintainer,
-    isOnGlobalTeam,
-    isFreeTier,
-    isPremiumTier,
-    currentTeam,
-    setAvailableTeams,
-    setCurrentUser,
-    setCurrentTeam,
-  } = useContext(AppContext);
+  const { availableTeams, currentTeam } = useContext(AppContext);
 
   const [softwarePageIndex, setSoftwarePageIndex] = useState<number>(0);
   const [filterVuln, setFilterVuln] = useState(false);
@@ -76,73 +67,15 @@ const ManageSoftwarePage = ({
   const [isLoadingSoftware, setIsLoadingSoftware] = useState(true);
   const [isLoadingSoftwareCount, setIsLoadingSoftwareCount] = useState(true);
 
-  useQuery(["me"], () => usersAPI.me(), {
-    onSuccess: ({ user, available_teams }: IGetMeResponse) => {
-      setCurrentUser(user);
-      setAvailableTeams(available_teams);
-    },
-  });
+  // useQuery(["me"], () => usersAPI.me(), {
+  //   onSuccess: ({ user, available_teams }: IGetMeResponse) => {
+  //     setCurrentUser(user);
+  //     setAvailableTeams(available_teams);
+  //   },
+  // });
 
-  const teamId = parseInt(location?.query?.team_id, 10) || 0;
-
-  const renderTeamDescription = () => {
-    return (
-      <p>
-        Search for installed software and manage automations for detected
-        vulnerabilities (CVEs) on{" "}
-        <b>
-          {isPremiumTier && !!teamId
-            ? "all hosts assigned to this team"
-            : "all of your hosts"}
-        </b>
-        .
-      </p>
-    );
-  };
-
-  const findAvailableTeam = (id: number) => {
-    return availableTeams?.find((t) => t.id === id);
-  };
-
-  const handleTeamSelect = (id: number) => {
-    const { MANAGE_SOFTWARE } = PATHS;
-
-    const selectedTeam = findAvailableTeam(id);
-    const path = selectedTeam?.id
-      ? `${MANAGE_SOFTWARE}?team_id=${selectedTeam.id}`
-      : MANAGE_SOFTWARE;
-
-    router.replace(path);
-    setCurrentTeam(selectedTeam);
-    setSoftwarePageIndex(0);
-  };
-
-  // If team_id from URL query params is not valid, we instead use a default team
-  // either the current team (if any) or all teams (for global users) or
-  // the first available team (for non-global users)
-  const getValidatedTeamId = () => {
-    if (findAvailableTeam(teamId)) {
-      return teamId;
-    }
-    if (!teamId && currentTeam) {
-      return currentTeam.id;
-    }
-    if (!teamId && !currentTeam && !isOnGlobalTeam && availableTeams) {
-      return availableTeams[0]?.id;
-    }
-    return 0;
-  };
-
-  // If team_id or currentTeam doesn't match validated id, switch to validated id
-  useEffect(() => {
-    if (availableTeams) {
-      const validatedId = getValidatedTeamId();
-
-      if (validatedId !== currentTeam?.id || validatedId !== teamId) {
-        handleTeamSelect(validatedId);
-      }
-    }
-  }, [availableTeams]);
+  // const teamId = parseInt(location?.query?.team_id, 10) || 0;
+  const teamId = currentTeam?.id;
 
   // TODO: Is our implementation of keepPreviousData and loading states causing bad UX and giving up
   // advantages of the react-query cache? Are we displaying data from cache for the current or prior
@@ -219,6 +152,42 @@ const ManageSoftwarePage = ({
     300
   );
 
+  const onTeamSelect = (ctx: ITeamsDropdownContext) => {
+    setSoftwarePageIndex(0);
+  };
+
+  const renderHeaderButtons = (
+    ctx: ITeamsDropdownContext
+  ): JSX.Element | null => {
+    if ((ctx.isGlobalAdmin || ctx.isGlobalMaintainer) && ctx.teamId === 0) {
+      return (
+        <Button
+          onClick={() => console.log("Manage automations button click")}
+          className={`${baseClass}__manage-automations button`}
+          variant="brand"
+        >
+          <span>Manage automations</span>
+        </Button>
+      );
+    }
+    return null;
+  };
+
+  const renderHeaderDescription = (ctx: ITeamsDropdownContext) => {
+    return (
+      <p>
+        Search for installed software and manage automations for detected
+        vulnerabilities (CVEs) on{" "}
+        <b>
+          {ctx.isPremiumTier && !!ctx.teamId
+            ? "all hosts assigned to this team"
+            : "all of your hosts"}
+        </b>
+        .
+      </p>
+    );
+  };
+
   const renderSoftwareCount = useCallback(() => {
     const count = softwareCount;
 
@@ -255,67 +224,36 @@ const ManageSoftwarePage = ({
   ) : (
     <div className={baseClass}>
       <div className={`${baseClass}__wrapper body-wrap`}>
-        <div className={`${baseClass}__header-wrap`}>
-          <div className={`${baseClass}__header`}>
-            <div className={`${baseClass}__text`}>
-              <div className={`${baseClass}__title`}>
-                {isFreeTier && <h1>Software</h1>}
-                {isPremiumTier &&
-                  (availableTeams.length > 1 || isOnGlobalTeam) && (
-                    <TeamsDropdown
-                      currentUserTeams={availableTeams || []}
-                      selectedTeamId={teamId}
-                      onChange={(newSelectedValue: number) =>
-                        handleTeamSelect(newSelectedValue)
-                      }
-                    />
-                  )}
-                {isPremiumTier &&
-                  !isOnGlobalTeam &&
-                  availableTeams.length === 1 && (
-                    <h1>{availableTeams[0].name}</h1>
-                  )}
-              </div>
-            </div>
-          </div>
-          <div className={`${baseClass} button-wrap`}>
-            {(isGlobalAdmin || isGlobalMaintainer) && teamId === 0 && (
-              <Button
-                onClick={() => console.log("Manage automations button click")}
-                className={`${baseClass}__manage-automations button`}
-                variant="brand"
-              >
-                <span>Manage automations</span>
-              </Button>
-            )}
-          </div>
-        </div>
-        <div className={`${baseClass}__description`}>
-          {renderTeamDescription()}
-        </div>
-        <div>
-          <TableContainer
-            columns={generateTableHeaders()}
-            data={software || []}
-            isLoading={isLoadingSoftware}
-            defaultSortHeader={"hosts"}
-            defaultSortDirection={"desc"}
-            hideActionButton
-            resultsTitle={"software items"}
-            emptyComponent={() =>
-              // EmptySoftware(modalSoftwareSearchText === "" ? "modal" : "search")
-              null
-            }
-            showMarkAllPages={false}
-            isAllPagesSelected={false}
-            searchable
-            disableActionButton
-            pageSize={PAGE_SIZE}
-            onQueryChange={onQueryChange}
-            customControl={renderVulnFilterDropdown}
-            renderCount={renderSoftwareCount}
-          />
-        </div>
+        <TeamsDropdownHeader
+          location={location}
+          router={router}
+          baseClass={baseClass}
+          onChange={onTeamSelect}
+          defaultTitle="Software"
+          description={renderHeaderDescription}
+          buttons={renderHeaderButtons}
+        />
+        <TableContainer
+          columns={generateTableHeaders()}
+          data={software || []}
+          isLoading={isLoadingSoftware}
+          defaultSortHeader={"hosts"}
+          defaultSortDirection={"desc"}
+          hideActionButton
+          resultsTitle={"software items"}
+          emptyComponent={() =>
+            // EmptySoftware(modalSoftwareSearchText === "" ? "modal" : "search")
+            null
+          }
+          showMarkAllPages={false}
+          isAllPagesSelected={false}
+          searchable
+          disableActionButton
+          pageSize={PAGE_SIZE}
+          onQueryChange={onQueryChange}
+          customControl={renderVulnFilterDropdown}
+          renderCount={renderSoftwareCount}
+        />
       </div>
     </div>
   );
