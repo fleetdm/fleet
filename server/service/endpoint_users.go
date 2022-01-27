@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"errors"
 	"net/http"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -21,24 +20,6 @@ func makeCreateUserFromInviteEndpoint(svc fleet.Service) endpoint.Endpoint {
 			return createUserResponse{Err: err}, nil
 		}
 		return createUserResponse{User: user}, nil
-	}
-}
-
-func makeGetSessionUserEndpoint(svc fleet.Service) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		user, err := svc.AuthenticatedUser(ctx)
-		if err != nil {
-			return getUserResponse{Err: err}, nil
-		}
-		availableTeams, err := svc.ListAvailableTeamsForUser(ctx, user)
-		if err != nil {
-			if errors.Is(err, fleet.ErrMissingLicense) {
-				availableTeams = []*fleet.TeamSummary{}
-			} else {
-				return getUserResponse{Err: err}, nil
-			}
-		}
-		return getUserResponse{User: user, AvailableTeams: availableTeams}, nil
 	}
 }
 

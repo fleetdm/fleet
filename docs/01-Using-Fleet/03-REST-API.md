@@ -611,9 +611,10 @@ Returns the count of all hosts organized by status. `online_count` includes all 
 
 #### Parameters
 
-| Name    | Type    | In    | Description                                                                     |
-| ------- | ------- | ----  | ------------------------------------------------------------------------------- |
-| team_id | integer | query | The ID of the team whose host counts should be included. Defaults to all teams. |
+| Name     | Type    | In    | Description                                                                     |
+| -------- | ------- | ----  | ------------------------------------------------------------------------------- |
+| team_id  | integer | query | The ID of the team whose host counts should be included. Defaults to all teams. |
+| platform | string  | query | Platform to filter by when counting. Defaults to all platforms.                 |
 
 #### Example
 
@@ -1062,7 +1063,7 @@ Request (`filters` is specified):
 
 Requires the [macadmins osquery
 extension](https://github.com/macadmins/osquery-extension) which comes bundled in [Fleet's osquery
-installers](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer). 
+installers](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
 
 Retrieves a host's Google Chrome profile information which can be used to link a host to a specific
 user by email.
@@ -1097,11 +1098,11 @@ user by email.
 
 ---
 
-### Get host's mobile device management (MDM) and Munki information 
+### Get host's mobile device management (MDM) and Munki information
 
 Requires the [macadmins osquery
 extension](https://github.com/macadmins/osquery-extension) which comes bundled in [Fleet's osquery
-installers](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer). 
+installers](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
 
 Retrieves a host's MDM enrollment status, MDM server URL, and Munki version.
 
@@ -1130,6 +1131,66 @@ Retrieves a host's MDM enrollment status, MDM server URL, and Munki version.
     "mobile_device_management": {
       "enrollment_status": "Enrolled (automated)",
       "server_url": "http://some.url/mdm"
+    }
+  }
+}
+```
+
+---
+
+### Get aggregated host's mobile device management (MDM) and Munki information
+
+Requires the [macadmins osquery
+extension](https://github.com/macadmins/osquery-extension) which comes bundled in [Fleet's osquery
+installers](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
+
+Retrieves aggregated host's MDM enrollment status and Munki versions.
+
+`GET /api/v1/fleet/macadmins`
+
+#### Parameters
+
+| Name    | Type    | In    | Description                                                                                                                                                                                                                                                                                                                        |
+| ------- | ------- | ----- | ---------------------------------------------------------------------------------------------------------------- |
+| team_id | integer | query | _Available in Fleet Premium_ Filters the aggregate host information to only include hosts in the specified team. |                           |
+
+#### Example
+
+`GET /api/v1/fleet/macadmins`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "macadmins": {
+    "munki_versions": [
+      {
+        "version": "5.5",
+        "hosts_count": 8360
+      },
+      {
+        "version": "5.4",
+        "hosts_count": 1700
+      },
+      {
+        "version": "5.3",
+        "hosts_count": 400
+      },
+      {
+        "version": "5.2.3",
+        "hosts_count": 112
+      },
+      {
+        "version": "5.2.2",
+        "hosts_count": 50
+      }
+    ],
+    "mobile_device_management_enrollment_status": {
+      "enrolled_manual_hosts_count": 124,
+      "enrolled_automatic_hosts_count": 124,
+      "unenrolled_hosts_count": 112
     }
   }
 }
@@ -2475,10 +2536,17 @@ Deletes the queries specified by ID. Returns the count of queries successfully d
 
 ### Run live query
 
-Runs one or more live queries against the specified hosts and responds with the results
-over a fixed period of 90 seconds.
+Run one or more live queries against the specified hosts and responds with the results
+collected after 25 seconds.
 
-If you are using this API to run multiple queries at the same time, they are started simultaneously.  Response time is capped at 90 seconds from when the API request was received, regardless of how many queries you are running, and regardless whether all results have been gathered or not.
+If multiple queries are provided, they run concurrently. Response time is capped at 25 seconds from
+when the API request was received, regardless of how many queries you are running, and regardless
+whether all results have been gathered or not. This API does not return any results until the fixed
+time period elapses, at which point all of the collected results are returned.
+
+The fixed time period is configurable via environment variable on the Fleet server (eg.
+`FLEET_LIVE_QUERY_REST_PERIOD=90s`). If setting a higher value, be sure that you do not exceed your
+load balancer timeout.
 
 > WARNING: This API endpoint collects responses in-memory (RAM) on the Fleet compute instance handling this request, which can overflow if the result set is large enough.  This has the potential to crash the process and/or cause an autoscaling event in your cloud provider, depending on how Fleet is deployed.
 
@@ -2489,8 +2557,8 @@ If you are using this API to run multiple queries at the same time, they are sta
 
 | Name      | Type   | In   | Description                                   |
 | --------- | ------ | ---- | --------------------------------------------- |
-| query_ids | array  | body | **Required**. The IDs of the queries to run as live queries.               |
-| host_ids  | array  | body | **Required**. The IDs of the hosts to run the live queries against. |
+| query_ids | array  | body | **Required**. The IDs of the saved queries to run. |
+| host_ids  | array  | body | **Required**. The IDs of the hosts to target. |
 
 #### Example
 
@@ -4506,7 +4574,7 @@ None.
   "webhook_settings": {
     "host_status_webhook": {
       "enable_host_status_webhook": true,
-       "destination_url": "https://server.com",
+      "destination_url": "https://server.com",
       "host_percentage": 5,
       "days_count": 7
     },
@@ -4514,6 +4582,11 @@ None.
       "enable_failing_policies_webhook":true,
       "destination_url": "https://server.com",
       "policy_ids": [1, 2, 3],
+      "host_batch_size": 1000
+    },
+    "vulnerabilities_webhook":{
+      "enable_vulnerabilities_webhook":true,
+      "destination_url": "https://server.com",
       "host_batch_size": 1000
     }
   },
@@ -4596,7 +4669,10 @@ Modifies the Fleet's configuration with the supplied information.
 | enable_failing_policies_webhook   | boolean | body | _webhook_settings.failing_policies_webhook settings_. Whether or not the failing policies webhook is enabled. |
 | destination_url    | string | body | _webhook_settings.failing_policies_webhook settings_. The URL to deliver the webhook requests to.                                                     |
 | policy_ids    | array | body | _webhook_settings.failing_policies_webhook settings_. List of policy IDs to enable failing policies webhook.                                                              |
-| host_batch_size    | integer | body | _webhook_settings.failing_policies_webhook settings_. Maximum number of hosts to batch on failing policy webhook requests. ThIe default, 0, means no batching (all hosts failing a policy are sent on one request). |
+| host_batch_size    | integer | body | _webhook_settings.failing_policies_webhook settings_. Maximum number of hosts to batch on failing policy webhook requests. The default, 0, means no batching (all hosts failing a policy are sent on one request). |
+| enable_vulnerabilities_webhook   | boolean | body | _webhook_settings.vulnerabilities_webhook settings_. Whether or not the vulnerabilities webhook is enabled. |
+| destination_url    | string | body | _webhook_settings.vulnerabilities_webhook settings_. The URL to deliver the webhook requests to.                                                     |
+| host_batch_size    | integer | body | _webhook_settings.vulnerabilities_webhook settings_. Maximum number of hosts to batch on vulnerabilities webhook requests. The default, 0, means no batching (all vulnerable hosts are sent on one request). |
 | additional_queries    | boolean | body | Whether or not additional queries are enabled on hosts.                                                                                                                                |
 
 #### Example
@@ -4668,10 +4744,6 @@ Modifies the Fleet's configuration with the supplied information.
     "tier": "free",
     "expiration": "0001-01-01T00:00:00Z"
   },
-  "license": {
-    "tier": "free",
-    "expiration": "0001-01-01T00:00:00Z"
-  },
   "agent_options": {
     "spec": {
       "config": {
@@ -4709,6 +4781,11 @@ Modifies the Fleet's configuration with the supplied information.
       "enable_failing_policies_webhook":true,
       "destination_url": "https://server.com",
       "policy_ids": [1, 2, 3],
+      "host_batch_size": 1000
+    },
+    "vulnerabilities_webhook":{
+      "enable_vulnerabilities_webhook":true,
+      "destination_url": "https://server.com",
       "host_batch_size": 1000
     }
   },
@@ -5770,6 +5847,8 @@ _Available in Fleet Premium_
 
 ### Translate IDs
 
+Transforms a host name into a host id. For example, the Fleet UI use this endpoint when sending live queries to a set of hosts.
+
 `POST /api/v1/fleet/translate`
 
 #### Parameters
@@ -5866,10 +5945,10 @@ _Available in Fleet Premium_
 | ----------------------- | ------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | page                    | integer | query | Page number of the results to fetch.                                                                                                                                                                                                                                                                                                        |
 | per_page                | integer | query | Results per page.                                                                                                                                                                                                                                                                                                                           |
-| order_key               | string  | query | What to order results by. Can be ordered by the following fields: `name`.                                                                                                                                                                                                                                                                             |
-| order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`.                                                                                                                                                                                                               |
-| query                   | string  | query | Search query keywords. Searchable fields include `name`.                                                                                                                                                                                                                                          |
-| team_id                 | integer | query | _Available in Fleet Premium_ Filters the software to only include the software installed on the hosts that are assigned to the specified team.                                                                                                                                                                                                                                                 |
+| order_key               | string  | query | What to order results by. Can be ordered by the following fields: `name`, `hosts_count`. Defaults to the hosts count, descending.                                                                                                                                                                                                           |
+| order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default if not provided is `asc`.                                                                                                                                                                                               |
+| query                   | string  | query | Search query keywords. Searchable fields include `name`.                                                                                                                                                                                                                                                                                    |
+| team_id                 | integer | query | _Available in Fleet Premium_ Filters the software to only include the software installed on the hosts that are assigned to the specified team.                                                                                                                                                                                              |
 | vulnerable              | bool    | query | If true or 1, only list software that has detected vulnerabilities                                                                                                                                                                                                                                                                          |
 
 #### Example
@@ -5882,22 +5961,16 @@ _Available in Fleet Premium_
 
 ```json
 {
+    "counts_updated_at": "2022-01-01 12:32:00",
     "software": [
       {
-        "id": 1,
-        "name": "Chrome.app",
+        "id": 4,
+        "name": "osquery",
         "version": "2.1.11",
-        "source": "Application (macOS)",
+        "source": "rpm_packages",
         "generated_cpe": "",
-        "vulnerabilities": null
-      },
-      {
-        "id": 2,
-        "name": "Figma.app",
-        "version": "2.1.11",
-        "source": "Application (macOS)",
-        "generated_cpe": "",
-        "vulnerabilities": null
+        "vulnerabilities": null,
+        "hosts_count": 456
       },
       {
         "id": 3,
@@ -5905,15 +5978,26 @@ _Available in Fleet Premium_
         "version": "2.1.11",
         "source": "rpm_packages",
         "generated_cpe": "",
-        "vulnerabilities": null
+        "vulnerabilities": null,
+        "hosts_count": 345
       },
       {
-        "id": 4,
-        "name": "osquery",
+        "id": 2,
+        "name": "Figma.app",
         "version": "2.1.11",
-        "source": "rpm_packages",
+        "source": "Application (macOS)",
         "generated_cpe": "",
-        "vulnerabilities": null
+        "vulnerabilities": null,
+        "hosts_count": 234
+      },
+      {
+        "id": 1,
+        "name": "Chrome.app",
+        "version": "2.1.11",
+        "source": "Application (macOS)",
+        "generated_cpe": "",
+        "vulnerabilities": null,
+        "hosts_count": 123
       }
     ]
   }

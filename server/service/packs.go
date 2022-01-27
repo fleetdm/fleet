@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
@@ -125,6 +126,12 @@ func (svc *Service) NewPack(ctx context.Context, p fleet.PackPayload) (*fleet.Pa
 		return nil, err
 	}
 
+	if err := p.Verify(); err != nil {
+		return nil, ctxerr.Wrap(ctx, &badRequestError{
+			message: fmt.Sprintf("pack payload verification: %s", err),
+		})
+	}
+
 	var pack fleet.Pack
 
 	if p.Name != nil {
@@ -208,6 +215,12 @@ func modifyPackEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 func (svc *Service) ModifyPack(ctx context.Context, id uint, p fleet.PackPayload) (*fleet.Pack, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Pack{}, fleet.ActionWrite); err != nil {
 		return nil, err
+	}
+
+	if err := p.Verify(); err != nil {
+		return nil, ctxerr.Wrap(ctx, &badRequestError{
+			message: fmt.Sprintf("pack payload verification: %s", err),
+		})
 	}
 
 	pack, err := svc.ds.Pack(ctx, id)
@@ -449,6 +462,14 @@ func (svc *Service) ApplyPackSpecs(ctx context.Context, specs []*fleet.PackSpec)
 		} else {
 			// incoming spec is new, let's apply it
 			result = append(result, spec)
+		}
+	}
+
+	for _, packSpec := range result {
+		if err := packSpec.Verify(); err != nil {
+			return nil, ctxerr.Wrap(ctx, &badRequestError{
+				message: fmt.Sprintf("pack payload verification: %s", err),
+			})
 		}
 	}
 

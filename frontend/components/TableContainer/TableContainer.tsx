@@ -64,7 +64,6 @@ interface ITableContainerProps {
   isClientSideFilter?: boolean;
   highlightOnHover?: boolean;
   pageSize?: number;
-  clearSelectionCount?: number;
   onActionButtonClick?: () => void;
   onQueryChange?: (queryData: ITableSearchData) => void;
   onPrimarySelectActionClick?: (selectedItemIds: number[]) => void;
@@ -116,7 +115,6 @@ const TableContainer = ({
   pageSize = DEFAULT_PAGE_SIZE,
   selectedDropdownFilter,
   searchQueryColumn,
-  clearSelectionCount,
   onActionButtonClick,
   onQueryChange,
   onPrimarySelectActionClick,
@@ -346,7 +344,6 @@ const TableContainer = ({
                 searchQuery={searchQuery}
                 searchQueryColumn={searchQueryColumn}
                 selectedDropdownFilter={selectedDropdownFilter}
-                clearSelectionCount={clearSelectionCount}
               />
               {!disablePagination && !isClientSidePagination && (
                 <Pagination

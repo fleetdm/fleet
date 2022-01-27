@@ -242,6 +242,13 @@ describe(
             .contains(/maintainer/i);
         });
       });
+
+      // nav restrictions are at the end because we expect to see a
+      // 403 error overlay which will hide the nav and make the test fail
+      cy.visit("/dashboard");
+      cy.findByText(/settings/i).should("not.exist");
+      cy.visit("/settings/organization");
+      cy.findByText(/you do not have permissions/i).should("exist");
     });
   }
 );

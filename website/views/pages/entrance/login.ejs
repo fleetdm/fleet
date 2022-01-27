@@ -17,7 +17,8 @@
               <input type="password" class="form-control" :class="[formErrors.password ? 'is-invalid' : '']" v-model.trim="formData.password" autocomplete="current-password">
               <div class="invalid-feedback" v-if="formErrors.password">Please enter your password.</div>
             </div>
-            <cloud-error v-if="cloudError === 'badCombo'">Something’s not quite right with your email or password.</cloud-error>
+            <cloud-error v-if="cloudError === 'noUser'">The email address provided doesn't match an existing account. Create an account <a href="/customers/register">here</a>.</cloud-error>
+            <cloud-error v-else-if="cloudError === 'badCombo'">Something’s not quite right with your email or password.</cloud-error>
             <cloud-error v-else-if="cloudError"></cloud-error>
             <div class="pb-3">
               <ajax-button :syncing="syncing" spinner="true" purpose="submit-button" class="btn-info mt-4 btn-lg btn-block">Sign in</ajax-button>

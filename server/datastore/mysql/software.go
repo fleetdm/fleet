@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/doug-martin/goqu/v9"
 	_ "github.com/doug-martin/goqu/v9/dialect/mysql"
@@ -57,18 +58,17 @@ func softwareSliceToIdMap(softwareSlice []fleet.Software) map[string]uint {
 	return result
 }
 
-func (d *Datastore) SaveHostSoftware(ctx context.Context, host *fleet.Host) error {
-	if !host.HostSoftware.Modified {
-		return nil
-	}
-
+// UpdateHostSoftware updates the software list of a host.
+// The update consists of deleting existing entries that are not in the given `software`
+// slice, updating existing entries and inserting new entries.
+func (d *Datastore) UpdateHostSoftware(ctx context.Context, hostID uint, software []fleet.Software) error {
 	return d.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		return saveHostSoftwareDB(ctx, tx, host)
+		return applyChangesForNewSoftwareDB(ctx, tx, hostID, software)
 	})
 }
 
 func saveHostSoftwareDB(ctx context.Context, tx sqlx.ExtContext, host *fleet.Host) error {
-	if err := applyChangesForNewSoftwareDB(ctx, tx, host); err != nil {
+	if err := applyChangesForNewSoftwareDB(ctx, tx, host.ID, host.Software); err != nil {
 		return err
 	}
 
@@ -94,24 +94,24 @@ func nothingChanged(current []fleet.Software, incoming []fleet.Software) bool {
 	return true
 }
 
-func applyChangesForNewSoftwareDB(ctx context.Context, tx sqlx.ExtContext, host *fleet.Host) error {
-	storedCurrentSoftware, err := listSoftwareDB(ctx, tx, &host.ID, fleet.SoftwareListOptions{SkipLoadingCVEs: true})
+func applyChangesForNewSoftwareDB(ctx context.Context, tx sqlx.ExtContext, hostID uint, software []fleet.Software) error {
+	storedCurrentSoftware, err := listSoftwareDB(ctx, tx, &hostID, fleet.SoftwareListOptions{SkipLoadingCVEs: true})
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "loading current software for host")
 	}
 
-	if nothingChanged(storedCurrentSoftware, host.Software) {
+	if nothingChanged(storedCurrentSoftware, software) {
 		return nil
 	}
 
 	current := softwareSliceToIdMap(storedCurrentSoftware)
-	incoming := softwareSliceToSet(host.Software)
+	incoming := softwareSliceToSet(software)
 
-	if err = deleteUninstalledHostSoftwareDB(ctx, tx, host.ID, current, incoming); err != nil {
+	if err = deleteUninstalledHostSoftwareDB(ctx, tx, hostID, current, incoming); err != nil {
 		return err
 	}
 
-	if err = insertNewInstalledHostSoftwareDB(ctx, tx, host.ID, current, incoming); err != nil {
+	if err = insertNewInstalledHostSoftwareDB(ctx, tx, hostID, current, incoming); err != nil {
 		return err
 	}
 
@@ -131,7 +131,6 @@ func deleteUninstalledHostSoftwareDB(
 	for currentKey := range currentIdmap {
 		if _, ok := incomingBitmap[currentKey]; !ok {
 			deletesHostSoftware = append(deletesHostSoftware, currentIdmap[currentKey])
-			// TODO: delete from software if no host has it
 		}
 	}
 	if len(deletesHostSoftware) <= 1 {
@@ -305,6 +304,19 @@ func selectSoftwareSQL(hostID *uint, opts fleet.SoftwareListOptions) (string, []
 				goqu.I("s.id").Eq(goqu.I("scp.software_id")),
 			),
 		)
+	}
+
+	if opts.WithHostCounts {
+		ds = ds.Join(
+			goqu.I("aggregated_stats").As("shc"),
+			goqu.On(
+				goqu.I("s.id").Eq(goqu.I("shc.id")),
+			),
+		).Where(goqu.I("shc.type").Eq("software_hosts_count"), goqu.I("shc.json_value").Gt(0)).
+			SelectAppend(
+				goqu.I("shc.json_value").As("hosts_count"),
+				goqu.I("shc.updated_at").As("counts_updated_at"),
+			)
 	}
 
 	return ds.ToSQL()
@@ -519,4 +531,102 @@ func (d *Datastore) SoftwareByID(ctx context.Context, id uint) (*fleet.Software,
 	}
 
 	return &software, nil
+}
+
+// CalculateHostsPerSoftware calculates the number of hosts having each
+// software installed and stores that information in the aggregated_stats
+// table.
+func (d *Datastore) CalculateHostsPerSoftware(ctx context.Context, updatedAt time.Time) error {
+	// NOTE(mna): for reference, on my laptop I get ~1.5ms for 10_000 hosts / 100 software each,
+	// ~1.5s for 10_000 hosts / 1_000 software each (but this is with an otherwise empty
+	// aggregated_stats table, but still reasonable numbers give that this runs as a cron
+	// task in the background).
+
+	resetStmt := `
+    UPDATE aggregated_stats
+    SET json_value = CAST(0 AS json)
+    WHERE type = "software_hosts_count"`
+
+	queryStmt := `
+    SELECT count(*), software_id
+    FROM host_software
+    GROUP BY software_id`
+
+	insertStmt := `
+    INSERT INTO aggregated_stats
+      (id, type, json_value, updated_at)
+    VALUES
+      %s
+    ON DUPLICATE KEY UPDATE
+      json_value = VALUES(json_value),
+      updated_at = VALUES(updated_at)`
+	valuesPart := `(?, "software_hosts_count", CAST(? AS json), ?),`
+
+	// first, reset all counts to 0
+	if _, err := d.writer.ExecContext(ctx, resetStmt); err != nil {
+		return ctxerr.Wrap(ctx, err, "reset all software_hosts_count to 0 in aggregated_stats")
+	}
+
+	// next get a cursor for the counts for each software
+	rows, err := d.reader.QueryContext(ctx, queryStmt)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "read counts from host_software")
+	}
+	defer rows.Close()
+
+	// use a loop to iterate to prevent loading all in one go in memory, as it
+	// could get pretty big at >100K hosts with 1000+ software each.
+	const batchSize = 100
+	var batchCount int
+	args := make([]interface{}, 0, batchSize*3)
+	for rows.Next() {
+		var count int
+		var sid uint
+
+		if err := rows.Scan(&count, &sid); err != nil {
+			return ctxerr.Wrap(ctx, err, "scan row into variables")
+		}
+
+		args = append(args, sid, count, updatedAt)
+		batchCount++
+
+		if batchCount == batchSize {
+			values := strings.TrimSuffix(strings.Repeat(valuesPart, batchCount), ",")
+			if _, err := d.writer.ExecContext(ctx, fmt.Sprintf(insertStmt, values), args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "insert batch into aggregated_stats")
+			}
+
+			args = args[:0]
+			batchCount = 0
+		}
+	}
+	if batchCount > 0 {
+		values := strings.TrimSuffix(strings.Repeat(valuesPart, batchCount), ",")
+		if _, err := d.writer.ExecContext(ctx, fmt.Sprintf(insertStmt, values), args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "insert batch into aggregated_stats")
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return ctxerr.Wrap(ctx, err, "iterate over host_software counts")
+	}
+
+	// delete any unused software from the software table (any that
+	// isn't in that list with a host count > 0).
+	cleanupStmt := `
+  DELETE FROM
+    software
+  WHERE
+    NOT EXISTS (
+      SELECT 1
+      FROM
+        aggregated_stats shc
+      WHERE
+        software.id = shc.id AND
+		    shc.type = "software_hosts_count" AND
+		    json_value > 0)`
+	if _, err := d.writer.ExecContext(ctx, cleanupStmt); err != nil {
+		return ctxerr.Wrap(ctx, err, "delete unused software")
+	}
+
+	return nil
 }

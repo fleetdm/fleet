@@ -14,16 +14,22 @@ export default PropTypes.shape({
 });
 
 /**
+ * The id, name, and optional description for a team entity
+ */
+export interface ITeamSummary {
+  id: number;
+  name: string;
+  description?: string;
+}
+
+/**
  * The shape of a team entity
  */
-export interface ITeam {
-  id: number;
+export interface ITeam extends ITeamSummary {
   uuid?: string;
   display_text?: string;
   count?: number;
   created_at?: string;
-  name: string;
-  description: string;
   agent_options?: any;
   user_count: number;
   host_count: number;

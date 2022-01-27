@@ -8,6 +8,7 @@ import {
   IUser,
 } from "interfaces/user";
 import { IInvite } from "interfaces/invite";
+import { ITeamSummary } from "interfaces/team";
 
 interface IUserSearchOptions {
   page?: number;
@@ -23,6 +24,11 @@ interface IForgotPassword {
 
 interface IRequirePasswordReset {
   require: boolean;
+}
+
+export interface IGetMeResponse {
+  user: IUser;
+  available_teams: ITeamSummary[];
 }
 
 export default {
@@ -91,12 +97,15 @@ export default {
       return users.map((u: IUser) => helpers.addGravatarUrlToResource(u));
     });
   },
-  me: () => {
+  me: (): Promise<IGetMeResponse> => {
     const { ME } = endpoints;
 
-    return sendRequest("GET", ME).then((response) =>
-      helpers.addGravatarUrlToResource(response.user)
-    );
+    return sendRequest("GET", ME).then(({ user, available_teams }) => {
+      return {
+        user: helpers.addGravatarUrlToResource(user),
+        available_teams,
+      };
+    });
   },
   requirePasswordReset: (
     userId: number,

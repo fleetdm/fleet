@@ -3,6 +3,7 @@ import { useDispatch } from "react-redux";
 import { Link } from "react-router";
 import { Params } from "react-router/lib/Router";
 import { useQuery } from "react-query";
+import { useErrorHandler } from "react-error-boundary";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 
 import classnames from "classnames";
@@ -130,6 +131,7 @@ const HostDetailsPage = ({
     setLastEditedQueryResolution,
     setPolicyTeamId,
   } = useContext(PolicyContext);
+  const handlePageError = useErrorHandler();
   const canTransferTeam =
     isPremiumTier && (isGlobalAdmin || isGlobalMaintainer);
 
@@ -179,6 +181,7 @@ const HostDetailsPage = ({
     refetchOnMount: false,
     refetchOnReconnect: false,
     refetchOnWindowFocus: false,
+    retry: false,
     select: (data: IFleetQueriesResponse) => data.queries,
   });
 
@@ -190,6 +193,7 @@ const HostDetailsPage = ({
       refetchOnMount: false,
       refetchOnReconnect: false,
       refetchOnWindowFocus: false,
+      retry: false,
       select: (data: ITeamsResponse) => data.teams,
     }
   );
@@ -202,6 +206,7 @@ const HostDetailsPage = ({
       refetchOnMount: false,
       refetchOnReconnect: false,
       refetchOnWindowFocus: false,
+      retry: false,
       select: (data: IDeviceMappingResponse) => data.device_mapping,
     }
   );
@@ -214,6 +219,7 @@ const HostDetailsPage = ({
       refetchOnMount: false,
       refetchOnReconnect: false,
       refetchOnWindowFocus: false,
+      retry: false,
       select: (data: IMacadminsResponse) => data.macadmins,
     }
   );
@@ -235,6 +241,7 @@ const HostDetailsPage = ({
       refetchOnMount: false,
       refetchOnReconnect: false,
       refetchOnWindowFocus: false,
+      retry: false,
       select: (data: IHostResponse) => data.host,
       onSuccess: (returnedHost) => {
         setShowRefetchSpinner(returnedHost.refetch_requested);
@@ -310,12 +317,7 @@ const HostDetailsPage = ({
           setScheduleState(packStatsByType.schedule);
         }
       },
-      onError: (error) => {
-        console.log(error);
-        dispatch(
-          renderFlash("error", `Unable to load host. Please try again.`)
-        );
-      },
+      onError: (error) => handlePageError(error),
     }
   );
 
@@ -388,8 +390,8 @@ const HostDetailsPage = ({
   const operatingSystemVersion = host?.os_version.slice(
     host?.os_version.lastIndexOf(" ") + 1
   );
-  const osPolicyLabel = `Is ${operatingSystem}, version ${operatingSystemVersion} installed?`;
-  const osPolicy = `SELECT 1 from os_version WHERE name = '${operatingSystem}' AND major || '.' || minor || '.' || patch = '${operatingSystemVersion}';`;
+  const osPolicyLabel = `Is ${operatingSystem}, version ${operatingSystemVersion} or later, installed?`;
+  const osPolicy = `SELECT 1 from os_version WHERE name = '${operatingSystem}' AND major || '.' || minor || '.' || patch >= '${operatingSystemVersion}';`;
 
   const aboutData = normalizeEmptyValues(
     pick(host, [
@@ -434,7 +436,7 @@ const HostDetailsPage = ({
       : setLastEditedQueryName(osPolicyLabel);
     setPolicyTeamId(host?.team_id ? host?.team_id : 0);
     setLastEditedQueryDescription(
-      "Checks to see if the exact operating system and version are installed on a host."
+      "Checks to see if the required minimum operating system version is installed."
     );
     setLastEditedQueryBody(osPolicy);
     setLastEditedQueryResolution("");

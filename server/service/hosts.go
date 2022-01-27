@@ -286,7 +286,7 @@ func (svc *Service) GetHost(ctx context.Context, id uint) (*fleet.HostDetail, er
 
 func (svc *Service) checkWriteForHostIDs(ctx context.Context, ids []uint) error {
 	for _, id := range ids {
-		host, err := svc.ds.Host(ctx, id, false)
+		host, err := svc.ds.HostLite(ctx, id)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "get host for delete")
 		}
@@ -304,7 +304,8 @@ func (svc *Service) checkWriteForHostIDs(ctx context.Context, ids []uint) error 
 ////////////////////////////////////////////////////////////////////////////////
 
 type getHostSummaryRequest struct {
-	TeamID *uint `query:"team_id,optional"`
+	TeamID   *uint   `query:"team_id,optional"`
+	Platform *string `query:"platform,optional"`
 }
 
 type getHostSummaryResponse struct {
@@ -316,7 +317,7 @@ func (r getHostSummaryResponse) error() error { return r.Err }
 
 func getHostSummaryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
 	req := request.(*getHostSummaryRequest)
-	summary, err := svc.GetHostSummary(ctx, req.TeamID)
+	summary, err := svc.GetHostSummary(ctx, req.TeamID, req.Platform)
 	if err != nil {
 		return getHostSummaryResponse{Err: err}, nil
 	}
@@ -327,7 +328,7 @@ func getHostSummaryEndpoint(ctx context.Context, request interface{}, svc fleet.
 	return resp, nil
 }
 
-func (svc *Service) GetHostSummary(ctx context.Context, teamID *uint) (*fleet.HostSummary, error) {
+func (svc *Service) GetHostSummary(ctx context.Context, teamID *uint, platform *string) (*fleet.HostSummary, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionList); err != nil {
 		return nil, err
 	}
@@ -337,7 +338,7 @@ func (svc *Service) GetHostSummary(ctx context.Context, teamID *uint) (*fleet.Ho
 	}
 	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true, TeamID: teamID}
 
-	summary, err := svc.ds.GenerateHostStatusStatistics(ctx, filter, svc.clock.Now())
+	summary, err := svc.ds.GenerateHostStatusStatistics(ctx, filter, svc.clock.Now(), platform)
 	if err != nil {
 		return nil, err
 	}
@@ -415,7 +416,7 @@ func (svc *Service) DeleteHost(ctx context.Context, id uint) error {
 		return err
 	}
 
-	host, err := svc.ds.Host(ctx, id, false)
+	host, err := svc.ds.HostLite(ctx, id)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get host for delete")
 	}
@@ -548,17 +549,18 @@ func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
 		return err
 	}
 
-	host, err := svc.ds.Host(ctx, id, false)
+	host, err := svc.ds.HostLite(ctx, id)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "find host for refetch")
 	}
 
+	// We verify fleet.ActionRead instead of fleet.ActionWrite because we want to allow
+	// observers to be able to refetch hosts.
 	if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
 		return err
 	}
 
-	host.RefetchRequested = true
-	if err := svc.ds.SaveHost(ctx, host); err != nil {
+	if err := svc.ds.UpdateHostRefetchRequested(ctx, host.ID, true); err != nil {
 		return ctxerr.Wrap(ctx, err, "save host")
 	}
 
@@ -661,13 +663,7 @@ func (svc *Service) ListHostDeviceMapping(ctx context.Context, id uint) ([]*flee
 		return nil, err
 	}
 
-	// TODO(mna): this is a pattern that is used elsewhere for hosts, authorize
-	// on list, then load the host to get the team info, and authorize properly
-	// (read, with team_id filled). I wonder if we should add a "quick load" of
-	// host when used just for that purpose, because loading even without the
-	// extra info is still a big-ish query with potentially lots of columns and
-	// at least 4 tables involved.
-	host, err := svc.ds.Host(ctx, id, true)
+	host, err := svc.ds.HostLite(ctx, id)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get host")
 	}
@@ -709,7 +705,7 @@ func (svc *Service) MacadminsData(ctx context.Context, id uint) (*fleet.Macadmin
 		return nil, err
 	}
 
-	host, err := svc.ds.Host(ctx, id, false)
+	host, err := svc.ds.HostLite(ctx, id)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "find host for macadmins")
 	}
@@ -753,4 +749,57 @@ func (svc *Service) MacadminsData(ctx context.Context, id uint) (*fleet.Macadmin
 	}
 
 	return data, nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Aggregated Macadmins
+////////////////////////////////////////////////////////////////////////////////
+
+type getAggregatedMacadminsDataRequest struct {
+	TeamID *uint `query:"team_id,optional"`
+}
+
+type getAggregatedMacadminsDataResponse struct {
+	Err       error                          `json:"error,omitempty"`
+	Macadmins *fleet.AggregatedMacadminsData `json:"macadmins"`
+}
+
+func (r getAggregatedMacadminsDataResponse) error() error { return r.Err }
+
+func getAggregatedMacadminsDataEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*getAggregatedMacadminsDataRequest)
+	data, err := svc.AggregatedMacadminsData(ctx, req.TeamID)
+	if err != nil {
+		return getAggregatedMacadminsDataResponse{Err: err}, nil
+	}
+	return getAggregatedMacadminsDataResponse{Macadmins: data}, nil
+}
+
+func (svc *Service) AggregatedMacadminsData(ctx context.Context, teamID *uint) (*fleet.AggregatedMacadminsData, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionList); err != nil {
+		return nil, err
+	}
+
+	if teamID != nil {
+		_, err := svc.ds.Team(ctx, *teamID)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	agg := &fleet.AggregatedMacadminsData{}
+
+	versions, err := svc.ds.AggregatedMunkiVersion(ctx, teamID)
+	if err != nil {
+		return nil, err
+	}
+	agg.MunkiVersions = versions
+
+	status, err := svc.ds.AggregatedMDMStatus(ctx, teamID)
+	if err != nil {
+		return nil, err
+	}
+	agg.MDMStatus = status
+
+	return agg, nil
 }

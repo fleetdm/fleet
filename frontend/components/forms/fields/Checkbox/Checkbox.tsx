@@ -13,9 +13,11 @@ export interface ICheckboxProps {
   disabled?: boolean;
   name?: string;
   onChange?: any; // TODO: meant to be an event; figure out type for this
+  onBlur?: any;
   value?: boolean;
   wrapperClassName?: string;
   indeterminate?: boolean;
+  parseTarget?: boolean;
 }
 
 const Checkbox = (props: ICheckboxProps) => {
@@ -25,12 +27,19 @@ const Checkbox = (props: ICheckboxProps) => {
     disabled = false,
     name,
     onChange = noop,
+    onBlur = noop,
     value,
     wrapperClassName,
     indeterminate,
+    parseTarget,
   } = props;
 
   const handleChange = () => {
+    if (parseTarget) {
+      // Returns both name and value
+      return onChange({ name, value: !value });
+    }
+
     return onChange(!value);
   };
 
@@ -56,6 +65,7 @@ const Checkbox = (props: ICheckboxProps) => {
           id={name}
           name={name}
           onChange={handleChange}
+          onBlur={onBlur}
           type="checkbox"
           ref={(element) => {
             element && indeterminate && (element.indeterminate = indeterminate);

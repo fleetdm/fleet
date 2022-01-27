@@ -1,102 +1,25 @@
 package service
 
 import (
-	"encoding/json"
-	"fmt"
-	"net/http"
-
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
 // GetHosts retrieves the list of all Hosts
 func (c *Client) GetHosts(query string) ([]HostResponse, error) {
-	response, err := c.AuthenticatedDo("GET", "/api/v1/fleet/hosts", query, nil)
-	if err != nil {
-		return nil, fmt.Errorf("GET /api/v1/fleet/hosts: %w", err)
-	}
-	defer response.Body.Close()
-
-	if response.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf(
-			"get hosts received status %d %s",
-			response.StatusCode,
-			extractServerErrorText(response.Body),
-		)
-	}
+	verb, path := "GET", "/api/v1/fleet/hosts"
 	var responseBody listHostsResponse
-	err = json.NewDecoder(response.Body).Decode(&responseBody)
-	if err != nil {
-		return nil, fmt.Errorf("decode list hosts response: %w", err)
-	}
-	if responseBody.Err != nil {
-		return nil, fmt.Errorf("list hosts: %s", responseBody.Err)
-	}
-
-	return responseBody.Hosts, nil
+	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query)
+	return responseBody.Hosts, err
 }
 
 // HostByIdentifier retrieves a host by the uuid, osquery_host_id, hostname, or
 // node_key.
 func (c *Client) HostByIdentifier(identifier string) (*HostDetailResponse, error) {
-	response, err := c.AuthenticatedDo("GET", "/api/v1/fleet/hosts/identifier/"+identifier, "", nil)
-	if err != nil {
-		return nil, fmt.Errorf("GET /api/v1/fleet/hosts/identifier: %w", err)
-	}
-	defer response.Body.Close()
-
-	if response.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf(
-			"get host by identifier received status %d %s",
-			response.StatusCode,
-			extractServerErrorText(response.Body),
-		)
-	}
+	verb, path := "GET", "/api/v1/fleet/hosts/identifier/"+identifier
 	var responseBody getHostResponse
-	err = json.NewDecoder(response.Body).Decode(&responseBody)
-	if err != nil {
-		return nil, fmt.Errorf("decode host response: %w", err)
-	}
-	if responseBody.Err != nil {
-		return nil, fmt.Errorf("get host by identifier: %s", responseBody.Err)
-	}
-
-	return responseBody.Host, nil
-}
-
-// DeleteHost deletes the host with the matching id.
-func (c *Client) DeleteHost(id uint) error {
-	verb := "DELETE"
-	path := fmt.Sprintf("/api/v1/fleet/hosts/%d", id)
-	response, err := c.AuthenticatedDo(verb, path, "", nil)
-	if err != nil {
-		return fmt.Errorf("%s %s: %w", verb, path, err)
-	}
-	defer response.Body.Close()
-
-	switch response.StatusCode {
-	case http.StatusNotFound:
-		return notFoundErr{}
-	}
-	if response.StatusCode != http.StatusOK {
-		return fmt.Errorf(
-			"delete host received status %d %s",
-			response.StatusCode,
-			extractServerErrorText(response.Body),
-		)
-	}
-
-	var responseBody deleteHostResponse
-	err = json.NewDecoder(response.Body).Decode(&responseBody)
-	if err != nil {
-		return fmt.Errorf("decode delete host response: %w", err)
-	}
-
-	if responseBody.Err != nil {
-		return fmt.Errorf("delete host: %s", responseBody.Err)
-	}
-
-	return nil
+	err := c.authenticatedRequest(nil, verb, path, &responseBody)
+	return responseBody.Host, err
 }
 
 func (c *Client) translateTransferHostsToIDs(hosts []string, label string, team string) ([]uint, uint, uint, error) {

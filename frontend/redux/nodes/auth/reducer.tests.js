@@ -70,7 +70,7 @@ describe("Auth - reducer", () => {
 
       store
         .dispatch(loginUser(formData))
-        .then((user) => {
+        .then(({ user }) => {
           expect(user).toEqual(apiHelpers.addGravatarUrlToResource(userStub));
           done();
         })

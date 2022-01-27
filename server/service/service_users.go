@@ -102,22 +102,6 @@ func (svc *Service) UserUnauthorized(ctx context.Context, id uint) (*fleet.User,
 	return svc.ds.UserByID(ctx, id)
 }
 
-func (svc *Service) AuthenticatedUser(ctx context.Context) (*fleet.User, error) {
-	vc, ok := viewer.FromContext(ctx)
-	if !ok {
-		return nil, fleet.ErrNoContext
-	}
-
-	if err := svc.authz.Authorize(ctx, &fleet.User{ID: vc.UserID()}, fleet.ActionRead); err != nil {
-		return nil, err
-	}
-
-	if !vc.IsLoggedIn() {
-		return nil, fleet.NewPermissionError("not logged in")
-	}
-	return vc.User, nil
-}
-
 // setNewPassword is a helper for changing a user's password. It should be
 // called to set the new password after proper authorization has been
 // performed.

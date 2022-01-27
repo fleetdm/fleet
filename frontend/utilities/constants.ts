@@ -17,11 +17,11 @@ export const DEFAULT_POLICIES = [
   {
     key: 1,
     query: `SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT "" AND filevault_status = 'on' LIMIT 1`,
-    name: "Is Filevault enabled on macOS devices?",
+    name: "Is FileVault enabled on macOS devices?",
     description:
       "Checks to make sure that the Filevault feature is enabled on macOS devices.",
     resolution:
-      "Choose Apple menu > System Preferences, then click Security & Privacy. Click the FileVault tab. Click the Lock icon, then enter an administrator name and password. Click Turn On FileVault.",
+      "To enable FileVault, on the failing device, select System Preferences > Security & Privacy > FileVault > Turn On FileVault.",
     platform: "darwin",
   },
   {
@@ -31,7 +31,7 @@ export const DEFAULT_POLICIES = [
     description:
       "Checks to make sure that the Gatekeeper feature is enabled on macOS devices. Gatekeeper tries to ensure only trusted software is run on a mac machine.",
     resolution:
-      "On the failing device, run the following command in the Terminal app: /usr/sbin / spctl--master- enable",
+      "To enable Gatekeeper, one the failing device, run the following command in the Terminal app: /usr/sbin/spctl --master-enable.",
     platform: "darwin",
   },
   {
@@ -41,7 +41,7 @@ export const DEFAULT_POLICIES = [
     description:
       "Checks to make sure that device encryption is enabled on Windows devices.",
     resolution:
-      "Option 1: Select the Start button. Select Settings > Update & Security > Device encryption. If Device encryption doesn't appear, skip to Option 2. If device encryption is turned off, select Turn on. Option 2: Select the Start button. Under Windows System, select Control Panel. Select System and Security. Under BitLocker Drive Encryption, select Manage BitLocker. Select Turn on BitLocker and then follow the instructions.",
+      "To get additional information, run the following osquery query on the failing device: SELECT * FROM bitlocker_info. In the query results, if protection_status is 2, then the status cannot be determined. If it is 0, it is considered unprotected. Use the additional results (percent_encrypted, conversion_status, etc.) to help narrow down the specific reason why Windows considers the volume unprotected.",
     platform: "windows",
   },
   {
