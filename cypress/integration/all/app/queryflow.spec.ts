@@ -1,51 +1,38 @@
-describe(
-  "Query flow (empty)",
-  {
-    defaultCommandTimeout: 20000,
-  },
-  () => {
-    before(() => {
-      Cypress.session.clearAllSavedSessions();
-      cy.setup();
+describe("Query flow (empty)", () => {
+  before(() => {
+    Cypress.session.clearAllSavedSessions();
+    cy.setup();
+    cy.loginWithCySession();
+    cy.viewport(1200, 660);
+  });
+  after(() => {
+    cy.logout();
+  });
+  describe("Manage queries page", () => {
+    beforeEach(() => {
       cy.loginWithCySession();
-      cy.viewport(1200, 660);
+      cy.visit("/queries/manage");
     });
-    after(() => {
-      cy.logout();
-    });
-    describe("Manage queries page", () => {
-      beforeEach(() => {
-        cy.loginWithCySession();
-        cy.visit("/queries/manage");
-      });
-      it("creates a new query", () => {
-        cy.getAttached(".queries-list-wrapper__create-button").click();
-
-        cy.getAttached(".ace_scroller")
-          .click({ force: true })
-          .type("{selectall}SELECT * FROM windows_crashes;");
-
-        cy.findByRole("button", { name: /save/i }).click();
-
-        cy.getAttached(".query-form__query-save-modal-name")
-          .click()
-          .type("Query all window crashes");
-
-        cy.getAttached(".query-form__query-save-modal-description")
-          .click()
-          .type("See all window crashes");
-
-        cy.findByRole("button", { name: /save query/i }).click();
-
-        cy.findByText(/query created/i).should("exist");
-
-        cy.getAttached(".query-form__query-name").within(() => {
-          cy.findByText(/query all window crashes/i).should("exist");
-        });
+    it("creates a new query", () => {
+      cy.getAttached(".queries-list-wrapper__create-button").click();
+      cy.getAttached(".ace_scroller")
+        .click({ force: true })
+        .type("{selectall}SELECT * FROM windows_crashes;");
+      cy.findByRole("button", { name: /save/i }).click();
+      cy.getAttached(".query-form__query-save-modal-name")
+        .click()
+        .type("Query all window crashes");
+      cy.getAttached(".query-form__query-save-modal-description")
+        .click()
+        .type("See all window crashes");
+      cy.findByRole("button", { name: /save query/i }).click();
+      cy.findByText(/query created/i).should("exist");
+      cy.getAttached(".query-form__query-name").within(() => {
+        cy.findByText(/query all window crashes/i).should("exist");
       });
     });
-  }
-);
+  });
+});
 
 describe("Query flow (seeded)", () => {
   before(() => {
@@ -65,18 +52,13 @@ describe("Query flow (seeded)", () => {
     });
     it("edits an existing query", () => {
       cy.getAttached(".name__cell .button--text-link").first().click();
-
       cy.findByText(/run query/i).should("exist");
-
       cy.getAttached(".ace_scroller")
         .click()
         .type("{selectall}SELECT datetime, username FROM windows_crashes;");
-
       cy.getAttached(".button--brand.query-form__save").click();
-
       cy.findByText(/query updated/i).should("be.visible");
     });
-
     it("deletes an existing query", () => {
       cy.findByText(/detect linux hosts/i)
         .parent()
@@ -88,7 +70,6 @@ describe("Query flow (seeded)", () => {
         });
       cy.findByRole("button", { name: /delete/i }).click();
       cy.getAttached(".button--alert.remove-query-modal__btn").click();
-
       cy.findByText(/successfully removed query/i).should("be.visible");
       cy.findByText(/detect linux hosts/i).should("not.exist");
     });

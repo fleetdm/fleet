@@ -26,7 +26,6 @@ describe("Reset sessions", () => {
         cy.getAttached("input").invoke("val").as("token1");
       });
       cy.visit("/settings/users");
-
       cy.getAttached("div.Select-placeholder", /actions/i)
         .eq(0)
         .click();
@@ -37,16 +36,12 @@ describe("Reset sessions", () => {
         cy.findByRole("button", { name: /confirm/i }).click();
       });
       cy.findByText(/reset sessions/i).should("not.exist");
-
       // user should be logged out so log in for new API token
       cy.getAttached(".login-form__container").within(() => {
         cy.findByRole("button", { name: /login/i }).should("exist");
       });
-
       cy.login();
-
       cy.visit("/profile");
-
       cy.getAttached(".user-settings__additional").within(() => {
         cy.findByRole("button", { name: /get api token/i }).click();
       });
@@ -56,7 +51,6 @@ describe("Reset sessions", () => {
       cy.getAttached(".user-settings__secret-input").within(() => {
         cy.get("input").invoke("val").as("token2");
       });
-
       // new token should not equal old token
       cy.get("@token1").then((val1) => {
         cy.get("@token2").then((val2) => {

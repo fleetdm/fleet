@@ -16,13 +16,10 @@ describe("Pack flow (empty)", () => {
     });
     it("creates a new pack", () => {
       cy.findByRole("button", { name: /create new pack/i }).click();
-
       cy.findByLabelText(/name/i).click().type("Errors and crashes");
-
       cy.findByLabelText(/description/i)
         .click()
         .type("See all user errors and window crashes.");
-
       cy.findByRole("button", { name: /save query pack/i }).click();
     });
   });
@@ -48,7 +45,6 @@ describe("Pack flow (seeded)", () => {
     });
     it("adds a query to an existing pack", () => {
       cy.findByRole("button", { name: /add query/i }).click();
-
       cy.findByText(/select query/i).click();
       cy.findByText(/get authorized/i).click();
       cy.getAttached(
@@ -65,7 +61,6 @@ describe("Pack flow (seeded)", () => {
       )
         .click()
         .type("50");
-
       cy.getAttached(".pack-query-editor-modal__btn-wrap")
         .contains("button", /add query/i)
         .click();
@@ -73,7 +68,6 @@ describe("Pack flow (seeded)", () => {
     });
     it("removes a query from an existing pack", () => {
       cy.getAttached(".fleet-checkbox__input").check({ force: true });
-
       cy.findByRole("button", { name: /remove/i }).click();
       cy.getAttached(".remove-pack-query-modal__btn-wrap")
         .contains("button", /remove/i)
@@ -81,11 +75,9 @@ describe("Pack flow (seeded)", () => {
     });
     it("edits an existing pack", () => {
       cy.findByLabelText(/name/i).clear().type("Server errors");
-
       cy.findByLabelText(/description/i)
         .clear()
         .type("See all server errors.");
-
       cy.findByRole("button", { name: /save/i }).click();
     });
   });
@@ -103,15 +95,11 @@ describe("Pack flow (seeded)", () => {
           });
       });
       cy.findByRole("button", { name: /delete/i }).click();
-
       cy.getAttached(".remove-pack-modal__btn-wrap > .button--alert")
         .contains("button", /delete/i)
         .click({ force: true });
-
       cy.findByText(/successfully deleted/i).should("be.visible");
-
       cy.visit("/packs/manage");
-
       cy.getAttached(".table-container").within(() => {
         cy.findByText(/windows starter pack/i).should("not.exist");
       });

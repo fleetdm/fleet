@@ -18,16 +18,13 @@ describe("Policies flow (empty)", () => {
       cy.getAttached(".manage-policies-page__header-wrap").within(() => {
         cy.findByText(/add a policy/i).click();
       });
-
       cy.findByText(/create your own policy/i).click();
-
       cy.getAttached(".ace_scroller")
         .click({ force: true })
         .type(
           "{selectall}SELECT 1 FROM users WHERE username = 'backup' LIMIT 1;"
         );
       cy.findByRole("button", { name: /save policy/i }).click();
-
       cy.getAttached(".policy-form__policy-save-modal-name")
         .click()
         .type("Does the device have a user named 'backup'?");
@@ -38,7 +35,6 @@ describe("Policies flow (empty)", () => {
         .click()
         .type("Create a user named 'backup'");
       cy.findByRole("button", { name: /^Save$/ }).click();
-
       cy.findByText(/policy created/i).should("exist");
     });
     it("creates a default policy", () => {
@@ -77,7 +73,6 @@ describe("Policies flow (seeded)", () => {
         .within(() => {
           cy.getAttached(".button--text-link").click();
         });
-
       // confirm policy functionality on manage host page
       cy.getAttached(".manage-hosts__policies-filter-block").within(() => {
         cy.findByText(/filevault enabled/i).should("exist");
@@ -87,18 +82,14 @@ describe("Policies flow (seeded)", () => {
         cy.findByText(/filevault enabled'/i).should("not.exist");
       });
     });
-
     it("edits an existing policy", () => {
       cy.getAttached(".name__cell .button--text-link").last().click();
-
       cy.getAttached(".ace_scroller")
         .click({ force: true })
         .type(
           "{selectall}SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;"
         );
-
       cy.getAttached(".policy-form__save").click();
-
       cy.findByText(/policy updated/i).should("exist");
     });
 
@@ -118,7 +109,6 @@ describe("Policies flow (seeded)", () => {
       cy.findByText(/removed policy/i).should("exist");
       cy.findByText(/backup/i).should("not.exist");
     });
-
     it("creates a failing policies webhook", () => {
       cy.findByRole("button", { name: /manage automations/i }).click();
       cy.getAttached(".manage-automations-modal").within(() => {
@@ -126,7 +116,6 @@ describe("Policies flow (seeded)", () => {
       });
       cy.getAttached("#webhook-url").click().type("www.foo.com/bar");
       cy.findByRole("button", { name: /^Save$/ }).click();
-
       // Confirm failing policies webhook was added successfully
       cy.findByText(/updated policy automations/i).should("exist");
       cy.findByRole("button", { name: /manage automations/i }).click();
