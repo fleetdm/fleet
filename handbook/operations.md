@@ -8,11 +8,18 @@
 
 2. Research compensation using [Pave](https://www.pave.com), making sure to adjust for geographical factors. *If you're unsure of your findings, ask for help from Mike.*
 
-3. Share the compensation information you've gathered with Eric. Eric will confirm all this information with Mike and document this decision in the [compensation decisions document](https://docs.google.com/document/d/1NQ-IjcOTbyFluCWqsFLMfP4SvnopoXDcX0civ-STS5c/edit) for future reference.
+3. Share the compensation information you've gathered with Eric. Eric will confirm the information with Mike and document this decision in the [compensation decisions document](https://docs.google.com/document/d/1NQ-IjcOTbyFluCWqsFLMfP4SvnopoXDcX0civ-STS5c/edit) for future reference.
 
-4. After compensation has been determined, you need to create two documents for the candidate, an "exit scenarios" spreadsheet and an "informal offer email" template. If you need these templates, reach out to Eric on slack, and he will provide you links that automatically create copies Change the name of the documents accordingly (e.g., "[candidate's name]'s copy of exit scenarios,") and link to the exit scenarios spreadsheet from the offer email.
+4. After compensation has been determined, create two documents for the candidate:
 
-5. Prepare the informal offer email. You'll need to fill the following information to the template: 
+- "Exit scenarios" spreadsheet
+- "Informal offer email" template. 
+
+If you need these templates, reach out to Eric on Slack, and he will provide you links that automatically create copies. 
+
+Change the name of the documents accordingly (e.g., "[candidate's name]'s copy of exit scenarios,") and link to the exit scenarios spreadsheet from the offer email.
+
+5. Prepare the informal offer email. You'll need to add the following information to the template: 
    - Candidate's name and email address
    - Candidate's start date
    - Candidate's compensation
@@ -22,9 +29,9 @@
 
 6. Prepare the exit scenarios spreadsheet. Enter the percentage of equity offered to the candidate, and the spreadsheet will update to reflect this. 
    
-      >**_Note:_** *Don't play with numbers in the exit scenarios spreadsheet. the revision history is visible to the candidate, and they might misunderstand.*
+      >**_Note:_** *Don't play with numbers in the exit scenarios spreadsheet. The revision history is visible to the candidate, and they might misunderstand.*
 
-7. Once both documents are complete, share the offer email draft, exit scenarios copy, and a link to the compensation decision, and send them to Eric for confirmation.
+7. Once both documents are complete, share the offer email draft, exit scenarios copy, and a link to the compensation decision, with Eric for confirmation.
 
 8. After Eric confirms that everything is correct, Mike or Zach will send the offer email. The offer email is copied directly from Google drive and sent to the candidate. When they send the offer, Mike or Zach will edit the permissions of the exit scenarios sheet and share with the candidate.
 
@@ -32,7 +39,7 @@
 
 ### Steps after an offer is accepted
 
-1. Once an offer is accepted in writing, reply to the candidate, CCing Eric via his Fleet email address to introduce the candidate to them.
+1. Once an offer is accepted in writing, reply to the candidate, CCing Eric via his Fleet email address to introduce the candidate to him.
 
 2. If the new team member is in the United States, Eric will reach out to them and get any information needed (typically the new team member's home address and phone number) and send them a consulting or employment agreement through [Docusign](https://www.docusign.com/). If the new team member is an international employee or contractor, Eric will start the hiring process in [Pilot](https://pilot.co/).
 
@@ -40,7 +47,7 @@
 
 3. **For US employees/contractors** After an agreement is signed and stored in the correct Google
    Drive folder, Eric will start onboarding the new team member in [Gusto](https://gusto.com/).
-   If the new team member is a W-2 employee, the Eric will reach out to them and
+   If the new team member is a W-2 employee, Eric will reach out to them and
    schedule an I-9 verification meeting. 
 
    >**_Note:_** *If we're hiring in a new state, we'll have to register for state taxes and unemployment. This process can be handled by Gusto. *
