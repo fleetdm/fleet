@@ -173,7 +173,7 @@ Since we can't eliminate the risk of passwords being cracked remotely, we requir
 * Guest accounts are not available.
 
 #### iCloud
-We do not apply ultra restrictive [Data Loss Prevention](https://en.wikipedia.org/wiki/Data_loss_prevention_software) style policies to our workstations. A computer that is used for day to day work, with full access to the Internet can never be protected from voluntary malicious actors willing to upload data. Instead, we focus on ensuring the most critical data never reaches our laptops, so it can remain secure, while our laptops can remain productive.
+We do not apply ultra restrictive Data Loss Prevention style policies to our devices. Instead, by using different web-based tools we have, we ensure that the most critical company data is not stored on our laptops, so it can remain secure, while our laptops can remain productive.
 
 
 | #       | Setting                                                   |
@@ -200,7 +200,7 @@ We do not apply ultra restrictive [Data Loss Prevention](https://en.wikipedia.or
 
 * Limiting ad tracking has privacy benefits, and no downside.
 * Protecting keyboard entry into Terminal.app could prevent malicious applications or non-malicious but inappropriate applications from receiving passwords.
-* Library validation ensures that applications can't be tricked into loading a library in a different location, leaving it open to abuse.
+* Library validation ensures that an attacker can't trick applications into loading a software library in a different location, leaving it open to abuse.
 * Safari opening files automatically can lead to negative scenarios where files are downloaded and automatically opened in another application. Though the setting relates to files deemed "safe", it includes PDFs and other file formats where malicious documents exploiting vulnerabilities have been seen before.
 
 **User experience impact**
@@ -222,11 +222,11 @@ We do not apply ultra restrictive [Data Loss Prevention](https://en.wikipedia.or
 
 **User experience impact**
 
-* Misconfigured captive portals, such as in hotels, could be unreachable, as they perform an attack on DNS traffic to redirect you, and misuse IP addresses such as *1.1.1.1*. You can work around this by performing a *nslookup* in the terminal for any domain and manually browsing to the IP being provided as the response. **This should be rare, and getting rarer by the day. The best workaround is to use tethering on a phone or hotspot**.
-* Rare false positives could happen, preventing access to a site. Please report those, as if they become frequent, we will define a strategy for handling them.
+* Some misconfigured "captive portals", typically used in hotels and airports, might be unusable with DoH due to how they are configured. This can be worked around by using the hotspot on your phone, and if you really have to use this network for an extended period of time, there are usually workarounds that can be performed to connect to them. Navigating to http://1.1.1.1 often resolves the issue.
+* If you are trying to reach a site, and you believe it is being blocked accidentally, please submit it to Cloudflare. This should be extremely rare. If it is not, please let the security team know.
 * If your ISP's DNS service goes down, you'll be able to continue working 😎
 
-*Note: Implementing DoH in an office environment where other network controls are in place has different downsides than doing it for a remote company. In those cases, **disabling** DoH makes more sense, so network controls can retain visibility. Please evaluate your situation before implementing any of our recommendations at your organization, especially DoH.*
+*Note: If you from another organization, reading this to help create your own configuration, remember that implementing DoH in an office environment where other network controls are in place has different downsides than doing it for a remote company. In those cases, **disabling** DoH makes more sense, so network controls can retain visibility. Please evaluate your situation before implementing any of our recommendations at your organization, especially DoH.*
 
 #### Deploy osquery
 | #  | Setting                |
