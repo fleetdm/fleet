@@ -3,10 +3,7 @@ import sendRequest from "services";
 import { omit } from "lodash";
 
 import endpoints from "fleet/endpoints";
-import {
-  // IPackQueryFormData,
-  IGlobalScheduledQuery,
-} from "interfaces/global_scheduled_query";
+import { IGlobalScheduledQuery } from "interfaces/global_scheduled_query";
 import helpers from "fleet/helpers";
 
 export default {

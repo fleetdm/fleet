@@ -343,11 +343,11 @@ const ManageSchedulePage = ({
       if (editQuery) {
         const updatedAttributes = deepDifference(formData, editQuery);
 
-        const edit = selectedTeamId
+        const editResponse = selectedTeamId
           ? teamScheduledQueriesAPI.update(editQuery, updatedAttributes)
           : globalScheduledQueriesAPI.update(editQuery, updatedAttributes);
 
-        edit
+        editResponse
           .then(() => {
             dispatch(
               renderFlash(
@@ -366,11 +366,11 @@ const ManageSchedulePage = ({
             );
           });
       } else {
-        const create = selectedTeamId
+        const createResponse = selectedTeamId
           ? teamScheduledQueriesAPI.create({ ...formData })
           : globalScheduledQueriesAPI.create({ ...formData });
 
-        create
+        createResponse
           .then(() => {
             dispatch(
               renderFlash(
