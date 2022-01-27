@@ -26,6 +26,11 @@ import (
 //go:embed *.tmpl
 var templatesFS embed.FS
 
+//go:embed *.software
+var softwareFS embed.FS
+
+var vulnerableSoftware []fleet.Software
+
 type Stats struct {
 	errors            int
 	enrollments       int
@@ -142,8 +147,9 @@ type agent struct {
 }
 
 type entityCount struct {
-	common int
-	unique int
+	common     int
+	unique     int
+	vulnerable int
 }
 
 func newAgent(
@@ -386,7 +392,12 @@ func (a *agent) SoftwareMacOS() []fleet.Software {
 			Source:           "osquery-perf",
 		}
 	}
+	randomVulnerableSoftware := make([]fleet.Software, a.softwareCount.vulnerable)
+	for i := 0; i < len(randomVulnerableSoftware); i++ {
+		randomVulnerableSoftware[i] = vulnerableSoftware[rand.Intn(len(vulnerableSoftware))]
+	}
 	software := append(commonSoftware, uniqueSoftware...)
+	software = append(software, randomVulnerableSoftware...)
 	rand.Shuffle(len(software), func(i, j int) {
 		software[i], software[j] = software[j], software[i]
 	})
@@ -575,6 +586,7 @@ func main() {
 	nodeKeyFile := flag.String("node_key_file", "", "File with node keys to use")
 	commonSoftwareCount := flag.Int("common_software_count", 10, "Number of common of installed applications reported to fleet")
 	uniqueSoftwareCount := flag.Int("unique_software_count", 10, "Number of unique installed applications reported to fleet")
+	vulnerableSoftwareCount := flag.Int("vulnerable_software_count", 10, "Number of vulnerable installed applications reported to fleet")
 	commonUserCount := flag.Int("common_user_count", 10, "Number of common host users reported to fleet")
 	uniqueUserCount := flag.Int("unique_user_count", 10, "Number of unique host users reported to fleet")
 	policyPassProb := flag.Float64("policy_pass_prob", 1.0, "Probability of policies to pass [0, 1]")
@@ -588,6 +600,25 @@ func main() {
 	if err != nil {
 		log.Fatal("parse templates: ", err)
 	}
+
+	vulnerableSoftwareData, err := softwareFS.ReadFile("vulnerable.software")
+	if err != nil {
+		log.Fatal("reading vulnerable software file: ", err)
+	}
+	lines := bytes.Split(vulnerableSoftwareData, []byte("\n"))
+	for _, line := range lines {
+		parts := bytes.Split(line, []byte("##"))
+		if len(parts) < 2 {
+			fmt.Println("skipping", string(line))
+			continue
+		}
+		vulnerableSoftware = append(vulnerableSoftware, fleet.Software{
+			Name:    string(parts[0]),
+			Version: string(parts[1]),
+			Source:  "apps",
+		})
+	}
+	log.Printf("Loaded %d vulnerable software\n", len(vulnerableSoftware))
 
 	// Spread starts over the interval to prevent thundering herd
 	sleepTime := *startPeriod / time.Duration(*hostCount)
@@ -603,8 +634,9 @@ func main() {
 
 	for i := 0; i < *hostCount; i++ {
 		a := newAgent(i+1, *serverURL, *enrollSecret, tmpl, *configInterval, *queryInterval, entityCount{
-			common: *commonSoftwareCount,
-			unique: *uniqueSoftwareCount,
+			common:     *commonSoftwareCount,
+			unique:     *uniqueSoftwareCount,
+			vulnerable: *vulnerableSoftwareCount,
 		}, entityCount{
 			common: *commonUserCount,
 			unique: *uniqueUserCount,
