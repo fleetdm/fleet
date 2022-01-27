@@ -10,7 +10,7 @@
 
 3. Share the compensation information you've gathered with Eric. Eric will confirm all this information with Mike and document this decision in the [compensation decisions document](https://docs.google.com/document/d/1NQ-IjcOTbyFluCWqsFLMfP4SvnopoXDcX0civ-STS5c/edit) for future reference.
 
-4. After compensation has been determined, you need to create two documents for the candidate, an "exit scenarios" spreadsheet and an "informal offer email" template. If you need these templates, reach out to Eric on slack, and he will provide you links that automatically create copies Change the name of the documents accordingly (e.g., "Fleetie McDeviceManagement's copy of exit scenarios," etc.) and link to the exit scenarios spreadsheet from the offer email.
+4. After compensation has been determined, you need to create two documents for the candidate, an "exit scenarios" spreadsheet and an "informal offer email" template. If you need these templates, reach out to Eric on slack, and he will provide you links that automatically create copies Change the name of the documents accordingly (e.g., "[candidate's name]'s copy of exit scenarios,") and link to the exit scenarios spreadsheet from the offer email.
 
 5. Prepare the informal offer email. You'll need to fill the following information to the template: 
    - Candidate's name and email address
