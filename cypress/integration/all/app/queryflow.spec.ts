@@ -79,84 +79,84 @@ describe("Query flow (seeded)", () => {
       cy.loginWithCySession();
       cy.visit("/schedule/manage");
     });
-    // it("creates a new scheduled query", () => {
-    //   cy.getAttached(".no-schedule__cta-buttons").within(() => {
-    //     cy.getAttached(".no-schedule__schedule-button").click();
-    //   });
+    it("creates a new scheduled query", () => {
+      cy.getAttached(".no-schedule__cta-buttons").within(() => {
+        cy.getAttached(".no-schedule__schedule-button").click();
+      });
 
-    //   cy.getAttached(".schedule-editor-modal__form").within(() => {
-    //     cy.findByText(/select query/i).click();
-    //     cy.findByText(/query all/i).click();
+      cy.getAttached(".schedule-editor-modal__form").within(() => {
+        cy.findByText(/select query/i).click();
+        cy.findByText(/detect presence/i).click();
 
-    //     cy.findByText(/every day/i).click();
-    //     cy.findByText(/every 6 hours/i).click();
+        cy.findByText(/every day/i).click();
+        cy.findByText(/every 6 hours/i).click();
 
-    //     cy.findByText(/show advanced options/i).click();
-    //     cy.findByText(/snapshot/i).click();
-    //     cy.findByText(/ignore removals/i).click();
+        cy.findByText(/show advanced options/i).click();
+        cy.findByText(/snapshot/i).click();
+        cy.findByText(/ignore removals/i).click();
 
-    //     cy.getAttached(".schedule-editor-modal__form-field--platform").within(
-    //       () => {
-    //         cy.findByText(/all/i).click();
-    //         cy.findByText(/linux/i).click();
-    //       }
-    //     );
+        cy.getAttached(".schedule-editor-modal__form-field--platform").within(
+          () => {
+            cy.findByText(/all/i).click();
+            cy.findByText(/linux/i).click();
+          }
+        );
 
-    //     cy.getAttached(
-    //       ".schedule-editor-modal__form-field--osquer-vers"
-    //     ).within(() => {
-    //       cy.findByText(/all/i).click();
-    //       cy.findByText(/4.6.0/i).click();
-    //     });
+        cy.getAttached(
+          ".schedule-editor-modal__form-field--osquer-vers"
+        ).within(() => {
+          cy.findByText(/all/i).click();
+          cy.findByText(/4.6.0/i).click();
+        });
 
-    //     cy.getAttached(".schedule-editor-modal__form-field--shard").within(
-    //       () => {
-    //         cy.getAttached(".input-field").click().type("50");
-    //       }
-    //     );
+        cy.getAttached(".schedule-editor-modal__form-field--shard").within(
+          () => {
+            cy.getAttached(".input-field").click().type("50");
+          }
+        );
 
-    //     cy.getAttached(".schedule-editor-modal__btn-wrap").within(() => {
-    //       cy.findByRole("button", { name: /schedule/i }).click();
-    //     });
-    //   });
+        cy.getAttached(".schedule-editor-modal__btn-wrap").within(() => {
+          cy.findByRole("button", { name: /schedule/i }).click();
+        });
+      });
 
-    //   cy.findByText(/successfully added/i).should("be.visible");
-    // });
+      cy.findByText(/successfully added/i).should("be.visible");
+    });
 
-    // it("edit a scheduled query successfully", () => {
-    //   cy.getAttached("tbody>tr")
-    //     .should("have.length", 1)
-    //     .within(() => {
-    //       cy.findByText(/action/i).click();
-    //       cy.findByText(/edit/i).click();
-    //     });
+    it("edit a scheduled query successfully", () => {
+      cy.getAttached("tbody>tr")
+        .should("have.length", 1)
+        .within(() => {
+          cy.findByText(/action/i).click();
+          cy.findByText(/edit/i).click();
+        });
 
-    //   cy.getAttached(".schedule-editor-modal__form").within(() => {
-    //     cy.findByText(/every 6 hours/i).click();
-    //     cy.findByText(/every day/i).click();
+      cy.getAttached(".schedule-editor-modal__form").within(() => {
+        cy.findByText(/every 6 hours/i).click();
+        cy.findByText(/every day/i).click();
 
-    //     cy.getAttached(".schedule-editor-modal__btn-wrap").within(() => {
-    //       cy.findByRole("button", { name: /schedule/i }).click();
-    //     });
-    //   });
+        cy.getAttached(".schedule-editor-modal__btn-wrap").within(() => {
+          cy.findByRole("button", { name: /schedule/i }).click();
+        });
+      });
 
-    //   cy.findByText(/successfully updated/i).should("be.visible");
-    // });
+      cy.findByText(/successfully updated/i).should("be.visible");
+    });
 
-    // it("remove a scheduled query successfully", () => {
-    //   cy.getAttached("tbody>tr")
-    //     .should("have.length", 1)
-    //     .within(() => {
-    //       cy.findByText(/1 day/i).should("exist");
-    //       cy.findByText(/action/i).click();
-    //       cy.findByText(/remove/i).click();
-    //     });
+    it("remove a scheduled query successfully", () => {
+      cy.getAttached("tbody>tr")
+        .should("have.length", 1)
+        .within(() => {
+          cy.findByText(/1 day/i).should("exist");
+          cy.findByText(/action/i).click();
+          cy.findByText(/remove/i).click();
+        });
 
-    //   cy.getAttached(".remove-scheduled-query-modal__btn-wrap").within(() => {
-    //     cy.findByRole("button", { name: /remove/i }).click();
-    //   });
+      cy.getAttached(".remove-scheduled-query-modal__btn-wrap").within(() => {
+        cy.findByRole("button", { name: /remove/i }).click();
+      });
 
-    //   cy.findByText(/successfully removed/i).should("be.visible");
-    // });
+      cy.findByText(/successfully removed/i).should("be.visible");
+    });
   });
 });
