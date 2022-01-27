@@ -72,7 +72,9 @@ const renderAllTeamsTable = (
   allTeamsScheduledQueriesList: IGlobalScheduledQuery[],
   allTeamsScheduledQueriesError: Error | null,
   isOnGlobalTeam: boolean,
-  selectedTeamData: ITeam | undefined
+  selectedTeamData: ITeam | undefined,
+  isLoadingGlobalScheduledQueries: boolean,
+  isLoadingTeamScheduledQueries: boolean
 ): JSX.Element => {
   return allTeamsScheduledQueriesError ? (
     <TableDataError />
@@ -513,7 +515,9 @@ const ManageSchedulePage = ({
             inheritedScheduledQueriesList,
             inheritedScheduledQueriesError,
             isOnGlobalTeam || false,
-            selectedTeamData
+            selectedTeamData,
+            isLoadingGlobalScheduledQueries,
+            isLoadingTeamScheduledQueries
           )}
         {showScheduleEditorModal && (
           <ScheduleEditorModal
