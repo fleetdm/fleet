@@ -422,7 +422,7 @@ const ManagePolicyPage = ({
           {!!teamId && teamPoliciesError && <TableDataError />}
           {!!teamId &&
             !teamPoliciesError &&
-            (isLoadingTeamPolicies || isLoadingFailingPoliciesWebhook ? (
+            (isLoadingTeamPolicies ? (
               <Spinner />
             ) : (
               <PoliciesListWrapper
