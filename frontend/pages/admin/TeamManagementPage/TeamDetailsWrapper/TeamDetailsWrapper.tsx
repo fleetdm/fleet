@@ -141,7 +141,12 @@ const TeamDetailsWrapper = ({
         const findTeam = responseTeams.find(
           (team) => team.id === Number(routeParams.team_id)
         );
-        setCurrentTeam(findTeam);
+
+        if (findTeam) {
+          setCurrentTeam(findTeam);
+        } else {
+          handlePageError({ status: 404 });
+        }
       },
       onError: (error) => handlePageError(error),
     }
@@ -226,10 +231,7 @@ const TeamDetailsWrapper = ({
     }
 
     try {
-      await enrollSecretsAPI.modifyTeamEnrollSecrets(
-        teamIdFromURL,
-        newSecrets
-      );
+      await enrollSecretsAPI.modifyTeamEnrollSecrets(teamIdFromURL, newSecrets);
       refetchTeamSecrets();
 
       toggleSecretEditorModal();
@@ -262,10 +264,7 @@ const TeamDetailsWrapper = ({
     );
 
     try {
-      await enrollSecretsAPI.modifyTeamEnrollSecrets(
-        teamIdFromURL,
-        newSecrets
-      );
+      await enrollSecretsAPI.modifyTeamEnrollSecrets(teamIdFromURL, newSecrets);
       refetchTeamSecrets();
       toggleDeleteSecretModal();
       refetchTeams();

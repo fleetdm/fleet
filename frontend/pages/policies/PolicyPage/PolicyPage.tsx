@@ -104,6 +104,7 @@ const PolicyPage = ({
     {
       enabled: !!policyIdForEdit,
       refetchOnWindowFocus: false,
+      retry: false,
       select: (data: IStoredPolicyResponse) => data.policy,
       onSuccess: (returnedQuery) => {
         setLastEditedQueryName(returnedQuery.name);
@@ -123,6 +124,7 @@ const PolicyPage = ({
       hostAPI.loadHostDetails(parseInt(URLQuerySearch.host_ids as string, 10)),
     {
       enabled: !!URLQuerySearch.host_ids,
+      retry: false,
       select: (data: IHostResponse) => data.host,
       onSuccess: (host) => {
         const targets = selectedTargets;

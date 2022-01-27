@@ -181,6 +181,7 @@ const HostDetailsPage = ({
     refetchOnMount: false,
     refetchOnReconnect: false,
     refetchOnWindowFocus: false,
+    retry: false,
     select: (data: IFleetQueriesResponse) => data.queries,
   });
 
@@ -192,6 +193,7 @@ const HostDetailsPage = ({
       refetchOnMount: false,
       refetchOnReconnect: false,
       refetchOnWindowFocus: false,
+      retry: false,
       select: (data: ITeamsResponse) => data.teams,
     }
   );
@@ -204,6 +206,7 @@ const HostDetailsPage = ({
       refetchOnMount: false,
       refetchOnReconnect: false,
       refetchOnWindowFocus: false,
+      retry: false,
       select: (data: IDeviceMappingResponse) => data.device_mapping,
     }
   );
@@ -216,6 +219,7 @@ const HostDetailsPage = ({
       refetchOnMount: false,
       refetchOnReconnect: false,
       refetchOnWindowFocus: false,
+      retry: false,
       select: (data: IMacadminsResponse) => data.macadmins,
     }
   );
@@ -237,6 +241,7 @@ const HostDetailsPage = ({
       refetchOnMount: false,
       refetchOnReconnect: false,
       refetchOnWindowFocus: false,
+      retry: false,
       select: (data: IHostResponse) => data.host,
       onSuccess: (returnedHost) => {
         setShowRefetchSpinner(returnedHost.refetch_requested);

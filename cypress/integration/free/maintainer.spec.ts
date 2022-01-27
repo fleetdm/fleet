@@ -19,18 +19,16 @@ describe(
     });
 
     it("Can perform the appropriate core global maintainer actions", () => {
+      Cypress.on("uncaught:exception", () => {
+        return false;
+      });
+
       cy.login("mary@organization.com", "user123#");
       cy.visit("/hosts/manage");
 
       // Ensure page is loaded
       cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
       cy.contains("All hosts");
-
-      // Settings restrictions
-      cy.findByText(/settings/i).should("not.exist");
-      cy.visit("/settings/organization");
-      cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
-      cy.findByText(/you do not have permissions/i).should("exist");
 
       // Host manage page: No team UI, can add host and label
       cy.visit("/hosts/manage");
@@ -187,6 +185,13 @@ describe(
           .next()
           .contains(/maintainer/i);
       });
+
+      // nav restrictions are at the end because we expect to see a
+      // 403 error overlay which will hide the nav and make the test fail
+      cy.visit("/dashboard");
+      cy.findByText(/settings/i).should("not.exist");
+      cy.visit("/settings/organization");
+      cy.findByText(/you do not have permissions/i).should("exist");
     });
   }
 );
