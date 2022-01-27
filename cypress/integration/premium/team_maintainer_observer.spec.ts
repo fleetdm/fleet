@@ -76,6 +76,9 @@ describe("Premium tier - Team observer/maintainer user", () => {
   });
 
   describe("Team maintainer", () => {
+    // cypress tends to fail on uncaught exceptions. since we have
+    // our own error handling, it's suggested to use this block to
+    // suppress so the tests will keep running
     Cypress.on("uncaught:exception", () => {
       return false;
     });

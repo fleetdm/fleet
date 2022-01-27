@@ -171,10 +171,6 @@ const TeamDetailsWrapper = ({
     dispatch(push(navPath));
   };
 
-  // useEffect(() => {
-  //   dispatch(teamActions.loadAll({ perPage: 500 }));
-  // }, [dispatch]);
-
   const [teamMenuIsOpen, setTeamMenuIsOpen] = useState<boolean>(false);
 
   const toggleGenerateInstallerModal = useCallback(() => {

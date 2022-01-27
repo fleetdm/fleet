@@ -26,15 +26,6 @@ interface IAgentOptionsPageProps {
   };
 }
 
-// interface IRootState {
-//   entities: {
-//     teams: {
-//       loading: boolean;
-//       data: { [id: number]: ITeam };
-//     };
-//   };
-// }
-
 interface ITeamsResponse {
   teams: ITeam[];
 }
@@ -44,11 +35,7 @@ const AgentOptionsPage = ({
 }: IAgentOptionsPageProps): JSX.Element => {
   const teamIdFromURL = parseInt(team_id, 10);
   const dispatch = useDispatch();
-  // const team = useSelector((state: IRootState) => {
-  //   return state.entities.teams.data[teamId];
-  // });
 
-  const [selectedTeam, setSelectedTeam] = useState<ITeam | undefined>();
   const [formData, setFormData] = useState<any>({});
   const handlePageError = useErrorHandler();
 
@@ -61,7 +48,6 @@ const AgentOptionsPage = ({
         const selected = data.find((team) => team.id === teamIdFromURL);
 
         if (selected) {
-          setSelectedTeam(selected);
           setFormData({
             osquery_options: yaml.dump(selected.agent_options),
           });
@@ -72,10 +58,6 @@ const AgentOptionsPage = ({
       onError: (error) => handlePageError(error),
     }
   );
-
-  // const formData = {
-  //   osquery_options: yaml.dump(selectedTeam?.agent_options),
-  // };
 
   const onSaveOsqueryOptionsFormSubmit = (updatedForm: any): void | false => {
     const { TEAMS_AGENT_OPTIONS } = endpoints;

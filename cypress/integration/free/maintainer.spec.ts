@@ -19,6 +19,9 @@ describe(
     });
 
     it("Can perform the appropriate core global maintainer actions", () => {
+      // cypress tends to fail on uncaught exceptions. since we have
+      // our own error handling, it's suggested to use this block to
+      // suppress so the tests will keep running
       Cypress.on("uncaught:exception", () => {
         return false;
       });

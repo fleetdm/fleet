@@ -124,6 +124,9 @@ describe("Premium tier - Observer user", () => {
     });
     describe("Nav restrictions", () => {
       it("should restrict navigation according to role-based access controls", () => {
+        // cypress tends to fail on uncaught exceptions. since we have
+        // our own error handling, it's suggested to use this block to
+        // suppress so the tests will keep running
         Cypress.on("uncaught:exception", () => {
           return false;
         });
