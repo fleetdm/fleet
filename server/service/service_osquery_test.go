@@ -2470,12 +2470,7 @@ func TestLiveQueriesFailing(t *testing.T) {
 }
 
 func TestJitterForHost(t *testing.T) {
-	jh := jitterHashTable{
-		maxCapacity: 1,
-		bucketCount: 30,
-		buckets:     make(map[int]int),
-		cache:       make(map[uint]time.Duration),
-	}
+	jh := newJitterHashTable(30)
 
 	histogram := make(map[int64]int)
 	hostCount := 3000
@@ -2504,12 +2499,7 @@ func TestJitterForHost(t *testing.T) {
 }
 
 func TestNoJitter(t *testing.T) {
-	jh := jitterHashTable{
-		maxCapacity: 1,
-		bucketCount: 0,
-		buckets:     make(map[int]int),
-		cache:       make(map[uint]time.Duration),
-	}
+	jh := newJitterHashTable(0)
 
 	hostCount := 3000
 	for i := 0; i < hostCount; i++ {

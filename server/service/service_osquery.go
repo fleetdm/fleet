@@ -452,15 +452,7 @@ func (svc *Service) shouldUpdate(lastUpdated time.Time, interval time.Duration, 
 	defer svc.jitterMu.Unlock()
 
 	if svc.jitterH[interval] == nil {
-		svc.jitterH[interval] = &jitterHashTable{
-			maxCapacity: 1,
-			bucketCount: int(int64(svc.config.Osquery.MaxJitterPercent) * int64(interval.Minutes()) / 100.0),
-			buckets:     make(map[int]int),
-			cache:       make(map[uint]time.Duration),
-		}
-		if svc.jitterH[interval].bucketCount == 0 {
-			svc.jitterH[interval].bucketCount = 1
-		}
+		svc.jitterH[interval] = newJitterHashTable(int(int64(svc.config.Osquery.MaxJitterPercent) * int64(interval.Minutes()) / 100.0))
 		level.Debug(svc.logger).Log("jitter", "created", "bucketCount", svc.jitterH[interval].bucketCount)
 	}
 
@@ -488,11 +480,12 @@ func (svc *Service) shouldUpdate(lastUpdated time.Time, interval time.Duration, 
 // minutes added to the host check in time.
 // For example: at a 1hr interval, and the default 10% max jitter percent. That allows hosts to
 // distribute within 6 minutes around the hour mark. We would have 6 buckets in that case.
-// In the worse possible case that all hosts start at the same time, max jitter percent can be set to
+// In the worst possible case that all hosts start at the same time, max jitter percent can be set to
 // 100, and this method will distribute hosts evenly.
 // The main caveat of this approach is that it works at the fleet instance. So depending on what
 // instance gets chosen by the load balancer, the jitter might be different. However, load tests have
-// shown that
+// shown that the distribution in practise is pretty balance even when all hosts try to check in at
+// the same time.
 type jitterHashTable struct {
 	mu          sync.Mutex
 	maxCapacity int
@@ -501,9 +494,21 @@ type jitterHashTable struct {
 	cache       map[uint]time.Duration
 }
 
+func newJitterHashTable(bucketCount int) *jitterHashTable {
+	if bucketCount == 0 {
+		bucketCount = 1
+	}
+	return &jitterHashTable{
+		maxCapacity: 1,
+		bucketCount: bucketCount,
+		buckets:     make(map[int]int),
+		cache:       make(map[uint]time.Duration),
+	}
+}
+
 func (jh *jitterHashTable) jitterForHost(hostID uint) time.Duration {
 	// if no jitter is configured just return 0
-	if jh.bucketCount == 0 {
+	if jh.bucketCount <= 1 {
 		return 0
 	}
 
