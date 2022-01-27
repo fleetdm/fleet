@@ -616,6 +616,11 @@ func cronCleanups(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 			level.Error(logger).Log("err", "cleaning expired hosts", "details", err)
 			sentry.CaptureException(err)
 		}
+		err = ds.GenerateAggregatedMunkiAndMDM(ctx)
+		if err != nil {
+			level.Error(logger).Log("err", "aggregating munki and mdm data", "details", err)
+			sentry.CaptureException(err)
+		}
 
 		err = trySendStatistics(ctx, ds, fleet.StatisticsFrequency, "https://fleetdm.com/api/v1/webhooks/receive-usage-analytics", license)
 		if err != nil {
@@ -643,10 +648,12 @@ func cronVulnerabilities(
 		level.Error(logger).Log("config", "couldn't read app config", "err", err)
 		return
 	}
+
+	vulnDisabled := false
 	if appConfig.VulnerabilitySettings.DatabasesPath == "" &&
 		config.Vulnerabilities.DatabasesPath == "" {
 		level.Info(logger).Log("vulnerability scanning", "not configured")
-		return
+		vulnDisabled = true
 	}
 	if !appConfig.HostSettings.EnableSoftwareInventory {
 		level.Info(logger).Log("software inventory", "not configured")
@@ -664,15 +671,19 @@ func cronVulnerabilities(
 			"result", vulnPath)
 	}
 
-	level.Info(logger).Log("databases-path", vulnPath)
+	if !vulnDisabled {
+		level.Info(logger).Log("databases-path", vulnPath)
+	}
 	level.Info(logger).Log("periodicity", config.Vulnerabilities.Periodicity)
 
-	if config.Vulnerabilities.CurrentInstanceChecks == "auto" {
-		level.Debug(logger).Log("current instance checks", "auto", "trying to create databases-path", vulnPath)
-		err := os.MkdirAll(vulnPath, 0o755)
-		if err != nil {
-			level.Error(logger).Log("databases-path", "creation failed, returning", "err", err)
-			return
+	if !vulnDisabled {
+		if config.Vulnerabilities.CurrentInstanceChecks == "auto" {
+			level.Debug(logger).Log("current instance checks", "auto", "trying to create databases-path", vulnPath)
+			err := os.MkdirAll(vulnPath, 0o755)
+			if err != nil {
+				level.Error(logger).Log("databases-path", "creation failed, returning", "err", err)
+				return
+			}
 		}
 	}
 
@@ -694,16 +705,24 @@ func cronVulnerabilities(
 			}
 		}
 
-		err := vulnerabilities.TranslateSoftwareToCPE(ctx, ds, vulnPath, logger, config)
-		if err != nil {
-			level.Error(logger).Log("msg", "analyzing vulnerable software: Software->CPE", "err", err)
-			sentry.CaptureException(err)
-			continue
+		if !vulnDisabled {
+			err := vulnerabilities.TranslateSoftwareToCPE(ctx, ds, vulnPath, logger, config)
+			if err != nil {
+				level.Error(logger).Log("msg", "analyzing vulnerable software: Software->CPE", "err", err)
+				sentry.CaptureException(err)
+				continue
+			}
+
+			err = vulnerabilities.TranslateCPEToCVE(ctx, ds, vulnPath, logger, config)
+			if err != nil {
+				level.Error(logger).Log("msg", "analyzing vulnerable software: CPE->CVE", "err", err)
+				sentry.CaptureException(err)
+				continue
+			}
 		}
 
-		err = vulnerabilities.TranslateCPEToCVE(ctx, ds, vulnPath, logger, config)
-		if err != nil {
-			level.Error(logger).Log("msg", "analyzing vulnerable software: CPE->CVE", "err", err)
+		if err := ds.CalculateHostsPerSoftware(ctx, time.Now()); err != nil {
+			level.Error(logger).Log("msg", "calculating hosts count per software", "err", err)
 			sentry.CaptureException(err)
 			continue
 		}

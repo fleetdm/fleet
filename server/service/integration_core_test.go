@@ -403,20 +403,35 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	s.DoJSON("GET", "/api/v1/fleet/software/count", countReq, http.StatusOK, &countResp)
 	assert.Equal(t, 2, countResp.Count)
 
-	lsReq := listSoftwareRequest{}
-	lsResp := listSoftwareResponse{}
-	s.DoJSON("GET", "/api/v1/fleet/software", lsReq, http.StatusOK, &lsResp, "vulnerable", "true", "order_key", "generated_cpe", "order_direction", "desc")
-	assert.Len(t, lsResp.Software, 1)
-	assert.Equal(t, soft1.ID, lsResp.Software[0].ID)
-	assert.Len(t, lsResp.Software[0].Vulnerabilities, 1)
+	// no software host counts have been calculated yet, so this returns nothing
+	var lsResp listSoftwareResponse
+	s.DoJSON("GET", "/api/v1/fleet/software", nil, http.StatusOK, &lsResp, "vulnerable", "true", "order_key", "generated_cpe", "order_direction", "desc")
+	require.Len(t, lsResp.Software, 0)
+	assert.True(t, lsResp.CountsUpdatedAt.IsZero())
 
+	// the software/count endpoint is different, it doesn't care about hosts counts
 	s.DoJSON("GET", "/api/v1/fleet/software/count", countReq, http.StatusOK, &countResp, "vulnerable", "true", "order_key", "generated_cpe", "order_direction", "desc")
 	assert.Equal(t, 1, countResp.Count)
 
-	s.DoJSON("GET", "/api/v1/fleet/software", lsReq, http.StatusOK, &lsResp, "vulnerable", "true", "order_key", "name,id", "order_direction", "desc")
-	assert.Len(t, lsResp.Software, 1)
+	// calculate hosts counts
+	hostsCountTs := time.Now().UTC()
+	require.NoError(t, s.ds.CalculateHostsPerSoftware(context.Background(), hostsCountTs))
+
+	// now the list software endpoint returns the software
+	s.DoJSON("GET", "/api/v1/fleet/software", nil, http.StatusOK, &lsResp, "vulnerable", "true", "order_key", "generated_cpe", "order_direction", "desc")
+	require.Len(t, lsResp.Software, 1)
 	assert.Equal(t, soft1.ID, lsResp.Software[0].ID)
 	assert.Len(t, lsResp.Software[0].Vulnerabilities, 1)
+	assert.WithinDuration(t, hostsCountTs, lsResp.CountsUpdatedAt, time.Second)
+
+	// the count endpoint still returns 1
+	s.DoJSON("GET", "/api/v1/fleet/software/count", countReq, http.StatusOK, &countResp, "vulnerable", "true", "order_key", "generated_cpe", "order_direction", "desc")
+	assert.Equal(t, 1, countResp.Count)
+
+	// default sort, not only vulnerable
+	s.DoJSON("GET", "/api/v1/fleet/software", nil, http.StatusOK, &lsResp)
+	require.True(t, len(lsResp.Software) >= len(software))
+	assert.WithinDuration(t, hostsCountTs, lsResp.CountsUpdatedAt, time.Second)
 }
 
 func (s *integrationTestSuite) TestGlobalPolicies() {
@@ -1767,6 +1782,43 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 	require.Nil(t, macadminsData.Macadmins.Munki)
 	assert.Equal(t, "AAA", macadminsData.Macadmins.MDM.ServerURL)
 	assert.Equal(t, "Enrolled (automated)", macadminsData.Macadmins.MDM.EnrollmentStatus)
+
+	// generate aggregated data
+	require.NoError(t, s.ds.GenerateAggregatedMunkiAndMDM(context.Background()))
+
+	agg := getAggregatedMacadminsDataResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/macadmins", nil, http.StatusOK, &agg)
+	require.NotNil(t, agg.Macadmins)
+	assert.Len(t, agg.Macadmins.MunkiVersions, 2)
+	assert.ElementsMatch(t, agg.Macadmins.MunkiVersions, []fleet.AggregatedMunkiVersion{
+		{
+			HostMunkiInfo: fleet.HostMunkiInfo{Version: "1.5.0"},
+			HostsCount:    1,
+		},
+		{
+			HostMunkiInfo: fleet.HostMunkiInfo{Version: "3.2.0"},
+			HostsCount:    1,
+		},
+	})
+	assert.Equal(t, agg.Macadmins.MDMStatus.EnrolledManualHostsCount, 0)
+	assert.Equal(t, agg.Macadmins.MDMStatus.EnrolledAutomatedHostsCount, 1)
+	assert.Equal(t, agg.Macadmins.MDMStatus.UnenrolledHostsCount, 1)
+	assert.Equal(t, agg.Macadmins.MDMStatus.HostsCount, 2)
+
+	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+		Name:        "team1" + t.Name(),
+		Description: "desc team1",
+	})
+	require.NoError(t, err)
+
+	agg = getAggregatedMacadminsDataResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/macadmins", nil, http.StatusOK, &agg, "team_id", fmt.Sprint(team.ID))
+	require.NotNil(t, agg.Macadmins)
+	require.Empty(t, agg.Macadmins.MunkiVersions)
+	require.Empty(t, agg.Macadmins.MDMStatus)
+
+	agg = getAggregatedMacadminsDataResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/macadmins", nil, http.StatusNotFound, &agg, "team_id", "9999999")
 }
 
 func (s *integrationTestSuite) TestLabels() {

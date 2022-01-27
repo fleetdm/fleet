@@ -8,6 +8,10 @@ Note: Please prefix versions with `fleet-v` (eg. `fleet-v4.0.0`) in git tags, He
    tone and syntax of the written language match throughout. `make changelog` will stage all changes
    file entries for deletion with the commit.
 
+Add a "Performance" section below the list of changes. This section should summarize the number of
+hosts that the Fleet server can handle, call out if this number has
+changed since the last release, and list the infrastructure used in the load testing environment.
+
 Update the NPM [package.json](../../tools/fleetctl-npm/package.json) with the new version number (do
 not yet `npm publish`). Update the [Helm chart](../../charts/fleet/Chart.yaml) and [values
 file](../../charts/fleet/values.yaml) with the new version number.

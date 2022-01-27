@@ -176,6 +176,12 @@ type GetMunkiVersionFunc func(ctx context.Context, hostID uint) (string, error)
 
 type GetMDMFunc func(ctx context.Context, hostID uint) (enrolled bool, serverURL string, installedFromDep bool, err error)
 
+type AggregatedMunkiVersionFunc func(ctx context.Context, teamID *uint) ([]fleet.AggregatedMunkiVersion, error)
+
+type AggregatedMDMStatusFunc func(ctx context.Context, teamID *uint) (fleet.AggregatedMDMStatus, error)
+
+type GenerateAggregatedMunkiAndMDMFunc func(ctx context.Context) error
+
 type CountHostsInTargetsFunc func(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error)
 
 type HostIDsInTargetsFunc func(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets) ([]uint, error)
@@ -265,6 +271,8 @@ type AllCPEsFunc func(ctx context.Context) ([]string, error)
 type InsertCVEForCPEFunc func(ctx context.Context, cve string, cpes []string) error
 
 type SoftwareByIDFunc func(ctx context.Context, id uint) (*fleet.Software, error)
+
+type CalculateHostsPerSoftwareFunc func(ctx context.Context, updatedAt time.Time) error
 
 type NewActivityFunc func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error
 
@@ -607,6 +615,15 @@ type DataStore struct {
 	GetMDMFunc        GetMDMFunc
 	GetMDMFuncInvoked bool
 
+	AggregatedMunkiVersionFunc        AggregatedMunkiVersionFunc
+	AggregatedMunkiVersionFuncInvoked bool
+
+	AggregatedMDMStatusFunc        AggregatedMDMStatusFunc
+	AggregatedMDMStatusFuncInvoked bool
+
+	GenerateAggregatedMunkiAndMDMFunc        GenerateAggregatedMunkiAndMDMFunc
+	GenerateAggregatedMunkiAndMDMFuncInvoked bool
+
 	CountHostsInTargetsFunc        CountHostsInTargetsFunc
 	CountHostsInTargetsFuncInvoked bool
 
@@ -741,6 +758,9 @@ type DataStore struct {
 
 	SoftwareByIDFunc        SoftwareByIDFunc
 	SoftwareByIDFuncInvoked bool
+
+	CalculateHostsPerSoftwareFunc        CalculateHostsPerSoftwareFunc
+	CalculateHostsPerSoftwareFuncInvoked bool
 
 	NewActivityFunc        NewActivityFunc
 	NewActivityFuncInvoked bool
@@ -1294,6 +1314,21 @@ func (s *DataStore) GetMDM(ctx context.Context, hostID uint) (enrolled bool, ser
 	return s.GetMDMFunc(ctx, hostID)
 }
 
+func (s *DataStore) AggregatedMunkiVersion(ctx context.Context, teamID *uint) ([]fleet.AggregatedMunkiVersion, error) {
+	s.AggregatedMunkiVersionFuncInvoked = true
+	return s.AggregatedMunkiVersionFunc(ctx, teamID)
+}
+
+func (s *DataStore) AggregatedMDMStatus(ctx context.Context, teamID *uint) (fleet.AggregatedMDMStatus, error) {
+	s.AggregatedMDMStatusFuncInvoked = true
+	return s.AggregatedMDMStatusFunc(ctx, teamID)
+}
+
+func (s *DataStore) GenerateAggregatedMunkiAndMDM(ctx context.Context) error {
+	s.GenerateAggregatedMunkiAndMDMFuncInvoked = true
+	return s.GenerateAggregatedMunkiAndMDMFunc(ctx)
+}
+
 func (s *DataStore) CountHostsInTargets(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error) {
 	s.CountHostsInTargetsFuncInvoked = true
 	return s.CountHostsInTargetsFunc(ctx, filter, targets, now)
@@ -1517,6 +1552,11 @@ func (s *DataStore) InsertCVEForCPE(ctx context.Context, cve string, cpes []stri
 func (s *DataStore) SoftwareByID(ctx context.Context, id uint) (*fleet.Software, error) {
 	s.SoftwareByIDFuncInvoked = true
 	return s.SoftwareByIDFunc(ctx, id)
+}
+
+func (s *DataStore) CalculateHostsPerSoftware(ctx context.Context, updatedAt time.Time) error {
+	s.CalculateHostsPerSoftwareFuncInvoked = true
+	return s.CalculateHostsPerSoftwareFunc(ctx, updatedAt)
 }
 
 func (s *DataStore) NewActivity(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {
