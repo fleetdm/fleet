@@ -49,9 +49,9 @@
 
 ### Onboarding a new advisor.
 
-To send a new advisor agreement, you'll need the new advisor's name, and the number of shares they
-are offered. Advisor agreements are sent through [DocuSign](https://www.docusign.com/), using the "Advisor Agreement"
-template.
+Advisor agreements are sent through [DocuSign](https://www.docusign.com/), using the "Advisor Agreement"
+template. To send a new advisor agreement, you'll need the new advisor's name, and the number of shares they
+are offered. 
 
 Once the agreement is sent, add a new row to the [advisory board spreadsheet](https://docs.google.com/spreadsheets/d/15knBE2-PrQ1Ad-QcIk0mxCN-xFsATKK9hcifqrm0qFQ/edit#gid=1803674483) and enter the new advisor's information. Use this spreadsheet to track the advisor's progress through the onboarding process.
 
