@@ -4583,6 +4583,11 @@ None.
       "destination_url": "https://server.com",
       "policy_ids": [1, 2, 3],
       "host_batch_size": 1000
+    },
+    "vulnerabilities_webhook":{
+      "enable_vulnerabilities_webhook":true,
+      "destination_url": "https://server.com",
+      "host_batch_size": 1000
     }
   },
   "logging": {
@@ -4664,7 +4669,10 @@ Modifies the Fleet's configuration with the supplied information.
 | enable_failing_policies_webhook   | boolean | body | _webhook_settings.failing_policies_webhook settings_. Whether or not the failing policies webhook is enabled. |
 | destination_url    | string | body | _webhook_settings.failing_policies_webhook settings_. The URL to deliver the webhook requests to.                                                     |
 | policy_ids    | array | body | _webhook_settings.failing_policies_webhook settings_. List of policy IDs to enable failing policies webhook.                                                              |
-| host_batch_size    | integer | body | _webhook_settings.failing_policies_webhook settings_. Maximum number of hosts to batch on failing policy webhook requests. ThIe default, 0, means no batching (all hosts failing a policy are sent on one request). |
+| host_batch_size    | integer | body | _webhook_settings.failing_policies_webhook settings_. Maximum number of hosts to batch on failing policy webhook requests. The default, 0, means no batching (all hosts failing a policy are sent on one request). |
+| enable_vulnerabilities_webhook   | boolean | body | _webhook_settings.vulnerabilities_webhook settings_. Whether or not the vulnerabilities webhook is enabled. |
+| destination_url    | string | body | _webhook_settings.vulnerabilities_webhook settings_. The URL to deliver the webhook requests to.                                                     |
+| host_batch_size    | integer | body | _webhook_settings.vulnerabilities_webhook settings_. Maximum number of hosts to batch on vulnerabilities webhook requests. The default, 0, means no batching (all vulnerable hosts are sent on one request). |
 | additional_queries    | boolean | body | Whether or not additional queries are enabled on hosts.                                                                                                                                |
 
 #### Example
@@ -4773,6 +4781,11 @@ Modifies the Fleet's configuration with the supplied information.
       "enable_failing_policies_webhook":true,
       "destination_url": "https://server.com",
       "policy_ids": [1, 2, 3],
+      "host_batch_size": 1000
+    },
+    "vulnerabilities_webhook":{
+      "enable_vulnerabilities_webhook":true,
+      "destination_url": "https://server.com",
       "host_batch_size": 1000
     }
   },

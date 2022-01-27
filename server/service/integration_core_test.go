@@ -2115,6 +2115,27 @@ func (s *integrationTestSuite) TestGlobalPoliciesAutomationConfig() {
 	require.Empty(t, config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
 }
 
+func (s *integrationTestSuite) TestVulnerabilitiesWebhookConfig() {
+	t := s.T()
+
+	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(`{
+		"webhook_settings": {
+    		"vulnerabilities_webhook": {
+     	 		"enable_vulnerabilities_webhook": true,
+     	 		"destination_url": "http://some/url",
+     	 		"host_batch_size": 1234
+    		},
+    		"interval": "1h"
+  		}
+	}`), http.StatusOK)
+
+	config := s.getConfig()
+	require.True(t, config.WebhookSettings.VulnerabilitiesWebhook.Enable)
+	require.Equal(t, "http://some/url", config.WebhookSettings.VulnerabilitiesWebhook.DestinationURL)
+	require.Equal(t, 1234, config.WebhookSettings.VulnerabilitiesWebhook.HostBatchSize)
+	require.Equal(t, 1*time.Hour, config.WebhookSettings.Interval.Duration)
+}
+
 func (s *integrationTestSuite) TestQueriesBadRequests() {
 	t := s.T()
 
