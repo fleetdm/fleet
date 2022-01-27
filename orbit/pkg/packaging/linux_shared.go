@@ -50,6 +50,10 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 		return "", fmt.Errorf("initialize updates: %w", err)
 	}
 	log.Debug().Stringer("data", updatesData).Msg("updates initialized")
+	if opt.Version != "" {
+		// We set the package version to orbit's latest version.
+		opt.Version = updatesData.OrbitVersion
+	}
 
 	// Write files
 

@@ -24,6 +24,8 @@ type Options struct {
 	// EnrollSecret is the enroll secret used to authenticate to the Fleet
 	// server.
 	EnrollSecret string
+	// Version is the version number for this package.
+	Version string
 	// Identifier is the identifier (eg. com.fleetdm.orbit) for the package product.
 	Identifier string
 	// StartService is a boolean indicating whether to start a system-specific
