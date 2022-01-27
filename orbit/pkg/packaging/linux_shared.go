@@ -122,7 +122,7 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 
 	info := &nfpm.Info{
 		Name:        "fleet-osquery",
-		Version:     updatesData.OrbitVersion,
+		Version:     opt.Version,
 		Description: "Fleet osquery -- runtime and autoupdater",
 		Arch:        "amd64",
 		Maintainer:  "Fleet Engineers <engineering@fleetdm.com>",
