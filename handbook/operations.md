@@ -4,64 +4,64 @@
 
 ### Hiring a new team member
 
-#### Sending an offer email
+1. Reach out to Mike and Zach and give them an opportunity to meet the candidate.
 
-When preparing an offer email for a candidate, you'll need the informal offer template and the exit scenarios template. Create copies of each (make sure you don't edit the templates) and name them accordingly.
+2. Research compensation using [Pave](https://www.pave.com), making sure to adjust for geographical factors. *If you're unsure of your findings, ask for help from Mike.*
 
-For the informal offer template, you'll need the following information: start date, new team member's salary, who the new hire will be reporting to, benefits depending on the team memeber's location, and equity offered to the new team member.
+3. Share the compensation information you've gathered with Eric. Eric will confirm all this information with Mike, and document this decision in the [compensation decisions document](https://docs.google.com/document/d/1NQ-IjcOTbyFluCWqsFLMfP4SvnopoXDcX0civ-STS5c/edit) for future reference.
 
->**_Note:_**: When hiring an international employee, Pilot.co reccomends starting the hiring process a month before the new employee's start date.
-
-#### Steps after an offer is accepted
-
-1. Once an offer is accepted in writing, reply ccing the interim head of bizops via their Fleet email address to introduce the candidate to them.
-
-2. The interim head of Bizops will reach out to the new team member and get any missing information that they need to add them to [Gusto]()(For US based employees and contractors) or [Pilot]() (For international employees and contractors), such as home address, phone number, and any other information we might need.
-
-3. Before their first day at Fleet, the interim head of bizops will created a [google workspace account] for the new team member, add the team memeber to the [Fleet Github organization](), create an onboarding issue in the [FleetDM/confidential]() Github repo, and Invite them to join the Fleet Slack.
-
-#### Sending a consulting agreement
-
-### Onboarding a new advisor
+4. After compensation has been determined, you need to create two documents for the candidate, an "exit scenarios" spreadsheet and an "informal offer email". If you need the links, reach out to Eric and he will provide you links that automatically create copies. Change the name of the documents accordingly (e.g., "Fleetie McDeviceManagement's copy of exit scenarios," etc.) and link to the exit scenarios spreadsheet from the offer email.
 
 
+5. Prepare the informal offer email, you'll need to fill in the template following information: 
+   - Candidate's name and email address
+   - Candidate's start date
+   - Candidate's compensation
+   - Candidate's reporting manager
+   - Equity offered to the candidate (make this information a link to the candidate's exit scenarios spreadsheet)
+   - Benefits (determined by the candidate's location)
+   
 
-### Zapier + DocuSign flow
+6. Prepare the exit scenarios spreadsheet. Enter the percentage of equity offered to the candidate, and the spreadsheet will update to reflect this. 
+      
+      >**_Note:_** *Don't play with numbers in the exit scenarios spreadsheet, the revision history is visible to the candidate, and they might misunderstand.*
 
-All documents we send through DocuSign are formatted and added to the correct Google Drive folder once the document has been signed.
 
-Below are the steps the signed agreement goes through after it is marked as complete in Docusign.
+7. Once both documents are complete, share the offer email draft, exit scenarios copy, and a link to the compensation decision, and send them to Eric for confirmation.
 
-1. **Docusign:** The Docusign envelope is marked as completed, the completed document's filename is formatted as "`[type of document] for [signer name].pdf`". The Docusign envelope is then sent to hydroplane with the following data: 
-	
-	```
-{
-	email subject: email subject(docusign),
- 	emailCSV: recipients signer emails (docusign)
-}
-	```
+8. After Eric confirms that everything is correct, Mike or Zach will send the offer email. The offer email is copied directly from Google drive and sent to the candidate. When they send the offer, Mike or Zach will edit the permissions of the exit scenarios sheet and share with the candidate.
 
-3. **Hypdroplane:** The hydroplane webhook recieves data sent from DocuSign and matches the [type of document] in the document's filename to the proper google drive folder (an array of the folder IDs). The webhook then sends the following data back to Zapier:
-	
-	```
-{
-	destinationFolderID,
-	emailCVS (signers),
-	Date (formatted yyyy-mm-dd)
-}
-	```
+   >**_Note_**: *When hiring an international employee, Pilot.co recommends starting the hiring process a month before the new employee's start date.*
 
-4. **Google Drive:** Zapier uses this information to upload the file to the matched destinationFolderID, renamed as "[Date Signed] [Email Subject] [email cvs].PDF"
+### Steps after an offer is accepted
 
-5. **Slack:** Zapier uses the Slack integration to send a message to the peepops channel with the message 
+1. Once an offer is accepted in writing, reply to the candidate, CCing Eric via his Fleet email address to introduce the candidate to them.
 
->>"Now complete with all signatures:
->>
->>	[email subject]
->>
->>	link: drive.google.com/destinationFolderID"
+2. If the new team member is in the United States, Eric will reach out to the candidate and get any information needed (Usually home address and phone number) and send them a consulting or employment agreement through [Docusign](https://www.docusign.com/). If the new team member is an international employee or contractor, Eric will start the hiring process in [Pilot](https://pilot.co/).
 
-#### Stock options/grants
+   >**_Note:_**: *International contractor and employment agreements are handled by the Pilot.co when you start the hiring process.*
 
-Stock options and grants at fleet are 
+3. **For US employees/contractors** After an agreement is signed and stored in the correct Google
+   Drive folder, Eric will start onboarding the new team member in [Gusto](https://gusto.com/).
+   If the new team member is a W-2 employee, the Eric will reach out to them and
+   schedule an I-9 verification meeting. 
 
+      >**_Note_**: *If we're hiring in a new state, we'll have to register for state taxes and unemployment. This process can be handled by Gusto. *
+
+
+4. Before their first day at Fleet, Eric will create a new [Google Workspace account](https://admin.google.com/ac/users) for the new team member, add the team member to the [Fleet Github organization](https://github.com/fleetdm), create an onboarding issue in the [fleetdm/confidential](https://github.com/fleetdm/confidential/issues) Github repo, and invite them to join the Fleet Slack. If the new team member needs to purchase a work computer, Eric will set them up with a [Brex](https://dashboard.brex.com/team/invite-user) card, and .
+
+### Onboarding a new advisor.
+
+To send a new advisor agreement, you'll need the new advisor's name, and the number of shares they
+are offered. Advisor agreements are sent through [DocuSign](https://www.docusign.com/), using the "Advisor Agreement"
+template.
+
+Once the agreement is sent, add a new row to the [advisory board spreadsheet](https://docs.google.com/spreadsheets/d/15knBE2-PrQ1Ad-QcIk0mxCN-xFsATKK9hcifqrm0qFQ/edit#gid=1803674483) and enter the new advisor's information. Use this spreadsheet to track the advisor's progress through the onboarding process.
+
+   >**Note**: *Be sure to mark any columns that haven't been completed yet as "TODO"*
+
+When the agreement is completed, make sure it is in the correct Google Drive folder, and ask the new
+advisor to add us on [Linkedin](https://www.linkedin.com/company/71111416), [Crunchbase](https://www.crunchbase.com/organization/fleet-device-management) and [Angellist](https://angel.co/company/fleetdm).
+
+<meta name="maintainedBy" value="eashaw">
