@@ -1782,6 +1782,43 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 	require.Nil(t, macadminsData.Macadmins.Munki)
 	assert.Equal(t, "AAA", macadminsData.Macadmins.MDM.ServerURL)
 	assert.Equal(t, "Enrolled (automated)", macadminsData.Macadmins.MDM.EnrollmentStatus)
+
+	// generate aggregated data
+	require.NoError(t, s.ds.GenerateAggregatedMunkiAndMDM(context.Background()))
+
+	agg := getAggregatedMacadminsDataResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/macadmins", nil, http.StatusOK, &agg)
+	require.NotNil(t, agg.Macadmins)
+	assert.Len(t, agg.Macadmins.MunkiVersions, 2)
+	assert.ElementsMatch(t, agg.Macadmins.MunkiVersions, []fleet.AggregatedMunkiVersion{
+		{
+			HostMunkiInfo: fleet.HostMunkiInfo{Version: "1.5.0"},
+			HostsCount:    1,
+		},
+		{
+			HostMunkiInfo: fleet.HostMunkiInfo{Version: "3.2.0"},
+			HostsCount:    1,
+		},
+	})
+	assert.Equal(t, agg.Macadmins.MDMStatus.EnrolledManualHostsCount, 0)
+	assert.Equal(t, agg.Macadmins.MDMStatus.EnrolledAutomatedHostsCount, 1)
+	assert.Equal(t, agg.Macadmins.MDMStatus.UnenrolledHostsCount, 1)
+	assert.Equal(t, agg.Macadmins.MDMStatus.HostsCount, 2)
+
+	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+		Name:        "team1" + t.Name(),
+		Description: "desc team1",
+	})
+	require.NoError(t, err)
+
+	agg = getAggregatedMacadminsDataResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/macadmins", nil, http.StatusOK, &agg, "team_id", fmt.Sprint(team.ID))
+	require.NotNil(t, agg.Macadmins)
+	require.Empty(t, agg.Macadmins.MunkiVersions)
+	require.Empty(t, agg.Macadmins.MDMStatus)
+
+	agg = getAggregatedMacadminsDataResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/macadmins", nil, http.StatusNotFound, &agg, "team_id", "9999999")
 }
 
 func (s *integrationTestSuite) TestLabels() {
@@ -2076,6 +2113,27 @@ func (s *integrationTestSuite) TestGlobalPoliciesAutomationConfig() {
 
 	config = s.getConfig()
 	require.Empty(t, config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
+}
+
+func (s *integrationTestSuite) TestVulnerabilitiesWebhookConfig() {
+	t := s.T()
+
+	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(`{
+		"webhook_settings": {
+    		"vulnerabilities_webhook": {
+     	 		"enable_vulnerabilities_webhook": true,
+     	 		"destination_url": "http://some/url",
+     	 		"host_batch_size": 1234
+    		},
+    		"interval": "1h"
+  		}
+	}`), http.StatusOK)
+
+	config := s.getConfig()
+	require.True(t, config.WebhookSettings.VulnerabilitiesWebhook.Enable)
+	require.Equal(t, "http://some/url", config.WebhookSettings.VulnerabilitiesWebhook.DestinationURL)
+	require.Equal(t, 1234, config.WebhookSettings.VulnerabilitiesWebhook.HostBatchSize)
+	require.Equal(t, 1*time.Hour, config.WebhookSettings.Interval.Duration)
 }
 
 func (s *integrationTestSuite) TestQueriesBadRequests() {

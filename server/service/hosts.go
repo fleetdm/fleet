@@ -750,3 +750,56 @@ func (svc *Service) MacadminsData(ctx context.Context, id uint) (*fleet.Macadmin
 
 	return data, nil
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// Aggregated Macadmins
+////////////////////////////////////////////////////////////////////////////////
+
+type getAggregatedMacadminsDataRequest struct {
+	TeamID *uint `query:"team_id,optional"`
+}
+
+type getAggregatedMacadminsDataResponse struct {
+	Err       error                          `json:"error,omitempty"`
+	Macadmins *fleet.AggregatedMacadminsData `json:"macadmins"`
+}
+
+func (r getAggregatedMacadminsDataResponse) error() error { return r.Err }
+
+func getAggregatedMacadminsDataEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*getAggregatedMacadminsDataRequest)
+	data, err := svc.AggregatedMacadminsData(ctx, req.TeamID)
+	if err != nil {
+		return getAggregatedMacadminsDataResponse{Err: err}, nil
+	}
+	return getAggregatedMacadminsDataResponse{Macadmins: data}, nil
+}
+
+func (svc *Service) AggregatedMacadminsData(ctx context.Context, teamID *uint) (*fleet.AggregatedMacadminsData, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionList); err != nil {
+		return nil, err
+	}
+
+	if teamID != nil {
+		_, err := svc.ds.Team(ctx, *teamID)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	agg := &fleet.AggregatedMacadminsData{}
+
+	versions, err := svc.ds.AggregatedMunkiVersion(ctx, teamID)
+	if err != nil {
+		return nil, err
+	}
+	agg.MunkiVersions = versions
+
+	status, err := svc.ds.AggregatedMDMStatus(ctx, teamID)
+	if err != nil {
+		return nil, err
+	}
+	agg.MDMStatus = status
+
+	return agg, nil
+}
