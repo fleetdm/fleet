@@ -23,7 +23,7 @@
 
 The upgrade from kolide/fleet to fleetdm/fleet works the same as any minor version upgrade has in the past.
 
-Minor version upgrades in Kolide Fleet often included database migrations and the recommendation to back up the database before migrating. The same goes for FleetDM Fleet versions.
+Minor version upgrades in Kolide Fleet often included database migrations and the recommendation to back up the database before migrating. The same goes for the new Fleet.
 
 To migrate from Kolide Fleet to FleetDM Fleet, please follow the steps outlined in the [Upgrading Fleet section](../02-Deploying/06-Upgrading-Fleet.md) of the documentation.
 
