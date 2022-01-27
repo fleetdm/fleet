@@ -14,6 +14,12 @@ export const fetchQuery = (dispatch, queryID) => {
       errorMessage = "The query you requested does not exist in Fleet.";
     }
 
+    // LEGACY CODE - I had to do this to preserve the Redux pattern :-( MP 1/25/22
+    if (errorMessage.includes("was not found in the datastore")) {
+      dispatch(push("/404"));
+      return;
+    }
+
     dispatch(push(MANAGE_QUERIES));
     dispatch(renderFlash("error", errorMessage));
 
