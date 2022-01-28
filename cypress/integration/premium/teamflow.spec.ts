@@ -83,16 +83,16 @@ describe("Teams flow (seeded)", () => {
       cy.findByText(/bananas/i).should("not.exist");
     });
   });
-  // describe("Manage schedules page", () => {
-  //   beforeEach(() => {
-  //     cy.loginWithCySession();
-  //     cy.visit("/schedule/manage");
-  //   });
-  //   it("adds a query to team schedule", () => {
-  //     cy.getAttached(".no-schedule__schedule-button").click();
-  //     // TODO: Unable to add tests because "Schedule a query" button detattaches even when using `getAttached`
-  //   });
-  // });
+  describe("Manage schedules page", () => {
+    beforeEach(() => {
+      cy.loginWithCySession();
+      cy.visit("/schedule/manage");
+    });
+    it("adds a query to team schedule", () => {
+      cy.getAttached(".no-schedule__schedule-button").click();
+      // TODO: Unable to add tests because "Schedule a query" button detattaches even when using `getAttached`
+    });
+  });
   describe("Team details page", () => {
     beforeEach(() => {
       cy.loginWithCySession();
