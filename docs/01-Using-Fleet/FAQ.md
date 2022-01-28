@@ -18,6 +18,7 @@
 - [Why my host is not updating a policy's response.](#why-my-host-is-not-updating-a-policys-response)
 - [What should I do if my computer is showing up as an offline host?](#what-should-i-do-if-my-computer-is-showing-up-as-an-offline-host)
 - [How does Fleet deal with IP duplication?](#how-does-fleet-deal-with-ip-duplication)
+- [What API endpoints should I expose to the public internet?](#what-api-endpoints-should-I-expose-to-the-public-internet)
 
 ## What do I need to do to switch from Kolide Fleet to FleetDM Fleet?
 
@@ -185,3 +186,7 @@ Yes, Orbit can be run alongside osquery. The osquery instance that Orbit runs us
 ## What happens to osquery logs if my Fleet server or my logging destination is offline?
 
 If Fleet can't send logs to the destination, it will return an error to osquery. This causes osquery to retry sending the logs. The logs will then be stored in osquery's internal buffer until they are sent successfully, or they get expired if the `buffered_log_max`(defaults to 1,000,000 logs) is exceeded. Check out the [Remote logging buffering section](https://osquery.readthedocs.io/en/latest/deployment/remote/#remote-logging-buffering) on the osquery docs for more on this behavior.
+
+##What API endpoints should I expose to the public internet?
+
+If you would like to manage hosts that can travel outside your VPN or intranet we recommend only exposing the "/api/v1/osquery" endpoint to the public internet.
