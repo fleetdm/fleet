@@ -42,7 +42,6 @@ describe("Activate user flow", () => {
         expect(response.body.items[0].To[0].Domain).to.equal("example.com");
         expect(response.body.items[0].From.Mailbox).to.equal("fleet");
         expect(response.body.items[0].From.Domain).to.equal("example.com");
-        console.log(response.body.items[0]);
         const match = response.body.items[0].Content.Body.match(regex);
         inviteLink.url = match[0];
       });
