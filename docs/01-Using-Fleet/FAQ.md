@@ -18,7 +18,6 @@
 - [Why my host is not updating a policy's response.](#why-my-host-is-not-updating-a-policys-response)
 - [What should I do if my computer is showing up as an offline host?](#what-should-i-do-if-my-computer-is-showing-up-as-an-offline-host)
 - [How does Fleet deal with IP duplication?](#how-does-fleet-deal-with-ip-duplication)
-- [What API endpoints should I expose to the public internet?](#what-api-endpoints-should-I-expose-to-the-public-internet)
 
 ## What do I need to do to switch from Kolide Fleet to FleetDM Fleet?
 
