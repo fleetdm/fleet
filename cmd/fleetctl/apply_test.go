@@ -446,3 +446,9 @@ spec:
 	assert.Equal(t, "app_schemes", appliedQueries[0].Name)
 	assert.Equal(t, "select * from app_schemes;", appliedQueries[0].Query)
 }
+
+func TestSpecGroupFromBytes(t *testing.T) {
+	b, err := ioutil.ReadFile("../../docs/01-Using-Fleet/standard-query-library/standard-query-library.yml")
+	require.NoError(t, err)
+	specGroupFromBytes(b)
+}

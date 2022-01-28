@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/ghodss/yaml"
 	"github.com/urfave/cli/v2"
 )
@@ -167,69 +168,77 @@ func applyCommand() *cli.Command {
 				return err
 			}
 
-			specs, err := specGroupFromBytes(b)
+			err = applyYamlBytes(c, b, fleetClient)
 			if err != nil {
 				return err
-			}
-
-			if len(specs.Queries) > 0 {
-				if err := fleetClient.ApplyQueries(specs.Queries); err != nil {
-					return fmt.Errorf("applying queries: %w", err)
-				}
-				logf(c, "[+] applied %d queries\n", len(specs.Queries))
-			}
-
-			if len(specs.Labels) > 0 {
-				if err := fleetClient.ApplyLabels(specs.Labels); err != nil {
-					return fmt.Errorf("applying labels: %w", err)
-				}
-				logf(c, "[+] applied %d labels\n", len(specs.Labels))
-			}
-
-			if len(specs.Policies) > 0 {
-				if err := fleetClient.ApplyPolicies(specs.Policies); err != nil {
-					return fmt.Errorf("applying policies: %w", err)
-				}
-				logf(c, "[+] applied %d policies\n", len(specs.Policies))
-			}
-
-			if len(specs.Packs) > 0 {
-				if err := fleetClient.ApplyPacks(specs.Packs); err != nil {
-					return fmt.Errorf("applying packs: %w", err)
-				}
-				logf(c, "[+] applied %d packs\n", len(specs.Packs))
-			}
-
-			if specs.AppConfig != nil {
-				if err := fleetClient.ApplyAppConfig(specs.AppConfig); err != nil {
-					return fmt.Errorf("applying fleet config: %w", err)
-				}
-				log(c, "[+] applied fleet config\n")
-
-			}
-
-			if specs.EnrollSecret != nil {
-				if err := fleetClient.ApplyEnrollSecretSpec(specs.EnrollSecret); err != nil {
-					return fmt.Errorf("applying enroll secrets: %w", err)
-				}
-				log(c, "[+] applied enroll secrets\n")
-			}
-
-			if len(specs.Teams) > 0 {
-				if err := fleetClient.ApplyTeams(specs.Teams); err != nil {
-					return fmt.Errorf("applying teams: %w", err)
-				}
-				logf(c, "[+] applied %d teams\n", len(specs.Teams))
-			}
-
-			if specs.UsersRoles != nil {
-				if err := fleetClient.ApplyUsersRoleSecretSpec(specs.UsersRoles); err != nil {
-					return fmt.Errorf("applying user roles: %w", err)
-				}
-				log(c, "[+] applied user roles\n")
 			}
 
 			return nil
 		},
 	}
+}
+
+func applyYamlBytes(c *cli.Context, b []byte, fleetClient *service.Client) error {
+	specs, err := specGroupFromBytes(b)
+	if err != nil {
+		return err
+	}
+
+	if len(specs.Queries) > 0 {
+		if err := fleetClient.ApplyQueries(specs.Queries); err != nil {
+			return fmt.Errorf("applying queries: %w", err)
+		}
+		logf(c, "[+] applied %d queries\n", len(specs.Queries))
+	}
+
+	if len(specs.Labels) > 0 {
+		if err := fleetClient.ApplyLabels(specs.Labels); err != nil {
+			return fmt.Errorf("applying labels: %w", err)
+		}
+		logf(c, "[+] applied %d labels\n", len(specs.Labels))
+	}
+
+	if len(specs.Policies) > 0 {
+		if err := fleetClient.ApplyPolicies(specs.Policies); err != nil {
+			return fmt.Errorf("applying policies: %w", err)
+		}
+		logf(c, "[+] applied %d policies\n", len(specs.Policies))
+	}
+
+	if len(specs.Packs) > 0 {
+		if err := fleetClient.ApplyPacks(specs.Packs); err != nil {
+			return fmt.Errorf("applying packs: %w", err)
+		}
+		logf(c, "[+] applied %d packs\n", len(specs.Packs))
+	}
+
+	if specs.AppConfig != nil {
+		if err := fleetClient.ApplyAppConfig(specs.AppConfig); err != nil {
+			return fmt.Errorf("applying fleet config: %w", err)
+		}
+		log(c, "[+] applied fleet config\n")
+
+	}
+
+	if specs.EnrollSecret != nil {
+		if err := fleetClient.ApplyEnrollSecretSpec(specs.EnrollSecret); err != nil {
+			return fmt.Errorf("applying enroll secrets: %w", err)
+		}
+		log(c, "[+] applied enroll secrets\n")
+	}
+
+	if len(specs.Teams) > 0 {
+		if err := fleetClient.ApplyTeams(specs.Teams); err != nil {
+			return fmt.Errorf("applying teams: %w", err)
+		}
+		logf(c, "[+] applied %d teams\n", len(specs.Teams))
+	}
+
+	if specs.UsersRoles != nil {
+		if err := fleetClient.ApplyUsersRoleSecretSpec(specs.UsersRoles); err != nil {
+			return fmt.Errorf("applying user roles: %w", err)
+		}
+		log(c, "[+] applied user roles\n")
+	}
+	return nil
 }
