@@ -1,1 +1,0 @@
-* Fix aggregated stats query to support MySQL 8 (#3219).

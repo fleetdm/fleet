@@ -60,6 +60,8 @@ const NewQueryModal = ({
         query: queryValue,
         observer_can_run: observerCanRun,
       });
+
+      setIsSaveModalOpen(false);
     }
   };
 

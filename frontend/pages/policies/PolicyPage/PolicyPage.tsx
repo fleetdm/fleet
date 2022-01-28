@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useContext } from "react";
 import { useQuery, useMutation } from "react-query";
 import { InjectedRouter, Params } from "react-router/lib/Router";
+import { useErrorHandler } from "react-error-boundary";
 
 // @ts-ignore
 import Fleet from "fleet"; // @ts-ignore
@@ -13,7 +14,6 @@ import hostAPI from "services/entities/hosts"; // @ts-ignore
 import { IPolicyFormData, IPolicy } from "interfaces/policy";
 import { ITarget } from "interfaces/target";
 import { IHost } from "interfaces/host";
-import PATHS from "router/paths";
 
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
 import QueryEditor from "pages/policies/PolicyPage/screens/QueryEditor";
@@ -44,6 +44,7 @@ const PolicyPage = ({
 }: IPolicyPageProps): JSX.Element => {
   const policyIdForEdit = paramsPolicyId ? parseInt(paramsPolicyId, 10) : null;
   const policyTeamId = parseInt(URLQuerySearch.team_id, 10) || 0;
+  const handlePageError = useErrorHandler();
   const {
     currentUser,
     currentTeam,
@@ -103,6 +104,7 @@ const PolicyPage = ({
     {
       enabled: !!policyIdForEdit,
       refetchOnWindowFocus: false,
+      retry: false,
       select: (data: IStoredPolicyResponse) => data.policy,
       onSuccess: (returnedQuery) => {
         setLastEditedQueryName(returnedQuery.name);
@@ -112,6 +114,7 @@ const PolicyPage = ({
         setLastEditedQueryPlatform(returnedQuery.platform);
         setPolicyTeamId(returnedQuery.team_id || 0);
       },
+      onError: (error) => handlePageError(error),
     }
   );
 
@@ -121,6 +124,7 @@ const PolicyPage = ({
       hostAPI.loadHostDetails(parseInt(URLQuerySearch.host_ids as string, 10)),
     {
       enabled: !!URLQuerySearch.host_ids,
+      retry: false,
       select: (data: IHostResponse) => data.host,
       onSuccess: (host) => {
         const targets = selectedTargets;

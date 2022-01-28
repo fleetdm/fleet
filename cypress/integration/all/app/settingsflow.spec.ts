@@ -59,7 +59,7 @@ describe("Settings flow", () => {
         .click()
         .type("localhost");
 
-      cy.get("#port").click().type("{selectall}{backspace}1025");
+      cy.get("#smtpPort").click().type("{selectall}{backspace}1025");
 
       cy.findByLabelText(/use ssl\/tls/i).check({ force: true });
 
@@ -107,7 +107,7 @@ describe("Settings flow", () => {
       // Update settings
       cy.findByRole("button", { name: /update settings/i }).click();
 
-      cy.findByText(/settings updated/i).should("exist");
+      cy.findByText(/updated settings/i).should("exist");
 
       cy.visit("/settings/organization");
 
@@ -149,7 +149,7 @@ describe("Settings flow", () => {
 
       cy.findByLabelText(/smtp server/i).should("have.value", "localhost");
 
-      cy.get("#port").should("have.value", "1025");
+      cy.get("#smtpPort").should("have.value", "1025");
 
       cy.findByLabelText(/smtp username/i).should(
         "have.value",
