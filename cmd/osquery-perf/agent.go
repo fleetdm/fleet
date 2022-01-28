@@ -31,6 +31,27 @@ var softwareFS embed.FS
 
 var vulnerableSoftware []fleet.Software
 
+func init() {
+	vulnerableSoftwareData, err := softwareFS.ReadFile("vulnerable.software")
+	if err != nil {
+		log.Fatal("reading vulnerable software file: ", err)
+	}
+	lines := bytes.Split(vulnerableSoftwareData, []byte("\n"))
+	for _, line := range lines {
+		parts := bytes.Split(line, []byte("##"))
+		if len(parts) < 2 {
+			fmt.Println("skipping", string(line))
+			continue
+		}
+		vulnerableSoftware = append(vulnerableSoftware, fleet.Software{
+			Name:    string(parts[0]),
+			Version: string(parts[1]),
+			Source:  "apps",
+		})
+	}
+	log.Printf("Loaded %d vulnerable software\n", len(vulnerableSoftware))
+}
+
 type Stats struct {
 	errors            int
 	enrollments       int
@@ -125,7 +146,7 @@ func (n *nodeKeyManager) Add(nodekey string) {
 
 type agent struct {
 	agentIndex     int
-	softwareCount  entityCount
+	softwareCount  softwareEntityCount
 	userCount      entityCount
 	policyPassProb float64
 	strings        map[string]string
@@ -147,15 +168,19 @@ type agent struct {
 }
 
 type entityCount struct {
-	common     int
-	unique     int
+	common int
+	unique int
+}
+
+type softwareEntityCount struct {
+	entityCount
 	vulnerable int
 }
 
 func newAgent(
 	agentIndex int,
 	serverAddress, enrollSecret string, templates *template.Template,
-	configInterval, queryInterval time.Duration, softwareCount, userCount entityCount,
+	configInterval, queryInterval time.Duration, softwareCount softwareEntityCount, userCount entityCount,
 	policyPassProb float64,
 ) *agent {
 	transport := http.DefaultTransport.(*http.Transport).Clone()
@@ -601,25 +626,6 @@ func main() {
 		log.Fatal("parse templates: ", err)
 	}
 
-	vulnerableSoftwareData, err := softwareFS.ReadFile("vulnerable.software")
-	if err != nil {
-		log.Fatal("reading vulnerable software file: ", err)
-	}
-	lines := bytes.Split(vulnerableSoftwareData, []byte("\n"))
-	for _, line := range lines {
-		parts := bytes.Split(line, []byte("##"))
-		if len(parts) < 2 {
-			fmt.Println("skipping", string(line))
-			continue
-		}
-		vulnerableSoftware = append(vulnerableSoftware, fleet.Software{
-			Name:    string(parts[0]),
-			Version: string(parts[1]),
-			Source:  "apps",
-		})
-	}
-	log.Printf("Loaded %d vulnerable software\n", len(vulnerableSoftware))
-
 	// Spread starts over the interval to prevent thundering herd
 	sleepTime := *startPeriod / time.Duration(*hostCount)
 
@@ -633,9 +639,11 @@ func main() {
 	}
 
 	for i := 0; i < *hostCount; i++ {
-		a := newAgent(i+1, *serverURL, *enrollSecret, tmpl, *configInterval, *queryInterval, entityCount{
-			common:     *commonSoftwareCount,
-			unique:     *uniqueSoftwareCount,
+		a := newAgent(i+1, *serverURL, *enrollSecret, tmpl, *configInterval, *queryInterval, softwareEntityCount{
+			entityCount: entityCount{
+				common: *commonSoftwareCount,
+				unique: *uniqueSoftwareCount,
+			},
 			vulnerable: *vulnerableSoftwareCount,
 		}, entityCount{
 			common: *commonUserCount,

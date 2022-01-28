@@ -461,6 +461,11 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 		expected = []fleet.Software{foo001}
 		test.ElementsMatchSkipID(t, software, expected)
 
+		// partial cve
+		software = listSoftwareCheckCount(t, ds, 1, 1, fleet.SoftwareListOptions{ListOptions: fleet.ListOptions{MatchQuery: "333-444"}}, true)
+		expected = []fleet.Software{foo001}
+		test.ElementsMatchSkipID(t, software, expected)
+
 		// unknown CVE
 		listSoftwareCheckCount(t, ds, 0, 0, fleet.SoftwareListOptions{ListOptions: fleet.ListOptions{MatchQuery: "cve-000-000-000"}}, true)
 	})
