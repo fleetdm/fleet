@@ -357,7 +357,7 @@ func updatesRotateFunc(c *cli.Context) error {
 	}
 
 	// Get old keys for role
-	keys, err := store.GetSigningKeys(role)
+	keys, err := store.GetSigners(role)
 	if err != nil {
 		return fmt.Errorf("get keys for role: %w", err)
 	}
@@ -383,7 +383,7 @@ func updatesRotateFunc(c *cli.Context) error {
 
 	// Delete old keys for role
 	for _, key := range keys {
-		id := key.IDs()[0]
+		id := key.PublicData().IDs()[0]
 		err := repo.RevokeKeyWithExpires(role, id, time.Now().Add(rootExpirationDuration))
 		if err != nil {
 			// go-tuf keeps keys around even after they are revoked from the manifest. We can skip
@@ -637,7 +637,7 @@ func newPassphraseHandler() *passphraseHandler {
 	return &passphraseHandler{cache: make(map[string][]byte)}
 }
 
-func (p *passphraseHandler) getPassphrase(role string, confirm bool) ([]byte, error) {
+func (p *passphraseHandler) getPassphrase(role string, confirm, change bool) ([]byte, error) {
 	// Check cache
 	if pass, ok := p.cache[role]; ok {
 		return pass, nil
@@ -714,7 +714,7 @@ func (p *passphraseHandler) checkPassphrase(store tuf.LocalStore, role string) e
 	// key and see if it is successful. Loop until successful decryption or
 	// non-decryption error.
 	for {
-		keys, err := store.GetSigningKeys(role)
+		keys, err := store.GetSigners(role)
 		if err != nil {
 			// TODO it would be helpful if we could upstream a new error type in
 			// go-tuf and use errors.Is instead of comparing the text of the

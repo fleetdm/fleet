@@ -44,12 +44,12 @@ func TestPassphraseHandlerEnvironment(t *testing.T) {
 			envKey := fmt.Sprintf("FLEET_%s_PASSPHRASE", strings.ToUpper(tt.role))
 			require.NoError(t, os.Setenv(envKey, tt.passphrase))
 
-			passphrase, err := handler.getPassphrase(tt.role, false)
+			passphrase, err := handler.getPassphrase(tt.role, false, false)
 			require.NoError(t, err)
 			assert.Equal(t, tt.passphrase, string(passphrase))
 
 			// Should work second time with cache
-			passphrase, err = handler.getPassphrase(tt.role, false)
+			passphrase, err = handler.getPassphrase(tt.role, false, false)
 			require.NoError(t, err)
 			assert.Equal(t, tt.passphrase, string(passphrase))
 		})
@@ -60,7 +60,7 @@ func TestPassphraseHandlerEmpty(t *testing.T) {
 	// Not t.Parallel() due to modifications to environment.
 	handler := newPassphraseHandler()
 	require.NoError(t, os.Setenv("FLEET_ROOT_PASSPHRASE", ""))
-	_, err := handler.getPassphrase("root", false)
+	_, err := handler.getPassphrase("root", false, false)
 	require.Error(t, err)
 }
 
