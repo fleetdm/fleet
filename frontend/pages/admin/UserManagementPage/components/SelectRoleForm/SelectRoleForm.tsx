@@ -11,6 +11,7 @@ interface ISelectRoleFormProps {
   currentTeam?: ITeam;
   teams: ITeam[];
   onFormChange: (teams: ITeam[]) => void;
+  label: string | string[];
 }
 
 const baseClass = "select-role-form";
@@ -59,6 +60,7 @@ const SelectRoleForm = ({
   currentTeam,
   teams,
   onFormChange,
+  label,
 }: ISelectRoleFormProps): JSX.Element => {
   const [selectedRole, setSelectedRole] = useState<string>(
     defaultTeamRole.toLowerCase()
@@ -78,6 +80,7 @@ const SelectRoleForm = ({
     <div className={baseClass}>
       <div className={`${baseClass}__select-role`}>
         <Dropdown
+          label={label}
           value={selectedRole}
           className={`${baseClass}__role-dropdown`}
           options={roles}

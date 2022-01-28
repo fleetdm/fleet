@@ -104,13 +104,13 @@ describe("Premium tier - Admin user", () => {
         cy.contains(".selector-name", /apples/i).should("exist");
       });
     });
-    // describe("Manage schedules page", () => {
-    //   beforeEach(() => cy.visit("/schedule/manage"));
-    //   it("shows inherited queries", () => {
-    //     cy.getAttached(".no-schedule__schedule-button").click();
-    //     // TODO: Unable to add tests because "Schedule a query" button detattaches even when using `getAttached`
-    //   });
-    // });
+    describe("Manage schedules page", () => {
+      beforeEach(() => cy.visit("/schedule/manage"));
+      it("shows inherited queries", () => {
+        cy.getAttached(".no-schedule__schedule-button").click();
+        // TODO: Unable to add tests because "Schedule a query" button detattaches even when using `getAttached`
+      });
+    });
 
     describe("Manage policies page", () => {
       beforeEach(() => cy.visit("/policies/manage"));
