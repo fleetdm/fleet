@@ -13,3 +13,9 @@ export interface IWebhookFailingPolicies {
   enable_failing_policies_webhook?: boolean;
   host_batch_size?: number;
 }
+
+export interface IWebhookSoftwareVulnerabilities {
+  destination_url?: string;
+  enable_vulnerabilities_webhook?: boolean;
+  host_batch_size?: number;
+}
