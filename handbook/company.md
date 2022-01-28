@@ -40,6 +40,7 @@ The majority of the code, documentation, and content we create at Fleet is publi
 - "public by default"
 - declassify with care
 - prioritize accessible terminology and simple explanations to provide value to the largest possible audience of users
+- [use small words](http://www.paulgraham.com/writing44.html) so readers understand more easily
 - anyone can contribute
 - open source stewardship: the majority of the features Fleet releases will be free, [etc](https://fleetdm.com/pricing)
 - hospitality
