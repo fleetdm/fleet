@@ -104,7 +104,7 @@ const softwareTableHeaders = [
       />
     ),
     disableSortBy: false,
-    accessor: "host_count",
+    accessor: "hosts_count",
     Cell: (cellProps: ICellProps) => <TextCell value={cellProps.cell.value} />,
   },
   {

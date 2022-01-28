@@ -58,6 +58,8 @@ interface IDataTableProps {
   selectedDropdownFilter?: string;
   onSelectSingleRow?: (value: Row) => void;
   onResultsCountChange?: (value: number) => void;
+  renderFooter?: () => JSX.Element | null;
+  renderPagination?: () => JSX.Element | null;
 }
 
 const CLIENT_SIDE_DEFAULT_PAGE_SIZE = 20;
@@ -91,6 +93,8 @@ const DataTable = ({
   selectedDropdownFilter,
   onSelectSingleRow,
   onResultsCountChange,
+  renderFooter,
+  renderPagination,
 }: IDataTableProps): JSX.Element => {
   const { resetSelectedRows } = useContext(TableContext);
   const { isOnlyObserver } = useContext(AppContext);
@@ -471,24 +475,31 @@ const DataTable = ({
           </tbody>
         </table>
       </div>
-      {isClientSidePagination && (
-        <div className={`${baseClass}__pagination`}>
-          <Button
-            variant="unstyled"
-            onClick={() => previousPage()}
-            disabled={!canPreviousPage}
-          >
-            {previousButton}
-          </Button>
-          <Button
-            variant="unstyled"
-            onClick={() => nextPage()}
-            disabled={!canNextPage}
-          >
-            {nextButton}
-          </Button>
-        </div>
-      )}
+      <div className={`${baseClass}__footer`}>
+        {renderFooter && (
+          <div className={`${baseClass}__footer-text`}>{renderFooter()}</div>
+        )}
+        {isClientSidePagination ? (
+          <div className={`${baseClass}__pagination`}>
+            <Button
+              variant="unstyled"
+              onClick={() => previousPage()}
+              disabled={!canPreviousPage}
+            >
+              {previousButton}
+            </Button>
+            <Button
+              variant="unstyled"
+              onClick={() => nextPage()}
+              disabled={!canNextPage}
+            >
+              {nextButton}
+            </Button>
+          </div>
+        ) : (
+          renderPagination && renderPagination()
+        )}
+      </div>
     </div>
   );
 };

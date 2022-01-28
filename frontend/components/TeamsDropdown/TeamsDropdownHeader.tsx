@@ -1,4 +1,4 @@
-import React, { useCallback, useContext, useEffect, useState } from "react";
+import React, { useContext, useEffect } from "react";
 import { useQuery } from "react-query";
 
 import { AppContext, IAppContext } from "context/app";
@@ -6,7 +6,7 @@ import usersAPI, { IGetMeResponse } from "services/entities/users";
 
 import TeamsDropdown from "./TeamsDropdown";
 
-export interface ITeamsDropdownContext extends Partial<IAppContext> {
+export interface ITeamsDropdownState extends Partial<IAppContext> {
   teamId?: number;
 }
 
@@ -18,9 +18,9 @@ interface ITeamsDropdownHeaderProps {
   route?: any;
   baseClass: string;
   defaultTitle: string;
-  buttons?: (ctx: ITeamsDropdownContext) => JSX.Element | null;
-  onChange: (ctx: ITeamsDropdownContext) => void;
-  description: (ctx: ITeamsDropdownContext) => JSX.Element | string | null;
+  buttons?: (ctx: ITeamsDropdownState) => JSX.Element | null;
+  onChange: (ctx: ITeamsDropdownState) => void;
+  description: (ctx: ITeamsDropdownState) => JSX.Element | string | null;
 }
 
 const TeamsDropdownHeader = ({
@@ -63,9 +63,9 @@ const TeamsDropdownHeader = ({
     setCurrentUser,
   } = useContext(AppContext);
 
-  // The dropdownContext is made available to callback functions.
-  // Additional context can be made available here if needed for new uses cases.
-  const dropdownContext = {
+  // The dropdownState is the context and local state made available to callback functions.
+  // Additional state/context can be made available here if needed for new uses cases.
+  const dropdownState = {
     // NOTE: teamId is the value independently determined by this component
     // and may briefly be a step ahead of the AppContext for currentTeam
     // depending on the cycle of state updating and rendering
@@ -97,7 +97,7 @@ const TeamsDropdownHeader = ({
     return availableTeams?.find((t) => t.id === id);
   };
 
-  // TODO confirm approach to path and location
+  // TODO: confirm approach to path and location
   const handleTeamSelect = (id: number) => {
     const availableTeam = findAvailableTeam(id);
     const path = availableTeam?.id
@@ -107,7 +107,7 @@ const TeamsDropdownHeader = ({
     router.replace(path);
     setCurrentTeam(availableTeam);
     if (typeof onChange === "function") {
-      onChange({ ...dropdownContext, teamId: availableTeam?.id });
+      onChange({ ...dropdownState, teamId: availableTeam?.id });
     }
   };
 
@@ -140,16 +140,14 @@ const TeamsDropdownHeader = ({
 
   const renderButtons = () => {
     return buttons ? (
-      <div className={`${baseClass} button-wrap`}>
-        {buttons(dropdownContext)}
-      </div>
+      <div className={`${baseClass} button-wrap`}>{buttons(dropdownState)}</div>
     ) : null;
   };
 
   const renderDescription = () => {
     const contents =
       typeof description === "function"
-        ? description(dropdownContext)
+        ? description(dropdownState)
         : description;
 
     return contents ? (

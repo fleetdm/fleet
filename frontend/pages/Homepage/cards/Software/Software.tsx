@@ -3,6 +3,7 @@ import { useQuery } from "react-query";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 
 import softwareAPI, {
+  ISoftwareResponse,
   ISoftwareCountResponse,
 } from "services/entities/software";
 import { ISoftware } from "interfaces/software"; // @ts-ignore
@@ -10,7 +11,9 @@ import { useDebouncedCallback } from "use-debounce/lib";
 
 import Modal from "components/Modal";
 import TabsWrapper from "components/TabsWrapper";
-import TableContainer from "components/TableContainer"; // @ts-ignore
+import TableContainer from "components/TableContainer";
+import TableDataError from "components/TableDataError"; // TODO how do we handle errors? UI just keeps spinning?
+// @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 import Spinner from "components/Spinner";
 
@@ -139,7 +142,11 @@ const Software = ({
   ] = useState<boolean>(true);
   const [isLoadingSoftware, setIsLoadingSoftware] = useState<boolean>(true);
 
-  const { data: software } = useQuery<ISoftware[], Error>(
+  const { data: software, error: errorSoftware } = useQuery<
+    ISoftwareResponse,
+    Error,
+    ISoftware[]
+  >(
     ["software", softwarePageIndex, currentTeamId],
     () => {
       setIsLoadingSoftware(true);
@@ -157,6 +164,7 @@ const Software = ({
       // useQuery no longer returns isLoading when making new calls after load
       // So we manage our own load states
       keepPreviousData: true,
+      select: (data) => data.software,
       onSuccess: () => {
         setShowSoftwareUI(true);
         setIsLoadingSoftware(false);
@@ -168,7 +176,11 @@ const Software = ({
     }
   );
 
-  const { data: vulnerableSoftware } = useQuery<ISoftware[], Error>(
+  const { data: vulnerableSoftware, error: errorVulnSoftware } = useQuery<
+    ISoftwareResponse,
+    Error,
+    ISoftware[]
+  >(
     ["vSoftware", vSoftwarePageIndex, currentTeamId],
     () => {
       setIsLoadingVulnerableSoftware(true);
@@ -185,6 +197,7 @@ const Software = ({
       enabled: navTabIndex === 1,
       refetchOnWindowFocus: false,
       keepPreviousData: true,
+      select: (data) => data.software,
       onSuccess: () => {
         setIsLoadingVulnerableSoftware(false);
       },
@@ -195,7 +208,11 @@ const Software = ({
     }
   );
 
-  const { data: modalSoftware } = useQuery<ISoftware[], Error>(
+  const { data: modalSoftware } = useQuery<
+    ISoftwareResponse,
+    Error,
+    ISoftware[]
+  >(
     [
       "modalSoftware",
       modalSoftwarePageIndex,
@@ -219,6 +236,7 @@ const Software = ({
       enabled: isModalOpen,
       refetchOnWindowFocus: false,
       keepPreviousData: true,
+      select: (data) => data.software,
       onSuccess: () => {
         setIsLoadingModalSoftware(false);
       },
@@ -336,22 +354,26 @@ const Software = ({
               <Tab>Vulnerable</Tab>
             </TabList>
             <TabPanel>
-              <TableContainer
-                columns={tableHeaders}
-                data={software || []}
-                isLoading={isLoadingSoftware}
-                defaultSortHeader={"name"}
-                defaultSortDirection={"asc"}
-                hideActionButton
-                resultsTitle={"software"}
-                emptyComponent={EmptySoftware}
-                showMarkAllPages={false}
-                isAllPagesSelected={false}
-                disableCount
-                disableActionButton
-                pageSize={PAGE_SIZE}
-                onQueryChange={onAllSoftwareQueryChange}
-              />
+              {!isLoadingSoftware && errorSoftware ? (
+                <TableDataError />
+              ) : (
+                <TableContainer
+                  columns={tableHeaders}
+                  data={software || []}
+                  isLoading={isLoadingSoftware}
+                  defaultSortHeader={"name"}
+                  defaultSortDirection={"asc"}
+                  hideActionButton
+                  resultsTitle={"software"}
+                  emptyComponent={EmptySoftware}
+                  showMarkAllPages={false}
+                  isAllPagesSelected={false}
+                  disableCount
+                  disableActionButton
+                  pageSize={PAGE_SIZE}
+                  onQueryChange={onAllSoftwareQueryChange}
+                />
+              )}
             </TabPanel>
             <TabPanel>
               <TableContainer

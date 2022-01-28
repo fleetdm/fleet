@@ -14,7 +14,8 @@ interface IGetSoftwareProps {
   teamId?: number;
 }
 
-interface ISoftwareResponse {
+export interface ISoftwareResponse {
+  counts_updated_at: string;
   software: ISoftware[];
 }
 
@@ -51,7 +52,7 @@ export default {
     query,
     vulnerable,
     teamId,
-  }: ISoftwareParams): Promise<ISoftware[]> => {
+  }: ISoftwareParams): Promise<ISoftwareResponse> => {
     const { SOFTWARE } = endpoints;
     const pagination = perPage ? `page=${page}&per_page=${perPage}` : "";
     const sort = `order_key=${orderKey}&order_direction=${orderDir}`;
@@ -70,8 +71,7 @@ export default {
     }
 
     try {
-      const { software }: ISoftwareResponse = await sendRequest("GET", path);
-      return software;
+      return sendRequest("GET", path);
     } catch (error) {
       throw error;
     }

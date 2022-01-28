@@ -127,13 +127,6 @@
   .component__tabs-wrapper .table-container__header {
     display: none;
   }
-  &__software-modal {
-    width: 780px;
-
-    .data-table__wrapper {
-      margin-top: $pad-large;
-    }
-  }
   &__empty-software {
     margin: $pad-large auto 0;
 
@@ -158,10 +151,28 @@
       margin-left: $pad-xsmall;
     }
   }
-  &__empty-software-modal {
-    width: 550px;
-    margin: $pad-large auto;
+  &__count {
+    .count-error {
+      color: $ui-error;
+    }
+    .count-loading {
+      color: $ui-fleet-black-50;
+    }
+    .count-last-updated {
+      font-weight: normal;
+      padding-left: $pad-small;
+      .tooltip__tooltip-text {
+        display: flex;
+        text-align: center;
+      }
+      img {
+        height: 16px;
+        width: 16px;
+        vertical-align: text-top;
+      }
+    }
   }
+
   &__status_dropdown {
     width: 219px;
 
@@ -192,34 +203,36 @@
       font-size: $small !important;
     }
   }
+  .table-container__search-input {
+    width: 420px;
+  }
   .data-table-container {
     .data-table__table {
       table-layout: fixed;
 
       thead {
-        .vulnerabilities__header {
-          // width: 4%;
-          border-right: 0;
-          padding-right: 0;
+        th:last-child {
+          max-width: none;
         }
         .name__header {
-          // width: 60%;
+          width: 35%;
+          border-right: 0;
         }
         .version__header {
-          // width: 30%;
-          border-right: 0; // Remove this when hosts column returns
-          padding-right: 0; // Remove this when hosts column returns
+          // width: 25%;
+          border-right: 0;
         }
-        // Commented out until hosts column returns
-        // .host_count__header {
-        //   border-right: 0;
-        //   padding-right: 0;
-        //   width: 60px;
-        // }
+        .vulnerabilities__header {
+          // width: 10%;
+          border-right: 0;
+        }
+
+        .hosts_count__header {
+          width: 56px;
+          border-right: 0;
+        }
         .id__header {
-          padding: 0;
-          border-left: 0;
-          width: 40px;
+          width: 180px;
         }
       }
 
@@ -232,7 +245,7 @@
         }
         .id__cell {
           padding: 0;
-          width: 40px;
+          // width: 40px;
         }
         .vulnerabilities__cell {
           img {
@@ -241,11 +254,5 @@
         }
       }
     }
-  }
-  .count-loading {
-    color: $ui-fleet-black-50;
-  }
-  .count-error {
-    color: $ui-error;
   }
 }

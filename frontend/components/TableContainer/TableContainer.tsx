@@ -69,7 +69,8 @@ interface ITableContainerProps {
   onPrimarySelectActionClick?: (selectedItemIds: number[]) => void;
   customControl?: () => JSX.Element;
   onSelectSingleRow?: (value: Row) => void;
-  renderCount?: () => JSX.Element;
+  renderCount?: () => JSX.Element | null;
+  renderFooter?: () => JSX.Element | null;
 }
 
 const baseClass = "table-container";
@@ -121,6 +122,7 @@ const TableContainer = ({
   customControl,
   onSelectSingleRow,
   renderCount,
+  renderFooter,
 }: ITableContainerProps): JSX.Element => {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortHeader, setSortHeader] = useState(defaultSortHeader || "");
@@ -202,6 +204,27 @@ const TableContainer = ({
     }
     return data.length;
   }, [filteredCount, clientFilterCount, data]);
+
+  const renderPagination = useCallback(() => {
+    if (disablePagination || isClientSidePagination) {
+      return null;
+    }
+    return (
+      <Pagination
+        resultsOnCurrentPage={data.length}
+        currentPage={pageIndex}
+        resultsPerPage={pageSize}
+        onPaginationChange={onPaginationChange}
+      />
+    );
+  }, [
+    disablePagination,
+    isClientSidePagination,
+    data,
+    pageIndex,
+    pageSize,
+    onPaginationChange,
+  ]);
 
   const opacity = isLoading ? { opacity: 0.4 } : { opacity: 1 };
 
@@ -344,15 +367,9 @@ const TableContainer = ({
                 searchQuery={searchQuery}
                 searchQueryColumn={searchQueryColumn}
                 selectedDropdownFilter={selectedDropdownFilter}
+                renderFooter={renderFooter}
+                renderPagination={renderPagination}
               />
-              {!disablePagination && !isClientSidePagination && (
-                <Pagination
-                  resultsOnCurrentPage={data.length}
-                  currentPage={pageIndex}
-                  resultsPerPage={pageSize}
-                  onPaginationChange={onPaginationChange}
-                />
-              )}
             </div>
           </>
         )}
