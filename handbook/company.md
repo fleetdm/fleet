@@ -29,7 +29,7 @@ Zach partnered with our CEO, Mike McNeil, to found a new, independent company: F
 
 ## Values
 
-### 允 Openness
+### Openness
 
 The majority of the code, documentation, and content we create at Fleet is public and source-available, and we strive to be broadly open and transparent in the way we run the business; as much as confidentiality agreements (and time) allow. We perform better with an audience, and our audience performs better with us.
 
@@ -57,7 +57,7 @@ The majority of the code, documentation, and content we create at Fleet is publi
 - believe in everyone
 - legendary hospitality
 
-### 情け Empathy
+### Empathy
 - consider your counterpart
 - assume positive intent
 - role play as a user, contributor, or colleague
@@ -76,7 +76,7 @@ The majority of the code, documentation, and content we create at Fleet is publi
 - but think fast, because i.e. "I would have written a shorter letter, but I did not have the time." -Blaise Pascal
 - legendary digital/human experience
 
-### 任 Ownership
+### Ownership
 - take responsibility
 - follow through on commitments (actions match your words)
 - prioritize honesty and kindness
@@ -102,7 +102,7 @@ The majority of the code, documentation, and content we create at Fleet is publi
   - focus on fewer tasks at one time
 - legendary execution
 
-### 出来 Balance
+### Balance
 
 Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.org/wiki/Golden_mean_%28philosophy%29).
 
@@ -133,7 +133,7 @@ Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.
 - legendary results
 
 
-### 真 Objectivity
+### Objectivity
 - be wrong
 - show your work
 - "may the best product win."
