@@ -149,7 +149,7 @@ func getRoots(t *testing.T, tmpDir string) string {
 	require.NoError(t, err)
 
 	// Check output
-	var keys []data.Key
+	var keys []data.PublicKey
 	require.NoError(t, json.Unmarshal(out, &keys))
 	assert.Greater(t, len(keys[0].IDs()), 0)
 	assert.Equal(t, "ed25519", keys[0].Type)
