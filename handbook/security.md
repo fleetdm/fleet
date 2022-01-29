@@ -173,7 +173,7 @@ Since we can't eliminate the risk of passwords being cracked remotely, we requir
 * Guest accounts are not available.
 
 #### iCloud
-We do not apply ultra restrictive Data Loss Prevention style policies to our devices. Instead, by using different web-based tools we have, we ensure that the most critical company data is not stored on our laptops, so it can remain secure, while our laptops can remain productive.
+We do not apply ultra restrictive Data Loss Prevention style policies to our devices. Instead, by using our company Google Drive, we ensure that the most critical company data never reaches our laptops, so it can remain secure, while our laptops can remain productive.
 
 
 | #       | Setting                                                   |
