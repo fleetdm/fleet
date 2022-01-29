@@ -26,6 +26,14 @@ export interface ITableSearchData {
   pageIndex: number;
 }
 
+interface ITableQueryProps {
+  pageIndex: number;
+  pageSize: number;
+  searchQuery: string;
+  sortHeader: string;
+  sortDirection: string;
+}
+
 interface ITableContainerProps {
   columns: any; // TODO: Figure out type
   data: any; // TODO: Figure out type

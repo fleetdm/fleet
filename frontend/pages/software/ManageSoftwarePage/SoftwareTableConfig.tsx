@@ -8,7 +8,7 @@ import { IVulnerability } from "interfaces/vulnerability";
 
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
-import Chevron from "../../../../assets/images/icon-chevron-blue-16x16@2x.png";
+import Chevron from "../../../../assets/images/icon-chevron-right-blue-16x16@2x.png";
 
 interface IHeaderProps {
   column: {
@@ -118,6 +118,7 @@ const softwareTableHeaders = [
           to={`${PATHS.MANAGE_HOSTS}?software_id=${cellProps.cell.value}`}
           className="software-link"
         >
+          <span className="link-text">View all hosts</span>
           <img alt="link to hosts filtered by software ID" src={Chevron} />
         </Link>
       );

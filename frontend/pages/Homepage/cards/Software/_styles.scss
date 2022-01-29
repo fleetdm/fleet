@@ -92,25 +92,18 @@
       table-layout: fixed;
 
       thead {
-        .vulnerabilities__header {
-          width: 4%;
-          border-right: 0;
-          padding-right: 0;
-        }
         .name__header {
           width: 60%;
         }
         .version__header {
           width: 30%;
-          border-right: 0; // Remove this when hosts column returns
-          padding-right: 0; // Remove this when hosts column returns
+          padding-right: 0;
         }
-        // Commented out until hosts column returns
-        // .host_count__header {
-        //   border-right: 0;
-        //   padding-right: 0;
-        //   width: 60px;
-        // }
+        .hosts_count__header {
+          border-right: 0;
+          padding-right: 0;
+          width: 60px;
+        }
         .id__header {
           padding: 0;
           border-left: 0;
@@ -142,5 +135,26 @@
   }
   .count-error {
     color: $ui-error;
+  }
+}
+.homepage-info-card__section-subtitle {
+  .last-updated {
+    font-size: $xx-small;
+    color: $ui-fleet-black-75;
+    padding-right: $pad-small;
+
+    .tooltip {
+      padding-left: $pad-xsmall;
+    }
+
+    .tooltip__tooltip-text {
+      display: flex;
+      text-align: center;
+    }
+    img {
+      height: 16px;
+      width: 16px;
+      vertical-align: text-top;
+    }
   }
 }

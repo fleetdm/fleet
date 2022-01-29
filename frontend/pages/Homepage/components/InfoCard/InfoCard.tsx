@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Link } from "react-router";
 
 import Button from "components/buttons/Button";
@@ -63,19 +63,32 @@ const InfoCard = ({
     return null;
   };
 
-  const ok = false;
+  const [subtitle, setSubtitle] = useState<JSX.Element | string | null>("");
+
+  const clonedChildren = React.Children.toArray(children).map((child) => {
+    if (React.isValidElement(child)) {
+      child = React.cloneElement(child, {
+        setSubtitle,
+      });
+    }
+    return child;
+  });
+
   return (
     <div className={baseClass}>
       {showTitle && (
         <div className={`${baseClass}__section-title-cta`}>
-          <div className={`${baseClass}__section-title`}>
-            <h2>{title}</h2>
-            {total_host_count && <span>{total_host_count}</span>}
+          <div className={`${baseClass}__section-title-group`}>
+            <div className={`${baseClass}__section-title`}>
+              <h2>{title}</h2>
+              {total_host_count && <span>{total_host_count}</span>}
+            </div>
+            <div className={`${baseClass}__section-subtitle`}>{subtitle}</div>
           </div>
           {renderAction()}
         </div>
       )}
-      {children}
+      {clonedChildren}
     </div>
   );
 };

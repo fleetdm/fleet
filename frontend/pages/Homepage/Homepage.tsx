@@ -200,16 +200,14 @@ const Homepage = (): JSX.Element => {
           <InfoCard
             title="Software"
             action={{
-              type: "button",
+              type: "link",
               text: "View all software",
-              onClick: () => setIsSoftwareModalOpen(true),
+              to: "software/manage",
             }}
             showTitle={showSoftwareUI}
           >
             <Software
               currentTeamId={currentTeam?.id}
-              isModalOpen={isSoftwareModalOpen}
-              setIsSoftwareModalOpen={setIsSoftwareModalOpen}
               setShowSoftwareUI={setShowSoftwareUI}
               showSoftwareUI={showSoftwareUI}
             />

@@ -93,6 +93,13 @@ const softwareTableHeaders = [
     Cell: (cellProps: ICellProps) => <TextCell value={cellProps.cell.value} />,
   },
   {
+    title: "Hosts",
+    Header: "Hosts",
+    disableSortBy: true,
+    accessor: "hosts_count",
+    Cell: (cellProps: ICellProps) => <TextCell value={cellProps.cell.value} />,
+  },
+  {
     title: "Actions",
     Header: "",
     disableSortBy: true,

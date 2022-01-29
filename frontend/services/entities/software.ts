@@ -5,12 +5,12 @@ import endpoints from "fleet/endpoints";
 import { ISoftware } from "interfaces/software";
 
 interface IGetSoftwareProps {
-  page: number;
+  page?: number;
   perPage?: number;
-  orderKey: string;
-  orderDir: "asc" | "desc";
-  query: string;
-  vulnerable: boolean;
+  orderKey?: string;
+  orderDir?: "asc" | "desc";
+  query?: string;
+  vulnerable?: boolean;
   teamId?: number;
 }
 

@@ -107,14 +107,6 @@
     }
   }
 
-  .software-link {
-    img {
-      transform: rotate(-90deg);
-      height: 16px;
-      width: auto;
-      vertical-align: middle;
-    }
-  }
   .table-container {
     min-height: 435px;
   }
@@ -159,8 +151,11 @@
       color: $ui-fleet-black-50;
     }
     .count-last-updated {
+      color: $ui-fleet-black-75;
+      font-size: $xx-small;
       font-weight: normal;
       padding-left: $pad-small;
+
       .tooltip__tooltip-text {
         display: flex;
         text-align: center;
@@ -250,6 +245,35 @@
         .vulnerabilities__cell {
           img {
             transform: scale(0.5);
+          }
+        }
+      }
+
+      tr {
+        .software-link {
+          color: $core-vibrant-blue;
+          visibility: hidden;
+          font-weight: bold;
+          text-decoration: none;
+          vertical-align: middle;
+
+          a {
+            text-decoration: none;
+          }
+          img {
+            height: 16px;
+            width: 16px;
+            vertical-align: middle;
+          }
+
+          .link-text {
+            padding-right: $pad-xxsmall;
+          }
+        }
+
+        &:hover {
+          .software-link {
+            visibility: visible;
           }
         }
       }

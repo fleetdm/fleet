@@ -16,10 +16,18 @@
     }
   }
 
+  &__section-title-group {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
   &__section-title {
     display: flex;
     flex-direction: row;
     align-items: center;
+    padding-right: 12px;
 
     span {
       background-color: $core-vibrant-blue;
@@ -30,6 +38,12 @@
       border-radius: 4px;
       margin-left: $pad-small;
     }
+  }
+
+  &__section-subtitle {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
   }
 
   &__action-button {

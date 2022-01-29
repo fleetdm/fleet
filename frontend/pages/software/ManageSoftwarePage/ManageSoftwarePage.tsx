@@ -2,20 +2,23 @@ import React, { useCallback, useContext, useState } from "react";
 import { useQuery } from "react-query";
 import ReactTooltip from "react-tooltip";
 import { useDebouncedCallback } from "use-debounce/lib";
-import formatDistanceToNow from "date-fns/formatDistanceToNow";
+import formatDistanceToNowStrict from "date-fns/formatDistanceToNowStrict";
 
 import { AppContext } from "context/app";
 import softwareAPI, {
   ISoftwareResponse,
   ISoftwareCountResponse,
 } from "services/entities/software";
-import { GITHUB_NEW_ISSUE_LINK } from "utilities/constants";
+import {
+  GITHUB_NEW_ISSUE_LINK,
+  VULNERABLE_DROPDOWN_OPTIONS,
+} from "utilities/constants";
 
 import Button from "components/buttons/Button";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 import Spinner from "components/Spinner";
-import TableContainer from "components/TableContainer";
+import TableContainer, { ITableSearchData } from "components/TableContainer";
 import TableDataError from "components/TableDataError";
 import TeamsDropdownHeader, {
   ITeamsDropdownState,
@@ -32,40 +35,12 @@ interface IManageSoftwarePageProps {
   location: any;
   params: any;
 }
-
-interface ITableQueryProps {
-  pageIndex: number;
-  pageSize: number;
-  searchQuery: string;
-  sortHeader: string;
-  sortDirection: string;
-}
+const DEFAULT_SORT_DIRECTION = "desc";
+const DEFAULT_SORT_HEADER = "hosts_count";
+const PAGE_SIZE = 20;
+// const SORT_DIRECTIONS = ["asc", "desc"] as const;
 
 const baseClass = "manage-software-page";
-
-const DEFAULT_SORT_DIRECTION = "desc";
-
-const DEFAULT_SORT_HEADER = "hosts_count";
-
-const PAGE_SIZE = 20;
-
-const SORT_DIRECTIONS = ["asc", "desc"] as const;
-
-const VULNERABLE_OPTIONS = [
-  {
-    disabled: false,
-    label: "All software",
-    value: false,
-    helpText: "All sofware installed on your hosts.",
-  },
-  {
-    disabled: false,
-    label: "Vulnerable software",
-    value: true,
-    helpText:
-      "All software installed on your hosts with detected vulnerabilities.",
-  },
-];
 
 const ManageSoftwarePage = ({
   router,
@@ -77,7 +52,9 @@ const ManageSoftwarePage = ({
   const [isLoadingCount, setIsLoadingCount] = useState(true);
   const [filterVuln, setFilterVuln] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [sortDirection, setSortDirection] = useState(DEFAULT_SORT_DIRECTION);
+  const [sortDirection, setSortDirection] = useState<
+    "asc" | "desc" | undefined
+  >(DEFAULT_SORT_DIRECTION);
   const [sortHeader, setSortHeader] = useState(DEFAULT_SORT_HEADER);
   const [pageIndex, setPageIndex] = useState<number>(0);
 
@@ -91,6 +68,7 @@ const ManageSoftwarePage = ({
     ISoftwareResponse,
     Error
   >(
+    // TODO: Migrate query keys to object
     [
       "software",
       pageIndex,
@@ -110,9 +88,7 @@ const ManageSoftwarePage = ({
         query: searchQuery,
         // TODO confirm sort is working?
         orderKey: sortHeader,
-        orderDir:
-          SORT_DIRECTIONS.find((d) => d === sortDirection) ||
-          DEFAULT_SORT_DIRECTION,
+        orderDir: sortDirection || DEFAULT_SORT_DIRECTION,
         vulnerable: filterVuln,
         teamId,
       });
@@ -170,10 +146,15 @@ const ManageSoftwarePage = ({
       searchQuery: newSearchQuery,
       sortDirection: newSortDirection,
       sortHeader: newSortHeader,
-    }: ITableQueryProps) => {
+    }: ITableSearchData) => {
       pageIndex !== newPageIndex && setPageIndex(newPageIndex);
       searchQuery !== newSearchQuery && setSearchQuery(newSearchQuery);
-      sortDirection !== newSortDirection && setSortDirection(newSortDirection);
+      sortDirection !== newSortDirection &&
+        setSortDirection(
+          newSortDirection === "asc" || newSortDirection === "desc"
+            ? newSortDirection
+            : DEFAULT_SORT_DIRECTION
+        );
       sortHeader !== newSortHeader && setSortHeader(newSortHeader);
     },
     300
@@ -223,8 +204,7 @@ const ManageSoftwarePage = ({
     const count = softwareCount;
     let lastUpdatedAt = software?.counts_updated_at;
     lastUpdatedAt = lastUpdatedAt
-      ? formatDistanceToNow(new Date(lastUpdatedAt), {
-          includeSeconds: true,
+      ? formatDistanceToNowStrict(new Date(lastUpdatedAt), {
           addSuffix: true,
         })
       : "never";
@@ -237,6 +217,7 @@ const ManageSoftwarePage = ({
       );
     }
 
+    // TODO: Use setInterval to keep last updated time current?
     return count !== undefined ? (
       <span
         className={`${baseClass}__count ${
@@ -282,7 +263,7 @@ const ManageSoftwarePage = ({
       <Dropdown
         value={filterVuln}
         className={`${baseClass}__status_dropdown`}
-        options={VULNERABLE_OPTIONS}
+        options={VULNERABLE_DROPDOWN_OPTIONS}
         searchable={false}
         onChange={(value: boolean) => {
           setFilterVuln(value);
@@ -355,6 +336,7 @@ const ManageSoftwarePage = ({
             renderFooter={renderTableFooter}
             disableActionButton
             hideActionButton
+            highlightOnHover
           />
         )}
       </div>
