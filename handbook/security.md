@@ -2,14 +2,14 @@
 
 ## How we protect end-user devices
 
-At Fleet, we believe that a good user experience empowers employees.
+At Fleet, we believe that a good user experience empowers contributors.
 
 We follow the guiding principles below to secure our company-owned devices:
 
-* Our devices should give employees the freedom to work from anywhere.
-* To allow maximum freedom in where and how we work, we assume that "Safe" networks do not exist. Employees should be able to work on a coffee shop's Wi-Fi as if it were their home or work network.
+* Our devices should give contributors the freedom to work from anywhere.
+* To allow maximum freedom in where and how we work, we assume that "Safe" networks do not exist. Contributors should be able to work on a coffee shop's Wi-Fi as if it were their home or work network.
 * To limit the impact on user experience, we do not dictate security configurations unless the security benefit is significant.
-* By using techniques such as Two-Factor Authentication (2FA), code reviews, and more, we can further empower employees to work comfortably from any location - on any network.
+* By using techniques such as Two-Factor Authentication (2FA), code reviews, and more, we can further empower contributors to work comfortably from any location - on any network.
 
 
 ### macOS devices
@@ -161,9 +161,9 @@ Since we can't eliminate the risk of passwords being cracked remotely, we requir
 
 **Why?**
 
-* Fleet employees are free to work from wherever they choose. If a laptop is lost or forgotten, automatic login exposes sensitive company data and poses a critical security risk. 
-* Password hints can sometimes be easier to guess than the password itself. Since we support employees remotely via MDM and do not require users to change passwords frequently, we eliminate the need for passwords hints and their associated risk.
-* Only a single employee should use a company laptop. Therefore, guest accounts are not permitted.
+* Fleet contributors are free to work from wherever they choose. If a laptop is lost or forgotten, automatic login exposes sensitive company data and poses a critical security risk. 
+* Password hints can sometimes be easier to guess than the password itself. Since we support contributors remotely via MDM and do not require users to change passwords frequently, we eliminate the need for passwords hints and their associated risk.
+* Since company laptops are issued primarily for work, and tied to a single contributor's identity, guest accounts are not permitted.
 * Automatic logon would defeat the purpose of even requiring passwords to unlock computers.
 
 **User experience impact**
@@ -181,7 +181,7 @@ We do not apply ultra restrictive Data Loss Prevention style policies to our dev
 | 2.6.1.4 | Ensure iCloud Drive Documents and Desktop sync is disabled |
 
 **Why?**
-* We do not use managed Apple IDs, and allow employees to use their own iCloud accounts. We disable iCloud Documents and Desktop sync to avoid "accidental" copying of data to iCloud, but we do allow iCloud drive.
+* We do not use managed Apple IDs, and allow contributors to use their own iCloud accounts. We disable iCloud Documents and Desktop sync to avoid "accidental" copying of data to iCloud, but we do allow iCloud drive.
 
 **User experience impact**
 
