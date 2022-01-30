@@ -1,23 +1,28 @@
 /* Conditionally renders global schedule and team schedules */
 
-import React, { useState, useCallback, useEffect, useContext } from "react";
+import React, { useState, useCallback, useContext } from "react";
 import { useQuery } from "react-query";
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch } from "react-redux";
 import { AppContext } from "context/app";
-import { push } from "react-router-redux";
+import { InjectedRouter } from "react-router/lib/Router";
 import { find } from "lodash";
 
 // @ts-ignore
 import deepDifference from "utilities/deep_difference";
 import { ITeam } from "interfaces/team";
-import { IGlobalScheduledQuery } from "interfaces/global_scheduled_query";
-import { ITeamScheduledQuery } from "interfaces/team_scheduled_query";
-// @ts-ignore
-import globalScheduledQueryActions from "redux/nodes/entities/global_scheduled_queries/actions";
-// @ts-ignore
-import teamScheduledQueryActions from "redux/nodes/entities/team_scheduled_queries/actions";
+import {
+  IGlobalScheduledQuery,
+  ILoadAllGlobalScheduledQueriesResponse,
+} from "interfaces/global_scheduled_query";
+import {
+  ITeamScheduledQuery,
+  ILoadAllTeamScheduledQueriesResponse,
+} from "interfaces/team_scheduled_query";
 import fleetQueriesAPI from "services/entities/queries";
+import globalScheduledQueriesAPI from "services/entities/global_scheduled_queries";
+import teamScheduledQueriesAPI from "services/entities/team_scheduled_queries";
 import teamsAPI from "services/entities/teams";
+import usersAPI, { IGetMeResponse } from "services/entities/users";
 // @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions";
 
@@ -40,16 +45,16 @@ const renderTable = (
     selectedQuery: IGlobalScheduledQuery | ITeamScheduledQuery
   ) => void,
   allScheduledQueriesList: IGlobalScheduledQuery[] | ITeamScheduledQuery[],
-  allScheduledQueriesError: { name: string; reason: string }[],
+  allScheduledQueriesError: Error | null,
   toggleScheduleEditorModal: () => void,
   isOnGlobalTeam: boolean,
-  selectedTeamData: ITeam | undefined
+  selectedTeamData: ITeam | undefined,
+  isLoadingGlobalScheduledQueries: boolean,
+  isLoadingTeamScheduledQueries: boolean
 ): JSX.Element => {
-  if (Object.keys(allScheduledQueriesError).length !== 0) {
-    return <TableDataError />;
-  }
-
-  return (
+  return allScheduledQueriesError ? (
+    <TableDataError />
+  ) : (
     <ScheduleListWrapper
       onRemoveScheduledQueryClick={onRemoveScheduledQueryClick}
       onEditScheduledQueryClick={onEditScheduledQueryClick}
@@ -57,27 +62,31 @@ const renderTable = (
       toggleScheduleEditorModal={toggleScheduleEditorModal}
       isOnGlobalTeam={isOnGlobalTeam}
       selectedTeamData={selectedTeamData}
+      loadingInheritedQueriesTableData={isLoadingGlobalScheduledQueries}
+      loadingTeamQueriesTableData={isLoadingTeamScheduledQueries}
     />
   );
 };
 
 const renderAllTeamsTable = (
   allTeamsScheduledQueriesList: IGlobalScheduledQuery[],
-  allTeamsScheduledQueriesError: { name: string; reason: string }[],
+  allTeamsScheduledQueriesError: Error | null,
   isOnGlobalTeam: boolean,
-  selectedTeamData: ITeam | undefined
+  selectedTeamData: ITeam | undefined,
+  isLoadingGlobalScheduledQueries: boolean,
+  isLoadingTeamScheduledQueries: boolean
 ): JSX.Element => {
-  if (Object.keys(allTeamsScheduledQueriesError).length > 0) {
-    return <TableDataError />;
-  }
-
-  return (
+  return allTeamsScheduledQueriesError ? (
+    <TableDataError />
+  ) : (
     <div className={`${baseClass}__all-teams-table`}>
       <ScheduleListWrapper
         inheritedQueries
         allScheduledQueriesList={allTeamsScheduledQueriesList}
         isOnGlobalTeam={isOnGlobalTeam}
         selectedTeamData={selectedTeamData}
+        loadingInheritedQueriesTableData={isLoadingGlobalScheduledQueries}
+        loadingTeamQueriesTableData={isLoadingTeamScheduledQueries}
       />
     </div>
   );
@@ -87,23 +96,7 @@ interface ITeamSchedulesPageProps {
   params: {
     team_id: string;
   };
-  location: any; // no type in react-router v3
-}
-
-// TODO: move team scheduled queries and global scheduled queries into services entities, remove redux
-interface IRootState {
-  entities: {
-    global_scheduled_queries: {
-      isLoading: boolean;
-      data: IGlobalScheduledQuery[];
-      errors: { name: string; reason: string }[];
-    };
-    team_scheduled_queries: {
-      isLoading: boolean;
-      data: ITeamScheduledQuery[];
-      errors: { name: string; reason: string }[];
-    };
-  };
+  router: InjectedRouter; // v3
 }
 interface IFormData {
   interval: number;
@@ -119,17 +112,21 @@ interface IFormData {
 
 const ManageSchedulePage = ({
   params: { team_id },
+  router,
 }: ITeamSchedulesPageProps): JSX.Element => {
   const dispatch = useDispatch();
   const { MANAGE_PACKS, MANAGE_SCHEDULE, MANAGE_TEAM_SCHEDULE } = paths;
-  const handleAdvanced = () => dispatch(push(MANAGE_PACKS));
+  const handleAdvanced = () => router.push(MANAGE_PACKS);
 
   const {
+    availableTeams,
     currentUser,
     isOnGlobalTeam,
     isPremiumTier,
     isFreeTier,
     currentTeam,
+    setAvailableTeams,
+    setCurrentUser,
     setCurrentTeam,
   } = useContext(AppContext);
 
@@ -148,6 +145,13 @@ const ManageSchedulePage = ({
     return filteredSortedTeams;
   };
 
+  useQuery(["me"], () => usersAPI.me(), {
+    onSuccess: ({ user, available_teams }: IGetMeResponse) => {
+      setCurrentUser(user);
+      setAvailableTeams(available_teams);
+    },
+  });
+
   const { data: teams, isLoading: isLoadingTeams } = useQuery(
     ["teams"],
     () => teamsAPI.loadAll({}),
@@ -163,13 +167,45 @@ const ManageSchedulePage = ({
     }
   );
 
-  const { data: fleetQueries } = useQuery(
+  const { data: fleetQueries, isLoading: isLoadingFleetQueries } = useQuery(
     ["fleetQueries"],
     () => fleetQueriesAPI.loadAll(),
     {
       refetchOnMount: false,
       refetchOnWindowFocus: false,
       select: (data) => data.queries,
+    }
+  );
+
+  const {
+    data: globalScheduledQueries,
+    error: globalScheduledQueriesError,
+    isLoading: isLoadingGlobalScheduledQueries,
+    refetch: refetchGlobalScheduledQueries,
+  } = useQuery<
+    ILoadAllGlobalScheduledQueriesResponse,
+    Error,
+    IGlobalScheduledQuery[]
+  >(["globalScheduledQueries"], () => globalScheduledQueriesAPI.loadAll(), {
+    enabled: !!availableTeams,
+    select: (data) => data.global_schedule,
+  });
+
+  const {
+    data: teamScheduledQueries,
+    error: teamScheduledQueriesError,
+    isLoading: isLoadingTeamScheduledQueries,
+    refetch: refetchTeamScheduledQueries,
+  } = useQuery<
+    ILoadAllTeamScheduledQueriesResponse,
+    Error,
+    ITeamScheduledQuery[]
+  >(
+    ["teamScheduledQueries", team_id],
+    () => teamScheduledQueriesAPI.loadAll(parseInt(team_id, 10)),
+    {
+      enabled: !!availableTeams && isPremiumTier && !!team_id,
+      select: (data) => data.scheduled,
     }
   );
 
@@ -181,11 +217,18 @@ const ManageSchedulePage = ({
     selectedTeamId = team_id ? parseInt(team_id, 10) : 0;
   }
 
+  const refetchScheduledQueries = () => {
+    refetchGlobalScheduledQueries();
+    if (selectedTeamId !== 0) {
+      refetchTeamScheduledQueries();
+    }
+  };
+
   const handleTeamSelect = (teamId: number) => {
     if (teamId) {
-      dispatch(push(MANAGE_TEAM_SCHEDULE(teamId)));
+      router.push(MANAGE_TEAM_SCHEDULE(teamId));
     } else {
-      dispatch(push(MANAGE_SCHEDULE));
+      router.push(MANAGE_SCHEDULE);
     }
     const selectedTeam = find(teams, ["id", teamId]);
     setCurrentTeam(selectedTeam);
@@ -195,27 +238,17 @@ const ManageSchedulePage = ({
     handleTeamSelect(teams[0].id);
   }
 
-  const allScheduledQueries = useSelector((state: IRootState) => {
-    if (selectedTeamId) {
-      return state.entities.team_scheduled_queries;
-    }
-    return state.entities.global_scheduled_queries;
-  });
+  const allScheduledQueriesList =
+    (team_id ? teamScheduledQueries : globalScheduledQueries) || [];
+  const allScheduledQueriesError = team_id
+    ? teamScheduledQueriesError
+    : globalScheduledQueriesError;
 
-  const allScheduledQueriesList = Object.values(allScheduledQueries.data);
-  const allScheduledQueriesError = allScheduledQueries.errors;
-
-  const allTeamsScheduledQueries = useSelector((state: IRootState) => {
-    return state.entities.global_scheduled_queries;
-  });
-
-  const allTeamsScheduledQueriesList = Object.values(
-    allTeamsScheduledQueries.data
-  );
-  const allTeamsScheduledQueriesError = allTeamsScheduledQueries.errors;
+  const inheritedScheduledQueriesList = globalScheduledQueries;
+  const inheritedScheduledQueriesError = globalScheduledQueriesError;
 
   const inheritedQueryOrQueries =
-    allTeamsScheduledQueriesList.length === 1 ? "query" : "queries";
+    inheritedScheduledQueriesList?.length === 1 ? "query" : "queries";
 
   const selectedTeam = !selectedTeamId ? "global" : selectedTeamId;
 
@@ -271,11 +304,9 @@ const ManageSchedulePage = ({
 
   const onRemoveScheduledQuerySubmit = useCallback(() => {
     const promises = selectedQueryIds.map((id: number) => {
-      return dispatch(
-        selectedTeamId
-          ? teamScheduledQueryActions.destroy(selectedTeamId, id)
-          : globalScheduledQueryActions.destroy({ id })
-      );
+      return selectedTeamId
+        ? teamScheduledQueriesAPI.destroy(selectedTeamId, id)
+        : globalScheduledQueriesAPI.destroy({ id });
     });
     const queryOrQueries = selectedQueryIds.length === 1 ? "query" : "queries";
     return Promise.all(promises)
@@ -287,11 +318,7 @@ const ManageSchedulePage = ({
           )
         );
         toggleRemoveScheduledQueryModal();
-        dispatch(
-          selectedTeamId
-            ? teamScheduledQueryActions.loadAll(selectedTeamId)
-            : globalScheduledQueryActions.loadAll()
-        );
+        refetchScheduledQueries();
       })
       .catch(() => {
         dispatch(
@@ -307,6 +334,7 @@ const ManageSchedulePage = ({
     selectedTeamId,
     selectedQueryIds,
     toggleRemoveScheduledQueryModal,
+    refetchScheduledQueries,
   ]);
 
   const onAddScheduledQuerySubmit = useCallback(
@@ -316,11 +344,12 @@ const ManageSchedulePage = ({
     ) => {
       if (editQuery) {
         const updatedAttributes = deepDifference(formData, editQuery);
-        dispatch(
-          selectedTeamId
-            ? teamScheduledQueryActions.update(editQuery, updatedAttributes)
-            : globalScheduledQueryActions.update(editQuery, updatedAttributes)
-        )
+
+        const editResponse = selectedTeamId
+          ? teamScheduledQueriesAPI.update(editQuery, updatedAttributes)
+          : globalScheduledQueriesAPI.update(editQuery, updatedAttributes);
+
+        editResponse
           .then(() => {
             dispatch(
               renderFlash(
@@ -328,11 +357,7 @@ const ManageSchedulePage = ({
                 `Successfully updated ${formData.name} in the schedule.`
               )
             );
-            dispatch(
-              selectedTeamId
-                ? teamScheduledQueryActions.loadAll(selectedTeamId)
-                : globalScheduledQueryActions.loadAll()
-            );
+            refetchScheduledQueries();
           })
           .catch(() => {
             dispatch(
@@ -343,11 +368,11 @@ const ManageSchedulePage = ({
             );
           });
       } else {
-        dispatch(
-          selectedTeamId
-            ? teamScheduledQueryActions.create({ ...formData })
-            : globalScheduledQueryActions.create({ ...formData })
-        )
+        const createResponse = selectedTeamId
+          ? teamScheduledQueriesAPI.create({ ...formData })
+          : globalScheduledQueriesAPI.create({ ...formData });
+
+        createResponse
           .then(() => {
             dispatch(
               renderFlash(
@@ -355,11 +380,7 @@ const ManageSchedulePage = ({
                 `Successfully added ${formData.name} to the schedule.`
               )
             );
-            dispatch(
-              selectedTeamId
-                ? teamScheduledQueryActions.loadAll(selectedTeamId)
-                : globalScheduledQueryActions.loadAll()
-            );
+            refetchScheduledQueries();
           })
           .catch(() => {
             dispatch(
@@ -401,27 +422,26 @@ const ManageSchedulePage = ({
               </div>
             </div>
           </div>
-          {allScheduledQueriesList.length !== 0 &&
-            allScheduledQueriesError.length !== 0 && (
-              <div className={`${baseClass}__action-button-container`}>
-                {isOnGlobalTeam && (
-                  <Button
-                    variant="inverse"
-                    onClick={handleAdvanced}
-                    className={`${baseClass}__advanced-button`}
-                  >
-                    Advanced
-                  </Button>
-                )}
+          {allScheduledQueriesList?.length !== 0 && !allScheduledQueriesError && (
+            <div className={`${baseClass}__action-button-container`}>
+              {isOnGlobalTeam && (
                 <Button
-                  variant="brand"
-                  className={`${baseClass}__schedule-button`}
-                  onClick={toggleScheduleEditorModal}
+                  variant="inverse"
+                  onClick={handleAdvanced}
+                  className={`${baseClass}__advanced-button`}
                 >
-                  Schedule a query
+                  Advanced
                 </Button>
-              </div>
-            )}
+              )}
+              <Button
+                variant="brand"
+                className={`${baseClass}__schedule-button`}
+                onClick={toggleScheduleEditorModal}
+              >
+                Schedule a query
+              </Button>
+            </div>
+          )}
         </div>
         <div className={`${baseClass}__description`}>
           {!isLoadingTeams && (
@@ -441,7 +461,10 @@ const ManageSchedulePage = ({
           )}
         </div>
         <div>
-          {isLoadingTeams ? (
+          {isLoadingTeams ||
+          isLoadingFleetQueries ||
+          isLoadingGlobalScheduledQueries ||
+          isLoadingTeamScheduledQueries ? (
             <Spinner />
           ) : (
             renderTable(
@@ -451,12 +474,16 @@ const ManageSchedulePage = ({
               allScheduledQueriesError,
               toggleScheduleEditorModal,
               isOnGlobalTeam || false,
-              selectedTeamData
+              selectedTeamData,
+              isLoadingGlobalScheduledQueries,
+              isLoadingTeamScheduledQueries
             )
           )}
         </div>
         {/* must use ternary for NaN */}
-        {selectedTeamId && allTeamsScheduledQueriesList.length > 0 ? (
+        {selectedTeamId &&
+        inheritedScheduledQueriesList &&
+        inheritedScheduledQueriesList.length > 0 ? (
           <>
             <span>
               <Button
@@ -466,8 +493,8 @@ const ManageSchedulePage = ({
                 onClick={toggleInheritedQueries}
               >
                 {showInheritedQueries
-                  ? `Hide ${allTeamsScheduledQueriesList.length} inherited ${inheritedQueryOrQueries}`
-                  : `Show ${allTeamsScheduledQueriesList.length} inherited ${inheritedQueryOrQueries}`}
+                  ? `Hide ${inheritedScheduledQueriesList.length} inherited ${inheritedQueryOrQueries}`
+                  : `Show ${inheritedScheduledQueriesList.length} inherited ${inheritedQueryOrQueries}`}
               </Button>
             </span>
             <div className={`${baseClass}__details`}>
@@ -483,11 +510,14 @@ const ManageSchedulePage = ({
           </>
         ) : null}
         {showInheritedQueries &&
+          inheritedScheduledQueriesList &&
           renderAllTeamsTable(
-            allTeamsScheduledQueriesList,
-            allTeamsScheduledQueriesError,
+            inheritedScheduledQueriesList,
+            inheritedScheduledQueriesError,
             isOnGlobalTeam || false,
-            selectedTeamData
+            selectedTeamData,
+            isLoadingGlobalScheduledQueries,
+            isLoadingTeamScheduledQueries
           )}
         {showScheduleEditorModal && (
           <ScheduleEditorModal

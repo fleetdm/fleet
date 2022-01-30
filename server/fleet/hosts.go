@@ -269,3 +269,20 @@ type MacadminsData struct {
 	Munki *HostMunkiInfo `json:"munki"`
 	MDM   *HostMDM       `json:"mobile_device_management"`
 }
+
+type AggregatedMunkiVersion struct {
+	HostMunkiInfo
+	HostsCount int `json:"hosts_count" db:"hosts_count"`
+}
+
+type AggregatedMDMStatus struct {
+	EnrolledManualHostsCount    int `json:"enrolled_manual_hosts_count" db:"enrolled_manual_hosts_count"`
+	EnrolledAutomatedHostsCount int `json:"enrolled_automated_hosts_count" db:"enrolled_automated_hosts_count"`
+	UnenrolledHostsCount        int `json:"unenrolled_hosts_count" db:"unenrolled_hosts_count"`
+	HostsCount                  int `json:"hosts_count" db:"hosts_count"`
+}
+
+type AggregatedMacadminsData struct {
+	MunkiVersions []AggregatedMunkiVersion `json:"munki_versions"`
+	MDMStatus     AggregatedMDMStatus      `json:"mobile_device_management_enrollment_status"`
+}

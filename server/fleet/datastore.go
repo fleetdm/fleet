@@ -207,6 +207,10 @@ type Datastore interface {
 	GetMunkiVersion(ctx context.Context, hostID uint) (string, error)
 	GetMDM(ctx context.Context, hostID uint) (enrolled bool, serverURL string, installedFromDep bool, err error)
 
+	AggregatedMunkiVersion(ctx context.Context, teamID *uint) ([]AggregatedMunkiVersion, error)
+	AggregatedMDMStatus(ctx context.Context, teamID *uint) (AggregatedMDMStatus, error)
+	GenerateAggregatedMunkiAndMDM(ctx context.Context) error
+
 	///////////////////////////////////////////////////////////////////////////////
 	// TargetStore
 
@@ -326,6 +330,7 @@ type Datastore interface {
 	AllCPEs(ctx context.Context) ([]string, error)
 	InsertCVEForCPE(ctx context.Context, cve string, cpes []string) error
 	SoftwareByID(ctx context.Context, id uint) (*Software, error)
+	CalculateHostsPerSoftware(ctx context.Context, updatedAt time.Time) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// ActivitiesStore

@@ -18,21 +18,6 @@ describe("Premium tier - Team observer/maintainer user", () => {
     beforeEach(() => {
       cy.loginWithCySession("marco@organization.com", "user123#");
     });
-    describe("Nav restrictions", () => {
-      it("should restrict navigation according to role-based access controls", () => {
-        cy.visit("/dashboard");
-        cy.findByText(/settings/i).should("not.exist");
-        cy.findByText(/schedule/i).should("exist");
-        cy.visit("/settings/organization");
-        cy.getAttached(".flash-message__content").within(() => {
-          cy.findByText(/you do not have permissions/i).should("exist");
-        });
-        cy.visit("/packs/manage");
-        cy.getAttached(".flash-message__content").within(() => {
-          cy.findByText(/you do not have permissions/i).should("exist");
-        });
-      });
-    });
     describe("Manage hosts page", () => {
       it("should render elements according to role-based access controls", () => {
         cy.visit("/hosts/manage");
@@ -75,25 +60,31 @@ describe("Premium tier - Team observer/maintainer user", () => {
         });
       });
     });
-  });
-
-  describe("Team maintainer", () => {
-    beforeEach(() => {
-      cy.loginWithCySession("marco@organization.com", "user123#");
-    });
+    // nav restrictions are at the end because we expect to see a
+    // 403 error overlay which will hide the nav and make the test fail
     describe("Nav restrictions", () => {
       it("should restrict navigation according to role-based access controls", () => {
         cy.visit("/dashboard");
-
-        cy.contains("h2", "Hosts").should("exist");
-        cy.getAttached("nav").within(() => {
-          cy.findByText(/hosts/i).should("exist");
-          cy.findByText(/queries/i).should("exist");
-          cy.findByText(/schedule/i).should("exist");
-          cy.findByText(/packs/i).should("not.exist");
-          cy.findByText(/settings/i).should("not.exist");
-        });
+        cy.findByText(/settings/i).should("not.exist");
+        cy.findByText(/schedule/i).should("exist");
+        cy.visit("/settings/organization");
+        cy.findByText(/you do not have permissions/i).should("exist");
+        cy.visit("/packs/manage");
+        cy.findByText(/you do not have permissions/i).should("exist");
       });
+    });
+  });
+
+  describe("Team maintainer", () => {
+    // cypress tends to fail on uncaught exceptions. since we have
+    // our own error handling, it's suggested to use this block to
+    // suppress so the tests will keep running
+    Cypress.on("uncaught:exception", () => {
+      return false;
+    });
+
+    beforeEach(() => {
+      cy.loginWithCySession("marco@organization.com", "user123#");
     });
     describe("Manage hosts page", () => {
       it("should render elements according to role-based access controls", () => {
@@ -173,6 +164,22 @@ describe("Premium tier - Team observer/maintainer user", () => {
           cy.findByText("Role")
             .next()
             .contains(/various/i);
+        });
+      });
+    });
+    // nav restrictions are at the end because we expect to see a
+    // 403 error overlay which will hide the nav and make the test fail
+    describe("Nav restrictions", () => {
+      it("should restrict navigation according to role-based access controls", () => {
+        cy.visit("/dashboard");
+
+        cy.contains("h2", "Hosts").should("exist");
+        cy.getAttached("nav").within(() => {
+          cy.findByText(/hosts/i).should("exist");
+          cy.findByText(/queries/i).should("exist");
+          cy.findByText(/schedule/i).should("exist");
+          cy.findByText(/packs/i).should("not.exist");
+          cy.findByText(/settings/i).should("not.exist");
         });
       });
     });

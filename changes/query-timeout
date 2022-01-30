@@ -1,1 +1,0 @@
-* Reduce the default period of the "simple" live query API (`/api/v1/queries/run`) to 25 seconds to remain below load balancer timeouts.

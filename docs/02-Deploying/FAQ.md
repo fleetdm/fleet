@@ -18,6 +18,7 @@
 - [How long are osquery enroll secrets valid?](#how-long-are-osquery-enroll-secrets-valid)
 - [Should I use multiple enroll secrets?](#should-i-use-multiple-enroll-secrets)
 - [How can enroll secrets be rotated?](#how-can-enroll-secrets-be-rotated)
+- [What API endpoints should I expose to the public internet?](#what-api-endpoints-should-i-expose-to-the-public-internet)
 
 
 ## How do I get support for working with Fleet?
@@ -226,3 +227,7 @@ are managed in the team yaml.
 The `unknown column` error typically occurs when the database migrations haven't been run during the upgrade process.
 
 Check out the [documentation on running database migrations](./06-Upgrading-Fleet.md#running-database-migrations) to resolve this issue.
+
+## What API endpoints should I expose to the public internet?
+
+If you would like to manage hosts that can travel outside your VPN or intranet we recommend only exposing the "/api/v1/osquery" endpoint to the public internet.

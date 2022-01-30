@@ -74,9 +74,10 @@ import {
   getNextLocationPath,
 } from "./helpers";
 
-import DeleteSecretModal from "./components/DeleteSecretModal";
-import SecretEditorModal from "./components/SecretEditorModal";
-import EnrollSecretModal from "./components/EnrollSecretModal";
+import DeleteSecretModal from "../../../components/DeleteSecretModal";
+import SecretEditorModal from "../../../components/SecretEditorModal";
+import GenerateInstallerModal from "../../../components/GenerateInstallerModal";
+import EnrollSecretModal from "../../../components/EnrollSecretModal";
 // @ts-ignore
 import NoHosts from "./components/NoHosts";
 import EmptyHosts from "./components/EmptyHosts";
@@ -86,8 +87,6 @@ import EditColumnsModal from "./components/EditColumnsModal/EditColumnsModal";
 import TransferHostModal from "./components/TransferHostModal";
 import DeleteHostModal from "./components/DeleteHostModal";
 import SoftwareVulnerabilities from "./components/SoftwareVulnerabilities";
-// @ts-ignore
-import GenerateInstallerModal from "./components/GenerateInstallerModal";
 import EditColumnsIcon from "../../../../assets/images/icon-edit-columns-16x16@2x.png";
 import PencilIcon from "../../../../assets/images/icon-pencil-14x14@2x.png";
 import TrashIcon from "../../../../assets/images/icon-trash-14x14@2x.png";
@@ -853,6 +852,7 @@ const ManageHostsPage = ({
     try {
       await labelsAPI.update(selectedLabel, updateAttrs);
       refetchLabels();
+      router.push(`${PATHS.MANAGE_HOSTS}/${getLabelSelected()}`);
       dispatch(
         renderFlash(
           "success",
@@ -1186,21 +1186,15 @@ const ManageHostsPage = ({
     }
 
     return (
-      <Modal
-        title="Enroll secret"
-        onExit={() => setShowEnrollSecretModal(false)}
-        className={`${baseClass}__enroll-secret-modal`}
-      >
-        <EnrollSecretModal
-          selectedTeam={currentTeam?.id || 0}
-          teams={teams || []}
-          onReturnToApp={() => setShowEnrollSecretModal(false)}
-          toggleSecretEditorModal={toggleSecretEditorModal}
-          toggleDeleteSecretModal={toggleDeleteSecretModal}
-          setSelectedSecret={setSelectedSecret}
-          globalSecrets={globalSecrets}
-        />
-      </Modal>
+      <EnrollSecretModal
+        selectedTeam={currentTeam?.id || 0}
+        teams={teams || []}
+        onReturnToApp={() => setShowEnrollSecretModal(false)}
+        toggleSecretEditorModal={toggleSecretEditorModal}
+        toggleDeleteSecretModal={toggleDeleteSecretModal}
+        setSelectedSecret={setSelectedSecret}
+        globalSecrets={globalSecrets}
+      />
     );
   };
 
@@ -1529,28 +1523,30 @@ const ManageHostsPage = ({
       !isGlobalSecretsLoading &&
       !globalSecrets?.length;
 
-    return ((canEnrollHosts && noTeamEnrollSecrets) ||
-      (canEnrollGlobalHosts && noGlobalEnrollSecrets)) &&
-      showNoEnrollSecretBanner ? (
-      <div className={`${baseClass}__no-enroll-secret-banner`}>
-        <div>
-          <span>
-            You have no enroll secrets. Manage enroll secrets to enroll hosts to{" "}
-            <b>{currentTeam?.id ? currentTeam.name : "Fleet"}</b>.
-          </span>
+    return (
+      ((canEnrollHosts && noTeamEnrollSecrets) ||
+        (canEnrollGlobalHosts && noGlobalEnrollSecrets)) &&
+      showNoEnrollSecretBanner && (
+        <div className={`${baseClass}__no-enroll-secret-banner`}>
+          <div>
+            <span>
+              You have no enroll secrets. Manage enroll secrets to enroll hosts
+              to <b>{currentTeam?.id ? currentTeam.name : "Fleet"}</b>.
+            </span>
+          </div>
+          <div className={`dismiss-banner-button`}>
+            <button
+              className="button button--unstyled"
+              onClick={() =>
+                setShowNoEnrollSecretBanner(!showNoEnrollSecretBanner)
+              }
+            >
+              <img alt="Dismiss no enroll secret banner" src={CloseIconBlack} />
+            </button>
+          </div>
         </div>
-        <div className={`dismiss-banner-button`}>
-          <button
-            className="button button--unstyled"
-            onClick={() =>
-              setShowNoEnrollSecretBanner(!showNoEnrollSecretBanner)
-            }
-          >
-            <img alt="Dismiss no enroll secret banner" src={CloseIconBlack} />
-          </button>
-        </div>
-      </div>
-    ) : null;
+      )
+    );
   };
 
   return (
