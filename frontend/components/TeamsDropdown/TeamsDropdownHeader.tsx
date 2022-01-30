@@ -122,7 +122,7 @@ const TeamsDropdownHeader = ({
     return queryString;
   };
 
-  // TODO: confirm approach to path and location
+  // TODO: Add support for pages that use teamId in route params as alternative to query string
   const handleTeamSelect = useCallback(
     (id: number) => {
       const availableTeam = findAvailableTeam(id);

@@ -45,8 +45,6 @@ const PAGE_SIZE = 20;
 
 const baseClass = "manage-software-page";
 
-// TODO: Redirect `/software` to `/software/manage`?
-
 const ManageSoftwarePage = ({
   router,
   location,
@@ -93,7 +91,6 @@ const ManageSoftwarePage = ({
         page: pageIndex,
         perPage: PAGE_SIZE,
         query: searchQuery,
-        // TODO confirm sort is working?
         orderKey: sortHeader,
         orderDir: sortDirection || DEFAULT_SORT_DIRECTION,
         vulnerable: filterVuln,
@@ -221,15 +218,17 @@ const ManageSoftwarePage = ({
     );
   }, [router, location]);
 
-  // TODO: Handle BE returning "0001-01-01T00:00:00Z" when counts have not yet run.
+  // TODO: Ask backend to implement different approach to returning "0001-01-01T00:00:00Z" when counts have not yet run.
   const renderSoftwareCount = useCallback(() => {
     const count = softwareCount;
     let lastUpdatedAt = software?.counts_updated_at;
-    lastUpdatedAt = lastUpdatedAt
-      ? formatDistanceToNowStrict(new Date(lastUpdatedAt), {
-          addSuffix: true,
-        })
-      : "never";
+    if (!lastUpdatedAt || lastUpdatedAt === "0001-01-01T00:00:00Z") {
+      lastUpdatedAt = "never";
+    } else {
+      lastUpdatedAt = formatDistanceToNowStrict(new Date(lastUpdatedAt), {
+        addSuffix: true,
+      });
+    }
 
     if (softwareCountError && !isLoadingCount) {
       return (
@@ -296,13 +295,11 @@ const ManageSoftwarePage = ({
         // add new vuln param
         queryParams.push(vulnParam);
       }
-      console.log("after queryString: ", queryString);
     } else {
       // remove old vuln param
       index >= 0 && queryParams.splice(index, 1);
     }
     queryString = queryParams.length ? "?".concat(queryParams.join("&")) : "";
-    console.log("new queryString: ", queryString);
 
     return queryString;
   };

@@ -10,19 +10,20 @@ import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import Chevron from "../../../../assets/images/icon-chevron-right-blue-16x16@2x.png";
 
-interface IHeaderProps {
-  column: {
-    title: string;
-    isSortedDesc: boolean;
-  };
-}
-
+// NOTE: cellProps come from react-table
+// more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
 interface ICellProps {
   cell: {
     value: any;
   };
   row: {
     original: ISoftware;
+  };
+}
+interface IHeaderProps {
+  column: {
+    title: string;
+    isSortedDesc: boolean;
   };
 }
 
@@ -58,7 +59,7 @@ const softwareTableHeaders = [
     Cell: (cellProps: ICellProps) => {
       const vulnerabilities: IVulnerability[] = cellProps.cell.value;
       if (!vulnerabilities?.length) {
-        return <span className="vulnerabilities text-muted">---</span>; // TODO style muted
+        return <span className="vulnerabilities text-muted">---</span>;
       }
       return (
         <>
@@ -126,8 +127,6 @@ const softwareTableHeaders = [
   },
 ];
 
-// NOTE: cellProps come from react-table
-// more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
 const generateTableHeaders = (): IDataColumn[] => {
   return softwareTableHeaders;
 };
