@@ -196,13 +196,6 @@ const DataTable = ({
 
   const { sortBy, selectedRowIds } = tableState;
 
-  // useEffect(() => {
-  //   tableFilters &&
-  //     Object.entries(tableFilters).forEach(([column, query]) =>
-  //       setFilter(column, query)
-  //     );
-  // }, [tableFilters]);
-
   useEffect(() => {
     if (tableFilters) {
       const allFilters = Object.entries(tableFilters).map(([id, value]) => ({
