@@ -5,7 +5,6 @@ const baseClass = "manage-software-page";
 type IEmptySoftware = "search" | "vulnerable" | "default" | "";
 
 const EmptySoftware = (message: IEmptySoftware): JSX.Element => {
-  console.log("message: ", message);
   switch (message) {
     case "search":
       return (

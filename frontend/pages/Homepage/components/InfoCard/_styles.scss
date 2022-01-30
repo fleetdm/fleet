@@ -40,7 +40,7 @@
     }
   }
 
-  &__section-subtitle {
+  &__section-title-detail {
     display: flex;
     flex-direction: row;
     align-items: center;
@@ -53,6 +53,9 @@
     color: $core-vibrant-blue;
     font-weight: $bold;
     text-decoration: none !important;
+  }
+  &__action-button-text {
+    text-align: right;
   }
 
   #link-arrow {

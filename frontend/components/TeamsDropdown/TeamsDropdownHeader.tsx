@@ -1,5 +1,6 @@
-import React, { useContext, useEffect } from "react";
+import React, { useCallback, useContext, useEffect } from "react";
 import { useQuery } from "react-query";
+import { InjectedRouter } from "react-router/lib/Router";
 
 import { AppContext, IAppContext } from "context/app";
 import usersAPI, { IGetMeResponse } from "services/entities/users";
@@ -11,11 +12,12 @@ export interface ITeamsDropdownState extends Partial<IAppContext> {
 }
 
 interface ITeamsDropdownHeaderProps {
-  router: any;
-  location: any;
-  params?: any;
-  routeParams?: any;
-  route?: any;
+  router: InjectedRouter;
+  location: {
+    pathname: string;
+    query: { team_id?: string; vulnerable?: boolean };
+    search: string;
+  };
   baseClass: string;
   defaultTitle: string;
   buttons?: (ctx: ITeamsDropdownState) => JSX.Element | null;
@@ -26,16 +28,13 @@ interface ITeamsDropdownHeaderProps {
 const TeamsDropdownHeader = ({
   router,
   location,
-  params,
-  routeParams,
-  route,
   baseClass,
   defaultTitle,
   buttons,
   description,
   onChange,
 }: ITeamsDropdownHeaderProps): JSX.Element | null => {
-  const teamId = parseInt(location?.query?.team_id, 10) || 0;
+  const teamId = parseInt(location?.query?.team_id || "", 10) || 0;
 
   const {
     availableTeams,
@@ -97,19 +96,49 @@ const TeamsDropdownHeader = ({
     return availableTeams?.find((t) => t.id === id);
   };
 
-  // TODO: confirm approach to path and location
-  const handleTeamSelect = (id: number) => {
-    const availableTeam = findAvailableTeam(id);
-    const path = availableTeam?.id
-      ? `${location?.pathname}?team_id=${availableTeam.id}`
-      : location?.pathname;
+  const buildQueryString = (queryString: string, newTeamId: number) => {
+    queryString = queryString.startsWith("?")
+      ? queryString.slice(1)
+      : queryString;
+    const queryParams = queryString.split("&").filter((el) => el.includes("="));
+    const index = queryParams.findIndex((el) => el.includes("team_id"));
 
-    router.replace(path);
-    setCurrentTeam(availableTeam);
-    if (typeof onChange === "function") {
-      onChange({ ...dropdownState, teamId: availableTeam?.id });
+    if (newTeamId) {
+      const teamParam = `team_id=${newTeamId}`;
+      if (index >= 0) {
+        // replace old team param
+        queryParams.splice(index, 1, teamParam);
+      } else {
+        // add new team param
+        queryParams.push(teamParam);
+      }
+      console.log("after queryString: ", queryString);
+    } else {
+      // remove old team param
+      index >= 0 && queryParams.splice(index, 1);
     }
+    queryString = queryParams.length ? "?".concat(queryParams.join("&")) : "";
+
+    return queryString;
   };
+
+  // TODO: confirm approach to path and location
+  const handleTeamSelect = useCallback(
+    (id: number) => {
+      const availableTeam = findAvailableTeam(id);
+      setCurrentTeam(availableTeam);
+      const queryString = buildQueryString(location?.search, id);
+      if (location?.search !== queryString) {
+        const path = location?.pathname?.concat(queryString) || "";
+        console.log("team dropdown path: ", path);
+        !!path && router.replace(path);
+      }
+      if (typeof onChange === "function") {
+        onChange({ ...dropdownState, teamId: availableTeam?.id });
+      }
+    },
+    [location, router]
+  );
 
   // If team_id from URL query params is not valid, we instead use a default team
   // either the current team (if any) or all teams (for global users) or

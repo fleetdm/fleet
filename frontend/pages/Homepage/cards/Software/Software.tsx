@@ -4,22 +4,24 @@ import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import ReactTooltip from "react-tooltip";
 import formatDistanceToNowStrict from "date-fns/formatDistanceToNowStrict";
 
+import paths from "router/paths";
 import softwareAPI, { ISoftwareResponse } from "services/entities/software";
 
 import TabsWrapper from "components/TabsWrapper";
-import TableContainer, { ITableSearchData } from "components/TableContainer";
+import TableContainer, { ITableQueryData } from "components/TableContainer";
 import TableDataError from "components/TableDataError"; // TODO how do we handle errors? UI just keeps spinning?
 // @ts-ignore
 import Spinner from "components/Spinner";
 
-import { generateTableHeaders } from "./SoftwareTableConfig";
+import generateTableHeaders from "./SoftwareTableConfig";
 import QuestionIcon from "../../../../../assets/images/icon-question-16x16@2x.png";
 
 interface ISoftwareCardProps {
   currentTeamId?: number;
   setShowSoftwareUI: (showSoftwareTitle: boolean) => void;
   showSoftwareUI: boolean;
-  setSubtitle?: (content: JSX.Element | string | null) => void;
+  setActionLink?: (url: string) => void;
+  setTitleDetail?: (content: JSX.Element | string | null) => void;
 }
 
 const DEFAULT_SORT_DIRECTION = "desc";
@@ -55,7 +57,6 @@ const EmptySoftware = (message: string): JSX.Element => {
 const renderLastUpdatedAt = (lastUpdatedAt: string) => {
   lastUpdatedAt = lastUpdatedAt
     ? formatDistanceToNowStrict(new Date(lastUpdatedAt), {
-        // includeSeconds: true,
         addSuffix: true,
       })
     : "never";
@@ -96,7 +97,8 @@ const Software = ({
   currentTeamId,
   setShowSoftwareUI,
   showSoftwareUI,
-  setSubtitle,
+  setActionLink,
+  setTitleDetail,
 }: ISoftwareCardProps): JSX.Element => {
   const [isLoadingSoftware, setIsLoadingSoftware] = useState<boolean>(true);
   const [navTabIndex, setNavTabIndex] = useState<number>(0);
@@ -139,11 +141,12 @@ const Software = ({
       // useQuery no longer returns isLoading when making new calls after load
       // So we manage our own load states
       keepPreviousData: true,
-      // staleTime: 500,
+      staleTime: 30000, // TODO: Discuss a reasonable staleTime given that counts are only updated infrequently?
       onSuccess: (data) => {
         setShowSoftwareUI(true);
         setIsLoadingSoftware(false);
-        setSubtitle && setSubtitle(renderLastUpdatedAt(data.counts_updated_at));
+        setTitleDetail &&
+          setTitleDetail(renderLastUpdatedAt(data.counts_updated_at));
       },
       onError: () => {
         setIsLoadingSoftware(false);
@@ -155,10 +158,19 @@ const Software = ({
   // the TableContainer child component will call this handler.
   const onQueryChange = async ({
     pageIndex: newPageIndex,
-  }: ITableSearchData) => {
+  }: ITableQueryData) => {
     if (pageIndex !== newPageIndex) {
       setPageIndex(newPageIndex);
     }
+  };
+
+  const onTabChange = (index: number) => {
+    const { MANAGE_SOFTWARE } = paths;
+    setNavTabIndex(index);
+    setActionLink &&
+      setActionLink(
+        index === 1 ? `${MANAGE_SOFTWARE}?vulnerable=true` : MANAGE_SOFTWARE
+      );
   };
 
   const tableHeaders = generateTableHeaders();
@@ -175,7 +187,7 @@ const Software = ({
       )}
       <div style={opacity}>
         <TabsWrapper>
-          <Tabs selectedIndex={navTabIndex} onSelect={(i) => setNavTabIndex(i)}>
+          <Tabs selectedIndex={navTabIndex} onSelect={onTabChange}>
             <TabList>
               <Tab>All</Tab>
               <Tab>Vulnerable</Tab>

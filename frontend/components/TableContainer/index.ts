@@ -1,1 +1,1 @@
-export { default, ITableSearchData } from "./TableContainer";
+export { default, ITableQueryData } from "./TableContainer";

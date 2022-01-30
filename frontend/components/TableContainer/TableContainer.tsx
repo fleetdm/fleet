@@ -18,15 +18,7 @@ import DataTable from "./DataTable/DataTable";
 import TableContainerUtils from "./TableContainerUtils";
 import { IActionButtonProps } from "./DataTable/ActionButton";
 
-export interface ITableSearchData {
-  searchQuery: string;
-  sortHeader: string;
-  sortDirection: string;
-  pageSize: number;
-  pageIndex: number;
-}
-
-interface ITableQueryProps {
+export interface ITableQueryData {
   pageIndex: number;
   pageSize: number;
   searchQuery: string;
@@ -73,7 +65,7 @@ interface ITableContainerProps {
   highlightOnHover?: boolean;
   pageSize?: number;
   onActionButtonClick?: () => void;
-  onQueryChange?: (queryData: ITableSearchData) => void;
+  onQueryChange?: (queryData: ITableQueryData) => void;
   onPrimarySelectActionClick?: (selectedItemIds: number[]) => void;
   customControl?: () => JSX.Element;
   onSelectSingleRow?: (value: Row) => void;
@@ -248,20 +240,20 @@ const TableContainer = ({
       )}
       <div className={`${baseClass}__header`}>
         {renderCount && (
-          <p className={`${baseClass}__results-count`} style={opacity}>
+          <div className={`${baseClass}__results-count`} style={opacity}>
             {renderCount()}
-          </p>
+          </div>
         )}
         {!renderCount && data && displayCount() && !disableCount ? (
-          <p className={`${baseClass}__results-count`} style={opacity}>
+          <div className={`${baseClass}__results-count`} style={opacity}>
             {TableContainerUtils.generateResultsCountText(
               resultsTitle,
               displayCount()
             )}
             {resultsHtml}
-          </p>
+          </div>
         ) : (
-          <p />
+          <div />
         )}
         <div className={`${baseClass}__table-controls`}>
           {!hideActionButton && actionButtonText && (

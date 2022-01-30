@@ -134,6 +134,7 @@ const routes = (
                 <Route path=":host_id" component={HostDetailsPage} />
               </Route>
               <Route path="software" component={SoftwarePageWrapper}>
+                <IndexRedirect to={"manage"} />
                 <Route path="manage" component={ManageSoftwarePage} />
               </Route>
               <Route component={AuthGlobalAdminMaintainerRoutes}>

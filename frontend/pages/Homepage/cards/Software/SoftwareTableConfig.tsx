@@ -1,29 +1,27 @@
 import React from "react";
 import { Link } from "react-router";
-import ReactTooltip from "react-tooltip";
-import { isEmpty } from "lodash";
 
 import PATHS from "router/paths";
-
 import { ISoftware } from "interfaces/software";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import Chevron from "../../../../../assets/images/icon-chevron-blue-16x16@2x.png";
-import IssueIcon from "../../../../../assets/images/icon-issue-fleet-black-50-16x16@2x.png";
 
-interface IHeaderProps {
-  column: {
-    title: string;
-    isSortedDesc: boolean;
-  };
-}
-
+// NOTE: cellProps come from react-table
+// more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
 interface ICellProps {
   cell: {
     value: any;
   };
   row: {
     original: ISoftware;
+  };
+}
+
+interface IHeaderProps {
+  column: {
+    title: string;
+    isSortedDesc: boolean;
   };
 }
 
@@ -35,47 +33,6 @@ interface IDataColumn {
   disableHidden?: boolean;
   disableSortBy?: boolean;
 }
-
-const vulnerabilityTableHeader = [
-  {
-    title: "Vulnerabilities",
-    Header: "",
-    disableSortBy: true,
-    accessor: "vulnerabilities",
-    Cell: (cellProps: ICellProps) => {
-      const vulnerabilities = cellProps.cell.value;
-      if (isEmpty(vulnerabilities)) {
-        return <></>;
-      }
-      return (
-        <>
-          <span
-            className={`vulnerabilities tooltip__tooltip-icon`}
-            data-tip
-            data-for={`vulnerabilities__${cellProps.row.original.id.toString()}`}
-            data-tip-disable={false}
-          >
-            <img alt="software vulnerabilities" src={IssueIcon} />
-          </span>
-          <ReactTooltip
-            place="bottom"
-            type="dark"
-            effect="solid"
-            backgroundColor="#3e4771"
-            id={`vulnerabilities__${cellProps.row.original.id.toString()}`}
-            data-html
-          >
-            <span className={`vulnerabilities tooltip__tooltip-text`}>
-              {vulnerabilities.length === 1
-                ? "1 vulnerability detected"
-                : `${vulnerabilities.length} vulnerabilities detected`}
-            </span>
-          </ReactTooltip>
-        </>
-      );
-    },
-  },
-];
 
 const softwareTableHeaders = [
   {
@@ -117,14 +74,8 @@ const softwareTableHeaders = [
   },
 ];
 
-// NOTE: cellProps come from react-table
-// more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
 const generateTableHeaders = (): IDataColumn[] => {
   return softwareTableHeaders;
 };
 
-const generateModalSoftwareTableHeaders = (): IDataColumn[] => {
-  return vulnerabilityTableHeader.concat(softwareTableHeaders);
-};
-
-export { generateTableHeaders, generateModalSoftwareTableHeaders };
+export default generateTableHeaders;

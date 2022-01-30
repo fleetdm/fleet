@@ -1,5 +1,6 @@
 import React, { useCallback, useContext, useState } from "react";
 import { useQuery } from "react-query";
+import { InjectedRouter } from "react-router/lib/Router";
 import ReactTooltip from "react-tooltip";
 import { useDebouncedCallback } from "use-debounce/lib";
 import formatDistanceToNowStrict from "date-fns/formatDistanceToNowStrict";
@@ -18,7 +19,7 @@ import Button from "components/buttons/Button";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 import Spinner from "components/Spinner";
-import TableContainer, { ITableSearchData } from "components/TableContainer";
+import TableContainer, { ITableQueryData } from "components/TableContainer";
 import TableDataError from "components/TableDataError";
 import TeamsDropdownHeader, {
   ITeamsDropdownState,
@@ -31,16 +32,20 @@ import generateTableHeaders from "./SoftwareTableConfig";
 import EmptySoftware from "../components/EmptySoftware";
 
 interface IManageSoftwarePageProps {
-  router: any;
-  location: any;
-  params: any;
+  router: InjectedRouter;
+  location: {
+    pathname: string;
+    query: { vulnerable?: boolean };
+    search: string;
+  };
 }
 const DEFAULT_SORT_DIRECTION = "desc";
 const DEFAULT_SORT_HEADER = "hosts_count";
 const PAGE_SIZE = 20;
-// const SORT_DIRECTIONS = ["asc", "desc"] as const;
 
 const baseClass = "manage-software-page";
+
+// TODO: Redirect `/software` to `/software/manage`?
 
 const ManageSoftwarePage = ({
   router,
@@ -50,13 +55,15 @@ const ManageSoftwarePage = ({
 
   const [isLoadingSoftware, setIsLoadingSoftware] = useState(true);
   const [isLoadingCount, setIsLoadingCount] = useState(true);
-  const [filterVuln, setFilterVuln] = useState(false);
+  const [filterVuln, setFilterVuln] = useState(
+    location?.query?.vulnerable || false
+  );
   const [searchQuery, setSearchQuery] = useState("");
   const [sortDirection, setSortDirection] = useState<
     "asc" | "desc" | undefined
   >(DEFAULT_SORT_DIRECTION);
   const [sortHeader, setSortHeader] = useState(DEFAULT_SORT_HEADER);
-  const [pageIndex, setPageIndex] = useState<number>(0);
+  const [pageIndex, setPageIndex] = useState(0);
 
   // const teamId = parseInt(location?.query?.team_id, 10) || 0;
   const teamId = currentTeam?.id;
@@ -68,20 +75,20 @@ const ManageSoftwarePage = ({
     ISoftwareResponse,
     Error
   >(
-    // TODO: Migrate query keys to object
     [
       "software",
-      pageIndex,
-      searchQuery,
-      sortHeader,
-      sortDirection,
-      filterVuln,
-      teamId,
+      {
+        pageIndex,
+        pageSize: PAGE_SIZE,
+        searchQuery,
+        sortDirection,
+        sortHeader,
+        teamId,
+        vulnerable: filterVuln,
+      },
     ],
     () => {
       setIsLoadingSoftware(true);
-      console.log("API pageIndex: ", pageIndex);
-
       return softwareAPI.load({
         page: pageIndex,
         perPage: PAGE_SIZE,
@@ -101,7 +108,7 @@ const ManageSoftwarePage = ({
       // useQuery no longer returns isLoading when making new calls after load
       // So we manage our own load states
       keepPreviousData: true,
-      // staleTime: 500,
+      staleTime: 30000, // TODO: Discuss a reasonable staleTime given that counts are only updated infrequently?
       onSuccess: () => {
         setIsLoadingSoftware(false);
       },
@@ -116,7 +123,7 @@ const ManageSoftwarePage = ({
     Error,
     number
   >(
-    ["softwareCount", searchQuery, filterVuln, teamId],
+    ["softwareCount", { searchQuery, vulnerable: filterVuln, teamId }],
     () => {
       setIsLoadingCount(true);
       return softwareAPI.count({
@@ -127,6 +134,7 @@ const ManageSoftwarePage = ({
     },
     {
       keepPreviousData: true,
+      staleTime: 30000, // TODO: Discuss a reasonable staleTime given that counts are only updated infrequently?
       refetchOnWindowFocus: false,
       retry: 1,
       select: (data) => data.count,
@@ -146,7 +154,7 @@ const ManageSoftwarePage = ({
       searchQuery: newSearchQuery,
       sortDirection: newSortDirection,
       sortHeader: newSortHeader,
-    }: ITableSearchData) => {
+    }: ITableQueryData) => {
       pageIndex !== newPageIndex && setPageIndex(newPageIndex);
       searchQuery !== newSearchQuery && setSearchQuery(newSearchQuery);
       sortDirection !== newSortDirection &&
@@ -198,6 +206,20 @@ const ManageSoftwarePage = ({
       </p>
     );
   };
+
+  const renderHeader = useCallback(() => {
+    return (
+      <TeamsDropdownHeader
+        location={location}
+        router={router}
+        baseClass={baseClass}
+        onChange={onTeamSelect}
+        defaultTitle="Software"
+        description={renderHeaderDescription}
+        buttons={renderHeaderButtons}
+      />
+    );
+  }, [router, location]);
 
   // TODO: Handle BE returning "0001-01-01T00:00:00Z" when counts have not yet run.
   const renderSoftwareCount = useCallback(() => {
@@ -258,6 +280,46 @@ const ManageSoftwarePage = ({
     ) : null;
   }, [isLoadingCount, software, softwareCountError, softwareCount]);
 
+  const buildUrlQueryString = (queryString: string, vulnerable: boolean) => {
+    queryString = queryString.startsWith("?")
+      ? queryString.slice(1)
+      : queryString;
+    const queryParams = queryString.split("&").filter((el) => el.includes("="));
+    const index = queryParams.findIndex((el) => el.includes("vulnerable"));
+
+    if (vulnerable) {
+      const vulnParam = `vulnerable=${vulnerable}`;
+      if (index >= 0) {
+        // replace old vuln param
+        queryParams.splice(index, 1, vulnParam);
+      } else {
+        // add new vuln param
+        queryParams.push(vulnParam);
+      }
+      console.log("after queryString: ", queryString);
+    } else {
+      // remove old vuln param
+      index >= 0 && queryParams.splice(index, 1);
+    }
+    queryString = queryParams.length ? "?".concat(queryParams.join("&")) : "";
+    console.log("new queryString: ", queryString);
+
+    return queryString;
+  };
+
+  const onVulnFilterChange = useCallback(
+    (vulnerable: boolean) => {
+      setFilterVuln(vulnerable);
+      setPageIndex(0);
+      const queryString = buildUrlQueryString(location?.search, vulnerable);
+      if (location?.search !== queryString) {
+        const path = location?.pathname?.concat(queryString);
+        !!path && router.replace(path);
+      }
+    },
+    [location, router]
+  );
+
   const renderVulnFilterDropdown = () => {
     return (
       <Dropdown
@@ -265,10 +327,7 @@ const ManageSoftwarePage = ({
         className={`${baseClass}__status_dropdown`}
         options={VULNERABLE_DROPDOWN_OPTIONS}
         searchable={false}
-        onChange={(value: boolean) => {
-          setFilterVuln(value);
-          setPageIndex(0);
-        }}
+        onChange={onVulnFilterChange}
       />
     );
   };
@@ -294,15 +353,7 @@ const ManageSoftwarePage = ({
   ) : (
     <div className={baseClass}>
       <div className={`${baseClass}__wrapper body-wrap`}>
-        <TeamsDropdownHeader
-          location={location}
-          router={router}
-          baseClass={baseClass}
-          onChange={onTeamSelect}
-          defaultTitle="Software"
-          description={renderHeaderDescription}
-          buttons={renderHeaderButtons}
-        />
+        {renderHeader()}
         {softwareError && !isLoadingSoftware ? (
           <TableDataError />
         ) : (

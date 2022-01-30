@@ -2,7 +2,7 @@ import React, { Component, useState } from "react";
 import PropTypes from "prop-types";
 // @ts-ignore
 import simpleSearch from "utilities/simple_search";
-import TableContainer from "components/TableContainer";
+import TableContainer, { ITableQueryData } from "components/TableContainer";
 import Button from "components/buttons/Button";
 // @ts-ignore
 import { IScheduledQuery } from "interfaces/scheduled_query";
@@ -41,14 +41,6 @@ interface IPackQueriesListWrapperProps {
   isLoadingPackQueries: boolean;
 }
 
-export interface ITableSearchData {
-  searchQuery: string;
-  sortHeader: string;
-  sortDirection: string;
-  pageSize?: number;
-  pageIndex?: number;
-}
-
 const PackQueriesListWrapper = ({
   onAddPackQuery,
   onEditPackQuery,
@@ -60,7 +52,7 @@ const PackQueriesListWrapper = ({
 
   // NOTE: this is called once on the initial rendering. The initial render of
   // the TableContainer child component will call this handler.
-  const onTableQueryChange = (queryData: ITableSearchData) => {
+  const onTableQueryChange = (queryData: ITableQueryData) => {
     const { searchQuery, sortHeader, sortDirection } = queryData;
     let sortBy = [];
     if (sortHeader !== "") {

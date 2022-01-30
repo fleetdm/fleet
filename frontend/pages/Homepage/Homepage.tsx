@@ -202,7 +202,7 @@ const Homepage = (): JSX.Element => {
             action={{
               type: "link",
               text: "View all software",
-              to: "software/manage",
+              to: "software",
             }}
             showTitle={showSoftwareUI}
           >

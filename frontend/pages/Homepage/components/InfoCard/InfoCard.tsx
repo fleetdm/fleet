@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import { Link } from "react-router";
 
+import paths from "router/paths";
+
 import Button from "components/buttons/Button";
 import LinkArrow from "../../../../../assets/images/icon-arrow-right-vibrant-blue-10x18@2x.png";
 
@@ -19,8 +21,6 @@ interface IInfoCardProps {
         onClick?: () => void;
       };
   total_host_count?: string;
-  isLoadingSoftware?: boolean;
-  isLoadingActivityFeed?: boolean;
   showTitle?: boolean;
 }
 
@@ -31,10 +31,13 @@ const InfoCard = ({
   children,
   action,
   total_host_count,
-  isLoadingSoftware,
-  isLoadingActivityFeed,
   showTitle,
-}: IInfoCardProps) => {
+}: IInfoCardProps): JSX.Element => {
+  const [actionLink, setActionLink] = useState<string | null>(null);
+  const [titleDetail, setTitleDetail] = useState<JSX.Element | string | null>(
+    null
+  );
+
   const renderAction = () => {
     if (action) {
       if (action.type === "button") {
@@ -45,7 +48,9 @@ const InfoCard = ({
             onClick={action.onClick}
           >
             <>
-              <span>{action.text}</span>
+              <span className={`${baseClass}__action-button-text`}>
+                {action.text}
+              </span>
               <img src={LinkArrow} alt="link arrow" id="link-arrow" />
             </>
           </Button>
@@ -53,8 +58,13 @@ const InfoCard = ({
       }
 
       return (
-        <Link to={action.to} className={`${baseClass}__action-button`}>
-          <span>{action.text}</span>
+        <Link
+          to={actionLink || action.to}
+          className={`${baseClass}__action-button`}
+        >
+          <span className={`${baseClass}__action-button-text`}>
+            {action.text}
+          </span>
           <img src={LinkArrow} alt="link arrow" id="link-arrow" />
         </Link>
       );
@@ -63,12 +73,11 @@ const InfoCard = ({
     return null;
   };
 
-  const [subtitle, setSubtitle] = useState<JSX.Element | string | null>("");
-
   const clonedChildren = React.Children.toArray(children).map((child) => {
     if (React.isValidElement(child)) {
       child = React.cloneElement(child, {
-        setSubtitle,
+        setTitleDetail,
+        setActionLink,
       });
     }
     return child;
@@ -83,7 +92,9 @@ const InfoCard = ({
               <h2>{title}</h2>
               {total_host_count && <span>{total_host_count}</span>}
             </div>
-            <div className={`${baseClass}__section-subtitle`}>{subtitle}</div>
+            <div className={`${baseClass}__section-title-detail`}>
+              {titleDetail}
+            </div>
           </div>
           {renderAction()}
         </div>
