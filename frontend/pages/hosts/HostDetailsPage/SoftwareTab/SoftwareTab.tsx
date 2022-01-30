@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useDebouncedCallback } from "use-debounce/lib";
 
 import { ISoftware } from "interfaces/software";
+import { VULNERABLE_DROPDOWN_OPTIONS } from "utilities/constants";
 
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
@@ -18,22 +19,6 @@ interface ISoftwareTableProps {
   isLoading: boolean;
   software: ISoftware[];
 }
-
-const VULNERABLE_OPTIONS = [
-  {
-    disabled: false,
-    label: "All software",
-    value: false,
-    helpText: "All sofware installed on your hosts.",
-  },
-  {
-    disabled: false,
-    label: "Vulnerable software",
-    value: true,
-    helpText:
-      "All software installed on your hosts with detected vulnerabilities.",
-  },
-];
 
 const SoftwareTable = ({
   isLoading,
@@ -66,7 +51,7 @@ const SoftwareTable = ({
       <Dropdown
         value={filters.vulnerabilities}
         className={`${baseClass}__vuln_dropdown`}
-        options={VULNERABLE_OPTIONS}
+        options={VULNERABLE_DROPDOWN_OPTIONS}
         searchable={false}
         onChange={onVulnFilterChange}
       />

@@ -246,6 +246,22 @@ export const PLATFORM_DROPDOWN_OPTIONS = [
   { label: "macOS", value: "darwin" },
 ];
 
+export const VULNERABLE_DROPDOWN_OPTIONS = [
+  {
+    disabled: false,
+    label: "All software",
+    value: false,
+    helpText: "All sofware installed on your hosts.",
+  },
+  {
+    disabled: false,
+    label: "Vulnerable software",
+    value: true,
+    helpText:
+      "All software installed on your hosts with detected vulnerabilities.",
+  },
+];
+
 export const DEFAULT_CREATE_USER_ERRORS = {
   email: "",
   name: "",
