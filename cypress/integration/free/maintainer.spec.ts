@@ -169,7 +169,13 @@ describe(
 
       it("Can select a policy and verify user can run and save", () => {
         cy.getAttached(".data-table__table").within(() => {
-          cy.findByRole("button", { name: /filevault enabled/i }).click();
+          cy.getAttached("tbody").within(() => {
+            cy.getAttached("tr")
+              .first()
+              .within(() => {
+              cy.findByRole("button", { name: /filevault enabled/i }).click();
+            });
+          });
         });
         cy.getAttached(".policy-form__button-wrap--new-policy").within(() => {
           cy.findByRole("button", { name: /run/i }).should("exist");
@@ -216,18 +222,6 @@ describe(
       });
     });
 
-    describe("Settings tests", () => {
-      beforeEach(() => {
-        cy.loginWithCySession("mary@organization.com", "user123#");
-        cy.visit("/settings/users");
-      });
-
-      it("Can verify user does not have access to settings", () => {
-        cy.visit("/settings/organization");
-        cy.findByText(/you do not have permissions/i).should("exist");
-      });
-    });
-
     describe("Profile tests", () => {
       beforeEach(() => {
         cy.loginWithCySession("mary@organization.com", "user123#");
@@ -252,8 +246,18 @@ describe(
     // nav restrictions are at the end because we expect to see a
     // 403 error overlay which will hide the nav and make the test fail
     describe("Nav restrictions", () => {
-      it("should restrict navigation according to role-based access controls", () => {
-        cy.visit("/dashboard");
+      // cypress tends to fail on uncaught exceptions. since we have
+      // our own error handling, it's suggested to use this block to
+      // suppress so the tests will keep running
+      Cypress.on("uncaught:exception", () => {
+        return false;
+      });
+      
+      beforeEach(() => {
+        cy.loginWithCySession("mary@organization.com", "user123#");
+      });
+
+      it("Can verify user does not have access to settings", () => {
         cy.findByText(/settings/i).should("not.exist");
         cy.visit("/settings/organization");
         cy.findByText(/you do not have permissions/i).should("exist");

@@ -149,18 +149,6 @@ describe("Free tier - Observer user", () => {
     });
   });
 
-  describe("Settings tests", () => {
-    beforeEach(() => {
-      cy.loginWithCySession("oliver@organization.com", "user123#");
-      cy.visit("/settings/users");
-    });
-
-    it("Can verify user does not have access to settings", () => {
-      cy.visit("/settings/organization");
-      cy.findByText(/you do not have permissions/i).should("exist");
-    });
-  });
-
   describe("Profile tests", () => {
     beforeEach(() => {
       cy.loginWithCySession("oliver@organization.com", "user123#");
@@ -185,8 +173,18 @@ describe("Free tier - Observer user", () => {
   // nav restrictions are at the end because we expect to see a
   // 403 error overlay which will hide the nav and make the test fail
   describe("Nav restrictions", () => {
+    // cypress tends to fail on uncaught exceptions. since we have
+    // our own error handling, it's suggested to use this block to
+    // suppress so the tests will keep running
+    Cypress.on("uncaught:exception", () => {
+      return false;
+    });
+    
+    beforeEach(() => {
+      cy.loginWithCySession("oliver@organization.com", "user123#");
+    });
+
     it("should restrict navigation according to role-based access controls", () => {
-      cy.visit("/dashboard");
       cy.findByText(/settings/i).should("not.exist");
       cy.findByText(/schedule/i).should("not.exist");
       cy.visit("/settings/organization");
