@@ -2,8 +2,24 @@ import PATHS from "router/paths";
 import URL_PREFIX from "router/url_prefix";
 import permissionUtils from "utilities/permissions";
 import { getSortedTeamOptions } from "fleet/helpers";
+import { IUser } from "interfaces/user";
+import { ITeam } from "interfaces/team";
 
-export default (currentUser) => {
+export interface INavItem {
+  icon: string;
+  name: string;
+  iconName: string;
+  location: {
+    regex: any;
+    pathname: string;
+  };
+}
+
+export default (currentUser: IUser | null) => {
+  if (!currentUser) {
+    return [];
+  }
+
   const logo = [
     {
       icon: "logo",
@@ -75,7 +91,7 @@ export default (currentUser) => {
     permissionUtils.isGlobalAdmin(currentUser)
   ) {
     const userAdminTeams = currentUser.teams.filter(
-      (thisTeam) => thisTeam.role === "admin"
+      (thisTeam: ITeam) => thisTeam.role === "admin"
     );
     const sortedTeams = getSortedTeamOptions(userAdminTeams);
     const adminNavItems = [

@@ -1,14 +1,18 @@
-import React, { Component } from "react";
+import React, { useContext } from "react";
 import { Link } from "react-router";
 import PropTypes from "prop-types";
 import classnames from "classnames";
 
-import userInterface from "interfaces/user";
-import configInterface from "interfaces/config";
+import { IUser } from "interfaces/user";
+import { IConfig } from "interfaces/config";
+// @ts-ignore
 import UserMenu from "components/side_panels/UserMenu";
+// @ts-ignore
 import OrgLogoIcon from "components/icons/OrgLogoIcon";
 
-import navItems from "./navItems";
+import { AppContext } from "context/app";
+
+import navItems, { INavItem } from "./navItems";
 
 import HostsIcon from "../../../../assets/images/icon-main-hosts@2x-16x16@2x.png";
 import SoftwareIcon from "../../../../assets/images/icon-software-16x16@2x.png";
@@ -17,30 +21,28 @@ import PacksIcon from "../../../../assets/images/icon-main-packs@2x-16x16@2x.png
 import PoliciesIcon from "../../../../assets/images/icon-main-policies-16x16@2x.png";
 import AdminIcon from "../../../../assets/images/icon-main-settings@2x-16x16@2x.png";
 
-class SiteTopNav extends Component {
-  static propTypes = {
-    onLogoutUser: PropTypes.func,
-    onNavItemClick: PropTypes.func,
-    pathname: PropTypes.string,
-    user: userInterface,
-    config: configInterface,
-  };
+interface ISiteTopNavProps {
+  onLogoutUser: () => any;
+  onNavItemClick: () => any;
+  pathname: string;
+  user: IUser;
+  config: IConfig;
+}
 
-  constructor(props) {
-    super(props);
+const SiteTopNav = ({
+  onLogoutUser,
+  onNavItemClick,
+  pathname,
+  user,
+  config,
+}: ISiteTopNavProps): JSX.Element => {
+  const { currentUser } = useContext(AppContext);
 
-    const { user: currentUser } = this.props;
-
-    this.userNavItems = navItems(currentUser);
-  }
-
-  renderNavItem = (navItem) => {
+  const renderNavItem = (navItem: INavItem) => {
     const { name, iconName } = navItem;
-    const {
-      pathname,
-      config: { org_logo_url: orgLogoURL },
-    } = this.props;
+    const orgLogoURL = config.org_logo_url;
     const active = navItem.location.regex.test(pathname);
+
     const navItemBaseClass = "site-nav-item";
 
     const navItemClasses = classnames(`${navItemBaseClass}`, {
@@ -101,10 +103,9 @@ class SiteTopNav extends Component {
     );
   };
 
-  renderNavItems = () => {
-    const { renderNavItem, userNavItems } = this;
-    const { onLogoutUser, user, onNavItemClick } = this.props;
+  const userNavItems = navItems(currentUser);
 
+  const renderNavItems = () => {
     return (
       <div className="site-nav-container">
         <ul className="site-nav-list">
@@ -121,11 +122,7 @@ class SiteTopNav extends Component {
     );
   };
 
-  render() {
-    const { renderNavItems } = this;
-
-    return renderNavItems();
-  }
-}
+  return renderNavItems();
+};
 
 export default SiteTopNav;
