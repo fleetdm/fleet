@@ -3,20 +3,20 @@ locals {
 }
 
 variable "prefix" {
-  default = "fleet"
+  description = "Used to prefix resource names to make them unique"
+  default = "fleetdm-"
+}
+
+variable "secret_prefix" {
+  description = "Used to prefix the secret names. Typically the same as var.prefix"
+  default = "/fleetdm"
 }
 
 variable "domain_fleetdm" {
   default = "dogfood.fleetdm.com"
 }
 
-variable "osquery_results_s3_bucket" {
-  default = "fleet-osquery-results-archive"
-}
 
-variable "osquery_status_s3_bucket" {
-  default = "fleet-osquery-status-archive"
-}
 
 variable "vulnerabilities_path" {
   default = "/home/fleet"

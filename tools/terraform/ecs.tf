@@ -12,7 +12,7 @@ resource "aws_route53_record" "record" {
 }
 
 resource "aws_alb" "main" {
-  name            = "fleetdm"
+  name            = "${var.prefix}fleet-alb"
   internal        = false
   security_groups = [aws_security_group.lb.id, aws_security_group.backend.id]
   subnets         = module.vpc.public_subnets
@@ -20,7 +20,7 @@ resource "aws_alb" "main" {
 }
 
 resource "aws_alb_target_group" "main" {
-  name                 = "fleetdm"
+  name                 = "${var.prefix}fleet-alb"
   protocol             = "HTTP"
   target_type          = "ip"
   port                 = "8080"
@@ -41,7 +41,7 @@ resource "aws_alb_target_group" "main" {
   depends_on = [aws_alb.main]
 }
 
-resource "aws_alb_listener" "https-fleetdm" {
+resource "aws_alb_listener" "https-fleet" {
   load_balancer_arn = aws_alb.main.arn
   port              = 443
   protocol          = "HTTPS"
@@ -71,7 +71,7 @@ resource "aws_alb_listener" "http" {
 }
 
 resource "aws_ecs_cluster" "fleet" {
-  name = "${var.prefix}-backend"
+  name = "${var.prefix}fleet-backend"
 
   setting {
     name  = "containerInsights"
@@ -80,7 +80,7 @@ resource "aws_ecs_cluster" "fleet" {
 }
 
 resource "aws_ecs_service" "fleet" {
-  name                               = "fleet"
+  name                               = "${var.prefix}fleet"
   launch_type                        = "FARGATE"
   cluster                            = aws_ecs_cluster.fleet.id
   task_definition                    = aws_ecs_task_definition.backend.arn
@@ -91,7 +91,7 @@ resource "aws_ecs_service" "fleet" {
 
   load_balancer {
     target_group_arn = aws_alb_target_group.main.arn
-    container_name   = "fleet"
+    container_name   = "${var.prefix}fleet"
     container_port   = 8080
   }
 
@@ -105,16 +105,16 @@ resource "aws_ecs_service" "fleet" {
     security_groups = [aws_security_group.backend.id]
   }
 
-  depends_on = [aws_alb_listener.http, aws_alb_listener.https-fleetdm]
+  depends_on = [aws_alb_listener.http, aws_alb_listener.https-fleet]
 }
 
 resource "aws_cloudwatch_log_group" "backend" {
-  name              = "fleetdm"
+  name              = "${var.prefix}fleet-logs"
   retention_in_days = 1
 }
 
 resource "aws_ecs_task_definition" "backend" {
-  family                   = "fleet"
+  family                   = "${var.prefix}fleet"
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
   execution_role_arn       = aws_iam_role.main.arn
@@ -124,7 +124,7 @@ resource "aws_ecs_task_definition" "backend" {
   container_definitions = jsonencode(
     [
       {
-        name        = "fleet"
+        name        = "${var.prefix}fleet"
         image       = var.fleet_image
         cpu         = var.fleet_backend_cpu
         memory      = var.fleet_backend_mem
@@ -144,7 +144,7 @@ resource "aws_ecs_task_definition" "backend" {
           options = {
             awslogs-group         = aws_cloudwatch_log_group.backend.name
             awslogs-region        = data.aws_region.current.name
-            awslogs-stream-prefix = "fleet"
+            awslogs-stream-prefix = "${var.prefix}fleet"
           }
         },
         ulimits = [
@@ -239,7 +239,7 @@ resource "aws_ecs_task_definition" "backend" {
           },
           {
             name  = "FLEET_S3_PREFIX"
-            value = "carve_results/"
+            value = "${var.prefix}carve_results/"
           },
           {
             name  = "FLEET_LICENSE_KEY"
@@ -252,7 +252,7 @@ resource "aws_ecs_task_definition" "backend" {
 
 
 resource "aws_ecs_task_definition" "migration" {
-  family                   = "fleet-migrate"
+  family                   = "${var.prefix}fleet-migrate"
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
   execution_role_arn       = aws_iam_role.main.arn
@@ -262,7 +262,7 @@ resource "aws_ecs_task_definition" "migration" {
   container_definitions = jsonencode(
     [
       {
-        name        = "fleet-prepare-db"
+        name        = "${var.prefix}fleet-prepare-db"
         image       = var.fleet_image
         cpu         = var.cpu_migrate
         memory      = var.mem_migrate
@@ -282,7 +282,7 @@ resource "aws_ecs_task_definition" "migration" {
           options = {
             awslogs-group         = aws_cloudwatch_log_group.backend.name
             awslogs-region        = data.aws_region.current.name
-            awslogs-stream-prefix = "fleet"
+            awslogs-stream-prefix = "${var.prefix}fleet"
           }
         },
         command = ["fleet", "prepare", "--no-prompt=true", "db"]
@@ -323,7 +323,7 @@ resource "aws_appautoscaling_target" "ecs_target" {
 }
 
 resource "aws_appautoscaling_policy" "ecs_policy_memory" {
-  name               = "fleet-memory-autoscaling"
+  name               = "${var.prefix}fleet-memory-autoscaling"
   policy_type        = "TargetTrackingScaling"
   resource_id        = aws_appautoscaling_target.ecs_target.resource_id
   scalable_dimension = aws_appautoscaling_target.ecs_target.scalable_dimension
@@ -338,7 +338,7 @@ resource "aws_appautoscaling_policy" "ecs_policy_memory" {
 }
 
 resource "aws_appautoscaling_policy" "ecs_policy_cpu" {
-  name               = "fleet-cpu-autoscaling"
+  name               = "${var.prefix}fleet-cpu-autoscaling"
   policy_type        = "TargetTrackingScaling"
   resource_id        = aws_appautoscaling_target.ecs_target.resource_id
   scalable_dimension = aws_appautoscaling_target.ecs_target.scalable_dimension

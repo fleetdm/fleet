@@ -1,5 +1,5 @@
 resource "aws_s3_bucket" "osquery-results" {
-  bucket = var.osquery_results_s3_bucket
+  bucket = "${var.prefix}fleet-osquery-results-archive"
   acl    = "private"
 
   lifecycle_rule {
@@ -19,7 +19,7 @@ resource "aws_s3_bucket" "osquery-results" {
 }
 
 resource "aws_s3_bucket" "osquery-status" {
-  bucket = var.osquery_status_s3_bucket
+  bucket = "${var.prefix}fleet-osquery-status-archive"
   acl    = "private"
 
   lifecycle_rule {
@@ -67,12 +67,12 @@ data "aws_iam_policy_document" "osquery_status_policy_doc" {
 }
 
 resource "aws_iam_policy" "firehose-results" {
-  name   = "osquery_results_firehose_policy"
+  name   = "${var.prefix}osquery-results-firehose-policy"
   policy = data.aws_iam_policy_document.osquery_results_policy_doc.json
 }
 
 resource "aws_iam_policy" "firehose-status" {
-  name   = "osquery_status_firehose_policy"
+  name   = "${var.prefix}osquery-status-firehose-policy"
   policy = data.aws_iam_policy_document.osquery_status_policy_doc.json
 }
 
@@ -106,7 +106,7 @@ data "aws_iam_policy_document" "osquery_firehose_assume_role" {
 }
 
 resource "aws_kinesis_firehose_delivery_stream" "osquery_results" {
-  name        = "osquery_results"
+  name        = "${var.prefix}osquery-results"
   destination = "s3"
 
   s3_configuration {
@@ -116,7 +116,7 @@ resource "aws_kinesis_firehose_delivery_stream" "osquery_results" {
 }
 
 resource "aws_kinesis_firehose_delivery_stream" "osquery_status" {
-  name        = "osquery_status"
+  name        = "${var.prefix}osquery-status"
   destination = "s3"
 
   s3_configuration {

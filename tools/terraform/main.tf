@@ -9,10 +9,10 @@ provider "aws" {
 terraform {
   // these values should match what is bootstrapped in ./remote-state
   backend "s3" {
-    bucket         = "fleet-terraform-remote-state"
+    bucket         = "${var.prefix}fleet-terraform-remote-state"
     region         = "us-east-2"
     key            = "fleet/"
-    dynamodb_table = "fleet-terraform-state-lock"
+    dynamodb_table = "${var.prefix}fleet-terraform-state-lock"
   }
   required_providers {
     aws = {

@@ -1,6 +1,6 @@
 // file carving destination
 resource "aws_s3_bucket" "osquery-carve" {
-  bucket = "osquery-carve-${terraform.workspace}"
+  bucket = "${var.prefix}fleet-osquery-carve"
   acl    = "private"
 
   lifecycle_rule {

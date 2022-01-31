@@ -1,7 +1,7 @@
 module "vpc" {
   source = "terraform-aws-modules/vpc/aws"
 
-  name = "fleet-vpc"
+  name = "${var.prefix}fleet-vpc"
   cidr = "10.10.0.0/16"
 
   azs                 = ["us-east-2a", "us-east-2b", "us-east-2c"]

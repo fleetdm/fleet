@@ -4,7 +4,7 @@ resource "random_password" "database_password" {
 }
 
 resource "aws_secretsmanager_secret" "database_password_secret" {
-  name = "/fleet/database/password/master"
+  name = "${var.secret_prefix}/fleet/database/password/master"
 }
 
 resource "aws_secretsmanager_secret_version" "database_password_secret_version" {
@@ -17,7 +17,7 @@ resource "aws_secretsmanager_secret_version" "database_password_secret_version" 
 //  source  = "terraform-aws-modules/rds-aurora/aws"
 //  version = "5.2.0"
 //
-//  name                   = "${local.name}-mysql"
+//  name                   = "${var.prefix}fleet-mysql"
 //  engine                 = "aurora-mysql"
 //  engine_mode            = "serverless"
 //  storage_encrypted      = true
@@ -63,7 +63,7 @@ module "aurora_mysql" {
   source  = "terraform-aws-modules/rds-aurora/aws"
   version = "5.2.0"
 
-  name                  = "${local.name}-mysql-iam"
+  name                  = "${var.prefix}fleet-mysql-iam"
   engine                = "aurora-mysql"
   engine_version        = "5.7.mysql_aurora.2.10.0"
   instance_type         = var.db_instance_type_writer
@@ -89,9 +89,9 @@ module "aurora_mysql" {
   replica_scale_max     = 3
 
   monitoring_interval           = 60
-  iam_role_name                 = "${local.name}-rds-enhanced-monitoring"
+  iam_role_name                 = "${var.prefix}fleet-rds-enhanced-monitoring"
   iam_role_use_name_prefix      = true
-  iam_role_description          = "${local.name} RDS enhanced monitoring IAM role"
+  iam_role_description          = "${var.prefix} RDS enhanced monitoring IAM role"
   iam_role_path                 = "/autoscaling/"
   iam_role_max_session_duration = 7200
 
@@ -104,13 +104,13 @@ module "aurora_mysql" {
 }
 
 resource "aws_db_parameter_group" "example_mysql" {
-  name        = "${local.name}-aurora-db-mysql-parameter-group"
+  name        = "${var.prefix}fleet-aurora-db-mysql-parameter-group"
   family      = "aurora-mysql5.7"
-  description = "${local.name}-aurora-db-mysql-parameter-group"
+  description = "${var.prefix}fleet-aurora-db-mysql-parameter-group"
 }
 
 resource "aws_rds_cluster_parameter_group" "example_mysql" {
-  name        = "${local.name}-aurora-mysql-cluster-parameter-group"
+  name        = "${var.prefix}fleet-aurora-mysql-cluster-parameter-group"
   family      = "aurora-mysql5.7"
-  description = "${local.name}-aurora-mysql-cluster-parameter-group"
+  description = "${var.prefix}fleet-aurora-mysql-cluster-parameter-group"
 }

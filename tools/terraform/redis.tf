@@ -16,7 +16,7 @@ resource "aws_elasticache_replication_group" "default" {
   parameter_group_name          = "default.redis6.x"
   subnet_group_name             = module.vpc.elasticache_subnet_group_name
   security_group_ids            = [aws_security_group.redis.id]
-  replication_group_id          = "fleetdm-redis"
+  replication_group_id          = "${var.prefix}fleet-redis"
   number_cache_clusters         = var.number_cache_clusters
   node_type                     = var.redis_instance
   engine_version                = var.engine_version
@@ -27,7 +27,7 @@ resource "aws_elasticache_replication_group" "default" {
   at_rest_encryption_enabled    = false
   transit_encryption_enabled    = false
   apply_immediately             = true
-  replication_group_description = "fleetdm-redis"
+  replication_group_description = "${var.prefix}fleet-redis"
 }
 
 resource "aws_security_group" "redis" {
@@ -36,7 +36,7 @@ resource "aws_security_group" "redis" {
 }
 
 locals {
-  security_group_name = "${var.prefix}-elasticache-redis"
+  security_group_name = "${var.prefix}fleet-elasticache-redis"
 }
 
 resource "aws_security_group_rule" "ingress" {
