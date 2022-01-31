@@ -173,8 +173,8 @@ describe(
             cy.getAttached("tr")
               .first()
               .within(() => {
-              cy.findByRole("button", { name: /filevault enabled/i }).click();
-            });
+                cy.findByRole("button", { name: /filevault enabled/i }).click();
+              });
           });
         });
         cy.getAttached(".policy-form__button-wrap--new-policy").within(() => {
@@ -252,7 +252,7 @@ describe(
       Cypress.on("uncaught:exception", () => {
         return false;
       });
-      
+
       beforeEach(() => {
         cy.loginWithCySession("mary@organization.com", "user123#");
       });

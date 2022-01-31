@@ -179,7 +179,7 @@ describe("Free tier - Observer user", () => {
     Cypress.on("uncaught:exception", () => {
       return false;
     });
-    
+
     beforeEach(() => {
       cy.loginWithCySession("oliver@organization.com", "user123#");
     });
