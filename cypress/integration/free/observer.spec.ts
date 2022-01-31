@@ -180,17 +180,21 @@ describe("Free tier - Observer user", () => {
           .contains(/observer/i);
       });
     });
+  });
 
-    // nav restrictions are at the end because we expect to see a
-    // 403 error overlay which will hide the nav and make the test fail
-    cy.visit("/dashboard");
-    cy.findByText(/settings/i).should("not.exist");
-    cy.findByText(/schedule/i).should("not.exist");
-    cy.visit("/settings/organization");
-    cy.findByText(/you do not have permissions/i).should("exist");
-    cy.visit("/packs/manage");
-    cy.findByText(/you do not have permissions/i).should("exist");
-    cy.visit("/schedule/manage");
-    cy.findByText(/you do not have permissions/i).should("exist");
+  // nav restrictions are at the end because we expect to see a
+  // 403 error overlay which will hide the nav and make the test fail
+  describe("Nav restrictions", () => {
+    it("should restrict navigation according to role-based access controls", () => {
+      cy.visit("/dashboard");
+      cy.findByText(/settings/i).should("not.exist");
+      cy.findByText(/schedule/i).should("not.exist");
+      cy.visit("/settings/organization");
+      cy.findByText(/you do not have permissions/i).should("exist");
+      cy.visit("/packs/manage");
+      cy.findByText(/you do not have permissions/i).should("exist");
+      cy.visit("/schedule/manage");
+      cy.findByText(/you do not have permissions/i).should("exist");
+    });
   });
 });

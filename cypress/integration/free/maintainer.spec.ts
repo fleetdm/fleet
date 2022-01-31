@@ -93,38 +93,41 @@ describe(
 
       it("Can add a new query", () => {
         cy.findByRole("button", { name: /new query/i }).click();
+        cy.getAttached(".ace_text-input")
+          .first()
+          .click({ force: true })
+          .type("{selectall}{backspace}SELECT * FROM cypress;", { force: true });
+        cy.findByRole("button", { name: /save/i }).click();
+        cy.findByLabelText(/name/i)
+          .click()
+          .type("Cypress test query");
+        cy.findByLabelText(/description/i)
+          .click()
+          .type("Cypress test of create new query flow.");
+        cy.findByLabelText(/observers can run/i).click({ force: true });
+        cy.findByRole("button", { name: /save query/i }).click();
+        cy.findByText(/query created/i).should("exist");
       });
 
-      // TODO - Fix tests according to improved query experience - MP
-      // On the Queries - new/edit/run page, they should…
-      // Edit the “Query name,” “SQL,” “Description,” “Observers can run,” and “Select targets” input fields.
-      // cy.findByLabelText(/query name/i)
-      //   .click()
-      //   .type("Cypress test query");
-      // // ACE editor requires special handling to get typing to work sometimes
-      // cy.getAttached(".ace_text-input")
-      //   .first()
-      //   .click({ force: true })
-      //   .type("{selectall}{backspace}SELECT * FROM cypress;", { force: true });
-      // cy.findByLabelText(/description/i)
-      //   .click()
-      //   .type("Cypress test of create new query flow.");
-      // cy.findByLabelText(/observers can run/i).click({ force: true });
-
-      // // See and select the “Save changes,” “Save as new,” and “Run” buttons.
-      // cy.findByRole("button", { name: /save/i }).click();
-      // cy.findByRole("button", { name: /new/i }).click();
-      // cy.findByRole("button", { name: /run/i }).should("exist");
-
-      // // NOT see the “Teams” section in the Select target picker. This picker is summoned when the “Select targets” field is selected.
-      // cy.getAttached(".target-select").within(() => {
-      //   cy.findByText(/Label name, host name, IP address, etc./i).click();
-      //   cy.findByText(/teams/i).should("not.exist");
-      // });
-
-      // cy.contains("a", /back to queries/i).click({ force: true });
-      // cy.findByText(/cypress test query/i).click({ force: true });
-      // cy.findByText(/edit & run query/i).should("exist");
+      it("Can edit a query", () => {
+        cy.findByText(/cypress test query/i).click({ force: true });
+        cy.getAttached(".ace_text-input")
+          .first()
+          .click({ force: true })
+          .type("{selectall}{backspace}SELECT 1 FROM cypress;", { force: true });
+        cy.findByText("Save").click(); // we have 'save as new' also
+        cy.findByText(/query updated/i).should("exist");
+      });
+      
+      it("Can run a query", () => {
+        cy.findByText(/cypress test query/i).click({ force: true });
+        cy.findByText(/run query/i).click({ force: true });
+        cy.findByText(/select targets/i).should("exist");
+        cy.findByText(/all hosts/i).click();
+        cy.findByText(/targets selected/i).should("exist"); // target count
+        cy.findByText(/run/i).click();
+        cy.findByText(/querying selected hosts/i).should("exist"); // target count
+      });
     });
 
     describe("Policies tests", () => {
@@ -242,13 +245,17 @@ describe(
             .contains(/maintainer/i);
         });
       });
+    });
 
-      // nav restrictions are at the end because we expect to see a
-      // 403 error overlay which will hide the nav and make the test fail
-      cy.visit("/dashboard");
-      cy.findByText(/settings/i).should("not.exist");
-      cy.visit("/settings/organization");
-      cy.findByText(/you do not have permissions/i).should("exist");
+    // nav restrictions are at the end because we expect to see a
+    // 403 error overlay which will hide the nav and make the test fail
+    describe("Nav restrictions", () => {
+      it("should restrict navigation according to role-based access controls", () => {
+        cy.visit("/dashboard");
+        cy.findByText(/settings/i).should("not.exist");
+        cy.visit("/settings/organization");
+        cy.findByText(/you do not have permissions/i).should("exist");
+      });
     });
   }
 );
