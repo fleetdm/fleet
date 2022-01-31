@@ -424,7 +424,13 @@ func (svc *Service) detailQueriesForHost(ctx context.Context, host *fleet.Host) 
 
 	queries := make(map[string]string)
 	detailQueries := osquery_utils.GetDetailQueries(config)
+
 	for name, query := range detailQueries {
+		// NOTE: Disabling "scheduled_query_stats" query to rule
+		// out performance issues with scheduled query stats ingestion.
+		if name == "scheduled_query_stats" {
+			continue
+		}
 		if query.RunsForPlatform(host.Platform) {
 			queries[hostDetailQueryPrefix+name] = query.Query
 		}
