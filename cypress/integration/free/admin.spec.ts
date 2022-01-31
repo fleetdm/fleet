@@ -107,11 +107,11 @@ describe(
         cy.getAttached(".ace_text-input")
           .first()
           .click({ force: true })
-          .type("{selectall}{backspace}SELECT * FROM cypress;", { force: true });
+          .type("{selectall}{backspace}SELECT * FROM cypress;", {
+            force: true,
+          });
         cy.findByRole("button", { name: /save/i }).click();
-        cy.findByLabelText(/name/i)
-          .click()
-          .type("Cypress test query");
+        cy.findByLabelText(/name/i).click().type("Cypress test query");
         cy.findByLabelText(/description/i)
           .click()
           .type("Cypress test of create new query flow.");
@@ -125,11 +125,13 @@ describe(
         cy.getAttached(".ace_text-input")
           .first()
           .click({ force: true })
-          .type("{selectall}{backspace}SELECT 1 FROM cypress;", { force: true });
+          .type("{selectall}{backspace}SELECT 1 FROM cypress;", {
+            force: true,
+          });
         cy.findByText("Save").click(); // we have 'save as new' also
         cy.findByText(/query updated/i).should("exist");
       });
-      
+
       it("Can run a query", () => {
         cy.findByText(/cypress test query/i).click({ force: true });
         cy.findByText(/run query/i).click({ force: true });
@@ -140,7 +142,7 @@ describe(
         cy.findByText(/querying selected hosts/i).should("exist"); // target count
       });
     });
-    
+
     describe("Policies tests", () => {
       beforeEach(() => {
         cy.loginWithCySession("anna@organization.com", "user123#");
