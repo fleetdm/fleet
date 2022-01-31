@@ -64,17 +64,7 @@ const SoftwareTable = ({
     <div className="section section--software">
       <p className="section__header">Software</p>
 
-      {software.length === 0 ? (
-        <div className="results">
-          <p className="results__header">
-            No installed software detected on this host.
-          </p>
-          <p className="results__data">
-            Expecting to see software? Try again in a few seconds as the system
-            catches up.
-          </p>
-        </div>
-      ) : (
+      {software.length ? (
         <>
           {software && <SoftwareVulnCount softwareList={software} />}
           {software && (
@@ -99,6 +89,16 @@ const SoftwareTable = ({
             />
           )}
         </>
+      ) : (
+        <div className="results">
+          <p className="results__header">
+            No installed software detected on this host.
+          </p>
+          <p className="results__data">
+            Expecting to see software? Try again in a few seconds as the system
+            catches up.
+          </p>
+        </div>
       )}
     </div>
   );

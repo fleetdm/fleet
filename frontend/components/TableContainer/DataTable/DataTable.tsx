@@ -202,7 +202,6 @@ const DataTable = ({
         id,
         value,
       }));
-      // console.log(allFilters);
       !!allFilters.length && setAllFilters(allFilters);
     }
   }, [tableFilters]);
