@@ -27,16 +27,6 @@ describe("Free tier - Observer user", () => {
       return false;
     });
 
-    // Nav restrictions
-    cy.findByText(/settings/i).should("not.exist");
-    cy.findByText(/schedule/i).should("not.exist");
-    cy.visit("/settings/organization");
-    cy.findByText(/you do not have permissions/i).should("exist");
-    cy.visit("/packs/manage");
-    cy.findByText(/you do not have permissions/i).should("exist");
-    cy.visit("/schedule/manage");
-    cy.findByText(/you do not have permissions/i).should("exist");
-
     // Host manage page: No team UI, cannot add host, add label, nor enroll secret
     cy.visit("/hosts/manage");
     cy.findByText(/teams/i).should("not.exist");
@@ -109,5 +99,17 @@ describe("Free tier - Observer user", () => {
         .next()
         .contains(/observer/i);
     });
+
+    // nav restrictions are at the end because we expect to see a
+    // 403 error overlay which will hide the nav and make the test fail
+    cy.visit("/dashboard");
+    cy.findByText(/settings/i).should("not.exist");
+    cy.findByText(/schedule/i).should("not.exist");
+    cy.visit("/settings/organization");
+    cy.findByText(/you do not have permissions/i).should("exist");
+    cy.visit("/packs/manage");
+    cy.findByText(/you do not have permissions/i).should("exist");
+    cy.visit("/schedule/manage");
+    cy.findByText(/you do not have permissions/i).should("exist");
   });
 });

@@ -72,12 +72,12 @@ func TestCollector(t *testing.T) {
 	}
 
 	t.Run("standalone", func(t *testing.T) {
-		pool := redistest.SetupRedis(t, false, false, false)
+		pool := redistest.SetupRedis(t, "locks:", false, false, false)
 		runTest(t, pool)
 	})
 
 	t.Run("cluster", func(t *testing.T) {
-		pool := redistest.SetupRedis(t, true, false, false)
+		pool := redistest.SetupRedis(t, "locks:", true, false, false)
 		runTest(t, pool)
 	})
 }

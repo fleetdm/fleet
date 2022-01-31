@@ -27,15 +27,8 @@ type FleetEndpoints struct {
 	Logout                                endpoint.Endpoint
 	ForgotPassword                        endpoint.Endpoint
 	ResetPassword                         endpoint.Endpoint
-	Me                                    endpoint.Endpoint
 	CreateUserWithInvite                  endpoint.Endpoint
 	PerformRequiredPasswordReset          endpoint.Endpoint
-	GetSessionInfo                        endpoint.Endpoint
-	DeleteSession                         endpoint.Endpoint
-	GetAppConfig                          endpoint.Endpoint
-	ModifyAppConfig                       endpoint.Endpoint
-	ApplyEnrollSecretSpec                 endpoint.Endpoint
-	GetEnrollSecretSpec                   endpoint.Endpoint
 	CreateInvite                          endpoint.Endpoint
 	ListInvites                           endpoint.Endpoint
 	DeleteInvite                          endpoint.Endpoint
@@ -60,23 +53,12 @@ type FleetEndpoints struct {
 	CarveBegin                            endpoint.Endpoint
 	CarveBlock                            endpoint.Endpoint
 	SearchTargets                         endpoint.Endpoint
-	GetCertificate                        endpoint.Endpoint
 	ChangeEmail                           endpoint.Endpoint
 	InitiateSSO                           endpoint.Endpoint
 	CallbackSSO                           endpoint.Endpoint
 	SSOSettings                           endpoint.Endpoint
 	StatusResultStore                     endpoint.Endpoint
 	StatusLiveQuery                       endpoint.Endpoint
-	Version                               endpoint.Endpoint
-	CreateTeam                            endpoint.Endpoint
-	ModifyTeam                            endpoint.Endpoint
-	ModifyTeamAgentOptions                endpoint.Endpoint
-	DeleteTeam                            endpoint.Endpoint
-	ListTeams                             endpoint.Endpoint
-	ListTeamUsers                         endpoint.Endpoint
-	AddTeamUsers                          endpoint.Endpoint
-	DeleteTeamUsers                       endpoint.Endpoint
-	TeamEnrollSecrets                     endpoint.Endpoint
 }
 
 // MakeFleetServerEndpoints creates the Fleet API endpoints.
@@ -105,16 +87,10 @@ func MakeFleetServerEndpoints(svc fleet.Service, urlPrefix string, limitStore th
 		PerformRequiredPasswordReset: logged(canPerformPasswordReset(makePerformRequiredPasswordResetEndpoint(svc))),
 
 		// Standard user authentication routes
-		Me:                                    authenticatedUser(svc, makeGetSessionUserEndpoint(svc)),
-		GetSessionInfo:                        authenticatedUser(svc, makeGetInfoAboutSessionEndpoint(svc)),
-		DeleteSession:                         authenticatedUser(svc, makeDeleteSessionEndpoint(svc)),
-		GetAppConfig:                          authenticatedUser(svc, makeGetAppConfigEndpoint(svc)),
-		ModifyAppConfig:                       authenticatedUser(svc, makeModifyAppConfigEndpoint(svc)),
-		ApplyEnrollSecretSpec:                 authenticatedUser(svc, makeApplyEnrollSecretSpecEndpoint(svc)),
-		GetEnrollSecretSpec:                   authenticatedUser(svc, makeGetEnrollSecretSpecEndpoint(svc)),
-		CreateInvite:                          authenticatedUser(svc, makeCreateInviteEndpoint(svc)),
-		ListInvites:                           authenticatedUser(svc, makeListInvitesEndpoint(svc)),
-		DeleteInvite:                          authenticatedUser(svc, makeDeleteInviteEndpoint(svc)),
+		CreateInvite: authenticatedUser(svc, makeCreateInviteEndpoint(svc)),
+		ListInvites:  authenticatedUser(svc, makeListInvitesEndpoint(svc)),
+		DeleteInvite: authenticatedUser(svc, makeDeleteInviteEndpoint(svc)),
+
 		GetQuery:                              authenticatedUser(svc, makeGetQueryEndpoint(svc)),
 		ListQueries:                           authenticatedUser(svc, makeListQueriesEndpoint(svc)),
 		CreateQuery:                           authenticatedUser(svc, makeCreateQueryEndpoint(svc)),
@@ -128,18 +104,7 @@ func MakeFleetServerEndpoints(svc fleet.Service, urlPrefix string, limitStore th
 		CreateDistributedQueryCampaign:        authenticatedUser(svc, makeCreateDistributedQueryCampaignEndpoint(svc)),
 		CreateDistributedQueryCampaignByNames: authenticatedUser(svc, makeCreateDistributedQueryCampaignByNamesEndpoint(svc)),
 		SearchTargets:                         authenticatedUser(svc, makeSearchTargetsEndpoint(svc)),
-		GetCertificate:                        authenticatedUser(svc, makeCertificateEndpoint(svc)),
 		ChangeEmail:                           authenticatedUser(svc, makeChangeEmailEndpoint(svc)),
-		Version:                               authenticatedUser(svc, makeVersionEndpoint(svc)),
-		CreateTeam:                            authenticatedUser(svc, makeCreateTeamEndpoint(svc)),
-		ModifyTeam:                            authenticatedUser(svc, makeModifyTeamEndpoint(svc)),
-		ModifyTeamAgentOptions:                authenticatedUser(svc, makeModifyTeamAgentOptionsEndpoint(svc)),
-		DeleteTeam:                            authenticatedUser(svc, makeDeleteTeamEndpoint(svc)),
-		ListTeams:                             authenticatedUser(svc, makeListTeamsEndpoint(svc)),
-		ListTeamUsers:                         authenticatedUser(svc, makeListTeamUsersEndpoint(svc)),
-		AddTeamUsers:                          authenticatedUser(svc, makeAddTeamUsersEndpoint(svc)),
-		DeleteTeamUsers:                       authenticatedUser(svc, makeDeleteTeamUsersEndpoint(svc)),
-		TeamEnrollSecrets:                     authenticatedUser(svc, makeTeamEnrollSecretsEndpoint(svc)),
 
 		// Authenticated status endpoints
 		StatusResultStore: authenticatedUser(svc, makeStatusResultStoreEndpoint(svc)),
@@ -165,15 +130,8 @@ type fleetHandlers struct {
 	Logout                                http.Handler
 	ForgotPassword                        http.Handler
 	ResetPassword                         http.Handler
-	Me                                    http.Handler
 	CreateUserWithInvite                  http.Handler
 	PerformRequiredPasswordReset          http.Handler
-	GetSessionInfo                        http.Handler
-	DeleteSession                         http.Handler
-	GetAppConfig                          http.Handler
-	ModifyAppConfig                       http.Handler
-	ApplyEnrollSecretSpec                 http.Handler
-	GetEnrollSecretSpec                   http.Handler
 	CreateInvite                          http.Handler
 	ListInvites                           http.Handler
 	DeleteInvite                          http.Handler
@@ -198,23 +156,12 @@ type fleetHandlers struct {
 	CarveBegin                            http.Handler
 	CarveBlock                            http.Handler
 	SearchTargets                         http.Handler
-	GetCertificate                        http.Handler
 	ChangeEmail                           http.Handler
 	InitiateSSO                           http.Handler
 	CallbackSSO                           http.Handler
 	SettingsSSO                           http.Handler
 	StatusResultStore                     http.Handler
 	StatusLiveQuery                       http.Handler
-	Version                               http.Handler
-	CreateTeam                            http.Handler
-	ModifyTeam                            http.Handler
-	ModifyTeamAgentOptions                http.Handler
-	DeleteTeam                            http.Handler
-	ListTeams                             http.Handler
-	ListTeamUsers                         http.Handler
-	AddTeamUsers                          http.Handler
-	DeleteTeamUsers                       http.Handler
-	TeamEnrollSecrets                     http.Handler
 }
 
 func makeKitHandlers(e FleetEndpoints, opts []kithttp.ServerOption) *fleetHandlers {
@@ -227,15 +174,8 @@ func makeKitHandlers(e FleetEndpoints, opts []kithttp.ServerOption) *fleetHandle
 		Logout:                                newServer(e.Logout, decodeNoParamsRequest),
 		ForgotPassword:                        newServer(e.ForgotPassword, decodeForgotPasswordRequest),
 		ResetPassword:                         newServer(e.ResetPassword, decodeResetPasswordRequest),
-		Me:                                    newServer(e.Me, decodeNoParamsRequest),
 		CreateUserWithInvite:                  newServer(e.CreateUserWithInvite, decodeCreateUserRequest),
 		PerformRequiredPasswordReset:          newServer(e.PerformRequiredPasswordReset, decodePerformRequiredPasswordResetRequest),
-		GetSessionInfo:                        newServer(e.GetSessionInfo, decodeGetInfoAboutSessionRequest),
-		DeleteSession:                         newServer(e.DeleteSession, decodeDeleteSessionRequest),
-		GetAppConfig:                          newServer(e.GetAppConfig, decodeNoParamsRequest),
-		ModifyAppConfig:                       newServer(e.ModifyAppConfig, decodeModifyAppConfigRequest),
-		ApplyEnrollSecretSpec:                 newServer(e.ApplyEnrollSecretSpec, decodeApplyEnrollSecretSpecRequest),
-		GetEnrollSecretSpec:                   newServer(e.GetEnrollSecretSpec, decodeNoParamsRequest),
 		CreateInvite:                          newServer(e.CreateInvite, decodeCreateInviteRequest),
 		ListInvites:                           newServer(e.ListInvites, decodeListInvitesRequest),
 		DeleteInvite:                          newServer(e.DeleteInvite, decodeDeleteInviteRequest),
@@ -260,23 +200,12 @@ func makeKitHandlers(e FleetEndpoints, opts []kithttp.ServerOption) *fleetHandle
 		CarveBegin:                            newServer(e.CarveBegin, decodeCarveBeginRequest),
 		CarveBlock:                            newServer(e.CarveBlock, decodeCarveBlockRequest),
 		SearchTargets:                         newServer(e.SearchTargets, decodeSearchTargetsRequest),
-		GetCertificate:                        newServer(e.GetCertificate, decodeNoParamsRequest),
 		ChangeEmail:                           newServer(e.ChangeEmail, decodeChangeEmailRequest),
 		InitiateSSO:                           newServer(e.InitiateSSO, decodeInitiateSSORequest),
 		CallbackSSO:                           newServer(e.CallbackSSO, decodeCallbackSSORequest),
 		SettingsSSO:                           newServer(e.SSOSettings, decodeNoParamsRequest),
 		StatusResultStore:                     newServer(e.StatusResultStore, decodeNoParamsRequest),
 		StatusLiveQuery:                       newServer(e.StatusLiveQuery, decodeNoParamsRequest),
-		Version:                               newServer(e.Version, decodeNoParamsRequest),
-		CreateTeam:                            newServer(e.CreateTeam, decodeCreateTeamRequest),
-		ModifyTeam:                            newServer(e.ModifyTeam, decodeModifyTeamRequest),
-		ModifyTeamAgentOptions:                newServer(e.ModifyTeamAgentOptions, decodeModifyTeamAgentOptionsRequest),
-		DeleteTeam:                            newServer(e.DeleteTeam, decodeDeleteTeamRequest),
-		ListTeams:                             newServer(e.ListTeams, decodeListTeamsRequest),
-		ListTeamUsers:                         newServer(e.ListTeamUsers, decodeListTeamUsersRequest),
-		AddTeamUsers:                          newServer(e.AddTeamUsers, decodeModifyTeamUsersRequest),
-		DeleteTeamUsers:                       newServer(e.DeleteTeamUsers, decodeModifyTeamUsersRequest),
-		TeamEnrollSecrets:                     newServer(e.TeamEnrollSecrets, decodeTeamEnrollSecretsRequest),
 	}
 }
 
@@ -340,7 +269,7 @@ func MakeHandler(svc fleet.Service, config config.FleetConfig, logger kitlog.Log
 			setRequestsContexts(svc),
 		),
 		kithttp.ServerErrorHandler(&errorHandler{logger}),
-		kithttp.ServerErrorEncoder(encodeError),
+		kithttp.ServerErrorEncoder(encodeErrorAndTrySentry(config.Sentry.Dsn != "")),
 		kithttp.ServerAfter(
 			kithttp.SetContentType("application/json; charset=utf-8"),
 			logRequestEnd(logger),
@@ -451,7 +380,6 @@ func attachFleetAPIRoutes(r *mux.Router, h *fleetHandlers) {
 	r.Handle("/api/v1/fleet/logout", h.Logout).Methods("POST").Name("logout")
 	r.Handle("/api/v1/fleet/forgot_password", h.ForgotPassword).Methods("POST").Name("forgot_password")
 	r.Handle("/api/v1/fleet/reset_password", h.ResetPassword).Methods("POST").Name("reset_password")
-	r.Handle("/api/v1/fleet/me", h.Me).Methods("GET").Name("me")
 	r.Handle("/api/v1/fleet/perform_required_password_reset", h.PerformRequiredPasswordReset).Methods("POST").Name("perform_required_password_reset")
 	r.Handle("/api/v1/fleet/sso", h.InitiateSSO).Methods("POST").Name("intiate_sso")
 	r.Handle("/api/v1/fleet/sso", h.SettingsSSO).Methods("GET").Name("sso_config")
@@ -459,14 +387,6 @@ func attachFleetAPIRoutes(r *mux.Router, h *fleetHandlers) {
 
 	r.Handle("/api/v1/fleet/users", h.CreateUserWithInvite).Methods("POST").Name("create_user_with_invite")
 
-	r.Handle("/api/v1/fleet/sessions/{id:[0-9]+}", h.GetSessionInfo).Methods("GET").Name("get_session_info")
-	r.Handle("/api/v1/fleet/sessions/{id:[0-9]+}", h.DeleteSession).Methods("DELETE").Name("delete_session")
-
-	r.Handle("/api/v1/fleet/config/certificate", h.GetCertificate).Methods("GET").Name("get_certificate")
-	r.Handle("/api/v1/fleet/config", h.GetAppConfig).Methods("GET").Name("get_app_config")
-	r.Handle("/api/v1/fleet/config", h.ModifyAppConfig).Methods("PATCH").Name("modify_app_config")
-	r.Handle("/api/v1/fleet/spec/enroll_secret", h.ApplyEnrollSecretSpec).Methods("POST").Name("apply_enroll_secret_spec")
-	r.Handle("/api/v1/fleet/spec/enroll_secret", h.GetEnrollSecretSpec).Methods("GET").Name("get_enroll_secret_spec")
 	r.Handle("/api/v1/fleet/invites", h.CreateInvite).Methods("POST").Name("create_invite")
 	r.Handle("/api/v1/fleet/invites", h.ListInvites).Methods("GET").Name("list_invites")
 	r.Handle("/api/v1/fleet/invites/{id:[0-9]+}", h.DeleteInvite).Methods("DELETE").Name("delete_invite")
@@ -489,20 +409,9 @@ func attachFleetAPIRoutes(r *mux.Router, h *fleetHandlers) {
 
 	r.Handle("/api/v1/fleet/targets", h.SearchTargets).Methods("POST").Name("search_targets")
 
-	r.Handle("/api/v1/fleet/version", h.Version).Methods("GET").Name("version")
-
 	r.Handle("/api/v1/fleet/status/result_store", h.StatusResultStore).Methods("GET").Name("status_result_store")
 	r.Handle("/api/v1/fleet/status/live_query", h.StatusLiveQuery).Methods("GET").Name("status_live_query")
 
-	r.Handle("/api/v1/fleet/teams", h.CreateTeam).Methods("POST").Name("create_team")
-	r.Handle("/api/v1/fleet/teams", h.ListTeams).Methods("GET").Name("list_teams")
-	r.Handle("/api/v1/fleet/teams/{id:[0-9]+}", h.ModifyTeam).Methods("PATCH").Name("modify_team")
-	r.Handle("/api/v1/fleet/teams/{id:[0-9]+}", h.DeleteTeam).Methods("DELETE").Name("delete_team")
-	r.Handle("/api/v1/fleet/teams/{id:[0-9]+}/agent_options", h.ModifyTeamAgentOptions).Methods("POST").Name("modify_team_agent_options")
-	r.Handle("/api/v1/fleet/teams/{id:[0-9]+}/users", h.ListTeamUsers).Methods("GET").Name("team_users")
-	r.Handle("/api/v1/fleet/teams/{id:[0-9]+}/users", h.AddTeamUsers).Methods("PATCH").Name("add_team_users")
-	r.Handle("/api/v1/fleet/teams/{id:[0-9]+}/users", h.DeleteTeamUsers).Methods("DELETE").Name("delete_team_users")
-	r.Handle("/api/v1/fleet/teams/{id:[0-9]+}/secrets", h.TeamEnrollSecrets).Methods("GET").Name("get_team_enroll_secrets")
 	r.Handle("/api/v1/osquery/enroll", h.EnrollAgent).Methods("POST").Name("enroll_agent")
 	r.Handle("/api/v1/osquery/config", h.GetClientConfig).Methods("POST").Name("get_client_config")
 	r.Handle("/api/v1/osquery/distributed/read", h.GetDistributedQueries).Methods("POST").Name("get_distributed_queries")
@@ -515,10 +424,30 @@ func attachFleetAPIRoutes(r *mux.Router, h *fleetHandlers) {
 func attachNewStyleFleetAPIRoutes(r *mux.Router, svc fleet.Service, opts []kithttp.ServerOption) {
 	e := NewUserAuthenticatedEndpointer(svc, opts, r, "v1")
 
+	e.GET("/api/_version_/fleet/me", meEndpoint, nil)
+	e.GET("/api/_version_/fleet/sessions/{id:[0-9]+}", getInfoAboutSessionEndpoint, getInfoAboutSessionRequest{})
+	e.DELETE("/api/_version_/fleet/sessions/{id:[0-9]+}", deleteSessionEndpoint, deleteSessionRequest{})
+
+	e.GET("/api/_version_/fleet/config/certificate", getCertificateEndpoint, nil)
+	e.GET("/api/_version_/fleet/config", getAppConfigEndpoint, nil)
+	e.PATCH("/api/_version_/fleet/config", modifyAppConfigEndpoint, modifyAppConfigRequest{})
+	e.POST("/api/_version_/fleet/spec/enroll_secret", applyEnrollSecretSpecEndpoint, applyEnrollSecretSpecRequest{})
+	e.GET("/api/_version_/fleet/spec/enroll_secret", getEnrollSecretSpecEndpoint, nil)
+	e.GET("/api/_version_/fleet/version", versionEndpoint, nil)
+
 	e.POST("/api/_version_/fleet/users/roles/spec", applyUserRoleSpecsEndpoint, applyUserRoleSpecsRequest{})
 	e.POST("/api/_version_/fleet/translate", translatorEndpoint, translatorRequest{})
 	e.POST("/api/_version_/fleet/spec/teams", applyTeamSpecsEndpoint, applyTeamSpecsRequest{})
 	e.PATCH("/api/_version_/fleet/teams/{team_id:[0-9]+}/secrets", modifyTeamEnrollSecretsEndpoint, modifyTeamEnrollSecretsRequest{})
+	e.POST("/api/_version_/fleet/teams", createTeamEndpoint, createTeamRequest{})
+	e.GET("/api/_version_/fleet/teams", listTeamsEndpoint, listTeamsRequest{})
+	e.PATCH("/api/_version_/fleet/teams/{id:[0-9]+}", modifyTeamEndpoint, modifyTeamRequest{})
+	e.DELETE("/api/_version_/fleet/teams/{id:[0-9]+}", deleteTeamEndpoint, deleteTeamRequest{})
+	e.POST("/api/_version_/fleet/teams/{id:[0-9]+}/agent_options", modifyTeamAgentOptionsEndpoint, modifyTeamAgentOptionsRequest{})
+	e.GET("/api/_version_/fleet/teams/{id:[0-9]+}/users", listTeamUsersEndpoint, listTeamUsersRequest{})
+	e.PATCH("/api/_version_/fleet/teams/{id:[0-9]+}/users", addTeamUsersEndpoint, modifyTeamUsersRequest{})
+	e.DELETE("/api/_version_/fleet/teams/{id:[0-9]+}/users", deleteTeamUsersEndpoint, modifyTeamUsersRequest{})
+	e.GET("/api/_version_/fleet/teams/{id:[0-9]+}/secrets", teamEnrollSecretsEndpoint, teamEnrollSecretsRequest{})
 
 	// Alias /api/_version_/fleet/team/ -> /api/_version_/fleet/teams/
 	e.WithAltPaths("/api/_version_/fleet/team/{team_id}/schedule").GET("/api/_version_/fleet/teams/{team_id}/schedule", getTeamScheduleEndpoint, getTeamScheduleRequest{})
@@ -547,9 +476,7 @@ func attachNewStyleFleetAPIRoutes(r *mux.Router, svc fleet.Service, opts []kitht
 	e.WithAltPaths("/api/_version_/fleet/team/{team_id}/policies").GET("/api/_version_/fleet/teams/{team_id}/policies", listTeamPoliciesEndpoint, listTeamPoliciesRequest{})
 	e.WithAltPaths("/api/_version_/fleet/team/{team_id}/policies/{policy_id}").GET("/api/_version_/fleet/teams/{team_id}/policies/{policy_id}", getTeamPolicyByIDEndpoint, getTeamPolicyByIDRequest{})
 	e.WithAltPaths("/api/_version_/fleet/team/{team_id}/policies/delete").POST("/api/_version_/fleet/teams/{team_id}/policies/delete", deleteTeamPoliciesEndpoint, deleteTeamPoliciesRequest{})
-
 	e.PATCH("/api/_version_/fleet/teams/{team_id}/policies/{policy_id}", modifyTeamPolicyEndpoint, modifyTeamPolicyRequest{})
-
 	e.POST("/api/_version_/fleet/spec/policies", applyPolicySpecsEndpoint, applyPolicySpecsRequest{})
 
 	e.GET("/api/_version_/fleet/packs/{id:[0-9]+}/scheduled", getScheduledQueriesInPackEndpoint, getScheduledQueriesInPackRequest{})
@@ -610,6 +537,7 @@ func attachNewStyleFleetAPIRoutes(r *mux.Router, svc fleet.Service, opts []kitht
 	e.GET("/api/_version_/fleet/carves/{id:[0-9]+}/block/{block_id}", getCarveBlockEndpoint, getCarveBlockRequest{})
 
 	e.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/macadmins", getMacadminsDataEndpoint, getMacadminsDataRequest{})
+	e.GET("/api/_version_/fleet/macadmins", getAggregatedMacadminsDataEndpoint, getAggregatedMacadminsDataRequest{})
 }
 
 // TODO: this duplicates the one in makeKitHandler

@@ -46,9 +46,52 @@ For more developed thoughts about __spending guidelines and limits__, please rea
 ## Meetings
 
 * At Fleet, meetings start whether you're there or not. Nevertheless, being even a few minutes late can make a big difference and slow your meeting counterparts down. When in doubt, show up a couple of minutes early.
-* It's okay to spend the first minute or two of a meeting to be present and make small talk, if you want.  Being all-remote, it's easy to miss out on hallway chatter and human connections that happen in [meatspace](https://www.dictionary.com/browse/meatspace).  Why not use this time together during the first minute to say "hi".  Then you can jump right in to the topics being discussed?
+* It's okay to spend the first minute or two of a meeting to be present and make small talk, if you want.  Being all-remote, it's easy to miss out on hallway chatter and human connections that happen in [meatspace](https://www.dictionary.com/browse/meatspace).  Why not use this time together during the first minute to say "hi"?  Then you can jump in to the topics being discussed.
 * Turning on your camera allows for more complete and intuitive verbal and non-verbal communication.  When joining meetings with new participants who you might not be familiar with yet, feel free to leave your camera on or to turn it off.  When you lead or cohost a meeting, turn your camera on.
+* In an all-remote company, “face time” matters. Remember: even if someone’s calendar is open, they have other work to do. Limiting (or batching up) internal meetings can enable longer, uninterrupted stretches of deep work.
 
+### Internal meeting scheduling
+
+Use the Google Calendar [find a meeting
+time](https://support.google.com/calendar/answer/37161?hl=en&co=GENIE.Platform%3DDesktop#zippy=%2Cfind-a-meeting-time)
+feature to coordinate meetings with Fleet team members. Enter the `@fleetdm.com` emails for each
+participant into the "Meet with..." box in Google Calendar and the calendar availability for each
+participant will appear in your view. Then, when you select a meeting time, those participants will
+automatically be invited and a video conference will be attached to the invite.
+
+Please prefer this strategy over negotiating meeting times via chat -- This can save a lot of
+communication overhead, especially when scheduling with multiple participants.
+
+It is important to [set your working
+hours](https://support.google.com/calendar/answer/7638168?hl=en&co=GENIE.Platform%3DDesktop) in
+Google Calendar, and block out any personal time/events/PTO so that team members do not inadvertently
+schedule time when you are not available. Many team members use the free tier of
+[reclaim.ai](https://reclaim.ai/) to synchronize personal event times (without event details) into
+their work calendars. It is also common practice to block out time for focused work.
+
+### External meeting scheduling
+
+When scheduling external meetings, provide external participants with a
+[Calendly](https://calendly.com) link to schedule with the relevant internal participants. If you
+need a Calendly account, reach out to `@eashaw` via Slack.
+
+## Slack
+
+At Fleet, we do not send internal emails to each other. Instead, we prefer to use Slack to communicate with other folks who work at Fleet.
+
+We use threads in Slack as much as possible. Threads help limit noise for other people following the channel and reduce notification overload.
+
+We configure our working hours in Slack to ensure everyone knows when they can get in touch with others.
+
+### Slack channels
+
+We have specific channels for various topics, but we also have more general channels for the teams at Fleet.
+
+We use these prefixes to organize the Fleet Slack:
+ * ***g-***: for team/group channels. *(Note: "g-" is short for "grupo")*
+ * ***oooh-***: used to discuss and share interesting information about a topic.
+ * ***help-***: for asking for help on specific topics.
+ * ***at*** or ***fleet-at***: for customer channels.
 
 ## People Ops
 

@@ -66,21 +66,11 @@ Replace `cert_arn` with the **certificate ARN** that applies to your environment
 
 ### Migrating the DB
 
-After applying terraform run the following to migrate the database:
+After applying terraform run the following to migrate the database(`<private_subnet_id>` and `<desired_security_group>` can be obtained from the terraform output after applying, any value will suffice):
 ```
 aws ecs run-task --cluster fleet-backend --task-definition fleet-migrate:<latest_version> --launch-type FARGATE --network-configuration "awsvpcConfiguration={subnets=[<private_subnet_id>],securityGroups=[<desired_security_group>]}"
 ```
 
-### Connecting a Host
+### Conecting a host
 
-Build orbit: 
-
-```
- fleetctl package --type=msi --fleet-url=<alb_dns> --enroll-secret=<secret>
-```
-
-Run orbit:
-
-```
- "C:\Program Files\Orbit\bin\orbit\orbit.exe" --root-dir "C:\Program Files\Orbit\." --log-file "C:\Program Files\Orbit\orbit-log.txt" --fleet-url "http://<alb_dns>" --enroll-secret-path "C:\Program Files\Orbit\secret.txt" --update-url "https://tuf.fleetctl.com"  --orbit-channel "stable" --osqueryd-channel "stable"
-```
+Use your Route53 entry as your `fleet-url` [following these details.](https://fleetdm.com/docs/using-fleet/adding-hosts)

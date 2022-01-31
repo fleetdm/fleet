@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"context"
+	"database/sql"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -16,6 +17,9 @@ func (d *Datastore) SessionByKey(ctx context.Context, key string) (*fleet.Sessio
 	session := &fleet.Session{}
 	err := sqlx.GetContext(ctx, d.reader, session, sqlStatement, key)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("Session").WithName("<key redacted>"))
+		}
 		return nil, ctxerr.Wrap(ctx, err, "selecting sessions")
 	}
 
@@ -31,6 +35,9 @@ func (d *Datastore) SessionByID(ctx context.Context, id uint) (*fleet.Session, e
 	session := &fleet.Session{}
 	err := sqlx.GetContext(ctx, d.reader, session, sqlStatement, id)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("Session").WithID(id))
+		}
 		return nil, ctxerr.Wrap(ctx, err, "selecting session by id")
 	}
 

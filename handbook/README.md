@@ -42,13 +42,19 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Feature flags](./product.md#feature-flags)
 
+### Security
+
+[How we protect end-user devices](./security.md#how-we-protect-end-user-devices)
+
 ### Growth
 
-[Website](./growth.md#website)
+### Brand
 
-[Communicating as Fleet](./growth.md#communicating-as-fleet)
+[Website](./brand.md#website)
 
-[Voice and grammar guidelines](./growth.md#voice-and-grammar-guidelines)
+[Communicating as Fleet](./brand.md#communicating-as-fleet)
+
+[Voice and grammar guidelines](./brand.md#voice-and-grammar-guidelines)
 
 ### Customers
 
@@ -58,9 +64,11 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 ### Community
 
+[Communities](./community.md#communities)
+
 [Posting on social media as Fleet](./community.md#posting-on-social-media-as-fleet)
 
-[Promoting blog posts on social media](./growth.md#promoting-blog-posts-on-social-media)
+[Promoting blog posts on social media](./community.md#promoting-blog-posts-on-social-media)
 
 [Press releases](./community.md#press-releases)
 

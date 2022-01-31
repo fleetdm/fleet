@@ -317,7 +317,7 @@ with customers and users.
 
 ### Blog post
 
-The product team is responsible for providing the [growth team](./growth.md) with necessary information for writing
+The product team is responsible for providing the [growth team](./brand.md) with necessary information for writing
 the release blog post. This is accomplished by filing a release blog post issue and adding
 the issue to the growth board on GitHub.
 

@@ -340,13 +340,14 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
             </a>
           </InfoBanner>
         )}
-        <p className={`${baseClass}__label`}>Role</p>
         <Dropdown
+          label="Role"
           value={global_role || "Observer"}
           className={`${baseClass}__global-role-dropdown`}
           options={globalUserRoles}
           searchable={false}
           onChange={onGlobalUserRoleChange}
+          wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--global-role`}
         />
       </>
     );
@@ -415,15 +416,13 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
               />
             </>
           ) : (
-            <>
-              <p className={`${baseClass}__label`}>Role</p>
-              <SelectRoleForm
-                currentTeam={currentTeam || teams[0]}
-                teams={teams}
-                defaultTeamRole={defaultTeamRole || "observer"}
-                onFormChange={onTeamRoleChange}
-              />
-            </>
+            <SelectRoleForm
+              label="Role"
+              currentTeam={currentTeam || teams[0]}
+              teams={teams}
+              defaultTeamRole={defaultTeamRole || "observer"}
+              onFormChange={onTeamRoleChange}
+            />
           ))}
         {!availableTeams.length && renderNoTeamsMessage()}
       </>
@@ -623,6 +622,7 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
                     hint={[
                       "Must include 7 characters, at least 1 number (e.g. 0 - 9), and at least 1 symbol (e.g. &*#)",
                     ]}
+                    blockAutoComplete
                   />
                 </div>
                 <div className={`${baseClass}__details`}>

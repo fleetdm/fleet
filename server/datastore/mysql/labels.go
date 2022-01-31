@@ -245,6 +245,12 @@ func (d *Datastore) DeleteLabel(ctx context.Context, name string) error {
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "delete label_membership")
 		}
+
+		_, err = tx.ExecContext(ctx, `DELETE FROM pack_targets WHERE type=? AND target_id=?`, fleet.TargetLabel, labelID)
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err, "deleting pack_targets for label %d", labelID)
+		}
+
 		return nil
 	})
 }

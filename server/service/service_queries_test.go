@@ -122,7 +122,7 @@ func TestQueryAuth(t *testing.T) {
 		return 0, nil
 	}
 
-	var testCases = []struct {
+	testCases := []struct {
 		name            string
 		user            *fleet.User
 		qid             uint
