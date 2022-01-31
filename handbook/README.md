@@ -22,6 +22,8 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Meetings](./people.md#meetings)
 
+[People ops](./people.md#people-ops)
+
 ### Engineering
 
 [Release process](./engineering.md#release-process)
@@ -63,10 +65,6 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 [Press releases](./community.md#press-releases)
 
 [Community contributions (pull requests)](./community.md#community-contributions-pull-requests)
-
-### Operations
-
-[People ops](./operations.md#people-ops)
 
 ### Handbook
 
