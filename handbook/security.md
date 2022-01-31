@@ -263,3 +263,5 @@ We configure Chrome on company-owned devices with a basic policy.
 ### Personal mobile devices
 
 The use of personal devices is allowed for some applications, as long as the iOS or Android device is kept up to date.
+
+<meta name="maintainedBy" value="GuillaumeRoss">
