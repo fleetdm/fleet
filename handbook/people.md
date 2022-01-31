@@ -139,7 +139,7 @@ Change the name of the documents accordingly (e.g., "[candidate's name]'s copy o
    >**_Note:_** *International contractor and employment agreements are handled by the Pilot.co when you start the hiring process.*
 
 3. **For US employees/contractors** After an agreement is signed and stored in the correct Google
-   Drive folder, Eric will start onboarding the new team member in [Gusto](https://gusto.com/).
+   Drive folder, Eric will start onboarding the new team member in [Gusto](https://www.gusto.com/).
    If the new team member is a W-2 employee, Eric will reach out to them and
    schedule an I-9 verification meeting. 
 
