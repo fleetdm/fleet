@@ -1,9 +1,6 @@
 import PATHS from "router/paths";
 import URL_PREFIX from "router/url_prefix";
-import permissionUtils from "utilities/permissions";
-import { getSortedTeamOptions } from "fleet/helpers";
 import { IUser } from "interfaces/user";
-import { ITeam } from "interfaces/team";
 
 export interface INavItem {
   icon: string;
@@ -15,7 +12,12 @@ export interface INavItem {
   };
 }
 
-export default (currentUser: IUser | null) => {
+export default (
+  currentUser: IUser | null,
+  isAnyTeamMaintainer: boolean = false,
+  isGlobalMaintainer: boolean = false,
+  isNoAccess: boolean = false
+) => {
   if (!currentUser) {
     return [];
   }
@@ -86,41 +88,7 @@ export default (currentUser: IUser | null) => {
     },
   ];
 
-  if (
-    permissionUtils.isAnyTeamAdmin(currentUser) ||
-    permissionUtils.isGlobalAdmin(currentUser)
-  ) {
-    const userAdminTeams = currentUser.teams.filter(
-      (thisTeam: ITeam) => thisTeam.role === "admin"
-    );
-    const sortedTeams = getSortedTeamOptions(userAdminTeams);
-    const adminNavItems = [
-      {
-        icon: "settings",
-        name: "Settings",
-        iconName: "settings",
-        location: {
-          regex: new RegExp(`^${URL_PREFIX}/settings/`),
-          pathname:
-            currentUser.global_role === "admin"
-              ? PATHS.ADMIN_SETTINGS
-              : `${PATHS.ADMIN_TEAMS}/${sortedTeams[0].value}/members`,
-        },
-      },
-    ];
-    return [
-      ...logo,
-      ...userNavItems,
-      ...teamMaintainerNavItems,
-      ...policiesTab,
-      ...adminNavItems,
-    ];
-  }
-
-  if (
-    permissionUtils.isGlobalMaintainer(currentUser) ||
-    permissionUtils.isAnyTeamMaintainer(currentUser)
-  ) {
+  if (isGlobalMaintainer || isAnyTeamMaintainer) {
     return [
       ...logo,
       ...userNavItems,
@@ -129,7 +97,7 @@ export default (currentUser: IUser | null) => {
     ];
   }
 
-  if (permissionUtils.isNoAccess(currentUser)) {
+  if (isNoAccess) {
     return [...logo];
   }
   return [...logo, ...userNavItems, ...policiesTab];

@@ -1,4 +1,8 @@
 import React, { useState } from "react";
+import { IUser } from "interfaces/user";
+import { ITeam } from "interfaces/team";
+import { getSortedTeamOptions } from "fleet/helpers";
+import URL_PREFIX from "router/url_prefix";
 
 import PATHS from "router/paths";
 
@@ -18,12 +22,18 @@ interface IUserMenuProps {
   //   position?: string;
   // };
   user: any;
+  isAnyTeamAdmin: boolean | undefined;
+  isGlobalAdmin: boolean | undefined;
+  currentUser: IUser | null;
 }
 
 const UserMenu = ({
   onLogout,
   onNavItemClick,
   user,
+  isAnyTeamAdmin,
+  isGlobalAdmin,
+  currentUser,
 }: IUserMenuProps): JSX.Element => {
   // const [isOpened, setIsOpened] = useState<boolean>(false);
 
@@ -33,14 +43,6 @@ const UserMenu = ({
   const accountNavigate = onNavItemClick(PATHS.USER_SETTINGS);
 
   const dropdownItems = [
-    {
-      label: "Settings",
-      onClick: settingsNavigate,
-    },
-    {
-      label: "Manage users",
-      onClick: manageUsersNavigate,
-    },
     {
       label: "My account",
       onClick: accountNavigate,
@@ -58,6 +60,42 @@ const UserMenu = ({
       onClick: onLogout,
     },
   ];
+
+  console.log("isGlobalAdmin", isGlobalAdmin);
+  if (currentUser && isGlobalAdmin) {
+    const manageUserNavItem = {
+      label: "Manage users",
+      onClick: manageUsersNavigate,
+    };
+    dropdownItems.unshift(manageUserNavItem);
+  }
+
+  // TODO: Fix reroute for team admin!
+  if (currentUser && (isAnyTeamAdmin || isGlobalAdmin)) {
+    const userAdminTeams = currentUser.teams.filter(
+      (thisTeam: ITeam) => thisTeam.role === "admin"
+    );
+    const sortedTeams = getSortedTeamOptions(userAdminTeams);
+    const adminNavItem = {
+      label: "Settings",
+      onClick: settingsNavigate,
+    };
+    //   [
+    //   {
+    //     icon: "settings",
+    //     name: "Settings",
+    //     iconName: "settings",
+    //     location: {
+    //       regex: new RegExp(`^${URL_PREFIX}/settings/`),
+    //       pathname:
+    //         currentUser.global_role === "admin"
+    //           ? PATHS.ADMIN_SETTINGS
+    //           : `${PATHS.ADMIN_TEAMS}/${sortedTeams[0].value}/members`,
+    //     },
+    //   },
+    // ];
+    dropdownItems.unshift(adminNavItem);
+  }
 
   return (
     <div className={baseClass}>

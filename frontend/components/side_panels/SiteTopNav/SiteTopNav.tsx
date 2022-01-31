@@ -18,7 +18,6 @@ import SoftwareIcon from "../../../../assets/images/icon-software-16x16@2x.png";
 import QueriesIcon from "../../../../assets/images/icon-main-queries@2x-16x16@2x.png";
 import PacksIcon from "../../../../assets/images/icon-main-packs@2x-16x16@2x.png";
 import PoliciesIcon from "../../../../assets/images/icon-main-policies-16x16@2x.png";
-import AdminIcon from "../../../../assets/images/icon-main-settings@2x-16x16@2x.png";
 
 interface ISiteTopNavProps {
   onLogoutUser: () => any;
@@ -35,7 +34,14 @@ const SiteTopNav = ({
   user,
   config,
 }: ISiteTopNavProps): JSX.Element => {
-  const { currentUser } = useContext(AppContext);
+  const {
+    currentUser,
+    isAnyTeamAdmin,
+    isGlobalAdmin,
+    isGlobalMaintainer,
+    isAnyTeamMaintainer,
+    isNoAccess,
+  } = useContext(AppContext);
 
   const renderNavItem = (navItem: INavItem) => {
     const { name, iconName } = navItem;
@@ -73,10 +79,8 @@ const SiteTopNav = ({
           return QueriesIcon;
         case "packs":
           return PacksIcon;
-        case "policies":
-          return PoliciesIcon;
         default:
-          return AdminIcon;
+          return PoliciesIcon;
       }
     };
 
@@ -102,7 +106,12 @@ const SiteTopNav = ({
     );
   };
 
-  const userNavItems = navItems(currentUser);
+  const userNavItems = navItems(
+    currentUser,
+    isAnyTeamMaintainer,
+    isGlobalMaintainer,
+    isNoAccess
+  );
 
   const renderNavItems = () => {
     return (
@@ -116,6 +125,9 @@ const SiteTopNav = ({
           onLogout={onLogoutUser}
           onNavItemClick={onNavItemClick}
           user={user}
+          isAnyTeamAdmin={isAnyTeamAdmin}
+          isGlobalAdmin={isGlobalAdmin}
+          currentUser={currentUser}
         />
       </div>
     );
