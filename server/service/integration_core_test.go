@@ -427,6 +427,7 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	require.Len(t, lsResp.Software, 1)
 	assert.Equal(t, soft1.ID, lsResp.Software[0].ID)
 	assert.Len(t, lsResp.Software[0].Vulnerabilities, 1)
+	require.NotNil(t, lsResp.CountsUpdatedAt)
 	assert.WithinDuration(t, hostsCountTs, *lsResp.CountsUpdatedAt, time.Second)
 
 	// the count endpoint still returns 1
@@ -436,6 +437,7 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	// default sort, not only vulnerable
 	s.DoJSON("GET", "/api/v1/fleet/software", nil, http.StatusOK, &lsResp)
 	require.True(t, len(lsResp.Software) >= len(software))
+	require.NotNil(t, lsResp.CountsUpdatedAt)
 	assert.WithinDuration(t, hostsCountTs, *lsResp.CountsUpdatedAt, time.Second)
 }
 
