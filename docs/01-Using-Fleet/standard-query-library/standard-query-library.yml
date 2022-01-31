@@ -704,6 +704,5 @@ spec:
   name: Is secure keyboard entry enabled on macOS devices?
   query: SELECT 1 FROM managed_policies WHERE domain = 'com.apple.Terminal' AND name = 'SecureKeyboardEntry' AND value = 1 LIMIT 1;
   description: "Required: You’re already enforcing a policy via Moble Device Management (MDM). Checks to make sure that the Secure Keyboard Entry setting is enabled."
-  resolution: 
   platforms: macOS
   contributors: groob
