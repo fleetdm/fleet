@@ -27,6 +27,15 @@ export default (currentUser) => {
       },
     },
     {
+      icon: "software",
+      name: "Software",
+      iconName: "software",
+      location: {
+        regex: new RegExp(`^${URL_PREFIX}/software/`),
+        pathname: PATHS.MANAGE_SOFTWARE,
+      },
+    },
+    {
       icon: "query",
       name: "Queries",
       iconName: "queries",

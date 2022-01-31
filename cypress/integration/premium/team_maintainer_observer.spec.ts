@@ -121,6 +121,16 @@ describe("Premium tier - Team observer/maintainer user", () => {
           .click();
       });
     });
+    describe("Manage software page", () => {
+      beforeEach(() => cy.visit("/software/manage"));
+      it("hides manage automations button", () => {
+        cy.getAttached(".manage-software-page__header-wrap").within(() => {
+          cy.findByRole("button", { name: /manage automations/i }).should(
+            "not.exist"
+          );
+        });
+      });
+    });
     describe("Manage schedule page", () => {
       it("should render elements according to role-based access controls", () => {
         cy.visit("/schedule/manage");
