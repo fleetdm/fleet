@@ -193,13 +193,7 @@ const ManageSchedulePage = ({
     select: (data) => data.global_schedule,
   });
 
-  let selectedTeamId: number;
-
-  if (currentTeam) {
-    selectedTeamId = currentTeam.id;
-  } else {
-    selectedTeamId = teamId || 0;
-  }
+  const selectedTeamId = currentTeam?.id ? currentTeam.id : teamId || 0;
 
   const {
     data: teamScheduledQueries,
@@ -230,13 +224,13 @@ const ManageSchedulePage = ({
     return availableTeams?.find((t) => t.id === id);
   };
 
-  const handleTeamSelect = (teamId: number) => {
-    if (teamId) {
-      router.push(MANAGE_TEAM_SCHEDULE(teamId));
+  const handleTeamSelect = (id: number) => {
+    if (id) {
+      router.push(MANAGE_TEAM_SCHEDULE(id));
     } else {
       router.push(MANAGE_SCHEDULE);
     }
-    const selectedTeam = find(teams, ["id", teamId]);
+    const selectedTeam = find(teams, ["id", id]);
     setCurrentTeam(selectedTeam);
   };
 
