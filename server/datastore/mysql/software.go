@@ -480,6 +480,10 @@ func (d *Datastore) AllCPEs(ctx context.Context) ([]string, error) {
 }
 
 func (d *Datastore) InsertCVEForCPE(ctx context.Context, cve string, cpes []string) error {
+	// TODO(mna): there is no index on software_cpe.cpe at the moment, should
+	// add one as it will be useful everytime we want to look up a software ID by
+	// CPE, as here and when triggering vulnerabilities webhooks. This likely
+	// results in a full table scan right now.
 	values := strings.TrimSuffix(strings.Repeat("((SELECT id FROM software_cpe WHERE cpe=?),?),", len(cpes)), ",")
 	sql := fmt.Sprintf(`INSERT IGNORE INTO software_cve (cpe_id, cve) VALUES %s`, values)
 	var args []interface{}

@@ -713,6 +713,8 @@ func cronVulnerabilities(
 				continue
 			}
 
+			// TODO(mna): pass in the vulnerabilities webhook enable flag, receive
+			// the list of recent CVEs mapped to corresponding CPEs.
 			err = vulnerabilities.TranslateCPEToCVE(ctx, ds, vulnPath, logger, config)
 			if err != nil {
 				level.Error(logger).Log("msg", "analyzing vulnerable software: CPE->CVE", "err", err)
@@ -727,8 +729,16 @@ func cronVulnerabilities(
 			continue
 		}
 
+		// TODO(mna): if the list of recent CVEs->CPEs is not empty and the
+		// vulnerabilities webhook is enabled, trigger those webhooks, loading the
+		// list of hosts for each CVE by looking up the software_id corresponding
+		// to the CPEs and then the hosts with that software_id in host_software.
+		//
+		// Note that there's no index at the moment on software_cpe.cpe, so either
+		// add one, or collect the software IDs directly in TranslateCPEToCVE and
+		// return those instead of the list of CPEs. Would require a change in
+		// ds.InsertCVEForCPE so that IDs are returned.
 		if !vulnDisabled {
-			// TODO(mna): maybe trigger webhook for new vulnerabilities (last 2 days)
 		}
 
 		level.Debug(logger).Log("loop", "done")

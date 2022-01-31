@@ -57,11 +57,17 @@ func TranslateCPEToCVE(
 	vulnPath string,
 	logger kitlog.Logger,
 	config config.FleetConfig,
+	// TODO(mna): receive the enabled flag for vulnerability webhook, to indicate
+	// if it should collect those new vulnerabilities during processing.
 ) error {
 	err := SyncCVEData(vulnPath, config)
 	if err != nil {
 		return err
 	}
+
+	// TODO(mna): I assume those .gz NVD files get removed at some point, so we
+	// don't unnecessarily process the same ones multiple times? Haven't seen
+	// where that happens (e.g. doesn't seem to be in cronCleanups?)
 
 	var files []string
 	err = filepath.Walk(vulnPath, func(path string, info os.FileInfo, err error) error {
@@ -104,6 +110,7 @@ func TranslateCPEToCVE(
 		}
 	}
 
+	// TODO(mna): return the collected CVE->CPEs map, as now returned by checkCVEs.
 	return nil
 }
 
@@ -158,6 +165,10 @@ func checkCVEs(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, cp
 						if err != nil {
 							level.Error(logger).Log("cpe processing", "error", "err", err)
 						}
+
+						// TODO(mna): if CVE is within 2 days of its published date, and
+						// webhook is enabled, collect the CVE and its matching CPEs. How
+						// to get the CVE's published date is still TBD at this time.
 					}
 				case <-ctx.Done():
 					level.Debug(logger).Log(logKey, "quitting")
@@ -177,5 +188,8 @@ func checkCVEs(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, cp
 
 	wg.Wait()
 
+	// TODO(mna): if recent CVE->CPEs were collected, return the list (possibly
+	// map of *CVE - a new struct holding the CVE ID, details link to nvd, and
+	// published date - to a slice of CPEs).
 	return nil
 }
