@@ -83,16 +83,51 @@ describe("Teams flow (seeded)", () => {
       cy.findByText(/bananas/i).should("not.exist");
     });
   });
-  // describe("Manage schedules page", () => {
-  //   beforeEach(() => {
-  //     cy.loginWithCySession();
-  //     cy.visit("/schedule/manage");
-  //   });
-  //   it("adds a query to team schedule", () => {
-  //     cy.getAttached(".no-schedule__schedule-button").click();
-  //     // TODO: Unable to add tests because "Schedule a query" button detattaches even when using `getAttached`
-  //   });
-  // });
+  describe("Manage schedules page", () => {
+    beforeEach(() => {
+      cy.loginWithCySession();
+      cy.visit("/schedule/manage");
+      cy.seedQueries();
+    });
+    it("adds a query to team schedule", () => {
+      cy.getAttached(".manage-schedule-page__header").within(() => {
+        cy.contains("All teams").click({ force: true });
+        cy.contains("Oranges").click({ force: true });
+      });
+      cy.getAttached(".no-schedule__schedule-button").click();
+      cy.getAttached(".schedule-editor-modal__form").within(() => {
+        cy.findByText(/select query/i).click();
+        cy.findByText(/detect presence/i).click();
+        cy.findByText(/every day/i).click();
+        cy.findByText(/every 6 hours/i).click();
+        cy.findByText(/show advanced options/i).click();
+        cy.findByText(/snapshot/i).click();
+        cy.findByText(/ignore removals/i).click();
+        cy.getAttached(".schedule-editor-modal__form-field--platform").within(
+          () => {
+            cy.findByText(/all/i).click();
+            cy.findByText(/linux/i).click();
+          }
+        );
+        cy.getAttached(
+          ".schedule-editor-modal__form-field--osquer-vers"
+        ).within(() => {
+          cy.findByText(/all/i).click();
+          cy.findByText(/4.6.0/i).click();
+        });
+        cy.getAttached(".schedule-editor-modal__form-field--shard").within(
+          () => {
+            cy.getAttached(".input-field").click().type("50");
+          }
+        );
+        cy.getAttached(".schedule-editor-modal__btn-wrap").within(() => {
+          cy.findByRole("button", { name: /schedule/i }).click();
+        });
+      });
+      cy.findByText(/successfully added/i).should("be.visible");
+      cy.getAttached("tbody>tr").should("have.length", 1);
+    });
+  });
   describe("Team details page", () => {
     beforeEach(() => {
       cy.loginWithCySession();
