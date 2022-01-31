@@ -17,71 +17,95 @@ describe("Premium tier - Admin user", () => {
     beforeEach(() =>
       cy.loginWithCySession("anna@organization.com", "user123#")
     );
-    describe("Manage hosts page", () => {
-      beforeEach(() => cy.visit("/hosts/manage"));
-      it("displays team column in hosts table", () => {
-        cy.getAttached(".data-table__table th")
-          .contains("Team")
-          .should("be.visible");
-      });
-      it("allows global admin to see and click generate installer", () => {
-        cy.getAttached(".button-wrap")
-          .contains("button", /generate installer/i)
-          .click();
-        cy.getAttached(".modal__content").contains("button", /done/i).click();
-      });
-      it("allows global admin to add new enroll secret", () => {
-        cy.getAttached(".button-wrap")
-          .contains("button", /manage enroll secret/i)
-          .click();
-        cy.getAttached(".enroll-secret-modal__add-secret")
-          .contains("button", /add secret/i)
-          .click();
-        cy.getAttached(".secret-editor-modal__button-wrap")
-          .contains("button", /save/i)
-          .click();
-        cy.getAttached(".enroll-secret-modal__button-wrap")
-          .contains("button", /done/i)
-          .click();
-      });
-    });
-    describe("Host details page", () => {
-      beforeEach(() => cy.visit("hosts/1"));
-      it("allows global admin to transfer host to an existing team", () => {
-        cy.getAttached(".host-details__transfer-button").click();
-        cy.findByText(/create a team/i).should("exist");
-        cy.getAttached(".Select-control").click();
-        cy.getAttached(".Select-menu").within(() => {
-          cy.findByText(/no team/i).should("exist");
-          cy.findByText(/apples/i).should("exist");
-          cy.findByText(/oranges/i).click();
+    // describe("Manage hosts page", () => {
+    //   beforeEach(() => cy.visit("/hosts/manage"));
+    //   it("displays team column in hosts table", () => {
+    //     cy.getAttached(".data-table__table th")
+    //       .contains("Team")
+    //       .should("be.visible");
+    //   });
+    //   it("allows global admin to see and click generate installer", () => {
+    //     cy.getAttached(".button-wrap")
+    //       .contains("button", /generate installer/i)
+    //       .click();
+    //     cy.getAttached(".modal__content").contains("button", /done/i).click();
+    //   });
+    //   it("allows global admin to add new enroll secret", () => {
+    //     cy.getAttached(".button-wrap")
+    //       .contains("button", /manage enroll secret/i)
+    //       .click();
+    //     cy.getAttached(".enroll-secret-modal__add-secret")
+    //       .contains("button", /add secret/i)
+    //       .click();
+    //     cy.getAttached(".secret-editor-modal__button-wrap")
+    //       .contains("button", /save/i)
+    //       .click();
+    //     cy.getAttached(".enroll-secret-modal__button-wrap")
+    //       .contains("button", /done/i)
+    //       .click();
+    //   });
+    // });
+    // describe("Host details page", () => {
+    //   beforeEach(() => cy.visit("hosts/1"));
+    //   it("allows global admin to transfer host to an existing team", () => {
+    //     cy.getAttached(".host-details__transfer-button").click();
+    //     cy.findByText(/create a team/i).should("exist");
+    //     cy.getAttached(".Select-control").click();
+    //     cy.getAttached(".Select-menu").within(() => {
+    //       cy.findByText(/no team/i).should("exist");
+    //       cy.findByText(/apples/i).should("exist");
+    //       cy.findByText(/oranges/i).click();
+    //     });
+    //     cy.getAttached(".transfer-action-btn").click();
+    //     cy.findByText(/transferred to oranges/i).should("exist");
+    //     cy.findByText(/team/i).next().contains("Oranges");
+    //   });
+    //   it("allows global admin to create an operating system policy", () => {
+    //     cy.getAttached(".info-flex").within(() => {
+    //       cy.findByText(/ubuntu/i).should("exist");
+    //       cy.getAttached(".host-details__os-policy-button").click();
+    //     });
+    //     cy.getAttached(".modal__content")
+    //       .findByRole("button", { name: /create new policy/i })
+    //       .should("exist");
+    //   });
+    //   it("allows global admin to create a custom query", () => {
+    //     cy.getAttached(".host-details__query-button").click();
+    //     cy.contains("button", /create custom query/i).should("exist");
+    //     cy.getAttached(".modal__ex").click();
+    //   });
+    //   it("allows global admin to delete a host", () => {
+    //     cy.getAttached(".host-details__action-button-container")
+    //       .contains("button", /delete/i)
+    //       .click();
+    //     cy.getAttached(".host-details__modal").within(() => {
+    //       cy.findByText(/delete host/i).should("exist");
+    //       cy.contains("button", /delete/i).should("exist");
+    //       cy.getAttached(".modal__ex").click();
+    //     });
+    //   });
+    // });
+    describe("Manage software page", () => {
+      beforeEach(() => cy.visit("/software/manage"));
+      it("displays manage automations button when all teams selected", () => {
+        cy.getAttached(".manage-software-page__header-wrap").within(() => {
+          cy.findByText(/all teams/i).should("exist");
+          cy.findByRole("button", { name: /manage automations/i }).should(
+            "exist"
+          );
         });
-        cy.getAttached(".transfer-action-btn").click();
-        cy.findByText(/transferred to oranges/i).should("exist");
-        cy.findByText(/team/i).next().contains("Oranges");
       });
-      it("allows global admin to create an operating system policy", () => {
-        cy.getAttached(".info-flex").within(() => {
-          cy.findByText(/ubuntu/i).should("exist");
-          cy.getAttached(".host-details__os-policy-button").click();
-        });
-        cy.getAttached(".modal__content")
-          .findByRole("button", { name: /create new policy/i })
-          .should("exist");
-      });
-      it("allows global admin to create a custom query", () => {
-        cy.getAttached(".host-details__query-button").click();
-        cy.contains("button", /create custom query/i).should("exist");
-        cy.getAttached(".modal__ex").click();
-      });
-      it("allows global admin to delete a host", () => {
-        cy.getAttached(".host-details__action-button-container")
-          .contains("button", /delete/i)
-          .click();
-        cy.getAttached(".host-details__modal").within(() => {
-          cy.findByText(/delete host/i).should("exist");
-          cy.contains("button", /delete/i).should("exist");
-          cy.getAttached(".modal__ex").click();
+      it("hides manage automations button when all teams not selected", () => {
+        cy.getAttached(".manage-software-page__header-wrap").within(() => {
+          cy.getAttached(".Select").within(() => {
+            cy.getAttached(".Select-control").click();
+            cy.getAttached(".Select-menu-outer").within(() => {
+              cy.findByText(/apples/i).should("exist");
+            });
+            cy.findByRole("button", {
+              name: /manage automations/i,
+            }).should("not.exist");
+          });
         });
       });
     });

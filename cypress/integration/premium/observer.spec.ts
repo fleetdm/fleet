@@ -60,6 +60,16 @@ describe("Premium tier - Observer user", () => {
         });
       });
     });
+    describe("Manage software page", () => {
+      beforeEach(() => cy.visit("/software/manage"));
+      it("hides manage automations button", () => {
+        cy.getAttached(".manage-software-page__header-wrap").within(() => {
+          cy.findByRole("button", { name: /manage automations/i }).should(
+            "not.exist"
+          );
+        });
+      });
+    });
     describe("Query pages", () => {
       beforeEach(() => cy.visit("/queries/manage"));
       it("should render elements according to role-based access controls", () => {

@@ -127,6 +127,30 @@ describe("Premium tier - Team observer/maintainer user", () => {
           .click();
       });
     });
+    describe("Manage software page", () => {
+      beforeEach(() => cy.visit("/software/manage"));
+      it("displays manage automations button when all teams selected", () => {
+        cy.getAttached(".manage-software-page__header-wrap").within(() => {
+          cy.findByText(/all teams/i).should("exist");
+          cy.findByRole("button", { name: /manage automations/i }).should(
+            "exist"
+          );
+        });
+      });
+      it("hides manage automations button when all teams not selected", () => {
+        cy.getAttached(".manage-software-page__header-wrap").within(() => {
+          cy.getAttached(".Select").within(() => {
+            cy.getAttached(".Select-control").click();
+            cy.getAttached(".Select-menu-outer").within(() => {
+              cy.findByText(/apples/i).should("exist");
+            });
+            cy.findByRole("button", {
+              name: /manage automations/i,
+            }).should("not.exist");
+          });
+        });
+      });
+    });
     describe("Manage schedule page", () => {
       it("should render elements according to role-based access controls", () => {
         cy.visit("/schedule/manage");
