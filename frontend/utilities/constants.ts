@@ -49,7 +49,7 @@ export const DEFAULT_POLICIES = [
     query:
       "SELECT 1 FROM sip_config WHERE config_flag = 'sip' AND enabled = 1;",
     name: "Is System Integrity Protection (SIP) enabled on macOS devices?",
-    description: "Checks to make sure that the SIP is enabled.",
+    description: "Checks to make sure that the SIP feature is enabled.",
     resolution:
       "On the failing device, run the following command in the Terminal app: /usr/sbin/spctl --master-enable",
     platform: "darwin",
@@ -62,7 +62,7 @@ export const DEFAULT_POLICIES = [
     description:
       "Required: You’re already enforcing a policy via Moble Device Management (MDM). Checks to make sure that the device user cannot log in to the device without a password. It’s good practice to have both this policy and the “Is Filevault enabled on macOS devices?” policy enabled.",
     resolution:
-      "The following example profile includes a setting to disable automatic login: https://github.com/gregneagle/profiles/blob/fecc73d66fa17b6fa78b782904cb47cdc1913aeb/loginwindow.mobileconfig#L64-L65",
+      "The following example profile includes a setting to disable automatic login: https://github.com/gregneagle/profiles/blob/fecc73d66fa17b6fa78b782904cb47cdc1913aeb/loginwindow.mobileconfig#L64-L65.",
     platform: "darwin",
   },
   {
@@ -73,7 +73,7 @@ export const DEFAULT_POLICIES = [
     description:
       "Required: You’re already enforcing a policy via Moble Device Management (MDM). Checks to make sure that guest accounts cannot be used to log in to the device without a password.",
     resolution:
-      "The following example profile includes a setting to disable guest users: https://github.com/gregneagle/profiles/blob/fecc73d66fa17b6fa78b782904cb47cdc1913aeb/loginwindow.mobileconfig#L68-L71",
+      "The following example profile includes a setting to disable guest users: https://github.com/gregneagle/profiles/blob/fecc73d66fa17b6fa78b782904cb47cdc1913aeb/loginwindow.mobileconfig#L68-L71.",
     platform: "darwin",
   },
   {
