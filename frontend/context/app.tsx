@@ -38,6 +38,8 @@ type InitialStateType = {
   setEnrollSecret: (enrollSecret: IEnrollSecret[]) => void;
 };
 
+export type IAppContext = InitialStateType;
+
 const initialState = {
   availableTeams: undefined,
   config: null,

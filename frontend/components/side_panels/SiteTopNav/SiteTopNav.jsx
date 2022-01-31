@@ -11,6 +11,7 @@ import OrgLogoIcon from "components/icons/OrgLogoIcon";
 import navItems from "./navItems";
 
 import HostsIcon from "../../../../assets/images/icon-main-hosts@2x-16x16@2x.png";
+import SoftwareIcon from "../../../../assets/images/icon-software-16x16@2x.png";
 import QueriesIcon from "../../../../assets/images/icon-main-queries@2x-16x16@2x.png";
 import PacksIcon from "../../../../assets/images/icon-main-packs@2x-16x16@2x.png";
 import PoliciesIcon from "../../../../assets/images/icon-main-policies-16x16@2x.png";
@@ -65,6 +66,8 @@ class SiteTopNav extends Component {
       switch (iconName) {
         case "hosts":
           return HostsIcon;
+        case "software":
+          return SoftwareIcon;
         case "queries":
           return QueriesIcon;
         case "packs":

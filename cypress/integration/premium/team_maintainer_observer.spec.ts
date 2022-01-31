@@ -85,10 +85,10 @@ describe("Premium tier - Team observer/maintainer user", () => {
 
     beforeEach(() => {
       cy.loginWithCySession("marco@organization.com", "user123#");
+      cy.visit("/hosts/manage");
     });
     describe("Manage hosts page", () => {
       it("should render elements according to role-based access controls", () => {
-        cy.visit("/hosts/manage");
         // Hosts table includes teams column
         cy.getAttached(".data-table__table th")
           .contains("Team")
@@ -96,7 +96,10 @@ describe("Premium tier - Team observer/maintainer user", () => {
         cy.findByText(/add label/i).should("not.exist");
 
         // On maintaining team, see the "Generate installer" and "Manage enroll secret" buttons
-        cy.visit("/hosts/manage/?team_id=2");
+        cy.getAttached(".manage-hosts__header").within(() => {
+          cy.contains("Apples").click({ force: true });
+          cy.contains("Oranges").click({ force: true });
+        });
         cy.contains(/oranges/i);
         cy.getAttached(".button-wrap")
           .contains("button", /generate installer/i)
@@ -118,12 +121,34 @@ describe("Premium tier - Team observer/maintainer user", () => {
           .click();
       });
     });
+    describe("Manage software page", () => {
+      beforeEach(() => cy.visit("/software/manage"));
+      it("hides manage automations button", () => {
+        cy.getAttached(".manage-software-page__header-wrap").within(() => {
+          cy.findByRole("button", { name: /manage automations/i }).should(
+            "not.exist"
+          );
+        });
+      });
+    });
     describe("Manage schedule page", () => {
       it("should render elements according to role-based access controls", () => {
         cy.visit("/schedule/manage");
         cy.contains(/oranges/i).should("exist");
         cy.contains(/advanced/i).should("not.exist");
-        cy.findByRole("button", { name: /schedule a query/i }).should("exist");
+        cy.findByRole("button", { name: /schedule a query/i }).click();
+        // Schedule a query on maintaining team
+        cy.getAttached(".schedule-editor-modal__form").within(() => {
+          cy.findByText(/select query/i).click();
+          cy.findByText(/detect presence/i).click();
+          cy.findByText(/every day/i).click();
+          cy.findByText(/every 6 hours/i).click();
+          cy.getAttached(".schedule-editor-modal__btn-wrap").within(() => {
+            cy.findByRole("button", { name: /schedule/i }).click();
+          });
+        });
+        cy.findByText(/successfully added/i).should("be.visible");
+        cy.getAttached("tbody>tr").should("have.length", 1);
       });
     });
     describe("Manage policies page", () => {

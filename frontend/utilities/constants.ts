@@ -97,6 +97,9 @@ export const FREQUENCY_DROPDOWN_OPTIONS = [
   { value: 604800, label: "Every week" },
 ];
 
+export const GITHUB_NEW_ISSUE_LINK =
+  "https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&template=bug-report.md";
+
 export const LOGGING_TYPE_OPTIONS = [
   { label: "Snapshot", value: "snapshot" },
   { label: "Differential", value: "differential" },
