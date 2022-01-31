@@ -61,8 +61,8 @@ func (s *integrationLoggerTestSuite) TestLogger() {
 		Description: ptr.String("desc"),
 		Query:       ptr.String("select 1 from osquery;"),
 	}
-	payload := createQueryRequest{}
-	s.DoJSON("POST", "/api/v1/fleet/queries", params, http.StatusOK, &payload)
+	var createResp createQueryResponse
+	s.DoJSON("POST", "/api/v1/fleet/queries", params, http.StatusOK, &createResp)
 
 	logs := s.buf.String()
 	parts := strings.Split(strings.TrimSpace(logs), "\n")
