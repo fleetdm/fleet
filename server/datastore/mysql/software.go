@@ -267,16 +267,6 @@ func selectSoftwareSQL(hostID *uint, opts fleet.SoftwareListOptions) (string, []
 		).Where(goqu.I("h.team_id").Eq(opts.TeamID))
 	}
 
-	if match := opts.MatchQuery; match != "" {
-		match = likePattern(match)
-		ds = ds.Where(
-			goqu.Or(
-				goqu.I("s.name").ILike(match),
-				goqu.I("s.version").ILike(match),
-			),
-		)
-	}
-
 	ds = ds.GroupBy(
 		goqu.I("s.id"),
 		goqu.I("s.name"),
@@ -302,6 +292,23 @@ func selectSoftwareSQL(hostID *uint, opts fleet.SoftwareListOptions) (string, []
 			goqu.I("software_cpe").As("scp"),
 			goqu.On(
 				goqu.I("s.id").Eq(goqu.I("scp.software_id")),
+			),
+		)
+		if opts.MatchQuery != "" {
+			ds = ds.LeftJoin(
+				goqu.I("software_cve").As("scv"),
+				goqu.On(goqu.I("scp.id").Eq(goqu.I("scv.cpe_id"))),
+			)
+		}
+	}
+
+	if match := opts.MatchQuery; match != "" {
+		match = likePattern(match)
+		ds = ds.Where(
+			goqu.Or(
+				goqu.I("s.name").ILike(match),
+				goqu.I("s.version").ILike(match),
+				goqu.I("scv.cve").ILike(match),
 			),
 		)
 	}

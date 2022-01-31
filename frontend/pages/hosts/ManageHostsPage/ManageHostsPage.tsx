@@ -852,6 +852,7 @@ const ManageHostsPage = ({
     try {
       await labelsAPI.update(selectedLabel, updateAttrs);
       refetchLabels();
+      router.push(`${PATHS.MANAGE_HOSTS}/${getLabelSelected()}`);
       dispatch(
         renderFlash(
           "success",
