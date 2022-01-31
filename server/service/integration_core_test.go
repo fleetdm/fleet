@@ -405,9 +405,14 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 
 	// no software host counts have been calculated yet, so this returns nothing
 	var lsResp listSoftwareResponse
-	s.DoJSON("GET", "/api/v1/fleet/software", nil, http.StatusOK, &lsResp, "vulnerable", "true", "order_key", "generated_cpe", "order_direction", "desc")
+	resp = s.Do("GET", "/api/v1/fleet/software", nil, http.StatusOK, "vulnerable", "true", "order_key", "generated_cpe", "order_direction", "desc")
+	bodyBytes, err = ioutil.ReadAll(resp.Body)
+	require.NoError(t, err)
+	assert.Contains(t, string(bodyBytes), `"counts_updated_at": null`)
+
+	require.NoError(t, json.Unmarshal(bodyBytes, &lsResp))
 	require.Len(t, lsResp.Software, 0)
-	assert.True(t, lsResp.CountsUpdatedAt.IsZero())
+	assert.Nil(t, lsResp.CountsUpdatedAt)
 
 	// the software/count endpoint is different, it doesn't care about hosts counts
 	s.DoJSON("GET", "/api/v1/fleet/software/count", countReq, http.StatusOK, &countResp, "vulnerable", "true", "order_key", "generated_cpe", "order_direction", "desc")
@@ -422,7 +427,7 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	require.Len(t, lsResp.Software, 1)
 	assert.Equal(t, soft1.ID, lsResp.Software[0].ID)
 	assert.Len(t, lsResp.Software[0].Vulnerabilities, 1)
-	assert.WithinDuration(t, hostsCountTs, lsResp.CountsUpdatedAt, time.Second)
+	assert.WithinDuration(t, hostsCountTs, *lsResp.CountsUpdatedAt, time.Second)
 
 	// the count endpoint still returns 1
 	s.DoJSON("GET", "/api/v1/fleet/software/count", countReq, http.StatusOK, &countResp, "vulnerable", "true", "order_key", "generated_cpe", "order_direction", "desc")
@@ -431,7 +436,7 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	// default sort, not only vulnerable
 	s.DoJSON("GET", "/api/v1/fleet/software", nil, http.StatusOK, &lsResp)
 	require.True(t, len(lsResp.Software) >= len(software))
-	assert.WithinDuration(t, hostsCountTs, lsResp.CountsUpdatedAt, time.Second)
+	assert.WithinDuration(t, hostsCountTs, *lsResp.CountsUpdatedAt, time.Second)
 }
 
 func (s *integrationTestSuite) TestGlobalPolicies() {

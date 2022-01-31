@@ -16,7 +16,7 @@ type listSoftwareRequest struct {
 }
 
 type listSoftwareResponse struct {
-	CountsUpdatedAt time.Time        `json:"counts_updated_at,omitempty"`
+	CountsUpdatedAt *time.Time       `json:"counts_updated_at"`
 	Software        []fleet.Software `json:"software,omitempty"`
 	Err             error            `json:"error,omitempty"`
 }
@@ -36,7 +36,11 @@ func listSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 			latest = sw.CountsUpdatedAt
 		}
 	}
-	return listSoftwareResponse{CountsUpdatedAt: latest, Software: resp}, nil
+	listResp := listSoftwareResponse{Software: resp}
+	if !latest.IsZero() {
+		listResp.CountsUpdatedAt = &latest
+	}
+	return listResp, nil
 }
 
 func (svc Service) ListSoftware(ctx context.Context, opt fleet.SoftwareListOptions) ([]fleet.Software, error) {
