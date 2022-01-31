@@ -85,10 +85,10 @@ describe("Premium tier - Team observer/maintainer user", () => {
 
     beforeEach(() => {
       cy.loginWithCySession("marco@organization.com", "user123#");
+      cy.visit("/hosts/manage");
     });
     describe("Manage hosts page", () => {
       it("should render elements according to role-based access controls", () => {
-        cy.visit("/hosts/manage");
         // Hosts table includes teams column
         cy.getAttached(".data-table__table th")
           .contains("Team")
@@ -96,7 +96,10 @@ describe("Premium tier - Team observer/maintainer user", () => {
         cy.findByText(/add label/i).should("not.exist");
 
         // On maintaining team, see the "Generate installer" and "Manage enroll secret" buttons
-        cy.visit("/hosts/manage/?team_id=2");
+        cy.getAttached(".manage-hosts__header").within(() => {
+          cy.contains("Apples").click({ force: true });
+          cy.contains("Oranges").click({ force: true });
+        });
         cy.contains(/oranges/i);
         cy.getAttached(".button-wrap")
           .contains("button", /generate installer/i)
