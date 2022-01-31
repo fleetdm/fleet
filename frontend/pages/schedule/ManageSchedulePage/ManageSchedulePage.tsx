@@ -1,6 +1,6 @@
 /* Conditionally renders global schedule and team schedules */
 
-import React, { useState, useCallback, useContext } from "react";
+import React, { useCallback, useContext, useEffect, useState } from "react";
 import { useQuery } from "react-query";
 import { useDispatch } from "react-redux";
 import { AppContext } from "context/app";
@@ -130,6 +130,8 @@ const ManageSchedulePage = ({
     setCurrentTeam,
   } = useContext(AppContext);
 
+  const teamId = parseInt(team_id, 10) || 0;
+
   const filterAndSortTeamOptions = (allTeams: ITeam[], userTeams: ITeam[]) => {
     const filteredSortedTeams = allTeams
       .sort((teamA: ITeam, teamB: ITeam) =>
@@ -191,6 +193,14 @@ const ManageSchedulePage = ({
     select: (data) => data.global_schedule,
   });
 
+  let selectedTeamId: number;
+
+  if (currentTeam) {
+    selectedTeamId = currentTeam.id;
+  } else {
+    selectedTeamId = teamId || 0;
+  }
+
   const {
     data: teamScheduledQueries,
     error: teamScheduledQueriesError,
@@ -201,27 +211,23 @@ const ManageSchedulePage = ({
     Error,
     ITeamScheduledQuery[]
   >(
-    ["teamScheduledQueries", team_id],
-    () => teamScheduledQueriesAPI.loadAll(parseInt(team_id, 10)),
+    ["teamScheduledQueries", selectedTeamId],
+    () => teamScheduledQueriesAPI.loadAll(selectedTeamId),
     {
-      enabled: !!availableTeams && isPremiumTier && !!team_id,
+      enabled: !!availableTeams && isPremiumTier && !!selectedTeamId,
       select: (data) => data.scheduled,
     }
   );
-
-  let selectedTeamId: number;
-
-  if (currentTeam) {
-    selectedTeamId = currentTeam.id;
-  } else {
-    selectedTeamId = team_id ? parseInt(team_id, 10) : 0;
-  }
 
   const refetchScheduledQueries = () => {
     refetchGlobalScheduledQueries();
     if (selectedTeamId !== 0) {
       refetchTeamScheduledQueries();
     }
+  };
+
+  const findAvailableTeam = (id: number) => {
+    return availableTeams?.find((t) => t.id === id);
   };
 
   const handleTeamSelect = (teamId: number) => {
@@ -238,9 +244,36 @@ const ManageSchedulePage = ({
     handleTeamSelect(teams[0].id);
   }
 
+  // If team_id from URL query params is not valid, we instead use a default team
+  // either the current team (if any) or all teams (for global users) or
+  // the first available team (for non-global users)
+  const getValidatedTeamId = () => {
+    if (findAvailableTeam(selectedTeamId)) {
+      return selectedTeamId;
+    }
+    if (!selectedTeamId && currentTeam) {
+      return currentTeam.id;
+    }
+    if (!selectedTeamId && !currentTeam && !isOnGlobalTeam && availableTeams) {
+      return availableTeams[0]?.id;
+    }
+    return 0;
+  };
+
+  // If team_id or currentTeam doesn't match validated id, switch to validated id
+  useEffect(() => {
+    if (availableTeams) {
+      const validatedId = getValidatedTeamId();
+
+      if (validatedId !== currentTeam?.id || validatedId !== selectedTeamId) {
+        handleTeamSelect(validatedId);
+      }
+    }
+  }, [availableTeams]);
+
   const allScheduledQueriesList =
-    (team_id ? teamScheduledQueries : globalScheduledQueries) || [];
-  const allScheduledQueriesError = team_id
+    (selectedTeamId ? teamScheduledQueries : globalScheduledQueries) || [];
+  const allScheduledQueriesError = selectedTeamId
     ? teamScheduledQueriesError
     : globalScheduledQueriesError;
 
