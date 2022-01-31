@@ -75,6 +75,11 @@ const TeamsDropdown = ({
     disabled: isDisabled || undefined,
   });
 
+  console.log(
+    "This is the actual selected team ID! selectedValue",
+    selectedValue
+  );
+
   return (
     <div className={dropdownWrapperClasses}>
       {teamOptions.length && (
