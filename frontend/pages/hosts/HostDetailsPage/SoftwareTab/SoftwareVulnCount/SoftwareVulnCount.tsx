@@ -1,15 +1,17 @@
 import React from "react";
 
 import { ISoftware } from "interfaces/software";
-import IssueIcon from "../../../../../assets/images/icon-issue-fleet-black-50-16x16@2x.png";
+import IssueIcon from "../../../../../../assets/images/icon-issue-fleet-black-50-16x16@2x.png";
 
 const baseClass = "software-vuln-count";
 
-const SoftwareVulnCount = (vulnProps: {
+interface ISoftwareVulnCountProps {
   softwareList: ISoftware[];
-}): JSX.Element | null => {
-  const { softwareList } = vulnProps;
+}
 
+const SoftwareVulnCount = ({
+  softwareList,
+}: ISoftwareVulnCountProps): JSX.Element | null => {
   const vulnCount = softwareList.reduce((sum, software) => {
     return software.vulnerabilities
       ? sum + software.vulnerabilities.length

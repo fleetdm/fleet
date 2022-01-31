@@ -35,6 +35,11 @@ interface IDataColumn {
   disableHidden?: boolean;
   disableSortBy?: boolean;
   sortType?: string;
+  // Filter can be used by react-table to render a filter input inside the column header
+  Filter?: () => null | JSX.Element;
+  filter?: string; // one of the enumerated `filterTypes` for react-table
+  // (see https://github.com/tannerlinsley/react-table/blob/master/src/filterTypes.js)
+  // or one of the custom `filterTypes` defined for the `useTable` instance (see `DataTable`)
 }
 
 const TYPE_CONVERSION: Record<string, string> = {
@@ -71,6 +76,8 @@ const generateSoftwareTableHeaders = (): IDataColumn[] => {
       Header: "",
       disableSortBy: true,
       accessor: "vulnerabilities",
+      Filter: () => null, // input for this column filter outside of column header
+      filter: "hasLength", // filters out rows where vulnerabilities has no length if filter value is `true`
       Cell: (cellProps) => {
         const vulnerabilities = cellProps.cell.value;
         if (isEmpty(vulnerabilities)) {
@@ -113,6 +120,8 @@ const generateSoftwareTableHeaders = (): IDataColumn[] => {
         />
       ),
       accessor: "name",
+      Filter: () => null, // input for this column filter is rendered outside of column header
+      filter: "text", // filters name text based on the user's search query
       Cell: (cellProps) => {
         const { name, bundle_identifier } = cellProps.row.original;
         if (bundle_identifier) {
