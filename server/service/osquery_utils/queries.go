@@ -529,6 +529,11 @@ func directIngestChromeProfiles(ctx context.Context, logger log.Logger, host *fl
 }
 
 func directIngestScheduledQueryStats(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
+	// NOTE: Disabling ingestion of scheduled query stats to rule out performance issues.
+	if true {
+		return nil
+	}
+
 	if failed {
 		level.Error(logger).Log("op", "directIngestScheduledQueryStats", "err", "failed")
 		return nil
