@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/facebookincubator/nvdtools/cvefeed"
+	feednvd "github.com/facebookincubator/nvdtools/cvefeed/nvd"
 	"github.com/facebookincubator/nvdtools/providers/nvd"
 	"github.com/facebookincubator/nvdtools/wfn"
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -165,6 +166,10 @@ func checkCVEs(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, cp
 						if err != nil {
 							level.Error(logger).Log("cpe processing", "error", "err", err)
 						}
+
+						vuln := matches.CVE.(*feednvd.Vuln)
+						fmt.Println(">>>>> ", vuln.ID(), vuln.Schema().PublishedDate)
+						// Example output: >>>>>  CVE-2012-6369 2012-12-28T11:48Z
 
 						// TODO(mna): if CVE is within 2 days of its published date, and
 						// webhook is enabled, collect the CVE and its matching CPEs. How
