@@ -214,7 +214,7 @@ func TestQueryAuth(t *testing.T) {
 			// TODO(mna): the authorization seems wrong here - ApplyQuerySpecs never loads the queries it
 			// receives, so it just validates that the user has Write access to Queries in general, not
 			// that it can update those provided in the specs in particular. Here, a team maintainer can
-			// end up updating a query they did not author.
+			// end up updating a query they did not author. See https://github.com/fleetdm/fleet/issues/3953
 			//err = svc.ApplyQuerySpecs(ctx, []*fleet.QuerySpec{{Name: queryName[tt.qid], Query: "SELECT 1"}})
 			//checkAuthErr(t, tt.shouldFailWrite, err)
 

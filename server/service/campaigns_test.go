@@ -128,7 +128,7 @@ func TestLiveQueryAuth(t *testing.T) {
 			false,
 			false,
 		},
-		// TODO(mna): I don't think this is properly validated by rego?
+		// TODO(mna): I don't think this is properly validated by rego, see https://github.com/fleetdm/fleet/issues/3950
 		/*
 			{
 				"team admin, target not set to own team",
@@ -147,7 +147,7 @@ func TestLiveQueryAuth(t *testing.T) {
 			false,
 			false,
 		},
-		// TODO(mna): I don't think this is properly validated by rego?
+		// TODO(mna): I don't think this is properly validated by rego, see https://github.com/fleetdm/fleet/issues/3950
 		/*
 			{
 				"team observer, target not set to own team",
