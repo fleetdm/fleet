@@ -123,7 +123,19 @@ describe("Premium tier - Team observer/maintainer user", () => {
         cy.visit("/schedule/manage");
         cy.contains(/oranges/i).should("exist");
         cy.contains(/advanced/i).should("not.exist");
-        cy.findByRole("button", { name: /schedule a query/i }).should("exist");
+        cy.findByRole("button", { name: /schedule a query/i }).click();
+        // Schedule a query on maintaining team
+        cy.getAttached(".schedule-editor-modal__form").within(() => {
+          cy.findByText(/select query/i).click();
+          cy.findByText(/detect presence/i).click();
+          cy.findByText(/every day/i).click();
+          cy.findByText(/every 6 hours/i).click();
+          cy.getAttached(".schedule-editor-modal__btn-wrap").within(() => {
+            cy.findByRole("button", { name: /schedule/i }).click();
+          });
+        });
+        cy.findByText(/successfully added/i).should("be.visible");
+        cy.getAttached("tbody>tr").should("have.length", 1);
       });
     });
     describe("Manage policies page", () => {
