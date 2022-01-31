@@ -11,12 +11,13 @@ const baseClass = "user-menu";
 interface IUserMenuProps {
   onLogout: () => any;
   onNavItemClick: any;
-  user: {
-    gravatarURL?: string | undefined;
-    name?: string;
-    email: string;
-    position?: string;
-  };
+  // user: {
+  //   gravatarURL?: string | undefined;
+  //   name?: string;
+  //   email: string;
+  //   position?: string;
+  // };
+  user: any;
 }
 
 const UserMenu = ({
@@ -26,8 +27,20 @@ const UserMenu = ({
 }: IUserMenuProps): JSX.Element => {
   // const [isOpened, setIsOpened] = useState<boolean>(false);
 
+  console.log("user", user);
+  const settingsNavigate = onNavItemClick(PATHS.ADMIN_SETTINGS);
+  const manageUsersNavigate = onNavItemClick(PATHS.ADMIN_USERS);
   const accountNavigate = onNavItemClick(PATHS.USER_SETTINGS);
+
   const dropdownItems = [
+    {
+      label: "Settings",
+      onClick: settingsNavigate,
+    },
+    {
+      label: "Manage users",
+      onClick: manageUsersNavigate,
+    },
     {
       label: "My account",
       onClick: accountNavigate,
