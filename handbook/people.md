@@ -102,7 +102,7 @@ Change the name of the documents accordingly (e.g., "[candidate's name]'s copy o
 
    >**_Note:_** *If we're hiring in a new state, we'll have to register for state taxes and unemployment. This process can be handled by Gusto. *
 
-4. Before their first day at Fleet, Eric will create a new [Google Workspace account](https://admin.google.com/ac/users) for the new team member, add the team member to the [Fleet Github organization](https://github.com/fleetdm), create an onboarding issue in the [fleetdm/confidential](https://github.com/fleetdm/confidential/issues) Github repo, and invite them to join the Fleet Slack. If the new team member needs to purchase a work computer, Eric will set them up with a [Brex](https://dashboard.brex.com/team/invite-user) card.
+4. Before their first day at Fleet, Eric will create a [Google Workspace account](https://admin.google.com/ac/users) for the new team member, add them to the [Fleet Github organization](https://github.com/fleetdm), create an onboarding issue in the [fleetdm/confidential](https://github.com/fleetdm/confidential/issues) Github repo, and invite them to join the Fleet Slack. If the new team member needs to purchase a work computer, Eric will set them up with a [Brex](https://dashboard.brex.com/team/invite-user) card.
 
 ### Onboarding a new advisor.
 
