@@ -100,12 +100,20 @@ describe(
             force: true,
           });
         cy.findByRole("button", { name: /save/i }).click();
-        cy.findByLabelText(/name/i).click().type("Cypress test query");
-        cy.findByLabelText(/description/i)
-          .click()
-          .type("Cypress test of create new query flow.");
-        cy.findByLabelText(/observers can run/i).click({ force: true });
-        cy.findByRole("button", { name: /save query/i }).click();
+        cy.getAttached(".modal__background").within(() => {
+          cy.getAttached(".modal__modal_container").within(() => {
+            cy.getAttached(".modal__content").within(() => {
+              cy.getAttached("form").within(() => {
+                cy.findByLabelText(/name/i).click().type("Cypress test query");
+                cy.findByLabelText(/description/i)
+                  .click()
+                  .type("Cypress test of create new query flow.");
+                cy.findByLabelText(/observers can run/i).click({ force: true });
+                cy.findByRole("button", { name: /save query/i }).click();
+              });
+            });
+          });
+        });
         cy.findByText(/query created/i).should("exist");
       });
 
