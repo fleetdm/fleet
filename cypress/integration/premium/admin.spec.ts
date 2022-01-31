@@ -89,7 +89,9 @@ describe("Premium tier - Admin user", () => {
       beforeEach(() => cy.visit("/software/manage"));
       it("displays manage automations button when all teams selected", () => {
         cy.getAttached(".manage-software-page__header-wrap").within(() => {
-          cy.findByText(/all teams/i).should("exist");
+          cy.getAttached(".Select").within(() => {
+            cy.findByText(/all teams/i).should("exist");
+          });
           cy.findByRole("button", { name: /manage automations/i }).should(
             "exist"
           );

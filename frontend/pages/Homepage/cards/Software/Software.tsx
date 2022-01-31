@@ -55,11 +55,13 @@ const EmptySoftware = (message: string): JSX.Element => {
 };
 
 const renderLastUpdatedAt = (lastUpdatedAt: string) => {
-  lastUpdatedAt = lastUpdatedAt
-    ? formatDistanceToNowStrict(new Date(lastUpdatedAt), {
-        addSuffix: true,
-      })
-    : "never";
+  if (!lastUpdatedAt || lastUpdatedAt === "0001-01-01T00:00:00Z") {
+    lastUpdatedAt = "never";
+  } else {
+    lastUpdatedAt = formatDistanceToNowStrict(new Date(lastUpdatedAt), {
+      addSuffix: true,
+    });
+  }
   return (
     <span className="last-updated">
       {`Last updated ${lastUpdatedAt}`}

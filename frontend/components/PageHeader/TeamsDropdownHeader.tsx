@@ -5,7 +5,7 @@ import { InjectedRouter } from "react-router/lib/Router";
 import { AppContext, IAppContext } from "context/app";
 import usersAPI, { IGetMeResponse } from "services/entities/users";
 
-import TeamsDropdown from "./TeamsDropdown";
+import TeamsDropdown from "../TeamsDropdown/TeamsDropdown";
 
 export interface ITeamsDropdownState extends Partial<IAppContext> {
   teamId?: number;
@@ -101,21 +101,20 @@ const TeamsDropdownHeader = ({
       ? queryString.slice(1)
       : queryString;
     const queryParams = queryString.split("&").filter((el) => el.includes("="));
-    const index = queryParams.findIndex((el) => el.includes("team_id"));
+    const teamIndex = queryParams.findIndex((el) => el.includes("team_id"));
 
     if (newTeamId) {
       const teamParam = `team_id=${newTeamId}`;
-      if (index >= 0) {
+      if (teamIndex >= 0) {
         // replace old team param
-        queryParams.splice(index, 1, teamParam);
+        queryParams.splice(teamIndex, 1, teamParam);
       } else {
         // add new team param
         queryParams.push(teamParam);
       }
-      console.log("after queryString: ", queryString);
     } else {
       // remove old team param
-      index >= 0 && queryParams.splice(index, 1);
+      teamIndex >= 0 && queryParams.splice(teamIndex, 1);
     }
     queryString = queryParams.length ? "?".concat(queryParams.join("&")) : "";
 
@@ -130,10 +129,9 @@ const TeamsDropdownHeader = ({
       const queryString = buildQueryString(location?.search, id);
       if (location?.search !== queryString) {
         const path = location?.pathname?.concat(queryString) || "";
-        console.log("team dropdown path: ", path);
         !!path && router.replace(path);
       }
-      if (typeof onChange === "function") {
+      if (onChange) {
         onChange({ ...dropdownState, teamId: availableTeam?.id });
       }
     },

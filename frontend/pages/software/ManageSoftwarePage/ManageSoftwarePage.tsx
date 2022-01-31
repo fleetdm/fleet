@@ -23,7 +23,7 @@ import TableContainer, { ITableQueryData } from "components/TableContainer";
 import TableDataError from "components/TableDataError";
 import TeamsDropdownHeader, {
   ITeamsDropdownState,
-} from "components/TeamsDropdown/TeamsDropdownHeader";
+} from "components/PageHeader/TeamsDropdownHeader";
 
 import ExternalLinkIcon from "../../../../assets/images/open-new-tab-12x12@2x.png";
 import QuestionIcon from "../../../../assets/images/icon-question-16x16@2x.png";
@@ -63,12 +63,8 @@ const ManageSoftwarePage = ({
   const [sortHeader, setSortHeader] = useState(DEFAULT_SORT_HEADER);
   const [pageIndex, setPageIndex] = useState(0);
 
-  // const teamId = parseInt(location?.query?.team_id, 10) || 0;
   const teamId = currentTeam?.id;
 
-  // TODO: Is our implementation of keepPreviousData and loading states causing bad UX and giving up
-  // advantages of the react-query cache? Are we displaying data from cache for the current or prior
-  // query while refetching? How does this work with debounce?
   const { data: software, error: softwareError } = useQuery<
     ISoftwareResponse,
     Error
@@ -98,9 +94,6 @@ const ManageSoftwarePage = ({
       });
     },
     {
-      // initialData: { software: [], counts_updated_at: "" },
-      // placeholderData: { software: [], counts_updated_at: "" },
-      // enabled: true,
       // If keepPreviousData is enabled,
       // useQuery no longer returns isLoading when making new calls after load
       // So we manage our own load states
@@ -218,7 +211,6 @@ const ManageSoftwarePage = ({
     );
   }, [router, location]);
 
-  // TODO: Ask backend to implement different approach to returning "0001-01-01T00:00:00Z" when counts have not yet run.
   const renderSoftwareCount = useCallback(() => {
     const count = softwareCount;
     let lastUpdatedAt = software?.counts_updated_at;
@@ -375,10 +367,9 @@ const ManageSoftwarePage = ({
             searchable
             inputPlaceHolder="Search software by name or vulnerabilities (CVEs)"
             onQueryChange={onQueryChange}
-            // TODO: Consider renaming additionalQueries. Essentially this serves as a trigger
+            additionalQueries={filterVuln ? "vulnerable" : ""} // additionalQueries serves as a trigger
             // for the useDeepEffect hook to fire onQueryChange for events happeing outside of
             // the TableContainer
-            additionalQueries={filterVuln ? "vulnerable" : ""}
             customControl={renderVulnFilterDropdown}
             renderCount={renderSoftwareCount}
             renderFooter={renderTableFooter}
