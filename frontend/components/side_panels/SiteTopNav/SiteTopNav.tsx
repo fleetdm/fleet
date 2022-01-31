@@ -1,6 +1,5 @@
 import React, { useContext } from "react";
 import { Link } from "react-router";
-import PropTypes from "prop-types";
 import classnames from "classnames";
 
 import { IUser } from "interfaces/user";
