@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useContext } from "react";
 import { useDispatch } from "react-redux";
 import { useQuery } from "react-query";
+import { useErrorHandler } from "react-error-boundary";
 import { InjectedRouter, Link, RouteProps } from "react-router";
 import { push } from "react-router-redux";
 import { Tab, TabList, Tabs } from "react-tabs";
@@ -10,7 +11,6 @@ import classnames from "classnames";
 import PATHS from "router/paths";
 import { ITeam, ITeamSummary } from "interfaces/team";
 import { AppContext } from "context/app";
-// ignore TS error for now until these are rewritten in ts.
 // @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions";
 import teamsAPI from "services/entities/teams";
@@ -64,7 +64,7 @@ interface ITeamsResponse {
 interface ITeamDetailsPageProps {
   children: JSX.Element;
   params: {
-    team_id: number;
+    team_id: string;
   };
   location: {
     pathname: string;
@@ -99,7 +99,8 @@ const TeamDetailsWrapper = ({
   params: routeParams,
 }: ITeamDetailsPageProps): JSX.Element => {
   const dispatch = useDispatch();
-
+  const handlePageError = useErrorHandler();
+  const teamIdFromURL = parseInt(routeParams.team_id, 10) || 0;
   const {
     currentUser,
     isGlobalAdmin,
@@ -140,8 +141,14 @@ const TeamDetailsWrapper = ({
         const findTeam = responseTeams.find(
           (team) => team.id === Number(routeParams.team_id)
         );
-        setCurrentTeam(findTeam);
+
+        if (findTeam) {
+          setCurrentTeam(findTeam);
+        } else {
+          handlePageError({ status: 404 });
+        }
       },
+      onError: (error) => handlePageError(error),
     }
   );
 
@@ -152,7 +159,7 @@ const TeamDetailsWrapper = ({
   } = useQuery<IEnrollSecretsResponse, Error, IEnrollSecret[]>(
     ["team secrets", routeParams],
     () => {
-      return enrollSecretsAPI.getTeamEnrollSecrets(routeParams.team_id);
+      return enrollSecretsAPI.getTeamEnrollSecrets(teamIdFromURL);
     },
     {
       select: (data: IEnrollSecretsResponse) => data.secrets,
@@ -160,13 +167,9 @@ const TeamDetailsWrapper = ({
   );
 
   const navigateToNav = (i: number): void => {
-    const navPath = teamDetailsSubNav[i].getPathname(routeParams.team_id);
+    const navPath = teamDetailsSubNav[i].getPathname(teamIdFromURL);
     dispatch(push(navPath));
   };
-
-  useEffect(() => {
-    dispatch(teamActions.loadAll({ perPage: 500 }));
-  }, [dispatch]);
 
   const [teamMenuIsOpen, setTeamMenuIsOpen] = useState<boolean>(false);
 
@@ -224,10 +227,7 @@ const TeamDetailsWrapper = ({
     }
 
     try {
-      await enrollSecretsAPI.modifyTeamEnrollSecrets(
-        routeParams.team_id,
-        newSecrets
-      );
+      await enrollSecretsAPI.modifyTeamEnrollSecrets(teamIdFromURL, newSecrets);
       refetchTeamSecrets();
 
       toggleSecretEditorModal();
@@ -260,10 +260,7 @@ const TeamDetailsWrapper = ({
     );
 
     try {
-      await enrollSecretsAPI.modifyTeamEnrollSecrets(
-        routeParams.team_id,
-        newSecrets
-      );
+      await enrollSecretsAPI.modifyTeamEnrollSecrets(teamIdFromURL, newSecrets);
       refetchTeamSecrets();
       toggleDeleteSecretModal();
       refetchTeams();
@@ -312,12 +309,12 @@ const TeamDetailsWrapper = ({
   );
 
   const handleTeamSelect = (teamId: number) => {
-    const selectedTeam = find(teams, ["id", teamId]);
+    const newSelectedTeam = find(teams, ["id", teamId]);
     const { ADMIN_TEAMS } = PATHS;
 
     const newRouteParams = {
       ...routeParams,
-      team_id: selectedTeam ? selectedTeam.id : teamId,
+      team_id: newSelectedTeam ? newSelectedTeam.id : teamId,
     };
 
     const nextLocation = getNextLocationPath({
@@ -328,7 +325,7 @@ const TeamDetailsWrapper = ({
 
     router.replace(`${nextLocation}/members`);
 
-    setCurrentTeam(selectedTeam);
+    setCurrentTeam(newSelectedTeam);
   };
 
   const handleTeamMenuOpen = () => {
@@ -420,7 +417,7 @@ const TeamDetailsWrapper = ({
           </div>
         </div>
         <Tabs
-          selectedIndex={getTabIndex(pathname, routeParams.team_id)}
+          selectedIndex={getTabIndex(pathname, teamIdFromURL)}
           onSelect={(i) => navigateToNav(i)}
         >
           <TabList>
@@ -447,7 +444,7 @@ const TeamDetailsWrapper = ({
       )}
       {showManageEnrollSecretsModal && (
         <EnrollSecretModal
-          selectedTeam={routeParams.team_id}
+          selectedTeam={teamIdFromURL}
           teams={teams || []}
           onReturnToApp={toggleManageEnrollSecretsModal}
           toggleSecretEditorModal={toggleSecretEditorModal}
@@ -457,7 +454,7 @@ const TeamDetailsWrapper = ({
       )}
       {showSecretEditorModal && (
         <SecretEditorModal
-          selectedTeam={routeParams.team_id}
+          selectedTeam={teamIdFromURL}
           teams={teams || []}
           onSaveSecret={onSaveSecret}
           toggleSecretEditorModal={toggleSecretEditorModal}
@@ -467,7 +464,7 @@ const TeamDetailsWrapper = ({
       {showDeleteSecretModal && (
         <DeleteSecretModal
           onDeleteSecret={onDeleteSecret}
-          selectedTeam={routeParams.team_id}
+          selectedTeam={teamIdFromURL}
           teams={teams || []}
           toggleDeleteSecretModal={toggleDeleteSecretModal}
         />
