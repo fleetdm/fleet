@@ -727,6 +727,10 @@ func cronVulnerabilities(
 			continue
 		}
 
+		if !vulnDisabled {
+			// TODO(mna): maybe trigger webhook for new vulnerabilities (last 2 days)
+		}
+
 		level.Debug(logger).Log("loop", "done")
 	}
 }

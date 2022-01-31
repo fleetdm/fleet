@@ -49,6 +49,8 @@ func SyncCVEData(vulnPath string, config config.FleetConfig) error {
 	return dfs.Do(ctx)
 }
 
+var rxNVDCVEArchive = regexp.MustCompile(`nvdcve.*\.gz$`)
+
 func TranslateCPEToCVE(
 	ctx context.Context,
 	ds fleet.Datastore,
@@ -63,7 +65,7 @@ func TranslateCPEToCVE(
 
 	var files []string
 	err = filepath.Walk(vulnPath, func(path string, info os.FileInfo, err error) error {
-		if match, err := regexp.MatchString("nvdcve.*\\.gz$", path); !match || err != nil {
+		if match := rxNVDCVEArchive.MatchString(path); !match {
 			return nil
 		}
 		files = append(files, path)
@@ -71,6 +73,10 @@ func TranslateCPEToCVE(
 	})
 	if err != nil {
 		return err
+	}
+
+	if len(files) == 0 {
+		return nil
 	}
 
 	cpeList, err := ds.AllCPEs(ctx)
