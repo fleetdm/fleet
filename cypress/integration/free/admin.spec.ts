@@ -105,9 +105,9 @@ describe(
       it("Can add a new query", () => {
         cy.findByRole("button", { name: /new query/i }).click();
         cy.getAttached(".ace_text-input")
-          .first()
           .click({ force: true })
-          .type("{selectall}{backspace}SELECT * FROM cypress;", {
+          .clear({ force: true })
+          .type("SELECT * FROM cypress;", {
             force: true,
           });
         cy.findByRole("button", { name: /save/i }).click();
@@ -131,9 +131,9 @@ describe(
       it("Can edit a query", () => {
         cy.findByText(/cypress test query/i).click({ force: true });
         cy.getAttached(".ace_text-input")
-          .first()
           .click({ force: true })
-          .type("{selectall}{backspace}SELECT 1 FROM cypress;", {
+          .clear({ force: true })
+          .type("SELECT 1 FROM cypress;", {
             force: true,
           });
         cy.findByText("Save").click(); // we have 'save as new' also
