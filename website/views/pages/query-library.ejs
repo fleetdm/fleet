@@ -92,18 +92,30 @@
         </div>
       </div>
       <div class="results">
+        <div class="row justify-content-center">
+          <div purpose="selected-tag" class="mb-3" v-if="selectedTag">
+            <strong>Showing {{ selectedKind === 'query' ? 'informational queries' : selectedKind === 'policy' ? 'policies' : 'all queries'}} with the "{{selectedTag}}" label.<span style="color: #FF5C83; cursor: pointer;" class="fa fa-times-circle pl-2" @click="clickSelectTag('')"></span></strong>
+          </div>
+        </div>
         <div class="category__informational">
           <div v-for="query of queriesList">
             <div class="card results" @click="clickCard(query.slug)">
               <div class="card-body">
                 <div class="row justify-content-between align-items-center query-card">
+                  <div class="col-12">
+                    <div class="d-block d-sm-flex flex-wrap">
+                      <h5 class="card-title m-0 mb-1 mr-sm-2">{{query.name}}</h5>
+                      <div class="my-2 my-sm-0">
+                        <span class="mr-2" purpose="query-tag" v-for="tag in query.tags" @click.stop="clickSelectTag(tag)">{{tag}}</span>
+                      </div>
+                    </div>
+                  </div>
                   <div class="col-sm-9 col-md-9">
-                    <h5 class="card-title m-0">{{query.name}}</h5>
                     <p class="font-italic mb-1 p-0 description">{{query.description}}</p>
                     <div class="contributors" v-if="query.contributors && query.contributors.length">
                       <div class="d-flex mb-2 mb-sm-1 align-items-center">
                         <div v-for="contributor in query.contributors">
-                          <div class="d-flex m-1 avatar-frame" @click="clickAvatar(contributor)">
+                          <div class="d-flex m-1 avatar-frame" @click.stop="clickAvatar(contributor)">
                             <img alt="a GitHub user avatar" :alt="contributor" :src="contributor.avatarUrl" />
                           </div>
                         </div>
@@ -138,7 +150,7 @@
   </div>
   <div class="d-flex justify-content-center p-3">
     <div class="card call-to-action col-6-grow my-5 library">
-      <div class="card-body">
+      <div class="card-body px-0">
         <h3 class="mb-3">Contributors</h3>
         <p><strong>Want to add your own query?</strong> Please submit a pull request
           <a href="https://github.com/fleetdm/fleet/edit/main/docs/01-Using-Fleet/standard-query-library/standard-query-library.yml">

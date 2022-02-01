@@ -36,6 +36,23 @@
     }
   }
 
+  [purpose="query-tag"] {
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 20px;
+    padding: 4px 8px;
+    border-radius: 20px;
+    background-color: #DBE3E5;
+  }
+
+  [purpose="selected-tag"] {
+    background: #F1F0FF;
+    border: 1px solid #D9D9FE;
+    box-sizing: border-box;
+    border-radius: 8px;
+    padding: 16px 24px;
+  }
+
   .input-group {
     &.search {
       width: 250px;
@@ -221,6 +238,10 @@
     box-shadow: 0 4px 16px 0 rgba(0, 0, 0, 0.1);
     margin-bottom: 90px;
     width: 100%;
+    padding: 40px;
+    p {
+      margin-block-end: 0px;
+    }
   }
 
   .card-body {

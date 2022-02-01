@@ -41,6 +41,17 @@
             </div>
           </div>
         </div>
+        <div class="border-top py-2 pb-md-4">
+          <div class="d-flex flex-md-column justify-content-between justify-content-md-start align-items-center align-items-md-start py-1 pt-md-3">
+            <h5 class="pb-md-2 m-0">Labels</h5>
+            <div class="d-flex flex-wrap align-items-center">
+              <span class="mb-1" v-if="!query.tags || !query.tags.length">--</span>
+              <div purpose="query-tag" class="mr-2 mb-2" v-for="tag in query.tags">
+                {{tag}}
+              </div>
+            </div>
+          </div>
+        </div>
         <div class="border-top py-2">
           <div class="d-flex flex-md-column justify-content-between justify-content-md-start align-items-center align-items-md-start py-1 py-md-3">
             <h5 class="pb-md-2 m-0">Purpose</h5>
