@@ -479,18 +479,22 @@ func (d *Datastore) AllCPEs(ctx context.Context) ([]string, error) {
 	return cpes, nil
 }
 
-func (d *Datastore) InsertCVEForCPE(ctx context.Context, cve string, cpes []string) error {
+// InsertCVEForCPE inserts the cve into software_cve, linking it to all the
+// provided cpes. It returns the number of new rows inserted or an error. If
+// the CVE already existed for all CPEs, it would return 0, nil.
+func (d *Datastore) InsertCVEForCPE(ctx context.Context, cve string, cpes []string) (int64, error) {
 	values := strings.TrimSuffix(strings.Repeat("((SELECT id FROM software_cpe WHERE cpe=?),?),", len(cpes)), ",")
 	sql := fmt.Sprintf(`INSERT IGNORE INTO software_cve (cpe_id, cve) VALUES %s`, values)
 	var args []interface{}
 	for _, cpe := range cpes {
 		args = append(args, cpe, cve)
 	}
-	_, err := d.writer.ExecContext(ctx, sql, args...)
+	res, err := d.writer.ExecContext(ctx, sql, args...)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "insert software cve")
+		return 0, ctxerr.Wrap(ctx, err, "insert software cve")
 	}
-	return nil
+	count, _ := res.RowsAffected()
+	return count, nil
 }
 
 func (d *Datastore) ListSoftware(ctx context.Context, opt fleet.SoftwareListOptions) ([]fleet.Software, error) {

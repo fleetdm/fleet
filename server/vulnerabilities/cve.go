@@ -182,25 +182,19 @@ func checkCVEs(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 							matchingCPEs = append(matchingCPEs, cpe)
 						}
 
-						err = ds.InsertCVEForCPE(ctx, matches.CVE.ID(), matchingCPEs)
+						newCount, err := ds.InsertCVEForCPE(ctx, matches.CVE.ID(), matchingCPEs)
 						if err != nil {
 							level.Error(logger).Log("cpe processing", "error", "err", err)
 							continue // do not report a recent vuln that failed to be inserted in the DB
 						}
 
-						if collectVulns {
+						if collectVulns && newCount > 0 {
 							vuln, ok := matches.CVE.(*feednvd.Vuln)
 							if !ok {
 								level.Error(logger).Log("recent vuln", "unexpected type for Vuln interface", "type", fmt.Sprintf("%T", matches.CVE))
 								continue
 							}
 
-							// TODO(mna): I think this will trigger the new vulnerability every time we
-							// run this? That's what Lucas is referring to here, but I don't see any
-							// decision on how to handle that: https://github.com/fleetdm/fleet/issues/3050#issuecomment-1018487787
-							// I think that'd be the simplest approach, to change InsertCVEForCPE to return
-							// information about whether it created a new row, and report as recent vuln only
-							// if that's the case.
 							if rawPubDate := vuln.Schema().PublishedDate; rawPubDate != "" {
 								pubDate, err := time.Parse(publishedDateFmt, rawPubDate)
 								if err != nil {

@@ -268,7 +268,7 @@ type AddCPEForSoftwareFunc func(ctx context.Context, software fleet.Software, cp
 
 type AllCPEsFunc func(ctx context.Context) ([]string, error)
 
-type InsertCVEForCPEFunc func(ctx context.Context, cve string, cpes []string) error
+type InsertCVEForCPEFunc func(ctx context.Context, cve string, cpes []string) (int64, error)
 
 type SoftwareByIDFunc func(ctx context.Context, id uint) (*fleet.Software, error)
 
@@ -1549,7 +1549,7 @@ func (s *DataStore) AllCPEs(ctx context.Context) ([]string, error) {
 	return s.AllCPEsFunc(ctx)
 }
 
-func (s *DataStore) InsertCVEForCPE(ctx context.Context, cve string, cpes []string) error {
+func (s *DataStore) InsertCVEForCPE(ctx context.Context, cve string, cpes []string) (int64, error) {
 	s.InsertCVEForCPEFuncInvoked = true
 	return s.InsertCVEForCPEFunc(ctx, cve, cpes)
 }

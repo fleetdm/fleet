@@ -68,12 +68,12 @@ func TestTranslateCPEToCVE(t *testing.T) {
 			cveLock := &sync.Mutex{}
 			cveToCPEs := make(map[string][]string)
 			var cvesFound []string
-			ds.InsertCVEForCPEFunc = func(ctx context.Context, cve string, cpes []string) error {
+			ds.InsertCVEForCPEFunc = func(ctx context.Context, cve string, cpes []string) (int64, error) {
 				cveLock.Lock()
 				defer cveLock.Unlock()
 				cveToCPEs[cve] = cpes
 				cvesFound = append(cvesFound, cve)
-				return nil
+				return 0, nil
 			}
 
 			_, err := TranslateCPEToCVE(ctx, ds, tempDir, kitlog.NewLogfmtLogger(os.Stdout), cfg, false)
@@ -101,8 +101,8 @@ func TestTranslateCPEToCVE(t *testing.T) {
 			return []string{googleChromeCPE, mozillaFirefoxCPE, curlCPE}, nil
 		}
 
-		ds.InsertCVEForCPEFunc = func(ctx context.Context, cve string, cpes []string) error {
-			return nil
+		ds.InsertCVEForCPEFunc = func(ctx context.Context, cve string, cpes []string) (int64, error) {
+			return 1, nil
 		}
 		recent, err := TranslateCPEToCVE(ctx, ds, tempDir, kitlog.NewNopLogger(), cfg, true)
 		require.NoError(t, err)

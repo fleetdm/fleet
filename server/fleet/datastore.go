@@ -328,7 +328,7 @@ type Datastore interface {
 	AllSoftwareWithoutCPEIterator(ctx context.Context) (SoftwareIterator, error)
 	AddCPEForSoftware(ctx context.Context, software Software, cpe string) error
 	AllCPEs(ctx context.Context) ([]string, error)
-	InsertCVEForCPE(ctx context.Context, cve string, cpes []string) error
+	InsertCVEForCPE(ctx context.Context, cve string, cpes []string) (int64, error)
 	SoftwareByID(ctx context.Context, id uint) (*Software, error)
 	CalculateHostsPerSoftware(ctx context.Context, updatedAt time.Time) error
 	HostsByCPEs(ctx context.Context, cpes []string) ([]*Host, error)
