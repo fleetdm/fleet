@@ -1,7 +1,6 @@
 import PATHS from "router/paths";
 import URL_PREFIX from "router/url_prefix";
 import { IUser } from "interfaces/user";
-import { isGlobalAdmin } from "utilities/permissions/permissions";
 
 export interface INavItem {
   icon: string;

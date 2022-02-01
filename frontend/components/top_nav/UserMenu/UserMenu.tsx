@@ -26,7 +26,6 @@ const UserMenu = ({
   isGlobalAdmin,
   currentUser,
 }: IUserMenuProps): JSX.Element => {
-  console.log("currentUser", currentUser);
   const accountNavigate = onNavItemClick(PATHS.USER_SETTINGS);
   const dropdownItems = [
     {
