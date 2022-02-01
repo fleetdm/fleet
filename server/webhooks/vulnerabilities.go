@@ -40,9 +40,6 @@ func TriggerVulnerabilitiesWebhook(
 	batchSize := vulnConfig.HostBatchSize
 
 	for cve, cpes := range recentVulns {
-		// TODO(mna): load the list of hosts for each CVE by looking up the
-		// software_id corresponding to the CPEs and then the hosts with that
-		// software_id in host_software.
 		hosts, err := ds.HostsByCPEs(ctx, cpes)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "get hosts by CPE")
