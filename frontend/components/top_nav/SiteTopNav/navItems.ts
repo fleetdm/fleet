@@ -1,6 +1,7 @@
 import PATHS from "router/paths";
 import URL_PREFIX from "router/url_prefix";
 import { IUser } from "interfaces/user";
+import { isGlobalAdmin } from "utilities/permissions/permissions";
 
 export interface INavItem {
   icon: string;
@@ -13,12 +14,14 @@ export interface INavItem {
 }
 
 export default (
-  currentUser: IUser | null,
+  user: IUser | null,
+  isGlobalAdmin: boolean = false,
+  isAnyTeamAdmin: boolean = false,
   isAnyTeamMaintainer: boolean = false,
   isGlobalMaintainer: boolean = false,
   isNoAccess: boolean = false
 ) => {
-  if (!currentUser) {
+  if (!user) {
     return [];
   }
 
@@ -76,7 +79,7 @@ export default (
     },
   ];
 
-  const teamMaintainerNavItems = [
+  const maintainerOrAdminNavItems = [
     {
       icon: "packs",
       name: "Schedule",
@@ -88,11 +91,16 @@ export default (
     },
   ];
 
-  if (isGlobalMaintainer || isAnyTeamMaintainer) {
+  if (
+    isGlobalMaintainer ||
+    isAnyTeamMaintainer ||
+    isGlobalAdmin ||
+    isAnyTeamAdmin
+  ) {
     return [
       ...logo,
       ...userNavItems,
-      ...teamMaintainerNavItems,
+      ...maintainerOrAdminNavItems,
       ...policiesTab,
     ];
   }

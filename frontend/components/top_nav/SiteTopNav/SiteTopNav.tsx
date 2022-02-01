@@ -4,8 +4,7 @@ import classnames from "classnames";
 
 import { IUser } from "interfaces/user";
 import { IConfig } from "interfaces/config";
-// @ts-ignore
-import UserMenu from "components/side_panels/UserMenu";
+import UserMenu from "components/top_nav/UserMenu";
 // @ts-ignore
 import OrgLogoIcon from "components/icons/OrgLogoIcon";
 
@@ -23,7 +22,7 @@ interface ISiteTopNavProps {
   onLogoutUser: () => any;
   onNavItemClick: () => any;
   pathname: string;
-  user: IUser;
+  currentUser: IUser;
   config: IConfig;
 }
 
@@ -31,11 +30,10 @@ const SiteTopNav = ({
   onLogoutUser,
   onNavItemClick,
   pathname,
-  user,
+  currentUser,
   config,
 }: ISiteTopNavProps): JSX.Element => {
   const {
-    currentUser,
     isAnyTeamAdmin,
     isGlobalAdmin,
     isGlobalMaintainer,
@@ -108,6 +106,8 @@ const SiteTopNav = ({
 
   const userNavItems = navItems(
     currentUser,
+    isGlobalAdmin,
+    isAnyTeamAdmin,
     isAnyTeamMaintainer,
     isGlobalMaintainer,
     isNoAccess
@@ -124,10 +124,9 @@ const SiteTopNav = ({
         <UserMenu
           onLogout={onLogoutUser}
           onNavItemClick={onNavItemClick}
-          user={user}
+          currentUser={currentUser}
           isAnyTeamAdmin={isAnyTeamAdmin}
           isGlobalAdmin={isGlobalAdmin}
-          currentUser={currentUser}
         />
       </div>
     );
