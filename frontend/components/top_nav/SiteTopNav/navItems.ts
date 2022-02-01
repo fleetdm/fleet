@@ -14,11 +14,11 @@ export interface INavItem {
 
 export default (
   user: IUser | null,
-  isGlobalAdmin: boolean = false,
-  isAnyTeamAdmin: boolean = false,
-  isAnyTeamMaintainer: boolean = false,
-  isGlobalMaintainer: boolean = false,
-  isNoAccess: boolean = false
+  isGlobalAdmin = false,
+  isAnyTeamAdmin = false,
+  isAnyTeamMaintainer = false,
+  isGlobalMaintainer = false,
+  isNoAccess = false
 ) => {
   if (!user) {
     return [];
