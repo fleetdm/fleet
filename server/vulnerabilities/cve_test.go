@@ -67,7 +67,7 @@ func TestTranslateCPEToCVE(t *testing.T) {
 				return nil
 			}
 
-			err := TranslateCPEToCVE(ctx, ds, tempDir, kitlog.NewLogfmtLogger(os.Stdout), config.FleetConfig{})
+			_, err := TranslateCPEToCVE(ctx, ds, tempDir, kitlog.NewLogfmtLogger(os.Stdout), config.FleetConfig{}, false)
 			require.NoError(t, err)
 
 			PrintMemUsage()

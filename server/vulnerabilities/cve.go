@@ -50,20 +50,26 @@ func SyncCVEData(vulnPath string, config config.FleetConfig) error {
 	return dfs.Do(ctx)
 }
 
+// max age to be considered a recent vulnerability (relative to NVD's published date)
+const recentVulnMaxAge = 2 * 24 * time.Hour
+
 var rxNVDCVEArchive = regexp.MustCompile(`nvdcve.*\.gz$`)
 
+// TranslateCPEToCVE maps the CVEs found in NVD archive files in the
+// vulnerabilities database folder to software CPEs in the fleet database.
+// If collectRecentVulns is true, it also returns a mapping of recent CVEs
+// to a list of CPEs affected by the CVE, otherwise that map is nil.
 func TranslateCPEToCVE(
 	ctx context.Context,
 	ds fleet.Datastore,
 	vulnPath string,
 	logger kitlog.Logger,
 	config config.FleetConfig,
-	// TODO(mna): receive the enabled flag for vulnerability webhook, to indicate
-	// if it should collect those new vulnerabilities during processing.
-) error {
+	collectRecentVulns bool,
+) (map[string][]string, error) {
 	err := SyncCVEData(vulnPath, config)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// TODO(mna): I assume those .gz NVD files get removed at some point, so we
@@ -79,44 +85,49 @@ func TranslateCPEToCVE(
 		return nil
 	})
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if len(files) == 0 {
-		return nil
+		return nil, nil
 	}
 
 	cpeList, err := ds.AllCPEs(ctx)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	cpes := make([]*wfn.Attributes, 0, len(cpeList))
 	for _, uri := range cpeList {
 		attr, err := wfn.Parse(uri)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		cpes = append(cpes, attr)
 	}
 
 	if len(cpes) == 0 {
-		return nil
+		return nil, nil
 	}
 
+	var recentVulns map[string][]string
+	if collectRecentVulns {
+		recentVulns = make(map[string][]string)
+	}
 	for _, file := range files {
-		err := checkCVEs(ctx, ds, logger, cpes, file)
+		err := checkCVEs(ctx, ds, logger, cpes, file, recentVulns)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 
-	// TODO(mna): return the collected CVE->CPEs map, as now returned by checkCVEs.
-	return nil
+	return recentVulns, nil
 }
 
-func checkCVEs(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, cpes []*wfn.Attributes, files ...string) error {
-	dict, err := cvefeed.LoadJSONDictionary(files...)
+func checkCVEs(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
+	cpes []*wfn.Attributes, file string, recentVulns map[string][]string) error {
+
+	dict, err := cvefeed.LoadJSONDictionary(file)
 	if err != nil {
 		return err
 	}
@@ -172,8 +183,10 @@ func checkCVEs(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, cp
 						// Example output: >>>>>  CVE-2012-6369 2012-12-28T11:48Z
 
 						// TODO(mna): if CVE is within 2 days of its published date, and
-						// webhook is enabled, collect the CVE and its matching CPEs. How
-						// to get the CVE's published date is still TBD at this time.
+						// webhook is enabled, collect the CVE and its matching CPEs.
+						if recentVulns != nil {
+							// collect recent vulnerabilities
+						}
 					}
 				case <-ctx.Done():
 					level.Debug(logger).Log(logKey, "quitting")
