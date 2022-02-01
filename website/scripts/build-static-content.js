@@ -30,6 +30,7 @@ module.exports = {
 
         let queriesWithProblematicResolutions = [];
         let queriesWithProblematicContributors = [];
+        let queriesWithProblematicTags = [];
         let queries = YAML.parseAllDocuments(yaml).map((yamlDocument)=>{
           let query = yamlDocument.toJSON().spec;
           query.kind = yamlDocument.toJSON().kind;
@@ -39,6 +40,22 @@ module.exports = {
             queriesWithProblematicResolutions.push(query);
           } else if (query.resolution === undefined) {
             query.resolution = 'N/A';// « We set this to a string here so that the data type is always string.  We use N/A so folks can see there's no remediation and contribute if desired.
+          }
+          if (query.tags){
+            if(!_.isString(query.tags)) {
+              queriesWithProblematicTags.push(query);
+            }
+            // Splitting tags into an array to format them.
+            let tagsToFormat = query.tags.split(',');
+            let formattedTags = [];
+            tagsToFormat.forEach((tag)=>{
+              if(tag !== '') {// « Ignoring any blank tags caused by trailing commas in the YAML.
+                // Formatting tags in sentence case, and removing any extra whitespace.
+                formattedTags.push(_.capitalize(_.trim(tag)));
+              }
+            });
+            // Removing any duplicate tags.
+            query.tags = _.uniq(formattedTags);
           }
 
           // GitHub usernames may only contain alphanumeric characters or single hyphens, and cannot begin or end with a hyphen.
@@ -52,6 +69,9 @@ module.exports = {
         if (queriesWithProblematicResolutions.length >= 1) {
           throw new Error('Failed parsing YAML for query library: The "resolution" of a query should either be absent (undefined) or a single string (not a list of strings).  And "resolution" should only be present when a query\'s kind is "policy".  But one or more queries have an invalid "resolution": ' + _.pluck(queriesWithProblematicResolutions, 'slug').sort());
         }//•
+        if (queriesWithProblematicTags.length >= 1) {
+          throw new Error('Failed parsing YAML for query library: The "tags" of a query should either be absent (undefined) or a single string (not a list of strings). "tags" should be be be seperated by a comma.  But one or more queries have invalid "tags": ' + _.pluck(queriesWithProblematicTags, 'slug').sort());
+        }
         // Assert uniqueness of slugs.
         if (queries.length !== _.uniq(_.pluck(queries, 'slug')).length) {
           throw new Error('Failed parsing YAML for query library: Queries as currently named would result in colliding (duplicate) slugs.  To resolve, rename the queries whose names are too similar.  Note the duplicates: ' + _.pluck(queries, 'slug').sort());
