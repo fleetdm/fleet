@@ -112,13 +112,21 @@ var detailQueries = map[string]DetailQuery{
 				return nil
 			}
 
-			host.OSVersion = fmt.Sprintf(
-				"%s %s.%s.%s",
-				rows[0]["name"],
-				rows[0]["major"],
-				rows[0]["minor"],
-				rows[0]["patch"],
-			)
+			if rows[0]["major"] != "0" && rows[0]["minor"] != "0" && rows[0]["patch"] != "0" {
+				host.OSVersion = fmt.Sprintf(
+					"%s %s.%s.%s",
+					rows[0]["name"],
+					rows[0]["major"],
+					rows[0]["minor"],
+					rows[0]["patch"],
+				)
+			} else {
+				host.OSVersion = fmt.Sprintf(
+					"%s %s",
+					rows[0]["name"],
+					rows[0]["build"],
+				)
+			}
 			host.OSVersion = strings.Trim(host.OSVersion, ".")
 
 			if build, ok := rows[0]["build"]; ok {
