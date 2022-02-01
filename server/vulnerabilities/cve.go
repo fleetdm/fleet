@@ -195,6 +195,12 @@ func checkCVEs(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 								continue
 							}
 
+							// TODO(mna): I think this will trigger the new vulnerability every time we
+							// run this? That's what Lucas is referring to here, but I don't see any
+							// decision on how to handle that: https://github.com/fleetdm/fleet/issues/3050#issuecomment-1018487787
+							// I think that'd be the simplest approach, to change InsertCVEForCPE to return
+							// information about whether it created a new row, and report as recent vuln only
+							// if that's the case.
 							if rawPubDate := vuln.Schema().PublishedDate; rawPubDate != "" {
 								pubDate, err := time.Parse(publishedDateFmt, rawPubDate)
 								if err != nil {

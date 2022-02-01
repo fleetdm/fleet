@@ -729,11 +729,14 @@ func cronVulnerabilities(
 			continue
 		}
 
-		// TODO(mna): if the list of recent CVEs->CPEs is not empty and the
-		// vulnerabilities webhook is enabled, trigger those webhooks, loading the
-		// list of hosts for each CVE by looking up the software_id corresponding
-		// to the CPEs and then the hosts with that software_id in host_software.
 		if len(recentVulns) > 0 {
+			// if we get here, the vulnerabilities webhook is necessarily enabled
+			if err := webhooks.TriggerVulnerabilitiesWebhook(ctx, ds, kitlog.With(logger, "webhook", "vulnerabilities"),
+				recentVulns, appConfig, time.Now()); err != nil {
+
+				level.Error(logger).Log("err", "triggering vulnerabilities webhook", "details", err)
+				sentry.CaptureException(err)
+			}
 		}
 
 		level.Debug(logger).Log("loop", "done")
