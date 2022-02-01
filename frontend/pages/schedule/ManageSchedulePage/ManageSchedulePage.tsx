@@ -130,11 +130,6 @@ const ManageSchedulePage = ({
     setCurrentTeam,
   } = useContext(AppContext);
 
-  console.log(
-    "currentTeam (different than selectedTeam from TeamsDropdown.tsx)",
-    currentTeam
-  );
-
   const teamId = parseInt(team_id, 10) || 0;
 
   const filterAndSortTeamOptions = (allTeams: ITeam[], userTeams: ITeam[]) => {
