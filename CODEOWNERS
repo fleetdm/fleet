@@ -5,3 +5,5 @@ go.sum @fleetdm/go
 go.mod @fleetdm/go
 /server/ @fleetdm/go
 /cmd/ @fleetdm/go
+
+*.tf @edwardsb
