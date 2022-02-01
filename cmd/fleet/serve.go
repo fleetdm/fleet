@@ -706,19 +706,7 @@ func cronVulnerabilities(
 		}
 
 		if !vulnDisabled {
-			err := vulnerabilities.TranslateSoftwareToCPE(ctx, ds, vulnPath, logger, config)
-			if err != nil {
-				level.Error(logger).Log("msg", "analyzing vulnerable software: Software->CPE", "err", err)
-				sentry.CaptureException(err)
-				continue
-			}
-
-			err = vulnerabilities.TranslateCPEToCVE(ctx, ds, vulnPath, logger, config)
-			if err != nil {
-				level.Error(logger).Log("msg", "analyzing vulnerable software: CPE->CVE", "err", err)
-				sentry.CaptureException(err)
-				continue
-			}
+			checkVulnerabilities(ctx, ds, logger, vulnPath, config)
 		}
 
 		if err := ds.CalculateHostsPerSoftware(ctx, time.Now()); err != nil {
@@ -728,6 +716,21 @@ func cronVulnerabilities(
 		}
 
 		level.Debug(logger).Log("loop", "done")
+	}
+}
+
+func checkVulnerabilities(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, vulnPath string, config config.FleetConfig) {
+	err := vulnerabilities.TranslateSoftwareToCPE(ctx, ds, vulnPath, logger, config)
+	if err != nil {
+		level.Error(logger).Log("msg", "analyzing vulnerable software: Software->CPE", "err", err)
+		sentry.CaptureException(err)
+		return
+	}
+
+	err = vulnerabilities.TranslateCPEToCVE(ctx, ds, vulnPath, logger, config)
+	if err != nil {
+		level.Error(logger).Log("msg", "analyzing vulnerable software: CPE->CVE", "err", err)
+		sentry.CaptureException(err)
 	}
 }
 
