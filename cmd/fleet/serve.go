@@ -731,6 +731,7 @@ func checkVulnerabilities(ctx context.Context, ds fleet.Datastore, logger kitlog
 	if err != nil {
 		level.Error(logger).Log("msg", "analyzing vulnerable software: CPE->CVE", "err", err)
 		sentry.CaptureException(err)
+		return
 	}
 }
 
