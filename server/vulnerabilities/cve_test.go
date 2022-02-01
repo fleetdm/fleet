@@ -120,6 +120,17 @@ func TestTranslateCPEToCVE(t *testing.T) {
 		assert.Greater(t, byCPE[googleChromeCPE], 150, "google chrome CVEs")
 		assert.Greater(t, byCPE[mozillaFirefoxCPE], 280, "mozilla firefox CVEs")
 		assert.Greater(t, byCPE[curlCPE], 10, "curl CVEs")
+
+		// call it again but now return 0 from this call, simulating CVE-CPE pairs
+		// that already existed in the DB.
+		ds.InsertCVEForCPEFunc = func(ctx context.Context, cve string, cpes []string) (int64, error) {
+			return 0, nil
+		}
+		recent, err = TranslateCPEToCVE(ctx, ds, tempDir, kitlog.NewNopLogger(), cfg, true)
+		require.NoError(t, err)
+
+		// no recent vulnerability should be reported
+		assert.Len(t, recent, 0)
 	})
 }
 

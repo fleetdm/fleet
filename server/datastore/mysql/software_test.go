@@ -202,8 +202,14 @@ func testSoftwareInsertCVEs(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.LoadHostSoftware(context.Background(), host))
 
 	require.NoError(t, ds.AddCPEForSoftware(context.Background(), host.Software[0], "somecpe"))
-	_, err := ds.InsertCVEForCPE(context.Background(), "cve-123-123-132", []string{"somecpe"})
+	count, err := ds.InsertCVEForCPE(context.Background(), "cve-123-123-132", []string{"somecpe"})
 	require.NoError(t, err)
+	assert.Equal(t, int64(1), count)
+
+	// run again for the same CPE, should not create any new row
+	count, err = ds.InsertCVEForCPE(context.Background(), "cve-123-123-132", []string{"somecpe"})
+	require.NoError(t, err)
+	assert.Equal(t, int64(0), count)
 }
 
 func testSoftwareHostDuplicates(t *testing.T, ds *Datastore) {

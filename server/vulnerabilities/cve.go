@@ -188,6 +188,9 @@ func checkCVEs(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 							continue // do not report a recent vuln that failed to be inserted in the DB
 						}
 
+						// collect as recent vuln only if newCount > 0, otherwise we would send
+						// webhook requests for the same vulnerability over and over again until
+						// it is older than 2 days.
 						if collectVulns && newCount > 0 {
 							vuln, ok := matches.CVE.(*feednvd.Vuln)
 							if !ok {
