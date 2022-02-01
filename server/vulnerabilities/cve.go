@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/WatchBeam/clock"
 	"github.com/facebookincubator/nvdtools/cvefeed"
 	feednvd "github.com/facebookincubator/nvdtools/cvefeed/nvd"
 	"github.com/facebookincubator/nvdtools/providers/nvd"
@@ -50,10 +51,19 @@ func SyncCVEData(vulnPath string, config config.FleetConfig) error {
 	return dfs.Do(ctx)
 }
 
-// max age to be considered a recent vulnerability (relative to NVD's published date)
-const recentVulnMaxAge = 2 * 24 * time.Hour
+const publishedDateFmt = "2006-01-02T15:04Z" // not quite RFC3339
 
-var rxNVDCVEArchive = regexp.MustCompile(`nvdcve.*\.gz$`)
+var (
+	rxNVDCVEArchive = regexp.MustCompile(`nvdcve.*\.gz$`)
+
+	// max age to be considered a recent vulnerability (relative to NVD's published date)
+	// (a var to be able to change in tests)
+	recentVulnMaxAge = 2 * 24 * time.Hour
+
+	// this allows mocking the time package for tests, by default it is equivalent
+	// to the time functions, e.g. theClock.Now() == time.Now().
+	theClock clock.Clock = clock.C
+)
 
 // TranslateCPEToCVE maps the CVEs found in NVD archive files in the
 // vulnerabilities database folder to software CPEs in the fleet database.
@@ -71,10 +81,6 @@ func TranslateCPEToCVE(
 	if err != nil {
 		return nil, err
 	}
-
-	// TODO(mna): I assume those .gz NVD files get removed at some point, so we
-	// don't unnecessarily process the same ones multiple times? Haven't seen
-	// where that happens (e.g. doesn't seem to be in cronCleanups?)
 
 	var files []string
 	err = filepath.Walk(vulnPath, func(path string, info os.FileInfo, err error) error {
@@ -136,9 +142,10 @@ func checkCVEs(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 	//cache.Idx = cvefeed.NewIndex(dict)
 
 	cpeCh := make(chan *wfn.Attributes)
+	collectVulns := recentVulns != nil
 
 	var wg sync.WaitGroup
-
+	var mu sync.Mutex
 	for i := 0; i < runtime.NumCPU(); i++ {
 		wg.Add(1)
 		goRoutineKey := i
@@ -181,7 +188,7 @@ func checkCVEs(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 							continue // do not report a recent vuln that failed to be inserted in the DB
 						}
 
-						if recentVulns != nil {
+						if collectVulns {
 							vuln, ok := matches.CVE.(*feednvd.Vuln)
 							if !ok {
 								level.Error(logger).Log("recent vuln", "unexpected type for Vuln interface", "type", fmt.Sprintf("%T", matches.CVE))
@@ -189,13 +196,18 @@ func checkCVEs(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 							}
 
 							if rawPubDate := vuln.Schema().PublishedDate; rawPubDate != "" {
-								pubDate, err := time.Parse(time.RFC3339, rawPubDate)
+								pubDate, err := time.Parse(publishedDateFmt, rawPubDate)
 								if err != nil {
 									level.Error(logger).Log("recent vuln", "unexpected published date format", "published_date", rawPubDate, "err", err)
 									continue
 								}
-								if time.Since(pubDate) <= recentVulnMaxAge {
+								// the second condition should only affect tests - to ignore pubDates in the future
+								// when using a mocked current clock. When using the real clock, the published date
+								// should always be in the past.
+								if theClock.Since(pubDate) <= recentVulnMaxAge && theClock.Now().After(pubDate) {
+									mu.Lock()
 									recentVulns[matches.CVE.ID()] = matchingCPEs
+									mu.Unlock()
 								}
 							}
 						}
