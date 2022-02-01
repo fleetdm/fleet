@@ -637,3 +637,37 @@ func (d *Datastore) CalculateHostsPerSoftware(ctx context.Context, updatedAt tim
 
 	return nil
 }
+
+// HostsByCPEs returns a list of all hosts that have the software corresponding
+// to at least one of the CPEs installed. Note that only a small subset of
+// fields are filled on the returned hosts.
+func (d *Datastore) HostsByCPEs(ctx context.Context, cpes []string) ([]*fleet.Host, error) {
+	queryStmt := `
+    SELECT
+      h.id,
+      h.hostname
+    FROM
+      hosts h
+    INNER JOIN
+      host_software hs
+    ON
+      h.id = hs.host_id
+    INNER JOIN
+      software_cpe scp
+    ON
+      hs.software_id = scp.software_id
+    WHERE
+      scp.cpe IN (?)
+    ORDER BY
+      h.id`
+
+	stmt, args, err := sqlx.In(queryStmt, cpes)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "building query args")
+	}
+	var hosts []*fleet.Host
+	if err := sqlx.SelectContext(ctx, d.reader, &hosts, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "select hosts by cpes")
+	}
+	return hosts, nil
+}
