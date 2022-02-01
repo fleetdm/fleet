@@ -161,6 +161,7 @@ func checkCVEs(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 						if ml == 0 {
 							continue
 						}
+
 						matchingCPEs := make([]string, 0, ml)
 						for _, attr := range matches.CPEs {
 							if attr == nil {
@@ -173,19 +174,30 @@ func checkCVEs(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 							}
 							matchingCPEs = append(matchingCPEs, cpe)
 						}
+
 						err = ds.InsertCVEForCPE(ctx, matches.CVE.ID(), matchingCPEs)
 						if err != nil {
 							level.Error(logger).Log("cpe processing", "error", "err", err)
+							continue // do not report a recent vuln that failed to be inserted in the DB
 						}
 
-						vuln := matches.CVE.(*feednvd.Vuln)
-						fmt.Println(">>>>> ", vuln.ID(), vuln.Schema().PublishedDate)
-						// Example output: >>>>>  CVE-2012-6369 2012-12-28T11:48Z
-
-						// TODO(mna): if CVE is within 2 days of its published date, and
-						// webhook is enabled, collect the CVE and its matching CPEs.
 						if recentVulns != nil {
-							// collect recent vulnerabilities
+							vuln, ok := matches.CVE.(*feednvd.Vuln)
+							if !ok {
+								level.Error(logger).Log("recent vuln", "unexpected type for Vuln interface", "type", fmt.Sprintf("%T", matches.CVE))
+								continue
+							}
+
+							if rawPubDate := vuln.Schema().PublishedDate; rawPubDate != "" {
+								pubDate, err := time.Parse(time.RFC3339, rawPubDate)
+								if err != nil {
+									level.Error(logger).Log("recent vuln", "unexpected published date format", "published_date", rawPubDate, "err", err)
+									continue
+								}
+								if time.Since(pubDate) <= recentVulnMaxAge {
+									recentVulns[matches.CVE.ID()] = matchingCPEs
+								}
+							}
 						}
 					}
 				case <-ctx.Done():
@@ -205,9 +217,5 @@ func checkCVEs(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 	level.Debug(logger).Log("pushing cpes", "done")
 
 	wg.Wait()
-
-	// TODO(mna): if recent CVE->CPEs were collected, return the list (possibly
-	// map of *CVE - a new struct holding the CVE ID, details link to nvd, and
-	// published date - to a slice of CPEs).
 	return nil
 }
