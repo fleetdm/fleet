@@ -198,7 +198,22 @@ const ManageSchedulePage = ({
     select: (data) => data.global_schedule,
   });
 
-  const selectedTeamId = currentTeam?.id ? currentTeam.id : teamId || 0;
+  let selectedTeamId = currentTeam?.id ? currentTeam.id : teamId || 0;
+
+  // No access for observers of currentTeam, shown first team with RBAC
+  if (selectedTeamId) {
+    const selectedTeam = currentUser?.teams.find(
+      (team) => team.id === selectedTeamId
+    );
+    if (selectedTeam?.role === "observer") {
+      const teamWithAccess = currentUser?.teams.find(
+        (team) => team.role !== "observer"
+      );
+      if (teamWithAccess) {
+        selectedTeamId = teamWithAccess?.id;
+      }
+    }
+  }
 
   const {
     data: teamScheduledQueries,
