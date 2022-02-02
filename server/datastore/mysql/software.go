@@ -314,12 +314,20 @@ func selectSoftwareSQL(hostID *uint, opts fleet.SoftwareListOptions) (string, []
 	}
 
 	if opts.WithHostCounts {
+		subSelectCounts := dialect.From(goqu.I("aggregated_stats").As("shc")).Select(
+			"shc.id", "shc.json_value", "shc.updated_at",
+		).Where(goqu.I("shc.type").Eq("software_hosts_count"), goqu.I("shc.json_value").Gt(0)).
+			SelectAppend(
+				goqu.I("shc.json_value").As("hosts_count"),
+				goqu.I("shc.updated_at").As("counts_updated_at"),
+			)
+		subSelectCounts = appendListOptionsToSelect(subSelectCounts, opts.ListOptions)
 		ds = ds.Join(
-			goqu.I("aggregated_stats").As("shc"),
+			subSelectCounts.As("shc"),
 			goqu.On(
 				goqu.I("s.id").Eq(goqu.I("shc.id")),
 			),
-		).Where(goqu.I("shc.type").Eq("software_hosts_count"), goqu.I("shc.json_value").Gt(0)).
+		).
 			SelectAppend(
 				goqu.I("shc.json_value").As("hosts_count"),
 				goqu.I("shc.updated_at").As("counts_updated_at"),
