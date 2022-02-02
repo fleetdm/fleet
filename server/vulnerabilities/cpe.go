@@ -159,10 +159,10 @@ func CPEFromSoftware(db *sqlx.DB, software *fleet.Software) (string, error) {
 	case "portage_packages":
 	case "rpm_packages":
 	case "npm_packages":
-		targetSW = "node.js"
+		targetSW = `"node.js"`
 	case "atom_packages":
 	case "programs":
-		targetSW = "windows*"
+		targetSW = `"windows*"`
 	case "ie_extensions":
 	case "chocolatey_packages":
 	}
@@ -170,7 +170,7 @@ func CPEFromSoftware(db *sqlx.DB, software *fleet.Software) (string, error) {
 	checkTargetSW := ""
 	args := []interface{}{onlyAlphaNumeric.ReplaceAllString(cleanAppName(software.Name), " ")}
 	if targetSW != "" {
-		checkTargetSW = " AND target_sw = ?"
+		checkTargetSW = " AND target_sw MATCH ?"
 		args = append(args, targetSW)
 	}
 	args = append(args, software.Version)

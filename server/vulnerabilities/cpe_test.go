@@ -87,11 +87,13 @@ func TestSyncCPEDatabase(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "cpe:2.3:a:1password:1password:7.2.3:beta0:*:*:*:macos:*:*", cpe)
 
-	_, err = CPEFromSoftware(db, &fleet.Software{Name: "npm", Version: "1.2.3", Source: "npm_packages"})
+	npmCPE, err := CPEFromSoftware(db, &fleet.Software{Name: "Adaltas Mixme 0.4.0 for Node.js", Version: "0.4.0", Source: "npm_packages"})
 	require.NoError(t, err)
+	assert.Equal(t, "cpe:2.3:a:adaltas:mixme:0.4.0:*:*:*:*:node.js:*:*", npmCPE)
 
-	_, err = CPEFromSoftware(db, &fleet.Software{Name: "npm", Version: "1.2.3", Source: "programs"})
+	windowsCPE, err := CPEFromSoftware(db, &fleet.Software{Name: "HP Storage Data Protector 8.0 for Windows 8", Version: "8.0", Source: "programs"})
 	require.NoError(t, err)
+	assert.Equal(t, "cpe:2.3:a:hp:storage_data_protector:8.0:-:*:*:*:windows_7:*:*", windowsCPE)
 
 	// but now we truncate to make sure searching for cpe fails
 	err = os.Truncate(dbPath, 0)
