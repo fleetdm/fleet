@@ -705,25 +705,21 @@ func cronVulnerabilities(
 			}
 		}
 
-		var recentVulns map[string][]string
 		if !vulnDisabled {
-			recentVulns = checkVulnerabilities(ctx, ds, logger, vulnPath, config, appConfig.WebhookSettings.VulnerabilitiesWebhook)
+			recentVulns := checkVulnerabilities(ctx, ds, logger, vulnPath, config, appConfig.WebhookSettings.VulnerabilitiesWebhook)
+			if len(recentVulns) > 0 {
+				if err := webhooks.TriggerVulnerabilitiesWebhook(ctx, ds, kitlog.With(logger, "webhook", "vulnerabilities"),
+					recentVulns, appConfig, time.Now()); err != nil {
+
+					level.Error(logger).Log("err", "triggering vulnerabilities webhook", "details", err)
+					sentry.CaptureException(err)
+				}
+			}
 		}
 
 		if err := ds.CalculateHostsPerSoftware(ctx, time.Now()); err != nil {
 			level.Error(logger).Log("msg", "calculating hosts count per software", "err", err)
 			sentry.CaptureException(err)
-			continue
-		}
-
-		if len(recentVulns) > 0 {
-			// if we get here, the vulnerabilities webhook is necessarily enabled
-			if err := webhooks.TriggerVulnerabilitiesWebhook(ctx, ds, kitlog.With(logger, "webhook", "vulnerabilities"),
-				recentVulns, appConfig, time.Now()); err != nil {
-
-				level.Error(logger).Log("err", "triggering vulnerabilities webhook", "details", err)
-				sentry.CaptureException(err)
-			}
 		}
 
 		level.Debug(logger).Log("loop", "done")
