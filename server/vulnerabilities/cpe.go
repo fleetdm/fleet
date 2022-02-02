@@ -170,7 +170,7 @@ func CPEFromSoftware(db *sqlx.DB, software *fleet.Software) (string, error) {
 	checkTargetSW := ""
 	args := []interface{}{onlyAlphaNumeric.ReplaceAllString(cleanAppName(software.Name), " ")}
 	if targetSW != "" {
-		checkTargetSW = " AND target_sw MATCH ?"
+		checkTargetSW = " AND target_sw = ?"
 		args = append(args, targetSW)
 	}
 	args = append(args, software.Version)
