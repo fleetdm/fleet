@@ -41,21 +41,22 @@ module.exports = {
           } else if (query.resolution === undefined) {
             query.resolution = 'N/A';// « We set this to a string here so that the data type is always string.  We use N/A so folks can see there's no remediation and contribute if desired.
           }
-          if (query.tags){
+          if (query.tags) {
             if(!_.isString(query.tags)) {
               queriesWithProblematicTags.push(query);
-            }
-            // Splitting tags into an array to format them.
-            let tagsToFormat = query.tags.split(',');
-            let formattedTags = [];
-            tagsToFormat.forEach((tag)=>{
-              if(tag !== '') {// « Ignoring any blank tags caused by trailing commas in the YAML.
-                // Formatting tags in sentence case, and removing any extra whitespace.
-                formattedTags.push(_.capitalize(_.trim(tag)));
+            } else {
+              // Splitting tags into an array to format them.
+              let tagsToFormat = query.tags.split(',');
+              let formattedTags = [];
+              for (let tag of tagsToFormat) {
+                if(tag !== '') {// « Ignoring any blank tags caused by trailing commas in the YAML.
+                  // Formatting tags in sentence case, and removing any extra whitespace.
+                  formattedTags.push(_.capitalize(_.trim(tag)));
+                }
               }
-            });
-            // Removing any duplicate tags.
-            query.tags = _.uniq(formattedTags);
+              // Removing any duplicate tags.
+              query.tags = _.uniq(formattedTags);
+            }
           }
 
           // GitHub usernames may only contain alphanumeric characters or single hyphens, and cannot begin or end with a hyphen.
