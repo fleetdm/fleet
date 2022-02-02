@@ -503,7 +503,7 @@ The server name or IP address used by the client certificate.
 
   ```
   redis:
-  	server_name: 127.0.0.1
+  	tls_server_name: 127.0.0.1
   ```
 
 ##### redis_tls_handshake_timeout
