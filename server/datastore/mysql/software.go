@@ -323,7 +323,7 @@ func selectSoftwareSQL(hostID *uint, opts fleet.SoftwareListOptions) (string, []
 			)
 		subSelectListOpts := opts.ListOptions
 		switch subSelectListOpts.OrderKey {
-		case "hosts_counts", "counts_updated_at":
+		case "hosts_count", "counts_updated_at":
 			// all good, known columns, so we sort
 			subSelectCounts = appendListOptionsToSelect(subSelectCounts, opts.ListOptions)
 		default:
