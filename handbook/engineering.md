@@ -117,5 +117,20 @@ There are several locations in Fleet's public and internal documentation that ca
 
 2. The [Internal FAQ](https://docs.google.com/document/d/1I6pJ3vz0EE-qE13VmpE2G3gd5zA1m3bb_u8Q2G3Gmp0/edit#heading=h.ltavvjy511qv) document.
 
-<meta name="maintainedBy" value="zwass">
+### Handoff
 
+Every week, the oncall engineer changes. Here are some tips for making this handoff go smoothly:
+
+1. The new oncall engineer should change the `@oncall` alias in Slack to point to them. In the
+   search box, type "people" and select "People & user groups". Switch to the "User groups" tab.
+   Click `@oncall`. In the right sidebar, click "Edit Members". Remove the former oncall, and add
+   yourself.
+
+2. Hand off newer conversations. For newer threads, the former oncall can unsubscribe from the
+   thread, and the new oncall should subscribe. The former oncall should explicitly share each of
+   these threads, and the new oncall can select "Get notified about new replies" in the "..." menu.
+   The former oncall can select "Turn off notifications for replies" in that same menu. It can be
+   helpful for the former oncall to remain available for any conversations they were deeply involved
+   in, so use your judgement on which threads to hand off.
+
+<meta name="maintainedBy" value="zwass">
