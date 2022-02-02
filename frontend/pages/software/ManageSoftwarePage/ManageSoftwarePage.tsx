@@ -61,10 +61,6 @@ const ManageSoftwarePage = ({
   const {
     availableTeams,
     currentTeam,
-    isGlobalAdmin,
-    isGlobalMaintainer,
-    isTeamAdmin,
-    isTeamMaintainer,
     setAvailableTeams,
     setCurrentUser,
   } = useContext(AppContext);
@@ -281,11 +277,6 @@ const ManageSoftwarePage = ({
   const onTeamSelect = () => {
     setPageIndex(0);
   };
-
-  // TODO: Set according to Figma
-  // TODO: Look into if this is only on all teams or teams
-  // const canManageSoftwareVulnerabilityAutomations =
-  //   isGlobalAdmin || isGlobalMaintainer || isTeamMaintainer || isTeamAdmin;
 
   const renderHeaderButtons = (
     state: ITeamsDropdownState
@@ -511,8 +502,9 @@ const ManageSoftwarePage = ({
             onCreateWebhookSubmit={onCreateWebhookSubmit}
             togglePreviewPayloadModal={togglePreviewPayloadModal}
             showPreviewPayloadModal={showPreviewPayloadModal}
-            availableSoftwareAutomations={[]} // TODO: pass ManageAutomationsModal availableSoftwareAutomations
-            currentSoftwareAutomations={[]} // TODO: pass ManageAutomationsModal currentSoftwareAutomations
+            softwareVulnerabilityEnabled={
+              softwareVulnerabilitiesWebhook.enable_vulnerabilities_webhook
+            }
             currentDestinationUrl={
               (softwareVulnerabilitiesWebhook &&
                 softwareVulnerabilitiesWebhook.destination_url) ||
