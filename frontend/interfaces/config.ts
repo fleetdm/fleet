@@ -113,17 +113,15 @@ export interface IConfig {
   destination_url: string;
   host_percentage: number;
   days_count: number;
-  logging?: {
-    debug: boolean;
-    json: boolean;
-    result: {
-      plugin: string;
-      config: {
-        status_log_file: string;
-        result_log_file: string;
-        enable_log_rotation: boolean;
-        enable_log_compression: boolean;
-      };
+  debug: boolean;
+  json: boolean;
+  result: {
+    plugin: string;
+    config: {
+      status_log_file: string;
+      result_log_file: string;
+      enable_log_rotation: boolean;
+      enable_log_compression: boolean;
     };
   };
   status: {
