@@ -1,6 +1,12 @@
 name: Check for bad links in documentation
 
-on: [ pull_request]
+on:
+  pull_request:
+    paths:
+    - '**.md'
+  workflow_dispatch: # Manual
+  schedule:
+  - cron: '0 6 * * *' # Nightly 6AM UTC
 
 jobs:
   markdown-link-check:
