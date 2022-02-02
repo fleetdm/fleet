@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"time"
 )
 
@@ -331,6 +332,9 @@ type Datastore interface {
 	InsertCVEForCPE(ctx context.Context, cve string, cpes []string) (int64, error)
 	SoftwareByID(ctx context.Context, id uint) (*Software, error)
 	CalculateHostsPerSoftware(ctx context.Context, updatedAt time.Time) error
+	// CleanUpUnusedSoftware deletes any unused software from the software table
+	// (any that isn't in that list with a host count > 0).
+	CleanUpUnusedSoftware(ctx context.Context) error
 	HostsByCPEs(ctx context.Context, cpes []string) ([]*CPEHost, error)
 
 	///////////////////////////////////////////////////////////////////////////////
@@ -374,6 +378,10 @@ type Datastore interface {
 
 	ListSoftware(ctx context.Context, opt SoftwareListOptions) ([]Software, error)
 	CountSoftware(ctx context.Context, opt SoftwareListOptions) (int, error)
+	// ListVulnerableSoftwareBySource lists all the vulnerable software that matches the given source.
+	ListVulnerableSoftwareBySource(ctx context.Context, source string) ([]SoftwareWithCPE, error)
+	// DeleteVulnerabilities deletes the given list of vulnerabilities identified by CPE+CVE.
+	DeleteVulnerabilitiesByCPECVE(ctx context.Context, vulnerabilities []SoftwareVulnerability) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Team Policies
@@ -548,6 +556,26 @@ const (
 	// UnknownMigrations means some unidentified migrations were detected on the database.
 	UnknownMigrations
 )
+
+// SoftwareVulnerability identifies a vulnerability on a specific software (CPE).
+type SoftwareVulnerability struct {
+	// CPE is the ID of the software CPE in the system.
+	CPE uint
+	CVE string
+}
+
+// String implements fmt.Stringer.
+func (sv SoftwareVulnerability) String() string {
+	return fmt.Sprintf("{%d,%s}", sv.CPE, sv.CVE)
+}
+
+// SoftwareWithCPE holds a software piece alongside its CPE ID.
+type SoftwareWithCPE struct {
+	// Software holds the software data.
+	Software
+	// CPE is the ID of the software CPE in the system.
+	CPE uint
+}
 
 // NotFoundError is returned when the datastore resource cannot be found.
 type NotFoundError interface {

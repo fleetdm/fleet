@@ -80,6 +80,9 @@ func (s *integrationTestSuite) TearDownTest() {
 		_, err = s.ds.DeleteGlobalPolicies(ctx, globalPolicyIDs)
 		require.NoError(t, err)
 	}
+
+	err = s.ds.CleanUpUnusedSoftware(ctx)
+	require.NoError(t, err)
 }
 
 func TestIntegrations(t *testing.T) {
@@ -1696,13 +1699,15 @@ func (s *integrationTestSuite) TestScheduledQueries() {
 	// batch-delete by id, 3 ids, only one exists
 	var delBatchResp deleteQueriesResponse
 	s.DoJSON("POST", "/api/v1/fleet/queries/delete", map[string]interface{}{
-		"ids": []uint{query.ID, query2.ID, query3.ID}}, http.StatusOK, &delBatchResp)
+		"ids": []uint{query.ID, query2.ID, query3.ID},
+	}, http.StatusOK, &delBatchResp)
 	assert.Equal(t, uint(1), delBatchResp.Deleted)
 
 	// batch-delete by id, none exist
 	delBatchResp.Deleted = 0
 	s.DoJSON("POST", "/api/v1/fleet/queries/delete", map[string]interface{}{
-		"ids": []uint{query.ID, query2.ID, query3.ID}}, http.StatusNotFound, &delBatchResp)
+		"ids": []uint{query.ID, query2.ID, query3.ID},
+	}, http.StatusNotFound, &delBatchResp)
 	assert.Equal(t, uint(0), delBatchResp.Deleted)
 }
 
@@ -2568,7 +2573,8 @@ func (s *integrationTestSuite) TestQuerySpecs() {
 	// delete all queries created
 	var delBatchResp deleteQueriesResponse
 	s.DoJSON("POST", "/api/v1/fleet/queries/delete", map[string]interface{}{
-		"ids": []uint{q1ID, q2ID, q3ID}}, http.StatusOK, &delBatchResp)
+		"ids": []uint{q1ID, q2ID, q3ID},
+	}, http.StatusOK, &delBatchResp)
 	assert.Equal(t, uint(3), delBatchResp.Deleted)
 }
 

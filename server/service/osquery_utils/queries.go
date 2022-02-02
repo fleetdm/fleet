@@ -379,56 +379,80 @@ SELECT
   name AS name,
   version AS version,
   'Package (deb)' AS type,
-  'deb_packages' AS source
+  'deb_packages' AS source,
+  '' AS release,
+  '' AS vendor,
+  '' AS arch
 FROM deb_packages
 UNION
 SELECT
   package AS name,
   version AS version,
   'Package (Portage)' AS type,
-  'portage_packages' AS source
+  'portage_packages' AS source,
+  '' AS release,
+  '' AS vendor,
+  '' AS arch
 FROM portage_packages
 UNION
 SELECT
   name AS name,
   version AS version,
   'Package (RPM)' AS type,
-  'rpm_packages' AS source
+  'rpm_packages' AS source,
+  release AS release,
+  vendor AS vendor,
+  arch AS arch
 FROM rpm_packages
 UNION
 SELECT
   name AS name,
   version AS version,
   'Package (NPM)' AS type,
-  'npm_packages' AS source
+  'npm_packages' AS source,
+  '' AS release,
+  '' AS vendor,
+  '' AS arch
 FROM npm_packages
 UNION
 SELECT
   name AS name,
   version AS version,
   'Browser plugin (Chrome)' AS type,
-  'chrome_extensions' AS source
+  'chrome_extensions' AS source,
+  '' AS release,
+  '' AS vendor,
+  '' AS arch
 FROM cached_users CROSS JOIN chrome_extensions USING (uid)
 UNION
 SELECT
   name AS name,
   version AS version,
   'Browser plugin (Firefox)' AS type,
-  'firefox_addons' AS source
+  'firefox_addons' AS source,
+  '' AS release,
+  '' AS vendor,
+  '' AS arch
 FROM cached_users CROSS JOIN firefox_addons USING (uid)
 UNION
 SELECT
   name AS name,
   version AS version,
   'Package (Atom)' AS type,
-  'atom_packages' AS source
+  'atom_packages' AS source,
+  '' AS release,
+  '' AS vendor,
+  '' AS arch
 FROM users CROSS JOIN atom_packages USING (uid)
 UNION
 SELECT
   name AS name,
   version AS version,
   'Package (Python)' AS type,
-  'python_packages' AS source
+  'python_packages' AS source,
+  '' AS release,
+  '' AS vendor,
+  '' AS arch
 FROM python_packages;
 `,
 	Platforms:        fleet.HostLinuxOSs,
@@ -633,11 +657,16 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 			)
 			continue
 		}
+
 		s := fleet.Software{
 			Name:             name,
 			Version:          version,
 			Source:           source,
 			BundleIdentifier: bundleIdentifier,
+
+			Release: row["release"],
+			Vendor:  row["vendor"],
+			Arch:    row["arch"],
 		}
 		software = append(software, s)
 	}
