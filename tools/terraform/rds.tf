@@ -53,10 +53,10 @@ resource "aws_secretsmanager_secret_version" "database_password_secret_version" 
 //}
 
 variable "db_instance_type_writer" {
-  default = "db.t4g.medium"
+  default = "db.r5.2xlarge"
 }
 variable "db_instance_type_reader" {
-  default = "db.t4g.medium"
+  default = "db.r5.2xlarge"
 }
 
 module "aurora_mysql" {
@@ -76,12 +76,14 @@ module "aurora_mysql" {
   create_random_password              = false
   database_name                       = var.database_name
   enable_http_endpoint                = false
-  #performance_insights_enabled        = true
+  performance_insights_enabled        = true
+  enabled_cloudwatch_logs_exports     = ["slowquery"]
 
-  vpc_id                = module.vpc.vpc_id
-  subnets               = module.vpc.database_subnets
-  create_security_group = true
-  allowed_cidr_blocks   = module.vpc.private_subnets_cidr_blocks
+  vpc_id                 = module.vpc.vpc_id
+  vpc_security_group_ids = ["sg-041d829888441d336"]
+  subnets                = module.vpc.database_subnets
+  create_security_group  = true
+  allowed_cidr_blocks    = module.vpc.private_subnets_cidr_blocks
 
   replica_count         = 1
   replica_scale_enabled = true

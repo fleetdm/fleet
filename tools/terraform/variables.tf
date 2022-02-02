@@ -7,19 +7,19 @@ variable "prefix" {
 }
 
 variable "domain_fleetdm" {
-  default = "dogfood.fleetdm.com"
+  default = "loadtest.fleetdm.com"
 }
 
 variable "domain_fleetctl" {
-  default = "dogfood.fleetctl.com"
+  default = "loadtest.fleetctl.com"
 }
 
 variable "osquery_results_s3_bucket" {
-  default = "fleet-osquery-results-archive"
+  default = "fleet-loadtest-osquery-logs-archive"
 }
 
 variable "osquery_status_s3_bucket" {
-  default = "fleet-osquery-status-archive"
+  default = "fleetloadtest-osquery-status-archive"
 }
 
 variable "vulnerabilities_path" {
@@ -27,13 +27,13 @@ variable "vulnerabilities_path" {
 }
 
 variable "fleet_backend_cpu" {
-  default = 256
-  type = number
+  default = 1024
+  type    = number
 }
 
 variable "fleet_backend_mem" {
-  default = 512
-  type = number
+  default = 2048
+  type    = number
 }
 
 variable "async_host_processing" {
@@ -41,7 +41,7 @@ variable "async_host_processing" {
 }
 
 variable "logging_debug" {
-default = "false"
+  default = "true"
 }
 
 variable "database_user" {
@@ -51,12 +51,12 @@ variable "database_user" {
 
 variable "database_name" {
   description = "the name of the database fleet will create/use"
-  default = "fleet"
+  default     = "fleet"
 }
 
 variable "fleet_image" {
   description = "the name of the container image to run"
-  default     = "fleetdm/fleet"
+  default     = "917007347864.dkr.ecr.us-east-2.amazonaws.com/fleet:latest"
 }
 
 variable "software_inventory" {
@@ -72,23 +72,23 @@ variable "vuln_db_path" {
 variable "cpu_migrate" {
   description = "cpu units for migration task"
   default     = 1024
-  type = number
+  type        = number
 }
 
 variable "mem_migrate" {
   description = "memory limit for migration task in MB"
   default     = 2048
-  type = number
+  type        = number
 }
 
 variable "fleet_max_capacity" {
   description = "maximum number of fleet containers to run"
-  default     = 5
+  default     = 100
 }
 
 variable "fleet_min_capacity" {
   description = "minimum number of fleet containers to run"
-  default     = 1
+  default     = 10
 }
 
 variable "memory_tracking_target_value" {

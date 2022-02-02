@@ -14,7 +14,7 @@ resource "aws_alb" "main" {
   internal        = false
   security_groups = [aws_security_group.lb.id, aws_security_group.backend.id]
   subnets         = module.vpc.public_subnets
-  idle_timeout    = 120
+  idle_timeout    = 600
 }
 
 resource "aws_alb_target_group" "main" {
@@ -82,7 +82,7 @@ resource "aws_ecs_service" "fleet" {
   launch_type                        = "FARGATE"
   cluster                            = aws_ecs_cluster.fleet.id
   task_definition                    = aws_ecs_task_definition.backend.arn
-  desired_count                      = 5
+  desired_count                      = 10
   deployment_minimum_healthy_percent = 100
   deployment_maximum_percent         = 200
   health_check_grace_period_seconds  = 30
@@ -190,7 +190,7 @@ resource "aws_ecs_task_definition" "backend" {
             value = "${aws_elasticache_replication_group.default.primary_endpoint_address}:6379"
           },
           {
-            name = "FLEET_REDIS_CLUSTER_FOLLOW_REDIRECTIONS"
+            name  = "FLEET_REDIS_CLUSTER_FOLLOW_REDIRECTIONS"
             value = "true"
           },
           {
