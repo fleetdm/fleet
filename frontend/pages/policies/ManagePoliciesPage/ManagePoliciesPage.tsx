@@ -9,6 +9,7 @@ import { TableContext } from "context/table";
 import { inMilliseconds, secondsToHms } from "fleet/helpers";
 import { IPolicyStats, ILoadAllPoliciesResponse } from "interfaces/policy";
 import { IWebhookFailingPolicies } from "interfaces/webhook";
+import { IConfigNested } from "interfaces/config";
 // @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions";
 import PATHS from "router/paths";
@@ -81,18 +82,6 @@ const ManagePolicyPage = ({
   const [showAddPolicyModal, setShowAddPolicyModal] = useState(false);
   const [showRemovePoliciesModal, setShowRemovePoliciesModal] = useState(false);
   const [showInheritedPolicies, setShowInheritedPolicies] = useState(false);
-
-  const [
-    isLoadingFailingPoliciesWebhook,
-    setIsLoadingFailingPoliciesWebhook,
-  ] = useState(true);
-  const [
-    isFailingPoliciesWebhookError,
-    setIsFailingPoliciesWebhookError,
-  ] = useState(false);
-  const [failingPoliciesWebhook, setFailingPoliciesWebhook] = useState<
-    IWebhookFailingPolicies | undefined
-  >();
   const [currentAutomatedPolicies, setCurrentAutomatedPolicies] = useState<
     number[]
   >();
@@ -137,6 +126,26 @@ const ManagePolicyPage = ({
     }
   );
 
+  const canAddOrRemovePolicy =
+    isGlobalAdmin || isGlobalMaintainer || isTeamMaintainer || isTeamAdmin;
+
+  const {
+    data: failingPoliciesWebhook,
+    isLoading: isLoadingFailingPoliciesWebhook,
+    refetch: refetchFailingPoliciesWebhook,
+  } = useQuery<IConfigNested, Error, IWebhookFailingPolicies>(
+    ["config"],
+    () => configAPI.loadAll(),
+    {
+      enabled: canAddOrRemovePolicy,
+      select: (data: IConfigNested) =>
+        data.webhook_settings.failing_policies_webhook,
+      onSuccess: (data) => {
+        setCurrentAutomatedPolicies(data.policy_ids);
+      },
+    }
+  );
+
   const refetchPolicies = (id?: number) => {
     refetchGlobalPolicies();
     if (id) {
@@ -162,25 +171,6 @@ const ManagePolicyPage = ({
     setCurrentTeam(selectedTeam);
     isStaleGlobalPolicies && refetchGlobalPolicies();
   };
-
-  const getFailingPoliciesWebhook = useCallback(async () => {
-    setIsLoadingFailingPoliciesWebhook(true);
-    setIsFailingPoliciesWebhookError(false);
-    let result;
-    try {
-      result = await configAPI
-        .loadAll()
-        .then((response) => response.webhook_settings.failing_policies_webhook);
-      setFailingPoliciesWebhook(result);
-      setCurrentAutomatedPolicies(result.policy_ids);
-    } catch (error) {
-      console.log(error);
-      setIsFailingPoliciesWebhookError(true);
-    } finally {
-      setIsLoadingFailingPoliciesWebhook(false);
-    }
-    return result;
-  }, []);
 
   const toggleManageAutomationsModal = () =>
     setShowManageAutomationsModal(!showManageAutomationsModal);
@@ -230,7 +220,7 @@ const ManagePolicyPage = ({
       );
     } finally {
       toggleManageAutomationsModal();
-      getFailingPoliciesWebhook();
+      refetchFailingPoliciesWebhook();
     }
   };
 
@@ -288,9 +278,6 @@ const ManagePolicyPage = ({
       count > 1 ? "policies" : "policy"
     }`;
   };
-
-  const canAddOrRemovePolicy =
-    isGlobalAdmin || isGlobalMaintainer || isTeamMaintainer || isTeamAdmin;
 
   const policyUpdateInterval =
     secondsToHms(inMilliseconds(config?.osquery_policy || 0) / 1000) ||
