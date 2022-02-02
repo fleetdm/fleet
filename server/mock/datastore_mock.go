@@ -268,11 +268,13 @@ type AddCPEForSoftwareFunc func(ctx context.Context, software fleet.Software, cp
 
 type AllCPEsFunc func(ctx context.Context) ([]string, error)
 
-type InsertCVEForCPEFunc func(ctx context.Context, cve string, cpes []string) error
+type InsertCVEForCPEFunc func(ctx context.Context, cve string, cpes []string) (int64, error)
 
 type SoftwareByIDFunc func(ctx context.Context, id uint) (*fleet.Software, error)
 
 type CalculateHostsPerSoftwareFunc func(ctx context.Context, updatedAt time.Time) error
+
+type HostsByCPEsFunc func(ctx context.Context, cpes []string) ([]*fleet.CPEHost, error)
 
 type NewActivityFunc func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error
 
@@ -761,6 +763,9 @@ type DataStore struct {
 
 	CalculateHostsPerSoftwareFunc        CalculateHostsPerSoftwareFunc
 	CalculateHostsPerSoftwareFuncInvoked bool
+
+	HostsByCPEsFunc        HostsByCPEsFunc
+	HostsByCPEsFuncInvoked bool
 
 	NewActivityFunc        NewActivityFunc
 	NewActivityFuncInvoked bool
@@ -1544,7 +1549,7 @@ func (s *DataStore) AllCPEs(ctx context.Context) ([]string, error) {
 	return s.AllCPEsFunc(ctx)
 }
 
-func (s *DataStore) InsertCVEForCPE(ctx context.Context, cve string, cpes []string) error {
+func (s *DataStore) InsertCVEForCPE(ctx context.Context, cve string, cpes []string) (int64, error) {
 	s.InsertCVEForCPEFuncInvoked = true
 	return s.InsertCVEForCPEFunc(ctx, cve, cpes)
 }
@@ -1557,6 +1562,11 @@ func (s *DataStore) SoftwareByID(ctx context.Context, id uint) (*fleet.Software,
 func (s *DataStore) CalculateHostsPerSoftware(ctx context.Context, updatedAt time.Time) error {
 	s.CalculateHostsPerSoftwareFuncInvoked = true
 	return s.CalculateHostsPerSoftwareFunc(ctx, updatedAt)
+}
+
+func (s *DataStore) HostsByCPEs(ctx context.Context, cpes []string) ([]*fleet.CPEHost, error) {
+	s.HostsByCPEsFuncInvoked = true
+	return s.HostsByCPEsFunc(ctx, cpes)
 }
 
 func (s *DataStore) NewActivity(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {

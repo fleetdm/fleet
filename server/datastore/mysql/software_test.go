@@ -202,7 +202,14 @@ func testSoftwareInsertCVEs(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.LoadHostSoftware(context.Background(), host))
 
 	require.NoError(t, ds.AddCPEForSoftware(context.Background(), host.Software[0], "somecpe"))
-	require.NoError(t, ds.InsertCVEForCPE(context.Background(), "cve-123-123-132", []string{"somecpe"}))
+	count, err := ds.InsertCVEForCPE(context.Background(), "cve-123-123-132", []string{"somecpe"})
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), count)
+
+	// run again for the same CPE, should not create any new row
+	count, err = ds.InsertCVEForCPE(context.Background(), "cve-123-123-132", []string{"somecpe"})
+	require.NoError(t, err)
+	assert.Equal(t, int64(0), count)
 }
 
 func testSoftwareHostDuplicates(t *testing.T, ds *Datastore) {
@@ -250,8 +257,10 @@ func testSoftwareLoadVulnerabilities(t *testing.T, ds *Datastore) {
 
 	require.NoError(t, ds.AddCPEForSoftware(context.Background(), host.Software[0], "somecpe"))
 	require.NoError(t, ds.AddCPEForSoftware(context.Background(), host.Software[1], "someothercpewithoutvulns"))
-	require.NoError(t, ds.InsertCVEForCPE(context.Background(), "cve-123-123-132", []string{"somecpe"}))
-	require.NoError(t, ds.InsertCVEForCPE(context.Background(), "cve-321-321-321", []string{"somecpe"}))
+	_, err := ds.InsertCVEForCPE(context.Background(), "cve-123-123-132", []string{"somecpe"})
+	require.NoError(t, err)
+	_, err = ds.InsertCVEForCPE(context.Background(), "cve-321-321-321", []string{"somecpe"})
+	require.NoError(t, err)
 
 	require.NoError(t, ds.LoadHostSoftware(context.Background(), host))
 
@@ -387,8 +396,10 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, ds.AddCPEForSoftware(context.Background(), host1.Software[0], "somecpe"))
 	require.NoError(t, ds.AddCPEForSoftware(context.Background(), host1.Software[1], "someothercpewithoutvulns"))
-	require.NoError(t, ds.InsertCVEForCPE(context.Background(), "cve-321-432-543", []string{"somecpe"}))
-	require.NoError(t, ds.InsertCVEForCPE(context.Background(), "cve-333-444-555", []string{"somecpe"}))
+	_, err := ds.InsertCVEForCPE(context.Background(), "cve-321-432-543", []string{"somecpe"})
+	require.NoError(t, err)
+	_, err = ds.InsertCVEForCPE(context.Background(), "cve-333-444-555", []string{"somecpe"})
+	require.NoError(t, err)
 
 	foo001 := fleet.Software{
 		Name: "foo", Version: "0.0.1", Source: "chrome_extensions", GenerateCPE: "somecpe",
