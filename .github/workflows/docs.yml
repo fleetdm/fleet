@@ -3,6 +3,7 @@ name: Check for bad links in documentation
 on:
   pull_request:
     paths:
+    # Only run on changes to .md files -- this check is too flakey to run on every PR
     - '**.md'
   workflow_dispatch: # Manual
   schedule:
