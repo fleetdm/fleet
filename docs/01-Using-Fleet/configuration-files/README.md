@@ -451,7 +451,7 @@ The following options allow the configuration of a webhook that will be triggere
 
 ##### Recent Vulnerabilities
 
-The following options allow the configuration of a webhook that will be triggered if recently published vulnerabilities are detected and there are affected hosts.
+The following options allow the configuration of a webhook that will be triggered if recently published vulnerabilities are detected and there are affected hosts. A vulnerability is considered recent if it has been published in the last 2 days (based on the National Vulnerability Database, NVD).
 
 - `webhook_settings.vulnerabilities_webhook.enable_vulnerabilities_webhook`: true or false. Defines whether to enable the vulnerabilities webhook.
 - `webhook_settings.vulnerabilities_webhook.destination_url`: the URL to POST to when the condition for the webhook triggers.
