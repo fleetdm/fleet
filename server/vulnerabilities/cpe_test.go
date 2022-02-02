@@ -90,6 +90,9 @@ func TestSyncCPEDatabase(t *testing.T) {
 	_, err = CPEFromSoftware(db, &fleet.Software{Name: "npm", Version: "1.2.3", Source: "npm_packages"})
 	require.NoError(t, err)
 
+	_, err = CPEFromSoftware(db, &fleet.Software{Name: "npm", Version: "1.2.3", Source: "programs"})
+	require.NoError(t, err)
+
 	// but now we truncate to make sure searching for cpe fails
 	err = os.Truncate(dbPath, 0)
 	require.NoError(t, err)
