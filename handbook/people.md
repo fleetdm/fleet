@@ -9,26 +9,30 @@ This person is responsible for accomplishing goals and making decisions about a 
 DRIs help us collaborate efficiently by knowing exactly who is responsible, and can make decisions about the work they're doing.
 
 |    Aspect              										| DRI     		|
-| ------------------------------------------------------------- | ------------- |
-| Wireframes (figma)	 										| Noah Talerman	|
-| How the product works 										| Noah Talerman |
-| fleetctl CLI interface (and other tools) 						| Tomás Touceda |
-| REST API interface design 							| Luke Heath	|
+| ----------------------------------------------------| ------------ |
+| Wireframes (Figma)| Noah Talerman	|
+| How the product works | Noah Talerman |
+| fleetctl CLI interface (and other tools) | Tomás Touceda |
+| REST API interface design | Luke Heath |
 | [REST API docs](https://fleetdm.com/docs/using-fleet/rest-api) | Luke Heath | 
-| Postman 											| Luke Heath 	|
-| Terraform 											| Ben Edwards 	|
-| Customer PoV deployments like acme.fleetdm.com 				| Ben Edwards 	|
-| dogfood.fleetdm.com 											| Ben Edwards  	|
-| Quality of core product UI 									| Luke Heath 	|
-| Quality of tickets after Noah's done with them   				| Luke Heath 	|
+| Postman | Luke Heath |
+| Terraform | Ben Edwards |
+| Customer PoV deployments like acme.fleetdm.com | Ben Edwards |
+| dogfood.fleetdm.com | Ben Edwards |
+| Quality of core product UI | Luke Heath |
+| Quality of tickets after Noah's done with them | Luke Heath 	|
 | ["Escaped work"](https://docs.google.com/document/d/1vXL_WSUqASJWuNnQhUVrkudIeG4zlaiOCqJEa7xB2do/edit) | Luke Heath |
 | Customer Slack channels | Tony Gauda |
-| Quality of core product backend 									| Tomás Touceda |
-| Quality of fleetctl (and other tools)							| Tomás Touceda |
-| Final cut of what goes into each release 						| Zach Wasserman|
-| When we cut a release, version numbers, and whether to release| Zach Wasserman|
-| Release notes 												| Noah Talerman |
-| Publishing release blog post, and promoting releases 			| Mike Thomas  	|
+| Customer renewals | Tony Gauda |
+| Quality of core product backend | Tomás Touceda |
+| Quality of fleetctl (and other tools) | Tomás Touceda |
+| Final cut of what goes into each release | Zach Wasserman |
+| When we cut a release, version numbers, and whether to release | Zach Wasserman |
+| Release notes | Noah Talerman |
+| Publishing release blog post, and promoting releases | Mike Thomas |
+| fleetdm.com | Mike Thomas |
+| Self-service Fleet Premium license dispenser | Mike Thomas |
+
 
 >You can read more about directly responsible individuals in [Gitlab's handbook](https://about.gitlab.com/handbook/people-group/directly-responsible-individuals/)
 
