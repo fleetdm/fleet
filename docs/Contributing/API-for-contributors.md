@@ -2,7 +2,7 @@
 
 This document includes the Fleet API routes that are helpful when developing or contributing to Fleet.
 
-Unlike the [Fleet REST API documentation](../01-Using-Fleet/03-REST-API.md), the API routes in this document are only intended for use by the Fleet UI and fleetctl clients.
+Unlike the [Fleet REST API documentation](../Using-Fleet/REST-API.md), the API routes in this document are only intended for use by the Fleet UI and fleetctl clients.
 
 - [Get queries spec](#get-queries-spec)
 - [Get query spec](#get-query-spec)

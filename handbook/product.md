@@ -98,7 +98,7 @@ The goal of quality assurance is to catch unexpected behavior prior to release:
 
 ### Collecting bugs
 
-All QA steps should be possible using `fleetctl preview`.  Please refer to [docs/03-Contributing/02-Testing.md](https://github.com/fleetdm/fleet/blob/main/docs/03-Contributing/02-Testing.md) for flows that cannot be completed using `fleetctl preview`.
+All QA steps should be possible using `fleetctl preview`.  Please refer to [docs/Contributing/Testing.md](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Testing.md) for flows that cannot be completed using `fleetctl preview`.
 
 Please start the manual QA process by creating a blank GitHub issue. As you complete each of the
 flows, record a list of the bugs you encounter in this new issue. Each item in this list should
@@ -182,7 +182,7 @@ You should see your local machine returned. If your host isn't showing up, you m
 
 Apply the standard query library by running the following command:
 
-`fleetctl apply -f docs/01-Using-Fleet/standard-query-library/standard-query-library.yml`
+`fleetctl apply -f docs/Using-Fleet/standard-query-library/standard-query-library.yml`
 
 Make sure all queries were successfully added by running the following command:
 
@@ -196,9 +196,9 @@ Run the "Get the version of the resident operating system" query against your lo
 
 Apply a pack by running the following commands:
 
-`fleetctl apply -f docs/01-Using-Fleet/configuration-files/multi-file-configuration/queries.yml`
+`fleetctl apply -f docs/Using-Fleet/configuration-files/multi-file-configuration/queries.yml`
 
-`fleetctl apply -f docs/01-Using-Fleet/configuration-files/multi-file-configuration/pack.yml`
+`fleetctl apply -f docs/Using-Fleet/configuration-files/multi-file-configuration/pack.yml`
 
 Make sure the pack was successfully added by running the following command:
 
@@ -208,7 +208,7 @@ Make sure the pack was successfully added by running the following command:
 
 Apply organization settings by running the following command:
 
-`fleetctl apply -f docs/01-Using-Fleet/configuration-files/multi-file-configuration/organization-settings.yml`
+`fleetctl apply -f docs/Using-Fleet/configuration-files/multi-file-configuration/organization-settings.yml`
 
 #### Manage users flow
 
@@ -234,7 +234,7 @@ Keep headings brief and organize them in a logical order:
 Try to stay within 3 or 4 heading levels. Complicated documents may use more, but pages with a simpler structure are easier to read.
 
 ### Adding a link to the Fleet docs
-You can link documentation pages to each other using relative paths. For example, in `docs/01-Using-Fleet/01-Fleet-UI.md`, you can link to `docs/01-Using-Fleet/09-Permissions.md` by writing `[permissions](./09-Permissions.md)`. This will be automatically transformed into the appropriate URL for `fleetdm.com/docs`.
+You can link documentation pages to each other using relative paths. For example, in `docs/Using-Fleet/01-Fleet-UI.md`, you can link to `docs/Using-Fleet/Permissions.md` by writing `[permissions](./Permissions.md)`. This will be automatically transformed into the appropriate URL for `fleetdm.com/docs`.
 
 However, the `fleetdm.com/docs` compilation process does not account for relative links to directories **outside** of `/docs`.
 Therefore, when adding a link to Fleet docs, it is important to always use the absolute file path.

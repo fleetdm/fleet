@@ -2,7 +2,7 @@
 
 This document provides instructions for working with each of the following log destinations in Fleet.
 
-To configure each log destination, you must set the correct osquery logging configuration options in Fleet. Check out the reference documentation for osquery logging configuration options [here in the Fleet documentation](../02-Deploying/03-Configuration.md#osquery-status-log-plugin).
+To configure each log destination, you must set the correct osquery logging configuration options in Fleet. Check out the reference documentation for osquery logging configuration options [here in the Fleet documentation](../Deploying/Configuration.md#osquery-status-log-plugin).
 
 - [Firehose](#firehose)
 - [Snowflake](#snowflake)
@@ -19,7 +19,7 @@ To configure each log destination, you must set the correct osquery logging conf
 Logs are written to AWS Firehose streams.
 
 - Plugin name: `firehose`
-- Flag namespace: [firehose](../02-Deploying/03-Configuration.md#firehose)
+- Flag namespace: [firehose](../Deploying/Configuration.md#firehose)
 
 With the Firehose plugin, osquery result and/or status logs are written to [Amazon Kinesis Data Firehose](https://aws.amazon.com/kinesis/data-firehose/). This is a very good method for aggregating osquery logs into AWS S3 storage.
 
@@ -50,7 +50,7 @@ Splunk provides instructions on how to prepare the Splunk platform for Firehose 
 Logs are written to AWS Kinesis streams.
 
 - Plugin name: `kinesis`
-- Flag namespace: [kinesis](../02-Deploying/03-Configuration.md#kinesis)
+- Flag namespace: [kinesis](../Deploying/Configuration.md#kinesis)
 
 With the Kinesis plugin, osquery result and/or status logs are written to
 [Amazon Kinesis Data Streams](https://aws.amazon.com/kinesis/data-streams).
@@ -65,7 +65,7 @@ output in the Fleet logs and those logs _will not_ be sent to Kinesis.
 Logs are written to AWS Lambda functions.
 
 - Plugin name: `lambda`
-- Flag namespace: [lambda](../02-Deploying/03-Configuration.md#lambda)
+- Flag namespace: [lambda](../Deploying/Configuration.md#lambda)
 
 With the Lambda plugin, osquery result and/or status logs are written to
 [AWS Lambda](https://aws.amazon.com/lambda/) functions.
@@ -88,7 +88,7 @@ Keep this in mind when using Lambda, as you're charged based on the number of re
 Logs are written to Google Cloud PubSub topics.
 
 - Plugin name: `pubsub`
-- Flag namespace: [pubsub](../02-Deploying/03-Configuration.md#pubsub)
+- Flag namespace: [pubsub](../Deploying/Configuration.md#pubsub)
 
 With the PubSub plugin, osquery result and/or status logs are written to [PubSub](https://cloud.google.com/pubsub/) topics.
 
@@ -99,7 +99,7 @@ Note that messages over 10MB will be dropped, with a notification sent to the fl
 Logs are written to Apache Kafka topics.
 
 - Plugin name: `kafkarest`
-- Flag namespace: [kafka](../02-Deploying/03-Configuration.md#kafka)
+- Flag namespace: [kafka](../Deploying/Configuration.md#kafka)
 
 With the Kafka REST plugin, osquery result and/or status logs are written to [Kafka](https://kafka.apache.org/) topics using the [Kafka REST proxy](https://github.com/confluentinc/kafka-rest).
 
@@ -110,7 +110,7 @@ Note that the REST proxy must be in place in order to send osquery logs to Kafka
 Logs are written to stdout.
 
 - Plugin name: `stdout`
-- Flag namespace: [stdout](../02-Deploying/03-Configuration.md#stdout)
+- Flag namespace: [stdout](../Deploying/Configuration.md#stdout)
 
 With the stdout plugin, osquery result and/or status logs are written to stdout
 on the Fleet server. This is typically used for debugging or with a log
@@ -127,7 +127,7 @@ Logs are written to the local Fleet server filesystem.
 The default log destination.
 
 - Plugin name: `filesystem`
-- Flag namespace: [filesystem](../02-Deploying/03-Configuration.md#filesystem)
+- Flag namespace: [filesystem](../Deploying/Configuration.md#filesystem)
 
 With the filesystem plugin, osquery result and/or status logs are written to the local filesystem on the Fleet server. This is typically used with a log forwarding agent on the Fleet server that will push the logs into a logging pipeline. 
 

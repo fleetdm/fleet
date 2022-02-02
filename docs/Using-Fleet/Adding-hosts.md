@@ -57,7 +57,7 @@ You can distribute your osquery installer and add all your hosts to Fleet using 
 
 The teams feature in Fleet allows you to place hosts in exclusive groups. With hosts segmented into teams, you can apply unique queries and give users access to only the hosts in specific teams.
 
-You can add a host to a team by generating and using a unique osquery installer for a team or by [manually transferring a host to a team in the Fleet UI](../01-Using-Fleet/10-Teams.md#transfer-hosts-to-a-team).
+You can add a host to a team by generating and using a unique osquery installer for a team or by [manually transferring a host to a team in the Fleet UI](../Using-Fleet/Teams.md#transfer-hosts-to-a-team).
 
 To generate an osquery installer for a team:
 
@@ -199,7 +199,7 @@ time, [uninstall the existing
 osquery](https://blog.fleetdm.com/how-to-uninstall-osquery-f01cc49a37b9).
 
 If the existing enrolled hosts use `--host_identifier=uuid` (or the `uuid` setting for Fleet's
-[osquery_host_identifier](../02-Deploying/03-Configuration.md#osquery-host-identifier)), the new
+[osquery_host_identifier](../Deploying/Configuration.md#osquery-host-identifier)), the new
 installation should appear as the same host in the Fleet UI. If other settings are used, duplicate
 entries will appear in the Fleet UI. The older entries can be automatically cleaned up with the host
 expiration functionality configured in the application settings (UI or fleetctl).

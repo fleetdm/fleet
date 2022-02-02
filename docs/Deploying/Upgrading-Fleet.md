@@ -1,6 +1,6 @@
 # Upgrading Fleet
 
-This guide explains how to upgrade your Fleet instance to the latest version in order to get the latest features and bug fixes. For initial installation instructions, see [Installing Fleet](./02-Server-Installation.md#installing-fleet).
+This guide explains how to upgrade your Fleet instance to the latest version in order to get the latest features and bug fixes. For initial installation instructions, see [Installing Fleet](./Server-Installation.md#installing-fleet).
 
 There are three steps to perform a typical Fleet upgrade:
 

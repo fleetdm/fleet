@@ -7,7 +7,7 @@
 - [Test hosts](#test-hosts)
 - [Email](#email)
 - [Database backup/restore](#database-backuprestore)
-- [Seeding Data](./06-Seeding-Data.md)
+- [Seeding Data](./Seeding-Data.md)
 - [MySQL shell](#mysql-shell)
 - [Testing SSO](#testing-sso)
 
@@ -154,7 +154,7 @@ E2E tests are constantly evolving and running them or examining CI results is th
 
 ### Preparation
 
-Make sure dependencies are up to date and the [Fleet binaries are built locally](./01-Building-Fleet.md).
+Make sure dependencies are up to date and the [Fleet binaries are built locally](./Building-Fleet.md).
 
 For Fleet Free tests:
 

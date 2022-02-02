@@ -66,7 +66,7 @@ Scaling Fleet horizontally is as simple as running more Fleet server processes c
 
 The Fleet/osquery system is resilient to loss of availability. Osquery agents will continue executing the existing configuration and buffering result logs during downtime due to lack of network connectivity, server maintenance, or any other reason. Buffering in osquery can be configured with the `--buffered_log_max` flag.
 
-Note that short downtimes are expected during [Fleet server upgrades](../02-Deploying/06-Upgrading-Fleet.md) that require database migrations.
+Note that short downtimes are expected during [Fleet server upgrades](../Deploying/Upgrading-Fleet.md) that require database migrations.
 
 ### Debugging performance issues
 
@@ -80,7 +80,7 @@ For performance issues in the Fleet server process, please [file an issue](https
 
 ##### Generate debug archive (Fleet 3.4.0+)
 
-Use the `fleetctl debug archive` command to generate an archive of Fleet's full suite of debug profiles. See the [fleetctl setup guide](./02-fleetctl-CLI.md)) for details on configuring `fleetctl`.
+Use the `fleetctl debug archive` command to generate an archive of Fleet's full suite of debug profiles. See the [fleetctl setup guide](./fleetctl-CLI.md)) for details on configuring `fleetctl`.
 
 The generated `.tar.gz` archive will be available in the current directory.
 

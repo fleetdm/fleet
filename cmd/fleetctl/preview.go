@@ -30,7 +30,7 @@ import (
 
 const (
 	downloadUrl             = "https://github.com/fleetdm/osquery-in-a-box/archive/%s.zip"
-	standardQueryLibraryUrl = "https://raw.githubusercontent.com/fleetdm/fleet/main/docs/01-Using-Fleet/standard-query-library/standard-query-library.yml"
+	standardQueryLibraryUrl = "https://raw.githubusercontent.com/fleetdm/fleet/main/docs/Using-Fleet/standard-query-library/standard-query-library.yml"
 	licenseKeyFlagName      = "license-key"
 	tagFlagName             = "tag"
 	previewConfigFlagName   = "preview-config"

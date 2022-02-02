@@ -199,7 +199,7 @@ const TeamManagementPage = (): JSX.Element => {
             <p>
               Want to learn more?&nbsp;
               <a
-                href="https://github.com/fleetdm/fleet/blob/main/docs/01-Using-Fleet/10-Teams.md"
+                href="https://github.com/fleetdm/fleet/blob/main/docs/Using-Fleet/Teams.md"
                 target="_blank"
                 rel="noopener noreferrer"
               >
