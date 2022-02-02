@@ -14,6 +14,12 @@ declare namespace Cypress {
     login(email?: string, password?: string): Chainable<Element>;
 
     /**
+     * Custom command to login the user programmatically using the fleet API
+     * but with a Cypress session wrapper.
+     */
+    loginWithCySession(email?: string, password?: string): Chainable<Element>;
+
+    /**
      * Custom command to log out the current user.
      */
     logout(): Chainable<Element>;
@@ -99,5 +105,15 @@ declare namespace Cypress {
      * Custom command to stop any running Docker hosts.
      */
     stopDockerHost(): Chainable;
+
+    /**
+     * Custom command to clear downloaded files from test machine.
+     */
+    clearDownloads(): Chainable;
+
+    /**
+     * Custom command to get any element describe only if it is attached to the DOM.
+     */
+    getAttached(selector: string): Chainable;
   }
 }
