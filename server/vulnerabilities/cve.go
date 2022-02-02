@@ -169,10 +169,11 @@ func checkCVEs(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 							continue
 						}
 
+						cveID := matches.CVE.ID()
 						matchingCPEs := make([]string, 0, ml)
 						for _, attr := range matches.CPEs {
 							if attr == nil {
-								level.Error(logger).Log("matches nil CPE", matches.CVE.ID())
+								level.Error(logger).Log("matches nil CPE", cveID)
 								continue
 							}
 							cpe := attr.BindToFmtString()
@@ -182,7 +183,7 @@ func checkCVEs(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 							matchingCPEs = append(matchingCPEs, cpe)
 						}
 
-						newCount, err := ds.InsertCVEForCPE(ctx, matches.CVE.ID(), matchingCPEs)
+						newCount, err := ds.InsertCVEForCPE(ctx, cveID, matchingCPEs)
 						if err != nil {
 							level.Error(logger).Log("cpe processing", "error", "err", err)
 							continue // do not report a recent vuln that failed to be inserted in the DB
@@ -194,24 +195,31 @@ func checkCVEs(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 						if collectVulns && newCount > 0 {
 							vuln, ok := matches.CVE.(*feednvd.Vuln)
 							if !ok {
-								level.Error(logger).Log("recent vuln", "unexpected type for Vuln interface", "type", fmt.Sprintf("%T", matches.CVE))
+								level.Error(logger).Log("recent vuln", "unexpected type for Vuln interface", "cve", cveID,
+									"type", fmt.Sprintf("%T", matches.CVE))
 								continue
 							}
 
-							if rawPubDate := vuln.Schema().PublishedDate; rawPubDate != "" {
-								pubDate, err := time.Parse(publishedDateFmt, rawPubDate)
-								if err != nil {
-									level.Error(logger).Log("recent vuln", "unexpected published date format", "published_date", rawPubDate, "err", err)
-									continue
-								}
-								// the second condition should only affect tests - to ignore pubDates in the future
-								// when using a mocked current clock. When using the real clock, the published date
-								// should always be in the past.
-								if theClock.Since(pubDate) <= recentVulnMaxAge && theClock.Now().After(pubDate) {
-									mu.Lock()
-									recentVulns[matches.CVE.ID()] = matchingCPEs
-									mu.Unlock()
-								}
+							rawPubDate := vuln.Schema().PublishedDate
+							if rawPubDate == "" {
+								level.Error(logger).Log("recent vuln", "empty published date", "cve", cveID)
+								continue
+							}
+
+							pubDate, err := time.Parse(publishedDateFmt, rawPubDate)
+							if err != nil {
+								level.Error(logger).Log("recent vuln", "unexpected published date format", "cve", cveID,
+									"published_date", rawPubDate, "err", err)
+								continue
+							}
+
+							// the second condition should only affect tests - to ignore pubDates in the future
+							// when using a mocked current clock. When using the real clock, the published date
+							// should always be in the past.
+							if theClock.Since(pubDate) <= recentVulnMaxAge && theClock.Now().After(pubDate) {
+								mu.Lock()
+								recentVulns[cveID] = append(recentVulns[cveID], matchingCPEs...)
+								mu.Unlock()
 							}
 						}
 					}

@@ -1,12 +1,12 @@
 package webhooks
 
 import (
-	"bytes"
 	"context"
 	"fmt"
-	"io"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -91,43 +91,42 @@ func TestTriggerVulnerabilitiesWebhook(t *testing.T) {
 				"1 vuln, 1 host",
 				map[string][]string{cves[0]: {"cpe1"}},
 				hosts[:1],
-				fmt.Sprintf("\n%s[%s]}}", jsonCVE1, jsonH1),
+				fmt.Sprintf("%s[%s]}}", jsonCVE1, jsonH1),
 			},
 			{
 				"1 vuln, 2 hosts",
 				map[string][]string{cves[0]: {"cpe1"}},
 				hosts[:2],
-				fmt.Sprintf("\n%s[%s,%s]}}", jsonCVE1, jsonH1, jsonH2),
+				fmt.Sprintf("%s[%s,%s]}}", jsonCVE1, jsonH1, jsonH2),
 			},
 			{
 				"1 vuln, 3 hosts",
 				map[string][]string{cves[0]: {"cpe1"}},
 				hosts[:3],
-				fmt.Sprintf("\n%s[%s,%s]}}\n%s[%s]}}", jsonCVE1, jsonH1, jsonH2, jsonCVE1, jsonH3), // 2 requests, batch of 2 max
+				fmt.Sprintf("%s[%s,%s]}}\n%s[%s]}}", jsonCVE1, jsonH1, jsonH2, jsonCVE1, jsonH3), // 2 requests, batch of 2 max
 			},
 			{
 				"1 vuln, 4 hosts",
 				map[string][]string{cves[0]: {"cpe1"}},
 				hosts[:4],
-				fmt.Sprintf("\n%s[%s,%s]}}\n%s[%s,%s]}}", jsonCVE1, jsonH1, jsonH2, jsonCVE1, jsonH3, jsonH4), // 2 requests, batch of 2 max
+				fmt.Sprintf("%s[%s,%s]}}\n%s[%s,%s]}}", jsonCVE1, jsonH1, jsonH2, jsonCVE1, jsonH3, jsonH4), // 2 requests, batch of 2 max
 			},
 			{
 				"2 vulns, 1 host each",
 				map[string][]string{cves[0]: {"cpe1"}, cves[1]: {"cpe2"}},
 				hosts[:1],
-				fmt.Sprintf("\n%s[%s]}}\n%s[%s]}}", jsonCVE1, jsonH1, jsonCVE2, jsonH1),
+				fmt.Sprintf("%s[%s]}}\n%s[%s]}}", jsonCVE1, jsonH1, jsonCVE2, jsonH1),
 			},
 		}
 
 		for _, c := range cases {
 			t.Run(c.name, func(t *testing.T) {
-				var buf bytes.Buffer
+				var requests []string
 
-				// each request is a new line
 				srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-					buf.WriteByte('\n')
-					_, err := io.Copy(&buf, r.Body)
+					b, err := ioutil.ReadAll(r.Body)
 					assert.NoError(t, err)
+					requests = append(requests, string(b))
 					w.Write(nil)
 				}))
 				defer srv.Close()
@@ -144,7 +143,8 @@ func TestTriggerVulnerabilitiesWebhook(t *testing.T) {
 				assert.True(t, ds.HostsByCPEsFuncInvoked)
 				ds.HostsByCPEsFuncInvoked = false
 
-				assert.Equal(t, c.want, buf.String())
+				want := strings.Split(c.want, "\n")
+				assert.ElementsMatch(t, want, requests)
 			})
 		}
 	})
