@@ -707,20 +707,7 @@ func cronVulnerabilities(
 
 		var recentVulns map[string][]string
 		if !vulnDisabled {
-			err := vulnerabilities.TranslateSoftwareToCPE(ctx, ds, vulnPath, logger, config)
-			if err != nil {
-				level.Error(logger).Log("msg", "analyzing vulnerable software: Software->CPE", "err", err)
-				sentry.CaptureException(err)
-				continue
-			}
-
-			recentVulns, err = vulnerabilities.TranslateCPEToCVE(
-				ctx, ds, vulnPath, logger, config, appConfig.WebhookSettings.VulnerabilitiesWebhook.Enable)
-			if err != nil {
-				level.Error(logger).Log("msg", "analyzing vulnerable software: CPE->CVE", "err", err)
-				sentry.CaptureException(err)
-				continue
-			}
+			recentVulns = checkVulnerabilities(ctx, ds, logger, vulnPath, config, appConfig.WebhookSettings.VulnerabilitiesWebhook)
 		}
 
 		if err := ds.CalculateHostsPerSoftware(ctx, time.Now()); err != nil {
@@ -741,6 +728,24 @@ func cronVulnerabilities(
 
 		level.Debug(logger).Log("loop", "done")
 	}
+}
+
+func checkVulnerabilities(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
+	vulnPath string, config config.FleetConfig, vulnWebhookCfg fleet.VulnerabilitiesWebhookSettings) map[string][]string {
+	err := vulnerabilities.TranslateSoftwareToCPE(ctx, ds, vulnPath, logger, config)
+	if err != nil {
+		level.Error(logger).Log("msg", "analyzing vulnerable software: Software->CPE", "err", err)
+		sentry.CaptureException(err)
+		return nil
+	}
+
+	recentVulns, err := vulnerabilities.TranslateCPEToCVE(ctx, ds, vulnPath, logger, config, vulnWebhookCfg.Enable)
+	if err != nil {
+		level.Error(logger).Log("msg", "analyzing vulnerable software: CPE->CVE", "err", err)
+		sentry.CaptureException(err)
+		return nil
+	}
+	return recentVulns
 }
 
 func cronWebhooks(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, identifier string, failingPoliciesSet fleet.FailingPolicySet) {
