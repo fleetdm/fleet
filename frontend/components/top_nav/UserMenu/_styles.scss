@@ -6,6 +6,7 @@
   .dropdown-button__options {
     padding: $pad-small;
     right: 10px;
+    margin-top: 2px;
 
     button {
       display: inline-block;
@@ -15,6 +16,11 @@
         background-color: $ui-vibrant-blue-10;
         color: $core-fleet-black;
       }
+    }
+
+    .dropdown-button__option:last-child,
+    .dropdown-button__option:nth-last-child(2) {
+      border-top: 1px solid $ui-fleet-blue-15;
     }
   }
 }

@@ -13,7 +13,35 @@ describe("Premium tier - Team observer/maintainer user", () => {
     cy.logout();
     cy.stopDockerHost();
   });
-
+  describe("Team maintainer and team observer", () => {
+    beforeEach(() => {
+      cy.loginWithCySession("marco@organization.com", "user123#");
+    });
+    describe("Dashboard and navigation", () => {
+      beforeEach(() => cy.visit("/dashboard"));
+      it("displays intended team maintainer and team observer dashboard", () => {
+        cy.getAttached(".homepage__wrapper").within(() => {
+          cy.findByText(/apples/i).should("exist");
+          cy.getAttached(".hosts-summary").should("exist");
+          cy.getAttached(".hosts-status").should("exist");
+          cy.getAttached(".home-software").should("exist");
+          cy.get(".activity-feed").should("not.exist");
+        });
+      });
+      it("displays intended team maintainer and team observer top navigation", () => {
+        cy.getAttached(".site-nav-container").within(() => {
+          cy.findByText(/hosts/i).should("exist");
+          cy.findByText(/software/i).should("exist");
+          cy.findByText(/queries/i).should("exist");
+          cy.findByText(/schedule/i).should("exist");
+          cy.findByText(/policies/i).should("exist");
+          cy.getAttached(".user-menu").click();
+          cy.findByText(/settings/i).should("not.exist");
+          cy.findByText(/manage users/i).should("not.exist");
+        });
+      });
+    });
+  });
   describe("Team observer", () => {
     beforeEach(() => {
       cy.loginWithCySession("marco@organization.com", "user123#");

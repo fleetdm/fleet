@@ -4,7 +4,7 @@ import classnames from "classnames";
 import { DEFAULT_GRAVATAR_LINK } from "utilities/constants";
 
 interface IAvatarUserInterface {
-  gravatarURL: string;
+  gravatarURL?: string;
 }
 
 export interface IAvatarInterface {

@@ -18,6 +18,30 @@ describe("Premium tier - Observer user", () => {
     beforeEach(() => {
       cy.loginWithCySession("oliver@organization.com", "user123#");
     });
+    describe("Dashboard and navigation", () => {
+      beforeEach(() => cy.visit("/dashboard"));
+      it("displays intended global observer dashboard", () => {
+        cy.getAttached(".homepage__wrapper").within(() => {
+          cy.findByText(/all teams/i).should("exist");
+          cy.getAttached(".hosts-summary").should("exist");
+          cy.getAttached(".hosts-status").should("exist");
+          cy.getAttached(".home-software").should("exist");
+          cy.getAttached(".activity-feed").should("exist");
+        });
+      });
+      it("displays intended global observer top navigation", () => {
+        cy.getAttached(".site-nav-container").within(() => {
+          cy.findByText(/hosts/i).should("exist");
+          cy.findByText(/software/i).should("exist");
+          cy.findByText(/queries/i).should("exist");
+          cy.findByText(/schedule/i).should("not.exist");
+          cy.findByText(/policies/i).should("exist");
+          cy.getAttached(".user-menu").click();
+          cy.findByText(/settings/i).should("not.exist");
+          cy.findByText(/manage users/i).should("not.exist");
+        });
+      });
+    });
     describe("Manage hosts page", () => {
       beforeEach(() => cy.visit("/hosts/manage"));
       it("should render elements according to role-based access controls", () => {
