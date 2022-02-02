@@ -92,10 +92,8 @@
         </div>
       </div>
       <div class="results">
-        <div style="min-height: 0px;" class="row justify-content-center">
-          <div purpose="selected-tag" class="mb-3" v-if="selectedTag">
-            <strong>Showing {{ selectedKind === 'query' ? 'informational queries' : selectedKind === 'policy' ? 'policies' : 'all queries'}} with the "{{selectedTag}}" label.<span style="color: #FF5C83; cursor: pointer;" class="fa fa-times-circle pl-2" @click="clickSelectTag('')"></span></strong>
-          </div>
+        <div purpose="selected-tag" class="mb-3" v-if="selectedTag">
+          <p>Showing {{ selectedKind === 'query' ? 'informational queries' : selectedKind === 'policy' ? 'policies' : 'all queries'}} for <span purpose="query-tag" class="d-inline-block" style="cursor: pointer;" @click="clickSelectTag('')">{{selectedTag}}<span style="color: #8b8fa2;" class="fa fa-times-circle pl-2"></span></span></p>
         </div>
         <div class="category__informational">
           <div v-for="query of queriesList">

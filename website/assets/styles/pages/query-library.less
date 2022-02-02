@@ -41,15 +41,18 @@
     font-weight: 700;
     padding: 4px 8px;
     border-radius: 20px;
-    background-color: #DBE3E5;
+    background-color: #E2E4EA;
   }
 
   [purpose='selected-tag'] {
-    background: #F1F0FF;
-    border: 1px solid #D9D9FE;
-    box-sizing: border-box;
-    border-radius: 8px;
-    padding: 16px 24px;
+    border-bottom: 1px solid #e1e4e9;
+    padding: 16px 0;
+    margin-left: 30px;
+    margin-right: 30px;
+    p {
+      margin-bottom: 0;
+      line-height: 18px;
+    }
   }
 
   .input-group {
@@ -221,7 +224,7 @@
     border-radius: 8px;
     &:hover {
       .query-card {
-        background-color: #f1f0ff;
+        background-color: #F8F7FF;
         box-shadow: none;
         border: none;
         border-radius: 8px;
@@ -292,8 +295,11 @@
     }
 
     [purpose='selected-tag'] {
-      margin-left: 45px;
-      margin-right: 45px;
+      margin-left: 30px;
+      margin-right: 30px;
+      [purpose='query-tag'] {
+      margin-top: 8px;
+      }
     }
 
     .results {
