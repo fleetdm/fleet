@@ -331,7 +331,7 @@ type Datastore interface {
 	InsertCVEForCPE(ctx context.Context, cve string, cpes []string) (int64, error)
 	SoftwareByID(ctx context.Context, id uint) (*Software, error)
 	CalculateHostsPerSoftware(ctx context.Context, updatedAt time.Time) error
-	HostsByCPEs(ctx context.Context, cpes []string) ([]*Host, error)
+	HostsByCPEs(ctx context.Context, cpes []string) ([]*CPEHost, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// ActivitiesStore

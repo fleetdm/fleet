@@ -274,7 +274,7 @@ type SoftwareByIDFunc func(ctx context.Context, id uint) (*fleet.Software, error
 
 type CalculateHostsPerSoftwareFunc func(ctx context.Context, updatedAt time.Time) error
 
-type HostsByCPEsFunc func(ctx context.Context, cpes []string) ([]*fleet.Host, error)
+type HostsByCPEsFunc func(ctx context.Context, cpes []string) ([]*fleet.CPEHost, error)
 
 type NewActivityFunc func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error
 
@@ -1564,7 +1564,7 @@ func (s *DataStore) CalculateHostsPerSoftware(ctx context.Context, updatedAt tim
 	return s.CalculateHostsPerSoftwareFunc(ctx, updatedAt)
 }
 
-func (s *DataStore) HostsByCPEs(ctx context.Context, cpes []string) ([]*fleet.Host, error) {
+func (s *DataStore) HostsByCPEs(ctx context.Context, cpes []string) ([]*fleet.CPEHost, error) {
 	s.HostsByCPEsFuncInvoked = true
 	return s.HostsByCPEsFunc(ctx, cpes)
 }

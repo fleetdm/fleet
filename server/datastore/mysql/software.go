@@ -658,9 +658,9 @@ func (d *Datastore) CalculateHostsPerSoftware(ctx context.Context, updatedAt tim
 }
 
 // HostsByCPEs returns a list of all hosts that have the software corresponding
-// to at least one of the CPEs installed. Note that only a small subset of
-// fields are filled on the returned hosts.
-func (d *Datastore) HostsByCPEs(ctx context.Context, cpes []string) ([]*fleet.Host, error) {
+// to at least one of the CPEs installed. It returns a minimal represention of
+// matching hosts.
+func (d *Datastore) HostsByCPEs(ctx context.Context, cpes []string) ([]*fleet.CPEHost, error) {
 	queryStmt := `
     SELECT
       h.id,
@@ -684,7 +684,7 @@ func (d *Datastore) HostsByCPEs(ctx context.Context, cpes []string) ([]*fleet.Ho
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "building query args")
 	}
-	var hosts []*fleet.Host
+	var hosts []*fleet.CPEHost
 	if err := sqlx.SelectContext(ctx, d.reader, &hosts, stmt, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "select hosts by cpes")
 	}
