@@ -1,11 +1,18 @@
 import React, { useCallback, useContext, useEffect, useState } from "react";
 import { useQuery } from "react-query";
+import { useDispatch } from "react-redux";
 import { InjectedRouter } from "react-router/lib/Router";
 import ReactTooltip from "react-tooltip";
 import { useDebouncedCallback } from "use-debounce/lib";
 import formatDistanceToNowStrict from "date-fns/formatDistanceToNowStrict";
 
 import { AppContext } from "context/app";
+import { IWebhookSoftwareVulnerabilities } from "interfaces/webhook";
+// @ts-ignore
+import { renderFlash } from "redux/nodes/notifications/actions";
+import PATHS from "router/paths";
+import configAPI from "services/entities/config";
+import usersAPI, { IGetMeResponse } from "services/entities/users";
 import softwareAPI, {
   ISoftwareResponse,
   ISoftwareCountResponse,
@@ -29,6 +36,7 @@ import ExternalLinkIcon from "../../../../assets/images/open-new-tab-12x12@2x.pn
 import QuestionIcon from "../../../../assets/images/icon-question-16x16@2x.png";
 
 import generateTableHeaders from "./SoftwareTableConfig";
+import ManageAutomationsModal from "./components/ManageAutomationsModal";
 import EmptySoftware from "../components/EmptySoftware";
 
 interface IManageSoftwarePageProps {
@@ -49,7 +57,17 @@ const ManageSoftwarePage = ({
   router,
   location,
 }: IManageSoftwarePageProps): JSX.Element => {
-  const { availableTeams, currentTeam } = useContext(AppContext);
+  const dispatch = useDispatch();
+  const {
+    availableTeams,
+    currentTeam,
+    isGlobalAdmin,
+    isGlobalMaintainer,
+    isTeamAdmin,
+    isTeamMaintainer,
+    setAvailableTeams,
+    setCurrentUser,
+  } = useContext(AppContext);
 
   const [isLoadingSoftware, setIsLoadingSoftware] = useState(true);
   const [isLoadingCount, setIsLoadingCount] = useState(true);
@@ -62,6 +80,10 @@ const ManageSoftwarePage = ({
   >(DEFAULT_SORT_DIRECTION);
   const [sortHeader, setSortHeader] = useState(DEFAULT_SORT_HEADER);
   const [pageIndex, setPageIndex] = useState(0);
+  const [showManageAutomationsModal, setShowManageAutomationsModal] = useState(
+    false
+  );
+  const [showPreviewPayloadModal, setShowPreviewPayloadModal] = useState(false);
 
   // TODO: experiment to see if we need this state and effect or can we rely solely on the router/location for the dropdown state?
   useEffect(() => {
@@ -70,6 +92,26 @@ const ManageSoftwarePage = ({
 
   // TODO: combine string and object so only one array element in query key; figure out typing and
   // destructuring for queryfn
+  const [
+    isLoadingSoftwareVulnerabilitiesWebhook,
+    setIsLoadingSoftwareVulnerabilitiesWebhook,
+  ] = useState(true);
+  const [
+    isSoftwareVulnerabilitiesWebhookError,
+    setIsSoftwareVulnerabilitiesWebhookError,
+  ] = useState(false);
+  const [
+    softwareVulnerabilitiesWebhook,
+    setSoftwareVulnerabilitiesWebhook,
+  ] = useState<IWebhookSoftwareVulnerabilities | undefined>();
+
+  useQuery(["me"], () => usersAPI.me(), {
+    onSuccess: ({ user, available_teams }: IGetMeResponse) => {
+      setCurrentUser(user);
+      setAvailableTeams(available_teams);
+    },
+  });
+
   const { data: software, error: softwareError } = useQuery<
     ISoftwareResponse,
     Error
@@ -173,9 +215,77 @@ const ManageSoftwarePage = ({
     300
   );
 
+  const getSoftwareVulnerabilitiesWebhook = useCallback(async () => {
+    setIsLoadingSoftwareVulnerabilitiesWebhook(true);
+    setIsSoftwareVulnerabilitiesWebhookError(false);
+    let result;
+    try {
+      result = await configAPI
+        .loadAll()
+        .then((response) => response.webhook_settings.vulnerabilities_webhook);
+      setSoftwareVulnerabilitiesWebhook(result);
+    } catch (error) {
+      console.log(error);
+      setIsSoftwareVulnerabilitiesWebhookError(true);
+    } finally {
+      setIsLoadingSoftwareVulnerabilitiesWebhook(false);
+    }
+    return result;
+  }, []);
+
+  const toggleManageAutomationsModal = () =>
+    setShowManageAutomationsModal(!showManageAutomationsModal);
+
+  const togglePreviewPayloadModal = useCallback(() => {
+    setShowPreviewPayloadModal(!showPreviewPayloadModal);
+  }, [setShowPreviewPayloadModal, showPreviewPayloadModal]);
+
+  const onManageAutomationsClick = () => {
+    toggleManageAutomationsModal();
+  };
+
+  const onCreateWebhookSubmit = async ({
+    destination_url,
+    enable_vulnerabilities_webhook,
+  }: IWebhookSoftwareVulnerabilities) => {
+    try {
+      const request = configAPI.update({
+        webhook_settings: {
+          vulnerabilities_webhook: {
+            destination_url,
+            enable_vulnerabilities_webhook,
+          },
+        },
+      });
+      await request.then(() => {
+        dispatch(
+          renderFlash(
+            "success",
+            "Successfully updated vulnerability automations."
+          )
+        );
+      });
+    } catch {
+      dispatch(
+        renderFlash(
+          "error",
+          "Could not update vulnerability automations. Please try again."
+        )
+      );
+    } finally {
+      toggleManageAutomationsModal();
+      getSoftwareVulnerabilitiesWebhook();
+    }
+  };
+
   const onTeamSelect = () => {
     setPageIndex(0);
   };
+
+  // TODO: Set according to Figma
+  // TODO: Look into if this is only on all teams or teams
+  // const canManageSoftwareVulnerabilityAutomations =
+  //   isGlobalAdmin || isGlobalMaintainer || isTeamMaintainer || isTeamAdmin;
 
   const renderHeaderButtons = (
     state: ITeamsDropdownState
@@ -186,7 +296,7 @@ const ManageSoftwarePage = ({
     ) {
       return (
         <Button
-          onClick={() => console.log("Manage automations button click")}
+          onClick={onManageAutomationsClick}
           className={`${baseClass}__manage-automations button`}
           variant="brand"
         >
@@ -392,6 +502,22 @@ const ManageSoftwarePage = ({
             disableActionButton
             hideActionButton
             highlightOnHover
+          />
+        )}
+
+        {showManageAutomationsModal && (
+          <ManageAutomationsModal
+            onCancel={toggleManageAutomationsModal}
+            onCreateWebhookSubmit={onCreateWebhookSubmit}
+            togglePreviewPayloadModal={togglePreviewPayloadModal}
+            showPreviewPayloadModal={showPreviewPayloadModal}
+            availableSoftwareAutomations={[]} // TODO: pass ManageAutomationsModal availableSoftwareAutomations
+            currentSoftwareAutomations={[]} // TODO: pass ManageAutomationsModal currentSoftwareAutomations
+            currentDestinationUrl={
+              (softwareVulnerabilitiesWebhook &&
+                softwareVulnerabilitiesWebhook.destination_url) ||
+              ""
+            }
           />
         )}
       </div>

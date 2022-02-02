@@ -17,12 +17,7 @@
   }
 
   &__manage-automations {
-<<<<<<< HEAD
     padding: $pad-small $pad-medium;
-=======
-    padding: $pad-small;
-    margin-right: $pad-small;
->>>>>>> 6b8c060b5 (Software vulnerability webhook modal components)
   }
 
   &__header {
@@ -40,34 +35,11 @@
 
   &__title {
     font-size: $large;
-<<<<<<< HEAD
-=======
-
-    .fleeticon {
-      color: $core-fleet-blue;
-      margin-right: 15px;
-    }
-
-    .fleeticon-success-check {
-      color: $ui-success;
-    }
-
-    .fleeticon-offline {
-      color: $ui-error;
-    }
-
-    .fleeticon-mia {
-      color: $core-fleet-black;
-    }
->>>>>>> 6b8c060b5 (Software vulnerability webhook modal components)
   }
 
   &__description {
     margin: 0;
-<<<<<<< HEAD
     margin-bottom: 40px;
-=======
->>>>>>> 6b8c060b5 (Software vulnerability webhook modal components)
 
     h2 {
       text-transform: uppercase;
@@ -84,14 +56,6 @@
     }
   }
 
-<<<<<<< HEAD
-=======
-  &__action-button-container {
-    display: flex;
-    align-items: flex-start;
-  }
-
->>>>>>> 6b8c060b5 (Software vulnerability webhook modal components)
   .button {
     font-size: $x-small;
 
@@ -100,79 +64,6 @@
     }
   }
 
-<<<<<<< HEAD
-=======
-  &__advanced-button {
-    margin-right: $pad-medium;
-  }
-
-  &__sandbox-info {
-    margin-top: $pad-large;
-    margin-bottom: $pad-xxlarge;
-
-    p {
-      font-size: $x-small;
-      margin: 0;
-      margin-bottom: $pad-medium;
-    }
-
-    p:last-child {
-      margin-bottom: 0;
-    }
-
-    a {
-      color: $core-vibrant-blue;
-      text-decoration: none;
-    }
-  }
-
-  &__modal-buttons {
-    width: 100%;
-    display: flex;
-    justify-content: flex-end;
-
-    .button:first-child {
-      margin-right: $pad-medium;
-    }
-  }
-
-  &__add-policy-link {
-    transition: color 150ms ease-in-out, background 150ms ease-in-out,
-      top 50ms ease-in-out, box-shadow 50ms ease-in-out, border 50ms ease-in-out;
-    position: relative;
-    color: $core-white;
-    text-decoration: none;
-    flex-direction: row;
-    justify-content: center;
-    align-items: center;
-    padding-left: $pad-medium;
-    padding-right: $pad-medium;
-    border-radius: 4px;
-    font-size: $x-small;
-    font-family: "Nunito Sans", sans-serif;
-    font-weight: $bold;
-    display: inline-flex;
-    height: 38px;
-    top: 0;
-    border: 0;
-    cursor: pointer;
-
-    @include button-variant(
-      $core-vibrant-blue,
-      $core-vibrant-blue-over,
-      $core-vibrant-blue-down
-    );
-  }
-
-  &__inherited-policies-button {
-    padding-top: $pad-small;
-    margin: $pad-large 0 0 0;
-    color: $core-vibrant-blue;
-    font-weight: $bold;
-    font-size: $x-small;
-  }
-
->>>>>>> 6b8c060b5 (Software vulnerability webhook modal components)
   .rightcarat {
     &::before {
       content: url("../assets/images/icon-chevron-blue-16x16@2x.png");
@@ -216,7 +107,6 @@
     }
   }
 
-<<<<<<< HEAD
   .table-container {
     min-height: 435px;
   }
@@ -377,19 +267,4 @@
   .text-muted {
     color: $ui-fleet-black-50;
   }
-=======
-  &__inherited-policies-button {
-    padding-bottom: $pad-large;
-  }
-
-  &__inherited-policies-table {
-    th {
-      border-right: 1px solid #e2e4ea !important;
-    }
-
-    .table-container__header {
-      display: none;
-    }
-  }
->>>>>>> 6b8c060b5 (Software vulnerability webhook modal components)
 }
