@@ -321,7 +321,14 @@ func selectSoftwareSQL(hostID *uint, opts fleet.SoftwareListOptions) (string, []
 				goqu.I("shc.json_value").As("hosts_count"),
 				goqu.I("shc.updated_at").As("counts_updated_at"),
 			)
-		subSelectCounts = appendListOptionsToSelect(subSelectCounts, opts.ListOptions)
+		subSelectListOpts := opts.ListOptions
+		switch subSelectListOpts.OrderKey {
+		case "hosts_counts", "counts_updated_at":
+			// all good, known columns, so we sort
+			subSelectCounts = appendListOptionsToSelect(subSelectCounts, opts.ListOptions)
+		default:
+			// we don't sort if it's not a column from this table
+		}
 		ds = ds.Join(
 			subSelectCounts.As("shc"),
 			goqu.On(
