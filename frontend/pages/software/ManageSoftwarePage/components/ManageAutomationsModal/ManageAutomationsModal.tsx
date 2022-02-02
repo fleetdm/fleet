@@ -20,43 +20,50 @@ interface IManageAutomationsModalProps {
   onCreateWebhookSubmit: (formData: IWebhookSoftwareVulnerabilities) => void;
   togglePreviewPayloadModal: () => void;
   showPreviewPayloadModal: boolean;
-  availableSoftwareAutomations: any;
-  currentSoftwareAutomations?: number[];
+  softwareVulnerabilityWebhookEnabled?: boolean;
   currentDestinationUrl?: string;
 }
 
-interface ICheckedPolicy {
+interface ICheckedSoftwareAutomation {
   name?: string;
-  id: number;
+  accessor: string;
   isChecked: boolean;
 }
 
 const useCheckboxListStateManagement = (
-  availableSoftwareAutomations: any,
-  currentSoftwareAutomations: number[] | undefined
+  softwareVulnerabilityWebhookEnabled = false
 ) => {
+  const availableSoftwareAutomations: any = [
+    { accessor: "vulnerability", name: "Enable vulnerability automations" },
+  ];
+  const currentSoftwareAutomations: any = softwareVulnerabilityWebhookEnabled
+    ? availableSoftwareAutomations
+    : [];
+
   const [softwareAutomationsItems, setSoftwareAutomationsItems] = useState<
-    ICheckedPolicy[]
+    ICheckedSoftwareAutomation[]
   >(() => {
     return (
       availableSoftwareAutomations &&
       availableSoftwareAutomations.map((automation: any) => {
         return {
           name: automation.name,
-          id: automation.id,
+          accessor: automation.accessor,
           isChecked:
             !!currentSoftwareAutomations &&
-            currentSoftwareAutomations.includes(automation.id),
+            currentSoftwareAutomations.includes(automation.accessor),
         };
       })
     );
   });
 
-  const updateSoftwareAutomationsItems = (softwareAutomationId: number) => {
+  const updateSoftwareAutomationsItems = (
+    softwareAutomationAccessor: string
+  ) => {
     setSoftwareAutomationsItems((prevState) => {
       const selectedSoftwareAutomation = softwareAutomationsItems.find(
         (softwareAutomationItem) =>
-          softwareAutomationItem.id === softwareAutomationId
+          softwareAutomationItem.accessor === softwareAutomationAccessor
       );
 
       const updatedSoftwareAutomation = selectedSoftwareAutomation && {
@@ -65,10 +72,10 @@ const useCheckboxListStateManagement = (
           !!selectedSoftwareAutomation && !selectedSoftwareAutomation.isChecked,
       };
 
-      // this is replacing the policy object with the updatedPolicy we just created.
+      // this is replacing the softwareAutomation object with the updatedSoftwareAutomation we just created.
       const newState = prevState.map((currentSoftwareAutomation) => {
-        return currentSoftwareAutomation.id === softwareAutomationId &&
-          updatedSoftwareAutomation
+        return currentSoftwareAutomation.accessor ===
+          softwareAutomationAccessor && updatedSoftwareAutomation
           ? updatedSoftwareAutomation
           : currentSoftwareAutomation;
       });
@@ -77,8 +84,8 @@ const useCheckboxListStateManagement = (
   };
 
   return {
-    softwareAutomationsItems: softwareAutomationsItems,
-    updateSoftwareAutomationsItems: updateSoftwareAutomationsItems,
+    softwareAutomationsItems,
+    updateSoftwareAutomationsItems,
   };
 };
 
@@ -100,22 +107,22 @@ const ManageAutomationsModal = ({
   onCreateWebhookSubmit,
   togglePreviewPayloadModal,
   showPreviewPayloadModal,
-  availableSoftwareAutomations, // TODO: pass ManageAutomationsModal availableSoftwareAutomations
-  currentSoftwareAutomations, // TODO: pass ManageAutomationsModal currentSoftwareAutomations
+  softwareVulnerabilityWebhookEnabled,
   currentDestinationUrl,
 }: IManageAutomationsModalProps): JSX.Element => {
+  console.log(
+    "softwareVulnerabilityWebhookEnabled",
+    softwareVulnerabilityWebhookEnabled
+  );
   const [destination_url, setDestinationUrl] = useState<string>(
     currentDestinationUrl || ""
   );
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
   const {
-    softwareAutomationsItems, // TODO: update for software automations
-    updateSoftwareAutomationsItems, // TODO: update for software automations
-  } = useCheckboxListStateManagement(
-    availableSoftwareAutomations,
-    currentSoftwareAutomations
-  );
+    softwareAutomationsItems,
+    updateSoftwareAutomationsItems,
+  } = useCheckboxListStateManagement(softwareVulnerabilityWebhookEnabled);
 
   useDeepEffect(() => {
     if (destination_url) {
@@ -162,14 +169,14 @@ const ManageAutomationsModal = ({
         <div className={`${baseClass}__software-select-items`}>
           {softwareAutomationsItems && // Allows for more software automations to be set in the future
             softwareAutomationsItems.map((softwareItem: any) => {
-              const { isChecked, name, id } = softwareItem;
+              const { isChecked, name, accessor } = softwareItem;
               return (
-                <div key={id} className={`${baseClass}__team-item`}>
+                <div key={accessor} className={`${baseClass}__team-item`}>
                   <Checkbox
                     value={isChecked}
                     name={name}
                     onChange={() =>
-                      updateSoftwareAutomationsItems(softwareItem.id)
+                      updateSoftwareAutomationsItems(softwareItem.accessor)
                     }
                   >
                     {name}

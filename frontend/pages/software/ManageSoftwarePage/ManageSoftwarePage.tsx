@@ -219,6 +219,7 @@ const ManageSoftwarePage = ({
       result = await configAPI
         .loadAll()
         .then((response) => response.webhook_settings.vulnerabilities_webhook);
+      console.log("result", result);
       setSoftwareVulnerabilitiesWebhook(result);
     } catch (error) {
       console.log(error);
@@ -226,6 +227,7 @@ const ManageSoftwarePage = ({
     } finally {
       setIsLoadingSoftwareVulnerabilitiesWebhook(false);
     }
+    console.log("result", result);
     return result;
   }, []);
 
@@ -454,6 +456,7 @@ const ManageSoftwarePage = ({
     );
   };
 
+  console.log("softwareVulnerabilitiesWebhook", softwareVulnerabilitiesWebhook);
   return !availableTeams ? (
     <Spinner />
   ) : (
@@ -502,7 +505,8 @@ const ManageSoftwarePage = ({
             onCreateWebhookSubmit={onCreateWebhookSubmit}
             togglePreviewPayloadModal={togglePreviewPayloadModal}
             showPreviewPayloadModal={showPreviewPayloadModal}
-            softwareVulnerabilityEnabled={
+            softwareVulnerabilityWebhookEnabled={
+              softwareVulnerabilitiesWebhook &&
               softwareVulnerabilitiesWebhook.enable_vulnerabilities_webhook
             }
             currentDestinationUrl={
