@@ -449,6 +449,16 @@ The following options allow the configuration of a webhook that will be triggere
 - `webhook_settings.failing_policies_webhook.policy_ids`: the IDs of the policies for which the webhook will be enabled.
 - `webhook_settings.failing_policies_webhook.host_batch_size`: Maximum number of hosts to batch on POST requests. A value of `0`, the default, means no batching, all hosts failing a policy will be sent on one POST request.
 
+##### Recent Vulnerabilities
+
+The following options allow the configuration of a webhook that will be triggered if recently published vulnerabilities are detected and there are affected hosts.
+
+- `webhook_settings.vulnerabilities_webhook.enable_vulnerabilities_webhook`: true or false. Defines whether to enable the vulnerabilities webhook.
+- `webhook_settings.vulnerabilities_webhook.destination_url`: the URL to POST to when the condition for the webhook triggers.
+- `webhook_settings.vulnerabilities_webhook.host_batch_size`: Maximum number of hosts to batch on POST requests. A value of `0`, the default, means no batching, all hosts affected will be sent on one POST request.
+
+Note that the recent vulnerabilities webhook is not checked at `webhook_settings.interval` like other webhooks - it is checked as part of the vulnerability processing and runs at the `vulnerabilities.periodicity` interval specified in the fleet configuration.
+
 #### Debug host
 
 There's a lot of information coming from hosts, but it's sometimes useful to see exactly what a host is returning in order
