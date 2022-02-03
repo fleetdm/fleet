@@ -198,7 +198,7 @@ const TeamsDropdownHeader = ({
                   (availableTeams.length > 1 || isOnGlobalTeam) && (
                     <TeamsDropdown
                       currentUserTeams={availableTeams || []}
-                      selectedTeamId={teamId}
+                      selectedTeamId={currentTeam?.id || 0}
                       onChange={(newSelectedValue: number) =>
                         handleTeamSelect(newSelectedValue)
                       }

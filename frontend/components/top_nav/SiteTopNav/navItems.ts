@@ -45,6 +45,7 @@ export default (
         regex: new RegExp(`^${URL_PREFIX}/hosts/`),
         pathname: PATHS.MANAGE_HOSTS,
       },
+      // withContext: true,
     },
     {
       icon: "software",
@@ -54,6 +55,7 @@ export default (
         regex: new RegExp(`^${URL_PREFIX}/software/`),
         pathname: PATHS.MANAGE_SOFTWARE,
       },
+      withContext: true,
     },
     {
       icon: "query",
