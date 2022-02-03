@@ -46,7 +46,7 @@ export default (
         regex: new RegExp(`^${URL_PREFIX}/hosts/`),
         pathname: PATHS.MANAGE_HOSTS,
       },
-      // withContext: true,
+      withContext: true,
     },
     {
       icon: "software",

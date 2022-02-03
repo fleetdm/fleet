@@ -1,4 +1,4 @@
-import React, { useState, useContext, useEffect } from "react";
+import React, { useState, useContext, useEffect, useCallback } from "react";
 import { useDispatch } from "react-redux";
 import { useQuery } from "react-query";
 import { InjectedRouter, Params } from "react-router/lib/Router";
@@ -9,6 +9,7 @@ import ReactTooltip from "react-tooltip";
 import enrollSecretsAPI from "services/entities/enroll_secret";
 import labelsAPI from "services/entities/labels";
 import teamsAPI from "services/entities/teams";
+import usersAPI, { IGetMeResponse } from "services/entities/users";
 import globalPoliciesAPI from "services/entities/global_policies";
 import teamPoliciesAPI from "services/entities/team_policies";
 import hostsAPI, {
@@ -56,6 +57,7 @@ import { IActionButtonProps } from "components/TableContainer/DataTable/ActionBu
 import TeamsDropdown from "components/TeamsDropdown";
 import Spinner from "components/Spinner";
 
+// TODO: Open new ticket to phase out this helper in favor of using `availableTeams` context
 import { getValidatedTeamId } from "fleet/helpers";
 import {
   defaultHiddenColumns,
@@ -132,8 +134,10 @@ const ManageHostsPage = ({
   const dispatch = useDispatch();
   const queryParams = location.query;
   const {
-    currentUser,
+    availableTeams,
     config,
+    currentTeam,
+    currentUser,
     isGlobalAdmin,
     isGlobalMaintainer,
     isTeamMaintainer,
@@ -142,9 +146,34 @@ const ManageHostsPage = ({
     isOnlyObserver,
     isPremiumTier,
     isFreeTier,
-    currentTeam,
+    setAvailableTeams,
     setCurrentTeam,
+    setCurrentUser,
   } = useContext(AppContext);
+
+  // TODO: Revisit when AppContext is refactored to no longer rely on redux for initial state
+  // Look for ways to utilize react-query cache and stale time for /me endpoint
+  useQuery(["me"], () => usersAPI.me(), {
+    onSuccess: ({ user, available_teams }: IGetMeResponse) => {
+      setCurrentUser(user);
+      setAvailableTeams(available_teams);
+      if (queryParams.team_id) {
+        const teamIdParam = parseInt(queryParams.team_id, 10);
+        if (
+          isNaN(teamIdParam) ||
+          (teamIdParam &&
+            available_teams &&
+            !available_teams.find((t) => t.id === teamIdParam))
+        ) {
+          router.replace({
+            pathname: location.pathname,
+            query: omit(queryParams, "team_id"),
+          });
+        }
+      }
+    },
+  });
+
   const { selectedOsqueryTable, setSelectedOsqueryTable } = useContext(
     QueryContext
   );
@@ -398,7 +427,7 @@ const ManageHostsPage = ({
     options = {
       ...options,
       teamId: getValidatedTeamId(
-        teams || [],
+        availableTeams || [],
         options.teamId as number,
         currentUser,
         isOnGlobalTeam as boolean
@@ -429,7 +458,7 @@ const ManageHostsPage = ({
     options = {
       ...options,
       teamId: getValidatedTeamId(
-        teams || [],
+        availableTeams || [],
         options.teamId as number,
         currentUser,
         isOnGlobalTeam as boolean
@@ -459,9 +488,27 @@ const ManageHostsPage = ({
     retrieveHostCount(options);
   };
 
+  let teamSync = false;
+  if (currentUser && availableTeams) {
+    // team_id starts as a string and needs to be parsed. If the user provides a non-numeric
+    // string, it will parse as NaN. However, we need to handle if team_id is undefined (which is
+    // would be the case for the root path to all teams) because undefined also parses to NaN.
+    // We want to be able to check that teamIdParam equals undefined in the `else if` below because
+    // that will correspond to the undefined state `currentTeam`, which represents the root path.
+    const teamIdParam = queryParams.team_id
+      ? parseInt(queryParams.team_id, 10)
+      : undefined;
+    if (currentTeam?.id && !teamIdParam) {
+      teamSync = true;
+    } else if (teamIdParam === currentTeam?.id) {
+      teamSync = true;
+    }
+  }
+
+  // TODO: Exit early if !availableTeams?
   useEffect(() => {
     const teamId = parseInt(queryParams?.team_id, 10) || 0;
-    const selectedTeam = find(teams, ["id", teamId]);
+    const selectedTeam = find(availableTeams, ["id", teamId]);
     if (selectedTeam) {
       setCurrentTeam(selectedTeam);
     }
@@ -490,11 +537,12 @@ const ManageHostsPage = ({
     if (isEqual(options, currentQueryOptions)) {
       return;
     }
-
-    retrieveHosts(options);
-    retrieveHostCount(options);
-    setCurrentQueryOptions(options);
-  }, [location, labels]);
+    if (teamSync) {
+      retrieveHosts(options);
+      retrieveHostCount(options);
+      setCurrentQueryOptions(options);
+    }
+  }, [availableTeams, currentTeam, location, labels]);
 
   const handleLabelChange = ({ slug }: ILabel): boolean => {
     if (!slug) {
@@ -585,14 +633,22 @@ const ManageHostsPage = ({
     //     queryParams: omit(queryParams, ["software_id"]),
     //   })
     // );
+    // TODO: If we work with directly with the location descriptor object from react-router,
+    // it is easy to just strip out the software_id and keep the rest of the path and query params.
+    // For example:
+    // router.replace({
+    //   pathname: location.pathname,
+    //   query: omit(queryParams, "software_id"),
+    // });
     router.replace(PATHS.MANAGE_HOSTS);
+    setCurrentTeam(undefined);
     setSoftwareDetails(null);
   };
 
   const handleTeamSelect = (teamId: number) => {
     const { MANAGE_HOSTS } = PATHS;
     const teamIdParam = getValidatedTeamId(
-      teams || [],
+      availableTeams || [],
       teamId,
       currentUser,
       isOnGlobalTeam as boolean
@@ -615,7 +671,7 @@ const ManageHostsPage = ({
       queryParams: newQueryParams,
     });
     router.replace(nextLocation);
-    const selectedTeam = find(teams, ["id", teamId]);
+    const selectedTeam = find(availableTeams, ["id", teamId]);
     setCurrentTeam(selectedTeam);
   };
 
@@ -663,82 +719,87 @@ const ManageHostsPage = ({
   };
 
   // NOTE: this is called once on initial render and every time the query changes
-  const onTableQueryChange = async (newTableQuery: ITableQueryProps) => {
-    if (isEqual(newTableQuery, tableQueryData)) {
-      return;
-    }
+  const onTableQueryChange = useCallback(
+    async (newTableQuery: ITableQueryProps) => {
+      if (isEqual(newTableQuery, tableQueryData)) {
+        return;
+      }
 
-    setTableQueryData({ ...newTableQuery });
+      setTableQueryData({ ...newTableQuery });
 
-    const {
-      searchQuery: searchText,
-      sortHeader,
-      sortDirection,
-    } = newTableQuery;
+      const {
+        searchQuery: searchText,
+        sortHeader,
+        sortDirection,
+      } = newTableQuery;
 
-    const teamId = getValidatedTeamId(
-      teams || [],
-      currentTeam?.id as number,
+      let sort = sortBy;
+      if (sortHeader) {
+        sort = [
+          {
+            key: sortHeader,
+            direction: sortDirection || DEFAULT_SORT_DIRECTION,
+          },
+        ];
+      } else if (!sortBy.length) {
+        sort = [
+          { key: DEFAULT_SORT_HEADER, direction: DEFAULT_SORT_DIRECTION },
+        ];
+      }
+
+      if (!isEqual(sort, sortBy)) {
+        setSortBy([...sort]);
+      }
+
+      if (!isEqual(searchText, searchQuery)) {
+        setSearchQuery(searchText);
+      }
+
+      // Rebuild queryParams to dispatch new browser location to react-router
+      const newQueryParams: { [key: string]: any } = {};
+      if (!isEmpty(searchText)) {
+        newQueryParams.query = searchText;
+      }
+
+      newQueryParams.order_key = sort[0].key || DEFAULT_SORT_HEADER;
+      newQueryParams.order_direction =
+        sort[0].direction || DEFAULT_SORT_DIRECTION;
+
+      if (currentTeam?.id) {
+        newQueryParams.team_id = currentTeam.id;
+      }
+
+      if (policyId) {
+        newQueryParams.policy_id = policyId;
+      }
+
+      if (policyResponse) {
+        newQueryParams.policy_response = policyResponse;
+      }
+
+      if (softwareId && !policyId) {
+        newQueryParams.software_id = softwareId;
+      }
+
+      router.replace(
+        getNextLocationPath({
+          pathPrefix: PATHS.MANAGE_HOSTS,
+          routeTemplate,
+          routeParams,
+          queryParams: newQueryParams,
+        })
+      );
+    },
+    [
+      availableTeams,
+      currentTeam,
       currentUser,
-      isOnGlobalTeam as boolean
-    );
-
-    let sort = sortBy;
-    if (sortHeader) {
-      sort = [
-        { key: sortHeader, direction: sortDirection || DEFAULT_SORT_DIRECTION },
-      ];
-    } else if (!sortBy.length) {
-      sort = [{ key: DEFAULT_SORT_HEADER, direction: DEFAULT_SORT_DIRECTION }];
-    }
-
-    if (!isEqual(sort, sortBy)) {
-      setSortBy([...sort]);
-    }
-
-    if (!isEqual(searchText, searchQuery)) {
-      setSearchQuery(searchText);
-    }
-
-    // Rebuild queryParams to dispatch new browser location to react-router
-    const newQueryParams: { [key: string]: any } = {};
-    if (!isEmpty(searchText)) {
-      newQueryParams.query = searchText;
-    }
-
-    newQueryParams.order_key = sort[0].key || DEFAULT_SORT_HEADER;
-    newQueryParams.order_direction =
-      sort[0].direction || DEFAULT_SORT_DIRECTION;
-
-    if (teamId) {
-      newQueryParams.team_id = teamId;
-    }
-
-    if (queryParams.team_id) {
-      newQueryParams.team_id = queryParams.team_id;
-    }
-
-    if (policyId) {
-      newQueryParams.policy_id = policyId;
-    }
-
-    if (policyResponse) {
-      newQueryParams.policy_response = policyResponse;
-    }
-
-    if (softwareId && !policyId) {
-      newQueryParams.software_id = softwareId;
-    }
-
-    router.replace(
-      getNextLocationPath({
-        pathPrefix: PATHS.MANAGE_HOSTS,
-        routeTemplate,
-        routeParams,
-        queryParams: newQueryParams,
-      })
-    );
-  };
+      policyId,
+      queryParams,
+      softwareId,
+      sortBy,
+    ]
+  );
 
   const onSaveSecret = async (enrollSecretString: string) => {
     const { MANAGE_HOSTS } = PATHS;
@@ -1045,7 +1106,7 @@ const ManageHostsPage = ({
 
   const renderTeamsFilterDropdown = () => (
     <TeamsDropdown
-      currentUserTeams={teams || []}
+      currentUserTeams={availableTeams || []}
       selectedTeamId={
         (policyId && policy?.team_id) || (currentTeam?.id as number)
       }
@@ -1309,13 +1370,13 @@ const ManageHostsPage = ({
           <div className={`${baseClass}__title`}>
             {isFreeTier && <h1>Hosts</h1>}
             {isPremiumTier &&
-              teams &&
-              (teams.length > 1 || isOnGlobalTeam) &&
+              availableTeams &&
+              (availableTeams.length > 1 || isOnGlobalTeam) &&
               renderTeamsFilterDropdown()}
             {isPremiumTier &&
               !isOnGlobalTeam &&
-              teams &&
-              teams.length === 1 && <h1>{teams[0].name}</h1>}
+              availableTeams &&
+              availableTeams.length === 1 && <h1>{availableTeams[0].name}</h1>}
           </div>
         </div>
       </div>
@@ -1430,7 +1491,8 @@ const ManageHostsPage = ({
       !currentUser ||
       !hosts ||
       selectedFilters.length === 0 ||
-      selectedLabel === undefined
+      selectedLabel === undefined ||
+      !teamSync
     ) {
       return <Spinner />;
     }
@@ -1442,9 +1504,11 @@ const ManageHostsPage = ({
     // There are no hosts for this instance yet
     if (
       getStatusSelected() === ALL_HOSTS_LABEL &&
+      !isHostCountLoading &&
       filteredHostCount === 0 &&
       searchQuery === "" &&
-      !isHostsLoading
+      !isHostsLoading &&
+      teamSync
     ) {
       const { software_id, policy_id } = queryParams || {};
       const includesSoftwareOrPolicyFilter = !!(software_id || policy_id);
@@ -1548,6 +1612,10 @@ const ManageHostsPage = ({
       )
     );
   };
+
+  if (!teamSync) {
+    return <Spinner />;
+  }
 
   return (
     <div className="has-sidebar">
