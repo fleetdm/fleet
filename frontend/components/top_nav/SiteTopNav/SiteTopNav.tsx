@@ -4,6 +4,8 @@ import classnames from "classnames";
 
 import { IUser } from "interfaces/user";
 import { IConfig } from "interfaces/config";
+
+import LinkWithContext from "components/LinkWithContext";
 import UserMenu from "components/top_nav/UserMenu";
 // @ts-ignore
 import OrgLogoIcon from "components/icons/OrgLogoIcon";
@@ -11,7 +13,6 @@ import OrgLogoIcon from "components/icons/OrgLogoIcon";
 import { AppContext } from "context/app";
 
 import navItems, { INavItem } from "./navItems";
-import LinkWithContext from "./LinkWithContext";
 
 import HostsIcon from "../../../../assets/images/icon-main-hosts@2x-16x16@2x.png";
 import SoftwareIcon from "../../../../assets/images/icon-software-16x16@2x.png";

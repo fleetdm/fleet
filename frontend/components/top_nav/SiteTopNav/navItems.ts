@@ -10,6 +10,7 @@ export interface INavItem {
     regex: any;
     pathname: string;
   };
+  withContext?: boolean;
 }
 
 export default (
