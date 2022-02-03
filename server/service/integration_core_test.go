@@ -2326,10 +2326,10 @@ func (s *integrationTestSuite) TestTeamsEndpointsWithoutLicense() {
 	var delResp deleteTeamResponse
 	s.DoJSON("DELETE", "/api/v1/fleet/teams/123", nil, http.StatusPaymentRequired, &delResp)
 
-	// apply team specs - does succeed unlike others, no license required for this one
+	// apply team specs
 	var specResp applyTeamSpecsResponse
 	teamSpecs := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: "newteam", Secrets: []fleet.EnrollSecret{{Secret: "ABC"}}}}}
-	s.DoJSON("POST", "/api/v1/fleet/spec/teams", teamSpecs, http.StatusOK, &specResp)
+	s.DoJSON("POST", "/api/v1/fleet/spec/teams", teamSpecs, http.StatusPaymentRequired, &specResp)
 
 	// modify team agent options
 	s.DoJSON("POST", "/api/v1/fleet/teams/123/agent_options", nil, http.StatusPaymentRequired, &tmResp)
