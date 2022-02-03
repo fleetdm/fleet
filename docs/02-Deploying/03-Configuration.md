@@ -2043,6 +2043,10 @@ It is strongly recommended that at least one admin user is set up to use the tra
 based log in so that there is a fallback method for logging into Fleet in the event of SSO
 configuration problems.
 
+### Enabling SSO for existing users in Fleet
+
+To enable SSO for existing users as an admin, go to the Settings page, then click on the Users tab. Locate the user you want to enable SSO for and on the actions dropdown menu for that user, click on "Enable single sign on".
+
 #### Okta IDP Configuration
 
 ![Example Okta IDP Configuration](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/okta-idp-setup.png)
