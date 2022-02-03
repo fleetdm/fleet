@@ -20,10 +20,13 @@ describe(
     });
 
     describe("Dashboard and navigation", () => {
-      beforeEach(() => cy.visit("/dashboard"));
+      beforeEach(() => {
+        cy.loginWithCySession("anna@organization.com", "user123#");
+        cy.visit("/dashboard");
+      });
       it("displays intended admin dashboard", () => {
         cy.getAttached(".homepage__wrapper").within(() => {
-          cy.findByText(/all teams/i).should("exist");
+          cy.findByText(/fleet test/i).should("exist");
           cy.getAttached(".hosts-summary").should("exist");
           cy.getAttached(".hosts-status").should("exist");
           cy.getAttached(".home-software").should("exist");
@@ -107,24 +110,12 @@ describe(
       });
       it("allows global admin to click 'Manage automations' button", () => {
         cy.getAttached(".manage-software-page__header-wrap").within(() => {
-          cy.getAttached(".Select").within(() => {
-            cy.findByText(/all teams/i).should("exist");
-          });
           cy.findByRole("button", { name: /manage automations/i }).click();
-          cy.findByRole("button", { name: /cancel/i }).click();
         });
-      });
-      it("hides manage automations button when all teams not selected", () => {
-        cy.getAttached(".manage-software-page__header-wrap").within(() => {
-          cy.getAttached(".Select").within(() => {
-            cy.getAttached(".Select-control").click();
-            cy.getAttached(".Select-menu-outer").within(() => {
-              cy.findByText(/apples/i).should("exist");
-            });
-            cy.findByRole("button", {
-              name: /manage automations/i,
-            }).should("not.exist");
-          });
+        cy.getAttached(".manage-automations-modal__button-wrap").within(() => {
+          cy.findByRole("button", {
+            name: /cancel/i,
+          }).click();
         });
       });
     });
@@ -217,70 +208,6 @@ describe(
           cy.findByRole("button", { name: /filevault enabled/i }).click();
         });
         cy.getAttached(".policy-form__button-wrap--new-policy").within(() => {
-          cy.findByRole("button", { name: /run/i }).should("exist");
-          cy.findByRole("button", { name: /save/i }).should("exist");
-        });
-      });
-    });
-    describe("Manage policies page", () => {
-      beforeEach(() => cy.visit("/policies/manage"));
-      it("allows admin to click 'Manage automations' button", () => {
-        cy.getAttached(".button-wrap")
-          .findByRole("button", { name: /manage automations/i })
-          .click();
-        cy.findByRole("button", { name: /cancel/i }).click();
-      });
-      it("allows admin to add a new policy", () => {
-        cy.getAttached(".button-wrap")
-          .findByRole("button", { name: /add a polic/i })
-          .click();
-        // Add a default policy
-        cy.findByText(/gatekeeper enabled/i).click();
-        cy.getAttached(".policy-form__button-wrap--new-policy").within(() => {
-          cy.findByRole("button", { name: /run/i }).should("exist");
-          cy.findByRole("button", { name: /save policy/i }).click();
-        });
-        cy.findByRole("button", { name: /^Save$/ }).click();
-        cy.findByText(/policy created/i).should("exist");
-      });
-      it("allows admin to delete a team policy", () => {
-        cy.visit("/policies/manage");
-        cy.getAttached(".Select-control").within(() => {
-          cy.findByText(/all teams/i).click();
-        });
-        cy.getAttached(".Select-menu")
-          .contains(/apples/i)
-          .click();
-        cy.getAttached("tbody").within(() => {
-          cy.getAttached("tr")
-            .first()
-            .within(() => {
-              cy.getAttached(".fleet-checkbox__input").check({
-                force: true,
-              });
-            });
-        });
-        cy.findByRole("button", { name: /delete/i }).click();
-        cy.getAttached(".remove-policies-modal").within(() => {
-          cy.findByRole("button", { name: /delete/i }).should("exist");
-          cy.findByRole("button", { name: /cancel/i }).click();
-        });
-      });
-      it("allows admin to edit a team policy", () => {
-        cy.visit("policies/manage");
-        cy.findByText(/all teams/i).click();
-        cy.findByText(/apples/i).click();
-        cy.getAttached("tbody").within(() => {
-          cy.getAttached("tr")
-            .first()
-            .within(() => {
-              cy.getAttached(".fleet-checkbox__input").check({
-                force: true,
-              });
-            });
-        });
-        cy.findByText(/filevault enabled/i).click();
-        cy.getAttached(".policy-form__button-wrap").within(() => {
           cy.findByRole("button", { name: /run/i }).should("exist");
           cy.findByRole("button", { name: /save/i }).should("exist");
         });

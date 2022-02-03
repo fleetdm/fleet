@@ -63,6 +63,7 @@ const ManageSoftwarePage = ({
     currentTeam,
     setAvailableTeams,
     setCurrentUser,
+    isPremiumTier,
     isGlobalAdmin,
     isGlobalMaintainer,
   } = useContext(AppContext);
@@ -271,7 +272,7 @@ const ManageSoftwarePage = ({
   ): JSX.Element | null => {
     if (
       canAddOrRemoveSoftwareWebhook &&
-      state.teamId === 0 &&
+      (!isPremiumTier || state.teamId === 0) &&
       !isLoadingSoftwareVulnerabilitiesWebhook
     ) {
       return (
@@ -292,7 +293,7 @@ const ManageSoftwarePage = ({
       <p>
         Search for installed software{" "}
         {canAddOrRemoveSoftwareWebhook &&
-          state.teamId === 0 &&
+          (!isPremiumTier || state.teamId === 0) &&
           "and manage automations for detected vulnerabilities (CVEs)"}{" "}
         on{" "}
         <b>

@@ -15,10 +15,13 @@ describe("Free tier - Observer user", () => {
   });
 
   describe("Dashboard and navigation", () => {
-    beforeEach(() => cy.visit("/dashboard"));
+    beforeEach(() => {
+      cy.loginWithCySession("oliver@organization.com", "user123#");
+      cy.visit("/dashboard");
+    });
     it("displays intended global observer dashboard", () => {
       cy.getAttached(".homepage__wrapper").within(() => {
-        cy.findByText(/all teams/i).should("exist");
+        cy.findByText(/fleet test/i).should("exist");
         cy.getAttached(".hosts-summary").should("exist");
         cy.getAttached(".hosts-status").should("exist");
         cy.getAttached(".home-software").should("exist");
@@ -43,20 +46,19 @@ describe("Free tier - Observer user", () => {
       cy.loginWithCySession("oliver@organization.com", "user123#");
       cy.visit("/hosts/manage");
     });
-    it("verifues teams is disabled on Manage Host page", () => {
+    it("verifies teams is disabled on Manage Host page", () => {
       cy.findByText(/teams/i).should("not.exist");
     });
-    it("verifies observer cannot generate an installer", () => {
+    it("hides generate installer button", () => {
       cy.contains("button", /generate installer/i).should("not.exist");
     });
-    it("verifies observer cannot add a label", () => {
+    it("hides add a label button", () => {
       cy.contains("button", /add label/i).should("not.exist");
     });
-    it("verifies observer cannot manage the enroll secret", () => {
+    it("hides manage enroll secrets button", () => {
       cy.contains("button", /manage enroll secret/i).should("not.exist");
     });
   });
-
   describe("Host details page", () => {
     beforeEach(() => {
       cy.loginWithCySession("oliver@organization.com", "user123#");
@@ -65,17 +67,14 @@ describe("Free tier - Observer user", () => {
     it("verifies teams is disabled on Host Details page", () => {
       cy.findByText(/team/i).should("not.exist");
     });
-    it("verifies observer cannot transfer host", () => {
+    it("hides transfer host button", () => {
       cy.contains("button", /transfer/i).should("not.exist");
     });
-    it("verifies observer cannot delete host", () => {
+    it("hides delete host button", () => {
       cy.contains("button", /delete/i).should("not.exist");
     });
-    it("verifies observer cannot query host", () => {
+    it("hides query host button", () => {
       cy.contains("button", /query/i).click();
-    });
-    it("verifies observer cannot create query", () => {
-      cy.contains("button", /create custom query/i).should("not.exist");
     });
   });
   describe("Manage software page", () => {
@@ -96,12 +95,12 @@ describe("Free tier - Observer user", () => {
       cy.loginWithCySession("oliver@organization.com", "user123#");
       cy.visit("/queries/manage");
     });
-    it("verifies observer does not see 'Observer can run' column", () => {
+    it("hides 'Observer can run' column", () => {
       cy.getAttached("thead").within(() => {
         cy.findByText(/observer can run/i).should("not.exist");
       });
     });
-    it("verifies observer cannot create a query", () => {
+    it("hides create a query button", () => {
       cy.findByRole("button", { name: /create new query/i }).should(
         "not.exist"
       );
@@ -124,15 +123,15 @@ describe("Free tier - Observer user", () => {
       cy.loginWithCySession("oliver@organization.com", "user123#");
       cy.visit("/policies/manage");
     });
-    it("verifies observer cannot manage automations", () => {
+    it("hides manage automations button", () => {
       cy.findByRole("button", { name: /manage automations/i }).should(
         "not.exist"
       );
     });
-    it("verifies observer cannot add a policy", () => {
+    it("hides add a policy button", () => {
       cy.findByRole("button", { name: /add a policy/i }).should("not.exist");
     });
-    it("verifies observer cannot run, edit, or delete a policy", () => {
+    it("hides run, edit, or delete a policy", () => {
       cy.getAttached("tbody").within(() => {
         cy.get("tr")
           .first()
