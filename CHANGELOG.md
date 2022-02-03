@@ -10,6 +10,8 @@
 
 * Improve empty states for software and policies.
 
+* Store the proper team when a policy is created from a policy template.
+
 ## Fleet 4.9.0 (Jan 21, 2022)
 
 * Add ability to apply a `policy` yaml document so that GitOps workflows can be used to create and
