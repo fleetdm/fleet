@@ -155,7 +155,7 @@ resource "aws_ecs_task_definition" "backend" {
       },
       {
         name        = "fleet"
-        image       = var.fleet_image
+        image       = docker_registry_image.fleet.name
         cpu         = var.fleet_backend_cpu
         memory      = var.fleet_backend_mem
         mountPoints = []
@@ -294,7 +294,7 @@ resource "aws_ecs_task_definition" "migration" {
     [
       {
         name        = "fleet-prepare-db"
-        image       = var.fleet_image
+        image       = docker_registry_image.fleet.name
         cpu         = var.cpu_migrate
         memory      = var.mem_migrate
         mountPoints = []
@@ -382,6 +382,18 @@ resource "aws_appautoscaling_policy" "ecs_policy_cpu" {
 
     target_value = var.cpu_tracking_target_value
   }
+}
+
+output "fleet_migration_revision" {
+  value = aws_ecs_task_definition.migration.revision
+}
+
+output "fleet_migration_subnets" {
+  value = jsonencode(aws_ecs_service.fleet.network_configuration[0].subnets)
+}
+
+output "fleet_migration_security_groups" {
+  value = jsonencode(aws_ecs_service.fleet.network_configuration[0].security_groups)
 }
 
 output "fleet_ecs_cluster_arn" {

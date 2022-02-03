@@ -54,11 +54,6 @@ variable "database_name" {
   default     = "fleet"
 }
 
-variable "fleet_image" {
-  description = "the name of the container image to run"
-  default     = "917007347864.dkr.ecr.us-east-2.amazonaws.com/fleet:latest"
-}
-
 variable "software_inventory" {
   description = "enable/disable software inventory (default is enabled)"
   default     = "1"
@@ -99,4 +94,8 @@ variable "memory_tracking_target_value" {
 variable "cpu_tracking_target_value" {
   description = "target cpu utilization for target tracking policy (default 60%)"
   default     = 60
+}
+
+variable "tag" {
+  description = "The tag to deploy. This would be the same as the branch name"
 }

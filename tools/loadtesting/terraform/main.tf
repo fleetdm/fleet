@@ -26,10 +26,23 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 3.74.0"
     }
+    docker = {
+      source  = "kreuzwerker/docker"
+      version = "~> 2.16.0"
+    }
   }
 }
 
 data "aws_caller_identity" "current" {}
+
+provider "docker" {
+  # Configuration options
+  registry_auth {
+    address  = "${data.aws_caller_identity.current.account_id}.dkr.ecr.us-east-2.amazonaws.com"
+    username = data.aws_ecr_authorization_token.token.user_name
+    password = data.aws_ecr_authorization_token.token.password
+  }
+}
 
 #resource "aws_s3_bucket" "remote_state" {
 #  bucket = "${var.prefix}-terraform-remote-state"
