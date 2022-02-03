@@ -14,74 +14,83 @@ describe(
       cy.seedPolicies();
       cy.addDockerHost();
     });
-
     after(() => {
       cy.logout();
       cy.stopDockerHost();
     });
 
-    describe("Mange hosts tests", () => {
+    describe("Dashboard and navigation", () => {
+      beforeEach(() => cy.visit("/dashboard"));
+      it("displays intended global admin dashboard", () => {
+        cy.getAttached(".homepage__wrapper").within(() => {
+          cy.findByText(/all teams/i).should("exist");
+          cy.getAttached(".hosts-summary").should("exist");
+          cy.getAttached(".hosts-status").should("exist");
+          cy.getAttached(".home-software").should("exist");
+          cy.getAttached(".activity-feed").should("exist");
+        });
+      });
+      it("displays intended global admin top navigation", () => {
+        cy.getAttached(".site-nav-container").within(() => {
+          cy.findByText(/hosts/i).should("exist");
+          cy.findByText(/software/i).should("exist");
+          cy.findByText(/queries/i).should("exist");
+          cy.findByText(/schedule/i).should("exist");
+          cy.findByText(/policies/i).should("exist");
+          cy.getAttached(".user-menu").click();
+          cy.findByText(/settings/i).click();
+        });
+        cy.getAttached(".react-tabs__tab--selected").within(() => {
+          cy.findByText(/organization/i).should("exist");
+        });
+        cy.getAttached(".site-nav-container").within(() => {
+          cy.getAttached(".user-menu").click();
+          cy.findByText(/manage users/i).click();
+        });
+        cy.getAttached(".react-tabs__tab--selected").within(() => {
+          cy.findByText(/users/i).should("exist");
+        });
+      });
+    });
+    describe("Manage hosts page", () => {
       beforeEach(() => {
         cy.loginWithCySession("anna@organization.com", "user123#");
         cy.visit("/hosts/manage");
       });
-
-      it("Can verify user is on the Manage Hosts page", () => {
-        cy.getAttached(".manage-hosts").within(() => {
-          cy.findByText(/edit columns/i).should("exist");
-        });
-      });
-
-      it("Can see correct global navigation items", () => {
-        cy.getAttached("nav").within(() => {
-          cy.findByText(/hosts/i).should("exist");
-          cy.findByText(/queries/i).should("exist");
-          cy.findByText(/schedule/i).should("exist");
-          cy.findByText(/settings/i).should("exist");
-        });
-      });
-
-      it("Can verify teams is disabled", () => {
+      it("verifies teams is disabled on Manage Host page", () => {
         cy.contains(/team/i).should("not.exist");
       });
-
-      it("Can see and click the 'Generate installer' button", () => {
+      it("allows admin to see and click the 'Generate installer' button", () => {
         cy.findByRole("button", { name: /generate installer/i }).click();
         cy.contains(/team/i).should("not.exist");
         cy.contains("button", /done/i).click();
       });
-
-      it("Can manage and add enroll secret", () => {
+      it("allows admin to manage and add enroll secret", () => {
         cy.contains("button", /manage enroll secret/i).click();
         cy.contains("button", /add secret/i).click();
         cy.contains("button", /save/i).click();
         cy.contains("button", /done/i).click();
       });
-
-      it("Can open the 'Add label' form", () => {
+      it("allows admin to open the 'Add label' form", () => {
         cy.findByRole("button", { name: /add label/i }).click();
         cy.findByRole("button", { name: /cancel/i }).click();
       });
     });
-
     describe("Host details tests", () => {
       beforeEach(() => {
         cy.loginWithCySession("anna@organization.com", "user123#");
         cy.visit("/hosts/1");
       });
-
-      it("Can verify teams is disabled", () => {
+      it("verifies teams is disabled on Host Details page", () => {
         cy.findByText(/team/i).should("not.exist");
         cy.contains("button", /transfer/i).should("not.exist");
       });
-
-      it("Can delete a query", () => {
+      it("allows admin to delete a query", () => {
         cy.findByRole("button", { name: /delete/i }).click();
         cy.findByText(/delete host/i).should("exist");
         cy.findByRole("button", { name: /cancel/i }).click();
       });
-
-      it("Can create a new query", () => {
+      it("allows admin to create a new query", () => {
         cy.findByRole("button", { name: /query/i }).click();
         cy.findByRole("button", { name: /create custom query/i }).should(
           "exist"
@@ -92,17 +101,15 @@ describe(
       });
     });
 
-    describe("Queries tests", () => {
+    describe("Query pages", () => {
       beforeEach(() => {
         cy.loginWithCySession("anna@organization.com", "user123#");
         cy.visit("/queries/manage");
       });
-
-      it("Can see the 'Observer can run' column on the queries table", () => {
+      it("displays the 'Observer can run' column on the queries table", () => {
         cy.contains(/observer can run/i);
       });
-
-      it("Can add a new query", () => {
+      it("allows admin add a new query", () => {
         cy.findByRole("button", { name: /new query/i }).click();
         cy.getAttached(".ace_text-input")
           .click({ force: true })
@@ -127,8 +134,7 @@ describe(
         });
         cy.findByText(/query created/i).should("exist");
       });
-
-      it("Can edit a query", () => {
+      it("allows admin to edit a query", () => {
         cy.findByText(/cypress test query/i).click({ force: true });
         cy.getAttached(".ace_text-input")
           .click({ force: true })
@@ -139,8 +145,7 @@ describe(
         cy.findByText("Save").click(); // we have 'save as new' also
         cy.findByText(/query updated/i).should("exist");
       });
-
-      it("Can run a query", () => {
+      it("allows admin to run a query", () => {
         cy.findByText(/cypress test query/i).click({ force: true });
         cy.findByText(/run query/i).click({ force: true });
         cy.findByText(/select targets/i).should("exist");
@@ -150,26 +155,22 @@ describe(
         cy.findByText(/querying selected hosts/i).should("exist"); // target count
       });
     });
-
-    describe("Policies tests", () => {
+    describe("Manage policies page", () => {
       beforeEach(() => {
         cy.loginWithCySession("anna@organization.com", "user123#");
         cy.visit("/policies/manage");
       });
-
-      it("Can manage automations", () => {
+      it("allows admin to click 'Manage automations' button", () => {
         cy.findByRole("button", { name: /manage automations/i }).click();
         cy.findByRole("button", { name: /cancel/i }).click();
       });
-
-      it("Can add a policy", () => {
+      it("allows admin to add a new policy", () => {
         cy.findByRole("button", { name: /add a policy/i }).click();
         cy.getAttached(".modal__ex").within(() => {
           cy.findByRole("button").click();
         });
       });
-
-      it("Can delete a policy", () => {
+      it("allows admin to delete a policy", () => {
         // select checkmark on table
         cy.getAttached("tbody").within(() => {
           cy.getAttached("tr")
@@ -178,15 +179,13 @@ describe(
               cy.getAttached(".fleet-checkbox__input").check({ force: true });
             });
         });
-
         cy.findByRole("button", { name: /delete/i }).click();
         cy.getAttached(".remove-policies-modal").within(() => {
           cy.findByRole("button", { name: /delete/i }).should("exist");
           cy.findByRole("button", { name: /cancel/i }).click();
         });
       });
-
-      it("Can select a policy and verify user can run and save", () => {
+      it("allows admin to select a policy and see CTAs to run and save", () => {
         cy.getAttached(".data-table__table").within(() => {
           cy.findByRole("button", { name: /filevault enabled/i }).click();
         });
@@ -196,58 +195,48 @@ describe(
         });
       });
     });
-
-    describe("Settings tests", () => {
+    describe("Admin settings page", () => {
       // cypress tends to fail on uncaught exceptions. since we have
       // our own error handling, it's suggested to use this block to
       // suppress so the tests will keep running
       Cypress.on("uncaught:exception", () => {
         return false;
       });
-
       beforeEach(() => {
         cy.loginWithCySession("anna@organization.com", "user123#");
         cy.visit("/settings/users");
       });
-
-      it("Can verify teams is disabled on the Settings page", () => {
+      it("hides access team settings", () => {
         cy.findByText(/teams/i).should("not.exist");
       });
-
-      it("Can verify all other suboptions exist", () => {
+      it("allows admin to access other settings", () => {
         cy.getAttached(".react-tabs").within(() => {
           cy.findByText(/organization settings/i).should("exist");
           cy.findByText(/users/i).click();
         });
       });
-
-      it("Can see and click the 'Create user' button", () => {
+      it("displays the 'Create user' button", () => {
         cy.findByRole("button", { name: /create user/i }).click();
       });
-
-      it("Can verify teams is disabled for creating a user", () => {
+      it("hides assigning a user to a team", () => {
         cy.findByText(/team/i).should("not.exist");
       });
-
-      it("Can verify user is not autorized to use the Team Settings page", () => {
+      it("verifies admin is not authorized to reach the Team Settings page", () => {
         cy.visit("/settings/teams");
         cy.findByText(/you do not have permissions/i).should("exist");
       });
     });
-
-    describe("Profile tests", () => {
+    describe("User profile page", () => {
       beforeEach(() => {
         cy.loginWithCySession("anna@organization.com", "user123#");
         cy.visit("/profile");
       });
-
-      it("Can verify teams is disabled for the Profile page", () => {
+      it("verifies teams is disabled for the Profile page", () => {
         cy.getAttached(".user-settings__additional").within(() => {
           cy.findByText(/teams/i).should("not.exist");
         });
       });
-
-      it("Can verify the role of the user is admin", () => {
+      it("renders elements according to role-based access controls", () => {
         cy.getAttached(".user-settings__additional").within(() => {
           cy.findByText("Role").next().contains(/admin/i);
         });

@@ -9,100 +9,91 @@ describe("Free tier - Observer user", () => {
     cy.seedPolicies();
     cy.addDockerHost();
   });
-
   after(() => {
     cy.logout();
     cy.stopDockerHost();
   });
 
-  describe("Mange hosts tests", () => {
+  describe("Dashboard and navigation", () => {
+    beforeEach(() => cy.visit("/dashboard"));
+    it("displays intended global observer dashboard", () => {
+      cy.getAttached(".homepage__wrapper").within(() => {
+        cy.findByText(/all teams/i).should("exist");
+        cy.getAttached(".hosts-summary").should("exist");
+        cy.getAttached(".hosts-status").should("exist");
+        cy.getAttached(".home-software").should("exist");
+        cy.getAttached(".activity-feed").should("exist");
+      });
+    });
+    it("displays intended global observer top navigation", () => {
+      cy.getAttached(".site-nav-container").within(() => {
+        cy.findByText(/hosts/i).should("exist");
+        cy.findByText(/software/i).should("exist");
+        cy.findByText(/queries/i).should("exist");
+        cy.findByText(/schedule/i).should("not.exist");
+        cy.findByText(/policies/i).should("exist");
+        cy.getAttached(".user-menu").click();
+        cy.findByText(/settings/i).should("not.exist");
+        cy.findByText(/manage users/i).should("not.exist");
+      });
+    });
+  });
+  describe("Manage hosts page", () => {
     beforeEach(() => {
       cy.loginWithCySession("oliver@organization.com", "user123#");
       cy.visit("/hosts/manage");
     });
-
-    it("Can verify nav is restricted", () => {
-      // we expect a 402 error from the teams API
-      // in Cypress, we can't update the context for if we're
-      // in the premium tier, so the tests runs the teams API
-      Cypress.on("uncaught:exception", () => {
-        return false;
-      });
-
-      // Nav restrictions
-      cy.findByText(/settings/i).should("not.exist");
-      cy.findByText(/schedule/i).should("not.exist");
-      cy.visit("/settings/organization");
-      cy.findByText(/you do not have permissions/i).should("exist");
-      cy.visit("/packs/manage");
-      cy.findByText(/you do not have permissions/i).should("exist");
-      cy.visit("/schedule/manage");
-      cy.findByText(/you do not have permissions/i).should("exist");
-    });
-
-    it("Can verify teams is disabled", () => {
+    it("verifues teams is disabled on Manage Host page", () => {
       cy.findByText(/teams/i).should("not.exist");
     });
-
-    it("Can verify user cannot generate an installer", () => {
+    it("verifies observer cannot generate an installer", () => {
       cy.contains("button", /generate installer/i).should("not.exist");
     });
-
-    it("Can verify user cannot add a label", () => {
+    it("verifies observer cannot add a label", () => {
       cy.contains("button", /add label/i).should("not.exist");
     });
-
-    it("Can verify user cannot manage the enroll secret", () => {
+    it("verifies observer cannot manage the enroll secret", () => {
       cy.contains("button", /manage enroll secret/i).should("not.exist");
     });
   });
 
-  describe("Host details tests", () => {
+  describe("Host details page", () => {
     beforeEach(() => {
       cy.loginWithCySession("oliver@organization.com", "user123#");
       cy.visit("/hosts/1");
     });
-
-    it("Can verify teams is disabled", () => {
+    it("verifies teams is disabled on Host Details page", () => {
       cy.findByText(/team/i).should("not.exist");
     });
-
-    it("Can verify user cannot transfer host", () => {
+    it("verifies observer cannot transfer host", () => {
       cy.contains("button", /transfer/i).should("not.exist");
     });
-
-    it("Can verify user cannot delete host", () => {
+    it("verifies observer cannot delete host", () => {
       cy.contains("button", /delete/i).should("not.exist");
     });
-
-    it("Can verify user cannot query host", () => {
+    it("verifies observer cannot query host", () => {
       cy.contains("button", /query/i).click();
     });
-
-    it("Can verify user cannot create query", () => {
+    it("verifies observer cannot create query", () => {
       cy.contains("button", /create custom query/i).should("not.exist");
     });
   });
-
   describe("Queries tests", () => {
     beforeEach(() => {
       cy.loginWithCySession("oliver@organization.com", "user123#");
       cy.visit("/queries/manage");
     });
-
-    it("Can verify that user does not see 'Observer can run' column", () => {
+    it("verifies observer does not see 'Observer can run' column", () => {
       cy.getAttached("thead").within(() => {
         cy.findByText(/observer can run/i).should("not.exist");
       });
     });
-
-    it("Can verify that user cannot create a query", () => {
+    it("verifies observer cannot create a query", () => {
       cy.findByRole("button", { name: /create new query/i }).should(
         "not.exist"
       );
     });
-
-    it("Can verify that user can select a query and only run it", () => {
+    it("verifies observer can select a query and only run it", () => {
       cy.getAttached(".data-table__table").within(() => {
         cy.findByRole("button", { name: /detect presence/i }).click();
       });
@@ -115,24 +106,20 @@ describe("Free tier - Observer user", () => {
       cy.findByRole("button", { name: /run query/i }).should("exist");
     });
   });
-
-  describe("Policies tests", () => {
+  describe("Manage policies page", () => {
     beforeEach(() => {
       cy.loginWithCySession("oliver@organization.com", "user123#");
       cy.visit("/policies/manage");
     });
-
-    it("Can verify user cannot manage automations", () => {
+    it("verifies observer cannot manage automations", () => {
       cy.findByRole("button", { name: /manage automations/i }).should(
         "not.exist"
       );
     });
-
-    it("Can verify user cannot add a policy", () => {
+    it("verifies observer cannot add a policy", () => {
       cy.findByRole("button", { name: /add a policy/i }).should("not.exist");
     });
-
-    it("Can verify user cannot run, edit, or delete a policy", () => {
+    it("verifies observer cannot run, edit, or delete a policy", () => {
       cy.getAttached("tbody").within(() => {
         cy.get("tr")
           .first()
@@ -141,27 +128,23 @@ describe("Free tier - Observer user", () => {
           });
         cy.findByText(/filevault enabled/i).click();
       });
-
       cy.getAttached(".policy-form__wrapper").within(() => {
         cy.findByRole("button", { name: /run/i }).should("not.exist");
         cy.findByRole("button", { name: /save/i }).should("not.exist");
       });
     });
   });
-
-  describe("Profile tests", () => {
+  describe("User profile page", () => {
     beforeEach(() => {
       cy.loginWithCySession("oliver@organization.com", "user123#");
       cy.visit("/profile");
     });
-
-    it("Can verify teams is disabled for the Profile page", () => {
+    it("verifies teams is disabled for the Profile page", () => {
       cy.getAttached(".user-settings__additional").within(() => {
         cy.findByText(/teams/i).should("not.exist");
       });
     });
-
-    it("Can verify the role of the user is observer", () => {
+    it("renders elements according to role-based access controls", () => {
       cy.getAttached(".user-settings__additional").within(() => {
         cy.findByText("Role")
           .next()
@@ -179,11 +162,9 @@ describe("Free tier - Observer user", () => {
     Cypress.on("uncaught:exception", () => {
       return false;
     });
-
     beforeEach(() => {
       cy.loginWithCySession("oliver@organization.com", "user123#");
     });
-
     it("should restrict navigation according to role-based access controls", () => {
       cy.findByText(/settings/i).should("not.exist");
       cy.findByText(/schedule/i).should("not.exist");

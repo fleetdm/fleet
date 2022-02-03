@@ -446,7 +446,6 @@ const ManageSoftwarePage = ({
     );
   };
 
-  console.log("softwareVulnerabilitiesWebhook", softwareVulnerabilitiesWebhook);
   return !availableTeams ? (
     <Spinner />
   ) : (
