@@ -293,6 +293,27 @@ func (svc Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec) 
 		return err
 	}
 
+	// check auth for all teams specified first
+	for _, spec := range specs {
+		team, err := svc.ds.TeamByName(ctx, spec.Name)
+		if err != nil {
+			if err := ctxerr.Cause(err); err == sql.ErrNoRows {
+				// can the user create a new team?
+				if err := svc.authz.Authorize(ctx, team, fleet.ActionWrite); err != nil {
+					return err
+				}
+				continue
+			}
+
+			return err
+		}
+
+		// can the user modify each team it's trying to modify
+		if err := svc.authz.Authorize(ctx, team, fleet.ActionWrite); err != nil {
+			return err
+		}
+	}
+
 	config, err := svc.AppConfig(ctx)
 	if err != nil {
 		return err
@@ -324,11 +345,6 @@ func (svc Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec) 
 				continue
 			}
 
-			return err
-		}
-
-		// See if the user can write to that team in particular
-		if err := svc.authz.Authorize(ctx, team, fleet.ActionWrite); err != nil {
 			return err
 		}
 
