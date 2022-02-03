@@ -36,6 +36,25 @@
     }
   }
 
+  [purpose='query-tag'] {
+    font-size: 12px;
+    font-weight: 700;
+    padding: 4px 8px;
+    border-radius: 20px;
+    background-color: #E2E4EA;
+  }
+
+  [purpose='selected-tag'] {
+    border-bottom: 1px solid #e1e4e9;
+    padding: 16px 0;
+    margin-left: 30px;
+    margin-right: 30px;
+    p {
+      margin-bottom: 0;
+      line-height: 18px;
+    }
+  }
+
   .input-group {
     &.search {
       width: 250px;
@@ -205,7 +224,7 @@
     border-radius: 8px;
     &:hover {
       .query-card {
-        background-color: #f1f0ff;
+        background-color: #F8F7FF;
         box-shadow: none;
         border: none;
         border-radius: 8px;
@@ -221,6 +240,13 @@
     box-shadow: 0 4px 16px 0 rgba(0, 0, 0, 0.1);
     margin-bottom: 90px;
     width: 100%;
+    padding: 40px;
+    p {
+      margin-block-end: 0px;
+    }
+    a {
+      font-size: 16px;
+    }
   }
 
   .card-body {
@@ -266,6 +292,14 @@
     .library {
       max-width: none;
       margin-bottom: 0px;
+    }
+
+    [purpose='selected-tag'] {
+      margin-left: 30px;
+      margin-right: 30px;
+      [purpose='query-tag'] {
+      margin-top: 8px;
+      }
     }
 
     .results {
