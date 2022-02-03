@@ -484,7 +484,7 @@ func (svc *Service) shouldUpdate(lastUpdated time.Time, interval time.Duration, 
 // 100, and this method will distribute hosts evenly.
 // The main caveat of this approach is that it works at the fleet instance. So depending on what
 // instance gets chosen by the load balancer, the jitter might be different. However, load tests have
-// shown that the distribution in practise is pretty balance even when all hosts try to check in at
+// shown that the distribution in practice is pretty balance even when all hosts try to check in at
 // the same time.
 type jitterHashTable struct {
 	mu          sync.Mutex
