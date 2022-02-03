@@ -78,7 +78,20 @@ describe("Free tier - Observer user", () => {
       cy.contains("button", /create custom query/i).should("not.exist");
     });
   });
-  describe("Queries tests", () => {
+  describe("Manage software page", () => {
+    beforeEach(() => {
+      cy.loginWithCySession("oliver@organization.com", "user123#");
+      cy.visit("/software/manage");
+    });
+    it("hides manage automations button", () => {
+      cy.getAttached(".manage-software-page__header-wrap").within(() => {
+        cy.findByRole("button", { name: /manage automations/i }).should(
+          "not.exist"
+        );
+      });
+    });
+  });
+  describe("Query page", () => {
     beforeEach(() => {
       cy.loginWithCySession("oliver@organization.com", "user123#");
       cy.visit("/queries/manage");

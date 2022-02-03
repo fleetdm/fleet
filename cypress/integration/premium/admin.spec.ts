@@ -120,7 +120,7 @@ describe("Premium tier - Admin user", () => {
     });
     describe("Manage software page", () => {
       beforeEach(() => cy.visit("/software/manage"));
-      it("allows global admin to click 'Manage automations' butto", () => {
+      it("allows global admin to click 'Manage automations' button", () => {
         cy.getAttached(".manage-software-page__header-wrap").within(() => {
           cy.getAttached(".Select").within(() => {
             cy.findByText(/all teams/i).should("exist");
