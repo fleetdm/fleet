@@ -57,6 +57,8 @@ module.exports = {
               // Removing any duplicate tags.
               query.tags = _.uniq(formattedTags);
             }
+          } else {
+            query.tags = []; // « if there are no tags, we set query.tags to an empty array so it is always the same data type.
           }
 
           // GitHub usernames may only contain alphanumeric characters or single hyphens, and cannot begin or end with a hyphen.
