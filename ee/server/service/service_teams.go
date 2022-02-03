@@ -299,7 +299,7 @@ func (svc Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec) 
 		if err != nil {
 			if err := ctxerr.Cause(err); err == sql.ErrNoRows {
 				// can the user create a new team?
-				if err := svc.authz.Authorize(ctx, team, fleet.ActionWrite); err != nil {
+				if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionWrite); err != nil {
 					return err
 				}
 				continue
