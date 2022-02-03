@@ -318,7 +318,7 @@ const ManageSoftwarePage = ({
         buttons={renderHeaderButtons}
       />
     );
-  }, [router, location]);
+  }, [router, location, isLoadingSoftwareVulnerabilitiesWebhook]);
 
   const renderSoftwareCount = useCallback(() => {
     const count = softwareCount;
