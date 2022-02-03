@@ -55,7 +55,7 @@ func jsonHandler(
 			rw.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-		b, err := json.Marshal(jsonData)
+		b, err := json.MarshalIndent(jsonData, "", "  ")
 		if err != nil {
 			level.Error(logger).Log("err", err)
 			rw.WriteHeader(http.StatusInternalServerError)
