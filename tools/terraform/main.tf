@@ -4,6 +4,13 @@ variable "region" {
 
 provider "aws" {
   region = var.region
+  default_tags {
+    tags = {
+      environment = "loadtest"
+      terraform   = "https://github.com/fleetdm/fleet/tree/main/tools/terraform"
+      state       = "local"
+    }
+  }
 }
 
 terraform {

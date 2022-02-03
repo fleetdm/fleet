@@ -19,7 +19,7 @@ variable "osquery_results_s3_bucket" {
 }
 
 variable "osquery_status_s3_bucket" {
-  default = "fleetloadtest-osquery-status-archive"
+  default = "fleet-loadtest-osquery-status-archive"
 }
 
 variable "vulnerabilities_path" {

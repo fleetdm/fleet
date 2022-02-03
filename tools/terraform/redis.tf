@@ -15,7 +15,7 @@ resource "aws_elasticache_replication_group" "default" {
   engine                        = "redis"
   parameter_group_name          = "default.redis5.0"
   subnet_group_name             = module.vpc.elasticache_subnet_group_name
-  security_group_ids            = [aws_security_group.redis.id, "sg-041d829888441d336", "sg-05e8a92943f331e3e", "sg-0823f976f9dfb6311"]
+  security_group_ids            = [aws_security_group.redis.id, aws_security_group.backend.id]
   replication_group_id          = "fleetdm-redis"
   number_cache_clusters         = var.number_cache_clusters
   node_type                     = var.redis_instance

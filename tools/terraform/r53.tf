@@ -30,6 +30,7 @@ resource "aws_route53_record" "dogfood_fleetdm_com" {
   }
 }
 
+/*
 resource "aws_acm_certificate" "dogfood_fleetctl_com" {
   domain_name       = var.domain_fleetctl
   validation_method = "DNS"
@@ -38,6 +39,7 @@ resource "aws_acm_certificate" "dogfood_fleetctl_com" {
     create_before_destroy = true
   }
 }
+*/
 
 resource "aws_acm_certificate" "dogfood_fleetdm_com" {
   domain_name       = var.domain_fleetdm
@@ -48,6 +50,7 @@ resource "aws_acm_certificate" "dogfood_fleetdm_com" {
   }
 }
 
+/*
 resource "aws_route53_record" "dogfood_fleetctl_com_validation" {
   for_each = {
     for dvo in aws_acm_certificate.dogfood_fleetctl_com.domain_validation_options : dvo.domain_name => {
@@ -64,6 +67,7 @@ resource "aws_route53_record" "dogfood_fleetctl_com_validation" {
   type            = each.value.type
   zone_id         = aws_route53_zone.dogfood_fleetctl_com.zone_id
 }
+*/
 
 resource "aws_route53_record" "dogfood_fleetdm_com_validation" {
   for_each = {
@@ -82,10 +86,12 @@ resource "aws_route53_record" "dogfood_fleetdm_com_validation" {
   zone_id         = aws_route53_zone.dogfood_fleetdm_com.zone_id
 }
 
+/*
 resource "aws_acm_certificate_validation" "dogfood_fleetctl_com" {
   certificate_arn         = aws_acm_certificate.dogfood_fleetctl_com.arn
   validation_record_fqdns = [for record in aws_route53_record.dogfood_fleetctl_com_validation : record.fqdn]
 }
+*/
 
 resource "aws_acm_certificate_validation" "dogfood_fleetdm_com" {
   certificate_arn         = aws_acm_certificate.dogfood_fleetdm_com.arn

@@ -3,8 +3,12 @@ resource "random_password" "database_password" {
   special = false
 }
 
+resource "random_pet" "db_secret_postfix" {
+  length = 1
+}
+
 resource "aws_secretsmanager_secret" "database_password_secret" {
-  name = "/fleet/database/password/master-2"
+  name = "/fleet/database/password/master-2-${random_pet.db_secret_postfix.id}"
 }
 
 resource "aws_secretsmanager_secret_version" "database_password_secret_version" {
@@ -80,7 +84,7 @@ module "aurora_mysql" {
   enabled_cloudwatch_logs_exports     = ["slowquery"]
 
   vpc_id                 = module.vpc.vpc_id
-  vpc_security_group_ids = ["sg-041d829888441d336"]
+  vpc_security_group_ids = [aws_security_group.backend.id]
   subnets                = module.vpc.database_subnets
   create_security_group  = true
   allowed_cidr_blocks    = module.vpc.private_subnets_cidr_blocks
@@ -89,6 +93,7 @@ module "aurora_mysql" {
   replica_scale_enabled = true
   replica_scale_min     = 1
   replica_scale_max     = 3
+  snapshot_identifier   = "arn:aws:rds:us-east-2:917007347864:cluster-snapshot:fleetdm-mysql-iam-final-prerebuild"
 
   monitoring_interval           = 60
   iam_role_name                 = "${local.name}-rds-enhanced-monitoring"
