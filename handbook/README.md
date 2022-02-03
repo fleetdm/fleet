@@ -34,8 +34,6 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Product quality](./product.md#product-quality)
 
-[Fleet docs](./product.md#fleet-docs)
-
 [UI design](./product.md#ui-design)
 
 [Release](./product.md#release)
@@ -69,6 +67,8 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 [Posting on social media as Fleet](./community.md#posting-on-social-media-as-fleet)
 
 [Promoting blog posts on social media](./community.md#promoting-blog-posts-on-social-media)
+
+[Fleet docs](./product.md#fleet-docs)
 
 [Press releases](./community.md#press-releases)
 
