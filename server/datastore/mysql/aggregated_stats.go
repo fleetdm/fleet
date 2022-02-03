@@ -91,11 +91,11 @@ func setP50AndP95Map(ctx context.Context, tx sqlx.QueryerContext, aggregate stri
 	return nil
 }
 
-func (d *Datastore) UpdateScheduledQueryAggregatedStats(ctx context.Context) error {
+func (ds *Datastore) UpdateScheduledQueryAggregatedStats(ctx context.Context) error {
 	statsTypeScheduledQuery := "scheduled_query"
 
-	err := walkIdsInTable(ctx, d.reader, "scheduled_queries", func(id uint) error {
-		return calculatePercentiles(ctx, d.writer, statsTypeScheduledQuery, id)
+	err := walkIdsInTable(ctx, ds.reader, "scheduled_queries", func(id uint) error {
+		return calculatePercentiles(ctx, ds.writer, statsTypeScheduledQuery, id)
 	})
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "looping through ids")
@@ -104,11 +104,11 @@ func (d *Datastore) UpdateScheduledQueryAggregatedStats(ctx context.Context) err
 	return nil
 }
 
-func (d *Datastore) UpdateQueryAggregatedStats(ctx context.Context) error {
+func (ds *Datastore) UpdateQueryAggregatedStats(ctx context.Context) error {
 	statsTypeQuery := "query"
 
-	err := walkIdsInTable(ctx, d.reader, "queries", func(id uint) error {
-		return calculatePercentiles(ctx, d.writer, statsTypeQuery, id)
+	err := walkIdsInTable(ctx, ds.reader, "queries", func(id uint) error {
+		return calculatePercentiles(ctx, ds.writer, statsTypeQuery, id)
 	})
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "looping through ids")

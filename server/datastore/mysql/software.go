@@ -61,8 +61,8 @@ func softwareSliceToIdMap(softwareSlice []fleet.Software) map[string]uint {
 // UpdateHostSoftware updates the software list of a host.
 // The update consists of deleting existing entries that are not in the given `software`
 // slice, updating existing entries and inserting new entries.
-func (d *Datastore) UpdateHostSoftware(ctx context.Context, hostID uint, software []fleet.Software) error {
-	return d.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+func (ds *Datastore) UpdateHostSoftware(ctx context.Context, hostID uint, software []fleet.Software) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		return applyChangesForNewSoftwareDB(ctx, tx, hostID, software)
 	})
 }
@@ -423,9 +423,9 @@ func loadCVEsBySoftware(
 	return cvesBySoftware, nil
 }
 
-func (d *Datastore) LoadHostSoftware(ctx context.Context, host *fleet.Host) error {
+func (ds *Datastore) LoadHostSoftware(ctx context.Context, host *fleet.Host) error {
 	host.HostSoftware = fleet.HostSoftware{Modified: false}
-	software, err := listSoftwareDB(ctx, d.reader, &host.ID, fleet.SoftwareListOptions{})
+	software, err := listSoftwareDB(ctx, ds.reader, &host.ID, fleet.SoftwareListOptions{})
 	if err != nil {
 		return err
 	}
@@ -458,19 +458,19 @@ func (si *softwareIterator) Next() bool {
 	return si.rows.Next()
 }
 
-func (d *Datastore) AllSoftwareWithoutCPEIterator(ctx context.Context) (fleet.SoftwareIterator, error) {
+func (ds *Datastore) AllSoftwareWithoutCPEIterator(ctx context.Context) (fleet.SoftwareIterator, error) {
 	sql := `SELECT s.* FROM software s LEFT JOIN software_cpe sc on (s.id=sc.software_id) WHERE sc.id is null`
 	// The rows.Close call is done by the caller once iteration using the
 	// returned fleet.SoftwareIterator is done.
-	rows, err := d.reader.QueryxContext(ctx, sql) //nolint:sqlclosecheck
+	rows, err := ds.reader.QueryxContext(ctx, sql) //nolint:sqlclosecheck
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "load host software")
 	}
 	return &softwareIterator{rows: rows}, nil
 }
 
-func (d *Datastore) AddCPEForSoftware(ctx context.Context, software fleet.Software, cpe string) error {
-	_, err := addCPEForSoftwareDB(ctx, d.writer, software, cpe)
+func (ds *Datastore) AddCPEForSoftware(ctx context.Context, software fleet.Software, cpe string) error {
+	_, err := addCPEForSoftwareDB(ctx, ds.writer, software, cpe)
 	return err
 }
 
@@ -484,10 +484,10 @@ func addCPEForSoftwareDB(ctx context.Context, exec sqlx.ExecerContext, software 
 	return uint(id), nil
 }
 
-func (d *Datastore) AllCPEs(ctx context.Context) ([]string, error) {
+func (ds *Datastore) AllCPEs(ctx context.Context) ([]string, error) {
 	sql := `SELECT cpe FROM software_cpe`
 	var cpes []string
-	err := sqlx.SelectContext(ctx, d.reader, &cpes, sql)
+	err := sqlx.SelectContext(ctx, ds.reader, &cpes, sql)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "loads cpes")
 	}
@@ -497,14 +497,14 @@ func (d *Datastore) AllCPEs(ctx context.Context) ([]string, error) {
 // InsertCVEForCPE inserts the cve into software_cve, linking it to all the
 // provided cpes. It returns the number of new rows inserted or an error. If
 // the CVE already existed for all CPEs, it would return 0, nil.
-func (d *Datastore) InsertCVEForCPE(ctx context.Context, cve string, cpes []string) (int64, error) {
+func (ds *Datastore) InsertCVEForCPE(ctx context.Context, cve string, cpes []string) (int64, error) {
 	values := strings.TrimSuffix(strings.Repeat("((SELECT id FROM software_cpe WHERE cpe=?),?),", len(cpes)), ",")
 	sql := fmt.Sprintf(`INSERT IGNORE INTO software_cve (cpe_id, cve) VALUES %s`, values)
 	var args []interface{}
 	for _, cpe := range cpes {
 		args = append(args, cpe, cve)
 	}
-	res, err := d.writer.ExecContext(ctx, sql, args...)
+	res, err := ds.writer.ExecContext(ctx, sql, args...)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "insert software cve")
 	}
@@ -512,17 +512,17 @@ func (d *Datastore) InsertCVEForCPE(ctx context.Context, cve string, cpes []stri
 	return count, nil
 }
 
-func (d *Datastore) ListSoftware(ctx context.Context, opt fleet.SoftwareListOptions) ([]fleet.Software, error) {
-	return listSoftwareDB(ctx, d.reader, nil, opt)
+func (ds *Datastore) ListSoftware(ctx context.Context, opt fleet.SoftwareListOptions) ([]fleet.Software, error) {
+	return listSoftwareDB(ctx, ds.reader, nil, opt)
 }
 
-func (d *Datastore) CountSoftware(ctx context.Context, opt fleet.SoftwareListOptions) (int, error) {
-	return countSoftwareDB(ctx, d.reader, nil, opt)
+func (ds *Datastore) CountSoftware(ctx context.Context, opt fleet.SoftwareListOptions) (int, error) {
+	return countSoftwareDB(ctx, ds.reader, nil, opt)
 }
 
-func (d *Datastore) SoftwareByID(ctx context.Context, id uint) (*fleet.Software, error) {
+func (ds *Datastore) SoftwareByID(ctx context.Context, id uint) (*fleet.Software, error) {
 	software := fleet.Software{}
-	err := sqlx.GetContext(ctx, d.reader, &software, `SELECT * FROM software WHERE id=?`, id)
+	err := sqlx.GetContext(ctx, ds.reader, &software, `SELECT * FROM software WHERE id=?`, id)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "software by id")
 	}
@@ -535,7 +535,7 @@ func (d *Datastore) SoftwareByID(ctx context.Context, id uint) (*fleet.Software,
 		WHERE s.id=?
 	`
 
-	rows, err := d.reader.QueryxContext(ctx, query, id)
+	rows, err := ds.reader.QueryxContext(ctx, query, id)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "load software cves")
 	}
@@ -562,7 +562,7 @@ func (d *Datastore) SoftwareByID(ctx context.Context, id uint) (*fleet.Software,
 // CalculateHostsPerSoftware calculates the number of hosts having each
 // software installed and stores that information in the aggregated_stats
 // table.
-func (d *Datastore) CalculateHostsPerSoftware(ctx context.Context, updatedAt time.Time) error {
+func (ds *Datastore) CalculateHostsPerSoftware(ctx context.Context, updatedAt time.Time) error {
 	// NOTE(mna): for reference, on my laptop I get ~1.5ms for 10_000 hosts / 100 software each,
 	// ~1.5s for 10_000 hosts / 1_000 software each (but this is with an otherwise empty
 	// aggregated_stats table, but still reasonable numbers give that this runs as a cron
@@ -589,12 +589,12 @@ func (d *Datastore) CalculateHostsPerSoftware(ctx context.Context, updatedAt tim
 	valuesPart := `(?, "software_hosts_count", CAST(? AS json), ?),`
 
 	// first, reset all counts to 0
-	if _, err := d.writer.ExecContext(ctx, resetStmt); err != nil {
+	if _, err := ds.writer.ExecContext(ctx, resetStmt); err != nil {
 		return ctxerr.Wrap(ctx, err, "reset all software_hosts_count to 0 in aggregated_stats")
 	}
 
 	// next get a cursor for the counts for each software
-	rows, err := d.reader.QueryContext(ctx, queryStmt)
+	rows, err := ds.reader.QueryContext(ctx, queryStmt)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "read counts from host_software")
 	}
@@ -618,7 +618,7 @@ func (d *Datastore) CalculateHostsPerSoftware(ctx context.Context, updatedAt tim
 
 		if batchCount == batchSize {
 			values := strings.TrimSuffix(strings.Repeat(valuesPart, batchCount), ",")
-			if _, err := d.writer.ExecContext(ctx, fmt.Sprintf(insertStmt, values), args...); err != nil {
+			if _, err := ds.writer.ExecContext(ctx, fmt.Sprintf(insertStmt, values), args...); err != nil {
 				return ctxerr.Wrap(ctx, err, "insert batch into aggregated_stats")
 			}
 
@@ -628,7 +628,7 @@ func (d *Datastore) CalculateHostsPerSoftware(ctx context.Context, updatedAt tim
 	}
 	if batchCount > 0 {
 		values := strings.TrimSuffix(strings.Repeat(valuesPart, batchCount), ",")
-		if _, err := d.writer.ExecContext(ctx, fmt.Sprintf(insertStmt, values), args...); err != nil {
+		if _, err := ds.writer.ExecContext(ctx, fmt.Sprintf(insertStmt, values), args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "insert batch into aggregated_stats")
 		}
 	}
@@ -650,7 +650,7 @@ func (d *Datastore) CalculateHostsPerSoftware(ctx context.Context, updatedAt tim
         software.id = shc.id AND
 		    shc.type = "software_hosts_count" AND
 		    json_value > 0)`
-	if _, err := d.writer.ExecContext(ctx, cleanupStmt); err != nil {
+	if _, err := ds.writer.ExecContext(ctx, cleanupStmt); err != nil {
 		return ctxerr.Wrap(ctx, err, "delete unused software")
 	}
 
@@ -660,7 +660,7 @@ func (d *Datastore) CalculateHostsPerSoftware(ctx context.Context, updatedAt tim
 // HostsByCPEs returns a list of all hosts that have the software corresponding
 // to at least one of the CPEs installed. It returns a minimal represention of
 // matching hosts.
-func (d *Datastore) HostsByCPEs(ctx context.Context, cpes []string) ([]*fleet.CPEHost, error) {
+func (ds *Datastore) HostsByCPEs(ctx context.Context, cpes []string) ([]*fleet.CPEHost, error) {
 	queryStmt := `
     SELECT
       h.id,
@@ -685,7 +685,7 @@ func (d *Datastore) HostsByCPEs(ctx context.Context, cpes []string) ([]*fleet.CP
 		return nil, ctxerr.Wrap(ctx, err, "building query args")
 	}
 	var hosts []*fleet.CPEHost
-	if err := sqlx.SelectContext(ctx, d.reader, &hosts, stmt, args...); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader, &hosts, stmt, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "select hosts by cpes")
 	}
 	return hosts, nil
