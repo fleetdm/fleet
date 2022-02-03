@@ -1,4 +1,4 @@
-import React, { useCallback, useContext, useEffect, useState } from "react";
+import React, { useCallback, useContext, useState } from "react";
 import { useQuery } from "react-query";
 import { useDispatch } from "react-redux";
 import { InjectedRouter } from "react-router/lib/Router";
@@ -38,10 +38,6 @@ import QuestionIcon from "../../../../assets/images/icon-question-16x16@2x.png";
 import generateTableHeaders from "./SoftwareTableConfig";
 import ManageAutomationsModal from "./components/ManageAutomationsModal";
 import EmptySoftware from "../components/EmptySoftware";
-import {
-  isGlobalAdmin,
-  isGlobalMaintainer,
-} from "utilities/permissions/permissions";
 
 interface IManageSoftwarePageProps {
   router: InjectedRouter;
@@ -273,7 +269,11 @@ const ManageSoftwarePage = ({
   const renderHeaderButtons = (
     state: ITeamsDropdownState
   ): JSX.Element | null => {
-    if (canAddOrRemoveSoftwareWebhook && state.teamId === 0) {
+    if (
+      canAddOrRemoveSoftwareWebhook &&
+      state.teamId === 0 &&
+      !isLoadingSoftwareVulnerabilitiesWebhook
+    ) {
       return (
         <Button
           onClick={onManageAutomationsClick}

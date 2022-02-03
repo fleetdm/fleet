@@ -14,7 +14,6 @@ import { useDeepEffect } from "utilities/hooks";
 import { size } from "lodash";
 
 import PreviewPayloadModal from "../PreviewPayloadModal";
-import { createSecureContext } from "tls";
 
 interface IManageAutomationsModalProps {
   onCancel: () => void;
@@ -47,16 +46,18 @@ const useCheckboxListStateManagement = (
   >(() => {
     return (
       availableSoftwareAutomations &&
-      availableSoftwareAutomations.map((automation: any) => {
-        return {
-          name: automation.name,
-          accessor: automation.accessor,
-          isChecked: currentSoftwareAutomations.some(
-            (currentSoftwareAutomationItem: ICheckedSoftwareAutomation) =>
-              currentSoftwareAutomationItem.accessor === automation.accessor
-          ),
-        };
-      })
+      availableSoftwareAutomations.map(
+        (automation: ICheckedSoftwareAutomation) => {
+          return {
+            name: automation.name,
+            accessor: automation.accessor,
+            isChecked: currentSoftwareAutomations.some(
+              (currentSoftwareAutomationItem: ICheckedSoftwareAutomation) =>
+                currentSoftwareAutomationItem.accessor === automation.accessor
+            ),
+          };
+        }
+      )
     );
   });
 
@@ -170,23 +171,25 @@ const ManageAutomationsModal = ({
     >
       <div className={baseClass}>
         <div className={`${baseClass}__software-select-items`}>
-          {softwareAutomationsItems && // Allows for more software automations to be set in the future
-            softwareAutomationsItems.map((softwareItem: any) => {
-              const { isChecked, name, accessor } = softwareItem;
-              return (
-                <div key={accessor} className={`${baseClass}__team-item`}>
-                  <Checkbox
-                    value={isChecked}
-                    name={name}
-                    onChange={() =>
-                      updateSoftwareAutomationsItems(softwareItem.accessor)
-                    }
-                  >
-                    {name}
-                  </Checkbox>
-                </div>
-              );
-            })}
+          {softwareAutomationsItems &&
+            softwareAutomationsItems.map(
+              (softwareItem: ICheckedSoftwareAutomation) => {
+                const { isChecked, name, accessor } = softwareItem;
+                return (
+                  <div key={accessor} className={`${baseClass}__team-item`}>
+                    <Checkbox
+                      value={isChecked}
+                      name={name}
+                      onChange={() =>
+                        updateSoftwareAutomationsItems(softwareItem.accessor)
+                      }
+                    >
+                      {name}
+                    </Checkbox>
+                  </div>
+                );
+              }
+            )}
         </div>
 
         <div className="tooltip-wrap tooltip-wrap--input">
