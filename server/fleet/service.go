@@ -361,6 +361,8 @@ type Service interface {
 
 	// NewTeam creates a new team.
 	NewTeam(ctx context.Context, p TeamPayload) (*Team, error)
+	// GetTeam returns a existing team.
+	GetTeam(ctx context.Context, id uint) (*Team, error)
 	// ModifyTeam modifies an existing team (besides agent options).
 	ModifyTeam(ctx context.Context, id uint, payload TeamPayload) (*Team, error)
 	// ModifyTeamAgentOptions modifies agent options for a team.

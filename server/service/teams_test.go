@@ -161,6 +161,9 @@ func TestTeamAuth(t *testing.T) {
 			_, err = svc.ListTeams(ctx, fleet.ListOptions{})
 			checkAuthErr(t, false, err) // everybody can do this
 
+			_, err = svc.GetTeam(ctx, 1)
+			checkAuthErr(t, tt.shouldFailRead, err)
+
 			err = svc.DeleteTeam(ctx, 1)
 			checkAuthErr(t, tt.shouldFailTeamWrite, err)
 
