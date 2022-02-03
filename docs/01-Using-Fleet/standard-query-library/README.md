@@ -27,6 +27,7 @@ Want to add your own query?
     purpose: What is the goal of running your query? Ex. Detection
     remediation: Are there any remediation steps to resolve the detection triggered by your query? If not, insert "N/A."
     contributors: zwass,mike-j-thomas
+    tags: Keywords that can help users find other relevant queries, each tag should be seperated by a comma. (e.g., "foo,bar")
   ```
 
 2. Replace each field and submit a pull request to the fleetdm/fleet GitHub repository.
