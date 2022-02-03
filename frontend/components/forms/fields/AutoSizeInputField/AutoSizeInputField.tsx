@@ -78,7 +78,7 @@ const TeamsDropdown = ({
 
   return (
     <div className={baseClass}>
-      <label className="input-sizer" data-value={inputValue}>
+      <label className="input-sizer" data-value={inputValue} htmlFor={name}>
         <textarea
           name={name}
           id={name}
