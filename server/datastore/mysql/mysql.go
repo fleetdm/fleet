@@ -820,3 +820,25 @@ func hostSearchLike(sql string, params []interface{}, match string, columns ...s
 	}
 	return base, args
 }
+
+func (ds *Datastore) InnoDBStatus(ctx context.Context) (string, error) {
+	status := struct {
+		Type   string `db:"Type"`
+		Name   string `db:"Name"`
+		Status string `db:"Status"`
+	}{}
+	err := ds.writer.GetContext(ctx, &status, "show engine innodb status")
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "Getting innodb status")
+	}
+	return status.Status, nil
+}
+
+func (ds *Datastore) ProcessList(ctx context.Context) ([]fleet.MySQLProcess, error) {
+	var processList []fleet.MySQLProcess
+	err := ds.writer.SelectContext(ctx, &processList, "show processlist")
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "Getting process list")
+	}
+	return processList, nil
+}
