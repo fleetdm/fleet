@@ -123,127 +123,35 @@ resource "aws_ecs_task_definition" "backend" {
   container_definitions = jsonencode(
     [
       {
-        name      = "cloudwatch-agent"
-        image     = "amazon/cloudwatch-agent:1.247348.0b251302"
+        name      = "prometheus-exporter"
+        image     = "917007347864.dkr.ecr.us-east-2.amazonaws.com/prometheus-to-cloudwatch:latest"
         essential = false
         logConfiguration = {
           logDriver = "awslogs"
           options = {
             awslogs-group         = aws_cloudwatch_log_group.backend.name
             awslogs-region        = data.aws_region.current.name
-            awslogs-stream-prefix = "fleet-cw-agent"
+            awslogs-stream-prefix = "fleet-prometheus-exporter"
           }
         }
         environment = [
           {
-            name  = "PROMETHEUS_CONFIG_CONTENT"
-            value = <<-EOT
-            global:
-              scrape_interval: 1m
-              scrape_timeout: 10s
-            scrape_configs:
-              - job_name: cwagent-ecs-file-sd-config
-                sample_limit: 10000
-                file_sd_configs:
-                  - files: [ "/tmp/cwagent_ecs_auto_sd.yaml" ]
-            EOT
+            name  = "CLOUDWATCH_NAMESPACE"
+            value = "fleet-loadtest"
           },
           {
-            name  = "CW_CONFIG_CONTENT"
-            value = <<-EOT
-            {
-              "logs": {
-                "metrics_collected": {
-                  "prometheus": {
-                    "prometheus_config_path": "env:PROMETHEUS_CONFIG_CONTENT",
-                    "ecs_service_discovery": {
-                      "sd_frequency": "1m",
-                      "sd_result_file": "/tmp/cwagent_ecs_auto_sd.yaml",
-                      "docker_label": {
-                      },
-                      "task_definition_list": [
-                        {
-                          "sd_job_name": "ecs-appmesh-colors",
-                          "sd_metrics_ports": "9901",
-                          "sd_task_definition_arn_pattern": ".*:task-definition/.*-ColorTeller-(white):[0-9]+",
-                          "sd_metrics_path": "/stats/prometheus"
-                        },
-                        {
-                          "sd_job_name": "ecs-appmesh-gateway",
-                          "sd_metrics_ports": "9901",
-                          "sd_task_definition_arn_pattern": ".*:task-definition/.*-ColorGateway:[0-9]+",
-                          "sd_metrics_path": "/stats/prometheus"
-                        }
-                      ]
-                    },
-                    "emf_processor": {
-                      "metric_declaration_dedup": true,
-                      "metric_declaration": [
-                        {
-                          "source_labels": ["container_name"],
-                          "label_matcher": "^envoy$",
-                          "dimensions": [["ClusterName","TaskDefinitionFamily"]],
-                          "metric_selectors": [
-                            "^envoy_http_downstream_rq_(total|xx)$",
-                            "^envoy_cluster_upstream_cx_(r|t)x_bytes_total$",
-                            "^envoy_cluster_membership_(healthy|total)$",
-                            "^envoy_server_memory_(allocated|heap_size)$",
-                            "^envoy_cluster_upstream_cx_(connect_timeout|destroy_local_with_active_rq)$",
-                            "^envoy_cluster_upstream_rq_(pending_failure_eject|pending_overflow|timeout|per_try_timeout|rx_reset|maintenance_mode)$",
-                            "^envoy_http_downstream_cx_destroy_remote_active_rq$",
-                            "^envoy_cluster_upstream_flow_control_(paused_reading_total|resumed_reading_total|backed_up_total|drained_total)$",
-                            "^envoy_cluster_upstream_rq_retry$",
-                            "^envoy_cluster_upstream_rq_retry_(success|overflow)$",
-                            "^envoy_server_(version|uptime|live)$"
-                          ]
-                        },
-                        {
-                          "source_labels": ["container_name"],
-                          "label_matcher": "^envoy$",
-                          "dimensions": [["ClusterName","TaskDefinitionFamily","envoy_http_conn_manager_prefix","envoy_response_code_class"]],
-                          "metric_selectors": [
-                            "^envoy_http_downstream_rq_xx$"
-                          ]
-                        },
-                        {
-                          "source_labels": ["Java_EMF_Metrics"],
-                          "label_matcher": "^true$",
-                          "dimensions": [["ClusterName","TaskDefinitionFamily"]],
-                          "metric_selectors": [
-                            "^jvm_threads_(current|daemon)$",
-                            "^jvm_classes_loaded$",
-                            "^java_lang_operatingsystem_(freephysicalmemorysize|totalphysicalmemorysize|freeswapspacesize|totalswapspacesize|systemcpuload|processcpuload|availableprocessors|openfiledescriptorcount)$",
-                            "^catalina_manager_(rejectedsessions|activesessions)$",
-                            "^jvm_gc_collection_seconds_(count|sum)$",
-                            "^catalina_globalrequestprocessor_(bytesreceived|bytessent|requestcount|errorcount|processingtime)$"
-                          ]
-                        },
-                        {
-                          "source_labels": ["Java_EMF_Metrics"],
-                          "label_matcher": "^true$",
-                          "dimensions": [["ClusterName","TaskDefinitionFamily","area"]],
-                          "metric_selectors": [
-                            "^jvm_memory_bytes_used$"
-                          ]
-                        },
-                        {
-                          "source_labels": ["Java_EMF_Metrics"],
-                          "label_matcher": "^true$",
-                          "dimensions": [["ClusterName","TaskDefinitionFamily","pool"]],
-                          "metric_selectors": [
-                            "^jvm_memory_pool_bytes_used$"
-                          ]
-                        }
-                      ]
-                    }
-                  }
-                },
-                "force_flush_interval": 5
-              }
-            }
-            EOT
-          }
-        ]
+            name  = "CLOUDWATCH_REGION"
+            value = "us-east-2"
+          },
+          {
+            name  = "CLOUDWATCH_REGION"
+            value = "us-east-2"
+          },
+          {
+            name  = "PROMETHEUS_SCRAPE_URL"
+            value = "http://localhost:8080/metrics"
+          },
+        ],
       },
       {
         name        = "fleet"
