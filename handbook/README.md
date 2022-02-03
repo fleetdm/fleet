@@ -2,7 +2,7 @@
 
 ## Introduction
 
-The Fleet handbook is the central guide for how we run the company. As part of our value of being transparent, the handbook is open to the world. We welcome feedback, and contributions, so please click to edit to suggest improvements throughout these pages.  
+The Fleet handbook is the central guide for how we run the company. As part of our value of [being transparent](./company.md#openness), the handbook is open to the world. We welcome feedback, and [contributions](./handbook.md#contributing-to-the-handbook), so please click to edit and suggest improvements throughout these pages.
 
 ### Company
 
@@ -46,7 +46,6 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [How we protect end-user devices](./security.md#how-we-protect-end-user-devices)
 
-### Growth
 
 ### Brand
 
