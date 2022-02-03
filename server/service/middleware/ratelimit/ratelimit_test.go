@@ -2,6 +2,7 @@ package ratelimit
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -28,5 +29,6 @@ func TestLimit(t *testing.T) {
 	// Hits rate limit
 	_, err = wrapped(context.Background(), struct{}{})
 	assert.Error(t, err)
-	assert.Implements(t, (*Error)(nil), err)
+	var rle Error
+	assert.True(t, errors.As(err, &rle))
 }

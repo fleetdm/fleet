@@ -1,0 +1,65 @@
+.modal {
+  &__background {
+    @include position(fixed, 0 0 0 0);
+    background-color: rgba($core-fleet-black, 0.4);
+    z-index: 101;
+    overflow: scroll;
+    display: flex;
+    justify-content: center;
+  }
+
+  &__content {
+    margin-top: $pad-large;
+    font-size: $x-small;
+
+    .input-field {
+      width: 100%;
+
+      &::placeholder {
+        font-style: italic;
+        font-size: $x-small;
+      }
+    }
+  }
+
+  &__ex {
+    text-decoration: none;
+    padding-left: $pad-xsmall;
+
+    .button::after {
+      content: url("../assets/images/icon-close-fleet-blue-16x16@2x.png");
+      transform: scale(0.5);
+      border-radius: 0px;
+    }
+
+    .button:hover::after {
+      content: url("../assets/images/icon-close-vibrant-blue-16x16@2x.png");
+      transform: scale(0.5);
+      border-radius: 0px;
+    }
+  }
+
+  &__header {
+    font-size: $large;
+    font-weight: $regular;
+    text-align: left;
+    padding-bottom: $pad-xsmall;
+    border-bottom: 1px solid $ui-fleet-blue-15;
+    display: flex;
+    justify-content: space-between;
+
+    span {
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+  }
+
+  &__modal_container {
+    @include position(absolute, 22px null null null);
+    background-color: $core-white;
+    width: 658px;
+    padding: $pad-xxlarge;
+    border-radius: 8px;
+  }
+}

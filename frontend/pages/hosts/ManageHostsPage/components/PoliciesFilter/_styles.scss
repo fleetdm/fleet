@@ -4,14 +4,18 @@
   align-items: center;
 
   &__status_dropdown {
-    width: 159px;
+    width: 114px;
 
     .Select-menu-outer {
-      width: 364px;
+      width: 114px;
       max-height: 310px;
 
       .Select-menu {
         max-height: none;
+
+        .dropdown__option {
+          font-size: $small !important;
+        }
       }
     }
     .Select-value {
@@ -31,6 +35,7 @@
     }
     .Select-value-label {
       padding-left: $pad-large;
+      font-size: $small !important;
     }
   }
 }

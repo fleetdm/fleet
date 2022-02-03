@@ -1,0 +1,42 @@
+.hosts-status {
+  width: 100%;
+  display: flex;
+  justify-content: space-around;
+  font-size: $x-small;
+
+  &__tile {
+    flex-grow: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    &:first-of-type {
+      justify-content: flex-end;
+    }
+    &:last-of-type {
+      justify-content: flex-start;
+    }
+  }
+
+  &__tile-count {
+    font-size: $large;
+
+    &:before {
+      border-radius: 100%;
+      content: " ";
+      display: inline-block;
+      margin-right: $pad-small;
+      height: 8px;
+      width: 8px;
+      margin-bottom: 5px;
+    }
+
+    &--online:before {
+      background-color: $ui-success;
+    }
+
+    &--offline:before {
+      background-color: $ui-offline;
+    }
+  }
+}

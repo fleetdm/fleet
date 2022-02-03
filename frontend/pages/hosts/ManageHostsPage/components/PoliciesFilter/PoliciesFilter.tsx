@@ -14,15 +14,13 @@ const baseClass = "policies-filter";
 const POLICY_RESPONSE_OPTIONS = [
   {
     disabled: false,
-    label: "Passing",
+    label: "Yes",
     value: PolicyResponse.PASSING,
-    helpText: "Hosts that passed the last time they checked into Fleet.",
   },
   {
     disabled: false,
-    label: "Failing",
+    label: "No",
     value: PolicyResponse.FAILING,
-    helpText: "Hosts that failed the last time they checked into Fleet.",
   },
 ];
 

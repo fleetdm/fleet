@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -77,7 +78,7 @@ func (ts *withServer) DoRawWithHeaders(
 	for key, val := range headers {
 		req.Header.Add(key, val)
 	}
-	client := &http.Client{}
+	client := fleethttp.NewClient()
 
 	if len(queryParams)%2 != 0 {
 		require.Fail(t, "need even number of params: key value")
@@ -92,7 +93,7 @@ func (ts *withServer) DoRawWithHeaders(
 
 	resp, err := client.Do(req)
 	require.NoError(t, err)
-	require.Equal(t, expectedStatusCode, resp.StatusCode)
+	assert.Equal(t, expectedStatusCode, resp.StatusCode)
 
 	return resp
 }

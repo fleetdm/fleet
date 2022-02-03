@@ -3,10 +3,10 @@ package wix
 import (
 	"bytes"
 	"encoding/xml"
+	"fmt"
 	"io/ioutil"
+	"os"
 	"strings"
-
-	"github.com/pkg/errors"
 )
 
 type node struct {
@@ -44,7 +44,7 @@ func xmlNode(name string, attrs ...*xml.Attr) *node {
 func TransformHeat(path string) error {
 	contents, err := ioutil.ReadFile(path)
 	if err != nil {
-		return errors.Wrap(err, "read file")
+		return fmt.Errorf("read file: %w", err)
 	}
 
 	// Eliminate line feeds (they cause extra junk in the result)
@@ -52,21 +52,26 @@ func TransformHeat(path string) error {
 
 	var n node
 	if err := xml.Unmarshal(contents, &n); err != nil {
-		return errors.Wrap(err, "unmarshal xml")
+		return fmt.Errorf("unmarshal xml: %w", err)
 	}
 
 	stack := []*node{}
 	if err := transform(&n, &stack); err != nil {
-		return errors.Wrap(err, "in transform")
+		return fmt.Errorf("in transform: %w", err)
 	}
 
 	contents, err = xml.MarshalIndent(n, "", "  ")
 	if err != nil {
-		return errors.Wrap(err, "marshal xml")
+		return fmt.Errorf("marshal xml: %w", err)
+	}
+
+	// Remove first as we encounter permission errors on some Linux configurations.
+	if err := os.Remove(path); err != nil {
+		return fmt.Errorf("remove old file: %w", err)
 	}
 
 	if err := ioutil.WriteFile(path, contents, 0o600); err != nil {
-		return errors.Wrap(err, "write file")
+		return fmt.Errorf("write file: %w", err)
 	}
 
 	return nil
@@ -102,7 +107,6 @@ func transform(cur *node, stack *[]*node) error {
 			// SYSTEM: read/write/execute
 			// Administrators: read/write/execute
 			sddl = "O:SYG:SYD:PAI(A;;FA;;;SY)(A;;FA;;;BA)"
-
 		}
 		cur.Children = append(cur.Children, xmlNode(
 			"PermissionEx",

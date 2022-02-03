@@ -1,6 +1,6 @@
 import { IHost } from "../interfaces/host";
-import { IPack } from "../interfaces/pack";
 import { IQuery } from "../interfaces/query";
+import { IPolicy } from "../interfaces/policy";
 import URL_PREFIX from "./url_prefix";
 
 export default {
@@ -19,16 +19,22 @@ export default {
   EDIT_QUERY: (query: IQuery): string => {
     return `${URL_PREFIX}/queries/${query.id}`;
   },
+  EDIT_POLICY: (policy: IPolicy): string => {
+    return `${URL_PREFIX}/policies/${policy.id}${
+      policy.team_id ? `?team_id=${policy.team_id}` : ""
+    }`;
+  },
   FORGOT_PASSWORD: `${URL_PREFIX}/login/forgot`,
   API_ONLY_USER: `${URL_PREFIX}/apionlyuser`,
   FLEET_403: `${URL_PREFIX}/403`,
-  FLEET_500: `${URL_PREFIX}/500`,
+  // FLEET_500: `${URL_PREFIX}/500`,
   LOGIN: `${URL_PREFIX}/login`,
   LOGOUT: `${URL_PREFIX}/logout`,
   MANAGE_HOSTS: `${URL_PREFIX}/hosts/manage`,
   HOST_DETAILS: (host: IHost): string => {
     return `${URL_PREFIX}/hosts/${host.id}`;
   },
+  MANAGE_SOFTWARE: `${URL_PREFIX}/software/manage`,
   TEAM_DETAILS_MEMBERS: (teamId: number): string => {
     return `${URL_PREFIX}/settings/teams/${teamId}/members`;
   },
@@ -43,6 +49,7 @@ export default {
     return `${URL_PREFIX}/schedule/manage/teams/${teamId}`;
   },
   MANAGE_POLICIES: `${URL_PREFIX}/policies/manage`,
+  NEW_POLICY: `${URL_PREFIX}/policies/new`,
   NEW_QUERY: `${URL_PREFIX}/queries/new`,
   RESET_PASSWORD: `${URL_PREFIX}/login/reset`,
   SETUP: `${URL_PREFIX}/setup`,

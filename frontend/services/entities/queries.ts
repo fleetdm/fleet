@@ -14,7 +14,7 @@ export default {
       observer_can_run,
     });
   },
-  destroy: (id: string) => {
+  destroy: (id: string | number) => {
     const { QUERIES } = endpoints;
     const path = `${QUERIES}/id/${id}`;
 

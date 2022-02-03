@@ -18,7 +18,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/open-policy-agent/opa/rego"
-	"github.com/pkg/errors"
 )
 
 // Authorizer stores the compiled policy and performs authorization checks.
@@ -39,7 +38,7 @@ func NewAuthorizer() (*Authorizer, error) {
 		rego.Module("policy.rego", policy),
 	).PrepareForEval(ctx)
 	if err != nil {
-		return nil, errors.Wrap(err, "prepare query")
+		return nil, fmt.Errorf("prepare query: %w", err)
 	}
 
 	return &Authorizer{query: query}, nil
@@ -67,7 +66,7 @@ func (a *Authorizer) SkipAuthorization(ctx context.Context) {
 	// Mark the authorization context as checked (otherwise middleware will
 	// error).
 	if authctx, ok := authz_ctx.FromContext(ctx); ok {
-		authctx.Checked = true
+		authctx.SetChecked()
 	}
 }
 
@@ -81,7 +80,7 @@ func (a *Authorizer) Authorize(ctx context.Context, object, action interface{}) 
 	// Mark the authorization context as checked (otherwise middleware will
 	// error).
 	if authctx, ok := authz_ctx.FromContext(ctx); ok {
-		authctx.Checked = true
+		authctx.SetChecked()
 	}
 
 	subject := UserFromContext(ctx)
@@ -142,7 +141,7 @@ func jsonToInterface(in interface{}) (interface{}, error) {
 	// map[string]interface{} (structs, maps, etc.)
 	buf := bytes.Buffer{}
 	if err := json.NewEncoder(&buf).Encode(in); err != nil {
-		return nil, errors.Wrap(err, "encode input")
+		return nil, fmt.Errorf("encode input: %w", err)
 	}
 
 	d := json.NewDecoder(&buf)
@@ -151,7 +150,7 @@ func jsonToInterface(in interface{}) (interface{}, error) {
 	d.UseNumber()
 	var out map[string]interface{}
 	if err := d.Decode(&out); err != nil {
-		return nil, errors.Wrap(err, "decode input")
+		return nil, fmt.Errorf("decode input: %w", err)
 	}
 
 	// Add the `type` property if the AuthzTyper interface is implemented.

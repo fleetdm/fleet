@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"net/http"
-	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/token"
@@ -25,18 +24,8 @@ func setRequestsContexts(svc fleet.Service) kithttp.RequestFunc {
 			}
 		}
 
-		// get the user-id for request
-		if strings.Contains(r.URL.Path, "users/") {
-			ctx = withUserIDFromRequest(r, ctx)
-		}
-
 		ctx = logging.NewContext(ctx, &logging.LoggingContext{})
 		ctx = logging.WithStartTime(ctx)
 		return ctx
 	}
-}
-
-func withUserIDFromRequest(r *http.Request, ctx context.Context) context.Context {
-	id, _ := idFromRequest(r, "id")
-	return context.WithValue(ctx, "request-id", id)
 }

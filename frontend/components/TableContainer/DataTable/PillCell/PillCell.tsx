@@ -1,5 +1,6 @@
 import React from "react";
 import classnames from "classnames";
+import { uniqueId } from "lodash";
 
 import ReactTooltip from "react-tooltip";
 
@@ -12,8 +13,7 @@ const generateClassTag = (rawValue: string): string => {
   return rawValue.replace(" ", "-").toLowerCase();
 };
 
-const PillCell = (props: IPillCellProps): JSX.Element => {
-  const { value, customIdPrefix } = props;
+const PillCell = ({ value, customIdPrefix }: IPillCellProps): JSX.Element => {
   const [pillText, id] = value;
 
   const pillClassName = classnames(
@@ -28,8 +28,6 @@ const PillCell = (props: IPillCellProps): JSX.Element => {
       case "Considerable":
         return false;
       case "Excessive":
-        return false;
-      case "Denylisted":
         return false;
       default:
         return true;
@@ -76,7 +74,9 @@ const PillCell = (props: IPillCellProps): JSX.Element => {
     <>
       <span
         data-tip
-        data-for={`${customIdPrefix || "pill"}__${id.toString()}`}
+        data-for={`${customIdPrefix || "pill"}__${
+          id?.toString() || uniqueId()
+        }`}
         data-tip-disable={disable()}
       >
         <span className={pillClassName}>{pillText}</span>
@@ -87,12 +87,12 @@ const PillCell = (props: IPillCellProps): JSX.Element => {
         type="dark"
         effect="solid"
         backgroundColor="#3e4771"
-        id={`${customIdPrefix || "pill"}__${id.toString()}`}
+        id={`${customIdPrefix || "pill"}__${id?.toString() || uniqueId()}`}
         data-html
       >
         <span
           className={`tooltip ${generateClassTag(pillText)}__tooltip-text`}
-          style={{ width: "196px" }}
+          style={{ textAlign: "center" }}
         >
           {tooltipText()}
         </span>

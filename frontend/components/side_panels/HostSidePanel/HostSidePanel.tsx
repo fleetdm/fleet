@@ -1,6 +1,10 @@
 import React, { useState, useCallback } from "react";
 import { filter } from "lodash";
 
+import { ILabel } from "interfaces/label";
+import { PLATFORM_LABEL_DISPLAY_ORDER } from "utilities/constants";
+
+import Spinner from "components/Spinner";
 import Button from "components/buttons/Button";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
@@ -8,32 +12,30 @@ import InputField from "components/forms/fields/InputField";
 import PanelGroup from "components/side_panels/HostSidePanel/PanelGroup";
 // @ts-ignore
 import SecondarySidePanelContainer from "components/side_panels/SecondarySidePanelContainer";
-import { ILabel } from "interfaces/label";
-import { PLATFORM_LABEL_DISPLAY_ORDER } from "utilities/constants";
 
 import PlusIcon from "../../../../assets/images/icon-plus-16x16@2x.png";
 
 const baseClass = "host-side-panel";
 
 interface IHostSidePanelProps {
-  labels: ILabel[];
+  labels?: ILabel[];
   onAddLabelClick: (evt: React.MouseEvent<HTMLButtonElement>) => void;
   onLabelClick: (
     selectedLabel: ILabel
   ) => (evt: React.MouseEvent<HTMLButtonElement>) => void;
   selectedFilter: string | undefined;
   canAddNewLabel: boolean;
+  isLabelsLoading: boolean;
 }
 
-const HostSidePanel = (props: IHostSidePanelProps): JSX.Element => {
-  const {
-    labels,
-    onAddLabelClick,
-    onLabelClick,
-    selectedFilter,
-    canAddNewLabel,
-  } = props;
-
+const HostSidePanel = ({
+  labels,
+  onAddLabelClick,
+  onLabelClick,
+  selectedFilter,
+  canAddNewLabel,
+  isLabelsLoading,
+}: IHostSidePanelProps): JSX.Element => {
   const [labelFilter, setLabelFilter] = useState<string>("");
 
   const onFilterLabels = useCallback(
@@ -42,6 +44,14 @@ const HostSidePanel = (props: IHostSidePanelProps): JSX.Element => {
     },
     [setLabelFilter]
   );
+
+  if (isLabelsLoading || !labels) {
+    return (
+      <SecondarySidePanelContainer className={`${baseClass}`}>
+        <Spinner />
+      </SecondarySidePanelContainer>
+    );
+  }
 
   const allHostLabels = filter(labels, { type: "all" });
 

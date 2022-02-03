@@ -2,13 +2,14 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/google/uuid"
-	"github.com/pkg/errors"
 )
 
 const (
@@ -77,11 +78,11 @@ func (svc *Service) CarveBlock(ctx context.Context, payload fleet.CarveBlockPayl
 	// by the session ID and request ID
 	carve, err := svc.carveStore.CarveBySessionId(ctx, payload.SessionId)
 	if err != nil {
-		return errors.Wrap(err, "find carve by session_id")
+		return ctxerr.Wrap(ctx, err, "find carve by session_id")
 	}
 
 	if payload.RequestId != carve.RequestId {
-		return fmt.Errorf("request_id does not match")
+		return errors.New("request_id does not match")
 	}
 
 	// Request is now authenticated
@@ -99,50 +100,8 @@ func (svc *Service) CarveBlock(ctx context.Context, payload fleet.CarveBlockPayl
 	}
 
 	if err := svc.carveStore.NewBlock(ctx, carve, payload.BlockId, payload.Data); err != nil {
-		return errors.Wrap(err, "save block data")
+		return ctxerr.Wrap(ctx, err, "save block data")
 	}
 
 	return nil
-}
-
-func (svc *Service) GetCarve(ctx context.Context, id int64) (*fleet.CarveMetadata, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.CarveMetadata{}, fleet.ActionRead); err != nil {
-		return nil, err
-	}
-
-	return svc.carveStore.Carve(ctx, id)
-}
-
-func (svc *Service) ListCarves(ctx context.Context, opt fleet.CarveListOptions) ([]*fleet.CarveMetadata, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.CarveMetadata{}, fleet.ActionRead); err != nil {
-		return nil, err
-	}
-
-	return svc.carveStore.ListCarves(ctx, opt)
-}
-
-func (svc *Service) GetBlock(ctx context.Context, carveId, blockId int64) ([]byte, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.CarveMetadata{}, fleet.ActionRead); err != nil {
-		return nil, err
-	}
-
-	metadata, err := svc.carveStore.Carve(ctx, carveId)
-	if err != nil {
-		return nil, errors.Wrap(err, "get carve by name")
-	}
-
-	if metadata.Expired {
-		return nil, fmt.Errorf("cannot get block for expired carve")
-	}
-
-	if blockId > metadata.MaxBlock {
-		return nil, fmt.Errorf("block %d not yet available", blockId)
-	}
-
-	data, err := svc.carveStore.GetBlock(ctx, metadata, blockId)
-	if err != nil {
-		return nil, errors.Wrapf(err, "get block %d", blockId)
-	}
-
-	return data, nil
 }

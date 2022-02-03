@@ -3,13 +3,12 @@ import classNames from "classnames";
 
 const baseClass = "info-banner";
 
-interface IInfoBannerProps {
+export interface IInfoBannerProps {
   children: React.ReactNode;
   className?: string;
 }
 
-const InfoBanner = (props: IInfoBannerProps): JSX.Element => {
-  const { children, className } = props;
+const InfoBanner = ({ children, className }: IInfoBannerProps): JSX.Element => {
   const wrapperClasses = classNames(baseClass, className);
 
   return <div className={wrapperClasses}>{children}</div>;

@@ -1,21 +1,10 @@
 import PATHS from "router/paths";
 import URL_PREFIX from "router/url_prefix";
 import permissionUtils from "utilities/permissions";
+import { getSortedTeamOptions } from "fleet/helpers";
 
 export default (currentUser) => {
-  const adminNavItems = [
-    {
-      icon: "settings",
-      name: "Settings",
-      iconName: "settings",
-      location: {
-        regex: new RegExp(`^${URL_PREFIX}/settings/`),
-        pathname: PATHS.ADMIN_SETTINGS,
-      },
-    },
-  ];
-
-  const userNavItems = [
+  const logo = [
     {
       icon: "logo",
       name: "Home",
@@ -25,6 +14,9 @@ export default (currentUser) => {
         pathname: PATHS.HOME,
       },
     },
+  ];
+
+  const userNavItems = [
     {
       icon: "hosts",
       name: "Hosts",
@@ -32,6 +24,15 @@ export default (currentUser) => {
       location: {
         regex: new RegExp(`^${URL_PREFIX}/hosts/`),
         pathname: PATHS.MANAGE_HOSTS,
+      },
+    },
+    {
+      icon: "software",
+      name: "Software",
+      iconName: "software",
+      location: {
+        regex: new RegExp(`^${URL_PREFIX}/software/`),
+        pathname: PATHS.MANAGE_SOFTWARE,
       },
     },
     {
@@ -69,8 +70,30 @@ export default (currentUser) => {
     },
   ];
 
-  if (permissionUtils.isGlobalAdmin(currentUser)) {
+  if (
+    permissionUtils.isAnyTeamAdmin(currentUser) ||
+    permissionUtils.isGlobalAdmin(currentUser)
+  ) {
+    const userAdminTeams = currentUser.teams.filter(
+      (thisTeam) => thisTeam.role === "admin"
+    );
+    const sortedTeams = getSortedTeamOptions(userAdminTeams);
+    const adminNavItems = [
+      {
+        icon: "settings",
+        name: "Settings",
+        iconName: "settings",
+        location: {
+          regex: new RegExp(`^${URL_PREFIX}/settings/`),
+          pathname:
+            currentUser.global_role === "admin"
+              ? PATHS.ADMIN_SETTINGS
+              : `${PATHS.ADMIN_TEAMS}/${sortedTeams[0].value}/members`,
+        },
+      },
+    ];
     return [
+      ...logo,
       ...userNavItems,
       ...teamMaintainerNavItems,
       ...policiesTab,
@@ -82,8 +105,16 @@ export default (currentUser) => {
     permissionUtils.isGlobalMaintainer(currentUser) ||
     permissionUtils.isAnyTeamMaintainer(currentUser)
   ) {
-    return [...userNavItems, ...teamMaintainerNavItems, ...policiesTab];
+    return [
+      ...logo,
+      ...userNavItems,
+      ...teamMaintainerNavItems,
+      ...policiesTab,
+    ];
   }
 
-  return [...userNavItems, ...policiesTab];
+  if (permissionUtils.isNoAccess(currentUser)) {
+    return [...logo];
+  }
+  return [...logo, ...userNavItems, ...policiesTab];
 };

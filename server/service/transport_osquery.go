@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/pkg/errors"
 )
 
 func decodeEnrollAgentRequest(ctx context.Context, r *http.Request) (interface{}, error) {
@@ -85,17 +85,17 @@ func decodeSubmitDistributedQueryResultsRequest(ctx context.Context, r *http.Req
 		case string:
 			sint, err := strconv.Atoi(s)
 			if err != nil {
-				return nil, errors.Wrap(err, "parse status to int")
+				return nil, ctxerr.Wrap(ctx, err, "parse status to int")
 			}
 			statuses[query] = fleet.OsqueryStatus(sint)
 		case float64:
 			statuses[query] = fleet.OsqueryStatus(s)
 		default:
-			return nil, errors.Errorf("query status should be string or number, got %T", s)
+			return nil, ctxerr.Errorf(ctx, "query status should be string or number, got %T", s)
 		}
 	}
 
-	req := submitDistributedQueryResultsRequest{
+	req := SubmitDistributedQueryResultsRequest{
 		NodeKey:  shim.NodeKey,
 		Results:  results,
 		Statuses: statuses,
@@ -111,14 +111,14 @@ func decodeSubmitLogsRequest(ctx context.Context, r *http.Request) (interface{},
 	if r.Header.Get("content-encoding") == "gzip" {
 		body, err = gzip.NewReader(body)
 		if err != nil {
-			return nil, errors.Wrap(err, "decoding gzip")
+			return nil, ctxerr.Wrap(ctx, err, "decoding gzip")
 		}
 		defer body.Close()
 	}
 
 	var req submitLogsRequest
 	if err = json.NewDecoder(body).Decode(&req); err != nil {
-		return nil, errors.Wrap(err, "decoding JSON")
+		return nil, ctxerr.Wrap(ctx, err, "decoding JSON")
 	}
 	defer r.Body.Close()
 

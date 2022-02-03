@@ -2,17 +2,15 @@ package service
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"html/template"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mail"
-	"github.com/kolide/kit/version"
-	"github.com/pkg/errors"
 )
 
 // mailError is set when an error performing mail operations
@@ -45,7 +43,7 @@ func (svc *Service) NewAppConfig(ctx context.Context, p fleet.AppConfig) (*fleet
 	// Set up a default enroll secret
 	secret, err := server.GenerateRandomText(fleet.EnrollSecretDefaultLength)
 	if err != nil {
-		return nil, errors.Wrap(err, "generate enroll secret string")
+		return nil, ctxerr.Wrap(ctx, err, "generate enroll secret string")
 	}
 	secrets := []*fleet.EnrollSecret{
 		{
@@ -54,18 +52,10 @@ func (svc *Service) NewAppConfig(ctx context.Context, p fleet.AppConfig) (*fleet
 	}
 	err = svc.ds.ApplyEnrollSecrets(ctx, nil, secrets)
 	if err != nil {
-		return nil, errors.Wrap(err, "save enroll secret")
+		return nil, ctxerr.Wrap(ctx, err, "save enroll secret")
 	}
 
 	return newConfig, nil
-}
-
-func (svc *Service) AppConfig(ctx context.Context) (*fleet.AppConfig, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionRead); err != nil {
-		return nil, err
-	}
-
-	return svc.ds.AppConfig(ctx)
 }
 
 func (svc *Service) sendTestEmail(ctx context.Context, config *fleet.AppConfig) error {
@@ -88,77 +78,10 @@ func (svc *Service) sendTestEmail(ctx context.Context, config *fleet.AppConfig) 
 		return mailError{message: err.Error()}
 	}
 	return nil
-
-}
-
-func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppConfig, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionWrite); err != nil {
-		return nil, err
-	}
-
-	appConfig, err := svc.AppConfig(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	// We apply the config that is incoming to the old one
-	err = json.Unmarshal(p, &appConfig)
-	if err != nil {
-		return nil, err
-	}
-
-	if appConfig.SMTPSettings.SMTPEnabled || appConfig.SMTPSettings.SMTPConfigured {
-		if err = svc.sendTestEmail(ctx, appConfig); err != nil {
-			return nil, err
-		}
-		appConfig.SMTPSettings.SMTPConfigured = true
-	} else if appConfig.SMTPSettings.SMTPEnabled {
-		appConfig.SMTPSettings.SMTPConfigured = false
-	}
-
-	if err := svc.ds.SaveAppConfig(ctx, appConfig); err != nil {
-		return nil, err
-	}
-	return appConfig, nil
 }
 
 func cleanupURL(url string) string {
 	return strings.TrimRight(strings.Trim(url, " \t\n"), "/")
-}
-
-func (svc *Service) ApplyEnrollSecretSpec(ctx context.Context, spec *fleet.EnrollSecretSpec) error {
-	if err := svc.authz.Authorize(ctx, &fleet.EnrollSecret{}, fleet.ActionWrite); err != nil {
-		return err
-	}
-
-	for _, s := range spec.Secrets {
-		if s.Secret == "" {
-			return errors.New("enroll secret must not be empty")
-		}
-	}
-
-	return svc.ds.ApplyEnrollSecrets(ctx, nil, spec.Secrets)
-}
-
-func (svc *Service) GetEnrollSecretSpec(ctx context.Context) (*fleet.EnrollSecretSpec, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.EnrollSecret{}, fleet.ActionRead); err != nil {
-		return nil, err
-	}
-
-	secrets, err := svc.ds.GetEnrollSecrets(ctx, nil)
-	if err != nil {
-		return nil, err
-	}
-	return &fleet.EnrollSecretSpec{Secrets: secrets}, nil
-}
-
-func (svc *Service) Version(ctx context.Context) (*version.Info, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionRead); err != nil {
-		return nil, err
-	}
-
-	info := version.Version()
-	return &info, nil
 }
 
 func (svc *Service) License(ctx context.Context) (*fleet.LicenseInfo, error) {
@@ -248,8 +171,16 @@ func (svc *Service) LoggingConfig(ctx context.Context) (*fleet.Logging, error) {
 		}
 	case "stdout":
 		logging.Status = fleet.LoggingPlugin{Plugin: "stdout"}
+	case "kafkarest":
+		logging.Status = fleet.LoggingPlugin{
+			Plugin: "kafkarest",
+			Config: fleet.KafkaRESTConfig{
+				StatusTopic: conf.KafkaREST.StatusTopic,
+				ProxyHost:   conf.KafkaREST.ProxyHost,
+			},
+		}
 	default:
-		return nil, errors.Errorf("unrecognized logging plugin: %s", conf.Osquery.StatusLogPlugin)
+		return nil, ctxerr.Errorf(ctx, "unrecognized logging plugin: %s", conf.Osquery.StatusLogPlugin)
 	}
 
 	switch conf.Osquery.ResultLogPlugin {
@@ -294,8 +225,16 @@ func (svc *Service) LoggingConfig(ctx context.Context) (*fleet.Logging, error) {
 		logging.Result = fleet.LoggingPlugin{
 			Plugin: "stdout",
 		}
+	case "kafkarest":
+		logging.Result = fleet.LoggingPlugin{
+			Plugin: "kafkarest",
+			Config: fleet.KafkaRESTConfig{
+				ResultTopic: conf.KafkaREST.ResultTopic,
+				ProxyHost:   conf.KafkaREST.ProxyHost,
+			},
+		}
 	default:
-		return nil, errors.Errorf("unrecognized logging plugin: %s", conf.Osquery.ResultLogPlugin)
+		return nil, ctxerr.Errorf(ctx, "unrecognized logging plugin: %s", conf.Osquery.ResultLogPlugin)
 
 	}
 	return logging, nil

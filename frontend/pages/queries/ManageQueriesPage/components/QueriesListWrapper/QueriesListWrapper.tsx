@@ -1,105 +1,85 @@
-import React, { useCallback, useEffect, useState } from "react";
-import { useSelector } from "react-redux";
+/* eslint-disable react/prop-types */
+import React, { useCallback, useContext, useState } from "react";
 
+import { AppContext } from "context/app";
 import { IQuery } from "interfaces/query";
-import { IUser } from "interfaces/user";
+import { ITableQueryData } from "components/TableContainer/TableContainer";
+
 import Button from "components/buttons/Button";
 import TableContainer from "components/TableContainer";
-
 import generateTableHeaders from "./QueriesTableConfig";
 
 const baseClass = "queries-list-wrapper";
 const noQueriesClass = "no-queries";
-
+interface IQueryTableData extends IQuery {
+  performance: string;
+  platforms: string[];
+}
 interface IQueriesListWrapperProps {
+  queriesList: IQueryTableData[] | null;
+  isLoading: boolean;
   onRemoveQueryClick: any;
-  onCreateQueryClick: any;
-  queriesList: IQuery[];
+  onCreateQueryClick: () => void;
+  searchable: boolean;
+  customControl?: () => JSX.Element;
+  selectedDropdownFilter: string;
+  isOnlyObserver?: boolean;
 }
 
-interface IRootState {
-  auth: {
-    user: IUser;
-  };
-  entities: {
-    queries: {
-      loading: boolean;
-      data: IQuery[];
-    };
-  };
-}
-
-const QueriesListWrapper = (
-  listProps: IQueriesListWrapperProps
-): JSX.Element | null => {
-  const { onRemoveQueryClick, onCreateQueryClick, queriesList } = listProps;
-
-  const loadingQueries = useSelector(
-    (state: IRootState) => state.entities.queries.loading
-  );
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  useEffect(() => {
-    setIsLoading(loadingQueries);
-  }, [loadingQueries]);
-
-  const currentUser = useSelector((state: IRootState) => state.auth.user);
-
-  const [filteredQueries, setFilteredQueries] = useState<IQuery[]>(queriesList);
+const QueriesListWrapper = ({
+  queriesList,
+  isLoading,
+  onRemoveQueryClick,
+  onCreateQueryClick,
+  searchable,
+  customControl,
+  selectedDropdownFilter,
+  isOnlyObserver,
+}: IQueriesListWrapperProps): JSX.Element | null => {
+  const { currentUser } = useContext(AppContext);
   const [searchString, setSearchString] = useState<string>("");
 
-  useEffect(() => {
-    setFilteredQueries(
-      !searchString
-        ? queriesList
-        : queriesList.filter((query) => {
-            return query.name
-              .toLowerCase()
-              .includes(searchString.toLowerCase());
-          })
-    );
-  }, [queriesList, searchString, setFilteredQueries]);
-
-  const onQueryChange = useCallback(
-    (queryData) => {
-      const { searchQuery } = queryData;
-      setSearchString(searchQuery);
-    },
-    [setSearchString]
-  );
+  const handleSearchChange = ({ searchQuery }: ITableQueryData) => {
+    setSearchString(searchQuery);
+  };
 
   const NoQueriesComponent = useCallback(() => {
     return (
       <div className={`${noQueriesClass}`}>
         <div className={`${noQueriesClass}__inner`}>
           <div className={`${noQueriesClass}__inner-text`}>
-            {!searchString ? (
-              <>
-                <h2>You don&apos;t have any queries.</h2>
-                <p>
-                  A query is a specific question you can ask about your devices.
-                </p>
-                <p>
-                  Create a new query, or go to GitHub to{" "}
-                  <a href="https://github.com/fleetdm/fleet/tree/main/docs/1-Using-Fleet/standard-query-library#importing-the-queries-in-fleet">
-                    import Fleet’s standard query library
-                  </a>
-                  .
-                </p>
-                <Button
-                  variant="brand"
-                  className={`${baseClass}__create-button`}
-                  onClick={onCreateQueryClick}
-                >
-                  Create new query
-                </Button>
-              </>
-            ) : (
+            {searchString ? (
               <>
                 <h2>No queries match the current search criteria.</h2>
                 <p>
                   Expecting to see queries? Try again in a few seconds as the
                   system catches up.
                 </p>
+              </>
+            ) : (
+              <>
+                <h2>You don&apos;t have any queries.</h2>
+                <p>
+                  A query is a specific question you can ask about your devices.
+                </p>
+                {!isOnlyObserver && (
+                  <>
+                    <p>
+                      Create a new query, or go to GitHub to{" "}
+                      <a href="https://fleetdm.com/docs/using-fleet/standard-query-library">
+                        import Fleet’s standard query library
+                      </a>
+                      .
+                    </p>
+                    <Button
+                      variant="brand"
+                      className={`${baseClass}__create-button`}
+                      onClick={onCreateQueryClick}
+                    >
+                      Create new query
+                    </Button>
+                  </>
+                )}
               </>
             )}
           </div>
@@ -108,28 +88,42 @@ const QueriesListWrapper = (
     );
   }, [searchString, onCreateQueryClick]);
 
-  const tableHeaders = generateTableHeaders(currentUser);
+  const tableHeaders = currentUser && generateTableHeaders(currentUser);
 
-  return !isLoading ? (
+  // Queries have not been created
+  if (!isLoading && queriesList?.length === 0) {
+    return (
+      <div className={`${baseClass}`}>
+        <NoQueriesComponent />
+      </div>
+    );
+  }
+
+  return tableHeaders && !isLoading ? (
     <div className={`${baseClass}`}>
       <TableContainer
         resultsTitle={"queries"}
         columns={tableHeaders}
-        data={filteredQueries}
+        data={queriesList}
         isLoading={isLoading}
-        defaultSortHeader={"query"}
+        defaultSortHeader={"updated_at"}
         defaultSortDirection={"desc"}
         showMarkAllPages={false}
         isAllPagesSelected={false}
-        onQueryChange={onQueryChange}
+        onQueryChange={handleSearchChange}
         inputPlaceHolder="Search by name"
-        searchable={queriesList.length > 0}
+        searchable={searchable}
         disablePagination
         onPrimarySelectActionClick={onRemoveQueryClick}
         primarySelectActionButtonVariant="text-icon"
         primarySelectActionButtonIcon="delete"
         primarySelectActionButtonText={"Delete"}
         emptyComponent={NoQueriesComponent}
+        customControl={customControl}
+        isClientSideFilter
+        searchQueryColumn="name"
+        selectedDropdownFilter={selectedDropdownFilter}
+        isClientSidePagination
       />
     </div>
   ) : null;

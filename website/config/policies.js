@@ -31,5 +31,6 @@ module.exports.policies = {
   'download-sitemap': true,
   'view-transparency': true,
   'view-press-kit': true,
+  'view-platform': true,
 
 };

@@ -10,6 +10,7 @@
 
     &--error {
       font-weight: $bold;
+      color: $core-vibrant-red;
     }
   }
 
@@ -27,5 +28,9 @@
       padding: $pad-xxsmall;
       font-family: "SourceCodePro", $monospace;
     }
+  }
+
+  &--checkbox {
+    margin-bottom: $pad-medium;
   }
 }

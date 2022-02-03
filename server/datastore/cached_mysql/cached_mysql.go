@@ -2,99 +2,132 @@ package cached_mysql
 
 import (
 	"context"
-	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	redigo "github.com/gomodule/redigo/redis"
-	"github.com/pkg/errors"
+	"github.com/patrickmn/go-cache"
 )
 
 type cachedMysql struct {
 	fleet.Datastore
 
-	redisPool fleet.RedisPool
+	c *cache.Cache
+
+	packsExp            time.Duration
+	scheduledQueriesExp time.Duration
 }
 
 const (
-	CacheKeyAppConfig = "cache:AppConfig"
+	appConfigKey                      = "AppConfig"
+	packsKey                          = "Packs"
+	scheduledQueriesKey               = "ScheduledQueries"
+	defaultAppConfigExpiration        = 1 * time.Second
+	defaultPacksExpiration            = 1 * time.Minute
+	defaultScheduledQueriesExpiration = 1 * time.Minute
 )
 
-func New(ds fleet.Datastore, redisPool fleet.RedisPool) fleet.Datastore {
-	return &cachedMysql{
-		Datastore: ds,
-		redisPool: redisPool,
+type Option func(*cachedMysql)
+
+func WithPacksExpiration(t time.Duration) Option {
+	return func(o *cachedMysql) {
+		o.packsExp = t
 	}
 }
 
-func (ds *cachedMysql) storeInRedis(key string, v interface{}) error {
-	conn := ds.redisPool.ConfigureDoer(ds.redisPool.Get())
-	defer conn.Close()
-
-	b, err := json.Marshal(v)
-	if err != nil {
-		return errors.Wrap(err, "marshaling object to cache in redis")
+func WithScheduledQueriesExpiration(t time.Duration) Option {
+	return func(o *cachedMysql) {
+		o.scheduledQueriesExp = t
 	}
-
-	if _, err := conn.Do("SET", key, b, "EX", (24 * time.Hour).Seconds()); err != nil {
-		return errors.Wrap(err, "caching object in redis")
-	}
-
-	return nil
 }
 
-func (ds *cachedMysql) getFromRedis(key string, v interface{}) error {
-	conn := ds.redisPool.ConfigureDoer(ds.redisPool.Get())
-	defer conn.Close()
-
-	data, err := redigo.Bytes(conn.Do("GET", key))
-	if err != nil {
-		return errors.Wrap(err, "getting value from cache")
+func New(ds fleet.Datastore, opts ...Option) fleet.Datastore {
+	c := &cachedMysql{
+		Datastore:           ds,
+		c:                   cache.New(5*time.Minute, 10*time.Minute),
+		packsExp:            defaultPacksExpiration,
+		scheduledQueriesExp: defaultScheduledQueriesExpiration,
 	}
-
-	err = json.Unmarshal(data, v)
-	if err != nil {
-		return errors.Wrap(err, "unmarshaling object from cache")
+	for _, fn := range opts {
+		fn(c)
 	}
-
-	return nil
+	return c
 }
 
 func (ds *cachedMysql) NewAppConfig(ctx context.Context, info *fleet.AppConfig) (*fleet.AppConfig, error) {
 	ac, err := ds.Datastore.NewAppConfig(ctx, info)
 	if err != nil {
-		return nil, errors.Wrap(err, "calling new app config")
+		return nil, err
 	}
 
-	err = ds.storeInRedis(CacheKeyAppConfig, ac)
+	ds.c.Set(appConfigKey, ac, defaultAppConfigExpiration)
 
-	return ac, err
+	return ac.Clone()
 }
 
 func (ds *cachedMysql) AppConfig(ctx context.Context) (*fleet.AppConfig, error) {
-	ac := &fleet.AppConfig{}
-	ac.ApplyDefaults()
-
-	err := ds.getFromRedis(CacheKeyAppConfig, ac)
-	if err == nil {
-		return ac, nil
+	cachedAc, found := ds.c.Get(appConfigKey)
+	if found {
+		return cachedAc.(*fleet.AppConfig).Clone()
 	}
 
-	ac, err = ds.Datastore.AppConfig(ctx)
+	ac, err := ds.Datastore.AppConfig(ctx)
 	if err != nil {
-		return nil, errors.Wrap(err, "calling app config")
+		return nil, err
 	}
 
-	err = ds.storeInRedis(CacheKeyAppConfig, ac)
+	ds.c.Set(appConfigKey, ac, defaultAppConfigExpiration)
 
-	return ac, err
+	return ac.Clone()
 }
 
 func (ds *cachedMysql) SaveAppConfig(ctx context.Context, info *fleet.AppConfig) error {
 	err := ds.Datastore.SaveAppConfig(ctx, info)
 	if err != nil {
-		return errors.Wrap(err, "calling save app config")
+		return err
 	}
 
-	return ds.storeInRedis(CacheKeyAppConfig, info)
+	ds.c.Set(appConfigKey, info, defaultAppConfigExpiration)
+
+	return nil
+}
+
+func (ds *cachedMysql) ListPacksForHost(ctx context.Context, hid uint) ([]*fleet.Pack, error) {
+	key := fmt.Sprintf("%s_%d", packsKey, hid)
+	cachedPacks, found := ds.c.Get(key)
+	if found && cachedPacks != nil {
+		casted, ok := cachedPacks.([]*fleet.Pack)
+		if ok {
+			return casted, nil
+		}
+	}
+
+	packs, err := ds.Datastore.ListPacksForHost(ctx, hid)
+	if err != nil {
+		return nil, err
+	}
+
+	ds.c.Set(key, packs, ds.packsExp)
+
+	return packs, nil
+}
+
+func (ds *cachedMysql) ListScheduledQueriesInPack(ctx context.Context, id uint) ([]*fleet.ScheduledQuery, error) {
+	key := fmt.Sprintf("%s_%d", scheduledQueriesKey, id)
+	cachedScheduledQueries, found := ds.c.Get(key)
+	if found && cachedScheduledQueries != nil {
+		casted, ok := cachedScheduledQueries.([]*fleet.ScheduledQuery)
+		if ok {
+			return casted, nil
+		}
+	}
+
+	scheduledQueries, err := ds.Datastore.ListScheduledQueriesInPack(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	ds.c.Set(key, scheduledQueries, ds.scheduledQueriesExp)
+
+	return scheduledQueries, nil
 }

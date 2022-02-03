@@ -1,0 +1,61 @@
+.autocomplete-dropdown {
+  .Select {
+    &.Select--multi {
+      .Select-option {
+        color: $core-fleet-black;
+        font-size: $x-small;
+        margin: $pad-small;
+        padding: $pad-small;
+        display: block;
+
+        &.is-focused {
+          background-color: $ui-vibrant-blue-25;
+
+          .Select-icon {
+            color: $ui-vibrant-blue-25;
+          }
+        }
+
+        &.is-disabled {
+          color: $ui-fleet-black-50;
+          font-style: italic;
+
+          .Select-icon {
+            visibility: hidden;
+            opacity: 0;
+          }
+        }
+      }
+    }
+
+    .Select-control {
+      .Select-value {
+        border: 1px solid $core-vibrant-blue;
+        background-color: $ui-vibrant-blue-10;
+
+        .Select-value-label {
+          font-weight: $bold;
+        }
+
+        .Select-value-icon {
+          &:after {
+            color: $core-fleet-black;
+          }
+        }
+      }
+      .Select-clear-zone {
+        transition: color 150ms ease-in-out;
+        content: url(../assets/images/icon-close-fleet-black-16x16@2x.png);
+        top: 1px;
+        left: -8px;
+
+        &:hover {
+          transition: color 150ms ease-in-out;
+          content: url(../assets/images/icon-close-vibrant-blue-16x16@2x.png);
+          top: 1px;
+          left: -8px;
+        }
+      }
+    }
+  }
+}

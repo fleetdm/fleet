@@ -38,7 +38,7 @@ func TestUnicode(t *testing.T) {
 	})
 	require.Nil(t, err)
 
-	host, err = ds.Host(context.Background(), host.ID)
+	host, err = ds.Host(context.Background(), host.ID, false)
 	require.Nil(t, err)
 	assert.Equal(t, "🍌", host.Hostname)
 

@@ -1,13 +1,10 @@
-import React, { useState, useEffect, useCallback, useContext } from "react";
+import React, { useState, useCallback, useContext } from "react";
 import { useQuery } from "react-query";
 import { Params } from "react-router/lib/Router";
 
-import { filter, includes } from "lodash";
 import { useDispatch } from "react-redux";
 import { push } from "react-router-redux";
 
-import { IHost } from "interfaces/host";
-import { ILabel } from "interfaces/label";
 import { IPack } from "interfaces/pack";
 import { IQuery } from "interfaces/query";
 import {
@@ -15,15 +12,11 @@ import {
   IScheduledQuery,
 } from "interfaces/scheduled_query";
 import { ITarget, ITargetsAPIResponse } from "interfaces/target";
-import { ITeam } from "interfaces/team";
 import { AppContext } from "context/app";
 
-import hostsAPI from "services/entities/hosts";
-import labelsAPI from "services/entities/labels";
 import packsAPI from "services/entities/packs";
 import queriesAPI from "services/entities/queries";
 import scheduledqueriesAPI from "services/entities/scheduled_queries";
-import teamsAPI from "services/entities/teams";
 
 // @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions";
@@ -36,22 +29,12 @@ import PackQueryEditorModal from "./components/PackQueryEditorModal";
 import RemovePackQueryModal from "./components/RemovePackQueryModal";
 
 interface IEditPacksPageProps {
+  router: any;
   params: Params;
 }
 
 interface IStoredFleetQueriesResponse {
   queries: IQuery[];
-}
-
-interface IStoredLabelsResponse {
-  labels: ILabel[];
-}
-interface IStoredHostsResponse {
-  hosts: IHost[];
-}
-
-interface IStoredTeamsResponse {
-  teams: ITeam[];
 }
 
 interface IStoredPackResponse {
@@ -71,6 +54,7 @@ interface IFormData {
 const baseClass = "edit-pack-page";
 
 const EditPacksPage = ({
+  router,
   params: { id: paramsPackId },
 }: IEditPacksPageProps): JSX.Element => {
   const { isPremiumTier } = useContext(AppContext);
@@ -86,29 +70,13 @@ const EditPacksPage = ({
     select: (data: IStoredFleetQueriesResponse) => data.queries,
   });
 
-  const { data: labels } = useQuery<IStoredLabelsResponse, Error, ILabel[]>(
-    ["labels"],
-    () => labelsAPI.loadAll(),
+  const { data: storedPack } = useQuery<IStoredPackResponse, Error, IPack>(
+    ["stored pack"],
+    () => packsAPI.load(packId),
     {
-      select: (data: IStoredLabelsResponse) => data.labels,
+      select: (data: IStoredPackResponse) => data.pack,
     }
   );
-
-  const { data: hosts } = useQuery<IStoredHostsResponse, Error, IHost[]>(
-    ["all hosts"],
-    () => hostsAPI.loadAll({ perPage: 30000 }),
-    {
-      select: (data: IStoredHostsResponse) => data.hosts,
-    }
-  );
-
-  const { data: storedPack, refetch: refetchStoredPack } = useQuery<
-    IStoredPackResponse,
-    Error,
-    IPack
-  >(["stored pack"], () => packsAPI.load(packId), {
-    select: (data: IStoredPackResponse) => data.pack,
-  });
 
   const {
     data: storedPackQueries,
@@ -135,57 +103,23 @@ const EditPacksPage = ({
   const [selectedPackQueryIds, setSelectedPackQueryIds] = useState<
     number[] | never[]
   >([]);
-  const [storedPackLabels, setStoredPackLabels] = useState<ILabel[]>([]);
-  const [storedPackHosts, setStoredPackHosts] = useState<IHost[]>([]);
-  const [storedPackTeams, setStoredPackTeams] = useState<ITeam[]>([]);
 
-  useEffect(() => {
-    if (labels && storedPack) {
-      const packLabels = filter(labels, (label) => {
-        return includes(storedPack.label_ids, label.id);
-      });
-      setStoredPackLabels(packLabels);
-    }
-  }, [labels, storedPack]);
-
-  useEffect(() => {
-    if (hosts && storedPack) {
-      const packHosts = filter(hosts, (host) => {
-        return includes(storedPack.host_ids, host.id);
-      });
-      setStoredPackHosts(packHosts);
-    }
-  }, [hosts, storedPack]);
-
-  const { data: teams } = useQuery<IStoredTeamsResponse, Error, ITeam[]>(
-    ["all teams"],
-    () => teamsAPI.loadAll(),
-    {
-      select: (data: IStoredTeamsResponse) => data.teams,
-    }
-  );
-
-  useEffect(() => {
-    if (teams && storedPack) {
-      const packTeams = filter(teams, (team) => {
-        return includes(storedPack.team_ids, team.id);
-      });
-      setStoredPackTeams(packTeams);
-    }
-  }, [teams, storedPack]);
-
-  const packTargets = [
-    ...storedPackHosts.map((host) => ({
-      ...host,
-      target_type: "hosts",
-    })),
-    ...storedPackLabels,
-    ...storedPackTeams.map((team) => ({
-      ...team,
-      target_type: "teams",
-      display_text: team.name,
-    })),
-  ];
+  const packTargets = storedPack
+    ? [
+        ...storedPack.hosts.map((host) => ({
+          ...host,
+          target_type: "hosts",
+        })),
+        ...storedPack.labels.map((label) => ({
+          ...label,
+          target_type: "labels",
+        })),
+        ...storedPack.teams.map((team) => ({
+          ...team,
+          target_type: "teams",
+        })),
+      ]
+    : [];
 
   const onCancelEditPack = () => {
     return dispatch(push(PATHS.MANAGE_PACKS));
@@ -225,14 +159,25 @@ const EditPacksPage = ({
     packsAPI
       .update(packId, updatedPack)
       .then(() => {
-        refetchStoredPack();
-        window.scrollTo(0, 0);
+        router.push(PATHS.MANAGE_PACKS);
         dispatch(renderFlash("success", `Successfully updated this pack.`));
       })
-      .catch(() => {
-        dispatch(
-          renderFlash("error", `Could not update pack. Please try again.`)
-        );
+      .catch((response) => {
+        if (
+          response.errors[0].reason.slice(0, 27) ===
+          "Error 1062: Duplicate entry"
+        ) {
+          dispatch(
+            renderFlash(
+              "error",
+              "Unable to update pack. Pack names must be unique."
+            )
+          );
+        } else {
+          dispatch(
+            renderFlash("error", `Could not update pack. Please try again.`)
+          );
+        }
       });
   };
 

@@ -18,18 +18,13 @@ interface IPacksListWrapperProps {
   onEnablePackClick: any;
   onDisablePackClick: any;
   onCreatePackClick: any;
-  packsList: IPack[];
+  packs?: IPack[];
+  isLoading: boolean;
 }
 
 interface IRootState {
   auth: {
     user: IUser;
-  };
-  entities: {
-    packs: {
-      isLoading: boolean;
-      data: IPack[];
-    };
   };
 }
 
@@ -38,29 +33,28 @@ const PacksListWrapper = ({
   onEnablePackClick,
   onDisablePackClick,
   onCreatePackClick,
-  packsList,
+  packs,
+  isLoading,
 }: IPacksListWrapperProps): JSX.Element => {
-  const loadingTableData = useSelector(
-    (state: IRootState) => state.entities.packs.isLoading
-  );
-
   const currentUser = useSelector((state: IRootState) => state.auth.user);
   const isOnlyObserver = permissionUtils.isOnlyObserver(currentUser);
 
-  const [filteredPacks, setFilteredPacks] = useState<IPack[]>(packsList);
+  const [filteredPacks, setFilteredPacks] = useState<IPack[] | undefined>(
+    packs
+  );
   const [searchString, setSearchString] = useState<string>("");
 
   useEffect(() => {
-    setFilteredPacks(packsList);
-  }, [packsList]);
+    setFilteredPacks(packs);
+  }, [packs]);
 
   useEffect(() => {
     setFilteredPacks(() => {
-      return packsList.filter((pack) => {
+      return packs?.filter((pack) => {
         return pack.name.toLowerCase().includes(searchString.toLowerCase());
       });
     });
-  }, [packsList, searchString, setFilteredPacks]);
+  }, [packs, searchString, setFilteredPacks]);
 
   const onQueryChange = useCallback(
     (queryData) => {
@@ -75,7 +69,15 @@ const PacksListWrapper = ({
       <div className={`${noPacksClass}`}>
         <div className={`${noPacksClass}__inner`}>
           <div className={`${noPacksClass}__inner-text`}>
-            {!searchString ? (
+            {searchString ? (
+              <>
+                <h2>No packs match the current search criteria.</h2>
+                <p>
+                  Expecting to see packs? Try again in a few seconds as the
+                  system catches up.
+                </p>
+              </>
+            ) : (
               <>
                 <h2>You don&apos;t have any packs</h2>
                 <p>
@@ -89,14 +91,6 @@ const PacksListWrapper = ({
                 >
                   Create new pack
                 </Button>
-              </>
-            ) : (
-              <>
-                <h2>No packs match the current search criteria.</h2>
-                <p>
-                  Expecting to see packs? Try again in a few seconds as the
-                  system catches up.
-                </p>
               </>
             )}
           </div>
@@ -129,14 +123,14 @@ const PacksListWrapper = ({
         resultsTitle={"packs"}
         columns={tableHeaders}
         data={generateDataSet(filteredPacks)}
-        isLoading={loadingTableData}
+        isLoading={isLoading}
         defaultSortHeader={"pack"}
         defaultSortDirection={"desc"}
         showMarkAllPages={false}
         isAllPagesSelected={false}
         onQueryChange={onQueryChange}
         inputPlaceHolder="Search by name"
-        searchable={packsList.length > 0}
+        searchable={packs && packs.length > 0}
         disablePagination
         onPrimarySelectActionClick={onRemovePackClick}
         primarySelectActionButtonVariant="text-icon"

@@ -2,13 +2,14 @@ package packaging
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"os"
 	"sync"
 
 	"github.com/fatih/color"
 	"github.com/mitchellh/gon/notarize"
 	"github.com/mitchellh/gon/staple"
-	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 )
 
@@ -36,13 +37,13 @@ func notarizePkg(pkgPath string) error {
 		},
 	)
 	if err != nil {
-		return errors.Wrap(err, "notarize")
+		return fmt.Errorf("notarize: %w", err)
 	}
 
 	log.Info().Str("logs", info.LogFileURL).Msg("notarization completed")
 
 	if err := staple.Staple(context.Background(), &staple.Options{File: pkgPath}); err != nil {
-		return errors.Wrap(err, "staple notarization")
+		return fmt.Errorf("staple notarization: %w", err)
 	}
 
 	return nil

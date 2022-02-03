@@ -1,0 +1,78 @@
+
+<div id="new-license" v-cloak>
+  <div style="max-width: 800px;" class="container-fluid pb-5 px-lg-0 px-3" v-if="!showSuccessMessage">
+    <h1>Welcome to Fleet Premium</h1>
+    <p class="pb-2">We just need a few details in order to get you a Fleet Premium license key.</p>
+    <div class="d-flex flex-row justify-content-between mx-auto">
+
+      <div purpose="customer-portal-form" class="order-first flex-grow-1">
+        <div class="card card-body">
+          <ajax-form action="createQuote" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="quoteFormRules" @submitted="submittedQuoteForm($event)">
+            <div class="d-flex flex-column flex-sm-row">
+              <div class="form-group flex-grow-1 col-12 col-sm-6 order-first px-0 mb-3 mb-sm-5">
+                <label for="numberOfHosts">Total number of devices</label>
+                <input class="form-control" min="1" purpose="quote-input" id="numberOfHosts" type="number" :class="[formErrors.numberOfHosts ? 'is-invalid' : formErrors.numberOfHosts < 1 ]" focus-first v-model.trim="formData.numberOfHosts" v-if="!numberOfHostsQuoted">
+                <div class="invalid-feedback" v-if="formErrors.numberOfHosts">Please enter a number of hosts</div>
+                <span style="position: relative; cursor: text; padding: 6px 16px 8px 16px;" class="form-control" @click="clickResetForm()" v-if="numberOfHostsQuoted">{{formData.numberOfHosts}}<span style="position: absolute; cursor: pointer; bottom: 10px; right: 16px;" class="text-muted fa fa-times-circle pl-2"></span></span>
+              </div>
+
+              <div style="color: #515774;" class="order-last text-left text-sm-right col-12 col-sm-6 pr-0 pl-sm-4 pl-0 pt-sm-4">
+                <p class="small">
+                  <strong class="pr-1" style="font-size: 18px; color: #192147">$1.00</strong>/month/device<br>(Billed annually at $12/device)
+                </p>
+              </div>
+
+            </div>
+            <cloud-error purpose="cloud-error" v-if="cloudError && !showBillingForm"></cloud-error>
+            <div class="mt-2 pt-3 pb-3 border-top d-flex flex-row" v-if="showQuotedPrice">
+              <div class="order-first">
+                <strong>Order total</strong>
+              </div>
+              <div class="ml-auto">
+                <strong>${{(!showQuotedPrice || _.isNaN(formData.numberOfHosts * 12)) ? quotedPrice : formData.numberOfHosts * 12}}.00 /year</strong>
+              </div>
+            </div>
+            <div  :class="[showBillingForm ? 'pt-2' : '' ]" v-if="!showBillingForm">
+              <ajax-button style="height: 40px;" purpose="submit-button" spinner="true" type="submit" :syncing="syncing" class="btn btn-block btn-lg btn-info" v-if="!numberOfHostsQuoted">Continue</ajax-button>
+              <ajax-button style="height: 40px;" spinner="true" purpose="submit-button" :syncing="syncing" class="btn btn-block btn-lg btn-info" @click="clickScheduleDemo" v-if=" showQuotedPrice && numberOfHostsQuoted > 100">Schedule a demo</ajax-button>
+              <ajax-button style="height: 40px;" spinner="true" purpose="submit-button" :syncing="syncing" class="btn btn-block btn-lg btn-info" v-if="showQuotedPrice && numberOfHostsQuoted <= 100">Continue</ajax-button>
+            </div>
+          </ajax-form>
+        </div>
+        <div class="card card-body mt-3" v-if="showBillingForm">
+          <h3 class="pb-3">Billing information</h3>
+          <ajax-form action="saveBillingInfoAndSubscribe" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="billingFormRules" @submitted="submittedPaymentForm()">
+            <div class="form-group">
+              <label for="card">Billing Card</label>
+              <stripe-card-element class="mb-3" id="card" :is-errored.sync="formErrors.paymentSource" :stripe-publishable-key="stripePublishableKey"
+              v-model="formData.paymentSource" key="billing-card" ref="paymentcardref"></stripe-card-element>
+            </div>
+            <cloud-error purpose="cloud-error" v-if="cloudError === 'couldNotSaveBillingInfo'">
+              <p>The billing card provided could not be used. Please use another card or <a href="/contact" target="_blank">contact support</a></p>
+            </cloud-error>
+            <cloud-error purpose="cloud-error" v-else-if="cloudError"></cloud-error>
+            <ajax-button style="height: 40px;" purpose="submit-button" spinner="true" :syncing="syncing" class="btn btn-block btn-lg btn-info mt-4">Get license key</ajax-button>
+          </ajax-form>
+        </div>
+      </div>
+
+      <div purpose="features-list" class="order-last d-none d-md-block">
+        <p><strong>Fleet Premium includes:</strong></p>
+        <ul>
+          <li><img alt="A checkmark" src="/images/check-16x16@2x.png">Everything in Fleet Free</li>
+          <li><img alt="A checkmark" src="/images/check-16x16@2x.png">Multiple teams (RBAC)</li>
+          <li><img alt="A checkmark" src="/images/check-16x16@2x.png">Self-hosted agent auto-updates</li>
+          <li><img alt="A checkmark" src="/images/check-16x16@2x.png">Enterprise support</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div style="max-width: 650px;" class="container-fluid pb-5 text-center" v-else>
+    <h1>Thank you, your order is complete.</h1>
+    <p class="mb-4 font-weight-bold">Welcome to your admin dashboard.</p>
+    <p>From here you can access your license key, change your details and update your payment method.</p>
+    <ajax-button style="height: 40px; font-size: 14px; line-height: 24px; width: 200px" type="submit" purpose="submit-button" :syncing="syncing" spinner="true" class="btn btn-block btn-lg btn-info mx-auto" @click="clickGoToDashboard()">Contine to dashboard</ajax-button>
+  </div>
+</div>
+<%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

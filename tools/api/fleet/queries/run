@@ -1,0 +1,15 @@
+#!/bin/bash
+source $FLEET_ENV_PATH
+endpoint="api/v1/fleet/queries/run"
+echo "By default, $endpoint will take 90 seconds..."
+jq -n \
+  --argjson query_ids "$1" \
+  --argjson host_ids "$2" \
+  '.query_ids = $query_ids
+  |.host_ids = $host_ids
+  '|\
+  curl $CURL_FLAGS --request GET \
+    --max-time 100 \
+    --header "Content-Type: application/json" \
+    -H "Authorization: Bearer $TOKEN" \
+    "$SERVER_URL/$endpoint" -d@-

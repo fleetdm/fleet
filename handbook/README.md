@@ -1,6 +1,8 @@
+# Welcome to Fleet
+
 ## Introduction
 
-The Fleet handbook is the central guide for how we run the company. As part of our value of being transparent, the handbook is open to the world. We welcome feedback, and contributions, so please make a merge request with suggested improvements throughout these pages.  
+The Fleet handbook is the central guide for how we run the company. As part of our value of being transparent, the handbook is open to the world. We welcome feedback, and contributions, so please click to edit to suggest improvements throughout these pages.  
 
 ### Company
 
@@ -8,49 +10,79 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [History](./company.md#history)
 
+[Values](./company.md#values)
+
 [Culture](./company.md#culture)
 
 ### People
+
+[Directly responsible individuals](./people.md#directly-resonsible-individuals)
 
 [Spending company money](./people.md#spending-company-money)
 
 [Meetings](./people.md#meetings)
 
+[People ops](./people.md#people-ops)
+
+### Engineering
+
+[Release process](./engineering.md#release-process)
+
 ### Product
 
-[Fleet EE](./product.md#fleet-ee)
+[Product design process](./product.md#product-design-process)
+
+[Product quality](./product.md#product-quality)
 
 [Fleet docs](./product.md#fleet-docs)
 
-[Manual QA](./product.md#manual-qa)
+[UI design](./product.md#ui-design)
 
-[Release process](./product.md#release-process)
+[Release](./product.md#release)
 
-[Support process](./product.md#release-process)
+[Feature flags](./product.md#feature-flags)
+
+### Security
+
+[How we protect end-user devices](./security.md#how-we-protect-end-user-devices)
 
 ### Growth
 
-[Promoting blog posts on social media](./growth.md#promoting-blog-posts-on-social-media)
+### Brand
 
-[Website](./growth.md#website)
+[Website](./brand.md#website)
 
-[Grammar guidelines](./growth.md#grammar-guidelines)
+[Communicating as Fleet](./brand.md#communicating-as-fleet)
 
-[Culture](./growth.md#culture)
+[Voice and grammar guidelines](./brand.md#voice-and-grammar-guidelines)
 
-### Customer first
+### Customers
 
-[Customer succcess](./customer-first.md#customer-success)
+[Customer succcess](./customers.md#customer-success)
 
-### About the handbook
+[Support process](./customers.md#support-process)
 
-#### Why bother?
-The Fleet handbook is inspired by (and heavily influenced by) the [GitLab team handbook](https://about.gitlab.com/handbook/about/).  It shares the same [advantages](https://about.gitlab.com/handbook/about/#advantages) and will probably undergo a similar [evolution](https://about.gitlab.com/handbook/ceo/#evolution-of-the-handbook).
+### Community
 
-#### Where's the rest of the handbook?
-While this handbook is inspired by [GitLab's handbook](https://about.gitlab.com/handbook/), it is nowhere near as complete (yet!)  We will continue to add and update information in this handbook, and gradually migrate information from [Fleet's shared Google Drive folder](https://drive.google.com/drive/u/0/folders/1StSOI3HNcsl9VleXxNWfUBT2co7h44OG) as time allows.
+[Communities](./community.md#communities)
+
+[Posting on social media as Fleet](./community.md#posting-on-social-media-as-fleet)
+
+[Promoting blog posts on social media](./community.md#promoting-blog-posts-on-social-media)
+
+[Press releases](./community.md#press-releases)
+
+[Community contributions (pull requests)](./community.md#community-contributions-pull-requests)
+
+### Handbook
+
+[About the handbook](./handbook.md#about-the-handbook)
+
+[Handbook style guide](./handbook.md#handbook-style-guide)
+
+[Contributing to the handbook](./handbook.md#contributing-to-the-handbook)
 
 
-<meta name="maintainedBy" value="mike-j-thomas">
+<meta name="maintainedBy" value="mikermcneil">
 
 

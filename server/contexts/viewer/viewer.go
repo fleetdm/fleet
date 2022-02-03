@@ -88,7 +88,7 @@ func (v Viewer) IsLoggedIn() bool {
 // perform the most basic actions on the site
 func (v Viewer) CanPerformActions() bool {
 	if v.User != nil {
-		return v.IsLoggedIn() && !v.User.AdminForcedPasswordReset
+		return v.IsLoggedIn() && !v.User.IsAdminForcedPasswordReset()
 	}
 	return false
 }
@@ -98,7 +98,7 @@ func (v Viewer) CanPerformActions() bool {
 // the admin).
 func (v Viewer) CanPerformPasswordReset() bool {
 	if v.User != nil {
-		return v.IsLoggedIn() && v.User.AdminForcedPasswordReset
+		return v.IsLoggedIn() && v.User.IsAdminForcedPasswordReset()
 	}
 	return false
 }

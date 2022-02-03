@@ -1,107 +1,127 @@
-// describe(
-//   "Policies flow",
-//   {
-//     defaultCommandTimeout: 20000,
-//   },
-//   () => {
-//     beforeEach(() => {
-//       cy.setup();
-//       cy.login();
-//       cy.seedQueries();
-//     });
-//     it("Can create, check, and delete a policy successfully", () => {
-//       cy.intercept({
-//         method: "GET",
-//         url: "/api/v1/fleet/global/policies",
-//       }).as("getPolicies");
-//       cy.intercept({
-//         method: "GET",
-//         url: "/api/v1/fleet/config",
-//       }).as("getConfig");
+describe("Policies flow (empty)", () => {
+  before(() => {
+    Cypress.session.clearAllSavedSessions();
+    cy.setup();
+    cy.loginWithCySession();
+    cy.viewport(1200, 660);
+  });
+  after(() => {
+    cy.logout();
+  });
 
-//       cy.visit("/policies/manage");
+  describe("Manage policies page", () => {
+    beforeEach(() => {
+      cy.loginWithCySession();
+      cy.visit("/policies/manage");
+    });
+    it("creates a custom policy", () => {
+      cy.getAttached(".manage-policies-page__header-wrap").within(() => {
+        cy.findByText(/add a policy/i).click();
+      });
+      cy.findByText(/create your own policy/i).click();
+      cy.getAttached(".ace_scroller")
+        .click({ force: true })
+        .type(
+          "{selectall}SELECT 1 FROM users WHERE username = 'backup' LIMIT 1;"
+        );
+      cy.findByRole("button", { name: /save policy/i }).click();
+      cy.getAttached(".policy-form__policy-save-modal-name")
+        .click()
+        .type("Does the device have a user named 'backup'?");
+      cy.getAttached(".policy-form__policy-save-modal-description")
+        .click()
+        .type("Returns yes or no for having a user named 'backup'");
+      cy.getAttached(".policy-form__policy-save-modal-resolution")
+        .click()
+        .type("Create a user named 'backup'");
+      cy.findByRole("button", { name: /^Save$/ }).click();
+      cy.findByText(/policy created/i).should("exist");
+    });
+    it("creates a default policy", () => {
+      cy.getAttached(".manage-policies-page__header-wrap").within(() => {
+        cy.findByText(/add a policy/i).click();
+      });
+      cy.findByText(/gatekeeper enabled/i).click();
+      cy.findByRole("button", { name: /save policy/i }).click();
+      cy.findByRole("button", { name: /^Save$/ }).click();
 
-//       // wait for state of policy table to settle otherwise re-renders cause elements to detach and tests will fail
-//       cy.wait("@getPolicies");
-//       cy.wait("@getConfig");
+      cy.findByText(/policy created/i).should("exist");
+    });
+  });
+});
 
-//       cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
+describe("Policies flow (seeded)", () => {
+  before(() => {
+    Cypress.session.clearAllSavedSessions();
+    cy.setup();
+    cy.loginWithCySession();
+    cy.seedPolicies();
+    cy.viewport(1200, 660);
+  });
+  after(() => {
+    cy.logout();
+  });
 
-//       // Add a policy
-//       cy.get(".no-policies__inner")
-//         .findByText(/add a policy/i)
-//         .should("exist")
-//         .click();
-//       cy.get(".add-policy-modal").within(() => {
-//         cy.findByText(/select query/i)
-//           .should("exist")
-//           .click();
-//         cy.findByText(
-//           /Detect Linux hosts with high severity vulnerable versions of OpenSSL/i
-//         ).click();
-//         cy.findByRole("button", { name: /cancel/i }).should("exist");
-//         cy.findByRole("button", { name: /add/i }).should("exist").click();
-//       });
+  describe("Manage policies page", () => {
+    beforeEach(() => {
+      cy.loginWithCySession();
+      cy.visit("/policies/manage");
+    });
+    it("links to manage host page filtered by policy", () => {
+      cy.getAttached(".failing_host_count__cell")
+        .first()
+        .within(() => {
+          cy.getAttached(".button--text-link").click();
+        });
+      // confirm policy functionality on manage host page
+      cy.getAttached(".manage-hosts__policies-filter-block").within(() => {
+        cy.findByText(/filevault enabled/i).should("exist");
+        cy.findByText(/no/i).should("exist").click();
+        cy.findByText(/yes/i).should("exist");
+        cy.get('img[alt="Remove policy filter"]').click();
+        cy.findByText(/filevault enabled'/i).should("not.exist");
+      });
+    });
+    it("edits an existing policy", () => {
+      cy.getAttached(".name__cell .button--text-link").last().click();
+      cy.getAttached(".ace_scroller")
+        .click({ force: true })
+        .type(
+          "{selectall}SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;"
+        );
+      cy.getAttached(".policy-form__save").click();
+      cy.findByText(/policy updated/i).should("exist");
+    });
 
-//       // Confirm that policy was added successfully
-//       cy.findByText(/successfully added policy/i).should("exist");
-//       cy.findByText(/select query/i).should("not.exist");
-//       cy.get(".policies-list-wrapper").within(() => {
-//         cy.findByText(/1 query/i).should("exist");
-//         cy.findByText(/passing/i).should("exist");
-//         cy.findByText(
-//           /Detect Linux hosts with high severity vulnerable versions of OpenSSL/i
-//         ).should("exist");
-
-//         // Click on link in table and confirm that policies filter block diplays as expected on manage hosts page
-//         cy.get("tbody").within(() => {
-//           cy.get("tr")
-//             .first()
-//             .within(() => {
-//               cy.get("td").last().children().first().should("exist").click();
-//             });
-//         });
-//       });
-//       cy.get(".manage-hosts__policies-filter-block").within(() => {
-//         cy.findByText(
-//           /Detect Linux hosts with high severity vulnerable versions of OpenSSL/i
-//         ).should("exist");
-//         cy.findByText(/passing/i).should("not.exist");
-//         cy.findByText(/failing/i)
-//           .should("exist")
-//           .click();
-//         cy.findByText(/passing/i).should("exist");
-//         cy.get('img[alt="Remove policy filter"]').click();
-//         cy.findByText(
-//           /Detect Linux hosts with high severity vulnerable versions of OpenSSL/i
-//         ).should("not.exist");
-//       });
-
-//       // Click on policies tab to return to manage policies page
-//       cy.get(".site-nav-container").within(() => {
-//         cy.findByText(/policies/i)
-//           .should("exist")
-//           .click();
-//       });
-
-//       // Delete policy
-//       cy.get("tbody").within(() => {
-//         cy.get("tr")
-//           .first()
-//           .within(() => {
-//             cy.get(".fleet-checkbox__input").check({ force: true });
-//           });
-//       });
-//       cy.findByRole("button", { name: /remove/i }).click();
-//       cy.get(".remove-policies-modal").within(() => {
-//         cy.findByRole("button", { name: /cancel/i }).should("exist");
-//         cy.findByRole("button", { name: /remove/i })
-//           .should("exist")
-//           .click();
-//       });
-//       cy.findByText(
-//         /Detect Linux hosts with high severity vulnerable versions of OpenSSL/i
-//       ).should("not.exist");
-//     });
-//   }
-// );
+    it("deletes an existing policy", () => {
+      cy.getAttached("tbody").within(() => {
+        cy.getAttached("tr")
+          .first()
+          .within(() => {
+            cy.getAttached(".fleet-checkbox__input").check({ force: true });
+          });
+      });
+      cy.findByRole("button", { name: /delete/i }).click();
+      cy.getAttached(".remove-policies-modal").within(() => {
+        cy.findByRole("button", { name: /cancel/i }).should("exist");
+        cy.findByRole("button", { name: /delete/i }).click();
+      });
+      cy.findByText(/removed policy/i).should("exist");
+      cy.findByText(/backup/i).should("not.exist");
+    });
+    it("creates a failing policies webhook", () => {
+      cy.findByRole("button", { name: /manage automations/i }).click();
+      cy.getAttached(".manage-automations-modal").within(() => {
+        cy.getAttached(".fleet-checkbox__input").check({ force: true });
+      });
+      cy.getAttached("#webhook-url").click().type("www.foo.com/bar");
+      cy.findByRole("button", { name: /^Save$/ }).click();
+      // Confirm failing policies webhook was added successfully
+      cy.findByText(/updated policy automations/i).should("exist");
+      cy.findByRole("button", { name: /manage automations/i }).click();
+      cy.getAttached(".manage-automations-modal").within(() => {
+        cy.getAttached(".fleet-checkbox__input").should("be.checked");
+      });
+    });
+  });
+});

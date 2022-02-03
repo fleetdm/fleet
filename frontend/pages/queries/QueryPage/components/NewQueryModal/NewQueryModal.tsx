@@ -7,7 +7,7 @@ import { useDeepEffect } from "utilities/hooks";
 import Checkbox from "components/forms/fields/Checkbox"; // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
-import Modal from "components/modals/Modal";
+import Modal from "components/Modal";
 
 export interface INewQueryModalProps {
   baseClass: string;
@@ -44,7 +44,7 @@ const NewQueryModal = ({
     }
   }, [name]);
 
-  const handleUpdate = (evt: React.MouseEvent<HTMLButtonElement>) => {
+  const handleUpdate = (evt: React.MouseEvent<HTMLFormElement>) => {
     evt.preventDefault();
 
     const { valid, errors: newErrors } = validateQueryName(name);
@@ -67,7 +67,11 @@ const NewQueryModal = ({
 
   return (
     <Modal title={"Save query"} onExit={() => setIsSaveModalOpen(false)}>
-      <form className={`${baseClass}__save-modal-form`}>
+      <form
+        onSubmit={handleUpdate}
+        className={`${baseClass}__save-modal-form`}
+        autoComplete="off"
+      >
         <InputField
           name="name"
           onChange={(value: string) => setName(value)}
@@ -109,12 +113,7 @@ const NewQueryModal = ({
           >
             Cancel
           </Button>
-          <Button
-            className={`${baseClass}__btn`}
-            type="button"
-            variant="brand"
-            onClick={handleUpdate}
-          >
+          <Button className={`${baseClass}__btn`} type="submit" variant="brand">
             Save query
           </Button>
         </div>

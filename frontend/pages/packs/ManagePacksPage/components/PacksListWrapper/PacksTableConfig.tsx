@@ -3,8 +3,7 @@
 // definitions for the selection row for some reason when we dont really need it.
 import React from "react";
 
-import moment from "moment";
-import { capitalize } from "lodash";
+import format from "date-fns/format";
 
 // @ts-ignore
 import Checkbox from "components/forms/fields/Checkbox";
@@ -48,12 +47,12 @@ interface IDataColumn {
 }
 
 interface IPackTableData {
-  id: number;
-  name: string;
-  query_count: number;
-  status: string;
-  total_hosts_count: number;
-  updated_at: string;
+  id?: number;
+  name?: string;
+  query_count?: number;
+  status?: string;
+  total_hosts_count?: number;
+  updated_at?: string;
 }
 
 // NOTE: cellProps come from react-table
@@ -140,27 +139,30 @@ const generateTableHeaders = (isOnlyObserver = true): IDataColumn[] => {
       ),
       accessor: "updated_at",
       Cell: (cellProps: ICellProps): JSX.Element => (
-        <TextCell value={moment(cellProps.cell.value).format("MM/DD/YY")} />
+        <TextCell value={format(new Date(cellProps.cell.value), "MM/dd/yy")} />
       ),
     },
   ];
   return tableHeaders;
 };
 
-const enhancePackData = (packs: IPack[]): IPackTableData[] => {
-  return packs.map((pack: IPack) => {
-    return {
-      id: pack.id,
-      name: pack.name,
-      query_count: pack.query_count,
-      status: pack.disabled ? "disabled" : "enabled",
-      total_hosts_count: pack.total_hosts_count,
-      updated_at: pack.updated_at,
-    };
-  });
+const enhancePackData = (packs: IPack[] | undefined): IPackTableData[] => {
+  if (packs) {
+    return packs.map((pack: IPack) => {
+      return {
+        id: pack.id,
+        name: pack.name,
+        query_count: pack.query_count,
+        status: pack.disabled ? "disabled" : "enabled",
+        total_hosts_count: pack.total_hosts_count,
+        updated_at: pack.updated_at,
+      };
+    });
+  }
+  return [];
 };
 
-const generateDataSet = (packs: IPack[]): IPackTableData[] => {
+const generateDataSet = (packs: IPack[] | undefined): IPackTableData[] => {
   return [...enhancePackData(packs)];
 };
 

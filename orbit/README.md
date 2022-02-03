@@ -8,12 +8,12 @@ Orbit is the recommended agent for Fleet. But Orbit can be used with or without 
 
 ## Try Orbit
 
-#### With [`fleetctl preview` already running](https://github.com/fleetdm/fleet#try-fleet) and [Go](https://golang.org/doc/install) 1.16 installed:
+#### With [`fleetctl preview` already running](https://github.com/fleetdm/fleet#try-fleet):
 
 ```bash
-# From within the orbit/ directory in this repo…
+# With fleetctl in your $PATH
 # Generate a macOS installer pointed at your local Fleet
-go run ./cmd/package --type=pkg --fleet-url=localhost:8412 --insecure --enroll-secret=YOUR_FLEET_ENROLL_SECRET_HERE
+fleetctl package --type=pkg --fleet-url=localhost:8412 --insecure --enroll-secret=YOUR_FLEET_ENROLL_SECRET_HERE
 ```
 
 > With fleetctl preview running, you can find your Fleet enroll secret by selecting the "Add new host" button on the Hosts page in the Fleet UI.
@@ -117,7 +117,7 @@ Building Windows packages requires Docker to be installed.
 
 ### Building packages
 
-Use `go run ./cmd/package` from this directory to run the packaging tools.
+Use `fleetctl package` to run the packaging tools.
 
 The only required parameter is `--type`, use one of `deb`, `rpm`, `pkg`, or `msi`.
 
@@ -126,14 +126,14 @@ Configure osquery to connect to a Fleet (or other TLS) server with the `--fleet-
 A minimal invocation for communicating with Fleet:
 
 ```sh
-go run ./cmd/package --type deb --fleet-url=fleet.example.com --enroll-secret=notsosecret
+fleetctl package --type deb --fleet-url=fleet.example.com --enroll-secret=notsosecret
 ```
 
 This will build a `.deb` package configured to communicate with a Fleet server at `fleet.example.com` using the enroll secret `notsosecret`.
 
 When the Fleet server uses a self-signed (or otherwise invalid) TLS certificate, package with the `--insecure` or `--fleet-certificate` options.
 
-See `go run ./cmd/package` for the full range of packaging options.
+See `fleetctl package` for the full range of packaging options.
 
 #### Update channels
 
@@ -160,12 +160,52 @@ For Notarization, valid App Store Connect credentials must be available on the b
 Build a signed and notarized macOS package with an invocation like the following:
 
 ```sh
-AC_USERNAME=zach@example.com AC_PASSWORD=llpk-sije-kjlz-jdzw go run ./cmd/package --type=pkg --fleet-url=fleet.example.com --enroll-secret=63SBzTT+2UyW --sign-identity 3D7260BF99539C6E80A94835A8921A988F4E6498 --notarize
+AC_USERNAME=zach@example.com AC_PASSWORD=llpk-sije-kjlz-jdzw fleetctl package --type=pkg --fleet-url=fleet.example.com --enroll-secret=63SBzTT+2UyW --sign-identity 3D7260BF99539C6E80A94835A8921A988F4E6498 --notarize
 ```
 
 This process may take several minutes to complete as the Notarization process completes on Apple's servers.
 
 After successful notarization, the generated "ticket" is automatically stapled to the package.
+
+#### Orbit Development
+
+For ease of development of Orbit, `fleetctl package` allows the generation of a package with a
+custom orbit executable using the `FLEETCTL_ORBIT_DEV_BUILD_PATH` environment variable:
+```sh
+FLEETCTL_ORBIT_DEV_BUILD_PATH=$(pwd)/orbit.exe ./build/fleetctl package --type=msi --fleet-url=https://localhost:8080 --enroll-secret=the_secret_value
+Generating your osquery installer...
+2022/01/03 20:31:10 root pinning is not supported in Spec 1.0.19
+WARNING: You are attempting to override orbit with a dev build.
+Press Enter to continue, or Control-c to exit.
+[...]
+```
+
+### Troubleshooting
+
+#### Logs
+
+Orbit captures and streams osqueryd's stdout/stderr into its own stdout/stderr output.
+Following are the destination of logs for each platform (to access such locations the user will need administrative permissions on the host):
+- Linux: Orbit and osqueryd stdout/stderr output is sent to syslog (`/var/log/syslog` on Debian systems and `/var/log/messages` on CentOS).
+- macOS: `/private/var/log/orbit/orbit.std{out|err}.log`.
+- Windows: `C:\Windows\system32\config\systemprofile\AppData\Local\FleetDM\Orbit\Logs\orbit-osquery.lg` (the log file is rotated).
+
+#### Debug
+
+You can use the `--debug` option in `fleetctl package` to generate installers in "debug mode". Such mode increases the verbosity of logging for orbit and osqueryd (log DEBUG level).
+
+### Uninstall
+#### Windows
+
+Use the "Add or remove programs" dialog to remove Orbit.
+
+#### Linux
+
+Run the [cleanup script](./tools/cleanup/cleanup_linux.sh).
+
+#### macOS
+
+Run the [cleanup script](./tools/cleanup/cleanup_macos.sh).
 
 ## FAQs
 

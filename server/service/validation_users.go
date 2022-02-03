@@ -5,6 +5,7 @@ import (
 	"errors"
 	"unicode"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
@@ -50,7 +51,7 @@ func (mw validationMiddleware) CreateUserFromInvite(ctx context.Context, p fleet
 	}
 
 	if invalid.HasErrors() {
-		return nil, invalid
+		return nil, ctxerr.Wrap(ctx, invalid)
 	}
 	return mw.Service.CreateUserFromInvite(ctx, p)
 }
@@ -94,7 +95,7 @@ func (mw validationMiddleware) CreateUser(ctx context.Context, p fleet.UserPaylo
 	}
 
 	if invalid.HasErrors() {
-		return nil, invalid
+		return nil, ctxerr.Wrap(ctx, invalid)
 	}
 	return mw.Service.CreateUser(ctx, p)
 }
@@ -121,7 +122,7 @@ func (mw validationMiddleware) ModifyUser(ctx context.Context, userID uint, p fl
 	}
 
 	if invalid.HasErrors() {
-		return nil, invalid
+		return nil, ctxerr.Wrap(ctx, invalid)
 	}
 	return mw.Service.ModifyUser(ctx, userID, p)
 }
@@ -150,7 +151,7 @@ func (mw validationMiddleware) ChangePassword(ctx context.Context, oldPass, newP
 	}
 
 	if invalid.HasErrors() {
-		return invalid
+		return ctxerr.Wrap(ctx, invalid)
 	}
 	return mw.Service.ChangePassword(ctx, oldPass, newPass)
 }
@@ -167,7 +168,7 @@ func (mw validationMiddleware) ResetPassword(ctx context.Context, token, passwor
 		invalid.Append("new_password", err.Error())
 	}
 	if invalid.HasErrors() {
-		return invalid
+		return ctxerr.Wrap(ctx, invalid)
 	}
 	return mw.Service.ResetPassword(ctx, token, password)
 }

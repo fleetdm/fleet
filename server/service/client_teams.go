@@ -23,3 +23,12 @@ func (c *Client) ApplyTeams(specs []*fleet.TeamSpec) error {
 	var responseBody applyTeamSpecsResponse
 	return c.authenticatedRequest(req, verb, path, &responseBody)
 }
+
+// ApplyPolicies sends the list of Policies to be applied to the
+// Fleet instance.
+func (c *Client) ApplyPolicies(specs []*fleet.PolicySpec) error {
+	req := applyPolicySpecsRequest{Specs: specs}
+	verb, path := "POST", "/api/v1/fleet/spec/policies"
+	var responseBody applyPolicySpecsResponse
+	return c.authenticatedRequest(req, verb, path, &responseBody)
+}

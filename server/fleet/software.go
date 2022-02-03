@@ -1,5 +1,7 @@
 package fleet
 
+import "time"
+
 type SoftwareCVE struct {
 	CVE         string `json:"cve" db:"cve"`
 	DetailsLink string `json:"details_link" db:"details_link"`
@@ -21,6 +23,12 @@ type Software struct {
 	GenerateCPE string `json:"generated_cpe" db:"generated_cpe"`
 	// Vulnerabilities lists all the found CVEs for the CPE
 	Vulnerabilities VulnerabilitiesSlice `json:"vulnerabilities"`
+	// HostsCount indicates the number of hosts with that software, filled only
+	// if explicitly requested.
+	HostsCount int `json:"hosts_count,omitempty" db:"hosts_count"`
+	// CountsUpdatedAt is the timestamp when the hosts count was last updated
+	// for that software, filled only if hosts count is requested.
+	CountsUpdatedAt time.Time `json:"-" db:"counts_updated_at"`
 }
 
 func (Software) AuthzType() string {
@@ -45,4 +53,18 @@ type SoftwareIterator interface {
 	Value() (*Software, error)
 	Err() error
 	Close() error
+}
+
+type SoftwareListOptions struct {
+	ListOptions
+
+	TeamID         *uint `query:"team_id,optional"`
+	VulnerableOnly bool  `query:"vulnerable,optional"`
+
+	SkipLoadingCVEs bool
+
+	// WithHostCounts indicates that the list of software should include the
+	// counts of hosts per software, and include only those software that have
+	// a count of hosts > 0.
+	WithHostCounts bool
 }

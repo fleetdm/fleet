@@ -48,6 +48,12 @@ type Team struct {
 	Secrets []*EnrollSecret `json:"secrets,omitempty"`
 }
 
+type TeamSummary struct {
+	ID          uint   `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+}
+
 func (t Team) AuthzType() string {
 	return "team"
 }
@@ -61,6 +67,7 @@ type TeamUser struct {
 }
 
 var teamRoles = map[string]bool{
+	RoleAdmin:      true,
 	RoleObserver:   true,
 	RoleMaintainer: true,
 }
@@ -132,6 +139,10 @@ type TeamFilter struct {
 	User *User
 	// IncludeObserver determines whether to include teams the user is an observer on.
 	IncludeObserver bool
+	// TeamID is the specific team id to filter by. If other criteria are
+	// specified, they must met too (e.g. if a User is provided, that team ID
+	// must be part of their teams).
+	TeamID *uint
 }
 
 const (

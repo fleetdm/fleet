@@ -41,30 +41,32 @@ export class PackComposerPage extends Component {
     return false;
   };
 
-  visitPackPage = (packID) => {
-    const { dispatch } = this.props;
-
-    dispatch(push(PATHS.PACK({ id: packID })));
-
-    return false;
-  };
-
   handleSubmit = (formData) => {
     const { create } = packActions;
     const { dispatch } = this.props;
-    const { visitPackPage } = this;
 
     return dispatch(create(formData))
       .then((pack) => {
         const { id: packID } = pack;
-
-        return visitPackPage(packID);
+        dispatch(push(PATHS.PACK(packID)));
+        dispatch(
+          renderFlash(
+            "success",
+            "Pack successfully created. Add queries to your pack."
+          )
+        );
       })
-      .then(() => {
-        dispatch(renderFlash("success", `Pack successfully created.`));
-      })
-      .catch(() => {
-        dispatch(renderFlash("error", "Unable to create pack."));
+      .catch((response) => {
+        if (response.base.slice(0, 27) === "Error 1062: Duplicate entry") {
+          dispatch(
+            renderFlash(
+              "error",
+              "Unable to create pack. Pack names must be unique."
+            )
+          );
+        } else {
+          dispatch(renderFlash("error", "Unable to create pack."));
+        }
       });
   };
 

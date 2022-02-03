@@ -1,12 +1,13 @@
 package service
 
 import (
+	"fmt"
+
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	kitlog "github.com/go-kit/kit/log"
-	"github.com/pkg/errors"
 )
 
 type Service struct {
@@ -32,7 +33,7 @@ func NewService(
 
 	authorizer, err := authz.NewAuthorizer()
 	if err != nil {
-		return nil, errors.Wrap(err, "new authorizer")
+		return nil, fmt.Errorf("new authorizer: %w", err)
 	}
 
 	return &Service{

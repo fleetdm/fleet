@@ -77,6 +77,11 @@ module.exports = {
       var headingRenderer = new marked.Renderer();
       var headingsRenderedOnThisPage = [];
       headingRenderer.heading = function (text, level) {
+        // If the heading has underscores and no spaces (e.g. osquery_async_host_collect_log_stats_interval) we'll add optional linebreaks before each underscore
+        var textWithLineBreaks;
+        if(text.match(/\S(\w+\_\S)+(\w\S)+/g) && !text.match(/\s/g)){
+          textWithLineBreaks = text.replace(/(\_)/g, '&#8203;_');
+        }
         var headingID = _.kebabCase(_.unescape(text).replace(/[\’\']/g, ''));
         if(!_.contains(headingsRenderedOnThisPage, headingID)){
           headingsRenderedOnThisPage.push(headingID);
@@ -84,7 +89,7 @@ module.exports = {
           headingID = sails.helpers.strings.ensureUniq(headingID, headingsRenderedOnThisPage);
           headingsRenderedOnThisPage.push(headingID);
         }
-        return '<h'+level+' class="markdown-heading" id="'+headingID+'">'+text+'<a href="#'+headingID+'" class="markdown-link"></a></h'+level+'>\n';
+        return '<h'+level+' class="markdown-heading" id="'+headingID+'">'+(textWithLineBreaks ? textWithLineBreaks : text)+'<a href="#'+headingID+'" class="markdown-link"></a></h'+level+'>\n';
       };
       markedOpts.renderer = headingRenderer;
     } else  {

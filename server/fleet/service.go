@@ -3,6 +3,7 @@ package fleet
 import (
 	"context"
 	"encoding/json"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/websocket"
 	"github.com/kolide/kit/version"
@@ -12,10 +13,18 @@ type OsqueryService interface {
 	EnrollAgent(
 		ctx context.Context, enrollSecret, hostIdentifier string, hostDetails map[string](map[string]string),
 	) (nodeKey string, err error)
+	// AuthenticateHost loads host identified by nodeKey. Returns an error if the nodeKey doesn't exist.
 	AuthenticateHost(ctx context.Context, nodeKey string) (host *Host, debug bool, err error)
 	GetClientConfig(ctx context.Context) (config map[string]interface{}, err error)
-	// GetDistributedQueries retrieves the distributed queries to run for the host in the provided context. These may be
-	// detail queries, label queries, or user-initiated distributed queries. A map from query name to query is returned.
+	// GetDistributedQueries retrieves the distributed queries to run for the host in
+	// the provided context. These may be (depending on update intervals):
+	//	- detail queries (including additional queries, if any),
+	//	- label queries,
+	//	- user-initiated distributed queries (aka live queries),
+	//	- policy queries.
+	//
+	// A map from query name to query is returned.
+	//
 	// To enable the osquery "accelerated checkins" feature, a positive integer (number of seconds to activate for)
 	// should be returned. Returning 0 for this will not activate the feature.
 	GetDistributedQueries(ctx context.Context) (queries map[string]string, accelerate uint, err error)
@@ -168,9 +177,6 @@ type Service interface {
 	// ListHostsInLabel returns a slice of hosts in the label with the given ID.
 	ListHostsInLabel(ctx context.Context, lid uint, opt HostListOptions) ([]*Host, error)
 
-	// ListLabelsForHost returns the labels that the given host is in.
-	ListLabelsForHost(ctx context.Context, hid uint) ([]*Label, error)
-
 	///////////////////////////////////////////////////////////////////////////////
 	// QueryService
 
@@ -214,19 +220,23 @@ type Service interface {
 	// go-kit RPC style.
 	StreamCampaignResults(ctx context.Context, conn *websocket.Conn, campaignID uint)
 
+	GetCampaignReader(ctx context.Context, campaign *DistributedQueryCampaign) (<-chan interface{}, context.CancelFunc, error)
+	CompleteCampaign(ctx context.Context, campaign *DistributedQueryCampaign) error
+	RunLiveQueryDeadline(ctx context.Context, queryIDs []uint, hostIDs []uint, deadline time.Duration) ([]QueryCampaignResult, int)
+
 	///////////////////////////////////////////////////////////////////////////////
 	// AgentOptionsService
 
 	// AgentOptionsForHost gets the agent options for the provided host. The host information should be used for
 	// filtering based on team, platform, etc.
-	AgentOptionsForHost(ctx context.Context, host *Host) (json.RawMessage, error)
+	AgentOptionsForHost(ctx context.Context, hostTeamID *uint, hostPlatform string) (json.RawMessage, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// HostService
 
 	ListHosts(ctx context.Context, opt HostListOptions) (hosts []*Host, err error)
 	GetHost(ctx context.Context, id uint) (host *HostDetail, err error)
-	GetHostSummary(ctx context.Context) (summary *HostSummary, err error)
+	GetHostSummary(ctx context.Context, teamID *uint, platform *string) (summary *HostSummary, err error)
 	DeleteHost(ctx context.Context, id uint) (err error)
 	// HostByIdentifier returns one host matching the provided identifier. Possible matches can be on
 	// osquery_host_identifier, node_key, UUID, or hostname.
@@ -242,6 +252,12 @@ type Service interface {
 	AddHostsToTeamByFilter(ctx context.Context, teamID *uint, opt HostListOptions, lid *uint) error
 	DeleteHosts(ctx context.Context, ids []uint, opt HostListOptions, lid *uint) error
 	CountHosts(ctx context.Context, labelID *uint, opts HostListOptions) (int, error)
+	// ListHostDeviceMapping returns the list of device-mapping of user's email address
+	// for the host.
+	ListHostDeviceMapping(ctx context.Context, id uint) ([]*HostDeviceMapping, error)
+
+	MacadminsData(ctx context.Context, id uint) (*MacadminsData, error)
+	AggregatedMacadminsData(ctx context.Context, teamID *uint) (*AggregatedMacadminsData, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// AppConfigService provides methods for configuring  the Fleet application
@@ -293,6 +309,8 @@ type Service interface {
 
 	// VerifyInvite verifies that an invite exists and that it matches the invite token.
 	VerifyInvite(ctx context.Context, token string) (invite *Invite, err error)
+
+	UpdateInvite(ctx context.Context, id uint, payload InvitePayload) (*Invite, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// TargetService
@@ -357,8 +375,12 @@ type Service interface {
 	ListTeams(ctx context.Context, opt ListOptions) ([]*Team, error)
 	// ListTeamUsers lists users on the team with the provided list options.
 	ListTeamUsers(ctx context.Context, teamID uint, opt ListOptions) ([]*User, error)
+	// ListAvailableTeamsForUser lists the teams the user is permitted to view
+	ListAvailableTeamsForUser(ctx context.Context, user *User) ([]*TeamSummary, error)
 	// TeamEnrollSecrets lists the enroll secrets for the team.
 	TeamEnrollSecrets(ctx context.Context, teamID uint) ([]*EnrollSecret, error)
+	// ModifyTeamEnrollSecrets modifies enroll secrets for a team.
+	ModifyTeamEnrollSecrets(ctx context.Context, teamID uint, secrets []EnrollSecret) ([]*EnrollSecret, error)
 	// ApplyTeamSpecs applies the changes for each team as defined in the specs.
 	ApplyTeamSpecs(ctx context.Context, specs []*TeamSpec) error
 
@@ -399,21 +421,26 @@ type Service interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// GlobalPolicyService
 
-	NewGlobalPolicy(ctx context.Context, queryID uint) (*Policy, error)
+	NewGlobalPolicy(ctx context.Context, p PolicyPayload) (*Policy, error)
 	ListGlobalPolicies(ctx context.Context) ([]*Policy, error)
 	DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint, error)
+	ModifyGlobalPolicy(ctx context.Context, id uint, p ModifyPolicyPayload) (*Policy, error)
 	GetPolicyByIDQueries(ctx context.Context, policyID uint) (*Policy, error)
+	ApplyPolicySpecs(ctx context.Context, policies []*PolicySpec) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Software
 
-	ListSoftware(ctx context.Context, teamID *uint, opt ListOptions) ([]Software, error)
+	ListSoftware(ctx context.Context, opt SoftwareListOptions) ([]Software, error)
+	SoftwareByID(ctx context.Context, id uint) (*Software, error)
+	CountSoftware(ctx context.Context, opt SoftwareListOptions) (int, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Team Policies
 
-	NewTeamPolicy(ctx context.Context, teamID uint, queryID uint) (*Policy, error)
+	NewTeamPolicy(ctx context.Context, teamID uint, p PolicyPayload) (*Policy, error)
 	ListTeamPolicies(ctx context.Context, teamID uint) ([]*Policy, error)
 	DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error)
+	ModifyTeamPolicy(ctx context.Context, teamID uint, id uint, p ModifyPolicyPayload) (*Policy, error)
 	GetTeamPolicyByIDQueries(ctx context.Context, teamID uint, policyID uint) (*Policy, error)
 }

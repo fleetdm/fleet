@@ -1,0 +1,16 @@
+.add-member-modal {
+  .title {
+    font-weight: $bold;
+    margin-bottom: 4px;
+  }
+
+  &__btn-wrap {
+    display: flex;
+    flex-direction: row-reverse;
+    margin-top: $pad-xxlarge;
+  }
+
+  &__btn {
+    margin-left: 12px;
+  }
+}

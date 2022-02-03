@@ -8,7 +8,7 @@
 
 - [View teams](#view-teams)
 - [Create a team](#create-a-teams)
-- [Enroll hosts to a team](#enroll-hosts-to-a-team)
+- [Automatically adding hosts to a team](#automatically-adding-hosts-to-a-team)
 - [Transfer hosts to a team](#transfer-hosts-to-a-team)
 - [Add users to a team](#add-users-to-a-team)
 - [Remove a member from a team](#remove-a-member-from-a-team)
@@ -50,21 +50,13 @@ To create a team:
 
 3. Enter your new team's name and select "Save."
 
-## Enroll hosts to a team
+## Automatically adding hosts to a team
 
 Hosts can only belong to one team in Fleet.
 
-You can transfer hosts to a new team in Fleet by either enrolling the host with a team's enroll secret or by [transferring the host via the Fleet UI](#transfer-hosts-to-a-team) after the host has been enrolled to Fleet.
+You can add hosts to a new team in Fleet by either enrolling the host with a team's enroll secret or by [transferring the host via the Fleet UI](#transfer-hosts-to-a-team) after the host has been enrolled to Fleet.
 
-To enroll hosts to a team:
-
-1. In the top navigation, select "Hosts" and the on the right side, select "Enroll new host."
-
-2. In the "Enroll secret" section of the modal, select the team you'd like to transfer your hosts to.
-
-3. Copy or download the team's enroll secret. Use this enroll secret when installing the osquery agents on your hosts to Fleet.
-
-Orbit is the recommended agent for Fleet. Check out [the Orbit for osquery documentation](https://github.com/fleetdm/fleet/blob/main/orbit/README.md) for instructions for packaging and deploying Orbit to your hosts.
+To automatically add hosts to a team in Fleet check out the ["Adding hosts" documentation](./04-Adding-hosts.md#automatically-adding-hosts-to-a-team).
 
 ## Transfer hosts to a team
 

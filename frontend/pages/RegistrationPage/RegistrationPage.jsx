@@ -29,8 +29,6 @@ export class RegistrationPage extends Component {
       page: 1,
       pageProgress: 1,
     };
-
-    return false;
   }
 
   componentWillMount() {

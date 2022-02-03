@@ -1,0 +1,64 @@
+.homepage-info-card {
+  padding: 32px;
+  width: 100%;
+  background-color: $core-white;
+  border: 1px solid $ui-fleet-blue-15;
+  border-radius: 8px;
+  box-shadow: 0 2px 0 0 $ui-fleet-blue-15;
+  box-sizing: border-box;
+
+  &__section-title-cta {
+    display: flex;
+    justify-content: space-between;
+
+    h2 {
+      font-weight: $bold;
+    }
+  }
+
+  &__section-title-group {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  &__section-title {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    padding-right: 12px;
+
+    span {
+      background-color: $core-vibrant-blue;
+      color: $core-white;
+      font-size: $xx-small;
+      font-weight: $bold;
+      padding: 2px 4px;
+      border-radius: 4px;
+      margin-left: $pad-small;
+    }
+  }
+
+  &__section-title-detail {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+  }
+
+  &__action-button {
+    display: flex;
+    align-items: center;
+    font-size: $x-small;
+    color: $core-vibrant-blue;
+    font-weight: $bold;
+    text-decoration: none !important;
+  }
+  &__action-button-text {
+    text-align: right;
+  }
+
+  #link-arrow {
+    transform: scale(0.5);
+  }
+}

@@ -5,10 +5,11 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"fmt"
 	"io/ioutil"
 	"net/url"
 
-	"github.com/pkg/errors"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 )
 
 // LoadPEM loads certificates from a PEM file and returns a cert pool containing
@@ -18,11 +19,11 @@ func LoadPEM(path string) (*x509.CertPool, error) {
 
 	contents, err := ioutil.ReadFile(path)
 	if err != nil {
-		return nil, errors.Wrap(err, "read certificate file")
+		return nil, fmt.Errorf("read certificate file: %w", err)
 	}
 
 	if ok := pool.AppendCertsFromPEM(contents); !ok {
-		return nil, errors.Errorf("no valid certificates found in %s", path)
+		return nil, fmt.Errorf("no valid certificates found in %s", path)
 	}
 
 	return pool, nil
@@ -41,7 +42,7 @@ func ValidateConnection(pool *x509.CertPool, fleetURL string) error {
 func ValidateConnectionContext(ctx context.Context, pool *x509.CertPool, fleetURL string) error {
 	parsed, err := url.Parse(fleetURL)
 	if err != nil {
-		return errors.Wrap(err, "parse url")
+		return ctxerr.Wrap(ctx, err, "parse url")
 	}
 
 	dialer := &tls.Dialer{
@@ -50,7 +51,7 @@ func ValidateConnectionContext(ctx context.Context, pool *x509.CertPool, fleetUR
 			InsecureSkipVerify: true,
 			VerifyConnection: func(state tls.ConnectionState) error {
 				if len(state.PeerCertificates) == 0 {
-					return errors.New("no peer certificates")
+					return ctxerr.New(ctx, "no peer certificates")
 				}
 
 				cert := state.PeerCertificates[0]
@@ -58,7 +59,7 @@ func ValidateConnectionContext(ctx context.Context, pool *x509.CertPool, fleetUR
 					DNSName: parsed.Hostname(),
 					Roots:   pool,
 				}); err != nil {
-					return errors.Wrap(err, "verify certificate")
+					return ctxerr.Wrap(ctx, err, "verify certificate")
 				}
 
 				return nil
@@ -67,7 +68,7 @@ func ValidateConnectionContext(ctx context.Context, pool *x509.CertPool, fleetUR
 	}
 	conn, err := dialer.DialContext(ctx, "tcp", parsed.Host)
 	if err != nil {
-		return errors.Wrap(err, "dial for validate")
+		return ctxerr.Wrap(ctx, err, "dial for validate")
 	}
 	defer conn.Close()
 

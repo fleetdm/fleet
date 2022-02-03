@@ -8,64 +8,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/websocket"
-	"github.com/go-kit/kit/endpoint"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/igm/sockjs-go/v3/sockjs"
 )
-
-////////////////////////////////////////////////////////////////////////////////
-// Create Distributed Query Campaign
-////////////////////////////////////////////////////////////////////////////////
-
-type createDistributedQueryCampaignRequest struct {
-	QuerySQL string            `json:"query"`
-	QueryID  *uint             `json:"query_id"`
-	Selected fleet.HostTargets `json:"selected"`
-}
-
-type createDistributedQueryCampaignResponse struct {
-	Campaign *fleet.DistributedQueryCampaign `json:"campaign,omitempty"`
-	Err      error                           `json:"error,omitempty"`
-}
-
-func (r createDistributedQueryCampaignResponse) error() error { return r.Err }
-
-func makeCreateDistributedQueryCampaignEndpoint(svc fleet.Service) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		req := request.(createDistributedQueryCampaignRequest)
-		campaign, err := svc.NewDistributedQueryCampaign(ctx, req.QuerySQL, req.QueryID, req.Selected)
-		if err != nil {
-			return createDistributedQueryCampaignResponse{Err: err}, nil
-		}
-		return createDistributedQueryCampaignResponse{Campaign: campaign}, nil
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// Create Distributed Query Campaign By Names
-////////////////////////////////////////////////////////////////////////////////
-
-type createDistributedQueryCampaignByNamesRequest struct {
-	QuerySQL string                                 `json:"query"`
-	QueryID  *uint                                  `json:"query_id"`
-	Selected distributedQueryCampaignTargetsByNames `json:"selected"`
-}
-
-type distributedQueryCampaignTargetsByNames struct {
-	Labels []string `json:"labels"`
-	Hosts  []string `json:"hosts"`
-}
-
-func makeCreateDistributedQueryCampaignByNamesEndpoint(svc fleet.Service) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		req := request.(createDistributedQueryCampaignByNamesRequest)
-		campaign, err := svc.NewDistributedQueryCampaignByNames(ctx, req.QuerySQL, req.QueryID, req.Selected.Hosts, req.Selected.Labels)
-		if err != nil {
-			return createDistributedQueryCampaignResponse{Err: err}, nil
-		}
-		return createDistributedQueryCampaignResponse{Campaign: campaign}, nil
-	}
-}
 
 ////////////////////////////////////////////////////////////////////////////////
 // Stream Distributed Query Campaign Results and Metadata

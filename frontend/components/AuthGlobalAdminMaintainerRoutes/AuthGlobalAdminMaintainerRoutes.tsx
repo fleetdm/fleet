@@ -1,48 +1,31 @@
-import React from "react";
-import { useDispatch, useSelector } from "react-redux";
-import { push } from "react-router-redux";
-
-import { IUser } from "interfaces/user";
-import permissionUtils from "utilities/permissions";
-import paths from "router/paths";
-// @ts-ignore
-import { renderFlash } from "redux/nodes/notifications/actions";
+import React, { useContext } from "react";
+import { useErrorHandler } from "react-error-boundary";
+import { AppContext } from "context/app";
 
 interface IAuthGlobalAdminMaintainerRoutesProps {
   children: JSX.Element;
 }
 
-interface IRootState {
-  auth: {
-    user: IUser;
-  };
-}
-
-const { HOME } = paths;
-
 /**
- * Checks if a user is a global admin or global maintainer when routing
+ * Checks if a user is any maintainer or any admin when routing
  */
-const AuthGlobalAdminMaintainerRoutes = (
-  props: IAuthGlobalAdminMaintainerRoutesProps
-) => {
-  const { children } = props;
+const AuthGlobalAdminMaintainerRoutes = ({
+  children,
+}: IAuthGlobalAdminMaintainerRoutesProps): JSX.Element | null => {
+  const handlePageError = useErrorHandler();
+  const { currentUser, isGlobalAdmin, isGlobalMaintainer } = useContext(
+    AppContext
+  );
 
-  const dispatch = useDispatch();
-  const user = useSelector((state: IRootState) => state.auth.user);
-
-  if (!user) {
+  if (!currentUser) {
     return null;
   }
 
-  if (
-    !permissionUtils.isGlobalAdmin(user) &&
-    !permissionUtils.isGlobalMaintainer(user)
-  ) {
-    dispatch(push(HOME));
-    dispatch(renderFlash("error", "You do not have permissions for that page"));
+  if (!isGlobalAdmin && !isGlobalMaintainer) {
+    handlePageError({ status: 403 });
     return null;
   }
+
   return <>{children}</>;
 };
 

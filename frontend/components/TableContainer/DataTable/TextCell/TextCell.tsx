@@ -6,13 +6,11 @@ interface ITextCellProps {
   greyed?: string;
 }
 
-const TextCell = (props: ITextCellProps): JSX.Element => {
-  const {
-    value,
-    formatter = (val) => val, // identity function if no formatter is provided
-    greyed,
-  } = props;
-
+const TextCell = ({
+  value,
+  formatter = (val) => val, // identity function if no formatter is provided
+  greyed,
+}: ITextCellProps): JSX.Element => {
   let val = value;
 
   if (typeof value === "boolean") {

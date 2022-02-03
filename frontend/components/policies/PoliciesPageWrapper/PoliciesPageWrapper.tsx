@@ -1,10 +1,10 @@
 import React from "react";
 
-const PoliciesPageWrapper = (props: {
+const PoliciesPageWrapper = ({
+  children,
+}: {
   children: React.ReactNode;
 }): React.ReactNode | null => {
-  const { children } = props;
-
   return children || null;
 };
 

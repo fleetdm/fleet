@@ -1,6 +1,6 @@
 import React from "react";
 
-import Modal from "components/modals/Modal";
+import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import { IScheduledQuery } from "interfaces/scheduled_query";
 
@@ -13,10 +13,12 @@ interface IRemovePackQueryModalProps {
   selectedQueryIds: number[];
 }
 
-const RemovePackQueryModal = (
-  props: IRemovePackQueryModalProps
-): JSX.Element => {
-  const { onCancel, onSubmit, selectedQuery, selectedQueryIds } = props;
+const RemovePackQueryModal = ({
+  onCancel,
+  onSubmit,
+  selectedQuery,
+  selectedQueryIds,
+}: IRemovePackQueryModalProps): JSX.Element => {
   const queryOrQueries =
     selectedQuery || selectedQueryIds?.length === 1 ? "query" : "queries";
   return (
@@ -28,7 +30,7 @@ const RemovePackQueryModal = (
           <Button
             className={`${baseClass}__btn`}
             onClick={onCancel}
-            variant="inverse"
+            variant="inverse-alert"
           >
             Cancel
           </Button>

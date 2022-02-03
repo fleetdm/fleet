@@ -6,6 +6,7 @@
         "esbenp.prettier-vscode",
         "redhat.vscode-yaml",
         "dbaeumer.vscode-eslint",
-        "firefox-devtools.vscode-firefox-debug"
+        "firefox-devtools.vscode-firefox-debug",
+        "editorconfig.editorconfig"
     ]
 }

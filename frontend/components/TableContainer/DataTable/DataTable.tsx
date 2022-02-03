@@ -1,23 +1,40 @@
+/* eslint-disable react/prop-types */
+// disable this rule as it was throwing an error in Header and Cell component
+// definitions for the selection row for some reason when we dont really need it.
 import React, { useMemo, useEffect, useCallback, useContext } from "react";
 import { TableContext } from "context/table";
-import PropTypes from "prop-types";
 import classnames from "classnames";
-import { useTable, useSortBy, useRowSelect, Row } from "react-table";
+import {
+  useTable,
+  useSortBy,
+  useRowSelect,
+  Row,
+  usePagination,
+  useFilters,
+  HeaderGroup,
+  Column,
+} from "react-table";
 import { isString, kebabCase, noop } from "lodash";
+import { useDebouncedCallback } from "use-debounce/lib";
 
 import { useDeepEffect } from "utilities/hooks";
 import sort from "utilities/sort";
+import { AppContext } from "context/app";
 
-import Spinner from "components/loaders/Spinner";
+import Button from "components/buttons/Button";
+// @ts-ignore
+import FleetIcon from "components/icons/FleetIcon";
+import Spinner from "components/Spinner";
 import { ButtonVariant } from "components/buttons/Button/Button";
-import Button from "../../buttons/Button";
+// @ts-ignore
 import ActionButton, { IActionButtonProps } from "./ActionButton";
 
 const baseClass = "data-table-container";
 
 interface IDataTableProps {
-  columns: any;
+  columns: Column[];
   data: any;
+  filters?: Record<string, string | number | boolean>;
   isLoading: boolean;
   manualSortBy?: boolean;
   sortHeader: any;
@@ -34,14 +51,26 @@ interface IDataTableProps {
   primarySelectActionButtonText?: string | ((targetIds: number[]) => string);
   onPrimarySelectActionClick: any; // figure out type
   secondarySelectActions?: IActionButtonProps[];
+  isClientSidePagination?: boolean;
+  isClientSideFilter?: boolean;
+  highlightOnHover?: boolean;
+  searchQuery?: string;
+  searchQueryColumn?: string;
+  selectedDropdownFilter?: string;
   onSelectSingleRow?: (value: Row) => void;
+  onResultsCountChange?: (value: number) => void;
+  renderFooter?: () => JSX.Element | null;
+  renderPagination?: () => JSX.Element | null;
 }
+
+const CLIENT_SIDE_DEFAULT_PAGE_SIZE = 20;
 
 // This data table uses react-table for implementation. The relevant documentation of the library
 // can be found here https://react-table.tanstack.com/docs/api/useTable
 const DataTable = ({
   columns: tableColumns,
   data: tableData,
+  filters: tableFilters,
   isLoading,
   manualSortBy = false,
   sortHeader,
@@ -58,9 +87,19 @@ const DataTable = ({
   onPrimarySelectActionClick,
   primarySelectActionButtonText,
   secondarySelectActions,
+  isClientSidePagination,
+  isClientSideFilter,
+  highlightOnHover,
+  searchQuery,
+  searchQueryColumn,
+  selectedDropdownFilter,
   onSelectSingleRow,
+  onResultsCountChange,
+  renderFooter,
+  renderPagination,
 }: IDataTableProps): JSX.Element => {
   const { resetSelectedRows } = useContext(TableContext);
+  const { isOnlyObserver } = useContext(AppContext);
 
   const columns = useMemo(() => {
     return tableColumns;
@@ -79,6 +118,20 @@ const DataTable = ({
     toggleAllRowsSelected,
     isAllRowsSelected,
     state: tableState,
+    page, // Instead of using 'rows', we'll use page,
+    // which has only the rows for the active page
+
+    // The rest of these things are super handy, too ;)
+    canPreviousPage,
+    canNextPage,
+    // pageOptions,
+    // pageCount,
+    // gotoPage,
+    nextPage,
+    previousPage,
+    setPageSize,
+    setFilter,
+    setAllFilters,
   } = useTable(
     {
       columns,
@@ -93,6 +146,29 @@ const DataTable = ({
       manualSortBy,
       // Initializes as false, but changes briefly to true on successful notification
       autoResetSelectedRows: resetSelectedRows,
+      // Expands the enumerated `filterTypes` for react-table
+      // (see https://github.com/tannerlinsley/react-table/blob/master/src/filterTypes.js)
+      // with custom `filterTypes` defined for this `useTable` instance
+      filterTypes: React.useMemo(
+        () => ({
+          hasLength: (
+            // eslint-disable-next-line @typescript-eslint/no-shadow
+            rows: Row[],
+            columnIds: string[],
+            filterValue: boolean
+          ) => {
+            return !filterValue
+              ? rows
+              : rows?.filter((row) => {
+                  return columnIds?.some((id) => row?.values?.[id]?.length);
+                });
+          },
+        }),
+        []
+      ),
+      // Expands the enumerated `sortTypes` for react-table
+      // (see https://github.com/tannerlinsley/react-table/blob/master/src/sortTypes.js)
+      // with custom `sortTypes` defined for this `useTable` instance
       sortTypes: React.useMemo(
         () => ({
           caseInsensitive: (a: any, b: any, id: any) => {
@@ -116,11 +192,52 @@ const DataTable = ({
         []
       ),
     },
+    useFilters,
     useSortBy,
+    usePagination,
     useRowSelect
   );
 
   const { sortBy, selectedRowIds } = tableState;
+
+  useEffect(() => {
+    if (tableFilters) {
+      const allFilters = Object.entries(tableFilters).map(([id, value]) => ({
+        id,
+        value,
+      }));
+      !!allFilters.length && setAllFilters(allFilters);
+    }
+  }, [tableFilters]);
+
+  // Listen for changes to filters if clientSideFilter is enabled
+
+  const setDebouncedClientFilter = useDebouncedCallback(
+    (column: string, query: string) => {
+      setFilter(column, query);
+    },
+    300
+  );
+
+  useEffect(() => {
+    if (isClientSideFilter && onResultsCountChange) {
+      onResultsCountChange(rows.length);
+    }
+  }, [isClientSideFilter, onResultsCountChange, rows.length]);
+
+  useEffect(() => {
+    if (isClientSideFilter && searchQueryColumn) {
+      setDebouncedClientFilter(searchQueryColumn, searchQuery || "");
+    }
+  }, [searchQuery, searchQueryColumn]);
+
+  useEffect(() => {
+    if (isClientSideFilter && selectedDropdownFilter) {
+      selectedDropdownFilter === "all"
+        ? setDebouncedClientFilter("platforms", "")
+        : setDebouncedClientFilter("platforms", selectedDropdownFilter);
+    }
+  }, [selectedDropdownFilter]);
 
   // This is used to listen for changes to sort. If there is a change
   // Then the sortHandler change is fired.
@@ -142,7 +259,11 @@ const DataTable = ({
     if (isAllPagesSelected) {
       toggleAllRowsSelected(true);
     }
-  }, [isAllPagesSelected]);
+  }, [isAllPagesSelected, toggleAllRowsSelected]);
+
+  useEffect(() => {
+    setPageSize(CLIENT_SIDE_DEFAULT_PAGE_SIZE);
+  }, [setPageSize]);
 
   useDeepEffect(() => {
     if (
@@ -160,7 +281,7 @@ const DataTable = ({
   const onClearSelectionClick = useCallback(() => {
     toggleAllRowsSelected(false);
     toggleAllPagesSelected(false);
-  }, [toggleAllRowsSelected]);
+  }, [toggleAllPagesSelected, toggleAllRowsSelected]);
 
   const onSingleRowClick = useCallback(
     (row) => {
@@ -170,8 +291,17 @@ const DataTable = ({
         toggleAllRowsSelected(false);
       }
     },
-    [disableMultiRowSelect]
+    [disableMultiRowSelect, onSelectSingleRow, toggleAllRowsSelected]
   );
+
+  const renderColumnHeader = (column: HeaderGroup) => {
+    return (
+      <div className="column-header">
+        {column.render("Header")}
+        {column.Filter && column.render("Filter")}
+      </div>
+    );
+  };
 
   const renderSelectedCount = (): JSX.Element => {
     return (
@@ -263,15 +393,33 @@ const DataTable = ({
     showMarkAllPages &&
     !isAllPagesSelected;
 
+  const pageOrRows = isClientSidePagination ? page : rows;
+
+  const previousButton = (
+    <>
+      <FleetIcon name="chevronleft" /> Previous
+    </>
+  );
+  const nextButton = (
+    <>
+      Next <FleetIcon name="chevronright" />
+    </>
+  );
+
+  const tableStyles = classnames({
+    "data-table__table": true,
+    "is-observer": isOnlyObserver,
+  });
+
   return (
     <div className={baseClass}>
+      {isLoading && (
+        <div className={"loading-overlay"}>
+          <Spinner />
+        </div>
+      )}
       <div className={"data-table data-table__wrapper"}>
-        {isLoading && (
-          <div className={"loading-overlay"}>
-            <Spinner />
-          </div>
-        )}
-        <table className={"data-table__table"}>
+        <table className={tableStyles}>
           {Object.keys(selectedRowIds).length !== 0 && (
             <thead className={"active-selection"}>
               <tr {...headerGroups[0].getHeaderGroupProps()}>
@@ -321,18 +469,19 @@ const DataTable = ({
                     className={column.id ? `${column.id}__header` : ""}
                     {...column.getHeaderProps(column.getSortByToggleProps())}
                   >
-                    {column.render("Header")}
+                    {renderColumnHeader(column)}
                   </th>
                 ))}
               </tr>
             ))}
           </thead>
           <tbody>
-            {rows.map((row: any) => {
+            {pageOrRows.map((row: any) => {
               prepareRow(row);
 
               const rowStyles = classnames({
                 "single-row": disableMultiRowSelect,
+                "highlight-on-hover": highlightOnHover,
               });
               return (
                 <tr
@@ -346,7 +495,14 @@ const DataTable = ({
                 >
                   {row.cells.map((cell: any) => {
                     return (
-                      <td {...cell.getCellProps()}>{cell.render("Cell")}</td>
+                      <td
+                        className={
+                          cell.column.id ? `${cell.column.id}__cell` : ""
+                        }
+                        {...cell.getCellProps()}
+                      >
+                        {cell.render("Cell")}
+                      </td>
                     );
                   })}
                 </tr>
@@ -355,19 +511,33 @@ const DataTable = ({
           </tbody>
         </table>
       </div>
+      <div className={`${baseClass}__footer`}>
+        {renderFooter && (
+          <div className={`${baseClass}__footer-text`}>{renderFooter()}</div>
+        )}
+        {isClientSidePagination ? (
+          <div className={`${baseClass}__pagination`}>
+            <Button
+              variant="unstyled"
+              onClick={() => previousPage()}
+              disabled={!canPreviousPage}
+            >
+              {previousButton}
+            </Button>
+            <Button
+              variant="unstyled"
+              onClick={() => nextPage()}
+              disabled={!canNextPage}
+            >
+              {nextButton}
+            </Button>
+          </div>
+        ) : (
+          renderPagination && renderPagination()
+        )}
+      </div>
     </div>
   );
-};
-
-DataTable.propTypes = {
-  columns: PropTypes.arrayOf(PropTypes.object), // TODO: create proper interface for this
-  data: PropTypes.arrayOf(PropTypes.object), // TODO: create proper interface for this
-  isLoading: PropTypes.bool,
-  sortHeader: PropTypes.string,
-  sortDirection: PropTypes.string,
-  onSort: PropTypes.func,
-  onPrimarySelectActionClick: PropTypes.func,
-  secondarySelectActions: PropTypes.arrayOf(PropTypes.object),
 };
 
 export default DataTable;

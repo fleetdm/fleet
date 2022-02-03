@@ -1,8 +1,6 @@
 # Osquery Server Performance Tester
 
-> **TODO: Archive this repo and move its contents inline into https://github.com/fleetdm/fleet**
-
-This repository provides a tool to generate realistic traffic to an osquery
+This is a tool to generate realistic traffic to an osquery
 management server (primarily, [Fleet](https://github.com/fleetdm/fleet)). With
 this tool, many thousands of hosts can be simulated from a single host.
 
@@ -13,26 +11,12 @@ The only requirement for running this tool is a working installation of
 
 ## Usage
 
-Typically `go run` is used:
+Typically `go run` is used.
+
+You can use `--help` to view the available configuration:
 
 ```
 go run agent.go --help
-Usage of agent.go:
-  -config_interval duration
-    	Interval for config requests (default 1m0s)
-  -enroll_secret string
-    	Enroll secret to authenticate enrollment
-  -host_count int
-    	Number of hosts to start (default 10) (default 10)
-  -query_interval duration
-    	Interval for live query requests (default 10s)
-  -seed int
-    	Seed for random generator (default current time) (default 1586310930917739000)
-  -server_url string
-    	URL (with protocol and port of osquery server) (default "https://localhost:8080")
-  -start_period duration
-    	Duration to spread start of hosts over (default 10s)
-exit status 2
 ```
 
 The tool should be invoked with the appropriate enroll secret. A typical
@@ -77,6 +61,3 @@ Run the following command in the shell before running the Fleet server _and_ bef
 ``` sh
 ulimit -n 64000
 ```
-
-## Bugs
-To report a bug, [click here](https://github.com/fleetdm/fleet).

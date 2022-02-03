@@ -28,7 +28,7 @@ const PLATFORM_STRINGS: { [key: string]: string } = {
 };
 
 const platformOptions = [
-  { label: "All Platforms", value: "" },
+  { label: "All platforms", value: "" },
   { label: "macOS", value: "darwin" },
   { label: "Windows", value: "windows" },
   { label: "Ubuntu", value: "ubuntu" },
@@ -133,7 +133,11 @@ const LabelForm = ({
   }
 
   return (
-    <form className={`${baseClass}__wrapper`} onSubmit={submitForm}>
+    <form
+      className={`${baseClass}__wrapper`}
+      onSubmit={submitForm}
+      autoComplete="off"
+    >
       <h1>{headerText}</h1>
       {!isManual && (
         <FleetAce
@@ -169,21 +173,21 @@ const LabelForm = ({
       />
       {!isManual && !isEdit && (
         <div className="form-field form-field--dropdown">
-          <label className="form-field__label" htmlFor="platform">
-            Platform
-          </label>
           <Dropdown
+            label="Platform"
             name="platform"
             onChange={onPlatformChange}
             value={platform}
             options={platformOptions}
+            classname={`${baseClass}__platform-dropdown`}
+            wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--platform`}
           />
         </div>
       )}
       {isEdit && platform && (
         <div className={`${baseClass}__label-platform`}>
           <p className="title">Platform</p>
-          <p>{!platform ? "All platforms" : PLATFORM_STRINGS[platform]}</p>
+          <p>{platform ? PLATFORM_STRINGS[platform] : "All platforms"}</p>
           <p className="hint">
             Label platforms are immutable. To change the platform, delete this
             label and create a new one.

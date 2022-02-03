@@ -1,34 +1,51 @@
-name: goreleaser
+name: GoReleaser Orbit
 
 on:
   push:
-    tags:
-      - 'orbit-*'
-
+   tags:
+     - 'orbit-*'
+     
 permissions:
   contents: write
 
 jobs:
   goreleaser:
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
     environment: Docker Hub
     steps:
       - name: Checkout
         uses: actions/checkout@v2
-        with:
-          fetch-depth: 0 # Needed for goreleaser
+
+      # Note that goreleaser does not like the orbit- prefixed flag unless you use the closed-source
+      # paid version. We pay for goreleaser, but using the closed source build would weaken our
+      # supply-chain integrity goals, so we hack around it by replacing the tag.
+      - name: Replace tag
+        run: git tag $(echo ${{ github.ref_name }} | sed -e 's/orbit-//g')
+
+      - name: Import signing keys
+        env: 
+          APPLE_APPLICATION_CERTIFICATE: ${{ secrets.APPLE_APPLICATION_CERTIFICATE }}
+          APPLE_APPLICATION_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_APPLICATION_CERTIFICATE_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          echo "$APPLE_APPLICATION_CERTIFICATE" | base64 --decode > certificate.p12
+          security create-keychain -p $KEYCHAIN_PASSWORD build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p $KEYCHAIN_PASSWORD build.keychain
+          security import certificate.p12 -k build.keychain -P $APPLE_APPLICATION_CERTIFICATE_PASSWORD -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k $KEYCHAIN_PASSWORD build.keychain
+          security find-identity -vv
+          rm certificate.p12
 
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.16.5
+          go-version: 1.17
 
       - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@ac067437f516133269923265894e77920c3dce18 # v2.6.1
-        with:
-          distribution: goreleaser-pro
-          version: latest
-          args: release --rm-dist -f orbit/.goreleaser.yml
+        run: go run github.com/goreleaser/goreleaser release --rm-dist -f orbit/.goreleaser.yml
         env:
-          GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
+          AC_USERNAME: ${{ secrets.APPLE_USERNAME }}
+          AC_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          CODESIGN_IDENTITY: 51049B247B25B3119FAE7E9C0CC4375A43E47237
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

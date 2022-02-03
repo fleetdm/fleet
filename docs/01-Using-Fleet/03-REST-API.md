@@ -10,7 +10,7 @@
 - [Schedule](#schedule)
 - [Packs](#packs)
 - [Policies](#policies)
-- [Team Policies](#team-policies)
+- [Team policies](#team-policies)
 - [Activities](#activities)
 - [Targets](#targets)
 - [Fleet configuration](#fleet-configuration)
@@ -280,11 +280,11 @@ Resets a user's password. Which user is determined by the password reset token u
 
 Retrieves the user data for the authenticated user.
 
-`POST /api/v1/fleet/me`
+`GET /api/v1/fleet/me`
 
 #### Example
 
-`POST /api/v1/fleet/me`
+`GET /api/v1/fleet/me`
 
 ##### Default response
 
@@ -462,6 +462,8 @@ This is the callback endpoint that the identity provider will use to send securi
 - [Transfer hosts to a team](#transfer-hosts-to-a-team)
 - [Transfer hosts to a team by filter](#transfer-hosts-to-a-team-by-filter)
 - [Bulk delete hosts by filter or ids](#bulk-delete-hosts-by-filter-or-ids)
+- [Get host's Google Chrome profiles](#get-hosts-google-chrome-profiles)
+- [Get host's mobile device management (MDM) and Munki information](#get-hosts-mobile-device-management-mdm-and-munki-information)
 
 ### List hosts
 
@@ -474,13 +476,15 @@ This is the callback endpoint that the identity provider will use to send securi
 | page                    | integer | query | Page number of the results to fetch.                                                                                                                                                                                                                                                                                                        |
 | per_page                | integer | query | Results per page.                                                                                                                                                                                                                                                                                                                           |
 | order_key               | string  | query | What to order results by. Can be any column in the hosts table.                                                                                                                                                                                                                                                                             |
+| after                   | string  | query | The value to get results after. This needs order_key defined, as that's the column that would be used.                                                                                                                                                                                                                                      |
 | order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`.                                                                                                                                                                                                               |
 | status                  | string  | query | Indicates the status of the hosts to return. Can either be `new`, `online`, `offline`, or `mia`.                                                                                                                                                                                                                                            |
-| query                   | string  | query | Search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, and `ipv4`.                                                                                                                                                                                                                                          |
+| query                   | string  | query | Search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, `ipv4` and the hosts' email addresses (only searched if the query looks like an email address, i.e. contains an `@`, no space, etc.).                                                                                                                |
 | additional_info_filters | string  | query | A comma-delimited list of fields to include in each host's additional information object. See [Fleet Configuration Options](../01-Using-Fleet/02-fleetctl-CLI.md#fleet-configuration-options) for an example configuration with hosts' additional information. Use `*` to get all stored fields. |
-| team_id                 | integer | query | _Available in Fleet Premium_ Filters the users to only include users in the specified team.                                                                                                                                                                                                                                                 |
+| team_id                 | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts in the specified team.                                                                                                                                                                                                                                                 |
 | policy_id               | integer | query | The ID of the policy to filter hosts by. `policy_response` must also be specified with `policy_id`.                                                                                                                                                                                                                                         |
 | policy_response         | string  | query | Valid options are `passing` or `failing`.  `policy_id` must also be specified with `policy_response`.                                                                                                                                                                                                                                       |
+| software_id             | integer | query | The ID of the software to filter hosts by.                                                                                                                                                                                                                                         |
 
 If `additional_info_filters` is not specified, no `additional` information will be returned.
 
@@ -543,7 +547,11 @@ If `additional_info_filters` is not specified, no `additional` information will 
       "team_id": null,
       "team_name": null,
       "pack_stats": null,
-    },
+      "issues": {
+        "failing_policies_count": 2,
+        "total_issues_count": 2
+      }
+    }
   ]
 }
 ```
@@ -561,12 +569,13 @@ If `additional_info_filters` is not specified, no `additional` information will 
 | order_key               | string  | query | What to order results by. Can be any column in the hosts table.                                                                                                                                                                                                                                                                             |
 | order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`.                                                                                                                                                                                                               |
 | status                  | string  | query | Indicates the status of the hosts to return. Can either be `new`, `online`, `offline`, or `mia`.                                                                                                                                                                                                                                            |
-| query                   | string  | query | Search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, and `ipv4`.                                                                                                                                                                                                                                          |
+| query                   | string  | query | Search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, `ipv4` and the hosts' email addresses (only searched if the query looks like an email address, i.e. contains an `@`, no space, etc.).                                                                                                                |
 | additional_info_filters | string  | query | A comma-delimited list of fields to include in each host's additional information object. See [Fleet Configuration Options](../01-Using-Fleet/02-fleetctl-CLI.md#fleet-configuration-options) for an example configuration with hosts' additional information. Use `*` to get all stored fields.                                            |
-| team_id                 | integer | query | _Available in Fleet Premium_ Filters the users to only include users in the specified team.                                                                                                                                                                                                                                                 |
+| team_id                 | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts in the specified team.                                                                                                                                                                                                                                                 |
 | policy_id               | integer | query | The ID of the policy to filter hosts by. `policy_response` must also be specified with `policy_id`.                                                                                                                                                                                                                                         |
 | policy_response         | string  | query | Valid options are `passing` or `failing`.  `policy_id` must also be specified with `policy_response`.                                                                                                                                                                                                                                       |
 | label_id                | integer | query | A valid label ID. It cannot be used alongside policy filters.                                                                                                                                                                                                                                                                               |
+| disable_failing_policies| string  | query | If "true", hosts will return failing policies as 0 regardless of whether there are any that failed for the host. This is meant to be used when increased performance is needed in exchange for the extra information.                                                                                                                       |
 
 If `additional_info_filters` is not specified, no `additional` information will be returned.
 
@@ -602,11 +611,14 @@ Returns the count of all hosts organized by status. `online_count` includes all 
 
 #### Parameters
 
-None.
+| Name     | Type    | In    | Description                                                                     |
+| -------- | ------- | ----  | ------------------------------------------------------------------------------- |
+| team_id  | integer | query | The ID of the team whose host counts should be included. Defaults to all teams. |
+| platform | string  | query | Platform to filter by when counting. Defaults to all platforms.                 |
 
 #### Example
 
-`GET /api/v1/fleet/host_summary`
+`GET /api/v1/fleet/host_summary?team_id=1`
 
 ##### Default response
 
@@ -614,6 +626,18 @@ None.
 
 ```json
 {
+  "team_id": 1,
+  "totals_hosts_count": 2408,
+  "platforms": [
+    {
+      "platform": "linux",
+      "hosts_count": 1204
+    },
+    {
+      "platform": "darwin",
+      "hosts_count": 1204
+    }
+  ],
   "online_count": 2267,
   "offline_count": 141,
   "mia_count": 0,
@@ -625,7 +649,15 @@ None.
 
 Returns the information of the specified host.
 
-The endpoint returns the host's installed `software` if the software inventory feature flag is turned on. This feature flag is turned off by default. [Check out the feature flag documentation](../02-Deploying/02-Configuration.md#feature-flags) for instructions on how to turn on the software inventory feature.
+The endpoint returns the host's installed `software` if the software inventory feature flag is turned on. This feature flag is turned off by default. [Check out the feature flag documentation](../02-Deploying/03-Configuration.md#feature-flags) for instructions on how to turn on the software inventory feature.
+
+All the scheduled queries that are configured to run on the host (and their stats) are returned in
+`pack_stats`. The `pack_stats[i].type` field can have the following values:
+1. `"global"`: identifies the global pack.
+2. `"team-$TEAM_ID"`: identifies a team's pack.
+3. `"pack"`: identifies a user created pack.
+
+If the scheduled queries haven't run on the host yet, the stats have zero values.
 
 `GET /api/v1/fleet/hosts/{id}`
 
@@ -717,13 +749,15 @@ The endpoint returns the host's installed `software` if the software inventory f
         "uid": 0,
         "username": "root",
         "type": "",
-        "groupname": "root"
+        "groupname": "root",
+        "shell": "/bin/bash"
       },
       {
         "uid": 1,
         "username": "bin",
         "type": "",
-        "groupname": "bin"
+        "groupname": "bin",
+        "shell": "/sbin/nologin"
       }
     ],
     "labels": [
@@ -767,23 +801,36 @@ The endpoint returns the host's installed `software` if the software inventory f
     "policies": [
       {
         "id": 1,
-        "query_id": 2,
-        "query_name": "SomeQuery",
+        "name": "SomeQuery",
+        "query": "select * from foo;",
+        "description": "this is a query",
+        "resolution": "fix with these steps...",
+        "platform": "windows,linux",
         "response": "pass"
       },
       {
         "id": 2,
-        "query_id": 4,
-        "query_name": "SomeQuery2",
+        "name": "SomeQuery2",
+        "query": "select * from bar;",
+        "description": "this is another query",
+        "resolution": "fix with these other steps...",
+        "platform": "darwin",
         "response": "fail"
       },
       {
         "id": 3,
-        "query_id": 255,
-        "query_name": "SomeQuery3",
+        "name": "SomeQuery3",
+        "query": "select * from baz;",
+        "description": "",
+        "resolution": "",
+        "platform": "",
         "response": ""
       }
-    ]
+    ],
+    "issues": {
+      "failing_policies_count": 2,
+      "total_issues_count": 2
+    }
   }
 }
 ```
@@ -878,7 +925,7 @@ Deletes the specified host from Fleet. Note that a deleted host will fail authen
 
 ### Refetch host
 
-Flags the host details to be refetched the next time the host checks in for live queries. Note that we cannot be certain when the host will actually check in and update these details. Further requests to the host APIs will indicate that the refetch has been requested through the `refetch_requested` field on the host object.
+Flags the host details, labels and policies to be refetched the next time the host checks in for distributed queries. Note that we cannot be certain when the host will actually check in and update the query results. Further requests to the host APIs will indicate that the refetch has been requested through the `refetch_requested` field on the host object.
 
 `POST /api/v1/fleet/hosts/{id}/refetch`
 
@@ -1012,6 +1059,143 @@ Request (`filters` is specified):
 
 `Status: 200`
 
+### Get host's Google Chrome profiles
+
+Requires the [macadmins osquery
+extension](https://github.com/macadmins/osquery-extension) which comes bundled in [Fleet's osquery
+installers](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
+
+Retrieves a host's Google Chrome profile information which can be used to link a host to a specific
+user by email.
+
+`GET /api/v1/fleet/hosts/{id}/device_mapping`
+
+#### Parameters
+
+| Name       | Type              | In   | Description                                                                   |
+| ---------- | ----------------- | ---- | ----------------------------------------------------------------------------- |
+| id         | integer           | path | **Required**. The host's `id`.                                                |
+
+#### Example
+
+`GET /api/v1/fleet/hosts/1/device_mapping`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "host_id": 1,
+  "device_mapping": [
+    {
+      "email": "user@example.com",
+      "source": "google_chrome_profiles"
+    }
+  ]
+}
+```
+
+---
+
+### Get host's mobile device management (MDM) and Munki information
+
+Requires the [macadmins osquery
+extension](https://github.com/macadmins/osquery-extension) which comes bundled in [Fleet's osquery
+installers](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
+
+Retrieves a host's MDM enrollment status, MDM server URL, and Munki version.
+
+`GET /api/v1/fleet/hosts/{id}/macadmins`
+
+#### Parameters
+
+| Name    | Type    | In   | Description                                                                                                                                                                                                                                                                                                                        |
+| ------- | ------- | ---- | -------------------------------------------------------------------------------- |
+| id      | integer | path | **Required** The id of the host to get the details for                           |
+
+#### Example
+
+`GET /api/v1/fleet/hosts/32/macadmins`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "macadmins": {
+    "munki": {
+      "version": "1.2.3"
+    },
+    "mobile_device_management": {
+      "enrollment_status": "Enrolled (automated)",
+      "server_url": "http://some.url/mdm"
+    }
+  }
+}
+```
+
+---
+
+### Get aggregated host's mobile device management (MDM) and Munki information
+
+Requires the [macadmins osquery
+extension](https://github.com/macadmins/osquery-extension) which comes bundled in [Fleet's osquery
+installers](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
+
+Retrieves aggregated host's MDM enrollment status and Munki versions.
+
+`GET /api/v1/fleet/macadmins`
+
+#### Parameters
+
+| Name    | Type    | In    | Description                                                                                                                                                                                                                                                                                                                        |
+| ------- | ------- | ----- | ---------------------------------------------------------------------------------------------------------------- |
+| team_id | integer | query | _Available in Fleet Premium_ Filters the aggregate host information to only include hosts in the specified team. |                           |
+
+#### Example
+
+`GET /api/v1/fleet/macadmins`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "macadmins": {
+    "munki_versions": [
+      {
+        "version": "5.5",
+        "hosts_count": 8360
+      },
+      {
+        "version": "5.4",
+        "hosts_count": 1700
+      },
+      {
+        "version": "5.3",
+        "hosts_count": 400
+      },
+      {
+        "version": "5.2.3",
+        "hosts_count": 112
+      },
+      {
+        "version": "5.2.2",
+        "hosts_count": 50
+      }
+    ],
+    "mobile_device_management_enrollment_status": {
+      "enrolled_manual_hosts_count": 124,
+      "enrolled_automatic_hosts_count": 124,
+      "unenrolled_hosts_count": 112
+    }
+  }
+}
+```
+
 ---
 
 ## Labels
@@ -1023,9 +1207,6 @@ Request (`filters` is specified):
 - [List hosts in a label](#list-hosts-in-a-label)
 - [Delete label](#delete-label)
 - [Delete label by ID](#delete-label-by-id)
-- [Apply labels specs](#apply-labels-specs)
-- [Get labels specs](#get-labels-specs)
-- [Get label spec](#get-label-spec)
 
 ### Create label
 
@@ -1284,7 +1465,7 @@ Returns a list of the hosts that belong to the specified label.
 | order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`. |
 | status          | string  | query | Indicates the status of the hosts to return. Can either be `new`, `online`, `offline`, or `mia`.                              |
 | query           | string  | query | Search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, and `ipv4`.                            |
-| team_id         | integer | query | _Available in Fleet Premium_ Filters the users to only include users in the specified team.                                   |
+| team_id         | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts in the specified team.                                   |
 
 #### Example
 
@@ -1381,158 +1562,6 @@ Deletes the label specified by ID.
 ##### Default response
 
 `Status: 200`
-
-
-### Apply labels specs
-
-Applies the supplied labels specs to Fleet. Each label requires the `name`, and `label_membership_type` properties.
-
-If the `label_membership_type` is set to `dynamic`, the `query` property must also be specified with the value set to a query in SQL syntax.
-
-If the `label_membership_type` is set to `manual`, the `hosts` property must also be specified with the value set to a list of hostnames.
-
-`POST /api/v1/fleet/spec/labels`
-
-#### Parameters
-
-| Name  | Type | In   | Description                                                                                                   |
-| ----- | ---- | ---- | ------------------------------------------------------------------------------------------------------------- |
-| specs | list | path | A list of the label to apply. Each label requires the `name`, `query`, and `label_membership_type` properties |
-
-#### Example
-
-`POST /api/v1/fleet/spec/labels`
-
-##### Request body
-
-```json
-{
-  "specs": [
-    {
-      "name": "Ubuntu",
-      "description": "Filters ubuntu hosts",
-      "query": "select 1 from os_version where platform = 'ubuntu';",
-      "label_membership_type": "dynamic"
-    },
-    {
-      "name": "local_machine",
-      "description": "Includes only my local machine",
-      "label_membership_type": "manual",
-      "hosts": [
-        "snacbook-pro.local"
-      ]
-    }
-  ]
-}
-```
-
-##### Default response
-
-`Status: 200`
-
-
-### Get labels specs
-
-`GET /api/v1/fleet/spec/labels`
-
-#### Parameters
-
-None.
-
-#### Example
-
-`GET /api/v1/fleet/spec/labels`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "specs": [
-    {
-      "id": 6,
-      "name": "All Hosts",
-      "description": "All hosts which have enrolled in Fleet",
-      "query": "select 1;",
-      "label_type": "builtin",
-      "label_membership_type": "dynamic"
-    },
-    {
-      "id": 7,
-      "name": "macOS",
-      "description": "All macOS hosts",
-      "query": "select 1 from os_version where platform = 'darwin';",
-      "platform": "darwin",
-      "label_type": "builtin",
-      "label_membership_type": "dynamic"
-    },
-    {
-      "id": 8,
-      "name": "Ubuntu Linux",
-      "description": "All Ubuntu hosts",
-      "query": "select 1 from os_version where platform = 'ubuntu';",
-      "platform": "ubuntu",
-      "label_type": "builtin",
-      "label_membership_type": "dynamic"
-    },
-    {
-      "id": 9,
-      "name": "CentOS Linux",
-      "description": "All CentOS hosts",
-      "query": "select 1 from os_version where platform = 'centos' or name like '%centos%'",
-      "label_type": "builtin",
-      "label_membership_type": "dynamic"
-    },
-    {
-      "id": 10,
-      "name": "MS Windows",
-      "description": "All Windows hosts",
-      "query": "select 1 from os_version where platform = 'windows';",
-      "platform": "windows",
-      "label_type": "builtin",
-      "label_membership_type": "dynamic"
-    },
-    {
-      "id": 11,
-      "name": "Ubuntu",
-      "description": "Filters ubuntu hosts",
-      "query": "select 1 from os_version where platform = 'ubuntu';",
-      "label_membership_type": "dynamic"
-    }
-  ]
-}
-```
-
-### Get label spec
-
-Returns the spec for the label specified by name.
-
-`GET /api/v1/fleet/spec/labels/{name}`
-
-#### Parameters
-
-None.
-
-#### Example
-
-`GET /api/v1/fleet/spec/labels/local_machine`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "specs": {
-    "id": 12,
-    "name": "local_machine",
-    "description": "Includes only my local machine",
-    "query": "",
-    "label_membership_type": "manual",
-  }
-}
-```
 
 ---
 
@@ -1744,6 +1773,7 @@ The same error will be returned whenever one of the required parameters fails th
 ### Create a user account without an invitation
 
 Creates a user account without requiring an invitation, the user is enabled immediately.
+By default, the user will be forced to reset its password upon first login.
 
 `POST /api/v1/fleet/users/admin`
 
@@ -1757,6 +1787,7 @@ Creates a user account without requiring an invitation, the user is enabled imme
 | sso_enabled | boolean | body | Whether or not SSO is enabled for the user.                                                                                                                                                                                                                                                                                                              |
 | api_only    | boolean | body | User is an "API-only" user (cannot use web UI) if true.                                                                                                                                                                                                                                                                                                  |
 | global_role | string  | body | The role assigned to the user. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). If `global_role` is specified, `teams` cannot be specified.                                                                                                                                                                         |
+| admin_forced_password_reset    | boolean | body | Sets whether the user will be forced to reset its password upon first login (default=true) |
 | teams       | array   | body | _Available in Fleet Premium_ The teams and respective roles assigned to the user. Should contain an array of objects in which each object includes the team's `id` and the user's `role` on each team. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). If `teams` is specified, `global_role` cannot be specified. |
 
 #### Example
@@ -2192,15 +2223,7 @@ Deletes the session specified by ID. When the user associated with the session n
 - [Delete query](#delete-query)
 - [Delete query by ID](#delete-query-by-id)
 - [Delete queries](#delete-queries)
-- [Get queries specs](#get-queries-specs)
-- [Get query spec](#get-query-spec)
-- [Apply queries specs](#apply-queries-specs)
-- [Check live query status](#check-live-query-status)
-- [Check result store status](#check-result-store-status)
 - [Run live query](#run-live-query)
-- [Run live query by name](#run-live-query-by-name)
-- [Retrieve live query results (standard WebSocket API)](#retrieve-live-query-results-standard-websocket-api)
-- [Retrieve live query results (SockJS)](#retrieve-live-query-results-sockjs)
 
 ### Get query
 
@@ -2235,6 +2258,7 @@ Returns the query specified by ID.
     "observer_can_run": true,
     "author_id": 1,
     "author_name": "John",
+    "author_email": "john@example.com",
     "packs": [
       {
         "created_at": "2021-01-19T17:08:31Z",
@@ -2285,6 +2309,7 @@ Returns a list of all queries in the Fleet instance.
     "observer_can_run": true,
     "author_id": 1,
     "author_name": "noah",
+    "author_email": "noah@example.com",
     "packs": [
       {
         "created_at": "2021-01-05T21:13:04Z",
@@ -2295,7 +2320,14 @@ Returns a list of all queries in the Fleet instance.
         "platform": "",
         "disabled": true
       }
-    ]
+    ],
+    "stats": {
+      "system_time_p50": 1.32,
+      "system_time_p95": 4.02,
+      "user_time_p50": 3.55,
+      "user_time_p95": 3.00,
+      "total_executions": 3920
+    }
   },
   {
     "created_at": "2021-01-19T17:08:24Z",
@@ -2308,6 +2340,7 @@ Returns a list of all queries in the Fleet instance.
     "observer_can_run": true,
     "author_id": 1,
     "author_name": "noah",
+    "author_email": "noah@example.com",
     "packs": [
       {
         "created_at": "2021-01-19T17:08:31Z",
@@ -2366,6 +2399,7 @@ Returns a list of all queries in the Fleet instance.
     "saved": true,
     "author_id": 1,
     "author_name": "",
+    "author_email": "",
     "observer_can_run": true,
     "packs": []
   }
@@ -2500,628 +2534,86 @@ Deletes the queries specified by ID. Returns the count of queries successfully d
 }
 ```
 
-### Get queries specs
-
-Returns a list of all queries in the Fleet instance. Each item returned includes the name, description, and SQL of the query.
-
-`GET /api/v1/fleet/spec/queries`
-
-#### Parameters
-
-None.
-
-#### Example
-
-`GET /api/v1/fleet/spec/queries`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "specs": [
-    {
-        "name": "query1",
-        "description": "query",
-        "query": "SELECT * FROM osquery_info"
-    },
-    {
-        "name": "osquery_schedule",
-        "description": "Report performance stats for each file in the query schedule.",
-        "query": "select name, interval, executions, output_size, wall_time, (user_time/executions) as avg_user_time, (system_time/executions) as avg_system_time, average_memory, last_executed from osquery_schedule;"
-    }
-  ]
-}
-```
-
-### Get query spec
-
-Returns the name, description, and SQL of the query specified by name.
-
-`GET /api/v1/fleet/spec/queries/{name}`
-
-#### Parameters
-
-| Name | Type   | In   | Description                          |
-| ---- | ------ | ---- | ------------------------------------ |
-| name | string | path | **Required.** The name of the query. |
-
-#### Example
-
-`GET /api/v1/fleet/spec/queries/query1`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-    "specs": {
-        "name": "query1",
-        "description": "query",
-        "query": "SELECT * FROM osquery_info"
-    }
-}
-```
-
-### Apply queries specs
-
-Creates and/or modifies the queries included in the specs list. To modify an existing query, the name of the query included in `specs` must already be used by an existing query. If a query with the specified name doesn't exist in Fleet, a new query will be created.
-
-`POST /api/v1/fleet/spec/queries`
-
-#### Parameters
-
-| Name  | Type | In   | Description                                                      |
-| ----- | ---- | ---- | ---------------------------------------------------------------- |
-| specs | list | body | **Required.** The list of the queries to be created or modified. |
-
-#### Example
-
-`POST /api/v1/fleet/spec/queries`
-
-##### Request body
-
-```json
-{
-  "specs": [
-    {
-        "name": "new_query",
-        "description": "This will be a new query because a query with the name 'new_query' doesn't exist in Fleet.",
-        "query": "SELECT * FROM osquery_info"
-    },
-    {
-        "name": "osquery_schedule",
-        "description": "This queries description and SQL will be modified because a query with the name 'osquery_schedule' exists in Fleet.",
-        "query": "SELECT * FROM osquery_info"
-    }
-  ]
-}
-```
-
-##### Default response
-
-`Status: 200`
-
-
-### Live query health check
-
-Checks the status of the Fleet's ability to run a live query. If an error is present in the response, Fleet won't be able to successfully run a live query. This endpoint is used by the Fleet UI to make sure that the Fleet instance is correctly configured to run live queries.
-
-`GET /api/v1/fleet/status/live_query`
-
-#### Parameters
-
-None.
-
-#### Example
-
-`GET /api/v1/fleet/status/live_query`
-
-##### Default response
-
-`Status: 200`
-
-
-### live query result store health check
-
-Checks the status of the Fleet's result store. If an error is present in the response, Fleet won't be able to successfully run a live query. This endpoint is used by the Fleet UI to make sure that the Fleet instance is correctly configured to run live queries.
-
-`GET /api/v1/fleet/status/result_store`
-
-#### Parameters
-
-None.
-
-#### Example
-
-`GET /api/v1/fleet/status/result_store`
-
-##### Default response
-
-`Status: 200`
-
-
 ### Run live query
 
-Runs the specified query as a live query on the specified hosts or group of hosts. Returns a new live query campaign. Individual hosts must be specified with the host's ID. Groups of hosts are specified by label ID.
+Run one or more live queries against the specified hosts and responds with the results
+collected after 25 seconds.
 
-After the query has been initiated, [get results via WebSocket](#retrieve-live-query-results-standard-websocket-api).
+If multiple queries are provided, they run concurrently. Response time is capped at 25 seconds from
+when the API request was received, regardless of how many queries you are running, and regardless
+whether all results have been gathered or not. This API does not return any results until the fixed
+time period elapses, at which point all of the collected results are returned.
 
-`POST /api/v1/fleet/queries/run`
+The fixed time period is configurable via environment variable on the Fleet server (eg.
+`FLEET_LIVE_QUERY_REST_PERIOD=90s`). If setting a higher value, be sure that you do not exceed your
+load balancer timeout.
 
-#### Parameters
+> WARNING: This API endpoint collects responses in-memory (RAM) on the Fleet compute instance handling this request, which can overflow if the result set is large enough.  This has the potential to crash the process and/or cause an autoscaling event in your cloud provider, depending on how Fleet is deployed.
 
-| Name     | Type    | In   | Description                                                                                                                                                |
-| -------- | ------- | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| query    | string  | body | The SQL if using a custom query.                                                                                                                           |
-| query_id | integer | body | The saved query (if any) that will be run. Required if running query as an observer. The `observer_can_run` property on the query effects which targets are included.                                |
-| selected | object  | body | **Required.** The desired targets for the query specified by ID. This object can contain `hosts`, `labels`, and/or `teams` properties. See examples below. |
-
-One of `query` and `query_id` must be specified.
-
-#### Example with one host targeted by ID
-
-`POST /api/v1/fleet/queries/run`
-
-##### Request body
-
-```json
-{
-  "query": "select instance_id from system_info",
-  "selected": {
-    "hosts": [171]
-  }
-}
-```
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "campaign": {
-    "created_at": "0001-01-01T00:00:00Z",
-    "updated_at": "0001-01-01T00:00:00Z",
-    "Metrics": {
-      "TotalHosts": 1,
-      "OnlineHosts": 0,
-      "OfflineHosts": 1,
-      "MissingInActionHosts": 0,
-      "NewHosts": 1
-    },
-    "id": 1,
-    "query_id": 3,
-    "status": 0,
-    "user_id": 1
-  }
-}
-```
-
-#### Example with multiple hosts targeted by label ID
-
-`POST /api/v1/fleet/queries/run`
-
-##### Request body
-
-```json
-{
-  "query": "select instance_id from system_info;",
-  "selected": {
-    "labels": [7]
-  }
-}
-```
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "campaign": {
-    "created_at": "0001-01-01T00:00:00Z",
-    "updated_at": "0001-01-01T00:00:00Z",
-    "Metrics": {
-      "TotalHosts": 102,
-      "OnlineHosts": 0,
-      "OfflineHosts": 24,
-      "MissingInActionHosts": 0,
-      "NewHosts": 0
-    },
-    "id": 2,
-    "query_id": 3,
-    "status": 0,
-    "user_id": 1
-  }
-}
-```
-
-### Run live query by name
-
-Runs the specified saved query as a live query on the specified targets. Returns a new live query campaign. Individual hosts must be specified with the host's hostname. Groups of hosts are specified by label name.
-
-After the query has been initiated, [get results via WebSocket](#retrieve-live-query-results-standard-websocket-api).
-
-`POST /api/v1/fleet/queries/run_by_names`
+`GET /api/v1/fleet/queries/run`
 
 #### Parameters
 
-| Name     | Type    | In   | Description                                                                                                                                                  |
-| -------- | ------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| query    | string  | body | The SQL of the query.                                                                                                                                        |
-| query_id | integer | body | The saved query (if any) that will be run. The `observer_can_run` property on the query effects which targets are included.                                  |
-| selected | object  | body | **Required.** The desired targets for the query specified by name. This object can contain `hosts`, `labels`, and/or `teams` properties. See examples below. |
 
-One of `query` and `query_id` must be specified.
+| Name      | Type   | In   | Description                                   |
+| --------- | ------ | ---- | --------------------------------------------- |
+| query_ids | array  | body | **Required**. The IDs of the saved queries to run. |
+| host_ids  | array  | body | **Required**. The IDs of the hosts to target. |
 
-#### Example with one host targeted by hostname
+#### Example
 
-`POST /api/v1/fleet/queries/run_by_names`
+`GET /api/v1/fleet/queries/run`
 
 ##### Request body
 
 ```json
 {
-  "query_id": 1,
-  "selected": {
-    "hosts": [
-      "macbook-pro.local",
-    ]
-  }
+  "query_ids": [ 1, 2 ],
+  "host_ids": [ 1, 4, 34, 27 ]
 }
 ```
 
 ##### Default response
 
-`Status: 200`
-
 ```json
 {
-  "campaign": {
-      "created_at": "0001-01-01T00:00:00Z",
-      "updated_at": "0001-01-01T00:00:00Z",
-      "Metrics": {
-          "TotalHosts": 1,
-          "OnlineHosts": 0,
-          "OfflineHosts": 1,
-          "MissingInActionHosts": 0,
-          "NewHosts": 1
-      },
-      "id": 1,
-      "query_id": 3,
-      "status": 0,
-      "user_id": 1
-  }
+  "summary": {
+    "targeted_host_count": 4,
+    "responded_host_count": 2
+  },
+  "live_query_results": [
+    {
+      "query_id": 2,
+      "results": [
+        {
+          "host_id": 1,
+          "rows": [
+            {
+              "build_distro": "10.12",
+              "build_platform": "darwin",
+              "config_hash": "7bb99fa2c8a998c9459ec71da3a84d66c592d6d3",
+              "config_valid": "1",
+              "extensions": "active",
+              "instance_id": "9a2ec7bf-4946-46ea-93bf-455e0bcbd068",
+              "pid": "23413",
+              "platform_mask": "21",
+              "start_time": "1635194306",
+              "uuid": "4C182AC7-75F7-5AF4-A74B-1E165ED35742",
+              "version": "4.9.0",
+              "watcher": "23412"
+            }
+          ],
+          "error": null
+        },
+        {
+          "host_id": 2,
+          "rows": [],
+          "error": "no such table: os_version"
+        }
+      ]
+    }
+  ]
 }
-```
-
-#### Example with multiple hosts targeted by label name
-
-`POST /api/v1/fleet/queries/run_by_names`
-
-##### Request body
-
-```json
-{
-  "query": "select instance_id from system_info",
-  "selected": {
-    "labels": [
-      "All Hosts"
-    ]
-  }
-}
-```
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "campaign": {
-      "created_at": "0001-01-01T00:00:00Z",
-      "updated_at": "0001-01-01T00:00:00Z",
-      "Metrics": {
-          "TotalHosts": 102,
-          "OnlineHosts": 0,
-          "OfflineHosts": 24,
-          "MissingInActionHosts": 0,
-          "NewHosts": 1
-      },
-      "id": 2,
-      "query_id": 3,
-      "status": 0,
-      "user_id": 1
-  }
-}
-```
-
-### Retrieve live query results (standard WebSocket API)
-
-You can retrieve the results of a live query using the [standard WebSocket API](#https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API/Writing_WebSocket_client_applications).
-
-Before you retrieve the live query results, you must create a live query campaign by running the live query. Use the [Run live query](#run-live-query) or [Run live query by name](#run-live-query-by-name) endpoints to create a live query campaign.
-
-Note that live queries are automatically cancelled if this method is not called to start retrieving the results within 60 seconds of initiating the query.
-
-`/api/v1/fleet/results/websockets`
-
-### Parameters
-
-| Name       | Type    | In  | Description                                                      |
-| ---------- | ------- | --- | ---------------------------------------------------------------- |
-| token      | string  |     | **Required.** The token used to authenticate with the Fleet API. |
-| campaignID | integer |     | **Required.** The ID of the live query campaign.                 |
-
-### Example
-
-#### Example script to handle request and response
-
-```
-const socket = new WebSocket('wss://<your-base-url>/api/v1/fleet/results/websocket');
-
-socket.onopen = () => {
-  socket.send(JSON.stringify({ type: 'auth', data: { token: <auth-token> } }));
-  socket.send(JSON.stringify({ type: 'select_campaign', data: { campaign_id: <campaign-id> } }));
-};
-
-socket.onmessage = ({ data }) => {
-  console.log(data);
-  const message = JSON.parse(data);
-  if (message.type === 'status' && message.data.status === 'finished') {
-    socket.close();
-  }
-}
-```
-
-### Detailed request and response walkthrough with example data
-
-#### webSocket.onopen()
-
-##### Response data
-
-```json
-o
-```
-
-#### webSocket.send()
-
-##### Request data
-
-```json
-[
-  {
-    "type": "auth",
-    "data": { "token": <insert_token_here> }
-  }
-]
-```
-
-```json
-[
-  {
-    "type": "select_campaign",
-    "data": { "campaign_id": 12 }
-  }
-]
-```
-
-#### webSocket.onmessage()
-
-##### Response data
-
-```json
-// Sends the total number of hosts targeted and segments them by status
-
-[
-  {
-    "type": "totals",
-    "data": {
-      "count": 24,
-      "online": 6,
-      "offline": 18,
-      "missing_in_action": 0
-    }
-
-  }
-]
-```
-
-```json
-// Sends the expected results, actual results so far, and the status of the live query
-
-[
-  {
-    "type": "status",
-    "data": {
-      "expected_results": 6,
-      "actual_results": 0,
-      "status": "pending"
-    }
-
-  }
-]
-```
-
-```json
-// Sends the result for a given host
-
-[
-  {
-    "type": "result",
-    "data": {
-      "distributed_query_execution_id": 39,
-      "host": {
-        // host data
-      },
-      "rows": [
-        // query results data for the given host
-      ],
-      "error": null
-    }
-  }
-]
-```
-
-```json
-// Sends the status of "finished" when messages with the results for all expected hosts have been sent
-
-[
-  {
-    "type": "status",
-    "data": {
-      "expected_results": 6,
-      "actual_results": 6,
-      "status": "finished"
-    }
-
-  }
-]
-```
-
-### Retrieve live query results (SockJS)
-
-You can also retrieve live query results with a [SockJS client](https://github.com/sockjs/sockjs-client). The script to handle the request and response messages will look similar to the standard WebSocket API script with slight variations. For example, the constructor used for SockJS is `SockJS` while the constructor used for the standard WebSocket API is `WebSocket`.
-
-Note that SockJS has been found to be substantially less reliable than the [standard WebSockets approach](#retrieve-live-query-results-standard-websocket-api).
-
-`/api/v1/fleet/results/`
-
-### Parameters
-
-| Name       | Type    | In  | Description                                                      |
-| ---------- | ------- | --- | ---------------------------------------------------------------- |
-| token      | string  |     | **Required.** The token used to authenticate with the Fleet API. |
-| campaignID | integer |     | **Required.** The ID of the live query campaign.                 |
-
-### Example
-
-#### Example script to handle request and response
-
-```
-const socket = new SockJS(`<your-base-url>/api/v1/fleet/results`, undefined, {});
-
-socket.onopen = () => {
-  socket.send(JSON.stringify({ type: 'auth', data: { token: <token> } }));
-  socket.send(JSON.stringify({ type: 'select_campaign', data: { campaign_id: <campaignID> } }));
-};
-
-socket.onmessage = ({ data }) => {
-  console.log(data);
-  const message = JSON.parse(data);
-
-  if (message.type === 'status' && message.data.status === 'finished') {
-    socket.close();
-  }
-}
-```
-
-##### Detailed request and response walkthrough
-
-#### socket.onopen()
-
-##### Response data
-
-```json
-o
-```
-
-#### socket.send()
-
-##### Request data
-
-```json
-[
-  {
-    "type": "auth",
-    "data": { "token": <insert_token_here> }
-  }
-]
-```
-
-```json
-[
-  {
-    "type": "select_campaign",
-    "data": { "campaign_id": 12 }
-  }
-]
-```
-
-#### socket.onmessage()
-
-##### Response data
-
-```json
-// Sends the total number of hosts targeted and segments them by status
-
-[
-  {
-    "type": "totals",
-    "data": {
-      "count": 24,
-      "online": 6,
-      "offline": 18,
-      "missing_in_action": 0
-    }
-
-  }
-]
-```
-
-```json
-// Sends the expected results, actual results so far, and the status of the live query
-
-[
-  {
-    "type": "status",
-    "data": {
-      "expected_results": 6,
-      "actual_results": 0,
-      "status": "pending"
-    }
-
-  }
-]
-```
-
-```json
-// Sends the result for a given host
-
-[
-  {
-    "type": "result",
-    "data": {
-      "distributed_query_execution_id": 39,
-      "host": {
-        // host data
-      },
-      "rows": [
-        // query results data for the given host
-      ],
-      "error": null
-    }
-  }
-]
-```
-
-```json
-// Sends the status of "finished" when messages with the results for all expected hosts have been sent
-
-[
-  {
-    "type": "status",
-    "data": {
-      "expected_results": 6,
-      "actual_results": 6,
-      "status": "finished"
-    }
-
-  }
-]
 ```
 
 ---
@@ -3173,7 +2665,14 @@ None.
       "platform": "",
       "version": "",
       "shard": null,
-      "denylist": null
+      "denylist": null,
+      "stats": {
+        "system_time_p50": 1.32,
+        "system_time_p95": 4.02,
+        "user_time_p50": 3.55,
+        "user_time_p95": 3.00,
+        "total_executions": 3920
+      }
     },
     {
       "created_at": "0001-01-01T00:00:00Z",
@@ -3190,7 +2689,14 @@ None.
       "platform": "",
       "version": "",
       "shard": null,
-      "denylist": null
+      "denylist": null,
+      "stats": {
+        "system_time_p50": 1.32,
+        "system_time_p95": 4.02,
+        "user_time_p50": 3.55,
+        "user_time_p95": 3.00,
+        "total_executions": 3920
+      }
     }
   ]
 }
@@ -3222,7 +2728,7 @@ None.
 {
   "interval": 86400,
   "query_id": 2,
-  "snapshot": true,
+  "snapshot": true
 }
 ```
 
@@ -3377,7 +2883,14 @@ This allows you to easily configure scheduled queries that will impact a whole t
       "version": "",
       "removed": null,
       "shard": null,
-      "denylist": null
+      "denylist": null,
+      "stats": {
+        "system_time_p50": 1.32,
+        "system_time_p95": 4.02,
+        "user_time_p50": 3.55,
+        "user_time_p95": 3.00,
+        "total_executions": 3920
+      }
     },
     {
       "created_at": "0001-01-01T00:00:00Z",
@@ -3394,7 +2907,14 @@ This allows you to easily configure scheduled queries that will impact a whole t
       "platform": "",
       "version": "",
       "shard": null,
-      "denylist": null
+      "denylist": null,
+      "stats": {
+        "system_time_p50": 1.32,
+        "system_time_p95": 4.02,
+        "user_time_p50": 3.55,
+        "user_time_p95": 3.00,
+        "total_executions": 3920
+      }
     }
   ]
 }
@@ -3544,9 +3064,6 @@ This allows you to easily configure scheduled queries that will impact a whole t
 - [Get scheduled query](#get-scheduled-query)
 - [Modify scheduled query](#modify-scheduled-query)
 - [Delete scheduled query](#delete-scheduled-query)
-- [Get packs specs](#get-packs-specs)
-- [Apply packs specs](#apply-packs-specs)
-- [Get pack spec by name](#get-pack-spec-by-name)
 
 ### Create pack
 
@@ -3678,6 +3195,8 @@ This allows you to easily configure scheduled queries that will impact a whole t
     "id": 17,
     "name": "Title2",
     "description": "MacOS hosts are targeted",
+    "disabled": false,
+    "type": null,
     "query_count": 0,
     "total_hosts_count": 110,
     "host_ids": [],
@@ -4029,321 +3548,6 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 `Status: 200`
 
-
-### Get packs specs
-
-Returns the specs for all packs in the Fleet instance.
-
-`GET /api/v1/fleet/spec/packs`
-
-#### Example
-
-`GET /api/v1/fleet/spec/packs`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "specs": [
-    {
-      "id": 1,
-      "name": "pack_1",
-      "description": "Description",
-      "disabled": false,
-      "targets": {
-        "labels": [
-          "All Hosts"
-        ]
-      },
-      "queries": [
-        {
-          "query": "new_query",
-          "name": "new_query",
-          "description": "",
-          "interval": 456,
-          "snapshot": false,
-          "removed": true,
-          "platform": "windows",
-          "version": "4.5.0"
-        },
-        {
-          "query": "new_title_for_my_query",
-          "name": "new_title_for_my_query",
-          "description": "",
-          "interval": 677,
-          "snapshot": true,
-          "removed": false,
-          "platform": "",
-          "version": ""
-        },
-        {
-          "query": "osquery_info",
-          "name": "osquery_info",
-          "description": "",
-          "interval": 6667,
-          "snapshot": true,
-          "removed": false,
-          "platform": "",
-          "version": ""
-        },
-        {
-          "query": "query1",
-          "name": "query1",
-          "description": "",
-          "interval": 7767,
-          "snapshot": false,
-          "removed": true,
-          "platform": "",
-          "version": ""
-        },
-        {
-          "query": "osquery_events",
-          "name": "osquery_events",
-          "description": "",
-          "interval": 454,
-          "snapshot": false,
-          "removed": true,
-          "platform": "",
-          "version": ""
-        },
-        {
-          "query": "osquery_events",
-          "name": "osquery_events-1",
-          "description": "",
-          "interval": 120,
-          "snapshot": false,
-          "removed": true,
-          "platform": "",
-          "version": ""
-        }
-      ]
-    },
-    {
-      "id": 2,
-      "name": "pack_2",
-      "disabled": false,
-      "targets": {
-        "labels": null
-      },
-      "queries": [
-        {
-          "query": "new_query",
-          "name": "new_query",
-          "description": "",
-          "interval": 333,
-          "snapshot": false,
-          "removed": true,
-          "platform": "windows",
-          "version": "4.5.0",
-          "shard": 10,
-          "denylist": null
-        }
-      ]
-    },
-  ]
-}
-```
-
-### Apply packs specs
-
-Returns the specs for all packs in the Fleet instance.
-
-`POST /api/v1/fleet/spec/packs`
-
-#### Parameters
-
-| Name  | Type | In   | Description                                                                                   |
-| ----- | ---- | ---- | --------------------------------------------------------------------------------------------- |
-| specs | list | body | **Required.** A list that includes the specs for each pack to be added to the Fleet instance. |
-
-#### Example
-
-`POST /api/v1/fleet/spec/packs`
-
-##### Request body
-
-```json
-{
-  "specs": [
-    {
-      "id": 1,
-      "name": "pack_1",
-      "description": "Description",
-      "disabled": false,
-      "targets": {
-        "labels": [
-          "All Hosts"
-        ]
-      },
-      "queries": [
-        {
-          "query": "new_query",
-          "name": "new_query",
-          "description": "",
-          "interval": 456,
-          "snapshot": false,
-          "removed": true
-        },
-        {
-          "query": "new_title_for_my_query",
-          "name": "new_title_for_my_query",
-          "description": "",
-          "interval": 677,
-          "snapshot": true,
-          "removed": false
-        },
-        {
-          "query": "osquery_info",
-          "name": "osquery_info",
-          "description": "",
-          "interval": 6667,
-          "snapshot": true,
-          "removed": false
-        },
-        {
-          "query": "query1",
-          "name": "query1",
-          "description": "",
-          "interval": 7767,
-          "snapshot": false,
-          "removed": true
-        },
-        {
-          "query": "osquery_events",
-          "name": "osquery_events",
-          "description": "",
-          "interval": 454,
-          "snapshot": false,
-          "removed": true
-        },
-        {
-          "query": "osquery_events",
-          "name": "osquery_events-1",
-          "description": "",
-          "interval": 120,
-          "snapshot": false,
-          "removed": true
-        }
-      ]
-    },
-    {
-      "id": 2,
-      "name": "pack_2",
-      "disabled": false,
-      "targets": {
-        "labels": null
-      },
-      "queries": [
-        {
-          "query": "new_query",
-          "name": "new_query",
-          "description": "",
-          "interval": 333,
-          "snapshot": false,
-          "removed": true,
-          "platform": "windows"
-        }
-      ]
-    },
-  ]
-}
-```
-
-##### Default response
-
-`Status: 200`
-
-
-### Get pack spec by name
-
-Returns the spec for the specified pack by pack name.
-
-`GET /api/v1/fleet/spec/packs/{name}`
-
-#### Parameters
-
-| Name | Type   | In   | Description                    |
-| ---- | ------ | ---- | ------------------------------ |
-| name | string | path | **Required.** The pack's name. |
-
-#### Example
-
-`GET /api/v1/fleet/spec/packs/pack_1`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "specs": {
-    "id": 15,
-    "name": "pack_1",
-    "description": "Description",
-    "disabled": false,
-    "targets": {
-      "labels": [
-        "All Hosts"
-      ]
-    },
-    "queries": [
-      {
-        "query": "new_title_for_my_query",
-        "name": "new_title_for_my_query",
-        "description": "",
-        "interval": 677,
-        "snapshot": true,
-        "removed": false,
-        "platform": "",
-        "version": "",
-      },
-      {
-        "query": "osquery_info",
-        "name": "osquery_info",
-        "description": "",
-        "interval": 6667,
-        "snapshot": true,
-        "removed": false,
-        "platform": "",
-        "version": "",
-      },
-      {
-        "query": "query1",
-        "name": "query1",
-        "description": "",
-        "interval": 7767,
-        "snapshot": false,
-        "removed": true,
-        "platform": "",
-        "version": "",
-      },
-      {
-        "query": "osquery_events",
-        "name": "osquery_events",
-        "description": "",
-        "interval": 454,
-        "snapshot": false,
-        "removed": true,
-        "platform": "",
-        "version": "",
-      },
-      {
-        "query": "osquery_events",
-        "name": "osquery_events-1",
-        "description": "",
-        "interval": 120,
-        "snapshot": false,
-        "removed": true,
-        "platform": "",
-        "version": "",
-      }
-    ]
-  }
-}
-```
-
 ---
 
 ## Policies
@@ -4352,16 +3556,21 @@ Returns the spec for the specified pack by pack name.
 - [Get policy by ID](#get-policy-by-id)
 - [Add policy](#add-policy)
 - [Remove policies](#remove-policies)
+- [Edit policy](#edit-policy)
 
 `In Fleet 4.3.0, the Policies feature was introduced.`
 
-Policies allow you to see which hosts meet a certain standard.
+> Fleet 4.7.0 (release on 2021-12-08), introduces [breaking changes](https://github.com/fleetdm/fleet/issues/2595) to the `/policies` API routes. Therefore, after upgrading to Fleet 4.7.0, any previous integrations with the `/policies` API routes will no longer work. These changes will not affect any policies created or modified in the Fleet UI.
+
+Policies are yes or no questions you can ask about your hosts.
 
 Policies in Fleet are defined by osquery queries.
 
-Host that return results for a policy's query are "Passing."
+A passing host answers "yes" to a policy if the host returns results for a policy's query.
 
-Hosts that do not return results for a policy's query are "Failing."
+A failing host answers "no" to a policy if the host does not return results for a policy's query.
+
+For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ This policy's osquery query might look like the following: `SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;`
 
 ### List policies
 
@@ -4380,17 +3589,29 @@ Hosts that do not return results for a policy's query are "Failing."
   "policies": [
     {
       "id": 1,
-      "query_id": 2,
-      "query_name": "Gatekeeper enabled",
+      "name": "Gatekeeper enabled",
+      "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
+      "description": "Checks if gatekeeper is enabled on macOS devices",
+      "author_id": 42,
+      "author_name": "John",
+      "author_email": "john@example.com",
+      "resolution": "Resolution steps",
+      "platform": "darwin",
       "passing_host_count": 2000,
-      "failing_host_count": 300,
+      "failing_host_count": 300
     },
     {
       "id": 2,
-      "query_id": 3,
-      "query_name": "Primary disk encrypted",
+      "name": "Windows machines with encrypted hard disks",
+      "query": "SELECT 1 FROM bitlocker_info WHERE protection_status = 1;",
+      "description": "Checks if the hard disk is encrypted on Windows devices",
+      "author_id": 43,
+      "author_name": "Alice",
+      "author_email": "alice@example.com",
+      "resolution": "Resolution steps",
+      "platform": "windows",
       "passing_host_count": 2300,
-      "failing_host_count": 0,
+      "failing_host_count": 0
     }
   ]
 }
@@ -4404,7 +3625,7 @@ Hosts that do not return results for a policy's query are "Failing."
 
 | Name               | Type    | In   | Description                                                                                                   |
 | ------------------ | ------- | ---- | ------------------------------------------------------------------------------------------------------------- |
-| id          | integer | path | **Required.** The policy's ID.                                                                                  |
+| id                 | integer | path | **Required.** The policy's ID.                                                                                |
 
 #### Example
 
@@ -4418,25 +3639,83 @@ Hosts that do not return results for a policy's query are "Failing."
 {
   "policy": {
     "id": 1,
-    "query_id": 2,
-    "query_name": "Gatekeeper enabled",
+    "name": "Gatekeeper enabled",
+    "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
+    "description": "Checks if gatekeeper is enabled on macOS devices",
+    "author_id": 42,
+    "author_name": "John",
+    "author_email": "john@example.com",
+    "resolution": "Resolution steps",
+    "platform": "darwin",
     "passing_host_count": 2000,
-    "failing_host_count": 300,
+    "failing_host_count": 300
   }
 }
 ```
 
 ### Add policy
 
+There are two ways of adding a policy:
+1. by setting "name", "query", "description". This is the preferred way.
+2. (Legacy) re-using the data of an existing query, by setting "query_id". If "query_id" is set,
+then "query" must not be set, and "name" and "description" are ignored.
+
+An error is returned if both "query" and "query_id" are set on the request.
+
 `POST /api/v1/fleet/global/policies`
 
 #### Parameters
 
-| Name     | Type    | In   | Description                    |
-| -------- | ------- | ---- | ------------------------------ |
-| query_id | integer | body | **Required.** The query's ID.  |
+| Name        | Type    | In   | Description                          |
+| ----------  | ------- | ---- | ------------------------------------ |
+| name        | string  | body | The query's name.                    |
+| query       | string  | body | The query in SQL.                    |
+| description | string  | body | The query's description.             |
+| resolution  | string  | body | The resolution steps for the policy. |
+| query_id    | integer | body | An existing query's ID (legacy).     |
+| platform    | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms. |
 
-#### Example
+Either `query` or `query_id` must be provided.
+
+#### Example Add Policy
+
+`POST /api/v1/fleet/global/policies`
+
+#### Request body
+
+```json
+{
+  "name": "Gatekeeper enabled",
+  "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
+  "description": "Checks if gatekeeper is enabled on macOS devices",
+  "resolution": "Resolution steps",
+  "platform": "darwin"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "policy": {
+    "id": 43,
+    "name": "Gatekeeper enabled",
+    "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
+    "description": "Checks if gatekeeper is enabled on macOS devices",
+    "author_id": 42,
+    "author_name": "John",
+    "author_email": "john@example.com",
+    "resolution": "Resolution steps",
+    "platform": "darwin",
+    "passing_host_count": 0,
+    "failing_host_count": 0
+  }
+}
+```
+
+#### Example Legacy Add Policy
 
 `POST /api/v1/fleet/global/policies`
 
@@ -4448,6 +3727,8 @@ Hosts that do not return results for a policy's query are "Failing."
 }
 ```
 
+Where `query_id` references an existing `query`.
+
 ##### Default response
 
 `Status: 200`
@@ -4455,12 +3736,18 @@ Hosts that do not return results for a policy's query are "Failing."
 ```json
 {
   "policy": {
-      "id": 2,
-      "query_id": 2,
-      "query_name": "Primary disk encrypted",
-      "passing_host_count": 0,
-      "failing_host_count": 0,
-    },
+    "id": 43,
+    "name": "Gatekeeper enabled",
+    "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
+    "description": "Checks if gatekeeper is enabled on macOS devices",
+    "author_id": 42,
+    "author_name": "John",
+    "author_email": "john@example.com",
+    "resolution": "Resolution steps",
+    "platform": "darwin",
+    "passing_host_count": 0,
+    "failing_host_count": 0
+  }
 }
 ```
 
@@ -4496,14 +3783,66 @@ Hosts that do not return results for a policy's query are "Failing."
 }
 ```
 
+### Edit policy
+
+`PATCH /api/v1/fleet/global/policies/{policy_id}`
+
+#### Parameters
+
+| Name        | Type    | In   | Description                          |
+| ----------  | ------- | ---- | ------------------------------------ |
+| id          | integer | path | The policy's ID.                     |
+| name        | string  | body | The query's name.                    |
+| query       | string  | body | The query in SQL.                    |
+| description | string  | body | The query's description.             |
+| resolution  | string  | body | The resolution steps for the policy. |
+
+#### Example Edit Policy
+
+`PATCH /api/v1/fleet/global/policies/42`
+
+##### Request body
+
+```json
+{
+  "name": "Gatekeeper enabled",
+  "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
+  "description": "Checks if gatekeeper is enabled on macOS devices",
+  "resolution": "Resolution steps",
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "policy": {
+    "id": 42,
+    "name": "Gatekeeper enabled",
+    "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
+    "description": "Checks if gatekeeper is enabled on macOS devices",
+    "author_id": 43,
+    "author_name": "John",
+    "author_email": "john@example.com",
+    "resolution": "Resolution steps",
+    "platform": "darwin",
+    "passing_host_count": 0,
+    "failing_host_count": 0
+  }
+}
+```
+
 ---
 
-## Team Policies
+## Team policies
 
 - [List team policies](#list-team-policies)
 - [Get team policy by ID](#get-team-policy-by-id)
 - [Add team policy](#add-team-policy)
 - [Remove team policies](#remove-team-policies)
+- [Edit team policy](#edit-team-policy)
 
 _Available in Fleet Premium_
 
@@ -4527,22 +3866,36 @@ Team policies work the same as policies, but at the team level.
 
 `Status: 200`
 
-```
+```json
 {
   "policies": [
     {
       "id": 1,
-      "query_id": 2,
-      "query_name": "Gatekeeper enabled",
+      "name": "Gatekeeper enabled",
+      "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
+      "description": "Checks if gatekeeper is enabled on macOS devices",
+      "author_id": 42,
+      "author_name": "John",
+      "author_email": "john@example.com",
+      "team_id": 1,
+      "resolution": "Resolution steps",
+      "platform": "darwin",
       "passing_host_count": 2000,
-      "failing_host_count": 300,
+      "failing_host_count": 300
     },
     {
       "id": 2,
-      "query_id": 3,
-      "query_name": "Primary disk encrypted",
+      "name": "Windows machines with encrypted hard disks",
+      "query": "SELECT 1 FROM bitlocker_info WHERE protection_status = 1;",
+      "description": "Checks if the hard disk is encrypted on Windows devices",
+      "author_id": 43,
+      "author_name": "Alice",
+      "author_email": "alice@example.com",
+      "team_id": 1,
+      "resolution": "Resolution steps",
+      "platform": "windows",
       "passing_host_count": 2300,
-      "failing_host_count": 0,
+      "failing_host_count": 0
     }
   ]
 }
@@ -4561,44 +3914,64 @@ Team policies work the same as policies, but at the team level.
 
 #### Example
 
-`GET /api/v1/fleet/teams/1/policies/1`
+`GET /api/v1/fleet/teams/1/policies/43`
 
 ##### Default response
 
 `Status: 200`
 
-```
+```json
 {
   "policy": {
-    "id": 1,
-    "query_id": 2,
-    "query_name": "Gatekeeper enabled",
-    "passing_host_count": 2000,
-    "failing_host_count": 300,
+    "id": 43,
+    "name": "Gatekeeper enabled",
+    "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
+    "description": "Checks if gatekeeper is enabled on macOS devices",
+    "author_id": 42,
+    "author_name": "John",
+    "author_email": "john@example.com",
+    "team_id": 1,
+    "resolution": "Resolution steps",
+    "platform": "darwin",
+    "passing_host_count": 0,
+    "failing_host_count": 0
   }
 }
 ```
 
 ### Add team policy
 
+The semantics for creating a team policy are the same as for global policies, see [Add policy](#add-policy).
+
 `POST /api/v1/fleet/teams/{team_id}/policies`
 
 #### Parameters
 
-| Name     | Type    | In   | Description                         |
-| -------- | ------- | ---- | ----------------------------------- |
-| team_id  | integer | url  | Defines what team id to operate on  |
-| query_id | integer | body | **Required.** The query's ID.       |
+| Name        | Type    | In   | Description                          |
+| ----------  | ------- | ---- | ------------------------------------ |
+| team_id     | integer | url  | Defines what team id to operate on.  |
+| name        | string  | body | The query's name.                    |
+| query       | string  | body | The query in SQL.                    |
+| description | string  | body | The query's description.             |
+| resolution  | string  | body | The resolution steps for the policy. |
+| query_id    | integer | body | An existing query's ID (legacy).     |
+| platform    | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms. |
+
+Either `query` or `query_id` must be provided.
 
 #### Example
 
 `POST /api/v1/fleet/teams/1/policies`
 
-#### Request body
+##### Request body
 
-```
+```json
 {
-  "query_id": 12
+  "name": "Gatekeeper enabled",
+  "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
+  "description": "Checks if gatekeeper is enabled on macOS devices",
+  "resolution": "Resolution steps",
+  "platform": "darwin"
 }
 ```
 
@@ -4606,15 +3979,22 @@ Team policies work the same as policies, but at the team level.
 
 `Status: 200`
 
-```
+```json
 {
   "policy": {
-      "id": 2,
-      "query_id": 2,
-      "query_name": "Primary disk encrypted",
-      "passing_host_count": 0,
-      "failing_host_count": 0,
-    },
+    "id": 43,
+    "name": "Gatekeeper enabled",
+    "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
+    "description": "Checks if gatekeeper is enabled on macOS devices",
+    "author_id": 42,
+    "author_name": "John",
+    "author_email": "john@example.com",
+    "team_id": 1,
+    "resolution": "Resolution steps",
+    "platform": "darwin",
+    "passing_host_count": 0,
+    "failing_host_count": 0
+  }
 }
 ```
 
@@ -4633,9 +4013,9 @@ Team policies work the same as policies, but at the team level.
 
 `POST /api/v1/fleet/teams/1/policies/delete`
 
-#### Request body
+##### Request body
 
-```
+```json
 {
   "ids": [ 1 ]
 }
@@ -4645,9 +4025,62 @@ Team policies work the same as policies, but at the team level.
 
 `Status: 200`
 
-```
+```json
 {
   "deleted": 1
+}
+```
+
+### Edit team policy
+
+`PATCH /api/v1/fleet/teams/{team_id}/policies/{policy_id}`
+
+#### Parameters
+
+| Name        | Type    | In   | Description                          |
+| ----------  | ------- | ---- | ------------------------------------ |
+| team_id     | integer | path | The team's ID.                       |
+| policy_id   | integer | path | The policy's ID.                     |
+| name        | string  | body | The query's name.                    |
+| query       | string  | body | The query in SQL.                    |
+| description | string  | body | The query's description.             |
+| resolution  | string  | body | The resolution steps for the policy. |
+
+#### Example Edit Policy
+
+`PATCH /api/v1/fleet/teams/2/policies/42`
+
+##### Request body
+
+```json
+{
+  "name": "Gatekeeper enabled",
+  "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
+  "description": "Checks if gatekeeper is enabled on macOS devices",
+  "resolution": "Resolution steps",
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "policy": {
+    "id": 42,
+    "name": "Gatekeeper enabled",
+    "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
+    "description": "Checks if gatekeeper is enabled on macOS devices",
+    "author_id": 43,
+    "author_name": "John",
+    "author_email": "john@example.com",
+    "resolution": "Resolution steps",
+    "platform": "darwin",
+    "team_id": 2,
+    "passing_host_count": 0,
+    "failing_host_count": 0
+  }
 }
 ```
 
@@ -4662,11 +4095,11 @@ Returns a list of the activities that have been performed in Fleet. The followin
 - Created pack
 - Edited pack
 - Deleted pack
-- Applied pack spec
+- Applied pack with fleetctl
 - Created saved query
 - Edited saved query
 - Deleted saved query
-- Applied query spec
+- Applied query with fleetctl
 - Ran live query
 - Created team - _Available in Fleet Premium_
 - Deleted team - _Available in Fleet Premium_
@@ -4986,8 +4419,6 @@ The returned lists are filtered based on the hosts the requesting user has acces
 - [Get certificate](#get-certificate)
 - [Get configuration](#get-configuration)
 - [Modify configuration](#modify-configuration)
-- [Get enroll secrets](#get-enroll-secrets)
-- [Modify enroll secrets](#modify-enroll-secrets)
 - [Create invite](#create-invite)
 - [List invites](#list-invites)
 - [Delete invite](#delete-invite)
@@ -5143,9 +4574,20 @@ None.
   "webhook_settings": {
     "host_status_webhook": {
       "enable_host_status_webhook": true,
-       "destination_url": "https://server.com",
+      "destination_url": "https://server.com",
       "host_percentage": 5,
       "days_count": 7
+    },
+    "failing_policies_webhook":{
+      "enable_failing_policies_webhook":true,
+      "destination_url": "https://server.com",
+      "policy_ids": [1, 2, 3],
+      "host_batch_size": 1000
+    },
+    "vulnerabilities_webhook":{
+      "enable_vulnerabilities_webhook":true,
+      "destination_url": "https://server.com",
+      "host_batch_size": 1000
     }
   },
   "logging": {
@@ -5220,6 +4662,17 @@ Modifies the Fleet's configuration with the supplied information.
 | host_expiry_enabled   | boolean | body | _Host expiry settings_. When enabled, allows automatic cleanup of hosts that have not communicated with Fleet in some number of days.                                                  |
 | host_expiry_window    | integer | body | _Host expiry settings_. If a host has not communicated with Fleet in the specified number of days, it will be removed.                                                                 |
 | agent_options         | objects | body | The agent_options spec that is applied to all hosts. In Fleet 4.0.0 the `api/v1/fleet/spec/osquery_options` endpoints were removed.                                                    |
+| enable_host_status_webhook    | boolean | body | _webhook_settings.host_status_webhook settings_. Whether or not the host status webhook is enabled.                                                                 |
+| destination_url    | string | body | _webhook_settings.host_status_webhook settings_. The URL to deliver the webhook request to.                                                     |
+| host_percentage    | integer | body | _webhook_settings.host_status_webhook settings_. The minimum percentage of hosts that must fail to check in to Fleet in order to trigger the webhook request.                                                              |
+| days_count    | integer | body | _webhook_settings.host_status_webhook settings_. The minimum number of days that the configured `host_percentage` must fail to check in to Fleet in order to trigger the webhook request.                                |
+| enable_failing_policies_webhook   | boolean | body | _webhook_settings.failing_policies_webhook settings_. Whether or not the failing policies webhook is enabled. |
+| destination_url    | string | body | _webhook_settings.failing_policies_webhook settings_. The URL to deliver the webhook requests to.                                                     |
+| policy_ids    | array | body | _webhook_settings.failing_policies_webhook settings_. List of policy IDs to enable failing policies webhook.                                                              |
+| host_batch_size    | integer | body | _webhook_settings.failing_policies_webhook settings_. Maximum number of hosts to batch on failing policy webhook requests. The default, 0, means no batching (all hosts failing a policy are sent on one request). |
+| enable_vulnerabilities_webhook   | boolean | body | _webhook_settings.vulnerabilities_webhook settings_. Whether or not the vulnerabilities webhook is enabled. |
+| destination_url    | string | body | _webhook_settings.vulnerabilities_webhook settings_. The URL to deliver the webhook requests to.                                                     |
+| host_batch_size    | integer | body | _webhook_settings.vulnerabilities_webhook settings_. Maximum number of hosts to batch on vulnerabilities webhook requests. The default, 0, means no batching (all vulnerable hosts are sent on one request). |
 | additional_queries    | boolean | body | Whether or not additional queries are enabled on hosts.                                                                                                                                |
 
 #### Example
@@ -5291,10 +4744,6 @@ Modifies the Fleet's configuration with the supplied information.
     "tier": "free",
     "expiration": "0001-01-01T00:00:00Z"
   },
-  "license": {
-    "tier": "free",
-    "expiration": "0001-01-01T00:00:00Z"
-  },
   "agent_options": {
     "spec": {
       "config": {
@@ -5324,9 +4773,20 @@ Modifies the Fleet's configuration with the supplied information.
   "webhook_settings": {
     "host_status_webhook": {
       "enable_host_status_webhook": true,
-       "destination_url": "https://server.com",
+      "destination_url": "https://server.com",
       "host_percentage": 5,
       "days_count": 7
+    },
+    "failing_policies_webhook":{
+      "enable_failing_policies_webhook":true,
+      "destination_url": "https://server.com",
+      "policy_ids": [1, 2, 3],
+      "host_batch_size": 1000
+    },
+    "vulnerabilities_webhook":{
+      "enable_vulnerabilities_webhook":true,
+      "destination_url": "https://server.com",
+      "host_batch_size": 1000
     }
   },
   "logging": {
@@ -5353,7 +4813,7 @@ Modifies the Fleet's configuration with the supplied information.
 }
 ```
 
-### Get enroll secrets
+### Get global enroll secrets
 
 Returns the valid global enroll secrets.
 
@@ -5373,59 +4833,87 @@ None.
 
 ```json
 {
-  "spec": {
-    "secrets": [
-      {
-        "secret": "fTp52/twaxBU6gIi0J6PHp8o5Sm1k1kn",
-        "created_at": "2021-01-07T19:40:04Z"
-      },
-      {
-        "secret": "bhD5kiX2J+KBgZSk118qO61ZIdX/v8On",
-        "created_at": "2021-01-04T21:18:07Z"
-      }
-    ]
-  }
+    "spec": {
+        "secrets": [
+            {
+                "secret": "vhPzPOnCMOMoqSrLxKxzSADyqncayacB",
+                "created_at": "2021-11-12T20:24:57Z"
+            },
+            {
+                "secret": "jZpexWGiXmXaFAKdrdttFHdJBqEnqlVF",
+                "created_at": "2021-11-12T20:24:57Z"
+            }
+        ]
+    }
 }
 ```
 
-### Modify enroll secrets
+### Modify global enroll secrets
 
-Replaces the active global enroll secrets with the secrets specified.
+Replaces all existing global enroll secrets.
 
 `POST /api/v1/fleet/spec/enroll_secret`
 
 #### Parameters
 
-| Name   | Type   | In   | Description                                                    |
-| ------ | ------ | ---- | -------------------------------------------------------------- |
-| secret | string | body | **Required.** The plain text string used as the enroll secret. |
-
+| Name      | Type    | In   | Description                                                        |
+| --------- | ------- | ---- | ------------------------------------------------------------------ |
+| spec      | object  | body | **Required**. Attribute "secrets" must be a list of enroll secrets |
 #### Example
+
+Replace all global enroll secrets with a new enroll secret.
+
+`POST /api/v1/fleet/spec/enroll_secret`
 
 ##### Request body
 
 ```json
 {
-  "spec": {
-    "secrets": [
-      {
-        "secret": "fTp52/twaxBU6gIi0J6PHp8o5Sm1k1kn",
-      },
-    ]
-  }
+    "spec": {
+        "secrets": [
+            {
+                "secret": "KuSkYFsHBQVlaFtqOLwoUIWniHhpvEhP",
+            }
+        ]
+    }
 }
 ```
-
-`POST /api/v1/fleet/spec/enroll_secret`
 
 ##### Default response
 
 `Status: 200`
 
+```json
+{}
+```
 
-### Get enroll secret for a team
+#### Example
 
-Returns the valid team enroll secret.
+Delete all global enroll secrets.
+
+`POST /api/v1/fleet/spec/enroll_secret`
+
+##### Request body
+
+```json
+{
+    "spec": {
+        "secrets": []
+    }
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{}
+```
+
+### Get enroll secrets for a team
+
+Returns the valid team enroll secrets.
 
 `GET /api/v1/fleet/teams/{id}/secrets`
 
@@ -5453,6 +4941,77 @@ None.
 }
 ```
 
+
+### Modify enroll secrets for a team
+
+Replaces all existing team enroll secrets.
+
+`PATCH /api/v1/fleet/teams/{id}/secrets`
+
+#### Parameters
+
+| Name      | Type    | In   | Description                            |
+| --------- | ------- | ---- | -------------------------------------- |
+| id        | integer | path | **Required**. The team's id.           |
+| secrets   | array   | body | **Required**. A list of enroll secrets |
+
+#### Example
+
+Replace all of a team's existing enroll secrets with a new enroll secret
+
+`PATCH /api/v1/fleet/teams/2/secrets`
+
+##### Request body
+
+```json
+{
+  "secrets": [
+    {
+      "secret": "n07v32y53c237734m3n201153c237",
+    }
+  ]
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "secrets": [
+    {
+      "secret": "n07v32y53c237734m3n201153c237",
+      "created_at": "0001-01-01T00:00:00Z",
+    }
+  ]
+}
+```
+
+#### Example
+
+Delete all of a team's existing enroll secrets
+
+`PATCH /api/v1/fleet/teams/2/secrets`
+
+##### Request body
+
+```json
+{
+  "secrets": []
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "secrets": null
+}
+```
+
 ### Create invite
 
 `POST /api/v1/fleet/invites`
@@ -5461,7 +5020,7 @@ None.
 
 | Name        | Type    | In   | Description                                                                                                                                           |
 | ----------- | ------- | ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| admin       | boolean | body | **Required.** Whether or not the invited user will be granted admin privileges.                                                                       |
+| global_role | string  | body | Role the user will be granted. Either a global role is needed, or a team role.                                                                        |
 | email       | string  | body | **Required.** The email of the invited user. This email will receive the invitation link.                                                             |
 | name        | string  | body | **Required.** The name of the invited user.                                                                                                           |
 | sso_enabled | boolean | body | **Required.** Whether or not SSO will be enabled for the invited user.                                                                                |
@@ -5476,7 +5035,7 @@ None.
   "email": "john_appleseed@example.com",
   "name": "John",
   "sso_enabled": false,
-  "global_role": "admin",
+  "global_role": null,
   "teams": [
     {
       "id": 2,
@@ -5485,7 +5044,7 @@ None.
     {
       "id": 3,
       "role": "maintainer"
-    },
+    }
   ]
 }
 ```
@@ -5650,6 +5209,85 @@ Verify the specified invite.
             "reason": "Invite with token <token> was not found in the datastore"
         }
     ]
+}
+```
+
+### Update invite
+
+`PATCH /api/v1/fleet/invites/{id}`
+
+#### Parameters
+
+| Name        | Type    | In   | Description                                                                                                                                           |
+| ----------- | ------- | ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| global_role | string  | body | Role the user will be granted. Either a global role is needed, or a team role.                                                                        |
+| email       | string  | body | The email of the invited user. Updates on the email won't resend the invitation.                                                             |
+| name        | string  | body | The name of the invited user.                                                                                                           |
+| sso_enabled | boolean | body | Whether or not SSO will be enabled for the invited user.                                                                                |
+| teams       | list    | body | _Available in Fleet Premium_ A list of the teams the user is a member of. Each item includes the team's ID and the user's role in the specified team. |
+
+#### Example
+
+`PATCH /api/v1/fleet/invites/123`
+
+##### Request body
+
+```json
+{
+  "email": "john_appleseed@example.com",
+  "name": "John",
+  "sso_enabled": false,
+  "global_role": null,
+  "teams": [
+    {
+      "id": 2,
+      "role": "observer"
+    },
+    {
+      "id": 3,
+      "role": "maintainer"
+    }
+  ]
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "invite": {
+    "created_at": "0001-01-01T00:00:00Z",
+    "updated_at": "0001-01-01T00:00:00Z",
+    "id": 3,
+    "invited_by": 1,
+    "email": "john_appleseed@example.com",
+    "name": "John",
+    "sso_enabled": false,
+    "teams": [
+      {
+        "id": 10,
+        "created_at": "0001-01-01T00:00:00Z",
+        "name": "Apples",
+        "description": "",
+        "agent_options": null,
+        "user_count": 0,
+        "host_count": 0,
+        "role": "observer"
+      },
+      {
+        "id": 14,
+        "created_at": "0001-01-01T00:00:00Z",
+        "name": "Best of the Best Engineering",
+        "description": "",
+        "agent_options": null,
+        "user_count": 0,
+        "host_count": 0,
+        "role": "maintainer"
+      }
+    ]
+  }
 }
 ```
 
@@ -6203,80 +5841,13 @@ _Available in Fleet Premium_
 
 `Status: 200`
 
-### Apply team spec
-
-_Available in Fleet Premium_
-
-If the `name` specified is associated with an existing team, this API route, completely replaces this team's existing `agent_options` and `secrets` with those that are specified.
-
-If the `name` is not already associated with an existing team, this API route creates a new team with the specified `name`, `agent_options`, and `secrets`.
-
-`POST /api/v1/fleet/spec/teams`
-
-#### Parameters
-
-| Name | Type   | In   | Description                    |
-| ---- | ------ | ---- | ------------------------------ |
-| name | string | body | **Required.** The team's name. |
-| agent_options | string | body | **Required.** The agent options spec that is applied to the hosts assigned to the specified to team. These agent agent options completely override the global agent options specified in the [`GET /api/v1/fleet/config API route`](#get-configuration)|
-| secrets | list | body | **Required.** A list of plain text strings used as the enroll secrets. |
-
-#### Example
-
-`POST /api/v1/fleet/spec/teams`
-
-##### Request body
-
-```json
-{
-  "specs": [
-    {
-      "name": "Client Platform Engineering",
-      "agent_options": {
-        "spec": {
-          "config": {
-            "options": {
-              "logger_plugin": "tls",
-              "pack_delimiter": "/",
-              "logger_tls_period": 10,
-              "distributed_plugin": "tls",
-              "disable_distributed": false,
-              "logger_tls_endpoint": "/api/v1/osquery/log",
-              "distributed_interval": 10,
-              "distributed_tls_max_attempts": 3
-            },
-            "decorators": {
-              "load": [
-                "SELECT uuid AS host_uuid FROM system_info;",
-                "SELECT hostname AS hostname FROM system_info;"
-              ]
-            }
-          },
-          "overrides": {}
-        }
-      },
-      "secrets": [
-        {
-         "secret": "fTp52/twaxBU6gIi0J6PHp8o5Sm1k1kn",
-        },
-        {
-          "secret": "bhD5kiX2J+KBgZSk118qO61ZIdX/v8On",
-        }
-      ]
-    }
-  ]
-}
-```
-
-#### Default response
-
-`Status: 200`
-
 ---
 
 ## Translator
 
 ### Translate IDs
+
+Transforms a host name into a host id. For example, the Fleet UI use this endpoint when sending live queries to a set of hosts.
 
 `POST /api/v1/fleet/translate`
 
@@ -6374,10 +5945,11 @@ If the `name` is not already associated with an existing team, this API route cr
 | ----------------------- | ------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | page                    | integer | query | Page number of the results to fetch.                                                                                                                                                                                                                                                                                                        |
 | per_page                | integer | query | Results per page.                                                                                                                                                                                                                                                                                                                           |
-| order_key               | string  | query | What to order results by. Can be any column in the hosts table.                                                                                                                                                                                                                                                                             |
-| order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`.                                                                                                                                                                                                               |
-| query                   | string  | query | Search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, and `ipv4`.                                                                                                                                                                                                                                          |
-| team_id                 | integer | query | _Available in Fleet Premium_ Filters the users to only include users in the specified team.                                                                                                                                                                                                                                                 |
+| order_key               | string  | query | What to order results by. Can be ordered by the following fields: `name`, `hosts_count`. Defaults to the hosts count, descending.                                                                                                                                                                                                           |
+| order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default if not provided is `asc`.                                                                                                                                                                                               |
+| query                   | string  | query | Search query keywords. Searchable fields include `name`, `version`, and `cve`.                                                                                                                                                                                                                                                                                    |
+| team_id                 | integer | query | _Available in Fleet Premium_ Filters the software to only include the software installed on the hosts that are assigned to the specified team.                                                                                                                                                                                              |
+| vulnerable              | bool    | query | If true or 1, only list software that has detected vulnerabilities                                                                                                                                                                                                                                                                          |
 
 #### Example
 
@@ -6389,22 +5961,16 @@ If the `name` is not already associated with an existing team, this API route cr
 
 ```json
 {
+    "counts_updated_at": "2022-01-01 12:32:00",
     "software": [
       {
-        "id": 1,
-        "name": "Chrome.app",
+        "id": 4,
+        "name": "osquery",
         "version": "2.1.11",
-        "source": "Application (macOS)",
+        "source": "rpm_packages",
         "generated_cpe": "",
-        "vulnerabilities": null
-      },
-      {
-        "id": 2,
-        "name": "Figma.app",
-        "version": "2.1.11",
-        "source": "Application (macOS)",
-        "generated_cpe": "",
-        "vulnerabilities": null
+        "vulnerabilities": null,
+        "hosts_count": 456
       },
       {
         "id": 3,
@@ -6412,17 +5978,58 @@ If the `name` is not already associated with an existing team, this API route cr
         "version": "2.1.11",
         "source": "rpm_packages",
         "generated_cpe": "",
-        "vulnerabilities": null
+        "vulnerabilities": null,
+        "hosts_count": 345
       },
       {
-        "id": 4,
-        "name": "osquery",
+        "id": 2,
+        "name": "Figma.app",
         "version": "2.1.11",
-        "source": "rpm_packages",
+        "source": "Application (macOS)",
         "generated_cpe": "",
-        "vulnerabilities": null
+        "vulnerabilities": null,
+        "hosts_count": 234
       },
+      {
+        "id": 1,
+        "name": "Chrome.app",
+        "version": "2.1.11",
+        "source": "Application (macOS)",
+        "generated_cpe": "",
+        "vulnerabilities": null,
+        "hosts_count": 123
+      }
     ]
   }
+}
+```
+
+### Count software
+
+`GET /api/v1/fleet/software/count`
+
+#### Parameters
+
+| Name                    | Type    | In    | Description                                                                                                                                                                                                                                                                                                                                 |
+| ----------------------- | ------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| page                    | integer | query | Allowed for compatibility with GET /api/v1/fleet/software but ignored                                                                                                                                                                                                                                                                       |
+| per_page                | integer | query | Allowed for compatibility with GET /api/v1/fleet/software but ignored                                                                                                                                                                                                                                                                       |
+| order_key               | string  | query | Allowed for compatibility with GET /api/v1/fleet/software but ignored                                                                                                                                                                                                                                                                       |
+| order_direction         | string  | query | Allowed for compatibility with GET /api/v1/fleet/software but ignored                                                                                                                                                                                                                                                                       |
+| query                   | string  | query | Search query keywords. Searchable fields include `name`.                                                                                                                                                                                                                                                                                    |
+| team_id                 | integer | query | _Available in Fleet Premium_ Filters the software to only include the software installed on the hosts that are assigned to the specified team.                                                                                                                                                                                                   |
+| vulnerable              | bool    | query | If true or 1, only list software that has detected vulnerabilities                                                                                                                                                                                                                                                                          |
+
+#### Example
+
+`GET /api/v1/fleet/software/count`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "count": 43
 }
 ```

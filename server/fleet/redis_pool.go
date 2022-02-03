@@ -14,8 +14,27 @@ type RedisPool interface {
 	// Stats returns a map of redis pool statistics for each server address.
 	Stats() map[string]redis.PoolStats
 
-	// ConfigureDoer returns a redis connection that is properly configured
-	// to execute Do commands. This should only be called when the actions
-	// to execute are all done with conn.Do.
-	ConfigureDoer(redis.Conn) redis.Conn
+	// Mode returns the mode in which Redis is running.
+	Mode() RedisMode
+}
+
+// RedisMode indicates the mode in which Redis is running.
+type RedisMode byte
+
+// List of supported Redis modes.
+const (
+	RedisStandalone RedisMode = iota
+	RedisCluster
+)
+
+// String returns the string representation of the Redis mode.
+func (m RedisMode) String() string {
+	switch m {
+	case RedisStandalone:
+		return "standalone"
+	case RedisCluster:
+		return "cluster"
+	default:
+		return "unknown"
+	}
 }

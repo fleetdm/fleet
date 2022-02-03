@@ -3,22 +3,30 @@
 package service
 
 import (
+	"context"
+	"crypto/rand"
+	"fmt"
 	"html/template"
+	"math"
+	"math/big"
 	"sync"
+	"sync/atomic"
+	"time"
 
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/logging"
+	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	kitlog "github.com/go-kit/kit/log"
-	"github.com/pkg/errors"
 )
 
 // Service is the struct implementing fleet.Service. Create a new one with NewService.
 type Service struct {
 	ds             fleet.Datastore
+	task           *async.Task
 	carveStore     fleet.CarveStore
 	resultStore    fleet.QueryResultStore
 	liveQueryStore fleet.LiveQueryStore
@@ -34,12 +42,18 @@ type Service struct {
 
 	seenHostSet *seenHostSet
 
+	failingPolicySet fleet.FailingPolicySet
+
 	authz *authz.Authorizer
+
+	jitterSeed int64
 }
 
 // NewService creates a new service from the config struct
 func NewService(
+	ctx context.Context,
 	ds fleet.Datastore,
+	task *async.Task,
 	resultStore fleet.QueryResultStore,
 	logger kitlog.Logger,
 	osqueryLogger *logging.OsqueryLogger,
@@ -50,16 +64,16 @@ func NewService(
 	lq fleet.LiveQueryStore,
 	carveStore fleet.CarveStore,
 	license fleet.LicenseInfo,
+	failingPolicySet fleet.FailingPolicySet,
 ) (fleet.Service, error) {
-	var svc fleet.Service
-
 	authorizer, err := authz.NewAuthorizer()
 	if err != nil {
-		return nil, errors.Wrap(err, "new authorizer")
+		return nil, fmt.Errorf("new authorizer: %w", err)
 	}
 
-	svc = &Service{
+	svc := &Service{
 		ds:               ds,
+		task:             task,
 		carveStore:       carveStore,
 		resultStore:      resultStore,
 		liveQueryStore:   lq,
@@ -71,10 +85,39 @@ func NewService(
 		ssoSessionStore:  sso,
 		seenHostSet:      newSeenHostSet(),
 		license:          license,
+		failingPolicySet: failingPolicySet,
 		authz:            authorizer,
 	}
-	svc = validationMiddleware{svc, ds, sso}
-	return svc, nil
+
+	// Try setting a first seed
+	svc.updateJitterSeedRand()
+	go svc.updateJitterSeed(ctx)
+
+	return validationMiddleware{svc, ds, sso}, nil
+}
+
+func (s *Service) updateJitterSeedRand() {
+	nBig, err := rand.Int(rand.Reader, big.NewInt(math.MaxInt))
+	if err != nil {
+		panic(err)
+	}
+	n := nBig.Int64()
+	atomic.StoreInt64(&s.jitterSeed, n)
+}
+
+func (s *Service) updateJitterSeed(ctx context.Context) {
+	for {
+		select {
+		case <-time.After(1 * time.Hour):
+			s.updateJitterSeedRand()
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+func (s *Service) getJitterSeed() int64 {
+	return atomic.LoadInt64(&s.jitterSeed)
 }
 
 func (s Service) SendEmail(mail fleet.Email) error {

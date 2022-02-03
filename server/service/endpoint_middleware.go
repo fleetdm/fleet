@@ -3,13 +3,14 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"reflect"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
-	"github.com/pkg/errors"
+	kithttp "github.com/go-kit/kit/transport/http"
 
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/token"
@@ -20,17 +21,27 @@ import (
 func logJSON(logger log.Logger, v interface{}, key string) {
 	jsonV, err := json.Marshal(v)
 	if err != nil {
-		level.Debug(logger).Log("err", errors.Wrapf(err, "marshaling %s for debug", key))
+		level.Debug(logger).Log("err", fmt.Errorf("marshaling %s for debug: %w", key, err))
 		return
 	}
 	level.Debug(logger).Log(key, string(jsonV))
+}
+
+// instrumentHostLogger adds host IP information and extras to the context logger.
+func instrumentHostLogger(ctx context.Context, extras ...interface{}) {
+	remoteAddr, _ := ctx.Value(kithttp.ContextKeyRequestRemoteAddr).(string)
+	xForwardedFor, _ := ctx.Value(kithttp.ContextKeyRequestXForwardedFor).(string)
+	logging.WithExtras(
+		logging.WithNoUser(ctx),
+		append(extras, "ip_addr", remoteAddr, "x_for_ip_addr", xForwardedFor)...,
+	)
 }
 
 // authenticatedHost wraps an endpoint, checks the validity of the node_key
 // provided in the request, and attaches the corresponding osquery host to the
 // context for the request
 func authenticatedHost(svc fleet.Service, logger log.Logger, next endpoint.Endpoint) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
+	authHostFunc := func(ctx context.Context, request interface{}) (interface{}, error) {
 		nodeKey, err := getNodeKey(request)
 		if err != nil {
 			return nil, err
@@ -47,25 +58,20 @@ func authenticatedHost(svc fleet.Service, logger log.Logger, next endpoint.Endpo
 			logJSON(hlogger, request, "request")
 		}
 
-		ctx = hostctx.NewContext(ctx, *host)
+		ctx = hostctx.NewContext(ctx, host)
+		instrumentHostLogger(ctx)
+
 		resp, err := next(ctx, request)
 		if err != nil {
-			logging.WithErr(ctx, err)
 			return nil, err
 		}
 
 		if debug {
 			logJSON(hlogger, request, "response")
 		}
-
-		if errResp, ok := resp.(errorer); ok {
-			err = errResp.error()
-			if err != nil {
-				logging.WithErr(ctx, err)
-			}
-		}
 		return resp, nil
 	}
+	return logged(authHostFunc)
 }
 
 func getNodeKey(r interface{}) (string, error) {
@@ -99,7 +105,7 @@ func authenticatedUser(svc fleet.Service, next endpoint.Endpoint) endpoint.Endpo
 	authUserFunc := func(ctx context.Context, request interface{}) (interface{}, error) {
 		// first check if already successfully set
 		if v, ok := viewer.FromContext(ctx); ok {
-			if v.User.AdminForcedPasswordReset {
+			if v.User.IsAdminForcedPasswordReset() {
 				return nil, fleet.ErrPasswordResetRequired
 			}
 
@@ -117,7 +123,7 @@ func authenticatedUser(svc fleet.Service, next endpoint.Endpoint) endpoint.Endpo
 			return nil, err
 		}
 
-		if v.User.AdminForcedPasswordReset {
+		if v.User.IsAdminForcedPasswordReset() {
 			return nil, fleet.ErrPasswordResetRequired
 		}
 
@@ -125,14 +131,7 @@ func authenticatedUser(svc fleet.Service, next endpoint.Endpoint) endpoint.Endpo
 		return next(ctx, request)
 	}
 
-	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
-		res, err := authUserFunc(ctx, request)
-		if err != nil {
-			logging.WithErr(ctx, err)
-			return nil, err
-		}
-		return res, nil
-	}
+	return logged(authUserFunc)
 }
 
 // logged wraps an endpoint and adds the error if the context supports it

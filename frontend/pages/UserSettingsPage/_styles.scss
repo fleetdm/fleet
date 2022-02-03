@@ -56,10 +56,7 @@
   }
 
   &__avatar {
-    @include size(120px);
-    border: solid 1px $ui-fleet-blue-15;
     margin: 0 auto;
-    display: block;
   }
 
   &__more-info-detail {
@@ -156,7 +153,20 @@
     font-size: $xx-small;
     text-align: center;
     display: block;
-    margin-top: $pad-xxlarge;
+    margin-top: $pad-large;
+  }
+
+  &__privacy-policy {
+    text-align: center;
+    display: block;
+    margin-top: $pad-xlarge;
+
+    a {
+      font-size: $x-small;
+      color: $core-vibrant-blue;
+      font-weight: $bold;
+      text-decoration: none;
+    }
   }
 
   .grey-cell {

@@ -214,6 +214,7 @@ export const userStub: IUser = {
   id: 1,
   name: "Gnar Mike",
   email: "hi@gnar.dog",
+  role: "Observer",
   global_role: null,
   api_only: false,
   force_password_reset: false,

@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from "react";
 
-import Modal from "components/modals/Modal";
+import Modal from "components/Modal";
 // @ts-ignore
 import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon";
 import Button from "components/buttons/Button";
@@ -17,9 +17,11 @@ interface IEditTeamModalProps {
   defaultName: string;
 }
 
-const EditTeamModal = (props: IEditTeamModalProps): JSX.Element => {
-  const { onCancel, onSubmit, defaultName } = props;
-
+const EditTeamModal = ({
+  onCancel,
+  onSubmit,
+  defaultName,
+}: IEditTeamModalProps): JSX.Element => {
   const [name, setName] = useState(defaultName);
 
   const onInputChange = useCallback(
@@ -29,18 +31,20 @@ const EditTeamModal = (props: IEditTeamModalProps): JSX.Element => {
     [setName]
   );
 
-  const onFormSubmit = useCallback(() => {
-    onSubmit({
-      name,
-    });
-  }, [onSubmit, name]);
+  const onFormSubmit = (evt: React.MouseEvent<HTMLFormElement>) => {
+    evt.preventDefault();
+    onSubmit({ name });
+  };
 
   return (
     <Modal title={"Edit team"} onExit={onCancel} className={baseClass}>
-      <form className={`${baseClass}__form`}>
+      <form
+        className={`${baseClass}__form`}
+        onSubmit={onFormSubmit}
+        autoComplete="off"
+      >
         <InputFieldWithIcon
           autofocus
-          // error={errors.name}
           name="name"
           onChange={onInputChange}
           placeholder="Team name"
@@ -49,9 +53,9 @@ const EditTeamModal = (props: IEditTeamModalProps): JSX.Element => {
         <div className={`${baseClass}__btn-wrap`}>
           <Button
             className={`${baseClass}__btn`}
-            type="button"
+            type="submit"
             variant="brand"
-            onClick={onFormSubmit}
+            disabled={name === ""}
           >
             Save
           </Button>

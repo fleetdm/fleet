@@ -19,14 +19,6 @@ describe("PackComposerPage - component", () => {
     expect(page.length).toEqual(1);
   });
 
-  it("renders a PackForm component", () => {
-    const page = mount(
-      connectedComponent(ConnectedPacksComposerPage, { mockStore })
-    );
-
-    expect(page.find("PackForm").length).toEqual(1);
-  });
-
   it("renders a PackInfoSidePanel component", () => {
     const page = mount(
       connectedComponent(ConnectedPacksComposerPage, { mockStore })

@@ -17,7 +17,7 @@ func TestTeamScheduleAuth(t *testing.T) {
 	ds.EnsureTeamPackFunc = func(ctx context.Context, teamID uint) (*fleet.Pack, error) {
 		return &fleet.Pack{ID: 999}, nil
 	}
-	ds.ListScheduledQueriesInPackFunc = func(ctx context.Context, id uint, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error) {
+	ds.ListScheduledQueriesInPackWithStatsFunc = func(ctx context.Context, id uint, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error) {
 		return nil, nil
 	}
 	ds.QueryFunc = func(ctx context.Context, id uint) (*fleet.Query, error) {
@@ -36,7 +36,7 @@ func TestTeamScheduleAuth(t *testing.T) {
 		return nil
 	}
 
-	var testCases = []struct {
+	testCases := []struct {
 		name            string
 		user            *fleet.User
 		shouldFailWrite bool
@@ -61,6 +61,12 @@ func TestTeamScheduleAuth(t *testing.T) {
 			true,
 		},
 		{
+			"team admin, belongs to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}},
+			false,
+			false,
+		},
+		{
 			"team maintainer, belongs to team",
 			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer}}},
 			false,
@@ -75,6 +81,12 @@ func TestTeamScheduleAuth(t *testing.T) {
 		{
 			"team maintainer, DOES NOT belong to team",
 			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleMaintainer}}},
+			true,
+			true,
+		},
+		{
+			"team admin, DOES NOT belong to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleAdmin}}},
 			true,
 			true,
 		},

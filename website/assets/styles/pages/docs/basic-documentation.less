@@ -58,9 +58,6 @@
     animation-duration: 4s;
     animation-fill-mode: forwards;
   }
-  .markdown-heading.copied:hover::before {
-    // right: -15px;
-  }
 
   @keyframes copiedText {
     0% {opacity: 0;}
@@ -101,7 +98,7 @@
       width: 98%;
     }
 
-    .ds-input:focus-visible {
+    .ds-input:focus {
       outline: rgba(0, 0, 0, 0);
     }
 
@@ -298,7 +295,7 @@
       [purpose='docs-nav-button'] {
         color: @core-fleet-black;
         background-color: transparent;
-        font-family: 'Nunito';
+        font-family: 'Nunito Sans';
         font-weight: 400;
         font-size: 16px;
         padding: 0;
@@ -450,10 +447,13 @@
 
       table {
         border: 1px solid @border-lt-gray;
+        table-layout: fixed;
+        width: 100%;
         border-collapse: collapse;
         font-size: 16px;
         line-height: 24px;
         margin-bottom: 16px;
+        word-wrap: break-word;
 
         th {
           font-weight: @bold;
@@ -463,10 +463,14 @@
         }
 
         td {
+
           font-family: @main-font;
           border: 1px solid @border-lt-gray;
           padding: 8px 7px 7px 8px;
         }
+      }
+      h4 + table { // For parameter tables
+        table-layout: auto;
       }
       .note {
         background-color: @core-vibrant-blue-10;
@@ -475,6 +479,47 @@
       }
       ol {
         padding-inline-start: 16px;
+      }
+      [purpose='next-steps-buttons'] {
+
+
+        .btn {
+          font-size: 16px;
+          line-height: 25px;
+          padding: 16px 32px;
+        }
+
+        .btn-primary {
+          color: #fff;
+          &:active {
+            background: @core-vibrant-red;
+            border-color: @core-vibrant-red;
+          }
+        }
+        .btn-slack {
+          color: @core-fleet-black;
+          img {
+            display: inline;
+            height: 24px;
+            width: auto;
+            padding-top: 0px;
+            padding-bottom: 0px;
+            margin: 0px;
+          }
+          &:focus {
+            box-shadow: none;
+          }
+        }
+        .btn-outline-secondary {
+          color: @core-fleet-black;
+          border: 1px solid #C5C7D1;
+          &:hover {
+            background: #fff;
+          }
+          &:focus {
+            box-shadow: none;
+          }
+        }
       }
 
     }

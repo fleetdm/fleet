@@ -1,4 +1,5 @@
 import React, { Component } from "react";
+import { Link } from "react-router";
 import PropTypes from "prop-types";
 import classnames from "classnames";
 
@@ -10,6 +11,7 @@ import OrgLogoIcon from "components/icons/OrgLogoIcon";
 import navItems from "./navItems";
 
 import HostsIcon from "../../../../assets/images/icon-main-hosts@2x-16x16@2x.png";
+import SoftwareIcon from "../../../../assets/images/icon-software-16x16@2x.png";
 import QueriesIcon from "../../../../assets/images/icon-main-queries@2x-16x16@2x.png";
 import PacksIcon from "../../../../assets/images/icon-main-packs@2x-16x16@2x.png";
 import PoliciesIcon from "../../../../assets/images/icon-main-policies-16x16@2x.png";
@@ -35,7 +37,6 @@ class SiteTopNav extends Component {
   renderNavItem = (navItem) => {
     const { name, iconName } = navItem;
     const {
-      onNavItemClick,
       pathname,
       config: { org_logo_url: orgLogoURL },
     } = this.props;
@@ -51,12 +52,12 @@ class SiteTopNav extends Component {
     if (iconName === "logo") {
       return (
         <li className={navItemClasses} key={`nav-item-${name}`}>
-          <a
-            className={`${navItemBaseClass}__link`}
-            onClick={onNavItemClick(navItem.location.pathname)}
+          <Link
+            className={`${navItemBaseClass}__logo`}
+            to={navItem.location.pathname}
           >
             <OrgLogoIcon className="logo" src={orgLogoURL} />
-          </a>
+          </Link>
         </li>
       );
     }
@@ -65,6 +66,8 @@ class SiteTopNav extends Component {
       switch (iconName) {
         case "hosts":
           return HostsIcon;
+        case "software":
+          return SoftwareIcon;
         case "queries":
           return QueriesIcon;
         case "packs":
@@ -82,9 +85,9 @@ class SiteTopNav extends Component {
 
     return (
       <li className={navItemClasses} key={`nav-item-${name}`}>
-        <a
+        <Link
           className={`${navItemBaseClass}__link`}
-          onClick={onNavItemClick(navItem.location.pathname)}
+          to={navItem.location.pathname}
         >
           {icon}
           <span
@@ -93,7 +96,7 @@ class SiteTopNav extends Component {
           >
             {name}
           </span>
-        </a>
+        </Link>
       </li>
     );
   };

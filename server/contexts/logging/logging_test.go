@@ -3,11 +3,12 @@ package logging
 import (
 	"bytes"
 	"context"
+	"errors"
+	"fmt"
 	"strings"
 	"testing"
 
 	kitlog "github.com/go-kit/kit/log"
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -26,7 +27,7 @@ func TestLoggingErrs(t *testing.T) {
 	t.Run("one error", func(t *testing.T) {
 		buf, logger, lc, ctx := setupTest()
 
-		WithErr(ctx, errors.Wrap(errors.New("AAAA"), "BLAH"))
+		WithErr(ctx, fmt.Errorf("BLAH: %w", errors.New("AAAA")))
 		lc.Log(ctx, logger)
 		logLine := buf.String()
 		checkLogEnds(t, logLine, `err="BLAH: AAAA"`)
@@ -34,8 +35,8 @@ func TestLoggingErrs(t *testing.T) {
 	t.Run("two errors", func(t *testing.T) {
 		buf, logger, lc, ctx := setupTest()
 
-		WithErr(ctx, errors.Wrap(errors.New("AAAA"), "BLAH"))
-		WithErr(ctx, errors.Wrap(errors.New("BBBB"), "FOO"))
+		WithErr(ctx, fmt.Errorf("BLAH: %w", errors.New("AAAA")))
+		WithErr(ctx, fmt.Errorf("FOO: %w", errors.New("BBBB")))
 		lc.Log(ctx, logger)
 		logLine := buf.String()
 		checkLogEnds(t, logLine, `err="BLAH: AAAA || FOO: BBBB"`)

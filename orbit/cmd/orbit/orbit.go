@@ -2,30 +2,32 @@ package main
 
 import (
 	"context"
-	"crypto/x509"
+	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"io/ioutil"
 	"net/url"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
-	"github.com/dgraph-io/badger/v2"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
-	"github.com/fleetdm/fleet/v4/orbit/pkg/database"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/insecure"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/osquery"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update/filestore"
 	"github.com/fleetdm/fleet/v4/pkg/certificate"
+	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/oklog/run"
-	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/urfave/cli/v2"
+	"gopkg.in/natefinch/lumberjack.v2"
 )
 
 var (
@@ -113,17 +115,33 @@ func main() {
 			return nil
 		}
 
-		log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339Nano, NoColor: true})
-		if logfile := c.String("log-file"); logfile != "" {
-			f, err := secure.OpenFile(logfile, os.O_CREATE|os.O_APPEND, 0o600)
-			if err != nil {
-				return errors.Wrap(err, "open logfile")
+		var logFile io.Writer
+		if logf := c.String("log-file"); logf != "" {
+			if logDir := filepath.Dir(logf); logDir != "." {
+				if err := secure.MkdirAll(logDir, constant.DefaultDirMode); err != nil {
+					panic(err)
+				}
 			}
-			log.Logger = log.Output(zerolog.MultiLevelWriter(
-				zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339Nano, NoColor: true},
-				zerolog.ConsoleWriter{Out: f, TimeFormat: time.RFC3339Nano, NoColor: true},
-			))
+			logFile = &lumberjack.Logger{
+				Filename:   logf,
+				MaxSize:    25, // megabytes
+				MaxBackups: 3,
+				MaxAge:     28, // days
+			}
+			if runtime.GOOS == "windows" {
+				// On Windows, Orbit runs as a "Windows Service", which fails to write to os.Stderr with
+				// "write /dev/stderr: The handle is invalid" (see #3100). Thus, we log to the logFile only.
+				log.Logger = log.Output(zerolog.ConsoleWriter{Out: logFile, TimeFormat: time.RFC3339Nano, NoColor: true})
+			} else {
+				log.Logger = log.Output(zerolog.MultiLevelWriter(
+					zerolog.ConsoleWriter{Out: logFile, TimeFormat: time.RFC3339Nano, NoColor: true},
+					zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339Nano, NoColor: true},
+				))
+			}
+		} else {
+			log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339Nano, NoColor: true})
 		}
+
 		zerolog.SetGlobalLevel(zerolog.InfoLevel)
 
 		if c.Bool("debug") {
@@ -141,36 +159,17 @@ func main() {
 
 			b, err := ioutil.ReadFile(c.String("enroll-secret-path"))
 			if err != nil {
-				return errors.Wrap(err, "read enroll secret file")
+				return fmt.Errorf("read enroll secret file: %w", err)
 			}
 
 			if err := c.Set("enroll-secret", strings.TrimSpace(string(b))); err != nil {
-				return errors.Wrap(err, "set enroll secret from file")
+				return fmt.Errorf("set enroll secret from file: %w", err)
 			}
 		}
 
 		if err := secure.MkdirAll(c.String("root-dir"), constant.DefaultDirMode); err != nil {
-			return errors.Wrap(err, "initialize root dir")
+			return fmt.Errorf("initialize root dir: %w", err)
 		}
-
-		dbPath := filepath.Join(c.String("root-dir"), "orbit.db")
-		db, err := database.Open(dbPath)
-		if err != nil {
-			if errors.Is(err, badger.ErrTruncateNeeded) {
-				db, err = database.OpenTruncate(dbPath)
-				if err != nil {
-					return err
-				}
-				log.Warn().Msg("Open badger required truncate. Data loss is possible.")
-			} else {
-				return err
-			}
-		}
-		defer func() {
-			if err := db.Close(); err != nil {
-				log.Error().Err(err).Msg("Close badger")
-			}
-		}()
 
 		localStore, err := filestore.New(filepath.Join(c.String("root-dir"), "tuf-metadata.json"))
 		if err != nil {
@@ -210,7 +209,7 @@ func main() {
 
 			return nil
 		}); err != nil {
-			return errors.Wrap(err, "cleanup old files")
+			return fmt.Errorf("cleanup old files: %w", err)
 		}
 
 		var g run.Group
@@ -230,6 +229,11 @@ func main() {
 		var options []func(*osquery.Runner) error
 		options = append(options, osquery.WithDataPath(c.String("root-dir")))
 
+		if logFile != nil {
+			// If set, redirect osqueryd's stderr to the logFile.
+			options = append(options, osquery.WithStderr(logFile))
+		}
+
 		fleetURL := c.String("fleet-url")
 		if !strings.HasPrefix(fleetURL, "http") {
 			fleetURL = "https://" + fleetURL
@@ -237,16 +241,17 @@ func main() {
 
 		enrollSecret := c.String("enroll-secret")
 		if enrollSecret != "" {
+			const enrollSecretEnvName = "ENROLL_SECRET"
 			options = append(options,
-				osquery.WithEnv([]string{"ENROLL_SECRET=" + enrollSecret}),
-				osquery.WithFlags([]string{"--enroll_secret_env=ENROLL_SECRET"}),
+				osquery.WithEnv([]string{enrollSecretEnvName + "=" + enrollSecret}),
+				osquery.WithFlags([]string{"--enroll_secret_env", enrollSecretEnvName}),
 			)
 		}
 
 		if fleetURL != "https://" && c.Bool("insecure") {
 			proxy, err := insecure.NewTLSProxy(fleetURL)
 			if err != nil {
-				return errors.Wrap(err, "create TLS proxy")
+				return fmt.Errorf("create TLS proxy: %w", err)
 			}
 
 			g.Add(
@@ -270,7 +275,7 @@ func main() {
 			// Write cert that proxy uses
 			err = ioutil.WriteFile(certPath, []byte(insecure.ServerCert), os.ModePerm)
 			if err != nil {
-				return errors.Wrap(err, "write server cert")
+				return fmt.Errorf("write server cert: %w", err)
 			}
 
 			// Rewrite URL to the proxy URL. Note the proxy handles any URL
@@ -283,7 +288,7 @@ func main() {
 			// Check and log if there are any errors with TLS connection.
 			pool, err := certificate.LoadPEM(certPath)
 			if err != nil {
-				return errors.Wrap(err, "load certificate")
+				return fmt.Errorf("load certificate: %w", err)
 			}
 			if err := certificate.ValidateConnection(pool, fleetURL); err != nil {
 				log.Info().Err(err).Msg("Failed to connect to Fleet server. Osquery connection may fail.")
@@ -300,7 +305,7 @@ func main() {
 
 			parsedURL, err := url.Parse(fleetURL)
 			if err != nil {
-				return errors.Wrap(err, "parse URL")
+				return fmt.Errorf("parse URL: %w", err)
 			}
 
 			options = append(options,
@@ -311,22 +316,25 @@ func main() {
 				// Check and log if there are any errors with TLS connection.
 				pool, err := certificate.LoadPEM(certPath)
 				if err != nil {
-					return errors.Wrap(err, "load certificate")
+					return fmt.Errorf("load certificate: %w", err)
 				}
 				if err := certificate.ValidateConnection(pool, fleetURL); err != nil {
 					log.Info().Err(err).Msg("Failed to connect to Fleet server. Osquery connection may fail.")
 				}
 
 				options = append(options,
-					osquery.WithFlags([]string{"--tls_server_certs=" + certPath}),
+					osquery.WithFlags([]string{"--tls_server_certs", certPath}),
 				)
 			} else {
-				// Check and log if there are any errors with TLS connection.
-				pool, err := x509.SystemCertPool()
-				if err != nil {
-					log.Info().Err(err).Msg("Failed to retrieve system cert pool. Cannot validate Fleet server connection.")
-				} else if err := certificate.ValidateConnection(pool, fleetURL); err != nil {
-					log.Info().Err(err).Msg("Failed to connect to Fleet server. Osquery connection may fail. Provide certificate with --fleet-certificate.")
+				certPath := filepath.Join(opt.RootDirectory, "certs.pem")
+				if exists, err := file.Exists(certPath); err == nil && exists {
+					_, err = certificate.LoadPEM(certPath)
+					if err != nil {
+						return fmt.Errorf("load certs.pem: %w", err)
+					}
+					options = append(options, osquery.WithFlags([]string{"--tls_server_certs", certPath}))
+				} else {
+					log.Info().Msg("No cert chain available. Relying on system store.")
 				}
 			}
 		}
@@ -341,12 +349,28 @@ func main() {
 			)
 		}
 
-		// Handle additional args after --
+		// Provide the flagfile to osquery if it exists. This comes after the other flags set by
+		// Orbit so that users can override those flags. Note this means users may unintentionally
+		// break things by overriding Orbit flags in incompatible ways. That's the price to pay for
+		// flexibility.
+		flagfilePath := filepath.Join(c.String("root-dir"), "osquery.flags")
+		if exists, err := file.Exists(flagfilePath); err == nil && exists {
+			options = append(options, osquery.WithFlags([]string{"--flagfile", flagfilePath}))
+		}
+
+		// Handle additional args after '--' in the command line. These are added last and should
+		// override all other flags and flagfile entries.
 		options = append(options, osquery.WithFlags(c.Args().Slice()))
 
 		// Create an osquery runner with the provided options
 		r, _ := osquery.NewRunner(osquerydPath, options...)
 		g.Add(r.Execute, r.Interrupt)
+
+		if runtime.GOOS != "windows" {
+			// We are disabling extensions for Windows until #3679 is fixed.
+			ext := table.NewRunner(r.ExtensionSocketPath())
+			g.Add(ext.Execute, ext.Interrupt)
+		}
 
 		// Install a signal handler
 		ctx, cancel := context.WithCancel(context.Background())
@@ -361,7 +385,7 @@ func main() {
 	}
 
 	if err := app.Run(os.Args); err != nil {
-		log.Error().Err(err).Msg("")
+		log.Error().Err(err).Msg("run orbit failed")
 	}
 }
 

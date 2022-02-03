@@ -8,7 +8,7 @@ export interface ISortOption {
   direction: string;
 }
 
-export interface IHostLoadOptions {
+export interface ILoadHostsOptions {
   page?: number;
   perPage?: number;
   selectedLabels?: string[];
@@ -17,7 +17,10 @@ export interface IHostLoadOptions {
   teamId?: number;
   policyId?: number;
   policyResponse?: string;
+  softwareId?: number;
 }
+
+export type ILoadHostDetailsExtension = "device_mapping" | "macadmins";
 
 export default {
   destroy: (host: IHost) => {
@@ -47,19 +50,7 @@ export default {
       },
     });
   },
-  refetch: (host: IHost) => {
-    const { HOSTS } = endpoints;
-    const path = `${HOSTS}/${host.id}/refetch`;
-
-    return sendRequest("POST", path);
-  },
-  load: (hostID: number) => {
-    const { HOSTS } = endpoints;
-    const path = `${HOSTS}/${hostID}`;
-
-    return sendRequest("GET", path);
-  },
-  loadAll: (options: IHostLoadOptions | undefined) => {
+  loadHosts: (options: ILoadHostsOptions | undefined) => {
     const { HOSTS, LABEL_HOSTS } = endpoints;
     const page = options?.page || 0;
     const perPage = options?.perPage || 100;
@@ -69,6 +60,7 @@ export default {
     const teamId = options?.teamId || null;
     const policyId = options?.policyId || null;
     const policyResponse = options?.policyResponse || null;
+    const softwareId = options?.softwareId || null;
 
     // TODO: add this query param logic to client class
     const pagination = `page=${page}&per_page=${perPage}`;
@@ -120,10 +112,35 @@ export default {
 
     if (!label && policyId) {
       path += `&policy_id=${policyId}`;
-      path += `&policy_response=${policyResponse || "passing"}`; // TODO confirm whether there should be a default if there is an id but no response sepcified
+      path += `&policy_response=${policyResponse || "passing"}`; // TODO: confirm whether there should be a default if there is an id but no response sepcified
+    }
+    // TODO: consider how to check for mutually exclusive scenarios with label, policy and software
+    if (!label && !policyId && softwareId) {
+      path += `&software_id=${softwareId}`;
     }
 
     return sendRequest("GET", path);
+  },
+  loadHostDetails: (hostID: number) => {
+    const { HOSTS } = endpoints;
+    const path = `${HOSTS}/${hostID}`;
+
+    return sendRequest("GET", path);
+  },
+  loadHostDetailsExtension: (
+    hostID: number,
+    extension: ILoadHostDetailsExtension
+  ) => {
+    const { HOSTS } = endpoints;
+    const path = `${HOSTS}/${hostID}/${extension}`;
+
+    return sendRequest("GET", path);
+  },
+  refetch: (host: IHost) => {
+    const { HOSTS } = endpoints;
+    const path = `${HOSTS}/${host.id}/refetch`;
+
+    return sendRequest("POST", path);
   },
   search: (searchText: string) => {
     const { HOSTS } = endpoints;

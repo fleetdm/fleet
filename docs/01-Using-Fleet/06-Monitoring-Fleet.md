@@ -25,6 +25,8 @@ Prometheus can be configured to use a wide range of service discovery mechanisms
 
 ### Alerting
 
+#### Prometheus
+
 Prometheus has built-in support for alerting through [Alertmanager](https://prometheus.io/docs/alerting/latest/overview/).
 
 Consider building alerts for
@@ -37,6 +39,16 @@ Consider building alerts for
 TODO (Seeking Contributors)
 Add example alerting configurations
 ```
+
+#### Cloudwatch Alarms
+
+Cloudwatch Alarms can be configured to support a wide variety of metrics and anomaly detection mechanisms. There are some example alarms
+in the terraform reference architecture (see `monitoring.tf`).
+
+* [Monitoring RDS (MySQL)](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/monitoring-cloudwatch.html)
+* [ElastiCache for Redis](https://docs.aws.amazon.com/AmazonElastiCache/latest/red-ug/CacheMetrics.WhichShouldIMonitor.html)
+* [Monitoring ECS](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/cloudwatch-metrics.html)
+* Reference alarms include evaluating healthy targets & response times. We also use target-tracking alarms to manage auto-scaling.
 
 ### Graphing
 
@@ -54,7 +66,7 @@ Scaling Fleet horizontally is as simple as running more Fleet server processes c
 
 The Fleet/osquery system is resilient to loss of availability. Osquery agents will continue executing the existing configuration and buffering result logs during downtime due to lack of network connectivity, server maintenance, or any other reason. Buffering in osquery can be configured with the `--buffered_log_max` flag.
 
-Note that short downtimes are expected during [Fleet server upgrades](./08-Updating-Fleet.md)-fleet.md) that require database migrations.
+Note that short downtimes are expected during [Fleet server upgrades](../02-Deploying/06-Upgrading-Fleet.md) that require database migrations.
 
 ### Debugging performance issues
 

@@ -17,7 +17,7 @@ import permissionUtils from "utilities/permissions";
 import FleetIcon from "components/icons/FleetIcon";
 import InputField from "components/forms/fields/InputField";
 import { logoutUser, updateUser } from "redux/nodes/auth/actions";
-import Modal from "components/modals/Modal";
+import Modal from "components/Modal";
 import configInterface from "interfaces/config";
 import versionInterface from "interfaces/version";
 import { renderFlash } from "redux/nodes/notifications/actions";
@@ -402,6 +402,15 @@ export class UserSettingsPage extends Component {
           <span
             className={`${baseClass}__version`}
           >{`Fleet ${version.version} • Go ${version.go_version}`}</span>
+          <span className={`${baseClass}__privacy-policy`}>
+            <a
+              href="https://fleetdm.com/legal/privacy"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Privacy policy
+            </a>
+          </span>
         </div>
         {renderEmailModal()}
         {renderPasswordModal()}

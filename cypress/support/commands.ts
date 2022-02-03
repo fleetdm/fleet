@@ -27,8 +27,13 @@ import "cypress-wait-until";
 // -- This will overwrite an existing command --
 // Cypress.Commands.overwrite("visit", (originalFn, url, options) => { ... })
 
+const SHELL = Cypress.platform === "win32" ? "cmd" : "bash";
+
 Cypress.Commands.add("setup", () => {
-  cy.exec("make e2e-reset-db e2e-setup", { timeout: 20000 });
+  cy.exec("make e2e-reset-db e2e-setup", {
+    timeout: 20000,
+    env: { SHELL },
+  });
 });
 
 Cypress.Commands.add("login", (email, password) => {
@@ -39,6 +44,18 @@ Cypress.Commands.add("login", (email, password) => {
       window.localStorage.setItem("FLEET::auth_token", resp.body.token);
     }
   );
+});
+
+Cypress.Commands.add("loginWithCySession", (email, password) => {
+  email ||= "admin@example.com";
+  password ||= "user123#";
+  cy.session([email, password], () => {
+    cy.request("POST", "/api/v1/fleet/login", { email, password }).then(
+      (resp) => {
+        window.localStorage.setItem("FLEET::auth_token", resp.body.token);
+      }
+    );
+  });
 });
 
 Cypress.Commands.add("logout", () => {
@@ -94,6 +111,79 @@ Cypress.Commands.add("seedQueries", () => {
   });
 });
 
+Cypress.Commands.add("seedPacks", () => {
+  const packs = [
+    {
+      name: "Mac starter pack",
+      description: "Run all queries weekly on Mac hosts",
+    },
+    {
+      name: "Windows starter pack",
+      description: "Run all queries weekly on Windows hosts",
+    },
+  ];
+
+  packs.forEach((packForm) => {
+    const { name, description } = packForm;
+    cy.request({
+      url: "/api/v1/fleet/packs",
+      method: "POST",
+      body: { name, description, host_ids: [], label_ids: [], team_ids: [] },
+      auth: {
+        bearer: window.localStorage.getItem("FLEET::auth_token"),
+      },
+    });
+  });
+});
+
+Cypress.Commands.add("seedPolicies", (team = "") => {
+  const policies = [
+    {
+      name: "Is Filevault enabled on macOS devices?",
+      query:
+        "SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT '' AND filevault_status = 'on' LIMIT 1",
+      description:
+        "Checks to make sure that the Filevault feature is enabled on macOS devices.",
+      resolution:
+        "Choose Apple menu > System Preferences, then click Security & Privacy. Click the FileVault tab. Click the Lock icon, then enter an administrator name and password. Click Turn On FileVault.",
+    },
+    {
+      name: "Is Ubuntu, version 20.4.0 installed?",
+      query:
+        "SELECT 1 from os_version WHERE name = 'Ubuntu' AND major || '.' || minor || '.' || patch = '20.4.0';",
+      description:
+        "Returns yes or no for detecting operating system and version",
+      resolution: "Update OS if needed",
+    },
+  ];
+
+  if (team === "apples") {
+    policies.forEach((policyForm) => {
+      const { name, query, description, resolution } = policyForm;
+      cy.request({
+        url: "/api/v1/fleet/teams/1/policies",
+        method: "POST",
+        body: { name, query, description, resolution },
+        auth: {
+          bearer: window.localStorage.getItem("FLEET::auth_token"),
+        },
+      });
+    });
+  } else {
+    policies.forEach((policyForm) => {
+      const { name, query, description, resolution } = policyForm;
+      cy.request({
+        url: "/api/v1/fleet/global/policies",
+        method: "POST",
+        body: { name, query, description, resolution },
+        auth: {
+          bearer: window.localStorage.getItem("FLEET::auth_token"),
+        },
+      });
+    });
+  }
+});
+
 Cypress.Commands.add("setupSMTP", () => {
   const body = {
     smtp_settings: {
@@ -146,7 +236,7 @@ Cypress.Commands.add("loginSSO", () => {
       "http://localhost:9080/simplesaml/saml2/idp/SSOService.php?spentityid=https://localhost:8080",
     followRedirect: false,
   }).then((firstResponse) => {
-    const redirect = firstResponse.headers.location;
+    const redirect = firstResponse.headers.location as string;
 
     cy.request({
       method: "GET",
@@ -200,6 +290,7 @@ Cypress.Commands.add("seedFree", () => {
       SERVER_URL: Cypress.config().baseUrl,
       // clear any value for FLEET_ENV_PATH since we set the environment explicitly just above
       FLEET_ENV_PATH: "",
+      SHELL,
     },
   });
 });
@@ -213,6 +304,7 @@ Cypress.Commands.add("seedPremium", () => {
       SERVER_URL: Cypress.config().baseUrl,
       // clear any value for FLEET_ENV_PATH since we set the environment explicitly just above
       FLEET_ENV_PATH: "",
+      SHELL,
     },
   });
 });
@@ -226,6 +318,7 @@ Cypress.Commands.add("seedFigma", () => {
       SERVER_URL: Cypress.config().baseUrl,
       // clear any value for FLEET_ENV_PATH since we set the environment explicitly just above
       FLEET_ENV_PATH: "",
+      SHELL,
     },
   });
 });
@@ -238,7 +331,10 @@ Cypress.Commands.add("addUser", (options = {}) => {
 
   cy.exec(
     `./build/fleetctl user create --context e2e --password "${password}" --email "${email}" --global-role "${globalRole}"`,
-    { timeout: 5000 }
+    {
+      timeout: 5000,
+      env: { SHELL },
+    }
   );
 });
 
@@ -269,6 +365,7 @@ Cypress.Commands.add("addDockerHost", (team = "") => {
         env: {
           ENROLL_SECRET: enrollSecret,
           FLEET_SERVER: `host.docker.internal:${serverPort}`,
+          SHELL,
         },
       }
     );
@@ -282,10 +379,31 @@ Cypress.Commands.add("stopDockerHost", () => {
       // Not that ENROLL_SECRET must be specified or docker-compose errors,
       // even when just trying to shut down the hosts.
       ENROLL_SECRET: "invalid",
+      SHELL,
     },
   });
 });
 
 Cypress.Commands.add("clearDownloads", () => {
-  cy.exec(`rm -rf ${Cypress.config("downloadsFolder")}`);
+  // windows has issue with downloads location
+  if (Cypress.platform !== "win32") {
+    cy.exec(`rm -rf ${Cypress.config("downloadsFolder")}`, { env: { SHELL } });
+  }
+});
+
+Cypress.Commands.add("getAttached", (selector) => {
+  const uniqueAlias = `element_${selector}`;
+
+  return cy
+    .waitUntil(
+      () =>
+        // eslint-disable-next-line cypress/no-unnecessary-waiting
+        cy
+          .get(selector)
+          .as(uniqueAlias)
+          .wait(1)
+          .then(($el) => Cypress.dom.isAttached($el)),
+      { timeout: 1000, interval: 10 }
+    )
+    .get(`@${uniqueAlias}`);
 });

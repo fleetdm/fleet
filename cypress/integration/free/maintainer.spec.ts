@@ -9,6 +9,7 @@ describe(
       cy.login();
       cy.seedFree();
       cy.seedQueries();
+      cy.seedPolicies();
       cy.addDockerHost();
       cy.logout();
     });
@@ -18,6 +19,13 @@ describe(
     });
 
     it("Can perform the appropriate core global maintainer actions", () => {
+      // cypress tends to fail on uncaught exceptions. since we have
+      // our own error handling, it's suggested to use this block to
+      // suppress so the tests will keep running
+      Cypress.on("uncaught:exception", () => {
+        return false;
+      });
+
       cy.login("mary@organization.com", "user123#");
       cy.visit("/hosts/manage");
 
@@ -25,22 +33,16 @@ describe(
       cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
       cy.contains("All hosts");
 
-      // Settings restrictions
-      cy.findByText(/settings/i).should("not.exist");
-      cy.visit("/settings/organization");
-      cy.findByText(/you do not have permissions/i).should("exist");
-
       // Host manage page: No team UI, can add host and label
       cy.visit("/hosts/manage");
 
       cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
       cy.findByText(/teams/i).should("not.exist");
-      cy.contains("button", /add new host/i).click();
-      cy.findByText("select a team").should("not.exist");
+      cy.contains("button", /generate installer/i).click();
       cy.contains("button", /done/i).click();
 
-      // See the “Show enroll secret” button. A modal appears after the user selects the button
-      cy.contains("button", /show enroll secret/i).click();
+      // See the Manage enroll secret” button. A modal appears after the user selects the button
+      cy.contains("button", /manage enroll secret/i).click();
       cy.contains("button", /done/i).click();
 
       cy.contains("button", /add label/i).click();
@@ -56,6 +58,9 @@ describe(
       });
       cy.contains("button", /transfer/i).should("not.exist");
 
+      // See and select operating system
+      // TODO
+
       // Test commented out
       // Pending fix to prevent consistent failing in GitHub
 
@@ -69,6 +74,7 @@ describe(
 
       // Queries pages: Can create, edit, and run query
       cy.visit("/queries/manage");
+      cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
       // cy.get("thead").within(() => {
       //   cy.findByText(/observer can run/i).should("exist");
       // });
@@ -109,8 +115,38 @@ describe(
 
       // cy.findByText(/edit & run query/i).should("exist");
 
+      // On the policies manage page, they should…
+      cy.contains("a", "Policies").click();
+      // See and select the "Manage automations" button
+      cy.findByRole("button", { name: /manage automations/i }).click();
+      cy.findByRole("button", { name: /cancel/i }).click();
+
+      // See and select the "Add a policy", "delete", and "edit" policy
+      cy.findByRole("button", { name: /add a policy/i }).click();
+      cy.get(".modal__ex").within(() => {
+        cy.findByRole("button").click();
+      });
+
+      cy.get("tbody").within(() => {
+        cy.get("tr")
+          .first()
+          .within(() => {
+            cy.get(".fleet-checkbox__input").check({ force: true });
+          });
+      });
+      cy.findByRole("button", { name: /delete/i }).click();
+      cy.get(".remove-policies-modal").within(() => {
+        cy.findByRole("button", { name: /delete/i }).should("exist");
+        cy.findByRole("button", { name: /cancel/i }).click();
+      });
+      cy.findByText(/filevault enabled/i).click();
+      cy.getAttached(".policy-form__button-wrap--new-policy").within(() => {
+        cy.findByRole("button", { name: /run/i }).should("exist");
+        cy.findByRole("button", { name: /save/i }).should("exist");
+      });
       // Packs pages: Can create, edit, delete a pack
       cy.visit("/packs/manage");
+      cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
 
       cy.findByRole("button", { name: /create new pack/i }).click();
 
@@ -123,6 +159,7 @@ describe(
       cy.findByRole("button", { name: /save query pack/i }).click();
 
       cy.visit("/packs/manage");
+      cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
 
       cy.get(".fleet-checkbox__input").check({ force: true });
 
@@ -144,10 +181,20 @@ describe(
       // On the Profile page, they should…
       // See Maintainer in Role section, and no Team section
       cy.visit("/profile");
-      cy.findByText(/teams/i).should("not.exist");
-      cy.findByText("Role")
-        .next()
-        .contains(/maintainer/i);
+
+      cy.getAttached(".user-settings__additional").within(() => {
+        cy.findByText(/teams/i).should("not.exist");
+        cy.findByText("Role")
+          .next()
+          .contains(/maintainer/i);
+      });
+
+      // nav restrictions are at the end because we expect to see a
+      // 403 error overlay which will hide the nav and make the test fail
+      cy.visit("/dashboard");
+      cy.findByText(/settings/i).should("not.exist");
+      cy.visit("/settings/organization");
+      cy.findByText(/you do not have permissions/i).should("exist");
     });
   }
 );

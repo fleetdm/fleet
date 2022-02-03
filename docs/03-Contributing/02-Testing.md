@@ -37,13 +37,11 @@ You must install the [`golangci-lint`](https://golangci-lint.run/) command to ru
 go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.42.0
 ```
 
-Make sure it is available in your PATH. To execute the basic unit and integration tests, run the following from the root of the repository:
+Make sure it is available in your `PATH`. To execute the basic unit and integration tests, run the following from the root of the repository:
 
 ```
 REDIS_TEST=1 MYSQL_TEST=1 make test
 ```
-
-It is a good idea to run `make test` before submitting a Pull Request.
 
 ### Go unit tests
 
@@ -142,7 +140,8 @@ E2E tests are constantly evolving and running them or examining CI results is th
     add hosts
     label flows
 4. Queries flows
-5. Schedule flows
+5. Policies flows
+6. Schedule flows
     scheduling
     packs
 6. Permissions
@@ -229,14 +228,15 @@ Then, in the "SMTP options" section, enter any email address in the "Sender addr
 
 Visit [locahost:8025](http://localhost:8025) to view Mailhog's admin interface which will display all emails sent using the simulated mail server.
 
-## Database Backup/Restore
+## Development database management
 
-In the course of development (particularly when crafting database migrations), it may be useful to backup and restore the MySQL database. This can be achieved with the following commands:
+In the course of development (particularly when crafting database migrations), it may be useful to
+backup, restore, and reset the MySQL database. This can be achieved with the following commands:
 
 Backup:
 
 ```
-./tools/backup_db/backup.sh
+make db-backup
 ```
 
 The database dump is stored in `backup.sql.gz`.
@@ -244,10 +244,17 @@ The database dump is stored in `backup.sql.gz`.
 Restore:
 
 ```
-./tools/backup_db/restore.sh
+make db-restore
 ```
 
 Note that a "restore" will replace the state of the development database with the state from the backup.
+
+Reset:
+
+```
+make db-reset
+```
+
 
 ## MySQL shell
 
@@ -274,11 +281,15 @@ Issuer URI: http://localhost:8080/simplesaml/saml2/idp/SSOService.php
 Metadata URL: http://localhost:9080/simplesaml/saml2/idp/metadata.php
 ```
 
-The identity provider is configured with one user:
+The identity provider is configured with two users:
 
 ```
 Username: sso_user
 Email: sso_user@example.com
+Password: user123#
+
+Username: sso_user2
+Email: sso_user2@example.com
 Password: user123#
 ```
 

@@ -8,6 +8,13 @@
   background-color: $ui-off-white;
   gap: $pad-medium;
 
+  a {
+    font-size: $x-small;
+    color: $core-vibrant-blue;
+    font-weight: $bold;
+    text-decoration: none;
+  }
+
   .header {
     flex: 100%;
     display: flex;
@@ -32,6 +39,11 @@
 
     .info-flex {
       display: flex;
+      flex-wrap: wrap;
+
+      .info-flex__item--title {
+        margin-bottom: 2.5rem;
+      }
 
       &__item {
         font-size: $x-small;
@@ -42,10 +54,20 @@
         &--title {
           margin-right: $pad-xxlarge;
 
-          .info__data {
+          .info-flex__data {
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+
+            img {
+              width: 16px;
+              height: 16px;
+              vertical-align: sub;
+            }
+
+            .total-issues-count {
+              margin-left: $pad-small;
+            }
           }
         }
       }
@@ -147,10 +169,11 @@
     flex-direction: row;
     justify-content: space-between;
     margin: 0;
+    padding-bottom: 0;
 
     .hostname-container {
       display: flex;
-      align-items: flex-end;
+      align-items: center;
     }
 
     .hostname {
@@ -167,13 +190,14 @@
 
     .refetch {
       display: flex;
+      margin-right: $pad-small;
 
       .refetch-btn {
         color: $core-vibrant-blue;
         cursor: default;
         font-size: $x-small;
-        display: inline;
-        margin: 9px 0 0 0; // aligns with spinner
+        height: 38px;
+        margin-right: $pad-small;
 
         &::before {
           display: inline-block;
@@ -181,8 +205,7 @@
           padding: 5px 0 0 0; // centers spin
           content: url(../assets/images/icon-refetch-12x12@2x.png);
           transform: scale(0.5);
-          vertical-align: bottom;
-          height: 20px;
+          height: 28px;
         }
 
         &:hover {
@@ -202,14 +225,13 @@
         color: $core-vibrant-blue;
         cursor: default;
         font-size: $x-small;
-        display: inline;
+        height: 38px;
         opacity: 50%;
         filter: saturate(100%);
 
         &::before {
           display: inline-block;
           position: relative;
-          top: 7px; // aligns with text
           padding: 5px 0 0 0; // centers spin
           display: inline-block;
           content: url(../assets/images/icon-refetch-12x12@2x.png);
@@ -233,6 +255,35 @@
 
   .button img {
     transform: scale(0.5);
+  }
+
+  .component__tabs-wrapper {
+    background-color: $ui-off-white;
+    width: 100%;
+
+    .react-tabs__tab {
+      padding: 6px 0px 16px 0px;
+      margin-right: $pad-xxlarge;
+    }
+    .react-tabs__tab--selected {
+      background-color: $ui-off-white;
+    }
+
+    .section {
+      margin-top: $pad-medium;
+    }
+  }
+
+  .col-2 {
+    display: flex;
+    flex-direction: row;
+  }
+
+  .section.osquery {
+    margin-right: $pad-small;
+  }
+  .section.labels {
+    margin-left: $pad-small;
   }
 
   .about,
@@ -304,7 +355,7 @@
 
   &__action-button-container {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
   }
 
   &__query-button,
@@ -322,7 +373,8 @@
     display: flex;
     flex-direction: row-reverse;
 
-    .button--alert {
+    .button--alert,
+    .button--brand {
       margin-left: 15px;
     }
   }
@@ -332,6 +384,14 @@
     display: flex;
     justify-content: center;
     text-align: center;
+  }
+
+  &__device-mapping {
+    .device-user-tooltip {
+      flex-direction: column;
+      justify-content: start;
+      text-align: left;
+    }
   }
 
   &__wrapper {
@@ -373,6 +433,50 @@
     }
   }
 
+  .section--policies {
+    .linkToFilteredHosts__header {
+      width: 140px;
+    }
+
+    tr {
+      .policy-link {
+        visibility: hidden;
+        text-overflow: none;
+        img {
+          vertical-align: text-top;
+          width: 16px;
+        }
+      }
+
+      &:hover {
+        .policy-link {
+          visibility: visible;
+          text-overflow: none;
+        }
+      }
+    }
+
+    .table-container__header {
+      display: none;
+    }
+
+    .info-banner {
+      margin-bottom: 1rem;
+      p {
+        font-size: 0.875rem;
+        margin: 0;
+      }
+    }
+
+    th:first-child {
+      width: 70%;
+    }
+
+    .response__header {
+      border-right: none;
+    }
+  }
+
   .section--software {
     th {
       &:first-child {
@@ -380,16 +484,53 @@
         width: 16px;
         padding-right: 0px;
       }
-      // TODO: Enable for link to filtered hosts page after manage hosts page has been updated to filter hosts by software id
-      // &:last-child {
-      //   width: 90px;
-      //   padding: 0px;
-      // }
+      &:nth-child(2) {
+        width: 25%;
+        padding-right: 0px;
+      }
+      &:last-child {
+        width: 150px;
+        padding: 0px;
+        overflow: none;
+      }
+
+      &:nth-last-child(2) {
+        border-right: 0 !important;
+      }
+
+      &.source__header {
+        width: 20%;
+      }
     }
     tr {
       td {
+        position: relative;
         &:first-child {
           padding-right: 0px;
+        }
+        .name-container {
+          .tooltip__tooltip-icon {
+            @include breakpoint(ltdesktop) {
+              position: absolute;
+              right: 0.5rem;
+            }
+          }
+        }
+      }
+
+      .software-link {
+        visibility: hidden;
+        img {
+          vertical-align: text-top;
+        }
+      }
+
+      &:hover {
+        .software-link {
+          visibility: visible;
+          img {
+            width: 16px;
+          }
         }
       }
     }
@@ -400,13 +541,35 @@
       td {
         overflow: hidden;
         text-overflow: ellipsis;
+
+        &:last-child {
+          text-overflow: unset;
+        }
       }
     }
   }
 
   .section--users {
+    margin-top: $pad-medium;
+
     .host-details__wrapper {
       overflow: auto;
+    }
+
+    .username__header {
+      width: 80%;
+    }
+
+    .shell__header {
+      width: 20%;
+
+      span {
+        margin-right: $pad-small;
+      }
+
+      .host-users-table__shell-tooltip {
+        font-weight: 400;
+      }
     }
   }
 
@@ -465,7 +628,7 @@
     width: 32px;
     height: 32px;
     border-radius: 4px;
-    transform: scale(0.5) translate(-50%, -60%);
+    transform: scale(0.5) translate(40%, -40%);
   }
 
   .accordion__button[aria-expanded="true"]::after,
@@ -498,38 +661,10 @@
   }
 
   &__pack-table {
+    padding-bottom: 12px;
+
     .table-container__header {
       display: none;
-    }
-
-    .tooltip {
-      width: 192px;
-    }
-
-    .data-table__pill--undetermined {
-      color: $ui-fleet-black-50;
-      font-style: italic;
-      font-weight: 400;
-      padding: 0;
-      border-radius: 0;
-    }
-
-    .data-table__pill--denylisted {
-      font-weight: 400;
-      padding: 0;
-      border-radius: 0;
-    }
-
-    .data-table__pill--minimal {
-      background-color: $ui-vibrant-blue-10;
-    }
-
-    .data-table__pill--considerable {
-      background-color: $ui-vibrant-blue-25;
-    }
-
-    .data-table__pill--excessive {
-      background-color: $ui-vibrant-blue-50;
     }
 
     .data-table__table {
@@ -539,12 +674,24 @@
         // Width for all columns except the "Query name" column
         // Width calculation adjusts for each row's horizontal padding
         th {
-          width: calc(200px - 27px * 2);
-        }
+          // Width for the "Query name" column
+          &:first-child {
+            width: 40%;
+            padding-right: 0px;
+          }
 
-        // Width for the "Query name" column
-        th:nth-child(1) {
-          width: auto !important;
+          &:nth-child(2) {
+            width: 12%;
+          }
+
+          &:nth-child(3) {
+            width: 18%;
+          }
+
+          &:last-child {
+            width: 30%;
+            padding-right: 0px;
+          }
         }
       }
 
@@ -585,12 +732,92 @@
     color: $ui-fleet-black-50;
   }
 
-  .software-link {
-    img {
-      transform: rotate(0.75turn);
-      height: 16px;
-      width: auto;
-      vertical-align: middle;
+  &__os-modal-title {
+    padding-right: $pad-medium;
+    font-size: $medium;
+    font-weight: $bold;
+  }
+  &__os-modal-updated {
+    font-style: italic;
+  }
+  &__os-modal-example-title {
+    font-size: $x-small;
+    font-weight: $bold;
+  }
+  &__os-policy {
+    padding-top: $pad-medium;
+
+    .form-field__label {
+      font-weight: normal;
+    }
+    #os-policy {
+      color: $core-fleet-purple;
+      line-height: 20px;
+      font-size: $x-small;
+      font-family: "SourceCodePro", $monospace;
+      min-height: 55px;
+      padding-right: $pad-xxlarge;
+    }
+  }
+
+  &__os-policy-copy-icon {
+    color: $core-vibrant-blue;
+    margin-left: $pad-small;
+    margin-right: $pad-medium;
+  }
+
+  .buttons {
+    display: flex;
+    align-items: center;
+    position: absolute;
+    right: 25px;
+
+    span {
+      font-weight: $regular;
+    }
+
+    a {
+      display: flex;
+      align-items: center;
+    }
+  }
+
+  &__button-wrap {
+    display: flex;
+    justify-content: flex-end;
+    margin: $pad-xxlarge 0 0;
+  }
+  .form-field--dropdown {
+    margin: 0;
+  }
+  &__vuln_dropdown {
+    width: 219px;
+
+    .Select-menu-outer {
+      width: 364px;
+      max-height: 310px;
+
+      .Select-menu {
+        max-height: none;
+      }
+    }
+    .Select-value {
+      padding-left: $pad-medium;
+      padding-right: $pad-medium;
+
+      &::before {
+        display: inline-block;
+        position: absolute;
+        padding: 5px 0 0 0; // centers spin
+        content: url(../assets/images/icon-filter-black-16x16@2x.png);
+        transform: scale(0.5);
+        height: 26px;
+        left: 2px;
+      }
+    }
+    .Select-value-label {
+      padding-left: $pad-large;
+      font-size: $small !important;
     }
   }
 }

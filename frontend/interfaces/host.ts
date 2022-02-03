@@ -1,8 +1,10 @@
 import PropTypes from "prop-types";
+import hostPolicyInterface, { IHostPolicy } from "./policy";
 import hostUserInterface, { IHostUser } from "./host_users";
 import labelInterface, { ILabel } from "./label";
 import packInterface, { IPack } from "./pack";
 import softwareInterface, { ISoftware } from "./software";
+import hostQueryResult from "./campaign";
 import queryStatsInterface, { IQueryStats } from "./query_stats";
 
 export default PropTypes.shape({
@@ -56,22 +58,52 @@ export default PropTypes.shape({
   status: PropTypes.string,
   display_text: PropTypes.string,
   users: PropTypes.arrayOf(hostUserInterface),
+  policies: PropTypes.arrayOf(hostPolicyInterface),
+  query_results: PropTypes.arrayOf(hostQueryResult),
 });
 
 export interface IDeviceUser {
   email: string;
+  source: string;
+}
+
+export interface IDeviceMappingResponse {
+  device_mapping: IDeviceUser[];
 }
 
 export interface IMunkiData {
   version: string;
-  last_run_time: string;
-  packages_intalled_count: number;
-  errors_count: number;
 }
 
 export interface IMDMData {
-  health: string;
-  enrollment_url: string;
+  enrollment_status: string;
+  server_url: string;
+}
+
+export interface IMacadminsResponse {
+  macadmins: null | {
+    munki: null | IMunkiData;
+    mobile_device_management: null | IMDMData;
+  };
+}
+
+export interface IPackStats {
+  pack_id: number;
+  pack_name: string;
+  query_stats: IQueryStats[];
+  type: string;
+}
+
+export interface IHostPolicyQuery {
+  id: number;
+  hostname: string;
+  status?: string;
+}
+
+export interface IHostPolicyQueryError {
+  host_hostname: string;
+  osquery_version: string;
+  error: string;
 }
 
 export interface IHost {
@@ -108,11 +140,7 @@ export interface IHost {
   config_tls_refresh: number;
   logger_tls_period: number;
   team_id: number;
-  pack_stats: {
-    pack_id: number;
-    pack_name: string;
-    query_stats: IQueryStats[];
-  }[];
+  pack_stats: IPackStats[];
   team_name: string;
   additional: object; // eslint-disable-line @typescript-eslint/ban-types
   percent_disk_space_available: number;
@@ -120,10 +148,17 @@ export interface IHost {
   labels: ILabel[];
   packs: IPack[];
   software: ISoftware[];
+  issues: {
+    total_issues_count: number;
+    failing_policies_count: number;
+  };
   status: string;
   display_text: string;
+  target_type?: string;
   users: IHostUser[];
   device_users?: IDeviceUser[];
   munki?: IMunkiData;
   mdm?: IMDMData;
+  policies: IHostPolicy[];
+  query_results?: [];
 }

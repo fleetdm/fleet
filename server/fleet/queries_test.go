@@ -8,7 +8,7 @@ import (
 )
 
 func TestLoadQueriesFromYamlStrings(t *testing.T) {
-	var testCases = []struct {
+	testCases := []struct {
 		yaml      string
 		queries   []*Query
 		shouldErr bool
@@ -79,7 +79,7 @@ spec:
 }
 
 func TestRoundtripQueriesYaml(t *testing.T) {
-	var testCases = []struct{ queries []*Query }{
+	testCases := []struct{ queries []*Query }{
 		{[]*Query{{Name: "froob", Description: "bing", Query: "blong"}}},
 		{
 			[]*Query{
@@ -103,7 +103,7 @@ func TestRoundtripQueriesYaml(t *testing.T) {
 }
 
 func TestValidateSQL(t *testing.T) {
-	var testCases = []struct {
+	testCases := []struct {
 		sql       string
 		shouldErr bool
 	}{
@@ -127,7 +127,7 @@ func TestValidateSQL(t *testing.T) {
 
 	for _, tt := range testCases {
 		t.Run(tt.sql, func(t *testing.T) {
-			err := Query{Query: tt.sql}.ValidateSQL()
+			err := verifySQL(tt.sql)
 			if tt.shouldErr {
 				require.Error(t, err)
 			} else {

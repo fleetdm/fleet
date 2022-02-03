@@ -1,218 +1,212 @@
-describe(
-  "Basic tier - Team observer/maintainer user",
-  {
-    defaultCommandTimeout: 20000,
-  },
-  () => {
+describe("Premium tier - Team observer/maintainer user", () => {
+  before(() => {
+    Cypress.session.clearAllSavedSessions();
+    cy.setup();
+    cy.loginWithCySession();
+    cy.seedPremium();
+    cy.seedQueries();
+    cy.seedPolicies("apples");
+    cy.addDockerHost("apples");
+    cy.addDockerHost("oranges");
+  });
+  after(() => {
+    cy.logout();
+    cy.stopDockerHost();
+  });
+
+  describe("Team observer", () => {
     beforeEach(() => {
-      cy.setup();
-      cy.login();
-      cy.seedPremium();
-      cy.seedQueries();
-      cy.addDockerHost("apples");
-      cy.addDockerHost("oranges");
-      cy.logout();
+      cy.loginWithCySession("marco@organization.com", "user123#");
     });
-    afterEach(() => {
-      cy.stopDockerHost();
+    describe("Manage hosts page", () => {
+      it("should render elements according to role-based access controls", () => {
+        cy.visit("/hosts/manage");
+        // Hosts table includes teams column
+        cy.getAttached(".data-table__table th")
+          .contains("Team")
+          .should("be.visible");
+        cy.findByText(/add label/i).should("not.exist");
+
+        // On observing team, not see the "Generate installer" and "Manage enroll secret" buttons
+        cy.contains(/apples/i).should("exist");
+        cy.contains("button", /generate installer/i).should("not.exist");
+        cy.contains("button", /manage enroll secret/i).should("not.exist");
+      });
     });
-
-    it("Can perform the appropriate team observer actions", () => {
-      cy.login("marco@organization.com", "user123#");
-      cy.visit("/hosts/manage");
-
-      // Ensure page is loaded and teams are visible
-      cy.contains("Hosts");
-
-      // On the Hosts page, they should…
-
-      // See hosts
-      // cy.findByText(/kinda empty in here/i).should("not.exist");
-      // ^^TODO hosts table is not rendering because we need new forEach script/command for admin to assign team after the host is added
-
-      // See the “Teams” column in the Hosts table
-      // cy.get("thead").contains(/team/i).should("exist");
-
-      // Nav restrictions
-      cy.findByText(/settings/i).should("not.exist");
-      cy.findByText(/schedule/i).should("exist");
-      cy.visit("/settings/organization");
-      cy.findByText(/you do not have permissions/i).should("exist");
-      cy.visit("/packs/manage");
-      cy.findByText(/you do not have permissions/i).should("exist");
-
-      // NOT see and select "add label"
-      cy.findByRole("button", { name: /new label/i }).should("not.exist");
-
-      // On the Host details page, they should…
-
-      // See the “Team” information below the hostname
-      // cy.visit("/hosts/1");
-      // cy.findByText(/team/i).next().contains("Apples");
-      // ^^TODO need new forEach script/command for admin to assign team after the host is added
-
-      // NOT see and select the “Delete” button
-      // cy.findByText(/delete/i).should("not.exist");
-      // ^^ TODO this is restriction only applies to hosts where they are not a maintainer
-
-      // NOT see and select the “Query” button
-      // cy.findByText(/query/i).should("not.exist");
-      // ^^ TODO this is restriction only applies to hosts where they are not a maintainer
-
-      // On the Queries manage page, they should…
-      cy.visit("/queries/manage");
-      cy.findByText(/no queries available/i).should("not.exist");
-
-      // See and select the “Show query” button in the right side panel if the saved query has `observer_can_run` set to `false`. This button appears after the user selects a query in the Queries table.
-      // See and select the “Run query” button in the right side panel if the saved query has `observer_can_run` set to `true`. This button appears after the user selects a query in the Queries table.
-      // ^^TODO confirm if these distinctions apply to dual-role user like Marco
-
-      // NOT see the “Observers can run” column in the Queries table
-      // cy.findByText(/observers can run/i).should("not.exist");
-      // ^^TODO confirm this does not apply to dual-role user like Marco
-
-      // NOT see and select the “Create new query” button
-      // cy.findByText(/create new query/i).should("not.exist");
-      // ^^TODO confirm this does not apply to dual-role user like Marco
-
-      // NOT see the “SQL” and “Packs” sections in the right side bar. These sections appear after the user selects a query in the Queries table.
-      // cy.get(".secondary-side-panel-container").within(() => {
-      //   cy.findByText(/sql/i).should("not.exist");
-      //   cy.findByText(/packs/i).should("not.exist");
-      // });
-      // ^^TODO confirm this does not apply to dual-role user like Marco
-
-      // On the Query details page they should…
-      cy.visit("/queries/1");
-
-      // TODO - Fix tests according to improved query experience - MP
-      // // See the “Show SQL” button.
-      // cy.findByText(/show sql/i).click();
-      // cy.findByText(/hide sql/i).should("exist");
-
-      // // See the “Select targets” input
-      // cy.findByText(/select targets/i).should("exist");
-
-      // // NOT see and edit “Query name,” “Description,” “SQL”, and “Observer can run” fields.
-      // cy.findByLabelText(/query name/i).should("not.exist");
-      // cy.findByLabelText(/description/i).should("not.exist");
-      // cy.findByLabelText(/observers can run/i).should("not.exist");
-      // cy.get(".ace_scroller")
-      //   .click({ force: true })
-      //   .type("{selectall}{backspace}SELECT * FROM windows_crashes;");
-      // cy.findByText(/SELECT * FROM windows_crashes;/i).should("not.exist");
-
-      // NOT see a the “Select targets” input if the saved query has `observer_can_run` set to false.
-      // cy.findByText(/select targets/i).should("not.exist");
-      // ^^ TODO confirm if this restriction applies to a dual-role user like Marco
-
-      // NOT see a the “Teams” section in the Select target picker. This picker is summoned when the “Select targets” field is selected.
-      // ^^ TODO confirm if this restriction applies to a dual-role user like Marco
+    describe("Manage policies page", () => {
+      it("should render elements according to role-based access controls", () => {
+        cy.visit("/policies/manage");
+        // On observing team, not see the "Add a policy" and "Manage automations" button
+        cy.findByText(/apples/i).should("exist");
+        cy.findByText(/manage automations/i).should("not.exist");
+        cy.findByText(/add a policy/i).should("not.exist");
+      });
     });
-
-    it("Can perform the appropriate maintainer actions", () => {
-      cy.login("marco@organization.com", "user123#");
-      cy.visit("/hosts/manage");
-
-      // Ensure page is loaded and appropriate nav links are displayed
-      cy.contains("Hosts");
-      cy.get("nav").within(() => {
-        cy.findByText(/hosts/i).should("exist");
-        cy.findByText(/queries/i).should("exist");
+    describe("Policy detail page", () => {
+      it("should render elements according to role-based access controls", () => {
+        cy.visit("/policies/manage");
+        // Navigate to policy detail page for first policy in manage policies table
+        cy.getAttached("tbody").within(() => {
+          cy.getAttached("tr")
+            .first()
+            .within(() => {
+              cy.contains(".fleet-checkbox__input").should("not.exist");
+              cy.findByText(/filevault enabled/i).click();
+            });
+        });
+        cy.getAttached(".policy-form__wrapper").within(() => {
+          cy.findByRole("button", { name: /run/i }).should("not.exist");
+          cy.findByRole("button", { name: /save/i }).should("not.exist");
+        });
+      });
+    });
+    // nav restrictions are at the end because we expect to see a
+    // 403 error overlay which will hide the nav and make the test fail
+    describe("Nav restrictions", () => {
+      it("should restrict navigation according to role-based access controls", () => {
+        cy.visit("/dashboard");
+        cy.findByText(/settings/i).should("not.exist");
         cy.findByText(/schedule/i).should("exist");
-        cy.findByText(/settings/i).should("not.exist");
+        cy.visit("/settings/organization");
+        cy.findByText(/you do not have permissions/i).should("exist");
+        cy.visit("/packs/manage");
+        cy.findByText(/you do not have permissions/i).should("exist");
       });
-
-      // Ensure page is loaded and appropriate nav links are displayed
-      cy.contains("Hosts");
-      cy.get("nav").within(() => {
-        cy.findByText(/hosts/i).should("exist");
-        cy.findByText(/queries/i).should("exist");
-        cy.findByText(/packs/i).should("not.exist");
-        cy.findByText(/settings/i).should("not.exist");
-      });
-
-      // On the hosts page, they should…
-
-      // See the “Teams” column in the Hosts table
-      // cy.get("thead").contains(/team/i).should("exist");
-      // ^^TODO hosts table is not rendering because we need new forEach script/command for admin to assign team after the host is added
-
-      // See and select the “Add new host” button
-      cy.findByRole("button", { name: /add new host/i }).click();
-
-      // See the “Select a team for this new host” in the Add new host modal. This modal appears after the user selects the “Add new host” button
-      cy.get(".add-host-modal__team-dropdown-wrapper .Select-control").click();
-      cy.get(".Select-menu-outer").within(() => {
-        cy.findByText(/no team/i).should("not.exist");
-        cy.findByText(/apples/i).should("not.exist");
-        cy.findByText(/oranges/i).should("exist");
-      });
-
-      cy.findByRole("button", { name: /done/i }).click();
-
-      // On the Host details page, they should…
-      // cy.visit("/hosts/1");
-      // ^^TODO hosts details page returning 403 likely because we need new forEach script/command for admin to assign team after the host is added
-
-      // See and select the “Create new query” button in the Select a query modal. This modal appears after the user selects the “Query” button
-      // cy.findByRole("button", { name: /query/i }).click();
-      // cy.findByRole("button", { name: /create custom query/i }).should("exist");
-      // cy.get(".modal__ex").within(() => {
-      //   cy.findByRole("button").click();
-      // });
-      // ^^TODO hosts details page returning 403 likely because we need new forEach script/command for admin to assign team after the host is added
-
-      // TODO - Fix tests according to improved query experience - MP
-      // On the Queries manage page, they should…
-      // cy.visit("/queries/manage");
-
-      // // See and select the “Create new query” button
-      // cy.findByText(/create new query/i).click();
-      // cy.findByText(/custom query/i).should("exist");
-      // cy.findByRole("button", { name: "Run" }).should("exist");
-      // cy.findByRole("button", { name: "Save" }).should("not.exist");
-
-      // cy.get(".ace_scroller")
-      //   .click({ force: true })
-      //   .type("{selectall}{backspace}SELECT * FROM windows_crashes;");
-
-      // cy.get(".target-select").within(() => {
-      //   cy.findByText(/Label name, host name, IP address, etc./i).click();
-      //   cy.findByText(/teams/i).should("exist");
-      //   cy.findByText(/apples/i).should("not.exist"); // Marco is only an observer on team apples
-      //   cy.findByText(/oranges/i) // Marco is a maintainer on team oranges
-      //     .parent()
-      //     .parent()
-      //     .within(() => {
-      //       cy.findByText(/0 hosts/i).should("exist");
-      //       // ^^TODO modify for expected host count once hosts are seeded
-      //     });
-      // });
-
-      // On the Schedule page, they should
-      // See Oranges (team they maintain) only, not able to reach packs, able to schedule a query
-      cy.visit("/schedule/manage");
-      cy.findByText(/oranges/i).click();
-      cy.findByText(/apples/i).should("not.exist");
-      cy.findByText(/advanced/i).should("not.exist");
-      cy.findByRole("button", { name: /schedule a query/i }).click();
-      // TODO: Write e2e test for team maintainer to schedule a query
-
-      cy.visit("/hosts/manage");
-      cy.contains(".table-container .data-table__table th", "Team").should(
-        "be.visible"
-      );
-
-      // On the Profile page, they should…
-      // See 2 Teams in the Team section and Various in the Role section
-      cy.visit("/profile");
-      cy.findByText("Teams")
-        .next()
-        .contains(/2 teams/i);
-      cy.findByText("Role")
-        .next()
-        .contains(/various/i);
     });
-  }
-);
+  });
+
+  describe("Team maintainer", () => {
+    // cypress tends to fail on uncaught exceptions. since we have
+    // our own error handling, it's suggested to use this block to
+    // suppress so the tests will keep running
+    Cypress.on("uncaught:exception", () => {
+      return false;
+    });
+
+    beforeEach(() => {
+      cy.loginWithCySession("marco@organization.com", "user123#");
+      cy.visit("/hosts/manage");
+    });
+    describe("Manage hosts page", () => {
+      it("should render elements according to role-based access controls", () => {
+        // Hosts table includes teams column
+        cy.getAttached(".data-table__table th")
+          .contains("Team")
+          .should("be.visible");
+        cy.findByText(/add label/i).should("not.exist");
+
+        // On maintaining team, see the "Generate installer" and "Manage enroll secret" buttons
+        cy.getAttached(".manage-hosts__header").within(() => {
+          cy.contains("Apples").click({ force: true });
+          cy.contains("Oranges").click({ force: true });
+        });
+        cy.contains(/oranges/i);
+        cy.getAttached(".button-wrap")
+          .contains("button", /generate installer/i)
+          .click();
+        cy.getAttached(".modal__content").contains("button", /done/i).click();
+
+        // On maintaining team, add new enroll secret
+        cy.getAttached(".button-wrap")
+          .contains("button", /manage enroll secret/i)
+          .click();
+        cy.getAttached(".enroll-secret-modal__add-secret")
+          .contains("button", /add secret/i)
+          .click();
+        cy.getAttached(".secret-editor-modal__button-wrap")
+          .contains("button", /save/i)
+          .click();
+        cy.getAttached(".enroll-secret-modal__button-wrap")
+          .contains("button", /done/i)
+          .click();
+      });
+    });
+    describe("Manage software page", () => {
+      beforeEach(() => cy.visit("/software/manage"));
+      it("hides manage automations button", () => {
+        cy.getAttached(".manage-software-page__header-wrap").within(() => {
+          cy.findByRole("button", { name: /manage automations/i }).should(
+            "not.exist"
+          );
+        });
+      });
+    });
+    describe("Manage schedule page", () => {
+      it("should render elements according to role-based access controls", () => {
+        cy.visit("/schedule/manage");
+        cy.contains(/oranges/i).should("exist");
+        cy.contains(/advanced/i).should("not.exist");
+        cy.findByRole("button", { name: /schedule a query/i }).click();
+        // Schedule a query on maintaining team
+        cy.getAttached(".schedule-editor-modal__form").within(() => {
+          cy.findByText(/select query/i).click();
+          cy.findByText(/detect presence/i).click();
+          cy.findByText(/every day/i).click();
+          cy.findByText(/every 6 hours/i).click();
+          cy.getAttached(".schedule-editor-modal__btn-wrap").within(() => {
+            cy.findByRole("button", { name: /schedule/i }).click();
+          });
+        });
+        cy.findByText(/successfully added/i).should("be.visible");
+        cy.getAttached("tbody>tr").should("have.length", 1);
+      });
+    });
+    describe("Manage policies page", () => {
+      it("should render elements according to role-based access controls", () => {
+        cy.visit("/policies/manage");
+        // Switch to from team apples to team oranges
+        cy.findByText(/apples/i).click();
+        cy.findByText(/oranges/i).click();
+
+        // On maintaining team, not see the "Manage automations" button
+        cy.findByText(/manage automations/i).should("not.exist");
+        // On maintaining team, should see "add a policy" and "save" a policy
+        cy.findByText(/add a policy/i).click();
+
+        // Add a default policy
+        cy.findByText(/gatekeeper enabled/i).click();
+        cy.getAttached(".policy-form__button-wrap--new-policy").within(() => {
+          cy.findByRole("button", { name: /save policy/i }).click();
+        });
+        cy.findByRole("button", { name: /^Save$/ }).click();
+        cy.findByText(/policy created/i).should("exist");
+
+        // On maintaining team, should see "save" and "run" for a new policy
+        cy.getAttached(".policy-form__button-wrap--new-policy").within(() => {
+          cy.findByRole("button", { name: /run/i }).should("exist");
+          cy.findByRole("button", { name: /save/i }).should("exist");
+        });
+      });
+    });
+    describe("User profile page", () => {
+      it("should render elements according to role-based access controls", () => {
+        cy.visit("/profile");
+        // See 2 Teams in the Team section and Various in the Role section
+        cy.getAttached(".user-settings__additional").within(() => {
+          cy.findByText("Teams")
+            .next()
+            .contains(/2 teams/i);
+          cy.findByText("Role")
+            .next()
+            .contains(/various/i);
+        });
+      });
+    });
+    // nav restrictions are at the end because we expect to see a
+    // 403 error overlay which will hide the nav and make the test fail
+    describe("Nav restrictions", () => {
+      it("should restrict navigation according to role-based access controls", () => {
+        cy.visit("/dashboard");
+
+        cy.contains("h2", "Hosts").should("exist");
+        cy.getAttached("nav").within(() => {
+          cy.findByText(/hosts/i).should("exist");
+          cy.findByText(/queries/i).should("exist");
+          cy.findByText(/schedule/i).should("exist");
+          cy.findByText(/packs/i).should("not.exist");
+          cy.findByText(/settings/i).should("not.exist");
+        });
+      });
+    });
+  });
+});

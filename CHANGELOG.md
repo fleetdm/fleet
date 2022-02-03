@@ -1,3 +1,344 @@
+## Fleet 4.9.0 (Jan 21, 2022)
+
+* Add ability to apply a `policy` yaml document so that GitOps workflows can be used to create and
+  modify policies.
+
+* Add ability to run a live query that returns 1,000+ results in the Fleet UI by adding
+  client-side pagination to the results table.
+
+* Improve the accuracy of query platform compatibility detection by adding recognition for queries
+  with the `WITH` expression.
+
+* Add ability to open a page in the Fleet UI in a new tab by "right-clicking" an item in the navigation.
+
+* Improve the [live query API route (`GET /api/v1/queries/run`)](https://fleetdm.com/docs/using-fleet/rest-api#run-live-query) so that it successfully return results for Fleet
+  instances using a load balancer by reducing the wait period to 25 seconds.
+
+* Improve performance of the Fleet UI by updating loading states and reducing the number of requests
+  made to the Fleet API.
+
+* Improve performance of the MySQL database by updating the queries used to populate host vitals and
+  caching the results.
+
+* Add [`read_timeout` Redis configuration
+  option](https://fleetdm.com/docs/deploying/configuration#redis-read-timeout) to customize the
+  maximum amount of time Fleet should wait to receive a response from a Redis server.
+
+* Add [`write_timeout` Redis configuration
+  option](https://fleetdm.com/docs/deploying/configuration#redis-write-timeout) to customize the
+  maximum amount of time Fleet should wait to send a command to a Redis server.
+
+* Fix a bug in which browser extensions (Google Chrome, Firefox, and Safari) were not included in
+  software inventory.
+
+* Improve the security of the **Organization settings** page by preventing the browser from requesting
+  to save SMTP credentials.
+
+* Fix a bug in which an existing pack's targets were not cleaned up after deleting hosts, labels, and teams.
+
+* Fix a bug in which non-existent queries and policies would not return a 404 not found response.
+
+### Performance
+
+* Our testing demonstrated an increase in max devices served in our load test infrastructure to 70,000 from 60,000 in v4.8.0.
+
+#### Load Test Infrastructure
+
+* Fleet server
+  * AWS Fargate
+  * 2 tasks with 1024 CPU units and 2048 MiB of RAM.
+
+* MySQL
+  * Amazon RDS
+  * db.r5.2xlarge
+
+* Redis
+  * Amazon ElastiCache 
+  * cache.m5.large with 2 replicas (no cluster mode)
+
+#### What was changed to accomplish these improvements?
+
+* Optimized the updating and fetching of host data to only send and receive the bare minimum data
+  needed. 
+
+* Reduced the number of times host information is updated by caching more data.
+
+* Updated cleanup jobs and deletion logic.
+
+#### Future improvements
+
+* At maximum DB utilization, we found that some hosts fail to respond to live queries. Future releases of Fleet will improve upon this.
+
+## Fleet 4.8.0 (Dec 31, 2021)
+
+* Add ability to configure Fleet to send a webhook request with all hosts that failed a
+  policy. Documentation on what data is included the webhook
+  request and when the webhook request is sent can be found here on [fleedm.com/docs](https://fleetdm.com/docs/using-fleet/automations).
+
+* Add ability to find a user's device in Fleet by filtering hosts by email associated with a Google Chrome
+  profile. Requires the [macadmins osquery
+  extension](https://github.com/macadmins/osquery-extension) which comes bundled in [Fleet's osquery
+  installers](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer). 
+  
+* Add ability to see a host's Google Chrome profile information using the [`GET
+  api/v1/fleet/hosts/{id}/device_mapping` API
+  route](https://fleetdm.com/docs/using-fleet/rest-api#get-host-device-mapping).
+
+* Add ability to see a host's mobile device management (MDM) enrollment status, MDM server URL,
+  and Munki version on a host's **Host details** page. Requires the [macadmins osquery
+  extension](https://github.com/macadmins/osquery-extension) which comes bundled in [Fleet's osquery
+  installers](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer). 
+
+* Add ability to see a host's MDM and Munki information with the [`GET
+  api/v1/fleet/hosts/{id}/macadmins` API
+  route](https://fleetdm.com/docs/using-fleet/rest-api#list-mdm-and-munki-information-if-available).
+
+* Improve the handling of certificates in the `fleetctl package` command by adding a check for a
+  valid PEM file.
+
+* Update [Prometheus Go client library](https://github.com/prometheus/client_golang) which
+  results in the following breaking changes to the [`GET /metrics` API
+  route](https://fleetdm.com/docs/using-fleet/monitoring-fleet#metrics):
+  `http_request_duration_microseconds` is now `http_request_duration_seconds_bucket`,
+  `http_request_duration_microseconds_sum` is now `http_request_duration_seconds_sum`,
+  `http_request_duration_microseconds_count` is now `http_request_duration_seconds_count`,
+  `http_request_size_bytes` is now `http_request_size_bytes_bucket`, and `http_response_size_bytes`
+  is now `http_response_size_bytes_bucket`
+
+* Improve performance when searching and sorting hosts in the Fleet UI.
+
+* Improve performance when running a live query feature by reducing the load on Redis.
+
+* Improve performance when viewing software installed across all hosts in the Fleet
+  UI.
+
+* Fix a bug in which the Fleet UI presented the option to download an undefined certificate in the "Generate installer" instructions.
+
+* Fix a bug in which database migrations failed when using MariaDB due to a migration introduced in Fleet 4.7.0.
+
+* Fix a bug that prevented hosts from checking in to Fleet when Redis was down.
+
+## Fleet 4.7.0 (Dec 14, 2021)
+
+* Add ability to create, modify, or delete policies in Fleet without modifying saved queries. Fleet
+  4.7.0 introduces breaking changes to the `/policies` API routes to separate policies from saved
+  queries in Fleet. These changes will not affect any policies previously created or modified in the
+  Fleet UI.
+
+* Turn on vulnerability processing for all Fleet instances with software inventory enabled.
+  [Vulnerability processing in Fleet](https://fleetdm.com/docs/using-fleet/vulnerability-processing)
+  provides the ability to see all hosts with specific vulnerable software installed. 
+
+* Improve the performance of the "Software" table on the **Home** page.
+
+* Improve performance of the MySQL database by changing the way a host's users information   is saved.
+
+* Add ability to select from a library of standard policy templates on the **Policies** page. These
+  pre-made policies ask specific "yes" or "no" questions about your hosts. For example, one of
+  these policy templates asks "Is Gatekeeper enabled on macOS devices?"
+
+* Add ability to ask whether or not your hosts have a specific operating system installed by
+  selecting an operating system policy on the **Host details** page. For example, a host that is
+  running macOS 12.0.1 will present a policy that asks "Is macOS 12.0.1 installed on macOS devices?"
+
+* Add ability to specify which platform(s) (macOS, Windows, and/or Linux) a policy is checked on.
+
+* Add ability to generate a report that includes which hosts are answering "Yes" or "No" to a 
+  specific policy by running a policy's query as a live query.
+
+* Add ability to see the total number of installed software software items across all your hosts.
+
+* Add ability to see an example scheduled query result that is sent to your configured log
+  destination. Select "Schedule a query" > "Preview data" on the **Schedule** page to see the 
+  example scheduled query result.
+
+* Improve the host's users information by removing users without login shells and adding users 
+  that are not associated with a system group.
+
+* Add ability to see a Fleet instance's missing migrations with the `fleetctl debug migrations`
+  command. The `fleet serve` and `fleet prepare db` commands will now fail if any unknown migrations
+  are detected.
+
+* Add ability to see syntax errors as your write a query in the Fleet UI.
+
+* Add ability to record a policy's resolution steps that can be referenced when a host answers "No" 
+  to this policy.
+
+* Add server request errors to the Fleet server logs to allow for troubleshooting issues with the 
+Fleet server in non-debug mode.
+
+* Increase default login session length to 24 hours.
+
+* Fix a bug in which software inventory and disk space information was not retrieved for Debian hosts.
+
+* Fix a bug in which searching for targets on the **Edit pack** page negatively impacted performance of 
+  the MySQL database.
+
+* Fix a bug in which some Fleet migrations were incompatible with MySQL 8.
+
+* Fix a bug that prevented the creation of osquery installers for Windows (.msi) when a non-default 
+  update channel is specified.
+
+* Fix a bug in which the "Software" table on the home page did not correctly filtering when a
+  specific team was selected on the **Home** page.
+
+* Fix a bug in which users with "No access" in Fleet were presented with a perpetual 
+  loading state in the Fleet UI.
+
+## Fleet 4.6.2 (Nov 30, 2021)
+
+* Improve performance of the **Home** page by removing total hosts count from the "Software" table.
+
+* Improve performance of the **Queries** page by adding pagination to the list of queries.
+
+* Fix a bug in which the "Shell" column of the "Users" table on the **Host details** page would sometimes fail to update.
+
+* Fix a bug in which a host's status could quickly alternate between "Online" and "Offline" by increasing the grace period for host status.
+
+* Fix a bug in which some hosts would have a missing `host_seen_times` entry.
+
+* Add an `after` parameter to the [`GET /hosts` API route](https://fleetdm.com/docs/using-fleet/rest-api#list-hosts) to allow for cursor pagination.
+
+* Add a `disable_failing_policies` parameter to the [`GET /hosts` API route](https://fleetdm.com/docs/using-fleet/rest-api#list-hosts) to allow the API request to respond faster if failing policies count information is not needed.
+
+## Fleet 4.6.1 (Nov 21, 2021)
+
+* Fix a bug (introduced in 4.6.0) in which Fleet used progressively more CPU on Redis, resulting in API and UI slowdowns and inconsistency.
+
+* Make `fleetctl apply` fail when the configuration contains invalid fields.
+
+## Fleet 4.6.0 (Nov 18, 2021)
+
+* Fleet Premium: Add ability to filter aggregate host data such as platforms (macOS, Windows, and Linux) and status (online, offline, and new) the **Home** page. The aggregate host data is also available in the [`GET /host_summary API route`](https://fleetdm.com/docs/using-fleet/rest-api#get-hosts-summary).
+
+* Fleet Premium: Add ability to move pending invited users between teams.
+
+* Fleet Premium: Add `fleetctl updates rotate` command for rotation of keys in the updates system. The `fleetctl updates` command provides the ability to [self-manage an agent update server](https://fleetdm.com/docs/deploying/fleetctl-agent-updates).
+
+* Enable the software inventory by default for new Fleet instances. The software inventory feature can be turned on or off using the [`enable_software_inventory` configuration option](https://fleetdm.com/docs/using-fleet/vulnerability-processing#setup).
+
+* Update the JSON payload for the host status webhook by renaming the `"message"` property to `"text"` so that the payload can be received and displayed in Slack.
+
+* Remove the deprecated `app_configs` table from Fleet's MySQL database. The `app_config_json` table has replaced it.
+
+* Improve performance of the policies feature for Fleet instances with over 100,000 hosts.
+
+* Add instructions in the Fleet UI for generating an osquery installer for macOS, Linux, or Windows. Documentation for generating an osquery installer and distributing the installer to your hosts to add them to Fleet can be found here on [fleetdm.com/docs](https://fleetdm.com/docs/using-fleet/adding-hosts)
+
+* Add ability to see all the software, and filter by vulnerable software, installed across all your hosts on the **Home** page. Each software's `name`, `version`, `hosts_count`, `vulnerabilities`, and more is also available in the [`GET /software` API route](https://fleetdm.com/docs/using-fleet/rest-api#software) and `fleetctl get software` command.
+
+* Add ability to add, edit, and delete enroll secrets on the **Hosts** page.
+
+* Add ability to see aggregate host data such as platforms (macOS, Windows, and Linux) and status (online, offline, and new) the **Home** page.
+
+* Add ability to see all of the queries scheduled to run on a specific host on the **Host details** page immediately after a query is added to a schedule or pack.
+
+* Add a "Shell" column to the "Users" table on the **Host details** page so users can now be filtered to see only those who have logged in.
+
+* Package osquery's `certs.pem` in `fleetctl package` to improve TLS compatibility.
+
+* Add support for packaging an osquery flagfile with `fleetctl package --osquery-flagfile`.
+
+* Use "Fleet osquery" rather than "Orbit osquery" in packages generated by `fleetctl package`.
+
+* Clarify that a policy in Fleet is a yes or no question you can ask about your hosts by replacing "Passing" and "Failing" text with "Yes" and "No" respectively on the **Policies** page and **Host details** page.
+
+* Add ability to see the original author of a query on the **Query** page.
+
+* Improve the UI for the "Software" table and "Policies" table on the **Host details** page so that it's easier to pivot to see all hosts with a specific software installed or answering "No" to a specific policy.
+
+* Fix a bug in which modifying a specific target for a live query, in target selector UI, would deselect a different target.
+
+* Fix a bug in which the user was navigated to a non existent page, in the Fleet UI, after saving a pack.
+
+* Fix a bug in which long software names in the "Software" table caused the bundle identifier tooltip to be inaccessible.
+
+## Fleet 4.5.1 (Nov 10, 2021)
+
+* Fix performance issues with search filtering on manage queries page.
+
+* Improve correctness and UX for query platform compatibility.
+
+* Fleet Premium: Show correct hosts when a team is selected.
+
+* Fix a bug preventing login for new SSO users.
+
+* Always return the `disabled` value in the `GET /api/v1/fleet/packs/{id}` API (previously it was
+  sometimes left out).
+
+## Fleet 4.5.0 (Nov 1, 2021)
+
+* Fleet Premium: Add a Team admin user role. This allows users to delegate the responsibility of managing team members in Fleet. Documentation for the permissions associated with the Team admin and other user roles can be found [here on fleetdm.com/docs](https://fleetdm.com/docs/using-fleet/permissions).
+
+* Add Apache Kafka logging plugin. Documentation for configuring Kafka as a logging plugin can be found [here on fleetdm.com/docs](https://fleetdm.com/docs/deploying/configuration#kafka-rest-proxy-logging). Thank you to Joseph Macaulay for adding this capability.
+
+* Add support for [MinIO](https://min.io/) as a file carving backend. Documentation for configuring MinIO as a file carving backend can be found [here on fleetdm.com/docs](https://fleetdm.com/docs/using-fleet/fleetctl-cli#minio). Thank you to Chandra Majumdar and Ben Edwards for adding this capability.
+
+* Add support for generating a `.pkg` osquery installer on Linux without dependencies (beyond Docker) with the `fleetctl package` command.
+
+* Improve the performance of vulnerability processing by making the process consume less RAM. Documentation for the vulnerability processing feature can be found [here on fleetdm.com/docs](https://fleetdm.com/docs/using-fleet/vulnerability-processing).
+
+* Add the ability to run a live query and receive results using only the Fleet REST API with a `GET /api/v1/fleet/queries/run` API route. Documentation for this new API route can be found [here on fleetdm.com/docs](https://fleetdm.com/docs/using-fleet/rest-api#run-live-query).
+
+* Add ability to see whether a specific host is "Passing" or "Failing" a policy on the **Host details** page. This information is also exposed in the `GET api/v1/fleet/hosts/{id}` API route. In Fleet, a policy is a "yes" or "no" question you can ask of all your hosts.
+
+* Add the ability to quickly see the total number of "Failing" policies for a particular host on the **Hosts** page with a new "Issues" column. Total "Issues" are also revealed on a specific host's **Host details** page.
+
+* Add the ability to see which platforms (macOS, Windows, Linux) a specific query is compatible with. The compatibility detected by Fleet is estimated based on the osquery tables used in the query.
+
+* Add the ability to see whether your queries have a "Minimal," "Considerable," or "Excessive" performance impact on your hosts. Query performance information is only collected when a query runs as a scheduled query.
+
+  * Running a "Minimal" query, very frequently, has little to no impact on your host's performance.
+
+  * Running a "Considerable" query, frequently, can have a noticeable impact on your host's performance.
+
+  * Running an "Excessive" query, even infrequently, can have a significant impact on your host’s performance.
+
+* Add the ability to see a list of hosts that have a specific software version installed by selecting a software version on a specific host's **Host details** page. Software inventory is currently under a feature flag. To enable this feature flag, check out the [feature flag documentation](./docs/02-Deploying/03-Configuration.md#feature-flags).
+
+* Add the ability to see all vulnerable software detected across all your hosts with the `GET /api/v1/fleet/software` API route. Documentation for this new API route can be found [here on fleetdm.com/docs](https://fleetdm.com/docs/using-fleet/rest-api#software).
+
+* Add the ability to see the exact number of hosts that selected filters on the **Hosts** page. This ability is also available when using the `GET api/v1/fleet/hosts/count` API route.
+
+* Add ability to automatically "Refetch" host vitals for a particular host without manually reloading the page.
+
+* Add ability to connect to Redis with TLS. Documentation for configuring Fleet to use a TLS connection to the Redis server can be found [here on fleetdm.com/docs](https://fleetdm.com/docs/deploying/configuration#redis-use-tls).
+
+* Add `cluster_read_from_replica` Redis to specify whether or not to prefer readying from a replica when possible. Documentation for this configuration option can be found [here on fleetdm.com/docs](https://fleetdm.com/docs/deploying/configuration#redis-cluster-read-from-replica).
+
+* Improve experience of the Fleet UI by preventing autocomplete in forms.
+
+* Fix a bug in which generating an `.msi` osquery installer on Windows would fail with a permission error.
+
+* Fix a bug in which turning on the host expiry setting did not remove expired hosts from Fleet.
+
+* Fix a bug in which the Software inventory for some host's was missing `bundle_identifier` information.
+
+## Fleet 4.4.3 (Oct 21, 2021)
+
+* Cache AppConfig in redis to speed up requests and reduce MySQL load.
+
+* Fix migration compatibility with MySQL GTID replication.
+
+* Improve performance of software listing query.
+
+* Improve MSI generation compatibility (for macOS M1 and some Virtualization configurations) in `fleetctl package`.
+
+## Fleet 4.4.2 (Oct 14, 2021)
+
+* Fix migration errors under some MySQL configurations due to use of temporary tables.
+
+* Fix pagination of hosts on host dashboard.
+
+* Optimize HTTP requests on host search.
+
+## Fleet 4.4.1 (Oct 8, 2021)
+
+* Fix database migrations error when updating from 4.3.2 to 4.4.0. This did not effect upgrades
+  between other versions and 4.4.0.
+
+* Improve logging of errors in fleet serve.
+
 ## Fleet 4.4.0 (Oct 6, 2021)
 
 * Fleet Premium: Teams Schedules show inherited queries from All teams (global) Schedule.
@@ -224,7 +565,7 @@
 
 * Add ability to disable the Users feature in Fleet by setting the new `enable_host_users` key to `true` in the `config` yaml, configuration file. For documentation on using configuration files in yaml syntax, check out the [Using yaml files in Fleet](https://github.com/fleetdm/fleet/tree/main/docs/01-Using-Fleet/configuration-files#using-yaml-files-in-fleet) documentation.
 
-* Improve performance of the Software inventory feature. Software inventory is currently under a feature flag. To enable this feature flag, check out the [feature flag documentation](https://github.com/fleetdm/fleet/blob/main/docs/02-Deploying/02-Configuration.md#feature-flags).
+* Improve performance of the Software inventory feature. Software inventory is currently under a feature flag. To enable this feature flag, check out the [feature flag documentation](./docs/02-Deploying/03-Configuration.md#feature-flags).
 
 * Improve performance of inserting `pack_stats` in the database. The `pack_stats` information is used to display "Frequency" and "Last run" information for a specific host's scheduled queries. You can find this information on the **Host details** page.
 
@@ -473,7 +814,7 @@ Fleet 4.0.0 is a major release and introduces several breaking changes and datab
 
 * Improve Fleet performance by batch updating host seen time instead of updating synchronously. This improvement reduces MySQL CPU usage by ~33% with 4,000 simulated hosts and MySQL running in Docker.
 
-* Add support for software inventory, introducing a list of installed software items on each host's respective _Host details_ page. This feature is flagged off by default (for now). Check out [the feature flag documentation for instructions on how to turn this feature on](./docs/02-Deploying/02-Configuration.md#software-inventory).
+* Add support for software inventory, introducing a list of installed software items on each host's respective _Host details_ page. This feature is flagged off by default (for now). Check out [the feature flag documentation for instructions on how to turn this feature on](./docs/02-Deploying/03-Configuration.md#software-inventory).
 
 * Add Windows support for `fleetctl` agent autoupdates. The `fleetctl updates` command provides the ability to self-manage an agent update server. Available for Fleet Basic customers.
 

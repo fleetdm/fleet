@@ -1,0 +1,83 @@
+.software-vulnerabilities {
+  font-size: $x-small;
+  background-color: $ui-off-white;
+  border: solid 1px $ui-fleet-black-50;
+  box-sizing: border-box;
+  border-radius: 10px;
+  overflow: auto;
+  padding: $pad-large;
+  padding-bottom: $pad-small;
+  margin: 0px;
+
+  p {
+    padding-left: $pad-large;
+  }
+
+  a {
+    color: $core-vibrant-blue;
+    font-weight: $bold;
+    font-size: $x-small;
+    text-decoration: none;
+  }
+
+  img {
+    height: 16px;
+    width: auto;
+    padding-right: 10px;
+  }
+
+  &__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    img {
+      display: inline-flex;
+    }
+  }
+
+  &__count {
+    display: flex;
+    align-content: center;
+    align-items: center;
+    font-size: $small;
+    font-weight: $bold;
+  }
+
+  &__ex {
+    text-decoration: none;
+
+    button {
+      display: inline-flex;
+      align-items: center;
+    }
+
+    img {
+      padding-right: 0;
+    }
+  }
+
+  &__list {
+    b {
+      color: $core-vibrant-blue;
+    }
+    img {
+      height: 12px;
+      width: auto;
+      padding-left: $pad-small;
+    }
+    ul {
+      margin-top: 16px;
+      margin-bottom: 16px;
+    }
+    li {
+      margin-bottom: $pad-small;
+    }
+  }
+
+  a {
+    img {
+      height: 12px;
+      width: auto;
+    }
+  }
+}

@@ -52,7 +52,7 @@
       font-size: $small;
       font-weight: $bold;
       text-align: left;
-      padding-right: 108px;
+      padding-right: 20px;
     }
 
     td {
@@ -61,8 +61,15 @@
     }
   }
 
+  &__table-email {
+    max-width: 292px;
+    word-wrap: break-word;
+  }
+
   &__table-url {
-    @include ellipsis(100%);
+    display: inline-block;
+    max-width: 292px;
+    word-wrap: break-word;
     font-family: "SourceCodePro", $monospace;
     vertical-align: bottom;
     font-weight: 600;

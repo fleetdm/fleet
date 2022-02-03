@@ -7,10 +7,11 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/pkg/errors"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
 func (svc *Service) NewTeam(ctx context.Context, p fleet.TeamPayload) (*fleet.Team, error) {
@@ -45,7 +46,7 @@ func (svc *Service) NewTeam(ctx context.Context, p fleet.TeamPayload) (*fleet.Te
 		// Set up a default enroll secret
 		secret, err := server.GenerateRandomText(fleet.EnrollSecretDefaultLength)
 		if err != nil {
-			return nil, errors.Wrap(err, "generate enroll secret string")
+			return nil, ctxerr.Wrap(ctx, err, "generate enroll secret string")
 		}
 		team.Secrets = []*fleet.EnrollSecret{{Secret: secret}}
 	}
@@ -85,9 +86,6 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 	if payload.Description != nil {
 		team.Description = *payload.Description
 	}
-	if payload.Secrets != nil {
-		team.Secrets = payload.Secrets
-	}
 
 	return svc.ds.SaveTeam(ctx, team)
 }
@@ -116,12 +114,21 @@ func (svc *Service) AddTeamUsers(ctx context.Context, teamID uint, users []fleet
 		return nil, err
 	}
 
+	currentUser := authz.UserFromContext(ctx)
+
 	idMap := make(map[uint]fleet.TeamUser)
 	for _, user := range users {
 		if !fleet.ValidTeamRole(user.Role) {
 			return nil, fleet.NewInvalidArgumentError("users", fmt.Sprintf("%s is not a valid role for a team user", user.Role))
 		}
 		idMap[user.ID] = user
+		fullUser, err := svc.ds.UserByID(ctx, user.ID)
+		if err != nil {
+			return nil, ctxerr.Wrapf(ctx, err, "getting full user with id %d", user.ID)
+		}
+		if fullUser.GlobalRole != nil && currentUser.GlobalRole == nil {
+			return nil, ctxerr.New(ctx, "A user with a global role cannot be added to a team by a non global user.")
+		}
 	}
 
 	team, err := svc.ds.Team(ctx, teamID)
@@ -204,6 +211,28 @@ func (svc *Service) ListTeams(ctx context.Context, opt fleet.ListOptions) ([]*fl
 	return svc.ds.ListTeams(ctx, filter, opt)
 }
 
+func (svc *Service) ListAvailableTeamsForUser(ctx context.Context, user *fleet.User) ([]*fleet.TeamSummary, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	availableTeams := []*fleet.TeamSummary{}
+	if user.GlobalRole != nil {
+		ts, err := svc.ds.TeamsSummary(ctx)
+		if err != nil {
+			return nil, err
+		}
+		availableTeams = append(availableTeams, ts...)
+	} else {
+		for _, t := range user.Teams {
+			// Convert from UserTeam to TeamSummary (i.e. omit the role, counts, agent options)
+			availableTeams = append(availableTeams, &fleet.TeamSummary{ID: t.ID, Name: t.Name, Description: t.Description})
+		}
+	}
+
+	return availableTeams, nil
+}
+
 func (svc *Service) DeleteTeam(ctx context.Context, teamID uint) error {
 	if err := svc.authz.Authorize(ctx, &fleet.Team{ID: teamID}, fleet.ActionWrite); err != nil {
 		return err
@@ -235,4 +264,25 @@ func (svc *Service) TeamEnrollSecrets(ctx context.Context, teamID uint) ([]*flee
 	}
 
 	return svc.ds.TeamEnrollSecrets(ctx, teamID)
+}
+
+func (svc *Service) ModifyTeamEnrollSecrets(ctx context.Context, teamID uint, secrets []fleet.EnrollSecret) ([]*fleet.EnrollSecret, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.EnrollSecret{TeamID: ptr.Uint(teamID)}, fleet.ActionWrite); err != nil {
+		return nil, err
+	}
+	if secrets == nil {
+		return nil, fleet.NewInvalidArgumentError("secrets", "missing required argument")
+	}
+
+	var newSecrets []*fleet.EnrollSecret
+	for _, secret := range secrets {
+		newSecrets = append(newSecrets, &fleet.EnrollSecret{
+			Secret: secret.Secret,
+		})
+	}
+	if err := svc.ds.ApplyEnrollSecrets(ctx, ptr.Uint(teamID), newSecrets); err != nil {
+		return nil, err
+	}
+
+	return newSecrets, nil
 }

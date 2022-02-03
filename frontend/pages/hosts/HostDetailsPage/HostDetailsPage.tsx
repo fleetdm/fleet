@@ -1,33 +1,48 @@
-import React, { useContext, useState } from "react";
+import React, { useContext, useState, useCallback, useEffect } from "react";
 import { useDispatch } from "react-redux";
 import { Link } from "react-router";
 import { Params } from "react-router/lib/Router";
 import { useQuery } from "react-query";
+import { useErrorHandler } from "react-error-boundary";
+import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
+
 import classnames from "classnames";
 import { isEmpty, pick, reduce } from "lodash";
+// @ts-ignore
+import { stringToClipboard } from "utilities/copy_text";
 
 import PATHS from "router/paths";
 import hostAPI from "services/entities/hosts";
 import queryAPI from "services/entities/queries";
 import teamAPI from "services/entities/teams";
 import { AppContext } from "context/app";
-import { IHost } from "interfaces/host";
+import { PolicyContext } from "context/policy";
+import {
+  IHost,
+  IDeviceMappingResponse,
+  IMacadminsResponse,
+  IPackStats,
+} from "interfaces/host";
+import { IQueryStats } from "interfaces/query_stats";
 import { ISoftware } from "interfaces/software";
+import { IHostPolicy } from "interfaces/policy";
 import { ILabel } from "interfaces/label";
 import { ITeam } from "interfaces/team";
 import { IQuery } from "interfaces/query";
-import { ITableSearchData } from "components/TableContainer/TableContainer"; // @ts-ignore
-import { renderFlash } from "redux/nodes/notifications/actions"; // @ts-ignore
-import simpleSearch from "utilities/simple_search";
+import { IUser } from "interfaces/user";
+// @ts-ignore
+import { renderFlash } from "redux/nodes/notifications/actions";
+import permissionUtils from "utilities/permissions";
 
 import ReactTooltip from "react-tooltip";
-import Spinner from "components/loaders/Spinner";
+// @ts-ignore
+import InputField from "components/forms/fields/InputField";
+import Spinner from "components/Spinner";
 import Button from "components/buttons/Button";
-import Modal from "components/modals/Modal"; // @ts-ignore
-import SoftwareVulnerabilities from "pages/hosts/HostDetailsPage/SoftwareVulnerabilities"; // @ts-ignore
-import HostUsersListRow from "pages/hosts/HostDetailsPage/HostUsersListRow";
+import Modal from "components/Modal";
 import TableContainer from "components/TableContainer";
-
+import TabsWrapper from "components/TabsWrapper";
+import InfoBanner from "components/InfoBanner";
 import {
   Accordion,
   AccordionItem,
@@ -36,30 +51,39 @@ import {
   AccordionItemPanel,
 } from "react-accessible-accordion";
 import {
-  humanTimeAgo,
   humanHostUptime,
   humanHostLastSeen,
   humanHostEnrolled,
   humanHostMemory,
   humanHostDetailUpdated,
   secondsToHms,
-} from "fleet/helpers"; // @ts-ignore
+} from "fleet/helpers";
+
+import SoftwareTab from "./SoftwareTab/SoftwareTab";
+// @ts-ignore
 import SelectQueryModal from "./SelectQueryModal";
 import TransferHostModal from "./TransferHostModal";
+import PolicyDetailsModal from "./HostPoliciesTable/PolicyDetailsModal";
 import {
-  generateTableHeaders,
-  generateDataSet,
-} from "./SoftwareTable/SoftwareTableConfig";
+  generatePolicyTableHeaders,
+  generatePolicyDataSet,
+} from "./HostPoliciesTable/HostPoliciesTableConfig";
+import generateUsersTableHeaders from "./UsersTable/UsersTableConfig";
 import {
   generatePackTableHeaders,
   generatePackDataSet,
 } from "./PackTable/PackTableConfig";
-import EmptySoftware from "./EmptySoftware";
+import EmptyUsers from "./EmptyUsers";
+import PolicyFailingCount from "./HostPoliciesTable/PolicyFailingCount";
+import { isValidPolicyResponse } from "../ManageHostsPage/helpers";
 
 import BackChevron from "../../../../assets/images/icon-chevron-down-9x6@2x.png";
+import CopyIcon from "../../../../assets/images/icon-copy-clipboard-fleet-blue-20x20@2x.png";
 import DeleteIcon from "../../../../assets/images/icon-action-delete-14x14@2x.png";
-import TransferIcon from "../../../../assets/images/icon-action-transfer-16x16@2x.png";
+import IssueIcon from "../../../../assets/images/icon-issue-fleet-black-50-16x16@2x.png";
 import QueryIcon from "../../../../assets/images/icon-action-query-16x16@2x.png";
+import QuestionIcon from "../../../../assets/images/icon-question-16x16@2x.png";
+import TransferIcon from "../../../../assets/images/icon-action-transfer-16x16@2x.png";
 
 const baseClass = "host-details";
 
@@ -80,6 +104,12 @@ interface IHostResponse {
   host: IHost;
 }
 
+const TAGGED_TEMPLATES = {
+  queryByHostRoute: (hostId: number | undefined | null) => {
+    return `${hostId ? `?host_ids=${hostId}` : ""}`;
+  },
+};
+
 const HostDetailsPage = ({
   router,
   params: { host_id },
@@ -91,9 +121,30 @@ const HostDetailsPage = ({
     isPremiumTier,
     isOnlyObserver,
     isGlobalMaintainer,
+    currentUser,
   } = useContext(AppContext);
+  const {
+    setLastEditedQueryName,
+    setLastEditedQueryDescription,
+    setLastEditedQueryBody,
+    setLastEditedQueryResolution,
+    setPolicyTeamId,
+  } = useContext(PolicyContext);
+  const handlePageError = useErrorHandler();
   const canTransferTeam =
     isPremiumTier && (isGlobalAdmin || isGlobalMaintainer);
+
+  const canDeleteHost = (user: IUser, host: IHost) => {
+    if (
+      isGlobalAdmin ||
+      isGlobalMaintainer ||
+      permissionUtils.isTeamAdmin(user, host.team_id) ||
+      permissionUtils.isTeamMaintainer(user, host.team_id)
+    ) {
+      return true;
+    }
+    return false;
+  };
 
   const [showDeleteHostModal, setShowDeleteHostModal] = useState<boolean>(
     false
@@ -102,11 +153,22 @@ const HostDetailsPage = ({
     false
   );
   const [showQueryHostModal, setShowQueryHostModal] = useState<boolean>(false);
-  const [
-    showRefetchLoadingSpinner,
-    setShowRefetchLoadingSpinner,
-  ] = useState<boolean>(false);
-  const [softwareState, setSoftwareState] = useState<ISoftware[]>([]);
+  const [showPolicyDetailsModal, setPolicyDetailsModal] = useState<boolean>(
+    false
+  );
+  const [showOSPolicyModal, setShowOSPolicyModal] = useState<boolean>(false);
+  const [selectedPolicy, setSelectedPolicy] = useState<IHostPolicy | null>(
+    null
+  );
+
+  const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
+  const [showRefetchSpinner, setShowRefetchSpinner] = useState<boolean>(false);
+  const [packsState, setPacksState] = useState<IPackStats[]>();
+  const [scheduleState, setScheduleState] = useState<IQueryStats[]>();
+  const [hostSoftware, setHostSoftware] = useState<ISoftware[]>([]);
+  const [usersState, setUsersState] = useState<{ username: string }[]>([]);
+  const [usersSearchString, setUsersSearchString] = useState<string>("");
+  const [copyMessage, setCopyMessage] = useState<string>("");
 
   const { data: fleetQueries, error: fleetQueriesError } = useQuery<
     IFleetQueriesResponse,
@@ -114,39 +176,160 @@ const HostDetailsPage = ({
     IQuery[]
   >("fleet queries", () => queryAPI.loadAll(), {
     enabled: !!hostIdFromURL,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
+    refetchOnWindowFocus: false,
+    retry: false,
     select: (data: IFleetQueriesResponse) => data.queries,
   });
 
-  const { data: teams, error: teamsError } = useQuery<
-    ITeamsResponse,
-    Error,
-    ITeam[]
-  >("teams", () => teamAPI.loadAll(), {
-    enabled: !!hostIdFromURL && canTransferTeam,
-    select: (data: ITeamsResponse) => data.teams,
-  });
+  const { data: teams } = useQuery<ITeamsResponse, Error, ITeam[]>(
+    "teams",
+    () => teamAPI.loadAll(),
+    {
+      enabled: !!hostIdFromURL && !!isPremiumTier,
+      refetchOnMount: false,
+      refetchOnReconnect: false,
+      refetchOnWindowFocus: false,
+      retry: false,
+      select: (data: ITeamsResponse) => data.teams,
+    }
+  );
+
+  const { data: deviceMapping, refetch: refetchDeviceMapping } = useQuery(
+    ["deviceMapping", hostIdFromURL],
+    () => hostAPI.loadHostDetailsExtension(hostIdFromURL, "device_mapping"),
+    {
+      enabled: !!hostIdFromURL,
+      refetchOnMount: false,
+      refetchOnReconnect: false,
+      refetchOnWindowFocus: false,
+      retry: false,
+      select: (data: IDeviceMappingResponse) => data.device_mapping,
+    }
+  );
+
+  const { data: macadmins, refetch: refetchMacadmins } = useQuery(
+    ["macadmins", hostIdFromURL],
+    () => hostAPI.loadHostDetailsExtension(hostIdFromURL, "macadmins"),
+    {
+      enabled: !!hostIdFromURL,
+      refetchOnMount: false,
+      refetchOnReconnect: false,
+      refetchOnWindowFocus: false,
+      retry: false,
+      select: (data: IMacadminsResponse) => data.macadmins,
+    }
+  );
+
+  const refetchExtensions = () => {
+    deviceMapping !== null && refetchDeviceMapping();
+    macadmins !== null && refetchMacadmins();
+  };
 
   const {
     isLoading: isLoadingHost,
     data: host,
-    refetch: fullyReloadHost,
+    refetch: refetchHostDetails,
   } = useQuery<IHostResponse, Error, IHost>(
-    "host",
-    () => hostAPI.load(hostIdFromURL),
+    ["host", hostIdFromURL],
+    () => hostAPI.loadHostDetails(hostIdFromURL),
     {
       enabled: !!hostIdFromURL,
+      refetchOnMount: false,
+      refetchOnReconnect: false,
+      refetchOnWindowFocus: false,
+      retry: false,
       select: (data: IHostResponse) => data.host,
       onSuccess: (returnedHost) => {
-        setShowRefetchLoadingSpinner(returnedHost.refetch_requested);
+        setShowRefetchSpinner(returnedHost.refetch_requested);
+        if (returnedHost.refetch_requested) {
+          // If the API reports that a Fleet refetch request is pending, we want to check back for fresh
+          // host details. Here we set a one second timeout and poll the API again using
+          // fullyReloadHost. We will repeat this process with each onSuccess cycle for a total of
+          // 60 seconds or until the API reports that the Fleet refetch request has been resolved
+          // or that the host has gone offline.
+          if (!refetchStartTime) {
+            // If our 60 second timer wasn't already started (e.g., if a refetch was pending when
+            // the first page loads), we start it now if the host is online. If the host is offline,
+            // we skip the refetch on page load.
+            if (returnedHost.status === "online") {
+              setRefetchStartTime(Date.now());
+              setTimeout(() => {
+                refetchHostDetails();
+                refetchExtensions();
+              }, 1000);
+            } else {
+              setShowRefetchSpinner(false);
+            }
+          } else {
+            const totalElapsedTime = Date.now() - refetchStartTime;
+            if (totalElapsedTime < 60000) {
+              if (returnedHost.status === "online") {
+                setTimeout(() => {
+                  refetchHostDetails();
+                  refetchExtensions();
+                }, 1000);
+              } else {
+                dispatch(
+                  renderFlash(
+                    "error",
+                    `This host is offline. Please try refetching host vitals later.`
+                  )
+                );
+                setShowRefetchSpinner(false);
+              }
+            } else {
+              dispatch(
+                renderFlash(
+                  "error",
+                  `We're having trouble fetching fresh vitals for this host. Please try again later.`
+                )
+              );
+              setShowRefetchSpinner(false);
+            }
+          }
+          return; // exit early because refectch is pending so we can avoid unecessary steps below
+        }
+        setHostSoftware(returnedHost.software);
+        setUsersState(returnedHost.users);
+        if (returnedHost.pack_stats) {
+          const packStatsByType = returnedHost.pack_stats.reduce(
+            (
+              dictionary: {
+                packs: IPackStats[];
+                schedule: IQueryStats[];
+              },
+              pack: IPackStats
+            ) => {
+              if (pack.type === "pack") {
+                dictionary.packs.push(pack);
+              } else {
+                dictionary.schedule.push(...pack.query_stats);
+              }
+              return dictionary;
+            },
+            { packs: [], schedule: [] }
+          );
+          setPacksState(packStatsByType.packs);
+          setScheduleState(packStatsByType.schedule);
+        }
       },
-      onError: (error) => {
-        console.log(error);
-        dispatch(
-          renderFlash("error", `Unable to load host. Please try again.`)
-        );
-      },
+      onError: (error) => handlePageError(error),
     }
   );
+
+  useEffect(() => {
+    setUsersState(() => {
+      return (
+        host?.users.filter((user) => {
+          return user.username
+            .toLowerCase()
+            .includes(usersSearchString.toLowerCase());
+        }) || []
+      );
+    });
+  }, [usersSearchString]);
 
   // returns a mixture of props from host
   const normalizeEmptyValues = (hostData: any): { [key: string]: any } => {
@@ -164,7 +347,7 @@ const HostDetailsPage = ({
     );
   };
 
-  const wrapKolideHelper = (
+  const wrapFleetHelper = (
     helperFn: (value: any) => string,
     value: string
   ): any => {
@@ -174,15 +357,27 @@ const HostDetailsPage = ({
   const titleData = normalizeEmptyValues(
     pick(host, [
       "status",
+      "issues",
       "memory",
       "cpu_type",
       "os_version",
+      "osquery_version",
       "enroll_secret_name",
       "detail_updated_at",
       "percent_disk_space_available",
       "gigs_disk_space_available",
     ])
   );
+
+  const operatingSystem = host?.os_version.slice(
+    0,
+    host?.os_version.lastIndexOf(" ")
+  );
+  const operatingSystemVersion = host?.os_version.slice(
+    host?.os_version.lastIndexOf(" ") + 1
+  );
+  const osPolicyLabel = `Is ${operatingSystem}, version ${operatingSystemVersion} or later, installed?`;
+  const osPolicy = `SELECT 1 from os_version WHERE name = '${operatingSystem}' AND major || '.' || minor || '.' || patch >= '${operatingSystemVersion}';`;
 
   const aboutData = normalizeEmptyValues(
     pick(host, [
@@ -202,6 +397,37 @@ const HostDetailsPage = ({
       "distributed_interval",
     ])
   );
+
+  const togglePolicyDetailsModal = useCallback(
+    (policy: IHostPolicy) => {
+      setPolicyDetailsModal(!showPolicyDetailsModal);
+      setSelectedPolicy(policy);
+    },
+    [showPolicyDetailsModal, setPolicyDetailsModal, setSelectedPolicy]
+  );
+
+  const toggleOSPolicyModal = useCallback(() => {
+    setShowOSPolicyModal(!showOSPolicyModal);
+  }, [showOSPolicyModal, setShowOSPolicyModal]);
+
+  const onCancelPolicyDetailsModal = useCallback(() => {
+    setPolicyDetailsModal(!showPolicyDetailsModal);
+    setSelectedPolicy(null);
+  }, [showPolicyDetailsModal, setPolicyDetailsModal, setSelectedPolicy]);
+
+  const onCreateNewPolicy = () => {
+    const { NEW_POLICY } = PATHS;
+    host?.team_name
+      ? setLastEditedQueryName(`${osPolicyLabel} (${host.team_name})`)
+      : setLastEditedQueryName(osPolicyLabel);
+    setPolicyTeamId(host?.team_id ? host?.team_id : 0);
+    setLastEditedQueryDescription(
+      "Checks to see if the required minimum operating system version is installed."
+    );
+    setLastEditedQueryBody(osPolicy);
+    setLastEditedQueryResolution("");
+    router.replace(NEW_POLICY);
+  };
 
   const onDestroyHost = async () => {
     if (host) {
@@ -228,13 +454,21 @@ const HostDetailsPage = ({
   const onRefetchHost = async () => {
     if (host) {
       // Once the user clicks to refetch, the refetch loading spinner should continue spinning
-      // unless there is an error or until the user refreshes the page.
-      setShowRefetchLoadingSpinner(true);
+      // unless there is an error. The spinner state is also controlled in the fullyReloadHost
+      // method.
+      setShowRefetchSpinner(true);
       try {
-        await hostAPI.refetch(host);
+        await hostAPI.refetch(host).then(() => {
+          setRefetchStartTime(Date.now());
+          setTimeout(() => {
+            refetchHostDetails();
+            refetchExtensions();
+          }, 1000);
+        });
       } catch (error) {
         console.log(error);
         dispatch(renderFlash("error", `Host "${host.hostname}" refetch error`));
+        setShowRefetchSpinner(false);
       }
     }
   };
@@ -245,6 +479,17 @@ const HostDetailsPage = ({
     }
 
     return router.push(`${PATHS.MANAGE_HOSTS}/labels/${label.id}`);
+  };
+
+  const onQueryHostCustom = () => {
+    router.push(PATHS.NEW_QUERY + TAGGED_TEMPLATES.queryByHostRoute(host?.id));
+  };
+
+  const onQueryHostSaved = (selectedQuery: IQuery) => {
+    router.push(
+      PATHS.EDIT_QUERY(selectedQuery) +
+        TAGGED_TEMPLATES.queryByHostRoute(host?.id)
+    );
   };
 
   const onTransferHostSubmit = async (team: ITeam) => {
@@ -259,7 +504,7 @@ const HostDetailsPage = ({
           : `Host successfully transferred to  ${team.name}.`;
 
       dispatch(renderFlash("success", successMessage));
-      fullyReloadHost();
+      refetchHostDetails(); // Note: it is not necessary to `refetchExtensions` here because only team has changed
       setShowTransferHostModal(false);
     } catch (error) {
       console.log(error);
@@ -269,23 +514,42 @@ const HostDetailsPage = ({
     }
   };
 
-  // Search functionality
-  const onTableSearchChange = ({
-    searchQuery,
-    sortHeader,
-    sortDirection,
-  }: ITableSearchData) => {
-    let sortBy = [];
-    if (sortHeader !== "") {
-      sortBy = [{ id: sortHeader, direction: sortDirection }];
-    }
+  const onUsersTableSearchChange = useCallback((queryData: any) => {
+    const { searchQuery } = queryData;
+    setUsersSearchString(searchQuery);
+  }, []);
 
-    if (!searchQuery && host) {
-      setSoftwareState(host.software);
-      return;
-    }
+  const renderOsPolicyLabel = () => {
+    const onCopyOsPolicy = (evt: React.MouseEvent) => {
+      evt.preventDefault();
 
-    setSoftwareState(simpleSearch(searchQuery, host?.software));
+      stringToClipboard(osPolicy)
+        .then(() => setCopyMessage("Copied!"))
+        .catch(() => setCopyMessage("Copy failed"));
+
+      // Clear message after 1 second
+      setTimeout(() => setCopyMessage(""), 1000);
+
+      return false;
+    };
+
+    return (
+      <div>
+        <span className={`${baseClass}__cta`}>{osPolicyLabel}</span>{" "}
+        <span className={`${baseClass}__name`}>
+          <span className="buttons">
+            {copyMessage && <span>{`${copyMessage} `}</span>}
+            <Button
+              variant="unstyled"
+              className={`${baseClass}__os-policy-copy-icon`}
+              onClick={onCopyOsPolicy}
+            >
+              <img src={CopyIcon} alt="copy" />
+            </Button>
+          </span>
+        </span>
+      </div>
+    );
   };
 
   const renderDeleteHostModal = () => (
@@ -315,6 +579,65 @@ const HostDetailsPage = ({
             variant="inverse-alert"
           >
             Cancel
+          </Button>
+        </div>
+      </>
+    </Modal>
+  );
+
+  const renderOSPolicyModal = () => (
+    <Modal
+      title="Operating system"
+      onExit={() => setShowOSPolicyModal(false)}
+      className={`${baseClass}__modal`}
+    >
+      <>
+        <p>
+          <span className={`${baseClass}__os-modal-title`}>
+            {titleData.os_version}{" "}
+          </span>
+          <span className={`${baseClass}__os-modal-updated`}>
+            Reported {humanHostDetailUpdated(titleData.detail_updated_at)}
+          </span>
+        </p>
+        <span className={`${baseClass}__os-modal-example-title`}>
+          Example policy:
+        </span>{" "}
+        <span
+          className="policy-isexamplesue tooltip__tooltip-icon"
+          data-tip
+          data-for="policy-example"
+          data-tip-disable={false}
+        >
+          <img alt="host issue" src={QuestionIcon} />
+        </span>
+        <ReactTooltip
+          place="bottom"
+          type="dark"
+          effect="solid"
+          backgroundColor="#3e4771"
+          id="policy-example"
+          data-html
+        >
+          <span className={`${baseClass}__tooltip-text`}>
+            A policy is a yes or no question
+            <br /> you can ask all your devices.
+          </span>
+        </ReactTooltip>
+        <InputField
+          disabled
+          inputWrapperClass={`${baseClass}__os-policy`}
+          name="os-policy"
+          label={renderOsPolicyLabel()}
+          type={"textarea"}
+          value={osPolicy}
+        />
+        <div className={`${baseClass}__modal-buttons`}>
+          <Button onClick={onCreateNewPolicy} variant="brand">
+            Create new policy
+          </Button>
+          <Button onClick={() => setShowOSPolicyModal(false)} variant="inverse">
+            Close
           </Button>
         </div>
       </>
@@ -360,7 +683,7 @@ const HostDetailsPage = ({
             You can’t query <br /> an offline host.
           </span>
         </ReactTooltip>
-        {!isOnlyObserver && (
+        {currentUser && host && canDeleteHost(currentUser, host) && (
           <Button
             onClick={() => setShowDeleteHostModal(true)}
             variant="text-icon"
@@ -406,13 +729,13 @@ const HostDetailsPage = ({
   };
 
   const renderPacks = () => {
-    const pack_stats = host?.pack_stats;
+    const packs = packsState;
     const wrapperClassName = `${baseClass}__pack-table`;
     const tableHeaders = generatePackTableHeaders();
 
     let packsAccordion;
-    if (pack_stats) {
-      packsAccordion = pack_stats.map((pack) => {
+    if (packs) {
+      packsAccordion = packs.map((pack) => {
         return (
           <AccordionItem key={pack.pack_id}>
             <AccordionItemHeading>
@@ -449,17 +772,118 @@ const HostDetailsPage = ({
       });
     }
 
-    return (
+    return !packs || !packs.length ? null : (
       <div className="section section--packs">
         <p className="section__header">Packs</p>
-        {!pack_stats ? (
-          <p className="results__data">
-            No packs with scheduled queries have this host as a target.
-          </p>
+        <Accordion allowMultipleExpanded allowZeroExpanded>
+          {packsAccordion}
+        </Accordion>
+      </div>
+    );
+  };
+
+  const renderSchedule = () => {
+    const schedule = scheduleState;
+    const wrapperClassName = `${baseClass}__pack-table`;
+    const tableHeaders = generatePackTableHeaders();
+
+    return (
+      <div className="section section--packs">
+        <p className="section__header">Schedule</p>
+        {!schedule || !schedule.length ? (
+          <div className="results__data">
+            <b>No queries are scheduled for this host.</b>
+            <p>
+              Expecting to see queries? Try selecting “Refetch” to ask this host
+              to report new vitals.
+            </p>
+          </div>
         ) : (
-          <Accordion allowMultipleExpanded allowZeroExpanded>
-            {packsAccordion}
-          </Accordion>
+          <div className={`${wrapperClassName}`}>
+            <TableContainer
+              columns={tableHeaders}
+              data={generatePackDataSet(schedule)}
+              isLoading={isLoadingHost}
+              onQueryChange={() => null}
+              resultsTitle={"queries"}
+              defaultSortHeader={"scheduled_query_name"}
+              defaultSortDirection={"asc"}
+              showMarkAllPages={false}
+              isAllPagesSelected={false}
+              emptyComponent={() => <></>}
+              disablePagination
+              disableCount
+            />
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderPolicies = () => {
+    if (!host?.policies?.length) {
+      return (
+        <div className="section section--policies">
+          <p className="section__header">Policies</p>
+          <div className="results__data">
+            <b>No policies are checked for this host.</b>
+            <p>
+              Expecting to see policies? Try selecting “Refetch” to ask this
+              host to report new vitals.
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    const tableHeaders = generatePolicyTableHeaders(togglePolicyDetailsModal);
+    const noResponses: IHostPolicy[] =
+      host?.policies?.filter(
+        (policy) => !isValidPolicyResponse(policy.response)
+      ) || [];
+    const failingResponses: IHostPolicy[] =
+      host?.policies?.filter((policy) => policy.response === "fail") || [];
+
+    return (
+      <div className="section section--policies">
+        <p className="section__header">Policies</p>
+
+        {host?.policies?.length && (
+          <>
+            {failingResponses?.length > 0 && (
+              <PolicyFailingCount policyList={host?.policies} />
+            )}
+            {noResponses?.length > 0 && (
+              <InfoBanner>
+                <p>
+                  This host is not updating the response for some policies.
+                  Check out the Fleet documentation on&nbsp;
+                  <a
+                    href="https://fleetdm.com/docs/using-fleet/faq#why-my-host-is-not-updating-a-policys-response"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    why the response might not be updating
+                  </a>
+                  .
+                </p>
+              </InfoBanner>
+            )}
+            <TableContainer
+              columns={tableHeaders}
+              data={generatePolicyDataSet(host.policies)}
+              isLoading={isLoadingHost}
+              defaultSortHeader={"name"}
+              defaultSortDirection={"asc"}
+              resultsTitle={"policy items"}
+              emptyComponent={() => <></>}
+              showMarkAllPages={false}
+              isAllPagesSelected={false}
+              disablePagination
+              disableCount
+              highlightOnHover
+            />
+          </>
         )}
       </div>
     );
@@ -467,7 +891,8 @@ const HostDetailsPage = ({
 
   const renderUsers = () => {
     const { users } = host || {};
-    const wrapperClassName = `${baseClass}__table`;
+
+    const tableHeaders = generateUsersTableHeaders();
 
     if (users) {
       return (
@@ -478,25 +903,23 @@ const HostDetailsPage = ({
               No users were detected on this host.
             </p>
           ) : (
-            <div className={`${baseClass}__wrapper`}>
-              <table className={wrapperClassName}>
-                <thead>
-                  <tr>
-                    <th>Username</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {users.map((hostUser) => {
-                    return (
-                      <HostUsersListRow
-                        key={`host-users-row-${hostUser.username}`}
-                        hostUser={hostUser}
-                      />
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+            <TableContainer
+              columns={tableHeaders}
+              data={usersState}
+              isLoading={isLoadingHost}
+              defaultSortHeader={"username"}
+              defaultSortDirection={"asc"}
+              inputPlaceHolder={"Search users by username"}
+              onQueryChange={onUsersTableSearchChange}
+              resultsTitle={"users"}
+              emptyComponent={EmptyUsers}
+              showMarkAllPages={false}
+              isAllPagesSelected={false}
+              searchable
+              wideSearch
+              filteredCount={usersState.length}
+              isClientSidePagination
+            />
           )}
         </div>
       );
@@ -504,47 +927,7 @@ const HostDetailsPage = ({
   };
 
   const renderSoftware = () => {
-    const tableHeaders = generateTableHeaders();
-
-    return (
-      <div className="section section--software">
-        <p className="section__header">Software</p>
-
-        {host?.software.length === 0 ? (
-          <div className="results">
-            <p className="results__header">
-              No installed software detected on this host.
-            </p>
-            <p className="results__data">
-              Expecting to see software? Try again in a few seconds as the
-              system catches up.
-            </p>
-          </div>
-        ) : (
-          <>
-            <SoftwareVulnerabilities softwareList={host?.software} />
-            {host?.software && (
-              <TableContainer
-                columns={tableHeaders}
-                data={generateDataSet(softwareState)}
-                isLoading={isLoadingHost}
-                defaultSortHeader={"name"}
-                defaultSortDirection={"asc"}
-                inputPlaceHolder={"Filter software"}
-                onQueryChange={onTableSearchChange}
-                resultsTitle={"software items"}
-                emptyComponent={EmptySoftware}
-                showMarkAllPages={false}
-                isAllPagesSelected={false}
-                searchable
-                wideSearch
-                disablePagination
-              />
-            )}
-          </>
-        )}
-      </div>
-    );
+    return <SoftwareTab isLoading={isLoadingHost} software={hostSoftware} />;
   };
 
   const renderRefetch = () => {
@@ -556,20 +939,20 @@ const HostDetailsPage = ({
           className="refetch"
           data-tip
           data-for="refetch-tooltip"
-          data-tip-disable={isOnline || showRefetchLoadingSpinner}
+          data-tip-disable={isOnline || showRefetchSpinner}
         >
           <Button
             className={`
               button
               button--unstyled
               ${!isOnline ? "refetch-offline" : ""} 
-              ${showRefetchLoadingSpinner ? "refetch-spinner" : "refetch-btn"}
+              ${showRefetchSpinner ? "refetch-spinner" : "refetch-btn"}
             `}
             disabled={!isOnline}
             onClick={onRefetchHost}
           >
-            {showRefetchLoadingSpinner
-              ? "Fetching, try refreshing this page in just a moment."
+            {showRefetchSpinner
+              ? "Fetching fresh vitals...this may take a moment"
               : "Refetch"}
           </Button>
         </div>
@@ -588,6 +971,37 @@ const HostDetailsPage = ({
     );
   };
 
+  const renderIssues = () => (
+    <div className="info-flex__item info-flex__item--title">
+      <span className="info-flex__header">Issues</span>
+      <span className="info-flex__data">
+        <span
+          className="host-issue tooltip__tooltip-icon"
+          data-tip
+          data-for="host-issue-count"
+          data-tip-disable={false}
+        >
+          <img alt="host issue" src={IssueIcon} />
+        </span>
+        <ReactTooltip
+          place="bottom"
+          type="dark"
+          effect="solid"
+          backgroundColor="#3e4771"
+          id="host-issue-count"
+          data-html
+        >
+          <span className={`tooltip__tooltip-text`}>
+            Failing policies ({host?.issues.failing_policies_count})
+          </span>
+        </ReactTooltip>
+        <span className={`total-issues-count`}>
+          {host?.issues.total_issues_count}
+        </span>
+      </span>
+    </div>
+  );
+
   const renderHostTeam = () => (
     <div className="info-flex__item info-flex__item--title">
       <span className="info-flex__header">Team</span>
@@ -602,18 +1016,47 @@ const HostDetailsPage = ({
   );
 
   const renderDeviceUser = () => {
-    if (host?.device_users && host?.device_users.length > 0) {
+    const numUsers = deviceMapping?.length;
+    if (numUsers) {
       return (
-        // max width is added here because this is the only div that needs it
-        <div
-          className="info-flex__item info-flex__item--title"
-          style={{ maxWidth: 216 }}
-        >
-          <span className="info-flex__header">Device user</span>
-          <span className="info-flex__data">{host.device_users[0].email}</span>
+        <div className="info-grid__block">
+          <span className="info-grid__header">Device user</span>
+          <span className="info-grid__data">
+            {numUsers === 1 ? (
+              deviceMapping[0].email || "---"
+            ) : (
+              <span className={`${baseClass}__device-mapping`}>
+                <span
+                  className="device-user"
+                  data-tip
+                  data-for="device-user-tooltip"
+                >
+                  {`${numUsers} users`}
+                </span>
+                <ReactTooltip
+                  place="top"
+                  type="dark"
+                  effect="solid"
+                  id="device-user-tooltip"
+                  backgroundColor="#3e4771"
+                >
+                  <div
+                    className={`${baseClass}__tooltip-text device-user-tooltip`}
+                  >
+                    {deviceMapping.map((user, i, arr) => (
+                      <span key={user.email}>{`${user.email}${
+                        i < arr.length - 1 ? ", " : ""
+                      }`}</span>
+                    ))}
+                  </div>
+                </ReactTooltip>
+              </span>
+            )}
+          </span>
         </div>
       );
     }
+    return null;
   };
 
   const renderDiskSpace = () => {
@@ -643,50 +1086,40 @@ const HostDetailsPage = ({
     return <span className="info-flex__data">No data available</span>;
   };
 
-  const renderMunkiData = () => {
-    if (host?.munki) {
-      return (
-        <>
-          <div className="info-grid__block">
-            <span className="info-grid__header">Munki last run</span>
-            <span className="info-grid__data">
-              {humanTimeAgo(host.munki.last_run_time)} days ago
-            </span>
-          </div>
-          <div className="info-grid__block">
-            <span className="info-grid__header">Munki packages installed</span>
-            <span className="info-grid__data">
-              {host.munki.packages_intalled_count}
-            </span>
-          </div>
-          <div className="info-grid__block">
-            <span className="info-grid__header">Munki errors</span>
-            <span className="info-grid__data">{host.munki.errors_count}</span>
-          </div>
-          <div className="info-grid__block">
-            <span className="info-grid__header">Munki version</span>
-            <span className="info-grid__data">{host.munki.version}</span>
-          </div>
-        </>
-      );
+  const renderMdmData = () => {
+    if (!macadmins?.mobile_device_management) {
+      return null;
     }
+    const mdm = macadmins.mobile_device_management;
+    return mdm.enrollment_status !== "Unenrolled" ? (
+      <>
+        <div className="info-grid__block">
+          <span className="info-grid__header">MDM enrollment</span>
+          <span className="info-grid__data">
+            {mdm.enrollment_status || "---"}
+          </span>
+        </div>
+        <div className="info-grid__block">
+          <span className="info-grid__header">MDM server URL</span>
+          <span className="info-grid__data">{mdm.server_url || "---"}</span>
+        </div>
+      </>
+    ) : null;
   };
 
-  const renderMDMData = () => {
-    if (host?.mdm) {
-      return (
-        <>
-          <div className="info-grid__block">
-            <span className="info-grid__header">MDM health</span>
-            <span className="info-grid__data">{host.mdm?.health}</span>
-          </div>
-          <div className="info-grid__block">
-            <span className="info-grid__header">MDM enrollment URL</span>
-            <span className="info-grid__data">{host.mdm.enrollment_url}</span>
-          </div>
-        </>
-      );
+  const renderMunkiData = () => {
+    if (!macadmins) {
+      return null;
     }
+    const { munki } = macadmins;
+    return munki ? (
+      <>
+        <div className="info-grid__block">
+          <span className="info-grid__header">Munki version</span>
+          <span className="info-grid__data">{munki.version || "---"}</span>
+        </div>
+      </>
+    ) : null;
   };
 
   if (isLoadingHost) {
@@ -726,8 +1159,8 @@ const HostDetailsPage = ({
                 {titleData.status}
               </span>
             </div>
+            {titleData.issues?.total_issues_count > 0 && renderIssues()}
             {isPremiumTier && renderHostTeam()}
-            {renderDeviceUser()}
             <div className="info-flex__item info-flex__item--title">
               <span className="info-flex__header">Disk Space</span>
               {renderDiskSpace()}
@@ -735,7 +1168,7 @@ const HostDetailsPage = ({
             <div className="info-flex__item info-flex__item--title">
               <span className="info-flex__header">RAM</span>
               <span className="info-flex__data">
-                {wrapKolideHelper(humanHostMemory, titleData.memory)}
+                {wrapFleetHelper(humanHostMemory, titleData.memory)}
               </span>
             </div>
             <div className="info-flex__item info-flex__item--title">
@@ -744,84 +1177,148 @@ const HostDetailsPage = ({
             </div>
             <div className="info-flex__item info-flex__item--title">
               <span className="info-flex__header">OS</span>
-              <span className="info-flex__data">{titleData.os_version}</span>
+              <span className="info-flex__data">
+                {isOnlyObserver ? (
+                  `${titleData.os_version}`
+                ) : (
+                  <Button
+                    onClick={() => toggleOSPolicyModal()}
+                    variant="text-link"
+                    className={`${baseClass}__os-policy-button`}
+                  >
+                    {titleData.os_version}
+                  </Button>
+                )}
+              </span>
+            </div>
+            <div className="info-flex__item info-flex__item--title">
+              <span className="info-flex__header">Osquery</span>
+              <span className="info-flex__data">
+                {titleData.osquery_version}
+              </span>
             </div>
           </div>
         </div>
       </div>
-      <div className="section about">
-        <p className="section__header">About this host</p>
-        <div className="info-grid">
-          <div className="info-grid__block">
-            <span className="info-grid__header">Created at</span>
-            <span className="info-grid__data">
-              {wrapKolideHelper(humanHostEnrolled, aboutData.last_enrolled_at)}
-            </span>
-          </div>
-          <div className="info-grid__block">
-            <span className="info-grid__header">Updated at</span>
-            <span className="info-grid__data">
-              {wrapKolideHelper(humanHostLastSeen, titleData.detail_updated_at)}
-            </span>
-          </div>
-          <div className="info-grid__block">
-            <span className="info-grid__header">Uptime</span>
-            <span className="info-grid__data">
-              {wrapKolideHelper(humanHostUptime, aboutData.uptime)}
-            </span>
-          </div>
-          <div className="info-grid__block">
-            <span className="info-grid__header">Hardware model</span>
-            <span className="info-grid__data">{aboutData.hardware_model}</span>
-          </div>
-          <div className="info-grid__block">
-            <span className="info-grid__header">Serial number</span>
-            <span className="info-grid__data">{aboutData.hardware_serial}</span>
-          </div>
-          <div className="info-grid__block">
-            <span className="info-grid__header">IPv4</span>
-            <span className="info-grid__data">{aboutData.primary_ip}</span>
-          </div>
-          {renderMunkiData()}
-          {renderMDMData()}
-        </div>
-      </div>
-      <div className="section osquery col-50">
-        <p className="section__header">Agent options</p>
-        <div className="info-grid">
-          <div className="info-grid__block">
-            <span className="info-grid__header">Config TLS refresh</span>
-            <span className="info-grid__data">
-              {wrapKolideHelper(secondsToHms, osqueryData.config_tls_refresh)}
-            </span>
-          </div>
-          <div className="info-grid__block">
-            <span className="info-grid__header">Logger TLS period</span>
-            <span className="info-grid__data">
-              {wrapKolideHelper(secondsToHms, osqueryData.logger_tls_period)}
-            </span>
-          </div>
-          <div className="info-grid__block">
-            <span className="info-grid__header">Distributed interval</span>
-            <span className="info-grid__data">
-              {wrapKolideHelper(secondsToHms, osqueryData.distributed_interval)}
-            </span>
-          </div>
-        </div>
-      </div>
-      {renderLabels()}
-      {renderPacks()}
-      {renderUsers()}
-      {host?.software && renderSoftware()}
+      <TabsWrapper>
+        <Tabs>
+          <TabList>
+            <Tab>Details</Tab>
+            <Tab>Software</Tab>
+            <Tab>Schedule</Tab>
+            <Tab>Policies</Tab>
+          </TabList>
+          <TabPanel>
+            <div className="section about">
+              <p className="section__header">About this host</p>
+              <div className="info-grid">
+                <div className="info-grid__block">
+                  <span className="info-grid__header">Created at</span>
+                  <span className="info-grid__data">
+                    {wrapFleetHelper(
+                      humanHostEnrolled,
+                      aboutData.last_enrolled_at
+                    )}
+                  </span>
+                </div>
+                <div className="info-grid__block">
+                  <span className="info-grid__header">Updated at</span>
+                  <span className="info-grid__data">
+                    {wrapFleetHelper(
+                      humanHostLastSeen,
+                      titleData.detail_updated_at
+                    )}
+                  </span>
+                </div>
+                <div className="info-grid__block">
+                  <span className="info-grid__header">Uptime</span>
+                  <span className="info-grid__data">
+                    {wrapFleetHelper(humanHostUptime, aboutData.uptime)}
+                  </span>
+                </div>
+                <div className="info-grid__block">
+                  <span className="info-grid__header">Hardware model</span>
+                  <span className="info-grid__data">
+                    {aboutData.hardware_model}
+                  </span>
+                </div>
+                <div className="info-grid__block">
+                  <span className="info-grid__header">Serial number</span>
+                  <span className="info-grid__data">
+                    {aboutData.hardware_serial}
+                  </span>
+                </div>
+                <div className="info-grid__block">
+                  <span className="info-grid__header">IPv4</span>
+                  <span className="info-grid__data">
+                    {aboutData.primary_ip}
+                  </span>
+                </div>
+                {renderMunkiData()}
+                {renderMdmData()}
+                {renderDeviceUser()}
+              </div>
+            </div>
+            <div className="col-2">
+              <div className="section osquery col-50">
+                <p className="section__header">Agent options</p>
+                <div className="info-grid">
+                  <div className="info-grid__block">
+                    <span className="info-grid__header">
+                      Config TLS refresh
+                    </span>
+                    <span className="info-grid__data">
+                      {wrapFleetHelper(
+                        secondsToHms,
+                        osqueryData.config_tls_refresh
+                      )}
+                    </span>
+                  </div>
+                  <div className="info-grid__block">
+                    <span className="info-grid__header">Logger TLS period</span>
+                    <span className="info-grid__data">
+                      {wrapFleetHelper(
+                        secondsToHms,
+                        osqueryData.logger_tls_period
+                      )}
+                    </span>
+                  </div>
+                  <div className="info-grid__block">
+                    <span className="info-grid__header">
+                      Distributed interval
+                    </span>
+                    <span className="info-grid__data">
+                      {wrapFleetHelper(
+                        secondsToHms,
+                        osqueryData.distributed_interval
+                      )}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              {renderLabels()}
+            </div>
+            {renderUsers()}
+          </TabPanel>
+          <TabPanel>{renderSoftware()}</TabPanel>
+          <TabPanel>
+            {renderSchedule()}
+            {renderPacks()}
+          </TabPanel>
+          <TabPanel>{renderPolicies()}</TabPanel>
+        </Tabs>
+      </TabsWrapper>
+
       {showDeleteHostModal && renderDeleteHostModal()}
-      {showQueryHostModal && (
+      {showQueryHostModal && host && (
         <SelectQueryModal
           host={host}
           onCancel={() => setShowQueryHostModal(false)}
-          queries={fleetQueries}
-          dispatch={dispatch}
+          queries={fleetQueries || []}
           queryErrors={fleetQueriesError}
           isOnlyObserver={isOnlyObserver}
+          onQueryHostCustom={onQueryHostCustom}
+          onQueryHostSaved={onQueryHostSaved}
         />
       )}
       {!!host && showTransferHostModal && (
@@ -832,6 +1329,13 @@ const HostDetailsPage = ({
           isGlobalAdmin={isGlobalAdmin as boolean}
         />
       )}
+      {!!host && showPolicyDetailsModal && (
+        <PolicyDetailsModal
+          onCancel={onCancelPolicyDetailsModal}
+          policy={selectedPolicy}
+        />
+      )}
+      {showOSPolicyModal && renderOSPolicyModal()}
     </div>
   );
 };

@@ -26,7 +26,7 @@ class ConfirmInviteForm extends Component {
     const { baseError, className, fields, handleSubmit } = this.props;
 
     return (
-      <form className={className}>
+      <form className={className} autoComplete="off">
         {baseError && <div className="form__base-error">{baseError}</div>}
         <div className="fields">
           <InputFieldWithIcon

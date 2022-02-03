@@ -1,58 +1,88 @@
 import React from "react";
 import { noop } from "lodash";
+import paths from "router/paths";
 
-import Button from "components/buttons/Button";
-import { IPolicy } from "interfaces/policy";
+import { IPolicyStats } from "interfaces/policy";
+import { ITeamSummary } from "interfaces/team";
+import Spinner from "components/Spinner";
 import TableContainer from "components/TableContainer";
 import { generateTableHeaders, generateDataSet } from "./PoliciesTableConfig";
+// @ts-ignore
+import policySvg from "../../../../../../assets/images/no-policy-323x138@2x.png";
 
 const baseClass = "policies-list-wrapper";
 const noPoliciesClass = "no-policies";
 
+const TAGGED_TEMPLATES = {
+  hostsByTeamRoute: (teamId: number | undefined | null) => {
+    return `${teamId ? `/?team_id=${teamId}` : ""}`;
+  },
+};
+
 interface IPoliciesListWrapperProps {
-  policiesList: IPolicy[];
+  policiesList: IPolicyStats[];
   isLoading: boolean;
   onRemovePoliciesClick: (selectedTableIds: number[]) => void;
-  toggleAddPolicyModal: () => void;
   resultsTitle?: string;
-  selectedTeamId?: number | null;
   canAddOrRemovePolicy?: boolean;
   tableType?: string;
+  currentTeam: ITeamSummary | undefined;
+  currentAutomatedPolicies?: number[];
 }
 
-const PoliciesListWrapper = (props: IPoliciesListWrapperProps): JSX.Element => {
-  const {
-    policiesList,
-    isLoading,
-    onRemovePoliciesClick,
-    toggleAddPolicyModal,
-    resultsTitle,
-    selectedTeamId,
-    canAddOrRemovePolicy,
-    tableType,
-  } = props;
+const PoliciesListWrapper = ({
+  policiesList,
+  isLoading,
+  onRemovePoliciesClick,
+  resultsTitle,
+  canAddOrRemovePolicy,
+  tableType,
+  currentTeam,
+  currentAutomatedPolicies,
+}: IPoliciesListWrapperProps): JSX.Element => {
+  const { MANAGE_HOSTS } = paths;
 
   const NoPolicies = () => {
     return (
-      <div className={`${noPoliciesClass}`}>
+      <div
+        className={`${noPoliciesClass} ${currentTeam?.id && "no-team-policy"}`}
+      >
         <div className={`${noPoliciesClass}__inner`}>
+          <img src={policySvg} alt="No Policies" />
           <div className={`${noPoliciesClass}__inner-text`}>
-            <h2>You don&apos;t have any policies.</h2>
             <p>
-              Policies allow you to monitor which devices meet a certain
-              standard.
+              <b>
+                {currentTeam ? (
+                  <>
+                    Ask yes or no questions about hosts assigned to{" "}
+                    <a
+                      href={
+                        MANAGE_HOSTS +
+                        TAGGED_TEMPLATES.hostsByTeamRoute(currentTeam.id)
+                      }
+                    >
+                      {currentTeam.name}
+                    </a>
+                    .
+                  </>
+                ) : (
+                  <>
+                    Ask yes or no questions about{" "}
+                    <a href={MANAGE_HOSTS}>all your hosts</a>.
+                  </>
+                )}
+              </b>
             </p>
-            {canAddOrRemovePolicy && (
-              <div className={`${noPoliciesClass}__-cta-buttons`}>
-                <Button
-                  variant="brand"
-                  className={`${noPoliciesClass}__add-policy-button`}
-                  onClick={toggleAddPolicyModal}
-                >
-                  Add a policy
-                </Button>
-              </div>
-            )}
+            <div className={`${noPoliciesClass}__bullet-text`}>
+              <p>
+                - Verify whether or not your hosts have security features turned
+                on.
+                <br />- Track your efforts to keep installed software up to date
+                on your hosts.
+                <br />- Provide owners with a list of hosts that still need
+                changes.
+              </p>
+            </div>
           </div>
         </div>
       </div>
@@ -65,29 +95,33 @@ const PoliciesListWrapper = (props: IPoliciesListWrapperProps): JSX.Element => {
         canAddOrRemovePolicy ? "" : "hide-selection-column"
       }`}
     >
-      <TableContainer
-        resultsTitle={resultsTitle || "policies"}
-        columns={generateTableHeaders({
-          selectedTeamId,
-          showSelectionColumn: canAddOrRemovePolicy,
-          tableType,
-        })}
-        data={generateDataSet(policiesList)}
-        isLoading={isLoading}
-        defaultSortHeader={"query_name"}
-        defaultSortDirection={"asc"}
-        manualSortBy
-        showMarkAllPages={false}
-        isAllPagesSelected={false}
-        disablePagination
-        onPrimarySelectActionClick={onRemovePoliciesClick}
-        primarySelectActionButtonVariant="text-icon"
-        primarySelectActionButtonIcon="close"
-        primarySelectActionButtonText={"Remove"}
-        emptyComponent={NoPolicies}
-        onQueryChange={noop}
-        disableCount={tableType === "inheritedPolicies"}
-      />
+      {isLoading ? (
+        <Spinner />
+      ) : (
+        <TableContainer
+          resultsTitle={resultsTitle || "policies"}
+          columns={generateTableHeaders({
+            selectedTeamId: currentTeam?.id,
+            showSelectionColumn: canAddOrRemovePolicy,
+            tableType,
+          })}
+          data={generateDataSet(policiesList, currentAutomatedPolicies)}
+          isLoading={isLoading}
+          defaultSortHeader={"name"}
+          defaultSortDirection={"asc"}
+          manualSortBy
+          showMarkAllPages={false}
+          isAllPagesSelected={false}
+          disablePagination
+          onPrimarySelectActionClick={onRemovePoliciesClick}
+          primarySelectActionButtonVariant="text-icon"
+          primarySelectActionButtonIcon="delete"
+          primarySelectActionButtonText={"Delete"}
+          emptyComponent={NoPolicies}
+          onQueryChange={noop}
+          disableCount={tableType === "inheritedPolicies"}
+        />
+      )}
     </div>
   );
 };

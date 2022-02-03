@@ -13,7 +13,7 @@
     background-color: #fff0b9;
     border: 1px solid #f2c94c;
     border-radius: $border-radius;
-  
+
     p {
       margin: 0;
       line-height: 20px;
@@ -22,7 +22,7 @@
         color: $core-vibrant-blue;
         font-weight: 700;
         text-decoration: none;
-        
+
         img {
           vertical-align: text-bottom;
           position: relative;
@@ -108,7 +108,7 @@
       flex-wrap: wrap;
 
       .target-pill-selector {
-        padding: 8px;
+        padding: $pad-small;
         background-color: $core-white;
         border: none;
         box-shadow: inset 0 0 0 1px $ui-fleet-black-25;
@@ -116,9 +116,10 @@
         cursor: pointer;
         display: flex;
         align-items: center;
+        margin-bottom: $pad-small;
 
         &:not(:last-of-type) {
-          margin-right: 8px;
+          margin-right: $pad-small;
         }
         img {
           max-width: 12px;
@@ -158,7 +159,7 @@
     }
   }
   &__page-loading {
-    .card {
+    .loading-spinner {
       margin: $pad-large 0 0;
     }
   }
@@ -185,7 +186,7 @@
         color: $core-vibrant-blue;
         font-weight: 700;
         text-decoration: none;
-        
+
         img {
           vertical-align: text-bottom;
           position: relative;

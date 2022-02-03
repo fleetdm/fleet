@@ -5,34 +5,33 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/packaging/wix"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
+	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
-	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 )
 
 // BuildMSI builds a Windows .msi.
-func BuildMSI(opt Options) error {
-	// Initialize directories
-	tmpDir, err := ioutil.TempDir("", "orbit-package")
+func BuildMSI(opt Options) (string, error) {
+	tmpDir, err := initializeTempDir()
 	if err != nil {
-		return errors.Wrap(err, "failed to create temp dir")
+		return "", err
 	}
-	os.Chmod(tmpDir, 0755)
 	defer os.RemoveAll(tmpDir)
-	log.Debug().Str("path", tmpDir).Msg("created temp dir")
 
 	filesystemRoot := filepath.Join(tmpDir, "root")
 	if err := secure.MkdirAll(filesystemRoot, constant.DefaultDirMode); err != nil {
-		return errors.Wrap(err, "create root dir")
+		return "", fmt.Errorf("create root dir: %w", err)
 	}
 	orbitRoot := filesystemRoot
 	if err := secure.MkdirAll(orbitRoot, constant.DefaultDirMode); err != nil {
-		return errors.Wrap(err, "create orbit dir")
+		return "", fmt.Errorf("create orbit dir: %w", err)
 	}
 
 	// Initialize autoupdate metadata
@@ -47,70 +46,89 @@ func BuildMSI(opt Options) error {
 		updateOpt.RootKeys = opt.UpdateRoots
 	}
 
-	if err := initializeUpdates(updateOpt); err != nil {
-		return errors.Wrap(err, "initialize updates")
+	updatesData, err := InitializeUpdates(updateOpt)
+	if err != nil {
+		return "", fmt.Errorf("initialize updates: %w", err)
+	}
+	log.Debug().Stringer("data", updatesData).Msg("updates initialized")
+	if opt.Version == "" {
+		// We set the package version to orbit's latest version.
+		opt.Version = updatesData.OrbitVersion
 	}
 
 	// Write files
 
 	if err := writeSecret(opt, orbitRoot); err != nil {
-		return errors.Wrap(err, "write enroll secret")
+		return "", fmt.Errorf("write enroll secret: %w", err)
+	}
+
+	if err := writeOsqueryFlagfile(opt, orbitRoot); err != nil {
+		return "", fmt.Errorf("write flagfile: %w", err)
+	}
+
+	if err := writeOsqueryCertPEM(opt, orbitRoot); err != nil {
+		return "", fmt.Errorf("write certs.pem: %w", err)
 	}
 
 	if opt.FleetCertificate != "" {
 		if err := writeCertificate(opt, orbitRoot); err != nil {
-			return errors.Wrap(err, "write fleet certificate")
+			return "", fmt.Errorf("write fleet certificate: %w", err)
 		}
 	}
 
 	if err := writeWixFile(opt, tmpDir); err != nil {
-		return errors.Wrap(err, "write wix file")
+		return "", fmt.Errorf("write wix file: %w", err)
 	}
 
-	// Make sure permissions are permissive so that the `wine` user in the Wix Docker container can access files.
-	if err := chmodRecursive(tmpDir, os.ModePerm); err != nil {
-		return err
+	if runtime.GOOS == "windows" {
+		// Explicitly grant read access, otherwise within the Docker container there are permissions
+		// errors.
+		out, err := exec.Command("icacls", tmpDir, "/grant", "everyone:R", "/t").CombinedOutput()
+		if err != nil {
+			fmt.Println(string(out))
+			return "", fmt.Errorf("icacls: %w", err)
+		}
 	}
 
 	if err := wix.Heat(tmpDir); err != nil {
-		return errors.Wrap(err, "package root files")
+		return "", fmt.Errorf("package root files: %w", err)
 	}
 
 	if err := wix.TransformHeat(filepath.Join(tmpDir, "heat.wxs")); err != nil {
-		return errors.Wrap(err, "transform heat")
+		return "", fmt.Errorf("transform heat: %w", err)
 	}
 
 	if err := wix.Candle(tmpDir); err != nil {
-		return errors.Wrap(err, "build package")
+		return "", fmt.Errorf("build package: %w", err)
 	}
 
 	if err := wix.Light(tmpDir); err != nil {
-		return errors.Wrap(err, "build package")
+		return "", fmt.Errorf("build package: %w", err)
 	}
 
-	filename := fmt.Sprintf("orbit-osquery_%s.msi", opt.Version)
-	if err := os.Rename(filepath.Join(tmpDir, "orbit.msi"), filename); err != nil {
-		return errors.Wrap(err, "rename msi")
+	filename := "fleet-osquery.msi"
+	if err := file.Copy(filepath.Join(tmpDir, "orbit.msi"), filename, constant.DefaultFileMode); err != nil {
+		return "", fmt.Errorf("rename msi: %w", err)
 	}
 	log.Info().Str("path", filename).Msg("wrote msi package")
 
-	return nil
+	return filename, nil
 }
 
 func writeWixFile(opt Options, rootPath string) error {
 	// PackageInfo is metadata for the pkg
 	path := filepath.Join(rootPath, "main.wxs")
 	if err := secure.MkdirAll(filepath.Dir(path), constant.DefaultDirMode); err != nil {
-		return errors.Wrap(err, "mkdir")
+		return fmt.Errorf("mkdir: %w", err)
 	}
 
 	var contents bytes.Buffer
 	if err := windowsWixTemplate.Execute(&contents, opt); err != nil {
-		return errors.Wrap(err, "execute template")
+		return fmt.Errorf("execute template: %w", err)
 	}
 
 	if err := ioutil.WriteFile(path, contents.Bytes(), 0o666); err != nil {
-		return errors.Wrap(err, "write file")
+		return fmt.Errorf("write file: %w", err)
 	}
 
 	return nil

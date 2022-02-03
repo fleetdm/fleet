@@ -1,7 +1,9 @@
 import React from "react";
+import { useDispatch } from "react-redux";
 
 import { ITeam } from "interfaces/team";
-import Modal from "components/modals/Modal";
+import { IUserFormErrors } from "interfaces/user";
+import Modal from "components/Modal";
 import UserForm from "../UserForm";
 import { IFormData } from "../UserForm/UserForm";
 
@@ -11,30 +13,38 @@ interface IEditUserModalProps {
   defaultName?: string;
   defaultEmail?: string;
   defaultGlobalRole?: string | null;
+  defaultTeamRole?: string;
   defaultTeams?: ITeam[];
   availableTeams: ITeam[];
+  currentTeam?: ITeam;
   isPremiumTier: boolean;
   smtpConfigured: boolean;
   canUseSso: boolean; // corresponds to whether SSO is enabled for the organization
   isSsoEnabled?: boolean; // corresponds to whether SSO is enabled for the individual user
+  editUserErrors?: IUserFormErrors;
+  isModifiedByGlobalAdmin?: boolean | false;
 }
 
 const baseClass = "edit-user-modal";
 
-const EditUserModal = (props: IEditUserModalProps): JSX.Element => {
-  const {
-    onCancel,
-    onSubmit,
-    defaultName,
-    defaultEmail,
-    defaultGlobalRole,
-    defaultTeams,
-    availableTeams,
-    isPremiumTier,
-    smtpConfigured,
-    canUseSso,
-    isSsoEnabled,
-  } = props;
+const EditUserModal = ({
+  onCancel,
+  onSubmit,
+  defaultName,
+  defaultEmail,
+  defaultGlobalRole,
+  defaultTeamRole,
+  defaultTeams,
+  availableTeams,
+  isPremiumTier,
+  smtpConfigured,
+  canUseSso,
+  isSsoEnabled,
+  currentTeam,
+  editUserErrors,
+  isModifiedByGlobalAdmin,
+}: IEditUserModalProps): JSX.Element => {
+  const dispatch = useDispatch();
 
   return (
     <Modal
@@ -43,9 +53,11 @@ const EditUserModal = (props: IEditUserModalProps): JSX.Element => {
       className={`${baseClass}__edit-user-modal`}
     >
       <UserForm
+        editUserErrors={editUserErrors}
         defaultName={defaultName}
         defaultEmail={defaultEmail}
         defaultGlobalRole={defaultGlobalRole}
+        defaultTeamRole={defaultTeamRole}
         defaultTeams={defaultTeams}
         onCancel={onCancel}
         onSubmit={onSubmit}
@@ -55,6 +67,9 @@ const EditUserModal = (props: IEditUserModalProps): JSX.Element => {
         smtpConfigured={smtpConfigured}
         canUseSso={canUseSso}
         isSsoEnabled={isSsoEnabled}
+        isModifiedByGlobalAdmin={isModifiedByGlobalAdmin}
+        currentTeam={currentTeam}
+        dispatch={dispatch}
       />
     </Modal>
   );

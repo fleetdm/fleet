@@ -32,7 +32,7 @@ const RunQuery = ({
   queryIdForEdit,
   setSelectedTargets,
   goToQueryEditor,
-}: IRunQueryProps) => {
+}: IRunQueryProps): JSX.Element | null => {
   const dispatch = useDispatch();
 
   const [isQueryFinished, setIsQueryFinished] = useState<boolean>(false);

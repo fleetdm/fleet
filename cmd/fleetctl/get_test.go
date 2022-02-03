@@ -1,12 +1,11 @@
 package main
 
 import (
-	"bufio"
-	"bytes"
 	"context"
 	"encoding/json"
 	"io/ioutil"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -92,7 +91,10 @@ spec:
 }
 
 func TestGetTeams(t *testing.T) {
-	expiredBanner := "Your license for Fleet Premium is about to expire. If you’d like to renew or have questions about downgrading, please navigate to https://github.com/fleetdm/fleet/blob/main/docs/1-Using-Fleet/10-Teams.md#expired_license and contact us for help."
+	var expiredBanner strings.Builder
+	fleet.WriteExpiredLicenseBanner(&expiredBanner)
+	require.Contains(t, expiredBanner.String(), "Your license for Fleet Premium is about to expire")
+
 	testCases := []struct {
 		name                    string
 		license                 *fleet.LicenseInfo
@@ -181,9 +183,9 @@ spec:
 {"kind":"team","apiVersion":"v1","spec":{"team":{"id":43,"created_at":"1999-03-10T02:45:06.371Z","name":"team2","description":"team2 description","agent_options":{"config":{"foo":"bar"},"overrides":{"platforms":{"darwin":{"foo":"override"}}}},"user_count":87,"host_count":0}}}
 `
 			if tt.shouldHaveExpiredBanner {
-				expectedJson = expiredBanner + "\n" + expectedJson
-				expectedYaml = expiredBanner + "\n" + expectedYaml
-				expectedText = expiredBanner + "\n" + expectedText
+				expectedJson = expiredBanner.String() + expectedJson
+				expectedYaml = expiredBanner.String() + expectedYaml
+				expectedText = expiredBanner.String() + expectedText
 			}
 
 			assert.Equal(t, expectedText, runAppForTest(t, []string{"get", "teams"}))
@@ -245,7 +247,8 @@ func TestGetHosts(t *testing.T) {
 			LastEnrolledAt:  time.Time{},
 			SeenTime:        time.Time{},
 			ComputerName:    "test_host",
-			Hostname:        "test_host"}, nil
+			Hostname:        "test_host",
+		}, nil
 	}
 
 	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host) error {
@@ -257,19 +260,36 @@ func TestGetHosts(t *testing.T) {
 	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) (packs []*fleet.Pack, err error) {
 		return make([]*fleet.Pack, 0), nil
 	}
-	ds.ListPoliciesForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.HostPolicy, error) {
+	defaultPolicyQuery := "select 1 from osquery_info where start_time > 1;"
+	ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
 		return []*fleet.HostPolicy{
 			{
-				ID:        1,
-				QueryID:   2,
-				QueryName: "query1",
-				Response:  "passes",
+				PolicyData: fleet.PolicyData{
+					ID:          1,
+					Name:        "query1",
+					Query:       defaultPolicyQuery,
+					Description: "Some description",
+					AuthorID:    ptr.Uint(1),
+					AuthorName:  "Alice",
+					AuthorEmail: "alice@example.com",
+					Resolution:  ptr.String("Some resolution"),
+					TeamID:      ptr.Uint(1),
+				},
+				Response: "passes",
 			},
 			{
-				ID:        2,
-				QueryID:   43,
-				QueryName: "query2",
-				Response:  "fails",
+				PolicyData: fleet.PolicyData{
+					ID:          2,
+					Name:        "query2",
+					Query:       defaultPolicyQuery,
+					Description: "",
+					AuthorID:    ptr.Uint(1),
+					AuthorName:  "Alice",
+					AuthorEmail: "alice@example.com",
+					Resolution:  nil,
+					TeamID:      nil,
+				},
+				Response: "fails",
 			},
 		}, nil
 	}
@@ -283,53 +303,63 @@ func TestGetHosts(t *testing.T) {
 +------+------------+----------+-----------------+--------+
 `
 
+	jsonPrettify := func(t *testing.T, v string) string {
+		var i interface{}
+		err := json.Unmarshal([]byte(v), &i)
+		require.NoError(t, err)
+		indented, err := json.MarshalIndent(i, "", "  ")
+		require.NoError(t, err)
+		return string(indented)
+	}
+	yamlPrettify := func(t *testing.T, v string) string {
+		var i interface{}
+		err := yaml.Unmarshal([]byte(v), &i)
+		require.NoError(t, err)
+		indented, err := yaml.Marshal(i)
+		require.NoError(t, err)
+		return string(indented)
+	}
 	tests := []struct {
-		name        string
-		goldenFile  string
-		unmarshaler func(data []byte, v interface{}) error
-		scanner     func(s string) []string
-		args        []string
+		name       string
+		goldenFile string
+		scanner    func(s string) []string
+		prettifier func(t *testing.T, v string) string
+		args       []string
 	}{
 		{
-			name:        "get hosts --json",
-			goldenFile:  "expectedListHostsJson.json",
-			unmarshaler: json.Unmarshal,
+			name:       "get hosts --json",
+			goldenFile: "expectedListHostsJson.json",
 			scanner: func(s string) []string {
-				var parts []string
-				scanner := bufio.NewScanner(bytes.NewBufferString(s))
-				for scanner.Scan() {
-					parts = append(parts, scanner.Text())
-				}
-				return parts
+				parts := strings.Split(s, "}\n{")
+				return []string{parts[0] + "}", "{" + parts[1]}
 			},
-			args: []string{"get", "hosts", "--json"},
+			args:       []string{"get", "hosts", "--json"},
+			prettifier: jsonPrettify,
 		},
 		{
-			name:        "get hosts --json test_host",
-			goldenFile:  "expectedHostDetailResponseJson.json",
-			unmarshaler: json.Unmarshal,
-			scanner: func(s string) []string {
-				return []string{s}
-			},
-			args: []string{"get", "hosts", "--json", "test_host"},
+			name:       "get hosts --json test_host",
+			goldenFile: "expectedHostDetailResponseJson.json",
+			scanner:    func(s string) []string { return []string{s} },
+			args:       []string{"get", "hosts", "--json", "test_host"},
+			prettifier: jsonPrettify,
 		},
 		{
-			name:        "get hosts --yaml",
-			goldenFile:  "expectedListHostsYaml.yml",
-			unmarshaler: yaml.Unmarshal,
+			name:       "get hosts --yaml",
+			goldenFile: "expectedListHostsYaml.yml",
 			scanner: func(s string) []string {
 				return []string{s}
 			},
-			args: []string{"get", "hosts", "--yaml"},
+			args:       []string{"get", "hosts", "--yaml"},
+			prettifier: yamlPrettify,
 		},
 		{
-			name:        "get hosts --yaml test_host",
-			goldenFile:  "expectedHostDetailResponseYaml.yml",
-			unmarshaler: yaml.Unmarshal,
+			name:       "get hosts --yaml test_host",
+			goldenFile: "expectedHostDetailResponseYaml.yml",
 			scanner: func(s string) []string {
 				return splitYaml(s)
 			},
-			args: []string{"get", "hosts", "--yaml", "test_host"},
+			args:       []string{"get", "hosts", "--yaml", "test_host"},
+			prettifier: yamlPrettify,
 		},
 	}
 	for _, tt := range tests {
@@ -337,20 +367,11 @@ func TestGetHosts(t *testing.T) {
 			expected, err := ioutil.ReadFile(filepath.Join("testdata", tt.goldenFile))
 			require.NoError(t, err)
 			expectedResults := tt.scanner(string(expected))
-			expectedSpecs := make([]specGeneric, len(expectedResults))
-			for i, result := range expectedResults {
-				var got specGeneric
-				require.NoError(t, tt.unmarshaler([]byte(result), &got))
-				expectedSpecs[i] = got
-			}
 			actualResult := tt.scanner(runAppForTest(t, tt.args))
-			actualSpecs := make([]specGeneric, len(actualResult))
-			for i, result := range actualResult {
-				var spec specGeneric
-				require.NoError(t, tt.unmarshaler([]byte(result), &spec))
-				actualSpecs[i] = spec
+			require.Equal(t, len(expectedResults), len(actualResult))
+			for i := range expectedResults {
+				require.Equal(t, tt.prettifier(t, expectedResults[i]), tt.prettifier(t, actualResult[i]))
 			}
-			require.Equal(t, expectedSpecs, actualSpecs)
 		})
 	}
 
@@ -382,6 +403,7 @@ spec:
     org_logo_url: ""
     org_name: ""
   server_settings:
+    deferred_save_host: false
     enable_analytics: false
     live_query_disabled: false
     server_url: ""
@@ -411,14 +433,23 @@ spec:
   vulnerability_settings:
     databases_path: /some/path
   webhook_settings:
+    failing_policies_webhook:
+      destination_url: ""
+      enable_failing_policies_webhook: false
+      host_batch_size: 0
+      policy_ids: null
     host_status_webhook:
       days_count: 0
       destination_url: ""
       enable_host_status_webhook: false
       host_percentage: 0
     interval: 0s
+    vulnerabilities_webhook:
+      destination_url: ""
+      enable_vulnerabilities_webhook: false
+      host_batch_size: 0
 `
-		expectedJson := `{"kind":"config","apiVersion":"v1","spec":{"org_info":{"org_name":"","org_logo_url":""},"server_settings":{"server_url":"","live_query_disabled":false,"enable_analytics":false},"smtp_settings":{"enable_smtp":false,"configured":false,"sender_address":"","server":"","port":0,"authentication_type":"","user_name":"","password":"","enable_ssl_tls":false,"authentication_method":"","domain":"","verify_ssl_certs":false,"enable_start_tls":false},"host_expiry_settings":{"host_expiry_enabled":false,"host_expiry_window":0},"host_settings":{"enable_host_users":true,"enable_software_inventory":false},"sso_settings":{"entity_id":"","issuer_uri":"","idp_image_url":"","metadata":"","metadata_url":"","idp_name":"","enable_sso":false,"enable_sso_idp_login":false},"vulnerability_settings":{"databases_path":"/some/path"},"webhook_settings":{"host_status_webhook":{"enable_host_status_webhook":false,"destination_url":"","host_percentage":0,"days_count":0},"interval":"0s"}}}
+		expectedJson := `{"kind":"config","apiVersion":"v1","spec":{"org_info":{"org_name":"","org_logo_url":""},"server_settings":{"server_url":"","live_query_disabled":false,"enable_analytics":false,"deferred_save_host":false},"smtp_settings":{"enable_smtp":false,"configured":false,"sender_address":"","server":"","port":0,"authentication_type":"","user_name":"","password":"","enable_ssl_tls":false,"authentication_method":"","domain":"","verify_ssl_certs":false,"enable_start_tls":false},"host_expiry_settings":{"host_expiry_enabled":false,"host_expiry_window":0},"host_settings":{"enable_host_users":true,"enable_software_inventory":false},"sso_settings":{"entity_id":"","issuer_uri":"","idp_image_url":"","metadata":"","metadata_url":"","idp_name":"","enable_sso":false,"enable_sso_idp_login":false},"vulnerability_settings":{"databases_path":"/some/path"},"webhook_settings":{"host_status_webhook":{"enable_host_status_webhook":false,"destination_url":"","host_percentage":0,"days_count":0},"failing_policies_webhook":{"enable_failing_policies_webhook":false,"destination_url":"","policy_ids":null,"host_batch_size":0},"vulnerabilities_webhook":{"enable_vulnerabilities_webhook":false,"destination_url":"","host_batch_size":0},"interval":"0s"}}}
 `
 
 		assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "config"}))
@@ -461,6 +492,7 @@ spec:
     org_logo_url: ""
     org_name: ""
   server_settings:
+    deferred_save_host: false
     enable_analytics: false
     live_query_disabled: false
     server_url: ""
@@ -500,14 +532,23 @@ spec:
   vulnerability_settings:
     databases_path: /some/path
   webhook_settings:
+    failing_policies_webhook:
+      destination_url: ""
+      enable_failing_policies_webhook: false
+      host_batch_size: 0
+      policy_ids: null
     host_status_webhook:
       days_count: 0
       destination_url: ""
       enable_host_status_webhook: false
       host_percentage: 0
     interval: 0s
+    vulnerabilities_webhook:
+      destination_url: ""
+      enable_vulnerabilities_webhook: false
+      host_batch_size: 0
 `
-		expectedJson := `{"kind":"config","apiVersion":"v1","spec":{"org_info":{"org_name":"","org_logo_url":""},"server_settings":{"server_url":"","live_query_disabled":false,"enable_analytics":false},"smtp_settings":{"enable_smtp":false,"configured":false,"sender_address":"","server":"","port":0,"authentication_type":"","user_name":"","password":"","enable_ssl_tls":false,"authentication_method":"","domain":"","verify_ssl_certs":false,"enable_start_tls":false},"host_expiry_settings":{"host_expiry_enabled":false,"host_expiry_window":0},"host_settings":{"enable_host_users":true,"enable_software_inventory":false},"sso_settings":{"entity_id":"","issuer_uri":"","idp_image_url":"","metadata":"","metadata_url":"","idp_name":"","enable_sso":false,"enable_sso_idp_login":false},"vulnerability_settings":{"databases_path":"/some/path"},"webhook_settings":{"host_status_webhook":{"enable_host_status_webhook":false,"destination_url":"","host_percentage":0,"days_count":0},"interval":"0s"},"update_interval":{"osquery_detail":3600000000000,"osquery_policy":3600000000000},"vulnerabilities":{"databases_path":"","periodicity":0,"cpe_database_url":"","cve_feed_prefix_url":"","current_instance_checks":"","disable_data_sync":false},"license":{"tier":"free","expiration":"0001-01-01T00:00:00Z"},"logging":{"debug":true,"json":false,"result":{"plugin":"filesystem","config":{"enable_log_compression":false,"enable_log_rotation":false,"result_log_file":"/dev/null","status_log_file":"/dev/null"}},"status":{"plugin":"filesystem","config":{"enable_log_compression":false,"enable_log_rotation":false,"result_log_file":"/dev/null","status_log_file":"/dev/null"}}}}}
+		expectedJson := `{"kind":"config","apiVersion":"v1","spec":{"org_info":{"org_name":"","org_logo_url":""},"server_settings":{"server_url":"","live_query_disabled":false,"enable_analytics":false,"deferred_save_host":false},"smtp_settings":{"enable_smtp":false,"configured":false,"sender_address":"","server":"","port":0,"authentication_type":"","user_name":"","password":"","enable_ssl_tls":false,"authentication_method":"","domain":"","verify_ssl_certs":false,"enable_start_tls":false},"host_expiry_settings":{"host_expiry_enabled":false,"host_expiry_window":0},"host_settings":{"enable_host_users":true,"enable_software_inventory":false},"sso_settings":{"entity_id":"","issuer_uri":"","idp_image_url":"","metadata":"","metadata_url":"","idp_name":"","enable_sso":false,"enable_sso_idp_login":false},"vulnerability_settings":{"databases_path":"/some/path"},"webhook_settings":{"host_status_webhook":{"enable_host_status_webhook":false,"destination_url":"","host_percentage":0,"days_count":0},"failing_policies_webhook":{"enable_failing_policies_webhook":false,"destination_url":"","policy_ids":null,"host_batch_size":0},"vulnerabilities_webhook":{"enable_vulnerabilities_webhook":false,"destination_url":"","host_batch_size":0},"interval":"0s"},"update_interval":{"osquery_detail":3600000000000,"osquery_policy":3600000000000},"vulnerabilities":{"databases_path":"","periodicity":0,"cpe_database_url":"","cve_feed_prefix_url":"","current_instance_checks":"","disable_data_sync":false},"license":{"tier":"free","expiration":"0001-01-01T00:00:00Z"},"logging":{"debug":true,"json":false,"result":{"plugin":"filesystem","config":{"enable_log_compression":false,"enable_log_rotation":false,"result_log_file":"/dev/null","status_log_file":"/dev/null"}},"status":{"plugin":"filesystem","config":{"enable_log_compression":false,"enable_log_rotation":false,"result_log_file":"/dev/null","status_log_file":"/dev/null"}}}}}
 `
 
 		assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "config", "--include-server-config"}))
@@ -532,8 +573,8 @@ func TestGetSoftawre(t *testing.T) {
 
 	var gotTeamID *uint
 
-	ds.ListSoftwareFunc = func(ctx context.Context, teamId *uint, opt fleet.ListOptions) ([]fleet.Software, error) {
-		gotTeamID = teamId
+	ds.ListSoftwareFunc = func(ctx context.Context, opt fleet.SoftwareListOptions) ([]fleet.Software, error) {
+		gotTeamID = opt.TeamID
 		return []fleet.Software{foo001, foo002, foo003, bar003}, nil
 	}
 
@@ -594,4 +635,311 @@ spec:
 	runAppForTest(t, []string{"get", "software", "--json", "--team", "999"})
 	require.NotNil(t, gotTeamID)
 	assert.Equal(t, uint(999), *gotTeamID)
+}
+
+func TestGetLabels(t *testing.T) {
+	_, ds := runServerWithMockedDS(t)
+
+	ds.GetLabelSpecsFunc = func(ctx context.Context) ([]*fleet.LabelSpec, error) {
+		return []*fleet.LabelSpec{
+			{
+				ID:          32,
+				Name:        "label1",
+				Description: "some description",
+				Query:       "select 1;",
+				Platform:    "windows",
+			},
+			{
+				ID:          33,
+				Name:        "label2",
+				Description: "some other description",
+				Query:       "select 42;",
+				Platform:    "linux",
+			},
+		}, nil
+	}
+
+	expected := `+--------+----------+------------------------+------------+
+|  NAME  | PLATFORM |      DESCRIPTION       |   QUERY    |
++--------+----------+------------------------+------------+
+| label1 | windows  | some description       | select 1;  |
++--------+----------+------------------------+------------+
+| label2 | linux    | some other description | select 42; |
++--------+----------+------------------------+------------+
+`
+	expectedYaml := `---
+apiVersion: v1
+kind: label
+spec:
+  description: some description
+  id: 32
+  label_membership_type: dynamic
+  name: label1
+  platform: windows
+  query: select 1;
+---
+apiVersion: v1
+kind: label
+spec:
+  description: some other description
+  id: 33
+  label_membership_type: dynamic
+  name: label2
+  platform: linux
+  query: select 42;
+`
+	expectedJson := `{"kind":"label","apiVersion":"v1","spec":{"id":32,"name":"label1","description":"some description","query":"select 1;","platform":"windows","label_membership_type":"dynamic"}}
+{"kind":"label","apiVersion":"v1","spec":{"id":33,"name":"label2","description":"some other description","query":"select 42;","platform":"linux","label_membership_type":"dynamic"}}
+`
+
+	assert.Equal(t, expected, runAppForTest(t, []string{"get", "labels"}))
+	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "labels", "--yaml"}))
+	assert.Equal(t, expectedJson, runAppForTest(t, []string{"get", "labels", "--json"}))
+}
+
+func TestGetLabel(t *testing.T) {
+	_, ds := runServerWithMockedDS(t)
+
+	ds.GetLabelSpecFunc = func(ctx context.Context, name string) (*fleet.LabelSpec, error) {
+		if name != "label1" {
+			return nil, nil
+		}
+		return &fleet.LabelSpec{
+			ID:          32,
+			Name:        "label1",
+			Description: "some description",
+			Query:       "select 1;",
+			Platform:    "windows",
+		}, nil
+	}
+
+	expectedYaml := `---
+apiVersion: v1
+kind: label
+spec:
+  description: some description
+  id: 32
+  label_membership_type: dynamic
+  name: label1
+  platform: windows
+  query: select 1;
+`
+	expectedJson := `{"kind":"label","apiVersion":"v1","spec":{"id":32,"name":"label1","description":"some description","query":"select 1;","platform":"windows","label_membership_type":"dynamic"}}
+`
+
+	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "label", "label1"}))
+	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "label", "--yaml", "label1"}))
+	assert.Equal(t, expectedJson, runAppForTest(t, []string{"get", "label", "--json", "label1"}))
+}
+
+func TestGetEnrollmentSecrets(t *testing.T) {
+	_, ds := runServerWithMockedDS(t)
+
+	ds.GetEnrollSecretsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.EnrollSecret, error) {
+		return []*fleet.EnrollSecret{
+			{
+				Secret: "abcd",
+				TeamID: nil,
+			},
+			{
+				Secret: "efgh",
+				TeamID: nil,
+			},
+		}, nil
+	}
+
+	expectedYaml := `---
+apiVersion: v1
+kind: enroll_secret
+spec:
+  secrets:
+  - created_at: "0001-01-01T00:00:00Z"
+    secret: abcd
+  - created_at: "0001-01-01T00:00:00Z"
+    secret: efgh
+`
+	expectedJson := `{"kind":"enroll_secret","apiVersion":"v1","spec":{"secrets":[{"secret":"abcd","created_at":"0001-01-01T00:00:00Z"},{"secret":"efgh","created_at":"0001-01-01T00:00:00Z"}]}}
+`
+
+	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "enroll_secrets"}))
+	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "enroll_secrets", "--yaml"}))
+	assert.Equal(t, expectedJson, runAppForTest(t, []string{"get", "enroll_secrets", "--json"}))
+}
+
+func TestGetPacks(t *testing.T) {
+	_, ds := runServerWithMockedDS(t)
+
+	ds.GetPackSpecsFunc = func(ctx context.Context) ([]*fleet.PackSpec, error) {
+		return []*fleet.PackSpec{
+			{
+				ID:          7,
+				Name:        "pack1",
+				Description: "some desc",
+				Platform:    "darwin",
+				Disabled:    false,
+			},
+		}, nil
+	}
+
+	expected := `+-------+----------+-------------+----------+
+| NAME  | PLATFORM | DESCRIPTION | DISABLED |
++-------+----------+-------------+----------+
+| pack1 | darwin   | some desc   | false    |
++-------+----------+-------------+----------+
+`
+	expectedYaml := `---
+apiVersion: v1
+kind: pack
+spec:
+  description: some desc
+  disabled: false
+  id: 7
+  name: pack1
+  platform: darwin
+  targets:
+    labels: null
+`
+	expectedJson := `{"kind":"pack","apiVersion":"v1","spec":{"id":7,"name":"pack1","description":"some desc","platform":"darwin","disabled":false,"targets":{"labels":null}}}
+`
+
+	assert.Equal(t, expected, runAppForTest(t, []string{"get", "packs"}))
+	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "packs", "--yaml"}))
+	assert.Equal(t, expectedJson, runAppForTest(t, []string{"get", "packs", "--json"}))
+}
+
+func TestGetPack(t *testing.T) {
+	_, ds := runServerWithMockedDS(t)
+
+	ds.PackByNameFunc = func(ctx context.Context, name string, opts ...fleet.OptionalArg) (*fleet.Pack, bool, error) {
+		if name != "pack1" {
+			return nil, false, nil
+		}
+		return &fleet.Pack{
+			ID:          7,
+			Name:        "pack1",
+			Description: "some desc",
+			Platform:    "darwin",
+			Disabled:    false,
+		}, true, nil
+	}
+	ds.GetPackSpecFunc = func(ctx context.Context, name string) (*fleet.PackSpec, error) {
+		if name != "pack1" {
+			return nil, nil
+		}
+		return &fleet.PackSpec{
+			ID:          7,
+			Name:        "pack1",
+			Description: "some desc",
+			Platform:    "darwin",
+			Disabled:    false,
+		}, nil
+	}
+
+	expectedYaml := `---
+apiVersion: v1
+kind: pack
+spec:
+  description: some desc
+  disabled: false
+  id: 7
+  name: pack1
+  platform: darwin
+  targets:
+    labels: null
+`
+	expectedJson := `{"kind":"pack","apiVersion":"v1","spec":{"id":7,"name":"pack1","description":"some desc","platform":"darwin","disabled":false,"targets":{"labels":null}}}
+`
+
+	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "packs", "pack1"}))
+	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "packs", "--yaml", "pack1"}))
+	assert.Equal(t, expectedJson, runAppForTest(t, []string{"get", "packs", "--json", "pack1"}))
+}
+
+func TestGetQueries(t *testing.T) {
+	_, ds := runServerWithMockedDS(t)
+
+	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, error) {
+		return []*fleet.Query{
+			{
+				ID:             33,
+				Name:           "query1",
+				Description:    "some desc",
+				Query:          "select 1;",
+				Saved:          false,
+				ObserverCanRun: false,
+			},
+			{
+				ID:             12,
+				Name:           "query2",
+				Description:    "some desc 2",
+				Query:          "select 2;",
+				Saved:          true,
+				ObserverCanRun: false,
+			},
+		}, nil
+	}
+
+	expected := `+--------+-------------+-----------+
+|  NAME  | DESCRIPTION |   QUERY   |
++--------+-------------+-----------+
+| query1 | some desc   | select 1; |
++--------+-------------+-----------+
+| query2 | some desc 2 | select 2; |
++--------+-------------+-----------+
+`
+	expectedYaml := `---
+apiVersion: v1
+kind: query
+spec:
+  description: some desc
+  name: query1
+  query: select 1;
+---
+apiVersion: v1
+kind: query
+spec:
+  description: some desc 2
+  name: query2
+  query: select 2;
+`
+	expectedJson := `{"kind":"query","apiVersion":"v1","spec":{"name":"query1","description":"some desc","query":"select 1;"}}
+{"kind":"query","apiVersion":"v1","spec":{"name":"query2","description":"some desc 2","query":"select 2;"}}
+`
+
+	assert.Equal(t, expected, runAppForTest(t, []string{"get", "queries"}))
+	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "queries", "--yaml"}))
+	assert.Equal(t, expectedJson, runAppForTest(t, []string{"get", "queries", "--json"}))
+}
+
+func TestGetQuery(t *testing.T) {
+	_, ds := runServerWithMockedDS(t)
+
+	ds.QueryByNameFunc = func(ctx context.Context, name string, opts ...fleet.OptionalArg) (*fleet.Query, error) {
+		if name != "query1" {
+			return nil, nil
+		}
+		return &fleet.Query{
+			ID:             33,
+			Name:           "query1",
+			Description:    "some desc",
+			Query:          "select 1;",
+			Saved:          false,
+			ObserverCanRun: false,
+		}, nil
+	}
+
+	expectedYaml := `---
+apiVersion: v1
+kind: query
+spec:
+  description: some desc
+  name: query1
+  query: select 1;
+`
+	expectedJson := `{"kind":"query","apiVersion":"v1","spec":{"name":"query1","description":"some desc","query":"select 1;"}}
+`
+
+	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "query", "query1"}))
+	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "query", "--yaml", "query1"}))
+	assert.Equal(t, expectedJson, runAppForTest(t, []string{"get", "query", "--json", "query1"}))
 }

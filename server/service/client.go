@@ -6,6 +6,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -15,8 +16,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/pkg/errors"
 )
 
 // httpClient interface allows the HTTP methods to be mocked.
@@ -42,7 +44,7 @@ func NewClient(addr string, insecureSkipVerify bool, rootCA, urlPrefix string, o
 	// API breaking change, needs a major version release
 	baseURL, err := url.Parse(addr)
 	if err != nil {
-		return nil, errors.Wrap(err, "parsing URL")
+		return nil, fmt.Errorf("parsing URL: %w", err)
 	}
 
 	if baseURL.Scheme != "https" && !strings.Contains(baseURL.Host, "localhost") && !strings.Contains(baseURL.Host, "127.0.0.1") {
@@ -54,7 +56,7 @@ func NewClient(addr string, insecureSkipVerify bool, rootCA, urlPrefix string, o
 		// read in the root cert file specified in the context
 		certs, err := ioutil.ReadFile(rootCA)
 		if err != nil {
-			return nil, errors.Wrap(err, "reading root CA")
+			return nil, fmt.Errorf("reading root CA: %w", err)
 		}
 
 		// add certs to pool
@@ -65,18 +67,14 @@ func NewClient(addr string, insecureSkipVerify bool, rootCA, urlPrefix string, o
 		// Use only the system certs (doesn't work on Windows)
 		rootCAPool, err = x509.SystemCertPool()
 		if err != nil {
-			return nil, errors.Wrap(err, "loading system cert pool")
+			return nil, fmt.Errorf("loading system cert pool: %w", err)
 		}
 	}
 
-	httpClient := &http.Client{
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: insecureSkipVerify,
-				RootCAs:            rootCAPool,
-			},
-		},
-	}
+	httpClient := fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{
+		InsecureSkipVerify: insecureSkipVerify,
+		RootCAs:            rootCAPool,
+	}))
 
 	client := &Client{
 		addr:               addr,
@@ -121,7 +119,7 @@ func (c *Client) doContextWithHeaders(ctx context.Context, verb, path, rawQuery 
 	if params != nil {
 		bodyBytes, err = json.Marshal(params)
 		if err != nil {
-			return nil, errors.Wrap(err, "marshaling json")
+			return nil, ctxerr.Wrap(ctx, err, "marshaling json")
 		}
 	}
 
@@ -132,7 +130,7 @@ func (c *Client) doContextWithHeaders(ctx context.Context, verb, path, rawQuery 
 		bytes.NewBuffer(bodyBytes),
 	)
 	if err != nil {
-		return nil, errors.Wrap(err, "creating request object")
+		return nil, ctxerr.Wrap(ctx, err, "creating request object")
 	}
 	for k, v := range headers {
 		request.Header.Set(k, v)
@@ -140,7 +138,7 @@ func (c *Client) doContextWithHeaders(ctx context.Context, verb, path, rawQuery 
 
 	resp, err := c.http.Do(request)
 	if err != nil {
-		return nil, errors.Wrap(err, "do request")
+		return nil, ctxerr.Wrap(ctx, err, "do request")
 	}
 
 	if resp.Header.Get(fleet.HeaderLicenseKey) == fleet.HeaderLicenseValueExpired {
@@ -238,12 +236,16 @@ func (l *logRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 func (c *Client) authenticatedRequestWithQuery(params interface{}, verb string, path string, responseDest interface{}, query string) error {
 	response, err := c.AuthenticatedDo(verb, path, query, params)
 	if err != nil {
-		return errors.Wrapf(err, "%s %s", verb, path)
+		return fmt.Errorf("%s %s: %w", verb, path, err)
 	}
 	defer response.Body.Close()
 
-	if response.StatusCode != http.StatusOK {
-		return errors.Errorf(
+	switch response.StatusCode {
+	case http.StatusOK:
+	case http.StatusNotFound:
+		return notFoundErr{}
+	default:
+		return fmt.Errorf(
 			"%s %s received status %d %s",
 			verb, path,
 			response.StatusCode,
@@ -253,12 +255,12 @@ func (c *Client) authenticatedRequestWithQuery(params interface{}, verb string, 
 
 	err = json.NewDecoder(response.Body).Decode(&responseDest)
 	if err != nil {
-		return errors.Wrapf(err, "decode %s %s response", verb, path)
+		return fmt.Errorf("decode %s %s response: %w", verb, path, err)
 	}
 
 	if e, ok := responseDest.(errorer); ok {
 		if e.error() != nil {
-			return errors.Errorf("%s %s error: %s", verb, path, e.error())
+			return fmt.Errorf("%s %s error: %s", verb, path, e.error())
 		}
 	}
 
