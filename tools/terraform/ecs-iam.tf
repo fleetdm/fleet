@@ -8,7 +8,7 @@ data "aws_iam_policy_document" "fleet" {
   statement {
     effect    = "Allow"
     actions   = ["secretsmanager:GetSecretValue"]
-    resources = [aws_secretsmanager_secret.database_password_secret.arn]
+    resources = [aws_secretsmanager_secret.database_password_secret.arn, data.aws_secretsmanager_secret.license.arn]
   }
 
   // useful when there is a static number of mysql cluster members
@@ -37,25 +37,6 @@ data "aws_iam_policy_document" "fleet" {
       "firehose:PutRecordBatch",
     ]
     resources = [aws_kinesis_firehose_delivery_stream.osquery_results.arn, aws_kinesis_firehose_delivery_stream.osquery_status.arn]
-  }
-
-  statement {
-    effect = "Allow"
-    actions = [
-      "s3:GetObject*",
-      "s3:PutObject*",
-      "s3:ListBucket*",
-      "s3:ListMultipartUploadParts*",
-      "s3:DeleteObject",
-      "s3:CreateMultipartUpload",
-      "s3:AbortMultipartUpload",
-      "s3:ListMultipartUploadParts",
-      "s3:GetBucketLocation"
-    ]
-    resources = [
-      aws_s3_bucket.osquery-carve.arn,
-      "${aws_s3_bucket.osquery-carve.arn}/*"
-    ]
   }
 }
 
