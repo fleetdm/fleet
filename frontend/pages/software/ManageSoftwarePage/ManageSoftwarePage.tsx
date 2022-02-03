@@ -7,10 +7,10 @@ import { useDebouncedCallback } from "use-debounce/lib";
 import formatDistanceToNowStrict from "date-fns/formatDistanceToNowStrict";
 
 import { AppContext } from "context/app";
+import { IConfigNested } from "interfaces/config";
 import { IWebhookSoftwareVulnerabilities } from "interfaces/webhook";
 // @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions";
-import PATHS from "router/paths";
 import configAPI from "services/entities/config";
 import usersAPI, { IGetMeResponse } from "services/entities/users";
 import softwareAPI, {
@@ -38,6 +38,10 @@ import QuestionIcon from "../../../../assets/images/icon-question-16x16@2x.png";
 import generateTableHeaders from "./SoftwareTableConfig";
 import ManageAutomationsModal from "./components/ManageAutomationsModal";
 import EmptySoftware from "../components/EmptySoftware";
+import {
+  isGlobalAdmin,
+  isGlobalMaintainer,
+} from "utilities/permissions/permissions";
 
 interface IManageSoftwarePageProps {
   router: InjectedRouter;
@@ -63,6 +67,8 @@ const ManageSoftwarePage = ({
     currentTeam,
     setAvailableTeams,
     setCurrentUser,
+    isGlobalAdmin,
+    isGlobalMaintainer,
   } = useContext(AppContext);
 
   const [isLoadingSoftware, setIsLoadingSoftware] = useState(true);
@@ -88,18 +94,6 @@ const ManageSoftwarePage = ({
 
   // TODO: combine string and object so only one array element in query key; figure out typing and
   // destructuring for queryfn
-  const [
-    isLoadingSoftwareVulnerabilitiesWebhook,
-    setIsLoadingSoftwareVulnerabilitiesWebhook,
-  ] = useState(true);
-  const [
-    isSoftwareVulnerabilitiesWebhookError,
-    setIsSoftwareVulnerabilitiesWebhookError,
-  ] = useState(false);
-  const [
-    softwareVulnerabilitiesWebhook,
-    setSoftwareVulnerabilitiesWebhook,
-  ] = useState<IWebhookSoftwareVulnerabilities | undefined>();
 
   useQuery(["me"], () => usersAPI.me(), {
     onSuccess: ({ user, available_teams }: IGetMeResponse) => {
@@ -191,6 +185,22 @@ const ManageSoftwarePage = ({
     }
   );
 
+  const canAddOrRemoveSoftwareWebhook = isGlobalAdmin || isGlobalMaintainer;
+
+  const {
+    data: softwareVulnerabilitiesWebhook,
+    isLoading: isLoadingSoftwareVulnerabilitiesWebhook,
+    refetch: refetchSoftwareVulnerabilitiesWebhook,
+  } = useQuery<IConfigNested, Error, IWebhookSoftwareVulnerabilities>(
+    ["config"],
+    () => configAPI.loadAll(),
+    {
+      enabled: canAddOrRemoveSoftwareWebhook,
+      select: (data: IConfigNested) =>
+        data.webhook_settings.vulnerabilities_webhook,
+    }
+  );
+
   const onQueryChange = useDebouncedCallback(
     async ({
       pageIndex: newPageIndex,
@@ -210,26 +220,6 @@ const ManageSoftwarePage = ({
     },
     300
   );
-
-  const getSoftwareVulnerabilitiesWebhook = useCallback(async () => {
-    setIsLoadingSoftwareVulnerabilitiesWebhook(true);
-    setIsSoftwareVulnerabilitiesWebhookError(false);
-    let result;
-    try {
-      result = await configAPI
-        .loadAll()
-        .then((response) => response.webhook_settings.vulnerabilities_webhook);
-      console.log("result", result);
-      setSoftwareVulnerabilitiesWebhook(result);
-    } catch (error) {
-      console.log(error);
-      setIsSoftwareVulnerabilitiesWebhookError(true);
-    } finally {
-      setIsLoadingSoftwareVulnerabilitiesWebhook(false);
-    }
-    console.log("result", result);
-    return result;
-  }, []);
 
   const toggleManageAutomationsModal = () =>
     setShowManageAutomationsModal(!showManageAutomationsModal);
@@ -272,7 +262,7 @@ const ManageSoftwarePage = ({
       );
     } finally {
       toggleManageAutomationsModal();
-      getSoftwareVulnerabilitiesWebhook();
+      refetchSoftwareVulnerabilitiesWebhook();
     }
   };
 
@@ -283,10 +273,7 @@ const ManageSoftwarePage = ({
   const renderHeaderButtons = (
     state: ITeamsDropdownState
   ): JSX.Element | null => {
-    if (
-      (state.isGlobalAdmin || state.isGlobalMaintainer) &&
-      state.teamId === 0
-    ) {
+    if (canAddOrRemoveSoftwareWebhook && state.teamId === 0) {
       return (
         <Button
           onClick={onManageAutomationsClick}
@@ -303,8 +290,11 @@ const ManageSoftwarePage = ({
   const renderHeaderDescription = (state: ITeamsDropdownState) => {
     return (
       <p>
-        Search for installed software and manage automations for detected
-        vulnerabilities (CVEs) on{" "}
+        Search for installed software{" "}
+        {canAddOrRemoveSoftwareWebhook &&
+          state.teamId === 0 &&
+          "and manage automations for detected vulnerabilities (CVEs)"}{" "}
+        on{" "}
         <b>
           {state.isPremiumTier && !!state.teamId
             ? "all hosts assigned to this team"

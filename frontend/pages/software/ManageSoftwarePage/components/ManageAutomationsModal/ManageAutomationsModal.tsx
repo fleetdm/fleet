@@ -14,6 +14,7 @@ import { useDeepEffect } from "utilities/hooks";
 import { size } from "lodash";
 
 import PreviewPayloadModal from "../PreviewPayloadModal";
+import { createSecureContext } from "tls";
 
 interface IManageAutomationsModalProps {
   onCancel: () => void;
@@ -27,16 +28,17 @@ interface IManageAutomationsModalProps {
 interface ICheckedSoftwareAutomation {
   name?: string;
   accessor: string;
-  isChecked: boolean;
+  isChecked?: boolean;
 }
 
 const useCheckboxListStateManagement = (
   softwareVulnerabilityWebhookEnabled = false
 ) => {
-  const availableSoftwareAutomations: any = [
+  // Ability to add future software automations
+  const availableSoftwareAutomations: ICheckedSoftwareAutomation[] = [
     { accessor: "vulnerability", name: "Enable vulnerability automations" },
   ];
-  const currentSoftwareAutomations: any = softwareVulnerabilityWebhookEnabled
+  const currentSoftwareAutomations: ICheckedSoftwareAutomation[] = softwareVulnerabilityWebhookEnabled
     ? availableSoftwareAutomations
     : [];
 
@@ -49,9 +51,10 @@ const useCheckboxListStateManagement = (
         return {
           name: automation.name,
           accessor: automation.accessor,
-          isChecked:
-            !!currentSoftwareAutomations &&
-            currentSoftwareAutomations.includes(automation.accessor),
+          isChecked: currentSoftwareAutomations.some(
+            (currentSoftwareAutomationItem: ICheckedSoftwareAutomation) =>
+              currentSoftwareAutomationItem.accessor === automation.accessor
+          ),
         };
       })
     );
@@ -72,7 +75,7 @@ const useCheckboxListStateManagement = (
           !!selectedSoftwareAutomation && !selectedSoftwareAutomation.isChecked,
       };
 
-      // this is replacing the softwareAutomation object with the updatedSoftwareAutomation we just created.
+      // this is replacing the softwareAutomation object with the updatedSoftwareAutomation we just created
       const newState = prevState.map((currentSoftwareAutomation) => {
         return currentSoftwareAutomation.accessor ===
           softwareAutomationAccessor && updatedSoftwareAutomation
@@ -110,10 +113,6 @@ const ManageAutomationsModal = ({
   softwareVulnerabilityWebhookEnabled,
   currentDestinationUrl,
 }: IManageAutomationsModalProps): JSX.Element => {
-  console.log(
-    "softwareVulnerabilityWebhookEnabled",
-    softwareVulnerabilityWebhookEnabled
-  );
   const [destination_url, setDestinationUrl] = useState<string>(
     currentDestinationUrl || ""
   );
@@ -144,11 +143,15 @@ const ManageAutomationsModal = ({
     });
 
     if (valid) {
-      const enable_vulnerabilities_webhook = true; // Leave nearest component in case we decide to add disabling as a UI feature
+      // Ability to add future software automations
+      const vulnerabilityWebhook = softwareAutomationsItems.find(
+        (softwareAutomationItem) =>
+          softwareAutomationItem.accessor === "vulnerability"
+      );
 
       onCreateWebhookSubmit({
         destination_url,
-        enable_vulnerabilities_webhook,
+        enable_vulnerabilities_webhook: vulnerabilityWebhook?.isChecked,
       });
 
       onReturnToApp();

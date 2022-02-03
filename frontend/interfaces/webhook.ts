@@ -7,6 +7,12 @@ export default PropTypes.shape({
   host_batch_size: PropTypes.number,
 });
 
+export interface IWebhookHostStatus {
+  enable_host_status_webhook?: boolean;
+  destination_url?: string;
+  host_percentage?: number;
+  days_count?: number;
+}
 export interface IWebhookFailingPolicies {
   destination_url?: string;
   policy_ids?: number[];
