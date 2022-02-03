@@ -1,9 +1,10 @@
 /* eslint-disable jsx-a11y/no-noninteractive-element-to-interactive-role */
 /* eslint-disable jsx-a11y/interactive-supports-focus */
-import React, { useState, useContext } from "react";
+import React, { useState, useContext, KeyboardEvent } from "react";
 import { IAceEditor } from "react-ace/lib/types";
 import ReactTooltip from "react-tooltip";
 import { isUndefined } from "lodash";
+import classnames from "classnames";
 
 import { addGravatarUrlToResource } from "fleet/helpers";
 // @ts-ignore
@@ -18,6 +19,7 @@ import FleetAce from "components/FleetAce";
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 import Spinner from "components/Spinner";
+import AutoSizeInputField from "components/forms/fields/AutoSizeInputField";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import NewPolicyModal from "../NewPolicyModal";
@@ -52,7 +54,7 @@ const PolicyForm = ({
   onOpenSchemaSidebar,
   renderLiveQueryWarning,
 }: IPolicyFormProps): JSX.Element => {
-  const [errors, setErrors] = useState<{ [key: string]: string }>({});
+  const [errors, setErrors] = useState<{ [key: string]: any }>({});
   const [isNewPolicyModalOpen, setIsNewPolicyModalOpen] = useState<boolean>(
     false
   );
@@ -87,7 +89,6 @@ const PolicyForm = ({
   } = useContext(PolicyContext);
 
   const {
-    currentTeam,
     currentUser,
     isTeamObserver,
     isGlobalObserver,
@@ -148,6 +149,13 @@ const PolicyForm = ({
 
   const onChangePolicy = (sqlString: string) => {
     setLastEditedQueryBody(sqlString);
+  };
+
+  const onInputKeypress = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key.toLowerCase() === "enter" && !event.shiftKey) {
+      event.preventDefault();
+      goToSelectTargets();
+    }
   };
 
   const promptSavePolicy = (forceNew = false) => (
@@ -230,41 +238,40 @@ const PolicyForm = ({
     );
   };
 
+  const policyNameClasses = classnames("policy-name-wrapper", {
+    [`${baseClass}--editing`]: isEditingName,
+  });
+
+  const policyDescriptionClasses = classnames("policy-description-wrapper", {
+    [`${baseClass}--editing`]: isEditingDescription,
+  });
+
   const renderName = () => {
     if (isEditMode) {
-      if (isEditingName) {
-        return (
-          <InputField
-            id="policy-name"
-            type="textarea"
-            name="policy-name"
-            error={errors.name}
-            value={lastEditedQueryName}
-            placeholder="Add name here"
-            inputClassName={`${baseClass}__policy-name`}
-            onChange={setLastEditedQueryName}
-            inputOptions={{
-              autoFocus: true,
-              onFocus: (e: React.FocusEvent<HTMLInputElement>) => {
-                // sets cursor to end of inputfield
-                const val = e.target.value;
-                e.target.value = "";
-                e.target.value = val;
-              },
-            }}
-          />
-        );
-      }
-
       return (
-        <h1
-          role="button"
-          className={`${baseClass}__policy-name`}
-          onClick={() => setIsEditingName(true)}
-        >
-          {lastEditedQueryName}
-          <img alt="Edit name" src={PencilIcon} />
-        </h1>
+        <>
+          <div className={policyNameClasses}>
+            <AutoSizeInputField
+              name="policy-name"
+              placeholder="Add name here"
+              value={lastEditedQueryName}
+              hasError={errors && errors.name}
+              inputClassName={`${baseClass}__policy-name`}
+              onChange={setLastEditedQueryName}
+              onFocus={() => setIsEditingName(true)}
+              onBlur={() => setIsEditingName(false)}
+              onKeyPress={onInputKeypress}
+              isFocused={isEditingName}
+            />
+            <a className="edit-link" onClick={() => setIsEditingName(true)}>
+              <img
+                className={`edit-icon ${isEditingName && "hide"}`}
+                alt="Edit name"
+                src={PencilIcon}
+              />
+            </a>
+          </div>
+        </>
       );
     }
 
@@ -273,38 +280,32 @@ const PolicyForm = ({
 
   const renderDescription = () => {
     if (isEditMode) {
-      if (isEditingDescription) {
-        return (
-          <InputField
-            id="policy-description"
-            type="textarea"
-            name="policy-description"
-            value={lastEditedQueryDescription}
-            placeholder="Add description here."
-            inputClassName={`${baseClass}__policy-description`}
-            onChange={setLastEditedQueryDescription}
-            inputOptions={{
-              autoFocus: true,
-              onFocus: (e: React.FocusEvent<HTMLInputElement>) => {
-                // sets cursor to end of inputfield
-                const val = e.target.value;
-                e.target.value = "";
-                e.target.value = val;
-              },
-            }}
-          />
-        );
-      }
-
       return (
-        <span
-          role="button"
-          className={`${baseClass}__policy-description`}
-          onClick={() => setIsEditingDescription(true)}
-        >
-          {lastEditedQueryDescription || "Add description here."}
-          <img alt="Edit description" src={PencilIcon} />
-        </span>
+        <>
+          <div className={policyDescriptionClasses}>
+            <AutoSizeInputField
+              name="policy-description"
+              placeholder="Add description here."
+              value={lastEditedQueryDescription}
+              inputClassName={`${baseClass}__policy-description`}
+              onChange={setLastEditedQueryDescription}
+              onFocus={() => setIsEditingDescription(true)}
+              onBlur={() => setIsEditingDescription(false)}
+              onKeyPress={onInputKeypress}
+              isFocused={isEditingDescription}
+            />
+            <a
+              className="edit-link"
+              onClick={() => setIsEditingDescription(true)}
+            >
+              <img
+                className={`edit-icon ${isEditingDescription && "hide"}`}
+                alt="Edit name"
+                src={PencilIcon}
+              />
+            </a>
+          </div>
+        </>
       );
     }
 
