@@ -486,7 +486,7 @@ func teamScheduleName(team *fleet.Team) string {
 }
 
 func teamSchedulePackType(team *fleet.Team) string {
-	return fmt.Sprintf("team-%d", team.ID)
+	return teamSchedulePackTypeByID(team.ID)
 }
 
 func teamSchedulePackTypeByID(teamID uint) string {
