@@ -11,7 +11,7 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-func (d *Datastore) NewCarve(ctx context.Context, metadata *fleet.CarveMetadata) (*fleet.CarveMetadata, error) {
+func (ds *Datastore) NewCarve(ctx context.Context, metadata *fleet.CarveMetadata) (*fleet.CarveMetadata, error) {
 	stmt := `INSERT INTO carve_metadata (
 		host_id,
 		created_at,
@@ -34,7 +34,7 @@ func (d *Datastore) NewCarve(ctx context.Context, metadata *fleet.CarveMetadata)
 		?
 	)`
 
-	result, err := d.writer.ExecContext(
+	result, err := ds.writer.ExecContext(
 		ctx,
 		stmt,
 		metadata.HostId,
@@ -59,8 +59,8 @@ func (d *Datastore) NewCarve(ctx context.Context, metadata *fleet.CarveMetadata)
 
 // UpdateCarve updates the carve metadata in database
 // Only max_block and expired are updatable
-func (d *Datastore) UpdateCarve(ctx context.Context, metadata *fleet.CarveMetadata) error {
-	return updateCarveDB(ctx, d.writer, metadata)
+func (ds *Datastore) UpdateCarve(ctx context.Context, metadata *fleet.CarveMetadata) error {
+	return updateCarveDB(ctx, ds.writer, metadata)
 }
 
 func updateCarveDB(ctx context.Context, exec sqlx.ExecerContext, metadata *fleet.CarveMetadata) error {
@@ -80,9 +80,9 @@ func updateCarveDB(ctx context.Context, exec sqlx.ExecerContext, metadata *fleet
 	return ctxerr.Wrap(ctx, err, "update carve metadata")
 }
 
-func (d *Datastore) CleanupCarves(ctx context.Context, now time.Time) (int, error) {
+func (ds *Datastore) CleanupCarves(ctx context.Context, now time.Time) (int, error) {
 	var countExpired int
-	err := d.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		// Get IDs of carves to expire
 		stmt := `
 			SELECT id
@@ -157,7 +157,7 @@ const carveSelectFields = `
 			max_block
 `
 
-func (d *Datastore) Carve(ctx context.Context, carveId int64) (*fleet.CarveMetadata, error) {
+func (ds *Datastore) Carve(ctx context.Context, carveId int64) (*fleet.CarveMetadata, error) {
 	stmt := fmt.Sprintf(`
 		SELECT %s
 		FROM carve_metadata
@@ -166,7 +166,7 @@ func (d *Datastore) Carve(ctx context.Context, carveId int64) (*fleet.CarveMetad
 	)
 
 	var metadata fleet.CarveMetadata
-	if err := sqlx.GetContext(ctx, d.reader, &metadata, stmt, carveId); err != nil {
+	if err := sqlx.GetContext(ctx, ds.reader, &metadata, stmt, carveId); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("Carve").WithID(uint(carveId)))
 		}
@@ -176,7 +176,7 @@ func (d *Datastore) Carve(ctx context.Context, carveId int64) (*fleet.CarveMetad
 	return &metadata, nil
 }
 
-func (d *Datastore) CarveBySessionId(ctx context.Context, sessionId string) (*fleet.CarveMetadata, error) {
+func (ds *Datastore) CarveBySessionId(ctx context.Context, sessionId string) (*fleet.CarveMetadata, error) {
 	stmt := fmt.Sprintf(`
 		SELECT %s
 		FROM carve_metadata
@@ -185,7 +185,7 @@ func (d *Datastore) CarveBySessionId(ctx context.Context, sessionId string) (*fl
 	)
 
 	var metadata fleet.CarveMetadata
-	if err := sqlx.GetContext(ctx, d.reader, &metadata, stmt, sessionId); err != nil {
+	if err := sqlx.GetContext(ctx, ds.reader, &metadata, stmt, sessionId); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("CarveBySessionId").WithName(sessionId))
 		}
@@ -195,7 +195,7 @@ func (d *Datastore) CarveBySessionId(ctx context.Context, sessionId string) (*fl
 	return &metadata, nil
 }
 
-func (d *Datastore) CarveByName(ctx context.Context, name string) (*fleet.CarveMetadata, error) {
+func (ds *Datastore) CarveByName(ctx context.Context, name string) (*fleet.CarveMetadata, error) {
 	stmt := fmt.Sprintf(`
 		SELECT %s
 		FROM carve_metadata
@@ -204,7 +204,7 @@ func (d *Datastore) CarveByName(ctx context.Context, name string) (*fleet.CarveM
 	)
 
 	var metadata fleet.CarveMetadata
-	if err := sqlx.GetContext(ctx, d.reader, &metadata, stmt, name); err != nil {
+	if err := sqlx.GetContext(ctx, ds.reader, &metadata, stmt, name); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("Carve").WithName(name))
 		}
@@ -214,7 +214,7 @@ func (d *Datastore) CarveByName(ctx context.Context, name string) (*fleet.CarveM
 	return &metadata, nil
 }
 
-func (d *Datastore) ListCarves(ctx context.Context, opt fleet.CarveListOptions) ([]*fleet.CarveMetadata, error) {
+func (ds *Datastore) ListCarves(ctx context.Context, opt fleet.CarveListOptions) ([]*fleet.CarveMetadata, error) {
 	stmt := fmt.Sprintf(`
 		SELECT %s
 		FROM carve_metadata`,
@@ -225,15 +225,15 @@ func (d *Datastore) ListCarves(ctx context.Context, opt fleet.CarveListOptions) 
 	}
 	stmt = appendListOptionsToSQL(stmt, opt.ListOptions)
 	carves := []*fleet.CarveMetadata{}
-	if err := sqlx.SelectContext(ctx, d.reader, &carves, stmt); err != nil && err != sql.ErrNoRows {
+	if err := sqlx.SelectContext(ctx, ds.reader, &carves, stmt); err != nil && err != sql.ErrNoRows {
 		return nil, ctxerr.Wrap(ctx, err, "list carves")
 	}
 
 	return carves, nil
 }
 
-func (d *Datastore) NewBlock(ctx context.Context, metadata *fleet.CarveMetadata, blockId int64, data []byte) error {
-	return d.withTx(ctx, func(tx sqlx.ExtContext) error {
+func (ds *Datastore) NewBlock(ctx context.Context, metadata *fleet.CarveMetadata, blockId int64, data []byte) error {
+	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		stmt := `
 		INSERT INTO carve_blocks (
 			metadata_id,
@@ -260,14 +260,14 @@ func (d *Datastore) NewBlock(ctx context.Context, metadata *fleet.CarveMetadata,
 	})
 }
 
-func (d *Datastore) GetBlock(ctx context.Context, metadata *fleet.CarveMetadata, blockId int64) ([]byte, error) {
+func (ds *Datastore) GetBlock(ctx context.Context, metadata *fleet.CarveMetadata, blockId int64) ([]byte, error) {
 	stmt := `
 		SELECT data
 		FROM carve_blocks
 		WHERE metadata_id = ? AND block_id = ?
 	`
 	var data []byte
-	if err := sqlx.GetContext(ctx, d.reader, &data, stmt, metadata.ID, blockId); err != nil {
+	if err := sqlx.GetContext(ctx, ds.reader, &data, stmt, metadata.ID, blockId); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("CarveBlock").WithID(uint(blockId)))
 		}
