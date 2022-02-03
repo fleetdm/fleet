@@ -95,6 +95,11 @@ func (d *Datastore) DeleteTeam(ctx context.Context, tid uint) error {
 			return ctxerr.Wrapf(ctx, err, "deleting pack_targets for team %d", tid)
 		}
 
+		_, err = tx.ExecContext(ctx, `DELETE FROM packs WHERE pack_type=?`, teamSchedulePackTypeByID(tid))
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err, "deleting team global packs for team %d", tid)
+		}
+
 		return nil
 	})
 }

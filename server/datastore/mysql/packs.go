@@ -486,7 +486,11 @@ func teamScheduleName(team *fleet.Team) string {
 }
 
 func teamSchedulePackType(team *fleet.Team) string {
-	return fmt.Sprintf("team-%d", team.ID)
+	return teamSchedulePackTypeByID(team.ID)
+}
+
+func teamSchedulePackTypeByID(teamID uint) string {
+	return fmt.Sprintf("team-%d", teamID)
 }
 
 func insertNewTeamPackDB(ctx context.Context, q sqlx.ExtContext, team *fleet.Team) (*fleet.Pack, error) {
