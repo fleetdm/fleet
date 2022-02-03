@@ -246,6 +246,10 @@ const PolicyForm = ({
     [`${baseClass}--editing`]: isEditingDescription,
   });
 
+  const policyResolutionClasses = classnames("policy-resolution-wrapper", {
+    [`${baseClass}--editing`]: isEditingResolution,
+  });
+
   const renderName = () => {
     if (isEditMode) {
       return (
@@ -314,52 +318,33 @@ const PolicyForm = ({
 
   const renderResolution = () => {
     if (isEditMode) {
-      if (isEditingResolution) {
-        return (
-          <div className={`${baseClass}__policy-resolve`}>
-            {" "}
-            <b>Resolve:</b> <br />
-            <InputField
-              id="policy-resolution"
-              type="textarea"
-              name="policy-resolution"
-              value={lastEditedQueryResolution}
-              placeholder="Add resolution here."
-              inputClassName={`${baseClass}__policy-resolution`}
-              onChange={setLastEditedQueryResolution}
-              inputOptions={{
-                autoFocus: true,
-                onFocus: (e: React.FocusEvent<HTMLInputElement>) => {
-                  // sets cursor to end of inputfield
-                  const val = e.target.value;
-                  e.target.value = "";
-                  e.target.value = val;
-                },
-              }}
-            />
-          </div>
-        );
-      }
-
       return (
         <>
-          <div className="resolve-text-wrapper">
-            <b>Resolve:</b>{" "}
-            <span
-              role="button"
-              className={`${baseClass}__policy-resolution`}
+          <p className="resolve-title">
+            <strong>Resolve:</strong>
+          </p>
+          <div className={policyResolutionClasses}>
+            <AutoSizeInputField
+              name="policy-resolution"
+              placeholder="Add resolution here."
+              value={lastEditedQueryResolution}
+              inputClassName={`${baseClass}__policy-resolution`}
+              onChange={setLastEditedQueryResolution}
+              onFocus={() => setIsEditingResolution(true)}
+              onBlur={() => setIsEditingResolution(false)}
+              onKeyPress={onInputKeypress}
+              isFocused={isEditingResolution}
+            />
+            <a
+              className="edit-link"
               onClick={() => setIsEditingResolution(true)}
             >
-              <img alt="Edit resolution" src={PencilIcon} />
-            </span>
-            <br />
-            <span
-              role="button"
-              className={`${baseClass}__policy-resolution`}
-              onClick={() => setIsEditingResolution(true)}
-            >
-              {lastEditedQueryResolution || "Add resolution here."}
-            </span>
+              <img
+                className={`edit-icon ${isEditingResolution && "hide"}`}
+                alt="Edit name"
+                src={PencilIcon}
+              />
+            </a>
           </div>
         </>
       );

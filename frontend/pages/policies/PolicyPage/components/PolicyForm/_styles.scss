@@ -43,69 +43,21 @@
       cursor: pointer;
     }
 
-    .name-description {
-      flex-grow: 1;
-      margin: $pad-medium 24px 0 0;
-      .policy-name-wrapper {
-        display: flex;
-        &:not(.query-form--editing) {
-          textarea:hover {
-            cursor: pointer;
-            color: $core-vibrant-blue;
-          }
-        }
-        .edit-icon {
-          position: relative;
-          left: 3px;
-          top: 13px;
-        }
-        .policy-form__policy-name,
-        .input-sizer::after {
-          font-size: $large;
-        }
-        .component__auto-size-input-field {
-          letter-spacing: -0.5px;
-          line-height: 2.3rem;
-          padding-top: 2px;
-        }
-      }
-      .policy-description-wrapper {
-        display: flex;
-        padding-top: $pad-small;
-        &:not(.query-form--editing) {
-          textarea:hover {
-            cursor: pointer;
-            color: $core-vibrant-blue;
-          }
-        }
-        .edit-icon {
-          position: relative;
-          left: 3px;
-          top: 0;
-        }
-      }
-      .edit-icon {
-        width: 14px;
-        height: 14px;
-        opacity: 1;
-        transition: opacity 0.2s;
-        &.hide {
-          opacity: 0;
-        }
-      }
-    }
-
     .name-description-resolve {
       flex-grow: 1;
       margin: $pad-medium 24px 0 0;
-      .policy-name-wrapper {
+      .policy-name-wrapper,
+      .policy-description-wrapper,
+      .policy-resolution-wrapper {
         display: flex;
-        &:not(.query-form--editing) {
+        &:not(.policy-form--editing) {
           textarea:hover {
             cursor: pointer;
             color: $core-vibrant-blue;
           }
         }
+      }
+      .policy-name-wrapper {
         .edit-icon {
           position: relative;
           left: 3px;
@@ -122,14 +74,7 @@
         }
       }
       .policy-description-wrapper {
-        display: flex;
         padding-top: $pad-small;
-        &:not(.query-form--editing) {
-          textarea:hover {
-            cursor: pointer;
-            color: $core-vibrant-blue;
-          }
-        }
         .edit-icon {
           position: relative;
           left: 3px;
@@ -148,6 +93,9 @@
       .policy-form__policy-resolve,
       .resolve-text-wrapper {
         margin-top: $pad-large;
+      }
+      .resolve-title {
+        margin-bottom: 0;
       }
     }
 
