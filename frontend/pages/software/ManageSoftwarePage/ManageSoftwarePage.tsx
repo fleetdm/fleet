@@ -7,8 +7,10 @@ import { useDebouncedCallback } from "use-debounce/lib";
 import formatDistanceToNowStrict from "date-fns/formatDistanceToNowStrict";
 
 import { AppContext } from "context/app";
-import { IConfigNested } from "interfaces/config";
+import { IConfig, IConfigNested } from "interfaces/config";
 import { IWebhookSoftwareVulnerabilities } from "interfaces/webhook";
+// @ts-ignore
+import { getConfig } from "redux/nodes/app/actions";
 // @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions";
 import configAPI from "services/entities/config";
@@ -63,6 +65,7 @@ const ManageSoftwarePage = ({
     currentTeam,
     setAvailableTeams,
     setCurrentUser,
+    setConfig,
     isPremiumTier,
     isGlobalAdmin,
     isGlobalMaintainer,
@@ -260,6 +263,12 @@ const ManageSoftwarePage = ({
     } finally {
       toggleManageAutomationsModal();
       refetchSoftwareVulnerabilitiesWebhook();
+      // Config must be updated in both Redux and AppContext
+      dispatch(getConfig())
+        .then((configState: IConfig) => {
+          setConfig(configState);
+        })
+        .catch(() => false);
     }
   };
 
