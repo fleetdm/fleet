@@ -276,8 +276,8 @@ func InstrumentHandler(name string, handler http.Handler) http.Handler {
 		[]string{"method", "code"},
 	)).(*prometheus.CounterVec)
 
-	reqDur := registerOrExisting(prometheus.NewHistogramVec(
-		prometheus.HistogramOpts{
+	reqDur := registerOrExisting(prometheus.NewSummaryVec(
+		prometheus.SummaryOpts{
 			Subsystem:   "http",
 			Name:        "request_duration_seconds",
 			Help:        "The HTTP request latencies in seconds.",
@@ -285,32 +285,31 @@ func InstrumentHandler(name string, handler http.Handler) http.Handler {
 			// Use default buckets, as they are suited for durations.
 		},
 		nil,
-	)).(*prometheus.HistogramVec)
+	)).(*prometheus.SummaryVec)
 
 	// 1KB, 100KB, 1MB, 100MB, 1GB
-	sizeBuckets := []float64{1024, 100 * 1024, 1024 * 1024, 100 * 1024 * 1024, 1024 * 1024 * 1024}
+	//sizeBuckets := []float64{1024, 100 * 1024, 1024 * 1024, 100 * 1024 * 1024, 1024 * 1024 * 1024}
 
-	resSz := registerOrExisting(prometheus.NewHistogramVec(
-		prometheus.HistogramOpts{
+	resSz := registerOrExisting(prometheus.NewSummaryVec(
+		prometheus.SummaryOpts{
 			Subsystem:   "http",
 			Name:        "response_size_bytes",
 			Help:        "The HTTP response sizes in bytes.",
 			ConstLabels: prometheus.Labels{"handler": name},
-			Buckets:     sizeBuckets,
 		},
 		nil,
-	)).(*prometheus.HistogramVec)
+	)).(*prometheus.SummaryVec)
 
-	reqSz := registerOrExisting(prometheus.NewHistogramVec(
-		prometheus.HistogramOpts{
+	reqSz := registerOrExisting(prometheus.NewSummaryVec(
+		prometheus.SummaryOpts{
 			Subsystem:   "http",
 			Name:        "request_size_bytes",
 			Help:        "The HTTP request sizes in bytes.",
 			ConstLabels: prometheus.Labels{"handler": name},
-			Buckets:     sizeBuckets,
+			//Buckets:     sizeBuckets,
 		},
 		nil,
-	)).(*prometheus.HistogramVec)
+	)).(*prometheus.SummaryVec)
 
 	return promhttp.InstrumentHandlerDuration(reqDur,
 		promhttp.InstrumentHandlerCounter(reqCnt,
