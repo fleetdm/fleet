@@ -78,7 +78,7 @@ const QueryEditor = ({
       dispatch(renderFlash("success", "Query created!"));
     } catch (createError: any) {
       console.error(createError);
-      if (createError.errors[0].reason.includes("already exists")) {
+      if (createError.data.errors[0].reason.includes("already exists")) {
         dispatch(
           renderFlash("error", "A query with this name already exists.")
         );

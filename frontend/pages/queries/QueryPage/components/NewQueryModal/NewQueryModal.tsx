@@ -1,14 +1,19 @@
 import React, { useState } from "react";
 import { size } from "lodash";
+import { useQuery } from "react-query";
 
-import { IQueryFormData } from "interfaces/query";
+import { IQueryFormData, IQuery } from "interfaces/query";
 import { useDeepEffect } from "utilities/hooks";
+import fleetQueriesAPI from "services/entities/queries";
 
 import Checkbox from "components/forms/fields/Checkbox"; // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
 
+interface IFleetQueriesResponse {
+  queries: IQuery[];
+}
 export interface INewQueryModalProps {
   baseClass: string;
   queryValue: string;
@@ -16,11 +21,18 @@ export interface INewQueryModalProps {
   setIsSaveModalOpen: (isOpen: boolean) => void;
 }
 
-const validateQueryName = (name: string) => {
+const validateQueryName = (
+  name: string,
+  fleetQueryNames: string[] | undefined
+) => {
   const errors: { [key: string]: any } = {};
 
   if (!name) {
     errors.name = "Query name must be present";
+  }
+
+  if (fleetQueryNames && fleetQueryNames.includes(name)) {
+    errors.name = "A query with this name already exists";
   }
 
   const valid = !size(errors);
@@ -38,6 +50,16 @@ const NewQueryModal = ({
   const [observerCanRun, setObserverCanRun] = useState<boolean>(false);
   const [errors, setErrors] = useState<{ [key: string]: any }>({});
 
+  const { data: fleetQueryNames } = useQuery<
+    IFleetQueriesResponse,
+    Error,
+    string[]
+  >("fleet queries by platform", () => fleetQueriesAPI.loadAll(), {
+    refetchOnWindowFocus: false,
+    select: (data: IFleetQueriesResponse) =>
+      data.queries.map((fleetQueries) => fleetQueries.name),
+  });
+
   useDeepEffect(() => {
     if (name) {
       setErrors({});
@@ -47,7 +69,10 @@ const NewQueryModal = ({
   const handleUpdate = (evt: React.MouseEvent<HTMLFormElement>) => {
     evt.preventDefault();
 
-    const { valid, errors: newErrors } = validateQueryName(name);
+    const { valid, errors: newErrors } = validateQueryName(
+      name,
+      fleetQueryNames
+    );
     setErrors({
       ...errors,
       ...newErrors,
