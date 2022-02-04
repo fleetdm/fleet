@@ -31,6 +31,12 @@ terraform {
       version = "~> 2.16.0"
     }
   }
+  backend "s3" {
+    bucket         = "fleet-loadtesting-tfstate"
+    key            = "loadtesting"
+    region         = "us-east-2"
+    dynamodb_table = "fleet-loadtesting-tfstate"
+  }
 }
 
 data "aws_caller_identity" "current" {}

@@ -144,28 +144,29 @@ resource "aws_ecs_task_definition" "backend" {
             value = "us-east-2"
           },
           {
-            name  = "CLOUDWATCH_REGION"
-            value = "us-east-2"
-          },
-          {
             name  = "PROMETHEUS_SCRAPE_URL"
             value = "http://localhost:8080/metrics"
           },
         ],
       },
       {
-        name        = "fleet"
-        image       = docker_registry_image.fleet.name
-        cpu         = var.fleet_backend_cpu
-        memory      = var.fleet_backend_mem
-        mountPoints = []
-        volumesFrom = []
-        essential   = true
+        name      = "fleet"
+        image     = docker_registry_image.fleet.name
+        cpu       = var.fleet_backend_cpu
+        memory    = var.fleet_backend_mem
+        essential = true
         portMappings = [
           {
             # This port is the same that the contained application also uses
             containerPort = 8080
             protocol      = "tcp"
+          }
+        ]
+        ulimits = [
+          {
+            softLimit = 9999,
+            hardLimit = 9999,
+            name      = "nofile"
           }
         ]
         networkMode = "awsvpc"
@@ -279,6 +280,9 @@ resource "aws_ecs_task_definition" "backend" {
         ]
       }
   ])
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 
