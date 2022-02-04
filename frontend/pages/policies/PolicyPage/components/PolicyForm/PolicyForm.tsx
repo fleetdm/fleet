@@ -154,7 +154,10 @@ const PolicyForm = ({
   const onInputKeypress = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key.toLowerCase() === "enter" && !event.shiftKey) {
       event.preventDefault();
-      goToSelectTargets();
+      event.currentTarget.blur();
+      setIsEditingName(false);
+      setIsEditingDescription(false);
+      setIsEditingResolution(false);
     }
   };
 
