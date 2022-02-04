@@ -9,7 +9,9 @@ import { TableContext } from "context/table";
 import { inMilliseconds, secondsToHms } from "fleet/helpers";
 import { IPolicyStats, ILoadAllPoliciesResponse } from "interfaces/policy";
 import { IWebhookFailingPolicies } from "interfaces/webhook";
-import { IConfigNested } from "interfaces/config";
+import { IConfig, IConfigNested } from "interfaces/config";
+// @ts-ignore
+import { getConfig } from "redux/nodes/app/actions";
 // @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions";
 import PATHS from "router/paths";
@@ -60,6 +62,7 @@ const ManagePolicyPage = ({
     setAvailableTeams,
     setCurrentUser,
     setCurrentTeam,
+    setConfig,
   } = useContext(AppContext);
 
   const teamId = parseInt(location?.query?.team_id, 10) || 0;
@@ -221,6 +224,12 @@ const ManagePolicyPage = ({
     } finally {
       toggleManageAutomationsModal();
       refetchFailingPoliciesWebhook();
+      // Config must be updated in both Redux and AppContext
+      dispatch(getConfig())
+        .then((configState: IConfig) => {
+          setConfig(configState);
+        })
+        .catch(() => false);
     }
   };
 
