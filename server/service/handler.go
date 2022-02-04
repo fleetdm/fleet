@@ -287,9 +287,6 @@ func InstrumentHandler(name string, handler http.Handler) http.Handler {
 		nil,
 	)).(*prometheus.SummaryVec)
 
-	// 1KB, 100KB, 1MB, 100MB, 1GB
-	//sizeBuckets := []float64{1024, 100 * 1024, 1024 * 1024, 100 * 1024 * 1024, 1024 * 1024 * 1024}
-
 	resSz := registerOrExisting(prometheus.NewSummaryVec(
 		prometheus.SummaryOpts{
 			Subsystem:   "http",
