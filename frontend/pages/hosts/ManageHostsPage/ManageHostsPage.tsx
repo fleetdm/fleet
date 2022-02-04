@@ -1346,7 +1346,7 @@ const ManageHostsPage = ({
   };
 
   const renderSoftwareVulnerabilities = () => {
-    if (softwareDetails) {
+    if (softwareId && softwareDetails) {
       return <SoftwareVulnerabilities software={softwareDetails} />;
     }
     return null;
