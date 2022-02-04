@@ -53,7 +53,7 @@ type getTeamRequest struct {
 }
 
 type getTeamResponse struct {
-	Team *fleet.Team `json:"teams"`
+	Team *fleet.Team `json:"team"`
 	Err  error       `json:"error,omitempty"`
 }
 

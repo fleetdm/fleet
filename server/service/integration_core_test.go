@@ -2313,6 +2313,11 @@ func (s *integrationTestSuite) TestTeamsEndpointsWithoutLicense() {
 	s.DoJSON("GET", "/api/v1/fleet/teams", nil, http.StatusPaymentRequired, &listResp)
 	assert.Len(t, listResp.Teams, 0)
 
+	// get team
+	var getResp getTeamResponse
+	s.DoJSON("GET", "/api/v1/fleet/teams/123", nil, http.StatusPaymentRequired, &getResp)
+	assert.Nil(t, getResp.Team)
+
 	// create team
 	var tmResp teamResponse
 	s.DoJSON("POST", "/api/v1/fleet/teams", &createTeamRequest{}, http.StatusPaymentRequired, &tmResp)
