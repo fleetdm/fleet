@@ -45,6 +45,38 @@ func (svc *Service) ListTeams(ctx context.Context, opt fleet.ListOptions) ([]*fl
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// Get Team
+////////////////////////////////////////////////////////////////////////////////
+
+type getTeamRequest struct {
+	ID uint `url:"id"`
+}
+
+type getTeamResponse struct {
+	Team *fleet.Team `json:"team"`
+	Err  error       `json:"error,omitempty"`
+}
+
+func (r getTeamResponse) error() error { return r.Err }
+
+func getTeamEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*getTeamRequest)
+	team, err := svc.GetTeam(ctx, req.ID)
+	if err != nil {
+		return getTeamResponse{Err: err}, nil
+	}
+	return getTeamResponse{Team: team}, nil
+}
+
+func (svc *Service) GetTeam(ctx context.Context, tid uint) (*fleet.Team, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return nil, fleet.ErrMissingLicense
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // Create Team
 ////////////////////////////////////////////////////////////////////////////////
 

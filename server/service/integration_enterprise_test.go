@@ -355,8 +355,13 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 	var listResp listTeamsResponse
 	s.DoJSON("GET", "/api/v1/fleet/teams", nil, http.StatusOK, &listResp, "query", name, "per_page", "2")
 	require.Len(t, listResp.Teams, 1)
-	require.Equal(t, team.Name, listResp.Teams[0].Name)
+	assert.Equal(t, team.Name, listResp.Teams[0].Name)
 	tm1ID := listResp.Teams[0].ID
+
+	// get team
+	var getResp getTeamResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/teams/%d", tm1ID), nil, http.StatusOK, &getResp)
+	assert.Equal(t, team.Name, getResp.Team.Name)
 
 	// modify team
 	team.Description = "Alt " + team.Description
