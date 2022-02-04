@@ -194,6 +194,7 @@ const Software = ({
               <Tab>All</Tab>
               <Tab>Vulnerable</Tab>
             </TabList>
+            <p>something</p>
             <TabPanel>
               {!isLoadingSoftware && errorSoftware ? (
                 <TableDataError />

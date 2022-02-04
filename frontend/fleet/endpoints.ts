@@ -28,6 +28,7 @@ export default {
   },
   LOGIN: "/v1/fleet/login",
   LOGOUT: "/v1/fleet/logout",
+  MACADMINS: "/v1/fleet/macadmins",
   ME: "/v1/fleet/me",
   OSQUERY_OPTIONS: "/v1/fleet/spec/osquery_options",
   PACKS: "/v1/fleet/packs",

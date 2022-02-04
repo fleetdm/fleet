@@ -26,7 +26,7 @@ interface IInfoCardProps {
 
 const baseClass = "homepage-info-card";
 
-const InfoCard = ({
+const useInfoCard = ({
   title,
   children,
   action,
@@ -104,4 +104,4 @@ const InfoCard = ({
   );
 };
 
-export default InfoCard;
+export default useInfoCard;
