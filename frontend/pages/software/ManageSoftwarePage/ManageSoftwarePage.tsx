@@ -1,4 +1,4 @@
-import React, { useCallback, useContext, useState } from "react";
+import React, { useCallback, useContext, useEffect, useState } from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router/lib/Router";
 import ReactTooltip from "react-tooltip";
@@ -63,8 +63,13 @@ const ManageSoftwarePage = ({
   const [sortHeader, setSortHeader] = useState(DEFAULT_SORT_HEADER);
   const [pageIndex, setPageIndex] = useState(0);
 
-  const teamId = currentTeam?.id;
+  // TODO: experiment to see if we need this state and effect or can we rely solely on the router/location for the dropdown state?
+  useEffect(() => {
+    setFilterVuln(!!location.query.vulnerable);
+  }, [location]);
 
+  // TODO: combine string and object so only one array element in query key; figure out typing and
+  // destructuring for queryfn
   const { data: software, error: softwareError } = useQuery<
     ISoftwareResponse,
     Error
@@ -77,28 +82,31 @@ const ManageSoftwarePage = ({
         searchQuery,
         sortDirection,
         sortHeader,
-        teamId,
-        vulnerable: filterVuln,
+        teamId: currentTeam?.id,
+        vulnerable: !!location.query.vulnerable,
+        urlPath: location.pathname,
+        urlQueryString: location.search,
       },
     ],
     () => {
       setIsLoadingSoftware(true);
-      return softwareAPI.load({
+      const params = {
         page: pageIndex,
         perPage: PAGE_SIZE,
         query: searchQuery,
         orderKey: sortHeader,
         orderDir: sortDirection || DEFAULT_SORT_DIRECTION,
-        vulnerable: filterVuln,
-        teamId,
-      });
+        vulnerable: !!location.query.vulnerable,
+        teamId: currentTeam?.id,
+      };
+      return softwareAPI.load(params);
     },
     {
       // If keepPreviousData is enabled,
       // useQuery no longer returns isLoading when making new calls after load
       // So we manage our own load states
       keepPreviousData: true,
-      staleTime: 30000, // TODO: Discuss a reasonable staleTime given that counts are only updated infrequently?
+      staleTime: 30000, // stale time can be adjusted if fresher data is desired based on software inventory interval
       onSuccess: () => {
         setIsLoadingSoftware(false);
       },
@@ -113,18 +121,25 @@ const ManageSoftwarePage = ({
     Error,
     number
   >(
-    ["softwareCount", { searchQuery, vulnerable: filterVuln, teamId }],
+    [
+      "softwareCount",
+      {
+        searchQuery,
+        vulnerable: !!location.query.vulnerable,
+        teamId: currentTeam?.id,
+      },
+    ],
     () => {
       setIsLoadingCount(true);
       return softwareAPI.count({
         query: searchQuery,
-        vulnerable: filterVuln,
-        teamId,
+        vulnerable: !!location.query.vulnerable,
+        teamId: currentTeam?.id,
       });
     },
     {
       keepPreviousData: true,
-      staleTime: 30000, // TODO: Discuss a reasonable staleTime given that counts are only updated infrequently?
+      staleTime: 30000, // stale time can be adjusted if fresher data is desired based on software inventory interval
       refetchOnWindowFocus: false,
       retry: 1,
       select: (data) => data.count,
@@ -271,6 +286,7 @@ const ManageSoftwarePage = ({
     ) : null;
   }, [isLoadingCount, software, softwareCountError, softwareCount]);
 
+  // TODO: retool this with react-router location descriptor objects
   const buildUrlQueryString = (queryString: string, vulnerable: boolean) => {
     queryString = queryString.startsWith("?")
       ? queryString.slice(1)
