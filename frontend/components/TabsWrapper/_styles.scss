@@ -13,13 +13,27 @@
       margin-right: $pad-xxlarge;
       font-size: $x-small;
       border: none;
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
 
       &:focus {
         box-shadow: none;
         outline: 0;
       }
+      // Bolding text when the button is active causes a layout shift
+      // so we add a hidden pseudo element with the same text string
+      &:before {
+        content: attr(data-text);
+        height: 0;
+        visibility: hidden;
+        overflow: hidden;
+        user-select: none;
+        pointer-events: none;
+        font-weight: $bold;
+      }
       &--selected {
-        text-shadow: -0.3px 0 #192147, 0.3px 0 #192147;
+        font-weight: $bold;
 
         &::after {
           content: "";

@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -23,7 +24,12 @@ func TestPreview(t *testing.T) {
 		require.Equal(t, "", runAppForTest(t, []string{"preview", "--config", configPath, "stop"}))
 	})
 
-	require.Equal(t, "", runAppForTest(t, []string{"preview", "--config", configPath, "--tag", "main"}))
+	output := runAppForTest(t, []string{"preview", "--config", configPath, "--tag", "main"})
+
+	queriesRe := regexp.MustCompile(`applied ([0-9]+) queries`)
+	policiesRe := regexp.MustCompile(`applied ([0-9]+) policies`)
+	require.True(t, queriesRe.MatchString(output))
+	require.True(t, policiesRe.MatchString(output))
 
 	// run some sanity checks on the preview environment
 

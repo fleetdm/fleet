@@ -56,9 +56,8 @@ type RedisConfig struct {
 	TLSCA                     string        `yaml:"tls_ca"`
 	TLSServerName             string        `yaml:"tls_server_name"`
 	TLSHandshakeTimeout       time.Duration `yaml:"tls_handshake_timeout"`
-	// TODO(mna): should we allow insecure skip verify option?
-	MaxIdleConns int `yaml:"max_idle_conns"`
-	MaxOpenConns int `yaml:"max_open_conns"`
+	MaxIdleConns              int           `yaml:"max_idle_conns"`
+	MaxOpenConns              int           `yaml:"max_open_conns"`
 	// this config is an int on MysqlConfig, but it should be a time.Duration.
 	ConnMaxLifetime time.Duration `yaml:"conn_max_lifetime"`
 	IdleTimeout     time.Duration `yaml:"idle_timeout"`
@@ -225,6 +224,10 @@ type UpgradesConfig struct {
 	AllowMissingMigrations bool `json:"allow_missing_migrations" yaml:"allow_missing_migrations"`
 }
 
+type SentryConfig struct {
+	Dsn string `json:"dsn"`
+}
+
 // FleetConfig stores the application configuration. Each subcategory is
 // broken up into it's own struct, defined above. When editing any of these
 // structs, Manager.addConfigs and Manager.LoadConfig should be
@@ -249,6 +252,7 @@ type FleetConfig struct {
 	License          LicenseConfig
 	Vulnerabilities  VulnerabilitiesConfig
 	Upgrades         UpgradesConfig
+	Sentry           SentryConfig
 }
 
 type TLS struct {
@@ -534,6 +538,9 @@ func (man Manager) addConfigs() {
 	// Upgrades
 	man.addConfigBool("upgrades.allow_missing_migrations", false,
 		"Allow serve to run even if migrations are missing.")
+
+	// Sentry
+	man.addConfigString("sentry.dsn", "", "DSN for Sentry")
 }
 
 // LoadConfig will load the config variables into a fully initialized
@@ -706,6 +713,9 @@ func (man Manager) LoadConfig() FleetConfig {
 		},
 		Upgrades: UpgradesConfig{
 			AllowMissingMigrations: man.getConfigBool("upgrades.allow_missing_migrations"),
+		},
+		Sentry: SentryConfig{
+			Dsn: man.getConfigString("sentry.dsn"),
 		},
 	}
 }

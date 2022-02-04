@@ -17,14 +17,17 @@ class InputField extends Component {
     inputOptions: PropTypes.object, // eslint-disable-line react/forbid-prop-types
     name: PropTypes.string,
     onChange: PropTypes.func,
+    onBlur: PropTypes.func,
     onFocus: PropTypes.func,
     placeholder: PropTypes.string,
     type: PropTypes.string,
+    blockAutoComplete: PropTypes.boolean,
     value: PropTypes.oneOfType([
       PropTypes.bool,
       PropTypes.string,
       PropTypes.number,
     ]).isRequired,
+    parseTarget: PropTypes.bool,
   };
 
   static defaultProps = {
@@ -34,8 +37,11 @@ class InputField extends Component {
     label: null,
     labelClassName: "",
     onFocus: noop,
+    onBlur: noop,
     type: "text",
+    blockAutoComplete: false,
     value: "",
+    parseTarget: false,
   };
 
   componentDidMount() {
@@ -52,8 +58,13 @@ class InputField extends Component {
   onInputChange = (evt) => {
     evt.preventDefault();
 
-    const { value } = evt.target;
-    const { onChange } = this.props;
+    const { value, name } = evt.target;
+    const { onChange, parseTarget } = this.props;
+
+    if (parseTarget) {
+      // Returns both name and value
+      return onChange({ value, name });
+    }
 
     return onChange(value);
   };
@@ -67,8 +78,10 @@ class InputField extends Component {
       inputWrapperClass,
       name,
       onFocus,
+      onBlur,
       placeholder,
       type,
+      blockAutoComplete,
       value,
     } = this.props;
     const { onInputChange } = this;
@@ -115,6 +128,7 @@ class InputField extends Component {
           id={name}
           onChange={onInputChange}
           onFocus={onFocus}
+          onBlur={onBlur}
           className={inputClasses}
           placeholder={placeholder}
           ref={(r) => {
@@ -123,6 +137,7 @@ class InputField extends Component {
           type={type}
           {...inputOptions}
           value={value}
+          autoComplete={blockAutoComplete ? "new-password" : ""}
         />
       </FormField>
     );

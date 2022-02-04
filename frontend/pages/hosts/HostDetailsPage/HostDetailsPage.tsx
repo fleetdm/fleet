@@ -3,6 +3,7 @@ import { useDispatch } from "react-redux";
 import { Link } from "react-router";
 import { Params } from "react-router/lib/Router";
 import { useQuery } from "react-query";
+import { useErrorHandler } from "react-error-boundary";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 
 import classnames from "classnames";
@@ -39,7 +40,6 @@ import InputField from "components/forms/fields/InputField";
 import Spinner from "components/Spinner";
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
-import SoftwareVulnerabilities from "pages/hosts/HostDetailsPage/SoftwareVulnCount";
 import TableContainer from "components/TableContainer";
 import TabsWrapper from "components/TabsWrapper";
 import InfoBanner from "components/InfoBanner";
@@ -58,6 +58,8 @@ import {
   humanHostDetailUpdated,
   secondsToHms,
 } from "fleet/helpers";
+
+import SoftwareTab from "./SoftwareTab/SoftwareTab";
 // @ts-ignore
 import SelectQueryModal from "./SelectQueryModal";
 import TransferHostModal from "./TransferHostModal";
@@ -66,13 +68,11 @@ import {
   generatePolicyTableHeaders,
   generatePolicyDataSet,
 } from "./HostPoliciesTable/HostPoliciesTableConfig";
-import generateSoftwareTableHeaders from "./SoftwareTable/SoftwareTableConfig";
 import generateUsersTableHeaders from "./UsersTable/UsersTableConfig";
 import {
   generatePackTableHeaders,
   generatePackDataSet,
 } from "./PackTable/PackTableConfig";
-import EmptySoftware from "./EmptySoftware";
 import EmptyUsers from "./EmptyUsers";
 import PolicyFailingCount from "./HostPoliciesTable/PolicyFailingCount";
 import { isValidPolicyResponse } from "../ManageHostsPage/helpers";
@@ -130,6 +130,7 @@ const HostDetailsPage = ({
     setLastEditedQueryResolution,
     setPolicyTeamId,
   } = useContext(PolicyContext);
+  const handlePageError = useErrorHandler();
   const canTransferTeam =
     isPremiumTier && (isGlobalAdmin || isGlobalMaintainer);
 
@@ -164,8 +165,7 @@ const HostDetailsPage = ({
   const [showRefetchSpinner, setShowRefetchSpinner] = useState<boolean>(false);
   const [packsState, setPacksState] = useState<IPackStats[]>();
   const [scheduleState, setScheduleState] = useState<IQueryStats[]>();
-  const [softwareState, setSoftwareState] = useState<ISoftware[]>([]);
-  const [softwareSearchString, setSoftwareSearchString] = useState<string>("");
+  const [hostSoftware, setHostSoftware] = useState<ISoftware[]>([]);
   const [usersState, setUsersState] = useState<{ username: string }[]>([]);
   const [usersSearchString, setUsersSearchString] = useState<string>("");
   const [copyMessage, setCopyMessage] = useState<string>("");
@@ -179,6 +179,7 @@ const HostDetailsPage = ({
     refetchOnMount: false,
     refetchOnReconnect: false,
     refetchOnWindowFocus: false,
+    retry: false,
     select: (data: IFleetQueriesResponse) => data.queries,
   });
 
@@ -190,6 +191,7 @@ const HostDetailsPage = ({
       refetchOnMount: false,
       refetchOnReconnect: false,
       refetchOnWindowFocus: false,
+      retry: false,
       select: (data: ITeamsResponse) => data.teams,
     }
   );
@@ -202,6 +204,7 @@ const HostDetailsPage = ({
       refetchOnMount: false,
       refetchOnReconnect: false,
       refetchOnWindowFocus: false,
+      retry: false,
       select: (data: IDeviceMappingResponse) => data.device_mapping,
     }
   );
@@ -214,6 +217,7 @@ const HostDetailsPage = ({
       refetchOnMount: false,
       refetchOnReconnect: false,
       refetchOnWindowFocus: false,
+      retry: false,
       select: (data: IMacadminsResponse) => data.macadmins,
     }
   );
@@ -235,6 +239,7 @@ const HostDetailsPage = ({
       refetchOnMount: false,
       refetchOnReconnect: false,
       refetchOnWindowFocus: false,
+      retry: false,
       select: (data: IHostResponse) => data.host,
       onSuccess: (returnedHost) => {
         setShowRefetchSpinner(returnedHost.refetch_requested);
@@ -286,7 +291,7 @@ const HostDetailsPage = ({
           }
           return; // exit early because refectch is pending so we can avoid unecessary steps below
         }
-        setSoftwareState(returnedHost.software);
+        setHostSoftware(returnedHost.software);
         setUsersState(returnedHost.users);
         if (returnedHost.pack_stats) {
           const packStatsByType = returnedHost.pack_stats.reduce(
@@ -310,12 +315,7 @@ const HostDetailsPage = ({
           setScheduleState(packStatsByType.schedule);
         }
       },
-      onError: (error) => {
-        console.log(error);
-        dispatch(
-          renderFlash("error", `Unable to load host. Please try again.`)
-        );
-      },
+      onError: (error) => handlePageError(error),
     }
   );
 
@@ -330,18 +330,6 @@ const HostDetailsPage = ({
       );
     });
   }, [usersSearchString]);
-
-  useEffect(() => {
-    setSoftwareState(() => {
-      return (
-        host?.software.filter((softwareItem) => {
-          return softwareItem.name
-            .toLowerCase()
-            .includes(softwareSearchString.toLowerCase());
-        }) || []
-      );
-    });
-  }, [softwareSearchString]);
 
   // returns a mixture of props from host
   const normalizeEmptyValues = (hostData: any): { [key: string]: any } => {
@@ -388,8 +376,8 @@ const HostDetailsPage = ({
   const operatingSystemVersion = host?.os_version.slice(
     host?.os_version.lastIndexOf(" ") + 1
   );
-  const osPolicyLabel = `Is ${operatingSystem}, version ${operatingSystemVersion} installed?`;
-  const osPolicy = `SELECT 1 from os_version WHERE name = '${operatingSystem}' AND major || '.' || minor || '.' || patch = '${operatingSystemVersion}';`;
+  const osPolicyLabel = `Is ${operatingSystem}, version ${operatingSystemVersion} or later, installed?`;
+  const osPolicy = `SELECT 1 from os_version WHERE name = '${operatingSystem}' AND major || '.' || minor || '.' || patch >= '${operatingSystemVersion}';`;
 
   const aboutData = normalizeEmptyValues(
     pick(host, [
@@ -434,7 +422,7 @@ const HostDetailsPage = ({
       : setLastEditedQueryName(osPolicyLabel);
     setPolicyTeamId(host?.team_id ? host?.team_id : 0);
     setLastEditedQueryDescription(
-      "Checks to see if the exact operating system and version are installed on a host."
+      "Checks to see if the required minimum operating system version is installed."
     );
     setLastEditedQueryBody(osPolicy);
     setLastEditedQueryResolution("");
@@ -525,11 +513,6 @@ const HostDetailsPage = ({
       );
     }
   };
-
-  const onSoftwareTableSearchChange = useCallback((queryData: any) => {
-    const { searchQuery } = queryData;
-    setSoftwareSearchString(searchQuery);
-  }, []);
 
   const onUsersTableSearchChange = useCallback((queryData: any) => {
     const { searchQuery } = queryData;
@@ -944,51 +927,7 @@ const HostDetailsPage = ({
   };
 
   const renderSoftware = () => {
-    const tableHeaders = generateSoftwareTableHeaders();
-
-    return (
-      <div className="section section--software">
-        <p className="section__header">Software</p>
-
-        {host?.software.length === 0 ? (
-          <div className="results">
-            <p className="results__header">
-              No installed software detected on this host.
-            </p>
-            <p className="results__data">
-              Expecting to see software? Try again in a few seconds as the
-              system catches up.
-            </p>
-          </div>
-        ) : (
-          <>
-            {host?.software && (
-              <SoftwareVulnerabilities softwareList={host?.software} />
-            )}
-            {host?.software && (
-              <TableContainer
-                columns={tableHeaders}
-                data={softwareState}
-                isLoading={isLoadingHost}
-                defaultSortHeader={"name"}
-                defaultSortDirection={"asc"}
-                inputPlaceHolder={"Filter software"}
-                onQueryChange={onSoftwareTableSearchChange}
-                resultsTitle={"software items"}
-                emptyComponent={EmptySoftware}
-                showMarkAllPages={false}
-                isAllPagesSelected={false}
-                searchable
-                wideSearch
-                filteredCount={softwareState.length}
-                isClientSidePagination
-                highlightOnHover
-              />
-            )}
-          </>
-        )}
-      </div>
-    );
+    return <SoftwareTab isLoading={isLoadingHost} software={hostSoftware} />;
   };
 
   const renderRefetch = () => {
@@ -1265,6 +1204,7 @@ const HostDetailsPage = ({
         <Tabs>
           <TabList>
             <Tab>Details</Tab>
+            <Tab>Software</Tab>
             <Tab>Schedule</Tab>
             <Tab>Policies</Tab>
           </TabList>
@@ -1358,10 +1298,9 @@ const HostDetailsPage = ({
               </div>
               {renderLabels()}
             </div>
-
-            {host?.software && renderSoftware()}
             {renderUsers()}
           </TabPanel>
+          <TabPanel>{renderSoftware()}</TabPanel>
           <TabPanel>
             {renderSchedule()}
             {renderPacks()}

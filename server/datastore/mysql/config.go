@@ -3,6 +3,7 @@ package mysql
 import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/go-kit/kit/log"
+	"github.com/ngrok/sqlmw"
 )
 
 const defaultMaxAttempts int = 15
@@ -15,12 +16,21 @@ type dbOptions struct {
 	maxAttempts   int
 	logger        log.Logger
 	replicaConfig *config.MysqlConfig
+	interceptor   sqlmw.Interceptor
 }
 
-// Logger adds a logger to the datastore
+// Logger adds a logger to the datastore.
 func Logger(l log.Logger) DBOption {
 	return func(o *dbOptions) error {
 		o.logger = l
+		return nil
+	}
+}
+
+// WithInterceptor adds the sql interceptor to the datastore.
+func WithInterceptor(i sqlmw.Interceptor) DBOption {
+	return func(o *dbOptions) error {
+		o.interceptor = i
 		return nil
 	}
 }

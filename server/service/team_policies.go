@@ -108,6 +108,10 @@ func (svc Service) ListTeamPolicies(ctx context.Context, teamID uint) ([]*fleet.
 		return nil, err
 	}
 
+	if _, err := svc.ds.Team(ctx, teamID); err != nil {
+		return nil, ctxerr.Wrapf(ctx, err, "loading team %d", teamID)
+	}
+
 	return svc.ds.ListTeamPolicies(ctx, teamID)
 }
 

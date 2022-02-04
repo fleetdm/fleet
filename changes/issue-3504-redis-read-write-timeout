@@ -1,1 +1,0 @@
-* Add `read_timeout` and `write_timeout` redis configuration options, default both to 10 seconds.

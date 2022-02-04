@@ -10,7 +10,7 @@ import { isEqual } from "lodash";
 import permissionUtils from "utilities/permissions";
 import configInterface from "interfaces/config";
 import FlashMessage from "components/FlashMessage";
-import SiteTopNav from "components/side_panels/SiteTopNav";
+import SiteTopNav from "components/top_nav/SiteTopNav";
 import userInterface from "interfaces/user";
 import notificationInterface from "interfaces/notification";
 import { hideFlash } from "redux/nodes/notifications/actions";
@@ -21,7 +21,7 @@ const expirationMessage = (
     Your license for Fleet Premium is about to expire. If you’d like to renew or
     have questions about downgrading,{" "}
     <a
-      href="https://github.com/fleetdm/fleet/blob/main/docs/01-Using-Fleet/10-Teams.md#expired_license"
+      href="https://fleetdm.com/docs/using-fleet/faq#how-do-i-downgrade-from-fleet-premium-to-fleet-free"
       target="_blank"
       rel="noopener noreferrer"
     >
@@ -165,7 +165,7 @@ export class CoreLayout extends Component {
             onLogoutUser={onLogoutUser}
             onNavItemClick={onNavItemClick}
             pathname={pathname}
-            user={user}
+            currentUser={user}
           />
         </nav>
         <div className="core-wrapper">

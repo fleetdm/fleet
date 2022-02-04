@@ -34,6 +34,7 @@ const baseClass = "data-table-container";
 interface IDataTableProps {
   columns: Column[];
   data: any;
+  filters?: Record<string, string | number | boolean>;
   isLoading: boolean;
   manualSortBy?: boolean;
   sortHeader: any;
@@ -56,9 +57,10 @@ interface IDataTableProps {
   searchQuery?: string;
   searchQueryColumn?: string;
   selectedDropdownFilter?: string;
-  clearSelectionCount?: number;
   onSelectSingleRow?: (value: Row) => void;
   onResultsCountChange?: (value: number) => void;
+  renderFooter?: () => JSX.Element | null;
+  renderPagination?: () => JSX.Element | null;
 }
 
 const CLIENT_SIDE_DEFAULT_PAGE_SIZE = 20;
@@ -68,6 +70,7 @@ const CLIENT_SIDE_DEFAULT_PAGE_SIZE = 20;
 const DataTable = ({
   columns: tableColumns,
   data: tableData,
+  filters: tableFilters,
   isLoading,
   manualSortBy = false,
   sortHeader,
@@ -90,9 +93,10 @@ const DataTable = ({
   searchQuery,
   searchQueryColumn,
   selectedDropdownFilter,
-  clearSelectionCount,
   onSelectSingleRow,
   onResultsCountChange,
+  renderFooter,
+  renderPagination,
 }: IDataTableProps): JSX.Element => {
   const { resetSelectedRows } = useContext(TableContext);
   const { isOnlyObserver } = useContext(AppContext);
@@ -127,6 +131,7 @@ const DataTable = ({
     previousPage,
     setPageSize,
     setFilter,
+    setAllFilters,
   } = useTable(
     {
       columns,
@@ -141,6 +146,29 @@ const DataTable = ({
       manualSortBy,
       // Initializes as false, but changes briefly to true on successful notification
       autoResetSelectedRows: resetSelectedRows,
+      // Expands the enumerated `filterTypes` for react-table
+      // (see https://github.com/tannerlinsley/react-table/blob/master/src/filterTypes.js)
+      // with custom `filterTypes` defined for this `useTable` instance
+      filterTypes: React.useMemo(
+        () => ({
+          hasLength: (
+            // eslint-disable-next-line @typescript-eslint/no-shadow
+            rows: Row[],
+            columnIds: string[],
+            filterValue: boolean
+          ) => {
+            return !filterValue
+              ? rows
+              : rows?.filter((row) => {
+                  return columnIds?.some((id) => row?.values?.[id]?.length);
+                });
+          },
+        }),
+        []
+      ),
+      // Expands the enumerated `sortTypes` for react-table
+      // (see https://github.com/tannerlinsley/react-table/blob/master/src/sortTypes.js)
+      // with custom `sortTypes` defined for this `useTable` instance
       sortTypes: React.useMemo(
         () => ({
           caseInsensitive: (a: any, b: any, id: any) => {
@@ -172,6 +200,16 @@ const DataTable = ({
 
   const { sortBy, selectedRowIds } = tableState;
 
+  useEffect(() => {
+    if (tableFilters) {
+      const allFilters = Object.entries(tableFilters).map(([id, value]) => ({
+        id,
+        value,
+      }));
+      !!allFilters.length && setAllFilters(allFilters);
+    }
+  }, [tableFilters]);
+
   // Listen for changes to filters if clientSideFilter is enabled
 
   const setDebouncedClientFilter = useDebouncedCallback(
@@ -200,10 +238,6 @@ const DataTable = ({
         : setDebouncedClientFilter("platforms", selectedDropdownFilter);
     }
   }, [selectedDropdownFilter]);
-
-  useEffect(() => {
-    toggleAllRowsSelected(false);
-  }, [clearSelectionCount]);
 
   // This is used to listen for changes to sort. If there is a change
   // Then the sortHandler change is fired.
@@ -477,24 +511,31 @@ const DataTable = ({
           </tbody>
         </table>
       </div>
-      {isClientSidePagination && (
-        <div className={`${baseClass}__pagination`}>
-          <Button
-            variant="unstyled"
-            onClick={() => previousPage()}
-            disabled={!canPreviousPage}
-          >
-            {previousButton}
-          </Button>
-          <Button
-            variant="unstyled"
-            onClick={() => nextPage()}
-            disabled={!canNextPage}
-          >
-            {nextButton}
-          </Button>
-        </div>
-      )}
+      <div className={`${baseClass}__footer`}>
+        {renderFooter && (
+          <div className={`${baseClass}__footer-text`}>{renderFooter()}</div>
+        )}
+        {isClientSidePagination ? (
+          <div className={`${baseClass}__pagination`}>
+            <Button
+              variant="unstyled"
+              onClick={() => previousPage()}
+              disabled={!canPreviousPage}
+            >
+              {previousButton}
+            </Button>
+            <Button
+              variant="unstyled"
+              onClick={() => nextPage()}
+              disabled={!canNextPage}
+            >
+              {nextButton}
+            </Button>
+          </div>
+        ) : (
+          renderPagination && renderPagination()
+        )}
+      </div>
     </div>
   );
 };

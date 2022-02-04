@@ -47,29 +47,7 @@ func (c *Client) Login(email, password string) (string, error) {
 
 // Logout attempts to logout to the current Fleet instance.
 func (c *Client) Logout() error {
-	response, err := c.AuthenticatedDo("POST", "/api/v1/fleet/logout", "", nil)
-	if err != nil {
-		return fmt.Errorf("POST /api/v1/fleet/logout: %w", err)
-	}
-	defer response.Body.Close()
-
-	if response.StatusCode != http.StatusOK {
-		return fmt.Errorf(
-			"logout received status %d %s",
-			response.StatusCode,
-			extractServerErrorText(response.Body),
-		)
-	}
-
+	verb, path := "POST", "/api/v1/fleet/logout"
 	var responseBody logoutResponse
-	err = json.NewDecoder(response.Body).Decode(&responseBody)
-	if err != nil {
-		return fmt.Errorf("decode logout response: %w", err)
-	}
-
-	if responseBody.Err != nil {
-		return fmt.Errorf("logout: %s", responseBody.Err)
-	}
-
-	return nil
+	return c.authenticatedRequest(nil, verb, path, &responseBody)
 }

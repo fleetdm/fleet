@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/doug-martin/goqu/v9"
 	_ "github.com/doug-martin/goqu/v9/dialect/mysql"
@@ -60,8 +61,8 @@ func softwareSliceToIdMap(softwareSlice []fleet.Software) map[string]uint {
 // UpdateHostSoftware updates the software list of a host.
 // The update consists of deleting existing entries that are not in the given `software`
 // slice, updating existing entries and inserting new entries.
-func (d *Datastore) UpdateHostSoftware(ctx context.Context, hostID uint, software []fleet.Software) error {
-	return d.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+func (ds *Datastore) UpdateHostSoftware(ctx context.Context, hostID uint, software []fleet.Software) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		return applyChangesForNewSoftwareDB(ctx, tx, hostID, software)
 	})
 }
@@ -130,7 +131,6 @@ func deleteUninstalledHostSoftwareDB(
 	for currentKey := range currentIdmap {
 		if _, ok := incomingBitmap[currentKey]; !ok {
 			deletesHostSoftware = append(deletesHostSoftware, currentIdmap[currentKey])
-			// TODO: delete from software if no host has it
 		}
 	}
 	if len(deletesHostSoftware) <= 1 {
@@ -267,16 +267,6 @@ func selectSoftwareSQL(hostID *uint, opts fleet.SoftwareListOptions) (string, []
 		).Where(goqu.I("h.team_id").Eq(opts.TeamID))
 	}
 
-	if match := opts.MatchQuery; match != "" {
-		match = likePattern(match)
-		ds = ds.Where(
-			goqu.Or(
-				goqu.I("s.name").ILike(match),
-				goqu.I("s.version").ILike(match),
-			),
-		)
-	}
-
 	ds = ds.GroupBy(
 		goqu.I("s.id"),
 		goqu.I("s.name"),
@@ -304,6 +294,51 @@ func selectSoftwareSQL(hostID *uint, opts fleet.SoftwareListOptions) (string, []
 				goqu.I("s.id").Eq(goqu.I("scp.software_id")),
 			),
 		)
+		if opts.MatchQuery != "" {
+			ds = ds.LeftJoin(
+				goqu.I("software_cve").As("scv"),
+				goqu.On(goqu.I("scp.id").Eq(goqu.I("scv.cpe_id"))),
+			)
+		}
+	}
+
+	if match := opts.MatchQuery; match != "" {
+		match = likePattern(match)
+		ds = ds.Where(
+			goqu.Or(
+				goqu.I("s.name").ILike(match),
+				goqu.I("s.version").ILike(match),
+				goqu.I("scv.cve").ILike(match),
+			),
+		)
+	}
+
+	if opts.WithHostCounts {
+		subSelectCounts := dialect.From(goqu.I("aggregated_stats").As("shc")).Select(
+			"shc.id", "shc.json_value", "shc.updated_at",
+		).Where(goqu.I("shc.type").Eq("software_hosts_count"), goqu.I("shc.json_value").Gt(0)).
+			SelectAppend(
+				goqu.I("shc.json_value").As("hosts_count"),
+				goqu.I("shc.updated_at").As("counts_updated_at"),
+			)
+		subSelectListOpts := opts.ListOptions
+		switch subSelectListOpts.OrderKey {
+		case "hosts_count", "counts_updated_at":
+			// all good, known columns, so we sort
+			subSelectCounts = appendListOptionsToSelect(subSelectCounts, opts.ListOptions)
+		default:
+			// we don't sort if it's not a column from this table
+		}
+		ds = ds.Join(
+			subSelectCounts.As("shc"),
+			goqu.On(
+				goqu.I("s.id").Eq(goqu.I("shc.id")),
+			),
+		).
+			SelectAppend(
+				goqu.I("shc.json_value").As("hosts_count"),
+				goqu.I("shc.updated_at").As("counts_updated_at"),
+			)
 	}
 
 	return ds.ToSQL()
@@ -388,9 +423,9 @@ func loadCVEsBySoftware(
 	return cvesBySoftware, nil
 }
 
-func (d *Datastore) LoadHostSoftware(ctx context.Context, host *fleet.Host) error {
+func (ds *Datastore) LoadHostSoftware(ctx context.Context, host *fleet.Host) error {
 	host.HostSoftware = fleet.HostSoftware{Modified: false}
-	software, err := listSoftwareDB(ctx, d.reader, &host.ID, fleet.SoftwareListOptions{})
+	software, err := listSoftwareDB(ctx, ds.reader, &host.ID, fleet.SoftwareListOptions{})
 	if err != nil {
 		return err
 	}
@@ -423,19 +458,19 @@ func (si *softwareIterator) Next() bool {
 	return si.rows.Next()
 }
 
-func (d *Datastore) AllSoftwareWithoutCPEIterator(ctx context.Context) (fleet.SoftwareIterator, error) {
+func (ds *Datastore) AllSoftwareWithoutCPEIterator(ctx context.Context) (fleet.SoftwareIterator, error) {
 	sql := `SELECT s.* FROM software s LEFT JOIN software_cpe sc on (s.id=sc.software_id) WHERE sc.id is null`
 	// The rows.Close call is done by the caller once iteration using the
 	// returned fleet.SoftwareIterator is done.
-	rows, err := d.reader.QueryxContext(ctx, sql) //nolint:sqlclosecheck
+	rows, err := ds.reader.QueryxContext(ctx, sql) //nolint:sqlclosecheck
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "load host software")
 	}
 	return &softwareIterator{rows: rows}, nil
 }
 
-func (d *Datastore) AddCPEForSoftware(ctx context.Context, software fleet.Software, cpe string) error {
-	_, err := addCPEForSoftwareDB(ctx, d.writer, software, cpe)
+func (ds *Datastore) AddCPEForSoftware(ctx context.Context, software fleet.Software, cpe string) error {
+	_, err := addCPEForSoftwareDB(ctx, ds.writer, software, cpe)
 	return err
 }
 
@@ -449,41 +484,45 @@ func addCPEForSoftwareDB(ctx context.Context, exec sqlx.ExecerContext, software 
 	return uint(id), nil
 }
 
-func (d *Datastore) AllCPEs(ctx context.Context) ([]string, error) {
+func (ds *Datastore) AllCPEs(ctx context.Context) ([]string, error) {
 	sql := `SELECT cpe FROM software_cpe`
 	var cpes []string
-	err := sqlx.SelectContext(ctx, d.reader, &cpes, sql)
+	err := sqlx.SelectContext(ctx, ds.reader, &cpes, sql)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "loads cpes")
 	}
 	return cpes, nil
 }
 
-func (d *Datastore) InsertCVEForCPE(ctx context.Context, cve string, cpes []string) error {
+// InsertCVEForCPE inserts the cve into software_cve, linking it to all the
+// provided cpes. It returns the number of new rows inserted or an error. If
+// the CVE already existed for all CPEs, it would return 0, nil.
+func (ds *Datastore) InsertCVEForCPE(ctx context.Context, cve string, cpes []string) (int64, error) {
 	values := strings.TrimSuffix(strings.Repeat("((SELECT id FROM software_cpe WHERE cpe=?),?),", len(cpes)), ",")
 	sql := fmt.Sprintf(`INSERT IGNORE INTO software_cve (cpe_id, cve) VALUES %s`, values)
 	var args []interface{}
 	for _, cpe := range cpes {
 		args = append(args, cpe, cve)
 	}
-	_, err := d.writer.ExecContext(ctx, sql, args...)
+	res, err := ds.writer.ExecContext(ctx, sql, args...)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "insert software cve")
+		return 0, ctxerr.Wrap(ctx, err, "insert software cve")
 	}
-	return nil
+	count, _ := res.RowsAffected()
+	return count, nil
 }
 
-func (d *Datastore) ListSoftware(ctx context.Context, opt fleet.SoftwareListOptions) ([]fleet.Software, error) {
-	return listSoftwareDB(ctx, d.reader, nil, opt)
+func (ds *Datastore) ListSoftware(ctx context.Context, opt fleet.SoftwareListOptions) ([]fleet.Software, error) {
+	return listSoftwareDB(ctx, ds.reader, nil, opt)
 }
 
-func (d *Datastore) CountSoftware(ctx context.Context, opt fleet.SoftwareListOptions) (int, error) {
-	return countSoftwareDB(ctx, d.reader, nil, opt)
+func (ds *Datastore) CountSoftware(ctx context.Context, opt fleet.SoftwareListOptions) (int, error) {
+	return countSoftwareDB(ctx, ds.reader, nil, opt)
 }
 
-func (d *Datastore) SoftwareByID(ctx context.Context, id uint) (*fleet.Software, error) {
+func (ds *Datastore) SoftwareByID(ctx context.Context, id uint) (*fleet.Software, error) {
 	software := fleet.Software{}
-	err := sqlx.GetContext(ctx, d.reader, &software, `SELECT * FROM software WHERE id=?`, id)
+	err := sqlx.GetContext(ctx, ds.reader, &software, `SELECT * FROM software WHERE id=?`, id)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "software by id")
 	}
@@ -496,7 +535,7 @@ func (d *Datastore) SoftwareByID(ctx context.Context, id uint) (*fleet.Software,
 		WHERE s.id=?
 	`
 
-	rows, err := d.reader.QueryxContext(ctx, query, id)
+	rows, err := ds.reader.QueryxContext(ctx, query, id)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "load software cves")
 	}
@@ -518,4 +557,136 @@ func (d *Datastore) SoftwareByID(ctx context.Context, id uint) (*fleet.Software,
 	}
 
 	return &software, nil
+}
+
+// CalculateHostsPerSoftware calculates the number of hosts having each
+// software installed and stores that information in the aggregated_stats
+// table.
+func (ds *Datastore) CalculateHostsPerSoftware(ctx context.Context, updatedAt time.Time) error {
+	// NOTE(mna): for reference, on my laptop I get ~1.5ms for 10_000 hosts / 100 software each,
+	// ~1.5s for 10_000 hosts / 1_000 software each (but this is with an otherwise empty
+	// aggregated_stats table, but still reasonable numbers give that this runs as a cron
+	// task in the background).
+
+	resetStmt := `
+    UPDATE aggregated_stats
+    SET json_value = CAST(0 AS json)
+    WHERE type = "software_hosts_count"`
+
+	queryStmt := `
+    SELECT count(*), software_id
+    FROM host_software
+    GROUP BY software_id`
+
+	insertStmt := `
+    INSERT INTO aggregated_stats
+      (id, type, json_value, updated_at)
+    VALUES
+      %s
+    ON DUPLICATE KEY UPDATE
+      json_value = VALUES(json_value),
+      updated_at = VALUES(updated_at)`
+	valuesPart := `(?, "software_hosts_count", CAST(? AS json), ?),`
+
+	// first, reset all counts to 0
+	if _, err := ds.writer.ExecContext(ctx, resetStmt); err != nil {
+		return ctxerr.Wrap(ctx, err, "reset all software_hosts_count to 0 in aggregated_stats")
+	}
+
+	// next get a cursor for the counts for each software
+	rows, err := ds.reader.QueryContext(ctx, queryStmt)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "read counts from host_software")
+	}
+	defer rows.Close()
+
+	// use a loop to iterate to prevent loading all in one go in memory, as it
+	// could get pretty big at >100K hosts with 1000+ software each.
+	const batchSize = 100
+	var batchCount int
+	args := make([]interface{}, 0, batchSize*3)
+	for rows.Next() {
+		var count int
+		var sid uint
+
+		if err := rows.Scan(&count, &sid); err != nil {
+			return ctxerr.Wrap(ctx, err, "scan row into variables")
+		}
+
+		args = append(args, sid, count, updatedAt)
+		batchCount++
+
+		if batchCount == batchSize {
+			values := strings.TrimSuffix(strings.Repeat(valuesPart, batchCount), ",")
+			if _, err := ds.writer.ExecContext(ctx, fmt.Sprintf(insertStmt, values), args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "insert batch into aggregated_stats")
+			}
+
+			args = args[:0]
+			batchCount = 0
+		}
+	}
+	if batchCount > 0 {
+		values := strings.TrimSuffix(strings.Repeat(valuesPart, batchCount), ",")
+		if _, err := ds.writer.ExecContext(ctx, fmt.Sprintf(insertStmt, values), args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "insert batch into aggregated_stats")
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return ctxerr.Wrap(ctx, err, "iterate over host_software counts")
+	}
+
+	// delete any unused software from the software table (any that
+	// isn't in that list with a host count > 0).
+	cleanupStmt := `
+  DELETE FROM
+    software
+  WHERE
+    NOT EXISTS (
+      SELECT 1
+      FROM
+        aggregated_stats shc
+      WHERE
+        software.id = shc.id AND
+		    shc.type = "software_hosts_count" AND
+		    json_value > 0)`
+	if _, err := ds.writer.ExecContext(ctx, cleanupStmt); err != nil {
+		return ctxerr.Wrap(ctx, err, "delete unused software")
+	}
+
+	return nil
+}
+
+// HostsByCPEs returns a list of all hosts that have the software corresponding
+// to at least one of the CPEs installed. It returns a minimal represention of
+// matching hosts.
+func (ds *Datastore) HostsByCPEs(ctx context.Context, cpes []string) ([]*fleet.CPEHost, error) {
+	queryStmt := `
+    SELECT
+      h.id,
+      h.hostname
+    FROM
+      hosts h
+    INNER JOIN
+      host_software hs
+    ON
+      h.id = hs.host_id
+    INNER JOIN
+      software_cpe scp
+    ON
+      hs.software_id = scp.software_id
+    WHERE
+      scp.cpe IN (?)
+    ORDER BY
+      h.id`
+
+	stmt, args, err := sqlx.In(queryStmt, cpes)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "building query args")
+	}
+	var hosts []*fleet.CPEHost
+	if err := sqlx.SelectContext(ctx, ds.reader, &hosts, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "select hosts by cpes")
+	}
+	return hosts, nil
 }

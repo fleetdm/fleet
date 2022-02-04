@@ -172,6 +172,7 @@ func (d *Duration) UnmarshalJSON(b []byte) error {
 type WebhookSettings struct {
 	HostStatusWebhook      HostStatusWebhookSettings      `json:"host_status_webhook"`
 	FailingPoliciesWebhook FailingPoliciesWebhookSettings `json:"failing_policies_webhook"`
+	VulnerabilitiesWebhook VulnerabilitiesWebhookSettings `json:"vulnerabilities_webhook"`
 	// Interval is the interval for running the webhooks.
 	//
 	// This value currently configures both the host status and failing policies webhooks.
@@ -194,6 +195,17 @@ type FailingPoliciesWebhookSettings struct {
 	// PolicyIDs is a list of policy IDs for which the webhook will be configured.
 	PolicyIDs []uint `json:"policy_ids"`
 	// HostBatchSize allows sending multiple requests in batches of hosts for each policy.
+	// A value of 0 means no batching.
+	HostBatchSize int `json:"host_batch_size"`
+}
+
+// VulnerabilitiesWebhookSettings holds the settings for vulnerabilities webhooks.
+type VulnerabilitiesWebhookSettings struct {
+	// Enable indicates whether the webhook for vulnerabilities is enabled.
+	Enable bool `json:"enable_vulnerabilities_webhook"`
+	// DestinationURL is the webhook's URL.
+	DestinationURL string `json:"destination_url"`
+	// HostBatchSize allows sending multiple requests in batches of hosts for each vulnerable software found.
 	// A value of 0 means no batching.
 	HostBatchSize int `json:"host_batch_size"`
 }

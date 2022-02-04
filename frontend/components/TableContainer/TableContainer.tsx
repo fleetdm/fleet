@@ -18,12 +18,12 @@ import DataTable from "./DataTable/DataTable";
 import TableContainerUtils from "./TableContainerUtils";
 import { IActionButtonProps } from "./DataTable/ActionButton";
 
-export interface ITableSearchData {
+export interface ITableQueryData {
+  pageIndex: number;
+  pageSize: number;
   searchQuery: string;
   sortHeader: string;
   sortDirection: string;
-  pageSize: number;
-  pageIndex: number;
 }
 
 interface ITableContainerProps {
@@ -64,13 +64,14 @@ interface ITableContainerProps {
   isClientSideFilter?: boolean;
   highlightOnHover?: boolean;
   pageSize?: number;
-  clearSelectionCount?: number;
   onActionButtonClick?: () => void;
-  onQueryChange?: (queryData: ITableSearchData) => void;
+  onQueryChange?: (queryData: ITableQueryData) => void;
   onPrimarySelectActionClick?: (selectedItemIds: number[]) => void;
   customControl?: () => JSX.Element;
   onSelectSingleRow?: (value: Row) => void;
-  renderCount?: () => JSX.Element;
+  filters?: Record<string, string | number | boolean>;
+  renderCount?: () => JSX.Element | null;
+  renderFooter?: () => JSX.Element | null;
 }
 
 const baseClass = "table-container";
@@ -81,6 +82,7 @@ const DEFAULT_PAGE_INDEX = 0;
 const TableContainer = ({
   columns,
   data,
+  filters,
   isLoading,
   manualSortBy = false,
   defaultSortHeader = "name",
@@ -116,13 +118,13 @@ const TableContainer = ({
   pageSize = DEFAULT_PAGE_SIZE,
   selectedDropdownFilter,
   searchQueryColumn,
-  clearSelectionCount,
   onActionButtonClick,
   onQueryChange,
   onPrimarySelectActionClick,
   customControl,
   onSelectSingleRow,
   renderCount,
+  renderFooter,
 }: ITableContainerProps): JSX.Element => {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortHeader, setSortHeader] = useState(defaultSortHeader || "");
@@ -205,6 +207,27 @@ const TableContainer = ({
     return data.length;
   }, [filteredCount, clientFilterCount, data]);
 
+  const renderPagination = useCallback(() => {
+    if (disablePagination || isClientSidePagination) {
+      return null;
+    }
+    return (
+      <Pagination
+        resultsOnCurrentPage={data.length}
+        currentPage={pageIndex}
+        resultsPerPage={pageSize}
+        onPaginationChange={onPaginationChange}
+      />
+    );
+  }, [
+    disablePagination,
+    isClientSidePagination,
+    data,
+    pageIndex,
+    pageSize,
+    onPaginationChange,
+  ]);
+
   const opacity = isLoading ? { opacity: 0.4 } : { opacity: 1 };
 
   return (
@@ -219,20 +242,20 @@ const TableContainer = ({
       )}
       <div className={`${baseClass}__header`}>
         {renderCount && (
-          <p className={`${baseClass}__results-count`} style={opacity}>
+          <div className={`${baseClass}__results-count`} style={opacity}>
             {renderCount()}
-          </p>
+          </div>
         )}
         {!renderCount && data && displayCount() && !disableCount ? (
-          <p className={`${baseClass}__results-count`} style={opacity}>
+          <div className={`${baseClass}__results-count`} style={opacity}>
             {TableContainerUtils.generateResultsCountText(
               resultsTitle,
               displayCount()
             )}
             {resultsHtml}
-          </p>
+          </div>
         ) : (
-          <p />
+          <div />
         )}
         <div className={`${baseClass}__table-controls`}>
           {!hideActionButton && actionButtonText && (
@@ -321,6 +344,7 @@ const TableContainer = ({
                 isLoading={isLoading}
                 columns={columns}
                 data={data}
+                filters={filters}
                 manualSortBy={manualSortBy}
                 sortHeader={sortHeader}
                 sortDirection={sortDirection}
@@ -346,16 +370,9 @@ const TableContainer = ({
                 searchQuery={searchQuery}
                 searchQueryColumn={searchQueryColumn}
                 selectedDropdownFilter={selectedDropdownFilter}
-                clearSelectionCount={clearSelectionCount}
+                renderFooter={renderFooter}
+                renderPagination={renderPagination}
               />
-              {!disablePagination && !isClientSidePagination && (
-                <Pagination
-                  resultsOnCurrentPage={data.length}
-                  currentPage={pageIndex}
-                  resultsPerPage={pageSize}
-                  onPaginationChange={onPaginationChange}
-                />
-              )}
             </div>
           </>
         )}

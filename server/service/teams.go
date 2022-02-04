@@ -2,12 +2,9 @@ package service
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 
-	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -163,59 +160,11 @@ func applyTeamSpecsEndpoint(ctx context.Context, request interface{}, svc fleet.
 }
 
 func (svc Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec) error {
-	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionWrite); err != nil {
-		return err
-	}
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
 
-	config, err := svc.AppConfig(ctx)
-	if err != nil {
-		return err
-	}
-
-	for _, spec := range specs {
-		var secrets []*fleet.EnrollSecret
-		for _, secret := range spec.Secrets {
-			secrets = append(secrets, &fleet.EnrollSecret{
-				Secret: secret.Secret,
-			})
-		}
-
-		team, err := svc.ds.TeamByName(ctx, spec.Name)
-		if err != nil {
-			if err := ctxerr.Cause(err); err == sql.ErrNoRows {
-				agentOptions := spec.AgentOptions
-				if agentOptions == nil {
-					agentOptions = config.AgentOptions
-				}
-				_, err = svc.ds.NewTeam(ctx, &fleet.Team{
-					Name:         spec.Name,
-					AgentOptions: agentOptions,
-					Secrets:      secrets,
-				})
-				if err != nil {
-					return err
-				}
-				continue
-			}
-
-			return err
-		}
-		team.Name = spec.Name
-		team.AgentOptions = spec.AgentOptions
-		team.Secrets = secrets
-
-		_, err = svc.ds.SaveTeam(ctx, team)
-		if err != nil {
-			return err
-		}
-
-		err = svc.ds.ApplyEnrollSecrets(ctx, ptr.Uint(team.ID), secrets)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return fleet.ErrMissingLicense
 }
 
 ////////////////////////////////////////////////////////////////////////////////

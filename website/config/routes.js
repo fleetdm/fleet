@@ -137,6 +137,15 @@ module.exports.routes = {
     }
   },
 
+  'GET /platform': {
+    action: 'view-platform',
+    locals: {
+      currentPage: 'platform',
+      pageTitleForMeta: 'Platform | Fleet for osquery',
+      pageDescriptionForMeta: 'Learn about the Fleet\'s features.',
+    }
+  },
+
 
 
   //  ╦  ╔═╗╔═╗╔═╗╔═╗╦ ╦  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗
@@ -160,6 +169,7 @@ module.exports.routes = {
   'GET /try-fleet':                  '/get-started',
   'GET /docs/deploying/fleet-public-load-testing': '/docs/deploying/load-testing',
   'GET /handbook/customer-experience': '/handbook/customers',
+  'GET /handbook/growth': '/handbook/brand',
 
 
 

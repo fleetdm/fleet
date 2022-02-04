@@ -10,8 +10,8 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-func (d *Datastore) ApplyQueries(ctx context.Context, authorID uint, queries []*fleet.Query) (err error) {
-	tx, err := d.writer.BeginTxx(ctx, nil)
+func (ds *Datastore) ApplyQueries(ctx context.Context, authorID uint, queries []*fleet.Query) (err error) {
+	tx, err := ds.writer.BeginTxx(ctx, nil)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "begin ApplyQueries transaction")
 	}
@@ -66,14 +66,14 @@ func (d *Datastore) ApplyQueries(ctx context.Context, authorID uint, queries []*
 	return ctxerr.Wrap(ctx, err, "commit ApplyQueries transaction")
 }
 
-func (d *Datastore) QueryByName(ctx context.Context, name string, opts ...fleet.OptionalArg) (*fleet.Query, error) {
+func (ds *Datastore) QueryByName(ctx context.Context, name string, opts ...fleet.OptionalArg) (*fleet.Query, error) {
 	sqlStatement := `
 		SELECT *
 			FROM queries
 			WHERE name = ?
 	`
 	var query fleet.Query
-	err := sqlx.GetContext(ctx, d.reader, &query, sqlStatement, name)
+	err := sqlx.GetContext(ctx, ds.reader, &query, sqlStatement, name)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("Query").WithName(name))
@@ -81,7 +81,7 @@ func (d *Datastore) QueryByName(ctx context.Context, name string, opts ...fleet.
 		return nil, ctxerr.Wrap(ctx, err, "selecting query by name")
 	}
 
-	if err := d.loadPacksForQueries(ctx, []*fleet.Query{&query}); err != nil {
+	if err := ds.loadPacksForQueries(ctx, []*fleet.Query{&query}); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "loading packs for query")
 	}
 
@@ -89,7 +89,7 @@ func (d *Datastore) QueryByName(ctx context.Context, name string, opts ...fleet.
 }
 
 // NewQuery creates a New Query.
-func (d *Datastore) NewQuery(ctx context.Context, query *fleet.Query, opts ...fleet.OptionalArg) (*fleet.Query, error) {
+func (ds *Datastore) NewQuery(ctx context.Context, query *fleet.Query, opts ...fleet.OptionalArg) (*fleet.Query, error) {
 	sqlStatement := `
 		INSERT INTO queries (
 			name,
@@ -100,7 +100,7 @@ func (d *Datastore) NewQuery(ctx context.Context, query *fleet.Query, opts ...fl
 			observer_can_run
 		) VALUES ( ?, ?, ?, ?, ?, ? )
 	`
-	result, err := d.writer.ExecContext(ctx, sqlStatement, query.Name, query.Description, query.Query, query.Saved, query.AuthorID, query.ObserverCanRun)
+	result, err := ds.writer.ExecContext(ctx, sqlStatement, query.Name, query.Description, query.Query, query.Saved, query.AuthorID, query.ObserverCanRun)
 
 	if err != nil && isDuplicate(err) {
 		return nil, ctxerr.Wrap(ctx, alreadyExists("Query", query.Name))
@@ -115,13 +115,13 @@ func (d *Datastore) NewQuery(ctx context.Context, query *fleet.Query, opts ...fl
 }
 
 // SaveQuery saves changes to a Query.
-func (d *Datastore) SaveQuery(ctx context.Context, q *fleet.Query) error {
+func (ds *Datastore) SaveQuery(ctx context.Context, q *fleet.Query) error {
 	sql := `
 		UPDATE queries
 			SET name = ?, description = ?, query = ?, author_id = ?, saved = ?, observer_can_run = ?
 			WHERE id = ?
 	`
-	result, err := d.writer.ExecContext(ctx, sql, q.Name, q.Description, q.Query, q.AuthorID, q.Saved, q.ObserverCanRun, q.ID)
+	result, err := ds.writer.ExecContext(ctx, sql, q.Name, q.Description, q.Query, q.AuthorID, q.Saved, q.ObserverCanRun, q.ID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "updating query")
 	}
@@ -137,18 +137,18 @@ func (d *Datastore) SaveQuery(ctx context.Context, q *fleet.Query) error {
 }
 
 // DeleteQuery deletes Query identified by Query.ID.
-func (d *Datastore) DeleteQuery(ctx context.Context, name string) error {
-	return d.deleteEntityByName(ctx, queriesTable, name)
+func (ds *Datastore) DeleteQuery(ctx context.Context, name string) error {
+	return ds.deleteEntityByName(ctx, queriesTable, name)
 }
 
 // DeleteQueries deletes the existing query objects with the provided IDs. The
 // number of deleted queries is returned along with any error.
-func (d *Datastore) DeleteQueries(ctx context.Context, ids []uint) (uint, error) {
-	return d.deleteEntities(ctx, queriesTable, ids)
+func (ds *Datastore) DeleteQueries(ctx context.Context, ids []uint) (uint, error) {
+	return ds.deleteEntities(ctx, queriesTable, ids)
 }
 
 // Query returns a single Query identified by id, if such exists.
-func (d *Datastore) Query(ctx context.Context, id uint) (*fleet.Query, error) {
+func (ds *Datastore) Query(ctx context.Context, id uint) (*fleet.Query, error) {
 	sqlQuery := `
 		SELECT q.*, COALESCE(NULLIF(u.name, ''), u.email, '') AS author_name, COALESCE(u.email, '') AS author_email
 		FROM queries q
@@ -157,14 +157,14 @@ func (d *Datastore) Query(ctx context.Context, id uint) (*fleet.Query, error) {
 		WHERE q.id = ?
 	`
 	query := &fleet.Query{}
-	if err := sqlx.GetContext(ctx, d.reader, query, sqlQuery, id); err != nil {
+	if err := sqlx.GetContext(ctx, ds.reader, query, sqlQuery, id); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("Query").WithID(id))
 		}
 		return nil, ctxerr.Wrap(ctx, err, "selecting query")
 	}
 
-	if err := d.loadPacksForQueries(ctx, []*fleet.Query{query}); err != nil {
+	if err := ds.loadPacksForQueries(ctx, []*fleet.Query{query}); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "loading packs for queries")
 	}
 
@@ -173,7 +173,7 @@ func (d *Datastore) Query(ctx context.Context, id uint) (*fleet.Query, error) {
 
 // ListQueries returns a list of queries with sort order and results limit
 // determined by passed in fleet.ListOptions
-func (d *Datastore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, error) {
+func (ds *Datastore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, error) {
 	sql := `
 		SELECT
 		       q.*,
@@ -196,11 +196,11 @@ func (d *Datastore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions)
 
 	results := []*fleet.Query{}
 
-	if err := sqlx.SelectContext(ctx, d.reader, &results, sql); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader, &results, sql); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "listing queries")
 	}
 
-	if err := d.loadPacksForQueries(ctx, results); err != nil {
+	if err := ds.loadPacksForQueries(ctx, results); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "loading packs for queries")
 	}
 
@@ -208,7 +208,7 @@ func (d *Datastore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions)
 }
 
 // loadPacksForQueries loads the packs associated with the provided queries
-func (d *Datastore) loadPacksForQueries(ctx context.Context, queries []*fleet.Query) error {
+func (ds *Datastore) loadPacksForQueries(ctx context.Context, queries []*fleet.Query) error {
 	if len(queries) == 0 {
 		return nil
 	}
@@ -241,7 +241,7 @@ func (d *Datastore) loadPacksForQueries(ctx context.Context, queries []*fleet.Qu
 		fleet.Pack
 	}{}
 
-	err = sqlx.SelectContext(ctx, d.reader, &rows, query, args...)
+	err = sqlx.SelectContext(ctx, ds.reader, &rows, query, args...)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "selecting load packs for queries")
 	}

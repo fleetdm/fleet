@@ -503,7 +503,7 @@ The server name or IP address used by the client certificate.
 
   ```
   redis:
-  	server_name: 127.0.0.1
+  	tls_server_name: 127.0.0.1
   ```
 
 ##### redis_tls_handshake_timeout
@@ -1846,7 +1846,7 @@ When `current_instance_checks` is set to `auto` (the default), Fleet instances w
 
 ##### periodicity
 
-How often vulnerabilities are checked.
+How often vulnerabilities are checked. This is also the interval at which the counts of hosts per software is calculated.
 
 - Default value: `1h`
 - Environment variable: `FLEET_VULNERABILITIES_PERIODICITY`
@@ -2111,3 +2111,18 @@ Click _Continue_ at the bottom of the page.
 Fleet features are sometimes gated behind feature flags. This will usually be due to not-yet-stable APIs, or not-fully-tested performance characteristics.
 
 Feature flags on the server are controlled by environment variables prefixed with `FLEET_BETA_`.
+
+#### Sentry
+
+##### dsn
+
+If set then `fleet serve` will capture errors and panics and push them to Sentry.
+
+- Default value: `""`
+- Environment variable: `FLEET_SENTRY_DSN`
+- Config file format:
+
+  ```
+  sentry:
+    dsn: "https://somedsnprovidedby.sentry.com/"
+  ```

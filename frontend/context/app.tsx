@@ -31,12 +31,15 @@ type InitialStateType = {
   isAnyTeamAdmin: boolean | undefined;
   isTeamAdmin: boolean | undefined;
   isOnlyObserver: boolean | undefined;
+  isNoAccess: boolean | undefined;
   setAvailableTeams: (availableTeams: ITeamSummary[]) => void;
   setCurrentUser: (user: IUser) => void;
   setCurrentTeam: (team: ITeamSummary | undefined) => void;
   setConfig: (config: IConfig) => void;
   setEnrollSecret: (enrollSecret: IEnrollSecret[]) => void;
 };
+
+export type IAppContext = InitialStateType;
 
 const initialState = {
   availableTeams: undefined,
@@ -59,6 +62,7 @@ const initialState = {
   isAnyTeamAdmin: undefined,
   isTeamAdmin: undefined,
   isOnlyObserver: undefined,
+  isNoAccess: undefined,
   setAvailableTeams: () => null,
   setCurrentUser: () => null,
   setCurrentTeam: () => null,
@@ -105,6 +109,7 @@ const setPermissions = (user: IUser, config: IConfig, teamId = 0) => {
       teamId
     ),
     isOnlyObserver: permissions.isOnlyObserver(user),
+    isNoAccess: permissions.isNoAccess(user),
   };
 };
 
@@ -177,6 +182,7 @@ const AppProvider = ({ children }: Props): JSX.Element => {
     isTeamMaintainerOrTeamAdmin: state.isTeamMaintainer,
     isAnyTeamAdmin: state.isAnyTeamAdmin,
     isOnlyObserver: state.isOnlyObserver,
+    isNoAccess: state.isNoAccess,
     setAvailableTeams: (availableTeams: ITeamSummary[]) => {
       dispatch({ type: actions.SET_AVAILABLE_TEAMS, availableTeams });
     },

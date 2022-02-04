@@ -39,12 +39,6 @@ export default {
 
     return sendRequest("DELETE", path);
   },
-  load: (teamId: number) => {
-    const { TEAMS } = endpoints;
-    const path = `${TEAMS}/${teamId}`;
-
-    return sendRequest("GET", path);
-  },
   loadAll: ({
     page = 0,
     perPage = 100,

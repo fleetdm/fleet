@@ -152,7 +152,7 @@ type SearchHostsFunc func(ctx context.Context, filter fleet.TeamFilter, query st
 
 type CleanupIncomingHostsFunc func(ctx context.Context, now time.Time) error
 
-type GenerateHostStatusStatisticsFunc func(ctx context.Context, filter fleet.TeamFilter, now time.Time) (*fleet.HostSummary, error)
+type GenerateHostStatusStatisticsFunc func(ctx context.Context, filter fleet.TeamFilter, now time.Time, platform *string) (*fleet.HostSummary, error)
 
 type HostIDsByNameFunc func(ctx context.Context, filter fleet.TeamFilter, hostnames []string) ([]uint, error)
 
@@ -175,6 +175,12 @@ type ListPoliciesForHostFunc func(ctx context.Context, host *fleet.Host) ([]*fle
 type GetMunkiVersionFunc func(ctx context.Context, hostID uint) (string, error)
 
 type GetMDMFunc func(ctx context.Context, hostID uint) (enrolled bool, serverURL string, installedFromDep bool, err error)
+
+type AggregatedMunkiVersionFunc func(ctx context.Context, teamID *uint) ([]fleet.AggregatedMunkiVersion, error)
+
+type AggregatedMDMStatusFunc func(ctx context.Context, teamID *uint) (fleet.AggregatedMDMStatus, error)
+
+type GenerateAggregatedMunkiAndMDMFunc func(ctx context.Context) error
 
 type CountHostsInTargetsFunc func(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error)
 
@@ -262,9 +268,13 @@ type AddCPEForSoftwareFunc func(ctx context.Context, software fleet.Software, cp
 
 type AllCPEsFunc func(ctx context.Context) ([]string, error)
 
-type InsertCVEForCPEFunc func(ctx context.Context, cve string, cpes []string) error
+type InsertCVEForCPEFunc func(ctx context.Context, cve string, cpes []string) (int64, error)
 
 type SoftwareByIDFunc func(ctx context.Context, id uint) (*fleet.Software, error)
+
+type CalculateHostsPerSoftwareFunc func(ctx context.Context, updatedAt time.Time) error
+
+type HostsByCPEsFunc func(ctx context.Context, cpes []string) ([]*fleet.CPEHost, error)
 
 type NewActivityFunc func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error
 
@@ -359,6 +369,10 @@ type VerifyEnrollSecretFunc func(ctx context.Context, secret string) (*fleet.Enr
 type EnrollHostFunc func(ctx context.Context, osqueryHostId string, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error)
 
 type SerialUpdateHostFunc func(ctx context.Context, host *fleet.Host) error
+
+type InnoDBStatusFunc func(ctx context.Context) (string, error)
+
+type ProcessListFunc func(ctx context.Context) ([]fleet.MySQLProcess, error)
 
 type DataStore struct {
 	NewCarveFunc        NewCarveFunc
@@ -607,6 +621,15 @@ type DataStore struct {
 	GetMDMFunc        GetMDMFunc
 	GetMDMFuncInvoked bool
 
+	AggregatedMunkiVersionFunc        AggregatedMunkiVersionFunc
+	AggregatedMunkiVersionFuncInvoked bool
+
+	AggregatedMDMStatusFunc        AggregatedMDMStatusFunc
+	AggregatedMDMStatusFuncInvoked bool
+
+	GenerateAggregatedMunkiAndMDMFunc        GenerateAggregatedMunkiAndMDMFunc
+	GenerateAggregatedMunkiAndMDMFuncInvoked bool
+
 	CountHostsInTargetsFunc        CountHostsInTargetsFunc
 	CountHostsInTargetsFuncInvoked bool
 
@@ -741,6 +764,12 @@ type DataStore struct {
 
 	SoftwareByIDFunc        SoftwareByIDFunc
 	SoftwareByIDFuncInvoked bool
+
+	CalculateHostsPerSoftwareFunc        CalculateHostsPerSoftwareFunc
+	CalculateHostsPerSoftwareFuncInvoked bool
+
+	HostsByCPEsFunc        HostsByCPEsFunc
+	HostsByCPEsFuncInvoked bool
 
 	NewActivityFunc        NewActivityFunc
 	NewActivityFuncInvoked bool
@@ -882,6 +911,12 @@ type DataStore struct {
 
 	SerialUpdateHostFunc        SerialUpdateHostFunc
 	SerialUpdateHostFuncInvoked bool
+
+	InnoDBStatusFunc        InnoDBStatusFunc
+	InnoDBStatusFuncInvoked bool
+
+	ProcessListFunc        ProcessListFunc
+	ProcessListFuncInvoked bool
 }
 
 func (s *DataStore) NewCarve(ctx context.Context, metadata *fleet.CarveMetadata) (*fleet.CarveMetadata, error) {
@@ -1234,9 +1269,9 @@ func (s *DataStore) CleanupIncomingHosts(ctx context.Context, now time.Time) err
 	return s.CleanupIncomingHostsFunc(ctx, now)
 }
 
-func (s *DataStore) GenerateHostStatusStatistics(ctx context.Context, filter fleet.TeamFilter, now time.Time) (*fleet.HostSummary, error) {
+func (s *DataStore) GenerateHostStatusStatistics(ctx context.Context, filter fleet.TeamFilter, now time.Time, platform *string) (*fleet.HostSummary, error) {
 	s.GenerateHostStatusStatisticsFuncInvoked = true
-	return s.GenerateHostStatusStatisticsFunc(ctx, filter, now)
+	return s.GenerateHostStatusStatisticsFunc(ctx, filter, now, platform)
 }
 
 func (s *DataStore) HostIDsByName(ctx context.Context, filter fleet.TeamFilter, hostnames []string) ([]uint, error) {
@@ -1292,6 +1327,21 @@ func (s *DataStore) GetMunkiVersion(ctx context.Context, hostID uint) (string, e
 func (s *DataStore) GetMDM(ctx context.Context, hostID uint) (enrolled bool, serverURL string, installedFromDep bool, err error) {
 	s.GetMDMFuncInvoked = true
 	return s.GetMDMFunc(ctx, hostID)
+}
+
+func (s *DataStore) AggregatedMunkiVersion(ctx context.Context, teamID *uint) ([]fleet.AggregatedMunkiVersion, error) {
+	s.AggregatedMunkiVersionFuncInvoked = true
+	return s.AggregatedMunkiVersionFunc(ctx, teamID)
+}
+
+func (s *DataStore) AggregatedMDMStatus(ctx context.Context, teamID *uint) (fleet.AggregatedMDMStatus, error) {
+	s.AggregatedMDMStatusFuncInvoked = true
+	return s.AggregatedMDMStatusFunc(ctx, teamID)
+}
+
+func (s *DataStore) GenerateAggregatedMunkiAndMDM(ctx context.Context) error {
+	s.GenerateAggregatedMunkiAndMDMFuncInvoked = true
+	return s.GenerateAggregatedMunkiAndMDMFunc(ctx)
 }
 
 func (s *DataStore) CountHostsInTargets(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error) {
@@ -1509,7 +1559,7 @@ func (s *DataStore) AllCPEs(ctx context.Context) ([]string, error) {
 	return s.AllCPEsFunc(ctx)
 }
 
-func (s *DataStore) InsertCVEForCPE(ctx context.Context, cve string, cpes []string) error {
+func (s *DataStore) InsertCVEForCPE(ctx context.Context, cve string, cpes []string) (int64, error) {
 	s.InsertCVEForCPEFuncInvoked = true
 	return s.InsertCVEForCPEFunc(ctx, cve, cpes)
 }
@@ -1517,6 +1567,16 @@ func (s *DataStore) InsertCVEForCPE(ctx context.Context, cve string, cpes []stri
 func (s *DataStore) SoftwareByID(ctx context.Context, id uint) (*fleet.Software, error) {
 	s.SoftwareByIDFuncInvoked = true
 	return s.SoftwareByIDFunc(ctx, id)
+}
+
+func (s *DataStore) CalculateHostsPerSoftware(ctx context.Context, updatedAt time.Time) error {
+	s.CalculateHostsPerSoftwareFuncInvoked = true
+	return s.CalculateHostsPerSoftwareFunc(ctx, updatedAt)
+}
+
+func (s *DataStore) HostsByCPEs(ctx context.Context, cpes []string) ([]*fleet.CPEHost, error) {
+	s.HostsByCPEsFuncInvoked = true
+	return s.HostsByCPEsFunc(ctx, cpes)
 }
 
 func (s *DataStore) NewActivity(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {
@@ -1752,4 +1812,14 @@ func (s *DataStore) EnrollHost(ctx context.Context, osqueryHostId string, nodeKe
 func (s *DataStore) SerialUpdateHost(ctx context.Context, host *fleet.Host) error {
 	s.SerialUpdateHostFuncInvoked = true
 	return s.SerialUpdateHostFunc(ctx, host)
+}
+
+func (s *DataStore) InnoDBStatus(ctx context.Context) (string, error) {
+	s.InnoDBStatusFuncInvoked = true
+	return s.InnoDBStatusFunc(ctx)
+}
+
+func (s *DataStore) ProcessList(ctx context.Context) ([]fleet.MySQLProcess, error) {
+	s.ProcessListFuncInvoked = true
+	return s.ProcessListFunc(ctx)
 }

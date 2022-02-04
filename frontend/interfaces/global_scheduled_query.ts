@@ -41,3 +41,7 @@ export interface IGlobalScheduledQuery {
   denylist?: boolean;
   stats?: IScheduledQueryStats;
 }
+
+export interface ILoadAllGlobalScheduledQueriesResponse {
+  global_schedule: IGlobalScheduledQuery[];
+}

@@ -30,17 +30,35 @@ module.exports = {
 
         let queriesWithProblematicResolutions = [];
         let queriesWithProblematicContributors = [];
+        let queriesWithProblematicTags = [];
         let queries = YAML.parseAllDocuments(yaml).map((yamlDocument)=>{
           let query = yamlDocument.toJSON().spec;
           query.kind = yamlDocument.toJSON().kind;
           query.slug = _.kebabCase(query.name);// « unique slug to use for routing to this query's detail page
-          if (false) {
-          // if ((query.resolution !== undefined && !_.isString(query.resolution)) || (query.kind !== 'policy' && _.isString(query.resolution))) { TODO: maybe bring this back later
+          if ((query.resolution !== undefined && !_.isString(query.resolution)) || (query.kind !== 'policy' && _.isString(query.resolution))) {
             // console.log(typeof query.resolution);
             queriesWithProblematicResolutions.push(query);
-          // } else if (query.resolution === undefined) {
-          } else { // « For now set resolution to N/A for all queries until we reinstate checks that are commented out above.  TODO: finish that
+          } else if (query.resolution === undefined) {
             query.resolution = 'N/A';// « We set this to a string here so that the data type is always string.  We use N/A so folks can see there's no remediation and contribute if desired.
+          }
+          if (query.tags) {
+            if(!_.isString(query.tags)) {
+              queriesWithProblematicTags.push(query);
+            } else {
+              // Splitting tags into an array to format them.
+              let tagsToFormat = query.tags.split(',');
+              let formattedTags = [];
+              for (let tag of tagsToFormat) {
+                if(tag !== '') {// « Ignoring any blank tags caused by trailing commas in the YAML.
+                  // Formatting tags in sentence case, and removing any extra whitespace.
+                  formattedTags.push(_.capitalize(_.trim(tag)));
+                }
+              }
+              // Removing any duplicate tags.
+              query.tags = _.uniq(formattedTags);
+            }
+          } else {
+            query.tags = []; // « if there are no tags, we set query.tags to an empty array so it is always the same data type.
           }
 
           // GitHub usernames may only contain alphanumeric characters or single hyphens, and cannot begin or end with a hyphen.
@@ -54,6 +72,9 @@ module.exports = {
         if (queriesWithProblematicResolutions.length >= 1) {
           throw new Error('Failed parsing YAML for query library: The "resolution" of a query should either be absent (undefined) or a single string (not a list of strings).  And "resolution" should only be present when a query\'s kind is "policy".  But one or more queries have an invalid "resolution": ' + _.pluck(queriesWithProblematicResolutions, 'slug').sort());
         }//•
+        if (queriesWithProblematicTags.length >= 1) {
+          throw new Error('Failed parsing YAML for query library: The "tags" of a query should either be absent (undefined) or a single string (not a list of strings). "tags" should be be be seperated by a comma.  But one or more queries have invalid "tags": ' + _.pluck(queriesWithProblematicTags, 'slug').sort());
+        }
         // Assert uniqueness of slugs.
         if (queries.length !== _.uniq(_.pluck(queries, 'slug')).length) {
           throw new Error('Failed parsing YAML for query library: Queries as currently named would result in colliding (duplicate) slugs.  To resolve, rename the queries whose names are too similar.  Note the duplicates: ' + _.pluck(queries, 'slug').sort());

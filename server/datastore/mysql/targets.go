@@ -10,7 +10,7 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-func (d *Datastore) CountHostsInTargets(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error) {
+func (ds *Datastore) CountHostsInTargets(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error) {
 	// The logic in this function should remain synchronized with
 	// host.Status and GenerateHostStatusStatistics - that is, the intervals associated
 	// with each status must be the same.
@@ -30,7 +30,7 @@ func (d *Datastore) CountHostsInTargets(ctx context.Context, filter fleet.TeamFi
 		FROM hosts h
 		LEFT JOIN host_seen_times hst ON (h.id=hst.host_id)
 		WHERE (id IN (?) OR (id IN (SELECT DISTINCT host_id FROM label_membership WHERE label_id IN (?))) OR team_id IN (?)) AND %s
-`, fleet.OnlineIntervalBuffer, fleet.OnlineIntervalBuffer, d.whereFilterHostsByTeams(filter, "h"))
+`, fleet.OnlineIntervalBuffer, fleet.OnlineIntervalBuffer, ds.whereFilterHostsByTeams(filter, "h"))
 
 	// Using -1 in the ID slices for the IN clause allows us to include the
 	// IN clause even if we have no IDs to use. -1 will not match the
@@ -55,7 +55,7 @@ func (d *Datastore) CountHostsInTargets(ctx context.Context, filter fleet.TeamFi
 	}
 
 	res := fleet.TargetMetrics{}
-	err = sqlx.GetContext(ctx, d.reader, &res, query, args...)
+	err = sqlx.GetContext(ctx, ds.reader, &res, query, args...)
 	if err != nil {
 		return fleet.TargetMetrics{}, ctxerr.Wrap(ctx, err, "sqlx.Get CountHostsInTargets")
 	}
@@ -63,7 +63,7 @@ func (d *Datastore) CountHostsInTargets(ctx context.Context, filter fleet.TeamFi
 	return res, nil
 }
 
-func (d *Datastore) HostIDsInTargets(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets) ([]uint, error) {
+func (ds *Datastore) HostIDsInTargets(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets) ([]uint, error) {
 	if len(targets.HostIDs) == 0 && len(targets.LabelIDs) == 0 && len(targets.TeamIDs) == 0 {
 		// No need to query if no targets selected
 		return []uint{}, nil
@@ -75,7 +75,7 @@ func (d *Datastore) HostIDsInTargets(ctx context.Context, filter fleet.TeamFilte
 			WHERE (id IN (?) OR (id IN (SELECT host_id FROM label_membership WHERE label_id IN (?))) OR team_id IN (?)) AND %s
 			ORDER BY id ASC
 		`,
-		d.whereFilterHostsByTeams(filter, "hosts"),
+		ds.whereFilterHostsByTeams(filter, "hosts"),
 	)
 
 	// Using -1 in the ID slices for the IN clause allows us to include the
@@ -101,7 +101,7 @@ func (d *Datastore) HostIDsInTargets(ctx context.Context, filter fleet.TeamFilte
 	}
 
 	var res []uint
-	err = sqlx.SelectContext(ctx, d.reader, &res, query, args...)
+	err = sqlx.SelectContext(ctx, ds.reader, &res, query, args...)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "sqlx.Get HostIDsInTargets")
 	}
