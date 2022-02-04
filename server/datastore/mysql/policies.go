@@ -134,10 +134,8 @@ func (ds *Datastore) FlippingPoliciesForHost(
 		return orderedIDs[i] < orderedIDs[j]
 	})
 	// By using `passes IS NOT NULL` we filter out those policies that never executed properly.
-	selectQuery := fmt.Sprintf(
-		`SELECT policy_id, passes FROM policy_membership
-		WHERE host_id = ? AND policy_id IN (?) AND passes IS NOT NULL`,
-	)
+	selectQuery := `SELECT policy_id, passes FROM policy_membership
+		WHERE host_id = ? AND policy_id IN (?) AND passes IS NOT NULL`
 	var fetchedPolicyResults []struct {
 		ID     uint `db:"policy_id"`
 		Passes bool `db:"passes"`

@@ -3,10 +3,13 @@ package service
 import (
 	"bytes"
 	"context"
+	crand "crypto/rand"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"math"
+	"math/big"
 	"reflect"
 	"sort"
 	"strconv"
@@ -283,7 +286,14 @@ func TestHostDetailQueries(t *testing.T) {
 		UUID:            "test_uuid",
 	}
 
-	svc := &Service{clock: mockClock, config: config.TestConfig(), ds: ds}
+	svc := &Service{
+		clock:    mockClock,
+		logger:   log.NewNopLogger(),
+		config:   config.TestConfig(),
+		ds:       ds,
+		jitterMu: new(sync.Mutex),
+		jitterH:  make(map[time.Duration]*jitterHashTable),
+	}
 
 	queries, err := svc.detailQueriesForHost(context.Background(), &host)
 	require.NoError(t, err)
@@ -2457,4 +2467,46 @@ func TestLiveQueriesFailing(t *testing.T) {
 	require.NoError(t, err)
 	require.Contains(t, string(logs), "level=error")
 	require.Contains(t, string(logs), "failed to get queries for host")
+}
+
+func TestJitterForHost(t *testing.T) {
+	jh := newJitterHashTable(30)
+
+	histogram := make(map[int64]int)
+	hostCount := 3000
+	for i := 0; i < hostCount; i++ {
+		hostID, err := crand.Int(crand.Reader, big.NewInt(10000))
+		require.NoError(t, err)
+		jitter := jh.jitterForHost(uint(hostID.Int64() + 10000))
+		jitterMinutes := int64(jitter.Minutes())
+		histogram[jitterMinutes]++
+	}
+	min, max := math.MaxInt, 0
+	for jitterMinutes, count := range histogram {
+		if count < min {
+			min = count
+		}
+		if count > max {
+			max = count
+		}
+		t.Logf("jitterMinutes=%d \t count=%d\n", jitterMinutes, count)
+	}
+	variation := max - min
+	t.Logf("min=%d \t max=%d \t variation=%d\n", min, max, variation)
+
+	// check that variation is below 1% of the total amount of hosts
+	require.Less(t, variation, int(float32(hostCount)/0.01))
+}
+
+func TestNoJitter(t *testing.T) {
+	jh := newJitterHashTable(0)
+
+	hostCount := 3000
+	for i := 0; i < hostCount; i++ {
+		hostID, err := crand.Int(crand.Reader, big.NewInt(10000))
+		require.NoError(t, err)
+		jitter := jh.jitterForHost(uint(hostID.Int64() + 10000))
+		jitterMinutes := int64(jitter.Minutes())
+		require.Equal(t, int64(0), jitterMinutes)
+	}
 }

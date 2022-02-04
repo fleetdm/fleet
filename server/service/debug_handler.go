@@ -44,6 +44,27 @@ func (m *debugAuthenticationMiddleware) Middleware(next http.Handler) http.Handl
 	})
 }
 
+func jsonHandler(
+	logger kitlog.Logger,
+	jsonGenerator func(ctx context.Context) (interface{}, error),
+) func(rw http.ResponseWriter, r *http.Request) {
+	return func(rw http.ResponseWriter, r *http.Request) {
+		jsonData, err := jsonGenerator(r.Context())
+		if err != nil {
+			level.Error(logger).Log("err", err)
+			rw.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		b, err := json.MarshalIndent(jsonData, "", "  ")
+		if err != nil {
+			level.Error(logger).Log("err", err)
+			rw.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		rw.Write(b)
+	}
+}
+
 // MakeDebugHandler creates an HTTP handler for the Fleet debug endpoints.
 func MakeDebugHandler(svc fleet.Service, config config.FleetConfig, logger kitlog.Logger, eh *errorstore.Handler, ds fleet.Datastore) http.Handler {
 	r := mux.NewRouter()
@@ -52,39 +73,11 @@ func MakeDebugHandler(svc fleet.Service, config config.FleetConfig, logger kitlo
 	r.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
 	r.HandleFunc("/debug/pprof/trace", pprof.Trace)
 	r.Handle("/debug/errors", eh)
-	r.PathPrefix("/debug/pprof/").HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-		pprof.Index(rw, req)
-	})
-	r.HandleFunc("/debug/migrations", func(rw http.ResponseWriter, r *http.Request) {
-		status, err := ds.MigrationStatus(r.Context())
-		if err != nil {
-			level.Error(logger).Log("err", err)
-			rw.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-		b, err := json.Marshal(&status)
-		if err != nil {
-			level.Error(logger).Log("err", err)
-			rw.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-		rw.Write(b)
-	})
-	r.HandleFunc("/debug/dblocks", func(rw http.ResponseWriter, r *http.Request) {
-		locks, err := ds.DBLocks(r.Context())
-		if err != nil {
-			level.Error(logger).Log("err", err)
-			rw.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-		b, err := json.Marshal(locks)
-		if err != nil {
-			level.Error(logger).Log("err", err)
-			rw.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-		rw.Write(b)
-	})
+	r.PathPrefix("/debug/pprof/").HandlerFunc(func(rw http.ResponseWriter, req *http.Request) { pprof.Index(rw, req) })
+	r.HandleFunc("/debug/migrations", jsonHandler(logger, func(ctx context.Context) (interface{}, error) { return ds.MigrationStatus(ctx) }))
+	r.HandleFunc("/debug/db/locks", jsonHandler(logger, func(ctx context.Context) (interface{}, error) { return ds.DBLocks(ctx) }))
+	r.HandleFunc("/debug/db/innodb-status", jsonHandler(logger, func(ctx context.Context) (interface{}, error) { return ds.InnoDBStatus(ctx) }))
+	r.HandleFunc("/debug/db/process-list", jsonHandler(logger, func(ctx context.Context) (interface{}, error) { return ds.ProcessList(ctx) }))
 
 	mw := &debugAuthenticationMiddleware{
 		service: svc,

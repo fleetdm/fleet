@@ -370,6 +370,10 @@ type EnrollHostFunc func(ctx context.Context, osqueryHostId string, nodeKey stri
 
 type SerialUpdateHostFunc func(ctx context.Context, host *fleet.Host) error
 
+type InnoDBStatusFunc func(ctx context.Context) (string, error)
+
+type ProcessListFunc func(ctx context.Context) ([]fleet.MySQLProcess, error)
+
 type DataStore struct {
 	NewCarveFunc        NewCarveFunc
 	NewCarveFuncInvoked bool
@@ -907,6 +911,12 @@ type DataStore struct {
 
 	SerialUpdateHostFunc        SerialUpdateHostFunc
 	SerialUpdateHostFuncInvoked bool
+
+	InnoDBStatusFunc        InnoDBStatusFunc
+	InnoDBStatusFuncInvoked bool
+
+	ProcessListFunc        ProcessListFunc
+	ProcessListFuncInvoked bool
 }
 
 func (s *DataStore) NewCarve(ctx context.Context, metadata *fleet.CarveMetadata) (*fleet.CarveMetadata, error) {
@@ -1802,4 +1812,14 @@ func (s *DataStore) EnrollHost(ctx context.Context, osqueryHostId string, nodeKe
 func (s *DataStore) SerialUpdateHost(ctx context.Context, host *fleet.Host) error {
 	s.SerialUpdateHostFuncInvoked = true
 	return s.SerialUpdateHostFunc(ctx, host)
+}
+
+func (s *DataStore) InnoDBStatus(ctx context.Context) (string, error) {
+	s.InnoDBStatusFuncInvoked = true
+	return s.InnoDBStatusFunc(ctx)
+}
+
+func (s *DataStore) ProcessList(ctx context.Context) ([]fleet.MySQLProcess, error) {
+	s.ProcessListFuncInvoked = true
+	return s.ProcessListFunc(ctx)
 }
