@@ -14,7 +14,6 @@ import { getConfig } from "redux/nodes/app/actions";
 // @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions";
 import configAPI from "services/entities/config";
-import usersAPI, { IGetMeResponse } from "services/entities/users";
 import softwareAPI, {
   ISoftwareResponse,
   ISoftwareCountResponse,
@@ -49,6 +48,9 @@ interface IManageSoftwarePageProps {
     query: { vulnerable?: boolean };
     search: string;
   };
+}
+interface IHeaderButtonsState extends ITeamsDropdownState {
+  isLoading: boolean;
 }
 const DEFAULT_SORT_DIRECTION = "desc";
 const DEFAULT_SORT_HEADER = "hosts_count";
@@ -262,12 +264,12 @@ const ManageSoftwarePage = ({
   };
 
   const renderHeaderButtons = (
-    state: ITeamsDropdownState
+    state: IHeaderButtonsState
   ): JSX.Element | null => {
     if (
-      canAddOrRemoveSoftwareWebhook &&
-      (!isPremiumTier || state.teamId === 0) &&
-      !isLoadingSoftwareVulnerabilitiesWebhook
+      (state.isGlobalAdmin || state.isGlobalMaintainer) &&
+      (!state.isPremiumTier || state.teamId === 0) &&
+      !state.isLoading
     ) {
       return (
         <Button
@@ -286,8 +288,8 @@ const ManageSoftwarePage = ({
     return (
       <p>
         Search for installed software{" "}
-        {canAddOrRemoveSoftwareWebhook &&
-          (!isPremiumTier || state.teamId === 0) &&
+        {(state.isGlobalAdmin || state.isGlobalMaintainer) &&
+          (!state.isPremiumTier || state.teamId === 0) &&
           "and manage automations for detected vulnerabilities (CVEs)"}{" "}
         on{" "}
         <b>
@@ -309,7 +311,12 @@ const ManageSoftwarePage = ({
         onChange={onTeamSelect}
         defaultTitle="Software"
         description={renderHeaderDescription}
-        buttons={renderHeaderButtons}
+        buttons={(state) =>
+          renderHeaderButtons({
+            ...state,
+            isLoading: isLoadingSoftwareVulnerabilitiesWebhook,
+          })
+        }
       />
     );
   }, [router, location, isLoadingSoftwareVulnerabilitiesWebhook]);
