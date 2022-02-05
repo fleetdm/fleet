@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Link } from "react-router";
 
 import paths from "router/paths";
@@ -20,7 +20,7 @@ interface IInfoCardProps {
         text: string;
         onClick?: () => void;
       };
-  total_host_count?: string;
+  total_host_count?: string | (() => string | undefined);
   showTitle?: boolean;
 }
 

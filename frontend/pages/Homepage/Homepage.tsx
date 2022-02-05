@@ -63,9 +63,6 @@ const Homepage = (): JSX.Element => {
   const [showMunkiUI, setShowMunkiUI] = useState<boolean>(false);
   const [showMDMUI, setShowMDMUI] = useState<boolean>(false);
   const [showHostsUI, setShowHostsUI] = useState<boolean>(false); // Hides UI on first load only
-  const [isLoadingHostsSummary, setIsLoadingHostsSummary] = useState<boolean>(
-    true
-  ); // Opaque UI on subsequent loads
 
   const { data: teams } = useQuery<ITeamsResponse, Error, ITeam[]>(
     ["teams"],
@@ -82,16 +79,15 @@ const Homepage = (): JSX.Element => {
     }
   );
 
-  useQuery<IHostSummary, Error, IHostSummary>(
-    ["host summary", currentTeam],
-    () => {
-      setIsLoadingHostsSummary(true);
-      return hostSummaryAPI.getSummary(currentTeam?.id);
-    },
+  const { data: hostSummaryData, isFetching: isHostSummaryFetching } = useQuery<IHostSummary, Error, IHostSummary>(
+    ["host summary", currentTeam, selectedPlatform],
+    () => hostSummaryAPI.getSummary({
+      teamId: currentTeam?.id,
+      platform: selectedPlatform,
+    }),
     {
       select: (data: IHostSummary) => data,
       onSuccess: (data: any) => {
-        setTotalCount(data.totals_hosts_count.toLocaleString("en-US"));
         setOnlineCount(data.online_count.toLocaleString("en-US"));
         setOfflineCount(data.offline_count.toLocaleString("en-US"));
         setNewCount(data.new_count.toLocaleString("en-US"));
@@ -103,7 +99,6 @@ const Homepage = (): JSX.Element => {
           (platform: IHostSummaryPlatforms) => platform.platform === "windows"
         ) || { platform: "windows", hosts_count: 0 };
         setWindowsCount(windowsHosts.hosts_count.toLocaleString("en-US"));
-        setIsLoadingHostsSummary(false);
         setShowHostsUI(true);
       },
     }
@@ -123,16 +118,27 @@ const Homepage = (): JSX.Element => {
         TAGGED_TEMPLATES.hostsByTeamRoute(currentTeam?.id),
       text: "View all hosts",
     },
-    total_host_count: !isLoadingHostsSummary ? totalCount : undefined,
+    total_host_count: (() => {
+      if (!isHostSummaryFetching) {
+        if (totalCount) {
+          return totalCount;
+        }
+        
+        return hostSummaryData?.totals_hosts_count.toLocaleString("en-US") || undefined;
+      }
+      
+      return undefined;
+    })(),
     showTitle: true,
     children: 
       <HostsSummary
         currentTeamId={currentTeam?.id}
         macCount={macCount}
         windowsCount={windowsCount}
-        setIsLoadingHostsSummary={setIsLoadingHostsSummary}
-        isLoadingHostsSummary={isLoadingHostsSummary}
+        isLoadingHostsSummary={isHostSummaryFetching}
         showHostsUI={showHostsUI}
+        selectedPlatform={selectedPlatform}
+        setTotalCount={setTotalCount}
       />,
   });
 
@@ -143,7 +149,7 @@ const Homepage = (): JSX.Element => {
         onlineCount={onlineCount}
         offlineCount={offlineCount}
         newCount={newCount}
-        isLoadingHosts={isLoadingHostsSummary}
+        isLoadingHosts={isHostSummaryFetching}
         showHostsUI={showHostsUI}
       />,
   });
@@ -278,7 +284,7 @@ const Homepage = (): JSX.Element => {
         </div>
         <div className="host-sections">
           <>
-            {isLoadingHostsSummary && (
+            {isHostSummaryFetching && (
               <div className="spinner">
                 <Spinner />
               </div>

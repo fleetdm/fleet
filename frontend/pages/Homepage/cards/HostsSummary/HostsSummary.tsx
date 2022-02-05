@@ -15,9 +15,10 @@ interface IHostSummaryProps {
   currentTeamId: number | undefined;
   macCount: string | undefined;
   windowsCount: string | undefined;
-  setIsLoadingHostsSummary: (isLoadingHostSummary: boolean) => void;
   isLoadingHostsSummary: boolean;
   showHostsUI: boolean;
+  selectedPlatform: string;
+  setTotalCount: (count: string | undefined) => void;
 }
 
 interface ILabelsResponse {
@@ -32,9 +33,10 @@ const HostsSummary = ({
   currentTeamId,
   macCount,
   windowsCount,
-  setIsLoadingHostsSummary,
   isLoadingHostsSummary,
   showHostsUI,
+  selectedPlatform,
+  setTotalCount,
 }: IHostSummaryProps): JSX.Element => {
   const [linuxCount, setLinuxCount] = useState<string | undefined>();
 
@@ -45,20 +47,14 @@ const HostsSummary = ({
   };
   const { data: labels } = useQuery<ILabelsResponse, Error, ILabel[]>(
     ["labels"],
-    () => {
-      setIsLoadingHostsSummary(true);
-      return labelsAPI.loadAll();
-    },
+    () => labelsAPI.loadAll(),
     {
       select: (data: ILabelsResponse) => data.labels,
-      onSuccess: () => {
-        setIsLoadingHostsSummary(false);
-      },
     }
   );
 
   useQuery<IHostCountResponse, Error, number>(
-    ["linux host count", currentTeamId],
+    ["linux host count", currentTeamId, selectedPlatform],
     () => {
       const linuxLabel = getLabel("All Linux", labels || []);
       return (
@@ -71,7 +67,27 @@ const HostsSummary = ({
     {
       select: (data: IHostCountResponse) => data.count,
       enabled: !!labels,
-      onSuccess: (data: number) => setLinuxCount(data.toLocaleString("en-US")),
+      onSuccess: (data: number) => {
+        setLinuxCount(data.toLocaleString("en-US"));
+
+        // after we get the linux count, we can
+        // determine which count to use based on the platform
+        switch (selectedPlatform) {
+          case "darwin":
+            setTotalCount(macCount);
+            break;
+          case "windows":
+            setTotalCount(windowsCount);
+            break;
+          case "linux":
+            setTotalCount(data.toLocaleString("en-US"));
+            break;
+          default:
+            // will be set in the parent to the server's total
+            setTotalCount(undefined);
+            break;
+        }
+      },
     }
   );
 
@@ -81,39 +97,68 @@ const HostsSummary = ({
     opacity = isLoadingHostsSummary ? { opacity: 0.4 } : { opacity: 1 };
   }
 
+  const renderMacTile = () => (
+    <div className={`${baseClass}__tile mac-tile`}>
+      <div className={`${baseClass}__tile-icon`}>
+        <img src={MacIcon} alt="mac icon" id="mac-icon" />
+      </div>
+      <div>
+        <div className={`${baseClass}__tile-count mac-count`}>{macCount}</div>
+        <div className={`${baseClass}__tile-description`}>macOS hosts</div>
+      </div>
+    </div>
+  );
+
+  const renderWindowsTile = () => (
+    <div className={`${baseClass}__tile windows-tile`}>
+      <div className={`${baseClass}__tile-icon`}>
+        <img src={WindowsIcon} alt="windows icon" id="windows-icon" />
+      </div>
+      <div>
+        <div className={`${baseClass}__tile-count windows-count`}>
+          {windowsCount}
+        </div>
+        <div className={`${baseClass}__tile-description`}>Windows hosts</div>
+      </div>
+    </div>
+  );
+
+  const renderLinuxTile = () => (
+    <div className={`${baseClass}__tile linux-tile`}>
+      <div className={`${baseClass}__tile-icon`}>
+        <img src={LinuxIcon} alt="linux icon" id="linux-icon" />
+      </div>
+      <div>
+        <div className={`${baseClass}__tile-count linux-count`}>
+          {linuxCount}
+        </div>
+        <div className={`${baseClass}__tile-description`}>Linux hosts</div>
+      </div>
+    </div>
+  );
+
+  const renderTiles = () => {
+    switch (selectedPlatform) {
+      case "darwin":
+        return renderMacTile();
+      case "windows":
+        return renderWindowsTile();
+      case "linux":
+        return renderLinuxTile();
+      default:
+        return (
+          <>
+            {renderMacTile()}
+            {renderWindowsTile()}
+            {renderLinuxTile()}
+          </>
+        );
+    };
+  };
+
   return (
-    <div className={baseClass} style={opacity}>
-      <div className={`${baseClass}__tile mac-tile`}>
-        <div className={`${baseClass}__tile-icon`}>
-          <img src={MacIcon} alt="mac icon" id="mac-icon" />
-        </div>
-        <div>
-          <div className={`${baseClass}__tile-count mac-count`}>{macCount}</div>
-          <div className={`${baseClass}__tile-description`}>macOS hosts</div>
-        </div>
-      </div>
-      <div className={`${baseClass}__tile windows-tile`}>
-        <div className={`${baseClass}__tile-icon`}>
-          <img src={WindowsIcon} alt="windows icon" id="windows-icon" />
-        </div>
-        <div>
-          <div className={`${baseClass}__tile-count windows-count`}>
-            {windowsCount}
-          </div>
-          <div className={`${baseClass}__tile-description`}>Windows hosts</div>
-        </div>
-      </div>
-      <div className={`${baseClass}__tile linux-tile`}>
-        <div className={`${baseClass}__tile-icon`}>
-          <img src={LinuxIcon} alt="linux icon" id="linux-icon" />
-        </div>
-        <div>
-          <div className={`${baseClass}__tile-count linux-count`}>
-            {linuxCount}
-          </div>
-          <div className={`${baseClass}__tile-description`}>Linux hosts</div>
-        </div>
-      </div>
+    <div className={`${baseClass} ${!!selectedPlatform ? "single-platform" : ""}`} style={opacity}>
+      {renderTiles()}
     </div>
   );
 };

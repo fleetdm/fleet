@@ -98,7 +98,6 @@ const Munki = ({
       keepPreviousData: true,
       select: (data: IMacadminAggregate) => data.macadmins.munki_versions,
       onSuccess: (data) => {
-        console.log({data})
         setShowMunkiUI(true);
       },
     }

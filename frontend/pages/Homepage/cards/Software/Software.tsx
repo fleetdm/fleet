@@ -102,11 +102,10 @@ const Software = ({
   setActionLink,
   setTitleDetail,
 }: ISoftwareCardProps): JSX.Element => {
-  const [isLoadingSoftware, setIsLoadingSoftware] = useState<boolean>(true);
   const [navTabIndex, setNavTabIndex] = useState<number>(0);
   const [pageIndex, setPageIndex] = useState<number>(0);
 
-  const { data: software, error: errorSoftware } = useQuery<
+  const { data: software, isFetching: isSoftwareFetching,  error: errorSoftware } = useQuery<
     ISoftwareResponse,
     Error
   >(
@@ -115,43 +114,27 @@ const Software = ({
       {
         pageIndex,
         pageSize: PAGE_SIZE,
-        // searchQuery,
         sortDirection: DEFAULT_SORT_DIRECTION,
         sortHeader: DEFAULT_SORT_HEADER,
         teamId: currentTeamId,
         vulnerable: !!navTabIndex, // we can take the tab index as a boolean to represent the vulnerable flag :)
       },
     ],
-    () => {
-      setIsLoadingSoftware(true);
-      return softwareAPI.load({
-        page: pageIndex,
-        perPage: PAGE_SIZE,
-        // query: searchQuery,
-        // TODO confirm sort is working?
-        orderKey: DEFAULT_SORT_HEADER,
-        orderDir: DEFAULT_SORT_DIRECTION,
-        vulnerable: !!navTabIndex, // we can take the tab index as a boolean to represent the vulnerable flag :)
-        teamId: currentTeamId,
-      });
-    },
+    () => softwareAPI.load({
+      page: pageIndex,
+      perPage: PAGE_SIZE,
+      // TODO confirm sort is working?
+      orderKey: DEFAULT_SORT_HEADER,
+      orderDir: DEFAULT_SORT_DIRECTION,
+      vulnerable: !!navTabIndex, // we can take the tab index as a boolean to represent the vulnerable flag :)
+      teamId: currentTeamId,
+    }),
     {
-      // initialData: { software: [], counts_updated_at: "" },
-      // placeholderData: { software: [], counts_updated_at: "" },
-      // enabled: true,
-      // If keepPreviousData is enabled,
-      // useQuery no longer returns isLoading when making new calls after load
-      // So we manage our own load states
       keepPreviousData: true,
-      staleTime: 30000, // TODO: Discuss a reasonable staleTime given that counts are only updated infrequently?
       onSuccess: (data) => {
         setShowSoftwareUI(true);
-        setIsLoadingSoftware(false);
         setTitleDetail &&
           setTitleDetail(renderLastUpdatedAt(data.counts_updated_at));
-      },
-      onError: () => {
-        setIsLoadingSoftware(false);
       },
     }
   );
@@ -196,16 +179,15 @@ const Software = ({
             </TabList>
             <p>something</p>
             <TabPanel>
-              {!isLoadingSoftware && errorSoftware ? (
+              {!isSoftwareFetching && errorSoftware ? (
                 <TableDataError />
               ) : (
                 <TableContainer
                   columns={tableHeaders}
                   data={software?.software || []}
-                  isLoading={isLoadingSoftware}
+                  isLoading={isSoftwareFetching}
                   defaultSortHeader={DEFAULT_SORT_HEADER}
                   defaultSortDirection={DEFAULT_SORT_DIRECTION}
-                  // manualSortBy
                   hideActionButton
                   resultsTitle={"software"}
                   emptyComponent={EmptySoftware}
@@ -215,7 +197,6 @@ const Software = ({
                   disableActionButton
                   pageSize={PAGE_SIZE}
                   onQueryChange={onQueryChange}
-                  // additionalQueries={navTabIndex ? "vulnerable" : ""}
                 />
               )}
             </TabPanel>
@@ -223,10 +204,9 @@ const Software = ({
               <TableContainer
                 columns={tableHeaders}
                 data={software?.software || []}
-                isLoading={isLoadingSoftware}
+                isLoading={isSoftwareFetching}
                 defaultSortHeader={DEFAULT_SORT_HEADER}
                 defaultSortDirection={DEFAULT_SORT_DIRECTION}
-                // manualSortBy
                 hideActionButton
                 resultsTitle={"software"}
                 emptyComponent={() => EmptySoftware("vulnerable")}
@@ -236,7 +216,6 @@ const Software = ({
                 disableActionButton
                 pageSize={PAGE_SIZE}
                 onQueryChange={onQueryChange}
-                // additionalQueries={navTabIndex ? "vulnerable" : ""}
               />
             </TabPanel>
           </Tabs>

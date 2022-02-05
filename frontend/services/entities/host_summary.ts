@@ -2,10 +2,30 @@
 import sendRequest from "services";
 import endpoints from "fleet/endpoints";
 
-export default {
-  getSummary: (teamId: number | undefined) => {
-    const { HOST_SUMMARY } = endpoints;
+interface ISummaryProps {
+  teamId?: number;
+  platform?: string;
+}
 
-    return sendRequest("GET", HOST_SUMMARY(teamId));
+export default {
+  getSummary: ({
+    teamId,
+    platform,
+  }: ISummaryProps) => {
+    const { HOST_SUMMARY } = endpoints;
+    let queryString = "";
+
+    if (teamId) {
+      queryString += `&team_id=${teamId}`;
+    }
+
+    // platform can be empty string
+    if (!!platform) {
+      queryString += `&platform=${platform}`;
+    }
+
+    // Append query string to endpoint route after slicing off the leading ampersand
+    const path = `${HOST_SUMMARY}${queryString && `?${queryString.slice(1)}`}`;
+    return sendRequest("GET", path);
   },
 };
