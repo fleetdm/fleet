@@ -199,8 +199,12 @@ describe("Premium tier - Observer user", () => {
             .first()
             .within(() => {
               cy.contains(".fleet-checkbox__input").should("not.exist");
-              cy.findByText(/filevault enabled/i).click();
             });
+        });
+        cy.getAttached(".data-table__table").within(() => {
+          cy.findByRole("button", {
+            name: /filevault enabled/i,
+          }).click();
         });
         cy.getAttached(".policy-form__wrapper").within(() => {
           cy.findByRole("button", { name: /run/i }).should("not.exist");

@@ -259,6 +259,16 @@ func (svc *Service) DeleteTeam(ctx context.Context, teamID uint) error {
 	)
 }
 
+func (svc *Service) GetTeam(ctx context.Context, teamID uint) (*fleet.Team, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Team{ID: teamID}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	logging.WithExtras(ctx, "id", teamID)
+
+	return svc.ds.Team(ctx, teamID)
+}
+
 func (svc *Service) TeamEnrollSecrets(ctx context.Context, teamID uint) ([]*fleet.EnrollSecret, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Team{ID: teamID}, fleet.ActionRead); err != nil {
 		return nil, err

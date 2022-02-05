@@ -71,7 +71,7 @@ const ManagePacksPage = ({ router }: IManagePacksPageProps): JSX.Element => {
   const {
     data: packs,
     error: packsError,
-    isLoading: isLoadingPacks,
+    isFetching: isLoadingPacks,
     refetch: refetchPacks,
   } = useQuery<IPacksResponse, IError, IPack[]>(
     "packs",
@@ -97,8 +97,7 @@ const ManagePacksPage = ({ router }: IManagePacksPageProps): JSX.Element => {
     const packOrPacks = selectedPackIds.length === 1 ? "pack" : "packs";
 
     const promises = selectedPackIds.map((id: number) => {
-      packsAPI.destroy(id);
-      return null;
+      return packsAPI.destroy(id);
     });
 
     return Promise.all(promises)
@@ -127,8 +126,7 @@ const ManagePacksPage = ({ router }: IManagePacksPageProps): JSX.Element => {
       const enableOrDisable = disablePack ? "disabled" : "enabled";
 
       const promises = selectedTablePackIds.map((id: number) => {
-        packsAPI.update(id, { disabled: disablePack });
-        return null;
+        return packsAPI.update(id, { disabled: disablePack });
       });
 
       return Promise.all(promises)
