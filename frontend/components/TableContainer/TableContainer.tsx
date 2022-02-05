@@ -72,6 +72,10 @@ interface ITableContainerProps {
   filters?: Record<string, string | number | boolean>;
   renderCount?: () => JSX.Element | null;
   renderFooter?: () => JSX.Element | null;
+  isLastPage?: boolean; // isLastPage is a temporary workaround for the case
+  // where the number of items on the last page is equal to the page size.
+  // The old page controls for server-side pagination render a no results screen
+  // with a back button. This fix instead disables the next button in that case.
 }
 
 const baseClass = "table-container";
@@ -125,6 +129,7 @@ const TableContainer = ({
   onSelectSingleRow,
   renderCount,
   renderFooter,
+  isLastPage,
 }: ITableContainerProps): JSX.Element => {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortHeader, setSortHeader] = useState(defaultSortHeader || "");
@@ -159,10 +164,13 @@ const TableContainer = ({
   };
 
   const hasPageIndexChangedRef = useRef(false);
-  const onPaginationChange = (newPage: number) => {
-    setPageIndex(newPage);
-    hasPageIndexChangedRef.current = true;
-  };
+  const onPaginationChange = useCallback(
+    (newPage: number) => {
+      setPageIndex(newPage);
+      hasPageIndexChangedRef.current = true;
+    },
+    [hasPageIndexChangedRef]
+  );
 
   const onResultsCountChange = (resultsCount: number) => {
     setClientFilterCount(resultsCount);
@@ -217,12 +225,14 @@ const TableContainer = ({
         currentPage={pageIndex}
         resultsPerPage={pageSize}
         onPaginationChange={onPaginationChange}
+        isLastPage={isLastPage}
       />
     );
   }, [
+    data,
     disablePagination,
     isClientSidePagination,
-    data,
+    isLastPage,
     pageIndex,
     pageSize,
     onPaginationChange,
