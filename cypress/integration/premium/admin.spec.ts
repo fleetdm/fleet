@@ -120,14 +120,17 @@ describe("Premium tier - Admin user", () => {
     });
     describe("Manage software page", () => {
       beforeEach(() => cy.visit("/software/manage"));
-      it("displays manage automations button when all teams selected", () => {
+      it("allows global admin to click 'Manage automations' button", () => {
         cy.getAttached(".manage-software-page__header-wrap").within(() => {
           cy.getAttached(".Select").within(() => {
             cy.findByText(/all teams/i).should("exist");
           });
-          cy.findByRole("button", { name: /manage automations/i }).should(
-            "exist"
-          );
+          cy.findByRole("button", { name: /manage automations/i }).click();
+        });
+        cy.getAttached(".manage-automations-modal__button-wrap").within(() => {
+          cy.findByRole("button", {
+            name: /cancel/i,
+          }).click();
         });
       });
       it("hides manage automations button when all teams not selected", () => {

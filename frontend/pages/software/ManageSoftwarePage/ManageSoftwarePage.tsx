@@ -1,12 +1,20 @@
 import React, { useCallback, useContext, useEffect, useState } from "react";
 import { useQuery } from "react-query";
+import { useDispatch } from "react-redux";
 import { InjectedRouter } from "react-router/lib/Router";
 import ReactTooltip from "react-tooltip";
 import { useDebouncedCallback } from "use-debounce/lib";
 import formatDistanceToNowStrict from "date-fns/formatDistanceToNowStrict";
 
 import { AppContext } from "context/app";
+import { IConfig, IConfigNested } from "interfaces/config";
+import { IWebhookSoftwareVulnerabilities } from "interfaces/webhook";
+// @ts-ignore
+import { getConfig } from "redux/nodes/app/actions";
+// @ts-ignore
+import { renderFlash } from "redux/nodes/notifications/actions";
 import configAPI from "services/entities/config";
+import usersAPI, { IGetMeResponse } from "services/entities/users";
 import softwareAPI, {
   ISoftwareResponse,
   ISoftwareCountResponse,
@@ -31,6 +39,7 @@ import ExternalLinkIcon from "../../../../assets/images/open-new-tab-12x12@2x.pn
 import QuestionIcon from "../../../../assets/images/icon-question-16x16@2x.png";
 
 import softwareTableHeaders from "./SoftwareTableConfig";
+import ManageAutomationsModal from "./components/ManageAutomationsModal";
 import EmptySoftware from "../components/EmptySoftware";
 
 interface IManageSoftwarePageProps {
@@ -51,7 +60,17 @@ const ManageSoftwarePage = ({
   router,
   location,
 }: IManageSoftwarePageProps): JSX.Element => {
-  const { availableTeams, currentTeam } = useContext(AppContext);
+  const dispatch = useDispatch();
+  const {
+    availableTeams,
+    currentTeam,
+    setAvailableTeams,
+    setCurrentUser,
+    setConfig,
+    isPremiumTier,
+    isGlobalAdmin,
+    isGlobalMaintainer,
+  } = useContext(AppContext);
 
   const [isSoftwareEnabled, setIsSoftwareEnabled] = useState<boolean>();
   const [filterVuln, setFilterVuln] = useState(
@@ -63,6 +82,10 @@ const ManageSoftwarePage = ({
   >(DEFAULT_SORT_DIRECTION);
   const [sortHeader, setSortHeader] = useState(DEFAULT_SORT_HEADER);
   const [pageIndex, setPageIndex] = useState(0);
+  const [showManageAutomationsModal, setShowManageAutomationsModal] = useState(
+    false
+  );
+  const [showPreviewPayloadModal, setShowPreviewPayloadModal] = useState(false);
 
   // TODO: experiment to see if we need this state and effect or can we rely solely on the router/location for the dropdown state?
   useEffect(() => {
@@ -147,6 +170,22 @@ const ManageSoftwarePage = ({
     }
   );
 
+  const canAddOrRemoveSoftwareWebhook = isGlobalAdmin || isGlobalMaintainer;
+
+  const {
+    data: softwareVulnerabilitiesWebhook,
+    isLoading: isLoadingSoftwareVulnerabilitiesWebhook,
+    refetch: refetchSoftwareVulnerabilitiesWebhook,
+  } = useQuery<IConfigNested, Error, IWebhookSoftwareVulnerabilities>(
+    ["config"],
+    () => configAPI.loadAll(),
+    {
+      enabled: canAddOrRemoveSoftwareWebhook,
+      select: (data: IConfigNested) =>
+        data.webhook_settings.vulnerabilities_webhook,
+    }
+  );
+
   const onQueryChange = useDebouncedCallback(
     async ({
       pageIndex: newPageIndex,
@@ -167,6 +206,57 @@ const ManageSoftwarePage = ({
     300
   );
 
+  const toggleManageAutomationsModal = () =>
+    setShowManageAutomationsModal(!showManageAutomationsModal);
+
+  const togglePreviewPayloadModal = useCallback(() => {
+    setShowPreviewPayloadModal(!showPreviewPayloadModal);
+  }, [setShowPreviewPayloadModal, showPreviewPayloadModal]);
+
+  const onManageAutomationsClick = () => {
+    toggleManageAutomationsModal();
+  };
+
+  const onCreateWebhookSubmit = async ({
+    destination_url,
+    enable_vulnerabilities_webhook,
+  }: IWebhookSoftwareVulnerabilities) => {
+    try {
+      const request = configAPI.update({
+        webhook_settings: {
+          vulnerabilities_webhook: {
+            destination_url,
+            enable_vulnerabilities_webhook,
+          },
+        },
+      });
+      await request.then(() => {
+        dispatch(
+          renderFlash(
+            "success",
+            "Successfully updated vulnerability automations."
+          )
+        );
+      });
+    } catch {
+      dispatch(
+        renderFlash(
+          "error",
+          "Could not update vulnerability automations. Please try again."
+        )
+      );
+    } finally {
+      toggleManageAutomationsModal();
+      refetchSoftwareVulnerabilitiesWebhook();
+      // Config must be updated in both Redux and AppContext
+      dispatch(getConfig())
+        .then((configState: IConfig) => {
+          setConfig(configState);
+        })
+        .catch(() => false);
+    }
+  };
+
   const onTeamSelect = () => {
     setPageIndex(0);
   };
@@ -175,12 +265,13 @@ const ManageSoftwarePage = ({
     state: ITeamsDropdownState
   ): JSX.Element | null => {
     if (
-      (state.isGlobalAdmin || state.isGlobalMaintainer) &&
-      state.teamId === 0
+      canAddOrRemoveSoftwareWebhook &&
+      (!isPremiumTier || state.teamId === 0) &&
+      !isLoadingSoftwareVulnerabilitiesWebhook
     ) {
       return (
         <Button
-          onClick={() => console.log("Manage automations button click")}
+          onClick={onManageAutomationsClick}
           className={`${baseClass}__manage-automations button`}
           variant="brand"
         >
@@ -194,8 +285,11 @@ const ManageSoftwarePage = ({
   const renderHeaderDescription = (state: ITeamsDropdownState) => {
     return (
       <p>
-        Search for installed software and manage automations for detected
-        vulnerabilities (CVEs) on{" "}
+        Search for installed software{" "}
+        {canAddOrRemoveSoftwareWebhook &&
+          (!isPremiumTier || state.teamId === 0) &&
+          "and manage automations for detected vulnerabilities (CVEs)"}{" "}
+        on{" "}
         <b>
           {state.isPremiumTier && !!state.teamId
             ? "all hosts assigned to this team"
@@ -218,7 +312,7 @@ const ManageSoftwarePage = ({
         buttons={renderHeaderButtons}
       />
     );
-  }, [router, location]);
+  }, [router, location, isLoadingSoftwareVulnerabilitiesWebhook]);
 
   const renderSoftwareCount = useCallback(() => {
     const count = softwareCount;
@@ -402,6 +496,24 @@ const ManageSoftwarePage = ({
             disableActionButton
             hideActionButton
             highlightOnHover
+          />
+        )}
+
+        {showManageAutomationsModal && (
+          <ManageAutomationsModal
+            onCancel={toggleManageAutomationsModal}
+            onCreateWebhookSubmit={onCreateWebhookSubmit}
+            togglePreviewPayloadModal={togglePreviewPayloadModal}
+            showPreviewPayloadModal={showPreviewPayloadModal}
+            softwareVulnerabilityWebhookEnabled={
+              softwareVulnerabilitiesWebhook &&
+              softwareVulnerabilitiesWebhook.enable_vulnerabilities_webhook
+            }
+            currentDestinationUrl={
+              (softwareVulnerabilitiesWebhook &&
+                softwareVulnerabilitiesWebhook.destination_url) ||
+              ""
+            }
           />
         )}
       </div>

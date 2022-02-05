@@ -1,6 +1,10 @@
 /* Config interface is a flattened version of the fleet/config API response */
 
-import { IWebhookFailingPolicies } from "interfaces/webhook";
+import {
+  IWebhookHostStatus,
+  IWebhookFailingPolicies,
+  IWebhookSoftwareVulnerabilities,
+} from "interfaces/webhook";
 import PropTypes from "prop-types";
 
 export default PropTypes.shape({
@@ -239,13 +243,9 @@ export interface IConfigNested {
   //   databases_path: string;
   // };
   webhook_settings: {
-    host_status_webhook: {
-      enable_host_status_webhook: boolean;
-      destination_url: string;
-      host_percentage: number;
-      days_count: number;
-    };
+    host_status_webhook: IWebhookHostStatus;
     failing_policies_webhook: IWebhookFailingPolicies;
+    vulnerabilities_webhook: IWebhookSoftwareVulnerabilities;
   };
   logging: {
     debug: boolean;
