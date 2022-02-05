@@ -57,7 +57,6 @@ import { IActionButtonProps } from "components/TableContainer/DataTable/ActionBu
 import TeamsDropdown from "components/TeamsDropdown";
 import Spinner from "components/Spinner";
 
-// TODO: Open new ticket to phase out this helper in favor of using `availableTeams` context
 import { getValidatedTeamId } from "fleet/helpers";
 import {
   defaultHiddenColumns,
@@ -151,8 +150,6 @@ const ManageHostsPage = ({
     setCurrentUser,
   } = useContext(AppContext);
 
-  // TODO: Revisit when AppContext is refactored to no longer rely on redux for initial state
-  // Look for ways to utilize react-query cache and stale time for /me endpoint
   useQuery(["me"], () => usersAPI.me(), {
     onSuccess: ({ user, available_teams }: IGetMeResponse) => {
       setCurrentUser(user);
@@ -490,13 +487,8 @@ const ManageHostsPage = ({
 
   let teamSync = false;
   if (currentUser && availableTeams) {
-    // team_id starts as a string and needs to be parsed. If the user provides a non-numeric
-    // string, it will parse as NaN. However, we need to handle if team_id is undefined (which is
-    // would be the case for the root path to all teams) because undefined also parses to NaN.
-    // We want to be able to check that teamIdParam equals undefined in the `else if` below because
-    // that will correspond to the undefined state `currentTeam`, which represents the root path.
     const teamIdParam = queryParams.team_id
-      ? parseInt(queryParams.team_id, 10)
+      ? parseInt(queryParams.team_id, 10) // we don't want to parse undefined so we can differntiate non-numeric strings as NaN
       : undefined;
     if (currentTeam?.id && !teamIdParam) {
       teamSync = true;
@@ -505,7 +497,6 @@ const ManageHostsPage = ({
     }
   }
 
-  // TODO: Exit early if !availableTeams?
   useEffect(() => {
     const teamId = parseInt(queryParams?.team_id, 10) || 0;
     const selectedTeam = find(availableTeams, ["id", teamId]);
@@ -623,23 +614,6 @@ const ManageHostsPage = ({
   };
 
   const handleClearSoftwareFilter = () => {
-    // TODO: In current UX, clearing the software filter resets all URL params.
-    // The code below can be reimplemented if other URL params are to be preserved.
-    // router.replace(
-    //   getNextLocationPath({
-    //     pathPrefix: PATHS.MANAGE_HOSTS,
-    //     routeTemplate,
-    //     routeParams,
-    //     queryParams: omit(queryParams, ["software_id"]),
-    //   })
-    // );
-    // TODO: If we work with directly with the location descriptor object from react-router,
-    // it is easy to just strip out the software_id and keep the rest of the path and query params.
-    // For example:
-    // router.replace({
-    //   pathname: location.pathname,
-    //   query: omit(queryParams, "software_id"),
-    // });
     router.replace(PATHS.MANAGE_HOSTS);
     setCurrentTeam(undefined);
     setSoftwareDetails(null);
