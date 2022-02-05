@@ -225,7 +225,7 @@ const TableContainer = ({
         currentPage={pageIndex}
         resultsPerPage={pageSize}
         onPaginationChange={onPaginationChange}
-        isLastPage={disableNextPage}
+        disableNextPage={disableNextPage}
       />
     );
   }, [

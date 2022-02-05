@@ -12,7 +12,7 @@ class Pagination extends PureComponent {
     resultsPerPage: PropTypes.number,
     onPaginationChange: PropTypes.func,
     resultsOnCurrentPage: PropTypes.number,
-    isLastPage: PropTypes.bool,
+    disableNextPage: PropTypes.bool,
   };
 
   disablePrev = () => {
@@ -25,7 +25,7 @@ class Pagination extends PureComponent {
     return (
       this.props.resultsOnCurrentPage === undefined ||
       this.props.resultsOnCurrentPage < this.props.resultsPerPage ||
-      this.props.isLastPage
+      this.props.disableNextPage
     );
   };
 
