@@ -490,7 +490,7 @@ const ManageSoftwarePage = ({
             pageSize={PAGE_SIZE}
             showMarkAllPages={false}
             isAllPagesSelected={false}
-            isLastPage={isLastPage}
+            disableNextPage={isLastPage}
             searchable
             inputPlaceHolder="Search software by name or vulnerabilities (CVEs)"
             onQueryChange={onQueryChange}
