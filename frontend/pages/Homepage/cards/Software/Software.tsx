@@ -105,10 +105,11 @@ const Software = ({
   const [navTabIndex, setNavTabIndex] = useState<number>(0);
   const [pageIndex, setPageIndex] = useState<number>(0);
 
-  const { data: software, isFetching: isSoftwareFetching,  error: errorSoftware } = useQuery<
-    ISoftwareResponse,
-    Error
-  >(
+  const {
+    data: software,
+    isFetching: isSoftwareFetching,
+    error: errorSoftware,
+  } = useQuery<ISoftwareResponse, Error>(
     [
       "software",
       {
@@ -120,15 +121,16 @@ const Software = ({
         vulnerable: !!navTabIndex, // we can take the tab index as a boolean to represent the vulnerable flag :)
       },
     ],
-    () => softwareAPI.load({
-      page: pageIndex,
-      perPage: PAGE_SIZE,
-      // TODO confirm sort is working?
-      orderKey: DEFAULT_SORT_HEADER,
-      orderDir: DEFAULT_SORT_DIRECTION,
-      vulnerable: !!navTabIndex, // we can take the tab index as a boolean to represent the vulnerable flag :)
-      teamId: currentTeamId,
-    }),
+    () =>
+      softwareAPI.load({
+        page: pageIndex,
+        perPage: PAGE_SIZE,
+        // TODO confirm sort is working?
+        orderKey: DEFAULT_SORT_HEADER,
+        orderDir: DEFAULT_SORT_DIRECTION,
+        vulnerable: !!navTabIndex, // we can take the tab index as a boolean to represent the vulnerable flag :)
+        teamId: currentTeamId,
+      }),
     {
       keepPreviousData: true,
       onSuccess: (data) => {

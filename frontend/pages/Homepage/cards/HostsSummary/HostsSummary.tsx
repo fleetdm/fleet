@@ -153,11 +153,14 @@ const HostsSummary = ({
             {renderLinuxTile()}
           </>
         );
-    };
+    }
   };
 
   return (
-    <div className={`${baseClass} ${!!selectedPlatform ? "single-platform" : ""}`} style={opacity}>
+    <div
+      className={`${baseClass} ${selectedPlatform ? "single-platform" : ""}`}
+      style={opacity}
+    >
       {renderTiles()}
     </div>
   );

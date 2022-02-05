@@ -1,4 +1,3 @@
-
 export interface IDataTableMDMFormat {
   status: string;
   hosts: number;
@@ -19,5 +18,5 @@ export interface IMacadminAggregate {
   macadmins: {
     munki_versions: IMunkiAggregate[];
     mobile_device_management_enrollment_status: IMDMAggregateStatus;
-  }
+  };
 }

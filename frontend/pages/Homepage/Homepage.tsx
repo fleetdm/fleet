@@ -79,12 +79,17 @@ const Homepage = (): JSX.Element => {
     }
   );
 
-  const { data: hostSummaryData, isFetching: isHostSummaryFetching } = useQuery<IHostSummary, Error, IHostSummary>(
+  const { data: hostSummaryData, isFetching: isHostSummaryFetching } = useQuery<
+    IHostSummary,
+    Error,
+    IHostSummary
+  >(
     ["host summary", currentTeam, selectedPlatform],
-    () => hostSummaryAPI.getSummary({
-      teamId: currentTeam?.id,
-      platform: selectedPlatform,
-    }),
+    () =>
+      hostSummaryAPI.getSummary({
+        teamId: currentTeam?.id,
+        platform: selectedPlatform,
+      }),
     {
       select: (data: IHostSummary) => data,
       onSuccess: (data: any) => {
@@ -113,9 +118,7 @@ const Homepage = (): JSX.Element => {
     title: "Hosts",
     action: {
       type: "link",
-      to:
-        MANAGE_HOSTS +
-        TAGGED_TEMPLATES.hostsByTeamRoute(currentTeam?.id),
+      to: MANAGE_HOSTS + TAGGED_TEMPLATES.hostsByTeamRoute(currentTeam?.id),
       text: "View all hosts",
     },
     total_host_count: (() => {
@@ -123,14 +126,17 @@ const Homepage = (): JSX.Element => {
         if (totalCount) {
           return totalCount;
         }
-        
-        return hostSummaryData?.totals_hosts_count.toLocaleString("en-US") || undefined;
+
+        return (
+          hostSummaryData?.totals_hosts_count.toLocaleString("en-US") ||
+          undefined
+        );
       }
-      
+
       return undefined;
     })(),
     showTitle: true,
-    children: 
+    children: (
       <HostsSummary
         currentTeamId={currentTeam?.id}
         macCount={macCount}
@@ -139,19 +145,21 @@ const Homepage = (): JSX.Element => {
         showHostsUI={showHostsUI}
         selectedPlatform={selectedPlatform}
         setTotalCount={setTotalCount}
-      />,
+      />
+    ),
   });
 
   const HostsStatusCard = useInfoCard({
     title: "",
-    children: 
+    children: (
       <HostsStatus
         onlineCount={onlineCount}
         offlineCount={offlineCount}
         newCount={newCount}
         isLoadingHosts={isHostSummaryFetching}
         showHostsUI={showHostsUI}
-      />,
+      />
+    ),
   });
 
   const WelcomeHostCard = useInfoCard({
@@ -163,16 +171,15 @@ const Homepage = (): JSX.Element => {
     title: "Learn how to use Fleet",
     children: <LearnFleet />,
   });
-  
+
   const ActivityFeedCard = useInfoCard({
     title: "Activity",
     showTitle: showActivityFeedTitle,
-    children:
-      <ActivityFeed
-        setShowActivityFeedTitle={setShowActivityFeedTitle}
-      />,
+    children: (
+      <ActivityFeed setShowActivityFeedTitle={setShowActivityFeedTitle} />
+    ),
   });
-  
+
   const SoftwareCard = useInfoCard({
     title: "Software",
     action: {
@@ -181,32 +188,27 @@ const Homepage = (): JSX.Element => {
       to: "software",
     },
     showTitle: showSoftwareUI,
-    children:
+    children: (
       <Software
         currentTeamId={currentTeam?.id}
         setShowSoftwareUI={setShowSoftwareUI}
         showSoftwareUI={showSoftwareUI}
-      />,
+      />
+    ),
   });
 
   const MunkiCard = useInfoCard({
     title: "Munki versions",
     showTitle: showMunkiUI,
-    children: 
-      <Munki
-        setShowMunkiUI={setShowMunkiUI}
-        showMunkiUI={showMunkiUI}
-      />,
+    children: (
+      <Munki setShowMunkiUI={setShowMunkiUI} showMunkiUI={showMunkiUI} />
+    ),
   });
 
   const MDMCard = useInfoCard({
     title: "Mobile device management (MDM) enrollment",
     showTitle: showMDMUI,
-    children: 
-      <MDM
-        setShowMDMUI={setShowMDMUI}
-        showMDMUI={showMDMUI}
-      />,
+    children: <MDM setShowMDMUI={setShowMDMUI} showMDMUI={showMDMUI} />,
   });
 
   const allLayout = () => (
@@ -289,12 +291,8 @@ const Homepage = (): JSX.Element => {
                 <Spinner />
               </div>
             )}
-            <div className={`${baseClass}__section`}>
-              {HostsSummaryCard}
-            </div>
-            <div className={`${baseClass}__section`}>
-              {HostsStatusCard}
-            </div>
+            <div className={`${baseClass}__section`}>{HostsSummaryCard}</div>
+            <div className={`${baseClass}__section`}>{HostsStatusCard}</div>
           </>
         </div>
         {renderCards()}

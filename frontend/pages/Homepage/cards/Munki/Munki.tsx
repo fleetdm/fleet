@@ -4,14 +4,13 @@ import ReactTooltip from "react-tooltip";
 import formatDistanceToNowStrict from "date-fns/formatDistanceToNowStrict";
 
 import macadminsAPI from "services/entities/macadmins";
+import { IMacadminAggregate, IMunkiAggregate } from "interfaces/macadmins";
 
 import TableContainer from "components/TableContainer";
 // @ts-ignore
 import Spinner from "components/Spinner";
-
 import generateTableHeaders from "./MunkiTableConfig";
 import QuestionIcon from "../../../../../assets/images/icon-question-16x16@2x.png";
-import { IMacadminAggregate, IMunkiAggregate } from "interfaces/macadmins";
 
 interface IMunkiCardProps {
   setShowMunkiUI: (showMunkiTitle: boolean) => void;
@@ -25,9 +24,7 @@ const baseClass = "home-munki";
 
 const EmptyMunki = (): JSX.Element => (
   <div className={`${baseClass}__empty-munki`}>
-    <h1>
-      Unable to detect Munki versions. 
-    </h1>
+    <h1>Unable to detect Munki versions.</h1>
     <p>
       To see Munki versions, deploy&nbsp;
       <a
@@ -91,17 +88,13 @@ const Munki = ({
     IMacadminAggregate,
     Error,
     IMunkiAggregate[]
-  >(
-    ["munki"],
-    () => macadminsAPI.loadAll(),
-    {
-      keepPreviousData: true,
-      select: (data: IMacadminAggregate) => data.macadmins.munki_versions,
-      onSuccess: (data) => {
-        setShowMunkiUI(true);
-      },
-    }
-  );
+  >(["munki"], () => macadminsAPI.loadAll(), {
+    keepPreviousData: true,
+    select: (data: IMacadminAggregate) => data.macadmins.munki_versions,
+    onSuccess: (data) => {
+      setShowMunkiUI(true);
+    },
+  });
 
   const tableHeaders = generateTableHeaders();
 

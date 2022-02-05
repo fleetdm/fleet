@@ -4,14 +4,17 @@ import ReactTooltip from "react-tooltip";
 import formatDistanceToNowStrict from "date-fns/formatDistanceToNowStrict";
 
 import macadminsAPI from "services/entities/macadmins";
+import {
+  IMacadminAggregate,
+  IMDMAggregateStatus,
+  IDataTableMDMFormat,
+} from "interfaces/macadmins";
 
-import TableContainer, { ITableQueryData } from "components/TableContainer";
+import TableContainer from "components/TableContainer";
 // @ts-ignore
 import Spinner from "components/Spinner";
-
 import generateTableHeaders from "./MDMTableConfig";
 import QuestionIcon from "../../../../../assets/images/icon-question-16x16@2x.png";
-import { IMacadminAggregate, IMDMAggregateStatus, IDataTableMDMFormat } from "interfaces/macadmins";
 
 interface IMDMCardProps {
   setShowMDMUI: (showMDMTitle: boolean) => void;
@@ -25,9 +28,7 @@ const baseClass = "home-mdm";
 
 const EmptyMDM = (): JSX.Element => (
   <div className={`${baseClass}__empty-mdm`}>
-    <h1>
-      Unable to detect MDM enrollment. 
-    </h1>
+    <h1>Unable to detect MDM enrollment.</h1>
     <p>
       To see MDM versions, deploy&nbsp;
       <a
@@ -83,32 +84,34 @@ const renderLastUpdatedAt = (lastUpdatedAt: string) => {
   );
 };
 
-const MDM = ({
-  setShowMDMUI,
-  showMDMUI,
-}: IMDMCardProps): JSX.Element => {
-  const [formattedMDMData, setFormattedMDMData] = useState<IDataTableMDMFormat[]>([]);
+const MDM = ({ setShowMDMUI, showMDMUI }: IMDMCardProps): JSX.Element => {
+  const [formattedMDMData, setFormattedMDMData] = useState<
+    IDataTableMDMFormat[]
+  >([]);
 
   const { isFetching: isMDMFetching } = useQuery<
     IMacadminAggregate,
     Error,
     IMDMAggregateStatus
-  >(
-    ["MDM"],
-    () => macadminsAPI.loadAll(),
-    {
-      keepPreviousData: true,
-      select: (data: IMacadminAggregate) => data.macadmins.mobile_device_management_enrollment_status,
-      onSuccess: (data) => {
-        setShowMDMUI(true);
-        setFormattedMDMData([
-          {status: "Enrolled (manual)", hosts: data.enrolled_manual_hosts_count},
-          {status: "Enrolled (automatic)", hosts: data.enrolled_automated_hosts_count},
-          {status: "Unenrolled", hosts: data.unenrolled_hosts_count},
-        ]);
-      },
-    }
-  );
+  >(["MDM"], () => macadminsAPI.loadAll(), {
+    keepPreviousData: true,
+    select: (data: IMacadminAggregate) =>
+      data.macadmins.mobile_device_management_enrollment_status,
+    onSuccess: (data) => {
+      setShowMDMUI(true);
+      setFormattedMDMData([
+        {
+          status: "Enrolled (manual)",
+          hosts: data.enrolled_manual_hosts_count,
+        },
+        {
+          status: "Enrolled (automatic)",
+          hosts: data.enrolled_automated_hosts_count,
+        },
+        { status: "Unenrolled", hosts: data.unenrolled_hosts_count },
+      ]);
+    },
+  });
 
   const tableHeaders = generateTableHeaders();
 

@@ -8,10 +8,7 @@ interface ISummaryProps {
 }
 
 export default {
-  getSummary: ({
-    teamId,
-    platform,
-  }: ISummaryProps) => {
+  getSummary: ({ teamId, platform }: ISummaryProps) => {
     const { HOST_SUMMARY } = endpoints;
     let queryString = "";
 
@@ -20,7 +17,7 @@ export default {
     }
 
     // platform can be empty string
-    if (!!platform) {
+    if (platform) {
       queryString += `&platform=${platform}`;
     }
 
