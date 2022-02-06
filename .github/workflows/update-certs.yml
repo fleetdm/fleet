@@ -17,12 +17,14 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v.24.0
 
+
     - name: Update certs
       run: cd orbit/pkg/packaging && ./mk-ca-bundle.pl -u certs.pem
 
     - name: PR changes
       uses: peter-evans/create-pull-request@f22a7da129c901513876a2380e2dae9f8e145330 # v3.12.1
       with:
+        base: main
         branch: update-ca-certs
         delete-branch: true
         title: Update Orbit CA certs [automated]
