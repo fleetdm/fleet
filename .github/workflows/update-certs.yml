@@ -1,7 +1,6 @@
 name: Update certs
 
 on:
-  pull_request: # TODO remove
   workflow_dispatch:
   schedule:
   - cron: '0 6 * * *' # Nightly 6AM UTC
