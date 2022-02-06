@@ -32,3 +32,4 @@ jobs:
           Update Orbit CA certs [automated]
 
           Generated automatically with curl mk-ca-bundle.pl script.
+        body: Automated change from [GitHub action](https://github.com/fleetdm/fleet/actions/workflows/update-certs.yml).
