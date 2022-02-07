@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
@@ -71,6 +72,14 @@ func (svc Service) NewTeamPolicy(ctx context.Context, teamID uint, p fleet.Polic
 	policy, err := svc.ds.NewTeamPolicy(ctx, teamID, ptr.Uint(vc.UserID()), p)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creating policy")
+	}
+	if err := svc.ds.NewActivity(
+		ctx,
+		authz.UserFromContext(ctx),
+		fleet.ActivityTypeCreatedPolicy,
+		&map[string]interface{}{"policy_id": policy.ID, "policy_name": policy.Name},
+	); err != nil {
+		return nil, err
 	}
 	return policy, nil
 }
@@ -193,10 +202,30 @@ func (svc Service) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []ui
 	if len(ids) == 0 {
 		return nil, nil
 	}
-	ids, err := svc.ds.DeleteTeamPolicies(ctx, teamID, ids)
+	policies, err := svc.ds.ListTeamPolicies(ctx, teamID)
 	if err != nil {
 		return nil, err
 	}
+	policiesByID := make(map[uint]*fleet.Policy, len(policies))
+	for _, p := range policies {
+		policiesByID[p.ID] = p
+	}
+	ids, err = svc.ds.DeleteTeamPolicies(ctx, teamID, ids)
+	if err != nil {
+		return nil, err
+	}
+	// Collect errors for all ids before return?
+	for _, id := range ids {
+		if err := svc.ds.NewActivity(
+			ctx,
+			authz.UserFromContext(ctx),
+			fleet.ActivityTypeDeletedPolicy,
+			&map[string]interface{}{"policy_id": id, "policy_name": policiesByID[id].Name},
+		); err != nil {
+			return nil, err
+		}
+	}
+
 	return ids, nil
 }
 
@@ -271,6 +300,14 @@ func (svc Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p fl
 	err = svc.ds.SavePolicy(ctx, policy)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "saving policy")
+	}
+	if err := svc.ds.NewActivity(
+		ctx,
+		authz.UserFromContext(ctx),
+		fleet.ActivityTypeEditedPolicy,
+		&map[string]interface{}{"policy_id": policy.ID, "policy_name": policy.Name},
+	); err != nil {
+		return nil, err
 	}
 
 	return policy, nil

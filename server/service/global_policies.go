@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -63,6 +64,14 @@ func (svc Service) NewGlobalPolicy(ctx context.Context, p fleet.PolicyPayload) (
 	policy, err := svc.ds.NewGlobalPolicy(ctx, ptr.Uint(vc.UserID()), p)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "storing policy")
+	}
+	if err := svc.ds.NewActivity(
+		ctx,
+		authz.UserFromContext(ctx),
+		fleet.ActivityTypeCreatedPolicy,
+		&map[string]interface{}{"policy_id": policy.ID, "policy_name": policy.Name},
+	); err != nil {
+		return nil, err
 	}
 	return policy, nil
 }
@@ -164,12 +173,31 @@ func (svc Service) DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint
 	if len(ids) == 0 {
 		return nil, nil
 	}
+	policies, err := svc.ds.ListGlobalPolicies(ctx)
+	if err != nil {
+		return nil, err
+	}
+	policiesByID := make(map[uint]*fleet.Policy, len(policies))
+	for _, p := range policies {
+		policiesByID[p.ID] = p
+	}
 	if err := svc.removeGlobalPoliciesFromWebhookConfig(ctx, ids); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "removing global policies from webhook config")
 	}
-	ids, err := svc.ds.DeleteGlobalPolicies(ctx, ids)
+	ids, err = svc.ds.DeleteGlobalPolicies(ctx, ids)
 	if err != nil {
 		return nil, err
+	}
+	// Collect errors for all ids before return?
+	for _, id := range ids {
+		if err := svc.ds.NewActivity(
+			ctx,
+			authz.UserFromContext(ctx),
+			fleet.ActivityTypeDeletedPolicy,
+			&map[string]interface{}{"policy_id": id, "policy_name": policiesByID[id].Name},
+		); err != nil {
+			return nil, err
+		}
 	}
 	return ids, nil
 }
