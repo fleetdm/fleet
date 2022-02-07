@@ -135,7 +135,7 @@ export interface IConfig {
       };
     };
   };
-  webhook_settings?: {
+  webhook_settings: {
     failing_policies_webhook: IWebhookFailingPolicies;
   };
 }
