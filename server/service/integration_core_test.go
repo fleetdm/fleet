@@ -639,6 +639,7 @@ func (s *integrationTestSuite) TestBulkDeleteHostByIDs() {
 func (s *integrationTestSuite) createHosts(t *testing.T) []*fleet.Host {
 	var hosts []*fleet.Host
 
+	platforms := []string{"debian", "rhel", "linux"}
 	for i := 0; i < 3; i++ {
 		host, err := s.ds.NewHost(context.Background(), &fleet.Host{
 			DetailUpdatedAt: time.Now(),
@@ -649,7 +650,7 @@ func (s *integrationTestSuite) createHosts(t *testing.T) []*fleet.Host {
 			NodeKey:         fmt.Sprintf("%s%d", t.Name(), i),
 			UUID:            uuid.New().String(),
 			Hostname:        fmt.Sprintf("%sfoo.local%d", t.Name(), i),
-			Platform:        "linux", // TODO(mna): we should use some other Linuxes here, to test our consistent grouping of e.g. darwin, rhel under "linux"
+			Platform:        platforms[i],
 		})
 		require.NoError(t, err)
 		hosts = append(hosts, host)
@@ -889,9 +890,14 @@ func (s *integrationTestSuite) TestGetHostSummary() {
 	// no team filter
 	s.DoJSON("GET", "/api/v1/fleet/host_summary", nil, http.StatusOK, &resp)
 	require.Equal(t, resp.TotalsHostsCount, uint(len(hosts)))
-	require.Len(t, resp.Platforms, 1)
-	require.Equal(t, "linux", resp.Platforms[0].Platform)
-	require.Equal(t, uint(len(hosts)), resp.Platforms[0].HostsCount)
+	require.Len(t, resp.Platforms, 3)
+	gotPlatforms, wantPlatforms := make([]string, 3), []string{"linux", "debian", "rhel"}
+	for i, p := range resp.Platforms {
+		gotPlatforms[i] = p.Platform
+		// each platform has a count of 1
+		require.Equal(t, uint(1), p.HostsCount)
+	}
+	require.ElementsMatch(t, wantPlatforms, gotPlatforms)
 	require.Nil(t, resp.TeamID)
 
 	// team filter, no host
@@ -904,20 +910,31 @@ func (s *integrationTestSuite) TestGetHostSummary() {
 	s.DoJSON("GET", "/api/v1/fleet/host_summary", nil, http.StatusOK, &resp, "team_id", fmt.Sprint(team1.ID))
 	require.Equal(t, resp.TotalsHostsCount, uint(1))
 	require.Len(t, resp.Platforms, 1)
-	require.Equal(t, "linux", resp.Platforms[0].Platform)
+	require.Equal(t, "debian", resp.Platforms[0].Platform)
 	require.Equal(t, uint(1), resp.Platforms[0].HostsCount)
 	require.Equal(t, team1.ID, *resp.TeamID)
 
 	s.DoJSON("GET", "/api/v1/fleet/host_summary", nil, http.StatusOK, &resp, "team_id", fmt.Sprint(team1.ID), "platform", "linux")
 	require.Equal(t, resp.TotalsHostsCount, uint(1))
-	require.Equal(t, "linux", resp.Platforms[0].Platform)
+	require.Equal(t, "debian", resp.Platforms[0].Platform)
+
+	s.DoJSON("GET", "/api/v1/fleet/host_summary", nil, http.StatusOK, &resp, "platform", "rhel")
+	require.Equal(t, resp.TotalsHostsCount, uint(1))
+	require.Equal(t, "rhel", resp.Platforms[0].Platform)
 
 	s.DoJSON("GET", "/api/v1/fleet/host_summary", nil, http.StatusOK, &resp, "platform", "linux")
 	require.Equal(t, resp.TotalsHostsCount, uint(3))
-	require.Equal(t, "linux", resp.Platforms[0].Platform)
+	require.Len(t, resp.Platforms, 3)
+	for i, p := range resp.Platforms {
+		gotPlatforms[i] = p.Platform
+		// each platform has a count of 1
+		require.Equal(t, uint(1), p.HostsCount)
+	}
+	require.ElementsMatch(t, wantPlatforms, gotPlatforms)
 
 	s.DoJSON("GET", "/api/v1/fleet/host_summary", nil, http.StatusOK, &resp, "platform", "darwin")
 	require.Equal(t, resp.TotalsHostsCount, uint(0))
+	require.Len(t, resp.Platforms, 0)
 }
 
 func (s *integrationTestSuite) TestGlobalPoliciesProprietary() {

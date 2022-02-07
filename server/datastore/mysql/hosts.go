@@ -605,7 +605,7 @@ func (ds *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fl
 	// reusing the whereClause is ok.
 	args = []interface{}{}
 	if platform != nil {
-		args = append(args, *platform)
+		args = append(args, fleet.ExpandPlatform(*platform))
 	}
 	sqlStatement = fmt.Sprintf(`
 			SELECT
@@ -617,7 +617,11 @@ func (ds *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fl
 		`, whereClause)
 
 	var platforms []*fleet.HostSummaryPlatform
-	err = sqlx.SelectContext(ctx, ds.reader, &platforms, sqlStatement, args...)
+	stmt, args, err = sqlx.In(sqlStatement, args...)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "generating host platforms statement")
+	}
+	err = sqlx.SelectContext(ctx, ds.reader, &platforms, stmt, args...)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "generating host platforms statistics")
 	}
