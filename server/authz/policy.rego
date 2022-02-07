@@ -312,8 +312,10 @@ allow {
   subject.global_role == maintainer
   action = run_new
 }
+
 # Team admin and maintainer running a non-observers_can_run query must have the targets
-# filtered to only teams that they maintain
+# filtered to only teams that they maintain. That check is not validated by this rego
+# file, it is a filter that is applied at the datastore level (in HostIDsInTargets).
 allow {
   object.type == "query"
   # If role is maintainer on any team
@@ -337,7 +339,8 @@ allow {
 	action = run
 }
 # Team observer running a observers_can_run query must have the targets
-# filtered to only teams that they observe
+# filtered to only teams that they observe. That check is not validated by this rego
+# file, it is a filter that is applied at the datastore level (in HostIDsInTargets).
 allow {
 	object.type == "query"
 	object.observer_can_run == true
