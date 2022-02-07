@@ -364,6 +364,7 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	software := []fleet.Software{
 		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
 		{Name: "bar", Version: "0.0.3", Source: "apps"},
+		{Name: "baz", Version: "0.0.4", Source: "apps"},
 	}
 	require.NoError(t, s.ds.UpdateHostSoftware(context.Background(), host.ID, software))
 	require.NoError(t, s.ds.LoadHostSoftware(context.Background(), host))
@@ -404,7 +405,7 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	countReq := countSoftwareRequest{}
 	countResp := countSoftwareResponse{}
 	s.DoJSON("GET", "/api/v1/fleet/software/count", countReq, http.StatusOK, &countResp)
-	assert.Equal(t, 2, countResp.Count)
+	assert.Equal(t, 3, countResp.Count)
 
 	// no software host counts have been calculated yet, so this returns nothing
 	var lsResp listSoftwareResponse
@@ -418,6 +419,7 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	assert.Nil(t, lsResp.CountsUpdatedAt)
 
 	// the software/count endpoint is different, it doesn't care about hosts counts
+	countResp = countSoftwareResponse{}
 	s.DoJSON("GET", "/api/v1/fleet/software/count", countReq, http.StatusOK, &countResp, "vulnerable", "true", "order_key", "generated_cpe", "order_direction", "desc")
 	assert.Equal(t, 1, countResp.Count)
 
@@ -426,6 +428,7 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	require.NoError(t, s.ds.CalculateHostsPerSoftware(context.Background(), hostsCountTs))
 
 	// now the list software endpoint returns the software
+	lsResp = listSoftwareResponse{}
 	s.DoJSON("GET", "/api/v1/fleet/software", nil, http.StatusOK, &lsResp, "vulnerable", "true", "order_key", "generated_cpe", "order_direction", "desc")
 	require.Len(t, lsResp.Software, 1)
 	assert.Equal(t, soft1.ID, lsResp.Software[0].ID)
@@ -434,14 +437,36 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	assert.WithinDuration(t, hostsCountTs, *lsResp.CountsUpdatedAt, time.Second)
 
 	// the count endpoint still returns 1
+	countResp = countSoftwareResponse{}
 	s.DoJSON("GET", "/api/v1/fleet/software/count", countReq, http.StatusOK, &countResp, "vulnerable", "true", "order_key", "generated_cpe", "order_direction", "desc")
 	assert.Equal(t, 1, countResp.Count)
 
 	// default sort, not only vulnerable
+	lsResp = listSoftwareResponse{}
 	s.DoJSON("GET", "/api/v1/fleet/software", nil, http.StatusOK, &lsResp)
 	require.True(t, len(lsResp.Software) >= len(software))
 	require.NotNil(t, lsResp.CountsUpdatedAt)
 	assert.WithinDuration(t, hostsCountTs, *lsResp.CountsUpdatedAt, time.Second)
+
+	// request with a per_page limit (see #4058)
+	lsResp = listSoftwareResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/software", nil, http.StatusOK, &lsResp, "page", "0", "per_page", "2", "order_key", "hosts_count", "order_direction", "desc")
+	require.Len(t, lsResp.Software, 2)
+	require.NotNil(t, lsResp.CountsUpdatedAt)
+	assert.WithinDuration(t, hostsCountTs, *lsResp.CountsUpdatedAt, time.Second)
+
+	// request next page, with per_page limit
+	lsResp = listSoftwareResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/software", nil, http.StatusOK, &lsResp, "per_page", "2", "page", "1", "order_key", "hosts_count", "order_direction", "desc")
+	require.Len(t, lsResp.Software, 1)
+	require.NotNil(t, lsResp.CountsUpdatedAt)
+	assert.WithinDuration(t, hostsCountTs, *lsResp.CountsUpdatedAt, time.Second)
+
+	// request one past the last page
+	lsResp = listSoftwareResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/software", nil, http.StatusOK, &lsResp, "per_page", "2", "page", "2", "order_key", "hosts_count", "order_direction", "desc")
+	require.Len(t, lsResp.Software, 0)
+	require.Nil(t, lsResp.CountsUpdatedAt)
 }
 
 func (s *integrationTestSuite) TestGlobalPolicies() {

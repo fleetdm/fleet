@@ -275,8 +275,6 @@ func selectSoftwareSQL(hostID *uint, opts fleet.SoftwareListOptions) (string, []
 		goqu.I("generated_cpe"),
 	)
 
-	ds = appendListOptionsToSelect(ds, opts.ListOptions)
-
 	if opts.VulnerableOnly {
 		ds = ds.Join(
 			goqu.I("software_cpe").As("scp"),
@@ -313,19 +311,24 @@ func selectSoftwareSQL(hostID *uint, opts fleet.SoftwareListOptions) (string, []
 		)
 	}
 
+	topLevelListOpts := opts.ListOptions
+
 	if opts.WithHostCounts {
 		subSelectCounts := dialect.From(goqu.I("aggregated_stats").As("shc")).Select(
-			"shc.id", "shc.json_value", "shc.updated_at",
-		).Where(goqu.I("shc.type").Eq("software_hosts_count"), goqu.I("shc.json_value").Gt(0)).
-			SelectAppend(
-				goqu.I("shc.json_value").As("hosts_count"),
-				goqu.I("shc.updated_at").As("counts_updated_at"),
-			)
+			"shc.id", goqu.I("shc.json_value").As("hosts_count"), goqu.I("shc.updated_at").As("counts_updated_at"),
+		).Where(goqu.I("shc.type").Eq("software_hosts_count"), goqu.I("shc.json_value").Gt(0))
+
 		subSelectListOpts := opts.ListOptions
 		switch subSelectListOpts.OrderKey {
 		case "hosts_count", "counts_updated_at":
 			// all good, known columns, so we sort
 			subSelectCounts = appendListOptionsToSelect(subSelectCounts, opts.ListOptions)
+			// since the aggregated_stats table will be properly LIMITed and OFFSET, then
+			// we must not LIMIT and OFFSET the top-level query again (it can't return
+			// more rows than this internal query, and it must not be offset as the sub-query
+			// is already offset, so offsetting the top-level query IN ADDITION would offset
+			// it past any result.
+			topLevelListOpts.Page, topLevelListOpts.PerPage = 0, 0
 		default:
 			// we don't sort if it's not a column from this table
 		}
@@ -334,12 +337,12 @@ func selectSoftwareSQL(hostID *uint, opts fleet.SoftwareListOptions) (string, []
 			goqu.On(
 				goqu.I("s.id").Eq(goqu.I("shc.id")),
 			),
-		).
-			SelectAppend(
-				goqu.I("shc.json_value").As("hosts_count"),
-				goqu.I("shc.updated_at").As("counts_updated_at"),
-			)
+		).SelectAppend(
+			goqu.I("shc.hosts_count"),
+			goqu.I("shc.counts_updated_at"),
+		)
 	}
+	ds = appendListOptionsToSelect(ds, topLevelListOpts)
 
 	return ds.ToSQL()
 }
