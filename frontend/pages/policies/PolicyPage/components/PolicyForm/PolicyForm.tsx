@@ -264,6 +264,7 @@ const PolicyForm = ({
               value={lastEditedQueryName}
               hasError={errors && errors.name}
               inputClassName={`${baseClass}__policy-name`}
+              maxLength="160"
               onChange={setLastEditedQueryName}
               onFocus={() => setIsEditingName(true)}
               onBlur={() => setIsEditingName(false)}
@@ -295,6 +296,7 @@ const PolicyForm = ({
               placeholder="Add description here."
               value={lastEditedQueryDescription}
               inputClassName={`${baseClass}__policy-description`}
+              maxLength="250"
               onChange={setLastEditedQueryDescription}
               onFocus={() => setIsEditingDescription(true)}
               onBlur={() => setIsEditingDescription(false)}
@@ -332,6 +334,7 @@ const PolicyForm = ({
               placeholder="Add resolution here."
               value={lastEditedQueryResolution}
               inputClassName={`${baseClass}__policy-resolution`}
+              maxLength="500"
               onChange={setLastEditedQueryResolution}
               onFocus={() => setIsEditingResolution(true)}
               onBlur={() => setIsEditingResolution(false)}
