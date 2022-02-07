@@ -289,13 +289,12 @@ func sortedKeysCompare(t *testing.T, m map[string]DetailQuery, expectedKeys []st
 
 func TestGetDetailQueries(t *testing.T) {
 	queriesNoConfig := GetDetailQueries(nil)
-	require.Len(t, queriesNoConfig, 12)
+	require.Len(t, queriesNoConfig, 11)
 	baseQueries := []string{
 		"network_interface",
 		"os_version",
 		"osquery_flags",
 		"osquery_info",
-		"scheduled_query_stats",
 		"system_info",
 		"uptime",
 		"disk_space_unix",
@@ -306,14 +305,14 @@ func TestGetDetailQueries(t *testing.T) {
 	}
 	sortedKeysCompare(t, queriesNoConfig, baseQueries)
 
-	queriesWithUsers := GetDetailQueries(&fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}})
+	queriesWithUsers := GetDetailQueries(&fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true, EnableScheduledQueryStats: true}})
 	require.Len(t, queriesWithUsers, 13)
-	sortedKeysCompare(t, queriesWithUsers, append(baseQueries, "users"))
+	sortedKeysCompare(t, queriesWithUsers, append(baseQueries, "users", "scheduled_query_stats"))
 
-	queriesWithUsersAndSoftware := GetDetailQueries(&fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true, EnableSoftwareInventory: true}})
+	queriesWithUsersAndSoftware := GetDetailQueries(&fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true, EnableSoftwareInventory: true, EnableScheduledQueryStats: true}})
 	require.Len(t, queriesWithUsersAndSoftware, 16)
 	sortedKeysCompare(t, queriesWithUsersAndSoftware,
-		append(baseQueries, "users", "software_macos", "software_linux", "software_windows"))
+		append(baseQueries, "users", "software_macos", "software_linux", "software_windows", "scheduled_query_stats"))
 }
 
 func TestDirectIngestMDM(t *testing.T) {
