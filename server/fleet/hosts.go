@@ -283,8 +283,9 @@ type AggregatedMDMStatus struct {
 }
 
 type AggregatedMacadminsData struct {
-	MunkiVersions []AggregatedMunkiVersion `json:"munki_versions"`
-	MDMStatus     AggregatedMDMStatus      `json:"mobile_device_management_enrollment_status"`
+	CountsUpdatedAt time.Time                `json:"counts_updated_at"`
+	MunkiVersions   []AggregatedMunkiVersion `json:"munki_versions"`
+	MDMStatus       AggregatedMDMStatus      `json:"mobile_device_management_enrollment_status"`
 }
 
 // CPEHost is a minimal host representation returned when querying hosts by

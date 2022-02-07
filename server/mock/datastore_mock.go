@@ -176,9 +176,9 @@ type GetMunkiVersionFunc func(ctx context.Context, hostID uint) (string, error)
 
 type GetMDMFunc func(ctx context.Context, hostID uint) (enrolled bool, serverURL string, installedFromDep bool, err error)
 
-type AggregatedMunkiVersionFunc func(ctx context.Context, teamID *uint) ([]fleet.AggregatedMunkiVersion, error)
+type AggregatedMunkiVersionFunc func(ctx context.Context, teamID *uint) ([]fleet.AggregatedMunkiVersion, time.Time, error)
 
-type AggregatedMDMStatusFunc func(ctx context.Context, teamID *uint) (fleet.AggregatedMDMStatus, error)
+type AggregatedMDMStatusFunc func(ctx context.Context, teamID *uint) (fleet.AggregatedMDMStatus, time.Time, error)
 
 type GenerateAggregatedMunkiAndMDMFunc func(ctx context.Context) error
 
@@ -1329,12 +1329,12 @@ func (s *DataStore) GetMDM(ctx context.Context, hostID uint) (enrolled bool, ser
 	return s.GetMDMFunc(ctx, hostID)
 }
 
-func (s *DataStore) AggregatedMunkiVersion(ctx context.Context, teamID *uint) ([]fleet.AggregatedMunkiVersion, error) {
+func (s *DataStore) AggregatedMunkiVersion(ctx context.Context, teamID *uint) ([]fleet.AggregatedMunkiVersion, time.Time, error) {
 	s.AggregatedMunkiVersionFuncInvoked = true
 	return s.AggregatedMunkiVersionFunc(ctx, teamID)
 }
 
-func (s *DataStore) AggregatedMDMStatus(ctx context.Context, teamID *uint) (fleet.AggregatedMDMStatus, error) {
+func (s *DataStore) AggregatedMDMStatus(ctx context.Context, teamID *uint) (fleet.AggregatedMDMStatus, time.Time, error) {
 	s.AggregatedMDMStatusFuncInvoked = true
 	return s.AggregatedMDMStatusFunc(ctx, teamID)
 }
