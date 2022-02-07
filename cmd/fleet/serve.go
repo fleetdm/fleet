@@ -52,6 +52,9 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
+	"go.elastic.co/apm/module/apmhttp"
+	_ "go.elastic.co/apm/module/apmsql"
+	_ "go.elastic.co/apm/module/apmsql/mysql"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
@@ -486,9 +489,18 @@ the way that the Fleet server works.
 			}
 
 			httpSrvCtx := ctxerr.NewContext(ctx, eh)
+
+			// Create the handler based on whether tracing should be there
+			var handler launcher.Handler
+			if config.Logging.TracingEnabled && config.Logging.TracingType == "elasticapm" {
+				handler = launcher.Handler(apmhttp.Wrap(rootMux))
+			} else {
+				handler = launcher.Handler(rootMux)
+			}
+
 			srv := &http.Server{
 				Addr:              config.Server.Address,
-				Handler:           launcher.Handler(rootMux),
+				Handler:           handler,
 				ReadTimeout:       25 * time.Second,
 				WriteTimeout:      writeTimeout,
 				ReadHeaderTimeout: 5 * time.Second,

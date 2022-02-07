@@ -289,7 +289,7 @@ var tracedDriverName string
 
 func init() {
 	var err error
-	tracedDriverName, err = otelsql.Register("mysql", semconv.DBSystemMySQL.Value.AsString())
+	tracedDriverName, err = otelsql.Register("apm/mysql", semconv.DBSystemMySQL.Value.AsString())
 	if err != nil {
 		panic(err)
 	}

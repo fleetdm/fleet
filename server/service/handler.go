@@ -234,7 +234,9 @@ func MakeHandler(svc fleet.Service, config config.FleetConfig, logger kitlog.Log
 	fleetHandlers := makeKitHandlers(fleetEndpoints, fleetAPIOptions)
 
 	r := mux.NewRouter()
-	r.Use(otmiddleware.Middleware("fleet"))
+	if config.Logging.TracingEnabled && config.Logging.TracingType == "opentelemetry" {
+		r.Use(otmiddleware.Middleware("fleet"))
+	}
 
 	attachFleetAPIRoutes(r, fleetHandlers)
 	attachNewStyleFleetAPIRoutes(r, svc, fleetAPIOptions)

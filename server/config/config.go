@@ -134,7 +134,8 @@ type LoggingConfig struct {
 	JSON                 bool
 	DisableBanner        bool          `yaml:"disable_banner"`
 	ErrorRetentionPeriod time.Duration `yaml:"error_retention_period"`
-    TracingEnabled       bool          `yaml:"tracing_enabled"`
+	TracingEnabled       bool          `yaml:"tracing_enabled"`
+	TracingType          string        `yaml:"tracing_type"`
 }
 
 // FirehoseConfig defines configs for the AWS Firehose logging plugin
@@ -452,7 +453,9 @@ func (man Manager) addConfigs() {
 	man.addConfigDuration("logging.error_retention_period", 24*time.Hour,
 		"Amount of time to keep errors, 0 means no expiration, < 0 means disable storage of errors")
 	man.addConfigBool("logging.tracing_enabled", false,
-		"Enable OpenTelemetry tracing, further configured via standard env variables")
+		"Enable Tracing, further configured via standard env variables")
+	man.addConfigBool("logging.tracing_type", "opentelemetry",
+		"Select the kind of tracing, defaults to opentelemetry, can also be elasticapm")
 
 	// Firehose
 	man.addConfigString("firehose.region", "", "AWS Region to use")
@@ -652,6 +655,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			DisableBanner:        man.getConfigBool("logging.disable_banner"),
 			ErrorRetentionPeriod: man.getConfigDuration("logging.error_retention_period"),
 			TracingEnabled:       man.getConfigBool("logging.tracing_enabled"),
+			TracingType:          man.getConfigBool("logging.tracing_type"),
 		},
 		Firehose: FirehoseConfig{
 			Region:           man.getConfigString("firehose.region"),
