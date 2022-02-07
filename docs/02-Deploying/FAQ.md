@@ -231,3 +231,7 @@ Check out the [documentation on running database migrations](./06-Upgrading-Flee
 ## What API endpoints should I expose to the public internet?
 
 If you would like to manage hosts that can travel outside your VPN or intranet we recommend only exposing the "/api/v1/osquery" endpoint to the public internet.
+
+## What is the minimum version of MySQL fleet requires?
+
+Fleet requires at least MySQL version 5.7.
