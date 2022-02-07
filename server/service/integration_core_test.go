@@ -1886,6 +1886,7 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 	agg := getAggregatedMacadminsDataResponse{}
 	s.DoJSON("GET", "/api/v1/fleet/macadmins", nil, http.StatusOK, &agg)
 	require.NotNil(t, agg.Macadmins)
+	assert.NotZero(t, agg.Macadmins.CountsUpdatedAt)
 	assert.Len(t, agg.Macadmins.MunkiVersions, 2)
 	assert.ElementsMatch(t, agg.Macadmins.MunkiVersions, []fleet.AggregatedMunkiVersion{
 		{
