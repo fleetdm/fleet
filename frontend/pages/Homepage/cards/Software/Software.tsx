@@ -1,8 +1,6 @@
 import React, { useState } from "react";
 import { useQuery } from "react-query";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
-import ReactTooltip from "react-tooltip";
-import formatDistanceToNowStrict from "date-fns/formatDistanceToNowStrict";
 
 import paths from "router/paths";
 import softwareAPI, { ISoftwareResponse } from "services/entities/software";
@@ -12,9 +10,8 @@ import TableContainer, { ITableQueryData } from "components/TableContainer";
 import TableDataError from "components/TableDataError"; // TODO how do we handle errors? UI just keeps spinning?
 // @ts-ignore
 import Spinner from "components/Spinner";
-
+import renderLastUpdatedAt from "../../components/LastUpdatedText/LastUpdatedText";
 import generateTableHeaders from "./SoftwareTableConfig";
-import QuestionIcon from "../../../../../assets/images/icon-question-16x16@2x.png";
 
 interface ISoftwareCardProps {
   currentTeamId?: number;
@@ -51,47 +48,6 @@ const EmptySoftware = (message: string): JSX.Element => {
         .
       </p>
     </div>
-  );
-};
-
-const renderLastUpdatedAt = (lastUpdatedAt: string) => {
-  if (!lastUpdatedAt || lastUpdatedAt === "0001-01-01T00:00:00Z") {
-    lastUpdatedAt = "never";
-  } else {
-    lastUpdatedAt = formatDistanceToNowStrict(new Date(lastUpdatedAt), {
-      addSuffix: true,
-    });
-  }
-  return (
-    <span className="last-updated">
-      {`Last updated ${lastUpdatedAt}`}
-      <span className={`tooltip`}>
-        <span
-          className={`tooltip__tooltip-icon`}
-          data-tip
-          data-for="last-updated-tooltip"
-          data-tip-disable={false}
-        >
-          <img alt="question icon" src={QuestionIcon} />
-        </span>
-        <ReactTooltip
-          place="top"
-          type="dark"
-          effect="solid"
-          backgroundColor="#3e4771"
-          id="last-updated-tooltip"
-          data-html
-        >
-          <span className={`tooltip__tooltip-text`}>
-            Fleet periodically
-            <br />
-            queries all hosts
-            <br />
-            to retrieve software
-          </span>
-        </ReactTooltip>
-      </span>
-    </span>
   );
 };
 
@@ -136,7 +92,9 @@ const Software = ({
       onSuccess: (data) => {
         setShowSoftwareUI(true);
         setTitleDetail &&
-          setTitleDetail(renderLastUpdatedAt(data.counts_updated_at));
+          setTitleDetail(
+            renderLastUpdatedAt(data.counts_updated_at, "software")
+          );
       },
     }
   );
@@ -179,7 +137,6 @@ const Software = ({
               <Tab>All</Tab>
               <Tab>Vulnerable</Tab>
             </TabList>
-            <p>something</p>
             <TabPanel>
               {!isSoftwareFetching && errorSoftware ? (
                 <TableDataError />

@@ -1,24 +1,21 @@
 import React, { useState } from "react";
 import { useQuery } from "react-query";
-import ReactTooltip from "react-tooltip";
-import formatDistanceToNowStrict from "date-fns/formatDistanceToNowStrict";
 
 import macadminsAPI from "services/entities/macadmins";
-import {
-  IMacadminAggregate,
-  IMDMAggregateStatus,
-  IDataTableMDMFormat,
-} from "interfaces/macadmins";
+import { IMacadminAggregate, IDataTableMDMFormat } from "interfaces/macadmins";
 
 import TableContainer from "components/TableContainer";
 // @ts-ignore
 import Spinner from "components/Spinner";
+import renderLastUpdatedAt from "../../components/LastUpdatedText";
 import generateTableHeaders from "./MDMTableConfig";
-import QuestionIcon from "../../../../../assets/images/icon-question-16x16@2x.png";
+import ExternalURLIcon from "../../../../../assets/images/icon-external-url-12x12@2x.png";
 
 interface IMDMCardProps {
-  setShowMDMUI: (showMDMTitle: boolean) => void;
   showMDMUI: boolean;
+  setShowMDMUI: (showMDMTitle: boolean) => void;
+  setTitleDetail?: (content: JSX.Element | string | null) => void;
+  setDescription?: (content: JSX.Element | string | null) => void;
 }
 
 const DEFAULT_SORT_DIRECTION = "desc";
@@ -43,75 +40,65 @@ const EmptyMDM = (): JSX.Element => (
   </div>
 );
 
-const renderLastUpdatedAt = (lastUpdatedAt: string) => {
-  if (!lastUpdatedAt || lastUpdatedAt === "0001-01-01T00:00:00Z") {
-    lastUpdatedAt = "never";
-  } else {
-    lastUpdatedAt = formatDistanceToNowStrict(new Date(lastUpdatedAt), {
-      addSuffix: true,
-    });
-  }
-  return (
-    <span className="last-updated">
-      {`Last updated ${lastUpdatedAt}`}
-      <span className={`tooltip`}>
-        <span
-          className={`tooltip__tooltip-icon`}
-          data-tip
-          data-for="last-updated-tooltip"
-          data-tip-disable={false}
-        >
-          <img alt="question icon" src={QuestionIcon} />
-        </span>
-        <ReactTooltip
-          place="top"
-          type="dark"
-          effect="solid"
-          backgroundColor="#3e4771"
-          id="last-updated-tooltip"
-          data-html
-        >
-          <span className={`tooltip__tooltip-text`}>
-            Fleet periodically
-            <br />
-            queries all hosts
-            <br />
-            to retrieve MDM enrollment
-          </span>
-        </ReactTooltip>
-      </span>
-    </span>
-  );
-};
-
-const MDM = ({ setShowMDMUI, showMDMUI }: IMDMCardProps): JSX.Element => {
+const MDM = ({
+  showMDMUI,
+  setShowMDMUI,
+  setTitleDetail,
+  setDescription,
+}: IMDMCardProps): JSX.Element => {
   const [formattedMDMData, setFormattedMDMData] = useState<
     IDataTableMDMFormat[]
   >([]);
 
-  const { isFetching: isMDMFetching } = useQuery<
-    IMacadminAggregate,
-    Error,
-    IMDMAggregateStatus
-  >(["MDM"], () => macadminsAPI.loadAll(), {
-    keepPreviousData: true,
-    select: (data: IMacadminAggregate) =>
-      data.macadmins.mobile_device_management_enrollment_status,
-    onSuccess: (data) => {
-      setShowMDMUI(true);
-      setFormattedMDMData([
-        {
-          status: "Enrolled (manual)",
-          hosts: data.enrolled_manual_hosts_count,
-        },
-        {
-          status: "Enrolled (automatic)",
-          hosts: data.enrolled_automated_hosts_count,
-        },
-        { status: "Unenrolled", hosts: data.unenrolled_hosts_count },
-      ]);
-    },
-  });
+  const { isFetching: isMDMFetching } = useQuery<IMacadminAggregate, Error>(
+    ["MDM"],
+    () => macadminsAPI.loadAll(),
+    {
+      keepPreviousData: true,
+      onSuccess: (data) => {
+        const {
+          counts_updated_at,
+          mobile_device_management_enrollment_status,
+        } = data.macadmins;
+        const {
+          enrolled_manual_hosts_count,
+          enrolled_automated_hosts_count,
+          unenrolled_hosts_count,
+        } = mobile_device_management_enrollment_status;
+
+        setShowMDMUI(true);
+        setDescription &&
+          setDescription(
+            <p>
+              MDM is used to manage configuration on macOS devices.{" "}
+              <a
+                target="_blank"
+                rel="noreferrer noopener"
+                href="https://support.apple.com/guide/deployment/intro-to-mdm-depc0aadd3fe/web"
+                className="description-link"
+              >
+                Learn about MDM <img src={ExternalURLIcon} alt="" />
+              </a>
+            </p>
+          );
+        setTitleDetail &&
+          setTitleDetail(
+            renderLastUpdatedAt(counts_updated_at, "MDM enrollment")
+          );
+        setFormattedMDMData([
+          {
+            status: "Enrolled (manual)",
+            hosts: enrolled_manual_hosts_count,
+          },
+          {
+            status: "Enrolled (automatic)",
+            hosts: enrolled_automated_hosts_count,
+          },
+          { status: "Unenrolled", hosts: unenrolled_hosts_count },
+        ]);
+      },
+    }
+  );
 
   const tableHeaders = generateTableHeaders();
 

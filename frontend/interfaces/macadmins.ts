@@ -16,6 +16,7 @@ export interface IMDMAggregateStatus {
 
 export interface IMacadminAggregate {
   macadmins: {
+    counts_updated_at: string;
     munki_versions: IMunkiAggregate[];
     mobile_device_management_enrollment_status: IMDMAggregateStatus;
   };

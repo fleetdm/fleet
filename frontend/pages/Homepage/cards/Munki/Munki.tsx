@@ -1,7 +1,5 @@
-import React from "react";
+import React, { useState } from "react";
 import { useQuery } from "react-query";
-import ReactTooltip from "react-tooltip";
-import formatDistanceToNowStrict from "date-fns/formatDistanceToNowStrict";
 
 import macadminsAPI from "services/entities/macadmins";
 import { IMacadminAggregate, IMunkiAggregate } from "interfaces/macadmins";
@@ -9,12 +7,15 @@ import { IMacadminAggregate, IMunkiAggregate } from "interfaces/macadmins";
 import TableContainer from "components/TableContainer";
 // @ts-ignore
 import Spinner from "components/Spinner";
+import renderLastUpdatedAt from "../../components/LastUpdatedText";
 import generateTableHeaders from "./MunkiTableConfig";
-import QuestionIcon from "../../../../../assets/images/icon-question-16x16@2x.png";
+import ExternalURLIcon from "../../../../../assets/images/icon-external-url-12x12@2x.png";
 
 interface IMunkiCardProps {
-  setShowMunkiUI: (showMunkiTitle: boolean) => void;
   showMunkiUI: boolean;
+  setShowMunkiUI: (showMunkiTitle: boolean) => void;
+  setTitleDetail?: (content: JSX.Element | string | null) => void;
+  setDescription?: (content: JSX.Element | string | null) => void;
 }
 
 const DEFAULT_SORT_DIRECTION = "desc";
@@ -39,62 +40,45 @@ const EmptyMunki = (): JSX.Element => (
   </div>
 );
 
-const renderLastUpdatedAt = (lastUpdatedAt: string) => {
-  if (!lastUpdatedAt || lastUpdatedAt === "0001-01-01T00:00:00Z") {
-    lastUpdatedAt = "never";
-  } else {
-    lastUpdatedAt = formatDistanceToNowStrict(new Date(lastUpdatedAt), {
-      addSuffix: true,
-    });
-  }
-  return (
-    <span className="last-updated">
-      {`Last updated ${lastUpdatedAt}`}
-      <span className={`tooltip`}>
-        <span
-          className={`tooltip__tooltip-icon`}
-          data-tip
-          data-for="last-updated-tooltip"
-          data-tip-disable={false}
-        >
-          <img alt="question icon" src={QuestionIcon} />
-        </span>
-        <ReactTooltip
-          place="top"
-          type="dark"
-          effect="solid"
-          backgroundColor="#3e4771"
-          id="last-updated-tooltip"
-          data-html
-        >
-          <span className={`tooltip__tooltip-text`}>
-            Fleet periodically
-            <br />
-            queries all hosts
-            <br />
-            to retrieve Munki versions
-          </span>
-        </ReactTooltip>
-      </span>
-    </span>
-  );
-};
-
 const Munki = ({
-  setShowMunkiUI,
   showMunkiUI,
+  setShowMunkiUI,
+  setTitleDetail,
+  setDescription,
 }: IMunkiCardProps): JSX.Element => {
-  const { isFetching: isMunkiFetching, data: munkiData } = useQuery<
-    IMacadminAggregate,
-    Error,
-    IMunkiAggregate[]
-  >(["munki"], () => macadminsAPI.loadAll(), {
-    keepPreviousData: true,
-    select: (data: IMacadminAggregate) => data.macadmins.munki_versions,
-    onSuccess: (data) => {
-      setShowMunkiUI(true);
-    },
-  });
+  const [munkiData, setMunkiData] = useState<IMunkiAggregate[]>([]);
+
+  const { isFetching: isMunkiFetching } = useQuery<IMacadminAggregate, Error>(
+    ["munki"],
+    () => macadminsAPI.loadAll(),
+    {
+      keepPreviousData: true,
+      onSuccess: (data) => {
+        const { counts_updated_at, munki_versions } = data.macadmins;
+
+        setMunkiData(munki_versions);
+        setShowMunkiUI(true);
+        setTitleDetail &&
+          setTitleDetail(
+            renderLastUpdatedAt(counts_updated_at, "Munki versions")
+          );
+        setDescription &&
+          setDescription(
+            <p>
+              Munki is a tool for managing software on macOS devices.{" "}
+              <a
+                target="_blank"
+                rel="noreferrer noopener"
+                href="https://www.munki.org/munki/"
+                className="description-link"
+              >
+                Learn about Munki <img src={ExternalURLIcon} alt="" />
+              </a>
+            </p>
+          );
+      },
+    }
+  );
 
   const tableHeaders = generateTableHeaders();
 

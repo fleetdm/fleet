@@ -48,6 +48,21 @@
     align-items: center;
   }
 
+  &__section-description {
+    font-size: $x-small;
+
+    .description-link {
+      font-size: $x-small;
+      color: $core-vibrant-blue;
+      font-weight: $bold;
+      text-decoration: none !important;
+    }
+    img {
+      width: 12px;
+      margin-left: $pad-xsmall; 
+    }
+  }
+
   &__action-button {
     display: flex;
     align-items: center;

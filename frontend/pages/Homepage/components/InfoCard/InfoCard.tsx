@@ -37,6 +37,9 @@ const useInfoCard = ({
   const [titleDetail, setTitleDetail] = useState<JSX.Element | string | null>(
     null
   );
+  const [description, setDescription] = useState<JSX.Element | string | null>(
+    null
+  );
 
   const renderAction = () => {
     if (action) {
@@ -77,6 +80,7 @@ const useInfoCard = ({
     if (React.isValidElement(child)) {
       child = React.cloneElement(child, {
         setTitleDetail,
+        setDescription,
         setActionLink,
       });
     }
@@ -86,18 +90,23 @@ const useInfoCard = ({
   return (
     <div className={baseClass}>
       {showTitle && (
-        <div className={`${baseClass}__section-title-cta`}>
-          <div className={`${baseClass}__section-title-group`}>
-            <div className={`${baseClass}__section-title`}>
-              <h2>{title}</h2>
-              {total_host_count && <span>{total_host_count}</span>}
+        <>
+          <div className={`${baseClass}__section-title-cta`}>
+            <div className={`${baseClass}__section-title-group`}>
+              <div className={`${baseClass}__section-title`}>
+                <h2>{title}</h2>
+                {total_host_count && <span>{total_host_count}</span>}
+              </div>
+              <div className={`${baseClass}__section-title-detail`}>
+                {titleDetail}
+              </div>
             </div>
-            <div className={`${baseClass}__section-title-detail`}>
-              {titleDetail}
-            </div>
+            {renderAction()}
           </div>
-          {renderAction()}
-        </div>
+          <div className={`${baseClass}__section-description`}>
+            {description}
+          </div>
+        </>
       )}
       {clonedChildren}
     </div>
