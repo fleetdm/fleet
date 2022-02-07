@@ -2,9 +2,11 @@ package vulnerabilities
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -252,7 +254,14 @@ func PostProcess(
 	logger kitlog.Logger,
 	config config.FleetConfig,
 ) error {
-	if err := centosPostProcessing(ctx, ds, vulnPath, logger, config); err != nil {
+	dbPath := path.Join(vulnPath, "cpe.sqlite")
+	db, err := sql.Open("sqlite3", dbPath)
+	if err != nil {
+		return fmt.Errorf("failed to open cpe database: %w", err)
+	}
+	defer db.Close()
+
+	if err := centosPostProcessing(ctx, ds, db, logger, config); err != nil {
 		return err
 	}
 	return nil

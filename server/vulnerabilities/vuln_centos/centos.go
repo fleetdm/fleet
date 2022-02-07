@@ -51,13 +51,15 @@ type FixedCVESet map[string]struct{}
 // CentOSPkgSet is a set of CentOS packages and their fixed CVEs.
 type CentOSPkgSet map[CentOSPkg]FixedCVESet
 
-// Add adds the given package and CVE to the set.
-func (p CentOSPkgSet) Add(pkg CentOSPkg, fixedCVE string) {
+// Add adds the given package and CVE/s to the set.
+func (p CentOSPkgSet) Add(pkg CentOSPkg, fixedCVEs ...string) {
 	s := p[pkg]
 	if s == nil {
 		s = make(FixedCVESet)
 	}
-	s[fixedCVE] = struct{}{}
+	for _, fixedCVE := range fixedCVEs {
+		s[fixedCVE] = struct{}{}
+	}
 	p[pkg] = s
 }
 
@@ -98,7 +100,6 @@ func LoadCentOSFixedCVEs(ctx context.Context, db *sql.DB, logger kitlog.Logger) 
 
 type centOSOpts struct {
 	noCrawl  bool
-	noParse  bool
 	verbose  bool
 	localDir string
 	root     string
@@ -115,12 +116,6 @@ func WithLocalDir(dir string) CentOSOption {
 func NoCrawl() CentOSOption {
 	return func(o *centOSOpts) {
 		o.noCrawl = true
-	}
-}
-
-func NoParse() CentOSOption {
-	return func(o *centOSOpts) {
-		o.noParse = true
 	}
 }
 
@@ -160,57 +155,50 @@ var (
 //	the packages metadata.
 //	- Processes all the found sqlite3 files to find all fixed CVEs in each package version.
 //	It parses the changelogs for each package release and looks for the "CVE-" string.
-//	- Stores all the findings in the sqlite3 handle specified by db.
 //
 // It writes progress messages to stdout.
-func ParseCentOSRepository(db *sql.DB, opts ...CentOSOption) error {
+func ParseCentOSRepository(opts ...CentOSOption) (CentOSPkgSet, error) {
 	var opts_ centOSOpts
 	for _, fn := range opts {
 		fn(&opts_)
 	}
 
 	if opts_.localDir == "" && opts_.noCrawl {
-		return errors.New("invalid options: if no crawl is set, local dir must be set")
+		return nil, errors.New("invalid options: if no crawl is set, local dir must be set")
 	}
 
 	if opts_.localDir == "" {
 		localDir, err := ioutil.TempDir("", "centos*")
 		if err != nil {
-			return err
+			return nil, err
 		}
 		opts_.localDir = localDir
 	}
 
 	fmt.Printf("Using local directory: %s\n", opts_.localDir)
-
 	if !opts_.noCrawl {
 		if err := crawl(opts_.root, opts_.localDir, opts_.verbose); err != nil {
-			return err
+			return nil, err
 		}
 	}
 
-	if !opts_.noParse {
-		pkgs, err := parse(opts_.localDir)
-		if err != nil {
-			return err
-		}
-		if opts_.verbose {
-			for pkg, cves := range pkgs {
-				var cveList []string
-				for cve := range cves {
-					cveList = append(cveList, cve)
-				}
-				if opts_.verbose {
-					fmt.Printf("%s: %v\n", pkg, cveList)
-				}
+	pkgs, err := parse(opts_.localDir)
+	if err != nil {
+		return nil, err
+	}
+	if opts_.verbose {
+		for pkg, cves := range pkgs {
+			var cveList []string
+			for cve := range cves {
+				cveList = append(cveList, cve)
+			}
+			if opts_.verbose {
+				fmt.Printf("%s: %v\n", pkg, cveList)
 			}
 		}
-		if err := genRPMSqlite(db, pkgs); err != nil {
-			return err
-		}
 	}
 
-	return nil
+	return pkgs, nil
 }
 
 func tableExists(ctx context.Context, db *sql.DB, tableName string) (bool, error) {
@@ -472,9 +460,8 @@ func parseCVEs(changelog string) []string {
 	return cveRegex.FindAllString(changelog, -1)
 }
 
-func genRPMSqlite(db *sql.DB, pkgs CentOSPkgSet) error {
-	fmt.Printf("Storing CVE info for %d CentOS packages...\n", len(pkgs))
-
+// GenCentOSSqlite will store the CentOS package set in the given sqlite handle.
+func GenCentOSSqlite(db *sql.DB, pkgs CentOSPkgSet) error {
 	if err := createTable(db); err != nil {
 		return err
 	}

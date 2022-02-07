@@ -121,7 +121,11 @@ func centos(dbPath string, verbose bool) {
 	panicif(err)
 	defer db.Close()
 
-	err = vuln_centos.ParseCentOSRepository(db, vuln_centos.WithVerbose(verbose))
+	pkgs, err := vuln_centos.ParseCentOSRepository(vuln_centos.WithVerbose(verbose))
+	panicif(err)
+
+	fmt.Printf("Storing CVE info for %d CentOS packages...\n", len(pkgs))
+	err = vuln_centos.GenCentOSSqlite(db, pkgs)
 	panicif(err)
 }
 

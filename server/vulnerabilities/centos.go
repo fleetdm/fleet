@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"path"
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -18,16 +17,10 @@ import (
 func centosPostProcessing(
 	ctx context.Context,
 	ds fleet.Datastore,
-	vulnPath string,
+	db *sql.DB,
 	logger kitlog.Logger,
 	config config.FleetConfig,
 ) error {
-	dbPath := path.Join(vulnPath, "cpe.sqlite")
-	db, err := sql.Open("sqlite3", dbPath)
-	if err != nil {
-		return fmt.Errorf("failed to open cpe database: %w", err)
-	}
-
 	centOSPkgs, err := vuln_centos.LoadCentOSFixedCVEs(ctx, db, logger)
 	if err != nil {
 		return fmt.Errorf("failed to fetch CentOS packages: %w", err)

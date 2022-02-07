@@ -14,6 +14,9 @@ import (
 func TestLoadCentOSFixedCVEsMissingTable(t *testing.T) {
 	db, err := sql.Open("sqlite3", ":memory:")
 	require.NoError(t, err)
+	t.Cleanup(func() {
+		db.Close()
+	})
 	pkgSet, err := LoadCentOSFixedCVEs(context.Background(), db, log.NewNopLogger())
 	require.NoError(t, err)
 	require.Nil(t, pkgSet)
@@ -61,11 +64,17 @@ func TestParseCentOSRepository(t *testing.T) {
 		t.Skip("set environment variable NETWORK_TEST=1 to run")
 	}
 
-	db, err := sql.Open("sqlite3", ":memory:")
+	// Parse a subset of the CentOS repository.
+	pkgs, err := ParseCentOSRepository(WithRoot("/centos/7/os/x86_64/repodata/"))
 	require.NoError(t, err)
 
-	// Parse a subset of the CentOS repository.
-	err = ParseCentOSRepository(db, WithRoot("/centos/7/os/x86_64/repodata/"))
+	db, err := sql.Open("sqlite3", ":memory:")
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		db.Close()
+	})
+
+	err = GenCentOSSqlite(db, pkgs)
 	require.NoError(t, err)
 
 	pkgSet, err := LoadCentOSFixedCVEs(context.Background(), db, log.NewNopLogger())
