@@ -649,7 +649,7 @@ func (s *integrationTestSuite) createHosts(t *testing.T) []*fleet.Host {
 			NodeKey:         fmt.Sprintf("%s%d", t.Name(), i),
 			UUID:            uuid.New().String(),
 			Hostname:        fmt.Sprintf("%sfoo.local%d", t.Name(), i),
-			Platform:        "linux",
+			Platform:        "linux", // TODO(mna): we should use some other Linuxes here, to test our consistent grouping of e.g. darwin, rhel under "linux"
 		})
 		require.NoError(t, err)
 		hosts = append(hosts, host)

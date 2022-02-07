@@ -577,8 +577,8 @@ func (ds *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fl
 	args := []interface{}{now, now, now, now, now}
 	whereClause := ds.whereFilterHostsByTeams(filter, "h")
 	if platform != nil {
-		whereClause += " AND h.platform=? "
-		args = append(args, *platform)
+		whereClause += " AND h.platform IN (?) "
+		args = append(args, fleet.ExpandPlatform(*platform))
 	}
 	sqlStatement := fmt.Sprintf(`
 			SELECT
@@ -591,8 +591,12 @@ func (ds *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fl
 			LIMIT 1;
 		`, fleet.OnlineIntervalBuffer, fleet.OnlineIntervalBuffer, whereClause)
 
+	stmt, args, err := sqlx.In(sqlStatement, args...)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "generating host statistics statement")
+	}
 	summary := fleet.HostSummary{TeamID: filter.TeamID}
-	err := sqlx.GetContext(ctx, ds.reader, &summary, sqlStatement, args...)
+	err = sqlx.GetContext(ctx, ds.reader, &summary, stmt, args...)
 	if err != nil && err != sql.ErrNoRows {
 		return nil, ctxerr.Wrap(ctx, err, "generating host statistics")
 	}
