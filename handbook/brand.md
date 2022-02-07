@@ -47,7 +47,7 @@ or
 
 > _**O**squery and Fleet provide structured, convenient access to information about your devices._
 
-## Fleet brand resources
+## Brand resources
 
 To download official Fleet logos, product screenshots, and wallpapers, head over to our [brand resources](https://fleetdm.com/logos) page.
 
