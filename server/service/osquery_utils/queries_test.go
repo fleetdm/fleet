@@ -110,7 +110,7 @@ func TestDetailQueryScheduledQueryStats(t *testing.T) {
 		return nil
 	}
 
-	ingest := GetDetailQueries(nil)["scheduled_query_stats"].DirectIngestFunc
+	ingest := GetDetailQueries(&fleet.AppConfig{HostSettings: fleet.HostSettings{EnableScheduledQueryStats: true}})["scheduled_query_stats"].DirectIngestFunc
 
 	ctx := context.Background()
 	assert.NoError(t, ingest(ctx, log.NewNopLogger(), &host, ds, nil, false))
