@@ -128,7 +128,11 @@ func TestLiveQueryAuth(t *testing.T) {
 			false,
 			false,
 		},
-		// TODO(mna): I don't think this is properly validated by rego, see https://github.com/fleetdm/fleet/issues/3950
+		// NOTE: this specific case is not covered by the rego authorization policy,
+		// it is at the datastore level that a filter is applied to only consider
+		// hosts that the user can see (that is, a fleet.TeamFilter is passed to
+		// ds.HostIDsInTargets and that call applies the filter to return only
+		// allowed hosts).
 		/*
 			{
 				"team admin, target not set to own team",
@@ -147,7 +151,7 @@ func TestLiveQueryAuth(t *testing.T) {
 			false,
 			false,
 		},
-		// TODO(mna): I don't think this is properly validated by rego, see https://github.com/fleetdm/fleet/issues/3950
+		// NOTE: same as the note above.
 		/*
 			{
 				"team observer, target not set to own team",
