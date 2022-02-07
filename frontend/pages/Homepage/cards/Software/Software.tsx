@@ -15,8 +15,8 @@ import generateTableHeaders from "./SoftwareTableConfig";
 
 interface ISoftwareCardProps {
   currentTeamId?: number;
-  setShowSoftwareUI: (showSoftwareTitle: boolean) => void;
   showSoftwareUI: boolean;
+  setShowSoftwareUI: (showSoftwareTitle: boolean) => void;
   setActionLink?: (url: string) => void;
   setTitleDetail?: (content: JSX.Element | string | null) => void;
 }

@@ -9,13 +9,11 @@ import TableContainer from "components/TableContainer";
 import Spinner from "components/Spinner";
 import renderLastUpdatedAt from "../../components/LastUpdatedText";
 import generateTableHeaders from "./MunkiTableConfig";
-import ExternalURLIcon from "../../../../../assets/images/icon-external-url-12x12@2x.png";
 
 interface IMunkiCardProps {
   showMunkiUI: boolean;
   setShowMunkiUI: (showMunkiTitle: boolean) => void;
   setTitleDetail?: (content: JSX.Element | string | null) => void;
-  setDescription?: (content: JSX.Element | string | null) => void;
 }
 
 const DEFAULT_SORT_DIRECTION = "desc";
@@ -44,7 +42,6 @@ const Munki = ({
   showMunkiUI,
   setShowMunkiUI,
   setTitleDetail,
-  setDescription,
 }: IMunkiCardProps): JSX.Element => {
   const [munkiData, setMunkiData] = useState<IMunkiAggregate[]>([]);
 
@@ -61,20 +58,6 @@ const Munki = ({
         setTitleDetail &&
           setTitleDetail(
             renderLastUpdatedAt(counts_updated_at, "Munki versions")
-          );
-        setDescription &&
-          setDescription(
-            <p>
-              Munki is a tool for managing software on macOS devices.{" "}
-              <a
-                target="_blank"
-                rel="noreferrer noopener"
-                href="https://www.munki.org/munki/"
-                className="description-link"
-              >
-                Learn about Munki <img src={ExternalURLIcon} alt="" />
-              </a>
-            </p>
           );
       },
     }

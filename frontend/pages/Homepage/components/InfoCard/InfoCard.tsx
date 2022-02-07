@@ -1,13 +1,12 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { Link } from "react-router";
-
-import paths from "router/paths";
 
 import Button from "components/buttons/Button";
 import LinkArrow from "../../../../../assets/images/icon-arrow-right-vibrant-blue-10x18@2x.png";
 
 interface IInfoCardProps {
   title: string;
+  description?: JSX.Element | string;
   children: React.ReactChild | React.ReactChild[];
   action?:
     | {
@@ -28,6 +27,7 @@ const baseClass = "homepage-info-card";
 
 const useInfoCard = ({
   title,
+  description,
   children,
   action,
   total_host_count,
@@ -35,9 +35,6 @@ const useInfoCard = ({
 }: IInfoCardProps): JSX.Element => {
   const [actionLink, setActionLink] = useState<string | null>(null);
   const [titleDetail, setTitleDetail] = useState<JSX.Element | string | null>(
-    null
-  );
-  const [description, setDescription] = useState<JSX.Element | string | null>(
     null
   );
 
@@ -80,7 +77,6 @@ const useInfoCard = ({
     if (React.isValidElement(child)) {
       child = React.cloneElement(child, {
         setTitleDetail,
-        setDescription,
         setActionLink,
       });
     }

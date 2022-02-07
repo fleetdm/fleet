@@ -24,6 +24,7 @@ import LearnFleet from "./cards/LearnFleet";
 import WelcomeHost from "./cards/WelcomeHost";
 import MDM from "./cards/MDM";
 import Munki from "./cards/Munki";
+import ExternalURLIcon from "../../../assets/images/icon-external-url-12x12@2x.png";
 
 interface ITeamsResponse {
   teams: ITeam[];
@@ -200,6 +201,17 @@ const Homepage = (): JSX.Element => {
   const MunkiCard = useInfoCard({
     title: "Munki versions",
     showTitle: showMunkiUI,
+    description: 
+      <p>
+        Munki is a tool for managing software on macOS devices.{" "}
+        <a
+          target="_blank"
+          rel="noreferrer noopener"
+          href="https://www.munki.org/munki/"
+        >
+          Learn about Munki <img src={ExternalURLIcon} alt="" />
+        </a>
+      </p>,
     children: (
       <Munki setShowMunkiUI={setShowMunkiUI} showMunkiUI={showMunkiUI} />
     ),
@@ -208,6 +220,17 @@ const Homepage = (): JSX.Element => {
   const MDMCard = useInfoCard({
     title: "Mobile device management (MDM) enrollment",
     showTitle: showMDMUI,
+    description:
+      <p>
+        MDM is used to manage configuration on macOS devices.{" "}
+        <a
+          target="_blank"
+          rel="noreferrer noopener"
+          href="https://support.apple.com/guide/deployment/intro-to-mdm-depc0aadd3fe/web"
+        >
+          Learn about MDM <img src={ExternalURLIcon} alt="" />
+        </a>
+      </p>,
     children: <MDM setShowMDMUI={setShowMDMUI} showMDMUI={showMDMUI} />,
   });
 

@@ -9,13 +9,11 @@ import TableContainer from "components/TableContainer";
 import Spinner from "components/Spinner";
 import renderLastUpdatedAt from "../../components/LastUpdatedText";
 import generateTableHeaders from "./MDMTableConfig";
-import ExternalURLIcon from "../../../../../assets/images/icon-external-url-12x12@2x.png";
 
 interface IMDMCardProps {
   showMDMUI: boolean;
   setShowMDMUI: (showMDMTitle: boolean) => void;
   setTitleDetail?: (content: JSX.Element | string | null) => void;
-  setDescription?: (content: JSX.Element | string | null) => void;
 }
 
 const DEFAULT_SORT_DIRECTION = "desc";
@@ -44,7 +42,6 @@ const MDM = ({
   showMDMUI,
   setShowMDMUI,
   setTitleDetail,
-  setDescription,
 }: IMDMCardProps): JSX.Element => {
   const [formattedMDMData, setFormattedMDMData] = useState<
     IDataTableMDMFormat[]
@@ -67,20 +64,6 @@ const MDM = ({
         } = mobile_device_management_enrollment_status;
 
         setShowMDMUI(true);
-        setDescription &&
-          setDescription(
-            <p>
-              MDM is used to manage configuration on macOS devices.{" "}
-              <a
-                target="_blank"
-                rel="noreferrer noopener"
-                href="https://support.apple.com/guide/deployment/intro-to-mdm-depc0aadd3fe/web"
-                className="description-link"
-              >
-                Learn about MDM <img src={ExternalURLIcon} alt="" />
-              </a>
-            </p>
-          );
         setTitleDetail &&
           setTitleDetail(
             renderLastUpdatedAt(counts_updated_at, "MDM enrollment")
