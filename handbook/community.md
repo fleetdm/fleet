@@ -116,9 +116,10 @@ resolution (close/merge) as soon as possible (may take longer than 1 business da
 3. Any Fleet team member may merge a community PR after reviewing it and addressing any necessary
    changes. Before merging, double-check that the CI is passing, documentation is updated, and
    changes file is created. Please use your best judgement.
-4. Thank and congratulate the contributor! Consider sharing with the team in the `#g-growth` channel
-   of Fleet Slack so that it can be publicized by social media. Folks who contribute to Fleet and
-   are recognized for their contributions often become great champions for the project.
+4. Thank and congratulate the contributor! Share with the team in the `#help-promote` channel
+   of Fleet Slack. Folks who contribute to Fleet andare recognized for their contributions 
+   often become great champions for the project.
+5. Once a PR request has been approved, and merged, please ensure that it has been promoted on social media. Please refer to our [PRs from the community](https://docs.google.com/document/d/13r0vEhs9LOBdxWQWdZ8n5Ff9cyB3hQkTjI5OhcrHjVo/edit?usp=sharing) guide for more detailed information.
 
 #### What is acceptable?
 
