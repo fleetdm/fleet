@@ -40,6 +40,7 @@ interface IQueryFormProps {
   onUpdate: (formData: IQueryFormData) => void;
   onOpenSchemaSidebar: () => void;
   renderLiveQueryWarning: () => JSX.Element | null;
+  backendValidators: { [key: string]: string };
 }
 
 const validateQuerySQL = (query: string) => {
@@ -65,6 +66,7 @@ const QueryForm = ({
   onUpdate,
   onOpenSchemaSidebar,
   renderLiveQueryWarning,
+  backendValidators,
 }: IQueryFormProps): JSX.Element => {
   const isEditMode = !!queryIdForEdit;
   const [errors, setErrors] = useState<{ [key: string]: any }>({});
@@ -478,6 +480,7 @@ const QueryForm = ({
           queryValue={lastEditedQueryBody}
           onCreateQuery={onCreateQuery}
           setIsSaveModalOpen={setIsSaveModalOpen}
+          backendValidators={backendValidators}
         />
       )}
     </>
