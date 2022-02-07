@@ -47,6 +47,14 @@ In brief, this means that as a Fleet team member, you may:
 
 For more developed thoughts about __spending guidelines and limits__, please read [GitLab's open expense policy](https://about.gitlab.com/handbook/spending-company-money/).
 
+## Taking time off
+
+Taking time off is essential to maintaining a healthy work-life balance. Fleet's unlimited vacation policy encourages team members to schedule time off to avoid burnout.
+
+When a team member takes time off at Fleet, they should create an "Out of office" (OOO) event in Google Calendar for the days they will be out. 
+
+If you're taking time off, you should plan who will cover your responsibilities for those days. Make sure to take your scheduled meetings into consideration, especially those where you're the event organizer. Communicate with your manager and other team members to ensure they can cover those meetings and that any Zoom links will still work for attendees.
+
 ## Meetings
 
 * At Fleet, meetings start whether you're there or not. Nevertheless, being even a few minutes late can make a big difference and slow your meeting counterparts down. When in doubt, show up a couple of minutes early.
