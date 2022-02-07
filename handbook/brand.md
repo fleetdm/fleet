@@ -26,7 +26,7 @@ By Mr Rogering our writing we can emphasize positivity, optimism and encourage o
 
 ## Voice and tone guidelines
 
-### What's our name?
+### How to use our name
 
 When talking about Fleet the company, we stylize our name as either *"Fleet"* or *"Fleet Device Management"*.
 For Fleet the product, we say either *“Fleet”* or *“Fleet for osquery”*.
