@@ -202,6 +202,7 @@ func (svc Service) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []ui
 	if len(ids) == 0 {
 		return nil, nil
 	}
+	// Is there a better approach to gather policy names so we can include them in the activity records?
 	policies, err := svc.ds.ListTeamPolicies(ctx, teamID)
 	if err != nil {
 		return nil, err
@@ -214,7 +215,7 @@ func (svc Service) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []ui
 	if err != nil {
 		return nil, err
 	}
-	// Collect errors for all ids before return?
+	// Is there a better approach to handling errors that might occur as we loop over multiple ids?
 	for _, id := range ids {
 		if err := svc.ds.NewActivity(
 			ctx,
