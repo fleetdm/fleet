@@ -87,6 +87,14 @@ The images used in the docs live in `docs/images/`. Note that you must provide t
 
 If we are doing a press release, we are probably pitching it to one or more reporters as an exclusive story, if they choose to take it.  Consider not sharing or publicizing any information related to the upcoming press release before the announcement.  See also https://www.quora.com/What-is-a-press-exclusive-and-how-does-it-work
 
+### Press release boilerplate
+
+Fleet gives teams fast, reliable access to data about the production servers, employee laptops, and other devices they manage - no matter the operating system. Users can search for any device data using SQL queries, making it faster to respond to incidents and automate IT. Fleet can also be used to monitor vulnerabilities, battery health, software, and even EDR and MDM tools like Crowdstrike, Munki, Jamf, and Carbon Black, to help confirm that those platforms are working how administrators "think" they are. Fleet is open-source software. It's easy to get started quickly, easy to deploy, and it even comes with an enterprise-friendly free tier available under the MIT license.
+
+IT and security teams love Fleet because of its flexibility and conventions. Instead of secretly collecting as much data as possible, Fleet defaults to privacy and transparency, capturing only the data your organization needs to meet its compliance, security, and management goals, with clearly-defined, flexible limits.   
+
+That means better privacy. Better device performance. And better data, with less noise.
+
 ## Community contributions (pull requests)
 
 The top priority when community members contribute PRs is to help the person feel engaged with

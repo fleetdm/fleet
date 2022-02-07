@@ -47,11 +47,11 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 ### Brand
 
-[Website](./brand.md#website)
-
 [Communicating as Fleet](./brand.md#communicating-as-fleet)
 
 [Voice and grammar guidelines](./brand.md#voice-and-grammar-guidelines)
+
+[Website](./brand.md#website)
 
 ### Customers
 
