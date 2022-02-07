@@ -498,6 +498,6 @@ in a public channel or a Github issue.
 The `host_settings` section of the configuration yaml allows to define what predefined queries are sent to the hosts and 
 later on processed by Fleet for different functionalities.
 
-- `host_settings.enable_host_user`: boolean value that when enabled Fleet will send the query needed to gather user data
+- `host_settings.enable_host_users`: boolean value that when enabled Fleet will send the query needed to gather user data
 - `host_settings.enable_software_inventory`: boolean value that when enabled Fleet will send the query needed to gather the list of software installed along with other metadata
 - `host_settings.enable_scheduled_query_stats`: boolean value that when enabled Fleet will send the query needed to gather statistics about query executions in a host
