@@ -267,13 +267,6 @@ var detailQueries = map[string]DetailQuery{
 			return nil
 		},
 	},
-	"scheduled_query_stats": {
-		Query: `
-			SELECT *,
-				(SELECT value from osquery_flags where name = 'pack_delimiter') AS delimiter
-			FROM osquery_schedule`,
-		DirectIngestFunc: directIngestScheduledQueryStats,
-	},
 	"disk_space_unix": {
 		Query: `
 SELECT (blocks_available * 100 / blocks) AS percent_disk_space_available,
@@ -496,6 +489,14 @@ FROM python_packages;
 `,
 	Platforms:        []string{"windows"},
 	DirectIngestFunc: directIngestSoftware,
+}
+
+var scheduledQueryStats = DetailQuery{
+	Query: `
+			SELECT *,
+				(SELECT value from osquery_flags where name = 'pack_delimiter') AS delimiter
+			FROM osquery_schedule`,
+	DirectIngestFunc: directIngestScheduledQueryStats,
 }
 
 var usersQuery = DetailQuery{
@@ -751,6 +752,10 @@ func GetDetailQueries(ac *fleet.AppConfig) map[string]DetailQuery {
 
 	if ac != nil && ac.HostSettings.EnableHostUsers {
 		generatedMap["users"] = usersQuery
+	}
+
+	if ac != nil && ac.HostSettings.EnableScheduledQueryStats {
+		generatedMap["scheduled_query_stats"] = scheduledQueryStats
 	}
 
 	return generatedMap
