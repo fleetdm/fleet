@@ -201,7 +201,7 @@ const Homepage = (): JSX.Element => {
   const MunkiCard = useInfoCard({
     title: "Munki versions",
     showTitle: showMunkiUI,
-    description: 
+    description: (
       <p>
         Munki is a tool for managing software on macOS devices.{" "}
         <a
@@ -211,7 +211,8 @@ const Homepage = (): JSX.Element => {
         >
           Learn about Munki <img src={ExternalURLIcon} alt="" />
         </a>
-      </p>,
+      </p>
+    ),
     children: (
       <Munki setShowMunkiUI={setShowMunkiUI} showMunkiUI={showMunkiUI} />
     ),
@@ -220,7 +221,7 @@ const Homepage = (): JSX.Element => {
   const MDMCard = useInfoCard({
     title: "Mobile device management (MDM) enrollment",
     showTitle: showMDMUI,
-    description:
+    description: (
       <p>
         MDM is used to manage configuration on macOS devices.{" "}
         <a
@@ -230,7 +231,8 @@ const Homepage = (): JSX.Element => {
         >
           Learn about MDM <img src={ExternalURLIcon} alt="" />
         </a>
-      </p>,
+      </p>
+    ),
     children: <MDM setShowMDMUI={setShowMDMUI} showMDMUI={showMDMUI} />,
   });
 
