@@ -51,7 +51,7 @@ interface IManageSoftwarePageProps {
 }
 const DEFAULT_SORT_DIRECTION = "desc";
 const DEFAULT_SORT_HEADER = "hosts_count";
-const PAGE_SIZE = 100;
+const PAGE_SIZE = 20;
 
 const baseClass = "manage-software-page";
 
