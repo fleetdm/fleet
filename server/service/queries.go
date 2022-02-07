@@ -478,8 +478,7 @@ func (svc *Service) ApplyQuerySpecs(ctx context.Context, specs []*fleet.QuerySpe
 			})
 		}
 
-		// check that the user can edit the query if it already exists
-		// TODO: we should really be doing a select ... for update so it doesn't change between the authz check and update
+		// check that the user can update the query if it already exists
 		query, err := svc.ds.QueryByName(ctx, query.Name)
 		if err != nil && !errors.Is(err, sql.ErrNoRows) {
 			return err
