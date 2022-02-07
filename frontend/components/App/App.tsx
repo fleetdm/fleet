@@ -65,6 +65,7 @@ const App = ({ children }: IAppProps): JSX.Element => {
   useDeepEffect(() => {
     // on page refresh
     if (!user && authToken()) {
+      // Auth token is not turning to null fast enough so the user is refetched and is making an unneeded API call to enroll_secret
       dispatch(fetchCurrentUser()).catch(() => false);
     }
 
