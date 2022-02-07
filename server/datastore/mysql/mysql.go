@@ -284,7 +284,7 @@ func (ds *Datastore) writeChanLoop() {
 }
 
 func newDB(conf *config.MysqlConfig, opts *dbOptions) (*sqlx.DB, error) {
-	driverName := "mysql"
+	driverName := "apm/mysql"
 	if opts.interceptor != nil {
 		driverName = "mysql-mw"
 		sql.Register(driverName, sqlmw.Driver(mysql.MySQLDriver{}, opts.interceptor))
