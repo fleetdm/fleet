@@ -1,8 +1,9 @@
-import React, { useState, useContext, useEffect } from "react";
+import React, { useState, useContext, useEffect, KeyboardEvent } from "react";
 import { IAceEditor } from "react-ace/lib/types";
 import ReactTooltip from "react-tooltip";
 import { size } from "lodash";
 import { useDebouncedCallback } from "use-debounce/lib";
+import classnames from "classnames";
 
 import { addGravatarUrlToResource } from "fleet/helpers";
 // @ts-ignore
@@ -13,12 +14,14 @@ import { QueryContext } from "context/query";
 import { IQuery, IQueryFormData } from "interfaces/query";
 
 import Avatar from "components/Avatar";
-import FleetAce from "components/FleetAce"; // @ts-ignore
+import FleetAce from "components/FleetAce";
+// @ts-ignore
 import validateQuery from "components/forms/validators/validate_query";
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
-import Spinner from "components/Spinner"; // @ts-ignore
-import InputField from "components/forms/fields/InputField";
+import Spinner from "components/Spinner";
+// @ts-ignore
+import AutoSizeInputField from "components/forms/fields/AutoSizeInputField";
 import NewQueryModal from "../NewQueryModal";
 import PlatformCompatibility from "../PlatformCompatibility";
 import InfoIcon from "../../../../../../assets/images/icon-info-purple-14x14@2x.png";
@@ -154,6 +157,15 @@ const QueryForm = ({
     setLastEditedQueryBody(sqlString);
   };
 
+  const onInputKeypress = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key.toLowerCase() === "enter" && !event.shiftKey) {
+      event.preventDefault();
+      event.currentTarget.blur();
+      setIsEditingName(false);
+      setIsEditingDescription(false);
+    }
+  };
+
   const promptSaveQuery = (forceNew = false) => (
     evt: React.MouseEvent<HTMLButtonElement>
   ) => {
@@ -233,48 +245,41 @@ const QueryForm = ({
     return <PlatformCompatibility compatiblePlatforms={compatiblePlatforms} />;
   };
 
+  const queryNameClasses = classnames("query-name-wrapper", {
+    [`${baseClass}--editing`]: isEditingName,
+  });
+
+  const queryDescriptionClasses = classnames("query-description-wrapper", {
+    [`${baseClass}--editing`]: isEditingDescription,
+  });
+
   const renderName = () => {
     if (isEditMode) {
-      if (isEditingName) {
-        return (
-          <InputField
-            id="query-name"
-            type="textarea"
-            name="query-name"
-            error={errors.name}
-            value={lastEditedQueryName}
-            placeholder="Add name here"
-            inputClassName={`${baseClass}__query-name`}
-            onChange={setLastEditedQueryName}
-            inputOptions={{
-              autoFocus: true,
-              onFocus: (e: React.FocusEvent<HTMLInputElement>) => {
-                // sets cursor to end of inputfield
-                const val = e.target.value;
-                e.target.value = "";
-                e.target.value = val;
-              },
-            }}
-          />
-        );
-      }
-
-      /* eslint-disable */
-      // eslint complains about the button role
-      // applied to H1 - this is needed to avoid
-      // using a real button
-      // prettier-ignore
       return (
-        <h1
-          role="button"
-          className={`${baseClass}__query-name`}
-          onClick={() => setIsEditingName(true)}
-        >
-          {lastEditedQueryName}
-          <img alt="Edit name" src={PencilIcon} />
-        </h1>
+        <>
+          <div className={queryNameClasses}>
+            <AutoSizeInputField
+              name="query-name"
+              placeholder="Add name here"
+              value={lastEditedQueryName}
+              hasError={errors && errors.name}
+              inputClassName={`${baseClass}__query-name`}
+              onChange={setLastEditedQueryName}
+              onFocus={() => setIsEditingName(true)}
+              onBlur={() => setIsEditingName(false)}
+              onKeyPress={onInputKeypress}
+              isFocused={isEditingName}
+            />
+            <a className="edit-link" onClick={() => setIsEditingName(true)}>
+              <img
+                className={`edit-icon ${isEditingName && "hide"}`}
+                alt="Edit name"
+                src={PencilIcon}
+              />
+            </a>
+          </div>
+        </>
       );
-      /* eslint-enable */
     }
 
     return <h1 className={`${baseClass}__query-name no-hover`}>New query</h1>;
@@ -282,47 +287,34 @@ const QueryForm = ({
 
   const renderDescription = () => {
     if (isEditMode) {
-      if (isEditingDescription) {
-        return (
-          <InputField
-            id="query-description"
-            type="textarea"
-            name="query-description"
-            value={lastEditedQueryDescription}
-            placeholder="Add description here."
-            inputClassName={`${baseClass}__query-description`}
-            onChange={setLastEditedQueryDescription}
-            inputOptions={{
-              autoFocus: true,
-              onFocus: (e: React.FocusEvent<HTMLInputElement>) => {
-                // sets cursor to end of inputfield
-                const val = e.target.value;
-                e.target.value = "";
-                e.target.value = val;
-              },
-            }}
-          />
-        );
-      }
-
-      /* eslint-disable */
-      // eslint complains about the button role
-      // applied to span - this is needed to avoid
-      // using a real button
-      // prettier-ignore
       return (
-        <span
-          role="button"
-          className={`${baseClass}__query-description`}
-          onClick={() => setIsEditingDescription(true)}
-        >
-          {lastEditedQueryDescription}
-          <img alt="Edit description" src={PencilIcon} />
-        </span>
+        <>
+          <div className={queryDescriptionClasses}>
+            <AutoSizeInputField
+              name="query-description"
+              placeholder="Add description here."
+              value={lastEditedQueryDescription}
+              inputClassName={`${baseClass}__query-description`}
+              onChange={setLastEditedQueryDescription}
+              onFocus={() => setIsEditingDescription(true)}
+              onBlur={() => setIsEditingDescription(false)}
+              onKeyPress={onInputKeypress}
+              isFocused={isEditingDescription}
+            />
+            <a
+              className="edit-link"
+              onClick={() => setIsEditingDescription(true)}
+            >
+              <img
+                className={`edit-icon ${isEditingDescription && "hide"}`}
+                alt="Edit name"
+                src={PencilIcon}
+              />
+            </a>
+          </div>
+        </>
       );
-      /* eslint-enable */
     }
-
     return null;
   };
 

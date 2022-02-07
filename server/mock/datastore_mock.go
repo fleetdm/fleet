@@ -176,9 +176,9 @@ type GetMunkiVersionFunc func(ctx context.Context, hostID uint) (string, error)
 
 type GetMDMFunc func(ctx context.Context, hostID uint) (enrolled bool, serverURL string, installedFromDep bool, err error)
 
-type AggregatedMunkiVersionFunc func(ctx context.Context, teamID *uint) ([]fleet.AggregatedMunkiVersion, error)
+type AggregatedMunkiVersionFunc func(ctx context.Context, teamID *uint) ([]fleet.AggregatedMunkiVersion, time.Time, error)
 
-type AggregatedMDMStatusFunc func(ctx context.Context, teamID *uint) (fleet.AggregatedMDMStatus, error)
+type AggregatedMDMStatusFunc func(ctx context.Context, teamID *uint) (fleet.AggregatedMDMStatus, time.Time, error)
 
 type GenerateAggregatedMunkiAndMDMFunc func(ctx context.Context) error
 
@@ -369,6 +369,10 @@ type VerifyEnrollSecretFunc func(ctx context.Context, secret string) (*fleet.Enr
 type EnrollHostFunc func(ctx context.Context, osqueryHostId string, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error)
 
 type SerialUpdateHostFunc func(ctx context.Context, host *fleet.Host) error
+
+type InnoDBStatusFunc func(ctx context.Context) (string, error)
+
+type ProcessListFunc func(ctx context.Context) ([]fleet.MySQLProcess, error)
 
 type DataStore struct {
 	NewCarveFunc        NewCarveFunc
@@ -907,6 +911,12 @@ type DataStore struct {
 
 	SerialUpdateHostFunc        SerialUpdateHostFunc
 	SerialUpdateHostFuncInvoked bool
+
+	InnoDBStatusFunc        InnoDBStatusFunc
+	InnoDBStatusFuncInvoked bool
+
+	ProcessListFunc        ProcessListFunc
+	ProcessListFuncInvoked bool
 }
 
 func (s *DataStore) NewCarve(ctx context.Context, metadata *fleet.CarveMetadata) (*fleet.CarveMetadata, error) {
@@ -1319,12 +1329,12 @@ func (s *DataStore) GetMDM(ctx context.Context, hostID uint) (enrolled bool, ser
 	return s.GetMDMFunc(ctx, hostID)
 }
 
-func (s *DataStore) AggregatedMunkiVersion(ctx context.Context, teamID *uint) ([]fleet.AggregatedMunkiVersion, error) {
+func (s *DataStore) AggregatedMunkiVersion(ctx context.Context, teamID *uint) ([]fleet.AggregatedMunkiVersion, time.Time, error) {
 	s.AggregatedMunkiVersionFuncInvoked = true
 	return s.AggregatedMunkiVersionFunc(ctx, teamID)
 }
 
-func (s *DataStore) AggregatedMDMStatus(ctx context.Context, teamID *uint) (fleet.AggregatedMDMStatus, error) {
+func (s *DataStore) AggregatedMDMStatus(ctx context.Context, teamID *uint) (fleet.AggregatedMDMStatus, time.Time, error) {
 	s.AggregatedMDMStatusFuncInvoked = true
 	return s.AggregatedMDMStatusFunc(ctx, teamID)
 }
@@ -1802,4 +1812,14 @@ func (s *DataStore) EnrollHost(ctx context.Context, osqueryHostId string, nodeKe
 func (s *DataStore) SerialUpdateHost(ctx context.Context, host *fleet.Host) error {
 	s.SerialUpdateHostFuncInvoked = true
 	return s.SerialUpdateHostFunc(ctx, host)
+}
+
+func (s *DataStore) InnoDBStatus(ctx context.Context) (string, error) {
+	s.InnoDBStatusFuncInvoked = true
+	return s.InnoDBStatusFunc(ctx)
+}
+
+func (s *DataStore) ProcessList(ctx context.Context) ([]fleet.MySQLProcess, error) {
+	s.ProcessListFuncInvoked = true
+	return s.ProcessListFunc(ctx)
 }

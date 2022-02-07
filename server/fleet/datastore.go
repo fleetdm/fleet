@@ -207,8 +207,8 @@ type Datastore interface {
 	GetMunkiVersion(ctx context.Context, hostID uint) (string, error)
 	GetMDM(ctx context.Context, hostID uint) (enrolled bool, serverURL string, installedFromDep bool, err error)
 
-	AggregatedMunkiVersion(ctx context.Context, teamID *uint) ([]AggregatedMunkiVersion, error)
-	AggregatedMDMStatus(ctx context.Context, teamID *uint) (AggregatedMDMStatus, error)
+	AggregatedMunkiVersion(ctx context.Context, teamID *uint) ([]AggregatedMunkiVersion, time.Time, error)
+	AggregatedMDMStatus(ctx context.Context, teamID *uint) (AggregatedMDMStatus, time.Time, error)
 	GenerateAggregatedMunkiAndMDM(ctx context.Context) error
 
 	///////////////////////////////////////////////////////////////////////////////
@@ -490,6 +490,21 @@ type Datastore interface {
 	SerialUpdateHost(ctx context.Context, host *Host) error
 
 	///////////////////////////////////////////////////////////////////////////////
+	// Debug
+
+	InnoDBStatus(ctx context.Context) (string, error)
+	ProcessList(ctx context.Context) ([]MySQLProcess, error)
+}
+
+type MySQLProcess struct {
+	Id      int     `json:"id" db:"Id"`
+	User    string  `json:"user" db:"User"`
+	Host    string  `json:"host" db:"Host"`
+	DB      *string `json:"db" db:"db"`
+	Command string  `json:"command" db:"Command"`
+	Time    int     `json:"time" db:"Time"`
+	State   *string `json:"state" db:"State"`
+	Info    *string `json:"info" db:"Info"`
 }
 
 // HostOsqueryIntervals holds an osquery host's osquery interval configurations.

@@ -1869,6 +1869,7 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 	agg := getAggregatedMacadminsDataResponse{}
 	s.DoJSON("GET", "/api/v1/fleet/macadmins", nil, http.StatusOK, &agg)
 	require.NotNil(t, agg.Macadmins)
+	assert.NotZero(t, agg.Macadmins.CountsUpdatedAt)
 	assert.Len(t, agg.Macadmins.MunkiVersions, 2)
 	assert.ElementsMatch(t, agg.Macadmins.MunkiVersions, []fleet.AggregatedMunkiVersion{
 		{
@@ -2313,6 +2314,11 @@ func (s *integrationTestSuite) TestTeamsEndpointsWithoutLicense() {
 	s.DoJSON("GET", "/api/v1/fleet/teams", nil, http.StatusPaymentRequired, &listResp)
 	assert.Len(t, listResp.Teams, 0)
 
+	// get team
+	var getResp getTeamResponse
+	s.DoJSON("GET", "/api/v1/fleet/teams/123", nil, http.StatusPaymentRequired, &getResp)
+	assert.Nil(t, getResp.Team)
+
 	// create team
 	var tmResp teamResponse
 	s.DoJSON("POST", "/api/v1/fleet/teams", &createTeamRequest{}, http.StatusPaymentRequired, &tmResp)
@@ -2326,10 +2332,10 @@ func (s *integrationTestSuite) TestTeamsEndpointsWithoutLicense() {
 	var delResp deleteTeamResponse
 	s.DoJSON("DELETE", "/api/v1/fleet/teams/123", nil, http.StatusPaymentRequired, &delResp)
 
-	// apply team specs - does succeed unlike others, no license required for this one
+	// apply team specs
 	var specResp applyTeamSpecsResponse
 	teamSpecs := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: "newteam", Secrets: []fleet.EnrollSecret{{Secret: "ABC"}}}}}
-	s.DoJSON("POST", "/api/v1/fleet/spec/teams", teamSpecs, http.StatusOK, &specResp)
+	s.DoJSON("POST", "/api/v1/fleet/spec/teams", teamSpecs, http.StatusPaymentRequired, &specResp)
 
 	// modify team agent options
 	s.DoJSON("POST", "/api/v1/fleet/teams/123/agent_options", nil, http.StatusPaymentRequired, &tmResp)

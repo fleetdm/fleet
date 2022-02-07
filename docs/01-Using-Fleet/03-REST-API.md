@@ -1165,6 +1165,7 @@ Retrieves aggregated host's MDM enrollment status and Munki versions.
 ```json
 {
   "macadmins": {
+    "counts_updated_at": "2021-03-21 12:32:44",
     "munki_versions": [
       {
         "version": "5.5",
@@ -5559,6 +5560,62 @@ _Available in Fleet Premium_
       }
     }
   ]
+}
+```
+
+### Get team
+
+_Available in Fleet Premium_
+
+`GET /api/v1/fleet/teams/{id}`
+
+#### Parameters
+
+| Name | Type   | In   | Description                          |
+| ---- | ------ | ---- | ------------------------------------ |
+| id   | string | body | **Required.** The desired team's ID. |
+
+#### Example
+
+`GET /api/v1/fleet/teams/1`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "team": {
+    "name": "Workstations",
+    "id": 1,
+    "user_ids": [1, 17, 22, 32],
+    "host_ids": [],
+    "user_count": 4,
+    "host_count": 0,
+    "agent_options": {
+      "spec": {
+        "config": {
+          "options": {
+            "logger_plugin": "tls",
+            "pack_delimiter": "/",
+            "logger_tls_period": 10,
+            "distributed_plugin": "tls",
+            "disable_distributed": false,
+            "logger_tls_endpoint": "/api/v1/osquery/log",
+            "distributed_interval": 10,
+            "distributed_tls_max_attempts": 3
+          },
+          "decorators": {
+            "load": [
+              "SELECT uuid AS host_uuid FROM system_info;",
+              "SELECT hostname AS hostname FROM system_info;"
+            ]
+          }
+        },
+        "overrides": {}
+      }
+    }
+  }
 }
 ```
 
