@@ -1084,7 +1084,7 @@ func testHostsGenerateStatusStatistics(t *testing.T, ds *Datastore) {
 		LabelUpdatedAt:  mockClock.Now().Add(-30 * time.Second),
 		PolicyUpdatedAt: mockClock.Now().Add(-30 * time.Second),
 		SeenTime:        mockClock.Now().Add(-30 * time.Second),
-		Platform:        "linux",
+		Platform:        "debian",
 	})
 	require.NoError(t, err)
 	h.DistributedInterval = 15
@@ -1132,7 +1132,7 @@ func testHostsGenerateStatusStatistics(t *testing.T, ds *Datastore) {
 		LabelUpdatedAt:  mockClock.Now().Add(-35 * (24 * time.Hour)),
 		PolicyUpdatedAt: mockClock.Now().Add(-35 * (24 * time.Hour)),
 		SeenTime:        mockClock.Now().Add(-35 * (24 * time.Hour)),
-		Platform:        "linux",
+		Platform:        "rhel",
 	})
 	require.NoError(t, err)
 
@@ -1141,7 +1141,8 @@ func testHostsGenerateStatusStatistics(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{h.ID}))
 
 	wantPlatforms := []*fleet.HostSummaryPlatform{
-		{Platform: "linux", HostsCount: 2},
+		{Platform: "debian", HostsCount: 1},
+		{Platform: "rhel", HostsCount: 1},
 		{Platform: "windows", HostsCount: 1},
 		{Platform: "darwin", HostsCount: 1},
 	}

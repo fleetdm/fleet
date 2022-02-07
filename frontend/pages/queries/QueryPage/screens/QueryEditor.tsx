@@ -1,4 +1,4 @@
-import React, { useContext, useEffect } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import { Link } from "react-router";
 import { useDispatch } from "react-redux";
 import { InjectedRouter } from "react-router/lib/Router";
@@ -71,17 +71,20 @@ const QueryEditor = ({
     }
   }, []);
 
+  const [backendValidators, setBackendValidators] = useState<{
+    [key: string]: string;
+  }>({});
+
   const onSaveQueryFormSubmit = debounce(async (formData: IQueryFormData) => {
     try {
       const { query }: { query: IQuery } = await createQuery(formData);
       router.push(PATHS.EDIT_QUERY(query));
       dispatch(renderFlash("success", "Query created!"));
+      setBackendValidators({});
     } catch (createError: any) {
       console.error(createError);
-      if (createError.errors[0].reason.includes("already exists")) {
-        dispatch(
-          renderFlash("error", "A query with this name already exists.")
-        );
+      if (createError.data.errors[0].reason.includes("already exists")) {
+        setBackendValidators({ name: "A query with this name already exists" });
       } else {
         dispatch(
           renderFlash(
@@ -148,6 +151,7 @@ const QueryEditor = ({
         showOpenSchemaActionText={showOpenSchemaActionText}
         onOpenSchemaSidebar={onOpenSchemaSidebar}
         renderLiveQueryWarning={renderLiveQueryWarning}
+        backendValidators={backendValidators}
       />
     </div>
   );
