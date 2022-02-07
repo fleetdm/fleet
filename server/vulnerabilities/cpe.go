@@ -69,22 +69,39 @@ func GetLatestNVDRelease(client *http.Client) (*NVDRelease, error) {
 	}, nil
 }
 
+type syncOpts struct {
+	url string
+}
+
+type CPESyncOption func(*syncOpts)
+
+func WithCPEURL(url string) CPESyncOption {
+	return func(o *syncOpts) {
+		o.url = url
+	}
+}
+
+// SyncCPEDatabase (by default) downloads the CPE database from the
+// latest release of github.com/fleetdm/nvd to the given dbPath.
+// An alternative URL can be set via the WithCPEURL option.
+//
+// It won't sync the database at dbPath has an mtime that happened after the
+// available database release date.
 func SyncCPEDatabase(
 	client *http.Client,
 	dbPath string,
-	config config.FleetConfig,
+	opts ...CPESyncOption,
 ) error {
-	if config.Vulnerabilities.DisableDataSync {
-		return nil
+	var o syncOpts
+	for _, fn := range opts {
+		fn(&o)
 	}
 
-	url := config.Vulnerabilities.CPEDatabaseURL
-	if url == "" {
+	if o.url == "" {
 		nvdRelease, err := GetLatestNVDRelease(client)
 		if err != nil {
 			return err
 		}
-
 		stat, err := os.Stat(dbPath)
 		if err != nil {
 			if !errors.Is(err, os.ErrNotExist) {
@@ -93,10 +110,10 @@ func SyncCPEDatabase(
 		} else if !nvdRelease.CreatedAt.After(stat.ModTime()) {
 			return nil
 		}
-		url = nvdRelease.CPEURL
+		o.url = nvdRelease.CPEURL
 	}
 
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+	req, err := http.NewRequest(http.MethodGet, o.url, nil)
 	if err != nil {
 		return err
 	}
@@ -227,9 +244,11 @@ func TranslateSoftwareToCPE(
 ) error {
 	dbPath := path.Join(vulnPath, "cpe.sqlite")
 
-	client := fleethttp.NewClient()
-	if err := SyncCPEDatabase(client, dbPath, config); err != nil {
-		return ctxerr.Wrap(ctx, err, "sync cpe db")
+	if !config.Vulnerabilities.DisableDataSync {
+		client := fleethttp.NewClient()
+		if err := SyncCPEDatabase(client, dbPath, WithCPEURL(config.Vulnerabilities.CPEDatabaseURL)); err != nil {
+			return ctxerr.Wrap(ctx, err, "sync cpe db")
+		}
 	}
 
 	iterator, err := ds.AllSoftwareWithoutCPEIterator(ctx)

@@ -47,6 +47,7 @@ func centosPostProcessing(
 	}
 
 	var fixedCVEs []fleet.SoftwareVulnerability
+	var softwareCount int
 	for _, software := range rpmVulnerable {
 		if software.Vendor != "CentOS" {
 			continue
@@ -60,23 +61,36 @@ func centosPostProcessing(
 		if !ok {
 			continue
 		}
+		var cves []string
 		for _, vulnerability := range software.Vulnerabilities {
 			if _, ok := pkgFixedCVEs[vulnerability.CVE]; ok {
-				level.Info(logger).Log(
-					"msg", "fixed CVE found",
-					"softwareName", software.Name,
-					"softwareCPE", software.CPE,
-					"cve", vulnerability.CVE,
-				)
+				cves = append(cves, vulnerability.CVE)
 				fixedCVEs = append(fixedCVEs, fleet.SoftwareVulnerability{
 					CPE: software.CPE,
 					CVE: vulnerability.CVE,
 				})
 			}
 		}
+		if len(cves) > 0 {
+			softwareCount++
+
+			level.Debug(logger).Log(
+				"msg", "fixedCVEs",
+				"software", fmt.Sprintf(
+					"%s-%s-%s.%s",
+					software.Name, software.Version, software.Release, software.Arch,
+				),
+				"softwareCPE", software.CPE,
+				"cves", fmt.Sprintf("%v", cves),
+			)
+		}
 	}
 
-	level.Info(logger).Log("fixedCVEsCount", len(fixedCVEs))
+	level.Info(logger).Log(
+		"msg", "CentOS fixed CVEs",
+		"fixedCVEsCount", len(fixedCVEs),
+		"distinctSoftwareCount", softwareCount,
+	)
 
 	if err := ds.DeleteVulnerabilitiesByCPECVE(ctx, fixedCVEs); err != nil {
 		return fmt.Errorf("failed to delete fixed vulnerabilities: %w", err)
