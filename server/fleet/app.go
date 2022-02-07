@@ -224,7 +224,6 @@ func (c *AppConfig) ApplyDefaultsForNewInstalls() {
 	c.AgentOptions = &agentOptions
 
 	c.HostSettings.EnableSoftwareInventory = true
-	c.HostSettings.EnableScheduledQueryStats = true
 
 	c.ApplyDefaults()
 }
