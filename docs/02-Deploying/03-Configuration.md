@@ -7,7 +7,7 @@
 - [Managing osquery configurations](#managing-osquery-configurations)
 - [Running with systemd](#running-with-systemd)
 - [Configuring single sign on](#configuring-single-sign-on)
-  - [Identity Provider (IDP) configuration](#identity-provider-IDP-configuration)
+  - [Identity provider (IDP) configuration](#identity-provider-IDP-configuration)
   - [Fleet SSO configuration](#fleet-sso-configuration)
   - [Creating SSO users in Fleet](#creating-sso-users-in-fleet)
 - [Feature flags](#feature-flags)
@@ -687,7 +687,7 @@ Configures the TLS settings for compatibility with various user agents. Options 
 
 Sets a URL prefix to use when serving the Fleet API and frontend. Prefixes should be in the form `/apps/fleet` (no trailing slash).
 
-Note that some other configurations may need to be changed when modifying the URL prefix. In particular, URLs that are provided to osquery via flagfile, the configuration served by Fleet, the URL prefix used by `fleetctl`, and the redirect URL set with an Identity Provider.
+Note that some other configurations may need to be changed when modifying the URL prefix. In particular, URLs that are provided to osquery via flagfile, the configuration served by Fleet, the URL prefix used by `fleetctl`, and the redirect URL set with an identity provider.
 
 - Default value: Empty (no prefix set)
 - Environment variable: `FLEET_SERVER_URL_PREFIX`
@@ -1991,7 +1991,7 @@ Fleet supports the SAML Web Browser SSO Profile using the HTTP Redirect Binding.
 
 _**Note that the email being used in the SAML Assertion must match a user that already exists in Fleet.**_
 
-### Identity Provider (IDP) Configuration
+### Identity provider (IDP) configuration
 
 Setting up the service provider (Fleet) with an identity provider generally requires the following information:
 
@@ -2014,11 +2014,11 @@ After supplying the above information, the IDP will generate an issuer URI and a
 
 A Fleet user must be assigned the Admin role to configure Fleet for SSO. In Fleet, SSO configuration settings are located in **Settings > Organization settings > SAML single sign on options**.
 
-If your IDP supports dynamic configuration, like Okta, you only need to provide an _Identity Provider Name_ and _Entity ID_, then paste a link in the metadata URL field.
+If your IDP supports dynamic configuration, like Okta, you only need to provide an _identity provider name_ and _entity ID_, then paste a link in the metadata URL field.
 
 Otherwise, the following values are required:
 
-- _Identity Provider Name_ - A human readable name of the IDP. This is rendered on the login page.
+- _Identity provider name_ - A human readable name of the IDP. This is rendered on the login page.
 
 - _Entity ID_ - A URI that identifies your Fleet instance as the issuer of authorization
   requests (eg. `fleet.example.com`). This much match the _Entity ID_ configured with the IDP.
@@ -2052,7 +2052,7 @@ As an admin, you can enable SSO for existing users in Fleet. To do this, go to t
 
 ![Example Okta IDP Configuration](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/okta-idp-setup.png)
 
-> The names of the items required to configure an Identity Provider may vary from provider to provider and may not conform to the SAML spec.
+> The names of the items required to configure an identity provider may vary from provider to provider and may not conform to the SAML spec.
 
 > Individual users must also be setup on the IDP before they can sign in to Fleet.
 
