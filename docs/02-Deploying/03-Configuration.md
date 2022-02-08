@@ -687,7 +687,7 @@ Configures the TLS settings for compatibility with various user agents. Options 
 
 Sets a URL prefix to use when serving the Fleet API and frontend. Prefixes should be in the form `/apps/fleet` (no trailing slash).
 
-Note that some other configurations may need to be changed when modifying the URL prefix. In particular, URLs that are provided to osquery via flagfile, the configuration served by Fleet, the URL prefix used by `fleetctl`, and the redirect URL set with an SSO Identity Provider.
+Note that some other configurations may need to be changed when modifying the URL prefix. In particular, URLs that are provided to osquery via flagfile, the configuration served by Fleet, the URL prefix used by `fleetctl`, and the redirect URL set with an Identity Provider.
 
 - Default value: Empty (no prefix set)
 - Environment variable: `FLEET_SERVER_URL_PREFIX`
@@ -2044,6 +2044,9 @@ SSO enabled users will not be able to sign in with a regular user ID and passwor
 It is strongly recommended that at least one admin user is set up to use the traditional password
 based log in so that there is a fallback method for logging into Fleet in the event of SSO
 configuration problems.
+
+### Enabling SSO for existing users in Fleet
+As an admin, you can enable SSO for existing users in Fleet. To do this, go to the Settings page, then click on the Users tab. Locate the user you want to enable SSO for and on the actions dropdown menu for that user, click on "Enable single sign on".
 
 #### Okta IDP Configuration
 
