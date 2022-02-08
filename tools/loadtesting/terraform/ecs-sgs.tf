@@ -1,13 +1,13 @@
 # Security group for the public internet facing load balancer
 resource "aws_security_group" "lb" {
-  name        = "${var.prefix} load balancer"
-  description = "${var.prefix} Load balancer security group"
+  name        = "${local.prefix} load balancer"
+  description = "${local.prefix} Load balancer security group"
   vpc_id      = module.vpc.vpc_id
 }
 
 # Allow traffic from public internet
 resource "aws_security_group_rule" "lb-ingress" {
-  description = "${var.prefix}: allow traffic from public internet"
+  description = "${local.prefix}: allow traffic from public internet"
   type        = "ingress"
 
   from_port   = "443"
@@ -19,7 +19,7 @@ resource "aws_security_group_rule" "lb-ingress" {
 }
 
 resource "aws_security_group_rule" "lb-http-ingress" {
-  description = "${var.prefix}: allow traffic from public internet"
+  description = "${local.prefix}: allow traffic from public internet"
   type        = "ingress"
 
   from_port   = "80"
@@ -32,7 +32,7 @@ resource "aws_security_group_rule" "lb-http-ingress" {
 
 # Allow outbound traffic
 resource "aws_security_group_rule" "lb-egress" {
-  description = "${var.prefix}: allow all outbound traffic"
+  description = "${local.prefix}: allow all outbound traffic"
   type        = "egress"
 
   from_port   = 0
@@ -46,15 +46,15 @@ resource "aws_security_group_rule" "lb-egress" {
 # Security group for the backends that run the application.
 # Allows traffic from the load balancer
 resource "aws_security_group" "backend" {
-  name        = "${var.prefix} backend"
-  description = "${var.prefix} Backend security group"
+  name        = "${local.prefix} backend"
+  description = "${local.prefix} Backend security group"
   vpc_id      = module.vpc.vpc_id
 
 }
 
 # Allow traffic from the load balancer to the backends
 resource "aws_security_group_rule" "backend-ingress" {
-  description = "${var.prefix}: allow traffic from load balancer"
+  description = "${local.prefix}: allow traffic from load balancer"
   type        = "ingress"
 
   from_port                = "8080"
@@ -66,7 +66,7 @@ resource "aws_security_group_rule" "backend-ingress" {
 
 # Allow outbound traffic from the backends
 resource "aws_security_group_rule" "backend-egress" {
-  description = "${var.prefix}: allow all outbound traffic"
+  description = "${local.prefix}: allow all outbound traffic"
   type        = "egress"
 
   from_port   = 0

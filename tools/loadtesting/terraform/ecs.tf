@@ -1,14 +1,3 @@
-//resource "aws_route53_record" "record" {
-//  name = "fleetdm"
-//  type = "A"
-//  zone_id = "Z046188311R47QSK245X"
-//  alias {
-//    evaluate_target_health = false
-//    name = aws_alb.main.dns_name
-//    zone_id = aws_alb.main.zone_id
-//  }
-//}
-
 resource "aws_alb" "main" {
   name            = "fleetdm"
   internal        = false
@@ -69,7 +58,7 @@ resource "aws_alb_listener" "http" {
 }
 
 resource "aws_ecs_cluster" "fleet" {
-  name = "${var.prefix}-backend"
+  name = "${local.prefix}-backend"
 
   setting {
     name  = "containerInsights"
@@ -118,8 +107,8 @@ resource "aws_ecs_task_definition" "backend" {
   requires_compatibilities = ["FARGATE"]
   execution_role_arn       = aws_iam_role.main.arn
   task_role_arn            = aws_iam_role.main.arn
-  cpu                      = var.fleet_backend_cpu
-  memory                   = var.fleet_backend_mem
+  cpu                      = 1024
+  memory                   = 2048
   container_definitions = jsonencode(
     [
       {
@@ -150,15 +139,18 @@ resource "aws_ecs_task_definition" "backend" {
         ],
       },
       {
-        name      = "fleet"
-        image     = docker_registry_image.fleet.name
-        cpu       = var.fleet_backend_cpu
-        memory    = var.fleet_backend_mem
-        essential = true
+        name        = "fleet"
+        image       = docker_registry_image.fleet.name
+        cpu         = 1024
+        memory      = 2048
+        mountPoints = []
+        volumesFrom = []
+        essential   = true
         portMappings = [
           {
             # This port is the same that the contained application also uses
             containerPort = 8080
+            hostPort      = 8080
             protocol      = "tcp"
           }
         ]
@@ -192,14 +184,14 @@ resource "aws_ecs_task_definition" "backend" {
             valueFrom = data.aws_secretsmanager_secret.license.arn
           }
         ]
-        environment = [
+        environment = concat([
           {
             name  = "FLEET_MYSQL_USERNAME"
-            value = var.database_user
+            value = module.aurora_mysql.rds_cluster_master_username
           },
           {
             name  = "FLEET_MYSQL_DATABASE"
-            value = var.database_name
+            value = module.aurora_mysql.rds_cluster_database_name
           },
           {
             name  = "FLEET_MYSQL_ADDRESS"
@@ -207,11 +199,11 @@ resource "aws_ecs_task_definition" "backend" {
           },
           {
             name  = "FLEET_MYSQL_READ_REPLICA_USERNAME"
-            value = var.database_user
+            value = module.aurora_mysql.rds_cluster_master_username
           },
           {
             name  = "FLEET_MYSQL_READ_REPLICA_DATABASE"
-            value = var.database_name
+            value = module.aurora_mysql.rds_cluster_database_name
           },
           {
             name  = "FLEET_MYSQL_READ_REPLICA_ADDRESS"
@@ -250,22 +242,6 @@ resource "aws_ecs_task_definition" "backend" {
             value = "false"
           },
           {
-            name  = "FLEET_BETA_SOFTWARE_INVENTORY"
-            value = var.software_inventory
-          },
-          {
-            name  = "FLEET_VULNERABILITIES_DATABASES_PATH"
-            value = var.vuln_db_path
-          },
-          {
-            name  = "FLEET_OSQUERY_ENABLE_ASYNC_HOST_PROCESSING"
-            value = var.async_host_processing
-          },
-          {
-            name  = "FLEET_LOGGING_DEBUG"
-            value = var.logging_debug
-          },
-          {
             name  = "FLEET_REDIS_MAX_IDLE_CONNS"
             value = "100"
           },
@@ -277,7 +253,7 @@ resource "aws_ecs_task_definition" "backend" {
             name  = "FLEET_OSQUERY_ASYNC_HOST_REDIS_SCAN_KEYS_COUNT"
             value = "10000"
           }
-        ]
+        ], local.additional_env_vars)
       }
   ])
   lifecycle {
@@ -292,15 +268,15 @@ resource "aws_ecs_task_definition" "migration" {
   requires_compatibilities = ["FARGATE"]
   execution_role_arn       = aws_iam_role.main.arn
   task_role_arn            = aws_iam_role.main.arn
-  cpu                      = var.cpu_migrate
-  memory                   = var.mem_migrate
+  cpu                      = 1024
+  memory                   = 2048
   container_definitions = jsonencode(
     [
       {
         name        = "fleet-prepare-db"
         image       = docker_registry_image.fleet.name
-        cpu         = var.cpu_migrate
-        memory      = var.mem_migrate
+        cpu         = 1024
+        memory      = 2048
         mountPoints = []
         volumesFrom = []
         essential   = true
@@ -330,11 +306,11 @@ resource "aws_ecs_task_definition" "migration" {
         environment = [
           {
             name  = "FLEET_MYSQL_USERNAME"
-            value = var.database_user
+            value = module.aurora_mysql.rds_cluster_master_username
           },
           {
             name  = "FLEET_MYSQL_DATABASE"
-            value = var.database_name
+            value = module.aurora_mysql.rds_cluster_database_name
           },
           {
             name  = "FLEET_MYSQL_ADDRESS"
@@ -350,8 +326,8 @@ resource "aws_ecs_task_definition" "migration" {
 }
 
 resource "aws_appautoscaling_target" "ecs_target" {
-  max_capacity       = var.fleet_max_capacity
-  min_capacity       = var.fleet_min_capacity
+  max_capacity       = 100
+  min_capacity       = 10
   resource_id        = "service/${aws_ecs_cluster.fleet.name}/${aws_ecs_service.fleet.name}"
   scalable_dimension = "ecs:service:DesiredCount"
   service_namespace  = "ecs"
@@ -368,7 +344,7 @@ resource "aws_appautoscaling_policy" "ecs_policy_memory" {
     predefined_metric_specification {
       predefined_metric_type = "ECSServiceAverageMemoryUtilization"
     }
-    target_value = var.memory_tracking_target_value
+    target_value = 80
   }
 }
 
@@ -384,7 +360,7 @@ resource "aws_appautoscaling_policy" "ecs_policy_cpu" {
       predefined_metric_type = "ECSServiceAverageCPUUtilization"
     }
 
-    target_value = var.cpu_tracking_target_value
+    target_value = 60
   }
 }
 

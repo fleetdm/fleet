@@ -17,7 +17,7 @@ data "aws_iam_policy_document" "fleet" {
     content {
       effect    = "Allow"
       actions   = ["rds-db:connect"]
-      resources = ["arn:aws:rds-db:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:dbuser:${statement.value}/${var.database_user}"]
+      resources = ["arn:aws:rds-db:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:dbuser:${statement.value}/${module.aurora_mysql.rds_cluster_master_username}"]
     }
   }
 
@@ -26,7 +26,7 @@ data "aws_iam_policy_document" "fleet" {
   statement {
     effect    = "Allow"
     actions   = ["rds-db:connect"]
-    resources = ["arn:aws:rds-db:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:dbuser:*/${var.database_user}"]
+    resources = ["arn:aws:rds-db:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:dbuser:*/${module.aurora_mysql.rds_cluster_master_username}"]
   }
 
   statement {
@@ -45,7 +45,7 @@ data "aws_iam_policy_document" "assume_role" {
     effect  = "Allow"
     actions = ["sts:AssumeRole"]
     principals {
-      identifiers = ["ecs-tasks.amazonaws.com", "ecs.amazonaws.com"]
+      identifiers = ["ecs.amazonaws.com", "ecs-tasks.amazonaws.com"]
       type        = "Service"
     }
   }

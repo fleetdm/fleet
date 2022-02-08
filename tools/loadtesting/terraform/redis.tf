@@ -37,7 +37,7 @@ resource "aws_security_group" "redis" {
 }
 
 locals {
-  security_group_name = "${var.prefix}-elasticache-redis"
+  security_group_name = "${local.prefix}-elasticache-redis"
 }
 
 resource "aws_security_group_rule" "ingress" {

@@ -1,5 +1,6 @@
 module "vpc" {
-  source = "terraform-aws-modules/vpc/aws"
+  source  = "terraform-aws-modules/vpc/aws"
+  version = "3.12.0"
 
   name = "fleet-vpc"
   cidr = "10.10.0.0/16"

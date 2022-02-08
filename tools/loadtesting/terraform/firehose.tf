@@ -1,5 +1,5 @@
 resource "aws_s3_bucket" "osquery-results" {
-  bucket = var.osquery_results_s3_bucket
+  bucket = "fleet-loadtest-osquery-logs-archive"
   acl    = "private"
 
   lifecycle_rule {
@@ -19,7 +19,7 @@ resource "aws_s3_bucket" "osquery-results" {
 }
 
 resource "aws_s3_bucket" "osquery-status" {
-  bucket = var.osquery_status_s3_bucket
+  bucket = "fleet-loadtest-osquery-status-archive"
   acl    = "private"
 
   lifecycle_rule {
