@@ -1,6 +1,6 @@
 module "lb-http" {
   source            = "GoogleCloudPlatform/lb-http/google//modules/serverless_negs"
-  version           = "~> 4.5"
+  version           = "~> 6.2.0"
 
   project           = "YOUR_PROJECT_ID"
   name              = "my-lb"
