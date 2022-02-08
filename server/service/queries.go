@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
@@ -459,13 +461,9 @@ func applyQuerySpecsEndpoint(ctx context.Context, request interface{}, svc fleet
 }
 
 func (svc *Service) ApplyQuerySpecs(ctx context.Context, specs []*fleet.QuerySpec) error {
+	// check that the user can create queries
 	if err := svc.authz.Authorize(ctx, &fleet.Query{}, fleet.ActionWrite); err != nil {
 		return err
-	}
-
-	vc, ok := viewer.FromContext(ctx)
-	if !ok {
-		return ctxerr.New(ctx, "user must be authenticated to apply queries")
 	}
 
 	queries := []*fleet.Query{}
@@ -479,6 +477,21 @@ func (svc *Service) ApplyQuerySpecs(ctx context.Context, specs []*fleet.QuerySpe
 				message: fmt.Sprintf("query payload verification: %s", err),
 			})
 		}
+
+		// check that the user can update the query if it already exists
+		query, err := svc.ds.QueryByName(ctx, query.Name)
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return err
+		} else if err == nil {
+			if err := svc.authz.Authorize(ctx, query, fleet.ActionWrite); err != nil {
+				return err
+			}
+		}
+	}
+
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return ctxerr.New(ctx, "user must be authenticated to apply queries")
 	}
 
 	err := svc.ds.ApplyQueries(ctx, vc.UserID(), queries)
