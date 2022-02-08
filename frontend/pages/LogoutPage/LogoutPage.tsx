@@ -1,11 +1,9 @@
-import { useDispatch } from "react-redux";
 // @ts-ignore
-import { logoutUser } from "../../redux/nodes/auth/actions";
+import { clearToken } from "../../utilities/local"; // @ts-ignore
 
 const LogoutPage = (): boolean => {
-  const dispatch = useDispatch();
-
-  dispatch(logoutUser());
+  clearToken();
+  window.location.href = "/";
   return false;
 };
 
