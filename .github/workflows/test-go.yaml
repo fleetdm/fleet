@@ -10,6 +10,8 @@ on:
   pull_request:
     paths:
       - '**.go'
+  schedule:
+      - cron: '0 4 * * *' # every day at 4 AM, for running go tests with -race
 
 jobs:
   test-go:
@@ -19,6 +21,9 @@ jobs:
         go-version: ['^1.17.0']
         mysql: ["mysql:5.7", "mysql:8"]
     runs-on: ${{ matrix.os }}
+
+    env:
+      RACE_ENABLED: false
 
     steps:
     - name: Install Go
@@ -43,9 +48,14 @@ jobs:
         export PATH=$PATH:~/go/bin
         make generate-go
 
+    - name: Set Go race setting
+      if: github.event.schedule != '0 4 * * *'
+      env:
+        RACE_ENABLED: true
+
     - name: Run Go Tests
       run: |
-        NETWORK_TEST=1 REDIS_TEST=1 MYSQL_TEST=1 make test-go
+        NETWORK_TEST=1 REDIS_TEST=1 MYSQL_TEST=1 RACE_ENABLED=$RACE_ENABLED make test-go
 
     - name: Upload to Codecov
       uses: codecov/codecov-action@v2
