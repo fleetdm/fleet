@@ -230,7 +230,6 @@ func (c *AppConfig) ApplyDefaultsForNewInstalls() {
 
 func (c *AppConfig) ApplyDefaults() {
 	c.HostSettings.EnableHostUsers = true
-	c.HostSettings.EnableScheduledQueryStats = true
 	c.WebhookSettings.Interval.Duration = 24 * time.Hour
 }
 
@@ -256,10 +255,9 @@ type HostExpirySettings struct {
 }
 
 type HostSettings struct {
-	EnableHostUsers           bool             `json:"enable_host_users"`
-	EnableSoftwareInventory   bool             `json:"enable_software_inventory"`
-	EnableScheduledQueryStats bool             `json:"enable_scheduled_query_stats"`
-	AdditionalQueries         *json.RawMessage `json:"additional_queries,omitempty"`
+	EnableHostUsers         bool             `json:"enable_host_users"`
+	EnableSoftwareInventory bool             `json:"enable_software_inventory"`
+	AdditionalQueries       *json.RawMessage `json:"additional_queries,omitempty"`
 }
 
 type OrderDirection int

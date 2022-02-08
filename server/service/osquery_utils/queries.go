@@ -366,6 +366,14 @@ FROM homebrew_packages;
 	DirectIngestFunc: directIngestSoftware,
 }
 
+var scheduledQueryStats = DetailQuery{
+	Query: `
+			SELECT *,
+				(SELECT value from osquery_flags where name = 'pack_delimiter') AS delimiter
+			FROM osquery_schedule`,
+	DirectIngestFunc: directIngestScheduledQueryStats,
+}
+
 var softwareLinux = DetailQuery{
 	Query: `
 WITH cached_users AS (SELECT * FROM users)
@@ -490,14 +498,6 @@ FROM python_packages;
 `,
 	Platforms:        []string{"windows"},
 	DirectIngestFunc: directIngestSoftware,
-}
-
-var scheduledQueryStats = DetailQuery{
-	Query: `
-			SELECT *,
-				(SELECT value from osquery_flags where name = 'pack_delimiter') AS delimiter
-			FROM osquery_schedule`,
-	DirectIngestFunc: directIngestScheduledQueryStats,
 }
 
 var usersQuery = DetailQuery{
@@ -755,7 +755,7 @@ func GetDetailQueries(ac *fleet.AppConfig, fleetConfig config.FleetConfig) map[s
 		generatedMap["users"] = usersQuery
 	}
 
-	if ac != nil && ac.HostSettings.EnableScheduledQueryStats && fleetConfig.App.EnableScheduledQueryStats {
+	if fleetConfig.App.EnableScheduledQueryStats {
 		generatedMap["scheduled_query_stats"] = scheduledQueryStats
 	}
 
