@@ -1,7 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useQuery } from "react-query";
 import { ILabel } from "interfaces/label";
+import paths from "router/paths";
 
+import { PLATFORM_NAME_TO_LABEL_NAME } from "utilities/constants";
 import hostCountAPI from "services/entities/host_count";
 import labelsAPI from "services/entities/labels";
 
@@ -19,6 +21,7 @@ interface IHostSummaryProps {
   showHostsUI: boolean;
   selectedPlatform: string;
   setTotalCount: (count: string | undefined) => void;
+  setActionURL?: (url: string) => void;
 }
 
 interface ILabelsResponse {
@@ -37,16 +40,22 @@ const HostsSummary = ({
   showHostsUI,
   selectedPlatform,
   setTotalCount,
+  setActionURL,
 }: IHostSummaryProps): JSX.Element => {
+  const { MANAGE_HOSTS } = paths;
   const [linuxCount, setLinuxCount] = useState<string | undefined>();
 
-  const getLabel = (labelString: string, labels: ILabel[]) => {
-    return Object.values(labels).filter((label: ILabel) => {
+  const getLabel = (
+    labelString: string,
+    labels: ILabel[]
+  ): ILabel | undefined => {
+    return Object.values(labels).find((label: ILabel) => {
       return label.label_type === "builtin" && label.name === labelString;
     });
   };
+
   const { data: labels } = useQuery<ILabelsResponse, Error, ILabel[]>(
-    ["labels"],
+    ["labels", selectedPlatform],
     () => labelsAPI.loadAll(),
     {
       select: (data: ILabelsResponse) => data.labels,
@@ -59,7 +68,7 @@ const HostsSummary = ({
       const linuxLabel = getLabel("All Linux", labels || []);
       return (
         hostCountAPI.load({
-          selectedLabels: [`labels/${linuxLabel[0].id}`],
+          selectedLabels: [`labels/${linuxLabel?.id}`],
           teamId: currentTeamId,
         }) || { count: 0 }
       );
@@ -90,6 +99,28 @@ const HostsSummary = ({
       },
     }
   );
+
+  // build the manage hosts URL
+  useEffect(() => {
+    if (labels) {
+      let hostsURL = MANAGE_HOSTS;
+
+      // platform must go first since it's a URL slug rather than params
+      if (selectedPlatform) {
+        const labelValue =
+          PLATFORM_NAME_TO_LABEL_NAME[
+            selectedPlatform as keyof typeof PLATFORM_NAME_TO_LABEL_NAME
+          ];
+        hostsURL += `/${getLabel(labelValue, labels)?.slug}`;
+      }
+
+      if (currentTeamId) {
+        hostsURL += `/?team_id=${currentTeamId}`;
+      }
+
+      setActionURL && setActionURL(hostsURL);
+    }
+  }, [labels, selectedPlatform, currentTeamId]);
 
   // Renders opaque information as host information is loading
   let opacity = { opacity: 0 };

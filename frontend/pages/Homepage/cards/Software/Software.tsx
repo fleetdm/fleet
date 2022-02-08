@@ -17,7 +17,7 @@ interface ISoftwareCardProps {
   currentTeamId?: number;
   showSoftwareUI: boolean;
   setShowSoftwareUI: (showSoftwareTitle: boolean) => void;
-  setActionLink?: (url: string) => void;
+  setActionURL?: (url: string) => void;
   setTitleDetail?: (content: JSX.Element | string | null) => void;
 }
 
@@ -53,9 +53,9 @@ const EmptySoftware = (message: string): JSX.Element => {
 
 const Software = ({
   currentTeamId,
-  setShowSoftwareUI,
   showSoftwareUI,
-  setActionLink,
+  setShowSoftwareUI,
+  setActionURL,
   setTitleDetail,
 }: ISoftwareCardProps): JSX.Element => {
   const [navTabIndex, setNavTabIndex] = useState<number>(0);
@@ -81,7 +81,6 @@ const Software = ({
       softwareAPI.load({
         page: pageIndex,
         perPage: PAGE_SIZE,
-        // TODO confirm sort is working?
         orderKey: DEFAULT_SORT_HEADER,
         orderDir: DEFAULT_SORT_DIRECTION,
         vulnerable: !!navTabIndex, // we can take the tab index as a boolean to represent the vulnerable flag :)
@@ -89,6 +88,7 @@ const Software = ({
       }),
     {
       keepPreviousData: true,
+      staleTime: 30000, // TODO: Discuss a reasonable staleTime given that counts are only updated infrequently?
       onSuccess: (data) => {
         setShowSoftwareUI(true);
         setTitleDetail &&
@@ -112,8 +112,8 @@ const Software = ({
   const onTabChange = (index: number) => {
     const { MANAGE_SOFTWARE } = paths;
     setNavTabIndex(index);
-    setActionLink &&
-      setActionLink(
+    setActionURL &&
+      setActionURL(
         index === 1 ? `${MANAGE_SOFTWARE}?vulnerable=true` : MANAGE_SOFTWARE
       );
   };

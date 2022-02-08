@@ -1,6 +1,5 @@
 import React, { useContext, useState } from "react";
 import { useQuery } from "react-query";
-import paths from "router/paths";
 import { AppContext } from "context/app";
 import { find } from "lodash";
 
@@ -32,14 +31,7 @@ interface ITeamsResponse {
 
 const baseClass = "homepage";
 
-const TAGGED_TEMPLATES = {
-  hostsByTeamRoute: (teamId: number | undefined | null) => {
-    return `${teamId ? `/?team_id=${teamId}` : ""}`;
-  },
-};
-
 const Homepage = (): JSX.Element => {
-  const { MANAGE_HOSTS } = paths;
   const {
     config,
     currentTeam,
@@ -119,7 +111,6 @@ const Homepage = (): JSX.Element => {
     title: "Hosts",
     action: {
       type: "link",
-      to: MANAGE_HOSTS + TAGGED_TEMPLATES.hostsByTeamRoute(currentTeam?.id),
       text: "View all hosts",
     },
     total_host_count: (() => {

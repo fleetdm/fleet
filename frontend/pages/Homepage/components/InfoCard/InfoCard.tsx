@@ -11,7 +11,7 @@ interface IInfoCardProps {
   action?:
     | {
         type: "link";
-        to: string;
+        to?: string;
         text: string;
       }
     | {
@@ -33,7 +33,7 @@ const useInfoCard = ({
   total_host_count,
   showTitle,
 }: IInfoCardProps): JSX.Element => {
-  const [actionLink, setActionLink] = useState<string | null>(null);
+  const [actionLink, setActionURL] = useState<string | null>(null);
   const [titleDetail, setTitleDetail] = useState<JSX.Element | string | null>(
     null
   );
@@ -57,17 +57,17 @@ const useInfoCard = ({
         );
       }
 
-      return (
-        <Link
-          to={actionLink || action.to}
-          className={`${baseClass}__action-button`}
-        >
-          <span className={`${baseClass}__action-button-text`}>
-            {action.text}
-          </span>
-          <img src={LinkArrow} alt="link arrow" id="link-arrow" />
-        </Link>
-      );
+      const linkTo = actionLink || action.to;
+      if (linkTo) {
+        return (
+          <Link to={linkTo} className={`${baseClass}__action-button`}>
+            <span className={`${baseClass}__action-button-text`}>
+              {action.text}
+            </span>
+            <img src={LinkArrow} alt="link arrow" id="link-arrow" />
+          </Link>
+        );
+      }
     }
 
     return null;
@@ -77,7 +77,7 @@ const useInfoCard = ({
     if (React.isValidElement(child)) {
       child = React.cloneElement(child, {
         setTitleDetail,
-        setActionLink,
+        setActionURL,
       });
     }
     return child;
