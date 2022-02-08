@@ -3,9 +3,14 @@ import sendRequest from "services";
 import endpoints from "fleet/endpoints";
 
 export default {
-  loadAll: () => {
+  loadAll: (teamId?: number) => {
     const { MACADMINS } = endpoints;
+    let path = MACADMINS;
 
-    return sendRequest("GET", MACADMINS);
+    if (teamId) {
+      path += `?team_id=${teamId}`;
+    }
+
+    return sendRequest("GET", path);
   },
 };

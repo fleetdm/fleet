@@ -12,6 +12,7 @@ import generateTableHeaders from "./MDMTableConfig";
 
 interface IMDMCardProps {
   showMDMUI: boolean;
+  currentTeamId: number | undefined;
   setShowMDMUI: (showMDMTitle: boolean) => void;
   setTitleDetail?: (content: JSX.Element | string | null) => void;
 }
@@ -40,6 +41,7 @@ const EmptyMDM = (): JSX.Element => (
 
 const MDM = ({
   showMDMUI,
+  currentTeamId,
   setShowMDMUI,
   setTitleDetail,
 }: IMDMCardProps): JSX.Element => {
@@ -48,8 +50,8 @@ const MDM = ({
   >([]);
 
   const { isFetching: isMDMFetching } = useQuery<IMacadminAggregate, Error>(
-    ["MDM"],
-    () => macadminsAPI.loadAll(),
+    ["MDM", currentTeamId],
+    () => macadminsAPI.loadAll(currentTeamId),
     {
       keepPreviousData: true,
       onSuccess: (data) => {

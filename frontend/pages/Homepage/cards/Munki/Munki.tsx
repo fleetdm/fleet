@@ -12,6 +12,7 @@ import generateTableHeaders from "./MunkiTableConfig";
 
 interface IMunkiCardProps {
   showMunkiUI: boolean;
+  currentTeamId: number | undefined;
   setShowMunkiUI: (showMunkiTitle: boolean) => void;
   setTitleDetail?: (content: JSX.Element | string | null) => void;
 }
@@ -40,14 +41,15 @@ const EmptyMunki = (): JSX.Element => (
 
 const Munki = ({
   showMunkiUI,
+  currentTeamId,
   setShowMunkiUI,
   setTitleDetail,
 }: IMunkiCardProps): JSX.Element => {
   const [munkiData, setMunkiData] = useState<IMunkiAggregate[]>([]);
 
   const { isFetching: isMunkiFetching } = useQuery<IMacadminAggregate, Error>(
-    ["munki"],
-    () => macadminsAPI.loadAll(),
+    ["munki", currentTeamId],
+    () => macadminsAPI.loadAll(currentTeamId),
     {
       keepPreviousData: true,
       onSuccess: (data) => {

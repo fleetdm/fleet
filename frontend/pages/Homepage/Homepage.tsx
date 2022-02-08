@@ -205,7 +205,11 @@ const Homepage = (): JSX.Element => {
       </p>
     ),
     children: (
-      <Munki setShowMunkiUI={setShowMunkiUI} showMunkiUI={showMunkiUI} />
+      <Munki
+        setShowMunkiUI={setShowMunkiUI}
+        showMunkiUI={showMunkiUI}
+        currentTeamId={currentTeam?.id}
+      />
     ),
   });
 
@@ -224,7 +228,13 @@ const Homepage = (): JSX.Element => {
         </a>
       </p>
     ),
-    children: <MDM setShowMDMUI={setShowMDMUI} showMDMUI={showMDMUI} />,
+    children: (
+      <MDM
+        setShowMDMUI={setShowMDMUI}
+        showMDMUI={showMDMUI}
+        currentTeamId={currentTeam?.id}
+      />
+    ),
   });
 
   const allLayout = () => (
