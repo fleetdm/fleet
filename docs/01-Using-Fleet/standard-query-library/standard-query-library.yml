@@ -662,7 +662,7 @@ kind: policy
 spec:
   name: Is FileVault enabled on macOS devices?
   query: SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT "" AND filevault_status = 'on' LIMIT 1;
-  description: Checks to make sure that the Filevault feature is enabled on macOS devices.
+  description: Checks to make sure that the FileVault feature is enabled on macOS devices.
   resolution: "To enable FileVault, on the failing device, select System Preferences >
   Security & Privacy > FileVault > Turn On FileVault."
   platforms: macOS
