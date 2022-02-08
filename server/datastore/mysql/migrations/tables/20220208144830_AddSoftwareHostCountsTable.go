@@ -14,12 +14,12 @@ func Up_20220208144830(tx *sql.Tx) error {
 	softwareHostCountsTable := `
 		CREATE TABLE IF NOT EXISTS software_host_counts (
       software_id bigint(20) unsigned NOT NULL,
-      host_count  int(10) unsigned NOT NULL,
+      hosts_count int(10) unsigned NOT NULL,
 			created_at  timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			updated_at  timestamp NOT NULL NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
 			PRIMARY KEY (software_id),
-			INDEX idx_software_host_counts_host_count_software_id (host_count, software_id),
+			INDEX idx_software_host_counts_host_count_software_id (hosts_count, software_id),
 			INDEX idx_software_host_counts_updated_at_software_id (updated_at, software_id)
 		);
 	`
