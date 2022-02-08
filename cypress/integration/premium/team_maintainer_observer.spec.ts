@@ -164,7 +164,9 @@ describe("Premium tier - Team observer/maintainer user", () => {
         cy.visit("/schedule/manage");
         cy.contains(/oranges/i).should("exist");
         cy.contains(/advanced/i).should("not.exist");
-        cy.findByRole("button", { name: /schedule a query/i }).click();
+        cy.getAttached(".no-schedule__cta-buttons").within(() => {
+          cy.findByRole("button", { name: /schedule a query/i }).click();
+        });
         // Schedule a query on maintaining team
         cy.getAttached(".schedule-editor-modal__form").within(() => {
           cy.findByText(/select query/i).click();
