@@ -579,6 +579,7 @@ func (ds *Datastore) CalculateHostsPerSoftware(ctx context.Context, updatedAt ti
 	queryStmt := `
     SELECT count(*), software_id
     FROM host_software
+    WHERE software_id > 0
     GROUP BY software_id`
 
 	insertStmt := `
