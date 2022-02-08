@@ -32,7 +32,7 @@ describe("Hosts flow", () => {
       });
 
       cy.getAttached(".react-tabs").within(() => {
-        cy.findByText(/rpm/i).should("exist").click();
+        cy.findByText(/rpm/i).first().should("exist").click();
       });
 
       cy.contains("a", /download/i)

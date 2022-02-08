@@ -64,7 +64,7 @@ func main() {
 		},
 		&cli.StringFlag{
 			Name:    "fleet-certificate",
-			Usage:   "Path to server cerificate bundle",
+			Usage:   "Path to server certificate chain",
 			EnvVars: []string{"ORBIT_FLEET_CERTIFICATE"},
 		},
 		&cli.StringFlag{

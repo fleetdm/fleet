@@ -1,4 +1,4 @@
-import React, { useContext, useEffect } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import { Link } from "react-router";
 import { useDispatch } from "react-redux";
 import { InjectedRouter } from "react-router/lib/Router";
@@ -70,6 +70,10 @@ const QueryEditor = ({
     }
   }, []);
 
+  const [backendValidators, setBackendValidators] = useState<{
+    [key: string]: string;
+  }>({});
+
   const onCreatePolicy = debounce(async (formData: IPolicyFormData) => {
     if (policyTeamId) {
       formData.team_id = policyTeamId;
@@ -83,10 +87,10 @@ const QueryEditor = ({
       dispatch(renderFlash("success", "Policy created!"));
     } catch (createError: any) {
       console.error(createError);
-      if (createError.errors[0].reason.includes("already exists")) {
-        dispatch(
-          renderFlash("error", "A policy with this name already exists.")
-        );
+      if (createError.data.errors[0].reason.includes("already exists")) {
+        setBackendValidators({
+          name: "A policy with this name already exists",
+        });
       } else {
         dispatch(
           renderFlash(
@@ -128,7 +132,7 @@ const QueryEditor = ({
       dispatch(renderFlash("success", "Policy updated!"));
     } catch (updateError: any) {
       console.error(updateError);
-      if (updateError.errors[0].reason.includes("Duplicate")) {
+      if (updateError.data.errors[0].reason.includes("Duplicate")) {
         dispatch(
           renderFlash("error", "A policy with this name already exists.")
         );
@@ -171,6 +175,7 @@ const QueryEditor = ({
         showOpenSchemaActionText={showOpenSchemaActionText}
         onOpenSchemaSidebar={onOpenSchemaSidebar}
         renderLiveQueryWarning={renderLiveQueryWarning}
+        backendValidators={backendValidators}
       />
     </div>
   );

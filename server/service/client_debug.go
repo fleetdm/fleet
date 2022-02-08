@@ -9,9 +9,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
-// DebugPprof calls the /debug/pprof/ endpoints.
-func (c *Client) DebugPprof(name string) ([]byte, error) {
-	endpoint := "/debug/pprof/" + name
+func (c *Client) getRawBody(endpoint string) ([]byte, error) {
 	response, err := c.AuthenticatedDo("GET", endpoint, "", nil)
 	if err != nil {
 		return nil, fmt.Errorf("GET %s: %w", endpoint, err)
@@ -19,18 +17,20 @@ func (c *Client) DebugPprof(name string) ([]byte, error) {
 	defer response.Body.Close()
 
 	if response.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf(
-			"get pprof received status %d",
-			response.StatusCode,
-		)
+		return nil, fmt.Errorf("get %s received status %d", endpoint, response.StatusCode)
 	}
 
 	body, err := ioutil.ReadAll(response.Body)
 	if err != nil {
-		return nil, fmt.Errorf("read pprof response body: %w", err)
+		return nil, fmt.Errorf("read %s response body: %w", endpoint, err)
 	}
 
 	return body, nil
+}
+
+// DebugPprof calls the /debug/pprof/ endpoints.
+func (c *Client) DebugPprof(name string) ([]byte, error) {
+	return c.getRawBody("/debug/pprof/" + name)
 }
 
 func (c *Client) DebugMigrations() (*fleet.MigrationStatus, error) {
@@ -62,27 +62,16 @@ func (c *Client) DebugErrors(w io.Writer) error {
 	return nil
 }
 
-// DebugDBLocks calls the /debug/dblocks endpoint and on success returns its
+// DebugDBLocks calls the /debug/db/locks endpoint and on success returns its
 // response body data.
 func (c *Client) DebugDBLocks() ([]byte, error) {
-	endpoint := "/debug/dblocks"
-	response, err := c.AuthenticatedDo("GET", endpoint, "", nil)
-	if err != nil {
-		return nil, fmt.Errorf("GET %s: %w", endpoint, err)
-	}
-	defer response.Body.Close()
+	return c.getRawBody("/debug/db/locks")
+}
 
-	if response.StatusCode != http.StatusOK {
-		if response.StatusCode == http.StatusInternalServerError {
-			return nil, fmt.Errorf("get dblocks received status %d; note that this is currently only supported for mysql 5.7 and the database user must have PROCESS privilege, see the fleet logs for error details", response.StatusCode)
-		}
-		return nil, fmt.Errorf("get dblocks received status %d", response.StatusCode)
-	}
+func (c *Client) DebugInnoDBStatus() ([]byte, error) {
+	return c.getRawBody("/debug/db/innodb-status")
+}
 
-	body, err := ioutil.ReadAll(response.Body)
-	if err != nil {
-		return nil, fmt.Errorf("read dblocks response body: %w", err)
-	}
-
-	return body, nil
+func (c *Client) DebugProcessList() ([]byte, error) {
+	return c.getRawBody("/debug/db/process-list")
 }

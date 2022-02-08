@@ -51,6 +51,10 @@ interface ITableContainerProps {
   searchable?: boolean;
   wideSearch?: boolean;
   disablePagination?: boolean;
+  disableNextPage?: boolean; // disableNextPage is a temporary workaround for the case
+  // where the number of items on the last page is equal to the page size.
+  // The old page controls for server-side pagination render a no results screen
+  // with a back button. This fix instead disables the next button in that case.
   disableCount?: boolean;
   primarySelectActionButtonVariant?: ButtonVariant;
   primarySelectActionButtonIcon?: string;
@@ -105,6 +109,7 @@ const TableContainer = ({
   searchable,
   wideSearch,
   disablePagination,
+  disableNextPage,
   disableCount,
   primarySelectActionButtonVariant = "brand",
   primarySelectActionButtonIcon,
@@ -159,10 +164,13 @@ const TableContainer = ({
   };
 
   const hasPageIndexChangedRef = useRef(false);
-  const onPaginationChange = (newPage: number) => {
-    setPageIndex(newPage);
-    hasPageIndexChangedRef.current = true;
-  };
+  const onPaginationChange = useCallback(
+    (newPage: number) => {
+      setPageIndex(newPage);
+      hasPageIndexChangedRef.current = true;
+    },
+    [hasPageIndexChangedRef]
+  );
 
   const onResultsCountChange = (resultsCount: number) => {
     setClientFilterCount(resultsCount);
@@ -217,12 +225,14 @@ const TableContainer = ({
         currentPage={pageIndex}
         resultsPerPage={pageSize}
         onPaginationChange={onPaginationChange}
+        disableNextPage={disableNextPage}
       />
     );
   }, [
+    data,
     disablePagination,
     isClientSidePagination,
-    data,
+    disableNextPage,
     pageIndex,
     pageSize,
     onPaginationChange,

@@ -17,6 +17,39 @@ describe("Premium tier - Admin user", () => {
     beforeEach(() =>
       cy.loginWithCySession("anna@organization.com", "user123#")
     );
+    describe("Dashboard and navigation", () => {
+      beforeEach(() => cy.visit("/dashboard"));
+      it("displays intended global admin dashboard", () => {
+        cy.getAttached(".homepage__wrapper").within(() => {
+          cy.findByText(/all teams/i).should("exist");
+          cy.getAttached(".hosts-summary").should("exist");
+          cy.getAttached(".hosts-status").should("exist");
+          cy.getAttached(".home-software").should("exist");
+          cy.getAttached(".activity-feed").should("exist");
+        });
+      });
+      it("displays intended global admin top navigation", () => {
+        cy.getAttached(".site-nav-container").within(() => {
+          cy.findByText(/hosts/i).should("exist");
+          cy.findByText(/software/i).should("exist");
+          cy.findByText(/queries/i).should("exist");
+          cy.findByText(/schedule/i).should("exist");
+          cy.findByText(/policies/i).should("exist");
+          cy.getAttached(".user-menu").click();
+          cy.findByText(/settings/i).click();
+        });
+        cy.getAttached(".react-tabs__tab--selected").within(() => {
+          cy.findByText(/organization/i).should("exist");
+        });
+        cy.getAttached(".site-nav-container").within(() => {
+          cy.getAttached(".user-menu").click();
+          cy.findByText(/manage users/i).click();
+        });
+        cy.getAttached(".react-tabs__tab--selected").within(() => {
+          cy.findByText(/users/i).should("exist");
+        });
+      });
+    });
     describe("Manage hosts page", () => {
       beforeEach(() => cy.visit("/hosts/manage"));
       it("displays team column in hosts table", () => {
@@ -87,14 +120,17 @@ describe("Premium tier - Admin user", () => {
     });
     describe("Manage software page", () => {
       beforeEach(() => cy.visit("/software/manage"));
-      it("displays manage automations button when all teams selected", () => {
+      it("allows global admin to click 'Manage automations' button", () => {
         cy.getAttached(".manage-software-page__header-wrap").within(() => {
           cy.getAttached(".Select").within(() => {
             cy.findByText(/all teams/i).should("exist");
           });
-          cy.findByRole("button", { name: /manage automations/i }).should(
-            "exist"
-          );
+          cy.findByRole("button", { name: /manage automations/i }).click();
+        });
+        cy.getAttached(".manage-automations-modal__button-wrap").within(() => {
+          cy.findByRole("button", {
+            name: /cancel/i,
+          }).click();
         });
       });
       it("hides manage automations button when all teams not selected", () => {

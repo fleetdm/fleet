@@ -9,26 +9,30 @@ This person is responsible for accomplishing goals and making decisions about a 
 DRIs help us collaborate efficiently by knowing exactly who is responsible, and can make decisions about the work they're doing.
 
 |    Aspect              										| DRI     		|
-| ------------------------------------------------------------- | ------------- |
-| Wireframes (figma)	 										| Noah Talerman	|
-| How the product works 										| Noah Talerman |
-| fleetctl CLI interface (and other tools) 						| Tomás Touceda |
-| REST API interface design 							| Luke Heath	|
+| ----------------------------------------------------| ------------ |
+| Wireframes (Figma)| Noah Talerman	|
+| How the product works | Noah Talerman |
+| fleetctl CLI interface (and other tools) | Tomás Touceda |
+| REST API interface design | Luke Heath |
 | [REST API docs](https://fleetdm.com/docs/using-fleet/rest-api) | Luke Heath | 
-| Postman 											| Luke Heath 	|
-| Terraform 											| Ben Edwards 	|
-| Customer PoV deployments like acme.fleetdm.com 				| Ben Edwards 	|
-| dogfood.fleetdm.com 											| Ben Edwards  	|
-| Quality of core product UI 									| Luke Heath 	|
-| Quality of tickets after Noah's done with them   				| Luke Heath 	|
+| Postman | Luke Heath |
+| Terraform | Ben Edwards |
+| Customer PoV deployments like acme.fleetdm.com | Ben Edwards |
+| dogfood.fleetdm.com | Ben Edwards |
+| Quality of core product UI | Luke Heath |
+| Quality of tickets after Noah's done with them | Luke Heath 	|
 | ["Escaped work"](https://docs.google.com/document/d/1vXL_WSUqASJWuNnQhUVrkudIeG4zlaiOCqJEa7xB2do/edit) | Luke Heath |
 | Customer Slack channels | Tony Gauda |
-| Quality of core product backend 									| Tomás Touceda |
-| Quality of fleetctl (and other tools)							| Tomás Touceda |
-| Final cut of what goes into each release 						| Zach Wasserman|
-| When we cut a release, version numbers, and whether to release| Zach Wasserman|
-| Release notes 												| Noah Talerman |
-| Publishing release blog post, and promoting releases 			| Mike Thomas  	|
+| Customer renewals | Tony Gauda |
+| Quality of core product backend | Tomás Touceda |
+| Quality of fleetctl (and other tools) | Tomás Touceda |
+| Final cut of what goes into each release | Zach Wasserman |
+| When we cut a release, version numbers, and whether to release | Zach Wasserman |
+| Release notes | Noah Talerman |
+| Publishing release blog post, and promoting releases | Mike Thomas |
+| fleetdm.com | Mike Thomas |
+| Self-service Fleet Premium license dispenser | Mike Thomas |
+
 
 >You can read more about directly responsible individuals in [Gitlab's handbook](https://about.gitlab.com/handbook/people-group/directly-responsible-individuals/)
 
@@ -42,6 +46,14 @@ In brief, this means that as a Fleet team member, you may:
 * Feel free to make purchases __in the interest of the company__ without asking for permission beforehand (when in doubt, do __inform__ your manager prior to purchase, or as soon as possible after the purchase).
 
 For more developed thoughts about __spending guidelines and limits__, please read [GitLab's open expense policy](https://about.gitlab.com/handbook/spending-company-money/).
+
+## Taking time off
+
+Taking time off is essential to maintaining a healthy work-life balance. Fleet's unlimited vacation policy encourages team members to schedule time off to avoid burnout.
+
+When a team member takes time off at Fleet, they should create an "Out of office" (OOO) event in Google Calendar for the days they will be out. 
+
+If you're taking time off, you should plan who will cover your responsibilities for those days. Make sure to take your scheduled meetings into consideration, especially those where you're the event organizer. Communicate with your manager and other team members to ensure they can cover those meetings and that any Zoom links will still work for attendees.
 
 ## Meetings
 

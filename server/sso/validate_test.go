@@ -49,19 +49,35 @@ func TestValidate(t *testing.T) {
 	require.Nil(t, err)
 
 	clock := dsig.NewFakeClockAt(tm)
-	validator, err := NewValidator(testMetadata(), Clock(clock))
-	require.Nil(t, err)
-	require.NotNil(t, validator)
 
-	auth, err := DecodeAuthResponse(testResponse)
-	require.Nil(t, err)
+	testCases := []struct {
+		audiences  []string
+		shouldFail bool
+	}{
+		{audiences: []string{"kolide"}, shouldFail: false},
+		{audiences: []string{"someotheraudience"}, shouldFail: true},
+		{audiences: nil, shouldFail: true},
+	}
 
-	signed, err := validator.ValidateSignature(auth)
-	require.Nil(t, err)
-	require.NotNil(t, signed)
+	for _, tt := range testCases {
+		validator, err := NewValidator(testMetadata(), Clock(clock), WithExpectedAudience(tt.audiences...))
+		require.Nil(t, err)
+		require.NotNil(t, validator)
 
-	err = validator.ValidateResponse(auth)
-	assert.Nil(t, err)
+		auth, err := DecodeAuthResponse(testResponse)
+		require.Nil(t, err)
+
+		signed, err := validator.ValidateSignature(auth)
+		require.Nil(t, err)
+		require.NotNil(t, signed)
+
+		err = validator.ValidateResponse(auth)
+		if tt.shouldFail {
+			require.Error(t, err)
+		} else {
+			require.NoError(t, err)
+		}
+	}
 }
 
 func tamperedResponse(original string) (string, error) {
@@ -169,7 +185,7 @@ func TestVerifyValidGoogleResponse(t *testing.T) {
 	tm, err := time.Parse(time.RFC3339, "2017-07-18T14:47:08.035Z")
 	require.Nil(t, err)
 	clock := dsig.NewFakeClockAt(tm)
-	validator, err := NewValidator(testGoogleMetadata(), Clock(clock))
+	validator, err := NewValidator(testGoogleMetadata(), Clock(clock), WithExpectedAudience("kolide.edilok.net"))
 	require.Nil(t, err)
 	require.NotNil(t, validator)
 	auth, err := DecodeAuthResponse(samlResponse)
