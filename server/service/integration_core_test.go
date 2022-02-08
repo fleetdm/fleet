@@ -47,10 +47,14 @@ func (s *integrationTestSuite) TearDownTest() {
 	var ids []uint
 	for _, host := range hosts {
 		ids = append(ids, host.ID)
+		require.NoError(t, s.ds.UpdateHostSoftware(context.Background(), host.ID, nil))
 	}
 	if len(ids) > 0 {
 		require.NoError(t, s.ds.DeleteHosts(ctx, ids))
 	}
+
+	// recalculate software counts will remove the software entries
+	require.NoError(t, s.ds.CalculateHostsPerSoftware(context.Background(), time.Now()))
 
 	lbls, err := s.ds.ListLabels(ctx, fleet.TeamFilter{}, fleet.ListOptions{})
 	require.NoError(t, err)
@@ -2613,6 +2617,80 @@ func (s *integrationTestSuite) TestQuerySpecs() {
 	s.DoJSON("POST", "/api/v1/fleet/queries/delete", map[string]interface{}{
 		"ids": []uint{q1ID, q2ID, q3ID}}, http.StatusOK, &delBatchResp)
 	assert.Equal(t, uint(3), delBatchResp.Deleted)
+}
+
+func (s *integrationTestSuite) TestPaginateListSoftware() {
+	t := s.T()
+
+	// create a few hosts specific to this test
+	hosts := make([]*fleet.Host, 20)
+	for i := range hosts {
+		host, err := s.ds.NewHost(context.Background(), &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			NodeKey:         t.Name() + strconv.Itoa(i),
+			OsqueryHostID:   t.Name() + strconv.Itoa(i),
+			UUID:            t.Name() + strconv.Itoa(i),
+			Hostname:        t.Name() + "foo" + strconv.Itoa(i) + ".local",
+			PrimaryIP:       "192.168.1." + strconv.Itoa(i),
+			PrimaryMac:      fmt.Sprintf("30-65-EC-6F-C4-%02d", i),
+		})
+		require.NoError(t, err)
+		require.NotNil(t, host)
+		hosts[i] = host
+	}
+
+	// create a bunch of software
+	sws := make([]fleet.Software, 100)
+	for i := range sws {
+		sw := fleet.Software{Name: "sw" + strconv.Itoa(i), Version: "0.0." + strconv.Itoa(i), Source: "apps"}
+		sws[i] = sw
+	}
+
+	// mark them as installed on the hosts, with host at index 0 having all 100,
+	// at index 1 having 99, index 2 = 98, etc. So software sws[0] is only used
+	// by 1 host, while sws[99] is used by all.
+	for i, h := range hosts {
+		require.NoError(t, s.ds.UpdateHostSoftware(context.Background(), h.ID, sws[i:]))
+		require.NoError(t, s.ds.LoadHostSoftware(context.Background(), h))
+
+		if i == 0 {
+			// this host has all software, refresh the list so we have the software.ID filled
+			sws = h.Software
+		}
+	}
+
+	for i, sw := range sws {
+		cpe := "somecpe" + strconv.Itoa(i)
+		require.NoError(t, s.ds.AddCPEForSoftware(context.Background(), sw, cpe))
+
+		if i < 10 {
+			// add CVEs for the first 10 software, which are the least used (lower hosts_count)
+			_, err := s.ds.InsertCVEForCPE(context.Background(), fmt.Sprintf("cve-123-123-%03d", i), []string{cpe})
+			require.NoError(t, err)
+		}
+	}
+
+	// no software host counts have been calculated yet, so this returns nothing
+	var lsResp listSoftwareResponse
+	s.DoJSON("GET", "/api/v1/fleet/software", nil, http.StatusOK, &lsResp, "order_key", "hosts_count", "order_direction", "desc")
+	require.Len(t, lsResp.Software, 0)
+	assert.Nil(t, lsResp.CountsUpdatedAt)
+
+	// calculate hosts counts
+	hostsCountTs := time.Now().UTC()
+	require.NoError(t, s.ds.CalculateHostsPerSoftware(context.Background(), hostsCountTs))
+
+	//// now the list software endpoint returns the software
+	//lsResp = listSoftwareResponse{}
+	//s.DoJSON("GET", "/api/v1/fleet/software", nil, http.StatusOK, &lsResp, "vulnerable", "true", "order_key", "generated_cpe", "order_direction", "desc")
+	//require.Len(t, lsResp.Software, 1)
+	//assert.Equal(t, soft1.ID, lsResp.Software[0].ID)
+	//assert.Len(t, lsResp.Software[0].Vulnerabilities, 1)
+	//require.NotNil(t, lsResp.CountsUpdatedAt)
+	//assert.WithinDuration(t, hostsCountTs, *lsResp.CountsUpdatedAt, time.Second)
 }
 
 // creates a session and returns it, its key is to be passed as authorization header.
