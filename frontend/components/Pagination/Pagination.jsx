@@ -12,6 +12,7 @@ class Pagination extends PureComponent {
     resultsPerPage: PropTypes.number,
     onPaginationChange: PropTypes.func,
     resultsOnCurrentPage: PropTypes.number,
+    disableNextPage: PropTypes.bool,
   };
 
   disablePrev = () => {
@@ -23,7 +24,8 @@ class Pagination extends PureComponent {
     // but this seems to work when there is no data in the table.
     return (
       this.props.resultsOnCurrentPage === undefined ||
-      this.props.resultsOnCurrentPage < this.props.resultsPerPage
+      this.props.resultsOnCurrentPage < this.props.resultsPerPage ||
+      this.props.disableNextPage
     );
   };
 

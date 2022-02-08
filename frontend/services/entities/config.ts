@@ -2,11 +2,12 @@
 
 import sendRequest from "services";
 import endpoints from "fleet/endpoints";
+import { IConfigNested } from "interfaces/config";
 
 // TODO: add other methods from "fleet/entities/config"
 
 export default {
-  loadAll: () => {
+  loadAll: (): Promise<IConfigNested> => {
     const { CONFIG } = endpoints;
     const path = `${CONFIG}`;
 

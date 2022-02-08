@@ -14,7 +14,6 @@ import { getConfig } from "redux/nodes/app/actions";
 // @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions";
 import configAPI from "services/entities/config";
-import usersAPI, { IGetMeResponse } from "services/entities/users";
 import softwareAPI, {
   ISoftwareResponse,
   ISoftwareCountResponse,
@@ -27,6 +26,7 @@ import {
 import Button from "components/buttons/Button";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
+// @ts-ignore
 import Spinner from "components/Spinner";
 import TableContainer, { ITableQueryData } from "components/TableContainer";
 import TableDataError from "components/TableDataError";
@@ -37,7 +37,7 @@ import TeamsDropdownHeader, {
 import ExternalLinkIcon from "../../../../assets/images/open-new-tab-12x12@2x.png";
 import QuestionIcon from "../../../../assets/images/icon-question-16x16@2x.png";
 
-import generateTableHeaders from "./SoftwareTableConfig";
+import softwareTableHeaders from "./SoftwareTableConfig";
 import ManageAutomationsModal from "./components/ManageAutomationsModal";
 import EmptySoftware from "../components/EmptySoftware";
 
@@ -48,6 +48,9 @@ interface IManageSoftwarePageProps {
     query: { vulnerable?: boolean };
     search: string;
   };
+}
+interface IHeaderButtonsState extends ITeamsDropdownState {
+  isLoading: boolean;
 }
 const DEFAULT_SORT_DIRECTION = "desc";
 const DEFAULT_SORT_HEADER = "hosts_count";
@@ -71,8 +74,7 @@ const ManageSoftwarePage = ({
     isGlobalMaintainer,
   } = useContext(AppContext);
 
-  const [isLoadingSoftware, setIsLoadingSoftware] = useState(true);
-  const [isLoadingCount, setIsLoadingCount] = useState(true);
+  const [isSoftwareEnabled, setIsSoftwareEnabled] = useState<boolean>();
   const [filterVuln, setFilterVuln] = useState(
     location?.query?.vulnerable || false
   );
@@ -92,36 +94,36 @@ const ManageSoftwarePage = ({
     setFilterVuln(!!location.query.vulnerable);
   }, [location]);
 
-  // TODO: combine string and object so only one array element in query key; figure out typing and
-  // destructuring for queryfn
-
-  useQuery(["me"], () => usersAPI.me(), {
-    onSuccess: ({ user, available_teams }: IGetMeResponse) => {
-      setCurrentUser(user);
-      setAvailableTeams(available_teams);
+  const { data: config } = useQuery(["config"], configAPI.loadAll, {
+    onSuccess: (data) => {
+      setIsSoftwareEnabled(data?.host_settings?.enable_software_inventory);
     },
   });
 
-  const { data: software, error: softwareError } = useQuery<
-    ISoftwareResponse,
-    Error
-  >(
+  const {
+    data: software,
+    error: softwareError,
+    isFetching: isFetchingSoftware,
+  } = useQuery<ISoftwareResponse, Error>(
     [
       "software",
       {
-        pageIndex,
-        pageSize: PAGE_SIZE,
-        searchQuery,
-        sortDirection,
-        sortHeader,
-        teamId: currentTeam?.id,
-        vulnerable: !!location.query.vulnerable,
-        urlPath: location.pathname,
-        urlQueryString: location.search,
+        params: {
+          scope: "software",
+          pageIndex,
+          pageSize: PAGE_SIZE,
+          searchQuery,
+          sortDirection,
+          sortHeader,
+          teamId: currentTeam?.id,
+          vulnerable: !!location.query.vulnerable,
+        },
       },
+      location.pathname,
+      location.search,
     ],
+    // TODO: figure out typing and destructuring for query key inside query function
     () => {
-      setIsLoadingSoftware(true);
       const params = {
         page: pageIndex,
         perPage: PAGE_SIZE,
@@ -134,35 +136,27 @@ const ManageSoftwarePage = ({
       return softwareAPI.load(params);
     },
     {
-      // If keepPreviousData is enabled,
-      // useQuery no longer returns isLoading when making new calls after load
-      // So we manage our own load states
       keepPreviousData: true,
       staleTime: 30000, // stale time can be adjusted if fresher data is desired based on software inventory interval
-      onSuccess: () => {
-        setIsLoadingSoftware(false);
-      },
-      onError: () => {
-        setIsLoadingSoftware(false);
-      },
     }
   );
 
-  const { data: softwareCount, error: softwareCountError } = useQuery<
-    ISoftwareCountResponse,
-    Error,
-    number
-  >(
+  const {
+    data: softwareCount,
+    error: softwareCountError,
+    isFetching: isFetchingCount,
+  } = useQuery<ISoftwareCountResponse, Error, number>(
     [
       "softwareCount",
       {
-        searchQuery,
-        vulnerable: !!location.query.vulnerable,
-        teamId: currentTeam?.id,
+        params: {
+          searchQuery,
+          vulnerable: !!location.query.vulnerable,
+          teamId: currentTeam?.id,
+        },
       },
     ],
     () => {
-      setIsLoadingCount(true);
       return softwareAPI.count({
         query: searchQuery,
         vulnerable: !!location.query.vulnerable,
@@ -175,13 +169,6 @@ const ManageSoftwarePage = ({
       refetchOnWindowFocus: false,
       retry: 1,
       select: (data) => data.count,
-      onSuccess: () => {
-        setIsLoadingCount(false);
-      },
-      onError: (err) => {
-        console.log("useQuery error: ", err);
-        setIsLoadingCount(false);
-      },
     }
   );
 
@@ -277,12 +264,12 @@ const ManageSoftwarePage = ({
   };
 
   const renderHeaderButtons = (
-    state: ITeamsDropdownState
+    state: IHeaderButtonsState
   ): JSX.Element | null => {
     if (
-      canAddOrRemoveSoftwareWebhook &&
-      (!isPremiumTier || state.teamId === 0) &&
-      !isLoadingSoftwareVulnerabilitiesWebhook
+      (state.isGlobalAdmin || state.isGlobalMaintainer) &&
+      (!state.isPremiumTier || state.teamId === 0) &&
+      !state.isLoading
     ) {
       return (
         <Button
@@ -301,8 +288,8 @@ const ManageSoftwarePage = ({
     return (
       <p>
         Search for installed software{" "}
-        {canAddOrRemoveSoftwareWebhook &&
-          (!isPremiumTier || state.teamId === 0) &&
+        {(state.isGlobalAdmin || state.isGlobalMaintainer) &&
+          (!state.isPremiumTier || state.teamId === 0) &&
           "and manage automations for detected vulnerabilities (CVEs)"}{" "}
         on{" "}
         <b>
@@ -324,23 +311,29 @@ const ManageSoftwarePage = ({
         onChange={onTeamSelect}
         defaultTitle="Software"
         description={renderHeaderDescription}
-        buttons={renderHeaderButtons}
+        buttons={(state) =>
+          renderHeaderButtons({
+            ...state,
+            isLoading: isLoadingSoftwareVulnerabilitiesWebhook,
+          })
+        }
       />
     );
   }, [router, location, isLoadingSoftwareVulnerabilitiesWebhook]);
 
   const renderSoftwareCount = useCallback(() => {
     const count = softwareCount;
-    let lastUpdatedAt = software?.counts_updated_at;
-    if (!lastUpdatedAt || lastUpdatedAt === "0001-01-01T00:00:00Z") {
-      lastUpdatedAt = "never";
-    } else {
-      lastUpdatedAt = formatDistanceToNowStrict(new Date(lastUpdatedAt), {
-        addSuffix: true,
-      });
+    const lastUpdatedAt = software?.counts_updated_at
+      ? formatDistanceToNowStrict(new Date(software?.counts_updated_at), {
+          addSuffix: true,
+        })
+      : software?.counts_updated_at;
+
+    if (!isSoftwareEnabled || !lastUpdatedAt) {
+      return null;
     }
 
-    if (softwareCountError && !isLoadingCount) {
+    if (softwareCountError && !isFetchingCount) {
       return (
         <span className={`${baseClass}__count count-error`}>
           Failed to load software count
@@ -352,7 +345,7 @@ const ManageSoftwarePage = ({
     return count !== undefined ? (
       <span
         className={`${baseClass}__count ${
-          isLoadingCount ? "count-loading" : ""
+          isFetchingCount ? "count-loading" : ""
         }`}
       >
         {`${count} software item${count === 1 ? "" : "s"}`}
@@ -387,7 +380,7 @@ const ManageSoftwarePage = ({
         </span>
       </span>
     ) : null;
-  }, [isLoadingCount, software, softwareCountError, softwareCount]);
+  }, [isFetchingCount, software, softwareCountError, softwareCount]);
 
   // TODO: retool this with react-router location descriptor objects
   const buildUrlQueryString = (queryString: string, vulnerable: boolean) => {
@@ -456,24 +449,38 @@ const ManageSoftwarePage = ({
     );
   };
 
-  return !availableTeams ? (
+  // TODO: Rework after backend is adjusted to differentiate empty search/filter results from
+  // collecting inventory
+  const isCollectingInventory =
+    !searchQuery &&
+    !filterVuln &&
+    !currentTeam?.id &&
+    !pageIndex &&
+    !software?.software &&
+    software?.counts_updated_at === null;
+
+  const isLastPage =
+    !!softwareCount &&
+    PAGE_SIZE * pageIndex + (software?.software?.length || 0) >= softwareCount;
+
+  return !availableTeams || !config ? (
     <Spinner />
   ) : (
     <div className={baseClass}>
       <div className={`${baseClass}__wrapper body-wrap`}>
         {renderHeader()}
-        {softwareError && !isLoadingSoftware ? (
+        {softwareError && !isFetchingSoftware ? (
           <TableDataError />
         ) : (
           <TableContainer
-            columns={generateTableHeaders()}
-            data={software?.software || []}
-            isLoading={isLoadingSoftware}
+            columns={softwareTableHeaders}
+            data={(isSoftwareEnabled && software?.software) || []}
+            isLoading={isFetchingSoftware || isFetchingCount}
             resultsTitle={"software items"}
             emptyComponent={() =>
               EmptySoftware(
-                (filterVuln && "vulnerable") ||
-                  (searchQuery && "search") ||
+                (!isSoftwareEnabled && "disabled") ||
+                  (isCollectingInventory && "collecting") ||
                   "default"
               )
             }
@@ -483,6 +490,7 @@ const ManageSoftwarePage = ({
             pageSize={PAGE_SIZE}
             showMarkAllPages={false}
             isAllPagesSelected={false}
+            disableNextPage={isLastPage}
             searchable
             inputPlaceHolder="Search software by name or vulnerabilities (CVEs)"
             onQueryChange={onQueryChange}
