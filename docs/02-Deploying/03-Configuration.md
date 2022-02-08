@@ -1989,6 +1989,8 @@ Fleet supports both SP-initiated SAML login and IDP-initiated login, however IDP
 
 Fleet supports the SAML Web Browser SSO Profile using the HTTP Redirect Binding.
 
+_**Note that the email being used in the SAML Assertion must match a user that already exists in Fleet.**_
+
 ### Identity Provider (IDP) Configuration
 
 Setting up the service provider (Fleet) with an identity provider generally requires the following information:
