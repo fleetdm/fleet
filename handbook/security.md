@@ -19,7 +19,7 @@ We use configuration profiles to standardize security settings for our Mac devic
 * Balance the need for productivity and security
 * Limit the impact on the daily use of our devices
 
-*Note: details of your Mac’s configuration profile can be viewed anytime from the **Profiles** app under **System Preferences**.)*
+> *Note: Details of your Mac’s configuration profile can be viewed anytime from the **Profiles** app under **System Preferences**.*
 
 
 
