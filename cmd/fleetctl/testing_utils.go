@@ -12,6 +12,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/stretchr/testify/require"
+	"github.com/urfave/cli/v2"
 )
 
 func runServerWithMockedDS(t *testing.T, opts ...service.TestServerOpts) (*httptest.Server, *mock.Store) {
@@ -62,9 +63,13 @@ func runAppCheckErr(t *testing.T, args []string, errorMsg string) string {
 }
 
 func runAppNoChecks(args []string) (*bytes.Buffer, error) {
+	// first arg must be the binary name. Allow tests to omit it.
+	args = append([]string{""}, args...)
+
 	w := new(bytes.Buffer)
-	r, _, _ := os.Pipe()
-	app := createApp(r, w, nil)
-	err := app.Run(append([]string{""}, args...))
+	app := createApp(nil, w, noopExitErrHandler)
+	err := app.Run(args)
 	return w, err
 }
+
+func noopExitErrHandler(c *cli.Context, err error) {}
