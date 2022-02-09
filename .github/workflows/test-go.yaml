@@ -10,6 +10,7 @@ on:
   pull_request:
     paths:
       - '**.go'
+  workflow_dispatch: # manual
   schedule:
       - cron: '0 4 * * *' # every day at 4 AM, for running go tests with -race
 
