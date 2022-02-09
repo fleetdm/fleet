@@ -66,7 +66,7 @@ describe("App settings flow", () => {
         .click()
         .type("localhost");
 
-      cy.get("#smtpPort").clear().type("1025");
+      cy.getAttached("#smtpPort").clear().type("1025");
 
       cy.findByLabelText(/use ssl\/tls/i).check({ force: true });
 
@@ -86,13 +86,15 @@ describe("App settings flow", () => {
         .click()
         .type("http://server.com/example");
 
-      cy.get(".app-config-form__host-percentage").click();
+      cy.getAttached(".app-config-form__host-percentage").click();
 
-      cy.get(".app-config-form__host-percentage").contains(/5%/i).click();
+      cy.getAttached(".app-config-form__host-percentage")
+        .contains(/5%/i)
+        .click();
 
-      cy.get(".app-config-form__days-count").click();
+      cy.getAttached(".app-config-form__days-count").click();
 
-      cy.get(".app-config-form__days-count")
+      cy.getAttached(".app-config-form__days-count")
         .contains(/7 days/i)
         .click();
 
@@ -160,7 +162,7 @@ describe("App settings flow", () => {
 
       cy.findByLabelText(/smtp server/i).should("have.value", "localhost");
 
-      cy.get("#smtpPort").should("have.value", "1025");
+      cy.getAttached("#smtpPort").should("have.value", "1025");
 
       cy.findByLabelText(/smtp username/i).should(
         "have.value",

@@ -1165,6 +1165,7 @@ Retrieves aggregated host's MDM enrollment status and Munki versions.
 ```json
 {
   "macadmins": {
+    "counts_updated_at": "2021-03-21 12:32:44",
     "munki_versions": [
       {
         "version": "5.5",

@@ -474,6 +474,9 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
           onChange={onInputChange("name")}
           placeholder="Full name"
           value={name || ""}
+          inputOptions={{
+            maxLength: "80",
+          }}
         />
         <div
           className="email-disabled"

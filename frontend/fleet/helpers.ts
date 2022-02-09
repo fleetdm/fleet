@@ -4,7 +4,7 @@ import moment from "moment";
 import yaml from "js-yaml";
 
 import { ILabel } from "interfaces/label";
-import { ITeam } from "interfaces/team";
+import { ITeam, ITeamSummary } from "interfaces/team";
 import { IUser } from "interfaces/user";
 import { IPackQueryFormData } from "interfaces/scheduled_query";
 
@@ -688,12 +688,12 @@ export const getSortedTeamOptions = memoize((teams: ITeam[]) =>
 );
 
 export const getValidatedTeamId = (
-  teams: ITeam[],
+  teams: ITeam[] | ITeamSummary[],
   teamId: number,
   currentUser: IUser | null,
   isOnGlobalTeam: boolean
 ): number => {
-  let currentUserTeams: ITeam[] = [];
+  let currentUserTeams: ITeamSummary[] = [];
   if (isOnGlobalTeam) {
     currentUserTeams = teams;
   } else if (currentUser && currentUser.teams) {

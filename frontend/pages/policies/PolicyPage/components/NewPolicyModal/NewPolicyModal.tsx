@@ -1,4 +1,4 @@
-import React, { useState, useContext } from "react";
+import React, { useState, useContext, useEffect } from "react";
 import { size } from "lodash";
 
 import { IPolicyFormData } from "interfaces/policy";
@@ -16,6 +16,7 @@ export interface INewPolicyModalProps {
   platform: IQueryPlatform;
   onCreatePolicy: (formData: IPolicyFormData) => void;
   setIsNewPolicyModalOpen: (isOpen: boolean) => void;
+  backendValidators: { [key: string]: string };
 }
 
 const validatePolicyName = (name: string) => {
@@ -35,6 +36,7 @@ const NewPolicyModal = ({
   platform,
   onCreatePolicy,
   setIsNewPolicyModalOpen,
+  backendValidators,
 }: INewPolicyModalProps): JSX.Element => {
   const {
     lastEditedQueryName,
@@ -49,13 +51,19 @@ const NewPolicyModal = ({
   const [resolution, setResolution] = useState<string>(
     lastEditedQueryResolution
   );
-  const [errors, setErrors] = useState<{ [key: string]: string }>({});
+  const [errors, setErrors] = useState<{ [key: string]: string }>(
+    backendValidators
+  );
 
   useDeepEffect(() => {
     if (name) {
       setErrors({});
     }
   }, [name]);
+
+  useEffect(() => {
+    setErrors(backendValidators);
+  }, [backendValidators]);
 
   const handleSavePolicy = (evt: React.MouseEvent<HTMLFormElement>) => {
     evt.preventDefault();
@@ -74,8 +82,6 @@ const NewPolicyModal = ({
         resolution,
         platform,
       });
-
-      setIsNewPolicyModalOpen(false);
     }
   };
 
