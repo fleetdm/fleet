@@ -10,10 +10,11 @@ require (
 	github.com/VividCortex/gohistogram v1.0.0 // indirect
 	github.com/VividCortex/mysqlerr v0.0.0-20170204212430-6c6b55f8796f
 	github.com/WatchBeam/clock v0.0.0-20170901150240-b08e6b4da7ea
+	github.com/XSAM/otelsql v0.10.0
 	github.com/aws/aws-sdk-go v1.40.34
 	github.com/beevik/etree v1.1.0
 	github.com/briandowns/spinner v1.13.0
-	github.com/cenkalti/backoff/v4 v4.0.0
+	github.com/cenkalti/backoff/v4 v4.1.2
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/davecgh/go-spew v1.1.1
 	github.com/dgraph-io/badger/v2 v2.2007.2
@@ -75,14 +76,18 @@ require (
 	github.com/stretchr/testify v1.7.0
 	github.com/theupdateframework/go-tuf v0.0.0-20210929155205-2707f22b6f31
 	github.com/throttled/throttled/v2 v2.8.0
+	github.com/tj/assert v0.0.3
 	github.com/urfave/cli/v2 v2.3.0
 	github.com/valyala/fasthttp v1.31.0
-	go.elastic.co/apm/module/apmhttp v1.15.0
-	go.elastic.co/apm/module/apmsql v1.15.0
+	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.28.0
+	go.opentelemetry.io/otel v1.3.0
+	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.3.0
+	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.3.0
+	go.opentelemetry.io/otel/sdk v1.3.0
 	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 	golang.org/x/sys v0.0.0-20211007075335-d3039528d8ac
-	google.golang.org/grpc v1.40.0
+	google.golang.org/grpc v1.42.0
 	gopkg.in/guregu/null.v3 v3.4.0
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0-20170531160350-a96e63847dc3
 	gopkg.in/yaml.v2 v2.4.0

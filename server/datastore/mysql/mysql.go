@@ -29,6 +29,8 @@ import (
 	"github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
 	"github.com/ngrok/sqlmw"
+	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
+	"github.com/XSAM/otelsql"
 )
 
 const (
@@ -249,8 +251,17 @@ func (ds *Datastore) writeChanLoop() {
 	}
 }
 
+var tracedDriverName string
+func init() {
+    var err error
+    tracedDriverName, err = otelsql.Register("mysql", semconv.DBSystemMySQL.Value.AsString())
+    if err != nil {
+        panic(err)
+    }
+}
+
 func newDB(conf *config.MysqlConfig, opts *dbOptions) (*sqlx.DB, error) {
-	driverName := "apm/mysql"
+	driverName := tracedDriverName
 	if opts.interceptor != nil {
 		driverName = "mysql-mw"
 		sql.Register(driverName, sqlmw.Driver(mysql.MySQLDriver{}, opts.interceptor))
