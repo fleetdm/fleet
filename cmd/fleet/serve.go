@@ -132,17 +132,19 @@ the way that the Fleet server works.
 			}
 
 			// Init tracing
-			ctx := context.Background()
-			client := otlptracegrpc.NewClient()
-			otlpTraceExporter, err := otlptrace.New(ctx, client)
-			if err != nil {
-				panic(err)
+			if config.Logging.TracingEnabled {
+				ctx := context.Background()
+				client := otlptracegrpc.NewClient()
+				otlpTraceExporter, err := otlptrace.New(ctx, client)
+				if err != nil {
+					panic(err)
+				}
+				batchSpanProcessor := sdktrace.NewBatchSpanProcessor(otlpTraceExporter)
+				tracerProvider := sdktrace.NewTracerProvider(
+					sdktrace.WithSpanProcessor(batchSpanProcessor),
+				)
+				otel.SetTracerProvider(tracerProvider)
 			}
-			batchSpanProcessor := sdktrace.NewBatchSpanProcessor(otlpTraceExporter)
-			tracerProvider := sdktrace.NewTracerProvider(
-				sdktrace.WithSpanProcessor(batchSpanProcessor),
-			)
-			otel.SetTracerProvider(tracerProvider)
 
 			allowedHostIdentifiers := map[string]bool{
 				"provided": true,
