@@ -48,8 +48,8 @@ jobs:
         export PATH=$PATH:~/go/bin
         make generate-go
 
-    - name: Set Go race setting
-      if: github.event.schedule != '0 4 * * *'
+    - name: Set Go race setting on schedule
+      if: github.event.schedule == '0 4 * * *'
       run: echo "Running go tests with race enabled"
       env:
         RACE_ENABLED: true
