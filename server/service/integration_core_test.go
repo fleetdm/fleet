@@ -2723,7 +2723,7 @@ func (s *integrationTestSuite) TestPaginateListSoftware() {
 	s.DoJSON("GET", "/api/v1/fleet/software", nil, http.StatusOK, &lsResp, "per_page", "5", "page", "4", "order_key", "hosts_count", "order_direction", "desc")
 	assertResp(lsResp, nil, time.Time{})
 
-	// no explicit sort order
+	// no explicit sort order, defaults to hosts_count DESC
 	lsResp = listSoftwareResponse{}
 	s.DoJSON("GET", "/api/v1/fleet/software", nil, http.StatusOK, &lsResp, "per_page", "2", "page", "0")
 	assertResp(lsResp, []fleet.Software{sws[19], sws[18]}, hostsCountTs, 20, 19)
