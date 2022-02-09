@@ -78,8 +78,15 @@ const AppSettingsPage = (): JSX.Element => {
 
   // WHY???
   // Because Firefox and Safari don't support anchor links :-(
-  const scrollInto = (element: string) => {
-    document.getElementById(element)?.scrollIntoView();
+  const scrollInto = (elementId: string) => {
+    const yOffset = -215; // headers and tabs
+    const element = document.getElementById(elementId);
+
+    if (element) {
+      const top =
+        element.getBoundingClientRect().top + window.pageYOffset + yOffset;
+      window.scrollTo({ top });
+    }
   };
 
   return (
