@@ -11,8 +11,8 @@ describe("Hosts flow", () => {
     cy.addDockerHost();
     cy.clearDownloads();
     cy.seedQueries();
+    cy.seedSchedule();
     cy.seedPolicies();
-    // TODO: cy.seedSchedule();
     cy.viewport(1200, 660);
   });
   after(() => {
