@@ -624,6 +624,10 @@ func testSoftwareCalculateHostsPerSoftware(t *testing.T, ds *Datastore) {
 	}
 	cmpNameVersionCount(want, allSw)
 
+	// after a call to Calculate, the unused software entry is removed
+	err = ds.CalculateHostsPerSoftware(ctx, time.Now())
+	require.NoError(t, err)
+
 	allSw = listSoftwareCheckCount(t, ds, 3, 3, fleet.SoftwareListOptions{}, false)
 	want = []fleet.Software{
 		{Name: "foo", Version: "0.0.3", HostsCount: 0},
