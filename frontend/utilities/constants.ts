@@ -21,7 +21,7 @@ export const DEFAULT_POLICIES = [
     description:
       "Checks to make sure that the Filevault feature is enabled on macOS devices.",
     resolution:
-      "To enable FileVault, on the failing device, select System Preferences > Security & Privacy > FileVault > Turn On FileVault.",
+      "To enable full disk encryption, on the failing device, select System Preferences > Security & Privacy > FileVault > Turn On FileVault.",
     platform: "darwin",
   },
   {
@@ -48,7 +48,7 @@ export const DEFAULT_POLICIES = [
     key: 4,
     query:
       "SELECT 1 FROM sip_config WHERE config_flag = 'sip' AND enabled = 1;",
-    name: "System Integrity Protection (macOS)",
+    name: "System Integrity Protection enabled (macOS)",
     description: "Checks to make sure that the SIP feature is enabled.",
     resolution:
       "To enable System Integrity Protection, on the failing device, run the following command in the Terminal app: /usr/sbin/spctl --master-enable.",
