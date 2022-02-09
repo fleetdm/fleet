@@ -17,7 +17,7 @@ export const DEFAULT_POLICIES = [
   {
     key: 1,
     query: `SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT "" AND filevault_status = 'on' LIMIT 1`,
-    name: "Is FileVault enabled on macOS devices?",
+    name: "Full disk encryption enabled (macOS)",
     description:
       "Checks to make sure that the Filevault feature is enabled on macOS devices.",
     resolution:
@@ -37,7 +37,7 @@ export const DEFAULT_POLICIES = [
   {
     key: 3,
     query: "SELECT 1 FROM bitlocker_info WHERE protection_status = 1;",
-    name: "Is disk encryption enabled on Windows devices?",
+    name: "Full disk encryption enabled (Windows)",
     description:
       "Checks to make sure that device encryption is enabled on Windows devices.",
     resolution:
@@ -48,17 +48,17 @@ export const DEFAULT_POLICIES = [
     key: 4,
     query:
       "SELECT 1 FROM sip_config WHERE config_flag = 'sip' AND enabled = 1;",
-    name: "Is System Integrity Protection (SIP) enabled on macOS devices?",
+    name: "System Integrity Protection (macOS)",
     description: "Checks to make sure that the SIP feature is enabled.",
     resolution:
-      "On the failing device, run the following command in the Terminal app: /usr/sbin/spctl --master-enable",
+      "To enable System Integrity Protection, on the failing device, run the following command in the Terminal app: /usr/sbin/spctl --master-enable.",
     platform: "darwin",
   },
   {
     key: 5,
     query:
       "SELECT 1 FROM managed_policies WHERE domain = 'com.apple.loginwindow' AND name = 'com.apple.login.mcx.DisableAutoLoginClient' AND value = 1 LIMIT 1",
-    name: "Is automatic login disabled on macOS devices?",
+    name: "Automatic login disabled (macOS)",
     description:
       "Required: You’re already enforcing a policy via Moble Device Management (MDM). Checks to make sure that the device user cannot log in to the device without a password. It’s good practice to have both this policy and the “Is Filevault enabled on macOS devices?” policy enabled.",
     resolution:
@@ -69,7 +69,7 @@ export const DEFAULT_POLICIES = [
     key: 6,
     query:
       "SELECT 1 FROM managed_policies WHERE domain = 'com.apple.MCX' AND name = 'DisableGuestAccount' AND value = 1 LIMIT 1;",
-    name: "Are guest users disabled on macOS devices?",
+    name: "Guest users disabled (macOS)",
     description:
       "Required: You’re already enforcing a policy via Moble Device Management (MDM). Checks to make sure that guest accounts cannot be used to log in to the device without a password.",
     resolution:
@@ -80,7 +80,7 @@ export const DEFAULT_POLICIES = [
     key: 7,
     query:
       "SELECT 1 FROM managed_policies WHERE domain = 'com.apple.Terminal' AND name = 'SecureKeyboardEntry' AND value = 1 LIMIT 1;",
-    name: "Is secure keyboard entry enabled on macOS devices?",
+    name: "Secure keyboard entry enabled (macOS)",
     description:
       "Required: You’re already enforcing a policy via Moble Device Management (MDM). Checks to make sure that the Secure Keyboard Entry setting is enabled.",
     resolution: "",
