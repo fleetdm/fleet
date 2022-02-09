@@ -16,7 +16,7 @@ const EmptySoftware = (message: IEmptySoftware): JSX.Element => {
             <p>
               Check out the Fleet documentation on{" "}
               <a
-                href="https://fleetdm.com/docs/using-fleet/vulnerability-processing#configuration"
+                href="using-fleet/vulnerability-processing#configuration"
                 target="_blank"
                 rel="noopener noreferrer"
               >
