@@ -12,7 +12,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/stretchr/testify/require"
-	"github.com/urfave/cli/v2"
 )
 
 func runServerWithMockedDS(t *testing.T, opts ...service.TestServerOpts) (*httptest.Server, *mock.Store) {
@@ -51,25 +50,21 @@ func runServerWithMockedDS(t *testing.T, opts ...service.TestServerOpts) (*httpt
 }
 
 func runAppForTest(t *testing.T, args []string) string {
-	w, exitErr, err := runAppNoChecks(args)
-	require.Nil(t, err)
-	require.Nil(t, exitErr)
+	w, err := runAppNoChecks(args)
+	require.NoError(t, err)
 	return w.String()
 }
 
 func runAppCheckErr(t *testing.T, args []string, errorMsg string) string {
-	w, _, err := runAppNoChecks(args)
+	w, err := runAppNoChecks(args)
 	require.Equal(t, errorMsg, err.Error())
 	return w.String()
 }
 
-func runAppNoChecks(args []string) (*bytes.Buffer, error, error) {
+func runAppNoChecks(args []string) (*bytes.Buffer, error) {
 	w := new(bytes.Buffer)
 	r, _, _ := os.Pipe()
-	var exitErr error
-	app := createApp(r, w, func(context *cli.Context, err error) {
-		exitErr = err
-	})
+	app := createApp(r, w, nil)
 	err := app.Run(append([]string{""}, args...))
-	return w, exitErr, err
+	return w, err
 }
