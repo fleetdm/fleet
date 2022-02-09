@@ -16,6 +16,7 @@ import (
 	"github.com/go-kit/kit/log/level"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
+	otmiddleware "go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/throttled/throttled/v2"
@@ -233,6 +234,7 @@ func MakeHandler(svc fleet.Service, config config.FleetConfig, logger kitlog.Log
 	fleetHandlers := makeKitHandlers(fleetEndpoints, fleetAPIOptions)
 
 	r := mux.NewRouter()
+	r.Use(otmiddleware.Middleware("fleet"))
 
 	attachFleetAPIRoutes(r, fleetHandlers)
 	attachNewStyleFleetAPIRoutes(r, svc, fleetAPIOptions)

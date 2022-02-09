@@ -52,9 +52,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
-	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel"
-	//"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
@@ -488,7 +486,7 @@ the way that the Fleet server works.
 			httpSrvCtx := ctxerr.NewContext(ctx, eh)
 			srv := &http.Server{
 				Addr:              config.Server.Address,
-				Handler:           launcher.Handler(otelhttp.NewHandler(rootMux, "fleet")),
+				Handler:           launcher.Handler(rootMux),
 				ReadTimeout:       25 * time.Second,
 				WriteTimeout:      writeTimeout,
 				ReadHeaderTimeout: 5 * time.Second,
