@@ -11,352 +11,391 @@
       {
         "url": "/docs",
         "title": "Readme.md",
-        "lastModifiedAt": 1632328105000,
-        "htmlId": "docs--readme--12c20d0c39",
+        "lastModifiedAt": 1643833484000,
+        "htmlId": "docs--readme--384ac897fd",
         "sectionRelativeRepoPath": "README.md",
         "meta": {}
       },
       {
-        "url": "/docs/deploying/faq",
+        "url": "/docs/contributing/api-versioning",
+        "title": "API versioning",
+        "lastModifiedAt": 1643833484000,
+        "htmlId": "docs--api-versioning--341720b9b0",
+        "sectionRelativeRepoPath": "Contributing/API-Versioning.md",
+        "pageRankInRepoPath": "7",
+        "meta": {}
+      },
+      {
+        "url": "/docs/contributing/api-for-contributors",
+        "title": "API for contributors",
+        "lastModifiedAt": 1643833484000,
+        "htmlId": "docs--api-for-contributors--0452183383",
+        "sectionRelativeRepoPath": "Contributing/API-for-contributors.md",
+        "pageRankInRepoPath": "6",
+        "meta": {}
+      },
+      {
+        "url": "/docs/contributing/building-fleet",
+        "title": "Building Fleet",
+        "lastModifiedAt": 1643833484000,
+        "htmlId": "docs--building-fleet--3f71a60b70",
+        "sectionRelativeRepoPath": "Contributing/Building-Fleet.md",
+        "pageRankInRepoPath": "0",
+        "meta": {}
+      },
+      {
+        "url": "/docs/contributing/committing-changes",
+        "title": "Committing changes",
+        "lastModifiedAt": 1643833484000,
+        "htmlId": "docs--committing-changes--238f8249e1",
+        "sectionRelativeRepoPath": "Contributing/Committing-Changes.md",
+        "pageRankInRepoPath": "3",
+        "meta": {}
+      },
+      {
+        "url": "/docs/contributing/faq",
         "title": "FAQ",
-        "lastModifiedAt": 0,
-        "htmlId": "docs--faq--127ffe535d",
-        "sectionRelativeRepoPath": "Deploying/FAQ.md",
+        "lastModifiedAt": 1643833484000,
+        "htmlId": "docs--faq--155ebc23db",
+        "sectionRelativeRepoPath": "Contributing/FAQ.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/contributing/migrations",
+        "title": "Migrations",
+        "lastModifiedAt": 1643833484000,
+        "htmlId": "docs--migrations--9d69c0f769",
+        "sectionRelativeRepoPath": "Contributing/Migrations.md",
+        "pageRankInRepoPath": "2",
+        "meta": {}
+      },
+      {
+        "url": "/docs/contributing",
+        "title": "Contributing",
+        "lastModifiedAt": 1643833484000,
+        "htmlId": "docs--readme--1b888be99e",
+        "sectionRelativeRepoPath": "Contributing/README.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/contributing/releasing-fleet",
+        "title": "Releasing Fleet",
+        "lastModifiedAt": 1643833484000,
+        "htmlId": "docs--releasing-fleet--aac62e3991",
+        "sectionRelativeRepoPath": "Contributing/Releasing-Fleet.md",
+        "pageRankInRepoPath": "4",
+        "meta": {}
+      },
+      {
+        "url": "/docs/contributing/testing",
+        "title": "Testing",
+        "lastModifiedAt": 1643833484000,
+        "htmlId": "docs--testing--15609e026a",
+        "sectionRelativeRepoPath": "Contributing/Testing.md",
+        "pageRankInRepoPath": "1",
+        "meta": {}
+      },
+      {
+        "url": "/docs/contributing/seeding-data",
+        "title": "Seeding data",
+        "lastModifiedAt": 1643833484000,
+        "htmlId": "docs--seeding-data--43cd3d8e55",
+        "sectionRelativeRepoPath": "Contributing/Seeding-Data.md",
+        "pageRankInRepoPath": "5",
         "meta": {}
       },
       {
         "url": "/docs/deploying/configuration",
         "title": "Configuration",
-        "lastModifiedAt": 0,
-        "htmlId": "docs--configuration--18c470d76f",
+        "lastModifiedAt": 1644433454000,
+        "htmlId": "docs--configuration--84bc00a067",
         "sectionRelativeRepoPath": "Deploying/Configuration.md",
+        "pageRankInRepoPath": "2",
+        "meta": {}
+      },
+      {
+        "url": "/docs/deploying/faq",
+        "title": "FAQ",
+        "lastModifiedAt": 1644433454000,
+        "htmlId": "docs--faq--c6890d5e9c",
+        "sectionRelativeRepoPath": "Deploying/FAQ.md",
         "meta": {}
       },
       {
         "url": "/docs/deploying/introduction",
         "title": "Introduction",
-        "lastModifiedAt": 0,
-        "htmlId": "docs--introduction--191e9b8946",
+        "lastModifiedAt": 1643833484000,
+        "htmlId": "docs--introduction--06a18e1d62",
         "sectionRelativeRepoPath": "Deploying/Introduction.md",
+        "pageRankInRepoPath": "0",
         "meta": {}
       },
       {
         "url": "/docs/deploying/load-testing",
         "title": "Load testing",
-        "lastModifiedAt": 0,
-        "htmlId": "docs--load-testing--1921d41227",
+        "lastModifiedAt": 1643833484000,
+        "htmlId": "docs--load-testing--b6b8240a03",
         "sectionRelativeRepoPath": "Deploying/Load-testing.md",
+        "pageRankInRepoPath": "4",
         "meta": {}
       },
       {
         "url": "/docs/deploying",
         "title": "Deploying",
-        "lastModifiedAt": 0,
-        "htmlId": "docs--readme--3e8f8c69f8",
+        "lastModifiedAt": 1643833484000,
+        "htmlId": "docs--readme--6e29652c1e",
         "sectionRelativeRepoPath": "Deploying/README.md",
         "meta": {}
       },
       {
         "url": "/docs/deploying/reference-architectures",
         "title": "Reference architectures",
-        "lastModifiedAt": 0,
-        "htmlId": "docs--reference-architectu--2acaec19ba",
+        "lastModifiedAt": 1643833484000,
+        "htmlId": "docs--reference-architectu--e8d2d847a3",
         "sectionRelativeRepoPath": "Deploying/Reference-Architectures.md",
-        "meta": {}
-      },
-      {
-        "url": "/docs/deploying/fleetctl-agent-updates",
-        "title": "Fleetctl agent updates",
-        "lastModifiedAt": 0,
-        "htmlId": "docs--fleetctl-agent-updat--7eb63e67e2",
-        "sectionRelativeRepoPath": "Deploying/fleetctl-agent-updates.md",
-        "meta": {}
-      },
-      {
-        "url": "/docs/deploying/upgrading-fleet",
-        "title": "Upgrading Fleet",
-        "lastModifiedAt": 0,
-        "htmlId": "docs--upgrading-fleet--637ce24a21",
-        "sectionRelativeRepoPath": "Deploying/Upgrading-Fleet.md",
+        "pageRankInRepoPath": "5",
         "meta": {}
       },
       {
         "url": "/docs/deploying/server-installation",
         "title": "Server installation",
-        "lastModifiedAt": 0,
-        "htmlId": "docs--server-installation--49bdfb7e38",
+        "lastModifiedAt": 1643833484000,
+        "htmlId": "docs--server-installation--9cf6dc1bd5",
         "sectionRelativeRepoPath": "Deploying/Server-Installation.md",
+        "pageRankInRepoPath": "1",
         "meta": {}
       },
       {
-        "url": "/docs/contributing/api-versioning",
-        "title": "API versioning",
-        "lastModifiedAt": 0,
-        "htmlId": "docs--api-versioning--7024b8a6dc",
-        "sectionRelativeRepoPath": "Contributing/API-Versioning.md",
+        "url": "/docs/deploying/upgrading-fleet",
+        "title": "Upgrading Fleet",
+        "lastModifiedAt": 1643833484000,
+        "htmlId": "docs--upgrading-fleet--e080d9861e",
+        "sectionRelativeRepoPath": "Deploying/Upgrading-Fleet.md",
+        "pageRankInRepoPath": "6",
         "meta": {}
       },
       {
-        "url": "/docs/contributing/building-fleet",
-        "title": "Building Fleet",
-        "lastModifiedAt": 0,
-        "htmlId": "docs--building-fleet--507b6aecd3",
-        "sectionRelativeRepoPath": "Contributing/Building-Fleet.md",
-        "meta": {}
-      },
-      {
-        "url": "/docs/contributing/api-for-contributors",
-        "title": "API for contributors",
-        "lastModifiedAt": 0,
-        "htmlId": "docs--api-for-contributors--6762278189",
-        "sectionRelativeRepoPath": "Contributing/API-for-contributors.md",
-        "meta": {}
-      },
-      {
-        "url": "/docs/contributing/committing-changes",
-        "title": "Committing changes",
-        "lastModifiedAt": 0,
-        "htmlId": "docs--committing-changes--f88c57e5d9",
-        "sectionRelativeRepoPath": "Contributing/Committing-Changes.md",
-        "meta": {}
-      },
-      {
-        "url": "/docs/contributing/migrations",
-        "title": "Migrations",
-        "lastModifiedAt": 0,
-        "htmlId": "docs--migrations--aad627e87d",
-        "sectionRelativeRepoPath": "Contributing/Migrations.md",
-        "meta": {}
-      },
-      {
-        "url": "/docs/contributing/faq",
-        "title": "FAQ",
-        "lastModifiedAt": 0,
-        "htmlId": "docs--faq--1f1cc08adb",
-        "sectionRelativeRepoPath": "Contributing/FAQ.md",
-        "meta": {}
-      },
-      {
-        "url": "/docs/contributing/releasing-fleet",
-        "title": "Releasing Fleet",
-        "lastModifiedAt": 0,
-        "htmlId": "docs--releasing-fleet--0a7be99e0b",
-        "sectionRelativeRepoPath": "Contributing/Releasing-Fleet.md",
-        "meta": {}
-      },
-      {
-        "url": "/docs/contributing",
-        "title": "Contributing",
-        "lastModifiedAt": 0,
-        "htmlId": "docs--readme--09a7e22ede",
-        "sectionRelativeRepoPath": "Contributing/README.md",
-        "meta": {}
-      },
-      {
-        "url": "/docs/contributing/seeding-data",
-        "title": "Seeding data",
-        "lastModifiedAt": 0,
-        "htmlId": "docs--seeding-data--2ce984fda6",
-        "sectionRelativeRepoPath": "Contributing/Seeding-Data.md",
-        "meta": {}
-      },
-      {
-        "url": "/docs/contributing/testing",
-        "title": "Testing",
-        "lastModifiedAt": 0,
-        "htmlId": "docs--testing--cc0ca0b4d1",
-        "sectionRelativeRepoPath": "Contributing/Testing.md",
+        "url": "/docs/deploying/fleetctl-agent-updates",
+        "title": "Fleetctl agent updates",
+        "lastModifiedAt": 1643833484000,
+        "htmlId": "docs--fleetctl-agent-updat--8d2299cb50",
+        "sectionRelativeRepoPath": "Deploying/fleetctl-agent-updates.md",
+        "pageRankInRepoPath": "3",
         "meta": {}
       },
       {
         "url": "/docs/using-fleet/adding-hosts",
         "title": "Adding hosts",
-        "lastModifiedAt": 0,
-        "htmlId": "docs--adding-hosts--70e7ad3cd9",
+        "lastModifiedAt": 1644433454000,
+        "htmlId": "docs--adding-hosts--7e74b7dd8d",
         "sectionRelativeRepoPath": "Using-Fleet/Adding-hosts.md",
+        "pageRankInRepoPath": "4",
         "meta": {}
       },
       {
         "url": "/docs/using-fleet/faq",
         "title": "FAQ",
-        "lastModifiedAt": 0,
-        "htmlId": "docs--faq--a4dda23977",
+        "lastModifiedAt": 1643833484000,
+        "htmlId": "docs--faq--a4c8073612",
         "sectionRelativeRepoPath": "Using-Fleet/FAQ.md",
-        "meta": {}
-      },
-      {
-        "url": "/docs/using-fleet/learn-how-to-use-fleet",
-        "title": "Learn how to use Fleet",
-        "lastModifiedAt": 0,
-        "htmlId": "docs--learn-how-to-use-fle--48401f3b34",
-        "sectionRelativeRepoPath": "Using-Fleet/Learn-how-to-use-Fleet.md",
         "meta": {}
       },
       {
         "url": "/docs/using-fleet/automations",
         "title": "Automations",
-        "lastModifiedAt": 0,
-        "htmlId": "docs--automations--02f36983bc",
+        "lastModifiedAt": 1643833484000,
+        "htmlId": "docs--automations--e810ae492d",
         "sectionRelativeRepoPath": "Using-Fleet/Automations.md",
+        "pageRankInRepoPath": "12",
         "meta": {}
       },
       {
         "url": "/docs/using-fleet/fleet-ui",
         "title": "Fleet UI",
-        "lastModifiedAt": 0,
-        "htmlId": "docs--fleet-ui--f7a2aee937",
+        "lastModifiedAt": 1643833484000,
+        "htmlId": "docs--fleet-ui--5f79c486e2",
         "sectionRelativeRepoPath": "Using-Fleet/Fleet-UI.md",
+        "pageRankInRepoPath": "1",
+        "meta": {}
+      },
+      {
+        "url": "/docs/using-fleet/learn-how-to-use-fleet",
+        "title": "Learn how to use Fleet",
+        "lastModifiedAt": 1643833484000,
+        "htmlId": "docs--learn-how-to-use-fle--275a1da546",
+        "sectionRelativeRepoPath": "Using-Fleet/Learn-how-to-use-Fleet.md",
+        "pageRankInRepoPath": "0",
         "meta": {}
       },
       {
         "url": "/docs/using-fleet/monitoring-fleet",
         "title": "Monitoring Fleet",
-        "lastModifiedAt": 0,
-        "htmlId": "docs--monitoring-fleet--ff87e53a54",
+        "lastModifiedAt": 1643833484000,
+        "htmlId": "docs--monitoring-fleet--cc838014f2",
         "sectionRelativeRepoPath": "Using-Fleet/Monitoring-Fleet.md",
+        "pageRankInRepoPath": "6",
         "meta": {}
       },
       {
         "url": "/docs/using-fleet/osquery-logs",
         "title": "Osquery logs",
-        "lastModifiedAt": 0,
-        "htmlId": "docs--osquery-logs--4c31463916",
+        "lastModifiedAt": 1643833484000,
+        "htmlId": "docs--osquery-logs--0203f07b89",
         "sectionRelativeRepoPath": "Using-Fleet/Osquery-logs.md",
-        "meta": {}
-      },
-      {
-        "url": "/docs/using-fleet",
-        "title": "Using Fleet",
-        "lastModifiedAt": 0,
-        "htmlId": "docs--readme--25f89e1b71",
-        "sectionRelativeRepoPath": "Using-Fleet/README.md",
+        "pageRankInRepoPath": "5",
         "meta": {}
       },
       {
         "url": "/docs/using-fleet/permissions",
         "title": "Permissions",
-        "lastModifiedAt": 0,
-        "htmlId": "docs--permissions--a0c52dca4b",
+        "lastModifiedAt": 1643833484000,
+        "htmlId": "docs--permissions--73961ad6f6",
         "sectionRelativeRepoPath": "Using-Fleet/Permissions.md",
+        "pageRankInRepoPath": "8",
         "meta": {}
       },
       {
-        "url": "/docs/using-fleet/rest-api",
-        "title": "REST API",
-        "lastModifiedAt": 0,
-        "htmlId": "docs--rest-api--2fe0a214b0",
-        "sectionRelativeRepoPath": "Using-Fleet/REST-API.md",
+        "url": "/docs/using-fleet",
+        "title": "Using Fleet",
+        "lastModifiedAt": 1643833484000,
+        "htmlId": "docs--readme--524302b217",
+        "sectionRelativeRepoPath": "Using-Fleet/README.md",
         "meta": {}
       },
       {
         "url": "/docs/using-fleet/security-best-practices",
         "title": "Security best practices",
-        "lastModifiedAt": 0,
-        "htmlId": "docs--security-best-practi--79c154155a",
+        "lastModifiedAt": 1643833484000,
+        "htmlId": "docs--security-best-practi--b64564935b",
         "sectionRelativeRepoPath": "Using-Fleet/Security-best-practices.md",
+        "pageRankInRepoPath": "7",
         "meta": {}
       },
       {
-        "url": "/docs/using-fleet/supported-browsers",
-        "title": "Supported browsers",
-        "lastModifiedAt": 0,
-        "htmlId": "docs--supported-browsers--b057493c25",
-        "sectionRelativeRepoPath": "Using-Fleet/Supported-browsers.md",
+        "url": "/docs/using-fleet/rest-api",
+        "title": "REST API",
+        "lastModifiedAt": 1644433454000,
+        "htmlId": "docs--rest-api--03374015df",
+        "sectionRelativeRepoPath": "Using-Fleet/REST-API.md",
+        "pageRankInRepoPath": "3",
         "meta": {}
       },
       {
         "url": "/docs/using-fleet/teams",
         "title": "Teams",
-        "lastModifiedAt": 0,
-        "htmlId": "docs--teams--68d5cfce83",
+        "lastModifiedAt": 1643833484000,
+        "htmlId": "docs--teams--c5c1c92af2",
         "sectionRelativeRepoPath": "Using-Fleet/Teams.md",
+        "pageRankInRepoPath": "9",
         "meta": {}
       },
       {
-        "url": "/docs/using-fleet/usage-statistics",
-        "title": "Usage statistics",
-        "lastModifiedAt": 0,
-        "htmlId": "docs--usage-statistics--268e87fd4d",
-        "sectionRelativeRepoPath": "Using-Fleet/Usage-statistics.md",
+        "url": "/docs/using-fleet/supported-browsers",
+        "title": "Supported browsers",
+        "lastModifiedAt": 1643833484000,
+        "htmlId": "docs--supported-browsers--8a2849df06",
+        "sectionRelativeRepoPath": "Using-Fleet/Supported-browsers.md",
+        "pageRankInRepoPath": "11",
         "meta": {}
       },
       {
         "url": "/docs/using-fleet/vulnerability-processing",
         "title": "Vulnerability processing",
-        "lastModifiedAt": 0,
-        "htmlId": "docs--vulnerability-proces--28ecfb1ed1",
+        "lastModifiedAt": 1643833484000,
+        "htmlId": "docs--vulnerability-proces--8f59036915",
         "sectionRelativeRepoPath": "Using-Fleet/Vulnerability-Processing.md",
+        "pageRankInRepoPath": "12",
+        "meta": {}
+      },
+      {
+        "url": "/docs/using-fleet/usage-statistics",
+        "title": "Usage statistics",
+        "lastModifiedAt": 1643833484000,
+        "htmlId": "docs--usage-statistics--2836ffb91a",
+        "sectionRelativeRepoPath": "Using-Fleet/Usage-statistics.md",
+        "pageRankInRepoPath": "10",
         "meta": {}
       },
       {
         "url": "/docs/using-fleet/fleetctl-cli",
         "title": "Fleetctl CLI",
-        "lastModifiedAt": 0,
-        "htmlId": "docs--fleetctl-cli--c7a6908032",
+        "lastModifiedAt": 1644433454000,
+        "htmlId": "docs--fleetctl-cli--d7def13ff4",
         "sectionRelativeRepoPath": "Using-Fleet/fleetctl-CLI.md",
+        "pageRankInRepoPath": "2",
         "meta": {}
       },
       {
         "url": "/docs/using-fleet/configuration-files",
         "title": "Configuration files",
-        "lastModifiedAt": 0,
-        "htmlId": "docs--readme--3839904af9",
+        "lastModifiedAt": 1644433454000,
+        "htmlId": "docs--readme--3218b54ed7",
         "sectionRelativeRepoPath": "Using-Fleet/configuration-files/README.md",
         "meta": {}
       },
       {
         "url": "/docs/using-fleet/standard-query-library",
         "title": "Standard query library",
-        "lastModifiedAt": 0,
-        "htmlId": "docs--readme--9aee8f0f2c",
+        "lastModifiedAt": 1644433454000,
+        "htmlId": "docs--readme--c3c2714b7f",
         "sectionRelativeRepoPath": "Using-Fleet/standard-query-library/README.md",
         "meta": {}
       },
       {
-        "url": "/handbook",
-        "title": "Readme.md",
-        "lastModifiedAt": 1643733113000,
-        "htmlId": "handbook--readme--4223f14150",
-        "sectionRelativeRepoPath": "README.md",
-        "meta": {
-          "maintainedBy": "mikermcneil"
-        }
-      },
-      {
         "url": "/handbook/brand",
         "title": "Brand",
-        "lastModifiedAt": 1643331564000,
-        "htmlId": "handbook--brand--ff18ba212e",
+        "lastModifiedAt": 1644433454000,
+        "htmlId": "handbook--brand--603fc0f5eb",
         "sectionRelativeRepoPath": "brand.md",
         "meta": {
           "maintainedBy": "mike-j-thomas"
         }
       },
       {
-        "url": "/handbook/company",
-        "title": "Company",
-        "lastModifiedAt": 1643418324000,
-        "htmlId": "handbook--company--08564139bf",
-        "sectionRelativeRepoPath": "company.md",
-        "meta": {
-          "maintainedBy": "mikermcneil"
-        }
-      },
-      {
         "url": "/handbook/community",
         "title": "Community",
-        "lastModifiedAt": 1643250591000,
-        "htmlId": "handbook--community--54f1daa067",
+        "lastModifiedAt": 1644388647000,
+        "htmlId": "handbook--community--851ac24c4b",
         "sectionRelativeRepoPath": "community.md",
         "meta": {
           "maintainedBy": "mike-j-thomas"
         }
       },
       {
+        "url": "/handbook",
+        "title": "Readme.md",
+        "lastModifiedAt": 1644265234000,
+        "htmlId": "handbook--readme--5b31b16edd",
+        "sectionRelativeRepoPath": "README.md",
+        "meta": {
+          "maintainedBy": "mikermcneil"
+        }
+      },
+      {
+        "url": "/handbook/company",
+        "title": "Company",
+        "lastModifiedAt": 1643418324000,
+        "htmlId": "handbook--company--ef54d4c0f6",
+        "sectionRelativeRepoPath": "company.md",
+        "meta": {
+          "maintainedBy": "mikermcneil"
+        }
+      },
+      {
+        "url": "/handbook/customers",
+        "title": "Customers",
+        "lastModifiedAt": 1643664488000,
+        "htmlId": "handbook--customers--868277a175",
+        "sectionRelativeRepoPath": "customers.md",
+        "meta": {
+          "maintainedBy": "tgauda"
+        }
+      },
+      {
         "url": "/handbook/handbook",
         "title": "Handbook",
         "lastModifiedAt": 1642145590000,
-        "htmlId": "handbook--handbook--b9afffcf47",
+        "htmlId": "handbook--handbook--257cde48e7",
         "sectionRelativeRepoPath": "handbook.md",
         "meta": {
           "maintainedBy": "mike-j-thomas"
@@ -365,38 +404,18 @@
       {
         "url": "/handbook/engineering",
         "title": "Engineering",
-        "lastModifiedAt": 1642446791000,
-        "htmlId": "handbook--engineering--cc4e4d4e11",
+        "lastModifiedAt": 1643833484000,
+        "htmlId": "handbook--engineering--8f5b3c8ab0",
         "sectionRelativeRepoPath": "engineering.md",
         "meta": {
           "maintainedBy": "zwass"
         }
       },
       {
-        "url": "/handbook/people",
-        "title": "People",
-        "lastModifiedAt": 1643733113000,
-        "htmlId": "handbook--people--af4332a027",
-        "sectionRelativeRepoPath": "people.md",
-        "meta": {
-          "maintainedBy": "eashaw"
-        }
-      },
-      {
-        "url": "/handbook/customers",
-        "title": "Customers",
-        "lastModifiedAt": 1643664488000,
-        "htmlId": "handbook--customers--e80c34e9cd",
-        "sectionRelativeRepoPath": "customers.md",
-        "meta": {
-          "maintainedBy": "tgauda"
-        }
-      },
-      {
         "url": "/handbook/product",
         "title": "Product",
-        "lastModifiedAt": 1643331564000,
-        "htmlId": "handbook--product--5884355ed1",
+        "lastModifiedAt": 1643922863000,
+        "htmlId": "handbook--product--c682777b68",
         "sectionRelativeRepoPath": "product.md",
         "meta": {
           "maintainedBy": "noahtalerman"
@@ -406,10 +425,20 @@
         "url": "/handbook/security",
         "title": "Security",
         "lastModifiedAt": 1643647793000,
-        "htmlId": "handbook--security--8ac5ee9d28",
+        "htmlId": "handbook--security--b30fecff2c",
         "sectionRelativeRepoPath": "security.md",
         "meta": {
           "maintainedBy": "GuillaumeRoss"
+        }
+      },
+      {
+        "url": "/handbook/people",
+        "title": "People",
+        "lastModifiedAt": 1644358761000,
+        "htmlId": "handbook--people--398e751f6c",
+        "sectionRelativeRepoPath": "people.md",
+        "meta": {
+          "maintainedBy": "eashaw"
         }
       }
     ],
@@ -442,7 +471,8 @@
         ],
         "kind": "query",
         "slug": "count-apple-applications-installed",
-        "resolution": "N/A"
+        "resolution": "N/A",
+        "tags": []
       },
       {
         "name": "Get OpenSSL versions",
@@ -460,7 +490,8 @@
         ],
         "kind": "query",
         "slug": "get-open-ssl-versions",
-        "resolution": "N/A"
+        "resolution": "N/A",
+        "tags": []
       },
       {
         "name": "Get whether Gatekeeper is disabled",
@@ -478,7 +509,8 @@
         ],
         "kind": "query",
         "slug": "get-whether-gatekeeper-is-disabled",
-        "resolution": "N/A"
+        "resolution": "N/A",
+        "tags": []
       },
       {
         "name": "Get authorized SSH keys",
@@ -497,7 +529,8 @@
         ],
         "kind": "query",
         "slug": "get-authorized-ssh-keys",
-        "resolution": "N/A"
+        "resolution": "N/A",
+        "tags": []
       },
       {
         "name": "Get authorized keys for Local Accounts",
@@ -515,7 +548,8 @@
         ],
         "kind": "query",
         "slug": "get-authorized-keys-for-local-accounts",
-        "resolution": "N/A"
+        "resolution": "N/A",
+        "tags": []
       },
       {
         "name": "Get authorized keys for Domain Joined Accounts",
@@ -533,7 +567,8 @@
         ],
         "kind": "query",
         "slug": "get-authorized-keys-for-domain-joined-accounts",
-        "resolution": "N/A"
+        "resolution": "N/A",
+        "tags": []
       },
       {
         "name": "Get crashes",
@@ -551,7 +586,8 @@
         ],
         "kind": "query",
         "slug": "get-crashes",
-        "resolution": "N/A"
+        "resolution": "N/A",
+        "tags": []
       },
       {
         "name": "Get installed Chrome Extensions",
@@ -569,7 +605,8 @@
         ],
         "kind": "query",
         "slug": "get-installed-chrome-extensions",
-        "resolution": "N/A"
+        "resolution": "N/A",
+        "tags": []
       },
       {
         "name": "Get installed FreeBSD software",
@@ -587,7 +624,8 @@
         ],
         "kind": "query",
         "slug": "get-installed-free-bsd-software",
-        "resolution": "N/A"
+        "resolution": "N/A",
+        "tags": []
       },
       {
         "name": "Get Homebrew Packages",
@@ -605,7 +643,8 @@
         ],
         "kind": "query",
         "slug": "get-homebrew-packages",
-        "resolution": "N/A"
+        "resolution": "N/A",
+        "tags": []
       },
       {
         "name": "Get installed Linux software",
@@ -623,7 +662,8 @@
         ],
         "kind": "query",
         "slug": "get-installed-linux-software",
-        "resolution": "N/A"
+        "resolution": "N/A",
+        "tags": []
       },
       {
         "name": "Get installed macOS software",
@@ -641,7 +681,8 @@
         ],
         "kind": "query",
         "slug": "get-installed-mac-os-software",
-        "resolution": "N/A"
+        "resolution": "N/A",
+        "tags": []
       },
       {
         "name": "Get installed Safari extensions",
@@ -659,7 +700,8 @@
         ],
         "kind": "query",
         "slug": "get-installed-safari-extensions",
-        "resolution": "N/A"
+        "resolution": "N/A",
+        "tags": []
       },
       {
         "name": "Get installed Windows software",
@@ -677,7 +719,8 @@
         ],
         "kind": "query",
         "slug": "get-installed-windows-software",
-        "resolution": "N/A"
+        "resolution": "N/A",
+        "tags": []
       },
       {
         "name": "Get laptops with failing batteries",
@@ -695,7 +738,8 @@
         ],
         "kind": "query",
         "slug": "get-laptops-with-failing-batteries",
-        "resolution": "N/A"
+        "resolution": "N/A",
+        "tags": []
       },
       {
         "name": "Get macOS disk free space percentage",
@@ -713,7 +757,8 @@
         ],
         "kind": "query",
         "slug": "get-mac-os-disk-free-space-percentage",
-        "resolution": "N/A"
+        "resolution": "N/A",
+        "tags": []
       },
       {
         "name": "Get mounts",
@@ -731,7 +776,8 @@
         ],
         "kind": "query",
         "slug": "get-mounts",
-        "resolution": "N/A"
+        "resolution": "N/A",
+        "tags": []
       },
       {
         "name": "Get the version of the resident operating system",
@@ -749,7 +795,8 @@
         ],
         "kind": "query",
         "slug": "get-the-version-of-the-resident-operating-system",
-        "resolution": "N/A"
+        "resolution": "N/A",
+        "tags": []
       },
       {
         "name": "Get platform info",
@@ -767,7 +814,8 @@
         ],
         "kind": "query",
         "slug": "get-platform-info",
-        "resolution": "N/A"
+        "resolution": "N/A",
+        "tags": []
       },
       {
         "name": "Get startup items",
@@ -785,7 +833,8 @@
         ],
         "kind": "query",
         "slug": "get-startup-items",
-        "resolution": "N/A"
+        "resolution": "N/A",
+        "tags": []
       },
       {
         "name": "Get system logins and logouts",
@@ -803,7 +852,8 @@
         ],
         "kind": "query",
         "slug": "get-system-logins-and-logouts",
-        "resolution": "N/A"
+        "resolution": "N/A",
+        "tags": []
       },
       {
         "name": "Get current users with active shell/console on the system",
@@ -821,7 +871,8 @@
         ],
         "kind": "query",
         "slug": "get-current-users-with-active-shell-console-on-the-system",
-        "resolution": "N/A"
+        "resolution": "N/A",
+        "tags": []
       },
       {
         "name": "Get system uptime",
@@ -839,7 +890,8 @@
         ],
         "kind": "query",
         "slug": "get-system-uptime",
-        "resolution": "N/A"
+        "resolution": "N/A",
+        "tags": []
       },
       {
         "name": "Get USB devices",
@@ -857,7 +909,8 @@
         ],
         "kind": "query",
         "slug": "get-usb-devices",
-        "resolution": "N/A"
+        "resolution": "N/A",
+        "tags": []
       },
       {
         "name": "Get wifi status",
@@ -875,7 +928,8 @@
         ],
         "kind": "query",
         "slug": "get-wifi-status",
-        "resolution": "N/A"
+        "resolution": "N/A",
+        "tags": []
       },
       {
         "name": "Get Windows machines with unencrypted hard disks",
@@ -893,7 +947,8 @@
         ],
         "kind": "query",
         "slug": "get-windows-machines-with-unencrypted-hard-disks",
-        "resolution": "N/A"
+        "resolution": "N/A",
+        "tags": []
       },
       {
         "name": "Get disk encryption status",
@@ -911,7 +966,8 @@
         ],
         "kind": "query",
         "slug": "get-disk-encryption-status",
-        "resolution": "N/A"
+        "resolution": "N/A",
+        "tags": []
       },
       {
         "name": "Get unencrypted SSH keys for local accounts",
@@ -930,7 +986,8 @@
         ],
         "kind": "query",
         "slug": "get-unencrypted-ssh-keys-for-local-accounts",
-        "resolution": "N/A"
+        "resolution": "N/A",
+        "tags": []
       },
       {
         "name": "Get unencrypted SSH keys for domain joined accounts",
@@ -949,7 +1006,8 @@
         ],
         "kind": "query",
         "slug": "get-unencrypted-ssh-keys-for-domain-joined-accounts",
-        "resolution": "N/A"
+        "resolution": "N/A",
+        "tags": []
       },
       {
         "name": "Get crontab jobs",
@@ -967,7 +1025,8 @@
         ],
         "kind": "query",
         "slug": "get-crontab-jobs",
-        "resolution": "N/A"
+        "resolution": "N/A",
+        "tags": []
       },
       {
         "name": "Get suid binaries",
@@ -985,7 +1044,8 @@
         ],
         "kind": "query",
         "slug": "get-suid-binaries",
-        "resolution": "N/A"
+        "resolution": "N/A",
+        "tags": []
       },
       {
         "name": "Get dynamic linker hijacking on Linux (MITRE. T1574.006)",
@@ -1004,7 +1064,8 @@
         ],
         "kind": "query",
         "slug": "get-dynamic-linker-hijacking-on-linux-mitre-t-1574-006",
-        "resolution": "N/A"
+        "resolution": "N/A",
+        "tags": []
       },
       {
         "name": "Get dynamic linker hijacking on macOS (MITRE. T1574.006)",
@@ -1023,7 +1084,8 @@
         ],
         "kind": "query",
         "slug": "get-dynamic-linker-hijacking-on-mac-os-mitre-t-1574-006",
-        "resolution": "N/A"
+        "resolution": "N/A",
+        "tags": []
       },
       {
         "name": "Get etc hosts entries",
@@ -1041,7 +1103,8 @@
         ],
         "kind": "query",
         "slug": "get-etc-hosts-entries",
-        "resolution": "N/A"
+        "resolution": "N/A",
+        "tags": []
       },
       {
         "name": "Get network interfaces",
@@ -1059,7 +1122,8 @@
         ],
         "kind": "query",
         "slug": "get-network-interfaces",
-        "resolution": "N/A"
+        "resolution": "N/A",
+        "tags": []
       },
       {
         "name": "Get local user accounts",
@@ -1077,7 +1141,8 @@
         ],
         "kind": "query",
         "slug": "get-local-user-accounts",
-        "resolution": "N/A"
+        "resolution": "N/A",
+        "tags": []
       },
       {
         "name": "Get active user accounts on servers",
@@ -1095,7 +1160,8 @@
         ],
         "kind": "query",
         "slug": "get-active-user-accounts-on-servers",
-        "resolution": "N/A"
+        "resolution": "N/A",
+        "tags": []
       },
       {
         "name": "Get Nmap scanner",
@@ -1113,7 +1179,8 @@
         ],
         "kind": "query",
         "slug": "get-nmap-scanner",
-        "resolution": "N/A"
+        "resolution": "N/A",
+        "tags": []
       },
       {
         "name": "Get docker images on a system",
@@ -1131,7 +1198,8 @@
         ],
         "kind": "query",
         "slug": "get-docker-images-on-a-system",
-        "resolution": "N/A"
+        "resolution": "N/A",
+        "tags": []
       },
       {
         "name": "Get docker running containers on a system",
@@ -1149,7 +1217,8 @@
         ],
         "kind": "query",
         "slug": "get-docker-running-containers-on-a-system",
-        "resolution": "N/A"
+        "resolution": "N/A",
+        "tags": []
       },
       {
         "name": "Get docker running process on a system",
@@ -1167,7 +1236,8 @@
         ],
         "kind": "query",
         "slug": "get-docker-running-process-on-a-system",
-        "resolution": "N/A"
+        "resolution": "N/A",
+        "tags": []
       },
       {
         "name": "Get Windows print spooler remote code execution vulnerability",
@@ -1185,7 +1255,8 @@
         ],
         "kind": "query",
         "slug": "get-windows-print-spooler-remote-code-execution-vulnerability",
-        "resolution": "N/A"
+        "resolution": "N/A",
+        "tags": []
       },
       {
         "name": "Get local users and their privileges",
@@ -1203,7 +1274,8 @@
         ],
         "kind": "query",
         "slug": "get-local-users-and-their-privileges",
-        "resolution": "N/A"
+        "resolution": "N/A",
+        "tags": []
       },
       {
         "name": "Get processes that no longer exist on disk",
@@ -1221,7 +1293,8 @@
         ],
         "kind": "query",
         "slug": "get-processes-that-no-longer-exist-on-disk",
-        "resolution": "N/A"
+        "resolution": "N/A",
+        "tags": []
       },
       {
         "name": "Get user files matching a specific hash",
@@ -1239,7 +1312,8 @@
         ],
         "kind": "query",
         "slug": "get-user-files-matching-a-specific-hash",
-        "resolution": "N/A"
+        "resolution": "N/A",
+        "tags": []
       },
       {
         "name": "Get local administrator accounts on macOS",
@@ -1257,7 +1331,8 @@
         ],
         "kind": "query",
         "slug": "get-local-administrator-accounts-on-mac-os",
-        "resolution": "N/A"
+        "resolution": "N/A",
+        "tags": []
       },
       {
         "name": "Get all listening ports, by process",
@@ -1275,7 +1350,8 @@
         ],
         "kind": "query",
         "slug": "get-all-listening-ports-by-process",
-        "resolution": "N/A"
+        "resolution": "N/A",
+        "tags": []
       },
       {
         "name": "Get whether TeamViewer is installed/running",
@@ -1293,7 +1369,8 @@
         ],
         "kind": "query",
         "slug": "get-whether-team-viewer-is-installed-running",
-        "resolution": "N/A"
+        "resolution": "N/A",
+        "tags": []
       },
       {
         "name": "Get malicious Python backdoors",
@@ -1311,7 +1388,8 @@
         ],
         "kind": "query",
         "slug": "get-malicious-python-backdoors",
-        "resolution": "N/A"
+        "resolution": "N/A",
+        "tags": []
       },
       {
         "name": "Check for artifacts of the Floxif trojan",
@@ -1329,7 +1407,8 @@
         ],
         "kind": "query",
         "slug": "check-for-artifacts-of-the-floxif-trojan",
-        "resolution": "N/A"
+        "resolution": "N/A",
+        "tags": []
       },
       {
         "name": "Get shimcache table",
@@ -1347,7 +1426,8 @@
         ],
         "kind": "query",
         "slug": "get-shimcache-table",
-        "resolution": "N/A"
+        "resolution": "N/A",
+        "tags": []
       },
       {
         "name": "Get running docker containers",
@@ -1365,7 +1445,8 @@
         ],
         "kind": "query",
         "slug": "get-running-docker-containers",
-        "resolution": "N/A"
+        "resolution": "N/A",
+        "tags": []
       },
       {
         "name": "Get applications hogging memory",
@@ -1383,7 +1464,8 @@
         ],
         "kind": "query",
         "slug": "get-applications-hogging-memory",
-        "resolution": "N/A"
+        "resolution": "N/A",
+        "tags": []
       },
       {
         "name": "Get Mac and Linux machines with unencrypted primary disks",
@@ -1401,7 +1483,8 @@
         ],
         "kind": "query",
         "slug": "get-mac-and-linux-machines-with-unencrypted-primary-disks",
-        "resolution": "N/A"
+        "resolution": "N/A",
+        "tags": []
       },
       {
         "name": "Get servers with root login in the last 24 hours",
@@ -1419,12 +1502,13 @@
         ],
         "kind": "query",
         "slug": "get-servers-with-root-login-in-the-last-24-hours",
-        "resolution": "N/A"
+        "resolution": "N/A",
+        "tags": []
       },
       {
         "name": "Detect active processes with Log4j running",
         "platforms": "macOS, Linux",
-        "description": "Returns a list of active processes and the Jar paths which are using Log4j. Version numbers are usually within the Jar filename.",
+        "description": "Returns a list of active processes and the Jar paths which are using Log4j. Version numbers are usually within the Jar filename. Note: This query is resource intensive and has caused problems on systems with limited swap space. Test on some systems before running this widely.",
         "query": "WITH target_jars AS (\n  SELECT DISTINCT path\n  FROM (\n      WITH split(word, str) AS(\n        SELECT '', cmdline || ' '\n        FROM processes\n        UNION ALL\n        SELECT substr(str, 0, instr(str, ' ')), substr(str, instr(str, ' ') + 1)\n        FROM split\n        WHERE str != '')\n      SELECT word AS path\n      FROM split\n      WHERE word LIKE '%.jar'\n    UNION ALL\n      SELECT path\n      FROM process_open_files\n      WHERE path LIKE '%.jar'\n  )\n)\nSELECT path, matches\nFROM yara\nWHERE path IN (SELECT path FROM target_jars)\n  AND count > 0\n  AND sigrule IN (\n    'rule log4jJndiLookup {\n      strings:\n        $jndilookup = \"JndiLookup\"\n      condition:\n        $jndilookup\n    }',\n    'rule log4jJavaClass {\n      strings:\n        $javaclass = \"org/apache/logging/log4j\"\n      condition:\n        $javaclass\n    }'\n  );\n",
         "purpose": "Detection",
         "contributors": [
@@ -1443,7 +1527,8 @@
         ],
         "kind": "query",
         "slug": "detect-active-processes-with-log-4-j-running",
-        "resolution": "N/A"
+        "resolution": "N/A",
+        "tags": []
       },
       {
         "name": "Get applications that were opened within the last 24 hours",
@@ -1461,7 +1546,8 @@
         ],
         "kind": "query",
         "slug": "get-applications-that-were-opened-within-the-last-24-hours",
-        "resolution": "N/A"
+        "resolution": "N/A",
+        "tags": []
       },
       {
         "name": "Get applications that are not in the Applications directory",
@@ -1479,7 +1565,8 @@
         ],
         "kind": "query",
         "slug": "get-applications-that-are-not-in-the-applications-directory",
-        "resolution": "N/A"
+        "resolution": "N/A",
+        "tags": []
       },
       {
         "name": "Get subscription-based applications that have not been opened for the last 30 days",
@@ -1497,7 +1584,8 @@
         ],
         "kind": "query",
         "slug": "get-subscription-based-applications-that-have-not-been-opened-for-the-last-30-days",
-        "resolution": "N/A"
+        "resolution": "N/A",
+        "tags": []
       },
       {
         "name": "Is Gatekeeper enabled on macOS devices?",
@@ -1514,7 +1602,8 @@
           }
         ],
         "kind": "policy",
-        "slug": "is-gatekeeper-enabled-on-mac-os-devices"
+        "slug": "is-gatekeeper-enabled-on-mac-os-devices",
+        "tags": []
       },
       {
         "name": "Is disk encryption enabled on Windows devices?",
@@ -1531,12 +1620,13 @@
           }
         ],
         "kind": "policy",
-        "slug": "is-disk-encryption-enabled-on-windows-devices"
+        "slug": "is-disk-encryption-enabled-on-windows-devices",
+        "tags": []
       },
       {
         "name": "Is FileVault enabled on macOS devices?",
         "query": "SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT \"\" AND filevault_status = 'on' LIMIT 1;",
-        "description": "Checks to make sure that the Filevault feature is enabled on macOS devices.",
+        "description": "Checks to make sure that the FileVault feature is enabled on macOS devices.",
         "resolution": "To enable FileVault, on the failing device, select System Preferences > Security & Privacy > FileVault > Turn On FileVault.",
         "platforms": "macOS",
         "contributors": [
@@ -1548,7 +1638,8 @@
           }
         ],
         "kind": "policy",
-        "slug": "is-file-vault-enabled-on-mac-os-devices"
+        "slug": "is-file-vault-enabled-on-mac-os-devices",
+        "tags": []
       }
     ],
     "queryLibraryYmlRepoPath": "docs/Using-Fleet/standard-query-library/standard-query-library.yml",

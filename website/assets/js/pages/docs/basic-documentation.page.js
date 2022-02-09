@@ -55,7 +55,8 @@ parasails.registerPage('basic-documentation', {
             // does not appropriately handle double-digit strings
             try {
               // attempt to split htmlId and parse out its ordinal value (e.g., `docs--10-teams--xxxxxxxxxx`)
-              let sortValue = page.htmlId.split(/--/)[1].split(/-/)[0];
+              // let sortValue = page.htmlId.split(/--/)[1].split(/-/)[0];
+              let sortValue = page.pageRankInRepoPath;
               return parseInt(sortValue) || sortValue;
             } catch (error) {
               // something unexpected happened so just return the htmlId and continue sort

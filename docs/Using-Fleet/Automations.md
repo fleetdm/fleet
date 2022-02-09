@@ -85,3 +85,5 @@ POST https://server.com/example
   }
 }
 ```
+
+<meta name="pageRank" value="12">

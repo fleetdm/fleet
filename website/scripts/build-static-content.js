@@ -312,6 +312,15 @@ module.exports = {
                 pageTitle = fallbackPageTitle;
               }
 
+              // Determine the page's order in the documentation.
+              let pageRank;
+              if(embeddedMetadata.pageRank){
+                if (embeddedMetadata.pageRank < 0) {
+                  throw new Error(`Failed compiling markdown content: Invalid page rank (<meta name="pageRank" value="${embeddedMetadata.pageRank}">) embedded in "${path.join(topLvlRepoPath, sectionRepoPath)}".  To resolve, try changing the rank, valid value, then rebuild.`);
+                }//•
+                pageRank = embeddedMetadata.pageRank;
+              }
+
               // Determine unique HTML id
               // > • This will become the filename of the resulting HTML.
               // > • And it will be attached to menu data for use in sorting pages within their bottom-level sections.
@@ -342,7 +351,8 @@ module.exports = {
                 lastModifiedAt: lastModifiedAt,
                 htmlId: htmlId,
                 sectionRelativeRepoPath: sectionRelativeRepoPath,
-                meta: _.omit(embeddedMetadata, 'title')
+                pageRankInRepoPath: pageRank,
+                meta: _.omit(embeddedMetadata, ['title', 'pageRank'])
               });
             }
           }//∞ </each source file>

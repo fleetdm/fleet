@@ -72,3 +72,5 @@ terraform apply \
 ## Limitations
 
 The [osquery-perf](https://github.com/fleetdm/fleet/tree/main/cmd/osquery-perf) tool doesn't simulate all data that's included when a real device communicates to a Fleet instance. For example, system users and software inventory data are not yet simulated by osquery-perf.
+
+<meta name="pageRank" value="4">

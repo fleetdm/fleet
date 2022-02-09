@@ -56,3 +56,5 @@ Once Fleet has been replaced with the newest version and the database migrations
 ```
 fleet serve
 ```
+
+<meta name="pageRank" value="6">

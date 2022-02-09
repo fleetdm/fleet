@@ -205,3 +205,5 @@ If the existing enrolled hosts use `--host_identifier=uuid` (or the `uuid` setti
 installation should appear as the same host in the Fleet UI. If other settings are used, duplicate
 entries will appear in the Fleet UI. The older entries can be automatically cleaned up with the host
 expiration functionality configured in the application settings (UI or fleetctl).
+
+<meta name="pageRank" value="4">

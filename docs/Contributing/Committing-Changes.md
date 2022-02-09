@@ -100,3 +100,5 @@ GitHub will automatically generate a commit title and description based on the c
 Keep in mind that the commit title and description are what developers see when running `git log` locally. Try to make this information helpful!
 
 Keeping to around 80 character line lengths helps with rendering when folks have narrow, tiled terminal windows.
+
+<meta name="pageRank" value="3">

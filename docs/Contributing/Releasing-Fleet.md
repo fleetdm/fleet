@@ -143,3 +143,5 @@ must be created and relevant changes cherry-picked onto that branch:
    migrations are run in the appropriate order.
 
    TODO [#2850](https://github.com/fleetdm/fleet/issues/2850): Improve docs/tooling for this.
+
+<meta name="pageRank" value="4">

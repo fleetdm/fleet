@@ -123,3 +123,5 @@ To delete a team:
 2. Find your team and select it.
 
 3. On the right side, select "Delete team" and confirm the action.
+
+<meta name="pageRank" value="9">

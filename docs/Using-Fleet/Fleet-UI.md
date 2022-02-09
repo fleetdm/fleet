@@ -62,3 +62,5 @@ To configure team agent options, head to **Settings > Teams > `Team-name-here` >
 ![Team agent options](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/team-agent-options.png)
 
 <meta name="title" value="Fleet UI">
+
+<meta name="pageRank" value="1">

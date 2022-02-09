@@ -140,3 +140,5 @@ Osquery agents are typically configured to send logs to the Fleet server (`--log
 See the [osquery logging documentation](https://osquery.readthedocs.io/en/stable/deployment/logging/) for more about configuring logging on the agent.
 
 If `--logger_plugin=tls` is used with osquery clients, the following configuration can be applied on the Fleet server for handling the incoming logs.
+
+<meta name="pageRank" value="5">
