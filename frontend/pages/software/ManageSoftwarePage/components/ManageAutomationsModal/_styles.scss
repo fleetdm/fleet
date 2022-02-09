@@ -26,6 +26,12 @@
     color: $ui-error;
   }
 
+  &__software-automation-description {
+    p {
+      margin: $pad-large 0;
+    }
+  }
+
   .tooltip-wrap {
     display: flex;
     align-items: center;

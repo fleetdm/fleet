@@ -350,8 +350,9 @@ const TeamDetailsWrapper = ({
     );
   }
 
-  const hostsCount = teams?.length || 1;
-  const hostsTotalDisplay = hostsCount === 1 ? "1 host" : `${hostsCount} hosts`;
+  const hostCount = currentTeam.host_count;
+  const hostsTotalDisplay =
+    hostCount >= 2 ? `${hostCount} hosts` : `${hostCount} host`;
   const userAdminTeams = userTeams.filter(
     (thisTeam) => thisTeam.role === "admin"
   );
