@@ -54,7 +54,8 @@ import (
 	"github.com/spf13/cobra"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
+	//"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"google.golang.org/grpc"
@@ -134,7 +135,7 @@ the way that the Fleet server works.
 
 			// Init tracing
 			ctx := context.Background()
-			client := otlptracehttp.NewClient()
+			client := otlptracegrpc.NewClient()
 			otlpTraceExporter, err := otlptrace.New(ctx, client)
 			if err != nil {
 				panic(err)
