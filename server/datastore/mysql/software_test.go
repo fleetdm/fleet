@@ -518,7 +518,7 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 	})
 
 	t.Run("hosts count", func(t *testing.T) {
-		defer TruncateTables(t, ds, "aggregated_stats")
+		defer TruncateTables(t, ds, "software_host_counts")
 		listSoftwareCheckCount(t, ds, 0, 0, fleet.SoftwareListOptions{WithHostCounts: true}, false)
 
 		// create the counts for those software and re-run
