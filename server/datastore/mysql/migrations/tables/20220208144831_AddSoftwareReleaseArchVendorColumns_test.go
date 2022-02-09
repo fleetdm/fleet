@@ -7,8 +7,7 @@ import (
 )
 
 func TestUp_20220208144831(t *testing.T) {
-	db := newDBConnForTests(t)
-	applyUpToPrev(t, db)
+	db := applyUpToPrev(t)
 
 	_, err := db.Exec(`INSERT INTO software (name, version, source) VALUES ("authconfig", "6.2.8", "rpm_packages")`)
 	require.NoError(t, err)

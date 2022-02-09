@@ -6,10 +6,8 @@
 //
 //	[...]
 //	func TestUp_20220208144831(t *testing.T) {
-//		db := newDBConnForTests(t)
-//
 //		// Apply all migrations up to 20220208144831 (name of test), not included.
-//		applyUpToPrev(t, db)
+//		db := applyUpToPrev(t)
 //
 //		// insert testing data, etc.
 //
@@ -59,11 +57,12 @@ func getMigrationVersion(t *testing.T) int64 {
 	return int64(v)
 }
 
-// gooseNoDir is the value to not parse local files and instead use
-// the migrations that were added manually via Add().
-const gooseNoDir = ""
-
-func applyUpToPrev(t *testing.T, db *sqlx.DB) {
+// applyUpToPrev will allocate a testing DB connection and apply
+// migrations up to, not including, the migration specified in the test name.
+//
+// It returns the database connection to perform additional queries and migrations.
+func applyUpToPrev(t *testing.T) *sqlx.DB {
+	db := newDBConnForTests(t)
 	v := getMigrationVersion(t)
 	for {
 		current, err := MigrationClient.GetDBVersion(db.DB)
@@ -71,13 +70,17 @@ func applyUpToPrev(t *testing.T, db *sqlx.DB) {
 		next, err := MigrationClient.Migrations.Next(current)
 		require.NoError(t, err)
 		if next.Version == v {
-			return
+			return db
 		}
 		applyNext(t, db)
 	}
 }
 
+// applyNext performs the next migration in the chain.
 func applyNext(t *testing.T, db *sqlx.DB) {
+	// gooseNoDir is the value to not parse local files and instead use
+	// the migrations that were added manually via Add().
+	const gooseNoDir = ""
 	err := MigrationClient.UpByOne(db.DB, gooseNoDir)
 	require.NoError(t, err)
 }
