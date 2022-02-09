@@ -191,7 +191,12 @@ const ManageAutomationsModal = ({
               }
             )}
         </div>
-
+        <div className={`${baseClass}__software-automation-description`}>
+          <p>
+            A request will be sent to your configured <b>Destination URL</b> if
+            a detected vulnerability (CVE) was published in the last 2 days.
+          </p>
+        </div>
         <div className="tooltip-wrap tooltip-wrap--input">
           <InputField
             inputWrapperClass={`${baseClass}__url-input`}
