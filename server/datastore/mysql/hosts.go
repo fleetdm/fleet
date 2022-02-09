@@ -712,9 +712,19 @@ func (ds *Datastore) EnrollHost(ctx context.Context, osqueryHostID, nodeKey stri
 // LoadHostByNodeKey loads the whole host identified by the node key.
 // If the node key is invalid it returns a NotFoundError.
 func (ds *Datastore) LoadHostByNodeKey(ctx context.Context, nodeKey string) (*fleet.Host, error) {
-	sqlStatement := `SELECT * FROM hosts WHERE node_key = ?`
+	// LoadHostByNodeKey is one of the most used queries (every time a host checks in),
+	// thus prepare such query once.
+	ds.prepLoadHostQueryOnce.Do(func() {
+		var err error
+		//nolint ds.loadHostStmt is closed in Datastore.Close
+		ds.loadHostStmt, err = sqlx.PreparexContext(ctx, ds.reader, `SELECT * FROM hosts WHERE node_key = ?`)
+		if err != nil {
+			panic(fmt.Sprintf("prepare LoadHostByNodeKey statement: %s", err))
+		}
+	})
+
 	var host fleet.Host
-	switch err := sqlx.GetContext(ctx, ds.reader, &host, sqlStatement, nodeKey); {
+	switch err := ds.loadHostStmt.GetContext(ctx, &host, nodeKey); {
 	case err == nil:
 		return &host, nil
 	case errors.Is(err, sql.ErrNoRows):
@@ -1264,6 +1274,7 @@ func (ds *Datastore) GetMDM(ctx context.Context, hostID uint) (bool, string, boo
 	}
 	return dest.Enrolled, dest.ServerURL, dest.InstalledFromDep, nil
 }
+
 func (ds *Datastore) AggregatedMunkiVersion(ctx context.Context, teamID *uint) ([]fleet.AggregatedMunkiVersion, time.Time, error) {
 	id := uint(0)
 
