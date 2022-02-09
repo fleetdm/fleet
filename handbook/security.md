@@ -8,7 +8,7 @@ We follow the guiding principles below to secure our company-owned devices:
 
 * Our devices should give contributors the freedom to work from anywhere.
 * To allow maximum freedom in where and how we work, we assume that "Safe" networks do not exist. Contributors should be able to work on a coffee shop's Wi-Fi as if it were their home or work network.
-* To limit the impact on user experience, we do not dictate security configurations unless the security benefit is significant.
+* To limit the impact on user experience, we do not dictate security configurations unless the security benefit is significant; only if it dramatically reduces risk for the company, customers, or open source users.
 * By using techniques such as Two-Factor Authentication (2FA), code reviews, and more, we can further empower contributors to work comfortably from any location - on any network.
 
 
