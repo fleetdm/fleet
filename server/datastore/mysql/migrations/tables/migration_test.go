@@ -2,18 +2,18 @@
 //
 // Migrations can be tested with tests following the following format:
 //
-//	$ cat 20220201144450_AddSoftwareReleaseArchVendorColumns_test.go
+//	$ cat 20220208144831_AddSoftwareReleaseArchVendorColumns_test.go
 //
 //	[...]
-//	func TestUp_20220201144450(t *testing.T) {
+//	func TestUp_20220208144831(t *testing.T) {
 //		db := newDBConnForTests(t)
 //
-//		// Apply all migrations up to 20220201144450 (name of test), not included.
+//		// Apply all migrations up to 20220208144831 (name of test), not included.
 //		applyUpToPrev(t, db)
 //
 //		// insert testing data, etc.
 //
-//		// The following will apply migration 20220201144450.
+//		// The following will apply migration 20220208144831.
 //		applyNext(t, db)
 //
 //		// insert testing data, verify migration.

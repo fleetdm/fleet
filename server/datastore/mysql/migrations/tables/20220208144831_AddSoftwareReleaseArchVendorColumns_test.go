@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20220201144450(t *testing.T) {
+func TestUp_20220208144831(t *testing.T) {
 	db := newDBConnForTests(t)
 	applyUpToPrev(t, db)
 
