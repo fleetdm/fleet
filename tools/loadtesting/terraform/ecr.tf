@@ -19,7 +19,7 @@ resource "aws_ecr_repository" "fleet" {
 data "aws_ecr_authorization_token" "token" {}
 
 resource "docker_registry_image" "fleet" {
-  name = "${aws_ecr_repository.fleet.repository_url}:${var.tag}"
+  name = "${aws_ecr_repository.fleet.repository_url}:${var.tag}-${split(":", data.docker_registry_image.dockerhub.sha256_digest)[1]}"
 
   build {
     context = "${path.cwd}/docker/"
@@ -28,4 +28,8 @@ resource "docker_registry_image" "fleet" {
     }
     pull_parent = true
   }
+}
+
+data "docker_registry_image" "dockerhub" {
+  name = "fleetdm/fleet:${var.tag}"
 }
