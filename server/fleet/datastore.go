@@ -331,10 +331,12 @@ type Datastore interface {
 	AllCPEs(ctx context.Context) ([]string, error)
 	InsertCVEForCPE(ctx context.Context, cve string, cpes []string) (int64, error)
 	SoftwareByID(ctx context.Context, id uint) (*Software, error)
+	// CalculateHostsPerSoftware calculates the number of hosts having each
+	// software installed and stores that information in an intermediate table.
+	//
+	// After aggregation, it cleans up unused software (e.g. software installed
+	// on removed hosts, software uninstalled on hosts, etc.)
 	CalculateHostsPerSoftware(ctx context.Context, updatedAt time.Time) error
-	// CleanUpUnusedSoftware deletes any unused software from the software table
-	// (any that isn't in that list with a host count > 0).
-	CleanUpUnusedSoftware(ctx context.Context) error
 	HostsByCPEs(ctx context.Context, cpes []string) ([]*CPEHost, error)
 
 	///////////////////////////////////////////////////////////////////////////////
@@ -559,22 +561,22 @@ const (
 
 // SoftwareVulnerability identifies a vulnerability on a specific software (CPE).
 type SoftwareVulnerability struct {
-	// CPE is the ID of the software CPE in the system.
-	CPE uint
-	CVE string
+	// CPEID is the ID of the software CPE in the system.
+	CPEID uint
+	CVE   string
 }
 
 // String implements fmt.Stringer.
 func (sv SoftwareVulnerability) String() string {
-	return fmt.Sprintf("{%d,%s}", sv.CPE, sv.CVE)
+	return fmt.Sprintf("{%d,%s}", sv.CPEID, sv.CVE)
 }
 
 // SoftwareWithCPE holds a software piece alongside its CPE ID.
 type SoftwareWithCPE struct {
 	// Software holds the software data.
 	Software
-	// CPE is the ID of the software CPE in the system.
-	CPE uint
+	// CPEID is the ID of the software CPE in the system.
+	CPEID uint
 }
 
 // NotFoundError is returned when the datastore resource cannot be found.

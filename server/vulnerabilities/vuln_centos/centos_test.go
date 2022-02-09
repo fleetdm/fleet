@@ -11,17 +11,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestLoadCentOSFixedCVEsMissingTable(t *testing.T) {
-	db, err := sql.Open("sqlite3", ":memory:")
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		db.Close()
-	})
-	pkgSet, err := LoadCentOSFixedCVEs(context.Background(), db, log.NewNopLogger())
-	require.NoError(t, err)
-	require.Nil(t, pkgSet)
-}
-
 func TestCentOSPkgSetAdd(t *testing.T) {
 	pkgSet := make(CentOSPkgSet)
 	authConfig := CentOSPkg{

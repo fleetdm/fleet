@@ -81,7 +81,8 @@ func (s *integrationTestSuite) TearDownTest() {
 		require.NoError(t, err)
 	}
 
-	err = s.ds.CleanUpUnusedSoftware(ctx)
+	// CalculateHostsPerSoftware performs a cleanup.
+	err = s.ds.CalculateHostsPerSoftware(ctx, time.Now())
 	require.NoError(t, err)
 }
 

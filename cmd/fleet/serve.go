@@ -722,12 +722,7 @@ func cronVulnerabilities(
 			sentry.CaptureException(err)
 		}
 
-		if err := ds.CleanUpUnusedSoftware(ctx); err != nil {
-			level.Error(logger).Log("msg", "cleaning up unused software", "err", err)
-			sentry.CaptureException(err)
-		}
-
-		// It's important vulnerabilities.PostProcess runs after ds.CleanUpUnusedSoftware
+		// It's important vulnerabilities.PostProcess runs after ds.CalculateHostsPerSoftware
 		// because it cleans up any software that's not installed on the fleet (e.g. hosts removal,
 		// or software being uninstalled on hosts).
 		if !vulnDisabled {

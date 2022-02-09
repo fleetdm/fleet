@@ -54,7 +54,7 @@ func TestCentOSPostProcessing(t *testing.T) {
 					},
 				},
 			},
-			CPE: 1,
+			CPEID: 1,
 		},
 		{
 			Software: fleet.Software{
@@ -75,7 +75,7 @@ func TestCentOSPostProcessing(t *testing.T) {
 					},
 				},
 			},
-			CPE: 2,
+			CPEID: 2,
 		},
 		{
 			Software: fleet.Software{
@@ -90,7 +90,7 @@ func TestCentOSPostProcessing(t *testing.T) {
 					},
 				},
 			},
-			CPE: 3,
+			CPEID: 3,
 		},
 		{
 			Software: fleet.Software{
@@ -105,7 +105,7 @@ func TestCentOSPostProcessing(t *testing.T) {
 					},
 				},
 			},
-			CPE: 4,
+			CPEID: 4,
 		},
 	}
 
@@ -116,16 +116,16 @@ func TestCentOSPostProcessing(t *testing.T) {
 	ds.DeleteVulnerabilitiesByCPECVEFunc = func(ctx context.Context, vulnerabilities []fleet.SoftwareVulnerability) error {
 		require.Equal(t, []fleet.SoftwareVulnerability{
 			{
-				CPE: 1,
-				CVE: "CVE-2017-7488",
+				CPEID: 1,
+				CVE:   "CVE-2017-7488",
 			},
 			{
-				CPE: 2,
-				CVE: "CVE-2015-3415",
+				CPEID: 2,
+				CVE:   "CVE-2015-3415",
 			},
 			{
-				CPE: 2,
-				CVE: "CVE-2015-3416",
+				CPEID: 2,
+				CVE:   "CVE-2015-3416",
 			},
 		}, vulnerabilities)
 		return nil
@@ -148,5 +148,5 @@ func TestCentOSPostProcessingNoPkgs(t *testing.T) {
 	db, err := sql.Open("sqlite3", ":memory:")
 	require.NoError(t, err)
 	err = centosPostProcessing(ctx, ds, db, log.NewNopLogger(), config.FleetConfig{})
-	require.NoError(t, err)
+	require.Error(t, err)
 }

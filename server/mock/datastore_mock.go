@@ -274,8 +274,6 @@ type SoftwareByIDFunc func(ctx context.Context, id uint) (*fleet.Software, error
 
 type CalculateHostsPerSoftwareFunc func(ctx context.Context, updatedAt time.Time) error
 
-type CleanUpUnusedSoftwareFunc func(ctx context.Context) error
-
 type HostsByCPEsFunc func(ctx context.Context, cpes []string) ([]*fleet.CPEHost, error)
 
 type NewActivityFunc func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error
@@ -773,9 +771,6 @@ type DataStore struct {
 
 	CalculateHostsPerSoftwareFunc        CalculateHostsPerSoftwareFunc
 	CalculateHostsPerSoftwareFuncInvoked bool
-
-	CleanUpUnusedSoftwareFunc        CleanUpUnusedSoftwareFunc
-	CleanUpUnusedSoftwareFuncInvoked bool
 
 	HostsByCPEsFunc        HostsByCPEsFunc
 	HostsByCPEsFuncInvoked bool
@@ -1587,11 +1582,6 @@ func (s *DataStore) SoftwareByID(ctx context.Context, id uint) (*fleet.Software,
 func (s *DataStore) CalculateHostsPerSoftware(ctx context.Context, updatedAt time.Time) error {
 	s.CalculateHostsPerSoftwareFuncInvoked = true
 	return s.CalculateHostsPerSoftwareFunc(ctx, updatedAt)
-}
-
-func (s *DataStore) CleanUpUnusedSoftware(ctx context.Context) error {
-	s.CleanUpUnusedSoftwareFuncInvoked = true
-	return s.CleanUpUnusedSoftwareFunc(ctx)
 }
 
 func (s *DataStore) HostsByCPEs(ctx context.Context, cpes []string) ([]*fleet.CPEHost, error) {

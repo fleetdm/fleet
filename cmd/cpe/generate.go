@@ -38,9 +38,8 @@ func main() {
 	// The CentOS repository data is added to the CPE database.
 	if runCentOS {
 		centos(dbPath, verbose)
+		fmt.Printf("Sqlite file %s size with CentOS data: %.2f MB\n", dbPath, getSizeMB(dbPath))
 	}
-
-	fmt.Printf("Sqlite file %s size: %.2f MB\n", dbPath, getSizeMB(dbPath))
 
 	fmt.Println("Compressing DB...")
 	compressedPath, err := compress(dbPath)

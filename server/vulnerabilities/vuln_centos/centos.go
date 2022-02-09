@@ -7,13 +7,11 @@
 package vuln_centos
 
 import (
-	"compress/bzip2"
 	"context"
 	"database/sql"
 	"encoding/xml"
 	"errors"
 	"fmt"
-	"io"
 	"io/fs"
 	"io/ioutil"
 	"net/http"
@@ -25,11 +23,11 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/fleetdm/fleet/v4/pkg/download"
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	kitlog "github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
 	"github.com/gocolly/colly"
 	_ "github.com/mattn/go-sqlite3"
-	"github.com/ulikunitz/xz"
 )
 
 // CentOSPkg holds data to identify a CentOS package.
@@ -67,14 +65,6 @@ const centOSPkgsCVEsTable = "centos_pkgs_fixed_cves"
 
 // LoadCentOSFixedCVEs loads the CentOS packages with known fixed CVEs from the given sqlite3 db.
 func LoadCentOSFixedCVEs(ctx context.Context, db *sql.DB, logger kitlog.Logger) (CentOSPkgSet, error) {
-	tableExists, err := tableExists(ctx, db, centOSPkgsCVEsTable)
-	if err != nil {
-		return nil, fmt.Errorf("failed to query database table: %w", err)
-	}
-	if !tableExists {
-		level.Info(logger).Log("msg", "missing", "table", centOSPkgsCVEsTable)
-		return nil, nil
-	}
 	rows, err := db.QueryContext(ctx, fmt.Sprintf(`SELECT name, version, release, arch, cves FROM %s`, centOSPkgsCVEsTable))
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch packages: %w", err)
@@ -199,21 +189,6 @@ func ParseCentOSRepository(opts ...CentOSOption) (CentOSPkgSet, error) {
 	}
 
 	return pkgs, nil
-}
-
-func tableExists(ctx context.Context, db *sql.DB, tableName string) (bool, error) {
-	row := db.QueryRowContext(ctx,
-		fmt.Sprintf(`SELECT 1 FROM sqlite_master WHERE type='table' AND name='%s';`, tableName),
-	)
-	var ok bool
-	switch err := row.Scan(&ok); {
-	case err == nil:
-		return ok, nil
-	case errors.Is(err, sql.ErrNoRows):
-		return false, nil
-	default:
-		return false, fmt.Errorf("failed to query database: %w", err)
-	}
 }
 
 func crawl(root string, localDir string, verbose bool) error {
@@ -351,67 +326,31 @@ func processRepoMD(mdURL url.URL, localDir string, verbose bool) error {
 		}
 		sqliteURL := mdURL
 		sqliteURL.Path = strings.TrimSuffix(sqliteURL.Path, "repomd.xml") + strings.TrimPrefix(data.Location.Href, "repodata/")
-		if err := downloadSqlite(sqliteURL, localDir, verbose); err != nil {
+		if verbose {
+			fmt.Printf("%s\n", sqliteURL.Path)
+		}
+		filePath := filePathfromURL(localDir, sqliteURL)
+		_, err := os.Stat(filePath)
+		switch {
+		case err == nil:
+			// File already exists, nothing to do.
+		case errors.Is(err, os.ErrNotExist):
+			if err := download.Decompressed(fleethttp.NewClient(), sqliteURL, filePath); err != nil {
+				return err
+			}
+		default:
 			return err
 		}
 	}
 	return nil
 }
 
-func downloadSqlite(sqliteURL url.URL, localDir string, verbose bool) error {
-	if verbose {
-		fmt.Printf("%s\n", sqliteURL.Path)
-	}
-	filePath := filepath.Join(localDir, sqliteURL.Path)
+func filePathfromURL(dir string, url url.URL) string {
+	filePath := filepath.Join(dir, url.Path)
 	filePath = strings.TrimSuffix(filePath, ".bz2")
 	filePath = strings.TrimSuffix(filePath, ".xz")
-	_, err := os.Stat(filePath)
-	switch {
-	case err == nil:
-		return nil
-	case errors.Is(err, os.ErrNotExist):
-		// OK
-	default:
-		return err
-	}
-
-	resp, err := http.Get(sqliteURL.String())
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	if err := os.MkdirAll(filepath.Dir(filePath), 0o755); err != nil {
-		return err
-	}
-	tmpFile, err := ioutil.TempFile("", fmt.Sprintf("%s*", filepath.Base(filePath)))
-	if err != nil {
-		return err
-	}
-	defer tmpFile.Close()
-
-	var decompressor io.Reader
-	switch {
-	case strings.HasSuffix(sqliteURL.Path, "bz2"):
-		decompressor = bzip2.NewReader(resp.Body)
-	case strings.HasSuffix(sqliteURL.Path, "xz"):
-		decompressor, err = xz.NewReader(resp.Body)
-		if err != nil {
-			return err
-		}
-	default:
-		return fmt.Errorf("unknown extension: %s", sqliteURL.Path)
-	}
-	if _, err := io.Copy(tmpFile, decompressor); err != nil {
-		return err
-	}
-	if err := tmpFile.Close(); err != nil {
-		return err
-	}
-	if err := os.Rename(tmpFile.Name(), filePath); err != nil {
-		return err
-	}
-	return nil
+	filePath = strings.TrimSuffix(filePath, ".gz")
+	return filePath
 }
 
 func processSqlites(dbPaths dbs) (CentOSPkgSet, error) {

@@ -59,8 +59,8 @@ func centosPostProcessing(
 			if _, ok := pkgFixedCVEs[vulnerability.CVE]; ok {
 				cves = append(cves, vulnerability.CVE)
 				fixedCVEs = append(fixedCVEs, fleet.SoftwareVulnerability{
-					CPE: software.CPE,
-					CVE: vulnerability.CVE,
+					CPEID: software.CPEID,
+					CVE:   vulnerability.CVE,
 				})
 			}
 		}
@@ -73,7 +73,7 @@ func centosPostProcessing(
 					"%s-%s-%s.%s",
 					software.Name, software.Version, software.Release, software.Arch,
 				),
-				"softwareCPE", software.CPE,
+				"softwareCPE", software.CPEID,
 				"cves", fmt.Sprintf("%v", cves),
 			)
 		}

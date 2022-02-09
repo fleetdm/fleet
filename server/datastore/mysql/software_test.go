@@ -601,8 +601,6 @@ func testSoftwareCalculateHostsPerSoftware(t *testing.T, ds *Datastore) {
 
 	err = ds.CalculateHostsPerSoftware(ctx, time.Now())
 	require.NoError(t, err)
-	err = ds.CleanUpUnusedSoftware(ctx)
-	require.NoError(t, err)
 
 	swCounts = listSoftwareCheckCount(t, ds, 3, 3, swOpts, false)
 	want = []fleet.Software{
@@ -625,9 +623,6 @@ func testSoftwareCalculateHostsPerSoftware(t *testing.T, ds *Datastore) {
 		{Name: "baz", Version: "0.0.1", HostsCount: 0},
 	}
 	cmpNameVersionCount(want, allSw)
-
-	err = ds.CleanUpUnusedSoftware(ctx)
-	require.NoError(t, err)
 
 	allSw = listSoftwareCheckCount(t, ds, 3, 3, fleet.SoftwareListOptions{}, false)
 	want = []fleet.Software{
@@ -728,8 +723,8 @@ func testDeleteVulnerabilitiesByCPECVE(t *testing.T, ds *Datastore) {
 
 	err = ds.DeleteVulnerabilitiesByCPECVE(ctx, []fleet.SoftwareVulnerability{
 		{
-			CPE: 999, // unknown CPE
-			CVE: "cve-333-444-555",
+			CPEID: 999, // unknown CPE
+			CVE:   "cve-333-444-555",
 		},
 	})
 	require.NoError(t, err)
@@ -743,16 +738,16 @@ func testDeleteVulnerabilitiesByCPECVE(t *testing.T, ds *Datastore) {
 
 	err = ds.DeleteVulnerabilitiesByCPECVE(ctx, []fleet.SoftwareVulnerability{
 		{
-			CPE: barRPM.CPE,
-			CVE: "unknown-cve",
+			CPEID: barRPM.CPEID,
+			CVE:   "unknown-cve",
 		},
 	})
 	require.NoError(t, err)
 
 	err = ds.DeleteVulnerabilitiesByCPECVE(ctx, []fleet.SoftwareVulnerability{
 		{
-			CPE: barRPM.CPE,
-			CVE: "cve-333-444-555",
+			CPEID: barRPM.CPEID,
+			CVE:   "cve-333-444-555",
 		},
 	})
 	require.NoError(t, err)
@@ -765,8 +760,8 @@ func testDeleteVulnerabilitiesByCPECVE(t *testing.T, ds *Datastore) {
 
 	err = ds.DeleteVulnerabilitiesByCPECVE(ctx, []fleet.SoftwareVulnerability{
 		{
-			CPE: barRPM.CPE,
-			CVE: "cve-321-432-543",
+			CPEID: barRPM.CPEID,
+			CVE:   "cve-321-432-543",
 		},
 	})
 	require.NoError(t, err)

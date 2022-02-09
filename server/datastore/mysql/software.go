@@ -575,7 +575,7 @@ func (ds *Datastore) ListVulnerableSoftwareBySource(ctx context.Context, source 
 		}
 		software = append(software, fleet.SoftwareWithCPE{
 			Software: sc.Software,
-			CPE:      sc.CPE,
+			CPEID:    sc.CPE,
 		})
 	}
 	return software, nil
@@ -593,7 +593,7 @@ func (ds *Datastore) DeleteVulnerabilitiesByCPECVE(ctx context.Context, vulnerab
 	)
 	var args []interface{}
 	for _, vulnerability := range vulnerabilities {
-		args = append(args, vulnerability.CPE, vulnerability.CVE)
+		args = append(args, vulnerability.CPEID, vulnerability.CVE)
 	}
 	if _, err := ds.writer.ExecContext(ctx, sql, args...); err != nil {
 		return ctxerr.Wrapf(ctx, err, "deleting vulnerable software")
@@ -641,8 +641,10 @@ func (ds *Datastore) SoftwareByID(ctx context.Context, id uint) (*fleet.Software
 }
 
 // CalculateHostsPerSoftware calculates the number of hosts having each
-// software installed and stores that information in the aggregated_stats
-// table.
+// software installed and stores that information in an intermediate table.
+//
+// After aggregation, it cleans up unused software (e.g. software installed
+// on removed hosts, software uninstalled on hosts, etc.)
 func (ds *Datastore) CalculateHostsPerSoftware(ctx context.Context, updatedAt time.Time) error {
 	// NOTE(mna): for reference, on my laptop I get ~1.5ms for 10_000 hosts / 100 software each,
 	// ~1.5s for 10_000 hosts / 1_000 software each (but this is with an otherwise empty
@@ -717,12 +719,6 @@ func (ds *Datastore) CalculateHostsPerSoftware(ctx context.Context, updatedAt ti
 		return ctxerr.Wrap(ctx, err, "iterate over host_software counts")
 	}
 
-	return nil
-}
-
-// CleanUpUnusedSoftware deletes any unused software from the software table
-// (any that isn't in that list with a host count > 0).
-func (ds *Datastore) CleanUpUnusedSoftware(ctx context.Context) error {
 	cleanupStmt := `
   DELETE FROM
     software

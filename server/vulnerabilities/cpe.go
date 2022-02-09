@@ -1,18 +1,18 @@
 package vulnerabilities
 
 import (
-	"compress/gzip"
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path"
 	"regexp"
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/download"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -113,31 +113,11 @@ func SyncCPEDatabase(
 		o.url = nvdRelease.CPEURL
 	}
 
-	req, err := http.NewRequest(http.MethodGet, o.url, nil)
+	u, err := url.Parse(o.url)
 	if err != nil {
 		return err
 	}
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	gr, err := gzip.NewReader(resp.Body)
-	if err != nil {
-		return err
-	}
-	defer gr.Close()
-
-	dbFile, err := os.Create(dbPath)
-	if err != nil {
-		return err
-	}
-	defer dbFile.Close()
-
-	_, err = io.Copy(dbFile, gr)
-	if err != nil {
+	if err := download.Decompressed(client, *u, dbPath); err != nil {
 		return err
 	}
 

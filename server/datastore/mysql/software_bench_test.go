@@ -53,7 +53,6 @@ func BenchmarkCalculateHostsPerSoftware(b *testing.B) {
 				for i := 0; i < b.N; i++ {
 					require.NoError(b, ds.CalculateHostsPerSoftware(ctx, ts))
 				}
-				require.NoError(b, ds.CleanUpUnusedSoftware(ctx))
 				checkCountsAgg(b, ds, c.hs, c.sws)
 			})
 		}
