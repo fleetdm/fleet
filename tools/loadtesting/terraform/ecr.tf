@@ -26,5 +26,6 @@ resource "docker_registry_image" "fleet" {
     build_args = {
       TAG = var.tag
     }
+    pull_parent = true
   }
 }
