@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/kit/log"
@@ -365,6 +366,14 @@ FROM homebrew_packages;
 	DirectIngestFunc: directIngestSoftware,
 }
 
+var scheduledQueryStats = DetailQuery{
+	Query: `
+			SELECT *,
+				(SELECT value from osquery_flags where name = 'pack_delimiter') AS delimiter
+			FROM osquery_schedule`,
+	DirectIngestFunc: directIngestScheduledQueryStats,
+}
+
 var softwareLinux = DetailQuery{
 	Query: `
 WITH cached_users AS (SELECT * FROM users)
@@ -489,14 +498,6 @@ FROM python_packages;
 `,
 	Platforms:        []string{"windows"},
 	DirectIngestFunc: directIngestSoftware,
-}
-
-var scheduledQueryStats = DetailQuery{
-	Query: `
-			SELECT *,
-				(SELECT value from osquery_flags where name = 'pack_delimiter') AS delimiter
-			FROM osquery_schedule`,
-	DirectIngestFunc: directIngestScheduledQueryStats,
 }
 
 var usersQuery = DetailQuery{
@@ -738,7 +739,7 @@ func directIngestMunkiInfo(ctx context.Context, logger log.Logger, host *fleet.H
 	return ds.SetOrUpdateMunkiVersion(ctx, host.ID, rows[0]["version"])
 }
 
-func GetDetailQueries(ac *fleet.AppConfig) map[string]DetailQuery {
+func GetDetailQueries(ac *fleet.AppConfig, fleetConfig config.FleetConfig) map[string]DetailQuery {
 	generatedMap := make(map[string]DetailQuery)
 	for key, query := range detailQueries {
 		generatedMap[key] = query
@@ -754,7 +755,7 @@ func GetDetailQueries(ac *fleet.AppConfig) map[string]DetailQuery {
 		generatedMap["users"] = usersQuery
 	}
 
-	if ac != nil && ac.HostSettings.EnableScheduledQueryStats {
+	if fleetConfig.App.EnableScheduledQueryStats {
 		generatedMap["scheduled_query_stats"] = scheduledQueryStats
 	}
 

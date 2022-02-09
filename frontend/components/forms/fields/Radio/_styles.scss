@@ -18,8 +18,8 @@
       & + .radio__control::before {
         position: absolute;
         content: "";
-        width: 11px;
-        height: 11px;
+        width: 10px;
+        height: 10px;
         box-shadow: inset 1em 1em $core-vibrant-blue;
         background-color: $core-vibrant-blue;
         border-radius: 50%;
