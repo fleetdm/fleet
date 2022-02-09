@@ -2643,15 +2643,15 @@ func (s *integrationTestSuite) TestPaginateListSoftware() {
 	}
 
 	// create a bunch of software
-	sws := make([]fleet.Software, 100)
+	sws := make([]fleet.Software, 20)
 	for i := range sws {
 		sw := fleet.Software{Name: "sw" + strconv.Itoa(i), Version: "0.0." + strconv.Itoa(i), Source: "apps"}
 		sws[i] = sw
 	}
 
-	// mark them as installed on the hosts, with host at index 0 having all 100,
-	// at index 1 having 99, index 2 = 98, etc. So software sws[0] is only used
-	// by 1 host, while sws[99] is used by all.
+	// mark them as installed on the hosts, with host at index 0 having all 20,
+	// at index 1 having 19, index 2 = 18, etc. until index 19 = 1. So software
+	// sws[0] is only used by 1 host, while sws[19] is used by all.
 	for i, h := range hosts {
 		require.NoError(t, s.ds.UpdateHostSoftware(context.Background(), h.ID, sws[i:]))
 		require.NoError(t, s.ds.LoadHostSoftware(context.Background(), h))
@@ -2673,24 +2673,80 @@ func (s *integrationTestSuite) TestPaginateListSoftware() {
 		}
 	}
 
+	assertResp := func(resp listSoftwareResponse, want []fleet.Software, ts time.Time, counts ...int) {
+		require.Len(t, resp.Software, len(want))
+		for i := range resp.Software {
+			wantID, gotID := want[i].ID, resp.Software[i].ID
+			assert.Equal(t, wantID, gotID)
+			wantCount, gotCount := counts[i], resp.Software[i].HostsCount
+			assert.Equal(t, wantCount, gotCount)
+		}
+		if ts.IsZero() {
+			assert.Nil(t, resp.CountsUpdatedAt)
+		} else {
+			require.NotNil(t, resp.CountsUpdatedAt)
+			assert.WithinDuration(t, ts, *resp.CountsUpdatedAt, time.Second)
+		}
+	}
+
 	// no software host counts have been calculated yet, so this returns nothing
 	var lsResp listSoftwareResponse
 	s.DoJSON("GET", "/api/v1/fleet/software", nil, http.StatusOK, &lsResp, "order_key", "hosts_count", "order_direction", "desc")
-	require.Len(t, lsResp.Software, 0)
-	assert.Nil(t, lsResp.CountsUpdatedAt)
+	assertResp(lsResp, nil, time.Time{})
 
 	// calculate hosts counts
 	hostsCountTs := time.Now().UTC()
 	require.NoError(t, s.ds.CalculateHostsPerSoftware(context.Background(), hostsCountTs))
 
-	//// now the list software endpoint returns the software
-	//lsResp = listSoftwareResponse{}
-	//s.DoJSON("GET", "/api/v1/fleet/software", nil, http.StatusOK, &lsResp, "vulnerable", "true", "order_key", "generated_cpe", "order_direction", "desc")
-	//require.Len(t, lsResp.Software, 1)
-	//assert.Equal(t, soft1.ID, lsResp.Software[0].ID)
-	//assert.Len(t, lsResp.Software[0].Vulnerabilities, 1)
-	//require.NotNil(t, lsResp.CountsUpdatedAt)
-	//assert.WithinDuration(t, hostsCountTs, *lsResp.CountsUpdatedAt, time.Second)
+	// now the list software endpoint returns the software, get the first page without vulns
+	lsResp = listSoftwareResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/software", nil, http.StatusOK, &lsResp, "per_page", "5", "page", "0", "order_key", "hosts_count", "order_direction", "desc")
+	assertResp(lsResp, []fleet.Software{sws[19], sws[18], sws[17], sws[16], sws[15]}, hostsCountTs, 20, 19, 18, 17, 16)
+
+	// second page (page=1)
+	lsResp = listSoftwareResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/software", nil, http.StatusOK, &lsResp, "per_page", "5", "page", "1", "order_key", "hosts_count", "order_direction", "desc")
+	assertResp(lsResp, []fleet.Software{sws[14], sws[13], sws[12], sws[11], sws[10]}, hostsCountTs, 15, 14, 13, 12, 11)
+
+	// third page (page=2)
+	lsResp = listSoftwareResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/software", nil, http.StatusOK, &lsResp, "per_page", "5", "page", "2", "order_key", "hosts_count", "order_direction", "desc")
+	assertResp(lsResp, []fleet.Software{sws[9], sws[8], sws[7], sws[6], sws[5]}, hostsCountTs, 10, 9, 8, 7, 6)
+
+	// last page (page=3)
+	lsResp = listSoftwareResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/software", nil, http.StatusOK, &lsResp, "per_page", "5", "page", "3", "order_key", "hosts_count", "order_direction", "desc")
+	assertResp(lsResp, []fleet.Software{sws[4], sws[3], sws[2], sws[1], sws[0]}, hostsCountTs, 5, 4, 3, 2, 1)
+
+	// past the end
+	lsResp = listSoftwareResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/software", nil, http.StatusOK, &lsResp, "per_page", "5", "page", "4", "order_key", "hosts_count", "order_direction", "desc")
+	assertResp(lsResp, nil, time.Time{})
+
+	// no explicit sort order
+	lsResp = listSoftwareResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/software", nil, http.StatusOK, &lsResp, "per_page", "2", "page", "0")
+	assertResp(lsResp, []fleet.Software{sws[19], sws[18]}, hostsCountTs, 20, 19)
+
+	// hosts_count ascending
+	lsResp = listSoftwareResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/software", nil, http.StatusOK, &lsResp, "per_page", "3", "page", "0", "order_key", "hosts_count", "order_direction", "asc")
+	assertResp(lsResp, []fleet.Software{sws[0], sws[1], sws[2]}, hostsCountTs, 1, 2, 3)
+
+	// vulnerable software only
+	lsResp = listSoftwareResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/software", nil, http.StatusOK, &lsResp, "vulnerable", "true", "per_page", "5", "page", "0", "order_key", "hosts_count", "order_direction", "desc")
+	assertResp(lsResp, []fleet.Software{sws[9], sws[8], sws[7], sws[6], sws[5]}, hostsCountTs, 10, 9, 8, 7, 6)
+
+	// vulnerable software only, next page
+	lsResp = listSoftwareResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/software", nil, http.StatusOK, &lsResp, "vulnerable", "true", "per_page", "5", "page", "1", "order_key", "hosts_count", "order_direction", "desc")
+	assertResp(lsResp, []fleet.Software{sws[4], sws[3], sws[2], sws[1], sws[0]}, hostsCountTs, 5, 4, 3, 2, 1)
+
+	// vulnerable software only, past last page
+	lsResp = listSoftwareResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/software", nil, http.StatusOK, &lsResp, "vulnerable", "true", "per_page", "5", "page", "2", "order_key", "hosts_count", "order_direction", "desc")
+	assertResp(lsResp, nil, time.Time{})
 }
 
 // creates a session and returns it, its key is to be passed as authorization header.
