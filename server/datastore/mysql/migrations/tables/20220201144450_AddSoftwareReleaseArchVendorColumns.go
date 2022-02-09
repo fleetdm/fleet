@@ -53,6 +53,11 @@ func Up_20220201144450(tx *sql.Tx) error {
 		return errors.Wrap(err, "delete existing software for rpm_packages")
 	}
 
+	// Adding index to optimize software listing by source and vendor for vulnerability post-processing.
+	if _, err := tx.Exec("CREATE INDEX software_source_vendor_idx ON software (source, vendor)"); err != nil {
+		return errors.Wrap(err, "creating source+vendor index")
+	}
+
 	return nil
 }
 
