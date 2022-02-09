@@ -255,6 +255,23 @@ spec:
     server: mail.example.org
     user_name: test_user
     verify_ssl_certs: true
+  vulnerability_settings":
+    databases_path: ""
+  webhook_settings:
+    host_status_webhook:
+      enable_host_status_webhook: true
+      destination_url: https://server.com
+      host_percentage: 5
+      days_count: 7
+    failing_policies_webhook:
+      enable_failing_policies_webhook: true
+      destination_url": https://server.com
+      policy_ids: 
+        - 1
+        - 2
+        - 3
+      host_batch_size: 0
+    interval: 1m0s
   sso_settings:
     enable_sso: false
     entity_id: 1234567890

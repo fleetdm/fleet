@@ -10,7 +10,6 @@
 - [Schedule](#schedule)
 - [Packs](#packs)
 - [Policies](#policies)
-- [Team policies](#team-policies)
 - [Activities](#activities)
 - [Targets](#targets)
 - [Fleet configuration](#fleet-configuration)
@@ -4540,7 +4539,6 @@ None.
     "tier": "free",
     "expiration": "0001-01-01T00:00:00Z"
   },
-  "vulnerability_settings": null,
   "logging": {
       "debug": false,
       "json": false,
@@ -4569,8 +4567,8 @@ None.
     "expiration": "2021-12-31T19:00:00-05:00",
     "note": ""
   },
-    "vulnerability_settings": {
-    "databases_path": ""
+  "vulnerability_settings": {
+  "databases_path": ""
   },
   "webhook_settings": {
     "host_status_webhook": {
