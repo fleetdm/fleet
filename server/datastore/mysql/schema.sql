@@ -557,7 +557,7 @@ CREATE TABLE `software_host_counts` (
   `software_id` bigint(20) unsigned NOT NULL,
   `hosts_count` int(10) unsigned NOT NULL,
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`software_id`),
   KEY `idx_software_host_counts_host_count_software_id` (`hosts_count`,`software_id`),
   KEY `idx_software_host_counts_updated_at_software_id` (`updated_at`,`software_id`)
