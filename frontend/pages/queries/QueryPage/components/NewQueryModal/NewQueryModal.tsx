@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { size } from "lodash";
 
 import { IQueryFormData } from "interfaces/query";
@@ -14,6 +14,7 @@ export interface INewQueryModalProps {
   queryValue: string;
   onCreateQuery: (formData: IQueryFormData) => void;
   setIsSaveModalOpen: (isOpen: boolean) => void;
+  backendValidators: { [key: string]: string };
 }
 
 const validateQueryName = (name: string) => {
@@ -32,17 +33,24 @@ const NewQueryModal = ({
   queryValue,
   onCreateQuery,
   setIsSaveModalOpen,
+  backendValidators,
 }: INewQueryModalProps) => {
   const [name, setName] = useState<string>("");
   const [description, setDescription] = useState<string>("");
   const [observerCanRun, setObserverCanRun] = useState<boolean>(false);
-  const [errors, setErrors] = useState<{ [key: string]: any }>({});
+  const [errors, setErrors] = useState<{ [key: string]: string }>(
+    backendValidators
+  );
 
   useDeepEffect(() => {
     if (name) {
       setErrors({});
     }
   }, [name]);
+
+  useEffect(() => {
+    setErrors(backendValidators);
+  }, [backendValidators]);
 
   const handleUpdate = (evt: React.MouseEvent<HTMLFormElement>) => {
     evt.preventDefault();
@@ -60,8 +68,6 @@ const NewQueryModal = ({
         query: queryValue,
         observer_can_run: observerCanRun,
       });
-
-      setIsSaveModalOpen(false);
     }
   };
 

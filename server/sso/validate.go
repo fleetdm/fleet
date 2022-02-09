@@ -24,14 +24,21 @@ type Validator interface {
 }
 
 type validator struct {
-	context  *dsig.ValidationContext
-	clock    *dsig.Clock
-	metadata Metadata
+	context           *dsig.ValidationContext
+	clock             *dsig.Clock
+	metadata          Metadata
+	expectedAudiences []string
 }
 
 func Clock(clock *dsig.Clock) func(v *validator) {
 	return func(v *validator) {
 		v.clock = clock
+	}
+}
+
+func WithExpectedAudience(audiences ...string) func(v *validator) {
+	return func(v *validator) {
+		v.expectedAudiences = audiences
 	}
 }
 
@@ -86,6 +93,18 @@ func (v *validator) ValidateResponse(auth fleet.Auth) error {
 	if currentTime.Before(notBefore) {
 		return errors.New("response too early")
 	}
+
+	verifiesAudience := false
+	for _, audience := range v.expectedAudiences {
+		if info.response.Assertion.Conditions.AudienceRestriction.Audience == audience {
+			verifiesAudience = true
+			break
+		}
+	}
+	if !verifiesAudience {
+		return errors.New("wrong audience:" + info.response.Assertion.Conditions.AudienceRestriction.Audience)
+	}
+
 	if auth.UserID() == "" {
 		return errors.New("missing user id")
 	}

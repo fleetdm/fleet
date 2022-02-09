@@ -1,0 +1,1 @@
+* Properly match target_sw when looking for vulnerabilities within npm packages

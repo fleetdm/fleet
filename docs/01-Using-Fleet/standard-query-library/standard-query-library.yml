@@ -562,7 +562,7 @@ kind: query
 spec:
   name: Detect active processes with Log4j running
   platforms: macOS, Linux
-  description: Returns a list of active processes and the Jar paths which are using Log4j. Version numbers are usually within the Jar filename.
+  description: 'Returns a list of active processes and the Jar paths which are using Log4j. Version numbers are usually within the Jar filename. Note: This query is resource intensive and has caused problems on systems with limited swap space. Test on some systems before running this widely.'
   query: |
     WITH target_jars AS (
       SELECT DISTINCT path

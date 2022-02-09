@@ -26,7 +26,7 @@ export const baseClass = "app-settings";
 const AppSettingsPage = (): JSX.Element => {
   const dispatch = useDispatch();
 
-  const { config, setConfig } = useContext(AppContext);
+  const { setConfig } = useContext(AppContext);
 
   const {
     data: appConfig,

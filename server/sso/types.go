@@ -205,9 +205,14 @@ type Assertion struct {
 }
 
 type Conditions struct {
-	XMLName      xml.Name
-	NotBefore    string `xml:",attr"`
-	NotOnOrAfter string `xml:",attr"`
+	XMLName             xml.Name
+	NotBefore           string              `xml:",attr"`
+	NotOnOrAfter        string              `xml:",attr"`
+	AudienceRestriction AudienceRestriction `xml:"AudienceRestriction"`
+}
+
+type AudienceRestriction struct {
+	Audience string `xml:"Audience"`
 }
 
 type Subject struct {

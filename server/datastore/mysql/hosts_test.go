@@ -1084,7 +1084,7 @@ func testHostsGenerateStatusStatistics(t *testing.T, ds *Datastore) {
 		LabelUpdatedAt:  mockClock.Now().Add(-30 * time.Second),
 		PolicyUpdatedAt: mockClock.Now().Add(-30 * time.Second),
 		SeenTime:        mockClock.Now().Add(-30 * time.Second),
-		Platform:        "linux",
+		Platform:        "debian",
 	})
 	require.NoError(t, err)
 	h.DistributedInterval = 15
@@ -1132,7 +1132,7 @@ func testHostsGenerateStatusStatistics(t *testing.T, ds *Datastore) {
 		LabelUpdatedAt:  mockClock.Now().Add(-35 * (24 * time.Hour)),
 		PolicyUpdatedAt: mockClock.Now().Add(-35 * (24 * time.Hour)),
 		SeenTime:        mockClock.Now().Add(-35 * (24 * time.Hour)),
-		Platform:        "linux",
+		Platform:        "rhel",
 	})
 	require.NoError(t, err)
 
@@ -1141,7 +1141,8 @@ func testHostsGenerateStatusStatistics(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{h.ID}))
 
 	wantPlatforms := []*fleet.HostSummaryPlatform{
-		{Platform: "linux", HostsCount: 2},
+		{Platform: "debian", HostsCount: 1},
+		{Platform: "rhel", HostsCount: 1},
 		{Platform: "windows", HostsCount: 1},
 		{Platform: "darwin", HostsCount: 1},
 	}
@@ -3337,23 +3338,27 @@ func testHostMDMAndMunki(t *testing.T, ds *Datastore) {
 
 func testAggregatedHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	// Make sure things work before data is generated
-	versions, err := ds.AggregatedMunkiVersion(context.Background(), nil)
+	versions, updatedAt, err := ds.AggregatedMunkiVersion(context.Background(), nil)
 	require.NoError(t, err)
 	require.Len(t, versions, 0)
-	status, err := ds.AggregatedMDMStatus(context.Background(), nil)
+	require.Zero(t, updatedAt)
+	status, updatedAt, err := ds.AggregatedMDMStatus(context.Background(), nil)
 	require.NoError(t, err)
 	require.Empty(t, status)
+	require.Zero(t, updatedAt)
 
 	// Make sure generation works when there's no mdm or munki data
 	require.NoError(t, ds.GenerateAggregatedMunkiAndMDM(context.Background()))
 
 	// And after generating without any data, it all looks reasonable
-	versions, err = ds.AggregatedMunkiVersion(context.Background(), nil)
+	versions, updatedAt, err = ds.AggregatedMunkiVersion(context.Background(), nil)
 	require.NoError(t, err)
 	require.Len(t, versions, 0)
-	status, err = ds.AggregatedMDMStatus(context.Background(), nil)
+	require.NotZero(t, updatedAt)
+	status, updatedAt, err = ds.AggregatedMDMStatus(context.Background(), nil)
 	require.NoError(t, err)
 	require.Empty(t, status)
+	require.NotZero(t, updatedAt)
 
 	// So now we try with data
 	require.NoError(t, ds.SetOrUpdateMunkiVersion(context.Background(), 123, "1.2.3"))
@@ -3362,7 +3367,7 @@ func testAggregatedHostMDMAndMunki(t *testing.T, ds *Datastore) {
 
 	require.NoError(t, ds.GenerateAggregatedMunkiAndMDM(context.Background()))
 
-	versions, err = ds.AggregatedMunkiVersion(context.Background(), nil)
+	versions, _, err = ds.AggregatedMunkiVersion(context.Background(), nil)
 	require.NoError(t, err)
 	require.Len(t, versions, 2)
 	assert.ElementsMatch(t, versions, []fleet.AggregatedMunkiVersion{
@@ -3385,7 +3390,7 @@ func testAggregatedHostMDMAndMunki(t *testing.T, ds *Datastore) {
 
 	require.NoError(t, ds.GenerateAggregatedMunkiAndMDM(context.Background()))
 
-	status, err = ds.AggregatedMDMStatus(context.Background(), nil)
+	status, _, err = ds.AggregatedMDMStatus(context.Background(), nil)
 	require.NoError(t, err)
 	assert.Equal(t, 6, status.HostsCount)
 	assert.Equal(t, 2, status.UnenrolledHostsCount)
@@ -3417,7 +3422,7 @@ func testAggregatedHostMDMAndMunki(t *testing.T, ds *Datastore) {
 
 	require.NoError(t, ds.GenerateAggregatedMunkiAndMDM(context.Background()))
 
-	versions, err = ds.AggregatedMunkiVersion(context.Background(), &team1.ID)
+	versions, _, err = ds.AggregatedMunkiVersion(context.Background(), &team1.ID)
 	require.NoError(t, err)
 	require.Len(t, versions, 1)
 	assert.ElementsMatch(t, versions, []fleet.AggregatedMunkiVersion{
@@ -3426,7 +3431,7 @@ func testAggregatedHostMDMAndMunki(t *testing.T, ds *Datastore) {
 			HostsCount:    1,
 		},
 	})
-	status, err = ds.AggregatedMDMStatus(context.Background(), &team1.ID)
+	status, _, err = ds.AggregatedMDMStatus(context.Background(), &team1.ID)
 	require.NoError(t, err)
 	assert.Equal(t, 1, status.HostsCount)
 	assert.Equal(t, 0, status.UnenrolledHostsCount)
