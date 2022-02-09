@@ -12,6 +12,7 @@ interface IAutoSizeInputFieldProps {
   placeholder: string;
   value: string;
   inputClassName?: string;
+  maxLength: string;
   hasError?: boolean;
   isDisabled?: boolean;
   isFocused?: boolean;
@@ -28,6 +29,7 @@ const TeamsDropdown = ({
   placeholder,
   value,
   inputClassName,
+  maxLength,
   hasError,
   isDisabled,
   onFocus,
@@ -85,6 +87,7 @@ const TeamsDropdown = ({
           onChange={onInputChange}
           placeholder={placeholder}
           value={inputValue}
+          maxLength={parseInt(maxLength, 10)}
           className={inputClasses}
           cols={12}
           rows={1}

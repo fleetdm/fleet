@@ -222,7 +222,7 @@ func listSoftwareDB(
 
 	var result []fleet.Software
 	if err := sqlx.SelectContext(ctx, q, &result, sql, args...); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "load host software")
+		return nil, ctxerr.Wrap(ctx, err, "select host software")
 	}
 
 	if opts.SkipLoadingCVEs {
@@ -275,8 +275,6 @@ func selectSoftwareSQL(hostID *uint, opts fleet.SoftwareListOptions) (string, []
 		goqu.I("generated_cpe"),
 	)
 
-	ds = appendListOptionsToSelect(ds, opts.ListOptions)
-
 	if opts.VulnerableOnly {
 		ds = ds.Join(
 			goqu.I("software_cpe").As("scp"),
@@ -314,32 +312,17 @@ func selectSoftwareSQL(hostID *uint, opts fleet.SoftwareListOptions) (string, []
 	}
 
 	if opts.WithHostCounts {
-		subSelectCounts := dialect.From(goqu.I("aggregated_stats").As("shc")).Select(
-			"shc.id", "shc.json_value", "shc.updated_at",
-		).Where(goqu.I("shc.type").Eq("software_hosts_count"), goqu.I("shc.json_value").Gt(0)).
-			SelectAppend(
-				goqu.I("shc.json_value").As("hosts_count"),
-				goqu.I("shc.updated_at").As("counts_updated_at"),
-			)
-		subSelectListOpts := opts.ListOptions
-		switch subSelectListOpts.OrderKey {
-		case "hosts_count", "counts_updated_at":
-			// all good, known columns, so we sort
-			subSelectCounts = appendListOptionsToSelect(subSelectCounts, opts.ListOptions)
-		default:
-			// we don't sort if it's not a column from this table
-		}
 		ds = ds.Join(
-			subSelectCounts.As("shc"),
-			goqu.On(
-				goqu.I("s.id").Eq(goqu.I("shc.id")),
-			),
+			goqu.I("software_host_counts").As("shc"),
+			goqu.On(goqu.I("s.id").Eq(goqu.I("shc.software_id"))),
 		).
+			Where(goqu.I("shc.hosts_count").Gt(0)).
 			SelectAppend(
-				goqu.I("shc.json_value").As("hosts_count"),
+				goqu.I("shc.hosts_count"),
 				goqu.I("shc.updated_at").As("counts_updated_at"),
 			)
 	}
+	ds = appendListOptionsToSelect(ds, opts.ListOptions)
 
 	return ds.ToSQL()
 }
@@ -560,37 +543,32 @@ func (ds *Datastore) SoftwareByID(ctx context.Context, id uint) (*fleet.Software
 }
 
 // CalculateHostsPerSoftware calculates the number of hosts having each
-// software installed and stores that information in the aggregated_stats
+// software installed and stores that information in the software_host_counts
 // table.
 func (ds *Datastore) CalculateHostsPerSoftware(ctx context.Context, updatedAt time.Time) error {
-	// NOTE(mna): for reference, on my laptop I get ~1.5ms for 10_000 hosts / 100 software each,
-	// ~1.5s for 10_000 hosts / 1_000 software each (but this is with an otherwise empty
-	// aggregated_stats table, but still reasonable numbers give that this runs as a cron
-	// task in the background).
-
 	resetStmt := `
-    UPDATE aggregated_stats
-    SET json_value = CAST(0 AS json)
-    WHERE type = "software_hosts_count"`
+    UPDATE software_host_counts
+    SET hosts_count = 0, updated_at = ?`
 
 	queryStmt := `
     SELECT count(*), software_id
     FROM host_software
+    WHERE software_id > 0
     GROUP BY software_id`
 
 	insertStmt := `
-    INSERT INTO aggregated_stats
-      (id, type, json_value, updated_at)
+    INSERT INTO software_host_counts
+      (software_id, hosts_count, updated_at)
     VALUES
       %s
     ON DUPLICATE KEY UPDATE
-      json_value = VALUES(json_value),
+      hosts_count = VALUES(hosts_count),
       updated_at = VALUES(updated_at)`
-	valuesPart := `(?, "software_hosts_count", CAST(? AS json), ?),`
+	valuesPart := `(?, ?, ?),`
 
 	// first, reset all counts to 0
-	if _, err := ds.writer.ExecContext(ctx, resetStmt); err != nil {
-		return ctxerr.Wrap(ctx, err, "reset all software_hosts_count to 0 in aggregated_stats")
+	if _, err := ds.writer.ExecContext(ctx, resetStmt, updatedAt); err != nil {
+		return ctxerr.Wrap(ctx, err, "reset all software_host_counts to 0")
 	}
 
 	// next get a cursor for the counts for each software
@@ -619,7 +597,7 @@ func (ds *Datastore) CalculateHostsPerSoftware(ctx context.Context, updatedAt ti
 		if batchCount == batchSize {
 			values := strings.TrimSuffix(strings.Repeat(valuesPart, batchCount), ",")
 			if _, err := ds.writer.ExecContext(ctx, fmt.Sprintf(insertStmt, values), args...); err != nil {
-				return ctxerr.Wrap(ctx, err, "insert batch into aggregated_stats")
+				return ctxerr.Wrap(ctx, err, "insert batch into software_host_counts")
 			}
 
 			args = args[:0]
@@ -629,7 +607,7 @@ func (ds *Datastore) CalculateHostsPerSoftware(ctx context.Context, updatedAt ti
 	if batchCount > 0 {
 		values := strings.TrimSuffix(strings.Repeat(valuesPart, batchCount), ",")
 		if _, err := ds.writer.ExecContext(ctx, fmt.Sprintf(insertStmt, values), args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "insert batch into aggregated_stats")
+			return ctxerr.Wrap(ctx, err, "insert last batch into software_host_counts")
 		}
 	}
 	if err := rows.Err(); err != nil {
@@ -645,11 +623,10 @@ func (ds *Datastore) CalculateHostsPerSoftware(ctx context.Context, updatedAt ti
     NOT EXISTS (
       SELECT 1
       FROM
-        aggregated_stats shc
+        software_host_counts shc
       WHERE
-        software.id = shc.id AND
-		    shc.type = "software_hosts_count" AND
-		    json_value > 0)`
+        software.id = shc.software_id AND
+		    shc.hosts_count > 0)`
 	if _, err := ds.writer.ExecContext(ctx, cleanupStmt); err != nil {
 		return ctxerr.Wrap(ctx, err, "delete unused software")
 	}

@@ -12,6 +12,7 @@ interface IAutoSizeInputFieldProps {
   placeholder: string;
   value: string;
   inputClassName?: string;
+  maxLength: string;
   hasError?: boolean;
   isDisabled?: boolean;
   isFocused?: boolean;
@@ -36,6 +37,7 @@ export default {
     placeholder: "Type here...",
     type: "",
     value: "",
+    maxLength: "250",
     onFocus: noop,
     onChange: noop,
     onKeyPress: noop,

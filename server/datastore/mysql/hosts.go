@@ -1264,29 +1264,36 @@ func (ds *Datastore) GetMDM(ctx context.Context, hostID uint) (bool, string, boo
 	}
 	return dest.Enrolled, dest.ServerURL, dest.InstalledFromDep, nil
 }
-func (ds *Datastore) AggregatedMunkiVersion(ctx context.Context, teamID *uint) ([]fleet.AggregatedMunkiVersion, error) {
+func (ds *Datastore) AggregatedMunkiVersion(ctx context.Context, teamID *uint) ([]fleet.AggregatedMunkiVersion, time.Time, error) {
 	id := uint(0)
 
 	if teamID != nil {
 		id = *teamID
 	}
 	var versions []fleet.AggregatedMunkiVersion
-	var versionsJson []byte
-	err := sqlx.GetContext(ctx, ds.reader, &versionsJson, `select json_value from aggregated_stats where id=? and type='munki_versions'`, id)
+	var versionsJson struct {
+		JsonValue []byte    `db:"json_value"`
+		UpdatedAt time.Time `db:"updated_at"`
+	}
+	err := sqlx.GetContext(
+		ctx, ds.reader, &versionsJson,
+		`select json_value, updated_at from aggregated_stats where id=? and type='munki_versions'`,
+		id,
+	)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			// not having stats is not an error
-			return nil, nil
+			return nil, time.Time{}, nil
 		}
-		return nil, ctxerr.Wrap(ctx, err, "selecting munki versions")
+		return nil, time.Time{}, ctxerr.Wrap(ctx, err, "selecting munki versions")
 	}
-	if err := json.Unmarshal(versionsJson, &versions); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "unmarshaling munki versions")
+	if err := json.Unmarshal(versionsJson.JsonValue, &versions); err != nil {
+		return nil, time.Time{}, ctxerr.Wrap(ctx, err, "unmarshaling munki versions")
 	}
-	return versions, nil
+	return versions, versionsJson.UpdatedAt, nil
 }
 
-func (ds *Datastore) AggregatedMDMStatus(ctx context.Context, teamID *uint) (fleet.AggregatedMDMStatus, error) {
+func (ds *Datastore) AggregatedMDMStatus(ctx context.Context, teamID *uint) (fleet.AggregatedMDMStatus, time.Time, error) {
 	id := uint(0)
 
 	if teamID != nil {
@@ -1294,19 +1301,26 @@ func (ds *Datastore) AggregatedMDMStatus(ctx context.Context, teamID *uint) (fle
 	}
 
 	var status fleet.AggregatedMDMStatus
-	var statusJson []byte
-	err := sqlx.GetContext(ctx, ds.reader, &statusJson, `select json_value from aggregated_stats where id=? and type='mdm_status'`, id)
+	var statusJson struct {
+		JsonValue []byte    `db:"json_value"`
+		UpdatedAt time.Time `db:"updated_at"`
+	}
+	err := sqlx.GetContext(
+		ctx, ds.reader, &statusJson,
+		`select json_value, updated_at from aggregated_stats where id=? and type='mdm_status'`,
+		id,
+	)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			// not having stats is not an error
-			return fleet.AggregatedMDMStatus{}, nil
+			return fleet.AggregatedMDMStatus{}, time.Time{}, nil
 		}
-		return fleet.AggregatedMDMStatus{}, ctxerr.Wrap(ctx, err, "selecting mdm status")
+		return fleet.AggregatedMDMStatus{}, time.Time{}, ctxerr.Wrap(ctx, err, "selecting mdm status")
 	}
-	if err := json.Unmarshal(statusJson, &status); err != nil {
-		return fleet.AggregatedMDMStatus{}, ctxerr.Wrap(ctx, err, "unmarshaling mdm status")
+	if err := json.Unmarshal(statusJson.JsonValue, &status); err != nil {
+		return fleet.AggregatedMDMStatus{}, time.Time{}, ctxerr.Wrap(ctx, err, "unmarshaling mdm status")
 	}
-	return status, nil
+	return status, statusJson.UpdatedAt, nil
 }
 
 func (ds *Datastore) GenerateAggregatedMunkiAndMDM(ctx context.Context) error {

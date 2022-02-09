@@ -249,6 +249,13 @@ export const PLATFORM_DROPDOWN_OPTIONS = [
   { label: "macOS", value: "darwin" },
 ];
 
+export const PLATFORM_NAME_TO_LABEL_NAME = {
+  all: "",
+  darwin: "macOS",
+  windows: "MS Windows",
+  linux: "All Linux",
+};
+
 export const VULNERABLE_DROPDOWN_OPTIONS = [
   {
     disabled: false,

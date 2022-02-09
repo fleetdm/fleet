@@ -280,7 +280,6 @@ func testAppConfigDefaults(t *testing.T, ds *Datastore) {
 	require.Equal(t, 24*time.Hour, ac.WebhookSettings.Interval.Duration)
 	require.False(t, ac.WebhookSettings.HostStatusWebhook.Enable)
 	require.True(t, ac.HostSettings.EnableHostUsers)
-	require.True(t, ac.HostSettings.EnableScheduledQueryStats)
 	require.False(t, ac.HostSettings.EnableSoftwareInventory)
 
 	_, err = ds.writer.Exec(
@@ -294,6 +293,5 @@ func testAppConfigDefaults(t *testing.T, ds *Datastore) {
 
 	require.Equal(t, 12*time.Hour, ac.WebhookSettings.Interval.Duration)
 	require.False(t, ac.HostSettings.EnableHostUsers)
-	require.True(t, ac.HostSettings.EnableScheduledQueryStats)
 	require.False(t, ac.HostSettings.EnableSoftwareInventory)
 }

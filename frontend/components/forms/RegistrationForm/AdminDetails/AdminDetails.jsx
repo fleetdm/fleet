@@ -52,6 +52,9 @@ class AdminDetails extends Component {
             ref={(input) => {
               this.firstInput = input;
             }}
+            inputOptions={{
+              maxLength: "80",
+            }}
           />
           <InputFieldWithIcon
             {...fields.email}

@@ -40,6 +40,7 @@ interface IQueryFormProps {
   onUpdate: (formData: IQueryFormData) => void;
   onOpenSchemaSidebar: () => void;
   renderLiveQueryWarning: () => JSX.Element | null;
+  backendValidators: { [key: string]: string };
 }
 
 const validateQuerySQL = (query: string) => {
@@ -65,6 +66,7 @@ const QueryForm = ({
   onUpdate,
   onOpenSchemaSidebar,
   renderLiveQueryWarning,
+  backendValidators,
 }: IQueryFormProps): JSX.Element => {
   const isEditMode = !!queryIdForEdit;
   const [errors, setErrors] = useState<{ [key: string]: any }>({});
@@ -262,8 +264,9 @@ const QueryForm = ({
               name="query-name"
               placeholder="Add name here"
               value={lastEditedQueryName}
-              hasError={errors && errors.name}
               inputClassName={`${baseClass}__query-name`}
+              maxLength="160"
+              hasError={errors && errors.name}
               onChange={setLastEditedQueryName}
               onFocus={() => setIsEditingName(true)}
               onBlur={() => setIsEditingName(false)}
@@ -294,6 +297,7 @@ const QueryForm = ({
               name="query-description"
               placeholder="Add description here."
               value={lastEditedQueryDescription}
+              maxLength="250"
               inputClassName={`${baseClass}__query-description`}
               onChange={setLastEditedQueryDescription}
               onFocus={() => setIsEditingDescription(true)}
@@ -478,6 +482,7 @@ const QueryForm = ({
           queryValue={lastEditedQueryBody}
           onCreateQuery={onCreateQuery}
           setIsSaveModalOpen={setIsSaveModalOpen}
+          backendValidators={backendValidators}
         />
       )}
     </>

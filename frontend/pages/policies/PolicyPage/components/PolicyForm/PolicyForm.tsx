@@ -20,8 +20,6 @@ import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 import Spinner from "components/Spinner";
 import AutoSizeInputField from "components/forms/fields/AutoSizeInputField";
-// @ts-ignore
-import InputField from "components/forms/fields/InputField";
 import NewPolicyModal from "../NewPolicyModal";
 import InfoIcon from "../../../../../../assets/images/icon-info-purple-14x14@2x.png";
 import QuestionIcon from "../../../../../../assets/images/icon-question-16x16@2x.png";
@@ -40,6 +38,7 @@ interface IPolicyFormProps {
   onUpdate: (formData: IPolicyFormData) => void;
   onOpenSchemaSidebar: () => void;
   renderLiveQueryWarning: () => JSX.Element | null;
+  backendValidators: { [key: string]: string };
 }
 
 const PolicyForm = ({
@@ -53,6 +52,7 @@ const PolicyForm = ({
   onUpdate,
   onOpenSchemaSidebar,
   renderLiveQueryWarning,
+  backendValidators,
 }: IPolicyFormProps): JSX.Element => {
   const [errors, setErrors] = useState<{ [key: string]: any }>({});
   const [isNewPolicyModalOpen, setIsNewPolicyModalOpen] = useState<boolean>(
@@ -264,6 +264,7 @@ const PolicyForm = ({
               value={lastEditedQueryName}
               hasError={errors && errors.name}
               inputClassName={`${baseClass}__policy-name`}
+              maxLength="160"
               onChange={setLastEditedQueryName}
               onFocus={() => setIsEditingName(true)}
               onBlur={() => setIsEditingName(false)}
@@ -295,6 +296,7 @@ const PolicyForm = ({
               placeholder="Add description here."
               value={lastEditedQueryDescription}
               inputClassName={`${baseClass}__policy-description`}
+              maxLength="250"
               onChange={setLastEditedQueryDescription}
               onFocus={() => setIsEditingDescription(true)}
               onBlur={() => setIsEditingDescription(false)}
@@ -332,6 +334,7 @@ const PolicyForm = ({
               placeholder="Add resolution here."
               value={lastEditedQueryResolution}
               inputClassName={`${baseClass}__policy-resolution`}
+              maxLength="500"
               onChange={setLastEditedQueryResolution}
               onFocus={() => setIsEditingResolution(true)}
               onBlur={() => setIsEditingResolution(false)}
@@ -521,6 +524,7 @@ const PolicyForm = ({
           onCreatePolicy={onCreatePolicy}
           setIsNewPolicyModalOpen={setIsNewPolicyModalOpen}
           platform={lastEditedQueryPlatform}
+          backendValidators={backendValidators}
         />
       )}
     </>

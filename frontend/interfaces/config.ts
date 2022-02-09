@@ -135,7 +135,7 @@ export interface IConfig {
       };
     };
   };
-  webhook_settings?: {
+  webhook_settings: {
     failing_policies_webhook: IWebhookFailingPolicies;
   };
 }
@@ -214,6 +214,10 @@ export interface IConfigNested {
     host_expiry_enabled: boolean;
     host_expiry_window: number;
   };
+  host_settings: {
+    enable_host_users: boolean;
+    enable_software_inventory: boolean;
+  };
   agent_options: string;
   update_interval: {
     osquery_detail: number;
@@ -226,9 +230,18 @@ export interface IConfigNested {
     expiration: string;
     note: string;
   };
-  vulnerability_settings: {
+  vulnerabilities: {
     databases_path: string;
+    periodicity: number;
+    cpe_database_url: string;
+    cve_feed_prefix_url: string;
+    current_instance_checks: string;
+    disable_data_sync: boolean;
   };
+  // Note: `vulnerability_settings` is deprecated and should not be used
+  // vulnerability_settings: {
+  //   databases_path: string;
+  // };
   webhook_settings: {
     host_status_webhook: IWebhookHostStatus;
     failing_policies_webhook: IWebhookFailingPolicies;
