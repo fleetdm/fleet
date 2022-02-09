@@ -49,7 +49,7 @@ export const DEFAULT_POLICIES = [
     query:
       "SELECT 1 FROM sip_config WHERE config_flag = 'sip' AND enabled = 1;",
     name: "System Integrity Protection enabled (macOS)",
-    description: "Checks to make sure that the SIP feature is enabled.",
+    description: "Checks to make sure that the System Integrity Protection feature is enabled.",
     resolution:
       "To enable System Integrity Protection, on the failing device, run the following command in the Terminal app: /usr/sbin/spctl --master-enable.",
     platform: "darwin",
