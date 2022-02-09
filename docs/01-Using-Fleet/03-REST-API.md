@@ -4568,7 +4568,7 @@ None.
     "note": ""
   },
   "vulnerability_settings": {
-  "databases_path": ""
+    "databases_path": ""
   },
   "webhook_settings": {
     "host_status_webhook": {
