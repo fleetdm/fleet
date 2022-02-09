@@ -323,6 +323,9 @@ resource "aws_ecs_task_definition" "migration" {
         ]
       }
   ])
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 resource "aws_appautoscaling_target" "ecs_target" {
