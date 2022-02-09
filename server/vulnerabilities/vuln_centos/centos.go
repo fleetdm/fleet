@@ -158,7 +158,7 @@ func ParseCentOSRepository(opts ...CentOSOption) (CentOSPkgSet, error) {
 	}
 
 	if opts_.localDir == "" {
-		localDir, err := ioutil.TempDir("", "centos*")
+		localDir, err := os.MkdirTemp("", "centos*")
 		if err != nil {
 			return nil, err
 		}

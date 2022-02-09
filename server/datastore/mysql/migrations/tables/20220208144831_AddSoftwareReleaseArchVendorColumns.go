@@ -8,10 +8,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20220201144450, Down_20220201144450)
+	MigrationClient.AddMigration(Up_20220208144831, Down_20220208144831)
 }
 
-func Up_20220201144450(tx *sql.Tx) error {
+func Up_20220208144831(tx *sql.Tx) error {
 	// NOTE(lucas): I'm using short lengths for the new varchar columns
 	// due to constraints on the size of the key added below. Using 255
 	// for the three new fields would fail with:
@@ -61,6 +61,6 @@ func Up_20220201144450(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20220201144450(tx *sql.Tx) error {
+func Down_20220208144831(tx *sql.Tx) error {
 	return nil
 }
