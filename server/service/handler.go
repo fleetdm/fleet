@@ -16,10 +16,10 @@ import (
 	"github.com/go-kit/kit/log/level"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
-	otmiddleware "go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/throttled/throttled/v2"
+	otmiddleware "go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux"
 )
 
 // FleetEndpoints is a collection of RPC endpoints implemented by the Fleet API.

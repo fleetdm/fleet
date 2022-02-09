@@ -16,6 +16,7 @@ import (
 
 	"github.com/VividCortex/mysqlerr"
 	"github.com/WatchBeam/clock"
+	"github.com/XSAM/otelsql"
 	"github.com/cenkalti/backoff/v4"
 	"github.com/doug-martin/goqu/v9"
 	"github.com/doug-martin/goqu/v9/exp"
@@ -32,7 +33,6 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/ngrok/sqlmw"
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
-	"github.com/XSAM/otelsql"
 )
 
 const (
@@ -286,12 +286,13 @@ func (ds *Datastore) writeChanLoop() {
 }
 
 var tracedDriverName string
+
 func init() {
-    var err error
-    tracedDriverName, err = otelsql.Register("mysql", semconv.DBSystemMySQL.Value.AsString())
-    if err != nil {
-        panic(err)
-    }
+	var err error
+	tracedDriverName, err = otelsql.Register("mysql", semconv.DBSystemMySQL.Value.AsString())
+	if err != nil {
+		panic(err)
+	}
 }
 
 func newDB(conf *config.MysqlConfig, opts *dbOptions) (*sqlx.DB, error) {
