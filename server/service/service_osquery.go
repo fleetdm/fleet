@@ -129,7 +129,7 @@ func (svc Service) EnrollAgent(ctx context.Context, enrollSecret, hostIdentifier
 	}
 
 	// Save enrollment details if provided
-	detailQueries := osquery_utils.GetDetailQueries(appConfig)
+	detailQueries := osquery_utils.GetDetailQueries(appConfig, svc.config)
 	save := false
 	if r, ok := hostDetails["os_version"]; ok {
 		err := detailQueries["os_version"].IngestFunc(svc.logger, host, []map[string]string{r})
@@ -423,7 +423,7 @@ func (svc *Service) detailQueriesForHost(ctx context.Context, host *fleet.Host) 
 	}
 
 	queries := make(map[string]string)
-	detailQueries := osquery_utils.GetDetailQueries(config)
+	detailQueries := osquery_utils.GetDetailQueries(config, svc.config)
 	for name, query := range detailQueries {
 		if query.RunsForPlatform(host.Platform) {
 			queries[hostDetailQueryPrefix+name] = query.Query
@@ -628,7 +628,7 @@ func (svc *Service) ingestDetailQuery(ctx context.Context, host *fleet.Host, nam
 		return osqueryError{message: "ingest detail query: " + err.Error()}
 	}
 
-	detailQueries := osquery_utils.GetDetailQueries(config)
+	detailQueries := osquery_utils.GetDetailQueries(config, svc.config)
 	query, ok := detailQueries[name]
 	if !ok {
 		return osqueryError{message: "unknown detail query " + name}
@@ -744,7 +744,7 @@ func (svc *Service) directIngestDetailQuery(ctx context.Context, host *fleet.Hos
 		return false, osqueryError{message: "ingest detail query: " + err.Error()}
 	}
 
-	detailQueries := osquery_utils.GetDetailQueries(config)
+	detailQueries := osquery_utils.GetDetailQueries(config, svc.config)
 	query, ok := detailQueries[name]
 	if !ok {
 		return false, osqueryError{message: "unknown detail query " + name}

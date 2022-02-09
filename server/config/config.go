@@ -93,6 +93,7 @@ type AuthConfig struct {
 type AppConfig struct {
 	TokenKeySize              int           `yaml:"token_key_size"`
 	InviteTokenValidityPeriod time.Duration `yaml:"invite_token_validity_period"`
+	EnableScheduledQueryStats bool          `yaml:"enable_scheduled_query_stats"`
 }
 
 // SessionConfig defines configs related to user sessions
@@ -385,6 +386,8 @@ func (man Manager) addConfigs() {
 		"Duration invite tokens remain valid (i.e. 1h)")
 	man.addConfigInt("app.token_key_size", 24,
 		"Size of generated tokens")
+	man.addConfigBool("app.enable_scheduled_query_stats", true,
+		"If true (default) it gets scheduled query stats from hosts")
 
 	// Session
 	man.addConfigInt("session.key_size", 64,
@@ -610,6 +613,7 @@ func (man Manager) LoadConfig() FleetConfig {
 		App: AppConfig{
 			TokenKeySize:              man.getConfigInt("app.token_key_size"),
 			InviteTokenValidityPeriod: man.getConfigDuration("app.invite_token_validity_period"),
+			EnableScheduledQueryStats: man.getConfigBool("app.enable_scheduled_query_stats"),
 		},
 		Session: SessionConfig{
 			KeySize:  man.getConfigInt("session.key_size"),
