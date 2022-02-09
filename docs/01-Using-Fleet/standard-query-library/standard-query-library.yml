@@ -649,7 +649,7 @@ kind: policy
 spec:
   name: Full disk encryption enabled (Windows)
   query: SELECT 1 FROM bitlocker_info where protection_status = 1;
-  description: Checks to make sure that full device encryption is enabled.
+  description: Checks to make sure that full disk encryption is enabled.
   resolution: "To get additional information, run the following osquery query on the failing device: SELECT * FROM bitlocker_info. In the
   query results, if protection_status is 2, then the status cannot be determined. If it is 0, it is
   considered unprotected. Use the additional results (percent_encrypted, conversion_status, etc.) to
