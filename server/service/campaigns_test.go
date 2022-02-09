@@ -128,21 +128,14 @@ func TestLiveQueryAuth(t *testing.T) {
 			false,
 			false,
 		},
-		// NOTE: this specific case is not covered by the rego authorization policy,
-		// it is at the datastore level that a filter is applied to only consider
-		// hosts that the user can see (that is, a fleet.TeamFilter is passed to
-		// ds.HostIDsInTargets and that call applies the filter to return only
-		// allowed hosts).
-		/*
-			{
-				"team admin, target not set to own team",
-				&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}},
-				ptr.Uint(2),
-				false,
-				false,
-				true,
-			},
-		*/
+		{
+			"team admin, target not set to own team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}},
+			ptr.Uint(2),
+			false,
+			false,
+			true,
+		},
 		{
 			"team admin, target set to own team",
 			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}},
@@ -151,17 +144,14 @@ func TestLiveQueryAuth(t *testing.T) {
 			false,
 			false,
 		},
-		// NOTE: same as the note above.
-		/*
-			{
-				"team observer, target not set to own team",
-				&fleet.User{ID: 48, Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}}},
-				ptr.Uint(2),
-				true,
-				true,
-				true,
-			},
-		*/
+		{
+			"team observer, target not set to own team",
+			&fleet.User{ID: 48, Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}}},
+			ptr.Uint(2),
+			true,
+			true,
+			true,
+		},
 		{
 			"team observer, target set to own team",
 			&fleet.User{ID: 48, Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}}},

@@ -293,12 +293,12 @@ allow {
 
 # Global admins and (team) maintainers can run any
 allow {
-  object.type == "query"
+  object.type == "targeted_query"
   subject.global_role == admin
   action = run
 }
 allow {
-  object.type == "query"
+  object.type == "targeted_query"
   subject.global_role == maintainer
   action = run
 }
@@ -314,12 +314,14 @@ allow {
 }
 
 # Team admin and maintainer running a non-observers_can_run query must have the targets
-# filtered to only teams that they maintain. That check is not validated by this rego
-# file, it is a filter that is applied at the datastore level (in HostIDsInTargets).
+# filtered to only teams that they maintain.
 allow {
-  object.type == "query"
+  object.type == "targeted_query"
   # If role is maintainer on any team
   team_role(subject, subject.teams[_].id) == [admin,maintainer][_]
+  # Targets must be set to only teams they are admin/maintainer of
+  ok_teams := { tmid | tmid := object.host_targets.teams[_]; team_role(subject, tmid) == [admin,maintainer][_] }
+  count(ok_teams) == count(object.host_targets.teams)
   action == run
 }
 
@@ -333,19 +335,22 @@ allow {
 
 # (Team) observers can run only if observers_can_run
 allow {
-	object.type == "query"
+	object.type == "targeted_query"
 	object.observer_can_run == true
 	subject.global_role == observer
 	action = run
 }
 # Team observer running a observers_can_run query must have the targets
-# filtered to only teams that they observe. That check is not validated by this rego
-# file, it is a filter that is applied at the datastore level (in HostIDsInTargets).
+# filtered to only teams that they observe.
 allow {
-	object.type == "query"
+	object.type == "targeted_query"
 	object.observer_can_run == true
+  ok_teams := { tmid | tmid := object.host_targets.teams[_]; team_role(subject, tmid) == observer }
+  count(ok_teams) == count(object.host_targets.teams)
 	# If role is observer on any team
 	team_role(subject, subject.teams[_].id) == observer
+  # Targets must be set to only teams they observe
+  # TODO: how?
 	action == run
 }
 
