@@ -769,6 +769,19 @@ How long invite tokens should be valid for.
   	invite_token_validity_period: 1d
   ```
 
+##### app_enable_scheduled_query_stats
+
+Determines whether Fleet gets scheduled query statistics from hosts or not.
+
+- Default value: `true`
+- Environment variable: `FLEET_APP_ENABLE_SCHEDULED_QUERY_STATS`
+- Config file format:
+
+  ```
+  app:
+  	enable_scheduled_query_stats: true
+  ```
+
 #### License
 
 ##### license_key
