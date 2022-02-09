@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/VividCortex/mysqlerr"
@@ -42,6 +43,7 @@ var columnCharsRegexp = regexp.MustCompile(`[^\w-.]`)
 // dbReader is an interface that defines the methods required for reads.
 type dbReader interface {
 	sqlx.QueryerContext
+	sqlx.PreparerContext
 
 	Close() error
 	Rebind(string) string
@@ -61,6 +63,9 @@ type Datastore struct {
 	readReplicaConfig *config.MysqlConfig
 
 	writeCh chan itemToWrite
+
+	prepLoadHostQueryOnce sync.Once
+	loadHostStmt          *sqlx.Stmt
 }
 
 type txFn func(sqlx.ExtContext) error
@@ -484,6 +489,11 @@ func (ds *Datastore) HealthCheck() error {
 
 // Close frees resources associated with underlying mysql connection
 func (ds *Datastore) Close() error {
+	if ds.loadHostStmt != nil {
+		if err := ds.loadHostStmt.Close(); err != nil {
+			ds.logger.Log("msg", "closing LoadHostByNodeKey statement", "err", err)
+		}
+	}
 	err := ds.writer.Close()
 	if ds.readReplicaConfig != nil {
 		errRead := ds.reader.Close()
