@@ -38,8 +38,7 @@ export const DEFAULT_POLICIES = [
     key: 3,
     query: "SELECT 1 FROM bitlocker_info WHERE protection_status = 1;",
     name: "Full disk encryption enabled (Windows)",
-    description:
-      "Checks to make sure that full disk encryption is enabled.",
+    description: "Checks to make sure that full disk encryption is enabled.",
     resolution:
       "To get additional information, run the following osquery query on the failing device: SELECT * FROM bitlocker_info. In the query results, if protection_status is 2, then the status cannot be determined. If it is 0, it is considered unprotected. Use the additional results (percent_encrypted, conversion_status, etc.) to help narrow down the specific reason why Windows considers the volume unprotected.",
     platform: "windows",
@@ -49,7 +48,8 @@ export const DEFAULT_POLICIES = [
     query:
       "SELECT 1 FROM sip_config WHERE config_flag = 'sip' AND enabled = 1;",
     name: "System Integrity Protection enabled (macOS)",
-    description: "Checks to make sure that the System Integrity Protection feature is enabled.",
+    description:
+      "Checks to make sure that the System Integrity Protection feature is enabled.",
     resolution:
       "To enable System Integrity Protection, on the failing device, run the following command in the Terminal app: /usr/sbin/spctl --master-enable.",
     platform: "darwin",
