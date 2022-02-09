@@ -4,6 +4,8 @@ import classnames from "classnames";
 
 import { IUser } from "interfaces/user";
 import { IConfig } from "interfaces/config";
+
+import LinkWithContext from "components/LinkWithContext";
 import UserMenu from "components/top_nav/UserMenu";
 // @ts-ignore
 import OrgLogoIcon from "components/icons/OrgLogoIcon";
@@ -42,7 +44,7 @@ const SiteTopNav = ({
   } = useContext(AppContext);
 
   const renderNavItem = (navItem: INavItem) => {
-    const { name, iconName } = navItem;
+    const { name, iconName, withContext } = navItem;
     const orgLogoURL = config.org_logo_url;
     const active = navItem.location.regex.test(pathname);
 
@@ -88,18 +90,33 @@ const SiteTopNav = ({
 
     return (
       <li className={navItemClasses} key={`nav-item-${name}`}>
-        <Link
-          className={`${navItemBaseClass}__link`}
-          to={navItem.location.pathname}
-        >
-          {icon}
-          <span
-            className={`${navItemBaseClass}__name`}
-            data-text={navItem.name}
+        {withContext ? (
+          <LinkWithContext
+            className={`${navItemBaseClass}__link`}
+            to={navItem.location.pathname}
           >
-            {name}
-          </span>
-        </Link>
+            {icon}
+            <span
+              className={`${navItemBaseClass}__name`}
+              data-text={navItem.name}
+            >
+              {name}
+            </span>
+          </LinkWithContext>
+        ) : (
+          <Link
+            className={`${navItemBaseClass}__link`}
+            to={navItem.location.pathname}
+          >
+            {icon}
+            <span
+              className={`${navItemBaseClass}__name`}
+              data-text={navItem.name}
+            >
+              {name}
+            </span>
+          </Link>
+        )}
       </li>
     );
   };

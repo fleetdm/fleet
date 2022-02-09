@@ -35,9 +35,7 @@ func (svc Service) SearchTargets(ctx context.Context, matchQuery string, queryID
 		return nil, err
 	}
 
-	for _, h := range hosts {
-		results.Hosts = append(results.Hosts, h)
-	}
+	results.Hosts = append(results.Hosts, hosts...)
 
 	labels, err := svc.ds.SearchLabels(ctx, filter, matchQuery, targets.LabelIDs...)
 	if err != nil {

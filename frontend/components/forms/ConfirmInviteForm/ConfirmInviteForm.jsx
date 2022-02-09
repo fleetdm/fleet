@@ -33,6 +33,9 @@ class ConfirmInviteForm extends Component {
             {...fields.name}
             autofocus
             placeholder="Full name"
+            inputOptions={{
+              maxLength: "80",
+            }}
           />
           <InputFieldWithIcon
             {...fields.password}

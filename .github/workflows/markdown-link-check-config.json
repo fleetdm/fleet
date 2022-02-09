@@ -32,6 +32,15 @@
     },
     {
       "pattern": "goreportcard.com"
+    },
+    {
+      "pattern": "gusto.com"
+    },
+    {
+      "pattern": "crunchbase.com"
+    },
+    {
+      "pattern": "angel.co"
     }
   ],
   "retryOn429": true,
