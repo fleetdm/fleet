@@ -225,7 +225,7 @@ func TestSyncsCPEFromURL(t *testing.T) {
 	dbPath := path.Join(tempDir, "cpe.sqlite")
 
 	err := SyncCPEDatabase(
-		client, dbPath, WithCPEURL(ts.URL))
+		client, dbPath, WithCPEURL(ts.URL+"/hello-world.gz"))
 	require.NoError(t, err)
 
 	stored, err := ioutil.ReadFile(dbPath)
