@@ -52,10 +52,12 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"google.golang.org/grpc"
-	"go.elastic.co/apm/module/apmhttp"
-	_ "go.elastic.co/apm/module/apmsql"
-	_ "go.elastic.co/apm/module/apmsql/mysql"
 )
 
 var allowedURLPrefixRegexp = regexp.MustCompile("^(?:/[a-zA-Z0-9_.~-]+)+$")
@@ -129,6 +131,19 @@ the way that the Fleet server works.
 				}
 				logger = kitlog.With(logger, "ts", kitlog.DefaultTimestampUTC)
 			}
+
+			// Init tracing
+			ctx := context.Background()
+			client := otlptracehttp.NewClient()
+			otlpTraceExporter, err := otlptrace.New(ctx, client)
+			if err != nil {
+				panic(err)
+			}
+			batchSpanProcessor := sdktrace.NewBatchSpanProcessor(otlpTraceExporter)
+			tracerProvider := sdktrace.NewTracerProvider(
+				sdktrace.WithSpanProcessor(batchSpanProcessor),
+			)
+			otel.SetTracerProvider(tracerProvider)
 
 			allowedHostIdentifiers := map[string]bool{
 				"provided": true,
@@ -472,7 +487,7 @@ the way that the Fleet server works.
 			httpSrvCtx := ctxerr.NewContext(ctx, eh)
 			srv := &http.Server{
 				Addr:              config.Server.Address,
-				Handler:           launcher.Handler(apmhttp.Wrap(rootMux)),
+				Handler:           launcher.Handler(otelhttp.NewHandler(rootMux, "fleet")),
 				ReadTimeout:       25 * time.Second,
 				WriteTimeout:      writeTimeout,
 				ReadHeaderTimeout: 5 * time.Second,
