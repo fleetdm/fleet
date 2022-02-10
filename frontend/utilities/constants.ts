@@ -19,7 +19,7 @@ export const DEFAULT_POLICIES = [
     query: `SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT "" AND filevault_status = 'on' LIMIT 1`,
     name: "Full disk encryption enabled (macOS)",
     description:
-      "Checks to make sure that full disk encryption (Filevault) is enabled on macOS devices.",
+      "Checks to make sure that full disk encryption (FileVault) is enabled on macOS devices.",
     resolution:
       "To enable full disk encryption, on the failing device, select System Preferences > Security & Privacy > FileVault > Turn On FileVault.",
     platform: "darwin",
@@ -27,18 +27,19 @@ export const DEFAULT_POLICIES = [
   {
     key: 2,
     query: "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1",
-    name: "Is Gatekeeper enabled on macOS devices?",
+    name: "Gatekeeper enabled (macOS)",
     description:
       "Checks to make sure that the Gatekeeper feature is enabled on macOS devices. Gatekeeper tries to ensure only trusted software is run on a mac machine.",
     resolution:
-      "To enable Gatekeeper, one the failing device, run the following command in the Terminal app: /usr/sbin/spctl --master-enable.",
+      "To enable Gatekeeper, on the failing device, run the following command in the Terminal app: /usr/sbin/spctl --master-enable.",
     platform: "darwin",
   },
   {
     key: 3,
     query: "SELECT 1 FROM bitlocker_info WHERE protection_status = 1;",
     name: "Full disk encryption enabled (Windows)",
-    description: "Checks to make sure that full disk encryption is enabled.",
+    description:
+      "Checks to make sure that full disk encryption is enabled on Windows devices.",
     resolution:
       "To get additional information, run the following osquery query on the failing device: SELECT * FROM bitlocker_info. In the query results, if protection_status is 2, then the status cannot be determined. If it is 0, it is considered unprotected. Use the additional results (percent_encrypted, conversion_status, etc.) to help narrow down the specific reason why Windows considers the volume unprotected.",
     platform: "windows",
