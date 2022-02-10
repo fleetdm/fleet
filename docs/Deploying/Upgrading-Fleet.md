@@ -12,7 +12,7 @@ There are three steps to perform a typical Fleet upgrade:
 
 Fleet may be installed locally, or used in a Docker container. Follow the appropriate method for your environment. 
 
-### Local Installation
+### Local installation
 
 [Download](https://github.com/fleetdm/fleet/releases) the latest version of Fleet. Check the `Upgrading` section of the release notes for any additional steps that may need to be taken for a specific release. 
 

@@ -1629,7 +1629,7 @@ This feature is useful when combined with [subscription filters](https://cloud.g
     status_topic: osquery_status
   ```
 
-#### Kafka Rest Proxy Logging
+#### Kafka REST Proxy logging
 
 ##### kafkarest_proxyhost
 
@@ -2023,7 +2023,7 @@ Setting up the service provider (Fleet) with an identity provider generally requ
 
 After supplying the above information, the IDP will generate an issuer URI and a metadata that will be used to configure Fleet as a service provider.
 
-### Fleet SSO Configuration
+### Fleet SSO configuration
 
 A Fleet user must be assigned the Admin role to configure Fleet for SSO. In Fleet, SSO configuration settings are located in **Settings > Organization settings > SAML single sign on options**.
 
@@ -2045,7 +2045,7 @@ Otherwise, the following values are required:
   be obtained from the IDP and entered. Note that the metadata URL is preferred if
   the IDP provides metadata in both forms.
 
-#### Example Fleet SSO Configuration
+#### Example Fleet SSO configuration
 
 ![Example SSO Configuration](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/sso-setup.png)
 
@@ -2061,7 +2061,7 @@ configuration problems.
 ### Enabling SSO for existing users in Fleet
 As an admin, you can enable SSO for existing users in Fleet. To do this, go to the Settings page, then click on the Users tab. Locate the user you want to enable SSO for and on the actions dropdown menu for that user, click on "Enable single sign on".
 
-#### Okta IDP Configuration
+#### Okta IDP configuration
 
 ![Example Okta IDP Configuration](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/okta-idp-setup.png)
 

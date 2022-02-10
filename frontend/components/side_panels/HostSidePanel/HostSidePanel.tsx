@@ -3,6 +3,7 @@ import { filter } from "lodash";
 
 import { ILabel } from "interfaces/label";
 import { PLATFORM_LABEL_DISPLAY_ORDER } from "utilities/constants";
+import { escapeRegEx } from "utilities/regex";
 
 import Spinner from "components/Spinner";
 import Button from "components/buttons/Button";
@@ -76,7 +77,10 @@ const HostSidePanel = ({
   const customLabels = filter(labels, (label) => {
     const lowerDisplayText = label.display_text.toLowerCase();
 
-    return label.type === "custom" && lowerDisplayText.match(labelFilter);
+    return (
+      label.type === "custom" &&
+      lowerDisplayText.match(escapeRegEx(labelFilter))
+    );
   });
 
   return (

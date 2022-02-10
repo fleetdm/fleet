@@ -454,7 +454,7 @@ fleet-database-mysql:3306
 
 We will use this address when we configure the Kubernetes deployment and database migration job, but if you're not using a Helm-installed MySQL in your deployment, you'll have to change this in your Kubernetes config files.
 
-##### Database Migrations
+##### Database migrations
 
 The last step is to run the Fleet database migrations on your new MySQL server. To do this, run the following:
 
@@ -537,7 +537,7 @@ ts=2017-11-16T02:48:38.440578433Z component=service method=ListUsers user=none e
 ts=2017-11-16T02:48:38.441148166Z transport=https address=0.0.0.0:443 msg=listening
 ```
 
-#### Deploying the Load Balancer
+#### Deploying the load balancer
 
 Now that the Fleet server is running on our cluster, we have to expose the Fleet webservers to the internet via a load balancer. To create a Kubernetes `Service` of type `LoadBalancer`, run the following:
 
@@ -563,7 +563,7 @@ Once you have the public IP address for the load balancer, create an A record in
 
 Terraform reference architecture can be found [here](https://github.com/fleetdm/fleet/tree/main/tools/terraform)
 
-### Infrastructure Dependencies
+### Infrastructure dependencies
 
 #### MySQL
 
@@ -573,11 +573,11 @@ In AWS we recommend running Aurora with MySQL Engine, see [here for terraform de
 
 In AWS we recommend running ElastiCache (Redis Engine) see [here for terraform details](https://github.com/fleetdm/fleet/blob/589e11ebca40949fb568b2b68928450eecb718bf/tools/terraform/redis.tf#L13)
 
-#### Fleet Server
+#### Fleet server
 
 Running Fleet in ECS consists of two main components the [ECS Service](https://github.com/fleetdm/fleet/blob/589e11ebca40949fb568b2b68928450eecb718bf/tools/terraform/ecs.tf#L79) & [Load Balancer](https://github.com/fleetdm/fleet/blob/589e11ebca40949fb568b2b68928450eecb718bf/tools/terraform/ecs.tf#L41). In our example the ALB is [handling TLS termination](https://github.com/fleetdm/fleet/blob/589e11ebca40949fb568b2b68928450eecb718bf/tools/terraform/ecs.tf#L46)
 
-#### Fleet Migrations
+#### Fleet migrations
 
 Migrations in ECS can be achieved (and is recommended) by running [dedicated ECS tasks](https://github.com/fleetdm/fleet/tree/main/tools/terraform#migrating-the-db) that run the `fleet prepare --no-prompt=true db` command. See [terraform for more details](https://github.com/fleetdm/fleet/blob/589e11ebca40949fb568b2b68928450eecb718bf/tools/terraform/ecs.tf#L229)
 
