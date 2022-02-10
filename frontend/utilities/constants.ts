@@ -61,7 +61,7 @@ export const DEFAULT_POLICIES = [
       "SELECT 1 FROM managed_policies WHERE domain = 'com.apple.loginwindow' AND name = 'com.apple.login.mcx.DisableAutoLoginClient' AND value = 1 LIMIT 1",
     name: "Automatic login disabled (macOS)",
     description:
-      "Required: You’re already enforcing a policy via Moble Device Management (MDM). Checks to make sure that the device user cannot log in to the device without a password. It’s good practice to have both this policy and the “Is Filevault enabled on macOS devices?” policy enabled.",
+      "Required: You’re already enforcing a policy via Moble Device Management (MDM). Checks to make sure that the device user cannot log in to the device without a password.",
     resolution:
       "The following example profile includes a setting to disable automatic login: https://github.com/gregneagle/profiles/blob/fecc73d66fa17b6fa78b782904cb47cdc1913aeb/loginwindow.mobileconfig#L64-L65.",
     platform: "darwin",
