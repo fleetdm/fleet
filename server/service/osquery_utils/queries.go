@@ -296,8 +296,9 @@ FROM logical_drives WHERE file_system = 'NTFS' LIMIT 1;`,
 	"google_chrome_profiles": {
 		Query:            `SELECT email FROM google_chrome_profiles WHERE NOT ephemeral`,
 		DirectIngestFunc: directIngestChromeProfiles,
-		// Technically this does work on Windows and Linux but so far no one is deploying the
-		// extension to those platforms and it's causing log spam for customers.
+		// Technically this does work on Windows and Linux, but so far no one is
+		// deploying the extension to those platforms and it's causing log spam
+		// for customers. See https://github.com/fleetdm/fleet/issues/4123
 		Platforms: []string{"darwin"},
 	},
 }
