@@ -3320,10 +3320,17 @@ func testHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	require.True(t, fleet.IsNotFound(err), err)
 
 	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 432, true, "url", false))
+
+	enrolled, serverURL, installedFromDep, err := ds.GetMDM(context.Background(), 432)
+	require.NoError(t, err)
+	assert.True(t, enrolled)
+	assert.Equal(t, "url", serverURL)
+	assert.False(t, installedFromDep)
+
 	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 455, true, "url2", true))
 	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 432, false, "url3", true))
 
-	enrolled, serverURL, installedFromDep, err := ds.GetMDM(context.Background(), 432)
+	enrolled, serverURL, installedFromDep, err = ds.GetMDM(context.Background(), 432)
 	require.NoError(t, err)
 	assert.False(t, enrolled)
 	assert.Equal(t, "url3", serverURL)
@@ -3419,6 +3426,7 @@ func testAggregatedHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), h2.ID, true, "url", false))
 	require.NoError(t, ds.SetOrUpdateMunkiVersion(context.Background(), h1.ID, "1.2.3"))
 	require.NoError(t, ds.SetOrUpdateMunkiVersion(context.Background(), h2.ID, "1.2.3"))
+	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), h1.ID, false, "", false))
 
 	require.NoError(t, ds.GenerateAggregatedMunkiAndMDM(context.Background()))
 
