@@ -160,7 +160,7 @@ describe("Hosts flow", () => {
             const fullText = text;
             const pattern = /[0-9]+/g;
             const newCount = fullText.match(pattern);
-            initialCount = parseInt(newCount[0]);
+            initialCount = parseInt(newCount[0], 10);
             console.log("softwareCount", initialCount);
             expect(initialCount).to.be.at.least(1);
           });
@@ -173,7 +173,7 @@ describe("Hosts flow", () => {
             const fullText = text;
             const pattern = /[0-9]+/g;
             const newCount = fullText.match(pattern);
-            const searchCount = parseInt(newCount[0]);
+            const searchCount = parseInt(newCount[0], 10);
             expect(searchCount).to.be.lessThan(initialCount);
           });
         cy.getAttached(".software-link").first().click({ force: true });
