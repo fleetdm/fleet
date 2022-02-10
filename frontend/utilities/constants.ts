@@ -19,7 +19,7 @@ export const DEFAULT_POLICIES = [
     query: `SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT "" AND filevault_status = 'on' LIMIT 1`,
     name: "Full disk encryption enabled (macOS)",
     description:
-      "Checks to make sure that full disk encryption is enabled on macOS devices.",
+      "Checks to make sure that full disk encryption (Filevault) is enabled on macOS devices.",
     resolution:
       "To enable full disk encryption, on the failing device, select System Preferences > Security & Privacy > FileVault > Turn On FileVault.",
     platform: "darwin",
@@ -80,7 +80,7 @@ export const DEFAULT_POLICIES = [
     key: 7,
     query:
       "SELECT 1 FROM managed_policies WHERE domain = 'com.apple.Terminal' AND name = 'SecureKeyboardEntry' AND value = 1 LIMIT 1;",
-    name: "Secure keyboard entry enabled (macOS)",
+    name: "Secure keyboard entry for Terminal.app enabled (macOS)",
     description:
       "Required: You’re already enforcing a policy via Moble Device Management (MDM). Checks to make sure that the Secure Keyboard Entry setting is enabled.",
     resolution: "",
