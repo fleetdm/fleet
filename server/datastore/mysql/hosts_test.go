@@ -1434,6 +1434,17 @@ func testLoadHostByNodeKeyUsesStmt(t *testing.T, ds *Datastore) {
 		Hostname:        "foobar.local",
 	})
 	require.NoError(t, err)
+	_, err = ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   "foobar2",
+		NodeKey:         "nodekey2",
+		UUID:            "uuid2",
+		Hostname:        "foobar2.local",
+	})
+	require.NoError(t, err)
 
 	err = ds.closeStmts()
 	require.NoError(t, err)
@@ -1457,6 +1468,10 @@ func testLoadHostByNodeKeyUsesStmt(t *testing.T, ds *Datastore) {
 	ds.stmtCacheMu.Lock()
 	require.Len(t, ds.stmtCache, 1)
 	ds.stmtCacheMu.Unlock()
+
+	h, err = ds.LoadHostByNodeKey(context.Background(), "nodekey2")
+	require.NoError(t, err)
+	require.Equal(t, "foobar2.local", h.Hostname)
 }
 
 func testHostsAdditional(t *testing.T, ds *Datastore) {
