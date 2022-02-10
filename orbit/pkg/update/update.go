@@ -82,14 +82,14 @@ func New(opt Options) (*Updater, error) {
 	}
 
 	tufClient := client.NewClient(opt.LocalStore, remoteStore)
-	var rootKeys []*data.Key
+	var rootKeys []*data.PublicKey
 	if err := json.Unmarshal([]byte(opt.RootKeys), &rootKeys); err != nil {
 		return nil, fmt.Errorf("unmarshal root keys: %w", err)
 	}
 
 	meta, err := opt.LocalStore.GetMeta()
 	if err != nil || meta["root.json"] == nil {
-		var rootKeys []*data.Key
+		var rootKeys []*data.PublicKey
 		if err := json.Unmarshal([]byte(opt.RootKeys), &rootKeys); err != nil {
 			return nil, fmt.Errorf("unmarshal root keys: %w", err)
 		}
