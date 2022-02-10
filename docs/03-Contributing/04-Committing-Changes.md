@@ -5,7 +5,7 @@
   - [Merging pull requests](#merging-pull-requests)
   - [Commit messages](#commit-messages)
 
-## External Contributors
+## External contributors
 
 Fleet does not require a CLA for external contributions. External contributors are encouraged to submit Pull Requests (PRs) following the instructions presented in this document.
 
