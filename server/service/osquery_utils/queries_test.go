@@ -320,7 +320,7 @@ func TestDetailQuerysOSVersion(t *testing.T) {
 	var initialHost fleet.Host
 	host := initialHost
 
-	ingest := GetDetailQueries(nil)["os_version"].IngestFunc
+	ingest := GetDetailQueries(nil, config.FleetConfig{})["os_version"].IngestFunc
 
 	assert.NoError(t, ingest(log.NewNopLogger(), &host, nil))
 	assert.Equal(t, initialHost, host)
