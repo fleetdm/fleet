@@ -72,7 +72,6 @@ describe("Hosts flow", () => {
         cy.getAttached("@hostLink")
           // Set hostname variable for later assertions
           .then((el) => {
-            console.log(el);
             hostname = el.text();
             return el;
           })
@@ -89,7 +88,6 @@ describe("Hosts flow", () => {
         cy.getAttached("@policyLink")
           // Set policyname variable for later assertions
           .then((el) => {
-            console.log(el);
             policyname = el.text();
             return el;
           });
@@ -161,7 +159,6 @@ describe("Hosts flow", () => {
             const pattern = /[0-9]+/g;
             const newCount = fullText.match(pattern);
             initialCount = parseInt(newCount[0], 10);
-            console.log("softwareCount", initialCount);
             expect(initialCount).to.be.at.least(1);
           });
         cy.findByPlaceholderText(/filter software/i).type("lib");
