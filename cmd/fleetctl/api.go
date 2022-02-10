@@ -50,11 +50,11 @@ func clientFromCLI(c *cli.Context) (*service.Client, error) {
 
 	token, ok := t.(string)
 	if !ok {
-		fmt.Fprintln(os.Stderr, "Token invalid. Please log in with:  fleetctl login")
+		fmt.Fprintln(os.Stderr, "Token invalid. Please log in with: fleetctl login")
 		return nil, fmt.Errorf("token config value expected type %T, got %T: %+v", "", t, t)
 	}
 	if token == "" {
-		fmt.Fprintln(os.Stderr, "Token missing. Please log in with:  fleetctl login")
+		fmt.Fprintln(os.Stderr, "Token missing. Please log in with: fleetctl login")
 		return nil, errors.New("token config value missing")
 	}
 	fleet.SetToken(token)
@@ -65,7 +65,7 @@ func clientFromCLI(c *cli.Context) (*service.Client, error) {
 	serverInfo, err := fleet.Version()
 	if err != nil {
 		if errors.Is(err, service.ErrUnauthenticated) {
-			fmt.Fprintln(os.Stderr, "Token invalid or session expired. Please log in with:  fleetctl login")
+			fmt.Fprintln(os.Stderr, "Token invalid or session expired. Please log in with: fleetctl login")
 		}
 		return nil, err
 	}
