@@ -1,3 +1,47 @@
+## Fleet 4.10.0 (Feb 10, 2022)
+
+* Add aggregate software and vulnerability information on the new **Software** page.
+
+* Add ability to see how many hosts have a specific vulnerable software installed on the
+  **Software** page. This information is also available in the `GET /api/v1/fleet/software` API route.
+
+* Add ability to send a webhook request if a new vulnerability (CVE) is
+found on at least one host.
+
+* Add aggregate Mobile Device Management and Munki data on the **Home** page.
+
+* Add email and URL validation across the entire Fleet UI.
+
+* Add ability to filter software by "Vulnerable" on the **Host details** page.
+
+* Update standard policy templates to use new naming convention. For example, "Is FileVault enabled on macOS
+devices?" is now "Full disk encryption enabled (macOS)."
+
+* Add db-innodb-status and db-process-list to `fleetctl debug` command.
+
+* Fleet Premium: Add the ability to generate a Fleet installer and manage enroll secrets on the **Team details**
+  page. 
+
+* A ability for users with the observer role to view which platforms (macOS, Windows, Linux) a query
+  is compatible with.
+
+* Improve the experience for editing queries and policies in the Fleet UI.
+
+* Improve vulnerability processing for NPM packages.
+
+* Fix a bug in Fleet installers for Linux in which a computer restart would stop the host from
+  reporting to Fleet.
+
+* Make sure ApplyTeamSpec only works with premium deployments.
+
+* Support triggering a webhook for newly detected vulnerabilities with a list of affected hosts
+
+* Add filter software by CVE
+
+* Add the ability to disable scheduled query performance statistics.
+
+* Add ability to filter the host summary information by platform (macOS, Windows, Linux) on the **Home** page.
+
 ## Fleet 4.9.1 (Feb 2, 2022)
 
 ### This is a security release.
