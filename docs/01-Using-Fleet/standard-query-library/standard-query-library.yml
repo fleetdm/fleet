@@ -706,3 +706,64 @@ spec:
   description: "Required: You’re already enforcing a policy via Moble Device Management (MDM). Checks to make sure that the Secure Keyboard Entry setting is enabled."
   platforms: macOS
   contributors: groob
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get built-in antivirus status on macOS
+  platforms: macOS
+  query: SELECT path, value AS version FROM plist WHERE (key = 'CFBundleShortVersionString' AND path = '/Library/Apple/System/Library/CoreServices/MRT.app/Contents/Info.plist') OR (key = 'CFBundleShortVersionString' AND path = '/Library/Apple/System/Library/CoreServices/XProtect.bundle/Contents/Info.plist');
+  description: Reads the version numbers from the Malware Removal Tool (MRT) and built-in antivirus (XProtect) plists
+  purpose: Informational
+  contributors: GuillaumeRoss
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get antivirus status from the Windows Security Center
+  platforms: Windows
+  query: SELECT antivirus, signatures_up_to_date from windows_security_center CROSS JOIN windows_security_products WHERE type = 'Antivirus'; 
+  description: Selects the antivirus and signatures status from Windows Security Center.
+  purpose: Informational
+  contributors: GuillaumeRoss
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get antivirus (ClamAV/clamd) and updater (freshclam) process status
+  platforms: Linux
+  query: SELECT pid, state, cmdline, name FROM processes WHERE name='clamd' OR name='freshclam';
+  description: Selects the clamd and freshclam processes to ensure AV and its updater are running
+  purpose: Informational
+  contributors: GuillaumeRoss
+---  
+apiVersion: v1
+kind: policy
+spec:
+  name: Antivirus healthy (macOS)
+  query: SELECT score FROM (SELECT case when COUNT(*) = 2 then 1 ELSE 0 END AS score FROM plist WHERE (key = 'CFBundleShortVersionString' AND path = '/Library/Apple/System/Library/CoreServices/XProtect.bundle/Contents/Info.plist' AND value>=2155) OR (key = 'CFBundleShortVersionString' AND path = '/Library/Apple/System/Library/CoreServices/MRT.app/Contents/Info.plist' and value>=1.88)) WHERE score == 1;
+  description: Checks the version of Malware Removal Tool (MRT) and the built-in macOS AV (Xprotect). Replace version numbers with latest version regularly.
+  resolution: "To enable automatic security definition updates, on the failing device, select System Preferences >
+  Software Update > Advanced > Turn on Install system data files and security updates."
+  platforms: macOS
+  contributors: GuillaumeRoss
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: Antivirus healthy (Windows)
+  query: SELECT 1 from windows_security_center wsc CROSS JOIN windows_security_products wsp WHERE antivirus = 'Good' AND type = 'Antivirus' AND signatures_up_to_date=1;
+  description: Checks the status of antivirus and signature updates from the Windows Security Center. 
+  resolution: "Ensure Windows Defender or your third-party antivirus is running, up to date, and visible in the Windows Security Center."
+  platforms: Windows
+  contributors: GuillaumeRoss
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: Antivirus healthy (Linux)
+  query: SELECT score FROM (SELECT case when COUNT(*) = 2 then 1 ELSE 0 END AS score FROM processes WHERE (name = 'clamd') OR (name = 'freshclam')) WHERE score == 1;
+  description: Checks that both ClamAV's daemon and its updater service (freshclam) are running. 
+  resolution: "Ensure ClamAV and Freshclam are installed and running."
+  platforms: Linux
+  contributors: GuillaumeRoss
