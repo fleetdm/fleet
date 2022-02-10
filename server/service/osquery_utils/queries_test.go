@@ -316,6 +316,59 @@ func TestGetDetailQueries(t *testing.T) {
 		append(baseQueries, "users", "software_macos", "software_linux", "software_windows", "scheduled_query_stats"))
 }
 
+func TestDetailQuerysOSVersion(t *testing.T) {
+	var initialHost fleet.Host
+	host := initialHost
+
+	ingest := GetDetailQueries(nil)["os_version"].IngestFunc
+
+	assert.NoError(t, ingest(log.NewNopLogger(), &host, nil))
+	assert.Equal(t, initialHost, host)
+
+	// Rolling release for archlinux
+	var rows []map[string]string
+	require.NoError(t, json.Unmarshal([]byte(`
+[{
+    "hostname": "kube2",
+    "arch": "x86_64",
+    "build": "rolling",
+    "codename": "",
+    "major": 0,
+    "minor": 0,
+    "name": "Arch Linux",
+    "patch": 0,
+    "platform": "arch",
+    "platform_like": "",
+    "version": ""
+}]`),
+		&rows,
+	))
+
+	assert.NoError(t, ingest(log.NewNopLogger(), &host, rows))
+	assert.Equal(t, "Arch Linux rolling", host.OSVersion)
+
+	// Simulate a linux with a proper version
+	require.NoError(t, json.Unmarshal([]byte(`
+[{
+    "hostname": "kube2",
+    "arch": "x86_64",
+    "build": "rolling",
+    "codename": "",
+    "major": 1,
+    "minor": 2,
+    "name": "Arch Linux",
+    "patch": 3,
+    "platform": "arch",
+    "platform_like": "",
+    "version": ""
+}]`),
+		&rows,
+	))
+
+	assert.NoError(t, ingest(log.NewNopLogger(), &host, rows))
+	assert.Equal(t, "Arch Linux 1.2.3", host.OSVersion)
+}
+
 func TestDirectIngestMDM(t *testing.T) {
 	ds := new(mock.Store)
 	ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, enrolled bool, serverURL string, installedFromDep bool) error {
