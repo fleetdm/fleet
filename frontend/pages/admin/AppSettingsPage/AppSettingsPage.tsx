@@ -76,6 +76,19 @@ const AppSettingsPage = (): JSX.Element => {
     [dispatch, appConfig, getConfig, setConfig]
   );
 
+  // WHY???
+  // Because Firefox and Safari don't support anchor links :-(
+  const scrollInto = (elementId: string) => {
+    const yOffset = -215; // headers and tabs
+    const element = document.getElementById(elementId);
+
+    if (element) {
+      const top =
+        element.getBoundingClientRect().top + window.pageYOffset + yOffset;
+      window.scrollTo({ top });
+    }
+  };
+
   return (
     <div className={`${baseClass} body-wrap`}>
       <p className={`${baseClass}__page-description`}>
@@ -86,33 +99,45 @@ const AppSettingsPage = (): JSX.Element => {
         <nav>
           <ul className={`${baseClass}__form-nav-list`}>
             <li>
-              <a href="#organization-info">Organization info</a>
+              <a onClick={() => scrollInto("organization-info")}>
+                Organization info
+              </a>
             </li>
             <li>
-              <a href="#fleet-web-address">Fleet web address</a>
+              <a onClick={() => scrollInto("fleet-web-address")}>
+                Fleet web address
+              </a>
             </li>
             <li>
-              <a href="#saml">SAML single sign on options</a>
+              <a onClick={() => scrollInto("saml")}>
+                SAML single sign on options
+              </a>
             </li>
             <li>
-              <a href="#smtp">SMTP options</a>
+              <a onClick={() => scrollInto("smtp")}>SMTP options</a>
             </li>
             <li>
-              <a href="#osquery-enrollment-secrets">
+              <a onClick={() => scrollInto("osquery-enrollment-secrets")}>
                 Osquery enrollment secrets
               </a>
             </li>
             <li>
-              <a href="#agent-options">Global agent options</a>
+              <a onClick={() => scrollInto("agent-options")}>
+                Global agent options
+              </a>
             </li>
             <li>
-              <a href="#host-status-webhook">Host status webhook</a>
+              <a onClick={() => scrollInto("host-status-webhook")}>
+                Host status webhook
+              </a>
             </li>
             <li>
-              <a href="#usage-stats">Usage statistics</a>
+              <a onClick={() => scrollInto("usage-stats")}>Usage statistics</a>
             </li>
             <li>
-              <a href="#advanced-options">Advanced options</a>
+              <a onClick={() => scrollInto("advanced-options")}>
+                Advanced options
+              </a>
             </li>
           </ul>
         </nav>
