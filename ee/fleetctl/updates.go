@@ -637,6 +637,7 @@ func newPassphraseHandler() *passphraseHandler {
 	return &passphraseHandler{cache: make(map[string][]byte)}
 }
 
+// TODO #4145 make use of recently added `change` argument
 func (p *passphraseHandler) getPassphrase(role string, confirm, change bool) ([]byte, error) {
 	// Check cache
 	if pass, ok := p.cache[role]; ok {
