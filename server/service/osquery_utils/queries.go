@@ -286,14 +286,19 @@ FROM logical_drives WHERE file_system = 'NTFS' LIMIT 1;`,
 	"mdm": {
 		Query:            `select enrolled, server_url, installed_from_dep from mdm;`,
 		DirectIngestFunc: directIngestMDM,
+		Platforms:        []string{"darwin"},
 	},
 	"munki_info": {
 		Query:            `select version from munki_info;`,
 		DirectIngestFunc: directIngestMunkiInfo,
+		Platforms:        []string{"darwin"},
 	},
 	"google_chrome_profiles": {
 		Query:            `SELECT email FROM google_chrome_profiles WHERE NOT ephemeral`,
 		DirectIngestFunc: directIngestChromeProfiles,
+		// Technically this does work on Windows and Linux but so far no one is deploying the
+		// extension to those platforms and it's causing log spam for customers.
+		Platforms: []string{"darwin"},
 	},
 }
 
