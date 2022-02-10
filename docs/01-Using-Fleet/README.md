@@ -3,7 +3,7 @@
 ### [Fleet UI](./01-Fleet-UI.md) 
 Provides documentation about running and scheduling queries from within the Fleet UI
 
-### [fleetctl CLI](./02-fleetctl-CLI.md) 
+### [Fleetctl CLI](./02-fleetctl-CLI.md) 
 Includes resources for setting up and configuring Fleet via the fleetctl CLI
 
 ### [REST API](./03-REST-API.md) 
