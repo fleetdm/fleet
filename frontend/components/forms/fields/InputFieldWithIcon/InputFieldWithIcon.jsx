@@ -22,6 +22,7 @@ class InputFieldWithIcon extends InputField {
     className: PropTypes.string,
     disabled: PropTypes.bool,
     iconPosition: PropTypes.oneOf(["start", "end"]),
+    inputOptions: PropTypes.object, // eslint-disable-line react/forbid-prop-types
   };
 
   renderHeading = () => {
@@ -61,6 +62,7 @@ class InputFieldWithIcon extends InputField {
       value,
       disabled,
       iconPosition,
+      inputOptions,
     } = this.props;
     const { onInputChange, renderHint } = this;
 
@@ -102,6 +104,7 @@ class InputFieldWithIcon extends InputField {
           type={type}
           value={value}
           disabled={disabled}
+          {...inputOptions}
         />
         {iconName && <FleetIcon name={iconName} className={iconClasses} />}
         {renderHint()}

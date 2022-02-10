@@ -1,10 +1,10 @@
-# Reference Architectures
+# Reference architectures
 
 You can easily run Fleet on a single VPS that would be capable of supporting hundreds if not thousands of hosts, but
 this page details an [opinionated view](https://github.com/fleetdm/fleet/tree/main/tools/terraform) of running Fleet in a production environment, as
 well as different configuration strategies to enable High Availability (HA).
 
-## Availability Components
+## Availability components
 
 There are a few strategies that can be used to ensure high availability:
 - Database HA
@@ -29,7 +29,7 @@ to its core functionality. More details about ALB can be found [here](https://do
 _**Note if using [terraform reference architecture](https://github.com/fleetdm/fleet/tree/main/tools/terraform#terraform) all configurations can dynamically scale based on load(cpu/memory) and all configurations
 assume On-Demand pricing (savings are available through Reserved Instances). Calculations do not take into account NAT gateway charges or other networking related ingress/egress costs.**_
 
-### Example Configuration breakpoints
+### Example configuration breakpoints
 #### [Up to 1000 hosts](https://calculator.aws/#/estimate?id=ae7d7ddec64bb979f3f6611d23616b1dff0e8dbd)
 
 | Fleet instances | CPU Units     | RAM |
@@ -65,7 +65,7 @@ assume On-Demand pricing (savings are available through Reserved Instances). Cal
 | MySQL        | 5.7.mysql_aurora.2.10.0 | db.m6g.8xlarge | 1     |
 
 
-## Cloud Providers
+## Cloud providers
 
 ### AWS
 
@@ -88,7 +88,7 @@ AWS reference architecture can be found [here](https://github.com/fleetdm/fleet/
 Some AWS services used in the provider reference architecture are billed as pay-per-use such as Firehose. This means that osquery scheduled query frequency can have
 a direct correlation to how much these services cost, something to keep in mind when configuring Fleet in AWS.
 
-#### AWS Terraform CI/CD IAM Permissions
+#### AWS Terraform CI/CD IAM permissions
 The following permissions are the minimum required to apply AWS terraform resources:
 ```json
 {

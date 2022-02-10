@@ -1,5 +1,58 @@
 # Brand
 
+## Communicating as Fleet
+
+- **Sound positive**, and assume positive intent. A positive tone helps to empower our users and encourages them to succeed with Fleet.
+
+- **Be relatable**, friendly and sincere. Being relatable reminds our users that they're talking to another human that cares. Use simple words and sentences, especially in technical conversations. 
+
+- **Project confidence**, and be informative. Clearly tell users what they need to know, remembering to always stay positive so as NOT to sound overconfident.
+
+- **Manage risk, not fear**. Educate users about security threats positively. Risk management is smart, but focusing on fear can lead to poor decisions. We NEVER use fear as a communication and marketing tactic. 
+
+### What would Mr Rogers say?
+
+At Fleet, our voice and tone should be clear, simple, friendly, and inspiring - like [Mr. Rogers](https://en.wikipedia.org/wiki/Fred_Rogers) who had a deep understanding of these communication values.
+
+Consider the example tweets below. What would Mr. Rogers say?
+
+> *Distributed workforces aren’t going anywhere anytime soon. **It’s past time** to **start engaging meaningfully** with your **workforce** and **getting them** to work with your security team instead of around them.*
+ 
+becomes...
+
+> *Distributed workforces aren’t going anywhere anytime soon, **so it’s a great time** to **engage** with your **crew** and **help them** to work with your security team instead of around them.*
+
+By Mr Rogering our writing we can emphasize positivity, optimism and encourage our readers to succeed. The example above also considers sentence flow and use of synonyms to reduce repetition.
+
+## Voice and tone guidelines
+
+### How to use our name
+
+When talking about Fleet the company, we stylize our name as either *"Fleet"* or *"Fleet Device Management"*.
+For Fleet the product, we say either *“Fleet”* or *“Fleet for osquery”*.
+
+### How to write headings & subheadings
+Fleet uses **sentence case** capitalization for all headings across Fleet EE, fleetdm.com, our documentation, and our social media channels.
+In **sentence case**, we write titles as if they were sentences. For example:
+> **A**sk questions about your servers, containers, and laptops running **L**inux, **W**indows, and macOS
+
+As we are using sentence case, only the first word of a heading and subheading is capitalized. However, if a word in the sentence would normally be capitalized (e.g. a [proper noun](https://www.grammarly.com/blog/proper-nouns/?&utm_source=google&utm_medium=cpc&utm_campaign=11862361094&utm_targetid=dsa-1233402314764&gclid=Cj0KCQjwg7KJBhDyARIsAHrAXaFwpnEyL9qrS4z1PEAgFwh3RXmQ24zmwmowAyOQbHngsI8W_F730aAaArrwEALw_wcB&gclsrc=aw.ds),) these words should also be capitalized in the heading.
+> Note the capitalization of _“macOS”_ in the example above. Although this is a proper noun, macOS uses its own style guide from Apple, that we adhere to.
+
+### How use osquery in sentences and headings
+Osquery should always be written in lowercase, unless used to start a sentence or heading. For example:
+> _Open source software, built on **o**squery._
+
+or
+
+> _**O**squery and Fleet provide structured, convenient access to information about your devices._
+
+## Brand resources
+
+To download official Fleet logos, product screenshots, and wallpapers, head over to our [brand resources](https://fleetdm.com/logos) page.
+
+See also [https://fleetdm.com/handbook/community#press-releases](https://fleetdm.com/handbook/community#press-releases) for our press-release boilerplate.
+
 ## Fleet website
 
 ### How to export images
@@ -32,50 +85,6 @@ A browser compatibility check of [fleetdm.com](https://fleetdm.com/) should be c
 - Check for issues against the latest version of Google Chrome (macOS). We use this as our baseline for quality assurance.
 - Document any issues in GitHub as a [bug report](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&template=bug-report.md&title=), and assign for fixing.
 - If in doubt about anything regarding design or layout, please reach out to the Design team.
-
-## Communicating as Fleet
-
-- **Sound positive**, and assume positive intent. A positive tone helps to empower our users and encourages them to succeed with Fleet.
-
-- **Be relatable**, friendly and sincere. Being relatable reminds our users that they're talking to another human that cares. Use simple words and sentences, especially in technical conversations. 
-
-- **Project confidence**, and be informative. Clearly tell users what they need to know, remembering to always stay positive so as NOT to sound overconfident.
-
-- **Manage risk, not fear**. Educate users about security threats positively. Risk management is smart, but focusing on fear can lead to poor decisions. We NEVER use fear as a communication and marketing tactic. 
-
-### What would Mr Rogers say?
-
-At Fleet, our voice and tone should be clear, simple, friendly, and inspiring - like [Mr. Rogers](https://en.wikipedia.org/wiki/Fred_Rogers) who had a deep understanding of these communication values.
-
-Consider the example tweets below. What would Mr. Rogers say?
-
-> *Distributed workforces aren’t going anywhere anytime soon. **It’s past time** to **start engaging meaningfully** with your **workforce** and **getting them** to work with your security team instead of around them.*
- 
-becomes...
-
-> *Distributed workforces aren’t going anywhere anytime soon, **so it’s a great time** to **engage** with your **crew** and **help them** to work with your security team instead of around them.*
-
-By Mr Rogering our writing we can emphasize positivity, optimism and encourage our readers to succeed. The example above also considers sentence flow and use of synonyms to reduce repetition.
-
-## Voice and tone guidelines
-
-### How to write headings & subheadings
-Fleet uses **sentence case** capitalization for all headings across Fleet EE, fleetdm.com, our documentation, and our social media channels.
-In **sentence case**, we write titles as if they were sentences. For example:
-> **A**sk questions about your servers, containers, and laptops running **L**inux, **W**indows, and macOS
-
-As we are using sentence case, only the first word of a heading and subheading is capitalized. However, if a word in the sentence would normally be capitalized (e.g. a [proper noun](https://www.grammarly.com/blog/proper-nouns/?&utm_source=google&utm_medium=cpc&utm_campaign=11862361094&utm_targetid=dsa-1233402314764&gclid=Cj0KCQjwg7KJBhDyARIsAHrAXaFwpnEyL9qrS4z1PEAgFwh3RXmQ24zmwmowAyOQbHngsI8W_F730aAaArrwEALw_wcB&gclsrc=aw.ds),) these words should also be capitalized in the heading.
-> Note the capitalization of _“macOS”_ in the example above. Although this is a proper noun, macOS uses its own style guide from Apple, that we adhere to.
-
-### How use osquery in sentences and headings
-Osquery should always be written in lowercase, unless used to start a sentence or heading. For example:
-> Open source software, built on osquery.
-
-or
-
-> Osquery and Fleet provide structured, convenient access to information about your devices.
-
-
 
 
 <meta name="maintainedBy" value="mike-j-thomas">
