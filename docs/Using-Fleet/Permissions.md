@@ -93,4 +93,4 @@ The following table depicts various permissions levels in a team.
 | Edit team enroll secrets                                     |          | ✅         | ✅       |
 | Edit agent options for hosts assigned to team                |          |            | ✅       |
 
-<meta name="pageRank" value="8">
+<meta name="pageRank" value="9">

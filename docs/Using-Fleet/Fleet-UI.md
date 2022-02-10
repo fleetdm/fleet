@@ -63,4 +63,4 @@ To configure team agent options, head to **Settings > Teams > `Team-name-here` >
 
 <meta name="title" value="Fleet UI">
 
-<meta name="pageRank" value="1">
+<meta name="pageRank" value="2">

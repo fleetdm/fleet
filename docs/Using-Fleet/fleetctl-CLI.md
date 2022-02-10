@@ -314,4 +314,4 @@ The value must be small enough that HTTP requests do not time out.
 
 Start with a default of 2MiB for MySQL (2097152 bytes), and 5MiB for S3/Minio (5242880 bytes).
 
-<meta name="pageRank" value="2">
+<meta name="pageRank" value="3">

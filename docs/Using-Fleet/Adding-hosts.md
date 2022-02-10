@@ -206,4 +206,4 @@ installation should appear as the same host in the Fleet UI. If other settings a
 entries will appear in the Fleet UI. The older entries can be automatically cleaned up with the host
 expiration functionality configured in the application settings (UI or fleetctl).
 
-<meta name="pageRank" value="4">
+<meta name="pageRank" value="5">

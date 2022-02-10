@@ -41,4 +41,4 @@ When the query has finished, you should see several columns in the "Results" tab
 
 - The "version" column answers: which version of the installed operating system is my device running?"
 
-<meta name="pageRank" value="0">
+<meta name="pageRank" value="1">

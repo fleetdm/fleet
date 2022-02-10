@@ -158,4 +158,4 @@ fleetctl updates rotate targets
 
 After the key(s) have been rotated, publish the repository in the same fashion as any other update.
 
-<meta name="pageRank" value="3">
+<meta name="pageRank" value="4">

@@ -59,4 +59,4 @@ To disabled usage statistics:
 
 3. Uncheck the "Enable usage statistics" checkbox and then select "Update settings."
 
-<meta name="pageRank" value="10">
+<meta name="pageRank" value="11">
