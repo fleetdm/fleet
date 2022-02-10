@@ -22,7 +22,7 @@ Fleetctl also provides a quick way to work with all the data exposed by Fleet wi
 
 ## Setting up Fleet
 
-This section walks through setting up and configuring Fleet via the CLI. If you already have a running fleet instance, skip ahead to [Logging In To An Existing Fleet Instance](#logging-in-to-an-existing-fleet-instance) to configure the `fleetctl` CLI.
+This section walks through setting up and configuring Fleet via the CLI. If you already have a running fleet instance, skip ahead to [Logging in to an existing Fleet instance](#logging-in-to-an-existing-fleet-instance) to configure the `fleetctl` CLI.
 
 This guide illustrates:
 
