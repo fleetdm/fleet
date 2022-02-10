@@ -6,7 +6,8 @@
   **Software** page. This information is also available in the `GET /api/v1/fleet/software` API route.
 
 * Add ability to send a webhook request if a new vulnerability (CVE) is
-found on at least one host.
+found on at least one host. Documentation on what data is included the webhook
+request and when the webhook request is sent can be found here on [fleedm.com/docs](https://fleetdm.com/docs/using-fleet/automations#vulnerability-automations).
 
 * Add aggregate Mobile Device Management and Munki data on the **Home** page.
 
