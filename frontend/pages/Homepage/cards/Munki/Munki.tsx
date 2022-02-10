@@ -28,7 +28,7 @@ const EmptyMunki = (): JSX.Element => (
     <p>
       To see Munki versions, deploy&nbsp;
       <a
-        href="https://fleetdm.com/docs/deploying/configuration#software-inventory"
+        href="https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer"
         target="_blank"
         rel="noopener noreferrer"
       >
