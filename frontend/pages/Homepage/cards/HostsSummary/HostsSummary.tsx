@@ -55,7 +55,7 @@ const HostsSummary = ({
   };
 
   const { data: labels } = useQuery<ILabelsResponse, Error, ILabel[]>(
-    ["labels", selectedPlatform],
+    ["labels", currentTeamId, selectedPlatform],
     () => labelsAPI.loadAll(),
     {
       select: (data: ILabelsResponse) => data.labels,
@@ -63,7 +63,7 @@ const HostsSummary = ({
   );
 
   useQuery<IHostCountResponse, Error, number>(
-    ["linux host count", currentTeamId, selectedPlatform],
+    ["linux host count", currentTeamId, selectedPlatform, macCount, windowsCount],
     () => {
       const linuxLabel = getLabel("All Linux", labels || []);
       return (
@@ -128,7 +128,7 @@ const HostsSummary = ({
     opacity = isLoadingHostsSummary ? { opacity: 0.4 } : { opacity: 1 };
   }
 
-  const renderMacTile = () => (
+  const renderMacCount = () => (
     <div className={`${baseClass}__tile mac-tile`}>
       <div className={`${baseClass}__tile-icon`}>
         <img src={MacIcon} alt="mac icon" id="mac-icon" />
@@ -140,7 +140,7 @@ const HostsSummary = ({
     </div>
   );
 
-  const renderWindowsTile = () => (
+  const renderWindowsCount = () => (
     <div className={`${baseClass}__tile windows-tile`}>
       <div className={`${baseClass}__tile-icon`}>
         <img src={WindowsIcon} alt="windows icon" id="windows-icon" />
@@ -154,7 +154,7 @@ const HostsSummary = ({
     </div>
   );
 
-  const renderLinuxTile = () => (
+  const renderLinuxCount = () => (
     <div className={`${baseClass}__tile linux-tile`}>
       <div className={`${baseClass}__tile-icon`}>
         <img src={LinuxIcon} alt="linux icon" id="linux-icon" />
@@ -168,20 +168,20 @@ const HostsSummary = ({
     </div>
   );
 
-  const renderTiles = () => {
+  const renderCounts = () => {
     switch (selectedPlatform) {
       case "darwin":
-        return renderMacTile();
+        return renderMacCount();
       case "windows":
-        return renderWindowsTile();
+        return renderWindowsCount();
       case "linux":
-        return renderLinuxTile();
+        return renderLinuxCount();
       default:
         return (
           <>
-            {renderMacTile()}
-            {renderWindowsTile()}
-            {renderLinuxTile()}
+            {renderMacCount()}
+            {renderWindowsCount()}
+            {renderLinuxCount()}
           </>
         );
     }
@@ -192,7 +192,7 @@ const HostsSummary = ({
       className={`${baseClass} ${selectedPlatform ? "single-platform" : ""}`}
       style={opacity}
     >
-      {renderTiles()}
+      {renderCounts()}
     </div>
   );
 };
