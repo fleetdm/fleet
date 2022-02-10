@@ -34,7 +34,7 @@ const options = [
     label: "Documentation",
     onClick: () =>
       window.open(
-        "https://github.com/fleetdm/fleet/blob/main/docs/README.md",
+        "https://fleetdm.com/docs",
         "_blank"
       ),
   },
