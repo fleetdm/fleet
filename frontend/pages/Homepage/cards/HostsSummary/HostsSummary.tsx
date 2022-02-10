@@ -63,7 +63,13 @@ const HostsSummary = ({
   );
 
   useQuery<IHostCountResponse, Error, number>(
-    ["linux host count", currentTeamId, selectedPlatform, macCount, windowsCount],
+    [
+      "linux host count",
+      currentTeamId,
+      selectedPlatform,
+      macCount,
+      windowsCount,
+    ],
     () => {
       const linuxLabel = getLabel("All Linux", labels || []);
       return (
