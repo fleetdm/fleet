@@ -2,10 +2,10 @@ module "lb-http" {
   source            = "GoogleCloudPlatform/lb-http/google//modules/serverless_negs"
   version           = "~> 6.2.0"
 
-  project           = "YOUR_PROJECT_ID"
-  name              = "my-lb"
+  project           = var.project_id
+  name              = "${var.prefix}-load-balancer"
 
-  managed_ssl_certificate_domains = ["YOUR_DOMAIN.COM"]
+  managed_ssl_certificate_domains = ["gcp.fleetdm.com"]
   ssl                             = true
   https_redirect                  = true
 
@@ -14,9 +14,11 @@ module "lb-http" {
       # List your serverless NEGs, VMs, or buckets as backends
       groups = [
         {
-          group = google_compute_region_network_endpoint_group.default.id
+          group = google_compute_region_network_endpoint_group.neg.id
         }
       ]
+      custom_request_headers  = null
+      custom_response_headers = null
 
       enable_cdn = false
 
