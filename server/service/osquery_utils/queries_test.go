@@ -317,12 +317,21 @@ func TestGetDetailQueries(t *testing.T) {
 }
 
 func TestDirectIngestMDM(t *testing.T) {
+	ds := new(mock.Store)
+	ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, enrolled bool, serverURL string, installedFromDep bool) error {
+		require.False(t, enrolled)
+		require.False(t, installedFromDep)
+		require.Empty(t, serverURL)
+		return nil
+	}
+
 	var host fleet.Host
 
-	err := directIngestMDM(context.Background(), log.NewNopLogger(), &host, nil, []map[string]string{}, true)
+	err := directIngestMDM(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{}, true)
 	require.NoError(t, err)
+	require.False(t, ds.SetOrUpdateMDMDataFuncInvoked)
 
-	err = directIngestMDM(context.Background(), log.NewNopLogger(), &host, nil, []map[string]string{
+	err = directIngestMDM(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{
 		{
 			"enrolled":           "false",
 			"installed_from_dep": "",
@@ -330,4 +339,5 @@ func TestDirectIngestMDM(t *testing.T) {
 		},
 	}, false)
 	require.NoError(t, err)
+	require.True(t, ds.SetOrUpdateMDMDataFuncInvoked)
 }
