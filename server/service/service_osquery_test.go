@@ -279,7 +279,7 @@ func TestHostDetailQueries(t *testing.T) {
 			},
 		},
 
-		Platform:        "rhel",
+		Platform:        "darwin",
 		DetailUpdatedAt: mockClock.Now(),
 		NodeKey:         "test_key",
 		Hostname:        "test_hostname",
@@ -624,7 +624,7 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	// queries)
 	queries, acc, err := svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	require.Len(t, queries, expectedDetailQueries)
+	require.Len(t, queries, expectedDetailQueries-3)
 	assert.NotZero(t, acc)
 
 	resultJSON := `
@@ -812,7 +812,7 @@ func TestDetailQueries(t *testing.T) {
 	// queries)
 	queries, acc, err := svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	require.Len(t, queries, expectedDetailQueries+1)
+	require.Len(t, queries, expectedDetailQueries-2)
 	assert.NotZero(t, acc)
 
 	resultJSON := `
