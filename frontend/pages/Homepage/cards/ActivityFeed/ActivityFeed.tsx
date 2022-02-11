@@ -43,6 +43,9 @@ const TAGGED_TEMPLATES = {
   editPackCtlActivityTemplate: () => {
     return "edited a pack using fleetctl";
   },
+  editPolicyCtlActivityTemplate: () => {
+    return "edited policies using fleetctl";
+  },
   editQueryCtlActivityTemplate: (activity: IActivity) => {
     const count = activity.details?.specs?.length;
     return typeof count === "undefined" || typeof count !== "number"
@@ -118,6 +121,9 @@ const ActivityFeed = ({
       }
       case ActivityType.AppliedSpecPack: {
         return TAGGED_TEMPLATES.editPackCtlActivityTemplate();
+      }
+      case ActivityType.AppliedSpecPolicy: {
+        return TAGGED_TEMPLATES.editPolicyCtlActivityTemplate();
       }
       case ActivityType.AppliedSpecSavedQuery: {
         return TAGGED_TEMPLATES.editQueryCtlActivityTemplate(activity);
@@ -196,54 +202,6 @@ const ActivityFeed = ({
     );
   };
 
-  // const unpackDeletes = (
-  //   activity: IActivity,
-  //   entityType: "policies" | "queries"
-  // ): IActivityDisplay[] => {
-  //   const activityTypes = {
-  //     policies: ActivityType.DeletedPolicy,
-  //     queries: ActivityType.DeletedSavedQuery,
-  //   };
-  //   if (!activityTypes[entityType]) {
-  //     return [];
-  //   }
-
-  //   const deletedItems = activity?.details?.[entityType];
-  //   const deletes = deletedItems?.map((item) => {
-  //     const id = find(item, (_, k) => k.includes("id"));
-  //     return {
-  //       ...activity,
-  //       key: `${activity.id}_${id}`,
-  //       type: activityTypes[entityType],
-  //       details: item,
-  //     };
-  //   });
-
-  //   return deletes || [];
-  // };
-
-  // const renderActivities = (activitiesList: IActivityDisplay[]) => {
-  //   const activityFeed = [] as JSX.Element[];
-  //   activitiesList.forEach((activity) => {
-  //     const { type } = activity;
-  //     switch (type) {
-  //       case ActivityType.DeletedMultiplePolicies:
-  //         activityFeed.push(
-  //           ...renderActivities(unpackDeletes(activity, "policies"))
-  //         );
-  //         break;
-  //       case ActivityType.DeletedMultipleSavedQuery:
-  //         activityFeed.push(
-  //           ...renderActivities(unpackDeletes(activity, "queries"))
-  //         );
-  //         break;
-  //       default:
-  //         activityFeed.push(renderActivityBlock(activity));
-  //     }
-  //   });
-  //   return activityFeed;
-  // };
-
   // Renders opaque information as activity feed is loading
   const opacity = isFetchingActivities ? { opacity: 0.4 } : { opacity: 1 };
 
@@ -266,7 +224,6 @@ const ActivityFeed = ({
           <div style={opacity}>
             {activities?.map((activity) => renderActivityBlock(activity))}
           </div>
-          {/* <div style={opacity}>{renderActivities(activities || [])}</div> */}
         </>
       )}
       {!errorActivities &&

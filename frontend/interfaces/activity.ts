@@ -1,3 +1,4 @@
+import { IPolicy } from "./policy";
 import { IQuery } from "./query";
 
 export enum ActivityType {
@@ -6,16 +7,15 @@ export enum ActivityType {
   EditedPack = "edited_pack",
   CreatedPolicy = "created_policy",
   DeletedPolicy = "deleted_policy",
-  // DeletedMultiplePolicies = "deleted_multiple_policies",
   EditedPolicy = "edited_policy",
   CreatedSavedQuery = "created_saved_query",
   DeletedSavedQuery = "deleted_saved_query",
-  // DeletedMultipleSavedQuery = "deleted_multiple_saved_query",
   EditedSavedQuery = "edited_saved_query",
   CreatedTeam = "created_team",
   DeletedTeam = "deleted_team",
   LiveQuery = "live_query",
   AppliedSpecPack = "applied_spec_pack",
+  AppliedSpecPolicy = "applied_spec_policy",
   AppliedSpecSavedQuery = "applied_spec_saved_query",
 }
 export interface IActivity {
@@ -38,13 +38,5 @@ export interface IActivityDetails {
   team_id?: number;
   team_name?: string;
   targets_count?: number;
-  specs?: IQuery[];
-  // policies?: Array<{
-  //   policy_id: number;
-  //   policy_name: string;
-  // }>;
-  // queries?: Array<{
-  //   query_id: number;
-  //   query_name: string;
-  // }>;
+  specs?: IQuery[] | IPolicy[];
 }
