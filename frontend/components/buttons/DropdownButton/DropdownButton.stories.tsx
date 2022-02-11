@@ -32,11 +32,7 @@ const options = [
   },
   {
     label: "Documentation",
-    onClick: () =>
-      window.open(
-        "https://fleetdm.com/docs",
-        "_blank"
-      ),
+    onClick: () => window.open("https://fleetdm.com/docs", "_blank"),
   },
   {
     label: "Sign out",
