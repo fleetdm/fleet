@@ -141,7 +141,7 @@ You can also do this by setting the `targets` field in the [YAML configuration f
 
 ## How do I automatically assign a host to a team when it enrolls with Fleet?
 
-[Team enroll secrets](https://github.com/fleetdm/fleet/blob/main/docs/Using-Fleet/Teams.md#enroll-hosts-to-a-team) allow you to automatically assign a host to a team.
+[Team enroll secrets](./Teams.md#enroll-hosts-to-a-team) allow you to automatically assign a host to a team.
 
 ## Why my host is not updating a policy's response.
 
@@ -176,7 +176,7 @@ You are probably running an old version of Docker. You should download the insta
 
 ## How does Fleet deal with IP duplication?
 
-Fleet relies on UUIDs so any overlap with host IP addresses should not cause a problem. The only time this might be an issue is if you are running a query that involves a specific IP address that exists in multiple locations as it might return multiple results - [Fleet's teams feature](https://fleetdm.com/docs/using-fleet/teams) can be used to restrict queries to specific hosts.
+Fleet relies on UUIDs so any overlap with host IP addresses should not cause a problem. The only time this might be an issue is if you are running a query that involves a specific IP address that exists in multiple locations as it might return multiple results - [Fleet's teams feature](./Teams.md) can be used to restrict queries to specific hosts.
 
 ## Can Orbit run alongside osquery?
 

@@ -10,4 +10,4 @@ Simply install `fleetctl` with `npm install -g fleetctl`.
 
 ## Usage
 
-See the [fleetctl documentation](https://github.com/fleetdm/fleet/blob/main/docs/Using-Fleet/fleetctl-CLI.md) or `fleetctl --help` for usage instructions. 
+See the [fleetctl documentation](https://fleetdm.com/docs/using-fleet/fleetctl-CLI) or `fleetctl --help` for usage instructions. 

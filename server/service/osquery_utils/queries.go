@@ -713,14 +713,13 @@ func directIngestMDM(ctx context.Context, logger log.Logger, host *fleet.Host, d
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "parsing enrolled")
 	}
-	if !enrolled {
-		// A row with enrolled=false and all other columns empty is a host with the osquery
-		// MDM table extensions installed (e.g. Orbit) but MDM unconfigured/disabled.
-		return nil
-	}
-	installedFromDep, err := strconv.ParseBool(rows[0]["installed_from_dep"])
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "parsing installed_from_dep")
+	installedFromDepVal := rows[0]["installed_from_dep"]
+	installedFromDep := false
+	if installedFromDepVal != "" {
+		installedFromDep, err = strconv.ParseBool(installedFromDepVal)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "parsing installed_from_dep")
+		}
 	}
 
 	return ds.SetOrUpdateMDMData(ctx, host.ID, enrolled, rows[0]["server_url"], installedFromDep)

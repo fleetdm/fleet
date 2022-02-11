@@ -12,7 +12,7 @@ func WriteExpiredLicenseBanner(w io.Writer) {
 		w,
 		"Your license for Fleet Premium is about to expire. If you’d like to renew or have questions about "+
 			"downgrading, please navigate to "+
-			"https://github.com/fleetdm/fleet/blob/main/docs/Using-Fleet/Teams.md#expired_license and "+
+			"https://fleetdm.com/docs/using-fleet/teams#expired_license and "+
 			"contact us for help.",
 	)
 	// We need to disable color and print a new line to make it look somewhat neat, otherwise colors continue to the
