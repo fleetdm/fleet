@@ -134,7 +134,7 @@ type LoggingConfig struct {
 	JSON                 bool
 	DisableBanner        bool          `yaml:"disable_banner"`
 	ErrorRetentionPeriod time.Duration `yaml:"error_retention_period"`
-	TracingEnabled       bool
+    TracingEnabled       bool          `yaml:"tracing_enabled"`
 }
 
 // FirehoseConfig defines configs for the AWS Firehose logging plugin
