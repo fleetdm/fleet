@@ -356,6 +356,7 @@ type Datastore interface {
 	SavePolicy(ctx context.Context, p *Policy) error
 
 	ListGlobalPolicies(ctx context.Context) ([]*Policy, error)
+	PoliciesByID(ctx context.Context, ids []uint) (map[uint]*Policy, error)
 	DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint, error)
 
 	PolicyQueriesForHost(ctx context.Context, host *Host) (map[string]string, error)

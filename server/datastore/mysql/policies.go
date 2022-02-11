@@ -287,6 +287,44 @@ func listPoliciesDB(ctx context.Context, q sqlx.QueryerContext, teamID *uint) ([
 	return policies, nil
 }
 
+func (ds *Datastore) PoliciesByID(ctx context.Context, ids []uint) (map[uint]*fleet.Policy, error) {
+	sql := `SELECT p.*,
+		    COALESCE(u.name, '<deleted>') AS author_name,
+			COALESCE(u.email, '') AS author_email,
+       		(select count(*) from policy_membership where policy_id=p.id and passes=true) as passing_host_count,
+       		(select count(*) from policy_membership where policy_id=p.id and passes=false) as failing_host_count
+		FROM policies p
+		LEFT JOIN users u ON p.author_id = u.id
+		WHERE p.id IN (?)`
+	query, args, err := sqlx.In(sql, ids)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "building query to get policies by ID")
+	}
+
+	var policies []*fleet.Policy
+	err = sqlx.SelectContext(
+		ctx,
+		ds.reader,
+		&policies,
+		query, args...,
+	)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting policies by ID")
+	}
+
+	policiesByID := make(map[uint]*fleet.Policy, len(ids))
+	for _, p := range policies {
+		policiesByID[p.ID] = p
+	}
+	for _, id := range ids {
+		if p := policiesByID[id]; p == nil {
+			return nil, ctxerr.Wrap(ctx, notFound("Policy").WithID(id))
+		}
+	}
+
+	return policiesByID, nil
+}
+
 func (ds *Datastore) DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint, error) {
 	return deletePolicyDB(ctx, ds.writer, ids, nil)
 }

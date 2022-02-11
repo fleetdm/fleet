@@ -167,40 +167,38 @@ func deleteGlobalPoliciesEndpoint(ctx context.Context, request interface{}, svc 
 // DeleteGlobalPolicies deletes the given policies from the database.
 // It also deletes the given ids from the failing policies webhook configuration.
 func (svc Service) DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Policy{}, fleet.ActionWrite); err != nil {
+	// First check if authorized to read policies
+	if err := svc.authz.Authorize(ctx, &fleet.Policy{}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 	if len(ids) == 0 {
 		return nil, nil
 	}
-	// Is there a better approach to gather policy names so we can include them in the activity records?
-	policies := []*fleet.Policy{}
-	policiesByID := make(map[uint]*fleet.Policy, len(policies))
-	for _, id := range ids {
-		policy, err := svc.ds.Policy(ctx, id)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "lookup policy by ID")
-		}
-		policiesByID[id] = policy
+	policiesByID, err := svc.ds.PoliciesByID(ctx, ids)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting policies by ID")
 	}
-
+	// Then check if authorized to write policies
+	if err := svc.authz.Authorize(ctx, &fleet.Policy{}, fleet.ActionWrite); err != nil {
+		return nil, err
+	}
 	if err := svc.removeGlobalPoliciesFromWebhookConfig(ctx, ids); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "removing global policies from webhook config")
 	}
-
-	ids, err := svc.ds.DeleteGlobalPolicies(ctx, ids)
+	deletedIDs, err := svc.ds.DeleteGlobalPolicies(ctx, ids)
 	if err != nil {
 		return nil, err
 	}
+
 	// Is there a better approach to handling errors that might occur as we loop over multiple ids?
-	for _, id := range ids {
+	for _, id := range deletedIDs {
 		if err := svc.ds.NewActivity(
 			ctx,
 			authz.UserFromContext(ctx),
 			fleet.ActivityTypeDeletedPolicy,
 			&map[string]interface{}{"policy_id": id, "policy_name": policiesByID[id].Name},
 		); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "add deleted policy activity")
+			return nil, ctxerr.Wrap(ctx, err, "adding new activity for deleted policy")
 		}
 	}
 	return ids, nil

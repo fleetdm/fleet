@@ -192,6 +192,23 @@ func deleteTeamPoliciesEndpoint(ctx context.Context, request interface{}, svc fl
 }
 
 func (svc Service) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error) {
+	// First check if authorized to read policies
+	if err := svc.authz.Authorize(ctx, &fleet.Policy{
+		PolicyData: fleet.PolicyData{
+			TeamID: ptr.Uint(teamID),
+		},
+	}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	policiesByID, err := svc.ds.PoliciesByID(ctx, ids)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting policies by ID")
+	}
+
+	// Then check if authorized to write policies
 	if err := svc.authz.Authorize(ctx, &fleet.Policy{
 		PolicyData: fleet.PolicyData{
 			TeamID: ptr.Uint(teamID),
@@ -199,63 +216,25 @@ func (svc Service) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []ui
 	}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
-	// // First make sure the user can read the policies.
-	// if err := svc.authz.Authorize(ctx, &fleet.Policy{
-	// 	PolicyData: fleet.PolicyData{
-	// 		TeamID: teamID,
-	// 	},
-	// }, fleet.ActionRead); err != nil {
-	// 	return nil, err
-	// }
-	if len(ids) == 0 {
-		return nil, nil
+	if err := svc.removeGlobalPoliciesFromWebhookConfig(ctx, ids); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "removing global policies from webhook config")
 	}
-	policies := []*fleet.Policy{}
-	policiesByID := make(map[uint]*fleet.Policy, len(policies))
-
-	for _, id := range ids {
-		// // Then check the user can modify this policy
-		// if err := svc.authz.Authorize(ctx, &policy, fleet.ActionWrite); err != nil {
-		// 	return nil, ctxerr.Wrap(ctx, err, "not authorized to modify this policy")
-		// }
-		policy, err := svc.ds.Policy(ctx, id)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "lookup policy by ID")
-		}
-		policiesByID[id] = policy
-	}
-	ids, err := svc.ds.DeleteTeamPolicies(ctx, teamID, ids)
+	deletedIDs, err := svc.ds.DeleteGlobalPolicies(ctx, ids)
 	if err != nil {
 		return nil, err
 	}
+
 	// Is there a better approach to handling errors that might occur as we loop over multiple ids?
-	for _, id := range ids {
+	for _, id := range deletedIDs {
 		if err := svc.ds.NewActivity(
 			ctx,
 			authz.UserFromContext(ctx),
 			fleet.ActivityTypeDeletedPolicy,
 			&map[string]interface{}{"policy_id": id, "policy_name": policiesByID[id].Name},
 		); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "add deleted policy activity")
+			return nil, ctxerr.Wrap(ctx, err, "adding new activity for deleted policy")
 		}
 	}
-
-	// type DeletedPolicyDetail struct {
-	// 	PolicyID   uint   `json:"policy_id"`
-	// 	PolicyName string `json:"policy_name"`
-	// }
-	// var details []DeletedPolicyDetail
-	// for _, id := range ids {
-	// 	details = append(details, DeletedPolicyDetail{PolicyID: id, PolicyName: policiesByID[id].Name})
-	// // }
-	// if err := svc.ds.NewActivity(
-	// 	ctx,
-	// 	authz.UserFromContext(ctx),
-	// 	fleet.ActivityTypeDeletedMultiplePolicies,
-	// 	&map[string]interface{}{"policies": details},
-	// ); err != nil {
-	// 	return nil, err
-	// }
 
 	return ids, nil
 }
