@@ -19,6 +19,8 @@ const (
 	ActivityTypeEditedPolicy = "edited_policy"
 	// ActivityTypeDeletedPolicy is the activity type for deleted policies
 	ActivityTypeDeletedPolicy = "deleted_policy"
+	// ActivityTypeAppliedSpecPolicy is the activity type for saved queries spec applied
+	ActivityTypeAppliedSpecPolicy = "applied_spec_policy"
 	// ActivityTypeDeletedMultiplePolicies is the activity type for multiple deleted policies
 	ActivityTypeDeletedMultiplePolicies = "deleted_multiple_policies"
 	// ActivityTypeCreatedSavedQuery is the activity type for created saved queries

@@ -320,5 +320,10 @@ func (svc Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.Polic
 	if err := svc.ds.ApplyPolicySpecs(ctx, vc.UserID(), policies); err != nil {
 		return ctxerr.Wrap(ctx, err, "applying policy specs")
 	}
-	return nil
+	return svc.ds.NewActivity(
+		ctx,
+		authz.UserFromContext(ctx),
+		fleet.ActivityTypeAppliedSpecPolicy,
+		&map[string]interface{}{"policies": policies},
+	)
 }
