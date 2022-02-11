@@ -16,47 +16,36 @@ export const DEFAULT_GRAVATAR_LINK =
 export const DEFAULT_POLICIES = [
   {
     key: 1,
-    query: `SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT "" AND filevault_status = 'on' LIMIT 1`,
-    name: "Full disk encryption enabled (macOS)",
+    query:
+      "SELECT score FROM (SELECT case when COUNT(*) = 2 then 1 ELSE 0 END AS score FROM processes WHERE (name = 'clamd') OR (name = 'freshclam')) WHERE score == 1;",
+    name: "Antivirus healthy (Linux)",
     description:
-      "Checks to make sure that full disk encryption (FileVault) is enabled on macOS devices.",
-    resolution:
-      "To enable full disk encryption, on the failing device, select System Preferences > Security & Privacy > FileVault > Turn On FileVault.",
-    platform: "darwin",
+      "Checks that both ClamAV's daemon and its updater service (freshclam) are running.",
+    resolution: "Ensure ClamAV and Freshclam are installed and running.",
+    platform: "linux",
   },
   {
     key: 2,
-    query: "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1",
-    name: "Gatekeeper enabled (macOS)",
+    query:
+      "SELECT 1 FROM managed_policies WHERE domain = 'com.apple.Terminal' AND name = 'SecureKeyboardEntry' AND value = 1 LIMIT 1;",
+    name: "Antivirus healthy (macOS)",
     description:
-      "Checks to make sure that the Gatekeeper feature is enabled on macOS devices. Gatekeeper tries to ensure only trusted software is run on a mac machine.",
-    resolution:
-      "To enable Gatekeeper, on the failing device, run the following command in the Terminal app: /usr/sbin/spctl --master-enable.",
+      "Checks the version of Malware Removal Tool (MRT) and the built-in macOS AV (Xprotect). Replace version numbers with latest version regularly.",
+    resolution: "To enable automatic security definition updates, on the failing device, select System Preferences > Software Update > Advanced > Turn on Install system data files and security updates.",
     platform: "darwin",
   },
   {
     key: 3,
-    query: "SELECT 1 FROM bitlocker_info WHERE protection_status = 1;",
-    name: "Full disk encryption enabled (Windows)",
+    query:
+      "SELECT 1 from windows_security_center wsc CROSS JOIN windows_security_products wsp WHERE antivirus = 'Good' AND type = 'Antivirus' AND signatures_up_to_date=1;",
+    name: "Antivirus healthy (Windows)",
     description:
-      "Checks to make sure that full disk encryption is enabled on Windows devices.",
-    resolution:
-      "To get additional information, run the following osquery query on the failing device: SELECT * FROM bitlocker_info. In the query results, if protection_status is 2, then the status cannot be determined. If it is 0, it is considered unprotected. Use the additional results (percent_encrypted, conversion_status, etc.) to help narrow down the specific reason why Windows considers the volume unprotected.",
+      "Checks the status of antivirus and signature updates from the Windows Security Center.",
+    resolution: "Ensure Windows Defender or your third-party antivirus is running, up to date, and visible in the Windows Security Center.",
     platform: "windows",
   },
   {
     key: 4,
-    query:
-      "SELECT 1 FROM sip_config WHERE config_flag = 'sip' AND enabled = 1;",
-    name: "System Integrity Protection enabled (macOS)",
-    description:
-      "Checks to make sure that the System Integrity Protection feature is enabled.",
-    resolution:
-      "To enable System Integrity Protection, on the failing device, run the following command in the Terminal app: /usr/sbin/spctl --master-enable.",
-    platform: "darwin",
-  },
-  {
-    key: 5,
     query:
       "SELECT 1 FROM managed_policies WHERE domain = 'com.apple.loginwindow' AND name = 'com.apple.login.mcx.DisableAutoLoginClient' AND value = 1 LIMIT 1",
     name: "Automatic login disabled (macOS)",
@@ -67,7 +56,37 @@ export const DEFAULT_POLICIES = [
     platform: "darwin",
   },
   {
+    key: 5,
+    query: `SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT "" AND filevault_status = 'on' LIMIT 1`,
+    name: "Full disk encryption enabled (macOS)",
+    description:
+      "Checks to make sure that full disk encryption (FileVault) is enabled on macOS devices.",
+    resolution:
+      "To enable full disk encryption, on the failing device, select System Preferences > Security & Privacy > FileVault > Turn On FileVault.",
+    platform: "darwin",
+  },
+  {
     key: 6,
+    query: "SELECT 1 FROM bitlocker_info WHERE protection_status = 1;",
+    name: "Full disk encryption enabled (Windows)",
+    description:
+      "Checks to make sure that full disk encryption is enabled on Windows devices.",
+    resolution:
+      "To get additional information, run the following osquery query on the failing device: SELECT * FROM bitlocker_info. In the query results, if protection_status is 2, then the status cannot be determined. If it is 0, it is considered unprotected. Use the additional results (percent_encrypted, conversion_status, etc.) to help narrow down the specific reason why Windows considers the volume unprotected.",
+    platform: "windows",
+  },
+  {
+    key: 7,
+    query: "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1",
+    name: "Gatekeeper enabled (macOS)",
+    description:
+      "Checks to make sure that the Gatekeeper feature is enabled on macOS devices. Gatekeeper tries to ensure only trusted software is run on a mac machine.",
+    resolution:
+      "To enable Gatekeeper, on the failing device, run the following command in the Terminal app: /usr/sbin/spctl --master-enable.",
+    platform: "darwin",
+  },
+  {
+    key: 8,
     query:
       "SELECT 1 FROM managed_policies WHERE domain = 'com.apple.MCX' AND name = 'DisableGuestAccount' AND value = 1 LIMIT 1;",
     name: "Guest users disabled (macOS)",
@@ -78,7 +97,7 @@ export const DEFAULT_POLICIES = [
     platform: "darwin",
   },
   {
-    key: 7,
+    key: 9,
     query:
       "SELECT 1 FROM managed_policies WHERE domain = 'com.apple.Terminal' AND name = 'SecureKeyboardEntry' AND value = 1 LIMIT 1;",
     name: "Secure keyboard entry for Terminal.app enabled (macOS)",
@@ -87,6 +106,19 @@ export const DEFAULT_POLICIES = [
     resolution: "",
     platform: "darwin",
   },
+  {
+    key: 10,
+    query:
+      "SELECT 1 FROM sip_config WHERE config_flag = 'sip' AND enabled = 1;",
+    name: "System Integrity Protection enabled (macOS)",
+    description:
+      "Checks to make sure that the System Integrity Protection feature is enabled.",
+    resolution:
+      "To enable System Integrity Protection, on the failing device, run the following command in the Terminal app: /usr/sbin/spctl --master-enable.",
+    platform: "darwin",
+  },
+
+
 ] as IPolicyNew[];
 
 export const FREQUENCY_DROPDOWN_OPTIONS = [
