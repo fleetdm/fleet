@@ -307,6 +307,14 @@ resource "aws_ecs_task_definition" "migration" {
         ]
         environment = [
           {
+            name  = "CLOUDWATCH_NAMESPACE"
+            value = "fleet-loadtest-migration"
+          },
+          {
+            name  = "CLOUDWATCH_REGION"
+            value = "us-east-2"
+          },
+          {
             name  = "FLEET_MYSQL_USERNAME"
             value = module.aurora_mysql.rds_cluster_master_username
           },
