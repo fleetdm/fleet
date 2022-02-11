@@ -38,6 +38,7 @@ func SyncCVEData(vulnPath string, config config.FleetConfig) error {
 			return fmt.Errorf("parsing cve feed url prefix override: %w", err)
 		}
 		source.Host = parsed.Host
+		source.CVEFeedPath = parsed.Path
 		source.Scheme = parsed.Scheme
 	}
 

@@ -287,14 +287,20 @@ FROM logical_drives WHERE file_system = 'NTFS' LIMIT 1;`,
 	"mdm": {
 		Query:            `select enrolled, server_url, installed_from_dep from mdm;`,
 		DirectIngestFunc: directIngestMDM,
+		Platforms:        []string{"darwin"},
 	},
 	"munki_info": {
 		Query:            `select version from munki_info;`,
 		DirectIngestFunc: directIngestMunkiInfo,
+		Platforms:        []string{"darwin"},
 	},
 	"google_chrome_profiles": {
 		Query:            `SELECT email FROM google_chrome_profiles WHERE NOT ephemeral`,
 		DirectIngestFunc: directIngestChromeProfiles,
+		// Technically this does work on Windows and Linux, but so far no one is
+		// deploying the extension to those platforms and it's causing log spam
+		// for customers. See https://github.com/fleetdm/fleet/issues/4123
+		Platforms: []string{"darwin"},
 	},
 }
 
@@ -742,14 +748,13 @@ func directIngestMDM(ctx context.Context, logger log.Logger, host *fleet.Host, d
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "parsing enrolled")
 	}
-	if !enrolled {
-		// A row with enrolled=false and all other columns empty is a host with the osquery
-		// MDM table extensions installed (e.g. Orbit) but MDM unconfigured/disabled.
-		return nil
-	}
-	installedFromDep, err := strconv.ParseBool(rows[0]["installed_from_dep"])
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "parsing installed_from_dep")
+	installedFromDepVal := rows[0]["installed_from_dep"]
+	installedFromDep := false
+	if installedFromDepVal != "" {
+		installedFromDep, err = strconv.ParseBool(installedFromDepVal)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "parsing installed_from_dep")
+		}
 	}
 
 	return ds.SetOrUpdateMDMData(ctx, host.ID, enrolled, rows[0]["server_url"], installedFromDep)

@@ -80,14 +80,14 @@ require (
 	github.com/stretchr/objx v0.3.0 // indirect
 	github.com/stretchr/testify v1.7.0
 	github.com/temoto/robotstxt v1.1.2 // indirect
-	github.com/theupdateframework/go-tuf v0.0.0-20210929155205-2707f22b6f31
+	github.com/theupdateframework/go-tuf v0.0.0-20220121203041-e3557e322879
 	github.com/throttled/throttled/v2 v2.8.0
 	github.com/ulikunitz/xz v0.5.10 // indirect
 	github.com/urfave/cli/v2 v2.3.0
 	github.com/valyala/fasthttp v1.31.0
-	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519
+	golang.org/x/crypto v0.0.0-20220112180741-5e0467b6c7ce
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
-	golang.org/x/sys v0.0.0-20211007075335-d3039528d8ac
+	golang.org/x/sys v0.0.0-20220114195835-da31bd327af9
 	google.golang.org/grpc v1.40.0
 	gopkg.in/guregu/null.v3 v3.4.0
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0-20170531160350-a96e63847dc3

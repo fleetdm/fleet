@@ -30,7 +30,12 @@ declare namespace Cypress {
     seedQueries(): Chainable<Element>;
 
     /**
-     * Custom command to add new queries by default.
+     * Custom command to add new scheduled queries by default.
+     */
+    seedSchedule(): Chainable<Element>;
+
+    /**
+     * Custom command to add new policies by default.
      */
     seedPolicies(): Chainable<Element>;
 
