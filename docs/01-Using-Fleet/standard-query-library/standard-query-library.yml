@@ -637,7 +637,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: Is Gatekeeper enabled on macOS devices?
+  name: Gatekeeper enabled (macOS)
   query: SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;
   description: Checks to make sure that the Gatekeeper feature is enabled on macOS devices. Gatekeeper tries to ensure only trusted software is run on a mac machine.
   resolution: "To enable Gatekeeper, on the failing device, run the following command in the Terminal app: /usr/sbin/spctl --master-enable."
@@ -647,9 +647,9 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: Is disk encryption enabled on Windows devices?
+  name: Full disk encryption enabled (Windows)
   query: SELECT 1 FROM bitlocker_info where protection_status = 1;
-  description: Checks to make sure that device encryption is enabled on Windows devices.
+  description: Checks to make sure that full disk encryption is enabled on Windows devices.
   resolution: "To get additional information, run the following osquery query on the failing device: SELECT * FROM bitlocker_info. In the
   query results, if protection_status is 2, then the status cannot be determined. If it is 0, it is
   considered unprotected. Use the additional results (percent_encrypted, conversion_status, etc.) to
@@ -660,10 +660,49 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: Is FileVault enabled on macOS devices?
+  name: Full disk encryption enabled (macOS)
   query: SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT "" AND filevault_status = 'on' LIMIT 1;
-  description: Checks to make sure that the FileVault feature is enabled on macOS devices.
-  resolution: "To enable FileVault, on the failing device, select System Preferences >
+  description: Checks to make sure that full disk encryption (FileVault) is enabled on macOS devices.
+  resolution: "To enable full disk encryption, on the failing device, select System Preferences >
   Security & Privacy > FileVault > Turn On FileVault."
+  platforms: macOS
+  contributors: groob
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: System Integrity Protection enabled (macOS)
+  query: SELECT 1 FROM sip_config WHERE config_flag = 'sip' AND enabled = 1;
+  description: Checks to make sure that the System Integrity Protection feature is enabled.
+  resolution: "To enable System Integrity Protection, on the failing device, run the following command in the Terminal app: /usr/sbin/spctl --master-enable."
+  platforms: macOS
+  contributors: groob
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: Automatic login disabled (macOS)
+  query: SELECT 1 FROM managed_policies WHERE domain = 'com.apple.loginwindow' AND name = 'com.apple.login.mcx.DisableAutoLoginClient' AND value = 1 LIMIT 1;
+  description: "Required: You’re already enforcing a policy via Moble Device Management (MDM). Checks to make sure that the device user cannot log in to the device without a password."
+  resolution: "The following example profile includes a setting to disable automatic login: https://github.com/gregneagle/profiles/blob/fecc73d66fa17b6fa78b782904cb47cdc1913aeb/loginwindow.mobileconfig#L64-L65."
+  platforms: macOS
+  contributors: groob
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: Guest users disabled (macOS)
+  query: SELECT 1 FROM managed_policies WHERE domain = 'com.apple.MCX' AND name = 'DisableGuestAccount' AND value = 1 LIMIT 1;
+  description: "Required: You’re already enforcing a policy via Moble Device Management (MDM). Checks to make sure that guest accounts cannot be used to log in to the device without a password."
+  resolution: "The following example profile includes a setting to disable guest users: https://github.com/gregneagle/profiles/blob/fecc73d66fa17b6fa78b782904cb47cdc1913aeb/loginwindow.mobileconfig#L68-L71."
+  platforms: macOS
+  contributors: groob
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: Secure keyboard entry for Terminal.app enabled (macOS)
+  query: SELECT 1 FROM managed_policies WHERE domain = 'com.apple.Terminal' AND name = 'SecureKeyboardEntry' AND value = 1 LIMIT 1;
+  description: "Required: You’re already enforcing a policy via Moble Device Management (MDM). Checks to make sure that the Secure Keyboard Entry setting is enabled."
   platforms: macOS
   contributors: groob

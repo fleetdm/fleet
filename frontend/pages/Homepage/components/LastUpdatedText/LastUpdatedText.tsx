@@ -1,6 +1,7 @@
 import React from "react";
 import ReactTooltip from "react-tooltip";
 import formatDistanceToNowStrict from "date-fns/formatDistanceToNowStrict";
+import { kebabCase } from "lodash";
 
 import QuestionIcon from "../../../../../assets/images/icon-question-16x16@2x.png";
 
@@ -23,7 +24,7 @@ const renderLastUpdatedText = (
         <span
           className={`tooltip__tooltip-icon`}
           data-tip
-          data-for="last-updated-tooltip"
+          data-for={`last-updated-tooltip-${kebabCase(whatToRetrieve)}`}
           data-tip-disable={false}
         >
           <img alt="question icon" src={QuestionIcon} />
@@ -33,7 +34,7 @@ const renderLastUpdatedText = (
           type="dark"
           effect="solid"
           backgroundColor="#3e4771"
-          id="last-updated-tooltip"
+          id={`last-updated-tooltip-${kebabCase(whatToRetrieve)}`}
           data-html
         >
           <span className={`tooltip__tooltip-text`}>

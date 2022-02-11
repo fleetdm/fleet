@@ -1,0 +1,2 @@
+* Update standard policy templates to use new naming convention. For example, "Is FileVault enabled on macOS
+devices?" is now "Full disk encryption enabled (macOS)."

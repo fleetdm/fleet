@@ -137,7 +137,7 @@ You can use `fleetctl package` to generate installer packages of Orbit (a bootst
 For example running `fleetctl package --type deb --fleet-url=<fleet url> --enroll-secret=<enroll secret>` will build a `.deb` installer with everything needed
 to communicate with your fleet instance.
 
-### Key Rotation
+### Key rotation
 
 Key rotation is supported for each of the update role keys via the `fleetctl updates rotate` command.
 
