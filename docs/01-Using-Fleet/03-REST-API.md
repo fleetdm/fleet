@@ -1062,8 +1062,11 @@ Request (`filters` is specified):
 ### Get host's Google Chrome profiles
 
 Requires the [macadmins osquery
-extension](https://github.com/macadmins/osquery-extension) which comes bundled in [Fleet's osquery
+extension](https://github.com/macadmins/osquery-extension) which comes bundled
+in [Fleet's osquery
 installers](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
+Currently supported only on macOS.
+
 
 Retrieves a host's Google Chrome profile information which can be used to link a host to a specific
 user by email.
@@ -1101,9 +1104,11 @@ user by email.
 ### Get host's mobile device management (MDM) and Munki information
 
 Requires the [macadmins osquery
-extension](https://github.com/macadmins/osquery-extension) which comes bundled in [Fleet's osquery
+extension](https://github.com/macadmins/osquery-extension) which comes bundled
+in [Fleet's osquery
 installers](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
-
+Currently supported only on macOS.
+ 
 Retrieves a host's MDM enrollment status, MDM server URL, and Munki version.
 
 `GET /api/v1/fleet/hosts/{id}/macadmins`
@@ -1141,8 +1146,11 @@ Retrieves a host's MDM enrollment status, MDM server URL, and Munki version.
 ### Get aggregated host's mobile device management (MDM) and Munki information
 
 Requires the [macadmins osquery
-extension](https://github.com/macadmins/osquery-extension) which comes bundled in [Fleet's osquery
+extension](https://github.com/macadmins/osquery-extension) which comes bundled
+in [Fleet's osquery
 installers](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
+Currently supported only on macOS.
+
 
 Retrieves aggregated host's MDM enrollment status and Munki versions.
 
