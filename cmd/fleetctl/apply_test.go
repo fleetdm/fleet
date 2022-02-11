@@ -167,7 +167,7 @@ spec:
       - secret: AAA
 `)
 
-	newAgentOpts := json.RawMessage("{\"config\":{\"something\":\"else\"}}")
+	newAgentOpts := json.RawMessage(`{"config":{"something":"else"}}`)
 
 	require.Equal(t, "[+] applied 2 teams\n", runAppForTest(t, []string{"apply", "-f", tmpFile.Name()}))
 	assert.JSONEq(t, string(agentOpts), string(*teamsByName["team2"].AgentOptions))
