@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
+import { useQuery } from "react-query";
 import { find, isEmpty, lowerCase } from "lodash";
-import moment from "moment";
+import formatDistanceToNowStrict from "date-fns/formatDistanceToNowStrict";
 
-// @ts-ignore
-// import Fleet from "fleet";
-import activitiesAPI from "services/entities/activities";
+import activitiesAPI, {
+  IActivitiesResponse,
+} from "services/entities/activities";
 import { addGravatarUrlToResource } from "fleet/helpers";
 
 import { IActivity, ActivityType } from "interfaces/activity";
@@ -23,8 +24,14 @@ interface IActvityCardProps {
   setShowActivityFeedTitle: (showActivityFeedTitle: boolean) => void;
 }
 
+interface IActivityDisplay extends IActivity {
+  key?: string;
+}
+
 const DEFAULT_GRAVATAR_URL =
   "https://www.gravatar.com/avatar/00000000000000000000000000000000?d=blank&size=200";
+
+const DEFAULT_PER_PAGE = 8;
 
 const TAGGED_TEMPLATES = {
   liveQueryActivityTemplate: (activity: IActivity) => {
@@ -62,86 +69,63 @@ const TAGGED_TEMPLATES = {
 const ActivityFeed = ({
   setShowActivityFeedTitle,
 }: IActvityCardProps): JSX.Element => {
-  const [activities, setActivities] = useState<IActivity[] | []>([]);
-  const [isLoadingError, setIsLoadingError] = useState<boolean>(false);
   const [pageIndex, setPageIndex] = useState<number>(0);
   const [showMore, setShowMore] = useState<boolean>(true);
-  const [isLoadingActivityFeed, setIsLoadingActivityFeed] = useState<boolean>(
-    true
-  );
 
-  useEffect((): void => {
-    const getActivities = async (): Promise<void> => {
-      try {
-        const { activities: responseActivities } = await activitiesAPI.loadNext(
-          pageIndex
-        );
-
-        if (responseActivities.length) {
-          setActivities(responseActivities);
-        } else {
+  const {
+    data: activities,
+    error: errorActivities,
+    isFetching: isFetchingActivities,
+  } = useQuery<
+    IActivitiesResponse,
+    Error,
+    IActivity[],
+    Array<{
+      scope: string;
+      pageIndex: number;
+      perPage: number;
+    }>
+  >(
+    [{ scope: "activities", pageIndex, perPage: DEFAULT_PER_PAGE }],
+    ({ queryKey: [{ pageIndex: page, perPage }] }) => {
+      return activitiesAPI.loadNext(page, perPage);
+    },
+    {
+      staleTime: 5000, // TODO: confirm this with product
+      select: (data) => data.activities,
+      onSuccess: (results) => {
+        setShowActivityFeedTitle(true);
+        if (results.length < DEFAULT_PER_PAGE) {
           setShowMore(false);
         }
-        setShowActivityFeedTitle(true);
-        setIsLoadingActivityFeed(false);
-      } catch (err) {
-        setIsLoadingError(true);
-        setIsLoadingActivityFeed(false);
-      }
-    };
-
-    getActivities();
-  }, [pageIndex]);
+      },
+    }
+  );
 
   const onLoadPrevious = () => {
-    setIsLoadingActivityFeed(true);
     setShowMore(true);
     setPageIndex(pageIndex - 1);
   };
 
   const onLoadNext = () => {
-    setIsLoadingActivityFeed(true);
     setPageIndex(pageIndex + 1);
   };
 
   const getDetail = (activity: IActivity) => {
-    if (activity.type === ActivityType.LiveQuery) {
-      return TAGGED_TEMPLATES.liveQueryActivityTemplate(activity);
+    switch (activity.type) {
+      case ActivityType.LiveQuery: {
+        return TAGGED_TEMPLATES.liveQueryActivityTemplate(activity);
+      }
+      case ActivityType.AppliedSpecPack: {
+        return TAGGED_TEMPLATES.editPackCtlActivityTemplate();
+      }
+      case ActivityType.AppliedSpecSavedQuery: {
+        return TAGGED_TEMPLATES.editQueryCtlActivityTemplate(activity);
+      }
+      default: {
+        return TAGGED_TEMPLATES.defaultActivityTemplate(activity);
+      }
     }
-    if (activity.type === ActivityType.AppliedSpecPack) {
-      return TAGGED_TEMPLATES.editPackCtlActivityTemplate();
-    }
-    if (activity.type === ActivityType.AppliedSpecSavedQuery) {
-      return TAGGED_TEMPLATES.editQueryCtlActivityTemplate(activity);
-    }
-    return TAGGED_TEMPLATES.defaultActivityTemplate(activity);
-  };
-
-  const renderActivityBlock = (activity: IActivity, i: number) => {
-    const { actor_email } = activity;
-    const { gravatarURL } = actor_email
-      ? addGravatarUrlToResource({ email: actor_email })
-      : { gravatarURL: DEFAULT_GRAVATAR_URL };
-
-    return (
-      <div className={`${baseClass}__block`} key={i}>
-        <Avatar
-          className={`${baseClass}__avatar-image`}
-          user={{
-            gravatarURL,
-          }}
-          size="small"
-        />
-        <div className={`${baseClass}__details`}>
-          <p className={`${baseClass}__details-topline`}>
-            <b>{activity.actor_full_name}</b> {getDetail(activity)}.
-          </p>
-          <span className={`${baseClass}__details-bottomline`}>
-            {moment(activity.created_at).fromNow()}
-          </span>
-        </div>
-      </div>
-    );
   };
 
   const renderError = () => {
@@ -183,52 +167,133 @@ const ActivityFeed = ({
     );
   };
 
-  const renderActivities = activities.map((activity: IActivity, i: number) =>
-    renderActivityBlock(activity, i)
-  );
+  const renderActivityBlock = (activity: IActivityDisplay) => {
+    const { actor_email, id, key } = activity;
+    const { gravatarURL } = actor_email
+      ? addGravatarUrlToResource({ email: actor_email })
+      : { gravatarURL: DEFAULT_GRAVATAR_URL };
+
+    return (
+      <div className={`${baseClass}__block`} key={key || id}>
+        <Avatar
+          className={`${baseClass}__avatar-image`}
+          user={{
+            gravatarURL,
+          }}
+          size="small"
+        />
+        <div className={`${baseClass}__details`}>
+          <p className={`${baseClass}__details-topline`}>
+            <b>{activity.actor_full_name}</b> {getDetail(activity)}.
+          </p>
+          <span className={`${baseClass}__details-bottomline`}>
+            {formatDistanceToNowStrict(new Date(activity.created_at), {
+              addSuffix: true,
+            })}
+          </span>
+        </div>
+      </div>
+    );
+  };
+
+  // const unpackDeletes = (
+  //   activity: IActivity,
+  //   entityType: "policies" | "queries"
+  // ): IActivityDisplay[] => {
+  //   const activityTypes = {
+  //     policies: ActivityType.DeletedPolicy,
+  //     queries: ActivityType.DeletedSavedQuery,
+  //   };
+  //   if (!activityTypes[entityType]) {
+  //     return [];
+  //   }
+
+  //   const deletedItems = activity?.details?.[entityType];
+  //   const deletes = deletedItems?.map((item) => {
+  //     const id = find(item, (_, k) => k.includes("id"));
+  //     return {
+  //       ...activity,
+  //       key: `${activity.id}_${id}`,
+  //       type: activityTypes[entityType],
+  //       details: item,
+  //     };
+  //   });
+
+  //   return deletes || [];
+  // };
+
+  // const renderActivities = (activitiesList: IActivityDisplay[]) => {
+  //   const activityFeed = [] as JSX.Element[];
+  //   activitiesList.forEach((activity) => {
+  //     const { type } = activity;
+  //     switch (type) {
+  //       case ActivityType.DeletedMultiplePolicies:
+  //         activityFeed.push(
+  //           ...renderActivities(unpackDeletes(activity, "policies"))
+  //         );
+  //         break;
+  //       case ActivityType.DeletedMultipleSavedQuery:
+  //         activityFeed.push(
+  //           ...renderActivities(unpackDeletes(activity, "queries"))
+  //         );
+  //         break;
+  //       default:
+  //         activityFeed.push(renderActivityBlock(activity));
+  //     }
+  //   });
+  //   return activityFeed;
+  // };
 
   // Renders opaque information as activity feed is loading
-  const opacity = isLoadingActivityFeed ? { opacity: 0.4 } : { opacity: 1 };
+  const opacity = isFetchingActivities ? { opacity: 0.4 } : { opacity: 1 };
 
+  // TODO: talk with product about load more and empty states
   return (
     <div className={baseClass}>
-      {isLoadingError && renderError()}
-      {!isLoadingError && !isLoadingActivityFeed && isEmpty(activities) ? (
+      {errorActivities && renderError()}
+      {!errorActivities &&
+      !isFetchingActivities &&
+      pageIndex === 0 &&
+      isEmpty(activities) ? (
         renderNoActivities()
       ) : (
         <>
-          {isLoadingActivityFeed && (
+          {isFetchingActivities && (
             <div className="spinner">
               <Spinner />
             </div>
           )}
-          <div style={opacity}>{renderActivities}</div>
+          <div style={opacity}>
+            {activities?.map((activity) => renderActivityBlock(activity))}
+          </div>
+          {/* <div style={opacity}>{renderActivities(activities || [])}</div> */}
         </>
       )}
-      {!isLoadingError && !isEmpty(activities) && (
-        <div className={`${baseClass}__pagination`}>
-          <Button
-            disabled={isLoadingActivityFeed || pageIndex === 0}
-            onClick={onLoadPrevious}
-            variant="unstyled"
-            className={`${baseClass}__load-activities-button`}
-          >
-            <>
-              <FleetIcon name="chevronleft" /> Previous
-            </>
-          </Button>
-          <Button
-            disabled={isLoadingActivityFeed || !showMore}
-            onClick={onLoadNext}
-            variant="unstyled"
-            className={`${baseClass}__load-activities-button`}
-          >
-            <>
-              Next <FleetIcon name="chevronright" />
-            </>
-          </Button>
-        </div>
-      )}
+      {!errorActivities &&
+        (!isEmpty(activities) || (isEmpty(activities) && pageIndex > 0)) && (
+          <div className={`${baseClass}__pagination`}>
+            <Button
+              disabled={isFetchingActivities || pageIndex === 0}
+              onClick={onLoadPrevious}
+              variant="unstyled"
+              className={`${baseClass}__load-activities-button`}
+            >
+              <>
+                <FleetIcon name="chevronleft" /> Previous
+              </>
+            </Button>
+            <Button
+              disabled={isFetchingActivities || !showMore}
+              onClick={onLoadNext}
+              variant="unstyled"
+              className={`${baseClass}__load-activities-button`}
+            >
+              <>
+                Next <FleetIcon name="chevronright" />
+              </>
+            </Button>
+          </div>
+        )}
     </div>
   );
 };
