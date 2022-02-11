@@ -32,7 +32,7 @@ require (
 	github.com/ghodss/yaml v1.0.0
 	github.com/go-kit/kit v0.9.0
 	github.com/go-sql-driver/mysql v1.6.0
-	github.com/gocolly/colly v1.2.0 // indirect
+	github.com/gocolly/colly v1.2.0
 	github.com/golang-jwt/jwt/v4 v4.0.0
 	github.com/gomodule/redigo v1.8.5
 	github.com/google/go-cmp v0.5.6
@@ -82,7 +82,8 @@ require (
 	github.com/temoto/robotstxt v1.1.2 // indirect
 	github.com/theupdateframework/go-tuf v0.0.0-20220121203041-e3557e322879
 	github.com/throttled/throttled/v2 v2.8.0
-	github.com/ulikunitz/xz v0.5.10 // indirect
+	github.com/tj/assert v0.0.3
+	github.com/ulikunitz/xz v0.5.10
 	github.com/urfave/cli/v2 v2.3.0
 	github.com/valyala/fasthttp v1.31.0
 	golang.org/x/crypto v0.0.0-20220112180741-5e0467b6c7ce
