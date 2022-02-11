@@ -137,7 +137,7 @@ the way that the Fleet server works.
 				client := otlptracegrpc.NewClient()
 				otlpTraceExporter, err := otlptrace.New(ctx, client)
 				if err != nil {
-					panic(err)
+					initFatal(err)
 				}
 				batchSpanProcessor := sdktrace.NewBatchSpanProcessor(otlpTraceExporter)
 				tracerProvider := sdktrace.NewTracerProvider(
