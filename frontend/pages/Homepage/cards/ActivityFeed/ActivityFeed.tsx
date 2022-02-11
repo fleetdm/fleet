@@ -218,7 +218,11 @@ const ActivityFeed = ({
       ) : (
         <>
           {isFetchingActivities && (
-            <div className="spinner">
+            <div
+              className={`spinner ${
+                activities?.length ? "" : "spinner--empty"
+              }`}
+            >
               <Spinner />
             </div>
           )}
