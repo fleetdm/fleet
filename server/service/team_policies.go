@@ -199,19 +199,32 @@ func (svc Service) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []ui
 	}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
+	// // First make sure the user can read the policies.
+	// if err := svc.authz.Authorize(ctx, &fleet.Policy{
+	// 	PolicyData: fleet.PolicyData{
+	// 		TeamID: teamID,
+	// 	},
+	// }, fleet.ActionRead); err != nil {
+	// 	return nil, err
+	// }
 	if len(ids) == 0 {
 		return nil, nil
 	}
-	// Is there a better approach to gather policy names so we can include them in the activity records?
-	policies, err := svc.ds.ListTeamPolicies(ctx, teamID)
-	if err != nil {
-		return nil, err
-	}
+	policies := []*fleet.Policy{}
 	policiesByID := make(map[uint]*fleet.Policy, len(policies))
-	for _, p := range policies {
-		policiesByID[p.ID] = p
+
+	for _, id := range ids {
+		// // Then check the user can modify this policy
+		// if err := svc.authz.Authorize(ctx, &policy, fleet.ActionWrite); err != nil {
+		// 	return nil, ctxerr.Wrap(ctx, err, "not authorized to modify this policy")
+		// }
+		policy, err := svc.ds.Policy(ctx, id)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "lookup policy by ID")
+		}
+		policiesByID[id] = policy
 	}
-	ids, err = svc.ds.DeleteTeamPolicies(ctx, teamID, ids)
+	ids, err := svc.ds.DeleteTeamPolicies(ctx, teamID, ids)
 	if err != nil {
 		return nil, err
 	}
@@ -223,9 +236,26 @@ func (svc Service) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []ui
 			fleet.ActivityTypeDeletedPolicy,
 			&map[string]interface{}{"policy_id": id, "policy_name": policiesByID[id].Name},
 		); err != nil {
-			return nil, err
+			return nil, ctxerr.Wrap(ctx, err, "add deleted policy activity")
 		}
 	}
+
+	// type DeletedPolicyDetail struct {
+	// 	PolicyID   uint   `json:"policy_id"`
+	// 	PolicyName string `json:"policy_name"`
+	// }
+	// var details []DeletedPolicyDetail
+	// for _, id := range ids {
+	// 	details = append(details, DeletedPolicyDetail{PolicyID: id, PolicyName: policiesByID[id].Name})
+	// // }
+	// if err := svc.ds.NewActivity(
+	// 	ctx,
+	// 	authz.UserFromContext(ctx),
+	// 	fleet.ActivityTypeDeletedMultiplePolicies,
+	// 	&map[string]interface{}{"policies": details},
+	// ); err != nil {
+	// 	return nil, err
+	// }
 
 	return ids, nil
 }
