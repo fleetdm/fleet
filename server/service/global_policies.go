@@ -174,18 +174,21 @@ func (svc Service) DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint
 		return nil, nil
 	}
 	// Is there a better approach to gather policy names so we can include them in the activity records?
-	policies, err := svc.ds.ListGlobalPolicies(ctx)
-	if err != nil {
-		return nil, err
-	}
+	policies := []*fleet.Policy{}
 	policiesByID := make(map[uint]*fleet.Policy, len(policies))
-	for _, p := range policies {
-		policiesByID[p.ID] = p
+	for _, id := range ids {
+		policy, err := svc.ds.Policy(ctx, id)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "lookup policy by ID")
+		}
+		policiesByID[id] = policy
 	}
+
 	if err := svc.removeGlobalPoliciesFromWebhookConfig(ctx, ids); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "removing global policies from webhook config")
 	}
-	ids, err = svc.ds.DeleteGlobalPolicies(ctx, ids)
+
+	ids, err := svc.ds.DeleteGlobalPolicies(ctx, ids)
 	if err != nil {
 		return nil, err
 	}
@@ -197,7 +200,7 @@ func (svc Service) DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint
 			fleet.ActivityTypeDeletedPolicy,
 			&map[string]interface{}{"policy_id": id, "policy_name": policiesByID[id].Name},
 		); err != nil {
-			return nil, err
+			return nil, ctxerr.Wrap(ctx, err, "add deleted policy activity")
 		}
 	}
 	return ids, nil
