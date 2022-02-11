@@ -94,6 +94,7 @@ const ActivityFeed = ({
       return activitiesAPI.loadNext(page, perPage);
     },
     {
+      keepPreviousData: true,
       staleTime: 5000, // TODO: confirm this with product
       select: (data) => data.activities,
       onSuccess: (results) => {
