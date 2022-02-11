@@ -38,6 +38,17 @@ data "aws_iam_policy_document" "fleet" {
     ]
     resources = [aws_kinesis_firehose_delivery_stream.osquery_results.arn, aws_kinesis_firehose_delivery_stream.osquery_status.arn]
   }
+
+  statement {
+    actions = [
+      "kms:Encrypt*",
+      "kms:Decrypt*",
+      "kms:ReEncrypt*",
+      "kms:GenerateDataKey*",
+      "kms:Describe*"
+    ]
+    resources = [aws_kms_key.main.arn]
+  }
 }
 
 data "aws_iam_policy_document" "assume_role" {

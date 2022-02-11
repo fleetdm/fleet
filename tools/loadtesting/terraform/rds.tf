@@ -8,7 +8,8 @@ resource "random_pet" "db_secret_postfix" {
 }
 
 resource "aws_secretsmanager_secret" "database_password_secret" {
-  name = "/fleet/database/password/master-2-${random_pet.db_secret_postfix.id}"
+  name       = "/fleet/database/password/master-2-${random_pet.db_secret_postfix.id}"
+  kms_key_id = aws_kms_key.main.id
 }
 
 resource "aws_secretsmanager_secret_version" "database_password_secret_version" {

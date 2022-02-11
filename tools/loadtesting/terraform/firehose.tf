@@ -16,6 +16,9 @@ resource "aws_s3_bucket" "osquery-results" {
       }
     }
   }
+  #checkov:skip=CKV_AWS_18:dev env
+  #checkov:skip=CKV_AWS_144:dev env
+  #checkov:skip=CKV_AWS_21:dev env
 }
 
 resource "aws_s3_bucket" "osquery-status" {
@@ -36,6 +39,9 @@ resource "aws_s3_bucket" "osquery-status" {
       }
     }
   }
+  #checkov:skip=CKV_AWS_18:dev env
+  #checkov:skip=CKV_AWS_144:dev env
+  #checkov:skip=CKV_AWS_21:dev env
 }
 
 data "aws_iam_policy_document" "osquery_results_policy_doc" {
