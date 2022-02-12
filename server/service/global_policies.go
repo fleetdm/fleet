@@ -191,6 +191,7 @@ func (svc Service) DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint
 	}
 
 	// Is there a better approach to handling errors that might occur as we loop over multiple ids?
+	// What happens if writing an activity fails? API endpoint surfaces an error to the UI? Do we need to rollback the deletes?
 	for _, id := range deletedIDs {
 		if err := svc.ds.NewActivity(
 			ctx,
@@ -284,6 +285,7 @@ func applyPolicySpecsEndpoint(ctx context.Context, request interface{}, svc flee
 	return applyPolicySpecsResponse{}, nil
 }
 
+// TODO: add tests for activities?
 func (svc Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.PolicySpec) error {
 	checkGlobalPolicyAuth := false
 	for _, policy := range policies {
@@ -320,6 +322,7 @@ func (svc Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.Polic
 	if err := svc.ds.ApplyPolicySpecs(ctx, vc.UserID(), policies); err != nil {
 		return ctxerr.Wrap(ctx, err, "applying policy specs")
 	}
+	// Same question, what happens if the activity write fails?
 	return svc.ds.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),

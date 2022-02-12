@@ -902,12 +902,14 @@ func testPolicyQueriesForHost(t *testing.T, ds *Datastore) {
 func testPoliciesByID(t *testing.T, ds *Datastore) {
 	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 	policy1 := newTestPolicy(t, ds, user1, "policy1", "darwin", nil)
-	policy2 := newTestPolicy(t, ds, user1, "policy2", "darwin", nil)
+	_ = newTestPolicy(t, ds, user1, "policy2", "darwin", nil)
 	policiesByID, err := ds.PoliciesByID(context.Background(), []uint{1, 2})
 	require.NoError(t, err)
 	assert.Equal(t, len(policiesByID), 2)
+	assert.Equal(t, policiesByID[1].ID, policy1.ID)
 	assert.Equal(t, policiesByID[1].Name, policy1.Name)
-	assert.Equal(t, policiesByID[2].Name, policy2.Name)
+	assert.Equal(t, policiesByID[2].ID, uint(2))
+	assert.Equal(t, policiesByID[2].Name, "policy2")
 	_, err = ds.PoliciesByID(context.Background(), []uint{1, 2, 3})
 	assert.Contains(t, err.Error(), "Policy 3 was not found in the datastore")
 }
