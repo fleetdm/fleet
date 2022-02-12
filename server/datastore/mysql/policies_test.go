@@ -33,6 +33,7 @@ func TestPolicies(t *testing.T) {
 		{"TeamPolicyProprietary", testTeamPolicyProprietary},
 		{"PolicyQueriesForHost", testPolicyQueriesForHost},
 		{"PolicyQueriesForHostPlatforms", testPolicyQueriesForHostPlatforms},
+		{"PoliciesByID", testPoliciesByID},
 		{"TeamPolicyTransfer", testTeamPolicyTransfer},
 		{"ApplyPolicySpec", testApplyPolicySpec},
 		{"Save", testPoliciesSave},
@@ -896,6 +897,19 @@ func testPolicyQueriesForHost(t *testing.T, ds *Datastore) {
 
 	assert.NotNil(t, policies[1].Resolution)
 	assert.Empty(t, *policies[1].Resolution)
+}
+
+func testPoliciesByID(t *testing.T, ds *Datastore) {
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	policy1 := newTestPolicy(t, ds, user1, "policy1", "darwin", nil)
+	policy2 := newTestPolicy(t, ds, user1, "policy2", "darwin", nil)
+	policiesByID, err := ds.PoliciesByID(context.Background(), []uint{1, 2})
+	require.NoError(t, err)
+	assert.Equal(t, len(policiesByID), 2)
+	assert.Equal(t, policiesByID[1].Name, policy1.Name)
+	assert.Equal(t, policiesByID[2].Name, policy2.Name)
+	_, err = ds.PoliciesByID(context.Background(), []uint{1, 2, 3})
+	assert.Contains(t, err.Error(), "Policy 3 was not found in the datastore")
 }
 
 func testTeamPolicyTransfer(t *testing.T, ds *Datastore) {
