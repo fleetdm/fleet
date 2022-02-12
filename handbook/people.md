@@ -107,6 +107,11 @@ We use these prefixes to organize the Fleet Slack:
 
 ## People Ops
 
+### Performance Feedback
+At Fleet, performance feedback is a continuous process. We give feedback (especially negative) as soon as possible. Most feedback will happen during 1:1 meetings, if not sooner.
+
+We evaluate and update compensation decisions yearly, shortly after the anniversary of a team members' start date.
+
 ### Hiring a new team member
 
 1. Reach out to Mike and Zach and give them an opportunity to meet the candidate.
