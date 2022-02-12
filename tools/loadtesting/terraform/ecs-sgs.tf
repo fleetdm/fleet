@@ -30,6 +30,40 @@ resource "aws_security_group_rule" "lb-http-ingress" {
   security_group_id = aws_security_group.lb.id
 }
 
+resource "aws_security_group_rule" "lb-es" {
+  description = "${local.prefix}: allow traffic from public internet"
+  type        = "ingress"
+
+  from_port   = "9200"
+  to_port     = "9200"
+  protocol    = "tcp"
+  cidr_blocks = ["10.0.0.0/8"]
+
+  security_group_id = aws_security_group.lb.id
+}
+resource "aws_security_group_rule" "lb-es-apm" {
+  description = "${local.prefix}: allow traffic from public internet"
+  type        = "ingress"
+
+  from_port   = "8200"
+  to_port     = "8200"
+  protocol    = "tcp"
+  cidr_blocks = ["10.0.0.0/8"]
+
+  security_group_id = aws_security_group.lb.id
+}
+resource "aws_security_group_rule" "lb-kibana" {
+  description = "${local.prefix}: allow traffic from public internet"
+  type        = "ingress"
+
+  from_port   = "5601"
+  to_port     = "5601"
+  protocol    = "tcp"
+  cidr_blocks = ["10.0.0.0/8"]
+
+  security_group_id = aws_security_group.lb.id
+}
+
 # Allow outbound traffic
 resource "aws_security_group_rule" "lb-egress" {
   description = "${local.prefix}: allow all outbound traffic"
