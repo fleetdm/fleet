@@ -32,9 +32,9 @@ module.exports = {
 
     let estimationReport = {};
 
-    let projects = await sails.helpers.http.get(`https://api.github.com/orgs/fleetdm/projects`, {}, baseHeaders);
     // FUTURE: only look at particular projects here instead of all of them
-    projects = projects.filter((project)=> Number(project.id) === 13160610);// « TODO get rid of this hack
+    let projects = await sails.helpers.http.get(`https://api.github.com/orgs/fleetdm/projects`, {}, baseHeaders);
+    // projects = projects.filter((project)=> Number(project.id) === 13160610);// « hack to try it w/ just one project
 
     await sails.helpers.flow.simultaneouslyForEach(projects, async(project)=>{
       estimationReport[project.name] = {};
