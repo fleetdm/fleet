@@ -1,7 +1,7 @@
 name: Go Tests
 
 env:
-  CRON_SCHEDULE: '0 4 * * *'
+  CRON_SCHEDULE: 0 4 * * *
 
 on:
   push:
@@ -15,7 +15,7 @@ on:
       - '**.go'
   workflow_dispatch: # Manual
   schedule:
-    - cron: $CRON_SCHEDULE
+    - cron: '${{ CRON_SCHEDULE }}'
 
 jobs:
   test-go:
