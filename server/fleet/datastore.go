@@ -348,6 +348,10 @@ type Datastore interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// GlobalPoliciesStore
 
+	// ApplyQueries applies a list of policies (likely from a yaml file) to the datastore. Existing policies are updated,
+	// and new policies are created.
+	ApplyPolicySpecs(ctx context.Context, authorID uint, specs []*PolicySpec) error
+
 	NewGlobalPolicy(ctx context.Context, authorID *uint, args PolicyPayload) (*Policy, error)
 	Policy(ctx context.Context, id uint) (*Policy, error)
 	// SavePolicy updates some fields of the given policy on the datastore.
@@ -360,7 +364,6 @@ type Datastore interface {
 	DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint, error)
 
 	PolicyQueriesForHost(ctx context.Context, host *Host) (map[string]string, error)
-	ApplyPolicySpecs(ctx context.Context, authorID uint, specs []*PolicySpec) error
 
 	// Methods used for async processing of host policy query results.
 	AsyncBatchInsertPolicyMembership(ctx context.Context, batch []PolicyMembershipResult) error

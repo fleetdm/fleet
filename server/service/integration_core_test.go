@@ -1402,7 +1402,10 @@ func (s *integrationTestSuite) TestListActivities() {
 	u := s.users["admin1@example.com"]
 	details := make(map[string]interface{})
 
-	err := s.ds.NewActivity(ctx, &u, fleet.ActivityTypeAppliedSpecPack, &details)
+	prevActivities, err := s.ds.ListActivities(ctx, fleet.ListOptions{})
+	require.NoError(t, err)
+
+	err = s.ds.NewActivity(ctx, &u, fleet.ActivityTypeAppliedSpecPack, &details)
 	require.NoError(t, err)
 
 	err = s.ds.NewActivity(ctx, &u, fleet.ActivityTypeDeletedPack, &details)
@@ -1411,13 +1414,15 @@ func (s *integrationTestSuite) TestListActivities() {
 	err = s.ds.NewActivity(ctx, &u, fleet.ActivityTypeEditedPack, &details)
 	require.NoError(t, err)
 
-	var listResp listActivitiesResponse
-	s.DoJSON("GET", "/api/v1/fleet/activities", nil, http.StatusOK, &listResp, "per_page", "2", "order_key", "id")
-	require.Len(t, listResp.Activities, 2)
-	assert.Equal(t, fleet.ActivityTypeAppliedSpecPack, listResp.Activities[0].Type)
-	assert.Equal(t, fleet.ActivityTypeDeletedPack, listResp.Activities[1].Type)
+	lenPage := len(prevActivities) + 2
 
-	s.DoJSON("GET", "/api/v1/fleet/activities", nil, http.StatusOK, &listResp, "per_page", "2", "order_key", "id", "page", "1")
+	var listResp listActivitiesResponse
+	s.DoJSON("GET", "/api/v1/fleet/activities", nil, http.StatusOK, &listResp, "per_page", strconv.Itoa(lenPage), "order_key", "id")
+	require.Len(t, listResp.Activities, lenPage)
+	assert.Equal(t, fleet.ActivityTypeAppliedSpecPack, listResp.Activities[lenPage-2].Type)
+	assert.Equal(t, fleet.ActivityTypeDeletedPack, listResp.Activities[lenPage-1].Type)
+
+	s.DoJSON("GET", "/api/v1/fleet/activities", nil, http.StatusOK, &listResp, "per_page", strconv.Itoa(lenPage), "order_key", "id", "page", "1")
 	require.Len(t, listResp.Activities, 1)
 	assert.Equal(t, fleet.ActivityTypeEditedPack, listResp.Activities[0].Type)
 
@@ -1742,13 +1747,15 @@ func (s *integrationTestSuite) TestScheduledQueries() {
 	// batch-delete by id, 3 ids, only one exists
 	var delBatchResp deleteQueriesResponse
 	s.DoJSON("POST", "/api/v1/fleet/queries/delete", map[string]interface{}{
-		"ids": []uint{query.ID, query2.ID, query3.ID}}, http.StatusOK, &delBatchResp)
+		"ids": []uint{query.ID, query2.ID, query3.ID},
+	}, http.StatusOK, &delBatchResp)
 	assert.Equal(t, uint(1), delBatchResp.Deleted)
 
 	// batch-delete by id, none exist
 	delBatchResp.Deleted = 0
 	s.DoJSON("POST", "/api/v1/fleet/queries/delete", map[string]interface{}{
-		"ids": []uint{query.ID, query2.ID, query3.ID}}, http.StatusNotFound, &delBatchResp)
+		"ids": []uint{query.ID, query2.ID, query3.ID},
+	}, http.StatusNotFound, &delBatchResp)
 	assert.Equal(t, uint(0), delBatchResp.Deleted)
 }
 
@@ -2615,7 +2622,8 @@ func (s *integrationTestSuite) TestQuerySpecs() {
 	// delete all queries created
 	var delBatchResp deleteQueriesResponse
 	s.DoJSON("POST", "/api/v1/fleet/queries/delete", map[string]interface{}{
-		"ids": []uint{q1ID, q2ID, q3ID}}, http.StatusOK, &delBatchResp)
+		"ids": []uint{q1ID, q2ID, q3ID},
+	}, http.StatusOK, &delBatchResp)
 	assert.Equal(t, uint(3), delBatchResp.Deleted)
 }
 
