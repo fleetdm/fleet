@@ -3372,7 +3372,7 @@ func testHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	// simulate uninstall
 	require.NoError(t, ds.SetOrUpdateMunkiVersion(context.Background(), 123, ""))
 
-	version, err = ds.GetMunkiVersion(context.Background(), 123)
+	_, err = ds.GetMunkiVersion(context.Background(), 123)
 	require.True(t, fleet.IsNotFound(err))
 
 	_, _, _, err = ds.GetMDM(context.Background(), 432)
