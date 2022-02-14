@@ -27,7 +27,7 @@ require (
 	github.com/facebookincubator/flog v0.0.0-20190930132826-d2511d0ce33c // indirect
 	github.com/facebookincubator/nvdtools v0.1.4
 	github.com/fatih/color v1.12.0
-	github.com/fleetdm/goose v0.0.0-20210209032905-c3c01484bacb
+	github.com/fleetdm/goose v0.0.0-20220214194029-91b5e5eb8e77
 	github.com/getsentry/sentry-go v0.12.0
 	github.com/ghodss/yaml v1.0.0
 	github.com/go-kit/kit v0.9.0
@@ -43,7 +43,7 @@ require (
 	github.com/gorilla/mux v1.8.0
 	github.com/gorilla/websocket v1.4.2
 	github.com/gosuri/uilive v0.0.4
-	github.com/hashicorp/go-multierror v1.0.0 // indirect
+	github.com/hashicorp/go-multierror v1.0.0
 	github.com/hectane/go-acl v0.0.0-20190604041725-da78bae5fc95
 	github.com/igm/sockjs-go/v3 v3.0.0
 	github.com/jinzhu/copier v0.3.2
