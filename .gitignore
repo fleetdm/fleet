@@ -57,3 +57,8 @@ terraform.tfstate*
 
 # generated installers
 fleet-osquery*
+
+# residual files when running the cpe command
+cmd/cpe/etagenv
+cmd/cpe/cpe*.sqlite
+cmd/cpe/cpe*.sqlite.gz
