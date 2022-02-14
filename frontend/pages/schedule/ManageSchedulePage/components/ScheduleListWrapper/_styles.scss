@@ -69,6 +69,14 @@
     margin: 0 12px 0 0;
     display: inline-block;
   }
+
+  span {
+    margin-right: $pad-small;
+  }
+
+  .queries-table__performance-impact-tooltip {
+    font-weight: 400;
+  }
 }
 
 .no-schedule {

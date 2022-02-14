@@ -1,4 +1,5 @@
 import React from "react";
+import ReactTooltip from "react-tooltip";
 import { uniqueId } from "lodash";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
@@ -79,13 +80,24 @@ const generatePackTableHeaders = (): IDataColumn[] => {
     },
     {
       title: "Performance impact",
-      Header: "Performance impact",
+      Header: () => {
+        return (
+          <>
+            Performance impact
+            <IconToolTip
+              isHtml
+              text={`This is the performance <br />impact on this host.`}
+            />
+          </>
+        );
+      },
       disableSortBy: true,
       accessor: "performance",
       Cell: (cellProps) => (
         <PillCell
           value={cellProps.cell.value}
           customIdPrefix="query-perf-pill"
+          page="host details"
         />
       ),
     },

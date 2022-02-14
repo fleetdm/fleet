@@ -40,4 +40,12 @@
     font-size: $x-small;
     font-weight: $bold;
   }
+
+  span {
+    margin-right: $pad-small;
+  }
+
+  .queries-table__performance-impact-tooltip {
+    font-weight: 400;
+  }
 }
