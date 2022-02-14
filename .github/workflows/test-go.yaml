@@ -67,7 +67,7 @@ jobs:
         files: coverage.txt
 
     - name: Slack Notification
-      if: github.event.schedule == '0 4 * * *' && failure()
+      # if: github.event.schedule == '0 4 * * *' && failure()
       uses: slackapi/slack-github-action@v1.18.0
       with:
         payload: |
@@ -78,7 +78,7 @@ jobs:
                 "type": "section",
                 "text": {
                   "type": "mrkdwn",
-                  "text": "GitHub Action build result: ${{ job.status }}\n${{ github.event.pull_request.html_url || github.event.head.html_url }}"
+                  "text": "Go tests result: ${{ job.status }}\nhttps://github.com/fleetdm/fleet/actions/runs/${{  github.run_id }}\n${{ github.event.pull_request.html_url || github.event.head.html_url }}"
                 }
               }
             ]
