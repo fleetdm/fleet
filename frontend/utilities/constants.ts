@@ -31,7 +31,8 @@ export const DEFAULT_POLICIES = [
     name: "Antivirus healthy (macOS)",
     description:
       "Checks the version of Malware Removal Tool (MRT) and the built-in macOS AV (Xprotect). Replace version numbers with latest version regularly.",
-    resolution: "To enable automatic security definition updates, on the failing device, select System Preferences > Software Update > Advanced > Turn on Install system data files and security updates.",
+    resolution:
+      "To enable automatic security definition updates, on the failing device, select System Preferences > Software Update > Advanced > Turn on Install system data files and security updates.",
     platform: "darwin",
   },
   {
@@ -41,7 +42,8 @@ export const DEFAULT_POLICIES = [
     name: "Antivirus healthy (Windows)",
     description:
       "Checks the status of antivirus and signature updates from the Windows Security Center.",
-    resolution: "Ensure Windows Defender or your third-party antivirus is running, up to date, and visible in the Windows Security Center.",
+    resolution:
+      "Ensure Windows Defender or your third-party antivirus is running, up to date, and visible in the Windows Security Center.",
     platform: "windows",
   },
   {
@@ -57,7 +59,8 @@ export const DEFAULT_POLICIES = [
   },
   {
     key: 5,
-    query: "SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT '' AND filevault_status = 'on' LIMIT 1;",
+    query:
+      "SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT '' AND filevault_status = 'on' LIMIT 1;",
     name: "Full disk encryption enabled (macOS)",
     description:
       "Checks to make sure that full disk encryption (FileVault) is enabled on macOS devices.",
