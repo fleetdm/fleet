@@ -216,10 +216,8 @@ func (svc Service) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []ui
 	}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
-	if err := svc.removeGlobalPoliciesFromWebhookConfig(ctx, ids); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "removing global policies from webhook config")
-	}
-	deletedIDs, err := svc.ds.DeleteGlobalPolicies(ctx, ids)
+
+	deletedIDs, err := svc.ds.DeleteTeamPolicies(ctx, teamID, ids)
 	if err != nil {
 		return nil, err
 	}
