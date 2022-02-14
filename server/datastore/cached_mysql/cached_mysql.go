@@ -64,7 +64,11 @@ func (w *cloneCache) Get(k string) (interface{}, bool) {
 		return v, false
 	}
 
-	clone, _ := clone(v)
+	clone, err := clone(v)
+	if err != nil {
+		// Unfortunely, we can't return an error here. Let's return a cache miss instead of panic'ing.
+		return nil, false
+	}
 	return clone, true
 }
 
