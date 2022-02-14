@@ -3,7 +3,9 @@ import md5 from "js-md5";
 import moment from "moment";
 import yaml from "js-yaml";
 
+import { IConfigNested } from "interfaces/config";
 import { ILabel } from "interfaces/label";
+import { IPack } from "interfaces/pack";
 import { ITeam, ITeamSummary } from "interfaces/team";
 import { IUser } from "interfaces/user";
 import { IPackQueryFormData } from "interfaces/scheduled_query";
@@ -172,7 +174,7 @@ export const formatConfigDataForServer = (config: any): any => {
 };
 
 // TODO: Finalize interface for config - see frontend\interfaces\config.ts
-export const frontendFormattedConfig = (config: any) => {
+export const frontendFormattedConfig = (config: IConfigNested) => {
   const {
     org_info: orgInfo,
     server_settings: serverSettings,
@@ -204,7 +206,7 @@ export const frontendFormattedConfig = (config: any) => {
 };
 
 const formatLabelResponse = (response: any): ILabel[] => {
-  const labels = response.labels.map((label: any) => {
+  const labels = response.labels.map((label: ILabel) => {
     return {
       ...label,
       slug: labelSlug(label),
@@ -420,14 +422,14 @@ export const formatTeamScheduledQueryForClient = (scheduledQuery: any): any => {
   return scheduledQuery;
 };
 
-export const formatTeamForClient = (team: any): any => {
+export const formatTeamForClient = (team: ITeam): ITeam => {
   if (team.display_text === undefined) {
     team.display_text = team.name;
   }
   return team;
 };
 
-export const formatPackForClient = (pack: any): any => {
+export const formatPackForClient = (pack: IPack): IPack => {
   pack.host_ids ||= [];
   pack.label_ids ||= [];
   pack.team_ids ||= [];
