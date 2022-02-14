@@ -41,7 +41,7 @@ DAEMON_LABEL="com.fleetdm.orbit"
 DAEMON_PLIST="/Library/LaunchDaemons/${DAEMON_LABEL}.plist"
 
 # Remove any pre-existing version of the config
-launchctl bootout system "${DAEMON_PLIST}"
+launchctl bootout "system/${DAEMON_LABEL}"
 # Add the daemon to the launchd system
 launchctl bootstrap system "${DAEMON_PLIST}"
 # Enable the daemon
