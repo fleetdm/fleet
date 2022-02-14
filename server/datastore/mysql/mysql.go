@@ -32,6 +32,8 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/jmoiron/sqlx"
 	"github.com/ngrok/sqlmw"
+	"go.elastic.co/apm/module/apmsql"
+	apmmysql "go.elastic.co/apm/module/apmsql/mysql"
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 )
 
@@ -289,7 +291,9 @@ var tracedDriverName string
 
 func init() {
 	var err error
-	tracedDriverName, err = otelsql.Register("apm/mysql", semconv.DBSystemMySQL.Value.AsString())
+	tracedDriverName, err = otelsql.Register("mysql", semconv.DBSystemMySQL.Value.AsString())
+	apmsql.Register(tracedDriverName, &mysql.MySQLDriver{}, apmsql.WithDSNParser(apmmysql.ParseDSN))
+	tracedDriverName = "apm/mysql"
 	if err != nil {
 		panic(err)
 	}

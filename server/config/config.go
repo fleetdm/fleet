@@ -454,7 +454,7 @@ func (man Manager) addConfigs() {
 		"Amount of time to keep errors, 0 means no expiration, < 0 means disable storage of errors")
 	man.addConfigBool("logging.tracing_enabled", false,
 		"Enable Tracing, further configured via standard env variables")
-	man.addConfigBool("logging.tracing_type", "opentelemetry",
+	man.addConfigString("logging.tracing_type", "opentelemetry",
 		"Select the kind of tracing, defaults to opentelemetry, can also be elasticapm")
 
 	// Firehose
@@ -655,7 +655,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			DisableBanner:        man.getConfigBool("logging.disable_banner"),
 			ErrorRetentionPeriod: man.getConfigDuration("logging.error_retention_period"),
 			TracingEnabled:       man.getConfigBool("logging.tracing_enabled"),
-			TracingType:          man.getConfigBool("logging.tracing_type"),
+			TracingType:          man.getConfigString("logging.tracing_type"),
 		},
 		Firehose: FirehoseConfig{
 			Region:           man.getConfigString("firehose.region"),
