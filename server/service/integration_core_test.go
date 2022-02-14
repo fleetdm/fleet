@@ -223,13 +223,19 @@ func (s *integrationTestSuite) TestPolicyDeletionLogsActivity() {
 	s.DoJSON("GET", "/api/v1/fleet/activities", nil, http.StatusOK, &newActivities)
 	require.Equal(t, len(newActivities.Activities), (len(prevActivities.Activities) + 2))
 
-	var deletes []*fleet.Activity
-	for _, a := range newActivities.Activities {
+	var prevDeletes []*fleet.Activity
+	for _, a := range prevActivities.Activities {
 		if a.Type == "deleted_policy" {
-			deletes = append(deletes, a)
+			prevDeletes = append(prevDeletes, a)
 		}
 	}
-	require.Equal(t, len(deletes), 2)
+	var newDeletes []*fleet.Activity
+	for _, a := range newActivities.Activities {
+		if a.Type == "deleted_policy" {
+			newDeletes = append(newDeletes, a)
+		}
+	}
+	require.Equal(t, len(newDeletes), (len(prevDeletes) + 2))
 
 	type policyDetails struct {
 		PolicyID   uint   `json:"policy_id"`
@@ -237,7 +243,7 @@ func (s *integrationTestSuite) TestPolicyDeletionLogsActivity() {
 	}
 	for _, id := range policyIDs {
 		found := false
-		for _, a := range deletes {
+		for _, a := range newDeletes {
 			var details policyDetails
 			err := json.Unmarshal([]byte(*a.Details), &details)
 			require.NoError(t, err)
@@ -251,7 +257,7 @@ func (s *integrationTestSuite) TestPolicyDeletionLogsActivity() {
 	}
 	for _, p := range testPolicies {
 		found := false
-		for _, a := range deletes {
+		for _, a := range newDeletes {
 			var details policyDetails
 			err := json.Unmarshal([]byte(*a.Details), &details)
 			require.NoError(t, err)
