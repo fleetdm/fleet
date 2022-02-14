@@ -135,7 +135,8 @@ type LoggingConfig struct {
 	DisableBanner        bool          `yaml:"disable_banner"`
 	ErrorRetentionPeriod time.Duration `yaml:"error_retention_period"`
 	TracingEnabled       bool          `yaml:"tracing_enabled"`
-	TracingType          string        `yaml:"tracing_type"`
+	// TracingType can either be opentelemetry or elasticapm for whichever type of tracing wanted
+	TracingType string `yaml:"tracing_type"`
 }
 
 // FirehoseConfig defines configs for the AWS Firehose logging plugin
