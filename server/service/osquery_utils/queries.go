@@ -430,7 +430,7 @@ SELECT
   version AS version,
   'Package (Atom)' AS type,
   'atom_packages' AS source
-FROM users CROSS JOIN atom_packages USING (uid)
+FROM cached_users CROSS JOIN atom_packages USING (uid)
 UNION
 SELECT
   name AS name,
