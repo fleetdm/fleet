@@ -15,7 +15,7 @@ on:
       - '**.go'
   workflow_dispatch: # Manual
   schedule:
-    - cron: '${{ CRON_SCHEDULE }}'
+    - cron: '0 4 * * *'
 
 jobs:
   test-go:
