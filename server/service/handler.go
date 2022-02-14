@@ -30,7 +30,6 @@ type FleetEndpoints struct {
 	ResetPassword                 endpoint.Endpoint
 	CreateUserWithInvite          endpoint.Endpoint
 	PerformRequiredPasswordReset  endpoint.Endpoint
-	CreateInvite                  endpoint.Endpoint
 	ListInvites                   endpoint.Endpoint
 	DeleteInvite                  endpoint.Endpoint
 	VerifyInvite                  endpoint.Endpoint
@@ -76,7 +75,6 @@ func MakeFleetServerEndpoints(svc fleet.Service, urlPrefix string, limitStore th
 		PerformRequiredPasswordReset: logged(canPerformPasswordReset(makePerformRequiredPasswordResetEndpoint(svc))),
 
 		// Standard user authentication routes
-		CreateInvite: authenticatedUser(svc, makeCreateInviteEndpoint(svc)),
 		ListInvites:  authenticatedUser(svc, makeListInvitesEndpoint(svc)),
 		DeleteInvite: authenticatedUser(svc, makeDeleteInviteEndpoint(svc)),
 
@@ -109,7 +107,6 @@ type fleetHandlers struct {
 	ResetPassword                 http.Handler
 	CreateUserWithInvite          http.Handler
 	PerformRequiredPasswordReset  http.Handler
-	CreateInvite                  http.Handler
 	ListInvites                   http.Handler
 	DeleteInvite                  http.Handler
 	VerifyInvite                  http.Handler
@@ -141,7 +138,6 @@ func makeKitHandlers(e FleetEndpoints, opts []kithttp.ServerOption) *fleetHandle
 		ResetPassword:                 newServer(e.ResetPassword, decodeResetPasswordRequest),
 		CreateUserWithInvite:          newServer(e.CreateUserWithInvite, decodeCreateUserRequest),
 		PerformRequiredPasswordReset:  newServer(e.PerformRequiredPasswordReset, decodePerformRequiredPasswordResetRequest),
-		CreateInvite:                  newServer(e.CreateInvite, decodeCreateInviteRequest),
 		ListInvites:                   newServer(e.ListInvites, decodeListInvitesRequest),
 		DeleteInvite:                  newServer(e.DeleteInvite, decodeDeleteInviteRequest),
 		VerifyInvite:                  newServer(e.VerifyInvite, decodeVerifyInviteRequest),
@@ -343,9 +339,6 @@ func attachFleetAPIRoutes(r *mux.Router, h *fleetHandlers) {
 
 	r.Handle("/api/v1/fleet/users", h.CreateUserWithInvite).Methods("POST").Name("create_user_with_invite")
 
-	r.Handle("/api/v1/fleet/invites", h.CreateInvite).Methods("POST").Name("create_invite")
-	r.Handle("/api/v1/fleet/invites", h.ListInvites).Methods("GET").Name("list_invites")
-	r.Handle("/api/v1/fleet/invites/{id:[0-9]+}", h.DeleteInvite).Methods("DELETE").Name("delete_invite")
 	r.Handle("/api/v1/fleet/invites/{token}", h.VerifyInvite).Methods("GET").Name("verify_invite")
 
 	r.Handle("/api/v1/fleet/email/change/{token}", h.ChangeEmail).Methods("GET").Name("change_email")
@@ -408,6 +401,14 @@ func attachNewStyleFleetAPIRoutes(r *mux.Router, svc fleet.Service, opts []kitht
 	e.GET("/api/_version_/fleet/users/{id:[0-9]+}/sessions", getInfoAboutSessionsForUserEndpoint, getInfoAboutSessionsForUserRequest{})
 	e.DELETE("/api/_version_/fleet/users/{id:[0-9]+}/sessions", deleteSessionsForUserEndpoint, deleteSessionsForUserRequest{})
 	e.POST("/api/_version_/fleet/change_password", changePasswordEndpoint, changePasswordRequest{})
+
+	e.POST("/api/_version_/fleet/invites", createInviteEndpoint, createInviteRequest{})
+	e.GET("/api/_version_/fleet/invites", listInvitesEndpoint, listInvitesRequest{})
+	e.DELETE("/api/v1/fleet/invites/{id:[0-9]+}", deleteInviteEndpoint, deleteInviteRequest{})
+	e.PATCH("/api/_version_/fleet/invites/{id:[0-9]+}", updateInviteEndpoint, updateInviteRequest{})
+
+	//r.Handle("/api/v1/fleet/invites", h.ListInvites).Methods("GET").Name("list_invites")
+	//r.Handle("/api/v1/fleet/invites/{id:[0-9]+}", h.DeleteInvite).Methods("DELETE").Name("delete_invite")
 
 	e.POST("/api/_version_/fleet/global/policies", globalPolicyEndpoint, globalPolicyRequest{})
 	e.GET("/api/_version_/fleet/global/policies", listGlobalPoliciesEndpoint, nil)
@@ -479,8 +480,6 @@ func attachNewStyleFleetAPIRoutes(r *mux.Router, svc fleet.Service, opts []kitht
 	e.GET("/api/_version_/fleet/queries/run", runLiveQueryEndpoint, runLiveQueryRequest{})
 	e.POST("/api/_version_/fleet/queries/run", createDistributedQueryCampaignEndpoint, createDistributedQueryCampaignRequest{})
 	e.POST("/api/_version_/fleet/queries/run_by_names", createDistributedQueryCampaignByNamesEndpoint, createDistributedQueryCampaignByNamesRequest{})
-
-	e.PATCH("/api/_version_/fleet/invites/{id:[0-9]+}", updateInviteEndpoint, updateInviteRequest{})
 
 	e.GET("/api/_version_/fleet/activities", listActivitiesEndpoint, listActivitiesRequest{})
 

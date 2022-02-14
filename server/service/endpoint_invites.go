@@ -7,28 +7,6 @@ import (
 	"github.com/go-kit/kit/endpoint"
 )
 
-type createInviteRequest struct {
-	payload fleet.InvitePayload
-}
-
-type createInviteResponse struct {
-	Invite *fleet.Invite `json:"invite,omitempty"`
-	Err    error         `json:"error,omitempty"`
-}
-
-func (r createInviteResponse) error() error { return r.Err }
-
-func makeCreateInviteEndpoint(svc fleet.Service) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		req := request.(createInviteRequest)
-		invite, err := svc.InviteNewUser(ctx, req.payload)
-		if err != nil {
-			return createInviteResponse{Err: err}, nil
-		}
-		return createInviteResponse{invite, nil}, nil
-	}
-}
-
 type listInvitesRequest struct {
 	ListOptions fleet.ListOptions
 }
