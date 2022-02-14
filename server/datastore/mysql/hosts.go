@@ -1369,10 +1369,12 @@ func (ds *Datastore) generateAggregatedMunkiVersion(ctx context.Context, teamID 
 	args := []interface{}{}
 	if teamID != nil {
 		args = append(args, *teamID)
-		query += ` JOIN hosts h ON (h.id=hm.host_id) WHERE h.team_id=?`
+		query += ` JOIN hosts h ON (h.id=hm.host_id) WHERE h.team_id=? AND `
 		id = *teamID
+	} else {
+		query += `  WHERE `
 	}
-	query += ` GROUP BY hm.version`
+	query += ` hm.version <> '' GROUP BY hm.version`
 	err := sqlx.SelectContext(ctx, ds.reader, &versions, query, args...)
 	if err != nil {
 		return ctxerr.Wrapf(ctx, err, "getting aggregated data from host_munki")
