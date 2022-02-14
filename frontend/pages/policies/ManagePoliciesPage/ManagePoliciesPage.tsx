@@ -450,7 +450,7 @@ const ManagePolicyPage = ({
               />
             ))}
         </div>
-        {showInheritedPoliciesButton && (
+        {showInheritedPoliciesButton && globalPolicies && (
           <span>
             <Button
               variant="unstyled"
