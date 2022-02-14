@@ -491,7 +491,7 @@ the way that the Fleet server works.
 			httpSrvCtx := ctxerr.NewContext(ctx, eh)
 
 			// Create the handler based on whether tracing should be there
-			var handler launcher.Handler
+			var handler http.Handler
 			if config.Logging.TracingEnabled && config.Logging.TracingType == "elasticapm" {
 				handler = launcher.Handler(apmhttp.Wrap(rootMux))
 			} else {
