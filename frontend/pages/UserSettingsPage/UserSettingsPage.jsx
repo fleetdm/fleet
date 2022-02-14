@@ -278,7 +278,7 @@ export class UserSettingsPage extends Component {
     return (
       <Modal title="Get API token" onExit={onToggleApiTokenModal}>
         <p className={`${baseClass}__secret-label`}>
-          Your API Token:
+          Your API token:
           <a
             href="#revealSecret"
             onClick={onToggleSecret}

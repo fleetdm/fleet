@@ -22,4 +22,4 @@ Provides documentation for load balancer health checks and working with Fleet se
 Includes resources for ways to mitigate against the OWASP top 10 issues
 
 ### [FAQ](./FAQ.md) 
-Includes commonly asked questions and answers about using Fleet from the Fleet community
+Includes frequently asked questions and answers about using Fleet from the Fleet community

@@ -10,6 +10,7 @@ on:
   pull_request:
     paths:
       - '**.go'
+  workflow_dispatch: # Manual
 
 jobs:
   test-go:

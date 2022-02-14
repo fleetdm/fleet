@@ -738,7 +738,7 @@ None.
 
 `Status: 200`
 
-### live query result store health check
+### Live query result store health check
 
 Checks the status of the Fleet's result store. If an error is present in the response, Fleet won't be able to successfully run a live query. This endpoint is used by the Fleet UI to make sure that the Fleet instance is correctly configured to run live queries.
 

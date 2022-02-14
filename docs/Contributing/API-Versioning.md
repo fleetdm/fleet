@@ -1,4 +1,4 @@
-# API Versioning
+# API versioning
 
 ## Why do we need to version the API?
 

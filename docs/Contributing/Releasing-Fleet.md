@@ -12,9 +12,11 @@ Add a "Performance" section below the list of changes. This section should summa
 hosts that the Fleet server can handle, call out if this number has
 changed since the last release, and list the infrastructure used in the load testing environment.
 
-Update the NPM [package.json](../../tools/fleetctl-npm/package.json) with the new version number (do
-not yet `npm publish`). Update the [Helm chart](../../charts/fleet/Chart.yaml) and [values
-file](../../charts/fleet/values.yaml) with the new version number.
+Update version numbers in the relevant files:
+
+- [package.json](../../tools/fleetctl-npm/package.json) (do not yet `npm publish`)
+- [Helm chart](../../charts/fleet/Chart.yaml) and [values file](../../charts/fleet/values.yaml)
+- [Terraform variables](../../tools/terraform/variables.tf)
 
 Commit these changes via Pull Request and pull the changes on the `main` branch locally. Check that
 `HEAD` of the `main` branch points to the commit with these changes.
@@ -54,7 +56,7 @@ Please visit our [update guide](https://fleetdm.com/docs/using-fleet/updating-fl
 
 ### Documentation
 
-Documentation for this release can be found at https://github.com/fleetdm/fleet/blob/<VERSION>/docs/README.md
+Documentation for Fleet is available at [fleetdm.com/docs](https://fleetdm.com/docs).
 
 ### Binary Checksum
 
@@ -73,7 +75,7 @@ When editing is complete, publish the release.
 
 > If releasing a "prerelease" of Fleet, run `npm publish --tag prerelease`. This way, you can
 > publish a prerelease of fleetctl while the most recent fleetctl npm package, available for public
-> download, is still the latest *official* release.
+> download, is still the latest _official_ release.
 
 5. Announce the release in the #fleet channel of [osquery
    Slack](https://osquery.slack.com/join/shared_invite/zt-h29zm0gk-s2DBtGUTW4CFel0f0IjTEw#/) and
@@ -110,7 +112,7 @@ must be created and relevant changes cherry-picked onto that branch:
    ```
 
 2. Cherry pick the necessary commits into the new branch:
-   
+
    ```
    git cherry-pick d34db33f
    ```
@@ -123,8 +125,7 @@ must be created and relevant changes cherry-picked onto that branch:
 
    When a `patch-*` branch is pushed, the [Docker publish
    Action](https://github.com/fleetdm/fleet/actions/workflows/goreleaser-snapshot-fleet.yaml) will
-   be invoked to push a container image for QA with `fleetctl preview` (eg. `fleetctl preview
-   --tag patch-fleet-v4.3.1`).
+   be invoked to push a container image for QA with `fleetctl preview` (eg. `fleetctl preview --tag patch-fleet-v4.3.1`).
 
 4. Check in the GitHub UI that Actions ran successfully for this branch and perform [QA smoke
    testing](../../.github/ISSUE_TEMPLATE/smoke-tests.md).

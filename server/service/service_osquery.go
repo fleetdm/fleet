@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -17,7 +18,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 	"github.com/go-kit/kit/log"
@@ -761,6 +761,8 @@ func (svc *Service) directIngestDetailQuery(ctx context.Context, host *fleet.Hos
 	return false, nil
 }
 
+var noSuchTableRegexp = regexp.MustCompile(`^no such table: \S+$`)
+
 func (svc *Service) SubmitDistributedQueryResults(
 	ctx context.Context,
 	results fleet.OsqueryDistributedQueryResults,
@@ -787,6 +789,9 @@ func (svc *Service) SubmitDistributedQueryResults(
 		// osquery docs say any nonzero (string) value for status indicates a query error
 		status, ok := statuses[query]
 		failed := ok && status != fleet.StatusOK
+		if failed && messages[query] != "" && !noSuchTableRegexp.MatchString(messages[query]) {
+			level.Debug(svc.logger).Log("query", query, "message", messages[query])
+		}
 		var err error
 		switch {
 		case strings.HasPrefix(query, hostDetailQueryPrefix):
