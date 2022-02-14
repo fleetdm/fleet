@@ -362,15 +362,18 @@ const ManagePolicyPage = ({
             </div>
           </div>
           <div className={`${baseClass} button-wrap`}>
-            {canAddOrRemovePolicy && teamId === 0 && (
-              <Button
-                onClick={() => onManageAutomationsClick()}
-                className={`${baseClass}__manage-automations button`}
-                variant="inverse"
-              >
-                <span>Manage automations</span>
-              </Button>
-            )}
+            {canAddOrRemovePolicy &&
+              teamId === 0 &&
+              !isLoadingFailingPoliciesWebhook &&
+              !isLoadingGlobalPolicies && (
+                <Button
+                  onClick={() => onManageAutomationsClick()}
+                  className={`${baseClass}__manage-automations button`}
+                  variant="inverse"
+                >
+                  <span>Manage automations</span>
+                </Button>
+              )}
             {canAddOrRemovePolicy && (
               <div className={`${baseClass}__action-button-container`}>
                 <Button
