@@ -24,8 +24,9 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     env:
+      # TODO(lucas): Change to false, 10m, the defaults.
       RACE_ENABLED: true
-      GO_TEST_TIMEOUT: 10m
+      GO_TEST_TIMEOUT: 1h
 
     steps:
     - name: Install Go
@@ -55,7 +56,7 @@ jobs:
       run: echo "Running go tests with race enabled"
       env:
         RACE_ENABLED: true
-        GO_TEST_TIMEOUT: 30m
+        GO_TEST_TIMEOUT: 1h
 
     - name: Run Go Tests
       run: |
