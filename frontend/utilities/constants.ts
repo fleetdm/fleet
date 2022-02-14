@@ -117,8 +117,6 @@ export const DEFAULT_POLICIES = [
       "To enable System Integrity Protection, on the failing device, run the following command in the Terminal app: /usr/sbin/spctl --master-enable.",
     platform: "darwin",
   },
-
-
 ] as IPolicyNew[];
 
 export const FREQUENCY_DROPDOWN_OPTIONS = [
