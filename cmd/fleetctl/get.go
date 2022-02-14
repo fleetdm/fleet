@@ -602,11 +602,14 @@ func getHostsCommand() *cli.Command {
 			identifier := c.Args().First()
 
 			if identifier == "" {
-				query := `additional_info_filters=*`
-				if c.Uint("team") > 0 {
-					query += fmt.Sprintf("&team_id=%d", c.Uint("team"))
+				query := url.Values{}
+				query.Set("additional_info_filters", "*")
+				if teamID := c.Uint("team"); teamID > 0 {
+					query.Set("team_id", strconv.FormatUint(uint64(teamID), 64))
 				}
-				hosts, err := client.GetHosts(query)
+				queryStr := query.Encode()
+
+				hosts, err := client.GetHosts(queryStr)
 				if err != nil {
 					return fmt.Errorf("could not list hosts: %w", err)
 				}
