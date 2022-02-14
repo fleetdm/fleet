@@ -18,7 +18,7 @@ export interface INewQueryModalProps {
 }
 
 const validateQueryName = (name: string) => {
-  const errors: { [key: string]: any } = {};
+  const errors: { [key: string]: string } = {};
 
   if (!name) {
     errors.name = "Query name must be present";

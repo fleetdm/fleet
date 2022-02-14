@@ -52,7 +52,7 @@ const EditPackForm = ({
   isPremiumTier,
   formData,
 }: IEditPackForm): JSX.Element => {
-  const [errors, setErrors] = useState<{ [key: string]: any }>({});
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [packName, setPackName] = useState<string>(formData.name);
   const [packDescription, setPackDescription] = useState<string>(
     formData.description

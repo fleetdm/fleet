@@ -77,7 +77,7 @@ const AgentOptionsPage = ({
       .then(() => {
         dispatch(renderFlash("success", "Successfully saved agent options"));
       })
-      .catch((errors: { [key: string]: any }) => {
+      .catch((errors: { [key: string]: string }) => {
         dispatch(renderFlash("error", errors.stack));
       });
   };

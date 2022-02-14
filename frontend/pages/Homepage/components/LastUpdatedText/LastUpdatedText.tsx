@@ -8,7 +8,7 @@ import QuestionIcon from "../../../../../assets/images/icon-question-16x16@2x.pn
 const renderLastUpdatedText = (
   lastUpdatedAt: string,
   whatToRetrieve: string
-) => {
+): JSX.Element => {
   if (!lastUpdatedAt || lastUpdatedAt === "0001-01-01T00:00:00Z") {
     lastUpdatedAt = "never";
   } else {
