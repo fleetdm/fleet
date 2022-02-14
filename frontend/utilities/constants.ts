@@ -77,7 +77,7 @@ export const DEFAULT_POLICIES = [
   },
   {
     key: 7,
-    query: "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1",
+    query: "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
     name: "Gatekeeper enabled (macOS)",
     description:
       "Checks to make sure that the Gatekeeper feature is enabled on macOS devices. Gatekeeper tries to ensure only trusted software is run on a mac machine.",
