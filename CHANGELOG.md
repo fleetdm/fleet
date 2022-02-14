@@ -1,5 +1,7 @@
 ## Fleet 4.10.0 (Feb 10, 2022)
 
+* Upgrade Go to 1.17.7 with security fixes for crypto/elliptic (CVE-2022-23806), math/big (CVE-2022-23772), and cmd/go (CVE-2022-23773). These are not likely to be high impact in Fleet deployments, but we are upgrading in an abundance of caution.
+
 * Add aggregate software and vulnerability information on the new **Software** page.
 
 * Add ability to see how many hosts have a specific vulnerable software installed on the
@@ -34,6 +36,10 @@ devices?" is now "Full disk encryption enabled (macOS)."
   reporting to Fleet.
 
 * Make sure ApplyTeamSpec only works with premium deployments.
+
+* Disable MDM, Munki, and Chrome profile queries on unsupported platforms to reduce log noise.
+
+* Properly handle paths in CVE URL prefix.
 
 * Support triggering a webhook for newly detected vulnerabilities with a list of affected hosts
 

@@ -1,1 +1,0 @@
-* Disable MDM, Munki, and Chrome profile queries on unsupported platforms to reduce log noise.
