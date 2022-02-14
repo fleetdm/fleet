@@ -316,13 +316,13 @@ allow {
 # Team admin and maintainer running a non-observers_can_run query must have the targets
 # filtered to only teams that they maintain.
 allow {
-  object.type == "targeted_query"
-  # If role is maintainer on any team
-  team_role(subject, subject.teams[_].id) == [admin,maintainer][_]
-  # Targets must be set to only teams they are admin/maintainer of
+	object.type == "targeted_query"
+	object.observer_can_run == false
+  is_null(subject.global_role)
+	action == run
+
   ok_teams := { tmid | tmid := object.host_targets.teams[_]; team_role(subject, tmid) == [admin,maintainer][_] }
   count(ok_teams) == count(object.host_targets.teams)
-  action == run
 }
 
 # Team admin and maintainer can run a new query
@@ -340,18 +340,17 @@ allow {
 	subject.global_role == observer
 	action = run
 }
+
 # Team observer running a observers_can_run query must have the targets
 # filtered to only teams that they observe.
 allow {
 	object.type == "targeted_query"
 	object.observer_can_run == true
-  ok_teams := { tmid | tmid := object.host_targets.teams[_]; team_role(subject, tmid) == observer }
-  count(ok_teams) == count(object.host_targets.teams)
-	# If role is observer on any team
-	team_role(subject, subject.teams[_].id) == observer
-  # Targets must be set to only teams they observe
-  # TODO: how?
+  is_null(subject.global_role)
 	action == run
+
+  ok_teams := { tmid | tmid := object.host_targets.teams[_]; team_role(subject, tmid) == [admin,maintainer,observer][_] }
+  count(ok_teams) == count(object.host_targets.teams)
 }
 
 ##
