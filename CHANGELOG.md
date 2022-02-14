@@ -32,6 +32,14 @@ devices?" is now "Full disk encryption enabled (macOS)."
 
 * Improve vulnerability processing for NPM packages.
 
+* Support triggering a webhook for newly detected vulnerabilities with a list of affected hosts.
+
+* Add filter software by CVE.
+
+* Add the ability to disable scheduled query performance statistics.
+
+* Add ability to filter the host summary information by platform (macOS, Windows, Linux) on the **Home** page.
+
 * Fix a bug in Fleet installers for Linux in which a computer restart would stop the host from
   reporting to Fleet.
 
@@ -40,14 +48,6 @@ devices?" is now "Full disk encryption enabled (macOS)."
 * Disable MDM, Munki, and Chrome profile queries on unsupported platforms to reduce log noise.
 
 * Properly handle paths in CVE URL prefix.
-
-* Support triggering a webhook for newly detected vulnerabilities with a list of affected hosts
-
-* Add filter software by CVE
-
-* Add the ability to disable scheduled query performance statistics.
-
-* Add ability to filter the host summary information by platform (macOS, Windows, Linux) on the **Home** page.
 
 ## Fleet 4.9.1 (Feb 2, 2022)
 
