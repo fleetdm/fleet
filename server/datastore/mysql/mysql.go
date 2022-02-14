@@ -292,11 +292,11 @@ var tracedDriverName string
 func init() {
 	var err error
 	tracedDriverName, err = otelsql.Register("mysql", semconv.DBSystemMySQL.Value.AsString())
-	apmsql.Register(tracedDriverName, &mysql.MySQLDriver{}, apmsql.WithDSNParser(apmmysql.ParseDSN))
-	tracedDriverName = "apm/mysql"
 	if err != nil {
 		panic(err)
 	}
+	apmsql.Register(tracedDriverName, &mysql.MySQLDriver{}, apmsql.WithDSNParser(apmmysql.ParseDSN))
+	tracedDriverName = "apm/mysql"
 }
 
 func newDB(conf *config.MysqlConfig, opts *dbOptions) (*sqlx.DB, error) {
