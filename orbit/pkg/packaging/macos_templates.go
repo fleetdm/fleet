@@ -47,7 +47,7 @@ launchctl bootstrap system "${DAEMON_PLIST}"
 # Enable the daemon
 launchctl enable "system/${DAEMON_LABEL}"
 # Force the daemon to start
-launchctl kickstart -k "system/${DAEMON_LABEL}"
+launchctl kickstart "system/${DAEMON_LABEL}"
 {{- end }}
 `))
 
