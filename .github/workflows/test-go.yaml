@@ -65,8 +65,7 @@ jobs:
         files: coverage.txt
 
     - name: Slack Notification
-      # Will add the below line after I tested.
-      # if: ${{ github.event.schedule == '0 4 * * *' && failure() }}
+      if: github.event.schedule == '0 4 * * *' && failure()
       uses: slackapi/slack-github-action@v1.18.0
       with:
         payload: |
