@@ -24,7 +24,7 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     env:
-      RACE_ENABLED: false
+      RACE_ENABLED: true
 
     steps:
     - name: Install Go
