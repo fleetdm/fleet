@@ -1,7 +1,6 @@
 name: Go Tests
 
 env:
-  # Every day at 4 AM, for running go tests with -race.
   CRON_SCHEDULE: '0 4 * * *'
 
 on:
@@ -16,7 +15,7 @@ on:
       - '**.go'
   workflow_dispatch: # Manual
   schedule:
-      - cron: $CRON_SCHEDULE
+    - cron: $CRON_SCHEDULE
 
 jobs:
   test-go:
