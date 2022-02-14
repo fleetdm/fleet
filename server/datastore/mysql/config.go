@@ -13,10 +13,11 @@ type DBOption func(o *dbOptions) error
 
 type dbOptions struct {
 	// maxAttempts configures the number of retries to connect to the DB
-	maxAttempts   int
-	logger        log.Logger
-	replicaConfig *config.MysqlConfig
-	interceptor   sqlmw.Interceptor
+	maxAttempts    int
+	logger         log.Logger
+	replicaConfig  *config.MysqlConfig
+	interceptor    sqlmw.Interceptor
+	tracingEnabled bool
 }
 
 // Logger adds a logger to the datastore.
@@ -49,6 +50,13 @@ func Replica(conf *config.MysqlConfig) DBOption {
 func LimitAttempts(attempts int) DBOption {
 	return func(o *dbOptions) error {
 		o.maxAttempts = attempts
+		return nil
+	}
+}
+
+func TracingEnabled(enabled bool) DBOption {
+	return func(o *dbOptions) error {
+		o.tracingEnabled = true
 		return nil
 	}
 }

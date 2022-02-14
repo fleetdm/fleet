@@ -300,7 +300,10 @@ func init() {
 }
 
 func newDB(conf *config.MysqlConfig, opts *dbOptions) (*sqlx.DB, error) {
-	driverName := tracedDriverName
+	driverName := "mysql"
+	if opts.tracingEnabled {
+		driverName = tracedDriverName
+	}
 	if opts.interceptor != nil {
 		driverName = "mysql-mw"
 		sql.Register(driverName, sqlmw.Driver(mysql.MySQLDriver{}, opts.interceptor))

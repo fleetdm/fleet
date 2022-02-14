@@ -188,6 +188,10 @@ the way that the Fleet server works.
 				}))
 			}
 
+			if config.Logging.TracingEnabled {
+				opts = append(opts, mysql.TracingEnabled(true))
+			}
+
 			ds, err = mysql.New(config.Mysql, clock.C, opts...)
 			if err != nil {
 				initFatal(err, "initializing datastore")
