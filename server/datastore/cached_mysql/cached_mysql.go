@@ -4,9 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/jinzhu/copier"
 	"github.com/patrickmn/go-cache"
 )
 
@@ -21,10 +23,55 @@ const (
 	defaultTeamAgentOptionsExpiration = 1 * time.Minute
 )
 
+// Cloner represents any type that can clone itself. Used by types to provide a more efficient clone method.
+type Cloner interface {
+	Clone() (interface{}, error)
+}
+
+func clone(v interface{}) (interface{}, error) {
+	if cloner, ok := v.(Cloner); ok {
+		return cloner.Clone()
+	}
+
+	vv := reflect.ValueOf(v)
+	isPtr := false
+	if vv.Kind() == reflect.Ptr {
+		isPtr = true
+		vv = vv.Elem()
+	}
+
+	clone := reflect.New(vv.Type())
+	err := copier.Copy(clone.Interface(), v)
+	if err != nil {
+		return nil, err
+	}
+
+	if isPtr {
+		return clone.Interface(), nil
+	}
+
+	return clone.Elem().Interface(), nil
+}
+
+// cloneCache wraps the in memory cache with one that clones items before returning them.
+type cloneCache struct {
+	*cache.Cache
+}
+
+func (w *cloneCache) Get(k string) (interface{}, bool) {
+	v, found := w.Cache.Get(k)
+	if !found {
+		return v, false
+	}
+
+	clone, _ := clone(v)
+	return clone, true
+}
+
 type cachedMysql struct {
 	fleet.Datastore
 
-	c *cache.Cache
+	c *cloneCache
 
 	packsExp            time.Duration
 	scheduledQueriesExp time.Duration
@@ -54,7 +101,7 @@ func WithTeamAgentOptionsExpiration(d time.Duration) Option {
 func New(ds fleet.Datastore, opts ...Option) fleet.Datastore {
 	c := &cachedMysql{
 		Datastore:           ds,
-		c:                   cache.New(5*time.Minute, 10*time.Minute),
+		c:                   &cloneCache{cache.New(5*time.Minute, 10*time.Minute)},
 		packsExp:            defaultPacksExpiration,
 		scheduledQueriesExp: defaultScheduledQueriesExpiration,
 		teamAgentOptionsExp: defaultTeamAgentOptionsExpiration,
@@ -80,7 +127,7 @@ func (ds *cachedMysql) AppConfig(ctx context.Context) (*fleet.AppConfig, error) 
 	if x, found := ds.c.Get(appConfigKey); found {
 		ac, ok := x.(*fleet.AppConfig)
 		if ok {
-			return ac.Clone()
+			return ac, nil
 		}
 	}
 
@@ -91,7 +138,7 @@ func (ds *cachedMysql) AppConfig(ctx context.Context) (*fleet.AppConfig, error) 
 
 	ds.c.Set(appConfigKey, ac, defaultAppConfigExpiration)
 
-	return ac.Clone()
+	return ac, nil
 }
 
 func (ds *cachedMysql) SaveAppConfig(ctx context.Context, info *fleet.AppConfig) error {

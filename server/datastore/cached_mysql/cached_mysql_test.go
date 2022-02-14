@@ -14,6 +14,54 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestClone(t *testing.T) {
+	tests := []struct {
+		name string
+		src  interface{}
+		want interface{}
+	}{
+		{
+			name: "string",
+			src:  "foo",
+			want: "foo",
+		},
+		{
+			name: "struct",
+			src: fleet.AppConfig{
+				ServerSettings: fleet.ServerSettings{
+					EnableAnalytics: true,
+				},
+			},
+			want: fleet.AppConfig{
+				ServerSettings: fleet.ServerSettings{
+					EnableAnalytics: true,
+				},
+			},
+		},
+		{
+			name: "pointer to struct",
+			src: &fleet.AppConfig{
+				ServerSettings: fleet.ServerSettings{
+					EnableAnalytics: true,
+				},
+			},
+			want: &fleet.AppConfig{
+				ServerSettings: fleet.ServerSettings{
+					EnableAnalytics: true,
+				},
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			clone, err := clone(tc.src)
+			require.NoError(t, err)
+			assert.EqualValues(t, tc.want, clone)
+		})
+	}
+}
+
 func TestCachedAppConfig(t *testing.T) {
 	t.Parallel()
 
