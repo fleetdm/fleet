@@ -1,7 +1,7 @@
 import React, { useContext, useState, useCallback, useEffect } from "react";
 import { useDispatch } from "react-redux";
 import { Link } from "react-router";
-import { Params } from "react-router/lib/Router";
+import { Params, InjectedRouter } from "react-router/lib/Router";
 import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
@@ -88,7 +88,7 @@ import TransferIcon from "../../../../assets/images/icon-action-transfer-16x16@2
 const baseClass = "host-details";
 
 interface IHostDetailsProps {
-  router: any;
+  router: InjectedRouter; // v3
   params: Params;
 }
 
@@ -102,6 +102,13 @@ interface ITeamsResponse {
 
 interface IHostResponse {
   host: IHost;
+}
+interface ISearchQueryData {
+  searchQuery: string;
+  sortHeader: string;
+  sortDirection: string;
+  pageSize: number;
+  pageIndex: number;
 }
 
 const TAGGED_TEMPLATES = {
@@ -514,10 +521,14 @@ const HostDetailsPage = ({
     }
   };
 
-  const onUsersTableSearchChange = useCallback((queryData: any) => {
-    const { searchQuery } = queryData;
-    setUsersSearchString(searchQuery);
-  }, []);
+  const onUsersTableSearchChange = useCallback(
+    (queryData: ISearchQueryData) => {
+      console.log("queryData", queryData);
+      const { searchQuery } = queryData;
+      setUsersSearchString(searchQuery);
+    },
+    []
+  );
 
   const renderOsPolicyLabel = () => {
     const onCopyOsPolicy = (evt: React.MouseEvent) => {

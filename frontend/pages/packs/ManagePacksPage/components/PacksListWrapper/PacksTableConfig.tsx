@@ -71,7 +71,6 @@ const generateTableHeaders = (): IDataColumn[] => {
       id: "selection",
       Header: (cellProps: IHeaderProps): JSX.Element => {
         const props = cellProps.getToggleAllRowsSelectedProps();
-        console.log("props", props);
         const checkboxProps = {
           value: props.checked,
           indeterminate: props.indeterminate,

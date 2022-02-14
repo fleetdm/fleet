@@ -1,5 +1,3 @@
-import _ = require("cypress/types/lodash");
-import { closeSync } from "fs";
 import * as path from "path";
 
 let hostname = "";

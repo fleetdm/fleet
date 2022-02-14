@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch } from "react-redux";
 import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
 import yaml from "js-yaml";
@@ -59,7 +59,9 @@ const AgentOptionsPage = ({
     }
   );
 
-  const onSaveOsqueryOptionsFormSubmit = (updatedForm: any): void | false => {
+  const onSaveOsqueryOptionsFormSubmit = (updatedForm: {
+    osquery_options: string;
+  }): void | false => {
     const { TEAMS_AGENT_OPTIONS } = endpoints;
     const { error } = validateYaml(updatedForm.osquery_options);
     if (error) {

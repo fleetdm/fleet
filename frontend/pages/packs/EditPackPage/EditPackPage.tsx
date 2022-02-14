@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useContext } from "react";
 import { useQuery } from "react-query";
-import { Params } from "react-router/lib/Router";
+import { InjectedRouter, Params } from "react-router/lib/Router";
 
 import { useDispatch } from "react-redux";
 import { push } from "react-router-redux";
@@ -29,7 +29,7 @@ import PackQueryEditorModal from "./components/PackQueryEditorModal";
 import RemovePackQueryModal from "./components/RemovePackQueryModal";
 
 interface IEditPacksPageProps {
-  router: any;
+  router: InjectedRouter; // v3
   params: Params;
 }
 

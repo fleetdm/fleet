@@ -21,8 +21,8 @@ import PacksIcon from "../../../../assets/images/icon-main-packs@2x-16x16@2x.png
 import PoliciesIcon from "../../../../assets/images/icon-main-policies-16x16@2x.png";
 
 interface ISiteTopNavProps {
-  onLogoutUser: () => any;
-  onNavItemClick: () => any;
+  onLogoutUser: () => void;
+  onNavItemClick: (path: string) => void;
   pathname: string;
   currentUser: IUser;
   config: IConfig;

@@ -64,6 +64,8 @@ const UserManagementPage = (): JSX.Element => {
   });
   const [querySearchText, setQuerySearchText] = useState<string>("");
 
+  console.log("userEditing", userEditing);
+
   // API CALLS
   const {
     data: teams,
