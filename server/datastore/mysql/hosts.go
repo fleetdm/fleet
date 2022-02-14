@@ -1251,7 +1251,7 @@ func (ds *Datastore) SetOrUpdateMDMData(ctx context.Context, hostID uint, enroll
 
 func (ds *Datastore) GetMunkiVersion(ctx context.Context, hostID uint) (string, error) {
 	var version string
-	err := sqlx.GetContext(ctx, ds.reader, &version, `SELECT version FROM host_munki_info WHERE host_id=?`, hostID)
+	err := sqlx.GetContext(ctx, ds.reader, &version, `SELECT version FROM host_munki_info WHERE version <> '' AND host_id=?`, hostID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return "", ctxerr.Wrap(ctx, notFound("MunkiInfo").WithID(hostID))
