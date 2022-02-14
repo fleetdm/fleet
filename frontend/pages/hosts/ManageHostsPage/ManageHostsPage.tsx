@@ -730,7 +730,7 @@ const ManageHostsPage = ({
       }
 
       // Rebuild queryParams to dispatch new browser location to react-router
-      const newQueryParams: { [key: string]: any } = {};
+      const newQueryParams: { [key: string]: string | number } = {};
       if (!isEmpty(searchText)) {
         newQueryParams.query = searchText;
       }

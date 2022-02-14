@@ -53,7 +53,7 @@ interface IDataColumn {
   disableSortBy?: boolean;
 }
 
-const condense = (vulnerabilities: IVulnerability[]) => {
+const condense = (vulnerabilities: IVulnerability[]): string[] => {
   const condensed =
     (vulnerabilities?.length &&
       vulnerabilities
@@ -72,7 +72,7 @@ const softwareTableHeaders = [
     Header: "Name",
     disableSortBy: true,
     accessor: "name",
-    Cell: (cellProps: IStringCellProps) => (
+    Cell: (cellProps: IStringCellProps): JSX.Element => (
       <TextCell value={cellProps.cell.value} />
     ),
   },
@@ -81,7 +81,7 @@ const softwareTableHeaders = [
     Header: "Version",
     disableSortBy: true,
     accessor: "version",
-    Cell: (cellProps: IStringCellProps) => (
+    Cell: (cellProps: IStringCellProps): JSX.Element => (
       <TextCell value={cellProps.cell.value} />
     ),
   },
@@ -90,7 +90,7 @@ const softwareTableHeaders = [
     Header: "Vulnerabilities",
     disableSortBy: true,
     accessor: "vulnerabilities",
-    Cell: (cellProps: IVulnCellProps) => {
+    Cell: (cellProps: IVulnCellProps): JSX.Element => {
       const vulnerabilities = cellProps.cell.value || [];
       const tooltipText = condense(vulnerabilities)?.map((value) => {
         return (
@@ -136,7 +136,7 @@ const softwareTableHeaders = [
   },
   {
     title: "Hosts",
-    Header: (cellProps: IHeaderProps) => (
+    Header: (cellProps: IHeaderProps): JSX.Element => (
       <HeaderCell
         value={cellProps.column.title}
         isSortedDesc={cellProps.column.isSortedDesc}
@@ -144,7 +144,7 @@ const softwareTableHeaders = [
     ),
     disableSortBy: false,
     accessor: "hosts_count",
-    Cell: (cellProps: INumberCellProps) => (
+    Cell: (cellProps: INumberCellProps): JSX.Element => (
       <TextCell value={cellProps.cell.value} />
     ),
   },
@@ -153,7 +153,7 @@ const softwareTableHeaders = [
     Header: "",
     disableSortBy: true,
     accessor: "id",
-    Cell: (cellProps: INumberCellProps) => {
+    Cell: (cellProps: INumberCellProps): JSX.Element => {
       return (
         <Link
           to={`${PATHS.MANAGE_HOSTS}?software_id=${cellProps.cell.value}`}

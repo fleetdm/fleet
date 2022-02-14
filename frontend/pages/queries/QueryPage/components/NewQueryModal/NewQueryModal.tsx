@@ -18,7 +18,7 @@ export interface INewQueryModalProps {
 }
 
 const validateQueryName = (name: string) => {
-  const errors: { [key: string]: any } = {};
+  const errors: { [key: string]: string } = {};
 
   if (!name) {
     errors.name = "Query name must be present";
@@ -34,7 +34,7 @@ const NewQueryModal = ({
   onCreateQuery,
   setIsSaveModalOpen,
   backendValidators,
-}: INewQueryModalProps) => {
+}: INewQueryModalProps): JSX.Element => {
   const [name, setName] = useState<string>("");
   const [description, setDescription] = useState<string>("");
   const [observerCanRun, setObserverCanRun] = useState<boolean>(false);

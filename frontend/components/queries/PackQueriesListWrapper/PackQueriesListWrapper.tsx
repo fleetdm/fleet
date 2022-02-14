@@ -1,5 +1,4 @@
-import React, { Component, useState } from "react";
-import PropTypes from "prop-types";
+import React, { useState } from "react";
 // @ts-ignore
 import simpleSearch from "utilities/simple_search";
 import TableContainer, { ITableQueryData } from "components/TableContainer";
@@ -15,29 +14,11 @@ import AddQueryIcon from "../../../../assets/images/icon-plus-16x16@2x.png";
 
 const baseClass = "pack-queries-list-wrapper";
 
-interface IFormData {
-  interval: number;
-  name?: string;
-  shard: number;
-  query?: string;
-  query_id?: number;
-  snapshot: boolean;
-  removed: boolean;
-  platform: string;
-  version: string;
-  pack_id: number;
-}
-
 interface IPackQueriesListWrapperProps {
   onAddPackQuery: () => void;
   onEditPackQuery: (selectedQuery: IScheduledQuery) => void;
   onRemovePackQueries: (selectedTableQueryIds: number[]) => void;
-  onPackQueryFormSubmit: (
-    formData: IFormData,
-    editQuery: IScheduledQuery | undefined
-  ) => void;
   scheduledQueries: IScheduledQuery[] | undefined;
-  packId: number;
   isLoadingPackQueries: boolean;
 }
 

@@ -20,7 +20,7 @@ export default (
   isAnyTeamMaintainer = false,
   isGlobalMaintainer = false,
   isNoAccess = false
-) => {
+): INavItem[] => {
   if (!user) {
     return [];
   }

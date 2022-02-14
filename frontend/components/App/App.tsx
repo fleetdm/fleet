@@ -2,7 +2,6 @@ import React, { useContext, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import classnames from "classnames";
 import { AxiosResponse } from "axios";
-import { RouteProps } from "react-router/lib/Route";
 
 import { QueryClient, QueryClientProvider } from "react-query";
 

@@ -85,7 +85,7 @@ const Homepage = (): JSX.Element => {
       }),
     {
       select: (data: IHostSummary) => data,
-      onSuccess: (data: any) => {
+      onSuccess: (data: IHostSummary) => {
         setOnlineCount(data.online_count.toLocaleString("en-US"));
         setOfflineCount(data.offline_count.toLocaleString("en-US"));
         setNewCount(data.new_count.toLocaleString("en-US"));
