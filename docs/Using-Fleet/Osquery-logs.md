@@ -141,4 +141,4 @@ See the [osquery logging documentation](https://osquery.readthedocs.io/en/stable
 
 If `--logger_plugin=tls` is used with osquery clients, the following configuration can be applied on the Fleet server for handling the incoming logs.
 
-<meta name="pageRank" value="6">
+<meta name="pageOrderInSection" value="6">

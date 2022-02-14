@@ -103,4 +103,4 @@ This will mean that the following are the only valid paths after this point:
 
 And the code doesn't have to specify `.StartingAtVersion("2021-12")` anymore.
 
-<meta name="pageRank" value="9">
+<meta name="pageOrderInSection" value="9">

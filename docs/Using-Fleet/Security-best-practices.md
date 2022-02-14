@@ -53,4 +53,4 @@ We render the frontend with React and benefit from built-in XSS protection in Re
 
 We rely on Github's automated vulnerability checks, community news, and direct reports to discover vulnerabilities in our dependencies. We endeavor to fix these immediately and would almost always do so within a week of a report.
 
-<meta name="pageRank" value="8">
+<meta name="pageOrderInSection" value="8">

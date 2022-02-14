@@ -95,27 +95,27 @@ module.exports = {
 
         // Talk to GitHub and get additional information about each contributor.
         let githubDataByUsername = {};
-        // await sails.helpers.flow.simultaneouslyForEach(githubUsernames, async(username)=>{
-        //   githubDataByUsername[username] = await sails.helpers.http.get.with({
-        //     url: 'https://api.github.com/users/' + encodeURIComponent(username),
-        //     headers: { 'User-Agent': 'Fleet-Standard-Query-Library', Accept: 'application/vnd.github.v3+json' }
-        //   });
-        // });//∞
+        await sails.helpers.flow.simultaneouslyForEach(githubUsernames, async(username)=>{
+          githubDataByUsername[username] = await sails.helpers.http.get.with({
+            url: 'https://api.github.com/users/' + encodeURIComponent(username),
+            headers: { 'User-Agent': 'Fleet-Standard-Query-Library', Accept: 'application/vnd.github.v3+json' }
+          });
+        });//∞
 
-        // // Now expand queries with relevant profile data for the contributors.
-        // for (let query of queries) {
-        //   let usernames = query.contributors.split(',');
-        //   let contributorProfiles = [];
-        //   for (let username of usernames) {
-        //     contributorProfiles.push({
-        //       name: githubDataByUsername[username].name,
-        //       handle: githubDataByUsername[username].login,
-        //       avatarUrl: githubDataByUsername[username].avatar_url,
-        //       htmlUrl: githubDataByUsername[username].html_url,
-        //     });
-        //   }
-        //   query.contributors = contributorProfiles;
-        // }
+        // Now expand queries with relevant profile data for the contributors.
+        for (let query of queries) {
+          let usernames = query.contributors.split(',');
+          let contributorProfiles = [];
+          for (let username of usernames) {
+            contributorProfiles.push({
+              name: githubDataByUsername[username].name,
+              handle: githubDataByUsername[username].login,
+              avatarUrl: githubDataByUsername[username].avatar_url,
+              htmlUrl: githubDataByUsername[username].html_url,
+            });
+          }
+          query.contributors = contributorProfiles;
+        }
 
         // Attach to what will become configuration for the Sails app.
         builtStaticContent.queries = queries;
@@ -312,37 +312,14 @@ module.exports = {
                 pageTitle = fallbackPageTitle;
               }
 
-
-              // option 1: add meta tag value to filename and use existing sort function
               let pageRankInSection;
-              if(embeddedMetadata.pageRank){
-                if (embeddedMetadata.pageRank < 0 || _.isNaN(parseInt(embeddedMetadata.pageRank)) ) {
-                  throw new Error(`Failed compiling markdown content: Invalid page rank (<meta name="pageRank" value="${embeddedMetadata.pageRank}">) embedded in "${path.join(topLvlRepoPath, sectionRepoPath)}".  To resolve, try changing the rank to a number higher than 0, then rebuild.`);
+              if(embeddedMetadata.pageOrderInSection){
+                if (embeddedMetadata.pageOrderInSection < 0 || _.isNaN(parseInt(embeddedMetadata.pageOrderInSection)) ) {
+                  throw new Error(`Failed compiling markdown content: Invalid page rank (<meta name="pageOrderInSection" value="${embeddedMetadata.pageOrderInSection}">) embedded in "${path.join(topLvlRepoPath, sectionRepoPath)}".  To resolve, try changing the rank to a number higher than 0, then rebuild.`);
                 } else {
-                  pageRankInSection = embeddedMetadata.pageRank;
+                  pageRankInSection = embeddedMetadata.pageOrderInSection;
                 }
               }
-
-
-              // option 2: add meta tag as a value to the page, change sort function to use pageRankInSection
-
-              // // If the page has a pageRank meta tag, we'll use that to sort pages in their bottom level sections.
-              // let pageRankInSection;
-              // if(sectionRepoPath === 'docs/') {
-              //   // Set a flag to determine if the page is a readme (e.g. /docs/Using-Fleet/configuration-files/readme.md) or a FAQ page.
-              //   // READMEs in subfolders and FAQ pages don't have pageRank values, they are always sorted at the end of sections.
-              //   let isPageAReadmeOrFAQ = (_.last(pageUnextensionedLowercasedRelPath.split(/\//)) === 'faq' || _.last(pageUnextensionedLowercasedRelPath.split(/\//)) === 'readme');
-              //   if(embeddedMetadata.pageRank){
-              //     if (embeddedMetadata.pageRank < 0 || _.isNaN(parseInt(embeddedMetadata.pageRank)) ) {
-              //       throw new Error(`Failed compiling markdown content: Invalid page rank (<meta name="pageRank" value="${embeddedMetadata.pageRank}">) embedded in "${path.join(topLvlRepoPath, sectionRepoPath)}".  To resolve, try changing the rank to a number higher than 0, then rebuild.`);
-              //     } else {
-              //       pageRankInSection = embeddedMetadata.pageRank;
-              //     }
-              //   } else if (!isPageAReadmeOrFAQ) {
-              //     // If the page is not a Readme or a FAQ, we'll throw an error if it doesnt have a pageRank meta tag.
-              //     throw new Error(`Failed compiling markdown content: Documentation page missing pageRank meta tag (<meta name="pageRank" value="">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, add a meta tag with a number higher than 0.`);
-              //   }
-              // }
 
               // Determine unique HTML id
               // > • This will become the filename of the resulting HTML.
@@ -374,8 +351,7 @@ module.exports = {
                 lastModifiedAt: lastModifiedAt,
                 htmlId: htmlId,
                 sectionRelativeRepoPath: sectionRelativeRepoPath,
-                // pageRankInSectionPath: pageRank,
-                meta: _.omit(embeddedMetadata, ['title', 'pageRank'])
+                meta: _.omit(embeddedMetadata, ['title', 'pageOrderInSection'])
               });
             }
           }//∞ </each source file>

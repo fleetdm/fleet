@@ -145,4 +145,4 @@ must be created and relevant changes cherry-picked onto that branch:
 
    TODO [#2850](https://github.com/fleetdm/fleet/issues/2850): Improve docs/tooling for this.
 
-<meta name="pageRank" value="5">
+<meta name="pageOrderInSection" value="5">
