@@ -142,6 +142,14 @@ func TestLiveQueryAuth(t *testing.T) {
 			false,
 		},
 		{
+			"team admin, no team target",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}},
+			nil,
+			false,
+			false,
+			false,
+		},
+		{
 			"team admin, target not set to own team",
 			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}},
 			ptr.Uint(2),
@@ -156,6 +164,14 @@ func TestLiveQueryAuth(t *testing.T) {
 			false,
 			false,
 			false,
+		},
+		{
+			"team observer, no team target",
+			&fleet.User{ID: 48, Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}}},
+			nil,
+			true,
+			false,
+			true,
 		},
 		{
 			"team observer, target not set to own team",
@@ -201,12 +217,9 @@ func TestLiveQueryAuth(t *testing.T) {
 			_, err = svc.NewDistributedQueryCampaign(ctx, query2ObsCannotRun.Query, ptr.Uint(query2ObsCannotRun.ID), fleet.HostTargets{TeamIDs: tms})
 			checkAuthErr(t, tt.shouldFailRunObsCannot, err)
 
-			// TODO: "by names" cannot work with team admin/maintainer/observer - it
-			// does not support filter by team and it is required that they filter to
-			// teams they admin/maintain/observe. Is it expected? Or should that be
-			// allowed when no team is targeted?
-
-			if len(tt.user.Teams) == 0 {
+			// tests with a team target cannot run the "ByNames" calls, as there's no way
+			// to pass a team target with this call.
+			if tt.teamID == nil {
 				_, err = svc.NewDistributedQueryCampaignByNames(ctx, query1ObsCanRun.Query, nil, nil, nil)
 				checkAuthErr(t, tt.shouldFailRunNew, err)
 
