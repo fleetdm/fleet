@@ -243,9 +243,9 @@ func (s *integrationTestSuite) TestPolicyDeletionLogsActivity() {
 	}
 	for _, id := range policyIDs {
 		found := false
-		for _, a := range newDeletes {
+		for _, d := range newDeletes {
 			var details policyDetails
-			err := json.Unmarshal([]byte(*a.Details), &details)
+			err := json.Unmarshal([]byte(*d.Details), &details)
 			require.NoError(t, err)
 			require.NotNil(t, details.PolicyID)
 			if id == details.PolicyID {
@@ -257,9 +257,9 @@ func (s *integrationTestSuite) TestPolicyDeletionLogsActivity() {
 	}
 	for _, p := range testPolicies {
 		found := false
-		for _, a := range newDeletes {
+		for _, d := range newDeletes {
 			var details policyDetails
-			err := json.Unmarshal([]byte(*a.Details), &details)
+			err := json.Unmarshal([]byte(*d.Details), &details)
 			require.NoError(t, err)
 			require.NotNil(t, details.PolicyName)
 			if p.Name == details.PolicyName {

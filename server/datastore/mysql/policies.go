@@ -317,7 +317,7 @@ func (ds *Datastore) PoliciesByID(ctx context.Context, ids []uint) (map[uint]*fl
 		policiesByID[p.ID] = p
 	}
 	for _, id := range ids {
-		if p := policiesByID[id]; p == nil {
+		if policiesByID[id] == nil {
 			return nil, ctxerr.Wrap(ctx, notFound("Policy").WithID(id))
 		}
 	}
