@@ -1,4 +1,4 @@
-## Fleet 4.10.0 (Feb 10, 2022)
+## Fleet 4.10.0 (Feb 13, 2022)
 
 * Upgrade Go to 1.17.7 with security fixes for crypto/elliptic (CVE-2022-23806), math/big (CVE-2022-23772), and cmd/go (CVE-2022-23773). These are not likely to be high impact in Fleet deployments, but we are upgrading in an abundance of caution.
 
