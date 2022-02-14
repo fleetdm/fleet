@@ -23,13 +23,13 @@ const (
 	defaultTeamAgentOptionsExpiration = 1 * time.Minute
 )
 
-// Cloner represents any type that can clone itself. Used by types to provide a more efficient clone method.
-type Cloner interface {
+// cloner represents any type that can clone itself. Used by types to provide a more efficient clone method.
+type cloner interface {
 	Clone() (interface{}, error)
 }
 
 func clone(v interface{}) (interface{}, error) {
-	if cloner, ok := v.(Cloner); ok {
+	if cloner, ok := v.(cloner); ok {
 		return cloner.Clone()
 	}
 
