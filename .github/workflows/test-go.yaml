@@ -24,9 +24,8 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     env:
-      # TODO(lucas): Change to false, 10m, the defaults.
-      RACE_ENABLED: true
-      GO_TEST_TIMEOUT: 1h
+      RACE_ENABLED: false
+      GO_TEST_TIMEOUT: 10m
 
     steps:
     - name: Install Go
@@ -68,7 +67,7 @@ jobs:
         files: coverage.txt
 
     - name: Slack Notification
-      if: github.event.schedule == '0 4 * * *' && failure()
+      # if: github.event.schedule == '0 4 * * *' && failure()
       uses: slackapi/slack-github-action@v1.18.0
       with:
         payload: |
