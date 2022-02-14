@@ -45,6 +45,7 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 ### Security
 
 [How we protect end-user devices](./security.md#how-we-protect-end-user-devices)
+[Vulnerability management in Fleet](./security.md#vulnerability-management)
 
 
 ### Brand
