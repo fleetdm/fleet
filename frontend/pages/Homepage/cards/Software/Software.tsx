@@ -39,7 +39,7 @@ const EmptySoftware = (message: string): JSX.Element => {
       <p>
         Expecting to see software? Check out the Fleet documentation on{" "}
         <a
-          href="https://fleetdm.com/docs/deploying/configuration#software-inventory"
+          href="https://fleetdm.com/docs/using-fleet/vulnerability-processing#configuration"
           target="_blank"
           rel="noopener noreferrer"
         >

@@ -1,4 +1,4 @@
-# Testing & Local Development
+# Testing & local development
 
 - [License key](#license-key)
 - [Simulated hosts](#hosts)
@@ -7,7 +7,7 @@
 - [Test hosts](#test-hosts)
 - [Email](#email)
 - [Database backup/restore](#database-backuprestore)
-- [Seeding Data](./06-Seeding-Data.md)
+- [Seeding data](./06-Seeding-Data.md)
 - [MySQL shell](#mysql-shell)
 - [Testing SSO](#testing-sso)
 

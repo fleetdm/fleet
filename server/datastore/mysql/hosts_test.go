@@ -95,6 +95,7 @@ func TestHosts(t *testing.T) {
 		{"SaveTonsOfUsers", testHostsSaveTonsOfUsers},
 		{"SavePackStatsConcurrent", testHostsSavePackStatsConcurrent},
 		{"LoadHostByNodeKeyLoadsDisk", testLoadHostByNodeKeyLoadsDisk},
+		{"LoadHostByNodeKeyUsesStmt", testLoadHostByNodeKeyUsesStmt},
 		{"HostsListBySoftware", testHostsListBySoftware},
 		{"HostsListFailingPolicies", printReadsInTest(testHostsListFailingPolicies)},
 		{"HostsExpiration", testHostsExpiration},
@@ -1419,6 +1420,58 @@ func testLoadHostByNodeKeyLoadsDisk(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.NotZero(t, h.GigsDiskSpaceAvailable)
 	assert.NotZero(t, h.PercentDiskSpaceAvailable)
+}
+
+func testLoadHostByNodeKeyUsesStmt(t *testing.T, ds *Datastore) {
+	_, err := ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   "foobar",
+		NodeKey:         "nodekey",
+		UUID:            "uuid",
+		Hostname:        "foobar.local",
+	})
+	require.NoError(t, err)
+	_, err = ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   "foobar2",
+		NodeKey:         "nodekey2",
+		UUID:            "uuid2",
+		Hostname:        "foobar2.local",
+	})
+	require.NoError(t, err)
+
+	err = ds.closeStmts()
+	require.NoError(t, err)
+
+	ds.stmtCacheMu.Lock()
+	require.Len(t, ds.stmtCache, 0)
+	ds.stmtCacheMu.Unlock()
+
+	h, err := ds.LoadHostByNodeKey(context.Background(), "nodekey")
+	require.NoError(t, err)
+	require.Equal(t, "foobar.local", h.Hostname)
+
+	ds.stmtCacheMu.Lock()
+	require.Len(t, ds.stmtCache, 1)
+	ds.stmtCacheMu.Unlock()
+
+	h, err = ds.LoadHostByNodeKey(context.Background(), "nodekey")
+	require.NoError(t, err)
+	require.Equal(t, "foobar.local", h.Hostname)
+
+	ds.stmtCacheMu.Lock()
+	require.Len(t, ds.stmtCache, 1)
+	ds.stmtCacheMu.Unlock()
+
+	h, err = ds.LoadHostByNodeKey(context.Background(), "nodekey2")
+	require.NoError(t, err)
+	require.Equal(t, "foobar2.local", h.Hostname)
 }
 
 func testHostsAdditional(t *testing.T, ds *Datastore) {

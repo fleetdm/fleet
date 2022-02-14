@@ -451,7 +451,7 @@ SELECT
   '' AS release,
   '' AS vendor,
   '' AS arch
-FROM users CROSS JOIN atom_packages USING (uid)
+FROM cached_users CROSS JOIN atom_packages USING (uid)
 UNION
 SELECT
   name AS name,

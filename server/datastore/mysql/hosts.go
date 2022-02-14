@@ -709,12 +709,25 @@ func (ds *Datastore) EnrollHost(ctx context.Context, osqueryHostID, nodeKey stri
 	return &host, nil
 }
 
+// GetContextTryStmt will attempt to run sqlx.GetContext on a cached statement if available, resorting to ds.reader.
+func (ds *Datastore) GetContextTryStmt(ctx context.Context, dest interface{}, query string, args ...interface{}) error {
+	var err error
+	//nolint the statements are closed in Datastore.Close.
+	if stmt := ds.loadOrPrepareStmt(ctx, query); stmt != nil {
+		err = stmt.GetContext(ctx, dest, args...)
+	} else {
+		err = sqlx.GetContext(ctx, ds.reader, dest, query, args...)
+	}
+	return err
+}
+
 // LoadHostByNodeKey loads the whole host identified by the node key.
 // If the node key is invalid it returns a NotFoundError.
 func (ds *Datastore) LoadHostByNodeKey(ctx context.Context, nodeKey string) (*fleet.Host, error) {
-	sqlStatement := `SELECT * FROM hosts WHERE node_key = ?`
+	query := `SELECT * FROM hosts WHERE node_key = ?`
+
 	var host fleet.Host
-	switch err := sqlx.GetContext(ctx, ds.reader, &host, sqlStatement, nodeKey); {
+	switch err := ds.GetContextTryStmt(ctx, &host, query, nodeKey); {
 	case err == nil:
 		return &host, nil
 	case errors.Is(err, sql.ErrNoRows):
@@ -1264,6 +1277,7 @@ func (ds *Datastore) GetMDM(ctx context.Context, hostID uint) (bool, string, boo
 	}
 	return dest.Enrolled, dest.ServerURL, dest.InstalledFromDep, nil
 }
+
 func (ds *Datastore) AggregatedMunkiVersion(ctx context.Context, teamID *uint) ([]fleet.AggregatedMunkiVersion, time.Time, error) {
 	id := uint(0)
 
