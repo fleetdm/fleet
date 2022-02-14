@@ -29,6 +29,7 @@ func (nopLiveQuery) QueriesForHost(hostID uint) (map[string]string, error) {
 func (nopLiveQuery) QueryCompletedByHost(name string, hostID uint) error {
 	return nil
 }
+
 func TestLiveQueryAuth(t *testing.T) {
 	ds := new(mock.Store)
 	qr := pubsub.NewInmemQueryResults()
@@ -49,10 +50,17 @@ func TestLiveQueryAuth(t *testing.T) {
 		Query:          "SELECT 2",
 		ObserverCanRun: false,
 	}
-	_ = query2ObsCannotRun
 
+	var lastCreatedQuery *fleet.Query
 	ds.NewQueryFunc = func(ctx context.Context, query *fleet.Query, opts ...fleet.OptionalArg) (*fleet.Query, error) {
-		return query, nil
+		q := *query
+		vw, ok := viewer.FromContext(ctx)
+		q.ID = 123
+		if ok {
+			q.AuthorID = ptr.Uint(vw.User.ID)
+		}
+		lastCreatedQuery = &q
+		return &q, nil
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{ServerSettings: fleet.ServerSettings{LiveQueryDisabled: false}}, nil
@@ -84,6 +92,11 @@ func TestLiveQueryAuth(t *testing.T) {
 		}
 		if id == 2 {
 			return query2ObsCannotRun, nil
+		}
+		if lastCreatedQuery != nil {
+			q := lastCreatedQuery
+			lastCreatedQuery = nil
+			return q, nil
 		}
 		return &fleet.Query{ID: 8888, AuthorID: ptr.Uint(6666)}, nil
 	}
@@ -133,7 +146,7 @@ func TestLiveQueryAuth(t *testing.T) {
 			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}},
 			ptr.Uint(2),
 			false,
-			false,
+			true, // fails observer can run, as they are not part of that team, even as observer
 			true,
 		},
 		{
@@ -165,10 +178,20 @@ func TestLiveQueryAuth(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: tt.user})
 
-			_, err := svc.NewDistributedQueryCampaign(ctx, query1ObsCanRun.Query, nil, fleet.HostTargets{})
+			var tms []uint
+			// Testing RunNew is tricky, because RunNew authorization is done, then
+			// the query is created, and then the Run authorization is applied to
+			// that now-existing query, so we have to make sure that the Run does not
+			// cause a Forbidden error. To this end, the ds.NewQuery mock always sets
+			// the AuthorID to the context user, and if the user is member of a team,
+			// always set that team as a host target. This will prevent the Run
+			// action from failing, if RunNew did succeed.
+			if len(tt.user.Teams) > 0 {
+				tms = []uint{tt.user.Teams[0].ID}
+			}
+			_, err := svc.NewDistributedQueryCampaign(ctx, query1ObsCanRun.Query, nil, fleet.HostTargets{TeamIDs: tms})
 			checkAuthErr(t, tt.shouldFailRunNew, err)
 
-			var tms []uint
 			if tt.teamID != nil {
 				tms = []uint{*tt.teamID}
 			}
@@ -178,14 +201,21 @@ func TestLiveQueryAuth(t *testing.T) {
 			_, err = svc.NewDistributedQueryCampaign(ctx, query2ObsCannotRun.Query, ptr.Uint(query2ObsCannotRun.ID), fleet.HostTargets{TeamIDs: tms})
 			checkAuthErr(t, tt.shouldFailRunObsCannot, err)
 
-			_, err = svc.NewDistributedQueryCampaignByNames(ctx, query1ObsCanRun.Query, nil, nil, nil)
-			checkAuthErr(t, tt.shouldFailRunNew, err)
+			// TODO: "by names" cannot work with team admin/maintainer/observer - it
+			// does not support filter by team and it is required that they filter to
+			// teams they admin/maintain/observe. Is it expected? Or should that be
+			// allowed when no team is targeted?
 
-			_, err = svc.NewDistributedQueryCampaignByNames(ctx, query1ObsCanRun.Query, ptr.Uint(query1ObsCanRun.ID), nil, nil)
-			checkAuthErr(t, tt.shouldFailRunObsCan, err)
+			if len(tt.user.Teams) == 0 {
+				_, err = svc.NewDistributedQueryCampaignByNames(ctx, query1ObsCanRun.Query, nil, nil, nil)
+				checkAuthErr(t, tt.shouldFailRunNew, err)
 
-			_, err = svc.NewDistributedQueryCampaignByNames(ctx, query2ObsCannotRun.Query, ptr.Uint(query2ObsCannotRun.ID), nil, nil)
-			checkAuthErr(t, tt.shouldFailRunObsCannot, err)
+				_, err = svc.NewDistributedQueryCampaignByNames(ctx, query1ObsCanRun.Query, ptr.Uint(query1ObsCanRun.ID), nil, nil)
+				checkAuthErr(t, tt.shouldFailRunObsCan, err)
+
+				_, err = svc.NewDistributedQueryCampaignByNames(ctx, query2ObsCannotRun.Query, ptr.Uint(query2ObsCannotRun.ID), nil, nil)
+				checkAuthErr(t, tt.shouldFailRunObsCannot, err)
+			}
 		})
 	}
 }

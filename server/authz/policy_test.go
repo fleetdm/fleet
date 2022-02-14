@@ -454,6 +454,7 @@ func TestAuthorizeQuery(t *testing.T) {
 		{user: teamObserver, object: query, action: runNew, allow: false},
 		{user: teamObserver, object: observerQuery, action: read, allow: true},
 		{user: teamObserver, object: observerQuery, action: write, allow: false},
+		// TODO(mna): should it allow running with no team target specified?
 		//{user: teamObserver, object: emptyTobsQuery, action: run, allow: true},  // can run observer query
 		{user: teamObserver, object: team1ObsQuery, action: run, allow: true},   // can run observer query filtered to observed team
 		{user: teamObserver, object: team12ObsQuery, action: run, allow: false}, // not filtered only to observed teams
