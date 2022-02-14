@@ -77,8 +77,6 @@ const ManagePolicyPage = ({
     ? parseInt(location?.query?.team_id, 10)
     : 0;
 
-  console.log("teamId", teamId);
-
   const {
     setLastEditedQueryName,
     setLastEditedQueryDescription,

@@ -82,8 +82,6 @@ const updateFormState = (
   newValue: any,
   updateType: string
 ): ITeamCheckboxListItem[] => {
-  console.log("newValue", newValue);
-
   const prevItemIndex = prevTeamItems.findIndex((item) => item.id === teamId);
   const prevItem = prevTeamItems[prevItemIndex];
 

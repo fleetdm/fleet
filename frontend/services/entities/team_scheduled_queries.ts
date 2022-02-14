@@ -59,7 +59,6 @@ export default {
     return sendRequest("GET", path);
   },
   update: (teamScheduledQuery: ITeamScheduledQuery, updatedAttributes: any) => {
-    console.log("updatedAttributes", updatedAttributes);
     const { team_id } = updatedAttributes;
     const { TEAM_SCHEDULE } = endpoints;
     const path = `${TEAM_SCHEDULE(team_id)}/${teamScheduledQuery.id}`;

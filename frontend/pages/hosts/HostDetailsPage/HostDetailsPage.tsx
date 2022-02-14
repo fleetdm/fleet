@@ -523,7 +523,6 @@ const HostDetailsPage = ({
 
   const onUsersTableSearchChange = useCallback(
     (queryData: ISearchQueryData) => {
-      console.log("queryData", queryData);
       const { searchQuery } = queryData;
       setUsersSearchString(searchQuery);
     },
