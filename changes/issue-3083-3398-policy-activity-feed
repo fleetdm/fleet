@@ -2,3 +2,4 @@
 * Add new activity type for create policy
 * Add new activity type for edit policy
 * Add new activity type for delete policy
+* Add new activity type for apply policy spec

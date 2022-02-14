@@ -65,6 +65,8 @@ func (svc Service) NewGlobalPolicy(ctx context.Context, p fleet.PolicyPayload) (
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "storing policy")
 	}
+	// Note: Issue #4191 proposes that we move to SQL transactions for actions so that we can
+	// rollback an action in the event of an error writing the associated activity
 	if err := svc.ds.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
@@ -190,8 +192,8 @@ func (svc Service) DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint
 		return nil, err
 	}
 
-	// Is there a better approach to handling errors that might occur as we loop over multiple ids?
-	// What happens if writing an activity fails? API endpoint surfaces an error to the UI? Do we need to rollback the deletes?
+	// Note: Issue #4191 proposes that we move to SQL transactions for actions so that we can
+	// rollback an action in the event of an error writing the associated activity
 	for _, id := range deletedIDs {
 		if err := svc.ds.NewActivity(
 			ctx,
@@ -322,7 +324,8 @@ func (svc Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.Polic
 	if err := svc.ds.ApplyPolicySpecs(ctx, vc.UserID(), policies); err != nil {
 		return ctxerr.Wrap(ctx, err, "applying policy specs")
 	}
-	// Same question, what happens if the activity write fails?
+	// Note: Issue #4191 proposes that we move to SQL transactions for actions so that we can
+	// rollback an action in the event of an error writing the associated activity
 	return svc.ds.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),

@@ -910,8 +910,11 @@ func testPoliciesByID(t *testing.T, ds *Datastore) {
 	assert.Equal(t, policiesByID[1].Name, policy1.Name)
 	assert.Equal(t, policiesByID[2].ID, uint(2))
 	assert.Equal(t, policiesByID[2].Name, "policy2")
+
 	_, err = ds.PoliciesByID(context.Background(), []uint{1, 2, 3})
-	assert.Contains(t, err.Error(), "Policy 3 was not found in the datastore")
+	require.Error(t, err)
+	var nfe fleet.NotFoundError
+	require.ErrorAs(t, err, &nfe)
 }
 
 func testTeamPolicyTransfer(t *testing.T, ds *Datastore) {

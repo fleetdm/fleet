@@ -73,6 +73,8 @@ func (svc Service) NewTeamPolicy(ctx context.Context, teamID uint, p fleet.Polic
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creating policy")
 	}
+	// Note: Issue #4191 proposes that we move to SQL transactions for actions so that we can
+	// rollback an action in the event of an error writing the associated activity
 	if err := svc.ds.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
@@ -222,7 +224,8 @@ func (svc Service) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []ui
 		return nil, err
 	}
 
-	// Is there a better approach to handling errors that might occur as we loop over multiple ids?
+	// Note: Issue #4191 proposes that we move to SQL transactions for actions so that we can
+	// rollback an action in the event of an error writing the associated activity
 	for _, id := range deletedIDs {
 		if err := svc.ds.NewActivity(
 			ctx,
@@ -309,6 +312,8 @@ func (svc Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p fl
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "saving policy")
 	}
+	// Note: Issue #4191 proposes that we move to SQL transactions for actions so that we can
+	// rollback an action in the event of an error writing the associated activity
 	if err := svc.ds.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),

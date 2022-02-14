@@ -188,6 +188,83 @@ func (s *integrationTestSuite) TestQueryCreationLogsActivity() {
 	require.True(t, found)
 }
 
+func (s *integrationTestSuite) TestPolicyDeletionLogsActivity() {
+	t := s.T()
+
+	admin1 := s.users["admin1@example.com"]
+	admin1.GravatarURL = "http://iii.com"
+	err := s.ds.SaveUser(context.Background(), &admin1)
+	require.NoError(t, err)
+
+	testPolicies := []fleet.PolicyPayload{{
+		Name:  "policy1",
+		Query: "select * from time;",
+	}, {
+		Name:  "policy2",
+		Query: "select * from osquery_info;",
+	}}
+
+	var policyIDs []uint
+	for _, policy := range testPolicies {
+		var resp globalPolicyResponse
+		s.DoJSON("POST", "/api/v1/fleet/global/policies", policy, http.StatusOK, &resp)
+		policyIDs = append(policyIDs, resp.Policy.PolicyData.ID)
+	}
+
+	prevActivities := listActivitiesResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/activities", nil, http.StatusOK, &prevActivities)
+	require.GreaterOrEqual(t, len(prevActivities.Activities), 2)
+
+	var deletePoliciesResp deleteGlobalPoliciesResponse
+	s.DoJSON("POST", "/api/v1/fleet/global/policies/delete", deleteGlobalPoliciesRequest{policyIDs}, http.StatusOK, &deletePoliciesResp)
+	require.Equal(t, len(policyIDs), len(deletePoliciesResp.Deleted))
+
+	newActivities := listActivitiesResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/activities", nil, http.StatusOK, &newActivities)
+	require.Equal(t, len(newActivities.Activities), (len(prevActivities.Activities) + 2))
+
+	var deletes []*fleet.Activity
+	for _, a := range newActivities.Activities {
+		if a.Type == "deleted_policy" {
+			deletes = append(deletes, a)
+		}
+	}
+	require.Equal(t, len(deletes), 2)
+
+	type policyDetails struct {
+		PolicyID   uint   `json:"policy_id"`
+		PolicyName string `json:"policy_name"`
+	}
+	for _, id := range policyIDs {
+		found := false
+		for _, a := range deletes {
+			var details policyDetails
+			err := json.Unmarshal([]byte(*a.Details), &details)
+			require.NoError(t, err)
+			require.NotNil(t, details.PolicyID)
+			if id == details.PolicyID {
+				found = true
+			}
+
+		}
+		require.True(t, found)
+	}
+	for _, p := range testPolicies {
+		found := false
+		for _, a := range deletes {
+			var details policyDetails
+			err := json.Unmarshal([]byte(*a.Details), &details)
+			require.NoError(t, err)
+			require.NotNil(t, details.PolicyName)
+			if p.Name == details.PolicyName {
+				found = true
+			}
+
+		}
+		require.True(t, found)
+	}
+}
+
 func (s *integrationTestSuite) TestAppConfigAdditionalQueriesCanBeRemoved() {
 	t := s.T()
 

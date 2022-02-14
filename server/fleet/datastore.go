@@ -348,7 +348,7 @@ type Datastore interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// GlobalPoliciesStore
 
-	// ApplyQueries applies a list of policies (likely from a yaml file) to the datastore. Existing policies are updated,
+	// ApplyPolicySpecs applies a list of policies (likely from a yaml file) to the datastore. Existing policies are updated,
 	// and new policies are created.
 	ApplyPolicySpecs(ctx context.Context, authorID uint, specs []*PolicySpec) error
 
