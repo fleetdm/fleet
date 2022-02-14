@@ -57,7 +57,7 @@ export const DEFAULT_POLICIES = [
   },
   {
     key: 5,
-    query: "SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT "" AND filevault_status = 'on' LIMIT 1;",
+    query: "SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT '' AND filevault_status = 'on' LIMIT 1;",
     name: "Full disk encryption enabled (macOS)",
     description:
       "Checks to make sure that full disk encryption (FileVault) is enabled on macOS devices.",
