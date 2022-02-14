@@ -454,8 +454,7 @@ func TestAuthorizeQuery(t *testing.T) {
 		{user: teamObserver, object: query, action: runNew, allow: false},
 		{user: teamObserver, object: observerQuery, action: read, allow: true},
 		{user: teamObserver, object: observerQuery, action: write, allow: false},
-		// TODO(mna): should it allow running with no team target specified?
-		//{user: teamObserver, object: emptyTobsQuery, action: run, allow: true},  // can run observer query
+		{user: teamObserver, object: emptyTobsQuery, action: run, allow: true},  // can run observer query with no targeted team
 		{user: teamObserver, object: team1ObsQuery, action: run, allow: true},   // can run observer query filtered to observed team
 		{user: teamObserver, object: team12ObsQuery, action: run, allow: false}, // not filtered only to observed teams
 		{user: teamObserver, object: team2ObsQuery, action: run, allow: false},  // not filtered only to observed teams
@@ -466,12 +465,14 @@ func TestAuthorizeQuery(t *testing.T) {
 		{user: teamMaintainer, object: query, action: write, allow: true},
 		{user: teamMaintainer, object: teamMaintQuery, action: write, allow: true},
 		{user: teamMaintainer, object: teamAdminQuery, action: write, allow: false},
+		{user: teamMaintainer, object: emptyTquery, action: run, allow: true},
 		{user: teamMaintainer, object: team1Query, action: run, allow: true},
 		{user: teamMaintainer, object: team12Query, action: run, allow: false},
 		{user: teamMaintainer, object: team2Query, action: run, allow: false},
 		{user: teamMaintainer, object: query, action: runNew, allow: true},
 		{user: teamMaintainer, object: observerQuery, action: read, allow: true},
 		{user: teamMaintainer, object: observerQuery, action: write, allow: true},
+		{user: teamMaintainer, object: emptyTobsQuery, action: run, allow: true},
 		{user: teamMaintainer, object: team1ObsQuery, action: run, allow: true},
 		{user: teamMaintainer, object: team12ObsQuery, action: run, allow: false},
 		{user: teamMaintainer, object: team2ObsQuery, action: run, allow: false},
@@ -483,12 +484,14 @@ func TestAuthorizeQuery(t *testing.T) {
 		{user: teamAdmin, object: teamAdminQuery, action: write, allow: true},
 		{user: teamAdmin, object: teamMaintQuery, action: write, allow: false},
 		{user: teamAdmin, object: globalAdminQuery, action: write, allow: false},
+		{user: teamAdmin, object: emptyTquery, action: run, allow: true},
 		{user: teamAdmin, object: team1Query, action: run, allow: true},
 		{user: teamAdmin, object: team12Query, action: run, allow: false},
 		{user: teamAdmin, object: team2Query, action: run, allow: false},
 		{user: teamAdmin, object: query, action: runNew, allow: true},
 		{user: teamAdmin, object: observerQuery, action: read, allow: true},
 		{user: teamAdmin, object: observerQuery, action: write, allow: true},
+		{user: teamAdmin, object: emptyTobsQuery, action: run, allow: true},
 		{user: teamAdmin, object: team1ObsQuery, action: run, allow: true},
 		{user: teamAdmin, object: team12ObsQuery, action: run, allow: false},
 		{user: teamAdmin, object: team2ObsQuery, action: run, allow: false},

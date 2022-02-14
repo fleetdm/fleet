@@ -321,8 +321,24 @@ allow {
   is_null(subject.global_role)
 	action == run
 
+  not is_null(object.host_targets.teams)
   ok_teams := { tmid | tmid := object.host_targets.teams[_]; team_role(subject, tmid) == [admin,maintainer][_] }
   count(ok_teams) == count(object.host_targets.teams)
+}
+
+# Team admin and maintainer running a non-observers_can_run query when no target teams
+# are specified.
+allow {
+	object.type == "targeted_query"
+	object.observer_can_run == false
+  is_null(subject.global_role)
+	action == run
+
+  # If role is admin or maintainer on any team
+  team_role(subject, subject.teams[_].id) == [admin,maintainer][_]
+
+  # and there are no team targets
+  is_null(object.host_targets.teams)
 }
 
 # Team admin and maintainer can run a new query
@@ -349,8 +365,24 @@ allow {
   is_null(subject.global_role)
 	action == run
 
+  not is_null(object.host_targets.teams)
   ok_teams := { tmid | tmid := object.host_targets.teams[_]; team_role(subject, tmid) == [admin,maintainer,observer][_] }
   count(ok_teams) == count(object.host_targets.teams)
+}
+
+# Team observer running a observers_can_run query and there are no
+# target teams.
+allow {
+	object.type == "targeted_query"
+	object.observer_can_run == true
+  is_null(subject.global_role)
+	action == run
+
+  # If role is admin, maintainer or observer on any team
+  team_role(subject, subject.teams[_].id) == [admin,maintainer,observer][_]
+
+  # and there are no team targets
+  is_null(object.host_targets.teams)
 }
 
 ##
