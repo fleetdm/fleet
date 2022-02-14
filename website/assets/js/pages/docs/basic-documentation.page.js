@@ -54,10 +54,8 @@ parasails.registerPage('basic-documentation', {
             // custom sort function is needed because simple sort of alphanumeric htmlIds strings
             // does not appropriately handle double-digit strings
             try {
-              // sort pages by their `pageRankInRepoPath` value
+              // attempt to split htmlId and parse out its ordinal value (e.g., `docs--10-teams--xxxxxxxxxx`)
               let sortValue = page.htmlId.split(/--/)[1].split(/-/)[0];
-              // let sortValue = page.pageRankInSectionPath;
-              console.log(sortValue+' '+page);
               return parseInt(sortValue) || sortValue;
             } catch (error) {
               // something unexpected happened so just return the htmlId and continue sort
@@ -116,7 +114,7 @@ parasails.registerPage('basic-documentation', {
     // // Alternative jQuery approach to grab `on this page` links from top of markdown files
     // let subtopics = $('#body-content').find('h1 + ul').children().map((_, el) => el.innerHTML);
     // subtopics = $.makeArray(subtopics);
-    console.log(this.pagesBySectionSlug);
+    // console.log(subtopics);
 
     this.subtopics = (() => {
       let subtopics = $('#body-content').find('h2').map((_, el) => el.innerText);
