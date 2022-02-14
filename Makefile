@@ -10,6 +10,18 @@ REVSHORT = $(shell git rev-parse --short HEAD)
 USER = $(shell whoami)
 DOCKER_IMAGE_NAME = fleetdm/fleet
 
+ifdef RACE_ENABLED
+RACE_ENABLED_VAR := $(RACE_ENABLED)
+else
+RACE_ENABLED_VAR := false
+endif
+
+ifdef GO_TEST_TIMEOUT
+GO_TEST_TIMEOUT_VAR := $(GO_TEST_TIMEOUT)
+else
+GO_TEST_TIMEOUT_VAR := 10m
+endif
+
 ifneq ($(OS), Windows_NT)
 	# If on macOS, set the shell to bash explicitly
 	ifeq ($(shell uname), Darwin)
@@ -118,7 +130,7 @@ dump-test-schema:
 	go run ./tools/dbutils ./server/datastore/mysql/schema.sql
 
 test-go: dump-test-schema generate-mock
-	go test -tags full,fts5,netgo -race=${RACE_ENABLED} -parallel 8 -coverprofile=coverage.txt -covermode=atomic ./cmd/... ./ee/... ./orbit/... ./pkg/... ./server/... ./tools/...
+	go test -tags full,fts5,netgo -timeout=${GO_TEST_TIMEOUT_VAR} -race=${RACE_ENABLED_VAR} -parallel 8 -coverprofile=coverage.txt -covermode=atomic ./cmd/... ./ee/... ./orbit/... ./pkg/... ./server/... ./tools/...
 
 analyze-go:
 	go test -tags full,fts5,netgo -race -cover ./...

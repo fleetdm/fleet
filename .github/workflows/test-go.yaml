@@ -25,6 +25,7 @@ jobs:
 
     env:
       RACE_ENABLED: true
+      GO_TEST_TIMEOUT: 10m
 
     steps:
     - name: Install Go
@@ -54,10 +55,11 @@ jobs:
       run: echo "Running go tests with race enabled"
       env:
         RACE_ENABLED: true
+        GO_TEST_TIMEOUT: 30m
 
     - name: Run Go Tests
       run: |
-        NETWORK_TEST=1 REDIS_TEST=1 MYSQL_TEST=1 RACE_ENABLED=$RACE_ENABLED make test-go
+        NETWORK_TEST=1 REDIS_TEST=1 MYSQL_TEST=1 RACE_ENABLED=$RACE_ENABLED GO_TEST_TIMEOUT=$GO_TEST_TIMEOUT make test-go
 
     - name: Upload to Codecov
       uses: codecov/codecov-action@v2
