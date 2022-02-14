@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"strconv"
 
@@ -867,6 +868,10 @@ func getTeamsCommand() *cli.Command {
 			configFlag(),
 			contextFlag(),
 			debugFlag(),
+			&cli.StringFlag{
+				Name:  nameFlagName,
+				Usage: "filter by name",
+			},
 		},
 		Action: func(c *cli.Context) error {
 			client, err := clientFromCLI(c)
@@ -874,7 +879,13 @@ func getTeamsCommand() *cli.Command {
 				return err
 			}
 
-			teams, err := client.ListTeams()
+			query := url.Values{}
+			if name := c.String(nameFlagName); name != "" {
+				query.Set("query", name)
+			}
+			queryStr := query.Encode()
+
+			teams, err := client.ListTeams(queryStr)
 			if err != nil {
 				return fmt.Errorf("could not list teams: %w", err)
 			}
