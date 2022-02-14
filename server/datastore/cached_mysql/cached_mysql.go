@@ -33,7 +33,11 @@ func clone(v interface{}) (interface{}, error) {
 		return cloner.Clone()
 	}
 
+	// Use reflection to initialize a clone of v of the same type.
 	vv := reflect.ValueOf(v)
+
+	// If the value is a pointer, then calling reflect.New on it will result in a double pointer.
+	// Instead, dereference the pointer first.
 	isPtr := false
 	if vv.Kind() == reflect.Ptr {
 		isPtr = true
@@ -41,6 +45,7 @@ func clone(v interface{}) (interface{}, error) {
 	}
 
 	clone := reflect.New(vv.Type())
+
 	err := copier.Copy(clone.Interface(), v)
 	if err != nil {
 		return nil, err
@@ -50,6 +55,7 @@ func clone(v interface{}) (interface{}, error) {
 		return clone.Interface(), nil
 	}
 
+	// The value was not a pointer. Need to dereference it before returning.
 	return clone.Elem().Interface(), nil
 }
 
