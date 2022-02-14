@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/go-kit/kit/log"
@@ -19,7 +20,7 @@ func TestDetailQueryNetworkInterfaces(t *testing.T) {
 	var initialHost fleet.Host
 	host := initialHost
 
-	ingest := GetDetailQueries(nil)["network_interface"].IngestFunc
+	ingest := GetDetailQueries(nil, config.FleetConfig{})["network_interface"].IngestFunc
 
 	assert.NoError(t, ingest(log.NewNopLogger(), &host, nil))
 	assert.Equal(t, initialHost, host)
@@ -110,7 +111,7 @@ func TestDetailQueryScheduledQueryStats(t *testing.T) {
 		return nil
 	}
 
-	ingest := GetDetailQueries(&fleet.AppConfig{HostSettings: fleet.HostSettings{EnableScheduledQueryStats: true}})["scheduled_query_stats"].DirectIngestFunc
+	ingest := GetDetailQueries(nil, config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}})["scheduled_query_stats"].DirectIngestFunc
 
 	ctx := context.Background()
 	assert.NoError(t, ingest(ctx, log.NewNopLogger(), &host, ds, nil, false))
@@ -288,7 +289,7 @@ func sortedKeysCompare(t *testing.T, m map[string]DetailQuery, expectedKeys []st
 }
 
 func TestGetDetailQueries(t *testing.T) {
-	queriesNoConfig := GetDetailQueries(nil)
+	queriesNoConfig := GetDetailQueries(nil, config.FleetConfig{})
 	require.Len(t, queriesNoConfig, 11)
 	baseQueries := []string{
 		"network_interface",
@@ -305,23 +306,32 @@ func TestGetDetailQueries(t *testing.T) {
 	}
 	sortedKeysCompare(t, queriesNoConfig, baseQueries)
 
-	queriesWithUsers := GetDetailQueries(&fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true, EnableScheduledQueryStats: true}})
+	queriesWithUsers := GetDetailQueries(&fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}}, config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}})
 	require.Len(t, queriesWithUsers, 13)
 	sortedKeysCompare(t, queriesWithUsers, append(baseQueries, "users", "scheduled_query_stats"))
 
-	queriesWithUsersAndSoftware := GetDetailQueries(&fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true, EnableSoftwareInventory: true, EnableScheduledQueryStats: true}})
+	queriesWithUsersAndSoftware := GetDetailQueries(&fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true, EnableSoftwareInventory: true}}, config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}})
 	require.Len(t, queriesWithUsersAndSoftware, 16)
 	sortedKeysCompare(t, queriesWithUsersAndSoftware,
 		append(baseQueries, "users", "software_macos", "software_linux", "software_windows", "scheduled_query_stats"))
 }
 
 func TestDirectIngestMDM(t *testing.T) {
+	ds := new(mock.Store)
+	ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, enrolled bool, serverURL string, installedFromDep bool) error {
+		require.False(t, enrolled)
+		require.False(t, installedFromDep)
+		require.Empty(t, serverURL)
+		return nil
+	}
+
 	var host fleet.Host
 
-	err := directIngestMDM(context.Background(), log.NewNopLogger(), &host, nil, []map[string]string{}, true)
+	err := directIngestMDM(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{}, true)
 	require.NoError(t, err)
+	require.False(t, ds.SetOrUpdateMDMDataFuncInvoked)
 
-	err = directIngestMDM(context.Background(), log.NewNopLogger(), &host, nil, []map[string]string{
+	err = directIngestMDM(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{
 		{
 			"enrolled":           "false",
 			"installed_from_dep": "",
@@ -329,4 +339,5 @@ func TestDirectIngestMDM(t *testing.T) {
 		},
 	}, false)
 	require.NoError(t, err)
+	require.True(t, ds.SetOrUpdateMDMDataFuncInvoked)
 }

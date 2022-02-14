@@ -6,7 +6,6 @@
 - [Enroll secrets](#enroll-secrets)
 - [Teams](#teams)
 - [Organization settings](#organization-settings)
-- [Host settings](#host-settings)
 
 Entities in Fleet, such as queries, packs, labels, agent options, and enroll secrets, can be managed with configuration files in yaml syntax.
 
@@ -256,6 +255,23 @@ spec:
     server: mail.example.org
     user_name: test_user
     verify_ssl_certs: true
+  vulnerability_settings":
+    databases_path: ""
+  webhook_settings:
+    host_status_webhook:
+      enable_host_status_webhook: true
+      destination_url: https://server.com
+      host_percentage: 5
+      days_count: 7
+    failing_policies_webhook:
+      enable_failing_policies_webhook: true
+      destination_url": https://server.com
+      policy_ids: 
+        - 1
+        - 2
+        - 3
+      host_batch_size: 0
+    interval: 1m0s
   sso_settings:
     enable_sso: false
     entity_id: 1234567890
@@ -431,7 +447,7 @@ The following options are available when configuring SMTP authentication:
 
 - `webhook_settings.interval`: the interval at which to check for webhook conditions. Default: 24h.
 
-##### Host Status
+##### Host status
 
 The following options allow the configuration of a webhook that will be triggered if the specified percentage of hosts
 are offline for the specified amount of time.
@@ -441,7 +457,7 @@ are offline for the specified amount of time.
 - `webhook_settings.host_status_webhook.host_percentage`: the percentage of hosts that need to be offline
 - `webhook_settings.host_status_webhook.days_count`: amount of days that hosts need to be offline for to count as part of the percentage.
 
-##### Failing Policies
+##### Failing policies
 
 The following options allow the configuration of a webhook that will be triggered if selected policies are not passing for some hosts.
 
@@ -450,7 +466,7 @@ The following options allow the configuration of a webhook that will be triggere
 - `webhook_settings.failing_policies_webhook.policy_ids`: the IDs of the policies for which the webhook will be enabled.
 - `webhook_settings.failing_policies_webhook.host_batch_size`: Maximum number of hosts to batch on POST requests. A value of `0`, the default, means no batching, all hosts failing a policy will be sent on one POST request.
 
-##### Recent Vulnerabilities
+##### Recent vulnerabilities
 
 The following options allow the configuration of a webhook that will be triggered if recently published vulnerabilities are detected and there are affected hosts. A vulnerability is considered recent if it has been published in the last 2 days (based on the National Vulnerability Database, NVD).
 
@@ -495,9 +511,8 @@ in a public channel or a Github issue.
 
 ### Host settings
 
-The `host_settings` section of the configuration yaml allows to define what predefined queries are sent to the hosts and 
+The `host_settings` section of the configuration yaml allows to define what predefined queries are sent to the hosts and
 later on processed by Fleet for different functionalities.
 
 - `host_settings.enable_host_users`: boolean value that when enabled Fleet will send the query needed to gather user data
 - `host_settings.enable_software_inventory`: boolean value that when enabled Fleet will send the query needed to gather the list of software installed along with other metadata
-- `host_settings.enable_scheduled_query_stats`: boolean value that when enabled Fleet will send the query needed to gather statistics about query executions in a host

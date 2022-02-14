@@ -76,7 +76,13 @@ class UserSettingsForm extends Component {
             <strong>Settings &gt; Organization settings</strong>.
           </span>
         </ReactTooltip>
-        <InputField {...fields.name} label="Full name (required)" />
+        <InputField
+          {...fields.name}
+          label="Full name (required)"
+          inputOptions={{
+            maxLength: "80",
+          }}
+        />
         <InputField {...fields.position} label="Position" />
         <div className={`${baseClass}__button-wrap`}>
           <Button onClick={onCancel} variant="inverse">

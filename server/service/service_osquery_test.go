@@ -40,8 +40,7 @@ import (
 )
 
 // One of these queries is the disk space, only one of the two works in a platform
-var expectedDetailQueries = len(osquery_utils.GetDetailQueries(
-	&fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}})) - 1
+var expectedDetailQueries = len(osquery_utils.GetDetailQueries(&fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}}, config.FleetConfig{})) - 1
 
 func TestEnrollAgent(t *testing.T) {
 	ds := new(mock.Store)
@@ -279,7 +278,7 @@ func TestHostDetailQueries(t *testing.T) {
 			},
 		},
 
-		Platform:        "rhel",
+		Platform:        "darwin",
 		DetailUpdatedAt: mockClock.Now(),
 		NodeKey:         "test_key",
 		Hostname:        "test_hostname",
@@ -624,7 +623,7 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	// queries)
 	queries, acc, err := svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	require.Len(t, queries, expectedDetailQueries)
+	require.Len(t, queries, expectedDetailQueries-3)
 	assert.NotZero(t, acc)
 
 	resultJSON := `
@@ -812,7 +811,7 @@ func TestDetailQueries(t *testing.T) {
 	// queries)
 	queries, acc, err := svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	require.Len(t, queries, expectedDetailQueries+1)
+	require.Len(t, queries, expectedDetailQueries-2)
 	assert.NotZero(t, acc)
 
 	resultJSON := `
@@ -1185,7 +1184,7 @@ func TestDistributedQueryResults(t *testing.T) {
 	// Now we should get the active distributed query
 	queries, acc, err := svc.GetDistributedQueries(hostCtx)
 	require.NoError(t, err)
-	require.Len(t, queries, expectedDetailQueries+1)
+	require.Len(t, queries, expectedDetailQueries-2)
 	queryKey := fmt.Sprintf("%s%d", hostDistributedQueryPrefix, campaign.ID)
 	assert.Equal(t, "select * from time", queries[queryKey])
 	assert.NotZero(t, acc)

@@ -2,25 +2,66 @@
 
 You can configure automations in Fleet to send a webhook request if a certain condition is met.
 
-[Policy automations](#policy-automations) allow you to receive a list of hosts that recently failed a policy.
+[Vulnerability automations](#policy-automations) send a webhook request if a new vulnerability (CVE) is
+detected on at least one host.
 
-[Host status automations](#host-status-automations) allow you to receive a notification when a portion of your hosts go offline.
+[Policy automations](#policy-automations) send a webhook request if a policy is newly failing on at
+least one host.
+
+[Host status automations](#host-status-automations) send a webhook request if a configured
+percentage of hosts have not checked in to Fleet for a configured number of days.
+
+## Vulnerability automations
+
+Vulnerability automations send a webhook request if a new vulnerability (CVE) is
+found on at least one host.
+
+> Note that a CVE is "new" if it was published to the national vulnerability (NVD) database within
+> the last 2 days.
+
+Fleet sends these webhook requests once every hour. If two new vulnerabilities are detected
+within the hour, two
+webhook requests are sent. This interval can be updated with the [`vulnerabilities_periodicity` configuration option](../02-Deploying/03-Configuration.md#periodicity).
+
+Example webhook payload:
+
+```
+POST https://server.com/example
+```
+
+```json
+{
+  "timestamp": "0000-00-00T00:00:00Z",
+  "vulnerability": {
+    "cve": "CVE-2014-9471",
+    "details_link": "https://nvd.nist.gov/vuln/detail/CVE-2014-9471",
+    "hosts_affected": [
+      {
+        "id": 1,
+        "hostname": "macbook-1",
+        "url": "https://fleet.example.com/hosts/1"
+      },
+      {
+        "id": 2,
+        "hostname": "macbook-2",
+        "url": "https://fleet.example.com/hosts/2"
+      }
+    ]
+  }
+}
+```
 
 ## Policy automations
 
-Policy automations are triggered once per day, for each policy, if one or more hosts has recently
-failed a policy.
+Policy automations send a webhook request if a policy is newly failing on at
+least one host. 
 
-Policy automations can be turned on or off for each policy.
+> Note that a policy is "newly failing" if a host updated its response from "no response" to "failing"
+> or from "passing" to "failing." 
 
-For each policy, Fleet will send a webhook request with a list of the hosts that recently failed the
-policy. 
-
-Once per day, the Fleet server updates this list of hosts. The hosts that failed after the last
-attempted webhook request are added to the list. The hosts that were included in the last successful
-webhook request are removed from the list.
-
-To enable policy automations, navigate to **Policies > Manage automations** in the Fleet UI.
+Fleet sends these webhook requests once per day. If two policies are newly failing
+within the day, two webhook requests are sent. This interval can be updated with the `webhook_settings.interval`
+configuration option using the [`config` yaml document](./configuration-files/README.md#organization-settings) and the `fleetctl apply` command.
 
 Example webhook payload:
 
@@ -58,13 +99,15 @@ POST https://server.com/example
 }
 ```
 
+To enable policy automations, navigate to **Policies > Manage automations** in the Fleet UI.
+
 ## Host status automations
 
-Host status automations are triggered once per day if a configured percentage of hosts has not
-checked in to Fleet for a configured number of days.
+Host status automations send a webhook request if a configured
+percentage of hosts have not checked in to Fleet for a configured number of days.
 
-To enable and configure host status automations, navigate to **Settings > Organization settings > Host
-status webhook** in the Fleet UI.
+Fleet sends these webhook requests once per day. This interval can be updated with the `webhook_settings.interval`
+configuration option using the [`config` yaml document](./configuration-files/README.md#organization-settings) and the `fleetctl apply` command.
 
 Example webhook payload:
 
@@ -85,3 +128,6 @@ POST https://server.com/example
   }
 }
 ```
+
+To enable and configure host status automations, navigate to **Settings > Organization settings > Host
+status webhook** in the Fleet UI.

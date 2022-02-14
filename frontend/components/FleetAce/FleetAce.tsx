@@ -80,6 +80,10 @@ const FleetAce = ({
       [`${baseClass}__label--with-action`]: !!labelActionComponent,
     });
 
+    if (!label) {
+      return <></>;
+    }
+
     return (
       <div className={labelClassName}>
         <p>{labelText}</p>

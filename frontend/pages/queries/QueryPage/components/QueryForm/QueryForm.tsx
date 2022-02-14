@@ -264,8 +264,9 @@ const QueryForm = ({
               name="query-name"
               placeholder="Add name here"
               value={lastEditedQueryName}
-              hasError={errors && errors.name}
               inputClassName={`${baseClass}__query-name`}
+              maxLength="160"
+              hasError={errors && errors.name}
               onChange={setLastEditedQueryName}
               onFocus={() => setIsEditingName(true)}
               onBlur={() => setIsEditingName(false)}
@@ -296,6 +297,7 @@ const QueryForm = ({
               name="query-description"
               placeholder="Add description here."
               value={lastEditedQueryDescription}
+              maxLength="250"
               inputClassName={`${baseClass}__query-description`}
               onChange={setLastEditedQueryDescription}
               onFocus={() => setIsEditingDescription(true)}
@@ -349,6 +351,9 @@ const QueryForm = ({
           readOnly
         />
       )}
+      <span className={`${baseClass}__platform-compatibility`}>
+        {renderPlatformCompatibility()}
+      </span>
       {renderLiveQueryWarning()}
       {lastEditedQueryObserverCanRun && (
         <div

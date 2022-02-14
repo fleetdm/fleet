@@ -210,10 +210,6 @@ func validateSSOSettings(p fleet.AppConfig, existing *fleet.AppConfig, invalid *
 			if existing.SSOSettings.IDPName == "" {
 				invalid.Append("idp_name", "required")
 			}
-		} else {
-			if len(p.SSOSettings.IDPName) < 4 {
-				invalid.Append("idp_name", "must be 4 or more characters")
-			}
 		}
 	}
 }
@@ -365,7 +361,8 @@ func connectTLS(ctx context.Context, serverURL *url.URL) (*tls.Conn, error) {
 	// if that fails, use insecure
 	dial := func(insecure bool) (*tls.Conn, error) {
 		conn, err := tls.Dial("tcp", hostport, &tls.Config{
-			InsecureSkipVerify: insecure})
+			InsecureSkipVerify: insecure,
+		})
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "dial tls")
 		}

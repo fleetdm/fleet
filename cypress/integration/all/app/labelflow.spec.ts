@@ -56,5 +56,27 @@ describe("Labels flow", () => {
         cy.findByText(/show all mac usernames/i).should("not.exist");
       });
     });
+    it("creates labels with special characters", () => {
+      cy.findByRole("button", { name: /add label/i }).click();
+      cy.getAttached(".ace_content").type(
+        "{selectall}{backspace}SELECT * FROM users;"
+      );
+      cy.findByLabelText(/name/i)
+        .click()
+        .type("** Special label (Mac / Users)");
+      cy.findByLabelText(/description/i)
+        .click()
+        .type("Select all MAC users using special characters.");
+      cy.getAttached(".label-form__form-field--platform > .Select").click();
+      cy.getAttached(".Select-menu-outer").within(() => {
+        cy.findByText(/macOS/i).click();
+      });
+      cy.findByRole("button", { name: /save label/i }).click();
+      cy.findByText(/label created/i).should("exist");
+    });
+    it("searches labels with special characters", () => {
+      cy.getAttached("#tags-filter").type("{selectall}{backspace}**");
+      cy.findByText(/Special label/i).should("exist");
+    });
   });
 });

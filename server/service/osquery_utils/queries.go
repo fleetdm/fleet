@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/kit/log"
@@ -286,14 +287,20 @@ FROM logical_drives WHERE file_system = 'NTFS' LIMIT 1;`,
 	"mdm": {
 		Query:            `select enrolled, server_url, installed_from_dep from mdm;`,
 		DirectIngestFunc: directIngestMDM,
+		Platforms:        []string{"darwin"},
 	},
 	"munki_info": {
 		Query:            `select version from munki_info;`,
 		DirectIngestFunc: directIngestMunkiInfo,
+		Platforms:        []string{"darwin"},
 	},
 	"google_chrome_profiles": {
 		Query:            `SELECT email FROM google_chrome_profiles WHERE NOT ephemeral`,
 		DirectIngestFunc: directIngestChromeProfiles,
+		// Technically this does work on Windows and Linux, but so far no one is
+		// deploying the extension to those platforms and it's causing log spam
+		// for customers. See https://github.com/fleetdm/fleet/issues/4123
+		Platforms: []string{"darwin"},
 	},
 }
 
@@ -365,6 +372,14 @@ FROM homebrew_packages;
 	DirectIngestFunc: directIngestSoftware,
 }
 
+var scheduledQueryStats = DetailQuery{
+	Query: `
+			SELECT *,
+				(SELECT value from osquery_flags where name = 'pack_delimiter') AS delimiter
+			FROM osquery_schedule`,
+	DirectIngestFunc: directIngestScheduledQueryStats,
+}
+
 var softwareLinux = DetailQuery{
 	Query: `
 WITH cached_users AS (SELECT * FROM users)
@@ -415,7 +430,7 @@ SELECT
   version AS version,
   'Package (Atom)' AS type,
   'atom_packages' AS source
-FROM users CROSS JOIN atom_packages USING (uid)
+FROM cached_users CROSS JOIN atom_packages USING (uid)
 UNION
 SELECT
   name AS name,
@@ -489,14 +504,6 @@ FROM python_packages;
 `,
 	Platforms:        []string{"windows"},
 	DirectIngestFunc: directIngestSoftware,
-}
-
-var scheduledQueryStats = DetailQuery{
-	Query: `
-			SELECT *,
-				(SELECT value from osquery_flags where name = 'pack_delimiter') AS delimiter
-			FROM osquery_schedule`,
-	DirectIngestFunc: directIngestScheduledQueryStats,
 }
 
 var usersQuery = DetailQuery{
@@ -712,14 +719,13 @@ func directIngestMDM(ctx context.Context, logger log.Logger, host *fleet.Host, d
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "parsing enrolled")
 	}
-	if !enrolled {
-		// A row with enrolled=false and all other columns empty is a host with the osquery
-		// MDM table extensions installed (e.g. Orbit) but MDM unconfigured/disabled.
-		return nil
-	}
-	installedFromDep, err := strconv.ParseBool(rows[0]["installed_from_dep"])
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "parsing installed_from_dep")
+	installedFromDepVal := rows[0]["installed_from_dep"]
+	installedFromDep := false
+	if installedFromDepVal != "" {
+		installedFromDep, err = strconv.ParseBool(installedFromDepVal)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "parsing installed_from_dep")
+		}
 	}
 
 	return ds.SetOrUpdateMDMData(ctx, host.ID, enrolled, rows[0]["server_url"], installedFromDep)
@@ -738,7 +744,7 @@ func directIngestMunkiInfo(ctx context.Context, logger log.Logger, host *fleet.H
 	return ds.SetOrUpdateMunkiVersion(ctx, host.ID, rows[0]["version"])
 }
 
-func GetDetailQueries(ac *fleet.AppConfig) map[string]DetailQuery {
+func GetDetailQueries(ac *fleet.AppConfig, fleetConfig config.FleetConfig) map[string]DetailQuery {
 	generatedMap := make(map[string]DetailQuery)
 	for key, query := range detailQueries {
 		generatedMap[key] = query
@@ -754,7 +760,7 @@ func GetDetailQueries(ac *fleet.AppConfig) map[string]DetailQuery {
 		generatedMap["users"] = usersQuery
 	}
 
-	if ac != nil && ac.HostSettings.EnableScheduledQueryStats {
+	if fleetConfig.App.EnableScheduledQueryStats {
 		generatedMap["scheduled_query_stats"] = scheduledQueryStats
 	}
 
