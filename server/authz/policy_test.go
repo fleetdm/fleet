@@ -359,18 +359,27 @@ func TestAuthorizeQuery(t *testing.T) {
 			{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver},
 		},
 	}
+	twoTeamsAdminObs := &fleet.User{
+		ID: 103,
+		Teams: []fleet.UserTeam{
+			{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin},
+			{Team: fleet.Team{ID: 2}, Role: fleet.RoleObserver},
+		},
+	}
 
 	query := &fleet.Query{ObserverCanRun: false}
 	emptyTquery := &fleet.TargetedQuery{Query: query}
 	team1Query := &fleet.TargetedQuery{HostTargets: fleet.HostTargets{TeamIDs: []uint{1}}, Query: query}
 	team12Query := &fleet.TargetedQuery{HostTargets: fleet.HostTargets{TeamIDs: []uint{1, 2}}, Query: query}
 	team2Query := &fleet.TargetedQuery{HostTargets: fleet.HostTargets{TeamIDs: []uint{2}}, Query: query}
+	team123Query := &fleet.TargetedQuery{HostTargets: fleet.HostTargets{TeamIDs: []uint{1, 2, 3}}, Query: query}
 
 	observerQuery := &fleet.Query{ObserverCanRun: true}
 	emptyTobsQuery := &fleet.TargetedQuery{Query: observerQuery}
 	team1ObsQuery := &fleet.TargetedQuery{HostTargets: fleet.HostTargets{TeamIDs: []uint{1}}, Query: observerQuery}
 	team12ObsQuery := &fleet.TargetedQuery{HostTargets: fleet.HostTargets{TeamIDs: []uint{1, 2}}, Query: observerQuery}
 	team2ObsQuery := &fleet.TargetedQuery{HostTargets: fleet.HostTargets{TeamIDs: []uint{2}}, Query: observerQuery}
+	team123ObsQuery := &fleet.TargetedQuery{HostTargets: fleet.HostTargets{TeamIDs: []uint{1, 2, 3}}, Query: observerQuery}
 
 	teamAdminQuery := &fleet.Query{ID: 1, AuthorID: ptr.Uint(teamAdmin.ID), ObserverCanRun: false}
 	teamMaintQuery := &fleet.Query{ID: 2, AuthorID: ptr.Uint(teamMaintainer.ID), ObserverCanRun: false}
@@ -496,6 +505,27 @@ func TestAuthorizeQuery(t *testing.T) {
 		{user: teamAdmin, object: team12ObsQuery, action: run, allow: false},
 		{user: teamAdmin, object: team2ObsQuery, action: run, allow: false},
 		{user: teamAdmin, object: observerQuery, action: runNew, allow: true},
+
+		// User admin on team 1, observer on team 2
+		{user: twoTeamsAdminObs, object: query, action: read, allow: true},
+		{user: twoTeamsAdminObs, object: query, action: write, allow: true},
+		{user: twoTeamsAdminObs, object: teamAdminQuery, action: write, allow: false},
+		{user: twoTeamsAdminObs, object: teamMaintQuery, action: write, allow: false},
+		{user: twoTeamsAdminObs, object: globalAdminQuery, action: write, allow: false},
+		{user: twoTeamsAdminObs, object: emptyTquery, action: run, allow: true},
+		{user: twoTeamsAdminObs, object: team1Query, action: run, allow: true},
+		{user: twoTeamsAdminObs, object: team12Query, action: run, allow: false}, // user is only observer on team 2
+		{user: twoTeamsAdminObs, object: team2Query, action: run, allow: false},
+		{user: twoTeamsAdminObs, object: team123Query, action: run, allow: false},
+		{user: twoTeamsAdminObs, object: query, action: runNew, allow: true},
+		{user: twoTeamsAdminObs, object: observerQuery, action: read, allow: true},
+		{user: twoTeamsAdminObs, object: observerQuery, action: write, allow: true},
+		{user: twoTeamsAdminObs, object: emptyTobsQuery, action: run, allow: true},
+		{user: twoTeamsAdminObs, object: team1ObsQuery, action: run, allow: true},
+		{user: twoTeamsAdminObs, object: team12ObsQuery, action: run, allow: true}, // user is at least observer on both teams
+		{user: twoTeamsAdminObs, object: team2ObsQuery, action: run, allow: true},
+		{user: twoTeamsAdminObs, object: team123ObsQuery, action: run, allow: false}, // not member of team 3
+		{user: twoTeamsAdminObs, object: observerQuery, action: runNew, allow: true},
 	})
 }
 
