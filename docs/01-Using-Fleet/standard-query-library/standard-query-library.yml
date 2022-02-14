@@ -767,3 +767,4 @@ spec:
   resolution: "Ensure ClamAV and Freshclam are installed and running."
   platforms: Linux
   contributors: GuillaumeRoss
+  
