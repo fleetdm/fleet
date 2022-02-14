@@ -7,7 +7,7 @@ import ReactTooltip from "react-tooltip";
 interface IPillCellProps {
   value: [string, number];
   customIdPrefix?: string;
-  page?: string;
+  hostDetails?: boolean;
 }
 
 const generateClassTag = (rawValue: string): string => {
@@ -17,7 +17,7 @@ const generateClassTag = (rawValue: string): string => {
 const PillCell = ({
   value,
   customIdPrefix,
-  page,
+  hostDetails,
 }: IPillCellProps): JSX.Element => {
   const [pillText, id] = value;
 
@@ -73,18 +73,11 @@ const PillCell = ({
           </>
         );
       case "Undetermined":
-        if (page === "host details") {
-          return (
-            <>
-              To see performance <br /> impact, this query must <br /> run as a
-              scheduled query <br /> on this host.
-            </>
-          );
-        }
         return (
           <>
             To see performance <br /> impact, this query must <br /> run as a
-            scheduled query <br /> on at least one host.
+            scheduled query <br /> on {hostDetails ? "this" : "at least one"}{" "}
+            host.
           </>
         );
       default:
