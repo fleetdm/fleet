@@ -155,7 +155,6 @@ describe(
       });
       it("allows admin to see and click the 'Add hosts' button", () => {
         cy.findByRole("button", { name: /add hosts/i }).click();
-        cy.contains(/team/i).should("not.exist");
         cy.contains("button", /done/i).click();
       });
       it("allows admin to manage and add enroll secret", () => {

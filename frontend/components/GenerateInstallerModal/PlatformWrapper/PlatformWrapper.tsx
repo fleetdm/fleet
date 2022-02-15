@@ -126,7 +126,7 @@ const PlatformWrapper = ({
     enrollSecret = selectedTeam.secrets[0].secret;
   }
 
-  const onDownloadEnrollSecrets = (evt: any) => {
+  const onDownloadEnrollSecret = (evt: any) => {
     evt.preventDefault();
 
     const filename = "secret.txt";
@@ -239,8 +239,8 @@ const PlatformWrapper = ({
                 server.
                 <br />
                 <a
-                  href="#downloadCertificate"
-                  onClick={onDownloadEnrollSecrets}
+                  href="#downloadEnrollSecret"
+                  onClick={onDownloadEnrollSecret}
                 >
                   Download
                   <img src={DownloadIcon} alt="download icon" />
