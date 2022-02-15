@@ -37,7 +37,7 @@ const SecretEditorModal = ({
   const [enrollSecretString, setEnrollSecretString] = useState<string>(
     selectedSecret ? selectedSecret.secret : randomSecretGenerator()
   );
-  const [errors, setErrors] = useState<{ [key: string]: any }>({});
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
   const renderTeam = () => {
     if (typeof selectedTeam === "string") {

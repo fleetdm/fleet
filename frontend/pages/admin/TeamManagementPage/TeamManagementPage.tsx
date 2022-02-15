@@ -96,8 +96,7 @@ const TeamManagementPage = (): JSX.Element => {
           toggleCreateTeamModal();
         })
         .catch((createError: any) => {
-          console.error(createError);
-          if (createError.errors[0].reason.includes("Duplicate")) {
+          if (createError.data.errors[0].reason.includes("Duplicate")) {
             dispatch(
               renderFlash("error", "A team with this name already exists.")
             );

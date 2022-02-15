@@ -226,7 +226,7 @@ To intercept sent emails while running a Fleet development environment, first, i
 
 Then, in the "SMTP options" section, enter any email address in the "Sender address" field, set the "SMTP server" to `localhost` on port `1025`, and set "Authentication type" to `None`. Note that you may use any active or inactive sender address.
 
-Visit [locahost:8025](http://localhost:8025) to view Mailhog's admin interface which will display all emails sent using the simulated mail server.
+Visit [localhost:8025](http://localhost:8025) to view Mailhog's admin interface which will display all emails sent using the simulated mail server.
 
 ## Development database management
 

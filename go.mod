@@ -7,13 +7,17 @@ require (
 	github.com/AbGuthrie/goquery/v2 v2.0.1
 	github.com/DATA-DOG/go-sqlmock v1.5.0
 	github.com/OneOfOne/xxhash v1.2.8 // indirect
+	github.com/PuerkitoBio/goquery v1.8.0 // indirect
 	github.com/VividCortex/gohistogram v1.0.0 // indirect
 	github.com/VividCortex/mysqlerr v0.0.0-20170204212430-6c6b55f8796f
 	github.com/WatchBeam/clock v0.0.0-20170901150240-b08e6b4da7ea
+	github.com/XSAM/otelsql v0.10.0
+	github.com/antchfx/htmlquery v1.2.4 // indirect
+	github.com/antchfx/xmlquery v1.3.9 // indirect
 	github.com/aws/aws-sdk-go v1.40.34
 	github.com/beevik/etree v1.1.0
 	github.com/briandowns/spinner v1.13.0
-	github.com/cenkalti/backoff/v4 v4.0.0
+	github.com/cenkalti/backoff/v4 v4.1.2
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/davecgh/go-spew v1.1.1
 	github.com/dgraph-io/badger/v2 v2.2007.2
@@ -29,6 +33,7 @@ require (
 	github.com/ghodss/yaml v1.0.0
 	github.com/go-kit/kit v0.9.0
 	github.com/go-sql-driver/mysql v1.6.0
+	github.com/gocolly/colly v1.2.0
 	github.com/golang-jwt/jwt/v4 v4.0.0
 	github.com/gomodule/redigo v1.8.5
 	github.com/google/go-cmp v0.5.6
@@ -39,12 +44,13 @@ require (
 	github.com/gorilla/mux v1.8.0
 	github.com/gorilla/websocket v1.4.2
 	github.com/gosuri/uilive v0.0.4
-	github.com/hashicorp/go-multierror v1.0.0 // indirect
+	github.com/hashicorp/go-multierror v1.0.0
 	github.com/hectane/go-acl v0.0.0-20190604041725-da78bae5fc95
 	github.com/igm/sockjs-go/v3 v3.0.0
 	github.com/jinzhu/copier v0.3.2
 	github.com/jmoiron/sqlx v1.2.1-0.20190826204134-d7d95172beb5
 	github.com/jonboulle/clockwork v0.2.2 // indirect
+	github.com/kennygrant/sanitize v1.2.4 // indirect
 	github.com/kevinburke/go-bindata v3.22.0+incompatible
 	github.com/kolide/kit v0.0.0-20180421083548-36eb8dc43916
 	github.com/kolide/launcher v0.0.0-20180427153757-cb412b945cf7
@@ -68,20 +74,31 @@ require (
 	github.com/rotisserie/eris v0.5.1
 	github.com/rs/zerolog v1.20.0
 	github.com/russellhaering/goxmldsig v1.1.0
+	github.com/saintfish/chardet v0.0.0-20120816061221-3af4cd4741ca // indirect
 	github.com/skratchdot/open-golang v0.0.0-20200116055534-eef842397966
 	github.com/spf13/cast v1.3.1
 	github.com/spf13/cobra v1.2.1
 	github.com/spf13/viper v1.8.1
 	github.com/stretchr/objx v0.3.0 // indirect
 	github.com/stretchr/testify v1.7.0
+	github.com/temoto/robotstxt v1.1.2 // indirect
 	github.com/theupdateframework/go-tuf v0.0.0-20220121203041-e3557e322879
 	github.com/throttled/throttled/v2 v2.8.0
+	github.com/tj/assert v0.0.3
+	github.com/ulikunitz/xz v0.5.10
 	github.com/urfave/cli/v2 v2.3.0
 	github.com/valyala/fasthttp v1.31.0
+	go.elastic.co/apm/module/apmhttp v1.15.0
+	go.elastic.co/apm/module/apmsql v1.15.0
+	go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux v0.28.0
+	go.opentelemetry.io/otel v1.3.0
+	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.3.0
+	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.3.0
+	go.opentelemetry.io/otel/sdk v1.3.0
 	golang.org/x/crypto v0.0.0-20220112180741-5e0467b6c7ce
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 	golang.org/x/sys v0.0.0-20220114195835-da31bd327af9
-	google.golang.org/grpc v1.40.0
+	google.golang.org/grpc v1.42.0
 	gopkg.in/guregu/null.v3 v3.4.0
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0-20170531160350-a96e63847dc3
 	gopkg.in/yaml.v2 v2.4.0

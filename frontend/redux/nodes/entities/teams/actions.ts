@@ -3,6 +3,7 @@ import { IEnrollSecret } from "interfaces/enroll_secret";
 // ignore TS error for now until these are rewritten in ts.
 // @ts-ignore
 import Fleet from "fleet";
+import { Dispatch } from "redux";
 // @ts-ignore
 import { formatErrorResponse } from "redux/nodes/entities/base/helpers";
 import {
@@ -36,7 +37,7 @@ export const addMembers = (
   teamId: number,
   newMembers: INewMembersBody
 ): any => {
-  return (dispatch: any) => {
+  return (dispatch: Dispatch) => {
     dispatch(loadRequest());
     return Fleet.teams
       .addMembers(teamId, newMembers)
@@ -55,7 +56,7 @@ export const removeMembers = (
   teamId: number,
   removedMembers: IRemoveMembersBody
 ) => {
-  return (dispatch: any) => {
+  return (dispatch: Dispatch) => {
     dispatch(loadRequest());
     return Fleet.teams
       .removeMembers(teamId, removedMembers)
@@ -71,7 +72,7 @@ export const removeMembers = (
 };
 
 export const transferHosts = (teamId: number, hostIds: number[]): any => {
-  return (dispatch: any) => {
+  return (dispatch: Dispatch) => {
     dispatch(loadRequest()); // TODO: ensure works when API is implemented
     return Fleet.teams
       .transferHosts(teamId, hostIds)
@@ -90,12 +91,12 @@ export const getEnrollSecrets = (team?: ITeam | null): any => {
   // This case happens when the 'No Team' options is selected. We want to
   // just call the default getEnrollSecret in this case
   if (team === null || team === undefined) {
-    return (dispatch: any) => {
+    return (dispatch: Dispatch) => {
       return dispatch(getEnrollSecret());
     };
   }
 
-  return (dispatch: any) => {
+  return (dispatch: Dispatch) => {
     return Fleet.teams
       .getEnrollSecrets(team.id)
       .then((secrets: IEnrollSecret[]) => {

@@ -17,6 +17,7 @@ type dbOptions struct {
 	logger        log.Logger
 	replicaConfig *config.MysqlConfig
 	interceptor   sqlmw.Interceptor
+	tracingConfig *config.LoggingConfig
 }
 
 // Logger adds a logger to the datastore.
@@ -49,6 +50,13 @@ func Replica(conf *config.MysqlConfig) DBOption {
 func LimitAttempts(attempts int) DBOption {
 	return func(o *dbOptions) error {
 		o.maxAttempts = attempts
+		return nil
+	}
+}
+
+func TracingEnabled(lconfig *config.LoggingConfig) DBOption {
+	return func(o *dbOptions) error {
+		o.tracingConfig = lconfig
 		return nil
 	}
 }
