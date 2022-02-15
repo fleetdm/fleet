@@ -52,6 +52,13 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
+	"go.elastic.co/apm/module/apmhttp"
+	_ "go.elastic.co/apm/module/apmsql"
+	_ "go.elastic.co/apm/module/apmsql/mysql"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"google.golang.org/grpc"
 )
 
@@ -127,6 +134,21 @@ the way that the Fleet server works.
 				logger = kitlog.With(logger, "ts", kitlog.DefaultTimestampUTC)
 			}
 
+			// Init tracing
+			if config.Logging.TracingEnabled {
+				ctx := context.Background()
+				client := otlptracegrpc.NewClient()
+				otlpTraceExporter, err := otlptrace.New(ctx, client)
+				if err != nil {
+					initFatal(err, "Failed to initialize tracing")
+				}
+				batchSpanProcessor := sdktrace.NewBatchSpanProcessor(otlpTraceExporter)
+				tracerProvider := sdktrace.NewTracerProvider(
+					sdktrace.WithSpanProcessor(batchSpanProcessor),
+				)
+				otel.SetTracerProvider(tracerProvider)
+			}
+
 			allowedHostIdentifiers := map[string]bool{
 				"provided": true,
 				"instance": true,
@@ -164,6 +186,10 @@ the way that the Fleet server works.
 				opts = append(opts, mysql.WithInterceptor(&devSQLInterceptor{
 					logger: kitlog.With(logger, "component", "sql-interceptor"),
 				}))
+			}
+
+			if config.Logging.TracingEnabled {
+				opts = append(opts, mysql.TracingEnabled(&config.Logging))
 			}
 
 			ds, err = mysql.New(config.Mysql, clock.C, opts...)
@@ -467,9 +493,18 @@ the way that the Fleet server works.
 			}
 
 			httpSrvCtx := ctxerr.NewContext(ctx, eh)
+
+			// Create the handler based on whether tracing should be there
+			var handler http.Handler
+			if config.Logging.TracingEnabled && config.Logging.TracingType == "elasticapm" {
+				handler = launcher.Handler(apmhttp.Wrap(rootMux))
+			} else {
+				handler = launcher.Handler(rootMux)
+			}
+
 			srv := &http.Server{
 				Addr:              config.Server.Address,
-				Handler:           launcher.Handler(rootMux),
+				Handler:           handler,
 				ReadTimeout:       25 * time.Second,
 				WriteTimeout:      writeTimeout,
 				ReadHeaderTimeout: 5 * time.Second,

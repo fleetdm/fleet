@@ -19,6 +19,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/throttled/throttled/v2"
+	otmiddleware "go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux"
 )
 
 // FleetEndpoints is a collection of RPC endpoints implemented by the Fleet API.
@@ -233,6 +234,9 @@ func MakeHandler(svc fleet.Service, config config.FleetConfig, logger kitlog.Log
 	fleetHandlers := makeKitHandlers(fleetEndpoints, fleetAPIOptions)
 
 	r := mux.NewRouter()
+	if config.Logging.TracingEnabled && config.Logging.TracingType == "opentelemetry" {
+		r.Use(otmiddleware.Middleware("fleet"))
+	}
 
 	attachFleetAPIRoutes(r, fleetHandlers)
 	attachNewStyleFleetAPIRoutes(r, svc, fleetAPIOptions)
