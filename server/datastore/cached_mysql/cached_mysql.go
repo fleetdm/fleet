@@ -64,18 +64,28 @@ type cloneCache struct {
 	*cache.Cache
 }
 
-func (w *cloneCache) Get(k string) (interface{}, bool) {
-	v, found := w.Cache.Get(k)
+func (c *cloneCache) Get(k string) (interface{}, bool) {
+	x, found := c.Cache.Get(k)
 	if !found {
-		return v, false
+		return nil, false
 	}
 
-	clone, err := clone(v)
+	clone, err := clone(x)
 	if err != nil {
-		// Unfortunely, we can't return an error here. Let's return a cache miss instead of panic'ing.
+		// Unfortunely, we can't return an error here. Return a cache miss instead of panic'ing.
 		return nil, false
 	}
 	return clone, true
+}
+
+func (c *cloneCache) Set(k string, x interface{}, d time.Duration) {
+	clone, err := clone(x)
+	if err != nil {
+		// Unfortunately, we can't return an error here. Skip caching it if clone fails.
+		return
+	}
+
+	c.Cache.Set(k, clone, d)
 }
 
 type cachedMysql struct {
