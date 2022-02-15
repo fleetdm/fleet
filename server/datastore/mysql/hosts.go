@@ -1232,6 +1232,15 @@ func (ds *Datastore) updateOrInsert(ctx context.Context, updateQuery string, ins
 }
 
 func (ds *Datastore) SetOrUpdateMunkiVersion(ctx context.Context, hostID uint, version string) error {
+	if version == "" {
+		// Only update deleted_at if there wasn't any deleted at for this host
+		updateQuery := `UPDATE host_munki_info SET deleted_at=NOW() WHERE host_id=? AND deleted_at is NULL`
+		_, err := ds.writer.ExecContext(ctx, updateQuery, hostID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err)
+		}
+		return nil
+	}
 	return ds.updateOrInsert(
 		ctx,
 		`UPDATE host_munki_info SET version=? WHERE host_id=?`,
