@@ -74,6 +74,13 @@ func (s *integrationTestSuite) TearDownTest() {
 		}
 	}
 
+	teams, err := s.ds.ListTeams(ctx, fleet.TeamFilter{User: &u}, fleet.ListOptions{})
+	require.NoError(t, err)
+	for _, tm := range teams {
+		err := s.ds.DeleteTeam(ctx, tm.ID)
+		require.NoError(t, err)
+	}
+
 	globalPolicies, err := s.ds.ListGlobalPolicies(ctx)
 	require.NoError(t, err)
 	if len(globalPolicies) > 0 {
@@ -871,39 +878,91 @@ func (s *integrationTestSuite) TestInvites() {
 	})
 	require.NoError(t, err)
 
-	createInviteReq := createInviteRequest{
-		payload: fleet.InvitePayload{
-			Email:      ptr.String("some email"),
-			Name:       ptr.String("some name"),
-			Position:   nil,
-			SSOEnabled: nil,
-			GlobalRole: null.StringFrom(fleet.RoleAdmin),
-			Teams:      nil,
-		},
-	}
+	// list invites, none yet
+	var listResp listInvitesResponse
+	s.DoJSON("GET", "/api/v1/fleet/invites", nil, http.StatusOK, &listResp)
+	require.Len(t, listResp.Invites, 0)
+
+	// create valid invite
+	createInviteReq := createInviteRequest{InvitePayload: fleet.InvitePayload{
+		Email:      ptr.String("some email"),
+		Name:       ptr.String("some name"),
+		GlobalRole: null.StringFrom(fleet.RoleAdmin),
+	}}
 	createInviteResp := createInviteResponse{}
-	s.DoJSON("POST", "/api/v1/fleet/invites", createInviteReq.payload, http.StatusOK, &createInviteResp)
+	s.DoJSON("POST", "/api/v1/fleet/invites", createInviteReq, http.StatusOK, &createInviteResp)
 	require.NotNil(t, createInviteResp.Invite)
 	require.NotZero(t, createInviteResp.Invite.ID)
+	validInvite := *createInviteResp.Invite
 
-	updateInviteReq := updateInviteRequest{
-		InvitePayload: fleet.InvitePayload{
-			Teams: []fleet.UserTeam{
-				{
-					Team: fleet.Team{ID: team.ID},
-					Role: fleet.RoleObserver,
-				},
-			},
-		},
-	}
+	// create invite without an email
+	createInviteReq = createInviteRequest{InvitePayload: fleet.InvitePayload{
+		Email:      nil,
+		Name:       ptr.String("some other name"),
+		GlobalRole: null.StringFrom(fleet.RoleObserver),
+	}}
+	createInviteResp = createInviteResponse{}
+	s.DoJSON("POST", "/api/v1/fleet/invites", createInviteReq, http.StatusUnprocessableEntity, &createInviteResp)
+
+	// create invite for an existing user
+	existingEmail := "admin1@example.com"
+	createInviteReq = createInviteRequest{InvitePayload: fleet.InvitePayload{
+		Email:      ptr.String(existingEmail),
+		Name:       ptr.String("some other name"),
+		GlobalRole: null.StringFrom(fleet.RoleObserver),
+	}}
+	createInviteResp = createInviteResponse{}
+	s.DoJSON("POST", "/api/v1/fleet/invites", createInviteReq, http.StatusUnprocessableEntity, &createInviteResp)
+
+	// create invite for an existing user with email ALL CAPS
+	createInviteReq = createInviteRequest{InvitePayload: fleet.InvitePayload{
+		Email:      ptr.String(strings.ToUpper(existingEmail)),
+		Name:       ptr.String("some other name"),
+		GlobalRole: null.StringFrom(fleet.RoleObserver),
+	}}
+	createInviteResp = createInviteResponse{}
+	s.DoJSON("POST", "/api/v1/fleet/invites", createInviteReq, http.StatusUnprocessableEntity, &createInviteResp)
+
+	// list invites, we have one now
+	listResp = listInvitesResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/invites", nil, http.StatusOK, &listResp)
+	require.Len(t, listResp.Invites, 1)
+	require.Equal(t, validInvite.ID, listResp.Invites[0].ID)
+
+	// list invites, next page is empty
+	listResp = listInvitesResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/invites", nil, http.StatusOK, &listResp, "page", "1", "per_page", "2")
+	require.Len(t, listResp.Invites, 0)
+
+	// update a non-existing invite
+	updateInviteReq := updateInviteRequest{InvitePayload: fleet.InvitePayload{
+		Teams: []fleet.UserTeam{
+			{Team: fleet.Team{ID: team.ID}, Role: fleet.RoleObserver},
+		}}}
 	updateInviteResp := updateInviteResponse{}
-	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/invites/%d", createInviteResp.Invite.ID), updateInviteReq, http.StatusOK, &updateInviteResp)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/invites/%d", validInvite.ID+1), updateInviteReq, http.StatusNotFound, &updateInviteResp)
 
-	verify, err := s.ds.Invite(context.Background(), createInviteResp.Invite.ID)
+	// update the valid invite created earlier, make it an observer of a team
+	updateInviteResp = updateInviteResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/invites/%d", validInvite.ID), updateInviteReq, http.StatusOK, &updateInviteResp)
+
+	verify, err := s.ds.Invite(context.Background(), validInvite.ID)
 	require.NoError(t, err)
 	require.Equal(t, "", verify.GlobalRole.String)
 	require.Len(t, verify.Teams, 1)
 	assert.Equal(t, team.ID, verify.Teams[0].ID)
+
+	// delete an existing invite
+	var delResp deleteInviteResponse
+	s.DoJSON("DELETE", fmt.Sprintf("/api/v1/fleet/invites/%d", validInvite.ID), nil, http.StatusOK, &delResp)
+
+	// list invites, is now empty
+	listResp = listInvitesResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/invites", nil, http.StatusOK, &listResp)
+	require.Len(t, listResp.Invites, 0)
+
+	// delete a now non-existing invite
+	s.DoJSON("DELETE", fmt.Sprintf("/api/v1/fleet/invites/%d", validInvite.ID), nil, http.StatusNotFound, &delResp)
 }
 
 func (s *integrationTestSuite) TestGetHostSummary() {
@@ -2754,6 +2813,92 @@ func (s *integrationTestSuite) TestPaginateListSoftware() {
 	lsResp = listSoftwareResponse{}
 	s.DoJSON("GET", "/api/v1/fleet/software", nil, http.StatusOK, &lsResp, "vulnerable", "true", "per_page", "5", "page", "2", "order_key", "hosts_count", "order_direction", "desc")
 	assertResp(lsResp, nil, time.Time{})
+}
+
+func (s *integrationTestSuite) TestChangeUserEmail() {
+	t := s.T()
+
+	// create a new test user
+	user := &fleet.User{
+		Name:       t.Name(),
+		Email:      "testchangeemail@example.com",
+		GlobalRole: ptr.String(fleet.RoleObserver),
+	}
+	userRawPwd := "foobarbaz1234!"
+	err := user.SetPassword(userRawPwd, 10, 10)
+	require.Nil(t, err)
+	user, err = s.ds.NewUser(context.Background(), user)
+	require.Nil(t, err)
+
+	// try to change email with an invalid token
+	var changeResp changeEmailResponse
+	s.DoJSON("GET", "/api/v1/fleet/email/change/invalidtoken", nil, http.StatusNotFound, &changeResp)
+
+	// create a valid token for the test user
+	err = s.ds.PendingEmailChange(context.Background(), user.ID, "testchangeemail2@example.com", "validtoken")
+	require.Nil(t, err)
+
+	// try to change email with a valid token, but request made from different user
+	changeResp = changeEmailResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/email/change/validtoken", nil, http.StatusNotFound, &changeResp)
+
+	// switch to the test user and make the change email request
+	s.token = s.getTestToken(user.Email, userRawPwd)
+	defer func() { s.token = s.getTestAdminToken() }()
+
+	changeResp = changeEmailResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/email/change/validtoken", nil, http.StatusOK, &changeResp)
+	require.Equal(t, "testchangeemail2@example.com", changeResp.NewEmail)
+
+	// using the token consumes it, so making another request with the same token fails
+	changeResp = changeEmailResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/email/change/validtoken", nil, http.StatusNotFound, &changeResp)
+}
+
+func (s *integrationTestSuite) TestSearchTargets() {
+	t := s.T()
+
+	hosts := s.createHosts(t)
+
+	lblIDs, err := s.ds.LabelIDsByName(context.Background(), []string{"All Hosts"})
+	require.NoError(t, err)
+	require.Len(t, lblIDs, 1)
+
+	// no search criteria
+	var searchResp searchTargetsResponse
+	s.DoJSON("POST", "/api/v1/fleet/targets", searchTargetsRequest{}, http.StatusOK, &searchResp)
+	require.Equal(t, uint(0), searchResp.TargetsCount)
+	require.Len(t, searchResp.Targets.Hosts, len(hosts)) // the HostTargets.HostIDs are actually host IDs to *omit* from the search
+	require.Len(t, searchResp.Targets.Labels, 1)
+	require.Len(t, searchResp.Targets.Teams, 0)
+
+	searchResp = searchTargetsResponse{}
+	s.DoJSON("POST", "/api/v1/fleet/targets", searchTargetsRequest{Selected: fleet.HostTargets{LabelIDs: lblIDs}}, http.StatusOK, &searchResp)
+	require.Equal(t, uint(0), searchResp.TargetsCount)
+	require.Len(t, searchResp.Targets.Hosts, len(hosts)) // no omitted host id
+	require.Len(t, searchResp.Targets.Labels, 0)         // labels have been omitted
+	require.Len(t, searchResp.Targets.Teams, 0)
+
+	searchResp = searchTargetsResponse{}
+	s.DoJSON("POST", "/api/v1/fleet/targets", searchTargetsRequest{Selected: fleet.HostTargets{HostIDs: []uint{hosts[1].ID}}}, http.StatusOK, &searchResp)
+	require.Equal(t, uint(1), searchResp.TargetsCount)
+	require.Len(t, searchResp.Targets.Hosts, len(hosts)-1) // one omitted host id
+	require.Len(t, searchResp.Targets.Labels, 1)           // labels have not been omitted
+	require.Len(t, searchResp.Targets.Teams, 0)
+
+	searchResp = searchTargetsResponse{}
+	s.DoJSON("POST", "/api/v1/fleet/targets", searchTargetsRequest{MatchQuery: "foo.local1"}, http.StatusOK, &searchResp)
+	require.Equal(t, uint(0), searchResp.TargetsCount)
+	require.Len(t, searchResp.Targets.Hosts, 1)
+	require.Len(t, searchResp.Targets.Labels, 1)
+	require.Len(t, searchResp.Targets.Teams, 0)
+	require.Contains(t, searchResp.Targets.Hosts[0].Hostname, "foo.local1")
+}
+
+func (s *integrationTestSuite) TestStatus() {
+	var statusResp statusResponse
+	s.DoJSON("GET", "/api/v1/fleet/status/result_store", nil, http.StatusOK, &statusResp)
+	s.DoJSON("GET", "/api/v1/fleet/status/live_query", nil, http.StatusOK, &statusResp)
 }
 
 // creates a session and returns it, its key is to be passed as authorization header.
