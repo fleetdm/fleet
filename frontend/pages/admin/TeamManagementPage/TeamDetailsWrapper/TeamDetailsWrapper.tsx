@@ -391,9 +391,7 @@ const TeamDetailsWrapper = ({
             </span>
           </div>
           <div className={`${baseClass}__team-actions`}>
-            <Button onClick={toggleGenerateInstallerModal}>
-              Generate installer
-            </Button>
+            <Button onClick={toggleGenerateInstallerModal}>Add hosts</Button>
             <Button
               onClick={toggleManageEnrollSecretsModal}
               variant={"text-icon"}

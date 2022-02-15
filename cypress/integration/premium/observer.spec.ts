@@ -134,9 +134,9 @@ describe("Premium tier - Observer user", () => {
       it("should render elements according to role-based access controls", () => {
         // Ensure page is loaded with teams dropdown
         cy.getAttached(".Select-value-label").contains("All teams");
-        // Not see the "Manage enroll secret” or "Generate installer" button
+        // Not see the "Manage enroll secret” or "Add hosts" button
         cy.contains("button", /manage enroll secret/i).should("not.exist");
-        cy.contains("button", /generate installer/i).should("not.exist");
+        cy.contains("button", /add hosts/i).should("not.exist");
         // Hosts table includes teams column
         cy.getAttached("thead").within(() => {
           cy.findByText(/team/i).should("exist");

@@ -28,7 +28,7 @@ describe("Hosts flow", () => {
       cy.visit("/hosts/manage");
 
       cy.getAttached(".manage-hosts").within(() => {
-        cy.contains("button", /generate installer/i).click();
+        cy.contains("button", /add hosts/i).click();
       });
 
       cy.getAttached(".react-tabs").within(() => {
@@ -234,7 +234,7 @@ describe("Hosts flow", () => {
             })
             .then(() => {
               cy.findByText(/add your devices to fleet/i).should("exist");
-              cy.findByText(/generate installer/i).should("exist");
+              cy.findByText(/add hosts/i).should("exist");
               cy.findByText(/about this host/i).should("not.exist");
               cy.findByText(hostname).should("not.exist");
             });

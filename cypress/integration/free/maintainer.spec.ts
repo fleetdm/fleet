@@ -149,8 +149,8 @@ describe(
       it("verifies teams is disabled", () => {
         cy.contains(/team/i).should("not.exist");
       });
-      it("allows maintainer to see and click the 'Generate installer' button", () => {
-        cy.findByRole("button", { name: /generate installer/i }).click();
+      it("allows maintainer to see and click the 'Add hosts' button", () => {
+        cy.findByRole("button", { name: /add hosts/i }).click();
         cy.contains(/team/i).should("not.exist");
         cy.contains("button", /done/i).click();
       });

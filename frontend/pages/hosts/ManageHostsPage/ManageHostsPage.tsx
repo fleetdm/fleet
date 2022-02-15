@@ -1621,7 +1621,7 @@ const ManageHostsPage = ({
                     onClick={toggleGenerateInstallerModal}
                     className={`${baseClass}__add-hosts button button--brand`}
                   >
-                    <span>Generate installer</span>
+                    <span>Add hosts</span>
                   </Button>
                 )}
             </div>

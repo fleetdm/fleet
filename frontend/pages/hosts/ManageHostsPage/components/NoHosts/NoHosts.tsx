@@ -43,7 +43,7 @@ const NoHosts = ({
               type="button"
               className="button button--brand"
             >
-              Generate installer
+              Add hosts
             </Button>
           </div>
         </div>

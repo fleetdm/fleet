@@ -153,8 +153,8 @@ describe(
       it("verifies teams is disabled on Manage Host page", () => {
         cy.contains(/team/i).should("not.exist");
       });
-      it("allows admin to see and click the 'Generate installer' button", () => {
-        cy.findByRole("button", { name: /generate installer/i }).click();
+      it("allows admin to see and click the 'Add hosts' button", () => {
+        cy.findByRole("button", { name: /add hosts/i }).click();
         cy.contains(/team/i).should("not.exist");
         cy.contains("button", /done/i).click();
       });
