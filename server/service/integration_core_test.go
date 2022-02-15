@@ -871,39 +871,91 @@ func (s *integrationTestSuite) TestInvites() {
 	})
 	require.NoError(t, err)
 
-	createInviteReq := createInviteRequest{
-		payload: fleet.InvitePayload{
-			Email:      ptr.String("some email"),
-			Name:       ptr.String("some name"),
-			Position:   nil,
-			SSOEnabled: nil,
-			GlobalRole: null.StringFrom(fleet.RoleAdmin),
-			Teams:      nil,
-		},
-	}
+	// list invites, none yet
+	var listResp listInvitesResponse
+	s.DoJSON("GET", "/api/v1/fleet/invites", nil, http.StatusOK, &listResp)
+	require.Len(t, listResp.Invites, 0)
+
+	// create valid invite
+	createInviteReq := createInviteRequest{InvitePayload: fleet.InvitePayload{
+		Email:      ptr.String("some email"),
+		Name:       ptr.String("some name"),
+		GlobalRole: null.StringFrom(fleet.RoleAdmin),
+	}}
 	createInviteResp := createInviteResponse{}
-	s.DoJSON("POST", "/api/v1/fleet/invites", createInviteReq.payload, http.StatusOK, &createInviteResp)
+	s.DoJSON("POST", "/api/v1/fleet/invites", createInviteReq, http.StatusOK, &createInviteResp)
 	require.NotNil(t, createInviteResp.Invite)
 	require.NotZero(t, createInviteResp.Invite.ID)
+	validInvite := *createInviteResp.Invite
 
-	updateInviteReq := updateInviteRequest{
-		InvitePayload: fleet.InvitePayload{
-			Teams: []fleet.UserTeam{
-				{
-					Team: fleet.Team{ID: team.ID},
-					Role: fleet.RoleObserver,
-				},
-			},
-		},
-	}
+	// create invite without an email
+	createInviteReq = createInviteRequest{InvitePayload: fleet.InvitePayload{
+		Email:      nil,
+		Name:       ptr.String("some other name"),
+		GlobalRole: null.StringFrom(fleet.RoleObserver),
+	}}
+	createInviteResp = createInviteResponse{}
+	s.DoJSON("POST", "/api/v1/fleet/invites", createInviteReq, http.StatusUnprocessableEntity, &createInviteResp)
+
+	// create invite for an existing user
+	existingEmail := "admin1@example.com"
+	createInviteReq = createInviteRequest{InvitePayload: fleet.InvitePayload{
+		Email:      ptr.String(existingEmail),
+		Name:       ptr.String("some other name"),
+		GlobalRole: null.StringFrom(fleet.RoleObserver),
+	}}
+	createInviteResp = createInviteResponse{}
+	s.DoJSON("POST", "/api/v1/fleet/invites", createInviteReq, http.StatusUnprocessableEntity, &createInviteResp)
+
+	// create invite for an existing user with email ALL CAPS
+	createInviteReq = createInviteRequest{InvitePayload: fleet.InvitePayload{
+		Email:      ptr.String(strings.ToUpper(existingEmail)),
+		Name:       ptr.String("some other name"),
+		GlobalRole: null.StringFrom(fleet.RoleObserver),
+	}}
+	createInviteResp = createInviteResponse{}
+	s.DoJSON("POST", "/api/v1/fleet/invites", createInviteReq, http.StatusUnprocessableEntity, &createInviteResp)
+
+	// list invites, we have one now
+	listResp = listInvitesResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/invites", nil, http.StatusOK, &listResp)
+	require.Len(t, listResp.Invites, 1)
+	require.Equal(t, validInvite.ID, listResp.Invites[0].ID)
+
+	// list invites, next page is empty
+	listResp = listInvitesResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/invites", nil, http.StatusOK, &listResp, "page", "1", "per_page", "2")
+	require.Len(t, listResp.Invites, 0)
+
+	// update a non-existing invite
+	updateInviteReq := updateInviteRequest{InvitePayload: fleet.InvitePayload{
+		Teams: []fleet.UserTeam{
+			{Team: fleet.Team{ID: team.ID}, Role: fleet.RoleObserver},
+		}}}
 	updateInviteResp := updateInviteResponse{}
-	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/invites/%d", createInviteResp.Invite.ID), updateInviteReq, http.StatusOK, &updateInviteResp)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/invites/%d", validInvite.ID+1), updateInviteReq, http.StatusNotFound, &updateInviteResp)
 
-	verify, err := s.ds.Invite(context.Background(), createInviteResp.Invite.ID)
+	// update the valid invite created earlier, make it an observer of a team
+	updateInviteResp = updateInviteResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/invites/%d", validInvite.ID), updateInviteReq, http.StatusOK, &updateInviteResp)
+
+	verify, err := s.ds.Invite(context.Background(), validInvite.ID)
 	require.NoError(t, err)
 	require.Equal(t, "", verify.GlobalRole.String)
 	require.Len(t, verify.Teams, 1)
 	assert.Equal(t, team.ID, verify.Teams[0].ID)
+
+	// delete an existing invite
+	var delResp deleteInviteResponse
+	s.DoJSON("DELETE", fmt.Sprintf("/api/v1/fleet/invites/%d", validInvite.ID), nil, http.StatusOK, &delResp)
+
+	// list invites, is now empty
+	listResp = listInvitesResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/invites", nil, http.StatusOK, &listResp)
+	require.Len(t, listResp.Invites, 0)
+
+	// delete a now non-existing invite
+	s.DoJSON("DELETE", fmt.Sprintf("/api/v1/fleet/invites/%d", validInvite.ID), nil, http.StatusNotFound, &delResp)
 }
 
 func (s *integrationTestSuite) TestGetHostSummary() {

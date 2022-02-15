@@ -7,54 +7,6 @@ import (
 	"github.com/go-kit/kit/endpoint"
 )
 
-type listInvitesRequest struct {
-	ListOptions fleet.ListOptions
-}
-
-type listInvitesResponse struct {
-	Invites []fleet.Invite `json:"invites"`
-	Err     error          `json:"error,omitempty"`
-}
-
-func (r listInvitesResponse) error() error { return r.Err }
-
-func makeListInvitesEndpoint(svc fleet.Service) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		req := request.(listInvitesRequest)
-		invites, err := svc.ListInvites(ctx, req.ListOptions)
-		if err != nil {
-			return listInvitesResponse{Err: err}, nil
-		}
-
-		resp := listInvitesResponse{Invites: []fleet.Invite{}}
-		for _, invite := range invites {
-			resp.Invites = append(resp.Invites, *invite)
-		}
-		return resp, nil
-	}
-}
-
-type deleteInviteRequest struct {
-	ID uint
-}
-
-type deleteInviteResponse struct {
-	Err error `json:"error,omitempty"`
-}
-
-func (r deleteInviteResponse) error() error { return r.Err }
-
-func makeDeleteInviteEndpoint(svc fleet.Service) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		req := request.(deleteInviteRequest)
-		err := svc.DeleteInvite(ctx, req.ID)
-		if err != nil {
-			return deleteInviteResponse{Err: err}, nil
-		}
-		return deleteInviteResponse{}, nil
-	}
-}
-
 type verifyInviteRequest struct {
 	Token string
 }

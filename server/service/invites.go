@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mail"
@@ -42,15 +43,15 @@ func (svc *Service) InviteNewUser(ctx context.Context, payload fleet.InvitePaylo
 		return nil, err
 	}
 
-	if payload.Email != nil {
-		*payload.Email = strings.ToLower(*payload.Email)
+	if payload.Email == nil {
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("email", "missing required argument"))
 	}
-	// TODO: looks like this would panic if no email is present in the payload.
+	*payload.Email = strings.ToLower(*payload.Email)
 
 	// verify that the user with the given email does not already exist
 	_, err := svc.ds.UserByEmail(ctx, *payload.Email)
 	if err == nil {
-		return nil, fleet.NewInvalidArgumentError("email", "a user with this account already exists")
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("email", "a user with this account already exists"))
 	}
 	var nfe fleet.NotFoundError
 	if !errors.As(err, &nfe) {
@@ -122,6 +123,42 @@ func (svc *Service) InviteNewUser(ctx context.Context, payload fleet.InvitePaylo
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// List invites
+////////////////////////////////////////////////////////////////////////////////
+
+type listInvitesRequest struct {
+	ListOptions fleet.ListOptions `url:"list_options"`
+}
+
+type listInvitesResponse struct {
+	Invites []fleet.Invite `json:"invites"`
+	Err     error          `json:"error,omitempty"`
+}
+
+func (r listInvitesResponse) error() error { return r.Err }
+
+func listInvitesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*listInvitesRequest)
+	invites, err := svc.ListInvites(ctx, req.ListOptions)
+	if err != nil {
+		return listInvitesResponse{Err: err}, nil
+	}
+
+	resp := listInvitesResponse{Invites: []fleet.Invite{}}
+	for _, invite := range invites {
+		resp.Invites = append(resp.Invites, *invite)
+	}
+	return resp, nil
+}
+
+func (svc *Service) ListInvites(ctx context.Context, opt fleet.ListOptions) ([]*fleet.Invite, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Invite{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+	return svc.ds.ListInvites(ctx, opt)
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // Update invite
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -177,4 +214,34 @@ func (svc *Service) UpdateInvite(ctx context.Context, id uint, payload fleet.Inv
 	invite.Teams = payload.Teams
 
 	return svc.ds.UpdateInvite(ctx, id, invite)
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Delete invite
+////////////////////////////////////////////////////////////////////////////////
+
+type deleteInviteRequest struct {
+	ID uint `url:"id"`
+}
+
+type deleteInviteResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r deleteInviteResponse) error() error { return r.Err }
+
+func deleteInviteEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*deleteInviteRequest)
+	err := svc.DeleteInvite(ctx, req.ID)
+	if err != nil {
+		return deleteInviteResponse{Err: err}, nil
+	}
+	return deleteInviteResponse{}, nil
+}
+
+func (svc *Service) DeleteInvite(ctx context.Context, id uint) error {
+	if err := svc.authz.Authorize(ctx, &fleet.Invite{}, fleet.ActionWrite); err != nil {
+		return err
+	}
+	return svc.ds.DeleteInvite(ctx, id)
 }

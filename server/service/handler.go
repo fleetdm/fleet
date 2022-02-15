@@ -30,8 +30,6 @@ type FleetEndpoints struct {
 	ResetPassword                 endpoint.Endpoint
 	CreateUserWithInvite          endpoint.Endpoint
 	PerformRequiredPasswordReset  endpoint.Endpoint
-	ListInvites                   endpoint.Endpoint
-	DeleteInvite                  endpoint.Endpoint
 	VerifyInvite                  endpoint.Endpoint
 	EnrollAgent                   endpoint.Endpoint
 	GetClientConfig               endpoint.Endpoint
@@ -75,9 +73,6 @@ func MakeFleetServerEndpoints(svc fleet.Service, urlPrefix string, limitStore th
 		PerformRequiredPasswordReset: logged(canPerformPasswordReset(makePerformRequiredPasswordResetEndpoint(svc))),
 
 		// Standard user authentication routes
-		ListInvites:  authenticatedUser(svc, makeListInvitesEndpoint(svc)),
-		DeleteInvite: authenticatedUser(svc, makeDeleteInviteEndpoint(svc)),
-
 		SearchTargets: authenticatedUser(svc, makeSearchTargetsEndpoint(svc)),
 		ChangeEmail:   authenticatedUser(svc, makeChangeEmailEndpoint(svc)),
 
@@ -107,8 +102,6 @@ type fleetHandlers struct {
 	ResetPassword                 http.Handler
 	CreateUserWithInvite          http.Handler
 	PerformRequiredPasswordReset  http.Handler
-	ListInvites                   http.Handler
-	DeleteInvite                  http.Handler
 	VerifyInvite                  http.Handler
 	EnrollAgent                   http.Handler
 	GetClientConfig               http.Handler
@@ -138,8 +131,6 @@ func makeKitHandlers(e FleetEndpoints, opts []kithttp.ServerOption) *fleetHandle
 		ResetPassword:                 newServer(e.ResetPassword, decodeResetPasswordRequest),
 		CreateUserWithInvite:          newServer(e.CreateUserWithInvite, decodeCreateUserRequest),
 		PerformRequiredPasswordReset:  newServer(e.PerformRequiredPasswordReset, decodePerformRequiredPasswordResetRequest),
-		ListInvites:                   newServer(e.ListInvites, decodeListInvitesRequest),
-		DeleteInvite:                  newServer(e.DeleteInvite, decodeDeleteInviteRequest),
 		VerifyInvite:                  newServer(e.VerifyInvite, decodeVerifyInviteRequest),
 		EnrollAgent:                   newServer(e.EnrollAgent, decodeEnrollAgentRequest),
 		GetClientConfig:               newServer(e.GetClientConfig, decodeGetClientConfigRequest),
@@ -336,18 +327,12 @@ func attachFleetAPIRoutes(r *mux.Router, h *fleetHandlers) {
 	r.Handle("/api/v1/fleet/sso", h.InitiateSSO).Methods("POST").Name("intiate_sso")
 	r.Handle("/api/v1/fleet/sso", h.SettingsSSO).Methods("GET").Name("sso_config")
 	r.Handle("/api/v1/fleet/sso/callback", h.CallbackSSO).Methods("POST").Name("callback_sso")
-
 	r.Handle("/api/v1/fleet/users", h.CreateUserWithInvite).Methods("POST").Name("create_user_with_invite")
-
 	r.Handle("/api/v1/fleet/invites/{token}", h.VerifyInvite).Methods("GET").Name("verify_invite")
-
 	r.Handle("/api/v1/fleet/email/change/{token}", h.ChangeEmail).Methods("GET").Name("change_email")
-
 	r.Handle("/api/v1/fleet/targets", h.SearchTargets).Methods("POST").Name("search_targets")
-
 	r.Handle("/api/v1/fleet/status/result_store", h.StatusResultStore).Methods("GET").Name("status_result_store")
 	r.Handle("/api/v1/fleet/status/live_query", h.StatusLiveQuery).Methods("GET").Name("status_live_query")
-
 	r.Handle("/api/v1/osquery/enroll", h.EnrollAgent).Methods("POST").Name("enroll_agent")
 	r.Handle("/api/v1/osquery/config", h.GetClientConfig).Methods("POST").Name("get_client_config")
 	r.Handle("/api/v1/osquery/distributed/read", h.GetDistributedQueries).Methods("POST").Name("get_distributed_queries")
@@ -404,11 +389,8 @@ func attachNewStyleFleetAPIRoutes(r *mux.Router, svc fleet.Service, opts []kitht
 
 	e.POST("/api/_version_/fleet/invites", createInviteEndpoint, createInviteRequest{})
 	e.GET("/api/_version_/fleet/invites", listInvitesEndpoint, listInvitesRequest{})
-	e.DELETE("/api/v1/fleet/invites/{id:[0-9]+}", deleteInviteEndpoint, deleteInviteRequest{})
+	e.DELETE("/api/_version_/fleet/invites/{id:[0-9]+}", deleteInviteEndpoint, deleteInviteRequest{})
 	e.PATCH("/api/_version_/fleet/invites/{id:[0-9]+}", updateInviteEndpoint, updateInviteRequest{})
-
-	//r.Handle("/api/v1/fleet/invites", h.ListInvites).Methods("GET").Name("list_invites")
-	//r.Handle("/api/v1/fleet/invites/{id:[0-9]+}", h.DeleteInvite).Methods("DELETE").Name("delete_invite")
 
 	e.POST("/api/_version_/fleet/global/policies", globalPolicyEndpoint, globalPolicyRequest{})
 	e.GET("/api/_version_/fleet/global/policies", listGlobalPoliciesEndpoint, nil)
