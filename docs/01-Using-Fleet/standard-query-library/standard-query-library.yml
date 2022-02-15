@@ -671,6 +671,16 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
+  name: Full disk encryption enabled (Linux)
+  query: SELECT 1 FROM disk_encryption WHERE encrypted=1 AND name LIKE '/dev/dm-1';
+  description: Checks if the root drive is encrypted. There are many ways to encrypt Linux systems. This is the default on distributions such as Ubuntu.
+  resolution: "Ensure the image deployed to your Linux workstation includes full disk encryption."
+  platforms: Linux
+  contributors: GuillaumeRoss
+---
+apiVersion: v1
+kind: policy
+spec:
   name: System Integrity Protection enabled (macOS)
   query: SELECT 1 FROM sip_config WHERE config_flag = 'sip' AND enabled = 1;
   description: Checks to make sure that the System Integrity Protection feature is enabled.
