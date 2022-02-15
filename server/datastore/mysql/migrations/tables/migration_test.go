@@ -76,6 +76,11 @@ func applyUpToPrev(t *testing.T) *sqlx.DB {
 	}
 }
 
+func execNoErr(t *testing.T, db *sqlx.DB, query string) {
+	_, err := db.Exec(query)
+	require.NoError(t, err)
+}
+
 // applyNext performs the next migration in the chain.
 func applyNext(t *testing.T, db *sqlx.DB) {
 	// gooseNoDir is the value to not parse local files and instead use
