@@ -74,6 +74,13 @@ func (s *integrationTestSuite) TearDownTest() {
 		}
 	}
 
+	teams, err := s.ds.ListTeams(ctx, fleet.TeamFilter{User: &u}, fleet.ListOptions{})
+	require.NoError(t, err)
+	for _, tm := range teams {
+		err := s.ds.DeleteTeam(ctx, tm.ID)
+		require.NoError(t, err)
+	}
+
 	globalPolicies, err := s.ds.ListGlobalPolicies(ctx)
 	require.NoError(t, err)
 	if len(globalPolicies) > 0 {
@@ -2846,6 +2853,46 @@ func (s *integrationTestSuite) TestChangeUserEmail() {
 	// using the token consumes it, so making another request with the same token fails
 	changeResp = changeEmailResponse{}
 	s.DoJSON("GET", "/api/v1/fleet/email/change/validtoken", nil, http.StatusNotFound, &changeResp)
+}
+
+func (s *integrationTestSuite) TestSearchTargets() {
+	t := s.T()
+
+	hosts := s.createHosts(t)
+
+	lblIDs, err := s.ds.LabelIDsByName(context.Background(), []string{"All Hosts"})
+	require.NoError(t, err)
+	require.Len(t, lblIDs, 1)
+
+	// no search criteria
+	var searchResp searchTargetsResponse
+	s.DoJSON("POST", "/api/v1/fleet/targets", searchTargetsRequest{}, http.StatusOK, &searchResp)
+	require.Equal(t, uint(0), searchResp.TargetsCount)
+	require.Len(t, searchResp.Targets.Hosts, len(hosts)) // the HostTargets.HostIDs are actually host IDs to *omit* from the search
+	require.Len(t, searchResp.Targets.Labels, 1)
+	require.Len(t, searchResp.Targets.Teams, 0)
+
+	searchResp = searchTargetsResponse{}
+	s.DoJSON("POST", "/api/v1/fleet/targets", searchTargetsRequest{Selected: fleet.HostTargets{LabelIDs: lblIDs}}, http.StatusOK, &searchResp)
+	require.Equal(t, uint(0), searchResp.TargetsCount)
+	require.Len(t, searchResp.Targets.Hosts, len(hosts)) // no omitted host id
+	require.Len(t, searchResp.Targets.Labels, 0)         // labels have been omitted
+	require.Len(t, searchResp.Targets.Teams, 0)
+
+	searchResp = searchTargetsResponse{}
+	s.DoJSON("POST", "/api/v1/fleet/targets", searchTargetsRequest{Selected: fleet.HostTargets{HostIDs: []uint{hosts[1].ID}}}, http.StatusOK, &searchResp)
+	require.Equal(t, uint(1), searchResp.TargetsCount)
+	require.Len(t, searchResp.Targets.Hosts, len(hosts)-1) // one omitted host id
+	require.Len(t, searchResp.Targets.Labels, 1)           // labels have not been omitted
+	require.Len(t, searchResp.Targets.Teams, 0)
+
+	searchResp = searchTargetsResponse{}
+	s.DoJSON("POST", "/api/v1/fleet/targets", searchTargetsRequest{MatchQuery: "foo.local1"}, http.StatusOK, &searchResp)
+	require.Equal(t, uint(0), searchResp.TargetsCount)
+	require.Len(t, searchResp.Targets.Hosts, 1)
+	require.Len(t, searchResp.Targets.Labels, 1)
+	require.Len(t, searchResp.Targets.Teams, 0)
+	require.Contains(t, searchResp.Targets.Hosts[0].Hostname, "foo.local1")
 }
 
 // creates a session and returns it, its key is to be passed as authorization header.
