@@ -12,7 +12,7 @@ module.exports = {
     emailAddress: {
       required: true,
       type: 'string',
-      description: 'A return email address where we can respond.',
+      description: 'The email address that will be invited to join a Fleet Q&A.',
       example: 'hermione@hogwarts.edu'
     }
   },
@@ -29,23 +29,17 @@ module.exports = {
 
   fn: async function({emailAddress}) {
 
-    if (sails.config.environment === 'production') {
-      if (!sails.config.custom.slackWebhookUrlForContactForm) {
-        throw new Error(
-          'Message not delivered: slackWebhookUrlForContactForm needs to be configured in sails.config.custom. Here\'s the undelivered message: ' +
-          `Email: ${emailAddress}`
-        );
-      } else {
-        await sails.helpers.http.post(sails.config.custom.slackWebhookUrlForContactForm, {
-          text: `New demo session signup: (Remember: we have to invite them to the next demo session.) cc @sales`+
-          `Email: ${emailAddress}`
-        });
-      }
-    } else {
-      sails.log(
+    if (!sails.config.custom.slackWebhookUrlForContactForm) {
+      throw new Error(
+        'Message not delivered: slackWebhookUrlForContactForm needs to be configured in sails.config.custom. Here\'s the undelivered message: ' +
         `New demo session signup: (Remember: we have to invite them to the next demo session.) cc @sales`+
         `Email: ${emailAddress}`
       );
+    } else {
+      await sails.helpers.http.post(sails.config.custom.slackWebhookUrlForContactForm, {
+        text: `New demo session signup: (Remember: we have to invite them to the next demo session.) cc @sales`+
+        `Email: ${emailAddress}`
+      });
     }
   }
 
