@@ -95,27 +95,27 @@ module.exports = {
 
         // Talk to GitHub and get additional information about each contributor.
         let githubDataByUsername = {};
-        await sails.helpers.flow.simultaneouslyForEach(githubUsernames, async(username)=>{
-          githubDataByUsername[username] = await sails.helpers.http.get.with({
-            url: 'https://api.github.com/users/' + encodeURIComponent(username),
-            headers: { 'User-Agent': 'Fleet-Standard-Query-Library', Accept: 'application/vnd.github.v3+json' }
-          });
-        });//∞
+        // await sails.helpers.flow.simultaneouslyForEach(githubUsernames, async(username)=>{
+        //   githubDataByUsername[username] = await sails.helpers.http.get.with({
+        //     url: 'https://api.github.com/users/' + encodeURIComponent(username),
+        //     headers: { 'User-Agent': 'Fleet-Standard-Query-Library', Accept: 'application/vnd.github.v3+json' }
+        //   });
+        // });//∞
 
-        // Now expand queries with relevant profile data for the contributors.
-        for (let query of queries) {
-          let usernames = query.contributors.split(',');
-          let contributorProfiles = [];
-          for (let username of usernames) {
-            contributorProfiles.push({
-              name: githubDataByUsername[username].name,
-              handle: githubDataByUsername[username].login,
-              avatarUrl: githubDataByUsername[username].avatar_url,
-              htmlUrl: githubDataByUsername[username].html_url,
-            });
-          }
-          query.contributors = contributorProfiles;
-        }
+        // // Now expand queries with relevant profile data for the contributors.
+        // for (let query of queries) {
+        //   let usernames = query.contributors.split(',');
+        //   let contributorProfiles = [];
+        //   for (let username of usernames) {
+        //     contributorProfiles.push({
+        //       name: githubDataByUsername[username].name,
+        //       handle: githubDataByUsername[username].login,
+        //       avatarUrl: githubDataByUsername[username].avatar_url,
+        //       htmlUrl: githubDataByUsername[username].html_url,
+        //     });
+        //   }
+        //   query.contributors = contributorProfiles;
+        // }
 
         // Attach to what will become configuration for the Sails app.
         builtStaticContent.queries = queries;
@@ -312,12 +312,27 @@ module.exports = {
                 pageTitle = fallbackPageTitle;
               }
 
-              let pageRankInSection;
-              if(embeddedMetadata.pageOrderInSection){
-                if (embeddedMetadata.pageOrderInSection < 0 || _.isNaN(parseInt(embeddedMetadata.pageOrderInSection)) ) {
-                  throw new Error(`Failed compiling markdown content: Invalid page rank (<meta name="pageOrderInSection" value="${embeddedMetadata.pageOrderInSection}">) embedded in "${path.join(topLvlRepoPath, sectionRepoPath)}".  To resolve, try changing the rank to a number higher than 0, then rebuild.`);
-                } else {
-                  pageRankInSection = embeddedMetadata.pageOrderInSection;
+
+              // If the page has a pageOrderInSection meta tag, we'll use that to sort pages in their bottom level sections.
+              let pageOrderInSection;
+              if(sectionRepoPath === 'docs/') {
+                // Set a flag to determine if the page is a readme (e.g. /docs/Using-Fleet/configuration-files/readme.md) or a FAQ page.
+                // READMEs in subfolders and FAQ pages don't have pageOrderInSection values, they are always sorted at the end of sections.
+                let isPageAReadmeOrFAQ = (_.last(pageUnextensionedLowercasedRelPath.split(/\//)) === 'faq' || _.last(pageUnextensionedLowercasedRelPath.split(/\//)) === 'readme');
+                if(embeddedMetadata.pageOrderInSection) {
+                  if(isPageAReadmeOrFAQ) {
+                  // Throwing an error if a FAQ or README page has a pageOrderInSection meta tag
+                    throw new Error(`Failed compiling markdown content: A FAQ or README page has a pageOrderInSection meta tag (<meta name="pageOrderInSection" value="${embeddedMetadata.pageOrderInSection}">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, remove this meta tag from the markdown file.`);
+                  }
+                  // Checking if the meta tag's value is a number higher than 0
+                  if (embeddedMetadata.pageOrderInSection <= 0 || _.isNaN(parseInt(embeddedMetadata.pageOrderInSection)) ) {
+                    throw new Error(`Failed compiling markdown content: Invalid page rank (<meta name="pageOrderInSection" value="${embeddedMetadata.pageOrderInSection}">) embedded in "${path.join(topLvlRepoPath, sectionRepoPath)}".  To resolve, try changing the rank to a number higher than 0, then rebuild.`);
+                  } else {
+                    pageOrderInSection = parseInt(embeddedMetadata.pageOrderInSection);
+                  }
+                } else if(!embeddedMetadata.pageOrderInSection && !isPageAReadmeOrFAQ){
+                  // If the page is not a Readme or a FAQ, we'll throw an error if its missing a pageOrderInSection meta tag.
+                  throw new Error(`Failed compiling markdown content: A Non FAQ or README Documentation page is missing a pageOrderInSection meta tag (<meta name="pageOrderInSection" value="">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, add a meta tag with a number higher than 0.`);
                 }
               }
 
@@ -326,7 +341,6 @@ module.exports = {
               let htmlId = (
                 sectionRepoPath.slice(0,10)+
                 '--'+
-                (!_.isUndefined(pageRankInSection) ? pageRankInSection+'-' : '' )+
                 _.last(pageUnextensionedLowercasedRelPath.split(/\//)).slice(0,20)+
                 '--'+
                 sails.helpers.strings.random.with({len:10})// if two files in different folders happen to have the same filename, there is a 1/16^10 chance of a collision (this is small enough- worst case, the build fails at the uniqueness check and we rerun it.)
@@ -350,6 +364,7 @@ module.exports = {
                 title: pageTitle,
                 lastModifiedAt: lastModifiedAt,
                 htmlId: htmlId,
+                pageOrderInSectionPath: pageOrderInSection,
                 sectionRelativeRepoPath: sectionRelativeRepoPath,
                 meta: _.omit(embeddedMetadata, ['title', 'pageOrderInSection'])
               });

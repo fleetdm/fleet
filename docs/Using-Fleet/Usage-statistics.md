@@ -59,4 +59,4 @@ To disabled usage statistics:
 
 3. Uncheck the "Enable usage statistics" checkbox and then select "Update settings."
 
-<meta name="pageOrderInSection" value="11">
+<meta name="pageOrderInSection" value="1100">

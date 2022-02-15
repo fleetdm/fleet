@@ -45,4 +45,4 @@ Move the migration file from [server/datastore/mysql/migrations/tables/](../../s
 
 Proceed as for table migrations, editing and running the newly created migration file.
 
-<meta name="pageOrderInSection" value="3">
+<meta name="pageOrderInSection" value="300">

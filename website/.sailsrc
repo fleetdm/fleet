@@ -7,441 +7,6 @@
     "sails-generate": "2.0.0"
   },
   "builtStaticContent": {
-    "markdownPages": [
-      {
-        "url": "/docs",
-        "title": "Readme.md",
-        "lastModifiedAt": 1643833484000,
-        "htmlId": "docs--readme--384ac897fd",
-        "sectionRelativeRepoPath": "README.md",
-        "meta": {}
-      },
-      {
-        "url": "/docs/contributing/api-versioning",
-        "title": "API versioning",
-        "lastModifiedAt": 1643833484000,
-        "htmlId": "docs--api-versioning--341720b9b0",
-        "sectionRelativeRepoPath": "Contributing/API-Versioning.md",
-        "pageRankInRepoPath": "7",
-        "meta": {}
-      },
-      {
-        "url": "/docs/contributing/api-for-contributors",
-        "title": "API for contributors",
-        "lastModifiedAt": 1643833484000,
-        "htmlId": "docs--api-for-contributors--0452183383",
-        "sectionRelativeRepoPath": "Contributing/API-for-contributors.md",
-        "pageRankInRepoPath": "6",
-        "meta": {}
-      },
-      {
-        "url": "/docs/contributing/building-fleet",
-        "title": "Building Fleet",
-        "lastModifiedAt": 1643833484000,
-        "htmlId": "docs--building-fleet--3f71a60b70",
-        "sectionRelativeRepoPath": "Contributing/Building-Fleet.md",
-        "pageRankInRepoPath": "0",
-        "meta": {}
-      },
-      {
-        "url": "/docs/contributing/committing-changes",
-        "title": "Committing changes",
-        "lastModifiedAt": 1643833484000,
-        "htmlId": "docs--committing-changes--238f8249e1",
-        "sectionRelativeRepoPath": "Contributing/Committing-Changes.md",
-        "pageRankInRepoPath": "3",
-        "meta": {}
-      },
-      {
-        "url": "/docs/contributing/faq",
-        "title": "FAQ",
-        "lastModifiedAt": 1643833484000,
-        "htmlId": "docs--faq--155ebc23db",
-        "sectionRelativeRepoPath": "Contributing/FAQ.md",
-        "meta": {}
-      },
-      {
-        "url": "/docs/contributing/migrations",
-        "title": "Migrations",
-        "lastModifiedAt": 1643833484000,
-        "htmlId": "docs--migrations--9d69c0f769",
-        "sectionRelativeRepoPath": "Contributing/Migrations.md",
-        "pageRankInRepoPath": "2",
-        "meta": {}
-      },
-      {
-        "url": "/docs/contributing",
-        "title": "Contributing",
-        "lastModifiedAt": 1643833484000,
-        "htmlId": "docs--readme--1b888be99e",
-        "sectionRelativeRepoPath": "Contributing/README.md",
-        "meta": {}
-      },
-      {
-        "url": "/docs/contributing/releasing-fleet",
-        "title": "Releasing Fleet",
-        "lastModifiedAt": 1643833484000,
-        "htmlId": "docs--releasing-fleet--aac62e3991",
-        "sectionRelativeRepoPath": "Contributing/Releasing-Fleet.md",
-        "pageRankInRepoPath": "4",
-        "meta": {}
-      },
-      {
-        "url": "/docs/contributing/testing",
-        "title": "Testing",
-        "lastModifiedAt": 1643833484000,
-        "htmlId": "docs--testing--15609e026a",
-        "sectionRelativeRepoPath": "Contributing/Testing.md",
-        "pageRankInRepoPath": "1",
-        "meta": {}
-      },
-      {
-        "url": "/docs/contributing/seeding-data",
-        "title": "Seeding data",
-        "lastModifiedAt": 1643833484000,
-        "htmlId": "docs--seeding-data--43cd3d8e55",
-        "sectionRelativeRepoPath": "Contributing/Seeding-Data.md",
-        "pageRankInRepoPath": "5",
-        "meta": {}
-      },
-      {
-        "url": "/docs/deploying/configuration",
-        "title": "Configuration",
-        "lastModifiedAt": 1644433454000,
-        "htmlId": "docs--configuration--84bc00a067",
-        "sectionRelativeRepoPath": "Deploying/Configuration.md",
-        "pageRankInRepoPath": "2",
-        "meta": {}
-      },
-      {
-        "url": "/docs/deploying/faq",
-        "title": "FAQ",
-        "lastModifiedAt": 1644433454000,
-        "htmlId": "docs--faq--c6890d5e9c",
-        "sectionRelativeRepoPath": "Deploying/FAQ.md",
-        "meta": {}
-      },
-      {
-        "url": "/docs/deploying/introduction",
-        "title": "Introduction",
-        "lastModifiedAt": 1643833484000,
-        "htmlId": "docs--introduction--06a18e1d62",
-        "sectionRelativeRepoPath": "Deploying/Introduction.md",
-        "pageRankInRepoPath": "0",
-        "meta": {}
-      },
-      {
-        "url": "/docs/deploying/load-testing",
-        "title": "Load testing",
-        "lastModifiedAt": 1643833484000,
-        "htmlId": "docs--load-testing--b6b8240a03",
-        "sectionRelativeRepoPath": "Deploying/Load-testing.md",
-        "pageRankInRepoPath": "4",
-        "meta": {}
-      },
-      {
-        "url": "/docs/deploying",
-        "title": "Deploying",
-        "lastModifiedAt": 1643833484000,
-        "htmlId": "docs--readme--6e29652c1e",
-        "sectionRelativeRepoPath": "Deploying/README.md",
-        "meta": {}
-      },
-      {
-        "url": "/docs/deploying/reference-architectures",
-        "title": "Reference architectures",
-        "lastModifiedAt": 1643833484000,
-        "htmlId": "docs--reference-architectu--e8d2d847a3",
-        "sectionRelativeRepoPath": "Deploying/Reference-Architectures.md",
-        "pageRankInRepoPath": "5",
-        "meta": {}
-      },
-      {
-        "url": "/docs/deploying/server-installation",
-        "title": "Server installation",
-        "lastModifiedAt": 1643833484000,
-        "htmlId": "docs--server-installation--9cf6dc1bd5",
-        "sectionRelativeRepoPath": "Deploying/Server-Installation.md",
-        "pageRankInRepoPath": "1",
-        "meta": {}
-      },
-      {
-        "url": "/docs/deploying/upgrading-fleet",
-        "title": "Upgrading Fleet",
-        "lastModifiedAt": 1643833484000,
-        "htmlId": "docs--upgrading-fleet--e080d9861e",
-        "sectionRelativeRepoPath": "Deploying/Upgrading-Fleet.md",
-        "pageRankInRepoPath": "6",
-        "meta": {}
-      },
-      {
-        "url": "/docs/deploying/fleetctl-agent-updates",
-        "title": "Fleetctl agent updates",
-        "lastModifiedAt": 1643833484000,
-        "htmlId": "docs--fleetctl-agent-updat--8d2299cb50",
-        "sectionRelativeRepoPath": "Deploying/fleetctl-agent-updates.md",
-        "pageRankInRepoPath": "3",
-        "meta": {}
-      },
-      {
-        "url": "/docs/using-fleet/adding-hosts",
-        "title": "Adding hosts",
-        "lastModifiedAt": 1644433454000,
-        "htmlId": "docs--adding-hosts--7e74b7dd8d",
-        "sectionRelativeRepoPath": "Using-Fleet/Adding-hosts.md",
-        "pageRankInRepoPath": "4",
-        "meta": {}
-      },
-      {
-        "url": "/docs/using-fleet/faq",
-        "title": "FAQ",
-        "lastModifiedAt": 1643833484000,
-        "htmlId": "docs--faq--a4c8073612",
-        "sectionRelativeRepoPath": "Using-Fleet/FAQ.md",
-        "meta": {}
-      },
-      {
-        "url": "/docs/using-fleet/automations",
-        "title": "Automations",
-        "lastModifiedAt": 1643833484000,
-        "htmlId": "docs--automations--e810ae492d",
-        "sectionRelativeRepoPath": "Using-Fleet/Automations.md",
-        "pageRankInRepoPath": "12",
-        "meta": {}
-      },
-      {
-        "url": "/docs/using-fleet/fleet-ui",
-        "title": "Fleet UI",
-        "lastModifiedAt": 1643833484000,
-        "htmlId": "docs--fleet-ui--5f79c486e2",
-        "sectionRelativeRepoPath": "Using-Fleet/Fleet-UI.md",
-        "pageRankInRepoPath": "1",
-        "meta": {}
-      },
-      {
-        "url": "/docs/using-fleet/learn-how-to-use-fleet",
-        "title": "Learn how to use Fleet",
-        "lastModifiedAt": 1643833484000,
-        "htmlId": "docs--learn-how-to-use-fle--275a1da546",
-        "sectionRelativeRepoPath": "Using-Fleet/Learn-how-to-use-Fleet.md",
-        "pageRankInRepoPath": "0",
-        "meta": {}
-      },
-      {
-        "url": "/docs/using-fleet/monitoring-fleet",
-        "title": "Monitoring Fleet",
-        "lastModifiedAt": 1643833484000,
-        "htmlId": "docs--monitoring-fleet--cc838014f2",
-        "sectionRelativeRepoPath": "Using-Fleet/Monitoring-Fleet.md",
-        "pageRankInRepoPath": "6",
-        "meta": {}
-      },
-      {
-        "url": "/docs/using-fleet/osquery-logs",
-        "title": "Osquery logs",
-        "lastModifiedAt": 1643833484000,
-        "htmlId": "docs--osquery-logs--0203f07b89",
-        "sectionRelativeRepoPath": "Using-Fleet/Osquery-logs.md",
-        "pageRankInRepoPath": "5",
-        "meta": {}
-      },
-      {
-        "url": "/docs/using-fleet/permissions",
-        "title": "Permissions",
-        "lastModifiedAt": 1643833484000,
-        "htmlId": "docs--permissions--73961ad6f6",
-        "sectionRelativeRepoPath": "Using-Fleet/Permissions.md",
-        "pageRankInRepoPath": "8",
-        "meta": {}
-      },
-      {
-        "url": "/docs/using-fleet",
-        "title": "Using Fleet",
-        "lastModifiedAt": 1643833484000,
-        "htmlId": "docs--readme--524302b217",
-        "sectionRelativeRepoPath": "Using-Fleet/README.md",
-        "meta": {}
-      },
-      {
-        "url": "/docs/using-fleet/security-best-practices",
-        "title": "Security best practices",
-        "lastModifiedAt": 1643833484000,
-        "htmlId": "docs--security-best-practi--b64564935b",
-        "sectionRelativeRepoPath": "Using-Fleet/Security-best-practices.md",
-        "pageRankInRepoPath": "7",
-        "meta": {}
-      },
-      {
-        "url": "/docs/using-fleet/rest-api",
-        "title": "REST API",
-        "lastModifiedAt": 1644433454000,
-        "htmlId": "docs--rest-api--03374015df",
-        "sectionRelativeRepoPath": "Using-Fleet/REST-API.md",
-        "pageRankInRepoPath": "3",
-        "meta": {}
-      },
-      {
-        "url": "/docs/using-fleet/teams",
-        "title": "Teams",
-        "lastModifiedAt": 1643833484000,
-        "htmlId": "docs--teams--c5c1c92af2",
-        "sectionRelativeRepoPath": "Using-Fleet/Teams.md",
-        "pageRankInRepoPath": "9",
-        "meta": {}
-      },
-      {
-        "url": "/docs/using-fleet/supported-browsers",
-        "title": "Supported browsers",
-        "lastModifiedAt": 1643833484000,
-        "htmlId": "docs--supported-browsers--8a2849df06",
-        "sectionRelativeRepoPath": "Using-Fleet/Supported-browsers.md",
-        "pageRankInRepoPath": "11",
-        "meta": {}
-      },
-      {
-        "url": "/docs/using-fleet/vulnerability-processing",
-        "title": "Vulnerability processing",
-        "lastModifiedAt": 1643833484000,
-        "htmlId": "docs--vulnerability-proces--8f59036915",
-        "sectionRelativeRepoPath": "Using-Fleet/Vulnerability-Processing.md",
-        "pageRankInRepoPath": "12",
-        "meta": {}
-      },
-      {
-        "url": "/docs/using-fleet/usage-statistics",
-        "title": "Usage statistics",
-        "lastModifiedAt": 1643833484000,
-        "htmlId": "docs--usage-statistics--2836ffb91a",
-        "sectionRelativeRepoPath": "Using-Fleet/Usage-statistics.md",
-        "pageRankInRepoPath": "10",
-        "meta": {}
-      },
-      {
-        "url": "/docs/using-fleet/fleetctl-cli",
-        "title": "Fleetctl CLI",
-        "lastModifiedAt": 1644433454000,
-        "htmlId": "docs--fleetctl-cli--d7def13ff4",
-        "sectionRelativeRepoPath": "Using-Fleet/fleetctl-CLI.md",
-        "pageRankInRepoPath": "2",
-        "meta": {}
-      },
-      {
-        "url": "/docs/using-fleet/configuration-files",
-        "title": "Configuration files",
-        "lastModifiedAt": 1644433454000,
-        "htmlId": "docs--readme--3218b54ed7",
-        "sectionRelativeRepoPath": "Using-Fleet/configuration-files/README.md",
-        "meta": {}
-      },
-      {
-        "url": "/docs/using-fleet/standard-query-library",
-        "title": "Standard query library",
-        "lastModifiedAt": 1644433454000,
-        "htmlId": "docs--readme--c3c2714b7f",
-        "sectionRelativeRepoPath": "Using-Fleet/standard-query-library/README.md",
-        "meta": {}
-      },
-      {
-        "url": "/handbook/brand",
-        "title": "Brand",
-        "lastModifiedAt": 1644433454000,
-        "htmlId": "handbook--brand--603fc0f5eb",
-        "sectionRelativeRepoPath": "brand.md",
-        "meta": {
-          "maintainedBy": "mike-j-thomas"
-        }
-      },
-      {
-        "url": "/handbook/community",
-        "title": "Community",
-        "lastModifiedAt": 1644388647000,
-        "htmlId": "handbook--community--851ac24c4b",
-        "sectionRelativeRepoPath": "community.md",
-        "meta": {
-          "maintainedBy": "mike-j-thomas"
-        }
-      },
-      {
-        "url": "/handbook",
-        "title": "Readme.md",
-        "lastModifiedAt": 1644265234000,
-        "htmlId": "handbook--readme--5b31b16edd",
-        "sectionRelativeRepoPath": "README.md",
-        "meta": {
-          "maintainedBy": "mikermcneil"
-        }
-      },
-      {
-        "url": "/handbook/company",
-        "title": "Company",
-        "lastModifiedAt": 1643418324000,
-        "htmlId": "handbook--company--ef54d4c0f6",
-        "sectionRelativeRepoPath": "company.md",
-        "meta": {
-          "maintainedBy": "mikermcneil"
-        }
-      },
-      {
-        "url": "/handbook/customers",
-        "title": "Customers",
-        "lastModifiedAt": 1643664488000,
-        "htmlId": "handbook--customers--868277a175",
-        "sectionRelativeRepoPath": "customers.md",
-        "meta": {
-          "maintainedBy": "tgauda"
-        }
-      },
-      {
-        "url": "/handbook/handbook",
-        "title": "Handbook",
-        "lastModifiedAt": 1642145590000,
-        "htmlId": "handbook--handbook--257cde48e7",
-        "sectionRelativeRepoPath": "handbook.md",
-        "meta": {
-          "maintainedBy": "mike-j-thomas"
-        }
-      },
-      {
-        "url": "/handbook/engineering",
-        "title": "Engineering",
-        "lastModifiedAt": 1643833484000,
-        "htmlId": "handbook--engineering--8f5b3c8ab0",
-        "sectionRelativeRepoPath": "engineering.md",
-        "meta": {
-          "maintainedBy": "zwass"
-        }
-      },
-      {
-        "url": "/handbook/product",
-        "title": "Product",
-        "lastModifiedAt": 1643922863000,
-        "htmlId": "handbook--product--c682777b68",
-        "sectionRelativeRepoPath": "product.md",
-        "meta": {
-          "maintainedBy": "noahtalerman"
-        }
-      },
-      {
-        "url": "/handbook/security",
-        "title": "Security",
-        "lastModifiedAt": 1643647793000,
-        "htmlId": "handbook--security--b30fecff2c",
-        "sectionRelativeRepoPath": "security.md",
-        "meta": {
-          "maintainedBy": "GuillaumeRoss"
-        }
-      },
-      {
-        "url": "/handbook/people",
-        "title": "People",
-        "lastModifiedAt": 1644358761000,
-        "htmlId": "handbook--people--398e751f6c",
-        "sectionRelativeRepoPath": "people.md",
-        "meta": {
-          "maintainedBy": "eashaw"
-        }
-      }
-    ],
     "queries": [
       {
         "name": "Count Apple applications installed",
@@ -449,26 +14,7 @@
         "description": "Get the total number of Apple applications installed on the host system.",
         "query": "SELECT COUNT(*) FROM apps WHERE bundle_identifier LIKE 'com.apple.%';",
         "purpose": "Informational",
-        "contributors": [
-          {
-            "name": "Mike Thomas",
-            "handle": "mike-j-thomas",
-            "avatarUrl": "https://avatars.githubusercontent.com/u/78363703?v=4",
-            "htmlUrl": "https://github.com/mike-j-thomas"
-          },
-          {
-            "name": "Noah Talerman",
-            "handle": "noahtalerman",
-            "avatarUrl": "https://avatars.githubusercontent.com/u/47070608?v=4",
-            "htmlUrl": "https://github.com/noahtalerman"
-          },
-          {
-            "name": "Mike McNeil",
-            "handle": "mikermcneil",
-            "avatarUrl": "https://avatars.githubusercontent.com/u/618009?v=4",
-            "htmlUrl": "https://github.com/mikermcneil"
-          }
-        ],
+        "contributors": "mike-j-thomas,noahtalerman,mikermcneil",
         "kind": "query",
         "slug": "count-apple-applications-installed",
         "resolution": "N/A",
@@ -480,14 +26,7 @@
         "description": "Retrieves the OpenSSL version.",
         "query": "SELECT name AS name, version AS version, 'deb_packages' AS source FROM deb_packages WHERE name LIKE 'openssl%' UNION SELECT name AS name, version AS version, 'apt_sources' AS source FROM apt_sources WHERE name LIKE 'openssl%' UNION SELECT name AS name, version AS version, 'rpm_packages' AS source FROM rpm_packages WHERE name LIKE 'openssl%';",
         "purpose": "Informational",
-        "contributors": [
-          {
-            "name": "Zach Wasserman",
-            "handle": "zwass",
-            "avatarUrl": "https://avatars.githubusercontent.com/u/575602?v=4",
-            "htmlUrl": "https://github.com/zwass"
-          }
-        ],
+        "contributors": "zwass",
         "kind": "query",
         "slug": "get-open-ssl-versions",
         "resolution": "N/A",
@@ -499,14 +38,7 @@
         "description": "Gatekeeper tries to ensure only trusted software is run on a mac machine.",
         "query": "SELECT * FROM gatekeeper WHERE assessments_enabled = 0;",
         "purpose": "Informational",
-        "contributors": [
-          {
-            "name": "Zach Wasserman",
-            "handle": "zwass",
-            "avatarUrl": "https://avatars.githubusercontent.com/u/575602?v=4",
-            "htmlUrl": "https://github.com/zwass"
-          }
-        ],
+        "contributors": "zwass",
         "kind": "query",
         "slug": "get-whether-gatekeeper-is-disabled",
         "resolution": "N/A",
@@ -519,14 +51,7 @@
         "query": "SELECT username, authorized_keys. * FROM users CROSS JOIN authorized_keys USING (uid);",
         "purpose": "Informational",
         "remediation": "Check out the linked table (https://github.com/fleetdm/fleet/blob/32b4d53e7f1428ce43b0f9fa52838cbe7b413eed/handbook/queries/detect-hosts-with-high-severity-vulnerable-versions-of-openssl.md#table-of-vulnerable-openssl-versions) to determine if the installed version is a high severity vulnerability and view the corresponding CVE(s)",
-        "contributors": [
-          {
-            "name": "Mike Thomas",
-            "handle": "mike-j-thomas",
-            "avatarUrl": "https://avatars.githubusercontent.com/u/78363703?v=4",
-            "htmlUrl": "https://github.com/mike-j-thomas"
-          }
-        ],
+        "contributors": "mike-j-thomas",
         "kind": "query",
         "slug": "get-authorized-ssh-keys",
         "resolution": "N/A",
@@ -538,14 +63,7 @@
         "description": "List authorized_keys for each user on the system.",
         "query": "SELECT * FROM users CROSS JOIN authorized_keys USING (uid);",
         "purpose": "Informational",
-        "contributors": [
-          {
-            "name": "Ahmed Elshaer",
-            "handle": "anelshaer",
-            "avatarUrl": "https://avatars.githubusercontent.com/u/4087461?v=4",
-            "htmlUrl": "https://github.com/anelshaer"
-          }
-        ],
+        "contributors": "anelshaer",
         "kind": "query",
         "slug": "get-authorized-keys-for-local-accounts",
         "resolution": "N/A",
@@ -557,14 +75,7 @@
         "description": "List authorized_keys for each user on the system.",
         "query": "SELECT *  FROM users CROSS JOIN  authorized_keys USING(uid) WHERE  username IN (SELECT distinct(username) FROM last);",
         "purpose": "Informational",
-        "contributors": [
-          {
-            "name": "Ahmed Elshaer",
-            "handle": "anelshaer",
-            "avatarUrl": "https://avatars.githubusercontent.com/u/4087461?v=4",
-            "htmlUrl": "https://github.com/anelshaer"
-          }
-        ],
+        "contributors": "anelshaer",
         "kind": "query",
         "slug": "get-authorized-keys-for-domain-joined-accounts",
         "resolution": "N/A",
@@ -576,14 +87,7 @@
         "description": "Retrieve application, system, and mobile app crash logs.",
         "query": "SELECT uid, datetime, responsible, exception_type, identifier, version, crash_path FROM users CROSS JOIN crashes USING (uid);",
         "purpose": "Informational",
-        "contributors": [
-          {
-            "name": "Zach Wasserman",
-            "handle": "zwass",
-            "avatarUrl": "https://avatars.githubusercontent.com/u/575602?v=4",
-            "htmlUrl": "https://github.com/zwass"
-          }
-        ],
+        "contributors": "zwass",
         "kind": "query",
         "slug": "get-crashes",
         "resolution": "N/A",
@@ -595,14 +99,7 @@
         "description": "List installed Chrome Extensions for all users.",
         "query": "SELECT * FROM users CROSS JOIN chrome_extensions USING (uid);",
         "purpose": "Informational",
-        "contributors": [
-          {
-            "name": "Zach Wasserman",
-            "handle": "zwass",
-            "avatarUrl": "https://avatars.githubusercontent.com/u/575602?v=4",
-            "htmlUrl": "https://github.com/zwass"
-          }
-        ],
+        "contributors": "zwass",
         "kind": "query",
         "slug": "get-installed-chrome-extensions",
         "resolution": "N/A",
@@ -614,14 +111,7 @@
         "description": "Get all software installed on a FreeBSD computer, including browser plugins and installed packages. Note, this does not included other running processes in the processes table.",
         "query": "SELECT name AS name, version AS version, 'Browser plugin (Chrome)' AS type, 'chrome_extensions' AS source FROM chrome_extensions UNION SELECT name AS name, version AS version, 'Browser plugin (Firefox)' AS type, 'firefox_addons' AS source FROM firefox_addons UNION SELECT name AS name, version AS version, 'Package (Atom)' AS type, 'atom_packages' AS source FROM atom_packages UNION SELECT name AS name, version AS version, 'Package (Python)' AS type, 'python_packages' AS source FROM python_packages UNION SELECT name AS name, version AS version, 'Package (pkg)' AS type, 'pkg_packages' AS source FROM pkg_packages;",
         "purpose": "Informational",
-        "contributors": [
-          {
-            "name": "Zach Wasserman",
-            "handle": "zwass",
-            "avatarUrl": "https://avatars.githubusercontent.com/u/575602?v=4",
-            "htmlUrl": "https://github.com/zwass"
-          }
-        ],
+        "contributors": "zwass",
         "kind": "query",
         "slug": "get-installed-free-bsd-software",
         "resolution": "N/A",
@@ -633,14 +123,7 @@
         "description": "Get the installed homebrew package database.",
         "query": "SELECT * FROM homebrew_packages;",
         "purpose": "Informational",
-        "contributors": [
-          {
-            "name": "Zach Wasserman",
-            "handle": "zwass",
-            "avatarUrl": "https://avatars.githubusercontent.com/u/575602?v=4",
-            "htmlUrl": "https://github.com/zwass"
-          }
-        ],
+        "contributors": "zwass",
         "kind": "query",
         "slug": "get-homebrew-packages",
         "resolution": "N/A",
@@ -652,14 +135,7 @@
         "description": "Get all software installed on a Linux computer, including browser plugins and installed packages. Note, this does not included other running processes in the processes table.",
         "query": "SELECT name AS name, version AS version, 'Package (APT)' AS type, 'apt_sources' AS source FROM apt_sources UNION SELECT name AS name, version AS version, 'Package (deb)' AS type, 'deb_packages' AS source FROM deb_packages UNION SELECT package AS name, version AS version, 'Package (Portage)' AS type, 'portage_packages' AS source FROM portage_packages UNION SELECT name AS name, version AS version, 'Package (RPM)' AS type, 'rpm_packages' AS source FROM rpm_packages UNION SELECT name AS name, '' AS version, 'Package (YUM)' AS type, 'yum_sources' AS source FROM yum_sources UNION SELECT name AS name, version AS version, 'Package (NPM)' AS type, 'npm_packages' AS source FROM npm_packages UNION SELECT name AS name, version AS version, 'Package (Atom)' AS type, 'atom_packages' AS source FROM atom_packages UNION SELECT name AS name, version AS version, 'Package (Python)' AS type, 'python_packages' AS source FROM python_packages;",
         "purpose": "Informational",
-        "contributors": [
-          {
-            "name": "Zach Wasserman",
-            "handle": "zwass",
-            "avatarUrl": "https://avatars.githubusercontent.com/u/575602?v=4",
-            "htmlUrl": "https://github.com/zwass"
-          }
-        ],
+        "contributors": "zwass",
         "kind": "query",
         "slug": "get-installed-linux-software",
         "resolution": "N/A",
@@ -671,14 +147,7 @@
         "description": "Get all software installed on a macOS computer, including apps, browser plugins, and installed packages. Note, this does not included other running processes in the processes table.",
         "query": "SELECT name AS name, bundle_short_version AS version, 'Application (macOS)' AS type, 'apps' AS source FROM apps UNION SELECT name AS name, version AS version, 'Package (Python)' AS type, 'python_packages' AS source FROM python_packages UNION SELECT name AS name, version AS version, 'Browser plugin (Chrome)' AS type, 'chrome_extensions' AS source FROM chrome_extensions UNION SELECT name AS name, version AS version, 'Browser plugin (Firefox)' AS type, 'firefox_addons' AS source FROM firefox_addons UNION SELECT name As name, version AS version, 'Browser plugin (Safari)' AS type, 'safari_extensions' AS source FROM safari_extensions UNION SELECT name AS name, version AS version, 'Package (Homebrew)' AS type, 'homebrew_packages' AS source FROM homebrew_packages;",
         "purpose": "Informational",
-        "contributors": [
-          {
-            "name": "Zach Wasserman",
-            "handle": "zwass",
-            "avatarUrl": "https://avatars.githubusercontent.com/u/575602?v=4",
-            "htmlUrl": "https://github.com/zwass"
-          }
-        ],
+        "contributors": "zwass",
         "kind": "query",
         "slug": "get-installed-mac-os-software",
         "resolution": "N/A",
@@ -690,14 +159,7 @@
         "description": "Retrieves the list of installed Safari Extensions for all users in the target system.",
         "query": "SELECT safari_extensions.* FROM users join safari_extensions USING (uid);",
         "purpose": "Informational",
-        "contributors": [
-          {
-            "name": "Zach Wasserman",
-            "handle": "zwass",
-            "avatarUrl": "https://avatars.githubusercontent.com/u/575602?v=4",
-            "htmlUrl": "https://github.com/zwass"
-          }
-        ],
+        "contributors": "zwass",
         "kind": "query",
         "slug": "get-installed-safari-extensions",
         "resolution": "N/A",
@@ -709,14 +171,7 @@
         "description": "Get all software installed on a Windows computer, including programs, browser plugins, and installed packages. Note, this does not included other running processes in the processes table.",
         "query": "SELECT name AS name, version AS version, 'Program (Windows)' AS type, 'programs' AS source FROM programs UNION SELECT name AS name, version AS version, 'Package (Python)' AS type, 'python_packages' AS source FROM python_packages UNION SELECT name AS name, version AS version, 'Browser plugin (IE)' AS type, 'ie_extensions' AS source FROM ie_extensions UNION SELECT name AS name, version AS version, 'Browser plugin (Chrome)' AS type, 'chrome_extensions' AS source FROM chrome_extensions UNION SELECT name AS name, version AS version, 'Browser plugin (Firefox)' AS type, 'firefox_addons' AS source FROM firefox_addons UNION SELECT name AS name, version AS version, 'Package (Chocolatey)' AS type, 'chocolatey_packages' AS source FROM chocolatey_packages UNION SELECT name AS name, version AS version, 'Package (Atom)' AS type, 'atom_packages' AS source FROM atom_packages;",
         "purpose": "Informational",
-        "contributors": [
-          {
-            "name": "Zach Wasserman",
-            "handle": "zwass",
-            "avatarUrl": "https://avatars.githubusercontent.com/u/575602?v=4",
-            "htmlUrl": "https://github.com/zwass"
-          }
-        ],
+        "contributors": "zwass",
         "kind": "query",
         "slug": "get-installed-windows-software",
         "resolution": "N/A",
@@ -728,14 +183,7 @@
         "description": "Lists all laptops with under-performing or failing batteries.",
         "query": "SELECT * FROM battery WHERE health != 'Good' AND condition NOT IN ('', 'Normal');",
         "purpose": "Informational",
-        "contributors": [
-          {
-            "name": "Zach Wasserman",
-            "handle": "zwass",
-            "avatarUrl": "https://avatars.githubusercontent.com/u/575602?v=4",
-            "htmlUrl": "https://github.com/zwass"
-          }
-        ],
+        "contributors": "zwass",
         "kind": "query",
         "slug": "get-laptops-with-failing-batteries",
         "resolution": "N/A",
@@ -747,14 +195,7 @@
         "description": "Displays the percentage of free space available on the primary disk partition.",
         "query": "SELECT (blocks_available * 100 / blocks) AS pct, * FROM mounts WHERE path = '/';",
         "purpose": "Informational",
-        "contributors": [
-          {
-            "name": "Zach Wasserman",
-            "handle": "zwass",
-            "avatarUrl": "https://avatars.githubusercontent.com/u/575602?v=4",
-            "htmlUrl": "https://github.com/zwass"
-          }
-        ],
+        "contributors": "zwass",
         "kind": "query",
         "slug": "get-mac-os-disk-free-space-percentage",
         "resolution": "N/A",
@@ -766,14 +207,7 @@
         "description": "Shows system mounted devices and filesystems (not process specific).",
         "query": "SELECT device, device_alias, path, type, blocks_size FROM mounts;",
         "purpose": "Informational",
-        "contributors": [
-          {
-            "name": "Zach Wasserman",
-            "handle": "zwass",
-            "avatarUrl": "https://avatars.githubusercontent.com/u/575602?v=4",
-            "htmlUrl": "https://github.com/zwass"
-          }
-        ],
+        "contributors": "zwass",
         "kind": "query",
         "slug": "get-mounts",
         "resolution": "N/A",
@@ -785,14 +219,7 @@
         "description": "Retrieves the version of the host(s) operating system(s).",
         "query": "SELECT * FROM os_version;",
         "purpose": "Informational",
-        "contributors": [
-          {
-            "name": "Zach Wasserman",
-            "handle": "zwass",
-            "avatarUrl": "https://avatars.githubusercontent.com/u/575602?v=4",
-            "htmlUrl": "https://github.com/zwass"
-          }
-        ],
+        "contributors": "zwass",
         "kind": "query",
         "slug": "get-the-version-of-the-resident-operating-system",
         "resolution": "N/A",
@@ -804,14 +231,7 @@
         "description": "Shows information about the host platform",
         "query": "SELECT vendor, version, date, revision from platform_info;",
         "purpose": "Informational",
-        "contributors": [
-          {
-            "name": "Zach Wasserman",
-            "handle": "zwass",
-            "avatarUrl": "https://avatars.githubusercontent.com/u/575602?v=4",
-            "htmlUrl": "https://github.com/zwass"
-          }
-        ],
+        "contributors": "zwass",
         "kind": "query",
         "slug": "get-platform-info",
         "resolution": "N/A",
@@ -823,14 +243,7 @@
         "description": "Shows applications and binaries set as user/login startup items.",
         "query": "SELECT * FROM startup_items;",
         "purpose": "Informational",
-        "contributors": [
-          {
-            "name": "Zach Wasserman",
-            "handle": "zwass",
-            "avatarUrl": "https://avatars.githubusercontent.com/u/575602?v=4",
-            "htmlUrl": "https://github.com/zwass"
-          }
-        ],
+        "contributors": "zwass",
         "kind": "query",
         "slug": "get-startup-items",
         "resolution": "N/A",
@@ -842,14 +255,7 @@
         "description": "Get a list of system logins and logouts.",
         "query": "SELECT * FROM last;",
         "purpose": "Informational",
-        "contributors": [
-          {
-            "name": "Zach Wasserman",
-            "handle": "zwass",
-            "avatarUrl": "https://avatars.githubusercontent.com/u/575602?v=4",
-            "htmlUrl": "https://github.com/zwass"
-          }
-        ],
+        "contributors": "zwass",
         "kind": "query",
         "slug": "get-system-logins-and-logouts",
         "resolution": "N/A",
@@ -861,14 +267,7 @@
         "description": "Get current users with active shell/console on the system and associated process",
         "query": "SELECT user,host,time, p.name, p.cmdline, p.cwd, p.root FROM logged_in_users liu, processes p WHERE liu.pid = p.pid and liu.type='user' and liu.user <> '' ORDER BY time;",
         "purpose": "Informational",
-        "contributors": [
-          {
-            "name": "Ahmed Elshaer",
-            "handle": "anelshaer",
-            "avatarUrl": "https://avatars.githubusercontent.com/u/4087461?v=4",
-            "htmlUrl": "https://github.com/anelshaer"
-          }
-        ],
+        "contributors": "anelshaer",
         "kind": "query",
         "slug": "get-current-users-with-active-shell-console-on-the-system",
         "resolution": "N/A",
@@ -880,14 +279,7 @@
         "description": "Shows the system uptime.",
         "query": "SELECT * FROM uptime;",
         "purpose": "Informational",
-        "contributors": [
-          {
-            "name": "Zach Wasserman",
-            "handle": "zwass",
-            "avatarUrl": "https://avatars.githubusercontent.com/u/575602?v=4",
-            "htmlUrl": "https://github.com/zwass"
-          }
-        ],
+        "contributors": "zwass",
         "kind": "query",
         "slug": "get-system-uptime",
         "resolution": "N/A",
@@ -899,14 +291,7 @@
         "description": "Shows all USB devices that are actively plugged into the host system.",
         "query": "SELECT * FROM usb_devices;",
         "purpose": "Informational",
-        "contributors": [
-          {
-            "name": "Zach Wasserman",
-            "handle": "zwass",
-            "avatarUrl": "https://avatars.githubusercontent.com/u/575602?v=4",
-            "htmlUrl": "https://github.com/zwass"
-          }
-        ],
+        "contributors": "zwass",
         "kind": "query",
         "slug": "get-usb-devices",
         "resolution": "N/A",
@@ -918,14 +303,7 @@
         "description": "Shows information about the wifi network that a host is currently connected to.",
         "query": "SELECT * FROM wifi_status;",
         "purpose": "Informational",
-        "contributors": [
-          {
-            "name": "Zach Wasserman",
-            "handle": "zwass",
-            "avatarUrl": "https://avatars.githubusercontent.com/u/575602?v=4",
-            "htmlUrl": "https://github.com/zwass"
-          }
-        ],
+        "contributors": "zwass",
         "kind": "query",
         "slug": "get-wifi-status",
         "resolution": "N/A",
@@ -937,14 +315,7 @@
         "description": "List all Windows machines with unencrypted hard disks.",
         "query": "SELECT * FROM bitlocker_info WHERE protection_status = 0;",
         "purpose": "Informational",
-        "contributors": [
-          {
-            "name": "Zach Wasserman",
-            "handle": "zwass",
-            "avatarUrl": "https://avatars.githubusercontent.com/u/575602?v=4",
-            "htmlUrl": "https://github.com/zwass"
-          }
-        ],
+        "contributors": "zwass",
         "kind": "query",
         "slug": "get-windows-machines-with-unencrypted-hard-disks",
         "resolution": "N/A",
@@ -956,14 +327,7 @@
         "description": "Disk encryption status and information.",
         "query": "SELECT * FROM disk_encryption;",
         "purpose": "Informational",
-        "contributors": [
-          {
-            "name": "Ahmed Elshaer",
-            "handle": "anelshaer",
-            "avatarUrl": "https://avatars.githubusercontent.com/u/4087461?v=4",
-            "htmlUrl": "https://github.com/anelshaer"
-          }
-        ],
+        "contributors": "anelshaer",
         "kind": "query",
         "slug": "get-disk-encryption-status",
         "resolution": "N/A",
@@ -976,14 +340,7 @@
         "query": "SELECT uid, username, description, path, encrypted FROM users CROSS JOIN user_ssh_keys using (uid) WHERE encrypted=0;",
         "purpose": "Informational",
         "remediation": "First, make the user aware about the impact of SSH keys.  Then rotate the unencrypted keys detected.",
-        "contributors": [
-          {
-            "name": "Ahmed Elshaer",
-            "handle": "anelshaer",
-            "avatarUrl": "https://avatars.githubusercontent.com/u/4087461?v=4",
-            "htmlUrl": "https://github.com/anelshaer"
-          }
-        ],
+        "contributors": "anelshaer",
         "kind": "query",
         "slug": "get-unencrypted-ssh-keys-for-local-accounts",
         "resolution": "N/A",
@@ -996,14 +353,7 @@
         "query": "SELECT uid, username, description, path, encrypted FROM users CROSS JOIN user_ssh_keys using (uid) WHERE encrypted=0 and username in (SELECT distinct(username) FROM last);",
         "purpose": "Informational",
         "remediation": "First, make the user aware about the impact of SSH keys.  Then rotate the unencrypted keys detected.",
-        "contributors": [
-          {
-            "name": "Ahmed Elshaer",
-            "handle": "anelshaer",
-            "avatarUrl": "https://avatars.githubusercontent.com/u/4087461?v=4",
-            "htmlUrl": "https://github.com/anelshaer"
-          }
-        ],
+        "contributors": "anelshaer",
         "kind": "query",
         "slug": "get-unencrypted-ssh-keys-for-domain-joined-accounts",
         "resolution": "N/A",
@@ -1015,14 +365,7 @@
         "description": "Line parsed values from system and user cron/tab.",
         "query": "SELECT * FROM crontab;",
         "purpose": "Informational",
-        "contributors": [
-          {
-            "name": "Ahmed Elshaer",
-            "handle": "anelshaer",
-            "avatarUrl": "https://avatars.githubusercontent.com/u/4087461?v=4",
-            "htmlUrl": "https://github.com/anelshaer"
-          }
-        ],
+        "contributors": "anelshaer",
         "kind": "query",
         "slug": "get-crontab-jobs",
         "resolution": "N/A",
@@ -1034,14 +377,7 @@
         "description": "suid binaries in common locations.",
         "query": "SELECT * FROM suid_bin;",
         "purpose": "Informational",
-        "contributors": [
-          {
-            "name": "Zach Wasserman",
-            "handle": "zwass",
-            "avatarUrl": "https://avatars.githubusercontent.com/u/575602?v=4",
-            "htmlUrl": "https://github.com/zwass"
-          }
-        ],
+        "contributors": "zwass",
         "kind": "query",
         "slug": "get-suid-binaries",
         "resolution": "N/A",
@@ -1054,14 +390,7 @@
         "query": "SELECT env.pid, env.key, env.value, p.name,p.path, p.cmdline, p.cwd FROM process_envs env join processes p USING (pid) WHERE key='LD_PRELOAD';",
         "purpose": "Informational",
         "remediation": "Identify the process/binary detected and confirm with the system's owner.",
-        "contributors": [
-          {
-            "name": "Ahmed Elshaer",
-            "handle": "anelshaer",
-            "avatarUrl": "https://avatars.githubusercontent.com/u/4087461?v=4",
-            "htmlUrl": "https://github.com/anelshaer"
-          }
-        ],
+        "contributors": "anelshaer",
         "kind": "query",
         "slug": "get-dynamic-linker-hijacking-on-linux-mitre-t-1574-006",
         "resolution": "N/A",
@@ -1074,14 +403,7 @@
         "query": "SELECT env.pid, env.key, env.value, p.name,p.path, p.cmdline, p.cwd FROM process_envs env join processes p USING (pid) WHERE key='DYLD_INSERT_LIBRARIES';",
         "purpose": "Informational",
         "remediation": "Identify the process/binary detected and confirm with the system's owner.",
-        "contributors": [
-          {
-            "name": "Ahmed Elshaer",
-            "handle": "anelshaer",
-            "avatarUrl": "https://avatars.githubusercontent.com/u/4087461?v=4",
-            "htmlUrl": "https://github.com/anelshaer"
-          }
-        ],
+        "contributors": "anelshaer",
         "kind": "query",
         "slug": "get-dynamic-linker-hijacking-on-mac-os-mitre-t-1574-006",
         "resolution": "N/A",
@@ -1093,14 +415,7 @@
         "description": "Line-parsed /etc/hosts",
         "query": "SELECT * FROM etc_hosts WHERE address not in ('127.0.0.1', '::1');",
         "purpose": "Informational",
-        "contributors": [
-          {
-            "name": "Ahmed Elshaer",
-            "handle": "anelshaer",
-            "avatarUrl": "https://avatars.githubusercontent.com/u/4087461?v=4",
-            "htmlUrl": "https://github.com/anelshaer"
-          }
-        ],
+        "contributors": "anelshaer",
         "kind": "query",
         "slug": "get-etc-hosts-entries",
         "resolution": "N/A",
@@ -1112,14 +427,7 @@
         "description": "Network interfaces MAC address",
         "query": "SELECT a.interface, a.address, d.mac FROM interface_addresses a JOIN interface_details d USING (interface) WHERE address not in ('127.0.0.1', '::1');",
         "purpose": "Informational",
-        "contributors": [
-          {
-            "name": "Ahmed Elshaer",
-            "handle": "anelshaer",
-            "avatarUrl": "https://avatars.githubusercontent.com/u/4087461?v=4",
-            "htmlUrl": "https://github.com/anelshaer"
-          }
-        ],
+        "contributors": "anelshaer",
         "kind": "query",
         "slug": "get-network-interfaces",
         "resolution": "N/A",
@@ -1131,14 +439,7 @@
         "description": "Local user accounts (including domain accounts that have logged on locally (Windows)).",
         "query": "SELECT uid, gid, username, description,directory, shell FROM users;",
         "purpose": "Informational",
-        "contributors": [
-          {
-            "name": "Ahmed Elshaer",
-            "handle": "anelshaer",
-            "avatarUrl": "https://avatars.githubusercontent.com/u/4087461?v=4",
-            "htmlUrl": "https://github.com/anelshaer"
-          }
-        ],
+        "contributors": "anelshaer",
         "kind": "query",
         "slug": "get-local-user-accounts",
         "resolution": "N/A",
@@ -1150,14 +451,7 @@
         "description": "Domain Joined environment normally have root or other service account only and users are SSH-ing using their Domain Accounts.",
         "query": "SELECT * FROM shadow WHERE password_status='active' and username!='root';",
         "purpose": "Informational",
-        "contributors": [
-          {
-            "name": "Ahmed Elshaer",
-            "handle": "anelshaer",
-            "avatarUrl": "https://avatars.githubusercontent.com/u/4087461?v=4",
-            "htmlUrl": "https://github.com/anelshaer"
-          }
-        ],
+        "contributors": "anelshaer",
         "kind": "query",
         "slug": "get-active-user-accounts-on-servers",
         "resolution": "N/A",
@@ -1169,14 +463,7 @@
         "description": "Get Nmap scanner process, as well as its user, parent, and process details.",
         "query": "SELECT p.pid, name, p.path, cmdline, cwd, start_time, parent, (SELECT name FROM processes WHERE pid=p.parent) AS parent_name, (SELECT username FROM users WHERE uid=p.uid) AS username FROM processes as p WHERE cmdline like 'nmap%';",
         "purpose": "Informational",
-        "contributors": [
-          {
-            "name": "Ahmed Elshaer",
-            "handle": "anelshaer",
-            "avatarUrl": "https://avatars.githubusercontent.com/u/4087461?v=4",
-            "htmlUrl": "https://github.com/anelshaer"
-          }
-        ],
+        "contributors": "anelshaer",
         "kind": "query",
         "slug": "get-nmap-scanner",
         "resolution": "N/A",
@@ -1188,14 +475,7 @@
         "description": "Docker images information, can be used on normal system or a kubenode.",
         "query": "SELECT * FROM docker_images;",
         "purpose": "Informational",
-        "contributors": [
-          {
-            "name": "Ahmed Elshaer",
-            "handle": "anelshaer",
-            "avatarUrl": "https://avatars.githubusercontent.com/u/4087461?v=4",
-            "htmlUrl": "https://github.com/anelshaer"
-          }
-        ],
+        "contributors": "anelshaer",
         "kind": "query",
         "slug": "get-docker-images-on-a-system",
         "resolution": "N/A",
@@ -1207,14 +487,7 @@
         "description": "Docker containers information, can be used on normal system or a kubenode.",
         "query": "SELECT * FROM docker_containers;",
         "purpose": "Informational",
-        "contributors": [
-          {
-            "name": "Ahmed Elshaer",
-            "handle": "anelshaer",
-            "avatarUrl": "https://avatars.githubusercontent.com/u/4087461?v=4",
-            "htmlUrl": "https://github.com/anelshaer"
-          }
-        ],
+        "contributors": "anelshaer",
         "kind": "query",
         "slug": "get-docker-running-containers-on-a-system",
         "resolution": "N/A",
@@ -1226,14 +499,7 @@
         "description": "Docker containers Processes, can be used on normal system or a kubenode.",
         "query": "SELECT c.id, c.name, c.image, c.image_id, c.command, c.created, c.state, c.status, p.cmdline  FROM docker_containers c CROSS JOIN docker_container_processes p using(id);",
         "purpose": "Informational",
-        "contributors": [
-          {
-            "name": "Ahmed Elshaer",
-            "handle": "anelshaer",
-            "avatarUrl": "https://avatars.githubusercontent.com/u/4087461?v=4",
-            "htmlUrl": "https://github.com/anelshaer"
-          }
-        ],
+        "contributors": "anelshaer",
         "kind": "query",
         "slug": "get-docker-running-process-on-a-system",
         "resolution": "N/A",
@@ -1245,14 +511,7 @@
         "description": "Detects devices that are potentially vulnerable to CVE-2021-1675 because the print spooler service is not disabled.",
         "query": "SELECT CASE cnt WHEN 2 THEN \"TRUE\" ELSE \"FALSE\" END \"Vulnerable\" FROM (SELECT name start_type, COUNT(name) AS cnt FROM services WHERE name = 'NTDS' or (name = 'Spooler' and start_type <> 'DISABLED')) WHERE cnt = 2;",
         "purpose": "Informational",
-        "contributors": [
-          {
-            "name": null,
-            "handle": "maravedi",
-            "avatarUrl": "https://avatars.githubusercontent.com/u/9169890?v=4",
-            "htmlUrl": "https://github.com/maravedi"
-          }
-        ],
+        "contributors": "maravedi",
         "kind": "query",
         "slug": "get-windows-print-spooler-remote-code-execution-vulnerability",
         "resolution": "N/A",
@@ -1264,14 +523,7 @@
         "description": "Collects the local user accounts and their respective user group.",
         "query": "SELECT uid, username, type, groupname FROM users u JOIN groups g ON g.gid = u.gid;",
         "purpose": "Informational",
-        "contributors": [
-          {
-            "name": "Noah Talerman",
-            "handle": "noahtalerman",
-            "avatarUrl": "https://avatars.githubusercontent.com/u/47070608?v=4",
-            "htmlUrl": "https://github.com/noahtalerman"
-          }
-        ],
+        "contributors": "noahtalerman",
         "kind": "query",
         "slug": "get-local-users-and-their-privileges",
         "resolution": "N/A",
@@ -1283,14 +535,7 @@
         "description": "Lists all processes of which the binary which launched them no longer exists on disk. Attackers often delete files from disk after launching process to mask presence.",
         "query": "SELECT name, path, pid FROM processes WHERE on_disk = 0;",
         "purpose": "Incident response",
-        "contributors": [
-          {
-            "name": "AndrewB",
-            "handle": "alphabrevity",
-            "avatarUrl": "https://avatars.githubusercontent.com/u/3847973?v=4",
-            "htmlUrl": "https://github.com/alphabrevity"
-          }
-        ],
+        "contributors": "alphabrevity",
         "kind": "query",
         "slug": "get-processes-that-no-longer-exist-on-disk",
         "resolution": "N/A",
@@ -1302,14 +547,7 @@
         "description": "Looks for specific hash in the Users/ directories for files that are less than 50MB (osquery file size limitation.)",
         "query": "SELECT path, sha256 FROM hash WHERE path IN (SELECT path FROM file WHERE size < 50000000 AND path LIKE '/Users/%/Documents/%%') AND sha256 = '16d28cd1d78b823c4f961a6da78d67a8975d66cde68581798778ed1f98a56d75';",
         "purpose": "Informational",
-        "contributors": [
-          {
-            "name": "AndrewB",
-            "handle": "alphabrevity",
-            "avatarUrl": "https://avatars.githubusercontent.com/u/3847973?v=4",
-            "htmlUrl": "https://github.com/alphabrevity"
-          }
-        ],
+        "contributors": "alphabrevity",
         "kind": "query",
         "slug": "get-user-files-matching-a-specific-hash",
         "resolution": "N/A",
@@ -1321,14 +559,7 @@
         "description": "The query allows you to check macOS systems for local administrator accounts.",
         "query": "SELECT uid, username, type, groupname FROM users u JOIN groups g ON g.gid = u.gid;",
         "purpose": "Informational",
-        "contributors": [
-          {
-            "name": "AndrewB",
-            "handle": "alphabrevity",
-            "avatarUrl": "https://avatars.githubusercontent.com/u/3847973?v=4",
-            "htmlUrl": "https://github.com/alphabrevity"
-          }
-        ],
+        "contributors": "alphabrevity",
         "kind": "query",
         "slug": "get-local-administrator-accounts-on-mac-os",
         "resolution": "N/A",
@@ -1340,14 +571,7 @@
         "description": "List ports that are listening on all interfaces, along with the process to which they are attached.",
         "query": "SELECT lp.address, lp.pid, lp.port, lp.protocol, p.name, p.path, p.cmdline FROM listening_ports lp JOIN processes p ON lp.pid = p.pid WHERE lp.address = \"0.0.0.0\";",
         "purpose": "Informational",
-        "contributors": [
-          {
-            "name": "AndrewB",
-            "handle": "alphabrevity",
-            "avatarUrl": "https://avatars.githubusercontent.com/u/3847973?v=4",
-            "htmlUrl": "https://github.com/alphabrevity"
-          }
-        ],
+        "contributors": "alphabrevity",
         "kind": "query",
         "slug": "get-all-listening-ports-by-process",
         "resolution": "N/A",
@@ -1359,14 +583,7 @@
         "description": "Looks for the TeamViewer service running on machines. This is used often when attackers gain access to a machine, running TeamViewer to allow them to access a machine.",
         "query": "SELECT display_name,status,s.pid,p.path FROM services AS s JOIN processes AS p USING(pid) WHERE s.name LIKE \"%teamviewer%\";",
         "purpose": "Informational",
-        "contributors": [
-          {
-            "name": "AndrewB",
-            "handle": "alphabrevity",
-            "avatarUrl": "https://avatars.githubusercontent.com/u/3847973?v=4",
-            "htmlUrl": "https://github.com/alphabrevity"
-          }
-        ],
+        "contributors": "alphabrevity",
         "kind": "query",
         "slug": "get-whether-team-viewer-is-installed-running",
         "resolution": "N/A",
@@ -1378,14 +595,7 @@
         "description": "Watches for the backdoored Python packages installed on system. See (http://www.nbu.gov.sk/skcsirt-sa-20170909-pypi/index.html)",
         "query": "SELECT CASE cnt WHEN 0 THEN \"NONE_INSTALLED\" ELSE \"INSTALLED\" END AS \"Malicious Python Packages\", package_name, package_version FROM (SELECT COUNT(name) AS cnt, name AS package_name, version AS package_version, path AS package_path FROM python_packages WHERE package_name IN ('acqusition', 'apidev-coop', 'bzip', 'crypt', 'django-server', 'pwd', 'setup-tools', 'telnet', 'urlib3', 'urllib'));",
         "purpose": "Informational",
-        "contributors": [
-          {
-            "name": "AndrewB",
-            "handle": "alphabrevity",
-            "avatarUrl": "https://avatars.githubusercontent.com/u/3847973?v=4",
-            "htmlUrl": "https://github.com/alphabrevity"
-          }
-        ],
+        "contributors": "alphabrevity",
         "kind": "query",
         "slug": "get-malicious-python-backdoors",
         "resolution": "N/A",
@@ -1397,14 +607,7 @@
         "description": "Checks for artifacts from the Floxif trojan on Windows machines.",
         "query": "SELECT * FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\\\\SOFTWARE\\\\Piriform\\\\Agomo%';",
         "purpose": "Informational",
-        "contributors": [
-          {
-            "name": "Babatunde Micheal Okutubo",
-            "handle": "micheal-o",
-            "avatarUrl": "https://avatars.githubusercontent.com/u/22627292?v=4",
-            "htmlUrl": "https://github.com/micheal-o"
-          }
-        ],
+        "contributors": "micheal-o",
         "kind": "query",
         "slug": "check-for-artifacts-of-the-floxif-trojan",
         "resolution": "N/A",
@@ -1416,14 +619,7 @@
         "description": "Returns forensic data showing evidence of likely file execution, in addition to the last modified timestamp of the file, order of execution, full file path order of execution, and the order in which files were executed.",
         "query": "select * from shimcache",
         "purpose": "Informational",
-        "contributors": [
-          {
-            "name": null,
-            "handle": "puffyCid",
-            "avatarUrl": "https://avatars.githubusercontent.com/u/16283453?v=4",
-            "htmlUrl": "https://github.com/puffyCid"
-          }
-        ],
+        "contributors": "puffyCid",
         "kind": "query",
         "slug": "get-shimcache-table",
         "resolution": "N/A",
@@ -1435,14 +631,7 @@
         "description": "Returns the running Docker containers",
         "query": "SELECT id, name, image, image_id, state, status FROM docker_containers WHERE state = \"running\";",
         "purpose": "Informational",
-        "contributors": [
-          {
-            "name": "Kelvin Oghenerhoro Omereshone",
-            "handle": "DominusKelvin",
-            "avatarUrl": "https://avatars.githubusercontent.com/u/24433274?v=4",
-            "htmlUrl": "https://github.com/DominusKelvin"
-          }
-        ],
+        "contributors": "DominusKelvin",
         "kind": "query",
         "slug": "get-running-docker-containers",
         "resolution": "N/A",
@@ -1454,14 +643,7 @@
         "description": "Returns top 10 applications or processes hogging memory the most.",
         "query": "SELECT pid, name, ROUND((total_size * '10e-7'), 2) AS memory_used FROM processes ORDER BY total_size DESC LIMIT 10;",
         "purpose": "Informational",
-        "contributors": [
-          {
-            "name": "Kelvin Oghenerhoro Omereshone",
-            "handle": "DominusKelvin",
-            "avatarUrl": "https://avatars.githubusercontent.com/u/24433274?v=4",
-            "htmlUrl": "https://github.com/DominusKelvin"
-          }
-        ],
+        "contributors": "DominusKelvin",
         "kind": "query",
         "slug": "get-applications-hogging-memory",
         "resolution": "N/A",
@@ -1473,14 +655,7 @@
         "description": null,
         "query": "SELECT * FROM mounts m, disk_encryption d WHERE m.path= \"/\" AND m.device = d.name AND d.encrypted = 0;",
         "purpose": "Informational",
-        "contributors": [
-          {
-            "name": "Kelvin Oghenerhoro Omereshone",
-            "handle": "DominusKelvin",
-            "avatarUrl": "https://avatars.githubusercontent.com/u/24433274?v=4",
-            "htmlUrl": "https://github.com/DominusKelvin"
-          }
-        ],
+        "contributors": "DominusKelvin",
         "kind": "query",
         "slug": "get-mac-and-linux-machines-with-unencrypted-primary-disks",
         "resolution": "N/A",
@@ -1492,14 +667,7 @@
         "description": "Returns servers with root login in the last 24 hours and the time the users where logged in.",
         "query": "SELECT * FROM last WHERE username = \"root\" AND time > (( SELECT unix_time FROM time ) - 86400 );",
         "purpose": "Informational",
-        "contributors": [
-          {
-            "name": "Kelvin Oghenerhoro Omereshone",
-            "handle": "DominusKelvin",
-            "avatarUrl": "https://avatars.githubusercontent.com/u/24433274?v=4",
-            "htmlUrl": "https://github.com/DominusKelvin"
-          }
-        ],
+        "contributors": "DominusKelvin",
         "kind": "query",
         "slug": "get-servers-with-root-login-in-the-last-24-hours",
         "resolution": "N/A",
@@ -1511,20 +679,7 @@
         "description": "Returns a list of active processes and the Jar paths which are using Log4j. Version numbers are usually within the Jar filename. Note: This query is resource intensive and has caused problems on systems with limited swap space. Test on some systems before running this widely.",
         "query": "WITH target_jars AS (\n  SELECT DISTINCT path\n  FROM (\n      WITH split(word, str) AS(\n        SELECT '', cmdline || ' '\n        FROM processes\n        UNION ALL\n        SELECT substr(str, 0, instr(str, ' ')), substr(str, instr(str, ' ') + 1)\n        FROM split\n        WHERE str != '')\n      SELECT word AS path\n      FROM split\n      WHERE word LIKE '%.jar'\n    UNION ALL\n      SELECT path\n      FROM process_open_files\n      WHERE path LIKE '%.jar'\n  )\n)\nSELECT path, matches\nFROM yara\nWHERE path IN (SELECT path FROM target_jars)\n  AND count > 0\n  AND sigrule IN (\n    'rule log4jJndiLookup {\n      strings:\n        $jndilookup = \"JndiLookup\"\n      condition:\n        $jndilookup\n    }',\n    'rule log4jJavaClass {\n      strings:\n        $javaclass = \"org/apache/logging/log4j\"\n      condition:\n        $javaclass\n    }'\n  );\n",
         "purpose": "Detection",
-        "contributors": [
-          {
-            "name": "Zach Wasserman",
-            "handle": "zwass",
-            "avatarUrl": "https://avatars.githubusercontent.com/u/575602?v=4",
-            "htmlUrl": "https://github.com/zwass"
-          },
-          {
-            "name": "Tony Gauda",
-            "handle": "tgauda",
-            "avatarUrl": "https://avatars.githubusercontent.com/u/5620541?v=4",
-            "htmlUrl": "https://github.com/tgauda"
-          }
-        ],
+        "contributors": "zwass,tgauda",
         "kind": "query",
         "slug": "detect-active-processes-with-log-4-j-running",
         "resolution": "N/A",
@@ -1536,14 +691,7 @@
         "description": "Returns applications that were opened within the last 24 hours starting with the last opened application.",
         "query": "SELECT * FROM apps WHERE last_opened_time > (( SELECT unix_time FROM time ) - 86400 ) ORDER BY last_opened_time DESC;",
         "purpose": "Informational",
-        "contributors": [
-          {
-            "name": "Kelvin Oghenerhoro Omereshone",
-            "handle": "DominusKelvin",
-            "avatarUrl": "https://avatars.githubusercontent.com/u/24433274?v=4",
-            "htmlUrl": "https://github.com/DominusKelvin"
-          }
-        ],
+        "contributors": "DominusKelvin",
         "kind": "query",
         "slug": "get-applications-that-were-opened-within-the-last-24-hours",
         "resolution": "N/A",
@@ -1555,14 +703,7 @@
         "description": "Returns applications that are not in the `/Applications` directory",
         "query": "SELECT * FROM apps WHERE path NOT LIKE '/Applications/%';",
         "purpose": "Informational",
-        "contributors": [
-          {
-            "name": "Kelvin Oghenerhoro Omereshone",
-            "handle": "DominusKelvin",
-            "avatarUrl": "https://avatars.githubusercontent.com/u/24433274?v=4",
-            "htmlUrl": "https://github.com/DominusKelvin"
-          }
-        ],
+        "contributors": "DominusKelvin",
         "kind": "query",
         "slug": "get-applications-that-are-not-in-the-applications-directory",
         "resolution": "N/A",
@@ -1574,75 +715,526 @@
         "description": "Returns applications that are subscription-based and have not been opened for the last 30 days. You can replace the list of applications with those specific to your use case.",
         "query": "SELECT * FROM apps WHERE path LIKE '/Applications/%' AND name IN (\"Photoshop.app\", \"Adobe XD.app\", \"Sketch.app\", \"Illustrator.app\") AND last_opened_time < (( SELECT unix_time FROM time ) - 2592000000000 );",
         "purpose": "Informational",
-        "contributors": [
-          {
-            "name": "Kelvin Oghenerhoro Omereshone",
-            "handle": "DominusKelvin",
-            "avatarUrl": "https://avatars.githubusercontent.com/u/24433274?v=4",
-            "htmlUrl": "https://github.com/DominusKelvin"
-          }
-        ],
+        "contributors": "DominusKelvin",
         "kind": "query",
         "slug": "get-subscription-based-applications-that-have-not-been-opened-for-the-last-30-days",
         "resolution": "N/A",
         "tags": []
       },
       {
-        "name": "Is Gatekeeper enabled on macOS devices?",
+        "name": "Gatekeeper enabled (macOS)",
         "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
         "description": "Checks to make sure that the Gatekeeper feature is enabled on macOS devices. Gatekeeper tries to ensure only trusted software is run on a mac machine.",
         "resolution": "To enable Gatekeeper, on the failing device, run the following command in the Terminal app: /usr/sbin/spctl --master-enable.",
         "platforms": "macOS",
-        "contributors": [
-          {
-            "name": "Victor Vrantchan",
-            "handle": "groob",
-            "avatarUrl": "https://avatars.githubusercontent.com/u/1526945?v=4",
-            "htmlUrl": "https://github.com/groob"
-          }
-        ],
+        "contributors": "groob",
         "kind": "policy",
-        "slug": "is-gatekeeper-enabled-on-mac-os-devices",
+        "slug": "gatekeeper-enabled-mac-os",
         "tags": []
       },
       {
-        "name": "Is disk encryption enabled on Windows devices?",
+        "name": "Full disk encryption enabled (Windows)",
         "query": "SELECT 1 FROM bitlocker_info where protection_status = 1;",
-        "description": "Checks to make sure that device encryption is enabled on Windows devices.",
+        "description": "Checks to make sure that full disk encryption is enabled on Windows devices.",
         "resolution": "To get additional information, run the following osquery query on the failing device: SELECT * FROM bitlocker_info. In the query results, if protection_status is 2, then the status cannot be determined. If it is 0, it is considered unprotected. Use the additional results (percent_encrypted, conversion_status, etc.) to help narrow down the specific reason why Windows considers the volume unprotected.",
         "platforms": "Windows",
-        "contributors": [
-          {
-            "name": "Josh Brower",
-            "handle": "defensivedepth",
-            "avatarUrl": "https://avatars.githubusercontent.com/u/954732?v=4",
-            "htmlUrl": "https://github.com/defensivedepth"
-          }
-        ],
+        "contributors": "defensivedepth",
         "kind": "policy",
-        "slug": "is-disk-encryption-enabled-on-windows-devices",
+        "slug": "full-disk-encryption-enabled-windows",
         "tags": []
       },
       {
-        "name": "Is FileVault enabled on macOS devices?",
+        "name": "Full disk encryption enabled (macOS)",
         "query": "SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT \"\" AND filevault_status = 'on' LIMIT 1;",
-        "description": "Checks to make sure that the FileVault feature is enabled on macOS devices.",
-        "resolution": "To enable FileVault, on the failing device, select System Preferences > Security & Privacy > FileVault > Turn On FileVault.",
+        "description": "Checks to make sure that full disk encryption (FileVault) is enabled on macOS devices.",
+        "resolution": "To enable full disk encryption, on the failing device, select System Preferences > Security & Privacy > FileVault > Turn On FileVault.",
         "platforms": "macOS",
-        "contributors": [
-          {
-            "name": "Victor Vrantchan",
-            "handle": "groob",
-            "avatarUrl": "https://avatars.githubusercontent.com/u/1526945?v=4",
-            "htmlUrl": "https://github.com/groob"
-          }
-        ],
+        "contributors": "groob",
         "kind": "policy",
-        "slug": "is-file-vault-enabled-on-mac-os-devices",
+        "slug": "full-disk-encryption-enabled-mac-os",
+        "tags": []
+      },
+      {
+        "name": "System Integrity Protection enabled (macOS)",
+        "query": "SELECT 1 FROM sip_config WHERE config_flag = 'sip' AND enabled = 1;",
+        "description": "Checks to make sure that the System Integrity Protection feature is enabled.",
+        "resolution": "To enable System Integrity Protection, on the failing device, run the following command in the Terminal app: /usr/sbin/spctl --master-enable.",
+        "platforms": "macOS",
+        "contributors": "groob",
+        "kind": "policy",
+        "slug": "system-integrity-protection-enabled-mac-os",
+        "tags": []
+      },
+      {
+        "name": "Automatic login disabled (macOS)",
+        "query": "SELECT 1 FROM managed_policies WHERE domain = 'com.apple.loginwindow' AND name = 'com.apple.login.mcx.DisableAutoLoginClient' AND value = 1 LIMIT 1;",
+        "description": "Required: You’re already enforcing a policy via Moble Device Management (MDM). Checks to make sure that the device user cannot log in to the device without a password.",
+        "resolution": "The following example profile includes a setting to disable automatic login: https://github.com/gregneagle/profiles/blob/fecc73d66fa17b6fa78b782904cb47cdc1913aeb/loginwindow.mobileconfig#L64-L65.",
+        "platforms": "macOS",
+        "contributors": "groob",
+        "kind": "policy",
+        "slug": "automatic-login-disabled-mac-os",
+        "tags": []
+      },
+      {
+        "name": "Guest users disabled (macOS)",
+        "query": "SELECT 1 FROM managed_policies WHERE domain = 'com.apple.MCX' AND name = 'DisableGuestAccount' AND value = 1 LIMIT 1;",
+        "description": "Required: You’re already enforcing a policy via Moble Device Management (MDM). Checks to make sure that guest accounts cannot be used to log in to the device without a password.",
+        "resolution": "The following example profile includes a setting to disable guest users: https://github.com/gregneagle/profiles/blob/fecc73d66fa17b6fa78b782904cb47cdc1913aeb/loginwindow.mobileconfig#L68-L71.",
+        "platforms": "macOS",
+        "contributors": "groob",
+        "kind": "policy",
+        "slug": "guest-users-disabled-mac-os",
+        "tags": []
+      },
+      {
+        "name": "Secure keyboard entry for Terminal.app enabled (macOS)",
+        "query": "SELECT 1 FROM managed_policies WHERE domain = 'com.apple.Terminal' AND name = 'SecureKeyboardEntry' AND value = 1 LIMIT 1;",
+        "description": "Required: You’re already enforcing a policy via Moble Device Management (MDM). Checks to make sure that the Secure Keyboard Entry setting is enabled.",
+        "platforms": "macOS",
+        "contributors": "groob",
+        "kind": "policy",
+        "slug": "secure-keyboard-entry-for-terminal-app-enabled-mac-os",
+        "resolution": "N/A",
         "tags": []
       }
     ],
     "queryLibraryYmlRepoPath": "docs/Using-Fleet/standard-query-library/standard-query-library.yml",
+    "markdownPages": [
+      {
+        "url": "/docs",
+        "title": "Readme.md",
+        "lastModifiedAt": 1643833484000,
+        "htmlId": "docs--readme--b60106ba2c",
+        "sectionRelativeRepoPath": "README.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/contributing/api-versioning",
+        "title": "API versioning",
+        "lastModifiedAt": 1644869371000,
+        "htmlId": "docs--api-versioning--ea503003cb",
+        "pageOrderInSectionPath": 900,
+        "sectionRelativeRepoPath": "Contributing/API-Versioning.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/contributing/building-fleet",
+        "title": "Building Fleet",
+        "lastModifiedAt": 1644869371000,
+        "htmlId": "docs--building-fleet--4d903d454a",
+        "pageOrderInSectionPath": 100,
+        "sectionRelativeRepoPath": "Contributing/Building-Fleet.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/contributing/api-for-contributors",
+        "title": "API for contributors",
+        "lastModifiedAt": 1644869371000,
+        "htmlId": "docs--api-for-contributors--346b08c62f",
+        "pageOrderInSectionPath": 800,
+        "sectionRelativeRepoPath": "Contributing/API-for-contributors.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/contributing/faq",
+        "title": "FAQ",
+        "lastModifiedAt": 1643833484000,
+        "htmlId": "docs--faq--0025d14123",
+        "sectionRelativeRepoPath": "Contributing/FAQ.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/contributing/migrations",
+        "title": "Migrations",
+        "lastModifiedAt": 1644869371000,
+        "htmlId": "docs--migrations--2d1f33ddb2",
+        "pageOrderInSectionPath": 300,
+        "sectionRelativeRepoPath": "Contributing/Migrations.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/contributing/committing-changes",
+        "title": "Committing changes",
+        "lastModifiedAt": 1644869371000,
+        "htmlId": "docs--committing-changes--119b21c3a0",
+        "pageOrderInSectionPath": 400,
+        "sectionRelativeRepoPath": "Contributing/Committing-Changes.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/contributing/releasing-fleet",
+        "title": "Releasing Fleet",
+        "lastModifiedAt": 1644869371000,
+        "htmlId": "docs--releasing-fleet--241a11d946",
+        "pageOrderInSectionPath": 500,
+        "sectionRelativeRepoPath": "Contributing/Releasing-Fleet.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/contributing",
+        "title": "Contributing",
+        "lastModifiedAt": 1643833484000,
+        "htmlId": "docs--readme--a6a176e11d",
+        "sectionRelativeRepoPath": "Contributing/README.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/contributing/testing",
+        "title": "Testing",
+        "lastModifiedAt": 1644869371000,
+        "htmlId": "docs--testing--818133e9fc",
+        "pageOrderInSectionPath": 200,
+        "sectionRelativeRepoPath": "Contributing/Testing.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/contributing/seeding-data",
+        "title": "Seeding data",
+        "lastModifiedAt": 1644869371000,
+        "htmlId": "docs--seeding-data--3e7af3585c",
+        "pageOrderInSectionPath": 600,
+        "sectionRelativeRepoPath": "Contributing/Seeding-Data.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/deploying/faq",
+        "title": "FAQ",
+        "lastModifiedAt": 1644433454000,
+        "htmlId": "docs--faq--52e02f41fd",
+        "sectionRelativeRepoPath": "Deploying/FAQ.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/deploying/configuration",
+        "title": "Configuration",
+        "lastModifiedAt": 1644869371000,
+        "htmlId": "docs--configuration--8f91c1869e",
+        "pageOrderInSectionPath": 300,
+        "sectionRelativeRepoPath": "Deploying/Configuration.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/deploying/introduction",
+        "title": "Introduction",
+        "lastModifiedAt": 1644869371000,
+        "htmlId": "docs--introduction--50920148e9",
+        "pageOrderInSectionPath": 100,
+        "sectionRelativeRepoPath": "Deploying/Introduction.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/deploying/load-testing",
+        "title": "Load testing",
+        "lastModifiedAt": 1644869371000,
+        "htmlId": "docs--load-testing--0b13ca21b0",
+        "pageOrderInSectionPath": 500,
+        "sectionRelativeRepoPath": "Deploying/Load-testing.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/deploying",
+        "title": "Deploying",
+        "lastModifiedAt": 1643833484000,
+        "htmlId": "docs--readme--816dde302f",
+        "sectionRelativeRepoPath": "Deploying/README.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/deploying/reference-architectures",
+        "title": "Reference architectures",
+        "lastModifiedAt": 1644869371000,
+        "htmlId": "docs--reference-architectu--b513c25040",
+        "pageOrderInSectionPath": 600,
+        "sectionRelativeRepoPath": "Deploying/Reference-Architectures.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/deploying/server-installation",
+        "title": "Server installation",
+        "lastModifiedAt": 1644869371000,
+        "htmlId": "docs--server-installation--0b93f6b494",
+        "pageOrderInSectionPath": 200,
+        "sectionRelativeRepoPath": "Deploying/Server-Installation.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/deploying/fleetctl-agent-updates",
+        "title": "Fleetctl agent updates",
+        "lastModifiedAt": 1644869371000,
+        "htmlId": "docs--fleetctl-agent-updat--9c81e9232b",
+        "pageOrderInSectionPath": 400,
+        "sectionRelativeRepoPath": "Deploying/fleetctl-agent-updates.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/deploying/upgrading-fleet",
+        "title": "Upgrading Fleet",
+        "lastModifiedAt": 1644869371000,
+        "htmlId": "docs--upgrading-fleet--d4a53c5cb0",
+        "pageOrderInSectionPath": 700,
+        "sectionRelativeRepoPath": "Deploying/Upgrading-Fleet.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/using-fleet/automations",
+        "title": "Automations",
+        "lastModifiedAt": 1644869371000,
+        "htmlId": "docs--automations--e14f847032",
+        "pageOrderInSectionPath": 1300,
+        "sectionRelativeRepoPath": "Using-Fleet/Automations.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/using-fleet/faq",
+        "title": "FAQ",
+        "lastModifiedAt": 1644597914000,
+        "htmlId": "docs--faq--1db76c6c52",
+        "sectionRelativeRepoPath": "Using-Fleet/FAQ.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/using-fleet/fleet-ui",
+        "title": "Fleet UI",
+        "lastModifiedAt": 1644869371000,
+        "htmlId": "docs--fleet-ui--d0b37f41de",
+        "pageOrderInSectionPath": 200,
+        "sectionRelativeRepoPath": "Using-Fleet/Fleet-UI.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/using-fleet/monitoring-fleet",
+        "title": "Monitoring Fleet",
+        "lastModifiedAt": 1644869371000,
+        "htmlId": "docs--monitoring-fleet--5d7d4b0ab1",
+        "pageOrderInSectionPath": 700,
+        "sectionRelativeRepoPath": "Using-Fleet/Monitoring-Fleet.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/using-fleet/learn-how-to-use-fleet",
+        "title": "Learn how to use Fleet",
+        "lastModifiedAt": 1644869371000,
+        "htmlId": "docs--learn-how-to-use-fle--acc71c7d87",
+        "pageOrderInSectionPath": 100,
+        "sectionRelativeRepoPath": "Using-Fleet/Learn-how-to-use-Fleet.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/using-fleet/permissions",
+        "title": "Permissions",
+        "lastModifiedAt": 1644869371000,
+        "htmlId": "docs--permissions--2c9d6a7180",
+        "pageOrderInSectionPath": 900,
+        "sectionRelativeRepoPath": "Using-Fleet/Permissions.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/using-fleet",
+        "title": "Using Fleet",
+        "lastModifiedAt": 1644865698000,
+        "htmlId": "docs--readme--e56bd86ac3",
+        "sectionRelativeRepoPath": "Using-Fleet/README.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/using-fleet/rest-api",
+        "title": "REST API",
+        "lastModifiedAt": 1644869371000,
+        "htmlId": "docs--rest-api--a7973d8f60",
+        "pageOrderInSectionPath": 400,
+        "sectionRelativeRepoPath": "Using-Fleet/REST-API.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/using-fleet/security-best-practices",
+        "title": "Security best practices",
+        "lastModifiedAt": 1644869371000,
+        "htmlId": "docs--security-best-practi--c3d922e19d",
+        "pageOrderInSectionPath": 800,
+        "sectionRelativeRepoPath": "Using-Fleet/Security-best-practices.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/using-fleet/supported-browsers",
+        "title": "Supported browsers",
+        "lastModifiedAt": 1644869371000,
+        "htmlId": "docs--supported-browsers--8c0b56298a",
+        "pageOrderInSectionPath": 1200,
+        "sectionRelativeRepoPath": "Using-Fleet/Supported-browsers.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/using-fleet/teams",
+        "title": "Teams",
+        "lastModifiedAt": 1644869371000,
+        "htmlId": "docs--teams--6bc40aa290",
+        "pageOrderInSectionPath": 1000,
+        "sectionRelativeRepoPath": "Using-Fleet/Teams.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/using-fleet/usage-statistics",
+        "title": "Usage statistics",
+        "lastModifiedAt": 1644869371000,
+        "htmlId": "docs--usage-statistics--b743878a27",
+        "pageOrderInSectionPath": 1100,
+        "sectionRelativeRepoPath": "Using-Fleet/Usage-statistics.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/using-fleet/vulnerability-processing",
+        "title": "Vulnerability processing",
+        "lastModifiedAt": 1644869371000,
+        "htmlId": "docs--vulnerability-proces--681ebd67ed",
+        "pageOrderInSectionPath": 1300,
+        "sectionRelativeRepoPath": "Using-Fleet/Vulnerability-Processing.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/using-fleet/fleetctl-cli",
+        "title": "Fleetctl CLI",
+        "lastModifiedAt": 1644869371000,
+        "htmlId": "docs--fleetctl-cli--e0f0d25acd",
+        "pageOrderInSectionPath": 300,
+        "sectionRelativeRepoPath": "Using-Fleet/fleetctl-CLI.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/using-fleet/adding-hosts",
+        "title": "Adding hosts",
+        "lastModifiedAt": 1644869371000,
+        "htmlId": "docs--adding-hosts--134e1a7aad",
+        "pageOrderInSectionPath": 500,
+        "sectionRelativeRepoPath": "Using-Fleet/Adding-hosts.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/using-fleet/osquery-logs",
+        "title": "Osquery logs",
+        "lastModifiedAt": 1644869371000,
+        "htmlId": "docs--osquery-logs--e33ecf2813",
+        "pageOrderInSectionPath": 600,
+        "sectionRelativeRepoPath": "Using-Fleet/Osquery-logs.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/using-fleet/configuration-files",
+        "title": "Configuration files",
+        "lastModifiedAt": 1644865698000,
+        "htmlId": "docs--readme--16cf8a7765",
+        "sectionRelativeRepoPath": "Using-Fleet/configuration-files/README.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/using-fleet/standard-query-library",
+        "title": "Standard query library",
+        "lastModifiedAt": 1644433454000,
+        "htmlId": "docs--readme--82ce8fce8a",
+        "sectionRelativeRepoPath": "Using-Fleet/standard-query-library/README.md",
+        "meta": {}
+      },
+      {
+        "url": "/handbook",
+        "title": "Readme.md",
+        "lastModifiedAt": 1644265234000,
+        "htmlId": "handbook--readme--ca2b24aea7",
+        "sectionRelativeRepoPath": "README.md",
+        "meta": {
+          "maintainedBy": "mikermcneil"
+        }
+      },
+      {
+        "url": "/handbook/brand",
+        "title": "Brand",
+        "lastModifiedAt": 1644433454000,
+        "htmlId": "handbook--brand--71318c94e3",
+        "sectionRelativeRepoPath": "brand.md",
+        "meta": {
+          "maintainedBy": "mike-j-thomas"
+        }
+      },
+      {
+        "url": "/handbook/community",
+        "title": "Community",
+        "lastModifiedAt": 1644539018000,
+        "htmlId": "handbook--community--26b3b0493a",
+        "sectionRelativeRepoPath": "community.md",
+        "meta": {
+          "maintainedBy": "mike-j-thomas"
+        }
+      },
+      {
+        "url": "/handbook/customers",
+        "title": "Customers",
+        "lastModifiedAt": 1643664488000,
+        "htmlId": "handbook--customers--9a587d954a",
+        "sectionRelativeRepoPath": "customers.md",
+        "meta": {
+          "maintainedBy": "tgauda"
+        }
+      },
+      {
+        "url": "/handbook/engineering",
+        "title": "Engineering",
+        "lastModifiedAt": 1643833484000,
+        "htmlId": "handbook--engineering--3ae631e569",
+        "sectionRelativeRepoPath": "engineering.md",
+        "meta": {
+          "maintainedBy": "zwass"
+        }
+      },
+      {
+        "url": "/handbook/company",
+        "title": "Company",
+        "lastModifiedAt": 1643418324000,
+        "htmlId": "handbook--company--d5de2c8ec1",
+        "sectionRelativeRepoPath": "company.md",
+        "meta": {
+          "maintainedBy": "mikermcneil"
+        }
+      },
+      {
+        "url": "/handbook/handbook",
+        "title": "Handbook",
+        "lastModifiedAt": 1642145590000,
+        "htmlId": "handbook--handbook--0b0ab17065",
+        "sectionRelativeRepoPath": "handbook.md",
+        "meta": {
+          "maintainedBy": "mike-j-thomas"
+        }
+      },
+      {
+        "url": "/handbook/product",
+        "title": "Product",
+        "lastModifiedAt": 1644597914000,
+        "htmlId": "handbook--product--3b0ab5a022",
+        "sectionRelativeRepoPath": "product.md",
+        "meta": {
+          "maintainedBy": "noahtalerman"
+        }
+      },
+      {
+        "url": "/handbook/security",
+        "title": "Security",
+        "lastModifiedAt": 1644447080000,
+        "htmlId": "handbook--security--f1845773e5",
+        "sectionRelativeRepoPath": "security.md",
+        "meta": {
+          "maintainedBy": "GuillaumeRoss"
+        }
+      },
+      {
+        "url": "/handbook/people",
+        "title": "People",
+        "lastModifiedAt": 1644861673000,
+        "htmlId": "handbook--people--10ea9f9fbc",
+        "sectionRelativeRepoPath": "people.md",
+        "meta": {
+          "maintainedBy": "eashaw"
+        }
+      }
+    ],
     "compiledPagePartialsAppPath": "views/partials/built-from-markdown"
   }
 }

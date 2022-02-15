@@ -23,4 +23,4 @@ We test each browser on Windows whenever possible, because our engineering team 
 > - Mobile web is not yet supported in the Fleet product.
 > - The Fleet user interface [may not be fully supported](https://github.com/fleetdm/fleet/issues/969) in Google Chrome when the browser is running on Chrome OS
 
-<meta name="pageOrderInSection" value="12">
+<meta name="pageOrderInSection" value="1200">

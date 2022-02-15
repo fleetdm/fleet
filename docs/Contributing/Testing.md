@@ -297,4 +297,4 @@ Use the Fleet UI to invite one of these users with the associated email. Be sure
 
 To add additional users, modify [tools/saml/users.php](https://github.com/fleetdm/fleet/tree/main/tools/saml/users.php) and restart the `simplesaml` container.
 
-<meta name="pageOrderInSection" value="2">
+<meta name="pageOrderInSection" value="200">

@@ -601,4 +601,4 @@ Below are some projects created by Fleet community members. These projects provi
 
 - [CptOfEvilMinions/FleetDM-Automation](https://github.com/CptOfEvilMinions/FleetDM-Automation) - Ansible and Docker code to set up Fleet
 
-<meta name="pageOrderInSection" value="2">
+<meta name="pageOrderInSection" value="200">

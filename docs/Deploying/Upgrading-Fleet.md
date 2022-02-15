@@ -57,4 +57,4 @@ Once Fleet has been replaced with the newest version and the database migrations
 fleet serve
 ```
 
-<meta name="pageOrderInSection" value="7">
+<meta name="pageOrderInSection" value="700">
