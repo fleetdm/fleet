@@ -2,30 +2,10 @@
 apiVersion: v1
 kind: query
 spec:
-  name: Count Apple applications installed
-  platforms: macOS
-  description: Get the total number of Apple applications installed on the host system.
-  query: SELECT COUNT(*) FROM apps WHERE bundle_identifier LIKE 'com.apple.%';
-  purpose: Informational
-  contributors: mike-j-thomas,noahtalerman,mikermcneil
----
-apiVersion: v1
-kind: query
-spec:
   name: Get OpenSSL versions
   platforms: Linux
   description: Retrieves the OpenSSL version.
   query: SELECT name AS name, version AS version, 'deb_packages' AS source FROM deb_packages WHERE name LIKE 'openssl%' UNION SELECT name AS name, version AS version, 'apt_sources' AS source FROM apt_sources WHERE name LIKE 'openssl%' UNION SELECT name AS name, version AS version, 'rpm_packages' AS source FROM rpm_packages WHERE name LIKE 'openssl%';
-  purpose: Informational
-  contributors: zwass
----
-apiVersion: v1
-kind: query
-spec:
-  name: Get whether Gatekeeper is disabled
-  platforms: macOS
-  description: Gatekeeper tries to ensure only trusted software is run on a mac machine.
-  query: SELECT * FROM gatekeeper WHERE assessments_enabled = 0;
   purpose: Informational
   contributors: zwass
 ---
@@ -93,16 +73,6 @@ spec:
 apiVersion: v1
 kind: query
 spec:
-  name: Get Homebrew Packages
-  platforms: macOS
-  description: Get the installed homebrew package database.
-  query: SELECT * FROM homebrew_packages;
-  purpose: Informational
-  contributors: zwass
----
-apiVersion: v1
-kind: query
-spec:
   name: Get installed Linux software
   platforms: Linux
   description: Get all software installed on a Linux computer, including browser plugins and installed packages. Note, this does not included other running processes in the processes table.
@@ -153,120 +123,10 @@ spec:
 apiVersion: v1
 kind: query
 spec:
-  name: Get macOS disk free space percentage
-  platforms: macOS
-  description: Displays the percentage of free space available on the primary disk partition.
-  query: SELECT (blocks_available * 100 / blocks) AS pct, * FROM mounts WHERE path = '/';
-  purpose: Informational
-  contributors: zwass
----
-apiVersion: v1
-kind: query
-spec:
-  name: Get mounts
-  platforms: macOS, Linux
-  description: Shows system mounted devices and filesystems (not process specific).
-  query: SELECT device, device_alias, path, type, blocks_size FROM mounts;
-  purpose: Informational
-  contributors: zwass
----
-apiVersion: v1
-kind: query
-spec:
-  name: Get the version of the resident operating system
-  platforms: macOS, Linux, Windows, FreeBSD
-  description: Retrieves the version of the host(s) operating system(s).
-  query: SELECT * FROM os_version;
-  purpose: Informational
-  contributors: zwass
----
-apiVersion: v1
-kind: query
-spec:
-  name: Get platform info
-  platforms: macOS
-  description: Shows information about the host platform
-  query: SELECT vendor, version, date, revision from platform_info;
-  purpose: Informational
-  contributors: zwass
----
-apiVersion: v1
-kind: query
-spec:
-  name: Get startup items
-  platforms: macOS, Linux, Windows, FreeBSD
-  description: Shows applications and binaries set as user/login startup items.
-  query: SELECT * FROM startup_items;
-  purpose: Informational
-  contributors: zwass
----
-apiVersion: v1
-kind: query
-spec:
-  name: Get system logins and logouts
-  platforms: macOS
-  description: Get a list of system logins and logouts.
-  query: SELECT * FROM last;
-  purpose: Informational
-  contributors: zwass
----
-apiVersion: v1
-kind: query
-spec:
   name: Get current users with active shell/console on the system
   platforms: macOS, Linux, Windows, FreeBSD
   description: Get current users with active shell/console on the system and associated process
   query: SELECT user,host,time, p.name, p.cmdline, p.cwd, p.root FROM logged_in_users liu, processes p WHERE liu.pid = p.pid and liu.type='user' and liu.user <> '' ORDER BY time;
-  purpose: Informational
-  contributors: anelshaer
----
-apiVersion: v1
-kind: query
-spec:
-  name: Get system uptime
-  platforms: macOS, Linux, Windows, FreeBSD
-  description: Shows the system uptime.
-  query: SELECT * FROM uptime;
-  purpose: Informational
-  contributors: zwass
----
-apiVersion: v1
-kind: query
-spec:
-  name: Get USB devices
-  platforms: macOS, Linux
-  description: Shows all USB devices that are actively plugged into the host system.
-  query: SELECT * FROM usb_devices;
-  purpose: Informational
-  contributors: zwass
----
-apiVersion: v1
-kind: query
-spec:
-  name: Get wifi status
-  platforms: macOS
-  description: Shows information about the wifi network that a host is currently connected to.
-  query: SELECT * FROM wifi_status;
-  purpose: Informational
-  contributors: zwass
----
-apiVersion: v1
-kind: query
-spec:
-  name: Get Windows machines with unencrypted hard disks
-  platforms: Windows
-  description: List all Windows machines with unencrypted hard disks.
-  query: SELECT * FROM bitlocker_info WHERE protection_status = 0;
-  purpose: Informational
-  contributors: zwass
----
-apiVersion: v1
-kind: query
-spec:
-  name: Get disk encryption status
-  platforms: macOS, Linux
-  description: Disk encryption status and information.
-  query: SELECT * FROM disk_encryption;
   purpose: Informational
   contributors: anelshaer
 ---
@@ -291,26 +151,6 @@ spec:
   purpose: Informational
   remediation: First, make the user aware about the impact of SSH keys.  Then rotate the unencrypted keys detected.
   contributors: anelshaer
----
-apiVersion: v1
-kind: query
-spec:
-  name: Get crontab jobs
-  platforms: macOS, Linux
-  description: Line parsed values from system and user cron/tab.
-  query: SELECT * FROM crontab;
-  purpose: Informational
-  contributors: anelshaer
----
-apiVersion: v1
-kind: query
-spec:
-  name: Get suid binaries
-  platforms: macOS, Linux
-  description: suid binaries in common locations.
-  query: SELECT * FROM suid_bin;
-  purpose: Informational
-  contributors: zwass
 ---
 apiVersion: v1
 kind: query
@@ -390,27 +230,7 @@ spec:
 apiVersion: v1
 kind: query
 spec:
-  name: Get docker images on a system
-  platforms: macOS, Linux
-  description: Docker images information, can be used on normal system or a kubenode.
-  query: SELECT * FROM docker_images;
-  purpose: Informational
-  contributors: anelshaer
----
-apiVersion: v1
-kind: query
-spec:
-  name: Get docker running containers on a system
-  platforms: macOS, Linux
-  description: Docker containers information, can be used on normal system or a kubenode.
-  query: SELECT * FROM docker_containers;
-  purpose: Informational
-  contributors: anelshaer
----
-apiVersion: v1
-kind: query
-spec:
-  name: Get docker running process on a system
+  name: Get Docker contained processes on a system
   platforms: macOS, Linux
   description: Docker containers Processes, can be used on normal system or a kubenode.
   query: SELECT c.id, c.name, c.image, c.image_id, c.command, c.created, c.state, c.status, p.cmdline  FROM docker_containers c CROSS JOIN docker_container_processes p using(id);
@@ -534,16 +354,6 @@ spec:
   platforms: macOS, Linux, Windows
   description: Returns top 10 applications or processes hogging memory the most.
   query: SELECT pid, name, ROUND((total_size * '10e-7'), 2) AS memory_used FROM processes ORDER BY total_size DESC LIMIT 10;
-  purpose: Informational
-  contributors: DominusKelvin
----
-apiVersion: v1
-kind: query
-spec:
-  name: Get Mac and Linux machines with unencrypted primary disks
-  platforms: macOS, Linux
-  description:
-  query: SELECT * FROM mounts m, disk_encryption d WHERE m.path= "/" AND m.device = d.name AND d.encrypted = 0;
   purpose: Informational
   contributors: DominusKelvin
 ---
