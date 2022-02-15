@@ -117,7 +117,9 @@ const generateTableHeaders = (
       Header: () => {
         return (
           <div>
-            <span>Performance impact</span>
+            <span className="queries-table__performance-impact-header">
+              Performance impact
+            </span>
             <span
               data-tip
               data-for="queries-table__performance-impact-tooltip"
