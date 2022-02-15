@@ -66,10 +66,7 @@ const ManageSoftwarePage = ({
   const {
     availableTeams,
     currentTeam,
-    setAvailableTeams,
-    setCurrentUser,
     setConfig,
-    isPremiumTier,
     isGlobalAdmin,
     isGlobalMaintainer,
   } = useContext(AppContext);

@@ -421,7 +421,7 @@ const UserManagementPage = (): JSX.Element => {
     const isResettingCurrentUser = currentUser?.id === userEditing.id;
 
     usersAPI
-      .deleteSessions(userEditing.id, isResettingCurrentUser)
+      .deleteSessions(userEditing.id)
       .then(() => {
         if (isResettingCurrentUser) {
           dispatch({ type: "LOGOUT_SUCCESS" });

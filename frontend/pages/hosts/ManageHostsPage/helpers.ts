@@ -48,7 +48,7 @@ export const HOST_SELECT_STATUSES = [
   },
 ];
 
-export const isAcceptableStatus = (filter: string) => {
+export const isAcceptableStatus = (filter: string): boolean => {
   return (
     filter === "new" ||
     filter === "online" ||
@@ -57,7 +57,7 @@ export const isAcceptableStatus = (filter: string) => {
   );
 };
 
-export const isValidPolicyResponse = (filter: string) => {
+export const isValidPolicyResponse = (filter: string): boolean => {
   return filter === "pass" || filter === "fail";
 };
 

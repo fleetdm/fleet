@@ -7,7 +7,7 @@ import { IMacadminAggregate, IMunkiAggregate } from "interfaces/macadmins";
 import TableContainer from "components/TableContainer";
 // @ts-ignore
 import Spinner from "components/Spinner";
-import renderLastUpdatedAt from "../../components/LastUpdatedText";
+import renderLastUpdatedText from "../../components/LastUpdatedText";
 import generateTableHeaders from "./MunkiTableConfig";
 
 interface IMunkiCardProps {
@@ -28,7 +28,7 @@ const EmptyMunki = (): JSX.Element => (
     <p>
       To see Munki versions, deploy&nbsp;
       <a
-        href="https://fleetdm.com/docs/deploying/configuration#software-inventory"
+        href="https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer"
         target="_blank"
         rel="noopener noreferrer"
       >
@@ -59,7 +59,7 @@ const Munki = ({
         setShowMunkiUI(true);
         setTitleDetail &&
           setTitleDetail(
-            renderLastUpdatedAt(counts_updated_at, "Munki versions")
+            renderLastUpdatedText(counts_updated_at, "Munki versions")
           );
       },
     }

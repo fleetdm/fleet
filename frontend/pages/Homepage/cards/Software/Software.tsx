@@ -10,7 +10,7 @@ import TableContainer, { ITableQueryData } from "components/TableContainer";
 import TableDataError from "components/TableDataError"; // TODO how do we handle errors? UI just keeps spinning?
 // @ts-ignore
 import Spinner from "components/Spinner";
-import renderLastUpdatedAt from "../../components/LastUpdatedText/LastUpdatedText";
+import renderLastUpdatedText from "../../components/LastUpdatedText/LastUpdatedText";
 import generateTableHeaders from "./SoftwareTableConfig";
 
 interface ISoftwareCardProps {
@@ -39,7 +39,7 @@ const EmptySoftware = (message: string): JSX.Element => {
       <p>
         Expecting to see software? Check out the Fleet documentation on{" "}
         <a
-          href="https://fleetdm.com/docs/deploying/configuration#software-inventory"
+          href="https://fleetdm.com/docs/using-fleet/vulnerability-processing#configuration"
           target="_blank"
           rel="noopener noreferrer"
         >
@@ -93,7 +93,7 @@ const Software = ({
         setShowSoftwareUI(true);
         setTitleDetail &&
           setTitleDetail(
-            renderLastUpdatedAt(data.counts_updated_at, "software")
+            renderLastUpdatedText(data.counts_updated_at, "software")
           );
       },
     }

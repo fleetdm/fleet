@@ -57,17 +57,17 @@ func TestDebugConnectionCommand(t *testing.T) {
 	})
 
 	t.Run("invalid certificate flag without address", func(t *testing.T) {
-		_, _, err := runAppNoChecks([]string{"debug", "connection", "--fleet-certificate", "cert.pem"})
+		_, err := runAppNoChecks([]string{"debug", "connection", "--fleet-certificate", "cert.pem"})
 		require.Contains(t, err.Error(), "--fleet-certificate")
 	})
 
 	t.Run("invalid context flag with address", func(t *testing.T) {
-		_, _, err := runAppNoChecks([]string{"debug", "connection", "--context", "test", "localhost:8080"})
+		_, err := runAppNoChecks([]string{"debug", "connection", "--context", "test", "localhost:8080"})
 		require.Contains(t, err.Error(), "--context")
 	})
 
 	t.Run("invalid config flag with address", func(t *testing.T) {
-		_, _, err := runAppNoChecks([]string{"debug", "connection", "--config", "/tmp/nosuchfile", "localhost:8080"})
+		_, err := runAppNoChecks([]string{"debug", "connection", "--config", "/tmp/nosuchfile", "localhost:8080"})
 		require.Contains(t, err.Error(), "--config")
 	})
 
@@ -101,7 +101,7 @@ func TestDebugConnectionCommand(t *testing.T) {
 		certPath := filepath.Join(dir, "cert.pem")
 		require.NoError(t, ioutil.WriteFile(certPath, []byte(exampleDotComCertDotPem), 0600))
 
-		buf, _, err := runAppNoChecks([]string{"debug", "connection", "--fleet-certificate", certPath, srv.URL})
+		buf, err := runAppNoChecks([]string{"debug", "connection", "--fleet-certificate", certPath, srv.URL})
 		// 2 successes: resolve host, dial address
 		t.Log(buf.String())
 		require.Equal(t, 2, strings.Count(buf.String(), "Success:"))

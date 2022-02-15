@@ -75,7 +75,7 @@ func TestSyncCPEDatabase(t *testing.T) {
 	}
 
 	// first time, db doesn't exist, so it downloads
-	err = SyncCPEDatabase(client, dbPath, config.FleetConfig{})
+	err = SyncCPEDatabase(client, dbPath)
 	require.NoError(t, err)
 
 	db, err := sqliteDB(dbPath)
@@ -107,7 +107,7 @@ func TestSyncCPEDatabase(t *testing.T) {
 	require.NoError(t, err)
 
 	// then it will download
-	err = SyncCPEDatabase(client, dbPath, config.FleetConfig{})
+	err = SyncCPEDatabase(client, dbPath)
 	require.NoError(t, err)
 
 	// let's register the mtime for the db
@@ -128,9 +128,8 @@ func TestSyncCPEDatabase(t *testing.T) {
 	time.Sleep(2 * time.Second)
 
 	// let's check it doesn't download because it's new enough
-	err = SyncCPEDatabase(client, dbPath, config.FleetConfig{})
+	err = SyncCPEDatabase(client, dbPath)
 	require.NoError(t, err)
-
 	stat, err = os.Stat(dbPath)
 	require.NoError(t, err)
 	require.Equal(t, mtime, stat.ModTime())
@@ -226,27 +225,10 @@ func TestSyncsCPEFromURL(t *testing.T) {
 	dbPath := path.Join(tempDir, "cpe.sqlite")
 
 	err := SyncCPEDatabase(
-		client, dbPath, config.FleetConfig{Vulnerabilities: config.VulnerabilitiesConfig{CPEDatabaseURL: ts.URL}})
+		client, dbPath, WithCPEURL(ts.URL+"/hello-world.gz"))
 	require.NoError(t, err)
 
 	stored, err := ioutil.ReadFile(dbPath)
 	require.NoError(t, err)
 	assert.Equal(t, "Hello world!", string(stored))
-}
-
-func TestSyncsCPESkipsIfDisableSync(t *testing.T) {
-	client := fleethttp.NewClient()
-	tempDir := t.TempDir()
-	dbPath := path.Join(tempDir, "cpe.sqlite")
-
-	fleetConfig := config.FleetConfig{
-		Vulnerabilities: config.VulnerabilitiesConfig{
-			DisableDataSync: true,
-		},
-	}
-	err := SyncCPEDatabase(client, dbPath, fleetConfig)
-	require.NoError(t, err)
-
-	_, err = os.Stat(dbPath)
-	require.ErrorIs(t, err, os.ErrNotExist)
 }

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"io"
 	"math/rand"
 	"os"
@@ -20,9 +21,17 @@ func init() {
 }
 
 func main() {
-	app := createApp(os.Stdin, os.Stdout, nil)
+	app := createApp(os.Stdin, os.Stdout, exitErrHandler)
+	app.Run(os.Args)
+}
 
-	app.RunAndExitOnError()
+// exitErrHandler implements cli.ExitErrHandlerFunc. If there is an error, prints it to stderr and exits with status 1.
+func exitErrHandler(c *cli.Context, err error) {
+	if err == nil {
+		return
+	}
+	fmt.Fprintf(c.App.ErrWriter, "Error: %+v\n", err)
+	cli.OsExiter(1)
 }
 
 func createApp(reader io.Reader, writer io.Writer, exitErrHandler cli.ExitErrHandlerFunc) *cli.App {

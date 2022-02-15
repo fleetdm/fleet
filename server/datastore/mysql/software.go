@@ -19,6 +19,10 @@ const (
 	maxSoftwareVersionLen          = 255
 	maxSoftwareSourceLen           = 64
 	maxSoftwareBundleIdentifierLen = 255
+
+	maxSoftwareReleaseLen = 64
+	maxSoftwareVendorLen  = 32
+	maxSoftwareArchLen    = 16
 )
 
 func truncateString(str string, length int) string {
@@ -29,16 +33,36 @@ func truncateString(str string, length int) string {
 }
 
 func softwareToUniqueString(s fleet.Software) string {
-	return strings.Join([]string{s.Name, s.Version, s.Source, s.BundleIdentifier}, "\u0000")
+	ss := []string{s.Name, s.Version, s.Source, s.BundleIdentifier}
+	// Release, Vendor and Arch fields were added on a migration,
+	// thus we only include them in the string if at least one of them is defined.
+	if s.Release != "" || s.Vendor != "" || s.Arch != "" {
+		ss = append(ss, s.Release, s.Vendor, s.Arch)
+	}
+	return strings.Join(ss, "\u0000")
 }
 
 func uniqueStringToSoftware(s string) fleet.Software {
 	parts := strings.Split(s, "\u0000")
+
+	// Release, Vendor and Arch fields were added on a migration,
+	// If one of them is defined, then they are included in the string.
+	var release, vendor, arch string
+	if len(parts) > 4 {
+		release = truncateString(parts[4], maxSoftwareReleaseLen)
+		vendor = truncateString(parts[5], maxSoftwareVendorLen)
+		arch = truncateString(parts[6], maxSoftwareArchLen)
+	}
+
 	return fleet.Software{
 		Name:             truncateString(parts[0], maxSoftwareNameLen),
 		Version:          truncateString(parts[1], maxSoftwareVersionLen),
 		Source:           truncateString(parts[2], maxSoftwareSourceLen),
 		BundleIdentifier: truncateString(parts[3], maxSoftwareBundleIdentifierLen),
+
+		Release: release,
+		Vendor:  vendor,
+		Arch:    arch,
 	}
 }
 
@@ -151,8 +175,10 @@ func getOrGenerateSoftwareIdDB(ctx context.Context, tx sqlx.ExtContext, s fleet.
 	var existingId []int64
 	if err := sqlx.SelectContext(ctx, tx,
 		&existingId,
-		`SELECT id FROM software WHERE name = ? AND version = ? AND source = ? AND bundle_identifier = ?`,
-		s.Name, s.Version, s.Source, s.BundleIdentifier,
+		"SELECT id FROM software "+
+			"WHERE name = ? AND version = ? AND source = ? AND `release` = ? AND "+
+			"vendor = ? AND arch = ? AND bundle_identifier = ?",
+		s.Name, s.Version, s.Source, s.Release, s.Vendor, s.Arch, s.BundleIdentifier,
 	); err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "get software")
 	}
@@ -161,9 +187,11 @@ func getOrGenerateSoftwareIdDB(ctx context.Context, tx sqlx.ExtContext, s fleet.
 	}
 
 	result, err := tx.ExecContext(ctx,
-		`INSERT INTO software (name, version, source, bundle_identifier) VALUES (?, ?, ?, ?)
-		ON DUPLICATE KEY UPDATE bundle_identifier=VALUES(bundle_identifier)`,
-		s.Name, s.Version, s.Source, s.BundleIdentifier,
+		"INSERT INTO software "+
+			"(name, version, source, `release`, vendor, arch, bundle_identifier) "+
+			"VALUES (?, ?, ?, ?, ?, ?, ?) "+
+			"ON DUPLICATE KEY UPDATE bundle_identifier=VALUES(bundle_identifier)",
+		s.Name, s.Version, s.Source, s.Release, s.Vendor, s.Arch, s.BundleIdentifier,
 	)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "insert software")
@@ -503,6 +531,59 @@ func (ds *Datastore) CountSoftware(ctx context.Context, opt fleet.SoftwareListOp
 	return countSoftwareDB(ctx, ds.reader, nil, opt)
 }
 
+// ListVulnerableSoftwareBySource lists all the vulnerable software that matches the given source.
+func (ds *Datastore) ListVulnerableSoftwareBySource(ctx context.Context, source string) ([]fleet.SoftwareWithCPE, error) {
+	var softwareCVEs []struct {
+		fleet.Software
+		CPE  uint   `db:"cpe_id"`
+		CVEs string `db:"cves"`
+	}
+	if err := sqlx.SelectContext(ctx, ds.reader, &softwareCVEs, `
+		SELECT s.*, scv.cpe_id, GROUP_CONCAT(scv.cve SEPARATOR ',') as cves
+		FROM software s
+		JOIN software_cpe scp ON (s.id=scp.software_id)
+		JOIN software_cve scv ON (scp.id=scv.cpe_id)
+		WHERE s.source = ?
+		GROUP BY scv.cpe_id
+	`, source); err != nil {
+		return nil, ctxerr.Wrapf(ctx, err, "listing vulnerable software by source")
+	}
+	software := make([]fleet.SoftwareWithCPE, 0, len(softwareCVEs))
+	for _, sc := range softwareCVEs {
+		for _, cve := range strings.Split(sc.CVEs, ",") {
+			sc.Software.Vulnerabilities = append(sc.Software.Vulnerabilities, fleet.SoftwareCVE{
+				CVE:         cve,
+				DetailsLink: fmt.Sprintf("https://nvd.nist.gov/vuln/detail/%s", cve),
+			})
+		}
+		software = append(software, fleet.SoftwareWithCPE{
+			Software: sc.Software,
+			CPEID:    sc.CPE,
+		})
+	}
+	return software, nil
+}
+
+// DeleteVulnerabilitiesByCPECVE deletes the given list of vulnerabilities identified by CPE+CVE.
+func (ds *Datastore) DeleteVulnerabilitiesByCPECVE(ctx context.Context, vulnerabilities []fleet.SoftwareVulnerability) error {
+	if len(vulnerabilities) == 0 {
+		return nil
+	}
+
+	sql := fmt.Sprintf(
+		`DELETE FROM software_cve WHERE (cpe_id, cve) IN (%s)`,
+		strings.TrimSuffix(strings.Repeat("(?,?),", len(vulnerabilities)), ","),
+	)
+	var args []interface{}
+	for _, vulnerability := range vulnerabilities {
+		args = append(args, vulnerability.CPEID, vulnerability.CVE)
+	}
+	if _, err := ds.writer.ExecContext(ctx, sql, args...); err != nil {
+		return ctxerr.Wrapf(ctx, err, "deleting vulnerable software")
+	}
+	return nil
+}
+
 func (ds *Datastore) SoftwareByID(ctx context.Context, id uint) (*fleet.Software, error) {
 	software := fleet.Software{}
 	err := sqlx.GetContext(ctx, ds.reader, &software, `SELECT * FROM software WHERE id=?`, id)
@@ -545,6 +626,9 @@ func (ds *Datastore) SoftwareByID(ctx context.Context, id uint) (*fleet.Software
 // CalculateHostsPerSoftware calculates the number of hosts having each
 // software installed and stores that information in the software_host_counts
 // table.
+//
+// After aggregation, it cleans up unused software (e.g. software installed
+// on removed hosts, software uninstalled on hosts, etc.)
 func (ds *Datastore) CalculateHostsPerSoftware(ctx context.Context, updatedAt time.Time) error {
 	resetStmt := `
     UPDATE software_host_counts
@@ -614,8 +698,6 @@ func (ds *Datastore) CalculateHostsPerSoftware(ctx context.Context, updatedAt ti
 		return ctxerr.Wrap(ctx, err, "iterate over host_software counts")
 	}
 
-	// delete any unused software from the software table (any that
-	// isn't in that list with a host count > 0).
 	cleanupStmt := `
   DELETE FROM
     software
@@ -630,7 +712,6 @@ func (ds *Datastore) CalculateHostsPerSoftware(ctx context.Context, updatedAt ti
 	if _, err := ds.writer.ExecContext(ctx, cleanupStmt); err != nil {
 		return ctxerr.Wrap(ctx, err, "delete unused software")
 	}
-
 	return nil
 }
 

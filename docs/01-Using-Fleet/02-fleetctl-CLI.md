@@ -130,7 +130,7 @@ Once your local context is configured, you can use the above `fleetctl` normally
 
 Users that authenticate to Fleet via SSO should retrieve their API token from the UI and set it manually in their `fleetctl` configuration (instead of logging in via `fleetctl login`).
 
-1. Go to the "My account" page in Fleet (https://fleet.corp.example.com/profile). Click the "Get API Token" button to bring up a modal with the API token.
+1. Go to the "My account" page in Fleet (https://fleet.corp.example.com/profile). Click the "Get API token" button to bring up a modal with the API token.
 
 2. Set the API token in the `~/.fleet/config` file. The file should look like the following:
 
