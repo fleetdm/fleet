@@ -291,7 +291,7 @@ allow {
   action == write
 }
 
-# Global admins and (team) maintainers can run any
+# Global admins and maintainers can run any
 allow {
   object.type == "targeted_query"
   subject.global_role == admin
@@ -349,7 +349,7 @@ allow {
   action == run_new
 }
 
-# (Team) observers can run only if observers_can_run
+# Observers can run only if observers_can_run
 allow {
   object.type == "targeted_query"
   object.observer_can_run == true
