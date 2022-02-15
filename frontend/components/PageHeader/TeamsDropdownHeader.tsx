@@ -38,10 +38,8 @@ const TeamsDropdownHeader = ({
 
   const {
     availableTeams,
-    config,
     currentUser,
     currentTeam,
-    enrollSecret,
     isPreviewMode,
     isFreeTier,
     isPremiumTier,
@@ -51,9 +49,6 @@ const TeamsDropdownHeader = ({
     isOnGlobalTeam,
     isAnyTeamMaintainer,
     isAnyTeamMaintainerOrTeamAdmin,
-    isTeamObserver,
-    isTeamMaintainer,
-    isTeamMaintainerOrTeamAdmin,
     isAnyTeamAdmin,
     isTeamAdmin,
     isOnlyObserver,

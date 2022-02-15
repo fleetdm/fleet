@@ -2,9 +2,11 @@ package vulnerabilities
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -140,7 +142,7 @@ func checkCVEs(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 	}
 	cache := cvefeed.NewCache(dict).SetRequireVersion(true).SetMaxSize(-1)
 	// This index consumes too much RAM
-	//cache.Idx = cvefeed.NewIndex(dict)
+	// cache.Idx = cvefeed.NewIndex(dict)
 
 	cpeCh := make(chan *wfn.Attributes)
 	collectVulns := recentVulns != nil
@@ -241,5 +243,27 @@ func checkCVEs(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 	level.Debug(logger).Log("pushing cpes", "done")
 
 	wg.Wait()
+	return nil
+}
+
+// PostProcess performs additional processing over the results of
+// the main vulnerability processing run (TranslateSoftwareToCPE+TranslateCPEToCVE).
+func PostProcess(
+	ctx context.Context,
+	ds fleet.Datastore,
+	vulnPath string,
+	logger kitlog.Logger,
+	config config.FleetConfig,
+) error {
+	dbPath := path.Join(vulnPath, "cpe.sqlite")
+	db, err := sql.Open("sqlite3", dbPath)
+	if err != nil {
+		return fmt.Errorf("failed to open cpe database: %w", err)
+	}
+	defer db.Close()
+
+	if err := centosPostProcessing(ctx, ds, db, logger, config); err != nil {
+		return err
+	}
 	return nil
 }

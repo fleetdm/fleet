@@ -1,4 +1,4 @@
-import PropTypes, { string } from "prop-types";
+import PropTypes from "prop-types";
 
 export default PropTypes.shape({
   created_at: PropTypes.string,
@@ -28,7 +28,7 @@ export interface ILabel {
   display_text: string;
   count: number; // seems to be a repeat of hosts_count issue #1618
   host_ids: number[] | null;
-  type: "custom" | "platform" | "status" | "all";
+  type?: "custom" | "platform" | "status" | "all";
   slug?: string; // e.g., "labels/13" | "online"
   target_type?: string; // e.g., "labels"
   platform: string;

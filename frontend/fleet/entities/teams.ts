@@ -1,7 +1,6 @@
 import endpoints from "fleet/endpoints";
 import { INewMembersBody, IRemoveMembersBody, ITeam } from "interfaces/team";
 import { ICreateTeamFormData } from "pages/admin/TeamManagementPage/components/CreateTeamModal/CreateTeamModal";
-import { getEnrollSecrets } from "../../redux/nodes/entities/teams/actions";
 
 interface ILoadAllTeamsResponse {
   teams: ITeam[];
