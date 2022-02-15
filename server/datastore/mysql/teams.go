@@ -298,3 +298,42 @@ func (ds *Datastore) TeamAgentOptions(ctx context.Context, tid uint) (*json.RawM
 	}
 	return agentOptions, nil
 }
+
+func (ds *Datastore) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		sql := `
+INSERT INTO teams (
+    name,
+    agent_options,
+    description
+) VALUES ( ?, ?, ?)
+ON DUPLICATE KEY UPDATE
+    name = VALUES(name),
+    agent_options = VALUES(agent_options),
+    description = VALUES(description)
+`
+
+		prepTx, ok := tx.(sqlx.PreparerContext)
+		if !ok {
+			return ctxerr.New(ctx, "tx in ApplyLabelSpecs is not a sqlx.PreparerContext")
+		}
+		stmt, err := prepTx.PrepareContext(ctx, sql)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "prepare ApplyLabelSpecs insert")
+		}
+		defer stmt.Close()
+
+		for _, s := range specs {
+			if s.Name == "" {
+				return ctxerr.New(ctx, "team name must not be empty")
+			}
+			_, err := stmt.ExecContext(ctx, s.Name, s.AgentOptions, s.Secrets)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "exec ApplyLabelSpecs insert")
+			}
+
+		}
+
+		return nil
+	})
+}
