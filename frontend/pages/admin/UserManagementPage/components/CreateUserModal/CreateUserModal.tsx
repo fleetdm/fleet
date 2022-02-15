@@ -22,7 +22,6 @@ interface ICreateUserModalProps {
   isModifiedByGlobalAdmin?: boolean | false;
   isFormSubmitting?: boolean | false;
   serverErrors?: { base: string; email: string };
-  userErrors?: { base: string; email: string };
   createUserErrors?: IUserFormErrors;
 }
 

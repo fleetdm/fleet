@@ -110,7 +110,9 @@ describe("Policies flow (seeded)", () => {
       cy.findByText(/backup/i).should("not.exist");
     });
     it("creates a failing policies webhook", () => {
-      cy.findByRole("button", { name: /manage automations/i }).click();
+      cy.getAttached(".button-wrap").within(() => {
+        cy.findByRole("button", { name: /manage automations/i }).click();
+      });
       cy.getAttached(".manage-automations-modal").within(() => {
         cy.getAttached(".fleet-checkbox__input").check({ force: true });
       });
@@ -118,7 +120,9 @@ describe("Policies flow (seeded)", () => {
       cy.findByRole("button", { name: /^Save$/ }).click();
       // Confirm failing policies webhook was added successfully
       cy.findByText(/updated policy automations/i).should("exist");
-      cy.findByRole("button", { name: /manage automations/i }).click();
+      cy.getAttached(".button-wrap").within(() => {
+        cy.findByRole("button", { name: /manage automations/i }).click();
+      });
       cy.getAttached(".manage-automations-modal").within(() => {
         cy.getAttached(".fleet-checkbox__input").should("be.checked");
       });

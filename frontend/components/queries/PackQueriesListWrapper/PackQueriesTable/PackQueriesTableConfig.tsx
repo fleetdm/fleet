@@ -13,12 +13,19 @@ import TextCell from "components/TableContainer/DataTable/TextCell";
 import { IScheduledQuery } from "interfaces/scheduled_query";
 import { IDropdownOption } from "interfaces/dropdownOption";
 
+interface IGetToggleAllRowsSelectedProps {
+  checked: boolean;
+  indeterminate: boolean;
+  title: string;
+  onChange: () => any;
+  style: { cursor: string };
+}
 interface IHeaderProps {
   column: {
     title: string;
     isSortedDesc: boolean;
   };
-  getToggleAllRowsSelectedProps: () => any; // TODO: do better with types
+  getToggleAllRowsSelectedProps: () => IGetToggleAllRowsSelectedProps;
   toggleAllRowsSelected: () => void;
 }
 
@@ -28,7 +35,7 @@ interface ICellProps {
   };
   row: {
     original: IScheduledQuery;
-    getToggleRowSelectedProps: () => any; // TODO: do better with types
+    getToggleRowSelectedProps: () => IGetToggleAllRowsSelectedProps;
     toggleRowSelected: () => void;
   };
 }

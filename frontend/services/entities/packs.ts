@@ -3,7 +3,6 @@ import sendRequest from "services";
 import { omit } from "lodash";
 
 import endpoints from "fleet/endpoints";
-import { IPack } from "interfaces/pack";
 import { ITargets } from "interfaces/target";
 import helpers from "fleet/helpers";
 

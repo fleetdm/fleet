@@ -13,12 +13,19 @@ import { IDropdownOption } from "interfaces/dropdownOption";
 import { IGlobalScheduledQuery } from "interfaces/global_scheduled_query";
 import { ITeamScheduledQuery } from "interfaces/team_scheduled_query";
 
+interface IGetToggleAllRowsSelectedProps {
+  checked: boolean;
+  indeterminate: boolean;
+  title: string;
+  onChange: () => any;
+  style: { cursor: string };
+}
 interface IHeaderProps {
   column: {
     title: string;
     isSortedDesc: boolean;
   };
-  getToggleAllRowsSelectedProps: () => any; // TODO: do better with types
+  getToggleAllRowsSelectedProps: () => IGetToggleAllRowsSelectedProps;
   toggleAllRowsSelected: () => void;
 }
 
@@ -28,7 +35,7 @@ interface ICellProps {
   };
   row: {
     original: IGlobalScheduledQuery | ITeamScheduledQuery;
-    getToggleRowSelectedProps: () => any; // TODO: do better with types
+    getToggleRowSelectedProps: () => IGetToggleAllRowsSelectedProps;
     toggleRowSelected: () => void;
   };
 }

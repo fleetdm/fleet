@@ -41,18 +41,6 @@ interface IScheduleListWrapperProps {
   loadingInheritedQueriesTableData: boolean;
   loadingTeamQueriesTableData: boolean;
 }
-interface IRootState {
-  entities: {
-    global_scheduled_queries: {
-      isLoading: boolean;
-      data: IGlobalScheduledQuery[];
-    };
-    team_scheduled_queries: {
-      isLoading: boolean;
-      data: ITeamScheduledQuery[];
-    };
-  };
-}
 
 const ScheduleListWrapper = ({
   onRemoveScheduledQueryClick,
