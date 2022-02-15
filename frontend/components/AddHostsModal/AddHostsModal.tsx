@@ -7,15 +7,15 @@ import PlatformWrapper from "./PlatformWrapper/PlatformWrapper";
 
 const baseClass = "generate-installer-modal";
 
-interface IGenerateInstallerModal {
+interface IAddHostsModal {
   onCancel: () => void;
   selectedTeam: ITeam | { name: string; secrets: IEnrollSecret[] | null };
 }
 
-const GenerateInstallerModal = ({
+const AddHostsModal = ({
   onCancel,
   selectedTeam,
-}: IGenerateInstallerModal): JSX.Element => {
+}: IAddHostsModal): JSX.Element => {
   return (
     <Modal onExit={onCancel} title={"Add hosts"} className={baseClass}>
       <PlatformWrapper onCancel={onCancel} selectedTeam={selectedTeam} />
@@ -23,4 +23,4 @@ const GenerateInstallerModal = ({
   );
 };
 
-export default GenerateInstallerModal;
+export default AddHostsModal;

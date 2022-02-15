@@ -7,7 +7,7 @@ import Button from "components/buttons/Button";
 import RoboDogImage from "../../../../../../assets/images/robo-dog-176x144@2x.png";
 
 interface INoHostsProps {
-  toggleGenerateInstallerModal: () => void;
+  toggleAddHostsModal: () => void;
   canEnrollHosts?: boolean;
   includesSoftwareOrPolicyFilter?: boolean;
 }
@@ -15,7 +15,7 @@ interface INoHostsProps {
 const baseClass = "no-hosts";
 
 const NoHosts = ({
-  toggleGenerateInstallerModal,
+  toggleAddHostsModal,
   canEnrollHosts,
   includesSoftwareOrPolicyFilter,
 }: INoHostsProps): JSX.Element => {
@@ -39,7 +39,7 @@ const NoHosts = ({
           <p>Generate an installer to add your own devices.</p>
           <div className={`${baseClass}__no-hosts-button`}>
             <Button
-              onClick={toggleGenerateInstallerModal}
+              onClick={toggleAddHostsModal}
               type="button"
               className="button button--brand"
             >

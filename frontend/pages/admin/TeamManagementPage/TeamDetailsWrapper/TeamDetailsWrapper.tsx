@@ -31,7 +31,7 @@ import EditTeamModal from "../components/EditTeamModal";
 import { IEditTeamFormData } from "../components/EditTeamModal/EditTeamModal";
 import DeleteSecretModal from "../../../../components/DeleteSecretModal";
 import SecretEditorModal from "../../../../components/SecretEditorModal";
-import GenerateInstallerModal from "../../../../components/GenerateInstallerModal";
+import AddHostsModal from "../../../../components/AddHostsModal";
 import EnrollSecretModal from "../../../../components/EnrollSecretModal";
 
 import BackChevron from "../../../../../assets/images/icon-chevron-down-9x6@2x.png";
@@ -114,9 +114,7 @@ const TeamDetailsWrapper = ({
   const routeTemplate = route && route.path ? route.path : "";
 
   const [selectedSecret, setSelectedSecret] = useState<IEnrollSecret>();
-  const [showGenerateInstallerModal, setShowGenerateInstallerModal] = useState(
-    false
-  );
+  const [showAddHostsModal, setShowAddHostsModal] = useState(false);
   const [
     showManageEnrollSecretsModal,
     setShowManageEnrollSecretsModal,
@@ -173,9 +171,9 @@ const TeamDetailsWrapper = ({
 
   const [teamMenuIsOpen, setTeamMenuIsOpen] = useState<boolean>(false);
 
-  const toggleGenerateInstallerModal = useCallback(() => {
-    setShowGenerateInstallerModal(!showGenerateInstallerModal);
-  }, [showGenerateInstallerModal, setShowGenerateInstallerModal]);
+  const toggleAddHostsModal = useCallback(() => {
+    setShowAddHostsModal(!showAddHostsModal);
+  }, [showAddHostsModal, setShowAddHostsModal]);
 
   const toggleManageEnrollSecretsModal = useCallback(() => {
     setShowManageEnrollSecretsModal(!showManageEnrollSecretsModal);
@@ -391,7 +389,7 @@ const TeamDetailsWrapper = ({
             </span>
           </div>
           <div className={`${baseClass}__team-actions`}>
-            <Button onClick={toggleGenerateInstallerModal}>Add hosts</Button>
+            <Button onClick={toggleAddHostsModal}>Add hosts</Button>
             <Button
               onClick={toggleManageEnrollSecretsModal}
               variant={"text-icon"}
@@ -432,9 +430,9 @@ const TeamDetailsWrapper = ({
           </TabList>
         </Tabs>
       </TabsWrapper>
-      {showGenerateInstallerModal && (
-        <GenerateInstallerModal
-          onCancel={toggleGenerateInstallerModal}
+      {showAddHostsModal && (
+        <AddHostsModal
+          onCancel={toggleAddHostsModal}
           selectedTeam={{
             name: currentTeam.name,
             secrets: teamSecrets || null,
