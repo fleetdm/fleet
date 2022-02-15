@@ -38,7 +38,6 @@ type FleetEndpoints struct {
 	SubmitLogs                    endpoint.Endpoint
 	CarveBegin                    endpoint.Endpoint
 	CarveBlock                    endpoint.Endpoint
-	SearchTargets                 endpoint.Endpoint
 	InitiateSSO                   endpoint.Endpoint
 	CallbackSSO                   endpoint.Endpoint
 	SSOSettings                   endpoint.Endpoint
@@ -70,9 +69,6 @@ func MakeFleetServerEndpoints(svc fleet.Service, urlPrefix string, limitStore th
 		// PerformRequiredPasswordReset needs only to authenticate the
 		// logged in user
 		PerformRequiredPasswordReset: logged(canPerformPasswordReset(makePerformRequiredPasswordResetEndpoint(svc))),
-
-		// Standard user authentication routes
-		SearchTargets: authenticatedUser(svc, makeSearchTargetsEndpoint(svc)),
 
 		// Authenticated status endpoints
 		StatusResultStore: authenticatedUser(svc, makeStatusResultStoreEndpoint(svc)),
@@ -108,7 +104,6 @@ type fleetHandlers struct {
 	SubmitLogs                    http.Handler
 	CarveBegin                    http.Handler
 	CarveBlock                    http.Handler
-	SearchTargets                 http.Handler
 	InitiateSSO                   http.Handler
 	CallbackSSO                   http.Handler
 	SettingsSSO                   http.Handler
@@ -136,7 +131,6 @@ func makeKitHandlers(e FleetEndpoints, opts []kithttp.ServerOption) *fleetHandle
 		SubmitLogs:                    newServer(e.SubmitLogs, decodeSubmitLogsRequest),
 		CarveBegin:                    newServer(e.CarveBegin, decodeCarveBeginRequest),
 		CarveBlock:                    newServer(e.CarveBlock, decodeCarveBlockRequest),
-		SearchTargets:                 newServer(e.SearchTargets, decodeSearchTargetsRequest),
 		InitiateSSO:                   newServer(e.InitiateSSO, decodeInitiateSSORequest),
 		CallbackSSO:                   newServer(e.CallbackSSO, decodeCallbackSSORequest),
 		SettingsSSO:                   newServer(e.SSOSettings, decodeNoParamsRequest),
@@ -382,7 +376,7 @@ func attachNewStyleFleetAPIRoutes(r *mux.Router, svc fleet.Service, opts []kitht
 	e.POST("/api/_version_/fleet/change_password", changePasswordEndpoint, changePasswordRequest{})
 
 	e.GET("/api/_version_/fleet/email/change/{token}", changeEmailEndpoint, changeEmailRequest{})
-	//r.Handle("/api/v1/fleet/targets", h.SearchTargets).Methods("POST").Name("search_targets")
+	e.POST("/api/_version_/fleet/targets", searchTargetsEndpoint, searchTargetsRequest{})
 
 	e.POST("/api/_version_/fleet/invites", createInviteEndpoint, createInviteRequest{})
 	e.GET("/api/_version_/fleet/invites", listInvitesEndpoint, listInvitesRequest{})
