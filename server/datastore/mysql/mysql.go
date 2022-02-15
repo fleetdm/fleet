@@ -33,8 +33,6 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/jmoiron/sqlx"
 	"github.com/ngrok/sqlmw"
-	"go.elastic.co/apm/module/apmsql"
-	apmmysql "go.elastic.co/apm/module/apmsql/mysql"
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 )
 
