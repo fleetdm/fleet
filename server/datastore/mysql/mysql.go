@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	stdlog "log"
 	"net/url"
 	"regexp"
 	"strconv"
@@ -298,7 +297,7 @@ func init() {
 
 func newDB(conf *config.MysqlConfig, opts *dbOptions) (*sqlx.DB, error) {
 	driverName := "mysql"
-	if opts.tracingConfig.TracingEnabled {
+	if opts.tracingConfig != nil && opts.tracingConfig.TracingEnabled {
 		if opts.tracingConfig.TracingType == "opentelemetry" {
 			driverName = otelTracedDriverName
 		} else {
@@ -309,7 +308,6 @@ func newDB(conf *config.MysqlConfig, opts *dbOptions) (*sqlx.DB, error) {
 		driverName = "mysql-mw"
 		sql.Register(driverName, sqlmw.Driver(mysql.MySQLDriver{}, opts.interceptor))
 	}
-	stdlog.Print(driverName)
 
 	dsn := generateMysqlConnectionString(*conf)
 	db, err := sqlx.Open(driverName, dsn)
