@@ -58,7 +58,7 @@ describe(
           cy.getAttached(".hosts-status").should("exist");
           cy.getAttached(".home-software").should("exist");
           cy.getAttached(".activity-feed").should("exist");
-        }); 
+        });
       });
       it("displays cards for windows only", () => {
         cy.getAttached(".homepage__platforms").within(() => {
