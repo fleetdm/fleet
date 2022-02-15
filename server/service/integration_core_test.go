@@ -2808,6 +2808,46 @@ func (s *integrationTestSuite) TestPaginateListSoftware() {
 	assertResp(lsResp, nil, time.Time{})
 }
 
+func (s *integrationTestSuite) TestChangeUserEmail() {
+	t := s.T()
+
+	// create a new test user
+	user := &fleet.User{
+		Name:       t.Name(),
+		Email:      "testchangeemail@example.com",
+		GlobalRole: ptr.String(fleet.RoleObserver),
+	}
+	userRawPwd := "foobarbaz1234!"
+	err := user.SetPassword(userRawPwd, 10, 10)
+	require.Nil(t, err)
+	user, err = s.ds.NewUser(context.Background(), user)
+	require.Nil(t, err)
+
+	// try to change email with an invalid token
+	var changeResp changeEmailResponse
+	s.DoJSON("GET", "/api/v1/fleet/email/change/invalidtoken", nil, http.StatusNotFound, &changeResp)
+
+	// create a valid token for the test user
+	err = s.ds.PendingEmailChange(context.Background(), user.ID, "testchangeemail2@example.com", "validtoken")
+	require.Nil(t, err)
+
+	// try to change email with a valid token, but request made from different user
+	changeResp = changeEmailResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/email/change/validtoken", nil, http.StatusNotFound, &changeResp)
+
+	// switch to the test user and make the change email request
+	s.token = s.getTestToken(user.Email, userRawPwd)
+	defer func() { s.token = s.getTestAdminToken() }()
+
+	changeResp = changeEmailResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/email/change/validtoken", nil, http.StatusOK, &changeResp)
+	require.Equal(t, "testchangeemail2@example.com", changeResp.NewEmail)
+
+	// using the token consumes it, so making another request with the same token fails
+	changeResp = changeEmailResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/email/change/validtoken", nil, http.StatusNotFound, &changeResp)
+}
+
 // creates a session and returns it, its key is to be passed as authorization header.
 func createSession(t *testing.T, uid uint, ds fleet.Datastore) *fleet.Session {
 	key := make([]byte, 64)

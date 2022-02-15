@@ -39,7 +39,6 @@ type FleetEndpoints struct {
 	CarveBegin                    endpoint.Endpoint
 	CarveBlock                    endpoint.Endpoint
 	SearchTargets                 endpoint.Endpoint
-	ChangeEmail                   endpoint.Endpoint
 	InitiateSSO                   endpoint.Endpoint
 	CallbackSSO                   endpoint.Endpoint
 	SSOSettings                   endpoint.Endpoint
@@ -74,7 +73,6 @@ func MakeFleetServerEndpoints(svc fleet.Service, urlPrefix string, limitStore th
 
 		// Standard user authentication routes
 		SearchTargets: authenticatedUser(svc, makeSearchTargetsEndpoint(svc)),
-		ChangeEmail:   authenticatedUser(svc, makeChangeEmailEndpoint(svc)),
 
 		// Authenticated status endpoints
 		StatusResultStore: authenticatedUser(svc, makeStatusResultStoreEndpoint(svc)),
@@ -111,7 +109,6 @@ type fleetHandlers struct {
 	CarveBegin                    http.Handler
 	CarveBlock                    http.Handler
 	SearchTargets                 http.Handler
-	ChangeEmail                   http.Handler
 	InitiateSSO                   http.Handler
 	CallbackSSO                   http.Handler
 	SettingsSSO                   http.Handler
@@ -140,7 +137,6 @@ func makeKitHandlers(e FleetEndpoints, opts []kithttp.ServerOption) *fleetHandle
 		CarveBegin:                    newServer(e.CarveBegin, decodeCarveBeginRequest),
 		CarveBlock:                    newServer(e.CarveBlock, decodeCarveBlockRequest),
 		SearchTargets:                 newServer(e.SearchTargets, decodeSearchTargetsRequest),
-		ChangeEmail:                   newServer(e.ChangeEmail, decodeChangeEmailRequest),
 		InitiateSSO:                   newServer(e.InitiateSSO, decodeInitiateSSORequest),
 		CallbackSSO:                   newServer(e.CallbackSSO, decodeCallbackSSORequest),
 		SettingsSSO:                   newServer(e.SSOSettings, decodeNoParamsRequest),
@@ -329,8 +325,6 @@ func attachFleetAPIRoutes(r *mux.Router, h *fleetHandlers) {
 	r.Handle("/api/v1/fleet/sso/callback", h.CallbackSSO).Methods("POST").Name("callback_sso")
 	r.Handle("/api/v1/fleet/users", h.CreateUserWithInvite).Methods("POST").Name("create_user_with_invite")
 	r.Handle("/api/v1/fleet/invites/{token}", h.VerifyInvite).Methods("GET").Name("verify_invite")
-	r.Handle("/api/v1/fleet/email/change/{token}", h.ChangeEmail).Methods("GET").Name("change_email")
-	r.Handle("/api/v1/fleet/targets", h.SearchTargets).Methods("POST").Name("search_targets")
 	r.Handle("/api/v1/fleet/status/result_store", h.StatusResultStore).Methods("GET").Name("status_result_store")
 	r.Handle("/api/v1/fleet/status/live_query", h.StatusLiveQuery).Methods("GET").Name("status_live_query")
 	r.Handle("/api/v1/osquery/enroll", h.EnrollAgent).Methods("POST").Name("enroll_agent")
@@ -386,6 +380,9 @@ func attachNewStyleFleetAPIRoutes(r *mux.Router, svc fleet.Service, opts []kitht
 	e.GET("/api/_version_/fleet/users/{id:[0-9]+}/sessions", getInfoAboutSessionsForUserEndpoint, getInfoAboutSessionsForUserRequest{})
 	e.DELETE("/api/_version_/fleet/users/{id:[0-9]+}/sessions", deleteSessionsForUserEndpoint, deleteSessionsForUserRequest{})
 	e.POST("/api/_version_/fleet/change_password", changePasswordEndpoint, changePasswordRequest{})
+
+	e.GET("/api/_version_/fleet/email/change/{token}", changeEmailEndpoint, changeEmailRequest{})
+	//r.Handle("/api/v1/fleet/targets", h.SearchTargets).Methods("POST").Name("search_targets")
 
 	e.POST("/api/_version_/fleet/invites", createInviteEndpoint, createInviteRequest{})
 	e.GET("/api/_version_/fleet/invites", listInvitesEndpoint, listInvitesRequest{})
