@@ -1260,7 +1260,7 @@ func (ds *Datastore) SetOrUpdateMDMData(ctx context.Context, hostID uint, enroll
 
 func (ds *Datastore) GetMunkiVersion(ctx context.Context, hostID uint) (string, error) {
 	var version string
-	err := sqlx.GetContext(ctx, ds.reader, &version, `SELECT version FROM host_munki_info WHERE version <> '' AND host_id=?`, hostID)
+	err := sqlx.GetContext(ctx, ds.reader, &version, `SELECT version FROM host_munki_info WHERE deleted_at is NULL AND host_id=?`, hostID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return "", ctxerr.Wrap(ctx, notFound("MunkiInfo").WithID(hostID))
@@ -1383,7 +1383,7 @@ func (ds *Datastore) generateAggregatedMunkiVersion(ctx context.Context, teamID 
 	} else {
 		query += `  WHERE `
 	}
-	query += ` hm.version <> '' GROUP BY hm.version`
+	query += ` hm.deleted_at is NULL GROUP BY hm.version`
 	err := sqlx.SelectContext(ctx, ds.reader, &versions, query, args...)
 	if err != nil {
 		return ctxerr.Wrapf(ctx, err, "getting aggregated data from host_munki")
