@@ -605,7 +605,7 @@ func getHostsCommand() *cli.Command {
 				query := url.Values{}
 				query.Set("additional_info_filters", "*")
 				if teamID := c.Uint("team"); teamID > 0 {
-					query.Set("team_id", strconv.FormatUint(uint64(teamID), 64))
+					query.Set("team_id", strconv.FormatUint(uint64(teamID), 10))
 				}
 				queryStr := query.Encode()
 
