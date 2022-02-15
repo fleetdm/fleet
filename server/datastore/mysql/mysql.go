@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	stdlog "log"
 	"net/url"
 	"regexp"
 	"strconv"
@@ -291,12 +292,11 @@ var tracedDriverName string
 
 func init() {
 	var err error
-	tracedDriverName, err = otelsql.Register("mysql", semconv.DBSystemMySQL.Value.AsString())
+	apmsql.Register("mysql", &mysql.MySQLDriver{}, apmsql.WithDSNParser(apmmysql.ParseDSN))
+	tracedDriverName, err = otelsql.Register("apm/mysql", semconv.DBSystemMySQL.Value.AsString())
 	if err != nil {
 		panic(err)
 	}
-	apmsql.Register(tracedDriverName, &mysql.MySQLDriver{}, apmsql.WithDSNParser(apmmysql.ParseDSN))
-	tracedDriverName = "apm/mysql"
 }
 
 func newDB(conf *config.MysqlConfig, opts *dbOptions) (*sqlx.DB, error) {
@@ -308,6 +308,7 @@ func newDB(conf *config.MysqlConfig, opts *dbOptions) (*sqlx.DB, error) {
 		driverName = "mysql-mw"
 		sql.Register(driverName, sqlmw.Driver(mysql.MySQLDriver{}, opts.interceptor))
 	}
+	stdlog.Print(driverName)
 
 	dsn := generateMysqlConnectionString(*conf)
 	db, err := sqlx.Open(driverName, dsn)
