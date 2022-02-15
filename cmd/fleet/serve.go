@@ -497,7 +497,6 @@ the way that the Fleet server works.
 			// Create the handler based on whether tracing should be there
 			var handler http.Handler
 			if config.Logging.TracingEnabled && config.Logging.TracingType == "elasticapm" {
-				level.Debug(logger).Log("Using elasticapm")
 				handler = launcher.Handler(apmhttp.Wrap(rootMux))
 			} else {
 				handler = launcher.Handler(rootMux)
