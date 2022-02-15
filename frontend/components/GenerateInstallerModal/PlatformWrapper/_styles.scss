@@ -65,29 +65,23 @@
     }
   }
 
-  &__installer-input-deb,
-  &__installer-input-rpm {
-    .input-field__textarea {
-      min-height: 95px;
-    }
-  }
-
   &__installer-copy-icon {
     color: $core-vibrant-blue;
     margin-left: $pad-small;
     margin-right: $pad-medium;
   }
 
+  &__copy-message {
+    font-weight: $regular;
+    vertical-align: top;
+  }
+
   .buttons {
-    display: flex;
+    display: block;
     align-items: center;
     position: absolute;
     right: 0;
     top: 40px;
-
-    span {
-      font-weight: $regular;
-    }
 
     a {
       display: flex;
@@ -97,6 +91,12 @@
     img {
       width: 16px;
       height: 16px;
+    }
+  }
+
+  &__run-osquery-input {
+    .buttons {
+      top: 12px;
     }
   }
 
@@ -122,5 +122,14 @@
       color: $ui-error;
       font-style: normal;
     }
+  }
+
+  &__advanced {
+    padding-top: 6px;
+  }
+
+  &__advanced--heading {
+    font-weight: $bold;
+    margin-bottom: $pad-small;
   }
 }
