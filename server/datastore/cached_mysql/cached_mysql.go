@@ -223,7 +223,7 @@ func (ds *cachedMysql) TeamAgentOptions(ctx context.Context, teamID uint) (*json
 		return nil, err
 	}
 
-	ds.c.Set(key, agentOptions, ds.scheduledQueriesExp)
+	ds.c.Set(key, agentOptions, ds.teamAgentOptionsExp)
 
 	return agentOptions, nil
 }
