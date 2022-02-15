@@ -19,19 +19,10 @@ describe(
       cy.stopDockerHost();
     });
 
-    describe("Dashboard and navigation", () => {
+    describe("Navigation", () => {
       beforeEach(() => {
         cy.loginWithCySession("mary@organization.com", "user123#");
         cy.visit("/dashboard");
-      });
-      it("displays intended global maintainer dashboard", () => {
-        cy.getAttached(".homepage__wrapper").within(() => {
-          cy.findByText(/fleet test/i).should("exist");
-          cy.getAttached(".hosts-summary").should("exist");
-          cy.getAttached(".hosts-status").should("exist");
-          cy.getAttached(".home-software").should("exist");
-          cy.getAttached(".activity-feed").should("exist");
-        });
       });
       it("displays intended global maintainer top navigation", () => {
         cy.getAttached(".site-nav-container").within(() => {
@@ -43,6 +34,65 @@ describe(
           cy.getAttached(".user-menu").click();
           cy.findByText(/settings/i).should("not.exist");
           cy.findByText(/manage users/i).should("not.exist");
+        });
+      });
+    });
+    describe("Dashboard", () => {
+      beforeEach(() => {
+        cy.loginWithCySession("mary@organization.com", "user123#");
+        cy.visit("/dashboard");
+      });
+      it("displays cards for all platforms", () => {
+        cy.getAttached(".homepage__wrapper").within(() => {
+          cy.findByText(/fleet test/i).should("exist");
+          cy.getAttached(".hosts-summary").should("exist");
+          cy.getAttached(".hosts-status").should("exist");
+          cy.getAttached(".home-software").should("exist");
+          cy.getAttached(".activity-feed").should("exist");
+        });
+      });
+      it("displays cards for windows only", () => {
+        cy.getAttached(".homepage__platforms").within(() => {
+          cy.getAttached(".Select-control").click();
+          cy.findByText(/windows/i).click();
+        });
+        cy.getAttached(".homepage__wrapper").within(() => {
+          cy.findByText(/fleet test/i).should("exist");
+          cy.getAttached(".hosts-summary").should("exist");
+          cy.getAttached(".hosts-status").should("exist");
+          // "get" because we expect it not to exist
+          cy.get(".home-software").should("not.exist");
+          cy.get(".activity-feed").should("not.exist");
+        });
+      });
+      it("displays cards for linux only", () => {
+        cy.getAttached(".homepage__platforms").within(() => {
+          cy.getAttached(".Select-control").click();
+          cy.findByText(/linux/i).click();
+        });
+        cy.getAttached(".homepage__wrapper").within(() => {
+          cy.findByText(/fleet test/i).should("exist");
+          cy.getAttached(".hosts-summary").should("exist");
+          cy.getAttached(".hosts-status").should("exist");
+          // "get" because we expect it not to exist
+          cy.get(".home-software").should("not.exist");
+          cy.get(".activity-feed").should("not.exist");
+        });
+      });
+      it("displays cards for macOS only", () => {
+        cy.getAttached(".homepage__platforms").within(() => {
+          cy.getAttached(".Select-control").click();
+          cy.findByText(/macos/i).click();
+        });
+        cy.getAttached(".homepage__wrapper").within(() => {
+          cy.findByText(/fleet test/i).should("exist");
+          cy.getAttached(".hosts-summary").should("exist");
+          cy.getAttached(".hosts-status").should("exist");
+          cy.getAttached(".home-munki").should("exist");
+          cy.getAttached(".home-mdm").should("exist");
+          // "get" because we expect it not to exist
+          cy.get(".home-software").should("not.exist");
+          cy.get(".activity-feed").should("not.exist");
         });
       });
     });
