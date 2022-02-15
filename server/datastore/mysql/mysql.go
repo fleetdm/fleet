@@ -286,11 +286,11 @@ func (ds *Datastore) writeChanLoop() {
 	}
 }
 
-var tracedDriverName string
+var otelTracedDriverName string
 
 func init() {
 	var err error
-	tracedDriverName, err = otelsql.Register("apm/mysql", semconv.DBSystemMySQL.Value.AsString())
+	otelTracedDriverName, err = otelsql.Register("mysql", semconv.DBSystemMySQL.Value.AsString())
 	if err != nil {
 		panic(err)
 	}
@@ -298,8 +298,12 @@ func init() {
 
 func newDB(conf *config.MysqlConfig, opts *dbOptions) (*sqlx.DB, error) {
 	driverName := "mysql"
-	if opts.tracingEnabled {
-		driverName = tracedDriverName
+	if opts.tracingConfig.TracingEnabled {
+		if opts.tracingConfig.TracingType == "opentelemetry" {
+			driverName = otelTracedDriverName
+		} else {
+			driverName = "apm/mysql"
+		}
 	}
 	if opts.interceptor != nil {
 		driverName = "mysql-mw"

@@ -189,7 +189,7 @@ the way that the Fleet server works.
 			}
 
 			if config.Logging.TracingEnabled {
-				opts = append(opts, mysql.TracingEnabled(true))
+				opts = append(opts, mysql.TracingEnabled(&config.Logging))
 			}
 
 			ds, err = mysql.New(config.Mysql, clock.C, opts...)
