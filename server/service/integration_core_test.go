@@ -2895,6 +2895,12 @@ func (s *integrationTestSuite) TestSearchTargets() {
 	require.Contains(t, searchResp.Targets.Hosts[0].Hostname, "foo.local1")
 }
 
+func (s *integrationTestSuite) TestStatus() {
+	var statusResp statusResponse
+	s.DoJSON("GET", "/api/v1/fleet/status/result_store", nil, http.StatusOK, &statusResp)
+	s.DoJSON("GET", "/api/v1/fleet/status/live_query", nil, http.StatusOK, &statusResp)
+}
+
 // creates a session and returns it, its key is to be passed as authorization header.
 func createSession(t *testing.T, uid uint, ds fleet.Datastore) *fleet.Session {
 	key := make([]byte, 64)

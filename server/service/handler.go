@@ -41,8 +41,6 @@ type FleetEndpoints struct {
 	InitiateSSO                   endpoint.Endpoint
 	CallbackSSO                   endpoint.Endpoint
 	SSOSettings                   endpoint.Endpoint
-	StatusResultStore             endpoint.Endpoint
-	StatusLiveQuery               endpoint.Endpoint
 }
 
 // MakeFleetServerEndpoints creates the Fleet API endpoints.
@@ -69,10 +67,6 @@ func MakeFleetServerEndpoints(svc fleet.Service, urlPrefix string, limitStore th
 		// PerformRequiredPasswordReset needs only to authenticate the
 		// logged in user
 		PerformRequiredPasswordReset: logged(canPerformPasswordReset(makePerformRequiredPasswordResetEndpoint(svc))),
-
-		// Authenticated status endpoints
-		StatusResultStore: authenticatedUser(svc, makeStatusResultStoreEndpoint(svc)),
-		StatusLiveQuery:   authenticatedUser(svc, makeStatusLiveQueryEndpoint(svc)),
 
 		// Osquery endpoints
 		EnrollAgent: logged(makeEnrollAgentEndpoint(svc)),
@@ -107,8 +101,6 @@ type fleetHandlers struct {
 	InitiateSSO                   http.Handler
 	CallbackSSO                   http.Handler
 	SettingsSSO                   http.Handler
-	StatusResultStore             http.Handler
-	StatusLiveQuery               http.Handler
 }
 
 func makeKitHandlers(e FleetEndpoints, opts []kithttp.ServerOption) *fleetHandlers {
@@ -134,8 +126,6 @@ func makeKitHandlers(e FleetEndpoints, opts []kithttp.ServerOption) *fleetHandle
 		InitiateSSO:                   newServer(e.InitiateSSO, decodeInitiateSSORequest),
 		CallbackSSO:                   newServer(e.CallbackSSO, decodeCallbackSSORequest),
 		SettingsSSO:                   newServer(e.SSOSettings, decodeNoParamsRequest),
-		StatusResultStore:             newServer(e.StatusResultStore, decodeNoParamsRequest),
-		StatusLiveQuery:               newServer(e.StatusLiveQuery, decodeNoParamsRequest),
 	}
 }
 
@@ -319,8 +309,6 @@ func attachFleetAPIRoutes(r *mux.Router, h *fleetHandlers) {
 	r.Handle("/api/v1/fleet/sso/callback", h.CallbackSSO).Methods("POST").Name("callback_sso")
 	r.Handle("/api/v1/fleet/users", h.CreateUserWithInvite).Methods("POST").Name("create_user_with_invite")
 	r.Handle("/api/v1/fleet/invites/{token}", h.VerifyInvite).Methods("GET").Name("verify_invite")
-	r.Handle("/api/v1/fleet/status/result_store", h.StatusResultStore).Methods("GET").Name("status_result_store")
-	r.Handle("/api/v1/fleet/status/live_query", h.StatusLiveQuery).Methods("GET").Name("status_live_query")
 	r.Handle("/api/v1/osquery/enroll", h.EnrollAgent).Methods("POST").Name("enroll_agent")
 	r.Handle("/api/v1/osquery/config", h.GetClientConfig).Methods("POST").Name("get_client_config")
 	r.Handle("/api/v1/osquery/distributed/read", h.GetDistributedQueries).Methods("POST").Name("get_distributed_queries")
@@ -467,6 +455,9 @@ func attachNewStyleFleetAPIRoutes(r *mux.Router, svc fleet.Service, opts []kitht
 
 	e.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/macadmins", getMacadminsDataEndpoint, getMacadminsDataRequest{})
 	e.GET("/api/_version_/fleet/macadmins", getAggregatedMacadminsDataEndpoint, getAggregatedMacadminsDataRequest{})
+
+	e.GET("/api/_version_/fleet/status/result_store", statusResultStoreEndpoint, nil)
+	e.GET("/api/_version_/fleet/status/live_query", statusLiveQueryEndpoint, nil)
 }
 
 // TODO: this duplicates the one in makeKitHandler
