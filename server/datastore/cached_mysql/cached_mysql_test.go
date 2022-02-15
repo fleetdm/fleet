@@ -51,13 +51,23 @@ func TestClone(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "slice",
+			src:  []string{"foo", "bar"},
+			want: []string{"foo", "bar"},
+		},
+		{
+			name: "pointer to slice",
+			src:  &[]string{"foo", "bar"},
+			want: &[]string{"foo", "bar"},
+		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			clone, err := clone(tc.src)
 			require.NoError(t, err)
-			assert.EqualValues(t, tc.want, clone)
+			assert.Equal(t, tc.want, clone)
 		})
 	}
 }
