@@ -81,7 +81,8 @@ func (svc *Service) NewDistributedQueryCampaign(ctx context.Context, queryString
 		}
 	}
 
-	if err := svc.authz.Authorize(ctx, query, fleet.ActionRun); err != nil {
+	tq := &fleet.TargetedQuery{Query: query, HostTargets: targets}
+	if err := svc.authz.Authorize(ctx, tq, fleet.ActionRun); err != nil {
 		return nil, err
 	}
 
