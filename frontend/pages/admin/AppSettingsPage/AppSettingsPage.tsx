@@ -58,9 +58,19 @@ const AppSettingsPage = (): JSX.Element => {
         .then(() => {
           dispatch(renderFlash("success", "Successfully updated settings."));
         })
-        .catch((errors: any) => {
-          if (errors.base) {
-            dispatch(renderFlash("error", errors.base));
+        .catch((response: any) => {
+          console.log("response", response);
+          if (
+            response.data.errors[0].reason.includes("could not dial smtp host")
+          ) {
+            dispatch(
+              renderFlash(
+                "error",
+                "Could not connect to SMTP server. Please try again."
+              )
+            );
+          } else if (response.data.errors) {
+            dispatch(renderFlash("error", response.data.errors[0].reason));
           }
         })
         .finally(() => {
