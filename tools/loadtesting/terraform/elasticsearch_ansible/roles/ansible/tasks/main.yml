@@ -11,8 +11,8 @@
     msg: "{{ instance_tags }}"
 - git:
     dest: /home/ansible/ansible
-    version: "{{ instance_tags['tags']['BRANCH'] }}"
-    repo: "{{ instance_tags['tags']['REPO'] }}"
+    version: "{{ instance_tags['tags']['ansible_branch'] }}"
+    repo: "{{ instance_tags['tags']['ansible_repository'] }}"
   become: no
 - template:
     src: "{{ item }}"
