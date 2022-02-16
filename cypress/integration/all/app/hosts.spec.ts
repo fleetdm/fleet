@@ -23,27 +23,39 @@ describe("Hosts flow", () => {
       cy.loginWithCySession();
       cy.visit("/hosts/manage");
     });
-    it("adds a new host", () => {
-      // Download installer
+    it("adds a new host and downloads installation files", () => {
+      // Download add hosts files
       cy.visit("/hosts/manage");
 
       cy.getAttached(".manage-hosts").within(() => {
-        cy.contains("button", /generate installer/i).click();
+        cy.contains("button", /add hosts/i).click();
       });
-
       cy.getAttached(".react-tabs").within(() => {
-        cy.findByText(/rpm/i).first().should("exist").click();
+        cy.findByText(/advanced/i)
+          .first()
+          .should("exist")
+          .click();
       });
+      cy.getAttached('a[href*="#downloadEnrollSecret"]').click();
+      cy.getAttached('a[href*="#downloadCertificate"]').click();
+      cy.getAttached('a[href*="#downloadFlagfile"]').click();
 
-      cy.contains("a", /download/i)
-        .first()
-        .click();
-
-      // Assert enroll secret downloaded matches the one displayed
       // NOTE: This test often fails when the Cypress downloads folder was not cleared properly
       // before each test run (seems to be related to issues with Cypress trashAssetsBeforeRun)
       if (Cypress.platform !== "win32") {
         // windows has issues with downloads location
+        cy.readFile(
+          path.join(Cypress.config("downloadsFolder"), "secret.txt"),
+          {
+            timeout: 5000,
+          }
+        );
+        cy.readFile(
+          path.join(Cypress.config("downloadsFolder"), "flagfile.txt"),
+          {
+            timeout: 5000,
+          }
+        );
         cy.readFile(path.join(Cypress.config("downloadsFolder"), "fleet.pem"), {
           timeout: 5000,
         });
@@ -234,7 +246,7 @@ describe("Hosts flow", () => {
             })
             .then(() => {
               cy.findByText(/add your devices to fleet/i).should("exist");
-              cy.findByText(/generate installer/i).should("exist");
+              cy.findByText(/add hosts/i).should("exist");
               cy.findByText(/about this host/i).should("not.exist");
               cy.findByText(hostname).should("not.exist");
             });
