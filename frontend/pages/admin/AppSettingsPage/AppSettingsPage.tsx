@@ -59,7 +59,6 @@ const AppSettingsPage = (): JSX.Element => {
           dispatch(renderFlash("success", "Successfully updated settings."));
         })
         .catch((response: any) => {
-          console.log("response", response);
           if (
             response.data.errors[0].reason.includes("could not dial smtp host")
           ) {
@@ -70,7 +69,12 @@ const AppSettingsPage = (): JSX.Element => {
               )
             );
           } else if (response.data.errors) {
-            dispatch(renderFlash("error", response.data.errors[0].reason));
+            dispatch(
+              renderFlash(
+                "error",
+                `Could not update settings. ${response.data.errors[0].reason}`
+              )
+            );
           }
         })
         .finally(() => {
