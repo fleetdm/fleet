@@ -12,8 +12,6 @@
       - "memlock:-1:-1"
     volumes:
       - "esdata:/usr/share/elasticsearch/data"
-    ports:
-      - "9200:9200"
     network_mode: host
     healthcheck:
       interval: 20s

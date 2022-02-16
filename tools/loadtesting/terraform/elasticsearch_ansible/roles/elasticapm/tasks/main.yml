@@ -9,8 +9,6 @@
       - SETUID
     cap_drop:
       - ALL
-    ports:
-      - "8200:8200"
     network_mode: host
     healthcheck:
       interval: 10s
