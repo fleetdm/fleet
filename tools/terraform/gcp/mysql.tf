@@ -1,6 +1,8 @@
+resource "random_password" "fleet-db-user-pw" {
+  length = 12
+}
 
-
-module "safer-mysql-db" {
+module "fleet-mysql" {
   source               = "GoogleCloudPlatform/sql-db/google//modules/safer_mysql"
   version              = "9.0.0"
   name                 = "${var.prefix}-mysql"
@@ -9,11 +11,25 @@ module "safer-mysql-db" {
 
   deletion_protection = false
 
+  additional_users = [
+    {
+      name     = var.db_user
+      password = random_password.fleet-db-user-pw.result
+      host     = "% (any host)"
+      type     = "BUILT_IN"
+    }
+  ]
   database_version = var.db_version
   region           = var.region
   zone             = var.db_zone
   tier             = var.db_tier
-  user_name        = var.db_user
+  additional_databases = [
+    {
+      name      = var.db_name
+      charset   = "utf8mb4"
+      collation = "utf8mb4_general_ci"
+    }
+  ]
 
   vpc_network = module.vpc.network_self_link
 

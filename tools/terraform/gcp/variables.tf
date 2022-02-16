@@ -11,6 +11,10 @@ variable "db_user" {
   default = "fleet"
 }
 
+variable "db_name" {
+  default = "fleet"
+}
+
 variable "db_tier" {
   default = "db-n1-standard-1"
 }
@@ -41,4 +45,12 @@ variable "project_id" {
 variable "prefix" {
   default = "fleet-"
   description = "prefix resources with this string"
+}
+
+variable "redis_mem" {
+  default = 1
+}
+
+variable "image" {
+  default = "fleet:v4.10.0"
 }
