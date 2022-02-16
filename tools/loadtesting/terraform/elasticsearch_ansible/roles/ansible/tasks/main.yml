@@ -13,6 +13,7 @@
       - ansible
       - boto3
       - requests
+      - docker
     state: latest
 - debug:
     msg: "{{ instance_tags }}"
