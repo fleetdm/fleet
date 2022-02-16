@@ -473,7 +473,7 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 				// it returns the last inserted id.
 				if lastID, _ := res.LastInsertId(); lastID > 0 {
 					if err := cleanupPolicyMembership(ctx, tx, uint(lastID), spec.Platform); err != nil {
-						return ctxerr.Wrap(ctx, err, "cleanup policy membership")
+						return err
 					}
 				}
 			}
@@ -536,11 +536,31 @@ func (ds *Datastore) AsyncBatchUpdatePolicyTimestamp(ctx context.Context, ids []
 	})
 }
 
-func cleanupPolicyMembership(ctx context.Context, db sqlx.QueryerContext, policyID uint, platforms string) error {
+func cleanupPolicyMembership(ctx context.Context, db sqlx.ExecerContext, policyID uint, platforms string) error {
 	if platforms == "" {
 		// all platforms allowed, nothing to clean up
 		return nil
 	}
-	// TODO(mna): actually cleanup...
-	return nil
+
+	delStmt := `
+    DELETE
+      pm
+    FROM
+      policy_membership pm
+    LEFT JOIN
+      hosts h
+    ON
+      pm.host_id = h.id
+    WHERE
+      pm.policy_id = ? AND
+      ( h.id IS NULL OR
+        FIND_IN_SET(h.platform, ?) = 0 )`
+
+	var expandedPlatforms []string
+	splitPlatforms := strings.Split(platforms, ",")
+	for _, platform := range splitPlatforms {
+		expandedPlatforms = append(expandedPlatforms, fleet.ExpandPlatform(strings.TrimSpace(platform))...)
+	}
+	_, err := db.ExecContext(ctx, delStmt, policyID, strings.Join(expandedPlatforms, ","))
+	return ctxerr.Wrap(ctx, err, "cleanup policy membership")
 }
