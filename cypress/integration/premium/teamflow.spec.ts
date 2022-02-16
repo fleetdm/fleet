@@ -150,9 +150,9 @@ describe("Teams flow (seeded)", () => {
         .contains("button", /done/i)
         .click();
     });
-    it("allows to see and click generate installer", () => {
+    it("allows to see and click 'Add hosts'", () => {
       cy.getAttached(".team-details__team-actions")
-        .contains("button", /generate installer/i)
+        .contains("button", /add hosts/i)
         .click();
       cy.getAttached(".modal__content").contains("button", /done/i).click();
     });

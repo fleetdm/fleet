@@ -143,9 +143,9 @@ describe("Premium tier - Team observer/maintainer user", () => {
           .should("be.visible");
         cy.findByText(/add label/i).should("not.exist");
 
-        // On observing team, not see the "Generate installer" and "Manage enroll secret" buttons
+        // On observing team, not see the "add hosts" and "Manage enroll secret" buttons
         cy.contains(/apples/i).should("exist");
-        cy.contains("button", /generate installer/i).should("not.exist");
+        cy.contains("button", /add hosts/i).should("not.exist");
         cy.contains("button", /manage enroll secret/i).should("not.exist");
       });
     });
@@ -211,14 +211,14 @@ describe("Premium tier - Team observer/maintainer user", () => {
           .should("be.visible");
         cy.findByText(/add label/i).should("not.exist");
 
-        // On maintaining team, see the "Generate installer" and "Manage enroll secret" buttons
+        // On maintaining team, see the "add hosts" and "Manage enroll secret" buttons
         cy.getAttached(".manage-hosts__header").within(() => {
           cy.contains("Apples").click({ force: true });
           cy.contains("Oranges").click({ force: true });
         });
         cy.contains(/oranges/i);
         cy.getAttached(".button-wrap")
-          .contains("button", /generate installer/i)
+          .contains("button", /add hosts/i)
           .click();
         cy.getAttached(".modal__content").contains("button", /done/i).click();
 

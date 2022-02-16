@@ -288,6 +288,9 @@ func TestApplyPolicies(t *testing.T) {
 		}
 		return nil, fmt.Errorf("unexpected team name!")
 	}
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {
+		return nil
+	}
 
 	name := writeTmpYml(t, `---
 apiVersion: v1

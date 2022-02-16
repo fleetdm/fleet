@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -63,6 +64,16 @@ func (svc Service) NewGlobalPolicy(ctx context.Context, p fleet.PolicyPayload) (
 	policy, err := svc.ds.NewGlobalPolicy(ctx, ptr.Uint(vc.UserID()), p)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "storing policy")
+	}
+	// Note: Issue #4191 proposes that we move to SQL transactions for actions so that we can
+	// rollback an action in the event of an error writing the associated activity
+	if err := svc.ds.NewActivity(
+		ctx,
+		authz.UserFromContext(ctx),
+		fleet.ActivityTypeCreatedPolicy,
+		&map[string]interface{}{"policy_id": policy.ID, "policy_name": policy.Name},
+	); err != nil {
+		return nil, err
 	}
 	return policy, nil
 }
@@ -158,18 +169,50 @@ func deleteGlobalPoliciesEndpoint(ctx context.Context, request interface{}, svc 
 // DeleteGlobalPolicies deletes the given policies from the database.
 // It also deletes the given ids from the failing policies webhook configuration.
 func (svc Service) DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Policy{}, fleet.ActionWrite); err != nil {
+	// First check if authorized to read policies
+	if err := svc.authz.Authorize(ctx, &fleet.Policy{}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 	if len(ids) == 0 {
 		return nil, nil
 	}
+	policiesByID, err := svc.ds.PoliciesByID(ctx, ids)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting policies by ID")
+	}
+	// Then check if authorized to write policies
+	if err := svc.authz.Authorize(ctx, &fleet.Policy{}, fleet.ActionWrite); err != nil {
+		return nil, err
+	}
+	for _, policy := range policiesByID {
+		if policy.PolicyData.TeamID != nil {
+			return nil, authz.ForbiddenWithInternal(
+				"attempting to delete policy that belongs to team",
+				authz.UserFromContext(ctx),
+				policy,
+				fleet.ActionWrite,
+			)
+		}
+	}
 	if err := svc.removeGlobalPoliciesFromWebhookConfig(ctx, ids); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "removing global policies from webhook config")
 	}
-	ids, err := svc.ds.DeleteGlobalPolicies(ctx, ids)
+	deletedIDs, err := svc.ds.DeleteGlobalPolicies(ctx, ids)
 	if err != nil {
 		return nil, err
+	}
+
+	// Note: Issue #4191 proposes that we move to SQL transactions for actions so that we can
+	// rollback an action in the event of an error writing the associated activity
+	for _, id := range deletedIDs {
+		if err := svc.ds.NewActivity(
+			ctx,
+			authz.UserFromContext(ctx),
+			fleet.ActivityTypeDeletedPolicy,
+			&map[string]interface{}{"policy_id": id, "policy_name": policiesByID[id].Name},
+		); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "adding new activity for deleted policy")
+		}
 	}
 	return ids, nil
 }
@@ -254,6 +297,7 @@ func applyPolicySpecsEndpoint(ctx context.Context, request interface{}, svc flee
 	return applyPolicySpecsResponse{}, nil
 }
 
+// TODO: add tests for activities?
 func (svc Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.PolicySpec) error {
 	checkGlobalPolicyAuth := false
 	for _, policy := range policies {
@@ -290,5 +334,12 @@ func (svc Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.Polic
 	if err := svc.ds.ApplyPolicySpecs(ctx, vc.UserID(), policies); err != nil {
 		return ctxerr.Wrap(ctx, err, "applying policy specs")
 	}
-	return nil
+	// Note: Issue #4191 proposes that we move to SQL transactions for actions so that we can
+	// rollback an action in the event of an error writing the associated activity
+	return svc.ds.NewActivity(
+		ctx,
+		authz.UserFromContext(ctx),
+		fleet.ActivityTypeAppliedSpecPolicy,
+		&map[string]interface{}{"policies": policies},
+	)
 }

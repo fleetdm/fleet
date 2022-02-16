@@ -199,6 +199,89 @@ func (s *integrationTestSuite) TestQueryCreationLogsActivity() {
 	require.True(t, found)
 }
 
+func (s *integrationTestSuite) TestPolicyDeletionLogsActivity() {
+	t := s.T()
+
+	admin1 := s.users["admin1@example.com"]
+	admin1.GravatarURL = "http://iii.com"
+	err := s.ds.SaveUser(context.Background(), &admin1)
+	require.NoError(t, err)
+
+	testPolicies := []fleet.PolicyPayload{{
+		Name:  "policy1",
+		Query: "select * from time;",
+	}, {
+		Name:  "policy2",
+		Query: "select * from osquery_info;",
+	}}
+
+	var policyIDs []uint
+	for _, policy := range testPolicies {
+		var resp globalPolicyResponse
+		s.DoJSON("POST", "/api/v1/fleet/global/policies", policy, http.StatusOK, &resp)
+		policyIDs = append(policyIDs, resp.Policy.PolicyData.ID)
+	}
+
+	prevActivities := listActivitiesResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/activities", nil, http.StatusOK, &prevActivities)
+	require.GreaterOrEqual(t, len(prevActivities.Activities), 2)
+
+	var deletePoliciesResp deleteGlobalPoliciesResponse
+	s.DoJSON("POST", "/api/v1/fleet/global/policies/delete", deleteGlobalPoliciesRequest{policyIDs}, http.StatusOK, &deletePoliciesResp)
+	require.Equal(t, len(policyIDs), len(deletePoliciesResp.Deleted))
+
+	newActivities := listActivitiesResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/activities", nil, http.StatusOK, &newActivities)
+	require.Equal(t, len(newActivities.Activities), (len(prevActivities.Activities) + 2))
+
+	var prevDeletes []*fleet.Activity
+	for _, a := range prevActivities.Activities {
+		if a.Type == "deleted_policy" {
+			prevDeletes = append(prevDeletes, a)
+		}
+	}
+	var newDeletes []*fleet.Activity
+	for _, a := range newActivities.Activities {
+		if a.Type == "deleted_policy" {
+			newDeletes = append(newDeletes, a)
+		}
+	}
+	require.Equal(t, len(newDeletes), (len(prevDeletes) + 2))
+
+	type policyDetails struct {
+		PolicyID   uint   `json:"policy_id"`
+		PolicyName string `json:"policy_name"`
+	}
+	for _, id := range policyIDs {
+		found := false
+		for _, d := range newDeletes {
+			var details policyDetails
+			err := json.Unmarshal([]byte(*d.Details), &details)
+			require.NoError(t, err)
+			require.NotNil(t, details.PolicyID)
+			if id == details.PolicyID {
+				found = true
+			}
+
+		}
+		require.True(t, found)
+	}
+	for _, p := range testPolicies {
+		found := false
+		for _, d := range newDeletes {
+			var details policyDetails
+			err := json.Unmarshal([]byte(*d.Details), &details)
+			require.NoError(t, err)
+			require.NotNil(t, details.PolicyName)
+			if p.Name == details.PolicyName {
+				found = true
+			}
+
+		}
+		require.True(t, found)
+	}
+}
+
 func (s *integrationTestSuite) TestAppConfigAdditionalQueriesCanBeRemoved() {
 	t := s.T()
 
@@ -1465,7 +1548,10 @@ func (s *integrationTestSuite) TestListActivities() {
 	u := s.users["admin1@example.com"]
 	details := make(map[string]interface{})
 
-	err := s.ds.NewActivity(ctx, &u, fleet.ActivityTypeAppliedSpecPack, &details)
+	prevActivities, err := s.ds.ListActivities(ctx, fleet.ListOptions{})
+	require.NoError(t, err)
+
+	err = s.ds.NewActivity(ctx, &u, fleet.ActivityTypeAppliedSpecPack, &details)
 	require.NoError(t, err)
 
 	err = s.ds.NewActivity(ctx, &u, fleet.ActivityTypeDeletedPack, &details)
@@ -1474,13 +1560,15 @@ func (s *integrationTestSuite) TestListActivities() {
 	err = s.ds.NewActivity(ctx, &u, fleet.ActivityTypeEditedPack, &details)
 	require.NoError(t, err)
 
-	var listResp listActivitiesResponse
-	s.DoJSON("GET", "/api/v1/fleet/activities", nil, http.StatusOK, &listResp, "per_page", "2", "order_key", "id")
-	require.Len(t, listResp.Activities, 2)
-	assert.Equal(t, fleet.ActivityTypeAppliedSpecPack, listResp.Activities[0].Type)
-	assert.Equal(t, fleet.ActivityTypeDeletedPack, listResp.Activities[1].Type)
+	lenPage := len(prevActivities) + 2
 
-	s.DoJSON("GET", "/api/v1/fleet/activities", nil, http.StatusOK, &listResp, "per_page", "2", "order_key", "id", "page", "1")
+	var listResp listActivitiesResponse
+	s.DoJSON("GET", "/api/v1/fleet/activities", nil, http.StatusOK, &listResp, "per_page", strconv.Itoa(lenPage), "order_key", "id")
+	require.Len(t, listResp.Activities, lenPage)
+	assert.Equal(t, fleet.ActivityTypeAppliedSpecPack, listResp.Activities[lenPage-2].Type)
+	assert.Equal(t, fleet.ActivityTypeDeletedPack, listResp.Activities[lenPage-1].Type)
+
+	s.DoJSON("GET", "/api/v1/fleet/activities", nil, http.StatusOK, &listResp, "per_page", strconv.Itoa(lenPage), "order_key", "id", "page", "1")
 	require.Len(t, listResp.Activities, 1)
 	assert.Equal(t, fleet.ActivityTypeEditedPack, listResp.Activities[0].Type)
 
