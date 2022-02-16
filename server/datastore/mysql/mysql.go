@@ -848,7 +848,7 @@ func RegisterRDSMysqlCerts(c *http.Client) error {
 		return errors.New("couldn't append certs from pem")
 	}
 
-	err = mysql.RegisterTLSConfig("rds", &tls.Config{RootCAs: rootCertPool, InsecureSkipVerify: true})
+	err = mysql.RegisterTLSConfig("rds", &tls.Config{RootCAs: rootCertPool, InsecureSkipVerify: false})
 	if err != nil {
 		return err
 	}
