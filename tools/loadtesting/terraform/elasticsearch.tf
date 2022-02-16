@@ -217,6 +217,9 @@ resource "aws_lb_target_group" "elasticsearch" {
   port     = 9200
   protocol = "HTTP"
   vpc_id   = module.vpc.vpc_id
+  health_check {
+    path = "/_cat/health"
+  }
 }
 
 resource "aws_alb_listener" "elasticapm" {
@@ -257,4 +260,7 @@ resource "aws_lb_target_group" "kibana" {
   port     = 5601
   protocol = "HTTP"
   vpc_id   = module.vpc.vpc_id
+  health_check {
+    path = "/api/status"
+  }
 }
