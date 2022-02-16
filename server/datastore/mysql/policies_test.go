@@ -1100,16 +1100,16 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 			Query:       "select 1 from updated;",
 			Description: "query1 desc updated",
 			Resolution:  "some resolution updated",
-			Team:        "", // TODO(lucas): no effect, #3220.
-			Platform:    "", // TODO(lucas): no effect, #3220.
+			Team:        "", // TODO(lucas): no effect.
+			Platform:    "",
 		},
 		{
 			Name:        "query2",
 			Query:       "select 2 from updated;",
 			Description: "query2 desc updated",
 			Resolution:  "some other resolution updated",
-			Team:        "team1",   // TODO(lucas): no effect, #3220.
-			Platform:    "windows", // TODO(lucas): no effect, #3220.
+			Team:        "team1", // TODO(lucas): no effect.
+			Platform:    "windows",
 		},
 	}))
 	policies, err = ds.ListGlobalPolicies(ctx)
@@ -1137,7 +1137,7 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 	assert.Equal(t, team1.ID, *teamPolicies[0].TeamID)
 	require.NotNil(t, teamPolicies[0].Resolution)
 	assert.Equal(t, "some other resolution updated", *teamPolicies[0].Resolution)
-	assert.Equal(t, "darwin", teamPolicies[0].Platform)
+	assert.Equal(t, "windows", teamPolicies[0].Platform)
 }
 
 func testPoliciesSave(t *testing.T, ds *Datastore) {

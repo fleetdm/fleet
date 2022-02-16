@@ -277,11 +277,11 @@ func modifyTeamPolicyEndpoint(ctx context.Context, request interface{}, svc flee
 	return modifyTeamPolicyResponse{Policy: resp}, nil
 }
 
-func (svc Service) ModifyTeamPolicy(ctx context.Context, teamID uint, id uint, p fleet.ModifyPolicyPayload) (*fleet.Policy, error) {
+func (svc *Service) ModifyTeamPolicy(ctx context.Context, teamID uint, id uint, p fleet.ModifyPolicyPayload) (*fleet.Policy, error) {
 	return svc.modifyPolicy(ctx, &teamID, id, p)
 }
 
-func (svc Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p fleet.ModifyPolicyPayload) (*fleet.Policy, error) {
+func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p fleet.ModifyPolicyPayload) (*fleet.Policy, error) {
 	// First make sure the user can read the policies.
 	if err := svc.authz.Authorize(ctx, &fleet.Policy{
 		PolicyData: fleet.PolicyData{
@@ -316,6 +316,9 @@ func (svc Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p fl
 	}
 	if p.Resolution != nil {
 		policy.Resolution = p.Resolution
+	}
+	if p.Platform != nil {
+		policy.Platform = *p.Platform
 	}
 	logging.WithExtras(ctx, "name", policy.Name, "sql", policy.Query)
 
