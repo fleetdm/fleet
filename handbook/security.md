@@ -181,7 +181,7 @@ We do not apply ultra restrictive Data Loss Prevention style policies to our dev
 | 2.6.1.4 | Ensure iCloud Drive Documents and Desktop sync is disabled |
 
 **Why?**
-* We do not use managed Apple IDs, and allow contributors to use their own iCloud accounts. We disable iCloud Documents and Desktop sync to avoid "accidental" copying of data to iCloud, but we do allow iCloud drive.
+* We do not use managed Apple IDs, and allow contributors to use their own iCloud accounts. We disable iCloud Documents and Desktop sync to avoid accidental copying of data to iCloud, but we do allow iCloud drive.
 
 **User experience impact**
 
