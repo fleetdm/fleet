@@ -60,6 +60,17 @@ export const DEFAULT_POLICIES = [
   {
     key: 5,
     query:
+      "SELECT 1 FROM disk_encryption WHERE encrypted=1 AND name LIKE '/dev/dm-1';",
+    name: "Full disk encryption enabled (Linux)",
+    description:
+      "Checks if the dm-1 device is encrypted. There are many ways to encrypt Linux systems. This is the default on distributions such as Ubuntu. You may need to adapt this query, or submit an issue in the Fleet repo.",
+    resolution:
+      "Ensure the image deployed to your Linux workstation includes full disk encryption.",
+    platform: "linux",
+  },
+  {
+    key: 6,
+    query:
       "SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT '' AND filevault_status = 'on' LIMIT 1;",
     name: "Full disk encryption enabled (macOS)",
     description:
@@ -69,7 +80,7 @@ export const DEFAULT_POLICIES = [
     platform: "darwin",
   },
   {
-    key: 6,
+    key: 7,
     query: "SELECT 1 FROM bitlocker_info WHERE protection_status = 1;",
     name: "Full disk encryption enabled (Windows)",
     description:
@@ -79,7 +90,7 @@ export const DEFAULT_POLICIES = [
     platform: "windows",
   },
   {
-    key: 7,
+    key: 8,
     query: "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
     name: "Gatekeeper enabled (macOS)",
     description:
@@ -89,7 +100,7 @@ export const DEFAULT_POLICIES = [
     platform: "darwin",
   },
   {
-    key: 8,
+    key: 9,
     query:
       "SELECT 1 FROM managed_policies WHERE domain = 'com.apple.MCX' AND name = 'DisableGuestAccount' AND value = 1 LIMIT 1;",
     name: "Guest users disabled (macOS)",
@@ -100,7 +111,7 @@ export const DEFAULT_POLICIES = [
     platform: "darwin",
   },
   {
-    key: 9,
+    key: 10,
     query:
       "SELECT 1 FROM managed_policies WHERE domain = 'com.apple.Terminal' AND name = 'SecureKeyboardEntry' AND value = 1 LIMIT 1;",
     name: "Secure keyboard entry for Terminal.app enabled (macOS)",
@@ -110,7 +121,7 @@ export const DEFAULT_POLICIES = [
     platform: "darwin",
   },
   {
-    key: 10,
+    key: 11,
     query:
       "SELECT 1 FROM sip_config WHERE config_flag = 'sip' AND enabled = 1;",
     name: "System Integrity Protection enabled (macOS)",

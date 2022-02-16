@@ -37,8 +37,17 @@ ln -sf /var/lib/orbit/bin/orbit/macos/{{.OrbitChannel}}/orbit /var/lib/orbit/bin
 ln -sf /var/lib/orbit/bin/orbit/orbit /usr/local/bin/orbit
 
 {{ if .StartService -}}
-launchctl unload /Library/LaunchDaemons/com.fleetdm.orbit.plist
-launchctl load -w /Library/LaunchDaemons/com.fleetdm.orbit.plist
+DAEMON_LABEL="com.fleetdm.orbit"
+DAEMON_PLIST="/Library/LaunchDaemons/${DAEMON_LABEL}.plist"
+
+# Remove any pre-existing version of the config
+launchctl bootout "system/${DAEMON_LABEL}"
+# Add the daemon to the launchd system
+launchctl bootstrap system "${DAEMON_PLIST}"
+# Enable the daemon
+launchctl enable "system/${DAEMON_LABEL}"
+# Force the daemon to start
+launchctl kickstart "system/${DAEMON_LABEL}"
 {{- end }}
 `))
 
@@ -52,32 +61,52 @@ var macosLaunchdTemplate = template.Must(template.New("").Option("missingkey=err
 	`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
-  <dict>
-    <key>Label</key>
-    <string>com.fleetdm.orbit</string>
-    <key>ProgramArguments</key>
-    <array>
-       <string>/var/lib/orbit/bin/orbit/orbit</string>
-    </array>
-    <key>StandardOutPath</key>
-    <string>/var/log/orbit/orbit.stdout.log</string>
-    <key>StandardErrorPath</key>
-    <string>/var/log/orbit/orbit.stderr.log</string>
-    <key>EnvironmentVariables</key>
-    <dict>
-      <key>ORBIT_UPDATE_URL</key><string>{{ .UpdateURL }}</string>
-      <key>ORBIT_ORBIT_CHANNEL</key><string>{{ .OrbitChannel }}</string>
-      <key>ORBIT_OSQUERYD_CHANNEL</key><string>{{ .OsquerydChannel }}</string>
-      {{ if .Insecure }}<key>ORBIT_INSECURE</key><string>true</string>{{ end }}
-      {{ if .FleetURL }}<key>ORBIT_FLEET_URL</key><string>{{ .FleetURL }}</string>{{ end }}
-      {{ if .FleetCertificate }}<key>ORBIT_FLEET_CERTIFICATE</key><string>/var/lib/orbit/fleet.pem</string>{{ end }}
-      {{ if .EnrollSecret }}<key>ORBIT_ENROLL_SECRET_PATH</key><string>/var/lib/orbit/secret.txt</string>{{ end }}
-      {{ if .Debug }}<key>ORBIT_DEBUG</key><string>true</string>{{ end }}
-    </dict>
-    <key>KeepAlive</key><true/>
-    <key>RunAtLoad</key><true/>
-    <key>ThrottleInterval</key>
-    <integer>10</integer>
-  </dict>
+<dict>
+	<key>EnvironmentVariables</key>
+	<dict>
+		{{- if .Debug }}
+		<key>ORBIT_DEBUG</key>
+		<string>true</string>
+		{{- end }}
+		{{- if .Insecure }}
+		<key>ORBIT_INSECURE</key>
+		<string>true</string>
+		{{- end }}
+		{{- if .FleetCertificate }}
+		<key>ORBIT_FLEET_CERTIFICATE</key>
+		<string>/var/lib/orbit/fleet.pem</string>
+		{{- end }}
+		{{- if .EnrollSecret }}
+		<key>ORBIT_ENROLL_SECRET_PATH</key>
+		<string>/var/lib/orbit/secret.txt</string>
+		{{- end }}
+		{{- if .FleetURL }}
+		<key>ORBIT_FLEET_URL</key>
+		<string>{{ .FleetURL }}</string>
+		{{- end }}
+		<key>ORBIT_ORBIT_CHANNEL</key>
+		<string>{{ .OrbitChannel }}</string>
+		<key>ORBIT_OSQUERYD_CHANNEL</key>
+		<string>{{ .OsquerydChannel }}</string>
+		<key>ORBIT_UPDATE_URL</key>
+		<string>{{ .UpdateURL }}</string>
+	</dict>
+	<key>KeepAlive</key>
+	<true/>
+	<key>Label</key>
+	<string>com.fleetdm.orbit</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/var/lib/orbit/bin/orbit/orbit</string>
+	</array>
+	<key>RunAtLoad</key>
+	<true/>
+	<key>StandardErrorPath</key>
+	<string>/var/log/orbit/orbit.stderr.log</string>
+	<key>StandardOutPath</key>
+	<string>/var/log/orbit/orbit.stdout.log</string>
+	<key>ThrottleInterval</key>
+	<integer>10</integer>
+</dict>
 </plist>
 `))

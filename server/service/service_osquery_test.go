@@ -1948,13 +1948,14 @@ func TestTeamMaintainerCanRunNewDistributedCampaigns(t *testing.T) {
 	ds.QueryFunc = func(ctx context.Context, id uint) (*fleet.Query, error) {
 		return &fleet.Query{
 			ID:             42,
+			AuthorID:       ptr.Uint(99),
 			Name:           "query",
 			Query:          "select 1;",
 			ObserverCanRun: false,
 		}, nil
 	}
 	viewerCtx := viewer.NewContext(context.Background(), viewer.Viewer{
-		User: &fleet.User{ID: 0, Teams: []fleet.UserTeam{{Role: fleet.RoleMaintainer}}},
+		User: &fleet.User{ID: 99, Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 123}, Role: fleet.RoleMaintainer}}},
 	})
 
 	q := "select year, month, day, hour, minutes, seconds from time"
@@ -1980,7 +1981,7 @@ func TestTeamMaintainerCanRunNewDistributedCampaigns(t *testing.T) {
 		return nil
 	}
 	lq.On("RunQuery", "0", "select year, month, day, hour, minutes, seconds from time", []uint{1, 3, 5}).Return(nil)
-	_, err := svc.NewDistributedQueryCampaign(viewerCtx, q, nil, fleet.HostTargets{HostIDs: []uint{2}, LabelIDs: []uint{1}})
+	_, err := svc.NewDistributedQueryCampaign(viewerCtx, q, nil, fleet.HostTargets{HostIDs: []uint{2}, LabelIDs: []uint{1}, TeamIDs: []uint{123}})
 	require.NoError(t, err)
 }
 

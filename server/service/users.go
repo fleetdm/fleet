@@ -486,6 +486,43 @@ func (svc *Service) DeleteSessionsForUser(ctx context.Context, id uint) error {
 	return svc.ds.DestroyAllSessionsForUser(ctx, id)
 }
 
+////////////////////////////////////////////////////////////////////////////////
+// Change user email
+////////////////////////////////////////////////////////////////////////////////
+
+type changeEmailRequest struct {
+	Token string `url:"token"`
+}
+
+type changeEmailResponse struct {
+	NewEmail string `json:"new_email"`
+	Err      error  `json:"error,omitempty"`
+}
+
+func (r changeEmailResponse) error() error { return r.Err }
+
+func changeEmailEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*changeEmailRequest)
+	newEmailAddress, err := svc.ChangeUserEmail(ctx, req.Token)
+	if err != nil {
+		return changeEmailResponse{Err: err}, nil
+	}
+	return changeEmailResponse{NewEmail: newEmailAddress}, nil
+}
+
+func (svc *Service) ChangeUserEmail(ctx context.Context, token string) (string, error) {
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return "", fleet.ErrNoContext
+	}
+
+	if err := svc.authz.Authorize(ctx, &fleet.User{ID: vc.UserID()}, fleet.ActionWrite); err != nil {
+		return "", err
+	}
+
+	return svc.ds.ConfirmPendingEmailChange(ctx, vc.UserID(), token)
+}
+
 func isAdminOfTheModifiedTeams(currentUser *fleet.User, originalUserTeams, newUserTeams []fleet.UserTeam) bool {
 	// If the user is of the right global role, then they can modify the teams
 	if currentUser.GlobalRole != nil && (*currentUser.GlobalRole == fleet.RoleAdmin || *currentUser.GlobalRole == fleet.RoleMaintainer) {
