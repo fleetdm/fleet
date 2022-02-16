@@ -160,11 +160,11 @@ const ActivityFeed = ({
     );
   };
 
-  const renderNoActivities = () => {
+  const renderNoActivities = (index?: number) => {
     return (
       <div className={`${baseClass}__no-activities`}>
         <p>
-          <b>Fleet has not recorded any activities.</b>
+          <b>This is the start of your Fleet activities.</b>
         </p>
         <p>
           Did you recently edit your queries, update your packs, or run a live
@@ -212,17 +212,13 @@ const ActivityFeed = ({
       {errorActivities && renderError()}
       {!errorActivities &&
       !isFetchingActivities &&
-      pageIndex === 0 &&
+      // pageIndex === 0 &&
       isEmpty(activities) ? (
-        renderNoActivities()
+        renderNoActivities(pageIndex)
       ) : (
         <>
           {isFetchingActivities && (
-            <div
-              className={`spinner ${
-                activities?.length ? "" : "spinner--empty"
-              }`}
-            >
+            <div className="spinner">
               <Spinner />
             </div>
           )}

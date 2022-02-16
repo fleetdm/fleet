@@ -3,7 +3,7 @@
   display: flex;
   flex-direction: column;
   position: relative;
-  min-height: 400px;
+  min-height: 592px;
 
   &__header-wrap {
     .form-field {
@@ -166,8 +166,8 @@
     display: flex;
     justify-content: center;
     align-items: center;
-  }
-  .spinner--empty {
-    margin-top: 40px; // Aligns with software table spinner
+    .loading-spinner {
+      margin-top: 33px;
+    }
   }
 }
