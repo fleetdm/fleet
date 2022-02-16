@@ -1,4 +1,5 @@
 ---
 - hosts: localhost
   roles:
-    - role: ssh
+    - role: ec2
+    - role: ansible

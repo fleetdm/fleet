@@ -1,0 +1,33 @@
+---
+- user:
+    name: ansible
+    groups: wheel
+- pip:
+    name:
+      - ansible
+      - boto3
+    state: latest
+- git:
+    dest: /home/ansible/ansible
+    version: master
+    repo: "{{ lookup('env', 'REPO') }}"
+  become: no
+- template:
+    src: "{{ item }}"
+    dest: "/etc/systemd/system/{{ item }}"
+    mode: 0444
+    owner: root
+    group: root
+  with_items:
+    - ansible.service
+    - ansible.timer
+- template:
+    src: run-ansible
+    dest: /usr/local/bin/run-ansible
+    mode: 0555
+    owner: root
+    group: root
+- systemd:
+    name: ansible.timer
+    state: started
+    enabled: true
