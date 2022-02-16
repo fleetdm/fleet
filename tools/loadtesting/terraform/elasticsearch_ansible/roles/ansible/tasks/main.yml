@@ -9,8 +9,8 @@
     state: latest
 - git:
     dest: /home/ansible/ansible
-    version: master
-    repo: "{{ lookup('env', 'REPO') }}"
+    version: "{{ instance_tags['BRANCH'] }}"
+    repo: "{{ instance_tags['REPO'] }}"
   become: no
 - template:
     src: "{{ item }}"
