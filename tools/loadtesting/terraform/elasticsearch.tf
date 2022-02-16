@@ -1,5 +1,60 @@
 data "aws_default_tags" "current" {}
 
+resource "aws_security_group" "elasticsearch" {
+  name        = "${local.prefix} Elasticsearch"
+  description = "${local.prefix} Elasticsearch security group"
+  vpc_id      = module.vpc.vpc_id
+}
+
+resource "aws_security_group_rule" "elasticsearch" {
+  description = "${local.prefix}: allow traffic from public internet"
+  type        = "ingress"
+
+  from_port   = "9200"
+  to_port     = "9200"
+  protocol    = "tcp"
+  cidr_blocks = ["10.0.0.0/8"]
+
+  security_group_id = aws_security_group.elasticsearch.id
+}
+
+resource "aws_security_group_rule" "elasticapm" {
+  description = "${local.prefix}: allow traffic from public internet"
+  type        = "ingress"
+
+  from_port   = "8200"
+  to_port     = "8200"
+  protocol    = "tcp"
+  cidr_blocks = ["10.0.0.0/8"]
+
+  security_group_id = aws_security_group.elasticsearch.id
+}
+
+resource "aws_security_group_rule" "kibana" {
+  description = "${local.prefix}: allow traffic from public internet"
+  type        = "ingress"
+
+  from_port   = "5601"
+  to_port     = "5601"
+  protocol    = "tcp"
+  cidr_blocks = ["10.0.0.0/8"]
+
+  security_group_id = aws_security_group.elasticsearch.id
+}
+
+# Allow outbound traffic
+resource "aws_security_group_rule" "es-egress" {
+  description = "${local.prefix}: allow all outbound traffic"
+  type        = "egress"
+
+  from_port   = 0
+  to_port     = 0
+  protocol    = "-1"
+  cidr_blocks = ["0.0.0.0/0"]
+
+  security_group_id = aws_security_group.elasticsearch.id
+}
+
 resource "aws_autoscaling_group" "elasticstack" {
   name                      = "${local.prefix}-elasticstack"
   max_size                  = 1
@@ -108,7 +163,7 @@ resource "aws_launch_template" "elasticstack" {
   image_id               = data.aws_ami.amazonlinux.image_id
   instance_type          = "t3.large"
   key_name               = "zwinnerman"
-  vpc_security_group_ids = [aws_security_group.lb.id]
+  vpc_security_group_ids = [aws_security_group.elasticsearch.id]
   metadata_options {
     instance_metadata_tags = "enabled"
     http_endpoint          = "enabled"
