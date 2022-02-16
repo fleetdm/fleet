@@ -87,6 +87,7 @@ const QueryForm = ({
   const [isEditingDescription, setIsEditingDescription] = useState<boolean>(
     false
   );
+  const [isSaveAsNewLoading, setIsSaveAsNewLoading] = useState<boolean>(false);
 
   // Note: The QueryContext values should always be used for any mutable query data such as query name
   // The storedQuery prop should only be used to access immutable metadata such as author id
@@ -195,8 +196,9 @@ const QueryForm = ({
 
     valid = isValidated;
 
-    console.log("promptSaveAsNewQuery");
     if (valid) {
+      setIsSaveAsNewLoading(true);
+
       queryAPI
         .create({
           name: lastEditedQueryName,
@@ -205,6 +207,7 @@ const QueryForm = ({
           observer_can_run: lastEditedQueryObserverCanRun,
         })
         .then((response: { query: IQuery }) => {
+          setIsSaveAsNewLoading(false);
           dispatch(push(PATHS.EDIT_QUERY(response.query)));
           dispatch(renderFlash("success", `Successfully added query.`));
         })
@@ -218,6 +221,7 @@ const QueryForm = ({
                 observer_can_run: lastEditedQueryObserverCanRun,
               })
               .then((response: { query: IQuery }) => {
+                setIsSaveAsNewLoading(false);
                 dispatch(push(PATHS.EDIT_QUERY(response.query)));
                 dispatch(
                   renderFlash(
@@ -239,8 +243,10 @@ const QueryForm = ({
                     )
                   );
                 }
+                setIsSaveAsNewLoading(false);
               });
           } else {
+            setIsSaveAsNewLoading(false);
             dispatch(
               renderFlash("error", "Could not create query. Please try again.")
             );
@@ -452,6 +458,11 @@ const QueryForm = ({
 
   const renderForGlobalAdminOrAnyMaintainer = (
     <>
+      {isSaveAsNewLoading && (
+        <div className={`${baseClass}__loading-overlay`}>
+          <Spinner />
+        </div>
+      )}
       <form className={`${baseClass}__wrapper`} autoComplete="off">
         <div className={`${baseClass}__title-bar`}>
           <div className="name-description">
