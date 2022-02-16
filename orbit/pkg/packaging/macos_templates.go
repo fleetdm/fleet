@@ -37,8 +37,17 @@ ln -sf /var/lib/orbit/bin/orbit/macos/{{.OrbitChannel}}/orbit /var/lib/orbit/bin
 ln -sf /var/lib/orbit/bin/orbit/orbit /usr/local/bin/orbit
 
 {{ if .StartService -}}
-launchctl unload /Library/LaunchDaemons/com.fleetdm.orbit.plist
-launchctl load -w /Library/LaunchDaemons/com.fleetdm.orbit.plist
+DAEMON_LABEL="com.fleetdm.orbit"
+DAEMON_PLIST="/Library/LaunchDaemons/${DAEMON_LABEL}.plist"
+
+# Remove any pre-existing version of the config
+launchctl bootout "system/${DAEMON_LABEL}"
+# Add the daemon to the launchd system
+launchctl bootstrap system "${DAEMON_PLIST}"
+# Enable the daemon
+launchctl enable "system/${DAEMON_LABEL}"
+# Force the daemon to start
+launchctl kickstart "system/${DAEMON_LABEL}"
 {{- end }}
 `))
 
