@@ -499,7 +499,7 @@ const QueryForm = ({
             <>
               {isEditMode && (
                 <Button
-                  className={`${baseClass}__save`}
+                  className={`${baseClass}__save-as-new`}
                   variant="text-link"
                   onClick={promptSaveAsNewQuery()}
                   disabled={false}
