@@ -228,6 +228,7 @@ func main() {
 
 		var options []func(*osquery.Runner) error
 		options = append(options, osquery.WithDataPath(c.String("root-dir")))
+		options = append(options, osquery.WithLogPath(c.String("root-dir")))
 
 		if logFile != nil {
 			// If set, redirect osqueryd's stderr to the logFile.
