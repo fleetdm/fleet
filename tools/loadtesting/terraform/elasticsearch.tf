@@ -7,7 +7,7 @@ resource "aws_security_group" "elasticsearch" {
 }
 
 resource "aws_security_group_rule" "elasticsearch" {
-  description = "${local.prefix}: allow traffic from public internet"
+  description = "${local.prefix}: allow traffic from vpc"
   type        = "ingress"
 
   from_port   = "9200"
@@ -18,8 +18,20 @@ resource "aws_security_group_rule" "elasticsearch" {
   security_group_id = aws_security_group.elasticsearch.id
 }
 
+resource "aws_security_group_rule" "ssh" {
+  description = "${local.prefix}: allow traffic from vpc"
+  type        = "ingress"
+
+  from_port   = "22"
+  to_port     = "22"
+  protocol    = "tcp"
+  cidr_blocks = ["10.0.0.0/8"]
+
+  security_group_id = aws_security_group.elasticsearch.id
+}
+
 resource "aws_security_group_rule" "elasticapm" {
-  description = "${local.prefix}: allow traffic from public internet"
+  description = "${local.prefix}: allow traffic from vpc"
   type        = "ingress"
 
   from_port   = "8200"
@@ -31,7 +43,7 @@ resource "aws_security_group_rule" "elasticapm" {
 }
 
 resource "aws_security_group_rule" "kibana" {
-  description = "${local.prefix}: allow traffic from public internet"
+  description = "${local.prefix}: allow traffic from vpc"
   type        = "ingress"
 
   from_port   = "5601"
@@ -104,16 +116,25 @@ resource "aws_autoscaling_group" "elasticstack" {
 
   tag {
     key                 = "ansible_branch"
-    value               = "zwinnerman-add-loadtest-infra-mine-fixup"
+    value               = data.git_repository.tf.branch
     propagate_at_launch = true
   }
 }
 
+resource "aws_iam_instance_profile" "elasticstack" {
+  name = "elasticstack"
+  role = aws_iam_role.elasticstack.name
+}
+
 data "aws_iam_policy_document" "elasticstack" {
   statement {
-    effect    = "Allow"
     actions   = ["secretsmanager:GetSecretValue"]
     resources = ["arn:aws:secretsmanager:us-east-2:917007347864:secret:/fleet/ssh/keys-7iQNe1"]
+  }
+
+  statement {
+    actions   = ["ec2:DescribeTags"]
+    resources = ["*"]
   }
 }
 
@@ -164,12 +185,18 @@ resource "aws_launch_template" "elasticstack" {
   instance_type          = "t3.large"
   key_name               = "zwinnerman"
   vpc_security_group_ids = [aws_security_group.elasticsearch.id]
+
   metadata_options {
     instance_metadata_tags = "enabled"
     http_endpoint          = "enabled"
     http_tokens            = "required"
   }
+
   user_data = filebase64("${path.module}/elasticsearch.sh")
+
+  iam_instance_profile {
+    arn = aws_iam_instance_profile.elasticstack.arn
+  }
 }
 
 resource "aws_alb_listener" "elasticsearch" {

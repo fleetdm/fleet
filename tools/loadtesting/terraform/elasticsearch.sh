@@ -1,19 +1,19 @@
 #!/bin/bash
-#yum update -y
-#yum install -y python3-pip git
-#pip3 install ansible
+yum update -y
+yum install -y python3-pip git
+pip3 install ansible
 
 TOKEN=`curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600"`
-REPO=`curl -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/tags/ansible_repository`
-PLAYBOOK_PATH=`curl -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/tags/ansible_playbook_path`
-PLAYBOOK_FILE=`curl -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/tags/ansible_playbook_file`
-BRANCH=`curl -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/tags/ansible_branch`
+REPO=`curl -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/tags/instance/ansible_repository`
+PLAYBOOK_PATH=`curl -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/tags/instance/ansible_playbook_path`
+PLAYBOOK_FILE=`curl -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/tags/instance/ansible_playbook_file`
+BRANCH=`curl -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/tags/instance/ansible_branch`
 
-#git clone "${REPO}" ansible
-#cd ansible
-#git checkout "${BRANCH}"
-#cd "${PLAYBOOK_PATH}"
-#ansible-playbook -c local "${PLAYBOOK_FILE}"
+git clone "${REPO}" ansible
+cd ansible
+git checkout "${BRANCH}"
+cd "${PLAYBOOK_PATH}"
+ansible-playbook -c local "${PLAYBOOK_FILE}"
 
 yum install -y docker
 systemctl start docker.service
