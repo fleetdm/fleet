@@ -998,6 +998,7 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
 
+	fmt.Println(">>>> inserting 3")
 	require.NoError(t, ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
 		{
 			Name:        "query1",
@@ -1058,6 +1059,7 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "some other good resolution", *teamPolicies[1].Resolution)
 	assert.Equal(t, "windows,linux", teamPolicies[1].Platform)
 
+	fmt.Println(">>>> updating all 3")
 	// Make sure apply is idempotent
 	require.NoError(t, ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
 		{
@@ -1093,6 +1095,7 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, teamPolicies, 2)
 
+	fmt.Println(">>>> updating 2")
 	// Test policy updating.
 	require.NoError(t, ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
 		{

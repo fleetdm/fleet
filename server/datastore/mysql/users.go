@@ -275,9 +275,9 @@ func (ds *Datastore) DeleteUser(ctx context.Context, id uint) error {
 	return ds.deleteEntity(ctx, usersTable, id)
 }
 
-func amountUsersDB(db sqlx.Queryer) (int, error) {
+func amountUsersDB(ctx context.Context, db sqlx.QueryerContext) (int, error) {
 	var amount int
-	err := sqlx.Get(db, &amount, `SELECT count(*) FROM users`)
+	err := sqlx.GetContext(ctx, db, &amount, `SELECT count(*) FROM users`)
 	if err != nil {
 		return 0, err
 	}

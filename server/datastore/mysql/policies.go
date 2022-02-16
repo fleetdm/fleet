@@ -99,7 +99,7 @@ func (ds *Datastore) SavePolicy(ctx context.Context, p *fleet.Policy) error {
 	}
 
 	// TODO(mna): cleanup policy membership
-	return nil
+	return cleanupPolicyMembership(ctx, ds.writer, p.ID, p.Platform)
 }
 
 // FlippingPoliciesForHost fetches previous policy membership results and returns:
@@ -462,20 +462,43 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 			platforms = VALUES(platforms)
 		`
 		for _, spec := range specs {
-			if _, err := tx.ExecContext(ctx,
+			res, err := tx.ExecContext(ctx,
 				sql, spec.Name, spec.Query, spec.Description, authorID, spec.Resolution, spec.Team, spec.Platform,
-			); err != nil {
+			)
+			if err != nil {
 				return ctxerr.Wrap(ctx, err, "exec ApplyPolicySpecs insert")
 			}
-			// TODO(mna): identify if it was updated, and if so cleanup policy_membership
+
+			// From mysql's documentation:
+			//
+			// With ON DUPLICATE KEY UPDATE, the affected-rows value per row is 1 if
+			// the row is inserted as a new row, 2 if an existing row is updated, and
+			// 0 if an existing row is set to its current values. If you specify the
+			// CLIENT_FOUND_ROWS flag to the mysql_real_connect() C API function when
+			// connecting to mysqld, the affected-rows value is 1 (not 0) if an
+			// existing row is set to its current values.
+			//
+			// https://dev.mysql.com/doc/refman/5.7/en/insert-on-duplicate.html
+			//
+			// Note that based on tests, our driver sets CLIENT_FOUND_ROWS because it
+			// does return 1 when an existing row is set to its current values, but
+			// with a last inserted id of 0.
+			//
+			// TODO(mna): would that work on mariadb too?
+			//
+			lastID, _ := res.LastInsertId()
+			aff, _ := res.RowsAffected()
+			if lastID == 0 || aff != 1 {
+				fmt.Println(">>>>> UPDATED ", spec.Name, lastID, aff)
+			}
 		}
 		return nil
 	})
 }
 
-func amountPoliciesDB(db sqlx.Queryer) (int, error) {
+func amountPoliciesDB(ctx context.Context, db sqlx.QueryerContext) (int, error) {
 	var amount int
-	err := sqlx.Get(db, &amount, `SELECT count(*) FROM policies`)
+	err := sqlx.GetContext(ctx, db, &amount, `SELECT count(*) FROM policies`)
 	if err != nil {
 		return 0, err
 	}
@@ -525,4 +548,8 @@ func (ds *Datastore) AsyncBatchUpdatePolicyTimestamp(ctx context.Context, ids []
 		_, err := tx.ExecContext(ctx, query, args...)
 		return ctxerr.Wrap(ctx, err, "update hosts.policy_updated_at")
 	})
+}
+
+func cleanupPolicyMembership(ctx context.Context, db sqlx.QueryerContext, policyID uint, platforms string) error {
+	return nil
 }
