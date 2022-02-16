@@ -136,7 +136,7 @@ describe("Premium tier - Maintainer user", () => {
           .contains("Team")
           .should("be.visible");
         cy.getAttached(".button-wrap")
-          .contains("button", /generate installer/i)
+          .contains("button", /add hosts/i)
           .click();
         cy.getAttached(".modal__content").contains("button", /done/i).click();
 
