@@ -5,7 +5,7 @@ import { ITeam } from "interfaces/team";
 import { IEnrollSecret } from "interfaces/enroll_secret";
 import PlatformWrapper from "./PlatformWrapper/PlatformWrapper";
 
-const baseClass = "generate-installer-modal";
+const baseClass = "add-hosts-modal";
 
 interface IAddHostsModal {
   onCancel: () => void;
