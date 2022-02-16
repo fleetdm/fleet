@@ -1,0 +1,18 @@
+---
+- docker_container:
+    name: elasticapm
+    image: docker.elastic.co/apm/apm-server:7.15.2
+    capabilities:
+      - CHOWN
+      - DAC_OVERRIDE
+      - SETGID
+      - SETUID
+    cap_drop:
+      - ALL
+    ports:
+      - "8200:8200"
+    network_mode: host
+    healthcheck:
+      interval: 10s
+      retries: 12
+      test: curl --write-out 'HTTP %{http_code}' --fail --silent --output /dev/null http://localhost:8200/
