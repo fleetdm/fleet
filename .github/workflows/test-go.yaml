@@ -52,10 +52,9 @@ jobs:
 
     - name: Set Go race setting on schedule
       if: github.event.schedule == '0 4 * * *'
-      run: echo "Running go tests with race enabled"
-      env:
-        RACE_ENABLED: true
-        GO_TEST_TIMEOUT: 1h
+      run: |
+        echo "RACE_ENABLED=true" >> $GITHUB_ENV
+        echo "GO_TEST_TIMEOUT=1h" >> $GITHUB_ENV
 
     - name: Run Go Tests
       run: |

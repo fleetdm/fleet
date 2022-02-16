@@ -11,6 +11,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
@@ -43,7 +44,8 @@ type withServer struct {
 func (ts *withServer) SetupSuite(dbName string) {
 	ts.withDS.SetupSuite(dbName)
 
-	users, server := RunServerForTestsWithDS(ts.s.T(), ts.ds)
+	rs := pubsub.NewInmemQueryResults()
+	users, server := RunServerForTestsWithDS(ts.s.T(), ts.ds, TestServerOpts{Rs: rs})
 	ts.server = server
 	ts.users = users
 	ts.token = ts.getTestAdminToken()

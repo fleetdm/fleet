@@ -195,6 +195,34 @@ spec:
 	}
 }
 
+func TestGetTeamsByName(t *testing.T) {
+	_, ds := runServerWithMockedDS(t, service.TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}})
+
+	ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
+		require.Equal(t, "test1", opt.MatchQuery)
+
+		created_at, err := time.Parse(time.RFC3339, "1999-03-10T02:45:06.371Z")
+		require.NoError(t, err)
+		return []*fleet.Team{
+			{
+				ID:          42,
+				CreatedAt:   created_at,
+				Name:        "team1",
+				Description: "team1 description",
+				UserCount:   99,
+			},
+		}, nil
+	}
+
+	expectedText := `+-----------+-------------------+------------+
+| TEAM NAME |    DESCRIPTION    | USER COUNT |
++-----------+-------------------+------------+
+| team1     | team1 description |         99 |
++-----------+-------------------+------------+
+`
+	assert.Equal(t, expectedText, runAppForTest(t, []string{"get", "teams", "--name", "test1"}))
+}
+
 func TestGetHosts(t *testing.T) {
 	_, ds := runServerWithMockedDS(t)
 

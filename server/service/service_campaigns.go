@@ -39,7 +39,7 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 	// Explicitly set ObserverCanRun: true in this check because we check that the user trying to
 	// read results is the same user that initiated the query. This means the observer check already
 	// happened with the actual value for this query.
-	if err := svc.authz.Authorize(ctx, &fleet.Query{ObserverCanRun: true}, fleet.ActionRun); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.TargetedQuery{Query: &fleet.Query{ObserverCanRun: true}}, fleet.ActionRun); err != nil {
 		level.Info(svc.logger).Log("err", "stream results authorization failed")
 		conn.WriteJSONError(authz.ForbiddenErrorMessage)
 		return
