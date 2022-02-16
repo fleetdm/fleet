@@ -39,7 +39,6 @@
     "js-yaml": "3",
     "lodash": "^4.17.15",
     "memoize-one": "^5",
-    "moment": "2.22.2",
     "nock": "^13.0.5",
     "node-bourbon": "4.2.8",
     "node-sass": "^7.0.0",

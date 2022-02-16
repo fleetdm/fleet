@@ -3,7 +3,7 @@ import PATHS from "router/paths";
 import { Link } from "react-router";
 import { useQuery } from "react-query";
 import { useDispatch } from "react-redux";
-import moment from "moment";
+import { formatDistanceToNow } from "date-fns";
 
 import { IHost } from "interfaces/host";
 import { IHostPolicy } from "interfaces/policy";
@@ -271,7 +271,12 @@ const WelcomeHost = (): JSX.Element => {
           >
             Refetch
           </Button>
-          <span>Last updated {moment(host.detail_updated_at).fromNow()}</span>
+          <span>
+            Last updated{" "}
+            {formatDistanceToNow(new Date(host.detail_updated_at), {
+              addSuffix: true,
+            })}
+          </span>
         </div>
         {showPolicyModal && (
           <Modal
