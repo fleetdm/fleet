@@ -28,16 +28,15 @@ module.exports = {
 
 
   fn: async function({emailAddress}) {
-
     if (!sails.config.custom.slackWebhookUrlForContactForm) {
       throw new Error(
         'Message not delivered: slackWebhookUrlForContactForm needs to be configured in sails.config.custom. Here\'s the undelivered message: ' +
-        `New demo session signup: (Remember: we have to invite them to the next demo session.) cc @sales`+
+        `New demo session signup: (Remember: we have to invite them to the next demo session.) cc @sales `+
         `Email: ${emailAddress}`
       );
     } else {
       await sails.helpers.http.post(sails.config.custom.slackWebhookUrlForContactForm, {
-        text: `New demo session signup: (Remember: we have to invite them to the next demo session.) cc @sales`+
+        text: `New demo session signup: (Remember: we have to invite them to the next demo session.) cc @sales `+
         `Email: ${emailAddress}`
       });
     }
