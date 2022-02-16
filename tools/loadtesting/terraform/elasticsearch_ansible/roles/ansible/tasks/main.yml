@@ -7,6 +7,8 @@
       - ansible
       - boto3
     state: latest
+- debug:
+    msg: "{{ instance_tags }}"
 - git:
     dest: /home/ansible/ansible
     version: "{{ instance_tags['BRANCH'] }}"
