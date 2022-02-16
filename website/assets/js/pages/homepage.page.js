@@ -3,7 +3,26 @@ parasails.registerPage('homepage', {
   //  ║║║║║ ║ ║╠═╣║    ╚═╗ ║ ╠═╣ ║ ║╣
   //  ╩╝╚╝╩ ╩ ╩╩ ╩╩═╝  ╚═╝ ╩ ╩ ╩ ╩ ╚═╝
   data: {
-    //…
+    // Main syncing/loading state for this page.
+    syncing: false,
+
+    // Form data
+    formData: { /* … */ },
+
+    // For tracking client-side validation errors in our form.
+    // > Has property set to `true` for each invalid property in `formData`.
+    formErrors: { /* … */ },
+
+    // Form rules
+    formRules: {
+      emailAddress: {isEmail: true, required: true},
+    },
+
+    // Server error state for the form
+    cloudError: '',
+
+    // Success state when form has been submitted
+    cloudSuccess: false,
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
@@ -30,6 +49,11 @@ parasails.registerPage('homepage', {
       // > https://github.com/papercups-io/chat-widget/blob/master/src/index.tsx#L4-L6
       // > ~Dec 31, 2020
       window.dispatchEvent(new Event('papercups:open'));
-    }
+    },
+
+    submittedForm: async function() {
+      // Show the success message.
+      this.cloudSuccess = true;
+    },
   }
 });

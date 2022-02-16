@@ -32,5 +32,6 @@ module.exports.policies = {
   'view-transparency': true,
   'view-press-kit': true,
   'view-platform': true,
+  'deliver-demo-signup': true,
 
 };
