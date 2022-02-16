@@ -2,6 +2,7 @@
 // disable this rule as it was throwing an error in Header and Cell component
 // definitions for the selection row for some reason when we dont really need it.
 import React from "react";
+import ReactTooltip from "react-tooltip";
 import { find } from "lodash";
 
 import { performanceIndicator } from "fleet/helpers";
@@ -12,13 +13,21 @@ import PillCell from "components/TableContainer/DataTable/PillCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import { IScheduledQuery } from "interfaces/scheduled_query";
 import { IDropdownOption } from "interfaces/dropdownOption";
+import QuestionIcon from "../../../../../assets/images/icon-question-16x16@2x.png";
 
+interface IGetToggleAllRowsSelectedProps {
+  checked: boolean;
+  indeterminate: boolean;
+  title: string;
+  onChange: () => any;
+  style: { cursor: string };
+}
 interface IHeaderProps {
   column: {
     title: string;
     isSortedDesc: boolean;
   };
-  getToggleAllRowsSelectedProps: () => any; // TODO: do better with types
+  getToggleAllRowsSelectedProps: () => IGetToggleAllRowsSelectedProps;
   toggleAllRowsSelected: () => void;
 }
 
@@ -28,7 +37,7 @@ interface ICellProps {
   };
   row: {
     original: IScheduledQuery;
-    getToggleRowSelectedProps: () => any; // TODO: do better with types
+    getToggleRowSelectedProps: () => IGetToggleAllRowsSelectedProps;
     toggleRowSelected: () => void;
   };
 }
@@ -112,7 +121,38 @@ const generateTableHeaders = (
     },
     {
       title: "Performance impact",
-      Header: "Performance impact",
+      Header: () => {
+        return (
+          <div>
+            <span className="queries-table__performance-impact-header">
+              Performance impact
+            </span>
+            <span
+              data-tip
+              data-for="queries-table__performance-impact-tooltip"
+              data-tip-disable={false}
+            >
+              <img alt="question icon" src={QuestionIcon} />
+            </span>
+            <ReactTooltip
+              className="queries-table__performance-impact-tooltip"
+              place="bottom"
+              type="dark"
+              effect="solid"
+              backgroundColor="#3e4771"
+              id="queries-table__performance-impact-tooltip"
+              data-html
+            >
+              <div style={{ textAlign: "center" }}>
+                This is the average <br />
+                performance impact <br />
+                across all hosts where this <br />
+                query was scheduled.
+              </div>
+            </ReactTooltip>
+          </div>
+        );
+      },
       disableSortBy: true,
       accessor: "performance",
       Cell: (cellProps) => <PillCell value={cellProps.cell.value} />,

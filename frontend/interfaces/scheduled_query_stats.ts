@@ -1,4 +1,4 @@
-import PropTypes, { number } from "prop-types";
+import PropTypes from "prop-types";
 
 export default PropTypes.shape({
   user_time_p50: PropTypes.number,

@@ -43,6 +43,23 @@ func bToMb(b uint64) uint64 {
 	return b / 1024 / 1024
 }
 
+type threadSafeDSMock struct {
+	mu sync.Mutex
+	*mock.Store
+}
+
+func (d *threadSafeDSMock) AllCPEs(ctx context.Context) ([]string, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return d.Store.AllCPEs(ctx)
+}
+
+func (d *threadSafeDSMock) InsertCVEForCPE(ctx context.Context, cve string, cpes []string) (int64, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return d.Store.InsertCVEForCPE(ctx, cve, cpes)
+}
+
 func TestTranslateCPEToCVE(t *testing.T) {
 	if os.Getenv("NETWORK_TEST") == "" {
 		t.Skip("set environment variable NETWORK_TEST=1 to run")
@@ -97,6 +114,8 @@ func TestTranslateCPEToCVE(t *testing.T) {
 		recentVulnMaxAge = 365 * 24 * time.Hour
 		defer func() { recentVulnMaxAge = oldMaxAge; theClock = clock.C }()
 
+		safeDS := &threadSafeDSMock{Store: ds}
+
 		ds.AllCPEsFunc = func(ctx context.Context) ([]string, error) {
 			return []string{googleChromeCPE, mozillaFirefoxCPE, curlCPE}, nil
 		}
@@ -104,7 +123,7 @@ func TestTranslateCPEToCVE(t *testing.T) {
 		ds.InsertCVEForCPEFunc = func(ctx context.Context, cve string, cpes []string) (int64, error) {
 			return 1, nil
 		}
-		recent, err := TranslateCPEToCVE(ctx, ds, tempDir, kitlog.NewNopLogger(), cfg, true)
+		recent, err := TranslateCPEToCVE(ctx, safeDS, tempDir, kitlog.NewNopLogger(), cfg, true)
 		require.NoError(t, err)
 
 		byCPE := make(map[string]int)
@@ -126,7 +145,7 @@ func TestTranslateCPEToCVE(t *testing.T) {
 		ds.InsertCVEForCPEFunc = func(ctx context.Context, cve string, cpes []string) (int64, error) {
 			return 0, nil
 		}
-		recent, err = TranslateCPEToCVE(ctx, ds, tempDir, kitlog.NewNopLogger(), cfg, true)
+		recent, err = TranslateCPEToCVE(ctx, safeDS, tempDir, kitlog.NewNopLogger(), cfg, true)
 		require.NoError(t, err)
 
 		// no recent vulnerability should be reported
@@ -148,7 +167,7 @@ func TestSyncsCVEFromURL(t *testing.T) {
 
 	tempDir := t.TempDir()
 	err := SyncCVEData(
-		tempDir, config.FleetConfig{Vulnerabilities: config.VulnerabilitiesConfig{CVEFeedPrefixURL: ts.URL}})
+		tempDir, config.FleetConfig{Vulnerabilities: config.VulnerabilitiesConfig{CVEFeedPrefixURL: ts.URL + "/feeds/json/cve/1.1/"}})
 	require.Error(t, err)
 	require.Equal(t,
 		fmt.Sprintf("1 synchronisation error:\n\tunexpected size for \"%s/feeds/json/cve/1.1/nvdcve-1.1-2002.json.gz\" (200 OK): want 1453293, have 0", ts.URL),

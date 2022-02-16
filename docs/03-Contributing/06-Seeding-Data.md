@@ -1,4 +1,4 @@
-# Seeding Data
+# Seeding data
 
 When developing Fleet, it may be useful to create seed data that includes users and teams.
 

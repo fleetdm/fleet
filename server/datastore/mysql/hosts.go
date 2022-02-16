@@ -709,12 +709,25 @@ func (ds *Datastore) EnrollHost(ctx context.Context, osqueryHostID, nodeKey stri
 	return &host, nil
 }
 
+// GetContextTryStmt will attempt to run sqlx.GetContext on a cached statement if available, resorting to ds.reader.
+func (ds *Datastore) GetContextTryStmt(ctx context.Context, dest interface{}, query string, args ...interface{}) error {
+	var err error
+	//nolint the statements are closed in Datastore.Close.
+	if stmt := ds.loadOrPrepareStmt(ctx, query); stmt != nil {
+		err = stmt.GetContext(ctx, dest, args...)
+	} else {
+		err = sqlx.GetContext(ctx, ds.reader, dest, query, args...)
+	}
+	return err
+}
+
 // LoadHostByNodeKey loads the whole host identified by the node key.
 // If the node key is invalid it returns a NotFoundError.
 func (ds *Datastore) LoadHostByNodeKey(ctx context.Context, nodeKey string) (*fleet.Host, error) {
-	sqlStatement := `SELECT * FROM hosts WHERE node_key = ?`
+	query := `SELECT * FROM hosts WHERE node_key = ?`
+
 	var host fleet.Host
-	switch err := sqlx.GetContext(ctx, ds.reader, &host, sqlStatement, nodeKey); {
+	switch err := ds.GetContextTryStmt(ctx, &host, query, nodeKey); {
 	case err == nil:
 		return &host, nil
 	case errors.Is(err, sql.ErrNoRows):
@@ -1219,6 +1232,15 @@ func (ds *Datastore) updateOrInsert(ctx context.Context, updateQuery string, ins
 }
 
 func (ds *Datastore) SetOrUpdateMunkiVersion(ctx context.Context, hostID uint, version string) error {
+	if version == "" {
+		// Only update deleted_at if there wasn't any deleted at for this host
+		updateQuery := `UPDATE host_munki_info SET deleted_at=NOW() WHERE host_id=? AND deleted_at is NULL`
+		_, err := ds.writer.ExecContext(ctx, updateQuery, hostID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err)
+		}
+		return nil
+	}
 	return ds.updateOrInsert(
 		ctx,
 		`UPDATE host_munki_info SET version=? WHERE host_id=?`,
@@ -1238,7 +1260,7 @@ func (ds *Datastore) SetOrUpdateMDMData(ctx context.Context, hostID uint, enroll
 
 func (ds *Datastore) GetMunkiVersion(ctx context.Context, hostID uint) (string, error) {
 	var version string
-	err := sqlx.GetContext(ctx, ds.reader, &version, `SELECT version FROM host_munki_info WHERE host_id=?`, hostID)
+	err := sqlx.GetContext(ctx, ds.reader, &version, `SELECT version FROM host_munki_info WHERE deleted_at is NULL AND host_id=?`, hostID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return "", ctxerr.Wrap(ctx, notFound("MunkiInfo").WithID(hostID))
@@ -1264,6 +1286,7 @@ func (ds *Datastore) GetMDM(ctx context.Context, hostID uint) (bool, string, boo
 	}
 	return dest.Enrolled, dest.ServerURL, dest.InstalledFromDep, nil
 }
+
 func (ds *Datastore) AggregatedMunkiVersion(ctx context.Context, teamID *uint) ([]fleet.AggregatedMunkiVersion, time.Time, error) {
 	id := uint(0)
 
@@ -1355,10 +1378,12 @@ func (ds *Datastore) generateAggregatedMunkiVersion(ctx context.Context, teamID 
 	args := []interface{}{}
 	if teamID != nil {
 		args = append(args, *teamID)
-		query += ` JOIN hosts h ON (h.id=hm.host_id) WHERE h.team_id=?`
+		query += ` JOIN hosts h ON (h.id=hm.host_id) WHERE h.team_id=? AND `
 		id = *teamID
+	} else {
+		query += `  WHERE `
 	}
-	query += ` GROUP BY hm.version`
+	query += ` hm.deleted_at is NULL GROUP BY hm.version`
 	err := sqlx.SelectContext(ctx, ds.reader, &versions, query, args...)
 	if err != nil {
 		return ctxerr.Wrapf(ctx, err, "getting aggregated data from host_munki")

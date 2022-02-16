@@ -96,8 +96,7 @@ const TeamManagementPage = (): JSX.Element => {
           toggleCreateTeamModal();
         })
         .catch((createError: any) => {
-          console.error(createError);
-          if (createError.errors[0].reason.includes("Duplicate")) {
+          if (createError.data.errors[0].reason.includes("Duplicate")) {
             dispatch(
               renderFlash("error", "A team with this name already exists.")
             );
@@ -199,7 +198,7 @@ const TeamManagementPage = (): JSX.Element => {
             <p>
               Want to learn more?&nbsp;
               <a
-                href="https://github.com/fleetdm/fleet/blob/main/docs/01-Using-Fleet/10-Teams.md"
+                href="https://fleetdm.com/docs/using-fleet/teams"
                 target="_blank"
                 rel="noopener noreferrer"
               >

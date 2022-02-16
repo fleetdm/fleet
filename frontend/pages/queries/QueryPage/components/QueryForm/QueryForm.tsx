@@ -351,6 +351,9 @@ const QueryForm = ({
           readOnly
         />
       )}
+      <span className={`${baseClass}__platform-compatibility`}>
+        {renderPlatformCompatibility()}
+      </span>
       {renderLiveQueryWarning()}
       {lastEditedQueryObserverCanRun && (
         <div

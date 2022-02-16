@@ -84,19 +84,6 @@ func (svc *Service) newUser(ctx context.Context, p fleet.UserPayload) (*fleet.Us
 	return user, nil
 }
 
-func (svc *Service) ChangeUserEmail(ctx context.Context, token string) (string, error) {
-	vc, ok := viewer.FromContext(ctx)
-	if !ok {
-		return "", fleet.ErrNoContext
-	}
-
-	if err := svc.authz.Authorize(ctx, &fleet.User{ID: vc.UserID()}, fleet.ActionWrite); err != nil {
-		return "", err
-	}
-
-	return svc.ds.ConfirmPendingEmailChange(ctx, vc.UserID(), token)
-}
-
 func (svc *Service) UserUnauthorized(ctx context.Context, id uint) (*fleet.User, error) {
 	// Explicitly no authorization check. Should only be used by middleware.
 	return svc.ds.UserByID(ctx, id)

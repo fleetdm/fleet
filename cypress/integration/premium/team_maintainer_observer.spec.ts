@@ -17,17 +17,8 @@ describe("Premium tier - Team observer/maintainer user", () => {
     beforeEach(() => {
       cy.loginWithCySession("marco@organization.com", "user123#");
     });
-    describe("Dashboard and navigation", () => {
+    describe("Navigation", () => {
       beforeEach(() => cy.visit("/dashboard"));
-      it("displays intended team maintainer and team observer dashboard", () => {
-        cy.getAttached(".homepage__wrapper").within(() => {
-          cy.findByText(/apples/i).should("exist");
-          cy.getAttached(".hosts-summary").should("exist");
-          cy.getAttached(".hosts-status").should("exist");
-          cy.getAttached(".home-software").should("exist");
-          cy.get(".activity-feed").should("not.exist");
-        });
-      });
       it("displays intended team maintainer and team observer top navigation", () => {
         cy.getAttached(".site-nav-container").within(() => {
           cy.findByText(/hosts/i).should("exist");
@@ -38,6 +29,103 @@ describe("Premium tier - Team observer/maintainer user", () => {
           cy.getAttached(".user-menu").click();
           cy.findByText(/settings/i).should("not.exist");
           cy.findByText(/manage users/i).should("not.exist");
+        });
+      });
+    });
+    describe("Dashboard", () => {
+      beforeEach(() => cy.visit("/dashboard"));
+      it("displays cards for all platforms", () => {
+        cy.getAttached(".homepage__wrapper").within(() => {
+          cy.findByText(/apples/i).should("exist");
+          cy.getAttached(".hosts-summary").should("exist");
+          cy.getAttached(".hosts-status").should("exist");
+          cy.getAttached(".home-software").should("exist");
+          // "get" because we expect it not to exist
+          cy.get(".activity-feed").should("not.exist");
+        });
+      });
+      it("displays cards for windows only", () => {
+        cy.getAttached(".homepage__platforms").within(() => {
+          cy.getAttached(".Select-control").click();
+          cy.findByText(/windows/i).click();
+        });
+        cy.getAttached(".homepage__wrapper").within(() => {
+          cy.findByText(/apples/i).should("exist");
+          cy.getAttached(".hosts-summary").should("exist");
+          cy.getAttached(".hosts-status").should("exist");
+          // "get" because we expect it not to exist
+          cy.get(".home-software").should("not.exist");
+          cy.get(".activity-feed").should("not.exist");
+        });
+      });
+      it("displays cards for linux only", () => {
+        cy.getAttached(".homepage__platforms").within(() => {
+          cy.getAttached(".Select-control").click();
+          cy.findByText(/linux/i).click();
+        });
+        cy.getAttached(".homepage__wrapper").within(() => {
+          cy.findByText(/apples/i).should("exist");
+          cy.getAttached(".hosts-summary").should("exist");
+          cy.getAttached(".hosts-status").should("exist");
+          // "get" because we expect it not to exist
+          cy.get(".home-software").should("not.exist");
+          cy.get(".activity-feed").should("not.exist");
+        });
+      });
+      it("displays cards for macOS only", () => {
+        cy.getAttached(".homepage__platforms").within(() => {
+          cy.getAttached(".Select-control").click();
+          cy.findByText(/macos/i).click();
+        });
+        cy.getAttached(".homepage__wrapper").within(() => {
+          cy.findByText(/apples/i).should("exist");
+          cy.getAttached(".hosts-summary").should("exist");
+          cy.getAttached(".hosts-status").should("exist");
+          cy.getAttached(".home-munki").should("exist");
+          cy.getAttached(".home-mdm").should("exist");
+          // "get" because we expect it not to exist
+          cy.get(".home-software").should("not.exist");
+          cy.get(".activity-feed").should("not.exist");
+        });
+      });
+      it("views all hosts for all platforms", () => {
+        cy.findByText(/view all hosts/i).click();
+        cy.get(".manage-hosts__label-block").should("not.exist");
+      });
+      it("views all hosts for windows only", () => {
+        cy.getAttached(".homepage__platforms").within(() => {
+          cy.getAttached(".Select-control").click();
+          cy.findByText(/windows/i).click();
+        });
+        cy.findByText(/view all hosts/i).click();
+        cy.getAttached(".manage-hosts__label-block").within(() => {
+          cy.getAttached(".title").within(() => {
+            cy.findByText(/windows/i).should("exist");
+          });
+        });
+      });
+      it("views all hosts for linux only", () => {
+        cy.getAttached(".homepage__platforms").within(() => {
+          cy.getAttached(".Select-control").click();
+          cy.findByText(/linux/i).click();
+        });
+        cy.findByText(/view all hosts/i).click();
+        cy.getAttached(".manage-hosts__label-block").within(() => {
+          cy.getAttached(".title").within(() => {
+            cy.findByText(/linux/i).should("exist");
+          });
+        });
+      });
+      it("views all hosts for macOS only", () => {
+        cy.getAttached(".homepage__platforms").within(() => {
+          cy.getAttached(".Select-control").click();
+          cy.findByText(/macos/i).click();
+        });
+        cy.findByText(/view all hosts/i).click();
+        cy.getAttached(".manage-hosts__label-block").within(() => {
+          cy.getAttached(".title").within(() => {
+            cy.findByText(/macos/i).should("exist");
+          });
         });
       });
     });
@@ -164,7 +252,9 @@ describe("Premium tier - Team observer/maintainer user", () => {
         cy.visit("/schedule/manage");
         cy.contains(/oranges/i).should("exist");
         cy.contains(/advanced/i).should("not.exist");
-        cy.findByRole("button", { name: /schedule a query/i }).click();
+        cy.getAttached(".no-schedule__cta-buttons").within(() => {
+          cy.findByRole("button", { name: /schedule a query/i }).click();
+        });
         // Schedule a query on maintaining team
         cy.getAttached(".schedule-editor-modal__form").within(() => {
           cy.findByText(/select query/i).click();

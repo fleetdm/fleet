@@ -2,6 +2,7 @@ package service
 
 import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/kolide/kit/version"
 )
 
 // ApplyAppConfig sends the application config to be applied to the Fleet instance.
@@ -33,4 +34,11 @@ func (c *Client) ApplyEnrollSecretSpec(spec *fleet.EnrollSecretSpec) error {
 	verb, path := "POST", "/api/v1/fleet/spec/enroll_secret"
 	var responseBody applyEnrollSecretSpecResponse
 	return c.authenticatedRequest(req, verb, path, &responseBody)
+}
+
+func (c *Client) Version() (*version.Info, error) {
+	verb, path := "GET", "/api/v1/fleet/version"
+	var responseBody versionResponse
+	err := c.authenticatedRequest(nil, verb, path, &responseBody)
+	return responseBody.Info, err
 }

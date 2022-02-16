@@ -34,11 +34,7 @@ const UserMenu = ({
     },
     {
       label: "Documentation",
-      onClick: () =>
-        window.open(
-          "https://github.com/fleetdm/fleet/blob/main/docs/README.md",
-          "_blank"
-        ),
+      onClick: () => window.open("https://fleetdm.com/docs", "_blank"),
     },
     {
       label: "Sign out",

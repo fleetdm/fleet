@@ -10,7 +10,6 @@
 - [Schedule](#schedule)
 - [Packs](#packs)
 - [Policies](#policies)
-- [Team policies](#team-policies)
 - [Activities](#activities)
 - [Targets](#targets)
 - [Fleet configuration](#fleet-configuration)
@@ -1062,8 +1061,11 @@ Request (`filters` is specified):
 ### Get host's Google Chrome profiles
 
 Requires the [macadmins osquery
-extension](https://github.com/macadmins/osquery-extension) which comes bundled in [Fleet's osquery
+extension](https://github.com/macadmins/osquery-extension) which comes bundled
+in [Fleet's osquery
 installers](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
+Currently supported only on macOS.
+
 
 Retrieves a host's Google Chrome profile information which can be used to link a host to a specific
 user by email.
@@ -1101,9 +1103,11 @@ user by email.
 ### Get host's mobile device management (MDM) and Munki information
 
 Requires the [macadmins osquery
-extension](https://github.com/macadmins/osquery-extension) which comes bundled in [Fleet's osquery
+extension](https://github.com/macadmins/osquery-extension) which comes bundled
+in [Fleet's osquery
 installers](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
-
+Currently supported only on macOS.
+ 
 Retrieves a host's MDM enrollment status, MDM server URL, and Munki version.
 
 `GET /api/v1/fleet/hosts/{id}/macadmins`
@@ -1141,8 +1145,11 @@ Retrieves a host's MDM enrollment status, MDM server URL, and Munki version.
 ### Get aggregated host's mobile device management (MDM) and Munki information
 
 Requires the [macadmins osquery
-extension](https://github.com/macadmins/osquery-extension) which comes bundled in [Fleet's osquery
+extension](https://github.com/macadmins/osquery-extension) which comes bundled
+in [Fleet's osquery
 installers](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
+Currently supported only on macOS.
+
 
 Retrieves aggregated host's MDM enrollment status and Munki versions.
 
@@ -4097,6 +4104,10 @@ Returns a list of the activities that have been performed in Fleet. The followin
 - Edited pack
 - Deleted pack
 - Applied pack with fleetctl
+- Created policy
+- Edited policy
+- Deleted policy
+- Applied policy with fleetctl
 - Created saved query
 - Edited saved query
 - Deleted saved query
@@ -4540,7 +4551,6 @@ None.
     "tier": "free",
     "expiration": "0001-01-01T00:00:00Z"
   },
-  "vulnerability_settings": null,
   "logging": {
       "debug": false,
       "json": false,
@@ -4569,7 +4579,7 @@ None.
     "expiration": "2021-12-31T19:00:00-05:00",
     "note": ""
   },
-    "vulnerability_settings": {
+  "vulnerability_settings": {
     "databases_path": ""
   },
   "webhook_settings": {

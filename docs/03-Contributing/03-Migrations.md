@@ -1,4 +1,4 @@
-# Fleet Database migrations
+# Fleet database migrations
 
 - [Adding/Updating tables](#addingupdating-tables)
 - [Populating the database with default data](#populating-the-database-with-default-data)

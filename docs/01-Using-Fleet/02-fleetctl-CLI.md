@@ -22,7 +22,7 @@ Fleetctl also provides a quick way to work with all the data exposed by Fleet wi
 
 ## Setting up Fleet
 
-This section walks through setting up and configuring Fleet via the CLI. If you already have a running fleet instance, skip ahead to [Logging In To An Existing Fleet Instance](#logging-in-to-an-existing-fleet-instance) to configure the `fleetctl` CLI.
+This section walks through setting up and configuring Fleet via the CLI. If you already have a running fleet instance, skip ahead to [Logging in to an existing Fleet instance](#logging-in-to-an-existing-fleet-instance) to configure the `fleetctl` CLI.
 
 This guide illustrates:
 
@@ -44,7 +44,7 @@ make
 
 The `fleet serve` command will be the long running command that runs the Fleet server.
 
-### fleetctl config
+### Fleetctl config
 
 At this point, the MySQL database doesn't have any users in it. Because of this, Fleet is exposing a one-time setup endpoint. Before we can hit that endpoint (by running `fleetctl setup`), we have to first configure the local `fleetctl` context.
 
@@ -63,7 +63,7 @@ fleetctl config set --address https://fleet.corp.example.com
 [+] Set the address config key to "https://fleet.corp.example.com" in the "default" context
 ```
 
-### fleetctl setup
+### Fleetctl setup
 
 Now that we've configured our local CLI context, lets go ahead and create our admin account:
 
@@ -130,7 +130,7 @@ Once your local context is configured, you can use the above `fleetctl` normally
 
 Users that authenticate to Fleet via SSO should retrieve their API token from the UI and set it manually in their `fleetctl` configuration (instead of logging in via `fleetctl login`).
 
-1. Go to the "My account" page in Fleet (https://fleet.corp.example.com/profile). Click the "Get API Token" button to bring up a modal with the API token.
+1. Go to the "My account" page in Fleet (https://fleet.corp.example.com/profile). Click the "Get API token" button to bring up a modal with the API token.
 
 2. Set the API token in the `~/.fleet/config` file. The file should look like the following:
 
@@ -150,17 +150,17 @@ A Fleet configuration is defined using one or more declarative "messages" in yam
 
 Fleet configuration can be retrieved and applied using the `fleetctl` tool.
 
-### fleetctl get
+### Fleetctl get
 
 The `fleetctl get <fleet-entity-here> > <configuration-file-name-here>.yml` command allows you retrieve the current configuration and create a new file for specified Fleet entity (queries, packs, etc.)
 
-### fleetctl apply
+### Fleetctl apply
 
 The `fleetctl apply -f <configuration-file-name-here>.yml` allows you to apply the current configuration in the specified file.
 
 Check out the [configuration files](./configuration-files/README.md) section of the documentation for example yaml files.
 
-### fleetctl convert
+### Fleetctl convert
 
 `fleetctl` includes easy tooling to convert osquery pack JSON into the
 `fleetctl` format. Use `fleetctl convert` with a path to the pack file:
@@ -271,7 +271,7 @@ Carve contents remain available for 24 hours after the first data is provided fr
 
 The same is not true if S3 is used as the storage backend. In that scenario, it is suggested to setup a [bucket lifecycle configuration](https://docs.aws.amazon.com/AmazonS3/latest/dev/object-lifecycle-mgmt.html) to avoid retaining data in excess. Fleet, in an "eventual consistent" manner (i.e. by periodically performing comparisons), will keep the metadata relative to the files carves in sync with what it is actually available in the bucket.
 
-### Alternative Carving backends
+### Alternative carving backends
 
 #### Minio
 

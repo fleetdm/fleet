@@ -11,10 +11,12 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/VividCortex/mysqlerr"
 	"github.com/WatchBeam/clock"
+	"github.com/XSAM/otelsql"
 	"github.com/cenkalti/backoff/v4"
 	"github.com/doug-martin/goqu/v9"
 	"github.com/doug-martin/goqu/v9/exp"
@@ -27,8 +29,10 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/go-sql-driver/mysql"
+	"github.com/hashicorp/go-multierror"
 	"github.com/jmoiron/sqlx"
 	"github.com/ngrok/sqlmw"
+	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 )
 
 const (
@@ -42,6 +46,7 @@ var columnCharsRegexp = regexp.MustCompile(`[^\w-.]`)
 // dbReader is an interface that defines the methods required for reads.
 type dbReader interface {
 	sqlx.QueryerContext
+	sqlx.PreparerContext
 
 	Close() error
 	Rebind(string) string
@@ -61,6 +66,36 @@ type Datastore struct {
 	readReplicaConfig *config.MysqlConfig
 
 	writeCh chan itemToWrite
+
+	// stmtCacheMu protects access to stmtCache.
+	stmtCacheMu sync.Mutex
+	// stmtCache holds statements for queries.
+	stmtCache map[string]*sqlx.Stmt
+}
+
+// loadOrPrepareStmt will load a statement from the statements cache.
+// If not available, it will attempt to prepare (create) it.
+//
+// Returns nil if it failed to prepare a statement.
+func (ds *Datastore) loadOrPrepareStmt(ctx context.Context, query string) *sqlx.Stmt {
+	ds.stmtCacheMu.Lock()
+	defer ds.stmtCacheMu.Unlock()
+
+	stmt, ok := ds.stmtCache[query]
+	if !ok {
+		var err error
+		stmt, err = sqlx.PreparexContext(ctx, ds.reader, query)
+		if err != nil {
+			level.Error(ds.logger).Log(
+				"msg", "failed to prepare statement",
+				"query", query,
+				"err", err,
+			)
+			return nil
+		}
+		ds.stmtCache[query] = stmt
+	}
+	return stmt
 }
 
 type txFn func(sqlx.ExtContext) error
@@ -217,6 +252,7 @@ func New(config config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore
 		config:            config,
 		readReplicaConfig: options.replicaConfig,
 		writeCh:           make(chan itemToWrite),
+		stmtCache:         make(map[string]*sqlx.Stmt),
 	}
 
 	go ds.writeChanLoop()
@@ -249,8 +285,25 @@ func (ds *Datastore) writeChanLoop() {
 	}
 }
 
+var otelTracedDriverName string
+
+func init() {
+	var err error
+	otelTracedDriverName, err = otelsql.Register("mysql", semconv.DBSystemMySQL.Value.AsString())
+	if err != nil {
+		panic(err)
+	}
+}
+
 func newDB(conf *config.MysqlConfig, opts *dbOptions) (*sqlx.DB, error) {
 	driverName := "mysql"
+	if opts.tracingConfig != nil && opts.tracingConfig.TracingEnabled {
+		if opts.tracingConfig.TracingType == "opentelemetry" {
+			driverName = otelTracedDriverName
+		} else {
+			driverName = "apm/mysql"
+		}
+	}
 	if opts.interceptor != nil {
 		driverName = "mysql-mw"
 		sql.Register(driverName, sqlmw.Driver(mysql.MySQLDriver{}, opts.interceptor))
@@ -482,13 +535,32 @@ func (ds *Datastore) HealthCheck() error {
 	return nil
 }
 
+func (ds *Datastore) closeStmts() error {
+	ds.stmtCacheMu.Lock()
+	defer ds.stmtCacheMu.Unlock()
+
+	var err error
+	for query, stmt := range ds.stmtCache {
+		if errClose := stmt.Close(); errClose != nil {
+			err = multierror.Append(err, errClose)
+		}
+		delete(ds.stmtCache, query)
+	}
+	return err
+}
+
 // Close frees resources associated with underlying mysql connection
 func (ds *Datastore) Close() error {
-	err := ds.writer.Close()
+	var err error
+	if errStmt := ds.closeStmts(); errStmt != nil {
+		err = multierror.Append(err, errStmt)
+	}
+	if errWriter := ds.writer.Close(); errWriter != nil {
+		err = multierror.Append(err, errWriter)
+	}
 	if ds.readReplicaConfig != nil {
-		errRead := ds.reader.Close()
-		if err == nil {
-			err = errRead
+		if errRead := ds.reader.Close(); errRead != nil {
+			err = multierror.Append(err, errRead)
 		}
 	}
 	return err

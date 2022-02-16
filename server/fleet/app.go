@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/config"
-	"github.com/jinzhu/copier"
 )
 
 // SMTP settings names returned from API, these map to SMTPAuthType and
@@ -428,10 +427,4 @@ type KafkaRESTConfig struct {
 	StatusTopic string `json:"status_topic"`
 	ResultTopic string `json:"result_topic"`
 	ProxyHost   string `json:"proxyhost"`
-}
-
-func (c *AppConfig) Clone() (*AppConfig, error) {
-	newAc := AppConfig{}
-	err := copier.Copy(&newAc, c)
-	return &newAc, err
 }

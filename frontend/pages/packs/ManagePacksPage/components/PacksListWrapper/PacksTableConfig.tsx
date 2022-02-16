@@ -16,12 +16,20 @@ import PATHS from "router/paths";
 
 import { IPack } from "interfaces/pack";
 
+interface IGetToggleAllRowsSelectedProps {
+  checked: boolean;
+  indeterminate: boolean;
+  title: string;
+  onChange: () => any;
+  style: { cursor: string };
+}
+
 interface IHeaderProps {
   column: {
     title: string;
     isSortedDesc: boolean;
   };
-  getToggleAllRowsSelectedProps: () => any; // TODO: do better with types
+  getToggleAllRowsSelectedProps: () => IGetToggleAllRowsSelectedProps;
   toggleAllRowsSelected: () => void;
 }
 
@@ -31,7 +39,7 @@ interface ICellProps {
   };
   row: {
     original: IPack;
-    getToggleRowSelectedProps: () => any; // TODO: do better with types
+    getToggleRowSelectedProps: () => IGetToggleAllRowsSelectedProps;
     toggleRowSelected: () => void;
   };
 }
@@ -57,7 +65,7 @@ interface IPackTableData {
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
-const generateTableHeaders = (isOnlyObserver = true): IDataColumn[] => {
+const generateTableHeaders = (): IDataColumn[] => {
   const tableHeaders: IDataColumn[] = [
     {
       id: "selection",

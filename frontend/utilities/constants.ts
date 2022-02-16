@@ -16,74 +16,119 @@ export const DEFAULT_GRAVATAR_LINK =
 export const DEFAULT_POLICIES = [
   {
     key: 1,
-    query: `SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT "" AND filevault_status = 'on' LIMIT 1`,
-    name: "Is FileVault enabled on macOS devices?",
+    query:
+      "SELECT score FROM (SELECT case when COUNT(*) = 2 then 1 ELSE 0 END AS score FROM processes WHERE (name = 'clamd') OR (name = 'freshclam')) WHERE score == 1;",
+    name: "Antivirus healthy (Linux)",
     description:
-      "Checks to make sure that the Filevault feature is enabled on macOS devices.",
-    resolution:
-      "To enable FileVault, on the failing device, select System Preferences > Security & Privacy > FileVault > Turn On FileVault.",
-    platform: "darwin",
+      "Checks that both ClamAV's daemon and its updater service (freshclam) are running.",
+    resolution: "Ensure ClamAV and Freshclam are installed and running.",
+    platform: "linux",
   },
   {
     key: 2,
-    query: "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1",
-    name: "Is Gatekeeper enabled on macOS devices?",
+    query:
+      "SELECT 1 FROM managed_policies WHERE domain = 'com.apple.Terminal' AND name = 'SecureKeyboardEntry' AND value = 1 LIMIT 1;",
+    name: "Antivirus healthy (macOS)",
     description:
-      "Checks to make sure that the Gatekeeper feature is enabled on macOS devices. Gatekeeper tries to ensure only trusted software is run on a mac machine.",
+      "Checks the version of Malware Removal Tool (MRT) and the built-in macOS AV (Xprotect). Replace version numbers with latest version regularly.",
     resolution:
-      "To enable Gatekeeper, one the failing device, run the following command in the Terminal app: /usr/sbin/spctl --master-enable.",
+      "To enable automatic security definition updates, on the failing device, select System Preferences > Software Update > Advanced > Turn on Install system data files and security updates.",
     platform: "darwin",
   },
   {
     key: 3,
-    query: "SELECT 1 FROM bitlocker_info WHERE protection_status = 1;",
-    name: "Is disk encryption enabled on Windows devices?",
+    query:
+      "SELECT 1 from windows_security_center wsc CROSS JOIN windows_security_products wsp WHERE antivirus = 'Good' AND type = 'Antivirus' AND signatures_up_to_date=1;",
+    name: "Antivirus healthy (Windows)",
     description:
-      "Checks to make sure that device encryption is enabled on Windows devices.",
+      "Checks the status of antivirus and signature updates from the Windows Security Center.",
     resolution:
-      "To get additional information, run the following osquery query on the failing device: SELECT * FROM bitlocker_info. In the query results, if protection_status is 2, then the status cannot be determined. If it is 0, it is considered unprotected. Use the additional results (percent_encrypted, conversion_status, etc.) to help narrow down the specific reason why Windows considers the volume unprotected.",
+      "Ensure Windows Defender or your third-party antivirus is running, up to date, and visible in the Windows Security Center.",
     platform: "windows",
   },
   {
     key: 4,
     query:
-      "SELECT 1 FROM sip_config WHERE config_flag = 'sip' AND enabled = 1;",
-    name: "Is System Integrity Protection (SIP) enabled on macOS devices?",
-    description: "Checks to make sure that the SIP is enabled.",
+      "SELECT 1 FROM managed_policies WHERE domain = 'com.apple.loginwindow' AND name = 'com.apple.login.mcx.DisableAutoLoginClient' AND value = 1 LIMIT 1;",
+    name: "Automatic login disabled (macOS)",
+    description:
+      "Required: You’re already enforcing a policy via Moble Device Management (MDM). Checks to make sure that the device user cannot log in to the device without a password.",
     resolution:
-      "On the failing device, run the following command in the Terminal app: /usr/sbin/spctl --master-enable",
+      "The following example profile includes a setting to disable automatic login: https://github.com/gregneagle/profiles/blob/fecc73d66fa17b6fa78b782904cb47cdc1913aeb/loginwindow.mobileconfig#L64-L65.",
     platform: "darwin",
   },
   {
     key: 5,
     query:
-      "SELECT 1 FROM managed_policies WHERE domain = 'com.apple.loginwindow' AND name = 'com.apple.login.mcx.DisableAutoLoginClient' AND value = 1 LIMIT 1",
-    name: "Is automatic login disabled on macOS devices?",
+      "SELECT 1 FROM disk_encryption WHERE encrypted=1 AND name LIKE '/dev/dm-1';",
+    name: "Full disk encryption enabled (Linux)",
     description:
-      "Required: You’re already enforcing a policy via Moble Device Management (MDM). Checks to make sure that the device user cannot log in to the device without a password. It’s good practice to have both this policy and the “Is Filevault enabled on macOS devices?” policy enabled.",
+      "Checks if the dm-1 device is encrypted. There are many ways to encrypt Linux systems. This is the default on distributions such as Ubuntu. You may need to adapt this query, or submit an issue in the Fleet repo.",
     resolution:
-      "The following example profile includes a setting to disable automatic login: https://github.com/gregneagle/profiles/blob/fecc73d66fa17b6fa78b782904cb47cdc1913aeb/loginwindow.mobileconfig#L64-L65",
-    platform: "darwin",
+      "Ensure the image deployed to your Linux workstation includes full disk encryption.",
+    platform: "linux",
   },
   {
     key: 6,
     query:
-      "SELECT 1 FROM managed_policies WHERE domain = 'com.apple.MCX' AND name = 'DisableGuestAccount' AND value = 1 LIMIT 1;",
-    name: "Are guest users disabled on macOS devices?",
+      "SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT '' AND filevault_status = 'on' LIMIT 1;",
+    name: "Full disk encryption enabled (macOS)",
     description:
-      "Required: You’re already enforcing a policy via Moble Device Management (MDM). Checks to make sure that guest accounts cannot be used to log in to the device without a password.",
+      "Checks to make sure that full disk encryption (FileVault) is enabled on macOS devices.",
     resolution:
-      "The following example profile includes a setting to disable guest users: https://github.com/gregneagle/profiles/blob/fecc73d66fa17b6fa78b782904cb47cdc1913aeb/loginwindow.mobileconfig#L68-L71",
+      "To enable full disk encryption, on the failing device, select System Preferences > Security & Privacy > FileVault > Turn On FileVault.",
     platform: "darwin",
   },
   {
     key: 7,
+    query: "SELECT 1 FROM bitlocker_info WHERE protection_status = 1;",
+    name: "Full disk encryption enabled (Windows)",
+    description:
+      "Checks to make sure that full disk encryption is enabled on Windows devices.",
+    resolution:
+      "To get additional information, run the following osquery query on the failing device: SELECT * FROM bitlocker_info. In the query results, if protection_status is 2, then the status cannot be determined. If it is 0, it is considered unprotected. Use the additional results (percent_encrypted, conversion_status, etc.) to help narrow down the specific reason why Windows considers the volume unprotected.",
+    platform: "windows",
+  },
+  {
+    key: 8,
+    query: "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
+    name: "Gatekeeper enabled (macOS)",
+    description:
+      "Checks to make sure that the Gatekeeper feature is enabled on macOS devices. Gatekeeper tries to ensure only trusted software is run on a mac machine.",
+    resolution:
+      "To enable Gatekeeper, on the failing device, run the following command in the Terminal app: /usr/sbin/spctl --master-enable.",
+    platform: "darwin",
+  },
+  {
+    key: 9,
+    query:
+      "SELECT 1 FROM managed_policies WHERE domain = 'com.apple.MCX' AND name = 'DisableGuestAccount' AND value = 1 LIMIT 1;",
+    name: "Guest users disabled (macOS)",
+    description:
+      "Required: You’re already enforcing a policy via Moble Device Management (MDM). Checks to make sure that guest accounts cannot be used to log in to the device without a password.",
+    resolution:
+      "The following example profile includes a setting to disable guest users: https://github.com/gregneagle/profiles/blob/fecc73d66fa17b6fa78b782904cb47cdc1913aeb/loginwindow.mobileconfig#L68-L71.",
+    platform: "darwin",
+  },
+  {
+    key: 10,
     query:
       "SELECT 1 FROM managed_policies WHERE domain = 'com.apple.Terminal' AND name = 'SecureKeyboardEntry' AND value = 1 LIMIT 1;",
-    name: "Is secure keyboard entry enabled on macOS devices?",
+    name: "Secure keyboard entry for Terminal.app enabled (macOS)",
     description:
       "Required: You’re already enforcing a policy via Moble Device Management (MDM). Checks to make sure that the Secure Keyboard Entry setting is enabled.",
     resolution: "",
+    platform: "darwin",
+  },
+  {
+    key: 11,
+    query:
+      "SELECT 1 FROM sip_config WHERE config_flag = 'sip' AND enabled = 1;",
+    name: "System Integrity Protection enabled (macOS)",
+    description:
+      "Checks to make sure that the System Integrity Protection feature is enabled.",
+    resolution:
+      "To enable System Integrity Protection, on the failing device, run the following command in the Terminal app: /usr/sbin/spctl --master-enable.",
     platform: "darwin",
   },
 ] as IPolicyNew[];
