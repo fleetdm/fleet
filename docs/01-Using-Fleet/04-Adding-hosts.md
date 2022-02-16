@@ -67,7 +67,7 @@ To generate an osquery installer for a team:
 
 2. Then, navigate to **Hosts** and select your team.
 
-3. Next, select "Generate installer" and copy the `fleetctl package` command for the platform (macOS, Windows, Linux) of the hosts you'd like to add to a team in Fleet.
+3. Next, select "Add hosts" and copy the `fleetctl package` command for the platform (macOS, Windows, Linux) of the hosts you'd like to add to a team in Fleet.
 
 4. Run the copied `fleetctl package` command and [distribute your installer](#adding-multiple-hosts) to add your hosts to a team in Fleet.
 

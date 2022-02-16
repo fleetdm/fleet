@@ -77,7 +77,7 @@ import {
 
 import DeleteSecretModal from "../../../components/DeleteSecretModal";
 import SecretEditorModal from "../../../components/SecretEditorModal";
-import GenerateInstallerModal from "../../../components/GenerateInstallerModal";
+import AddHostsModal from "../../../components/AddHostsModal";
 import EnrollSecretModal from "../../../components/EnrollSecretModal";
 // @ts-ignore
 import NoHosts from "./components/NoHosts";
@@ -226,10 +226,7 @@ const ManageHostsPage = ({
   const [showEditColumnsModal, setShowEditColumnsModal] = useState<boolean>(
     false
   );
-  const [
-    showGenerateInstallerModal,
-    setShowGenerateInstallerModal,
-  ] = useState<boolean>(false);
+  const [showAddHostsModal, setShowAddHostsModal] = useState<boolean>(false);
   const [showTransferHostModal, setShowTransferHostModal] = useState<boolean>(
     false
   );
@@ -328,7 +325,7 @@ const ManageHostsPage = ({
     }
   );
 
-  const generateInstallerTeam = currentTeam
+  const addHostsTeam = currentTeam
     ? { name: currentTeam.name, secrets: teamSecrets || null }
     : {
         name: "No team",
@@ -398,8 +395,8 @@ const ManageHostsPage = ({
     setShowDeleteHostModal(!showDeleteHostModal);
   };
 
-  const toggleGenerateInstallerModal = () => {
-    setShowGenerateInstallerModal(!showGenerateInstallerModal);
+  const toggleAddHostsModal = () => {
+    setShowAddHostsModal(!showAddHostsModal);
   };
 
   const toggleAllMatchingHosts = (shouldSelect: boolean) => {
@@ -1259,15 +1256,15 @@ const ManageHostsPage = ({
     );
   };
 
-  const renderGenerateInstallerModal = () => {
-    if (!showGenerateInstallerModal) {
+  const renderAddHostsModal = () => {
+    if (!showAddHostsModal) {
       return null;
     }
 
     return (
-      <GenerateInstallerModal
-        onCancel={toggleGenerateInstallerModal}
-        selectedTeam={generateInstallerTeam}
+      <AddHostsModal
+        onCancel={toggleAddHostsModal}
+        selectedTeam={addHostsTeam}
       />
     );
   };
@@ -1489,7 +1486,7 @@ const ManageHostsPage = ({
 
       return (
         <NoHosts
-          toggleGenerateInstallerModal={toggleGenerateInstallerModal}
+          toggleAddHostsModal={toggleAddHostsModal}
           canEnrollHosts={canEnrollHosts}
           includesSoftwareOrPolicyFilter={includesSoftwareOrPolicyFilter}
         />
@@ -1618,10 +1615,10 @@ const ManageHostsPage = ({
                   filteredHostCount === 0
                 ) && (
                   <Button
-                    onClick={toggleGenerateInstallerModal}
+                    onClick={toggleAddHostsModal}
                     className={`${baseClass}__add-hosts button button--brand`}
                   >
-                    <span>Generate installer</span>
+                    <span>Add hosts</span>
                   </Button>
                 )}
             </div>
@@ -1643,7 +1640,7 @@ const ManageHostsPage = ({
       {renderEnrollSecretModal()}
       {renderEditColumnsModal()}
       {renderDeleteLabelModal()}
-      {renderGenerateInstallerModal()}
+      {renderAddHostsModal()}
       {renderTransferHostModal()}
       {renderDeleteHostModal()}
     </div>

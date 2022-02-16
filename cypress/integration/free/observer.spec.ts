@@ -139,8 +139,8 @@ describe("Free tier - Observer user", () => {
     it("verifies teams is disabled on Manage Host page", () => {
       cy.findByText(/teams/i).should("not.exist");
     });
-    it("hides generate installer button", () => {
-      cy.contains("button", /generate installer/i).should("not.exist");
+    it("hides 'Add hosts' button", () => {
+      cy.contains("button", /add hosts/i).should("not.exist");
     });
     it("hides add a label button", () => {
       cy.contains("button", /add label/i).should("not.exist");

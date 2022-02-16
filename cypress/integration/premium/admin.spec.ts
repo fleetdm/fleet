@@ -144,9 +144,9 @@ describe("Premium tier - Admin user", () => {
           .contains("Team")
           .should("be.visible");
       });
-      it("allows global admin to see and click generate installer", () => {
+      it("allows global admin to see and click 'Add hosts'", () => {
         cy.getAttached(".button-wrap")
-          .contains("button", /generate installer/i)
+          .contains("button", /add hosts/i)
           .click();
         cy.getAttached(".modal__content").contains("button", /done/i).click();
       });
