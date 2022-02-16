@@ -125,14 +125,14 @@
     padding: 16px;
     background: rgba(25, 33, 71, 0.5);
     border-radius: 12px;
-    [purpose='cta-text' ] {
+    [purpose='demo-cta-text' ] {
+      white-space: nowrap;
       p {
         vertical-align: middle;
         line-height: 24px;
         font-size: 16px;
         margin-block-end: 0px;
       }
-      white-space: nowrap;
     }
     .form-control {
       height: 44px;
@@ -173,7 +173,7 @@
         border-top: 1px solid #D66C7B;
         border-right: 1px solid #D66C7B;
         -webkit-transform: rotate(-45deg);
-                transform: rotate(-45deg);
+        transform: rotate(-45deg);
       }
     }
     [purpose='register-button'] {
@@ -258,11 +258,8 @@
   }
 
   @media (min-width: 1024px){
-    [purpose='demo-cta-container'] {
-
-    }
     [purpose='demo-cta'] {
-      [purpose='cta-text' ] {
+      [purpose='demo-cta-text' ] {
         white-space: normal;
       }
     }
@@ -275,7 +272,7 @@
   }
   @media (max-width: 722px) {
     [purpose='demo-cta-container'] {
-      [purpose='cta-text' ] {
+      [purpose='demo-cta-text' ] {
         padding-bottom: 16px;
       }
     }
