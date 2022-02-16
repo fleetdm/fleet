@@ -98,7 +98,6 @@ func (ds *Datastore) SavePolicy(ctx context.Context, p *fleet.Policy) error {
 		return ctxerr.Wrap(ctx, notFound("Policy").WithID(p.ID))
 	}
 
-	// TODO(mna): cleanup policy membership
 	return cleanupPolicyMembership(ctx, ds.writer, p.ID, p.Platform)
 }
 
@@ -469,27 +468,14 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 				return ctxerr.Wrap(ctx, err, "exec ApplyPolicySpecs insert")
 			}
 
-			// From mysql's documentation:
-			//
-			// With ON DUPLICATE KEY UPDATE, the affected-rows value per row is 1 if
-			// the row is inserted as a new row, 2 if an existing row is updated, and
-			// 0 if an existing row is set to its current values. If you specify the
-			// CLIENT_FOUND_ROWS flag to the mysql_real_connect() C API function when
-			// connecting to mysqld, the affected-rows value is 1 (not 0) if an
-			// existing row is set to its current values.
-			//
-			// https://dev.mysql.com/doc/refman/5.7/en/insert-on-duplicate.html
-			//
-			// Note that based on tests, our driver sets CLIENT_FOUND_ROWS because it
-			// does return 1 when an existing row is set to its current values, but
-			// with a last inserted id of 0.
-			//
-			// TODO(mna): would that work on mariadb too?
-			//
-			lastID, _ := res.LastInsertId()
-			aff, _ := res.RowsAffected()
-			if lastID == 0 || aff != 1 {
-				fmt.Println(">>>>> UPDATED ", spec.Name, lastID, aff)
+			if insertOnDuplicateDidUpdate(res) {
+				// when the upsert results in an UPDATE that *did* change some values,
+				// it returns the last inserted id.
+				if lastID, _ := res.LastInsertId(); lastID > 0 {
+					if err := cleanupPolicyMembership(ctx, tx, uint(lastID), spec.Platform); err != nil {
+						return ctxerr.Wrap(ctx, err, "cleanup policy membership")
+					}
+				}
 			}
 		}
 		return nil
@@ -551,5 +537,10 @@ func (ds *Datastore) AsyncBatchUpdatePolicyTimestamp(ctx context.Context, ids []
 }
 
 func cleanupPolicyMembership(ctx context.Context, db sqlx.QueryerContext, policyID uint, platforms string) error {
+	if platforms == "" {
+		// all platforms allowed, nothing to clean up
+		return nil
+	}
+	// TODO(mna): actually cleanup...
 	return nil
 }
