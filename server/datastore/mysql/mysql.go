@@ -3,12 +3,15 @@ package mysql
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"database/sql"
 	"errors"
 	"fmt"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/rds/rdsutils"
 	"io/ioutil"
+	"net/http"
 	"net/url"
 	"regexp"
 	"strconv"
@@ -819,9 +822,37 @@ func generateMysqlConnectionString(conf config.MysqlConfig) string {
 		if err != nil {
 			panic(err)
 		}
+		err = RegisterRDSMysqlCerts(http.DefaultClient)
+		if err != nil {
+			panic(err)
+		}
 		return generateRDSConnectionString(conf, authToken)
 	}
 	return generateConnectionString(conf)
+}
+
+func RegisterRDSMysqlCerts(c *http.Client) error {
+	resp, err := c.Get("https://s3.amazonaws.com/rds-downloads/rds-combined-ca-bundle.pem")
+	if err != nil {
+		return err
+	}
+
+	defer resp.Body.Close()
+	pem, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+
+	rootCertPool := x509.NewCertPool()
+	if ok := rootCertPool.AppendCertsFromPEM(pem); !ok {
+		return errors.New("couldn't append certs from pem")
+	}
+
+	err = mysql.RegisterTLSConfig("rds", &tls.Config{RootCAs: rootCertPool, InsecureSkipVerify: true})
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func generateConnectionString(conf config.MysqlConfig) string {
