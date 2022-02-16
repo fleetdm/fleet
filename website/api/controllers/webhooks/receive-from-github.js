@@ -158,6 +158,11 @@ module.exports = {
       //  ╚██╗╚██████╔╝██║     ███████╗██║ ╚████║███████╗██████╔╝    ██╔╝       ███████╗██████╔╝██║   ██║   ███████╗██████╔╝    ██╔╝       ██║  ██║███████╗╚██████╔╝██║     ███████╗██║ ╚████║███████╗██████╔╝██╔╝
       //   ╚═╝ ╚═════╝ ╚═╝     ╚══════╝╚═╝  ╚═══╝╚══════╝╚═════╝     ╚═╝        ╚══════╝╚═════╝ ╚═╝   ╚═╝   ╚══════╝╚═════╝     ╚═╝        ╚═╝  ╚═╝╚══════╝ ╚═════╝ ╚═╝     ╚══════╝╚═╝  ╚═══╝╚══════╝╚═════╝ ╚═╝
       //
+      // TODO: the thing mike and guillaume talked about
+      //   i.e. for markdown content (docs/handbook pages) and fleetdm.com
+      //      look at the highest level path of all the files changed and if it's within an area that the contributor is DRI of, then automatically do an approved PR review 
+      //      (hard code it here)
+
       // // Handle opened/reopened/edited PR by commenting/labeling/unlabeling it
       // // (if appropriate).
       // // > Note: If we apply the "needs cleanup" label here, then any subsequent
