@@ -458,12 +458,12 @@ const QueryForm = ({
 
   const renderForGlobalAdminOrAnyMaintainer = (
     <>
-      {isSaveAsNewLoading && (
-        <div className={`${baseClass}__loading-overlay`}>
-          <Spinner />
-        </div>
-      )}
       <form className={`${baseClass}__wrapper`} autoComplete="off">
+        {isSaveAsNewLoading && (
+          <div className={`${baseClass}__loading-overlay`}>
+            <Spinner />
+          </div>
+        )}
         <div className={`${baseClass}__title-bar`}>
           <div className="name-description">
             {renderName()}
