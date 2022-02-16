@@ -12,6 +12,7 @@
     name:
       - ansible
       - boto3
+      - requests
     state: latest
 - debug:
     msg: "{{ instance_tags }}"
