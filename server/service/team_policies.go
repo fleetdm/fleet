@@ -220,7 +220,7 @@ func (svc Service) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []ui
 		return nil, err
 	}
 	for _, policy := range policiesByID {
-		if id := policy.PolicyData.TeamID; id == nil || *id != teamID {
+		if t := policy.PolicyData.TeamID; t == nil || *t != teamID {
 			return nil, authz.ForbiddenWithInternal(
 				fmt.Sprintf("attempting to delete policy that does not belong to team %s", strconv.Itoa(int(teamID))),
 				authz.UserFromContext(ctx),
