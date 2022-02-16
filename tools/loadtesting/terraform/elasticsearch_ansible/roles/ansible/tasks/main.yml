@@ -2,6 +2,12 @@
 - user:
     name: ansible
     groups: wheel
+- lineinfile:
+    path: /etc/sudoers
+    state: present
+    regexp: '^ansible ALL='
+    line: 'ansible ALL=(ALL) NOPASSWD: ALL'
+    validate: /usr/sbin/visudo -cf %s
 - pip:
     name:
       - ansible
