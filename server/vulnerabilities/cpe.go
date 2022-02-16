@@ -1,24 +1,26 @@
 package vulnerabilities
 
 import (
-	"compress/gzip"
 	"context"
+	"errors"
 	"fmt"
-	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path"
 	"regexp"
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/download"
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/google/go-github/v37/github"
 	"github.com/jmoiron/sqlx"
-	"github.com/pkg/errors"
 )
 
 const (
@@ -67,22 +69,39 @@ func GetLatestNVDRelease(client *http.Client) (*NVDRelease, error) {
 	}, nil
 }
 
+type syncOpts struct {
+	url string
+}
+
+type CPESyncOption func(*syncOpts)
+
+func WithCPEURL(url string) CPESyncOption {
+	return func(o *syncOpts) {
+		o.url = url
+	}
+}
+
+// SyncCPEDatabase (by default) downloads the CPE database from the
+// latest release of github.com/fleetdm/nvd to the given dbPath.
+// An alternative URL can be set via the WithCPEURL option.
+//
+// It won't sync the database at dbPath has an mtime that happened after the
+// available database release date.
 func SyncCPEDatabase(
 	client *http.Client,
 	dbPath string,
-	config config.FleetConfig,
+	opts ...CPESyncOption,
 ) error {
-	if config.Vulnerabilities.DisableDataSync {
-		return nil
+	var o syncOpts
+	for _, fn := range opts {
+		fn(&o)
 	}
 
-	url := config.Vulnerabilities.CPEDatabaseURL
-	if url == "" {
+	if o.url == "" {
 		nvdRelease, err := GetLatestNVDRelease(client)
 		if err != nil {
 			return err
 		}
-
 		stat, err := os.Stat(dbPath)
 		if err != nil {
 			if !errors.Is(err, os.ErrNotExist) {
@@ -91,34 +110,14 @@ func SyncCPEDatabase(
 		} else if !nvdRelease.CreatedAt.After(stat.ModTime()) {
 			return nil
 		}
-		url = nvdRelease.CPEURL
+		o.url = nvdRelease.CPEURL
 	}
 
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+	u, err := url.Parse(o.url)
 	if err != nil {
 		return err
 	}
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	gr, err := gzip.NewReader(resp.Body)
-	if err != nil {
-		return err
-	}
-	defer gr.Close()
-
-	dbFile, err := os.Create(dbPath)
-	if err != nil {
-		return err
-	}
-	defer dbFile.Close()
-
-	_, err = io.Copy(dbFile, gr)
-	if err != nil {
+	if err := download.Decompressed(client, *u, dbPath); err != nil {
 		return err
 	}
 
@@ -157,10 +156,10 @@ func CPEFromSoftware(db *sqlx.DB, software *fleet.Software) (string, error) {
 	case "portage_packages":
 	case "rpm_packages":
 	case "npm_packages":
-		targetSW = "node.js"
+		targetSW = `"node.js"`
 	case "atom_packages":
 	case "programs":
-		targetSW = "windows*"
+		targetSW = `"windows*"`
 	case "ie_extensions":
 	case "chocolatey_packages":
 	}
@@ -182,7 +181,7 @@ func CPEFromSoftware(db *sqlx.DB, software *fleet.Software) (string, error) {
 	var indexedCPEs []IndexedCPEItem
 	err := db.Select(&indexedCPEs, query, args...)
 	if err != nil {
-		return "", errors.Wrapf(err, "getting cpes for: %s", cleanAppName(software.Name))
+		return "", fmt.Errorf("getting cpes for: %s: %w", cleanAppName(software.Name), err)
 	}
 
 	for _, item := range indexedCPEs {
@@ -202,7 +201,7 @@ func CPEFromSoftware(db *sqlx.DB, software *fleet.Software) (string, error) {
 				deprecatedItem.ID,
 			)
 			if err != nil {
-				return "", errors.Wrap(err, "getting deprecation")
+				return "", fmt.Errorf("getting deprecation: %w", err)
 			}
 			if deprecation.Deprecated {
 				deprecatedItem = deprecation
@@ -225,27 +224,29 @@ func TranslateSoftwareToCPE(
 ) error {
 	dbPath := path.Join(vulnPath, "cpe.sqlite")
 
-	client := &http.Client{}
-	if err := SyncCPEDatabase(client, dbPath, config); err != nil {
-		return errors.Wrap(err, "sync cpe db")
+	if !config.Vulnerabilities.DisableDataSync {
+		client := fleethttp.NewClient()
+		if err := SyncCPEDatabase(client, dbPath, WithCPEURL(config.Vulnerabilities.CPEDatabaseURL)); err != nil {
+			return ctxerr.Wrap(ctx, err, "sync cpe db")
+		}
 	}
 
 	iterator, err := ds.AllSoftwareWithoutCPEIterator(ctx)
 	if err != nil {
-		return errors.Wrap(err, "all software iterator")
+		return ctxerr.Wrap(ctx, err, "all software iterator")
 	}
 	defer iterator.Close()
 
 	db, err := sqliteDB(dbPath)
 	if err != nil {
-		return errors.Wrap(err, "opening the cpe db")
+		return ctxerr.Wrap(ctx, err, "opening the cpe db")
 	}
 	defer db.Close()
 
 	for iterator.Next() {
 		software, err := iterator.Value()
 		if err != nil {
-			return errors.Wrap(err, "getting value from iterator")
+			return ctxerr.Wrap(ctx, err, "getting value from iterator")
 		}
 		cpe, err := CPEFromSoftware(db, software)
 		if err != nil {
@@ -257,7 +258,7 @@ func TranslateSoftwareToCPE(
 		}
 		err = ds.AddCPEForSoftware(ctx, *software, cpe)
 		if err != nil {
-			return errors.Wrap(err, "inserting cpe")
+			return ctxerr.Wrap(ctx, err, "inserting cpe")
 		}
 	}
 

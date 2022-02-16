@@ -65,13 +65,26 @@ module.exports = {
         throw 'notFound';
       }
     }
+    // Setting the meta title for this page.
+    let pageTitleForMeta;
+    if(thisPage.title === 'Readme.md') {
+      // If thisPage.title is 'Readme.md', we're on the docs landing page and we'll follow the title format of the other top level pages.
+      pageTitleForMeta = 'Documentation | Fleet for osquery';
+    } else {
+      // Otherwise we'll use the page title provided and format it accordingly.
+      pageTitleForMeta = thisPage.title + ' | Fleet documentation';
+    }
+    // Setting the meta description for this page if one was provided, otherwise setting a generic description.
+    let pageDescriptionForMeta = thisPage.meta.description ? thisPage.meta.description : 'Documentation for Fleet for osquery.';
 
     // Respond with view.
     return {
       path: require('path'),
       thisPage: thisPage,
       markdownPages: sails.config.builtStaticContent.markdownPages,
-      compiledPagePartialsAppPath: sails.config.builtStaticContent.compiledPagePartialsAppPath
+      compiledPagePartialsAppPath: sails.config.builtStaticContent.compiledPagePartialsAppPath,
+      pageTitleForMeta,
+      pageDescriptionForMeta,
     };
 
   }

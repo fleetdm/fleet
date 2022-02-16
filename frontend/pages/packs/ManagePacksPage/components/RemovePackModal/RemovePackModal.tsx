@@ -1,6 +1,6 @@
 import React from "react";
 
-import Modal from "components/modals/Modal";
+import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 
 const baseClass = "remove-pack-modal";
@@ -10,9 +10,10 @@ interface IRemovePackModalProps {
   onSubmit: () => void;
 }
 
-const RemovePackModal = (props: IRemovePackModalProps): JSX.Element => {
-  const { onCancel, onSubmit } = props;
-
+const RemovePackModal = ({
+  onCancel,
+  onSubmit,
+}: IRemovePackModalProps): JSX.Element => {
   return (
     <Modal title={"Delete pack"} onExit={onCancel} className={baseClass}>
       <div className={baseClass}>
@@ -21,7 +22,7 @@ const RemovePackModal = (props: IRemovePackModalProps): JSX.Element => {
           <Button
             className={`${baseClass}__btn`}
             onClick={onCancel}
-            variant="inverse"
+            variant="inverse-alert"
           >
             Cancel
           </Button>

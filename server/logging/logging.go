@@ -3,11 +3,12 @@
 package logging
 
 import (
+	"fmt"
+
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
-	"github.com/pkg/errors"
 )
 
 type OsqueryLogger struct {
@@ -32,7 +33,7 @@ func New(config config.FleetConfig, logger log.Logger) (*OsqueryLogger, error) {
 			config.Filesystem.EnableLogCompression,
 		)
 		if err != nil {
-			return nil, errors.Wrap(err, "create filesystem status logger")
+			return nil, fmt.Errorf("create filesystem status logger: %w", err)
 		}
 	case "firehose":
 		status, err = NewFirehoseLogWriter(
@@ -45,7 +46,7 @@ func New(config config.FleetConfig, logger log.Logger) (*OsqueryLogger, error) {
 			logger,
 		)
 		if err != nil {
-			return nil, errors.Wrap(err, "create firehose status logger")
+			return nil, fmt.Errorf("create firehose status logger: %w", err)
 		}
 	case "kinesis":
 		status, err = NewKinesisLogWriter(
@@ -58,7 +59,7 @@ func New(config config.FleetConfig, logger log.Logger) (*OsqueryLogger, error) {
 			logger,
 		)
 		if err != nil {
-			return nil, errors.Wrap(err, "create kinesis status logger")
+			return nil, fmt.Errorf("create kinesis status logger: %w", err)
 		}
 	case "lambda":
 		status, err = NewLambdaLogWriter(
@@ -70,7 +71,7 @@ func New(config config.FleetConfig, logger log.Logger) (*OsqueryLogger, error) {
 			logger,
 		)
 		if err != nil {
-			return nil, errors.Wrap(err, "create lambda status logger")
+			return nil, fmt.Errorf("create lambda status logger: %w", err)
 		}
 	case "pubsub":
 		status, err = NewPubSubLogWriter(
@@ -80,15 +81,24 @@ func New(config config.FleetConfig, logger log.Logger) (*OsqueryLogger, error) {
 			logger,
 		)
 		if err != nil {
-			return nil, errors.Wrap(err, "create pubsub status logger")
+			return nil, fmt.Errorf("create pubsub status logger: %w", err)
 		}
 	case "stdout":
 		status, err = NewStdoutLogWriter()
 		if err != nil {
-			return nil, errors.Wrap(err, "create stdout status logger")
+			return nil, fmt.Errorf("create stdout status logger: %w", err)
+		}
+	case "kafkarest":
+		status, err = NewKafkaRESTWriter(&KafkaRESTParams{
+			KafkaProxyHost: config.KafkaREST.ProxyHost,
+			KafkaTopic:     config.KafkaREST.StatusTopic,
+			KafkaTimeout:   config.KafkaREST.Timeout,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("create kafka rest status logger: %w", err)
 		}
 	default:
-		return nil, errors.Errorf(
+		return nil, fmt.Errorf(
 			"unknown status log plugin: %s", config.Osquery.StatusLogPlugin,
 		)
 	}
@@ -106,7 +116,7 @@ func New(config config.FleetConfig, logger log.Logger) (*OsqueryLogger, error) {
 			config.Filesystem.EnableLogCompression,
 		)
 		if err != nil {
-			return nil, errors.Wrap(err, "create filesystem result logger")
+			return nil, fmt.Errorf("create filesystem result logger: %w", err)
 		}
 	case "firehose":
 		result, err = NewFirehoseLogWriter(
@@ -119,7 +129,7 @@ func New(config config.FleetConfig, logger log.Logger) (*OsqueryLogger, error) {
 			logger,
 		)
 		if err != nil {
-			return nil, errors.Wrap(err, "create firehose result logger")
+			return nil, fmt.Errorf("create firehose result logger: %w", err)
 		}
 	case "kinesis":
 		result, err = NewKinesisLogWriter(
@@ -132,7 +142,7 @@ func New(config config.FleetConfig, logger log.Logger) (*OsqueryLogger, error) {
 			logger,
 		)
 		if err != nil {
-			return nil, errors.Wrap(err, "create kinesis result logger")
+			return nil, fmt.Errorf("create kinesis result logger: %w", err)
 		}
 	case "lambda":
 		result, err = NewLambdaLogWriter(
@@ -144,7 +154,7 @@ func New(config config.FleetConfig, logger log.Logger) (*OsqueryLogger, error) {
 			logger,
 		)
 		if err != nil {
-			return nil, errors.Wrap(err, "create lambda result logger")
+			return nil, fmt.Errorf("create lambda result logger: %w", err)
 		}
 	case "pubsub":
 		result, err = NewPubSubLogWriter(
@@ -154,15 +164,24 @@ func New(config config.FleetConfig, logger log.Logger) (*OsqueryLogger, error) {
 			logger,
 		)
 		if err != nil {
-			return nil, errors.Wrap(err, "create pubsub result logger")
+			return nil, fmt.Errorf("create pubsub result logger: %w", err)
 		}
 	case "stdout":
 		result, err = NewStdoutLogWriter()
 		if err != nil {
-			return nil, errors.Wrap(err, "create stdout result logger")
+			return nil, fmt.Errorf("create stdout result logger: %w", err)
+		}
+	case "kafkarest":
+		result, err = NewKafkaRESTWriter(&KafkaRESTParams{
+			KafkaProxyHost: config.KafkaREST.ProxyHost,
+			KafkaTopic:     config.KafkaREST.ResultTopic,
+			KafkaTimeout:   config.KafkaREST.Timeout,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("create kafka rest result logger: %w", err)
 		}
 	default:
-		return nil, errors.Errorf(
+		return nil, fmt.Errorf(
 			"unknown result log plugin: %s", config.Osquery.StatusLogPlugin,
 		)
 	}

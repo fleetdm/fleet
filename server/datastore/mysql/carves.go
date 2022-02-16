@@ -6,12 +6,12 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/jmoiron/sqlx"
-	"github.com/pkg/errors"
 )
 
-func (d *Datastore) NewCarve(ctx context.Context, metadata *fleet.CarveMetadata) (*fleet.CarveMetadata, error) {
+func (ds *Datastore) NewCarve(ctx context.Context, metadata *fleet.CarveMetadata) (*fleet.CarveMetadata, error) {
 	stmt := `INSERT INTO carve_metadata (
 		host_id,
 		created_at,
@@ -34,7 +34,7 @@ func (d *Datastore) NewCarve(ctx context.Context, metadata *fleet.CarveMetadata)
 		?
 	)`
 
-	result, err := d.writer.ExecContext(
+	result, err := ds.writer.ExecContext(
 		ctx,
 		stmt,
 		metadata.HostId,
@@ -48,7 +48,7 @@ func (d *Datastore) NewCarve(ctx context.Context, metadata *fleet.CarveMetadata)
 		metadata.SessionId,
 	)
 	if err != nil {
-		return nil, errors.Wrap(err, "insert carve metadata")
+		return nil, ctxerr.Wrap(ctx, err, "insert carve metadata")
 	}
 
 	id, _ := result.LastInsertId()
@@ -59,8 +59,8 @@ func (d *Datastore) NewCarve(ctx context.Context, metadata *fleet.CarveMetadata)
 
 // UpdateCarve updates the carve metadata in database
 // Only max_block and expired are updatable
-func (d *Datastore) UpdateCarve(ctx context.Context, metadata *fleet.CarveMetadata) error {
-	return updateCarveDB(ctx, d.writer, metadata)
+func (ds *Datastore) UpdateCarve(ctx context.Context, metadata *fleet.CarveMetadata) error {
+	return updateCarveDB(ctx, ds.writer, metadata)
 }
 
 func updateCarveDB(ctx context.Context, exec sqlx.ExecerContext, metadata *fleet.CarveMetadata) error {
@@ -77,15 +77,12 @@ func updateCarveDB(ctx context.Context, exec sqlx.ExecerContext, metadata *fleet
 		metadata.Expired,
 		metadata.ID,
 	)
-	if err != nil {
-		return errors.Wrap(err, "update carve metadata")
-	}
-	return nil
+	return ctxerr.Wrap(ctx, err, "update carve metadata")
 }
 
-func (d *Datastore) CleanupCarves(ctx context.Context, now time.Time) (int, error) {
+func (ds *Datastore) CleanupCarves(ctx context.Context, now time.Time) (int, error) {
 	var countExpired int
-	err := d.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		// Get IDs of carves to expire
 		stmt := `
 			SELECT id
@@ -95,7 +92,7 @@ func (d *Datastore) CleanupCarves(ctx context.Context, now time.Time) (int, erro
 		`
 		var expiredCarves []int64
 		if err := sqlx.SelectContext(ctx, tx, &expiredCarves, stmt, now); err != nil {
-			return errors.Wrap(err, "get expired carves")
+			return ctxerr.Wrap(ctx, err, "get expired carves")
 		}
 
 		countExpired = len(expiredCarves)
@@ -112,11 +109,11 @@ func (d *Datastore) CleanupCarves(ctx context.Context, now time.Time) (int, erro
 		`
 		stmt, args, err := sqlx.In(stmt, expiredCarves)
 		if err != nil {
-			return errors.Wrap(err, "IN for DELETE FROM carve_blocks")
+			return ctxerr.Wrap(ctx, err, "IN for DELETE FROM carve_blocks")
 		}
 		stmt = tx.Rebind(stmt)
 		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
-			return errors.Wrap(err, "delete carve blocks")
+			return ctxerr.Wrap(ctx, err, "delete carve blocks")
 		}
 
 		// Mark metadata expired
@@ -127,11 +124,11 @@ func (d *Datastore) CleanupCarves(ctx context.Context, now time.Time) (int, erro
 		`
 		stmt, args, err = sqlx.In(stmt, expiredCarves)
 		if err != nil {
-			return errors.Wrap(err, "IN for UPDATE carve_metadata")
+			return ctxerr.Wrap(ctx, err, "IN for UPDATE carve_metadata")
 		}
 		stmt = tx.Rebind(stmt)
 		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
-			return errors.Wrap(err, "update carve_metadtata")
+			return ctxerr.Wrap(ctx, err, "update carve_metadtata")
 		}
 
 		return nil
@@ -141,7 +138,6 @@ func (d *Datastore) CleanupCarves(ctx context.Context, now time.Time) (int, erro
 	}
 
 	return countExpired, nil
-
 }
 
 // Selecting max_block should be very efficient because MySQL is able to use
@@ -161,7 +157,7 @@ const carveSelectFields = `
 			max_block
 `
 
-func (d *Datastore) Carve(ctx context.Context, carveId int64) (*fleet.CarveMetadata, error) {
+func (ds *Datastore) Carve(ctx context.Context, carveId int64) (*fleet.CarveMetadata, error) {
 	stmt := fmt.Sprintf(`
 		SELECT %s
 		FROM carve_metadata
@@ -170,14 +166,17 @@ func (d *Datastore) Carve(ctx context.Context, carveId int64) (*fleet.CarveMetad
 	)
 
 	var metadata fleet.CarveMetadata
-	if err := sqlx.GetContext(ctx, d.reader, &metadata, stmt, carveId); err != nil {
-		return nil, errors.Wrap(err, "get carve by ID")
+	if err := sqlx.GetContext(ctx, ds.reader, &metadata, stmt, carveId); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("Carve").WithID(uint(carveId)))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get carve by ID")
 	}
 
 	return &metadata, nil
 }
 
-func (d *Datastore) CarveBySessionId(ctx context.Context, sessionId string) (*fleet.CarveMetadata, error) {
+func (ds *Datastore) CarveBySessionId(ctx context.Context, sessionId string) (*fleet.CarveMetadata, error) {
 	stmt := fmt.Sprintf(`
 		SELECT %s
 		FROM carve_metadata
@@ -186,14 +185,17 @@ func (d *Datastore) CarveBySessionId(ctx context.Context, sessionId string) (*fl
 	)
 
 	var metadata fleet.CarveMetadata
-	if err := sqlx.GetContext(ctx, d.reader, &metadata, stmt, sessionId); err != nil {
-		return nil, errors.Wrap(err, "get carve by session ID")
+	if err := sqlx.GetContext(ctx, ds.reader, &metadata, stmt, sessionId); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("CarveBySessionId").WithName(sessionId))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get carve by session ID")
 	}
 
 	return &metadata, nil
 }
 
-func (d *Datastore) CarveByName(ctx context.Context, name string) (*fleet.CarveMetadata, error) {
+func (ds *Datastore) CarveByName(ctx context.Context, name string) (*fleet.CarveMetadata, error) {
 	stmt := fmt.Sprintf(`
 		SELECT %s
 		FROM carve_metadata
@@ -202,14 +204,17 @@ func (d *Datastore) CarveByName(ctx context.Context, name string) (*fleet.CarveM
 	)
 
 	var metadata fleet.CarveMetadata
-	if err := sqlx.GetContext(ctx, d.reader, &metadata, stmt, name); err != nil {
-		return nil, errors.Wrap(err, "get carve by name")
+	if err := sqlx.GetContext(ctx, ds.reader, &metadata, stmt, name); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("Carve").WithName(name))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get carve by name")
 	}
 
 	return &metadata, nil
 }
 
-func (d *Datastore) ListCarves(ctx context.Context, opt fleet.CarveListOptions) ([]*fleet.CarveMetadata, error) {
+func (ds *Datastore) ListCarves(ctx context.Context, opt fleet.CarveListOptions) ([]*fleet.CarveMetadata, error) {
 	stmt := fmt.Sprintf(`
 		SELECT %s
 		FROM carve_metadata`,
@@ -220,15 +225,15 @@ func (d *Datastore) ListCarves(ctx context.Context, opt fleet.CarveListOptions) 
 	}
 	stmt = appendListOptionsToSQL(stmt, opt.ListOptions)
 	carves := []*fleet.CarveMetadata{}
-	if err := sqlx.SelectContext(ctx, d.reader, &carves, stmt); err != nil && err != sql.ErrNoRows {
-		return nil, errors.Wrap(err, "list carves")
+	if err := sqlx.SelectContext(ctx, ds.reader, &carves, stmt); err != nil && err != sql.ErrNoRows {
+		return nil, ctxerr.Wrap(ctx, err, "list carves")
 	}
 
 	return carves, nil
 }
 
-func (d *Datastore) NewBlock(ctx context.Context, metadata *fleet.CarveMetadata, blockId int64, data []byte) error {
-	return d.withTx(ctx, func(tx sqlx.ExtContext) error {
+func (ds *Datastore) NewBlock(ctx context.Context, metadata *fleet.CarveMetadata, blockId int64, data []byte) error {
+	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		stmt := `
 		INSERT INTO carve_blocks (
 			metadata_id,
@@ -240,14 +245,14 @@ func (d *Datastore) NewBlock(ctx context.Context, metadata *fleet.CarveMetadata,
 			?
 		)`
 		if _, err := tx.ExecContext(ctx, stmt, metadata.ID, blockId, data); err != nil {
-			return errors.Wrap(err, "insert carve block")
+			return ctxerr.Wrap(ctx, err, "insert carve block")
 		}
 
 		if metadata.MaxBlock < blockId {
 			// Update max_block
 			metadata.MaxBlock = blockId
 			if err := updateCarveDB(ctx, tx, metadata); err != nil {
-				return errors.Wrap(err, "update carve max block")
+				return ctxerr.Wrap(ctx, err, "update carve max block")
 			}
 		}
 
@@ -255,15 +260,18 @@ func (d *Datastore) NewBlock(ctx context.Context, metadata *fleet.CarveMetadata,
 	})
 }
 
-func (d *Datastore) GetBlock(ctx context.Context, metadata *fleet.CarveMetadata, blockId int64) ([]byte, error) {
+func (ds *Datastore) GetBlock(ctx context.Context, metadata *fleet.CarveMetadata, blockId int64) ([]byte, error) {
 	stmt := `
 		SELECT data
 		FROM carve_blocks
 		WHERE metadata_id = ? AND block_id = ?
 	`
 	var data []byte
-	if err := sqlx.GetContext(ctx, d.reader, &data, stmt, metadata.ID, blockId); err != nil {
-		return nil, errors.Wrap(err, "select data")
+	if err := sqlx.GetContext(ctx, ds.reader, &data, stmt, metadata.ID, blockId); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("CarveBlock").WithID(uint(blockId)))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "select data")
 	}
 
 	return data, nil

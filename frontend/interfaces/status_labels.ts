@@ -7,6 +7,7 @@ export interface IStatusLabels {
   offline_count: number;
   mia_count: number;
 }
+
 export default PropTypes.shape({
   loading_counts: PropTypes.bool,
   new_count: PropTypes.number,

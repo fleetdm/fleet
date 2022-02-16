@@ -1,14 +1,18 @@
 .manage-queries-page {
   &__header-wrap {
+    height: 38px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: $pad-xxlarge;
   }
 
   &__header {
     display: flex;
     align-items: center;
+
+    .form-field {
+      margin-bottom: 0;
+    }
   }
 
   &__text {
@@ -37,8 +41,7 @@
   }
 
   &__description {
-    margin: 0 0 $pad-medium;
-    padding-top: $pad-xsmall;
+    margin: 0 0 $pad-xxlarge;
 
     h2 {
       text-transform: uppercase;
@@ -78,35 +81,165 @@
     }
   }
 
+  .form-field--dropdown {
+    margin: 0;
+  }
+
+  &__platform_dropdown {
+    width: 159px;
+
+    .Select-menu-outer {
+      width: 364px;
+      max-height: 310px;
+
+      .Select-menu {
+        max-height: none;
+      }
+    }
+    .Select-value {
+      padding-left: $pad-medium;
+      padding-right: $pad-medium;
+
+      &::before {
+        display: inline-block;
+        position: absolute;
+        padding: 5px 0 0 0; // centers spin
+        content: url(../assets/images/icon-filter-black-16x16@2x.png);
+        transform: scale(0.5);
+        height: 26px;
+        left: 2px;
+      }
+    }
+    .Select-value-label {
+      padding-left: $pad-large;
+    }
+  }
+
   .queries-list-wrapper {
     .data-table__table {
       table-layout: fixed;
 
-      thead {
-        // Width for all columns except checkbox and "Name" columns
-        // For observers all columns except "Name" and "Author" columns
-        // Width calculation adjusts for each row's horizontal padding
-        th:not(:nth-child(1)):not(:nth-child(2)) {
-          width: calc(180px - (27px * 2));
-        }
+      .selection__header {
+        text-align: center;
       }
 
-      tbody {
-        td {
-          overflow: hidden;
-          text-overflow: ellipsis;
+      &:not(.is-observer) {
+        thead {
+          th:not(:nth-child(1)):not(:nth-child(2)):not(:nth-child(4)) {
+            width: 100px;
+          }
+          th:nth-child(1) {
+            width: 8px;
+          }
+          th:nth-child(2) {
+            width: 200px;
+          }
+          th:nth-child(4) {
+            width: 40px;
+          }
+          @include breakpoint(tablet) {
+            th:nth-child(3),
+            th:nth-child(5),
+            th:nth-child(7) {
+              display: none;
+            }
+          }
+          @include breakpoint(ltdesktop) {
+            th:nth-child(1) {
+              width: 8px;
+            }
+            th:nth-child(3),
+            th:nth-child(5) {
+              display: none;
+            }
+          }
         }
-        // Width and overflow behavior for the link in the "Name" column
-        td {
-          .button {
-            display: block;
-            text-align: start;
-            width: 100%;
-            overflow: hidden;
-            text-overflow: ellipsis;
+
+        tbody {
+          td:nth-child(1) {
+            text-align: center;
+          }
+          @include breakpoint(tablet) {
+            td:nth-child(3),
+            td:nth-child(5),
+            td:nth-child(7) {
+              display: none;
+            }
+          }
+          @include breakpoint(ltdesktop) {
+            td:nth-child(3),
+            td:nth-child(5) {
+              display: none;
+            }
           }
         }
       }
+
+      &.is-observer {
+        thead {
+          th:not(:nth-child(1)):not(:nth-child(2)) {
+            width: 100px;
+          }
+          th:nth-child(1) {
+            width: 200px;
+          }
+          th:nth-child(2) {
+            width: 40px;
+          }
+          @include breakpoint(tablet) {
+            th:nth-child(3),
+            th:nth-child(5) {
+              display: none;
+            }
+          }
+          @include breakpoint(ltdesktop) {
+            th:nth-child(3) {
+              display: none;
+            }
+          }
+        }
+
+        tbody {
+          @include breakpoint(tablet) {
+            td:nth-child(3),
+            td:nth-child(5),
+            td:nth-child(6) {
+              display: none;
+            }
+          }
+          @include breakpoint(ltdesktop) {
+            td:nth-child(3),
+            td:nth-child(5) {
+              display: none;
+            }
+          }
+        }
+      }
+    }
+
+    tbody {
+      td {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        .button {
+          display: block;
+          text-align: start;
+          width: 100%;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+      }
+    }
+  }
+  .author_name__cell {
+    img,
+    div,
+    span {
+      display: flex;
+      align-items: center;
+    }
+    div {
+      padding-right: $pad-small;
     }
   }
 }

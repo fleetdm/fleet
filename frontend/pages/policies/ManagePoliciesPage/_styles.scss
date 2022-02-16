@@ -1,9 +1,24 @@
 .manage-policies-page {
+  &__vibrant-blue {
+    color: $core-vibrant-blue;
+  }
+
   &__header-wrap {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: $pad-small;
+    height: 38px;
+
+    .button-wrap {
+      display: flex;
+      justify-content: flex-end;
+      min-width: 266px;
+    }
+  }
+
+  &__manage-automations {
+    padding: $pad-small;
+    margin-right: $pad-small;
   }
 
   &__header {
@@ -42,7 +57,6 @@
 
   &__description {
     margin: 0;
-    padding-top: $pad-xsmall;
 
     h2 {
       text-transform: uppercase;
@@ -106,92 +120,96 @@
     }
   }
 
-  &__team-dropdown {
-    border: 0 !important;
+  &__add-policy-link {
+    transition: color 150ms ease-in-out, background 150ms ease-in-out,
+      top 50ms ease-in-out, box-shadow 50ms ease-in-out, border 50ms ease-in-out;
     position: relative;
+    color: $core-white;
+    text-decoration: none;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    padding-left: $pad-medium;
+    padding-right: $pad-medium;
+    border-radius: 4px;
+    font-size: $x-small;
+    font-family: "Nunito Sans", sans-serif;
+    font-weight: $bold;
+    display: inline-flex;
+    height: 38px;
+    top: 0;
+    border: 0;
+    cursor: pointer;
 
-    :hover {
-      cursor: pointer !important;
-    }
+    @include button-variant(
+      $core-vibrant-blue,
+      $core-vibrant-blue-over,
+      $core-vibrant-blue-down
+    );
+  }
 
-    &.is-focused {
-      .Select-control {
-        border: 0 !important;
-        height: 32px;
-      }
-    }
+  &__inherited-policies-button {
+    padding-top: $pad-small;
+    margin: $pad-large 0 0 0;
+    color: $core-vibrant-blue;
+    font-weight: $bold;
+    font-size: $x-small;
+  }
 
-    .Select-menu-outer {
-      position: absolute;
-      left: -12px;
-      border-radius: 6px;
+  .rightcarat {
+    &::before {
+      content: url("../assets/images/icon-chevron-blue-16x16@2x.png");
+      transform: scale(0.5) rotate(-90deg);
+      width: 16px;
+      border-radius: 0px;
+      padding: 0px;
+      padding-right: 10px;
+      margin-top: 5px;
     }
   }
 
-  .Select.is-open {
-    .Select-value-label {
-      color: $core-vibrant-blue !important;
+  .upcarat {
+    &::before {
+      content: url("../assets/images/icon-chevron-blue-16x16@2x.png");
+      transform: scale(0.5) rotate(180deg);
+      width: 16px;
+      border-radius: 0px;
+      padding: 0px;
+      padding-right: 2px;
+      margin-right: $pad-small;
+      margin-top: 5px;
+      position: relative;
+      top: -4px;
+      left: 6px;
     }
   }
 
-  &__header {
-    .Select-control {
-      background-color: #fff;
-      border: 0 !important;
-      border-radius: none;
-      position: none;
-      width: max-content; // move select arrow
-      height: 20px;
+  &__details {
+    display: inline-flex;
+    vertical-align: middle;
+    margin-left: $pad-small;
+    margin-top: -20px;
 
-      &:hover {
-        box-shadow: none;
+    .hint {
+      color: $core-fleet-black;
+
+      &--brand {
+        color: $core-vibrant-blue;
       }
+    }
+  }
 
-      &:hover .Select-value-label {
-        color: $core-vibrant-blue !important;
-      }
+  &__inherited-policies-button {
+    padding-bottom: $pad-large;
+  }
 
-      .Select-arrow-zone {
-        padding-left: $pad-small;
+  &__inherited-policies-table {
+    th {
+      border-right: 1px solid #e2e4ea !important;
+    }
 
-        .Select-arrow {
-          top: 1px !important;
-          margin-top: 0 !important;
-        }
-      }
-      .Select-multi-value-wrapper {
-        width: max-content; // move select arrow
-        height: 20px;
-        margin-bottom: $pad-xsmall;
-
-        .Select-input {
-          display: none !important;
-        }
-
-        .Select-value {
-          position: relative; // move select arrow
-          display: inline-block; // move select arrow
-          line-height: 28px;
-          padding: 0;
-          border: 0 !important;
-          background-color: #fff !important;
-          right: 0;
-          left: 0;
-          bottom: 0;
-          top: 0;
-
-          &.is-focused {
-            border: 0 !important;
-          }
-          :hover {
-            border: 0 !important;
-          }
-
-          .Select-value-label {
-            font-size: $large !important;
-          }
-        }
-      }
+    .table-container__header {
+      display: none;
     }
   }
 }

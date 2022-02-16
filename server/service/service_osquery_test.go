@@ -3,9 +3,15 @@ package service
 import (
 	"bytes"
 	"context"
+	crand "crypto/rand"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
+	"math"
+	"math/big"
+	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -18,6 +24,7 @@ import (
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	fleetLogging "github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
+	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/live_query"
 	"github.com/fleetdm/fleet/v4/server/logging"
@@ -25,6 +32,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
+	"github.com/fleetdm/fleet/v4/server/service/redis_policy_set"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/stretchr/testify/assert"
@@ -32,8 +40,7 @@ import (
 )
 
 // One of these queries is the disk space, only one of the two works in a platform
-var expectedDetailQueries = len(osquery_utils.GetDetailQueries(
-	&fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}})) - 1
+var expectedDetailQueries = len(osquery_utils.GetDetailQueries(&fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}}, config.FleetConfig{})) - 1
 
 func TestEnrollAgent(t *testing.T) {
 	ds := new(mock.Store)
@@ -58,7 +65,7 @@ func TestEnrollAgent(t *testing.T) {
 	svc := newTestService(ds, nil, nil)
 
 	nodeKey, err := svc.EnrollAgent(context.Background(), "valid_secret", "host123", nil)
-	require.Nil(t, err)
+	require.NoError(t, err)
 	assert.NotEmpty(t, nodeKey)
 }
 
@@ -91,7 +98,7 @@ func TestEnrollAgentDetails(t *testing.T) {
 		}, nil
 	}
 	var gotHost *fleet.Host
-	ds.SaveHostFunc = func(ctx context.Context, host *fleet.Host) error {
+	ds.UpdateHostFunc = func(ctx context.Context, host *fleet.Host) error {
 		gotHost = host
 		return nil
 	}
@@ -114,7 +121,7 @@ func TestEnrollAgentDetails(t *testing.T) {
 		"foo": {"foo": "bar"},
 	}
 	nodeKey, err := svc.EnrollAgent(context.Background(), "", "host123", details)
-	require.Nil(t, err)
+	require.NoError(t, err)
 	assert.NotEmpty(t, nodeKey)
 
 	assert.Equal(t, "Mac OS X 10.14.5", gotHost.OSVersion)
@@ -130,8 +137,8 @@ func TestAuthenticateHost(t *testing.T) {
 
 	var gotKey string
 	host := fleet.Host{ID: 1, Hostname: "foobar"}
-	ds.AuthenticateHostFunc = func(ctx context.Context, key string) (*fleet.Host, error) {
-		gotKey = key
+	ds.LoadHostByNodeKeyFunc = func(ctx context.Context, nodeKey string) (*fleet.Host, error) {
+		gotKey = nodeKey
 		return &host, nil
 	}
 	var gotHostIDs []uint
@@ -144,19 +151,19 @@ func TestAuthenticateHost(t *testing.T) {
 	}
 
 	_, _, err := svc.AuthenticateHost(context.Background(), "test")
-	require.Nil(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "test", gotKey)
 	assert.False(t, ds.MarkHostsSeenFuncInvoked)
 
 	host = fleet.Host{ID: 7, Hostname: "foobar"}
 	_, _, err = svc.AuthenticateHost(context.Background(), "floobar")
-	require.Nil(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "floobar", gotKey)
 	assert.False(t, ds.MarkHostsSeenFuncInvoked)
 	// Host checks in twice
 	host = fleet.Host{ID: 7, Hostname: "foobar"}
 	_, _, err = svc.AuthenticateHost(context.Background(), "floobar")
-	require.Nil(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "floobar", gotKey)
 	assert.False(t, ds.MarkHostsSeenFuncInvoked)
 
@@ -168,14 +175,14 @@ func TestAuthenticateHost(t *testing.T) {
 	err = svc.FlushSeenHosts(context.Background())
 	require.NoError(t, err)
 	assert.True(t, ds.MarkHostsSeenFuncInvoked)
-	assert.Len(t, gotHostIDs, 0)
+	require.Len(t, gotHostIDs, 0)
 }
 
 func TestAuthenticateHostFailure(t *testing.T) {
 	ds := new(mock.Store)
 	svc := newTestService(ds, nil, nil)
 
-	ds.AuthenticateHostFunc = func(ctx context.Context, key string) (*fleet.Host, error) {
+	ds.LoadHostByNodeKeyFunc = func(ctx context.Context, nodeKey string) (*fleet.Host, error) {
 		return nil, errors.New("not found")
 	}
 
@@ -210,12 +217,12 @@ func TestSubmitStatusLogs(t *testing.T) {
 
 	var status []json.RawMessage
 	err := json.Unmarshal([]byte(logJSON), &status)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	host := fleet.Host{}
-	ctx := hostctx.NewContext(context.Background(), host)
+	ctx := hostctx.NewContext(context.Background(), &host)
 	err = serv.SubmitStatusLogs(ctx, status)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 
 	assert.Equal(t, status, testLogger.logs)
 }
@@ -242,12 +249,12 @@ func TestSubmitResultLogs(t *testing.T) {
 
 	var results []json.RawMessage
 	err := json.Unmarshal([]byte(logJSON), &results)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	host := fleet.Host{}
-	ctx := hostctx.NewContext(context.Background(), host)
+	ctx := hostctx.NewContext(context.Background(), &host)
 	err = serv.SubmitResultLogs(ctx, results)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 
 	assert.Equal(t, results, testLogger.logs)
 }
@@ -271,32 +278,39 @@ func TestHostDetailQueries(t *testing.T) {
 			},
 		},
 
-		Platform:        "rhel",
+		Platform:        "darwin",
 		DetailUpdatedAt: mockClock.Now(),
 		NodeKey:         "test_key",
 		Hostname:        "test_hostname",
 		UUID:            "test_uuid",
 	}
 
-	svc := &Service{clock: mockClock, config: config.TestConfig(), ds: ds}
+	svc := &Service{
+		clock:    mockClock,
+		logger:   log.NewNopLogger(),
+		config:   config.TestConfig(),
+		ds:       ds,
+		jitterMu: new(sync.Mutex),
+		jitterH:  make(map[time.Duration]*jitterHashTable),
+	}
 
-	queries, err := svc.hostDetailQueries(context.Background(), host)
-	assert.Nil(t, err)
+	queries, err := svc.detailQueriesForHost(context.Background(), &host)
+	require.NoError(t, err)
 	assert.Empty(t, queries)
 
-	// With refetch requested queries should be returned
+	// With refetch requested detail queries should be returned
 	host.RefetchRequested = true
-	queries, err = svc.hostDetailQueries(context.Background(), host)
-	assert.Nil(t, err)
+	queries, err = svc.detailQueriesForHost(context.Background(), &host)
+	require.NoError(t, err)
 	assert.NotEmpty(t, queries)
 	host.RefetchRequested = false
 
 	// Advance the time
 	mockClock.AddTime(1*time.Hour + 1*time.Minute)
 
-	queries, err = svc.hostDetailQueries(context.Background(), host)
-	assert.Nil(t, err)
-	assert.Len(t, queries, expectedDetailQueries+2)
+	queries, err = svc.detailQueriesForHost(context.Background(), &host)
+	require.NoError(t, err)
+	require.Len(t, queries, expectedDetailQueries+2)
 	for name := range queries {
 		assert.True(t,
 			strings.HasPrefix(name, hostDetailQueryPrefix) || strings.HasPrefix(name, hostAdditionalQueryPrefix),
@@ -327,10 +341,11 @@ func TestLabelQueries(t *testing.T) {
 	ds.LabelQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
 	}
-	ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 		return host, nil
 	}
-	ds.SaveHostFunc = func(ctx context.Context, host *fleet.Host) error {
+	ds.UpdateHostFunc = func(ctx context.Context, gotHost *fleet.Host) error {
+		host = gotHost
 		return nil
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
@@ -342,23 +357,23 @@ func TestLabelQueries(t *testing.T) {
 
 	lq.On("QueriesForHost", uint(0)).Return(map[string]string{}, nil)
 
-	ctx := hostctx.NewContext(context.Background(), *host)
+	ctx := hostctx.NewContext(context.Background(), host)
 
 	// With a new host, we should get the detail queries (and accelerate
 	// should be turned on so that we can quickly fill labels)
 	queries, acc, err := svc.GetDistributedQueries(ctx)
-	assert.Nil(t, err)
-	assert.Len(t, queries, expectedDetailQueries)
+	require.NoError(t, err)
+	require.Len(t, queries, expectedDetailQueries)
 	assert.NotZero(t, acc)
 
-	// Simulate the detail queries being added
+	// Simulate the detail queries being added.
 	host.DetailUpdatedAt = mockClock.Now().Add(-1 * time.Minute)
 	host.Hostname = "zwass.local"
-	ctx = hostctx.NewContext(ctx, *host)
+	ctx = hostctx.NewContext(ctx, host)
 
 	queries, acc, err = svc.GetDistributedQueries(ctx)
-	assert.Nil(t, err)
-	assert.Len(t, queries, 0)
+	require.NoError(t, err)
+	require.Len(t, queries, 0)
 	assert.Zero(t, acc)
 
 	ds.LabelQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
@@ -371,14 +386,14 @@ func TestLabelQueries(t *testing.T) {
 
 	// Now we should get the label queries
 	queries, acc, err = svc.GetDistributedQueries(ctx)
-	assert.Nil(t, err)
-	assert.Len(t, queries, 3)
+	require.NoError(t, err)
+	require.Len(t, queries, 3)
 	assert.Zero(t, acc)
 
 	var gotHost *fleet.Host
 	var gotResults map[uint]*bool
 	var gotTime time.Time
-	ds.RecordLabelQueryExecutionsFunc = func(ctx context.Context, host *fleet.Host, results map[uint]*bool, t time.Time) error {
+	ds.RecordLabelQueryExecutionsFunc = func(ctx context.Context, host *fleet.Host, results map[uint]*bool, t time.Time, deferred bool) error {
 		gotHost = host
 		gotResults = results
 		gotTime = t
@@ -394,14 +409,12 @@ func TestLabelQueries(t *testing.T) {
 		map[string]fleet.OsqueryStatus{},
 		map[string]string{},
 	)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	host.LabelUpdatedAt = mockClock.Now()
-	host.Modified = true
 	assert.Equal(t, host, gotHost)
 	assert.Equal(t, mockClock.Now(), gotTime)
-	if assert.Len(t, gotResults, 1) {
-		assert.Equal(t, true, *gotResults[1])
-	}
+	require.Len(t, gotResults, 1)
+	assert.Equal(t, true, *gotResults[1])
 
 	mockClock.AddTime(1 * time.Second)
 
@@ -415,14 +428,57 @@ func TestLabelQueries(t *testing.T) {
 		map[string]fleet.OsqueryStatus{},
 		map[string]string{},
 	)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	host.LabelUpdatedAt = mockClock.Now()
 	assert.Equal(t, host, gotHost)
 	assert.Equal(t, mockClock.Now(), gotTime)
-	if assert.Len(t, gotResults, 2) {
-		assert.Equal(t, true, *gotResults[2])
-		assert.Equal(t, false, *gotResults[3])
-	}
+	require.Len(t, gotResults, 2)
+	assert.Equal(t, true, *gotResults[2])
+	assert.Equal(t, false, *gotResults[3])
+
+	// We should get no labels now.
+	host.LabelUpdatedAt = mockClock.Now()
+	ctx = hostctx.NewContext(ctx, host)
+	queries, acc, err = svc.GetDistributedQueries(ctx)
+	require.NoError(t, err)
+	require.Len(t, queries, 0)
+	assert.Zero(t, acc)
+
+	// With refetch requested details+label queries should be returned.
+	host.RefetchRequested = true
+	ctx = hostctx.NewContext(ctx, host)
+	queries, acc, err = svc.GetDistributedQueries(ctx)
+	require.NoError(t, err)
+	require.Len(t, queries, expectedDetailQueries+3)
+	assert.Zero(t, acc)
+
+	// Record a query execution
+	err = svc.SubmitDistributedQueryResults(
+		ctx,
+		map[string][]map[string]string{
+			hostLabelQueryPrefix + "2": {{"col1": "val1"}},
+			hostLabelQueryPrefix + "3": {},
+		},
+		map[string]fleet.OsqueryStatus{},
+		map[string]string{},
+	)
+	require.NoError(t, err)
+	host.LabelUpdatedAt = mockClock.Now()
+	assert.Equal(t, host, gotHost)
+	assert.Equal(t, mockClock.Now(), gotTime)
+	require.Len(t, gotResults, 2)
+	assert.Equal(t, true, *gotResults[2])
+	assert.Equal(t, false, *gotResults[3])
+
+	// SubmitDistributedQueryResults will set RefetchRequested to false.
+	require.False(t, host.RefetchRequested)
+
+	// There shouldn't be any labels now.
+	ctx = hostctx.NewContext(context.Background(), host)
+	queries, acc, err = svc.GetDistributedQueries(ctx)
+	require.NoError(t, err)
+	require.Len(t, queries, 0)
+	assert.Zero(t, acc)
 }
 
 func TestGetClientConfig(t *testing.T) {
@@ -430,7 +486,7 @@ func TestGetClientConfig(t *testing.T) {
 	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Pack, error) {
 		return []*fleet.Pack{}, nil
 	}
-	ds.ListScheduledQueriesInPackFunc = func(ctx context.Context, pid uint, opt fleet.ListOptions) ([]*fleet.ScheduledQuery, error) {
+	ds.ListScheduledQueriesInPackFunc = func(ctx context.Context, pid uint) ([]*fleet.ScheduledQuery, error) {
 		tru := true
 		fals := false
 		fortytwo := uint(42)
@@ -451,14 +507,20 @@ func TestGetClientConfig(t *testing.T) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{AgentOptions: ptr.RawMessage(json.RawMessage(`{"config":{"options":{"baz":"bar"}}}`))}, nil
 	}
-	ds.SaveHostFunc = func(ctx context.Context, host *fleet.Host) error {
+	ds.UpdateHostFunc = func(ctx context.Context, host *fleet.Host) error {
 		return nil
+	}
+	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+		if id != 1 && id != 2 {
+			return nil, errors.New("not found")
+		}
+		return &fleet.Host{ID: id}, nil
 	}
 
 	svc := newTestService(ds, nil, nil)
 
-	ctx1 := hostctx.NewContext(context.Background(), fleet.Host{ID: 1})
-	ctx2 := hostctx.NewContext(context.Background(), fleet.Host{ID: 2})
+	ctx1 := hostctx.NewContext(context.Background(), &fleet.Host{ID: 1})
+	ctx2 := hostctx.NewContext(context.Background(), &fleet.Host{ID: 2})
 
 	expectedOptions := map[string]interface{}{
 		"baz": "bar",
@@ -470,11 +532,11 @@ func TestGetClientConfig(t *testing.T) {
 
 	// No packs loaded yet
 	conf, err := svc.GetClientConfig(ctx1)
-	require.Nil(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, expectedConfig, conf)
 
 	conf, err = svc.GetClientConfig(ctx2)
-	require.Nil(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, expectedConfig, conf)
 
 	// Now add packs
@@ -495,7 +557,7 @@ func TestGetClientConfig(t *testing.T) {
 	}
 
 	conf, err = svc.GetClientConfig(ctx1)
-	require.Nil(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, expectedOptions, conf["options"])
 	assert.JSONEq(t, `{
 		"pack_by_other_label": {
@@ -514,7 +576,7 @@ func TestGetClientConfig(t *testing.T) {
 	)
 
 	conf, err = svc.GetClientConfig(ctx2)
-	require.Nil(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, expectedOptions, conf["options"])
 	assert.JSONEq(t, `{
 		"pack_by_label": {
@@ -533,7 +595,10 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	lq := new(live_query.MockLiveQuery)
 	svc := newTestServiceWithClock(ds, nil, lq, mockClock)
 
-	host := fleet.Host{Platform: "windows"}
+	host := &fleet.Host{
+		ID:       1,
+		Platform: "windows",
+	}
 	ctx := hostctx.NewContext(context.Background(), host)
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
@@ -545,14 +610,20 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	ds.PolicyQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
 	}
+	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+		if id != 1 {
+			return nil, errors.New("not found")
+		}
+		return host, nil
+	}
 
 	lq.On("QueriesForHost", host.ID).Return(map[string]string{}, nil)
 
 	// With a new host, we should get the detail queries (and accelerated
 	// queries)
 	queries, acc, err := svc.GetDistributedQueries(ctx)
-	assert.Nil(t, err)
-	assert.Len(t, queries, expectedDetailQueries)
+	require.NoError(t, err)
+	require.Len(t, queries, expectedDetailQueries-3)
 	assert.NotZero(t, acc)
 
 	resultJSON := `
@@ -645,17 +716,12 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 
 	var results fleet.OsqueryDistributedQueryResults
 	err = json.Unmarshal([]byte(resultJSON), &results)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	var gotHost *fleet.Host
-	ds.SaveHostFunc = func(ctx context.Context, host *fleet.Host) error {
+	ds.UpdateHostFunc = func(ctx context.Context, host *fleet.Host) error {
 		gotHost = host
-		gotHost.Additional = host.Additional
 		return nil
-	}
-
-	ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
-		return &host, nil
 	}
 
 	// Verify that results are ingested properly
@@ -688,16 +754,16 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	// Now no detail queries should be required
 	ctx = hostctx.NewContext(context.Background(), host)
 	queries, acc, err = svc.GetDistributedQueries(ctx)
-	assert.Nil(t, err)
-	assert.Len(t, queries, 0)
+	require.NoError(t, err)
+	require.Len(t, queries, 0)
 	assert.Zero(t, acc)
 
 	// Advance clock and queries should exist again
 	mockClock.AddTime(1*time.Hour + 1*time.Minute)
 
 	queries, acc, err = svc.GetDistributedQueries(ctx)
-	assert.Nil(t, err)
-	assert.Len(t, queries, expectedDetailQueries)
+	require.NoError(t, err)
+	require.Len(t, queries, expectedDetailQueries)
 	assert.Zero(t, acc)
 }
 
@@ -707,13 +773,16 @@ func TestDetailQueries(t *testing.T) {
 	lq := new(live_query.MockLiveQuery)
 	svc := newTestServiceWithClock(ds, nil, lq, mockClock)
 
-	host := fleet.Host{Platform: "linux"}
+	host := &fleet.Host{
+		ID:       1,
+		Platform: "linux",
+	}
 	ctx := hostctx.NewContext(context.Background(), host)
 
 	lq.On("QueriesForHost", host.ID).Return(map[string]string{}, nil)
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}}, nil
+		return &fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true, EnableSoftwareInventory: true}}, nil
 	}
 	ds.LabelQueriesForHostFunc = func(context.Context, *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
@@ -721,12 +790,28 @@ func TestDetailQueries(t *testing.T) {
 	ds.PolicyQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
 	}
+	ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, enrolled bool, serverURL string, installedFromDep bool) error {
+		require.True(t, enrolled)
+		require.False(t, installedFromDep)
+		require.Equal(t, "hi.com", serverURL)
+		return nil
+	}
+	ds.SetOrUpdateMunkiVersionFunc = func(ctx context.Context, hostID uint, version string) error {
+		require.Equal(t, "3.4.5", version)
+		return nil
+	}
+	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+		if id != 1 {
+			return nil, errors.New("not found")
+		}
+		return host, nil
+	}
 
 	// With a new host, we should get the detail queries (and accelerated
 	// queries)
 	queries, acc, err := svc.GetDistributedQueries(ctx)
-	assert.Nil(t, err)
-	assert.Len(t, queries, expectedDetailQueries)
+	require.NoError(t, err)
+	require.Len(t, queries, expectedDetailQueries-2)
 	assert.NotZero(t, acc)
 
 	resultJSON := `
@@ -823,7 +908,27 @@ func TestDetailQueries(t *testing.T) {
       "uid": "1234",
       "username": "user1",
       "type": "sometype",
+      "groupname": "somegroup",
+	  "shell": "someloginshell"
+    },
+	{
+      "uid": "5678",
+      "username": "user2",
+      "type": "sometype",
       "groupname": "somegroup"
+    }
+],
+"fleet_detail_query_software_macos": [
+    {
+      "name": "app1",
+      "version": "1.0.0",
+      "source": "source1"
+    },
+    {
+      "name": "app2",
+      "version": "1.0.0",
+      "source": "source2",
+      "bundle_identifier": "somebundle"
     }
 ],
 "fleet_detail_query_disk_space_unix": [
@@ -831,27 +936,54 @@ func TestDetailQueries(t *testing.T) {
 		"percent_disk_space_available": "56",
 		"gigs_disk_space_available": "277.0"
 	}
+],
+"fleet_detail_query_mdm": [
+	{
+		"enrolled": "true",
+		"server_url": "hi.com",
+		"installed_from_dep": "false"
+	}
+],
+"fleet_detail_query_munki_info": [
+	{
+		"version": "3.4.5"
+	}
 ]
 }
 `
 
 	var results fleet.OsqueryDistributedQueryResults
 	err = json.Unmarshal([]byte(resultJSON), &results)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	var gotHost *fleet.Host
-	ds.SaveHostFunc = func(ctx context.Context, host *fleet.Host) error {
+	ds.UpdateHostFunc = func(ctx context.Context, host *fleet.Host) error {
 		gotHost = host
-		gotHost.Additional = host.Additional
+		return nil
+	}
+	var gotUsers []fleet.HostUser
+	ds.SaveHostUsersFunc = func(ctx context.Context, hostID uint, users []fleet.HostUser) error {
+		if hostID != 1 {
+			return errors.New("not found")
+		}
+		gotUsers = users
+		return nil
+	}
+	var gotSoftware []fleet.Software
+	ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software) error {
+		if hostID != 1 {
+			return errors.New("not found")
+		}
+		gotSoftware = software
 		return nil
 	}
 
-	ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
-		return &host, nil
-	}
-
 	// Verify that results are ingested properly
-	svc.SubmitDistributedQueryResults(ctx, results, map[string]fleet.OsqueryStatus{}, map[string]string{})
+	require.NoError(t, svc.SubmitDistributedQueryResults(ctx, results, map[string]fleet.OsqueryStatus{}, map[string]string{}))
+	require.NotNil(t, gotHost)
+
+	require.True(t, ds.SetOrUpdateMDMDataFuncInvoked)
+	require.True(t, ds.SetOrUpdateMunkiVersionFuncInvoked)
 
 	// osquery_info
 	assert.Equal(t, "darwin", gotHost.Platform)
@@ -874,13 +1006,37 @@ func TestDetailQueries(t *testing.T) {
 	assert.Equal(t, uint(60), gotHost.LoggerTLSPeriod)
 
 	// users
-	require.Len(t, gotHost.Users, 1)
+	require.Len(t, gotUsers, 2)
 	assert.Equal(t, fleet.HostUser{
 		Uid:       1234,
 		Username:  "user1",
 		Type:      "sometype",
 		GroupName: "somegroup",
-	}, gotHost.Users[0])
+		Shell:     "someloginshell",
+	}, gotUsers[0])
+	assert.Equal(t, fleet.HostUser{
+		Uid:       5678,
+		Username:  "user2",
+		Type:      "sometype",
+		GroupName: "somegroup",
+		Shell:     "",
+	}, gotUsers[1])
+
+	// software
+	require.Len(t, gotSoftware, 2)
+	assert.Equal(t, []fleet.Software{
+		{
+			Name:    "app1",
+			Version: "1.0.0",
+			Source:  "source1",
+		},
+		{
+			Name:             "app2",
+			Version:          "1.0.0",
+			BundleIdentifier: "somebundle",
+			Source:           "source2",
+		},
+	}, gotSoftware)
 
 	assert.Equal(t, 56.0, gotHost.PercentDiskSpaceAvailable)
 	assert.Equal(t, 277.0, gotHost.GigsDiskSpaceAvailable)
@@ -893,16 +1049,16 @@ func TestDetailQueries(t *testing.T) {
 	// Now no detail queries should be required
 	ctx = hostctx.NewContext(ctx, host)
 	queries, acc, err = svc.GetDistributedQueries(ctx)
-	assert.Nil(t, err)
-	assert.Len(t, queries, 0)
+	require.NoError(t, err)
+	require.Len(t, queries, 0)
 	assert.Zero(t, acc)
 
 	// Advance clock and queries should exist again
 	mockClock.AddTime(1*time.Hour + 1*time.Minute)
 
 	queries, acc, err = svc.GetDistributedQueries(ctx)
-	assert.Nil(t, err)
-	assert.Len(t, queries, expectedDetailQueries)
+	require.NoError(t, err)
+	require.Len(t, queries, expectedDetailQueries+1)
 	assert.Zero(t, acc)
 }
 
@@ -962,7 +1118,7 @@ func TestNewDistributedQueryCampaign(t *testing.T) {
 		return nil
 	}
 	campaign, err := svc.NewDistributedQueryCampaign(viewerCtx, q, nil, fleet.HostTargets{HostIDs: []uint{2}, LabelIDs: []uint{1}})
-	require.Nil(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, gotQuery.ID, gotCampaign.QueryID)
 	assert.True(t, ds.NewActivityFuncInvoked)
 	assert.Equal(t, []*fleet.DistributedQueryCampaignTarget{
@@ -995,15 +1151,27 @@ func TestDistributedQueryResults(t *testing.T) {
 	ds.PolicyQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
 	}
-	ds.SaveHostFunc = func(ctx context.Context, host *fleet.Host) error {
+	host := &fleet.Host{
+		ID:       1,
+		Platform: "windows",
+	}
+	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+		if id != 1 {
+			return nil, errors.New("not found")
+		}
+		return host, nil
+	}
+	ds.UpdateHostFunc = func(ctx context.Context, host *fleet.Host) error {
+		if host.ID != 1 {
+			return errors.New("not found")
+		}
 		return nil
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}}, nil
 	}
 
-	host := &fleet.Host{ID: 1, Platform: "windows"}
-	hostCtx := hostctx.NewContext(context.Background(), *host)
+	hostCtx := hostctx.NewContext(context.Background(), host)
 
 	lq.On("QueriesForHost", uint(1)).Return(
 		map[string]string{
@@ -1015,8 +1183,8 @@ func TestDistributedQueryResults(t *testing.T) {
 
 	// Now we should get the active distributed query
 	queries, acc, err := svc.GetDistributedQueries(hostCtx)
-	require.Nil(t, err)
-	assert.Len(t, queries, expectedDetailQueries+1)
+	require.NoError(t, err)
+	require.Len(t, queries, expectedDetailQueries-2)
 	queryKey := fmt.Sprintf("%s%d", hostDistributedQueryPrefix, campaign.ID)
 	assert.Equal(t, "select * from time", queries[queryKey])
 	assert.NotZero(t, acc)
@@ -1037,7 +1205,7 @@ func TestDistributedQueryResults(t *testing.T) {
 
 	// TODO use service method
 	readChan, err := rs.ReadChannel(context.Background(), *campaign)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	// We need to listen for the result in a separate thread to prevent the
 	// write to the result channel from failing
@@ -1072,7 +1240,7 @@ func TestDistributedQueryResults(t *testing.T) {
 	time.Sleep(10 * time.Millisecond)
 
 	err = svc.SubmitDistributedQueryResults(hostCtx, results, map[string]fleet.OsqueryStatus{}, map[string]string{})
-	require.Nil(t, err)
+	require.NoError(t, err)
 }
 
 func TestIngestDistributedQueryParseIdError(t *testing.T) {
@@ -1108,7 +1276,7 @@ func TestIngestDistributedQueryOrphanedCampaignLoadError(t *testing.T) {
 	}
 
 	ds.DistributedQueryCampaignFunc = func(ctx context.Context, id uint) (*fleet.DistributedQueryCampaign, error) {
-		return nil, fmt.Errorf("missing campaign")
+		return nil, errors.New("missing campaign")
 	}
 
 	lq.On("StopQuery", "42").Return(nil)
@@ -1179,7 +1347,7 @@ func TestIngestDistributedQueryOrphanedCloseError(t *testing.T) {
 		return campaign, nil
 	}
 	ds.SaveDistributedQueryCampaignFunc = func(ctx context.Context, campaign *fleet.DistributedQueryCampaign) error {
-		return fmt.Errorf("failed save")
+		return errors.New("failed save")
 	}
 
 	host := fleet.Host{ID: 1}
@@ -1217,7 +1385,7 @@ func TestIngestDistributedQueryOrphanedStopError(t *testing.T) {
 	ds.SaveDistributedQueryCampaignFunc = func(ctx context.Context, campaign *fleet.DistributedQueryCampaign) error {
 		return nil
 	}
-	lq.On("StopQuery", strconv.Itoa(int(campaign.ID))).Return(fmt.Errorf("failed"))
+	lq.On("StopQuery", strconv.Itoa(int(campaign.ID))).Return(errors.New("failed"))
 
 	host := fleet.Host{ID: 1}
 
@@ -1280,7 +1448,7 @@ func TestIngestDistributedQueryRecordCompletionError(t *testing.T) {
 	campaign := &fleet.DistributedQueryCampaign{ID: 42}
 	host := fleet.Host{ID: 1}
 
-	lq.On("QueryCompletedByHost", strconv.Itoa(int(campaign.ID)), host.ID).Return(fmt.Errorf("fail"))
+	lq.On("QueryCompletedByHost", strconv.Itoa(int(campaign.ID)), host.ID).Return(errors.New("fail"))
 
 	go func() {
 		ch, err := rs.ReadChannel(context.Background(), *campaign)
@@ -1335,17 +1503,18 @@ func TestUpdateHostIntervals(t *testing.T) {
 	}
 
 	testCases := []struct {
-		initHost       fleet.Host
-		finalHost      fleet.Host
-		configOptions  json.RawMessage
-		saveHostCalled bool
+		name                  string
+		initIntervals         fleet.HostOsqueryIntervals
+		finalIntervals        fleet.HostOsqueryIntervals
+		configOptions         json.RawMessage
+		updateIntervalsCalled bool
 	}{
-		// Both updated
 		{
-			fleet.Host{
+			"Both updated",
+			fleet.HostOsqueryIntervals{
 				ConfigTLSRefresh: 60,
 			},
-			fleet.Host{
+			fleet.HostOsqueryIntervals{
 				DistributedInterval: 11,
 				LoggerTLSPeriod:     33,
 				ConfigTLSRefresh:    60,
@@ -1357,13 +1526,13 @@ func TestUpdateHostIntervals(t *testing.T) {
 			}}`),
 			true,
 		},
-		// Only logger_tls_period updated
 		{
-			fleet.Host{
+			"Only logger_tls_period updated",
+			fleet.HostOsqueryIntervals{
 				DistributedInterval: 11,
 				ConfigTLSRefresh:    60,
 			},
-			fleet.Host{
+			fleet.HostOsqueryIntervals{
 				DistributedInterval: 11,
 				LoggerTLSPeriod:     33,
 				ConfigTLSRefresh:    60,
@@ -1374,13 +1543,13 @@ func TestUpdateHostIntervals(t *testing.T) {
 			}}`),
 			true,
 		},
-		// Only distributed_interval updated
 		{
-			fleet.Host{
+			"Only distributed_interval updated",
+			fleet.HostOsqueryIntervals{
 				ConfigTLSRefresh: 60,
 				LoggerTLSPeriod:  33,
 			},
-			fleet.Host{
+			fleet.HostOsqueryIntervals{
 				DistributedInterval: 11,
 				LoggerTLSPeriod:     33,
 				ConfigTLSRefresh:    60,
@@ -1391,13 +1560,13 @@ func TestUpdateHostIntervals(t *testing.T) {
 			}}`),
 			true,
 		},
-		// Fleet not managing distributed_interval
 		{
-			fleet.Host{
+			"Fleet not managing distributed_interval",
+			fleet.HostOsqueryIntervals{
 				ConfigTLSRefresh:    60,
 				DistributedInterval: 11,
 			},
-			fleet.Host{
+			fleet.HostOsqueryIntervals{
 				DistributedInterval: 11,
 				LoggerTLSPeriod:     33,
 				ConfigTLSRefresh:    60,
@@ -1407,14 +1576,14 @@ func TestUpdateHostIntervals(t *testing.T) {
 			}}`),
 			true,
 		},
-		// config_refresh should also cause an update
 		{
-			fleet.Host{
+			"config_refresh should also cause an update",
+			fleet.HostOsqueryIntervals{
 				DistributedInterval: 11,
 				LoggerTLSPeriod:     33,
 				ConfigTLSRefresh:    60,
 			},
-			fleet.Host{
+			fleet.HostOsqueryIntervals{
 				DistributedInterval: 11,
 				LoggerTLSPeriod:     33,
 				ConfigTLSRefresh:    42,
@@ -1426,14 +1595,14 @@ func TestUpdateHostIntervals(t *testing.T) {
 			}}`),
 			true,
 		},
-		// SaveHost should not be called with no changes
 		{
-			fleet.Host{
+			"update intervals should not be called with no changes",
+			fleet.HostOsqueryIntervals{
 				DistributedInterval: 11,
 				LoggerTLSPeriod:     33,
 				ConfigTLSRefresh:    60,
 			},
-			fleet.Host{
+			fleet.HostOsqueryIntervals{
 				DistributedInterval: 11,
 				LoggerTLSPeriod:     33,
 				ConfigTLSRefresh:    60,
@@ -1447,23 +1616,32 @@ func TestUpdateHostIntervals(t *testing.T) {
 	}
 
 	for _, tt := range testCases {
-		t.Run("", func(t *testing.T) {
-			ctx := hostctx.NewContext(context.Background(), tt.initHost)
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := hostctx.NewContext(context.Background(), &fleet.Host{
+				ID:                  1,
+				NodeKey:             "123456",
+				DistributedInterval: tt.initIntervals.DistributedInterval,
+				ConfigTLSRefresh:    tt.initIntervals.ConfigTLSRefresh,
+				LoggerTLSPeriod:     tt.initIntervals.LoggerTLSPeriod,
+			})
 
 			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 				return &fleet.AppConfig{AgentOptions: ptr.RawMessage(json.RawMessage(`{"config":` + string(tt.configOptions) + `}`))}, nil
 			}
 
-			saveHostCalled := false
-			ds.SaveHostFunc = func(ctx context.Context, host *fleet.Host) error {
-				saveHostCalled = true
-				assert.Equal(t, tt.finalHost, *host)
+			updateIntervalsCalled := false
+			ds.UpdateHostOsqueryIntervalsFunc = func(ctx context.Context, hostID uint, intervals fleet.HostOsqueryIntervals) error {
+				if hostID != 1 {
+					return errors.New("not found")
+				}
+				updateIntervalsCalled = true
+				assert.Equal(t, tt.finalIntervals, intervals)
 				return nil
 			}
 
 			_, err := svc.GetClientConfig(ctx)
-			require.Nil(t, err)
-			assert.Equal(t, tt.saveHostCalled, saveHostCalled)
+			require.NoError(t, err)
+			assert.Equal(t, tt.updateIntervalsCalled, updateIntervalsCalled)
 		})
 	}
 }
@@ -1480,10 +1658,7 @@ func (e notFoundError) IsNotFound() bool {
 
 func TestAuthenticationErrors(t *testing.T) {
 	ms := new(mock.Store)
-	ms.MarkHostSeenFunc = func(context.Context, *fleet.Host, time.Time) error {
-		return nil
-	}
-	ms.AuthenticateHostFunc = func(ctx context.Context, nodeKey string) (*fleet.Host, error) {
+	ms.LoadHostByNodeKeyFunc = func(ctx context.Context, nodeKey string) (*fleet.Host, error) {
 		return nil, nil
 	}
 
@@ -1494,7 +1669,7 @@ func TestAuthenticationErrors(t *testing.T) {
 	require.Error(t, err)
 	require.True(t, err.(osqueryError).NodeInvalid())
 
-	ms.AuthenticateHostFunc = func(ctx context.Context, nodeKey string) (*fleet.Host, error) {
+	ms.LoadHostByNodeKeyFunc = func(ctx context.Context, nodeKey string) (*fleet.Host, error) {
 		return &fleet.Host{ID: 1}, nil
 	}
 	ms.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
@@ -1504,7 +1679,7 @@ func TestAuthenticationErrors(t *testing.T) {
 	require.NoError(t, err)
 
 	// return not found error
-	ms.AuthenticateHostFunc = func(ctx context.Context, nodeKey string) (*fleet.Host, error) {
+	ms.LoadHostByNodeKeyFunc = func(ctx context.Context, nodeKey string) (*fleet.Host, error) {
 		return nil, notFoundError{}
 	}
 
@@ -1513,7 +1688,7 @@ func TestAuthenticationErrors(t *testing.T) {
 	require.True(t, err.(osqueryError).NodeInvalid())
 
 	// return other error
-	ms.AuthenticateHostFunc = func(ctx context.Context, nodeKey string) (*fleet.Host, error) {
+	ms.LoadHostByNodeKeyFunc = func(ctx context.Context, nodeKey string) (*fleet.Host, error) {
 		return nil, errors.New("foo")
 	}
 
@@ -1602,31 +1777,39 @@ func TestDistributedQueriesLogsManyErrors(t *testing.T) {
 	ds := new(mock.Store)
 	svc := newTestService(ds, nil, nil)
 
-	host := &fleet.Host{Platform: "darwin"}
+	host := &fleet.Host{
+		ID:       1,
+		Platform: "darwin",
+	}
 
-	ds.SaveHostFunc = func(ctx context.Context, host *fleet.Host) error {
+	ds.UpdateHostFunc = func(ctx context.Context, host *fleet.Host) error {
 		return authz.CheckMissingWithResponse(nil)
 	}
-	ds.RecordLabelQueryExecutionsFunc = func(ctx context.Context, host *fleet.Host, results map[uint]*bool, t time.Time) error {
+	ds.RecordLabelQueryExecutionsFunc = func(ctx context.Context, host *fleet.Host, results map[uint]*bool, t time.Time, deferred bool) error {
 		return errors.New("something went wrong")
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}
+	ds.SaveHostAdditionalFunc = func(ctx context.Context, hostID uint, additional *json.RawMessage) error {
+		return errors.New("something went wrong")
+	}
 
 	lCtx := &fleetLogging.LoggingContext{}
 	ctx := fleetLogging.NewContext(context.Background(), lCtx)
-	ctx = hostctx.NewContext(ctx, *host)
+	ctx = hostctx.NewContext(ctx, host)
 
 	err := svc.SubmitDistributedQueryResults(
 		ctx,
 		map[string][]map[string]string{
-			hostLabelQueryPrefix + "1": {{"col1": "val1"}},
+			hostDetailQueryPrefix + "network_interface": {{"col1": "val1"}}, // we need one detail query that updates hosts.
+			hostLabelQueryPrefix + "1":                  {{"col1": "val1"}},
+			hostAdditionalQueryPrefix + "1":             {{"col1": "val1"}},
 		},
 		map[string]fleet.OsqueryStatus{},
 		map[string]string{},
 	)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 
 	lCtx.Log(ctx, logger)
 
@@ -1634,42 +1817,40 @@ func TestDistributedQueriesLogsManyErrors(t *testing.T) {
 	parts := strings.Split(strings.TrimSpace(logs), "\n")
 	require.Len(t, parts, 1)
 	logData := make(map[string]json.RawMessage)
-	require.NoError(t, json.Unmarshal([]byte(parts[0]), &logData))
-	assert.Equal(t, json.RawMessage(`["something went wrong"]`), logData["err"])
-	assert.Equal(t, json.RawMessage(`["Missing authorization check"]`), logData["internal"])
+	err = json.Unmarshal([]byte(parts[0]), &logData)
+	require.NoError(t, err)
+	assert.Equal(t, json.RawMessage(`"something went wrong || something went wrong"`), logData["err"])
+	assert.Equal(t, json.RawMessage(`"Missing authorization check"`), logData["internal"])
 }
 
 func TestDistributedQueriesReloadsHostIfDetailsAreIn(t *testing.T) {
 	ds := new(mock.Store)
 	svc := newTestService(ds, nil, nil)
 
-	host := &fleet.Host{ID: 42, Platform: "darwin"}
-	ip := "1.1.1.1"
-
-	ds.SaveHostFunc = func(ctx context.Context, host *fleet.Host) error {
-		assert.Equal(t, ip, host.PrimaryIP)
-		return nil
+	host := &fleet.Host{
+		ID:       42,
+		Platform: "darwin",
 	}
-	ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
-		require.Equal(t, uint(42), id)
-		return &fleet.Host{ID: 42, Platform: "darwin", PrimaryIP: ip}, nil
+
+	ds.UpdateHostFunc = func(ctx context.Context, host *fleet.Host) error {
+		return nil
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}
 
-	ctx := hostctx.NewContext(context.Background(), *host)
+	ctx := hostctx.NewContext(context.Background(), host)
 
 	err := svc.SubmitDistributedQueryResults(
 		ctx,
 		map[string][]map[string]string{
-			hostDetailQueryPrefix + "1": {{"col1": "val1"}},
+			hostDetailQueryPrefix + "network_interface": {{"col1": "val1"}},
 		},
 		map[string]fleet.OsqueryStatus{},
 		map[string]string{},
 	)
-	assert.Nil(t, err)
-	assert.True(t, ds.HostFuncInvoked)
+	require.NoError(t, err)
+	assert.True(t, ds.UpdateHostFuncInvoked)
 }
 
 func TestObserversCanOnlyRunDistributedCampaigns(t *testing.T) {
@@ -1767,22 +1948,23 @@ func TestTeamMaintainerCanRunNewDistributedCampaigns(t *testing.T) {
 	ds.QueryFunc = func(ctx context.Context, id uint) (*fleet.Query, error) {
 		return &fleet.Query{
 			ID:             42,
+			AuthorID:       ptr.Uint(99),
 			Name:           "query",
 			Query:          "select 1;",
 			ObserverCanRun: false,
 		}, nil
 	}
 	viewerCtx := viewer.NewContext(context.Background(), viewer.Viewer{
-		User: &fleet.User{ID: 0, Teams: []fleet.UserTeam{{Role: fleet.RoleMaintainer}}},
+		User: &fleet.User{ID: 99, Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 123}, Role: fleet.RoleMaintainer}}},
 	})
 
 	q := "select year, month, day, hour, minutes, seconds from time"
 	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {
 		return nil
 	}
-	//var gotQuery *fleet.Query
+	// var gotQuery *fleet.Query
 	ds.NewQueryFunc = func(ctx context.Context, query *fleet.Query, opts ...fleet.OptionalArg) (*fleet.Query, error) {
-		//gotQuery = query
+		// gotQuery = query
 		query.ID = 42
 		return query, nil
 	}
@@ -1799,7 +1981,7 @@ func TestTeamMaintainerCanRunNewDistributedCampaigns(t *testing.T) {
 		return nil
 	}
 	lq.On("RunQuery", "0", "select year, month, day, hour, minutes, seconds from time", []uint{1, 3, 5}).Return(nil)
-	_, err := svc.NewDistributedQueryCampaign(viewerCtx, q, nil, fleet.HostTargets{HostIDs: []uint{2}, LabelIDs: []uint{1}})
+	_, err := svc.NewDistributedQueryCampaign(viewerCtx, q, nil, fleet.HostTargets{HostIDs: []uint{2}, LabelIDs: []uint{1}, TeamIDs: []uint{123}})
 	require.NoError(t, err)
 }
 
@@ -1816,10 +1998,11 @@ func TestPolicyQueries(t *testing.T) {
 	ds.LabelQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
 	}
-	ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 		return host, nil
 	}
-	ds.SaveHostFunc = func(ctx context.Context, host *fleet.Host) error {
+	ds.UpdateHostFunc = func(ctx context.Context, gotHost *fleet.Host) error {
+		host = gotHost
 		return nil
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
@@ -1832,36 +2015,126 @@ func TestPolicyQueries(t *testing.T) {
 		return map[string]string{"1": "select 1", "2": "select 42;"}, nil
 	}
 	recordedResults := make(map[uint]*bool)
-	ds.RecordPolicyQueryExecutionsFunc = func(ctx context.Context, host *fleet.Host, results map[uint]*bool, updated time.Time) error {
+	ds.RecordPolicyQueryExecutionsFunc = func(ctx context.Context, gotHost *fleet.Host, results map[uint]*bool, updated time.Time, deferred bool) error {
 		recordedResults = results
+		host = gotHost
 		return nil
 	}
+	ds.FlippingPoliciesForHostFunc = func(ctx context.Context, hostID uint, incomingResults map[uint]*bool) (newFailing []uint, newPassing []uint, err error) {
+		return nil, nil, nil
+	}
 
-	ctx := hostctx.NewContext(context.Background(), *host)
+	ctx := hostctx.NewContext(context.Background(), host)
 
 	queries, _, err := svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
 	require.Len(t, queries, expectedDetailQueries+2)
 
-	hasPolicy1, hasPolicy2 := false, false
-	for name := range queries {
-		if strings.HasPrefix(name, hostPolicyQueryPrefix) {
-			if name[len(hostPolicyQueryPrefix):] == "1" {
-				hasPolicy1 = true
-			}
-			if name[len(hostPolicyQueryPrefix):] == "2" {
-				hasPolicy2 = true
+	checkPolicyResults := func(queries map[string]string) {
+		hasPolicy1, hasPolicy2 := false, false
+		for name := range queries {
+			if strings.HasPrefix(name, hostPolicyQueryPrefix) {
+				if name[len(hostPolicyQueryPrefix):] == "1" {
+					hasPolicy1 = true
+				}
+				if name[len(hostPolicyQueryPrefix):] == "2" {
+					hasPolicy2 = true
+				}
 			}
 		}
+		assert.True(t, hasPolicy1)
+		assert.True(t, hasPolicy2)
 	}
-	assert.True(t, hasPolicy1)
-	assert.True(t, hasPolicy2)
 
-	// Record a query execution
+	checkPolicyResults(queries)
+
+	// Record a query execution.
 	err = svc.SubmitDistributedQueryResults(
 		ctx,
 		map[string][]map[string]string{
 			hostPolicyQueryPrefix + "1": {{"col1": "val1"}},
+			hostPolicyQueryPrefix + "2": {},
+		},
+		map[string]fleet.OsqueryStatus{
+			hostPolicyQueryPrefix + "2": 1,
+		},
+		map[string]string{},
+	)
+	require.NoError(t, err)
+	require.Len(t, recordedResults, 2)
+	require.NotNil(t, recordedResults[1])
+	require.True(t, *recordedResults[1])
+	result, ok := recordedResults[2]
+	require.True(t, ok)
+	require.Nil(t, result)
+
+	noPolicyResults := func(queries map[string]string) {
+		hasAnyPolicy := false
+		for name := range queries {
+			if strings.HasPrefix(name, hostPolicyQueryPrefix) {
+				hasAnyPolicy = true
+				break
+			}
+		}
+		assert.False(t, hasAnyPolicy)
+	}
+
+	// After the first time we get policies and update the host, then there shouldn't be any policies.
+	ctx = hostctx.NewContext(context.Background(), host)
+	queries, _, err = svc.GetDistributedQueries(ctx)
+	require.NoError(t, err)
+	require.Len(t, queries, expectedDetailQueries)
+	noPolicyResults(queries)
+
+	// Let's move time forward, there should be policies now.
+	mockClock.AddTime(2 * time.Hour)
+
+	queries, _, err = svc.GetDistributedQueries(ctx)
+	require.NoError(t, err)
+	require.Len(t, queries, expectedDetailQueries+2)
+	checkPolicyResults(queries)
+
+	// Record another query execution.
+	err = svc.SubmitDistributedQueryResults(
+		ctx,
+		map[string][]map[string]string{
+			hostPolicyQueryPrefix + "1": {{"col1": "val1"}},
+			hostPolicyQueryPrefix + "2": {},
+		},
+		map[string]fleet.OsqueryStatus{
+			hostPolicyQueryPrefix + "2": 1,
+		},
+		map[string]string{},
+	)
+	require.NoError(t, err)
+	require.Len(t, recordedResults, 2)
+	require.NotNil(t, recordedResults[1])
+	require.True(t, *recordedResults[1])
+	result, ok = recordedResults[2]
+	require.True(t, ok)
+	require.Nil(t, result)
+
+	// There shouldn't be any policies now.
+	ctx = hostctx.NewContext(context.Background(), host)
+	queries, _, err = svc.GetDistributedQueries(ctx)
+	require.NoError(t, err)
+	require.Len(t, queries, expectedDetailQueries)
+	noPolicyResults(queries)
+
+	// With refetch requested policy queries should be returned.
+	host.RefetchRequested = true
+	ctx = hostctx.NewContext(context.Background(), host)
+	queries, _, err = svc.GetDistributedQueries(ctx)
+	require.NoError(t, err)
+	require.Len(t, queries, expectedDetailQueries+2)
+	checkPolicyResults(queries)
+
+	// Record another query execution.
+	err = svc.SubmitDistributedQueryResults(
+		ctx,
+		map[string][]map[string]string{
+			hostPolicyQueryPrefix + "1": {{"col1": "val1"}},
+			hostPolicyQueryPrefix + "2": {},
 		},
 		map[string]fleet.OsqueryStatus{
 			hostPolicyQueryPrefix + "2": 1,
@@ -1870,6 +2143,370 @@ func TestPolicyQueries(t *testing.T) {
 	)
 	require.NoError(t, err)
 	require.NotNil(t, recordedResults[1])
-	require.Equal(t, true, *recordedResults[1])
-	require.Nil(t, recordedResults[2])
+	require.True(t, *recordedResults[1])
+	result, ok = recordedResults[2]
+	require.True(t, ok)
+	require.Nil(t, result)
+
+	// SubmitDistributedQueryResults will set RefetchRequested to false.
+	require.False(t, host.RefetchRequested)
+
+	// There shouldn't be any policies now.
+	ctx = hostctx.NewContext(context.Background(), host)
+	queries, _, err = svc.GetDistributedQueries(ctx)
+	require.NoError(t, err)
+	require.Len(t, queries, expectedDetailQueries)
+	noPolicyResults(queries)
+}
+
+func TestPolicyWebhooks(t *testing.T) {
+	mockClock := clock.NewMockClock()
+	ds := new(mock.Store)
+	lq := new(live_query.MockLiveQuery)
+	pool := redistest.SetupRedis(t, t.Name(), false, false, false)
+	failingPolicySet := redis_policy_set.NewFailingTest(t, pool)
+	testConfig := config.TestConfig()
+	svc := newTestServiceWithConfig(ds, testConfig, nil, lq, TestServerOpts{
+		FailingPolicySet: failingPolicySet,
+		Clock:            mockClock,
+	})
+
+	host := &fleet.Host{
+		ID:       5,
+		Platform: "darwin",
+		Hostname: "test.hostname",
+	}
+
+	lq.On("QueriesForHost", uint(5)).Return(map[string]string{}, nil)
+	ds.LabelQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
+		return map[string]string{}, nil
+	}
+	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+		return host, nil
+	}
+	ds.UpdateHostFunc = func(ctx context.Context, gotHost *fleet.Host) error {
+		host = gotHost
+		return nil
+	}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			HostSettings: fleet.HostSettings{
+				EnableHostUsers: true,
+			},
+			WebhookSettings: fleet.WebhookSettings{
+				FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
+					Enable:    true,
+					PolicyIDs: []uint{1, 2, 3},
+				},
+			},
+		}, nil
+	}
+
+	ds.PolicyQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
+		return map[string]string{
+			"1": "select 1;",                       // passing policy
+			"2": "select * from unexistent_table;", // policy that fails to execute (e.g. missing table)
+			"3": "select 1 where 1 = 0;",           // failing policy
+		}, nil
+	}
+	recordedResults := make(map[uint]*bool)
+	ds.RecordPolicyQueryExecutionsFunc = func(ctx context.Context, gotHost *fleet.Host, results map[uint]*bool, updated time.Time, deferred bool) error {
+		recordedResults = results
+		host = gotHost
+		return nil
+	}
+	ctx := hostctx.NewContext(context.Background(), host)
+
+	queries, _, err := svc.GetDistributedQueries(ctx)
+	require.NoError(t, err)
+	require.Len(t, queries, expectedDetailQueries+3)
+
+	checkPolicyResults := func(queries map[string]string) {
+		hasPolicy1, hasPolicy2, hasPolicy3 := false, false, false
+		for name := range queries {
+			if strings.HasPrefix(name, hostPolicyQueryPrefix) {
+				switch name[len(hostPolicyQueryPrefix):] {
+				case "1":
+					hasPolicy1 = true
+				case "2":
+					hasPolicy2 = true
+				case "3":
+					hasPolicy3 = true
+				}
+			}
+		}
+		assert.True(t, hasPolicy1)
+		assert.True(t, hasPolicy2)
+		assert.True(t, hasPolicy3)
+	}
+
+	checkPolicyResults(queries)
+
+	ds.FlippingPoliciesForHostFunc = func(ctx context.Context, hostID uint, incomingResults map[uint]*bool) (newFailing []uint, newPassing []uint, err error) {
+		return []uint{3}, nil, nil
+	}
+
+	// Record a query execution.
+	err = svc.SubmitDistributedQueryResults(
+		ctx,
+		map[string][]map[string]string{
+			hostPolicyQueryPrefix + "1": {{"col1": "val1"}}, // succeeds
+			hostPolicyQueryPrefix + "2": {},                 // didn't execute
+			hostPolicyQueryPrefix + "3": {},                 // fails
+		},
+		map[string]fleet.OsqueryStatus{
+			hostPolicyQueryPrefix + "2": 1, // didn't execute
+		},
+		map[string]string{},
+	)
+	require.NoError(t, err)
+	require.Len(t, recordedResults, 3)
+	require.NotNil(t, recordedResults[1])
+	require.True(t, *recordedResults[1])
+	result, ok := recordedResults[2]
+	require.True(t, ok)
+	require.Nil(t, result)
+	require.NotNil(t, recordedResults[3])
+	require.False(t, *recordedResults[3])
+
+	cmpSets := func(expSets map[uint][]fleet.PolicySetHost) error {
+		actualSets, err := failingPolicySet.ListSets()
+		if err != nil {
+			return err
+		}
+		var expSets_ []uint
+		for expSet := range expSets {
+			expSets_ = append(expSets_, expSet)
+		}
+		sort.Slice(expSets_, func(i, j int) bool {
+			return expSets_[i] < expSets_[j]
+		})
+		sort.Slice(actualSets, func(i, j int) bool {
+			return actualSets[i] < actualSets[j]
+		})
+		if !reflect.DeepEqual(actualSets, expSets_) {
+			return fmt.Errorf("sets mismatch: %+v vs %+v", actualSets, expSets_)
+		}
+		for expID, expHosts := range expSets {
+			actualHosts, err := failingPolicySet.ListHosts(expID)
+			if err != nil {
+				return err
+			}
+			sort.Slice(actualHosts, func(i, j int) bool {
+				return actualHosts[i].ID < actualHosts[j].ID
+			})
+			sort.Slice(expHosts, func(i, j int) bool {
+				return expHosts[i].ID < expHosts[j].ID
+			})
+			if !reflect.DeepEqual(actualHosts, expHosts) {
+				return fmt.Errorf("hosts mismatch %d: %+v vs %+v", expID, actualHosts, expHosts)
+			}
+		}
+		return nil
+	}
+
+	assert.Eventually(t, func() bool {
+		err = cmpSets(map[uint][]fleet.PolicySetHost{
+			3: {{
+				ID:       host.ID,
+				Hostname: host.Hostname,
+			}},
+		})
+		return err == nil
+	}, 1*time.Minute, 250*time.Millisecond)
+	require.NoError(t, err)
+
+	noPolicyResults := func(queries map[string]string) {
+		hasAnyPolicy := false
+		for name := range queries {
+			if strings.HasPrefix(name, hostPolicyQueryPrefix) {
+				hasAnyPolicy = true
+				break
+			}
+		}
+		assert.False(t, hasAnyPolicy)
+	}
+
+	// After the first time we get policies and update the host, then there shouldn't be any policies.
+	ctx = hostctx.NewContext(context.Background(), host)
+	queries, _, err = svc.GetDistributedQueries(ctx)
+	require.NoError(t, err)
+	require.Len(t, queries, expectedDetailQueries)
+	noPolicyResults(queries)
+
+	// Let's move time forward, there should be policies now.
+	mockClock.AddTime(2 * time.Hour)
+
+	queries, _, err = svc.GetDistributedQueries(ctx)
+	require.NoError(t, err)
+	require.Len(t, queries, expectedDetailQueries+3)
+	checkPolicyResults(queries)
+
+	ds.FlippingPoliciesForHostFunc = func(ctx context.Context, hostID uint, incomingResults map[uint]*bool) (newFailing []uint, newPassing []uint, err error) {
+		return []uint{1}, []uint{3}, nil
+	}
+
+	// Record another query execution.
+	err = svc.SubmitDistributedQueryResults(
+		ctx,
+		map[string][]map[string]string{
+			hostPolicyQueryPrefix + "1": {},                 // 1 now fails
+			hostPolicyQueryPrefix + "2": {},                 // didn't execute
+			hostPolicyQueryPrefix + "3": {{"col1": "val1"}}, // 1 now succeeds
+		},
+		map[string]fleet.OsqueryStatus{
+			hostPolicyQueryPrefix + "2": 1, // didn't execute
+		},
+		map[string]string{},
+	)
+	require.NoError(t, err)
+	require.Len(t, recordedResults, 3)
+	require.NotNil(t, recordedResults[1])
+	require.False(t, *recordedResults[1])
+	result, ok = recordedResults[2]
+	require.True(t, ok)
+	require.Nil(t, result)
+	require.NotNil(t, recordedResults[3])
+	require.True(t, *recordedResults[3])
+
+	assert.Eventually(t, func() bool {
+		err = cmpSets(map[uint][]fleet.PolicySetHost{
+			1: {{
+				ID:       host.ID,
+				Hostname: host.Hostname,
+			}},
+			3: {},
+		})
+		return err == nil
+	}, 1*time.Minute, 250*time.Millisecond)
+	require.NoError(t, err)
+
+	// Simulate webhook trigger by removing the hosts.
+	err = failingPolicySet.RemoveHosts(1, []fleet.PolicySetHost{{
+		ID:       host.ID,
+		Hostname: host.Hostname,
+	}})
+	require.NoError(t, err)
+
+	ds.FlippingPoliciesForHostFunc = func(ctx context.Context, hostID uint, incomingResults map[uint]*bool) (newFailing []uint, newPassing []uint, err error) {
+		return []uint{}, []uint{2}, nil
+	}
+
+	// Record another query execution.
+	err = svc.SubmitDistributedQueryResults(
+		ctx,
+		map[string][]map[string]string{
+			hostPolicyQueryPrefix + "1": {},                 // continues to fail
+			hostPolicyQueryPrefix + "2": {{"col1": "val1"}}, // now passes
+			hostPolicyQueryPrefix + "3": {{"col1": "val1"}}, // continues to succeed
+		},
+		map[string]fleet.OsqueryStatus{},
+		map[string]string{},
+	)
+	require.NoError(t, err)
+	require.Len(t, recordedResults, 3)
+	require.NotNil(t, recordedResults[1])
+	require.False(t, *recordedResults[1])
+	require.NotNil(t, recordedResults[2])
+	require.True(t, *recordedResults[2])
+	require.NotNil(t, recordedResults[3])
+	require.True(t, *recordedResults[3])
+
+	assert.Eventually(t, func() bool {
+		err = cmpSets(map[uint][]fleet.PolicySetHost{
+			1: {},
+			3: {},
+		})
+		return err == nil
+	}, 1*time.Minute, 250*time.Millisecond)
+	require.NoError(t, err)
+}
+
+// If the live query store (Redis) is down we still (see #3503)
+// want hosts to get queries and continue to check in.
+func TestLiveQueriesFailing(t *testing.T) {
+	ds := new(mock.Store)
+	lq := new(live_query.MockLiveQuery)
+	cfg := config.TestConfig()
+	buf := new(bytes.Buffer)
+	logger := log.NewLogfmtLogger(buf)
+	svc := newTestServiceWithConfig(ds, cfg, nil, lq, TestServerOpts{
+		Logger: logger,
+	})
+
+	hostID := uint(1)
+	host := &fleet.Host{
+		ID:       hostID,
+		Platform: "darwin",
+	}
+	lq.On("QueriesForHost", hostID).Return(
+		map[string]string{},
+		errors.New("failed to get queries for host"),
+	)
+
+	ds.LabelQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
+		return map[string]string{}, nil
+	}
+	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+		return host, nil
+	}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}}, nil
+	}
+	ds.PolicyQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
+		return map[string]string{}, nil
+	}
+
+	ctx := hostctx.NewContext(context.Background(), host)
+
+	queries, _, err := svc.GetDistributedQueries(ctx)
+	require.NoError(t, err)
+	require.Len(t, queries, expectedDetailQueries)
+
+	logs, err := ioutil.ReadAll(buf)
+	require.NoError(t, err)
+	require.Contains(t, string(logs), "level=error")
+	require.Contains(t, string(logs), "failed to get queries for host")
+}
+
+func TestJitterForHost(t *testing.T) {
+	jh := newJitterHashTable(30)
+
+	histogram := make(map[int64]int)
+	hostCount := 3000
+	for i := 0; i < hostCount; i++ {
+		hostID, err := crand.Int(crand.Reader, big.NewInt(10000))
+		require.NoError(t, err)
+		jitter := jh.jitterForHost(uint(hostID.Int64() + 10000))
+		jitterMinutes := int64(jitter.Minutes())
+		histogram[jitterMinutes]++
+	}
+	min, max := math.MaxInt, 0
+	for jitterMinutes, count := range histogram {
+		if count < min {
+			min = count
+		}
+		if count > max {
+			max = count
+		}
+		t.Logf("jitterMinutes=%d \t count=%d\n", jitterMinutes, count)
+	}
+	variation := max - min
+	t.Logf("min=%d \t max=%d \t variation=%d\n", min, max, variation)
+
+	// check that variation is below 1% of the total amount of hosts
+	require.Less(t, variation, int(float32(hostCount)/0.01))
+}
+
+func TestNoJitter(t *testing.T) {
+	jh := newJitterHashTable(0)
+
+	hostCount := 3000
+	for i := 0; i < hostCount; i++ {
+		hostID, err := crand.Int(crand.Reader, big.NewInt(10000))
+		require.NoError(t, err)
+		jitter := jh.jitterForHost(uint(hostID.Int64() + 10000))
+		jitterMinutes := int64(jitter.Minutes())
+		require.Equal(t, int64(0), jitterMinutes)
+	}
 }

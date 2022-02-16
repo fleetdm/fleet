@@ -1,0 +1,38 @@
+.preview-data-modal {
+  &__sandbox-info {
+    margin-top: $pad-medium;
+
+    p {
+      margin: 0;
+      margin-bottom: $pad-medium;
+    }
+
+    p:last-child {
+      margin-bottom: 0;
+    }
+  }
+
+  a {
+    color: $core-vibrant-blue;
+    font-weight: $bold;
+    font-size: $x-small;
+    text-decoration: none;
+  }
+
+  &__btn-wrap {
+    display: flex;
+    flex-direction: row-reverse;
+  }
+
+  &__btn {
+    margin-left: 12px;
+  }
+
+  .tooltip__tooltip-icon {
+    img {
+      width: 16px;
+      height: 16px;
+      vertical-align: top;
+    }
+  }
+}

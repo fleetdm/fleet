@@ -1,16 +1,22 @@
 # Deployment
 
-### [Installation](./1-Installation.md) 
-Provides documentation on installing the Fleet binary and Fleet’s infrastructure dependencies
+### [Introduction](./01-Introduction.md) 
+Provides an introduction to Fleet and its requirements and dependencies.
 
-### [Configuration](./2-Configuration.md) 
+### [Server Installation](./02-Server-Installation.md) 
+Includes deployment walkthroughs for Fleet on CentOS, Ubuntu, Docker, Kubernetes, and building from source.
+
+### [Configuration](./03-Configuration.md) 
 Includes resources for configuring the Fleet binary, managing osquery configurations, and running with systemd
 
-### [Example deployment scenarios](./3-Example-deployment-scenarios.md) 
-Includes deployment walkthroughs for Fleet on CentOS, Ubuntu, and Kubernetes.
-
-### [Self-managed agent updates](./4-fleetctl-agent-updates.md)
+### [Self-managed agent updates](./04-fleetctl-agent-updates.md)
 Information about running an update server with fleetctl.
+
+### [Load Testing](./05-Load-testing.md)
+Information about running an update server with fleetctl.
+
+### [Upgrading Fleet](./06-Upgrading-Fleet.md) 
+Includes a guide for how to update and run new versions of Fleet
 
 ### [FAQ](./FAQ.md) 
 Includes commonly asked questions and answers about deployment from the Fleet community.

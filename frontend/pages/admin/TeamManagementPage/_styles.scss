@@ -1,9 +1,27 @@
 .team-management {
+  padding: 0;
   &__page-description {
     font-size: $x-small;
     color: $core-fleet-black;
     @include sticky-settings-description;
     padding-bottom: $pad-medium;
+  }
+}
+
+.team-details__team-details {
+  .form-field--dropdown {
+    margin-bottom: 0;
+  }
+}
+
+.team-details.team-select-open {
+  .component__tabs-wrapper {
+    position: relative;
+    z-index: 2;
+  }
+  .members {
+    position: relative;
+    z-index: 1;
   }
 }
 

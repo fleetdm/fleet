@@ -1,6 +1,6 @@
 import React from "react";
 
-import Modal from "components/modals/Modal";
+import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 
 const baseClass = "remove-scheduled-query-modal";
@@ -10,11 +10,10 @@ interface IRemoveScheduledQueryModalProps {
   onSubmit: () => void;
 }
 
-const RemoveScheduledQueryModal = (
-  props: IRemoveScheduledQueryModalProps
-): JSX.Element => {
-  const { onCancel, onSubmit } = props;
-
+const RemoveScheduledQueryModal = ({
+  onCancel,
+  onSubmit,
+}: IRemoveScheduledQueryModalProps): JSX.Element => {
   return (
     <Modal
       title={"Remove scheduled query"}

@@ -29,7 +29,7 @@ const (
 	// OnlineIntervalBuffer is the additional time in seconds to add to the
 	// online interval to avoid flapping of hosts that check in a bit later
 	// than their expected checkin interval.
-	OnlineIntervalBuffer = 30
+	OnlineIntervalBuffer = 60
 )
 
 type HostListOptions struct {
@@ -45,6 +45,18 @@ type HostListOptions struct {
 
 	PolicyIDFilter       *uint
 	PolicyResponseFilter *bool
+
+	SoftwareIDFilter *uint
+
+	DisableFailingPolicies bool
+}
+
+func (h HostListOptions) Empty() bool {
+	return h.ListOptions.Empty() && len(h.AdditionalFilters) == 0 && h.StatusFilter == "" && h.TeamFilter == nil && h.PolicyIDFilter == nil && h.PolicyResponseFilter == nil
+}
+
+func (l ListOptions) Empty() bool {
+	return l.Page == 0 && l.PerPage == 0 && l.OrderKey == "" && l.OrderDirection == 0 && l.MatchQuery == ""
 }
 
 type HostUser struct {
@@ -52,6 +64,7 @@ type HostUser struct {
 	Username  string `json:"username" db:"username"`
 	Type      string `json:"type" db:"user_type"`
 	GroupName string `json:"groupname" db:"groupname"`
+	Shell     string `json:"shell" db:"shell"`
 }
 
 type Host struct {
@@ -61,23 +74,25 @@ type Host struct {
 	// OsqueryHostID is the key used in the request context that is
 	// used to retrieve host information.  It is sent from osquery and may currently be
 	// a GUID or a Host Name, but in either case, it MUST be unique
-	OsqueryHostID    string        `json:"-" db:"osquery_host_id"`
-	DetailUpdatedAt  time.Time     `json:"detail_updated_at" db:"detail_updated_at"` // Time that the host details were last updated
-	LabelUpdatedAt   time.Time     `json:"label_updated_at" db:"label_updated_at"`   // Time that the host labels were last updated
-	LastEnrolledAt   time.Time     `json:"last_enrolled_at" db:"last_enrolled_at"`   // Time that the host last enrolled
-	SeenTime         time.Time     `json:"seen_time" db:"seen_time"`                 // Time that the host was last "seen"
-	RefetchRequested bool          `json:"refetch_requested" db:"refetch_requested"`
-	NodeKey          string        `json:"-" db:"node_key"`
-	Hostname         string        `json:"hostname" db:"hostname"` // there is a fulltext index on this field
-	UUID             string        `json:"uuid" db:"uuid"`         // there is a fulltext index on this field
-	Platform         string        `json:"platform"`
-	OsqueryVersion   string        `json:"osquery_version" db:"osquery_version"`
-	OSVersion        string        `json:"os_version" db:"os_version"`
-	Build            string        `json:"build"`
-	PlatformLike     string        `json:"platform_like" db:"platform_like"`
-	CodeName         string        `json:"code_name" db:"code_name"`
-	Uptime           time.Duration `json:"uptime"`
-	Memory           int64         `json:"memory" sql:"type:bigint" db:"memory"`
+	OsqueryHostID    string    `json:"-" db:"osquery_host_id"`
+	DetailUpdatedAt  time.Time `json:"detail_updated_at" db:"detail_updated_at"` // Time that the host details were last updated
+	LabelUpdatedAt   time.Time `json:"label_updated_at" db:"label_updated_at"`   // Time that the host labels were last updated
+	PolicyUpdatedAt  time.Time `json:"policy_updated_at" db:"policy_updated_at"` // Time that the host policies were last updated
+	LastEnrolledAt   time.Time `json:"last_enrolled_at" db:"last_enrolled_at"`   // Time that the host last enrolled
+	SeenTime         time.Time `json:"seen_time" db:"seen_time"`                 // Time that the host was last "seen"
+	RefetchRequested bool      `json:"refetch_requested" db:"refetch_requested"`
+	NodeKey          string    `json:"-" db:"node_key"`
+	Hostname         string    `json:"hostname" db:"hostname"` // there is a fulltext index on this field
+	UUID             string    `json:"uuid" db:"uuid"`         // there is a fulltext index on this field
+	// Platform is the host's platform as defined by osquery's os_version.platform.
+	Platform       string        `json:"platform"`
+	OsqueryVersion string        `json:"osquery_version" db:"osquery_version"`
+	OSVersion      string        `json:"os_version" db:"os_version"`
+	Build          string        `json:"build"`
+	PlatformLike   string        `json:"platform_like" db:"platform_like"`
+	CodeName       string        `json:"code_name" db:"code_name"`
+	Uptime         time.Duration `json:"uptime"`
+	Memory         int64         `json:"memory" sql:"type:bigint" db:"memory"`
 	// system_info fields
 	CPUType          string `json:"cpu_type" db:"cpu_type"`
 	CPUSubtype       string `json:"cpu_subtype" db:"cpu_subtype"`
@@ -114,7 +129,14 @@ type Host struct {
 	GigsDiskSpaceAvailable    float64 `json:"gigs_disk_space_available" db:"gigs_disk_space_available"`
 	PercentDiskSpaceAvailable float64 `json:"percent_disk_space_available" db:"percent_disk_space_available"`
 
+	HostIssues `json:"issues,omitempty"`
+
 	Modified bool `json:"-"`
+}
+
+type HostIssues struct {
+	TotalIssuesCount     int `json:"total_issues_count" db:"total_issues_count"`
+	FailingPoliciesCount int `json:"failing_policies_count" db:"failing_policies_count"`
 }
 
 func (h Host) AuthzType() string {
@@ -129,6 +151,8 @@ type HostDetail struct {
 	Labels []*Label `json:"labels"`
 	// Packs is the list of packs the host is a member of.
 	Packs []*Pack `json:"packs"`
+	// Policies is the list of policies and whether it passes for the host
+	Policies []*HostPolicy `json:"policies"`
 }
 
 const (
@@ -139,10 +163,20 @@ const (
 // set of hosts in the database. This structure is returned by the HostService
 // method GetHostSummary
 type HostSummary struct {
-	OnlineCount  uint `json:"online_count"`
-	OfflineCount uint `json:"offline_count"`
-	MIACount     uint `json:"mia_count"`
-	NewCount     uint `json:"new_count"`
+	TeamID           *uint                  `json:"team_id,omitempty"`
+	TotalsHostsCount uint                   `json:"totals_hosts_count" db:"total"`
+	Platforms        []*HostSummaryPlatform `json:"platforms"`
+	OnlineCount      uint                   `json:"online_count" db:"online"`
+	OfflineCount     uint                   `json:"offline_count" db:"offline"`
+	MIACount         uint                   `json:"mia_count" db:"mia"`
+	NewCount         uint                   `json:"new_count" db:"new"`
+}
+
+// HostSummaryPlatform represents the hosts statistics for a given platform,
+// as returned inside the HostSummary struct by the GetHostSummary service.
+type HostSummaryPlatform struct {
+	Platform   string `json:"platform" db:"platform"`
+	HostsCount uint   `json:"hosts_count" db:"total"`
 }
 
 // Status calculates the online status of the host
@@ -175,4 +209,104 @@ func (h *Host) IsNew(now time.Time) bool {
 		return true
 	}
 	return false
+}
+
+// FleetPlatform returns the host's generic platform as supported by Fleet.
+func (h *Host) FleetPlatform() string {
+	return PlatformFromHost(h.Platform)
+}
+
+// HostLinuxOSs are the possible linux values for Host.Platform.
+var HostLinuxOSs = []string{
+	"linux", "ubuntu", "debian", "rhel", "centos", "sles", "kali", "gentoo",
+}
+
+func isLinux(hostPlatform string) bool {
+	for _, linuxPlatform := range HostLinuxOSs {
+		if linuxPlatform == hostPlatform {
+			return true
+		}
+	}
+	return false
+}
+
+// PlatformFromHost converts the given host platform into
+// the generic platforms known by osquery
+// https://osquery.readthedocs.io/en/stable/deployment/configuration/
+// and supported by Fleet.
+//
+// Returns empty string if hostPlatform is unknnown.
+func PlatformFromHost(hostPlatform string) string {
+	switch {
+	case isLinux(hostPlatform):
+		return "linux"
+	case hostPlatform == "darwin", hostPlatform == "windows":
+		return hostPlatform
+	default:
+		return ""
+	}
+}
+
+// ExpandPlatform returns the list of platforms corresponding to the (possibly
+// generic) platform provided. For example, "linux" expands to all the platform
+// identifiers considered to be linux, while "debian" returns only "debian",
+// "windows" => "windows", etc.
+func ExpandPlatform(platform string) []string {
+	switch platform {
+	case "linux":
+		// return a copy to make sure the caller cannot modify the slice
+		linuxOSs := make([]string, len(HostLinuxOSs))
+		copy(linuxOSs, HostLinuxOSs)
+		return linuxOSs
+	default:
+		return []string{platform}
+	}
+}
+
+// HostDeviceMapping represents a mapping of a user email address to a host,
+// as reported by the specified source (e.g. Google Chrome Profiles).
+type HostDeviceMapping struct {
+	ID     uint   `json:"-" db:"id"`
+	HostID uint   `json:"-" db:"host_id"`
+	Email  string `json:"email" db:"email"`
+	Source string `json:"source" db:"source"`
+}
+
+type HostMunkiInfo struct {
+	Version string `json:"version"`
+}
+
+type HostMDM struct {
+	EnrollmentStatus string `json:"enrollment_status"`
+	ServerURL        string `json:"server_url"`
+}
+
+type MacadminsData struct {
+	Munki *HostMunkiInfo `json:"munki"`
+	MDM   *HostMDM       `json:"mobile_device_management"`
+}
+
+type AggregatedMunkiVersion struct {
+	HostMunkiInfo
+	HostsCount int `json:"hosts_count" db:"hosts_count"`
+}
+
+type AggregatedMDMStatus struct {
+	EnrolledManualHostsCount    int `json:"enrolled_manual_hosts_count" db:"enrolled_manual_hosts_count"`
+	EnrolledAutomatedHostsCount int `json:"enrolled_automated_hosts_count" db:"enrolled_automated_hosts_count"`
+	UnenrolledHostsCount        int `json:"unenrolled_hosts_count" db:"unenrolled_hosts_count"`
+	HostsCount                  int `json:"hosts_count" db:"hosts_count"`
+}
+
+type AggregatedMacadminsData struct {
+	CountsUpdatedAt time.Time                `json:"counts_updated_at"`
+	MunkiVersions   []AggregatedMunkiVersion `json:"munki_versions"`
+	MDMStatus       AggregatedMDMStatus      `json:"mobile_device_management_enrollment_status"`
+}
+
+// CPEHost is a minimal host representation returned when querying hosts by
+// CPE.
+type CPEHost struct {
+	ID       uint   `json:"id" db:"id"`
+	Hostname string `json:"hostname" db:"hostname"`
 }

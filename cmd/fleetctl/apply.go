@@ -2,13 +2,15 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"io/ioutil"
 	"regexp"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/ghodss/yaml"
-	"github.com/pkg/errors"
 	"github.com/urfave/cli/v2"
 )
 
@@ -23,10 +25,11 @@ type specMetadata struct {
 }
 
 type specGroup struct {
-	Queries []*fleet.QuerySpec
-	Teams   []*fleet.TeamSpec
-	Packs   []*fleet.PackSpec
-	Labels  []*fleet.LabelSpec
+	Queries  []*fleet.QuerySpec
+	Teams    []*fleet.TeamSpec
+	Packs    []*fleet.PackSpec
+	Labels   []*fleet.LabelSpec
+	Policies []*fleet.PolicySpec
 	// This needs to be interface{} to allow for the patch logic. Otherwise we send a request that looks to the
 	// server like the user explicitly set the zero values.
 	AppConfig    interface{}
@@ -52,7 +55,7 @@ func specGroupFromBytes(b []byte) (*specGroup, error) {
 		}
 
 		if s.Spec == nil {
-			return nil, errors.Errorf("no spec field on %q document", s.Kind)
+			return nil, fmt.Errorf("no spec field on %q document", s.Kind)
 		}
 
 		kind := strings.ToLower(s.Kind)
@@ -61,23 +64,30 @@ func specGroupFromBytes(b []byte) (*specGroup, error) {
 		case fleet.QueryKind:
 			var querySpec *fleet.QuerySpec
 			if err := yaml.Unmarshal(s.Spec, &querySpec); err != nil {
-				return nil, errors.Wrap(err, "unmarshaling "+kind+" spec")
+				return nil, fmt.Errorf("unmarshaling "+kind+" spec: %w", err)
 			}
 			specs.Queries = append(specs.Queries, querySpec)
 
 		case fleet.PackKind:
 			var packSpec *fleet.PackSpec
 			if err := yaml.Unmarshal(s.Spec, &packSpec); err != nil {
-				return nil, errors.Wrap(err, "unmarshaling "+kind+" spec")
+				return nil, fmt.Errorf("unmarshaling "+kind+" spec: %w", err)
 			}
 			specs.Packs = append(specs.Packs, packSpec)
 
 		case fleet.LabelKind:
 			var labelSpec *fleet.LabelSpec
 			if err := yaml.Unmarshal(s.Spec, &labelSpec); err != nil {
-				return nil, errors.Wrap(err, "unmarshaling "+kind+" spec")
+				return nil, fmt.Errorf("unmarshaling "+kind+" spec: %w", err)
 			}
 			specs.Labels = append(specs.Labels, labelSpec)
+
+		case fleet.PolicyKind:
+			var policySpec *fleet.PolicySpec
+			if err := yaml.Unmarshal(s.Spec, &policySpec); err != nil {
+				return nil, fmt.Errorf("unmarshaling "+kind+" spec: %w", err)
+			}
+			specs.Policies = append(specs.Policies, policySpec)
 
 		case fleet.AppConfigKind:
 			if specs.AppConfig != nil {
@@ -86,7 +96,7 @@ func specGroupFromBytes(b []byte) (*specGroup, error) {
 
 			var appConfigSpec interface{}
 			if err := yaml.Unmarshal(s.Spec, &appConfigSpec); err != nil {
-				return nil, errors.Wrap(err, "unmarshaling "+kind+" spec")
+				return nil, fmt.Errorf("unmarshaling "+kind+" spec: %w", err)
 			}
 			specs.AppConfig = appConfigSpec
 
@@ -97,26 +107,26 @@ func specGroupFromBytes(b []byte) (*specGroup, error) {
 
 			var enrollSecretSpec *fleet.EnrollSecretSpec
 			if err := yaml.Unmarshal(s.Spec, &enrollSecretSpec); err != nil {
-				return nil, errors.Wrap(err, "unmarshaling "+kind+" spec")
+				return nil, fmt.Errorf("unmarshaling "+kind+" spec: %w", err)
 			}
 			specs.EnrollSecret = enrollSecretSpec
 
 		case fleet.UserRolesKind:
 			var userRoleSpec *fleet.UsersRoleSpec
 			if err := yaml.Unmarshal(s.Spec, &userRoleSpec); err != nil {
-				return nil, errors.Wrap(err, "unmarshaling "+kind+" spec")
+				return nil, fmt.Errorf("unmarshaling "+kind+" spec: %w", err)
 			}
 			specs.UsersRoles = userRoleSpec
 
 		case fleet.TeamKind:
 			var teamSpec TeamSpec
 			if err := yaml.Unmarshal(s.Spec, &teamSpec); err != nil {
-				return nil, errors.Wrap(err, "unmarshaling "+kind+" spec")
+				return nil, fmt.Errorf("unmarshaling "+kind+" spec: %w", err)
 			}
 			specs.Teams = append(specs.Teams, teamSpec.Team)
 
 		default:
-			return nil, errors.Errorf("unknown kind %q", s.Kind)
+			return nil, fmt.Errorf("unknown kind %q", s.Kind)
 		}
 	}
 
@@ -158,62 +168,77 @@ func applyCommand() *cli.Command {
 				return err
 			}
 
-			specs, err := specGroupFromBytes(b)
+			err = applyYamlBytes(c, b, fleetClient)
 			if err != nil {
 				return err
-			}
-
-			if len(specs.Queries) > 0 {
-				if err := fleetClient.ApplyQueries(specs.Queries); err != nil {
-					return errors.Wrap(err, "applying queries")
-				}
-				logf(c, "[+] applied %d queries\n", len(specs.Queries))
-			}
-
-			if len(specs.Labels) > 0 {
-				if err := fleetClient.ApplyLabels(specs.Labels); err != nil {
-					return errors.Wrap(err, "applying labels")
-				}
-				logf(c, "[+] applied %d labels\n", len(specs.Labels))
-			}
-
-			if len(specs.Packs) > 0 {
-				if err := fleetClient.ApplyPacks(specs.Packs); err != nil {
-					return errors.Wrap(err, "applying packs")
-				}
-				logf(c, "[+] applied %d packs\n", len(specs.Packs))
-			}
-
-			if specs.AppConfig != nil {
-				if err := fleetClient.ApplyAppConfig(specs.AppConfig); err != nil {
-					return errors.Wrap(err, "applying fleet config")
-				}
-				log(c, "[+] applied fleet config\n")
-
-			}
-
-			if specs.EnrollSecret != nil {
-				if err := fleetClient.ApplyEnrollSecretSpec(specs.EnrollSecret); err != nil {
-					return errors.Wrap(err, "applying enroll secrets")
-				}
-				log(c, "[+] applied enroll secrets\n")
-			}
-
-			if len(specs.Teams) > 0 {
-				if err := fleetClient.ApplyTeams(specs.Teams); err != nil {
-					return errors.Wrap(err, "applying queries")
-				}
-				logf(c, "[+] applied %d teams\n", len(specs.Teams))
-			}
-
-			if specs.UsersRoles != nil {
-				if err := fleetClient.ApplyUsersRoleSecretSpec(specs.UsersRoles); err != nil {
-					return errors.Wrap(err, "applying user roles")
-				}
-				log(c, "[+] applied user roles\n")
 			}
 
 			return nil
 		},
 	}
+}
+
+func applyYamlBytes(c *cli.Context, b []byte, fleetClient *service.Client) error {
+	specs, err := specGroupFromBytes(b)
+	if err != nil {
+		return err
+	}
+
+	if len(specs.Queries) > 0 {
+		if err := fleetClient.ApplyQueries(specs.Queries); err != nil {
+			return fmt.Errorf("applying queries: %w", err)
+		}
+		logf(c, "[+] applied %d queries\n", len(specs.Queries))
+	}
+
+	if len(specs.Labels) > 0 {
+		if err := fleetClient.ApplyLabels(specs.Labels); err != nil {
+			return fmt.Errorf("applying labels: %w", err)
+		}
+		logf(c, "[+] applied %d labels\n", len(specs.Labels))
+	}
+
+	if len(specs.Policies) > 0 {
+		if err := fleetClient.ApplyPolicies(specs.Policies); err != nil {
+			return fmt.Errorf("applying policies: %w", err)
+		}
+		logf(c, "[+] applied %d policies\n", len(specs.Policies))
+	}
+
+	if len(specs.Packs) > 0 {
+		if err := fleetClient.ApplyPacks(specs.Packs); err != nil {
+			return fmt.Errorf("applying packs: %w", err)
+		}
+		logf(c, "[+] applied %d packs\n", len(specs.Packs))
+	}
+
+	if specs.AppConfig != nil {
+		if err := fleetClient.ApplyAppConfig(specs.AppConfig); err != nil {
+			return fmt.Errorf("applying fleet config: %w", err)
+		}
+		log(c, "[+] applied fleet config\n")
+
+	}
+
+	if specs.EnrollSecret != nil {
+		if err := fleetClient.ApplyEnrollSecretSpec(specs.EnrollSecret); err != nil {
+			return fmt.Errorf("applying enroll secrets: %w", err)
+		}
+		log(c, "[+] applied enroll secrets\n")
+	}
+
+	if len(specs.Teams) > 0 {
+		if err := fleetClient.ApplyTeams(specs.Teams); err != nil {
+			return fmt.Errorf("applying teams: %w", err)
+		}
+		logf(c, "[+] applied %d teams\n", len(specs.Teams))
+	}
+
+	if specs.UsersRoles != nil {
+		if err := fleetClient.ApplyUsersRoleSecretSpec(specs.UsersRoles); err != nil {
+			return fmt.Errorf("applying user roles: %w", err)
+		}
+		log(c, "[+] applied user roles\n")
+	}
+	return nil
 }

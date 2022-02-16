@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -12,8 +13,9 @@ import (
 	"os"
 	"runtime"
 
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/service"
-	"github.com/pkg/errors"
+	"github.com/kolide/kit/version"
 	"github.com/urfave/cli/v2"
 )
 
@@ -34,7 +36,8 @@ func clientFromCLI(c *cli.Context) (*service.Client, error) {
 
 	configPath, context := c.String("config"), c.String("context")
 
-	if flag.Lookup("test.v") != nil {
+	// if a config file is explicitly provided, do not set an invalid arbitrary token
+	if !c.IsSet("config") && flag.Lookup("test.v") != nil {
 		fleet.SetToken("AAAA")
 		return fleet, nil
 	}
@@ -42,16 +45,38 @@ func clientFromCLI(c *cli.Context) (*service.Client, error) {
 	// Add authentication token
 	t, err := getConfigValue(configPath, context, "token")
 	if err != nil {
-		return nil, errors.Wrap(err, "error getting token from the config")
+		return nil, fmt.Errorf("error getting token from the config: %w", err)
 	}
 
-	if token, ok := t.(string); ok {
-		if token == "" {
-			return nil, errors.New("Please log in with: fleetctl login")
+	token, ok := t.(string)
+	if !ok {
+		fmt.Fprintln(os.Stderr, "Token invalid. Please log in with: fleetctl login")
+		return nil, fmt.Errorf("token config value expected type %T, got %T: %+v", "", t, t)
+	}
+	if token == "" {
+		fmt.Fprintln(os.Stderr, "Token missing. Please log in with: fleetctl login")
+		return nil, errors.New("token config value missing")
+	}
+	fleet.SetToken(token)
+
+	// Check if version matches fleet server. Also ensures that the token is valid.
+	clientInfo := version.Version()
+
+	serverInfo, err := fleet.Version()
+	if err != nil {
+		if errors.Is(err, service.ErrUnauthenticated) {
+			fmt.Fprintln(os.Stderr, "Token invalid or session expired. Please log in with: fleetctl login")
 		}
-		fleet.SetToken(token)
-	} else {
-		return nil, errors.Errorf("token config value was not a string: %+v", t)
+		return nil, err
+	}
+
+	if clientInfo.Version != serverInfo.Version {
+		fmt.Fprintf(
+			os.Stderr,
+			"Warning: Version mismatch.\nClient Version:   %s\nServer Version:  %s\n",
+			clientInfo.Version, serverInfo.Version,
+		)
+		// This is just a warning, continue ...
 	}
 
 	return fleet, nil
@@ -85,7 +110,7 @@ func unauthenticatedClientFromConfig(cc Context, debug bool, w io.Writer) (*serv
 		options...,
 	)
 	if err != nil {
-		return nil, errors.Wrap(err, "error creating Fleet API client handler")
+		return nil, fmt.Errorf("error creating Fleet API client handler: %w", err)
 	}
 
 	return fleet, nil
@@ -102,7 +127,7 @@ func rawHTTPClientFromConfig(cc Context) (*http.Client, *url.URL, error) {
 	}
 	baseURL, err := url.Parse(cc.Address)
 	if err != nil {
-		return nil, nil, errors.Wrap(err, "parse address")
+		return nil, nil, fmt.Errorf("parse address: %w", err)
 	}
 
 	var rootCA *x509.CertPool
@@ -111,7 +136,7 @@ func rawHTTPClientFromConfig(cc Context) (*http.Client, *url.URL, error) {
 		// read in the root cert file specified in the context
 		certs, err := ioutil.ReadFile(cc.RootCA)
 		if err != nil {
-			return nil, nil, errors.Wrap(err, "reading root CA")
+			return nil, nil, fmt.Errorf("reading root CA: %w", err)
 		}
 
 		// add certs to pool
@@ -120,14 +145,10 @@ func rawHTTPClientFromConfig(cc Context) (*http.Client, *url.URL, error) {
 		}
 	}
 
-	cli := &http.Client{
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: cc.TLSSkipVerify,
-				RootCAs:            rootCA,
-			},
-		},
-	}
+	cli := fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{
+		InsecureSkipVerify: cc.TLSSkipVerify,
+		RootCAs:            rootCA,
+	}))
 	return cli, baseURL, nil
 }
 
@@ -142,7 +163,7 @@ func clientConfigFromCLI(c *cli.Context) (Context, error) {
 	var zeroCtx Context
 
 	if err := makeConfigIfNotExists(c.String("config")); err != nil {
-		return zeroCtx, errors.Wrapf(err, "error verifying that config exists at %s", c.String("config"))
+		return zeroCtx, fmt.Errorf("error verifying that config exists at %s: %w", c.String("config"), err)
 	}
 
 	config, err := readConfig(c.String("config"))

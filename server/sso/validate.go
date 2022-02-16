@@ -6,13 +6,14 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/xml"
+	"errors"
+	"fmt"
 	"strings"
 	"time"
 
 	"github.com/beevik/etree"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	rtvalidator "github.com/mattermost/xml-roundtrip-validator"
-	"github.com/pkg/errors"
 	dsig "github.com/russellhaering/goxmldsig"
 	"github.com/russellhaering/goxmldsig/etreeutils"
 )
@@ -23,14 +24,21 @@ type Validator interface {
 }
 
 type validator struct {
-	context  *dsig.ValidationContext
-	clock    *dsig.Clock
-	metadata Metadata
+	context           *dsig.ValidationContext
+	clock             *dsig.Clock
+	metadata          Metadata
+	expectedAudiences []string
 }
 
 func Clock(clock *dsig.Clock) func(v *validator) {
 	return func(v *validator) {
 		v.clock = clock
+	}
+}
+
+func WithExpectedAudience(audiences ...string) func(v *validator) {
+	return func(v *validator) {
+		v.expectedAudiences = audiences
 	}
 }
 
@@ -48,11 +56,11 @@ func NewValidator(metadata Metadata, opts ...func(v *validator)) (Validator, err
 		}
 		certData, err := base64.StdEncoding.DecodeString(strings.TrimSpace(key.KeyInfo.X509Data.X509Certificates[0].Data))
 		if err != nil {
-			return nil, errors.Wrap(err, "decoding idp x509 cert")
+			return nil, fmt.Errorf("decoding idp x509 cert: %w", err)
 		}
 		cert, err := x509.ParseCertificate(certData)
 		if err != nil {
-			return nil, errors.Wrap(err, "parsing idp x509 cert")
+			return nil, fmt.Errorf("parsing idp x509 cert: %w", err)
 		}
 		idpCertStore.Roots = append(idpCertStore.Roots, cert)
 	}
@@ -72,11 +80,11 @@ func (v *validator) ValidateResponse(auth fleet.Auth) error {
 	// make sure response is current
 	onOrAfter, err := time.Parse(time.RFC3339, info.response.Assertion.Conditions.NotOnOrAfter)
 	if err != nil {
-		return errors.Wrap(err, "missing timestamp from condition")
+		return fmt.Errorf("missing timestamp from condition: %w", err)
 	}
 	notBefore, err := time.Parse(time.RFC3339, info.response.Assertion.Conditions.NotBefore)
 	if err != nil {
-		return errors.Wrap(err, "missing timestamp from condition")
+		return fmt.Errorf("missing timestamp from condition: %w", err)
 	}
 	currentTime := v.clock.Now()
 	if currentTime.After(onOrAfter) {
@@ -85,6 +93,18 @@ func (v *validator) ValidateResponse(auth fleet.Auth) error {
 	if currentTime.Before(notBefore) {
 		return errors.New("response too early")
 	}
+
+	verifiesAudience := false
+	for _, audience := range v.expectedAudiences {
+		if info.response.Assertion.Conditions.AudienceRestriction.Audience == audience {
+			verifiesAudience = true
+			break
+		}
+	}
+	if !verifiesAudience {
+		return errors.New("wrong audience:" + info.response.Assertion.Conditions.AudienceRestriction.Audience)
+	}
+
 	if auth.UserID() == "" {
 		return errors.New("missing user id")
 	}
@@ -98,41 +118,41 @@ func (v *validator) ValidateSignature(auth fleet.Auth) (fleet.Auth, error) {
 		return nil, errors.New("missing or malformed response")
 	}
 	if status != Success {
-		return nil, errors.Errorf("response status %s", info.statusDescription())
+		return nil, fmt.Errorf("response status %s", info.statusDescription())
 	}
 	decoded, err := base64.StdEncoding.DecodeString(info.rawResponse())
 	if err != nil {
-		return nil, errors.Wrap(err, "base64 decode response")
+		return nil, fmt.Errorf("base64 decode response: %w", err)
 	}
 
 	// Examine the response for attempts to exploit weaknesses in Go's
 	// encoding/xml
 	err = rtvalidator.Validate(bytes.NewReader(decoded))
 	if err != nil {
-		return nil, errors.Wrap(err, "response XML failed validation")
+		return nil, fmt.Errorf("response XML failed validation: %w", err)
 	}
 
 	doc := etree.NewDocument()
 	err = doc.ReadFromBytes(decoded)
 	if err != nil || doc.Root() == nil {
-		return nil, errors.Wrap(err, "parsing xml response")
+		return nil, fmt.Errorf("parsing xml response: %w", err)
 	}
 	elt := doc.Root()
 	signed, err := v.validateSignature(elt)
 	if err != nil {
-		return nil, errors.Wrap(err, "signing verification failed")
+		return nil, fmt.Errorf("signing verification failed: %w", err)
 	}
 	// We've verified that the response hasn't been tampered with at this point
 	signedDoc := etree.NewDocument()
 	signedDoc.SetRoot(signed)
 	buffer, err := signedDoc.WriteToBytes()
 	if err != nil {
-		return nil, errors.Wrap(err, "creating signed doc buffer")
+		return nil, fmt.Errorf("creating signed doc buffer: %w", err)
 	}
 	var response Response
 	err = xml.Unmarshal(buffer, &response)
 	if err != nil {
-		return nil, errors.Wrap(err, "unmarshalling signed doc")
+		return nil, fmt.Errorf("unmarshalling signed doc: %w", err)
 	}
 	info.setResponse(&response)
 	return info, nil
@@ -160,7 +180,7 @@ func (v *validator) validateSignature(elt *etree.Element) (*etree.Element, error
 func (v *validator) validateAssertionSignature(elt *etree.Element) error {
 	validateAssertion := func(ctx etreeutils.NSContext, unverified *etree.Element) error {
 		if unverified.Parent() != elt {
-			return errors.Errorf("assertion with unexpected parent: %s", unverified.Parent().Tag)
+			return fmt.Errorf("assertion with unexpected parent: %s", unverified.Parent().Tag)
 		}
 		// Remove assertions that are not signed.
 		detached, err := etreeutils.NSDetatch(ctx, unverified)

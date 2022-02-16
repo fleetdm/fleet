@@ -18,7 +18,7 @@ func TestAuthzCheck(t *testing.T) {
 	check := func(ctx context.Context, req interface{}) (interface{}, error) {
 		authCtx, ok := authz.FromContext(ctx)
 		require.True(t, ok)
-		authCtx.Checked = true
+		authCtx.SetChecked()
 		return struct{}{}, nil
 	}
 	check = checker.AuthzCheck()(check)

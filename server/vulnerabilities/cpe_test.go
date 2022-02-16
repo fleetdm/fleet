@@ -15,6 +15,7 @@ import (
 
 	"github.com/dnaeon/go-vcr/v2/recorder"
 	"github.com/facebookincubator/nvdtools/cpedict"
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
@@ -57,14 +58,13 @@ func TestSyncCPEDatabase(t *testing.T) {
 		t.Skip("set environment variable NETWORK_TEST=1 to run")
 	}
 
+	client := fleethttp.NewClient()
 	// Disabling vcr because the resulting file exceeds the 100mb limit for github
-	r, err := recorder.NewAsMode("fixtures/nvd-cpe-release", recorder.ModeDisabled, http.DefaultTransport)
+	r, err := recorder.NewAsMode("fixtures/nvd-cpe-release", recorder.ModeDisabled, client.Transport)
 	require.NoError(t, err)
 	defer r.Stop()
 
-	client := &http.Client{
-		Transport: r,
-	}
+	client.Transport = r
 
 	tempDir := os.TempDir()
 	dbPath := path.Join(tempDir, "cpe.sqlite")
@@ -75,7 +75,7 @@ func TestSyncCPEDatabase(t *testing.T) {
 	}
 
 	// first time, db doesn't exist, so it downloads
-	err = SyncCPEDatabase(client, dbPath, config.FleetConfig{})
+	err = SyncCPEDatabase(client, dbPath)
 	require.NoError(t, err)
 
 	db, err := sqliteDB(dbPath)
@@ -86,6 +86,14 @@ func TestSyncCPEDatabase(t *testing.T) {
 	cpe, err := CPEFromSoftware(db, software)
 	require.NoError(t, err)
 	require.Equal(t, "cpe:2.3:a:1password:1password:7.2.3:beta0:*:*:*:macos:*:*", cpe)
+
+	npmCPE, err := CPEFromSoftware(db, &fleet.Software{Name: "Adaltas Mixme 0.4.0 for Node.js", Version: "0.4.0", Source: "npm_packages"})
+	require.NoError(t, err)
+	assert.Equal(t, "cpe:2.3:a:adaltas:mixme:0.4.0:*:*:*:*:node.js:*:*", npmCPE)
+
+	windowsCPE, err := CPEFromSoftware(db, &fleet.Software{Name: "HP Storage Data Protector 8.0 for Windows 8", Version: "8.0", Source: "programs"})
+	require.NoError(t, err)
+	assert.Equal(t, "cpe:2.3:a:hp:storage_data_protector:8.0:-:*:*:*:windows_7:*:*", windowsCPE)
 
 	// but now we truncate to make sure searching for cpe fails
 	err = os.Truncate(dbPath, 0)
@@ -99,7 +107,7 @@ func TestSyncCPEDatabase(t *testing.T) {
 	require.NoError(t, err)
 
 	// then it will download
-	err = SyncCPEDatabase(client, dbPath, config.FleetConfig{})
+	err = SyncCPEDatabase(client, dbPath)
 	require.NoError(t, err)
 
 	// let's register the mtime for the db
@@ -120,9 +128,8 @@ func TestSyncCPEDatabase(t *testing.T) {
 	time.Sleep(2 * time.Second)
 
 	// let's check it doesn't download because it's new enough
-	err = SyncCPEDatabase(client, dbPath, config.FleetConfig{})
+	err = SyncCPEDatabase(client, dbPath)
 	require.NoError(t, err)
-
 	stat, err = os.Stat(dbPath)
 	require.NoError(t, err)
 	require.Equal(t, mtime, stat.ModTime())
@@ -213,32 +220,15 @@ func TestSyncsCPEFromURL(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	client := &http.Client{}
+	client := fleethttp.NewClient()
 	tempDir := t.TempDir()
 	dbPath := path.Join(tempDir, "cpe.sqlite")
 
 	err := SyncCPEDatabase(
-		client, dbPath, config.FleetConfig{Vulnerabilities: config.VulnerabilitiesConfig{CPEDatabaseURL: ts.URL}})
+		client, dbPath, WithCPEURL(ts.URL+"/hello-world.gz"))
 	require.NoError(t, err)
 
 	stored, err := ioutil.ReadFile(dbPath)
 	require.NoError(t, err)
 	assert.Equal(t, "Hello world!", string(stored))
-}
-
-func TestSyncsCPESkipsIfDisableSync(t *testing.T) {
-	client := &http.Client{}
-	tempDir := t.TempDir()
-	dbPath := path.Join(tempDir, "cpe.sqlite")
-
-	fleetConfig := config.FleetConfig{
-		Vulnerabilities: config.VulnerabilitiesConfig{
-			DisableDataSync: true,
-		},
-	}
-	err := SyncCPEDatabase(client, dbPath, fleetConfig)
-	require.NoError(t, err)
-
-	_, err = os.Stat(dbPath)
-	require.ErrorIs(t, err, os.ErrNotExist)
 }

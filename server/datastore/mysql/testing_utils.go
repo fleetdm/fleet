@@ -26,7 +26,7 @@ const (
 	testReplicaDatabaseSuffix = "_replica"
 )
 
-func connectMySQL(t *testing.T, testName string, opts *DatastoreTestOptions) *Datastore {
+func connectMySQL(t testing.TB, testName string, opts *DatastoreTestOptions) *Datastore {
 	config := config.MysqlConfig{
 		Username: testUsername,
 		Password: testPassword,
@@ -51,14 +51,18 @@ func connectMySQL(t *testing.T, testName string, opts *DatastoreTestOptions) *Da
 	return ds
 }
 
-func setupReadReplica(t *testing.T, testName string, ds *Datastore, opts *DatastoreTestOptions) {
+func setupReadReplica(t testing.TB, testName string, ds *Datastore, opts *DatastoreTestOptions) {
+	t.Helper()
+
 	// create the context that will cancel the replication goroutine on test exit
 	var cancel func()
 	ctx := context.Background()
-	if dl, ok := t.Deadline(); ok {
-		ctx, cancel = context.WithDeadline(ctx, dl)
-	} else {
-		ctx, cancel = context.WithCancel(ctx)
+	if tt, ok := t.(*testing.T); ok {
+		if dl, ok := tt.Deadline(); ok {
+			ctx, cancel = context.WithDeadline(ctx, dl)
+		} else {
+			ctx, cancel = context.WithCancel(ctx)
+		}
 	}
 	t.Cleanup(cancel)
 
@@ -81,17 +85,17 @@ func setupReadReplica(t *testing.T, testName string, ds *Datastore, opts *Datast
 		// drop all foreign keys in the replica, as that causes issues even with
 		// FOREIGN_KEY_CHECKS=0
 		var fks []struct {
-			TableName      string `db:"table_name"`
-			ConstraintName string `db:"constraint_name"`
+			TableName      string `db:"TABLE_NAME"`
+			ConstraintName string `db:"CONSTRAINT_NAME"`
 		}
 		err := primary.SelectContext(ctx, &fks, `
           SELECT
-            table_name, constraint_name
+            TABLE_NAME, CONSTRAINT_NAME
           FROM
-            information_schema.key_column_usage
+            INFORMATION_SCHEMA.KEY_COLUMN_USAGE
           WHERE
-            table_schema = ? AND
-            referenced_table_name IS NOT NULL`, testName)
+            TABLE_SCHEMA = ? AND
+            REFERENCED_TABLE_NAME IS NOT NULL`, testName)
 		require.NoError(t, err)
 		for _, fk := range fks {
 			stmt := fmt.Sprintf(`ALTER TABLE %s.%s DROP FOREIGN KEY %s`, replicaDB, fk.TableName, fk.ConstraintName)
@@ -132,7 +136,11 @@ func setupReadReplica(t *testing.T, testName string, ds *Datastore, opts *Datast
 					t.Log(stmt)
 					_, err = replica.ExecContext(ctx, stmt)
 					require.NoError(t, err)
-					stmt = fmt.Sprintf(`CREATE TABLE %s.%s SELECT * FROM %s.%s`, replicaDB, tbl, testName, tbl)
+					stmt = fmt.Sprintf(`CREATE TABLE %s.%s LIKE %s.%s`, replicaDB, tbl, testName, tbl)
+					t.Log(stmt)
+					_, err = replica.ExecContext(ctx, stmt)
+					require.NoError(t, err)
+					stmt = fmt.Sprintf(`INSERT INTO %s.%s SELECT * FROM %s.%s`, replicaDB, tbl, testName, tbl)
 					t.Log(stmt)
 					_, err = replica.ExecContext(ctx, stmt)
 					require.NoError(t, err)
@@ -162,7 +170,7 @@ func setupReadReplica(t *testing.T, testName string, ds *Datastore, opts *Datast
 // initializeDatabase loads the dumped schema into a newly created database in
 // MySQL. This is much faster than running the full set of migrations on each
 // test.
-func initializeDatabase(t *testing.T, testName string, opts *DatastoreTestOptions) *Datastore {
+func initializeDatabase(t testing.TB, testName string, opts *DatastoreTestOptions) *Datastore {
 	_, filename, _, _ := runtime.Caller(0)
 	base := path.Dir(filename)
 	schema, err := ioutil.ReadFile(path.Join(base, "schema.sql"))
@@ -211,12 +219,14 @@ type DatastoreTestOptions struct {
 	RunReplication func()
 }
 
-func createMySQLDSWithOptions(t *testing.T, opts *DatastoreTestOptions) *Datastore {
+func createMySQLDSWithOptions(t testing.TB, opts *DatastoreTestOptions) *Datastore {
 	if _, ok := os.LookupEnv("MYSQL_TEST"); !ok {
 		t.Skip("MySQL tests are disabled")
 	}
 
-	t.Parallel()
+	if tt, ok := t.(*testing.T); ok {
+		tt.Parallel()
+	}
 
 	if opts == nil {
 		// so it is never nil in internal helper functions
@@ -233,6 +243,11 @@ func createMySQLDSWithOptions(t *testing.T, opts *DatastoreTestOptions) *Datasto
 		strings.TrimPrefix(details.Name(), "github.com/fleetdm/fleet/v4/"), "/", "_",
 	)
 	cleanName = strings.ReplaceAll(cleanName, ".", "_")
+	if len(cleanName) > 60 {
+		// the later parts are more unique than the start, with the package names,
+		// so trim from the start.
+		cleanName = cleanName[len(cleanName)-60:]
+	}
 	ds := initializeDatabase(t, cleanName, opts)
 	t.Cleanup(func() { ds.Close() })
 	return ds
@@ -242,7 +257,7 @@ func CreateMySQLDSWithOptions(t *testing.T, opts *DatastoreTestOptions) *Datasto
 	return createMySQLDSWithOptions(t, opts)
 }
 
-func CreateMySQLDS(t *testing.T) *Datastore {
+func CreateMySQLDS(t testing.TB) *Datastore {
 	return createMySQLDSWithOptions(t, nil)
 }
 
@@ -257,21 +272,30 @@ func CreateNamedMySQLDS(t *testing.T, name string) *Datastore {
 	return ds
 }
 
+func ExecAdhocSQL(tb testing.TB, ds *Datastore, fn func(q sqlx.ExtContext) error) {
+	err := fn(ds.writer)
+	require.NoError(tb, err)
+}
+
 // TruncateTables truncates the specified tables, in order, using ds.writer.
 // Note that the order is typically not important because FK checks are
 // disabled while truncating. If no table is provided, all tables (except
 // those that are seeded by the SQL schema file) are truncated.
-func TruncateTables(t *testing.T, ds *Datastore, tables ...string) {
+func TruncateTables(t testing.TB, ds *Datastore, tables ...string) {
+	// By setting DISABLE_TRUNCATE_TABLES a developer can troubleshoot tests
+	// by inspecting mysql tables.
+	if os.Getenv("DISABLE_TRUNCATE_TABLES") != "" {
+		return
+	}
+
 	// those tables are seeded with the schema.sql and as such must not
 	// be truncated - a more precise approach must be used for those, e.g.
 	// delete where id > max before test, or something like that.
 	nonEmptyTables := map[string]bool{
 		"app_config_json":         true,
-		"app_configs":             true,
 		"migration_status_tables": true,
 		"osquery_options":         true,
 	}
-
 	ctx := context.Background()
 
 	require.NoError(t, ds.withTx(ctx, func(tx sqlx.ExtContext) error {

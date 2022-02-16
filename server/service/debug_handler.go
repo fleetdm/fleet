@@ -2,14 +2,17 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/pprof"
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/token"
+	"github.com/fleetdm/fleet/v4/server/errorstore"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 
 	kitlog "github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/log/level"
 	"github.com/gorilla/mux"
 )
 
@@ -41,16 +44,40 @@ func (m *debugAuthenticationMiddleware) Middleware(next http.Handler) http.Handl
 	})
 }
 
+func jsonHandler(
+	logger kitlog.Logger,
+	jsonGenerator func(ctx context.Context) (interface{}, error),
+) func(rw http.ResponseWriter, r *http.Request) {
+	return func(rw http.ResponseWriter, r *http.Request) {
+		jsonData, err := jsonGenerator(r.Context())
+		if err != nil {
+			level.Error(logger).Log("err", err)
+			rw.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		b, err := json.MarshalIndent(jsonData, "", "  ")
+		if err != nil {
+			level.Error(logger).Log("err", err)
+			rw.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		rw.Write(b)
+	}
+}
+
 // MakeDebugHandler creates an HTTP handler for the Fleet debug endpoints.
-func MakeDebugHandler(svc fleet.Service, config config.FleetConfig, logger kitlog.Logger) http.Handler {
+func MakeDebugHandler(svc fleet.Service, config config.FleetConfig, logger kitlog.Logger, eh *errorstore.Handler, ds fleet.Datastore) http.Handler {
 	r := mux.NewRouter()
 	r.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
 	r.HandleFunc("/debug/pprof/profile", pprof.Profile)
 	r.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
 	r.HandleFunc("/debug/pprof/trace", pprof.Trace)
-	r.PathPrefix("/debug/pprof/").HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-		pprof.Index(rw, req)
-	})
+	r.Handle("/debug/errors", eh)
+	r.PathPrefix("/debug/pprof/").HandlerFunc(func(rw http.ResponseWriter, req *http.Request) { pprof.Index(rw, req) })
+	r.HandleFunc("/debug/migrations", jsonHandler(logger, func(ctx context.Context) (interface{}, error) { return ds.MigrationStatus(ctx) }))
+	r.HandleFunc("/debug/db/locks", jsonHandler(logger, func(ctx context.Context) (interface{}, error) { return ds.DBLocks(ctx) }))
+	r.HandleFunc("/debug/db/innodb-status", jsonHandler(logger, func(ctx context.Context) (interface{}, error) { return ds.InnoDBStatus(ctx) }))
+	r.HandleFunc("/debug/db/process-list", jsonHandler(logger, func(ctx context.Context) (interface{}, error) { return ds.ProcessList(ctx) }))
 
 	mw := &debugAuthenticationMiddleware{
 		service: svc,

@@ -2,6 +2,7 @@ package packaging
 
 import (
 	"bytes"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -12,27 +13,24 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/goreleaser/nfpm/v2"
 	"github.com/goreleaser/nfpm/v2/files"
-	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 )
 
-func buildNFPM(opt Options, pkger nfpm.Packager) error {
+func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 	// Initialize directories
-	tmpDir, err := ioutil.TempDir("", "orbit-package")
+	tmpDir, err := initializeTempDir()
 	if err != nil {
-		return errors.Wrap(err, "failed to create temp dir")
+		return "", err
 	}
-	os.Chmod(tmpDir, 0755)
 	defer os.RemoveAll(tmpDir)
-	log.Debug().Str("path", tmpDir).Msg("created temp dir")
 
 	filesystemRoot := filepath.Join(tmpDir, "root")
 	if err := secure.MkdirAll(filesystemRoot, constant.DefaultDirMode); err != nil {
-		return errors.Wrap(err, "create root dir")
+		return "", fmt.Errorf("create root dir: %w", err)
 	}
 	orbitRoot := filepath.Join(filesystemRoot, "var", "lib", "orbit")
 	if err := secure.MkdirAll(orbitRoot, constant.DefaultDirMode); err != nil {
-		return errors.Wrap(err, "create orbit dir")
+		return "", fmt.Errorf("create orbit dir: %w", err)
 	}
 
 	// Initialize autoupdate metadata
@@ -47,28 +45,42 @@ func buildNFPM(opt Options, pkger nfpm.Packager) error {
 		updateOpt.RootKeys = opt.UpdateRoots
 	}
 
-	if err := initializeUpdates(updateOpt); err != nil {
-		return errors.Wrap(err, "initialize updates")
+	updatesData, err := InitializeUpdates(updateOpt)
+	if err != nil {
+		return "", fmt.Errorf("initialize updates: %w", err)
+	}
+	log.Debug().Stringer("data", updatesData).Msg("updates initialized")
+	if opt.Version == "" {
+		// We set the package version to orbit's latest version.
+		opt.Version = updatesData.OrbitVersion
 	}
 
 	// Write files
 
 	if err := writeSystemdUnit(opt, filesystemRoot); err != nil {
-		return errors.Wrap(err, "write systemd unit")
+		return "", fmt.Errorf("write systemd unit: %w", err)
 	}
 
 	if err := writeEnvFile(opt, filesystemRoot); err != nil {
-		return errors.Wrap(err, "write env file")
+		return "", fmt.Errorf("write env file: %w", err)
+	}
+
+	if err := writeOsqueryFlagfile(opt, orbitRoot); err != nil {
+		return "", fmt.Errorf("write flagfile: %w", err)
+	}
+
+	if err := writeOsqueryCertPEM(opt, orbitRoot); err != nil {
+		return "", fmt.Errorf("write certs.pem: %w", err)
 	}
 
 	postInstallPath := filepath.Join(tmpDir, "postinstall.sh")
 	if err := writePostInstall(opt, postInstallPath); err != nil {
-		return errors.Wrap(err, "write postinstall script")
+		return "", fmt.Errorf("write postinstall script: %w", err)
 	}
 
 	if opt.FleetCertificate != "" {
 		if err := writeCertificate(opt, orbitRoot); err != nil {
-			return errors.Wrap(err, "write fleet certificate")
+			return "", fmt.Errorf("write fleet certificate: %w", err)
 		}
 	}
 
@@ -100,7 +112,7 @@ func buildNFPM(opt Options, pkger nfpm.Packager) error {
 	}
 	contents, err = files.ExpandContentGlobs(contents, false)
 	if err != nil {
-		return errors.Wrap(err, "glob contents")
+		return "", fmt.Errorf("glob contents: %w", err)
 	}
 	for _, c := range contents {
 		log.Debug().Interface("file", c).Msg("added file")
@@ -109,12 +121,12 @@ func buildNFPM(opt Options, pkger nfpm.Packager) error {
 	// Build package
 
 	info := &nfpm.Info{
-		Name:        "orbit-osquery",
+		Name:        "fleet-osquery",
 		Version:     opt.Version,
-		Description: "Orbit osquery -- runtime and autoupdater by Fleet",
+		Description: "Fleet osquery -- runtime and autoupdater",
 		Arch:        "amd64",
 		Maintainer:  "Fleet Engineers <engineering@fleetdm.com>",
-		Homepage:    "https://github.com/fleetdm/orbit",
+		Homepage:    "https://fleetdm.com",
 		Overridables: nfpm.Overridables{
 			Contents: contents,
 			EmptyFolders: []string{
@@ -130,25 +142,25 @@ func buildNFPM(opt Options, pkger nfpm.Packager) error {
 
 	out, err := secure.OpenFile(filename, os.O_CREATE|os.O_RDWR, constant.DefaultFileMode)
 	if err != nil {
-		return errors.Wrap(err, "open output file")
+		return "", fmt.Errorf("open output file: %w", err)
 	}
 	defer out.Close()
 
 	if err := pkger.Package(info, out); err != nil {
-		return errors.Wrap(err, "write package")
+		return "", fmt.Errorf("write package: %w", err)
 	}
 	if err := out.Sync(); err != nil {
-		return errors.Wrap(err, "sync output file")
+		return "", fmt.Errorf("sync output file: %w", err)
 	}
 	log.Info().Str("path", filename).Msg("wrote package")
 
-	return nil
+	return filename, nil
 }
 
 func writeSystemdUnit(opt Options, rootPath string) error {
 	systemdRoot := filepath.Join(rootPath, "usr", "lib", "systemd", "system")
 	if err := secure.MkdirAll(systemdRoot, constant.DefaultDirMode); err != nil {
-		return errors.Wrap(err, "create systemd dir")
+		return fmt.Errorf("create systemd dir: %w", err)
 	}
 	if err := ioutil.WriteFile(
 		filepath.Join(systemdRoot, "orbit.service"),
@@ -173,7 +185,7 @@ WantedBy=multi-user.target
 `),
 		constant.DefaultFileMode,
 	); err != nil {
-		return errors.Wrap(err, "write file")
+		return fmt.Errorf("write file: %w", err)
 	}
 
 	return nil
@@ -193,12 +205,12 @@ ORBIT_OSQUERYD_CHANNEL={{ .OsquerydChannel }}
 func writeEnvFile(opt Options, rootPath string) error {
 	envRoot := filepath.Join(rootPath, "etc", "default")
 	if err := secure.MkdirAll(envRoot, constant.DefaultDirMode); err != nil {
-		return errors.Wrap(err, "create env dir")
+		return fmt.Errorf("create env dir: %w", err)
 	}
 
 	var contents bytes.Buffer
 	if err := envTemplate.Execute(&contents, opt); err != nil {
-		return errors.Wrap(err, "execute template")
+		return fmt.Errorf("execute template: %w", err)
 	}
 
 	if err := ioutil.WriteFile(
@@ -206,7 +218,7 @@ func writeEnvFile(opt Options, rootPath string) error {
 		contents.Bytes(),
 		constant.DefaultFileMode,
 	); err != nil {
-		return errors.Wrap(err, "write file")
+		return fmt.Errorf("write file: %w", err)
 	}
 
 	return nil
@@ -219,10 +231,11 @@ var postInstallTemplate = template.Must(template.New("postinstall").Parse(`
 set -e
 
 # If we have a systemd, daemon-reload away now
-if [ -x /bin/systemctl ] && pidof systemd ; then
-  /bin/systemctl daemon-reload 2>/dev/null 2>&1
+if command -v systemctl >/dev/null 2>&1; then
+  systemctl daemon-reload >/dev/null 2>&1
 {{ if .StartService -}}
-  /bin/systemctl restart orbit.service 2>&1
+  systemctl restart orbit.service 2>&1
+  systemctl enable orbit.service 2>&1
 {{- end}}
 fi
 `))
@@ -230,11 +243,11 @@ fi
 func writePostInstall(opt Options, path string) error {
 	var contents bytes.Buffer
 	if err := postInstallTemplate.Execute(&contents, opt); err != nil {
-		return errors.Wrap(err, "execute template")
+		return fmt.Errorf("execute template: %w", err)
 	}
 
 	if err := ioutil.WriteFile(path, contents.Bytes(), constant.DefaultFileMode); err != nil {
-		return errors.Wrap(err, "write file")
+		return fmt.Errorf("write file: %w", err)
 	}
 
 	return nil

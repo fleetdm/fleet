@@ -1,6 +1,8 @@
 package fleet
 
 import (
+	"bytes"
+	"encoding/json"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -91,5 +93,16 @@ func TestPack_EditablePackType(t *testing.T) {
 				t.Errorf("EditablePackType() = %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+// See #2778.
+func TestPack_Marshal(t *testing.T) {
+	b, err := json.Marshal(&Pack{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(b, []byte("\"disabled\":false")) {
+		t.Fatalf("marshalled pack does not contain disabled field: %s", string(b))
 	}
 }

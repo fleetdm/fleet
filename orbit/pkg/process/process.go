@@ -2,7 +2,7 @@ package process
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"os"
 	"os/exec"
 	"runtime"
@@ -50,7 +50,7 @@ func newWithMock(cmd ExecCmd) *Process {
 // https://github.com/golang/go/blob/8981092d71aee273d27b0e11cf932a34d4d365c1/src/cmd/go/script_test.go#L1131-L1190
 func (p *Process) WaitOrKill(ctx context.Context, killDelay time.Duration) error {
 	if p.OsProcess() == nil {
-		return fmt.Errorf("WaitOrKill requires a non-nil OsProcess - missing Start call?")
+		return errors.New("WaitOrKill requires a non-nil OsProcess - missing Start call?")
 	}
 
 	errc := make(chan error)

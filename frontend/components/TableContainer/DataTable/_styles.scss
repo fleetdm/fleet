@@ -1,5 +1,7 @@
 .data-table-container {
   position: relative;
+  display: inline-block;
+  width: 100%;
 
   .data-table {
     &__wrapper {
@@ -8,6 +10,8 @@
       border-radius: 6px;
       margin-top: $pad-small;
       box-shadow: inset -8px 0 17px -10px #e8edf4;
+      flex-grow: 1;
+      width: 100%;
     }
 
     &__table {
@@ -43,12 +47,31 @@
       }
     }
 
-
     thead {
       background-color: $ui-off-white;
       color: $core-fleet-black;
       text-align: left;
       border-bottom: 1px solid $ui-fleet-blue-15;
+
+      // resize header icons
+      img {
+        width: 16px;
+        height: 16px;
+        vertical-align: top;
+      }
+
+      // do not resize button icons inside headers
+      .button {
+        img {
+          width: initial;
+          height: initial;
+          vertical-align: initial;
+        }
+      }
+
+      .header-icon-text {
+        margin-left: 10px;
+      }
 
       th {
         padding: $pad-medium 27px;
@@ -57,16 +80,24 @@
 
         &:first-child {
           border-top-left-radius: 6px;
+          padding: $pad-medium 17px;
         }
 
-        &:first-child:not([title="Toggle SortBy"]) {
-          width: 20px;
+        &.selection__header {
+          width: 1px;
         }
 
         &:last-child {
           border-right: none;
           border-top-right-radius: 6px;
           max-width: 140px;
+        }
+      }
+
+      &.active-selection th {
+        border: 0;
+        .fleet-checkbox {
+          opacity: 0;
         }
       }
     }
@@ -139,9 +170,14 @@
 
     tbody {
       td {
-        padding: 0px 27px;
+        padding: 0 27px;
         white-space: nowrap;
         height: 40px;
+
+        &:first-child {
+          padding: 0 17px;
+          width: 1px;
+        }
 
         // form-field wraps the dropdown menu
         .form-field {
@@ -168,6 +204,27 @@
         border-radius: 29px;
         background-color: $core-fleet-purple;
       }
+      &--undetermined {
+        color: $ui-fleet-black-50;
+        font-style: italic;
+        font-weight: 400;
+        padding: 0;
+        border-radius: 0;
+      }
+      &--minimal {
+        background-color: $ui-vibrant-blue-10;
+      }
+      &--considerable {
+        background-color: $ui-vibrant-blue-25;
+      }
+      &--excessive {
+        background-color: $ui-vibrant-blue-50;
+      }
+    }
+
+    .tooltip {
+      display: flex;
+      justify-content: center;
     }
 
     &__status {
@@ -178,36 +235,124 @@
         border-radius: 100%;
         content: " ";
         display: inline-block;
-        height: 8px;
         margin-right: $pad-small;
+        height: 8px;
         width: 8px;
         margin-bottom: 1px;
       }
 
       &--online:before,
-      &--enabled:before {
+      &--enabled:before,
+      &--on:before {
         background-color: $ui-success;
       }
 
       &--offline:before,
       &--disabled:before,
-      &--mia:before {
+      &--mia:before,
+      &--off:before {
         background-color: $ui-offline;
+      }
+
+      &--yes:before {
+        padding-right: 10px;
+        content: url(../assets/images/icon-check-circle-green-16x16@2x.png);
+        transform: scale(0.5);
+        vertical-align: text-top;
+      }
+
+      &--no:before {
+        padding-right: 10px;
+        content: url(../assets/images/icon-exclamation-circle-red-16x16@2x.png);
+        transform: scale(0.5);
+        vertical-align: text-top;
       }
 
       &--mia {
         text-transform: uppercase;
       }
     }
+  }
+  .loading-overlay {
+    display: flex;
+    flex-grow: 1;
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background-color: rgba(255, 255, 255, 0.8);
+    z-index: 1;
+  }
 
-    .loading-overlay {
-      position: absolute;
-      top: 0;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      background-color: rgba(255, 255, 255, 0.8);
-      z-index: 1;
+  &__pagination {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: $pad-small;
+    margin-bottom: $pad-small;
+    margin-left: auto;
+    text-align: right;
+
+    button {
+      color: $core-vibrant-blue;
+      padding: 6px;
+
+      .fleeticon-chevronleft {
+        margin-right: $pad-small;
+
+        &:before {
+          font-size: 0.6rem;
+          font-weight: $bold;
+          position: relative;
+          top: -2px;
+        }
+      }
+
+      .fleeticon-chevronright {
+        margin-left: $pad-small;
+
+        &:before {
+          font-size: 0.6rem;
+          font-weight: $bold;
+          position: relative;
+          top: -2px;
+        }
+      }
+    }
+
+    button:hover {
+      background-color: $ui-vibrant-blue-10;
+    }
+
+    .button--disabled:hover {
+      background-color: transparent;
+    }
+
+    button:last-child {
+      margin-left: $pad-large;
+    }
+  }
+
+  &__footer {
+    display: flex;
+    align-items: center;
+  }
+
+  &__footer-text {
+    font-size: $x-small;
+
+    display: flex;
+    align-items: center;
+
+    a {
+      color: $core-vibrant-blue;
+      font-weight: $bold;
+      text-decoration: none;
+    }
+    img {
+      height: 12px;
+      width: 12px;
+      padding-left: $pad-xsmall;
     }
   }
 }

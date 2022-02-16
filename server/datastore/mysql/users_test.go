@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -39,12 +40,15 @@ func TestUsers(t *testing.T) {
 }
 
 func testUsersCreate(t *testing.T, ds *Datastore) {
-	var createTests = []struct {
+	createTests := []struct {
 		password, email             string
 		isAdmin, passwordReset, sso bool
+		resultingPasswordReset      bool
 	}{
-		{"foobar", "mike@fleet.co", true, false, true},
-		{"foobar", "jason@fleet.co", true, false, false},
+		{"foobar", "mike@fleet.co", true, false, true, false},
+		{"foobar", "jason@fleet.co", true, false, false, false},
+		{"foobar", "jason2@fleet.co", true, true, true, false},
+		{"foobar", "jason3@fleet.co", true, true, false, true},
 	}
 
 	for _, tt := range createTests {
@@ -65,6 +69,7 @@ func testUsersCreate(t *testing.T, ds *Datastore) {
 		assert.Equal(t, tt.email, verify.Email)
 		assert.Equal(t, tt.email, verify.Email)
 		assert.Equal(t, tt.sso, verify.SSOEnabled)
+		assert.Equal(t, tt.resultingPasswordReset, verify.AdminForcedPasswordReset)
 	}
 }
 
@@ -82,7 +87,7 @@ func testUsersByID(t *testing.T, ds *Datastore) {
 }
 
 func createTestUsers(t *testing.T, ds fleet.Datastore) []*fleet.User {
-	var createTests = []struct {
+	createTests := []struct {
 		password, email        string
 		isAdmin, passwordReset bool
 	}{
@@ -118,7 +123,7 @@ func testUsersSave(t *testing.T, ds *Datastore) {
 
 func testPasswordAttribute(t *testing.T, ds fleet.Datastore, users []*fleet.User) {
 	for _, user := range users {
-		randomText, err := server.GenerateRandomText(8) //GenerateRandomText(8)
+		randomText, err := server.GenerateRandomText(8) // GenerateRandomText(8)
 		assert.Nil(t, err)
 		user.Password = []byte(randomText)
 		err = ds.SaveUser(context.Background(), user)
@@ -159,9 +164,9 @@ func testUserGlobalRole(t *testing.T, ds fleet.Datastore, users []*fleet.User) {
 		GlobalRole: ptr.String(fleet.RoleObserver),
 		Teams:      []fleet.UserTeam{{Role: fleet.RoleMaintainer}},
 	})
-	require.IsType(t, &fleet.Error{}, err)
-	flErr := err.(*fleet.Error)
-	assert.Equal(t, "Cannot specify both Global Role and Team Roles", flErr.Message)
+	var ferr *fleet.Error
+	require.True(t, errors.As(err, &ferr))
+	assert.Equal(t, "Cannot specify both Global Role and Team Roles", ferr.Message)
 }
 
 func testUsersList(t *testing.T, ds *Datastore) {
@@ -223,6 +228,7 @@ func testUsersTeams(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	assert.Len(t, users[0].Teams, 1)
+	// For user with a global role, Teams should be empty
 	assert.Len(t, users[1].Teams, 0)
 
 	users[1].Teams = []fleet.UserTeam{

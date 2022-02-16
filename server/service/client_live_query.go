@@ -4,16 +4,17 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"flag"
 	"net/http"
 	"sync/atomic"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 
 	ws "github.com/fleetdm/fleet/v4/server/websocket"
 	"github.com/gorilla/websocket"
-	"github.com/pkg/errors"
 )
 
 // LiveQueryResultsHandler provides access to all of the information about an
@@ -70,27 +71,11 @@ func (c *Client) LiveQueryWithContext(ctx context.Context, query string, labels 
 		QuerySQL: query,
 		Selected: distributedQueryCampaignTargetsByNames{Labels: labels, Hosts: hosts},
 	}
-	response, err := c.AuthenticatedDo("POST", "/api/v1/fleet/queries/run_by_names", "", req)
-	if err != nil {
-		return nil, errors.Wrap(err, "POST /api/v1/fleet/queries/run_by_names")
-	}
-	defer response.Body.Close()
-
-	if response.StatusCode != http.StatusOK {
-		return nil, errors.Errorf(
-			"create live query received status %d %s",
-			response.StatusCode,
-			extractServerErrorText(response.Body),
-		)
-	}
-
+	verb, path := "POST", "/api/v1/fleet/queries/run_by_names"
 	var responseBody createDistributedQueryCampaignResponse
-	err = json.NewDecoder(response.Body).Decode(&responseBody)
+	err := c.authenticatedRequest(req, verb, path, &responseBody)
 	if err != nil {
-		return nil, errors.Wrap(err, "decode create live query response")
-	}
-	if responseBody.Err != nil {
-		return nil, errors.Errorf("create live query: %s", responseBody.Err)
+		return nil, ctxerr.Errorf(ctx, "create live query: %s", responseBody.Err)
 	}
 
 	// Copy default dialer but skip cert verification if set.
@@ -108,7 +93,7 @@ func (c *Client) LiveQueryWithContext(ctx context.Context, query string, labels 
 	wssURL.Path = c.urlPrefix + "/api/v1/fleet/results/websocket"
 	conn, _, err := dialer.Dial(wssURL.String(), nil)
 	if err != nil {
-		return nil, errors.Wrap(err, "upgrade live query result websocket")
+		return nil, ctxerr.Wrap(ctx, err, "upgrade live query result websocket")
 	}
 	// Cannot defer connection closing here because we need it to remain
 	// open for the goroutine below. Manually close for the couple of error
@@ -120,7 +105,7 @@ func (c *Client) LiveQueryWithContext(ctx context.Context, query string, labels 
 	})
 	if err != nil {
 		_ = conn.Close()
-		return nil, errors.Wrap(err, "auth for results")
+		return nil, ctxerr.Wrap(ctx, err, "auth for results")
 	}
 
 	err = conn.WriteJSON(ws.JSONMessage{
@@ -129,7 +114,7 @@ func (c *Client) LiveQueryWithContext(ctx context.Context, query string, labels 
 	})
 	if err != nil {
 		_ = conn.Close()
-		return nil, errors.Wrap(err, "selecting results")
+		return nil, ctxerr.Wrap(ctx, err, "selecting results")
 	}
 
 	resHandler := NewLiveQueryResultsHandler()
@@ -152,7 +137,7 @@ func (c *Client) LiveQueryWithContext(ctx context.Context, query string, labels 
 				return
 			case err := <-doneReadingChan:
 				if err != nil {
-					resHandler.errors <- errors.Wrap(err, "receive ws message")
+					resHandler.errors <- ctxerr.Wrap(ctx, err, "receive ws message")
 					if errors.Is(err, websocket.ErrCloseSent) {
 						return
 					}
@@ -164,26 +149,26 @@ func (c *Client) LiveQueryWithContext(ctx context.Context, query string, labels 
 			case "result":
 				var res fleet.DistributedQueryResult
 				if err := json.Unmarshal(msg.Data, &res); err != nil {
-					resHandler.errors <- errors.Wrap(err, "unmarshal results")
+					resHandler.errors <- ctxerr.Wrap(ctx, err, "unmarshal results")
 				}
 				resHandler.results <- res
 
 			case "totals":
 				var totals targetTotals
 				if err := json.Unmarshal(msg.Data, &totals); err != nil {
-					resHandler.errors <- errors.Wrap(err, "unmarshal totals")
+					resHandler.errors <- ctxerr.Wrap(ctx, err, "unmarshal totals")
 				}
 				resHandler.totals.Store(&totals)
 
 			case "status":
 				var status campaignStatus
 				if err := json.Unmarshal(msg.Data, &status); err != nil {
-					resHandler.errors <- errors.Wrap(err, "unmarshal status")
+					resHandler.errors <- ctxerr.Wrap(ctx, err, "unmarshal status")
 				}
 				resHandler.status.Store(&status)
 
 			default:
-				resHandler.errors <- errors.Errorf("unknown msg type %s", msg.Type)
+				resHandler.errors <- ctxerr.Errorf(ctx, "unknown msg type %s", msg.Type)
 			}
 		}
 	}()

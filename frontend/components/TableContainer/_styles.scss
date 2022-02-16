@@ -1,4 +1,9 @@
 .table-container {
+  // TODO: Fix hacky solution to clientside search being 0 no longer accessing rows.length
+  .client-result-count-0 {
+    display: none;
+  }
+
   &__header {
     display: flex;
     align-items: center;
@@ -80,6 +85,17 @@
       button:last-child {
         display: none;
       }
+    }
+  }
+
+  #search-tooltip {
+    width: 196px;
+    text-align: center;
+  }
+
+  tbody {
+    .highlight-on-hover:hover {
+      background-color: $ui-off-white;
     }
   }
 }

@@ -4,7 +4,6 @@ import { routerMiddleware } from "react-router-redux";
 import thunkMiddleware from "redux-thunk";
 
 import authMiddleware from "./middlewares/auth";
-import redirectMiddleware from "./middlewares/redirect";
 import reducers from "./reducers";
 
 const initialState = {};
@@ -12,8 +11,7 @@ const initialState = {};
 const appliedMiddleware = applyMiddleware(
   thunkMiddleware,
   routerMiddleware(browserHistory),
-  authMiddleware,
-  redirectMiddleware
+  authMiddleware
 );
 
 const composeEnhancers =

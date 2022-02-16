@@ -32,9 +32,6 @@ The shape of the application's Redux state is as follows:
   notifications: {
     ...
   },
-  persistentFlash: {
-    ...
-  },
   redirectLocation: {
     ...
   },

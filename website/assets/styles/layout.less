@@ -64,7 +64,7 @@ html, body {
   .collapse.show {
     opacity: 1;
     pointer-events: auto;
-    z-index: 1;
+    z-index: 3;
   }
   .collapse {
     opacity: 0;
@@ -123,6 +123,14 @@ html, body {
     color: #192147;
     font-weight: @bold;
   }
+  .current-page {
+    color: #6a67fe;
+    svg {
+      path {
+        fill: #6a67fe;
+      }
+    }
+  }
   .header-link:hover {
     color: #6a67fe;
 
@@ -147,7 +155,7 @@ html, body {
   .collapse.show {
     opacity: 1;
     pointer-events: auto;
-    z-index: 1;
+    z-index: 3;
   }
   .collapse {
     opacity: 0;
@@ -192,12 +200,36 @@ html, body {
   position: absolute;
   left: 0px;
   bottom: 0px;
-  // padding-top: 63px;
 
   a {
     color: white;
   }
 
+  [purpose='footer-container'] {
+    padding-left: 40px;
+    padding-right: 40px;
+    padding-bottom: 32px;
+    padding-top: 40px;
+  }
+
+  [purpose='footer-bottom'] {
+    padding-left: 40px;
+    padding-right: 70px;
+
+  }
+
+  [purpose='footer-nav'] {
+    display: flex;
+    flex-direction: row;
+  }
+
+  [purpose='legal-nav'] {
+    padding-left: 16px;
+    display: inline;
+    font-size: 11px;
+    line-height: 18px;
+    text-decoration: underline;
+  }
 }
 
 body.detected-mobile {
@@ -214,27 +246,42 @@ body.detected-mobile {
   color: #6a67fe;
 }
 
-@media (max-width: 1199px) {
-  [purpose='page-wrap'] {
-    padding-bottom: 260px;
-    [purpose='page-footer'] {
-      height: 260px;
-    }
-  }
-}
 
 @media (max-width: 767px) {
   [purpose='page-wrap'] {
-    padding-bottom: 380px;
+    padding-bottom: 264px;
+
     [purpose='page-footer'] {
-      padding-top: 44px;
-      height: 380px;
+      height: 264px;
     }
+
   }
 }
 
-@media (max-width: 300px) {
-  [purpose='join-the-community-on-slack-expanded-text'] {
-    display: none;
+@media (max-width: 575px) {
+    [purpose='page-wrap'] {
+      padding-bottom: 371px;
+
+      [purpose='page-footer'] {
+        height: 371px;
+      }
+  }
+}
+
+@media (max-width: 490px) {
+  [purpose='page-wrap'] {
+    padding-bottom: 581px;
+
+    [purpose='page-footer'] {
+      height: 581px;
+
+      [purpose='footer-nav'] {
+        display: block;
+      }
+      [purpose='legal-nav'] {
+        padding-left: 0px;
+        display: block;
+      }
+    }
   }
 }

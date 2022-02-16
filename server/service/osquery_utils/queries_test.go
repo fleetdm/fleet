@@ -1,13 +1,16 @@
 package osquery_utils
 
 import (
+	"context"
 	"encoding/json"
-	"os"
+	"errors"
 	"sort"
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/go-kit/kit/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -17,7 +20,7 @@ func TestDetailQueryNetworkInterfaces(t *testing.T) {
 	var initialHost fleet.Host
 	host := initialHost
 
-	ingest := GetDetailQueries(nil)["network_interface"].IngestFunc
+	ingest := GetDetailQueries(nil, config.FleetConfig{})["network_interface"].IngestFunc
 
 	assert.NoError(t, ingest(log.NewNopLogger(), &host, nil))
 	assert.Equal(t, initialHost, host)
@@ -96,11 +99,22 @@ func TestDetailQueryNetworkInterfaces(t *testing.T) {
 }
 
 func TestDetailQueryScheduledQueryStats(t *testing.T) {
-	host := fleet.Host{}
+	host := fleet.Host{ID: 1}
+	ds := new(mock.Store)
 
-	ingest := GetDetailQueries(nil)["scheduled_query_stats"].IngestFunc
+	var gotPackStats []fleet.PackStats
+	ds.SaveHostPackStatsFunc = func(ctx context.Context, hostID uint, stats []fleet.PackStats) error {
+		if hostID != host.ID {
+			return errors.New("not found")
+		}
+		gotPackStats = stats
+		return nil
+	}
 
-	assert.NoError(t, ingest(log.NewNopLogger(), &host, nil))
+	ingest := GetDetailQueries(nil, config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}})["scheduled_query_stats"].DirectIngestFunc
+
+	ctx := context.Background()
+	assert.NoError(t, ingest(ctx, log.NewNopLogger(), &host, ds, nil, false))
 	assert.Len(t, host.PackStats, 0)
 
 	resJSON := `
@@ -181,13 +195,13 @@ func TestDetailQueryScheduledQueryStats(t *testing.T) {
 	var rows []map[string]string
 	require.NoError(t, json.Unmarshal([]byte(resJSON), &rows))
 
-	assert.NoError(t, ingest(log.NewNopLogger(), &host, rows))
-	assert.Len(t, host.PackStats, 2)
-	sort.Slice(host.PackStats, func(i, j int) bool {
-		return host.PackStats[i].PackName < host.PackStats[j].PackName
+	assert.NoError(t, ingest(ctx, log.NewNopLogger(), &host, ds, rows, false))
+	assert.Len(t, gotPackStats, 2)
+	sort.Slice(gotPackStats, func(i, j int) bool {
+		return gotPackStats[i].PackName < gotPackStats[j].PackName
 	})
-	assert.Equal(t, host.PackStats[0].PackName, "pack-2")
-	assert.ElementsMatch(t, host.PackStats[0].QueryStats,
+	assert.Equal(t, gotPackStats[0].PackName, "pack-2")
+	assert.ElementsMatch(t, gotPackStats[0].QueryStats,
 		[]fleet.ScheduledQueryStats{
 			{
 				ScheduledQueryName: "time",
@@ -204,8 +218,8 @@ func TestDetailQueryScheduledQueryStats(t *testing.T) {
 			},
 		},
 	)
-	assert.Equal(t, host.PackStats[1].PackName, "test")
-	assert.ElementsMatch(t, host.PackStats[1].QueryStats,
+	assert.Equal(t, gotPackStats[1].PackName, "test")
+	assert.ElementsMatch(t, gotPackStats[1].QueryStats,
 		[]fleet.ScheduledQueryStats{
 			{
 				ScheduledQueryName: "osquery info",
@@ -262,8 +276,8 @@ func TestDetailQueryScheduledQueryStats(t *testing.T) {
 		},
 	)
 
-	assert.NoError(t, ingest(log.NewNopLogger(), &host, nil))
-	assert.Len(t, host.PackStats, 0)
+	assert.NoError(t, ingest(ctx, log.NewNopLogger(), &host, ds, nil, false))
+	assert.Len(t, gotPackStats, 0)
 }
 
 func sortedKeysCompare(t *testing.T, m map[string]DetailQuery, expectedKeys []string) {
@@ -275,31 +289,108 @@ func sortedKeysCompare(t *testing.T, m map[string]DetailQuery, expectedKeys []st
 }
 
 func TestGetDetailQueries(t *testing.T) {
-	queriesNoConfig := GetDetailQueries(nil)
-	require.Len(t, queriesNoConfig, 9)
+	queriesNoConfig := GetDetailQueries(nil, config.FleetConfig{})
+	require.Len(t, queriesNoConfig, 11)
 	baseQueries := []string{
 		"network_interface",
 		"os_version",
 		"osquery_flags",
 		"osquery_info",
-		"scheduled_query_stats",
 		"system_info",
 		"uptime",
 		"disk_space_unix",
 		"disk_space_windows",
+		"mdm",
+		"munki_info",
+		"google_chrome_profiles",
 	}
 	sortedKeysCompare(t, queriesNoConfig, baseQueries)
 
-	queriesWithUsers := GetDetailQueries(&fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}})
-	require.Len(t, queriesWithUsers, 10)
-	sortedKeysCompare(t, queriesWithUsers, append(baseQueries, "users"))
+	queriesWithUsers := GetDetailQueries(&fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}}, config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}})
+	require.Len(t, queriesWithUsers, 13)
+	sortedKeysCompare(t, queriesWithUsers, append(baseQueries, "users", "scheduled_query_stats"))
 
-	require.NoError(t, os.Setenv("FLEET_BETA_SOFTWARE_INVENTORY", "1"))
-
-	queriesWithUsersAndSoftware := GetDetailQueries(&fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}})
-	require.Len(t, queriesWithUsersAndSoftware, 13)
+	queriesWithUsersAndSoftware := GetDetailQueries(&fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true, EnableSoftwareInventory: true}}, config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}})
+	require.Len(t, queriesWithUsersAndSoftware, 16)
 	sortedKeysCompare(t, queriesWithUsersAndSoftware,
-		append(baseQueries, "users", "software_macos", "software_linux", "software_windows"))
+		append(baseQueries, "users", "software_macos", "software_linux", "software_windows", "scheduled_query_stats"))
+}
 
-	require.NoError(t, os.Setenv("FLEET_BETA_SOFTWARE_INVENTORY", ""))
+func TestDetailQuerysOSVersion(t *testing.T) {
+	var initialHost fleet.Host
+	host := initialHost
+
+	ingest := GetDetailQueries(nil, config.FleetConfig{})["os_version"].IngestFunc
+
+	assert.NoError(t, ingest(log.NewNopLogger(), &host, nil))
+	assert.Equal(t, initialHost, host)
+
+	// Rolling release for archlinux
+	var rows []map[string]string
+	require.NoError(t, json.Unmarshal([]byte(`
+[{
+    "hostname": "kube2",
+    "arch": "x86_64",
+    "build": "rolling",
+    "codename": "",
+    "major": "0",
+    "minor": "0",
+    "name": "Arch Linux",
+    "patch": "0",
+    "platform": "arch",
+    "platform_like": "",
+    "version": ""
+}]`),
+		&rows,
+	))
+
+	assert.NoError(t, ingest(log.NewNopLogger(), &host, rows))
+	assert.Equal(t, "Arch Linux rolling", host.OSVersion)
+
+	// Simulate a linux with a proper version
+	require.NoError(t, json.Unmarshal([]byte(`
+[{
+    "hostname": "kube2",
+    "arch": "x86_64",
+    "build": "rolling",
+    "codename": "",
+    "major": "1",
+    "minor": "2",
+    "name": "Arch Linux",
+    "patch": "3",
+    "platform": "arch",
+    "platform_like": "",
+    "version": ""
+}]`),
+		&rows,
+	))
+
+	assert.NoError(t, ingest(log.NewNopLogger(), &host, rows))
+	assert.Equal(t, "Arch Linux 1.2.3", host.OSVersion)
+}
+
+func TestDirectIngestMDM(t *testing.T) {
+	ds := new(mock.Store)
+	ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, enrolled bool, serverURL string, installedFromDep bool) error {
+		require.False(t, enrolled)
+		require.False(t, installedFromDep)
+		require.Empty(t, serverURL)
+		return nil
+	}
+
+	var host fleet.Host
+
+	err := directIngestMDM(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{}, true)
+	require.NoError(t, err)
+	require.False(t, ds.SetOrUpdateMDMDataFuncInvoked)
+
+	err = directIngestMDM(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{
+		{
+			"enrolled":           "false",
+			"installed_from_dep": "",
+			"server_url":         "",
+		},
+	}, false)
+	require.NoError(t, err)
+	require.True(t, ds.SetOrUpdateMDMDataFuncInvoked)
 }

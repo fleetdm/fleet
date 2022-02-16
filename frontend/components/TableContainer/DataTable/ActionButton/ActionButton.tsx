@@ -9,6 +9,7 @@ import CloseIcon from "../../../../../assets/images/icon-close-vibrant-blue-16x1
 import DeleteIcon from "../../../../../assets/images/icon-delete-vibrant-blue-12x14@2x.png";
 import CheckIcon from "../../../../../assets/images/icon-action-check-16x15@2x.png";
 import DisableIcon from "../../../../../assets/images/icon-action-disable-14x14@2x.png";
+import TransferIcon from "../../../../../assets/images/icon-action-transfer-16x16@2x.png";
 
 const baseClass = "action-button";
 export interface IActionButtonProps {
@@ -59,6 +60,8 @@ const ActionButton = (buttonProps: IActionButtonProps): JSX.Element | null => {
         return CheckIcon;
       case "disable":
         return DisableIcon;
+      case "transfer":
+        return TransferIcon;
       default:
         return null;
     }
@@ -74,7 +77,7 @@ const ActionButton = (buttonProps: IActionButtonProps): JSX.Element | null => {
     return Boolean(hideButtonProp);
   };
 
-  return !isHidden(hideButton) ? (
+  return isHidden(hideButton) ? null : (
     <div className={`${baseClass} ${baseClass}__${kebabCase(name)}`}>
       <Button onClick={() => onButtonClick(targetIds)} variant={variant}>
         <>
@@ -88,7 +91,7 @@ const ActionButton = (buttonProps: IActionButtonProps): JSX.Element | null => {
         </>
       </Button>
     </div>
-  ) : null;
+  );
 };
 
 export default ActionButton;

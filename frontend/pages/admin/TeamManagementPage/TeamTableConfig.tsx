@@ -103,7 +103,7 @@ const generateActionDropdownOptions = (): IDropdownOption[] => {
   ];
 };
 
-const enhanceTeamData = (teams: { [id: number]: ITeam }): ITeamTableData[] => {
+const enhanceTeamData = (teams: ITeam[]): ITeamTableData[] => {
   return Object.values(teams).map((team) => {
     return {
       description: team.description,
@@ -116,7 +116,7 @@ const enhanceTeamData = (teams: { [id: number]: ITeam }): ITeamTableData[] => {
   });
 };
 
-const generateDataSet = (teams: { [id: number]: ITeam }): ITeamTableData[] => {
+const generateDataSet = (teams: ITeam[]): ITeamTableData[] => {
   return [...enhanceTeamData(teams)];
 };
 

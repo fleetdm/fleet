@@ -36,6 +36,25 @@
     }
   }
 
+  [purpose='query-tag'] {
+    font-size: 12px;
+    font-weight: 700;
+    padding: 4px 8px;
+    border-radius: 20px;
+    background-color: #E2E4EA;
+  }
+
+  [purpose='selected-tag'] {
+    border-bottom: 1px solid #e1e4e9;
+    padding: 16px 0;
+    margin-left: 30px;
+    margin-right: 30px;
+    p {
+      margin-bottom: 0;
+      line-height: 18px;
+    }
+  }
+
   .input-group {
     &.search {
       width: 250px;
@@ -64,7 +83,7 @@
   }
 
   .btn-secondary {
-    font-family: Nunito;
+    font-family: Nunito Sans;
     color: @core-vibrant-blue;
     background-color: transparent;
     border: 0;
@@ -78,7 +97,7 @@
   .filters {
     height: 54px;
     p {
-      font-family: Nunito;
+      font-family: Nunito Sans;
       font-size: 16px;
       line-height: 25px;
     }
@@ -89,6 +108,7 @@
     width: 180px;
     border-radius: 8px;
     cursor: pointer;
+
   }
   .dropdown-item {
     padding: 12px;
@@ -128,6 +148,9 @@
       margin-left: 0;
       border-radius: 8px;
       padding: 12px;
+      background: url('/images/chevron-down-9x6@2x.png') no-repeat 95% 50%;
+      background-size: 9px 6px;
+      -webkit-appearance: none;
     }
   }
 
@@ -146,13 +169,12 @@
   }
 
   .select-mobile-border {
-    height: 54px;
+    height: 52px;
     width: 100%;
     margin-right: 0;
     margin-left: 0;
     border: 1px solid #c5c7d1;
     border-radius: 8px;
-    padding-right: 15px;
   }
 
   .select-mobile {
@@ -192,15 +214,22 @@
     border-bottom: 1px solid;
     border-color: #e2e4ea;
   }
-
+  .query-card {
+    padding-top: 24px;
+    padding-bottom: 24px;
+  }
   .card.results {
     box-shadow: none;
     border: none;
     border-radius: 8px;
-
     &:hover {
-      background-color: #f1f0ff;
-      cursor: pointer;
+      .query-card {
+        background-color: #F8F7FF;
+        box-shadow: none;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+      }
     }
   }
 
@@ -211,12 +240,19 @@
     box-shadow: 0 4px 16px 0 rgba(0, 0, 0, 0.1);
     margin-bottom: 90px;
     width: 100%;
+    padding: 40px;
+    p {
+      margin-block-end: 0px;
+    }
+    a {
+      font-size: 16px;
+    }
   }
 
   .card-body {
     padding: 30px;
-    padding-top: 24px;
-    padding-bottom: 24px;
+    padding-top: 0px;
+    padding-bottom: 0px;
   }
 
   .avatar-frame {
@@ -256,6 +292,14 @@
     .library {
       max-width: none;
       margin-bottom: 0px;
+    }
+
+    [purpose='selected-tag'] {
+      margin-left: 30px;
+      margin-right: 30px;
+      [purpose='query-tag'] {
+      margin-top: 8px;
+      }
     }
 
     .results {

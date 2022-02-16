@@ -8,8 +8,10 @@ import (
 	"net/http"
 	"net/http/httptest"
 
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
@@ -42,7 +44,8 @@ type withServer struct {
 func (ts *withServer) SetupSuite(dbName string) {
 	ts.withDS.SetupSuite(dbName)
 
-	users, server := RunServerForTestsWithDS(ts.s.T(), ts.ds)
+	rs := pubsub.NewInmemQueryResults()
+	users, server := RunServerForTestsWithDS(ts.s.T(), ts.ds, TestServerOpts{Rs: rs})
 	ts.server = server
 	ts.users = users
 	ts.token = ts.getTestAdminToken()
@@ -52,13 +55,13 @@ func (ts *withServer) TearDownSuite() {
 	ts.withDS.TearDownSuite()
 }
 
-func (ts *withServer) Do(verb, path string, params interface{}, expectedStatusCode int) *http.Response {
+func (ts *withServer) Do(verb, path string, params interface{}, expectedStatusCode int, queryParams ...string) *http.Response {
 	t := ts.s.T()
 
 	j, err := json.Marshal(params)
 	require.NoError(t, err)
 
-	resp := ts.DoRaw(verb, path, j, expectedStatusCode)
+	resp := ts.DoRaw(verb, path, j, expectedStatusCode, queryParams...)
 
 	t.Cleanup(func() {
 		resp.Body.Close()
@@ -66,34 +69,49 @@ func (ts *withServer) Do(verb, path string, params interface{}, expectedStatusCo
 	return resp
 }
 
-func (ts *withServer) DoRawWithHeaders(verb string, path string, rawBytes []byte, expectedStatusCode int, headers map[string]string) *http.Response {
+func (ts *withServer) DoRawWithHeaders(
+	verb string, path string, rawBytes []byte, expectedStatusCode int, headers map[string]string, queryParams ...string,
+) *http.Response {
 	t := ts.s.T()
 
 	requestBody := io.NopCloser(bytes.NewBuffer(rawBytes))
-	req, _ := http.NewRequest(verb, ts.server.URL+path, requestBody)
+	req, err := http.NewRequest(verb, ts.server.URL+path, requestBody)
+	require.NoError(t, err)
 	for key, val := range headers {
 		req.Header.Add(key, val)
 	}
-	client := &http.Client{}
+	client := fleethttp.NewClient()
+
+	if len(queryParams)%2 != 0 {
+		require.Fail(t, "need even number of params: key value")
+	}
+	if len(queryParams) > 0 {
+		q := req.URL.Query()
+		for i := 0; i < len(queryParams); i += 2 {
+			q.Add(queryParams[i], queryParams[i+1])
+		}
+		req.URL.RawQuery = q.Encode()
+	}
+
 	resp, err := client.Do(req)
 	require.NoError(t, err)
-	require.Equal(t, expectedStatusCode, resp.StatusCode)
+	assert.Equal(t, expectedStatusCode, resp.StatusCode)
 
 	return resp
 }
 
-func (ts *withServer) DoRaw(verb string, path string, rawBytes []byte, expectedStatusCode int) *http.Response {
+func (ts *withServer) DoRaw(verb string, path string, rawBytes []byte, expectedStatusCode int, queryParams ...string) *http.Response {
 	return ts.DoRawWithHeaders(verb, path, rawBytes, expectedStatusCode, map[string]string{
 		"Authorization": fmt.Sprintf("Bearer %s", ts.token),
-	})
+	}, queryParams...)
 }
 
 func (ts *withServer) DoRawNoAuth(verb string, path string, rawBytes []byte, expectedStatusCode int) *http.Response {
 	return ts.DoRawWithHeaders(verb, path, rawBytes, expectedStatusCode, nil)
 }
 
-func (ts *withServer) DoJSON(verb, path string, params interface{}, expectedStatusCode int, v interface{}) {
-	resp := ts.Do(verb, path, params, expectedStatusCode)
+func (ts *withServer) DoJSON(verb, path string, params interface{}, expectedStatusCode int, v interface{}, queryParams ...string) {
+	resp := ts.Do(verb, path, params, expectedStatusCode, queryParams...)
 	err := json.NewDecoder(resp.Body).Decode(v)
 	require.NoError(ts.s.T(), err)
 	if e, ok := v.(errorer); ok {

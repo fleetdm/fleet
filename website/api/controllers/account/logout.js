@@ -41,7 +41,7 @@ actually logged in.  (If they weren't, then this action is just a no-op.)`,
     // > Under the covers, this persists the now-logged-out session back
     // > to the underlying session store.
     if (!this.req.wantsJSON) {
-      throw {redirect: '/login'};
+      throw {redirect: '/customers/login'};
     }
 
   }

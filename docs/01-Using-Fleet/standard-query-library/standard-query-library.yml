@@ -2,30 +2,10 @@
 apiVersion: v1
 kind: query
 spec:
-  name: Count Apple applications installed
-  platforms: macOS
-  description: Count the number of Apple applications installed on the machine.
-  query: SELECT COUNT(*) FROM apps WHERE bundle_identifier LIKE 'com.apple.%';
-  purpose: Informational
-  contributors: mike-j-thomas,noahtalerman,mikermcneil
----
-apiVersion: v1
-kind: query
-spec:
   name: Get OpenSSL versions
   platforms: Linux
   description: Retrieves the OpenSSL version.
   query: SELECT name AS name, version AS version, 'deb_packages' AS source FROM deb_packages WHERE name LIKE 'openssl%' UNION SELECT name AS name, version AS version, 'apt_sources' AS source FROM apt_sources WHERE name LIKE 'openssl%' UNION SELECT name AS name, version AS version, 'rpm_packages' AS source FROM rpm_packages WHERE name LIKE 'openssl%';
-  purpose: Informational
-  contributors: zwass
----
-apiVersion: v1
-kind: query
-spec:
-  name: Get whether Gatekeeper is disabled
-  platforms: macOS
-  description: Gatekeeper tries to ensure only trusted software is run on a mac machine.
-  query: SELECT * FROM gatekeeper WHERE assessments_enabled = 0;
   purpose: Informational
   contributors: zwass
 ---
@@ -93,16 +73,6 @@ spec:
 apiVersion: v1
 kind: query
 spec:
-  name: Get Homebrew Packages
-  platforms: macOS
-  description: Get the installed homebrew package database.
-  query: SELECT * FROM homebrew_packages;
-  purpose: Informational
-  contributors: zwass
----
-apiVersion: v1
-kind: query
-spec:
   name: Get installed Linux software
   platforms: Linux
   description: Get all software installed on a Linux computer, including browser plugins and installed packages. Note, this does not included other running processes in the processes table.
@@ -136,7 +106,7 @@ spec:
   name: Get installed Windows software
   platforms: Windows
   description: Get all software installed on a Windows computer, including programs, browser plugins, and installed packages. Note, this does not included other running processes in the processes table.
-  query: SELECT name AS name, version AS version, 'Program (Windows)' AS type, 'programs' AS source FROM programs UNION SELECT name AS name, version AS version, 'Package (Python)' AS type, 'python_packages' AS source FROM python_packages UNION SELECT name AS name, version AS version, 'Browser plugin (IE)' AS type, 'ie_extensions' AS source FROM ie_extensions UNION SELECT name AS name, version AS version, 'Browser plugin (Chrome)' AS type, 'chrome_extensions' AS source FROM chrome_extensions UNION SELECT name AS name, version AS version, 'Browser plugin (Firefox)' AS type, 'firefox_addons' AS source FROM firefox_addons UNION SELECT name AS name, version AS version, 'Package (Chocolatey)' AS type, 'chocolatey_packages' AS source FROM chocolatey_packages UNION SELECT name AS name, version AS version, 'Package (Atom)' AS type, 'atom_packages' AS source FROM atom_packages UNION SELECT name AS name, version AS version, 'Package (Python)' AS type, 'python_packages' AS source FROM python_packages;
+  query: SELECT name AS name, version AS version, 'Program (Windows)' AS type, 'programs' AS source FROM programs UNION SELECT name AS name, version AS version, 'Package (Python)' AS type, 'python_packages' AS source FROM python_packages UNION SELECT name AS name, version AS version, 'Browser plugin (IE)' AS type, 'ie_extensions' AS source FROM ie_extensions UNION SELECT name AS name, version AS version, 'Browser plugin (Chrome)' AS type, 'chrome_extensions' AS source FROM chrome_extensions UNION SELECT name AS name, version AS version, 'Browser plugin (Firefox)' AS type, 'firefox_addons' AS source FROM firefox_addons UNION SELECT name AS name, version AS version, 'Package (Chocolatey)' AS type, 'chocolatey_packages' AS source FROM chocolatey_packages UNION SELECT name AS name, version AS version, 'Package (Atom)' AS type, 'atom_packages' AS source FROM atom_packages;
   purpose: Informational
   contributors: zwass
 ---
@@ -145,68 +115,8 @@ kind: query
 spec:
   name: Get laptops with failing batteries
   platforms: macOS
-  description:
+  description: Lists all laptops with under-performing or failing batteries.
   query: SELECT * FROM battery WHERE health != 'Good' AND condition NOT IN ('', 'Normal');
-  purpose: Informational
-  contributors: zwass
----
-apiVersion: v1
-kind: query
-spec:
-  name: Get macOS disk free space percentage
-  platforms: macOS
-  description: Displays the percentage of free space available on the primary disk partition.
-  query: SELECT (blocks_available * 100 / blocks) AS pct, * FROM mounts WHERE path = '/';
-  purpose: Informational
-  contributors: zwass
----
-apiVersion: v1
-kind: query
-spec:
-  name: Get mounts
-  platforms: macOS, Linux
-  description: Shows system mounted devices and filesystems (not process specific).
-  query: SELECT device, device_alias, path, type, blocks_size FROM mounts;
-  purpose: Informational
-  contributors: zwass
----
-apiVersion: v1
-kind: query
-spec:
-  name: Get the version of the resident operating system
-  platforms: macOS, Linux, Windows, FreeBSD
-  description: Shows system mounted devices and filesystems (not process specific).
-  query: SELECT * FROM os_version;
-  purpose: Informational
-  contributors: zwass
----
-apiVersion: v1
-kind: query
-spec:
-  name: Get platform info
-  platforms: macOS
-  description: Shows information about the host platform
-  query: SELECT vendor, version, date, revision from platform_info;
-  purpose: Informational
-  contributors: zwass
----
-apiVersion: v1
-kind: query
-spec:
-  name: Get startup items
-  platforms: macOS, Linux, Windows, FreeBSD
-  description: Shows applications and binaries set as user/login startup items.
-  query: SELECT * FROM startup_items;
-  purpose: Informational
-  contributors: zwass
----
-apiVersion: v1
-kind: query
-spec:
-  name: Get system logins and logouts
-  platforms: macOS
-  description: Get a list of system logins and logouts.
-  query: SELECT * FROM last;
   purpose: Informational
   contributors: zwass
 ---
@@ -217,56 +127,6 @@ spec:
   platforms: macOS, Linux, Windows, FreeBSD
   description: Get current users with active shell/console on the system and associated process
   query: SELECT user,host,time, p.name, p.cmdline, p.cwd, p.root FROM logged_in_users liu, processes p WHERE liu.pid = p.pid and liu.type='user' and liu.user <> '' ORDER BY time;
-  purpose: Informational
-  contributors: anelshaer
----
-apiVersion: v1
-kind: query
-spec:
-  name: Get system uptime
-  platforms: macOS, Linux, Windows, FreeBSD
-  description: Shows the system uptime.
-  query: SELECT * FROM uptime;
-  purpose: Informational
-  contributors: zwass
----
-apiVersion: v1
-kind: query
-spec:
-  name: Get USB devices
-  platforms: macOS, Linux
-  description: Shows all USB devices that are actively plugged into the host system.
-  query: SELECT * FROM usb_devices;
-  purpose: Informational
-  contributors: zwass
----
-apiVersion: v1
-kind: query
-spec:
-  name: Get wifi status
-  platforms: macOS
-  description: Shows information about the wifi network that a host is currently connected to.
-  query: SELECT * FROM wifi_status;
-  purpose: Informational
-  contributors: zwass
----
-apiVersion: v1
-kind: query
-spec:
-  name: Get Windows machines with unencrypted hard disks
-  platforms: Windows
-  description:
-  query: SELECT * FROM bitlocker_info WHERE protection_status = 0;
-  purpose: Informational
-  contributors: zwass
----
-apiVersion: v1
-kind: query
-spec:
-  name: Get disk encryption status
-  platforms: macOS, Linux
-  description: Disk encryption status and information.
-  query: SELECT * FROM disk_encryption;
   purpose: Informational
   contributors: anelshaer
 ---
@@ -291,26 +151,6 @@ spec:
   purpose: Informational
   remediation: First, make the user aware about the impact of SSH keys.  Then rotate the unencrypted keys detected.
   contributors: anelshaer
----
-apiVersion: v1
-kind: query
-spec:
-  name: Get crontab jobs
-  platforms: macOS, Linux
-  description: Line parsed values from system and user cron/tab.
-  query: SELECT * FROM crontab;
-  purpose: Informational
-  contributors: anelshaer
----
-apiVersion: v1
-kind: query
-spec:
-  name: Get suid binaries
-  platforms: macOS, Linux
-  description: suid binaries in common locations.
-  query: SELECT * FROM suid_bin;
-  purpose: Informational
-  contributors: zwass
 ---
 apiVersion: v1
 kind: query
@@ -390,27 +230,7 @@ spec:
 apiVersion: v1
 kind: query
 spec:
-  name: Get docker images on a system
-  platforms: macOS, Linux
-  description: Docker images information, can be used on normal system or a kubenode.
-  query: SELECT * FROM docker_images;
-  purpose: Informational
-  contributors: anelshaer
----
-apiVersion: v1
-kind: query
-spec:
-  name: Get docker running containers on a system
-  platforms: macOS, Linux
-  description: Docker containers information, can be used on normal system or a kubenode.
-  query: SELECT * FROM docker_containers;
-  purpose: Informational
-  contributors: anelshaer
----
-apiVersion: v1
-kind: query
-spec:
-  name: Get docker running process on a system
+  name: Get Docker contained processes on a system
   platforms: macOS, Linux
   description: Docker containers Processes, can be used on normal system or a kubenode.
   query: SELECT c.id, c.name, c.image, c.image_id, c.command, c.created, c.state, c.status, p.cmdline  FROM docker_containers c CROSS JOIN docker_container_processes p using(id);
@@ -452,8 +272,8 @@ kind: query
 spec:
   name: Get user files matching a specific hash
   platforms: macOS, Linux
-  description:  Looks for specific hash in the Users/ directories for files that are less than 50MB (osquery file size limitation.)
-  query: SELECT path,sha256 FROM hash WHERE path in (SELECT path FROM file WHERE size < 50000000 AND path LIKE ""/Users/%/Documents/%%"") AND sha256 = ""16d28cd1d78b823c4f961a6da78d67a8975d66cde68581798778ed1f98a56d75"";
+  description: Looks for specific hash in the Users/ directories for files that are less than 50MB (osquery file size limitation.)
+  query: SELECT path, sha256 FROM hash WHERE path IN (SELECT path FROM file WHERE size < 50000000 AND path LIKE '/Users/%/Documents/%%') AND sha256 = '16d28cd1d78b823c4f961a6da78d67a8975d66cde68581798778ed1f98a56d75';
   purpose: Informational
   contributors: alphabrevity
 ---
@@ -462,7 +282,7 @@ kind: query
 spec:
   name: Get local administrator accounts on macOS
   platforms: macOS
-  description: The query allows you to check macOS systems for local administrator accounts. 
+  description: The query allows you to check macOS systems for local administrator accounts.
   query: SELECT uid, username, type, groupname FROM users u JOIN groups g ON g.gid = u.gid;
   purpose: Informational
   contributors: alphabrevity
@@ -474,7 +294,7 @@ spec:
   platforms: Linux, macOS, Windows
   description: List ports that are listening on all interfaces, along with the process to which they are attached.
   query: SELECT lp.address, lp.pid, lp.port, lp.protocol, p.name, p.path, p.cmdline FROM listening_ports lp JOIN processes p ON lp.pid = p.pid WHERE lp.address = "0.0.0.0";
-  purpose: Informational 
+  purpose: Informational
   contributors: alphabrevity
 ---
 apiVersion: v1
@@ -493,6 +313,278 @@ spec:
   name: Get malicious Python backdoors
   platforms: macOS, Linux, Windows
   description: Watches for the backdoored Python packages installed on system. See (http://www.nbu.gov.sk/skcsirt-sa-20170909-pypi/index.html)
-  query: select case cnt when 0 then "NONE_INSTALLED" else "INSTALLED" end as "Malicious Python Packages",package_name,package_version from (select count(name) as  cnt,nameas package_name,version as package_version,path as package_pathfrom python_packages where package_name in ('acqusition','apidev-coop','bzip','crypt','django-server','pwd','setup-tools','telnet','urlib3','urllib'));
+  query: SELECT CASE cnt WHEN 0 THEN "NONE_INSTALLED" ELSE "INSTALLED" END AS "Malicious Python Packages", package_name, package_version FROM (SELECT COUNT(name) AS cnt, name AS package_name, version AS package_version, path AS package_path FROM python_packages WHERE package_name IN ('acqusition', 'apidev-coop', 'bzip', 'crypt', 'django-server', 'pwd', 'setup-tools', 'telnet', 'urlib3', 'urllib'));
   purpose: Informational
   contributors: alphabrevity
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Check for artifacts of the Floxif trojan
+  platforms: Windows
+  description: Checks for artifacts from the Floxif trojan on Windows machines.
+  query: SELECT * FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Piriform\\Agomo%';
+  purpose: Informational
+  contributors: micheal-o
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get shimcache table
+  platforms: Windows
+  description: Returns forensic data showing evidence of likely file execution, in addition to the last modified timestamp of the file, order of execution, full file path order of execution, and the order in which files were executed.
+  query: select * from shimcache
+  purpose: Informational
+  contributors: puffyCid
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get running docker containers
+  platforms: macOS, Linux
+  description: Returns the running Docker containers
+  query: SELECT id, name, image, image_id, state, status FROM docker_containers WHERE state = "running";
+  purpose: Informational
+  contributors: DominusKelvin
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get applications hogging memory
+  platforms: macOS, Linux, Windows
+  description: Returns top 10 applications or processes hogging memory the most.
+  query: SELECT pid, name, ROUND((total_size * '10e-7'), 2) AS memory_used FROM processes ORDER BY total_size DESC LIMIT 10;
+  purpose: Informational
+  contributors: DominusKelvin
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get servers with root login in the last 24 hours
+  platforms: macOS, Linux, Windows
+  description: Returns servers with root login in the last 24 hours and the time the users where logged in.
+  query: SELECT * FROM last WHERE username = "root" AND time > (( SELECT unix_time FROM time ) - 86400 );
+  purpose: Informational
+  contributors: DominusKelvin
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Detect active processes with Log4j running
+  platforms: macOS, Linux
+  description: 'Returns a list of active processes and the Jar paths which are using Log4j. Version numbers are usually within the Jar filename. Note: This query is resource intensive and has caused problems on systems with limited swap space. Test on some systems before running this widely.'
+  query: |
+    WITH target_jars AS (
+      SELECT DISTINCT path
+      FROM (
+          WITH split(word, str) AS(
+            SELECT '', cmdline || ' '
+            FROM processes
+            UNION ALL
+            SELECT substr(str, 0, instr(str, ' ')), substr(str, instr(str, ' ') + 1)
+            FROM split
+            WHERE str != '')
+          SELECT word AS path
+          FROM split
+          WHERE word LIKE '%.jar'
+        UNION ALL
+          SELECT path
+          FROM process_open_files
+          WHERE path LIKE '%.jar'
+      )
+    )
+    SELECT path, matches
+    FROM yara
+    WHERE path IN (SELECT path FROM target_jars)
+      AND count > 0
+      AND sigrule IN (
+        'rule log4jJndiLookup {
+          strings:
+            $jndilookup = "JndiLookup"
+          condition:
+            $jndilookup
+        }',
+        'rule log4jJavaClass {
+          strings:
+            $javaclass = "org/apache/logging/log4j"
+          condition:
+            $javaclass
+        }'
+      );
+  purpose: Detection
+  contributors: zwass,tgauda
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get applications that were opened within the last 24 hours
+  platforms: macOS
+  description: Returns applications that were opened within the last 24 hours starting with the last opened application.
+  query: SELECT * FROM apps WHERE last_opened_time > (( SELECT unix_time FROM time ) - 86400 ) ORDER BY last_opened_time DESC;
+  purpose: Informational
+  contributors: DominusKelvin
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get applications that are not in the Applications directory
+  platforms: macOS
+  description: Returns applications that are not in the `/Applications` directory
+  query: SELECT * FROM apps WHERE path NOT LIKE '/Applications/%';
+  purpose: Informational
+  contributors: DominusKelvin
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get subscription-based applications that have not been opened for the last 30 days
+  platforms: macOS
+  description: Returns applications that are subscription-based and have not been opened for the last 30 days. You can replace the list of applications with those specific to your use case.
+  query: SELECT * FROM apps WHERE path LIKE '/Applications/%' AND name IN ("Photoshop.app", "Adobe XD.app", "Sketch.app", "Illustrator.app") AND last_opened_time < (( SELECT unix_time FROM time ) - 2592000000000 );
+  purpose: Informational
+  contributors: DominusKelvin
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: Gatekeeper enabled (macOS)
+  query: SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;
+  description: Checks to make sure that the Gatekeeper feature is enabled on macOS devices. Gatekeeper tries to ensure only trusted software is run on a mac machine.
+  resolution: "To enable Gatekeeper, on the failing device, run the following command in the Terminal app: /usr/sbin/spctl --master-enable."
+  platforms: macOS
+  contributors: groob
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: Full disk encryption enabled (Windows)
+  query: SELECT 1 FROM bitlocker_info where protection_status = 1;
+  description: Checks to make sure that full disk encryption is enabled on Windows devices.
+  resolution: "To get additional information, run the following osquery query on the failing device: SELECT * FROM bitlocker_info. In the
+  query results, if protection_status is 2, then the status cannot be determined. If it is 0, it is
+  considered unprotected. Use the additional results (percent_encrypted, conversion_status, etc.) to
+  help narrow down the specific reason why Windows considers the volume unprotected."
+  platforms: Windows
+  contributors: defensivedepth
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: Full disk encryption enabled (macOS)
+  query: SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT "" AND filevault_status = 'on' LIMIT 1;
+  description: Checks to make sure that full disk encryption (FileVault) is enabled on macOS devices.
+  resolution: "To enable full disk encryption, on the failing device, select System Preferences >
+  Security & Privacy > FileVault > Turn On FileVault."
+  platforms: macOS
+  contributors: groob
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: Full disk encryption enabled (Linux)
+  query: SELECT 1 FROM disk_encryption WHERE encrypted=1 AND name LIKE '/dev/dm-1';
+  description: Checks if the root drive is encrypted. There are many ways to encrypt Linux systems. This is the default on distributions such as Ubuntu.
+  resolution: "Ensure the image deployed to your Linux workstation includes full disk encryption."
+  platforms: Linux
+  contributors: GuillaumeRoss
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: System Integrity Protection enabled (macOS)
+  query: SELECT 1 FROM sip_config WHERE config_flag = 'sip' AND enabled = 1;
+  description: Checks to make sure that the System Integrity Protection feature is enabled.
+  resolution: "To enable System Integrity Protection, on the failing device, run the following command in the Terminal app: /usr/sbin/spctl --master-enable."
+  platforms: macOS
+  contributors: groob
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: Automatic login disabled (macOS)
+  query: SELECT 1 FROM managed_policies WHERE domain = 'com.apple.loginwindow' AND name = 'com.apple.login.mcx.DisableAutoLoginClient' AND value = 1 LIMIT 1;
+  description: "Required: You’re already enforcing a policy via Moble Device Management (MDM). Checks to make sure that the device user cannot log in to the device without a password."
+  resolution: "The following example profile includes a setting to disable automatic login: https://github.com/gregneagle/profiles/blob/fecc73d66fa17b6fa78b782904cb47cdc1913aeb/loginwindow.mobileconfig#L64-L65."
+  platforms: macOS
+  contributors: groob
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: Guest users disabled (macOS)
+  query: SELECT 1 FROM managed_policies WHERE domain = 'com.apple.MCX' AND name = 'DisableGuestAccount' AND value = 1 LIMIT 1;
+  description: "Required: You’re already enforcing a policy via Moble Device Management (MDM). Checks to make sure that guest accounts cannot be used to log in to the device without a password."
+  resolution: "The following example profile includes a setting to disable guest users: https://github.com/gregneagle/profiles/blob/fecc73d66fa17b6fa78b782904cb47cdc1913aeb/loginwindow.mobileconfig#L68-L71."
+  platforms: macOS
+  contributors: groob
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: Secure keyboard entry for Terminal.app enabled (macOS)
+  query: SELECT 1 FROM managed_policies WHERE domain = 'com.apple.Terminal' AND name = 'SecureKeyboardEntry' AND value = 1 LIMIT 1;
+  description: "Required: You’re already enforcing a policy via Moble Device Management (MDM). Checks to make sure that the Secure Keyboard Entry setting is enabled."
+  platforms: macOS
+  contributors: groob
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get built-in antivirus status on macOS
+  platforms: macOS
+  query: SELECT path, value AS version FROM plist WHERE (key = 'CFBundleShortVersionString' AND path = '/Library/Apple/System/Library/CoreServices/MRT.app/Contents/Info.plist') OR (key = 'CFBundleShortVersionString' AND path = '/Library/Apple/System/Library/CoreServices/XProtect.bundle/Contents/Info.plist');
+  description: Reads the version numbers from the Malware Removal Tool (MRT) and built-in antivirus (XProtect) plists
+  purpose: Informational
+  contributors: GuillaumeRoss
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get antivirus status from the Windows Security Center
+  platforms: Windows
+  query: SELECT antivirus, signatures_up_to_date from windows_security_center CROSS JOIN windows_security_products WHERE type = 'Antivirus'; 
+  description: Selects the antivirus and signatures status from Windows Security Center.
+  purpose: Informational
+  contributors: GuillaumeRoss
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get antivirus (ClamAV/clamd) and updater (freshclam) process status
+  platforms: Linux
+  query: SELECT pid, state, cmdline, name FROM processes WHERE name='clamd' OR name='freshclam';
+  description: Selects the clamd and freshclam processes to ensure AV and its updater are running
+  purpose: Informational
+  contributors: GuillaumeRoss
+---  
+apiVersion: v1
+kind: policy
+spec:
+  name: Antivirus healthy (macOS)
+  query: SELECT score FROM (SELECT case when COUNT(*) = 2 then 1 ELSE 0 END AS score FROM plist WHERE (key = 'CFBundleShortVersionString' AND path = '/Library/Apple/System/Library/CoreServices/XProtect.bundle/Contents/Info.plist' AND value>=2155) OR (key = 'CFBundleShortVersionString' AND path = '/Library/Apple/System/Library/CoreServices/MRT.app/Contents/Info.plist' and value>=1.88)) WHERE score == 1;
+  description: Checks the version of Malware Removal Tool (MRT) and the built-in macOS AV (Xprotect). Replace version numbers with latest version regularly.
+  resolution: "To enable automatic security definition updates, on the failing device, select System Preferences >
+  Software Update > Advanced > Turn on Install system data files and security updates."
+  platforms: macOS
+  contributors: GuillaumeRoss
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: Antivirus healthy (Windows)
+  query: SELECT 1 from windows_security_center wsc CROSS JOIN windows_security_products wsp WHERE antivirus = 'Good' AND type = 'Antivirus' AND signatures_up_to_date=1;
+  description: Checks the status of antivirus and signature updates from the Windows Security Center. 
+  resolution: "Ensure Windows Defender or your third-party antivirus is running, up to date, and visible in the Windows Security Center."
+  platforms: Windows
+  contributors: GuillaumeRoss
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: Antivirus healthy (Linux)
+  query: SELECT score FROM (SELECT case when COUNT(*) = 2 then 1 ELSE 0 END AS score FROM processes WHERE (name = 'clamd') OR (name = 'freshclam')) WHERE score == 1;
+  description: Checks that both ClamAV's daemon and its updater service (freshclam) are running. 
+  resolution: "Ensure ClamAV and Freshclam are installed and running."
+  platforms: Linux
+  contributors: GuillaumeRoss
+  

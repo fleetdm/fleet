@@ -1,68 +1,29 @@
 @import "../../../../node_modules/react-tabs/style/react-tabs.scss";
 
 .settings-wrapper {
-  padding: 25px $pad-xlarge 50px; // different to pad sticky subnav properly
-
-  &__nav-header {
-    padding-top: 15px;
-    position: sticky;
-    top: 0;
-    background-color: $core-white;
-    z-index: 2;
-  }
-
   h1 {
-    margin-bottom: $pad-small;
+    display: flex;
+    align-items: center;
+    height: 38px;
+    position: relative;
+
+    // fake padding for h1 while sticky
+    &::before {
+      content: "";
+      width: 100%;
+      height: $pad-xxlarge;
+      position: absolute;
+      top: -$pad-xxlarge;
+      background-color: $core-white;
+    }
   }
 
-  .body-wrap {
+  .app-settings {
     padding: 0;
   }
 
-  .react-tabs {
-    .react-tabs__tab-list {
-      border-bottom: 1px solid $ui-gray;
-    }
-
-    &__tab {
-      font-size: $x-small;
-      border: none;
-      padding: 0 0 $pad-medium 0;
-      margin-left: $pad-xxlarge;
-      display: inline-flex;
-      flex-direction: column;
-      align-items: center;
-
-      &:focus {
-        box-shadow: none;
-        outline: 0;
-      }
-
-      // Bolding text when the tab is active causes a layout shift
-      // so we add a hidden pseudo element with the same text string
-      &:before {
-        content: attr(data-text);
-        height: 0;
-        visibility: hidden;
-        overflow: hidden;
-        user-select: none;
-        pointer-events: none;
-        font-weight: $bold;
-      }
-
-      &:after {
-        background-color: transparent;
-      }
-
-      &:first-child {
-        margin-left: 0;
-      }
-    }
-
-    &__tab--selected,
-    &__tab--selected:focus {
-      font-weight: $bold;
-      border-bottom: 1px solid $core-vibrant-blue;
-    }
+  .component__tabs-wrapper {
+    top: $pad-xxlarge; // for sticky
+    z-index: 3;
   }
 }

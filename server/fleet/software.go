@@ -1,5 +1,7 @@
 package fleet
 
+import "time"
+
 type SoftwareCVE struct {
 	CVE         string `json:"cve" db:"cve"`
 	DetailsLink string `json:"details_link" db:"details_link"`
@@ -12,13 +14,29 @@ type Software struct {
 	Name string `json:"name" db:"name"`
 	// Version is reported version.
 	Version string `json:"version" db:"version"`
+	// BundleIdentifier is the CFBundleIdentifier label from the info properties
+	BundleIdentifier string `json:"bundle_identifier,omitempty" db:"bundle_identifier"`
 	// Source is the source of the data (osquery table name).
 	Source string `json:"source" db:"source"`
+
+	// Release is the version of the OS this software was released on
+	// (e.g. "30.el7" for a CentOS package).
+	Release string `json:"release,omitempty" db:"release"`
+	// Vendor is the supplier of the software (e.g. "CentOS").
+	Vendor string `json:"vendor,omitempty" db:"vendor"`
+	// Arch is the architecture of the software (e.g. "x86_64").
+	Arch string `json:"arch,omitempty" db:"arch"`
 
 	// GenerateCPE is the CPE23 string that corresponds to the current software
 	GenerateCPE string `json:"generated_cpe" db:"generated_cpe"`
 	// Vulnerabilities lists all the found CVEs for the CPE
 	Vulnerabilities VulnerabilitiesSlice `json:"vulnerabilities"`
+	// HostsCount indicates the number of hosts with that software, filled only
+	// if explicitly requested.
+	HostsCount int `json:"hosts_count,omitempty" db:"hosts_count"`
+	// CountsUpdatedAt is the timestamp when the hosts count was last updated
+	// for that software, filled only if hosts count is requested.
+	CountsUpdatedAt time.Time `json:"-" db:"counts_updated_at"`
 }
 
 func (Software) AuthzType() string {
@@ -43,4 +61,18 @@ type SoftwareIterator interface {
 	Value() (*Software, error)
 	Err() error
 	Close() error
+}
+
+type SoftwareListOptions struct {
+	ListOptions
+
+	TeamID         *uint `query:"team_id,optional"`
+	VulnerableOnly bool  `query:"vulnerable,optional"`
+
+	SkipLoadingCVEs bool
+
+	// WithHostCounts indicates that the list of software should include the
+	// counts of hosts per software, and include only those software that have
+	// a count of hosts > 0.
+	WithHostCounts bool
 }

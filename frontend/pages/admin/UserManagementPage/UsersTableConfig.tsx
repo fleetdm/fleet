@@ -49,7 +49,7 @@ interface IUserTableData {
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
 const generateTableHeaders = (
   actionSelectHandler: (value: string, user: IUser | IInvite) => void,
-  isPremiumTier: boolean
+  isPremiumTier: boolean | undefined
 ): IDataColumn[] => {
   const tableHeaders: IDataColumn[] = [
     {
@@ -148,7 +148,7 @@ const generateActionDropdownOptions = (
   let dropdownOptions = [
     {
       label: "Edit",
-      disabled: isInvitePending,
+      disabled: false,
       value: isCurrentUser ? "editMyAccount" : "edit",
     },
     {

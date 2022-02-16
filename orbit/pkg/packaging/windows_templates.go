@@ -8,22 +8,23 @@ var windowsWixTemplate = template.Must(template.New("").Option("missingkey=error
 	`<?xml version="1.0" encoding="UTF-8"?>
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi" xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
   <Product
-    Id="C2C2437D-0562-465E-A0BB-2C4484025BD6"
-    Name="Orbit osquery"
+    Id="*"
+    Name="Fleet osquery"
     Language="1033"
     Version="{{.Version}}"
     Manufacturer="Fleet Device Management (fleetdm.com)"
     UpgradeCode="B681CB20-107E-428A-9B14-2D3C1AFED244" >
 
     <Package
-      Id="*"
-      Keywords='orbit osquery'
-      Description="Orbit osquery"
+      Keywords='Fleet osquery'
+      Description="Fleet osquery"
       InstallerVersion="500"
       Compressed="yes"
       InstallScope="perMachine"
       InstallPrivileges="elevated"
       Languages="1033" />
+
+    <Property Id="REINSTALLMODE" Value="amus" />
 
     <MediaTemplate EmbedCab="yes" />
 
@@ -43,16 +44,16 @@ var windowsWixTemplate = template.Must(template.New("").Option("missingkey=error
                 <CreateFolder>
                   <PermissionEx Sddl="O:SYG:SYD:P(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)(A;OICI;0x1200a9;;;BU)" />
                 </CreateFolder>
-                <File Source="root\bin\orbit\windows\stable\orbit.exe">
+                <File Source="root\bin\orbit\windows\{{ .OrbitChannel }}\orbit.exe">
                   <PermissionEx Sddl="O:SYG:SYD:P(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)(A;OICI;0x1200a9;;;BU)" />
                 </File>
                 <ServiceInstall
-                  Name="Orbit osquery"
+                  Name="Fleet osquery"
                   Account="NT AUTHORITY\SYSTEM"
                   ErrorControl="ignore"
                   Start="auto"
                   Type="ownProcess"
-                  Arguments='--root-dir "[ORBITROOT]." --log-file "[ORBITROOT]orbit-log.txt" {{ if .FleetURL }}--fleet-url "{{ .FleetURL }}"{{ end }} {{ if .FleetCertificate }}--fleet-certificate "[ORBITROOT]fleet.pem"{{ end }} {{ if .EnrollSecret }}--enroll-secret-path "[ORBITROOT]secret.txt"{{ end }} {{if .Insecure }}--insecure{{ end }} {{ if .UpdateURL }}--update-url "{{ .UpdateURL }}" {{ end }} --orbit-channel "{{ .OrbitChannel }}" --osqueryd-channel "{{ .OsquerydChannel }}"'
+                  Arguments='--root-dir "[ORBITROOT]." --log-file "[System64Folder]config\systemprofile\AppData\Local\FleetDM\Orbit\Logs\orbit-osquery.log" {{ if .FleetURL }}--fleet-url "{{ .FleetURL }}"{{ end }} {{ if .FleetCertificate }}--fleet-certificate "[ORBITROOT]fleet.pem"{{ end }} {{ if .EnrollSecret }}--enroll-secret-path "[ORBITROOT]secret.txt"{{ end }} {{if .Insecure }}--insecure{{ end }} {{ if .Debug }}--debug{{ end }} {{ if .UpdateURL }}--update-url "{{ .UpdateURL }}" {{ end }} --orbit-channel "{{ .OrbitChannel }}" --osqueryd-channel "{{ .OsquerydChannel }}"'
                 >
                   <util:ServiceConfig
                     FirstFailureActionType="restart"
@@ -64,7 +65,7 @@ var windowsWixTemplate = template.Must(template.New("").Option("missingkey=error
                 </ServiceInstall>
                 <ServiceControl
                   Id="StartOrbitService"
-                  Name="Orbit osquery"
+                  Name="Fleet osquery"
                   Start="install"
                   Stop="both"
                   Remove="uninstall"
@@ -76,7 +77,7 @@ var windowsWixTemplate = template.Must(template.New("").Option("missingkey=error
       </Directory>
     </Directory>
 
-    <Feature Id="Orbit" Title="Orbit osquery" Level="1" Display="hidden">
+    <Feature Id="Orbit" Title="Fleet osquery" Level="1" Display="hidden">
       <ComponentGroupRef Id="OrbitFiles" />
       <ComponentRef Id="C_ORBITBIN" />
       <ComponentRef Id="C_ORBITROOT" />

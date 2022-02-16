@@ -1,0 +1,358 @@
+{{ define "enroll" -}}
+{
+    "enroll_secret": "{{ .EnrollSecret  }}",
+    "host_details": {
+        "os_version": {
+            "build": "18G3020",
+            "major": "10",
+            "minor": "14",
+            "name": "Mac OS X",
+            "patch": "6",
+            "platform": "darwin",
+            "platform_like": "darwin",
+            "version": "10.14.6"
+        },
+        "osquery_info": {
+            "build_distro": "10.12",
+            "build_platform": "darwin",
+            "config_hash": "",
+            "config_valid": "0",
+            "extensions": "inactive",
+            "instance_id": "{{ .UUID }}",
+            "pid": "12947",
+            "platform_mask": "21",
+            "start_time": "1580931224",
+            "uuid": "{{ .UUID }}",
+            "version": "4.6.0",
+            "watcher": "12946"
+        },
+        "platform_info": {
+            "address": "0xff990000",
+            "date": "12/16/2019 ",
+            "extra": "MBP114; 196.0.0.0.0; root@xapp160; Mon Dec 16 15:55:18 PST 2019; 196 (B&I); F000_B00; Official Build, Release; Apple LLVM version 5.0 (clang-500.0.68) (based on LLVM 3.3svn)",
+            "revision": "196 (B&I)",
+            "size": "8388608",
+            "vendor": "Apple Inc. ",
+            "version": "196.0.0.0.0 ",
+            "volume_size": "1507328"
+        },
+        "system_info": {
+            "computer_name": "{{ .CachedString "hostname" }}",
+            "cpu_brand": "Intel(R) Core(TM) i7-4770HQ CPU @ 2.20GHz\u0000\u0000\u0000\u0000\u0000\u0000\u0000",
+            "cpu_logical_cores": "8",
+            "cpu_physical_cores": "4",
+            "cpu_subtype": "Intel x86-64h Haswell",
+            "cpu_type": "x86_64h",
+            "hardware_model": "MacBookPro11,4",
+            "hardware_serial": "D02R835DG8WK",
+            "hardware_vendor": "Apple Inc.",
+            "hardware_version": "1.0",
+            "hostname": "{{ .CachedString "hostname" }}",
+            "local_hostname": "{{ .CachedString "hostname" }}",
+            "physical_memory": "17179869184",
+            "uuid": "{{ .UUID }}"
+        }
+    },
+    "host_identifier": "{{ .CachedString "hostname" }}",
+    "platform_type": "16"
+}
+{{- end }}
+
+{{ define "fleet_detail_query_network_interface" -}}
+[
+  {
+    "point_to_point":"",
+    "address":"fe80::8cb:112d:ff51:1e5d%en0",
+    "mask":"ffff:ffff:ffff:ffff::",
+    "broadcast":"",
+    "interface":"en0",
+    "mac":"f8:2d:88:93:56:5c",
+    "type":"6",
+    "mtu":"1500",
+    "metric":"0",
+    "ipackets":"278493",
+    "opackets":"206238",
+    "ibytes":"275799040",
+    "obytes":"37720064",
+    "ierrors":"0",
+    "oerrors":"0",
+    "idrops":"0",
+    "odrops":"0",
+    "last_change":"1582848084"
+  },
+  {
+    "point_to_point":"",
+    "address":"192.168.1.3",
+    "mask":"255.255.255.0",
+    "broadcast":"192.168.1.255",
+    "interface":"en0",
+    "mac":"f5:5a:80:92:52:5b",
+    "type":"6",
+    "mtu":"1500",
+    "metric":"0",
+    "ipackets":"278493",
+    "opackets":"206238",
+    "ibytes":"275799040",
+    "obytes":"37720064",
+    "ierrors":"0",
+    "oerrors":"0",
+    "idrops":"0",
+    "odrops":"0",
+    "last_change":"1582848084"
+  },
+  {
+    "point_to_point":"127.0.0.1",
+    "address":"127.0.0.1",
+    "mask":"255.0.0.0",
+    "broadcast":"",
+    "interface":"lo0",
+    "mac":"00:00:00:00:00:00",
+    "type":"24",
+    "mtu":"16384",
+    "metric":"0",
+    "ipackets":"132952",
+    "opackets":"132952",
+    "ibytes":"67053568",
+    "obytes":"67053568",
+    "ierrors":"0",
+    "oerrors":"0",
+    "idrops":"0",
+    "odrops":"0",
+    "last_change":"1582840871"
+  },
+  {
+    "point_to_point":"::1",
+    "address":"::1",
+    "mask":"ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff",
+    "broadcast":"",
+    "interface":"lo0",
+    "mac":"00:00:00:00:00:00",
+    "type":"24",
+    "mtu":"16384",
+    "metric":"0",
+    "ipackets":"132952",
+    "opackets":"132952",
+    "ibytes":"67053568",
+    "obytes":"67053568",
+    "ierrors":"0",
+    "oerrors":"0",
+    "idrops":"0",
+    "odrops":"0",
+    "last_change":"1582840871"
+  },
+  {
+    "point_to_point":"",
+    "address":"fe80::1%lo0",
+    "mask":"ffff:ffff:ffff:ffff::",
+    "broadcast":"",
+    "interface":"lo0",
+    "mac":"00:00:00:00:00:00",
+    "type":"24",
+    "mtu":"16384",
+    "metric":"0",
+    "ipackets":"132952",
+    "opackets":"132952",
+    "ibytes":"67053568",
+    "obytes":"67053568",
+    "ierrors":"0",
+    "oerrors":"0",
+    "idrops":"0",
+    "odrops":"0",
+    "last_change":"1582840871"
+  },
+  {
+    "point_to_point":"",
+    "address":"fe80::3a:84ff:fe6b:bf75%awdl0",
+    "mask":"ffff:ffff:ffff:ffff::",
+    "broadcast":"",
+    "interface":"awdl0",
+    "mac":"03:3b:94:5b:be:75",
+    "type":"6",
+    "mtu":"1484",
+    "metric":"0",
+    "ipackets":"0",
+    "opackets":"16",
+    "ibytes":"0",
+    "obytes":"3072",
+    "ierrors":"0",
+    "oerrors":"0",
+    "idrops":"0",
+    "odrops":"0",
+    "last_change":"1582842892"
+  },
+  {
+    "point_to_point":"",
+    "address":"fe80::6eaf:9721:3476:b691%utun0",
+    "mask":"ffff:ffff:ffff:ffff::",
+    "broadcast":"",
+    "interface":"utun0",
+    "mac":"00:00:00:00:00:00",
+    "type":"1",
+    "mtu":"2000",
+    "metric":"0",
+    "ipackets":"0",
+    "opackets":"2",
+    "ibytes":"0",
+    "obytes":"0",
+    "ierrors":"0",
+    "oerrors":"0",
+    "idrops":"0",
+    "odrops":"0",
+    "last_change":"1582840897"
+  }
+]
+{{- end }}
+{{ define "fleet_detail_query_os_version" -}}
+[
+  {
+    "name":"Mac OS X",
+    "version":"10.14.6",
+    "major":"10",
+    "minor":"14",
+    "patch":"6",
+    "build":"18G3020",
+    "platform":"darwin",
+    "platform_like":"darwin",
+    "codename":""
+  }
+]
+{{- end }}
+{{ define "fleet_detail_query_osquery_flags" -}}
+[
+  {
+    "name":"config_refresh",
+    "value":"{{ printf "%.0f" .ConfigInterval.Seconds }}"
+  },
+  {
+    "name":"distributed_interval",
+    "value":"{{ printf "%.0f" .QueryInterval.Seconds }}"
+  },
+  {
+    "name":"logger_tls_period",
+    "value":"99999"
+  }
+]
+{{- end }}
+{{ define "fleet_detail_query_osquery_info" -}}
+[
+  {
+    "pid":"11287",
+    "uuid":"{{ .UUID }}",
+    "instance_id":"{{ .UUID }}",
+    "version":"4.1.2",
+    "config_hash":"b01efbf375ac6767f259ae98751154fef727ce35",
+    "config_valid":"1",
+    "extensions":"inactive",
+    "build_platform":"darwin",
+    "build_distro":"10.12",
+    "start_time":"1582857555",
+    "watcher":"11286",
+    "platform_mask":"21"
+  }
+]
+{{- end }}
+{{ define "fleet_detail_query_system_info" -}}
+[
+  {
+    "hostname":"{{ .CachedString "hostname" }}",
+    "uuid":"4740D59F-699E-5B29-960B-979AAF9BBEEB",
+    "cpu_type":"x86_64h",
+    "cpu_subtype":"Intel x86-64h Haswell",
+    "cpu_brand":"Intel(R) Core(TM) i7-4770HQ CPU @ 2.20GHz",
+    "cpu_physical_cores":"4",
+    "cpu_logical_cores":"8",
+    "cpu_microcode":"",
+    "physical_memory":"17179869184",
+    "hardware_vendor":"Apple Inc.",
+    "hardware_model":"MacBookPro11,4",
+    "hardware_version":"1.0",
+    "hardware_serial":"C02R262BM8LN",
+    "computer_name":"{{ .CachedString "hostname" }}",
+    "local_hostname":"{{ .CachedString "hostname" }}"
+  }
+]
+{{- end }}
+{{ define "fleet_detail_query_uptime" -}}
+[
+  {
+    "days":"0",
+    "hours":"4",
+    "minutes":"38",
+    "seconds":"11",
+    "total_seconds":"16691"
+  }
+]
+{{- end }}
+
+{{ define "fleet_detail_query_users" -}}
+[
+  {{ range $index, $item := .HostUsersMacOS }}
+  {{if $index}},{{end}}
+  {
+    "uid": "{{ .Uid }}",
+    "username": "{{ .Username }}",
+    "type": "{{ .Type }}",
+    "groupname": "{{ .GroupName }}",
+    "shell": "{{ .Shell }}"
+  }
+  {{- end }}
+]
+{{- end }}
+
+{{/* all hosts */}}
+{{ define "fleet_label_query_6" -}}
+[
+  {
+    "1": "1"
+  }
+]
+{{- end }}
+
+{{/* All macOS hosts */}}
+{{ define "fleet_label_query_7" -}}
+[
+  {
+    "1": "1"
+  }
+]
+{{- end }}
+
+{{/* All Ubuntu hosts */}}
+{{ define "fleet_label_query_8" -}}
+[]
+{{- end }}
+
+{{/* All CentOS hosts */}}
+{{ define "fleet_label_query_9" -}}
+[]
+{{- end }}
+
+{{/* All Windows hosts */}}
+{{ define "fleet_label_query_10" -}}
+[]
+{{- end }}
+
+{{/* All Red Hat hosts */}}
+{{ define "fleet_label_query_11" -}}
+[]
+{{- end }}
+
+{{/* All Linux distributions */}}
+{{ define "fleet_label_query_12" -}}
+[]
+{{- end }}
+
+{{ define "fleet_detail_query_software_macos" -}}
+[
+  {{ range $index, $item := .SoftwareMacOS }}
+  {{if $index}},{{end}}
+  {
+    "name": "{{ .Name }}",
+    "version": "{{ .Version }}",
+    "type": "Application (macOS)",
+    "bundle_identifier": "{{ .BundleIdentifier }}",
+    "source": "apps"
+  }
+  {{- end }}
+]
+{{- end }}

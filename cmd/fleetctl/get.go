@@ -2,8 +2,10 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"strconv"
 
@@ -14,16 +16,16 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/ghodss/yaml"
 	"github.com/olekukonko/tablewriter"
-	"github.com/pkg/errors"
 	"github.com/urfave/cli/v2"
 )
 
 const (
-	yamlFlagName        = "yaml"
-	jsonFlagName        = "json"
-	withQueriesFlagName = "with-queries"
-	expiredFlagName     = "expired"
-	stdoutFlagName      = "stdout"
+	yamlFlagName                = "yaml"
+	jsonFlagName                = "json"
+	withQueriesFlagName         = "with-queries"
+	expiredFlagName             = "expired"
+	stdoutFlagName              = "stdout"
+	includeServerConfigFlagName = "include-server-config"
 )
 
 type specGeneric struct {
@@ -142,7 +144,7 @@ func printHostDetail(c *cli.Context, host *service.HostDetailResponse) error {
 	return printSpec(c, spec)
 }
 
-func printConfig(c *cli.Context, config *fleet.AppConfig) error {
+func printConfig(c *cli.Context, config interface{}) error {
 	spec := specGeneric{
 		Kind:    fleet.AppConfigKind,
 		Version: fleet.ApiVersion,
@@ -266,7 +268,7 @@ func getQueriesCommand() *cli.Command {
 			if name == "" {
 				queries, err := client.GetQueries()
 				if err != nil {
-					return errors.Wrap(err, "could not list queries")
+					return fmt.Errorf("could not list queries: %w", err)
 				}
 
 				if len(queries) == 0 {
@@ -277,7 +279,7 @@ func getQueriesCommand() *cli.Command {
 				if c.Bool(yamlFlagName) || c.Bool(jsonFlagName) {
 					for _, query := range queries {
 						if err := printQuery(c, query); err != nil {
-							return errors.Wrap(err, "unable to print query")
+							return fmt.Errorf("unable to print query: %w", err)
 						}
 					}
 				} else {
@@ -304,7 +306,7 @@ func getQueriesCommand() *cli.Command {
 			}
 
 			if err := printQuery(c, query); err != nil {
-				return errors.Wrap(err, "unable to print query")
+				return fmt.Errorf("unable to print query: %w", err)
 			}
 
 			return nil
@@ -354,7 +356,7 @@ func getPacksCommand() *cli.Command {
 
 				queries, err := client.GetQueries()
 				if err != nil {
-					return errors.Wrap(err, "could not list queries")
+					return fmt.Errorf("could not list queries: %w", err)
 				}
 
 				// Getting all queries then filtering is usually faster than getting
@@ -365,7 +367,7 @@ func getPacksCommand() *cli.Command {
 					}
 
 					if err := printQuery(c, query); err != nil {
-						return errors.Wrap(err, "unable to print query")
+						return fmt.Errorf("unable to print query: %w", err)
 					}
 				}
 
@@ -376,13 +378,13 @@ func getPacksCommand() *cli.Command {
 			if name == "" {
 				packs, err := client.GetPacks()
 				if err != nil {
-					return errors.Wrap(err, "could not list packs")
+					return fmt.Errorf("could not list packs: %w", err)
 				}
 
 				if c.Bool(yamlFlagName) || c.Bool(jsonFlagName) {
 					for _, pack := range packs {
 						if err := printPack(c, pack); err != nil {
-							return errors.Wrap(err, "unable to print pack")
+							return fmt.Errorf("unable to print pack: %w", err)
 						}
 
 						addQueries(pack)
@@ -422,7 +424,7 @@ func getPacksCommand() *cli.Command {
 			addQueries(pack)
 
 			if err := printPack(c, pack); err != nil {
-				return errors.Wrap(err, "unable to print pack")
+				return fmt.Errorf("unable to print pack: %w", err)
 			}
 
 			return printQueries()
@@ -455,7 +457,7 @@ func getLabelsCommand() *cli.Command {
 			if name == "" {
 				labels, err := client.GetLabels()
 				if err != nil {
-					return errors.Wrap(err, "could not list labels")
+					return fmt.Errorf("could not list labels: %w", err)
 				}
 
 				if c.Bool(yamlFlagName) || c.Bool(jsonFlagName) {
@@ -537,13 +539,17 @@ func getEnrollSecretCommand() *cli.Command {
 func getAppConfigCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "config",
-		Usage: "Retrieve the Fleet configuration",
+		Usage: "Retrieve the Fleet app configuration",
 		Flags: []cli.Flag{
 			jsonFlag(),
 			yamlFlag(),
 			configFlag(),
 			contextFlag(),
 			debugFlag(),
+			&cli.BoolFlag{
+				Name:  includeServerConfigFlagName,
+				Usage: "Include the server configuration in the output",
+			},
 		},
 		Action: func(c *cli.Context) error {
 			client, err := clientFromCLI(c)
@@ -556,7 +562,11 @@ func getAppConfigCommand() *cli.Command {
 				return err
 			}
 
-			err = printConfig(c, config)
+			if c.Bool(includeServerConfigFlagName) {
+				err = printConfig(c, config)
+			} else {
+				err = printConfig(c, config.AppConfig)
+			}
 			if err != nil {
 				return err
 			}
@@ -592,13 +602,16 @@ func getHostsCommand() *cli.Command {
 			identifier := c.Args().First()
 
 			if identifier == "" {
-				query := ""
-				if c.Uint("team") > 0 {
-					query = fmt.Sprintf("team_id=%d", c.Uint("team"))
+				query := url.Values{}
+				query.Set("additional_info_filters", "*")
+				if teamID := c.Uint("team"); teamID > 0 {
+					query.Set("team_id", strconv.FormatUint(uint64(teamID), 10))
 				}
-				hosts, err := client.GetHosts(query)
+				queryStr := query.Encode()
+
+				hosts, err := client.GetHosts(queryStr)
 				if err != nil {
-					return errors.Wrap(err, "could not list hosts")
+					return fmt.Errorf("could not list hosts: %w", err)
 				}
 
 				if len(hosts) == 0 {
@@ -634,7 +647,7 @@ func getHostsCommand() *cli.Command {
 			} else {
 				host, err := client.HostByIdentifier(identifier)
 				if err != nil {
-					return errors.Wrap(err, "could not get host")
+					return fmt.Errorf("could not get host: %w", err)
 				}
 				err = printHostDetail(c, host)
 				if err != nil {
@@ -727,19 +740,19 @@ func getCarveCommand() *cli.Command {
 			idString := c.Args().First()
 
 			if idString == "" {
-				return errors.Errorf("must provide carve ID as first argument")
+				return errors.New("must provide carve ID as first argument")
 			}
 
 			id, err := strconv.ParseInt(idString, 10, 64)
 			if err != nil {
-				return errors.Wrap(err, "unable to parse carve ID as int")
+				return fmt.Errorf("unable to parse carve ID as int: %w", err)
 			}
 
 			outFile := getOutfile(c)
 			stdout := c.Bool(stdoutFlagName)
 
 			if stdout && outFile != "" {
-				return errors.Errorf("-stdout and -outfile must not be specified together")
+				return errors.New("-stdout and -outfile must not be specified together")
 			}
 
 			if stdout || outFile != "" {
@@ -747,7 +760,7 @@ func getCarveCommand() *cli.Command {
 				if outFile != "" {
 					f, err := secure.OpenFile(outFile, os.O_CREATE|os.O_WRONLY, defaultFileMode)
 					if err != nil {
-						return errors.Wrap(err, "open out file")
+						return fmt.Errorf("open out file: %w", err)
 					}
 					defer f.Close()
 					out = f
@@ -759,7 +772,7 @@ func getCarveCommand() *cli.Command {
 				}
 
 				if _, err := io.Copy(out, reader); err != nil {
-					return errors.Wrap(err, "download carve contents")
+					return fmt.Errorf("download carve contents: %w", err)
 				}
 
 				return nil
@@ -771,7 +784,7 @@ func getCarveCommand() *cli.Command {
 			}
 
 			if err := printYaml(carve, c.App.Writer); err != nil {
-				return errors.Wrap(err, "print carve yaml")
+				return fmt.Errorf("print carve yaml: %w", err)
 			}
 
 			return nil
@@ -807,7 +820,7 @@ func getUserRolesCommand() *cli.Command {
 
 			users, err := client.ListUsers()
 			if err != nil {
-				return errors.Wrap(err, "could not list users")
+				return fmt.Errorf("could not list users: %w", err)
 			}
 
 			if len(users) == 0 {
@@ -858,6 +871,10 @@ func getTeamsCommand() *cli.Command {
 			configFlag(),
 			contextFlag(),
 			debugFlag(),
+			&cli.StringFlag{
+				Name:  nameFlagName,
+				Usage: "filter by name",
+			},
 		},
 		Action: func(c *cli.Context) error {
 			client, err := clientFromCLI(c)
@@ -865,9 +882,15 @@ func getTeamsCommand() *cli.Command {
 				return err
 			}
 
-			teams, err := client.ListTeams()
+			query := url.Values{}
+			if name := c.String(nameFlagName); name != "" {
+				query.Set("query", name)
+			}
+			queryStr := query.Encode()
+
+			teams, err := client.ListTeams(queryStr)
 			if err != nil {
-				return errors.Wrap(err, "could not list teams")
+				return fmt.Errorf("could not list teams: %w", err)
 			}
 
 			if len(teams) == 0 {
@@ -936,7 +959,7 @@ func getSoftwareCommand() *cli.Command {
 
 			software, err := client.ListSoftware(teamID)
 			if err != nil {
-				return errors.Wrap(err, "could not list software")
+				return fmt.Errorf("could not list software: %w", err)
 			}
 
 			if len(software) == 0 {

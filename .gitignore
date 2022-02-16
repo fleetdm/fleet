@@ -35,7 +35,6 @@ mysqldata/
 helm-temp
 
 #editors
-.vscode
 .idea
 
 # Cypress e2e testing
@@ -57,4 +56,9 @@ package-lock.json
 terraform.tfstate*
 
 # generated installers
-orbit-osquery*
+fleet-osquery*
+
+# residual files when running the cpe command
+cmd/cpe/etagenv
+cmd/cpe/cpe*.sqlite
+cmd/cpe/cpe*.sqlite.gz

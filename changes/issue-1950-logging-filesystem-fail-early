@@ -1,1 +1,0 @@
-* Fail early if the process does not have permissions to write to the logging file.

@@ -5,7 +5,7 @@ export default PropTypes.shape({
   base: PropTypes.string,
 });
 
-interface IError {
+export interface IError {
   name: string;
   reason: string;
 }

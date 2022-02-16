@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useQuery } from "react-query";
 import { Row } from "react-table";
-import { filter, forEach, isEmpty, remove, unionBy } from "lodash";
+import { filter, forEach, isEmpty, remove, unionWith } from "lodash";
 
 // @ts-ignore
 import { formatSelectedTargetsForApi } from "fleet/helpers";
@@ -12,25 +12,39 @@ import { ITeam } from "interfaces/team";
 import { IHost } from "interfaces/host";
 
 // @ts-ignore
-import TargetsInput from "pages/queries/QueryPage/components/TargetsInput";
+import TargetsInput from "components/TargetsInput";
 import Button from "components/buttons/Button";
-import Spinner from "components/loaders/Spinner";
+import Spinner from "components/Spinner";
 import PlusIcon from "../../../../../assets/images/icon-plus-purple-32x32@2x.png";
 import CheckIcon from "../../../../../assets/images/icon-check-purple-32x32@2x.png";
 import ExternalURLIcon from "../../../../../assets/images/icon-external-url-12x12@2x.png";
 import ErrorIcon from "../../../../../assets/images/icon-error-16x16@2x.png";
 
+interface ISelectHost extends IHost {
+  target_type?: string;
+}
+
+interface ISelectLabel extends ILabel {
+  target_type?: string;
+}
+
+interface ISelectTeam extends ITeam {
+  target_type?: string;
+}
+
+type ISelectTargetsEntity = ISelectHost | ISelectLabel | ISelectTeam;
+
 interface ITargetPillSelectorProps {
-  entity: ILabel | ITeam;
+  entity: ISelectLabel | ISelectTeam;
   isSelected: boolean;
   onClick: (
-    value: ILabel | ITeam
+    value: ISelectLabel | ISelectTeam
   ) => React.MouseEventHandler<HTMLButtonElement>;
 }
 
 interface ISelectTargetsProps {
   baseClass: string;
-  selectedTargets: ITarget[];
+  selectedTargets: ISelectTargetsEntity[];
   queryIdForEdit: number | null;
   goToQueryEditor: () => void;
   goToRunQuery: () => void;
@@ -43,21 +57,39 @@ interface IModifiedUseQueryTargetsResponse {
   onlineCount: number;
 }
 
+const isSameSelectTargetsEntity = (
+  e1: ISelectTargetsEntity,
+  e2: ISelectTargetsEntity
+) => e1.id === e2.id && e1.target_type === e2.target_type;
+
 const TargetPillSelector = ({
   entity,
   isSelected,
   onClick,
-}: ITargetPillSelectorProps): JSX.Element => (
-  <button
-    className="target-pill-selector"
-    data-selected={isSelected}
-    onClick={(e) => onClick(entity)(e)}
-  >
-    <img alt="" src={isSelected ? CheckIcon : PlusIcon} />
-    <span className="selector-name">{entity.display_text}</span>
-    <span className="selector-count">{entity.count}</span>
-  </button>
-);
+}: ITargetPillSelectorProps): JSX.Element => {
+  const displayText = () => {
+    switch (entity.display_text) {
+      case "All Hosts":
+        return "All hosts";
+      case "All Linux":
+        return "Linux";
+      default:
+        return entity.display_text;
+    }
+  };
+
+  return (
+    <button
+      className="target-pill-selector"
+      data-selected={isSelected}
+      onClick={(e) => onClick(entity)(e)}
+    >
+      <img alt="" src={isSelected ? CheckIcon : PlusIcon} />
+      <span className="selector-name">{displayText()}</span>
+      <span className="selector-count">{entity.count}</span>
+    </button>
+  );
+};
 
 const SelectTargets = ({
   baseClass,
@@ -66,7 +98,7 @@ const SelectTargets = ({
   goToQueryEditor,
   goToRunQuery,
   setSelectedTargets,
-}: ISelectTargetsProps) => {
+}: ISelectTargetsProps): JSX.Element => {
   const [targetsTotalCount, setTargetsTotalCount] = useState<number | null>(
     null
   );
@@ -75,12 +107,14 @@ const SelectTargets = ({
   const [platformLabels, setPlatformLabels] = useState<ILabel[] | null>(null);
   const [teams, setTeams] = useState<ITeam[] | null>(null);
   const [otherLabels, setOtherLabels] = useState<ILabel[] | null>(null);
-  const [selectedLabels, setSelectedLabels] = useState<any>([]);
+  const [selectedLabels, setSelectedLabels] = useState<ISelectTargetsEntity[]>(
+    []
+  );
   const [inputTabIndex, setInputTabIndex] = useState<number>(0);
   const [searchText, setSearchText] = useState<string>("");
   const [relatedHosts, setRelatedHosts] = useState<IHost[]>([]);
 
-  const { isLoading: isTargetsLoading, isError: isTargetsError } = useQuery(
+  const { isFetching: isTargetsFetching, isError: isTargetsError } = useQuery(
     // triggers query on change
     ["targetsFromSearch", searchText, [...selectedTargets]],
     () =>
@@ -156,32 +190,41 @@ const SelectTargets = ({
     }
   );
 
-  const handleSelectedLabels = (entity: ILabel | ITeam) => (
+  const handleClickCancel = () => {
+    setSelectedTargets([]);
+    goToQueryEditor();
+  };
+
+  const handleSelectedLabels = (selectedLabel: ISelectTargetsEntity) => (
     e: React.MouseEvent<HTMLButtonElement>
   ): void => {
     e.preventDefault();
+
+    let targets = selectedTargets;
     const labels = selectedLabels;
-    let newTargets = null;
-    const targets = selectedTargets;
-    const removed = remove(labels, ({ id }) => id === entity.id);
+    const removed = remove(labels, (label) =>
+      isSameSelectTargetsEntity(label, selectedLabel)
+    );
 
     // visually show selection
     const isRemoval = removed.length > 0;
     if (isRemoval) {
-      newTargets = labels;
+      targets = targets.filter(
+        (target) => !isSameSelectTargetsEntity(target, selectedLabel)
+      );
     } else {
-      labels.push(entity);
+      labels.push(selectedLabel);
 
       // prepare the labels data
       forEach(labels, (label) => {
         label.target_type = "label_type" in label ? "labels" : "teams";
       });
 
-      newTargets = unionBy(targets, labels, "id");
+      targets = unionWith(targets, labels, isSameSelectTargetsEntity);
     }
 
     setSelectedLabels([...labels]);
-    setSelectedTargets([...newTargets]);
+    setSelectedTargets([...targets]);
   };
 
   const handleRowSelect = (row: Row) => {
@@ -192,43 +235,44 @@ const SelectTargets = ({
 
     targets.push(hostTarget as IHost);
     setSelectedTargets([...targets]);
+    setSearchText("");
   };
 
-  const removeHostsFromTargets = (value: number[]) => {
+  const handleRowRemove = (row: Row) => {
     const targets = selectedTargets;
-
-    forEach(value, (id) => {
-      remove(targets, (target) => target.id === id);
-    });
+    const hostTarget = row.original as ITarget;
+    remove(targets, (t) => t.id === hostTarget.id && t.target_type === "hosts");
 
     setSelectedTargets([...targets]);
   };
 
   const renderTargetEntityList = (
     header: string,
-    entityList: ILabel[] | ITeam[]
-  ): JSX.Element => (
-    <>
-      {header && <h3>{header}</h3>}
-      <div className="selector-block">
-        {entityList?.map((entity: ILabel | ITeam) => (
-          <TargetPillSelector
-            key={entity.id}
-            entity={entity}
-            isSelected={selectedLabels.some(
-              ({ id }: ILabel | ITeam) => id === entity.id
-            )}
-            onClick={handleSelectedLabels}
-          />
-        ))}
-      </div>
-    </>
-  );
+    entityList: ISelectLabel[] | ISelectTeam[]
+  ): JSX.Element => {
+    return (
+      <>
+        {header && <h3>{header}</h3>}
+        <div className="selector-block">
+          {entityList?.map((entity: ISelectLabel | ISelectTeam) => (
+            <TargetPillSelector
+              key={`target_${entity.target_type}_${entity.id}`}
+              entity={entity}
+              isSelected={selectedLabels.some((label: ISelectTargetsEntity) =>
+                isSameSelectTargetsEntity(label, entity)
+              )}
+              onClick={handleSelectedLabels}
+            />
+          ))}
+        </div>
+      </>
+    );
+  };
 
-  if (isEmpty(searchText) && isTargetsLoading) {
+  if (isEmpty(searchText) && isTargetsFetching) {
     return (
       <div className={`${baseClass}__wrapper body-wrap`}>
-        <h1>Select Targets</h1>
+        <h1>Select targets</h1>
         <div className={`${baseClass}__page-loading`}>
           <Spinner />
         </div>
@@ -239,7 +283,7 @@ const SelectTargets = ({
   if (isEmpty(searchText) && isTargetsError) {
     return (
       <div className={`${baseClass}__wrapper body-wrap`}>
-        <h1>Select Targets</h1>
+        <h1>Select targets</h1>
         <div className={`${baseClass}__page-error`}>
           <h4>
             <img alt="" src={ErrorIcon} />
@@ -264,7 +308,7 @@ const SelectTargets = ({
 
   return (
     <div className={`${baseClass}__wrapper body-wrap`}>
-      <h1>Select Targets</h1>
+      <h1>Select targets</h1>
       <div className={`${baseClass}__target-selectors`}>
         {allHostsLabels &&
           allHostsLabels.length > 0 &&
@@ -281,17 +325,17 @@ const SelectTargets = ({
         tabIndex={inputTabIndex}
         searchText={searchText}
         relatedHosts={[...relatedHosts]}
-        isTargetsLoading={isTargetsLoading}
+        isTargetsLoading={isTargetsFetching}
         selectedTargets={[...selectedTargets]}
         hasFetchError={isTargetsError}
         setSearchText={setSearchText}
         handleRowSelect={handleRowSelect}
-        onPrimarySelectActionClick={removeHostsFromTargets}
+        handleRowRemove={handleRowRemove}
       />
       <div className={`${baseClass}__targets-button-wrap`}>
         <Button
           className={`${baseClass}__btn`}
-          onClick={goToQueryEditor}
+          onClick={handleClickCancel}
           variant="text-link"
         >
           Cancel

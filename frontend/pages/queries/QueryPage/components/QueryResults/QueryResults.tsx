@@ -3,20 +3,21 @@ import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import moment from "moment";
 import classnames from "classnames";
 import FileSaver from "file-saver";
-import { filter, get, keys, omit } from "lodash";
+import { filter, get } from "lodash";
 
 // @ts-ignore
 import convertToCSV from "utilities/convert_to_csv"; // @ts-ignore
-import filterArrayByHash from "utilities/filter_array_by_hash";
 import { ICampaign, ICampaignQueryResult } from "interfaces/campaign";
 import { ITarget } from "interfaces/target";
 
 import Button from "components/buttons/Button"; // @ts-ignore
-import FleetIcon from "components/icons/FleetIcon"; // @ts-ignore
-import InputField from "components/forms/fields/InputField";
-import QueryResultsRow from "components/queries/QueryResultsRow";
-import Spinner from "components/loaders/Spinner";
+
+import Spinner from "components/Spinner";
+import TableContainer from "components/TableContainer";
+import TabsWrapper from "components/TabsWrapper";
 import DownloadIcon from "../../../../../../assets/images/icon-download-12x12@2x.png";
+
+import resultsTableHeaders from "./QueryResultsTableConfig";
 
 interface IQueryResultsProps {
   campaign: ICampaign;
@@ -45,7 +46,7 @@ const QueryResults = ({
   onStopQuery,
   setSelectedTargets,
   goToQueryEditor,
-}: IQueryResultsProps) => {
+}: IQueryResultsProps): JSX.Element => {
   const { hosts_count: hostsCount, query_results: queryResults, errors } =
     campaign || {};
 
@@ -60,10 +61,7 @@ const QueryResults = ({
   }`;
 
   const [pageTitle, setPageTitle] = useState<string>(PAGE_TITLES.RUNNING);
-  const [resultsFilter, setResultsFilter] = useState<{ [key: string]: string }>(
-    {}
-  );
-  const [activeColumn, setActiveColumn] = useState<string>("");
+
   const [navTabIndex, setNavTabIndex] = useState(0);
 
   useEffect(() => {
@@ -73,17 +71,6 @@ const QueryResults = ({
       setPageTitle(PAGE_TITLES.RUNNING);
     }
   }, [isQueryFinished]);
-
-  const onFilterAttribute = (attribute: string) => {
-    return (value: string) => {
-      setResultsFilter({
-        ...resultsFilter,
-        [attribute]: value,
-      });
-
-      return false;
-    };
-  };
 
   const onExportQueryResults = (evt: React.MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();
@@ -132,62 +119,51 @@ const QueryResults = ({
     goToQueryEditor();
   };
 
-  const renderTableHeaderColumn = (column: string, index: number) => {
-    const filterable = column === "hostname" ? "host_hostname" : column;
-    const filterIconClassName = classnames(`${baseClass}__filter-icon`, {
-      [`${baseClass}__filter-icon--is-active`]: activeColumn === column,
-    });
-
+  const renderNoResults = () => {
     return (
-      <th key={`query-results-table-header-${index}`}>
+      <p className="no-results-message">
+        Your live query returned no results.
         <span>
-          <FleetIcon className={filterIconClassName} name="filter" />
-          {column}
+          Expecting to see results? Check to see if the hosts you targeted
+          reported &ldquo;Online&rdquo; or check out the &ldquo;Errors&rdquo;
+          table.
         </span>
-        <InputField
-          name={column}
-          onChange={onFilterAttribute(filterable)}
-          onFocus={() => setActiveColumn(column)}
-          value={resultsFilter[filterable]}
-        />
-      </th>
+      </p>
     );
   };
 
-  const renderTableHeaderRow = (rows: ICampaignQueryResult[]) => {
-    if (!rows) {
-      return false;
+  const renderTable = (tableData: ICampaignQueryResult[]) => {
+    return (
+      <TableContainer
+        columns={resultsTableHeaders(tableData || [])}
+        data={tableData || []}
+        emptyComponent={renderNoResults}
+        isLoading={false}
+        disableCount
+        isClientSidePagination
+        showMarkAllPages={false}
+        isAllPagesSelected={false}
+        resultsTitle={"hosts"}
+      />
+    );
+  };
+
+  const renderResultsTable = () => {
+    const emptyResults = !queryResults || !queryResults.length;
+    const hasNoResultsYet = !isQueryFinished && emptyResults;
+    const finishedWithNoResults =
+      isQueryFinished && (!hostsCount.successful || emptyResults);
+
+    if (hasNoResultsYet) {
+      return <Spinner />;
     }
 
-    const queryAttrs = omit(rows[0], ["host_hostname"]);
-    const queryResultColumns = keys(queryAttrs);
+    if (finishedWithNoResults) {
+      return renderNoResults();
+    }
 
     return (
-      <tr>
-        {renderTableHeaderColumn("hostname", -1)}
-        {queryResultColumns.map((column, i) => {
-          return renderTableHeaderColumn(column, i);
-        })}
-      </tr>
-    );
-  };
-
-  const renderTableRows = (rows: ICampaignQueryResult[]) => {
-    const filteredRows = filterArrayByHash(rows, resultsFilter);
-
-    return filteredRows.map((row: ICampaignQueryResult) => {
-      return (
-        <QueryResultsRow
-          key={row.uuid || row.host_hostname}
-          queryResult={row}
-        />
-      );
-    });
-  };
-
-  const renderTable = () => {
-    return (
-      <div className={`${baseClass}__results-table-container`}>
+      <div>
         <Button
           className={`${baseClass}__export-btn`}
           onClick={onExportQueryResults}
@@ -197,12 +173,7 @@ const QueryResults = ({
             Export results <img alt="" src={DownloadIcon} />
           </>
         </Button>
-        <div className={`${baseClass}__results-table-wrapper`}>
-          <table className={`${baseClass}__table`}>
-            <thead>{renderTableHeaderRow(queryResults)}</thead>
-            <tbody>{renderTableRows(queryResults)}</tbody>
-          </table>
-        </div>
+        {renderTable(queryResults)}
       </div>
     );
   };
@@ -220,10 +191,7 @@ const QueryResults = ({
           </>
         </Button>
         <div className={`${baseClass}__error-table-wrapper`}>
-          <table className={`${baseClass}__table`}>
-            <thead>{renderTableHeaderRow(errors)}</thead>
-            <tbody>{renderTableRows(errors)}</tbody>
-          </table>
+          {renderTable(errors)}
         </div>
       </div>
     );
@@ -263,10 +231,6 @@ const QueryResults = ({
     </div>
   );
 
-  const hasNoResults =
-    isQueryFinished &&
-    (!hostsCount.successful || !queryResults || !queryResults.length);
-
   const firstTabClass = classnames("react-tabs__tab", "no-count", {
     "errors-empty": !errors || errors?.length === 0,
   });
@@ -288,7 +252,7 @@ const QueryResults = ({
         </div>
       </div>
       {isQueryFinished ? renderFinishedButtons() : renderStopQueryButton()}
-      <div className={`${baseClass}__nav-header`}>
+      <TabsWrapper>
         <Tabs selectedIndex={navTabIndex} onSelect={(i) => setNavTabIndex(i)}>
           <TabList>
             <Tab className={firstTabClass}>{NAV_TITLES.RESULTS}</Tab>
@@ -299,23 +263,10 @@ const QueryResults = ({
               {NAV_TITLES.ERRORS}
             </Tab>
           </TabList>
-          <TabPanel>
-            {isQueryFinished && hasNoResults ? (
-              <p className="no-results-message">
-                Your live query returned no results.
-                <span>
-                  Expecting to see results? Check to see if the hosts you
-                  targeted reported &ldquo;Online&rdquo; or check out the
-                  &ldquo;Errors&rdquo; table.
-                </span>
-              </p>
-            ) : (
-              renderTable()
-            )}
-          </TabPanel>
+          <TabPanel>{renderResultsTable()}</TabPanel>
           <TabPanel>{renderErrorsTable()}</TabPanel>
         </Tabs>
-      </div>
+      </TabsWrapper>
     </div>
   );
 };

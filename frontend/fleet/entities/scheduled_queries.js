@@ -41,9 +41,9 @@ export default (client) => {
 
       return client.authenticatedDelete(endpoint);
     },
-    loadAll: (pack) => {
+    loadAll: ({ id }) => {
       const { SCHEDULED_QUERY } = endpoints;
-      const scheduledQueryPath = SCHEDULED_QUERY(pack);
+      const scheduledQueryPath = SCHEDULED_QUERY(id);
 
       return client
         .authenticatedGet(client._endpoint(scheduledQueryPath))

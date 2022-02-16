@@ -2,30 +2,45 @@
 // disable this rule as it was throwing an error in Header and Cell component
 // definitions for the selection row for some reason when we dont really need it.
 import React from "react";
-import { memoize } from "lodash";
 
 // @ts-ignore
 import Checkbox from "components/forms/fields/Checkbox";
 import LinkCell from "components/TableContainer/DataTable/LinkCell/LinkCell";
-import TextCell from "components/TableContainer/DataTable/TextCell";
-import { IPolicy } from "interfaces/policy";
+import StatusCell from "components/TableContainer/DataTable/StatusCell/StatusCell";
+import { IPolicyStats } from "interfaces/policy";
 import PATHS from "router/paths";
 import sortUtils from "utilities/sort";
 import { PolicyResponse } from "utilities/constants";
+import PassIcon from "../../../../../../assets/images/icon-check-circle-green-16x16@2x.png";
+import FailIcon from "../../../../../../assets/images/icon-exclamation-circle-red-16x16@2x.png";
 
 // TODO functions for paths math e.g., path={PATHS.MANAGE_HOSTS + getParams(cellProps.row.original)}
 
 const TAGGED_TEMPLATES = {
-  hostsByStatusRoute: (id: number, status: PolicyResponse) => {
-    return `?policy_id=${id}&policy_response=${status}`;
+  hostsByPolicyRoute: (
+    policyId: number,
+    policyResponse: PolicyResponse,
+    teamId: number | undefined | null
+  ) => {
+    return `?policy_id=${policyId}&policy_response=${policyResponse}${
+      teamId ? `&team_id=${teamId}` : ""
+    }`;
   },
 };
+
+interface IGetToggleAllRowsSelectedProps {
+  checked: boolean;
+  indeterminate: boolean;
+  title: string;
+  onChange: () => any;
+  style: { cursor: string };
+}
 interface IHeaderProps {
   column: {
     title: string;
     isSortedDesc: boolean;
   };
-  getToggleAllRowsSelectedProps: () => any; // TODO: do better with types
+  getToggleAllRowsSelectedProps: () => IGetToggleAllRowsSelectedProps;
   toggleAllRowsSelected: () => void;
 }
 
@@ -34,8 +49,8 @@ interface ICellProps {
     value: any;
   };
   row: {
-    original: IPolicy;
-    getToggleRowSelectedProps: () => any; // TODO: do better with types
+    original: IPolicyStats;
+    getToggleRowSelectedProps: () => IGetToggleAllRowsSelectedProps;
     toggleRowSelected: () => void;
   };
 }
@@ -50,94 +65,150 @@ interface IDataColumn {
   disableSortBy?: boolean;
   sortType?: string;
 }
-// interface IPoliciesTableData {
-//   name: string;
-//   passing: number;
-//   failing: number;
-//   id: number;
-//   query_id: number;
-//   query_name: string;
-// }
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
-const generateTableHeaders = (): IDataColumn[] => {
-  return [
-    {
-      id: "selection",
-      Header: (cellProps: IHeaderProps): JSX.Element => {
-        const props = cellProps.getToggleAllRowsSelectedProps();
-        const checkboxProps = {
-          value: props.checked,
-          indeterminate: props.indeterminate,
-          onChange: () => cellProps.toggleAllRowsSelected(),
-        };
-        return <Checkbox {...checkboxProps} />;
-      },
-      Cell: (cellProps: ICellProps): JSX.Element => {
-        const props = cellProps.row.getToggleRowSelectedProps();
-        const checkboxProps = {
-          value: props.checked,
-          onChange: () => cellProps.row.toggleRowSelected(),
-        };
-        return <Checkbox {...checkboxProps} />;
-      },
-      disableHidden: true,
-    },
-    {
-      title: "Query",
-      Header: "Query",
-      disableSortBy: true,
-      // sortType: "caseInsensitive",
-      accessor: "query_name",
-      Cell: (cellProps: ICellProps): JSX.Element => (
-        <TextCell value={cellProps.cell.value} />
-      ),
-    },
-    {
-      title: "Passing",
-      Header: "Passing",
-      disableSortBy: true,
-      accessor: "passing_host_count",
-      Cell: (cellProps: ICellProps): JSX.Element => (
-        <LinkCell
-          value={`${cellProps.cell.value} hosts`}
-          path={
-            PATHS.MANAGE_HOSTS +
-            TAGGED_TEMPLATES.hostsByStatusRoute(
-              cellProps.row.original.id,
-              PolicyResponse.PASSING
-            )
-          }
-        />
-      ),
-    },
-    {
-      title: "Failing",
-      Header: "Failing",
-      disableSortBy: true,
-      accessor: "failing_host_count",
-      Cell: (cellProps: ICellProps): JSX.Element => (
-        <LinkCell
-          value={`${cellProps.cell.value} hosts`}
-          path={
-            PATHS.MANAGE_HOSTS +
-            TAGGED_TEMPLATES.hostsByStatusRoute(
-              cellProps.row.original.id,
-              PolicyResponse.FAILING
-            )
-          }
-        />
-      ),
-    },
-  ];
+const generateTableHeaders = (options: {
+  selectedTeamId: number | undefined | null;
+  showSelectionColumn: boolean | undefined;
+  tableType: string | undefined;
+}): IDataColumn[] => {
+  const { selectedTeamId, tableType, showSelectionColumn } = options;
+
+  switch (tableType) {
+    case "inheritedPolicies":
+      return [
+        {
+          title: "Name",
+          Header: "Name",
+          disableSortBy: true,
+          accessor: "name",
+          Cell: (cellProps: ICellProps): JSX.Element => (
+            <LinkCell
+              value={cellProps.cell.value}
+              path={PATHS.EDIT_POLICY(cellProps.row.original)}
+            />
+          ),
+        },
+      ];
+    default: {
+      const tableHeaders: IDataColumn[] = [
+        {
+          title: "Name",
+          Header: "Name",
+          disableSortBy: true,
+          accessor: "name",
+          Cell: (cellProps: ICellProps): JSX.Element => (
+            <LinkCell
+              value={cellProps.cell.value}
+              path={PATHS.EDIT_POLICY(cellProps.row.original)}
+            />
+          ),
+        },
+        {
+          title: "Yes",
+          Header: () => (
+            <>
+              <img alt="host passing" src={PassIcon} />
+              <span className="header-icon-text">Yes</span>
+            </>
+          ),
+          disableSortBy: true,
+          accessor: "passing_host_count",
+          Cell: (cellProps: ICellProps): JSX.Element => (
+            <LinkCell
+              value={`${cellProps.cell.value} hosts`}
+              path={
+                PATHS.MANAGE_HOSTS +
+                TAGGED_TEMPLATES.hostsByPolicyRoute(
+                  cellProps.row.original.id,
+                  PolicyResponse.PASSING,
+                  selectedTeamId
+                )
+              }
+            />
+          ),
+        },
+        {
+          title: "No",
+          Header: () => (
+            <>
+              <img alt="host passing" src={FailIcon} />
+              <span className="header-icon-text">No</span>
+            </>
+          ),
+          disableSortBy: true,
+          accessor: "failing_host_count",
+          Cell: (cellProps: ICellProps): JSX.Element => (
+            <LinkCell
+              value={`${cellProps.cell.value} hosts`}
+              path={
+                PATHS.MANAGE_HOSTS +
+                TAGGED_TEMPLATES.hostsByPolicyRoute(
+                  cellProps.row.original.id,
+                  PolicyResponse.FAILING,
+                  selectedTeamId
+                )
+              }
+            />
+          ),
+        },
+      ];
+      if (!selectedTeamId) {
+        tableHeaders.push({
+          title: "Automations",
+          Header: "Automations",
+          disableSortBy: true,
+          accessor: "webhook",
+          Cell: (cellProps: ICellProps): JSX.Element => (
+            <StatusCell value={cellProps.cell.value} />
+          ),
+        });
+      }
+      if (showSelectionColumn) {
+        tableHeaders.splice(0, 0, {
+          id: "selection",
+          Header: (cellProps: IHeaderProps): JSX.Element => {
+            const props = cellProps.getToggleAllRowsSelectedProps();
+            const checkboxProps = {
+              value: props.checked,
+              indeterminate: props.indeterminate,
+              onChange: () => cellProps.toggleAllRowsSelected(),
+            };
+            return <Checkbox {...checkboxProps} />;
+          },
+          Cell: (cellProps: ICellProps): JSX.Element => {
+            const props = cellProps.row.getToggleRowSelectedProps();
+            const checkboxProps = {
+              value: props.checked,
+              onChange: () => cellProps.row.toggleRowSelected(),
+            };
+            return <Checkbox {...checkboxProps} />;
+          },
+          disableHidden: true,
+        });
+      }
+      return tableHeaders;
+    }
+  }
 };
 
-const generateDataSet = memoize((all_policies: IPolicy[] = []): IPolicy[] => {
-  all_policies = all_policies.sort((a, b) =>
-    sortUtils.caseInsensitiveAsc(b.query_name, a.query_name)
+const generateDataSet = (
+  policiesList: IPolicyStats[] = [],
+  currentAutomatedPolicies?: number[]
+): IPolicyStats[] => {
+  policiesList = policiesList.sort((a, b) =>
+    sortUtils.caseInsensitiveAsc(a.name, b.name)
   );
-  return all_policies;
-});
+
+  policiesList.forEach((policy) => {
+    policy.webhook =
+      currentAutomatedPolicies && currentAutomatedPolicies.includes(policy.id)
+        ? "On"
+        : "Off";
+  });
+
+  return policiesList;
+};
 
 export { generateTableHeaders, generateDataSet };

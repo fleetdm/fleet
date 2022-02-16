@@ -6,8 +6,9 @@ parasails.registerPage('query-library', {
     inputTextValue: '',
     inputTimers: {},
     searchString: '', // The user input string to be searched against the query library
-    selectedPurpose: 'all queries', // Initially set to all, the user may select a different option to filter queries by purpose (e.g., "all queries", "information", "detection")
+    selectedKind: 'all queries', // Initially set to all, the user may select a different option to filter queries by purpose (e.g., "all queries", "informational", "policies")
     selectedPlatform: 'all platforms', // Initially set to all, the user may select a different option to filter queries by platform (e.g., "all platforms", "macOS", "Windows", "Linux")
+    selectedTag: '', // Initially set to a blank string, the user may select a tag filter queries by.
   },
 
   computed: {
@@ -15,7 +16,8 @@ parasails.registerPage('query-library', {
       return this.queries.filter(
         (query) =>
           this._isIncluded(query.platforms, this.selectedPlatform) &&
-          this._isIncluded(query.purpose, this.selectedPurpose)
+          this._isIncluded(query.kind, this.selectedKind) &&
+          this._isIncluded(query.tags, this.selectedTag)
       );
     },
 
@@ -42,12 +44,16 @@ parasails.registerPage('query-library', {
   //  ║║║║ ║ ║╣ ╠╦╝╠═╣║   ║ ║║ ║║║║╚═╗
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   methods: {
-    clickSelectPurpose(purpose) {
-      this.selectedPurpose = purpose;
+    clickSelectKind(kind) {
+      this.selectedKind = kind;
     },
 
     clickSelectPlatform(platform) {
       this.selectedPlatform = platform;
+    },
+
+    clickSelectTag(tag) {
+      this.selectedTag = tag;
     },
 
     clickCard: function (querySlug) {
@@ -109,6 +115,11 @@ parasails.registerPage('query-library', {
         if (query.contributors) {
           query.contributors.forEach((contributor) => {
             textToSearch += ', ' + normalize(contributor.name) + ', ' + normalize(contributor.handle);
+          });
+        }
+        if (query.tags) {
+          query.tags.forEach((tag) => {
+            textToSearch += ', ' + normalize(tag);
           });
         }
         return (searchTerms.some((term) => textToSearch.includes(term)));

@@ -1,27 +1,28 @@
 /* This component is used for creating and editing both global and team scheduled queries */
 
-import React, { useState, useCallback, useEffect } from "react";
-// @ts-ignore
-import Fleet from "fleet";
+import React, { useState, useCallback, useContext } from "react";
 import { pull } from "lodash";
-// @ts-ignore
-import FleetIcon from "components/icons/FleetIcon";
-import Modal from "components/modals/Modal";
+import { AppContext } from "context/app";
+
+import { IQuery } from "interfaces/query";
+import { IGlobalScheduledQuery } from "interfaces/global_scheduled_query";
+import { ITeamScheduledQuery } from "interfaces/team_scheduled_query";
+
+import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import InfoBanner from "components/InfoBanner/InfoBanner";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
-import { IQuery } from "interfaces/query";
-import { IGlobalScheduledQuery } from "interfaces/global_scheduled_query";
-import { ITeamScheduledQuery } from "interfaces/team_scheduled_query";
 import {
   FREQUENCY_DROPDOWN_OPTIONS,
   PLATFORM_DROPDOWN_OPTIONS,
   LOGGING_TYPE_OPTIONS,
   MIN_OSQUERY_VERSION_OPTIONS,
 } from "utilities/constants";
+
+import PreviewDataModal from "../PreviewDataModal";
 
 const baseClass = "schedule-editor-modal";
 
@@ -46,6 +47,8 @@ interface IScheduleEditorModalProps {
   ) => void;
   editQuery?: IGlobalScheduledQuery | ITeamScheduledQuery;
   teamId?: number;
+  togglePreviewDataModal: () => void;
+  showPreviewDataModal: boolean;
 }
 interface INoQueryOption {
   id: number;
@@ -87,24 +90,12 @@ const ScheduleEditorModal = ({
   allQueries,
   editQuery,
   teamId,
+  togglePreviewDataModal,
+  showPreviewDataModal,
 }: IScheduleEditorModalProps): JSX.Element => {
-  const [loggingConfig, setLoggingConfig] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
-  const [isLoadingError, setIsLoadingError] = useState(false);
+  const { config } = useContext(AppContext);
 
-  useEffect((): void => {
-    const getConfigDestination = async (): Promise<void> => {
-      try {
-        const responseConfig = await Fleet.config.loadAll();
-        setIsLoading(false);
-        setLoggingConfig(responseConfig.logging.result.plugin);
-      } catch (err) {
-        setIsLoadingError(true);
-        setIsLoading(false);
-      }
-    };
-    getConfigDestination();
-  }, []);
+  const loggingConfig = config?.result.plugin || "unknown";
 
   const [showAdvancedOptions, setShowAdvancedOptions] = useState<boolean>(
     false
@@ -229,6 +220,10 @@ const ScheduleEditorModal = ({
     );
   };
 
+  if (showPreviewDataModal) {
+    return <PreviewDataModal onCancel={togglePreviewDataModal} />;
+  }
+
   return (
     <Modal
       title={editQuery?.name || "Schedule editor"}
@@ -260,8 +255,10 @@ const ScheduleEditorModal = ({
             Your configured log destination is <b>{loggingConfig}</b>.
           </p>
           <p>
-            This means that when this query is run on your hosts, the data will
-            be sent to {generateLoggingDestination(loggingConfig)}.
+            {loggingConfig === "unknown"
+              ? ""
+              : `This means that when this query is run on your hosts, the data will
+            be sent to ${generateLoggingDestination(loggingConfig)}.`}
           </p>
           <p>
             Check out the Fleet documentation on&nbsp;
@@ -270,9 +267,9 @@ const ScheduleEditorModal = ({
               target="_blank"
               rel="noopener noreferrer"
             >
-              how configure a different log destination.&nbsp;
-              <FleetIcon name="external-link" />
+              how to configure a different log destination
             </a>
+            .
           </p>
         </InfoBanner>
         <div>
@@ -324,24 +321,34 @@ const ScheduleEditorModal = ({
             </div>
           )}
         </div>
-
         <div className={`${baseClass}__btn-wrap`}>
-          <Button
-            className={`${baseClass}__btn`}
-            type="button"
-            variant="brand"
-            onClick={onFormSubmit}
-            disabled={!selectedQuery && !editQuery}
-          >
-            Schedule
-          </Button>
-          <Button
-            className={`${baseClass}__btn`}
-            onClick={onCancel}
-            variant="inverse"
-          >
-            Cancel
-          </Button>
+          <div className={`${baseClass}__preview-btn-wrap`}>
+            <Button
+              type="button"
+              variant="inverse"
+              onClick={togglePreviewDataModal}
+            >
+              Preview data
+            </Button>
+          </div>
+          <div className={`${baseClass}__cta-btn-wrap`}>
+            <Button
+              className={`${baseClass}__btn`}
+              onClick={onCancel}
+              variant="inverse"
+            >
+              Cancel
+            </Button>
+            <Button
+              className={`${baseClass}__btn`}
+              type="button"
+              variant="brand"
+              onClick={onFormSubmit}
+              disabled={!selectedQuery && !editQuery}
+            >
+              Schedule
+            </Button>
+          </div>
         </div>
       </form>
     </Modal>

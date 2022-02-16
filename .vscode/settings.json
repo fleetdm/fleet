@@ -1,0 +1,39 @@
+{
+    "makefile.extensionOutputFolder": "./.vscode",
+    "editor.formatOnPaste": true,
+    "editor.formatOnSave": true,
+    "editor.formatOnType": true,
+    "diffEditor.codeLens": true,
+    "rewrap.autoWrap.enabled": true,
+    "rewrap.wrappingColumn": 100,
+    "go.formatTool": "gofumports",
+    "go.lintTool": "golangci-lint",
+    "go.useLanguageServer": true,
+    "gopls": {
+        "gofumpt": true,
+    },
+    "go.autocompleteUnimportedPackages": true,
+    "go.buildTags": "full,fts5",
+    "go.delveConfig": {
+        "dlvLoadConfig": {
+            "followPointers": true,
+            "maxVariableRecurse": 1,
+            "maxStringLen": 256,
+            "maxArrayValues": 64,
+            "maxStructFields": -1
+        },
+        "apiVersion": 2,
+        "showGlobalVariables": true,
+        "debugAdapter": "legacy",
+        "substitutePath": []
+    },
+    "go.testTimeout": "5m",
+    "go.testEnvVars": {
+        "MYSQL_TEST": "1",
+        "REDIS_TEST": "1"
+    },
+    "html.format.templating": true,
+    "html.format.wrapAttributes": "preserve",
+    "html.format.wrapLineLength": 0,
+    "prettier.requireConfig": true
+}

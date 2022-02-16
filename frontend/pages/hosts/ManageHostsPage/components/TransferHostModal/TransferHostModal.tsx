@@ -1,7 +1,7 @@
 import React, { useCallback, useState } from "react";
 import { Link } from "react-router";
 import PATHS from "router/paths";
-import Modal from "components/modals/Modal";
+import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 // ignore TS error for now until these are rewritten in ts.
 // @ts-ignore
@@ -26,9 +26,12 @@ const NO_TEAM_OPTION = {
   label: "No team",
 };
 
-const TransferHostModal = (props: ITransferHostModal): JSX.Element => {
-  const { onCancel, onSubmit, teams, isGlobalAdmin } = props;
-
+const TransferHostModal = ({
+  onCancel,
+  onSubmit,
+  teams,
+  isGlobalAdmin,
+}: ITransferHostModal): JSX.Element => {
   const [selectedTeam, setSelectedTeam] = useState<ITeam | INoTeamOption>();
 
   const onChangeSelectTeam = useCallback(

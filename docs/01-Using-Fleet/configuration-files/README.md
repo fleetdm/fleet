@@ -4,6 +4,7 @@
 - [Packs](#packs)
 - [Labels](#labels)
 - [Enroll secrets](#enroll-secrets)
+- [Teams](#teams)
 - [Organization settings](#organization-settings)
 
 Entities in Fleet, such as queries, packs, labels, agent options, and enroll secrets, can be managed with configuration files in yaml syntax.
@@ -163,10 +164,41 @@ kind: enroll_secret
 spec:
   secrets:
     - secret: RzTlxPvugG4o4O5IKS/HqEDJUmI1hwBoffff
-    - secret: reallyworks
-    - secret: thissecretwontwork!
+    - secret: YBh0n4pvRplKyWiowv9bf3zp6BBOJ13O
 ```
 
+### Teams
+
+`Applies only to Fleet Premium`
+
+The following is an example configuration file for a Team.
+
+```yaml
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: Client Platform Engineerin
+    agent_options:
+      config:
+        decorators:
+          load:
+            - SELECT uuid AS host_uuid FROM system_info;
+            - SELECT hostname AS hostname FROM system_info;
+        options:
+          disable_distributed: false
+          distributed_interval: 10
+          distributed_plugin: tls
+          distributed_tls_max_attempts: 3
+          logger_plugin: tls
+          logger_tls_endpoint: /api/v1/osquery/log
+          logger_tls_period: 10
+          pack_delimiter: /
+      overrides: {}
+    secrets:
+      - secret: RzTlxPvugG4o4O5IKS/HqEDJUmI1hwBoffff
+      - secret: JZ/C/Z7ucq22dt/zjx2kEuDBN0iLjqfz
+```
 ### Organization settings
 
 The following file describes organization settings applied to the Fleet server.
@@ -223,6 +255,23 @@ spec:
     server: mail.example.org
     user_name: test_user
     verify_ssl_certs: true
+  vulnerability_settings":
+    databases_path: ""
+  webhook_settings:
+    host_status_webhook:
+      enable_host_status_webhook: true
+      destination_url: https://server.com
+      host_percentage: 5
+      days_count: 7
+    failing_policies_webhook:
+      enable_failing_policies_webhook: true
+      destination_url": https://server.com
+      policy_ids: 
+        - 1
+        - 2
+        - 3
+      host_batch_size: 0
+    interval: 1m0s
   sso_settings:
     enable_sso: false
     entity_id: 1234567890
@@ -396,23 +445,43 @@ The following options are available when configuring SMTP authentication:
 
 #### Webhooks
 
-##### Host Status
+- `webhook_settings.interval`: the interval at which to check for webhook conditions. Default: 24h.
 
-The following options allow the configuration of a webhook that will be triggered if the specified percentage of hosts 
+##### Host status
+
+The following options allow the configuration of a webhook that will be triggered if the specified percentage of hosts
 are offline for the specified amount of time.
 
-- `webhook_settings.interval`: the interval at which to check for webhook conditions. Default: 24h
 - `webhook_settings.host_status_webhook.enable_host_status_webhook`: true or false. Defines whether the check for host status will run or not.
 - `webhook_settings.host_status_webhook.destination_url`: the URL to POST to when the condition for the webhook triggers.
-- `webhook_settings.host_status_webhook.host_percentage`: the percentage of hosts that need to be offline  
+- `webhook_settings.host_status_webhook.host_percentage`: the percentage of hosts that need to be offline
 - `webhook_settings.host_status_webhook.days_count`: amount of days that hosts need to be offline for to count as part of the percentage.
+
+##### Failing policies
+
+The following options allow the configuration of a webhook that will be triggered if selected policies are not passing for some hosts.
+
+- `webhook_settings.failing_policies_webhook.enable_failing_policies_webhook`: true or false. Defines whether to enable the failing policies webhook. Note that currently, if the failing policies webhook *and* the `osquery.enable_async_host_processing` options are set, some failing policies webhooks could be missing (some transitions from succeeding to failing or vice-versa could happen without triggering a webhook request).
+- `webhook_settings.failing_policies_webhook.destination_url`: the URL to POST to when the condition for the webhook triggers.
+- `webhook_settings.failing_policies_webhook.policy_ids`: the IDs of the policies for which the webhook will be enabled.
+- `webhook_settings.failing_policies_webhook.host_batch_size`: Maximum number of hosts to batch on POST requests. A value of `0`, the default, means no batching, all hosts failing a policy will be sent on one POST request.
+
+##### Recent vulnerabilities
+
+The following options allow the configuration of a webhook that will be triggered if recently published vulnerabilities are detected and there are affected hosts. A vulnerability is considered recent if it has been published in the last 2 days (based on the National Vulnerability Database, NVD).
+
+- `webhook_settings.vulnerabilities_webhook.enable_vulnerabilities_webhook`: true or false. Defines whether to enable the vulnerabilities webhook.
+- `webhook_settings.vulnerabilities_webhook.destination_url`: the URL to POST to when the condition for the webhook triggers.
+- `webhook_settings.vulnerabilities_webhook.host_batch_size`: Maximum number of hosts to batch on POST requests. A value of `0`, the default, means no batching, all hosts affected will be sent on one POST request.
+
+Note that the recent vulnerabilities webhook is not checked at `webhook_settings.interval` like other webhooks - it is checked as part of the vulnerability processing and runs at the `vulnerabilities.periodicity` interval specified in the fleet configuration.
 
 #### Debug host
 
 There's a lot of information coming from hosts, but it's sometimes useful to see exactly what a host is returning in order
 to debug different scenarios.
 
-So for example, let's say the hosts with ids 342 and 98 are not behaving as you expect in Fleet, you can enable verbose 
+So for example, let's say the hosts with ids 342 and 98 are not behaving as you expect in Fleet, you can enable verbose
 logging with the following configuration:
 
 ```yaml
@@ -439,3 +508,11 @@ spec:
 
 WARNING: this will log potentially a lot of data. Some of that data might be private, please verify it before posting it
 in a public channel or a Github issue.
+
+### Host settings
+
+The `host_settings` section of the configuration yaml allows to define what predefined queries are sent to the hosts and
+later on processed by Fleet for different functionalities.
+
+- `host_settings.enable_host_users`: boolean value that when enabled Fleet will send the query needed to gather user data
+- `host_settings.enable_software_inventory`: boolean value that when enabled Fleet will send the query needed to gather the list of software installed along with other metadata

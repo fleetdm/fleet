@@ -173,6 +173,36 @@ $base-class: "button";
       color: $core-vibrant-blue-over;
     }
   }
+  &--small-text-icon {
+    @include button-variant(transparent);
+    margin-left: $pad-medium;
+    padding: 4px;
+    border: 1px solid $ui-fleet-black-25;
+    box-shadow: none;
+    color: $core-fleet-black;
+    font-size: $xx-small;
+    font-weight: $bold;
+    cursor: pointer;
+    height: 28px;
+
+    img {
+      width: 12px;
+      height: 12px;
+      padding: $pad-small;
+    }
+
+    &:active {
+      color: $core-vibrant-blue-down;
+    }
+
+    &:focus {
+      outline: none;
+    }
+
+    &:hover {
+      color: $core-vibrant-blue-over;
+    }
+  }
 
   &--inverse {
     @include button-variant(

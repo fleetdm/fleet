@@ -8,7 +8,25 @@ data "aws_iam_policy_document" "fleet" {
   statement {
     effect    = "Allow"
     actions   = ["secretsmanager:GetSecretValue"]
-    resources = [aws_secretsmanager_secret.database_password_secret.arn, data.aws_secretsmanager_secret.license.arn]
+    resources = [aws_secretsmanager_secret.database_password_secret.arn]
+  }
+
+  // useful when there is a static number of mysql cluster members
+  dynamic "statement" {
+    for_each = module.aurora_mysql.rds_cluster_instance_dbi_resource_ids
+    content {
+      effect    = "Allow"
+      actions   = ["rds-db:connect"]
+      resources = ["arn:aws:rds-db:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:dbuser:${statement.value}/${var.database_user}"]
+    }
+  }
+
+  // allow access to any database via IAM that has the var.database_user user
+  // useful when you are autoscaling mysql read replicas dynamically
+  statement {
+    effect    = "Allow"
+    actions   = ["rds-db:connect"]
+    resources = ["arn:aws:rds-db:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:dbuser:*/${var.database_user}"]
   }
 
   statement {
@@ -18,7 +36,26 @@ data "aws_iam_policy_document" "fleet" {
       "firehose:PutRecord",
       "firehose:PutRecordBatch",
     ]
-    resources = [aws_kinesis_firehose_delivery_stream.osquery_logs.arn]
+    resources = [aws_kinesis_firehose_delivery_stream.osquery_results.arn, aws_kinesis_firehose_delivery_stream.osquery_status.arn]
+  }
+
+  statement {
+    effect = "Allow"
+    actions = [
+      "s3:GetObject*",
+      "s3:PutObject*",
+      "s3:ListBucket*",
+      "s3:ListMultipartUploadParts*",
+      "s3:DeleteObject",
+      "s3:CreateMultipartUpload",
+      "s3:AbortMultipartUpload",
+      "s3:ListMultipartUploadParts",
+      "s3:GetBucketLocation"
+    ]
+    resources = [
+      aws_s3_bucket.osquery-carve.arn,
+      "${aws_s3_bucket.osquery-carve.arn}/*"
+    ]
   }
 }
 

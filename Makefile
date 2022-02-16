@@ -1,4 +1,4 @@
-.PHONY: build clean clean-assets e2e-reset-db e2e-serve e2e-setup changelog
+.PHONY: build clean clean-assets e2e-reset-db e2e-serve e2e-setup changelog db-reset db-backup db-restore
 
 export GO111MODULE=on
 
@@ -9,6 +9,18 @@ REVISION = $(shell git rev-parse HEAD)
 REVSHORT = $(shell git rev-parse --short HEAD)
 USER = $(shell whoami)
 DOCKER_IMAGE_NAME = fleetdm/fleet
+
+ifdef RACE_ENABLED
+RACE_ENABLED_VAR := $(RACE_ENABLED)
+else
+RACE_ENABLED_VAR := false
+endif
+
+ifdef GO_TEST_TIMEOUT
+GO_TEST_TIMEOUT_VAR := $(GO_TEST_TIMEOUT)
+else
+GO_TEST_TIMEOUT_VAR := 10m
+endif
 
 ifneq ($(OS), Windows_NT)
 	# If on macOS, set the shell to bash explicitly
@@ -104,21 +116,21 @@ fleet: .prefix .pre-build .pre-fleet
 	CGO_ENABLED=1 go build -tags full,fts5,netgo -o build/${OUTPUT} -ldflags ${KIT_VERSION} ./cmd/fleet
 
 fleetctl: .prefix .pre-build .pre-fleetctl
-	CGO_ENABLED=0 go build -tags full,fts5 -o build/fleetctl -ldflags ${KIT_VERSION} ./cmd/fleetctl
+	CGO_ENABLED=0 go build -o build/fleetctl -ldflags ${KIT_VERSION} ./cmd/fleetctl
 
 lint-js:
 	yarn lint
 
 lint-go:
-	golangci-lint run
+	golangci-lint run --skip-dirs ./node_modules
 
 lint: lint-go lint-js
 
 dump-test-schema:
 	go run ./tools/dbutils ./server/datastore/mysql/schema.sql
 
-test-go: dump-test-schema
-	go test -tags full,fts5,netgo -parallel 8 -coverprofile=coverage.txt -covermode=atomic ./...
+test-go: dump-test-schema generate-mock
+	go test -tags full,fts5,netgo -timeout=${GO_TEST_TIMEOUT_VAR} -race=${RACE_ENABLED_VAR} -parallel 8 -coverprofile=coverage.txt -covermode=atomic ./cmd/... ./ee/... ./orbit/... ./pkg/... ./server/... ./tools/...
 
 analyze-go:
 	go test -tags full,fts5,netgo -race -cover ./...
@@ -142,7 +154,7 @@ generate-go: .prefix
 		-o=server/bindata/generated.go \
 		frontend/templates/ assets/... server/mail/templates
 
-# we first generate the webpack bundle so that bindata knows to watch the
+# we first generate the webpack bundle so that bindata knows to atch the
 # output bundle file. then, generate debug bindata source file. finally, we
 # run webpack in watch mode to continuously re-generate the bundle
 generate-dev: .prefix
@@ -153,6 +165,7 @@ generate-dev: .prefix
 	NODE_ENV=development webpack --progress --colors --watch
 
 generate-mock: .prefix
+	go install github.com/groob/mockimpl@latest
 	go generate github.com/fleetdm/fleet/v4/server/mock
 
 deps: deps-js deps-go
@@ -194,9 +207,9 @@ xp-fleet: .pre-binary-bundle .pre-fleet generate
 	CGO_ENABLED=1 GOOS=windows go build -tags full,fts5,netgo -trimpath -o build/binary-bundle/windows/fleet.exe -ldflags ${KIT_VERSION} ./cmd/fleet
 
 xp-fleetctl: .pre-binary-bundle .pre-fleetctl generate-go
-	CGO_ENABLED=0 GOOS=linux go build -tags full,fts5 -trimpath -o build/binary-bundle/linux/fleetctl -ldflags ${KIT_VERSION} ./cmd/fleetctl
-	CGO_ENABLED=0 GOOS=darwin go build -tags full,fts5 -trimpath -o build/binary-bundle/darwin/fleetctl -ldflags ${KIT_VERSION} ./cmd/fleetctl
-	CGO_ENABLED=0 GOOS=windows go build -tags full,fts5 -trimpath -o build/binary-bundle/windows/fleetctl.exe -ldflags ${KIT_VERSION} ./cmd/fleetctl
+	CGO_ENABLED=0 GOOS=linux go build -trimpath -o build/binary-bundle/linux/fleetctl -ldflags ${KIT_VERSION} ./cmd/fleetctl
+	CGO_ENABLED=0 GOOS=darwin go build -trimpath -o build/binary-bundle/darwin/fleetctl -ldflags ${KIT_VERSION} ./cmd/fleetctl
+	CGO_ENABLED=0 GOOS=windows go build -trimpath -o build/binary-bundle/windows/fleetctl.exe -ldflags ${KIT_VERSION} ./cmd/fleetctl
 
 binary-bundle: xp-fleet xp-fleetctl
 	cd build/binary-bundle && zip -r fleet.zip darwin/ linux/ windows/
@@ -237,13 +250,35 @@ e2e-setup:
 	./build/fleetctl user create --context e2e --email=observer@example.com --name observer --password=user123# --global-role=observer
 	./build/fleetctl user create --context e2e --email=sso_user@example.com --name "SSO user" --sso=true
 
-e2e-serve-free:
-	FLEET_SOFTWARE_INVENTORY=1 ./build/fleet serve --mysql_address=localhost:3307 --mysql_username=root --mysql_password=toor --mysql_database=e2e --server_address=0.0.0.0:8642
+e2e-serve-free: e2e-reset-db
+	./build/fleet serve --mysql_address=localhost:3307 --mysql_username=root --mysql_password=toor --mysql_database=e2e --server_address=0.0.0.0:8642
 
-e2e-serve-premium:
-	FLEET_SOFTWARE_INVENTORY=1 ./build/fleet serve  --dev_license --mysql_address=localhost:3307 --mysql_username=root --mysql_password=toor --mysql_database=e2e --server_address=0.0.0.0:8642
+e2e-serve-premium: e2e-reset-db
+	./build/fleet serve  --dev_license --mysql_address=localhost:3307 --mysql_username=root --mysql_password=toor --mysql_database=e2e --server_address=0.0.0.0:8642
 
 changelog:
-	sh -c "find changes -type file | grep -v .keep | xargs -I {} sh -c 'grep \"\S\" {}; echo' > new-CHANGELOG.md" 
+	sh -c "find changes -type file | grep -v .keep | xargs -I {} sh -c 'grep \"\S\" {}; echo' > new-CHANGELOG.md"
 	sh -c "cat new-CHANGELOG.md CHANGELOG.md > tmp-CHANGELOG.md && rm new-CHANGELOG.md && mv tmp-CHANGELOG.md CHANGELOG.md"
 	sh -c "git rm changes/*"
+
+changelog-orbit:
+	sh -c "find orbit/changes -type file | grep -v .keep | xargs -I {} sh -c 'grep \"\S\" {}; echo' > new-CHANGELOG.md"
+	sh -c "cat new-CHANGELOG.md orbit/CHANGELOG.md > tmp-CHANGELOG.md && rm new-CHANGELOG.md && mv tmp-CHANGELOG.md orbit/CHANGELOG.md"
+	sh -c "git rm orbit/changes/*"
+
+###
+# Development DB commands
+###
+
+# Reset the development DB
+db-reset:
+	docker-compose exec -T mysql bash -c 'echo "drop database if exists fleet; create database fleet;" | mysql -uroot -ptoor'
+	./build/fleet prepare db --dev
+
+# Back up the development DB to file
+db-backup:
+	./tools/backup_db/backup.sh
+
+# Restore the development DB from file
+db-restore:
+	./tools/backup_db/restore.sh

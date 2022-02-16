@@ -1,9 +1,15 @@
 import React from "react";
+import ReactTooltip from "react-tooltip";
+import { uniqueId } from "lodash";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import PillCell from "components/TableContainer/DataTable/PillCell";
 import { IQueryStats } from "interfaces/query_stats";
-import { humanQueryLastRun, secondsToHms } from "fleet/helpers";
+import {
+  humanQueryLastRun,
+  performanceIndicator,
+  secondsToHms,
+} from "fleet/helpers";
 import IconToolTip from "components/IconToolTip";
 
 interface IHeaderProps {
@@ -36,27 +42,6 @@ interface IPackTable extends IQueryStats {
   last_run: string;
   performance: (string | number)[];
 }
-
-const performanceIndicator = (scheduledQuery: IQueryStats): string => {
-  if (scheduledQuery.executions === 0) {
-    return "Undetermined";
-  }
-  if (scheduledQuery.denylisted === true) {
-    return "Denylisted";
-  }
-
-  const indicator =
-    (scheduledQuery.user_time + scheduledQuery.system_time) /
-    scheduledQuery.executions;
-
-  if (indicator < 2000) {
-    return "Minimal";
-  }
-  if (indicator >= 2000 && indicator <= 4000) {
-    return "Considerable";
-  }
-  return "Excessive";
-};
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
@@ -95,16 +80,37 @@ const generatePackTableHeaders = (): IDataColumn[] => {
     },
     {
       title: "Performance impact",
-      Header: "Performance impact",
+      Header: () => {
+        return (
+          <>
+            Performance impact
+            <IconToolTip
+              isHtml
+              text={`This is the performance <br />impact on this host.`}
+            />
+          </>
+        );
+      },
       disableSortBy: true,
       accessor: "performance",
-      Cell: (cellProps) => <PillCell value={cellProps.cell.value} />,
+      Cell: (cellProps) => (
+        <PillCell
+          value={cellProps.cell.value}
+          customIdPrefix="query-perf-pill"
+          hostDetails
+        />
+      ),
     },
   ];
 };
 
 const enhancePackData = (query_stats: IQueryStats[]): IPackTable[] => {
   return Object.values(query_stats).map((query) => {
+    const scheduledQueryPerformance = {
+      user_time_p50: query.user_time,
+      system_time_p50: query.system_time,
+      total_executions: query.executions,
+    };
     return {
       scheduled_query_name: query.scheduled_query_name,
       scheduled_query_id: query.scheduled_query_id,
@@ -116,7 +122,10 @@ const enhancePackData = (query_stats: IQueryStats[]): IPackTable[] => {
       last_executed: query.last_executed,
       frequency: secondsToHms(query.interval),
       last_run: humanQueryLastRun(query.last_executed),
-      performance: [performanceIndicator(query), query.scheduled_query_id],
+      performance: [
+        performanceIndicator(scheduledQueryPerformance),
+        query.scheduled_query_id || uniqueId(),
+      ],
       average_memory: query.average_memory,
       denylisted: query.denylisted,
       executions: query.executions,

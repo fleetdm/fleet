@@ -27,7 +27,7 @@ To add queries to a pack, use the right-hand sidebar. You can take an existing s
 ![Schedule Query Sidebar](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/schedule-query-sidebar.png)
 
 
-Once you've scheduled queries and curated your packs, you can read our guide to [Working With Osquery Logs](../1-Using-Fleet/5-Osquery-logs.md).
+Once you've scheduled queries and curated your packs, you can read our guide to [Working With Osquery Logs](../01-Using-Fleet/05-Osquery-logs.md).
 
 ## Configuring agent options
 

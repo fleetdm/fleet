@@ -45,9 +45,12 @@ const getHiddenColumns = (columns) => {
     .map((column) => column.accessor);
 };
 
-const EditColumnsModal = (props) => {
-  const { columns, hiddenColumns, onSaveColumns, onCancelColumns } = props;
-
+const EditColumnsModal = ({
+  columns,
+  hiddenColumns,
+  onSaveColumns,
+  onCancelColumns,
+}) => {
   const [columnItems, updateColumnItems] = useCheckboxListStateManagement(
     columns,
     hiddenColumns
@@ -55,7 +58,7 @@ const EditColumnsModal = (props) => {
 
   return (
     <div className={"edit-column-modal"}>
-      <p>Choose which columns you see</p>
+      <p>Choose which columns you see:</p>
       <div className={"modal-items"}>
         {columnItems.map((column) => {
           if (column.disableHidden) return null;

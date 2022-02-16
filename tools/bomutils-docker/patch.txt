@@ -1,0 +1,13 @@
+diff --git a/xar/configure.ac b/xar/configure.ac
+index 812b5ff..154ba50 100644
+--- a/xar/configure.ac
++++ b/xar/configure.ac
+@@ -329,7 +329,7 @@ dnl Configure libcrypto (part of OpenSSL).
+ dnl 
+ have_libcrypto="1"
+ AC_CHECK_HEADERS([openssl/evp.h], , [have_libcrypto="0"])
+-AC_CHECK_LIB([crypto], [OpenSSL_add_all_ciphers], , [have_libcrypto="0"])
++AC_CHECK_LIB([crypto], [CRYPTO_free], , [have_libcrypto="0"])
+ if test "x${have_libcrypto}" = "x0" ; then
+   AC_MSG_ERROR([Cannot build without libcrypto (OpenSSL)])
+ fi

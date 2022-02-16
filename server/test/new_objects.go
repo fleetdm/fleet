@@ -8,6 +8,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/require"
 )
 
@@ -97,7 +98,7 @@ func AddAllHostsLabel(t *testing.T, ds fleet.Datastore) {
 	require.NoError(t, err)
 }
 
-func NewHost(t *testing.T, ds fleet.Datastore, name, ip, key, uuid string, now time.Time) *fleet.Host {
+func NewHost(tb testing.TB, ds fleet.Datastore, name, ip, key, uuid string, now time.Time) *fleet.Host {
 	osqueryHostID, _ := server.GenerateRandomText(10)
 	h, err := ds.NewHost(context.Background(), &fleet.Host{
 		Hostname:        name,
@@ -105,13 +106,15 @@ func NewHost(t *testing.T, ds fleet.Datastore, name, ip, key, uuid string, now t
 		UUID:            uuid,
 		DetailUpdatedAt: now,
 		LabelUpdatedAt:  now,
+		PolicyUpdatedAt: now,
 		SeenTime:        now,
 		OsqueryHostID:   osqueryHostID,
+		Platform:        "darwin",
 	})
 
-	require.NoError(t, err)
-	require.NotZero(t, h.ID)
-	require.NoError(t, ds.MarkHostSeen(context.Background(), h, now))
+	require.NoError(tb, err)
+	require.NotZero(tb, h.ID)
+	require.NoError(tb, ds.MarkHostsSeen(context.Background(), []uint{h.ID}, now))
 
 	return h
 }
@@ -143,6 +146,7 @@ func NewScheduledQuery(t *testing.T, ds fleet.Datastore, pid, qid, interval uint
 		Interval: interval,
 		Snapshot: &snapshot,
 		Removed:  &removed,
+		Platform: ptr.String("darwin"),
 	})
 	require.NoError(t, err)
 	require.NotZero(t, sq.ID)

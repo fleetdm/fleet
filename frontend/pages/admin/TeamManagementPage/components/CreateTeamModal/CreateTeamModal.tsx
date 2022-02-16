@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from "react";
 
-import Modal from "components/modals/Modal";
+import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import InfoBanner from "components/InfoBanner/InfoBanner";
 // @ts-ignore
@@ -17,9 +17,10 @@ interface ICreateTeamModalProps {
   onSubmit: (formData: ICreateTeamFormData) => void;
 }
 
-const CreateTeamModal = (props: ICreateTeamModalProps): JSX.Element => {
-  const { onCancel, onSubmit } = props;
-
+const CreateTeamModal = ({
+  onCancel,
+  onSubmit,
+}: ICreateTeamModalProps): JSX.Element => {
   const [name, setName] = useState("");
 
   const onInputChange = useCallback(
@@ -41,10 +42,13 @@ const CreateTeamModal = (props: ICreateTeamModalProps): JSX.Element => {
 
   return (
     <Modal title={"Create team"} onExit={onCancel} className={baseClass}>
-      <form className={`${baseClass}__form`}>
+      <form
+        className={`${baseClass}__form`}
+        onSubmit={onFormSubmit}
+        autoComplete="off"
+      >
         <InputFieldWithIcon
           autofocus
-          // error={errors.name}
           name="name"
           onChange={onInputChange}
           placeholder="Team name"
@@ -63,9 +67,9 @@ const CreateTeamModal = (props: ICreateTeamModalProps): JSX.Element => {
         <div className={`${baseClass}__btn-wrap`}>
           <Button
             className={`${baseClass}__btn`}
-            type="button"
+            type="submit"
             variant="brand"
-            onClick={onFormSubmit}
+            disabled={name === ""}
           >
             Create
           </Button>

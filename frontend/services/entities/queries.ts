@@ -1,6 +1,7 @@
+/* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
 import sendRequest from "services";
 import endpoints from "fleet/endpoints";
-import { IQueryFormData, IQuery } from "interfaces/query";
+import { IQueryFormData } from "interfaces/query";
 
 export default {
   create: ({ description, name, query, observer_can_run }: IQueryFormData) => {
@@ -13,7 +14,7 @@ export default {
       observer_can_run,
     });
   },
-  destroy: (id: string) => {
+  destroy: (id: string | number) => {
     const { QUERIES } = endpoints;
     const path = `${QUERIES}/id/${id}`;
 
@@ -41,21 +42,26 @@ export default {
   }) => {
     const { RUN_QUERY } = endpoints;
 
-    const { campaign } = await sendRequest("POST", RUN_QUERY, {
-      query,
-      query_id: queryId,
-      selected,
-    });
-    return {
-      ...campaign,
-      hosts_count: {
-        successful: 0,
-        failed: 0,
-        total: 0,
-      },
-    };
+    try {
+      const { campaign } = await sendRequest("POST", RUN_QUERY, {
+        query,
+        query_id: queryId,
+        selected,
+      });
+      return {
+        ...campaign,
+        hosts_count: {
+          successful: 0,
+          failed: 0,
+          total: 0,
+        },
+      };
+    } catch (error) {
+      console.error(error);
+      throw new Error("Could not run query.");
+    }
   },
-  update: ({ id }: IQuery, updateParams: any) => {
+  update: (id: number, updateParams: IQueryFormData) => {
     const { QUERIES } = endpoints;
     const path = `${QUERIES}/${id}`;
 

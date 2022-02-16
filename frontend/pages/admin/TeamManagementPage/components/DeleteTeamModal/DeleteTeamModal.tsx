@@ -1,6 +1,6 @@
 import React from "react";
 
-import Modal from "components/modals/Modal";
+import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 
 const baseClass = "delete-team-modal";
@@ -11,9 +11,11 @@ interface IDeleteTeamModalProps {
   onCancel: () => void;
 }
 
-const DeleteTeamModal = (props: IDeleteTeamModalProps): JSX.Element => {
-  const { name, onSubmit, onCancel } = props;
-
+const DeleteTeamModal = ({
+  name,
+  onSubmit,
+  onCancel,
+}: IDeleteTeamModalProps): JSX.Element => {
   return (
     <Modal title={"Delete team"} onExit={onCancel} className={baseClass}>
       <form className={`${baseClass}__form`}>

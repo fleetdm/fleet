@@ -1,6 +1,6 @@
 $min-width: 768px;
 $medium-width: 1024px;
-$desktop-width: 1280px;
+$desktop-width: 1200px;
 $max-width: 2560px;
 
 @mixin breakpoint($size: desktop) {
@@ -30,7 +30,7 @@ $max-width: 2560px;
 @mixin sticky-settings-description {
   position: sticky;
   // this is the current spacing needed to keep the description looking correct under the sub nav when scrolling.
-  top: 94px;
+  top: 104px;
   z-index: 2;
   background-color: $core-white;
   margin: 0;

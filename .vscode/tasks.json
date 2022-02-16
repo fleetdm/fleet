@@ -1,0 +1,41 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "npm",
+			"script": "lint",
+			"problemMatcher": [
+				"$eslint-stylish"
+			],
+			"label": "npm: lint",
+			"detail": "eslint frontend cypress --ext .js,.jsx,.ts,.tsx"
+		},
+		{
+			"type": "shell",
+			"label": "Docker Compose Dependencies",
+			"command": "docker-compose up",
+			"isBackground": true,
+			"presentation": {
+				"panel": "dedicated"
+			},
+			"runOptions": {
+				"instanceLimit": 1,
+				"runOn": "folderOpen"
+			},
+			"problemMatcher": []
+		},
+		{
+			"type": "shell",
+			"label": "Make generate-dev",
+			"command": "make generate-dev",
+			"isBackground": true,
+			"presentation": {
+				"panel": "dedicated"
+			},
+			"runOptions": {
+				"instanceLimit": 1,
+				"runOn": "folderOpen"
+			}
+		}
+	]
+}

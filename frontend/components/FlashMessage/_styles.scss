@@ -1,0 +1,118 @@
+.wrapper {
+  > div {
+    &.flash-message {
+      height: 50px;
+      min-height: 50px;
+      max-height: 50px;
+    }
+  }
+}
+
+.flash-message {
+  @include position(fixed);
+  top: 80px;
+  left: 50%;
+  transform: translate(-50%, 0);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: $core-white;
+  padding: $pad-small $pad-medium;
+  z-index: 999;
+  background-color: $core-vibrant-blue;
+  margin: auto;
+  border: 1px solid $ui-fleet-blue-15;
+  box-sizing: border-box;
+  box-shadow: 0px 7px 3px -5px rgba(25, 33, 71, 0.1);
+  border-radius: 8px;
+
+  &--success {
+    background-color: $ui-success;
+    .fleeticon {
+      color: $core-white;
+    }
+  }
+
+  &--error {
+    background-color: $ui-error;
+    .fleeticon {
+      color: $core-white;
+    }
+  }
+
+  &--warning-filled {
+    background-color: $ui-warning;
+    .fleeticon {
+      color: $core-fleet-black;
+    }
+
+    a {
+      font-size: $x-small;
+      color: $core-vibrant-blue;
+      font-weight: $bold;
+      text-decoration: none;
+    }
+
+    span {
+      margin-left: 15px;
+      margin-right: 15px;
+      font-size: $x-small;
+      color: $core-fleet-black;
+      white-space: nowrap;
+    }
+  }
+
+  &__content {
+    display: flex;
+    align-items: center;
+
+    span {
+      margin-left: 15px;
+      margin-right: 15px;
+      font-size: $x-small;
+      white-space: nowrap;
+    }
+
+    .fleeticon {
+      font-size: $small;
+    }
+  }
+
+  &__undo {
+    color: $core-white;
+    cursor: pointer;
+    font-size: $small;
+    text-decoration: underline;
+    text-transform: uppercase;
+    margin-right: 15px;
+  }
+
+  &__remove {
+    height: auto;
+    cursor: pointer;
+
+    .fleeticon {
+      transition: color 150ms ease-in-out;
+      color: $core-white;
+      font-size: $small;
+
+      &:hover {
+        color: $core-white;
+      }
+    }
+  }
+
+  &__ex {
+    text-decoration: none;
+
+    button {
+      display: flex;
+      align-items: center;
+
+      img {
+        height: 16px;
+        width: 16px;
+      }
+    }
+  }
+}

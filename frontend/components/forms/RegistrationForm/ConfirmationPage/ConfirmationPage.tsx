@@ -63,7 +63,11 @@ const ConfirmationPage = ({
   const confirmRegClasses = classnames(className, baseClass);
 
   return (
-    <form onSubmit={handleSubmit} className={confirmRegClasses}>
+    <form
+      onSubmit={handleSubmit}
+      className={confirmRegClasses}
+      autoComplete="off"
+    >
       <div className={`${baseClass}__wrapper`}>
         <table className={`${baseClass}__table`}>
           <caption>Administrator configuration</caption>
@@ -74,7 +78,7 @@ const ConfirmationPage = ({
             </tr>
             <tr>
               <th>Email:</th>
-              <td>{email}</td>
+              <td className={`${baseClass}__table-email`}>{email}</td>
             </tr>
             <tr>
               <th>Organization:</th>

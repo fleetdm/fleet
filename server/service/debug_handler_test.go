@@ -2,13 +2,13 @@ package service
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -39,7 +39,7 @@ var testConfig = config.FleetConfig{
 }
 
 func TestDebugHandlerAuthenticationTokenMissing(t *testing.T) {
-	handler := MakeDebugHandler(&mockService{}, testConfig, nil)
+	handler := MakeDebugHandler(&mockService{}, testConfig, nil, nil, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "https://fleetdm.com/debug/pprof/profile", nil)
 	res := httptest.NewRecorder()
@@ -56,7 +56,7 @@ func TestDebugHandlerAuthenticationSessionInvalid(t *testing.T) {
 		"fake_session_key",
 	).Return(nil, errors.New("invalid session"))
 
-	handler := MakeDebugHandler(svc, testConfig, nil)
+	handler := MakeDebugHandler(svc, testConfig, nil, nil, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "https://fleetdm.com/debug/pprof/profile", nil)
 	req.Header.Add("Authorization", "BEARER fake_session_key")
@@ -79,7 +79,7 @@ func TestDebugHandlerAuthenticationSuccess(t *testing.T) {
 		uint(42),
 	).Return(&fleet.User{}, nil)
 
-	handler := MakeDebugHandler(svc, testConfig, nil)
+	handler := MakeDebugHandler(svc, testConfig, nil, nil, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "https://fleetdm.com/debug/pprof/cmdline", nil)
 	req.Header.Add("Authorization", "BEARER fake_session_key")

@@ -1,0 +1,16 @@
+FROM golang:1.17.1-alpine
+
+ARG ENROLL_SECRET
+ARG HOST_COUNT
+ARG SERVER_URL
+
+ENV ENROLL_SECRET ${ENROLL_SECRET}
+ENV HOST_COUNT ${HOST_COUNT}
+ENV SERVER_URL ${SERVER_URL}
+
+COPY ./cmd/osquery-perf/agent.go ./go.mod ./go.sum ./cmd/osquery-perf/mac10.14.6.tmpl /osquery-perf/
+WORKDIR /osquery-perf/
+RUN go mod download
+RUN go build -o osquery-perf
+
+CMD ./osquery-perf -enroll_secret $ENROLL_SECRET -host_count $HOST_COUNT -server_url $SERVER_URL

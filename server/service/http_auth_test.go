@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 
@@ -21,7 +22,7 @@ import (
 
 func TestLogin(t *testing.T) {
 	ds, users, server := setupAuthTest(t)
-	var loginTests = []struct {
+	loginTests := []struct {
 		email    string
 		status   int
 		password string
@@ -64,7 +65,7 @@ func TestLogin(t *testing.T) {
 		require.Nil(t, err)
 		assert.Equal(t, tt.status, resp.StatusCode)
 
-		var jsn = struct {
+		jsn := struct {
 			User  *fleet.User         `json:"user"`
 			Token string              `json:"token"`
 			Err   []map[string]string `json:"errors,omitempty"`
@@ -91,7 +92,7 @@ func TestLogin(t *testing.T) {
 		// test logout
 		req, _ := http.NewRequest("POST", server.URL+"/api/v1/fleet/logout", nil)
 		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", jsn.Token))
-		client := &http.Client{}
+		client := fleethttp.NewClient()
 		resp, err = client.Do(req)
 		require.Nil(t, err)
 		assert.Equal(t, http.StatusOK, resp.StatusCode, strconv.Itoa(tt.status))
@@ -177,7 +178,7 @@ func getTestAdminToken(t *testing.T, server *httptest.Server) string {
 	require.Nil(t, err)
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 
-	var jsn = struct {
+	jsn := struct {
 		User  *fleet.User         `json:"user"`
 		Token string              `json:"token"`
 		Err   []map[string]string `json:"errors,omitempty"`
@@ -192,7 +193,7 @@ func TestNoHeaderErrorsDifferently(t *testing.T) {
 	_, _, server := setupAuthTest(t)
 
 	req, _ := http.NewRequest("GET", server.URL+"/api/v1/fleet/users", nil)
-	client := &http.Client{}
+	client := fleethttp.NewClient()
 	resp, err := client.Do(req)
 	require.Nil(t, err)
 	defer resp.Body.Close()

@@ -1,6 +1,7 @@
 import React from "react";
 import { mount, shallow } from "enzyme";
 
+import paths from "router/paths";
 import { connectedComponent, reduxMockStore } from "test/helpers";
 import ConnectedRegistrationPage, {
   RegistrationPage,
@@ -17,7 +18,7 @@ const user = {
 };
 
 describe("RegistrationPage - component", () => {
-  it("redirects to the login page when a user is logged in", () => {
+  it("redirects to the home page when a user is logged in", () => {
     const storeWithUser = {
       ...baseStore,
       auth: {
@@ -35,7 +36,7 @@ describe("RegistrationPage - component", () => {
       type: "@@router/CALL_HISTORY_METHOD",
       payload: {
         method: "push",
-        args: ["/"],
+        args: [paths.HOME],
       },
     };
 

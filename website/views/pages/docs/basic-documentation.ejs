@@ -140,9 +140,14 @@
       </div>
   
       <h1 purpose="page-title" class="d-flex d-lg-none py-4 m-0">{{thisPage.title}}</h1>
+
+      <div purpose="edit-button-container">
+        <div purpose="edit-button">
+          <a :href="'https://github.com/fleetdm/fleet/edit/main/docs/'+thisPage.sectionRelativeRepoPath"><i class="fa fa-pencil"></i>Edit page</a>
+        </div>
+      </div>
   
       <div class="container-fluid d-flex flex-column flex-lg-row p-0 pt-lg-4 pb-lg-4 m-0">
-  
         <div purpose="left-sidebar" style="min-width: 190px; max-width: 210px;" class="d-none d-lg-flex flex-column text-left pl-0 pr-4 left-sidebar">
           <ul class="p-0 pb-2 m-0 left-nav">
             <li v-for="page in findPagesByUrl()" :key="page.title">
@@ -189,6 +194,8 @@
         </div>
 
         <div purpose="content" id="body-content" class="d-flex flex-column px-lg-5 content" parasails-has-no-page-script>
+
+
           <%- partial(
             path.relative(
               path.dirname(__filename), 
@@ -202,10 +209,22 @@
             )
           ) %>
 
-          <div class="d-none d-lg-block">
+          <div class="d-block pb-3" purpose="next-steps-buttons" v-if="thisPage.title === 'Learn how to use Fleet'">
+            <h3 style="font-size: 24px;line-height: 28px;">Next steps</h3>
+            <div class="d-sm-flex">
+              <a href="/docs/deploying" class="d-flex btn btn-primary btn-md justify-content-center mr-sm-3">
+                Learn how to deploy Fleet
+              </a>
+              <a href="https://osquery.slack.com/join/shared_invite/zt-h29zm0gk-s2DBtGUTW4CFel0f0IjTEw#/" target="_blank" class="d-flex btn btn-md btn-outline-secondary btn-slack justify-content-center align-items-center mt-3 mt-sm-0">
+                <img class="pr-3" alt="Slack logo" src="/images/logo-slack-24x24@2x.png"/>
+                Ask for help on Slack
+              </a>
+            </div>
+          </div>
+          <div class="d-block" v-else>
             <h3 class="pb-4 m-0">Is there something missing?</h3>
             <p>
-              If you notice something we’ve missed, or that could be improved, please click <a :href="'https://github.com/fleetdm/fleet/tree/main/docs/'+thisPage.sectionRelativeRepoPath">here</a> to edit this page.
+              If you notice something we’ve missed, or that could be improved, please click <a :href="'https://github.com/fleetdm/fleet/edit/main/docs/'+thisPage.sectionRelativeRepoPath">here</a> to edit this page.
             </p>
           </div>
 

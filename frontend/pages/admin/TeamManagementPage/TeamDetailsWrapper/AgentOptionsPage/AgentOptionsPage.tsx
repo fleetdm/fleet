@@ -1,8 +1,11 @@
-import React from "react";
-import { useDispatch, useSelector } from "react-redux";
+import React, { useState } from "react";
+import { useDispatch } from "react-redux";
+import { useQuery } from "react-query";
+import { useErrorHandler } from "react-error-boundary";
 import yaml from "js-yaml";
 import { ITeam } from "interfaces/team";
 import endpoints from "fleet/endpoints";
+import teamsAPI from "services/entities/teams";
 // ignore TS error for now until these are rewritten in ts.
 // @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions";
@@ -23,30 +26,42 @@ interface IAgentOptionsPageProps {
   };
 }
 
-interface IRootState {
-  entities: {
-    teams: {
-      loading: boolean;
-      data: { [id: number]: ITeam };
-    };
-  };
+interface ITeamsResponse {
+  teams: ITeam[];
 }
 
-const AgentOptionsPage = (props: IAgentOptionsPageProps): JSX.Element => {
-  const {
-    params: { team_id },
-  } = props;
-  const teamId = parseInt(team_id, 10);
+const AgentOptionsPage = ({
+  params: { team_id },
+}: IAgentOptionsPageProps): JSX.Element => {
+  const teamIdFromURL = parseInt(team_id, 10);
   const dispatch = useDispatch();
-  const team = useSelector((state: IRootState) => {
-    return state.entities.teams.data[teamId];
-  });
 
-  const formData = {
-    osquery_options: yaml.dump(team.agent_options),
-  };
+  const [formData, setFormData] = useState<any>({});
+  const handlePageError = useErrorHandler();
 
-  const onSaveOsqueryOptionsFormSubmit = (updatedForm: any): void | false => {
+  useQuery<ITeamsResponse, Error, ITeam[]>(
+    ["teams"],
+    () => teamsAPI.loadAll(),
+    {
+      select: (data: ITeamsResponse) => data.teams,
+      onSuccess: (data) => {
+        const selected = data.find((team) => team.id === teamIdFromURL);
+
+        if (selected) {
+          setFormData({
+            osquery_options: yaml.dump(selected.agent_options),
+          });
+        } else {
+          handlePageError({ status: 404 });
+        }
+      },
+      onError: (error) => handlePageError(error),
+    }
+  );
+
+  const onSaveOsqueryOptionsFormSubmit = (updatedForm: {
+    osquery_options: string;
+  }): void | false => {
     const { TEAMS_AGENT_OPTIONS } = endpoints;
     const { error } = validateYaml(updatedForm.osquery_options);
     if (error) {
@@ -56,13 +71,13 @@ const AgentOptionsPage = (props: IAgentOptionsPageProps): JSX.Element => {
     dispatch(
       osqueryOptionsActions.updateOsqueryOptions(
         updatedForm,
-        TEAMS_AGENT_OPTIONS(teamId)
+        TEAMS_AGENT_OPTIONS(teamIdFromURL)
       )
     )
       .then(() => {
         dispatch(renderFlash("success", "Successfully saved agent options"));
       })
-      .catch((errors: { [key: string]: any }) => {
+      .catch((errors: { [key: string]: string }) => {
         dispatch(renderFlash("error", errors.stack));
       });
   };

@@ -28,7 +28,7 @@ class LoginForm extends Component {
   };
 
   showLegendWithImage = (image, idpName) => {
-    let legend = "Single Sign On";
+    let legend = "Single sign on";
     if (idpName !== "") {
       legend = `Sign on with ${idpName}`;
     }
@@ -45,7 +45,7 @@ class LoginForm extends Component {
     const { idp_name: idpName, idp_image_url: imageURL } = ssoSettings;
     const { showLegendWithImage } = this;
 
-    let legend = "Single Sign On";
+    let legend = "Single sign on";
     if (idpName !== "") {
       legend = `Sign On With ${idpName}`;
     }
@@ -57,7 +57,7 @@ class LoginForm extends Component {
       <Button
         className={`${baseClass}__sso-btn`}
         type="button"
-        title="Single Sign On"
+        title="Single sign on"
         variant="inverse"
         onClick={handleSSOSignOn}
       >
@@ -74,7 +74,7 @@ class LoginForm extends Component {
       isHidden,
       ssoSettings,
     } = this.props;
-    const { sso_enabled: ssoEnabled } = ssoSettings;
+    const { sso_enabled: ssoEnabled } = ssoSettings || {};
     const { showSingleSignOnButton } = this;
 
     const loginFormClass = classnames(baseClass, {

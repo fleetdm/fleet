@@ -18,20 +18,19 @@ sudo npm install -g fleetctl
 sudo fleetctl preview
 ```
 
-> Windows users can omit `sudo`.
+> Windows users can omit `sudo`, and should run the command in `Cmd`/`PowerShell` as administrators.
 
 The Fleet UI is now available at http://localhost:1337.
 
 #### Now what?
 
-Check out the [Ask questions about your devices tutorial](./docs/1-Using-Fleet/tutorials/Ask-questions-about-your-devices.md) to learn where to see your devices in Fleet, how to add Fleet's standard query library, and how to ask questions about your devices by running queries.
+Check out the [Ask questions about your devices tutorial](./docs/01-Using-Fleet/00-Learn-how-to-use-Fleet.md#how-to-ask-questions-about-your-devices) to learn where to see your devices in Fleet, how to add Fleet's standard query library, and how to ask questions about your devices by running queries.
 
 ## Team
 Fleet is [independently backed](https://linkedin.com/company/fleetdm) and actively maintained with the help of many amazing [contributors](https://github.com/fleetdm/fleet/graphs/contributors).
 
-> **:tada: Announcing the transition of Fleet to a new independent entity :tada:**
-> 
-> Please check out [the blog post](https://medium.com/fleetdm/a-new-fleet-d4096c7de978) to understand what is happening with Fleet and our commitment to improving the product.  To upgrade from Fleet ≤3.2.0, just grab the latest release from this repository (it'll work out of the box).
+> 📖 In keeping with our value of openness, Fleet Device Management's company handbook is public and open source.  You can read about the [history of Fleet and osquery](https://fleetdm.com/handbook/company#history) and our commitment to improving the product.
+> To upgrade from Fleet ≤3.2.0, just follow the upgrading steps for the latest release from this repository (it'll work out of the box).
 
 ## Documentation
 

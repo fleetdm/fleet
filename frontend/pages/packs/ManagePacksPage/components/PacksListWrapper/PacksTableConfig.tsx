@@ -3,8 +3,7 @@
 // definitions for the selection row for some reason when we dont really need it.
 import React from "react";
 
-import moment from "moment";
-import { capitalize } from "lodash";
+import format from "date-fns/format";
 
 // @ts-ignore
 import Checkbox from "components/forms/fields/Checkbox";
@@ -17,12 +16,20 @@ import PATHS from "router/paths";
 
 import { IPack } from "interfaces/pack";
 
+interface IGetToggleAllRowsSelectedProps {
+  checked: boolean;
+  indeterminate: boolean;
+  title: string;
+  onChange: () => any;
+  style: { cursor: string };
+}
+
 interface IHeaderProps {
   column: {
     title: string;
     isSortedDesc: boolean;
   };
-  getToggleAllRowsSelectedProps: () => any; // TODO: do better with types
+  getToggleAllRowsSelectedProps: () => IGetToggleAllRowsSelectedProps;
   toggleAllRowsSelected: () => void;
 }
 
@@ -32,7 +39,7 @@ interface ICellProps {
   };
   row: {
     original: IPack;
-    getToggleRowSelectedProps: () => any; // TODO: do better with types
+    getToggleRowSelectedProps: () => IGetToggleAllRowsSelectedProps;
     toggleRowSelected: () => void;
   };
 }
@@ -48,17 +55,17 @@ interface IDataColumn {
 }
 
 interface IPackTableData {
-  id: number;
-  name: string;
-  query_count: number;
-  status: string;
-  total_hosts_count: number;
-  updated_at: string;
+  id?: number;
+  name?: string;
+  query_count?: number;
+  status?: string;
+  total_hosts_count?: number;
+  updated_at?: string;
 }
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
-const generateTableHeaders = (isOnlyObserver = true): IDataColumn[] => {
+const generateTableHeaders = (): IDataColumn[] => {
   const tableHeaders: IDataColumn[] = [
     {
       id: "selection",
@@ -93,7 +100,7 @@ const generateTableHeaders = (isOnlyObserver = true): IDataColumn[] => {
       Cell: (cellProps: ICellProps): JSX.Element => (
         <LinkCell
           value={cellProps.cell.value}
-          path={PATHS.EDIT_PACK(cellProps.row.original)}
+          path={PATHS.EDIT_PACK(cellProps.row.original.id)}
         />
       ),
     },
@@ -140,27 +147,30 @@ const generateTableHeaders = (isOnlyObserver = true): IDataColumn[] => {
       ),
       accessor: "updated_at",
       Cell: (cellProps: ICellProps): JSX.Element => (
-        <TextCell value={moment(cellProps.cell.value).format("MM/DD/YY")} />
+        <TextCell value={format(new Date(cellProps.cell.value), "MM/dd/yy")} />
       ),
     },
   ];
   return tableHeaders;
 };
 
-const enhancePackData = (packs: IPack[]): IPackTableData[] => {
-  return packs.map((pack: IPack) => {
-    return {
-      id: pack.id,
-      name: pack.name,
-      query_count: pack.query_count,
-      status: pack.disabled ? "disabled" : "enabled",
-      total_hosts_count: pack.total_hosts_count,
-      updated_at: pack.updated_at,
-    };
-  });
+const enhancePackData = (packs: IPack[] | undefined): IPackTableData[] => {
+  if (packs) {
+    return packs.map((pack: IPack) => {
+      return {
+        id: pack.id,
+        name: pack.name,
+        query_count: pack.query_count,
+        status: pack.disabled ? "disabled" : "enabled",
+        total_hosts_count: pack.total_hosts_count,
+        updated_at: pack.updated_at,
+      };
+    });
+  }
+  return [];
 };
 
-const generateDataSet = (packs: IPack[]): IPackTableData[] => {
+const generateDataSet = (packs: IPack[] | undefined): IPackTableData[] => {
   return [...enhancePackData(packs)];
 };
 

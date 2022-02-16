@@ -1,10 +1,11 @@
-# Committing Changes
-- [External Contributors](#external-contributors)
-- [Pull Requests](#pull-requests)
-  - [Merging Pull Requests](#merging-pull-requests)
-  - [Commit Messages](#commit-messages)
+# Committing changes
+- [External contributors](#external-contributors)
+- [Fleet Device Management team members](#fleet-device-management-team-members)
+- [Pull requests](#pull-requests)
+  - [Merging pull requests](#merging-pull-requests)
+  - [Commit messages](#commit-messages)
 
-## External Contributors
+## External contributors
 
 Fleet does not require a CLA for external contributions. External contributors are encouraged to submit Pull Requests (PRs) following the instructions presented in this document.
 
@@ -15,11 +16,11 @@ Please keep in mind that any code merged to the Fleet repository becomes the res
 ## Fleet Device Management team members
 Fleet Device Management team members may not copy queries from external sources except when that content has an explicit license allowing such use, or permission has been granted by the creator.
 
-## Pull Requests
+## Pull requests
 
 Each developer (internal or external) creates a fork of the Fleet repository, committing changes to a branch within their fork. Changes are submitted by PR to be merged into Fleet.
 
-GitHub Actions automatically runs testers and linters on each PR. Please ensure that these checks pass. Checks can be run locally as described in [2-Testing.md](./2-Testing.md).
+GitHub Actions automatically runs testers and linters on each PR. Please ensure that these checks pass. Checks can be run locally as described in [02-Testing.md](./02-Testing.md).
 
 For features that are still in-progress, the Pull Request can be marked as a "Draft". This helps make it clear which PRs are ready for review and merge.
 
@@ -78,7 +79,7 @@ This is very dependent on the case. It'll be very unlikely, but sometimes a PR h
 
 The reason we are adding one file per change, roughly, is to prevent merge conflicts. If everybody working on fleet would edit the CHANGELOG file, every single PR will have a conflict as soon as one is merged, and collaboration will be very complicated.
 
-### Merging Pull Requests
+### Merging pull requests
 
 In general, PRs should pass all CI checks and have at least one approving review before merge.
 
@@ -90,7 +91,7 @@ In general, we try to allow internal contributors to merge their own PRs after a
 
 For external contributors, the merge must be performed by a teammate with merge permissions. Typically this would be the internal reviewer that approves the PR.
 
-### Commit Messages
+### Commit messages
 
 GitHub is configured to only allow "Squash Merges", meaning each PR (potentially containing multiple commits) becomes a single commit for merge. Occasionally it may be appropriate to "Rebase Merge" a complex PR that is best left as multiple commits. Please discuss within the PR if this seems appropriate.
 

@@ -31,8 +31,6 @@ export default (WrappedComponent, { fields, validate = defaultValidate }) => {
         errors: {},
         formData,
       };
-
-      return false;
     }
 
     componentWillMount() {

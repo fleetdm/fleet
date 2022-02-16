@@ -16,7 +16,7 @@ export default {
 
       return createRequestMock({
         bearerToken,
-        endpoint: `/api/v1/fleet/team/${params.team_id}/schedule`,
+        endpoint: `/api/v1/fleet/teams/${params.team_id}/schedule`,
         method: "post",
         params,
         response: { scheduled: teamScheduledQueryStub },
@@ -28,7 +28,7 @@ export default {
     valid: (bearerToken, teamScheduledQuery) => {
       return createRequestMock({
         bearerToken,
-        endpoint: `/api/v1/fleet/team/${teamScheduledQuery.team_id}/schedule/${teamScheduledQuery.id}`,
+        endpoint: `/api/v1/fleet/teams/${teamScheduledQuery.team_id}/schedule/${teamScheduledQuery.id}`,
         method: "delete",
         response: {},
       });
@@ -38,7 +38,7 @@ export default {
     valid: (bearerToken, teamID) => {
       return createRequestMock({
         bearerToken,
-        endpoint: `/api/v1/fleet/team/${teamID}/schedule`,
+        endpoint: `/api/v1/fleet/teams/${teamID}/schedule`,
         method: "get",
         response: { scheduled: [teamScheduledQueryStub] },
       });
@@ -48,7 +48,7 @@ export default {
     valid: (bearerToken, teamScheduledQuery, params) => {
       return createRequestMock({
         bearerToken,
-        endpoint: `/api/v1/fleet/team/${teamScheduledQuery.team_id}/schedule/${teamScheduledQuery.id}`,
+        endpoint: `/api/v1/fleet/teams/${teamScheduledQuery.team_id}/schedule/${teamScheduledQuery.id}`,
         method: "patch",
         params,
         response: { scheduled: { ...teamScheduledQuery, ...params } },

@@ -1,5 +1,9 @@
 package fleet
 
+import (
+	"errors"
+)
+
 type PackListOptions struct {
 	ListOptions
 
@@ -10,15 +14,26 @@ type PackListOptions struct {
 // Pack is the structure which represents an osquery query pack.
 type Pack struct {
 	UpdateCreateTimestamps
-	ID          uint    `json:"id"`
-	Name        string  `json:"name"`
-	Description string  `json:"description,omitempty"`
-	Platform    string  `json:"platform,omitempty"`
-	Disabled    bool    `json:"disabled,omitempty"`
-	Type        *string `json:"type" db:"pack_type"`
-	LabelIDs    []uint  `json:"label_ids"`
-	HostIDs     []uint  `json:"host_ids"`
-	TeamIDs     []uint  `json:"team_ids"`
+	ID          uint     `json:"id"`
+	Name        string   `json:"name"`
+	Description string   `json:"description,omitempty"`
+	Platform    string   `json:"platform,omitempty"`
+	Disabled    bool     `json:"disabled"`
+	Type        *string  `json:"type" db:"pack_type"`
+	Labels      []Target `json:"labels"`
+	LabelIDs    []uint   `json:"label_ids"`
+	Hosts       []Target `json:"hosts"`
+	HostIDs     []uint   `json:"host_ids"`
+	Teams       []Target `json:"teams"`
+	TeamIDs     []uint   `json:"team_ids"`
+}
+
+// Verify verifies the pack's fields are valid.
+func (p *Pack) Verify() error {
+	if emptyString(p.Name) {
+		return errPackEmptyName
+	}
+	return nil
 }
 
 // EditablePackType only returns true when the pack doesn't have a specific Type set, only nil & empty string Pack.Type
@@ -46,6 +61,18 @@ type PackPayload struct {
 	TeamIDs     *[]uint `json:"team_ids"`
 }
 
+var errPackEmptyName = errors.New("pack name cannot be empty")
+
+// Verify verifies the pack's payload fields are valid.
+func (p *PackPayload) Verify() error {
+	if p.Name != nil {
+		if emptyString(*p.Name) {
+			return errPackEmptyName
+		}
+	}
+	return nil
+}
+
 type PackSpec struct {
 	ID          uint            `json:"id,omitempty"`
 	Name        string          `json:"name"`
@@ -54,6 +81,14 @@ type PackSpec struct {
 	Disabled    bool            `json:"disabled"`
 	Targets     PackSpecTargets `json:"targets,omitempty"`
 	Queries     []PackSpecQuery `json:"queries,omitempty"`
+}
+
+// Verify verifies the pack's spec fields are valid.
+func (p *PackSpec) Verify() error {
+	if emptyString(p.Name) {
+		return errPackEmptyName
+	}
+	return nil
 }
 
 type PackSpecTargets struct {
@@ -75,13 +110,18 @@ type PackSpecQuery struct {
 
 // PackTarget targets a pack to a host, label, or team.
 type PackTarget struct {
-	ID     uint `db:"id"`
-	PackID uint `db:"pack_id"`
+	ID     uint `db:"id" json:"-"`
+	PackID uint `db:"pack_id" json:"-"`
 	Target
 }
 
 type PackStats struct {
-	PackID     uint                  `json:"pack_id,omitempty"`
-	PackName   string                `json:"pack_name,omitempty"`
+	PackID   uint   `json:"pack_id"`
+	PackName string `json:"pack_name"`
+	// Type indicates the type of the pack:
+	//	- "global" is the type of the global pack.
+	//	- "team-$ID" is returned for team packs.
+	//	- "pack" means it is a user created pack.
+	Type       string                `json:"type"`
 	QueryStats []ScheduledQueryStats `json:"query_stats"`
 }

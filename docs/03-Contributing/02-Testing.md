@@ -1,4 +1,4 @@
-# Testing & Local Development
+# Testing & local development
 
 - [License key](#license-key)
 - [Simulated hosts](#hosts)
@@ -7,7 +7,7 @@
 - [Test hosts](#test-hosts)
 - [Email](#email)
 - [Database backup/restore](#database-backuprestore)
-- [Seeding Data](./6-Seeding-Data.md)
+- [Seeding data](./06-Seeding-Data.md)
 - [MySQL shell](#mysql-shell)
 - [Testing SSO](#testing-sso)
 
@@ -27,7 +27,7 @@ For example:
 
 It can be helpful to quickly populate the UI with simulated hosts when developing or testing features that require host information.
 
-Check out [the instructions in the `/tools/osquery` directory](../../tools/osquery/README.md#testing-with-containerized-osqueryd) for starting up simulated hosts in your development environment.
+Check out [the instructions in the `/tools/osquery` directory](https://github.com/fleetdm/fleet/tree/main/tools/osquery) for starting up simulated hosts in your development environment.
 
 ## Test suite
 
@@ -37,15 +37,13 @@ You must install the [`golangci-lint`](https://golangci-lint.run/) command to ru
 go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.42.0
 ```
 
-Make sure it is available in your PATH. To execute the basic unit and integration tests, run the following from the root of the repository:
+Make sure it is available in your `PATH`. To execute the basic unit and integration tests, run the following from the root of the repository:
 
 ```
 REDIS_TEST=1 MYSQL_TEST=1 make test
 ```
 
-It is a good idea to run `make test` before submitting a Pull Request.
-
-#### Go unit tests
+### Go unit tests
 
 To run all Go unit tests, run the following:
 
@@ -53,7 +51,7 @@ To run all Go unit tests, run the following:
 REDIS_TEST=1 MYSQL_TEST=1 make test-go
 ```
 
-#### Go linters
+### Go linters
 
 To run all Go linters and static analyzers, run the following:
 
@@ -61,7 +59,7 @@ To run all Go linters and static analyzers, run the following:
 make lint-go
 ```
 
-#### Javascript unit tests
+### Javascript unit tests
 
 To run all JS unit tests, run the following:
 
@@ -75,7 +73,7 @@ or
 yarn test
 ```
 
-#### Javascript linters
+### Javascript linters
 
 To run all JS linters and static analyzers, run the following:
 
@@ -89,7 +87,7 @@ or
 yarn lint
 ```
 
-#### MySQL tests
+### MySQL tests
 
 To run MySQL integration tests set environment variables as follows:
 
@@ -97,7 +95,7 @@ To run MySQL integration tests set environment variables as follows:
 MYSQL_TEST=1 make test-go
 ```
 
-#### Email tests
+### Email tests
 
 To run email related integration tests using MailHog set environment as follows:
 
@@ -105,7 +103,7 @@ To run email related integration tests using MailHog set environment as follows:
 MAIL_TEST=1 make test-go
 ```
 
-#### Network tests
+### Network tests
 
 A few tests require network access as they make requests to external hosts. Given that the network is unreliable, may not be available, and those hosts may also not be unavailable, those tests are skipped by default and are opt-in via the `NETWORK_TEST` environment variable. To run them:
 
@@ -135,9 +133,28 @@ go tool cover -func=./server/server.cover
 
 E2E tests are run using Docker and Cypress.
 
-#### Preparation
+E2E tests are constantly evolving and running them or examining CI results is the best way to understand what they cover, but at a high level they cover:
+1. Setup
+2. Login/out flows
+3. Host page
+    add hosts
+    label flows
+4. Queries flows
+5. Policies flows
+6. Schedule flows
+    scheduling
+    packs
+6. Permissions
+    Admin
+    Observer (global and team)
+    Maintainer
+7. Organizational Settings
+    Settings adjustments
+    Users
 
-Make sure dependencies are up to date and the [Fleet binaries are built locally](./1-Building-Fleet.md).
+### Preparation
+
+Make sure dependencies are up to date and the [Fleet binaries are built locally](./01-Building-Fleet.md).
 
 For Fleet Free tests:
 
@@ -161,11 +178,11 @@ make e2e-setup
 
 This will initialize the E2E instance with a user.
 
-#### Run tests
+### Run tests
 
 Tests can be run in interactive mode, or from the command line.
 
-#### Interactive
+### Interactive
 
 For Fleet Free tests:
 
@@ -181,7 +198,7 @@ yarn e2e-browser:premium
 
 Use the graphical UI controls to run and view tests.
 
-#### Command line
+### Command line
 
 For Fleet Free tests:
 
@@ -199,26 +216,27 @@ Tests will run automatically and results are reported to the shell.
 
 ## Test hosts
 
-The Fleet repo includes tools to start test osquery hosts. Please see the documentation in [/tools/osquery](../../tools/osquery) for more information.
+The Fleet repo includes tools to start test osquery hosts. Please see the documentation in [/tools/osquery](https://github.com/fleetdm/fleet/tree/main/tools/osquery) for more information.
 
 ## Email
 
-#### Manually testing email with MailHog
+### Manually testing email with MailHog
 
 To intercept sent emails while running a Fleet development environment, first, in the Fleet UI, navigate to the Organization settings page under Admin.
 
-Then, in the "SMTP Options" section, enter any email address in the "Sender Address" field, set the "SMTP Server" to `localhost` on port `1025`, and set "Authentication Type" to `None`. Note that you may use any active or inactive sender address.
+Then, in the "SMTP options" section, enter any email address in the "Sender address" field, set the "SMTP server" to `localhost` on port `1025`, and set "Authentication type" to `None`. Note that you may use any active or inactive sender address.
 
-Visit [locahost:8025](http://localhost:8025) to view Mailhog's admin interface which will display all emails sent using the simulated mail server.
+Visit [localhost:8025](http://localhost:8025) to view Mailhog's admin interface which will display all emails sent using the simulated mail server.
 
-## Database Backup/Restore
+## Development database management
 
-In the course of development (particularly when crafting database migrations), it may be useful to backup and restore the MySQL database. This can be achieved with the following commands:
+In the course of development (particularly when crafting database migrations), it may be useful to
+backup, restore, and reset the MySQL database. This can be achieved with the following commands:
 
 Backup:
 
 ```
-./tools/backup_db/backup.sh
+make db-backup
 ```
 
 The database dump is stored in `backup.sql.gz`.
@@ -226,10 +244,17 @@ The database dump is stored in `backup.sql.gz`.
 Restore:
 
 ```
-./tools/backup_db/restore.sh
+make db-restore
 ```
 
 Note that a "restore" will replace the state of the development database with the state from the backup.
+
+Reset:
+
+```
+make db-reset
+```
+
 
 ## MySQL shell
 
@@ -256,14 +281,18 @@ Issuer URI: http://localhost:8080/simplesaml/saml2/idp/SSOService.php
 Metadata URL: http://localhost:9080/simplesaml/saml2/idp/metadata.php
 ```
 
-The identity provider is configured with one user:
+The identity provider is configured with two users:
 
 ```
 Username: sso_user
 Email: sso_user@example.com
 Password: user123#
+
+Username: sso_user2
+Email: sso_user2@example.com
+Password: user123#
 ```
 
-Use the Fleet UI to invite one of these users with the associated email. Be sure the "Enable Single Sign On" box is checked for that user. Now after accepting the invitation, you should be able to log in as that user by clicking "Sign On with SimpleSAML" on the login page.
+Use the Fleet UI to invite one of these users with the associated email. Be sure the "Enable single sign on" box is checked for that user. Now after accepting the invitation, you should be able to log in as that user by clicking "Sign On with SimpleSAML" on the login page.
 
-To add additional users, modify [tools/saml/users.php](../../tools/saml/users.php) and restart the `simplesaml` container.
+To add additional users, modify [tools/saml/users.php](https://github.com/fleetdm/fleet/tree/main/tools/saml/users.php) and restart the `simplesaml` container.

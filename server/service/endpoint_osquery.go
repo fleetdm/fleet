@@ -94,7 +94,7 @@ func makeGetDistributedQueriesEndpoint(svc fleet.Service) endpoint.Endpoint {
 // Write Distributed Query Results
 ////////////////////////////////////////////////////////////////////////////////
 
-type submitDistributedQueryResultsRequest struct {
+type SubmitDistributedQueryResultsRequest struct {
 	NodeKey  string                               `json:"node_key"`
 	Results  fleet.OsqueryDistributedQueryResults `json:"queries"`
 	Statuses map[string]fleet.OsqueryStatus       `json:"statuses"`
@@ -109,7 +109,7 @@ func (r submitDistributedQueryResultsResponse) error() error { return r.Err }
 
 func makeSubmitDistributedQueryResultsEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		req := request.(submitDistributedQueryResultsRequest)
+		req := request.(SubmitDistributedQueryResultsRequest)
 		err := svc.SubmitDistributedQueryResults(ctx, req.Results, req.Statuses, req.Messages)
 		if err != nil {
 			return submitDistributedQueryResultsResponse{Err: err}, nil

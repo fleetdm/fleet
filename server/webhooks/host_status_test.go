@@ -45,7 +45,7 @@ func TestTriggerHostStatusWebhook(t *testing.T) {
 	require.NoError(t, TriggerHostStatusWebhook(context.Background(), ds, kitlog.NewNopLogger(), ac))
 	assert.Equal(
 		t,
-		`{"data":{"days_unseen":2,"total_hosts":10,"unseen_hosts":6},"message":"More than 60.00% of your hosts have not checked into Fleet for more than 2 days. You’ve been sent this message because the Host status webhook is enabled in your Fleet instance."}`,
+		`{"data":{"days_unseen":2,"total_hosts":10,"unseen_hosts":6},"text":"More than 60.00% of your hosts have not checked into Fleet for more than 2 days. You've been sent this message because the Host status webhook is enabled in your Fleet instance."}`,
 		requestBody,
 	)
 	requestBody = ""

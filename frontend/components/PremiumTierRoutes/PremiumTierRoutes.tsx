@@ -18,9 +18,9 @@ interface IRootState {
 
 const { FLEET_403 } = paths;
 
-const PremiumTierRoutes = (props: IPremiumTierRoutes): JSX.Element | null => {
-  const { children } = props;
-
+const PremiumTierRoutes = ({
+  children,
+}: IPremiumTierRoutes): JSX.Element | null => {
   const dispatch = useDispatch();
   const config = useSelector((state: IRootState) => state.app.config);
 

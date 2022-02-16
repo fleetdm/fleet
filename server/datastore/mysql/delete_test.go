@@ -35,6 +35,7 @@ func testDeleteEntity(t *testing.T, ds *Datastore) {
 	host, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		NodeKey:         t.Name() + "1",
 		UUID:            t.Name() + "1",
@@ -48,7 +49,7 @@ func testDeleteEntity(t *testing.T, ds *Datastore) {
 
 	require.NoError(t, ds.deleteEntity(context.Background(), hostsTable, host.ID))
 
-	host, err = ds.Host(context.Background(), host.ID)
+	host, err = ds.Host(context.Background(), host.ID, false)
 	require.Error(t, err)
 	assert.Nil(t, host)
 }

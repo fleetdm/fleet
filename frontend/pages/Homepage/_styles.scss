@@ -1,7 +1,10 @@
 .homepage {
-  align-self: center;
-  width: 100%;
-  max-width: 900px;
+  background-color: $ui-off-white;
+  flex: 1;
+
+  .homepage__wrapper {
+    background-color: $ui-off-white;
+  }
 
   h2 {
     font-size: $small;
@@ -9,37 +12,23 @@
     margin: 0;
   }
 
-  a {
-    font-size: $x-small;
-    color: $core-vibrant-blue;
-    font-weight: $bold;
-    text-decoration: none;
-  }
-
-  #link-arrow {
-    transform: scale(0.5);
-    margin-bottom: -4px;
-  }
-
-  &__wrapper {
-    padding: $pad-xxlarge 0 0;
-  }
-
-  &__header-wrap {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: $pad-xxlarge;
+  .form-field--dropdown {
+    margin-bottom: 0;
   }
 
   &__header {
+    height: 38px;
     display: flex;
     align-items: center;
+    justify-content: space-between;
+    margin-bottom: $pad-large;
+    
+    .Select-control {
+      background-color: $ui-off-white !important;
+    }
   }
 
   &__title {
-    font-size: $large;
-
     .fleeticon {
       color: $core-fleet-blue;
       margin-right: 15px;
@@ -58,87 +47,51 @@
     }
   }
 
-  &__section {
-    width: 95%;
-    max-width: 800px;
-    margin: auto;
-    margin-bottom: $pad-xlarge;
-  }
-
-  &__section-title {
+  &__platforms {
     display: flex;
-    justify-content: space-between;
-    padding-bottom: $pad-small;
-    border-bottom: solid 1px $ui-fleet-blue-15;
-    margin-bottom: $pad-large;
+    align-items: center;
+
+    span {
+      font-size: $small;
+    }
+    .Select-control, .Select-value {
+      background-color: $core-white !important;
+    }
   }
 
-  &__section-details {
-    font-size: $x-small;
+  &__platform_dropdown {
+    width: 138px;
   }
 
-  // For future use
+  &__section {
+    margin-top: $pad-medium;
+    width: 100%;
+    display: grid;
+    row-gap: $pad-medium;
 
-  // .ace-fleet {
-  //   margin-bottom: $pad-medium;
-  // }
+    // if we have an odd number of elements, take 
+    // the last one and stretch it across the grid
+    .homepage-info-card:nth-child(odd):last-child {
+      grid-column-start: span 2;
+    }
+    @media screen and (min-width: 990px) {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      column-gap: $pad-medium;
+    }
+  }
 
-  //   &__label-actions {
-  //     button {
-  //       &:first-child {
-  //         margin-right: $pad-medium;
-  //       }
-  //     }
-  //   }
+  .host-sections {
+    position: relative;
+  }
 
-  //   &__description {
-  //     margin: 0 0 $pad-medium;
-
-  //     h2 {
-  //       text-transform: uppercase;
-  //       color: $core-fleet-black;
-  //       font-weight: $regular;
-  //       font-size: $small;
-  //     }
-
-  //     p {
-  //       color: $core-fleet-blue;
-  //       margin: 0;
-  //       font-size: $x-small;
-  //       font-style: italic;
-  //     }
-  //   }
-
-  //   &__toggle-view {
-  //     .fleeticon {
-  //       width: 24px;
-  //       height: 24px;
-  //       margin-left: 12px;
-  //       fill: $ui-gray;
-  //     }
-
-  //     &--active {
-  //       .fleeticon {
-  //         fill: $core-fleet-purple;
-  //       }
-  //     }
-  //   }
-
-  //   .data-table-container {
-  //     .data-table {
-  //       &__wrapper {
-  //         overflow-x: scroll;
-  //       }
-  //     }
-  //   }
-
-  //   &__modal-buttons {
-  //     width: 100%;
-  //     display: flex;
-  //     justify-content: flex-end;
-
-  //     .button:first-child {
-  //       margin-right: $pad-medium;
-  //     }
-  //   }
+  .spinner {
+    z-index: 11;
+    opacity: 1;
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
 }

@@ -1,17 +1,18 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useRef } from "react";
 import AceEditor from "react-ace";
+import ReactAce from "react-ace/lib/ace";
+import { IAceEditor } from "react-ace/lib/types";
 import classnames from "classnames";
 import "ace-builds/src-noconflict/mode-sql";
 import "ace-builds/src-noconflict/ext-linking";
 import "ace-builds/src-noconflict/ext-language_tools";
 import { noop } from "lodash";
 
-import { IAceEditor } from "react-ace/lib/types";
 import "./mode";
 import "./theme";
 
-interface IFleetAceProps {
-  error?: string;
+export interface IFleetAceProps {
+  error?: string | null;
   fontSize?: number;
   label?: string;
   name?: string;
@@ -23,7 +24,7 @@ interface IFleetAceProps {
   hint?: string;
   labelActionComponent?: React.ReactNode;
   onLoad?: (editor: IAceEditor) => void;
-  onChange?: () => void;
+  onChange?: (value: string, event?: any) => void;
   handleSubmit?: () => void;
 }
 
@@ -44,13 +45,44 @@ const FleetAce = ({
   onLoad,
   onChange,
   handleSubmit = noop,
-}: IFleetAceProps) => {
+}: IFleetAceProps): JSX.Element => {
+  const editorRef = useRef<ReactAce>(null);
+  const wrapperClass = classnames(wrapperClassName, baseClass, {
+    [`${baseClass}__wrapper--error`]: !!error,
+  });
+
+  const fixHotkeys = (editor: IAceEditor) => {
+    editor.commands.removeCommand("gotoline");
+    editor.commands.removeCommand("find");
+    onLoad && onLoad(editor);
+  };
+
+  const handleDelete = (deleteCommand: string) => {
+    const currentText = editorRef.current?.editor.getValue();
+    const selectedText = editorRef.current?.editor.getSelectedText();
+
+    if (selectedText) {
+      const remainingText = currentText?.replace(selectedText, "");
+      if (typeof remainingText !== "undefined") {
+        onChange && onChange(remainingText);
+        editorRef.current?.editor.navigateLeft();
+        editorRef.current?.editor.clearSelection();
+      }
+    } else {
+      editorRef.current?.editor.execCommand(deleteCommand);
+    }
+  };
+
   const renderLabel = useCallback(() => {
     const labelText = error || label;
     const labelClassName = classnames(`${baseClass}__label`, {
       [`${baseClass}__label--error`]: !!error,
       [`${baseClass}__label--with-action`]: !!labelActionComponent,
     });
+
+    if (!label) {
+      return <></>;
+    }
 
     return (
       <div className={labelClassName}>
@@ -68,20 +100,11 @@ const FleetAce = ({
     return false;
   };
 
-  const wrapperClass = classnames(wrapperClassName, {
-    [`${baseClass}__wrapper--error`]: !!error,
-  });
-
-  const fixHotkeys = (editor: IAceEditor) => {
-    editor.commands.removeCommand("gotoline");
-    editor.commands.removeCommand("find");
-    onLoad && onLoad(editor);
-  };
-
   return (
     <div className={wrapperClass}>
       {renderLabel()}
       <AceEditor
+        ref={editorRef}
         enableBasicAutocompletion
         enableLiveAutocompletion
         editorProps={{ $blockScrolling: Infinity }}
@@ -105,6 +128,16 @@ const FleetAce = ({
             name: "commandName",
             bindKey: { win: "Ctrl-Enter", mac: "Ctrl-Enter" },
             exec: handleSubmit,
+          },
+          {
+            name: "deleteSelection",
+            bindKey: { win: "Delete", mac: "Delete" },
+            exec: () => handleDelete("del"),
+          },
+          {
+            name: "backspaceSelection",
+            bindKey: { win: "Backspace", mac: "Backspace" },
+            exec: () => handleDelete("backspace"),
           },
         ]}
       />

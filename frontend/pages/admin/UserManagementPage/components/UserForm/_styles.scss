@@ -28,7 +28,6 @@
         font-size: $x-small;
         font-weight: $bold;
         color: $core-fleet-black;
-        padding-left: 12px;
       }
     }
   }
@@ -43,6 +42,11 @@
 
   .password-tooltip-text {
     width: 310px;
+  }
+
+  .current-team {
+    margin-top: 4px;
+    margin-bottom: 24px;
   }
 
   &__label {

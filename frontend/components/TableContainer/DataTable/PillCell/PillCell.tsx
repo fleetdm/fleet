@@ -1,38 +1,24 @@
 import React from "react";
 import classnames from "classnames";
+import { uniqueId } from "lodash";
 
 import ReactTooltip from "react-tooltip";
 
 interface IPillCellProps {
   value: [string, number];
+  customIdPrefix?: string;
+  hostDetails?: boolean;
 }
-
-const CELL_WIDTH = 194;
-const CELL_PADDING = 27;
-
-const PILL_WIDTHS: Record<string, number> = {
-  Minimal: 75,
-  Considerable: 108,
-  Excessive: 86,
-  Denylisted: 71,
-};
-
-const getTooltipOffset = (pillText: string) => {
-  const offset: Record<string, number> = {};
-
-  if (PILL_WIDTHS[pillText]) {
-    offset.left = CELL_WIDTH / 2 - (PILL_WIDTHS[pillText] / 2 + CELL_PADDING);
-  }
-
-  return offset;
-};
 
 const generateClassTag = (rawValue: string): string => {
   return rawValue.replace(" ", "-").toLowerCase();
 };
 
-const PillCell = (props: IPillCellProps): JSX.Element => {
-  const { value } = props;
+const PillCell = ({
+  value,
+  customIdPrefix,
+  hostDetails,
+}: IPillCellProps): JSX.Element => {
   const [pillText, id] = value;
 
   const pillClassName = classnames(
@@ -48,7 +34,7 @@ const PillCell = (props: IPillCellProps): JSX.Element => {
         return false;
       case "Excessive":
         return false;
-      case "Denylisted":
+      case "Undetermined":
         return false;
       default:
         return true;
@@ -86,6 +72,14 @@ const PillCell = (props: IPillCellProps): JSX.Element => {
             excessive <br /> resource consumption.
           </>
         );
+      case "Undetermined":
+        return (
+          <>
+            To see performance <br /> impact, this query must <br /> run as a
+            scheduled query <br /> on {hostDetails ? "this" : "at least one"}{" "}
+            host.
+          </>
+        );
       default:
         return null;
     }
@@ -93,21 +87,27 @@ const PillCell = (props: IPillCellProps): JSX.Element => {
 
   return (
     <>
-      <div data-tip data-for={id.toString()} data-tip-disable={disable()}>
+      <span
+        data-tip
+        data-for={`${customIdPrefix || "pill"}__${
+          id?.toString() || uniqueId()
+        }`}
+        data-tip-disable={disable()}
+      >
         <span className={pillClassName}>{pillText}</span>
-      </div>
+      </span>
       <ReactTooltip
         place="bottom"
-        offset={getTooltipOffset(pillText)}
+        // offset={getTooltipOffset(pillText)}
         type="dark"
         effect="solid"
         backgroundColor="#3e4771"
-        id={id.toString()}
+        id={`${customIdPrefix || "pill"}__${id?.toString() || uniqueId()}`}
         data-html
       >
         <span
           className={`tooltip ${generateClassTag(pillText)}__tooltip-text`}
-          style={{ width: "196px" }}
+          style={{ textAlign: "center" }}
         >
           {tooltipText()}
         </span>

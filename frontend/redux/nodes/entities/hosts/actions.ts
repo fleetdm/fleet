@@ -2,6 +2,7 @@ import { IHost } from "interfaces/host";
 // @ts-ignore
 // ignore TS error for now until these are rewritten in ts.
 import Fleet from "fleet";
+import { Dispatch } from "redux";
 // @ts-ignore
 import { formatErrorResponse } from "redux/nodes/entities/base/helpers";
 import { IApiError } from "interfaces/errors";
@@ -26,7 +27,7 @@ export const transferHostsFailure = (errors: any) => {
 };
 
 const transferToTeam = (teamId: number | null, hostIds: number[]): any => {
-  return (dispatch: any) => {
+  return (dispatch: Dispatch) => {
     dispatch(loadRequest());
     return Fleet.hosts
       .transferToTeam(teamId, hostIds)
@@ -47,7 +48,7 @@ const transferToTeamByFilter = (
   status: string,
   labelId: number | null
 ): any => {
-  return (dispatch: any) => {
+  return (dispatch: Dispatch) => {
     dispatch(loadRequest());
     return Fleet.hosts
       .transferToTeamByFilter(teamId, query, status, labelId)
@@ -64,7 +65,7 @@ const transferToTeamByFilter = (
 
 export const LOAD_PAGINATED = "LOAD_PAGINATED";
 export const loadPaginated = (): any => {
-  return (dispatch: any) => {
+  return (dispatch: Dispatch) => {
     dispatch(loadRequest());
 
     return Fleet.hosts;
@@ -83,7 +84,7 @@ export const refetchHostFailure = (errors: any) => {
 
 export const REFETCH_HOST_START = "REFETCH_HOST_START";
 export const refetchHostStart = (host: IHost): any => {
-  return (dispatch: any) => {
+  return (dispatch: Dispatch) => {
     return Fleet.hosts
       .refetch(host)
       .then((data: any) => {

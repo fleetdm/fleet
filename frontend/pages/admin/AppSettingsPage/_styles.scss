@@ -14,22 +14,17 @@
     border-bottom: solid 1px $ui-fleet-blue-15;
     margin: 0 0 15px;
     padding: 0 0 $pad-small;
+  }
 
-    a {
-      text-decoration: none;
-    }
+  .fleeticon {
+    margin: 0 20px;
+    vertical-align: 4px;
+  }
 
-    .fleeticon {
-      font-size: 8px;
-      margin: 0 20px;
-      vertical-align: 4px;
-    }
-
-    small {
-      font-size: $x-small;
-      font-weight: $regular;
-      color: $core-fleet-black;
-    }
+  small {
+    font-size: $x-small;
+    font-weight: $regular;
+    color: $core-fleet-black;
   }
 
   &__settings-form {
@@ -42,7 +37,7 @@
     // this is the spacing needed to make the sticky form nav position correctly when scrolling
     // TODO: find a way to calculate these sticky positions this and use variables.
     //  will be tedious to update otherwise.
-    top: 207px;
+    top: 217px;
     width: 178px;
     margin: 0;
     padding: 0 110px 0 0;
@@ -56,6 +51,7 @@
     a {
       color: $core-fleet-black;
       text-decoration: none;
+      cursor: pointer;
 
       &:hover {
         color: $core-vibrant-blue;

@@ -2,7 +2,11 @@ import Fleet from "fleet";
 
 import config from "redux/nodes/entities/users/config";
 import { formatErrorResponse } from "redux/nodes/entities/base/helpers";
-import { logoutUser, updateUserSuccess } from "redux/nodes/auth/actions";
+import {
+  logoutUser,
+  updateUserSuccess,
+  logoutSuccess,
+} from "redux/nodes/auth/actions";
 
 const { actions } = config;
 
@@ -112,13 +116,17 @@ export const createUserWithoutInvitation = (formData) => {
   };
 };
 
-export const deleteSessions = (user) => {
+export const deleteSessions = (user, isResettingCurrentUser = false) => {
   const { successAction, destroyFailure, destroySuccess } = actions;
 
   return (dispatch) => {
     return Fleet.users
       .deleteSessions(user)
       .then((userResponse) => {
+        if (isResettingCurrentUser) {
+          dispatch(logoutSuccess);
+        }
+
         return dispatch(successAction(userResponse, destroySuccess));
       })
       .catch((response) => {

@@ -18,7 +18,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/open-policy-agent/opa/rego"
-	"github.com/pkg/errors"
 )
 
 // Authorizer stores the compiled policy and performs authorization checks.
@@ -39,7 +38,7 @@ func NewAuthorizer() (*Authorizer, error) {
 		rego.Module("policy.rego", policy),
 	).PrepareForEval(ctx)
 	if err != nil {
-		return nil, errors.Wrap(err, "prepare query")
+		return nil, fmt.Errorf("prepare query: %w", err)
 	}
 
 	return &Authorizer{query: query}, nil
@@ -67,7 +66,7 @@ func (a *Authorizer) SkipAuthorization(ctx context.Context) {
 	// Mark the authorization context as checked (otherwise middleware will
 	// error).
 	if authctx, ok := authz_ctx.FromContext(ctx); ok {
-		authctx.Checked = true
+		authctx.SetChecked()
 	}
 }
 
@@ -81,7 +80,7 @@ func (a *Authorizer) Authorize(ctx context.Context, object, action interface{}) 
 	// Mark the authorization context as checked (otherwise middleware will
 	// error).
 	if authctx, ok := authz_ctx.FromContext(ctx); ok {
-		authctx.Checked = true
+		authctx.SetChecked()
 	}
 
 	subject := UserFromContext(ctx)
@@ -119,37 +118,6 @@ func (a *Authorizer) Authorize(ctx context.Context, object, action interface{}) 
 	return nil
 }
 
-func (a *Authorizer) TeamAuthorize(ctx context.Context, teamID uint, action string) error {
-	subject := UserFromContext(ctx)
-	if subject == nil {
-		return ForbiddenWithInternal("nil subject always forbidden", subject, nil, action)
-	}
-
-	// global admins and maintainers are authorized to work with teams
-	if subject.GlobalRole != nil {
-		switch *subject.GlobalRole {
-		case fleet.RoleAdmin, fleet.RoleMaintainer:
-			return nil
-		}
-	}
-
-	for _, team := range subject.Teams {
-		if teamID == team.ID {
-			switch action {
-			case fleet.ActionWrite:
-				if team.Role == fleet.RoleMaintainer {
-					return nil
-				}
-				return ForbiddenWithInternal("team observer cannot write", subject, nil, action)
-			default:
-				return nil
-			}
-		}
-	}
-
-	return ForbiddenWithInternal("not a member of the team", subject, nil, action)
-}
-
 // AuthzTyper is the interface that may be implemented to get a `type`
 // property added during marshaling for authorization. Any struct that will be
 // used as a subject or object in authorization should implement this interface.
@@ -173,7 +141,7 @@ func jsonToInterface(in interface{}) (interface{}, error) {
 	// map[string]interface{} (structs, maps, etc.)
 	buf := bytes.Buffer{}
 	if err := json.NewEncoder(&buf).Encode(in); err != nil {
-		return nil, errors.Wrap(err, "encode input")
+		return nil, fmt.Errorf("encode input: %w", err)
 	}
 
 	d := json.NewDecoder(&buf)
@@ -182,7 +150,7 @@ func jsonToInterface(in interface{}) (interface{}, error) {
 	d.UseNumber()
 	var out map[string]interface{}
 	if err := d.Decode(&out); err != nil {
-		return nil, errors.Wrap(err, "decode input")
+		return nil, fmt.Errorf("decode input: %w", err)
 	}
 
 	// Add the `type` property if the AuthzTyper interface is implemented.

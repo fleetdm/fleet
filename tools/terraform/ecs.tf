@@ -1,19 +1,22 @@
-//resource "aws_route53_record" "record" {
-//  name = "fleetdm"
-//  type = "A"
-//  zone_id = "Z046188311R47QSK245X"
-//  alias {
-//    evaluate_target_health = false
-//    name = aws_alb.main.dns_name
-//    zone_id = aws_alb.main.zone_id
-//  }
-//}
+data "aws_region" "current" {}
+
+resource "aws_route53_record" "record" {
+  name    = "fleet-alb-${terraform.workspace}"
+  type    = "A"
+  zone_id = aws_route53_zone.dogfood_fleetdm_com.zone_id
+  alias {
+    evaluate_target_health = false
+    name                   = aws_alb.main.dns_name
+    zone_id                = aws_alb.main.zone_id
+  }
+}
 
 resource "aws_alb" "main" {
   name            = "fleetdm"
   internal        = false
   security_groups = [aws_security_group.lb.id, aws_security_group.backend.id]
   subnets         = module.vpc.public_subnets
+  idle_timeout    = 120
 }
 
 resource "aws_alb_target_group" "main" {
@@ -81,7 +84,7 @@ resource "aws_ecs_service" "fleet" {
   launch_type                        = "FARGATE"
   cluster                            = aws_ecs_cluster.fleet.id
   task_definition                    = aws_ecs_task_definition.backend.arn
-  desired_count                      = 1
+  desired_count                      = 5
   deployment_minimum_healthy_percent = 100
   deployment_maximum_percent         = 200
   health_check_grace_period_seconds  = 30
@@ -90,6 +93,11 @@ resource "aws_ecs_service" "fleet" {
     target_group_arn = aws_alb_target_group.main.arn
     container_name   = "fleet"
     container_port   = 8080
+  }
+
+  // https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/ecs_service#ignoring-changes-to-desired-count
+  lifecycle {
+    ignore_changes = [desired_count]
   }
 
   network_configuration {
@@ -105,27 +113,21 @@ resource "aws_cloudwatch_log_group" "backend" {
   retention_in_days = 1
 }
 
-data "aws_region" "current" {}
-
-data "aws_secretsmanager_secret" "license" {
-  name = "/fleet/license"
-}
-
 resource "aws_ecs_task_definition" "backend" {
   family                   = "fleet"
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
   execution_role_arn       = aws_iam_role.main.arn
   task_role_arn            = aws_iam_role.main.arn
-  cpu                      = 512
-  memory                   = 4096
+  cpu                      = var.fleet_backend_cpu
+  memory                   = var.fleet_backend_mem
   container_definitions = jsonencode(
     [
       {
         name        = "fleet"
-        image       = "fleetdm/fleet"
-        cpu         = 512
-        memory      = 4096
+        image       = var.fleet_image
+        cpu         = var.fleet_backend_cpu
+        memory      = var.fleet_backend_mem
         mountPoints = []
         volumesFrom = []
         essential   = true
@@ -145,6 +147,13 @@ resource "aws_ecs_task_definition" "backend" {
             awslogs-stream-prefix = "fleet"
           }
         },
+        ulimits = [
+          {
+            name      = "nofile"
+            softLimit = 999999
+            hardLimit = 999999
+          }
+        ],
         secrets = [
           {
             name      = "FLEET_MYSQL_PASSWORD"
@@ -153,20 +162,16 @@ resource "aws_ecs_task_definition" "backend" {
           {
             name      = "FLEET_MYSQL_READ_REPLICA_PASSWORD"
             valueFrom = aws_secretsmanager_secret.database_password_secret.arn
-          },
-          {
-            name      = "FLEET_LICENSE_KEY"
-            valueFrom = data.aws_secretsmanager_secret.license.arn
           }
         ]
         environment = [
           {
             name  = "FLEET_MYSQL_USERNAME"
-            value = "fleet"
+            value = var.database_user
           },
           {
             name  = "FLEET_MYSQL_DATABASE"
-            value = "fleet"
+            value = var.database_name
           },
           {
             name  = "FLEET_MYSQL_ADDRESS"
@@ -174,11 +179,11 @@ resource "aws_ecs_task_definition" "backend" {
           },
           {
             name  = "FLEET_MYSQL_READ_REPLICA_USERNAME"
-            value = "fleet"
+            value = var.database_user
           },
           {
             name  = "FLEET_MYSQL_READ_REPLICA_DATABASE"
-            value = "fleet"
+            value = var.database_name
           },
           {
             name  = "FLEET_MYSQL_READ_REPLICA_ADDRESS"
@@ -190,11 +195,11 @@ resource "aws_ecs_task_definition" "backend" {
           },
           {
             name  = "FLEET_FIREHOSE_STATUS_STREAM"
-            value = aws_kinesis_firehose_delivery_stream.osquery_logs.name
+            value = aws_kinesis_firehose_delivery_stream.osquery_status.name
           },
           {
             name  = "FLEET_FIREHOSE_RESULT_STREAM"
-            value = aws_kinesis_firehose_delivery_stream.osquery_logs.name
+            value = aws_kinesis_firehose_delivery_stream.osquery_results.name
           },
           {
             name  = "FLEET_FIREHOSE_REGION"
@@ -213,17 +218,38 @@ resource "aws_ecs_task_definition" "backend" {
             value = "false"
           },
           {
-            name  = "FLEET_BETA_SOFTWARE_INVENTORY"
-            value = "1"
+            name  = "FLEET_VULNERABILITIES_DATABASES_PATH"
+            value = var.vuln_db_path
           },
           {
-            name  = "FLEET_VULNERABILITIES_DATABASES_PATH"
-            value = "/home/fleet"
+            name  = "FLEET_OSQUERY_ENABLE_ASYNC_HOST_PROCESSING"
+            value = var.async_host_processing
+          },
+          {
+            name  = "FLEET_LOGGING_DEBUG"
+            value = var.logging_debug
+          },
+          {
+            name  = "FLEET_LOGGING_JSON"
+            value = var.logging_json
+          },
+          {
+            name  = "FLEET_S3_BUCKET"
+            value = aws_s3_bucket.osquery-carve.bucket
+          },
+          {
+            name  = "FLEET_S3_PREFIX"
+            value = "carve_results/"
+          },
+          {
+            name  = "FLEET_LICENSE_KEY"
+            value = var.fleet_license
           }
         ]
       }
   ])
 }
+
 
 resource "aws_ecs_task_definition" "migration" {
   family                   = "fleet-migrate"
@@ -231,15 +257,15 @@ resource "aws_ecs_task_definition" "migration" {
   requires_compatibilities = ["FARGATE"]
   execution_role_arn       = aws_iam_role.main.arn
   task_role_arn            = aws_iam_role.main.arn
-  cpu                      = 256
-  memory                   = 512
+  cpu                      = var.cpu_migrate
+  memory                   = var.mem_migrate
   container_definitions = jsonencode(
     [
       {
         name        = "fleet-prepare-db"
-        image       = "fleetdm/fleet"
-        cpu         = 256
-        memory      = 512
+        image       = var.fleet_image
+        cpu         = var.cpu_migrate
+        memory      = var.mem_migrate
         mountPoints = []
         volumesFrom = []
         essential   = true
@@ -259,7 +285,7 @@ resource "aws_ecs_task_definition" "migration" {
             awslogs-stream-prefix = "fleet"
           }
         },
-        command = ["fleet", "prepare", "db"]
+        command = ["fleet", "prepare", "--no-prompt=true", "db"]
         secrets = [
           {
             name      = "FLEET_MYSQL_PASSWORD"
@@ -269,11 +295,11 @@ resource "aws_ecs_task_definition" "migration" {
         environment = [
           {
             name  = "FLEET_MYSQL_USERNAME"
-            value = "fleet"
+            value = var.database_user
           },
           {
             name  = "FLEET_MYSQL_DATABASE"
-            value = "fleet"
+            value = var.database_name
           },
           {
             name  = "FLEET_MYSQL_ADDRESS"
@@ -282,15 +308,15 @@ resource "aws_ecs_task_definition" "migration" {
           {
             name  = "FLEET_REDIS_ADDRESS"
             value = "${aws_elasticache_replication_group.default.primary_endpoint_address}:6379"
-          }
+          },
         ]
       }
   ])
 }
 
 resource "aws_appautoscaling_target" "ecs_target" {
-  max_capacity       = 5
-  min_capacity       = 1
+  max_capacity       = var.fleet_max_capacity
+  min_capacity       = var.fleet_min_capacity
   resource_id        = "service/${aws_ecs_cluster.fleet.name}/${aws_ecs_service.fleet.name}"
   scalable_dimension = "ecs:service:DesiredCount"
   service_namespace  = "ecs"
@@ -307,7 +333,7 @@ resource "aws_appautoscaling_policy" "ecs_policy_memory" {
     predefined_metric_specification {
       predefined_metric_type = "ECSServiceAverageMemoryUtilization"
     }
-    target_value = 80
+    target_value = var.memory_tracking_target_value
   }
 }
 
@@ -323,6 +349,14 @@ resource "aws_appautoscaling_policy" "ecs_policy_cpu" {
       predefined_metric_type = "ECSServiceAverageCPUUtilization"
     }
 
-    target_value = 60
+    target_value = var.cpu_tracking_target_value
   }
+}
+
+output "fleet_ecs_cluster_arn" {
+  value = aws_ecs_cluster.fleet.arn
+}
+
+output "fleet_ecs_cluster_id" {
+  value = aws_ecs_cluster.fleet.id
 }

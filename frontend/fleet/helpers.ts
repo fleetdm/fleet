@@ -1,13 +1,22 @@
-import { flatMap, omit, pick, size } from "lodash";
+import { flatMap, omit, pick, size, memoize } from "lodash";
 import md5 from "js-md5";
 import moment from "moment";
 import yaml from "js-yaml";
+
+import { IConfigNested } from "interfaces/config";
+import { ILabel } from "interfaces/label";
+import { IPack } from "interfaces/pack";
+import { ITeam, ITeamSummary } from "interfaces/team";
+import { IUser } from "interfaces/user";
+import { IPackQueryFormData } from "interfaces/scheduled_query";
+
 import stringUtils from "utilities/strings";
-import { ITeam } from "interfaces/team";
+import sortUtils from "utilities/sort";
 import {
   DEFAULT_GRAVATAR_LINK,
   PLATFORM_LABEL_DISPLAY_TYPES,
 } from "utilities/constants";
+import { IScheduledQueryStats } from "interfaces/scheduled_query_stats";
 
 const ORG_INFO_ATTRS = ["org_name", "org_logo_url"];
 const ADMIN_ATTRS = ["email", "name", "password", "password_confirmation"];
@@ -25,7 +34,7 @@ export const addGravatarUrlToResource = (resource: any): any => {
   };
 };
 
-const labelSlug = (label: any): string => {
+const labelSlug = (label: ILabel): string => {
   const { id, name } = label;
 
   if (name === "All Hosts") {
@@ -165,7 +174,7 @@ export const formatConfigDataForServer = (config: any): any => {
 };
 
 // TODO: Finalize interface for config - see frontend\interfaces\config.ts
-export const frontendFormattedConfig = (config: any) => {
+export const frontendFormattedConfig = (config: IConfigNested) => {
   const {
     org_info: orgInfo,
     server_settings: serverSettings,
@@ -173,7 +182,9 @@ export const frontendFormattedConfig = (config: any) => {
     sso_settings: ssoSettings,
     host_expiry_settings: hostExpirySettings,
     webhook_settings: { host_status_webhook: webhookSettings }, // unnested to frontend
+    update_interval: updateInterval,
     license,
+    logging,
   } = config;
 
   if (config.agent_options) {
@@ -187,17 +198,20 @@ export const frontendFormattedConfig = (config: any) => {
     ...ssoSettings,
     ...hostExpirySettings,
     ...webhookSettings,
+    ...updateInterval,
     ...license,
+    ...logging,
     agent_options: config.agent_options,
   };
 };
 
-const formatLabelResponse = (response: any): { [index: string]: any } => {
-  const labels = response.labels.map((label: any) => {
+const formatLabelResponse = (response: any): ILabel[] => {
+  const labels = response.labels.map((label: ILabel) => {
     return {
       ...label,
       slug: labelSlug(label),
       type: PLATFORM_LABEL_DISPLAY_TYPES[label.display_text] || "custom",
+      target_type: "labels",
     };
   });
 
@@ -220,7 +234,9 @@ export const formatSelectedTargetsForApi = (
   return { hosts, labels, teams };
 };
 
-export const formatScheduledQueryForServer = (scheduledQuery: any) => {
+export const formatScheduledQueryForServer = (
+  scheduledQuery: IPackQueryFormData
+) => {
   const {
     interval,
     logging_type: loggingType,
@@ -406,14 +422,14 @@ export const formatTeamScheduledQueryForClient = (scheduledQuery: any): any => {
   return scheduledQuery;
 };
 
-export const formatTeamForClient = (team: any): any => {
+export const formatTeamForClient = (team: ITeam): ITeam => {
   if (team.display_text === undefined) {
     team.display_text = team.name;
   }
   return team;
 };
 
-export const formatPackForClient = (pack: any): any => {
+export const formatPackForClient = (pack: IPack): IPack => {
   pack.host_ids ||= [];
   pack.label_ids ||= [];
   pack.team_ids ||= [];
@@ -520,6 +536,13 @@ export const inMilliseconds = (nanoseconds: number): number => {
   return nanoseconds / NANOSECONDS_PER_MILLISECOND;
 };
 
+export const humanTimeAgo = (dateSince: string): number => {
+  const now = moment();
+  const mDateSince = moment(dateSince);
+
+  return now.diff(mDateSince, "days");
+};
+
 export const humanHostUptime = (uptimeInNanoseconds: number): string => {
   const milliseconds = inMilliseconds(uptimeInNanoseconds);
 
@@ -571,6 +594,35 @@ export const licenseExpirationWarning = (expiration: string): boolean => {
   return moment(moment()).isAfter(expiration);
 };
 
+// IQueryStats became any when adding in IGlobalScheduledQuery and ITeamScheduledQuery
+export const performanceIndicator = (
+  scheduledQueryStats: IScheduledQueryStats
+): string => {
+  if (
+    !scheduledQueryStats.total_executions ||
+    scheduledQueryStats.total_executions === 0 ||
+    scheduledQueryStats.total_executions === null
+  ) {
+    return "Undetermined";
+  }
+
+  if (
+    typeof scheduledQueryStats.user_time_p50 === "number" &&
+    typeof scheduledQueryStats.system_time_p50 === "number"
+  ) {
+    const indicator =
+      scheduledQueryStats.user_time_p50 + scheduledQueryStats.system_time_p50;
+
+    if (indicator < 2000) {
+      return "Minimal";
+    }
+    if (indicator < 4000) {
+      return "Considerable";
+    }
+  }
+  return "Excessive";
+};
+
 export const secondsToHms = (d: number): string => {
   const h = Math.floor(d / 3600);
   const m = Math.floor((d % 3600) / 60);
@@ -598,7 +650,8 @@ export const secondsToDhms = (d: number): string => {
   return dDisplay + hDisplay + mDisplay + sDisplay;
 };
 
-export const syntaxHighlight = (json: JSON): string => {
+// TODO: Type any because ts files missing the following properties from type 'JSON': parse, stringify, [Symbol.toStringTag]
+export const syntaxHighlight = (json: any): string => {
   let jsonStr: string = JSON.stringify(json, undefined, 2);
   jsonStr = jsonStr
     .replace(/&/g, "&amp;")
@@ -624,6 +677,40 @@ export const syntaxHighlight = (json: JSON): string => {
     }
   );
   /* eslint-enable no-useless-escape */
+};
+
+export const getSortedTeamOptions = memoize((teams: ITeam[]) =>
+  teams
+    .map((team) => {
+      return {
+        disabled: false,
+        label: team.name,
+        value: team.id,
+      };
+    })
+    .sort((a, b) => sortUtils.caseInsensitiveAsc(a.label, b.label))
+);
+
+export const getValidatedTeamId = (
+  teams: ITeam[] | ITeamSummary[],
+  teamId: number,
+  currentUser: IUser | null,
+  isOnGlobalTeam: boolean
+): number => {
+  let currentUserTeams: ITeamSummary[] = [];
+  if (isOnGlobalTeam) {
+    currentUserTeams = teams;
+  } else if (currentUser && currentUser.teams) {
+    currentUserTeams = currentUser.teams;
+  }
+
+  const currentUserTeamIds = currentUserTeams.map((t) => t.id);
+  const validatedTeamId =
+    !isNaN(teamId) && teamId > 0 && currentUserTeamIds.includes(teamId)
+      ? teamId
+      : 0;
+
+  return validatedTeamId;
 };
 
 export default {
@@ -655,4 +742,5 @@ export default {
   setupData,
   frontendFormattedConfig,
   syntaxHighlight,
+  getValidatedTeamId,
 };

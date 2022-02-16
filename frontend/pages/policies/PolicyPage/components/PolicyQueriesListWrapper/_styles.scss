@@ -1,0 +1,140 @@
+.policies-queries-list-wrapper {
+  border-collapse: collapse;
+
+  a {
+    color: $core-vibrant-blue;
+    font-size: $x-small;
+    text-decoration: none;
+  }
+
+  &__wrapper {
+    border: 1px solid $ui-fleet-blue-15;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-top: $pad-medium;
+  }
+
+  .table-container {
+    margin-top: $pad-small;
+  }
+
+  .table-container__header {
+    display: none;
+  }
+
+  thead {
+    background-color: $ui-off-white;
+    border-bottom: 1px solid $ui-fleet-blue-15;
+
+    th {
+      font-size: $x-small;
+      font-weight: $bold;
+      text-align: left;
+      padding: $pad-medium $pad-large;
+    }
+
+    .hostname__header {
+      width: 70%;
+    }
+  }
+
+  tbody td img {
+    width: 16px;
+    height: 16px;
+    vertical-align: sub;
+    padding-right: 4px;
+  }
+
+  &__th-pack-name {
+    padding-left: 0;
+    text-align: left;
+  }
+
+  &__select-all {
+    margin-bottom: 0;
+  }
+
+  &__empty-table {
+    text-align: center;
+    font-size: $x-small;
+    color: $core-fleet-black;
+  }
+
+  &__policy-count {
+    color: $core-fleet-black;
+    font-size: $x-small;
+    font-weight: $bold;
+    margin: 0 12px 0 0;
+    display: inline-block;
+  }
+}
+
+.no-policies {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding-top: $pad-xxxlarge;
+
+  a {
+    color: $core-vibrant-blue;
+    font-size: $x-small;
+    text-decoration: none;
+  }
+
+  h1 {
+    font-size: $large;
+    font-weight: $regular;
+    line-height: normal;
+    letter-spacing: normal;
+    color: $core-fleet-black;
+  }
+
+  h2 {
+    font-size: $small;
+    font-weight: $bold;
+    margin: 0 0 $pad-large;
+    line-height: 20px;
+    color: $core-fleet-black;
+  }
+
+  &__inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+
+    h1 {
+      font-size: $small;
+      font-weight: $bold;
+      margin-bottom: $pad-medium;
+    }
+
+    img {
+      width: 322px;
+    }
+
+    p {
+      color: $core-fleet-black;
+      font-weight: $regular;
+      font-size: $x-small;
+      margin: 0;
+      margin-bottom: $pad-large;
+    }
+  }
+
+  &__inner-text {
+    width: 500px;
+    padding: $pad-xxlarge 0;
+  }
+
+  &__bullet-text {
+    width: 455px;
+    text-align: left;
+  }
+}
+
+.no-team-policy {
+  border: 1px solid #e2e4ea;
+  box-sizing: border-box;
+  border-radius: 8px;
+}

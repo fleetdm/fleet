@@ -1,4 +1,10 @@
 .schedule-list-wrapper {
+  a {
+    color: $core-vibrant-blue;
+    font-size: $x-small;
+    text-decoration: none;
+  }
+
   border-collapse: collapse;
 
   &__wrapper {
@@ -18,11 +24,6 @@
       text-align: left;
       padding: $pad-medium $pad-large;
 
-      &:nth-child(1) {
-        border-top-left-radius: 6px;
-        width: 20px;
-      }
-
       &:nth-child(2) {
         width: calc(49% - 20px);
       }
@@ -38,8 +39,10 @@
 
       &:last-child {
         width: 150px;
-        border-top-right-radius: 6px;
         border-left: 0;
+      }
+      .performance__header {
+        width: 20% !important;
       }
     }
   }
@@ -66,13 +69,22 @@
     margin: 0 12px 0 0;
     display: inline-block;
   }
+
+  .queries-table__performance-impact-header {
+    margin-right: $pad-small;
+  }
+
+  .queries-table__performance-impact-tooltip {
+    font-weight: 400;
+  }
 }
 
 .no-schedule {
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-top: $pad-xxxlarge;
+  text-align: center;
+  padding-top: $pad-xxxlarge;
 
   h1 {
     font-size: $large;
@@ -107,7 +119,8 @@
 
   &__inner {
     display: flex;
-    flex-direction: row;
+    flex-direction: column;
+    align-items: center;
 
     h1 {
       font-size: $small;
@@ -116,8 +129,7 @@
     }
 
     img {
-      width: 176px;
-      margin-right: $pad-xlarge;
+      width: 322px;
     }
 
     p {
@@ -136,11 +148,12 @@
   }
 
   &__inner-text {
-    width: 350px;
+    width: 400px;
+    padding: $pad-xxlarge 0;
   }
 
   &__schedule-button {
-    margin-right: $pad-small;
+    margin-right: $pad-medium;
   }
 
   .query-pagination__pager-wrap {
@@ -157,12 +170,11 @@
       font-size: $x-small;
       margin: 0;
     }
-
-    a {
-      color: $core-vibrant-blue;
-      font-weight: $regular;
-      font-size: $x-small;
-      text-decoration: none;
-    }
   }
+}
+
+.no-team-schedule {
+  border: 1px solid #e2e4ea;
+  box-sizing: border-box;
+  border-radius: 8px;
 }

@@ -1,0 +1,12 @@
+{
+  "baseUrl": "https://localhost:8642",
+  "fixturesFolder": false,
+  "experimentalSessionSupport": true,
+  "testFiles": "{all,premium}/**/*.spec.ts",
+  "retries": {
+    "runMode": 1,
+    "openMode": 0
+  },
+  "video": false,
+  "videoUploadOnPasses": false
+}

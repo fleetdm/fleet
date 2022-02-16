@@ -89,14 +89,27 @@ parasails.registerPage('basic-documentation', {
   },
 
   mounted: async function() {
-
     // Algolia DocSearch
     docsearch({
-      apiKey: '8c492befdb9f5b5166253a0f8eeb789d',
+      appId: 'NZXAYZXDGH',
+      apiKey: 'f3c02b646222734376a5e94408d6fead',
       indexName: 'fleetdm',
       inputSelector: (this.isDocsLandingPage ? '#docsearch-query-landing' : '#docsearch-query'),
       debug: false,
+      algoliaOptions: {
+        'facetFilters': ['section:docs']
+      },
     });
+
+    // Handle hashes in urls when coming from an external page.
+    if(window.location.hash){
+      let possibleHashToScrollTo = _.trimLeft(window.location.hash, '#');
+      let hashToScrollTo = document.getElementById(possibleHashToScrollTo);
+      // If the hash matches a header's ID, we'll scroll to that section.
+      if(hashToScrollTo){
+        hashToScrollTo.scrollIntoView();
+      }
+    }
 
     // // Alternative jQuery approach to grab `on this page` links from top of markdown files
     // let subtopics = $('#body-content').find('h1 + ul').children().map((_, el) => el.innerHTML);
@@ -158,6 +171,29 @@ parasails.registerPage('basic-documentation', {
         }
       });
     })();
+
+    // Adding event handlers to the Headings on the page, allowing users to copy links by clicking on the heading.
+    let headingsOnThisPage = $('#body-content').find(':header');
+    for(let key in Object.values(headingsOnThisPage)){
+      let heading = headingsOnThisPage[key];
+      $(heading).click(()=> {
+        // Find the child <a> element
+        let linkToCopy = _.first($(heading).find('a.markdown-link'));
+        // If this heading has already been clicked and still has the copied class we'll just ignore this click
+        if(!$(heading).hasClass('copied')){
+          // If the link's href is missing, we'll copy the current url (and remove any hashes) to the clipboard instead
+          if(linkToCopy) {
+            navigator.clipboard.writeText(linkToCopy.href);
+          } else {
+            navigator.clipboard.writeText(heading.baseURI.split('#')[0]);
+          }
+          // Add the copied class to the header to notify the user that the link has been copied.
+          $(heading).addClass('copied');
+          // Remove the copied class 5 seconds later, so we can notify the user again if they re-cick on this heading
+          setTimeout(()=>{$(heading).removeClass('copied');}, 5000);
+        }
+      });
+    }
 
   },
 

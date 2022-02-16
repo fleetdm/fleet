@@ -4,7 +4,7 @@ import { connect } from "react-redux";
 
 import { hideBackgroundImage } from "redux/nodes/app/actions";
 import { ssoSettings } from "redux/nodes/auth/actions";
-import LoginPage from "pages/LoginPage";
+import LoginPage, { PreviewLoginPage } from "pages/LoginPage";
 
 export class LoginRoutes extends Component {
   static propTypes = {
@@ -12,6 +12,7 @@ export class LoginRoutes extends Component {
     dispatch: PropTypes.func,
     isResetPassPage: PropTypes.bool,
     isForgotPassPage: PropTypes.bool,
+    isPreviewLoginPage: PropTypes.bool,
     pathname: PropTypes.string,
     token: PropTypes.string,
   };
@@ -35,9 +36,14 @@ export class LoginRoutes extends Component {
       children,
       isResetPassPage,
       isForgotPassPage,
+      isPreviewLoginPage,
       pathname,
       token,
     } = this.props;
+
+    if (isPreviewLoginPage) {
+      return <PreviewLoginPage />;
+    }
 
     return (
       <div className="login-routes">
@@ -62,10 +68,12 @@ const mapStateToProps = (state, ownProps) => {
 
   const isForgotPassPage = pathname.endsWith("/login/forgot");
   const isResetPassPage = pathname.endsWith("/login/reset");
+  const isPreviewLoginPage = pathname.endsWith("/previewlogin");
 
   return {
     isForgotPassPage,
     isResetPassPage,
+    isPreviewLoginPage,
     pathname,
     token,
   };

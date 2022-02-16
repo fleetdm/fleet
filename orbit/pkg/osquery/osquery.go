@@ -3,24 +3,32 @@ package osquery
 
 import (
 	"context"
+	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/process"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
-	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
+)
+
+const (
+	extensionSocketName        = "orbit-osquery.em"
+	windowsExtensionSocketPath = `\\.\pipe\orbit-osquery-extension`
 )
 
 // Runner is a specialized runner for osquery. It is designed with Execute and
 // Interrupt functions to be compatible with oklog/run.
 type Runner struct {
-	proc   *process.Process
-	cmd    *exec.Cmd
-	cancel func()
+	proc     *process.Process
+	cmd      *exec.Cmd
+	dataPath string
+	cancel   func()
 }
 
 // NewRunner creates a new osquery runner given the provided functional options.
@@ -37,7 +45,7 @@ func NewRunner(path string, options ...func(*Runner) error) (*Runner, error) {
 	for _, option := range options {
 		err := option(r)
 		if err != nil {
-			return nil, errors.Wrap(err, "apply option")
+			return nil, fmt.Errorf("apply option: %w", err)
 		}
 	}
 
@@ -72,15 +80,25 @@ func WithShell() func(*Runner) error {
 
 func WithDataPath(path string) func(*Runner) error {
 	return func(r *Runner) error {
-		if err := secure.MkdirAll(filepath.Join(path, "logs"), constant.DefaultDirMode); err != nil {
-			return errors.Wrap(err, "initialize osquery data path")
+		r.dataPath = path
+
+		if err := secure.MkdirAll(path, constant.DefaultDirMode); err != nil {
+			return fmt.Errorf("initialize osquery data path: %w", err)
 		}
 
 		r.cmd.Args = append(r.cmd.Args,
 			"--pidfile="+filepath.Join(path, "osquery.pid"),
 			"--database_path="+filepath.Join(path, "osquery.db"),
-			"--extensions_socket="+filepath.Join(path, "osquery.em"),
+			"--extensions_socket="+r.ExtensionSocketPath(),
 		)
+		return nil
+	}
+}
+
+// WithStderr sets the runner's cmd's stderr to the given writer.
+func WithStderr(w io.Writer) func(*Runner) error {
+	return func(r *Runner) error {
+		r.cmd.Stderr = w
 		return nil
 	}
 }
@@ -88,7 +106,7 @@ func WithDataPath(path string) func(*Runner) error {
 func WithLogPath(path string) func(*Runner) error {
 	return func(r *Runner) error {
 		if err := secure.MkdirAll(path, constant.DefaultDirMode); err != nil {
-			return errors.Wrap(err, "initialize osquery log path")
+			return fmt.Errorf("initialize osquery log path: %w", err)
 		}
 
 		r.cmd.Args = append(r.cmd.Args,
@@ -103,17 +121,17 @@ func WithLogPath(path string) func(*Runner) error {
 // process may not be restarted after exit. Instead create a new one with
 // NewRunner.
 func (r *Runner) Execute() error {
-	log.Info().Str("cmd", r.cmd.String()).Msg("run osqueryd")
+	log.Info().Str("cmd", r.cmd.String()).Msg("start osqueryd")
 
 	ctx, cancel := context.WithCancel(context.Background())
 	r.cancel = cancel
 
 	if err := r.proc.Start(); err != nil {
-		return errors.Wrap(err, "start osqueryd")
+		return fmt.Errorf("start osqueryd: %w", err)
 	}
 
 	if err := r.proc.WaitOrKill(ctx, 10*time.Second); err != nil {
-		return errors.Wrap(err, "osqueryd exited with error")
+		return fmt.Errorf("osqueryd exited with error: %w", err)
 	}
 
 	return nil
@@ -121,6 +139,14 @@ func (r *Runner) Execute() error {
 
 // Runner interrupts the running osquery process.
 func (r *Runner) Interrupt(err error) {
-	log.Debug().Msg("interrupt osquery")
+	log.Debug().Err(err).Msg("interrupt osquery")
 	r.cancel()
+}
+
+func (r *Runner) ExtensionSocketPath() string {
+	if runtime.GOOS == "windows" {
+		return windowsExtensionSocketPath
+	}
+
+	return filepath.Join(r.dataPath, extensionSocketName)
 }

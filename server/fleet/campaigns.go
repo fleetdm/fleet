@@ -31,17 +31,6 @@ type DistributedQueryCampaignTarget struct {
 	TargetID                   uint `db:"target_id"`
 }
 
-// DistributedQueryExecutionStatus is the status of a distributed query
-// execution on a single host.
-type DistributedQueryExecutionStatus int
-
-const (
-	ExecutionWaiting DistributedQueryExecutionStatus = iota
-	ExecutionRequested
-	ExecutionSucceeded
-	ExecutionFailed
-)
-
 // DistributedQueryResult is the result returned from the execution of a
 // distributed query on a single host.
 type DistributedQueryResult struct {
@@ -53,4 +42,16 @@ type DistributedQueryResult struct {
 	// that we can't use the error interface here because something
 	// implementing that interface may not (un)marshal properly
 	Error *string `json:"error"`
+}
+
+type QueryResult struct {
+	HostID uint                `json:"host_id"`
+	Rows   []map[string]string `json:"rows"`
+	Error  *string             `json:"error"`
+}
+
+type QueryCampaignResult struct {
+	QueryID uint          `json:"query_id"`
+	Error   *string       `json:"error,omitempty"`
+	Results []QueryResult `json:"results"`
 }

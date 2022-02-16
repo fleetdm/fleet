@@ -4,18 +4,26 @@ import (
 	"io/ioutil"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/dgraph-io/badger/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/sync/errgroup"
 )
+
+func init() {
+	compactionInterval = 100 * time.Millisecond
+}
 
 func TestDatabase(t *testing.T) {
 	t.Parallel()
 
 	tmpDir, err := ioutil.TempDir("", "orbit-test")
 	require.NoError(t, err)
-	defer os.RemoveAll(tmpDir)
+	t.Cleanup(func() {
+		os.RemoveAll(tmpDir)
+	})
 
 	// Open and write
 	db, err := Open(tmpDir)
@@ -52,7 +60,9 @@ func TestCompactionPanic(t *testing.T) {
 
 	tmpDir, err := ioutil.TempDir("", "orbit-test")
 	require.NoError(t, err)
-	defer os.RemoveAll(tmpDir)
+	t.Cleanup(func() {
+		os.RemoveAll(tmpDir)
+	})
 
 	db, err := Open(tmpDir)
 	require.NoError(t, err)
@@ -66,15 +76,20 @@ func TestCompactionRestart(t *testing.T) {
 
 	tmpDir, err := ioutil.TempDir("", "orbit-test")
 	require.NoError(t, err)
-	defer os.RemoveAll(tmpDir)
+	t.Cleanup(func() {
+		os.RemoveAll(tmpDir)
+	})
 
 	db, err := Open(tmpDir)
 	require.NoError(t, err)
-	go func() {
-		require.NoError(t, db.Close())
-	}()
+
+	var g errgroup.Group
+	g.Go(func() error {
+		return db.Close()
+	})
 
 	db.stopBackgroundCompaction()
-
 	assert.NotPanics(t, func() { db.startBackgroundCompaction() })
+
+	require.NoError(t, g.Wait())
 }

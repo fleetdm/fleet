@@ -11,6 +11,7 @@ import { authToken } from "utilities/local";
 
 interface IAppProps {
   children: JSX.Element;
+  location: any; // no type in react-router v3
 }
 
 interface IRootState {
@@ -22,7 +23,7 @@ interface IRootState {
   };
 }
 
-export const AuthenticatedRoutes = ({ children }: IAppProps) => {
+export const AuthenticatedRoutes = ({ children, location }: IAppProps) => {
   const dispatch = useDispatch();
   const { user } = useSelector((state: IRootState) => state.auth);
   const { locationBeforeTransitions } = useSelector(
@@ -63,6 +64,10 @@ export const AuthenticatedRoutes = ({ children }: IAppProps) => {
       return redirectToApiUserOnly();
     }
   }, [user]);
+
+  useDeepEffect(() => {
+    window.scrollTo(0, 0);
+  }, [location]);
 
   if (!user) {
     return false;

@@ -2,11 +2,20 @@ package service
 
 import (
 	"context"
+	"io"
+	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
+	"time"
 
+	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mock"
+	"github.com/fleetdm/fleet/v4/server/ptr"
+	kitlog "github.com/go-kit/kit/log"
+	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -239,4 +248,150 @@ func TestUniversalDecoderQueryAndListPlayNice(t *testing.T) {
 	assert.Equal(t, uint(4), casted.Opts.Page)
 	require.NotNil(t, casted.ID1)
 	assert.Equal(t, uint(444), *casted.ID1)
+}
+
+func TestEndpointer(t *testing.T) {
+
+	r := mux.NewRouter()
+	ds := new(mock.Store)
+	ds.SessionByKeyFunc = func(ctx context.Context, key string) (*fleet.Session, error) {
+		return &fleet.Session{
+			ID:         3,
+			UserID:     42,
+			Key:        key,
+			AccessedAt: time.Now(),
+		}, nil
+	}
+	ds.DestroySessionFunc = func(ctx context.Context, session *fleet.Session) error {
+		return nil
+	}
+	ds.MarkSessionAccessedFunc = func(ctx context.Context, session *fleet.Session) error {
+		return nil
+	}
+	ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
+		return &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}, nil
+	}
+	ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
+		return []*fleet.User{{GlobalRole: ptr.String(fleet.RoleAdmin)}}, nil
+	}
+
+	svc := newTestService(ds, nil, nil)
+
+	fleetAPIOptions := []kithttp.ServerOption{
+		kithttp.ServerBefore(
+			kithttp.PopulateRequestContext, // populate the request context with common fields
+			setRequestsContexts(svc),
+		),
+		kithttp.ServerErrorHandler(&errorHandler{kitlog.NewNopLogger()}),
+		kithttp.ServerErrorEncoder(encodeError),
+		kithttp.ServerAfter(
+			kithttp.SetContentType("application/json; charset=utf-8"),
+			logRequestEnd(kitlog.NewNopLogger()),
+			checkLicenseExpiration(svc),
+		),
+	}
+
+	e := NewUserAuthenticatedEndpointer(svc, fleetAPIOptions, r, "v1", "2021-11")
+	nopHandler := func(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+		if authctx, ok := authz_ctx.FromContext(ctx); ok {
+			authctx.SetChecked()
+		}
+		return "nop", nil
+	}
+	overrideHandler := func(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+		if authctx, ok := authz_ctx.FromContext(ctx); ok {
+			authctx.SetChecked()
+		}
+		return "override", nil
+	}
+
+	// Regular path, no plan to deprecate
+	e.GET("/api/_version_/fleet/path1", nopHandler, struct{}{})
+
+	// New path, we want it only available starting from the specified version
+	e.StartingAtVersion("2021-11").GET("/api/_version_/fleet/newpath", nopHandler, struct{}{})
+
+	// Path that was in v1, but was changed in 2021-11
+	e.EndingAtVersion("v1").GET("/api/_version_/fleet/overriddenpath", nopHandler, struct{}{})
+	e.StartingAtVersion("2021-11").GET("/api/_version_/fleet/overriddenpath", overrideHandler, struct{}{})
+
+	// Path that got deprecated
+	e.EndingAtVersion("v1").GET("/api/_version_/fleet/deprecated", nopHandler, struct{}{})
+	// Path that got deprecated but in the latest version
+	e.EndingAtVersion("2021-11").GET("/api/_version_/fleet/deprecated-soon", nopHandler, struct{}{})
+
+	// Aliasing works with versioning too
+	e.WithAltPaths("/api/_version_/fleet/something/{fff}").GET("/api/_version_/fleet/somethings/{fff}", nopHandler, struct{}{})
+
+	mustMatch := []struct {
+		method     string
+		path       string
+		overridden bool
+	}{
+		{method: "GET", path: "/api/v1/fleet/path1"},
+		{method: "GET", path: "/api/2021-11/fleet/path1"},
+		{method: "GET", path: "/api/latest/fleet/path1"},
+
+		{method: "GET", path: "/api/2021-11/fleet/newpath"},
+		{method: "GET", path: "/api/latest/fleet/newpath"},
+
+		{method: "GET", path: "/api/v1/fleet/deprecated"},
+
+		{method: "GET", path: "/api/v1/fleet/deprecated-soon"},
+		{method: "GET", path: "/api/2021-11/fleet/deprecated-soon"},
+		{method: "GET", path: "/api/latest/fleet/deprecated-soon"},
+
+		{method: "GET", path: "/api/v1/fleet/overriddenpath"},
+		{method: "GET", path: "/api/2021-11/fleet/overriddenpath", overridden: true},
+		{method: "GET", path: "/api/latest/fleet/overriddenpath", overridden: true},
+
+		{method: "GET", path: "/api/v1/fleet/something/aaa"},
+		{method: "GET", path: "/api/2021-11/fleet/something/aaa"},
+		{method: "GET", path: "/api/latest/fleet/something/aaa"},
+		{method: "GET", path: "/api/v1/fleet/somethings/aaa"},
+		{method: "GET", path: "/api/2021-11/fleet/somethings/aaa"},
+		{method: "GET", path: "/api/latest/fleet/somethings/aaa"},
+	}
+
+	mustNotMatch := []struct {
+		method  string
+		path    string
+		handler http.Handler
+	}{
+		{method: "POST", path: "/api/v1/fleet/path1"},
+		{method: "GET", path: "/api/v1/fleet/qwejoqiwejqiowehioqwe"},
+		{method: "GET", path: "/api/v1/qwejoqiwejqiowehioqwe"},
+
+		{method: "GET", path: "/api/v1/fleet/newpath"},
+
+		{method: "GET", path: "/api/2021-11/fleet/deprecated"},
+		{method: "GET", path: "/api/latest/fleet/deprecated"},
+	}
+
+	doesItMatch := func(method, path string, override bool) bool {
+		testURL := url.URL{Path: path}
+		request := http.Request{Method: method, URL: &testURL, Header: map[string][]string{"Authorization": {"Bearer asd"}}, Body: io.NopCloser(strings.NewReader(""))}
+		routeMatch := mux.RouteMatch{}
+
+		res := r.Match(&request, &routeMatch)
+		if routeMatch.Route != nil {
+			rec := httptest.NewRecorder()
+			routeMatch.Handler.ServeHTTP(rec, &request)
+			got := rec.Body.String()
+			if override {
+				require.Equal(t, "\"override\"\n", got)
+			} else {
+				require.Equal(t, "\"nop\"\n", got)
+			}
+		}
+		return res && routeMatch.MatchErr == nil && routeMatch.Route != nil
+	}
+
+	for _, route := range mustMatch {
+		require.True(t, doesItMatch(route.method, route.path, route.overridden), route)
+	}
+
+	for _, route := range mustNotMatch {
+		require.False(t, doesItMatch(route.method, route.path, false), route)
+	}
 }

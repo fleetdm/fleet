@@ -2,10 +2,10 @@ package fleet
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/config"
-	"github.com/pkg/errors"
 )
 
 // SMTP settings names returned from API, these map to SMTPAuthType and
@@ -101,7 +101,7 @@ type VulnerabilitySettings struct {
 	DatabasesPath string `json:"databases_path"`
 }
 
-// AppConfig
+// AppConfig holds server configuration that can be changed via the API.
 type AppConfig struct {
 	OrgInfo            OrgInfo            `json:"org_info"`
 	ServerSettings     ServerSettings     `json:"server_settings"`
@@ -118,6 +118,18 @@ type AppConfig struct {
 	VulnerabilitySettings VulnerabilitySettings `json:"vulnerability_settings"`
 
 	WebhookSettings WebhookSettings `json:"webhook_settings"`
+}
+
+// EnrichedAppConfig contains the AppConfig along with additional fleet
+// instance configuration settings as returned by the
+// "GET /api/v1/fleet/config" API endpoint (and fleetctl get config).
+type EnrichedAppConfig struct {
+	AppConfig
+
+	UpdateInterval  *UpdateIntervalConfig  `json:"update_interval,omitempty"`
+	Vulnerabilities *VulnerabilitiesConfig `json:"vulnerabilities,omitempty"`
+	License         *LicenseInfo           `json:"license,omitempty"`
+	Logging         *Logging               `json:"logging,omitempty"`
 }
 
 type Duration struct {
@@ -152,13 +164,18 @@ func (d *Duration) UnmarshalJSON(b []byte) error {
 		}
 		return nil
 	default:
-		return errors.Errorf("invalid duration type: %T", value)
+		return fmt.Errorf("invalid duration type: %T", value)
 	}
 }
 
 type WebhookSettings struct {
-	HostStatusWebhook HostStatusWebhookSettings `json:"host_status_webhook"`
-	Interval          Duration                  `json:"interval"`
+	HostStatusWebhook      HostStatusWebhookSettings      `json:"host_status_webhook"`
+	FailingPoliciesWebhook FailingPoliciesWebhookSettings `json:"failing_policies_webhook"`
+	VulnerabilitiesWebhook VulnerabilitiesWebhookSettings `json:"vulnerabilities_webhook"`
+	// Interval is the interval for running the webhooks.
+	//
+	// This value currently configures both the host status and failing policies webhooks.
+	Interval Duration `json:"interval"`
 }
 
 type HostStatusWebhookSettings struct {
@@ -168,16 +185,44 @@ type HostStatusWebhookSettings struct {
 	DaysCount      int     `json:"days_count"`
 }
 
+// FailingPoliciesWebhookSettings holds the settings for failing policy webhooks.
+type FailingPoliciesWebhookSettings struct {
+	// Enable indicates whether the webhook for failing policies is enabled.
+	Enable bool `json:"enable_failing_policies_webhook"`
+	// DestinationURL is the webhook's URL.
+	DestinationURL string `json:"destination_url"`
+	// PolicyIDs is a list of policy IDs for which the webhook will be configured.
+	PolicyIDs []uint `json:"policy_ids"`
+	// HostBatchSize allows sending multiple requests in batches of hosts for each policy.
+	// A value of 0 means no batching.
+	HostBatchSize int `json:"host_batch_size"`
+}
+
+// VulnerabilitiesWebhookSettings holds the settings for vulnerabilities webhooks.
+type VulnerabilitiesWebhookSettings struct {
+	// Enable indicates whether the webhook for vulnerabilities is enabled.
+	Enable bool `json:"enable_vulnerabilities_webhook"`
+	// DestinationURL is the webhook's URL.
+	DestinationURL string `json:"destination_url"`
+	// HostBatchSize allows sending multiple requests in batches of hosts for each vulnerable software found.
+	// A value of 0 means no batching.
+	HostBatchSize int `json:"host_batch_size"`
+}
+
 func (c *AppConfig) ApplyDefaultsForNewInstalls() {
 	c.ServerSettings.EnableAnalytics = true
+
 	c.SMTPSettings.SMTPPort = 587
 	c.SMTPSettings.SMTPEnableStartTLS = true
 	c.SMTPSettings.SMTPAuthenticationType = AuthTypeNameUserNamePassword
 	c.SMTPSettings.SMTPAuthenticationMethod = AuthMethodNamePlain
 	c.SMTPSettings.SMTPVerifySSLCerts = true
 	c.SMTPSettings.SMTPEnableTLS = true
+
 	agentOptions := json.RawMessage(`{"config": {"options": {"logger_plugin": "tls", "pack_delimiter": "/", "logger_tls_period": 10, "distributed_plugin": "tls", "disable_distributed": false, "logger_tls_endpoint": "/api/v1/osquery/log", "distributed_interval": 10, "distributed_tls_max_attempts": 3}, "decorators": {"load": ["SELECT uuid AS host_uuid FROM system_info;", "SELECT hostname AS hostname FROM system_info;"]}}, "overrides": {}}`)
 	c.AgentOptions = &agentOptions
+
+	c.HostSettings.EnableSoftwareInventory = true
 
 	c.ApplyDefaults()
 }
@@ -199,6 +244,7 @@ type ServerSettings struct {
 	LiveQueryDisabled bool   `json:"live_query_disabled"`
 	EnableAnalytics   bool   `json:"enable_analytics"`
 	DebugHostIDs      []uint `json:"debug_host_ids,omitempty"`
+	DeferredSaveHost  bool   `json:"deferred_save_host"`
 }
 
 // HostExpirySettings contains settings pertaining to automatic host expiry.
@@ -229,18 +275,22 @@ const (
 // listing objects
 type ListOptions struct {
 	// Which page to return (must be positive integer)
-	Page uint
+	Page uint `query:"page,optional"`
 	// How many results per page (must be positive integer, 0 indicates
 	// unlimited)
-	PerPage uint
-	// Key to use for ordering
-	OrderKey string
+	PerPage uint `query:"per_page,optional"`
+	// Key to use for ordering. Can be a comma separated set of items, eg: host_count,id
+	OrderKey string `query:"order_key,optional"`
 	// Direction of ordering
-	OrderDirection OrderDirection
+	OrderDirection OrderDirection `query:"order_direction,optional"`
 	// MatchQuery is the query string to match against columns of the entity
 	// (varies depending on entity, eg. hostname, IP address for hosts).
 	// Handling for this parameter must be implemented separately for each type.
-	MatchQuery string
+	MatchQuery string `query:"query,optional"`
+
+	// After denotes the row to start from. This is meant to be used in conjunction with OrderKey
+	// If OrderKey is "id", it'll assume After is a number and will try to convert it.
+	After string `query:"after,optional"`
 }
 
 type ListQueryOptions struct {
@@ -322,6 +372,20 @@ type Logging struct {
 
 type UpdateIntervalConfig struct {
 	OSQueryDetail time.Duration `json:"osquery_detail"`
+	OSQueryPolicy time.Duration `json:"osquery_policy"`
+}
+
+// VulnerabilitiesConfig contains the vulnerabilities configuration of the
+// fleet instance (as configured for the cli, either via flags, env vars or the
+// config file), not to be confused with VulnerabilitySettings which is the
+// configuration in AppConfig.
+type VulnerabilitiesConfig struct {
+	DatabasesPath         string        `json:"databases_path"`
+	Periodicity           time.Duration `json:"periodicity"`
+	CPEDatabaseURL        string        `json:"cpe_database_url"`
+	CVEFeedPrefixURL      string        `json:"cve_feed_prefix_url"`
+	CurrentInstanceChecks string        `json:"current_instance_checks"`
+	DisableDataSync       bool          `json:"disable_data_sync"`
 }
 
 type LoggingPlugin struct {
@@ -356,4 +420,11 @@ type LambdaConfig struct {
 	Region         string `json:"region"`
 	StatusFunction string `json:"status_function"`
 	ResultFunction string `json:"result_function"`
+}
+
+// KafkaRESTConfig shadows config.KafkaRESTConfig
+type KafkaRESTConfig struct {
+	StatusTopic string `json:"status_topic"`
+	ResultTopic string `json:"result_topic"`
+	ProxyHost   string `json:"proxyhost"`
 }

@@ -6,7 +6,6 @@ import { Provider } from "react-redux";
 import thunk from "redux-thunk";
 
 import authMiddleware from "redux/middlewares/auth";
-import redirectMiddleware from "redux/middlewares/redirect";
 
 export const fillInFormInput = (inputComponent, value) => {
   return inputComponent
@@ -16,7 +15,7 @@ export const fillInFormInput = (inputComponent, value) => {
 };
 
 export const reduxMockStore = (store = {}) => {
-  const middlewares = [thunk, authMiddleware, redirectMiddleware];
+  const middlewares = [thunk, authMiddleware];
   const mockStore = configureStore(middlewares);
 
   return mockStore(store);

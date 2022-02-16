@@ -21,6 +21,8 @@ class Dropdown extends Component {
     multi: PropTypes.bool,
     name: PropTypes.string,
     onChange: PropTypes.func,
+    onOpen: PropTypes.func,
+    onClose: PropTypes.func,
     options: PropTypes.arrayOf(dropdownOptionInterface).isRequired,
     placeholder: PropTypes.oneOfType([PropTypes.array, PropTypes.string]),
     value: PropTypes.oneOfType([
@@ -29,28 +31,51 @@ class Dropdown extends Component {
       PropTypes.number,
     ]),
     wrapperClassName: PropTypes.string,
+    parseTarget: PropTypes.bool,
   };
 
   static defaultProps = {
     onChange: noop,
+    onOpen: noop,
+    onClose: noop,
     clearable: false,
     searchable: true,
     disabled: false,
     multi: false,
     name: "targets",
     placeholder: "Select One...",
+    parseTarget: false,
+  };
+
+  onMenuOpen = () => {
+    const { onOpen } = this.props;
+    onOpen();
+  };
+
+  onMenuClose = () => {
+    const { onClose } = this.props;
+    onClose();
   };
 
   handleChange = (selected) => {
-    const { multi, onChange, clearable } = this.props;
+    const { multi, onChange, clearable, name, parseTarget } = this.props;
+
+    if (parseTarget) {
+      // Returns both name and value
+      return onChange({ value: selected.value, name });
+    }
 
     if (clearable && selected === null) {
       onChange(null);
-    } else if (multi) {
-      onChange(selected.map((obj) => obj.value).join(","));
-    } else {
-      onChange(selected.value);
+      return;
     }
+
+    if (multi) {
+      onChange(selected.map((obj) => obj.value).join(","));
+      return;
+    }
+
+    onChange(selected.value);
   };
 
   renderLabel = () => {
@@ -84,7 +109,7 @@ class Dropdown extends Component {
   };
 
   render() {
-    const { handleChange, renderOption } = this;
+    const { handleChange, renderOption, onMenuOpen, onMenuClose } = this;
     const {
       error,
       className,
@@ -122,6 +147,8 @@ class Dropdown extends Component {
           optionRenderer={renderOption}
           placeholder={placeholder}
           value={value}
+          onOpen={onMenuOpen}
+          onClose={onMenuClose}
         />
       </FormField>
     );
