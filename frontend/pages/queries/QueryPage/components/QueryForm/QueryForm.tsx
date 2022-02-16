@@ -226,9 +226,11 @@ const QueryForm = ({
                   )
                 );
               })
-              .catch((createError: any) => {
+              .catch((createCopyError: any) => {
                 if (
-                  createError.data.errors[0].reason.includes("already exists")
+                  createCopyError.data.errors[0].reason.includes(
+                    "already exists"
+                  )
                 ) {
                   dispatch(
                     renderFlash(
