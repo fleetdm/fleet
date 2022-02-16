@@ -184,6 +184,16 @@ func (svc Service) DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint
 	if err := svc.authz.Authorize(ctx, &fleet.Policy{}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
+	for _, policy := range policiesByID {
+		if policy.PolicyData.TeamID != nil {
+			return nil, authz.ForbiddenWithInternal(
+				"attempting to delete policy that belongs to team",
+				authz.UserFromContext(ctx),
+				policy,
+				fleet.ActionWrite,
+			)
+		}
+	}
 	if err := svc.removeGlobalPoliciesFromWebhookConfig(ctx, ids); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "removing global policies from webhook config")
 	}

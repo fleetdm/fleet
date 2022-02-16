@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -217,6 +218,16 @@ func (svc Service) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []ui
 		},
 	}, fleet.ActionWrite); err != nil {
 		return nil, err
+	}
+	for _, policy := range policiesByID {
+		if id := policy.PolicyData.TeamID; id == nil || *id != teamID {
+			return nil, authz.ForbiddenWithInternal(
+				fmt.Sprintf("attempting to delete policy that does not belong to team %s", strconv.Itoa(int(teamID))),
+				authz.UserFromContext(ctx),
+				policy,
+				fleet.ActionWrite,
+			)
+		}
 	}
 
 	deletedIDs, err := svc.ds.DeleteTeamPolicies(ctx, teamID, ids)
