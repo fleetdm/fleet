@@ -229,7 +229,7 @@ describe("Hosts flow", () => {
           cy.contains("button", /refetch/i).click();
           cy.findByText(/fetching/i).should("exist");
           cy.contains("button", /refetch/i).should("exist");
-          cy.findByText(/few seconds/i).should("exist");
+          cy.findByText(/less than a minute/i).should("exist");
         });
       }
     );
