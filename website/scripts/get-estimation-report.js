@@ -51,14 +51,15 @@ module.exports = {
 
     // Fetch projects
     let projects = await sails.helpers.http.get(`https://api.github.com/orgs/fleetdm/projects`, {}, baseHeaders);// let projects = [];// « hack if you get rate limited and want to test beta projets
+
     // This nasty little hack mixes in new "beta" projects that are part of Github Projects 2.0 (beta)
     // but makes them look like normal projects from the actually-documented GitHub REST API.
     // > [?] https://docs.github.com/en/enterprise-cloud@latest/issues/trying-out-the-new-projects-experience/using-the-api-to-manage-projects#finding-the-node-id-of-a-field
-    let graphqlProjectsYuck = await sails.helpers.http.post(`https://api.github.com/graphql`,{
+    let graphqlHairball = await sails.helpers.http.post(`https://api.github.com/graphql`,{
       query:'{organization(login: "fleetdm") {projectsNext(first: 20) {nodes {id databaseId title fields(first: 20) {nodes {id name settings}} items(first: 20) {nodes{title id fieldValues(first: 8) {nodes{value projectField{name}}} content{...on Issue {repository{name} labels(first:20) {nodes{name}} assignees(first: 10) {nodes{login}}}}}} }}}}'
     }, baseHeaders);
     projects = projects.concat(
-      graphqlProjectsYuck.data.organization.projectsNext.nodes.map((betaProject) => ({
+      graphqlHairball.data.organization.projectsNext.nodes.map((betaProject) => ({
         _isBetaProject: true,// « we need this because some APIs only work for one kind of project or the other
         _betaProjectColumns: JSON.parse(_.find(betaProject.fields.nodes, {name: 'Status'}).settings).options.map((betaColumn) => ({
           _isBetaColumn: true,
