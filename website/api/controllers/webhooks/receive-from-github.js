@@ -183,10 +183,9 @@ module.exports = {
       if (action === 'edited' && pr.state !== 'open') {// PR edited ‡
         // This is an edit to an already-closed pull request.
         // (Do nothing.)
-      } else if (action === 'reopened') {// PR reopened ‡
-        // This is a closed pull request, being reopened.
-        // (Do nothing.)
-      } else {// PR opened ‡
+      } else {// Either:
+        // PR opened ‡  (Newly opened.)
+        // PR reopened ‡   (This is a closed pull request, being reopened.  `action === 'reopened'`)
 
         let baseHeaders = {
           'User-Agent': 'Fleetie pie',
@@ -221,17 +220,20 @@ module.exports = {
           let changedPaths = _.pluck(await sails.helpers.http.get(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/files`, {
             per_page: 100,//eslint-disable-line camelcase
           }, baseHeaders), 'filename');// (don't worry, it's the whole path, not the filename)
+          sails.log.verbose(`Received notice that a new PR (#${prNumber}) was opened that changes the following paths:`, changedPaths);
 
           isSenderDRIForAllChangedPaths = _.all(changedPaths, (changedPath)=>{
             changedPath = changedPath.replace(/\/+$/,'');// « trim trailing slashes, just in case (b/c otherwise could loop forever)
 
             require('assert')(sender.login !== undefined);
+            sails.log.verbose(`…checking DRI of changed path "${changedPath}"`);
             if (sender.login === DRI_BY_PATH[changedPath]) {
               return true;
             }
             let numRemainingPathsToCheck = changedPath.split('/').length;
             while (numRemainingPathsToCheck > 0) {
               let ancestralPath = changedPath.split('/').slice(0, -1 * numRemainingPathsToCheck).join('/');
+              sails.log.verbose(`…checking DRI of ancestral path "${ancestralPath}" for changed path`);
               if (sender.login === DRI_BY_PATH[ancestralPath]) {
                 return true;
               }
