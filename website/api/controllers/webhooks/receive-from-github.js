@@ -217,7 +217,7 @@ module.exports = {
           };
 
           // [?] https://docs.github.com/en/rest/reference/pulls#list-pull-requests-files
-          let changedPaths = _.pluck(await sails.helpers.http.get(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/files`, {
+          let changedPaths = _.pluck(await sails.helpers.http.get(`https://api.github.com/repos/fleetdm/${repo}/pulls/${prNumber}/files`, {
             per_page: 100,//eslint-disable-line camelcase
           }, baseHeaders), 'filename');// (don't worry, it's the whole path, not the filename)
           sails.log.verbose(`Received notice that a new PR (#${prNumber}) was opened that changes the following paths:`, changedPaths);
