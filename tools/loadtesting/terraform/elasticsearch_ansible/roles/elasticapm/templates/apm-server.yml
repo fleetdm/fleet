@@ -411,7 +411,7 @@ apm-server:
     # `auto`: If an Elasticsearch output is configured with default index and indices settings, and the configured
     # Elasticsearch instance supports ILM, `auto` will resolve to `true`. Otherwise `auto` will resolve to `false`.
     # Default value is `auto`.
-    #enabled: "auto"
+    enabled: "true"
 
     setup:
       # Only disable setup if you want to set up everything related to ILM on your own.
