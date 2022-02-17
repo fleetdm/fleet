@@ -198,8 +198,23 @@ module.exports = {
 
           let isSenderDRIForAllChangedPaths = false;
           let DRI_BY_PATH = {
+            'README.md': 'mike-j-thomas',// (github brandfront)
+            'handbook': 'eashaw',// (default for handbook)
             'handbook/README.md': 'mikermcneil',
-            // TODO: finish this (see handbook/people for list of DRIs)
+            'handbook/company.md': 'mikermcneil',
+            'handbook/people.md': 'eashaw',
+            'handbook/engineering.md': 'zwass',
+            'handbook/product.md': 'noahtalerman',
+            'handbook/security.md': 'guillaumeross',
+            'handbook/brand.md': 'mike-j-thomas',
+            'handbook/customers.md': 'tgauda',
+            'handbook/community.md': 'mike-j-thomas',
+            'handbook/handbook.md': 'mike-j-thomas',
+            'website': 'mikermcneil',// (default for website)
+            'website/views': 'eashaw',
+            'website/assets': 'eashaw',
+            'website/config/routes.js': 'mike-j-thomas',
+            'docs': 'mike-j-thomas',
           };
 
           // [?] https://docs.github.com/en/rest/reference/pulls#list-pull-requests-files
