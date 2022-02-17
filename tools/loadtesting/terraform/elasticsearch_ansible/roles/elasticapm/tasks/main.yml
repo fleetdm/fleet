@@ -16,7 +16,7 @@
     cap_drop:
       - ALL
     volumes:
-      - "/etc/apm-server.docker.yml:/usr/share/apm-server/apm-server.yml:ro"
+      - "/etc/apm-server.yml:/usr/share/apm-server/apm-server.yml:ro"
     network_mode: host
     healthcheck:
       interval: 10s
