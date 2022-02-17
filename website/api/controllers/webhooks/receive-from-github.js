@@ -161,7 +161,7 @@ module.exports = {
 
       let owner = repository.owner.login;
       let repo = repository.name;
-      let issueNumber = issueOrPr.number;
+      let prNumber = issueOrPr.number;
 
       // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
       // Want to do more?
@@ -188,16 +188,55 @@ module.exports = {
         // (Do nothing.)
       } else {// PR opened ‡
 
-        // TODO: the thing mike and guillaume talked about
-        //   i.e. for markdown content (docs/handbook pages) and fleetdm.com
-        //      look at the highest level path of all the files changed and if it's within an area that the contributor is DRI of, then automatically do an approved PR review
-        //      (hard code it here)
+        let baseHeaders = {
+          'User-Agent': 'Fleetie pie',
+          'Authorization': `token ${sails.config.custom.githubAccessToken}`
+        };
 
-        // Docs: https://docs.github.com/en/rest/reference/pulls#create-a-review-for-a-pull-request
+        // Check whether auto-approval is warranted.
+        let isAutoApproved = await sails.helpers.flow.build(async()=>{
 
+          let isSenderDRIForAllChangedPaths = false;
+          let DRI_BY_PATH = {
+            'handbook/README.md': 'mikermcneil',
+            // TODO: finish this (see handbook/people for list of DRIs)
+          };
+
+          // [?] https://docs.github.com/en/rest/reference/pulls#list-pull-requests-files
+          let changedPaths = _.pluck(await sails.helpers.http.get(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/files`, {
+            per_page: 100,//eslint-disable-line camelcase
+          }, baseHeaders), 'filename');// (don't worry, it's the whole path, not the filename)
+
+          isSenderDRIForAllChangedPaths = _.all(changedPaths, (changedPath)=>{
+            changedPath = changedPath.replace(/\/+$/,'');// « trim trailing slashes, just in case (b/c otherwise could loop forever)
+            if (sender.login === DRI_BY_PATH[changedPath]) {
+              return true;
+            }
+            let numRemainingPathsToCheck = changedPath.split('/').length;
+            while (numRemainingPathsToCheck > 0) {
+              let ancestralPath = changedPath.split('/').slice(0, -1 * numRemainingPathsToCheck).join('/');
+              if (sender.login === DRI_BY_PATH[ancestralPath]) {
+                return true;
+              }
+              numRemainingPathsToCheck--;
+            }//∞
+          });//∞
+
+          if (isSenderDRIForAllChangedPaths && changedPaths.length < 100) {
+            return true;
+          } else {
+            return false;
+          }
+        });
+
+        // Now, if appropriate, auto-approve the PR.
+        if (isAutoApproved) {
+          // [?] https://docs.github.com/en/rest/reference/pulls#create-a-review-for-a-pull-request
+          await sails.helpers.http.post(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/reviews`, {
+            event: 'APPROVE'
+          }, baseHeaders);
+        }
       }
-
-
     } else if (ghNoun === 'issue_comment' && ['created'].includes(action) && (issueOrPr&&issueOrPr.state === 'open')) {
       //   ██████╗ ██████╗ ███╗   ███╗███╗   ███╗███████╗███╗   ██╗████████╗
       //  ██╔════╝██╔═══██╗████╗ ████║████╗ ████║██╔════╝████╗  ██║╚══██╔══╝
