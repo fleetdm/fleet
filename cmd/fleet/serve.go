@@ -284,6 +284,8 @@ the way that the Fleet server works.
 				ConnWaitTimeout:           config.Redis.ConnWaitTimeout,
 				WriteTimeout:              config.Redis.WriteTimeout,
 				ReadTimeout:               config.Redis.ReadTimeout,
+				TracingEnabled:            config.Logging.TracingEnabled,
+				TracingType:               config.Logging.TracingType,
 			})
 			if err != nil {
 				initFatal(err, "initialize Redis")

@@ -13,7 +13,6 @@ import (
 	"github.com/gomodule/redigo/redis"
 	"github.com/mna/redisc"
 	"go.elastic.co/apm/module/apmredigo"
-	"github.com/spf13/cobra"
 )
 
 // this is an adapter type to implement the same Stats method as for
@@ -67,6 +66,8 @@ type PoolConfig struct {
 	TLSSkipVerify             bool
 	WriteTimeout              time.Duration
 	ReadTimeout               time.Duration
+	TracingEnabled            bool
+	TracingType               string
 
 	// allows for testing dial retries and other dial-related scenarios
 	testRedisDialFunc func(net, addr string, opts ...redis.DialOption) (redis.Conn, error)
@@ -324,23 +325,7 @@ func newCluster(conf PoolConfig) (*redisc.Cluster, error) {
 					}
 
 					// If APM Enabled, wrap the conn
-					// rootCmd represents the base command when called without any subcommands
-					rootCmd := &cobra.Command{
-						Use:   "fleet",
-						Short: "osquery management and orchestration",
-						Long: `Fleet server (https://fleetdm.com)
-
-Configurable Options:
-
-Options may be supplied in a yaml configuration file or via environment
-variables. You only need to define the configuration values for which you
-wish to override the default value.
-`,
-					}
-					rootCmd.PersistentFlags().StringP("config", "c", "", "Path to a configuration file")
-					configManager := config.NewManager(rootCmd)
-					newconfig := configManager.LoadConfig()
-					if newconfig.Logging.TracingEnabled && newconfig.Logging.TracingType == "elasticapm" {
+					if conf.TracingEnabled && conf.TracingType == "elasticapm" {
 						return apmredigo.Wrap(conn), nil
 					}
 
