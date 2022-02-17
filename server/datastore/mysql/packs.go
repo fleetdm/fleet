@@ -93,7 +93,6 @@ func applyPackSpecDB(ctx context.Context, tx sqlx.ExtContext, spec *fleet.PackSp
 		return ctxerr.Wrap(ctx, err, "delete existing targets")
 	}
 
-	// Insert labels
 	query = `
 		INSERT INTO pack_targets (pack_id, type, target_id)
 		VALUES (?, ?, (SELECT id FROM labels WHERE name = ?))
@@ -104,7 +103,6 @@ func applyPackSpecDB(ctx context.Context, tx sqlx.ExtContext, spec *fleet.PackSp
 		}
 	}
 
-	// Insert teams
 	query = `
 		INSERT INTO pack_targets (pack_id, type, target_id)
 		VALUES (?, ?, (SELECT id FROM teams WHERE name = ?))
