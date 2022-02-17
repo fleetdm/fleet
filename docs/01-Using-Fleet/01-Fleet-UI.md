@@ -18,7 +18,7 @@ When you edit a pack, you can decide which targets you would like to execute the
 
 To add queries to a pack, click on "Add query +" from the edit pack page, and select an existing query from the dropdown. From the add query modal you can also define the following options:
 
-- interval: how often should the query be executed?
+- Frequency (seconds): how often should the query be executed?
 - logging: which osquery logging format would you like to use?
 - platform: which operating system platforms should execute this query?
 - minimum osquery version: if the table was introduced in a newer version of osquery, you may want to ensure that only sufficiently recent version of osquery execute the query.
