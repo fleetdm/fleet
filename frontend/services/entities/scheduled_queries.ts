@@ -1,6 +1,5 @@
 /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
 import sendRequest from "services";
-import { omit } from "lodash";
 
 import endpoints from "fleet/endpoints";
 import {

@@ -4104,6 +4104,10 @@ Returns a list of the activities that have been performed in Fleet. The followin
 - Edited pack
 - Deleted pack
 - Applied pack with fleetctl
+- Created policy
+- Edited policy
+- Deleted policy
+- Applied policy with fleetctl
 - Created saved query
 - Edited saved query
 - Deleted saved query

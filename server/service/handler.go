@@ -19,6 +19,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/throttled/throttled/v2"
+	otmiddleware "go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux"
 )
 
 // FleetEndpoints is a collection of RPC endpoints implemented by the Fleet API.
@@ -29,9 +30,6 @@ type FleetEndpoints struct {
 	ResetPassword                 endpoint.Endpoint
 	CreateUserWithInvite          endpoint.Endpoint
 	PerformRequiredPasswordReset  endpoint.Endpoint
-	CreateInvite                  endpoint.Endpoint
-	ListInvites                   endpoint.Endpoint
-	DeleteInvite                  endpoint.Endpoint
 	VerifyInvite                  endpoint.Endpoint
 	EnrollAgent                   endpoint.Endpoint
 	GetClientConfig               endpoint.Endpoint
@@ -40,13 +38,9 @@ type FleetEndpoints struct {
 	SubmitLogs                    endpoint.Endpoint
 	CarveBegin                    endpoint.Endpoint
 	CarveBlock                    endpoint.Endpoint
-	SearchTargets                 endpoint.Endpoint
-	ChangeEmail                   endpoint.Endpoint
 	InitiateSSO                   endpoint.Endpoint
 	CallbackSSO                   endpoint.Endpoint
 	SSOSettings                   endpoint.Endpoint
-	StatusResultStore             endpoint.Endpoint
-	StatusLiveQuery               endpoint.Endpoint
 }
 
 // MakeFleetServerEndpoints creates the Fleet API endpoints.
@@ -74,18 +68,6 @@ func MakeFleetServerEndpoints(svc fleet.Service, urlPrefix string, limitStore th
 		// logged in user
 		PerformRequiredPasswordReset: logged(canPerformPasswordReset(makePerformRequiredPasswordResetEndpoint(svc))),
 
-		// Standard user authentication routes
-		CreateInvite: authenticatedUser(svc, makeCreateInviteEndpoint(svc)),
-		ListInvites:  authenticatedUser(svc, makeListInvitesEndpoint(svc)),
-		DeleteInvite: authenticatedUser(svc, makeDeleteInviteEndpoint(svc)),
-
-		SearchTargets: authenticatedUser(svc, makeSearchTargetsEndpoint(svc)),
-		ChangeEmail:   authenticatedUser(svc, makeChangeEmailEndpoint(svc)),
-
-		// Authenticated status endpoints
-		StatusResultStore: authenticatedUser(svc, makeStatusResultStoreEndpoint(svc)),
-		StatusLiveQuery:   authenticatedUser(svc, makeStatusLiveQueryEndpoint(svc)),
-
 		// Osquery endpoints
 		EnrollAgent: logged(makeEnrollAgentEndpoint(svc)),
 		// Authenticated osquery endpoints
@@ -108,9 +90,6 @@ type fleetHandlers struct {
 	ResetPassword                 http.Handler
 	CreateUserWithInvite          http.Handler
 	PerformRequiredPasswordReset  http.Handler
-	CreateInvite                  http.Handler
-	ListInvites                   http.Handler
-	DeleteInvite                  http.Handler
 	VerifyInvite                  http.Handler
 	EnrollAgent                   http.Handler
 	GetClientConfig               http.Handler
@@ -119,13 +98,9 @@ type fleetHandlers struct {
 	SubmitLogs                    http.Handler
 	CarveBegin                    http.Handler
 	CarveBlock                    http.Handler
-	SearchTargets                 http.Handler
-	ChangeEmail                   http.Handler
 	InitiateSSO                   http.Handler
 	CallbackSSO                   http.Handler
 	SettingsSSO                   http.Handler
-	StatusResultStore             http.Handler
-	StatusLiveQuery               http.Handler
 }
 
 func makeKitHandlers(e FleetEndpoints, opts []kithttp.ServerOption) *fleetHandlers {
@@ -140,9 +115,6 @@ func makeKitHandlers(e FleetEndpoints, opts []kithttp.ServerOption) *fleetHandle
 		ResetPassword:                 newServer(e.ResetPassword, decodeResetPasswordRequest),
 		CreateUserWithInvite:          newServer(e.CreateUserWithInvite, decodeCreateUserRequest),
 		PerformRequiredPasswordReset:  newServer(e.PerformRequiredPasswordReset, decodePerformRequiredPasswordResetRequest),
-		CreateInvite:                  newServer(e.CreateInvite, decodeCreateInviteRequest),
-		ListInvites:                   newServer(e.ListInvites, decodeListInvitesRequest),
-		DeleteInvite:                  newServer(e.DeleteInvite, decodeDeleteInviteRequest),
 		VerifyInvite:                  newServer(e.VerifyInvite, decodeVerifyInviteRequest),
 		EnrollAgent:                   newServer(e.EnrollAgent, decodeEnrollAgentRequest),
 		GetClientConfig:               newServer(e.GetClientConfig, decodeGetClientConfigRequest),
@@ -151,13 +123,9 @@ func makeKitHandlers(e FleetEndpoints, opts []kithttp.ServerOption) *fleetHandle
 		SubmitLogs:                    newServer(e.SubmitLogs, decodeSubmitLogsRequest),
 		CarveBegin:                    newServer(e.CarveBegin, decodeCarveBeginRequest),
 		CarveBlock:                    newServer(e.CarveBlock, decodeCarveBlockRequest),
-		SearchTargets:                 newServer(e.SearchTargets, decodeSearchTargetsRequest),
-		ChangeEmail:                   newServer(e.ChangeEmail, decodeChangeEmailRequest),
 		InitiateSSO:                   newServer(e.InitiateSSO, decodeInitiateSSORequest),
 		CallbackSSO:                   newServer(e.CallbackSSO, decodeCallbackSSORequest),
 		SettingsSSO:                   newServer(e.SSOSettings, decodeNoParamsRequest),
-		StatusResultStore:             newServer(e.StatusResultStore, decodeNoParamsRequest),
-		StatusLiveQuery:               newServer(e.StatusLiveQuery, decodeNoParamsRequest),
 	}
 }
 
@@ -233,6 +201,9 @@ func MakeHandler(svc fleet.Service, config config.FleetConfig, logger kitlog.Log
 	fleetHandlers := makeKitHandlers(fleetEndpoints, fleetAPIOptions)
 
 	r := mux.NewRouter()
+	if config.Logging.TracingEnabled && config.Logging.TracingType == "opentelemetry" {
+		r.Use(otmiddleware.Middleware("fleet"))
+	}
 
 	attachFleetAPIRoutes(r, fleetHandlers)
 	attachNewStyleFleetAPIRoutes(r, svc, fleetAPIOptions)
@@ -336,21 +307,8 @@ func attachFleetAPIRoutes(r *mux.Router, h *fleetHandlers) {
 	r.Handle("/api/v1/fleet/sso", h.InitiateSSO).Methods("POST").Name("intiate_sso")
 	r.Handle("/api/v1/fleet/sso", h.SettingsSSO).Methods("GET").Name("sso_config")
 	r.Handle("/api/v1/fleet/sso/callback", h.CallbackSSO).Methods("POST").Name("callback_sso")
-
 	r.Handle("/api/v1/fleet/users", h.CreateUserWithInvite).Methods("POST").Name("create_user_with_invite")
-
-	r.Handle("/api/v1/fleet/invites", h.CreateInvite).Methods("POST").Name("create_invite")
-	r.Handle("/api/v1/fleet/invites", h.ListInvites).Methods("GET").Name("list_invites")
-	r.Handle("/api/v1/fleet/invites/{id:[0-9]+}", h.DeleteInvite).Methods("DELETE").Name("delete_invite")
 	r.Handle("/api/v1/fleet/invites/{token}", h.VerifyInvite).Methods("GET").Name("verify_invite")
-
-	r.Handle("/api/v1/fleet/email/change/{token}", h.ChangeEmail).Methods("GET").Name("change_email")
-
-	r.Handle("/api/v1/fleet/targets", h.SearchTargets).Methods("POST").Name("search_targets")
-
-	r.Handle("/api/v1/fleet/status/result_store", h.StatusResultStore).Methods("GET").Name("status_result_store")
-	r.Handle("/api/v1/fleet/status/live_query", h.StatusLiveQuery).Methods("GET").Name("status_live_query")
-
 	r.Handle("/api/v1/osquery/enroll", h.EnrollAgent).Methods("POST").Name("enroll_agent")
 	r.Handle("/api/v1/osquery/config", h.GetClientConfig).Methods("POST").Name("get_client_config")
 	r.Handle("/api/v1/osquery/distributed/read", h.GetDistributedQueries).Methods("POST").Name("get_distributed_queries")
@@ -404,6 +362,14 @@ func attachNewStyleFleetAPIRoutes(r *mux.Router, svc fleet.Service, opts []kitht
 	e.GET("/api/_version_/fleet/users/{id:[0-9]+}/sessions", getInfoAboutSessionsForUserEndpoint, getInfoAboutSessionsForUserRequest{})
 	e.DELETE("/api/_version_/fleet/users/{id:[0-9]+}/sessions", deleteSessionsForUserEndpoint, deleteSessionsForUserRequest{})
 	e.POST("/api/_version_/fleet/change_password", changePasswordEndpoint, changePasswordRequest{})
+
+	e.GET("/api/_version_/fleet/email/change/{token}", changeEmailEndpoint, changeEmailRequest{})
+	e.POST("/api/_version_/fleet/targets", searchTargetsEndpoint, searchTargetsRequest{})
+
+	e.POST("/api/_version_/fleet/invites", createInviteEndpoint, createInviteRequest{})
+	e.GET("/api/_version_/fleet/invites", listInvitesEndpoint, listInvitesRequest{})
+	e.DELETE("/api/_version_/fleet/invites/{id:[0-9]+}", deleteInviteEndpoint, deleteInviteRequest{})
+	e.PATCH("/api/_version_/fleet/invites/{id:[0-9]+}", updateInviteEndpoint, updateInviteRequest{})
 
 	e.POST("/api/_version_/fleet/global/policies", globalPolicyEndpoint, globalPolicyRequest{})
 	e.GET("/api/_version_/fleet/global/policies", listGlobalPoliciesEndpoint, nil)
@@ -476,8 +442,6 @@ func attachNewStyleFleetAPIRoutes(r *mux.Router, svc fleet.Service, opts []kitht
 	e.POST("/api/_version_/fleet/queries/run", createDistributedQueryCampaignEndpoint, createDistributedQueryCampaignRequest{})
 	e.POST("/api/_version_/fleet/queries/run_by_names", createDistributedQueryCampaignByNamesEndpoint, createDistributedQueryCampaignByNamesRequest{})
 
-	e.PATCH("/api/_version_/fleet/invites/{id:[0-9]+}", updateInviteEndpoint, updateInviteRequest{})
-
 	e.GET("/api/_version_/fleet/activities", listActivitiesEndpoint, listActivitiesRequest{})
 
 	e.GET("/api/_version_/fleet/global/schedule", getGlobalScheduleEndpoint, getGlobalScheduleRequest{})
@@ -491,6 +455,9 @@ func attachNewStyleFleetAPIRoutes(r *mux.Router, svc fleet.Service, opts []kitht
 
 	e.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/macadmins", getMacadminsDataEndpoint, getMacadminsDataRequest{})
 	e.GET("/api/_version_/fleet/macadmins", getAggregatedMacadminsDataEndpoint, getAggregatedMacadminsDataRequest{})
+
+	e.GET("/api/_version_/fleet/status/result_store", statusResultStoreEndpoint, nil)
+	e.GET("/api/_version_/fleet/status/live_query", statusLiveQueryEndpoint, nil)
 }
 
 // TODO: this duplicates the one in makeKitHandler

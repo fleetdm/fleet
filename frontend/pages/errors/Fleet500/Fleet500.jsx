@@ -18,7 +18,6 @@ const baseClass = "fleet-500";
 
 class Fleet500 extends Component {
   static propTypes = {
-    errors: errorsInterface,
     dispatch: PropTypes.func,
   };
 

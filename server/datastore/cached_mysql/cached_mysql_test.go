@@ -3,6 +3,7 @@ package cached_mysql
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"testing"
 	"time"
 
@@ -12,6 +13,64 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestClone(t *testing.T) {
+	tests := []struct {
+		name string
+		src  interface{}
+		want interface{}
+	}{
+		{
+			name: "string",
+			src:  "foo",
+			want: "foo",
+		},
+		{
+			name: "struct",
+			src: fleet.AppConfig{
+				ServerSettings: fleet.ServerSettings{
+					EnableAnalytics: true,
+				},
+			},
+			want: fleet.AppConfig{
+				ServerSettings: fleet.ServerSettings{
+					EnableAnalytics: true,
+				},
+			},
+		},
+		{
+			name: "pointer to struct",
+			src: &fleet.AppConfig{
+				ServerSettings: fleet.ServerSettings{
+					EnableAnalytics: true,
+				},
+			},
+			want: &fleet.AppConfig{
+				ServerSettings: fleet.ServerSettings{
+					EnableAnalytics: true,
+				},
+			},
+		},
+		{
+			name: "slice",
+			src:  []string{"foo", "bar"},
+			want: []string{"foo", "bar"},
+		},
+		{
+			name: "pointer to slice",
+			src:  &[]string{"foo", "bar"},
+			want: &[]string{"foo", "bar"},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			clone, err := clone(tc.src)
+			require.NoError(t, err)
+			assert.Equal(t, tc.want, clone)
+		})
+	}
+}
 
 func TestCachedAppConfig(t *testing.T) {
 	t.Parallel()
@@ -92,7 +151,7 @@ func TestCachedPacksforHost(t *testing.T) {
 	t.Parallel()
 
 	mockedDS := new(mock.Store)
-	ds := New(mockedDS, WithPacksExpiration(1*time.Second))
+	ds := New(mockedDS, WithPacksExpiration(100*time.Millisecond))
 
 	dbPacks := []*fleet.Pack{
 		{
@@ -131,7 +190,7 @@ func TestCachedPacksforHost(t *testing.T) {
 	require.Equal(t, packs, packs2) // returns the old cached value
 	require.Equal(t, 1, called)
 
-	time.Sleep(2 * time.Second)
+	time.Sleep(200 * time.Millisecond)
 
 	packs3, err := ds.ListPacksForHost(context.Background(), 1)
 	require.NoError(t, err)
@@ -143,7 +202,7 @@ func TestCachedListScheduledQueriesInPack(t *testing.T) {
 	t.Parallel()
 
 	mockedDS := new(mock.Store)
-	ds := New(mockedDS, WithScheduledQueriesExpiration(1*time.Second))
+	ds := New(mockedDS, WithScheduledQueriesExpiration(100*time.Millisecond))
 
 	dbScheduledQueries := []*fleet.ScheduledQuery{
 		{
@@ -178,10 +237,92 @@ func TestCachedListScheduledQueriesInPack(t *testing.T) {
 	require.Equal(t, scheduledQueries, scheduledQueries2) // returns the new db entry
 	require.Equal(t, 1, called)
 
-	time.Sleep(2 * time.Second)
+	time.Sleep(200 * time.Millisecond)
 
 	scheduledQueries3, err := ds.ListScheduledQueriesInPack(context.Background(), 1)
 	require.NoError(t, err)
 	require.Equal(t, dbScheduledQueries, scheduledQueries3) // returns the new db entry
 	require.Equal(t, 2, called)
+}
+
+func TestCachedTeamAgentOptions(t *testing.T) {
+	t.Parallel()
+
+	mockedDS := new(mock.Store)
+	ds := New(mockedDS, WithTeamAgentOptionsExpiration(100*time.Millisecond))
+
+	testOptions := json.RawMessage(`
+{
+  "config": {
+    "options": {
+      "logger_plugin": "tls",
+      "pack_delimiter": "/",
+      "logger_tls_period": 10,
+      "distributed_plugin": "tls",
+      "disable_distributed": false,
+      "logger_tls_endpoint": "/api/v1/osquery/log",
+      "distributed_interval": 10,
+      "distributed_tls_max_attempts": 3
+    },
+    "decorators": {
+      "load": [
+        "SELECT uuid AS host_uuid FROM system_info;",
+        "SELECT hostname AS hostname FROM system_info;"
+      ]
+    }
+  },
+  "overrides": {}
+}
+`)
+
+	testTeam := &fleet.Team{
+		ID:           1,
+		CreatedAt:    time.Now(),
+		Name:         "test",
+		AgentOptions: &testOptions,
+	}
+
+	deleted := false
+	mockedDS.TeamAgentOptionsFunc = func(ctx context.Context, teamID uint) (*json.RawMessage, error) {
+		if deleted {
+			return nil, errors.New("not found")
+		}
+		return &testOptions, nil
+	}
+	mockedDS.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
+		return team, nil
+	}
+	mockedDS.DeleteTeamFunc = func(ctx context.Context, teamID uint) error {
+		deleted = true
+		return nil
+	}
+
+	options, err := ds.TeamAgentOptions(context.Background(), 1)
+	require.NoError(t, err)
+	require.JSONEq(t, string(testOptions), string(*options))
+
+	// saving a team updates agent options in cache
+	updateOptions := json.RawMessage(`
+{}
+`)
+	updateTeam := &fleet.Team{
+		ID:           testTeam.ID,
+		CreatedAt:    testTeam.CreatedAt,
+		Name:         testTeam.Name,
+		AgentOptions: &updateOptions,
+	}
+
+	_, err = ds.SaveTeam(context.Background(), updateTeam)
+	require.NoError(t, err)
+
+	options, err = ds.TeamAgentOptions(context.Background(), testTeam.ID)
+	require.NoError(t, err)
+	require.JSONEq(t, string(updateOptions), string(*options))
+
+	// deleting a team removes the agent options from the cache
+	err = ds.DeleteTeam(context.Background(), testTeam.ID)
+	require.NoError(t, err)
+
+	_, err = ds.TeamAgentOptions(context.Background(), testTeam.ID)
+	require.Error(t, err)
 }

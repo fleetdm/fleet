@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { find, isEmpty, lowerCase } from "lodash";
-import moment from "moment";
+import { formatDistanceToNow } from "date-fns";
 
 // @ts-ignore
 // import Fleet from "fleet";
@@ -137,7 +137,9 @@ const ActivityFeed = ({
             <b>{activity.actor_full_name}</b> {getDetail(activity)}.
           </p>
           <span className={`${baseClass}__details-bottomline`}>
-            {moment(activity.created_at).fromNow()}
+            {formatDistanceToNow(new Date(activity.created_at), {
+              addSuffix: true,
+            })}
           </span>
         </div>
       </div>

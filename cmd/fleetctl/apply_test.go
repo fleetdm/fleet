@@ -167,11 +167,11 @@ spec:
       - secret: AAA
 `)
 
-	newAgentOpts := json.RawMessage("{\"config\":{\"something\":\"else\"}}")
+	newAgentOpts := json.RawMessage(`{"config":{"something":"else"}}`)
 
 	require.Equal(t, "[+] applied 2 teams\n", runAppForTest(t, []string{"apply", "-f", tmpFile.Name()}))
-	assert.Equal(t, &agentOpts, teamsByName["team2"].AgentOptions)
-	assert.Equal(t, &newAgentOpts, teamsByName["team1"].AgentOptions)
+	assert.JSONEq(t, string(agentOpts), string(*teamsByName["team2"].AgentOptions))
+	assert.JSONEq(t, string(newAgentOpts), string(*teamsByName["team1"].AgentOptions))
 	assert.Equal(t, []*fleet.EnrollSecret{{Secret: "AAA"}}, enrolledSecretsCalled[uint(42)])
 }
 
@@ -287,6 +287,9 @@ func TestApplyPolicies(t *testing.T) {
 			return &fleet.Team{ID: 123}, nil
 		}
 		return nil, fmt.Errorf("unexpected team name!")
+	}
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {
+		return nil
 	}
 
 	name := writeTmpYml(t, `---

@@ -16,6 +16,7 @@ import (
 
 	"github.com/VividCortex/mysqlerr"
 	"github.com/WatchBeam/clock"
+	"github.com/XSAM/otelsql"
 	"github.com/cenkalti/backoff/v4"
 	"github.com/doug-martin/goqu/v9"
 	"github.com/doug-martin/goqu/v9/exp"
@@ -31,6 +32,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/jmoiron/sqlx"
 	"github.com/ngrok/sqlmw"
+	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 )
 
 const (
@@ -283,8 +285,25 @@ func (ds *Datastore) writeChanLoop() {
 	}
 }
 
+var otelTracedDriverName string
+
+func init() {
+	var err error
+	otelTracedDriverName, err = otelsql.Register("mysql", semconv.DBSystemMySQL.Value.AsString())
+	if err != nil {
+		panic(err)
+	}
+}
+
 func newDB(conf *config.MysqlConfig, opts *dbOptions) (*sqlx.DB, error) {
 	driverName := "mysql"
+	if opts.tracingConfig != nil && opts.tracingConfig.TracingEnabled {
+		if opts.tracingConfig.TracingType == "opentelemetry" {
+			driverName = otelTracedDriverName
+		} else {
+			driverName = "apm/mysql"
+		}
+	}
 	if opts.interceptor != nil {
 		driverName = "mysql-mw"
 		sql.Register(driverName, sqlmw.Driver(mysql.MySQLDriver{}, opts.interceptor))

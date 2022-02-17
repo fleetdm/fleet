@@ -17,17 +17,8 @@ describe("Premium tier - Admin user", () => {
     beforeEach(() =>
       cy.loginWithCySession("anna@organization.com", "user123#")
     );
-    describe("Dashboard and navigation", () => {
+    describe("Navigation", () => {
       beforeEach(() => cy.visit("/dashboard"));
-      it("displays intended global admin dashboard", () => {
-        cy.getAttached(".homepage__wrapper").within(() => {
-          cy.findByText(/all teams/i).should("exist");
-          cy.getAttached(".hosts-summary").should("exist");
-          cy.getAttached(".hosts-status").should("exist");
-          cy.getAttached(".home-software").should("exist");
-          cy.getAttached(".activity-feed").should("exist");
-        });
-      });
       it("displays intended global admin top navigation", () => {
         cy.getAttached(".site-nav-container").within(() => {
           cy.findByText(/hosts/i).should("exist");
@@ -50,6 +41,102 @@ describe("Premium tier - Admin user", () => {
         });
       });
     });
+    describe("Dashboard", () => {
+      beforeEach(() => cy.visit("/dashboard"));
+      it("displays cards for all platforms", () => {
+        cy.getAttached(".homepage__wrapper").within(() => {
+          cy.findByText(/all teams/i).should("exist");
+          cy.getAttached(".hosts-summary").should("exist");
+          cy.getAttached(".hosts-status").should("exist");
+          cy.getAttached(".home-software").should("exist");
+          cy.getAttached(".activity-feed").should("exist");
+        });
+      });
+      it("displays cards for windows only", () => {
+        cy.getAttached(".homepage__platforms").within(() => {
+          cy.getAttached(".Select-control").click();
+          cy.findByText(/windows/i).click();
+        });
+        cy.getAttached(".homepage__wrapper").within(() => {
+          cy.findByText(/all teams/i).should("exist");
+          cy.getAttached(".hosts-summary").should("exist");
+          cy.getAttached(".hosts-status").should("exist");
+          // "get" because we expect it not to exist
+          cy.get(".home-software").should("not.exist");
+          cy.get(".activity-feed").should("not.exist");
+        });
+      });
+      it("displays cards for linux only", () => {
+        cy.getAttached(".homepage__platforms").within(() => {
+          cy.getAttached(".Select-control").click();
+          cy.findByText(/linux/i).click();
+        });
+        cy.getAttached(".homepage__wrapper").within(() => {
+          cy.findByText(/all teams/i).should("exist");
+          cy.getAttached(".hosts-summary").should("exist");
+          cy.getAttached(".hosts-status").should("exist");
+          // "get" because we expect it not to exist
+          cy.get(".home-software").should("not.exist");
+          cy.get(".activity-feed").should("not.exist");
+        });
+      });
+      it("displays cards for macOS only", () => {
+        cy.getAttached(".homepage__platforms").within(() => {
+          cy.getAttached(".Select-control").click();
+          cy.findByText(/macos/i).click();
+        });
+        cy.getAttached(".homepage__wrapper").within(() => {
+          cy.findByText(/all teams/i).should("exist");
+          cy.getAttached(".hosts-summary").should("exist");
+          cy.getAttached(".hosts-status").should("exist");
+          cy.getAttached(".home-munki").should("exist");
+          cy.getAttached(".home-mdm").should("exist");
+          // "get" because we expect it not to exist
+          cy.get(".home-software").should("not.exist");
+          cy.get(".activity-feed").should("not.exist");
+        });
+      });
+      it("views all hosts for all platforms", () => {
+        cy.findByText(/view all hosts/i).click();
+        cy.get(".manage-hosts__label-block").should("not.exist");
+      });
+      it("views all hosts for windows only", () => {
+        cy.getAttached(".homepage__platforms").within(() => {
+          cy.getAttached(".Select-control").click();
+          cy.findByText(/windows/i).click();
+        });
+        cy.findByText(/view all hosts/i).click();
+        cy.getAttached(".manage-hosts__label-block").within(() => {
+          cy.getAttached(".title").within(() => {
+            cy.findByText(/windows/i).should("exist");
+          });
+        });
+      });
+      it("views all hosts for linux only", () => {
+        cy.getAttached(".homepage__platforms").within(() => {
+          cy.getAttached(".Select-control").click();
+          cy.findByText(/linux/i).click();
+        });
+        cy.findByText(/view all hosts/i).click();
+        cy.getAttached(".manage-hosts__label-block").within(() => {
+          cy.getAttached(".title").within(() => {
+            cy.findByText(/linux/i).should("exist");
+          });
+        });
+      });
+      it("views all hosts for macOS only", () => {
+        cy.getAttached(".homepage__platforms").within(() => {
+          cy.getAttached(".Select-control").click();
+          cy.findByText(/macos/i).click();
+        });
+        cy.findByText(/view all hosts/i).click();
+        cy.getAttached(".manage-hosts__label-block").within(() => {
+          cy.getAttached(".title").within(() => {
+            cy.findByText(/macos/i).should("exist");
+          });
+        });
+      });
+    });
     describe("Manage hosts page", () => {
       beforeEach(() => cy.visit("/hosts/manage"));
       it("displays team column in hosts table", () => {
@@ -57,9 +144,9 @@ describe("Premium tier - Admin user", () => {
           .contains("Team")
           .should("be.visible");
       });
-      it("allows global admin to see and click generate installer", () => {
+      it("allows global admin to see and click 'Add hosts'", () => {
         cy.getAttached(".button-wrap")
-          .contains("button", /generate installer/i)
+          .contains("button", /add hosts/i)
           .click();
         cy.getAttached(".modal__content").contains("button", /done/i).click();
       });

@@ -19,19 +19,10 @@ describe(
       cy.stopDockerHost();
     });
 
-    describe("Dashboard and navigation", () => {
+    describe("Navigation", () => {
       beforeEach(() => {
         cy.loginWithCySession("mary@organization.com", "user123#");
         cy.visit("/dashboard");
-      });
-      it("displays intended global maintainer dashboard", () => {
-        cy.getAttached(".homepage__wrapper").within(() => {
-          cy.findByText(/fleet test/i).should("exist");
-          cy.getAttached(".hosts-summary").should("exist");
-          cy.getAttached(".hosts-status").should("exist");
-          cy.getAttached(".home-software").should("exist");
-          cy.getAttached(".activity-feed").should("exist");
-        });
       });
       it("displays intended global maintainer top navigation", () => {
         cy.getAttached(".site-nav-container").within(() => {
@@ -43,6 +34,105 @@ describe(
           cy.getAttached(".user-menu").click();
           cy.findByText(/settings/i).should("not.exist");
           cy.findByText(/manage users/i).should("not.exist");
+        });
+      });
+    });
+    describe("Dashboard", () => {
+      beforeEach(() => {
+        cy.loginWithCySession("mary@organization.com", "user123#");
+        cy.visit("/dashboard");
+      });
+      it("displays cards for all platforms", () => {
+        cy.getAttached(".homepage__wrapper").within(() => {
+          cy.findByText(/fleet test/i).should("exist");
+          cy.getAttached(".hosts-summary").should("exist");
+          cy.getAttached(".hosts-status").should("exist");
+          cy.getAttached(".home-software").should("exist");
+          cy.getAttached(".activity-feed").should("exist");
+        });
+      });
+      it("displays cards for windows only", () => {
+        cy.getAttached(".homepage__platforms").within(() => {
+          cy.getAttached(".Select-control").click();
+          cy.findByText(/windows/i).click();
+        });
+        cy.getAttached(".homepage__wrapper").within(() => {
+          cy.findByText(/fleet test/i).should("exist");
+          cy.getAttached(".hosts-summary").should("exist");
+          cy.getAttached(".hosts-status").should("exist");
+          // "get" because we expect it not to exist
+          cy.get(".home-software").should("not.exist");
+          cy.get(".activity-feed").should("not.exist");
+        });
+      });
+      it("displays cards for linux only", () => {
+        cy.getAttached(".homepage__platforms").within(() => {
+          cy.getAttached(".Select-control").click();
+          cy.findByText(/linux/i).click();
+        });
+        cy.getAttached(".homepage__wrapper").within(() => {
+          cy.findByText(/fleet test/i).should("exist");
+          cy.getAttached(".hosts-summary").should("exist");
+          cy.getAttached(".hosts-status").should("exist");
+          // "get" because we expect it not to exist
+          cy.get(".home-software").should("not.exist");
+          cy.get(".activity-feed").should("not.exist");
+        });
+      });
+      it("displays cards for macOS only", () => {
+        cy.getAttached(".homepage__platforms").within(() => {
+          cy.getAttached(".Select-control").click();
+          cy.findByText(/macos/i).click();
+        });
+        cy.getAttached(".homepage__wrapper").within(() => {
+          cy.findByText(/fleet test/i).should("exist");
+          cy.getAttached(".hosts-summary").should("exist");
+          cy.getAttached(".hosts-status").should("exist");
+          cy.getAttached(".home-munki").should("exist");
+          cy.getAttached(".home-mdm").should("exist");
+          // "get" because we expect it not to exist
+          cy.get(".home-software").should("not.exist");
+          cy.get(".activity-feed").should("not.exist");
+        });
+      });
+      it("views all hosts for all platforms", () => {
+        cy.findByText(/view all hosts/i).click();
+        cy.get(".manage-hosts__label-block").should("not.exist");
+      });
+      it("views all hosts for windows only", () => {
+        cy.getAttached(".homepage__platforms").within(() => {
+          cy.getAttached(".Select-control").click();
+          cy.findByText(/windows/i).click();
+        });
+        cy.findByText(/view all hosts/i).click();
+        cy.getAttached(".manage-hosts__label-block").within(() => {
+          cy.getAttached(".title").within(() => {
+            cy.findByText(/windows/i).should("exist");
+          });
+        });
+      });
+      it("views all hosts for linux only", () => {
+        cy.getAttached(".homepage__platforms").within(() => {
+          cy.getAttached(".Select-control").click();
+          cy.findByText(/linux/i).click();
+        });
+        cy.findByText(/view all hosts/i).click();
+        cy.getAttached(".manage-hosts__label-block").within(() => {
+          cy.getAttached(".title").within(() => {
+            cy.findByText(/linux/i).should("exist");
+          });
+        });
+      });
+      it("views all hosts for macOS only", () => {
+        cy.getAttached(".homepage__platforms").within(() => {
+          cy.getAttached(".Select-control").click();
+          cy.findByText(/macos/i).click();
+        });
+        cy.findByText(/view all hosts/i).click();
+        cy.getAttached(".manage-hosts__label-block").within(() => {
+          cy.getAttached(".title").within(() => {
+            cy.findByText(/macos/i).should("exist");
+          });
         });
       });
     });
@@ -59,9 +149,8 @@ describe(
       it("verifies teams is disabled", () => {
         cy.contains(/team/i).should("not.exist");
       });
-      it("allows maintainer to see and click the 'Generate installer' button", () => {
-        cy.findByRole("button", { name: /generate installer/i }).click();
-        cy.contains(/team/i).should("not.exist");
+      it("allows maintainer to see and click the 'Add hosts' button", () => {
+        cy.findByRole("button", { name: /add hosts/i }).click();
         cy.contains("button", /done/i).click();
       });
       it("allows maintainer to manage the enroll secret", () => {

@@ -2,19 +2,12 @@ import React from "react";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import { ITeam } from "interfaces/team";
-import { IEnrollSecret } from "interfaces/enroll_secret";
 
 interface IDeleteSecretModal {
   selectedTeam: number;
   teams: ITeam[];
   onDeleteSecret: () => void;
   toggleDeleteSecretModal: () => void;
-}
-
-interface IRootState {
-  app: {
-    enrollSecret: IEnrollSecret[];
-  };
 }
 
 const baseClass = "delete-secret-modal";

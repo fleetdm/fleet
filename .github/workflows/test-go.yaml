@@ -11,6 +11,8 @@ on:
     paths:
       - '**.go'
   workflow_dispatch: # Manual
+  schedule:
+    - cron: '0 4 * * *'
 
 jobs:
   test-go:
@@ -20,6 +22,10 @@ jobs:
         go-version: ['^1.17.0']
         mysql: ["mysql:5.7", "mysql:8"]
     runs-on: ${{ matrix.os }}
+
+    env:
+      RACE_ENABLED: false
+      GO_TEST_TIMEOUT: 10m
 
     steps:
     - name: Install Go
@@ -44,11 +50,38 @@ jobs:
         export PATH=$PATH:~/go/bin
         make generate-go
 
+    - name: Set Go race setting on schedule
+      if: github.event.schedule == '0 4 * * *'
+      run: |
+        echo "RACE_ENABLED=true" >> $GITHUB_ENV
+        echo "GO_TEST_TIMEOUT=1h" >> $GITHUB_ENV
+
     - name: Run Go Tests
       run: |
-        NETWORK_TEST=1 REDIS_TEST=1 MYSQL_TEST=1 make test-go
+        NETWORK_TEST=1 REDIS_TEST=1 MYSQL_TEST=1 RACE_ENABLED=$RACE_ENABLED GO_TEST_TIMEOUT=$GO_TEST_TIMEOUT make test-go
 
     - name: Upload to Codecov
       uses: codecov/codecov-action@v2
       with:
         files: coverage.txt
+
+    - name: Slack Notification
+      if: github.event.schedule == '0 4 * * *' && failure()
+      uses: slackapi/slack-github-action@v1.18.0
+      with:
+        payload: |
+          {
+            "text": "${{ job.status }}\n${{ github.event.pull_request.html_url || github.event.head.html_url }}",
+            "blocks": [
+              {
+                "type": "section",
+                "text": {
+                  "type": "mrkdwn",
+                  "text": "Go tests result: ${{ job.status }}\nhttps://github.com/fleetdm/fleet/actions/runs/${{  github.run_id }}\n${{ github.event.pull_request.html_url || github.event.head.html_url }}"
+                }
+              }
+            ]
+          }
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_CORE_ENGINEERING_WEBHOOK_URL }}
+        SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK

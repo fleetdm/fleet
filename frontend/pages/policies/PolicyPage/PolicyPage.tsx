@@ -24,7 +24,7 @@ import ExternalURLIcon from "../../../../assets/images/icon-external-url-12x12@2
 interface IPolicyPageProps {
   router: InjectedRouter;
   params: Params;
-  location: any; // no type in react-router v3
+  location: any; // TODO: type query: URLQuerySearch with host_ids
 }
 
 interface IStoredPolicyResponse {

@@ -21,17 +21,26 @@ import PATHS from "router/paths";
 import { IQuery } from "interfaces/query";
 import { IUser } from "interfaces/user";
 import { addGravatarUrlToResource } from "fleet/helpers";
+import QuestionIcon from "../../../../../../assets/images/icon-question-16x16@2x.png";
 
 interface IQueryRow {
   id: string;
   original: IQuery;
+}
+
+interface IGetToggleAllRowsSelectedProps {
+  checked: boolean;
+  indeterminate: boolean;
+  title: string;
+  onChange: () => any;
+  style: { cursor: string };
 }
 interface IHeaderProps {
   column: {
     title: string;
     isSortedDesc: boolean;
   };
-  getToggleAllRowsSelectedProps: () => any; // TODO: do better with types
+  getToggleAllRowsSelectedProps: () => IGetToggleAllRowsSelectedProps;
   toggleAllRowsSelected: () => void;
   toggleRowSelected: (id: string, value?: boolean) => void;
   rows: IQueryRow[];
@@ -44,7 +53,7 @@ interface ICellProps {
   };
   row: {
     original: IQuery;
-    getToggleRowSelectedProps: () => any; // TODO: do better with types
+    getToggleRowSelectedProps: () => IGetToggleAllRowsSelectedProps;
     toggleRowSelected: () => void;
   };
   toggleRowSelected: (id: string, value: boolean) => void;
@@ -98,7 +107,38 @@ const generateTableHeaders = (currentUser: IUser): IDataColumn[] => {
     },
     {
       title: "Performance impact",
-      Header: "Performance impact",
+      Header: () => {
+        return (
+          <div>
+            <span className="queries-table__performance-impact-header">
+              Performance impact
+            </span>
+            <span
+              data-tip
+              data-for="queries-table__performance-impact-tooltip"
+              data-tip-disable={false}
+            >
+              <img alt="question icon" src={QuestionIcon} />
+            </span>
+            <ReactTooltip
+              className="queries-table__performance-impact-tooltip"
+              place="bottom"
+              type="dark"
+              effect="solid"
+              backgroundColor="#3e4771"
+              id="queries-table__performance-impact-tooltip"
+              data-html
+            >
+              <div style={{ textAlign: "center" }}>
+                This is the average <br />
+                performance impact <br />
+                across all hosts where this <br />
+                query was scheduled.
+              </div>
+            </ReactTooltip>
+          </div>
+        );
+      },
       disableSortBy: true,
       accessor: "performance",
       Cell: (cellProps) => (

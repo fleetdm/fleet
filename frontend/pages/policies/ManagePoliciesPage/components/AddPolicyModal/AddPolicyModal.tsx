@@ -1,5 +1,6 @@
 import React, { useCallback, useContext } from "react";
 import PATHS from "router/paths";
+import { InjectedRouter } from "react-router/lib/Router";
 
 import { DEFAULT_POLICIES } from "utilities/constants";
 
@@ -13,7 +14,7 @@ import Modal from "components/Modal";
 
 export interface IAddPolicyModalProps {
   onCancel: () => void;
-  router: any;
+  router: InjectedRouter; // v3
   teamId: number;
   teamName?: string;
 }

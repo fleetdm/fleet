@@ -29,6 +29,7 @@ func (nopLiveQuery) QueriesForHost(hostID uint) (map[string]string, error) {
 func (nopLiveQuery) QueryCompletedByHost(name string, hostID uint) error {
 	return nil
 }
+
 func TestLiveQueryAuth(t *testing.T) {
 	ds := new(mock.Store)
 	qr := pubsub.NewInmemQueryResults()
@@ -49,10 +50,17 @@ func TestLiveQueryAuth(t *testing.T) {
 		Query:          "SELECT 2",
 		ObserverCanRun: false,
 	}
-	_ = query2ObsCannotRun
 
+	var lastCreatedQuery *fleet.Query
 	ds.NewQueryFunc = func(ctx context.Context, query *fleet.Query, opts ...fleet.OptionalArg) (*fleet.Query, error) {
-		return query, nil
+		q := *query
+		vw, ok := viewer.FromContext(ctx)
+		q.ID = 123
+		if ok {
+			q.AuthorID = ptr.Uint(vw.User.ID)
+		}
+		lastCreatedQuery = &q
+		return &q, nil
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{ServerSettings: fleet.ServerSettings{LiveQueryDisabled: false}}, nil
@@ -85,6 +93,11 @@ func TestLiveQueryAuth(t *testing.T) {
 		if id == 2 {
 			return query2ObsCannotRun, nil
 		}
+		if lastCreatedQuery != nil {
+			q := lastCreatedQuery
+			lastCreatedQuery = nil
+			return q, nil
+		}
 		return &fleet.Query{ID: 8888, AuthorID: ptr.Uint(6666)}, nil
 	}
 
@@ -97,88 +110,104 @@ func TestLiveQueryAuth(t *testing.T) {
 		shouldFailRunObsCannot bool
 	}{
 		{
-			"global admin",
-			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
-			nil,
-			false,
-			false,
-			false,
+			name:                   "global admin",
+			user:                   &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			teamID:                 nil,
+			shouldFailRunNew:       false,
+			shouldFailRunObsCan:    false,
+			shouldFailRunObsCannot: false,
 		},
 		{
-			"global maintainer",
-			&fleet.User{GlobalRole: ptr.String(fleet.RoleMaintainer)},
-			nil,
-			false,
-			false,
-			false,
+			name:                   "global maintainer",
+			user:                   &fleet.User{GlobalRole: ptr.String(fleet.RoleMaintainer)},
+			teamID:                 nil,
+			shouldFailRunNew:       false,
+			shouldFailRunObsCan:    false,
+			shouldFailRunObsCannot: false,
 		},
 		{
-			"global observer",
-			&fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)},
-			nil,
-			true,
-			false,
-			true,
+			name:                   "global observer",
+			user:                   &fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)},
+			teamID:                 nil,
+			shouldFailRunNew:       true,
+			shouldFailRunObsCan:    false,
+			shouldFailRunObsCannot: true,
 		},
 		{
-			"team maintainer",
-			teamMaintainer,
-			nil,
-			false,
-			false,
-			false,
+			name:                   "team maintainer",
+			user:                   teamMaintainer,
+			teamID:                 nil,
+			shouldFailRunNew:       false,
+			shouldFailRunObsCan:    false,
+			shouldFailRunObsCannot: false,
 		},
-		// NOTE: this specific case is not covered by the rego authorization policy,
-		// it is at the datastore level that a filter is applied to only consider
-		// hosts that the user can see (that is, a fleet.TeamFilter is passed to
-		// ds.HostIDsInTargets and that call applies the filter to return only
-		// allowed hosts).
-		/*
-			{
-				"team admin, target not set to own team",
-				&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}},
-				ptr.Uint(2),
-				false,
-				false,
-				true,
-			},
-		*/
 		{
-			"team admin, target set to own team",
-			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}},
-			ptr.Uint(1),
-			false,
-			false,
-			false,
+			name:                   "team admin, no team target",
+			user:                   &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}},
+			teamID:                 nil,
+			shouldFailRunNew:       false,
+			shouldFailRunObsCan:    false,
+			shouldFailRunObsCannot: false,
 		},
-		// NOTE: same as the note above.
-		/*
-			{
-				"team observer, target not set to own team",
-				&fleet.User{ID: 48, Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}}},
-				ptr.Uint(2),
-				true,
-				true,
-				true,
-			},
-		*/
 		{
-			"team observer, target set to own team",
-			&fleet.User{ID: 48, Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}}},
-			ptr.Uint(1),
-			true,
-			false,
-			true,
+			name:                   "team admin, target not set to own team",
+			user:                   &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}},
+			teamID:                 ptr.Uint(2),
+			shouldFailRunNew:       false,
+			shouldFailRunObsCan:    true, // fails observer can run, as they are not part of that team, even as observer
+			shouldFailRunObsCannot: true,
+		},
+		{
+			name:                   "team admin, target set to own team",
+			user:                   &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}},
+			teamID:                 ptr.Uint(1),
+			shouldFailRunNew:       false,
+			shouldFailRunObsCan:    false,
+			shouldFailRunObsCannot: false,
+		},
+		{
+			name:                   "team observer, no team target",
+			user:                   &fleet.User{ID: 48, Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}}},
+			teamID:                 nil,
+			shouldFailRunNew:       true,
+			shouldFailRunObsCan:    false,
+			shouldFailRunObsCannot: true,
+		},
+		{
+			name:                   "team observer, target not set to own team",
+			user:                   &fleet.User{ID: 48, Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}}},
+			teamID:                 ptr.Uint(2),
+			shouldFailRunNew:       true,
+			shouldFailRunObsCan:    true,
+			shouldFailRunObsCannot: true,
+		},
+		{
+			name:                   "team observer, target set to own team",
+			user:                   &fleet.User{ID: 48, Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}}},
+			teamID:                 ptr.Uint(1),
+			shouldFailRunNew:       true,
+			shouldFailRunObsCan:    false,
+			shouldFailRunObsCannot: true,
 		},
 	}
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: tt.user})
 
-			_, err := svc.NewDistributedQueryCampaign(ctx, query1ObsCanRun.Query, nil, fleet.HostTargets{})
+			var tms []uint
+			// Testing RunNew is tricky, because RunNew authorization is done, then
+			// the query is created, and then the Run authorization is applied to
+			// that now-existing query, so we have to make sure that the Run does not
+			// cause a Forbidden error. To this end, the ds.NewQuery mock always sets
+			// the AuthorID to the context user, and if the user is member of a team,
+			// always set that team as a host target. This will prevent the Run
+			// action from failing, if RunNew did succeed.
+			if len(tt.user.Teams) > 0 {
+				tms = []uint{tt.user.Teams[0].ID}
+			}
+			_, err := svc.NewDistributedQueryCampaign(ctx, query1ObsCanRun.Query, nil, fleet.HostTargets{TeamIDs: tms})
 			checkAuthErr(t, tt.shouldFailRunNew, err)
 
-			var tms []uint
 			if tt.teamID != nil {
 				tms = []uint{*tt.teamID}
 			}
@@ -188,14 +217,18 @@ func TestLiveQueryAuth(t *testing.T) {
 			_, err = svc.NewDistributedQueryCampaign(ctx, query2ObsCannotRun.Query, ptr.Uint(query2ObsCannotRun.ID), fleet.HostTargets{TeamIDs: tms})
 			checkAuthErr(t, tt.shouldFailRunObsCannot, err)
 
-			_, err = svc.NewDistributedQueryCampaignByNames(ctx, query1ObsCanRun.Query, nil, nil, nil)
-			checkAuthErr(t, tt.shouldFailRunNew, err)
+			// tests with a team target cannot run the "ByNames" calls, as there's no way
+			// to pass a team target with this call.
+			if tt.teamID == nil {
+				_, err = svc.NewDistributedQueryCampaignByNames(ctx, query1ObsCanRun.Query, nil, nil, nil)
+				checkAuthErr(t, tt.shouldFailRunNew, err)
 
-			_, err = svc.NewDistributedQueryCampaignByNames(ctx, query1ObsCanRun.Query, ptr.Uint(query1ObsCanRun.ID), nil, nil)
-			checkAuthErr(t, tt.shouldFailRunObsCan, err)
+				_, err = svc.NewDistributedQueryCampaignByNames(ctx, query1ObsCanRun.Query, ptr.Uint(query1ObsCanRun.ID), nil, nil)
+				checkAuthErr(t, tt.shouldFailRunObsCan, err)
 
-			_, err = svc.NewDistributedQueryCampaignByNames(ctx, query2ObsCannotRun.Query, ptr.Uint(query2ObsCannotRun.ID), nil, nil)
-			checkAuthErr(t, tt.shouldFailRunObsCannot, err)
+				_, err = svc.NewDistributedQueryCampaignByNames(ctx, query2ObsCannotRun.Query, ptr.Uint(query2ObsCannotRun.ID), nil, nil)
+				checkAuthErr(t, tt.shouldFailRunObsCannot, err)
+			}
 		})
 	}
 }

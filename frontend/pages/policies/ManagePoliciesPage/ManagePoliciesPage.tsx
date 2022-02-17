@@ -1,6 +1,7 @@
 import React, { useCallback, useContext, useEffect, useState } from "react";
 import { useQuery } from "react-query";
 import { useDispatch } from "react-redux";
+import { InjectedRouter } from "react-router/lib/Router";
 import { noop } from "lodash";
 
 import { AppContext } from "context/app";
@@ -33,8 +34,15 @@ import AddPolicyModal from "./components/AddPolicyModal";
 import RemovePoliciesModal from "./components/RemovePoliciesModal";
 
 interface IManagePoliciesPageProps {
-  router: any;
-  location: any;
+  router: InjectedRouter; // v3
+  location: {
+    action: string;
+    hash: string;
+    key: string;
+    pathname: string;
+    query: { team_id?: string };
+    search: string;
+  };
 }
 
 const baseClass = "manage-policies-page";
@@ -65,7 +73,9 @@ const ManagePolicyPage = ({
     setConfig,
   } = useContext(AppContext);
 
-  const teamId = parseInt(location?.query?.team_id, 10) || 0;
+  const teamId = location?.query?.team_id
+    ? parseInt(location?.query?.team_id, 10)
+    : 0;
 
   const {
     setLastEditedQueryName,
@@ -362,15 +372,18 @@ const ManagePolicyPage = ({
             </div>
           </div>
           <div className={`${baseClass} button-wrap`}>
-            {canAddOrRemovePolicy && teamId === 0 && (
-              <Button
-                onClick={() => onManageAutomationsClick()}
-                className={`${baseClass}__manage-automations button`}
-                variant="inverse"
-              >
-                <span>Manage automations</span>
-              </Button>
-            )}
+            {canAddOrRemovePolicy &&
+              teamId === 0 &&
+              !isLoadingFailingPoliciesWebhook &&
+              !isLoadingGlobalPolicies && (
+                <Button
+                  onClick={() => onManageAutomationsClick()}
+                  className={`${baseClass}__manage-automations button`}
+                  variant="inverse"
+                >
+                  <span>Manage automations</span>
+                </Button>
+              )}
             {canAddOrRemovePolicy && (
               <div className={`${baseClass}__action-button-container`}>
                 <Button
@@ -450,7 +463,7 @@ const ManagePolicyPage = ({
               />
             ))}
         </div>
-        {showInheritedPoliciesButton && (
+        {showInheritedPoliciesButton && globalPolicies && (
           <span>
             <Button
               variant="unstyled"

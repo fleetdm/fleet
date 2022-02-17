@@ -3369,6 +3369,12 @@ func testHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, "9.0", version)
 
+	// simulate uninstall
+	require.NoError(t, ds.SetOrUpdateMunkiVersion(context.Background(), 123, ""))
+
+	_, err = ds.GetMunkiVersion(context.Background(), 123)
+	require.True(t, fleet.IsNotFound(err))
+
 	_, _, _, err = ds.GetMDM(context.Background(), 432)
 	require.True(t, fleet.IsNotFound(err), err)
 
@@ -3412,6 +3418,8 @@ func testAggregatedHostMDMAndMunki(t *testing.T, ds *Datastore) {
 
 	// And after generating without any data, it all looks reasonable
 	versions, updatedAt, err = ds.AggregatedMunkiVersion(context.Background(), nil)
+	firstUpdatedAt := updatedAt
+
 	require.NoError(t, err)
 	require.Len(t, versions, 0)
 	require.NotZero(t, updatedAt)
@@ -3471,18 +3479,26 @@ func testAggregatedHostMDMAndMunki(t *testing.T, ds *Datastore) {
 
 	h1 := test.NewHost(t, ds, "h1"+t.Name(), "192.168.1.10", "1", "1", time.Now())
 	h2 := test.NewHost(t, ds, "h2"+t.Name(), "192.168.1.11", "2", "2", time.Now())
+	h3 := test.NewHost(t, ds, "h3"+t.Name(), "192.168.1.11", "3", "3", time.Now())
 
 	require.NoError(t, ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{h1.ID}))
 	require.NoError(t, ds.AddHostsToTeam(context.Background(), &team2.ID, []uint{h2.ID}))
+	require.NoError(t, ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{h3.ID}))
 
 	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), h1.ID, true, "url", false))
 	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), h2.ID, true, "url", false))
 	require.NoError(t, ds.SetOrUpdateMunkiVersion(context.Background(), h1.ID, "1.2.3"))
 	require.NoError(t, ds.SetOrUpdateMunkiVersion(context.Background(), h2.ID, "1.2.3"))
 
+	// h3 adds it but then removes it
+	require.NoError(t, ds.SetOrUpdateMunkiVersion(context.Background(), h3.ID, "1.2.3"))
+	require.NoError(t, ds.SetOrUpdateMunkiVersion(context.Background(), h3.ID, ""))
+
+	// Make the updated_at different enough
+	time.Sleep(1 * time.Second)
 	require.NoError(t, ds.GenerateAggregatedMunkiAndMDM(context.Background()))
 
-	versions, _, err = ds.AggregatedMunkiVersion(context.Background(), &team1.ID)
+	versions, updatedAt, err = ds.AggregatedMunkiVersion(context.Background(), &team1.ID)
 	require.NoError(t, err)
 	require.Len(t, versions, 1)
 	assert.ElementsMatch(t, versions, []fleet.AggregatedMunkiVersion{
@@ -3491,6 +3507,7 @@ func testAggregatedHostMDMAndMunki(t *testing.T, ds *Datastore) {
 			HostsCount:    1,
 		},
 	})
+	require.True(t, updatedAt.After(firstUpdatedAt))
 	status, _, err = ds.AggregatedMDMStatus(context.Background(), &team1.ID)
 	require.NoError(t, err)
 	assert.Equal(t, 1, status.HostsCount)
