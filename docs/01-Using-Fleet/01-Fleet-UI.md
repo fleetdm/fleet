@@ -8,7 +8,7 @@ The Fleet application allows you to schedule queries. This way these queries wil
 
 ![Manage Packs](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/manage-packs.png)
 
-If you select a pack from the list by clicking on the checkbox next to it's name, you can quickly enable and disable the entire pack, or you can click on the pack name to edit it further.
+You can enable or disable a pack by clicking the checkbox next to its name, or you can click on the pack name to edit it.
 
 ![Manage Packs With Pack Selected](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/manage-packs-with-pack-selected.png)
 
