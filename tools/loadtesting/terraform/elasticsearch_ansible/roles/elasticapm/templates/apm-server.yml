@@ -470,7 +470,7 @@ apm-server:
                     priority: 100
                 min_age: 0ms
               delete:
-                min_age: 365d
+                min_age: 1s
                 actions:
                   delete: {}
 
