@@ -402,7 +402,7 @@ apm-server:
 
   #---------------------------- APM Server - ILM Index Lifecycle Management ----------------------------
 
-  #ilm:
+  ilm:
     # Supported values are `auto`, `true` and `false`.
     # `true`: Make use of Elasticsearch's Index Lifecycle Management (ILM) for APM indices. If no Elasticsearch output is
     # configured or the configured instance does not support ILM, APM Server cannot apply ILM and must create
@@ -413,7 +413,7 @@ apm-server:
     # Default value is `auto`.
     #enabled: "auto"
 
-    #setup:
+    setup:
       # Only disable setup if you want to set up everything related to ILM on your own.
       # When setup is enabled, the APM Server creates:
       # - aliases and ILM policies if `apm-server.ilm.enabled` resolves to `true`.
