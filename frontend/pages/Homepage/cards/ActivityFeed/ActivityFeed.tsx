@@ -95,7 +95,7 @@ const ActivityFeed = ({
     },
     {
       keepPreviousData: true,
-      staleTime: 5000, // TODO: confirm this with product
+      staleTime: 5000,
       select: (data) => data.activities,
       onSuccess: (results) => {
         setShowActivityFeedTitle(true);
@@ -160,7 +160,7 @@ const ActivityFeed = ({
     );
   };
 
-  const renderNoActivities = (index?: number) => {
+  const renderNoActivities = () => {
     return (
       <div className={`${baseClass}__no-activities`}>
         <p>
@@ -206,15 +206,11 @@ const ActivityFeed = ({
   // Renders opaque information as activity feed is loading
   const opacity = isFetchingActivities ? { opacity: 0.4 } : { opacity: 1 };
 
-  // TODO: talk with product about load more and empty states
   return (
     <div className={baseClass}>
       {errorActivities && renderError()}
-      {!errorActivities &&
-      !isFetchingActivities &&
-      // pageIndex === 0 &&
-      isEmpty(activities) ? (
-        renderNoActivities(pageIndex)
+      {!errorActivities && !isFetchingActivities && isEmpty(activities) ? (
+        renderNoActivities()
       ) : (
         <>
           {isFetchingActivities && (

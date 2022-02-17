@@ -181,7 +181,7 @@ We do not apply ultra restrictive Data Loss Prevention style policies to our dev
 | 2.6.1.4 | Ensure iCloud Drive Documents and Desktop sync is disabled |
 
 **Why?**
-* We do not use managed Apple IDs, and allow contributors to use their own iCloud accounts. We disable iCloud Documents and Desktop sync to avoid "accidental" copying of data to iCloud, but we do allow iCloud drive.
+* We do not use managed Apple IDs, and allow contributors to use their own iCloud accounts. We disable iCloud Documents and Desktop sync to avoid accidental copying of data to iCloud, but we do allow iCloud drive.
 
 **User experience impact**
 
@@ -263,5 +263,71 @@ We configure Chrome on company-owned devices with a basic policy.
 ### Personal mobile devices
 
 The use of personal devices is allowed for some applications, as long as the iOS or Android device is kept up to date.
+
+## Vulnerability management
+At Fleet, we handle software vulnerabilities no matter what their source is.
+
+The process is simple:
+
+1. A person or tool discovers a vulnerability and informs us.
+2. Fleet determines if we must fix this vulnerability, and if not, documents why.
+3. As long as it respects our remediation timelines and enough time remains for implementation and testing, Fleet fixes vulnerabilities in the next scheduled release. Else, Fleet creates a special release to address the vulnerabilities.
+
+### Timeline
+
+Fleet commits to remediating vulnerabilities according to the following:
+
+
+| Severity                           | Triage | Mitigation | Remediation                               |
+| ---------------------------------- | ---------------- | ---------------- | ------------------------------------------------ |
+| Critical+ In-the-wild exploitation | 2 business hours | 24 hours         | 72 hours (unless mitigation downgrades severity) |
+| Critical                           | 4 business hours | 7 days           | 30 days                                          |
+| High                               | 2 business days  | 14 days          | 30 days                                          |
+| Medium                             | 1 week           | 60 days          | 60 days                                          |
+| Low                                | Best effort      | Best effort      | Best effort                                      |
+| Unspecified                        | 2 business days  | N/A              | N/A                                              |
+
+### Mapping of CVSSv3 scores to Fleet severity
+
+Fleet adapts the severity assigned to vulnerabilities when needed.
+
+The features we use in a library, for example, can mean that some vulnerabilities in the library are unexploitable. In other cases, it might make the vulnerability easier to exploit. In those cases, Fleet would first categorize the vulnerability using publicly available information, then lower or increase the severity based on additional context.
+
+When using externally provided CVSSv3 scores, Fleet maps them this way:
+
+| CVSSv3 score                       | Fleet severity                      |
+| ---------------------------------- | ----------------------------------- |
+| 0.0                                | None                                |
+| 0.1-3.9                            | Low                                 |
+| 4-6.9                              | Medium                              |
+| 7-8.9                              | High                                |
+| 9-10                               | Critical                            |
+| Determined on a case by case basis | Critical + in-the-wild-exploitation |
+
+
+### Disclosure
+
+Researchers who discover vulnerabilities in Fleet can disclose them as per the [Fleet repository security policy](https://github.com/fleetdm/fleet/security/policy).
+
+If Fleet confirms the vulnerability:
+
+1. Fleet's security team creates a private Github security advisory.
+2. Fleet asks the researcher if they want credit or anonymity. If the researcher wishes to be credited, we invite them to the private advisory on Github.
+3. We request a CVE through Github.
+4. Developers address the issue in a private branch.
+5. As we release the fix, we make the advisory public.
+
+Example Fleet vulnerability advisory: [CVE-2022-23600](https://github.com/fleetdm/fleet/security/advisories/GHSA-ch68-7cf4-35vr)
+
+### Vulnerabilities in dependencies
+
+Fleet remediates vulnerabilities related to vulnerable dependencies, but we do not create security advisories on the Fleet repository unless we believe that the vulnerability could impact Fleet. In some situations where we believe it is warranted, we mention the updates in release notes. The best way of knowing what dependencies are required to use Fleet is to look at them directly  [in the repository](https://github.com/fleetdm/fleet/blob/main/package.json).
+
+We use [Dependabot](https://github.com/dependabot) to create pull requests to update vulnerable dependencies. You can find these PRs by filtering on the [*Dependabot*](https://github.com/fleetdm/fleet/pulls?q=is%3Apr+author%3Aapp%2Fdependabot+) author in the repository.
+
+We ensure the fixes to vulnerable dependencies are also performed according to our remediation timeline. We fix as many dependencies as possible in a single release.
+
+
+
 
 <meta name="maintainedBy" value="GuillaumeRoss">

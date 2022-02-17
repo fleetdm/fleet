@@ -49,26 +49,19 @@
   }
 
   .input-field {
-    &--disabled {
-      letter-spacing: 0;
+    &__textarea {
+      min-height: 70px;
     }
 
-    &__textarea {
+    &__textarea,
+    &--disabled {
       font-family: "SourceCodePro", $monospace;
       font-weight: 600;
       font-size: 13px;
       color: $core-fleet-blue;
-      min-height: 70px;
       line-height: 20px;
       margin-bottom: 0;
       padding: $pad-medium $pad-large $pad-medium $pad-medium;
-    }
-  }
-
-  &__installer-input-deb,
-  &__installer-input-rpm {
-    .input-field__textarea {
-      min-height: 95px;
     }
   }
 
@@ -78,16 +71,17 @@
     margin-right: $pad-medium;
   }
 
+  &__copy-message {
+    font-weight: $regular;
+    vertical-align: top;
+  }
+
   .buttons {
-    display: flex;
+    display: block;
     align-items: center;
     position: absolute;
-    right: 0;
+    right: 15px;
     top: 40px;
-
-    span {
-      font-weight: $regular;
-    }
 
     a {
       display: flex;
@@ -97,6 +91,12 @@
     img {
       width: 16px;
       height: 16px;
+    }
+  }
+
+  &__run-osquery-input {
+    .buttons {
+      top: 12px;
     }
   }
 
@@ -122,5 +122,14 @@
       color: $ui-error;
       font-style: normal;
     }
+  }
+
+  &__advanced {
+    padding-top: 6px;
+  }
+
+  &__advanced--heading {
+    font-weight: $bold;
+    margin-bottom: $pad-small;
   }
 }

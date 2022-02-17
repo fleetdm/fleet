@@ -5,22 +5,22 @@ import { ITeam } from "interfaces/team";
 import { IEnrollSecret } from "interfaces/enroll_secret";
 import PlatformWrapper from "./PlatformWrapper/PlatformWrapper";
 
-const baseClass = "generate-installer-modal";
+const baseClass = "add-hosts-modal";
 
-interface IGenerateInstallerModal {
+interface IAddHostsModal {
   onCancel: () => void;
   selectedTeam: ITeam | { name: string; secrets: IEnrollSecret[] | null };
 }
 
-const GenerateInstallerModal = ({
+const AddHostsModal = ({
   onCancel,
   selectedTeam,
-}: IGenerateInstallerModal): JSX.Element => {
+}: IAddHostsModal): JSX.Element => {
   return (
-    <Modal onExit={onCancel} title={"Generate installer"} className={baseClass}>
+    <Modal onExit={onCancel} title={"Add hosts"} className={baseClass}>
       <PlatformWrapper onCancel={onCancel} selectedTeam={selectedTeam} />
     </Modal>
   );
 };
 
-export default GenerateInstallerModal;
+export default AddHostsModal;

@@ -21,6 +21,7 @@ server/bindata/generated.go
 *.test
 *.log
 coverage.txt
+storybook-static
 
 # typescript generated test files
 tmp/
