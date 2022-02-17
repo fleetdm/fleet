@@ -158,25 +158,19 @@ module.exports = {
       //  ╚██╗╚██████╔╝██║     ███████╗██║ ╚████║███████╗██████╔╝    ██╔╝       ███████╗██████╔╝██║   ██║   ███████╗██████╔╝    ██╔╝       ██║  ██║███████╗╚██████╔╝██║     ███████╗██║ ╚████║███████╗██████╔╝██╔╝
       //   ╚═╝ ╚═════╝ ╚═╝     ╚══════╝╚═╝  ╚═══╝╚══════╝╚═════╝     ╚═╝        ╚══════╝╚═════╝ ╚═╝   ╚═╝   ╚══════╝╚═════╝     ╚═╝        ╚═╝  ╚═╝╚══════╝ ╚═════╝ ╚═╝     ╚══════╝╚═╝  ╚═══╝╚══════╝╚═════╝ ╚═╝
       //
-      // TODO: the thing mike and guillaume talked about
-      //   i.e. for markdown content (docs/handbook pages) and fleetdm.com
-      //      look at the highest level path of all the files changed and if it's within an area that the contributor is DRI of, then automatically do an approved PR review 
-      //      (hard code it here)
 
-      // // Handle opened/reopened/edited PR by commenting/labeling/unlabeling it
-      // // (if appropriate).
-      // // > Note: If we apply the "needs cleanup" label here, then any subsequent
-      // // > edits of the PR should trigger a webhook request that causes the bot
-      // // > to re-examine the PR's title for compliance with the repo guidelines.
-      // let owner = repository.owner.login;
-      // let repo = repository.name;
-      // let issueNumber = issueOrPr.number;
+      let owner = repository.owner.login;
+      let repo = repository.name;
+      let issueNumber = issueOrPr.number;
 
-      // if (action === 'edited' && pr.state !== 'open') {
-      //   // If this is an edit to an already-closed pull request, then do nothing.
-      // } else if (action === 'reopened') {
-      //   let wasReopenedByBot = GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS.includes(sender.login);
-      //   if (!wasReopenedByBot) {
+      // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+      // Want to do more?
+      //
+      // For some working, recent, easily-tweaked example code that manages a conversation with the GitHub bot
+      // to get help submitters of PRs/issues get them up to spec, see:
+      // https://github.com/fleetdm/fleet/blob/0a59adc2dd65bce5c1201a752e9c218faea7be35/website/api/controllers/webhooks/receive-from-github.js#L145-L216
+      //
+      // To potentially reuse:
       //     let newBotComment =
       //     `Oh hey again, @${issueOrPr.user.login}.  Now that this pull request is reopened, it's on our radar.  Please let us know if there's any new information we should be aware of!\n`+
       //     `<hr/>\n`+
@@ -184,40 +178,26 @@ module.exports = {
       //     `Please remember: never post in a public forum if you believe you've found a genuine security vulnerability.  Instead, [disclose it responsibly](https://sailsjs.com/security).\n`+
       //     `\n`+
       //     `For help with questions about Sails, [click here](http://sailsjs.com/support).\n`;
-      //     await GitHub.commentOnIssue.with({ comment: newBotComment, issueNumber, owner, repo, credentials });
-      //   }//ﬁ
-      // } else if (!pr.title.match(/^\[(proposal|patch|implements #\d+|fixes #\d+|misc)\]/i)) {
-      //   await sails.helpers.flow.simultaneously([
-      //     async() => await GitHub.addLabelsToIssue.with({ labels: [ 'needs cleanup' ], issueNumber, owner, repo, credentials }),
-      //     async() => await GitHub.commentOnIssue.with({ comment: `Hi @${pr.user.login}!  It looks like the title of your pull request doesn&rsquo;t quite match our [guidelines](https://sailsjs.com/contribute) yet.  Would you please edit your pull request's title so that it begins with \`[proposal]\`, \`[patch]\`, \`[fixes #<issue number>]\`, \`[implements #<other PR number>]\`, or \`[misc]\`?  Once you've edited it, I'll take another look!`, issueNumber, owner, repo, credentials })
-      //   ]);
-      // } else {
-      //   let removeNeedsCleanupLabel = pr.labels.some(({name}) => name === 'needs cleanup');
-      //   if (removeNeedsCleanupLabel) {
-      //     await GitHub.removeLabelFromIssue.with({ label: 'needs cleanup', issueNumber, owner, repo, credentials });
-      //   }//ﬁ
-      //   if (action === 'opened' || removeNeedsCleanupLabel) {
-      //     await GitHub.commentOnIssue.with({
-      //       comment:
-      //         `Thanks for submitting this pull request, @${pr.user.login}!  We'll look at it ASAP.\n`+
-      //         `\n`+
-      //         `In the mean time, here are some ways you can help speed things along:\n`+
-      //         ` - discuss this pull request with [other contributors](https://gitter.im/balderdashy/sails) and get their feedback.  _(Reactions and comments can help us make better decisions, anticipate compatibility problems, and prevent bugs.)_\n`+
-      //         ` - ask [another JavaScript developer](https://gitter.im/balderdashy/sails) to review the files changed in this pull request.  _(Peer reviews definitely don't guarantee perfection, but they help catch mistakes and enourage collaborative thinking.  Code reviews are so useful that some open source projects require a minimum number of reviews before even considering a merge!)_\n`+
-      //         ` - if appropriate, ask your business to [sponsor your pull request](https://sailsjs.com/support).   _(Open source is our passion, and our core maintainers volunteer many of their nights and weekends working on Sails.  But you only get so many nights and weekends in life, and stuff gets done a lot faster when you can work on it during normal daylight hours.)_\n`+
-      //         ` - make sure you've answered the "why?"  _(Before we can review and merge a pull request, we feel it is important to fully understand the use case: the human reason these changes are important for you, your team, or your organization.)_\n`+
-      //         `<hr/>\n`+
-      //         `\n`+
-      //         `Please remember: never post in a public forum if you believe you've found a genuine security vulnerability.  Instead, [disclose it responsibly](https://sailsjs.com/security).\n`+
-      //         `\n`+
-      //         `For help with questions about Sails, [click here](http://sailsjs.com/support).\n`,
-      //       issueNumber,
-      //       owner,
-      //       repo,
-      //       credentials
-      //     });
-      //   }//ﬁ
-      // }
+      // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+      if (action === 'edited' && pr.state !== 'open') {// PR edited ‡
+        // This is an edit to an already-closed pull request.
+        // (Do nothing.)
+      } else if (action === 'reopened') {// PR reopened ‡
+        // This is a closed pull request, being reopened.
+        // (Do nothing.)
+      } else {// PR opened ‡
+
+        // TODO: the thing mike and guillaume talked about
+        //   i.e. for markdown content (docs/handbook pages) and fleetdm.com
+        //      look at the highest level path of all the files changed and if it's within an area that the contributor is DRI of, then automatically do an approved PR review
+        //      (hard code it here)
+
+        // Docs: https://docs.github.com/en/rest/reference/pulls#create-a-review-for-a-pull-request
+
+      }
+
+
     } else if (ghNoun === 'issue_comment' && ['created'].includes(action) && (issueOrPr&&issueOrPr.state === 'open')) {
       //   ██████╗ ██████╗ ███╗   ███╗███╗   ███╗███████╗███╗   ██╗████████╗
       //  ██╔════╝██╔═══██╗████╗ ████║████╗ ████║██╔════╝████╗  ██║╚══██╔══╝
