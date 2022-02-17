@@ -16,7 +16,7 @@ When you edit a pack, you can decide which targets you would like to execute the
 
 ![Edit Pack Targets](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/edit-pack-targets.png)
 
-To add queries to a pack, click on the "Add query +" link on the edit pack page. You will be presented with a modal where can take an existing scheduled query and add it to the pack. You can also define a few key details such as:
+To add queries to a pack, click on "Add query +" from the edit pack page, and select an existing query from the dropdown. From the add query modal you can also define the following options:
 
 - interval: how often should the query be executed?
 - logging: which osquery logging format would you like to use?
