@@ -139,6 +139,20 @@ func cleanAppName(appName string) string {
 
 var onlyAlphaNumeric = regexp.MustCompile("[^a-zA-Z0-9]+")
 
+// upstreamVersionForUbuntu disassembles the version string
+// used by Ubuntu packages.
+//
+// Sample version: 2.31.1-0.4ubuntu3.7, this method would return the
+// version of the package (aka upstream version), 2.31.1.
+func upstreamVersionForUbuntu(software *fleet.Software) string {
+	upstreamVersion := strings.TrimSuffix(software.Version, "-"+software.Release)
+	// facebookincubator/nvdtools keeps + and ~ escaped, thus we add them here to allow
+	// proper matching.
+	upstreamVersion = strings.ReplaceAll(upstreamVersion, "+", `\+`)
+	upstreamVersion = strings.ReplaceAll(upstreamVersion, "~", `\~`)
+	return upstreamVersion
+}
+
 func CPEFromSoftware(db *sqlx.DB, software *fleet.Software) (string, error) {
 	targetSW := ""
 	switch software.Source {
@@ -172,11 +186,19 @@ func CPEFromSoftware(db *sqlx.DB, software *fleet.Software) (string, error) {
 	}
 	args = append(args, software.Version)
 
+	// For Ubuntu software disassemble the version string to allow for matching
+	// of the upstream software version.
+	checkUpstreamVersion := ""
+	if software.Vendor == "Ubuntu" && software.Release != "" {
+		checkUpstreamVersion = " OR version = ?"
+		args = append(args, upstreamVersionForUbuntu(software))
+	}
+
 	query := fmt.Sprintf(
-		`SELECT rowid, * FROM cpe WHERE rowid in (
+		`SELECT rowid, * FROM cpe WHERE rowid IN (
 				  SELECT rowid FROM cpe_search WHERE title MATCH ?%s
-				) and version=? order by deprecated asc`,
-		checkTargetSW,
+				) AND (version = ?%s) ORDER BY deprecated ASC`,
+		checkTargetSW, checkUpstreamVersion,
 	)
 	var indexedCPEs []IndexedCPEItem
 	err := db.Select(&indexedCPEs, query, args...)
@@ -254,6 +276,7 @@ func TranslateSoftwareToCPE(
 			continue
 		}
 		if cpe == "" {
+			level.Debug(logger).Log("msg", "no-cpe-found", "software", software.String())
 			continue
 		}
 		err = ds.AddCPEForSoftware(ctx, *software, cpe)

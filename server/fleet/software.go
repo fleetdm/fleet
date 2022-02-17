@@ -1,6 +1,9 @@
 package fleet
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
 type SoftwareCVE struct {
 	CVE         string `json:"cve" db:"cve"`
@@ -37,6 +40,14 @@ type Software struct {
 	// CountsUpdatedAt is the timestamp when the hosts count was last updated
 	// for that software, filled only if hosts count is requested.
 	CountsUpdatedAt time.Time `json:"-" db:"counts_updated_at"`
+}
+
+// String implements fmt.Stringer.
+func (s Software) String() string {
+	return fmt.Sprintf("{%s:%s:%s:%s:%s:%s}",
+		s.Name, s.Version, s.Source,
+		s.Release, s.Vendor, s.Arch,
+	)
 }
 
 func (Software) AuthzType() string {

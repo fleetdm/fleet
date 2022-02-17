@@ -44,12 +44,12 @@ func Up_20220208144831(tx *sql.Tx) error {
 		return errors.Wrap(err, "add new index")
 	}
 
-	// Remove all software with source rpm_packages, as we will be ingesting them with new osquery
-	// fields.
+	// Remove all software with source rpm_packages and deb_packages, as we will be ingesting
+	// them with new osquery fields.
 	//
 	// Due to foreign keys, the following statement also deletes the corresponding
 	// entries in `software_cpe` and `software_cve`.
-	if _, err := tx.Exec("DELETE FROM software WHERE source = 'rpm_packages'"); err != nil {
+	if _, err := tx.Exec("DELETE FROM software WHERE source = 'rpm_packages' OR source = 'deb_packages'"); err != nil {
 		return errors.Wrap(err, "delete existing software for rpm_packages")
 	}
 

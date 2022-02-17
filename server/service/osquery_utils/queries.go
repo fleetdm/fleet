@@ -396,9 +396,9 @@ SELECT
   version AS version,
   'Package (deb)' AS type,
   'deb_packages' AS source,
-  '' AS release,
+  revision AS release,
   '' AS vendor,
-  '' AS arch
+  arch AS arch
 FROM deb_packages
 UNION
 SELECT
@@ -674,6 +674,14 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 			continue
 		}
 
+		vendor := row["vendor"]
+
+		// For software coming from Ubuntu, set the vendor field.
+		// This allows fleet to distinguish software coming from different Debian-based systems.
+		if host.Platform == "ubuntu" {
+			vendor = "Ubuntu"
+		}
+
 		s := fleet.Software{
 			Name:             name,
 			Version:          version,
@@ -681,7 +689,7 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 			BundleIdentifier: bundleIdentifier,
 
 			Release: row["release"],
-			Vendor:  row["vendor"],
+			Vendor:  vendor,
 			Arch:    row["arch"],
 		}
 		software = append(software, s)
