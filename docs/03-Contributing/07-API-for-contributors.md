@@ -150,7 +150,8 @@ Returns the specs for all packs in the Fleet instance.
       "description": "Description",
       "disabled": false,
       "targets": {
-        "labels": ["All Hosts"]
+        "labels": ["All Hosts"],
+        "teams": null
       },
       "queries": [
         {
@@ -220,7 +221,8 @@ Returns the specs for all packs in the Fleet instance.
       "name": "pack_2",
       "disabled": false,
       "targets": {
-        "labels": null
+        "labels": null,
+        "teams": null
       },
       "queries": [
         {
@@ -268,7 +270,8 @@ Returns the specs for all packs in the Fleet instance.
       "description": "Description",
       "disabled": false,
       "targets": {
-        "labels": ["All Hosts"]
+        "labels": ["All Hosts"],
+        "teams": null
       },
       "queries": [
         {
@@ -326,7 +329,8 @@ Returns the specs for all packs in the Fleet instance.
       "name": "pack_2",
       "disabled": false,
       "targets": {
-        "labels": null
+        "labels": null,
+        "teams": null
       },
       "queries": [
         {
@@ -376,7 +380,8 @@ Returns the spec for the specified pack by pack name.
     "description": "Description",
     "disabled": false,
     "targets": {
-      "labels": ["All Hosts"]
+      "labels": ["All Hosts"],
+      "teams": null
     },
     "queries": [
       {
