@@ -86,6 +86,7 @@ const (
 	mariaDB_10_6  mysqlServer = 3
 )
 
+//nolint:unused // used in skipped tests
 func getMySQLServer(t *testing.T, r dbReader) mysqlServer {
 	row := r.QueryRowxContext(context.Background(), "SELECT VERSION()")
 	var version string
