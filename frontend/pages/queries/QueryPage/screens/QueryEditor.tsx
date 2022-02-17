@@ -113,7 +113,7 @@ const QueryEditor = ({
       dispatch(renderFlash("success", "Query updated!"));
     } catch (updateError: any) {
       console.error(updateError);
-      if (updateError.errors[0].reason.includes("Duplicate")) {
+      if (updateError.data.errors[0].reason.includes("Duplicate")) {
         dispatch(
           renderFlash("error", "A query with this name already exists.")
         );
