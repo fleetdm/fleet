@@ -1,17 +1,16 @@
 module.exports = {
 
 
-  friendlyName: 'Get estimation report',
+  friendlyName: 'Deliver estimation report',
 
 
-  description: '',
+  description: 'Send estimation report to Slack.',
 
 
   exits: {
 
     success: {
-      outputFriendlyName: 'Estimation report',
-      outputType: {}
+      description: 'It worked.  The estimation report was sent to Slack.'
     },
 
   },
@@ -19,6 +18,13 @@ module.exports = {
 
   fn: async function () {
 
+    //   ██████╗ ███████╗████████╗    ██████╗ ███████╗██████╗  ██████╗ ██████╗ ████████╗
+    //  ██╔════╝ ██╔════╝╚══██╔══╝    ██╔══██╗██╔════╝██╔══██╗██╔═══██╗██╔══██╗╚══██╔══╝
+    //  ██║  ███╗█████╗     ██║       ██████╔╝█████╗  ██████╔╝██║   ██║██████╔╝   ██║
+    //  ██║   ██║██╔══╝     ██║       ██╔══██╗██╔══╝  ██╔═══╝ ██║   ██║██╔══██╗   ██║
+    //  ╚██████╔╝███████╗   ██║       ██║  ██║███████╗██║     ╚██████╔╝██║  ██║   ██║
+    //   ╚═════╝ ╚══════╝   ╚═╝       ╚═╝  ╚═╝╚══════╝╚═╝      ╚═════╝ ╚═╝  ╚═╝   ╚═╝
+    //
     sails.log('Getting estimation report...');
 
     if (!sails.config.custom.githubAccessToken) {
@@ -135,7 +141,32 @@ module.exports = {
       });//∞
     });//∞
 
-    return estimationReport;
+    //  ██████╗  ██████╗ ███████╗████████╗    ████████╗ ██████╗
+    //  ██╔══██╗██╔═══██╗██╔════╝╚══██╔══╝    ╚══██╔══╝██╔═══██╗
+    //  ██████╔╝██║   ██║███████╗   ██║          ██║   ██║   ██║
+    //  ██╔═══╝ ██║   ██║╚════██║   ██║          ██║   ██║   ██║
+    //  ██║     ╚██████╔╝███████║   ██║          ██║   ╚██████╔╝
+    //  ╚═╝      ╚═════╝ ╚══════╝   ╚═╝          ╚═╝    ╚═════╝
+    //
+    //  ███████╗██╗      █████╗  ██████╗██╗  ██╗
+    //  ██╔════╝██║     ██╔══██╗██╔════╝██║ ██╔╝
+    //  ███████╗██║     ███████║██║     █████╔╝
+    //  ╚════██║██║     ██╔══██║██║     ██╔═██╗
+    //  ███████║███████╗██║  ██║╚██████╗██║  ██╗
+    //  ╚══════╝╚══════╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝
+    //
+    sails.log('Delivering estimation report to Slack...');
+    if (!sails.config.custom.slackWebhookUrlForContactForm) {
+      throw new Error(
+        'Estimation report not delivered: slackWebhookUrlForContactForm needs to be configured in sails.config.custom. Here\'s the undelivered report: ' +
+        `${require('util').inspect(estimationReport, {depth:null})}`
+      );
+    } else {
+      // TODO: instead of just copying the contact form handler webhook URL, make one that goes to an appropriate channel
+      await sails.helpers.http.post(sails.config.custom.slackWebhookUrlForContactForm, {
+        text: `New estimation report:\n${require('util').inspect(estimationReport, {depth:null})}`
+      });
+    }
 
   }
 
