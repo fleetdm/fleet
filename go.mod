@@ -89,6 +89,7 @@ require (
 	github.com/urfave/cli/v2 v2.3.0
 	github.com/valyala/fasthttp v1.31.0
 	go.elastic.co/apm/module/apmhttp v1.15.0
+	go.elastic.co/apm/module/apmredigo v1.15.0
 	go.elastic.co/apm/module/apmsql v1.15.0
 	go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux v0.28.0
 	go.opentelemetry.io/otel v1.3.0
