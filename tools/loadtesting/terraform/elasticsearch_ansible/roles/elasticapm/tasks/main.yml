@@ -1,4 +1,10 @@
 ---
+- template:
+    src: apm-server.yml
+    dest: /etc/apm-server.yml
+    mode: 0444
+    owner: root
+    group: root
 - docker_container:
     name: elasticapm
     image: docker.elastic.co/apm/apm-server:7.15.2
@@ -9,6 +15,8 @@
       - SETUID
     cap_drop:
       - ALL
+    volumes:
+      - "/etc/apm-server.docker.yml:/usr/share/apm-server/apm-server.yml:ro"
     network_mode: host
     healthcheck:
       interval: 10s
