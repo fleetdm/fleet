@@ -39,6 +39,15 @@ module.exports = {
     let estimationReport = {};
 
 
+    // Fetch projects
+    let projects = await sails.helpers.http.get(`https://api.github.com/orgs/fleetdm/projects`, {}, baseHeaders);// let projects = [];// « hack if you get rate limited and want to test beta projets
+
+    // This nasty little hack mixes in new "beta" projects that are part of Github Projects 2.0 (beta)
+    // but makes them look like normal projects from the actually-documented GitHub REST API.
+    // > [?] https://docs.github.com/en/enterprise-cloud@latest/issues/trying-out-the-new-projects-experience/using-the-api-to-manage-projects#finding-the-node-id-of-a-field
+    // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    // PS. In case you have to do anything with graphql ever again, try uncommenting this.
+    // ```
     // console.log(
     //   require('util').inspect(
     //     await sails.helpers.http.post(`https://api.github.com/graphql`,{
@@ -52,15 +61,8 @@ module.exports = {
     // console.log('-0--------------');
     // console.log();
     // // return;
-
-
-
-    // Fetch projects
-    let projects = await sails.helpers.http.get(`https://api.github.com/orgs/fleetdm/projects`, {}, baseHeaders);// let projects = [];// « hack if you get rate limited and want to test beta projets
-
-    // This nasty little hack mixes in new "beta" projects that are part of Github Projects 2.0 (beta)
-    // but makes them look like normal projects from the actually-documented GitHub REST API.
-    // > [?] https://docs.github.com/en/enterprise-cloud@latest/issues/trying-out-the-new-projects-experience/using-the-api-to-manage-projects#finding-the-node-id-of-a-field
+    // ```
+    // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     let graphqlHairball = await sails.helpers.http.post(`https://api.github.com/graphql`,{
       query:'{organization(login: "fleetdm") {projectsNext(first: 20) {nodes {id databaseId title fields(first: 20) {nodes {id name settings}} items(first: 20) {nodes{title id fieldValues(first: 8) {nodes{value projectField{name}}} content{...on Issue {repository{name} labels(first:20) {nodes{name}} assignees(first: 10) {nodes{login}}}}}} }}}}'
     }, baseHeaders);
