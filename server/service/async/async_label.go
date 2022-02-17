@@ -79,14 +79,14 @@ func (t *Task) RecordLabelQueryExecutions(ctx context.Context, host *fleet.Host,
 	// outside of the redis script because in Redis Cluster mode the key may not
 	// live on the same node as the host's keys. At the same time, purge any
 	// entry in the set that is older than now - TTL.
-	if _, err := storePurgeActiveHostID(t.Pool, labelMembershipActiveHostIDsKey, host.ID, ts, ts.Add(-ttl)); err != nil {
+	if _, err := storePurgeActiveHostID(ctx, t.Pool, labelMembershipActiveHostIDsKey, host.ID, ts, ts.Add(-ttl)); err != nil {
 		return ctxerr.Wrap(ctx, err, "store active host id")
 	}
 	return nil
 }
 
 func (t *Task) collectLabelQueryExecutions(ctx context.Context, ds fleet.Datastore, pool fleet.RedisPool, stats *collectorExecStats) error {
-	hosts, err := loadActiveHostIDs(pool, labelMembershipActiveHostIDsKey, t.RedisScanKeysCount)
+	hosts, err := loadActiveHostIDs(ctx, pool, labelMembershipActiveHostIDsKey, t.RedisScanKeysCount)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "load active host ids")
 	}
@@ -217,7 +217,7 @@ func (t *Task) collectLabelQueryExecutions(ctx context.Context, ds fleet.Datasto
 		// the initial value, so that the active set does not keep all (potentially
 		// 100K+) host IDs to process at all times - only those with reported
 		// results to process.
-		if _, err := removeProcessedHostIDs(pool, labelMembershipActiveHostIDsKey, hosts); err != nil {
+		if _, err := removeProcessedHostIDs(ctx, pool, labelMembershipActiveHostIDsKey, hosts); err != nil {
 			return ctxerr.Wrap(ctx, err, "remove processed host ids")
 		}
 	}

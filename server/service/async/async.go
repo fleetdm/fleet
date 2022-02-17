@@ -11,6 +11,7 @@ import (
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	redigo "github.com/gomodule/redigo/redis"
+	"go.elastic.co/apm/module/apmredigo"
 )
 
 const collectorLockKey = "locks:async_collector:{%s}"
@@ -93,7 +94,7 @@ func (t *Task) StartCollectors(ctx context.Context, jitterPct int, logger kitlog
 	}
 }
 
-func storePurgeActiveHostID(pool fleet.RedisPool, zsetKey string, hid uint, reportedAt, purgeOlder time.Time) (int, error) {
+func storePurgeActiveHostID(ctx context.Context, pool fleet.RedisPool, zsetKey string, hid uint, reportedAt, purgeOlder time.Time) (int, error) {
 	// KEYS[1]: the zsetKey
 	// ARGV[1]: the host ID to add
 	// ARGV[2]: the added host's reported-at timestamp
@@ -105,7 +106,7 @@ func storePurgeActiveHostID(pool fleet.RedisPool, zsetKey string, hid uint, repo
     return redis.call('ZREMRANGEBYSCORE', KEYS[1], '-inf', ARGV[3])
   `)
 
-	conn := pool.Get()
+	conn := pool.Get().(apmredigo.Conn).WithContext(ctx)
 	defer conn.Close()
 
 	if err := redis.BindConn(pool, conn, zsetKey); err != nil {
@@ -124,8 +125,8 @@ type hostIDLastReported struct {
 	LastReported int64 // timestamp in unix epoch
 }
 
-func loadActiveHostIDs(pool fleet.RedisPool, zsetKey string, scanCount int) ([]hostIDLastReported, error) {
-	conn := redis.ConfigureDoer(pool, pool.Get())
+func loadActiveHostIDs(ctx context.Context, pool fleet.RedisPool, zsetKey string, scanCount int) ([]hostIDLastReported, error) {
+	conn := redis.ConfigureDoer(pool, pool.Get().(apmredigo.Conn).WithContext(ctx))
 	defer conn.Close()
 
 	// using ZSCAN instead of fetching in one shot, as there may be 100K+ hosts
@@ -152,7 +153,7 @@ func loadActiveHostIDs(pool fleet.RedisPool, zsetKey string, scanCount int) ([]h
 	}
 }
 
-func removeProcessedHostIDs(pool fleet.RedisPool, zsetKey string, batch []hostIDLastReported) (int, error) {
+func removeProcessedHostIDs(ctx context.Context, pool fleet.RedisPool, zsetKey string, batch []hostIDLastReported) (int, error) {
 	// This script removes from the set of active hosts all those that still have
 	// the same score as when the batch was read (via loadActiveHostIDs). This is
 	// so that any host that would've reported new data since the call to
@@ -189,7 +190,7 @@ func removeProcessedHostIDs(pool fleet.RedisPool, zsetKey string, batch []hostID
     return count
   `)
 
-	conn := pool.Get()
+	conn := pool.Get().(apmredigo.Conn).WithContext(ctx)
 	defer conn.Close()
 
 	if err := redis.BindConn(pool, conn, zsetKey); err != nil {
