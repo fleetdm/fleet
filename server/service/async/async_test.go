@@ -100,7 +100,7 @@ func TestRecordQueryExecutions(t *testing.T) {
 
 func TestActiveHostIDsSet(t *testing.T) {
 	const zkey = "testActiveHostIDsSet"
-	ctx = context.Background()
+	ctx := context.Background()
 
 	runTest := func(t *testing.T, pool fleet.RedisPool) {
 		activeHosts, err := loadActiveHostIDs(ctx, pool, zkey, 10)
@@ -142,7 +142,7 @@ func TestActiveHostIDsSet(t *testing.T) {
 			{HostID: 4, LastReported: ts[3]},
 			{HostID: 6, LastReported: ts[5]},
 		}
-		n, err = removeProcessedHostIDs(pool, zkey, batch)
+		n, err = removeProcessedHostIDs(ctx, pool, zkey, batch)
 		require.NoError(t, err)
 		require.Equal(t, 2, n)
 
@@ -160,7 +160,7 @@ func TestActiveHostIDsSet(t *testing.T) {
 			{HostID: 7, LastReported: ts[6]},
 			{HostID: 8, LastReported: ts[7]},
 		}
-		n, err = removeProcessedHostIDs(pool, zkey, batch)
+		n, err = removeProcessedHostIDs(ctx, pool, zkey, batch)
 		require.NoError(t, err)
 		require.Equal(t, 1, n)
 
