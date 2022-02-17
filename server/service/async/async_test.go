@@ -100,9 +100,10 @@ func TestRecordQueryExecutions(t *testing.T) {
 
 func TestActiveHostIDsSet(t *testing.T) {
 	const zkey = "testActiveHostIDsSet"
+	ctx = context.Background()
 
 	runTest := func(t *testing.T, pool fleet.RedisPool) {
-		activeHosts, err := loadActiveHostIDs(pool, zkey, 10)
+		activeHosts, err := loadActiveHostIDs(ctx, pool, zkey, 10)
 		require.NoError(t, err)
 		require.Len(t, activeHosts, 0)
 
@@ -118,12 +119,12 @@ func TestActiveHostIDsSet(t *testing.T) {
 			}
 
 			// none ever get deleted, all are after tpurgeNone
-			n, err := storePurgeActiveHostID(pool, zkey, uint(i+1), time.Unix(ts[i], 0), tpurgeNone)
+			n, err := storePurgeActiveHostID(ctx, pool, zkey, uint(i+1), time.Unix(ts[i], 0), tpurgeNone)
 			require.NoError(t, err)
 			require.Equal(t, 0, n)
 		}
 
-		activeHosts, err = loadActiveHostIDs(pool, zkey, 10)
+		activeHosts, err = loadActiveHostIDs(ctx, pool, zkey, 10)
 		require.NoError(t, err)
 		require.Len(t, activeHosts, len(ts))
 		for i, host := range activeHosts {
@@ -132,7 +133,7 @@ func TestActiveHostIDsSet(t *testing.T) {
 
 		// store a new one but now use t[1] as purge date - will remove two
 		ts = append(ts, time.Unix(ts[len(ts)-1], 0).Add(time.Second).Unix())
-		n, err := storePurgeActiveHostID(pool, zkey, uint(len(ts)), time.Unix(ts[len(ts)-1], 0), time.Unix(ts[1], 0))
+		n, err := storePurgeActiveHostID(ctx, pool, zkey, uint(len(ts)), time.Unix(ts[len(ts)-1], 0), time.Unix(ts[1], 0))
 		require.NoError(t, err)
 		require.Equal(t, 2, n)
 
@@ -147,7 +148,7 @@ func TestActiveHostIDsSet(t *testing.T) {
 
 		// update t[6] of host 7, as if it had reported new data since the load
 		newT6 := time.Unix(ts[len(ts)-1], 0).Add(time.Second)
-		n, err = storePurgeActiveHostID(pool, zkey, 7, newT6, tpurgeNone)
+		n, err = storePurgeActiveHostID(ctx, pool, zkey, 7, newT6, tpurgeNone)
 		require.NoError(t, err)
 		require.Equal(t, 0, n)
 
@@ -164,7 +165,7 @@ func TestActiveHostIDsSet(t *testing.T) {
 		require.Equal(t, 1, n)
 
 		// check the remaining active hosts (only 6 remain)
-		activeHosts, err = loadActiveHostIDs(pool, zkey, 10)
+		activeHosts, err = loadActiveHostIDs(ctx, pool, zkey, 10)
 		require.NoError(t, err)
 		require.Len(t, activeHosts, 6)
 		want := []hostIDLastReported{
