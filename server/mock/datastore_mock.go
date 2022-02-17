@@ -260,8 +260,6 @@ type SearchTeamsFunc func(ctx context.Context, filter fleet.TeamFilter, matchQue
 
 type TeamEnrollSecretsFunc func(ctx context.Context, teamID uint) ([]*fleet.EnrollSecret, error)
 
-type ApplyTeamSpecsFunc func(ctx context.Context, specs []*fleet.TeamSpec) error
-
 type LoadHostSoftwareFunc func(ctx context.Context, host *fleet.Host) error
 
 type AllSoftwareWithoutCPEIteratorFunc func(ctx context.Context) (fleet.SoftwareIterator, error)
@@ -752,9 +750,6 @@ type DataStore struct {
 
 	TeamEnrollSecretsFunc        TeamEnrollSecretsFunc
 	TeamEnrollSecretsFuncInvoked bool
-
-	ApplyTeamSpecsFunc        ApplyTeamSpecsFunc
-	ApplyTeamSpecsFuncInvoked bool
 
 	LoadHostSoftwareFunc        LoadHostSoftwareFunc
 	LoadHostSoftwareFuncInvoked bool
@@ -1552,11 +1547,6 @@ func (s *DataStore) SearchTeams(ctx context.Context, filter fleet.TeamFilter, ma
 func (s *DataStore) TeamEnrollSecrets(ctx context.Context, teamID uint) ([]*fleet.EnrollSecret, error) {
 	s.TeamEnrollSecretsFuncInvoked = true
 	return s.TeamEnrollSecretsFunc(ctx, teamID)
-}
-
-func (s *DataStore) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec) error {
-	s.ApplyTeamSpecsFuncInvoked = true
-	return s.ApplyTeamSpecsFunc(ctx, specs)
 }
 
 func (s *DataStore) LoadHostSoftware(ctx context.Context, host *fleet.Host) error {

@@ -321,8 +321,6 @@ type Datastore interface {
 	SearchTeams(ctx context.Context, filter TeamFilter, matchQuery string, omit ...uint) ([]*Team, error)
 	// TeamEnrollSecrets lists the enroll secrets for the team.
 	TeamEnrollSecrets(ctx context.Context, teamID uint) ([]*EnrollSecret, error)
-	// ApplyPackSpecs applies a list of TeamSpecs to the datastore, creating and updating teams as necessary.
-	ApplyTeamSpecs(ctx context.Context, specs []*TeamSpec) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// SoftwareStore
