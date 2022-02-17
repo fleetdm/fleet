@@ -251,7 +251,7 @@ module.exports = {
         // Now, if appropriate, auto-approve the PR.
         if (isAutoApproved) {
           // [?] https://docs.github.com/en/rest/reference/pulls#create-a-review-for-a-pull-request
-          await sails.helpers.http.post(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/reviews`, {
+          await sails.helpers.http.post(`https://api.github.com/repos/fleetdm/${repo}/pulls/${prNumber}/reviews`, {
             event: 'APPROVE'
           }, baseHeaders);
         }
