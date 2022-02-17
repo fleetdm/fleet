@@ -43,7 +43,7 @@ A browser compatibility check of [fleetdm.com](https://fleetdm.com/) should be c
 
 - **Manage risk, not fear**. Educate users about security threats positively. Risk management is smart, but focusing on fear can lead to poor decisions. We NEVER use fear as a communication and marketing tactic. 
 
-- **Consider the meaning of words**. Do not use terms that were commonly used but are now inappropriate. Some are offensive, while others are judgmental. We never want to offend people, and in some cases, the judgmental terms detract from our ability to sound positive and avoid fear.
+- **Consider the meaning of words**. We never want to offend people or sound judgemental. Industry jargon that was once commonly used may now be considered offensive and should be avoided.
 
 ### What would Mr Rogers say?
 
