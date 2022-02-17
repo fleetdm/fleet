@@ -183,7 +183,6 @@ Press Enter to continue, or Control-c to exit.
 If you want to run orbit from source directly, you can do the following:
 
 ```sh 
-cd orbit
 go run github.com/fleetdm/fleet/v4/orbit/cmd/orbit --root-dir /tmp/orbit -- --flagfile=flagfile.txt --verbose
 ```
 

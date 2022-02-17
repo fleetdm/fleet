@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -228,7 +229,7 @@ func main() {
 
 		var options []func(*osquery.Runner) error
 		options = append(options, osquery.WithDataPath(c.String("root-dir")))
-		options = append(options, osquery.WithLogPath(c.String("root-dir")))
+		options = append(options, osquery.WithLogPath(path.Join(c.String("root-dir"), "osquery_log")))
 
 		if logFile != nil {
 			// If set, redirect osqueryd's stderr to the logFile.
