@@ -59,6 +59,8 @@ becomes...
 
 By Mr Rogering our writing we can emphasize positivity, optimism and encourage our readers to succeed. The example above also considers sentence flow and use of synonyms to reduce repetition.
 
+Another example to consider is industry jargon that may now be inappropriate. While the term *"responsible vulnerability disclosure"* has been used for decades, it supposes that people who use a different process are *irresponsible*. Using *coordinated disclosure* is a more positive way to discuss the issue.
+
 ## Voice and tone guidelines
 
 ### How to write headings & subheadings
