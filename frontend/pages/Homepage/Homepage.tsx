@@ -48,7 +48,6 @@ const Homepage = (): JSX.Element => {
   const [windowsCount, setWindowsCount] = useState<string>("0");
   const [onlineCount, setOnlineCount] = useState<string | undefined>();
   const [offlineCount, setOfflineCount] = useState<string | undefined>();
-  const [newCount, setNewCount] = useState<string | undefined>();
   const [showActivityFeedTitle, setShowActivityFeedTitle] = useState<boolean>(
     false
   );
@@ -88,7 +87,6 @@ const Homepage = (): JSX.Element => {
       onSuccess: (data: IHostSummary) => {
         setOnlineCount(data.online_count.toLocaleString("en-US"));
         setOfflineCount(data.offline_count.toLocaleString("en-US"));
-        setNewCount(data.new_count.toLocaleString("en-US"));
         const macHosts = data.platforms?.find(
           (platform: IHostSummaryPlatforms) => platform.platform === "darwin"
         ) || { platform: "darwin", hosts_count: 0 };
@@ -147,7 +145,6 @@ const Homepage = (): JSX.Element => {
       <HostsStatus
         onlineCount={onlineCount}
         offlineCount={offlineCount}
-        newCount={newCount}
         isLoadingHosts={isHostSummaryFetching}
         showHostsUI={showHostsUI}
       />
