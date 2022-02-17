@@ -32,9 +32,30 @@ module.exports = {
 
     let estimationReport = {};
 
+    // let sillygraphqlstuff = await sails.helpers.http.post(`https://api.github.com/graphql`,{
+    //   query:'{organization(login: "fleetdm") {projectsNext(first: 20) {nodes {id title}}}}'
+    // }, baseHeaders);
+    // return sillygraphqlstuff;
+
     // FUTURE: only look at particular projects here instead of all of them
     let projects = await sails.helpers.http.get(`https://api.github.com/orgs/fleetdm/projects`, {}, baseHeaders);
-    // projects = projects.filter((project)=> Number(project.id) === 13160610);// « hack to try it w/ just one project
+    // sails.log(projects);
+
+    // This nasty little hack mixes in new "beta" projects that are part of Github Projects 2.0 (beta)
+    // but makes them look like normal projects from the actually-documented GitHub REST API.
+    // > [?] https://docs.github.com/en/enterprise-cloud@latest/issues/trying-out-the-new-projects-experience/using-the-api-to-manage-projects#finding-the-node-id-of-a-field
+    projects = projects.concat(
+      (
+        await sails.helpers.http.post(`https://api.github.com/graphql`,{
+          query:'{organization(login: "fleetdm") {projectsNext(first: 20) {nodes {id databaseId title}}}}'
+        }, baseHeaders)
+      ).data.organization.projectsNext.nodes.map((node)=>({
+        name: node.title,// « it's been renamed for some reason
+        node_id: node.id,// eslint-disable-line camelcase
+        id: node.databaseId// « the good ole ID for the rest of us ("node_id" is the graphql ID)
+      }))
+    );
+    return projects;
 
     await sails.helpers.flow.simultaneouslyForEach(projects, async(project)=>{
       estimationReport[project.name] = {};
