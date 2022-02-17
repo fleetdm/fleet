@@ -209,6 +209,8 @@ module.exports = {
 
           isSenderDRIForAllChangedPaths = _.all(changedPaths, (changedPath)=>{
             changedPath = changedPath.replace(/\/+$/,'');// « trim trailing slashes, just in case (b/c otherwise could loop forever)
+
+            require('assert')(sender.login !== undefined);
             if (sender.login === DRI_BY_PATH[changedPath]) {
               return true;
             }
