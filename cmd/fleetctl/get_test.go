@@ -890,6 +890,7 @@ spec:
   platform: darwin
   targets:
     labels: null
+    teams: null
 `
 	expectedJson := `
 {
