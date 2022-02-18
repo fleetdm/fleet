@@ -31,8 +31,10 @@ type Runner struct {
 	cancel   func()
 }
 
+type Option func(*Runner) error
+
 // NewRunner creates a new osquery runner given the provided functional options.
-func NewRunner(path string, options ...func(*Runner) error) (*Runner, error) {
+func NewRunner(path string, options ...Option) (*Runner, error) {
 	r := &Runner{}
 
 	cmd := exec.Command(path)
@@ -53,7 +55,7 @@ func NewRunner(path string, options ...func(*Runner) error) (*Runner, error) {
 }
 
 // WithFlags adds additional flags to the osqueryd invocation.
-func WithFlags(flags []string) func(*Runner) error {
+func WithFlags(flags []string) Option {
 	return func(r *Runner) error {
 		r.cmd.Args = append(r.cmd.Args, flags...)
 		return nil
@@ -62,7 +64,7 @@ func WithFlags(flags []string) func(*Runner) error {
 
 // WithEnv adds additional environment variables to the osqueryd invocation.
 // Inputs should be in the form "KEY=VAL".
-func WithEnv(env []string) func(*Runner) error {
+func WithEnv(env []string) Option {
 	return func(r *Runner) error {
 		r.cmd.Env = append(r.cmd.Env, env...)
 		return nil
@@ -78,7 +80,7 @@ func WithShell() func(*Runner) error {
 	}
 }
 
-func WithDataPath(path string) func(*Runner) error {
+func WithDataPath(path string) Option {
 	return func(r *Runner) error {
 		r.dataPath = path
 
@@ -96,14 +98,14 @@ func WithDataPath(path string) func(*Runner) error {
 }
 
 // WithStderr sets the runner's cmd's stderr to the given writer.
-func WithStderr(w io.Writer) func(*Runner) error {
+func WithStderr(w io.Writer) Option {
 	return func(r *Runner) error {
 		r.cmd.Stderr = w
 		return nil
 	}
 }
 
-func WithLogPath(path string) func(*Runner) error {
+func WithLogPath(path string) Option {
 	return func(r *Runner) error {
 		if err := secure.MkdirAll(path, constant.DefaultDirMode); err != nil {
 			return fmt.Errorf("initialize osquery log path: %w", err)

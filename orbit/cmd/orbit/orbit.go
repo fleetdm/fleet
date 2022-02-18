@@ -97,6 +97,11 @@ func main() {
 			EnvVars: []string{"ORBIT_ORBIT_CHANNEL"},
 		},
 		&cli.BoolFlag{
+			Name:    "disable-updates",
+			Usage:   "Disables auto updates",
+			EnvVars: []string{"ORBIT_DISABLE_UPDATES"},
+		},
+		&cli.BoolFlag{
 			Name:    "debug",
 			Usage:   "Enable debug logging",
 			EnvVars: []string{"ORBIT_DEBUG"},
@@ -177,22 +182,28 @@ func main() {
 			log.Fatal().Err(err).Msg("failed to create local metadata store")
 		}
 
-		// Initialize updater and get expected version
-		opt := update.DefaultOptions
-		opt.RootDirectory = c.String("root-dir")
-		opt.ServerURL = c.String("update-url")
-		opt.LocalStore = localStore
-		opt.InsecureTransport = c.Bool("insecure")
-		updater, err := update.New(opt)
-		if err != nil {
-			return err
-		}
-		if err := updater.UpdateMetadata(); err != nil {
-			log.Info().Err(err).Msg("failed to update metadata. using saved metadata.")
-		}
-		osquerydPath, err := updater.Get("osqueryd", c.String("osqueryd-channel"))
-		if err != nil {
-			return err
+		// Get the default osqueryd path from the installation/configuration.
+		osquerydPath := update.LocalPath(c.String("root-dir"), "osqueryd", c.String("osqueryd-channel"), constant.PlatformName)
+
+		var updater *update.Updater
+		if !c.Bool("disabe-updates") {
+			// Initialize updater and get expected version of osqueryd.
+			opt := update.DefaultOptions
+			opt.RootDirectory = c.String("root-dir")
+			opt.ServerURL = c.String("update-url")
+			opt.LocalStore = localStore
+			opt.InsecureTransport = c.Bool("insecure")
+			updater, err = update.New(opt)
+			if err != nil {
+				return fmt.Errorf("failed to create updater: %w", err)
+			}
+			if err := updater.UpdateMetadata(); err != nil {
+				log.Info().Err(err).Msg("failed to update metadata. using saved metadata.")
+			}
+			osquerydPath, err = updater.Get("osqueryd", c.String("osqueryd-channel"))
+			if err != nil {
+				return fmt.Errorf("failed to get osqueryd target: %w", err)
+			}
 		}
 
 		// Clear leftover files from updates
@@ -215,19 +226,21 @@ func main() {
 
 		var g run.Group
 
-		updateRunner, err := update.NewRunner(updater, update.RunnerOptions{
-			CheckInterval: 10 * time.Second,
-			Targets: map[string]string{
-				"osqueryd": c.String("osqueryd-channel"),
-				"orbit":    c.String("orbit-channel"),
-			},
-		})
-		if err != nil {
-			return err
+		if !c.Bool("disable-updates") {
+			updateRunner, err := update.NewRunner(updater, update.RunnerOptions{
+				CheckInterval: 10 * time.Second,
+				Targets: map[string]string{
+					"osqueryd": c.String("osqueryd-channel"),
+					"orbit":    c.String("orbit-channel"),
+				},
+			})
+			if err != nil {
+				return err
+			}
+			g.Add(updateRunner.Execute, updateRunner.Interrupt)
 		}
-		g.Add(updateRunner.Execute, updateRunner.Interrupt)
 
-		var options []func(*osquery.Runner) error
+		var options []osquery.Option
 		options = append(options, osquery.WithDataPath(c.String("root-dir")))
 		options = append(options, osquery.WithLogPath(path.Join(c.String("root-dir"), "osquery_log")))
 
@@ -328,7 +341,7 @@ func main() {
 					osquery.WithFlags([]string{"--tls_server_certs", certPath}),
 				)
 			} else {
-				certPath := filepath.Join(opt.RootDirectory, "certs.pem")
+				certPath := filepath.Join(c.String("root-dir"), "certs.pem")
 				if exists, err := file.Exists(certPath); err == nil && exists {
 					_, err = certificate.LoadPEM(certPath)
 					if err != nil {
@@ -364,8 +377,11 @@ func main() {
 		// override all other flags and flagfile entries.
 		options = append(options, osquery.WithFlags(c.Args().Slice()))
 
-		// Create an osquery runner with the provided options
-		r, _ := osquery.NewRunner(osquerydPath, options...)
+		// Create an osquery runner with the provided options.
+		r, err := osquery.NewRunner(osquerydPath, options...)
+		if err != nil {
+			return fmt.Errorf("failed to create osquery runner: %w", err)
+		}
 		g.Add(r.Execute, r.Interrupt)
 
 		if runtime.GOOS != "windows" {

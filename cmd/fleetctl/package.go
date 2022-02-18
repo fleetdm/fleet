@@ -76,6 +76,11 @@ func packageCommand() *cli.Command {
 				Usage:       "Whether to notarize macOS packages",
 				Destination: &opt.Notarize,
 			},
+			&cli.BoolFlag{
+				Name:        "disable-updates",
+				Usage:       "Disable auto updates on the generated package",
+				Destination: &opt.DisableUpdates,
+			},
 			&cli.StringFlag{
 				Name:        "osqueryd-channel",
 				Usage:       "Update channel of osqueryd to use",
