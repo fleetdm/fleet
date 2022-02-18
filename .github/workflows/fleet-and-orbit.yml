@@ -1,0 +1,172 @@
+name: Test Orbit & Fleet
+
+on:
+  push:
+    branches:
+      - main
+      - patch-*
+    paths:
+      - '**.go'
+  pull_request:
+    paths:
+      - '**.go'
+  workflow_dispatch: # Manual
+
+jobs:
+  gen:
+    runs-on: ubuntu-latest
+    outputs:
+      subdomain: ${{ steps.gen.outputs.subdomain }}
+      address: ${{ steps.gen.outputs.address }}
+    steps:
+    - id: gen
+      run: |
+        UUID=$(uuidgen)
+        echo "::set-output name=subdomain::fleet-test-$UUID"
+        echo "::set-output name=domain::fleet-test-$UUID.fleetuem.com"
+        echo "::set-output name=address::https://fleet-test-$UUID.fleetuem.com"
+  
+  run-server:
+    strategy:
+      matrix:
+        go-version: ['^1.17.0']
+        mysql: ['mysql:5.7']
+    runs-on: ubuntu-latest
+    needs: gen
+    steps:
+    - name: Start tunnel
+      env: 
+        CERT_PEM: ${{ secrets.CLOUDFLARE_TUNNEL_FLEETUEM_CERT_B64 }}
+      run: |
+        # Install cloudflared
+        wget https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+        sudo dpkg -i cloudflared-linux-amd64.deb
+        # Add secret
+        echo "$CERT_PEM" | base64 -d > cert.pem
+        # Start tunnel
+        cloudflared tunnel --origincert cert.pem --hostname ${{ needs.gen.outputs.subdomain }} --url https://localhost:8080 --name ${{ needs.gen.outputs.subdomain }} &
+        until [ $(cloudflared tunnel --origincert cert.pem info -o json ${{ needs.gen.outputs.subdomain }} | jq '.conns[0].conns[0].is_pending_reconnect') = false ]; do
+          echo "Awaiting tunnel ready..."
+          sleep 5
+        done
+
+    - name: Install Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: ${{ matrix.go-version }}
+
+    - name: Checkout Code
+      uses: actions/checkout@v2
+
+    # Pre-starting dependencies here means they are ready to go when we need them.
+    - name: Start Infra Dependencies
+      # Use & to background this
+      run: FLEET_MYSQL_IMAGE=${{ matrix.mysql }} docker-compose up -d mysql redis &
+
+    - name: Install JS Dependencies
+      run: make deps-js
+
+    - name: Install Go Dependencies
+      run: make deps-go
+
+    - name: Generate and bundle go & js code
+      run: make generate
+
+    - name: Build fleet and fleetctl
+      run: make fleet fleetctl
+
+    - name: Run Fleet server
+      timeout-minutes: 15
+      env:
+        FLEET_OSQUERY_HOST_IDENTIFIER: instance # use instance identifier to allow for duplicate UUIDs
+        FLEET_SERVER_ADDRESS: ${{ needs.gen.outputs.address }}
+        FLEET_LOGGING_DEBUG: true
+      run: |
+        mkdir ./log
+        ./build/fleet serve --dev --dev_license 1>./log/fleet_output.txt 2>./log/fleet_output.txt &
+        ./build/fleetctl setup --email admin@example.com --name Admin --password admin123# --org-name Example
+        # Wait for all of the hosts to be enrolled
+        EXPECTED=2
+        until [ $(./build/fleetctl get hosts --json | wc -l | tee hostcount) -ge $EXPECTED ]; do
+          echo -n "Waiting for hosts to enroll: "
+          cat hostcount | xargs echo -n
+          echo " / $EXPECTED"
+          sleep 10
+        done
+        ./build/fleetctl get hosts
+        echo "Success! $EXPECTED hosts enrolled."
+
+    - name: Cleanup tunnel
+      if: always()
+      run: cloudflared tunnel --origincert cert.pem delete --force ${{ needs.gen.outputs.subdomain }}    
+
+  get-enroll-secret:
+    strategy:
+      matrix:
+        go-version: ['^1.17.0']
+    runs-on: ubuntu-latest
+    needs: gen
+    outputs:
+      token: ${{ steps.enroll.outputs.enroll_secret }}
+    steps:
+
+    - name: Install Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: ${{ matrix.go-version }}
+
+    - name: Checkout Code
+      uses: actions/checkout@v2
+
+    - name: Install Go Dependencies
+      run: make deps-go
+
+    - name: Build Fleetctl
+      run: make fleetctl
+
+    - id: enroll
+      name: Fetch enroll secret
+      timeout-minutes: 5
+      run: |
+        ./build/fleetctl config set --address ${{ needs.gen.outputs.address }}
+        until ./build/fleetctl login --email admin@example.com --password admin123#
+        do
+          echo "Retrying in 5s..."
+          sleep 5
+        done
+        SECRET_JSON=$(fleetctl get enroll_secret --json --debug)
+        echo $SECRET_JSON
+        SECRET=$(echo $SECRET_JSON | jq -r '.spec.secrets[0].secret')
+        echo "::set-output name=enroll_secret::$SECRET"
+      
+  orbit-macos:
+    timeout-minutes: 15
+    strategy:
+      matrix:
+        osqueryd-channel: ['stable', 'edge']
+        go-version: ['^1.17.0']
+    runs-on: macos-latest
+    needs: [gen, get-enroll-secret]
+    steps:
+
+    - name: Install Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: ${{ matrix.go-version }}
+
+    - name: Checkout Code
+      uses: actions/checkout@v2
+
+    - name: Install Go Dependencies
+      run: make deps-go
+
+    - name: Build and Run Orbit
+      run: |
+        sudo hostname macos-orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}
+        echo "Hostname: $(hostname -s)"
+        go run github.com/fleetdm/fleet/v4/orbit/cmd/orbit --dev-mode --disable-updates --root-dir /tmp/orbit --fleet-url ${{ needs.gen.outputs.address }} --enroll-secret ${{ needs.get-enroll-secret.outputs.enroll_secret }} --osqueryd-channel ${{ matrix.osqueryd-channel }} -- --verbose &
+        while nc -z ${{ needs.gen.outputs.domain }} 443
+        do
+          echo "Retrying in 10s..."
+          sleep 10
+        done
