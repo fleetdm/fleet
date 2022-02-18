@@ -196,7 +196,7 @@ func getOrGenerateSoftwareIdDB(ctx context.Context, tx sqlx.ExtContext, s fleet.
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "insert software")
 	}
-	// LastInsertedId sometimes returns 0 as it's dependent on connections and how mysql is configured
+	// LastInsertId sometimes returns 0 as it's dependent on connections and how mysql is configured
 	// doing the select recursively is a bit slower, but most times, we won't end up in this situation
 	return getOrGenerateSoftwareIdDB(ctx, tx, s)
 }
