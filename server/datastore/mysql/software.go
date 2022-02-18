@@ -186,7 +186,7 @@ func getOrGenerateSoftwareIdDB(ctx context.Context, tx sqlx.ExtContext, s fleet.
 		return uint(existingId[0]), nil
 	}
 
-	result, err := tx.ExecContext(ctx,
+	_, err := tx.ExecContext(ctx,
 		"INSERT INTO software "+
 			"(name, version, source, `release`, vendor, arch, bundle_identifier) "+
 			"VALUES (?, ?, ?, ?, ?, ?, ?) "+
@@ -196,11 +196,9 @@ func getOrGenerateSoftwareIdDB(ctx context.Context, tx sqlx.ExtContext, s fleet.
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "insert software")
 	}
-	id, err := result.LastInsertId()
-	if err != nil {
-		return 0, ctxerr.Wrap(ctx, err, "last id from software")
-	}
-	return uint(id), nil
+	// LastInsertId sometimes returns 0 as it's dependent on connections and how mysql is configured
+	// doing the select recursively is a bit slower, but most times, we won't end up in this situation
+	return getOrGenerateSoftwareIdDB(ctx, tx, s)
 }
 
 func insertNewInstalledHostSoftwareDB(
