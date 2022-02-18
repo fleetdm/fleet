@@ -512,20 +512,15 @@ func (ds *Datastore) InsertCVEForCPE(ctx context.Context, cve string, cpes []str
 	var totalCount int64
 	for _, cpe := range cpes {
 		var ids []uint
-		query, args, err := sqlx.In(`SELECT id FROM software_cpe WHERE cpe=?`, cpe)
+		err := sqlx.Select(ds.writer, &ids, `SELECT id FROM software_cpe WHERE cpe=?`, cpe)
 		if err != nil {
 			return 0, err
 		}
 
-		err = sqlx.Select(ds.writer, &ids, query, args...)
-		if err != nil {
-			return 0, err
-		}
-
-		args = []interface{}{}
 		values := strings.TrimSuffix(strings.Repeat("(?,?),", len(ids)), ",")
 		sql := fmt.Sprintf(`INSERT IGNORE INTO software_cve (cpe_id, cve) VALUES %s`, values)
 
+		var args []interface{}
 		for _, id := range ids {
 			args = append(args, id, cve)
 		}
