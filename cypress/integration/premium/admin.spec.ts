@@ -504,7 +504,7 @@ describe("Premium tier - Admin user", () => {
         cy.getAttached("tbody>tr")
           .should("have.length", 1)
           .within(() => {
-            cy.findByText(/1 day/i).should("exist");
+            cy.findByText(/6 hours/i).should("exist");
             cy.findByText(/action/i).click();
             cy.findByText(/remove/i).click();
           });
