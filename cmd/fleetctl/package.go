@@ -76,11 +76,6 @@ func packageCommand() *cli.Command {
 				Usage:       "Whether to notarize macOS packages",
 				Destination: &opt.Notarize,
 			},
-			&cli.BoolFlag{
-				Name:        "disable-updates",
-				Usage:       "Disable auto updates on the generated package",
-				Destination: &opt.DisableUpdates,
-			},
 			&cli.StringFlag{
 				Name:        "osqueryd-channel",
 				Usage:       "Update channel of osqueryd to use",
@@ -92,6 +87,11 @@ func packageCommand() *cli.Command {
 				Usage:       "Update channel of Orbit to use",
 				Value:       "stable",
 				Destination: &opt.OrbitChannel,
+			},
+			&cli.BoolFlag{
+				Name:        "disable-updates",
+				Usage:       "Disable auto updates on the generated package",
+				Destination: &opt.DisableUpdates,
 			},
 			&cli.StringFlag{
 				Name:        "update-url",

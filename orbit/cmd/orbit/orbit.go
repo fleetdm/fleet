@@ -102,6 +102,11 @@ func main() {
 			EnvVars: []string{"ORBIT_DISABLE_UPDATES"},
 		},
 		&cli.BoolFlag{
+			Name:    "dev-mode",
+			Usage:   "Runs in development mode",
+			EnvVars: []string{"ORBIT_DEV_MODE"},
+		},
+		&cli.BoolFlag{
 			Name:    "debug",
 			Usage:   "Enable debug logging",
 			EnvVars: []string{"ORBIT_DEBUG"},
@@ -185,8 +190,15 @@ func main() {
 		// Get the default osqueryd path from the installation/configuration.
 		osquerydPath := update.LocalPath(c.String("root-dir"), "osqueryd", c.String("osqueryd-channel"), constant.PlatformName)
 
+		if c.Bool("disable-updates") {
+			log.Info().Msg("running with auto updates disabled")
+		}
+
 		var updater *update.Updater
-		if !c.Bool("disabe-updates") {
+		if !c.Bool("disable-updates") ||
+			// When running in dev-mode, even if `disable-updates` is set, fetch osqueryd once as part
+			// of initialization.
+			c.Bool("dev-mode") {
 			// Initialize updater and get expected version of osqueryd.
 			opt := update.DefaultOptions
 			opt.RootDirectory = c.String("root-dir")

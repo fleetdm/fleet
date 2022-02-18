@@ -3,6 +3,7 @@ package osquery
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -35,6 +36,15 @@ type Option func(*Runner) error
 
 // NewRunner creates a new osquery runner given the provided functional options.
 func NewRunner(path string, options ...Option) (*Runner, error) {
+	switch _, err := os.Stat(path); {
+	case err == nil:
+		// OK
+	case errors.Is(err, os.ErrNotExist):
+		return nil, fmt.Errorf("osqueryd doesn't exist at path %q", path)
+	default:
+		return nil, fmt.Errorf("failed to check for osqueryd file: %w", err)
+	}
+
 	r := &Runner{}
 
 	cmd := exec.Command(path)
