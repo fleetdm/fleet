@@ -1,5 +1,12 @@
 ## Fleet on GCP
 
+Required Variables:
+```terraform
+project_id = "<your project id>"
+prefix     = "fleet"
+dns_name   = "<the domain you want to host fleet at>" // eg. myfleet.fleetdm.com.
+```
+
 ### Overview
 
 #### Fleet server
