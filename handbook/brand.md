@@ -10,6 +10,8 @@
 
 - **Manage risk, not fear**. Educate users about security threats positively. Risk management is smart, but focusing on fear can lead to poor decisions. We NEVER use fear as a communication and marketing tactic. 
 
+- **Consider the meaning of words**. We never want to offend people or sound judgemental. Industry jargon that was once commonly used may now be considered offensive and should be avoided.
+
 ### What would Mr Rogers say?
 
 At Fleet, our voice and tone should be clear, simple, friendly, and inspiring - like [Mr. Rogers](https://en.wikipedia.org/wiki/Fred_Rogers) who had a deep understanding of these communication values.
@@ -23,6 +25,8 @@ becomes...
 > *Distributed workforces aren’t going anywhere anytime soon, **so it’s a great time** to **engage** with your **crew** and **help them** to work with your security team instead of around them.*
 
 By Mr Rogering our writing we can emphasize positivity, optimism and encourage our readers to succeed. The example above also considers sentence flow and use of synonyms to reduce repetition.
+
+Another example to consider is industry jargon that may now be inappropriate. While the term *"responsible vulnerability disclosure"* has been used for decades, it supposes that people who use a different process are *irresponsible*. Using *coordinated disclosure* is a more positive way to discuss the issue.
 
 ## Voice and tone guidelines
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
-import moment from "moment";
 import classnames from "classnames";
+import { format } from "date-fns";
 import FileSaver from "file-saver";
 import { get } from "lodash";
 
@@ -85,7 +85,7 @@ const QueryResults = ({
         };
       });
       const csv = convertToCSV(hostsExport);
-      const formattedTime = moment(new Date()).format("MM-DD-YY hh-mm-ss");
+      const formattedTime = format(new Date(), "MM-dd-yy hh-mm-ss");
       const filename = `${policyName || CSV_TITLE} (${formattedTime}).csv`;
       const file = new global.window.File([csv], filename, {
         type: "text/csv",
@@ -101,7 +101,7 @@ const QueryResults = ({
     if (errors) {
       const csv = convertToCSV(errors);
 
-      const formattedTime = moment(new Date()).format("MM-DD-YY hh-mm-ss");
+      const formattedTime = format(new Date(), "MM-dd-yy hh-mm-ss");
       const filename = `${
         policyName || CSV_TITLE
       } Errors (${formattedTime}).csv`;

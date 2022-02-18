@@ -5,7 +5,6 @@ const baseClass = "hosts-status";
 interface IHostSummaryProps {
   onlineCount: string | undefined;
   offlineCount: string | undefined;
-  newCount: string | undefined;
   isLoadingHosts: boolean;
   showHostsUI: boolean;
 }
@@ -13,7 +12,6 @@ interface IHostSummaryProps {
 const HostsStatus = ({
   onlineCount,
   offlineCount,
-  newCount,
   isLoadingHosts,
   showHostsUI,
 }: IHostSummaryProps): JSX.Element => {
@@ -43,16 +41,6 @@ const HostsStatus = ({
             {offlineCount}
           </div>
           <div className={`${baseClass}__tile-description`}>Offline hosts</div>
-        </div>
-      </div>
-      <div className={`${baseClass}__tile new-tile`}>
-        <div>
-          <div
-            className={`${baseClass}__tile-count ${baseClass}__tile-count--new`}
-          >
-            {newCount}
-          </div>
-          <div className={`${baseClass}__tile-description`}>New hosts</div>
         </div>
       </div>
     </div>
