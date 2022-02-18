@@ -164,7 +164,7 @@ module.exports = {
         `${require('util').inspect(estimationReport, {depth:null})}`
       );
     } else {
-      await sails.helpers.http.post(sails.config.custom.sails_custom__slackWebhookUrlForGithubEstimates, {
+      await sails.helpers.http.post(sails.config.custom.slackWebhookUrlForGithubEstimates, {
         text: `New estimation report:\n${require('util').inspect(estimationReport, {depth:null})}`
       });
     }
