@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"fmt"
+	"errors"
 	"io/ioutil"
 	"os"
 	"testing"
@@ -286,7 +286,7 @@ func TestApplyPolicies(t *testing.T) {
 		if name == "Team1" {
 			return &fleet.Team{ID: 123}, nil
 		}
-		return nil, fmt.Errorf("unexpected team name!")
+		return nil, errors.New("unexpected team name!")
 	}
 	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {
 		return nil
