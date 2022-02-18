@@ -13,5 +13,6 @@ locals {
     "ELASTIC_APM_SERVICE_NAME" : "fleet"
     "ELASTIC_APM_ENVIRONMENT" : "loadtest"
     "ELASTIC_APM_TRANSACTION_SAMPLE_RATE" : "0.004"
+    "ELASTIC_APM_SERVICE_VERSION" : "${var.tag}-${split(":", data.docker_registry_image.dockerhub.sha256_digest)[1]}"
   }, var.fleet_config) : { name = k, value = v }]
 }
