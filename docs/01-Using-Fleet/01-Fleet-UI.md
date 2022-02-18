@@ -4,11 +4,11 @@
 
 ## Scheduling queries
 
-The Fleet application allows you to schedule queries. This way these queries will run on an ongoing basis against the hosts that you have installed osquery on. To schedule specific queries in Fleet, you can organize these queries into "Query Packs". To view all saved packs and perhaps create a new pack, select "Schedule" from the top nav.
+The Fleet application allows you to schedule queries. This way these queries will run on an ongoing basis against the hosts that you have installed osquery on. To schedule specific queries in Fleet,you can organize these queries into "Query Packs". To view all saved packs and perhaps create a new pack, select "Schedule" from the top navigation and then click on the "Advanced" link on the top right of the page.
 
 ![Manage Packs](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/manage-packs.png)
 
-If you select a pack from the list, you can quickly enable and disable the entire pack, or you can configure it further.
+If you select a pack from the list by clicking on the checkbox next to it's name, you can quickly enable and disable the entire pack, or you can click on the pack name to edit it further.
 
 ![Manage Packs With Pack Selected](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/manage-packs-with-pack-selected.png)
 
@@ -16,7 +16,7 @@ When you edit a pack, you can decide which targets you would like to execute the
 
 ![Edit Pack Targets](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/edit-pack-targets.png)
 
-To add queries to a pack, use the right-hand sidebar. You can take an existing scheduled query and add it to the pack. You can also define a few key details such as:
+To add queries to a pack, click on the "Add query +" link on the edit pack page. You will be presented with a modal where can take an existing scheduled query and add it to the pack. You can also define a few key details such as:
 
 - interval: how often should the query be executed?
 - logging: which osquery logging format would you like to use?
@@ -24,7 +24,7 @@ To add queries to a pack, use the right-hand sidebar. You can take an existing s
 - minimum osquery version: if the table was introduced in a newer version of osquery, you may want to ensure that only sufficiently recent version of osquery execute the query.
 - shard: from 0 to 100, what percent of hosts should execute this query?
 
-![Schedule Query Sidebar](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/schedule-query-sidebar.png)
+![Schedule Query Modal](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/schedule-query-modal.png)
 
 
 Once you've scheduled queries and curated your packs, you can read our guide to [Working With Osquery Logs](../01-Using-Fleet/05-Osquery-logs.md).
@@ -42,7 +42,7 @@ Only user's with the Admin role can edit global agent options.
 To configure global agent options, head to **Settings > Organization settings > Global agent options**.
 
 ![Global agent options](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/global-agent-options.png)
- 
+
 ### Team level agent options
 
 `Applies only to Fleet Premium`
@@ -53,7 +53,7 @@ To configure global agent options, head to **Settings > Organization settings > 
 
 Team agent options are applied to all hosts assigned to a specific team in Fleet.
 
-Team agent options *override* global agent options. 
+Team agent options *override* global agent options.
 
 Let's say you have two teams in Fleet. One team is named "Workstations" and the other named "Servers." If you edit the agent options for the "Workstations" team, the hosts assigned to this team will now receive these agent options *instead of* the global agent options. The hosts assigned to the "Servers" team will still receive the global agent options.
 
