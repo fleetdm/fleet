@@ -47,13 +47,50 @@ In brief, this means that as a Fleet team member, you may:
 
 For more developed thoughts about __spending guidelines and limits__, please read [GitLab's open expense policy](https://about.gitlab.com/handbook/spending-company-money/).
 
-## Taking time off
+### Purchasing a company-issued device.
 
-Taking time off is essential to maintaining a healthy work-life balance. Fleet's unlimited vacation policy encourages team members to schedule time off to avoid burnout.
+Fleet provides laptops for team members to use while working at Fleet. As soon as an offer is accepted, `eashaw` will reach out to the new team member to start this process. `eashaw` will work with the new team member to get their laptop purchased and shipped to them.
 
-When a team member takes time off at Fleet, they should create an "Out of office" (OOO) event in Google Calendar for the days they will be out. 
+Most of the team at Fleet use 16" MacBook Pros, but team members are free to choose any laptop or operating system that works for them, as long as the price [is within reason](#spending-company-money).
 
-If you're taking time off, you should plan who will cover your responsibilities for those days. Make sure to take your scheduled meetings into consideration, especially those where you're the event organizer. Communicate with your manager and other team members to ensure they can cover those meetings and that any Zoom links will still work for attendees.
+When selecting your new laptop, we ask that you optimize your configuration to have a large hard drive and be available for delivery or pickup quickly, without waiting for customization.
+
+When a device has been purchased, it's added to the [spreadsheet of company equipment](https://docs.google.com/spreadsheets/d/1hFlymLlRWIaWeVh14IRz03yE-ytBLfUaqVz0VVmmoGI/edit#gid=0) where we keep track of devices and equipment purchased by Fleet. When the team member receives their computer, they will complete the entry by adding a description, model, and serial number to the spreadsheet.
+
+## Paid time off
+
+What matters most is your results, which are driven by your focus, your availability to collaborate, and the time and consideration you put into your work.
+
+Fleet offers all team members unlimited time off. Whether you're sick, you want to take a trip, you are eager for some time to relax, or you need to get some chores done around the house, any reason is a good reason.
+
+For team members working in jurisdictions that require certain mandatory sick leave or PTO policies, Fleet complies to the extent required by law.
+
+### Taking time off
+
+When you take any time off, you should follow this process:
+- Let your manager and team know as soon as possible. (e.g., post a message in your team's Slack channel)
+- Find someone to cover anything that needs covering while you're out. (i.e., meetings, planned tasks, unfinished business, important Slack/email threads, anything where someone might be depending on you)
+- Mark an all-day "out of office" event in Google Calendar for the day(s) you're taking off.
+
+This process is the same for any days you take off, regardless of whether it's a holiday or you just need a break.
+   
+### Holidays
+
+At Fleet, we have team members with various employment classifications in many different countries around the world. Fleet is a US company, but we think you should choose the days you want to work and what days you are on holiday, rather than being locked into any particular nation or culture's expectation about when you should take time off.
+
+When a team member joins Fleet, they pick one of the following holiday schedules:
+
+ - Based on the country where you work. Non-US team members should let their managers know the dates of national holidays.
+
+ **or**
+
+ - No set schedule, start with no holidays and add the days that are holidays to you.
+
+Either way, it's up to you to ensure that your responsibilities are covered, and your team knows that you're out of office.
+
+### New Parent Leave
+
+Fleet gives new parents six weeks paid leave. After six weeks, if you don't feel ready to return yet, we'll set up a quick call to discuss and work together to come up with a plan to help you return to work gradually or when you're ready.
 
 ## Meetings
 

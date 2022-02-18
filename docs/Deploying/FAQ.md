@@ -99,7 +99,7 @@ This was also seen as a symptom of a different issue: if you're deploying on AWS
 
 ## I upgraded my database, but Fleet is still running slowly. What could be going on?
 
-This could be caused by a mismatched connection limit between the Fleet server and the MySQL server that prevents Fleet from fully utilizing the database. First [determine how many open connections your MySQL server supports](https://dev.mysql.com/doc/refman/8.0/en/too-many-connections.html). Now set the [`--mysql_max_open_conns`](./Configuration.md#mysql_max_open_conns) and [`--mysql_max_idle_conns`](./Configuration.md#mysql_max_idle_conns) flags appropriately.
+This could be caused by a mismatched connection limit between the Fleet server and the MySQL server that prevents Fleet from fully utilizing the database. First [determine how many open connections your MySQL server supports](https://dev.mysql.com/doc/refman/8.0/en/too-many-connections.html). Now set the [`--mysql_max_open_conns`](./Configuration.md#mysql-max-open-conns) and [`--mysql_max_idle_conns`](./Configuration.md#mysql-max-idle-conns) flags appropriately.
 
 ## Why am I receiving a database connection error when attempting to "prepare" the database?
 
@@ -148,8 +148,7 @@ using `--osquery_host_identifier=uuid` will not resolve the duplicate enrollment
 the problem can be resolved by setting `--osquery_host_identifier=instance` (which will use the
 osquery generated UUID), and then delete the associated host in the Fleet UI.
 
-Find more information about
-[host identifiers here](./Configuration.md#osquery_host_identifier).
+Find more information about [host identifiers here](./Configuration.md#osquery_host_identifier).
 
 ## How long are osquery enroll secrets valid?
 
