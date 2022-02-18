@@ -6,7 +6,8 @@ describe("Premium tier - Admin user", () => {
     cy.seedPremium();
     cy.seedQueries();
     cy.seedPolicies("apples");
-    cy.addDockerHost("apples");
+    cy.addDockerHost("apples"); // host not transferred
+    cy.addDockerHost("oranges"); // host transferred between teams by global admin
   });
   after(() => {
     cy.logout();
@@ -14,9 +15,9 @@ describe("Premium tier - Admin user", () => {
   });
 
   describe("Global admin", () => {
-    beforeEach(() =>
-      cy.loginWithCySession("anna@organization.com", "user123#")
-    );
+    beforeEach(() => {
+      cy.loginWithCySession("anna@organization.com", "user123#");
+    });
     describe("Navigation", () => {
       beforeEach(() => cy.visit("/dashboard"));
       it("displays intended global admin top navigation", () => {
@@ -41,102 +42,8 @@ describe("Premium tier - Admin user", () => {
         });
       });
     });
-    describe("Dashboard", () => {
-      beforeEach(() => cy.visit("/dashboard"));
-      it("displays cards for all platforms", () => {
-        cy.getAttached(".homepage__wrapper").within(() => {
-          cy.findByText(/all teams/i).should("exist");
-          cy.getAttached(".hosts-summary").should("exist");
-          cy.getAttached(".hosts-status").should("exist");
-          cy.getAttached(".home-software").should("exist");
-          cy.getAttached(".activity-feed").should("exist");
-        });
-      });
-      it("displays cards for windows only", () => {
-        cy.getAttached(".homepage__platforms").within(() => {
-          cy.getAttached(".Select-control").click();
-          cy.findByText(/windows/i).click();
-        });
-        cy.getAttached(".homepage__wrapper").within(() => {
-          cy.findByText(/all teams/i).should("exist");
-          cy.getAttached(".hosts-summary").should("exist");
-          cy.getAttached(".hosts-status").should("exist");
-          // "get" because we expect it not to exist
-          cy.get(".home-software").should("not.exist");
-          cy.get(".activity-feed").should("not.exist");
-        });
-      });
-      it("displays cards for linux only", () => {
-        cy.getAttached(".homepage__platforms").within(() => {
-          cy.getAttached(".Select-control").click();
-          cy.findByText(/linux/i).click();
-        });
-        cy.getAttached(".homepage__wrapper").within(() => {
-          cy.findByText(/all teams/i).should("exist");
-          cy.getAttached(".hosts-summary").should("exist");
-          cy.getAttached(".hosts-status").should("exist");
-          // "get" because we expect it not to exist
-          cy.get(".home-software").should("not.exist");
-          cy.get(".activity-feed").should("not.exist");
-        });
-      });
-      it("displays cards for macOS only", () => {
-        cy.getAttached(".homepage__platforms").within(() => {
-          cy.getAttached(".Select-control").click();
-          cy.findByText(/macos/i).click();
-        });
-        cy.getAttached(".homepage__wrapper").within(() => {
-          cy.findByText(/all teams/i).should("exist");
-          cy.getAttached(".hosts-summary").should("exist");
-          cy.getAttached(".hosts-status").should("exist");
-          cy.getAttached(".home-munki").should("exist");
-          cy.getAttached(".home-mdm").should("exist");
-          // "get" because we expect it not to exist
-          cy.get(".home-software").should("not.exist");
-          cy.get(".activity-feed").should("not.exist");
-        });
-      });
-      it("views all hosts for all platforms", () => {
-        cy.findByText(/view all hosts/i).click();
-        cy.get(".manage-hosts__label-block").should("not.exist");
-      });
-      it("views all hosts for windows only", () => {
-        cy.getAttached(".homepage__platforms").within(() => {
-          cy.getAttached(".Select-control").click();
-          cy.findByText(/windows/i).click();
-        });
-        cy.findByText(/view all hosts/i).click();
-        cy.getAttached(".manage-hosts__label-block").within(() => {
-          cy.getAttached(".title").within(() => {
-            cy.findByText(/windows/i).should("exist");
-          });
-        });
-      });
-      it("views all hosts for linux only", () => {
-        cy.getAttached(".homepage__platforms").within(() => {
-          cy.getAttached(".Select-control").click();
-          cy.findByText(/linux/i).click();
-        });
-        cy.findByText(/view all hosts/i).click();
-        cy.getAttached(".manage-hosts__label-block").within(() => {
-          cy.getAttached(".title").within(() => {
-            cy.findByText(/linux/i).should("exist");
-          });
-        });
-      });
-      it("views all hosts for macOS only", () => {
-        cy.getAttached(".homepage__platforms").within(() => {
-          cy.getAttached(".Select-control").click();
-          cy.findByText(/macos/i).click();
-        });
-        cy.findByText(/view all hosts/i).click();
-        cy.getAttached(".manage-hosts__label-block").within(() => {
-          cy.getAttached(".title").within(() => {
-            cy.findByText(/macos/i).should("exist");
-          });
-        });
-      });
-    });
+    // Global Admin dashboard tested in integration/free/admin.spec.ts
+    // Team Admin dashboard tested below in integration/premium/admin.spec.ts
     describe("Manage hosts page", () => {
       beforeEach(() => cy.visit("/hosts/manage"));
       it("displays team column in hosts table", () => {
@@ -166,19 +73,19 @@ describe("Premium tier - Admin user", () => {
       });
     });
     describe("Host details page", () => {
-      beforeEach(() => cy.visit("hosts/1"));
+      beforeEach(() => cy.visit("hosts/2"));
       it("allows global admin to transfer host to an existing team", () => {
         cy.getAttached(".host-details__transfer-button").click();
         cy.findByText(/create a team/i).should("exist");
         cy.getAttached(".Select-control").click();
         cy.getAttached(".Select-menu").within(() => {
           cy.findByText(/no team/i).should("exist");
-          cy.findByText(/apples/i).should("exist");
-          cy.findByText(/oranges/i).click();
+          cy.findByText(/oranges/i).should("exist");
+          cy.findByText(/apples/i).click();
         });
         cy.getAttached(".transfer-action-btn").click();
-        cy.findByText(/transferred to oranges/i).should("exist");
-        cy.findByText(/team/i).next().contains("Oranges");
+        cy.findByText(/transferred to apples/i).should("exist");
+        cy.findByText(/team/i).next().contains("Apples");
       });
       it("allows global admin to create an operating system policy", () => {
         cy.getAttached(".info-flex").within(() => {
@@ -220,17 +127,13 @@ describe("Premium tier - Admin user", () => {
           }).click();
         });
       });
-      it("hides manage automations button when all teams not selected", () => {
+      it("hides manage automations button since all teams not selected", () => {
         cy.getAttached(".manage-software-page__header-wrap").within(() => {
           cy.getAttached(".Select").within(() => {
-            cy.getAttached(".Select-control").click();
-            cy.getAttached(".Select-menu-outer").within(() => {
-              cy.findByText(/apples/i).should("exist");
-            });
-            cy.findByRole("button", {
-              name: /manage automations/i,
-            }).should("not.exist");
+            cy.findByText(/all teams/i).click();
+            cy.findByText(/apples/i).click();
           });
+          cy.findByText(/manage automations/i).should("not.exist");
         });
       });
     });
@@ -253,14 +156,8 @@ describe("Premium tier - Admin user", () => {
         cy.contains(".selector-name", /apples/i).should("exist");
       });
     });
-    describe("Manage schedules page", () => {
-      beforeEach(() => cy.visit("/schedule/manage"));
-      it("shows inherited queries", () => {
-        cy.getAttached(".no-schedule__schedule-button").click();
-        // TODO: Unable to add tests because "Schedule a query" button detattaches even when using `getAttached`
-      });
-    });
-
+    // Global Admin schedule tested in integration/free/admin.spec.ts
+    // Team Admin team schedule tested below in integration/premium/admin.spec.ts
     describe("Manage policies page", () => {
       beforeEach(() => cy.visit("/policies/manage"));
       it("allows global admin to click 'Manage automations' button", () => {
@@ -271,7 +168,7 @@ describe("Premium tier - Admin user", () => {
       });
       it("allows global admin to add a new policy", () => {
         cy.getAttached(".button-wrap")
-          .findByRole("button", { name: /add a polic/i })
+          .findByRole("button", { name: /add a policy/i })
           .click();
         // Add a default policy
         cy.findByText(/gatekeeper enabled/i).click();
@@ -281,6 +178,7 @@ describe("Premium tier - Admin user", () => {
         });
         cy.findByRole("button", { name: /^Save$/ }).click();
         cy.findByText(/policy created/i).should("exist");
+        cy.findByText(/gatekeeper enabled/i).should("exist");
       });
       it("allows global admin to delete a team policy", () => {
         cy.visit("/policies/manage");
@@ -373,17 +271,14 @@ describe("Premium tier - Admin user", () => {
           cy.findByText(/schedule/i).should("exist");
           cy.findByText(/policies/i).should("exist");
           cy.getAttached(".user-menu").click();
+          cy.findByText(/manage users/i).should("not.exist");
           cy.findByText(/settings/i).click();
         });
         cy.getAttached(".react-tabs__tab--selected").within(() => {
-          cy.findByText(/organization/i).should("exist");
+          cy.findByText(/members/i).should("exist");
         });
-        cy.getAttached(".site-nav-container").within(() => {
-          cy.getAttached(".user-menu").click();
-          cy.findByText(/manage users/i).click();
-        });
-        cy.getAttached(".react-tabs__tab--selected").within(() => {
-          cy.findByText(/users/i).should("exist");
+        cy.getAttached(".react-tabs__tab-list").within(() => {
+          cy.findByText(/agent options/i).should("exist");
         });
       });
     });
@@ -391,11 +286,11 @@ describe("Premium tier - Admin user", () => {
       beforeEach(() => cy.visit("/dashboard"));
       it("displays cards for all platforms", () => {
         cy.getAttached(".homepage__wrapper").within(() => {
-          cy.findByText(/all teams/i).should("exist");
+          cy.findByText(/apples/i).should("exist");
           cy.getAttached(".hosts-summary").should("exist");
           cy.getAttached(".hosts-status").should("exist");
           cy.getAttached(".home-software").should("exist");
-          cy.getAttached(".activity-feed").should("exist");
+          cy.get(".activity-feed").should("not.exist");
         });
       });
       it("displays cards for windows only", () => {
@@ -404,7 +299,7 @@ describe("Premium tier - Admin user", () => {
           cy.findByText(/windows/i).click();
         });
         cy.getAttached(".homepage__wrapper").within(() => {
-          cy.findByText(/all teams/i).should("exist");
+          cy.findByText(/apples/i).should("exist");
           cy.getAttached(".hosts-summary").should("exist");
           cy.getAttached(".hosts-status").should("exist");
           // "get" because we expect it not to exist
@@ -418,7 +313,7 @@ describe("Premium tier - Admin user", () => {
           cy.findByText(/linux/i).click();
         });
         cy.getAttached(".homepage__wrapper").within(() => {
-          cy.findByText(/all teams/i).should("exist");
+          cy.findByText(/apples/i).should("exist");
           cy.getAttached(".hosts-summary").should("exist");
           cy.getAttached(".hosts-status").should("exist");
           // "get" because we expect it not to exist
@@ -432,7 +327,7 @@ describe("Premium tier - Admin user", () => {
           cy.findByText(/macos/i).click();
         });
         cy.getAttached(".homepage__wrapper").within(() => {
-          cy.findByText(/all teams/i).should("exist");
+          cy.findByText(/apples/i).should("exist");
           cy.getAttached(".hosts-summary").should("exist");
           cy.getAttached(".hosts-status").should("exist");
           cy.getAttached(".home-munki").should("exist");
@@ -484,7 +379,9 @@ describe("Premium tier - Admin user", () => {
       });
     });
     describe("Manage hosts page", () => {
-      beforeEach(() => cy.visit("/hosts/manage"));
+      beforeEach(() => {
+        cy.visit("/hosts/manage");
+      });
       it("displays team column in hosts table", () => {
         cy.getAttached(".data-table__table th")
           .contains("Team")
@@ -513,19 +410,6 @@ describe("Premium tier - Admin user", () => {
     });
     describe("Host details page", () => {
       beforeEach(() => cy.visit("hosts/1"));
-      it("allows team admin to transfer host to an existing team", () => {
-        cy.getAttached(".host-details__transfer-button").click();
-        cy.findByText(/create a team/i).should("exist");
-        cy.getAttached(".Select-control").click();
-        cy.getAttached(".Select-menu").within(() => {
-          cy.findByText(/no team/i).should("exist");
-          cy.findByText(/apples/i).should("exist");
-          cy.findByText(/oranges/i).click();
-        });
-        cy.getAttached(".transfer-action-btn").click();
-        cy.findByText(/transferred to oranges/i).should("exist");
-        cy.findByText(/team/i).next().contains("Oranges");
-      });
       it("allows team admin to create an operating system policy", () => {
         cy.getAttached(".info-flex").within(() => {
           cy.findByText(/ubuntu/i).should("exist");
@@ -535,10 +419,9 @@ describe("Premium tier - Admin user", () => {
           .findByRole("button", { name: /create new policy/i })
           .should("exist");
       });
-      it("allows team admin to create a custom query", () => {
-        cy.getAttached(".host-details__query-button").click();
-        cy.contains("button", /create custom query/i).should("exist");
-        cy.getAttached(".modal__ex").click();
+      it("allows team admin to query host but not transfer host", () => {
+        cy.getAttached(".host-details__query-button").should("exist");
+        cy.findByText(/transfer/i).should("not.exist");
       });
       it("allows team admin to delete a host", () => {
         cy.getAttached(".host-details__action-button-container")
@@ -553,31 +436,11 @@ describe("Premium tier - Admin user", () => {
     });
     describe("Manage software page", () => {
       beforeEach(() => cy.visit("/software/manage"));
-      it("allows team admin to click 'Manage automations' button", () => {
+      it("hides manage automations button since all teams not selected", () => {
         cy.getAttached(".manage-software-page__header-wrap").within(() => {
-          cy.getAttached(".Select").within(() => {
-            cy.findByText(/all teams/i).should("exist");
-          });
-          cy.findByRole("button", { name: /manage automations/i }).click();
+          cy.findByText(/apples/i).should("exist");
         });
-        cy.getAttached(".manage-automations-modal__button-wrap").within(() => {
-          cy.findByRole("button", {
-            name: /cancel/i,
-          }).click();
-        });
-      });
-      it("hides manage automations button when all teams not selected", () => {
-        cy.getAttached(".manage-software-page__header-wrap").within(() => {
-          cy.getAttached(".Select").within(() => {
-            cy.getAttached(".Select-control").click();
-            cy.getAttached(".Select-menu-outer").within(() => {
-              cy.findByText(/apples/i).should("exist");
-            });
-            cy.findByRole("button", {
-              name: /manage automations/i,
-            }).should("not.exist");
-          });
-        });
+        cy.findByText(/manage automations/i).should("not.exist");
       });
     });
     describe("Query pages", () => {
@@ -600,24 +463,85 @@ describe("Premium tier - Admin user", () => {
       });
     });
     describe("Manage schedules page", () => {
-      beforeEach(() => cy.visit("/schedule/manage"));
-      it("shows inherited queries", () => {
+      beforeEach(() => {
+        cy.visit("/schedule/manage");
+      });
+      it("creates a new team scheduled query", () => {
         cy.getAttached(".no-schedule__schedule-button").click();
-        // TODO: Unable to add tests because "Schedule a query" button detattaches even when using `getAttached`
+        cy.getAttached(".schedule-editor-modal__form").within(() => {
+          cy.findByText(/select query/i).click();
+          cy.findByText(/detect presence/i).click();
+          cy.findByText(/every day/i).click();
+          cy.findByText(/every 6 hours/i).click();
+          cy.findByText(/show advanced options/i).click();
+          cy.findByText(/snapshot/i).click();
+          cy.findByText(/ignore removals/i).click();
+          cy.getAttached(".schedule-editor-modal__form-field--platform").within(
+            () => {
+              cy.findByText(/all/i).click();
+              cy.findByText(/linux/i).click();
+            }
+          );
+          cy.getAttached(
+            ".schedule-editor-modal__form-field--osquer-vers"
+          ).within(() => {
+            cy.findByText(/all/i).click();
+            cy.findByText(/4.6.0/i).click();
+          });
+          cy.getAttached(".schedule-editor-modal__form-field--shard").within(
+            () => {
+              cy.getAttached(".input-field").click().type("50");
+            }
+          );
+          cy.getAttached(".schedule-editor-modal__btn-wrap").within(() => {
+            cy.findByRole("button", { name: /schedule/i }).click();
+          });
+        });
+        cy.findByText(/successfully added/i).should("be.visible");
+      });
+      it("edit a team's scheduled query successfully", () => {
+        cy.getAttached("tbody>tr")
+          .should("have.length", 1)
+          .within(() => {
+            cy.findByText(/action/i).click();
+            cy.findByText(/edit/i).click();
+          });
+        cy.getAttached(".schedule-editor-modal__form").within(() => {
+          cy.findByText(/every 6 hours/i).click();
+          cy.findByText(/every day/i).click();
+
+          cy.getAttached(".schedule-editor-modal__btn-wrap").within(() => {
+            cy.findByRole("button", { name: /schedule/i }).click();
+          });
+        });
+        cy.findByText(/successfully updated/i).should("be.visible");
+      });
+
+      it("remove a team's scheduled query successfully", () => {
+        cy.getAttached("tbody>tr")
+          .should("have.length", 1)
+          .within(() => {
+            cy.findByText(/1 day/i).should("exist");
+            cy.findByText(/action/i).click();
+            cy.findByText(/remove/i).click();
+          });
+        cy.getAttached(".remove-scheduled-query-modal__btn-wrap").within(() => {
+          cy.findByRole("button", { name: /remove/i }).click();
+        });
+        cy.findByText(/successfully removed/i).should("be.visible");
       });
     });
-
     describe("Manage policies page", () => {
       beforeEach(() => cy.visit("/policies/manage"));
-      it("allows team admin to click 'Manage automations' button", () => {
-        cy.getAttached(".button-wrap")
-          .findByRole("button", { name: /manage automations/i })
-          .click();
-        cy.findByRole("button", { name: /cancel/i }).click();
+      it("hides manage automations button when all teams not selected", () => {
+        cy.getAttached(".manage-policies-page__header-wrap").within(() => {
+          cy.findByText(/apples/i).should("exist");
+        });
+        cy.findByText(/manage automations/i).should("not.exist");
       });
       it("allows team admin to add a new policy", () => {
         cy.getAttached(".button-wrap")
-          .findByRole("button", { name: /add a polic/i })
+          .findByRole("button", { name: /add a policy/i })
           .click();
         // Add a default policy
         cy.findByText(/gatekeeper enabled/i).click();
@@ -628,33 +552,8 @@ describe("Premium tier - Admin user", () => {
         cy.findByRole("button", { name: /^Save$/ }).click();
         cy.findByText(/policy created/i).should("exist");
       });
-      it("allows team admin to delete a team policy", () => {
-        cy.visit("/policies/manage");
-        cy.getAttached(".Select-control").within(() => {
-          cy.findByText(/all teams/i).click();
-        });
-        cy.getAttached(".Select-menu")
-          .contains(/apples/i)
-          .click();
-        cy.getAttached("tbody").within(() => {
-          cy.getAttached("tr")
-            .first()
-            .within(() => {
-              cy.getAttached(".fleet-checkbox__input").check({
-                force: true,
-              });
-            });
-        });
-        cy.findByRole("button", { name: /delete/i }).click();
-        cy.getAttached(".remove-policies-modal").within(() => {
-          cy.findByRole("button", { name: /delete/i }).should("exist");
-          cy.findByRole("button", { name: /cancel/i }).click();
-        });
-      });
       it("allows team admin to edit a team policy", () => {
         cy.visit("policies/manage");
-        cy.findByText(/all teams/i).click();
-        cy.findByText(/apples/i).click();
         cy.getAttached("tbody").within(() => {
           cy.getAttached("tr")
             .first()
@@ -670,26 +569,67 @@ describe("Premium tier - Admin user", () => {
           cy.findByRole("button", { name: /save/i }).should("exist");
         });
       });
-    });
-    describe("Admin settings page", () => {
-      beforeEach(() => cy.visit("/settings/organization"));
-      it("allows team admin to access team settings", () => {
-        cy.getAttached(".react-tabs").within(() => {
-          cy.findByText(/teams/i).click();
-        });
-        // Access the Settings - Team details page
+      it("allows team admin to delete a team policy", () => {
+        cy.visit("/policies/manage");
         cy.getAttached("tbody").within(() => {
-          cy.findByText(/apples/i).click();
+          cy.getAttached("tr")
+            .first()
+            .within(() => {
+              cy.getAttached(".fleet-checkbox__input").check({
+                force: true,
+              });
+            });
         });
-        cy.findByText(/apples/i).should("exist");
-        cy.findByText(/manage users with team access here/i).should("exist");
+        cy.findByRole("button", { name: /delete/i }).click();
+        cy.getAttached(".remove-policies-modal").within(() => {
+          cy.findByRole("button", { name: /delete/i }).should("exist");
+          cy.findByRole("button", { name: /cancel/i }).click();
+        });
       });
-      it("displays the 'Team' section in the create user modal", () => {
-        cy.getAttached(".react-tabs").within(() => {
-          cy.findByText(/users/i).click();
+    });
+    describe("Team admin settings page", () => {
+      beforeEach(() => cy.visit("/settings/teams/1/members"));
+      it("allows team admin to access team settings", () => {
+        // Access the Settings - Team details page
+        cy.findByText(/apples/i).should("exist");
+      });
+      it("displays the team admin controls", () => {
+        cy.findByRole("button", { name: /add member/i }).click();
+        cy.findByRole("button", { name: /cancel/i }).click();
+        cy.findByRole("button", { name: /add hosts/i }).click();
+        cy.findByRole("button", { name: /done/i }).click();
+        cy.findByRole("button", { name: /manage enroll secrets/i }).click();
+        cy.findByRole("button", { name: /done/i }).click();
+      });
+      it("allows team admin to edit a team member", () => {
+        cy.getAttached("tbody").within(() => {
+          cy.getAttached("tr")
+            .eq(1)
+            .within(() => {
+              cy.findByText(/action/i).click();
+              cy.findByText(/edit/i).click();
+            });
         });
-        cy.findByRole("button", { name: /create user/i }).click();
-        cy.findByText(/assign teams/i).should("exist");
+        cy.getAttached(".select-role-form__role-dropdown").within(() => {
+          cy.findByText(/observer/i).click();
+          cy.findByText(/maintainer/i).click();
+        });
+        cy.findByRole("button", { name: /save/i }).click();
+        cy.getAttached("tbody").within(() => {
+          cy.getAttached("tr")
+            .eq(1)
+            .within(() => {
+              cy.findByText(/maintainer/i).should("exist");
+            });
+        });
+      });
+      it("allows team admin to edit team name", () => {
+        cy.findByRole("button", { name: /edit team/i }).click();
+        cy.findByLabelText(/team name/i)
+          .clear()
+          .type("Mystic");
+        cy.findByRole("button", { name: /save/i }).click();
+        cy.findByText(/team updated/i).should("exist");
       });
     });
     describe("User profile page", () => {
@@ -698,7 +638,7 @@ describe("Premium tier - Admin user", () => {
         cy.getAttached(".user-settings__additional").within(() => {
           cy.findByText(/team/i)
             .next()
-            .contains(/apples/i);
+            .contains(/mystic/i); // Updated team name
           cy.findByText("Role").next().contains(/admin/i);
         });
       });
