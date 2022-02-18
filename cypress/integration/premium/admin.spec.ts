@@ -461,6 +461,17 @@ describe("Premium tier - Admin user", () => {
         cy.contains("h3", /teams/i).should("exist");
         cy.contains(".selector-name", /apples/i).should("exist");
       });
+      it("disables team admin from deleting or editing a query not authored by them", () => {
+        cy.getAttached("tbody").within(() => {
+          cy.getAttached("tr")
+            .first()
+            .within(() => {
+              cy.getAttached(".fleet-checkbox__input").should("be.disabled");
+            });
+          cy.findAllByText(/detect presence/i).click();
+        });
+        cy.getAttached(".query-form__save").should("be.disabled");
+      });
     });
     describe("Manage schedules page", () => {
       beforeEach(() => {
