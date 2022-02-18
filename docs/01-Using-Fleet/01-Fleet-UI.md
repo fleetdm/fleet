@@ -4,8 +4,7 @@
 
 ## Scheduling queries
 
-The Fleet application allows you to schedule queries. This way these queries will run on an ongoing
-basis against the hosts that you have installed osquery on. To schedule specific queries in Fleet,
+The Fleet application allows you to schedule queries. This way these queries will run on an ongoing basis against the hosts that you have installed osquery on. To schedule specific queries in Fleet,
 you can organize these queries into "Query Packs". To view all saved packs and perhaps create a new
 pack, select "Schedule" from the top navigation and then click on the "Advanced" link on the top
 right of the page.
@@ -31,7 +30,7 @@ few key details such as:
 - minimum osquery version: if the table was introduced in a newer version of osquery, you may want to ensure that only sufficiently recent version of osquery execute the query.
 - shard: from 0 to 100, what percent of hosts should execute this query?
 
-![Schedule Query Sidebar](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/schedule-query-sidebar.png)
+![Schedule Query Modal](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/schedule-query-modal.png)
 
 
 Once you've scheduled queries and curated your packs, you can read our guide to [Working With Osquery Logs](../01-Using-Fleet/05-Osquery-logs.md).
