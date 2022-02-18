@@ -525,7 +525,7 @@ func (ds *Datastore) InsertCVEForCPE(ctx context.Context, cve string, cpes []str
 		args = []interface{}{}
 		values := strings.TrimSuffix(strings.Repeat("(?,?),", len(ids)), ",")
 		sql := fmt.Sprintf(`INSERT IGNORE INTO software_cve (cpe_id, cve) VALUES %s`, values)
-		//var args []interface{}
+
 		for _, id := range ids {
 			args = append(args, id, cve)
 		}
