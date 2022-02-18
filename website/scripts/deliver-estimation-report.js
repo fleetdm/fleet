@@ -158,14 +158,13 @@ module.exports = {
     //  ╚══════╝╚══════╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝
     //
     sails.log('Delivering estimation report to Slack...');
-    if (!sails.config.custom.slackWebhookUrlForContactForm) {
+    if (!sails.config.custom.slackWebhookUrlForGithubEstimates) {
       throw new Error(
-        'Estimation report not delivered: slackWebhookUrlForContactForm needs to be configured in sails.config.custom. Here\'s the undelivered report: ' +
+        'Estimation report not delivered: slackWebhookUrlForGithubEstimates needs to be configured in sails.config.custom. Here\'s the undelivered report: ' +
         `${require('util').inspect(estimationReport, {depth:null})}`
       );
     } else {
-      // TODO: instead of just copying the contact form handler webhook URL, make one that goes to an appropriate channel
-      await sails.helpers.http.post(sails.config.custom.slackWebhookUrlForContactForm, {
+      await sails.helpers.http.post(sails.config.custom.sails_custom__slackWebhookUrlForGithubEstimates, {
         text: `New estimation report:\n${require('util').inspect(estimationReport, {depth:null})}`
       });
     }
