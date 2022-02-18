@@ -159,6 +159,7 @@ module.exports = {
       //   ╚═╝ ╚═════╝ ╚═╝     ╚══════╝╚═╝  ╚═══╝╚══════╝╚═════╝     ╚═╝        ╚══════╝╚═════╝ ╚═╝   ╚═╝   ╚══════╝╚═════╝     ╚═╝        ╚═╝  ╚═╝╚══════╝ ╚═════╝ ╚═╝     ╚══════╝╚═╝  ╚═══╝╚══════╝╚═════╝ ╚═╝
       //
 
+      let owner = repository.owner.login;
       let repo = repository.name;
       let prNumber = issueOrPr.number;
 
@@ -216,9 +217,9 @@ module.exports = {
           };
 
           // [?] https://docs.github.com/en/rest/reference/pulls#list-pull-requests-files
-          let changedPaths = _.pluck(await sails.helpers.http.get(`https://api.github.com/repos/fleetdm/${repo}/pulls/${prNumber}/files`, {
+          let changedPaths = _.pluck(await sails.helpers.http.get(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/files`, {
             per_page: 100,//eslint-disable-line camelcase
-          }, baseHeaders), 'filename');// (don't worry, it's the whole path, not the filename)
+          }, baseHeaders).retry(), 'filename');// (don't worry, it's the whole path, not the filename)
           sails.log.verbose(`Received notice that a new PR (#${prNumber}) was opened that changes the following paths:`, changedPaths);
 
           isSenderDRIForAllChangedPaths = _.all(changedPaths, (changedPath)=>{
@@ -250,7 +251,7 @@ module.exports = {
         // Now, if appropriate, auto-approve the PR.
         if (isAutoApproved) {
           // [?] https://docs.github.com/en/rest/reference/pulls#create-a-review-for-a-pull-request
-          await sails.helpers.http.post(`https://api.github.com/repos/fleetdm/${repo}/pulls/${prNumber}/reviews`, {
+          await sails.helpers.http.post(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/reviews`, {
             event: 'APPROVE'
           }, baseHeaders);
         }
