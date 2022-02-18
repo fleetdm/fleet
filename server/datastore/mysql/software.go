@@ -509,18 +509,30 @@ func (ds *Datastore) AllCPEs(ctx context.Context) ([]string, error) {
 // provided cpes. It returns the number of new rows inserted or an error. If
 // the CVE already existed for all CPEs, it would return 0, nil.
 func (ds *Datastore) InsertCVEForCPE(ctx context.Context, cve string, cpes []string) (int64, error) {
-	values := strings.TrimSuffix(strings.Repeat("((SELECT id FROM software_cpe WHERE cpe=?),?),", len(cpes)), ",")
-	sql := fmt.Sprintf(`INSERT IGNORE INTO software_cve (cpe_id, cve) VALUES %s`, values)
-	var args []interface{}
+	var totalCount int64
 	for _, cpe := range cpes {
-		args = append(args, cpe, cve)
+		var ids []uint
+		err := sqlx.Select(ds.writer, &ids, `SELECT id FROM software_cpe WHERE cpe=?`, cpe)
+		if err != nil {
+			return 0, err
+		}
+
+		values := strings.TrimSuffix(strings.Repeat("(?,?),", len(ids)), ",")
+		sql := fmt.Sprintf(`INSERT IGNORE INTO software_cve (cpe_id, cve) VALUES %s`, values)
+
+		var args []interface{}
+		for _, id := range ids {
+			args = append(args, id, cve)
+		}
+		res, err := ds.writer.ExecContext(ctx, sql, args...)
+		if err != nil {
+			return 0, ctxerr.Wrap(ctx, err, "insert software cve")
+		}
+		count, _ := res.RowsAffected()
+		totalCount += count
 	}
-	res, err := ds.writer.ExecContext(ctx, sql, args...)
-	if err != nil {
-		return 0, ctxerr.Wrap(ctx, err, "insert software cve")
-	}
-	count, _ := res.RowsAffected()
-	return count, nil
+
+	return totalCount, nil
 }
 
 func (ds *Datastore) ListSoftware(ctx context.Context, opt fleet.SoftwareListOptions) ([]fleet.Software, error) {
