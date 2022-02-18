@@ -1,6 +1,6 @@
 variable "region" {
   description = "gcp region"
-  default = "us-central1"
+  default     = "us-central1"
 }
 
 variable "db_zone" {
@@ -8,7 +8,7 @@ variable "db_zone" {
 }
 
 variable "db_user" {
-  default = "fleet"
+  default = "default"
 }
 
 variable "db_name" {
@@ -20,7 +20,23 @@ variable "db_tier" {
 }
 
 variable "db_version" {
-  default = "MYSQL_5_6"
+  default = "MYSQL_5_7"
+}
+
+variable "fleet_cpu" {
+  default = "1000m"
+}
+
+variable "fleet_memory" {
+  default = "1024Mi"
+}
+
+variable "dns_zone" {
+  default = ""
+}
+
+variable "dns_name" {
+  default = ""
 }
 
 variable "serverless_connector_min_instances" {
@@ -43,7 +59,7 @@ variable "project_id" {
 }
 
 variable "prefix" {
-  default = "fleet-"
+  default     = "fleet-"
   description = "prefix resources with this string"
 }
 

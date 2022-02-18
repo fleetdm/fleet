@@ -1,11 +1,25 @@
+resource "google_dns_managed_zone" "default" {
+  dns_name = var.dns_name
+  name     = "${var.prefix}-zone"
+}
+
+resource "google_dns_record_set" "default" {
+  managed_zone = google_dns_managed_zone.default.name
+  name         = var.dns_name
+  type         = "A"
+  ttl          = "300"
+  rrdatas      = [module.lb-http.external_ip]
+  depends_on   = [module.lb-http]
+}
+
 module "lb-http" {
-  source            = "GoogleCloudPlatform/lb-http/google//modules/serverless_negs"
-  version           = "~> 6.2.0"
+  source  = "GoogleCloudPlatform/lb-http/google//modules/serverless_negs"
+  version = "~> 6.2.0"
 
-  project           = var.project_id
-  name              = "${var.prefix}-load-balancer"
+  project = var.project_id
+  name    = "${var.prefix}-load-balancer"
 
-  managed_ssl_certificate_domains = ["gcp.fleetdm.com"]
+  managed_ssl_certificate_domains = [trim(var.dns_name, ".")]
   ssl                             = true
   https_redirect                  = true
 
@@ -33,9 +47,9 @@ module "lb-http" {
         oauth2_client_secret = null
       }
 
-      description             = null
-      custom_request_headers  = null
-      security_policy         = null
+      description            = null
+      custom_request_headers = null
+      security_policy        = null
     }
   }
 }
