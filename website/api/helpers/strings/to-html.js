@@ -73,10 +73,11 @@ module.exports = {
       smartLists: true,
       smartypants: false,
     };
+    let customRenderer = new marked.Renderer();
+
     if (inputs.addIdsToHeadings === true) {
-      var headingRenderer = new marked.Renderer();
       var headingsRenderedOnThisPage = [];
-      headingRenderer.heading = function (text, level) {
+      customRenderer.heading = function (text, level) {
         // If the heading has underscores and no spaces (e.g. osquery_async_host_collect_log_stats_interval) we'll add optional linebreaks before each underscore
         var textWithLineBreaks;
         if(text.match(/\S(\w+\_\S)+(\w\S)+/g) && !text.match(/\s/g)){
@@ -91,14 +92,22 @@ module.exports = {
         }
         return '<h'+level+' class="markdown-heading" id="'+headingID+'">'+(textWithLineBreaks ? textWithLineBreaks : text)+'<a href="#'+headingID+'" class="markdown-link"></a></h'+level+'>\n';
       };
-      markedOpts.renderer = headingRenderer;
     } else  {
-      var renderer = new marked.Renderer();
-      renderer.heading = function (text, level) {
+      customRenderer.heading = function (text, level) {
         return '<h'+level+'>'+text+'</h'+level+'>';
       };
-      markedOpts.renderer = renderer;
     }
+
+    // Creating a custom codeblock renderer to render mermaid code blocks (```mermaid```) without the <pre> tags.
+    customRenderer.code = function(code) {
+      if(code.match(/\<!-- __LANG=\%mermaid\%__ --\>/g)) {
+        return '<code>'+_.escape(code)+'\n</code>';
+      } else {
+        return '<pre><code>'+_.escape(code)+'\n</code></pre>';
+      }
+    };
+
+    markedOpts.renderer = customRenderer;
 
     // Now actually compile the markdown to HTML.
     marked(inputs.mdString, markedOpts, function afterwards (err, htmlString) {
