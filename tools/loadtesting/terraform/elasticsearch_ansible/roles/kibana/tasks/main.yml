@@ -1,0 +1,12 @@
+---
+- docker_container:
+    name: kibana
+    image: docker.elastic.co/kibana/kibana:7.15.2
+    env:
+      ELASTICSEARCH_URL: http://localhost:9200
+      ELASTICSEARCH_HOSTS: http://localhost:9200
+    network_mode: host
+    healthcheck:
+      interval: 10s
+      retries: 20
+      test: curl --write-out 'HTTP %{http_code}' --fail --silent --output /dev/null http://localhost:5601/api/status

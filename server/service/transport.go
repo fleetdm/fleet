@@ -301,13 +301,3 @@ func decodeNoParamsRequest(ctx context.Context, r *http.Request) (interface{}, e
 type getGenericSpecRequest struct {
 	Name string `url:"name"`
 }
-
-func decodeGetGenericSpecRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	name, err := stringFromRequest(r, "name")
-	if err != nil {
-		return nil, err
-	}
-	var req getGenericSpecRequest
-	req.Name = name
-	return req, nil
-}

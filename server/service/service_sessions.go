@@ -156,7 +156,11 @@ func (svc *Service) CallbackSSO(ctx context.Context, auth fleet.Auth) (*fleet.SS
 	}
 
 	// Validate response
-	validator, err := sso.NewValidator(*metadata)
+	validator, err := sso.NewValidator(*metadata, sso.WithExpectedAudience(
+		appConfig.SSOSettings.EntityID,
+		appConfig.ServerSettings.ServerURL,
+		appConfig.ServerSettings.ServerURL+svc.config.Server.URLPrefix+"/api/v1/fleet/sso/callback", // ACS
+	))
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "create validator from metadata")
 	}
@@ -284,24 +288,6 @@ func (svc *Service) DestroySession(ctx context.Context) error {
 	return svc.ds.DestroySession(ctx, session)
 }
 
-func (svc *Service) GetInfoAboutSession(ctx context.Context, id uint) (*fleet.Session, error) {
-	session, err := svc.ds.SessionByID(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := svc.authz.Authorize(ctx, &fleet.Session{UserID: id}, fleet.ActionRead); err != nil {
-		return nil, err
-	}
-
-	err = svc.validateSession(ctx, session)
-	if err != nil {
-		return nil, err
-	}
-
-	return session, nil
-}
-
 func (svc *Service) GetSessionByKey(ctx context.Context, key string) (*fleet.Session, error) {
 	session, err := svc.ds.SessionByKey(ctx, key)
 	if err != nil {
@@ -314,19 +300,6 @@ func (svc *Service) GetSessionByKey(ctx context.Context, key string) (*fleet.Ses
 	}
 
 	return session, nil
-}
-
-func (svc *Service) DeleteSession(ctx context.Context, id uint) error {
-	session, err := svc.ds.SessionByID(ctx, id)
-	if err != nil {
-		return err
-	}
-
-	if err := svc.authz.Authorize(ctx, session, fleet.ActionWrite); err != nil {
-		return err
-	}
-
-	return svc.ds.DestroySession(ctx, session)
 }
 
 func (svc *Service) validateSession(ctx context.Context, session *fleet.Session) error {

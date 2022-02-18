@@ -1,6 +1,7 @@
 .homepage {
   background-color: $ui-off-white;
   flex: 1;
+
   .homepage__wrapper {
     background-color: $ui-off-white;
   }
@@ -11,22 +12,17 @@
     margin: 0;
   }
 
-  &__header-wrap {
+  .form-field--dropdown {
+    margin-bottom: 0;
+  }
+
+  &__header {
     height: 38px;
     display: flex;
     align-items: center;
     justify-content: space-between;
     margin-bottom: $pad-large;
-  }
-
-  &__header {
-    display: flex;
-    align-items: center;
-
-    .form-field--dropdown {
-      margin-bottom: 0;
-    }
-
+    
     .Select-control {
       background-color: $ui-off-white !important;
     }
@@ -51,20 +47,36 @@
     }
   }
 
+  &__platforms {
+    display: flex;
+    align-items: center;
+
+    span {
+      font-size: $small;
+    }
+    .Select-control, .Select-value {
+      background-color: $core-white !important;
+    }
+  }
+
+  &__platform_dropdown {
+    width: 138px;
+  }
+
   &__section {
     margin-top: $pad-medium;
     width: 100%;
     display: grid;
+    row-gap: $pad-medium;
 
-    &.two-column {
-      row-gap: $pad-medium;
+    // if we have an odd number of elements, take 
+    // the last one and stretch it across the grid
+    .homepage-info-card:nth-child(odd):last-child {
+      grid-column-start: span 2;
     }
-
     @media screen and (min-width: 990px) {
-      &.two-column {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        column-gap: $pad-medium;
-      }
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      column-gap: $pad-medium;
     }
   }
 

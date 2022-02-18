@@ -133,7 +133,7 @@ const ManageQueriesPage = (): JSX.Element => {
     setShowRemoveQueryModal(!showRemoveQueryModal);
   }, [showRemoveQueryModal, setShowRemoveQueryModal]);
 
-  const onRemoveQueryClick = (selectedTableQueryIds: any) => {
+  const onRemoveQueryClick = (selectedTableQueryIds: number[]) => {
     toggleRemoveQueryModal();
     setSelectedQueryIds(selectedTableQueryIds);
   };

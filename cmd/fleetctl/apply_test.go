@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"fmt"
+	"errors"
 	"io/ioutil"
 	"os"
 	"testing"
@@ -167,11 +167,11 @@ spec:
       - secret: AAA
 `)
 
-	newAgentOpts := json.RawMessage("{\"config\":{\"something\":\"else\"}}")
+	newAgentOpts := json.RawMessage(`{"config":{"something":"else"}}`)
 
-	assert.Equal(t, "[+] applied 2 teams\n", runAppForTest(t, []string{"apply", "-f", tmpFile.Name()}))
-	assert.Equal(t, &agentOpts, teamsByName["team2"].AgentOptions)
-	assert.Equal(t, &newAgentOpts, teamsByName["team1"].AgentOptions)
+	require.Equal(t, "[+] applied 2 teams\n", runAppForTest(t, []string{"apply", "-f", tmpFile.Name()}))
+	assert.JSONEq(t, string(agentOpts), string(*teamsByName["team2"].AgentOptions))
+	assert.JSONEq(t, string(newAgentOpts), string(*teamsByName["team1"].AgentOptions))
 	assert.Equal(t, []*fleet.EnrollSecret{{Secret: "AAA"}}, enrolledSecretsCalled[uint(42)])
 }
 
@@ -269,8 +269,7 @@ spec:
 `)
 
 	runAppCheckErr(t, []string{"apply", "-f", name},
-		"applying fleet config: apply config received status 400 Bad request: "+
-			"json: unknown field \"enabled_software_inventory\"",
+		"applying fleet config: PATCH /api/v1/fleet/config received status 400 Bad request: json: unknown field \"enabled_software_inventory\"",
 	)
 	require.Nil(t, savedAppConfig)
 }
@@ -287,7 +286,10 @@ func TestApplyPolicies(t *testing.T) {
 		if name == "Team1" {
 			return &fleet.Team{ID: 123}, nil
 		}
-		return nil, fmt.Errorf("unexpected team name!")
+		return nil, errors.New("unexpected team name!")
+	}
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {
+		return nil
 	}
 
 	name := writeTmpYml(t, `---
@@ -327,4 +329,126 @@ spec:
 		assert.NotEmpty(t, p.Platform)
 	}
 	assert.True(t, ds.TeamByNameFuncInvoked)
+}
+
+func TestApplyEnrollSecrets(t *testing.T) {
+	_, ds := runServerWithMockedDS(t)
+
+	var appliedSecrets []*fleet.EnrollSecret
+	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
+		appliedSecrets = secrets
+		return nil
+	}
+
+	name := writeTmpYml(t, `---
+apiVersion: v1
+kind: enroll_secret
+spec:
+  secrets:
+    - secret: RzTlxPvugG4o4O5IKS/HqEDJUmI1hwBoffff
+    - secret: reallyworks
+    - secret: thissecretwontwork!
+`)
+
+	assert.Equal(t, "[+] applied enroll secrets\n", runAppForTest(t, []string{"apply", "-f", name}))
+	assert.True(t, ds.ApplyEnrollSecretsFuncInvoked)
+	assert.Len(t, appliedSecrets, 3)
+	for _, s := range appliedSecrets {
+		assert.NotEmpty(t, s.Secret)
+	}
+}
+
+func TestApplyLabels(t *testing.T) {
+	_, ds := runServerWithMockedDS(t)
+
+	var appliedLabels []*fleet.LabelSpec
+	ds.ApplyLabelSpecsFunc = func(ctx context.Context, specs []*fleet.LabelSpec) error {
+		appliedLabels = specs
+		return nil
+	}
+
+	name := writeTmpYml(t, `---
+apiVersion: v1
+kind: label
+spec:
+  name: pending_updates
+  query: select 1;
+  platforms:
+    - darwin
+`)
+
+	assert.Equal(t, "[+] applied 1 labels\n", runAppForTest(t, []string{"apply", "-f", name}))
+	assert.True(t, ds.ApplyLabelSpecsFuncInvoked)
+	require.Len(t, appliedLabels, 1)
+	assert.Equal(t, "pending_updates", appliedLabels[0].Name)
+	assert.Equal(t, "select 1;", appliedLabels[0].Query)
+}
+
+func TestApplyPacks(t *testing.T) {
+	_, ds := runServerWithMockedDS(t)
+
+	ds.ListPacksFunc = func(ctx context.Context, opt fleet.PackListOptions) ([]*fleet.Pack, error) {
+		return nil, nil
+	}
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {
+		return nil
+	}
+
+	var appliedPacks []*fleet.PackSpec
+	ds.ApplyPackSpecsFunc = func(ctx context.Context, specs []*fleet.PackSpec) error {
+		appliedPacks = specs
+		return nil
+	}
+
+	name := writeTmpYml(t, `---
+apiVersion: v1
+kind: pack
+spec:
+  name: osquery_monitoring
+  queries:
+    - query: osquery_version
+      name: osquery_version_snapshot
+      interval: 7200
+      snapshot: true
+    - query: osquery_version
+      name: osquery_version_differential
+      interval: 7200
+`)
+
+	assert.Equal(t, "[+] applied 1 packs\n", runAppForTest(t, []string{"apply", "-f", name}))
+	assert.True(t, ds.ApplyPackSpecsFuncInvoked)
+	require.Len(t, appliedPacks, 1)
+	assert.Equal(t, "osquery_monitoring", appliedPacks[0].Name)
+	require.Len(t, appliedPacks[0].Queries, 2)
+}
+
+func TestApplyQueries(t *testing.T) {
+	_, ds := runServerWithMockedDS(t)
+
+	var appliedQueries []*fleet.Query
+	ds.QueryByNameFunc = func(ctx context.Context, name string, opts ...fleet.OptionalArg) (*fleet.Query, error) {
+		return nil, sql.ErrNoRows
+	}
+	ds.ApplyQueriesFunc = func(ctx context.Context, authorID uint, queries []*fleet.Query) error {
+		appliedQueries = queries
+		return nil
+	}
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {
+		return nil
+	}
+
+	name := writeTmpYml(t, `---
+apiVersion: v1
+kind: query
+spec:
+  description: Retrieves the list of application scheme/protocol-based IPC handlers.
+  name: app_schemes
+  query: select * from app_schemes;
+`)
+
+	assert.Equal(t, "[+] applied 1 queries\n", runAppForTest(t, []string{"apply", "-f", name}))
+	assert.True(t, ds.ApplyQueriesFuncInvoked)
+	require.Len(t, appliedQueries, 1)
+	assert.Equal(t, "app_schemes", appliedQueries[0].Name)
+	assert.Equal(t, "select * from app_schemes;", appliedQueries[0].Query)
 }

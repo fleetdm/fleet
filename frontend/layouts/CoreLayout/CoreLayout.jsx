@@ -10,7 +10,7 @@ import { isEqual } from "lodash";
 import permissionUtils from "utilities/permissions";
 import configInterface from "interfaces/config";
 import FlashMessage from "components/FlashMessage";
-import SiteTopNav from "components/side_panels/SiteTopNav";
+import SiteTopNav from "components/top_nav/SiteTopNav";
 import userInterface from "interfaces/user";
 import notificationInterface from "interfaces/notification";
 import { hideFlash } from "redux/nodes/notifications/actions";
@@ -165,7 +165,7 @@ export class CoreLayout extends Component {
             onLogoutUser={onLogoutUser}
             onNavItemClick={onNavItemClick}
             pathname={pathname}
-            user={user}
+            currentUser={user}
           />
         </nav>
         <div className="core-wrapper">

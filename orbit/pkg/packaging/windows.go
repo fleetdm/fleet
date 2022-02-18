@@ -46,8 +46,14 @@ func BuildMSI(opt Options) (string, error) {
 		updateOpt.RootKeys = opt.UpdateRoots
 	}
 
-	if err := InitializeUpdates(updateOpt); err != nil {
+	updatesData, err := InitializeUpdates(updateOpt)
+	if err != nil {
 		return "", fmt.Errorf("initialize updates: %w", err)
+	}
+	log.Debug().Stringer("data", updatesData).Msg("updates initialized")
+	if opt.Version == "" {
+		// We set the package version to orbit's latest version.
+		opt.Version = updatesData.OrbitVersion
 	}
 
 	// Write files

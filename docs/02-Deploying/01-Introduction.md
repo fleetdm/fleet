@@ -7,7 +7,7 @@
   - [Redis](#redis)
   - [TLS certificate](#tls-certificate)
 
-The Fleet application is distributed as a single static binary (or as a Docker container). This binary serves:
+![Fleet's architecture diagram](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/fleet-architecture-diagram.png)
 
 Fleet is the most widely used open source osquery manager in the world. Fleet enables programmable live queries, streaming logs, and realtime visibility of 100,000+ servers, containers, and laptops. It's especially useful for IT, security, and compliance use cases.
 
@@ -35,7 +35,7 @@ Fleet currently has three infrastructure dependencies: MySQL, Redis, and a TLS c
 
 ### MySQL
 
-Fleet uses MySQL extensively as its main database. Many cloud providers (such as [AWS](https://aws.amazon.com/rds/mysql/) and [GCP](https://cloud.google.com/sql/)) host reliable MySQL services which you may consider for this purpose. A well supported MySQL [Docker container](https://hub.docker.com/_/mysql/) also exists if you would rather run MySQL in a container. For more information on how to configure the `fleet` binary to use the correct MySQL instance, see the [Configuration](./03-Configuration.md) document.
+Fleet uses MySQL extensively as its main database. Many cloud providers (such as [AWS](https://aws.amazon.com/rds/mysql/) and [GCP](https://cloud.google.com/sql/)) host reliable MySQL services which you may consider for this purpose. A well supported MySQL [Docker image](https://hub.docker.com/_/mysql/) also exists if you would rather run MySQL in a container. For more information on how to configure the `fleet` binary to use the correct MySQL instance, see the [Configuration](./03-Configuration.md) document.
 
 Fleet requires at least MySQL version 5.7.
 
@@ -43,7 +43,7 @@ For host expiry configuration, the [event scheduler](https://dev.mysql.com/doc/r
 
 ### Redis
 
-Fleet uses Redis to ingest and queue the results of distributed queries, cache data, etc. Many cloud providers (such as [AWS](https://aws.amazon.com/elasticache/) and [GCP](https://console.cloud.google.com/launcher/details/click-to-deploy-images/redis)) host reliable Redis services which you may consider for this purpose. A well supported Redis [Docker container](https://hub.docker.com/_/redis/) also exists if you would rather run Redis in a container. For more information on how to configure the `fleet` binary to use the correct Redis instance, see the [Configuration](./03-Configuration.md) document.
+Fleet uses Redis to ingest and queue the results of distributed queries, cache data, etc. Many cloud providers (such as [AWS](https://aws.amazon.com/elasticache/) and [GCP](https://console.cloud.google.com/launcher/details/click-to-deploy-images/redis)) host reliable Redis services which you may consider for this purpose. A well supported Redis [Docker image](https://hub.docker.com/_/redis/) also exists if you would rather run Redis in a container. For more information on how to configure the `fleet` binary to use the correct Redis instance, see the [Configuration](./03-Configuration.md) document.
 
 ## TLS certificate
 

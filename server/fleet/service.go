@@ -236,7 +236,7 @@ type Service interface {
 
 	ListHosts(ctx context.Context, opt HostListOptions) (hosts []*Host, err error)
 	GetHost(ctx context.Context, id uint) (host *HostDetail, err error)
-	GetHostSummary(ctx context.Context, teamID *uint) (summary *HostSummary, err error)
+	GetHostSummary(ctx context.Context, teamID *uint, platform *string) (summary *HostSummary, err error)
 	DeleteHost(ctx context.Context, id uint) (err error)
 	// HostByIdentifier returns one host matching the provided identifier. Possible matches can be on
 	// osquery_host_identifier, node_key, UUID, or hostname.
@@ -257,6 +257,7 @@ type Service interface {
 	ListHostDeviceMapping(ctx context.Context, id uint) ([]*HostDeviceMapping, error)
 
 	MacadminsData(ctx context.Context, id uint) (*MacadminsData, error)
+	AggregatedMacadminsData(ctx context.Context, teamID *uint) (*AggregatedMacadminsData, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// AppConfigService provides methods for configuring  the Fleet application
@@ -360,6 +361,8 @@ type Service interface {
 
 	// NewTeam creates a new team.
 	NewTeam(ctx context.Context, p TeamPayload) (*Team, error)
+	// GetTeam returns a existing team.
+	GetTeam(ctx context.Context, id uint) (*Team, error)
 	// ModifyTeam modifies an existing team (besides agent options).
 	ModifyTeam(ctx context.Context, id uint, payload TeamPayload) (*Team, error)
 	// ModifyTeamAgentOptions modifies agent options for a team.

@@ -56,9 +56,8 @@ type RedisConfig struct {
 	TLSCA                     string        `yaml:"tls_ca"`
 	TLSServerName             string        `yaml:"tls_server_name"`
 	TLSHandshakeTimeout       time.Duration `yaml:"tls_handshake_timeout"`
-	// TODO(mna): should we allow insecure skip verify option?
-	MaxIdleConns int `yaml:"max_idle_conns"`
-	MaxOpenConns int `yaml:"max_open_conns"`
+	MaxIdleConns              int           `yaml:"max_idle_conns"`
+	MaxOpenConns              int           `yaml:"max_open_conns"`
 	// this config is an int on MysqlConfig, but it should be a time.Duration.
 	ConnMaxLifetime time.Duration `yaml:"conn_max_lifetime"`
 	IdleTimeout     time.Duration `yaml:"idle_timeout"`
@@ -94,6 +93,7 @@ type AuthConfig struct {
 type AppConfig struct {
 	TokenKeySize              int           `yaml:"token_key_size"`
 	InviteTokenValidityPeriod time.Duration `yaml:"invite_token_validity_period"`
+	EnableScheduledQueryStats bool          `yaml:"enable_scheduled_query_stats"`
 }
 
 // SessionConfig defines configs related to user sessions
@@ -134,6 +134,9 @@ type LoggingConfig struct {
 	JSON                 bool
 	DisableBanner        bool          `yaml:"disable_banner"`
 	ErrorRetentionPeriod time.Duration `yaml:"error_retention_period"`
+	TracingEnabled       bool          `yaml:"tracing_enabled"`
+	// TracingType can either be opentelemetry or elasticapm for whichever type of tracing wanted
+	TracingType string `yaml:"tracing_type"`
 }
 
 // FirehoseConfig defines configs for the AWS Firehose logging plugin
@@ -386,6 +389,8 @@ func (man Manager) addConfigs() {
 		"Duration invite tokens remain valid (i.e. 1h)")
 	man.addConfigInt("app.token_key_size", 24,
 		"Size of generated tokens")
+	man.addConfigBool("app.enable_scheduled_query_stats", true,
+		"If true (default) it gets scheduled query stats from hosts")
 
 	// Session
 	man.addConfigInt("session.key_size", 64,
@@ -448,6 +453,10 @@ func (man Manager) addConfigs() {
 		"Disable startup banner")
 	man.addConfigDuration("logging.error_retention_period", 24*time.Hour,
 		"Amount of time to keep errors, 0 means no expiration, < 0 means disable storage of errors")
+	man.addConfigBool("logging.tracing_enabled", false,
+		"Enable Tracing, further configured via standard env variables")
+	man.addConfigString("logging.tracing_type", "opentelemetry",
+		"Select the kind of tracing, defaults to opentelemetry, can also be elasticapm")
 
 	// Firehose
 	man.addConfigString("firehose.region", "", "AWS Region to use")
@@ -611,6 +620,7 @@ func (man Manager) LoadConfig() FleetConfig {
 		App: AppConfig{
 			TokenKeySize:              man.getConfigInt("app.token_key_size"),
 			InviteTokenValidityPeriod: man.getConfigDuration("app.invite_token_validity_period"),
+			EnableScheduledQueryStats: man.getConfigBool("app.enable_scheduled_query_stats"),
 		},
 		Session: SessionConfig{
 			KeySize:  man.getConfigInt("session.key_size"),
@@ -645,6 +655,8 @@ func (man Manager) LoadConfig() FleetConfig {
 			JSON:                 man.getConfigBool("logging.json"),
 			DisableBanner:        man.getConfigBool("logging.disable_banner"),
 			ErrorRetentionPeriod: man.getConfigDuration("logging.error_retention_period"),
+			TracingEnabled:       man.getConfigBool("logging.tracing_enabled"),
+			TracingType:          man.getConfigString("logging.tracing_type"),
 		},
 		Firehose: FirehoseConfig{
 			Region:           man.getConfigString("firehose.region"),

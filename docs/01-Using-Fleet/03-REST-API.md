@@ -10,7 +10,6 @@
 - [Schedule](#schedule)
 - [Packs](#packs)
 - [Policies](#policies)
-- [Team policies](#team-policies)
 - [Activities](#activities)
 - [Targets](#targets)
 - [Fleet configuration](#fleet-configuration)
@@ -611,9 +610,10 @@ Returns the count of all hosts organized by status. `online_count` includes all 
 
 #### Parameters
 
-| Name    | Type    | In    | Description                                                                     |
-| ------- | ------- | ----  | ------------------------------------------------------------------------------- |
-| team_id | integer | query | The ID of the team whose host counts should be included. Defaults to all teams. |
+| Name     | Type    | In    | Description                                                                     |
+| -------- | ------- | ----  | ------------------------------------------------------------------------------- |
+| team_id  | integer | query | The ID of the team whose host counts should be included. Defaults to all teams. |
+| platform | string  | query | Platform to filter by when counting. Defaults to all platforms.                 |
 
 #### Example
 
@@ -1061,8 +1061,11 @@ Request (`filters` is specified):
 ### Get host's Google Chrome profiles
 
 Requires the [macadmins osquery
-extension](https://github.com/macadmins/osquery-extension) which comes bundled in [Fleet's osquery
-installers](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer). 
+extension](https://github.com/macadmins/osquery-extension) which comes bundled
+in [Fleet's osquery
+installers](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
+Currently supported only on macOS.
+
 
 Retrieves a host's Google Chrome profile information which can be used to link a host to a specific
 user by email.
@@ -1097,12 +1100,14 @@ user by email.
 
 ---
 
-### Get host's mobile device management (MDM) and Munki information 
+### Get host's mobile device management (MDM) and Munki information
 
 Requires the [macadmins osquery
-extension](https://github.com/macadmins/osquery-extension) which comes bundled in [Fleet's osquery
-installers](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer). 
-
+extension](https://github.com/macadmins/osquery-extension) which comes bundled
+in [Fleet's osquery
+installers](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
+Currently supported only on macOS.
+ 
 Retrieves a host's MDM enrollment status, MDM server URL, and Munki version.
 
 `GET /api/v1/fleet/hosts/{id}/macadmins`
@@ -1130,6 +1135,70 @@ Retrieves a host's MDM enrollment status, MDM server URL, and Munki version.
     "mobile_device_management": {
       "enrollment_status": "Enrolled (automated)",
       "server_url": "http://some.url/mdm"
+    }
+  }
+}
+```
+
+---
+
+### Get aggregated host's mobile device management (MDM) and Munki information
+
+Requires the [macadmins osquery
+extension](https://github.com/macadmins/osquery-extension) which comes bundled
+in [Fleet's osquery
+installers](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
+Currently supported only on macOS.
+
+
+Retrieves aggregated host's MDM enrollment status and Munki versions.
+
+`GET /api/v1/fleet/macadmins`
+
+#### Parameters
+
+| Name    | Type    | In    | Description                                                                                                                                                                                                                                                                                                                        |
+| ------- | ------- | ----- | ---------------------------------------------------------------------------------------------------------------- |
+| team_id | integer | query | _Available in Fleet Premium_ Filters the aggregate host information to only include hosts in the specified team. |                           |
+
+#### Example
+
+`GET /api/v1/fleet/macadmins`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "macadmins": {
+    "counts_updated_at": "2021-03-21 12:32:44",
+    "munki_versions": [
+      {
+        "version": "5.5",
+        "hosts_count": 8360
+      },
+      {
+        "version": "5.4",
+        "hosts_count": 1700
+      },
+      {
+        "version": "5.3",
+        "hosts_count": 400
+      },
+      {
+        "version": "5.2.3",
+        "hosts_count": 112
+      },
+      {
+        "version": "5.2.2",
+        "hosts_count": 50
+      }
+    ],
+    "mobile_device_management_enrollment_status": {
+      "enrolled_manual_hosts_count": 124,
+      "enrolled_automatic_hosts_count": 124,
+      "unenrolled_hosts_count": 112
     }
   }
 }
@@ -4035,6 +4104,10 @@ Returns a list of the activities that have been performed in Fleet. The followin
 - Edited pack
 - Deleted pack
 - Applied pack with fleetctl
+- Created policy
+- Edited policy
+- Deleted policy
+- Applied policy with fleetctl
 - Created saved query
 - Edited saved query
 - Deleted saved query
@@ -4478,7 +4551,6 @@ None.
     "tier": "free",
     "expiration": "0001-01-01T00:00:00Z"
   },
-  "vulnerability_settings": null,
   "logging": {
       "debug": false,
       "json": false,
@@ -4507,7 +4579,7 @@ None.
     "expiration": "2021-12-31T19:00:00-05:00",
     "note": ""
   },
-    "vulnerability_settings": {
+  "vulnerability_settings": {
     "databases_path": ""
   },
   "webhook_settings": {
@@ -4521,6 +4593,11 @@ None.
       "enable_failing_policies_webhook":true,
       "destination_url": "https://server.com",
       "policy_ids": [1, 2, 3],
+      "host_batch_size": 1000
+    },
+    "vulnerabilities_webhook":{
+      "enable_vulnerabilities_webhook":true,
+      "destination_url": "https://server.com",
       "host_batch_size": 1000
     }
   },
@@ -4603,7 +4680,10 @@ Modifies the Fleet's configuration with the supplied information.
 | enable_failing_policies_webhook   | boolean | body | _webhook_settings.failing_policies_webhook settings_. Whether or not the failing policies webhook is enabled. |
 | destination_url    | string | body | _webhook_settings.failing_policies_webhook settings_. The URL to deliver the webhook requests to.                                                     |
 | policy_ids    | array | body | _webhook_settings.failing_policies_webhook settings_. List of policy IDs to enable failing policies webhook.                                                              |
-| host_batch_size    | integer | body | _webhook_settings.failing_policies_webhook settings_. Maximum number of hosts to batch on failing policy webhook requests. ThIe default, 0, means no batching (all hosts failing a policy are sent on one request). |
+| host_batch_size    | integer | body | _webhook_settings.failing_policies_webhook settings_. Maximum number of hosts to batch on failing policy webhook requests. The default, 0, means no batching (all hosts failing a policy are sent on one request). |
+| enable_vulnerabilities_webhook   | boolean | body | _webhook_settings.vulnerabilities_webhook settings_. Whether or not the vulnerabilities webhook is enabled. |
+| destination_url    | string | body | _webhook_settings.vulnerabilities_webhook settings_. The URL to deliver the webhook requests to.                                                     |
+| host_batch_size    | integer | body | _webhook_settings.vulnerabilities_webhook settings_. Maximum number of hosts to batch on vulnerabilities webhook requests. The default, 0, means no batching (all vulnerable hosts are sent on one request). |
 | additional_queries    | boolean | body | Whether or not additional queries are enabled on hosts.                                                                                                                                |
 
 #### Example
@@ -4712,6 +4792,11 @@ Modifies the Fleet's configuration with the supplied information.
       "enable_failing_policies_webhook":true,
       "destination_url": "https://server.com",
       "policy_ids": [1, 2, 3],
+      "host_batch_size": 1000
+    },
+    "vulnerabilities_webhook":{
+      "enable_vulnerabilities_webhook":true,
+      "destination_url": "https://server.com",
       "host_batch_size": 1000
     }
   },
@@ -5488,6 +5573,62 @@ _Available in Fleet Premium_
 }
 ```
 
+### Get team
+
+_Available in Fleet Premium_
+
+`GET /api/v1/fleet/teams/{id}`
+
+#### Parameters
+
+| Name | Type   | In   | Description                          |
+| ---- | ------ | ---- | ------------------------------------ |
+| id   | string | body | **Required.** The desired team's ID. |
+
+#### Example
+
+`GET /api/v1/fleet/teams/1`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "team": {
+    "name": "Workstations",
+    "id": 1,
+    "user_ids": [1, 17, 22, 32],
+    "host_ids": [],
+    "user_count": 4,
+    "host_count": 0,
+    "agent_options": {
+      "spec": {
+        "config": {
+          "options": {
+            "logger_plugin": "tls",
+            "pack_delimiter": "/",
+            "logger_tls_period": 10,
+            "distributed_plugin": "tls",
+            "disable_distributed": false,
+            "logger_tls_endpoint": "/api/v1/osquery/log",
+            "distributed_interval": 10,
+            "distributed_tls_max_attempts": 3
+          },
+          "decorators": {
+            "load": [
+              "SELECT uuid AS host_uuid FROM system_info;",
+              "SELECT hostname AS hostname FROM system_info;"
+            ]
+          }
+        },
+        "overrides": {}
+      }
+    }
+  }
+}
+```
+
 ### Create team
 
 _Available in Fleet Premium_
@@ -5871,10 +6012,10 @@ Transforms a host name into a host id. For example, the Fleet UI use this endpoi
 | ----------------------- | ------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | page                    | integer | query | Page number of the results to fetch.                                                                                                                                                                                                                                                                                                        |
 | per_page                | integer | query | Results per page.                                                                                                                                                                                                                                                                                                                           |
-| order_key               | string  | query | What to order results by. Can be ordered by the following fields: `name`.                                                                                                                                                                                                                                                                             |
-| order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`.                                                                                                                                                                                                               |
-| query                   | string  | query | Search query keywords. Searchable fields include `name`.                                                                                                                                                                                                                                          |
-| team_id                 | integer | query | _Available in Fleet Premium_ Filters the software to only include the software installed on the hosts that are assigned to the specified team.                                                                                                                                                                                                                                                 |
+| order_key               | string  | query | What to order results by. Can be ordered by the following fields: `name`, `hosts_count`. Defaults to the hosts count, descending.                                                                                                                                                                                                           |
+| order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default if not provided is `asc`.                                                                                                                                                                                               |
+| query                   | string  | query | Search query keywords. Searchable fields include `name`, `version`, and `cve`.                                                                                                                                                                                                                                                                                    |
+| team_id                 | integer | query | _Available in Fleet Premium_ Filters the software to only include the software installed on the hosts that are assigned to the specified team.                                                                                                                                                                                              |
 | vulnerable              | bool    | query | If true or 1, only list software that has detected vulnerabilities                                                                                                                                                                                                                                                                          |
 
 #### Example
@@ -5887,22 +6028,16 @@ Transforms a host name into a host id. For example, the Fleet UI use this endpoi
 
 ```json
 {
+    "counts_updated_at": "2022-01-01 12:32:00",
     "software": [
       {
-        "id": 1,
-        "name": "Chrome.app",
+        "id": 4,
+        "name": "osquery",
         "version": "2.1.11",
-        "source": "Application (macOS)",
+        "source": "rpm_packages",
         "generated_cpe": "",
-        "vulnerabilities": null
-      },
-      {
-        "id": 2,
-        "name": "Figma.app",
-        "version": "2.1.11",
-        "source": "Application (macOS)",
-        "generated_cpe": "",
-        "vulnerabilities": null
+        "vulnerabilities": null,
+        "hosts_count": 456
       },
       {
         "id": 3,
@@ -5910,15 +6045,26 @@ Transforms a host name into a host id. For example, the Fleet UI use this endpoi
         "version": "2.1.11",
         "source": "rpm_packages",
         "generated_cpe": "",
-        "vulnerabilities": null
+        "vulnerabilities": null,
+        "hosts_count": 345
       },
       {
-        "id": 4,
-        "name": "osquery",
+        "id": 2,
+        "name": "Figma.app",
         "version": "2.1.11",
-        "source": "rpm_packages",
+        "source": "Application (macOS)",
         "generated_cpe": "",
-        "vulnerabilities": null
+        "vulnerabilities": null,
+        "hosts_count": 234
+      },
+      {
+        "id": 1,
+        "name": "Chrome.app",
+        "version": "2.1.11",
+        "source": "Application (macOS)",
+        "generated_cpe": "",
+        "vulnerabilities": null,
+        "hosts_count": 123
       }
     ]
   }

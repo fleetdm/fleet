@@ -33,6 +33,9 @@ class ConfirmSSOInviteForm extends Component {
             {...fields.name}
             autofocus
             placeholder="Full name"
+            inputOptions={{
+              maxLength: "80",
+            }}
           />
         </div>
         <div className="confirm-invite-button-wrap">

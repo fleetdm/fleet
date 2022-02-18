@@ -10,10 +10,6 @@ variable "domain_fleetdm" {
   default = "dogfood.fleetdm.com"
 }
 
-variable "domain_fleetctl" {
-  default = "dogfood.fleetctl.com"
-}
-
 variable "osquery_results_s3_bucket" {
   default = "fleet-osquery-results-archive"
 }
@@ -28,12 +24,12 @@ variable "vulnerabilities_path" {
 
 variable "fleet_backend_cpu" {
   default = 256
-  type = number
+  type    = number
 }
 
 variable "fleet_backend_mem" {
   default = 512
-  type = number
+  type    = number
 }
 
 variable "async_host_processing" {
@@ -41,7 +37,7 @@ variable "async_host_processing" {
 }
 
 variable "logging_debug" {
-default = "false"
+  default = "false"
 }
 
 variable "logging_json" {
@@ -55,12 +51,12 @@ variable "database_user" {
 
 variable "database_name" {
   description = "the name of the database fleet will create/use"
-  default = "fleet"
+  default     = "fleet"
 }
 
 variable "fleet_image" {
   description = "the name of the container image to run"
-  default     = "fleetdm/fleet"
+  default     = "fleetdm/fleet:v4.10.0"
 }
 
 variable "software_inventory" {
@@ -76,13 +72,13 @@ variable "vuln_db_path" {
 variable "cpu_migrate" {
   description = "cpu units for migration task"
   default     = 1024
-  type = number
+  type        = number
 }
 
 variable "mem_migrate" {
   description = "memory limit for migration task in MB"
   default     = 2048
-  type = number
+  type        = number
 }
 
 variable "fleet_max_capacity" {
@@ -107,5 +103,5 @@ variable "cpu_tracking_target_value" {
 
 variable "fleet_license" {
   description = "Fleet Premium license key"
-  default = ""
+  default     = ""
 }

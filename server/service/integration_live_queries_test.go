@@ -12,6 +12,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/live_query"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -395,4 +396,56 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestFailsOnSomeHost() {
 	require.Len(t, result.Results[1].Rows, 0)
 	require.NotNil(t, result.Results[1].Error)
 	assert.Equal(t, "some error!", *result.Results[1].Error)
+}
+
+func (s *liveQueriesTestSuite) TestCreateDistributedQueryCampaign() {
+	t := s.T()
+
+	// NOTE: this only tests creating the campaigns, as running them is tested
+	// extensively in other test functions.
+
+	h1 := s.hosts[0]
+	h2 := s.hosts[1]
+	s.lq.On("RunQuery", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.lq.On("StopQuery", mock.Anything).Return(nil)
+
+	// create with no payload
+	var createResp createDistributedQueryCampaignResponse
+	s.DoJSON("POST", "/api/v1/fleet/queries/run", nil, http.StatusUnprocessableEntity, &createResp)
+
+	// create with unknown query
+	s.DoJSON("POST", "/api/v1/fleet/queries/run", createDistributedQueryCampaignRequest{QueryID: ptr.Uint(9999)}, http.StatusNotFound, &createResp)
+
+	// create with new query
+	s.DoJSON("POST", "/api/v1/fleet/queries/run", createDistributedQueryCampaignRequest{QuerySQL: "SELECT 1"}, http.StatusOK, &createResp)
+	assert.NotZero(t, createResp.Campaign.ID)
+	assert.Equal(t, fleet.QueryWaiting, createResp.Campaign.Status)
+	assert.Equal(t, uint(0), createResp.Campaign.Metrics.TotalHosts)
+	camp1 := *createResp.Campaign
+
+	// wait a second to prevent duplicate name for new query
+	time.Sleep(time.Second)
+
+	// create with new query for specific hosts
+	s.DoJSON("POST", "/api/v1/fleet/queries/run", createDistributedQueryCampaignRequest{QuerySQL: "SELECT 2", Selected: fleet.HostTargets{HostIDs: []uint{h1.ID, h2.ID}}}, http.StatusOK, &createResp)
+	assert.NotEqual(t, camp1.ID, createResp.Campaign.ID)
+	assert.Equal(t, uint(2), createResp.Campaign.Metrics.TotalHosts)
+
+	// wait a second to prevent duplicate name for new query
+	time.Sleep(time.Second)
+
+	// create by host name
+	s.DoJSON("POST", "/api/v1/fleet/queries/run_by_names", createDistributedQueryCampaignByNamesRequest{
+		QuerySQL: "SELECT 3", Selected: distributedQueryCampaignTargetsByNames{Hosts: []string{h1.Hostname}}},
+		http.StatusOK, &createResp)
+	assert.NotEqual(t, camp1.ID, createResp.Campaign.ID)
+	assert.Equal(t, uint(1), createResp.Campaign.Metrics.TotalHosts)
+
+	// wait a second to prevent duplicate name for new query
+	time.Sleep(time.Second)
+
+	// create by unknown host name - it ignores the unknown names
+	s.DoJSON("POST", "/api/v1/fleet/queries/run_by_names", createDistributedQueryCampaignByNamesRequest{
+		QuerySQL: "SELECT 3", Selected: distributedQueryCampaignTargetsByNames{Hosts: []string{h1.Hostname + "ZZZZZ"}}},
+		http.StatusOK, &createResp)
 }

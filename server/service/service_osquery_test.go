@@ -3,10 +3,13 @@ package service
 import (
 	"bytes"
 	"context"
+	crand "crypto/rand"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"math"
+	"math/big"
 	"reflect"
 	"sort"
 	"strconv"
@@ -37,8 +40,7 @@ import (
 )
 
 // One of these queries is the disk space, only one of the two works in a platform
-var expectedDetailQueries = len(osquery_utils.GetDetailQueries(
-	&fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}})) - 1
+var expectedDetailQueries = len(osquery_utils.GetDetailQueries(&fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}}, config.FleetConfig{})) - 1
 
 func TestEnrollAgent(t *testing.T) {
 	ds := new(mock.Store)
@@ -276,14 +278,21 @@ func TestHostDetailQueries(t *testing.T) {
 			},
 		},
 
-		Platform:        "rhel",
+		Platform:        "darwin",
 		DetailUpdatedAt: mockClock.Now(),
 		NodeKey:         "test_key",
 		Hostname:        "test_hostname",
 		UUID:            "test_uuid",
 	}
 
-	svc := &Service{clock: mockClock, config: config.TestConfig(), ds: ds}
+	svc := &Service{
+		clock:    mockClock,
+		logger:   log.NewNopLogger(),
+		config:   config.TestConfig(),
+		ds:       ds,
+		jitterMu: new(sync.Mutex),
+		jitterH:  make(map[time.Duration]*jitterHashTable),
+	}
 
 	queries, err := svc.detailQueriesForHost(context.Background(), &host)
 	require.NoError(t, err)
@@ -614,7 +623,7 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	// queries)
 	queries, acc, err := svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	require.Len(t, queries, expectedDetailQueries)
+	require.Len(t, queries, expectedDetailQueries-3)
 	assert.NotZero(t, acc)
 
 	resultJSON := `
@@ -802,7 +811,7 @@ func TestDetailQueries(t *testing.T) {
 	// queries)
 	queries, acc, err := svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	require.Len(t, queries, expectedDetailQueries+1)
+	require.Len(t, queries, expectedDetailQueries-2)
 	assert.NotZero(t, acc)
 
 	resultJSON := `
@@ -1175,7 +1184,7 @@ func TestDistributedQueryResults(t *testing.T) {
 	// Now we should get the active distributed query
 	queries, acc, err := svc.GetDistributedQueries(hostCtx)
 	require.NoError(t, err)
-	require.Len(t, queries, expectedDetailQueries+1)
+	require.Len(t, queries, expectedDetailQueries-2)
 	queryKey := fmt.Sprintf("%s%d", hostDistributedQueryPrefix, campaign.ID)
 	assert.Equal(t, "select * from time", queries[queryKey])
 	assert.NotZero(t, acc)
@@ -1939,13 +1948,14 @@ func TestTeamMaintainerCanRunNewDistributedCampaigns(t *testing.T) {
 	ds.QueryFunc = func(ctx context.Context, id uint) (*fleet.Query, error) {
 		return &fleet.Query{
 			ID:             42,
+			AuthorID:       ptr.Uint(99),
 			Name:           "query",
 			Query:          "select 1;",
 			ObserverCanRun: false,
 		}, nil
 	}
 	viewerCtx := viewer.NewContext(context.Background(), viewer.Viewer{
-		User: &fleet.User{ID: 0, Teams: []fleet.UserTeam{{Role: fleet.RoleMaintainer}}},
+		User: &fleet.User{ID: 99, Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 123}, Role: fleet.RoleMaintainer}}},
 	})
 
 	q := "select year, month, day, hour, minutes, seconds from time"
@@ -1971,7 +1981,7 @@ func TestTeamMaintainerCanRunNewDistributedCampaigns(t *testing.T) {
 		return nil
 	}
 	lq.On("RunQuery", "0", "select year, month, day, hour, minutes, seconds from time", []uint{1, 3, 5}).Return(nil)
-	_, err := svc.NewDistributedQueryCampaign(viewerCtx, q, nil, fleet.HostTargets{HostIDs: []uint{2}, LabelIDs: []uint{1}})
+	_, err := svc.NewDistributedQueryCampaign(viewerCtx, q, nil, fleet.HostTargets{HostIDs: []uint{2}, LabelIDs: []uint{1}, TeamIDs: []uint{123}})
 	require.NoError(t, err)
 }
 
@@ -2457,4 +2467,46 @@ func TestLiveQueriesFailing(t *testing.T) {
 	require.NoError(t, err)
 	require.Contains(t, string(logs), "level=error")
 	require.Contains(t, string(logs), "failed to get queries for host")
+}
+
+func TestJitterForHost(t *testing.T) {
+	jh := newJitterHashTable(30)
+
+	histogram := make(map[int64]int)
+	hostCount := 3000
+	for i := 0; i < hostCount; i++ {
+		hostID, err := crand.Int(crand.Reader, big.NewInt(10000))
+		require.NoError(t, err)
+		jitter := jh.jitterForHost(uint(hostID.Int64() + 10000))
+		jitterMinutes := int64(jitter.Minutes())
+		histogram[jitterMinutes]++
+	}
+	min, max := math.MaxInt, 0
+	for jitterMinutes, count := range histogram {
+		if count < min {
+			min = count
+		}
+		if count > max {
+			max = count
+		}
+		t.Logf("jitterMinutes=%d \t count=%d\n", jitterMinutes, count)
+	}
+	variation := max - min
+	t.Logf("min=%d \t max=%d \t variation=%d\n", min, max, variation)
+
+	// check that variation is below 1% of the total amount of hosts
+	require.Less(t, variation, int(float32(hostCount)/0.01))
+}
+
+func TestNoJitter(t *testing.T) {
+	jh := newJitterHashTable(0)
+
+	hostCount := 3000
+	for i := 0; i < hostCount; i++ {
+		hostID, err := crand.Int(crand.Reader, big.NewInt(10000))
+		require.NoError(t, err)
+		jitter := jh.jitterForHost(uint(hostID.Int64() + 10000))
+		jitterMinutes := int64(jitter.Minutes())
+		require.Equal(t, int64(0), jitterMinutes)
+	}
 }

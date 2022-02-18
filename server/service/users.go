@@ -98,6 +98,42 @@ func (svc *Service) ListUsers(ctx context.Context, opt fleet.UserListOptions) ([
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// Me (get own current user)
+////////////////////////////////////////////////////////////////////////////////
+
+func meEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	user, err := svc.AuthenticatedUser(ctx)
+	if err != nil {
+		return getUserResponse{Err: err}, nil
+	}
+	availableTeams, err := svc.ListAvailableTeamsForUser(ctx, user)
+	if err != nil {
+		if errors.Is(err, fleet.ErrMissingLicense) {
+			availableTeams = []*fleet.TeamSummary{}
+		} else {
+			return getUserResponse{Err: err}, nil
+		}
+	}
+	return getUserResponse{User: user, AvailableTeams: availableTeams}, nil
+}
+
+func (svc *Service) AuthenticatedUser(ctx context.Context) (*fleet.User, error) {
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return nil, fleet.ErrNoContext
+	}
+
+	if err := svc.authz.Authorize(ctx, &fleet.User{ID: vc.UserID()}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	if !vc.IsLoggedIn() {
+		return nil, fleet.NewPermissionError("not logged in")
+	}
+	return vc.User, nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // Get User
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -399,7 +435,7 @@ func getInfoAboutSessionsForUserEndpoint(ctx context.Context, request interface{
 }
 
 func (svc *Service) GetInfoAboutSessionsForUser(ctx context.Context, id uint) ([]*fleet.Session, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Session{UserID: id}, fleet.ActionWrite); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.Session{UserID: id}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 
@@ -448,6 +484,43 @@ func (svc *Service) DeleteSessionsForUser(ctx context.Context, id uint) error {
 	}
 
 	return svc.ds.DestroyAllSessionsForUser(ctx, id)
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Change user email
+////////////////////////////////////////////////////////////////////////////////
+
+type changeEmailRequest struct {
+	Token string `url:"token"`
+}
+
+type changeEmailResponse struct {
+	NewEmail string `json:"new_email"`
+	Err      error  `json:"error,omitempty"`
+}
+
+func (r changeEmailResponse) error() error { return r.Err }
+
+func changeEmailEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*changeEmailRequest)
+	newEmailAddress, err := svc.ChangeUserEmail(ctx, req.Token)
+	if err != nil {
+		return changeEmailResponse{Err: err}, nil
+	}
+	return changeEmailResponse{NewEmail: newEmailAddress}, nil
+}
+
+func (svc *Service) ChangeUserEmail(ctx context.Context, token string) (string, error) {
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return "", fleet.ErrNoContext
+	}
+
+	if err := svc.authz.Authorize(ctx, &fleet.User{ID: vc.UserID()}, fleet.ActionWrite); err != nil {
+		return "", err
+	}
+
+	return svc.ds.ConfirmPendingEmailChange(ctx, vc.UserID(), token)
 }
 
 func isAdminOfTheModifiedTeams(currentUser *fleet.User, originalUserTeams, newUserTeams []fleet.UserTeam) bool {

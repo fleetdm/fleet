@@ -3,7 +3,7 @@ import React, { useCallback, useContext, useState } from "react";
 
 import { AppContext } from "context/app";
 import { IQuery } from "interfaces/query";
-import { ITableSearchData } from "components/TableContainer/TableContainer";
+import { ITableQueryData } from "components/TableContainer/TableContainer";
 
 import Button from "components/buttons/Button";
 import TableContainer from "components/TableContainer";
@@ -18,7 +18,7 @@ interface IQueryTableData extends IQuery {
 interface IQueriesListWrapperProps {
   queriesList: IQueryTableData[] | null;
   isLoading: boolean;
-  onRemoveQueryClick: any;
+  onRemoveQueryClick: (selectedTableQueryIds: number[]) => void;
   onCreateQueryClick: () => void;
   searchable: boolean;
   customControl?: () => JSX.Element;
@@ -39,7 +39,7 @@ const QueriesListWrapper = ({
   const { currentUser } = useContext(AppContext);
   const [searchString, setSearchString] = useState<string>("");
 
-  const handleSearchChange = ({ searchQuery }: ITableSearchData) => {
+  const handleSearchChange = ({ searchQuery }: ITableQueryData) => {
     setSearchString(searchQuery);
   };
 

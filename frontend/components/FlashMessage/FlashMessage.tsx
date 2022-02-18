@@ -57,7 +57,7 @@ const FlashMessage = ({
   }, [notification, alertType, isVisible, setHide]);
 
   if (hide || !isVisible) {
-    return null;
+    return <></>;
   }
 
   const alertIcon =

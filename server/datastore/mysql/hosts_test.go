@@ -95,6 +95,7 @@ func TestHosts(t *testing.T) {
 		{"SaveTonsOfUsers", testHostsSaveTonsOfUsers},
 		{"SavePackStatsConcurrent", testHostsSavePackStatsConcurrent},
 		{"LoadHostByNodeKeyLoadsDisk", testLoadHostByNodeKeyLoadsDisk},
+		{"LoadHostByNodeKeyUsesStmt", testLoadHostByNodeKeyUsesStmt},
 		{"HostsListBySoftware", testHostsListBySoftware},
 		{"HostsListFailingPolicies", printReadsInTest(testHostsListFailingPolicies)},
 		{"HostsExpiration", testHostsExpiration},
@@ -106,6 +107,7 @@ func TestHosts(t *testing.T) {
 		{"ListHostDeviceMapping", testHostsListHostDeviceMapping},
 		{"ReplaceHostDeviceMapping", testHostsReplaceHostDeviceMapping},
 		{"HostMDMAndMunki", testHostMDMAndMunki},
+		{"AggregatedHostMDMAndMunki", testAggregatedHostMDMAndMunki},
 		{"HostLite", testHostsLite},
 		{"UpdateOsqueryIntervals", testUpdateOsqueryIntervals},
 		{"UpdateRefetchRequested", testUpdateRefetchRequested},
@@ -177,7 +179,7 @@ func testSaveHost(t *testing.T, ds *Datastore, saveHostFunc func(context.Context
 	require.NoError(t, err)
 
 	err = ds.DeleteHost(context.Background(), host.ID)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 
 	newP, err := ds.Pack(context.Background(), p.ID)
 	require.NoError(t, err)
@@ -617,7 +619,7 @@ func testHostsDelete(t *testing.T, ds *Datastore) {
 	require.NotNil(t, host)
 
 	err = ds.DeleteHost(context.Background(), host.ID)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 
 	host, err = ds.Host(context.Background(), host.ID, false)
 	assert.NotNil(t, err)
@@ -680,7 +682,7 @@ func testHostsListStatus(t *testing.T, ds *Datastore) {
 			UUID:            fmt.Sprintf("%d", i),
 			Hostname:        fmt.Sprintf("foo.local%d", i),
 		})
-		assert.Nil(t, err)
+		require.NoError(t, err)
 		if err != nil {
 			return
 		}
@@ -922,7 +924,7 @@ func testHostsSearch(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	hosts, err := ds.SearchHosts(context.Background(), filter, "foo")
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	assert.Len(t, hosts, 2)
 
 	host, err := ds.SearchHosts(context.Background(), filter, "foo", h3.ID)
@@ -941,7 +943,7 @@ func testHostsSearch(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "abc-def-ghi", host[0].UUID)
 
 	none, err := ds.SearchHosts(context.Background(), filter, "xxx")
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	assert.Len(t, none, 0)
 
 	// check to make sure search on ip address works
@@ -992,20 +994,20 @@ func testHostsSearch(t *testing.T, ds *Datastore) {
 
 	// observer not included
 	hosts, err = ds.SearchHosts(context.Background(), filter, "local")
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	assert.Len(t, hosts, 0)
 
 	// observer included
 	filter.IncludeObserver = true
 	hosts, err = ds.SearchHosts(context.Background(), filter, "local")
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	assert.Len(t, hosts, 3)
 
 	userTeam1 := &fleet.User{Teams: []fleet.UserTeam{{Team: *team1, Role: fleet.RoleAdmin}}}
 	filter = fleet.TeamFilter{User: userTeam1}
 
 	hosts, err = ds.SearchHosts(context.Background(), filter, "local")
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	require.Len(t, hosts, 1)
 	assert.Equal(t, hosts[0].ID, h1.ID)
 
@@ -1014,20 +1016,20 @@ func testHostsSearch(t *testing.T, ds *Datastore) {
 
 	// observer not included
 	hosts, err = ds.SearchHosts(context.Background(), filter, "local")
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	assert.Len(t, hosts, 0)
 
 	// observer included
 	filter.IncludeObserver = true
 	hosts, err = ds.SearchHosts(context.Background(), filter, "local")
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	require.Len(t, hosts, 1)
 	assert.Equal(t, hosts[0].ID, h2.ID)
 
 	// specific team id
 	filter.TeamID = &team2.ID
 	hosts, err = ds.SearchHosts(context.Background(), filter, "local")
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	require.Len(t, hosts, 1)
 	assert.Equal(t, hosts[0].ID, h2.ID)
 
@@ -1065,8 +1067,8 @@ func testHostsGenerateStatusStatistics(t *testing.T, ds *Datastore) {
 	filter := fleet.TeamFilter{User: test.UserAdmin}
 	mockClock := clock.NewMockClock()
 
-	summary, err := ds.GenerateHostStatusStatistics(context.Background(), filter, mockClock.Now())
-	assert.Nil(t, err)
+	summary, err := ds.GenerateHostStatusStatistics(context.Background(), filter, mockClock.Now(), nil)
+	require.NoError(t, err)
 	assert.Nil(t, summary.TeamID)
 	assert.Equal(t, uint(0), summary.TotalsHostsCount)
 	assert.Equal(t, uint(0), summary.OnlineCount)
@@ -1083,7 +1085,7 @@ func testHostsGenerateStatusStatistics(t *testing.T, ds *Datastore) {
 		LabelUpdatedAt:  mockClock.Now().Add(-30 * time.Second),
 		PolicyUpdatedAt: mockClock.Now().Add(-30 * time.Second),
 		SeenTime:        mockClock.Now().Add(-30 * time.Second),
-		Platform:        "linux",
+		Platform:        "debian",
 	})
 	require.NoError(t, err)
 	h.DistributedInterval = 15
@@ -1131,7 +1133,7 @@ func testHostsGenerateStatusStatistics(t *testing.T, ds *Datastore) {
 		LabelUpdatedAt:  mockClock.Now().Add(-35 * (24 * time.Hour)),
 		PolicyUpdatedAt: mockClock.Now().Add(-35 * (24 * time.Hour)),
 		SeenTime:        mockClock.Now().Add(-35 * (24 * time.Hour)),
-		Platform:        "linux",
+		Platform:        "rhel",
 	})
 	require.NoError(t, err)
 
@@ -1140,13 +1142,14 @@ func testHostsGenerateStatusStatistics(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{h.ID}))
 
 	wantPlatforms := []*fleet.HostSummaryPlatform{
-		{Platform: "linux", HostsCount: 2},
+		{Platform: "debian", HostsCount: 1},
+		{Platform: "rhel", HostsCount: 1},
 		{Platform: "windows", HostsCount: 1},
 		{Platform: "darwin", HostsCount: 1},
 	}
 
-	summary, err = ds.GenerateHostStatusStatistics(context.Background(), filter, mockClock.Now())
-	assert.Nil(t, err)
+	summary, err = ds.GenerateHostStatusStatistics(context.Background(), filter, mockClock.Now(), nil)
+	require.NoError(t, err)
 	assert.Equal(t, uint(4), summary.TotalsHostsCount)
 	assert.Equal(t, uint(2), summary.OnlineCount)
 	assert.Equal(t, uint(1), summary.OfflineCount)
@@ -1154,8 +1157,8 @@ func testHostsGenerateStatusStatistics(t *testing.T, ds *Datastore) {
 	assert.Equal(t, uint(4), summary.NewCount)
 	assert.ElementsMatch(t, summary.Platforms, wantPlatforms)
 
-	summary, err = ds.GenerateHostStatusStatistics(context.Background(), filter, mockClock.Now().Add(1*time.Hour))
-	assert.Nil(t, err)
+	summary, err = ds.GenerateHostStatusStatistics(context.Background(), filter, mockClock.Now().Add(1*time.Hour), nil)
+	require.NoError(t, err)
 	assert.Equal(t, uint(4), summary.TotalsHostsCount)
 	assert.Equal(t, uint(0), summary.OnlineCount)
 	assert.Equal(t, uint(3), summary.OfflineCount)
@@ -1166,21 +1169,37 @@ func testHostsGenerateStatusStatistics(t *testing.T, ds *Datastore) {
 	userObs := &fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)}
 	filter = fleet.TeamFilter{User: userObs}
 
-	summary, err = ds.GenerateHostStatusStatistics(context.Background(), filter, mockClock.Now().Add(1*time.Hour))
-	assert.Nil(t, err)
+	summary, err = ds.GenerateHostStatusStatistics(context.Background(), filter, mockClock.Now().Add(1*time.Hour), nil)
+	require.NoError(t, err)
 	assert.Equal(t, uint(0), summary.TotalsHostsCount)
 
 	filter.IncludeObserver = true
-	summary, err = ds.GenerateHostStatusStatistics(context.Background(), filter, mockClock.Now().Add(1*time.Hour))
-	assert.Nil(t, err)
+	summary, err = ds.GenerateHostStatusStatistics(context.Background(), filter, mockClock.Now().Add(1*time.Hour), nil)
+	require.NoError(t, err)
 	assert.Equal(t, uint(4), summary.TotalsHostsCount)
 
 	userTeam1 := &fleet.User{Teams: []fleet.UserTeam{{Team: *team1, Role: fleet.RoleAdmin}}}
 	filter = fleet.TeamFilter{User: userTeam1}
-	summary, err = ds.GenerateHostStatusStatistics(context.Background(), filter, mockClock.Now().Add(1*time.Hour))
-	assert.Nil(t, err)
+	summary, err = ds.GenerateHostStatusStatistics(context.Background(), filter, mockClock.Now().Add(1*time.Hour), nil)
+	require.NoError(t, err)
 	assert.Equal(t, uint(1), summary.TotalsHostsCount)
 	assert.Equal(t, uint(1), summary.MIACount)
+
+	summary, err = ds.GenerateHostStatusStatistics(context.Background(), fleet.TeamFilter{User: test.UserAdmin}, mockClock.Now(), ptr.String("linux"))
+	require.NoError(t, err)
+	assert.Equal(t, uint(2), summary.TotalsHostsCount)
+
+	summary, err = ds.GenerateHostStatusStatistics(context.Background(), filter, mockClock.Now(), ptr.String("linux"))
+	require.NoError(t, err)
+	assert.Equal(t, uint(1), summary.TotalsHostsCount)
+
+	summary, err = ds.GenerateHostStatusStatistics(context.Background(), fleet.TeamFilter{User: test.UserAdmin}, mockClock.Now(), ptr.String("darwin"))
+	require.NoError(t, err)
+	assert.Equal(t, uint(1), summary.TotalsHostsCount)
+
+	summary, err = ds.GenerateHostStatusStatistics(context.Background(), fleet.TeamFilter{User: test.UserAdmin}, mockClock.Now(), ptr.String("windows"))
+	require.NoError(t, err)
+	assert.Equal(t, uint(1), summary.TotalsHostsCount)
 }
 
 func testHostsMarkSeen(t *testing.T, ds *Datastore) {
@@ -1199,21 +1218,21 @@ func testHostsMarkSeen(t *testing.T, ds *Datastore) {
 		PolicyUpdatedAt: aDayAgo,
 		SeenTime:        aDayAgo,
 	})
-	assert.Nil(t, err)
+	require.NoError(t, err)
 
 	{
 		h1Verify, err := ds.Host(context.Background(), 1, false)
-		assert.Nil(t, err)
+		require.NoError(t, err)
 		require.NotNil(t, h1Verify)
 		assert.WithinDuration(t, aDayAgo, h1Verify.SeenTime, time.Second)
 	}
 
 	err = ds.MarkHostsSeen(context.Background(), []uint{h1.ID}, anHourAgo)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 
 	{
 		h1Verify, err := ds.Host(context.Background(), 1, false)
-		assert.Nil(t, err)
+		require.NoError(t, err)
 		require.NotNil(t, h1Verify)
 		assert.WithinDuration(t, anHourAgo, h1Verify.SeenTime, time.Second)
 	}
@@ -1251,31 +1270,31 @@ func testHostsMarkSeenMany(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	err = ds.MarkHostsSeen(context.Background(), []uint{h1.ID}, anHourAgo)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 
 	{
 		h1Verify, err := ds.Host(context.Background(), h1.ID, false)
-		assert.Nil(t, err)
+		require.NoError(t, err)
 		require.NotNil(t, h1Verify)
 		assert.WithinDuration(t, anHourAgo, h1Verify.SeenTime, time.Second)
 
 		h2Verify, err := ds.Host(context.Background(), h2.ID, false)
-		assert.Nil(t, err)
+		require.NoError(t, err)
 		require.NotNil(t, h2Verify)
 		assert.WithinDuration(t, aDayAgo, h2Verify.SeenTime, time.Second)
 	}
 
 	err = ds.MarkHostsSeen(context.Background(), []uint{h1.ID, h2.ID}, aSecondAgo)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 
 	{
 		h1Verify, err := ds.Host(context.Background(), h1.ID, false)
-		assert.Nil(t, err)
+		require.NoError(t, err)
 		require.NotNil(t, h1Verify)
 		assert.WithinDuration(t, aSecondAgo, h1Verify.SeenTime, time.Second)
 
 		h2Verify, err := ds.Host(context.Background(), h2.ID, false)
-		assert.Nil(t, err)
+		require.NoError(t, err)
 		require.NotNil(t, h2Verify)
 		assert.WithinDuration(t, aSecondAgo, h2Verify.SeenTime, time.Second)
 	}
@@ -1311,22 +1330,22 @@ func testHostsCleanupIncoming(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	err = ds.CleanupIncomingHosts(context.Background(), mockClock.Now().UTC())
-	assert.Nil(t, err)
+	require.NoError(t, err)
 
 	// Both hosts should still exist because they are new
 	_, err = ds.Host(context.Background(), h1.ID, false)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	_, err = ds.Host(context.Background(), h2.ID, false)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 
 	err = ds.CleanupIncomingHosts(context.Background(), mockClock.Now().Add(6*time.Minute).UTC())
-	assert.Nil(t, err)
+	require.NoError(t, err)
 
 	// Now only the host with details should exist
 	_, err = ds.Host(context.Background(), h1.ID, false)
 	assert.NotNil(t, err)
 	_, err = ds.Host(context.Background(), h2.ID, false)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 }
 
 func testHostsIDsByName(t *testing.T, ds *Datastore) {
@@ -1401,6 +1420,58 @@ func testLoadHostByNodeKeyLoadsDisk(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.NotZero(t, h.GigsDiskSpaceAvailable)
 	assert.NotZero(t, h.PercentDiskSpaceAvailable)
+}
+
+func testLoadHostByNodeKeyUsesStmt(t *testing.T, ds *Datastore) {
+	_, err := ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   "foobar",
+		NodeKey:         "nodekey",
+		UUID:            "uuid",
+		Hostname:        "foobar.local",
+	})
+	require.NoError(t, err)
+	_, err = ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   "foobar2",
+		NodeKey:         "nodekey2",
+		UUID:            "uuid2",
+		Hostname:        "foobar2.local",
+	})
+	require.NoError(t, err)
+
+	err = ds.closeStmts()
+	require.NoError(t, err)
+
+	ds.stmtCacheMu.Lock()
+	require.Len(t, ds.stmtCache, 0)
+	ds.stmtCacheMu.Unlock()
+
+	h, err := ds.LoadHostByNodeKey(context.Background(), "nodekey")
+	require.NoError(t, err)
+	require.Equal(t, "foobar.local", h.Hostname)
+
+	ds.stmtCacheMu.Lock()
+	require.Len(t, ds.stmtCache, 1)
+	ds.stmtCacheMu.Unlock()
+
+	h, err = ds.LoadHostByNodeKey(context.Background(), "nodekey")
+	require.NoError(t, err)
+	require.Equal(t, "foobar.local", h.Hostname)
+
+	ds.stmtCacheMu.Lock()
+	require.Len(t, ds.stmtCache, 1)
+	ds.stmtCacheMu.Unlock()
+
+	h, err = ds.LoadHostByNodeKey(context.Background(), "nodekey2")
+	require.NoError(t, err)
+	require.Equal(t, "foobar2.local", h.Hostname)
 }
 
 func testHostsAdditional(t *testing.T, ds *Datastore) {
@@ -3045,7 +3116,7 @@ func testHostsNoSeenTime(t *testing.T, ds *Datastore) {
 	}, labelID, fleet.HostListOptions{}, 1)
 
 	mockClock := clock.NewMockClock()
-	summary, err := ds.GenerateHostStatusStatistics(context.Background(), teamFilter, mockClock.Now())
+	summary, err := ds.GenerateHostStatusStatistics(context.Background(), teamFilter, mockClock.Now(), nil)
 	assert.NoError(t, err)
 	assert.Nil(t, summary.TeamID)
 	assert.Equal(t, uint(1), summary.TotalsHostsCount)
@@ -3298,14 +3369,27 @@ func testHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, "9.0", version)
 
+	// simulate uninstall
+	require.NoError(t, ds.SetOrUpdateMunkiVersion(context.Background(), 123, ""))
+
+	_, err = ds.GetMunkiVersion(context.Background(), 123)
+	require.True(t, fleet.IsNotFound(err))
+
 	_, _, _, err = ds.GetMDM(context.Background(), 432)
 	require.True(t, fleet.IsNotFound(err), err)
 
 	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 432, true, "url", false))
+
+	enrolled, serverURL, installedFromDep, err := ds.GetMDM(context.Background(), 432)
+	require.NoError(t, err)
+	assert.True(t, enrolled)
+	assert.Equal(t, "url", serverURL)
+	assert.False(t, installedFromDep)
+
 	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 455, true, "url2", true))
 	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 432, false, "url3", true))
 
-	enrolled, serverURL, installedFromDep, err := ds.GetMDM(context.Background(), 432)
+	enrolled, serverURL, installedFromDep, err = ds.GetMDM(context.Background(), 432)
 	require.NoError(t, err)
 	assert.False(t, enrolled)
 	assert.Equal(t, "url3", serverURL)
@@ -3316,6 +3400,120 @@ func testHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	assert.True(t, enrolled)
 	assert.Equal(t, "url2", serverURL)
 	assert.True(t, installedFromDep)
+}
+
+func testAggregatedHostMDMAndMunki(t *testing.T, ds *Datastore) {
+	// Make sure things work before data is generated
+	versions, updatedAt, err := ds.AggregatedMunkiVersion(context.Background(), nil)
+	require.NoError(t, err)
+	require.Len(t, versions, 0)
+	require.Zero(t, updatedAt)
+	status, updatedAt, err := ds.AggregatedMDMStatus(context.Background(), nil)
+	require.NoError(t, err)
+	require.Empty(t, status)
+	require.Zero(t, updatedAt)
+
+	// Make sure generation works when there's no mdm or munki data
+	require.NoError(t, ds.GenerateAggregatedMunkiAndMDM(context.Background()))
+
+	// And after generating without any data, it all looks reasonable
+	versions, updatedAt, err = ds.AggregatedMunkiVersion(context.Background(), nil)
+	firstUpdatedAt := updatedAt
+
+	require.NoError(t, err)
+	require.Len(t, versions, 0)
+	require.NotZero(t, updatedAt)
+	status, updatedAt, err = ds.AggregatedMDMStatus(context.Background(), nil)
+	require.NoError(t, err)
+	require.Empty(t, status)
+	require.NotZero(t, updatedAt)
+
+	// So now we try with data
+	require.NoError(t, ds.SetOrUpdateMunkiVersion(context.Background(), 123, "1.2.3"))
+	require.NoError(t, ds.SetOrUpdateMunkiVersion(context.Background(), 999, "9.0"))
+	require.NoError(t, ds.SetOrUpdateMunkiVersion(context.Background(), 342, "1.2.3"))
+
+	require.NoError(t, ds.GenerateAggregatedMunkiAndMDM(context.Background()))
+
+	versions, _, err = ds.AggregatedMunkiVersion(context.Background(), nil)
+	require.NoError(t, err)
+	require.Len(t, versions, 2)
+	assert.ElementsMatch(t, versions, []fleet.AggregatedMunkiVersion{
+		{
+			HostMunkiInfo: fleet.HostMunkiInfo{Version: "1.2.3"},
+			HostsCount:    2,
+		},
+		{
+			HostMunkiInfo: fleet.HostMunkiInfo{Version: "9.0"},
+			HostsCount:    1,
+		},
+	})
+
+	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 432, true, "url", false))
+	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 123, true, "url", false))
+	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 124, true, "url", false))
+	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 455, true, "url2", true))
+	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 999, false, "url3", true))
+	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 875, false, "url3", true))
+
+	require.NoError(t, ds.GenerateAggregatedMunkiAndMDM(context.Background()))
+
+	status, _, err = ds.AggregatedMDMStatus(context.Background(), nil)
+	require.NoError(t, err)
+	assert.Equal(t, 6, status.HostsCount)
+	assert.Equal(t, 2, status.UnenrolledHostsCount)
+	assert.Equal(t, 3, status.EnrolledManualHostsCount)
+	assert.Equal(t, 1, status.EnrolledAutomatedHostsCount)
+
+	// Team filters
+	team1, err := ds.NewTeam(context.Background(), &fleet.Team{
+		Name:        "team1" + t.Name(),
+		Description: "desc team1",
+	})
+	require.NoError(t, err)
+	team2, err := ds.NewTeam(context.Background(), &fleet.Team{
+		Name:        "team2" + t.Name(),
+		Description: "desc team2",
+	})
+	require.NoError(t, err)
+
+	h1 := test.NewHost(t, ds, "h1"+t.Name(), "192.168.1.10", "1", "1", time.Now())
+	h2 := test.NewHost(t, ds, "h2"+t.Name(), "192.168.1.11", "2", "2", time.Now())
+	h3 := test.NewHost(t, ds, "h3"+t.Name(), "192.168.1.11", "3", "3", time.Now())
+
+	require.NoError(t, ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{h1.ID}))
+	require.NoError(t, ds.AddHostsToTeam(context.Background(), &team2.ID, []uint{h2.ID}))
+	require.NoError(t, ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{h3.ID}))
+
+	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), h1.ID, true, "url", false))
+	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), h2.ID, true, "url", false))
+	require.NoError(t, ds.SetOrUpdateMunkiVersion(context.Background(), h1.ID, "1.2.3"))
+	require.NoError(t, ds.SetOrUpdateMunkiVersion(context.Background(), h2.ID, "1.2.3"))
+
+	// h3 adds it but then removes it
+	require.NoError(t, ds.SetOrUpdateMunkiVersion(context.Background(), h3.ID, "1.2.3"))
+	require.NoError(t, ds.SetOrUpdateMunkiVersion(context.Background(), h3.ID, ""))
+
+	// Make the updated_at different enough
+	time.Sleep(1 * time.Second)
+	require.NoError(t, ds.GenerateAggregatedMunkiAndMDM(context.Background()))
+
+	versions, updatedAt, err = ds.AggregatedMunkiVersion(context.Background(), &team1.ID)
+	require.NoError(t, err)
+	require.Len(t, versions, 1)
+	assert.ElementsMatch(t, versions, []fleet.AggregatedMunkiVersion{
+		{
+			HostMunkiInfo: fleet.HostMunkiInfo{Version: "1.2.3"},
+			HostsCount:    1,
+		},
+	})
+	require.True(t, updatedAt.After(firstUpdatedAt))
+	status, _, err = ds.AggregatedMDMStatus(context.Background(), &team1.ID)
+	require.NoError(t, err)
+	assert.Equal(t, 1, status.HostsCount)
+	assert.Equal(t, 0, status.UnenrolledHostsCount)
+	assert.Equal(t, 1, status.EnrolledManualHostsCount)
+	assert.Equal(t, 0, status.EnrolledAutomatedHostsCount)
 }
 
 func testHostsLite(t *testing.T, ds *Datastore) {

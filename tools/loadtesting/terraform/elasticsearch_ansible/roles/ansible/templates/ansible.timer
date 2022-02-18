@@ -1,0 +1,8 @@
+[Unit]
+Description=Runs ansible
+
+[Timer]
+OnCalendar=*-*-* *:00:00
+
+[Install]
+WantedBy=default.target

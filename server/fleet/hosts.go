@@ -247,6 +247,22 @@ func PlatformFromHost(hostPlatform string) string {
 	}
 }
 
+// ExpandPlatform returns the list of platforms corresponding to the (possibly
+// generic) platform provided. For example, "linux" expands to all the platform
+// identifiers considered to be linux, while "debian" returns only "debian",
+// "windows" => "windows", etc.
+func ExpandPlatform(platform string) []string {
+	switch platform {
+	case "linux":
+		// return a copy to make sure the caller cannot modify the slice
+		linuxOSs := make([]string, len(HostLinuxOSs))
+		copy(linuxOSs, HostLinuxOSs)
+		return linuxOSs
+	default:
+		return []string{platform}
+	}
+}
+
 // HostDeviceMapping represents a mapping of a user email address to a host,
 // as reported by the specified source (e.g. Google Chrome Profiles).
 type HostDeviceMapping struct {
@@ -268,4 +284,29 @@ type HostMDM struct {
 type MacadminsData struct {
 	Munki *HostMunkiInfo `json:"munki"`
 	MDM   *HostMDM       `json:"mobile_device_management"`
+}
+
+type AggregatedMunkiVersion struct {
+	HostMunkiInfo
+	HostsCount int `json:"hosts_count" db:"hosts_count"`
+}
+
+type AggregatedMDMStatus struct {
+	EnrolledManualHostsCount    int `json:"enrolled_manual_hosts_count" db:"enrolled_manual_hosts_count"`
+	EnrolledAutomatedHostsCount int `json:"enrolled_automated_hosts_count" db:"enrolled_automated_hosts_count"`
+	UnenrolledHostsCount        int `json:"unenrolled_hosts_count" db:"unenrolled_hosts_count"`
+	HostsCount                  int `json:"hosts_count" db:"hosts_count"`
+}
+
+type AggregatedMacadminsData struct {
+	CountsUpdatedAt time.Time                `json:"counts_updated_at"`
+	MunkiVersions   []AggregatedMunkiVersion `json:"munki_versions"`
+	MDMStatus       AggregatedMDMStatus      `json:"mobile_device_management_enrollment_status"`
+}
+
+// CPEHost is a minimal host representation returned when querying hosts by
+// CPE.
+type CPEHost struct {
+	ID       uint   `json:"id" db:"id"`
+	Hostname string `json:"hostname" db:"hostname"`
 }
