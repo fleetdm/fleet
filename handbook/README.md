@@ -73,7 +73,7 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Promoting blog posts on social media](./community.md#promoting-blog-posts-on-social-media)
 
-[Fleet docs](./product.md#fleet-docs)
+[Fleet docs](./community.md#fleet-docs)
 
 [Press releases](./community.md#press-releases)
 
