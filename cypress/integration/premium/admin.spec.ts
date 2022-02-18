@@ -466,33 +466,17 @@ describe("Premium tier - Admin user", () => {
       beforeEach(() => {
         cy.visit("/schedule/manage");
       });
+      it("hides advanced button when team admin", () => {
+        cy.getAttached(".manage-schedule-page__header-wrap").within(() => {
+          cy.findByText(/apples/i).should("exist");
+        });
+        cy.findByText(/advanced/i).should("not.exist");
+      });
       it("creates a new team scheduled query", () => {
         cy.getAttached(".no-schedule__schedule-button").click();
         cy.getAttached(".schedule-editor-modal__form").within(() => {
           cy.findByText(/select query/i).click();
           cy.findByText(/detect presence/i).click();
-          cy.findByText(/every day/i).click();
-          cy.findByText(/every 6 hours/i).click();
-          cy.findByText(/show advanced options/i).click();
-          cy.findByText(/snapshot/i).click();
-          cy.findByText(/ignore removals/i).click();
-          cy.getAttached(".schedule-editor-modal__form-field--platform").within(
-            () => {
-              cy.findByText(/all/i).click();
-              cy.findByText(/linux/i).click();
-            }
-          );
-          cy.getAttached(
-            ".schedule-editor-modal__form-field--osquer-vers"
-          ).within(() => {
-            cy.findByText(/all/i).click();
-            cy.findByText(/4.6.0/i).click();
-          });
-          cy.getAttached(".schedule-editor-modal__form-field--shard").within(
-            () => {
-              cy.getAttached(".input-field").click().type("50");
-            }
-          );
           cy.getAttached(".schedule-editor-modal__btn-wrap").within(() => {
             cy.findByRole("button", { name: /schedule/i }).click();
           });
@@ -507,8 +491,8 @@ describe("Premium tier - Admin user", () => {
             cy.findByText(/edit/i).click();
           });
         cy.getAttached(".schedule-editor-modal__form").within(() => {
-          cy.findByText(/every 6 hours/i).click();
           cy.findByText(/every day/i).click();
+          cy.findByText(/every 6 hours/i).click();
 
           cy.getAttached(".schedule-editor-modal__btn-wrap").within(() => {
             cy.findByRole("button", { name: /schedule/i }).click();
@@ -516,7 +500,6 @@ describe("Premium tier - Admin user", () => {
         });
         cy.findByText(/successfully updated/i).should("be.visible");
       });
-
       it("remove a team's scheduled query successfully", () => {
         cy.getAttached("tbody>tr")
           .should("have.length", 1)
