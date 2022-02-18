@@ -23,6 +23,10 @@ terraform {
       source  = "kreuzwerker/docker"
       version = "~> 2.16.0"
     }
+    git = {
+      source  = "paultyng/git"
+      version = "~> 0.1.0"
+    }
   }
   backend "s3" {
     bucket         = "fleet-loadtesting-tfstate"
@@ -41,4 +45,10 @@ provider "docker" {
     username = data.aws_ecr_authorization_token.token.user_name
     password = data.aws_ecr_authorization_token.token.password
   }
+}
+
+provider "git" {}
+
+data "git_repository" "tf" {
+  path = "${path.module}/../../../"
 }

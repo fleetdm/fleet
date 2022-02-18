@@ -39,6 +39,8 @@ type Options struct {
 	Notarize bool
 	// FleetCertificate is a path to a server certificate to include in the package.
 	FleetCertificate string
+	// DisableUpdates disables auto updates on the generated package.
+	DisableUpdates bool
 	// OrbitChannel is the update channel to use for Orbit.
 	OrbitChannel string
 	// OsquerydChannel is the update channel to use for Osquery (osqueryd).

@@ -20,7 +20,7 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Spending company money](./people.md#spending-company-money)
 
-[Taking time off](./people.md#taking-time-off)
+[Paid time off](./people.md#paid-time-off)
 
 [Meetings](./people.md#meetings)
 
@@ -55,7 +55,7 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Voice and grammar guidelines](./brand.md#voice-and-grammar-guidelines)
 
-[Brand resources](./brand.md#fleet-brand-resources)
+[Brand resources](./brand.md#brand-resources)
 
 [Website](./brand.md#website)
 
@@ -73,7 +73,7 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Promoting blog posts on social media](./community.md#promoting-blog-posts-on-social-media)
 
-[Fleet docs](./product.md#fleet-docs)
+[Fleet docs](./community.md#fleet-docs)
 
 [Press releases](./community.md#press-releases)
 

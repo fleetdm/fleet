@@ -197,16 +197,19 @@ func testSoftwareInsertCVEs(t *testing.T, ds *Datastore) {
 	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
 
 	software := []fleet.Software{
-		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
+		{Name: "foo", Version: "0.0.1", Source: "deb_packages", Release: "1"},
+		{Name: "foo", Version: "0.0.1", Source: "deb_packages", Release: "2"},
 		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
 	}
 	require.NoError(t, ds.UpdateHostSoftware(context.Background(), host.ID, software))
 	require.NoError(t, ds.LoadHostSoftware(context.Background(), host))
 
 	require.NoError(t, ds.AddCPEForSoftware(context.Background(), host.Software[0], "somecpe"))
+	require.NoError(t, ds.AddCPEForSoftware(context.Background(), host.Software[1], "somecpe"))
 	count, err := ds.InsertCVEForCPE(context.Background(), "cve-123-123-132", []string{"somecpe"})
 	require.NoError(t, err)
-	assert.Equal(t, int64(1), count)
+	// inserts one per release
+	assert.Equal(t, int64(2), count)
 
 	// run again for the same CPE, should not create any new row
 	count, err = ds.InsertCVEForCPE(context.Background(), "cve-123-123-132", []string{"somecpe"})

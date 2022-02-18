@@ -88,6 +88,11 @@ func packageCommand() *cli.Command {
 				Value:       "stable",
 				Destination: &opt.OrbitChannel,
 			},
+			&cli.BoolFlag{
+				Name:        "disable-updates",
+				Usage:       "Disable auto updates on the generated package",
+				Destination: &opt.DisableUpdates,
+			},
 			&cli.StringFlag{
 				Name:        "update-url",
 				Usage:       "URL for update server",

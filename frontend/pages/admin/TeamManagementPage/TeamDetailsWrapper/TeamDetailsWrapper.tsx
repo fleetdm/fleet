@@ -14,12 +14,14 @@ import { AppContext } from "context/app";
 // @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions";
 import teamsAPI from "services/entities/teams";
+import usersAPI, { IGetMeResponse } from "services/entities/users";
 import enrollSecretsAPI from "services/entities/enroll_secret";
 import teamActions from "redux/nodes/entities/teams/actions";
 import {
   IEnrollSecret,
   IEnrollSecretsResponse,
 } from "interfaces/enroll_secret";
+import permissions from "utilities/permissions";
 import sortUtils from "utilities/sort";
 import Spinner from "components/Spinner";
 import Button from "components/buttons/Button";
@@ -102,15 +104,17 @@ const TeamDetailsWrapper = ({
   const handlePageError = useErrorHandler();
   const teamIdFromURL = parseInt(routeParams.team_id, 10) || 0;
   const {
+    availableTeams,
     currentUser,
     isGlobalAdmin,
     currentTeam,
     isOnGlobalTeam,
     isPremiumTier,
+    setAvailableTeams,
+    setCurrentUser,
     setCurrentTeam,
   } = useContext(AppContext);
 
-  const userTeams = currentUser?.teams || [];
   const routeTemplate = route && route.path ? route.path : "";
 
   const [selectedSecret, setSelectedSecret] = useState<IEnrollSecret>();
@@ -124,6 +128,13 @@ const TeamDetailsWrapper = ({
   const [showSecretEditorModal, setShowSecretEditorModal] = useState(false);
   const [showDeleteTeamModal, setShowDeleteTeamModal] = useState(false);
   const [showEditTeamModal, setShowEditTeamModal] = useState(false);
+
+  const { refetch: refetchMe } = useQuery(["me"], () => usersAPI.me(), {
+    onSuccess: ({ user, available_teams }: IGetMeResponse) => {
+      setCurrentUser(user);
+      setAvailableTeams(available_teams);
+    },
+  });
 
   const {
     data: teams,
@@ -299,6 +310,7 @@ const TeamDetailsWrapper = ({
           dispatch(teamActions.loadAll({ perPage: 500 }));
           dispatch(renderFlash("success", "Team updated"));
           refetchTeams();
+          refetchMe();
           // TODO: error handling
         })
         .catch(() => null);
@@ -351,10 +363,10 @@ const TeamDetailsWrapper = ({
   const hostCount = currentTeam.host_count;
   const hostsTotalDisplay =
     hostCount >= 2 ? `${hostCount} hosts` : `${hostCount} host`;
-  const userAdminTeams = userTeams.filter(
-    (thisTeam) => thisTeam.role === "admin"
-  );
-  const adminTeams = isGlobalAdmin ? teams : userAdminTeams;
+
+  const adminTeams = isGlobalAdmin
+    ? availableTeams
+    : availableTeams?.filter((t) => permissions.isTeamAdmin(currentUser, t.id));
 
   return (
     <div className={teamWrapperClasses}>

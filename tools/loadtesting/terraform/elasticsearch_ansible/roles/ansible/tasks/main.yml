@@ -1,0 +1,43 @@
+---
+- user:
+    name: ansible
+    groups: wheel
+- lineinfile:
+    path: /etc/sudoers
+    state: present
+    regexp: '^ansible ALL='
+    line: 'ansible ALL=(ALL) NOPASSWD: ALL'
+    validate: /usr/sbin/visudo -cf %s
+- pip:
+    name:
+      - ansible
+      - boto3
+      - requests
+      - docker
+    state: latest
+- debug:
+    msg: "{{ instance_tags }}"
+- git:
+    dest: /home/ansible/ansible
+    version: "{{ instance_tags['tags']['ansible_branch'] }}"
+    repo: "{{ instance_tags['tags']['ansible_repository'] }}"
+  become: no
+- template:
+    src: "{{ item }}"
+    dest: "/etc/systemd/system/{{ item }}"
+    mode: 0444
+    owner: root
+    group: root
+  with_items:
+    - ansible.service
+    - ansible.timer
+- template:
+    src: run-ansible
+    dest: /usr/local/bin/run-ansible
+    mode: 0555
+    owner: root
+    group: root
+- systemd:
+    name: ansible.timer
+    state: started
+    enabled: true
