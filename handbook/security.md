@@ -478,7 +478,7 @@ The process is simple:
 
 ### Timeline
 
-Fleet commits to remediating vulnerabilities according to the following:
+Fleet commits to remediating vulnerabilities on Fleet according to the following:
 
 
 | Severity                           | Triage | Mitigation | Remediation                               |
@@ -492,6 +492,23 @@ Fleet commits to remediating vulnerabilities according to the following:
 
 Refer to our commercial SLAs for more information on the definition of "business hours" and
 "business days".
+
+Other resources present in the Fleet repo but not part of the Fleet product, such as our website,
+are fixed on a case-by-case scenario depending on the risk.
+
+### Exceptions and extended timelines
+
+We may not be able to fix all vulnerabilities, or fix them as rapidly as we would like. For example,
+a complex vulnerability reported to us that would require redesigning core parts of the Fleet
+architecture would not be fixable in 3 business days.
+
+For vulnerabilities reported by researchers: we ask and prefer to perform coordinated disclosure
+with the researcher. In some cases, we may take up to 90 days to fix complex issues, in which case
+we ask that the vulnerability remains private.
+
+For other vulnerabilities affecting Fleet or code used in Fleet, the Head of Security, CTO and CEO
+can accept the risk of patching them according to custom timelines, depending on the risk and
+possible temporary mitigations.
 
 ### Mapping of CVSSv3 scores to Fleet severity
 
