@@ -20,7 +20,7 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Spending company money](./people.md#spending-company-money)
 
-[Taking time off](./people.md#taking-time-off)
+[Paid time off](./people.md#paid-time-off)
 
 [Meetings](./people.md#meetings)
 
