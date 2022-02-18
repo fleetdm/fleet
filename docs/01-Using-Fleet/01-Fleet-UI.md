@@ -4,14 +4,11 @@
 
 ## Scheduling queries
 
-The Fleet application allows you to schedule queries. This way these queries will run on an ongoing basis against the hosts that you have installed osquery on. To schedule specific queries in Fleet,you can organize these queries into "Query Packs". To view all saved packs and perhaps create
-a new pack, select "Schedule" from the top navigation and then click on the "Advanced" link on the
-top right of the page.
+The Fleet application allows you to schedule queries. This way these queries will run on an ongoing basis against the hosts that you have installed osquery on. To schedule specific queries in Fleet,you can organize these queries into "Query Packs". To view all saved packs and perhaps create a new pack, select "Schedule" from the top navigation and then click on the "Advanced" link on the top right of the page.
 
 ![Manage Packs](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/manage-packs.png)
 
-If you select a pack from the list by clicking on the checkbox next to it's name, you can quickly
-enable and disable the entire pack, or you can click on the pack name to edit it further.
+If you select a pack from the list by clicking on the checkbox next to it's name, you can quickly enable and disable the entire pack, or you can click on the pack name to edit it further.
 
 ![Manage Packs With Pack Selected](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/manage-packs-with-pack-selected.png)
 
@@ -19,9 +16,7 @@ When you edit a pack, you can decide which targets you would like to execute the
 
 ![Edit Pack Targets](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/edit-pack-targets.png)
 
-To add queries to a pack, click on the "Add query +" link on the edit pack page. You will be
-presented with a modal where can take an existing scheduled query and add it to the pack. You can also define a
-few key details such as:
+To add queries to a pack, click on the "Add query +" link on the edit pack page. You will be presented with a modal where can take an existing scheduled query and add it to the pack. You can also define a few key details such as:
 
 - interval: how often should the query be executed?
 - logging: which osquery logging format would you like to use?
