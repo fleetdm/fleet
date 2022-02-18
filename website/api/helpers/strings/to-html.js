@@ -98,7 +98,7 @@ module.exports = {
       };
     }
 
-    // Creating a custom codeblock renderer to render mermaid code blocks (```mermaid```) without the <pre> tags.
+    // Creating a custom codeblock renderer function to render mermaid code blocks (```mermaid```) without the added <pre> tags.
     customRenderer.code = function(code) {
       if(code.match(/\<!-- __LANG=\%mermaid\%__ --\>/g)) {
         return '<code>'+_.escape(code)+'\n</code>';
@@ -108,7 +108,6 @@ module.exports = {
     };
 
     markedOpts.renderer = customRenderer;
-
     // Now actually compile the markdown to HTML.
     marked(inputs.mdString, markedOpts, function afterwards (err, htmlString) {
       if (err) { return exits.error(err); }
