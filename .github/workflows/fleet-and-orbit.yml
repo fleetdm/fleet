@@ -59,9 +59,7 @@ jobs:
     - name: Checkout Code
       uses: actions/checkout@v2
 
-    # Pre-starting dependencies here means they are ready to go when we need them.
     - name: Start Infra Dependencies
-      # Use & to background this
       run: FLEET_MYSQL_IMAGE=${{ matrix.mysql }} docker-compose up -d mysql redis &
 
     - name: Install JS Dependencies
@@ -82,8 +80,8 @@ jobs:
         FLEET_OSQUERY_HOST_IDENTIFIER: instance # use instance identifier to allow for duplicate UUIDs
         FLEET_LOGGING_DEBUG: true
       run: |
-        mkdir ./log
-        ./build/fleet serve --dev --dev_license 1>./log/fleet_output.txt 2>./log/fleet_output.txt &
+        mkdir ./fleet_log
+        ./build/fleet serve --dev --dev_license 1>./fleet_log/stdout.log 2>./fleet_log/stderr.log &
         ./build/fleetctl config set --address https://localhost:8080
         until ./build/fleetctl setup --email admin@example.com --name Admin --password admin123# --org-name Example
         do
@@ -104,9 +102,19 @@ jobs:
     - name: Cleanup tunnel
       if: always()
       run: |
-        pwd
-        ls
-        cloudflared tunnel --origincert cert.pem delete --force ${{ needs.gen.outputs.subdomain }}
+        echo "1 up:"
+        ls ../
+        echo "2 up:"
+        ls ../../
+        cloudflared tunnel --origincert ../../cert.pem delete --force ${{ needs.gen.outputs.subdomain }}
+
+    - name: Upload logs
+      if: always()
+      uses: actions/upload-artifact@v2
+      with:
+        name: fleet-logs
+        path: |
+          fleet_log
 
   get-enroll-secret:
     strategy:
