@@ -196,6 +196,7 @@ ORBIT_UPDATE_URL={{ .UpdateURL }}
 ORBIT_ORBIT_CHANNEL={{ .OrbitChannel }}
 ORBIT_OSQUERYD_CHANNEL={{ .OsquerydChannel }}
 {{ if .Insecure }}ORBIT_INSECURE=true{{ end }}
+{{ if .DisableUpdates }}ORBIT_DISABLE_UPDATES=true{{ end }}
 {{ if .FleetURL }}ORBIT_FLEET_URL={{.FleetURL}}{{ end }}
 {{ if .FleetCertificate }}ORBIT_FLEET_CERTIFICATE=/var/lib/orbit/fleet.pem{{ end }}
 {{ if .EnrollSecret }}ORBIT_ENROLL_SECRET={{.EnrollSecret}}{{ end }}

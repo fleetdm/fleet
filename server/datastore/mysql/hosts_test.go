@@ -1977,6 +1977,8 @@ func getReads(t *testing.T, ds *Datastore) int {
 }
 
 func testHostsReadsLessRows(t *testing.T, ds *Datastore) {
+	t.Skip("flaky: https://github.com/fleetdm/fleet/issues/4270")
+
 	user1 := test.NewUser(t, ds, "alice", "alice-123@example.com", true)
 	var hosts []*fleet.Host
 	for i := 0; i < 10; i++ {
