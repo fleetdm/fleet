@@ -95,7 +95,7 @@ jobs:
           sleep 5
         done
         # Wait for all of the hosts to be enrolled
-        EXPECTED=2
+        EXPECTED=3
         until [ $(./build/fleetctl get hosts --json | grep "hostname" | wc -l | tee hostcount) -ge $EXPECTED ]; do
           echo -n "Waiting for hosts to enroll: "
           cat hostcount | xargs echo -n
