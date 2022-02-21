@@ -17,6 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       subdomain: ${{ steps.gen.outputs.subdomain }}
+      domain: ${{ steps.gen.outputs.domain }}
       address: ${{ steps.gen.outputs.address }}
     steps:
     - id: gen
@@ -79,12 +80,16 @@ jobs:
       timeout-minutes: 15
       env:
         FLEET_OSQUERY_HOST_IDENTIFIER: instance # use instance identifier to allow for duplicate UUIDs
-        FLEET_SERVER_ADDRESS: ${{ needs.gen.outputs.address }}
         FLEET_LOGGING_DEBUG: true
       run: |
         mkdir ./log
         ./build/fleet serve --dev --dev_license 1>./log/fleet_output.txt 2>./log/fleet_output.txt &
-        ./build/fleetctl setup --email admin@example.com --name Admin --password admin123# --org-name Example
+        ./build/fleetctl config set --address https://localhost:8080
+        until ./build/fleetctl setup --email admin@example.com --name Admin --password admin123# --org-name Example
+        do
+          echo "Retrying setup in 5s..."
+          sleep 5
+        done
         # Wait for all of the hosts to be enrolled
         EXPECTED=2
         until [ $(./build/fleetctl get hosts --json | wc -l | tee hostcount) -ge $EXPECTED ]; do
@@ -98,7 +103,10 @@ jobs:
 
     - name: Cleanup tunnel
       if: always()
-      run: cloudflared tunnel --origincert cert.pem delete --force ${{ needs.gen.outputs.subdomain }}    
+      run: |
+        pwd
+        ls
+        cloudflared tunnel --origincert cert.pem delete --force ${{ needs.gen.outputs.subdomain }}
 
   get-enroll-secret:
     strategy:
