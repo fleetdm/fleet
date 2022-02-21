@@ -1527,6 +1527,7 @@ func testPolicyPlatformUpdate(t *testing.T, ds *Datastore) {
 		{Name: polsByName["g2"].Name, Query: polsByName["g2"].Query, Platform: polsByName["g2"].Platform},
 		{Name: polsByName["t1"].Name, Query: polsByName["t1"].Query, Team: tm.Name, Platform: polsByName["t1"].Platform},
 	})
+	require.NoError(t, err)
 
 	pol, err := ds.Policy(ctx, polsByName["g2"].ID)
 	require.NoError(t, err)
