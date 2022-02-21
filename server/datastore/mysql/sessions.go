@@ -11,8 +11,10 @@ import (
 
 func (ds *Datastore) SessionByKey(ctx context.Context, key string) (*fleet.Session, error) {
 	sqlStatement := `
-		SELECT * FROM sessions
-			WHERE ` + "`key`" + ` = ? LIMIT 1
+		SELECT s.*, u.api_only FROM sessions s
+		LEFT JOIN users u
+		ON s.user_id = u.id
+		WHERE ` + "s.`key`" + ` = ? LIMIT 1
 	`
 	session := &fleet.Session{}
 	err := sqlx.GetContext(ctx, ds.reader, session, sqlStatement, key)
