@@ -470,7 +470,7 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 
 			if insertOnDuplicateDidUpdate(res) {
 				// when the upsert results in an UPDATE that *did* change some values,
-				// it returns the last inserted id.
+				// it returns the updated ID as last inserted id.
 				if lastID, _ := res.LastInsertId(); lastID > 0 {
 					if err := cleanupPolicyMembership(ctx, tx, uint(lastID), spec.Platform); err != nil {
 						return err
