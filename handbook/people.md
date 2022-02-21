@@ -215,23 +215,23 @@ advisor to add us on [Linkedin](https://www.linkedin.com/company/71111416), [Cru
 
 We use Zapier to automate how completed DocuSign envelopes are formatted and stored. This process ensures we store signed documents in the correct folder and that filenames are formatted consistently. 
 
-When the final signature is added to an envelope in Docusign, it is marked as completed and sent to Zapier. We configure DocuSign templates to have an email subject formatted as `[type of document] for [signer's name]`.
+When the final signature is added to an envelope in Docusign, it is marked as completed and sent to Zapier, where it goes through these steps:
 
-Zapier sends the following information about the DocuSign envelope to our Hydroplane webhook:
-- **`emailSubject`** - The subject of the envelope sent by DocuSign.
-- **`emailCsv`** - A comma-separated list of signers' email addresses.
+1. Zapier sends the following information about the DocuSign envelope to our Hydroplane webhook:
+   - **`emailSubject`** - The subject of the envelope sent by DocuSign. Our DocuSign templates are configured to format the email subject as `[type of document] for [signer's name]`.
+   - **`emailCsv`** - A comma-separated list of signers' email addresses.
 
-The Hydroplane webhook matches the document type to the correct Google Drive folder, orders the list of signers, creates a timestamp, and sends that data back to Zapier as:
-- **`destinationFolderID`** - The slug for the Google Drive folder where we store this type of document.
-- **`emailCsv`** - A comma-separated list of signers' email addresses.
-- **`date`** - The date that the document was completed in DocuSign, formatted YYYY-MM-DD.
+2. The Hydroplane webhook matches the document type to the correct Google Drive folder, orders the list of signers, creates a timestamp, and sends that data back to Zapier as:
+   - **`destinationFolderID`** - The slug for the Google Drive folder where we store this type of document.
+   - **`emailCsv`** - A sorted list of signers' email addresses.
+   - **`date`** - The date that the document was completed in DocuSign, formatted YYYY-MM-DD.
 
-Zapier uses this information to upload the file to the matched Google drive folder (`destinationFolderID`), with the filename formatted as `[date] - [emailSubject] - [emailCvs].PDF`.
+3. Zapier uses this information to upload the file to the matched Google Drive folder, with the filename formatted as `[date] - [emailSubject] - [emailCvs].PDF`.
 
-Once the file is uploaded, Zapier uses the Slack integration to post in the #peepops channel with the message:
-```
-Now complete with all signatures:
-   [email subject]
-   link: drive.google.com/[destinationFolderID]
-```
+4. Once the file is uploaded, Zapier uses the Slack integration to post in the #peepops channel with the message:
+   ```
+   Now complete with all signatures:
+      [email subject]
+      link: drive.google.com/[destinationFolderID]
+   ```
 <meta name="maintainedBy" value="eashaw">
