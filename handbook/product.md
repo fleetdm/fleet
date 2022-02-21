@@ -9,9 +9,8 @@
 Every product should have a single job that it strives to do. At Fleet we use the [Jobs to be Done
 (JTBD) framework](https://about.gitlab.com/handbook/engineering/ux/jobs-to-be-done/). Fleet's overarching job to be done is:
 
-> When we are maintaining secure laptops and servers as a team, we want to get from understanding
-> what's going on to knowing what we need to do with quality, reliability, and low impact quickly
-> and within budget, so that our organization can achieve our business outcomes.
+> I need a way to see what laptops and servers I have, and what I need to do to keep them secure and
+> compliant."
 
 ## Q1 2022 product objectives
 
