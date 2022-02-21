@@ -149,7 +149,7 @@ jobs:
           echo "Retrying in 5s..."
           sleep 5
         done
-        SECRET_JSON=$(fleetctl get enroll_secret --json --debug)
+        SECRET_JSON=$(./build/fleetctl get enroll_secret --json --debug)
         echo $SECRET_JSON
         SECRET=$(echo $SECRET_JSON | jq -r '.spec.secrets[0].secret')
         echo "::set-output name=enroll_secret::$SECRET"
