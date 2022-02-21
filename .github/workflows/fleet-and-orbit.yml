@@ -11,10 +11,10 @@ on:
       - main
       - patch-*
     paths:
-      - '**.go'
+      - 'orbit/**.go'
   pull_request:
     paths:
-      - '**.go'
+      - 'orbit/**.go'
   workflow_dispatch: # Manual
 
 jobs:
@@ -198,7 +198,13 @@ jobs:
           --osqueryd-channel ${{ matrix.osqueryd-channel }} \
           -- --verbose 1>./orbit_logs/stdout.log 2>./orbit_logs/stderr.log &
         # TODO(lucas): Improve checking of "enrolled".
-        sleep 300
+        # This waits until the server goes down.
+        while curl --fail ${{ needs.gen.outputs.address }};
+        do
+          echo "Retrying in 10s..."
+          sleep 10
+        done
+
 
     - name: Upload orbit logs
       if: always()
