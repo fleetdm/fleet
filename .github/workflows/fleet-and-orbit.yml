@@ -205,11 +205,61 @@ jobs:
           sleep 10
         done
 
+    - name: Upload orbit logs
+      if: always()
+      uses: actions/upload-artifact@v2
+      with:
+        name: orbit-macos-logs-${{ matrix.osqueryd-channel }}
+        path: |
+          orbit_logs
+
+  orbit-windows:
+    timeout-minutes: 15
+    strategy:
+      matrix:
+        # TODO(lucas): Add edge channel for osqueryd.
+        osqueryd-channel: ['stable']
+        go-version: ['^1.17.0']
+    needs: [gen, get-enroll-secret]
+    runs-on: windows-latest
+    steps:
+    
+    - name: Install Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: ${{ matrix.go-version }}
+
+    - name: Checkout Code
+      uses: actions/checkout@v2
+
+    - name: Install Go Dependencies
+      run: make deps-go
+
+    - name: Build and Run Orbit
+      run: |
+        mkdir "C:\Program Files\Orbit"
+        cp .\orbit\pkg\packaging\certs.pem "C:\Program Files\Orbit"
+        mkdir orbit_logs
+        go run github.com/fleetdm/fleet/v4/orbit/cmd/orbit \
+          --dev-mode \
+          --disable-updates \
+          --root-dir "C:\Program Files\Orbit" \
+          --fleet-url ${{ needs.gen.outputs.address }} \
+          --enroll-secret ${{ needs.get-enroll-secret.outputs.enroll_secret }} \
+          --osqueryd-channel ${{ matrix.osqueryd-channel }} \
+          -- --verbose 1>.\orbit_logs\stdout.log 2>.\orbit_logs\stderr.log &
+        # TODO(lucas): Improve checking of "enrolled".
+        # This waits until the server goes down.
+        while curl --fail ${{ needs.gen.outputs.address }};
+        do
+          echo "Retrying in 10s..."
+          sleep 10
+        done
 
     - name: Upload orbit logs
       if: always()
       uses: actions/upload-artifact@v2
       with:
-        name: orbit-logs-${{ matrix.osqueryd-channel }}
+        name: orbit-windows-logs-${{ matrix.osqueryd-channel }}
         path: |
-          ./orbit_logs
+          orbit_logs
