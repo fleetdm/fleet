@@ -177,8 +177,9 @@ jobs:
 
     - name: Build and Run Orbit
       run: |
-        sudo hostname macos-orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}
+        sudo hostname macos-orbit-dev-osqueryd-${{ matrix.osqueryd-channel }}
         echo "Hostname: $(hostname -s)"
+        mkdir /tmp/orbit
         cp ./orbit/pkg/packaging/certs.pem /tmp/orbit
         mkdir orbit_logs
         go run github.com/fleetdm/fleet/v4/orbit/cmd/orbit \
@@ -199,6 +200,6 @@ jobs:
       if: always()
       uses: actions/upload-artifact@v2
       with:
-        name: orbit-logs
+        name: orbit-logs-${{ matrix.osqueryd-channel }}
         path: |
           ./orbit_logs
