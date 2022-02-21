@@ -75,7 +75,7 @@ jobs:
       run: make fleet fleetctl
 
     - name: Run Fleet server
-      timeout-minutes: 15
+      timeout-minutes: 10
       env:
         FLEET_OSQUERY_HOST_IDENTIFIER: instance # use instance identifier to allow for duplicate UUIDs
         FLEET_LOGGING_DEBUG: true
@@ -83,7 +83,7 @@ jobs:
         mkdir ./fleet_log
         make db-reset
         ./build/fleet serve --dev --dev_license 1>./fleet_log/stdout.log 2>./fleet_log/stderr.log &
-        ./build/fleetctl config set --address https://localhost:8080
+        ./build/fleetctl config set --address https://localhost:8080 --tls-skip-verify
         until ./build/fleetctl setup --email admin@example.com --name Admin --password admin123# --org-name Example
         do
           echo "Retrying setup in 5s..."
