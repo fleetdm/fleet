@@ -54,7 +54,7 @@ jobs:
         # Add secret
         echo "$CERT_PEM" | base64 -d > cert.pem
         # Start tunnel
-        cloudflared tunnel --origincert cert.pem --hostname ${{ needs.gen.outputs.subdomain }} --url https://localhost:8080 --name ${{ needs.gen.outputs.subdomain }} &
+        cloudflared tunnel --origincert cert.pem --hostname ${{ needs.gen.outputs.subdomain }} --url http://localhost:1337 --name ${{ needs.gen.outputs.subdomain }} &
         until [ $(cloudflared tunnel --origincert cert.pem info -o json ${{ needs.gen.outputs.subdomain }} | jq '.conns[0].conns[0].is_pending_reconnect') = false ]; do
           echo "Awaiting tunnel ready..."
           sleep 5
@@ -79,12 +79,14 @@ jobs:
       timeout-minutes: 10
       env:
         FLEET_OSQUERY_HOST_IDENTIFIER: instance # use instance identifier to allow for duplicate UUIDs
+        FLEET_SERVER_ADDRESS: 0.0.0.0:1337
+        FLEET_SERVER_TLS: false
         FLEET_LOGGING_DEBUG: true
       run: |
         mkdir ./fleet_log
         make db-reset
         ./build/fleet serve --dev --dev_license 1>./fleet_log/stdout.log 2>./fleet_log/stderr.log &
-        ./build/fleetctl config set --address https://localhost:8080 --tls-skip-verify
+        ./build/fleetctl config set --address http://localhost:1337 --tls-skip-verify
         until ./build/fleetctl setup --email admin@example.com --name Admin --password admin123# --org-name Example
         do
           echo "Retrying setup in 5s..."
@@ -103,7 +105,7 @@ jobs:
 
     - name: Cleanup tunnel
       if: always()
-      run: cloudflared tunnel --origincert ../../cert.pem delete --force ${{ needs.gen.outputs.subdomain }}
+      run: cloudflared tunnel --origincert cert.pem delete --force ${{ needs.gen.outputs.subdomain }}
 
     - name: Upload logs
       if: always()
