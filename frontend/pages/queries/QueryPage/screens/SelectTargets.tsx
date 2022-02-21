@@ -1,6 +1,7 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { Row } from "react-table";
 import { forEach, isEmpty, remove, unionWith } from "lodash";
+import { useDebouncedCallback } from "use-debounce/lib";
 
 // @ts-ignore
 import { formatSelectedTargetsForApi } from "fleet/helpers";
@@ -93,6 +94,15 @@ const SelectTargets = ({
   );
   const [inputTabIndex, setInputTabIndex] = useState<number>(0);
   const [searchText, setSearchText] = useState<string>("");
+  const [debouncedSearchText, setDebouncedSearchText] = useState<string>("");
+
+  const debounceSearch = useDebouncedCallback((search: string) => {
+    setDebouncedSearchText(search);
+  }, 300);
+
+  useEffect(() => {
+    debounceSearch(searchText);
+  }, [searchText]);
 
   const setLabels = useCallback(
     (data: ITargetsQueryResponse) => {
@@ -115,7 +125,7 @@ const SelectTargets = ({
     [
       {
         scope: "SelectTargets",
-        query: searchText,
+        query: debouncedSearchText,
         queryId: queryIdForEdit,
         selected: formatSelectedTargetsForApi(selectedTargets),
         includeLabels: !allHostsLabel,
