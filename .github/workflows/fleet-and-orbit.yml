@@ -226,7 +226,7 @@ jobs:
     - name: Build and Run Orbit
       shell: bash
       run: |
-        mkdir /C/Program Files/Orbit"
+        mkdir "/C/Program Files/Orbit"
         cp ./orbit/pkg/packaging/certs.pem "/C/Program Files/Orbit"
         mkdir orbit_logs
         go run github.com/fleetdm/fleet/v4/orbit/cmd/orbit \
