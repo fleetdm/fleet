@@ -93,8 +93,8 @@ jobs:
           sleep 5
         done
         # Wait for all of the hosts to be enrolled
-        EXPECTED=2
-        until [ $(./build/fleetctl get hosts --json | wc -l | tee hostcount) -ge $EXPECTED ]; do
+        EXPECTED=1
+        until [ $(./build/fleetctl get hosts --json | grep "hostname" | wc -l | tee hostcount) -ge $EXPECTED ]; do
           ./build/fleetctl get hosts --json
           echo -n "Waiting for hosts to enroll: "
           cat hostcount | xargs echo -n
@@ -159,7 +159,8 @@ jobs:
     timeout-minutes: 15
     strategy:
       matrix:
-        osqueryd-channel: ['stable', 'edge']
+        # TODO(lucas): Add edge channel for osqueryd.
+        osqueryd-channel: ['stable']
         go-version: ['^1.17.0']
     runs-on: macos-latest
     needs: [gen, get-enroll-secret]
@@ -191,11 +192,8 @@ jobs:
           --enroll-secret ${{ needs.get-enroll-secret.outputs.enroll_secret }} \
           --osqueryd-channel ${{ matrix.osqueryd-channel }} \
           -- --verbose 1>./orbit_logs/stdout.log 2>./orbit_logs/stderr.log &
-        while nc -z ${{ needs.gen.outputs.domain }} 443
-        do
-          echo "Retrying in 10s..."
-          sleep 10
-        done
+        # TODO(lucas): Improve checking of "enrolled".
+        sleep 300
 
     - name: Upload orbit logs
       if: always()
