@@ -141,7 +141,7 @@ jobs:
 
     - id: enroll
       name: Fetch enroll secret
-      timeout-minutes: 5
+      timeout-minutes: 10
       run: |
         ./build/fleetctl config set --address ${{ needs.gen.outputs.address }}
         until ./build/fleetctl login --email admin@example.com --password admin123#
