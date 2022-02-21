@@ -50,11 +50,7 @@ parasails.registerPage('basic-documentation', {
         });
         // Sorting pages by pageOrderInSectionPath value, README files do not have a pageOrderInSectionPath, and FAQ pages are added to the end of the sorted array below.
         pagesBySectionSlug[sectionSlug] = _.sortBy(pagesBySectionSlug[sectionSlug], (page) => {
-          if (page.sectionRelativeRepoPath.match(/README\.md$/i)) {
-            return;
-          } else if (page.sectionRelativeRepoPath.match(/FAQ\.md$/i)) {
-            return;
-          } else {
+          if (!page.sectionRelativeRepoPath.match(/README\.md$/i) && !page.sectionRelativeRepoPath.match(/FAQ\.md$/i)) {
             return page.pageOrderInSectionPath;
           }
         });
