@@ -97,7 +97,6 @@ jobs:
         # Wait for all of the hosts to be enrolled
         EXPECTED=2
         until [ $(./build/fleetctl get hosts --json | grep "hostname" | wc -l | tee hostcount) -ge $EXPECTED ]; do
-          ./build/fleetctl get hosts --json
           echo -n "Waiting for hosts to enroll: "
           cat hostcount | xargs echo -n
           echo " / $EXPECTED"
@@ -154,14 +153,15 @@ jobs:
         SECRET=$(echo $SECRET_JSON | jq -r '.spec.secrets[0].secret')
         echo "::set-output name=enroll_secret::$SECRET"
       
-  orbit-macos:
+  orbit-macos-and-ubuntu:
     timeout-minutes: 15
     strategy:
       matrix:
         # TODO(lucas): Add edge channel for osqueryd.
         osqueryd-channel: ['stable']
         go-version: ['^1.17.0']
-    runs-on: macos-latest
+        os: ['macos-latest', 'ubuntu-latest']
+    runs-on: ${{ matrix.os }}
     needs: [gen, get-enroll-secret]
     steps:
 
@@ -175,7 +175,7 @@ jobs:
 
     - name: Build and Run Orbit
       run: |
-        sudo hostname macos-orbit-dev-osqueryd-${{ matrix.osqueryd-channel }}
+        sudo hostname ${{ matrix.os }}-orbit-dev-osqueryd-${{ matrix.osqueryd-channel }}
         echo "Hostname: $(hostname -s)"
         mkdir /tmp/orbit
         cp ./orbit/pkg/packaging/certs.pem /tmp/orbit
@@ -200,7 +200,7 @@ jobs:
       if: always()
       uses: actions/upload-artifact@v2
       with:
-        name: orbit-macos-logs-${{ matrix.osqueryd-channel }}
+        name: orbit-${{ matrix.os }}-logs-${{ matrix.osqueryd-channel }}
         path: |
           orbit_logs
 
@@ -252,4 +252,3 @@ jobs:
         name: orbit-windows-logs-${{ matrix.osqueryd-channel }}
         path: |
           orbit_logs
-
