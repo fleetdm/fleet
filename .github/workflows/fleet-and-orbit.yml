@@ -81,6 +81,7 @@ jobs:
         FLEET_LOGGING_DEBUG: true
       run: |
         mkdir ./fleet_log
+        make db-reset
         ./build/fleet serve --dev --dev_license 1>./fleet_log/stdout.log 2>./fleet_log/stderr.log &
         ./build/fleetctl config set --address https://localhost:8080
         until ./build/fleetctl setup --email admin@example.com --name Admin --password admin123# --org-name Example
