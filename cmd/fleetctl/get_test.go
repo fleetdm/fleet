@@ -826,13 +826,29 @@ spec:
   platform: darwin
   targets:
     labels: null
+    teams: null
 `
-	expectedJson := `{"kind":"pack","apiVersion":"v1","spec":{"id":7,"name":"pack1","description":"some desc","platform":"darwin","disabled":false,"targets":{"labels":null}}}
+	expectedJson := `
+{
+  "kind": "pack",
+  "apiVersion": "v1",
+  "spec": {
+    "id": 7,
+    "name": "pack1",
+    "description": "some desc",
+    "platform": "darwin",
+    "disabled": false,
+    "targets": {
+      "labels": null,
+      "teams": null
+    }
+  }
+}
 `
 
 	assert.Equal(t, expected, runAppForTest(t, []string{"get", "packs"}))
-	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "packs", "--yaml"}))
-	assert.Equal(t, expectedJson, runAppForTest(t, []string{"get", "packs", "--json"}))
+	assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "packs", "--yaml"}))
+	assert.JSONEq(t, expectedJson, runAppForTest(t, []string{"get", "packs", "--json"}))
 }
 
 func TestGetPack(t *testing.T) {
@@ -874,13 +890,29 @@ spec:
   platform: darwin
   targets:
     labels: null
+    teams: null
 `
-	expectedJson := `{"kind":"pack","apiVersion":"v1","spec":{"id":7,"name":"pack1","description":"some desc","platform":"darwin","disabled":false,"targets":{"labels":null}}}
+	expectedJson := `
+{
+  "kind": "pack",
+  "apiVersion": "v1",
+  "spec": {
+    "id": 7,
+    "name": "pack1",
+    "description": "some desc",
+    "platform": "darwin",
+    "disabled": false,
+    "targets": {
+      "labels": null,
+      "teams": null
+    }
+  }
+}
 `
 
-	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "packs", "pack1"}))
-	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "packs", "--yaml", "pack1"}))
-	assert.Equal(t, expectedJson, runAppForTest(t, []string{"get", "packs", "--json", "pack1"}))
+	assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "packs", "pack1"}))
+	assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "packs", "--yaml", "pack1"}))
+	assert.JSONEq(t, expectedJson, runAppForTest(t, []string{"get", "packs", "--json", "pack1"}))
 }
 
 func TestGetQueries(t *testing.T) {

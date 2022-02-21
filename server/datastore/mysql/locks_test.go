@@ -20,8 +20,8 @@ func TestLocks(t *testing.T) {
 		name string
 		fn   func(t *testing.T, ds *Datastore)
 	}{
-		{"LockUnlock", func(t *testing.T, ds *Datastore) { testLocksLockUnlock(t, ds) }},
-		{"DBLocks", func(t *testing.T, ds *Datastore) { testLocksDBLocks(t, ds) }},
+		{"LockUnlock", testLocksLockUnlock},
+		{"DBLocks", testLocksDBLocks},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -86,6 +86,7 @@ const (
 	mariaDB_10_6  mysqlServer = 3
 )
 
+//nolint:unused // used in skipped tests
 func getMySQLServer(t *testing.T, r dbReader) mysqlServer {
 	row := r.QueryRowxContext(context.Background(), "SELECT VERSION()")
 	var version string
@@ -104,6 +105,8 @@ func getMySQLServer(t *testing.T, r dbReader) mysqlServer {
 }
 
 func testLocksDBLocks(t *testing.T, ds *Datastore) {
+	t.Skip("flaky: https://github.com/fleetdm/fleet/issues/4270")
+
 	if srv := getMySQLServer(t, ds.reader); srv == mysql8 {
 		t.Skip("#3626: DBLocks is not supported for mysql 8 yet.")
 	}
