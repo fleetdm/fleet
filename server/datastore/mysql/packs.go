@@ -135,7 +135,7 @@ FROM labels l JOIN pack_targets pt
 WHERE pack_id = ? AND pt.type = ? AND pt.target_id = l.id
 `
 			if err := sqlx.SelectContext(ctx, tx, &spec.Targets.Labels, query, spec.ID, fleet.TargetLabel); err != nil {
-				return ctxerr.Wrap(ctx, err, "get pack targets")
+				return ctxerr.Wrap(ctx, err, "get pack label targets")
 			}
 
 			// Load teams
@@ -145,7 +145,7 @@ FROM teams t JOIN pack_targets pt
 WHERE pack_id = ? AND pt.type = ? AND pt.target_id = t.id
 `
 			if err := sqlx.SelectContext(ctx, tx, &spec.Targets.Teams, query, spec.ID, fleet.TargetTeam); err != nil {
-				return ctxerr.Wrap(ctx, err, "get pack targets")
+				return ctxerr.Wrap(ctx, err, "get pack team targets")
 			}
 		}
 
