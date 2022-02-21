@@ -4,6 +4,75 @@
 
 🧱📡 Fleet core roadmap board: https://github.com/orgs/fleetdm/projects/8
 
+## Job to be done
+
+Every product should have a single job that it strives to do. At Fleet we use the [Jobs to be Done
+(JTBD) framework](https://about.gitlab.com/handbook/engineering/ux/jobs-to-be-done/). Fleet's overarching job to be done is:
+
+> When we are maintaining secure laptops and servers as a team, we want to get from understanding
+> what's going on to knowing what we need to do with quality, reliability, and low impact quickly
+> and within budget, so that our organization can achieve our business outcomes.
+
+## Q1 2022 product objectives
+
+For Q1 2022, the 7 product objectives we are focused on are:
+
+#### Ultimate source of truth
+
+Fleet + osquery gives organizations the ability to see an almost [endless amount of
+data](https://osquery.io/schema/5.1.0/) for all their devices. We want to build on this reputation
+by always providing the freshest, most accurate, and most understandable data possible
+in the UI and API.
+
+##### Execution plan
+
+We will solve the "Undetermined" performance impact limitation for new scheduled queries as well as
+reflect unfinished policy runs in the UI/API. In addition, we will only advertise working
+osquery tables inside the product (looking at you `wifi_networks` table). Moreover, we will improve the Fleet server's
+performance and improve reliability and accuracy of the vulnerability detections.
+
+#### Programmable
+
+Fleet differentiate's itself from other security tools by providing a simple and easy to use API and
+CLI tool (fleetctl). This allows users and customers to leverage Fleet's superb ability to gather
+device data in ways that are unique to their organization.
+
+##### Execution plan
+
+We will add integrations for policy and vulnerability automations as well as get closer to parity
+with Rapid7's vulnerability features. In addition, we will roll up software and vulnerabilities
+across the entire organization and teams.
+
+#### Who's watching the watchers
+
+Many current Fleet users and customers hire Fleet to increase their confidence that other security
+tools are functioning properly. We will continue to expose valuable information about these tools to meet customer requirements.
+
+##### Execution plan
+
+We will invest in sending the health of other installed agents and verify device enrollment in Jamf,
+Kandji, and SimplMDM. In addition we will roll up mobile device management (MDM) and Munki data
+across the entire organization and teams.
+
+#### Self-service, 2-way IT
+
+##### Execution plan
+
+We will focus on enabling end users to self serve issues with their devices using Fleet Desktop. In
+addition, Fleet Desktop will begin to provide end users with the ability to see what information is collected
+about their device (scope transparency).
+
+#### Easy to use
+
+##### Execution plan
+
+We will focus on improving the standard query library so that it includes 80% of the most common
+policies that any organization needs. In addition, we will provide documentation that makes it dead
+simple to deploy on every major cloud platform (Reference architectures, AWS, GCP, Azure) as well as
+open source our own internal security program. Moreover, we will eliminate fear, uncertainty and
+doubt (FUD) related to the production readiness of Fleet's osquery installers.
+
+
 ## Product design process
 
 The product team is responsible for product design tasks. These include drafting
@@ -38,9 +107,7 @@ these changes to the engineering team.
   a link to the correct page in the Fleet EE (scratchpad) Figma. This page is where the design
   specifications live.
 
-* Add the ":product" and ":architect" labels to the issue and remove all other labels. This will add the issue to the [🛸 Product
-  board on ZenHub](https://app.zenhub.com/workspaces/--product-6192dd66ea2562000faea25c/board?repos=309820286). In the ZenHub board, move the issue into the "Architect" column in the product
-  board. This way, an architect on the engineering team knows that the issue is ready for engineering specification and later,
+* Add the issue to the 🏛 Architect column in [the 🛸 Product project](https://github.com/orgs/fleetdm/projects/27). This way, an architect on the engineering team knows that the issue is ready for engineering specification and later,
   engineering estimation.
 
 #### Priority drafting
