@@ -1,5 +1,10 @@
 name: Test Orbit & Fleet
 
+# This workflow tests orbit code changes (compiles and runs orbit from source).
+# It uses a fleet instance also built and executed from source.
+#
+# It tests that orbit osquery agents enroll successfully to Fleet.
+
 on:
   push:
     branches:
