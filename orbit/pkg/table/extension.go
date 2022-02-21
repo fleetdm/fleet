@@ -45,7 +45,7 @@ func (r *Runner) Execute() error {
 		r.srv, err = osquery.NewExtensionManagerServer(
 			"com.fleetdm.orbit.osquery_extension.v1",
 			r.socket,
-			osquery.ServerTimeout(3*time.Second))
+			osquery.ServerTimeout(5*time.Minute))
 		if err == nil {
 			ticker.Stop()
 			break
@@ -69,11 +69,23 @@ func (r *Runner) Execute() error {
 	plugins = append(plugins, platformTables()...)
 	r.srv.RegisterPlugin(plugins...)
 
-	if err := r.srv.Run(); err != nil {
-		return err
-	}
+	log.Info().Msg("registering osquery extension tables...")
 
-	return nil
+	// Start extension server.
+	//
+	// NOTE(lucas): If the extension server returns for any reason, e.g. a failure,
+	// we don't want to terminate all of orbit+osquery, thus just log the
+	// returned error.
+	go func() {
+		err := r.srv.Run()
+		log.Info().Err(err).Msg("extension server returned")
+	}()
+
+	select {
+	case <-ctx.Done():
+		_ = r.srv.Shutdown(context.Background())
+		return ctx.Err()
+	}
 }
 
 // Interrupt shuts down the osquery manager server.
