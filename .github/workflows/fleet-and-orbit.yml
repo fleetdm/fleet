@@ -179,7 +179,16 @@ jobs:
       run: |
         sudo hostname macos-orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}
         echo "Hostname: $(hostname -s)"
-        go run github.com/fleetdm/fleet/v4/orbit/cmd/orbit --dev-mode --disable-updates --root-dir /tmp/orbit --fleet-url ${{ needs.gen.outputs.address }} --enroll-secret ${{ needs.get-enroll-secret.outputs.enroll_secret }} --osqueryd-channel ${{ matrix.osqueryd-channel }} -- --verbose &
+        mkdir /tmp/orbit
+        cp ./orbit/pkg/packaging/certs.pem /tmp/orbit
+        go run github.com/fleetdm/fleet/v4/orbit/cmd/orbit \
+          --dev-mode \
+          --disable-updates \
+          --root-dir /tmp/orbit \
+          --fleet-url ${{ needs.gen.outputs.address }} \
+          --enroll-secret ${{ needs.get-enroll-secret.outputs.enroll_secret }} \
+          --osqueryd-channel ${{ matrix.osqueryd-channel }} \
+          -- --verbose &
         while nc -z ${{ needs.gen.outputs.domain }} 443
         do
           echo "Retrying in 10s..."
