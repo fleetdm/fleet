@@ -346,7 +346,7 @@ We apply the following settings to *Security/Less Secure Apps* to all users as t
 | Control user access to apps that use less secure sign-in technology and make accounts more vulnerable.  | Disable access to less secure apps (Recommended) |
 
 #### API Access
-Google Workspace makes it easy for users to add tools to their workflows, usually having these tools authenticate to their Google applications and data via Oauth. To limit overhead, we only mark as restricted services that we consider high risk. We then approve applications that require access to this data on a case-by-case basis.
+Google Workspace makes it easy for users to add tools to their workflows, usually having these tools authenticate to their Google applications and data via Oauth. We mark all Google services as *restricted*, but we allow the use of OAuth for simple authentication as well as the use of less dangerous privileges on Gmail and Drive. We then approve applications that require more privileges on a case-by-case basis.
 
 This level of security allows users to authenticate to web applications with their Google account, which exposes little information beyond what they would provide in a form to create an account and protects confidential data while keeping everything managed.
 
