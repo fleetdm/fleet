@@ -45,6 +45,11 @@ func (r *Runner) Execute() error {
 		r.srv, err = osquery.NewExtensionManagerServer(
 			"com.fleetdm.orbit.osquery_extension.v1",
 			r.socket,
+			// This timeout is only used for registering the extension tables
+			// and for the heartbeat ping requests in r.srv.Run().
+			//
+			// On some systems, registering tables takes more than a couple
+			// of seconds, thus set timeout to minutes instead (see #3878).
 			osquery.ServerTimeout(5*time.Minute))
 		if err == nil {
 			ticker.Stop()
