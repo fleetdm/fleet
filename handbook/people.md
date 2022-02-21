@@ -211,7 +211,7 @@ Once the agreement is sent, add a new row to the [advisory board spreadsheet](ht
 When the agreement is completed, make sure it is in the correct Google Drive folder, and ask the new
 advisor to add us on [Linkedin](https://www.linkedin.com/company/71111416), [Crunchbase](https://www.crunchbase.com/organization/fleet-device-management) and [Angellist](https://angel.co/company/fleetdm).
 
-### Zapier + Docusign
+### Zapier and DocuSign
 
 We use Zapier to automate how completed DocuSign envelopes are formatted and stored. This process ensures we store signed documents in the correct folder and that filenames are formatted consistently. 
 
