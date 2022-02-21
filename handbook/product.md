@@ -51,10 +51,13 @@ tools are functioning properly. We will continue to expose valuable information 
 ##### Execution plan
 
 We will invest in sending the health of other installed agents and verify device enrollment in Jamf,
-Kandji, and SimplMDM. In addition we will roll up mobile device management (MDM) and Munki data
+Kandji, and SimpleMDM. In addition we will roll up mobile device management (MDM) and Munki data
 across the entire organization and teams.
 
 #### Self-service, 2-way IT
+
+Fleet is poised to enable an organization's employees to resolve issues with their devices on their own. Not only does this save time for IT administrators and security practitioners but it also builds
+trust so that an organization can focus on achieving their business outcomes together.
 
 ##### Execution plan
 
@@ -63,6 +66,10 @@ addition, Fleet Desktop will begin to provide end users with the ability to see 
 about their device (scope transparency).
 
 #### Easy to use
+
+We'd like to make maintaining secure laptops and servers as
+easy as possible. This quarter we'll focus on improving the time to value for new Fleet users and
+customers by providing instructions and tools to quickly bolster any organization's security program. 
 
 ##### Execution plan
 
