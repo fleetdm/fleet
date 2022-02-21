@@ -96,9 +96,13 @@ const SelectTargets = ({
   const [searchText, setSearchText] = useState<string>("");
   const [debouncedSearchText, setDebouncedSearchText] = useState<string>("");
 
-  const debounceSearch = useDebouncedCallback((search: string) => {
-    setDebouncedSearchText(search);
-  }, 300);
+  const debounceSearch = useDebouncedCallback(
+    (search: string) => {
+      setDebouncedSearchText(search);
+    },
+    300,
+    { leading: true, trailing: true }
+  );
 
   useEffect(() => {
     debounceSearch(searchText);
@@ -215,7 +219,7 @@ const SelectTargets = ({
     );
   };
 
-  if (isEmpty(searchText) && !allHostsLabel) {
+  if (!isTargetsError && isEmpty(searchText) && !allHostsLabel) {
     return (
       <div className={`${baseClass}__wrapper body-wrap`}>
         <h1>Select targets</h1>
