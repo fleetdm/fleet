@@ -98,7 +98,7 @@ func (ds *Datastore) SavePolicy(ctx context.Context, p *fleet.Policy) error {
 		return ctxerr.Wrap(ctx, notFound("Policy").WithID(p.ID))
 	}
 
-	return cleanupPolicyMembership(ctx, ds.writer, p.ID, p.Platform)
+	return cleanupPolicyMembershipOnPolicyUpdate(ctx, ds.writer, p.ID, p.Platform)
 }
 
 // FlippingPoliciesForHost fetches previous policy membership results and returns:
@@ -472,7 +472,7 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 				// when the upsert results in an UPDATE that *did* change some values,
 				// it returns the updated ID as last inserted id.
 				if lastID, _ := res.LastInsertId(); lastID > 0 {
-					if err := cleanupPolicyMembership(ctx, tx, uint(lastID), spec.Platform); err != nil {
+					if err := cleanupPolicyMembershipOnPolicyUpdate(ctx, tx, uint(lastID), spec.Platform); err != nil {
 						return err
 					}
 				}
@@ -536,7 +536,7 @@ func (ds *Datastore) AsyncBatchUpdatePolicyTimestamp(ctx context.Context, ids []
 	})
 }
 
-func cleanupPolicyMembership(ctx context.Context, db sqlx.ExecerContext, policyID uint, platforms string) error {
+func cleanupPolicyMembershipOnPolicyUpdate(ctx context.Context, db sqlx.ExecerContext, policyID uint, platforms string) error {
 	if platforms == "" {
 		// all platforms allowed, nothing to clean up
 		return nil
@@ -581,7 +581,7 @@ func (ds *Datastore) CleanupPolicyMembership(ctx context.Context, now time.Time)
 			FROM
 				policies p
 			WHERE
-				p.updated_at >= DATE_SUB(NOW(), INTERVAL ? SECOND)`
+				p.updated_at >= DATE_SUB(?, INTERVAL ? SECOND)`
 
 		deleteMembershipStmt = `
 			DELETE
@@ -598,7 +598,7 @@ func (ds *Datastore) CleanupPolicyMembership(ctx context.Context, now time.Time)
 	)
 
 	var pols []*fleet.Policy
-	if err := sqlx.SelectContext(ctx, ds.reader, &pols, updatedPoliciesStmt, int(recentlyUpdatedPoliciesInterval.Seconds())); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader, &pols, updatedPoliciesStmt, now, int(recentlyUpdatedPoliciesInterval.Seconds())); err != nil {
 		return ctxerr.Wrap(ctx, err, "select recently updated policies")
 	}
 
