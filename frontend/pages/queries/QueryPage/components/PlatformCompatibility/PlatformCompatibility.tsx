@@ -1,10 +1,8 @@
 import React from "react";
-import ReactTooltip from "react-tooltip";
 
 import TooltipWrapper from "components/TooltipWrapper";
 import CompatibleIcon from "../../../../../../assets/images/icon-compatible-green-16x16@2x.png";
 import IncompatibleIcon from "../../../../../../assets/images/icon-incompatible-red-16x16@2x.png";
-import QuestionIcon from "../../../../../../assets/images/icon-question-16x16@2x.png";
 
 const baseClass = "platform-compatibility";
 
