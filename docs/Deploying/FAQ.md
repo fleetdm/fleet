@@ -93,7 +93,7 @@ These configurations cannot be managed centrally from Fleet.
 
 This error usually indicates that the Fleet server has run out of file descriptors. Fix this by increasing the `ulimit` on the Fleet process. See the `LimitNOFILE` setting in the [example systemd unit file](./Configuration.md#runing-with-systemd) for an example of how to do this with systemd.
 
-Some deployments may benefit by setting the [`--server_keepalive`](./Configuration.md#server_keepalive) flag to false.
+Some deployments may benefit by setting the [`--server_keepalive`](./Configuration.md#server-keepalive) flag to false.
 
 This was also seen as a symptom of a different issue: if you're deploying on AWS on T type instances, there are different scenarios where the activity can increase and the instances will burst. If they run out of credits, then they'll stop processing leaving the file descriptors open.
 
@@ -148,7 +148,7 @@ using `--osquery_host_identifier=uuid` will not resolve the duplicate enrollment
 the problem can be resolved by setting `--osquery_host_identifier=instance` (which will use the
 osquery generated UUID), and then delete the associated host in the Fleet UI.
 
-Find more information about [host identifiers here](./Configuration.md#osquery_host_identifier).
+Find more information about [host identifiers here](./Configuration.md#osquery-host-identifier).
 
 ## How long are osquery enroll secrets valid?
 
