@@ -13,6 +13,7 @@ import { IHost } from "interfaces/host";
 
 // @ts-ignore
 import TargetsInput from "components/TargetsInput";
+import IconToolTip from "components/IconToolTip";
 import Button from "components/buttons/Button";
 import Spinner from "components/Spinner";
 import PlusIcon from "../../../../../assets/images/icon-plus-purple-32x32@2x.png";
@@ -84,7 +85,11 @@ const TargetPillSelector = ({
       data-selected={isSelected}
       onClick={(e) => onClick(entity)(e)}
     >
-      <img alt="" src={isSelected ? CheckIcon : PlusIcon} />
+      <img
+        className={isSelected ? "check-icon" : "plus-icon"}
+        alt=""
+        src={isSelected ? CheckIcon : PlusIcon}
+      />
       <span className="selector-name">{displayText()}</span>
       <span className="selector-count">{entity.count}</span>
     </button>
@@ -113,10 +118,16 @@ const SelectTargets = ({
   const [inputTabIndex, setInputTabIndex] = useState<number>(0);
   const [searchText, setSearchText] = useState<string>("");
   const [relatedHosts, setRelatedHosts] = useState<IHost[]>([]);
+  const [readyToRun, setReadyToRun] = useState<boolean>(false);
 
-  const { isFetching: isTargetsFetching, isError: isTargetsError } = useQuery(
+  const {
+    isLoading: isTargetsLoading,
+    isFetching: isTargetsFetching,
+    isError: isTargetsError,
+  } = useQuery(
     // triggers query on change
-    ["targetsFromSearch", searchText, [...selectedTargets]],
+    // ["targetsFromSearch", searchText, [...selectedTargets]],
+    ["targetsFromSearch", searchText, readyToRun],
     () =>
       targetsAPI.loadAll({
         query: searchText,
@@ -185,6 +196,9 @@ const SelectTargets = ({
           setTargetsOnlinePercent(
             Math.round((onlineCount / targetsCount) * 100)
           );
+        }
+        if (readyToRun) {
+          goToRunQuery;
         }
       },
     }
@@ -269,7 +283,7 @@ const SelectTargets = ({
     );
   };
 
-  if (isEmpty(searchText) && isTargetsFetching) {
+  if (isEmpty(searchText) && isTargetsLoading) {
     return (
       <div className={`${baseClass}__wrapper body-wrap`}>
         <h1>Select targets</h1>
@@ -344,16 +358,26 @@ const SelectTargets = ({
           className={`${baseClass}__btn`}
           type="button"
           variant="blue-green"
-          disabled={!targetsTotalCount}
-          onClick={goToRunQuery}
+          // disabled={!targetsTotalCount}
+          disabled={selectedTargets.length === 0}
+          // onClick={goToRunQuery}
+          onClick={() => setReadyToRun(true)}
         >
           Run
         </Button>
         <div className={`${baseClass}__targets-total-count`}>
           {!!targetsTotalCount && (
             <>
-              <span>{targetsTotalCount}</span> targets selected&nbsp; (
-              {targetsOnlinePercent}% online)
+              <span>{targetsTotalCount}</span>&nbsp;hosts targeted&nbsp; (
+              {targetsOnlinePercent}% online){" "}
+              <IconToolTip
+                isHtml
+                text={
+                  "\
+                  <center><p>Hosts are online if they<br /> have recently checked <br />into Fleet</p></center>\
+                "
+                }
+              />
             </>
           )}
         </div>
