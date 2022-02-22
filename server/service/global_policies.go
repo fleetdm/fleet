@@ -270,7 +270,7 @@ func modifyGlobalPolicyEndpoint(ctx context.Context, request interface{}, svc fl
 	return modifyGlobalPolicyResponse{Policy: resp}, nil
 }
 
-func (svc Service) ModifyGlobalPolicy(ctx context.Context, id uint, p fleet.ModifyPolicyPayload) (*fleet.Policy, error) {
+func (svc *Service) ModifyGlobalPolicy(ctx context.Context, id uint, p fleet.ModifyPolicyPayload) (*fleet.Policy, error) {
 	return svc.modifyPolicy(ctx, nil, id, p)
 }
 
@@ -298,7 +298,7 @@ func applyPolicySpecsEndpoint(ctx context.Context, request interface{}, svc flee
 }
 
 // TODO: add tests for activities?
-func (svc Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.PolicySpec) error {
+func (svc *Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.PolicySpec) error {
 	checkGlobalPolicyAuth := false
 	for _, policy := range policies {
 		if err := policy.Verify(); err != nil {
