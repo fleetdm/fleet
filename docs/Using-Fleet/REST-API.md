@@ -1107,7 +1107,7 @@ extension](https://github.com/macadmins/osquery-extension) which comes bundled
 in [Fleet's osquery
 installers](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
 Currently supported only on macOS.
- 
+
 Retrieves a host's MDM enrollment status, MDM server URL, and Munki version.
 
 `GET /api/v1/fleet/hosts/{id}/macadmins`
@@ -3804,6 +3804,7 @@ Where `query_id` references an existing `query`.
 | query       | string  | body | The query in SQL.                    |
 | description | string  | body | The query's description.             |
 | resolution  | string  | body | The resolution steps for the policy. |
+| platform    | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms. |
 
 #### Example Edit Policy
 
@@ -3817,6 +3818,7 @@ Where `query_id` references an existing `query`.
   "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
   "description": "Checks if gatekeeper is enabled on macOS devices",
   "resolution": "Resolution steps",
+  "platform": "darwin"
 }
 ```
 
@@ -4053,6 +4055,7 @@ Either `query` or `query_id` must be provided.
 | query       | string  | body | The query in SQL.                    |
 | description | string  | body | The query's description.             |
 | resolution  | string  | body | The resolution steps for the policy. |
+| platform    | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms. |
 
 #### Example Edit Policy
 
@@ -4066,6 +4069,7 @@ Either `query` or `query_id` must be provided.
   "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
   "description": "Checks if gatekeeper is enabled on macOS devices",
   "resolution": "Resolution steps",
+  "platform": "darwin"
 }
 ```
 

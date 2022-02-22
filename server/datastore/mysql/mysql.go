@@ -916,3 +916,33 @@ func (ds *Datastore) ProcessList(ctx context.Context) ([]fleet.MySQLProcess, err
 	}
 	return processList, nil
 }
+
+func insertOnDuplicateDidUpdate(res sql.Result) bool {
+	// From mysql's documentation:
+	//
+	// With ON DUPLICATE KEY UPDATE, the affected-rows value per row is 1 if
+	// the row is inserted as a new row, 2 if an existing row is updated, and
+	// 0 if an existing row is set to its current values. If you specify the
+	// CLIENT_FOUND_ROWS flag to the mysql_real_connect() C API function when
+	// connecting to mysqld, the affected-rows value is 1 (not 0) if an
+	// existing row is set to its current values.
+	//
+	// https://dev.mysql.com/doc/refman/5.7/en/insert-on-duplicate.html
+	//
+	// Note that connection string sets CLIENT_FOUND_ROWS (see
+	// generateMysqlConnectionString in this package), so it does return 1 when
+	// an existing row is set to its current values, but with a last inserted id
+	// of 0.
+	//
+	// Also note that with our mysql driver, Result.LastInsertId and
+	// Result.RowsAffected can never return an error, they are retrieved at the
+	// time of the Exec call, and the result simply returns the integers it
+	// already holds:
+	// https://github.com/go-sql-driver/mysql/blob/bcc459a906419e2890a50fc2c99ea6dd927a88f2/result.go
+	//
+	// TODO(mna): would that work on mariadb too?
+
+	lastID, _ := res.LastInsertId()
+	aff, _ := res.RowsAffected()
+	return lastID == 0 || aff != 1
+}

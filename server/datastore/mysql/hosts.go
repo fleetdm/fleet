@@ -404,9 +404,9 @@ func (ds *Datastore) Host(ctx context.Context, id uint, skipLoadingExtras bool) 
 	return host, nil
 }
 
-func amountEnrolledHostsDB(db sqlx.Queryer) (int, error) {
+func amountEnrolledHostsDB(ctx context.Context, db sqlx.QueryerContext) (int, error) {
 	var amount int
-	err := sqlx.Get(db, &amount, `SELECT count(*) FROM hosts`)
+	err := sqlx.GetContext(ctx, db, &amount, `SELECT count(*) FROM hosts`)
 	if err != nil {
 		return 0, err
 	}
