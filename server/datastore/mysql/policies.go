@@ -571,5 +571,52 @@ func cleanupPolicyMembership(ctx context.Context, db sqlx.ExecerContext, policyI
 // empty string - to "windows", this would delete that policy's membership rows
 // for any non-windows host).
 func (ds *Datastore) CleanupPolicyMembership(ctx context.Context, now time.Time) error {
-	panic("unimplemented")
+	const (
+		recentlyUpdatedPoliciesInterval = 24 * time.Hour
+
+		updatedPoliciesStmt = `
+			SELECT
+				p.id,
+				p.platforms
+			FROM
+				policies p
+			WHERE
+				p.updated_at >= DATE_SUB(NOW(), INTERVAL ? SECOND)`
+
+		deleteMembershipStmt = `
+			DELETE
+				pm
+			FROM
+				policy_membership pm
+			INNER JOIN
+				hosts h
+			ON
+				pm.host_id = h.id
+			WHERE
+				pm.policy_id = ? AND
+				FIND_IN_SET(h.platform, ?) = 0 )`
+	)
+
+	var pols []*fleet.Policy
+	if err := sqlx.SelectContext(ctx, ds.reader, &pols, updatedPoliciesStmt, int(recentlyUpdatedPoliciesInterval.Seconds())); err != nil {
+		return ctxerr.Wrap(ctx, err, "select recently updated policies")
+	}
+
+	for _, pol := range pols {
+		if pol.Platform == "" {
+			continue
+		}
+
+		var expandedPlatforms []string
+		splitPlatforms := strings.Split(pol.Platform, ",")
+		for _, platform := range splitPlatforms {
+			expandedPlatforms = append(expandedPlatforms, fleet.ExpandPlatform(strings.TrimSpace(platform))...)
+		}
+
+		if _, err := ds.writer.ExecContext(ctx, deleteMembershipStmt, pol.ID, strings.Join(expandedPlatforms, ",")); err != nil {
+			return ctxerr.Wrapf(ctx, err, "delete outdated hosts membership for policy: %d; platforms: %v", pol.ID, expandedPlatforms)
+		}
+	}
+
+	return nil
 }

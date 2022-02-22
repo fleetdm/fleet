@@ -42,6 +42,7 @@ func TestPolicies(t *testing.T) {
 		{"DelUser", testPoliciesDelUser},
 		{"FlippingPoliciesForHost", testFlippingPoliciesForHost},
 		{"PlatformUpdate", testPolicyPlatformUpdate},
+		{"CleanupPolicyMembership", testPolicyCleanupPolicyMembership},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -1630,4 +1631,12 @@ func testPolicyPlatformUpdate(t *testing.T, ds *Datastore) {
 	// while t2 should now only accept debian
 	wantHostsByPol["t2"] = []uint{teamHosts[hostDeb].ID}
 	assertPolicyMembership(wantHostsByPol)
+}
+
+func testPolicyCleanupPolicyMembership(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// no recently updated policies
+	err := ds.CleanupPolicyMembership(ctx, time.Now())
+	require.NoError(t, err)
 }
