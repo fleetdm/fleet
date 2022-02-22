@@ -107,7 +107,7 @@ graph TD;
     D-->E
 ```
 
-If the mermaid syntax is incorrect, the diagram will be replaced with an image displaying an error. For example, the following code block has **intentional** syntax errors will display an error:
+If the mermaid syntax is incorrect, the diagram will be replaced with an image displaying an error, as shown in the following example where the code block was written with **intentional** syntax errors:
 
 ```mermaid
 graph TD;
