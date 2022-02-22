@@ -396,7 +396,7 @@ The DKIM configuration under *Apps/Google Workspace/Settings for Gmail/Authentic
 
 Google Workspace includes multiple options in *Apps/Google Workspace/Settings for Gmail/Safety* that relate to how inbound email is handled.
 
-As email is one of the main vectors used by attackers, we ensure we protect it as much as possible. Attachments are frequently used to send malware. We apply the following settings to block common tactics:
+As email is one of the main vectors used by attackers, we ensure we protect it as much as possible. Attachments are frequently used to send malware. We apply the following settings to block common tactics.
 
 | Category                    | Setting name                                                    | Value   | Action                               | Note                                                                                                   |
 | --------------------------- | --------------------------------------------------------------- | ------- | ------------------------------------ | ------------------------------------------------------------------------------------------------------ |
