@@ -877,7 +877,7 @@ func testHostsSearch(t *testing.T, ds *Datastore) {
 		SeenTime:        time.Now(),
 		NodeKey:         "1",
 		UUID:            "1",
-		Hostname:        "foo.local",
+		Hostname:        "fo.local",
 	})
 	require.NoError(t, err)
 
@@ -923,19 +923,23 @@ func testHostsSearch(t *testing.T, ds *Datastore) {
 	_, err = ds.SearchHosts(context.Background(), filter, "")
 	require.NoError(t, err)
 
-	hosts, err := ds.SearchHosts(context.Background(), filter, "foo")
+	hosts, err := ds.SearchHosts(context.Background(), filter, "fo")
 	require.NoError(t, err)
 	assert.Len(t, hosts, 2)
 
-	host, err := ds.SearchHosts(context.Background(), filter, "foo", h3.ID)
+	hosts, err = ds.SearchHosts(context.Background(), filter, "fo.")
 	require.NoError(t, err)
-	require.Len(t, host, 1)
-	assert.Equal(t, "foo.local", host[0].Hostname)
+	assert.Len(t, hosts, 1)
 
-	host, err = ds.SearchHosts(context.Background(), filter, "foo", h3.ID, h2.ID)
+	host, err := ds.SearchHosts(context.Background(), filter, "fo", h3.ID)
 	require.NoError(t, err)
 	require.Len(t, host, 1)
-	assert.Equal(t, "foo.local", host[0].Hostname)
+	assert.Equal(t, "fo.local", host[0].Hostname)
+
+	host, err = ds.SearchHosts(context.Background(), filter, "fo", h3.ID, h2.ID)
+	require.NoError(t, err)
+	require.Len(t, host, 1)
+	assert.Equal(t, "fo.local", host[0].Hostname)
 
 	host, err = ds.SearchHosts(context.Background(), filter, "abc")
 	require.NoError(t, err)

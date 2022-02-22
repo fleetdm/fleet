@@ -308,6 +308,10 @@ func (svc *Service) validateSession(ctx context.Context, session *fleet.Session)
 	}
 
 	sessionDuration := svc.config.Session.Duration
+	if session.APIOnly != nil && *session.APIOnly {
+		sessionDuration = 0 // make API-only tokens unlimited
+	}
+
 	// duration 0 = unlimited
 	if sessionDuration != 0 && time.Since(session.AccessedAt) >= sessionDuration {
 		err := svc.ds.DestroySession(ctx, session)

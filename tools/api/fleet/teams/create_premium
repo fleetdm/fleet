@@ -76,6 +76,23 @@ data='{
 }'
 curl -X POST $CURL_FLAGS -H "Authorization: Bearer $TOKEN" "$SERVER_URL/$create_user_endpoint" -d "$data" --insecure
 
+# Create Anita
+data='{
+  "name": "Anita T. Admin",
+  "email": "anita@organization.com",
+  "password": "user123#",
+  "invited_by": 1,
+  "global_role": null,
+  "admin_forced_password_reset": false,
+  "teams": [
+    {
+      "id": 1,
+      "role": "admin"
+    }
+  ]
+}'
+curl -X POST $CURL_FLAGS -H "Authorization: Bearer $TOKEN" "$SERVER_URL/$create_user_endpoint" -d "$data" --insecure
+
 # Create Toni
 data='{
   "name": "Toni",
