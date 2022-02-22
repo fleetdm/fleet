@@ -2,14 +2,14 @@ import React from "react";
 
 interface ITooltipWrapperProps {
   children: string;
-  tipText: string;
+  tipContent: string;
 }
 
 const baseClass = "component__tooltip-wrapper";
 
 const TooltipWrapper = ({
   children,
-  tipText,
+  tipContent,
 }: ITooltipWrapperProps): JSX.Element => {
   return (
     <div className={baseClass}>
@@ -17,7 +17,10 @@ const TooltipWrapper = ({
         {children}
         <div className={`${baseClass}__underline`} data-text={children} />
       </div>
-      <div className={`${baseClass}__tip-text`}>{tipText}</div>
+      <div
+        className={`${baseClass}__tip-text`}
+        dangerouslySetInnerHTML={{ __html: tipContent }}
+      />
     </div>
   );
 };

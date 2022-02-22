@@ -41,7 +41,7 @@ const PlatformCompatibility = ({
   return (
     <span className={baseClass}>
       <b>
-        <TooltipWrapper tipText="Estimated compatiblity based on the tables used in the query">
+        <TooltipWrapper tipContent="Estimated compatiblity based on the tables used in the query">
           Compatible with:
         </TooltipWrapper>
       </b>

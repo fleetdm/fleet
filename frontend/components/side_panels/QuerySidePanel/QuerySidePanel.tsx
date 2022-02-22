@@ -4,10 +4,9 @@ import classnames from "classnames";
 import { IOsqueryTable } from "interfaces/osquery_table"; // @ts-ignore
 import { osqueryTableNames } from "utilities/osquery_tables"; // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown"; // @ts-ignore
-import FleetIcon from "components/icons/FleetIcon"; // @ts-ignore
+import FleetIcon from "components/icons/FleetIcon";
+import TooltipWrapper from "components/TooltipWrapper"; // @ts-ignore
 import SecondarySidePanelContainer from "../SecondarySidePanelContainer";
-
-import TooltipWrapper from "components/TooltipWrapper";
 import AppleIcon from "../../../../assets/images/icon-apple-dark-20x20@2x.png";
 import LinuxIcon from "../../../../assets/images/icon-linux-dark-20x20@2x.png";
 import WindowsIcon from "../../../../assets/images/icon-windows-dark-20x20@2x.png";
@@ -50,7 +49,7 @@ const QuerySidePanel = ({
     return columns?.map((column) => (
       <li key={column.name} className={`${columnBaseClass}__item`}>
         <span className={`${columnBaseClass}__name`}>
-          <TooltipWrapper tipText={column.description}>
+          <TooltipWrapper tipContent={column.description}>
             {column.name}
           </TooltipWrapper>
         </span>
