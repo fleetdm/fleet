@@ -78,7 +78,7 @@ func TestTeamPoliciesAuth(t *testing.T) {
 		{
 			"global maintainer",
 			&fleet.User{GlobalRole: ptr.String(fleet.RoleMaintainer)},
-			true,
+			false,
 			false,
 		},
 		{

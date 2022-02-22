@@ -681,7 +681,7 @@ func TestAuthorizePolicies(t *testing.T) {
 
 		{user: test.UserAdmin, object: teamPolicy, action: write, allow: true},
 		{user: test.UserAdmin, object: teamPolicy, action: read, allow: true},
-		{user: test.UserMaintainer, object: teamPolicy, action: write, allow: false},
+		{user: test.UserMaintainer, object: teamPolicy, action: write, allow: true},
 		{user: test.UserMaintainer, object: teamPolicy, action: read, allow: true},
 		{user: test.UserObserver, object: teamPolicy, action: write, allow: false},
 		{user: test.UserObserver, object: teamPolicy, action: read, allow: true},
