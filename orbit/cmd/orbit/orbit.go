@@ -396,11 +396,8 @@ func main() {
 		}
 		g.Add(r.Execute, r.Interrupt)
 
-		if runtime.GOOS != "windows" {
-			// We are disabling extensions for Windows until #3679 is fixed.
-			ext := table.NewRunner(r.ExtensionSocketPath())
-			g.Add(ext.Execute, ext.Interrupt)
-		}
+		ext := table.NewRunner(r.ExtensionSocketPath())
+		g.Add(ext.Execute, ext.Interrupt)
 
 		// Install a signal handler
 		ctx, cancel := context.WithCancel(context.Background())
