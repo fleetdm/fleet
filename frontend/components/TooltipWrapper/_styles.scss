@@ -49,6 +49,7 @@
     visibility: hidden;
     opacity: 0;
     transition: opacity .3s ease;
+    line-height: 1.5;
 
     // invisible block to cover space so
     // hover state can continue from text to bubble
@@ -59,6 +60,9 @@
       position: absolute;
       top: -6px;
       left: 0;
+    }
+    p {
+      margin: 0;
     }
   }
 }
