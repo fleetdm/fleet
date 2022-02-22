@@ -251,12 +251,17 @@ const PlatformWrapper = ({
               <p className={`${baseClass}__advanced--heading`}>
                 Download your Fleet certificate:
               </p>
-              <p>
-                Prove the TLS certificate used by the Fleet server to enable
-                secure connections from osquery:
-                <br />
-                {!isFetchingCertificate &&
-                  (certificate ? (
+              {isFetchingCertificate && (
+                <p className={`${baseClass}__certificate-loading`}>
+                  Loading your certificate
+                </p>
+              )}
+              {!isFetchingCertificate &&
+                (certificate ? (
+                  <p>
+                    Prove the TLS certificate used by the Fleet server to enable
+                    secure connections from osquery:
+                    <br />
                     <a
                       href="#downloadCertificate"
                       className={`${baseClass}__fleet-certificate-download`}
@@ -265,17 +270,17 @@ const PlatformWrapper = ({
                       Download
                       <img src={DownloadIcon} alt="download" />
                     </a>
-                  ) : (
-                    <p className={`${baseClass}__certificate-error`}>
-                      <em>Fleet failed to load your certificate.</em>
-                      <span>
-                        If you&apos;re able to access Fleet at a private or
-                        secure (HTTPS) IP address, please log into Fleet at this
-                        address to load your certificate.
-                      </span>
-                    </p>
-                  ))}
-              </p>
+                  </p>
+                ) : (
+                  <p className={`${baseClass}__certificate-error`}>
+                    <em>Fleet failed to load your certificate.</em>
+                    <span>
+                      If you&apos;re able to access Fleet at a private or secure
+                      (HTTPS) IP address, please log into Fleet at this address
+                      to load your certificate.
+                    </span>
+                  </p>
+                ))}
             </div>
             <div className={`${baseClass}__advanced--enroll-secrets`}>
               <p className={`${baseClass}__advanced--heading`}>
