@@ -33,7 +33,8 @@
     }
   }
   &__tip-text {
-    width: 296px;
+    width: max-content;
+    max-width: 296px;
     padding: 12px;
     color: $core-white;
     background-color: $core-fleet-blue;
