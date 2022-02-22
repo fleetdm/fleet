@@ -255,7 +255,7 @@ You should see your local machine returned. If your host isn't showing up, you m
 
 Apply the standard query library by running the following command:
 
-`fleetctl apply -f docs/Using-Fleet/standard-query-library/standard-query-library.yml`
+`fleetctl apply -f docs/01-Using-Fleet/standard-query-library/standard-query-library.yml`
 
 Make sure all queries were successfully added by running the following command:
 
