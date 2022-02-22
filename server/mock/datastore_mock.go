@@ -326,6 +326,8 @@ type DeleteTeamPoliciesFunc func(ctx context.Context, teamID uint, ids []uint) (
 
 type TeamPolicyFunc func(ctx context.Context, teamID uint, policyID uint) (*fleet.Policy, error)
 
+type CleanupPolicyMembershipFunc func(ctx context.Context, now time.Time) error
+
 type LockFunc func(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error)
 
 type UnlockFunc func(ctx context.Context, name string, owner string) error
@@ -851,6 +853,9 @@ type DataStore struct {
 
 	TeamPolicyFunc        TeamPolicyFunc
 	TeamPolicyFuncInvoked bool
+
+	CleanupPolicyMembershipFunc        CleanupPolicyMembershipFunc
+	CleanupPolicyMembershipFuncInvoked bool
 
 	LockFunc        LockFunc
 	LockFuncInvoked bool
@@ -1717,6 +1722,11 @@ func (s *DataStore) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []u
 func (s *DataStore) TeamPolicy(ctx context.Context, teamID uint, policyID uint) (*fleet.Policy, error) {
 	s.TeamPolicyFuncInvoked = true
 	return s.TeamPolicyFunc(ctx, teamID, policyID)
+}
+
+func (s *DataStore) CleanupPolicyMembership(ctx context.Context, now time.Time) error {
+	s.CleanupPolicyMembershipFuncInvoked = true
+	return s.CleanupPolicyMembershipFunc(ctx, now)
 }
 
 func (s *DataStore) Lock(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error) {

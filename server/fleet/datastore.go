@@ -398,6 +398,8 @@ type Datastore interface {
 	DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error)
 	TeamPolicy(ctx context.Context, teamID uint, policyID uint) (*Policy, error)
 
+	CleanupPolicyMembership(ctx context.Context, now time.Time) error
+
 	///////////////////////////////////////////////////////////////////////////////
 	// Locking
 

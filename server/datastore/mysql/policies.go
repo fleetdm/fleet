@@ -564,3 +564,12 @@ func cleanupPolicyMembership(ctx context.Context, db sqlx.ExecerContext, policyI
 	_, err := db.ExecContext(ctx, delStmt, policyID, strings.Join(expandedPlatforms, ","))
 	return ctxerr.Wrap(ctx, err, "cleanup policy membership")
 }
+
+// CleanupPolicyMembership deletes the host's membership from policies that
+// have been updated recently if those hosts don't meet the policy's criteria
+// anymore (e.g. if the policy's platforms has been updated from "any" - the
+// empty string - to "windows", this would delete that policy's membership rows
+// for any non-windows host).
+func (ds *Datastore) CleanupPolicyMembership(ctx context.Context, now time.Time) error {
+	panic("unimplemented")
+}
