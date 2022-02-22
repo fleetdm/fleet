@@ -290,7 +290,7 @@ Google's name for Two-Factor Authentication (2FA) or Multi-Factor Authentication
 
 **2-SV in Google Workspace**
 
-We apply the following settings to *Security/2-Step Verification* to all users as the minimal baseline:
+We apply the following settings to *Security/2-Step Verification* to all users as the minimum baseline.
 
 | Setting name                               | Value                                              |
 | ------------------------------------------ | -------------------------------------------------- |
