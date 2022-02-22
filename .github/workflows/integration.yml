@@ -1,4 +1,11 @@
-name: Test Orbit & Preview
+name: Test Fleetctl, Orbit & Preview
+
+# This workflow tests enrolling of agents on the supported platforms,
+# using the latest version of fleet, fleetctl and orbit.
+#
+# It starts the latest release of fleet with the "fleetctl preview" command.
+# It generates the installers for the latest version of Orbit with the
+# "fleetctl package" command.
 
 on:
   workflow_dispatch: # Manual
