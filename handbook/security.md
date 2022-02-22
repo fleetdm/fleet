@@ -285,7 +285,7 @@ Google's name for Two-Factor Authentication (2FA) or Multi-Factor Authentication
 | No 2FA                                                                        | Credential theft is easy, and passwords are often leaked or easy to guess.                                |
 | SMS/Phone-based 2FA                                                           | Puts trust in the phone number itself, which attackers can hijack by [social engineering phone companies](https://www.vice.com/en/topic/sim-hijacking).      |
 | Time-based one-time password (TOTP - Google Authenticator type 6 digit codes) | Phishable as long as the attacker uses it within its short lifetime by proxying the login form |
-| App-based push notifications                                                  | Harder to phish than TOTP, and by sending a lot of prompts to a phone, a user might accidentally accept one       |
+| App-based push notifications                                                  | Harder to phish than TOTP, but by sending a lot of prompts to a phone, a user might accidentally accept a nefarious notification       |
 | Hardware security keys                                                        | [Most secure](https://krebsonsecurity.com/2018/07/google-security-keys-neutralized-employee-phishing/), but requires extra hardware or a recent smartphone                                                                 |
 
 **2-SV in Google Workspace**
