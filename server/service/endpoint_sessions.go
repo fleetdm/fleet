@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"html/template"
-	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -72,64 +71,6 @@ func makeLogoutEndpoint(svc fleet.Service) endpoint.Endpoint {
 			return logoutResponse{Err: err}, nil
 		}
 		return logoutResponse{}, nil
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// Get Info About Session
-////////////////////////////////////////////////////////////////////////////////
-
-type getInfoAboutSessionRequest struct {
-	ID uint
-}
-
-type getInfoAboutSessionResponse struct {
-	SessionID uint      `json:"session_id"`
-	UserID    uint      `json:"user_id"`
-	CreatedAt time.Time `json:"created_at"`
-	Err       error     `json:"error,omitempty"`
-}
-
-func (r getInfoAboutSessionResponse) error() error { return r.Err }
-
-func makeGetInfoAboutSessionEndpoint(svc fleet.Service) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		req := request.(getInfoAboutSessionRequest)
-		session, err := svc.GetInfoAboutSession(ctx, req.ID)
-		if err != nil {
-			return getInfoAboutSessionResponse{Err: err}, nil
-		}
-
-		return getInfoAboutSessionResponse{
-			SessionID: session.ID,
-			UserID:    session.UserID,
-			CreatedAt: session.CreatedAt,
-		}, nil
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// Delete Session
-////////////////////////////////////////////////////////////////////////////////
-
-type deleteSessionRequest struct {
-	ID uint
-}
-
-type deleteSessionResponse struct {
-	Err error `json:"error,omitempty"`
-}
-
-func (r deleteSessionResponse) error() error { return r.Err }
-
-func makeDeleteSessionEndpoint(svc fleet.Service) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		req := request.(deleteSessionRequest)
-		err := svc.DeleteSession(ctx, req.ID)
-		if err != nil {
-			return deleteSessionResponse{Err: err}, nil
-		}
-		return deleteSessionResponse{}, nil
 	}
 }
 

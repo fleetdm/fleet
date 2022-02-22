@@ -57,7 +57,7 @@
       img {
         width: 16px;
         height: 16px;
-        vertical-align: sub;
+        vertical-align: top;
       }
 
       // do not resize button icons inside headers
@@ -330,6 +330,29 @@
 
     button:last-child {
       margin-left: $pad-large;
+    }
+  }
+
+  &__footer {
+    display: flex;
+    align-items: center;
+  }
+
+  &__footer-text {
+    font-size: $x-small;
+
+    display: flex;
+    align-items: center;
+
+    a {
+      color: $core-vibrant-blue;
+      font-weight: $bold;
+      text-decoration: none;
+    }
+    img {
+      height: 12px;
+      width: 12px;
+      padding-left: $pad-xsmall;
     }
   }
 }

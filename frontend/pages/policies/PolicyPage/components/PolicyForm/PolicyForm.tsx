@@ -1,9 +1,10 @@
 /* eslint-disable jsx-a11y/no-noninteractive-element-to-interactive-role */
 /* eslint-disable jsx-a11y/interactive-supports-focus */
-import React, { useState, useContext } from "react";
+import React, { useState, useContext, KeyboardEvent } from "react";
 import { IAceEditor } from "react-ace/lib/types";
 import ReactTooltip from "react-tooltip";
 import { isUndefined } from "lodash";
+import classnames from "classnames";
 
 import { addGravatarUrlToResource } from "fleet/helpers";
 // @ts-ignore
@@ -18,8 +19,7 @@ import FleetAce from "components/FleetAce";
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 import Spinner from "components/Spinner";
-// @ts-ignore
-import InputField from "components/forms/fields/InputField";
+import AutoSizeInputField from "components/forms/fields/AutoSizeInputField";
 import NewPolicyModal from "../NewPolicyModal";
 import InfoIcon from "../../../../../../assets/images/icon-info-purple-14x14@2x.png";
 import QuestionIcon from "../../../../../../assets/images/icon-question-16x16@2x.png";
@@ -38,6 +38,7 @@ interface IPolicyFormProps {
   onUpdate: (formData: IPolicyFormData) => void;
   onOpenSchemaSidebar: () => void;
   renderLiveQueryWarning: () => JSX.Element | null;
+  backendValidators: { [key: string]: string };
 }
 
 const PolicyForm = ({
@@ -51,8 +52,9 @@ const PolicyForm = ({
   onUpdate,
   onOpenSchemaSidebar,
   renderLiveQueryWarning,
+  backendValidators,
 }: IPolicyFormProps): JSX.Element => {
-  const [errors, setErrors] = useState<{ [key: string]: string }>({});
+  const [errors, setErrors] = useState<{ [key: string]: any }>({});
   const [isNewPolicyModalOpen, setIsNewPolicyModalOpen] = useState<boolean>(
     false
   );
@@ -87,7 +89,6 @@ const PolicyForm = ({
   } = useContext(PolicyContext);
 
   const {
-    currentTeam,
     currentUser,
     isTeamObserver,
     isGlobalObserver,
@@ -123,9 +124,15 @@ const PolicyForm = ({
       enableLinking: true,
     });
 
-    setIsWindowsCompatible(!!lastEditedQueryPlatform?.includes("windows"));
-    setIsDarwinCompatible(!!lastEditedQueryPlatform?.includes("darwin"));
-    setIsLinuxCompatible(!!lastEditedQueryPlatform?.includes("linux"));
+    if (policyIdForEdit) {
+      setIsWindowsCompatible(!!lastEditedQueryPlatform?.includes("windows"));
+      setIsDarwinCompatible(!!lastEditedQueryPlatform?.includes("darwin"));
+      setIsLinuxCompatible(!!lastEditedQueryPlatform?.includes("linux"));
+    } else {
+      setIsWindowsCompatible(true);
+      setIsDarwinCompatible(true);
+      setIsLinuxCompatible(true);
+    }
 
     // @ts-expect-error
     // the string "linkClick" is not officially in the lib but we need it
@@ -142,6 +149,16 @@ const PolicyForm = ({
 
   const onChangePolicy = (sqlString: string) => {
     setLastEditedQueryBody(sqlString);
+  };
+
+  const onInputKeypress = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key.toLowerCase() === "enter" && !event.shiftKey) {
+      event.preventDefault();
+      event.currentTarget.blur();
+      setIsEditingName(false);
+      setIsEditingDescription(false);
+      setIsEditingResolution(false);
+    }
   };
 
   const promptSavePolicy = (forceNew = false) => (
@@ -224,41 +241,45 @@ const PolicyForm = ({
     );
   };
 
+  const policyNameClasses = classnames("policy-name-wrapper", {
+    [`${baseClass}--editing`]: isEditingName,
+  });
+
+  const policyDescriptionClasses = classnames("policy-description-wrapper", {
+    [`${baseClass}--editing`]: isEditingDescription,
+  });
+
+  const policyResolutionClasses = classnames("policy-resolution-wrapper", {
+    [`${baseClass}--editing`]: isEditingResolution,
+  });
+
   const renderName = () => {
     if (isEditMode) {
-      if (isEditingName) {
-        return (
-          <InputField
-            id="policy-name"
-            type="textarea"
-            name="policy-name"
-            error={errors.name}
-            value={lastEditedQueryName}
-            placeholder="Add name here"
-            inputClassName={`${baseClass}__policy-name`}
-            onChange={setLastEditedQueryName}
-            inputOptions={{
-              autoFocus: true,
-              onFocus: (e: React.FocusEvent<HTMLInputElement>) => {
-                // sets cursor to end of inputfield
-                const val = e.target.value;
-                e.target.value = "";
-                e.target.value = val;
-              },
-            }}
-          />
-        );
-      }
-
       return (
-        <h1
-          role="button"
-          className={`${baseClass}__policy-name`}
-          onClick={() => setIsEditingName(true)}
-        >
-          {lastEditedQueryName}
-          <img alt="Edit name" src={PencilIcon} />
-        </h1>
+        <>
+          <div className={policyNameClasses}>
+            <AutoSizeInputField
+              name="policy-name"
+              placeholder="Add name here"
+              value={lastEditedQueryName}
+              hasError={errors && errors.name}
+              inputClassName={`${baseClass}__policy-name`}
+              maxLength="160"
+              onChange={setLastEditedQueryName}
+              onFocus={() => setIsEditingName(true)}
+              onBlur={() => setIsEditingName(false)}
+              onKeyPress={onInputKeypress}
+              isFocused={isEditingName}
+            />
+            <a className="edit-link" onClick={() => setIsEditingName(true)}>
+              <img
+                className={`edit-icon ${isEditingName && "hide"}`}
+                alt="Edit name"
+                src={PencilIcon}
+              />
+            </a>
+          </div>
+        </>
       );
     }
 
@@ -267,38 +288,33 @@ const PolicyForm = ({
 
   const renderDescription = () => {
     if (isEditMode) {
-      if (isEditingDescription) {
-        return (
-          <InputField
-            id="policy-description"
-            type="textarea"
-            name="policy-description"
-            value={lastEditedQueryDescription}
-            placeholder="Add description here."
-            inputClassName={`${baseClass}__policy-description`}
-            onChange={setLastEditedQueryDescription}
-            inputOptions={{
-              autoFocus: true,
-              onFocus: (e: React.FocusEvent<HTMLInputElement>) => {
-                // sets cursor to end of inputfield
-                const val = e.target.value;
-                e.target.value = "";
-                e.target.value = val;
-              },
-            }}
-          />
-        );
-      }
-
       return (
-        <span
-          role="button"
-          className={`${baseClass}__policy-description`}
-          onClick={() => setIsEditingDescription(true)}
-        >
-          {lastEditedQueryDescription || "Add description here."}
-          <img alt="Edit description" src={PencilIcon} />
-        </span>
+        <>
+          <div className={policyDescriptionClasses}>
+            <AutoSizeInputField
+              name="policy-description"
+              placeholder="Add description here."
+              value={lastEditedQueryDescription}
+              inputClassName={`${baseClass}__policy-description`}
+              maxLength="250"
+              onChange={setLastEditedQueryDescription}
+              onFocus={() => setIsEditingDescription(true)}
+              onBlur={() => setIsEditingDescription(false)}
+              onKeyPress={onInputKeypress}
+              isFocused={isEditingDescription}
+            />
+            <a
+              className="edit-link"
+              onClick={() => setIsEditingDescription(true)}
+            >
+              <img
+                className={`edit-icon ${isEditingDescription && "hide"}`}
+                alt="Edit name"
+                src={PencilIcon}
+              />
+            </a>
+          </div>
+        </>
       );
     }
 
@@ -307,52 +323,34 @@ const PolicyForm = ({
 
   const renderResolution = () => {
     if (isEditMode) {
-      if (isEditingResolution) {
-        return (
-          <div className={`${baseClass}__policy-resolve`}>
-            {" "}
-            <b>Resolve:</b> <br />
-            <InputField
-              id="policy-resolution"
-              type="textarea"
-              name="policy-resolution"
-              value={lastEditedQueryResolution}
-              placeholder="Add resolution here."
-              inputClassName={`${baseClass}__policy-resolution`}
-              onChange={setLastEditedQueryResolution}
-              inputOptions={{
-                autoFocus: true,
-                onFocus: (e: React.FocusEvent<HTMLInputElement>) => {
-                  // sets cursor to end of inputfield
-                  const val = e.target.value;
-                  e.target.value = "";
-                  e.target.value = val;
-                },
-              }}
-            />
-          </div>
-        );
-      }
-
       return (
         <>
-          <div className="resolve-text-wrapper">
-            <b>Resolve:</b>{" "}
-            <span
-              role="button"
-              className={`${baseClass}__policy-resolution`}
+          <p className="resolve-title">
+            <strong>Resolve:</strong>
+          </p>
+          <div className={policyResolutionClasses}>
+            <AutoSizeInputField
+              name="policy-resolution"
+              placeholder="Add resolution here."
+              value={lastEditedQueryResolution}
+              inputClassName={`${baseClass}__policy-resolution`}
+              maxLength="500"
+              onChange={setLastEditedQueryResolution}
+              onFocus={() => setIsEditingResolution(true)}
+              onBlur={() => setIsEditingResolution(false)}
+              onKeyPress={onInputKeypress}
+              isFocused={isEditingResolution}
+            />
+            <a
+              className="edit-link"
               onClick={() => setIsEditingResolution(true)}
             >
-              <img alt="Edit resolution" src={PencilIcon} />
-            </span>
-            <br />
-            <span
-              role="button"
-              className={`${baseClass}__policy-resolution`}
-              onClick={() => setIsEditingResolution(true)}
-            >
-              {lastEditedQueryResolution || "Add resolution here."}
-            </span>
+              <img
+                className={`edit-icon ${isEditingResolution && "hide"}`}
+                alt="Edit name"
+                src={PencilIcon}
+              />
+            </a>
           </div>
         </>
       );
@@ -362,11 +360,11 @@ const PolicyForm = ({
   };
 
   const renderPlatformCompatibility = () => {
-    const displayPlatforms = displayOrder
-      .filter((platform) => platform.selected)
-      .map((platform) => {
-        return platform.displayName;
-      });
+    let chosenPlatforms = displayOrder.filter((platform) => platform.selected);
+    chosenPlatforms = chosenPlatforms.length ? chosenPlatforms : displayOrder;
+    const displayPlatforms = chosenPlatforms.map(
+      (platform) => platform.displayName
+    );
 
     return (
       <span className={`${baseClass}__platform-compatibility`}>
@@ -526,6 +524,7 @@ const PolicyForm = ({
           onCreatePolicy={onCreatePolicy}
           setIsNewPolicyModalOpen={setIsNewPolicyModalOpen}
           platform={lastEditedQueryPlatform}
+          backendValidators={backendValidators}
         />
       )}
     </>

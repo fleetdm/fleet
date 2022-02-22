@@ -1,0 +1,10 @@
+#!/bin/bash
+TOKEN=`curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600"`
+PLAYBOOK_PATH=`curl -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/tags/instance/ansible_playbook_path`
+PLAYBOOK_FILE=`curl -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/tags/instance/ansible_playbook_file`
+BRANCH=`curl -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/tags/instance/ansible_branch`
+PATH="${PATH}:/usr/local/bin"
+cd /home/ansible/ansible/"${PLAYBOOK_PATH}"
+git checkout "${BRANCH}"
+git pull
+ansible-playbook --connection=local -b "${PLAYBOOK_FILE}"

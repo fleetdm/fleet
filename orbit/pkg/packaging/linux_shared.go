@@ -45,8 +45,14 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 		updateOpt.RootKeys = opt.UpdateRoots
 	}
 
-	if err := InitializeUpdates(updateOpt); err != nil {
+	updatesData, err := InitializeUpdates(updateOpt)
+	if err != nil {
 		return "", fmt.Errorf("initialize updates: %w", err)
+	}
+	log.Debug().Stringer("data", updatesData).Msg("updates initialized")
+	if opt.Version == "" {
+		// We set the package version to orbit's latest version.
+		opt.Version = updatesData.OrbitVersion
 	}
 
 	// Write files
@@ -190,6 +196,7 @@ ORBIT_UPDATE_URL={{ .UpdateURL }}
 ORBIT_ORBIT_CHANNEL={{ .OrbitChannel }}
 ORBIT_OSQUERYD_CHANNEL={{ .OsquerydChannel }}
 {{ if .Insecure }}ORBIT_INSECURE=true{{ end }}
+{{ if .DisableUpdates }}ORBIT_DISABLE_UPDATES=true{{ end }}
 {{ if .FleetURL }}ORBIT_FLEET_URL={{.FleetURL}}{{ end }}
 {{ if .FleetCertificate }}ORBIT_FLEET_CERTIFICATE=/var/lib/orbit/fleet.pem{{ end }}
 {{ if .EnrollSecret }}ORBIT_ENROLL_SECRET={{.EnrollSecret}}{{ end }}
@@ -225,10 +232,11 @@ var postInstallTemplate = template.Must(template.New("postinstall").Parse(`
 set -e
 
 # If we have a systemd, daemon-reload away now
-if which systemctl; then
-  systemctl daemon-reload 2>/dev/null 2>&1
+if command -v systemctl >/dev/null 2>&1; then
+  systemctl daemon-reload >/dev/null 2>&1
 {{ if .StartService -}}
   systemctl restart orbit.service 2>&1
+  systemctl enable orbit.service 2>&1
 {{- end}}
 fi
 `))

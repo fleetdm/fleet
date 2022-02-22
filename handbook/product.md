@@ -4,6 +4,81 @@
 
 🧱📡 Fleet core roadmap board: https://github.com/orgs/fleetdm/projects/8
 
+## Job to be done
+
+Every product should have a single job that it strives to do. At Fleet we use the [Jobs to be Done
+(JTBD) framework](https://about.gitlab.com/handbook/engineering/ux/jobs-to-be-done/). Fleet's overarching job to be done is:
+
+> I need a way to see what laptops and servers I have, and what I need to do to keep them secure and
+> compliant."
+
+## Q1 2022 product objectives
+
+For Q1 2022, the 7 product objectives we are focused on are:
+
+#### Ultimate source of truth
+
+Fleet + osquery gives organizations the ability to see an almost [endless amount of
+data](https://osquery.io/schema/5.1.0/) for all their devices. We want to build on this reputation
+by always providing the freshest, most accurate, and most understandable data possible
+in the UI and API.
+
+##### Execution plan
+
+We will solve the "Undetermined" performance impact limitation for new scheduled queries as well as
+reflect unfinished policy runs in the UI/API. In addition, we will only advertise working
+osquery tables inside the product (looking at you `wifi_networks` table). Moreover, we will improve the Fleet server's
+performance and improve reliability and accuracy of the vulnerability detections.
+
+#### Programmable
+
+Fleet differentiate's itself from other security tools by providing a simple and easy to use API and
+CLI tool (fleetctl). This allows users and customers to leverage Fleet's superb ability to gather
+device data in ways that are unique to their organization.
+
+##### Execution plan
+
+We will add integrations for policy and vulnerability automations as well as get closer to parity
+with Rapid7's vulnerability features. In addition, we will roll up software and vulnerabilities
+across the entire organization and teams.
+
+#### Who's watching the watchers
+
+Many current Fleet users and customers hire Fleet to increase their confidence that other security
+tools are functioning properly. We will continue to expose valuable information about these tools to meet customer requirements.
+
+##### Execution plan
+
+We will invest in sending the health of other installed agents and verify device enrollment in Jamf,
+Kandji, and SimpleMDM. In addition we will roll up mobile device management (MDM) and Munki data
+across the entire organization and teams.
+
+#### Self-service, 2-way IT
+
+Fleet is poised to enable an organization's employees to resolve issues with their devices on their own. Not only does this save time for IT administrators and security practitioners but it also builds
+trust so that an organization can focus on achieving their business outcomes together.
+
+##### Execution plan
+
+We will focus on enabling end users to self serve issues with their devices using Fleet Desktop. In
+addition, Fleet Desktop will begin to provide end users with the ability to see what information is collected
+about their device (scope transparency).
+
+#### Easy to use
+
+We'd like to make maintaining secure laptops and servers as
+easy as possible. This quarter we'll focus on improving the time to value for new Fleet users and
+customers by providing instructions and tools to quickly bolster any organization's security program. 
+
+##### Execution plan
+
+We will focus on improving the standard query library so that it includes 80% of the most common
+policies that any organization needs. In addition, we will provide documentation that makes it dead
+simple to deploy on every major cloud platform (Reference architectures, AWS, GCP, Azure) as well as
+open source our own internal security program. Moreover, we will eliminate fear, uncertainty and
+doubt (FUD) related to the production readiness of Fleet's osquery installers.
+
+
 ## Product design process
 
 The product team is responsible for product design tasks. These include drafting
@@ -38,9 +113,7 @@ these changes to the engineering team.
   a link to the correct page in the Fleet EE (scratchpad) Figma. This page is where the design
   specifications live.
 
-* Add the ":product" and ":architect" labels to the issue and remove all other labels. This will add the issue to the [🛸 Product
-  board on ZenHub](https://app.zenhub.com/workspaces/--product-6192dd66ea2562000faea25c/board?repos=309820286). In the ZenHub board, move the issue into the "Architect" column in the product
-  board. This way, an architect on the engineering team knows that the issue is ready for engineering specification and later,
+* Add the issue to the 🏛 Architect column in [the 🛸 Product project](https://github.com/orgs/fleetdm/projects/27). This way, an architect on the engineering team knows that the issue is ready for engineering specification and later,
   engineering estimation.
 
 #### Priority drafting
@@ -98,7 +171,7 @@ The goal of quality assurance is to catch unexpected behavior prior to release:
 
 ### Collecting bugs
 
-All QA steps should be possible using `fleetctl preview`.  Please refer to [docs/03-Contributing/02-Testing.md](https://github.com/fleetdm/fleet/blob/main/docs/03-Contributing/02-Testing.md) for flows that cannot be completed using `fleetctl preview`.
+All QA steps should be possible using `fleetctl preview`.  Please refer to [docs/03-Contributing/02-Testing.md](https://fleetdm.com/docs/contributing/testing) for flows that cannot be completed using `fleetctl preview`.
 
 Please start the manual QA process by creating a blank GitHub issue. As you complete each of the
 flows, record a list of the bugs you encounter in this new issue. Each item in this list should
@@ -216,62 +289,6 @@ Create a new user by running the `fleetctl user create` command.
 
 Logout of your current user and log in with the newly created user.
 
-## Fleet docs
-
-### Docs style guide
-
-#### Headings
-
-Headings help readers scan content to easily find what they need. Organize page content using clear headings, specific to the topic they describe.
-
-Keep headings brief and organize them in a logical order:
-
-* H1: Page title
-* H2: Main headings
-* H3: Subheadings
-* H4: Sub-subheadings (headings nested under subheadings)
-
-Try to stay within 3 or 4 heading levels. Complicated documents may use more, but pages with a simpler structure are easier to read.
-
-### Adding a link to the Fleet docs
-You can link documentation pages to each other using relative paths. For example, in `docs/01-Using-Fleet/01-Fleet-UI.md`, you can link to `docs/01-Using-Fleet/09-Permissions.md` by writing `[permissions](./09-Permissions.md)`. This will be automatically transformed into the appropriate URL for `fleetdm.com/docs`.
-
-However, the `fleetdm.com/docs` compilation process does not account for relative links to directories **outside** of `/docs`.
-Therefore, when adding a link to Fleet docs, it is important to always use the absolute file path.
-
-When directly linking to a specific section within a page in the Fleet documentation, always format the spaces within a section name to use a hyphen `-` instead of an underscore `_`. For example, when linking to the `osquery_result_log_plugin` section of the configuration reference docs, use a relative link like the following: `./02-Configuration.md#osquery-result-log-plugin`.
-
-### Linking to a location on GitHub
-When adding a link to a location on GitHub that is outside of `/docs`, be sure to use the canonical form of the URL.
-
-To do this, navigate to the file's location on GitHub, and press "y" to transform the URL into its canonical form.
-
-### How to fix a broken link
-For instances in which a broken link is discovered on fleetdm.com, check if the link is a relative link to a directory outside of `/docs`. 
-
-An example of a link that lives outside of `/docs` is:
-
-```
-../../tools/app/prometheus
-```
-
-If the link lives outside `/docs`, head to the file's location on GitHub (in this case, [https://github.com/fleetdm/fleet/blob/main/tools/app/prometheus.yml)](https://github.com/fleetdm/fleet/blob/main/tools/app/prometheus.yml)), and press "y" to transform the URL into its canonical form ([https://github.com/fleetdm/fleet/blob/194ad5963b0d55bdf976aa93f3de6cabd590c97a/tools/app/prometheus.yml](https://github.com/fleetdm/fleet/blob/194ad5963b0d55bdf976aa93f3de6cabd590c97a/tools/app/prometheus.yml)). Replace the relative link with this link in the markdown file.
-
-> Note that the instructions above also apply to adding links in the Fleet handbook.
-
-### Adding an image to the Fleet docs
-Try to keep images in the docs at a minimum. Images can be a quick way to help a user understand a concept or direct them towards a specific UI element, but too many can make the documentation feel cluttered and more difficult to maintain.
-
-When adding images to the Fleet documentation, follow these guidelines:
-- Keep the images as simple as possible to maintain (screenshots can get out of date quickly as UIs change)
-- Exclude unnecessary images. An image should be used to help emphasize information in the docs, not replace it.
-- Minimize images per doc page. More than one or two per page can get overwhelming, for doc maintainers and users.
-- The goal is for the docs to look good on every form factor, from 320px window width all the way up to infinity and beyond. Full window screenshots and images with too much padding on the sides will be less than the width of the user's screen. When adding a large image, make sure that it is easily readable at all widths.
-
-Images can be added to the docs using the Markdown image link format, e.g. `![Schedule Query Sidebar](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/schedule-query-sidebar.png)`
-The images used in the docs live in `docs/images/`. Note that you must provide the url of the image in the Fleet Github repo for it to display properly on both Github and the Fleet website.
-
-> Note that the instructions above also apply to adding images in the Fleet handbook.
 
 ## UI design
 
@@ -317,7 +334,7 @@ with customers and users.
 
 ### Blog post
 
-The product team is responsible for providing the [growth team](./growth.md) with necessary information for writing
+The product team is responsible for providing the [growth team](./brand.md) with necessary information for writing
 the release blog post. This is accomplished by filing a release blog post issue and adding
 the issue to the growth board on GitHub.
 

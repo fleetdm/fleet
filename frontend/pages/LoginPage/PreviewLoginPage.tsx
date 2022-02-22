@@ -21,7 +21,7 @@ interface ILoginData {
   password: string;
 }
 
-const PreviewLoginPage = () => {
+const PreviewLoginPage = (): JSX.Element => {
   const dispatch = useDispatch();
   const { isPreviewMode, setAvailableTeams, setCurrentUser } = useContext(
     AppContext

@@ -55,58 +55,6 @@ func TestAPIRoutes(t *testing.T) {
 			uri:  "/api/v1/fleet/reset_password",
 		},
 		{
-			verb: "GET",
-			uri:  "/api/v1/fleet/me",
-		},
-		{
-			verb: "GET",
-			uri:  "/api/v1/fleet/config",
-		},
-		{
-			verb: "PATCH",
-			uri:  "/api/v1/fleet/config",
-		},
-		{
-			verb: "GET",
-			uri:  "/api/v1/fleet/invites",
-		},
-		{
-			verb: "POST",
-			uri:  "/api/v1/fleet/invites",
-		},
-		{
-			verb: "DELETE",
-			uri:  "/api/v1/fleet/invites/1",
-		},
-		{
-			verb: "GET",
-			uri:  "/api/v1/fleet/queries/1",
-		},
-		{
-			verb: "GET",
-			uri:  "/api/v1/fleet/queries",
-		},
-		{
-			verb: "POST",
-			uri:  "/api/v1/fleet/queries",
-		},
-		{
-			verb: "PATCH",
-			uri:  "/api/v1/fleet/queries/1",
-		},
-		{
-			verb: "DELETE",
-			uri:  "/api/v1/fleet/queries/1",
-		},
-		{
-			verb: "POST",
-			uri:  "/api/v1/fleet/queries/delete",
-		},
-		{
-			verb: "POST",
-			uri:  "/api/v1/fleet/queries/run",
-		},
-		{
 			verb: "POST",
 			uri:  "/api/v1/osquery/enroll",
 		},

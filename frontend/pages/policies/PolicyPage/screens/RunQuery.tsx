@@ -20,7 +20,6 @@ import QueryResults from "../components/QueryResults";
 interface IRunQueryProps {
   storedPolicy: IPolicy | undefined;
   selectedTargets: ITarget[];
-  policyIdForEdit: number | null;
   setSelectedTargets: (value: ITarget[]) => void;
   goToQueryEditor: () => void;
 }
@@ -28,7 +27,6 @@ interface IRunQueryProps {
 const RunQuery = ({
   storedPolicy,
   selectedTargets,
-  policyIdForEdit,
   setSelectedTargets,
   goToQueryEditor,
 }: IRunQueryProps): JSX.Element => {

@@ -12,7 +12,7 @@ import "./mode";
 import "./theme";
 
 export interface IFleetAceProps {
-  error?: string;
+  error?: string | null;
   fontSize?: number;
   label?: string;
   name?: string;
@@ -79,6 +79,10 @@ const FleetAce = ({
       [`${baseClass}__label--error`]: !!error,
       [`${baseClass}__label--with-action`]: !!labelActionComponent,
     });
+
+    if (!label) {
+      return <></>;
+    }
 
     return (
       <div className={labelClassName}>

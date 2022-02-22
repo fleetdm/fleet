@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"crypto/tls"
+	"database/sql/driver"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -47,9 +48,17 @@ import (
 	"github.com/go-kit/kit/log/level"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/kolide/kit/version"
+	"github.com/ngrok/sqlmw"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
+	"go.elastic.co/apm/module/apmhttp"
+	_ "go.elastic.co/apm/module/apmsql"
+	_ "go.elastic.co/apm/module/apmsql/mysql"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"google.golang.org/grpc"
 )
 
@@ -125,6 +134,21 @@ the way that the Fleet server works.
 				logger = kitlog.With(logger, "ts", kitlog.DefaultTimestampUTC)
 			}
 
+			// Init tracing
+			if config.Logging.TracingEnabled {
+				ctx := context.Background()
+				client := otlptracegrpc.NewClient()
+				otlpTraceExporter, err := otlptrace.New(ctx, client)
+				if err != nil {
+					initFatal(err, "Failed to initialize tracing")
+				}
+				batchSpanProcessor := sdktrace.NewBatchSpanProcessor(otlpTraceExporter)
+				tracerProvider := sdktrace.NewTracerProvider(
+					sdktrace.WithSpanProcessor(batchSpanProcessor),
+				)
+				otel.SetTracerProvider(tracerProvider)
+			}
+
 			allowedHostIdentifiers := map[string]bool{
 				"provided": true,
 				"instance": true,
@@ -154,11 +178,21 @@ the way that the Fleet server works.
 			var carveStore fleet.CarveStore
 			mailService := mail.NewService()
 
-			var replicaOpt mysql.DBOption
+			opts := []mysql.DBOption{mysql.Logger(logger)}
 			if config.MysqlReadReplica.Address != "" {
-				replicaOpt = mysql.Replica(&config.MysqlReadReplica)
+				opts = append(opts, mysql.Replica(&config.MysqlReadReplica))
 			}
-			ds, err = mysql.New(config.Mysql, clock.C, mysql.Logger(logger), replicaOpt)
+			if dev && os.Getenv("FLEET_ENABLE_DEV_SQL_INTERCEPTOR") != "" {
+				opts = append(opts, mysql.WithInterceptor(&devSQLInterceptor{
+					logger: kitlog.With(logger, "component", "sql-interceptor"),
+				}))
+			}
+
+			if config.Logging.TracingEnabled {
+				opts = append(opts, mysql.TracingEnabled(&config.Logging))
+			}
+
+			ds, err = mysql.New(config.Mysql, clock.C, opts...)
 			if err != nil {
 				initFatal(err, "initializing datastore")
 			}
@@ -459,9 +493,18 @@ the way that the Fleet server works.
 			}
 
 			httpSrvCtx := ctxerr.NewContext(ctx, eh)
+
+			// Create the handler based on whether tracing should be there
+			var handler http.Handler
+			if config.Logging.TracingEnabled && config.Logging.TracingType == "elasticapm" {
+				handler = launcher.Handler(apmhttp.Wrap(rootMux))
+			} else {
+				handler = launcher.Handler(rootMux)
+			}
+
 			srv := &http.Server{
 				Addr:              config.Server.Address,
-				Handler:           launcher.Handler(rootMux),
+				Handler:           handler,
 				ReadTimeout:       25 * time.Second,
 				WriteTimeout:      writeTimeout,
 				ReadHeaderTimeout: 5 * time.Second,
@@ -557,7 +600,7 @@ func runCrons(ds fleet.Datastore, task *async.Task, logger kitlog.Logger, config
 	go cronCleanups(ctx, ds, kitlog.With(logger, "cron", "cleanups"), ourIdentifier, license)
 	go cronVulnerabilities(
 		ctx, ds, kitlog.With(logger, "cron", "vulnerabilities"), ourIdentifier, config)
-	go cronWebhooks(ctx, ds, kitlog.With(logger, "cron", "webhooks"), ourIdentifier, failingPoliciesSet)
+	go cronWebhooks(ctx, ds, kitlog.With(logger, "cron", "webhooks"), ourIdentifier, failingPoliciesSet, 1*time.Hour)
 
 	return cancelBackground
 }
@@ -608,6 +651,11 @@ func cronCleanups(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 			level.Error(logger).Log("err", "cleaning expired hosts", "details", err)
 			sentry.CaptureException(err)
 		}
+		err = ds.GenerateAggregatedMunkiAndMDM(ctx)
+		if err != nil {
+			level.Error(logger).Log("err", "aggregating munki and mdm data", "details", err)
+			sentry.CaptureException(err)
+		}
 
 		err = trySendStatistics(ctx, ds, fleet.StatisticsFrequency, "https://fleetdm.com/api/v1/webhooks/receive-usage-analytics", license)
 		if err != nil {
@@ -635,10 +683,12 @@ func cronVulnerabilities(
 		level.Error(logger).Log("config", "couldn't read app config", "err", err)
 		return
 	}
+
+	vulnDisabled := false
 	if appConfig.VulnerabilitySettings.DatabasesPath == "" &&
 		config.Vulnerabilities.DatabasesPath == "" {
 		level.Info(logger).Log("vulnerability scanning", "not configured")
-		return
+		vulnDisabled = true
 	}
 	if !appConfig.HostSettings.EnableSoftwareInventory {
 		level.Info(logger).Log("software inventory", "not configured")
@@ -656,15 +706,19 @@ func cronVulnerabilities(
 			"result", vulnPath)
 	}
 
-	level.Info(logger).Log("databases-path", vulnPath)
+	if !vulnDisabled {
+		level.Info(logger).Log("databases-path", vulnPath)
+	}
 	level.Info(logger).Log("periodicity", config.Vulnerabilities.Periodicity)
 
-	if config.Vulnerabilities.CurrentInstanceChecks == "auto" {
-		level.Debug(logger).Log("current instance checks", "auto", "trying to create databases-path", vulnPath)
-		err := os.MkdirAll(vulnPath, 0o755)
-		if err != nil {
-			level.Error(logger).Log("databases-path", "creation failed, returning", "err", err)
-			return
+	if !vulnDisabled {
+		if config.Vulnerabilities.CurrentInstanceChecks == "auto" {
+			level.Debug(logger).Log("current instance checks", "auto", "trying to create databases-path", vulnPath)
+			err := os.MkdirAll(vulnPath, 0o755)
+			if err != nil {
+				level.Error(logger).Log("databases-path", "creation failed, returning", "err", err)
+				return
+			}
 		}
 	}
 
@@ -686,25 +740,63 @@ func cronVulnerabilities(
 			}
 		}
 
-		err := vulnerabilities.TranslateSoftwareToCPE(ctx, ds, vulnPath, logger, config)
-		if err != nil {
-			level.Error(logger).Log("msg", "analyzing vulnerable software: Software->CPE", "err", err)
-			sentry.CaptureException(err)
-			continue
+		if !vulnDisabled {
+			recentVulns := checkVulnerabilities(ctx, ds, logger, vulnPath, config, appConfig.WebhookSettings.VulnerabilitiesWebhook)
+			if len(recentVulns) > 0 {
+				if err := webhooks.TriggerVulnerabilitiesWebhook(ctx, ds, kitlog.With(logger, "webhook", "vulnerabilities"),
+					recentVulns, appConfig, time.Now()); err != nil {
+
+					level.Error(logger).Log("err", "triggering vulnerabilities webhook", "details", err)
+					sentry.CaptureException(err)
+				}
+			}
 		}
 
-		err = vulnerabilities.TranslateCPEToCVE(ctx, ds, vulnPath, logger, config)
-		if err != nil {
-			level.Error(logger).Log("msg", "analyzing vulnerable software: CPE->CVE", "err", err)
+		if err := ds.CalculateHostsPerSoftware(ctx, time.Now()); err != nil {
+			level.Error(logger).Log("msg", "calculating hosts count per software", "err", err)
 			sentry.CaptureException(err)
-			continue
+		}
+
+		// It's important vulnerabilities.PostProcess runs after ds.CalculateHostsPerSoftware
+		// because it cleans up any software that's not installed on the fleet (e.g. hosts removal,
+		// or software being uninstalled on hosts).
+		if !vulnDisabled {
+			if err := vulnerabilities.PostProcess(ctx, ds, vulnPath, logger, config); err != nil {
+				level.Error(logger).Log("msg", "post processing CVEs", "err", err)
+				sentry.CaptureException(err)
+			}
 		}
 
 		level.Debug(logger).Log("loop", "done")
 	}
 }
 
-func cronWebhooks(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, identifier string, failingPoliciesSet fleet.FailingPolicySet) {
+func checkVulnerabilities(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
+	vulnPath string, config config.FleetConfig, vulnWebhookCfg fleet.VulnerabilitiesWebhookSettings) map[string][]string {
+	err := vulnerabilities.TranslateSoftwareToCPE(ctx, ds, vulnPath, logger, config)
+	if err != nil {
+		level.Error(logger).Log("msg", "analyzing vulnerable software: Software->CPE", "err", err)
+		sentry.CaptureException(err)
+		return nil
+	}
+
+	recentVulns, err := vulnerabilities.TranslateCPEToCVE(ctx, ds, vulnPath, logger, config, vulnWebhookCfg.Enable)
+	if err != nil {
+		level.Error(logger).Log("msg", "analyzing vulnerable software: CPE->CVE", "err", err)
+		sentry.CaptureException(err)
+		return nil
+	}
+	return recentVulns
+}
+
+func cronWebhooks(
+	ctx context.Context,
+	ds fleet.Datastore,
+	logger kitlog.Logger,
+	identifier string,
+	failingPoliciesSet fleet.FailingPolicySet,
+	intervalReload time.Duration,
+) {
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
 		level.Error(logger).Log("config", "couldn't read app config", "err", err)
@@ -714,6 +806,7 @@ func cronWebhooks(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 	interval := appConfig.WebhookSettings.Interval.ValueOr(24 * time.Hour)
 	level.Debug(logger).Log("interval", interval.String())
 	ticker := time.NewTicker(interval)
+	start := time.Now()
 	for {
 		level.Debug(logger).Log("waiting", "on ticker")
 		select {
@@ -722,21 +815,32 @@ func cronWebhooks(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 		case <-ctx.Done():
 			level.Debug(logger).Log("exit", "done with cron.")
 			return
+		case <-time.After(intervalReload):
+			// Reload interval and check if it has been reduced.
+			appConfig, err := ds.AppConfig(ctx)
+			if err != nil {
+				level.Error(logger).Log("config", "couldn't read app config", "err", err)
+				continue
+			}
+			if currInterval := appConfig.WebhookSettings.Interval.ValueOr(24 * time.Hour); time.Since(start) < currInterval {
+				continue
+			}
 		}
 
 		// Reread app config to be able to read latest data used by the webhook
-		// and update any intervals for next run.
+		// and update the ticker for the next run.
 		appConfig, err = ds.AppConfig(ctx)
 		if err != nil {
 			level.Error(logger).Log("config", "couldn't read app config", "err", err)
 			sentry.CaptureException(err)
 		} else {
-			interval = appConfig.WebhookSettings.Interval.ValueOr(24 * time.Hour)
-			ticker.Reset(interval)
+			ticker.Reset(appConfig.WebhookSettings.Interval.ValueOr(24 * time.Hour))
+			start = time.Now()
 		}
 
-		maybeTriggerHostStatus(ctx, ds, logger, identifier, appConfig, interval)
-		maybeTriggerGlobalFailingPoliciesWebhook(ctx, ds, logger, identifier, appConfig, interval, failingPoliciesSet)
+		// We set the db lock durations to match the intervalReload.
+		maybeTriggerHostStatus(ctx, ds, logger, identifier, appConfig, intervalReload)
+		maybeTriggerGlobalFailingPoliciesWebhook(ctx, ds, logger, identifier, appConfig, intervalReload, failingPoliciesSet)
 
 		level.Debug(logger).Log("loop", "done")
 	}
@@ -748,9 +852,9 @@ func maybeTriggerHostStatus(
 	logger kitlog.Logger,
 	identifier string,
 	appConfig *fleet.AppConfig,
-	interval time.Duration,
+	lockDuration time.Duration,
 ) {
-	if locked, err := ds.Lock(ctx, lockKeyWebhooksHostStatus, identifier, interval); err != nil || !locked {
+	if locked, err := ds.Lock(ctx, lockKeyWebhooksHostStatus, identifier, lockDuration); err != nil || !locked {
 		level.Debug(logger).Log("leader-host-status", "Not the leader. Skipping...")
 		return
 	}
@@ -769,10 +873,10 @@ func maybeTriggerGlobalFailingPoliciesWebhook(
 	logger kitlog.Logger,
 	identifier string,
 	appConfig *fleet.AppConfig,
-	interval time.Duration,
+	lockDuration time.Duration,
 	failingPoliciesSet fleet.FailingPolicySet,
 ) {
-	if locked, err := ds.Lock(ctx, lockKeyWebhooksFailingPolicies, identifier, interval); err != nil || !locked {
+	if locked, err := ds.Lock(ctx, lockKeyWebhooksFailingPolicies, identifier, lockDuration); err != nil || !locked {
 		level.Debug(logger).Log("leader-failing-policies", "Not the leader. Skipping...")
 		return
 	}
@@ -838,4 +942,52 @@ func getTLSConfig(profile string) *tls.Config {
 	}
 
 	return &cfg
+}
+
+// devSQLInterceptor is a sql interceptor to be used for development purposes.
+type devSQLInterceptor struct {
+	sqlmw.NullInterceptor
+
+	logger kitlog.Logger
+}
+
+func (in *devSQLInterceptor) StmtQueryContext(ctx context.Context, stmt driver.StmtQueryContext, query string, args []driver.NamedValue) (driver.Rows, error) {
+	start := time.Now()
+	rows, err := stmt.QueryContext(ctx, args)
+	in.logQuery(start, query, args, err)
+	return rows, err
+}
+
+func (in *devSQLInterceptor) StmtExecContext(ctx context.Context, stmt driver.StmtExecContext, query string, args []driver.NamedValue) (driver.Result, error) {
+	start := time.Now()
+	result, err := stmt.ExecContext(ctx, args)
+	in.logQuery(start, query, args, err)
+	return result, err
+}
+
+var spaceRegex = regexp.MustCompile(`\s+`)
+
+func (in *devSQLInterceptor) logQuery(start time.Time, query string, args []driver.NamedValue, err error) {
+	logLevel := level.Debug
+	if err != nil {
+		logLevel = level.Error
+	}
+	query = strings.TrimSpace(spaceRegex.ReplaceAllString(query, " "))
+	logLevel(in.logger).Log("duration", time.Since(start), "query", query, "args", argsToString(args), "err", err)
+}
+
+func argsToString(args []driver.NamedValue) string {
+	var allArgs strings.Builder
+	allArgs.WriteString("{")
+	for i, arg := range args {
+		if i > 0 {
+			allArgs.WriteString(", ")
+		}
+		if arg.Name != "" {
+			allArgs.WriteString(fmt.Sprintf("%s=", arg.Name))
+		}
+		allArgs.WriteString(fmt.Sprintf("%v", arg.Value))
+	}
+	allArgs.WriteString("}")
+	return allArgs.String()
 }

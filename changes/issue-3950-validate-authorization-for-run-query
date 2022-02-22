@@ -1,0 +1,1 @@
+* Validate at the authorization check that user is allowed to target the specified team(s) when running a query.

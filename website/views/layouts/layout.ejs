@@ -28,16 +28,15 @@
     if (sails.config.environment === 'production') { %>
     <% /* Google Analytics, Google Tag Manager, Snitcher etc. */ %>
     <!-- Global site tag (gtag.js) - Google Analytics -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-JC3DRNY1GV"></script>
-    <script>window.dataLayer = window.dataLayer || []; function gtag(){dataLayer.push(arguments);} gtag('js', new Date()); gtag('config', 'G-JC3DRNY1GV');</script>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=UA-182153798-1"></script>
+    <script>window.dataLayer = window.dataLayer || []; function gtag(){dataLayer.push(arguments);} gtag('js', new Date()); gtag('config', 'UA-182153798-1');</script>
     <%/* Snitcher analytics code */%>
     <script>
-        !function(s,n,i,t,c,h){s.SnitchObject=i;s[i]||(s[i]=function(){
-        (s[i].q=s[i].q||[]).push(arguments)});s[i].l=+new Date;c=n.createElement(t);
-        h=n.getElementsByTagName(t)[0];c.src='//snid.snitcher.com/8416878.js';
-        h.parentNode.insertBefore(c,h)}(window,document,'snid','script');
-
-        snid('verify', '8416878');
+      !function(i,s,o,g,r,a,m){i.Ip2cObject=o;i[o]||(i[o]=function(){
+      (i[o].q=i[o].q||[]).push(arguments)});i[o].l=+new Date;r=s.createElement(g);
+      a=s.getElementsByTagName(g)[0];r.src='//reveal.ip2c.net/8416878.js';
+      a.parentNode.insertBefore(r,a)}(window,document,'ip2c','script');
+      ip2c('verify', '8416878');
     </script>
     <% }
     /* Otherwise, any such scripts are excluded, and we instead inject a
@@ -95,37 +94,39 @@
               </button>
             </div>
             <div class="pt-2">
-              <a href="/get-started" class="menu-link d-flex align-items-center px-3 py-2 mb-4" style="text-decoration: none; font-weight: 700;">Get started</a>
+              <a href="/platform" class="menu-link d-flex align-items-center px-3 py-2 mb-4" style="text-decoration: none; font-weight: 700;">Platform</a>
               <a href="/docs" class="menu-link d-flex align-items-center px-3 py-2 mb-4 text-decoration-none" style="text-decoration: none; font-weight: 700;">Docs</a>
               <a href="/queries" class="menu-link d-flex align-items-center px-3 py-2 mb-4 text-decoration-none" style="text-decoration: none; font-weight: 700;">Queries</a>
               <a href="/pricing" class="menu-link d-flex align-items-center px-3 py-2 mb-4 text-decoration-none" style="text-decoration: none; font-weight: 700;">Pricing</a>
-              <a href="/blog" class="menu-link d-flex align-items-center px-3 py-2 mb-4 text-decoration-none" style="text-decoration: none; font-weight: 700;">Blog</a>
+              <a style="padding: 4px 16px; line-height: 24px; width: 100px" class="btn btn-sm btn-primary align-items-center d-flex " href="/get-started">Try it out</a>
+              <!-- <a href="/blog" class="menu-link d-flex align-items-center px-3 py-2 mb-4 text-decoration-none" style="text-decoration: none; font-weight: 700;">Blog</a> -->
               <!-- <a href="/company/contact" class="menu-link d-flex align-items-center px-3 py-2 mb-4 text-decoration-none" style=" text-decoration: none; color: #192147; font-weight: 700;">Contact</a> -->
-              <a target="_blank" href="https://github.com/fleetdm/fleet" class="menu-link d-flex align-items-center px-3 py-2" style=" text-decoration: none; font-weight: 700;">
+              <!-- <a target="_blank" href="https://github.com/fleetdm/fleet" class="menu-link d-flex align-items-center px-3 py-2" style=" text-decoration: none; font-weight: 700;">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path fill-rule="evenodd" clip-rule="evenodd" d="M11.9633 0.5C5.3578 0.5 0 5.8578 0 12.4633C0 17.7477 3.44954 22.2248 8.14679 23.8394C8.73394 23.9128 8.95413 23.5459 8.95413 23.2523C8.95413 22.9587 8.95413 22.2248 8.95413 21.1972C5.65138 21.9312 4.91743 19.5826 4.91743 19.5826C4.40367 18.1881 3.59633 17.8211 3.59633 17.8211C2.49541 17.0872 3.66972 17.0872 3.66972 17.0872C4.84404 17.1606 5.50459 18.3349 5.50459 18.3349C6.6055 20.1697 8.29358 19.656 8.95413 19.3624C9.02752 18.555 9.3945 18.0413 9.68807 17.7477C7.04587 17.4541 4.25688 16.4266 4.25688 11.8028C4.25688 10.4817 4.69725 9.45413 5.50459 8.57339C5.43119 8.35321 4.99083 7.1055 5.65138 5.49083C5.65138 5.49083 6.6789 5.19725 8.95413 6.73853C9.90826 6.44495 10.9358 6.37156 11.9633 6.37156C12.9908 6.37156 14.0183 6.51835 14.9725 6.73853C17.2477 5.19725 18.2752 5.49083 18.2752 5.49083C18.9358 7.1055 18.4954 8.35321 18.422 8.64679C19.156 9.45413 19.6697 10.555 19.6697 11.8761C19.6697 16.5 16.8807 17.4541 14.2385 17.7477C14.6789 18.1147 15.0459 18.8486 15.0459 19.9495C15.0459 21.5642 15.0459 22.8119 15.0459 23.2523C15.0459 23.5459 15.2661 23.9128 15.8532 23.8394C20.6239 22.2248 24 17.7477 24 12.4633C23.9266 5.8578 18.5688 0.5 11.9633 0.5Z" fill="#192147"/>
                 </svg>
                 <span class="ml-2">GitHub</span>
-              </a>
+              </a> -->
             </div>
           </div>
           <div class="d-none d-lg-flex">
-            <a href="/get-started" class="header-link d-flex align-items-center px-3 py-2 mr-4 text-decoration-none <%= typeof currentPage !== 'undefined' && currentPage === 'get started' ? 'current-page' : '' %>" style="text-decoration: none; line-height: 23px;">Get started</a>
+            <a href="/platform" class="header-link d-flex align-items-center px-3 py-2 mr-4 text-decoration-none <%= typeof currentPage !== 'undefined' && currentPage === 'platform' ? 'current-page' : '' %>" style="text-decoration: none; line-height: 23px;">Platform</a>
             <a href="/docs" class="header-link d-flex align-items-center px-3 py-2 mr-4 text-decoration-none <%= typeof currentPage !== 'undefined' && currentPage === 'docs' ? 'current-page' : '' %>" style=" text-decoration: none; line-height: 23px;">Docs</a>
             <a href="/queries" class="header-link d-flex align-items-center px-3 py-2 mr-4 text-decoration-none <%= typeof currentPage !== 'undefined' && currentPage === 'queries' ? 'current-page' : '' %>" style=" text-decoration: none; line-height: 23px;">Queries</a>
             <a href="/pricing" class="header-link d-flex align-items-center px-3 py-2 mr-4 text-decoration-none <%= typeof currentPage !== 'undefined' && currentPage === 'pricing' ?  'current-page' : '' %>" style=" text-decoration: none; line-height: 23px;">Pricing</a>
-            <a target="_blank" href="/blog" class="header-link d-flex align-items-center px-3 py-2 mr-4 text-decoration-none" style=" text-decoration: none; line-height: 23px;">Blog</a>
+            <!-- <a target="_blank" href="/blog" class="header-link d-flex align-items-center px-3 py-2 mr-4 text-decoration-none" style=" text-decoration: none; line-height: 23px;">Blog</a> -->
             <!-- <a href="/company/contact" class="header-link d-flex align-items-center px-3 py-2 mr-4 text-decoration-none" style=" text-decoration: none; line-height: 23px;">Contact</a> -->
-            <a target="_blank" href="https://github.com/fleetdm/fleet" class="header-link d-flex align-items-center px-3 py-2" style=" text-decoration: none;line-height: 23px;">
+            <!-- <a target="_blank" href="https://github.com/fleetdm/fleet" class="header-link d-flex align-items-center px-3 py-2" style=" text-decoration: none;line-height: 23px;">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path fill-rule="evenodd" clip-rule="evenodd" d="M11.9633 0.5C5.3578 0.5 0 5.8578 0 12.4633C0 17.7477 3.44954 22.2248 8.14679 23.8394C8.73394 23.9128 8.95413 23.5459 8.95413 23.2523C8.95413 22.9587 8.95413 22.2248 8.95413 21.1972C5.65138 21.9312 4.91743 19.5826 4.91743 19.5826C4.40367 18.1881 3.59633 17.8211 3.59633 17.8211C2.49541 17.0872 3.66972 17.0872 3.66972 17.0872C4.84404 17.1606 5.50459 18.3349 5.50459 18.3349C6.6055 20.1697 8.29358 19.656 8.95413 19.3624C9.02752 18.555 9.3945 18.0413 9.68807 17.7477C7.04587 17.4541 4.25688 16.4266 4.25688 11.8028C4.25688 10.4817 4.69725 9.45413 5.50459 8.57339C5.43119 8.35321 4.99083 7.1055 5.65138 5.49083C5.65138 5.49083 6.6789 5.19725 8.95413 6.73853C9.90826 6.44495 10.9358 6.37156 11.9633 6.37156C12.9908 6.37156 14.0183 6.51835 14.9725 6.73853C17.2477 5.19725 18.2752 5.49083 18.2752 5.49083C18.9358 7.1055 18.4954 8.35321 18.422 8.64679C19.156 9.45413 19.6697 10.555 19.6697 11.8761C19.6697 16.5 16.8807 17.4541 14.2385 17.7477C14.6789 18.1147 15.0459 18.8486 15.0459 19.9495C15.0459 21.5642 15.0459 22.8119 15.0459 23.2523C15.0459 23.5459 15.2661 23.9128 15.8532 23.8394C20.6239 22.2248 24 17.7477 24 12.4633C23.9266 5.8578 18.5688 0.5 11.9633 0.5Z" fill="#192147"/>
               </svg>
               <span style="line-height: 24px;" class="ml-2 mr-4">GitHub</span>
-            </a>
-            <span class="header-link d-flex align-items-center text-decoration-none">
+            </a> -->
+            <span class="header-link d-flex align-items-center mr-4 text-decoration-none">
               <iframe src="//ghbtns.com/github-btn.html?user=fleetdm&amp;repo=fleet&amp;type=watch&amp;count=true"
               allowtransparency="true" frameborder="0" scrolling="0" width="100" height="20"></iframe>
             </span>
+            <a style="padding: 4px 16px; line-height: 24px;" class="btn btn-sm btn-primary align-items-center d-flex" href="/get-started">Try it out</a>
           </div>
         </div>
       </div>
@@ -236,6 +237,7 @@
     <script src="/dependencies/cloud.js"></script>
     <script src="/dependencies/docsearch.min.js"></script>
     <script src="/dependencies/highlight.min.js"></script>
+    <script src="/dependencies/mermaid.min.js"></script>
     <script src="/dependencies/moment.js"></script>
     <script src="/dependencies/parasails.js"></script>
     <script src="/js/cloud.setup.js"></script>
@@ -246,6 +248,7 @@
     <script src="/js/components/modal.component.js"></script>
     <script src="/js/components/stripe-card-element.component.js"></script>
     <script src="/js/utilities/open-stripe-checkout.js"></script>
+    <script src="/js/mermaid.min.js"></script>
     <script src="/js/pages/account/account-overview.page.js"></script>
     <script src="/js/pages/account/edit-password.page.js"></script>
     <script src="/js/pages/account/edit-profile.page.js"></script>
@@ -264,6 +267,7 @@
     <script src="/js/pages/homepage.page.js"></script>
     <script src="/js/pages/legal/privacy.page.js"></script>
     <script src="/js/pages/legal/terms.page.js"></script>
+    <script src="/js/pages/platform.page.js"></script>
     <script src="/js/pages/press-kit.page.js"></script>
     <script src="/js/pages/pricing.page.js"></script>
     <script src="/js/pages/query-detail.page.js"></script>

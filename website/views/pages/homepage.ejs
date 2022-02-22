@@ -12,9 +12,32 @@
             <h6 style="max-width: 580px;" class="mx-auto mt-3 mb-0">
               Quickly deploy <a target="_blank" style="color: white; text-decoration-line: underline;" href="https://osquery.io/">osquery</a> and scale your fleet to 100,000+ devices on top of a stable core technology.
             </h6>
-            <div style="max-width: 400px;" class="mt-5 mx-auto mb-0 d-sm-flex">
-              <a style="max-width: 280px" class="d-sm-flex align-items-center justify-content-center btn btn-block btn-primary px-3 px-sm-5 py-3 mx-auto" href="/get-started">Try it out</a>
-          </div>
+            <div purpose="demo-cta-container" class="mx-auto pb-5 pb-sm-2" style="padding-top: 32px;">
+              <ajax-form action="deliverDemoSignup" :form-errors.sync="formErrors" :form-data="formData" :form-rules="formRules" :syncing.sync="syncing" :cloud-error.sync="cloudError" @submitted="submittedForm()" v-if="!cloudSuccess">
+                <div purpose="demo-cta" class="flex-row row justify-content-between align-items-center mx-auto">
+                  <div purpose="demo-cta-text" class="pl-0 pr-3 text-left">
+                    <span style="font-size: 32px; vertical-align: middle;">💡</span>
+                    <p class="d-inline-block">
+                      <strong>Live Q&A session</strong>
+                      <br class="d-lg-none d-block">
+                      Feb 22nd, 2022 2:30pm (CST)
+                    </p>
+                  </div>
+                  <div purpose="demo-cta-form" class="flex-grow-1 col-12 col-sm-auto px-0 pt-sm-0">
+                    <div class="form-control d-inline-flex" :class="[formErrors.emailAddress ? 'is-invalid' : '']">
+                      <input class="float-left pr-1" v-model.trim="formData.emailAddress" placeholder="Enter your email">
+                      <ajax-button purpose="register-button" spinner="true" :syncing="syncing" type="submit" class="btn btn-sm btn-info float-right">Register</ajax-button>
+                    </div>
+                    <div purpose="demo-cta-error-message" v-if="formErrors.emailAddress">
+                      Please enter a valid email address e.g., example@email.com
+                    </div>
+                  </div>
+                </div>
+              </ajax-form>
+              <div purpose="demo-cta-success-message" class="mx-auto" v-else>
+                <p class="text-center">Thank you for registering.<br class="d-sm-none d-block"> Please check your inbox for event details.</p>
+              </div>
+            </div>
             <img alt="Fleet ctl terminal and Fleet UI" src="/images/fleetctl@2x.png" style="max-width: 810px; height: auto;" class="w-100 py-3 py-sm-5 mx-auto" />
           </div>
         </div>

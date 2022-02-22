@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useContext } from "react";
 import { useDispatch } from "react-redux";
 import { useQuery } from "react-query";
+import { InjectedRouter } from "react-router/lib/Router";
 
 import { IPack } from "interfaces/pack";
 import { IError } from "interfaces/errors";
@@ -22,7 +23,7 @@ import RemovePackModal from "./components/RemovePackModal";
 const baseClass = "manage-packs-page";
 
 interface IManagePacksPageProps {
-  router: any;
+  router: InjectedRouter; // v3
 }
 
 interface IPacksResponse {
@@ -30,9 +31,9 @@ interface IPacksResponse {
 }
 
 const renderTable = (
-  onRemovePackClick: React.MouseEventHandler<HTMLButtonElement>,
-  onEnablePackClick: React.MouseEventHandler<HTMLButtonElement>,
-  onDisablePackClick: React.MouseEventHandler<HTMLButtonElement>,
+  onRemovePackClick: (selectedTablePackIds: number[]) => void,
+  onEnablePackClick: (selectedTablePackIds: number[]) => void,
+  onDisablePackClick: (selectedTablePackIds: number[]) => void,
   onCreatePackClick: React.MouseEventHandler<HTMLButtonElement>,
   packs: IPack[] | undefined,
   packsError: IError | null,
@@ -71,7 +72,7 @@ const ManagePacksPage = ({ router }: IManagePacksPageProps): JSX.Element => {
   const {
     data: packs,
     error: packsError,
-    isLoading: isLoadingPacks,
+    isFetching: isLoadingPacks,
     refetch: refetchPacks,
   } = useQuery<IPacksResponse, IError, IPack[]>(
     "packs",
@@ -88,7 +89,7 @@ const ManagePacksPage = ({ router }: IManagePacksPageProps): JSX.Element => {
     setShowRemovePackModal(!showRemovePackModal);
   }, [showRemovePackModal, setShowRemovePackModal]);
 
-  const onRemovePackClick = (selectedTablePackIds: any) => {
+  const onRemovePackClick = (selectedTablePackIds: number[]) => {
     toggleRemovePackModal();
     setSelectedPackIds(selectedTablePackIds);
   };
@@ -97,8 +98,7 @@ const ManagePacksPage = ({ router }: IManagePacksPageProps): JSX.Element => {
     const packOrPacks = selectedPackIds.length === 1 ? "pack" : "packs";
 
     const promises = selectedPackIds.map((id: number) => {
-      packsAPI.destroy(id);
-      return null;
+      return packsAPI.destroy(id);
     });
 
     return Promise.all(promises)
@@ -122,13 +122,12 @@ const ManagePacksPage = ({ router }: IManagePacksPageProps): JSX.Element => {
   }, [dispatch, refetchPacks, selectedPackIds, toggleRemovePackModal]);
 
   const onEnableDisablePackSubmit = useCallback(
-    (selectedTablePackIds: any, disablePack: boolean) => {
+    (selectedTablePackIds: number[], disablePack: boolean) => {
       const packOrPacks = selectedPackIds.length === 1 ? "pack" : "packs";
       const enableOrDisable = disablePack ? "disabled" : "enabled";
 
       const promises = selectedTablePackIds.map((id: number) => {
-        packsAPI.update(id, { disabled: disablePack });
-        return null;
+        return packsAPI.update(id, { disabled: disablePack });
       });
 
       return Promise.all(promises)
@@ -155,12 +154,12 @@ const ManagePacksPage = ({ router }: IManagePacksPageProps): JSX.Element => {
     [dispatch, refetchPacks, selectedPackIds]
   );
 
-  const onEnablePackClick = (selectedTablePackIds: any) => {
+  const onEnablePackClick = (selectedTablePackIds: number[]) => {
     setSelectedPackIds(selectedTablePackIds);
     onEnableDisablePackSubmit(selectedTablePackIds, false);
   };
 
-  const onDisablePackClick = (selectedTablePackIds: any) => {
+  const onDisablePackClick = (selectedTablePackIds: number[]) => {
     setSelectedPackIds(selectedTablePackIds);
     onEnableDisablePackSubmit(selectedTablePackIds, true);
   };

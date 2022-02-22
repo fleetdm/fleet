@@ -35,10 +35,12 @@ The `fleetctl package` command provides suppport for signing and notarizing macO
 Check out the example below:
 
 ```sh
-  fleetctl package --type pkg --sign-identity=[PATH TO SIGN IDENTITY] --notarize --fleet-url=[YOUR FLEET URL] --enroll-secret=[YOUR ENROLLMENT SECRET]
+  AC_USERNAME=appleid@example.com AC_PASSWORD=app-specific-password fleetctl package --type pkg --sign-identity=[PATH TO SIGN IDENTITY] --notarize --fleet-url=[YOUR FLEET URL] --enroll-secret=[YOUR ENROLLMENT SECRET]
 ```
 
 The above command should be run on a macOS device as notarizing and signing of macOS osquery installers can only be done on macOS devices.
+
+Also remember to replace both `AC_USERNAME` and `AC_PASSWORD` environment variables with your Apple ID and a valid [app-specific](https://support.apple.com/en-ca/HT204397) password respectively.
 
 
 ### Adding multiple hosts
@@ -65,7 +67,7 @@ To generate an osquery installer for a team:
 
 2. Then, navigate to **Hosts** and select your team.
 
-3. Next, select "Generate installer" and copy the `fleetctl package` command for the platform (macOS, Windows, Linux) of the hosts you'd like to add to a team in Fleet.
+3. Next, select "Add hosts" and copy the `fleetctl package` command for the platform (macOS, Windows, Linux) of the hosts you'd like to add to a team in Fleet.
 
 4. Run the copied `fleetctl package` command and [distribute your installer](#adding-multiple-hosts) to add your hosts to a team in Fleet.
 

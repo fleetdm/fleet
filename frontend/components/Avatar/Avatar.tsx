@@ -4,7 +4,7 @@ import classnames from "classnames";
 import { DEFAULT_GRAVATAR_LINK } from "utilities/constants";
 
 interface IAvatarUserInterface {
-  gravatarURL: string;
+  gravatarURL?: string;
 }
 
 export interface IAvatarInterface {
@@ -32,7 +32,7 @@ const Avatar = ({ className, size, user }: IAvatarInterface): JSX.Element => {
   const { gravatarURL } = user;
 
   return (
-    <div>
+    <div className="avatar-wrapper">
       <img
         alt={!isLoading && !isError ? "User avatar" : ""}
         className={`${avatarClasses} ${isLoading || isError ? "default" : ""}`}

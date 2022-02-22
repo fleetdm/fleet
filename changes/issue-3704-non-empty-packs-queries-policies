@@ -1,1 +1,0 @@
-* Return 400 when trying to create queries, packs and policies with empty names.

@@ -150,7 +150,8 @@ Returns the specs for all packs in the Fleet instance.
       "description": "Description",
       "disabled": false,
       "targets": {
-        "labels": ["All Hosts"]
+        "labels": ["All Hosts"],
+        "teams": null
       },
       "queries": [
         {
@@ -220,7 +221,8 @@ Returns the specs for all packs in the Fleet instance.
       "name": "pack_2",
       "disabled": false,
       "targets": {
-        "labels": null
+        "labels": null,
+        "teams": null
       },
       "queries": [
         {
@@ -268,7 +270,8 @@ Returns the specs for all packs in the Fleet instance.
       "description": "Description",
       "disabled": false,
       "targets": {
-        "labels": ["All Hosts"]
+        "labels": ["All Hosts"],
+        "teams": null
       },
       "queries": [
         {
@@ -326,7 +329,8 @@ Returns the specs for all packs in the Fleet instance.
       "name": "pack_2",
       "disabled": false,
       "targets": {
-        "labels": null
+        "labels": null,
+        "teams": null
       },
       "queries": [
         {
@@ -376,7 +380,8 @@ Returns the spec for the specified pack by pack name.
     "description": "Description",
     "disabled": false,
     "targets": {
-      "labels": ["All Hosts"]
+      "labels": ["All Hosts"],
+      "teams": null
     },
     "queries": [
       {
@@ -738,7 +743,7 @@ None.
 
 `Status: 200`
 
-### live query result store health check
+### Live query result store health check
 
 Checks the status of the Fleet's result store. If an error is present in the response, Fleet won't be able to successfully run a live query. This endpoint is used by the Fleet UI to make sure that the Fleet instance is correctly configured to run live queries.
 

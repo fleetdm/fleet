@@ -18,7 +18,7 @@ import invitesAPI from "services/entities/invites";
 import paths from "router/paths";
 // @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions";
-import TableContainer from "components/TableContainer";
+import TableContainer, { ITableQueryData } from "components/TableContainer";
 import TableDataError from "components/TableDataError";
 import Modal from "components/Modal";
 import { DEFAULT_CREATE_USER_ERRORS } from "utilities/constants";
@@ -35,14 +35,6 @@ const baseClass = "user-management";
 
 interface ITeamsResponse {
   teams: ITeam[];
-}
-
-export interface ITableSearchData {
-  searchQuery: string;
-  sortHeader: string;
-  sortDirection: string;
-  pageSize?: number;
-  pageIndex?: number;
 }
 
 const UserManagementPage = (): JSX.Element => {
@@ -173,7 +165,7 @@ const UserManagementPage = (): JSX.Element => {
 
   // NOTE: this is called once on the initial rendering. The initial render of
   // the TableContainer child component calls this handler.
-  const onTableQueryChange = (queryData: ITableSearchData) => {
+  const onTableQueryChange = (queryData: ITableQueryData) => {
     const {
       pageIndex,
       pageSize,
@@ -429,22 +421,17 @@ const UserManagementPage = (): JSX.Element => {
     const isResettingCurrentUser = currentUser?.id === userEditing.id;
 
     usersAPI
-      .deleteSessions(userEditing.id, isResettingCurrentUser)
+      .deleteSessions(userEditing.id)
       .then(() => {
         if (isResettingCurrentUser) {
           dispatch({ type: "LOGOUT_SUCCESS" });
           return;
         }
-        dispatch(
-          renderFlash("success", "Sessions reset for the selected user.")
-        );
+        dispatch(renderFlash("success", "Successfully reset sessions."));
       })
       .catch(() => {
         dispatch(
-          renderFlash(
-            "error",
-            "Could not reset sessions for the selected user. Please try again."
-          )
+          renderFlash("error", "Could not reset sessions. Please try again.")
         );
       })
       .finally(() => {
@@ -457,12 +444,18 @@ const UserManagementPage = (): JSX.Element => {
       .requirePasswordReset(user.id, { require: true })
       .then(() => {
         dispatch(
+          renderFlash("success", "Successfully required a password reset.")
+        );
+      })
+      .catch(() => {
+        dispatch(
           renderFlash(
-            "success",
-            "User required to reset password",
-            usersAPI.requirePasswordReset(user.id, { require: false }) // this is an undo action.
+            "error",
+            "Could not require a password reset. Please try again."
           )
         );
+      })
+      .finally(() => {
         toggleResetPasswordUserModal();
       });
   };
@@ -591,6 +584,7 @@ const UserManagementPage = (): JSX.Element => {
           searchable
           showMarkAllPages={false}
           isAllPagesSelected={false}
+          isClientSidePagination
         />
       )}
       {showCreateUserModal && renderCreateUserModal()}

@@ -1,0 +1,75 @@
+.manage-automations-modal {
+  width: 778px;
+
+  &__button-wrap {
+    display: flex;
+    justify-content: flex-end;
+    margin: $pad-large 0 0;
+  }
+
+  .button--inverse {
+    padding: $pad-small;
+    margin-right: $pad-small;
+  }
+
+  pre,
+  code {
+    background-color: $ui-off-white;
+    color: $core-fleet-blue;
+    border: 1px solid $ui-fleet-blue-15;
+    border-radius: 4px;
+    padding: 7px $pad-medium;
+    margin: $pad-large 0 0 44px;
+  }
+
+  &__error {
+    color: $ui-error;
+  }
+
+  &__software-automation-description {
+    p {
+      margin: $pad-large 0;
+    }
+  }
+
+  .tooltip-wrap {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    margin-bottom: $pad-large;
+
+    .icon-tooltip {
+      span {
+        display: flex;
+        align-items: center;
+      }
+      p {
+        text-align: center;
+      }
+    }
+
+    .form-field--input {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      margin-right: $pad-small;
+      margin-bottom: 0;
+    }
+
+    .form-field__hint {
+      font-style: normal;
+    }
+  }
+
+  .tooltip-wrap--input {
+    .icon-tooltip {
+      span {
+        margin-top: -5px;
+      }
+    }
+  }
+
+  .form-field__label--error {
+    color: $ui-error;
+  }
+}

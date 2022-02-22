@@ -23,9 +23,9 @@
 
 The upgrade from kolide/fleet to fleetdm/fleet works the same as any minor version upgrade has in the past.
 
-Minor version upgrades in Kolide Fleet often included database migrations and the recommendation to back up the database before migrating. The same goes for FleetDM Fleet versions.
+Minor version upgrades in Kolide Fleet often included database migrations and the recommendation to back up the database before migrating. The same goes for the new Fleet.
 
-To migrate from Kolide Fleet to FleetDM Fleet, please follow the steps outlined in the [Upgrading Fleet section](../02-Deploying/06-Upgrading-Fleet.md) of the documentation.
+To migrate from `kolide/fleet` to the new Fleet, please follow the steps outlined in the [Upgrading Fleet section](../02-Deploying/06-Upgrading-Fleet.md) of the documentation.
 
 ## Has anyone stress tested Fleet? How many clients can the Fleet server handle?
 
@@ -43,7 +43,7 @@ There is, however, a way to accomplish this even though the answer to the questi
 
 ## How often do labels refresh? Is the refresh frequency configurable?
 
-The update frequency for labels is configurable with the [—osquery_label_update_interval](../02-Deploying/03-Configuration.md#osquery_label_update_interval) flag (default 1 hour).
+The update frequency for labels is configurable with the [—osquery_label_update_interval](../02-Deploying/03-Configuration.md#osquery-label-update-interval) flag (default 1 hour).
 
 ## How do I revoke the authorization tokens for a user?
 
@@ -80,7 +80,7 @@ Live query results (executed in the web UI or `fleetctl query`) are pushed direc
 
 ### Scheduled queries
 
-Scheduled query results (queries that are scheduled to run in Packs) are typically sent to the Fleet server, and will be available on the filesystem of the server at the path configurable by [`--osquery_result_log_file`](../02-Deploying/03-Configuration.md#osquery_result_log_file). This defaults to `/tmp/osquery_result`.
+Scheduled query results (queries that are scheduled to run in Packs) are typically sent to the Fleet server, and will be available on the filesystem of the server at the path configurable by [`--osquery_result_log_file`](../02-Deploying/03-Configuration.md#osquery-result-log-file). This defaults to `/tmp/osquery_result`.
 
 It is possible to configure osqueryd to log query results outside of Fleet. For results to go to Fleet, the `--logger_plugin` flag must be set to `tls`.
 
@@ -88,7 +88,7 @@ It is possible to configure osqueryd to log query results outside of Fleet. For 
 
 Folks typically use Fleet to ship logs to data aggregation systems like Splunk, the ELK stack, and Graylog.
 
-The [logger configuration options](../02-Deploying/03-Configuration.md#osquery_status_log_plugin) allow you to select the log output plugin. Using the log outputs you can route the logs to your chosen aggregation system.
+The [logger configuration options](../02-Deploying/03-Configuration.md#osquery-status-log-plugin) allow you to select the log output plugin. Using the log outputs you can route the logs to your chosen aggregation system.
 
 ### Troubleshooting
 
@@ -98,7 +98,7 @@ Expecting results, but not seeing anything in the logs?
 - Check whether the query is scheduled in differential mode. If so, new results will only be logged when the result set changes.
 - Ensure that the query is scheduled to run on the intended platforms, and that the tables queried are supported by those platforms.
 - Use live query to `SELECT * FROM osquery_schedule` to check whether the query has been scheduled on the host.
-- Look at the status logs provided by osquery. In a standard configuration these are available on the filesystem of the Fleet server at the path configurable by [`--filesystem_status_log_file`](../02-Deploying/03-Configuration.md#filesystem_status_log_file). This defaults to `/tmp/osquery_status`. The host will output a status log each time it executes the query.
+- Look at the status logs provided by osquery. In a standard configuration these are available on the filesystem of the Fleet server at the path configurable by [`--filesystem_status_log_file`](../02-Deploying/03-Configuration.md#filesystem-status-log-file). This defaults to `/tmp/osquery_status`. The host will output a status log each time it executes the query.
 
 ## Why does the same query come back faster sometimes?
 
@@ -141,7 +141,7 @@ You can also do this by setting the `targets` field in the [YAML configuration f
 
 ## How do I automatically assign a host to a team when it enrolls with Fleet?
 
-[Team enroll secrets](https://github.com/fleetdm/fleet/blob/main/docs/01-Using-Fleet/10-Teams.md#enroll-hosts-to-a-team) allow you to automatically assign a host to a team.
+[Team enroll secrets](./10-Teams.md#enroll-hosts-to-a-team) allow you to automatically assign a host to a team.
 
 ## Why my host is not updating a policy's response.
 
@@ -181,3 +181,7 @@ Fleet relies on UUIDs so any overlap with host IP addresses should not cause a p
 ## Can Orbit run alongside osquery?
 
 Yes, Orbit can be run alongside osquery. The osquery instance that Orbit runs uses its own database directory that is stored within the Orbit directory.
+
+## What happens to osquery logs if my Fleet server or my logging destination is offline?
+
+If Fleet can't send logs to the destination, it will return an error to osquery. This causes osquery to retry sending the logs. The logs will then be stored in osquery's internal buffer until they are sent successfully, or they get expired if the `buffered_log_max`(defaults to 1,000,000 logs) is exceeded. Check out the [Remote logging buffering section](https://osquery.readthedocs.io/en/latest/deployment/remote/#remote-logging-buffering) on the osquery docs for more on this behavior.

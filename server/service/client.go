@@ -240,7 +240,14 @@ func (c *Client) authenticatedRequestWithQuery(params interface{}, verb string, 
 	}
 	defer response.Body.Close()
 
-	if response.StatusCode != http.StatusOK {
+	switch response.StatusCode {
+	case http.StatusOK:
+		// ok
+	case http.StatusNotFound:
+		return notFoundErr{}
+	case http.StatusUnauthorized:
+		return ErrUnauthenticated
+	default:
 		return fmt.Errorf(
 			"%s %s received status %d %s",
 			verb, path,

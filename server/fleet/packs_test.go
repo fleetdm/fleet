@@ -1,11 +1,11 @@
 package fleet
 
 import (
-	"bytes"
 	"encoding/json"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/stretchr/testify/require"
 )
 
 func TestPack_EditablePackType(t *testing.T) {
@@ -102,7 +102,8 @@ func TestPack_Marshal(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !bytes.Contains(b, []byte("\"disabled\":false")) {
-		t.Fatalf("marshalled pack does not contain disabled field: %s", string(b))
-	}
+	var m map[string]interface{}
+	err = json.Unmarshal(b, &m)
+	require.NoError(t, err)
+	require.NotNil(t, m["disabled"], "marshalled pack does not contain disabled field: %s", string(b))
 }

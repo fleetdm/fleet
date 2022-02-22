@@ -11,6 +11,8 @@ import * as authActions from "redux/nodes/auth/actions";
 
 const { connectedComponent, fillInFormInput, reduxMockStore } = testHelpers;
 
+jest.mock("date-fns");
+
 describe("UserSettingsPage - component", () => {
   const store = {
     auth: { user: userStub },

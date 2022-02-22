@@ -38,10 +38,12 @@ func debugCommand() *cli.Command {
 			debugGoroutineCommand(),
 			debugTraceCommand(),
 			debugErrorsCommand(),
-			debugDBLocksCommand(),
 			debugArchiveCommand(),
 			debugConnectionCommand(),
 			debugMigrations(),
+			debugDBLocksCommand(),
+			debugDBInnodbStatus(),
+			debugDBProcessList(),
 		},
 	}
 }
@@ -271,7 +273,6 @@ func debugArchiveCommand() *cli.Command {
 				"allocs",
 				"block",
 				"cmdline",
-				"db-locks",
 				"errors",
 				"goroutine",
 				"heap",
@@ -279,6 +280,9 @@ func debugArchiveCommand() *cli.Command {
 				"profile",
 				"threadcreate",
 				"trace",
+				"db-locks",
+				"db-innodb-status",
+				"db-process-list",
 			}
 
 			outpath := getOutfile(c)
@@ -310,6 +314,10 @@ func debugArchiveCommand() *cli.Command {
 
 				case "db-locks":
 					res, err = fleet.DebugDBLocks()
+				case "db-innodb-status":
+					res, err = fleet.DebugInnoDBStatus()
+				case "db-process-list":
+					res, err = fleet.DebugProcessList()
 
 				default:
 					res, err = fleet.DebugPprof(profile)
@@ -555,10 +563,51 @@ func debugErrorsCommand() *cli.Command {
 
 func debugDBLocksCommand() *cli.Command {
 	name := "db-locks"
+	usage := "Save the current database transaction locking information to a file."
+	usageText := "Saves transaction locking information with queries that are waiting on or blocking other transactions."
+	return bytesCommand(name, usage, usageText, func(c *cli.Context) (func() ([]byte, error), error) {
+		client, err := clientFromCLI(c)
+		if err != nil {
+			return nil, err
+		}
+
+		return client.DebugDBLocks, nil
+	})
+}
+
+func debugDBInnodbStatus() *cli.Command {
+	name := "db-innodb-status"
+	usage := "Save the current database InnoDB status information to a file."
+	usageText := usage
+	return bytesCommand(name, usage, usageText, func(c *cli.Context) (func() ([]byte, error), error) {
+		client, err := clientFromCLI(c)
+		if err != nil {
+			return nil, err
+		}
+
+		return client.DebugInnoDBStatus, nil
+	})
+}
+
+func debugDBProcessList() *cli.Command {
+	name := "db-process-list"
+	usage := "Save the current running processes (queries, etc) in the database to a file."
+	usageText := usage
+	return bytesCommand(name, usage, usageText, func(c *cli.Context) (func() ([]byte, error), error) {
+		client, err := clientFromCLI(c)
+		if err != nil {
+			return nil, err
+		}
+
+		return client.DebugProcessList, nil
+	})
+}
+
+func bytesCommand(name, usage, usageText string, bytesFuncGenerator func(c *cli.Context) (func() ([]byte, error), error)) *cli.Command {
 	return &cli.Command{
 		Name:      name,
-		Usage:     "Save the current database transaction locking information to a file.",
-		UsageText: "Saves transaction locking information with queries that are waiting on or blocking other transactions.",
+		Usage:     usage,
+		UsageText: usageText,
 		Flags: []cli.Flag{
 			outfileFlag(),
 			configFlag(),
@@ -566,12 +615,12 @@ func debugDBLocksCommand() *cli.Command {
 			debugFlag(),
 		},
 		Action: func(c *cli.Context) error {
-			fleet, err := clientFromCLI(c)
+			bytesFunc, err := bytesFuncGenerator(c)
 			if err != nil {
 				return err
 			}
 
-			locks, err := fleet.DebugDBLocks()
+			bytesData, err := bytesFunc()
 			if err != nil {
 				return err
 			}
@@ -581,7 +630,7 @@ func debugDBLocksCommand() *cli.Command {
 				outfile = outfileName(name)
 			}
 
-			if err := writeFile(outfile, locks, defaultFileMode); err != nil {
+			if err := writeFile(outfile, bytesData, defaultFileMode); err != nil {
 				return fmt.Errorf("write %s to file: %w", name, err)
 			}
 

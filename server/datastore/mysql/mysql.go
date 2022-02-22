@@ -11,10 +11,12 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/VividCortex/mysqlerr"
 	"github.com/WatchBeam/clock"
+	"github.com/XSAM/otelsql"
 	"github.com/cenkalti/backoff/v4"
 	"github.com/doug-martin/goqu/v9"
 	"github.com/doug-martin/goqu/v9/exp"
@@ -27,7 +29,10 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/go-sql-driver/mysql"
+	"github.com/hashicorp/go-multierror"
 	"github.com/jmoiron/sqlx"
+	"github.com/ngrok/sqlmw"
+	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 )
 
 const (
@@ -41,6 +46,7 @@ var columnCharsRegexp = regexp.MustCompile(`[^\w-.]`)
 // dbReader is an interface that defines the methods required for reads.
 type dbReader interface {
 	sqlx.QueryerContext
+	sqlx.PreparerContext
 
 	Close() error
 	Rebind(string) string
@@ -60,6 +66,36 @@ type Datastore struct {
 	readReplicaConfig *config.MysqlConfig
 
 	writeCh chan itemToWrite
+
+	// stmtCacheMu protects access to stmtCache.
+	stmtCacheMu sync.Mutex
+	// stmtCache holds statements for queries.
+	stmtCache map[string]*sqlx.Stmt
+}
+
+// loadOrPrepareStmt will load a statement from the statements cache.
+// If not available, it will attempt to prepare (create) it.
+//
+// Returns nil if it failed to prepare a statement.
+func (ds *Datastore) loadOrPrepareStmt(ctx context.Context, query string) *sqlx.Stmt {
+	ds.stmtCacheMu.Lock()
+	defer ds.stmtCacheMu.Unlock()
+
+	stmt, ok := ds.stmtCache[query]
+	if !ok {
+		var err error
+		stmt, err = sqlx.PreparexContext(ctx, ds.reader, query)
+		if err != nil {
+			level.Error(ds.logger).Log(
+				"msg", "failed to prepare statement",
+				"query", query,
+				"err", err,
+			)
+			return nil
+		}
+		ds.stmtCache[query] = stmt
+	}
+	return stmt
 }
 
 type txFn func(sqlx.ExtContext) error
@@ -94,9 +130,9 @@ func retryableError(err error) bool {
 }
 
 // withRetryTxx provides a common way to commit/rollback a txFn wrapped in a retry with exponential backoff
-func (d *Datastore) withRetryTxx(ctx context.Context, fn txFn) (err error) {
+func (ds *Datastore) withRetryTxx(ctx context.Context, fn txFn) (err error) {
 	operation := func() error {
-		tx, err := d.writer.BeginTxx(ctx, nil)
+		tx, err := ds.writer.BeginTxx(ctx, nil)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "create transaction")
 		}
@@ -104,7 +140,7 @@ func (d *Datastore) withRetryTxx(ctx context.Context, fn txFn) (err error) {
 		defer func() {
 			if p := recover(); p != nil {
 				if err := tx.Rollback(); err != nil {
-					d.logger.Log("err", err, "msg", "error encountered during transaction panic rollback")
+					ds.logger.Log("err", err, "msg", "error encountered during transaction panic rollback")
 				}
 				panic(p)
 			}
@@ -144,8 +180,8 @@ func (d *Datastore) withRetryTxx(ctx context.Context, fn txFn) (err error) {
 }
 
 // withTx provides a common way to commit/rollback a txFn
-func (d *Datastore) withTx(ctx context.Context, fn txFn) (err error) {
-	tx, err := d.writer.BeginTxx(ctx, nil)
+func (ds *Datastore) withTx(ctx context.Context, fn txFn) (err error) {
+	tx, err := ds.writer.BeginTxx(ctx, nil)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "create transaction")
 	}
@@ -153,7 +189,7 @@ func (d *Datastore) withTx(ctx context.Context, fn txFn) (err error) {
 	defer func() {
 		if p := recover(); p != nil {
 			if err := tx.Rollback(); err != nil {
-				d.logger.Log("err", err, "msg", "error encountered during transaction panic rollback")
+				ds.logger.Log("err", err, "msg", "error encountered during transaction panic rollback")
 			}
 			panic(p)
 		}
@@ -216,6 +252,7 @@ func New(config config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore
 		config:            config,
 		readReplicaConfig: options.replicaConfig,
 		writeCh:           make(chan itemToWrite),
+		stmtCache:         make(map[string]*sqlx.Stmt),
 	}
 
 	go ds.writeChanLoop()
@@ -235,22 +272,45 @@ type hostXUpdatedAt struct {
 	what      string
 }
 
-func (d *Datastore) writeChanLoop() {
-	for item := range d.writeCh {
+func (ds *Datastore) writeChanLoop() {
+	for item := range ds.writeCh {
 		switch actualItem := item.item.(type) {
 		case *fleet.Host:
-			item.errCh <- d.UpdateHost(item.ctx, actualItem)
+			item.errCh <- ds.UpdateHost(item.ctx, actualItem)
 		case hostXUpdatedAt:
 			query := fmt.Sprintf(`UPDATE hosts SET %s = ? WHERE id=?`, actualItem.what)
-			_, err := d.writer.ExecContext(item.ctx, query, actualItem.updatedAt, actualItem.hostID)
+			_, err := ds.writer.ExecContext(item.ctx, query, actualItem.updatedAt, actualItem.hostID)
 			item.errCh <- ctxerr.Wrap(item.ctx, err, "updating hosts label updated at")
 		}
 	}
 }
 
+var otelTracedDriverName string
+
+func init() {
+	var err error
+	otelTracedDriverName, err = otelsql.Register("mysql", semconv.DBSystemMySQL.Value.AsString())
+	if err != nil {
+		panic(err)
+	}
+}
+
 func newDB(conf *config.MysqlConfig, opts *dbOptions) (*sqlx.DB, error) {
+	driverName := "mysql"
+	if opts.tracingConfig != nil && opts.tracingConfig.TracingEnabled {
+		if opts.tracingConfig.TracingType == "opentelemetry" {
+			driverName = otelTracedDriverName
+		} else {
+			driverName = "apm/mysql"
+		}
+	}
+	if opts.interceptor != nil {
+		driverName = "mysql-mw"
+		sql.Register(driverName, sqlmw.Driver(mysql.MySQLDriver{}, opts.interceptor))
+	}
+
 	dsn := generateMysqlConnectionString(*conf)
-	db, err := sqlx.Open("mysql", dsn)
+	db, err := sqlx.Open(driverName, dsn)
 	if err != nil {
 		return nil, err
 	}
@@ -304,31 +364,31 @@ func checkConfig(conf *config.MysqlConfig) error {
 	return nil
 }
 
-func (d *Datastore) MigrateTables(ctx context.Context) error {
-	return tables.MigrationClient.Up(d.writer.DB, "")
+func (ds *Datastore) MigrateTables(ctx context.Context) error {
+	return tables.MigrationClient.Up(ds.writer.DB, "")
 }
 
-func (d *Datastore) MigrateData(ctx context.Context) error {
-	return data.MigrationClient.Up(d.writer.DB, "")
+func (ds *Datastore) MigrateData(ctx context.Context) error {
+	return data.MigrationClient.Up(ds.writer.DB, "")
 }
 
 // loadMigrations manually loads the applied migrations in ascending
 // order (goose doesn't provide such functionality).
 //
 // Returns two lists of version IDs (one for "table" and one for "data").
-func (d *Datastore) loadMigrations(
+func (ds *Datastore) loadMigrations(
 	ctx context.Context,
 ) (tableRecs []int64, dataRecs []int64, err error) {
 	// We need to run the following to trigger the creation of the migration status tables.
-	tables.MigrationClient.GetDBVersion(d.writer.DB)
-	data.MigrationClient.GetDBVersion(d.writer.DB)
+	tables.MigrationClient.GetDBVersion(ds.writer.DB)
+	data.MigrationClient.GetDBVersion(ds.writer.DB)
 	// version_id > 0 to skip the bootstrap migration that creates the migration tables.
-	if err := sqlx.SelectContext(ctx, d.reader, &tableRecs,
+	if err := sqlx.SelectContext(ctx, ds.reader, &tableRecs,
 		"SELECT version_id FROM "+tables.MigrationClient.TableName+" WHERE version_id > 0 AND is_applied ORDER BY id ASC",
 	); err != nil {
 		return nil, nil, err
 	}
-	if err := sqlx.SelectContext(ctx, d.reader, &dataRecs,
+	if err := sqlx.SelectContext(ctx, ds.reader, &dataRecs,
 		"SELECT version_id FROM "+data.MigrationClient.TableName+" WHERE version_id > 0 AND is_applied ORDER BY id ASC",
 	); err != nil {
 		return nil, nil, err
@@ -340,11 +400,11 @@ func (d *Datastore) loadMigrations(
 // comparing the known migrations in code and the applied migrations in the database.
 //
 // It assumes some deployments may perform migrations out of order.
-func (d *Datastore) MigrationStatus(ctx context.Context) (*fleet.MigrationStatus, error) {
+func (ds *Datastore) MigrationStatus(ctx context.Context) (*fleet.MigrationStatus, error) {
 	if tables.MigrationClient.Migrations == nil || data.MigrationClient.Migrations == nil {
 		return nil, errors.New("unexpected nil migrations list")
 	}
-	appliedTable, appliedData, err := d.loadMigrations(ctx)
+	appliedTable, appliedData, err := ds.loadMigrations(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("cannot load migrations: %w", err)
 	}
@@ -459,29 +519,48 @@ func getVersionsFromMigrations(migrations goose.Migrations) []int64 {
 }
 
 // HealthCheck returns an error if the MySQL backend is not healthy.
-func (d *Datastore) HealthCheck() error {
+func (ds *Datastore) HealthCheck() error {
 	// NOTE: does not receive a context as argument here, because the HealthCheck
 	// interface potentially affects more than the datastore layer, and I'm not
 	// sure we can safely identify and change them all at this moment.
-	if _, err := d.writer.ExecContext(context.Background(), "select 1"); err != nil {
+	if _, err := ds.writer.ExecContext(context.Background(), "select 1"); err != nil {
 		return err
 	}
-	if d.readReplicaConfig != nil {
+	if ds.readReplicaConfig != nil {
 		var dst int
-		if err := sqlx.GetContext(context.Background(), d.reader, &dst, "select 1"); err != nil {
+		if err := sqlx.GetContext(context.Background(), ds.reader, &dst, "select 1"); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
+func (ds *Datastore) closeStmts() error {
+	ds.stmtCacheMu.Lock()
+	defer ds.stmtCacheMu.Unlock()
+
+	var err error
+	for query, stmt := range ds.stmtCache {
+		if errClose := stmt.Close(); errClose != nil {
+			err = multierror.Append(err, errClose)
+		}
+		delete(ds.stmtCache, query)
+	}
+	return err
+}
+
 // Close frees resources associated with underlying mysql connection
-func (d *Datastore) Close() error {
-	err := d.writer.Close()
-	if d.readReplicaConfig != nil {
-		errRead := d.reader.Close()
-		if err == nil {
-			err = errRead
+func (ds *Datastore) Close() error {
+	var err error
+	if errStmt := ds.closeStmts(); errStmt != nil {
+		err = multierror.Append(err, errStmt)
+	}
+	if errWriter := ds.writer.Close(); errWriter != nil {
+		err = multierror.Append(err, errWriter)
+	}
+	if ds.readReplicaConfig != nil {
+		if errRead := ds.reader.Close(); errRead != nil {
+			err = multierror.Append(err, errRead)
 		}
 	}
 	return err
@@ -588,12 +667,12 @@ func appendListOptionsWithCursorToSQL(sql string, params []interface{}, opts fle
 //
 // filter provides the filtering parameters that should be used. hostKey is the
 // name/alias of the hosts table to use in generating the SQL.
-func (d *Datastore) whereFilterHostsByTeams(filter fleet.TeamFilter, hostKey string) string {
+func (ds *Datastore) whereFilterHostsByTeams(filter fleet.TeamFilter, hostKey string) string {
 	if filter.User == nil {
 		// This is likely unintentional, however we would like to return no
 		// results rather than panicking or returning some other error. At least
 		// log.
-		level.Info(d.logger).Log("err", "team filter missing user")
+		level.Info(ds.logger).Log("err", "team filter missing user")
 		return "FALSE"
 	}
 
@@ -652,12 +731,12 @@ func (d *Datastore) whereFilterHostsByTeams(filter fleet.TeamFilter, hostKey str
 //
 // filter provides the filtering parameters that should be used. hostKey is the
 // name/alias of the teams table to use in generating the SQL.
-func (d *Datastore) whereFilterTeams(filter fleet.TeamFilter, teamKey string) string {
+func (ds *Datastore) whereFilterTeams(filter fleet.TeamFilter, teamKey string) string {
 	if filter.User == nil {
 		// This is likely unintentional, however we would like to return no
 		// results rather than panicking or returning some other error. At least
 		// log.
-		level.Info(d.logger).Log("err", "team filter missing user")
+		level.Info(ds.logger).Log("err", "team filter missing user")
 		return "FALSE"
 	}
 
@@ -697,7 +776,7 @@ func (d *Datastore) whereFilterTeams(filter fleet.TeamFilter, teamKey string) st
 
 // whereOmitIDs returns the appropriate condition to use in the WHERE
 // clause to omit the provided IDs from the selection.
-func (d *Datastore) whereOmitIDs(colName string, omit []uint) string {
+func (ds *Datastore) whereOmitIDs(colName string, omit []uint) string {
 	if len(omit) == 0 {
 		return "TRUE"
 	}
@@ -812,4 +891,28 @@ func hostSearchLike(sql string, params []interface{}, match string, columns ...s
 		args = append(args, likePattern(match))
 	}
 	return base, args
+}
+
+func (ds *Datastore) InnoDBStatus(ctx context.Context) (string, error) {
+	status := struct {
+		Type   string `db:"Type"`
+		Name   string `db:"Name"`
+		Status string `db:"Status"`
+	}{}
+	// using the writer even when doing a read to get the data from the main db node
+	err := ds.writer.GetContext(ctx, &status, "show engine innodb status")
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "Getting innodb status")
+	}
+	return status.Status, nil
+}
+
+func (ds *Datastore) ProcessList(ctx context.Context) ([]fleet.MySQLProcess, error) {
+	var processList []fleet.MySQLProcess
+	// using the writer even when doing a read to get the data from the main db node
+	err := ds.writer.SelectContext(ctx, &processList, "show processlist")
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "Getting process list")
+	}
+	return processList, nil
 }

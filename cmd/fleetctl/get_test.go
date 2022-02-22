@@ -195,6 +195,34 @@ spec:
 	}
 }
 
+func TestGetTeamsByName(t *testing.T) {
+	_, ds := runServerWithMockedDS(t, service.TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}})
+
+	ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
+		require.Equal(t, "test1", opt.MatchQuery)
+
+		created_at, err := time.Parse(time.RFC3339, "1999-03-10T02:45:06.371Z")
+		require.NoError(t, err)
+		return []*fleet.Team{
+			{
+				ID:          42,
+				CreatedAt:   created_at,
+				Name:        "team1",
+				Description: "team1 description",
+				UserCount:   99,
+			},
+		}, nil
+	}
+
+	expectedText := `+-----------+-------------------+------------+
+| TEAM NAME |    DESCRIPTION    | USER COUNT |
++-----------+-------------------+------------+
+| team1     | team1 description |         99 |
++-----------+-------------------+------------+
+`
+	assert.Equal(t, expectedText, runAppForTest(t, []string{"get", "teams", "--name", "test1"}))
+}
+
 func TestGetHosts(t *testing.T) {
 	_, ds := runServerWithMockedDS(t)
 
@@ -444,8 +472,12 @@ spec:
       enable_host_status_webhook: false
       host_percentage: 0
     interval: 0s
+    vulnerabilities_webhook:
+      destination_url: ""
+      enable_vulnerabilities_webhook: false
+      host_batch_size: 0
 `
-		expectedJson := `{"kind":"config","apiVersion":"v1","spec":{"org_info":{"org_name":"","org_logo_url":""},"server_settings":{"server_url":"","live_query_disabled":false,"enable_analytics":false,"deferred_save_host":false},"smtp_settings":{"enable_smtp":false,"configured":false,"sender_address":"","server":"","port":0,"authentication_type":"","user_name":"","password":"","enable_ssl_tls":false,"authentication_method":"","domain":"","verify_ssl_certs":false,"enable_start_tls":false},"host_expiry_settings":{"host_expiry_enabled":false,"host_expiry_window":0},"host_settings":{"enable_host_users":true,"enable_software_inventory":false},"sso_settings":{"entity_id":"","issuer_uri":"","idp_image_url":"","metadata":"","metadata_url":"","idp_name":"","enable_sso":false,"enable_sso_idp_login":false},"vulnerability_settings":{"databases_path":"/some/path"},"webhook_settings":{"host_status_webhook":{"enable_host_status_webhook":false,"destination_url":"","host_percentage":0,"days_count":0},"failing_policies_webhook":{"enable_failing_policies_webhook":false,"destination_url":"","policy_ids":null,"host_batch_size":0},"interval":"0s"}}}
+		expectedJson := `{"kind":"config","apiVersion":"v1","spec":{"org_info":{"org_name":"","org_logo_url":""},"server_settings":{"server_url":"","live_query_disabled":false,"enable_analytics":false,"deferred_save_host":false},"smtp_settings":{"enable_smtp":false,"configured":false,"sender_address":"","server":"","port":0,"authentication_type":"","user_name":"","password":"","enable_ssl_tls":false,"authentication_method":"","domain":"","verify_ssl_certs":false,"enable_start_tls":false},"host_expiry_settings":{"host_expiry_enabled":false,"host_expiry_window":0},"host_settings":{"enable_host_users":true,"enable_software_inventory":false},"sso_settings":{"entity_id":"","issuer_uri":"","idp_image_url":"","metadata":"","metadata_url":"","idp_name":"","enable_sso":false,"enable_sso_idp_login":false},"vulnerability_settings":{"databases_path":"/some/path"},"webhook_settings":{"host_status_webhook":{"enable_host_status_webhook":false,"destination_url":"","host_percentage":0,"days_count":0},"failing_policies_webhook":{"enable_failing_policies_webhook":false,"destination_url":"","policy_ids":null,"host_batch_size":0},"vulnerabilities_webhook":{"enable_vulnerabilities_webhook":false,"destination_url":"","host_batch_size":0},"interval":"0s"}}}
 `
 
 		assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "config"}))
@@ -539,8 +571,12 @@ spec:
       enable_host_status_webhook: false
       host_percentage: 0
     interval: 0s
+    vulnerabilities_webhook:
+      destination_url: ""
+      enable_vulnerabilities_webhook: false
+      host_batch_size: 0
 `
-		expectedJson := `{"kind":"config","apiVersion":"v1","spec":{"org_info":{"org_name":"","org_logo_url":""},"server_settings":{"server_url":"","live_query_disabled":false,"enable_analytics":false,"deferred_save_host":false},"smtp_settings":{"enable_smtp":false,"configured":false,"sender_address":"","server":"","port":0,"authentication_type":"","user_name":"","password":"","enable_ssl_tls":false,"authentication_method":"","domain":"","verify_ssl_certs":false,"enable_start_tls":false},"host_expiry_settings":{"host_expiry_enabled":false,"host_expiry_window":0},"host_settings":{"enable_host_users":true,"enable_software_inventory":false},"sso_settings":{"entity_id":"","issuer_uri":"","idp_image_url":"","metadata":"","metadata_url":"","idp_name":"","enable_sso":false,"enable_sso_idp_login":false},"vulnerability_settings":{"databases_path":"/some/path"},"webhook_settings":{"host_status_webhook":{"enable_host_status_webhook":false,"destination_url":"","host_percentage":0,"days_count":0},"failing_policies_webhook":{"enable_failing_policies_webhook":false,"destination_url":"","policy_ids":null,"host_batch_size":0},"interval":"0s"},"update_interval":{"osquery_detail":3600000000000,"osquery_policy":3600000000000},"vulnerabilities":{"databases_path":"","periodicity":0,"cpe_database_url":"","cve_feed_prefix_url":"","current_instance_checks":"","disable_data_sync":false},"license":{"tier":"free","expiration":"0001-01-01T00:00:00Z"},"logging":{"debug":true,"json":false,"result":{"plugin":"filesystem","config":{"enable_log_compression":false,"enable_log_rotation":false,"result_log_file":"/dev/null","status_log_file":"/dev/null"}},"status":{"plugin":"filesystem","config":{"enable_log_compression":false,"enable_log_rotation":false,"result_log_file":"/dev/null","status_log_file":"/dev/null"}}}}}
+		expectedJson := `{"kind":"config","apiVersion":"v1","spec":{"org_info":{"org_name":"","org_logo_url":""},"server_settings":{"server_url":"","live_query_disabled":false,"enable_analytics":false,"deferred_save_host":false},"smtp_settings":{"enable_smtp":false,"configured":false,"sender_address":"","server":"","port":0,"authentication_type":"","user_name":"","password":"","enable_ssl_tls":false,"authentication_method":"","domain":"","verify_ssl_certs":false,"enable_start_tls":false},"host_expiry_settings":{"host_expiry_enabled":false,"host_expiry_window":0},"host_settings":{"enable_host_users":true,"enable_software_inventory":false},"sso_settings":{"entity_id":"","issuer_uri":"","idp_image_url":"","metadata":"","metadata_url":"","idp_name":"","enable_sso":false,"enable_sso_idp_login":false},"vulnerability_settings":{"databases_path":"/some/path"},"webhook_settings":{"host_status_webhook":{"enable_host_status_webhook":false,"destination_url":"","host_percentage":0,"days_count":0},"failing_policies_webhook":{"enable_failing_policies_webhook":false,"destination_url":"","policy_ids":null,"host_batch_size":0},"vulnerabilities_webhook":{"enable_vulnerabilities_webhook":false,"destination_url":"","host_batch_size":0},"interval":"0s"},"update_interval":{"osquery_detail":3600000000000,"osquery_policy":3600000000000},"vulnerabilities":{"databases_path":"","periodicity":0,"cpe_database_url":"","cve_feed_prefix_url":"","current_instance_checks":"","disable_data_sync":false},"license":{"tier":"free","expiration":"0001-01-01T00:00:00Z"},"logging":{"debug":true,"json":false,"result":{"plugin":"filesystem","config":{"enable_log_compression":false,"enable_log_rotation":false,"result_log_file":"/dev/null","status_log_file":"/dev/null"}},"status":{"plugin":"filesystem","config":{"enable_log_compression":false,"enable_log_rotation":false,"result_log_file":"/dev/null","status_log_file":"/dev/null"}}}}}
 `
 
 		assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "config", "--include-server-config"}))
@@ -627,4 +663,343 @@ spec:
 	runAppForTest(t, []string{"get", "software", "--json", "--team", "999"})
 	require.NotNil(t, gotTeamID)
 	assert.Equal(t, uint(999), *gotTeamID)
+}
+
+func TestGetLabels(t *testing.T) {
+	_, ds := runServerWithMockedDS(t)
+
+	ds.GetLabelSpecsFunc = func(ctx context.Context) ([]*fleet.LabelSpec, error) {
+		return []*fleet.LabelSpec{
+			{
+				ID:          32,
+				Name:        "label1",
+				Description: "some description",
+				Query:       "select 1;",
+				Platform:    "windows",
+			},
+			{
+				ID:          33,
+				Name:        "label2",
+				Description: "some other description",
+				Query:       "select 42;",
+				Platform:    "linux",
+			},
+		}, nil
+	}
+
+	expected := `+--------+----------+------------------------+------------+
+|  NAME  | PLATFORM |      DESCRIPTION       |   QUERY    |
++--------+----------+------------------------+------------+
+| label1 | windows  | some description       | select 1;  |
++--------+----------+------------------------+------------+
+| label2 | linux    | some other description | select 42; |
++--------+----------+------------------------+------------+
+`
+	expectedYaml := `---
+apiVersion: v1
+kind: label
+spec:
+  description: some description
+  id: 32
+  label_membership_type: dynamic
+  name: label1
+  platform: windows
+  query: select 1;
+---
+apiVersion: v1
+kind: label
+spec:
+  description: some other description
+  id: 33
+  label_membership_type: dynamic
+  name: label2
+  platform: linux
+  query: select 42;
+`
+	expectedJson := `{"kind":"label","apiVersion":"v1","spec":{"id":32,"name":"label1","description":"some description","query":"select 1;","platform":"windows","label_membership_type":"dynamic"}}
+{"kind":"label","apiVersion":"v1","spec":{"id":33,"name":"label2","description":"some other description","query":"select 42;","platform":"linux","label_membership_type":"dynamic"}}
+`
+
+	assert.Equal(t, expected, runAppForTest(t, []string{"get", "labels"}))
+	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "labels", "--yaml"}))
+	assert.Equal(t, expectedJson, runAppForTest(t, []string{"get", "labels", "--json"}))
+}
+
+func TestGetLabel(t *testing.T) {
+	_, ds := runServerWithMockedDS(t)
+
+	ds.GetLabelSpecFunc = func(ctx context.Context, name string) (*fleet.LabelSpec, error) {
+		if name != "label1" {
+			return nil, nil
+		}
+		return &fleet.LabelSpec{
+			ID:          32,
+			Name:        "label1",
+			Description: "some description",
+			Query:       "select 1;",
+			Platform:    "windows",
+		}, nil
+	}
+
+	expectedYaml := `---
+apiVersion: v1
+kind: label
+spec:
+  description: some description
+  id: 32
+  label_membership_type: dynamic
+  name: label1
+  platform: windows
+  query: select 1;
+`
+	expectedJson := `{"kind":"label","apiVersion":"v1","spec":{"id":32,"name":"label1","description":"some description","query":"select 1;","platform":"windows","label_membership_type":"dynamic"}}
+`
+
+	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "label", "label1"}))
+	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "label", "--yaml", "label1"}))
+	assert.Equal(t, expectedJson, runAppForTest(t, []string{"get", "label", "--json", "label1"}))
+}
+
+func TestGetEnrollmentSecrets(t *testing.T) {
+	_, ds := runServerWithMockedDS(t)
+
+	ds.GetEnrollSecretsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.EnrollSecret, error) {
+		return []*fleet.EnrollSecret{
+			{
+				Secret: "abcd",
+				TeamID: nil,
+			},
+			{
+				Secret: "efgh",
+				TeamID: nil,
+			},
+		}, nil
+	}
+
+	expectedYaml := `---
+apiVersion: v1
+kind: enroll_secret
+spec:
+  secrets:
+  - created_at: "0001-01-01T00:00:00Z"
+    secret: abcd
+  - created_at: "0001-01-01T00:00:00Z"
+    secret: efgh
+`
+	expectedJson := `{"kind":"enroll_secret","apiVersion":"v1","spec":{"secrets":[{"secret":"abcd","created_at":"0001-01-01T00:00:00Z"},{"secret":"efgh","created_at":"0001-01-01T00:00:00Z"}]}}
+`
+
+	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "enroll_secrets"}))
+	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "enroll_secrets", "--yaml"}))
+	assert.Equal(t, expectedJson, runAppForTest(t, []string{"get", "enroll_secrets", "--json"}))
+}
+
+func TestGetPacks(t *testing.T) {
+	_, ds := runServerWithMockedDS(t)
+
+	ds.GetPackSpecsFunc = func(ctx context.Context) ([]*fleet.PackSpec, error) {
+		return []*fleet.PackSpec{
+			{
+				ID:          7,
+				Name:        "pack1",
+				Description: "some desc",
+				Platform:    "darwin",
+				Disabled:    false,
+			},
+		}, nil
+	}
+
+	expected := `+-------+----------+-------------+----------+
+| NAME  | PLATFORM | DESCRIPTION | DISABLED |
++-------+----------+-------------+----------+
+| pack1 | darwin   | some desc   | false    |
++-------+----------+-------------+----------+
+`
+	expectedYaml := `---
+apiVersion: v1
+kind: pack
+spec:
+  description: some desc
+  disabled: false
+  id: 7
+  name: pack1
+  platform: darwin
+  targets:
+    labels: null
+    teams: null
+`
+	expectedJson := `
+{
+  "kind": "pack",
+  "apiVersion": "v1",
+  "spec": {
+    "id": 7,
+    "name": "pack1",
+    "description": "some desc",
+    "platform": "darwin",
+    "disabled": false,
+    "targets": {
+      "labels": null,
+      "teams": null
+    }
+  }
+}
+`
+
+	assert.Equal(t, expected, runAppForTest(t, []string{"get", "packs"}))
+	assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "packs", "--yaml"}))
+	assert.JSONEq(t, expectedJson, runAppForTest(t, []string{"get", "packs", "--json"}))
+}
+
+func TestGetPack(t *testing.T) {
+	_, ds := runServerWithMockedDS(t)
+
+	ds.PackByNameFunc = func(ctx context.Context, name string, opts ...fleet.OptionalArg) (*fleet.Pack, bool, error) {
+		if name != "pack1" {
+			return nil, false, nil
+		}
+		return &fleet.Pack{
+			ID:          7,
+			Name:        "pack1",
+			Description: "some desc",
+			Platform:    "darwin",
+			Disabled:    false,
+		}, true, nil
+	}
+	ds.GetPackSpecFunc = func(ctx context.Context, name string) (*fleet.PackSpec, error) {
+		if name != "pack1" {
+			return nil, nil
+		}
+		return &fleet.PackSpec{
+			ID:          7,
+			Name:        "pack1",
+			Description: "some desc",
+			Platform:    "darwin",
+			Disabled:    false,
+		}, nil
+	}
+
+	expectedYaml := `---
+apiVersion: v1
+kind: pack
+spec:
+  description: some desc
+  disabled: false
+  id: 7
+  name: pack1
+  platform: darwin
+  targets:
+    labels: null
+    teams: null
+`
+	expectedJson := `
+{
+  "kind": "pack",
+  "apiVersion": "v1",
+  "spec": {
+    "id": 7,
+    "name": "pack1",
+    "description": "some desc",
+    "platform": "darwin",
+    "disabled": false,
+    "targets": {
+      "labels": null,
+      "teams": null
+    }
+  }
+}
+`
+
+	assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "packs", "pack1"}))
+	assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "packs", "--yaml", "pack1"}))
+	assert.JSONEq(t, expectedJson, runAppForTest(t, []string{"get", "packs", "--json", "pack1"}))
+}
+
+func TestGetQueries(t *testing.T) {
+	_, ds := runServerWithMockedDS(t)
+
+	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, error) {
+		return []*fleet.Query{
+			{
+				ID:             33,
+				Name:           "query1",
+				Description:    "some desc",
+				Query:          "select 1;",
+				Saved:          false,
+				ObserverCanRun: false,
+			},
+			{
+				ID:             12,
+				Name:           "query2",
+				Description:    "some desc 2",
+				Query:          "select 2;",
+				Saved:          true,
+				ObserverCanRun: false,
+			},
+		}, nil
+	}
+
+	expected := `+--------+-------------+-----------+
+|  NAME  | DESCRIPTION |   QUERY   |
++--------+-------------+-----------+
+| query1 | some desc   | select 1; |
++--------+-------------+-----------+
+| query2 | some desc 2 | select 2; |
++--------+-------------+-----------+
+`
+	expectedYaml := `---
+apiVersion: v1
+kind: query
+spec:
+  description: some desc
+  name: query1
+  query: select 1;
+---
+apiVersion: v1
+kind: query
+spec:
+  description: some desc 2
+  name: query2
+  query: select 2;
+`
+	expectedJson := `{"kind":"query","apiVersion":"v1","spec":{"name":"query1","description":"some desc","query":"select 1;"}}
+{"kind":"query","apiVersion":"v1","spec":{"name":"query2","description":"some desc 2","query":"select 2;"}}
+`
+
+	assert.Equal(t, expected, runAppForTest(t, []string{"get", "queries"}))
+	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "queries", "--yaml"}))
+	assert.Equal(t, expectedJson, runAppForTest(t, []string{"get", "queries", "--json"}))
+}
+
+func TestGetQuery(t *testing.T) {
+	_, ds := runServerWithMockedDS(t)
+
+	ds.QueryByNameFunc = func(ctx context.Context, name string, opts ...fleet.OptionalArg) (*fleet.Query, error) {
+		if name != "query1" {
+			return nil, nil
+		}
+		return &fleet.Query{
+			ID:             33,
+			Name:           "query1",
+			Description:    "some desc",
+			Query:          "select 1;",
+			Saved:          false,
+			ObserverCanRun: false,
+		}, nil
+	}
+
+	expectedYaml := `---
+apiVersion: v1
+kind: query
+spec:
+  description: some desc
+  name: query1
+  query: select 1;
+`
+	expectedJson := `{"kind":"query","apiVersion":"v1","spec":{"name":"query1","description":"some desc","query":"select 1;"}}
+`
+
+	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "query", "query1"}))
+	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "query", "--yaml", "query1"}))
+	assert.Equal(t, expectedJson, runAppForTest(t, []string{"get", "query", "--json", "query1"}))
 }

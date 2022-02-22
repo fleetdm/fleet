@@ -83,6 +83,7 @@ parasails.registerPage('new-license', {
     clickResetForm: async function() {
       // When the "X" is clicked...
       this.formErrors = {};
+      this.formData.numberOfHosts = undefined;
       this.showBillingForm = false;
       this.numberOfHostsQuoted = undefined;
       // When the input field has been rendered back into existence, focus it for our friendly user.
