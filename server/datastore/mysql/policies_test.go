@@ -1635,6 +1635,44 @@ func testPolicyPlatformUpdate(t *testing.T, ds *Datastore) {
 
 func testPolicyCleanupPolicyMembership(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
+	user := test.NewUser(t, ds, "Bob", "bob@example.com", true)
+
+	// create hosts with different platforms
+	platforms := []string{"windows", "darwin", "debian", "linux"}
+	hosts := make([]*fleet.Host, len(platforms))
+	for i, pl := range platforms {
+		id := fmt.Sprintf("%s-%d", strings.ReplaceAll(t.Name(), "/", "_"), i)
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			OsqueryHostID:   id,
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			NodeKey:         id,
+			UUID:            id,
+			Hostname:        id,
+			Platform:        pl,
+		})
+		require.NoError(t, err)
+		hosts[i] = h
+	}
+
+	// create some policies, using direct insert statements to control the timestamps
+	createPolStmt := `INSERT INTO policies (name, query, description, author_id, platforms, created_at, updated_at)
+                    VALUES (?, ?, '', ?, ?, ?, ?)`
+
+	jan2020 := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
+	feb2020 := time.Date(2020, 2, 1, 0, 0, 0, 0, time.UTC)
+	mar2020 := time.Date(2020, 3, 1, 0, 0, 0, 0, time.UTC)
+	pols := make([]*fleet.Policy, 3)
+	for i, dt := range []time.Time{jan2020, feb2020, mar2020} {
+		res, err := ds.writer.ExecContext(ctx, createPolStmt, "p"+strconv.Itoa(i), "select 1", user.ID, "", dt, dt)
+		require.NoError(t, err)
+		id, _ := res.LastInsertId()
+		pol, err := ds.Policy(ctx, uint(id))
+		require.NoError(t, err)
+		pols[i] = pol
+	}
 
 	// no recently updated policies
 	err := ds.CleanupPolicyMembership(ctx, time.Now())
