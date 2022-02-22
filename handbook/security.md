@@ -418,7 +418,7 @@ As email is one of the main vectors used by attackers, we ensure we protect it a
 | Spoofing and authentication | Apply future recommended settings automatically                 | On      |                                      |                                                                                                        |
 | Manage quarantines | Notify periodically when messages are quarantine                   | On      |                                      |                                                                                                        |
 
-We enable "Apply future recommended settings automatically" to be certain we are secure by default. We would prefer having to adjust this after seeing emails accidentally quarantined than missing out on new security features for email security.
+We enable *Apply future recommended settings automatically* to ensure we are secure by default. We would prefer to adjust this after seeing emails quarantined accidentally rather than missing out on new security features for email security.
 
 #### End-user access
 
