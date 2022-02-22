@@ -74,23 +74,11 @@ func (r *Runner) Execute() error {
 	plugins = append(plugins, platformTables()...)
 	r.srv.RegisterPlugin(plugins...)
 
-	log.Info().Msg("registering osquery extension tables...")
-
-	// Start extension server.
-	//
-	// NOTE(lucas): If the extension server returns for any reason, e.g. a failure,
-	// we don't want to terminate all of orbit+osquery, thus just log the
-	// returned error.
-	go func() {
-		err := r.srv.Run()
-		log.Info().Err(err).Msg("extension server returned")
-	}()
-
-	select {
-	case <-ctx.Done():
-		_ = r.srv.Shutdown(context.Background())
-		return ctx.Err()
+	if err := r.srv.Run(); err != nil {
+		return err
 	}
+
+	return nil
 }
 
 // Interrupt shuts down the osquery manager server.
