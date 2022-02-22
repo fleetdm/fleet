@@ -21,7 +21,7 @@ interface IQueryEditorProps {
   baseClass: string;
   policyIdForEdit: number | null;
   storedPolicy: IPolicy | undefined;
-  storedPolicyError: any;
+  storedPolicyError: Error | null;
   showOpenSchemaActionText: boolean;
   isStoredPolicyLoading: boolean;
   createPolicy: (formData: IPolicyFormData) => Promise<any>;

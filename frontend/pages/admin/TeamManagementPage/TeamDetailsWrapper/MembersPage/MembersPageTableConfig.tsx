@@ -15,7 +15,7 @@ interface IHeaderProps {
 
 interface ICellProps {
   cell: {
-    value: any;
+    value: any; // string | number | boolean or IDropdownOption[]
   };
   row: {
     original: IUser;

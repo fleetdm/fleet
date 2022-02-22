@@ -127,7 +127,7 @@ const PlatformWrapper = ({
     enrollSecret = selectedTeam.secrets[0].secret;
   }
 
-  const onDownloadEnrollSecret = (evt: any) => {
+  const onDownloadEnrollSecret = (evt: React.MouseEvent) => {
     evt.preventDefault();
 
     const filename = "secret.txt";
@@ -138,7 +138,7 @@ const PlatformWrapper = ({
     return false;
   };
 
-  const onDownloadFlagfile = (evt: any) => {
+  const onDownloadFlagfile = (evt: React.MouseEvent) => {
     evt.preventDefault();
 
     const filename = "flagfile.txt";

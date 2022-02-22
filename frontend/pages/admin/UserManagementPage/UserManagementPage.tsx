@@ -170,13 +170,7 @@ const UserManagementPage = (): JSX.Element => {
   // NOTE: this is called once on the initial rendering. The initial render of
   // the TableContainer child component calls this handler.
   const onTableQueryChange = (queryData: ITableQueryData) => {
-    const {
-      pageIndex,
-      pageSize,
-      searchQuery,
-      sortHeader,
-      sortDirection,
-    } = queryData;
+    const { searchQuery, sortHeader, sortDirection } = queryData;
     let sortBy: any = []; // TODO
     if (sortHeader !== "") {
       sortBy = [{ id: sortHeader, direction: sortDirection }];

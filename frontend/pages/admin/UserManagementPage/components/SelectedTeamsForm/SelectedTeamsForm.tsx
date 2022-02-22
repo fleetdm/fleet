@@ -79,7 +79,7 @@ const generateSelectedTeamData = (
 const updateFormState = (
   prevTeamItems: ITeamCheckboxListItem[],
   teamId: number,
-  newValue: any,
+  newValue: any, // string | undefined or boolean | undefined
   updateType: string
 ): ITeamCheckboxListItem[] => {
   const prevItemIndex = prevTeamItems.findIndex((item) => item.id === teamId);

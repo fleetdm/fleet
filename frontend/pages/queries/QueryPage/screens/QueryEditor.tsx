@@ -24,7 +24,7 @@ interface IQueryEditorProps {
   baseClass: string;
   queryIdForEdit: number | null;
   storedQuery: IQuery | undefined;
-  storedQueryError: any;
+  storedQueryError: Error | null;
   showOpenSchemaActionText: boolean;
   isStoredQueryLoading: boolean;
   createQuery: UseMutateAsyncFunction<any, unknown, IQueryFormData, unknown>;

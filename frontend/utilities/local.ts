@@ -11,7 +11,7 @@ const local = {
 
     return localStorage.getItem(`FLEET::${itemName}`);
   },
-  setItem: (itemName: string, value: any) => {
+  setItem: (itemName: string, value: string) => {
     const { localStorage } = window;
 
     return localStorage.setItem(`FLEET::${itemName}`, value);

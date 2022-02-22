@@ -21,7 +21,7 @@ interface IHeaderProps {
 
 interface ICellProps {
   cell: {
-    value: any;
+    value: any; // [string, number] | string, number, boolean
   };
   row: {
     original: IQueryStats;

@@ -19,7 +19,7 @@ export interface ISelectQueryModalProps {
   onQueryHostCustom: () => void;
   onQueryHostSaved: (selectedQuery: IQuery) => void;
   queries: IQuery[] | [];
-  queryErrors: any | null;
+  queryErrors: Error | null;
   isOnlyObserver: boolean | undefined;
 }
 

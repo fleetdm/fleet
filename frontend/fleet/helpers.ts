@@ -6,7 +6,6 @@ import {
   formatDuration,
   isAfter,
   millisecondsToHours,
-  millisecondsToSeconds,
 } from "date-fns";
 import yaml from "js-yaml";
 

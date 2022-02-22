@@ -18,7 +18,7 @@ interface IGetToggleAllRowsSelectedProps {
   checked: boolean;
   indeterminate: boolean;
   title: string;
-  onChange: () => any;
+  onChange: () => void;
   style: { cursor: string };
 }
 interface IHeaderProps {
@@ -32,7 +32,7 @@ interface IHeaderProps {
 
 interface ICellProps {
   cell: {
-    value: any;
+    value: any; // [string, number] | string, number, boolean, IDropdownOption[]
   };
   row: {
     original: IGlobalScheduledQuery | ITeamScheduledQuery;

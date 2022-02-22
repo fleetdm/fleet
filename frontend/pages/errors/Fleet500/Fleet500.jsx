@@ -2,7 +2,6 @@ import React, { Component } from "react";
 import PropTypes from "prop-types";
 import { noop } from "lodash";
 import { resetErrors } from "redux/nodes/errors500/actions";
-import errorsInterface from "interfaces/errors";
 import { Link } from "react-router";
 
 import PATHS from "router/paths";
