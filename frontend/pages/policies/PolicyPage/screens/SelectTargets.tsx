@@ -12,6 +12,7 @@ import { IHost } from "interfaces/host";
 
 // @ts-ignore
 import TargetsInput from "components/TargetsInput";
+import IconToolTip from "components/IconToolTip";
 import Button from "components/buttons/Button";
 import Spinner from "components/Spinner";
 import PlusIcon from "../../../../../assets/images/icon-plus-purple-32x32@2x.png";
@@ -60,7 +61,11 @@ const TargetPillSelector = ({
       data-selected={isSelected}
       onClick={(e) => onClick(entity)(e)}
     >
-      <img alt="" src={isSelected ? CheckIcon : PlusIcon} />
+      <img
+        className={isSelected ? "check-icon" : "plus-icon"}
+        alt=""
+        src={isSelected ? CheckIcon : PlusIcon}
+      />
       <span className="selector-name">{displayText()}</span>
       <span className="selector-count">{entity.count}</span>
     </button>
@@ -290,7 +295,15 @@ const SelectTargets = ({
           {!!targets?.targetsTotalCount && (
             <>
               <span>{targets?.targetsTotalCount}</span> targets selected&nbsp; (
-              {targets?.targetsOnlinePercent}% online)
+              {targets?.targetsOnlinePercent}% online){" "}
+              <IconToolTip
+                isHtml
+                text={
+                  "\
+                  <center><p>Hosts are online if they<br /> have recently checked <br />into Fleet</p></center>\
+                "
+                }
+              />
             </>
           )}
         </div>
