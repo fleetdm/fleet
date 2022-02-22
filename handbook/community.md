@@ -82,6 +82,37 @@ The images used in the docs live in `docs/images/`. Note that you must provide t
 
 > Note that the instructions above also apply to adding images in the Fleet handbook.
 
+### Adding a mermaid diagram to the Fleet Docs
+
+The Fleet Docs support diagrams written in the mermaid.js. Take a look at the [mermaid docs](https://mermaid-js.github.io/mermaid/#/README) to learn about the syntax language and what types of diagrams you can display with mermaid.
+
+To add a mermaid diagram to the docs, you need to add a code block and specify that it written in the mermaid language by adding `mermaid` to the opening backticks (i.e., ` ```mermaid`).
+
+For example, the following code block is a mermaid diagram that has **not** been specifed as a mermaid code block:
+
+```
+graph TD;
+    A-->D
+    B-->D
+    C-->D
+    D-->E
+```
+Once we specify the `mermaid` as the language in the code block, it will render as a mermaid diagram on fleetdm.com and GitHub.
+
+```mermaid
+graph TD;
+    A-->D
+    B-->D
+    C-->D
+    D-->E
+```
+
+If the mermaid syntax is incorrect, the diagram will be replaced with an image displaying an error. For example, the following code block has **intentional** syntax errors will display an error:
+
+```mermaid
+graph TD;
+    A--D
+```
 
 ## Press releases
 
