@@ -269,7 +269,7 @@ Google Workspace is our collaboration tool and the source of truth for our user 
 A Google Workspace account has access to email, calendar, files, and external applications integrated with Google Authentication or SAML.
 At the same time, third-party applications installed by users can access the same data.
 
-To reduce the risk, we configure Google Workspace beyond the default settings. Our current configuration balances security and productivity and is a starting point for any organization looking to improve the security of Google Workspace.
+To reduce the risk of malicious or vulnerable apps being used to steal data, we configure Google Workspace beyond the default settings. Our current configuration balances security and productivity and is a starting point for any organization looking to improve the security of Google Workspace.
 
 As Google frequently adds new features, feel free to submit a PR to edit this file if you discover a new one that we should use!
 
@@ -284,7 +284,7 @@ Google's name for Two-Factor Authentication (2FA) or Multi-Factor Authentication
 | ----------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
 | No 2FA                                                                        | Credential theft is easy, and passwords are often leaked or easy to guess.                                |
 | SMS/Phone-based 2FA                                                           | Puts trust in the phone number itself, which attackers can hijack by [social engineering phone companies](https://www.vice.com/en/topic/sim-hijacking).      |
-| Time-based one-time password (TOTP - Google Authenticator type 6 digit codes) | Phishable as long as the attacker uses it within its short lifetime by proxying the login form |
+| Time-based one-time password (TOTP - Google Authenticator type 6 digit codes) | Phishable as long as the attacker uses it within its short lifetime by intercepting the login form |
 | App-based push notifications                                                  | Harder to phish than TOTP, but by sending a lot of prompts to a phone, a user might accidentally accept a nefarious notification       |
 | Hardware security keys                                                        | [Most secure](https://krebsonsecurity.com/2018/07/google-security-keys-neutralized-employee-phishing/), but requires extra hardware or a recent smartphone                                                                 |
 
