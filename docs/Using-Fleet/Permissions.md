@@ -37,6 +37,8 @@ The following table depicts various permissions levels for each role.
 | Delete labels                                        |          | ✅         | ✅    |
 | Add policies for all hosts                           |          | ✅         | ✅    |
 | Remove policies for all hosts                        |          | ✅         | ✅    |
+| Add policies for hosts assigned to team\*            |          | ✅         | ✅    |
+| Remove policies for hosts assigned to team\*         |          | ✅         | ✅    |
 | Create users                                         |          |            | ✅    |
 | Edit users                                           |          |            | ✅    |
 | Delete users                                         |          |            | ✅    |
