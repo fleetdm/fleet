@@ -1,0 +1,3 @@
+* Hide hosts count column on software page if team filter is selected (this temporary fix is being
+deployed because currently the hosts count for individual software items is only captured at the
+global level and not available on a per-team basis)
