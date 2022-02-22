@@ -470,7 +470,13 @@ const ManageSoftwarePage = ({
           <TableDataError />
         ) : (
           <TableContainer
-            columns={softwareTableHeaders}
+            columns={
+              currentTeam?.id
+                ? softwareTableHeaders.filter(
+                    (h) => h.accessor !== "hosts_count"
+                  )
+                : softwareTableHeaders
+            }
             data={(isSoftwareEnabled && software?.software) || []}
             isLoading={isFetchingSoftware || isFetchingCount}
             resultsTitle={"software items"}

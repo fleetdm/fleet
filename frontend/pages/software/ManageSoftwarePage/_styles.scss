@@ -230,6 +230,9 @@
         .id__header {
           width: 180px;
         }
+        .vulnerabilities__header:nth-last-child(2) {
+          border-right: 0;
+        }
       }
 
       tbody {
