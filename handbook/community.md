@@ -69,7 +69,8 @@ If the link lives outside `/docs`, head to the file's location on GitHub (in thi
 > Note that the instructions above also apply to adding links in the Fleet handbook.
 
 ### Ordering a page in the Fleet docs
-The order we display documentation pages on fleetdm.com is determined by `pageOrderInSection` meta tags. These pages are sorted in their section by the `pageOrderInSection` value in **ascending** order. Every markdown file (exccept readme and faq pages) in the `docs/` folder must have a meta tag with a positive pageOrderInSection value.
+The order we display documentation pages on fleetdm.com is determined by `pageOrderInSection` meta tags. These pages are sorted in their respective section by the `pageOrderInSection` value in **ascending** order. Every markdown file (except readme and faq pages) in the `docs/` folder must have a meta tag with a positive pageOrderInSection value.
+
 
 We leave large gaps between values to make future changes easier. For example, the first page in the "Using Fleet" section of the docs has a `pageOrderInSection` value of 100, and the next page has a value of 200. The large difference between values allows us to add, remove and reorder pages without the need for changing the value of multiple pages at a time.
 
