@@ -1,9 +1,7 @@
 import React from "react";
-import ReactTooltip from "react-tooltip";
 import formatDistanceToNowStrict from "date-fns/formatDistanceToNowStrict";
-import { kebabCase } from "lodash";
 
-import QuestionIcon from "../../../../../assets/images/icon-question-16x16@2x.png";
+import TooltipWrapper from "components/TooltipWrapper";
 
 const renderLastUpdatedText = (
   lastUpdatedAt: string,
@@ -19,33 +17,9 @@ const renderLastUpdatedText = (
 
   return (
     <span className="last-updated">
-      {`Last updated ${lastUpdatedAt}`}
-      <span className={`tooltip`}>
-        <span
-          className={`tooltip__tooltip-icon`}
-          data-tip
-          data-for={`last-updated-tooltip-${kebabCase(whatToRetrieve)}`}
-          data-tip-disable={false}
-        >
-          <img alt="question icon" src={QuestionIcon} />
-        </span>
-        <ReactTooltip
-          place="top"
-          type="dark"
-          effect="solid"
-          backgroundColor="#3e4771"
-          id={`last-updated-tooltip-${kebabCase(whatToRetrieve)}`}
-          data-html
-        >
-          <span className={`tooltip__tooltip-text`}>
-            Fleet periodically
-            <br />
-            queries all hosts
-            <br />
-            to retrieve {whatToRetrieve}
-          </span>
-        </ReactTooltip>
-      </span>
+      <TooltipWrapper tipContent={`Fleet periodically queries all hosts to retrieve ${whatToRetrieve}`}>
+        {`Last updated ${lastUpdatedAt}`}
+      </TooltipWrapper>
     </span>
   );
 };

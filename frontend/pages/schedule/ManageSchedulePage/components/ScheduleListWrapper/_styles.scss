@@ -79,8 +79,9 @@
   }
   
   .column-with-tooltip {
+    height: 0;
     position: relative;
-    top: 8px;
+    top: -10px;
   }
 }
 
