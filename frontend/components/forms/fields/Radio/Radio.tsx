@@ -45,15 +45,15 @@ const Radio = ({
           value={value}
           checked={checked}
           onChange={(event) => onChange(event.target.value)}
-          />
+        />
         <span className={`${baseClass}__control`} />
       </span>
       <span className={`${baseClass}__label`}>
-        {!!tooltip ? (
-          <TooltipWrapper tipContent={tooltip}>
-            {label}
-          </TooltipWrapper>
-        ) : (<>{label}</>)}
+        {tooltip ? (
+          <TooltipWrapper tipContent={tooltip}>{label}</TooltipWrapper>
+        ) : (
+          <>{label}</>
+        )}
       </span>
     </label>
   );

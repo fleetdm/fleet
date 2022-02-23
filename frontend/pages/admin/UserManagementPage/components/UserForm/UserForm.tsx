@@ -10,11 +10,11 @@ import { renderFlash } from "redux/nodes/notifications/actions";
 // ignore TS error for now until these are rewritten in ts.
 import Button from "components/buttons/Button";
 import validatePresence from "components/forms/validators/validate_presence";
-import validEmail from "components/forms/validators/valid_email";// @ts-ignore
-import validPassword from "components/forms/validators/valid_password";// @ts-ignore
-import InputField from "components/forms/fields/InputField";// @ts-ignore
-import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon";// @ts-ignore
-import Checkbox from "components/forms/fields/Checkbox";// @ts-ignore
+import validEmail from "components/forms/validators/valid_email"; // @ts-ignore
+import validPassword from "components/forms/validators/valid_password"; // @ts-ignore
+import InputField from "components/forms/fields/InputField"; // @ts-ignore
+import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon"; // @ts-ignore
+import Checkbox from "components/forms/fields/Checkbox"; // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 import Radio from "components/forms/fields/Radio";
 import InfoBanner from "components/InfoBanner/InfoBanner";
@@ -483,11 +483,13 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
             placeholder="Email"
             value={email || ""}
             disabled={!isNewUser && !smtpConfigured}
-            tooltip={"\
+            tooltip={
+              "\
               Editing an email address requires that SMTP is configured in order to send a validation email. \
               <br /><br /> \
               Users with Admin role can configure SMTP in <strong>Settings &gt; Organization settings</strong>. \
-            "}
+            "
+            }
           />
         </div>
         <div className={`${baseClass}__sso-input`}>
@@ -532,12 +534,16 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
                     value={NewUserType.AdminInvited}
                     name={"newUserType"}
                     onChange={onRadioChange("newUserType")}
-                    tooltip={smtpConfigured ? "" : `
+                    tooltip={
+                      smtpConfigured
+                        ? ""
+                        : `
                       The &quot;Invite user&quot; feature requires that SMTP
                       is configured in order to send invitation emails.
                       <br /><br />
                       SMTP can be configured in Settings &gt; Organization settings.
-                    `}
+                    `
+                    }
                   />
                 </>
               ) : (

@@ -33,13 +33,13 @@ import TableDataError from "components/TableDataError";
 import TeamsDropdownHeader, {
   ITeamsDropdownState,
 } from "components/PageHeader/TeamsDropdownHeader";
-
-import ExternalLinkIcon from "../../../../assets/images/open-new-tab-12x12@2x.png";
-import QuestionIcon from "../../../../assets/images/icon-question-16x16@2x.png";
+import TooltipWrapper from "components/TooltipWrapper";
 
 import softwareTableHeaders from "./SoftwareTableConfig";
 import ManageAutomationsModal from "./components/ManageAutomationsModal";
 import EmptySoftware from "../components/EmptySoftware";
+import ExternalLinkIcon from "../../../../assets/images/open-new-tab-12x12@2x.png";
+import QuestionIcon from "../../../../assets/images/icon-question-16x16@2x.png";
 
 interface IManageSoftwarePageProps {
   router: InjectedRouter;
@@ -347,33 +347,9 @@ const ManageSoftwarePage = ({
       >
         {`${count} software item${count === 1 ? "" : "s"}`}
         <span className="count-last-updated">
-          {`Last updated ${lastUpdatedAt}`}{" "}
-          <span className={`tooltip`}>
-            <span
-              className={`tooltip__tooltip-icon`}
-              data-tip
-              data-for="last-updated-tooltip"
-              data-tip-disable={false}
-            >
-              <img alt="question icon" src={QuestionIcon} />
-            </span>
-            <ReactTooltip
-              place="top"
-              type="dark"
-              effect="solid"
-              backgroundColor="#3e4771"
-              id="last-updated-tooltip"
-              data-html
-            >
-              <span className={`tooltip__tooltip-text`}>
-                Fleet periodically
-                <br />
-                queries all hosts
-                <br />
-                to retrieve software
-              </span>
-            </ReactTooltip>
-          </span>
+          <TooltipWrapper tipContent="Fleet periodically queries all hosts to retrieve software">
+            {`Last updated ${lastUpdatedAt}`}
+          </TooltipWrapper>
         </span>
       </span>
     ) : null;

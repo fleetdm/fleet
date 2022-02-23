@@ -471,7 +471,11 @@ const ManagePolicyPage = ({
                      ${baseClass}__inherited-policies-button`}
               onClick={toggleShowInheritedPolicies}
             >
-              <TooltipWrapper tipContent={'"All teams" policies are checked <br/> for this team’s hosts.'}>
+              <TooltipWrapper
+                tipContent={
+                  '"All teams" policies are checked <br/> for this team’s hosts.'
+                }
+              >
                 {inheritedPoliciesButtonText(
                   showInheritedPolicies,
                   globalPolicies.length

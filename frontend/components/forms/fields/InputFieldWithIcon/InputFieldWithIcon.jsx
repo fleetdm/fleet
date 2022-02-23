@@ -36,12 +36,16 @@ class InputFieldWithIcon extends InputField {
     }
 
     return (
-      <label htmlFor={name} className={labelClasses} data-has-tooltip={!!tooltip}>
-        {!!tooltip ? (
-          <TooltipWrapper tipContent={tooltip}>
-            {label}
-          </TooltipWrapper>
-        ) : (<>{label || placeholder}</>)}
+      <label
+        htmlFor={name}
+        className={labelClasses}
+        data-has-tooltip={!!tooltip}
+      >
+        {tooltip ? (
+          <TooltipWrapper tipContent={tooltip}>{label}</TooltipWrapper>
+        ) : (
+          <>{label || placeholder}</>
+        )}
       </label>
     );
   };

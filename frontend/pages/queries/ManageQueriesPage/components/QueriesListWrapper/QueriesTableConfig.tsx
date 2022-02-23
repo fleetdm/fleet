@@ -110,12 +110,13 @@ const generateTableHeaders = (currentUser: IUser): IDataColumn[] => {
         return (
           <div className="column-with-tooltip">
             <span className="queries-table__performance-impact-header">
-              <TooltipWrapper tipContent={`
+              <TooltipWrapper
+                tipContent={`
                 This is the average <br />
                 performance impact <br />
                 across all hosts where this <br />
-                query was scheduled.`
-              }>
+                query was scheduled.`}
+              >
                 Performance impact
               </TooltipWrapper>
             </span>

@@ -2,7 +2,6 @@
 // disable this rule as it was throwing an error in Header and Cell component
 // definitions for the selection row for some reason when we dont really need it.
 import React from "react";
-import ReactTooltip from "react-tooltip";
 import { performanceIndicator, secondsToDhms } from "fleet/helpers";
 
 // @ts-ignore
@@ -13,7 +12,6 @@ import PillCell from "components/TableContainer/DataTable/PillCell";
 import { IDropdownOption } from "interfaces/dropdownOption";
 import { IGlobalScheduledQuery } from "interfaces/global_scheduled_query";
 import { ITeamScheduledQuery } from "interfaces/team_scheduled_query";
-import QuestionIcon from "../../../../../../assets/images/icon-question-16x16@2x.png";
 import TooltipWrapper from "components/TooltipWrapper";
 
 interface IGetToggleAllRowsSelectedProps {
@@ -114,12 +112,13 @@ const generateTableHeaders = (
         return (
           <div className="column-with-tooltip">
             <span className="queries-table__performance-impact-header">
-              <TooltipWrapper tipContent={`
+              <TooltipWrapper
+                tipContent={`
                 This is the average <br />
                 performance impact <br />
                 across all hosts where this <br />
-                query was scheduled.`
-              }>
+                query was scheduled.`}
+              >
                 Performance impact
               </TooltipWrapper>
             </span>

@@ -43,6 +43,7 @@ import Modal from "components/Modal";
 import TableContainer from "components/TableContainer";
 import TabsWrapper from "components/TabsWrapper";
 import InfoBanner from "components/InfoBanner";
+import TooltipWrapper from "components/TooltipWrapper";
 import {
   Accordion,
   AccordionItem,
@@ -611,29 +612,10 @@ const HostDetailsPage = ({
           </span>
         </p>
         <span className={`${baseClass}__os-modal-example-title`}>
-          Example policy:
-        </span>{" "}
-        <span
-          className="policy-isexamplesue tooltip__tooltip-icon"
-          data-tip
-          data-for="policy-example"
-          data-tip-disable={false}
-        >
-          <img alt="host issue" src={QuestionIcon} />
+          <TooltipWrapper tipContent="A policy is a yes or no question you can ask all your devices.">
+            Example policy:
+          </TooltipWrapper>
         </span>
-        <ReactTooltip
-          place="bottom"
-          type="dark"
-          effect="solid"
-          backgroundColor="#3e4771"
-          id="policy-example"
-          data-html
-        >
-          <span className={`${baseClass}__tooltip-text`}>
-            A policy is a yes or no question
-            <br /> you can ask all your devices.
-          </span>
-        </ReactTooltip>
         <InputField
           disabled
           inputWrapperClass={`${baseClass}__os-policy`}

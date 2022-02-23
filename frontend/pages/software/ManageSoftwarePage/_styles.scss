@@ -158,6 +158,9 @@
     }
   }
   &__count {
+    display: flex;
+    align-items: center;
+    
     .count-error {
       color: $ui-error;
     }

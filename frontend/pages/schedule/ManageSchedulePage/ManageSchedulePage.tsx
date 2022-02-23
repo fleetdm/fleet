@@ -532,12 +532,16 @@ const ManageSchedulePage = ({
               className={`${showInheritedQueries ? "upcarat" : "rightcarat"} 
                     ${baseClass}__inherited-queries-button`}
               onClick={toggleInheritedQueries}
+            >
+              <TooltipWrapper
+                tipContent={
+                  'Queries from the "All teams"<br/>schedule run on this team’s hosts.'
+                }
               >
-                <TooltipWrapper tipContent={'Queries from the "All teams"<br/>schedule run on this team’s hosts.'}>
-                  {showInheritedQueries
-                    ? `Hide ${inheritedScheduledQueriesList.length} inherited ${inheritedQueryOrQueries}`
-                    : `Show ${inheritedScheduledQueriesList.length} inherited ${inheritedQueryOrQueries}`}
-                </TooltipWrapper>
+                {showInheritedQueries
+                  ? `Hide ${inheritedScheduledQueriesList.length} inherited ${inheritedQueryOrQueries}`
+                  : `Show ${inheritedScheduledQueriesList.length} inherited ${inheritedQueryOrQueries}`}
+              </TooltipWrapper>
             </Button>
           </span>
         ) : null}

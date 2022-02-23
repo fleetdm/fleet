@@ -2,7 +2,6 @@
 /* eslint-disable jsx-a11y/interactive-supports-focus */
 import React, { useState, useContext, KeyboardEvent } from "react";
 import { IAceEditor } from "react-ace/lib/types";
-import ReactTooltip from "react-tooltip";
 import { isUndefined } from "lodash";
 import classnames from "classnames";
 
@@ -20,9 +19,9 @@ import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 import Spinner from "components/Spinner";
 import AutoSizeInputField from "components/forms/fields/AutoSizeInputField";
+import TooltipWrapper from "components/TooltipWrapper";
 import NewPolicyModal from "../NewPolicyModal";
 import InfoIcon from "../../../../../../assets/images/icon-info-purple-14x14@2x.png";
-import QuestionIcon from "../../../../../../assets/images/icon-question-16x16@2x.png";
 import PencilIcon from "../../../../../../assets/images/icon-pencil-14x14@2x.png";
 
 const baseClass = "policy-form";
@@ -372,31 +371,9 @@ const PolicyForm = ({
           <>
             <b>Checks on:</b>
             <span className="platforms-text">
-              {displayPlatforms.join(", ")}
-            </span>
-            <span className={`tooltip`}>
-              <span
-                className={`tooltip__tooltip-icon`}
-                data-tip
-                data-for="query-compatibility-tooltip"
-                data-tip-disable={false}
-              >
-                <img alt="question icon" src={QuestionIcon} />
-              </span>
-              <ReactTooltip
-                place="bottom"
-                type="dark"
-                effect="solid"
-                backgroundColor="#3e4771"
-                id="query-compatibility-tooltip"
-                data-html
-              >
-                <span className={`tooltip__tooltip-text`}>
-                  To choose new platforms,
-                  <br />
-                  please create a new policy.
-                </span>
-              </ReactTooltip>
+              <TooltipWrapper tipContent="To choose new platforms, please create a new policy.">
+                {displayPlatforms.join(", ")}
+              </TooltipWrapper>
             </span>
           </>
         ) : (

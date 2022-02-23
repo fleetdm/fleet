@@ -37,7 +37,11 @@ const FormField = ({
     }
 
     return (
-      <label className={labelWrapperClasses} htmlFor={name} data-has-tooltip={!!tooltip}>
+      <label
+        className={labelWrapperClasses}
+        htmlFor={name}
+        data-has-tooltip={!!tooltip}
+      >
         {error ||
           (tooltip ? (
             <TooltipWrapper tipContent={tooltip}>
