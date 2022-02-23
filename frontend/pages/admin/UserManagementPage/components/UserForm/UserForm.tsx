@@ -16,8 +16,6 @@ import { renderFlash } from "redux/nodes/notifications/actions";
 // @ts-ignore
 import validPassword from "components/forms/validators/valid_password";
 // @ts-ignore
-import IconToolTip from "components/IconToolTip";
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 // @ts-ignore
 import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon";
@@ -616,6 +614,7 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
               <>
                 <div className={`${baseClass}__password`}>
                   <InputField
+                    label="Password"
                     error={errors.password}
                     name="password"
                     onChange={onInputChange("password")}
@@ -626,16 +625,9 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
                       "Must include 7 characters, at least 1 number (e.g. 0 - 9), and at least 1 symbol (e.g. &*#)",
                     ]}
                     blockAutoComplete
-                  />
-                </div>
-                <div className={`${baseClass}__details`}>
-                  <IconToolTip
-                    isHtml
-                    text={`\
-                      <div class="password-tooltip-text">\
-                        <p>This password is temporary. This user will be asked to set a new password after logging in to the Fleet UI.</p>\
-                        <p>This user will not be asked to set a new password after logging in to fleetctl or the Fleet API.</p>\
-                      </div>\
+                    tooltip={`\
+                      This password is temporary. This user will be asked to set a new password after logging in to the Fleet UI.<br /><br />\
+                      This user will not be asked to set a new password after logging in to fleetctl or the Fleet API.\
                     `}
                   />
                 </div>
