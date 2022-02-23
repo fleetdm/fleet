@@ -36,6 +36,8 @@ interface ISelectTargetsProps {
   goToQueryEditor: () => void;
   goToRunQuery: () => void;
   setSelectedTargets: React.Dispatch<React.SetStateAction<ITarget[]>>;
+  setTargetsTotalCount: React.Dispatch<React.SetStateAction<number>>;
+  targetsTotalCount: number;
 }
 
 interface IModifiedUseQueryTargetsResponse {
@@ -83,10 +85,9 @@ const SelectTargets = ({
   goToQueryEditor,
   goToRunQuery,
   setSelectedTargets,
+  setTargetsTotalCount,
+  targetsTotalCount,
 }: ISelectTargetsProps): JSX.Element => {
-  const [targetsTotalCount, setTargetsTotalCount] = useState<number | null>(
-    null
-  );
   const [targetsOnlinePercent, setTargetsOnlinePercent] = useState<number>(0);
   const [allHostsLabels, setAllHostsLabels] = useState<ILabel[] | null>(null);
   const [platformLabels, setPlatformLabels] = useState<ILabel[] | null>(null);

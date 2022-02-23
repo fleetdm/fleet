@@ -24,6 +24,7 @@ interface IRunQueryProps {
   queryIdForEdit: number | null;
   setSelectedTargets: (value: ITarget[]) => void;
   goToQueryEditor: () => void;
+  targetsTotalCount: number;
 }
 
 const RunQuery = ({
@@ -32,6 +33,7 @@ const RunQuery = ({
   queryIdForEdit,
   setSelectedTargets,
   goToQueryEditor,
+  targetsTotalCount,
 }: IRunQueryProps): JSX.Element | null => {
   const dispatch = useDispatch();
 
@@ -214,6 +216,7 @@ const RunQuery = ({
       isQueryFinished={isQueryFinished}
       setSelectedTargets={setSelectedTargets}
       goToQueryEditor={goToQueryEditor}
+      targetsTotalCount={targetsTotalCount}
     />
   );
 };
