@@ -109,14 +109,13 @@
   &__certificate-loading {
     color: $ui-fleet-black-50;
     padding-top: $pad-xsmall;
-    margin: 0;
   }
 
   &__certificate-error {
     span,
     em {
       display: block;
-      padding-top: $pad-xsmall;
+      padding: $pad-xsmall 0;
     }
     em {
       color: $ui-error;

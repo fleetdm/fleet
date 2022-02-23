@@ -181,6 +181,7 @@ jobs:
         cp ./orbit/pkg/packaging/certs.pem /tmp/orbit
         mkdir orbit_logs
         go run github.com/fleetdm/fleet/v4/orbit/cmd/orbit \
+          --debug \
           --dev-mode \
           --disable-updates \
           --root-dir /tmp/orbit \
@@ -230,6 +231,7 @@ jobs:
         cp ./orbit/pkg/packaging/certs.pem "/C/Program Files/Orbit"
         mkdir orbit_logs
         go run github.com/fleetdm/fleet/v4/orbit/cmd/orbit \
+          --debug \
           --dev-mode \
           --disable-updates \
           --root-dir "/C/Program Files/Orbit" \
