@@ -31,7 +31,6 @@ import paths from "router/paths";
 import Button from "components/buttons/Button";
 import Spinner from "components/Spinner";
 import TeamsDropdown from "components/TeamsDropdown";
-import IconToolTip from "components/IconToolTip";
 import TableDataError from "components/TableDataError";
 import TooltipWrapper from "components/TooltipWrapper";
 import ScheduleListWrapper from "./components/ScheduleListWrapper";

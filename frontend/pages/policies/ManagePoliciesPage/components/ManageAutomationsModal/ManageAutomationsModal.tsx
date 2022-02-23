@@ -11,8 +11,6 @@ import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
-import IconToolTip from "components/IconToolTip";
-import TooltipWrapper from "components/TooltipWrapper";
 import validURL from "components/forms/validators/valid_url";
 import PreviewPayloadModal from "../PreviewPayloadModal";
 
@@ -192,7 +190,7 @@ const ManageAutomationsModal = ({
               'For each policy, Fleet will send a JSON payload to this URL with a list of the hosts that updated their answer to "No."'
             }
             placeholder={"https://server.com/example"}
-            tooltip="Provide a URL to deliver a<br />webhook request to."
+            tooltip="Provide a URL to deliver a webhook request to."
           />
         </div>
         <Button
