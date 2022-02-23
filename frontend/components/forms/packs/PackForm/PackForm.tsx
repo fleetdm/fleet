@@ -62,7 +62,7 @@ const EditPackForm = ({
       });
     }
 
-    handleSubmit({
+    return handleSubmit({
       name: packName,
       description: packDescription,
       targets: [...packFormTargets],
@@ -74,7 +74,7 @@ const EditPackForm = ({
   return (
     <form className={packFormClass} onSubmit={onFormSubmit} autoComplete="off">
       <h1>New pack</h1>
-      {serverErrors && (
+      {serverErrors.base && (
         <div className="form__base-error">{serverErrors.base}</div>
       )}
       <InputField
