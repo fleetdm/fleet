@@ -3,6 +3,7 @@ import PropTypes from "prop-types";
 import classnames from "classnames";
 
 import FleetIcon from "components/icons/FleetIcon";
+import TooltipWrapper from "components/TooltipWrapper";
 import InputField from "../InputField";
 
 const baseClass = "input-icon-field";
@@ -23,10 +24,11 @@ class InputFieldWithIcon extends InputField {
     disabled: PropTypes.bool,
     iconPosition: PropTypes.oneOf(["start", "end"]),
     inputOptions: PropTypes.object, // eslint-disable-line react/forbid-prop-types
+    tooltip: PropTypes.string,
   };
 
   renderHeading = () => {
-    const { error, placeholder, name, label } = this.props;
+    const { error, placeholder, name, label, tooltip } = this.props;
     const labelClasses = classnames(`${baseClass}__label`);
 
     if (error) {
@@ -34,8 +36,12 @@ class InputFieldWithIcon extends InputField {
     }
 
     return (
-      <label htmlFor={name} className={labelClasses}>
-        {label || placeholder}
+      <label htmlFor={name} className={labelClasses} data-has-tooltip={!!tooltip}>
+        {!!tooltip ? (
+          <TooltipWrapper tipContent={tooltip}>
+            {label}
+          </TooltipWrapper>
+        ) : (<>{label || placeholder}</>)}
       </label>
     );
   };

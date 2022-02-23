@@ -56,9 +56,14 @@
   }
 
   &__label {
+    display: block;
     font-size: $x-small;
     font-weight: $bold;
     margin-bottom: $pad-xsmall;
+
+    &[data-has-tooltip="true"] {
+      margin-bottom: $pad-small;
+    }
   }
 
   &__errors {

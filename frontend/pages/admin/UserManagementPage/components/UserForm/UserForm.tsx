@@ -483,31 +483,20 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
           data-tip-disable={isNewUser || smtpConfigured}
         >
           <InputFieldWithIcon
+            label="Email"
             error={errors.email || serverErrors?.email}
             name="email"
             onChange={onInputChange("email")}
             placeholder="Email"
             value={email || ""}
             disabled={!isNewUser && !smtpConfigured}
+            tooltip={"\
+              Editing an email address requires that SMTP is configured in order to send a validation email. \
+              <br /> \
+              Users with Admin role can configure SMTP in <strong>Settings &gt; Organization settings</strong>. \
+            "}
           />
         </div>
-        <ReactTooltip
-          place="bottom"
-          type="dark"
-          effect="solid"
-          id="email-disabled-tooltip"
-          backgroundColor="#3e4771"
-          data-html
-        >
-          <span className={`${baseClass}__tooltip-text`}>
-            Editing an email address requires that SMTP is <br />
-            configured in order to send a validation email. <br />
-            <br />
-            Users with Admin role can configure SMTP in
-            <br />
-            <strong>Settings &gt; Organization settings</strong>.
-          </span>
-        </ReactTooltip>
         <div className={`${baseClass}__sso-input`}>
           <div
             className="sso-disabled"
