@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useContext, useEffect } from "react";
+import React, { useState, useCallback, useContext } from "react";
 import { useDispatch } from "react-redux";
 import { useQuery } from "react-query";
 
