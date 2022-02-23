@@ -33,6 +33,7 @@ import Spinner from "components/Spinner";
 import TeamsDropdown from "components/TeamsDropdown";
 import IconToolTip from "components/IconToolTip";
 import TableDataError from "components/TableDataError";
+import TooltipWrapper from "components/TooltipWrapper";
 import ScheduleListWrapper from "./components/ScheduleListWrapper";
 import ScheduleEditorModal from "./components/ScheduleEditorModal";
 import RemoveScheduledQueryModal from "./components/RemoveScheduledQueryModal";
@@ -526,30 +527,20 @@ const ManageSchedulePage = ({
         {selectedTeamId &&
         inheritedScheduledQueriesList &&
         inheritedScheduledQueriesList.length > 0 ? (
-          <>
-            <span>
-              <Button
-                variant="unstyled"
-                className={`${showInheritedQueries ? "upcarat" : "rightcarat"} 
-                     ${baseClass}__inherited-queries-button`}
-                onClick={toggleInheritedQueries}
+          <span>
+            <Button
+              variant="unstyled"
+              className={`${showInheritedQueries ? "upcarat" : "rightcarat"} 
+                    ${baseClass}__inherited-queries-button`}
+              onClick={toggleInheritedQueries}
               >
-                {showInheritedQueries
-                  ? `Hide ${inheritedScheduledQueriesList.length} inherited ${inheritedQueryOrQueries}`
-                  : `Show ${inheritedScheduledQueriesList.length} inherited ${inheritedQueryOrQueries}`}
-              </Button>
-            </span>
-            <div className={`${baseClass}__details`}>
-              <IconToolTip
-                isHtml
-                text={
-                  "\
-              <center><p>Queries from the “All teams”<br/>schedule run on this team’s hosts.</p></center>\
-            "
-                }
-              />
-            </div>
-          </>
+                <TooltipWrapper tipContent={'Queries from the "All teams"<br/>schedule run on this team’s hosts.'}>
+                  {showInheritedQueries
+                    ? `Hide ${inheritedScheduledQueriesList.length} inherited ${inheritedQueryOrQueries}`
+                    : `Show ${inheritedScheduledQueriesList.length} inherited ${inheritedQueryOrQueries}`}
+                </TooltipWrapper>
+            </Button>
+          </span>
         ) : null}
         {showInheritedQueries &&
           inheritedScheduledQueriesList &&
