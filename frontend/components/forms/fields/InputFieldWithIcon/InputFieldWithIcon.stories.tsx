@@ -33,7 +33,6 @@ export default {
     },
     iconName: {
       options: [
-        "kolide-logo-flat",
         "chevrondown",
         "chevronleft",
         "chevronright",
@@ -84,7 +83,6 @@ export default {
         "link-big",
         "briefcase",
         "name-card",
-        "kolide-logo",
         "business",
         "clock",
         "host-large",
@@ -98,7 +96,6 @@ export default {
         "pencil",
         "add-plus",
         "x",
-        "kill-kolide",
         "right-arrow",
         "camera",
         "plus-minus",

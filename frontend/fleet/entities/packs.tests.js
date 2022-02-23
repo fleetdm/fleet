@@ -6,7 +6,7 @@ import { hostStub, labelStub, packStub } from "test/stubs";
 
 const { packs: packMocks } = mocks;
 
-describe("Kolide - API client (packs)", () => {
+describe("Fleet - API client (packs)", () => {
   afterEach(() => {
     nock.cleanAll();
     Fleet.setBearerToken(null);
