@@ -595,7 +595,7 @@ func (ds *Datastore) CleanupPolicyMembership(ctx context.Context, now time.Time)
 				pm.host_id = h.id
 			WHERE
 				pm.policy_id = ? AND
-				FIND_IN_SET(h.platform, ?) = 0 )`
+				FIND_IN_SET(h.platform, ?) = 0`
 	)
 
 	var pols []*fleet.Policy

@@ -1561,43 +1561,13 @@ func testPolicyPlatformUpdate(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 	}
 
-	policyIDs := make([]uint, 0, len(polsByName))
-	for _, pol := range polsByName {
-		policyIDs = append(policyIDs, pol.ID)
-	}
-	loadMembershipStmt, args, err := sqlx.In(`SELECT policy_id, host_id FROM policy_membership WHERE policy_id IN (?)`, policyIDs)
-	require.NoError(t, err)
-
-	assertPolicyMembership := func(want map[string][]uint) {
-		type polHostIDs struct {
-			PolicyID uint `db:"policy_id"`
-			HostID   uint `db:"host_id"`
-		}
-		var rows []polHostIDs
-		err := ds.writer.SelectContext(ctx, &rows, loadMembershipStmt, args...)
-		require.NoError(t, err)
-
-		// index the host IDs by policy ID
-		hostIDsByPolID := make(map[uint][]uint, len(policyIDs))
-		for _, row := range rows {
-			hostIDsByPolID[row.PolicyID] = append(hostIDsByPolID[row.PolicyID], row.HostID)
-		}
-
-		// assert that they match the expected list of hosts by policy
-		for polNm, hostIDs := range want {
-			polID := polsByName[polNm].ID
-			got := hostIDsByPolID[polID]
-			require.ElementsMatch(t, hostIDs, got)
-		}
-	}
-
 	wantHostsByPol := map[string][]uint{
 		"g1": {globalHosts[hostWin].ID, globalHosts[hostMac].ID, globalHosts[hostDeb].ID, globalHosts[hostLin].ID},
 		"g2": {globalHosts[hostDeb].ID, globalHosts[hostLin].ID},
 		"t1": {teamHosts[hostWin].ID, teamHosts[hostMac].ID, teamHosts[hostDeb].ID, teamHosts[hostLin].ID},
 		"t2": {teamHosts[hostDeb].ID, teamHosts[hostLin].ID},
 	}
-	assertPolicyMembership(wantHostsByPol)
+	assertPolicyMembership(t, ds, polsByName, wantHostsByPol)
 
 	// update global policy g1 from any => linux
 	g1 := polsByName["g1"]
@@ -1606,7 +1576,7 @@ func testPolicyPlatformUpdate(t *testing.T, ds *Datastore) {
 	err = ds.SavePolicy(ctx, g1)
 	require.NoError(t, err)
 	wantHostsByPol["g1"] = []uint{globalHosts[hostDeb].ID, globalHosts[hostLin].ID}
-	assertPolicyMembership(wantHostsByPol)
+	assertPolicyMembership(t, ds, polsByName, wantHostsByPol)
 
 	// update team policy t1 from any => windows, darwin
 	t1 := polsByName["t1"]
@@ -1615,7 +1585,7 @@ func testPolicyPlatformUpdate(t *testing.T, ds *Datastore) {
 	err = ds.SavePolicy(ctx, t1)
 	require.NoError(t, err)
 	wantHostsByPol["t1"] = []uint{teamHosts[hostWin].ID, teamHosts[hostMac].ID}
-	assertPolicyMembership(wantHostsByPol)
+	assertPolicyMembership(t, ds, polsByName, wantHostsByPol)
 
 	// update g2 from linux => any, t2 from linux => debian, via ApplySpecs
 	t2, g2 := polsByName["t2"], polsByName["g2"]
@@ -1630,7 +1600,41 @@ func testPolicyPlatformUpdate(t *testing.T, ds *Datastore) {
 	// nothing should've changed for g2 (platform changed to any, so nothing to cleanup),
 	// while t2 should now only accept debian
 	wantHostsByPol["t2"] = []uint{teamHosts[hostDeb].ID}
-	assertPolicyMembership(wantHostsByPol)
+	assertPolicyMembership(t, ds, polsByName, wantHostsByPol)
+}
+
+func assertPolicyMembership(t *testing.T, ds *Datastore, polsByName map[string]*fleet.Policy, wantPolNameToHostIDs map[string][]uint) {
+	policyIDs := make([]uint, 0, len(polsByName))
+	for _, pol := range polsByName {
+		policyIDs = append(policyIDs, pol.ID)
+	}
+	loadMembershipStmt, args, err := sqlx.In(`SELECT policy_id, host_id FROM policy_membership WHERE policy_id IN (?)`, policyIDs)
+	require.NoError(t, err)
+
+	type polHostIDs struct {
+		PolicyID uint `db:"policy_id"`
+		HostID   uint `db:"host_id"`
+	}
+	var rows []polHostIDs
+	err = ds.writer.SelectContext(context.Background(), &rows, loadMembershipStmt, args...)
+	require.NoError(t, err)
+
+	// index the host IDs by policy ID
+	hostIDsByPolID := make(map[uint][]uint, len(policyIDs))
+	for _, row := range rows {
+		hostIDsByPolID[row.PolicyID] = append(hostIDsByPolID[row.PolicyID], row.HostID)
+	}
+
+	// assert that they match the expected list of hosts by policy
+	for polNm, hostIDs := range wantPolNameToHostIDs {
+		pol, ok := polsByName[polNm]
+		if !ok {
+			require.Len(t, hostIDs, 0)
+			continue
+		}
+		got := hostIDsByPolID[pol.ID]
+		require.ElementsMatch(t, hostIDs, got)
+	}
 }
 
 func testPolicyCleanupPolicyMembership(t *testing.T, ds *Datastore) {
@@ -1638,6 +1642,7 @@ func testPolicyCleanupPolicyMembership(t *testing.T, ds *Datastore) {
 	user := test.NewUser(t, ds, "Bob", "bob@example.com", true)
 
 	// create hosts with different platforms
+	hostWin, hostMac, hostDeb, hostLin := 0, 1, 2, 3
 	platforms := []string{"windows", "darwin", "debian", "linux"}
 	hosts := make([]*fleet.Host, len(platforms))
 	for i, pl := range platforms {
@@ -1664,17 +1669,121 @@ func testPolicyCleanupPolicyMembership(t *testing.T, ds *Datastore) {
 	jan2020 := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 	feb2020 := time.Date(2020, 2, 1, 0, 0, 0, 0, time.UTC)
 	mar2020 := time.Date(2020, 3, 1, 0, 0, 0, 0, time.UTC)
+	apr2020 := time.Date(2020, 4, 1, 0, 0, 0, 0, time.UTC)
+	may2020 := time.Date(2020, 5, 1, 0, 0, 0, 0, time.UTC)
 	pols := make([]*fleet.Policy, 3)
 	for i, dt := range []time.Time{jan2020, feb2020, mar2020} {
-		res, err := ds.writer.ExecContext(ctx, createPolStmt, "p"+strconv.Itoa(i), "select 1", user.ID, "", dt, dt)
+		res, err := ds.writer.ExecContext(ctx, createPolStmt, "p"+strconv.Itoa(i+1), "select 1", user.ID, "", dt, dt)
 		require.NoError(t, err)
 		id, _ := res.LastInsertId()
 		pol, err := ds.Policy(ctx, uint(id))
 		require.NoError(t, err)
 		pols[i] = pol
 	}
+	// index the policies by name for easier access in the rest of the test
+	polsByName := make(map[string]*fleet.Policy, len(pols))
+	for _, pol := range pols {
+		polsByName[pol.Name] = pol
+	}
 
+	wantHostsByPol := map[string][]uint{
+		"p1": {},
+		"p2": {},
+		"p3": {},
+	}
 	// no recently updated policies
 	err := ds.CleanupPolicyMembership(ctx, time.Now())
+	require.NoError(t, err)
+	assertPolicyMembership(t, ds, polsByName, wantHostsByPol)
+
+	// record results for each policy, all hosts, even if invalid for the policy
+	for _, h := range hosts {
+		res := map[uint]*bool{
+			polsByName["p1"].ID: ptr.Bool(true),
+			polsByName["p2"].ID: ptr.Bool(true),
+			polsByName["p3"].ID: ptr.Bool(true),
+		}
+		err = ds.RecordPolicyQueryExecutions(ctx, h, res, time.Now(), false)
+		require.NoError(t, err)
+	}
+
+	// no recently updated policies, so no host gets cleaned up
+	wantHostsByPol = map[string][]uint{
+		"p1": {hosts[hostWin].ID, hosts[hostMac].ID, hosts[hostDeb].ID, hosts[hostLin].ID},
+		"p2": {hosts[hostWin].ID, hosts[hostMac].ID, hosts[hostDeb].ID, hosts[hostLin].ID},
+		"p3": {hosts[hostWin].ID, hosts[hostMac].ID, hosts[hostDeb].ID, hosts[hostLin].ID},
+	}
+	err = ds.CleanupPolicyMembership(ctx, time.Now())
+	require.NoError(t, err)
+	assertPolicyMembership(t, ds, polsByName, wantHostsByPol)
+
+	// update policy p1, but do not change the platform (still any)
+	pols[0].Description = "updated"
+	updatePolicyWithTimestamp(t, ds, pols[0], feb2020)
+	err = ds.CleanupPolicyMembership(ctx, time.Now())
+	require.NoError(t, err)
+	assertPolicyMembership(t, ds, polsByName, wantHostsByPol)
+
+	// update policy p1 to "windows", but cleanup with a timestamp of apr2020, so
+	// not "recently updated", no changes
+	pols[0].Platform = "windows"
+	updatePolicyWithTimestamp(t, ds, pols[0], mar2020)
+	err = ds.CleanupPolicyMembership(ctx, apr2020)
+	require.NoError(t, err)
+	assertPolicyMembership(t, ds, polsByName, wantHostsByPol)
+
+	// now cleanup with a timestamp of mar2020+1h, so "recently updated", only windows
+	// hosts are kept
+	err = ds.CleanupPolicyMembership(ctx, mar2020.Add(time.Hour))
+	require.NoError(t, err)
+	wantHostsByPol["p1"] = []uint{hosts[hostWin].ID}
+	assertPolicyMembership(t, ds, polsByName, wantHostsByPol)
+
+	// update policy p2 to "linux,darwin", but cleanup with a timestamp of just over 24h, so
+	// not "recently updated", no changes
+	pols[1].Platform = "linux,darwin"
+	updatePolicyWithTimestamp(t, ds, pols[1], mar2020)
+	err = ds.CleanupPolicyMembership(ctx, mar2020.Add(25*time.Hour))
+	require.NoError(t, err)
+	assertPolicyMembership(t, ds, polsByName, wantHostsByPol)
+
+	// now cleanup with a timestamp of just under 24h, so it is "recently updated"
+	err = ds.CleanupPolicyMembership(ctx, mar2020.Add(23*time.Hour))
+	require.NoError(t, err)
+	wantHostsByPol["p2"] = []uint{hosts[hostMac].ID, hosts[hostDeb].ID, hosts[hostLin].ID}
+	assertPolicyMembership(t, ds, polsByName, wantHostsByPol)
+
+	// update policy p2 to just "linux", p3 to "debian", both get cleaned up (using apr2020
+	// because p3 was created with mar2020, so it will not be detected as updated if we use
+	// that same timestamp for the update).
+	pols[1].Platform = "linux"
+	updatePolicyWithTimestamp(t, ds, pols[1], apr2020)
+	pols[2].Platform = "debian"
+	updatePolicyWithTimestamp(t, ds, pols[2], apr2020)
+	err = ds.CleanupPolicyMembership(ctx, apr2020.Add(time.Hour))
+	require.NoError(t, err)
+	wantHostsByPol["p2"] = []uint{hosts[hostDeb].ID, hosts[hostLin].ID}
+	wantHostsByPol["p3"] = []uint{hosts[hostDeb].ID}
+	assertPolicyMembership(t, ds, polsByName, wantHostsByPol)
+
+	// cleaning up again 1h later doesn't change anything
+	err = ds.CleanupPolicyMembership(ctx, apr2020.Add(2*time.Hour))
+	require.NoError(t, err)
+	assertPolicyMembership(t, ds, polsByName, wantHostsByPol)
+
+	// update policy p1 to allow any, doesn't clean up anything
+	pols[0].Platform = ""
+	updatePolicyWithTimestamp(t, ds, pols[0], may2020)
+	err = ds.CleanupPolicyMembership(ctx, may2020.Add(time.Hour))
+	require.NoError(t, err)
+	assertPolicyMembership(t, ds, polsByName, wantHostsByPol)
+}
+
+func updatePolicyWithTimestamp(t *testing.T, ds *Datastore, p *fleet.Policy, ts time.Time) {
+	sql := `
+		UPDATE policies
+			SET name = ?, query = ?, description = ?, resolution = ?, platforms = ?, updated_at = ?
+			WHERE id = ?`
+	_, err := ds.writer.ExecContext(context.Background(), sql, p.Name, p.Query, p.Description, p.Resolution, p.Platform, ts, p.ID)
 	require.NoError(t, err)
 }
