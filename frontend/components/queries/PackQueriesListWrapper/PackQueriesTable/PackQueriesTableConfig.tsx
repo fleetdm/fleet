@@ -2,7 +2,6 @@
 // disable this rule as it was throwing an error in Header and Cell component
 // definitions for the selection row for some reason when we dont really need it.
 import React from "react";
-import ReactTooltip from "react-tooltip";
 import { find } from "lodash";
 
 import { performanceIndicator } from "fleet/helpers";
@@ -131,29 +130,6 @@ const generateTableHeaders = (
                 Performance impact
               </TooltipWrapper>
             </span>
-            <span
-              data-tip
-              data-for="queries-table__performance-impact-tooltip"
-              data-tip-disable={false}
-            >
-              <img alt="question icon" src={QuestionIcon} />
-            </span>
-            <ReactTooltip
-              className="queries-table__performance-impact-tooltip"
-              place="bottom"
-              type="dark"
-              effect="solid"
-              backgroundColor="#3e4771"
-              id="queries-table__performance-impact-tooltip"
-              data-html
-            >
-              <div style={{ textAlign: "center" }}>
-                This is the average <br />
-                performance impact <br />
-                across all hosts where this <br />
-                query was scheduled.
-              </div>
-            </ReactTooltip>
           </div>
         );
       },

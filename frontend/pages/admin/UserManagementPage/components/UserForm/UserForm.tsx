@@ -1,27 +1,20 @@
 import React, { Component, FormEvent } from "react";
-import ReactTooltip from "react-tooltip";
 import { Link } from "react-router";
 import PATHS from "router/paths";
 import { Dispatch } from "redux";
 
 import { ITeam } from "interfaces/team";
-import { IUserFormErrors } from "interfaces/user";
-import Button from "components/buttons/Button";
-import validatePresence from "components/forms/validators/validate_presence";
-import validEmail from "components/forms/validators/valid_email";
+import { IUserFormErrors } from "interfaces/user"; // @ts-ignore
+import { renderFlash } from "redux/nodes/notifications/actions";
 
 // ignore TS error for now until these are rewritten in ts.
-// @ts-ignore
-import { renderFlash } from "redux/nodes/notifications/actions";
-// @ts-ignore
-import validPassword from "components/forms/validators/valid_password";
-// @ts-ignore
-import InputField from "components/forms/fields/InputField";
-// @ts-ignore
-import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon";
-// @ts-ignore
-import Checkbox from "components/forms/fields/Checkbox";
-// @ts-ignore
+import Button from "components/buttons/Button";
+import validatePresence from "components/forms/validators/validate_presence";
+import validEmail from "components/forms/validators/valid_email";// @ts-ignore
+import validPassword from "components/forms/validators/valid_password";// @ts-ignore
+import InputField from "components/forms/fields/InputField";// @ts-ignore
+import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon";// @ts-ignore
+import Checkbox from "components/forms/fields/Checkbox";// @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 import Radio from "components/forms/fields/Radio";
 import InfoBanner from "components/InfoBanner/InfoBanner";
@@ -492,49 +485,29 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
             disabled={!isNewUser && !smtpConfigured}
             tooltip={"\
               Editing an email address requires that SMTP is configured in order to send a validation email. \
-              <br /> \
+              <br /><br /> \
               Users with Admin role can configure SMTP in <strong>Settings &gt; Organization settings</strong>. \
             "}
           />
         </div>
         <div className={`${baseClass}__sso-input`}>
-          <div
-            className="sso-disabled"
-            data-tip
-            data-for="sso-disabled-tooltip"
-            data-tip-disable={canUseSso}
-            data-offset="{'top': 25, 'left': 100}"
+          <Checkbox
+            name="sso_enabled"
+            onChange={onCheckboxChange("sso_enabled")}
+            value={canUseSso && sso_enabled}
+            disabled={!canUseSso}
+            wrapperClassName={`${baseClass}__invite-admin`}
+            tooltip={`
+              Enabling single sign on for a user requires that SSO is first enabled for the organization.
+              <br /><br />
+              Users with Admin role can configure SSO in <strong>Settings &gt; Organization settings</strong>.
+            `}
           >
-            <Checkbox
-              name="sso_enabled"
-              onChange={onCheckboxChange("sso_enabled")}
-              value={canUseSso && sso_enabled}
-              disabled={!canUseSso}
-              wrapperClassName={`${baseClass}__invite-admin`}
-            >
-              Enable single sign on
-            </Checkbox>
-            <p className={`${baseClass}__sso-input sublabel`}>
-              Password authentication will be disabled for this user.
-            </p>
-          </div>
-          <ReactTooltip
-            place="bottom"
-            type="dark"
-            effect="solid"
-            id="sso-disabled-tooltip"
-            backgroundColor="#3e4771"
-            data-html
-          >
-            <span className={`${baseClass}__tooltip-text`}>
-              Enabling single sign on for a user requires that SSO is <br />
-              first enabled for the organization. <br />
-              <br />
-              Users with Admin role can configure SSO in
-              <br />
-              <strong>Settings &gt; Organization settings</strong>.
-            </span>
-          </ReactTooltip>
+            Enable single sign on
+          </Checkbox>
+          <p className={`${baseClass}__sso-input sublabel`}>
+            Password authentication will be disabled for this user.
+          </p>
         </div>
         {isNewUser && (
           <div className={`${baseClass}__new-user-container`}>
@@ -550,45 +523,22 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
                     name={"newUserType"}
                     onChange={onRadioChange("newUserType")}
                   />
-                  <div
-                    className="invite-disabled"
-                    data-tip
-                    data-for="invite-disabled-tooltip"
-                    data-tip-disable={smtpConfigured}
-                  >
-                    <Radio
-                      className={`${baseClass}__radio-input`}
-                      label={"Invite user"}
-                      id={"invite-user"}
-                      disabled={!smtpConfigured}
-                      checked={newUserType === NewUserType.AdminInvited}
-                      value={NewUserType.AdminInvited}
-                      name={"newUserType"}
-                      onChange={onRadioChange("newUserType")}
-                    />
-                    <ReactTooltip
-                      place="bottom"
-                      type="dark"
-                      effect="solid"
-                      id="invite-disabled-tooltip"
-                      backgroundColor="#3e4771"
-                      data-html
-                    >
-                      <span className={`${baseClass}__tooltip-text`}>
-                        The &quot;Invite user&quot; feature requires that SMTP
-                        is
-                        <br />
-                        configured in order to send invitation emails. <br />
-                        <br />
-                        SMTP can be configured in{" "}
-                        <strong>
-                          Settings &gt; <br />
-                          Organization settings
-                        </strong>
-                        .
-                      </span>
-                    </ReactTooltip>
-                  </div>
+                  <Radio
+                    className={`${baseClass}__radio-input`}
+                    label={"Invite user"}
+                    id={"invite-user"}
+                    disabled={!smtpConfigured}
+                    checked={newUserType === NewUserType.AdminInvited}
+                    value={NewUserType.AdminInvited}
+                    name={"newUserType"}
+                    onChange={onRadioChange("newUserType")}
+                    tooltip={smtpConfigured ? "" : `
+                      The &quot;Invite user&quot; feature requires that SMTP
+                      is configured in order to send invitation emails.
+                      <br /><br />
+                      SMTP can be configured in Settings &gt; Organization settings.
+                    `}
+                  />
                 </>
               ) : (
                 <input

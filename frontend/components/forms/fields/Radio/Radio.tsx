@@ -1,6 +1,8 @@
 import React from "react";
 import classnames from "classnames";
 
+import TooltipWrapper from "components/TooltipWrapper";
+
 const baseClass = "radio";
 
 export interface IRadioProps {
@@ -12,6 +14,7 @@ export interface IRadioProps {
   name?: string;
   className?: string;
   disabled?: boolean;
+  tooltip?: string;
 }
 
 const Radio = ({
@@ -22,6 +25,7 @@ const Radio = ({
   checked,
   disabled,
   label,
+  tooltip,
   onChange,
 }: IRadioProps): JSX.Element => {
   const wrapperClasses = classnames(baseClass, className);
@@ -41,10 +45,16 @@ const Radio = ({
           value={value}
           checked={checked}
           onChange={(event) => onChange(event.target.value)}
-        />
+          />
         <span className={`${baseClass}__control`} />
       </span>
-      <span className={`${baseClass}__label`}>{label}</span>
+      <span className={`${baseClass}__label`}>
+        {!!tooltip ? (
+          <TooltipWrapper tipContent={tooltip}>
+            {label}
+          </TooltipWrapper>
+        ) : (<>{label}</>)}
+      </span>
     </label>
   );
 };

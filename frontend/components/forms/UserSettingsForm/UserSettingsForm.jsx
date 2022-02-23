@@ -1,7 +1,6 @@
 import React, { Component } from "react";
 import PropTypes from "prop-types";
 
-import ReactTooltip from "react-tooltip";
 import Button from "components/buttons/Button";
 import Form from "components/forms/Form";
 import formFieldInterface from "interfaces/form_field";
@@ -57,25 +56,13 @@ class UserSettingsForm extends Component {
             label="Email (required)"
             hint={renderEmailHint()}
             disabled={!smtpConfigured}
+            tooltip={"\
+              Editing your email address requires that SMTP is configured in order to send a validation email.\
+              <br /><br /> \
+              Users with Admin role can configure SMTP in <strong>Settings &gt; Organization settings</strong>.\
+            "}
           />
         </div>
-        <ReactTooltip
-          place="bottom"
-          type="dark"
-          effect="solid"
-          id="smtp-tooltip"
-          backgroundColor="#3e4771"
-          data-html
-        >
-          <span className={`${baseClass}__tooltip-text`}>
-            Editing your email address requires that SMTP is <br />
-            configured in order to send a validation email. <br />
-            <br />
-            Users with Admin role can configure SMTP in
-            <br />
-            <strong>Settings &gt; Organization settings</strong>.
-          </span>
-        </ReactTooltip>
         <InputField
           {...fields.name}
           label="Full name (required)"
