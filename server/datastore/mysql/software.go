@@ -347,9 +347,14 @@ func selectSoftwareSQL(hostID *uint, opts fleet.SoftwareListOptions) (string, []
 				goqu.I("shc.hosts_count"),
 				goqu.I("shc.updated_at").As("counts_updated_at"),
 			)
+
+		if opts.TeamID != nil {
+			ds = ds.Where(goqu.I("shc.team_id").Eq(opts.TeamID))
+		}
 	}
 	ds = appendListOptionsToSelect(ds, opts.ListOptions)
 
+	// TODO(mna): check plan for with hosts with and without team, ensure use of index
 	return ds.ToSQL()
 }
 
@@ -644,7 +649,7 @@ func (ds *Datastore) CalculateHostsPerSoftware(ctx context.Context, updatedAt ti
     UPDATE software_host_counts
     SET hosts_count = 0, updated_at = ?`
 
-	queryStmt := `
+	globalCountsStmt := `
     SELECT count(*), software_id
     FROM host_software
     WHERE software_id > 0
@@ -652,21 +657,21 @@ func (ds *Datastore) CalculateHostsPerSoftware(ctx context.Context, updatedAt ti
 
 	insertStmt := `
     INSERT INTO software_host_counts
-      (software_id, hosts_count, updated_at)
+      (software_id, hosts_count, team_id, updated_at)
     VALUES
       %s
     ON DUPLICATE KEY UPDATE
       hosts_count = VALUES(hosts_count),
       updated_at = VALUES(updated_at)`
-	valuesPart := `(?, ?, ?),`
+	valuesPart := `(?, ?, ?, ?),`
 
 	// first, reset all counts to 0
 	if _, err := ds.writer.ExecContext(ctx, resetStmt, updatedAt); err != nil {
 		return ctxerr.Wrap(ctx, err, "reset all software_host_counts to 0")
 	}
 
-	// next get a cursor for the counts for each software
-	rows, err := ds.reader.QueryContext(ctx, queryStmt)
+	// next get a cursor for the global counts for each software
+	rows, err := ds.reader.QueryContext(ctx, globalCountsStmt)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "read counts from host_software")
 	}
@@ -676,7 +681,7 @@ func (ds *Datastore) CalculateHostsPerSoftware(ctx context.Context, updatedAt ti
 	// could get pretty big at >100K hosts with 1000+ software each.
 	const batchSize = 100
 	var batchCount int
-	args := make([]interface{}, 0, batchSize*3)
+	args := make([]interface{}, 0, batchSize*4)
 	for rows.Next() {
 		var count int
 		var sid uint
@@ -685,7 +690,7 @@ func (ds *Datastore) CalculateHostsPerSoftware(ctx context.Context, updatedAt ti
 			return ctxerr.Wrap(ctx, err, "scan row into variables")
 		}
 
-		args = append(args, sid, count, updatedAt)
+		args = append(args, sid, count, nil, updatedAt)
 		batchCount++
 
 		if batchCount == batchSize {
@@ -708,6 +713,9 @@ func (ds *Datastore) CalculateHostsPerSoftware(ctx context.Context, updatedAt ti
 		return ctxerr.Wrap(ctx, err, "iterate over host_software counts")
 	}
 
+	// TODO(mna): calculate counts per team
+
+	// remove any unused software (global counts = 0)
 	cleanupSoftwareStmt := `
   DELETE s
   FROM software s
@@ -715,11 +723,12 @@ func (ds *Datastore) CalculateHostsPerSoftware(ctx context.Context, updatedAt ti
   ON s.id = shc.software_id
   WHERE
     shc.software_id IS NULL OR
-    shc.hosts_count = 0`
+    (shc.team_id IS NULL AND shc.hosts_count = 0)`
 	if _, err := ds.writer.ExecContext(ctx, cleanupSoftwareStmt); err != nil {
 		return ctxerr.Wrap(ctx, err, "delete unused software")
 	}
 
+	// remove any software count row for teams that don't exist anymore
 	cleanupTeamStmt := `
   DELETE shc
   FROM software_host_counts shc
