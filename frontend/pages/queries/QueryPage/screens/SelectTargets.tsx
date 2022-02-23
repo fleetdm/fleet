@@ -155,6 +155,10 @@ const SelectTargets = ({
     }
   );
 
+  useEffect(() => {
+    setTargetsTotalCount(targets?.targetsTotalCount || 0);
+  }, [targets]);
+
   const handleClickCancel = () => {
     setSelectedTargets([]);
     goToQueryEditor();
