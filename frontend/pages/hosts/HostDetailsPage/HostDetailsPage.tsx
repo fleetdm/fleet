@@ -339,7 +339,9 @@ const HostDetailsPage = ({
   }, [usersSearchString]);
 
   // returns a mixture of props from host
-  const normalizeEmptyValues = (hostData: any): { [key: string]: any } => {
+  const normalizeEmptyValues = (
+    hostData: Partial<IHost>
+  ): { [key: string]: any } => {
     return reduce(
       hostData,
       (result, value, key) => {
@@ -355,9 +357,9 @@ const HostDetailsPage = ({
   };
 
   const wrapFleetHelper = (
-    helperFn: (value: any) => string,
+    helperFn: (value: any) => string, // number or string
     value: string
-  ): any => {
+  ): string => {
     return value === "---" ? value : helperFn(value);
   };
 
@@ -1034,11 +1036,12 @@ const HostDetailsPage = ({
                   <div
                     className={`${baseClass}__tooltip-text device-user-tooltip`}
                   >
-                    {deviceMapping.map((user, i, arr) => (
-                      <span key={user.email}>{`${user.email}${
-                        i < arr.length - 1 ? ", " : ""
-                      }`}</span>
-                    ))}
+                    {deviceMapping &&
+                      deviceMapping.map((user, i, arr) => (
+                        <span key={user.email}>{`${user.email}${
+                          i < arr.length - 1 ? ", " : ""
+                        }`}</span>
+                      ))}
                   </div>
                 </ReactTooltip>
               </span>

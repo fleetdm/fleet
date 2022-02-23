@@ -12,12 +12,9 @@ interface IIssueCellProps<T> {
   rowId: number;
 }
 
-const IssueCell = ({
-  issues,
-  rowId,
-}: IIssueCellProps<any>): JSX.Element | null => {
+const IssueCell = ({ issues, rowId }: IIssueCellProps<any>): JSX.Element => {
   if (isEmpty(issues) || issues.total_issues_count === 0) {
-    return null;
+    return <></>;
   }
 
   return (

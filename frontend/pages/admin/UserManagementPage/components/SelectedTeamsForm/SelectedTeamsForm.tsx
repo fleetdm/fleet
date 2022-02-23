@@ -105,7 +105,7 @@ const useSelectedTeamState = (
 
   const updateSelectedTeams = (
     teamId: number,
-    newValue: any,
+    newValue: string | boolean,
     updateType: string
   ) => {
     setTeamsFormList((prevState) => {

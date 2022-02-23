@@ -11,7 +11,7 @@ const baseClass = "dropdown-cell";
 interface IDropdownCellProps {
   options: IDropdownOption[];
   placeholder: string;
-  onChange: (value: any) => void;
+  onChange: (value: string) => void;
 }
 
 const DropdownCell = ({

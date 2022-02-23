@@ -44,7 +44,7 @@ export const listCompatiblePlatforms = (tablesList) => {
   return compatiblePlatforms.length ? compatiblePlatforms : ["None"];
 };
 
-export const parseSqlTables = (sqlString, inludeCteTables = false) => {
+export const parseSqlTables = (sqlString) => {
   let results = [];
 
   // Tables defined via common table expression will be excluded from results by default

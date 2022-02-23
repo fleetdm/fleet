@@ -9,11 +9,16 @@ import {
 } from "interfaces/user";
 import { ITeamSummary } from "interfaces/team";
 
+export interface ISortOption {
+  id: number;
+  desc: boolean;
+}
+
 interface IUserSearchOptions {
   page?: number;
   perPage?: number;
   globalFilter?: string;
-  sortBy?: any[];
+  sortBy?: ISortOption[];
   teamId?: number;
 }
 

@@ -9,7 +9,7 @@ interface IIconTooltipCellProps<T> {
 
 const IconTooltipCell = ({
   value,
-}: IIconTooltipCellProps<any>): JSX.Element | null => {
+}: IIconTooltipCellProps<any>): JSX.Element => {
   // The value passed in must be a valid FleetIcon name
   return <FleetIcon name={value} />;
 };
