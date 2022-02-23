@@ -17,8 +17,8 @@ func TestUp_20220223113157(t *testing.T) {
 	applyNext(t, db)
 
 	var count int
-	require.NoError(t, db.Get(&count, `SELECT count(*) FROM software_host_counts WHERE team_id is NULL`))
+	require.NoError(t, db.Get(&count, `SELECT count(*) FROM software_host_counts WHERE team_id = 0`))
 	assert.Equal(t, 2, count)
-	require.NoError(t, db.Get(&count, `SELECT SUM(hosts_count) FROM software_host_counts WHERE team_id is NULL`))
+	require.NoError(t, db.Get(&count, `SELECT SUM(hosts_count) FROM software_host_counts WHERE team_id = 0`))
 	assert.Equal(t, 11, count)
 }
