@@ -13,7 +13,7 @@ import configAPI from "services/entities/config";
 // @ts-ignore
 import deepDifference from "utilities/deep_difference";
 import { IConfig, IConfigNested } from "interfaces/config";
-import { IError } from "interfaces/errors";
+import { IApiError } from "interfaces/errors";
 import {
   IEnrollSecret,
   IEnrollSecretsResponse,
@@ -61,7 +61,7 @@ const AppSettingsPage = (): JSX.Element => {
         .then(() => {
           dispatch(renderFlash("success", "Successfully updated settings."));
         })
-        .catch((response: { data: { errors: IError[] } }) => {
+        .catch((response: { data: IApiError }) => {
           if (
             response.data.errors[0].reason.includes("could not dial smtp host")
           ) {
