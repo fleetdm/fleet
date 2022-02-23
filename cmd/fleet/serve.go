@@ -656,6 +656,11 @@ func cronCleanups(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 			level.Error(logger).Log("err", "aggregating munki and mdm data", "details", err)
 			sentry.CaptureException(err)
 		}
+		err = ds.CleanupPolicyMembership(ctx, time.Now())
+		if err != nil {
+			level.Error(logger).Log("err", "cleanup policy membership", "details", err)
+			sentry.CaptureException(err)
+		}
 
 		err = trySendStatistics(ctx, ds, fleet.StatisticsFrequency, "https://fleetdm.com/api/v1/webhooks/receive-usage-analytics", license)
 		if err != nil {
