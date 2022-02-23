@@ -23,17 +23,17 @@ export default PropTypes.shape({
 });
 
 export interface IPackQueryFormData {
-  interval: number;
+  interval?: number;
   name?: string;
-  shard: number;
+  shard?: number;
   query?: string;
   query_id?: number;
   pack_id?: number;
   logging_type?: string;
   removed?: boolean;
   snapshot?: boolean;
-  platform: string;
-  version: string;
+  platform?: string;
+  version?: string;
 }
 export interface IScheduledQuery {
   created_at: string;

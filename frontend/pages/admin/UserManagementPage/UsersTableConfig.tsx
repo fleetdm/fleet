@@ -34,7 +34,7 @@ interface IDataColumn {
   disableSortBy?: boolean;
 }
 
-interface IUserTableData {
+export interface IUserTableData {
   name: string;
   status: string;
   email: string;

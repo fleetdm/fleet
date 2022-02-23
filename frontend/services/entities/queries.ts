@@ -38,7 +38,11 @@ export default {
   }: {
     query: string;
     queryId: number | null;
-    selected: any;
+    selected: {
+      hosts?: number[];
+      labels?: number[];
+      teams?: number[];
+    };
   }) => {
     const { RUN_QUERY } = endpoints;
 

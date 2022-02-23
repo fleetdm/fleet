@@ -357,7 +357,7 @@ const HostDetailsPage = ({
   };
 
   const wrapFleetHelper = (
-    helperFn: (value: any) => string, // number or string
+    helperFn: (value: any) => string, // number or string or never
     value: string
   ): string => {
     return value === "---" ? value : helperFn(value);
@@ -917,6 +917,13 @@ const HostDetailsPage = ({
         </div>
       );
     }
+
+    return (
+      <div className="section section--users">
+        <p className="section__header">Users</p>
+        <p className="results__data">No users were detected on this host.</p>
+      </div>
+    );
   };
 
   const renderSoftware = () => {

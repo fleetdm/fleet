@@ -45,3 +45,12 @@ export interface ITeamScheduledQuery {
 export interface ILoadAllTeamScheduledQueriesResponse {
   scheduled: ITeamScheduledQuery[];
 }
+
+export interface IUpdateTeamScheduledQuery {
+  team_id: number;
+  interval?: number;
+  logging_type: string;
+  platform?: string;
+  version?: string;
+  shard?: number;
+}

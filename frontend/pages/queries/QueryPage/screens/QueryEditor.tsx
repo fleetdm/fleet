@@ -27,7 +27,12 @@ interface IQueryEditorProps {
   storedQueryError: Error | null;
   showOpenSchemaActionText: boolean;
   isStoredQueryLoading: boolean;
-  createQuery: UseMutateAsyncFunction<any, unknown, IQueryFormData, unknown>;
+  createQuery: UseMutateAsyncFunction<
+    { query: IQuery },
+    unknown,
+    IQueryFormData,
+    unknown
+  >;
   onOsqueryTableSelect: (tableName: string) => void;
   goToSelectTargets: () => void;
   onOpenSchemaSidebar: () => void;
