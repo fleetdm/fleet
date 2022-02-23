@@ -10,6 +10,7 @@ import convertToCSV from "utilities/convert_to_csv"; // @ts-ignore
 import { ICampaign } from "interfaces/campaign";
 import { ITarget } from "interfaces/target";
 
+import IconToolTip from "components/IconToolTip";
 import Button from "components/buttons/Button"; // @ts-ignore
 import Spinner from "components/Spinner";
 import TabsWrapper from "components/TabsWrapper";
@@ -27,6 +28,7 @@ interface IQueryResultsProps {
   onStopQuery: (evt: React.MouseEvent<HTMLButtonElement>) => void;
   setSelectedTargets: (value: ITarget[]) => void;
   goToQueryEditor: () => void;
+  targetsTotalCount: number;
 }
 
 const baseClass = "query-results";
@@ -48,6 +50,7 @@ const QueryResults = ({
   onStopQuery,
   setSelectedTargets,
   goToQueryEditor,
+  targetsTotalCount,
 }: IQueryResultsProps): JSX.Element => {
   const { hosts: hostsOnline, hosts_count: hostsCount, errors } =
     campaign || {};
@@ -64,6 +67,16 @@ const QueryResults = ({
 
   const [pageTitle, setPageTitle] = useState<string>(PAGE_TITLES.RUNNING);
   const [navTabIndex, setNavTabIndex] = useState(0);
+  const [
+    targetsRespondedPercent,
+    setTargetsRespondedPercent,
+  ] = useState<number>(0);
+
+  useEffect(() => {
+    setTargetsRespondedPercent(
+      Math.round((totalRowsCount / targetsTotalCount) * 100)
+    );
+  }, [totalRowsCount]);
 
   useEffect(() => {
     if (isQueryFinished) {
@@ -152,13 +165,16 @@ const QueryResults = ({
           Host that responded with results are marked <strong>Yes</strong>.
           Hosts that responded with no results are marked <strong>No</strong>.
         </InfoBanner>
+        <span className={`${baseClass}__results-count`}>
+          {totalRowsCount} result{totalRowsCount !== 1 && "s"}
+        </span>
         <Button
           className={`${baseClass}__export-btn`}
           onClick={onExportQueryResults}
           variant="text-link"
         >
           <>
-            Export hosts <img alt="" src={DownloadIcon} />
+            Export results <img alt="" src={DownloadIcon} />
           </>
         </Button>
         <PolicyQueryListWrapper
@@ -173,6 +189,9 @@ const QueryResults = ({
   const renderErrorsTable = () => {
     return (
       <div className={`${baseClass}__error-table-container`}>
+        <span className={`${baseClass}__error-count`}>
+          {errors.length} error{errors.length !== 1 && "s"}
+        </span>
         <Button
           className={`${baseClass}__export-btn`}
           onClick={onExportErrorsResults}
@@ -234,15 +253,16 @@ const QueryResults = ({
       <div className={`${baseClass}__wrapper`}>
         <h1>{pageTitle}</h1>
         <div className={`${baseClass}__text-wrapper`}>
-          <span className={`${baseClass}__text-online`}>
-            Online: {totalHostsOnline} hosts / {onlineTotalText}
-          </span>
-          <span className={`${baseClass}__text-offline`}>
-            Offline: {totalHostsOffline} hosts / 0 results
-          </span>
-          <span className={`${baseClass}__text-error`}>
-            Errors: {hostsCount.failed} hosts / {errorsTotalText}
-          </span>
+          <span>{targetsTotalCount}</span>&nbsp;hosts targeted&nbsp; (
+          {targetsRespondedPercent}% responded){" "}
+          <IconToolTip
+            isHtml
+            text={
+              "\
+                  <center><p>Hosts that respond may<br /> return results, errors, or <br />no results</p></center>\
+                "
+            }
+          />
         </div>
       </div>
       {isQueryFinished ? renderFinishedButtons() : renderStopQueryButton()}

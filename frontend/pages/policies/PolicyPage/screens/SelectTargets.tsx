@@ -34,6 +34,8 @@ interface ISelectTargetsProps {
   goToQueryEditor: () => void;
   goToRunQuery: () => void;
   setSelectedTargets: React.Dispatch<React.SetStateAction<ITarget[]>>;
+  setTargetsTotalCount: React.Dispatch<React.SetStateAction<number>>;
+  targetsTotalCount: number;
 }
 
 const DEBOUNCE_DELAY = 500;
@@ -78,6 +80,8 @@ const SelectTargets = ({
   goToQueryEditor,
   goToRunQuery,
   setSelectedTargets,
+  setTargetsTotalCount,
+  targetsTotalCount,
 }: ISelectTargetsProps): JSX.Element => {
   const [allHostsLabels, setAllHostsLabels] = useState<ILabel[] | null>(null);
   const [platformLabels, setPlatformLabels] = useState<ILabel[] | null>(null);
