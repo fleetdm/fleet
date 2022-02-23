@@ -24,10 +24,10 @@ import { DEFAULT_POLICY } from "utilities/constants";
 
 import Button from "components/buttons/Button";
 import InfoBanner from "components/InfoBanner/InfoBanner";
-import IconToolTip from "components/IconToolTip";
 import Spinner from "components/Spinner";
 import TeamsDropdown from "components/TeamsDropdown";
 import TableDataError from "components/TableDataError";
+import TooltipWrapper from "components/TooltipWrapper";
 import PoliciesListWrapper from "./components/PoliciesListWrapper";
 import ManageAutomationsModal from "./components/ManageAutomationsModal";
 import AddPolicyModal from "./components/AddPolicyModal";
@@ -471,21 +471,13 @@ const ManagePolicyPage = ({
                      ${baseClass}__inherited-policies-button`}
               onClick={toggleShowInheritedPolicies}
             >
-              {inheritedPoliciesButtonText(
-                showInheritedPolicies,
-                globalPolicies.length
-              )}
+              <TooltipWrapper tipContent={'"All teams" policies are checked <br/> for this team’s hosts.'}>
+                {inheritedPoliciesButtonText(
+                  showInheritedPolicies,
+                  globalPolicies.length
+                )}
+              </TooltipWrapper>
             </Button>
-            <div className={`${baseClass}__details`}>
-              <IconToolTip
-                isHtml
-                text={
-                  "\
-              <center><p>“All teams” policies are checked <br/> for this team’s hosts.</p></center>\
-            "
-                }
-              />
-            </div>
           </span>
         )}
         {showInheritedPoliciesButton && showInheritedPolicies && (
