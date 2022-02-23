@@ -347,7 +347,10 @@ const ManageSoftwarePage = ({
       >
         {`${count} software item${count === 1 ? "" : "s"}`}
         <span className="count-last-updated">
-          <TooltipWrapper tipContent="Fleet periodically queries all hosts to retrieve software">
+          <TooltipWrapper
+            tipContent="Fleet periodically queries all hosts to retrieve software"
+            position="top"
+          >
             {`Last updated ${lastUpdatedAt}`}
           </TooltipWrapper>
         </span>

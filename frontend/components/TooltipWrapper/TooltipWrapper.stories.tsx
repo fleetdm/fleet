@@ -14,12 +14,25 @@ export default {
   component: TooltipWrapper,
   title: "Components/Tooltip",
   args: {
-    tipContent: "This is ax example tooltip."
+    tipContent: "This is an example tooltip.",
+  },
+  argTypes: {
+    position: {
+      options: ["top", "bottom"],
+      control: "radio",
+    },
   },
 } as Meta;
 
+// using line breaks to create space for top position
 const Template: Story<ITooltipWrapperProps> = (props) => (
-  <TooltipWrapper {...props}>Example text</TooltipWrapper>
+  <>
+    <br />
+    <br />
+    <br />
+    <br />
+    <TooltipWrapper {...props}>Example text</TooltipWrapper>
+  </>
 );
 
 export const Default = Template.bind({});

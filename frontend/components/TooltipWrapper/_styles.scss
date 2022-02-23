@@ -65,4 +65,14 @@
       margin: 0;
     }
   }
+  &[data-position="top"] {
+    .component__tooltip-wrapper__tip-text {
+      top: auto;
+      bottom: 100%;
+      
+      &::before {
+        display: none;
+      }
+    }
+  }
 }
