@@ -48,4 +48,9 @@
   .queries-table__performance-impact-tooltip {
     font-weight: 400;
   }
+
+  .column-with-tooltip {
+    position: relative;
+    top: 8px;
+  }
 }

@@ -21,7 +21,6 @@ import validateYaml from "components/forms/validators/validate_yaml";
 import validEmail from "components/forms/validators/valid_email";
 import validUrl from "components/forms/validators/valid_url";
 
-import IconToolTip from "components/IconToolTip";
 import InfoBanner from "components/InfoBanner/InfoBanner";
 // @ts-ignore
 import YamlAce from "components/YamlAce";

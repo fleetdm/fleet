@@ -14,6 +14,7 @@ import { IDropdownOption } from "interfaces/dropdownOption";
 import { IGlobalScheduledQuery } from "interfaces/global_scheduled_query";
 import { ITeamScheduledQuery } from "interfaces/team_scheduled_query";
 import QuestionIcon from "../../../../../../assets/images/icon-question-16x16@2x.png";
+import TooltipWrapper from "components/TooltipWrapper";
 
 interface IGetToggleAllRowsSelectedProps {
   checked: boolean;
@@ -111,33 +112,17 @@ const generateTableHeaders = (
       title: "Performance impact",
       Header: () => {
         return (
-          <div>
+          <div className="column-with-tooltip">
             <span className="queries-table__performance-impact-header">
-              Performance impact
-            </span>
-            <span
-              data-tip
-              data-for="queries-table__performance-impact-tooltip"
-              data-tip-disable={false}
-            >
-              <img alt="question icon" src={QuestionIcon} />
-            </span>
-            <ReactTooltip
-              className="queries-table__performance-impact-tooltip"
-              place="bottom"
-              type="dark"
-              effect="solid"
-              backgroundColor="#3e4771"
-              id="queries-table__performance-impact-tooltip"
-              data-html
-            >
-              <div style={{ textAlign: "center" }}>
+              <TooltipWrapper tipContent={`
                 This is the average <br />
                 performance impact <br />
                 across all hosts where this <br />
-                query was scheduled.
-              </div>
-            </ReactTooltip>
+                query was scheduled.`
+              }>
+                Performance impact
+              </TooltipWrapper>
+            </span>
           </div>
         );
       },

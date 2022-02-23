@@ -11,6 +11,7 @@ import {
   secondsToHms,
 } from "fleet/helpers";
 import IconToolTip from "components/IconToolTip";
+import TooltipWrapper from "components/TooltipWrapper";
 
 interface IHeaderProps {
   column: {
@@ -82,13 +83,9 @@ const generatePackTableHeaders = (): IDataColumn[] => {
       title: "Performance impact",
       Header: () => {
         return (
-          <>
+          <TooltipWrapper tipContent="This is the performance <br />impact on this host.">
             Performance impact
-            <IconToolTip
-              isHtml
-              text={`This is the performance <br />impact on this host.`}
-            />
-          </>
+          </TooltipWrapper>
         );
       },
       disableSortBy: true,

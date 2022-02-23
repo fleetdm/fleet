@@ -6,13 +6,15 @@ import ReactTooltip from "react-tooltip";
 import { find } from "lodash";
 
 import { performanceIndicator } from "fleet/helpers";
+import { IScheduledQuery } from "interfaces/scheduled_query";
+import { IDropdownOption } from "interfaces/dropdownOption";
+
 import Checkbox from "components/forms/fields/Checkbox";
 import DropdownCell from "components/TableContainer/DataTable/DropdownCell";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import PillCell from "components/TableContainer/DataTable/PillCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
-import { IScheduledQuery } from "interfaces/scheduled_query";
-import { IDropdownOption } from "interfaces/dropdownOption";
+import TooltipWrapper from "components/TooltipWrapper";
 import QuestionIcon from "../../../../../assets/images/icon-question-16x16@2x.png";
 
 interface IGetToggleAllRowsSelectedProps {
@@ -123,9 +125,11 @@ const generateTableHeaders = (
       title: "Performance impact",
       Header: () => {
         return (
-          <div>
+          <div className="column-with-tooltip">
             <span className="queries-table__performance-impact-header">
-              Performance impact
+              <TooltipWrapper tipContent="This is the average performance impact across all hosts where this query was scheduled.">
+                Performance impact
+              </TooltipWrapper>
             </span>
             <span
               data-tip
