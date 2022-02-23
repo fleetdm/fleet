@@ -49,8 +49,10 @@ describe("App settings flow", () => {
         .click()
         .type("https://http.cat/100");
 
-      // only allowed to fill in either metadata || metadata url
-      cy.findByLabelText(/metadata url/i)
+      // specifically targeting this one to avoid conflict
+      // with cypress seeing multiple "metadata url" - one
+      // in a tooltip, the other as the actual label
+      cy.getAttached("[for='metadataURL']")
         .click()
         .type("http://github.com/fleetdm/fleet");
 
@@ -62,9 +64,10 @@ describe("App settings flow", () => {
         .click()
         .type("rachel@example.com");
 
-      cy.findByLabelText(/smtp server/i)
-        .click()
-        .type("localhost");
+      // specifically targeting this one to avoid conflict
+      // with cypress seeing multiple "metadata" - one
+      // in a tooltip, the other as the actual label
+      cy.getAttached("[for='smtpServer']").click().type("localhost");
 
       cy.getAttached("#smtpPort").clear().type("1025");
 
@@ -104,11 +107,14 @@ describe("App settings flow", () => {
 
       cy.findByLabelText(/verify ssl certs/i).check({ force: true });
       cy.findByLabelText(/enable starttls/i).check({ force: true });
-      cy.findByLabelText(/^host expiry$/i).check({ force: true });
+      cy.getAttached("[for='enableHostExpiry']").within(() => {
+        cy.getAttached("[type='checkbox']").check({ force: true });
+      });
 
-      cy.findByLabelText(/host expiry window/i)
-        .clear()
-        .type("5");
+      // specifically targeting this one to avoid conflict
+      // with cypress seeing multiple "host expiry" - one
+      // in the checkbox above, the other as this label
+      cy.getAttached("[name='hostExpiryWindow']").clear().type("5");
 
       cy.findByLabelText(/disable live queries/i).check({ force: true });
 
