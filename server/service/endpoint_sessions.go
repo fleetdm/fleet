@@ -127,7 +127,7 @@ func makeCallbackSSOEndpoint(svc fleet.Service, urlPrefix string) endpoint.Endpo
      window.location = redirectURL;
      </script>
      <body>
-     Redirecting to Fleet...
+     Redirecting to Fleet at {{ .RedirectURL }} ...
      </body>
      </html>
     `
