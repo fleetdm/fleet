@@ -280,9 +280,9 @@ func (ds *Datastore) TeamEnrollSecrets(ctx context.Context, teamID uint) ([]*fle
 	return secrets, nil
 }
 
-func amountTeamsDB(db sqlx.Queryer) (int, error) {
+func amountTeamsDB(ctx context.Context, db sqlx.QueryerContext) (int, error) {
 	var amount int
-	err := sqlx.Get(db, &amount, `SELECT count(*) FROM teams`)
+	err := sqlx.GetContext(ctx, db, &amount, `SELECT count(*) FROM teams`)
 	if err != nil {
 		return 0, err
 	}

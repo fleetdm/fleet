@@ -77,11 +77,42 @@ When adding images to the Fleet documentation, follow these guidelines:
 - Minimize images per doc page. More than one or two per page can get overwhelming, for doc maintainers and users.
 - The goal is for the docs to look good on every form factor, from 320px window width all the way up to infinity and beyond. Full window screenshots and images with too much padding on the sides will be less than the width of the user's screen. When adding a large image, make sure that it is easily readable at all widths.
 
-Images can be added to the docs using the Markdown image link format, e.g. `![Schedule Query Sidebar](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/schedule-query-sidebar.png)`
+Images can be added to the docs using the Markdown image link format, e.g. `![Schedule Query Sidebar](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/schedule-query-modal.png)`
 The images used in the docs live in `docs/images/`. Note that you must provide the url of the image in the Fleet Github repo for it to display properly on both Github and the Fleet website.
 
 > Note that the instructions above also apply to adding images in the Fleet handbook.
 
+### Adding a mermaid diagram to the Fleet Docs
+
+The Fleet Docs support diagrams that are written in mermaid.js syntax. Take a look at the [Mermaid docs](https://mermaid-js.github.io/mermaid/#/README) to learn about the syntax language and what types of diagrams you can display.
+
+To add a mermaid diagram to the docs, you need to add a code block and specify that it written in the mermaid language by adding `mermaid` to the opening backticks (i.e., ` ```mermaid`).
+
+For example, the following code block is a mermaid diagram that has **not** been specifed as a mermaid code block:
+
+```
+graph TD;
+    A-->D
+    B-->D
+    C-->D
+    D-->E
+```
+Once we specify the `mermaid` as the language in the code block, it will render as a mermaid diagram on fleetdm.com and GitHub.
+
+```mermaid
+graph TD;
+    A-->D
+    B-->D
+    C-->D
+    D-->E
+```
+
+If the mermaid syntax is incorrect, the diagram will be replaced with an image displaying an error, as shown in the following example where the code block was written with **intentional** syntax errors:
+
+```mermaid
+graph TD;
+    A--D
+```
 
 ## Press releases
 

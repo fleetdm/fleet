@@ -83,10 +83,10 @@ func policyDB(ctx context.Context, q sqlx.QueryerContext, id uint, teamID *uint)
 func (ds *Datastore) SavePolicy(ctx context.Context, p *fleet.Policy) error {
 	sql := `
 		UPDATE policies
-			SET name = ?, query = ?, description = ?, resolution = ?
+			SET name = ?, query = ?, description = ?, resolution = ?, platforms = ?
 			WHERE id = ?
 	`
-	result, err := ds.writer.ExecContext(ctx, sql, p.Name, p.Query, p.Description, p.Resolution, p.ID)
+	result, err := ds.writer.ExecContext(ctx, sql, p.Name, p.Query, p.Description, p.Resolution, p.Platform, p.ID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "updating policy")
 	}
@@ -97,7 +97,8 @@ func (ds *Datastore) SavePolicy(ctx context.Context, p *fleet.Policy) error {
 	if rows == 0 {
 		return ctxerr.Wrap(ctx, notFound("Policy").WithID(p.ID))
 	}
-	return nil
+
+	return cleanupPolicyMembership(ctx, ds.writer, p.ID, p.Platform)
 }
 
 // FlippingPoliciesForHost fetches previous policy membership results and returns:
@@ -438,8 +439,7 @@ func (ds *Datastore) TeamPolicy(ctx context.Context, teamID uint, policyID uint)
 // NOTE: Similar to ApplyQueries, ApplyPolicySpecs will update the author_id of the policies
 // that are updated.
 //
-// Currently ApplyPolicySpecs does not allow updating the team or platform of an existing policy,
-// such functionality will be implemented in #3220.
+// Currently ApplyPolicySpecs does not allow updating the team of an existing policy.
 func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		sql := `
@@ -457,22 +457,34 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 			query = VALUES(query),
 			description = VALUES(description),
 			author_id = VALUES(author_id),
-			resolution = VALUES(resolution)
+			resolution = VALUES(resolution),
+			platforms = VALUES(platforms)
 		`
 		for _, spec := range specs {
-			if _, err := tx.ExecContext(ctx,
+			res, err := tx.ExecContext(ctx,
 				sql, spec.Name, spec.Query, spec.Description, authorID, spec.Resolution, spec.Team, spec.Platform,
-			); err != nil {
+			)
+			if err != nil {
 				return ctxerr.Wrap(ctx, err, "exec ApplyPolicySpecs insert")
+			}
+
+			if insertOnDuplicateDidUpdate(res) {
+				// when the upsert results in an UPDATE that *did* change some values,
+				// it returns the updated ID as last inserted id.
+				if lastID, _ := res.LastInsertId(); lastID > 0 {
+					if err := cleanupPolicyMembership(ctx, tx, uint(lastID), spec.Platform); err != nil {
+						return err
+					}
+				}
 			}
 		}
 		return nil
 	})
 }
 
-func amountPoliciesDB(db sqlx.Queryer) (int, error) {
+func amountPoliciesDB(ctx context.Context, db sqlx.QueryerContext) (int, error) {
 	var amount int
-	err := sqlx.Get(db, &amount, `SELECT count(*) FROM policies`)
+	err := sqlx.GetContext(ctx, db, &amount, `SELECT count(*) FROM policies`)
 	if err != nil {
 		return 0, err
 	}
@@ -522,4 +534,33 @@ func (ds *Datastore) AsyncBatchUpdatePolicyTimestamp(ctx context.Context, ids []
 		_, err := tx.ExecContext(ctx, query, args...)
 		return ctxerr.Wrap(ctx, err, "update hosts.policy_updated_at")
 	})
+}
+
+func cleanupPolicyMembership(ctx context.Context, db sqlx.ExecerContext, policyID uint, platforms string) error {
+	if platforms == "" {
+		// all platforms allowed, nothing to clean up
+		return nil
+	}
+
+	delStmt := `
+    DELETE
+      pm
+    FROM
+      policy_membership pm
+    LEFT JOIN
+      hosts h
+    ON
+      pm.host_id = h.id
+    WHERE
+      pm.policy_id = ? AND
+      ( h.id IS NULL OR
+        FIND_IN_SET(h.platform, ?) = 0 )`
+
+	var expandedPlatforms []string
+	splitPlatforms := strings.Split(platforms, ",")
+	for _, platform := range splitPlatforms {
+		expandedPlatforms = append(expandedPlatforms, fleet.ExpandPlatform(strings.TrimSpace(platform))...)
+	}
+	_, err := db.ExecContext(ctx, delStmt, policyID, strings.Join(expandedPlatforms, ","))
+	return ctxerr.Wrap(ctx, err, "cleanup policy membership")
 }

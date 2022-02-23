@@ -199,7 +199,7 @@
       padding: 24px 16px;
       margin: auto;
     }
-    code:not(.nohighlight) {
+    code:not(.nohighlight):not(.mermaid) {
       background-color: @ui-off-white;
       border: 1px solid @border-lt-gray;
       color: @core-fleet-black-75;
@@ -209,6 +209,15 @@
       font-family: @code-font;
       display: inline-block;
       border-radius: 6px;
+    }
+    code.mermaid:not([data-processed='true']) {
+      opacity: 0;
+    }
+    code.mermaid {
+      color: @core-fleet-black-75;
+      margin-bottom: 16px 0px 32px;
+      font-family: @code-font;
+      display: inline-block;
     }
     pre:not(.algolia-autocomplete):not(.ds-dropdown-menu) {
       padding: 24px;

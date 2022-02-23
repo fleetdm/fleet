@@ -11,8 +11,10 @@ import (
 
 func (ds *Datastore) SessionByKey(ctx context.Context, key string) (*fleet.Session, error) {
 	sqlStatement := `
-		SELECT * FROM sessions
-			WHERE ` + "`key`" + ` = ? LIMIT 1
+		SELECT s.*, u.api_only FROM sessions s
+		LEFT JOIN users u
+		ON s.user_id = u.id
+		WHERE ` + "s.`key`" + ` = ? LIMIT 1
 	`
 	session := &fleet.Session{}
 	err := sqlx.GetContext(ctx, ds.reader, session, sqlStatement, key)
@@ -28,8 +30,10 @@ func (ds *Datastore) SessionByKey(ctx context.Context, key string) (*fleet.Sessi
 
 func (ds *Datastore) SessionByID(ctx context.Context, id uint) (*fleet.Session, error) {
 	sqlStatement := `
-		SELECT * FROM sessions
-		WHERE id = ?
+		SELECT s.*, u.api_only FROM sessions s
+		LEFT JOIN users u
+		ON s.user_id = u.id
+		WHERE s.id = ?
 		LIMIT 1
 	`
 	session := &fleet.Session{}
@@ -46,8 +50,10 @@ func (ds *Datastore) SessionByID(ctx context.Context, id uint) (*fleet.Session, 
 
 func (ds *Datastore) ListSessionsForUser(ctx context.Context, id uint) ([]*fleet.Session, error) {
 	sqlStatement := `
-		SELECT * FROM sessions
-		WHERE user_id = ?
+		SELECT s.*, u.api_only FROM sessions s
+		INNER JOIN users u
+		ON s.user_id = u.id
+		WHERE s.user_id = ?
 	`
 	sessions := []*fleet.Session{}
 	err := sqlx.SelectContext(ctx, ds.reader, &sessions, sqlStatement, id)
