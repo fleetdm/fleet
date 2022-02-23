@@ -40,6 +40,8 @@ interface ISelectTargetsProps {
   goToQueryEditor: () => void;
   goToRunQuery: () => void;
   setSelectedTargets: React.Dispatch<React.SetStateAction<ITarget[]>>;
+  setTargetsTotalCount: React.Dispatch<React.SetStateAction<number>>;
+  targetsTotalCount: number;
 }
 
 const DEBOUNCE_DELAY = 500;
@@ -90,8 +92,11 @@ const SelectTargets = ({
   goToQueryEditor,
   goToRunQuery,
   setSelectedTargets,
+  setTargetsTotalCount,
+  targetsTotalCount,
 }: ISelectTargetsProps): JSX.Element => {
   const [allHostsLabels, setAllHostsLabels] = useState<ILabel[] | null>(null);
+  const [targetsOnlinePercent, setTargetsOnlinePercent] = useState<number>(0);
   const [platformLabels, setPlatformLabels] = useState<ILabel[] | null>(null);
   const [teams, setTeams] = useState<ITeam[] | null>(null);
   const [otherLabels, setOtherLabels] = useState<ILabel[] | null>(null);
@@ -230,14 +235,16 @@ const SelectTargets = ({
   };
 
   if (!isTargetsError && isEmpty(searchText) && !allHostsLabels) {
-    return (
-      <div className={`${baseClass}__wrapper body-wrap`}>
-        <h1>Select targets</h1>
-        <div className={`${baseClass}__page-loading`}>
-          <Spinner />
+    if (isEmpty(searchText) && isTargetsFetching) {
+      return (
+        <div className={`${baseClass}__wrapper body-wrap`}>
+          <h1>Select targets</h1>
+          <div className={`${baseClass}__page-loading`}>
+            <Spinner />
+          </div>
         </div>
-      </div>
-    );
+      );
+    }
   }
 
   if (isEmpty(searchText) && isTargetsError) {
