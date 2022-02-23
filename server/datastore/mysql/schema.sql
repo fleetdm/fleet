@@ -563,8 +563,8 @@ CREATE TABLE `software_host_counts` (
   `hosts_count` int(10) unsigned NOT NULL,
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `team_id` int(10) unsigned DEFAULT NULL,
-  PRIMARY KEY (`software_id`),
+  `team_id` int(10) unsigned NOT NULL DEFAULT '0',
+  PRIMARY KEY (`software_id`,`team_id`),
   KEY `idx_software_host_counts_updated_at_software_id` (`updated_at`,`software_id`),
   KEY `idx_software_host_counts_team_id_hosts_count_software_id` (`team_id`,`hosts_count`,`software_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

@@ -350,12 +350,16 @@ func selectSoftwareSQL(hostID *uint, opts fleet.SoftwareListOptions) (string, []
 
 		if opts.TeamID != nil {
 			ds = ds.Where(goqu.I("shc.team_id").Eq(opts.TeamID))
+		} else {
+			ds = ds.Where(goqu.I("shc.team_id").Eq(0))
 		}
 	}
 	ds = appendListOptionsToSelect(ds, opts.ListOptions)
 
 	// TODO(mna): check plan for with hosts with and without team, ensure use of index
-	return ds.ToSQL()
+	sql, args, err := ds.ToSQL()
+	//fmt.Print(">>>>> SQL\n\n\n", sql, "\n\n")
+	return sql, args, err
 }
 
 func countSoftwareDB(
@@ -645,98 +649,119 @@ func (ds *Datastore) SoftwareByID(ctx context.Context, id uint) (*fleet.Software
 // After aggregation, it cleans up unused software (e.g. software installed
 // on removed hosts, software uninstalled on hosts, etc.)
 func (ds *Datastore) CalculateHostsPerSoftware(ctx context.Context, updatedAt time.Time) error {
-	resetStmt := `
-    UPDATE software_host_counts
-    SET hosts_count = 0, updated_at = ?`
+	const (
+		resetStmt = `
+      UPDATE software_host_counts
+      SET hosts_count = 0, updated_at = ?`
 
-	globalCountsStmt := `
-    SELECT count(*), software_id
-    FROM host_software
-    WHERE software_id > 0
-    GROUP BY software_id`
+		// team_id is added to the select list to have the same structure as
+		// the teamCountsStmt, making it easier to use a common implementation
+		globalCountsStmt = `
+      SELECT count(*), 0 as team_id, software_id
+      FROM host_software
+      WHERE software_id > 0
+      GROUP BY software_id`
 
-	insertStmt := `
-    INSERT INTO software_host_counts
-      (software_id, hosts_count, team_id, updated_at)
-    VALUES
-      %s
-    ON DUPLICATE KEY UPDATE
-      hosts_count = VALUES(hosts_count),
-      updated_at = VALUES(updated_at)`
-	valuesPart := `(?, ?, ?, ?),`
+		teamCountsStmt = `
+      SELECT count(*), h.team_id, hs.software_id
+      FROM host_software hs
+      INNER JOIN hosts h
+      ON hs.host_id = h.id
+      WHERE h.team_id IS NOT NULL AND hs.software_id > 0
+      GROUP BY hs.software_id, h.team_id`
+
+		insertStmt = `
+      INSERT INTO software_host_counts
+        (software_id, hosts_count, team_id, updated_at)
+      VALUES
+        %s
+      ON DUPLICATE KEY UPDATE
+        hosts_count = VALUES(hosts_count),
+        updated_at = VALUES(updated_at)`
+
+		valuesPart = `(?, ?, ?, ?),`
+
+		cleanupSoftwareStmt = `
+      DELETE s
+      FROM software s
+      LEFT JOIN software_host_counts shc
+      ON s.id = shc.software_id
+      WHERE
+        shc.software_id IS NULL OR
+        (shc.team_id = 0 AND shc.hosts_count = 0)`
+
+		cleanupTeamStmt = `
+      DELETE shc
+      FROM software_host_counts shc
+      LEFT JOIN teams t
+      ON t.id = shc.team_id
+      WHERE
+        shc.team_id > 0 AND
+        t.id IS NULL`
+	)
 
 	// first, reset all counts to 0
 	if _, err := ds.writer.ExecContext(ctx, resetStmt, updatedAt); err != nil {
 		return ctxerr.Wrap(ctx, err, "reset all software_host_counts to 0")
 	}
 
-	// next get a cursor for the global counts for each software
-	rows, err := ds.reader.QueryContext(ctx, globalCountsStmt)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "read counts from host_software")
-	}
-	defer rows.Close()
-
-	// use a loop to iterate to prevent loading all in one go in memory, as it
-	// could get pretty big at >100K hosts with 1000+ software each.
-	const batchSize = 100
-	var batchCount int
-	args := make([]interface{}, 0, batchSize*4)
-	for rows.Next() {
-		var count int
-		var sid uint
-
-		if err := rows.Scan(&count, &sid); err != nil {
-			return ctxerr.Wrap(ctx, err, "scan row into variables")
+	// next get a cursor for the global and team counts for each software
+	stmtLabel := []string{"global", "team"}
+	for i, countStmt := range []string{globalCountsStmt, teamCountsStmt} {
+		rows, err := ds.reader.QueryContext(ctx, countStmt)
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err, "read %s counts from host_software", stmtLabel[i])
 		}
+		defer rows.Close()
 
-		args = append(args, sid, count, nil, updatedAt)
-		batchCount++
+		// use a loop to iterate to prevent loading all in one go in memory, as it
+		// could get pretty big at >100K hosts with 1000+ software each. Use a write
+		// batch to prevent making too many single-row inserts.
+		const batchSize = 100
+		var batchCount int
+		args := make([]interface{}, 0, batchSize*4)
+		for rows.Next() {
+			var (
+				count  int
+				teamID uint
+				sid    uint
+			)
 
-		if batchCount == batchSize {
-			values := strings.TrimSuffix(strings.Repeat(valuesPart, batchCount), ",")
-			if _, err := ds.writer.ExecContext(ctx, fmt.Sprintf(insertStmt, values), args...); err != nil {
-				return ctxerr.Wrap(ctx, err, "insert batch into software_host_counts")
+			if err := rows.Scan(&count, &teamID, &sid); err != nil {
+				return ctxerr.Wrapf(ctx, err, "scan %s row into variables", stmtLabel[i])
 			}
 
-			args = args[:0]
-			batchCount = 0
-		}
-	}
-	if batchCount > 0 {
-		values := strings.TrimSuffix(strings.Repeat(valuesPart, batchCount), ",")
-		if _, err := ds.writer.ExecContext(ctx, fmt.Sprintf(insertStmt, values), args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "insert last batch into software_host_counts")
-		}
-	}
-	if err := rows.Err(); err != nil {
-		return ctxerr.Wrap(ctx, err, "iterate over host_software counts")
-	}
+			args = append(args, sid, count, teamID, updatedAt)
+			batchCount++
 
-	// TODO(mna): calculate counts per team
+			if batchCount == batchSize {
+				values := strings.TrimSuffix(strings.Repeat(valuesPart, batchCount), ",")
+				if _, err := ds.writer.ExecContext(ctx, fmt.Sprintf(insertStmt, values), args...); err != nil {
+					return ctxerr.Wrapf(ctx, err, "insert %s batch into software_host_counts", stmtLabel[i])
+				}
+
+				args = args[:0]
+				batchCount = 0
+			}
+		}
+		if batchCount > 0 {
+			values := strings.TrimSuffix(strings.Repeat(valuesPart, batchCount), ",")
+			if _, err := ds.writer.ExecContext(ctx, fmt.Sprintf(insertStmt, values), args...); err != nil {
+				return ctxerr.Wrapf(ctx, err, "insert last %s batch into software_host_counts", stmtLabel[i])
+			}
+		}
+		if err := rows.Err(); err != nil {
+			return ctxerr.Wrapf(ctx, err, "iterate over %s host_software counts", stmtLabel[i])
+		}
+		rows.Close()
+	}
 
 	// remove any unused software (global counts = 0)
-	cleanupSoftwareStmt := `
-  DELETE s
-  FROM software s
-  LEFT JOIN software_host_counts shc
-  ON s.id = shc.software_id
-  WHERE
-    shc.software_id IS NULL OR
-    (shc.team_id IS NULL AND shc.hosts_count = 0)`
 	if _, err := ds.writer.ExecContext(ctx, cleanupSoftwareStmt); err != nil {
 		return ctxerr.Wrap(ctx, err, "delete unused software")
 	}
 
 	// remove any software count row for teams that don't exist anymore
-	cleanupTeamStmt := `
-  DELETE shc
-  FROM software_host_counts shc
-  LEFT JOIN teams t
-  ON t.id = shc.team_id
-  WHERE
-    shc.team_id IS NOT NULL AND
-    t.id IS NULL`
 	if _, err := ds.writer.ExecContext(ctx, cleanupTeamStmt); err != nil {
 		return ctxerr.Wrap(ctx, err, "delete software_host_counts for non-existing teams")
 	}
