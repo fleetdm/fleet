@@ -63,3 +63,6 @@ fleet-osquery*
 cmd/cpe/etagenv
 cmd/cpe/cpe*.sqlite
 cmd/cpe/cpe*.sqlite.gz
+
+# Testing TUF server
+test_tuf
