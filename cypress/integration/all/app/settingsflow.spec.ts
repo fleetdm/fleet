@@ -89,17 +89,11 @@ describe("App settings flow", () => {
         .click()
         .type("http://server.com/example");
 
-      cy.getAttached(".app-config-form__host-percentage").click();
-
-      cy.getAttached(".app-config-form__host-percentage")
-        .contains(/5%/i)
-        .click();
-
-      cy.getAttached(".app-config-form__days-count").click();
-
-      cy.getAttached(".app-config-form__days-count")
-        .contains(/7 days/i)
-        .click();
+      cy.getAttached(".app-config-form__host-percentage .Select-control").click();
+      cy.getAttached(".Select-menu-outer").contains(/5%/i).click();
+      
+      cy.getAttached(".app-config-form__days-count .Select-control").click();
+      cy.getAttached(".Select-menu-outer").contains(/7 days/i).click();
 
       cy.findByLabelText(/domain/i)
         .click()
