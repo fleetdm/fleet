@@ -708,19 +708,28 @@ func (ds *Datastore) CalculateHostsPerSoftware(ctx context.Context, updatedAt ti
 		return ctxerr.Wrap(ctx, err, "iterate over host_software counts")
 	}
 
-	cleanupStmt := `
-  DELETE FROM
-    software
+	cleanupSoftwareStmt := `
+  DELETE s
+  FROM software s
+  LEFT JOIN software_host_counts shc
+  ON s.id = shc.software_id
   WHERE
-    NOT EXISTS (
-      SELECT 1
-      FROM
-        software_host_counts shc
-      WHERE
-        software.id = shc.software_id AND
-		    shc.hosts_count > 0)`
-	if _, err := ds.writer.ExecContext(ctx, cleanupStmt); err != nil {
+    shc.software_id IS NULL OR
+    shc.hosts_count = 0`
+	if _, err := ds.writer.ExecContext(ctx, cleanupSoftwareStmt); err != nil {
 		return ctxerr.Wrap(ctx, err, "delete unused software")
+	}
+
+	cleanupTeamStmt := `
+  DELETE shc
+  FROM software_host_counts shc
+  LEFT JOIN teams t
+  ON t.id = shc.team_id
+  WHERE
+    shc.team_id IS NOT NULL AND
+    t.id IS NULL`
+	if _, err := ds.writer.ExecContext(ctx, cleanupTeamStmt); err != nil {
+		return ctxerr.Wrap(ctx, err, "delete software_host_counts for non-existing teams")
 	}
 	return nil
 }
