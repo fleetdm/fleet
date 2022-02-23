@@ -189,9 +189,11 @@ const QueryResults = ({
   const renderErrorsTable = () => {
     return (
       <div className={`${baseClass}__error-table-container`}>
-        <span className={`${baseClass}__error-count`}>
-          {errors.length} error{errors.length !== 1 && "s"}
-        </span>
+        {errors && (
+          <span className={`${baseClass}__error-count`}>
+            {errors.length} error{errors.length !== 1 && "s"}
+          </span>
+        )}
         <Button
           className={`${baseClass}__export-btn`}
           onClick={onExportErrorsResults}
