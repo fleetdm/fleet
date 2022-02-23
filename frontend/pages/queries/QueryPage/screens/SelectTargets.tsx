@@ -50,6 +50,8 @@ interface ISelectTargetsProps {
   goToQueryEditor: () => void;
   goToRunQuery: () => void;
   setSelectedTargets: React.Dispatch<React.SetStateAction<ITarget[]>>;
+  setTargetsTotalCount: React.Dispatch<React.SetStateAction<number>>;
+  targetsTotalCount: number;
 }
 
 interface IModifiedUseQueryTargetsResponse {
@@ -103,10 +105,9 @@ const SelectTargets = ({
   goToQueryEditor,
   goToRunQuery,
   setSelectedTargets,
+  setTargetsTotalCount,
+  targetsTotalCount,
 }: ISelectTargetsProps): JSX.Element => {
-  const [targetsTotalCount, setTargetsTotalCount] = useState<number | null>(
-    null
-  );
   const [targetsOnlinePercent, setTargetsOnlinePercent] = useState<number>(0);
   const [allHostsLabels, setAllHostsLabels] = useState<ILabel[] | null>(null);
   const [platformLabels, setPlatformLabels] = useState<ILabel[] | null>(null);
@@ -118,16 +119,10 @@ const SelectTargets = ({
   const [inputTabIndex, setInputTabIndex] = useState<number>(0);
   const [searchText, setSearchText] = useState<string>("");
   const [relatedHosts, setRelatedHosts] = useState<IHost[]>([]);
-  const [readyToRun, setReadyToRun] = useState<boolean>(false);
 
-  const {
-    isLoading: isTargetsLoading,
-    isFetching: isTargetsFetching,
-    isError: isTargetsError,
-  } = useQuery(
+  const { isFetching: isTargetsFetching, isError: isTargetsError } = useQuery(
     // triggers query on change
-    // ["targetsFromSearch", searchText, [...selectedTargets]],
-    ["targetsFromSearch", searchText, readyToRun],
+    ["targetsFromSearch", searchText, [...selectedTargets]],
     () =>
       targetsAPI.loadAll({
         query: searchText,
@@ -196,9 +191,6 @@ const SelectTargets = ({
           setTargetsOnlinePercent(
             Math.round((onlineCount / targetsCount) * 100)
           );
-        }
-        if (readyToRun) {
-          goToRunQuery;
         }
       },
     }
@@ -283,7 +275,7 @@ const SelectTargets = ({
     );
   };
 
-  if (isEmpty(searchText) && isTargetsLoading) {
+  if (isEmpty(searchText) && isTargetsFetching) {
     return (
       <div className={`${baseClass}__wrapper body-wrap`}>
         <h1>Select targets</h1>
@@ -358,10 +350,8 @@ const SelectTargets = ({
           className={`${baseClass}__btn`}
           type="button"
           variant="blue-green"
-          // disabled={!targetsTotalCount}
-          disabled={selectedTargets.length === 0}
-          // onClick={goToRunQuery}
-          onClick={() => setReadyToRun(true)}
+          disabled={!targetsTotalCount}
+          onClick={goToRunQuery}
         >
           Run
         </Button>
