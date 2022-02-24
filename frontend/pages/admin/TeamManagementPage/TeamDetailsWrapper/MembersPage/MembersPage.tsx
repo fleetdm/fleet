@@ -83,7 +83,9 @@ const MembersPage = ({
   const [isFormSubmitting, setIsFormSubmitting] = useState<boolean>(false);
   const [userEditing, setUserEditing] = useState<IUser>();
   const [searchString, setSearchString] = useState<string>("");
-  const [createUserErrors] = useState(DEFAULT_CREATE_USER_ERRORS);
+  const [createUserErrors, setCreateUserErrors] = useState<any>(
+    DEFAULT_CREATE_USER_ERRORS
+  );
   const [editUserErrors] = useState(DEFAULT_CREATE_USER_ERRORS);
   const [members, setMembers] = useState<IMembersTableData[]>([]);
   const [memberIds, setMemberIds] = useState<number[]>([]);
@@ -254,12 +256,9 @@ const MembersPage = ({
         })
         .catch((userErrors: any) => {
           if (userErrors.base.includes("Duplicate")) {
-            dispatch(
-              renderFlash(
-                "error",
-                "A user with this email address already exists."
-              )
-            );
+            setCreateUserErrors({
+              email: "A user with this email address already exists",
+            });
           } else {
             dispatch(
               renderFlash("error", "Could not create user. Please try again.")
@@ -286,19 +285,13 @@ const MembersPage = ({
         })
         .catch((userErrors: any) => {
           if (userErrors.base.includes("Duplicate")) {
-            dispatch(
-              renderFlash(
-                "error",
-                "A user with this email address already exists."
-              )
-            );
+            setCreateUserErrors({
+              email: "A user with this email address already exists",
+            });
           } else if (userErrors.base.includes("already invited")) {
-            dispatch(
-              renderFlash(
-                "error",
-                "A user with this email address has already been invited."
-              )
-            );
+            setCreateUserErrors({
+              email: "A user with this email address has already been invited",
+            });
           } else {
             dispatch(
               renderFlash("error", "Could not create user. Please try again.")

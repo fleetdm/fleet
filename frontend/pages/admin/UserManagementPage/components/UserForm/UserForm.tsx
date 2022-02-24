@@ -1,4 +1,4 @@
-import React, { Component, FormEvent, useState } from "react";
+import React, { FormEvent, useState, useEffect } from "react";
 import ReactTooltip from "react-tooltip";
 import { Link } from "react-router";
 import PATHS from "router/paths";
@@ -120,7 +120,7 @@ const UserForm = ({
 }: ICreateUserFormProps): JSX.Element => {
   const dispatch = useDispatch();
 
-  const [errors, setErrors] = useState<any>(createUserErrors);
+  const [errors, setErrors] = useState<any>(createUserErrors || editUserErrors);
   const [formData, setFormData] = useState<any>({
     email: defaultEmail || "",
     name: defaultName || "",
@@ -135,6 +135,10 @@ const UserForm = ({
   const [isGlobalUser, setIsGlobalUser] = useState<boolean>(
     defaultGlobalRole !== null
   );
+
+  useEffect(() => {
+    setErrors(createUserErrors);
+  }, [createUserErrors]);
 
   const onInputChange = (formField: string): ((value: string) => void) => {
     return (value: string) => {

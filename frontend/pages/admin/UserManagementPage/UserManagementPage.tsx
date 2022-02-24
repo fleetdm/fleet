@@ -244,12 +244,9 @@ const UserManagementPage = (): JSX.Element => {
         .catch((userErrors: { data: IApiError }) => {
           console.log("this user error:", userErrors);
           if (userErrors.data.errors[0].reason.includes("already exists")) {
-            dispatch(
-              renderFlash(
-                "error",
-                "A user with this email address already exists."
-              )
-            );
+            setCreateUserErrors({
+              email: "A user with this email address already exists",
+            });
           } else {
             dispatch(
               renderFlash("error", "Could not create user. Please try again.")
@@ -308,8 +305,12 @@ const UserManagementPage = (): JSX.Element => {
           })
           .then(() => refetchInvites())
           .catch((userErrors: { data: IApiError }) => {
-            console.log("userErrors onEditUserSubmit", userErrors);
-            if (userErrors.data.errors[0].reason.includes("Duplicate")) {
+            console.log("userErrors onEditUserSubmit invite user", userErrors);
+            if (
+              userErrors.data.errors[0].reason.includes(
+                "a user with this account already exist"
+              )
+            ) {
               setCreateUserErrors({
                 email: "A user with this email address already exists",
               });
@@ -336,7 +337,13 @@ const UserManagementPage = (): JSX.Element => {
             );
           })
           .then(() => refetchUsers())
-          .catch(() => {
+          .catch((userErrors: { data: IApiError }) => {
+            console.log("userErrors onEditUserSubmit regular user", userErrors);
+            if (userErrors.data.errors[0].reason.includes("Duplicate")) {
+              setCreateUserErrors({
+                email: "A user with this email address already exists",
+              });
+            }
             dispatch(
               renderFlash(
                 "error",
