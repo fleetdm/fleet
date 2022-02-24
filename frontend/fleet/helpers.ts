@@ -238,7 +238,14 @@ export const formatSelectedTargetsForApi = (
   const labels = flatMap(targets, filterTarget("labels"));
   const teams = flatMap(targets, filterTarget("teams"));
 
-  return { hosts, labels, teams };
+  const sortIds = (arr: Array<number | string>) =>
+    arr.sort((a, b) => Number(a) - Number(b));
+
+  return {
+    hosts: sortIds(hosts),
+    labels: sortIds(labels),
+    teams: sortIds(teams),
+  };
 };
 
 export const formatPackTargetsForApi = (
