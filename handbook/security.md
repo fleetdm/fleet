@@ -327,7 +327,7 @@ We also configure [Password Alert](https://support.google.com/chrome/a/answer/96
 
 
 #### Account recovery
-Self-service account recovery is a feature we do not need, as we have the capability and capacity of supporting Fleet employees. As we secure accounts beyond the security level of most personal email accounts, it would not be logical to trust them for recovery.
+Self-service account recovery is a feature we do not need, as we have enough Google administrators to support Fleet employees. As we secure accounts beyond the security level of most personal email accounts, it would not be logical to trust those personal accounts for recovery.
 
 We apply the following settings to *Security/Account Recovery* to all users as the minimum baseline.
 
@@ -354,13 +354,13 @@ This level of security allows users to authenticate to web applications with the
 
 >To get an application added to Fleet's Google Workspace security configuration, create an issue assigned to the security team in [this repository](https://github.com/fleetdm/confidential/issues).
 
-We mark at least the following as restricted in *Security/API Control/Google Services*:
+We mark every Google Service as *restricted*, and recommend that anyone using Google Workspace mark at least the following as restricted in *Security/API Control/Google Services*:
 * Google Drive
 * Gmail
 * Calendar (Invites include sensitive info such as external participants, attachments, links to meetings, etc.)
 * Google Workspace Admin
 
-When then mark as trusted applications that we trust that need to access these services, and leave as "limited" apps we have not reviewed. Those applications can access the services not marked as restricted.
+Whe then mark as *trusted* applications that we trust that need access to data in our Google Workspace.
 
 ### Rules and alerts
 
