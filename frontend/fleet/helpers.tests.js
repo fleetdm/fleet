@@ -162,11 +162,15 @@ describe("Fleet API - helpers", () => {
         teams: [],
       });
     });
+  });
 
-    it("appends `_id` when appendID is specified", () => {
+  describe("#formatPackTargetsForApi", () => {
+    const { formatPackTargetsForApi } = helpers;
+
+    it("remaps properties with `_id` appended", () => {
       const targets = [host1, host2, label1, label2];
 
-      expect(formatSelectedTargetsForApi(targets, true)).toEqual({
+      expect(formatPackTargetsForApi(targets)).toEqual({
         host_ids: [6, 5],
         label_ids: [1, 2],
         team_ids: [],
