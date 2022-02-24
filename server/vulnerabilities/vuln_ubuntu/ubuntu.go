@@ -27,6 +27,7 @@ import (
 	"github.com/gocolly/colly"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/ulikunitz/xz"
+	"golang.org/x/sync/errgroup"
 )
 
 func defaultCacheDir() (string, error) {
@@ -139,16 +140,25 @@ func crawl(root string, cacheDir string, verbose bool) error {
 
 	fmt.Println("Crawling Ubuntu repository...")
 
-	var pkgURLs []*url.URL
+	pkgURLs := make(chan *url.URL)
+	defer close(pkgURLs)
+
+	// Start a fixed number of goroutines to download .tar.xz files, extract, and save changelogs
+	g := new(errgroup.Group)
+	numDownloaders := 10
+	for i := 0; i < numDownloaders; i++ {
+		g.Go(func() error {
+			for u := range pkgURLs {
+				if err := processPKGURL(u, cacheDir, verbose); err != nil {
+					return err
+				}
+			}
+			return nil
+		})
+	}
 
 	c := colly.NewCollector()
-
 	c.OnHTML("td > a[href]", func(e *colly.HTMLElement) {
-		// TODO: remove, only for development
-		if len(pkgURLs) > 10 {
-			return
-		}
-
 		href := e.Attr("href")
 
 		// Don't visit parent dirs
@@ -159,7 +169,7 @@ func crawl(root string, cacheDir string, verbose bool) error {
 		if strings.HasSuffix(href, ".tar.xz") {
 			u := *e.Request.URL // clone the url
 			u.Path = path.Join(u.Path, href)
-			pkgURLs = append(pkgURLs, &u)
+			pkgURLs <- &u
 			if verbose {
 				fmt.Printf("%s\n", u.Path)
 			}
@@ -180,10 +190,8 @@ func crawl(root string, cacheDir string, verbose bool) error {
 		return err
 	}
 
-	for _, u := range pkgURLs {
-		if err := processPKGURL(u, cacheDir, verbose); err != nil {
-			return err
-		}
+	if err := g.Wait(); err != nil {
+		return err
 	}
 
 	return nil
