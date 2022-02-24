@@ -118,7 +118,7 @@ const SelectTargets = ({
   } = useQueryTargets(
     [
       {
-        scope: "SelectTargets",
+        scope: "useQueryTargets",
         query: debouncedSearchText,
         queryId: null,
         selected: formatSelectedTargetsForApi(selectedTargets),

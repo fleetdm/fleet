@@ -132,7 +132,7 @@ const SelectTargets = ({
   } = useQueryTargets(
     [
       {
-        scope: "SelectTargets",
+        scope: "useQueryTargets",
         query: debouncedSearchText,
         queryId: queryIdForEdit,
         selected: formatSelectedTargetsForApi(selectedTargets),
