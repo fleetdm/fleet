@@ -8,65 +8,65 @@ Note: Please prefix versions with `fleet-v` (eg. `fleet-v4.0.0`) in git tags, He
    tone and syntax of the written language match throughout. `make changelog` will stage all changes
    file entries for deletion with the commit.
 
-Add a "Performance" section below the list of changes. This section should summarize the number of
-hosts that the Fleet server can handle, call out if this number has
-changed since the last release, and list the infrastructure used in the load testing environment.
+   Add a "Performance" section below the list of changes. This section should summarize the number of
+   hosts that the Fleet server can handle, call out if this number has
+   changed since the last release, and list the infrastructure used in the load testing environment.
 
-Update version numbers in the relevant files:
+   Update version numbers in the relevant files:
 
-- [package.json](../../tools/fleetctl-npm/package.json) (do not yet `npm publish`)
-- [Helm chart](../../charts/fleet/Chart.yaml) and [values file](../../charts/fleet/values.yaml)
-- [Terraform variables](../../tools/terraform/variables.tf)
+   - [package.json](../../tools/fleetctl-npm/package.json) (do not yet `npm publish`)
+   - [Helm chart](../../charts/fleet/Chart.yaml) and [values file](../../charts/fleet/values.yaml)
+   - [Terraform variables](../../tools/terraform/variables.tf)
 
-Commit these changes via Pull Request and pull the changes on the `main` branch locally. Check that
-`HEAD` of the `main` branch points to the commit with these changes.
+   Commit these changes via Pull Request and pull the changes on the `main` branch locally. Check that
+   `HEAD` of the `main` branch points to the commit with these changes.
 
 2. Tag and push the new release in Git:
 
-```shell
-git tag fleet-v<VERSION>
-git push origin fleet-v<VERSION>
-```
+   ```sh
+   git tag fleet-v<VERSION>
+   git push origin fleet-v<VERSION>
+   ```
 
-Note that `origin` may be `upstream` depending on your `git remote` configuration. The intent here
-is to push the new tag to the `github.com/fleetdm/fleet` repository.
+   Note that `origin` may be `upstream` depending on your `git remote` configuration. The intent here
+   is to push the new tag to the `github.com/fleetdm/fleet` repository.
 
-GitHub Actions will automatically begin building the new release after the tag is pushed.
+   GitHub Actions will automatically begin building the new release after the tag is pushed.
 
----
+   ---
 
-Wait while GitHub Actions creates and uploads the artifacts...
+   Wait while GitHub Actions creates and uploads the artifacts...
 
----
+   ---
 
-When the Actions Workflow has completed:
+   When the Actions Workflow has completed:
 
 3. Edit the draft release on the [GitHub releases page](https://github.com/fleetdm/fleet/releases).
    Use the version number as the release title. Use the below template for the release description
    (replace items in <> with the appropriate values):
 
-````
-### Changes
+   ````
+   ### Changes
 
-<COPY FROM CHANGELOG>
+   <COPY FROM CHANGELOG>
 
-### Upgrading
+   ### Upgrading
 
-Please visit our [update guide](https://fleetdm.com/docs/using-fleet/updating-fleet) for upgrade instructions.
+   Please visit our [update guide](https://fleetdm.com/docs/using-fleet/updating-fleet) for upgrade instructions.
 
-### Documentation
+   ### Documentation
 
-Documentation for Fleet is available at [fleetdm.com/docs](https://fleetdm.com/docs).
+   Documentation for Fleet is available at [fleetdm.com/docs](https://fleetdm.com/docs).
 
-### Binary Checksum
+   ### Binary Checksum
 
-**SHA256**
-```
-<COPY FROM checksums.txt>
-```
-````
+   **SHA256**
+   ```
+   <COPY FROM checksums.txt>
+   ```
+   ````
 
-When editing is complete, publish the release.
+   When editing is complete, publish the release.
 
 4. Publish the new version of `fleetctl` on NPM. Run `npm publish` in the
    [fleetctl-npm](../../tools/fleetctl-npm/) directory. Note that NPM does not allow replacing a
@@ -82,7 +82,7 @@ When editing is complete, publish the release.
    update the channel's topic with the link to this release. Using `@here` requires admin
    permissions, so typically this announcement will be done by `@zwass`.
 
-Announce the release via blog post (on Medium) and Twitter (linking to blog post).
+   Announce the release via blog post (on Medium) and Twitter (linking to blog post).
 
 ## Patch releases
 
