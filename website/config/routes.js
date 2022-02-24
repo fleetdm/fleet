@@ -184,7 +184,7 @@ module.exports.routes = {
   // For example, a clever user might try to visit fleetdm.com/documentation, not knowing that Fleet's website
   // puts this kind of thing under /docs, NOT /documentation.  These "convenience" redirects are to help them out.
   'GET /documentation':              '/docs',
-  'GET /contribute':                 '/docs/contribute',
+  'GET /contribute':                 '/docs/contributing',
   'GET /install':                    '/get-started',
   'GET /company':                    '/company/about',
   'GET /company/about':              '/handbook', // FUTURE: brief "about" page explaining the origins of the company
