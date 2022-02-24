@@ -98,6 +98,8 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
   constructor(props: ICreateUserFormProps) {
     super(props);
 
+    console.log("UserForm.tsx props.createUserErrors", props.createUserErrors);
+
     this.state = {
       errors: {
         email: null,
@@ -117,6 +119,14 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
       },
       isGlobalUser: props.defaultGlobalRole !== null,
     };
+  }
+
+  componentWillReceiveProps(createUserErrors: any) {
+    this.setState({
+      errors: createUserErrors,
+    });
+
+    return false;
   }
 
   onInputChange = (formField: string): ((value: string) => void) => {

@@ -45,6 +45,7 @@ const CreateUserModal = ({
 }: ICreateUserModalProps): JSX.Element => {
   const dispatch = useDispatch();
 
+  console.log("createUserErrors CreateUserModal", createUserErrors);
   return (
     <Modal title="Create user" onExit={onCancel} className={baseClass}>
       <>
@@ -69,7 +70,6 @@ const CreateUserModal = ({
           isModifiedByGlobalAdmin={isModifiedByGlobalAdmin}
           currentTeam={currentTeam}
           isNewUser
-          dispatch={dispatch}
         />
       </>
     </Modal>

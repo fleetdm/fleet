@@ -69,7 +69,6 @@ const EditUserModal = ({
         isSsoEnabled={isSsoEnabled}
         isModifiedByGlobalAdmin={isModifiedByGlobalAdmin}
         currentTeam={currentTeam}
-        dispatch={dispatch}
       />
     </Modal>
   );
