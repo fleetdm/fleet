@@ -178,8 +178,10 @@ func CPEFromSoftware(db *sqlx.DB, software *fleet.Software) (string, error) {
 	case "chocolatey_packages":
 	}
 
+	name := onlyAlphaNumeric.ReplaceAllString(cleanAppName(software.Name), " ")
+	args := []interface{}{name}
+
 	checkTargetSW := ""
-	args := []interface{}{onlyAlphaNumeric.ReplaceAllString(cleanAppName(software.Name), " ")}
 	if targetSW != "" {
 		checkTargetSW = " AND target_sw MATCH ?"
 		args = append(args, targetSW)
@@ -253,17 +255,17 @@ func TranslateSoftwareToCPE(
 		}
 	}
 
-	iterator, err := ds.AllSoftwareWithoutCPEIterator(ctx)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "all software iterator")
-	}
-	defer iterator.Close()
-
 	db, err := sqliteDB(dbPath)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "opening the cpe db")
 	}
 	defer db.Close()
+
+	iterator, err := ds.AllSoftwareWithoutCPEIterator(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "all software iterator")
+	}
+	defer iterator.Close()
 
 	for iterator.Next() {
 		software, err := iterator.Value()

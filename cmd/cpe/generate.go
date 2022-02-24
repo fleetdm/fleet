@@ -14,6 +14,7 @@ import (
 	"github.com/facebookincubator/nvdtools/cpedict"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/vuln_centos"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/vuln_ubuntu"
 )
 
 func panicif(err error) {
@@ -25,13 +26,16 @@ func panicif(err error) {
 func main() {
 	var (
 		runCentOS bool
+		runUbuntu bool
 		verbose   bool
 	)
 	flag.BoolVar(&runCentOS, "centos", true, "Sets whether to run the CentOS sqlite generation")
+	flag.BoolVar(&runUbuntu, "ubuntu", true, "Sets whether to run the Ubuntu sqlite generation")
 	flag.BoolVar(&verbose, "verbose", false, "Sets verbose mode")
 	flag.Parse()
 
-	dbPath := cpe()
+	// dbPath := cpe()
+	dbPath := "/home/michal/fleet/src/fleet/cpe-80738fd95325d810.sqlite"
 
 	fmt.Printf("Sqlite file %s size: %.2f MB\n", dbPath, getSizeMB(dbPath))
 
@@ -39,6 +43,11 @@ func main() {
 	if runCentOS {
 		centos(dbPath, verbose)
 		fmt.Printf("Sqlite file %s size with CentOS data: %.2f MB\n", dbPath, getSizeMB(dbPath))
+	}
+
+	if runUbuntu {
+		ubuntu(dbPath, verbose)
+		fmt.Printf("Sqlite file %s size with Ubuntu data: %.2f MB\n", dbPath, getSizeMB(dbPath))
 	}
 
 	fmt.Println("Compressing DB...")
@@ -76,6 +85,7 @@ func cpe() string {
 	cpeDict, err := cpedict.Decode(gr)
 	panicif(err)
 
+	// TODO: consider caching using etag
 	fmt.Println("Generating DB...")
 	dbPath := path.Join(cwd, fmt.Sprintf("cpe-%s.sqlite", remoteEtag))
 	err = vulnerabilities.GenerateCPEDB(dbPath, cpeDict)
@@ -128,9 +138,25 @@ func centos(dbPath string, verbose bool) {
 	panicif(err)
 }
 
+func ubuntu(dbPath string, verbose bool) {
+	fmt.Println("Starting Ubuntu sqlite generation...")
+
+	db, err := sql.Open("sqlite3", dbPath)
+	panicif(err)
+	defer db.Close()
+
+	fixedCVEs, err := vuln_ubuntu.ParseUbuntuRepository(vuln_ubuntu.WithVerbose(verbose))
+	panicif(err)
+
+	fmt.Printf("Storing CVE info for %d Ubuntu packages...\n", len(fixedCVEs))
+
+	err = vuln_ubuntu.GenUbuntuSqlite(db, fixedCVEs)
+	panicif(err)
+}
+
 func getSanitizedEtag(resp *http.Response) string {
 	etag := resp.Header.Get("Etag")
 	etag = strings.TrimPrefix(strings.TrimSuffix(etag, `"`), `"`)
-	etag = strings.Replace(etag, ":", "", -1)
+	etag = strings.ReplaceAll(etag, ":", "")
 	return etag
 }
