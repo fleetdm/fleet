@@ -116,9 +116,9 @@ describe("App settings flow", () => {
 
       cy.findByLabelText(/disable live queries/i).check({ force: true });
 
-      cy.findByRole("button", { name: /update settings/i }).click({
-        force: true,
-      });
+      cy.findByRole("button", { name: /update settings/i })
+        .click()
+        .blur();
 
       cy.findByText(/updated settings/i).should("exist");
 
