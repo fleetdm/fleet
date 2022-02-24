@@ -21,6 +21,7 @@ import {
   IEnrollSecret,
   IEnrollSecretsResponse,
 } from "interfaces/enroll_secret";
+import { IOldApiError } from "interfaces/errors";
 import permissions from "utilities/permissions";
 import sortUtils from "utilities/sort";
 import Spinner from "components/Spinner";
@@ -128,6 +129,9 @@ const TeamDetailsWrapper = ({
   const [showSecretEditorModal, setShowSecretEditorModal] = useState(false);
   const [showDeleteTeamModal, setShowDeleteTeamModal] = useState(false);
   const [showEditTeamModal, setShowEditTeamModal] = useState(false);
+  const [backendValidators, setBackendValidators] = useState<{
+    [key: string]: string;
+  }>({});
 
   const { refetch: refetchMe } = useQuery(["me"], () => usersAPI.me(), {
     onSuccess: ({ user, available_teams }: IGetMeResponse) => {
@@ -308,15 +312,30 @@ const TeamDetailsWrapper = ({
       dispatch(teamActions.update(currentTeam?.id, updatedAttrs))
         .then(() => {
           dispatch(teamActions.loadAll({ perPage: 500 }));
-          dispatch(renderFlash("success", "Team updated"));
+          dispatch(
+            renderFlash(
+              "success",
+              `Successfully updated team name to ${updatedAttrs?.name}`
+            )
+          );
+          setBackendValidators({});
           refetchTeams();
           refetchMe();
-          // TODO: error handling
+          toggleEditTeamModal();
         })
-        .catch(() => null);
-      toggleEditTeamModal();
+        .catch((updateError: IOldApiError) => {
+          if (updateError.base.includes("Duplicate")) {
+            setBackendValidators({
+              name: "A team with this name already exists",
+            });
+          } else {
+            dispatch(
+              renderFlash("error", "Could not create team. Please try again.")
+            );
+          }
+        });
     },
-    [dispatch, toggleEditTeamModal, currentTeam]
+    [dispatch, toggleEditTeamModal, currentTeam, setBackendValidators]
   );
 
   const handleTeamSelect = (teamId: number) => {
@@ -490,6 +509,7 @@ const TeamDetailsWrapper = ({
           onCancel={toggleEditTeamModal}
           onSubmit={onEditSubmit}
           defaultName={currentTeam.name}
+          backendValidators={backendValidators}
         />
       )}
       {children}

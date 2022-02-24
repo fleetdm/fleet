@@ -3,6 +3,7 @@ import { useDispatch } from "react-redux";
 import { useQuery } from "react-query";
 
 import { ITeam } from "interfaces/team";
+import { IApiError } from "interfaces/errors";
 // ignore TS error for now until these are rewritten in ts.
 // @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions";
@@ -36,6 +37,9 @@ const TeamManagementPage = (): JSX.Element => {
   const [showEditTeamModal, setShowEditTeamModal] = useState(false);
   const [teamEditing, setTeamEditing] = useState<ITeam>();
   const [searchString, setSearchString] = useState<string>("");
+  const [backendValidators, setBackendValidators] = useState<{
+    [key: string]: string;
+  }>({});
 
   const {
     data: teams,
@@ -93,21 +97,20 @@ const TeamManagementPage = (): JSX.Element => {
           dispatch(
             renderFlash("success", `Successfully created ${formData.name}.`)
           );
+          setBackendValidators({});
           toggleCreateTeamModal();
+          refetchTeams();
         })
-        .catch((createError: any) => {
+        .catch((createError: { data: IApiError }) => {
           if (createError.data.errors[0].reason.includes("Duplicate")) {
-            dispatch(
-              renderFlash("error", "A team with this name already exists.")
-            );
+            setBackendValidators({
+              name: "A team with this name already exists",
+            });
           } else {
             dispatch(
               renderFlash("error", "Could not create team. Please try again.")
             );
           }
-        })
-        .finally(() => {
-          refetchTeams();
         });
     },
     [dispatch, toggleCreateTeamModal]
@@ -146,15 +149,21 @@ const TeamManagementPage = (): JSX.Element => {
           .update(teamEditing.id, formData)
           .then(() => {
             dispatch(
-              renderFlash("success", `Successfully edited ${formData.name}.`)
+              renderFlash(
+                "success",
+                `Successfully updated team name to ${formData.name}.`
+              )
             );
+            setBackendValidators({});
+            toggleEditTeamModal();
+            refetchTeams();
           })
-          .catch((updateError) => {
+          .catch((updateError: { data: IApiError }) => {
             console.error(updateError);
-            if (updateError.errors[0].reason.includes("Duplicate")) {
-              dispatch(
-                renderFlash("error", "A team with this name already exists.")
-              );
+            if (updateError.data.errors[0].reason.includes("Duplicate")) {
+              setBackendValidators({
+                name: "A team with this name already exists",
+              });
             } else {
               dispatch(
                 renderFlash(
@@ -163,10 +172,6 @@ const TeamManagementPage = (): JSX.Element => {
                 )
               );
             }
-          })
-          .finally(() => {
-            refetchTeams();
-            toggleEditTeamModal();
           });
       }
     },
@@ -254,6 +259,7 @@ const TeamManagementPage = (): JSX.Element => {
         <CreateTeamModal
           onCancel={toggleCreateTeamModal}
           onSubmit={onCreateSubmit}
+          backendValidators={backendValidators}
         />
       ) : null}
       {showDeleteTeamModal ? (
@@ -268,6 +274,7 @@ const TeamManagementPage = (): JSX.Element => {
           onCancel={toggleEditTeamModal}
           onSubmit={onEditSubmit}
           defaultName={teamEditing?.name || ""}
+          backendValidators={backendValidators}
         />
       ) : null}
     </div>
