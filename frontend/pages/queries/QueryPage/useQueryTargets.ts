@@ -7,14 +7,17 @@ import { ITeam } from "interfaces/team";
 import { ISelectedTargets } from "interfaces/target";
 import targetsAPI from "services/entities/targets";
 
-export interface ITargetsQueryResponse {
-  targetsTotalCount: number;
-  targetsOnlinePercent: number;
+export interface ITargetsGroups {
   allHostsLabel?: ILabel[];
   platformLabels?: ILabel[];
   otherLabels?: ILabel[];
   teams?: ITeam[];
   labelCount?: number;
+}
+
+export interface ITargetsQueryResponse extends ITargetsGroups {
+  targetsTotalCount: number;
+  targetsOnlinePercent: number;
   relatedHosts?: IHost[];
 }
 
@@ -41,27 +44,23 @@ const getTargets = async (
       queryId,
       selected,
     });
-    let response: Partial<ITargetsQueryResponse> = {};
+    let response: ITargetsGroups = {};
 
     if (includeLabels) {
       const { labels } = targets;
-
       const all = filter(
         labels,
         ({ display_text: text }) => text === "All Hosts"
       );
-
       const platforms = filter(
         labels,
         ({ display_text: text }) =>
           text === "macOS" || text === "MS Windows" || text === "All Linux"
       );
-
       const other = filter(
         labels,
         ({ label_type: type }) => type === "regular"
       );
-
       const labelCount =
         all.length + platforms.length + other.length + targets.teams.length;
 
@@ -86,12 +85,11 @@ const getTargets = async (
       targetsOnlinePercent,
     });
   } catch (err) {
-    console.log("ERROR ", err);
     return Promise.reject(err);
   }
 };
 
-export const useTargetsQuery = (
+export const useQueryTargets = (
   targetsQueryKey: ITargetsQueryKey[],
   options: { onSuccess: (data: ITargetsQueryResponse) => void }
 ): UseQueryResult<ITargetsQueryResponse, Error> => {
@@ -107,10 +105,10 @@ export const useTargetsQuery = (
     },
     {
       refetchOnWindowFocus: false,
-      staleTime: 15000,
+      staleTime: 30000,
       onSuccess: options.onSuccess,
     }
   );
 };
 
-export default useTargetsQuery;
+export default useQueryTargets;

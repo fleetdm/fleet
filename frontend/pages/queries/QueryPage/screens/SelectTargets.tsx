@@ -24,7 +24,7 @@ import CheckIcon from "../../../../../assets/images/icon-check-purple-32x32@2x.p
 import ExternalURLIcon from "../../../../../assets/images/icon-external-url-12x12@2x.png";
 import ErrorIcon from "../../../../../assets/images/icon-error-16x16@2x.png";
 
-import useTargetsQuery, { ITargetsQueryResponse } from "../hooks";
+import useQueryTargets, { ITargetsQueryResponse } from "../useQueryTargets";
 
 interface ITargetPillSelectorProps {
   entity: ISelectLabel | ISelectTeam;
@@ -42,6 +42,8 @@ interface ISelectTargetsProps {
   goToRunQuery: () => void;
   setSelectedTargets: React.Dispatch<React.SetStateAction<ITarget[]>>;
 }
+
+const DEBOUNCE_DELAY = 500;
 
 const isSameSelectTargetsEntity = (
   e1: ISelectTargetsEntity,
@@ -95,16 +97,19 @@ const SelectTargets = ({
   const [inputTabIndex, setInputTabIndex] = useState<number>(0);
   const [searchText, setSearchText] = useState<string>("");
   const [debouncedSearchText, setDebouncedSearchText] = useState<string>("");
+  const [isDebouncing, setIsDebouncing] = useState<boolean>(false);
 
   const debounceSearch = useDebouncedCallback(
     (search: string) => {
       setDebouncedSearchText(search);
+      setIsDebouncing(false);
     },
-    300,
-    { leading: true, trailing: true }
+    DEBOUNCE_DELAY,
+    { trailing: true }
   );
 
   useEffect(() => {
+    setIsDebouncing(true);
     debounceSearch(searchText);
   }, [searchText]);
 
@@ -125,7 +130,7 @@ const SelectTargets = ({
     data: targets,
     isFetching: isTargetsFetching,
     isError: isTargetsError,
-  } = useTargetsQuery(
+  } = useQueryTargets(
     [
       {
         scope: "SelectTargets",
@@ -191,7 +196,7 @@ const SelectTargets = ({
   const handleRowRemove = (row: Row) => {
     const newTargets = selectedTargets;
     const hostTarget = row.original as ITarget;
-    remove(newTargets, (t) => t.id === hostTarget.id && "hostname" in t); // TODO: confirm this is an ok proxy for target type
+    remove(newTargets, (t) => t.id === hostTarget.id && "hostname" in t); // check if `hostname` is present to confirm target is of type `IHost`
 
     setSelectedTargets([...newTargets]);
   };
@@ -275,7 +280,7 @@ const SelectTargets = ({
         tabIndex={inputTabIndex}
         searchText={searchText}
         relatedHosts={targets?.relatedHosts || []}
-        isTargetsLoading={isTargetsFetching}
+        isTargetsLoading={isTargetsFetching || isDebouncing}
         selectedTargets={[...selectedTargets]}
         hasFetchError={isTargetsError}
         setSearchText={setSearchText}
