@@ -48,7 +48,7 @@ describe("App - reducer", () => {
 
   describe("configSuccess action", () => {
     it("sets the config in state", () => {
-      const config = { name: "Kolide" };
+      const config = { name: "Fleet" };
       const loadingConfigState = {
         ...initialState,
         loading: true,
@@ -91,7 +91,7 @@ describe("App - reducer", () => {
 
   describe("enrollSecretSuccess action", () => {
     it("sets the enrollSecret in state", () => {
-      const enrollSecret = [{ name: "Kolide" }];
+      const enrollSecret = [{ name: "Fleet" }];
       const loadingEnrollSecretState = {
         ...initialState,
         loading: true,
