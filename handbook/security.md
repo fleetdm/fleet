@@ -312,14 +312,14 @@ As we enforce the use of 2-SV, passwords are less critical to the security of ou
 
 Enforcing 2FA is a much more valuable control than enforcing the expiration of passwords, which usually results in users changing only a small portion of the password and following predictable patterns.
 
-We apply the following settings to *Security/Password management* to all users as the minimal baseline:
+We apply the following settings to *Security/Password management* to all users as the minimum baseline.
 
 
 | Setting name                                                            | Value         |
 | ----------------------------------------------------------------------- | ------------- |
 | Enforce strong password                                                 | Enabled       |
 | Length                                                                  | 8-100         |
-| Strength and Length enforcement/Enforce password policy at next sign-in | Enabled       |
+| Strength and length enforcement/enforce password policy at next sign-in | Enabled       |
 | Allow password reuse                                                    | Disabled      |
 | Expiration                                                              | Never expires |
 
@@ -329,44 +329,44 @@ We also configure [Password Alert](https://support.google.com/chrome/a/answer/96
 #### Account recovery
 Self-service account recovery is a feature we do not need, as we have the capability and capacity of supporting Fleet employees. As we secure accounts beyond the security level of most personal email accounts, it would not be logical to trust them for recovery.
 
-We apply the following settings to *Security/Account Recovery* to all users as the minimal baseline:
+We apply the following settings to *Security/Account Recovery* to all users as the minimum baseline.
 
 | Setting name                                               | Value |
 | ---------------------------------------------------------- | ----- |
 | Allow super admins to recover their account                | Off   |
 | Allow users and non-super admins to recover their account | Off   |
 
-First, we ensure we have a handful of administrators. Then, by not requiring password expiration, the amount of issues related to passwords is reduced. Finally, we are able to support locked-out users manually as the volume of issues is minimal.
+First, we ensure we have a handful of administrators. Then, by not requiring password expiration, the number of issues related to passwords is reduced. Lastly, we can support locked-out users manually as the volume of issues is minimal.
 
 #### Less secure apps
-Less secure apps use legacy protocols that do not support secure authentication methods. We disable them, and as they are becoming rare, have not noticed any negative impact from this setting.
+Less secure apps use legacy protocols that do not support secure authentication methods. We disable them, and as they are becoming rare, we have not noticed any issues from this setting.
 
-We apply the following settings to *Security/Less Secure Apps* to all users as the minimal baseline:
+We apply the following settings to *Security/Less Secure Apps* to all users as the minimum baseline.
 
 | Setting name                                                                                            | Value                                            |
 | ------------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
 | Control user access to apps that use less secure sign-in technology and make accounts more vulnerable.  | Disable access to less secure apps (Recommended) |
 
 #### API Access
-Google Workspace makes it easy for users to add tools to their workflows, usually having these tools authenticate to their Google applications and data via Oauth. We mark all Google services as *restricted*, but we allow the use of OAuth for simple authentication as well as the use of less dangerous privileges on Gmail and Drive. We then approve applications that require more privileges on a case-by-case basis.
+Google Workspace makes it easy for users to add tools to their workflows, usually having these tools authenticate to their Google applications and data via OAuth. We mark all Google services as *restricted*, but do allow the use of OAuth for simple authentication and the use of less dangerous privileges on Gmail and Drive. We then approve applications that require more privileges on a case-by-case basis.
 
 This level of security allows users to authenticate to web applications with their Google account, which exposes little information beyond what they would provide in a form to create an account and protects confidential data while keeping everything managed.
 
-Create an issue assigned to the security team in [this repository](https://github.com/fleetdm/confidential/issues) to get an application added to the configuration.
+>To get an application added to Fleet's Google Workspace security configuration, create an issue assigned to the security team in [this repository](https://github.com/fleetdm/confidential/issues).
 
 We mark at least the following as restricted in *Security/API Control/Google Services*:
 * Google Drive
 * Gmail
-* Calendar (Since invites include sensitive info such as external participants, attachments, links to meetings)
+* Calendar (Invites include sensitive info such as external participants, attachments, links to meetings, etc.)
 * Google Workspace Admin
 
 When then mark as trusted applications that we trust that need to access these services, and leave as "limited" apps we have not reviewed. Those applications can access the services not marked as restricted.
 
 ### Rules and alerts
 
-Google provides many useful built-in alerts in *Security/Rules*. We enable most and tweak their severity levels as needed. We visit the [Alert center](https://admin.google.com/ac/ac) as needed to investigate and close alerts.
+Google provides many useful built-in alerts in *Security/Rules*. We enable most and tweak their severity levels as needed. When necessary, we visit the [Alert Center](https://admin.google.com/ac/ac) to investigate and close alerts.
 
-We have also created valuable custom ones: 
+We have also created the following custom alerts. 
 
 | Alert On                                    | Created on                          | Purpose                                                                                                                                                                  | Notification         |
 | ------------------------------------------- | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------- |
@@ -386,7 +386,7 @@ We have also created valuable custom ones:
 ### Gmail
 
 #### Email authentication
-Email authentication makes it harder for other senders to pretend to be from FleetDM.com. This improves the confidence everyone has in emails coming from FleetDM.com and makes it harder for anyone attempting to phish people by impersonating Fleet.
+Email authentication makes it harder for other senders to pretend to be from Fleet. This improves trust in emails from fleetdm.com and makes it more difficult for anyone attempting to impersonate Fleet.
 
 We authenticate email with [DKIM](https://support.google.com/a/answer/174124?product_name=UnuFlow&hl=en&visit_id=637806265550953415-394435698&rd=1&src=supportwidget0&hl=en) and have a [DMARC](https://support.google.com/a/answer/2466580) policy to define how our outgoing email should be defined.
 
