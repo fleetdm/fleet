@@ -1,4 +1,3 @@
-import fetch from "isomorphic-fetch";
 import { isUndefined, omitBy } from "lodash";
 
 export default class Request {
