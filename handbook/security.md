@@ -300,7 +300,9 @@ We apply the following settings to *Security/2-Step Verification* to all users a
 | Frequency: Allow user to trust the device  | Off                                                |
 | Methods                                    | Any except verification codes via text, phone call |
 
-We strongly recommend providing hardware security keys to users and recommending their use. [Titan Keys](https://store.google.com/us/config/titan_security_key?hl=en-US) from Google are compatible with laptops, iPad Pros, iPhones (NFC), and Android phones (NFC or USB-C). The [YubiKey 5C NFC](https://www.yubico.com/ca/product/yubikey-5c-nfc/) is also very compatible and includes extra features such as support for OpenPGP and additional protocols. It is also possible to use a phone as a [security key](https://support.google.com/accounts/answer/9289445?hl=en&co=GENIE.Platform%3DAndroid).
+**Hardware security keys**
+
+We strongly recommend providing users with hardware security keys. [Titan Keys](https://store.google.com/us/config/titan_security_key?hl=en-US) from Google are compatible with laptops, iPad Pros, iPhones (NFC), and Android phones (NFC or USB-C). The [YubiKey 5C NFC](https://www.yubico.com/ca/product/yubikey-5c-nfc/) is also compatible and includes extra features like support for OpenPGP and additional protocols. It is also possible to use a phone as a [security key](https://support.google.com/accounts/answer/9289445?hl=en&co=GENIE.Platform%3DAndroid).
 
 Specific groups of users, such as privileged user accounts, separate from regular day-to-day accounts, should be configured with a policy that enforces the use of hardware security keys, which prevent credential theft better than other methods of 2FA/2-SV.
 
