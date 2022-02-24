@@ -1,13 +1,12 @@
-import React, { useState } from "react";
-import { useQuery } from "react-query";
+import React, { useCallback, useEffect, useState } from "react";
 import { Row } from "react-table";
-import { filter, forEach, isEmpty, remove, unionBy } from "lodash";
-import { v4 as uuidv4 } from "uuid";
+import { forEach, isEmpty, remove, unionBy } from "lodash";
+import { useDebouncedCallback } from "use-debounce/lib";
 
 // @ts-ignore
 import { formatSelectedTargetsForApi } from "fleet/helpers";
-import targetsAPI from "services/entities/targets";
-import { ITarget, ITargets, ITargetsAPIResponse } from "interfaces/target";
+import useQueryTargets, { ITargetsQueryResponse } from "hooks/useQueryTargets";
+import { ITarget } from "interfaces/target";
 import { ILabel } from "interfaces/label";
 import { ITeam } from "interfaces/team";
 import { IHost } from "interfaces/host";
@@ -35,12 +34,6 @@ interface ISelectTargetsProps {
   goToQueryEditor: () => void;
   goToRunQuery: () => void;
   setSelectedTargets: React.Dispatch<React.SetStateAction<ITarget[]>>;
-}
-
-interface IModifiedUseQueryTargetsResponse {
-  results: IHost[] | ITargets;
-  targetsCount: number;
-  onlineCount: number;
 }
 
 const TargetPillSelector = ({
@@ -79,10 +72,6 @@ const SelectTargets = ({
   goToRunQuery,
   setSelectedTargets,
 }: ISelectTargetsProps): JSX.Element => {
-  const [targetsTotalCount, setTargetsTotalCount] = useState<number | null>(
-    null
-  );
-  const [targetsOnlinePercent, setTargetsOnlinePercent] = useState<number>(0);
   const [allHostsLabels, setAllHostsLabels] = useState<ILabel[] | null>(null);
   const [platformLabels, setPlatformLabels] = useState<ILabel[] | null>(null);
   const [teams, setTeams] = useState<ITeam[] | null>(null);
@@ -90,95 +79,54 @@ const SelectTargets = ({
   const [selectedLabels, setSelectedLabels] = useState<any>([]);
   const [inputTabIndex, setInputTabIndex] = useState<number>(0);
   const [searchText, setSearchText] = useState<string>("");
-  const [relatedHosts, setRelatedHosts] = useState<IHost[]>([]);
+  const [debouncedSearchText, setDebouncedSearchText] = useState<string>("");
+  const [isDebouncing, setIsDebouncing] = useState<boolean>(false);
 
-  const { isFetching: isTargetsFetching, isError: isTargetsError } = useQuery(
-    // triggers query on change
-    ["targetsFromSearch", searchText, [...selectedTargets]],
-    () =>
-      targetsAPI.loadAll({
-        query: searchText,
+  const DEBOUNCE_DELAY = 500;
+
+  const debounceSearch = useDebouncedCallback(
+    (search: string) => {
+      setDebouncedSearchText(search);
+      setIsDebouncing(false);
+    },
+    DEBOUNCE_DELAY,
+    { trailing: true }
+  );
+
+  useEffect(() => {
+    setIsDebouncing(true);
+    debounceSearch(searchText);
+  }, [searchText]);
+
+  const setLabels = useCallback(
+    (data: ITargetsQueryResponse) => {
+      if (!allHostsLabels) {
+        setAllHostsLabels(data.allHostsLabels || []);
+        setPlatformLabels(data.platformLabels || []);
+        setOtherLabels(data.otherLabels || []);
+        setTeams(data.teams || []);
+        setInputTabIndex(data.labelCount || 0);
+      }
+    },
+    [allHostsLabels]
+  );
+
+  const {
+    data: targets,
+    isFetching: isTargetsFetching,
+    isError: isTargetsError,
+  } = useQueryTargets(
+    [
+      {
+        scope: "SelectTargets",
+        query: debouncedSearchText,
         queryId: null,
-        selected: formatSelectedTargetsForApi(selectedTargets) as any,
-      }),
-    {
-      refetchOnWindowFocus: false,
-
-      // only retrieve the whole targets object once
-      // we will only update related hosts when a search query fires
-      select: (data: ITargetsAPIResponse) =>
-        allHostsLabels
-          ? {
-              results: data.targets.hosts,
-              targetsCount: data.targets_count,
-              onlineCount: data.targets_online,
-            }
-          : {
-              results: data.targets,
-              targetsCount: data.targets_count,
-              onlineCount: data.targets_online,
-            },
-      onSuccess: ({
-        results,
-        targetsCount,
-        onlineCount,
-      }: IModifiedUseQueryTargetsResponse) => {
-        if ("labels" in results) {
-          const { labels, teams: targetTeams } = results as ITargets;
-          const allHosts = filter(
-            labels,
-            ({ display_text: text }) => text === "All Hosts"
-          ).map((host) => {
-            host.uuid = uuidv4();
-            return host;
-          });
-          const platforms = filter(
-            labels,
-            ({ display_text: text }) =>
-              text === "macOS" || text === "MS Windows" || text === "All Linux"
-          ).map((platform) => {
-            platform.uuid = uuidv4();
-            return platform;
-          });
-          const others = filter(
-            labels,
-            ({ label_type: type }) => type === "regular"
-          ).map((other) => {
-            other.uuid = uuidv4();
-            return other;
-          });
-
-          setAllHostsLabels(allHosts);
-          setPlatformLabels(platforms);
-          setOtherLabels(others);
-
-          setTeams(
-            targetTeams.map((team) => {
-              team.uuid = uuidv4();
-              return team;
-            })
-          );
-
-          const labelCount =
-            allHosts.length +
-            platforms.length +
-            targetTeams.length +
-            others.length;
-          setInputTabIndex(labelCount || 0);
-        } else if (searchText === "") {
-          setRelatedHosts([]);
-        } else {
-          // this will always update as the user types
-          setRelatedHosts([...results] as IHost[]);
-        }
-
-        setTargetsTotalCount(targetsCount);
-        if (targetsCount > 0) {
-          setTargetsOnlinePercent(
-            Math.round((onlineCount / targetsCount) * 100)
-          );
-        }
+        selected: formatSelectedTargetsForApi(selectedTargets),
+        includeLabels: !allHostsLabels,
       },
+    ],
+    {
+      onSuccess: setLabels,
     }
   );
 
@@ -193,7 +141,7 @@ const SelectTargets = ({
     e.preventDefault();
     const labels = selectedLabels;
     let newTargets = null;
-    const targets = selectedTargets;
+    const prevTargets = selectedTargets;
     const removed = remove(labels, ({ uuid }) => uuid === entity.uuid);
 
     // visually show selection
@@ -208,7 +156,7 @@ const SelectTargets = ({
         label.target_type = "label_type" in label ? "labels" : "teams";
       });
 
-      newTargets = unionBy(targets, labels, "id");
+      newTargets = unionBy(prevTargets, labels, "id");
     }
 
     setSelectedLabels([...labels]);
@@ -216,22 +164,22 @@ const SelectTargets = ({
   };
 
   const handleRowSelect = (row: Row) => {
-    const targets = selectedTargets;
+    const newTargets = selectedTargets;
     const hostTarget = row.original as any; // intentional so we can add to the object
 
     hostTarget.target_type = "hosts";
 
-    targets.push(hostTarget as IHost);
-    setSelectedTargets([...targets]);
+    newTargets.push(hostTarget as IHost);
+    setSelectedTargets([...newTargets]);
     setSearchText("");
   };
 
   const handleRowRemove = (row: Row) => {
-    const targets = selectedTargets;
+    const newTargets = selectedTargets;
     const hostTarget = row.original as ITarget;
-    remove(targets, (t) => t.id === hostTarget.id);
+    remove(newTargets, (t) => t.id === hostTarget.id);
 
-    setSelectedTargets([...targets]);
+    setSelectedTargets([...newTargets]);
   };
 
   const renderTargetEntityList = (
@@ -257,7 +205,7 @@ const SelectTargets = ({
     </>
   );
 
-  if (isEmpty(searchText) && isTargetsFetching) {
+  if (!isTargetsError && isEmpty(searchText) && !allHostsLabels) {
     return (
       <div className={`${baseClass}__wrapper body-wrap`}>
         <h1>Select targets</h1>
@@ -312,8 +260,8 @@ const SelectTargets = ({
       <TargetsInput
         tabIndex={inputTabIndex}
         searchText={searchText}
-        relatedHosts={[...relatedHosts]}
-        isTargetsLoading={isTargetsFetching}
+        relatedHosts={targets?.relatedHosts || []}
+        isTargetsLoading={isTargetsFetching || isDebouncing}
         selectedTargets={[...selectedTargets]}
         hasFetchError={isTargetsError}
         setSearchText={setSearchText}
@@ -332,16 +280,16 @@ const SelectTargets = ({
           className={`${baseClass}__btn`}
           type="button"
           variant="blue-green"
-          disabled={!targetsTotalCount}
+          disabled={!targets?.targetsTotalCount}
           onClick={goToRunQuery}
         >
           Run
         </Button>
         <div className={`${baseClass}__targets-total-count`}>
-          {!!targetsTotalCount && (
+          {!!targets?.targetsTotalCount && (
             <>
-              <span>{targetsTotalCount}</span> targets selected&nbsp; (
-              {targetsOnlinePercent}% online)
+              <span>{targets?.targetsTotalCount}</span> targets selected&nbsp; (
+              {targets?.targetsOnlinePercent}% online)
             </>
           )}
         </div>

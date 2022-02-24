@@ -5,6 +5,7 @@ import { useDebouncedCallback } from "use-debounce/lib";
 
 // @ts-ignore
 import { formatSelectedTargetsForApi } from "fleet/helpers";
+import useQueryTargets, { ITargetsQueryResponse } from "hooks/useQueryTargets";
 import {
   ITarget,
   ISelectLabel,
@@ -24,8 +25,6 @@ import CheckIcon from "../../../../../assets/images/icon-check-purple-32x32@2x.p
 import ExternalURLIcon from "../../../../../assets/images/icon-external-url-12x12@2x.png";
 import ErrorIcon from "../../../../../assets/images/icon-error-16x16@2x.png";
 
-import useQueryTargets, { ITargetsQueryResponse } from "../useQueryTargets";
-
 interface ITargetPillSelectorProps {
   entity: ISelectLabel | ISelectTeam;
   isSelected: boolean;
@@ -42,8 +41,6 @@ interface ISelectTargetsProps {
   goToRunQuery: () => void;
   setSelectedTargets: React.Dispatch<React.SetStateAction<ITarget[]>>;
 }
-
-const DEBOUNCE_DELAY = 500;
 
 const isSameSelectTargetsEntity = (
   e1: ISelectTargetsEntity,
@@ -87,7 +84,7 @@ const SelectTargets = ({
   goToRunQuery,
   setSelectedTargets,
 }: ISelectTargetsProps): JSX.Element => {
-  const [allHostsLabel, setAllHostsLabel] = useState<ILabel[] | null>(null);
+  const [allHostsLabels, setAllHostsLabels] = useState<ILabel[] | null>(null);
   const [platformLabels, setPlatformLabels] = useState<ILabel[] | null>(null);
   const [teams, setTeams] = useState<ITeam[] | null>(null);
   const [otherLabels, setOtherLabels] = useState<ILabel[] | null>(null);
@@ -98,6 +95,8 @@ const SelectTargets = ({
   const [searchText, setSearchText] = useState<string>("");
   const [debouncedSearchText, setDebouncedSearchText] = useState<string>("");
   const [isDebouncing, setIsDebouncing] = useState<boolean>(false);
+
+  const DEBOUNCE_DELAY = 500;
 
   const debounceSearch = useDebouncedCallback(
     (search: string) => {
@@ -115,15 +114,15 @@ const SelectTargets = ({
 
   const setLabels = useCallback(
     (data: ITargetsQueryResponse) => {
-      if (!allHostsLabel) {
-        setAllHostsLabel(data.allHostsLabel || []);
+      if (!allHostsLabels) {
+        setAllHostsLabels(data.allHostsLabels || []);
         setPlatformLabels(data.platformLabels || []);
         setOtherLabels(data.otherLabels || []);
         setTeams(data.teams || []);
         setInputTabIndex(data.labelCount || 0);
       }
     },
-    [allHostsLabel]
+    [allHostsLabels]
   );
 
   const {
@@ -137,7 +136,7 @@ const SelectTargets = ({
         query: debouncedSearchText,
         queryId: queryIdForEdit,
         selected: formatSelectedTargetsForApi(selectedTargets),
-        includeLabels: !allHostsLabel,
+        includeLabels: !allHostsLabels,
       },
     ],
     {
@@ -224,7 +223,7 @@ const SelectTargets = ({
     );
   };
 
-  if (!isTargetsError && isEmpty(searchText) && !allHostsLabel) {
+  if (!isTargetsError && isEmpty(searchText) && !allHostsLabels) {
     return (
       <div className={`${baseClass}__wrapper body-wrap`}>
         <h1>Select targets</h1>
@@ -265,9 +264,9 @@ const SelectTargets = ({
     <div className={`${baseClass}__wrapper body-wrap`}>
       <h1>Select targets</h1>
       <div className={`${baseClass}__target-selectors`}>
-        {allHostsLabel &&
-          allHostsLabel.length > 0 &&
-          renderTargetEntityList("", allHostsLabel)}
+        {allHostsLabels &&
+          allHostsLabels.length > 0 &&
+          renderTargetEntityList("", allHostsLabels)}
         {platformLabels &&
           platformLabels.length > 0 &&
           renderTargetEntityList("Platforms", platformLabels)}

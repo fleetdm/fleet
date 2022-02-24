@@ -1,5 +1,6 @@
 import { useQuery, UseQueryResult } from "react-query";
 import { filter } from "lodash";
+import { v4 as uuidv4 } from "uuid";
 
 import { IHost } from "interfaces/host";
 import { ILabel } from "interfaces/label";
@@ -8,7 +9,7 @@ import { ISelectedTargets } from "interfaces/target";
 import targetsAPI from "services/entities/targets";
 
 export interface ITargetsGroups {
-  allHostsLabel?: ILabel[];
+  allHostsLabels?: ILabel[];
   platformLabels?: ILabel[];
   otherLabels?: ILabel[];
   teams?: ITeam[];
@@ -50,27 +51,33 @@ const getTargets = async (
 
     if (includeLabels) {
       const { labels } = targets;
+
       const all = filter(
         labels,
         ({ display_text: text }) => text === "All Hosts"
-      );
+      ).map((label) => ({ ...label, uuid: uuidv4() }));
+
       const platforms = filter(
         labels,
         ({ display_text: text }) =>
           text === "macOS" || text === "MS Windows" || text === "All Linux"
-      );
+      ).map((label) => ({ ...label, uuid: uuidv4() }));
+
       const other = filter(
         labels,
         ({ label_type: type }) => type === "regular"
-      );
+      ).map((label) => ({ ...label, uuid: uuidv4() }));
+
+      const teams = targets.teams.map((team) => ({ ...team, uuid: uuidv4() }));
+
       const labelCount =
-        all.length + platforms.length + other.length + targets.teams.length;
+        all.length + platforms.length + other.length + teams.length;
 
       response = {
-        allHostsLabel: all,
+        allHostsLabels: all,
         platformLabels: platforms,
         otherLabels: other,
-        teams: targets.teams,
+        teams,
         labelCount,
       };
     }
