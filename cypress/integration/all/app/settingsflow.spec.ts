@@ -114,11 +114,11 @@ describe("App settings flow", () => {
       // in the checkbox above, the other as this label
       cy.getAttached("[name='hostExpiryWindow']").clear().type("5");
 
-      cy.findByLabelText(/disable live queries/i).check({ force: true });
-
-      cy.findByRole("button", { name: /update settings/i })
-        .click()
+      cy.findByLabelText(/disable live queries/i)
+        .check({ force: true })
         .blur();
+
+      cy.findByRole("button", { name: /update settings/i }).click();
 
       cy.findByText(/updated settings/i).should("exist");
 
