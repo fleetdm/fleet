@@ -3,7 +3,6 @@ import { Row } from "react-table";
 import { forEach, isEmpty, remove, unionWith } from "lodash";
 import { useDebouncedCallback } from "use-debounce/lib";
 
-// @ts-ignore
 import { formatSelectedTargetsForApi } from "fleet/helpers";
 import useQueryTargets, { ITargetsQueryResponse } from "hooks/useQueryTargets";
 import {
@@ -134,7 +133,7 @@ const SelectTargets = ({
       {
         scope: "useQueryTargets",
         query: debouncedSearchText,
-        queryId: queryIdForEdit,
+        queryId: queryIdForEdit, // TODO: How is this used by the backend? Can this be removed?
         selected: formatSelectedTargetsForApi(selectedTargets),
         includeLabels: !allHostsLabels,
       },

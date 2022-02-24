@@ -8,7 +8,7 @@ import { ITeam } from "interfaces/team";
 import { ISelectedTargets } from "interfaces/target";
 import targetsAPI from "services/entities/targets";
 
-export interface ITargetsGroups {
+export interface ITargetsLabels {
   allHostsLabels?: ILabel[];
   platformLabels?: ILabel[];
   otherLabels?: ILabel[];
@@ -16,7 +16,7 @@ export interface ITargetsGroups {
   labelCount?: number;
 }
 
-export interface ITargetsQueryResponse extends ITargetsGroups {
+export interface ITargetsQueryResponse extends ITargetsLabels {
   targetsTotalCount: number;
   targetsOnlinePercent: number;
   relatedHosts?: IHost[];
@@ -47,7 +47,7 @@ const getTargets = async (
       queryId,
       selected,
     });
-    let response: ITargetsGroups = {};
+    let responseLabels: ITargetsLabels = {};
 
     if (includeLabels) {
       const { labels } = targets;
@@ -73,7 +73,7 @@ const getTargets = async (
       const labelCount =
         all.length + platforms.length + other.length + teams.length;
 
-      response = {
+      responseLabels = {
         allHostsLabels: all,
         platformLabels: platforms,
         otherLabels: other,
@@ -88,7 +88,7 @@ const getTargets = async (
         : 0;
 
     return Promise.resolve({
-      ...response,
+      ...responseLabels,
       relatedHosts: query ? [...targets.hosts] : [],
       targetsTotalCount,
       targetsOnlinePercent,
