@@ -80,6 +80,8 @@ const AgentOptionsPage = ({
       .catch((errors: { [key: string]: string }) => {
         dispatch(renderFlash("error", errors.stack));
       });
+
+    return false;
   };
 
   return (

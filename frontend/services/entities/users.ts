@@ -122,10 +122,6 @@ export default {
       helpers.addGravatarUrlToResource(response.user)
     );
   },
-  resetPassword: (formData: any) => {
-    const { RESET_PASSWORD } = endpoints;
-    return sendRequest("POST", RESET_PASSWORD, formData);
-  },
   update: (userId: number, formData: IUpdateUserFormData) => {
     const { USERS } = endpoints;
     const path = `${USERS}/${userId}`;

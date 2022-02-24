@@ -69,7 +69,7 @@ const PolicyForm = ({
   renderLiveQueryWarning,
   backendValidators,
 }: IPolicyFormProps): JSX.Element => {
-  const [errors, setErrors] = useState<{ [key: string]: any }>({});
+  const [errors, setErrors] = useState<{ [key: string]: any }>({}); // string | null | undefined or boolean | undefined
   const [isNewPolicyModalOpen, setIsNewPolicyModalOpen] = useState<boolean>(
     false
   );
