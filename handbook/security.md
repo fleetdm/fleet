@@ -288,7 +288,7 @@ Google's name for Two-Factor Authentication (2FA) or Multi-Factor Authentication
 | App-based push notifications                                                  | Harder to phish than TOTP, but by sending a lot of prompts to a phone, a user might accidentally accept a nefarious notification       |
 | Hardware security keys                                                        | [Most secure](https://krebsonsecurity.com/2018/07/google-security-keys-neutralized-employee-phishing/), but requires extra hardware or a recent smartphone                                                                 |
 
-**2-SV in Google Workspace**
+**2-Step Verification in Google Workspace**
 
 We apply the following settings to *Security/2-Step Verification* to all users as the minimum baseline.
 
