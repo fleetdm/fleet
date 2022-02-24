@@ -49,7 +49,7 @@ module.exports = {
       'guillaumeross',
       'dominuskelvin',
       'sharvilshah',
-      'michalnicp', 
+      'michalnicp',
       'desmi-dizney',
 
     ];
