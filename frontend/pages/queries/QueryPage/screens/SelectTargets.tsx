@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Row } from "react-table";
 import { forEach, isEmpty, remove, unionWith } from "lodash";
 import { useDebouncedCallback } from "use-debounce/lib";
@@ -111,18 +111,15 @@ const SelectTargets = ({
     debounceSearch(searchText);
   }, [searchText]);
 
-  const setLabels = useCallback(
-    (data: ITargetsQueryResponse) => {
-      if (!allHostsLabels) {
-        setAllHostsLabels(data.allHostsLabels || []);
-        setPlatformLabels(data.platformLabels || []);
-        setOtherLabels(data.otherLabels || []);
-        setTeams(data.teams || []);
-        setInputTabIndex(data.labelCount || 0);
-      }
-    },
-    [allHostsLabels]
-  );
+  const setLabels = (data: ITargetsQueryResponse) => {
+    if (!allHostsLabels) {
+      setAllHostsLabels(data.allHostsLabels || []);
+      setPlatformLabels(data.platformLabels || []);
+      setOtherLabels(data.otherLabels || []);
+      setTeams(data.teams || []);
+      setInputTabIndex(data.labelCount || 0);
+    }
+  };
 
   const {
     data: targets,
@@ -131,7 +128,7 @@ const SelectTargets = ({
   } = useQueryTargets(
     [
       {
-        scope: "useQueryTargets",
+        scope: "useQueryTargets", // Note: Scope is shared with QueryPage
         query: debouncedSearchText,
         queryId: queryIdForEdit, // TODO: How is this used by the backend? Can this be removed?
         selected: formatSelectedTargetsForApi(selectedTargets),
