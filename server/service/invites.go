@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"database/sql"
 	"encoding/base64"
 	"errors"
 	"html/template"
@@ -199,13 +200,22 @@ func (svc *Service) UpdateInvite(ctx context.Context, id uint, payload fleet.Inv
 	}
 
 	if payload.Email != nil {
-		_, err = svc.ds.UserByEmail(ctx, *payload.Email)
-		if err == nil {
+		switch _, err := svc.ds.UserByEmail(ctx, *payload.Email); {
+		case err == nil:
 			return nil, ctxerr.Wrap(ctx, alreadyExistsError{})
+		case errors.Is(err, sql.ErrNoRows):
+			// OK
+		default:
+			return nil, ctxerr.Wrap(ctx, err)
 		}
-		_, err = svc.ds.InviteByEmail(ctx, *payload.Email)
-		if err == nil {
+
+		switch _, err = svc.ds.InviteByEmail(ctx, *payload.Email); {
+		case err == nil:
 			return nil, ctxerr.Wrap(ctx, alreadyExistsError{})
+		case errors.Is(err, sql.ErrNoRows):
+			// OK
+		default:
+			return nil, ctxerr.Wrap(ctx, err)
 		}
 
 		invite.Email = *payload.Email
