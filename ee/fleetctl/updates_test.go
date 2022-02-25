@@ -272,7 +272,9 @@ func TestUpdatesIntegration(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, targets, 3)
 	// Remove the old copy first
-	require.NoError(t, os.RemoveAll(client.LocalPath("test", "1.3.3.7")))
+	p, err := update.UpdateLocalPath(tmpDir, "test", "1.3.3.7", "windows")
+	require.NoError(t, err)
+	require.NoError(t, os.RemoveAll(p))
 	_, err = client.Get("test", "1.3.3.7")
 	require.NoError(t, err)
 

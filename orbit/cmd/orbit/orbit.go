@@ -188,7 +188,10 @@ func main() {
 		}
 
 		// Get the default osqueryd path from the installation/configuration.
-		osquerydPath := update.LocalPath(c.String("root-dir"), "osqueryd", c.String("osqueryd-channel"), constant.PlatformName)
+		osquerydPath, err := update.UpdateLocalPath(c.String("root-dir"), "osqueryd", c.String("osqueryd-channel"), constant.PlatformName)
+		if err != nil {
+			log.Fatal().Err(err).Msg("failed to locate osqueryd")
+		}
 
 		if c.Bool("disable-updates") {
 			log.Info().Msg("running with auto updates disabled")

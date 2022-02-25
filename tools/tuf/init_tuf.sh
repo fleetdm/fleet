@@ -10,20 +10,14 @@ export TUF_PATH=test_tuf
 function create_repository() {
   ./build/fleetctl updates init --path $TUF_PATH
 
-  for system in macos windows linux; do
-    # Use latest stable version of osqueryd from our TUF server.
+  for system in macos; do
     osqueryd="osqueryd"
-    if [[ $system == "windows" ]]; then
-      osqueryd="osqueryd.exe"
-    fi
-    curl https://tuf.fleetctl.com/targets/osqueryd/$system/stable/$osqueryd --output $osqueryd
     ./build/fleetctl updates add \
       --path $TUF_PATH \
       --target $osqueryd \
       --platform $system \
       --name osqueryd \
       --version 42.0.0 -t 42.0 -t 42 -t stable
-    rm $osqueryd
     goose_value="$system"
     if [[ $system == "macos" ]]; then
       goose_value="darwin"

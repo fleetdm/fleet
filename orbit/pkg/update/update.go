@@ -1,17 +1,21 @@
-// package update contains the types and functions used by the update system.
+// Package update contains the types and functions used by the update system.
 package update
 
 import (
+	"archive/tar"
 	"bufio"
+	"compress/gzip"
 	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"os/exec"
 	"path"
 	"path/filepath"
+	"runtime"
 
 	"github.com/fatih/color"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
@@ -125,13 +129,43 @@ func (u *Updater) RepoPath(target, channel string) string {
 	return path.Join(target, u.opt.Platform, channel, target+constant.ExecutableExtension(u.opt.Platform))
 }
 
-// LocalPath defines the local file path of a target.
-func LocalPath(rootDir, target, channel, platform string) string {
+// UpdateLocalPath returns the expected local path of a target used by the update package.
+//
+// TODO(lucas): Consider NewDisabled(), just to get the path?
+func UpdateLocalPath(rootDir, target, channel, platform string) (string, error) {
+	localPath := localTargetPath(rootDir, target, channel, platform)
+	if runtime.GOOS == "darwin" {
+		// TODO(lucas): Fix me.
+		// appDirPath := localPath + ".app"
+		appDirPath := localPath[:len(localPath)-1] + ".app" // removing the "d" in osqueryd
+		switch s, err := os.Stat(appDirPath); {
+		case err == nil:
+			if !s.IsDir() {
+				return "", fmt.Errorf("expected directory %q: %w", appDirPath, err)
+			}
+			localPath = appMacOSPath(appDirPath)
+		case errors.Is(err, os.ErrNotExist):
+			// OK
+		default:
+			return "", fmt.Errorf("stat %q: %w", appDirPath, err)
+		}
+	}
+	s, err := os.Stat(localPath)
+	if err != nil {
+		return "", fmt.Errorf("stat %q: %w", localPath, err)
+	}
+	if s.IsDir() {
+		return "", fmt.Errorf("expected file %q: %w", localPath, err)
+	}
+	return localPath, nil
+}
+
+func localTargetPath(rootDir, target, channel, platform string) string {
 	return filepath.Join(rootDir, binDir, target, platform, channel, target+constant.ExecutableExtension(platform))
 }
 
 func (u *Updater) LocalPath(target, channel string) string {
-	return LocalPath(u.opt.RootDirectory, target, channel, u.opt.Platform)
+	return localTargetPath(u.opt.RootDirectory, target, channel, u.opt.Platform)
 }
 
 // Lookup looks up the provided target in the local target metadata. This should
@@ -155,6 +189,11 @@ func (u *Updater) Targets() (data.TargetFiles, error) {
 	return targets, nil
 }
 
+func appMacOSPath(appDirPath string) string {
+	// TODO(lucas): Fix me, should be more generic, not just for osqueryd.
+	return filepath.Join(appDirPath, "Contents", "MacOS", "osqueryd")
+}
+
 // Get returns the local path to the specified target. The target is downloaded
 // if it does not yet exist locally or the hash does not match.
 func (u *Updater) Get(target, channel string) (string, error) {
@@ -167,26 +206,56 @@ func (u *Updater) Get(target, channel string) (string, error) {
 
 	localPath := u.LocalPath(target, channel)
 	repoPath := u.RepoPath(target, channel)
-	stat, err := os.Stat(localPath)
-	if err != nil {
+	switch stat, err := os.Stat(localPath); {
+	case err == nil:
+		if !stat.Mode().IsRegular() {
+			return "", fmt.Errorf("expected %s to be regular file", localPath)
+		}
+		meta, err := u.Lookup(target, channel)
+		if err != nil {
+			return "", err
+		}
+		if err := checkFileHash(meta, localPath); err != nil {
+			log.Debug().Str("info", err.Error()).Msg("change detected")
+			if err := u.download(repoPath, localPath); err != nil {
+				return "", fmt.Errorf("download %q: %w", repoPath, err)
+			}
+		} else {
+			log.Debug().Str("path", localPath).Str("target", target).Str("channel", channel).Msg("found expected target locally")
+		}
+	case errors.Is(err, os.ErrNotExist):
 		log.Debug().Err(err).Msg("stat file")
-		return localPath, u.Download(repoPath, localPath)
-	}
-	if !stat.Mode().IsRegular() {
-		return "", fmt.Errorf("expected %s to be regular file", localPath)
-	}
-
-	meta, err := u.Lookup(target, channel)
-	if err != nil {
-		return "", err
+		if err := u.download(repoPath, localPath); err != nil {
+			return "", fmt.Errorf("download %q: %w", repoPath, err)
+		}
+	default:
+		return "", fmt.Errorf("stat %q: %w", localPath, err)
 	}
 
-	if err := checkFileHash(meta, localPath); err != nil {
-		log.Debug().Str("info", err.Error()).Msg("change detected")
-		return localPath, u.Download(repoPath, localPath)
+	if runtime.GOOS == "darwin" {
+		ok, err := isTarGz(localPath)
+		if err != nil {
+			return "", fmt.Errorf("detect tar.gz %s: %w", localPath, err)
+		}
+		if ok {
+			// TODO(lucas): Fix me.
+			// appDirPath := localPath + ".app"
+			appDirPath := localPath[:len(localPath)-1] + ".app" // removing the "d" in osqueryd
+			switch s, err := os.Stat(appDirPath); {
+			case err == nil:
+				if !s.IsDir() {
+					return "", fmt.Errorf("expected directory %q: %w", appDirPath, err)
+				}
+			case errors.Is(err, os.ErrNotExist):
+				if err := extractTarGz(localPath); err != nil {
+					return "", fmt.Errorf("extract %q: %w", localPath, err)
+				}
+			default:
+				return "", fmt.Errorf("stat %q: %w", appDirPath, err)
+			}
+			return appMacOSPath(appDirPath), nil
+		}
 	}
-
-	log.Debug().Str("path", localPath).Str("target", target).Str("channel", channel).Msg("found expected target locally")
 
 	return localPath, nil
 }
@@ -231,9 +300,9 @@ func (u *Updater) CopyDevBuild(target, channel, devBuildPath string) {
 	}
 }
 
-// Download downloads the target to the provided path. The file is deleted and
+// download downloads the target to the provided path. The file is deleted and
 // an error is returned if the hash does not match.
-func (u *Updater) Download(repoPath, localPath string) error {
+func (u *Updater) download(repoPath, localPath string) error {
 	staging := filepath.Join(u.opt.RootDirectory, stagingDir)
 
 	if err := secure.MkdirAll(staging, constant.DefaultDirMode); err != nil {
@@ -284,10 +353,16 @@ func (u *Updater) Download(repoPath, localPath string) error {
 	// always fail if the binary doesn't match the platform, so there's not
 	// really anything we can check.
 	if u.opt.Platform == constant.PlatformName {
-		// Note that this would fail for any binary that returns nonzero for --help.
-		out, err := exec.Command(tmp.Name(), "--help").CombinedOutput()
+		ok, err := isTarGz(tmp.Name())
 		if err != nil {
-			return fmt.Errorf("exec new version: %s: %w", string(out), err)
+			return fmt.Errorf("tar.gz check %q: %w", tmp.Name(), err)
+		}
+		if !ok {
+			// Note that this would fail for any binary that returns nonzero for --help.
+			out, err := exec.Command(tmp.Name(), "--help").CombinedOutput()
+			if err != nil {
+				return fmt.Errorf("exec new version: %s: %w", string(out), err)
+			}
 		}
 	}
 
@@ -303,6 +378,77 @@ func (u *Updater) Download(repoPath, localPath string) error {
 	}
 
 	return nil
+}
+
+func isTarGz(path string) (bool, error) {
+	file, err := secure.OpenFile(path, os.O_RDONLY, 0o755)
+	if err != nil {
+		return false, fmt.Errorf("open %q: %w", path, err)
+	}
+	defer file.Close()
+
+	var header [512]byte
+	n, err := file.Read(header[:])
+	if err != nil {
+		return false, fmt.Errorf("read %q: %w", path, err)
+	}
+	contentType := http.DetectContentType(header[:n])
+	return contentType == "application/x-gzip" || contentType == "application/gzip", nil
+}
+
+// extractTagGz extracts the contents of the provided tar.gz file.
+func extractTarGz(path string) error {
+	tarGzFile, err := secure.OpenFile(path, os.O_RDONLY, 0o755)
+	if err != nil {
+		return fmt.Errorf("open %q: %w", path, err)
+	}
+	defer tarGzFile.Close()
+
+	gzipReader, err := gzip.NewReader(tarGzFile)
+	if err != nil {
+		return fmt.Errorf("gzip reader %q: %w", path, err)
+	}
+	defer gzipReader.Close()
+
+	tarReader := tar.NewReader(gzipReader)
+	for {
+		header, err := tarReader.Next()
+		switch {
+		case err == nil:
+			// OK
+		case errors.Is(err, io.EOF):
+			return nil
+		default:
+			return fmt.Errorf("tar reader %q: %w", path, err)
+		}
+
+		targetPath := filepath.Join(filepath.Dir(path), header.Name)
+
+		switch header.Typeflag {
+		case tar.TypeDir:
+			if err := secure.MkdirAll(targetPath, constant.DefaultDirMode); err != nil {
+				return fmt.Errorf("mkdir %q: %w", header.Name, err)
+			}
+		case tar.TypeReg:
+			err := func() error {
+				outFile, err := os.OpenFile(targetPath, os.O_CREATE|os.O_WRONLY, header.FileInfo().Mode())
+				if err != nil {
+					return fmt.Errorf("failed to create %q: %w", header.Name, err)
+				}
+				defer outFile.Close()
+
+				if _, err := io.Copy(outFile, tarReader); err != nil {
+					return fmt.Errorf("failed to copy %q: %w", header.Name, err)
+				}
+				return nil
+			}()
+			if err != nil {
+				return err
+			}
+		default:
+			return fmt.Errorf("unknown flag type %q: %d", header.Name, header.Typeflag)
+		}
+	}
 }
 
 func (u *Updater) initializeDirectories() error {
