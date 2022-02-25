@@ -62,6 +62,9 @@ const UserManagementPage = (): JSX.Element => {
   const [createUserErrors, setCreateUserErrors] = useState<any>(
     DEFAULT_CREATE_USER_ERRORS
   );
+  const [editUserErrors, setEditUserErrors] = useState<any>(
+    DEFAULT_CREATE_USER_ERRORS
+  );
   const [querySearchText, setQuerySearchText] = useState<string>("");
 
   // API CALLS
@@ -242,10 +245,15 @@ const UserManagementPage = (): JSX.Element => {
           refetchInvites();
         })
         .catch((userErrors: { data: IApiError }) => {
-          console.log("this user error:", userErrors);
           if (userErrors.data.errors[0].reason.includes("already exists")) {
             setCreateUserErrors({
               email: "A user with this email address already exists",
+            });
+          } else if (
+            userErrors.data.errors[0].reason.includes("already invited")
+          ) {
+            setCreateUserErrors({
+              email: "A user with this email address has already been invited",
             });
           } else {
             dispatch(
@@ -311,7 +319,7 @@ const UserManagementPage = (): JSX.Element => {
                 "a user with this account already exist"
               )
             ) {
-              setCreateUserErrors({
+              setEditUserErrors({
                 email: "A user with this email address already exists",
               });
             } else {
@@ -340,7 +348,7 @@ const UserManagementPage = (): JSX.Element => {
           .catch((userErrors: { data: IApiError }) => {
             console.log("userErrors onEditUserSubmit regular user", userErrors);
             if (userErrors.data.errors[0].reason.includes("Duplicate")) {
-              setCreateUserErrors({
+              setEditUserErrors({
                 email: "A user with this email address already exists",
               });
             }
@@ -495,6 +503,7 @@ const UserManagementPage = (): JSX.Element => {
             canUseSso={config?.enable_sso || false}
             isSsoEnabled={userData?.sso_enabled}
             isModifiedByGlobalAdmin
+            editUserErrors={editUserErrors}
           />
         </>
       </Modal>

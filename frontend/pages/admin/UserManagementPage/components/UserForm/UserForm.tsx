@@ -92,8 +92,7 @@ interface ICreateUserFormProps {
   isSsoEnabled?: boolean; // corresponds to whether SSO is enabled for the individual user
   isNewUser?: boolean;
   serverErrors?: { base: string; email: string }; // "server" because this form does its own client validation
-  createUserErrors?: IUserFormErrors;
-  editUserErrors?: IUserFormErrors;
+  createOrEditUserErrors?: IUserFormErrors;
 }
 
 const UserForm = ({
@@ -115,12 +114,12 @@ const UserForm = ({
   isSsoEnabled,
   isNewUser,
   serverErrors,
-  createUserErrors,
-  editUserErrors,
+  createOrEditUserErrors,
 }: ICreateUserFormProps): JSX.Element => {
   const dispatch = useDispatch();
 
-  const [errors, setErrors] = useState<any>(createUserErrors || editUserErrors);
+  console.log("UserForm.tsx: editUserErrors", createOrEditUserErrors);
+  const [errors, setErrors] = useState<any>(createOrEditUserErrors);
   const [formData, setFormData] = useState<any>({
     email: defaultEmail || "",
     name: defaultName || "",
@@ -137,8 +136,8 @@ const UserForm = ({
   );
 
   useEffect(() => {
-    setErrors(createUserErrors);
-  }, [createUserErrors]);
+    setErrors(createOrEditUserErrors);
+  }, [createOrEditUserErrors]);
 
   const onInputChange = (formField: string): ((value: string) => void) => {
     return (value: string) => {

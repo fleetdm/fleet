@@ -4,6 +4,7 @@ import { useQuery } from "react-query";
 
 // @ts-ignore
 import PATHS from "router/paths";
+import { IApiError } from "interfaces/errors";
 import { IUser } from "interfaces/user";
 import { INewMembersBody, ITeam } from "interfaces/team";
 import { Link } from "react-router";
@@ -102,6 +103,8 @@ const MembersPage = ({
     },
     [showRemoveMemberModal, setShowRemoveMemberModal, setUserEditing]
   );
+
+  console.log("MembersPage.tsx: editUserErrors", editUserErrors);
 
   // API CALLS
 
@@ -254,14 +257,25 @@ const MembersPage = ({
           fetchUsers(tableQueryData);
           toggleCreateMemberModal();
         })
-        .catch((userErrors: any) => {
-          if (userErrors.base.includes("Duplicate")) {
+        .catch((userErrors: { data: IApiError }) => {
+          if (
+            userErrors.data.errors[0].reason.includes(
+              "a user with this account already exists"
+            )
+          ) {
             setCreateUserErrors({
               email: "A user with this email address already exists",
             });
+          } else if (
+            userErrors.data.errors[0].reason.includes("Invite") &&
+            userErrors.data.errors[0].reason.includes("already exists")
+          ) {
+            setCreateUserErrors({
+              email: "A user with this email address has already been invited",
+            });
           } else {
             dispatch(
-              renderFlash("error", "Could not create user. Please try again.")
+              renderFlash("error", "Could not invite user. Please try again.")
             );
           }
         })
@@ -283,12 +297,14 @@ const MembersPage = ({
           fetchUsers(tableQueryData);
           toggleCreateMemberModal();
         })
-        .catch((userErrors: any) => {
-          if (userErrors.base.includes("Duplicate")) {
+        .catch((userErrors: { data: IApiError }) => {
+          if (userErrors.data.errors[0].reason.includes("Duplicate")) {
             setCreateUserErrors({
               email: "A user with this email address already exists",
             });
-          } else if (userErrors.base.includes("already invited")) {
+          } else if (
+            userErrors.data.errors[0].reason.includes("already invited")
+          ) {
             setCreateUserErrors({
               email: "A user with this email address has already been invited",
             });

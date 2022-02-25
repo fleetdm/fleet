@@ -56,7 +56,7 @@ const CreateUserModal = ({
         )}
         <UserForm
           serverErrors={serverErrors}
-          createUserErrors={createUserErrors}
+          createOrEditUserErrors={createUserErrors}
           defaultGlobalRole={defaultGlobalRole}
           defaultTeamRole={defaultTeamRole}
           defaultTeams={defaultTeams}
