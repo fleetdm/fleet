@@ -2366,7 +2366,7 @@ func (s *integrationTestSuite) TestUsers() {
 	}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/users/%d", u.ID), params, http.StatusConflict, &modResp)
 
-	// modify that user - set an existing email
+	// modify that user - set a non existent email
 	params = fleet.UserPayload{
 		Email: ptr.String("someemail@qowieuowh.com"),
 	}
