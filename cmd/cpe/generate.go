@@ -144,7 +144,7 @@ func ubuntu(dbPath string, verbose bool) {
 	panicif(err)
 	defer db.Close()
 
-	fixedCVEs, err := vuln_ubuntu.ParseUbuntuRepository(vuln_ubuntu.WithVerbose(verbose), vuln_ubuntu.NoCrawl())
+	fixedCVEs, err := vuln_ubuntu.ParseUbuntuRepository(vuln_ubuntu.WithVerbose(verbose))
 	panicif(err)
 
 	fmt.Printf("Storing CVE info for %d Ubuntu packages...\n", len(fixedCVEs))
