@@ -349,7 +349,7 @@ func TestModifyAdminUserEmailPassword(t *testing.T) {
 		return nil
 	}
 	ms.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
-		return nil, errors.New("not found")
+		return nil, notFoundErr{}
 	}
 	ms.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
 		return user, nil
