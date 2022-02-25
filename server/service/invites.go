@@ -199,6 +199,15 @@ func (svc *Service) UpdateInvite(ctx context.Context, id uint, payload fleet.Inv
 	}
 
 	if payload.Email != nil {
+		_, err = svc.ds.UserByEmail(ctx, *payload.Email)
+		if err == nil {
+			return nil, ctxerr.Wrap(ctx, alreadyExistsError{})
+		}
+		_, err = svc.ds.InviteByEmail(ctx, *payload.Email)
+		if err == nil {
+			return nil, ctxerr.Wrap(ctx, alreadyExistsError{})
+		}
+
 		invite.Email = *payload.Email
 	}
 	if payload.Name != nil {

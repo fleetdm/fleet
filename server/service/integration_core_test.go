@@ -1029,6 +1029,47 @@ func (s *integrationTestSuite) TestInvites() {
 	updateInviteResp = updateInviteResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/invites/%d", validInvite.ID), updateInviteReq, http.StatusOK, &updateInviteResp)
 
+	// update the valid invite: set an email that already exists for a user
+	updateInviteReq = updateInviteRequest{
+		InvitePayload: fleet.InvitePayload{
+			Email: ptr.String(s.users["admin1@example.com"].Email),
+			Teams: []fleet.UserTeam{
+				{Team: fleet.Team{ID: team.ID}, Role: fleet.RoleObserver},
+			},
+		},
+	}
+	updateInviteResp = updateInviteResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/invites/%d", validInvite.ID), updateInviteReq, http.StatusConflict, &updateInviteResp)
+
+	// update the valid invite: set an email that already exists for another invite
+	createInviteReq = createInviteRequest{InvitePayload: fleet.InvitePayload{
+		Email:      ptr.String("some@other.email"),
+		Name:       ptr.String("some name"),
+		GlobalRole: null.StringFrom(fleet.RoleAdmin),
+	}}
+	createInviteResp = createInviteResponse{}
+	s.DoJSON("POST", "/api/v1/fleet/invites", createInviteReq, http.StatusOK, &createInviteResp)
+	updateInviteReq = updateInviteRequest{
+		InvitePayload: fleet.InvitePayload{
+			Email: createInviteReq.Email,
+			Teams: []fleet.UserTeam{
+				{Team: fleet.Team{ID: team.ID}, Role: fleet.RoleObserver},
+			},
+		},
+	}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/invites/%d", validInvite.ID), updateInviteReq, http.StatusConflict, &updateInviteResp)
+
+	// update the valid invite to an email that is ok
+	updateInviteReq = updateInviteRequest{
+		InvitePayload: fleet.InvitePayload{
+			Email: ptr.String("something@nonexistent.yet123"),
+			Teams: []fleet.UserTeam{
+				{Team: fleet.Team{ID: team.ID}, Role: fleet.RoleObserver},
+			},
+		},
+	}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/invites/%d", validInvite.ID), updateInviteReq, http.StatusOK, &updateInviteResp)
+
 	verify, err := s.ds.Invite(context.Background(), validInvite.ID)
 	require.NoError(t, err)
 	require.Equal(t, "", verify.GlobalRole.String)
@@ -1038,6 +1079,7 @@ func (s *integrationTestSuite) TestInvites() {
 	// delete an existing invite
 	var delResp deleteInviteResponse
 	s.DoJSON("DELETE", fmt.Sprintf("/api/v1/fleet/invites/%d", validInvite.ID), nil, http.StatusOK, &delResp)
+	s.DoJSON("DELETE", fmt.Sprintf("/api/v1/fleet/invites/%d", createInviteResp.Invite.ID), nil, http.StatusOK, &delResp)
 
 	// list invites, is now empty
 	listResp = listInvitesResponse{}
