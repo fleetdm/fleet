@@ -30,6 +30,14 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
+func defaultCacheDir() (string, error) {
+	cacheDir, err := os.UserCacheDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(cacheDir, "fleet", "vuln", "centos"), nil
+}
+
 // CentOSPkg holds data to identify a CentOS package.
 type CentOSPkg struct {
 	Name    string
@@ -91,7 +99,7 @@ func LoadCentOSFixedCVEs(ctx context.Context, db *sql.DB, logger kitlog.Logger) 
 type centOSOpts struct {
 	noCrawl  bool
 	verbose  bool
-	localDir string
+	cacheDir string
 	root     string
 }
 
@@ -99,7 +107,7 @@ type CentOSOption func(*centOSOpts)
 
 func WithLocalDir(dir string) CentOSOption {
 	return func(o *centOSOpts) {
-		o.localDir = dir
+		o.cacheDir = dir
 	}
 }
 
@@ -153,26 +161,25 @@ func ParseCentOSRepository(opts ...CentOSOption) (CentOSPkgSet, error) {
 		fn(&opts_)
 	}
 
-	if opts_.localDir == "" && opts_.noCrawl {
-		return nil, errors.New("invalid options: if no crawl is set, local dir must be set")
-	}
-
-	if opts_.localDir == "" {
-		localDir, err := os.MkdirTemp("", "centos*")
+	if opts_.cacheDir == "" {
+		var err error
+		opts_.cacheDir, err = defaultCacheDir()
 		if err != nil {
 			return nil, err
 		}
-		opts_.localDir = localDir
-	}
-
-	fmt.Printf("Using local directory: %s\n", opts_.localDir)
-	if !opts_.noCrawl {
-		if err := crawl(opts_.root, opts_.localDir, opts_.verbose); err != nil {
+		if err := os.MkdirAll(opts_.cacheDir, 0700); err != nil {
 			return nil, err
 		}
 	}
 
-	pkgs, err := parse(opts_.localDir)
+	fmt.Printf("Using cache directory: %s\n", opts_.cacheDir)
+	if !opts_.noCrawl {
+		if err := crawl(opts_.root, opts_.cacheDir, opts_.verbose); err != nil {
+			return nil, err
+		}
+	}
+
+	pkgs, err := parse(opts_.cacheDir)
 	if err != nil {
 		return nil, err
 	}
@@ -182,9 +189,7 @@ func ParseCentOSRepository(opts ...CentOSOption) (CentOSPkgSet, error) {
 			for cve := range cves {
 				cveList = append(cveList, cve)
 			}
-			if opts_.verbose {
-				fmt.Printf("%s: %v\n", pkg, cveList)
-			}
+			fmt.Printf("%s: %v\n", pkg, cveList)
 		}
 	}
 

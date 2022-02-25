@@ -103,10 +103,6 @@ func ParseUbuntuRepository(opts ...UbuntuOption) (FixedCVEs, error) {
 		fn(&opts_)
 	}
 
-	if opts_.cacheDir == "" && opts_.noCrawl {
-		return nil, errors.New("invalid options: if no crawl is set, local dir must be set")
-	}
-
 	if opts_.cacheDir == "" {
 		var err error
 		opts_.cacheDir, err = defaultCacheDir()
@@ -325,19 +321,15 @@ func processPKGURL(u *url.URL, parentDir string, verbose bool) error {
 
 var cveRegex = regexp.MustCompile(`CVE\-[0-9]{4}\-[0-9]{4,}`)
 
-// TODO: need to return a ubuntu package type with name release arch etc
 func parseChangelog(filename string) ([]string, error) {
-	// TODO: parse package name from filename
-
 	f, err := os.Open(filename)
 	if err != nil {
 		return nil, err
 	}
 	defer f.Close()
 
-	// TODO: need the package name, version, release, arch from changelog filename?
 	// dedup cves
-	var cvesMap map[string]struct{}
+	cvesMap := make(map[string]struct{})
 
 	scanner := bufio.NewScanner(f)
 	scanner.Split(bufio.ScanLines)

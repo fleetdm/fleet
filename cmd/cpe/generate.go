@@ -34,8 +34,7 @@ func main() {
 	flag.BoolVar(&verbose, "verbose", false, "Sets verbose mode")
 	flag.Parse()
 
-	// dbPath := cpe()
-	dbPath := "/home/michal/fleet/src/fleet/cpe-80738fd95325d810.sqlite"
+	dbPath := cpe()
 
 	fmt.Printf("Sqlite file %s size: %.2f MB\n", dbPath, getSizeMB(dbPath))
 
@@ -145,7 +144,7 @@ func ubuntu(dbPath string, verbose bool) {
 	panicif(err)
 	defer db.Close()
 
-	fixedCVEs, err := vuln_ubuntu.ParseUbuntuRepository(vuln_ubuntu.WithVerbose(verbose))
+	fixedCVEs, err := vuln_ubuntu.ParseUbuntuRepository(vuln_ubuntu.WithVerbose(verbose), vuln_ubuntu.NoCrawl())
 	panicif(err)
 
 	fmt.Printf("Storing CVE info for %d Ubuntu packages...\n", len(fixedCVEs))
