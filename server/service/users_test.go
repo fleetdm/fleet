@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -209,6 +210,9 @@ func TestModifyUserEmail(t *testing.T) {
 	}
 	ms.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
 		return user, nil
+	}
+	ms.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
+		return nil, fmt.Errorf("not found")
 	}
 	ms.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		config := &fleet.AppConfig{
