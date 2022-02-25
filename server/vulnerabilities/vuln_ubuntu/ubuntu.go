@@ -141,21 +141,6 @@ func crawl(root string, cacheDir string, verbose bool) error {
 	fmt.Println("Crawling Ubuntu repository...")
 
 	pkgURLs := make(chan *url.URL)
-	defer close(pkgURLs)
-
-	// Start a fixed number of goroutines to download .tar.xz files, extract, and save changelogs
-	g := new(errgroup.Group)
-	numDownloaders := 10
-	for i := 0; i < numDownloaders; i++ {
-		g.Go(func() error {
-			for u := range pkgURLs {
-				if err := processPKGURL(u, cacheDir, verbose); err != nil {
-					return err
-				}
-			}
-			return nil
-		})
-	}
 
 	c := colly.NewCollector()
 	c.OnHTML("td > a[href]", func(e *colly.HTMLElement) {
@@ -186,8 +171,24 @@ func crawl(root string, cacheDir string, verbose bool) error {
 	if root == "" {
 		root = defaultRoot
 	}
-	if err := c.Visit(repositoryURL + root); err != nil {
-		return err
+
+	g := new(errgroup.Group)
+	g.Go(func() error {
+		defer close(pkgURLs)
+		return c.Visit(repositoryURL + root)
+	})
+
+	// Start a fixed number of goroutines to download .tar.xz files, extract, and save changelogs
+	numDownloaders := 10
+	for i := 0; i < numDownloaders; i++ {
+		g.Go(func() error {
+			for u := range pkgURLs {
+				if err := processPKGURL(u, cacheDir, verbose); err != nil {
+					return err
+				}
+			}
+			return nil
+		})
 	}
 
 	if err := g.Wait(); err != nil {
@@ -252,7 +253,6 @@ func parse(cacheDir string) (FixedCVEs, error) {
 func processPKGURL(u *url.URL, parentDir string, verbose bool) error {
 	destDir := filepath.Join(parentDir, strings.TrimSuffix(filepath.Base(u.Path), ".tar.xz"))
 
-	// TODO: handle error better
 	if _, err := os.Stat(destDir); err == nil {
 		if verbose {
 			fmt.Printf("skipping %s, already exists\n", destDir)
