@@ -279,8 +279,7 @@ We cannot overstate the importance of securing authentication, especially in a p
 #### 2-Step Verification 
 Google's name for Two-Factor Authentication (2FA) or Multi-Factor Authentication (MFA) is 2-Step Verification (2-SV). No matter what we call it, it is the most critical feature to protect user accounts on Google Workspace or any other system.
 
-**2FA methods from the least to the most secure**
-| Authentication methods from least to most secure                              | Weaknesses                                                                                                |
+| 2FA Authentication methods from least to most secure                              | Weaknesses                                                                                                |
 | ----------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
 | No 2FA                                                                        | Credential theft is easy, and passwords are often leaked or easy to guess.                                |
 | SMS/Phone-based 2FA                                                           | Puts trust in the phone number itself, which attackers can hijack by [social engineering phone companies](https://www.vice.com/en/topic/sim-hijacking).      |
