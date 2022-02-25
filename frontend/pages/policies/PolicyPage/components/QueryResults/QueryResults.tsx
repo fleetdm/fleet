@@ -55,15 +55,7 @@ const QueryResults = ({
   const { hosts: hostsOnline, hosts_count: hostsCount, errors } =
     campaign || {};
 
-  const totalHostsOnline = get(campaign, ["totals", "online"], 0);
-  const totalHostsOffline = get(campaign, ["totals", "offline"], 0);
   const totalRowsCount = get(campaign, ["query_results", "length"], 0);
-  const onlineTotalText = `${totalRowsCount} result${
-    totalRowsCount === 1 ? "" : "s"
-  }`;
-  const errorsTotalText = `${errors?.length || 0} result${
-    errors?.length === 1 ? "" : "s"
-  }`;
 
   const [pageTitle, setPageTitle] = useState<string>(PAGE_TITLES.RUNNING);
   const [navTabIndex, setNavTabIndex] = useState(0);
@@ -74,9 +66,9 @@ const QueryResults = ({
 
   useEffect(() => {
     setTargetsRespondedPercent(
-      Math.round((totalRowsCount / targetsTotalCount) * 100)
+      Math.round((totalRowsCount + errors?.length / targetsTotalCount) * 100)
     );
-  }, [totalRowsCount]);
+  }, [totalRowsCount, errors]);
 
   useEffect(() => {
     if (isQueryFinished) {
