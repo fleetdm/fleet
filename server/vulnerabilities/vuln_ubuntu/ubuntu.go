@@ -44,12 +44,30 @@ type Package struct {
 	Version string
 }
 
-// FixedCVESet is a set of fixed CVEs.
-type FixedCVEs map[Package][]string
+func parsePackage(s string) (Package, error) {
+	parts := strings.SplitN(s, "_", 2)
+	if len(parts) != 2 {
+		return Package{}, errors.New("wrong number of parts")
+	}
+	return Package{
+		Name:    parts[0],
+		Version: parts[1],
+	}, nil
+}
+
+// FixedCVEsByPackage is a set of fixed CVEs.
+type FixedCVEsByPackage map[Package]map[string]struct{}
 
 // Add adds the given package and CVE/s to the set.
-func (f FixedCVEs) Add(pkg Package, cves []string) {
-	f[pkg] = append(f[pkg], cves...)
+func (f FixedCVEsByPackage) Add(pkg Package, cves []string) {
+	cvesMap, ok := f[pkg]
+	if !ok {
+		cvesMap = make(map[string]struct{})
+	}
+	for _, cve := range cves {
+		cvesMap[cve] = struct{}{}
+	}
+	f[pkg] = cvesMap
 }
 
 type UbuntuOpts struct {
@@ -92,12 +110,12 @@ const (
 )
 
 // ParseUbuntuRepository performs the following operations:
-//   - Crawls the Ubuntu repository website. To find all the tar.xz files. Example http://archive.ubuntu.com/ubuntu/pool/universe/c/chromium-browser/chromium-browser_80.0.3987.163-0ubuntu1.tar.xz
-//   - Downloads tar.xz files and finds the changelog in each package
-//   - It parses the changelogs for each package release and looks for the "CVE-" string.
+//   - Crawls the Ubuntu repository website to find urls for all .tar.xz files. Example http://archive.ubuntu.com/ubuntu/pool/universe/c/chromium-browser/chromium-browser_80.0.3987.163-0ubuntu1.tar.xz
+//   - Downloads .tar.xz files, decompresses and extracts changelog files
+//   - Parses changelogs for CVEs mentioned
 //
 // It writes progress messages to stdout.
-func ParseUbuntuRepository(opts ...UbuntuOption) (FixedCVEs, error) {
+func ParseUbuntuRepository(opts ...UbuntuOption) (FixedCVEsByPackage, error) {
 	var opts_ UbuntuOpts
 	for _, fn := range opts {
 		fn(&opts_)
@@ -201,10 +219,10 @@ func crawl(root string, cacheDir string, verbose bool) error {
 	return nil
 }
 
-func parse(cacheDir string) (FixedCVEs, error) {
+func parse(cacheDir string) (FixedCVEsByPackage, error) {
 	fmt.Println("Processing package changelog files...")
 
-	fixedCVEs := make(FixedCVEs)
+	fixedCVEs := make(FixedCVEsByPackage)
 
 	var pkg Package
 	err := filepath.WalkDir(cacheDir, func(path string, d fs.DirEntry, err error) error {
@@ -219,14 +237,9 @@ func parse(cacheDir string) (FixedCVEs, error) {
 				return err
 			}
 
-			// TODO: extract function to parse package name version
-			parts := strings.SplitN(rel, "_", 2)
-			if len(parts) != 2 {
-				return errors.New("parse package name and version")
-			}
-			pkg = Package{
-				Name:    parts[0],
-				Version: parts[1],
+			pkg, err = parsePackage(rel)
+			if err != nil {
+				return fmt.Errorf("parse package name and version: %w", err)
 			}
 
 			return nil
@@ -365,7 +378,7 @@ func LoadUbuntuFixedCVEs(ctx context.Context, db *sql.DB, logger kitlog.Logger) 
 	}
 	defer rows.Close()
 
-	fixedCVEsByPackage := make(map[Package]map[string]struct{})
+	fixedCVEsByPackage := make(FixedCVEsByPackage)
 	for rows.Next() {
 		var pkg Package
 		var cvesStr string
@@ -391,7 +404,7 @@ func LoadUbuntuFixedCVEs(ctx context.Context, db *sql.DB, logger kitlog.Logger) 
 }
 
 // GenUbuntuSqlite will store the Ubuntu package set in the given sqlite db.
-func GenUbuntuSqlite(db *sql.DB, fixedCVEs FixedCVEs) error {
+func GenUbuntuSqlite(db *sql.DB, fixedCVEs FixedCVEsByPackage) error {
 	if err := createTable(db); err != nil {
 		return err
 	}
@@ -403,13 +416,17 @@ func GenUbuntuSqlite(db *sql.DB, fixedCVEs FixedCVEs) error {
 		CVEs    string
 	}
 	pkgCVEs := make([]PackageCVEs, 0, len(fixedCVEs))
-	for pkg, cves := range fixedCVEs {
+	for pkg, cvesMap := range fixedCVEs {
+		cves := make([]string, 0, len(cvesMap))
+		for cve := range cvesMap {
+			cves = append(cves, cve)
+		}
 		cvesStr := strings.Join(cves, ",")
 		pkgCVEs = append(pkgCVEs, PackageCVEs{pkg.Name, pkg.Version, cvesStr})
 	}
 
 	// process in chunks, much faster than inserting individually
-	// Sqlite has max number of variables, see SQLITE_MAX_VARIABLE_NUMBER. Default is 32766 for sqlite > 3.32.0
+	// sqlite has max number of variables, see SQLITE_MAX_VARIABLE_NUMBER. Default is 32766 for sqlite > 3.32.0
 	chunkSize := 32766 / 3
 
 	for i := 0; i < len(fixedCVEs); i += chunkSize {
@@ -424,7 +441,7 @@ REPLACE INTO %s (name, version, cves)
 VALUES
 `, UbuntuFixedCVEsTable)
 
-		query += strings.TrimSuffix(strings.Repeat("(?, ?, ?),", len(chunk)), ",")
+		query += strings.TrimSuffix(strings.Repeat(" (?, ?, ?),", len(chunk)), ",")
 
 		var args []interface{}
 		for _, x := range chunk {
