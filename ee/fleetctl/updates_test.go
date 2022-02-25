@@ -179,6 +179,13 @@ func TestUpdatesIntegration(t *testing.T) {
 		ServerURL:     server.URL,
 		RootKeys:      roots,
 		LocalStore:    localStore,
+		Targets: update.Targets{
+			"test": update.TargetInfo{
+				Platform:   "macos",
+				Channel:    "1.3.3.7",
+				TargetFile: "test",
+			},
+		},
 	})
 	require.NoError(t, err)
 	require.NoError(t, updater.UpdateMetadata())
@@ -209,7 +216,6 @@ func TestUpdatesIntegration(t *testing.T) {
 	targets, err := updater.Targets()
 	require.NoError(t, err)
 	assert.Len(t, targets, 3)
-	// TODO(lucas): Fix me.
 	_, err = updater.Get("test")
 	require.NoError(t, err)
 
@@ -278,7 +284,6 @@ func TestUpdatesIntegration(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, targets, 3)
 	// Remove the old copy first
-	// TODO(lucas): Fix me.
 	p, err := updater.ExecutableLocalPath("test")
 	require.NoError(t, err)
 	require.NoError(t, os.RemoveAll(p))

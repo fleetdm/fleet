@@ -14,7 +14,6 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
-	"runtime"
 	"strings"
 
 	"github.com/fatih/color"
@@ -159,8 +158,11 @@ func (u *Updater) ExecutableLocalPath(target string) (string, error) {
 			return "", fmt.Errorf("expected directory %q: %w", dirPath, err)
 		}
 		t := u.opt.Targets[target] // this was accessed before.
-		if runtime.GOOS == "darwin" {
+		switch t.Platform {
+		case "macos-app":
 			localPath = appMacOSPath(dirPath, t.ExtractedExecFile)
+		default:
+			return "", fmt.Errorf("unsupported platform: %s", t.Platform)
 		}
 	}
 

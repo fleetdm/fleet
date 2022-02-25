@@ -56,6 +56,7 @@ func TestMakeRepoPath(t *testing.T) {
 			osqueryd := opt.Targets["osqueryd"]
 			osqueryd.Platform = tt.platform
 			osqueryd.Channel = tt.version
+			osqueryd.TargetFile = filepath.Base(tt.expected)
 			opt.Targets["osqueryd"] = osqueryd
 
 			u := Updater{opt: opt}
