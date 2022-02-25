@@ -147,6 +147,11 @@ func crawl(root string, cacheDir string, verbose bool) error {
 			return
 		}
 
+		if strings.Contains(href, ".orig.tar") || strings.Contains(href, ".debian.tar") {
+			// skip debian source packages
+			return
+		}
+
 		if strings.HasSuffix(href, ".tar.xz") {
 			u := *e.Request.URL // clone the url
 			u.Path = path.Join(u.Path, href)
@@ -156,9 +161,11 @@ func crawl(root string, cacheDir string, verbose bool) error {
 			}
 			return
 		}
+
 		if !strings.Contains(href, "/") {
 			return
 		}
+
 		e.Request.Visit(href)
 	})
 
