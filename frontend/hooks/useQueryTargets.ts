@@ -100,7 +100,10 @@ const getTargets = async (
 
 export const useQueryTargets = (
   targetsQueryKey: ITargetsQueryKey[],
-  options: { onSuccess: (data: ITargetsQueryResponse) => void }
+  options: {
+    onSuccess: (data: ITargetsQueryResponse) => void;
+    staleTime: number;
+  }
 ): UseQueryResult<ITargetsQueryResponse, Error> => {
   return useQuery<
     ITargetsQueryResponse,
@@ -113,9 +116,9 @@ export const useQueryTargets = (
       return getTargets(queryKey[0]);
     },
     {
-      refetchOnWindowFocus: false,
-      staleTime: STALE_TIME,
       onSuccess: options.onSuccess,
+      refetchOnWindowFocus: false,
+      staleTime: options.staleTime,
     }
   );
 };

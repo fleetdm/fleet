@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { Row } from "react-table";
 import { forEach, isEmpty, remove, unionBy } from "lodash";
 import { useDebouncedCallback } from "use-debounce/lib";
@@ -34,6 +34,9 @@ interface ISelectTargetsProps {
   goToRunQuery: () => void;
   setSelectedTargets: React.Dispatch<React.SetStateAction<ITarget[]>>;
 }
+
+const DEBOUNCE_DELAY = 500;
+const STALE_TIME = 60000;
 
 const TargetPillSelector = ({
   entity,
@@ -81,8 +84,6 @@ const SelectTargets = ({
   const [debouncedSearchText, setDebouncedSearchText] = useState<string>("");
   const [isDebouncing, setIsDebouncing] = useState<boolean>(false);
 
-  const DEBOUNCE_DELAY = 500;
-
   const debounceSearch = useDebouncedCallback(
     (search: string) => {
       setDebouncedSearchText(search);
@@ -97,15 +98,18 @@ const SelectTargets = ({
     debounceSearch(searchText);
   }, [searchText]);
 
-  const setLabels = (data: ITargetsQueryResponse) => {
-    if (!allHostsLabels) {
-      setAllHostsLabels(data.allHostsLabels || []);
-      setPlatformLabels(data.platformLabels || []);
-      setOtherLabels(data.otherLabels || []);
-      setTeams(data.teams || []);
-      setInputTabIndex(data.labelCount || 0);
-    }
-  };
+  const setLabels = useCallback(
+    (data: ITargetsQueryResponse) => {
+      if (!allHostsLabels) {
+        setAllHostsLabels(data.allHostsLabels || []);
+        setPlatformLabels(data.platformLabels || []);
+        setOtherLabels(data.otherLabels || []);
+        setTeams(data.teams || []);
+        setInputTabIndex(data.labelCount || 0);
+      }
+    },
+    [allHostsLabels]
+  );
 
   const {
     data: targets,
@@ -123,6 +127,7 @@ const SelectTargets = ({
     ],
     {
       onSuccess: setLabels,
+      staleTime: STALE_TIME,
     }
   );
 
