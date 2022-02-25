@@ -239,16 +239,14 @@ const SelectTargets = ({
   };
 
   if (!isTargetsError && isEmpty(searchText) && !allHostsLabels) {
-    if (isEmpty(searchText) && isTargetsFetching) {
-      return (
-        <div className={`${baseClass}__wrapper body-wrap`}>
-          <h1>Select targets</h1>
-          <div className={`${baseClass}__page-loading`}>
-            <Spinner />
-          </div>
+    return (
+      <div className={`${baseClass}__wrapper body-wrap`}>
+        <h1>Select targets</h1>
+        <div className={`${baseClass}__page-loading`}>
+          <Spinner />
         </div>
-      );
-    }
+      </div>
+    );
   }
 
   if (isEmpty(searchText) && isTargetsError) {
