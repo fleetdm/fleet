@@ -124,6 +124,16 @@ When scheduling external meetings, provide external participants with a
 [Calendly](https://calendly.com) link to schedule with the relevant internal participants. If you
 need a Calendly account, reach out to `@eashaw` via Slack.
 
+### Zoom
+
+We use [Zoom](https://zoom.us) for virtual meetings at Fleet, and it is important that every team member feels comfortable hosting, joining, and scheduling Zoom meetings. We default to providing new team members with a "Basic" Zoom license, if your role requires scheduling customer meetings, we'll upgrade you to a "licensed" account.
+
+Zoom settings are configured to be the same for all Fleet team members by default, but you can change your personal settings on your [profile settings](https://zoom.us/profile/setting) page. Settings that have a lock icon next to them have been locked by an administrator and cannot be changed. Zoom administrators can change settings for all team members on the [account settings page](https://zoom.us/account/setting) or for individual accounts on the [user management page](https://zoom.us/account/user#/).
+
+Our Zoom meetings are configured to let participants join before the host starts the meeting. We do this to ensure meetings start on time, even if the host isn't there. This setting locked across all Zoom accounts, but it **only** applies to meetings with scheduled start times.
+
+If you are organizing a recurring meeting, you need to make sure you configure the meeting room to have a start time manually. To set a recurring meeting's start time, go to your [upcoming meetings](https://zoom.us/meeting#/upcoming) page and find the meeting room with the same name as the calender event. Click the edit button next to the meeting room, and add the meeting's start time.
+
 ## Slack
 
 At Fleet, we do not send internal emails to each other. Instead, we prefer to use Slack to communicate with other folks who work at Fleet.
