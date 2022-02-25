@@ -242,8 +242,11 @@ func updatesAddFunc(c *cli.Context) error {
 	var paths []string
 	for _, tag := range append([]string{version}, tags...) {
 		dstPath := filepath.Join(name, platform, tag, name)
-		if strings.HasSuffix(target, ".exe") {
+		switch {
+		case strings.HasSuffix(target, ".exe"):
 			dstPath += ".exe"
+		case strings.HasSuffix(target, ".app.tar.gz"):
+			dstPath += ".app.tar.gz"
 		}
 		fullPath := filepath.Join(targetsPath, dstPath)
 		paths = append(paths, dstPath)

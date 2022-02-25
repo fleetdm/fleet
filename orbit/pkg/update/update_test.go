@@ -51,8 +51,17 @@ func TestMakeRepoPath(t *testing.T) {
 		t.Run(tt.expected, func(t *testing.T) {
 			t.Parallel()
 
-			u := Updater{opt: Options{Platform: tt.platform}}
-			assert.Equal(t, tt.expected, u.RepoPath(tt.name, tt.version))
+			opt := DefaultOptions
+
+			osqueryd := opt.Targets["osqueryd"]
+			osqueryd.Platform = tt.platform
+			osqueryd.Channel = tt.version
+			opt.Targets["osqueryd"] = osqueryd
+
+			u := Updater{opt: opt}
+			repoPath, err := u.RepoPath(tt.name)
+			require.NoError(t, err)
+			assert.Equal(t, tt.expected, repoPath)
 		})
 	}
 }

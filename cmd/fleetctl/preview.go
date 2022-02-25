@@ -630,34 +630,34 @@ func downloadOrbitAndStart(destDir, enrollSecret, address, orbitChannel, osquery
 	}
 
 	updateOpt := update.DefaultOptions
-	switch runtime.GOOS {
-	case "linux":
-		updateOpt.Platform = "linux"
-	case "darwin":
-		updateOpt.Platform = "macos"
-	case "windows":
-		updateOpt.Platform = "windows"
-	default:
-		return fmt.Errorf("unsupported arch: %s", runtime.GOOS)
-	}
-	updateOpt.ServerURL = "https://tuf.fleetctl.com"
+
+	// Override default channels with the provided values.
+	orbit := updateOpt.Targets["orbit"]
+	orbit.Channel = orbitChannel
+	updateOpt.Targets["orbit"] = orbit
+	osqueryd := updateOpt.Targets["osqueryd"]
+	osqueryd.Channel = osquerydChannel
+	updateOpt.Targets["osqueryd"] = osqueryd
+
 	updateOpt.RootDirectory = destDir
-	updateOpt.OrbitChannel = orbitChannel
-	updateOpt.OsquerydChannel = osquerydChannel
 
 	if _, err := packaging.InitializeUpdates(updateOpt); err != nil {
 		return fmt.Errorf("initialize updates: %w", err)
 	}
 
-	cmd := exec.Command(
-		path.Join(destDir, "bin", "orbit", updateOpt.Platform, updateOpt.OrbitChannel, "orbit"),
+	orbitPath, err := update.NewDisabled(updateOpt).ExecutableLocalPath("orbit")
+	if err != nil {
+		return fmt.Errorf("failed to locate executable for orbit: %w", err)
+	}
+
+	cmd := exec.Command(orbitPath,
 		"--root-dir", destDir,
 		"--fleet-url", address,
 		"--insecure",
 		"--debug",
 		"--enroll-secret", enrollSecret,
-		"--orbit-channel", updateOpt.OrbitChannel,
-		"--osqueryd-channel", updateOpt.OsquerydChannel,
+		"--orbit-channel", orbitChannel,
+		"--osqueryd-channel", osquerydChannel,
 		"--log-file", path.Join(destDir, "orbit.log"),
 	)
 	if err := cmd.Start(); err != nil {

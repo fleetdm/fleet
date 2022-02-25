@@ -174,10 +174,15 @@ func TestUpdatesIntegration(t *testing.T) {
 	// Initialize an update client
 	localStore, err := filestore.New(filepath.Join(tmpDir, "tuf-metadata.json"))
 	require.NoError(t, err)
-	client, err := update.New(update.Options{RootDirectory: tmpDir, ServerURL: server.URL, RootKeys: roots, LocalStore: localStore})
+	updater, err := update.New(update.Options{
+		RootDirectory: tmpDir,
+		ServerURL:     server.URL,
+		RootKeys:      roots,
+		LocalStore:    localStore,
+	})
 	require.NoError(t, err)
-	require.NoError(t, client.UpdateMetadata())
-	_, err = client.Lookup("any", "target")
+	require.NoError(t, updater.UpdateMetadata())
+	_, err = updater.Lookup("any")
 	require.Error(t, err, "lookup should fail before targets added")
 
 	repo, err := openRepo(tmpDir)
@@ -200,11 +205,12 @@ func TestUpdatesIntegration(t *testing.T) {
 	assertFileExists(t, filepath.Join(tmpDir, "repository", "targets", "test", "windows", "1.3.3.7", "test"))
 
 	// Verify the client can look up and download the updates
-	require.NoError(t, client.UpdateMetadata())
-	targets, err := client.Targets()
+	require.NoError(t, updater.UpdateMetadata())
+	targets, err := updater.Targets()
 	require.NoError(t, err)
 	assert.Len(t, targets, 3)
-	_, err = client.Get("test", "1.3.3.7")
+	// TODO(lucas): Fix me.
+	_, err = updater.Get("test")
 	require.NoError(t, err)
 
 	repo, err = openRepo(tmpDir)
@@ -267,24 +273,25 @@ func TestUpdatesIntegration(t *testing.T) {
 	assert.NotEqual(t, roots, newRoots)
 
 	// Should still be able to retrieve an update after rotations
-	require.NoError(t, client.UpdateMetadata())
-	targets, err = client.Targets()
+	require.NoError(t, updater.UpdateMetadata())
+	targets, err = updater.Targets()
 	require.NoError(t, err)
 	assert.Len(t, targets, 3)
 	// Remove the old copy first
-	p, err := update.UpdateLocalPath(tmpDir, "test", "1.3.3.7", "windows")
+	// TODO(lucas): Fix me.
+	p, err := updater.ExecutableLocalPath("test")
 	require.NoError(t, err)
 	require.NoError(t, os.RemoveAll(p))
-	_, err = client.Get("test", "1.3.3.7")
+	_, err = updater.Get("test")
 	require.NoError(t, err)
 
 	// Update client should be able to initialize with new root
 	tmpDir = t.TempDir()
 	localStore, err = filestore.New(filepath.Join(tmpDir, "tuf-metadata.json"))
 	require.NoError(t, err)
-	client, err = update.New(update.Options{RootDirectory: tmpDir, ServerURL: server.URL, RootKeys: roots, LocalStore: localStore})
+	updater, err = update.New(update.Options{RootDirectory: tmpDir, ServerURL: server.URL, RootKeys: roots, LocalStore: localStore})
 	require.NoError(t, err)
-	require.NoError(t, client.UpdateMetadata())
+	require.NoError(t, updater.UpdateMetadata())
 }
 
 func TestCommit(t *testing.T) {

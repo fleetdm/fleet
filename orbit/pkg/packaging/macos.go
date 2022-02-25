@@ -40,11 +40,17 @@ func BuildPkg(opt Options) (string, error) {
 	// Initialize autoupdate metadata
 
 	updateOpt := update.DefaultOptions
-	updateOpt.Platform = "macos"
 	updateOpt.RootDirectory = orbitRoot
-	updateOpt.OrbitChannel = opt.OrbitChannel
-	updateOpt.OsquerydChannel = opt.OsquerydChannel
 	updateOpt.ServerURL = opt.UpdateURL
+
+	// Override default channels with the provided values.
+	orbit := updateOpt.Targets["orbit"]
+	orbit.Channel = opt.OrbitChannel
+	updateOpt.Targets["orbit"] = orbit
+	osqueryd := updateOpt.Targets["osqueryd"]
+	osqueryd.Channel = opt.OsquerydChannel
+	updateOpt.Targets["osqueryd"] = osqueryd
+
 	if opt.UpdateRoots != "" {
 		updateOpt.RootKeys = opt.UpdateRoots
 	}

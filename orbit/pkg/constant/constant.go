@@ -13,6 +13,8 @@ func ExecutableExtension(platform string) string {
 	switch platform {
 	case "windows":
 		return ".exe"
+	case "macos-app":
+		return ".app.tar.gz"
 	default:
 		return ""
 	}

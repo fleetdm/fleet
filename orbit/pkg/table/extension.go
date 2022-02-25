@@ -18,6 +18,8 @@ import (
 // Runner wraps the osquery extension manager with okglog/run Execute and Interrupt functions.
 type Runner struct {
 	socket string
+
+	// TODO(lucas): Check if set/get of these two should be protected.
 	srv    *osquery.ExtensionManagerServer
 	cancel func()
 }
@@ -84,8 +86,9 @@ func (r *Runner) Execute() error {
 // Interrupt shuts down the osquery manager server.
 func (r *Runner) Interrupt(err error) {
 	log.Debug().Err(err).Msg("interrupt osquery extension")
-	r.cancel()
-
+	if r.cancel != nil {
+		r.cancel()
+	}
 	if r.srv != nil {
 		r.srv.Shutdown(context.Background())
 	}
