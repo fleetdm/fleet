@@ -23,3 +23,29 @@ export interface ITargetsAPIResponse {
   targets_offline: number;
   targets_online: number;
 }
+
+export interface ISelectHost extends IHost {
+  target_type?: string;
+}
+
+export interface ISelectLabel extends ILabel {
+  target_type?: string;
+}
+
+export interface ISelectTeam extends ITeam {
+  target_type?: string;
+}
+
+export type ISelectTargetsEntity = ISelectHost | ISelectLabel | ISelectTeam;
+
+export interface ISelectedTargets {
+  hosts: (number | string)[];
+  labels: (number | string)[];
+  teams: (number | string)[];
+}
+
+export interface IPackTargets {
+  host_ids: (number | string)[];
+  label_ids: (number | string)[];
+  team_ids: (number | string)[];
+}

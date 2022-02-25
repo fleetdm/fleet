@@ -83,8 +83,8 @@ describe("Fleet - API client (packs)", () => {
       const targets = [host2, label2, hostStub, labelStub];
       const updatePackParams = {
         name: "New Pack Name",
-        host_ids: [host2.id, hostStub.id],
-        label_ids: [label2.id, labelStub.id],
+        host_ids: [hostStub.id, host2.id],
+        label_ids: [labelStub.id, label2.id],
         team_ids: [],
       };
       const request = packMocks.update.valid(
