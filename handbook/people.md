@@ -134,7 +134,7 @@ Settings that have a lock icon next to them have been locked by an administrator
 
 #### Scheduling a Zoom meeting
 
-We use the Zoom add-on for Google calendar to schedule Zoom meetings when we create calendar events. To add a Zoom meeting to a calendar event, click the "Add video conferencing" dropdown and select "Zoom Meeting". Google calendar will automatically add the Zoom meeting details and instructions to join to the event.
+We use the Zoom add-on for Google Calendar to schedule Zoom meetings when we create calendar events. To add a Zoom meeting to a calendar event, click the "Add video conferencing" dropdown and select "Zoom Meeting." Google Calendar will automatically add the Zoom meeting details and instructions to join the event.
 
 Our Zoom meetings are configured to let participants join before the host starts the meeting. We do this to ensure meetings start on time, even if the host isn't there. This setting locked across all Zoom accounts, but it **only** applies to meetings with scheduled start times.
 
