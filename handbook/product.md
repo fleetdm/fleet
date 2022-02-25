@@ -171,7 +171,7 @@ The goal of quality assurance is to catch unexpected behavior prior to release:
 
 ### Collecting bugs
 
-All QA steps should be possible using `fleetctl preview`.  Please refer to [docs/03-Contributing/02-Testing.md](https://fleetdm.com/docs/contributing/testing) for flows that cannot be completed using `fleetctl preview`.
+All QA steps should be possible using `fleetctl preview`.  Please refer to [docs/Contributing/Testing.md](https://fleetdm.com/docs/contributing/testing) for flows that cannot be completed using `fleetctl preview`.
 
 Please start the manual QA process by creating a blank GitHub issue. As you complete each of the
 flows, record a list of the bugs you encounter in this new issue. Each item in this list should
@@ -269,9 +269,9 @@ Run the "Get the version of the resident operating system" query against your lo
 
 Apply a pack by running the following commands:
 
-`fleetctl apply -f docs/01-Using-Fleet/configuration-files/multi-file-configuration/queries.yml`
+`fleetctl apply -f docs/Using-Fleet/configuration-files/multi-file-configuration/queries.yml`
 
-`fleetctl apply -f docs/01-Using-Fleet/configuration-files/multi-file-configuration/pack.yml`
+`fleetctl apply -f docs/Using-Fleet/configuration-files/multi-file-configuration/pack.yml`
 
 Make sure the pack was successfully added by running the following command:
 
@@ -281,7 +281,7 @@ Make sure the pack was successfully added by running the following command:
 
 Apply organization settings by running the following command:
 
-`fleetctl apply -f docs/01-Using-Fleet/configuration-files/multi-file-configuration/organization-settings.yml`
+`fleetctl apply -f docs/Using-Fleet/configuration-files/multi-file-configuration/organization-settings.yml`
 
 #### Manage users flow
 

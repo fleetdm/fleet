@@ -20,7 +20,7 @@ Non-release blocking bugs may include known issues that were not targeted for th
 ### Release day
 
 Documentation on completing the release process can be found
-[here](../docs/03-Contributing/05-Releasing-Fleet.md).
+[here](../docs/Contributing/Releasing-Fleet.md).
 
 ## On-call rotation
 
@@ -113,7 +113,7 @@ There are four sources that the on-call engineer should monitor for activity:
 
 There are several locations in Fleet's public and internal documentation that can be helpful when answering questions raised by the community:
 
-1. The frequently asked question (FAQ) documents in each section found in the `/docs` folder. These documents are the [Using Fleet FAQ](../docs/01-Using-Fleet/FAQ.md), [Deploying FAQ](../docs/02-Deploying/FAQ.md), and [Contributing FAQ](../docs/03-Contributing/FAQ.md).
+1. The frequently asked question (FAQ) documents in each section found in the `/docs` folder. These documents are the [Using Fleet FAQ](../docs/Using-Fleet/FAQ.md), [Deploying FAQ](../docs/Deploying/FAQ.md), and [Contributing FAQ](../docs/Contributing/FAQ.md).
 
 2. The [Internal FAQ](https://docs.google.com/document/d/1I6pJ3vz0EE-qE13VmpE2G3gd5zA1m3bb_u8Q2G3Gmp0/edit#heading=h.ltavvjy511qv) document.
 

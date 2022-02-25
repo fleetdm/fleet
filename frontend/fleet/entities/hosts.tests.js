@@ -7,7 +7,7 @@ import { hostStub } from "test/stubs";
 
 const { hosts: hostMocks } = mocks;
 
-describe("Kolide - API client (hosts)", () => {
+describe("Fleet - API client (hosts)", () => {
   afterEach(() => {
     nock.cleanAll();
     Fleet.setBearerToken(null);

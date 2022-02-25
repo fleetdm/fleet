@@ -29,34 +29,6 @@ Zach partnered with our CEO, Mike McNeil, to found a new, independent company: F
 
 ## Values
 
-### Openness
-
-The majority of the code, documentation, and content we create at Fleet is public and source-available, and we strive to be broadly open and transparent in the way we run the business; as much as confidentiality agreements (and time) allow. We perform better with an audience, and our audience performs better with us.
-
-- be transparent
-- candor (faster, better decisions)
-- speak up (don't be afraid to ask questions, be direct, and interrupt)
-- [open source is forever](https://twitter.com/mikermcneil/status/1476799587423772674)
-- "public by default"
-- declassify with care
-- prioritize accessible terminology and simple explanations to provide value to the largest possible audience of users
-- [use small words](http://www.paulgraham.com/writing44.html) so readers understand more easily
-- anyone can contribute
-- open source stewardship: the majority of the features Fleet releases will be free, [etc](https://fleetdm.com/pricing)
-- hospitality
-  - "be a helper"   -mr rogers
-  - think and say [positive things](https://www.theatlantic.com/family/archive/2018/06/mr-rogers-neighborhood-talking-to-kids/562352/)
-  - be customer-first
-    - but apply customer service principles to all users, even if they never buy Fleet
-  - be outsider-friendly (inclusive)
-  - approachable
-  - talking with users and contributors is time well spent
-  - embrace the excitement of others (it's contagious)
-  - make small talk at the beginning of meetings
-  - be our guest
-- believe in everyone
-- legendary hospitality
-
 ### Empathy
 - consider your counterpart
 - assume positive intent
@@ -151,6 +123,34 @@ Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.
 - beware sunk cost fallacy (avoid getting attached to something just because you invested time working on it, or came up with it)
 - be curious
 - legendary rigour
+
+### Openness
+
+The majority of the code, documentation, and content we create at Fleet is public and source-available, and we strive to be broadly open and transparent in the way we run the business; as much as confidentiality agreements (and time) allow. We perform better with an audience, and our audience performs better with us.
+
+- be transparent
+- candor (faster, better decisions)
+- speak up (don't be afraid to ask questions, be direct, and interrupt)
+- [open source is forever](https://twitter.com/mikermcneil/status/1476799587423772674)
+- "public by default"
+- declassify with care
+- prioritize accessible terminology and simple explanations to provide value to the largest possible audience of users
+- [use small words](http://www.paulgraham.com/writing44.html) so readers understand more easily
+- anyone can contribute
+- open source stewardship: the majority of the features Fleet releases will be free, [etc](https://fleetdm.com/pricing)
+- hospitality
+  - "be a helper"   -mr rogers
+  - think and say [positive things](https://www.theatlantic.com/family/archive/2018/06/mr-rogers-neighborhood-talking-to-kids/562352/)
+  - be customer-first
+    - but apply customer service principles to all users, even if they never buy Fleet
+  - be outsider-friendly (inclusive)
+  - approachable
+  - talking with users and contributors is time well spent
+  - embrace the excitement of others (it's contagious)
+  - make small talk at the beginning of meetings
+  - be our guest
+- believe in everyone
+- legendary hospitality
 
 
 

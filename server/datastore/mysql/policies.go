@@ -98,7 +98,7 @@ func (ds *Datastore) SavePolicy(ctx context.Context, p *fleet.Policy) error {
 		return ctxerr.Wrap(ctx, notFound("Policy").WithID(p.ID))
 	}
 
-	return cleanupPolicyMembership(ctx, ds.writer, p.ID, p.Platform)
+	return cleanupPolicyMembershipOnPolicyUpdate(ctx, ds.writer, p.ID, p.Platform)
 }
 
 // FlippingPoliciesForHost fetches previous policy membership results and returns:
@@ -472,7 +472,7 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 				// when the upsert results in an UPDATE that *did* change some values,
 				// it returns the updated ID as last inserted id.
 				if lastID, _ := res.LastInsertId(); lastID > 0 {
-					if err := cleanupPolicyMembership(ctx, tx, uint(lastID), spec.Platform); err != nil {
+					if err := cleanupPolicyMembershipOnPolicyUpdate(ctx, tx, uint(lastID), spec.Platform); err != nil {
 						return err
 					}
 				}
@@ -536,7 +536,7 @@ func (ds *Datastore) AsyncBatchUpdatePolicyTimestamp(ctx context.Context, ids []
 	})
 }
 
-func cleanupPolicyMembership(ctx context.Context, db sqlx.ExecerContext, policyID uint, platforms string) error {
+func cleanupPolicyMembershipOnPolicyUpdate(ctx context.Context, db sqlx.ExecerContext, policyID uint, platforms string) error {
 	if platforms == "" {
 		// all platforms allowed, nothing to clean up
 		return nil
@@ -563,4 +563,61 @@ func cleanupPolicyMembership(ctx context.Context, db sqlx.ExecerContext, policyI
 	}
 	_, err := db.ExecContext(ctx, delStmt, policyID, strings.Join(expandedPlatforms, ","))
 	return ctxerr.Wrap(ctx, err, "cleanup policy membership")
+}
+
+// CleanupPolicyMembership deletes the host's membership from policies that
+// have been updated recently if those hosts don't meet the policy's criteria
+// anymore (e.g. if the policy's platforms has been updated from "any" - the
+// empty string - to "windows", this would delete that policy's membership rows
+// for any non-windows host).
+func (ds *Datastore) CleanupPolicyMembership(ctx context.Context, now time.Time) error {
+	const (
+		recentlyUpdatedPoliciesInterval = 24 * time.Hour
+
+		updatedPoliciesStmt = `
+			SELECT
+				p.id,
+				p.platforms
+			FROM
+				policies p
+			WHERE
+				p.updated_at >= DATE_SUB(?, INTERVAL ? SECOND) AND
+				p.created_at < p.updated_at`  // ignore newly created
+
+		deleteMembershipStmt = `
+			DELETE
+				pm
+			FROM
+				policy_membership pm
+			INNER JOIN
+				hosts h
+			ON
+				pm.host_id = h.id
+			WHERE
+				pm.policy_id = ? AND
+				FIND_IN_SET(h.platform, ?) = 0`
+	)
+
+	var pols []*fleet.Policy
+	if err := sqlx.SelectContext(ctx, ds.reader, &pols, updatedPoliciesStmt, now, int(recentlyUpdatedPoliciesInterval.Seconds())); err != nil {
+		return ctxerr.Wrap(ctx, err, "select recently updated policies")
+	}
+
+	for _, pol := range pols {
+		if pol.Platform == "" {
+			continue
+		}
+
+		var expandedPlatforms []string
+		splitPlatforms := strings.Split(pol.Platform, ",")
+		for _, platform := range splitPlatforms {
+			expandedPlatforms = append(expandedPlatforms, fleet.ExpandPlatform(strings.TrimSpace(platform))...)
+		}
+
+		if _, err := ds.writer.ExecContext(ctx, deleteMembershipStmt, pol.ID, strings.Join(expandedPlatforms, ",")); err != nil {
+			return ctxerr.Wrapf(ctx, err, "delete outdated hosts membership for policy: %d; platforms: %v", pol.ID, expandedPlatforms)
+		}
+	}
+
+	return nil
 }
