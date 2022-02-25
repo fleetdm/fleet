@@ -128,7 +128,7 @@ const UserForm = ({
     sso_enabled: isSsoEnabled,
     global_role: defaultGlobalRole || null,
     teams: defaultTeams || [],
-    currentUserId: currentUserId,
+    currentUserId,
   });
 
   const [isGlobalUser, setIsGlobalUser] = useState<boolean>(
@@ -165,11 +165,11 @@ const UserForm = ({
   };
 
   const onIsGlobalUserChange = (value: string): void => {
-    const isGlobalUser = value === UserTeamType.GlobalUser;
-    setIsGlobalUser(isGlobalUser);
+    const isGlobalUserChange = value === UserTeamType.GlobalUser;
+    setIsGlobalUser(isGlobalUserChange);
     setFormData({
       ...formData,
-      global_role: isGlobalUser ? "observer" : null,
+      global_role: isGlobalUserChange ? "observer" : null,
     });
   };
 
