@@ -4,9 +4,9 @@
 
 At Fleet we use the concept of directly responsible individuals (**DRI**s), a person who is singularly responsible for a given aspect of the open source project, the product, or the company.
 
-This person is responsible for accomplishing goals and making decisions about a particular aspect of Fleet.
+This person is responsible for accomplishing goals and making decisions about a particular element of Fleet.
 
-DRIs help us collaborate efficiently by knowing exactly who is responsible, and can make decisions about the work they're doing.
+DRIs help us collaborate efficiently by knowing exactly who is responsible and can make decisions about the work they're doing.
 
 |    Aspect              										| DRI     		|
 | ----------------------------------------------------| ------------ |
@@ -37,19 +37,19 @@ DRIs help us collaborate efficiently by knowing exactly who is responsible, and 
 >You can read more about directly responsible individuals in [Gitlab's handbook](https://about.gitlab.com/handbook/people-group/directly-responsible-individuals/)
 
 ## Spending company money
-As we continue to expand our own company policies, we use [GitLab's open expense policy](https://about.gitlab.com/handbook/spending-company-money/) as a guide for company spending.
+As we continue to expand our company policies, we use [GitLab's open expense policy](https://about.gitlab.com/handbook/spending-company-money/) as a guide for company spending.
 
 In brief, this means that as a Fleet team member, you may:
 
 * Spend company money like it is your own money.
 * Be responsible for what you need to purchase or expense in order to do your job effectively.
-* Feel free to make purchases __in the interest of the company__ without asking for permission beforehand (when in doubt, do __inform__ your manager prior to purchase, or as soon as possible after the purchase).
+* Feel free to make purchases __in the company interest__ without asking for permission beforehand (when in doubt, do __inform__ your manager prior to purchase or as soon as possible after the purchase).
 
 For more developed thoughts about __spending guidelines and limits__, please read [GitLab's open expense policy](https://about.gitlab.com/handbook/spending-company-money/).
 
 ### Purchasing a company-issued device.
 
-Fleet provides laptops for team members to use while working at Fleet. As soon as an offer is accepted, `eashaw` will reach out to the new team member to start this process. `eashaw` will work with the new team member to get their laptop purchased and shipped to them.
+Fleet provides laptops for team members to use while working at Fleet. As soon as an offer is accepted, `eashaw` will reach out to the new team member to start this process. `Eashaw` will work with the new team member to get their laptop purchased and shipped to them.
 
 Most of the team at Fleet use 16" MacBook Pros, but team members are free to choose any laptop or operating system that works for them, as long as the price [is within reason](#spending-company-money).
 
@@ -76,17 +76,17 @@ This process is the same for any days you take off, regardless of whether it's a
    
 ### Holidays
 
-At Fleet, we have team members with various employment classifications in many different countries around the world. Fleet is a US company, but we think you should choose the days you want to work and what days you are on holiday, rather than being locked into any particular nation or culture's expectation about when you should take time off.
+At Fleet, we have team members with various employment classifications in many different countries worldwide. Fleet is a US company, but we think you should choose the days you want to work and what days you are on holiday, rather than being locked into any particular nation or culture's expectation about when you should take time off.
 
 When a team member joins Fleet, they pick one of the following holiday schedules:
 
  - Based on the country where you work. Non-US team members should let their managers know the dates of national holidays.
 
- **or**
+ **Or**
 
  - No set schedule, start with no holidays and add the days that are holidays to you.
 
-Either way, it's up to you to ensure that your responsibilities are covered, and your team knows that you're out of office.
+Either way, it's up to you to ensure that your responsibilities are covered and your team knows that you're out of the office.
 
 ### New Parent Leave
 
@@ -95,26 +95,26 @@ Fleet gives new parents six weeks paid leave. After six weeks, if you don't feel
 ## Meetings
 
 * At Fleet, meetings start whether you're there or not. Nevertheless, being even a few minutes late can make a big difference and slow your meeting counterparts down. When in doubt, show up a couple of minutes early.
-* It's okay to spend the first minute or two of a meeting to be present and make small talk, if you want.  Being all-remote, it's easy to miss out on hallway chatter and human connections that happen in [meatspace](https://www.dictionary.com/browse/meatspace).  Why not use this time together during the first minute to say "hi"?  Then you can jump in to the topics being discussed.
-* Turning on your camera allows for more complete and intuitive verbal and non-verbal communication.  When joining meetings with new participants who you might not be familiar with yet, feel free to leave your camera on or to turn it off.  When you lead or cohost a meeting, turn your camera on.
-* In an all-remote company, “face time” matters. Remember: even if someone’s calendar is open, they have other work to do. Limiting (or batching up) internal meetings can enable longer, uninterrupted stretches of deep work.
+* It's okay to spend the first minute or two of a meeting to be present and make small talk if you want.  Being all-remote, it's easy to miss out on hallway chatter and human connections that happen in [meatspace](https://www.dictionary.com/browse/meatspace).  Use this time together during the first minute to say "hi"?  Then you can jump into the topics being discussed.
+* Turning on your camera allows for more complete and intuitive verbal and non-verbal communication. Feel free to leave your camera on or to turn it off when joining meetings with new participants who you might not be familiar with yet.  turn your camera on when you lead or cohost a meeting.
+* In an all remote company, “face time” matters. Remember: even if someone’s calendar is open, they have other work to do. Limiting (or batching up) internal meetings can enable longer, uninterrupted stretches of deep work.
 
 ### Internal meeting scheduling
 
 Use the Google Calendar [find a meeting
 time](https://support.google.com/calendar/answer/37161?hl=en&co=GENIE.Platform%3DDesktop#zippy=%2Cfind-a-meeting-time)
 feature to coordinate meetings with Fleet team members. Enter the `@fleetdm.com` emails for each
-participant into the "Meet with..." box in Google Calendar and the calendar availability for each
+participant into the "Meet with..." box in Google Calendar, and the calendar availability for each
 participant will appear in your view. Then, when you select a meeting time, those participants will
-automatically be invited and a video conference will be attached to the invite.
+automatically be invited, and a video conference will be attached to the invite.
 
 Please prefer this strategy over negotiating meeting times via chat -- This can save a lot of
 communication overhead, especially when scheduling with multiple participants.
 
 It is important to [set your working
 hours](https://support.google.com/calendar/answer/7638168?hl=en&co=GENIE.Platform%3DDesktop) in
-Google Calendar, and block out any personal time/events/PTO so that team members do not inadvertently
-schedule time when you are not available. Many team members use the free tier of
+Google Calendar and block out any personal time/events/PTO, so that team members do not inadvertently
+schedule a time when you are not available. Many team members use the free tier of
 [reclaim.ai](https://reclaim.ai/) to synchronize personal event times (without event details) into
 their work calendars. It is also common practice to block out time for focused work.
 
@@ -138,7 +138,7 @@ We use the Zoom add-on for Google Calendar to schedule Zoom meetings when we cre
 
 Our Zoom meetings are configured to let participants join before the host starts the meeting. We do this to ensure meetings start on time, even if the host isn't there. This setting is locked across all Zoom accounts, but it **only** applies to meetings with scheduled start times.
 
-If you are organizing a recurring meeting, you need to make sure you configure the meeting room to have a start time. To set a recurring meeting's start time, go to your [upcoming meetings](https://zoom.us/meeting#/upcoming) page and find the meeting room with the same name as the calender event. Click the edit button next to the meeting room, and add the meeting's start time.
+If you are organizing a recurring meeting, you need to make sure you configure the meeting room to have a start time. To set a recurring meeting's start time, go to your [upcoming meetings](https://zoom.us/meeting#/upcoming) page and find the meeting room with the same name as the calendar event. Click the edit button next to the meeting room, and add the meeting's start time.
 
 ## Slack
 
@@ -206,9 +206,9 @@ Change the name of the documents accordingly (e.g., "[candidate's name]'s copy o
 
 2. If the new team member is in the United States, Eric will reach out to them and get any information needed (typically the new team member's home address and phone number) and send them a consulting or employment agreement through [Docusign](https://www.docusign.com/). If the new team member is an international employee or contractor, Eric will start the hiring process in [Pilot](https://pilot.co/).
 
-   >**_Note:_** *International contractor and employment agreements are handled by the Pilot.co when you start the hiring process.*
+   >**_Note:_** *International contractor and employment agreements are handled by Pilot.co when you start the hiring process.*
 
-3. **For US employees/contractors** After an agreement is signed and stored in the correct Google Drive folder, Eric will start onboarding the new team member in [Gusto](https://www.gusto.com/). If the new team member is a W-2 employee, Eric will reach out to them and schedule an I-9 verification meeting. 
+3. **For US employees/contractors:** After an agreement is signed and stored in the correct Google Drive folder, Eric will start onboarding the new team member in [Gusto](https://www.gusto.com/). If the new team member is a W-2 employee, Eric will reach out to them and schedule an I-9 verification meeting. 
 
    >**_Note:_** *If we're hiring in a new state, we'll have to register for state taxes and unemployment. This process can be handled by Gusto. Usually.*
 
@@ -217,7 +217,7 @@ Change the name of the documents accordingly (e.g., "[candidate's name]'s copy o
 ### Onboarding a new advisor.
 
 Advisor agreements are sent through [DocuSign](https://www.docusign.com/), using the "Advisor Agreement"
-template. To send a new advisor agreement, you'll need the new advisor's name, and the number of shares they
+template. To send a new advisor agreement, you'll need the new advisor's name and the number of shares they
 are offered. 
 
 Once the agreement is sent, add a new row to the [advisory board spreadsheet](https://docs.google.com/spreadsheets/d/15knBE2-PrQ1Ad-QcIk0mxCN-xFsATKK9hcifqrm0qFQ/edit#gid=1803674483) and enter the new advisor's information. Use this spreadsheet to track the advisor's progress through the onboarding process.
