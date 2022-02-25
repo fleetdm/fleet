@@ -28,6 +28,7 @@ import {
   IEnrollSecret,
   IEnrollSecretsResponse,
 } from "interfaces/enroll_secret";
+import { IApiError } from "interfaces/errors";
 import { IHost } from "interfaces/host";
 import { ILabel, ILabelFormData } from "interfaces/label";
 import { IPolicy } from "interfaces/policy";
@@ -258,6 +259,9 @@ const ManageHostsPage = ({
     currentQueryOptions,
     setCurrentQueryOptions,
   ] = useState<ILoadHostsOptions>();
+  const [labelValidator, setLabelValidator] = useState<{
+    [key: string]: string;
+  }>({});
 
   // ======== end states
 
@@ -874,30 +878,74 @@ const ManageHostsPage = ({
     }
   };
 
-  const onEditLabel = async (formData: ILabelFormData) => {
+  const onEditLabel = (formData: ILabelFormData) => {
     if (!selectedLabel) {
       console.error("Label isn't available. This should not happen.");
       return;
     }
 
     const updateAttrs = deepDifference(formData, selectedLabel);
-    try {
-      await labelsAPI.update(selectedLabel, updateAttrs);
-      refetchLabels();
-      router.push(`${PATHS.MANAGE_HOSTS}/${getLabelSelected()}`);
-      dispatch(
-        renderFlash(
-          "success",
-          "Label updated. Try refreshing this page in just a moment to see the updated host count for your label."
-        )
-      );
-    } catch (error) {
-      console.error(error);
-      dispatch(
-        renderFlash("error", "Could not create label. Please try again.")
-      );
-    }
+    console.log("updateAttrs?!!!!!!!!", updateAttrs);
+    labelsAPI
+      .update(selectedLabel, updateAttrs)
+      .then(() => {
+        refetchLabels();
+        dispatch(
+          renderFlash(
+            "success",
+            "Label updated. Try refreshing this page in just a moment to see the updated host count for your label."
+          )
+        );
+        setLabelValidator({});
+      })
+      .catch((updateError: { data: IApiError }) => {
+        console.log("updateError.data.errors[0]", updateError.data.errors[0]);
+        if (updateError.data.errors[0].reason.includes("Duplicate")) {
+          setLabelValidator({
+            name: "A label with this name already exists",
+          });
+        } else {
+          dispatch(
+            renderFlash("error", "Could not create team. Please try again.")
+          );
+        }
+      });
   };
+
+  // const onEditLabel = async (formData: ILabelFormData) => {
+  //   if (!selectedLabel) {
+  //     console.error("Label isn't available. This should not happen.");
+  //     return;
+  //   }
+  //   console.log("Label edit hit.");
+  //   const updateAttrs = deepDifference(formData, selectedLabel);
+  // try {
+  //   await labelsAPI.update(selectedLabel, updateAttrs);
+  //   refetchLabels();
+  //   router.push(`${PATHS.MANAGE_HOSTS}/${getLabelSelected()}`);
+  //   dispatch(
+  //     renderFlash(
+  //       "success",
+  //       "Label updated. Try refreshing this page in just a moment to see the updated host count for your label."
+  //     )
+  //   );
+  // } catch (updateError: any) {
+  //   console.error(updateError);
+  //   console.error(
+  //     "updateError.data.errors[0].reason",
+  //     updateError.data.errors[0].reason
+  //   );
+  //   if (updateError.data.errors[0].reason.includes("Duplicate")) {
+  //     setLabelValidator({
+  //       name: "A label with this name already exists",
+  //     });
+  //   } else {
+  //     dispatch(
+  //       renderFlash("error", "Could not create label. Please try again.")
+  //     );
+  //   }
+  // }
+  // };
 
   const onLabelClick = (label: ILabel) => {
     return (evt: React.MouseEvent<HTMLButtonElement>) => {
@@ -910,26 +958,62 @@ const ManageHostsPage = ({
     setSelectedOsqueryTable(tableName);
   };
 
-  const onSaveAddLabel = async (formData: ILabelFormData) => {
-    try {
-      await labelsAPI.create(formData);
-      router.push(PATHS.MANAGE_HOSTS);
-      refetchLabels();
-
-      // TODO flash messages are not visible seemingly because of page renders
-      dispatch(
-        renderFlash(
-          "success",
-          "Label created. Try refreshing this page in just a moment to see the updated host count for your label."
-        )
-      );
-    } catch (error) {
-      console.error(error);
-      dispatch(
-        renderFlash("error", "Could not create label. Please try again.")
-      );
-    }
+  const onSaveAddLabel = (formData: ILabelFormData) => {
+    labelsAPI
+      .create(formData)
+      .then(() => {
+        router.push(PATHS.MANAGE_HOSTS);
+        dispatch(
+          renderFlash(
+            "success",
+            "Label created. Try refreshing this page in just a moment to see the updated host count for your label."
+          )
+        );
+        setLabelValidator({});
+        refetchLabels();
+      })
+      .catch((updateError: any) => {
+        console.log("updateError??", updateError);
+        if (updateError.data.errors[0].reason.includes("Duplicate")) {
+          console.log("Is this hit?");
+        }
+        //   setLabelValidator({
+        //     name: "A label with this name already exists",
+        //   });
+        // } else {
+        //   dispatch(
+        //     renderFlash("error", "Could not create label. Please try again.")
+        //   );
+        // }
+      });
   };
+
+  // const onSaveAddLabel = async (formData: ILabelFormData) => {
+  //   try {
+  //     await labelsAPI.create(formData);
+  //     router.push(PATHS.MANAGE_HOSTS);
+  //     refetchLabels();
+
+  //     // TODO flash messages are not visible seemingly because of page renders
+  //     dispatch(
+  //       renderFlash(
+  //         "success",
+  //         "Label created. Try refreshing this page in just a moment to see the updated host count for your label."
+  //       )
+  //     );
+  //   } catch (error) {
+  //     console.error(error);
+  //     if (error.data.errors[0].reason.includes("Duplicate")) {
+  //       setLabelValidator({
+  //         name: "A label with this name already exists",
+  //       });
+  //     } else {
+  //       dispatch(
+  //         renderFlash("error", "Could not create label. Please try again.")
+  //       );
+  //     }
+  //   }
+  // };
 
   const onDeleteLabel = async () => {
     if (!selectedLabel) {
@@ -1393,6 +1477,7 @@ const ManageHostsPage = ({
             onOsqueryTableSelect={onOsqueryTableSelect}
             handleSubmit={onSaveAddLabel}
             baseError={labelsError?.message || ""}
+            backendValidators={labelValidator}
           />
         </div>
       );
@@ -1407,6 +1492,7 @@ const ManageHostsPage = ({
             onOsqueryTableSelect={onOsqueryTableSelect}
             handleSubmit={onEditLabel}
             baseError={labelsError?.message || ""}
+            backendValidators={labelValidator}
             isEdit
           />
         </div>

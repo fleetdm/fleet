@@ -14,8 +14,9 @@ interface ILabelFormProps {
   selectedLabel?: ILabel;
   isEdit?: boolean;
   onCancel: () => void;
-  handleSubmit: (formData: ILabelFormData) => Promise<void>;
+  handleSubmit: (formData: ILabelFormData) => void;
   onOsqueryTableSelect?: (tableName: string) => void;
+  backendValidators: { [key: string]: string };
 }
 
 const baseClass = "label-form";
@@ -42,9 +43,10 @@ const LabelForm = ({
   onCancel,
   handleSubmit,
   onOsqueryTableSelect,
+  backendValidators,
 }: ILabelFormProps) => {
   const [name, setName] = useState<string>(selectedLabel?.name || "");
-  const [nameError, setNameError] = useState<string>("");
+  const [nameError, setNameError] = useState<string>(backendValidators.name);
   const [description, setDescription] = useState<string>(
     selectedLabel?.description || ""
   );
