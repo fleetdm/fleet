@@ -3,7 +3,7 @@
 ### [Introduction](./Introduction.md) 
 Provides an introduction to Fleet and its requirements and dependencies.
 
-### [Server Installation](./Server-Installation.md) 
+### [Server installation](./Server-Installation.md) 
 Includes deployment walkthroughs for Fleet on CentOS, Ubuntu, Docker, Kubernetes, and building from source.
 
 ### [Configuration](./Configuration.md) 
@@ -12,7 +12,7 @@ Includes resources for configuring the Fleet binary, managing osquery configurat
 ### [Self-managed agent updates](./fleetctl-agent-updates.md)
 Information about running an update server with fleetctl.
 
-### [Load Testing](./Load-testing.md)
+### [Load testing](./Load-testing.md)
 Information about running an update server with fleetctl.
 
 ### [Upgrading Fleet](./Upgrading-Fleet.md) 

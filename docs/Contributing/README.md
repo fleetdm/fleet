@@ -9,13 +9,13 @@ Includes documentation about Fleet's full test suite and integration tests
 ### [Migrations](./Migrations.md)
 Information about creating and updating database migrations
 
-### [Committing Changes](./Committing-Changes.md) 
+### [Committing changes](./Committing-Changes.md) 
 Contains information about how to merge changes into the codebase
 
 ### [Releasing Fleet](./Releasing-Fleet.md) 
 Provides a guide for Fleet's release process
 
-### [Seeding Data](./Seeding-Data.md) 
+### [Seeding data](./Seeding-Data.md) 
 Provides a guide for adding fake data to your development instance
 
 ### [API for contributors](./API-for-contributors.md) 
