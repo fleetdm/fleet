@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { IAceEditor } from "react-ace/lib/types";
 import { noop } from "lodash";
 
@@ -46,7 +46,7 @@ const LabelForm = ({
   backendValidators,
 }: ILabelFormProps) => {
   const [name, setName] = useState<string>(selectedLabel?.name || "");
-  const [nameError, setNameError] = useState<string>(backendValidators.name);
+  const [nameError, setNameError] = useState<string>("");
   const [description, setDescription] = useState<string>(
     selectedLabel?.description || ""
   );
@@ -55,6 +55,10 @@ const LabelForm = ({
   const [platform, setPlatform] = useState<string>(
     selectedLabel?.platform || ""
   );
+
+  useEffect(() => {
+    setNameError(backendValidators.name);
+  }, [backendValidators]);
 
   const onLoad = (editor: IAceEditor) => {
     editor.setOptions({
@@ -80,6 +84,7 @@ const LabelForm = ({
 
   const onNameChange = (value: string) => {
     setName(value);
+    setNameError("");
   };
 
   const onDescriptionChange = (value: string) => {

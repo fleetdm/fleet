@@ -86,7 +86,7 @@ const FleetAce = ({
 
     return (
       <div className={labelClassName}>
-        <p>{labelText}</p>
+        {labelText}
         {labelActionComponent}
       </div>
     );
