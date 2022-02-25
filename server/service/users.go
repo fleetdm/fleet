@@ -574,6 +574,12 @@ func (svc *Service) modifyEmailAddress(ctx context.Context, user *fleet.User, em
 		return err
 	}
 	token := base64.URLEncoding.EncodeToString([]byte(random))
+
+	_, err = svc.ds.UserByEmail(ctx, email)
+	if err == nil {
+		return ctxerr.Wrap(ctx, alreadyExistsError{})
+	}
+
 	err = svc.ds.PendingEmailChange(ctx, user.ID, email, token)
 	if err != nil {
 		return err

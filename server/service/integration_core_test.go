@@ -2318,6 +2318,18 @@ func (s *integrationTestSuite) TestUsers() {
 	assert.Equal(t, u.ID, modResp.User.ID)
 	assert.Equal(t, u.Name+"z", modResp.User.Name)
 
+	// modify that user - set an existing email
+	params = fleet.UserPayload{
+		Email: &getMeResp.User.Email,
+	}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/users/%d", u.ID), params, http.StatusConflict, &modResp)
+
+	// modify that user - set an existing email
+	params = fleet.UserPayload{
+		Email: ptr.String("someemail@qowieuowh.com"),
+	}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/users/%d", u.ID), params, http.StatusOK, &modResp)
+
 	// modify user - email change, password does not match
 	params = fleet.UserPayload{
 		Email:    ptr.String("extra2@asd.com"),
