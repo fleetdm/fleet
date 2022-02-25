@@ -389,15 +389,42 @@ func GenUbuntuSqlite(db *sql.DB, fixedCVEs FixedCVEs) error {
 		return err
 	}
 
-	query := fmt.Sprintf(`
-REPLACE INTO %s (name, version, cves)
-VALUES (?, ?, ?)
-`, UbuntuFixedCVEsTable)
-
+	// convert to slice and insert in chunks
+	type PackageCVEs struct {
+		Name    string
+		Version string
+		CVEs    string
+	}
+	pkgCVEs := make([]PackageCVEs, 0, len(fixedCVEs))
 	for pkg, cves := range fixedCVEs {
 		cvesStr := strings.Join(cves, ",")
-		_, err := db.Exec(query, pkg.Name, pkg.Version, cvesStr)
-		if err != nil {
+		pkgCVEs = append(pkgCVEs, PackageCVEs{pkg.Name, pkg.Version, cvesStr})
+	}
+
+	// process in chunks, much faster than inserting individually
+	// Sqlite has max number of variables, see SQLITE_MAX_VARIABLE_NUMBER. Default is 32766 for sqlite > 3.32.0
+	chunkSize := 32766 / 3
+
+	for i := 0; i < len(fixedCVEs); i += chunkSize {
+		end := i + chunkSize
+		if end > len(fixedCVEs) {
+			end = len(fixedCVEs)
+		}
+		chunk := pkgCVEs[i:end]
+
+		query := fmt.Sprintf(`
+REPLACE INTO %s (name, version, cves)
+VALUES
+`, UbuntuFixedCVEsTable)
+
+		query += strings.TrimSuffix(strings.Repeat("(?, ?, ?),", len(chunk)), ",")
+
+		var args []interface{}
+		for _, x := range chunk {
+			args = append(args, x.Name, x.Version, x.CVEs)
+		}
+
+		if _, err := db.Exec(query, args...); err != nil {
 			return err
 		}
 	}
