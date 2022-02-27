@@ -235,5 +235,5 @@ If you would like to manage hosts that can travel outside your VPN or intranet w
 
 Fleet requires at least MySQL version 5.7.
 
-## How do I migrate from Fleet Free to Fleet Premium
+## How do I migrate from Fleet Free to Fleet Premium?
 To migrate from Fleet Free to Fleet Premium, once you get a Fleet license, set it as a parameter to `fleet serve` either as an environment variable using `FLEET_LICENSE_KEY` or in the Fleet's config file. See [here](https://fleetdm.com/docs/deploying/configuration#license) for more details. Note: You don't need to redeploy Fleet after the migration.
