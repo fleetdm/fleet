@@ -55,22 +55,23 @@ Empathy leads to better understanding, better communication, and better decision
   > You would rest easier, knowing that everyone who works at Fleet is seeking to deliver the experience they would want for themselves, in your shoes. -->
 - consider your counterpart
   - for example: customers, contributors, the other person in your Zoom meeting, the other folks in a Slack channel, the people who use software and APIs you build, the people following the processes you design.
-  - don't be afraid to rely on your imagination to understand 
   - ask questions like you would want to be asked
-- assume positive intent
-- be kind
+  - assume positive intent
+  - be kind
+  - be punctual
+  - end meetings on time
 - role play as a user, contributor, or colleague
-- be punctual
-- end meetings on time
+  - don't be afraid to rely on your imagination to understand 
+  - developers are users too (REST API, fleetctl, docs)
+  - contributor experience matters (but product quality and commitments come first)
+<!-- TODO: This commented-out one is too hard to explain concisely, probably best to just leave it out
+- design by consumer (closeness to the work)-->
 - bugs cause frustrating experiences and alienate users
-- confusing error messages make people feel helpless, and can fill them with despair
+  - confusing error messages make people feel helpless, and can fill them with despair
   - error messages deserve to be good (it's worth it to spend time on them)
   - UI help text and labels deserve to be good (it's worth it to spend time on them)
-- contributor experience (but quality and commitments first)
-- developers are users too (REST API, fleetctl, docs)
-- design by consumer (closeness to the work)
-- prioritize simplicity: people crave mental space (in design, in collaboration)
 - simplify
+  - prioritize simplicity: people crave mental space (in design, in collaboration)
   - reduce cognitive load via clarity, simpler words, fewer acronyms and idioms that might not translate
   - use fewer words (lots of text == lots of work)
   - but think fast, because i.e. "I would have written a shorter letter, but I did not have the time." -Blaise Pascal
@@ -86,6 +87,7 @@ Empathy leads to better understanding, better communication, and better decision
 
 
 ### Ownership
+<!-- TODO: write short preamble, like the others --> 
 - take responsibility
   - follow through on commitments (actions match your words)
   - think like an owner
@@ -117,7 +119,18 @@ Empathy leads to better understanding, better communication, and better decision
 ### Balance
 Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.org/wiki/Golden_mean_%28philosophy%29).
 
-- think, fast
+- think, fast (balance thoughtfulness and planning with moving quickly)
+- move quickly
+  - "everything is in draft"
+  - iterate by taking baby steps
+  - pick low-hanging fruit (deliver value quickly where you can)
+  - avoid gold-plating
+  - aim to deliver daily
+  - move quicker than 90% of the humans you know
+- take pride in your work
+  - reread anything you write for users
+  - you don't need permission to be thoughtful
+  - every real-world edge case deserves handling (be thorough)
 - think for yourself
   - from first principles
   - use reason
@@ -126,56 +139,46 @@ Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.
   - to help you bring your best self when communicating with others, making decisions, etc
   - consider taking a break and going for a walk
   - think about how to best organize your day/work hours to fit your life and maximize your focus
-- take pride in your work
-  - reread anything you write for users
-  - you don't need permission to be thoughtful
-  - every real-world edge case deserves handling (be thorough)
-- move quickly
-  - balance thoughtfulness and planning, with moving quickly
-  - "everything is in draft"
-  - iterate by taking baby steps
-  - pick low-hanging fruit (deliver value quickly where you can)
-  - avoid gold-plating
-  - aim to deliver daily
-  - move quicker than 90% of the humans you know
 - legendary execution
 
 
 ### Objectivity
-- be wrong
-- show your work
-- be honest
-- "may the best product win."
-  - be fair to competitors
-- be realistic (practical about your limits and what's possible with the time and resources we have)
-- speak computer to computers (assume it's your fault)
-- question yourself (why do I think this?)
-- use the scientific method when something isn't working
-  - when something isn't working, don't make assumptions
-- listen intently, and genuinely try to understand
-- facts, over commentary
-- ask great questions & take the time to truly listen
+<!-- TODO: write short preamble, like the others --> 
 - "strong opinions, loosely held"
-- prioritize truth (reality)
-- beware sunk cost fallacy (avoid getting attached to something just because you invested time working on it, or came up with it)
 - be curious
+  - listen intently, and genuinely try to understand
+  - ask great questions & take the time to truly listen
+- be realistic 
+  - practical about your limits and what's possible with the time and resources we have
+  - question yourself ("why do I think this?")
+  - avoid sunk cost fallacy (getting attached to something just because you invested time working on it, or came up with it)
+  - be fair to competitors ("may the best product win.")
+- prioritize truth (reality)
+  - be wrong
+  - show your work
+  - facts, over commentary
+- speak computer to computers
+  - when something isn't working, use the scientific method
+  - assume it's your fault
+  - assume nothing else
 - legendary rigour
 
 ### Openness
 The majority of the code, documentation, and content we create at Fleet is public and source-available, and we strive to be broadly open and transparent in the way we run the business; as much as confidentiality agreements (and time) allow. We perform better with an audience, and our audience performs better with us.
 
-- be transparent
-- candor (faster, better decisions)
-- speak up (don't be afraid to ask questions, be direct, and interrupt)
-- [open source is forever](https://twitter.com/mikermcneil/status/1476799587423772674)
-- "public by default"
-- declassify with care
-- be outsider-friendly (inclusive, approachable)
-  - prioritize accessible terminology and simple explanations to provide value to the largest possible audience of users
-  - [use small words](http://www.paulgraham.com/writing44.html) so readers understand more easily
 - anyone can contribute
-- open source stewardship: the majority of the features Fleet releases [will be free](https://fleetdm.com/pricing)
-- believe in everyone
+  - be outsider-friendly, inclusive, and approachable
+  - [use small words](http://www.paulgraham.com/writing44.html) so readers understand more easily
+  - prioritize accessible terminology and simple explanations to provide value to the largest possible audience of users
+  - believe in everyone
+- candor
+  - faster, better decisions
+  - don't be afraid to speak up (ask questions, be direct, and interrupt)
+- be transparent
+  - "public by default"
+  - declassify with care (easier to overlook confidential info when declassifying vs. when changing something that is already public from the get-go)
+  - open source stewardship: the majority of the features Fleet releases [will be free](https://fleetdm.com/pricing)
+  - [open source is forever](https://twitter.com/mikermcneil/status/1476799587423772674)
 - legendary transparency
 
 
