@@ -144,10 +144,12 @@ Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.
 
 ### Objectivity
 <!-- TODO: write short preamble, like the others --> 
-- "strong opinions, loosely held"
 - be curious
-  - listen intently, and genuinely try to understand
+  - "strong opinions, loosely held"
   - ask great questions & take the time to truly listen
+  - listen intently, and genuinely try to understand
+  - change your mind (in the face of new evidence)
+  - it's better to make the right decision than it is to be right
 - be realistic 
   - practical about your limits and what's possible with the time and resources we have
   - question yourself ("why do I think this?")
