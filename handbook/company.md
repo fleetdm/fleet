@@ -126,7 +126,7 @@ Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.
   - believe in your brain's capacity to evaluate a solution or idea, regardless of how popular it is
 - make time for self-care
   - to help you bring your best self when communicating with others, making decisions, etc
-  - consider taking a break and going for a walk
+  - consider taking a break or going for a walk
   - think about how to best organize your day/work hours to fit your life and maximize your focus
 - legendary execution
 
