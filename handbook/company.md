@@ -31,15 +31,15 @@ Zach partnered with our CEO, Mike McNeil, to found a new, independent company: F
 
 Fleet's values are a set of five ideals adopted by everyone on the team.  They describe the culture we are working together to deliver, inside and outside the company:
 
-1. Empathy
-2. Ownership
-3. Balance
-4. Objectivity
-5. Openness
+1. 🔴 Empathy
+2. 🟠 Ownership
+3. 🟢 Balance
+4. 🔵 Objectivity
+5. 🟣 Openness
 
 When a new team member joins Fleet, they adopt the values, from day 1.  This way, even as the company grows, everybody knows what to expect from the people they work with.  Having a shared mindset keeps us quick and determined.
 
-### Empathy
+### 🔴 Empathy
 Empathy leads to better understanding, better communication, and better decisions.  Try to understand what people may be going through, so you can help make it better.
 
 - be customer first
@@ -84,7 +84,7 @@ Empathy leads to better understanding, better communication, and better decision
 - legendary digital/human experience
 
 
-### Ownership
+### 🟠 Ownership
 <!-- TODO: write short preamble, like the others --> 
 - take responsibility
   - follow through on commitments (actions match your words)
@@ -114,7 +114,7 @@ Empathy leads to better understanding, better communication, and better decision
   - focus on fewer tasks at one time
 - legendary results
 
-### Balance
+### 🟢 Balance
 Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.org/wiki/Golden_mean_%28philosophy%29).
 
 - think, fast (balance thoughtfulness and planning with moving quickly)
@@ -140,7 +140,7 @@ Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.
 - legendary execution
 
 
-### Objectivity
+### 🔵 Objectivity
 <!-- TODO: write short preamble, like the others --> 
 - be curious
  - "strong opinions, loosely held"
@@ -163,7 +163,7 @@ Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.
   - assume nothing else
 - legendary rigour
 
-### Openness
+### 🟣 Openness
 The majority of the code, documentation, and content we create at Fleet is public and source-available, and we strive to be broadly open and transparent in the way we run the business; as much as confidentiality agreements (and time) allow. We perform better with an audience, and our audience performs better with us.
 
 - anyone can contribute
