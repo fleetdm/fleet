@@ -69,15 +69,14 @@ Empathy leads to better understanding, better communication, and better decision
 - contributor experience (but quality and commitments first)
 - developers are users too (REST API, fleetctl, docs)
 - design by consumer (closeness to the work)
-- use fewer words (lots of text == lots of work)
 - prioritize simplicity: people crave mental space (in design, in collaboration)
-- cognitive unload (via clarity, fewer and smaller words, fewer acronyms and idioms that might not translate)
-- but think fast, because i.e. "I would have written a shorter letter, but I did not have the time." -Blaise Pascal
+- simplify
+  - reduce cognitive load via clarity, simpler words, fewer acronyms and idioms that might not translate
+  - use fewer words (lots of text == lots of work)
+  - but think fast, because i.e. "I would have written a shorter letter, but I did not have the time." -Blaise Pascal
 - hospitality
   - "be a helper"   -mr rogers
   - think and say [positive things](https://www.theatlantic.com/family/archive/2018/06/mr-rogers-neighborhood-talking-to-kids/562352/)
-  - be outsider-friendly (inclusive)
-  - approachable
   - talking with users and contributors is time well spent
   - embrace the excitement of others (it's contagious)
   - make small talk at the beginning of meetings
@@ -88,21 +87,24 @@ Empathy leads to better understanding, better communication, and better decision
 
 ### Ownership
 - take responsibility
-- follow through on commitments (actions match your words)
-- prioritize honesty and kindness
-- think like an owner
-- be efficient
-- be valuable (consider business impact)
+  - follow through on commitments (actions match your words)
+  - think like an owner
+  - be efficient
+  - be valuable (consider business impact)
 - work on things that matter
   - fast forward 12 months, consider total cost of ownership (the eternity of maintenance)
   - understand why, or tell me why I'm wrong
   - agree, or disagree and commit anyway
-- make time for self-care (to help you bring your best self when communicating with others, making decisions, etc)
-   - consider taking a break and going for a walk
-   - think about how to best organize your day/work hours to fit your life while maximizing value for the company
-- help unblock users, customers, and other contributors (including colleagues)
-- help team members and contributors get all the way done, delivered all the way to completion
-- we win or lose together (it's worth it to help team members and contributors)
+- we win or lose together
+  - it's worth it to help team members and contributors
+  - help unblock users, customers, and other contributors (including colleagues)
+  - help team members and contributors get all the way done, delivered all the way to completion
+- take yourself seriously
+  - on a hero's journey
+  - even boring tasks are more motivating, fun, and effective when you care
+  - motivate yourself intrinsically with self-talk
+  - understand "why?"
+  - take your ideas seriously (great ideas come from everyone, write them out and see if they have merit)
 - less is more
   - "boring solutions"
   - prefer short calls to long, asynchronous back and forth discussions in Slack
@@ -110,41 +112,39 @@ Empathy leads to better understanding, better communication, and better decision
   - bite off what you can chew
   - finish what you start, or at least throw it away loudly in case someone wants it
   - focus on fewer tasks at one time
-- legendary execution
+- legendary results
 
 ### Balance
 Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.org/wiki/Golden_mean_%28philosophy%29).
 
 - think, fast
-- think for yourself (only you can)
-- from first principles
-- use reason
+- think for yourself
+  - from first principles
+  - use reason
   - believe in your brain's capacity to evaluate a solution or idea, regardless of how popular it is
-- take your own ideas seriously (great ideas come from everyone, write them out and see if they have merit)
-- take your own results seriously
-  - on a hero's journey
-  - you are capable of epic results
-  - even boring tasks are more motivating, fun, and effective when you care
-  - motivate yourself intrinsically with self-talk
-  - understand "why?"
-- be crafty
-- take pride in your results
+- make time for self-care
+  - to help you bring your best self when communicating with others, making decisions, etc
+  - consider taking a break and going for a walk
+  - think about how to best organize your day/work hours to fit your life and maximize your focus
+- take pride in your work
   - reread anything you write for users
   - you don't need permission to be thoughtful
   - every real-world edge case deserves handling (be thorough)
-- BUT balance thoughtfulness and planning, with moving quickly:
-- "everything is in draft"
-- pick low-hanging fruit (deliver value quickly where you can)
-- avoid gold-plating
-- aim to deliver daily
-- move quicker than 90% of the humans you know
-- iterate by taking baby steps
-- legendary results
+- move quickly
+  - balance thoughtfulness and planning, with moving quickly
+  - "everything is in draft"
+  - iterate by taking baby steps
+  - pick low-hanging fruit (deliver value quickly where you can)
+  - avoid gold-plating
+  - aim to deliver daily
+  - move quicker than 90% of the humans you know
+- legendary execution
 
 
 ### Objectivity
 - be wrong
 - show your work
+- be honest
 - "may the best product win."
   - be fair to competitors
 - be realistic (practical about your limits and what's possible with the time and resources we have)
@@ -170,12 +170,13 @@ The majority of the code, documentation, and content we create at Fleet is publi
 - [open source is forever](https://twitter.com/mikermcneil/status/1476799587423772674)
 - "public by default"
 - declassify with care
-- prioritize accessible terminology and simple explanations to provide value to the largest possible audience of users
-- [use small words](http://www.paulgraham.com/writing44.html) so readers understand more easily
+- be outsider-friendly (inclusive, approachable)
+  - prioritize accessible terminology and simple explanations to provide value to the largest possible audience of users
+  - [use small words](http://www.paulgraham.com/writing44.html) so readers understand more easily
 - anyone can contribute
-- open source stewardship: the majority of the features Fleet releases will be free, [etc](https://fleetdm.com/pricing)
+- open source stewardship: the majority of the features Fleet releases [will be free](https://fleetdm.com/pricing)
 - believe in everyone
-- legendary hospitality
+- legendary transparency
 
 
 
