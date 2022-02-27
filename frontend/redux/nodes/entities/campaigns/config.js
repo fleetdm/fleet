@@ -15,3 +15,5 @@ export default new Config({
   entityName: "campaigns",
   schema,
 });
+
+export const initialState = Object.assign({}, Config.initialState);
