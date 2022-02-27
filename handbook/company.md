@@ -64,8 +64,6 @@ Empathy leads to better understanding, better communication, and better decision
   - don't be afraid to rely on your imagination to understand 
   - developers are users too (REST API, fleetctl, docs)
   - contributor experience matters (but product quality and commitments come first)
-<!-- TODO: This commented-out one is too hard to explain concisely, probably best to just leave it out
-- design by consumer (closeness to the work)-->
 - bugs cause frustrating experiences and alienate users
   - confusing error messages make people feel helpless, and can fill them with despair
   - error messages deserve to be good (it's worth it to spend time on them)
