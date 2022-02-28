@@ -910,7 +910,7 @@ const ManageHostsPage = ({
           });
         } else {
           dispatch(
-            renderFlash("error", "Could not create team. Please try again.")
+            renderFlash("error", "Could not create label. Please try again.")
           );
         }
       });

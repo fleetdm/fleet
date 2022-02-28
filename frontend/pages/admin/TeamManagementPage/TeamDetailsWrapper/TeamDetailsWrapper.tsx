@@ -332,6 +332,7 @@ const TeamDetailsWrapper = ({
             dispatch(
               renderFlash("error", "Could not create team. Please try again.")
             );
+            toggleEditTeamModal();
           }
         });
     },

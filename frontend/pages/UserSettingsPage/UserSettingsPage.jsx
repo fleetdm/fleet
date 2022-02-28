@@ -189,12 +189,12 @@ export class UserSettingsPage extends Component {
           dispatch(
             renderFlash(
               "error",
-              `A user with this email address already exists.`
+              "A user with this email address already exists."
             )
           );
         } else {
           dispatch(
-            renderFlash("error", `Could not edit user. Please try again.`)
+            renderFlash("error", "Could not edit user. Please try again.")
           );
         }
         this.setState({ showEmailModal: false });

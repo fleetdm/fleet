@@ -110,6 +110,7 @@ const TeamManagementPage = (): JSX.Element => {
             dispatch(
               renderFlash("error", "Could not create team. Please try again.")
             );
+            toggleCreateTeamModal();
           }
         });
     },
