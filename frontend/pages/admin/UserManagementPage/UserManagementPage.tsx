@@ -250,12 +250,6 @@ const UserManagementPage = (): JSX.Element => {
             setCreateUserErrors({
               email: "A user with this email address already exists",
             });
-          } else if (
-            userErrors.data.errors[0].reason.includes("already invited")
-          ) {
-            setCreateUserErrors({
-              email: "A user with this email address has already been invited",
-            });
           } else {
             dispatch(
               renderFlash("error", "Could not create user. Please try again.")
