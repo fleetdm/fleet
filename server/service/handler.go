@@ -32,7 +32,6 @@ type FleetEndpoints struct {
 	PerformRequiredPasswordReset endpoint.Endpoint
 	VerifyInvite                 endpoint.Endpoint
 	EnrollAgent                  endpoint.Endpoint
-	SubmitLogs                   endpoint.Endpoint
 	CarveBlock                   endpoint.Endpoint
 	InitiateSSO                  endpoint.Endpoint
 	CallbackSSO                  endpoint.Endpoint
@@ -66,8 +65,6 @@ func MakeFleetServerEndpoints(svc fleet.Service, urlPrefix string, limitStore th
 
 		// Osquery endpoints
 		EnrollAgent: logged(makeEnrollAgentEndpoint(svc)),
-		// Authenticated osquery endpoints
-		SubmitLogs: authenticatedHost(svc, logger, makeSubmitLogsEndpoint(svc)),
 		// For some reason osquery does not provide a node key with the block
 		// data. Instead the carve session ID should be verified in the service
 		// method.
@@ -84,7 +81,6 @@ type fleetHandlers struct {
 	PerformRequiredPasswordReset http.Handler
 	VerifyInvite                 http.Handler
 	EnrollAgent                  http.Handler
-	SubmitLogs                   http.Handler
 	CarveBlock                   http.Handler
 	InitiateSSO                  http.Handler
 	CallbackSSO                  http.Handler
@@ -105,7 +101,6 @@ func makeKitHandlers(e FleetEndpoints, opts []kithttp.ServerOption) *fleetHandle
 		PerformRequiredPasswordReset: newServer(e.PerformRequiredPasswordReset, decodePerformRequiredPasswordResetRequest),
 		VerifyInvite:                 newServer(e.VerifyInvite, decodeVerifyInviteRequest),
 		EnrollAgent:                  newServer(e.EnrollAgent, decodeEnrollAgentRequest),
-		SubmitLogs:                   newServer(e.SubmitLogs, decodeSubmitLogsRequest),
 		CarveBlock:                   newServer(e.CarveBlock, decodeCarveBlockRequest),
 		InitiateSSO:                  newServer(e.InitiateSSO, decodeInitiateSSORequest),
 		CallbackSSO:                  newServer(e.CallbackSSO, decodeCallbackSSORequest),
@@ -294,7 +289,6 @@ func attachFleetAPIRoutes(r *mux.Router, h *fleetHandlers) {
 	r.Handle("/api/v1/fleet/users", h.CreateUserWithInvite).Methods("POST").Name("create_user_with_invite")
 	r.Handle("/api/v1/fleet/invites/{token}", h.VerifyInvite).Methods("GET").Name("verify_invite")
 	r.Handle("/api/v1/osquery/enroll", h.EnrollAgent).Methods("POST").Name("enroll_agent")
-	r.Handle("/api/v1/osquery/log", h.SubmitLogs).Methods("POST").Name("submit_logs")
 	r.Handle("/api/v1/osquery/carve/block", h.CarveBlock).Methods("POST").Name("carve_block")
 }
 
@@ -444,6 +438,7 @@ func attachNewStyleFleetAPIRoutes(r *mux.Router, svc fleet.Service, logger kitlo
 	he.POST("/api/_version_/osquery/distributed/read", getDistributedQueriesEndpoint, getDistributedQueriesRequest{})
 	he.POST("/api/_version_/osquery/distributed/write", submitDistributedQueryResultsEndpoint, submitDistributedQueryResultsRequestShim{})
 	he.POST("/api/_version_/osquery/carve/begin", carveBeginEndpoint, carveBeginRequest{})
+	he.POST("/api/_version_/osquery/log", submitLogsEndpoint, submitLogsRequest{})
 }
 
 // TODO: this duplicates the one in makeKitHandler

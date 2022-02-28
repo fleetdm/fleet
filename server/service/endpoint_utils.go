@@ -2,6 +2,7 @@ package service
 
 import (
 	"bufio"
+	"compress/gzip"
 	"context"
 	"encoding/json"
 	"errors"
@@ -97,8 +98,18 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 		if _, err := buf.Peek(1); err == io.EOF {
 			nilBody = true
 		} else {
+			var body io.Reader = buf
+			if r.Header.Get("content-encoding") == "gzip" {
+				gzr, err := gzip.NewReader(buf)
+				if err != nil {
+					return nil, err
+				}
+				defer gzr.Close()
+				body = gzr
+			}
+
 			req := v.Interface()
-			if err := json.NewDecoder(buf).Decode(req); err != nil {
+			if err := json.NewDecoder(body).Decode(req); err != nil {
 				return nil, err
 			}
 			v = reflect.ValueOf(req)

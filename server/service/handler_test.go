@@ -58,10 +58,6 @@ func TestAPIRoutes(t *testing.T) {
 			verb: "POST",
 			uri:  "/api/v1/osquery/enroll",
 		},
-		{
-			verb: "POST",
-			uri:  "/api/v1/osquery/log",
-		},
 	}
 
 	for _, route := range routes {

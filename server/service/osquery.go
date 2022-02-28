@@ -798,3 +798,74 @@ func (svc *Service) maybeDebugHost(
 		logJSON(hlogger, messages, "messages")
 	}
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// Submit Logs
+////////////////////////////////////////////////////////////////////////////////
+
+type submitLogsRequest struct {
+	NodeKey string          `json:"node_key"`
+	LogType string          `json:"log_type"`
+	Data    json.RawMessage `json:"data"`
+}
+
+type submitLogsResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r submitLogsResponse) error() error { return r.Err }
+
+func submitLogsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*submitLogsRequest)
+
+	var err error
+	switch req.LogType {
+	case "status":
+		var statuses []json.RawMessage
+		if err := json.Unmarshal(req.Data, &statuses); err != nil {
+			err = osqueryError{message: "unmarshalling status logs: " + err.Error()}
+			break
+		}
+
+		err = svc.SubmitStatusLogs(ctx, statuses)
+		if err != nil {
+			break
+		}
+
+	case "result":
+		var results []json.RawMessage
+		if err := json.Unmarshal(req.Data, &results); err != nil {
+			err = osqueryError{message: "unmarshalling result logs: " + err.Error()}
+			break
+		}
+		err = svc.SubmitResultLogs(ctx, results)
+		if err != nil {
+			break
+		}
+
+	default:
+		err = osqueryError{message: "unknown log type: " + req.LogType}
+	}
+
+	return submitLogsResponse{Err: err}, nil
+}
+
+func (svc *Service) SubmitStatusLogs(ctx context.Context, logs []json.RawMessage) error {
+	// skipauth: Authorization is currently for user endpoints only.
+	svc.authz.SkipAuthorization(ctx)
+
+	if err := svc.osqueryLogWriter.Status.Write(ctx, logs); err != nil {
+		return osqueryError{message: "error writing status logs: " + err.Error()}
+	}
+	return nil
+}
+
+func (svc *Service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage) error {
+	// skipauth: Authorization is currently for user endpoints only.
+	svc.authz.SkipAuthorization(ctx)
+
+	if err := svc.osqueryLogWriter.Result.Write(ctx, logs); err != nil {
+		return osqueryError{message: "error writing result logs: " + err.Error()}
+	}
+	return nil
+}

@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"encoding/json"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -237,26 +236,6 @@ func getHostIdentifier(logger log.Logger, identifierOption, providedIdentifier s
 	}
 
 	return providedIdentifier
-}
-
-func (svc *Service) SubmitStatusLogs(ctx context.Context, logs []json.RawMessage) error {
-	// skipauth: Authorization is currently for user endpoints only.
-	svc.authz.SkipAuthorization(ctx)
-
-	if err := svc.osqueryLogWriter.Status.Write(ctx, logs); err != nil {
-		return osqueryError{message: "error writing status logs: " + err.Error()}
-	}
-	return nil
-}
-
-func (svc *Service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage) error {
-	// skipauth: Authorization is currently for user endpoints only.
-	svc.authz.SkipAuthorization(ctx)
-
-	if err := svc.osqueryLogWriter.Result.Write(ctx, logs); err != nil {
-		return osqueryError{message: "error writing result logs: " + err.Error()}
-	}
-	return nil
 }
 
 // jitterHashTable implements a data structure that allows a fleet to generate a static jitter value
