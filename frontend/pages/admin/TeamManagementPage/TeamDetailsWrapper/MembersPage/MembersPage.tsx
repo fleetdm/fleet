@@ -5,7 +5,7 @@ import { useQuery } from "react-query";
 // @ts-ignore
 import PATHS from "router/paths";
 import { IApiError } from "interfaces/errors";
-import { IUser } from "interfaces/user";
+import { IUser, IUserFormErrors } from "interfaces/user";
 import { INewMembersBody, ITeam } from "interfaces/team";
 import { Link } from "react-router";
 import { AppContext } from "context/app";
@@ -91,11 +91,10 @@ const MembersPage = ({
   const [isFormSubmitting, setIsFormSubmitting] = useState<boolean>(false);
   const [userEditing, setUserEditing] = useState<IUser>();
   const [searchString, setSearchString] = useState<string>("");
-  const [
-    createUserErrors,
-    setCreateUserErrors,
-  ] = useState<ICreateEditUserErrors>(DEFAULT_CREATE_USER_ERRORS);
-  const [editUserErrors, setEditUserErrors] = useState<ICreateEditUserErrors>(
+  const [createUserErrors, setCreateUserErrors] = useState<IUserFormErrors>(
+    DEFAULT_CREATE_USER_ERRORS
+  );
+  const [editUserErrors, setEditUserErrors] = useState<IUserFormErrors>(
     DEFAULT_CREATE_USER_ERRORS
   );
   const [members, setMembers] = useState<IMembersTableData[]>([]);

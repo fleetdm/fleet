@@ -7,7 +7,7 @@ import memoize from "memoize-one";
 
 import { IApiError } from "interfaces/errors";
 import { IInvite } from "interfaces/invite";
-import { IUser } from "interfaces/user";
+import { IUser, IUserFormErrors } from "interfaces/user";
 import { ITeam } from "interfaces/team";
 
 import { AppContext } from "context/app";
@@ -37,13 +37,6 @@ interface ITeamsResponse {
   teams: ITeam[];
 }
 
-interface ICreateEditUserErrors {
-  email?: string;
-  name?: string;
-  password?: string;
-  sso_enabled?: boolean | null;
-}
-
 const UserManagementPage = (): JSX.Element => {
   const dispatch = useDispatch();
 
@@ -66,11 +59,10 @@ const UserManagementPage = (): JSX.Element => {
   );
   const [isFormSubmitting, setIsFormSubmitting] = useState<boolean>(false);
   const [userEditing, setUserEditing] = useState<any>(null);
-  const [
-    createUserErrors,
-    setCreateUserErrors,
-  ] = useState<ICreateEditUserErrors>(DEFAULT_CREATE_USER_ERRORS);
-  const [editUserErrors, setEditUserErrors] = useState<ICreateEditUserErrors>(
+  const [createUserErrors, setCreateUserErrors] = useState<IUserFormErrors>(
+    DEFAULT_CREATE_USER_ERRORS
+  );
+  const [editUserErrors, setEditUserErrors] = useState<IUserFormErrors>(
     DEFAULT_CREATE_USER_ERRORS
   );
   const [querySearchText, setQuerySearchText] = useState<string>("");
