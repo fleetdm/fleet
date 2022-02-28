@@ -56,7 +56,8 @@ const TeamManagementPage = (): JSX.Element => {
 
   const toggleCreateTeamModal = useCallback(() => {
     setShowCreateTeamModal(!showCreateTeamModal);
-  }, [showCreateTeamModal, setShowCreateTeamModal]);
+    setBackendValidators({});
+  }, [showCreateTeamModal, setShowCreateTeamModal, setBackendValidators]);
 
   const toggleDeleteTeamModal = useCallback(
     (team?: ITeam) => {
@@ -69,9 +70,15 @@ const TeamManagementPage = (): JSX.Element => {
   const toggleEditTeamModal = useCallback(
     (team?: ITeam) => {
       setShowEditTeamModal(!showEditTeamModal);
+      setBackendValidators({});
       team ? setTeamEditing(team) : setTeamEditing(undefined);
     },
-    [showEditTeamModal, setShowEditTeamModal, setTeamEditing]
+    [
+      showEditTeamModal,
+      setShowEditTeamModal,
+      setTeamEditing,
+      setBackendValidators,
+    ]
   );
 
   const onQueryChange = useCallback(
