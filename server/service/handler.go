@@ -34,7 +34,6 @@ type FleetEndpoints struct {
 	EnrollAgent                   endpoint.Endpoint
 	SubmitDistributedQueryResults endpoint.Endpoint
 	SubmitLogs                    endpoint.Endpoint
-	CarveBegin                    endpoint.Endpoint
 	CarveBlock                    endpoint.Endpoint
 	InitiateSSO                   endpoint.Endpoint
 	CallbackSSO                   endpoint.Endpoint
@@ -71,7 +70,6 @@ func MakeFleetServerEndpoints(svc fleet.Service, urlPrefix string, limitStore th
 		// Authenticated osquery endpoints
 		SubmitDistributedQueryResults: authenticatedHost(svc, logger, makeSubmitDistributedQueryResultsEndpoint(svc)),
 		SubmitLogs:                    authenticatedHost(svc, logger, makeSubmitLogsEndpoint(svc)),
-		CarveBegin:                    authenticatedHost(svc, logger, makeCarveBeginEndpoint(svc)),
 		// For some reason osquery does not provide a node key with the block
 		// data. Instead the carve session ID should be verified in the service
 		// method.
@@ -90,7 +88,6 @@ type fleetHandlers struct {
 	EnrollAgent                   http.Handler
 	SubmitDistributedQueryResults http.Handler
 	SubmitLogs                    http.Handler
-	CarveBegin                    http.Handler
 	CarveBlock                    http.Handler
 	InitiateSSO                   http.Handler
 	CallbackSSO                   http.Handler
@@ -113,7 +110,6 @@ func makeKitHandlers(e FleetEndpoints, opts []kithttp.ServerOption) *fleetHandle
 		EnrollAgent:                   newServer(e.EnrollAgent, decodeEnrollAgentRequest),
 		SubmitDistributedQueryResults: newServer(e.SubmitDistributedQueryResults, decodeSubmitDistributedQueryResultsRequest),
 		SubmitLogs:                    newServer(e.SubmitLogs, decodeSubmitLogsRequest),
-		CarveBegin:                    newServer(e.CarveBegin, decodeCarveBeginRequest),
 		CarveBlock:                    newServer(e.CarveBlock, decodeCarveBlockRequest),
 		InitiateSSO:                   newServer(e.InitiateSSO, decodeInitiateSSORequest),
 		CallbackSSO:                   newServer(e.CallbackSSO, decodeCallbackSSORequest),
@@ -304,7 +300,6 @@ func attachFleetAPIRoutes(r *mux.Router, h *fleetHandlers) {
 	r.Handle("/api/v1/osquery/enroll", h.EnrollAgent).Methods("POST").Name("enroll_agent")
 	r.Handle("/api/v1/osquery/distributed/write", h.SubmitDistributedQueryResults).Methods("POST").Name("submit_distributed_query_results")
 	r.Handle("/api/v1/osquery/log", h.SubmitLogs).Methods("POST").Name("submit_logs")
-	r.Handle("/api/v1/osquery/carve/begin", h.CarveBegin).Methods("POST").Name("carve_begin")
 	r.Handle("/api/v1/osquery/carve/block", h.CarveBlock).Methods("POST").Name("carve_block")
 }
 
@@ -452,6 +447,8 @@ func attachNewStyleFleetAPIRoutes(r *mux.Router, svc fleet.Service, logger kitlo
 	he := newHostAuthenticatedEndpointer(svc, logger, opts, r, "v1")
 	he.POST("/api/_version_/osquery/config", getClientConfigEndpoint, getClientConfigRequest{})
 	he.POST("/api/_version_/osquery/distributed/read", getDistributedQueriesEndpoint, getDistributedQueriesRequest{})
+	he.POST("/api/_version_/osquery/carve/begin", carveBeginEndpoint, carveBeginRequest{})
+	//r.Handle("/api/v1/osquery/carve/begin", h.CarveBegin).Methods("POST").Name("carve_begin")
 }
 
 // TODO: this duplicates the one in makeKitHandler

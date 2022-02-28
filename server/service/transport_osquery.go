@@ -21,16 +21,6 @@ func decodeEnrollAgentRequest(ctx context.Context, r *http.Request) (interface{}
 	return req, nil
 }
 
-func decodeGetDistributedQueriesRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	var req getDistributedQueriesRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		return nil, err
-	}
-	defer r.Body.Close()
-
-	return req, nil
-}
-
 func decodeSubmitDistributedQueryResultsRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	// When a distributed query has no results, the JSON schema is
 	// inconsistent, so we use this shim and massage into a consistent
