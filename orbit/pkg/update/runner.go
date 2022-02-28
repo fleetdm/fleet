@@ -50,11 +50,11 @@ func NewRunner(updater *Updater, opt RunnerOptions) (*Runner, error) {
 		if err != nil {
 			return nil, fmt.Errorf("initialize update cache: %w", err)
 		}
-		localPath, err := updater.localPath(target)
+		localTarget, err := updater.localTarget(target)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get local path for %s: %w", target, err)
 		}
-		_, localHash, err := fileHashes(meta, localPath)
+		_, localHash, err := fileHashes(meta, localTarget.path)
 		if err != nil {
 			return nil, fmt.Errorf("%s file hash: %w", target, err)
 		}

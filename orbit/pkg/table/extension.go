@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/kolide/osquery-go"
@@ -19,7 +20,8 @@ import (
 type Runner struct {
 	socket string
 
-	// TODO(lucas): Check if set/get of these two should be protected.
+	// mu protects access to srv and cancel in Execute and Interrupt.
+	mu     sync.Mutex
 	srv    *osquery.ExtensionManagerServer
 	cancel func()
 }
@@ -39,12 +41,11 @@ func (r *Runner) Execute() error {
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	r.cancel = cancel
+	r.setCancel(cancel)
 
-	var err error
 	ticker := time.NewTicker(200 * time.Millisecond)
 	for {
-		r.srv, err = osquery.NewExtensionManagerServer(
+		srv, err := osquery.NewExtensionManagerServer(
 			"com.fleetdm.orbit.osquery_extension.v1",
 			r.socket,
 			// This timeout is only used for registering the extension tables
@@ -54,6 +55,7 @@ func (r *Runner) Execute() error {
 			// of seconds, thus set timeout to minutes instead (see #3878).
 			osquery.ServerTimeout(5*time.Minute))
 		if err == nil {
+			r.setSrv(srv)
 			ticker.Stop()
 			break
 		}
@@ -86,11 +88,11 @@ func (r *Runner) Execute() error {
 // Interrupt shuts down the osquery manager server.
 func (r *Runner) Interrupt(err error) {
 	log.Debug().Err(err).Msg("interrupt osquery extension")
-	if r.cancel != nil {
-		r.cancel()
+	if cancel := r.getCancel(); cancel != nil {
+		cancel()
 	}
-	if r.srv != nil {
-		r.srv.Shutdown(context.Background())
+	if srv := r.getSrv(); srv != nil {
+		srv.Shutdown(context.Background())
 	}
 }
 
@@ -165,4 +167,32 @@ func waitSocketReady(ctx context.Context, sockPath string) error {
 			)
 		}
 	}
+}
+
+func (r *Runner) setSrv(s *osquery.ExtensionManagerServer) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	r.srv = s
+}
+
+func (r *Runner) setCancel(c func()) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	r.cancel = c
+}
+
+func (r *Runner) getSrv() *osquery.ExtensionManagerServer {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	return r.srv
+}
+
+func (r *Runner) getCancel() func() {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	return r.cancel
 }
