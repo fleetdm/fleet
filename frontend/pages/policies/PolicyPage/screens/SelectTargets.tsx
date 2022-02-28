@@ -298,8 +298,8 @@ const SelectTargets = ({
         <div className={`${baseClass}__targets-total-count`}>
           {!!targets?.targetsTotalCount && (
             <>
-              <span>{targets?.targetsTotalCount}</span> targets selected&nbsp; (
-              {targets?.targetsOnlinePercent}% online){" "}
+              <span>{targets?.targetsTotalCount}</span>&nbsp;targets
+              selected&nbsp; ({targets?.targetsOnlinePercent}% online){" "}
               <IconToolTip
                 isHtml
                 text={
