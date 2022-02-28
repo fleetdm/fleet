@@ -571,7 +571,7 @@ export const humanHostLastSeen = (lastSeen: string): string => {
 };
 
 export const humanHostEnrolled = (enrolled: string): string => {
-  return format(new Date(enrolled), "MMM d yyyy, HH:mm:ss");
+  return formatDistanceToNow(new Date(enrolled), { addSuffix: true });
 };
 
 export const humanHostMemory = (bytes: number): string => {

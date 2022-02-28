@@ -1030,7 +1030,7 @@ const HostDetailsPage = ({
     if (numUsers) {
       return (
         <div className="info-grid__block">
-          <span className="info-grid__header">Device user</span>
+          <span className="info-grid__header">Used by</span>
           <span className="info-grid__data">
             {numUsers === 1 ? (
               deviceMapping[0].email || "---"
@@ -1232,7 +1232,7 @@ const HostDetailsPage = ({
                   </span>
                 </div>
                 <div className="info-grid__block">
-                  <span className="info-grid__header">Uptime</span>
+                  <span className="info-grid__header">Last restarted</span>
                   <span className="info-grid__data">
                     {wrapFleetHelper(humanHostUptime, aboutData.uptime)}
                   </span>
