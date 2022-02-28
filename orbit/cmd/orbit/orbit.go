@@ -215,30 +215,26 @@ func main() {
 			osquerydPath string
 		)
 
-		if c.Bool("disable-updates") {
-			log.Info().Msg("running with auto updates disabled")
-			updater = update.NewDisabled(opt)
-			osquerydPath, err = updater.ExecutableLocalPath("osqueryd")
-			if err != nil {
-				log.Fatal().Err(err).Msg("failed to locate osqueryd")
-			}
-		} else {
+		// NOTE: When running in dev-mode, even if `disable-updates` is set,
+		// it fetches osqueryd once as part of initialization.
+		if !c.Bool("disable-updates") || c.Bool("dev-mode") {
 			updater, err = update.New(opt)
 			if err != nil {
 				return fmt.Errorf("failed to create updater: %w", err)
 			}
-		}
-
-		if !c.Bool("disable-updates") ||
-			// When running in dev-mode, even if `disable-updates` is set, fetch osqueryd once as part
-			// of initialization.
-			c.Bool("dev-mode") {
 			if err := updater.UpdateMetadata(); err != nil {
 				log.Info().Err(err).Msg("failed to update metadata. using saved metadata.")
 			}
 			osquerydPath, err = updater.Get("osqueryd")
 			if err != nil {
 				return fmt.Errorf("failed to get osqueryd target: %w", err)
+			}
+		} else {
+			log.Info().Msg("running with auto updates disabled")
+			updater = update.NewDisabled(opt)
+			osquerydPath, err = updater.ExecutableLocalPath("osqueryd")
+			if err != nil {
+				log.Fatal().Err(err).Msg("failed to locate osqueryd")
 			}
 		}
 
