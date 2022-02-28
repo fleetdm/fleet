@@ -174,7 +174,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 		return nil, &badRequestError{message: err.Error()}
 	}
 
-	// ignore the values for SMTPEnabled and SMTP
+	// ignore the values for SMTPEnabled and SMTPConfigured
 	oldSmtpSettings.SMTPEnabled = appConfig.SMTPSettings.SMTPEnabled
 	oldSmtpSettings.SMTPConfigured = appConfig.SMTPSettings.SMTPConfigured
 
