@@ -63,12 +63,19 @@ type Options struct {
 	Targets Targets
 }
 
+// Targets is a map of target name and its tracking information.
 type Targets map[string]TargetInfo
 
+// TargetInfo holds all the information to track target updates.
 type TargetInfo struct {
-	Platform          string
-	Channel           string
-	TargetFile        string
+	// Platform is the target's platform string.
+	Platform string
+	// Channel is the target's update channel.
+	Channel string
+	// TargetFile is the name of the target file in the repository.
+	TargetFile string
+	// ExtractedExecFile is the name of the executable in case the
+	// target is a compressed file.
 	ExtractedExecFile string
 }
 

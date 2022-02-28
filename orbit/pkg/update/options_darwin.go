@@ -19,7 +19,7 @@ var defaultOptions = Options{
 		"osqueryd": TargetInfo{
 			Platform:          "macos-app",
 			Channel:           "stable",
-			TargetFile:        "osqueryd.app.tar.gz",
+			TargetFile:        "osquery.app.tar.gz",
 			ExtractedExecFile: "osqueryd",
 		},
 	},
