@@ -20,7 +20,6 @@ import PlatformCell from "components/TableContainer/DataTable/PlatformCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import PillCell from "components/TableContainer/DataTable/PillCell";
 import TooltipWrapper from "components/TooltipWrapper";
-import QuestionIcon from "../../../../../../assets/images/icon-question-16x16@2x.png";
 
 interface IQueryRow {
   id: string;

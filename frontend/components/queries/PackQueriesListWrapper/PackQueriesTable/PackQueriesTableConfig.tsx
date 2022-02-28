@@ -14,7 +14,6 @@ import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCel
 import PillCell from "components/TableContainer/DataTable/PillCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import TooltipWrapper from "components/TooltipWrapper";
-import QuestionIcon from "../../../../../assets/images/icon-question-16x16@2x.png";
 
 interface IGetToggleAllRowsSelectedProps {
   checked: boolean;

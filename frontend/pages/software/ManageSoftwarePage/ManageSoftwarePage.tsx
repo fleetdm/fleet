@@ -39,7 +39,6 @@ import softwareTableHeaders from "./SoftwareTableConfig";
 import ManageAutomationsModal from "./components/ManageAutomationsModal";
 import EmptySoftware from "../components/EmptySoftware";
 import ExternalLinkIcon from "../../../../assets/images/open-new-tab-12x12@2x.png";
-import QuestionIcon from "../../../../assets/images/icon-question-16x16@2x.png";
 
 interface IManageSoftwarePageProps {
   router: InjectedRouter;

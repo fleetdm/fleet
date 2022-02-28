@@ -83,7 +83,6 @@ import CopyIcon from "../../../../assets/images/icon-copy-clipboard-fleet-blue-2
 import DeleteIcon from "../../../../assets/images/icon-action-delete-14x14@2x.png";
 import IssueIcon from "../../../../assets/images/icon-issue-fleet-black-50-16x16@2x.png";
 import QueryIcon from "../../../../assets/images/icon-action-query-16x16@2x.png";
-import QuestionIcon from "../../../../assets/images/icon-question-16x16@2x.png";
 import TransferIcon from "../../../../assets/images/icon-action-transfer-16x16@2x.png";
 
 const baseClass = "host-details";

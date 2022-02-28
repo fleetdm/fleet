@@ -116,7 +116,9 @@ describe("App settings flow", () => {
 
       cy.findByLabelText(/disable live queries/i).check({ force: true });
 
-      cy.findByRole("button", { name: /update settings/i }).invoke("attr", "disabled", false).click();
+      cy.findByRole("button", { name: /update settings/i })
+        .invoke("attr", "disabled", false)
+        .click();
 
       cy.findByText(/updated settings/i).should("exist");
 

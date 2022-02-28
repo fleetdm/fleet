@@ -9,8 +9,8 @@ import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCel
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import { ISoftware } from "interfaces/software";
 import IssueIcon from "../../../../../assets/images/icon-issue-fleet-black-50-16x16@2x.png";
-import QuestionIcon from "../../../../../assets/images/icon-question-16x16@2x.png";
 import Chevron from "../../../../../assets/images/icon-chevron-right-9x6@2x.png";
+import TooltipWrapper from "components/TooltipWrapper";
 
 interface IHeaderProps {
   column: {
@@ -127,29 +127,17 @@ const generateSoftwareTableHeaders = (): IDataColumn[] => {
         if (bundle_identifier) {
           return (
             <span className="name-container">
-              {name}
-              <span
-                className={`software-name tooltip__tooltip-icon`}
-                data-tip
-                data-for={`software-name__${cellProps.row.original.id.toString()}`}
-                data-tip-disable={false}
-              >
-                <img alt="bundle identifier" src={QuestionIcon} />
-              </span>
-              <ReactTooltip
-                place="bottom"
-                type="dark"
-                effect="solid"
-                backgroundColor="#3e4771"
-                id={`software-name__${cellProps.row.original.id.toString()}`}
-                data-html
-              >
-                <span className={`software-name tooltip__tooltip-text`}>
+              <TooltipWrapper
+                tipContent={`
+                <span>
                   <b>Bundle identifier: </b>
                   <br />
-                  {bundle_identifier}
+                  ${bundle_identifier}
                 </span>
-              </ReactTooltip>
+              `}
+              >
+                {name}
+              </TooltipWrapper>
             </span>
           );
         }
