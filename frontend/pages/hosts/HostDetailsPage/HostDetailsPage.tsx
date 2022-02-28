@@ -1030,7 +1030,7 @@ const HostDetailsPage = ({
     if (numUsers) {
       return (
         <div className="info-grid__block">
-          <span className="info-grid__header">Device user</span>
+          <span className="info-grid__header">Used by</span>
           <span className="info-grid__data">
             {numUsers === 1 ? (
               deviceMapping[0].email || "---"
@@ -1223,7 +1223,7 @@ const HostDetailsPage = ({
               <p className="section__header">About this host</p>
               <div className="info-grid">
                 <div className="info-grid__block">
-                  <span className="info-grid__header">Created at</span>
+                  <span className="info-grid__header">First enrolled</span>
                   <span className="info-grid__data">
                     {wrapFleetHelper(
                       humanHostEnrolled,
@@ -1232,16 +1232,7 @@ const HostDetailsPage = ({
                   </span>
                 </div>
                 <div className="info-grid__block">
-                  <span className="info-grid__header">Updated at</span>
-                  <span className="info-grid__data">
-                    {wrapFleetHelper(
-                      humanHostLastSeen,
-                      titleData.detail_updated_at
-                    )}
-                  </span>
-                </div>
-                <div className="info-grid__block">
-                  <span className="info-grid__header">Uptime</span>
+                  <span className="info-grid__header">Last restarted</span>
                   <span className="info-grid__data">
                     {wrapFleetHelper(humanHostUptime, aboutData.uptime)}
                   </span>
