@@ -17,7 +17,7 @@ export default (client) => {
     },
     create: ({ name, description, targets }) => {
       const { PACKS } = endpoints;
-      const packTargets = helpers.formatSelectedTargetsForApi(targets, true);
+      const packTargets = helpers.formatPackTargetsForApi(targets);
 
       return client
         .authenticatedPost(
@@ -53,7 +53,7 @@ export default (client) => {
       const updatePackEndpoint = `${client.baseURL}${PACKS}/${pack.id}`;
       let packTargets = null;
       if (targets) {
-        packTargets = helpers.formatSelectedTargetsForApi(targets, true);
+        packTargets = helpers.formatPackTargetsForApi(targets);
       }
 
       const packWithoutTargets = omit(updatedPack, "targets");
