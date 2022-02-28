@@ -1,5 +1,4 @@
 import React from "react";
-import { useDispatch } from "react-redux";
 
 import { ITeam } from "interfaces/team";
 import { IUserFormErrors } from "interfaces/user";
@@ -43,9 +42,6 @@ const CreateUserModal = ({
   serverErrors,
   createUserErrors,
 }: ICreateUserModalProps): JSX.Element => {
-  const dispatch = useDispatch();
-
-  console.log("createUserErrors CreateUserModal", createUserErrors);
   return (
     <Modal title="Create user" onExit={onCancel} className={baseClass}>
       <>

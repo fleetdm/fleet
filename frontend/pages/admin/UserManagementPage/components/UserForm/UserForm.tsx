@@ -118,7 +118,6 @@ const UserForm = ({
 }: ICreateUserFormProps): JSX.Element => {
   const dispatch = useDispatch();
 
-  console.log("UserForm.tsx: editUserErrors", createOrEditUserErrors);
   const [errors, setErrors] = useState<any>(createOrEditUserErrors);
   const [formData, setFormData] = useState<any>({
     email: defaultEmail || "",

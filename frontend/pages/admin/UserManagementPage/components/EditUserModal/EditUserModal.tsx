@@ -43,7 +43,6 @@ const EditUserModal = ({
   editUserErrors,
   isModifiedByGlobalAdmin,
 }: IEditUserModalProps): JSX.Element => {
-  console.log("EditUserModal.tsx: editUserErrors", editUserErrors);
   return (
     <Modal
       title="Edit user"

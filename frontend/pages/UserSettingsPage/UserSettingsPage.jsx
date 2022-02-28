@@ -183,7 +183,25 @@ export class UserSettingsPage extends Component {
 
         return true;
       })
-      .catch(() => false);
+      .catch((userErrors) => {
+        if (userErrors.base.includes("already exists")) {
+          // TODO: Revamp to create inline error requires jsx > tsx / form fields state/validators
+          dispatch(
+            renderFlash(
+              "error",
+              `A user with this email address already exists.`
+            )
+          );
+        } else {
+          dispatch(
+            renderFlash(
+              "error",
+              `Could not edit ${userName}. Please try again.`
+            )
+          );
+        }
+        this.setState({ showEmailModal: false });
+      });
   };
 
   handleSubmitPasswordForm = (formData) => {

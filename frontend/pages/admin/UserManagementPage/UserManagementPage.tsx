@@ -132,6 +132,7 @@ const UserManagementPage = (): JSX.Element => {
     (user?: IUser | IInvite) => {
       setShowEditUserModal(!showEditUserModal);
       setUserEditing(!showEditUserModal ? user : null);
+      setEditUserErrors(DEFAULT_CREATE_USER_ERRORS);
     },
     [showEditUserModal, setShowEditUserModal, setUserEditing]
   );
@@ -310,15 +311,10 @@ const UserManagementPage = (): JSX.Element => {
               renderFlash("success", `Successfully edited ${userEditing?.name}`)
             );
             toggleEditUserModal();
+            refetchInvites();
           })
-          .then(() => refetchInvites())
           .catch((userErrors: { data: IApiError }) => {
-            console.log("userErrors onEditUserSubmit invite user", userErrors);
-            if (
-              userErrors.data.errors[0].reason.includes(
-                "a user with this account already exist"
-              )
-            ) {
+            if (userErrors.data.errors[0].reason.includes("already exists")) {
               setEditUserErrors({
                 email: "A user with this email address already exists",
               });
@@ -343,11 +339,11 @@ const UserManagementPage = (): JSX.Element => {
             dispatch(
               renderFlash("success", `Successfully edited ${userEditing?.name}`)
             );
+            toggleEditUserModal();
+            refetchUsers();
           })
-          .then(() => refetchUsers())
           .catch((userErrors: { data: IApiError }) => {
-            console.log("userErrors onEditUserSubmit regular user", userErrors);
-            if (userErrors.data.errors[0].reason.includes("Duplicate")) {
+            if (userErrors.data.errors[0].reason.includes("already exists")) {
               setEditUserErrors({
                 email: "A user with this email address already exists",
               });
@@ -359,7 +355,6 @@ const UserManagementPage = (): JSX.Element => {
               )
             );
           })
-          .finally(() => toggleEditUserModal())
       );
     }
 
@@ -375,23 +370,25 @@ const UserManagementPage = (): JSX.Element => {
         .update(userData.id, formData)
         .then(() => {
           dispatch(renderFlash("success", userUpdatedFlashMessage));
-        })
-        .then(() => refetchUsers())
-        .catch(() => {
-          dispatch(
-            renderFlash(
-              "error",
-              `Could not edit ${userEditing?.name}. Please try again.`
-            )
-          );
-        })
-        .finally(() => {
           toggleEditUserModal();
+          refetchUsers();
+        })
+        .catch((userErrors: { data: IApiError }) => {
+          if (userErrors.data.errors[0].reason.includes("already exists")) {
+            setEditUserErrors({
+              email: "A user with this email address already exists",
+            });
+          } else {
+            dispatch(
+              renderFlash(
+                "error",
+                `Could not edit ${userEditing?.name}. Please try again.`
+              )
+            );
+          }
         })
     );
   };
-
-  console.log("USERMANAGEMENT PAGE createUserErrors", createUserErrors);
 
   const onDeleteUser = () => {
     if (userEditing.type === "invite") {

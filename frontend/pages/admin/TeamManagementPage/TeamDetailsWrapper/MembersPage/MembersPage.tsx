@@ -87,7 +87,9 @@ const MembersPage = ({
   const [createUserErrors, setCreateUserErrors] = useState<any>(
     DEFAULT_CREATE_USER_ERRORS
   );
-  const [editUserErrors] = useState(DEFAULT_CREATE_USER_ERRORS);
+  const [editUserErrors, setEditUserErrors] = useState<any>(
+    DEFAULT_CREATE_USER_ERRORS
+  );
   const [members, setMembers] = useState<IMembersTableData[]>([]);
   const [memberIds, setMemberIds] = useState<number[]>([]);
   const [currentTeam, setCurrentTeam] = useState<ITeam>();
@@ -103,8 +105,6 @@ const MembersPage = ({
     },
     [showRemoveMemberModal, setShowRemoveMemberModal, setUserEditing]
   );
-
-  console.log("MembersPage.tsx: editUserErrors", editUserErrors);
 
   // API CALLS
 
@@ -146,6 +146,7 @@ const MembersPage = ({
     (user?: IUser) => {
       setShowEditUserModal(!showEditUserModal);
       user ? setUserEditing(user) : setUserEditing(undefined);
+      setEditUserErrors(DEFAULT_CREATE_USER_ERRORS);
     },
     [showEditUserModal, setShowEditUserModal, setUserEditing]
   );
@@ -355,19 +356,23 @@ const MembersPage = ({
             } else {
               refetchUsers(tableQueryData);
             }
-          })
-          .catch(() => {
-            dispatch(
-              renderFlash(
-                "error",
-                `Could not edit ${userName}. Please try again.`
-              )
-            );
-          })
-          .finally(() => {
             setIsFormSubmitting(false);
+            toggleEditMemberModal();
+          })
+          .catch((userErrors: { data: IApiError }) => {
+            if (userErrors.data.errors[0].reason.includes("already exists")) {
+              setEditUserErrors({
+                email: "A user with this email address already exists",
+              });
+            } else {
+              dispatch(
+                renderFlash(
+                  "error",
+                  `Could not edit ${userName}. Please try again.`
+                )
+              );
+            }
           });
-      toggleEditMemberModal();
     },
     [dispatch, toggleEditMemberModal, userEditing, refetchUsers]
   );
