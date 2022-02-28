@@ -211,7 +211,7 @@ func TestModifyUserEmail(t *testing.T) {
 		return user, nil
 	}
 	ms.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
-		return nil, errors.New("not found")
+		return nil, notFoundErr{}
 	}
 	ms.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		config := &fleet.AppConfig{
