@@ -267,78 +267,29 @@ func (svc *Service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage
 	return nil
 }
 
-// hostLabelQueryPrefix is appended before the query name when a query is
-// provided as a label query. This allows the results to be retrieved when
-// osqueryd writes the distributed query results.
-const hostLabelQueryPrefix = "fleet_label_query_"
+const (
+	// hostLabelQueryPrefix is appended before the query name when a query is
+	// provided as a label query. This allows the results to be retrieved when
+	// osqueryd writes the distributed query results.
+	hostLabelQueryPrefix = "fleet_label_query_"
 
-// hostDetailQueryPrefix is appended before the query name when a query is
-// provided as a detail query.
-const hostDetailQueryPrefix = "fleet_detail_query_"
+	// hostDetailQueryPrefix is appended before the query name when a query is
+	// provided as a detail query.
+	hostDetailQueryPrefix = "fleet_detail_query_"
 
-// hostAdditionalQueryPrefix is appended before the query name when a query is
-// provided as an additional query (additional info for hosts to retrieve).
-const hostAdditionalQueryPrefix = "fleet_additional_query_"
+	// hostAdditionalQueryPrefix is appended before the query name when a query is
+	// provided as an additional query (additional info for hosts to retrieve).
+	hostAdditionalQueryPrefix = "fleet_additional_query_"
 
-// hostPolicyQueryPrefix is appended before the query name when a query is
-// provided as a policy query. This allows the results to be retrieved when
-// osqueryd writes the distributed query results.
-const hostPolicyQueryPrefix = "fleet_policy_query_"
+	// hostPolicyQueryPrefix is appended before the query name when a query is
+	// provided as a policy query. This allows the results to be retrieved when
+	// osqueryd writes the distributed query results.
+	hostPolicyQueryPrefix = "fleet_policy_query_"
 
-// hostDistributedQueryPrefix is appended before the query name when a query is
-// run from a distributed query campaign
-const hostDistributedQueryPrefix = "fleet_distributed_query_"
-
-// detailQueriesForHost returns the map of detail+additional queries that should be executed by
-// osqueryd to fill in the host details.
-func (svc *Service) detailQueriesForHost(ctx context.Context, host *fleet.Host) (map[string]string, error) {
-	if !svc.shouldUpdate(host.DetailUpdatedAt, svc.config.Osquery.DetailUpdateInterval, host.ID) && !host.RefetchRequested {
-		return nil, nil
-	}
-
-	config, err := svc.ds.AppConfig(ctx)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "read app config")
-	}
-
-	queries := make(map[string]string)
-	detailQueries := osquery_utils.GetDetailQueries(config, svc.config)
-	for name, query := range detailQueries {
-		if query.RunsForPlatform(host.Platform) {
-			queries[hostDetailQueryPrefix+name] = query.Query
-		}
-	}
-
-	if config.HostSettings.AdditionalQueries == nil {
-		// No additional queries set
-		return queries, nil
-	}
-
-	var additionalQueries map[string]string
-	if err := json.Unmarshal(*config.HostSettings.AdditionalQueries, &additionalQueries); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "unmarshal additional queries")
-	}
-
-	for name, query := range additionalQueries {
-		queries[hostAdditionalQueryPrefix+name] = query
-	}
-
-	return queries, nil
-}
-
-func (svc *Service) shouldUpdate(lastUpdated time.Time, interval time.Duration, hostID uint) bool {
-	svc.jitterMu.Lock()
-	defer svc.jitterMu.Unlock()
-
-	if svc.jitterH[interval] == nil {
-		svc.jitterH[interval] = newJitterHashTable(int(int64(svc.config.Osquery.MaxJitterPercent) * int64(interval.Minutes()) / 100.0))
-		level.Debug(svc.logger).Log("jitter", "created", "bucketCount", svc.jitterH[interval].bucketCount)
-	}
-
-	jitter := svc.jitterH[interval].jitterForHost(hostID)
-	cutoff := svc.clock.Now().Add(-(interval + jitter))
-	return lastUpdated.Before(cutoff)
-}
+	// hostDistributedQueryPrefix is appended before the query name when a query is
+	// run from a distributed query campaign
+	hostDistributedQueryPrefix = "fleet_distributed_query_"
+)
 
 // jitterHashTable implements a data structure that allows a fleet to generate a static jitter value
 // that is properly balanced. Balance in this context means that hosts would be distributed uniformly
@@ -416,87 +367,6 @@ func (jh *jitterHashTable) jitterForHost(hostID uint) time.Duration {
 
 	jh.mu.Unlock()
 	return jh.jitterForHost(hostID)
-}
-
-func (svc *Service) labelQueriesForHost(ctx context.Context, host *fleet.Host) (map[string]string, error) {
-	labelReportedAt := svc.task.GetHostLabelReportedAt(ctx, host)
-	if !svc.shouldUpdate(labelReportedAt, svc.config.Osquery.LabelUpdateInterval, host.ID) && !host.RefetchRequested {
-		return nil, nil
-	}
-	labelQueries, err := svc.ds.LabelQueriesForHost(ctx, host)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "retrieve label queries")
-	}
-	return labelQueries, nil
-}
-
-func (svc *Service) policyQueriesForHost(ctx context.Context, host *fleet.Host) (map[string]string, error) {
-	policyReportedAt := svc.task.GetHostPolicyReportedAt(ctx, host)
-	if !svc.shouldUpdate(policyReportedAt, svc.config.Osquery.PolicyUpdateInterval, host.ID) && !host.RefetchRequested {
-		return nil, nil
-	}
-	policyQueries, err := svc.ds.PolicyQueriesForHost(ctx, host)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "retrieve policy queries")
-	}
-	return policyQueries, nil
-}
-
-func (svc *Service) GetDistributedQueries(ctx context.Context) (map[string]string, uint, error) {
-	// skipauth: Authorization is currently for user endpoints only.
-	svc.authz.SkipAuthorization(ctx)
-
-	host, ok := hostctx.FromContext(ctx)
-	if !ok {
-		return nil, 0, osqueryError{message: "internal error: missing host from request context"}
-	}
-
-	queries := make(map[string]string)
-
-	detailQueries, err := svc.detailQueriesForHost(ctx, host)
-	if err != nil {
-		return nil, 0, osqueryError{message: err.Error()}
-	}
-	for name, query := range detailQueries {
-		queries[name] = query
-	}
-
-	labelQueries, err := svc.labelQueriesForHost(ctx, host)
-	if err != nil {
-		return nil, 0, osqueryError{message: err.Error()}
-	}
-	for name, query := range labelQueries {
-		queries[hostLabelQueryPrefix+name] = query
-	}
-
-	if liveQueries, err := svc.liveQueryStore.QueriesForHost(host.ID); err != nil {
-		// If the live query store fails to fetch queries we still want the hosts
-		// to receive all the other queries (details, policies, labels, etc.),
-		// thus we just log the error.
-		level.Error(svc.logger).Log("op", "QueriesForHost", "err", err)
-	} else {
-		for name, query := range liveQueries {
-			queries[hostDistributedQueryPrefix+name] = query
-		}
-	}
-
-	policyQueries, err := svc.policyQueriesForHost(ctx, host)
-	if err != nil {
-		return nil, 0, osqueryError{message: err.Error()}
-	}
-	for name, query := range policyQueries {
-		queries[hostPolicyQueryPrefix+name] = query
-	}
-
-	accelerate := uint(0)
-	if host.Hostname == "" || host.Platform == "" {
-		// Assume this host is just enrolling, and accelerate checkins
-		// (to allow for platform restricted labels to run quickly
-		// after platform is retrieved from details)
-		accelerate = 10
-	}
-
-	return queries, accelerate, nil
 }
 
 // ingestDetailQuery takes the results of a detail query and modifies the

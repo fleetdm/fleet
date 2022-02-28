@@ -3,10 +3,13 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
+	"github.com/go-kit/kit/log/level"
 	"github.com/spf13/cast"
 )
 
@@ -186,4 +189,160 @@ func (svc *Service) AgentOptionsForHost(ctx context.Context, hostTeamID *uint, h
 		}
 	}
 	return options.ForPlatform(hostPlatform), nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Get Distributed Queries
+////////////////////////////////////////////////////////////////////////////////
+
+type getDistributedQueriesRequest struct {
+	NodeKey string `json:"node_key"`
+}
+
+type getDistributedQueriesResponse struct {
+	Queries    map[string]string `json:"queries"`
+	Accelerate uint              `json:"accelerate,omitempty"`
+	Err        error             `json:"error,omitempty"`
+}
+
+func (r getDistributedQueriesResponse) error() error { return r.Err }
+
+func getDistributedQueriesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	queries, accelerate, err := svc.GetDistributedQueries(ctx)
+	if err != nil {
+		return getDistributedQueriesResponse{Err: err}, nil
+	}
+	return getDistributedQueriesResponse{Queries: queries, Accelerate: accelerate}, nil
+}
+
+func (svc *Service) GetDistributedQueries(ctx context.Context) (map[string]string, uint, error) {
+	// skipauth: Authorization is currently for user endpoints only.
+	svc.authz.SkipAuthorization(ctx)
+
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		return nil, 0, osqueryError{message: "internal error: missing host from request context"}
+	}
+
+	queries := make(map[string]string)
+
+	detailQueries, err := svc.detailQueriesForHost(ctx, host)
+	if err != nil {
+		return nil, 0, osqueryError{message: err.Error()}
+	}
+	for name, query := range detailQueries {
+		queries[name] = query
+	}
+
+	labelQueries, err := svc.labelQueriesForHost(ctx, host)
+	if err != nil {
+		return nil, 0, osqueryError{message: err.Error()}
+	}
+	for name, query := range labelQueries {
+		queries[hostLabelQueryPrefix+name] = query
+	}
+
+	if liveQueries, err := svc.liveQueryStore.QueriesForHost(host.ID); err != nil {
+		// If the live query store fails to fetch queries we still want the hosts
+		// to receive all the other queries (details, policies, labels, etc.),
+		// thus we just log the error.
+		level.Error(svc.logger).Log("op", "QueriesForHost", "err", err)
+	} else {
+		for name, query := range liveQueries {
+			queries[hostDistributedQueryPrefix+name] = query
+		}
+	}
+
+	policyQueries, err := svc.policyQueriesForHost(ctx, host)
+	if err != nil {
+		return nil, 0, osqueryError{message: err.Error()}
+	}
+	for name, query := range policyQueries {
+		queries[hostPolicyQueryPrefix+name] = query
+	}
+
+	accelerate := uint(0)
+	if host.Hostname == "" || host.Platform == "" {
+		// Assume this host is just enrolling, and accelerate checkins
+		// (to allow for platform restricted labels to run quickly
+		// after platform is retrieved from details)
+		accelerate = 10
+	}
+
+	return queries, accelerate, nil
+}
+
+// detailQueriesForHost returns the map of detail+additional queries that should be executed by
+// osqueryd to fill in the host details.
+func (svc *Service) detailQueriesForHost(ctx context.Context, host *fleet.Host) (map[string]string, error) {
+	if !svc.shouldUpdate(host.DetailUpdatedAt, svc.config.Osquery.DetailUpdateInterval, host.ID) && !host.RefetchRequested {
+		return nil, nil
+	}
+
+	config, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "read app config")
+	}
+
+	queries := make(map[string]string)
+	detailQueries := osquery_utils.GetDetailQueries(config, svc.config)
+	for name, query := range detailQueries {
+		if query.RunsForPlatform(host.Platform) {
+			queries[hostDetailQueryPrefix+name] = query.Query
+		}
+	}
+
+	if config.HostSettings.AdditionalQueries == nil {
+		// No additional queries set
+		return queries, nil
+	}
+
+	var additionalQueries map[string]string
+	if err := json.Unmarshal(*config.HostSettings.AdditionalQueries, &additionalQueries); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "unmarshal additional queries")
+	}
+
+	for name, query := range additionalQueries {
+		queries[hostAdditionalQueryPrefix+name] = query
+	}
+
+	return queries, nil
+}
+
+func (svc *Service) shouldUpdate(lastUpdated time.Time, interval time.Duration, hostID uint) bool {
+	svc.jitterMu.Lock()
+	defer svc.jitterMu.Unlock()
+
+	if svc.jitterH[interval] == nil {
+		svc.jitterH[interval] = newJitterHashTable(int(int64(svc.config.Osquery.MaxJitterPercent) * int64(interval.Minutes()) / 100.0))
+		level.Debug(svc.logger).Log("jitter", "created", "bucketCount", svc.jitterH[interval].bucketCount)
+	}
+
+	jitter := svc.jitterH[interval].jitterForHost(hostID)
+	cutoff := svc.clock.Now().Add(-(interval + jitter))
+	return lastUpdated.Before(cutoff)
+}
+
+func (svc *Service) labelQueriesForHost(ctx context.Context, host *fleet.Host) (map[string]string, error) {
+	labelReportedAt := svc.task.GetHostLabelReportedAt(ctx, host)
+	if !svc.shouldUpdate(labelReportedAt, svc.config.Osquery.LabelUpdateInterval, host.ID) && !host.RefetchRequested {
+		return nil, nil
+	}
+	labelQueries, err := svc.ds.LabelQueriesForHost(ctx, host)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "retrieve label queries")
+	}
+	return labelQueries, nil
+}
+
+func (svc *Service) policyQueriesForHost(ctx context.Context, host *fleet.Host) (map[string]string, error) {
+	policyReportedAt := svc.task.GetHostPolicyReportedAt(ctx, host)
+	if !svc.shouldUpdate(policyReportedAt, svc.config.Osquery.PolicyUpdateInterval, host.ID) && !host.RefetchRequested {
+		return nil, nil
+	}
+	policyQueries, err := svc.ds.PolicyQueriesForHost(ctx, host)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "retrieve policy queries")
+	}
+	return policyQueries, nil
 }

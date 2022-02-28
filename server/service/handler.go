@@ -32,7 +32,6 @@ type FleetEndpoints struct {
 	PerformRequiredPasswordReset  endpoint.Endpoint
 	VerifyInvite                  endpoint.Endpoint
 	EnrollAgent                   endpoint.Endpoint
-	GetDistributedQueries         endpoint.Endpoint
 	SubmitDistributedQueryResults endpoint.Endpoint
 	SubmitLogs                    endpoint.Endpoint
 	CarveBegin                    endpoint.Endpoint
@@ -70,7 +69,6 @@ func MakeFleetServerEndpoints(svc fleet.Service, urlPrefix string, limitStore th
 		// Osquery endpoints
 		EnrollAgent: logged(makeEnrollAgentEndpoint(svc)),
 		// Authenticated osquery endpoints
-		GetDistributedQueries:         authenticatedHost(svc, logger, makeGetDistributedQueriesEndpoint(svc)),
 		SubmitDistributedQueryResults: authenticatedHost(svc, logger, makeSubmitDistributedQueryResultsEndpoint(svc)),
 		SubmitLogs:                    authenticatedHost(svc, logger, makeSubmitLogsEndpoint(svc)),
 		CarveBegin:                    authenticatedHost(svc, logger, makeCarveBeginEndpoint(svc)),
@@ -90,7 +88,6 @@ type fleetHandlers struct {
 	PerformRequiredPasswordReset  http.Handler
 	VerifyInvite                  http.Handler
 	EnrollAgent                   http.Handler
-	GetDistributedQueries         http.Handler
 	SubmitDistributedQueryResults http.Handler
 	SubmitLogs                    http.Handler
 	CarveBegin                    http.Handler
@@ -114,7 +111,6 @@ func makeKitHandlers(e FleetEndpoints, opts []kithttp.ServerOption) *fleetHandle
 		PerformRequiredPasswordReset:  newServer(e.PerformRequiredPasswordReset, decodePerformRequiredPasswordResetRequest),
 		VerifyInvite:                  newServer(e.VerifyInvite, decodeVerifyInviteRequest),
 		EnrollAgent:                   newServer(e.EnrollAgent, decodeEnrollAgentRequest),
-		GetDistributedQueries:         newServer(e.GetDistributedQueries, decodeGetDistributedQueriesRequest),
 		SubmitDistributedQueryResults: newServer(e.SubmitDistributedQueryResults, decodeSubmitDistributedQueryResultsRequest),
 		SubmitLogs:                    newServer(e.SubmitLogs, decodeSubmitLogsRequest),
 		CarveBegin:                    newServer(e.CarveBegin, decodeCarveBeginRequest),
@@ -306,7 +302,6 @@ func attachFleetAPIRoutes(r *mux.Router, h *fleetHandlers) {
 	r.Handle("/api/v1/fleet/users", h.CreateUserWithInvite).Methods("POST").Name("create_user_with_invite")
 	r.Handle("/api/v1/fleet/invites/{token}", h.VerifyInvite).Methods("GET").Name("verify_invite")
 	r.Handle("/api/v1/osquery/enroll", h.EnrollAgent).Methods("POST").Name("enroll_agent")
-	r.Handle("/api/v1/osquery/distributed/read", h.GetDistributedQueries).Methods("POST").Name("get_distributed_queries")
 	r.Handle("/api/v1/osquery/distributed/write", h.SubmitDistributedQueryResults).Methods("POST").Name("submit_distributed_query_results")
 	r.Handle("/api/v1/osquery/log", h.SubmitLogs).Methods("POST").Name("submit_logs")
 	r.Handle("/api/v1/osquery/carve/begin", h.CarveBegin).Methods("POST").Name("carve_begin")
@@ -456,7 +451,7 @@ func attachNewStyleFleetAPIRoutes(r *mux.Router, svc fleet.Service, logger kitlo
 
 	he := newHostAuthenticatedEndpointer(svc, logger, opts, r, "v1")
 	he.POST("/api/_version_/osquery/config", getClientConfigEndpoint, getClientConfigRequest{})
-	//r.Handle("/api/v1/osquery/config", h.GetClientConfig).Methods("POST").Name("get_client_config")
+	he.POST("/api/_version_/osquery/distributed/read", getDistributedQueriesEndpoint, getDistributedQueriesRequest{})
 }
 
 // TODO: this duplicates the one in makeKitHandler

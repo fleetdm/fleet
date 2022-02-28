@@ -37,32 +37,6 @@ func makeEnrollAgentEndpoint(svc fleet.Service) endpoint.Endpoint {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Get Distributed Queries
-////////////////////////////////////////////////////////////////////////////////
-
-type getDistributedQueriesRequest struct {
-	NodeKey string `json:"node_key"`
-}
-
-type getDistributedQueriesResponse struct {
-	Queries    map[string]string `json:"queries"`
-	Accelerate uint              `json:"accelerate,omitempty"`
-	Err        error             `json:"error,omitempty"`
-}
-
-func (r getDistributedQueriesResponse) error() error { return r.Err }
-
-func makeGetDistributedQueriesEndpoint(svc fleet.Service) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		queries, accelerate, err := svc.GetDistributedQueries(ctx)
-		if err != nil {
-			return getDistributedQueriesResponse{Err: err}, nil
-		}
-		return getDistributedQueriesResponse{Queries: queries, Accelerate: accelerate}, nil
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////
 // Write Distributed Query Results
 ////////////////////////////////////////////////////////////////////////////////
 
