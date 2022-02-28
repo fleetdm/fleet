@@ -1223,20 +1223,11 @@ const HostDetailsPage = ({
               <p className="section__header">About this host</p>
               <div className="info-grid">
                 <div className="info-grid__block">
-                  <span className="info-grid__header">Created at</span>
+                  <span className="info-grid__header">First enrolled</span>
                   <span className="info-grid__data">
                     {wrapFleetHelper(
                       humanHostEnrolled,
                       aboutData.last_enrolled_at
-                    )}
-                  </span>
-                </div>
-                <div className="info-grid__block">
-                  <span className="info-grid__header">Updated at</span>
-                  <span className="info-grid__data">
-                    {wrapFleetHelper(
-                      humanHostLastSeen,
-                      titleData.detail_updated_at
                     )}
                   </span>
                 </div>
