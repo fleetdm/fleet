@@ -356,10 +356,7 @@ func selectSoftwareSQL(hostID *uint, opts fleet.SoftwareListOptions) (string, []
 	}
 	ds = appendListOptionsToSelect(ds, opts.ListOptions)
 
-	// TODO(mna): check plan for with hosts with and without team, ensure use of index
-	sql, args, err := ds.ToSQL()
-	//fmt.Print(">>>>> SQL\n\n\n", sql, "\n\n")
-	return sql, args, err
+	return ds.ToSQL()
 }
 
 func countSoftwareDB(
