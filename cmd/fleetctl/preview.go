@@ -631,9 +631,11 @@ func downloadOrbitAndStart(destDir, enrollSecret, address, orbitChannel, osquery
 
 	updateOpt := update.DefaultOptions
 
-	// We need to initialize updates for latest orbit which does not
-	// support .app bundle yet.
-	updateOpt.Targets = update.DarwinLegacyTargets
+	if runtime.GOOS == "darwin" {
+		// We need to initialize updates for latest orbit which does not
+		// support .app bundle yet.
+		updateOpt.Targets = update.DarwinLegacyTargets
+	}
 
 	// Override default channels with the provided values.
 	orbit := updateOpt.Targets["orbit"]
