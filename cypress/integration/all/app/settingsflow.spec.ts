@@ -156,7 +156,7 @@ describe("App settings flow", () => {
         "https://http.cat/100"
       );
 
-      cy.findByLabelText(/metadata url/i).should(
+      cy.getAttached("#metadataURL").should(
         "have.value",
         "http://github.com/fleetdm/fleet"
       );
@@ -166,7 +166,7 @@ describe("App settings flow", () => {
         "rachel@example.com"
       );
 
-      cy.findByLabelText(/smtp server/i).should("have.value", "localhost");
+      cy.getAttached("#smtpServer").should("have.value", "localhost");
 
       cy.getAttached("#smtpPort").should("have.value", "1025");
 
