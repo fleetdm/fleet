@@ -2,7 +2,12 @@ package service
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
+)
+
+var (
+	ErrUnauthenticated = errors.New("unauthenticated, or invalid token")
 )
 
 type SetupAlreadyErr interface {

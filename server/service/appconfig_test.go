@@ -227,7 +227,6 @@ func TestSSONotPresent(t *testing.T) {
 	var p fleet.AppConfig
 	validateSSOSettings(p, &fleet.AppConfig{}, invalid)
 	assert.False(t, invalid.HasErrors())
-
 }
 
 func TestNeedFieldsPresent(t *testing.T) {
@@ -239,6 +238,22 @@ func TestNeedFieldsPresent(t *testing.T) {
 			IssuerURI:   "http://issuer.idp.com",
 			MetadataURL: "http://isser.metadata.com",
 			IDPName:     "onelogin",
+		},
+	}
+	validateSSOSettings(config, &fleet.AppConfig{}, invalid)
+	assert.False(t, invalid.HasErrors())
+}
+
+func TestShortIDPName(t *testing.T) {
+	invalid := &fleet.InvalidArgumentError{}
+	config := fleet.AppConfig{
+		SSOSettings: fleet.SSOSettings{
+			EnableSSO:   true,
+			EntityID:    "fleet",
+			IssuerURI:   "http://issuer.idp.com",
+			MetadataURL: "http://isser.metadata.com",
+			// A customer once found the Fleet server erroring when they used "SSO" for their IdP name.
+			IDPName: "SSO",
 		},
 	}
 	validateSSOSettings(config, &fleet.AppConfig{}, invalid)

@@ -153,21 +153,25 @@ describe("Fleet API - helpers", () => {
   describe("#formatSelectedTargetsForApi", () => {
     const { formatSelectedTargetsForApi } = helpers;
 
-    it("splits targets into labels, hosts, and teams", () => {
+    it("splits targets into labels, hosts, and teams and sorts by id", () => {
       const targets = [host1, host2, label1, label2];
 
       expect(formatSelectedTargetsForApi(targets)).toEqual({
-        hosts: [6, 5],
+        hosts: [5, 6],
         labels: [1, 2],
         teams: [],
       });
     });
+  });
 
-    it("appends `_id` when appendID is specified", () => {
+  describe("#formatPackTargetsForApi", () => {
+    const { formatPackTargetsForApi } = helpers;
+
+    it("remaps properties with `_id` appended", () => {
       const targets = [host1, host2, label1, label2];
 
-      expect(formatSelectedTargetsForApi(targets, true)).toEqual({
-        host_ids: [6, 5],
+      expect(formatPackTargetsForApi(targets)).toEqual({
+        host_ids: [5, 6],
         label_ids: [1, 2],
         team_ids: [],
       });

@@ -1,18 +1,21 @@
+import { snakeCase } from "lodash";
+
 import sendRequest from "services";
 import endpoints from "fleet/endpoints";
 import { ISoftware } from "interfaces/software";
 
 interface IGetSoftwareProps {
-  page: number;
+  page?: number;
   perPage?: number;
-  orderKey: string;
-  orderDir: "asc" | "desc";
-  query: string;
-  vulnerable: boolean;
+  orderKey?: string;
+  orderDir?: "asc" | "desc";
+  query?: string;
+  vulnerable?: boolean;
   teamId?: number;
 }
 
-interface ISoftwareResponse {
+export interface ISoftwareResponse {
+  counts_updated_at: string;
   software: ISoftware[];
 }
 
@@ -35,7 +38,7 @@ const buildQueryStringFromParams = (params: ISoftwareParams) => {
   return `?${filteredParams
     .map(
       ([key, value]) =>
-        `${encodeURIComponent(key)}=${encodeURIComponent(value)}`
+        `${encodeURIComponent(snakeCase(key))}=${encodeURIComponent(value)}`
     )
     .join("&")}`;
 };
@@ -49,7 +52,7 @@ export default {
     query,
     vulnerable,
     teamId,
-  }: ISoftwareParams): Promise<ISoftware[]> => {
+  }: ISoftwareParams): Promise<ISoftwareResponse> => {
     const { SOFTWARE } = endpoints;
     const pagination = perPage ? `page=${page}&per_page=${perPage}` : "";
     const sort = `order_key=${orderKey}&order_direction=${orderDir}`;
@@ -68,8 +71,7 @@ export default {
     }
 
     try {
-      const { software }: ISoftwareResponse = await sendRequest("GET", path);
-      return software;
+      return sendRequest("GET", path);
     } catch (error) {
       throw error;
     }

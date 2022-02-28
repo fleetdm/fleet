@@ -46,6 +46,14 @@ func TestTeamAuth(t *testing.T) {
 	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
 		return nil
 	}
+	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+		switch name {
+		case "team1":
+			return &fleet.Team{ID: 1}, nil
+		default:
+			return &fleet.Team{ID: 2}, nil
+		}
+	}
 
 	testCases := []struct {
 		name                       string
@@ -153,6 +161,9 @@ func TestTeamAuth(t *testing.T) {
 			_, err = svc.ListTeams(ctx, fleet.ListOptions{})
 			checkAuthErr(t, false, err) // everybody can do this
 
+			_, err = svc.GetTeam(ctx, 1)
+			checkAuthErr(t, tt.shouldFailRead, err)
+
 			err = svc.DeleteTeam(ctx, 1)
 			checkAuthErr(t, tt.shouldFailTeamWrite, err)
 
@@ -161,6 +172,9 @@ func TestTeamAuth(t *testing.T) {
 
 			_, err = svc.ModifyTeamEnrollSecrets(ctx, 1, []fleet.EnrollSecret{{Secret: "newteamsecret", CreatedAt: time.Now()}})
 			checkAuthErr(t, tt.shouldFailTeamSecretsWrite, err)
+
+			err = svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{{Name: "team1"}})
+			checkAuthErr(t, tt.shouldFailTeamWrite, err)
 		})
 	}
 }

@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 
+	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
@@ -71,6 +73,16 @@ func (svc Service) NewTeamPolicy(ctx context.Context, teamID uint, p fleet.Polic
 	policy, err := svc.ds.NewTeamPolicy(ctx, teamID, ptr.Uint(vc.UserID()), p)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creating policy")
+	}
+	// Note: Issue #4191 proposes that we move to SQL transactions for actions so that we can
+	// rollback an action in the event of an error writing the associated activity
+	if err := svc.ds.NewActivity(
+		ctx,
+		authz.UserFromContext(ctx),
+		fleet.ActivityTypeCreatedPolicy,
+		&map[string]interface{}{"policy_id": policy.ID, "policy_name": policy.Name},
+	); err != nil {
+		return nil, err
 	}
 	return policy, nil
 }
@@ -183,6 +195,23 @@ func deleteTeamPoliciesEndpoint(ctx context.Context, request interface{}, svc fl
 }
 
 func (svc Service) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error) {
+	// First check if authorized to read policies
+	if err := svc.authz.Authorize(ctx, &fleet.Policy{
+		PolicyData: fleet.PolicyData{
+			TeamID: ptr.Uint(teamID),
+		},
+	}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	policiesByID, err := svc.ds.PoliciesByID(ctx, ids)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting policies by ID")
+	}
+
+	// Then check if authorized to write policies
 	if err := svc.authz.Authorize(ctx, &fleet.Policy{
 		PolicyData: fleet.PolicyData{
 			TeamID: ptr.Uint(teamID),
@@ -190,13 +219,35 @@ func (svc Service) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []ui
 	}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
-	if len(ids) == 0 {
-		return nil, nil
+	for _, policy := range policiesByID {
+		if t := policy.PolicyData.TeamID; t == nil || *t != teamID {
+			return nil, authz.ForbiddenWithInternal(
+				fmt.Sprintf("attempting to delete policy that does not belong to team %s", strconv.Itoa(int(teamID))),
+				authz.UserFromContext(ctx),
+				policy,
+				fleet.ActionWrite,
+			)
+		}
 	}
-	ids, err := svc.ds.DeleteTeamPolicies(ctx, teamID, ids)
+
+	deletedIDs, err := svc.ds.DeleteTeamPolicies(ctx, teamID, ids)
 	if err != nil {
 		return nil, err
 	}
+
+	// Note: Issue #4191 proposes that we move to SQL transactions for actions so that we can
+	// rollback an action in the event of an error writing the associated activity
+	for _, id := range deletedIDs {
+		if err := svc.ds.NewActivity(
+			ctx,
+			authz.UserFromContext(ctx),
+			fleet.ActivityTypeDeletedPolicy,
+			&map[string]interface{}{"policy_id": id, "policy_name": policiesByID[id].Name},
+		); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "adding new activity for deleted policy")
+		}
+	}
+
 	return ids, nil
 }
 
@@ -226,11 +277,11 @@ func modifyTeamPolicyEndpoint(ctx context.Context, request interface{}, svc flee
 	return modifyTeamPolicyResponse{Policy: resp}, nil
 }
 
-func (svc Service) ModifyTeamPolicy(ctx context.Context, teamID uint, id uint, p fleet.ModifyPolicyPayload) (*fleet.Policy, error) {
+func (svc *Service) ModifyTeamPolicy(ctx context.Context, teamID uint, id uint, p fleet.ModifyPolicyPayload) (*fleet.Policy, error) {
 	return svc.modifyPolicy(ctx, &teamID, id, p)
 }
 
-func (svc Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p fleet.ModifyPolicyPayload) (*fleet.Policy, error) {
+func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p fleet.ModifyPolicyPayload) (*fleet.Policy, error) {
 	// First make sure the user can read the policies.
 	if err := svc.authz.Authorize(ctx, &fleet.Policy{
 		PolicyData: fleet.PolicyData{
@@ -266,11 +317,24 @@ func (svc Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p fl
 	if p.Resolution != nil {
 		policy.Resolution = p.Resolution
 	}
+	if p.Platform != nil {
+		policy.Platform = *p.Platform
+	}
 	logging.WithExtras(ctx, "name", policy.Name, "sql", policy.Query)
 
 	err = svc.ds.SavePolicy(ctx, policy)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "saving policy")
+	}
+	// Note: Issue #4191 proposes that we move to SQL transactions for actions so that we can
+	// rollback an action in the event of an error writing the associated activity
+	if err := svc.ds.NewActivity(
+		ctx,
+		authz.UserFromContext(ctx),
+		fleet.ActivityTypeEditedPolicy,
+		&map[string]interface{}{"policy_id": policy.ID, "policy_name": policy.Name},
+	); err != nil {
+		return nil, err
 	}
 
 	return policy, nil

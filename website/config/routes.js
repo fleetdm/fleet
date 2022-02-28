@@ -169,6 +169,7 @@ module.exports.routes = {
   'GET /try-fleet':                  '/get-started',
   'GET /docs/deploying/fleet-public-load-testing': '/docs/deploying/load-testing',
   'GET /handbook/customer-experience': '/handbook/customers',
+  'GET /handbook/growth': '/handbook/brand',
 
 
 
@@ -183,7 +184,7 @@ module.exports.routes = {
   // For example, a clever user might try to visit fleetdm.com/documentation, not knowing that Fleet's website
   // puts this kind of thing under /docs, NOT /documentation.  These "convenience" redirects are to help them out.
   'GET /documentation':              '/docs',
-  'GET /contribute':                 '/docs/contribute',
+  'GET /contribute':                 '/docs/contributing',
   'GET /install':                    '/get-started',
   'GET /company':                    '/company/about',
   'GET /company/about':              '/handbook', // FUTURE: brief "about" page explaining the origins of the company
@@ -237,5 +238,6 @@ module.exports.routes = {
   'POST /api/v1/customers/create-quote':               { action: 'customers/create-quote' },
   'POST /api/v1/customers/save-billing-info-and-subscribe': { action: 'customers/save-billing-info-and-subscribe' },
   'POST /api/v1/entrance/update-password-and-login':    { action: 'entrance/update-password-and-login' },
+  'POST /api/v1/deliver-demo-signup':                   { action: 'deliver-demo-signup' },
 
 };

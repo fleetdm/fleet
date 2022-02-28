@@ -176,9 +176,9 @@ type GetMunkiVersionFunc func(ctx context.Context, hostID uint) (string, error)
 
 type GetMDMFunc func(ctx context.Context, hostID uint) (enrolled bool, serverURL string, installedFromDep bool, err error)
 
-type AggregatedMunkiVersionFunc func(ctx context.Context, teamID *uint) ([]fleet.AggregatedMunkiVersion, error)
+type AggregatedMunkiVersionFunc func(ctx context.Context, teamID *uint) ([]fleet.AggregatedMunkiVersion, time.Time, error)
 
-type AggregatedMDMStatusFunc func(ctx context.Context, teamID *uint) (fleet.AggregatedMDMStatus, error)
+type AggregatedMDMStatusFunc func(ctx context.Context, teamID *uint) (fleet.AggregatedMDMStatus, time.Time, error)
 
 type GenerateAggregatedMunkiAndMDMFunc func(ctx context.Context) error
 
@@ -268,11 +268,13 @@ type AddCPEForSoftwareFunc func(ctx context.Context, software fleet.Software, cp
 
 type AllCPEsFunc func(ctx context.Context) ([]string, error)
 
-type InsertCVEForCPEFunc func(ctx context.Context, cve string, cpes []string) error
+type InsertCVEForCPEFunc func(ctx context.Context, cve string, cpes []string) (int64, error)
 
 type SoftwareByIDFunc func(ctx context.Context, id uint) (*fleet.Software, error)
 
 type CalculateHostsPerSoftwareFunc func(ctx context.Context, updatedAt time.Time) error
+
+type HostsByCPEsFunc func(ctx context.Context, cpes []string) ([]*fleet.CPEHost, error)
 
 type NewActivityFunc func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error
 
@@ -282,6 +284,8 @@ type ShouldSendStatisticsFunc func(ctx context.Context, frequency time.Duration,
 
 type RecordStatisticsSentFunc func(ctx context.Context) error
 
+type ApplyPolicySpecsFunc func(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error
+
 type NewGlobalPolicyFunc func(ctx context.Context, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error)
 
 type PolicyFunc func(ctx context.Context, id uint) (*fleet.Policy, error)
@@ -290,11 +294,11 @@ type SavePolicyFunc func(ctx context.Context, p *fleet.Policy) error
 
 type ListGlobalPoliciesFunc func(ctx context.Context) ([]*fleet.Policy, error)
 
+type PoliciesByIDFunc func(ctx context.Context, ids []uint) (map[uint]*fleet.Policy, error)
+
 type DeleteGlobalPoliciesFunc func(ctx context.Context, ids []uint) ([]uint, error)
 
 type PolicyQueriesForHostFunc func(ctx context.Context, host *fleet.Host) (map[string]string, error)
-
-type ApplyPolicySpecsFunc func(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error
 
 type AsyncBatchInsertPolicyMembershipFunc func(ctx context.Context, batch []fleet.PolicyMembershipResult) error
 
@@ -310,6 +314,10 @@ type ListSoftwareFunc func(ctx context.Context, opt fleet.SoftwareListOptions) (
 
 type CountSoftwareFunc func(ctx context.Context, opt fleet.SoftwareListOptions) (int, error)
 
+type ListVulnerableSoftwareBySourceFunc func(ctx context.Context, source string) ([]fleet.SoftwareWithCPE, error)
+
+type DeleteVulnerabilitiesByCPECVEFunc func(ctx context.Context, vulnerabilities []fleet.SoftwareVulnerability) error
+
 type NewTeamPolicyFunc func(ctx context.Context, teamID uint, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error)
 
 type ListTeamPoliciesFunc func(ctx context.Context, teamID uint) ([]*fleet.Policy, error)
@@ -317,6 +325,8 @@ type ListTeamPoliciesFunc func(ctx context.Context, teamID uint) ([]*fleet.Polic
 type DeleteTeamPoliciesFunc func(ctx context.Context, teamID uint, ids []uint) ([]uint, error)
 
 type TeamPolicyFunc func(ctx context.Context, teamID uint, policyID uint) (*fleet.Policy, error)
+
+type CleanupPolicyMembershipFunc func(ctx context.Context, now time.Time) error
 
 type LockFunc func(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error)
 
@@ -367,6 +377,10 @@ type VerifyEnrollSecretFunc func(ctx context.Context, secret string) (*fleet.Enr
 type EnrollHostFunc func(ctx context.Context, osqueryHostId string, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error)
 
 type SerialUpdateHostFunc func(ctx context.Context, host *fleet.Host) error
+
+type InnoDBStatusFunc func(ctx context.Context) (string, error)
+
+type ProcessListFunc func(ctx context.Context) ([]fleet.MySQLProcess, error)
 
 type DataStore struct {
 	NewCarveFunc        NewCarveFunc
@@ -762,6 +776,9 @@ type DataStore struct {
 	CalculateHostsPerSoftwareFunc        CalculateHostsPerSoftwareFunc
 	CalculateHostsPerSoftwareFuncInvoked bool
 
+	HostsByCPEsFunc        HostsByCPEsFunc
+	HostsByCPEsFuncInvoked bool
+
 	NewActivityFunc        NewActivityFunc
 	NewActivityFuncInvoked bool
 
@@ -773,6 +790,9 @@ type DataStore struct {
 
 	RecordStatisticsSentFunc        RecordStatisticsSentFunc
 	RecordStatisticsSentFuncInvoked bool
+
+	ApplyPolicySpecsFunc        ApplyPolicySpecsFunc
+	ApplyPolicySpecsFuncInvoked bool
 
 	NewGlobalPolicyFunc        NewGlobalPolicyFunc
 	NewGlobalPolicyFuncInvoked bool
@@ -786,14 +806,14 @@ type DataStore struct {
 	ListGlobalPoliciesFunc        ListGlobalPoliciesFunc
 	ListGlobalPoliciesFuncInvoked bool
 
+	PoliciesByIDFunc        PoliciesByIDFunc
+	PoliciesByIDFuncInvoked bool
+
 	DeleteGlobalPoliciesFunc        DeleteGlobalPoliciesFunc
 	DeleteGlobalPoliciesFuncInvoked bool
 
 	PolicyQueriesForHostFunc        PolicyQueriesForHostFunc
 	PolicyQueriesForHostFuncInvoked bool
-
-	ApplyPolicySpecsFunc        ApplyPolicySpecsFunc
-	ApplyPolicySpecsFuncInvoked bool
 
 	AsyncBatchInsertPolicyMembershipFunc        AsyncBatchInsertPolicyMembershipFunc
 	AsyncBatchInsertPolicyMembershipFuncInvoked bool
@@ -816,6 +836,12 @@ type DataStore struct {
 	CountSoftwareFunc        CountSoftwareFunc
 	CountSoftwareFuncInvoked bool
 
+	ListVulnerableSoftwareBySourceFunc        ListVulnerableSoftwareBySourceFunc
+	ListVulnerableSoftwareBySourceFuncInvoked bool
+
+	DeleteVulnerabilitiesByCPECVEFunc        DeleteVulnerabilitiesByCPECVEFunc
+	DeleteVulnerabilitiesByCPECVEFuncInvoked bool
+
 	NewTeamPolicyFunc        NewTeamPolicyFunc
 	NewTeamPolicyFuncInvoked bool
 
@@ -827,6 +853,9 @@ type DataStore struct {
 
 	TeamPolicyFunc        TeamPolicyFunc
 	TeamPolicyFuncInvoked bool
+
+	CleanupPolicyMembershipFunc        CleanupPolicyMembershipFunc
+	CleanupPolicyMembershipFuncInvoked bool
 
 	LockFunc        LockFunc
 	LockFuncInvoked bool
@@ -902,6 +931,12 @@ type DataStore struct {
 
 	SerialUpdateHostFunc        SerialUpdateHostFunc
 	SerialUpdateHostFuncInvoked bool
+
+	InnoDBStatusFunc        InnoDBStatusFunc
+	InnoDBStatusFuncInvoked bool
+
+	ProcessListFunc        ProcessListFunc
+	ProcessListFuncInvoked bool
 }
 
 func (s *DataStore) NewCarve(ctx context.Context, metadata *fleet.CarveMetadata) (*fleet.CarveMetadata, error) {
@@ -1314,12 +1349,12 @@ func (s *DataStore) GetMDM(ctx context.Context, hostID uint) (enrolled bool, ser
 	return s.GetMDMFunc(ctx, hostID)
 }
 
-func (s *DataStore) AggregatedMunkiVersion(ctx context.Context, teamID *uint) ([]fleet.AggregatedMunkiVersion, error) {
+func (s *DataStore) AggregatedMunkiVersion(ctx context.Context, teamID *uint) ([]fleet.AggregatedMunkiVersion, time.Time, error) {
 	s.AggregatedMunkiVersionFuncInvoked = true
 	return s.AggregatedMunkiVersionFunc(ctx, teamID)
 }
 
-func (s *DataStore) AggregatedMDMStatus(ctx context.Context, teamID *uint) (fleet.AggregatedMDMStatus, error) {
+func (s *DataStore) AggregatedMDMStatus(ctx context.Context, teamID *uint) (fleet.AggregatedMDMStatus, time.Time, error) {
 	s.AggregatedMDMStatusFuncInvoked = true
 	return s.AggregatedMDMStatusFunc(ctx, teamID)
 }
@@ -1544,7 +1579,7 @@ func (s *DataStore) AllCPEs(ctx context.Context) ([]string, error) {
 	return s.AllCPEsFunc(ctx)
 }
 
-func (s *DataStore) InsertCVEForCPE(ctx context.Context, cve string, cpes []string) error {
+func (s *DataStore) InsertCVEForCPE(ctx context.Context, cve string, cpes []string) (int64, error) {
 	s.InsertCVEForCPEFuncInvoked = true
 	return s.InsertCVEForCPEFunc(ctx, cve, cpes)
 }
@@ -1557,6 +1592,11 @@ func (s *DataStore) SoftwareByID(ctx context.Context, id uint) (*fleet.Software,
 func (s *DataStore) CalculateHostsPerSoftware(ctx context.Context, updatedAt time.Time) error {
 	s.CalculateHostsPerSoftwareFuncInvoked = true
 	return s.CalculateHostsPerSoftwareFunc(ctx, updatedAt)
+}
+
+func (s *DataStore) HostsByCPEs(ctx context.Context, cpes []string) ([]*fleet.CPEHost, error) {
+	s.HostsByCPEsFuncInvoked = true
+	return s.HostsByCPEsFunc(ctx, cpes)
 }
 
 func (s *DataStore) NewActivity(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {
@@ -1579,6 +1619,11 @@ func (s *DataStore) RecordStatisticsSent(ctx context.Context) error {
 	return s.RecordStatisticsSentFunc(ctx)
 }
 
+func (s *DataStore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error {
+	s.ApplyPolicySpecsFuncInvoked = true
+	return s.ApplyPolicySpecsFunc(ctx, authorID, specs)
+}
+
 func (s *DataStore) NewGlobalPolicy(ctx context.Context, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error) {
 	s.NewGlobalPolicyFuncInvoked = true
 	return s.NewGlobalPolicyFunc(ctx, authorID, args)
@@ -1599,6 +1644,11 @@ func (s *DataStore) ListGlobalPolicies(ctx context.Context) ([]*fleet.Policy, er
 	return s.ListGlobalPoliciesFunc(ctx)
 }
 
+func (s *DataStore) PoliciesByID(ctx context.Context, ids []uint) (map[uint]*fleet.Policy, error) {
+	s.PoliciesByIDFuncInvoked = true
+	return s.PoliciesByIDFunc(ctx, ids)
+}
+
 func (s *DataStore) DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint, error) {
 	s.DeleteGlobalPoliciesFuncInvoked = true
 	return s.DeleteGlobalPoliciesFunc(ctx, ids)
@@ -1607,11 +1657,6 @@ func (s *DataStore) DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uin
 func (s *DataStore) PolicyQueriesForHost(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 	s.PolicyQueriesForHostFuncInvoked = true
 	return s.PolicyQueriesForHostFunc(ctx, host)
-}
-
-func (s *DataStore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error {
-	s.ApplyPolicySpecsFuncInvoked = true
-	return s.ApplyPolicySpecsFunc(ctx, authorID, specs)
 }
 
 func (s *DataStore) AsyncBatchInsertPolicyMembership(ctx context.Context, batch []fleet.PolicyMembershipResult) error {
@@ -1649,6 +1694,16 @@ func (s *DataStore) CountSoftware(ctx context.Context, opt fleet.SoftwareListOpt
 	return s.CountSoftwareFunc(ctx, opt)
 }
 
+func (s *DataStore) ListVulnerableSoftwareBySource(ctx context.Context, source string) ([]fleet.SoftwareWithCPE, error) {
+	s.ListVulnerableSoftwareBySourceFuncInvoked = true
+	return s.ListVulnerableSoftwareBySourceFunc(ctx, source)
+}
+
+func (s *DataStore) DeleteVulnerabilitiesByCPECVE(ctx context.Context, vulnerabilities []fleet.SoftwareVulnerability) error {
+	s.DeleteVulnerabilitiesByCPECVEFuncInvoked = true
+	return s.DeleteVulnerabilitiesByCPECVEFunc(ctx, vulnerabilities)
+}
+
 func (s *DataStore) NewTeamPolicy(ctx context.Context, teamID uint, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error) {
 	s.NewTeamPolicyFuncInvoked = true
 	return s.NewTeamPolicyFunc(ctx, teamID, authorID, args)
@@ -1667,6 +1722,11 @@ func (s *DataStore) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []u
 func (s *DataStore) TeamPolicy(ctx context.Context, teamID uint, policyID uint) (*fleet.Policy, error) {
 	s.TeamPolicyFuncInvoked = true
 	return s.TeamPolicyFunc(ctx, teamID, policyID)
+}
+
+func (s *DataStore) CleanupPolicyMembership(ctx context.Context, now time.Time) error {
+	s.CleanupPolicyMembershipFuncInvoked = true
+	return s.CleanupPolicyMembershipFunc(ctx, now)
 }
 
 func (s *DataStore) Lock(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error) {
@@ -1792,4 +1852,14 @@ func (s *DataStore) EnrollHost(ctx context.Context, osqueryHostId string, nodeKe
 func (s *DataStore) SerialUpdateHost(ctx context.Context, host *fleet.Host) error {
 	s.SerialUpdateHostFuncInvoked = true
 	return s.SerialUpdateHostFunc(ctx, host)
+}
+
+func (s *DataStore) InnoDBStatus(ctx context.Context) (string, error) {
+	s.InnoDBStatusFuncInvoked = true
+	return s.InnoDBStatusFunc(ctx)
+}
+
+func (s *DataStore) ProcessList(ctx context.Context) ([]fleet.MySQLProcess, error) {
+	s.ProcessListFuncInvoked = true
+	return s.ProcessListFunc(ctx)
 }

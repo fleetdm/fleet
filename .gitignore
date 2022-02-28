@@ -21,6 +21,7 @@ server/bindata/generated.go
 *.test
 *.log
 coverage.txt
+storybook-static
 
 # typescript generated test files
 tmp/
@@ -57,3 +58,11 @@ terraform.tfstate*
 
 # generated installers
 fleet-osquery*
+
+# residual files when running the cpe command
+cmd/cpe/etagenv
+cmd/cpe/cpe*.sqlite
+cmd/cpe/cpe*.sqlite.gz
+
+# Testing TUF server
+test_tuf

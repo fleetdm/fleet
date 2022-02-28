@@ -3,14 +3,13 @@ import sendRequest from "services";
 import { omit } from "lodash";
 
 import endpoints from "fleet/endpoints";
-import { IPack } from "interfaces/pack";
-import { ITargets } from "interfaces/target";
-import helpers from "fleet/helpers";
+import { formatPackTargetsForApi } from "fleet/helpers";
+import { ISelectTargetsEntity } from "interfaces/target";
 
 interface ICreateProps {
   name: string;
   description: string;
-  targets: ITargets;
+  targets: ISelectTargetsEntity[];
 }
 
 export default {
@@ -28,7 +27,7 @@ export default {
   },
   create: ({ name, description, targets }: ICreateProps) => {
     const { PACKS } = endpoints;
-    const packTargets = helpers.formatSelectedTargetsForApi(targets, true);
+    const packTargets = formatPackTargetsForApi(targets);
 
     return sendRequest("POST", PACKS, { name, description, ...packTargets });
   },
@@ -56,7 +55,7 @@ export default {
 
     let packTargets = null;
     if (targets) {
-      packTargets = helpers.formatSelectedTargetsForApi(targets, true);
+      packTargets = formatPackTargetsForApi(targets);
     }
 
     const packWithoutTargets = omit(updatedPack, "targets");

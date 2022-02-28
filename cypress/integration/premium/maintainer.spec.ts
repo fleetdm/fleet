@@ -17,6 +17,117 @@ describe("Premium tier - Maintainer user", () => {
     beforeEach(() => {
       cy.loginWithCySession("mary@organization.com", "user123#");
     });
+    describe("Navigation", () => {
+      beforeEach(() => cy.visit("/dashboard"));
+      it("displays intended global maintainer top navigation", () => {
+        cy.getAttached(".site-nav-container").within(() => {
+          cy.findByText(/hosts/i).should("exist");
+          cy.findByText(/software/i).should("exist");
+          cy.findByText(/queries/i).should("exist");
+          cy.findByText(/schedule/i).should("exist");
+          cy.findByText(/policies/i).should("exist");
+          cy.getAttached(".user-menu").click();
+          cy.findByText(/settings/i).should("not.exist");
+          cy.findByText(/manage users/i).should("not.exist");
+        });
+      });
+    });
+    describe("Dashboard", () => {
+      beforeEach(() => cy.visit("/dashboard"));
+      it("displays cards for all platforms", () => {
+        cy.getAttached(".homepage__wrapper").within(() => {
+          cy.findByText(/all teams/i).should("exist");
+          cy.getAttached(".hosts-summary").should("exist");
+          cy.getAttached(".hosts-status").should("exist");
+          cy.getAttached(".home-software").should("exist");
+          cy.getAttached(".activity-feed").should("exist");
+        });
+      });
+      it("displays cards for windows only", () => {
+        cy.getAttached(".homepage__platforms").within(() => {
+          cy.getAttached(".Select-control").click();
+          cy.findByText(/windows/i).click();
+        });
+        cy.getAttached(".homepage__wrapper").within(() => {
+          cy.findByText(/all teams/i).should("exist");
+          cy.getAttached(".hosts-summary").should("exist");
+          cy.getAttached(".hosts-status").should("exist");
+          // "get" because we expect it not to exist
+          cy.get(".home-software").should("not.exist");
+          cy.get(".activity-feed").should("not.exist");
+        });
+      });
+      it("displays cards for linux only", () => {
+        cy.getAttached(".homepage__platforms").within(() => {
+          cy.getAttached(".Select-control").click();
+          cy.findByText(/linux/i).click();
+        });
+        cy.getAttached(".homepage__wrapper").within(() => {
+          cy.findByText(/all teams/i).should("exist");
+          cy.getAttached(".hosts-summary").should("exist");
+          cy.getAttached(".hosts-status").should("exist");
+          // "get" because we expect it not to exist
+          cy.get(".home-software").should("not.exist");
+          cy.get(".activity-feed").should("not.exist");
+        });
+      });
+      it("displays cards for macOS only", () => {
+        cy.getAttached(".homepage__platforms").within(() => {
+          cy.getAttached(".Select-control").click();
+          cy.findByText(/macos/i).click();
+        });
+        cy.getAttached(".homepage__wrapper").within(() => {
+          cy.findByText(/all teams/i).should("exist");
+          cy.getAttached(".hosts-summary").should("exist");
+          cy.getAttached(".hosts-status").should("exist");
+          cy.getAttached(".home-munki").should("exist");
+          cy.getAttached(".home-mdm").should("exist");
+          // "get" because we expect it not to exist
+          cy.get(".home-software").should("not.exist");
+          cy.get(".activity-feed").should("not.exist");
+        });
+      });
+      it("views all hosts for all platforms", () => {
+        cy.findByText(/view all hosts/i).click();
+        cy.get(".manage-hosts__label-block").should("not.exist");
+      });
+      it("views all hosts for windows only", () => {
+        cy.getAttached(".homepage__platforms").within(() => {
+          cy.getAttached(".Select-control").click();
+          cy.findByText(/windows/i).click();
+        });
+        cy.findByText(/view all hosts/i).click();
+        cy.getAttached(".manage-hosts__label-block").within(() => {
+          cy.getAttached(".title").within(() => {
+            cy.findByText(/windows/i).should("exist");
+          });
+        });
+      });
+      it("views all hosts for linux only", () => {
+        cy.getAttached(".homepage__platforms").within(() => {
+          cy.getAttached(".Select-control").click();
+          cy.findByText(/linux/i).click();
+        });
+        cy.findByText(/view all hosts/i).click();
+        cy.getAttached(".manage-hosts__label-block").within(() => {
+          cy.getAttached(".title").within(() => {
+            cy.findByText(/linux/i).should("exist");
+          });
+        });
+      });
+      it("views all hosts for macOS only", () => {
+        cy.getAttached(".homepage__platforms").within(() => {
+          cy.getAttached(".Select-control").click();
+          cy.findByText(/macos/i).click();
+        });
+        cy.findByText(/view all hosts/i).click();
+        cy.getAttached(".manage-hosts__label-block").within(() => {
+          cy.getAttached(".title").within(() => {
+            cy.findByText(/macos/i).should("exist");
+          });
+        });
+      });
+    });
     describe("Manage hosts page", () => {
       it("renders elements according to role-based access controls", () => {
         cy.visit("/hosts/manage");
@@ -25,7 +136,7 @@ describe("Premium tier - Maintainer user", () => {
           .contains("Team")
           .should("be.visible");
         cy.getAttached(".button-wrap")
-          .contains("button", /generate installer/i)
+          .contains("button", /add hosts/i)
           .click();
         cy.getAttached(".modal__content").contains("button", /done/i).click();
 
@@ -83,6 +194,33 @@ describe("Premium tier - Maintainer user", () => {
           cy.findByText(/delete host/i).should("exist");
           cy.contains("button", /delete/i).should("exist");
           cy.getAttached(".modal__ex").click();
+        });
+      });
+    });
+    describe("Manage software page", () => {
+      beforeEach(() => cy.visit("/software/manage"));
+      it("allows global maintainer to click 'Manage automations' button", () => {
+        it("manages software automations when all teams selected", () => {
+          cy.getAttached(".manage-software-page__header-wrap").within(() => {
+            cy.getAttached(".Select").within(() => {
+              cy.findByText(/all teams/i).should("exist");
+            });
+            cy.findByRole("button", { name: /manage automations/i }).click();
+            cy.findByRole("button", { name: /cancel/i }).click();
+          });
+        });
+        it("hides manage automations button when all teams not selected", () => {
+          cy.getAttached(".manage-software-page__header-wrap").within(() => {
+            cy.getAttached(".Select").within(() => {
+              cy.getAttached(".Select-control").click();
+              cy.getAttached(".Select-menu-outer").within(() => {
+                cy.findByText(/apples/i).should("exist");
+              });
+              cy.findByRole("button", {
+                name: /manage automations/i,
+              }).should("not.exist");
+            });
+          });
         });
       });
     });

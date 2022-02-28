@@ -39,6 +39,7 @@ spec:
     version: 1.4.7
   targets:
     labels: null
+    teams: null
 ---
 apiVersion: v1
 kind: query

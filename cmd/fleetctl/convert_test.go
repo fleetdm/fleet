@@ -36,7 +36,7 @@ func TestConvertFileOutput(t *testing.T) {
 	// convert command ran and wrote converted file to output destination
 	got, err := ioutil.ReadFile(file.Name())
 	require.NoError(t, err)
-	require.Equal(t, expected, got)
+	require.YAMLEq(t, string(expected), string(got))
 }
 
 func TestConvertFileStdout(t *testing.T) {

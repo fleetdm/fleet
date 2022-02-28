@@ -789,17 +789,22 @@ func (svc *Service) AggregatedMacadminsData(ctx context.Context, teamID *uint) (
 
 	agg := &fleet.AggregatedMacadminsData{}
 
-	versions, err := svc.ds.AggregatedMunkiVersion(ctx, teamID)
+	versions, munkiUpdatedAt, err := svc.ds.AggregatedMunkiVersion(ctx, teamID)
 	if err != nil {
 		return nil, err
 	}
 	agg.MunkiVersions = versions
 
-	status, err := svc.ds.AggregatedMDMStatus(ctx, teamID)
+	status, mdmUpdatedAt, err := svc.ds.AggregatedMDMStatus(ctx, teamID)
 	if err != nil {
 		return nil, err
 	}
 	agg.MDMStatus = status
+
+	agg.CountsUpdatedAt = munkiUpdatedAt
+	if mdmUpdatedAt.After(munkiUpdatedAt) {
+		agg.CountsUpdatedAt = mdmUpdatedAt
+	}
 
 	return agg, nil
 }

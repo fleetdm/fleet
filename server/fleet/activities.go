@@ -13,6 +13,14 @@ const (
 	ActivityTypeDeletedPack = "deleted_pack"
 	// ActivityTypeAppliedSpecPack is the activity type for pack specs applied
 	ActivityTypeAppliedSpecPack = "applied_spec_pack"
+	// ActivityTypeCreatedPolicy is the activity type for created policies
+	ActivityTypeCreatedPolicy = "created_policy"
+	// ActivityTypeEditedPolicy is the activity type for edited policies
+	ActivityTypeEditedPolicy = "edited_policy"
+	// ActivityTypeDeletedPolicy is the activity type for deleted policies
+	ActivityTypeDeletedPolicy = "deleted_policy"
+	// ActivityTypeAppliedSpecPolicy is the activity type for saved queries spec applied
+	ActivityTypeAppliedSpecPolicy = "applied_spec_policy"
 	// ActivityTypeCreatedSavedQuery is the activity type for created saved queries
 	ActivityTypeCreatedSavedQuery = "created_saved_query"
 	// ActivityTypeEditedSavedQuery is the activity type for edited saved queries

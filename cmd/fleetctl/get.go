@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"strconv"
 
@@ -601,11 +602,14 @@ func getHostsCommand() *cli.Command {
 			identifier := c.Args().First()
 
 			if identifier == "" {
-				query := `additional_info_filters=*`
-				if c.Uint("team") > 0 {
-					query += fmt.Sprintf("&team_id=%d", c.Uint("team"))
+				query := url.Values{}
+				query.Set("additional_info_filters", "*")
+				if teamID := c.Uint("team"); teamID > 0 {
+					query.Set("team_id", strconv.FormatUint(uint64(teamID), 10))
 				}
-				hosts, err := client.GetHosts(query)
+				queryStr := query.Encode()
+
+				hosts, err := client.GetHosts(queryStr)
 				if err != nil {
 					return fmt.Errorf("could not list hosts: %w", err)
 				}
@@ -867,6 +871,10 @@ func getTeamsCommand() *cli.Command {
 			configFlag(),
 			contextFlag(),
 			debugFlag(),
+			&cli.StringFlag{
+				Name:  nameFlagName,
+				Usage: "filter by name",
+			},
 		},
 		Action: func(c *cli.Context) error {
 			client, err := clientFromCLI(c)
@@ -874,7 +882,13 @@ func getTeamsCommand() *cli.Command {
 				return err
 			}
 
-			teams, err := client.ListTeams()
+			query := url.Values{}
+			if name := c.String(nameFlagName); name != "" {
+				query.Set("query", name)
+			}
+			queryStr := query.Encode()
+
+			teams, err := client.ListTeams(queryStr)
 			if err != nil {
 				return fmt.Errorf("could not list teams: %w", err)
 			}

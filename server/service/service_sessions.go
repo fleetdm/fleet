@@ -156,7 +156,11 @@ func (svc *Service) CallbackSSO(ctx context.Context, auth fleet.Auth) (*fleet.SS
 	}
 
 	// Validate response
-	validator, err := sso.NewValidator(*metadata)
+	validator, err := sso.NewValidator(*metadata, sso.WithExpectedAudience(
+		appConfig.SSOSettings.EntityID,
+		appConfig.ServerSettings.ServerURL,
+		appConfig.ServerSettings.ServerURL+svc.config.Server.URLPrefix+"/api/v1/fleet/sso/callback", // ACS
+	))
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "create validator from metadata")
 	}
@@ -304,6 +308,10 @@ func (svc *Service) validateSession(ctx context.Context, session *fleet.Session)
 	}
 
 	sessionDuration := svc.config.Session.Duration
+	if session.APIOnly != nil && *session.APIOnly {
+		sessionDuration = 0 // make API-only tokens unlimited
+	}
+
 	// duration 0 = unlimited
 	if sessionDuration != 0 && time.Since(session.AccessedAt) >= sessionDuration {
 		err := svc.ds.DestroySession(ctx, session)

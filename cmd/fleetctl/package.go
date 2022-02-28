@@ -41,7 +41,7 @@ func packageCommand() *cli.Command {
 			},
 			&cli.StringFlag{
 				Name:        "fleet-certificate",
-				Usage:       "Path to server cerificate bundle",
+				Usage:       "Path to server certificate chain",
 				Destination: &opt.FleetCertificate,
 			},
 			&cli.StringFlag{
@@ -53,7 +53,6 @@ func packageCommand() *cli.Command {
 			&cli.StringFlag{
 				Name:        "version",
 				Usage:       "Version for package product",
-				Value:       "0.0.5",
 				Destination: &opt.Version,
 			},
 			&cli.BoolFlag{
@@ -88,6 +87,11 @@ func packageCommand() *cli.Command {
 				Usage:       "Update channel of Orbit to use",
 				Value:       "stable",
 				Destination: &opt.OrbitChannel,
+			},
+			&cli.BoolFlag{
+				Name:        "disable-updates",
+				Usage:       "Disable auto updates on the generated package",
+				Destination: &opt.DisableUpdates,
 			},
 			&cli.StringFlag{
 				Name:        "update-url",

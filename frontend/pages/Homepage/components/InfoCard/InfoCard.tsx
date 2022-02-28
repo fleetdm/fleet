@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Link } from "react-router";
 
 import Button from "components/buttons/Button";
@@ -6,11 +6,12 @@ import LinkArrow from "../../../../../assets/images/icon-arrow-right-vibrant-blu
 
 interface IInfoCardProps {
   title: string;
+  description?: JSX.Element | string;
   children: React.ReactChild | React.ReactChild[];
   action?:
     | {
         type: "link";
-        to: string;
+        to?: string;
         text: string;
       }
     | {
@@ -18,23 +19,25 @@ interface IInfoCardProps {
         text: string;
         onClick?: () => void;
       };
-  total_host_count?: string;
-  isLoadingSoftware?: boolean;
-  isLoadingActivityFeed?: boolean;
+  total_host_count?: string | (() => string | undefined);
   showTitle?: boolean;
 }
 
 const baseClass = "homepage-info-card";
 
-const InfoCard = ({
+const useInfoCard = ({
   title,
+  description,
   children,
   action,
   total_host_count,
-  isLoadingSoftware,
-  isLoadingActivityFeed,
   showTitle,
-}: IInfoCardProps) => {
+}: IInfoCardProps): JSX.Element => {
+  const [actionLink, setActionURL] = useState<string | null>(null);
+  const [titleDetail, setTitleDetail] = useState<JSX.Element | string | null>(
+    null
+  );
+
   const renderAction = () => {
     if (action) {
       if (action.type === "button") {
@@ -45,39 +48,65 @@ const InfoCard = ({
             onClick={action.onClick}
           >
             <>
-              <span>{action.text}</span>
+              <span className={`${baseClass}__action-button-text`}>
+                {action.text}
+              </span>
               <img src={LinkArrow} alt="link arrow" id="link-arrow" />
             </>
           </Button>
         );
       }
 
-      return (
-        <Link to={action.to} className={`${baseClass}__action-button`}>
-          <span>{action.text}</span>
-          <img src={LinkArrow} alt="link arrow" id="link-arrow" />
-        </Link>
-      );
+      const linkTo = actionLink || action.to;
+      if (linkTo) {
+        return (
+          <Link to={linkTo} className={`${baseClass}__action-button`}>
+            <span className={`${baseClass}__action-button-text`}>
+              {action.text}
+            </span>
+            <img src={LinkArrow} alt="link arrow" id="link-arrow" />
+          </Link>
+        );
+      }
     }
 
     return null;
   };
 
-  const ok = false;
+  const clonedChildren = React.Children.toArray(children).map((child) => {
+    if (React.isValidElement(child)) {
+      child = React.cloneElement(child, {
+        setTitleDetail,
+        setActionURL,
+      });
+    }
+    return child;
+  });
+
   return (
     <div className={baseClass}>
       {showTitle && (
-        <div className={`${baseClass}__section-title-cta`}>
-          <div className={`${baseClass}__section-title`}>
-            <h2>{title}</h2>
-            {total_host_count && <span>{total_host_count}</span>}
+        <>
+          <div className={`${baseClass}__section-title-cta`}>
+            <div className={`${baseClass}__section-title-group`}>
+              <div className={`${baseClass}__section-title`}>
+                <h2>{title}</h2>
+                {total_host_count && <span>{total_host_count}</span>}
+              </div>
+              <div className={`${baseClass}__section-title-detail`}>
+                {titleDetail}
+              </div>
+            </div>
+            {renderAction()}
           </div>
-          {renderAction()}
-        </div>
+          <div className={`${baseClass}__section-description`}>
+            {description}
+          </div>
+        </>
       )}
-      {children}
+      {clonedChildren}
     </div>
   );
 };
 
-export default InfoCard;
+export default useInfoCard;

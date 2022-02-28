@@ -1,0 +1,256 @@
+name: Test Orbit & Fleet
+
+# This workflow tests orbit code changes (compiles and runs orbit from source).
+# It uses a fleet instance also built and executed from source.
+#
+# It tests that orbit osquery agents enroll successfully to Fleet.
+
+on:
+  push:
+    branches:
+      - main
+      - patch-*
+    paths:
+      - 'orbit/**.go'
+  pull_request:
+    paths:
+      - 'orbit/**.go'
+  workflow_dispatch: # Manual
+
+jobs:
+  gen:
+    runs-on: ubuntu-latest
+    outputs:
+      subdomain: ${{ steps.gen.outputs.subdomain }}
+      domain: ${{ steps.gen.outputs.domain }}
+      address: ${{ steps.gen.outputs.address }}
+    steps:
+    - id: gen
+      run: |
+        UUID=$(uuidgen)
+        echo "::set-output name=subdomain::fleet-test-$UUID"
+        echo "::set-output name=domain::fleet-test-$UUID.fleetuem.com"
+        echo "::set-output name=address::https://fleet-test-$UUID.fleetuem.com"
+  
+  run-server:
+    strategy:
+      matrix:
+        go-version: ['^1.17.0']
+        mysql: ['mysql:5.7']
+    runs-on: ubuntu-latest
+    needs: gen
+    steps:
+
+    - name: Install Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: ${{ matrix.go-version }}
+
+    - name: Checkout Code
+      uses: actions/checkout@v2
+
+    - name: Start tunnel
+      env: 
+        CERT_PEM: ${{ secrets.CLOUDFLARE_TUNNEL_FLEETUEM_CERT_B64 }}
+      run: |
+        # Install cloudflared
+        wget https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+        sudo dpkg -i cloudflared-linux-amd64.deb
+        # Add secret
+        echo "$CERT_PEM" | base64 -d > cert.pem
+        # Start tunnel
+        cloudflared tunnel --origincert cert.pem --hostname ${{ needs.gen.outputs.subdomain }} --url http://localhost:1337 --name ${{ needs.gen.outputs.subdomain }} &
+        until [ $(cloudflared tunnel --origincert cert.pem info -o json ${{ needs.gen.outputs.subdomain }} | jq '.conns[0].conns[0].is_pending_reconnect') = false ]; do
+          echo "Awaiting tunnel ready..."
+          sleep 5
+        done
+
+    - name: Start Infra Dependencies
+      run: FLEET_MYSQL_IMAGE=${{ matrix.mysql }} docker-compose up -d mysql redis &
+
+    - name: Install JS Dependencies
+      run: make deps-js
+
+    - name: Generate and bundle go & js code
+      run: make generate
+
+    - name: Build fleet and fleetctl
+      run: make fleet fleetctl
+
+    - name: Run Fleet server
+      timeout-minutes: 10
+      env:
+        FLEET_OSQUERY_HOST_IDENTIFIER: instance # use instance identifier to allow for duplicate UUIDs
+        FLEET_SERVER_ADDRESS: 0.0.0.0:1337
+        FLEET_SERVER_TLS: false
+        FLEET_LOGGING_DEBUG: true
+      run: |
+        mkdir ./fleet_log
+        make db-reset
+        ./build/fleet serve --dev --dev_license 1>./fleet_log/stdout.log 2>./fleet_log/stderr.log &
+        ./build/fleetctl config set --address http://localhost:1337 --tls-skip-verify
+        until ./build/fleetctl setup --email admin@example.com --name Admin --password admin123# --org-name Example
+        do
+          echo "Retrying setup in 5s..."
+          sleep 5
+        done
+        # Wait for all of the hosts to be enrolled
+        EXPECTED=3
+        until [ $(./build/fleetctl get hosts --json | grep "hostname" | wc -l | tee hostcount) -ge $EXPECTED ]; do
+          echo -n "Waiting for hosts to enroll: "
+          cat hostcount | xargs echo -n
+          echo " / $EXPECTED"
+          sleep 10
+        done
+        ./build/fleetctl get hosts
+        echo "Success! $EXPECTED hosts enrolled."
+
+    - name: Cleanup tunnel
+      if: always()
+      run: cloudflared tunnel --origincert cert.pem delete --force ${{ needs.gen.outputs.subdomain }}
+
+    - name: Upload fleet logs
+      if: always()
+      uses: actions/upload-artifact@v2
+      with:
+        name: fleet-logs
+        path: |
+          fleet_log
+
+  get-enroll-secret:
+    strategy:
+      matrix:
+        go-version: ['^1.17.0']
+    runs-on: ubuntu-latest
+    needs: gen
+    outputs:
+      enroll_secret: ${{ steps.enroll.outputs.enroll_secret }}
+    steps:
+
+    - name: Install Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: ${{ matrix.go-version }}
+
+    - name: Checkout Code
+      uses: actions/checkout@v2
+
+    - name: Build Fleetctl
+      run: make fleetctl
+
+    - id: enroll
+      name: Fetch enroll secret
+      timeout-minutes: 10
+      run: |
+        ./build/fleetctl config set --address ${{ needs.gen.outputs.address }}
+        until ./build/fleetctl login --email admin@example.com --password admin123#
+        do
+          echo "Retrying in 10s..."
+          sleep 10
+        done
+        SECRET_JSON=$(./build/fleetctl get enroll_secret --json --debug)
+        echo $SECRET_JSON
+        SECRET=$(echo $SECRET_JSON | jq -r '.spec.secrets[0].secret')
+        echo "::set-output name=enroll_secret::$SECRET"
+      
+  orbit-macos-and-ubuntu:
+    timeout-minutes: 15
+    strategy:
+      matrix:
+        # TODO(lucas): Add edge channel for osqueryd.
+        osqueryd-channel: ['stable']
+        go-version: ['^1.17.0']
+        os: ['macos-latest', 'ubuntu-latest']
+    runs-on: ${{ matrix.os }}
+    needs: [gen, get-enroll-secret]
+    steps:
+
+    - name: Install Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: ${{ matrix.go-version }}
+
+    - name: Checkout Code
+      uses: actions/checkout@v2
+
+    - name: Build and Run Orbit
+      run: |
+        sudo hostname ${{ matrix.os }}-orbit-dev-osqueryd-${{ matrix.osqueryd-channel }}
+        echo "Hostname: $(hostname -s)"
+        mkdir /tmp/orbit
+        cp ./orbit/pkg/packaging/certs.pem /tmp/orbit
+        mkdir orbit_logs
+        go run github.com/fleetdm/fleet/v4/orbit/cmd/orbit \
+          --debug \
+          --dev-mode \
+          --disable-updates \
+          --root-dir /tmp/orbit \
+          --fleet-url ${{ needs.gen.outputs.address }} \
+          --enroll-secret ${{ needs.get-enroll-secret.outputs.enroll_secret }} \
+          --osqueryd-channel ${{ matrix.osqueryd-channel }} \
+          -- --verbose 1>./orbit_logs/stdout.log 2>./orbit_logs/stderr.log &
+        # TODO(lucas): Improve checking of "enrolled".
+        # This waits until the server goes down.
+        while curl --fail ${{ needs.gen.outputs.address }};
+        do
+          echo "Retrying in 10s..."
+          sleep 10
+        done
+
+    - name: Upload orbit logs
+      if: always()
+      uses: actions/upload-artifact@v2
+      with:
+        name: orbit-${{ matrix.os }}-logs-${{ matrix.osqueryd-channel }}
+        path: |
+          orbit_logs
+
+  orbit-windows:
+    timeout-minutes: 15
+    strategy:
+      matrix:
+        # TODO(lucas): Add edge channel for osqueryd.
+        osqueryd-channel: ['stable']
+        go-version: ['^1.17.0']
+    needs: [gen, get-enroll-secret]
+    runs-on: windows-latest
+    steps:
+    
+    - name: Install Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: ${{ matrix.go-version }}
+
+    - name: Checkout Code
+      uses: actions/checkout@v2
+
+    - name: Build and Run Orbit
+      shell: bash
+      run: |
+        mkdir "/C/Program Files/Orbit"
+        cp ./orbit/pkg/packaging/certs.pem "/C/Program Files/Orbit"
+        mkdir orbit_logs
+        go run github.com/fleetdm/fleet/v4/orbit/cmd/orbit \
+          --debug \
+          --dev-mode \
+          --disable-updates \
+          --root-dir "/C/Program Files/Orbit" \
+          --fleet-url ${{ needs.gen.outputs.address }} \
+          --enroll-secret ${{ needs.get-enroll-secret.outputs.enroll_secret }} \
+          --osqueryd-channel ${{ matrix.osqueryd-channel }} \
+          -- --verbose 1>./orbit_logs/stdout.log 2>./orbit_logs/stderr.log &
+        # TODO(lucas): Improve checking of "enrolled".
+        # This waits until the server goes down.
+        while curl --fail ${{ needs.gen.outputs.address }};
+        do
+          echo "Retrying in 10s..."
+          sleep 10
+        done
+
+    - name: Upload orbit logs
+      if: always()
+      uses: actions/upload-artifact@v2
+      with:
+        name: orbit-windows-logs-${{ matrix.osqueryd-channel }}
+        path: |
+          orbit_logs

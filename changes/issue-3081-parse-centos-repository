@@ -1,0 +1,1 @@
+* Add parsing of the CentOS repository as well as the loading of the results in fleet vulnerability post-processing (to reduce false positives on RPM packages).

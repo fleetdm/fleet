@@ -20,6 +20,7 @@ export interface ITeamSummary {
   id: number;
   name: string;
   description?: string;
+  host_count: number;
 }
 
 /**

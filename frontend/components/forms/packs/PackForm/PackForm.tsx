@@ -20,7 +20,6 @@ interface IPackForm {
   ) => boolean;
   selectedTargetsCount?: number;
   isPremiumTier?: boolean;
-  formData: IEditPackFormData;
   baseError: any;
 }
 
@@ -28,10 +27,6 @@ interface IEditPackFormData {
   name: string;
   description: string;
   targets: ITarget[];
-}
-
-interface IFormErrors {
-  name?: string;
 }
 
 const EditPackForm = ({
@@ -42,7 +37,7 @@ const EditPackForm = ({
   isPremiumTier,
   baseError,
 }: IPackForm): JSX.Element => {
-  const [errors, setErrors] = useState<{ [key: string]: any }>({});
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [packName, setPackName] = useState<string>("");
   const [packDescription, setPackDescription] = useState<string>("");
   const [packFormTargets, setPackFormTargets] = useState<ITarget[] | []>([]);

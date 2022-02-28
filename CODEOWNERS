@@ -5,3 +5,9 @@ go.sum @fleetdm/go
 go.mod @fleetdm/go
 /server/ @fleetdm/go
 /cmd/ @fleetdm/go
+
+# Infra/terraform
+*.tf @edwardsb
+
+# GitHub settings + actions
+/.github/ @zwass

@@ -2,7 +2,7 @@
 
 ## Introduction
 
-The Fleet handbook is the central guide for how we run the company. As part of our value of being transparent, the handbook is open to the world. We welcome feedback, and contributions, so please click to edit to suggest improvements throughout these pages.  
+The Fleet handbook is the central guide for how we run the company. As part of our value of [being transparent](./company.md#openness), the handbook is open to the world. We welcome feedback, and [contributions](./handbook.md#contributing-to-the-handbook), so please click to edit and suggest improvements throughout these pages.
 
 ### Company
 
@@ -20,7 +20,11 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Spending company money](./people.md#spending-company-money)
 
+[Paid time off](./people.md#paid-time-off)
+
 [Meetings](./people.md#meetings)
+
+[People ops](./people.md#people-ops)
 
 ### Engineering
 
@@ -32,21 +36,30 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Product quality](./product.md#product-quality)
 
-[Fleet docs](./product.md#fleet-docs)
-
 [UI design](./product.md#ui-design)
 
 [Release](./product.md#release)
 
 [Feature flags](./product.md#feature-flags)
 
-### Growth
+### Security
 
-[Website](./growth.md#website)
+[How we protect end-user devices](./security.md#how-we-protect-end-user-devices)
 
-[Communicating as Fleet](./growth.md#communicating-as-fleet)
+[Google Workspace Security](./security.md#google-workspace-security)
 
-[Voice and grammar guidelines](./growth.md#voice-and-grammar-guidelines)
+[Vulnerability management in Fleet](./security.md#vulnerability-management)
+
+
+### Brand
+
+[Communicating as Fleet](./brand.md#communicating-as-fleet)
+
+[Voice and grammar guidelines](./brand.md#voice-and-grammar-guidelines)
+
+[Brand resources](./brand.md#brand-resources)
+
+[Website](./brand.md#website)
 
 ### Customers
 
@@ -60,7 +73,9 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Posting on social media as Fleet](./community.md#posting-on-social-media-as-fleet)
 
-[Promoting blog posts on social media](./growth.md#promoting-blog-posts-on-social-media)
+[Promoting blog posts on social media](./community.md#promoting-blog-posts-on-social-media)
+
+[Fleet docs](./community.md#fleet-docs)
 
 [Press releases](./community.md#press-releases)
 

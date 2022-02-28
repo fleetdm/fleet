@@ -1,10 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { useSelector } from "react-redux";
 
 import { IPack } from "interfaces/pack";
-import { IUser } from "interfaces/user";
 import Button from "components/buttons/Button";
-import permissionUtils from "utilities/permissions";
 
 import TableContainer from "components/TableContainer";
 import { IActionButtonProps } from "components/TableContainer/DataTable/ActionButton";
@@ -22,12 +19,6 @@ interface IPacksListWrapperProps {
   isLoading: boolean;
 }
 
-interface IRootState {
-  auth: {
-    user: IUser;
-  };
-}
-
 const PacksListWrapper = ({
   onRemovePackClick,
   onEnablePackClick,
@@ -36,9 +27,6 @@ const PacksListWrapper = ({
   packs,
   isLoading,
 }: IPacksListWrapperProps): JSX.Element => {
-  const currentUser = useSelector((state: IRootState) => state.auth.user);
-  const isOnlyObserver = permissionUtils.isOnlyObserver(currentUser);
-
   const [filteredPacks, setFilteredPacks] = useState<IPack[] | undefined>(
     packs
   );
@@ -99,7 +87,7 @@ const PacksListWrapper = ({
     );
   }, [searchString]);
 
-  const tableHeaders = generateTableHeaders(isOnlyObserver);
+  const tableHeaders = generateTableHeaders();
 
   const secondarySelectActions: IActionButtonProps[] = [
     {

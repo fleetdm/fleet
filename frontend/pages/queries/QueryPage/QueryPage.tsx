@@ -22,7 +22,9 @@ import ExternalURLIcon from "../../../../assets/images/icon-external-url-12x12@2
 interface IQueryPageProps {
   router: InjectedRouter;
   params: Params;
-  location: any; // no type in react-router v3
+  location: {
+    query: { host_ids: string };
+  };
 }
 
 interface IStoredQueryResponse {

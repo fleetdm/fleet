@@ -27,6 +27,7 @@ Want to add your own query?
     purpose: What is the goal of running your query? Ex. Detection
     remediation: Are there any remediation steps to resolve the detection triggered by your query? If not, insert "N/A."
     contributors: zwass,mike-j-thomas
+    tags: Keywords that can help users find other relevant queries, each tag should be seperated by a comma. (e.g., "foo,bar")
   ```
 
 2. Replace each field and submit a pull request to the fleetdm/fleet GitHub repository.
@@ -34,7 +35,7 @@ Want to add your own query?
 3. If you want to contribute multiple queries, please open one pull request that includes all your queries.
 
 For instructions on submitting pull requests to Fleet check out [the Committing Changes
-section](../../03-Contributing/04-Committing-Changes.md#committing-changes) in the Contributors
+section](../../Contributing/Committing-Changes.md#committing-changes) in the Contributors
 documentation.
 
 

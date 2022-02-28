@@ -1,7 +1,6 @@
 /* eslint-disable react/prop-types */
 
 import React from "react";
-import { Cell } from "react-table";
 
 import { IDataColumn } from "interfaces/datatable_config";
 
@@ -18,7 +17,7 @@ export const generateTableHeaders = (showDelete: boolean): IDataColumn[] => {
         {
           id: "delete",
           Header: "",
-          Cell: (cellProps: Cell): JSX.Element => (
+          Cell: (): JSX.Element => (
             <div>
               <img alt="Remove" src={RemoveIcon} />
             </div>

@@ -1,11 +1,12 @@
-import React, { useContext } from "react";
-import { Link } from "react-router";
+import React, { useCallback, useContext } from "react";
 import PATHS from "router/paths";
+import { InjectedRouter } from "react-router/lib/Router";
 
 import { DEFAULT_POLICIES } from "utilities/constants";
 
 import { IPolicyNew } from "interfaces/policy";
 
+import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
 
 import Button from "components/buttons/Button";
@@ -13,7 +14,7 @@ import Modal from "components/Modal";
 
 export interface IAddPolicyModalProps {
   onCancel: () => void;
-  router: any;
+  router: InjectedRouter; // v3
   teamId: number;
   teamName?: string;
 }
@@ -26,6 +27,7 @@ const AddPolicyModal = ({
   teamId,
   teamName,
 }: IAddPolicyModalProps): JSX.Element => {
+  const { currentTeam } = useContext(AppContext);
   const {
     setLastEditedQueryName,
     setLastEditedQueryDescription,
@@ -46,6 +48,11 @@ const AddPolicyModal = ({
     setLastEditedQueryPlatform(selectedPolicy.platform || "");
     router.push(PATHS.NEW_POLICY);
   };
+
+  const onCreateYourOwnPolicyClick = useCallback(() => {
+    setPolicyTeamId(currentTeam?.id || 0);
+    router.push(PATHS.NEW_POLICY);
+  }, [currentTeam]);
 
   const policiesAvailable = DEFAULT_POLICIES.map((policy: IPolicyNew) => {
     return (
@@ -71,9 +78,13 @@ const AddPolicyModal = ({
     >
       <>
         Choose a policy template to get started or{" "}
-        <Link to={PATHS.NEW_POLICY} className={`${baseClass}__back-link`}>
+        <Button
+          variant="unstyled"
+          onClick={onCreateYourOwnPolicyClick}
+          className={`${baseClass}__back-link`}
+        >
           create your own policy
-        </Link>
+        </Button>
         .
         <div className={`${baseClass}__policy-selection`}>
           {policiesAvailable}

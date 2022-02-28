@@ -173,14 +173,14 @@ const LabelForm = ({
       />
       {!isManual && !isEdit && (
         <div className="form-field form-field--dropdown">
-          <label className="form-field__label" htmlFor="platform">
-            Platform
-          </label>
           <Dropdown
+            label="Platform"
             name="platform"
             onChange={onPlatformChange}
             value={platform}
             options={platformOptions}
+            classname={`${baseClass}__platform-dropdown`}
+            wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--platform`}
           />
         </div>
       )}

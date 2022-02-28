@@ -47,10 +47,14 @@ func (s *integrationTestSuite) TearDownTest() {
 	var ids []uint
 	for _, host := range hosts {
 		ids = append(ids, host.ID)
+		require.NoError(t, s.ds.UpdateHostSoftware(context.Background(), host.ID, nil))
 	}
 	if len(ids) > 0 {
 		require.NoError(t, s.ds.DeleteHosts(ctx, ids))
 	}
+
+	// recalculate software counts will remove the software entries
+	require.NoError(t, s.ds.CalculateHostsPerSoftware(context.Background(), time.Now()))
 
 	lbls, err := s.ds.ListLabels(ctx, fleet.TeamFilter{}, fleet.ListOptions{})
 	require.NoError(t, err)
@@ -70,6 +74,13 @@ func (s *integrationTestSuite) TearDownTest() {
 		}
 	}
 
+	teams, err := s.ds.ListTeams(ctx, fleet.TeamFilter{User: &u}, fleet.ListOptions{})
+	require.NoError(t, err)
+	for _, tm := range teams {
+		err := s.ds.DeleteTeam(ctx, tm.ID)
+		require.NoError(t, err)
+	}
+
 	globalPolicies, err := s.ds.ListGlobalPolicies(ctx)
 	require.NoError(t, err)
 	if len(globalPolicies) > 0 {
@@ -80,6 +91,10 @@ func (s *integrationTestSuite) TearDownTest() {
 		_, err = s.ds.DeleteGlobalPolicies(ctx, globalPolicyIDs)
 		require.NoError(t, err)
 	}
+
+	// CalculateHostsPerSoftware performs a cleanup.
+	err = s.ds.CalculateHostsPerSoftware(ctx, time.Now())
+	require.NoError(t, err)
 }
 
 func TestIntegrations(t *testing.T) {
@@ -164,7 +179,9 @@ func (s *integrationTestSuite) TestQueryCreationLogsActivity() {
 		Name:  ptr.String("user1"),
 		Query: ptr.String("select * from time;"),
 	}
-	s.Do("POST", "/api/v1/fleet/queries", &params, http.StatusOK)
+	var createQueryResp createQueryResponse
+	s.DoJSON("POST", "/api/v1/fleet/queries", &params, http.StatusOK, &createQueryResp)
+	defer cleanupQuery(s, createQueryResp.Query.ID)
 
 	activities := listActivitiesResponse{}
 	s.DoJSON("GET", "/api/v1/fleet/activities", nil, http.StatusOK, &activities)
@@ -180,6 +197,89 @@ func (s *integrationTestSuite) TestQueryCreationLogsActivity() {
 		}
 	}
 	require.True(t, found)
+}
+
+func (s *integrationTestSuite) TestPolicyDeletionLogsActivity() {
+	t := s.T()
+
+	admin1 := s.users["admin1@example.com"]
+	admin1.GravatarURL = "http://iii.com"
+	err := s.ds.SaveUser(context.Background(), &admin1)
+	require.NoError(t, err)
+
+	testPolicies := []fleet.PolicyPayload{{
+		Name:  "policy1",
+		Query: "select * from time;",
+	}, {
+		Name:  "policy2",
+		Query: "select * from osquery_info;",
+	}}
+
+	var policyIDs []uint
+	for _, policy := range testPolicies {
+		var resp globalPolicyResponse
+		s.DoJSON("POST", "/api/v1/fleet/global/policies", policy, http.StatusOK, &resp)
+		policyIDs = append(policyIDs, resp.Policy.PolicyData.ID)
+	}
+
+	prevActivities := listActivitiesResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/activities", nil, http.StatusOK, &prevActivities)
+	require.GreaterOrEqual(t, len(prevActivities.Activities), 2)
+
+	var deletePoliciesResp deleteGlobalPoliciesResponse
+	s.DoJSON("POST", "/api/v1/fleet/global/policies/delete", deleteGlobalPoliciesRequest{policyIDs}, http.StatusOK, &deletePoliciesResp)
+	require.Equal(t, len(policyIDs), len(deletePoliciesResp.Deleted))
+
+	newActivities := listActivitiesResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/activities", nil, http.StatusOK, &newActivities)
+	require.Equal(t, len(newActivities.Activities), (len(prevActivities.Activities) + 2))
+
+	var prevDeletes []*fleet.Activity
+	for _, a := range prevActivities.Activities {
+		if a.Type == "deleted_policy" {
+			prevDeletes = append(prevDeletes, a)
+		}
+	}
+	var newDeletes []*fleet.Activity
+	for _, a := range newActivities.Activities {
+		if a.Type == "deleted_policy" {
+			newDeletes = append(newDeletes, a)
+		}
+	}
+	require.Equal(t, len(newDeletes), (len(prevDeletes) + 2))
+
+	type policyDetails struct {
+		PolicyID   uint   `json:"policy_id"`
+		PolicyName string `json:"policy_name"`
+	}
+	for _, id := range policyIDs {
+		found := false
+		for _, d := range newDeletes {
+			var details policyDetails
+			err := json.Unmarshal([]byte(*d.Details), &details)
+			require.NoError(t, err)
+			require.NotNil(t, details.PolicyID)
+			if id == details.PolicyID {
+				found = true
+			}
+
+		}
+		require.True(t, found)
+	}
+	for _, p := range testPolicies {
+		found := false
+		for _, d := range newDeletes {
+			var details policyDetails
+			err := json.Unmarshal([]byte(*d.Details), &details)
+			require.NoError(t, err)
+			require.NotNil(t, details.PolicyName)
+			if p.Name == details.PolicyName {
+				found = true
+			}
+
+		}
+		require.True(t, found)
+	}
 }
 
 func (s *integrationTestSuite) TestAppConfigAdditionalQueriesCanBeRemoved() {
@@ -362,6 +462,7 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	software := []fleet.Software{
 		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
 		{Name: "bar", Version: "0.0.3", Source: "apps"},
+		{Name: "baz", Version: "0.0.4", Source: "apps"},
 	}
 	require.NoError(t, s.ds.UpdateHostSoftware(context.Background(), host.ID, software))
 	require.NoError(t, s.ds.LoadHostSoftware(context.Background(), host))
@@ -372,7 +473,8 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	}
 
 	require.NoError(t, s.ds.AddCPEForSoftware(context.Background(), soft1, "somecpe"))
-	require.NoError(t, s.ds.InsertCVEForCPE(context.Background(), "cve-123-123-132", []string{"somecpe"}))
+	_, err = s.ds.InsertCVEForCPE(context.Background(), "cve-123-123-132", []string{"somecpe"})
+	require.NoError(t, err)
 
 	resp := s.Do("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", host.ID), nil, http.StatusOK)
 	bodyBytes, err := ioutil.ReadAll(resp.Body)
@@ -401,15 +503,21 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	countReq := countSoftwareRequest{}
 	countResp := countSoftwareResponse{}
 	s.DoJSON("GET", "/api/v1/fleet/software/count", countReq, http.StatusOK, &countResp)
-	assert.Equal(t, 2, countResp.Count)
+	assert.Equal(t, 3, countResp.Count)
 
 	// no software host counts have been calculated yet, so this returns nothing
 	var lsResp listSoftwareResponse
-	s.DoJSON("GET", "/api/v1/fleet/software", nil, http.StatusOK, &lsResp, "vulnerable", "true", "order_key", "generated_cpe", "order_direction", "desc")
+	resp = s.Do("GET", "/api/v1/fleet/software", nil, http.StatusOK, "vulnerable", "true", "order_key", "generated_cpe", "order_direction", "desc")
+	bodyBytes, err = ioutil.ReadAll(resp.Body)
+	require.NoError(t, err)
+	assert.Contains(t, string(bodyBytes), `"counts_updated_at": null`)
+
+	require.NoError(t, json.Unmarshal(bodyBytes, &lsResp))
 	require.Len(t, lsResp.Software, 0)
-	assert.True(t, lsResp.CountsUpdatedAt.IsZero())
+	assert.Nil(t, lsResp.CountsUpdatedAt)
 
 	// the software/count endpoint is different, it doesn't care about hosts counts
+	countResp = countSoftwareResponse{}
 	s.DoJSON("GET", "/api/v1/fleet/software/count", countReq, http.StatusOK, &countResp, "vulnerable", "true", "order_key", "generated_cpe", "order_direction", "desc")
 	assert.Equal(t, 1, countResp.Count)
 
@@ -418,20 +526,45 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	require.NoError(t, s.ds.CalculateHostsPerSoftware(context.Background(), hostsCountTs))
 
 	// now the list software endpoint returns the software
+	lsResp = listSoftwareResponse{}
 	s.DoJSON("GET", "/api/v1/fleet/software", nil, http.StatusOK, &lsResp, "vulnerable", "true", "order_key", "generated_cpe", "order_direction", "desc")
 	require.Len(t, lsResp.Software, 1)
 	assert.Equal(t, soft1.ID, lsResp.Software[0].ID)
 	assert.Len(t, lsResp.Software[0].Vulnerabilities, 1)
-	assert.WithinDuration(t, hostsCountTs, lsResp.CountsUpdatedAt, time.Second)
+	require.NotNil(t, lsResp.CountsUpdatedAt)
+	assert.WithinDuration(t, hostsCountTs, *lsResp.CountsUpdatedAt, time.Second)
 
 	// the count endpoint still returns 1
+	countResp = countSoftwareResponse{}
 	s.DoJSON("GET", "/api/v1/fleet/software/count", countReq, http.StatusOK, &countResp, "vulnerable", "true", "order_key", "generated_cpe", "order_direction", "desc")
 	assert.Equal(t, 1, countResp.Count)
 
 	// default sort, not only vulnerable
+	lsResp = listSoftwareResponse{}
 	s.DoJSON("GET", "/api/v1/fleet/software", nil, http.StatusOK, &lsResp)
 	require.True(t, len(lsResp.Software) >= len(software))
-	assert.WithinDuration(t, hostsCountTs, lsResp.CountsUpdatedAt, time.Second)
+	require.NotNil(t, lsResp.CountsUpdatedAt)
+	assert.WithinDuration(t, hostsCountTs, *lsResp.CountsUpdatedAt, time.Second)
+
+	// request with a per_page limit (see #4058)
+	lsResp = listSoftwareResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/software", nil, http.StatusOK, &lsResp, "page", "0", "per_page", "2", "order_key", "hosts_count", "order_direction", "desc")
+	require.Len(t, lsResp.Software, 2)
+	require.NotNil(t, lsResp.CountsUpdatedAt)
+	assert.WithinDuration(t, hostsCountTs, *lsResp.CountsUpdatedAt, time.Second)
+
+	// request next page, with per_page limit
+	lsResp = listSoftwareResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/software", nil, http.StatusOK, &lsResp, "per_page", "2", "page", "1", "order_key", "hosts_count", "order_direction", "desc")
+	require.Len(t, lsResp.Software, 1)
+	require.NotNil(t, lsResp.CountsUpdatedAt)
+	assert.WithinDuration(t, hostsCountTs, *lsResp.CountsUpdatedAt, time.Second)
+
+	// request one past the last page
+	lsResp = listSoftwareResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/software", nil, http.StatusOK, &lsResp, "per_page", "2", "page", "2", "order_key", "hosts_count", "order_direction", "desc")
+	require.Len(t, lsResp.Software, 0)
+	require.Nil(t, lsResp.CountsUpdatedAt)
 }
 
 func (s *integrationTestSuite) TestGlobalPolicies() {
@@ -629,6 +762,7 @@ func (s *integrationTestSuite) TestBulkDeleteHostByIDs() {
 func (s *integrationTestSuite) createHosts(t *testing.T) []*fleet.Host {
 	var hosts []*fleet.Host
 
+	platforms := []string{"debian", "rhel", "linux"}
 	for i := 0; i < 3; i++ {
 		host, err := s.ds.NewHost(context.Background(), &fleet.Host{
 			DetailUpdatedAt: time.Now(),
@@ -639,7 +773,7 @@ func (s *integrationTestSuite) createHosts(t *testing.T) []*fleet.Host {
 			NodeKey:         fmt.Sprintf("%s%d", t.Name(), i),
 			UUID:            uuid.New().String(),
 			Hostname:        fmt.Sprintf("%sfoo.local%d", t.Name(), i),
-			Platform:        "linux",
+			Platform:        platforms[i],
 		})
 		require.NoError(t, err)
 		hosts = append(hosts, host)
@@ -799,6 +933,7 @@ func (s *integrationTestSuite) TestListHosts() {
 
 	user1 := test.NewUser(t, s.ds, "Alice", "alice@example.com", true)
 	q := test.NewQuery(t, s.ds, "query1", "select 1", 0, true)
+	defer cleanupQuery(s, q.ID)
 	p, err := s.ds.NewGlobalPolicy(context.Background(), &user1.ID, fleet.PolicyPayload{
 		QueryID: &q.ID,
 	})
@@ -826,39 +961,91 @@ func (s *integrationTestSuite) TestInvites() {
 	})
 	require.NoError(t, err)
 
-	createInviteReq := createInviteRequest{
-		payload: fleet.InvitePayload{
-			Email:      ptr.String("some email"),
-			Name:       ptr.String("some name"),
-			Position:   nil,
-			SSOEnabled: nil,
-			GlobalRole: null.StringFrom(fleet.RoleAdmin),
-			Teams:      nil,
-		},
-	}
+	// list invites, none yet
+	var listResp listInvitesResponse
+	s.DoJSON("GET", "/api/v1/fleet/invites", nil, http.StatusOK, &listResp)
+	require.Len(t, listResp.Invites, 0)
+
+	// create valid invite
+	createInviteReq := createInviteRequest{InvitePayload: fleet.InvitePayload{
+		Email:      ptr.String("some email"),
+		Name:       ptr.String("some name"),
+		GlobalRole: null.StringFrom(fleet.RoleAdmin),
+	}}
 	createInviteResp := createInviteResponse{}
-	s.DoJSON("POST", "/api/v1/fleet/invites", createInviteReq.payload, http.StatusOK, &createInviteResp)
+	s.DoJSON("POST", "/api/v1/fleet/invites", createInviteReq, http.StatusOK, &createInviteResp)
 	require.NotNil(t, createInviteResp.Invite)
 	require.NotZero(t, createInviteResp.Invite.ID)
+	validInvite := *createInviteResp.Invite
 
-	updateInviteReq := updateInviteRequest{
-		InvitePayload: fleet.InvitePayload{
-			Teams: []fleet.UserTeam{
-				{
-					Team: fleet.Team{ID: team.ID},
-					Role: fleet.RoleObserver,
-				},
-			},
-		},
-	}
+	// create invite without an email
+	createInviteReq = createInviteRequest{InvitePayload: fleet.InvitePayload{
+		Email:      nil,
+		Name:       ptr.String("some other name"),
+		GlobalRole: null.StringFrom(fleet.RoleObserver),
+	}}
+	createInviteResp = createInviteResponse{}
+	s.DoJSON("POST", "/api/v1/fleet/invites", createInviteReq, http.StatusUnprocessableEntity, &createInviteResp)
+
+	// create invite for an existing user
+	existingEmail := "admin1@example.com"
+	createInviteReq = createInviteRequest{InvitePayload: fleet.InvitePayload{
+		Email:      ptr.String(existingEmail),
+		Name:       ptr.String("some other name"),
+		GlobalRole: null.StringFrom(fleet.RoleObserver),
+	}}
+	createInviteResp = createInviteResponse{}
+	s.DoJSON("POST", "/api/v1/fleet/invites", createInviteReq, http.StatusUnprocessableEntity, &createInviteResp)
+
+	// create invite for an existing user with email ALL CAPS
+	createInviteReq = createInviteRequest{InvitePayload: fleet.InvitePayload{
+		Email:      ptr.String(strings.ToUpper(existingEmail)),
+		Name:       ptr.String("some other name"),
+		GlobalRole: null.StringFrom(fleet.RoleObserver),
+	}}
+	createInviteResp = createInviteResponse{}
+	s.DoJSON("POST", "/api/v1/fleet/invites", createInviteReq, http.StatusUnprocessableEntity, &createInviteResp)
+
+	// list invites, we have one now
+	listResp = listInvitesResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/invites", nil, http.StatusOK, &listResp)
+	require.Len(t, listResp.Invites, 1)
+	require.Equal(t, validInvite.ID, listResp.Invites[0].ID)
+
+	// list invites, next page is empty
+	listResp = listInvitesResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/invites", nil, http.StatusOK, &listResp, "page", "1", "per_page", "2")
+	require.Len(t, listResp.Invites, 0)
+
+	// update a non-existing invite
+	updateInviteReq := updateInviteRequest{InvitePayload: fleet.InvitePayload{
+		Teams: []fleet.UserTeam{
+			{Team: fleet.Team{ID: team.ID}, Role: fleet.RoleObserver},
+		}}}
 	updateInviteResp := updateInviteResponse{}
-	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/invites/%d", createInviteResp.Invite.ID), updateInviteReq, http.StatusOK, &updateInviteResp)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/invites/%d", validInvite.ID+1), updateInviteReq, http.StatusNotFound, &updateInviteResp)
 
-	verify, err := s.ds.Invite(context.Background(), createInviteResp.Invite.ID)
+	// update the valid invite created earlier, make it an observer of a team
+	updateInviteResp = updateInviteResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/invites/%d", validInvite.ID), updateInviteReq, http.StatusOK, &updateInviteResp)
+
+	verify, err := s.ds.Invite(context.Background(), validInvite.ID)
 	require.NoError(t, err)
 	require.Equal(t, "", verify.GlobalRole.String)
 	require.Len(t, verify.Teams, 1)
 	assert.Equal(t, team.ID, verify.Teams[0].ID)
+
+	// delete an existing invite
+	var delResp deleteInviteResponse
+	s.DoJSON("DELETE", fmt.Sprintf("/api/v1/fleet/invites/%d", validInvite.ID), nil, http.StatusOK, &delResp)
+
+	// list invites, is now empty
+	listResp = listInvitesResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/invites", nil, http.StatusOK, &listResp)
+	require.Len(t, listResp.Invites, 0)
+
+	// delete a now non-existing invite
+	s.DoJSON("DELETE", fmt.Sprintf("/api/v1/fleet/invites/%d", validInvite.ID), nil, http.StatusNotFound, &delResp)
 }
 
 func (s *integrationTestSuite) TestGetHostSummary() {
@@ -878,9 +1065,14 @@ func (s *integrationTestSuite) TestGetHostSummary() {
 	// no team filter
 	s.DoJSON("GET", "/api/v1/fleet/host_summary", nil, http.StatusOK, &resp)
 	require.Equal(t, resp.TotalsHostsCount, uint(len(hosts)))
-	require.Len(t, resp.Platforms, 1)
-	require.Equal(t, "linux", resp.Platforms[0].Platform)
-	require.Equal(t, uint(len(hosts)), resp.Platforms[0].HostsCount)
+	require.Len(t, resp.Platforms, 3)
+	gotPlatforms, wantPlatforms := make([]string, 3), []string{"linux", "debian", "rhel"}
+	for i, p := range resp.Platforms {
+		gotPlatforms[i] = p.Platform
+		// each platform has a count of 1
+		require.Equal(t, uint(1), p.HostsCount)
+	}
+	require.ElementsMatch(t, wantPlatforms, gotPlatforms)
 	require.Nil(t, resp.TeamID)
 
 	// team filter, no host
@@ -893,20 +1085,31 @@ func (s *integrationTestSuite) TestGetHostSummary() {
 	s.DoJSON("GET", "/api/v1/fleet/host_summary", nil, http.StatusOK, &resp, "team_id", fmt.Sprint(team1.ID))
 	require.Equal(t, resp.TotalsHostsCount, uint(1))
 	require.Len(t, resp.Platforms, 1)
-	require.Equal(t, "linux", resp.Platforms[0].Platform)
+	require.Equal(t, "debian", resp.Platforms[0].Platform)
 	require.Equal(t, uint(1), resp.Platforms[0].HostsCount)
 	require.Equal(t, team1.ID, *resp.TeamID)
 
 	s.DoJSON("GET", "/api/v1/fleet/host_summary", nil, http.StatusOK, &resp, "team_id", fmt.Sprint(team1.ID), "platform", "linux")
 	require.Equal(t, resp.TotalsHostsCount, uint(1))
-	require.Equal(t, "linux", resp.Platforms[0].Platform)
+	require.Equal(t, "debian", resp.Platforms[0].Platform)
+
+	s.DoJSON("GET", "/api/v1/fleet/host_summary", nil, http.StatusOK, &resp, "platform", "rhel")
+	require.Equal(t, resp.TotalsHostsCount, uint(1))
+	require.Equal(t, "rhel", resp.Platforms[0].Platform)
 
 	s.DoJSON("GET", "/api/v1/fleet/host_summary", nil, http.StatusOK, &resp, "platform", "linux")
 	require.Equal(t, resp.TotalsHostsCount, uint(3))
-	require.Equal(t, "linux", resp.Platforms[0].Platform)
+	require.Len(t, resp.Platforms, 3)
+	for i, p := range resp.Platforms {
+		gotPlatforms[i] = p.Platform
+		// each platform has a count of 1
+		require.Equal(t, uint(1), p.HostsCount)
+	}
+	require.ElementsMatch(t, wantPlatforms, gotPlatforms)
 
 	s.DoJSON("GET", "/api/v1/fleet/host_summary", nil, http.StatusOK, &resp, "platform", "darwin")
 	require.Equal(t, resp.TotalsHostsCount, uint(0))
+	require.Len(t, resp.Platforms, 0)
 }
 
 func (s *integrationTestSuite) TestGlobalPoliciesProprietary() {
@@ -1345,7 +1548,10 @@ func (s *integrationTestSuite) TestListActivities() {
 	u := s.users["admin1@example.com"]
 	details := make(map[string]interface{})
 
-	err := s.ds.NewActivity(ctx, &u, fleet.ActivityTypeAppliedSpecPack, &details)
+	prevActivities, err := s.ds.ListActivities(ctx, fleet.ListOptions{})
+	require.NoError(t, err)
+
+	err = s.ds.NewActivity(ctx, &u, fleet.ActivityTypeAppliedSpecPack, &details)
 	require.NoError(t, err)
 
 	err = s.ds.NewActivity(ctx, &u, fleet.ActivityTypeDeletedPack, &details)
@@ -1354,13 +1560,15 @@ func (s *integrationTestSuite) TestListActivities() {
 	err = s.ds.NewActivity(ctx, &u, fleet.ActivityTypeEditedPack, &details)
 	require.NoError(t, err)
 
-	var listResp listActivitiesResponse
-	s.DoJSON("GET", "/api/v1/fleet/activities", nil, http.StatusOK, &listResp, "per_page", "2", "order_key", "id")
-	require.Len(t, listResp.Activities, 2)
-	assert.Equal(t, fleet.ActivityTypeAppliedSpecPack, listResp.Activities[0].Type)
-	assert.Equal(t, fleet.ActivityTypeDeletedPack, listResp.Activities[1].Type)
+	lenPage := len(prevActivities) + 2
 
-	s.DoJSON("GET", "/api/v1/fleet/activities", nil, http.StatusOK, &listResp, "per_page", "2", "order_key", "id", "page", "1")
+	var listResp listActivitiesResponse
+	s.DoJSON("GET", "/api/v1/fleet/activities", nil, http.StatusOK, &listResp, "per_page", strconv.Itoa(lenPage), "order_key", "id")
+	require.Len(t, listResp.Activities, lenPage)
+	assert.Equal(t, fleet.ActivityTypeAppliedSpecPack, listResp.Activities[lenPage-2].Type)
+	assert.Equal(t, fleet.ActivityTypeDeletedPack, listResp.Activities[lenPage-1].Type)
+
+	s.DoJSON("GET", "/api/v1/fleet/activities", nil, http.StatusOK, &listResp, "per_page", strconv.Itoa(lenPage), "order_key", "id", "page", "1")
 	require.Len(t, listResp.Activities, 1)
 	assert.Equal(t, fleet.ActivityTypeEditedPack, listResp.Activities[0].Type)
 
@@ -1536,14 +1744,33 @@ func (s *integrationTestSuite) TestScheduledQueries() {
 	// try a non existent query
 	s.Do("GET", fmt.Sprintf("/api/v1/fleet/queries/%d", 9999), nil, http.StatusNotFound)
 
+	// list queries
+	var listQryResp listQueriesResponse
+	s.DoJSON("GET", "/api/v1/fleet/queries", nil, http.StatusOK, &listQryResp)
+	assert.Len(t, listQryResp.Queries, 0)
+
 	// create a query
 	var createQueryResp createQueryResponse
 	reqQuery := &fleet.QueryPayload{
-		Name:  ptr.String(t.Name()),
+		Name:  ptr.String(strings.ReplaceAll(t.Name(), "/", "_")),
 		Query: ptr.String("select * from time;"),
 	}
 	s.DoJSON("POST", "/api/v1/fleet/queries", reqQuery, http.StatusOK, &createQueryResp)
 	query := createQueryResp.Query
+
+	// listing returns that query
+	s.DoJSON("GET", "/api/v1/fleet/queries", nil, http.StatusOK, &listQryResp)
+	require.Len(t, listQryResp.Queries, 1)
+	assert.Equal(t, query.Name, listQryResp.Queries[0].Name)
+
+	// next page returns nothing
+	s.DoJSON("GET", "/api/v1/fleet/queries", nil, http.StatusOK, &listQryResp, "per_page", "2", "page", "1")
+	require.Len(t, listQryResp.Queries, 0)
+
+	// getting that query works
+	var getQryResp getQueryResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/queries/%d", query.ID), nil, http.StatusOK, &getQryResp)
+	assert.Equal(t, query.ID, getQryResp.Query.ID)
 
 	// list scheduled queries in pack, none yet
 	var getInPackResp getScheduledQueriesInPackResponse
@@ -1624,6 +1851,58 @@ func (s *integrationTestSuite) TestScheduledQueries() {
 
 	// get the now-deleted scheduled query
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/schedule/%d", sq1.ID), nil, http.StatusNotFound, &getResp)
+
+	// modify the query
+	var modQryResp modifyQueryResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/queries/%d", query.ID), fleet.QueryPayload{Description: ptr.String("updated")}, http.StatusOK, &modQryResp)
+	assert.Equal(t, "updated", modQryResp.Query.Description)
+
+	// modify a non-existing query
+	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/queries/%d", query.ID+1), fleet.QueryPayload{Description: ptr.String("updated")}, http.StatusNotFound, &modQryResp)
+
+	// delete the query by name
+	var delByNameResp deleteQueryResponse
+	s.DoJSON("DELETE", fmt.Sprintf("/api/v1/fleet/queries/%s", query.Name), nil, http.StatusOK, &delByNameResp)
+
+	// delete unknown query by name (i.e. the same, now deleted)
+	s.DoJSON("DELETE", fmt.Sprintf("/api/v1/fleet/queries/%s", query.Name), nil, http.StatusNotFound, &delByNameResp)
+
+	// create another query
+	reqQuery = &fleet.QueryPayload{
+		Name:  ptr.String(strings.ReplaceAll(t.Name(), "/", "_") + "_2"),
+		Query: ptr.String("select 2"),
+	}
+	s.DoJSON("POST", "/api/v1/fleet/queries", reqQuery, http.StatusOK, &createQueryResp)
+	query2 := createQueryResp.Query
+
+	// delete it by id
+	var delByIDResp deleteQueryByIDResponse
+	s.DoJSON("DELETE", fmt.Sprintf("/api/v1/fleet/queries/id/%d", query2.ID), nil, http.StatusOK, &delByIDResp)
+
+	// delete unknown query by id (same id just deleted)
+	s.DoJSON("DELETE", fmt.Sprintf("/api/v1/fleet/queries/id/%d", query2.ID), nil, http.StatusNotFound, &delByIDResp)
+
+	// create another query
+	reqQuery = &fleet.QueryPayload{
+		Name:  ptr.String(strings.ReplaceAll(t.Name(), "/", "_") + "_3"),
+		Query: ptr.String("select 3"),
+	}
+	s.DoJSON("POST", "/api/v1/fleet/queries", reqQuery, http.StatusOK, &createQueryResp)
+	query3 := createQueryResp.Query
+
+	// batch-delete by id, 3 ids, only one exists
+	var delBatchResp deleteQueriesResponse
+	s.DoJSON("POST", "/api/v1/fleet/queries/delete", map[string]interface{}{
+		"ids": []uint{query.ID, query2.ID, query3.ID},
+	}, http.StatusOK, &delBatchResp)
+	assert.Equal(t, uint(1), delBatchResp.Deleted)
+
+	// batch-delete by id, none exist
+	delBatchResp.Deleted = 0
+	s.DoJSON("POST", "/api/v1/fleet/queries/delete", map[string]interface{}{
+		"ids": []uint{query.ID, query2.ID, query3.ID},
+	}, http.StatusNotFound, &delBatchResp)
+	assert.Equal(t, uint(0), delBatchResp.Deleted)
 }
 
 func (s *integrationTestSuite) TestHostDeviceMapping() {
@@ -1789,6 +2068,7 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 	agg := getAggregatedMacadminsDataResponse{}
 	s.DoJSON("GET", "/api/v1/fleet/macadmins", nil, http.StatusOK, &agg)
 	require.NotNil(t, agg.Macadmins)
+	assert.NotZero(t, agg.Macadmins.CountsUpdatedAt)
 	assert.Len(t, agg.Macadmins.MunkiVersions, 2)
 	assert.ElementsMatch(t, agg.Macadmins.MunkiVersions, []fleet.AggregatedMunkiVersion{
 		{
@@ -2147,6 +2427,7 @@ func (s *integrationTestSuite) TestQueriesBadRequests() {
 	s.DoJSON("POST", "/api/v1/fleet/queries", reqQuery, http.StatusOK, &createQueryResp)
 	require.NotNil(t, createQueryResp.Query)
 	existingQueryID := createQueryResp.Query.ID
+	defer cleanupQuery(s, existingQueryID)
 
 	for _, tc := range []struct {
 		tname string
@@ -2232,6 +2513,11 @@ func (s *integrationTestSuite) TestTeamsEndpointsWithoutLicense() {
 	s.DoJSON("GET", "/api/v1/fleet/teams", nil, http.StatusPaymentRequired, &listResp)
 	assert.Len(t, listResp.Teams, 0)
 
+	// get team
+	var getResp getTeamResponse
+	s.DoJSON("GET", "/api/v1/fleet/teams/123", nil, http.StatusPaymentRequired, &getResp)
+	assert.Nil(t, getResp.Team)
+
 	// create team
 	var tmResp teamResponse
 	s.DoJSON("POST", "/api/v1/fleet/teams", &createTeamRequest{}, http.StatusPaymentRequired, &tmResp)
@@ -2245,10 +2531,10 @@ func (s *integrationTestSuite) TestTeamsEndpointsWithoutLicense() {
 	var delResp deleteTeamResponse
 	s.DoJSON("DELETE", "/api/v1/fleet/teams/123", nil, http.StatusPaymentRequired, &delResp)
 
-	// apply team specs - does succeed unlike others, no license required for this one
+	// apply team specs
 	var specResp applyTeamSpecsResponse
 	teamSpecs := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: "newteam", Secrets: []fleet.EnrollSecret{{Secret: "ABC"}}}}}
-	s.DoJSON("POST", "/api/v1/fleet/spec/teams", teamSpecs, http.StatusOK, &specResp)
+	s.DoJSON("POST", "/api/v1/fleet/spec/teams", teamSpecs, http.StatusPaymentRequired, &specResp)
 
 	// modify team agent options
 	s.DoJSON("POST", "/api/v1/fleet/teams/123/agent_options", nil, http.StatusPaymentRequired, &tmResp)
@@ -2415,6 +2701,294 @@ func (s *integrationTestSuite) TestAppConfig() {
 	require.Len(t, specResp.Spec.Secrets, 0)
 }
 
+func (s *integrationTestSuite) TestQuerySpecs() {
+	t := s.T()
+
+	// list specs, none yet
+	var getSpecsResp getQuerySpecsResponse
+	s.DoJSON("GET", "/api/v1/fleet/spec/queries", nil, http.StatusOK, &getSpecsResp)
+	assert.Len(t, getSpecsResp.Specs, 0)
+
+	// get unknown one
+	var getSpecResp getQuerySpecResponse
+	s.DoJSON("GET", "/api/v1/fleet/spec/queries/nonesuch", nil, http.StatusNotFound, &getSpecResp)
+
+	// create some queries via apply specs
+	q1 := strings.ReplaceAll(t.Name(), "/", "_")
+	q2 := q1 + "_2"
+	var applyResp applyQuerySpecsResponse
+	s.DoJSON("POST", "/api/v1/fleet/spec/queries", applyQuerySpecsRequest{
+		Specs: []*fleet.QuerySpec{
+			{Name: q1, Query: "SELECT 1"},
+			{Name: q2, Query: "SELECT 2"},
+		},
+	}, http.StatusOK, &applyResp)
+
+	// get the queries back
+	var listQryResp listQueriesResponse
+	s.DoJSON("GET", "/api/v1/fleet/queries", nil, http.StatusOK, &listQryResp, "order_key", "name")
+	require.Len(t, listQryResp.Queries, 2)
+	assert.Equal(t, q1, listQryResp.Queries[0].Name)
+	assert.Equal(t, q2, listQryResp.Queries[1].Name)
+	q1ID, q2ID := listQryResp.Queries[0].ID, listQryResp.Queries[1].ID
+
+	// list specs
+	s.DoJSON("GET", "/api/v1/fleet/spec/queries", nil, http.StatusOK, &getSpecsResp)
+	require.Len(t, getSpecsResp.Specs, 2)
+	names := []string{getSpecsResp.Specs[0].Name, getSpecsResp.Specs[1].Name}
+	assert.ElementsMatch(t, []string{q1, q2}, names)
+
+	// get specific spec
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/spec/queries/%s", q1), nil, http.StatusOK, &getSpecResp)
+	assert.Equal(t, getSpecResp.Spec.Query, "SELECT 1")
+
+	// apply specs again - create q3 and update q2
+	q3 := q1 + "_3"
+	s.DoJSON("POST", "/api/v1/fleet/spec/queries", applyQuerySpecsRequest{
+		Specs: []*fleet.QuerySpec{
+			{Name: q2, Query: "SELECT -2"},
+			{Name: q3, Query: "SELECT 3"},
+		},
+	}, http.StatusOK, &applyResp)
+
+	// list specs - has 3, not 4 (one was an update)
+	s.DoJSON("GET", "/api/v1/fleet/spec/queries", nil, http.StatusOK, &getSpecsResp)
+	require.Len(t, getSpecsResp.Specs, 3)
+	names = []string{getSpecsResp.Specs[0].Name, getSpecsResp.Specs[1].Name, getSpecsResp.Specs[2].Name}
+	assert.ElementsMatch(t, []string{q1, q2, q3}, names)
+
+	// get the queries back again
+	s.DoJSON("GET", "/api/v1/fleet/queries", nil, http.StatusOK, &listQryResp, "order_key", "name")
+	require.Len(t, listQryResp.Queries, 3)
+	assert.Equal(t, q1ID, listQryResp.Queries[0].ID)
+	assert.Equal(t, q2ID, listQryResp.Queries[1].ID)
+	assert.Equal(t, "SELECT -2", listQryResp.Queries[1].Query)
+	q3ID := listQryResp.Queries[2].ID
+
+	// delete all queries created
+	var delBatchResp deleteQueriesResponse
+	s.DoJSON("POST", "/api/v1/fleet/queries/delete", map[string]interface{}{
+		"ids": []uint{q1ID, q2ID, q3ID},
+	}, http.StatusOK, &delBatchResp)
+	assert.Equal(t, uint(3), delBatchResp.Deleted)
+}
+
+func (s *integrationTestSuite) TestPaginateListSoftware() {
+	t := s.T()
+
+	// create a few hosts specific to this test
+	hosts := make([]*fleet.Host, 20)
+	for i := range hosts {
+		host, err := s.ds.NewHost(context.Background(), &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			NodeKey:         t.Name() + strconv.Itoa(i),
+			OsqueryHostID:   t.Name() + strconv.Itoa(i),
+			UUID:            t.Name() + strconv.Itoa(i),
+			Hostname:        t.Name() + "foo" + strconv.Itoa(i) + ".local",
+			PrimaryIP:       "192.168.1." + strconv.Itoa(i),
+			PrimaryMac:      fmt.Sprintf("30-65-EC-6F-C4-%02d", i),
+		})
+		require.NoError(t, err)
+		require.NotNil(t, host)
+		hosts[i] = host
+	}
+
+	// create a bunch of software
+	sws := make([]fleet.Software, 20)
+	for i := range sws {
+		sw := fleet.Software{Name: "sw" + strconv.Itoa(i), Version: "0.0." + strconv.Itoa(i), Source: "apps"}
+		sws[i] = sw
+	}
+
+	// mark them as installed on the hosts, with host at index 0 having all 20,
+	// at index 1 having 19, index 2 = 18, etc. until index 19 = 1. So software
+	// sws[0] is only used by 1 host, while sws[19] is used by all.
+	for i, h := range hosts {
+		require.NoError(t, s.ds.UpdateHostSoftware(context.Background(), h.ID, sws[i:]))
+		require.NoError(t, s.ds.LoadHostSoftware(context.Background(), h))
+
+		if i == 0 {
+			// this host has all software, refresh the list so we have the software.ID filled
+			sws = h.Software
+		}
+	}
+
+	for i, sw := range sws {
+		cpe := "somecpe" + strconv.Itoa(i)
+		require.NoError(t, s.ds.AddCPEForSoftware(context.Background(), sw, cpe))
+
+		if i < 10 {
+			// add CVEs for the first 10 software, which are the least used (lower hosts_count)
+			_, err := s.ds.InsertCVEForCPE(context.Background(), fmt.Sprintf("cve-123-123-%03d", i), []string{cpe})
+			require.NoError(t, err)
+		}
+	}
+
+	assertResp := func(resp listSoftwareResponse, want []fleet.Software, ts time.Time, counts ...int) {
+		require.Len(t, resp.Software, len(want))
+		for i := range resp.Software {
+			wantID, gotID := want[i].ID, resp.Software[i].ID
+			assert.Equal(t, wantID, gotID)
+			wantCount, gotCount := counts[i], resp.Software[i].HostsCount
+			assert.Equal(t, wantCount, gotCount)
+		}
+		if ts.IsZero() {
+			assert.Nil(t, resp.CountsUpdatedAt)
+		} else {
+			require.NotNil(t, resp.CountsUpdatedAt)
+			assert.WithinDuration(t, ts, *resp.CountsUpdatedAt, time.Second)
+		}
+	}
+
+	// no software host counts have been calculated yet, so this returns nothing
+	var lsResp listSoftwareResponse
+	s.DoJSON("GET", "/api/v1/fleet/software", nil, http.StatusOK, &lsResp, "order_key", "hosts_count", "order_direction", "desc")
+	assertResp(lsResp, nil, time.Time{})
+
+	// calculate hosts counts
+	hostsCountTs := time.Now().UTC()
+	require.NoError(t, s.ds.CalculateHostsPerSoftware(context.Background(), hostsCountTs))
+
+	// now the list software endpoint returns the software, get the first page without vulns
+	lsResp = listSoftwareResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/software", nil, http.StatusOK, &lsResp, "per_page", "5", "page", "0", "order_key", "hosts_count", "order_direction", "desc")
+	assertResp(lsResp, []fleet.Software{sws[19], sws[18], sws[17], sws[16], sws[15]}, hostsCountTs, 20, 19, 18, 17, 16)
+
+	// second page (page=1)
+	lsResp = listSoftwareResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/software", nil, http.StatusOK, &lsResp, "per_page", "5", "page", "1", "order_key", "hosts_count", "order_direction", "desc")
+	assertResp(lsResp, []fleet.Software{sws[14], sws[13], sws[12], sws[11], sws[10]}, hostsCountTs, 15, 14, 13, 12, 11)
+
+	// third page (page=2)
+	lsResp = listSoftwareResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/software", nil, http.StatusOK, &lsResp, "per_page", "5", "page", "2", "order_key", "hosts_count", "order_direction", "desc")
+	assertResp(lsResp, []fleet.Software{sws[9], sws[8], sws[7], sws[6], sws[5]}, hostsCountTs, 10, 9, 8, 7, 6)
+
+	// last page (page=3)
+	lsResp = listSoftwareResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/software", nil, http.StatusOK, &lsResp, "per_page", "5", "page", "3", "order_key", "hosts_count", "order_direction", "desc")
+	assertResp(lsResp, []fleet.Software{sws[4], sws[3], sws[2], sws[1], sws[0]}, hostsCountTs, 5, 4, 3, 2, 1)
+
+	// past the end
+	lsResp = listSoftwareResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/software", nil, http.StatusOK, &lsResp, "per_page", "5", "page", "4", "order_key", "hosts_count", "order_direction", "desc")
+	assertResp(lsResp, nil, time.Time{})
+
+	// no explicit sort order, defaults to hosts_count DESC
+	lsResp = listSoftwareResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/software", nil, http.StatusOK, &lsResp, "per_page", "2", "page", "0")
+	assertResp(lsResp, []fleet.Software{sws[19], sws[18]}, hostsCountTs, 20, 19)
+
+	// hosts_count ascending
+	lsResp = listSoftwareResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/software", nil, http.StatusOK, &lsResp, "per_page", "3", "page", "0", "order_key", "hosts_count", "order_direction", "asc")
+	assertResp(lsResp, []fleet.Software{sws[0], sws[1], sws[2]}, hostsCountTs, 1, 2, 3)
+
+	// vulnerable software only
+	lsResp = listSoftwareResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/software", nil, http.StatusOK, &lsResp, "vulnerable", "true", "per_page", "5", "page", "0", "order_key", "hosts_count", "order_direction", "desc")
+	assertResp(lsResp, []fleet.Software{sws[9], sws[8], sws[7], sws[6], sws[5]}, hostsCountTs, 10, 9, 8, 7, 6)
+
+	// vulnerable software only, next page
+	lsResp = listSoftwareResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/software", nil, http.StatusOK, &lsResp, "vulnerable", "true", "per_page", "5", "page", "1", "order_key", "hosts_count", "order_direction", "desc")
+	assertResp(lsResp, []fleet.Software{sws[4], sws[3], sws[2], sws[1], sws[0]}, hostsCountTs, 5, 4, 3, 2, 1)
+
+	// vulnerable software only, past last page
+	lsResp = listSoftwareResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/software", nil, http.StatusOK, &lsResp, "vulnerable", "true", "per_page", "5", "page", "2", "order_key", "hosts_count", "order_direction", "desc")
+	assertResp(lsResp, nil, time.Time{})
+}
+
+func (s *integrationTestSuite) TestChangeUserEmail() {
+	t := s.T()
+
+	// create a new test user
+	user := &fleet.User{
+		Name:       t.Name(),
+		Email:      "testchangeemail@example.com",
+		GlobalRole: ptr.String(fleet.RoleObserver),
+	}
+	userRawPwd := "foobarbaz1234!"
+	err := user.SetPassword(userRawPwd, 10, 10)
+	require.Nil(t, err)
+	user, err = s.ds.NewUser(context.Background(), user)
+	require.Nil(t, err)
+
+	// try to change email with an invalid token
+	var changeResp changeEmailResponse
+	s.DoJSON("GET", "/api/v1/fleet/email/change/invalidtoken", nil, http.StatusNotFound, &changeResp)
+
+	// create a valid token for the test user
+	err = s.ds.PendingEmailChange(context.Background(), user.ID, "testchangeemail2@example.com", "validtoken")
+	require.Nil(t, err)
+
+	// try to change email with a valid token, but request made from different user
+	changeResp = changeEmailResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/email/change/validtoken", nil, http.StatusNotFound, &changeResp)
+
+	// switch to the test user and make the change email request
+	s.token = s.getTestToken(user.Email, userRawPwd)
+	defer func() { s.token = s.getTestAdminToken() }()
+
+	changeResp = changeEmailResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/email/change/validtoken", nil, http.StatusOK, &changeResp)
+	require.Equal(t, "testchangeemail2@example.com", changeResp.NewEmail)
+
+	// using the token consumes it, so making another request with the same token fails
+	changeResp = changeEmailResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/email/change/validtoken", nil, http.StatusNotFound, &changeResp)
+}
+
+func (s *integrationTestSuite) TestSearchTargets() {
+	t := s.T()
+
+	hosts := s.createHosts(t)
+
+	lblIDs, err := s.ds.LabelIDsByName(context.Background(), []string{"All Hosts"})
+	require.NoError(t, err)
+	require.Len(t, lblIDs, 1)
+
+	// no search criteria
+	var searchResp searchTargetsResponse
+	s.DoJSON("POST", "/api/v1/fleet/targets", searchTargetsRequest{}, http.StatusOK, &searchResp)
+	require.Equal(t, uint(0), searchResp.TargetsCount)
+	require.Len(t, searchResp.Targets.Hosts, len(hosts)) // the HostTargets.HostIDs are actually host IDs to *omit* from the search
+	require.Len(t, searchResp.Targets.Labels, 1)
+	require.Len(t, searchResp.Targets.Teams, 0)
+
+	searchResp = searchTargetsResponse{}
+	s.DoJSON("POST", "/api/v1/fleet/targets", searchTargetsRequest{Selected: fleet.HostTargets{LabelIDs: lblIDs}}, http.StatusOK, &searchResp)
+	require.Equal(t, uint(0), searchResp.TargetsCount)
+	require.Len(t, searchResp.Targets.Hosts, len(hosts)) // no omitted host id
+	require.Len(t, searchResp.Targets.Labels, 0)         // labels have been omitted
+	require.Len(t, searchResp.Targets.Teams, 0)
+
+	searchResp = searchTargetsResponse{}
+	s.DoJSON("POST", "/api/v1/fleet/targets", searchTargetsRequest{Selected: fleet.HostTargets{HostIDs: []uint{hosts[1].ID}}}, http.StatusOK, &searchResp)
+	require.Equal(t, uint(1), searchResp.TargetsCount)
+	require.Len(t, searchResp.Targets.Hosts, len(hosts)-1) // one omitted host id
+	require.Len(t, searchResp.Targets.Labels, 1)           // labels have not been omitted
+	require.Len(t, searchResp.Targets.Teams, 0)
+
+	searchResp = searchTargetsResponse{}
+	s.DoJSON("POST", "/api/v1/fleet/targets", searchTargetsRequest{MatchQuery: "foo.local1"}, http.StatusOK, &searchResp)
+	require.Equal(t, uint(0), searchResp.TargetsCount)
+	require.Len(t, searchResp.Targets.Hosts, 1)
+	require.Len(t, searchResp.Targets.Labels, 1)
+	require.Len(t, searchResp.Targets.Teams, 0)
+	require.Contains(t, searchResp.Targets.Hosts[0].Hostname, "foo.local1")
+}
+
+func (s *integrationTestSuite) TestStatus() {
+	var statusResp statusResponse
+	s.DoJSON("GET", "/api/v1/fleet/status/result_store", nil, http.StatusOK, &statusResp)
+	s.DoJSON("GET", "/api/v1/fleet/status/live_query", nil, http.StatusOK, &statusResp)
+}
+
 // creates a session and returns it, its key is to be passed as authorization header.
 func createSession(t *testing.T, uid uint, ds fleet.Datastore) *fleet.Session {
 	key := make([]byte, 64)
@@ -2431,4 +3005,9 @@ func createSession(t *testing.T, uid uint, ds fleet.Datastore) *fleet.Session {
 	require.NoError(t, err)
 
 	return ssn
+}
+
+func cleanupQuery(s *integrationTestSuite, queryID uint) {
+	var delResp deleteQueryByIDResponse
+	s.DoJSON("DELETE", fmt.Sprintf("/api/v1/fleet/queries/id/%d", queryID), nil, http.StatusOK, &delResp)
 }

@@ -156,7 +156,7 @@ const ManageAutomationsModal = ({
       <div className={baseClass}>
         {availablePolicies && availablePolicies.length > 0 ? (
           <div className={`${baseClass}__policy-select-items`}>
-            <p> Choose which policy you would like to listen to:</p>
+            <p> Choose which policies you would like to listen to:</p>
             {policyItems &&
               policyItems.map((policyItem) => {
                 const { isChecked, name, id } = policyItem;

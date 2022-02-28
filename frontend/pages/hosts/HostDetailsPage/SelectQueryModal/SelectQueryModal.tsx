@@ -32,7 +32,7 @@ const SelectQueryModal = ({
   queries,
   queryErrors,
   isOnlyObserver,
-}: ISelectQueryModalProps) => {
+}: ISelectQueryModalProps): JSX.Element => {
   let queriesAvailableToRun = queries;
 
   const [queriesFilter, setQueriesFilter] = useState("");

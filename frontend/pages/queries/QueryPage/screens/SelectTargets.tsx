@@ -1,12 +1,16 @@
-import React, { useState } from "react";
-import { useQuery } from "react-query";
+import React, { useCallback, useEffect, useState } from "react";
 import { Row } from "react-table";
-import { filter, forEach, isEmpty, remove, unionWith } from "lodash";
+import { forEach, isEmpty, remove, unionWith } from "lodash";
+import { useDebouncedCallback } from "use-debounce/lib";
 
-// @ts-ignore
 import { formatSelectedTargetsForApi } from "fleet/helpers";
-import targetsAPI from "services/entities/targets";
-import { ITarget, ITargets, ITargetsAPIResponse } from "interfaces/target";
+import useQueryTargets, { ITargetsQueryResponse } from "hooks/useQueryTargets";
+import {
+  ITarget,
+  ISelectLabel,
+  ISelectTeam,
+  ISelectTargetsEntity,
+} from "interfaces/target";
 import { ILabel } from "interfaces/label";
 import { ITeam } from "interfaces/team";
 import { IHost } from "interfaces/host";
@@ -20,20 +24,6 @@ import CheckIcon from "../../../../../assets/images/icon-check-purple-32x32@2x.p
 import ExternalURLIcon from "../../../../../assets/images/icon-external-url-12x12@2x.png";
 import ErrorIcon from "../../../../../assets/images/icon-error-16x16@2x.png";
 
-interface ISelectHost extends IHost {
-  target_type?: string;
-}
-
-interface ISelectLabel extends ILabel {
-  target_type?: string;
-}
-
-interface ISelectTeam extends ITeam {
-  target_type?: string;
-}
-
-type ISelectTargetsEntity = ISelectHost | ISelectLabel | ISelectTeam;
-
 interface ITargetPillSelectorProps {
   entity: ISelectLabel | ISelectTeam;
   isSelected: boolean;
@@ -44,18 +34,15 @@ interface ITargetPillSelectorProps {
 
 interface ISelectTargetsProps {
   baseClass: string;
-  selectedTargets: ISelectTargetsEntity[];
+  selectedTargets: ITarget[];
   queryIdForEdit: number | null;
   goToQueryEditor: () => void;
   goToRunQuery: () => void;
   setSelectedTargets: React.Dispatch<React.SetStateAction<ITarget[]>>;
 }
 
-interface IModifiedUseQueryTargetsResponse {
-  results: IHost[] | ITargets;
-  targetsCount: number;
-  onlineCount: number;
-}
+const DEBOUNCE_DELAY = 500;
+const STALE_TIME = 60000;
 
 const isSameSelectTargetsEntity = (
   e1: ISelectTargetsEntity,
@@ -99,10 +86,6 @@ const SelectTargets = ({
   goToRunQuery,
   setSelectedTargets,
 }: ISelectTargetsProps): JSX.Element => {
-  const [targetsTotalCount, setTargetsTotalCount] = useState<number | null>(
-    null
-  );
-  const [targetsOnlinePercent, setTargetsOnlinePercent] = useState<number>(0);
   const [allHostsLabels, setAllHostsLabels] = useState<ILabel[] | null>(null);
   const [platformLabels, setPlatformLabels] = useState<ILabel[] | null>(null);
   const [teams, setTeams] = useState<ITeam[] | null>(null);
@@ -112,81 +95,53 @@ const SelectTargets = ({
   );
   const [inputTabIndex, setInputTabIndex] = useState<number>(0);
   const [searchText, setSearchText] = useState<string>("");
-  const [relatedHosts, setRelatedHosts] = useState<IHost[]>([]);
+  const [debouncedSearchText, setDebouncedSearchText] = useState<string>("");
+  const [isDebouncing, setIsDebouncing] = useState<boolean>(false);
 
-  const { isFetching: isTargetsFetching, isError: isTargetsError } = useQuery(
-    // triggers query on change
-    ["targetsFromSearch", searchText, [...selectedTargets]],
-    () =>
-      targetsAPI.loadAll({
-        query: searchText,
-        queryId: queryIdForEdit,
-        selected: formatSelectedTargetsForApi(selectedTargets) as any,
-      }),
-    {
-      refetchOnWindowFocus: false,
+  const debounceSearch = useDebouncedCallback(
+    (search: string) => {
+      setDebouncedSearchText(search);
+      setIsDebouncing(false);
+    },
+    DEBOUNCE_DELAY,
+    { trailing: true }
+  );
 
-      // only retrieve the whole targets object once
-      // we will only update related hosts when a search query fires
-      select: (data: ITargetsAPIResponse) =>
-        allHostsLabels
-          ? {
-              results: data.targets.hosts,
-              targetsCount: data.targets_count,
-              onlineCount: data.targets_online,
-            }
-          : {
-              results: data.targets,
-              targetsCount: data.targets_count,
-              onlineCount: data.targets_online,
-            },
-      onSuccess: ({
-        results,
-        targetsCount,
-        onlineCount,
-      }: IModifiedUseQueryTargetsResponse) => {
-        if ("labels" in results) {
-          // this will only run once
-          const { labels, teams: targetTeams } = results as ITargets;
-          const allHosts = filter(
-            labels,
-            ({ display_text: text }) => text === "All Hosts"
-          );
-          const platforms = filter(
-            labels,
-            ({ display_text: text }) =>
-              text === "macOS" || text === "MS Windows" || text === "All Linux"
-          );
-          const other = filter(
-            labels,
-            ({ label_type: type }) => type === "regular"
-          );
+  useEffect(() => {
+    setIsDebouncing(true);
+    debounceSearch(searchText);
+  }, [searchText]);
 
-          setAllHostsLabels(allHosts);
-          setPlatformLabels(platforms);
-          setTeams(targetTeams);
-          setOtherLabels(other);
+  const setLabels = useCallback(
+    (data: ITargetsQueryResponse) => {
+      if (!allHostsLabels) {
+        setAllHostsLabels(data.allHostsLabels || []);
+        setPlatformLabels(data.platformLabels || []);
+        setOtherLabels(data.otherLabels || []);
+        setTeams(data.teams || []);
+        setInputTabIndex(data.labelCount || 0);
+      }
+    },
+    [allHostsLabels]
+  );
 
-          const labelCount =
-            allHosts.length +
-            platforms.length +
-            targetTeams.length +
-            other.length;
-          setInputTabIndex(labelCount || 0);
-        } else if (searchText === "") {
-          setRelatedHosts([]);
-        } else {
-          // this will always update as the user types
-          setRelatedHosts([...results] as IHost[]);
-        }
-
-        setTargetsTotalCount(targetsCount);
-        if (targetsCount > 0) {
-          setTargetsOnlinePercent(
-            Math.round((onlineCount / targetsCount) * 100)
-          );
-        }
+  const {
+    data: targets,
+    isFetching: isTargetsFetching,
+    isError: isTargetsError,
+  } = useQueryTargets(
+    [
+      {
+        scope: "useQueryTargets", // Note: Scope is shared with QueryPage
+        query: debouncedSearchText,
+        queryId: queryIdForEdit, // TODO: How is this used by the backend? Can this be removed?
+        selected: formatSelectedTargetsForApi(selectedTargets),
+        includeLabels: !allHostsLabels,
       },
+    ],
+    {
+      onSuccess: setLabels,
+      staleTime: STALE_TIME,
     }
   );
 
@@ -200,7 +155,7 @@ const SelectTargets = ({
   ): void => {
     e.preventDefault();
 
-    let targets = selectedTargets;
+    let newTargets = selectedTargets;
     const labels = selectedLabels;
     const removed = remove(labels, (label) =>
       isSameSelectTargetsEntity(label, selectedLabel)
@@ -209,8 +164,8 @@ const SelectTargets = ({
     // visually show selection
     const isRemoval = removed.length > 0;
     if (isRemoval) {
-      targets = targets.filter(
-        (target) => !isSameSelectTargetsEntity(target, selectedLabel)
+      newTargets = newTargets.filter(
+        (t) => !isSameSelectTargetsEntity(t, selectedLabel)
       );
     } else {
       labels.push(selectedLabel);
@@ -220,30 +175,30 @@ const SelectTargets = ({
         label.target_type = "label_type" in label ? "labels" : "teams";
       });
 
-      targets = unionWith(targets, labels, isSameSelectTargetsEntity);
+      newTargets = unionWith(newTargets, labels, isSameSelectTargetsEntity);
     }
 
     setSelectedLabels([...labels]);
-    setSelectedTargets([...targets]);
+    setSelectedTargets([...newTargets]);
   };
 
   const handleRowSelect = (row: Row) => {
-    const targets = selectedTargets;
+    const newTargets = selectedTargets;
     const hostTarget = row.original as any; // intentional so we can add to the object
 
     hostTarget.target_type = "hosts";
 
-    targets.push(hostTarget as IHost);
-    setSelectedTargets([...targets]);
+    newTargets.push(hostTarget as IHost);
+    setSelectedTargets([...newTargets]);
     setSearchText("");
   };
 
   const handleRowRemove = (row: Row) => {
-    const targets = selectedTargets;
+    const newTargets = selectedTargets;
     const hostTarget = row.original as ITarget;
-    remove(targets, (t) => t.id === hostTarget.id && t.target_type === "hosts");
+    remove(newTargets, (t) => t.id === hostTarget.id && "hostname" in t); // check if `hostname` is present to confirm target is of type `IHost`
 
-    setSelectedTargets([...targets]);
+    setSelectedTargets([...newTargets]);
   };
 
   const renderTargetEntityList = (
@@ -258,7 +213,7 @@ const SelectTargets = ({
             <TargetPillSelector
               key={`target_${entity.target_type}_${entity.id}`}
               entity={entity}
-              isSelected={selectedLabels.some((label: ISelectTargetsEntity) =>
+              isSelected={selectedLabels.some((label) =>
                 isSameSelectTargetsEntity(label, entity)
               )}
               onClick={handleSelectedLabels}
@@ -269,7 +224,7 @@ const SelectTargets = ({
     );
   };
 
-  if (isEmpty(searchText) && isTargetsFetching) {
+  if (!isTargetsError && isEmpty(searchText) && !allHostsLabels) {
     return (
       <div className={`${baseClass}__wrapper body-wrap`}>
         <h1>Select targets</h1>
@@ -324,8 +279,8 @@ const SelectTargets = ({
       <TargetsInput
         tabIndex={inputTabIndex}
         searchText={searchText}
-        relatedHosts={[...relatedHosts]}
-        isTargetsLoading={isTargetsFetching}
+        relatedHosts={targets?.relatedHosts || []}
+        isTargetsLoading={isTargetsFetching || isDebouncing}
         selectedTargets={[...selectedTargets]}
         hasFetchError={isTargetsError}
         setSearchText={setSearchText}
@@ -344,16 +299,16 @@ const SelectTargets = ({
           className={`${baseClass}__btn`}
           type="button"
           variant="blue-green"
-          disabled={!targetsTotalCount}
+          disabled={!targets?.targetsTotalCount}
           onClick={goToRunQuery}
         >
           Run
         </Button>
         <div className={`${baseClass}__targets-total-count`}>
-          {!!targetsTotalCount && (
+          {!!targets?.targetsTotalCount && (
             <>
-              <span>{targetsTotalCount}</span> targets selected&nbsp; (
-              {targetsOnlinePercent}% online)
+              <span>{targets?.targetsTotalCount}</span> targets selected&nbsp; (
+              {targets?.targetsOnlinePercent}% online)
             </>
           )}
         </div>

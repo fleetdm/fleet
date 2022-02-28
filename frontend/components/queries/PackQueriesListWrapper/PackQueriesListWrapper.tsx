@@ -1,8 +1,7 @@
-import React, { Component, useState } from "react";
-import PropTypes from "prop-types";
+import React, { useState } from "react";
 // @ts-ignore
 import simpleSearch from "utilities/simple_search";
-import TableContainer from "components/TableContainer";
+import TableContainer, { ITableQueryData } from "components/TableContainer";
 import Button from "components/buttons/Button";
 // @ts-ignore
 import { IScheduledQuery } from "interfaces/scheduled_query";
@@ -15,38 +14,12 @@ import AddQueryIcon from "../../../../assets/images/icon-plus-16x16@2x.png";
 
 const baseClass = "pack-queries-list-wrapper";
 
-interface IFormData {
-  interval: number;
-  name?: string;
-  shard: number;
-  query?: string;
-  query_id?: number;
-  snapshot: boolean;
-  removed: boolean;
-  platform: string;
-  version: string;
-  pack_id: number;
-}
-
 interface IPackQueriesListWrapperProps {
   onAddPackQuery: () => void;
   onEditPackQuery: (selectedQuery: IScheduledQuery) => void;
   onRemovePackQueries: (selectedTableQueryIds: number[]) => void;
-  onPackQueryFormSubmit: (
-    formData: IFormData,
-    editQuery: IScheduledQuery | undefined
-  ) => void;
   scheduledQueries: IScheduledQuery[] | undefined;
-  packId: number;
   isLoadingPackQueries: boolean;
-}
-
-export interface ITableSearchData {
-  searchQuery: string;
-  sortHeader: string;
-  sortDirection: string;
-  pageSize?: number;
-  pageIndex?: number;
 }
 
 const PackQueriesListWrapper = ({
@@ -60,7 +33,7 @@ const PackQueriesListWrapper = ({
 
   // NOTE: this is called once on the initial rendering. The initial render of
   // the TableContainer child component will call this handler.
-  const onTableQueryChange = (queryData: ITableSearchData) => {
+  const onTableQueryChange = (queryData: ITableQueryData) => {
     const { searchQuery, sortHeader, sortDirection } = queryData;
     let sortBy = [];
     if (sortHeader !== "") {

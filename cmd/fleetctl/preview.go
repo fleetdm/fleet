@@ -221,14 +221,9 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 				return fmt.Errorf("failed to download standard query library: %w", err)
 			}
 
-			specGroup, err := specGroupFromBytes(buf)
+			err = applyYamlBytes(c, buf, client)
 			if err != nil {
-				return fmt.Errorf("failed to parse standard query library: %w", err)
-			}
-
-			err = client.ApplyQueries(specGroup.Queries)
-			if err != nil {
-				return fmt.Errorf("failed to apply standard query library: %w", err)
+				return err
 			}
 
 			// disable anonymous analytics collection and enable software inventory for preview
@@ -650,7 +645,7 @@ func downloadOrbitAndStart(destDir, enrollSecret, address, orbitChannel, osquery
 	updateOpt.OrbitChannel = orbitChannel
 	updateOpt.OsquerydChannel = osquerydChannel
 
-	if err := packaging.InitializeUpdates(updateOpt); err != nil {
+	if _, err := packaging.InitializeUpdates(updateOpt); err != nil {
 		return fmt.Errorf("initialize updates: %w", err)
 	}
 

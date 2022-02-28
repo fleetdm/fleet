@@ -2,7 +2,7 @@ import React, { Component } from "react";
 import PropTypes from "prop-types";
 import { connect } from "react-redux";
 import { goBack } from "react-router-redux";
-import moment from "moment";
+import { formatDistanceToNow } from "date-fns";
 import { authToken } from "utilities/local";
 import { stringToClipboard } from "utilities/copy_text";
 
@@ -278,7 +278,7 @@ export class UserSettingsPage extends Component {
     return (
       <Modal title="Get API token" onExit={onToggleApiTokenModal}>
         <p className={`${baseClass}__secret-label`}>
-          Your API Token:
+          Your API token:
           <a
             href="#revealSecret"
             onClick={onToggleSecret}
@@ -336,7 +336,9 @@ export class UserSettingsPage extends Component {
     const roleText = generateRole(teams, globalRole);
     const teamsText = generateTeam(teams, globalRole);
 
-    const lastUpdatedAt = moment(updatedAt).fromNow();
+    const lastUpdatedAt = formatDistanceToNow(new Date(updatedAt), {
+      addSuffix: true,
+    });
 
     return (
       <div className={baseClass}>

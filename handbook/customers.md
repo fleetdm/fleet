@@ -45,13 +45,34 @@ When creating a new issue, ensure the following:
 - Is there a key date or timeframe that the customer is hoping to meet?  If so, please post about that in #g-product with a link to the issue, so the team can discuss before committing to a time frame.
 - Have we provided a link to that issue for the customer to remind everyone of the plan, and for the sake of visibility, so other folks who weren't directly involved are up to speed?  (e.g. "Hi everyone, here's a link to the issue we discussed on today's call: […link…](https://omfgdogs.com)")
 
+
+## Runbook
+
+### Responding to a request to change a credit card number
+TODO
+
+### Responding to a 500 error on fleetdm.com
+Production systems can fail for various reasons, and it can be frustrating to users when they do, and customer experience is significant to Fleet. In the event of system failure, Fleet will:
+* Investigate the problem to determine the root cause
+* Identify affected users
+* Escalate if necessary
+* Understand and remediate the problem
+* Notify impacted users of any steps they need to take (if any).  If a customer paid with a credit card and had a bad experience, default to refunding their money.
+* Conduct an incident post-mortem to determine any additional steps we need (including monitoring) to take to prevent this class of problems from happening in the future
+
+
+## Incident postmortems
+At Fleet, we take customer incidents very seriously. After working with customers to resolve issues, we will conduct an internal postmortem to determine any documentation or coding changes to prevent similar incidents from happening in the future. Why? We strive to make Fleet the best osquery management platform globally, and we sincerely believe that starts with sharing lessons learned with the community to become stronger together.
+
+At Fleet, we do postmortem meetings for every production incident, whether it's a customer's environment or on fleetdm.com.
+
 ## Customer codenames
 Occasionally we will need to track public issues for customers that wish to remain anonymous on our public issue tracker. To do this, we choose an appropriate minor planet name from this [Wikipedia page](https://en.wikipedia.org/wiki/List_of_named_minor_planets_(alphabetical)) and create a label which we attach to the issue and any future issues for this customer.
 
 ## Generating a trial license key
-Fleet's self-service license dispenser (coming soon) is the best way to generate trial license keys for Fleet Premium.
+Fleet's self-service license dispenser is the best way to generate trial license keys for small deployments of Fleet Premium.
 
-In the meantime, to generate a trial license key, [create an opportunity issue](https://github.com/fleetdm/confidential/issues/new/choose) for the customer and follow the instructions in the issue for generating a trial license key.
+To generate a trial license key for a larger deployment, [create an opportunity issue](https://github.com/fleetdm/confidential/issues/new/choose) for the customer and follow the instructions in the issue for generating a trial license key.
 
 <meta name="maintainedBy" value="tgauda">
 
