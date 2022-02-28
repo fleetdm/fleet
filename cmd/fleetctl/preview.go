@@ -655,6 +655,8 @@ func downloadOrbitAndStart(destDir, enrollSecret, address, orbitChannel, osquery
 		"--fleet-url", address,
 		"--insecure",
 		"--debug",
+		"--disable-updates",
+		"--dev-mode",
 		"--enroll-secret", enrollSecret,
 		"--orbit-channel", orbitChannel,
 		"--osqueryd-channel", osquerydChannel,

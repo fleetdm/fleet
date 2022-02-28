@@ -6,16 +6,3 @@ const (
 	// DefaultFileMode is the default file mode to apply to created files.
 	DefaultFileMode = 0o600
 )
-
-// ExecutableExtension returns the extension used for executables on the
-// provided platform.
-func ExecutableExtension(platform string) string {
-	switch platform {
-	case "windows":
-		return ".exe"
-	case "macos-app":
-		return ".app.tar.gz"
-	default:
-		return ""
-	}
-}

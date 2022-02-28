@@ -13,13 +13,13 @@ function create_repository() {
   for system in macos-app macos linux windows; do
 
     if [[ $system == "macos-app" ]]; then
+      # TODO(lucas): Implement code in this branch in a fleetctl command.
       curl -L https://pkg.osquery.io/darwin/osquery-5.1.0.pkg --output $TUF_PATH/tmp/osquery-5.1.0.pkg
       rm -rf $TUF_PATH/tmp/osquery_pkg_expanded
       pkgutil --expand $TUF_PATH/tmp/osquery-5.1.0.pkg $TUF_PATH/tmp/osquery_pkg_expanded
       rm -rf $TUF_PATH/tmp/osquery_pkg_payload_expanded
       mkdir $TUF_PATH/tmp/osquery_pkg_payload_expanded
       tar xf $TUF_PATH/tmp/osquery_pkg_expanded/Payload --directory $TUF_PATH/tmp/osquery_pkg_payload_expanded
-      osqueryd = 
       osqueryd_path="$TUF_PATH/tmp/osquery.app.tar.gz"
       tar cf $osqueryd_path $TUF_PATH/tmp/osquery_pkg_payload_expanded/opt/osquery/lib/osquery.app
     else
