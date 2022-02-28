@@ -24,20 +24,19 @@ import (
 
 // FleetEndpoints is a collection of RPC endpoints implemented by the Fleet API.
 type FleetEndpoints struct {
-	Login                         endpoint.Endpoint
-	Logout                        endpoint.Endpoint
-	ForgotPassword                endpoint.Endpoint
-	ResetPassword                 endpoint.Endpoint
-	CreateUserWithInvite          endpoint.Endpoint
-	PerformRequiredPasswordReset  endpoint.Endpoint
-	VerifyInvite                  endpoint.Endpoint
-	EnrollAgent                   endpoint.Endpoint
-	SubmitDistributedQueryResults endpoint.Endpoint
-	SubmitLogs                    endpoint.Endpoint
-	CarveBlock                    endpoint.Endpoint
-	InitiateSSO                   endpoint.Endpoint
-	CallbackSSO                   endpoint.Endpoint
-	SSOSettings                   endpoint.Endpoint
+	Login                        endpoint.Endpoint
+	Logout                       endpoint.Endpoint
+	ForgotPassword               endpoint.Endpoint
+	ResetPassword                endpoint.Endpoint
+	CreateUserWithInvite         endpoint.Endpoint
+	PerformRequiredPasswordReset endpoint.Endpoint
+	VerifyInvite                 endpoint.Endpoint
+	EnrollAgent                  endpoint.Endpoint
+	SubmitLogs                   endpoint.Endpoint
+	CarveBlock                   endpoint.Endpoint
+	InitiateSSO                  endpoint.Endpoint
+	CallbackSSO                  endpoint.Endpoint
+	SSOSettings                  endpoint.Endpoint
 }
 
 // MakeFleetServerEndpoints creates the Fleet API endpoints.
@@ -68,8 +67,7 @@ func MakeFleetServerEndpoints(svc fleet.Service, urlPrefix string, limitStore th
 		// Osquery endpoints
 		EnrollAgent: logged(makeEnrollAgentEndpoint(svc)),
 		// Authenticated osquery endpoints
-		SubmitDistributedQueryResults: authenticatedHost(svc, logger, makeSubmitDistributedQueryResultsEndpoint(svc)),
-		SubmitLogs:                    authenticatedHost(svc, logger, makeSubmitLogsEndpoint(svc)),
+		SubmitLogs: authenticatedHost(svc, logger, makeSubmitLogsEndpoint(svc)),
 		// For some reason osquery does not provide a node key with the block
 		// data. Instead the carve session ID should be verified in the service
 		// method.
@@ -78,20 +76,19 @@ func MakeFleetServerEndpoints(svc fleet.Service, urlPrefix string, limitStore th
 }
 
 type fleetHandlers struct {
-	Login                         http.Handler
-	Logout                        http.Handler
-	ForgotPassword                http.Handler
-	ResetPassword                 http.Handler
-	CreateUserWithInvite          http.Handler
-	PerformRequiredPasswordReset  http.Handler
-	VerifyInvite                  http.Handler
-	EnrollAgent                   http.Handler
-	SubmitDistributedQueryResults http.Handler
-	SubmitLogs                    http.Handler
-	CarveBlock                    http.Handler
-	InitiateSSO                   http.Handler
-	CallbackSSO                   http.Handler
-	SettingsSSO                   http.Handler
+	Login                        http.Handler
+	Logout                       http.Handler
+	ForgotPassword               http.Handler
+	ResetPassword                http.Handler
+	CreateUserWithInvite         http.Handler
+	PerformRequiredPasswordReset http.Handler
+	VerifyInvite                 http.Handler
+	EnrollAgent                  http.Handler
+	SubmitLogs                   http.Handler
+	CarveBlock                   http.Handler
+	InitiateSSO                  http.Handler
+	CallbackSSO                  http.Handler
+	SettingsSSO                  http.Handler
 }
 
 func makeKitHandlers(e FleetEndpoints, opts []kithttp.ServerOption) *fleetHandlers {
@@ -100,20 +97,19 @@ func makeKitHandlers(e FleetEndpoints, opts []kithttp.ServerOption) *fleetHandle
 		return kithttp.NewServer(e, decodeFn, encodeResponse, opts...)
 	}
 	return &fleetHandlers{
-		Login:                         newServer(e.Login, decodeLoginRequest),
-		Logout:                        newServer(e.Logout, decodeNoParamsRequest),
-		ForgotPassword:                newServer(e.ForgotPassword, decodeForgotPasswordRequest),
-		ResetPassword:                 newServer(e.ResetPassword, decodeResetPasswordRequest),
-		CreateUserWithInvite:          newServer(e.CreateUserWithInvite, decodeCreateUserRequest),
-		PerformRequiredPasswordReset:  newServer(e.PerformRequiredPasswordReset, decodePerformRequiredPasswordResetRequest),
-		VerifyInvite:                  newServer(e.VerifyInvite, decodeVerifyInviteRequest),
-		EnrollAgent:                   newServer(e.EnrollAgent, decodeEnrollAgentRequest),
-		SubmitDistributedQueryResults: newServer(e.SubmitDistributedQueryResults, decodeSubmitDistributedQueryResultsRequest),
-		SubmitLogs:                    newServer(e.SubmitLogs, decodeSubmitLogsRequest),
-		CarveBlock:                    newServer(e.CarveBlock, decodeCarveBlockRequest),
-		InitiateSSO:                   newServer(e.InitiateSSO, decodeInitiateSSORequest),
-		CallbackSSO:                   newServer(e.CallbackSSO, decodeCallbackSSORequest),
-		SettingsSSO:                   newServer(e.SSOSettings, decodeNoParamsRequest),
+		Login:                        newServer(e.Login, decodeLoginRequest),
+		Logout:                       newServer(e.Logout, decodeNoParamsRequest),
+		ForgotPassword:               newServer(e.ForgotPassword, decodeForgotPasswordRequest),
+		ResetPassword:                newServer(e.ResetPassword, decodeResetPasswordRequest),
+		CreateUserWithInvite:         newServer(e.CreateUserWithInvite, decodeCreateUserRequest),
+		PerformRequiredPasswordReset: newServer(e.PerformRequiredPasswordReset, decodePerformRequiredPasswordResetRequest),
+		VerifyInvite:                 newServer(e.VerifyInvite, decodeVerifyInviteRequest),
+		EnrollAgent:                  newServer(e.EnrollAgent, decodeEnrollAgentRequest),
+		SubmitLogs:                   newServer(e.SubmitLogs, decodeSubmitLogsRequest),
+		CarveBlock:                   newServer(e.CarveBlock, decodeCarveBlockRequest),
+		InitiateSSO:                  newServer(e.InitiateSSO, decodeInitiateSSORequest),
+		CallbackSSO:                  newServer(e.CallbackSSO, decodeCallbackSSORequest),
+		SettingsSSO:                  newServer(e.SSOSettings, decodeNoParamsRequest),
 	}
 }
 
@@ -298,7 +294,6 @@ func attachFleetAPIRoutes(r *mux.Router, h *fleetHandlers) {
 	r.Handle("/api/v1/fleet/users", h.CreateUserWithInvite).Methods("POST").Name("create_user_with_invite")
 	r.Handle("/api/v1/fleet/invites/{token}", h.VerifyInvite).Methods("GET").Name("verify_invite")
 	r.Handle("/api/v1/osquery/enroll", h.EnrollAgent).Methods("POST").Name("enroll_agent")
-	r.Handle("/api/v1/osquery/distributed/write", h.SubmitDistributedQueryResults).Methods("POST").Name("submit_distributed_query_results")
 	r.Handle("/api/v1/osquery/log", h.SubmitLogs).Methods("POST").Name("submit_logs")
 	r.Handle("/api/v1/osquery/carve/block", h.CarveBlock).Methods("POST").Name("carve_block")
 }
@@ -447,8 +442,8 @@ func attachNewStyleFleetAPIRoutes(r *mux.Router, svc fleet.Service, logger kitlo
 	he := newHostAuthenticatedEndpointer(svc, logger, opts, r, "v1")
 	he.POST("/api/_version_/osquery/config", getClientConfigEndpoint, getClientConfigRequest{})
 	he.POST("/api/_version_/osquery/distributed/read", getDistributedQueriesEndpoint, getDistributedQueriesRequest{})
+	he.POST("/api/_version_/osquery/distributed/write", submitDistributedQueryResultsEndpoint, submitDistributedQueryResultsRequestShim{})
 	he.POST("/api/_version_/osquery/carve/begin", carveBeginEndpoint, carveBeginRequest{})
-	//r.Handle("/api/v1/osquery/carve/begin", h.CarveBegin).Methods("POST").Name("carve_begin")
 }
 
 // TODO: this duplicates the one in makeKitHandler

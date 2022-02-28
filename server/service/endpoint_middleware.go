@@ -44,12 +44,14 @@ func authenticatedHost(svc fleet.Service, logger log.Logger, next endpoint.Endpo
 	authHostFunc := func(ctx context.Context, request interface{}) (interface{}, error) {
 		nodeKey, err := getNodeKey(request)
 		if err != nil {
+			fmt.Println(">>>>> authhost getnodekey failed: ", err)
 			return nil, err
 		}
 
 		host, debug, err := svc.AuthenticateHost(ctx, nodeKey)
 		if err != nil {
 			logging.WithErr(ctx, err)
+			fmt.Println(">>>>> authhost AuthHost failed: ", err)
 			return nil, err
 		}
 
@@ -78,6 +80,9 @@ func getNodeKey(r interface{}) (string, error) {
 	// Retrieve node key by reflection (note that our options here
 	// are limited by the fact that request is an interface{})
 	v := reflect.ValueOf(r)
+	if v.Kind() == reflect.Ptr {
+		v = v.Elem()
+	}
 	if v.Kind() != reflect.Struct {
 		return "", osqueryError{
 			message: "request type is not struct. This is likely a Fleet programmer error.",
