@@ -2827,6 +2827,14 @@ func (s *integrationTestSuite) TestPaginateListSoftware() {
 		}
 	}
 
+	// create a team and make the last 3 hosts part of it (meaning 3 that use
+	// sws[19], 2 for sws[18], and 1 for sws[17])
+	tm, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+		Name: t.Name(),
+	})
+	require.NoError(t, err)
+	require.NoError(t, s.ds.AddHostsToTeam(context.Background(), &tm.ID, []uint{hosts[19].ID, hosts[18].ID, hosts[17].ID}))
+
 	assertResp := func(resp listSoftwareResponse, want []fleet.Software, ts time.Time, counts ...int) {
 		require.Len(t, resp.Software, len(want))
 		for i := range resp.Software {
@@ -2846,6 +2854,11 @@ func (s *integrationTestSuite) TestPaginateListSoftware() {
 	// no software host counts have been calculated yet, so this returns nothing
 	var lsResp listSoftwareResponse
 	s.DoJSON("GET", "/api/v1/fleet/software", nil, http.StatusOK, &lsResp, "order_key", "hosts_count", "order_direction", "desc")
+	assertResp(lsResp, nil, time.Time{})
+
+	// same with a team filter
+	lsResp = listSoftwareResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/software", nil, http.StatusOK, &lsResp, "order_key", "hosts_count", "order_direction", "desc", "team_id", fmt.Sprintf("%d", tm.ID))
 	assertResp(lsResp, nil, time.Time{})
 
 	// calculate hosts counts
@@ -2901,6 +2914,16 @@ func (s *integrationTestSuite) TestPaginateListSoftware() {
 	lsResp = listSoftwareResponse{}
 	s.DoJSON("GET", "/api/v1/fleet/software", nil, http.StatusOK, &lsResp, "vulnerable", "true", "per_page", "5", "page", "2", "order_key", "hosts_count", "order_direction", "desc")
 	assertResp(lsResp, nil, time.Time{})
+
+	// filter by the team, 2 by page
+	lsResp = listSoftwareResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/software", nil, http.StatusOK, &lsResp, "per_page", "2", "page", "0", "order_key", "hosts_count", "order_direction", "desc", "team_id", fmt.Sprintf("%d", tm.ID))
+	assertResp(lsResp, []fleet.Software{sws[19], sws[18]}, hostsCountTs, 3, 2)
+
+	// filter by the team, 2 by page, next page
+	lsResp = listSoftwareResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/software", nil, http.StatusOK, &lsResp, "per_page", "2", "page", "1", "order_key", "hosts_count", "order_direction", "desc", "team_id", fmt.Sprintf("%d", tm.ID))
+	assertResp(lsResp, []fleet.Software{sws[17]}, hostsCountTs, 1)
 }
 
 func (s *integrationTestSuite) TestChangeUserEmail() {

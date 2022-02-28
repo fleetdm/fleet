@@ -579,8 +579,8 @@ func testSoftwareCalculateHostsPerSoftware(t *testing.T, ds *Datastore) {
 		{Name: "bar", Version: "0.0.3", Source: "deb_packages"},
 	}
 
-	require.NoError(t, ds.UpdateHostSoftware(context.Background(), host1.ID, software1))
-	require.NoError(t, ds.UpdateHostSoftware(context.Background(), host2.ID, software2))
+	require.NoError(t, ds.UpdateHostSoftware(ctx, host1.ID, software1))
+	require.NoError(t, ds.UpdateHostSoftware(ctx, host2.ID, software2))
 
 	err := ds.CalculateHostsPerSoftware(ctx, time.Now())
 	require.NoError(t, err)
@@ -601,7 +601,7 @@ func testSoftwareCalculateHostsPerSoftware(t *testing.T, ds *Datastore) {
 		{Name: "foo", Version: "v0.0.2", Source: "chrome_extensions"},
 		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
 	}
-	require.NoError(t, ds.UpdateHostSoftware(context.Background(), host2.ID, software2))
+	require.NoError(t, ds.UpdateHostSoftware(ctx, host2.ID, software2))
 
 	err = ds.CalculateHostsPerSoftware(ctx, time.Now())
 	require.NoError(t, err)
@@ -641,14 +641,14 @@ func testSoftwareCalculateHostsPerSoftware(t *testing.T, ds *Datastore) {
 	cmpNameVersionCount(want, allSw)
 
 	// create 2 teams and assign a new host to each
-	team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
-	team2, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team2"})
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team2"})
 	require.NoError(t, err)
 	host3 := test.NewHost(t, ds, "host3", "", "host3key", "host3uuid", time.Now())
-	require.NoError(t, ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{host3.ID}))
+	require.NoError(t, ds.AddHostsToTeam(ctx, &team1.ID, []uint{host3.ID}))
 	host4 := test.NewHost(t, ds, "host4", "", "host4key", "host4uuid", time.Now())
-	require.NoError(t, ds.AddHostsToTeam(context.Background(), &team2.ID, []uint{host4.ID}))
+	require.NoError(t, ds.AddHostsToTeam(ctx, &team2.ID, []uint{host4.ID}))
 
 	// assign existing host1 to team1 too, so we have a team with multiple hosts
 	require.NoError(t, ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{host1.ID}))
@@ -660,8 +660,8 @@ func testSoftwareCalculateHostsPerSoftware(t *testing.T, ds *Datastore) {
 		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
 		{Name: "bar", Version: "0.0.3", Source: "deb_packages"},
 	}
-	require.NoError(t, ds.UpdateHostSoftware(context.Background(), host3.ID, software3))
-	require.NoError(t, ds.UpdateHostSoftware(context.Background(), host4.ID, software4))
+	require.NoError(t, ds.UpdateHostSoftware(ctx, host3.ID, software3))
+	require.NoError(t, ds.UpdateHostSoftware(ctx, host4.ID, software4))
 
 	// at this point, there's no counts per team, only global counts
 	globalCounts = listSoftwareCheckCount(t, ds, 3, 3, globalOpts, false)
@@ -709,7 +709,7 @@ func testSoftwareCalculateHostsPerSoftware(t *testing.T, ds *Datastore) {
 	software4 = []fleet.Software{
 		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
 	}
-	require.NoError(t, ds.UpdateHostSoftware(context.Background(), host4.ID, software4))
+	require.NoError(t, ds.UpdateHostSoftware(ctx, host4.ID, software4))
 
 	err = ds.CalculateHostsPerSoftware(ctx, time.Now())
 	require.NoError(t, err)
@@ -734,6 +734,32 @@ func testSoftwareCalculateHostsPerSoftware(t *testing.T, ds *Datastore) {
 		{Name: "foo", Version: "0.0.3", HostsCount: 1},
 	}
 	cmpNameVersionCount(want, team2Counts)
+
+	// update host4 (team2), remove all software and delete team
+	software4 = []fleet.Software{}
+	require.NoError(t, ds.UpdateHostSoftware(ctx, host4.ID, software4))
+	require.NoError(t, ds.DeleteTeam(ctx, team2.ID))
+
+	// this call will remove team2 from the software host counts table
+	err = ds.CalculateHostsPerSoftware(ctx, time.Now())
+	require.NoError(t, err)
+
+	globalCounts = listSoftwareCheckCount(t, ds, 3, 3, globalOpts, false)
+	want = []fleet.Software{
+		{Name: "foo", Version: "0.0.3", HostsCount: 3},
+		{Name: "foo", Version: "0.0.1", HostsCount: 1},
+		{Name: "foo", Version: "v0.0.2", HostsCount: 1},
+	}
+	cmpNameVersionCount(want, globalCounts)
+
+	team1Counts = listSoftwareCheckCount(t, ds, 2, 2, team1Opts, false)
+	want = []fleet.Software{
+		{Name: "foo", Version: "0.0.3", HostsCount: 2},
+		{Name: "foo", Version: "0.0.1", HostsCount: 1},
+	}
+	cmpNameVersionCount(want, team1Counts)
+
+	listSoftwareCheckCount(t, ds, 0, 0, team2Opts, false)
 }
 
 func insertVulnSoftwareForTest(t *testing.T, ds *Datastore) {
