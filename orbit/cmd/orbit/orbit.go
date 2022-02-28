@@ -119,7 +119,7 @@ func main() {
 			Name:  "log-file",
 			Usage: "Log to this file path in addition to stderr",
 		},
-		&cli.StringFlag{
+		&cli.BoolFlag{
 			Name:  "dev-darwin-legacy-targets",
 			Usage: "Use darwin legacy target (flag only used on darwin)",
 		},
