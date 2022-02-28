@@ -1,11 +1,20 @@
 #!/bin/bash
 
+set -e
+
 export FLEET_ROOT_PASSPHRASE=p4ssphr4s3
 export FLEET_TARGETS_PASSPHRASE=p4ssphr4s3
 export FLEET_SNAPSHOT_PASSPHRASE=p4ssphr4s3
 export FLEET_TIMESTAMP_PASSPHRASE=p4ssphr4s3
 
 export TUF_PATH=test_tuf
+
+if [ -n "$GENERATE_PKGS" ] && [ -z "$ENROLL_SECRET" ]; then
+  echo "Error: To generate package you must set ENROLL_SECRET variable."
+  exit 1
+fi
+
+make fleetctl
 
 function create_repository() {
   ./build/fleetctl updates init --path $TUF_PATH
@@ -71,9 +80,61 @@ fi
 root_keys=$(./build/fleetctl updates roots --path $TUF_PATH)
 
 echo "#########"
-echo "Set the following options in 'fleetctl package':"
+echo "To generate packages set the following options in 'fleetctl package':"
 echo "--update-roots='$root_keys' --update-url=http://localhost:8081"
 echo "#########"
 
 echo "Running TUF server..."
-go run ./tools/file-server 8081 "${TUF_PATH}/repository"
+go run ./tools/file-server 8081 "${TUF_PATH}/repository" &
+SERVER_PID=$!
+
+if [ -n "$GENERATE_PKGS" ]; then
+  sleep 5
+
+  # Change these values accordingly
+  PKG_HOSTNAME=localhost
+  DEB_HOSTNAME=172.16.132.1
+  RPM_HOSTNAME=172.16.132.1
+  MSI_HOSTNAME=172.16.132.1
+
+  echo "Generating pkg..."
+  ./build/fleetctl package \
+    --type=pkg \
+    --fleet-url=https://$PKG_HOSTNAME:8080 \
+    --enroll-secret=$ENROLL_SECRET \
+    --insecure \
+    --debug \
+    --update-roots="$root_keys" \
+    --update-url=http://$PKG_HOSTNAME:8081
+
+  ./build/fleetctl package \
+    --type=deb \
+    --fleet-url=https://$DEB_HOSTNAME:8080 \
+    --enroll-secret=$ENROLL_SECRET \
+    --insecure \
+    --debug \
+    --update-roots="$root_keys" \
+    --update-url=http://$DEB_HOSTNAME:8081
+
+  ./build/fleetctl package \
+    --type=rpm \
+    --fleet-url=https://$RPM_HOSTNAME:8080 \
+    --enroll-secret=$ENROLL_SECRET \
+    --insecure \
+    --debug \
+    --update-roots="$root_keys" \
+    --update-url=http://$RPM_HOSTNAME:8081
+
+  ./build/fleetctl package \
+    --type=msi \
+    --fleet-url=https://$MSI_HOSTNAME:8080 \
+    --enroll-secret=$ENROLL_SECRET \
+    --insecure \
+    --debug \
+    --update-roots="$root_keys" \
+    --update-url=http://$MSI_HOSTNAME:8081
+
+  echo "Packages generated"
+fi
+
+wait $SERVER_PID
