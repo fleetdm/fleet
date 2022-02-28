@@ -68,9 +68,7 @@ if [ ! -d "$TUF_PATH/repository" ]; then
   create_repository
 fi
 
-root_keyid=$(cat $TUF_PATH/repository/root.json | jq '.signed.roles.root.keyids[0]')
-root_key=$(cat $TUF_PATH/repository/root.json | jq '.signed.keys.'"${root_keyid}"'' | jq -c)
-root_keys="[$root_key]"
+root_keys=$(./build/fleetctl updates roots --path $TUF_PATH)
 
 echo "#########"
 echo "Set the following options in 'fleetctl package':"
