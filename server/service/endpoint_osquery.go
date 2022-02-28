@@ -37,34 +37,6 @@ func makeEnrollAgentEndpoint(svc fleet.Service) endpoint.Endpoint {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Get Client Config
-////////////////////////////////////////////////////////////////////////////////
-
-type getClientConfigRequest struct {
-	NodeKey string `json:"node_key"`
-}
-
-type getClientConfigResponse struct {
-	Config map[string]interface{}
-	Err    error `json:"error,omitempty"`
-}
-
-func (r getClientConfigResponse) error() error { return r.Err }
-
-func makeGetClientConfigEndpoint(svc fleet.Service) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		config, err := svc.GetClientConfig(ctx)
-		if err != nil {
-			return getClientConfigResponse{Err: err}, nil
-		}
-
-		// We return the config here explicitly because osquery exepects the
-		// response for configs to be at the top-level of the JSON response
-		return config, nil
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////
 // Get Distributed Queries
 ////////////////////////////////////////////////////////////////////////////////
 

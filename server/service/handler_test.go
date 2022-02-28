@@ -60,10 +60,6 @@ func TestAPIRoutes(t *testing.T) {
 		},
 		{
 			verb: "POST",
-			uri:  "/api/v1/osquery/config",
-		},
-		{
-			verb: "POST",
 			uri:  "/api/v1/osquery/distributed/read",
 		},
 		{

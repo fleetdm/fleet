@@ -250,7 +250,7 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 	}
 }
 
-type UserAuthEndpointer struct {
+type authEndpointer struct {
 	svc               fleet.Service
 	opts              []kithttp.ServerOption
 	r                 *mux.Router
@@ -260,8 +260,8 @@ type UserAuthEndpointer struct {
 	alternativePaths  []string
 }
 
-func NewUserAuthenticatedEndpointer(svc fleet.Service, opts []kithttp.ServerOption, r *mux.Router, versions ...string) *UserAuthEndpointer {
-	return &UserAuthEndpointer{svc: svc, opts: opts, r: r, versions: versions}
+func NewUserAuthenticatedEndpointer(svc fleet.Service, opts []kithttp.ServerOption, r *mux.Router, versions ...string) *authEndpointer {
+	return &authEndpointer{svc: svc, opts: opts, r: r, versions: versions}
 }
 
 var pathReplacer = strings.NewReplacer(
@@ -272,26 +272,26 @@ var pathReplacer = strings.NewReplacer(
 
 func getNameFromPathAndVerb(verb, path string) string {
 	return strings.ToLower(verb) + "_" +
-		pathReplacer.Replace(strings.TrimPrefix(strings.TrimRight(path, "/"), "/api/v1/fleet/"))
+		pathReplacer.Replace(strings.TrimPrefix(strings.TrimRight(path, "/"), "/api/_version_/fleet/"))
 }
 
-func (e *UserAuthEndpointer) POST(path string, f handlerFunc, v interface{}) {
+func (e *authEndpointer) POST(path string, f handlerFunc, v interface{}) {
 	e.handle(path, f, v, "POST")
 }
 
-func (e *UserAuthEndpointer) GET(path string, f handlerFunc, v interface{}) {
+func (e *authEndpointer) GET(path string, f handlerFunc, v interface{}) {
 	e.handle(path, f, v, "GET")
 }
 
-func (e *UserAuthEndpointer) PATCH(path string, f handlerFunc, v interface{}) {
+func (e *authEndpointer) PATCH(path string, f handlerFunc, v interface{}) {
 	e.handle(path, f, v, "PATCH")
 }
 
-func (e *UserAuthEndpointer) DELETE(path string, f handlerFunc, v interface{}) {
+func (e *authEndpointer) DELETE(path string, f handlerFunc, v interface{}) {
 	e.handle(path, f, v, "DELETE")
 }
 
-func (e *UserAuthEndpointer) handle(path string, f handlerFunc, v interface{}, verb string) {
+func (e *authEndpointer) handle(path string, f handlerFunc, v interface{}, verb string) {
 	versions := e.versions
 	if e.startingAtVersion != "" {
 		startIndex := -1
@@ -337,7 +337,7 @@ func (e *UserAuthEndpointer) handle(path string, f handlerFunc, v interface{}, v
 	}
 }
 
-func (e *UserAuthEndpointer) makeEndpoint(f handlerFunc, v interface{}) http.Handler {
+func (e *authEndpointer) makeEndpoint(f handlerFunc, v interface{}) http.Handler {
 	return newServer(
 		authenticatedUser(
 			e.svc,
@@ -349,8 +349,8 @@ func (e *UserAuthEndpointer) makeEndpoint(f handlerFunc, v interface{}) http.Han
 	)
 }
 
-func (e *UserAuthEndpointer) StartingAtVersion(version string) *UserAuthEndpointer {
-	return &UserAuthEndpointer{
+func (e *authEndpointer) StartingAtVersion(version string) *authEndpointer {
+	return &authEndpointer{
 		svc:               e.svc,
 		opts:              e.opts,
 		r:                 e.r,
@@ -361,8 +361,8 @@ func (e *UserAuthEndpointer) StartingAtVersion(version string) *UserAuthEndpoint
 	}
 }
 
-func (e *UserAuthEndpointer) EndingAtVersion(version string) *UserAuthEndpointer {
-	return &UserAuthEndpointer{
+func (e *authEndpointer) EndingAtVersion(version string) *authEndpointer {
+	return &authEndpointer{
 		svc:               e.svc,
 		opts:              e.opts,
 		r:                 e.r,
@@ -373,8 +373,8 @@ func (e *UserAuthEndpointer) EndingAtVersion(version string) *UserAuthEndpointer
 	}
 }
 
-func (e *UserAuthEndpointer) WithAltPaths(paths ...string) *UserAuthEndpointer {
-	return &UserAuthEndpointer{
+func (e *authEndpointer) WithAltPaths(paths ...string) *authEndpointer {
+	return &authEndpointer{
 		svc:               e.svc,
 		opts:              e.opts,
 		r:                 e.r,

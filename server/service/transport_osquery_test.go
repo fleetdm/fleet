@@ -37,27 +37,6 @@ func TestDecodeEnrollAgentRequest(t *testing.T) {
 	)
 }
 
-func TestDecodeGetClientConfigRequest(t *testing.T) {
-	router := mux.NewRouter()
-	router.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
-		r, err := decodeGetClientConfigRequest(context.Background(), request)
-		require.Nil(t, err)
-
-		params := r.(getClientConfigRequest)
-		assert.Equal(t, "key", params.NodeKey)
-	}).Methods("POST")
-
-	var body bytes.Buffer
-	body.Write([]byte(`{
-        "node_key": "key"
-    }`))
-
-	router.ServeHTTP(
-		httptest.NewRecorder(),
-		httptest.NewRequest("POST", "/", &body),
-	)
-}
-
 func TestDecodeGetDistributedQueriesRequest(t *testing.T) {
 	router := mux.NewRouter()
 	router.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {

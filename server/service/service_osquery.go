@@ -22,7 +22,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
-	"github.com/spf13/cast"
 )
 
 type osqueryError struct {
@@ -246,126 +245,6 @@ func getHostIdentifier(logger log.Logger, identifierOption, providedIdentifier s
 	}
 
 	return providedIdentifier
-}
-
-func (svc *Service) GetClientConfig(ctx context.Context) (map[string]interface{}, error) {
-	// skipauth: Authorization is currently for user endpoints only.
-	svc.authz.SkipAuthorization(ctx)
-
-	host, ok := hostctx.FromContext(ctx)
-	if !ok {
-		return nil, osqueryError{message: "internal error: missing host from request context"}
-	}
-
-	baseConfig, err := svc.AgentOptionsForHost(ctx, host.TeamID, host.Platform)
-	if err != nil {
-		return nil, osqueryError{message: "internal error: fetch base config: " + err.Error()}
-	}
-
-	config := make(map[string]interface{})
-	if baseConfig != nil {
-		err = json.Unmarshal(baseConfig, &config)
-		if err != nil {
-			return nil, osqueryError{message: "internal error: parse base configuration: " + err.Error()}
-		}
-	}
-
-	packs, err := svc.ds.ListPacksForHost(ctx, host.ID)
-	if err != nil {
-		return nil, osqueryError{message: "database error: " + err.Error()}
-	}
-
-	packConfig := fleet.Packs{}
-	for _, pack := range packs {
-		// first, we must figure out what queries are in this pack
-		queries, err := svc.ds.ListScheduledQueriesInPack(ctx, pack.ID)
-		if err != nil {
-			return nil, osqueryError{message: "database error: " + err.Error()}
-		}
-
-		// the serializable osquery config struct expects content in a
-		// particular format, so we do the conversion here
-		configQueries := fleet.Queries{}
-		for _, query := range queries {
-			queryContent := fleet.QueryContent{
-				Query:    query.Query,
-				Interval: query.Interval,
-				Platform: query.Platform,
-				Version:  query.Version,
-				Removed:  query.Removed,
-				Shard:    query.Shard,
-				Denylist: query.Denylist,
-			}
-
-			if query.Removed != nil {
-				queryContent.Removed = query.Removed
-			}
-
-			if query.Snapshot != nil && *query.Snapshot {
-				queryContent.Snapshot = query.Snapshot
-			}
-
-			configQueries[query.Name] = queryContent
-		}
-
-		// finally, we add the pack to the client config struct with all of
-		// the pack's queries
-		packConfig[pack.Name] = fleet.PackContent{
-			Platform: pack.Platform,
-			Queries:  configQueries,
-		}
-	}
-
-	if len(packConfig) > 0 {
-		packJSON, err := json.Marshal(packConfig)
-		if err != nil {
-			return nil, osqueryError{message: "internal error: marshal pack JSON: " + err.Error()}
-		}
-		config["packs"] = json.RawMessage(packJSON)
-	}
-
-	// Save interval values if they have been updated.
-	intervalsModified := false
-	intervals := fleet.HostOsqueryIntervals{
-		DistributedInterval: host.DistributedInterval,
-		ConfigTLSRefresh:    host.ConfigTLSRefresh,
-		LoggerTLSPeriod:     host.LoggerTLSPeriod,
-	}
-	if options, ok := config["options"].(map[string]interface{}); ok {
-		distributedIntervalVal, ok := options["distributed_interval"]
-		distributedInterval, err := cast.ToUintE(distributedIntervalVal)
-		if ok && err == nil && intervals.DistributedInterval != distributedInterval {
-			intervals.DistributedInterval = distributedInterval
-			intervalsModified = true
-		}
-
-		loggerTLSPeriodVal, ok := options["logger_tls_period"]
-		loggerTLSPeriod, err := cast.ToUintE(loggerTLSPeriodVal)
-		if ok && err == nil && intervals.LoggerTLSPeriod != loggerTLSPeriod {
-			intervals.LoggerTLSPeriod = loggerTLSPeriod
-			intervalsModified = true
-		}
-
-		// Note config_tls_refresh can only be set in the osquery flags (and has
-		// also been deprecated in osquery for quite some time) so is ignored
-		// here.
-		configRefreshVal, ok := options["config_refresh"]
-		configRefresh, err := cast.ToUintE(configRefreshVal)
-		if ok && err == nil && intervals.ConfigTLSRefresh != configRefresh {
-			intervals.ConfigTLSRefresh = configRefresh
-			intervalsModified = true
-		}
-	}
-
-	// We are not doing deferred update host like in other places because the intervals
-	// are not modified often.
-	if intervalsModified {
-		if err := svc.ds.UpdateHostOsqueryIntervals(ctx, host.ID, intervals); err != nil {
-			return nil, osqueryError{message: "internal error: update host intervals: " + err.Error()}
-		}
-	}
-
-	return config, nil
 }
 
 func (svc *Service) SubmitStatusLogs(ctx context.Context, logs []json.RawMessage) error {
