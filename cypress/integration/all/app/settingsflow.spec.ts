@@ -112,11 +112,11 @@ describe("App settings flow", () => {
       // specifically targeting this one to avoid conflict
       // with cypress seeing multiple "host expiry" - one
       // in the checkbox above, the other as this label
-      cy.getAttached("[name='hostExpiryWindow']").clear().type("5").blur();
+      cy.getAttached("[name='hostExpiryWindow']").clear().type("5");
 
       cy.findByLabelText(/disable live queries/i).check({ force: true });
 
-      cy.findByRole("button", { name: /update settings/i }).click();
+      cy.findByRole("button", { name: /update settings/i }).invoke("attr", "disabled", false).click();
 
       cy.findByText(/updated settings/i).should("exist");
 
