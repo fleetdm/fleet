@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"database/sql"
 	"encoding/base64"
 	"errors"
 	"html/template"
@@ -574,6 +575,16 @@ func (svc *Service) modifyEmailAddress(ctx context.Context, user *fleet.User, em
 		return err
 	}
 	token := base64.URLEncoding.EncodeToString([]byte(random))
+
+	switch _, err = svc.ds.UserByEmail(ctx, email); {
+	case err == nil:
+		return ctxerr.Wrap(ctx, alreadyExistsError{})
+	case errors.Is(err, sql.ErrNoRows):
+		// OK
+	default:
+		return ctxerr.Wrap(ctx, err)
+	}
+
 	err = svc.ds.PendingEmailChange(ctx, user.ID, email, token)
 	if err != nil {
 		return err

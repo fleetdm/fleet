@@ -210,6 +210,9 @@ func TestModifyUserEmail(t *testing.T) {
 	ms.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
 		return user, nil
 	}
+	ms.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
+		return nil, notFoundErr{}
+	}
 	ms.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		config := &fleet.AppConfig{
 			SMTPSettings: fleet.SMTPSettings{
@@ -344,6 +347,9 @@ func TestModifyAdminUserEmailPassword(t *testing.T) {
 	ms := new(mock.Store)
 	ms.PendingEmailChangeFunc = func(ctx context.Context, id uint, em, tk string) error {
 		return nil
+	}
+	ms.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
+		return nil, notFoundErr{}
 	}
 	ms.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
 		return user, nil
