@@ -1,6 +1,8 @@
 package update
 
 import (
+	"path/filepath"
+
 	"github.com/theupdateframework/go-tuf/client"
 )
 
@@ -17,10 +19,10 @@ var defaultOptions = Options{
 			TargetFile: "orbit",
 		},
 		"osqueryd": TargetInfo{
-			Platform:          "macos-app",
-			Channel:           "stable",
-			TargetFile:        "osquery.app.tar.gz",
-			ExtractedExecFile: "osqueryd",
+			Platform:             "macos-app",
+			Channel:              "stable",
+			TargetFile:           "osquery.app.tar.gz",
+			ExtractedExecSubPath: filepath.Join("Contents", "MacOS", "osqueryd"),
 		},
 	},
 }

@@ -40,6 +40,9 @@ const (
 var DefaultOptions = defaultOptions
 
 // Updater is responsible for managing update state.
+//
+// Updater supports updating plain executables and
+// .tar.gz compressed executables.
 type Updater struct {
 	opt    Options
 	client *client.Client
@@ -74,9 +77,9 @@ type TargetInfo struct {
 	Channel string
 	// TargetFile is the name of the target file in the repository.
 	TargetFile string
-	// ExtractedExecFile is the name of the executable in case the
+	// ExtractedExecSubPath is the name of the executable in case the
 	// target is a compressed file.
-	ExtractedExecFile string
+	ExtractedExecSubPath string
 }
 
 // New creates a new updater given the provided options. All the necessary
@@ -124,12 +127,19 @@ func New(opt Options) (*Updater, error) {
 	return updater, nil
 }
 
+// NewDisabled creates a new disabled Updater. A disabled updater
+// won't reach out for a remote repository.
+//
+// A disabled updater is useful to use local paths the way an
+// enabled Updater would (to locate executables on environments
+// where updates and/or network access are disabled).
 func NewDisabled(opt Options) *Updater {
 	return &Updater{
 		opt: opt,
 	}
 }
 
+// UpdateMetadata downloads and verifies remote repository metadata.
 func (u *Updater) UpdateMetadata() error {
 	if _, err := u.client.Update(); err != nil {
 		// An error is returned if we are already up-to-date. We can ignore that
@@ -141,7 +151,8 @@ func (u *Updater) UpdateMetadata() error {
 	return nil
 }
 
-func (u *Updater) RepoPath(target string) (string, error) {
+// repoPath returns the path of the target in the remote repository.
+func (u *Updater) repoPath(target string) (string, error) {
 	t, ok := u.opt.Targets[target]
 	if !ok {
 		return "", fmt.Errorf("unknown target: %s", target)
@@ -149,8 +160,9 @@ func (u *Updater) RepoPath(target string) (string, error) {
 	return path.Join(target, t.Platform, t.Channel, t.TargetFile), nil
 }
 
+// ExecutableLocalPath returns the configured local path of a target.
 func (u *Updater) ExecutableLocalPath(target string) (string, error) {
-	localPath, err := u.LocalPath(target)
+	localPath, err := u.localPath(target)
 	if err != nil {
 		return "", err
 	}
@@ -167,7 +179,7 @@ func (u *Updater) ExecutableLocalPath(target string) (string, error) {
 		t := u.opt.Targets[target] // this was accessed before.
 		switch t.Platform {
 		case "macos-app":
-			localPath = appMacOSPath(dirPath, t.ExtractedExecFile)
+			localPath = filepath.Join(dirPath, t.ExtractedExecSubPath)
 		default:
 			return "", fmt.Errorf("unsupported platform: %s", t.Platform)
 		}
@@ -183,7 +195,8 @@ func (u *Updater) ExecutableLocalPath(target string) (string, error) {
 	return localPath, nil
 }
 
-func (u *Updater) LocalPath(target string) (string, error) {
+// localPath returns the path of a target in the local repository.
+func (u *Updater) localPath(target string) (string, error) {
 	t, ok := u.opt.Targets[target]
 	if !ok {
 		return "", fmt.Errorf("unknown target: %s", target)
@@ -194,7 +207,7 @@ func (u *Updater) LocalPath(target string) (string, error) {
 // Lookup looks up the provided target in the local target metadata. This should
 // be called after UpdateMetadata.
 func (u *Updater) Lookup(target string) (*data.TargetFileMeta, error) {
-	repoPath, err := u.RepoPath(target)
+	repoPath, err := u.repoPath(target)
 	if err != nil {
 		return nil, err
 	}
@@ -215,10 +228,6 @@ func (u *Updater) Targets() (data.TargetFiles, error) {
 	return targets, nil
 }
 
-func appMacOSPath(appDirPath, execFile string) string {
-	return filepath.Join(appDirPath, "Contents", "MacOS", execFile)
-}
-
 // Get returns the local path to the specified target. The target is downloaded
 // if it does not yet exist locally or the hash does not match.
 func (u *Updater) Get(target string) (string, error) {
@@ -226,11 +235,11 @@ func (u *Updater) Get(target string) (string, error) {
 		return "", errors.New("target is required")
 	}
 
-	localPath, err := u.LocalPath(target)
+	localPath, err := u.localPath(target)
 	if err != nil {
 		return "", fmt.Errorf("failed to load local path for target %s: %w", target, err)
 	}
-	repoPath, err := u.RepoPath(target)
+	repoPath, err := u.repoPath(target)
 	if err != nil {
 		return "", fmt.Errorf("failed to load repository path for target %s: %w", target, err)
 	}
@@ -278,7 +287,7 @@ func (u *Updater) Get(target string) (string, error) {
 		t := u.opt.Targets[target] // this was accessed before.
 		switch t.Platform {
 		case "macos-app":
-			return appMacOSPath(dirPath, t.ExtractedExecFile), nil
+			return filepath.Join(dirPath, t.ExtractedExecSubPath), nil
 		default:
 			return "", fmt.Errorf("unsupported platform: %s", t.Platform)
 		}
@@ -397,19 +406,21 @@ func (u *Updater) download(target, repoPath, localPath string) error {
 	return nil
 }
 
+// checkExec checks/verifies a downloaded executable target by executing it.
 func (u *Updater) checkExec(target, path string) error {
 	if strings.HasSuffix(path, ".tar.gz") {
 		if err := extractTarGz(path); err != nil {
 			return fmt.Errorf("extract %q: %w", path, err)
 		}
+		extractedDir := strings.TrimPrefix(path, ".tar.gz")
+		defer os.RemoveAll(extractedDir)
 		t, ok := u.opt.Targets[target]
 		if !ok {
 			return fmt.Errorf("unknown target: %s", target)
 		}
-		extractedDir := strings.TrimPrefix(path, ".tar.gz")
 		switch t.Platform {
 		case "macos-app":
-			path = appMacOSPath(extractedDir, t.ExtractedExecFile)
+			path = filepath.Join(extractedDir, t.ExtractedExecSubPath)
 		default:
 			return fmt.Errorf("unsupported platform: %s", t.Platform)
 		}

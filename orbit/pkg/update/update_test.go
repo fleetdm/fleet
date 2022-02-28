@@ -60,7 +60,7 @@ func TestMakeRepoPath(t *testing.T) {
 			opt.Targets["osqueryd"] = osqueryd
 
 			u := Updater{opt: opt}
-			repoPath, err := u.RepoPath(tt.name)
+			repoPath, err := u.repoPath(tt.name)
 			require.NoError(t, err)
 			assert.Equal(t, tt.expected, repoPath)
 		})

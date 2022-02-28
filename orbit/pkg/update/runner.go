@@ -50,7 +50,7 @@ func NewRunner(updater *Updater, opt RunnerOptions) (*Runner, error) {
 		if err != nil {
 			return nil, fmt.Errorf("initialize update cache: %w", err)
 		}
-		localPath, err := updater.LocalPath(target)
+		localPath, err := updater.localPath(target)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get local path for %s: %w", target, err)
 		}
