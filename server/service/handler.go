@@ -202,7 +202,7 @@ func MakeHandler(svc fleet.Service, config config.FleetConfig, logger kitlog.Log
 	}
 
 	attachFleetAPIRoutes(r, fleetHandlers)
-	attachNewStyleFleetAPIRoutes(r, svc, fleetAPIOptions)
+	attachNewStyleFleetAPIRoutes(r, svc, logger, fleetAPIOptions)
 
 	// Results endpoint is handled different due to websockets use
 	r.PathPrefix("/api/v1/fleet/results/").
@@ -313,8 +313,8 @@ func attachFleetAPIRoutes(r *mux.Router, h *fleetHandlers) {
 	r.Handle("/api/v1/osquery/carve/block", h.CarveBlock).Methods("POST").Name("carve_block")
 }
 
-func attachNewStyleFleetAPIRoutes(r *mux.Router, svc fleet.Service, opts []kithttp.ServerOption) {
-	ue := NewUserAuthenticatedEndpointer(svc, opts, r, "v1")
+func attachNewStyleFleetAPIRoutes(r *mux.Router, svc fleet.Service, logger kitlog.Logger, opts []kithttp.ServerOption) {
+	ue := newUserAuthenticatedEndpointer(svc, opts, r, "v1")
 
 	ue.GET("/api/_version_/fleet/me", meEndpoint, nil)
 	ue.GET("/api/_version_/fleet/sessions/{id:[0-9]+}", getInfoAboutSessionEndpoint, getInfoAboutSessionRequest{})
@@ -454,7 +454,7 @@ func attachNewStyleFleetAPIRoutes(r *mux.Router, svc fleet.Service, opts []kitht
 	ue.GET("/api/_version_/fleet/status/result_store", statusResultStoreEndpoint, nil)
 	ue.GET("/api/_version_/fleet/status/live_query", statusLiveQueryEndpoint, nil)
 
-	he := NewUserAuthenticatedEndpointer(svc, opts, r, "v1") // TODO(mna): NewHOSTAuthEndpointer...
+	he := newHostAuthenticatedEndpointer(svc, logger, opts, r, "v1")
 	he.POST("/api/_version_/osquery/config", getClientConfigEndpoint, getClientConfigRequest{})
 	//r.Handle("/api/v1/osquery/config", h.GetClientConfig).Methods("POST").Name("get_client_config")
 }

@@ -291,7 +291,7 @@ func TestEndpointer(t *testing.T) {
 		),
 	}
 
-	e := NewUserAuthenticatedEndpointer(svc, fleetAPIOptions, r, "v1", "2021-11")
+	e := newUserAuthenticatedEndpointer(svc, fleetAPIOptions, r, "v1", "2021-11")
 	nopHandler := func(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
 		if authctx, ok := authz_ctx.FromContext(ctx); ok {
 			authctx.SetChecked()

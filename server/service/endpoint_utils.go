@@ -13,6 +13,8 @@ import (
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/go-kit/kit/endpoint"
+	"github.com/go-kit/kit/log"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
 )
@@ -254,14 +256,34 @@ type authEndpointer struct {
 	svc               fleet.Service
 	opts              []kithttp.ServerOption
 	r                 *mux.Router
+	authFunc          func(svc fleet.Service, next endpoint.Endpoint) endpoint.Endpoint
 	versions          []string
 	startingAtVersion string
 	endingAtVersion   string
 	alternativePaths  []string
 }
 
-func NewUserAuthenticatedEndpointer(svc fleet.Service, opts []kithttp.ServerOption, r *mux.Router, versions ...string) *authEndpointer {
-	return &authEndpointer{svc: svc, opts: opts, r: r, versions: versions}
+func newUserAuthenticatedEndpointer(svc fleet.Service, opts []kithttp.ServerOption, r *mux.Router, versions ...string) *authEndpointer {
+	return &authEndpointer{
+		svc:      svc,
+		opts:     opts,
+		r:        r,
+		authFunc: authenticatedUser,
+		versions: versions,
+	}
+}
+
+func newHostAuthenticatedEndpointer(svc fleet.Service, logger log.Logger, opts []kithttp.ServerOption, r *mux.Router, versions ...string) *authEndpointer {
+	authFunc := func(svc fleet.Service, next endpoint.Endpoint) endpoint.Endpoint {
+		return authenticatedHost(svc, logger, next)
+	}
+	return &authEndpointer{
+		svc:      svc,
+		opts:     opts,
+		r:        r,
+		authFunc: authFunc,
+		versions: versions,
+	}
 }
 
 var pathReplacer = strings.NewReplacer(
@@ -338,49 +360,26 @@ func (e *authEndpointer) handle(path string, f handlerFunc, v interface{}, verb 
 }
 
 func (e *authEndpointer) makeEndpoint(f handlerFunc, v interface{}) http.Handler {
-	return newServer(
-		authenticatedUser(
-			e.svc,
-			func(ctx context.Context, request interface{}) (interface{}, error) {
-				return f(ctx, request, e.svc)
-			}),
-		makeDecoder(v),
-		e.opts,
-	)
+	next := func(ctx context.Context, request interface{}) (interface{}, error) {
+		return f(ctx, request, e.svc)
+	}
+	return newServer(e.authFunc(e.svc, next), makeDecoder(v), e.opts)
 }
 
 func (e *authEndpointer) StartingAtVersion(version string) *authEndpointer {
-	return &authEndpointer{
-		svc:               e.svc,
-		opts:              e.opts,
-		r:                 e.r,
-		versions:          e.versions,
-		startingAtVersion: version,
-		endingAtVersion:   e.endingAtVersion,
-		alternativePaths:  e.alternativePaths,
-	}
+	ae := *e
+	ae.startingAtVersion = version
+	return &ae
 }
 
 func (e *authEndpointer) EndingAtVersion(version string) *authEndpointer {
-	return &authEndpointer{
-		svc:               e.svc,
-		opts:              e.opts,
-		r:                 e.r,
-		versions:          e.versions,
-		startingAtVersion: e.startingAtVersion,
-		endingAtVersion:   version,
-		alternativePaths:  e.alternativePaths,
-	}
+	ae := *e
+	ae.endingAtVersion = version
+	return &ae
 }
 
 func (e *authEndpointer) WithAltPaths(paths ...string) *authEndpointer {
-	return &authEndpointer{
-		svc:               e.svc,
-		opts:              e.opts,
-		r:                 e.r,
-		versions:          e.versions,
-		startingAtVersion: e.startingAtVersion,
-		endingAtVersion:   e.endingAtVersion,
-		alternativePaths:  paths,
-	}
+	ae := *e
+	ae.alternativePaths = paths
+	return &ae
 }
