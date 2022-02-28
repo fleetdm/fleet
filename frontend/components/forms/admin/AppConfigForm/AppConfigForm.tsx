@@ -21,12 +21,10 @@ import validateYaml from "components/forms/validators/validate_yaml";
 import validEmail from "components/forms/validators/valid_email";
 import validUrl from "components/forms/validators/valid_url";
 
-import IconToolTip from "components/IconToolTip";
 import InfoBanner from "components/InfoBanner/InfoBanner";
 // @ts-ignore
 import YamlAce from "components/YamlAce";
 import Modal from "components/Modal";
-import SelectTargetsDropdownStories from "components/forms/fields/SelectTargetsDropdown/SelectTargetsDropdown.stories";
 import OpenNewTabIcon from "../../../../../assets/images/open-new-tab-12x12@2x.png";
 import {
   IAppConfigFormProps,
@@ -383,11 +381,7 @@ const AppConfigFormFunctional = ({
             parseTarget
             onBlur={validateForm}
             error={formErrors.server_url}
-          />
-        </div>
-        <div className={`${baseClass}__details`}>
-          <IconToolTip
-            text={"The base URL of this instance for use in Fleet links."}
+            tooltip="The base URL of this instance for use in Fleet links."
           />
         </div>
       </div>
@@ -419,13 +413,7 @@ const AppConfigFormFunctional = ({
             parseTarget
             onBlur={validateForm}
             error={formErrors.idp_name}
-          />
-        </div>
-        <div className={`${baseClass}__details`}>
-          <IconToolTip
-            text={
-              "A required human friendly name for the identity provider that will provide single sign on authentication."
-            }
+            tooltip="A required human friendly name for the identity provider that will provide single sign on authentication."
           />
         </div>
         <div className={`${baseClass}__inputs`}>
@@ -443,13 +431,7 @@ const AppConfigFormFunctional = ({
             parseTarget
             onBlur={validateForm}
             error={formErrors.entity_id}
-          />
-        </div>
-        <div className={`${baseClass}__details`}>
-          <IconToolTip
-            text={
-              "The required entity ID is a URI that you use to identify Fleet when configuring the identity provider."
-            }
+            tooltip="The required entity ID is a URI that you use to identify Fleet when configuring the identity provider."
           />
         </div>
         <div className={`${baseClass}__inputs`}>
@@ -459,11 +441,7 @@ const AppConfigFormFunctional = ({
             name="issuerURI"
             value={issuerURI}
             parseTarget
-          />
-        </div>
-        <div className={`${baseClass}__details`}>
-          <IconToolTip
-            text={"The issuer URI supplied by the identity provider."}
+            tooltip="The issuer URI supplied by the identity provider."
           />
         </div>
         <div className={`${baseClass}__inputs`}>
@@ -475,13 +453,7 @@ const AppConfigFormFunctional = ({
             parseTarget
             onBlur={validateForm}
             error={formErrors.idp_image_url}
-          />
-        </div>
-        <div className={`${baseClass}__details`}>
-          <IconToolTip
-            text={
-              "An optional link to an image such as a logo for the identity provider."
-            }
+            tooltip="An optional link to an image such as a logo for the identity provider."
           />
         </div>
         <div className={`${baseClass}__inputs`}>
@@ -493,13 +465,7 @@ const AppConfigFormFunctional = ({
             value={metadata}
             parseTarget
             onBlur={validateForm}
-          />
-        </div>
-        <div className={`${baseClass}__details`}>
-          <IconToolTip
-            text={
-              "Metadata provided by the identity provider. Either metadata or a metadata url must be provided."
-            }
+            tooltip="Metadata provided by the identity provider. Either metadata or a metadata url must be provided."
           />
         </div>
         <div className={`${baseClass}__inputs`}>
@@ -517,14 +483,9 @@ const AppConfigFormFunctional = ({
             parseTarget
             onBlur={validateForm}
             error={formErrors.metadata_url}
+            tooltip="A URL that references the identity provider metadata."
           />
         </div>
-        <div className={`${baseClass}__details`}>
-          <IconToolTip
-            text={"A URL that references the identity provider metadata."}
-          />
-        </div>
-
         <div className={`${baseClass}__inputs`}>
           <Checkbox
             onChange={handleInputChange}
@@ -621,10 +582,8 @@ const AppConfigFormFunctional = ({
             parseTarget
             onBlur={validateForm}
             error={formErrors.sender_address}
+            tooltip="The sender address for emails from Fleet."
           />
-        </div>
-        <div className={`${baseClass}__details`}>
-          <IconToolTip text={"The sender address for emails from Fleet."} />
         </div>
         <div className={`${baseClass}__inputs ${baseClass}__inputs--smtp`}>
           <InputField
@@ -635,6 +594,7 @@ const AppConfigFormFunctional = ({
             parseTarget
             onBlur={validateForm}
             error={formErrors.server}
+            tooltip="The hostname / IP address and corresponding port of your organization's SMTP server."
           />
           <InputField
             label="&nbsp;"
@@ -655,13 +615,6 @@ const AppConfigFormFunctional = ({
             Use SSL/TLS to connect (recommended)
           </Checkbox>
         </div>
-        <div className={`${baseClass}__details`}>
-          <IconToolTip
-            text={
-              "The hostname / IP address and corresponding port of your organization's SMTP server."
-            }
-          />
-        </div>
         <div className={`${baseClass}__inputs`}>
           <Dropdown
             label="Authentication type"
@@ -670,20 +623,15 @@ const AppConfigFormFunctional = ({
             name="smtpAuthenticationType"
             value={smtpAuthenticationType}
             parseTarget
-          />
-          {renderSmtpSection()}
-        </div>
-        <div className={`${baseClass}__details`}>
-          <IconToolTip
-            isHtml
-            text={
+            tooltip={
               "\
-                  <p>If your mail server requires authentication, you need to specify the authentication type here.</p> \
-                  <p><strong>No Authentication</strong> - Select this if your SMTP is open.</p> \
-                  <p><strong>Username & Password</strong> - Select this if your SMTP server requires authentication with a username and password.</p>\
-                "
+              <p>If your mail server requires authentication, you need to specify the authentication type here.</p> \
+              <p><strong>No Authentication</strong> - Select this if your SMTP is open.</p> \
+              <p><strong>Username & Password</strong> - Select this if your SMTP server requires authentication with a username and password.</p>\
+            "
             }
           />
+          {renderSmtpSection()}
         </div>
       </div>
     );
@@ -794,14 +742,9 @@ const AppConfigFormFunctional = ({
             parseTarget
             onBlur={validateForm}
             error={formErrors.destination_url}
-          />
-        </div>
-        <div className={`${baseClass}__details`}>
-          <IconToolTip
-            isHtml
-            text={
+            tooltip={
               "\
-                  <center><p>Provide a URL to deliver <br/>the webhook request to.</p></center>\
+                  <p>Provide a URL to deliver <br/>the webhook request to.</p>\
                 "
             }
           />
@@ -814,14 +757,9 @@ const AppConfigFormFunctional = ({
             name="hostStatusWebhookHostPercentage"
             value={hostStatusWebhookHostPercentage}
             parseTarget
-          />
-        </div>
-        <div className={`${baseClass}__details`}>
-          <IconToolTip
-            isHtml
-            text={
+            tooltip={
               "\
-                  <center><p>Select the minimum percentage of hosts that<br/>must fail to check into Fleet in order to trigger<br/>the webhook request.</p></center>\
+                  <p>Select the minimum percentage of hosts that<br/>must fail to check into Fleet in order to trigger<br/>the webhook request.</p>\
                 "
             }
           />
@@ -834,14 +772,9 @@ const AppConfigFormFunctional = ({
             name="hostStatusWebhookDaysCount"
             value={hostStatusWebhookDaysCount}
             parseTarget
-          />
-        </div>
-        <div className={`${baseClass}__details`}>
-          <IconToolTip
-            isHtml
-            text={
+            tooltip={
               "\
-                  <center><p>Select the minimum number of days that the<br/>configured <b>Percentage of hosts</b> must fail to<br/>check into Fleet in order to trigger the<br/>webhook request.</p></center>\
+                  <p>Select the minimum number of days that the<br/>configured <b>Percentage of hosts</b> must fail to<br/>check into Fleet in order to trigger the<br/>webhook request.</p>\
                 "
             }
           />
@@ -917,10 +850,7 @@ const AppConfigFormFunctional = ({
                   name="domain"
                   value={domain}
                   parseTarget
-                />
-                <IconToolTip
-                  isHtml
-                  text={
+                  tooltip={
                     '<p>If you need to specify a HELO domain, <br />you can do it here <em className="hint hint--brand">(Default: <strong>Blank</strong>)</em></p>'
                   }
                 />
@@ -931,15 +861,12 @@ const AppConfigFormFunctional = ({
                   name="verifySSLCerts"
                   value={verifySSLCerts}
                   parseTarget
+                  tooltip={
+                    '<p>Turn this off (not recommended) <br />if you use a self-signed certificate <em className="hint hint--brand"><br />(Default: <strong>On</strong>)</em></p>'
+                  }
                 >
                   Verify SSL certs
                 </Checkbox>
-                <IconToolTip
-                  isHtml
-                  text={
-                    '<p>Turn this off (not recommended) <br />if you use a self-signed certificate <em className="hint hint--brand"><br />(Default: <strong>On</strong>)</em></p>'
-                  }
-                />
               </div>
               <div className="tooltip-wrap">
                 <Checkbox
@@ -947,15 +874,12 @@ const AppConfigFormFunctional = ({
                   name="enableStartTLS"
                   value={enableStartTLS}
                   parseTarget
+                  tooltip={
+                    '<p>Detects if STARTTLS is enabled <br />in your SMTP server and starts <br />to use it. <em className="hint hint--brand">(Default: <strong>On</strong>)</em></p>'
+                  }
                 >
                   Enable STARTTLS
                 </Checkbox>
-                <IconToolTip
-                  isHtml
-                  text={
-                    '<p>Detects if STARTTLS is enabled <br />in your SMTP server and starts <br />to use it. <em className="hint hint--brand">(Default: <strong>On</strong>)</em></p>'
-                  }
-                />
               </div>
               <div className="tooltip-wrap">
                 <Checkbox
@@ -963,15 +887,12 @@ const AppConfigFormFunctional = ({
                   name="enableHostExpiry"
                   value={enableHostExpiry}
                   parseTarget
+                  tooltip={
+                    '<p>When enabled, allows automatic cleanup <br />of hosts that have not communicated with Fleet <br />in some number of days. <em className="hint hint--brand">(Default: <strong>Off</strong>)</em></p>'
+                  }
                 >
                   Host expiry
                 </Checkbox>
-                <IconToolTip
-                  isHtml
-                  text={
-                    '<p>When enabled, allows automatic cleanup <br />of hosts that have not communicated with Fleet <br />in some number of days. <em className="hint hint--brand">(Default: <strong>Off</strong>)</em></p>'
-                  }
-                />
               </div>
               <div className="tooltip-wrap tooltip-wrap--input">
                 <InputField
@@ -984,11 +905,8 @@ const AppConfigFormFunctional = ({
                   parseTarget
                   onBlur={validateForm}
                   error={formErrors.host_expiry_window}
-                />
-                <IconToolTip
-                  isHtml
-                  text={
-                    "<p>If a host has not communicated with Fleet <br />in the specified number of days, it will be removed.</p>"
+                  tooltip={
+                    "<p>If a host has not communicated with Fleet in the specified number of days, it will be removed.</p>"
                   }
                 />
               </div>
@@ -998,15 +916,12 @@ const AppConfigFormFunctional = ({
                   name="disableLiveQuery"
                   value={disableLiveQuery}
                   parseTarget
+                  tooltip={
+                    '<p>When enabled, disables the ability to run live queries <br />(ad hoc queries executed via the UI or fleetctl). <em className="hint hint--brand">(Default: <strong>Off</strong>)</em></p>'
+                  }
                 >
                   Disable live queries
                 </Checkbox>
-                <IconToolTip
-                  isHtml
-                  text={
-                    '<p>When enabled, disables the ability to run live queries <br />(ad hoc queries executed via the UI or fleetctl). <em className="hint hint--brand">(Default: <strong>Off</strong>)</em></p>'
-                  }
-                />
               </div>
             </div>
           </div>

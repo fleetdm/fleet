@@ -1,29 +1,20 @@
 import React, { Component, FormEvent } from "react";
-import ReactTooltip from "react-tooltip";
 import { Link } from "react-router";
 import PATHS from "router/paths";
 import { Dispatch } from "redux";
 
 import { ITeam } from "interfaces/team";
-import { IUserFormErrors } from "interfaces/user";
-import Button from "components/buttons/Button";
-import validatePresence from "components/forms/validators/validate_presence";
-import validEmail from "components/forms/validators/valid_email";
+import { IUserFormErrors } from "interfaces/user"; // @ts-ignore
+import { renderFlash } from "redux/nodes/notifications/actions";
 
 // ignore TS error for now until these are rewritten in ts.
-// @ts-ignore
-import { renderFlash } from "redux/nodes/notifications/actions";
-// @ts-ignore
-import validPassword from "components/forms/validators/valid_password";
-// @ts-ignore
-import IconToolTip from "components/IconToolTip";
-// @ts-ignore
-import InputField from "components/forms/fields/InputField";
-// @ts-ignore
-import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon";
-// @ts-ignore
-import Checkbox from "components/forms/fields/Checkbox";
-// @ts-ignore
+import Button from "components/buttons/Button";
+import validatePresence from "components/forms/validators/validate_presence";
+import validEmail from "components/forms/validators/valid_email"; // @ts-ignore
+import validPassword from "components/forms/validators/valid_password"; // @ts-ignore
+import InputField from "components/forms/fields/InputField"; // @ts-ignore
+import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon"; // @ts-ignore
+import Checkbox from "components/forms/fields/Checkbox"; // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 import Radio from "components/forms/fields/Radio";
 import InfoBanner from "components/InfoBanner/InfoBanner";
@@ -485,69 +476,40 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
           data-tip-disable={isNewUser || smtpConfigured}
         >
           <InputFieldWithIcon
+            label="Email"
             error={errors.email || serverErrors?.email}
             name="email"
             onChange={onInputChange("email")}
             placeholder="Email"
             value={email || ""}
             disabled={!isNewUser && !smtpConfigured}
+            tooltip={
+              "\
+              Editing an email address requires that SMTP is configured in order to send a validation email. \
+              <br /><br /> \
+              Users with Admin role can configure SMTP in <strong>Settings &gt; Organization settings</strong>. \
+            "
+            }
           />
         </div>
-        <ReactTooltip
-          place="bottom"
-          type="dark"
-          effect="solid"
-          id="email-disabled-tooltip"
-          backgroundColor="#3e4771"
-          data-html
-        >
-          <span className={`${baseClass}__tooltip-text`}>
-            Editing an email address requires that SMTP is <br />
-            configured in order to send a validation email. <br />
-            <br />
-            Users with Admin role can configure SMTP in
-            <br />
-            <strong>Settings &gt; Organization settings</strong>.
-          </span>
-        </ReactTooltip>
         <div className={`${baseClass}__sso-input`}>
-          <div
-            className="sso-disabled"
-            data-tip
-            data-for="sso-disabled-tooltip"
-            data-tip-disable={canUseSso}
-            data-offset="{'top': 25, 'left': 100}"
+          <Checkbox
+            name="sso_enabled"
+            onChange={onCheckboxChange("sso_enabled")}
+            value={canUseSso && sso_enabled}
+            disabled={!canUseSso}
+            wrapperClassName={`${baseClass}__invite-admin`}
+            tooltip={`
+              Enabling single sign on for a user requires that SSO is first enabled for the organization.
+              <br /><br />
+              Users with Admin role can configure SSO in <strong>Settings &gt; Organization settings</strong>.
+            `}
           >
-            <Checkbox
-              name="sso_enabled"
-              onChange={onCheckboxChange("sso_enabled")}
-              value={canUseSso && sso_enabled}
-              disabled={!canUseSso}
-              wrapperClassName={`${baseClass}__invite-admin`}
-            >
-              Enable single sign on
-            </Checkbox>
-            <p className={`${baseClass}__sso-input sublabel`}>
-              Password authentication will be disabled for this user.
-            </p>
-          </div>
-          <ReactTooltip
-            place="bottom"
-            type="dark"
-            effect="solid"
-            id="sso-disabled-tooltip"
-            backgroundColor="#3e4771"
-            data-html
-          >
-            <span className={`${baseClass}__tooltip-text`}>
-              Enabling single sign on for a user requires that SSO is <br />
-              first enabled for the organization. <br />
-              <br />
-              Users with Admin role can configure SSO in
-              <br />
-              <strong>Settings &gt; Organization settings</strong>.
-            </span>
-          </ReactTooltip>
+            Enable single sign on
+          </Checkbox>
+          <p className={`${baseClass}__sso-input sublabel`}>
+            Password authentication will be disabled for this user.
+          </p>
         </div>
         {isNewUser && (
           <div className={`${baseClass}__new-user-container`}>
@@ -563,45 +525,26 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
                     name={"newUserType"}
                     onChange={onRadioChange("newUserType")}
                   />
-                  <div
-                    className="invite-disabled"
-                    data-tip
-                    data-for="invite-disabled-tooltip"
-                    data-tip-disable={smtpConfigured}
-                  >
-                    <Radio
-                      className={`${baseClass}__radio-input`}
-                      label={"Invite user"}
-                      id={"invite-user"}
-                      disabled={!smtpConfigured}
-                      checked={newUserType === NewUserType.AdminInvited}
-                      value={NewUserType.AdminInvited}
-                      name={"newUserType"}
-                      onChange={onRadioChange("newUserType")}
-                    />
-                    <ReactTooltip
-                      place="bottom"
-                      type="dark"
-                      effect="solid"
-                      id="invite-disabled-tooltip"
-                      backgroundColor="#3e4771"
-                      data-html
-                    >
-                      <span className={`${baseClass}__tooltip-text`}>
-                        The &quot;Invite user&quot; feature requires that SMTP
-                        is
-                        <br />
-                        configured in order to send invitation emails. <br />
-                        <br />
-                        SMTP can be configured in{" "}
-                        <strong>
-                          Settings &gt; <br />
-                          Organization settings
-                        </strong>
-                        .
-                      </span>
-                    </ReactTooltip>
-                  </div>
+                  <Radio
+                    className={`${baseClass}__radio-input`}
+                    label={"Invite user"}
+                    id={"invite-user"}
+                    disabled={!smtpConfigured}
+                    checked={newUserType === NewUserType.AdminInvited}
+                    value={NewUserType.AdminInvited}
+                    name={"newUserType"}
+                    onChange={onRadioChange("newUserType")}
+                    tooltip={
+                      smtpConfigured
+                        ? ""
+                        : `
+                      The &quot;Invite user&quot; feature requires that SMTP
+                      is configured in order to send invitation emails.
+                      <br /><br />
+                      SMTP can be configured in Settings &gt; Organization settings.
+                    `
+                    }
+                  />
                 </>
               ) : (
                 <input
@@ -616,6 +559,7 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
               <>
                 <div className={`${baseClass}__password`}>
                   <InputField
+                    label="Password"
                     error={errors.password}
                     name="password"
                     onChange={onInputChange("password")}
@@ -626,16 +570,9 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
                       "Must include 7 characters, at least 1 number (e.g. 0 - 9), and at least 1 symbol (e.g. &*#)",
                     ]}
                     blockAutoComplete
-                  />
-                </div>
-                <div className={`${baseClass}__details`}>
-                  <IconToolTip
-                    isHtml
-                    text={`\
-                      <div class="password-tooltip-text">\
-                        <p>This password is temporary. This user will be asked to set a new password after logging in to the Fleet UI.</p>\
-                        <p>This user will not be asked to set a new password after logging in to fleetctl or the Fleet API.</p>\
-                      </div>\
+                    tooltip={`\
+                      This password is temporary. This user will be asked to set a new password after logging in to the Fleet UI.<br /><br />\
+                      This user will not be asked to set a new password after logging in to fleetctl or the Fleet API.\
                     `}
                   />
                 </div>

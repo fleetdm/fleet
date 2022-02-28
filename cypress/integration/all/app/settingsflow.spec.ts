@@ -49,8 +49,10 @@ describe("App settings flow", () => {
         .click()
         .type("https://http.cat/100");
 
-      // only allowed to fill in either metadata || metadata url
-      cy.findByLabelText(/metadata url/i)
+      // specifically targeting this one to avoid conflict
+      // with cypress seeing multiple "metadata url" - one
+      // in a tooltip, the other as the actual label
+      cy.getAttached("[for='metadataURL']")
         .click()
         .type("http://github.com/fleetdm/fleet");
 
@@ -62,9 +64,10 @@ describe("App settings flow", () => {
         .click()
         .type("rachel@example.com");
 
-      cy.findByLabelText(/smtp server/i)
-        .click()
-        .type("localhost");
+      // specifically targeting this one to avoid conflict
+      // with cypress seeing multiple "metadata" - one
+      // in a tooltip, the other as the actual label
+      cy.getAttached("[for='smtpServer']").click().type("localhost");
 
       cy.getAttached("#smtpPort").clear().type("1025");
 
@@ -86,15 +89,13 @@ describe("App settings flow", () => {
         .click()
         .type("http://server.com/example");
 
-      cy.getAttached(".app-config-form__host-percentage").click();
+      cy.getAttached(
+        ".app-config-form__host-percentage .Select-control"
+      ).click();
+      cy.getAttached(".Select-menu-outer").contains(/5%/i).click();
 
-      cy.getAttached(".app-config-form__host-percentage")
-        .contains(/5%/i)
-        .click();
-
-      cy.getAttached(".app-config-form__days-count").click();
-
-      cy.getAttached(".app-config-form__days-count")
+      cy.getAttached(".app-config-form__days-count .Select-control").click();
+      cy.getAttached(".Select-menu-outer")
         .contains(/7 days/i)
         .click();
 
@@ -104,15 +105,20 @@ describe("App settings flow", () => {
 
       cy.findByLabelText(/verify ssl certs/i).check({ force: true });
       cy.findByLabelText(/enable starttls/i).check({ force: true });
-      cy.findByLabelText(/^host expiry$/i).check({ force: true });
+      cy.getAttached("[for='enableHostExpiry']").within(() => {
+        cy.getAttached("[type='checkbox']").check({ force: true });
+      });
 
-      cy.findByLabelText(/host expiry window/i)
-        .clear()
-        .type("5");
+      // specifically targeting this one to avoid conflict
+      // with cypress seeing multiple "host expiry" - one
+      // in the checkbox above, the other as this label
+      cy.getAttached("[name='hostExpiryWindow']").clear().type("5");
 
       cy.findByLabelText(/disable live queries/i).check({ force: true });
 
-      cy.findByRole("button", { name: /update settings/i }).click();
+      cy.findByRole("button", { name: /update settings/i })
+        .invoke("attr", "disabled", false)
+        .click();
 
       cy.findByText(/updated settings/i).should("exist");
 
@@ -150,7 +156,7 @@ describe("App settings flow", () => {
         "https://http.cat/100"
       );
 
-      cy.findByLabelText(/metadata url/i).should(
+      cy.getAttached("#metadataURL").should(
         "have.value",
         "http://github.com/fleetdm/fleet"
       );
@@ -160,7 +166,7 @@ describe("App settings flow", () => {
         "rachel@example.com"
       );
 
-      cy.findByLabelText(/smtp server/i).should("have.value", "localhost");
+      cy.getAttached("#smtpServer").should("have.value", "localhost");
 
       cy.getAttached("#smtpPort").should("have.value", "1025");
 

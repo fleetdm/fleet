@@ -1,19 +1,17 @@
 import React, { useState } from "react";
 
+import { IPolicy } from "interfaces/policy";
+import { IWebhookFailingPolicies } from "interfaces/webhook";
+import { useDeepEffect } from "utilities/hooks";
+import { size } from "lodash";
+
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 // @ts-ignore
 import Checkbox from "components/forms/fields/Checkbox";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
-import IconToolTip from "components/IconToolTip";
 import validURL from "components/forms/validators/valid_url";
-
-import { IPolicy } from "interfaces/policy";
-import { IWebhookFailingPolicies } from "interfaces/webhook";
-import { useDeepEffect } from "utilities/hooks";
-import { size } from "lodash";
-
 import PreviewPayloadModal from "../PreviewPayloadModal";
 
 interface IManageAutomationsModalProps {
@@ -192,10 +190,7 @@ const ManageAutomationsModal = ({
               'For each policy, Fleet will send a JSON payload to this URL with a list of the hosts that updated their answer to "No."'
             }
             placeholder={"https://server.com/example"}
-          />
-          <IconToolTip
-            isHtml
-            text={"<p>Provide a URL to deliver a<br />webhook request to.</p>"}
+            tooltip="Provide a URL to deliver a webhook request to."
           />
         </div>
         <Button

@@ -4,8 +4,12 @@
 import React from "react";
 import ReactTooltip from "react-tooltip";
 import formatDistanceToNow from "date-fns/formatDistanceToNow";
+import PATHS from "router/paths";
 
 import permissionsUtils from "utilities/permissions";
+import { IQuery } from "interfaces/query";
+import { IUser } from "interfaces/user";
+import { addGravatarUrlToResource } from "fleet/helpers";
 
 // @ts-ignore
 import Avatar from "components/Avatar";
@@ -15,13 +19,7 @@ import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCel
 import PlatformCell from "components/TableContainer/DataTable/PlatformCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import PillCell from "components/TableContainer/DataTable/PillCell";
-
-import PATHS from "router/paths";
-
-import { IQuery } from "interfaces/query";
-import { IUser } from "interfaces/user";
-import { addGravatarUrlToResource } from "fleet/helpers";
-import QuestionIcon from "../../../../../../assets/images/icon-question-16x16@2x.png";
+import TooltipWrapper from "components/TooltipWrapper";
 
 interface IQueryRow {
   id: string;
@@ -109,33 +107,18 @@ const generateTableHeaders = (currentUser: IUser): IDataColumn[] => {
       title: "Performance impact",
       Header: () => {
         return (
-          <div>
+          <div className="column-with-tooltip">
             <span className="queries-table__performance-impact-header">
-              Performance impact
-            </span>
-            <span
-              data-tip
-              data-for="queries-table__performance-impact-tooltip"
-              data-tip-disable={false}
-            >
-              <img alt="question icon" src={QuestionIcon} />
-            </span>
-            <ReactTooltip
-              className="queries-table__performance-impact-tooltip"
-              place="bottom"
-              type="dark"
-              effect="solid"
-              backgroundColor="#3e4771"
-              id="queries-table__performance-impact-tooltip"
-              data-html
-            >
-              <div style={{ textAlign: "center" }}>
+              <TooltipWrapper
+                tipContent={`
                 This is the average <br />
                 performance impact <br />
                 across all hosts where this <br />
-                query was scheduled.
-              </div>
-            </ReactTooltip>
+                query was scheduled.`}
+              >
+                Performance impact
+              </TooltipWrapper>
+            </span>
           </div>
         );
       },

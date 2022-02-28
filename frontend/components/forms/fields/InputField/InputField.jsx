@@ -28,6 +28,7 @@ class InputField extends Component {
       PropTypes.number,
     ]).isRequired,
     parseTarget: PropTypes.bool,
+    tooltip: PropTypes.string,
   };
 
   static defaultProps = {
@@ -42,6 +43,7 @@ class InputField extends Component {
     blockAutoComplete: false,
     value: "",
     parseTarget: false,
+    tooltip: "",
   };
 
   componentDidMount() {
@@ -93,7 +95,13 @@ class InputField extends Component {
       [`${baseClass}__textarea`]: type === "textarea",
     });
 
-    const formFieldProps = pick(this.props, ["hint", "label", "error", "name"]);
+    const formFieldProps = pick(this.props, [
+      "hint",
+      "label",
+      "error",
+      "name",
+      "tooltip",
+    ]);
 
     if (type === "textarea") {
       return (

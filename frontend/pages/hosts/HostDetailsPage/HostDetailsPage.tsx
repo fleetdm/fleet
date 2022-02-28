@@ -43,6 +43,7 @@ import Modal from "components/Modal";
 import TableContainer from "components/TableContainer";
 import TabsWrapper from "components/TabsWrapper";
 import InfoBanner from "components/InfoBanner";
+import TooltipWrapper from "components/TooltipWrapper";
 import {
   Accordion,
   AccordionItem,
@@ -82,7 +83,6 @@ import CopyIcon from "../../../../assets/images/icon-copy-clipboard-fleet-blue-2
 import DeleteIcon from "../../../../assets/images/icon-action-delete-14x14@2x.png";
 import IssueIcon from "../../../../assets/images/icon-issue-fleet-black-50-16x16@2x.png";
 import QueryIcon from "../../../../assets/images/icon-action-query-16x16@2x.png";
-import QuestionIcon from "../../../../assets/images/icon-question-16x16@2x.png";
 import TransferIcon from "../../../../assets/images/icon-action-transfer-16x16@2x.png";
 
 const baseClass = "host-details";
@@ -611,29 +611,10 @@ const HostDetailsPage = ({
           </span>
         </p>
         <span className={`${baseClass}__os-modal-example-title`}>
-          Example policy:
-        </span>{" "}
-        <span
-          className="policy-isexamplesue tooltip__tooltip-icon"
-          data-tip
-          data-for="policy-example"
-          data-tip-disable={false}
-        >
-          <img alt="host issue" src={QuestionIcon} />
+          <TooltipWrapper tipContent="A policy is a yes or no question you can ask all your devices.">
+            Example policy:
+          </TooltipWrapper>
         </span>
-        <ReactTooltip
-          place="bottom"
-          type="dark"
-          effect="solid"
-          backgroundColor="#3e4771"
-          id="policy-example"
-          data-html
-        >
-          <span className={`${baseClass}__tooltip-text`}>
-            A policy is a yes or no question
-            <br /> you can ask all your devices.
-          </span>
-        </ReactTooltip>
         <InputField
           disabled
           inputWrapperClass={`${baseClass}__os-policy`}

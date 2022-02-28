@@ -2,14 +2,17 @@ import React from "react";
 import { Link } from "react-router";
 import ReactTooltip from "react-tooltip";
 import { isEmpty } from "lodash";
-// import distanceInWordsToNow from "date-fns/distance_in_words_to_now"; // TODO: Enable after backend has been updated to provide last_opened_at
+
+// TODO: Enable after backend has been updated to provide last_opened_at
+// import distanceInWordsToNow from "date-fns/distance_in_words_to_now";
+
+import { ISoftware } from "interfaces/software";
 
 import PATHS from "router/paths";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
-import { ISoftware } from "interfaces/software";
+import TooltipWrapper from "components/TooltipWrapper";
 import IssueIcon from "../../../../../assets/images/icon-issue-fleet-black-50-16x16@2x.png";
-import QuestionIcon from "../../../../../assets/images/icon-question-16x16@2x.png";
 import Chevron from "../../../../../assets/images/icon-chevron-right-9x6@2x.png";
 
 interface IHeaderProps {
@@ -127,29 +130,17 @@ const generateSoftwareTableHeaders = (): IDataColumn[] => {
         if (bundle_identifier) {
           return (
             <span className="name-container">
-              {name}
-              <span
-                className={`software-name tooltip__tooltip-icon`}
-                data-tip
-                data-for={`software-name__${cellProps.row.original.id.toString()}`}
-                data-tip-disable={false}
-              >
-                <img alt="bundle identifier" src={QuestionIcon} />
-              </span>
-              <ReactTooltip
-                place="bottom"
-                type="dark"
-                effect="solid"
-                backgroundColor="#3e4771"
-                id={`software-name__${cellProps.row.original.id.toString()}`}
-                data-html
-              >
-                <span className={`software-name tooltip__tooltip-text`}>
+              <TooltipWrapper
+                tipContent={`
+                <span>
                   <b>Bundle identifier: </b>
                   <br />
-                  {bundle_identifier}
+                  ${bundle_identifier}
                 </span>
-              </ReactTooltip>
+              `}
+              >
+                {name}
+              </TooltipWrapper>
             </span>
           );
         }
