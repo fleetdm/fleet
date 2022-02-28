@@ -185,7 +185,7 @@ export class UserSettingsPage extends Component {
       })
       .catch((userErrors) => {
         if (userErrors.base.includes("already exists")) {
-          // TODO: Revamp to create inline error requires jsx > tsx / form fields state/validators
+          // TODO: Revamp to create inline error rqequires jsx > tsx / form fields state/validators
           dispatch(
             renderFlash(
               "error",
@@ -194,10 +194,7 @@ export class UserSettingsPage extends Component {
           );
         } else {
           dispatch(
-            renderFlash(
-              "error",
-              `Could not edit ${userName}. Please try again.`
-            )
+            renderFlash("error", `Could not edit user. Please try again.`)
           );
         }
         this.setState({ showEmailModal: false });

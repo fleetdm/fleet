@@ -55,6 +55,13 @@ interface ITeamsResponse {
   teams: ITeam[];
 }
 
+interface ICreateEditUserErrors {
+  email?: string;
+  name?: string;
+  password?: string;
+  sso_enabled?: boolean | null;
+}
+
 // This is used to cache the table query data and make a request for the
 // members data at a future time. Practically, this allows us to re-fetch the users
 // with the same table query params after we have made an edit to a user.
@@ -84,10 +91,11 @@ const MembersPage = ({
   const [isFormSubmitting, setIsFormSubmitting] = useState<boolean>(false);
   const [userEditing, setUserEditing] = useState<IUser>();
   const [searchString, setSearchString] = useState<string>("");
-  const [createUserErrors, setCreateUserErrors] = useState<any>(
-    DEFAULT_CREATE_USER_ERRORS
-  );
-  const [editUserErrors, setEditUserErrors] = useState<any>(
+  const [
+    createUserErrors,
+    setCreateUserErrors,
+  ] = useState<ICreateEditUserErrors>(DEFAULT_CREATE_USER_ERRORS);
+  const [editUserErrors, setEditUserErrors] = useState<ICreateEditUserErrors>(
     DEFAULT_CREATE_USER_ERRORS
   );
   const [members, setMembers] = useState<IMembersTableData[]>([]);

@@ -37,6 +37,13 @@ interface ITeamsResponse {
   teams: ITeam[];
 }
 
+interface ICreateEditUserErrors {
+  email?: string;
+  name?: string;
+  password?: string;
+  sso_enabled?: boolean | null;
+}
+
 const UserManagementPage = (): JSX.Element => {
   const dispatch = useDispatch();
 
@@ -59,10 +66,11 @@ const UserManagementPage = (): JSX.Element => {
   );
   const [isFormSubmitting, setIsFormSubmitting] = useState<boolean>(false);
   const [userEditing, setUserEditing] = useState<any>(null);
-  const [createUserErrors, setCreateUserErrors] = useState<any>(
-    DEFAULT_CREATE_USER_ERRORS
-  );
-  const [editUserErrors, setEditUserErrors] = useState<any>(
+  const [
+    createUserErrors,
+    setCreateUserErrors,
+  ] = useState<ICreateEditUserErrors>(DEFAULT_CREATE_USER_ERRORS);
+  const [editUserErrors, setEditUserErrors] = useState<ICreateEditUserErrors>(
     DEFAULT_CREATE_USER_ERRORS
   );
   const [querySearchText, setQuerySearchText] = useState<string>("");
