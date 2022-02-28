@@ -225,7 +225,8 @@ const TeamDetailsWrapper = ({
 
   const toggleEditTeamModal = useCallback(() => {
     setShowEditTeamModal(!showEditTeamModal);
-  }, [showEditTeamModal, setShowEditTeamModal]);
+    setBackendValidators({});
+  }, [showEditTeamModal, setShowEditTeamModal, setBackendValidators]);
 
   const onSaveSecret = async (enrollSecretString: string) => {
     // Creates new list of secrets removing selected secret and adding new secret
