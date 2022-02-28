@@ -631,6 +631,10 @@ func downloadOrbitAndStart(destDir, enrollSecret, address, orbitChannel, osquery
 
 	updateOpt := update.DefaultOptions
 
+	// We need to initialize updates for latest orbit which does not
+	// support .app bundle yet.
+	updateOpt.Targets = update.DarwinLegacyTargets
+
 	// Override default channels with the provided values.
 	orbit := updateOpt.Targets["orbit"]
 	orbit.Channel = orbitChannel
@@ -655,8 +659,6 @@ func downloadOrbitAndStart(destDir, enrollSecret, address, orbitChannel, osquery
 		"--fleet-url", address,
 		"--insecure",
 		"--debug",
-		"--disable-updates",
-		"--dev-mode",
 		"--enroll-secret", enrollSecret,
 		"--orbit-channel", orbitChannel,
 		"--osqueryd-channel", osquerydChannel,
