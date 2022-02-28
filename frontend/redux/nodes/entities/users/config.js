@@ -12,3 +12,5 @@ export default new Config({
   schema: USERS,
   updateFunc: Fleet.users.update,
 });
+
+export const initialState = Object.assign({}, Config.initialState);
