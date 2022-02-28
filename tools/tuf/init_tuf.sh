@@ -20,8 +20,8 @@ function create_repository() {
       rm -rf $TUF_PATH/tmp/osquery_pkg_payload_expanded
       mkdir $TUF_PATH/tmp/osquery_pkg_payload_expanded
       tar xf $TUF_PATH/tmp/osquery_pkg_expanded/Payload --directory $TUF_PATH/tmp/osquery_pkg_payload_expanded
-      osqueryd_path="$TUF_PATH/tmp/osquery.app.tar.gz"
-      tar cf $osqueryd_path $TUF_PATH/tmp/osquery_pkg_payload_expanded/opt/osquery/lib/osquery.app
+      osqueryd_path="$TUF_PATH/tmp/osqueryd.app.tar.gz"
+      tar czf $osqueryd_path -C $TUF_PATH/tmp/osquery_pkg_payload_expanded/opt/osquery/lib osquery.app
     else
       # Use latest stable version of osqueryd from our TUF server.
       osqueryd="osqueryd"

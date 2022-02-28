@@ -77,9 +77,9 @@ type TargetInfo struct {
 	Channel string
 	// TargetFile is the name of the target file in the repository.
 	TargetFile string
-	// ExtractedExecSubPath is the name of the executable in case the
+	// ExtractedExecSubPath is the path to the executable in case the
 	// target is a compressed file.
-	ExtractedExecSubPath string
+	ExtractedExecSubPath []string
 }
 
 // New creates a new updater given the provided options. All the necessary
@@ -168,21 +168,8 @@ func (u *Updater) ExecutableLocalPath(target string) (string, error) {
 	}
 
 	if strings.HasSuffix(localPath, ".tar.gz") {
-		dirPath := strings.TrimSuffix(localPath, ".tar.gz")
-		s, err := os.Stat(dirPath)
-		if err != nil {
-			return "", fmt.Errorf("stat %q: %w", dirPath, err)
-		}
-		if !s.IsDir() {
-			return "", fmt.Errorf("expected directory %q: %w", dirPath, err)
-		}
-		t := u.opt.Targets[target] // this was accessed before.
-		switch t.Platform {
-		case "macos-app":
-			localPath = filepath.Join(dirPath, t.ExtractedExecSubPath)
-		default:
-			return "", fmt.Errorf("unsupported platform: %s", t.Platform)
-		}
+		t := u.opt.Targets[target] // this was accessed before. TODO(lucas): Fix me.
+		localPath = filepath.Join(append([]string{filepath.Dir(localPath)}, t.ExtractedExecSubPath...)...)
 	}
 
 	s, err := os.Stat(localPath)
@@ -258,6 +245,11 @@ func (u *Updater) Get(target string) (string, error) {
 			if err := u.download(target, repoPath, localPath); err != nil {
 				return "", fmt.Errorf("download %q: %w", repoPath, err)
 			}
+			t := u.opt.Targets[target] // this was accessed before. TODO(lucas): Fix me.
+			dirPath := filepath.Join(filepath.Dir(localPath), t.ExtractedExecSubPath[0])
+			if err := os.RemoveAll(dirPath); err != nil {
+				return "", fmt.Errorf("failed to remove old extracted dir: %q: %w", dirPath, err)
+			}
 		} else {
 			log.Debug().Str("path", localPath).Str("target", target).Msg("found expected target locally")
 		}
@@ -271,26 +263,28 @@ func (u *Updater) Get(target string) (string, error) {
 	}
 
 	if strings.HasSuffix(localPath, ".tar.gz") {
-		dirPath := strings.TrimSuffix(localPath, ".tar.gz")
-		switch s, err := os.Stat(dirPath); {
+		t := u.opt.Targets[target] // this was accessed before. TODO(lucas): Fix me.
+		execPath := filepath.Join(append([]string{filepath.Dir(localPath)}, t.ExtractedExecSubPath...)...)
+		switch s, err := os.Stat(execPath); {
 		case err == nil:
-			if !s.IsDir() {
-				return "", fmt.Errorf("expected directory %q: %w", dirPath, err)
+			if s.IsDir() {
+				return "", fmt.Errorf("expected executable %q: %w", execPath, err)
 			}
 		case errors.Is(err, os.ErrNotExist):
 			if err := extractTarGz(localPath); err != nil {
 				return "", fmt.Errorf("extract %q: %w", localPath, err)
 			}
+			if s, err := os.Stat(execPath); err != nil {
+				return "", fmt.Errorf("stat %q: %w", execPath, err)
+			} else {
+				if s.IsDir() {
+					return "", fmt.Errorf("expected executable %q: %w", execPath, err)
+				}
+			}
 		default:
-			return "", fmt.Errorf("stat %q: %w", dirPath, err)
+			return "", fmt.Errorf("stat %q: %w", execPath, err)
 		}
-		t := u.opt.Targets[target] // this was accessed before.
-		switch t.Platform {
-		case "macos-app":
-			return filepath.Join(dirPath, t.ExtractedExecSubPath), nil
-		default:
-			return "", fmt.Errorf("unsupported platform: %s", t.Platform)
-		}
+		localPath = execPath
 	}
 
 	return localPath, nil
@@ -409,21 +403,16 @@ func (u *Updater) download(target, repoPath, localPath string) error {
 // checkExec checks/verifies a downloaded executable target by executing it.
 func (u *Updater) checkExec(target, path string) error {
 	if strings.HasSuffix(path, ".tar.gz") {
-		if err := extractTarGz(path); err != nil {
-			return fmt.Errorf("extract %q: %w", path, err)
-		}
-		extractedDir := strings.TrimPrefix(path, ".tar.gz")
-		defer os.RemoveAll(extractedDir)
 		t, ok := u.opt.Targets[target]
 		if !ok {
 			return fmt.Errorf("unknown target: %s", target)
 		}
-		switch t.Platform {
-		case "macos-app":
-			path = filepath.Join(extractedDir, t.ExtractedExecSubPath)
-		default:
-			return fmt.Errorf("unsupported platform: %s", t.Platform)
+		if err := extractTarGz(path); err != nil {
+			return fmt.Errorf("extract %q: %w", path, err)
 		}
+		defer os.RemoveAll(filepath.Join(filepath.Dir(path), t.ExtractedExecSubPath[0]))
+
+		path = filepath.Join(append([]string{filepath.Dir(path)}, t.ExtractedExecSubPath...)...)
 	}
 
 	// Note that this would fail for any binary that returns nonzero for --help.
