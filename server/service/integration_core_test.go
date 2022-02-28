@@ -2366,6 +2366,19 @@ func (s *integrationTestSuite) TestUsers() {
 	}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/users/%d", u.ID), params, http.StatusConflict, &modResp)
 
+	// modify that user - set an email that has an invite for it
+	createInviteReq := createInviteRequest{InvitePayload: fleet.InvitePayload{
+		Email:      ptr.String("colliding@email.com"),
+		Name:       ptr.String("some name"),
+		GlobalRole: null.StringFrom(fleet.RoleAdmin),
+	}}
+	createInviteResp := createInviteResponse{}
+	s.DoJSON("POST", "/api/v1/fleet/invites", createInviteReq, http.StatusOK, &createInviteResp)
+	params = fleet.UserPayload{
+		Email: ptr.String("colliding@email.com"),
+	}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/users/%d", u.ID), params, http.StatusConflict, &modResp)
+
 	// modify that user - set a non existent email
 	params = fleet.UserPayload{
 		Email: ptr.String("someemail@qowieuowh.com"),

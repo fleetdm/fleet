@@ -585,6 +585,15 @@ func (svc *Service) modifyEmailAddress(ctx context.Context, user *fleet.User, em
 		return ctxerr.Wrap(ctx, err)
 	}
 
+	switch _, err = svc.ds.InviteByEmail(ctx, email); {
+	case err == nil:
+		return ctxerr.Wrap(ctx, alreadyExistsError{})
+	case errors.Is(err, sql.ErrNoRows):
+		// OK
+	default:
+		return ctxerr.Wrap(ctx, err)
+	}
+
 	err = svc.ds.PendingEmailChange(ctx, user.ID, email, token)
 	if err != nil {
 		return err
