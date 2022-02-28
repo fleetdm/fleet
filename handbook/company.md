@@ -45,17 +45,17 @@ Empathy leads to better understanding, better communication, and better decision
   > 
   > You would rest easier, knowing that everyone who works at Fleet is seeking to deliver the experience they would want for themselves, in your shoes. -->
 - consider your counterpart
-  - for example: customers, contributors, the other person in your Zoom meeting, the other folks in a Slack channel, the people who use software and APIs you build, the people following the processes you design.
+  - for example: customers, contributors, colleagues, the other person in your Zoom meeting, the other folks in a Slack channel, the people who use software and APIs you build, the people following the processes you design.
   - ask questions like you would want to be asked
   - assume positive intent
   - be kind
   - be punctual
   - end meetings on time
-- role play as a user, contributor, or colleague
+- role play as a user
   - don't be afraid to rely on your imagination to understand 
   - developers are users too (REST API, fleetctl, docs)
   - contributor experience matters (but product quality and commitments come first)
-- bugs cause frustrating experiences and alienate users
+  - bugs cause frustrating experiences and alienate users
   - confusing error messages make people feel helpless, and can fill them with despair
   - error messages deserve to be good (it's worth it to spend time on them)
   - UI help text and labels deserve to be good (it's worth it to spend time on them)
@@ -82,33 +82,30 @@ Empathy leads to better understanding, better communication, and better decision
   - think like an owner
   - be efficient
   - be valuable (consider business impact)
-- work on things that matter
+  - work on things that matter
   - fast forward 12 months, consider total cost of ownership (the eternity of maintenance)
-  - understand why, or tell me why I'm wrong
+  - understand "why?"  (or tell me why I'm wrong)
   - agree, or disagree and commit anyway
 - we win or lose together
   - it's worth it to help team members and contributors
   - help unblock users, customers, and other contributors (including colleagues)
   - help team members and contributors get all the way done, delivered all the way to completion
+- take pride in your work
+  - reread anything you write for users
+  - you don't need permission to be thoughtful
+  - every real-world edge case deserves handling (be thorough)
 - take yourself seriously
-  - on a hero's journey
+  - you are on a hero's journey
   - even boring tasks are more motivating, fun, and effective when you care
   - motivate yourself intrinsically with self-talk
-  - understand "why?"
-  - take your ideas seriously (great ideas come from everyone, write them out and see if they have merit)
-- less is more
-  - "boring solutions"
-  - prefer short calls to long, asynchronous back and forth discussions in Slack
-  - avoid bikeshedding
-  - bite off what you can chew
-  - finish what you start, or at least throw it away loudly in case someone wants it
-  - focus on fewer tasks at one time
+  - take your ideas seriously (great ideas come from everyone; write them out and see if they have merit)
 - legendary results
 
 ### 🟢 Balance
 Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.org/wiki/Golden_mean_%28philosophy%29).
 
-- think, fast (balance thoughtfulness and planning with moving quickly)
+- think, fast
+  - balance thoughtfulness and planning with moving quickly
 - move quickly
   - "everything is in draft"
   - iterate by taking baby steps
@@ -116,17 +113,17 @@ Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.
   - avoid gold-plating
   - aim to deliver daily
   - move quicker than 90% of the humans you know
-- take pride in your work
-  - reread anything you write for users
-  - you don't need permission to be thoughtful
-  - every real-world edge case deserves handling (be thorough)
-- think for yourself
-  - from first principles
-  - use reason
-  - believe in your brain's capacity to evaluate a solution or idea, regardless of how popular it is
+- less is more
+  - "boring solutions"
+  - prefer short calls to long, asynchronous back and forth discussions in Slack
+  - avoid bikeshedding
+  - bite off what you can chew
+  - finish what you start, or at least throw it away loudly in case someone wants it
+  - focus on fewer tasks at one time
 - make time for self-care
   - to help you bring your best self when communicating with others, making decisions, etc
   - consider taking a break or going for a walk
+  - take time off; it is better to have 100% focus for 80% of the time than it is to have 80% focus for 100% of the time
   - think about how to best organize your day/work hours to fit your life and maximize your focus
 - legendary execution
 
@@ -149,8 +146,14 @@ Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.
   - be wrong
   - show your work
   - facts, over commentary
+- think for yourself
+  - from first principles
+  - use reason
+  - believe in your brain's capacity to evaluate a solution or idea, regardless of how popular it is
 - speak computer to computers
   - when something isn't working, use the scientific method
+  - especially when there is a bug, or when something is slow, or when a customer is having a problem
+  - a lucky fix without understanding does more harm than good
   - assume it's your fault
   - assume nothing else
 - legendary rigour
@@ -162,6 +165,7 @@ The majority of the code, documentation, and content we create at Fleet is publi
   - be outsider-friendly, inclusive, and approachable
   - [use small words](http://www.paulgraham.com/writing44.html) so readers understand more easily
   - prioritize accessible terminology and simple explanations to provide value to the largest possible audience of users
+  - welcome contributions to your team's work, from people inside or outside the company
   - believe in everyone
 - candor
   - faster, better decisions
