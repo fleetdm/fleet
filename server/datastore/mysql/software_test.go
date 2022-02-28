@@ -736,46 +736,6 @@ func testSoftwareCalculateHostsPerSoftware(t *testing.T, ds *Datastore) {
 	cmpNameVersionCount(want, team2Counts)
 }
 
-func dumpSoftwareHostCounts(t *testing.T, ds *Datastore) {
-	type row struct {
-		SoftwareID uint      `db:"software_id"`
-		HostsCount int       `db:"hosts_count"`
-		TeamID     *uint     `db:"team_id"`
-		UpdatedAt  time.Time `db:"updated_at"`
-	}
-	var rows []row
-	err := ds.writer.Select(&rows, "select software_id, hosts_count, team_id, updated_at from software_host_counts order by software_id")
-	require.NoError(t, err)
-	for _, r := range rows {
-		t.Logf("software: %03d\thosts: %03d\tteam: %v\tts: %s", r.SoftwareID, r.HostsCount, r.TeamID, r.UpdatedAt.Format(time.RFC3339))
-	}
-
-	var soft []*fleet.Software
-	err = ds.writer.Select(&soft, "select * from software order by id")
-	require.NoError(t, err)
-	for _, sw := range soft {
-		t.Logf("id: %03d\tname: %s\tversion: %s\tbundle: %s\tsource: %s", sw.ID, sw.Name, sw.Version, sw.BundleIdentifier, sw.Source)
-	}
-
-	type hostSw struct {
-		HostID     uint `db:"host_id"`
-		SoftwareID uint `db:"software_id"`
-	}
-	var hostSws []*hostSw
-	err = ds.writer.Select(&hostSws, "select * from host_software order by host_id")
-	require.NoError(t, err)
-	for _, hsw := range hostSws {
-		t.Logf("host: %03d\tsoftware: %03d", hsw.HostID, hsw.SoftwareID)
-	}
-
-	var hosts []*fleet.Host
-	err = ds.writer.Select(&hosts, "select id, hostname, team_id from hosts order by id")
-	require.NoError(t, err)
-	for _, h := range hosts {
-		t.Logf("host: %03d\tname: %s\tteam: %v", h.ID, h.Hostname, h.TeamID)
-	}
-}
-
 func insertVulnSoftwareForTest(t *testing.T, ds *Datastore) {
 	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
 	host2 := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now())

@@ -346,7 +346,7 @@ func TruncateTables(t testing.TB, ds *Datastore, tables ...string) {
 // created for tests. Calls to this function should be temporary and removed when
 // done investigating the plan, so it is expected that this function will be detected
 // as unused.
-func explainSQLStatement(w io.Writer, db sqlx.QueryerContext, stmt string, args ...interface{}) {
+func explainSQLStatement(w io.Writer, db sqlx.QueryerContext, stmt string, args ...interface{}) { //nolint:deadcode,unused
 	var rows []struct {
 		ID           int             `db:"id"`
 		SelectType   string          `db:"select_type"`
