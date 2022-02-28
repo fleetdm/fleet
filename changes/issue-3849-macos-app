@@ -1,1 +1,2 @@
 * Command `fleetctl package` to generate `.app` packaged `osqueryd` for `--type=pkg`.
+* Orbit updater system to support .app.tar.gz bundles from TUF repository.
