@@ -119,6 +119,10 @@ func main() {
 			Name:  "log-file",
 			Usage: "Log to this file path in addition to stderr",
 		},
+		&cli.StringFlag{
+			Name:  "dev-darwin-legacy-targets",
+			Usage: "Use darwin legacy target (flag only used on darwin)",
+		},
 	}
 	app.Action = func(c *cli.Context) error {
 		if c.Bool("version") {
@@ -188,6 +192,10 @@ func main() {
 		}
 
 		opt := update.DefaultOptions
+
+		if runtime.GOOS == "darwin" && c.Bool("dev-darwin-legacy-targets") {
+			opt.Targets = update.DarwinLegacyTargets
+		}
 
 		// Override default channels with the provided values.
 		orbit := opt.Targets["orbit"]

@@ -19,6 +19,19 @@ var (
 		},
 	}
 
+	DarwinLegacyTargets = Targets{
+		"orbit": TargetInfo{
+			Platform:   "macos",
+			Channel:    "stable",
+			TargetFile: "orbit",
+		},
+		"osqueryd": TargetInfo{
+			Platform:   "macos",
+			Channel:    "stable",
+			TargetFile: "osqueryd",
+		},
+	}
+
 	LinuxTargets = Targets{
 		"orbit": TargetInfo{
 			Platform:   "linux",

@@ -163,14 +163,6 @@ func (u *Updater) ExecutableLocalPath(target string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-
-	s, err := os.Stat(localTarget.execPath)
-	if err != nil {
-		return "", fmt.Errorf("stat %q: %w", localTarget.execPath, err)
-	}
-	if s.IsDir() {
-		return "", fmt.Errorf("expected file %q: %w", localTarget.execPath, err)
-	}
 	return localTarget.execPath, nil
 }
 
