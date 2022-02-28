@@ -40,8 +40,10 @@ func BuildPkg(opt Options) (string, error) {
 	// Initialize autoupdate metadata
 
 	updateOpt := update.DefaultOptions
+
 	updateOpt.RootDirectory = orbitRoot
 	updateOpt.ServerURL = opt.UpdateURL
+	updateOpt.Targets = update.DarwinTargets
 
 	// Override default channels with the provided values.
 	orbit := updateOpt.Targets["orbit"]

@@ -13,18 +13,7 @@ var defaultOptions = Options{
 	RootKeys:          defaultRootKeys,
 	LocalStore:        client.MemoryLocalStore(),
 	InsecureTransport: false,
-	Targets: Targets{
-		"orbit": TargetInfo{
-			Platform:   "windows",
-			Channel:    "stable",
-			TargetFile: "orbit.exe",
-		},
-		"osqueryd": TargetInfo{
-			Platform:   "windows",
-			Channel:    "stable",
-			TargetFile: "osqueryd.exe",
-		},
-	},
+	Targets:           WindowsTargets,
 }
 
 func init() {

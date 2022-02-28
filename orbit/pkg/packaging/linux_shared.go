@@ -36,7 +36,9 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 	// Initialize autoupdate metadata
 
 	updateOpt := update.DefaultOptions
+
 	updateOpt.RootDirectory = orbitRoot
+	updateOpt.Targets = update.LinuxTargets
 
 	// Override default channels with the provided values.
 	orbit := updateOpt.Targets["orbit"]

@@ -14,6 +14,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/fatih/color"
@@ -34,10 +35,6 @@ const (
 	defaultURL      = "https://tuf.fleetctl.com"
 	defaultRootKeys = `[{"keytype":"ed25519","scheme":"ed25519","keyid_hash_algorithms":["sha256","sha512"],"keyval":{"public":"6d71d3beac3b830be929f2b10d513448d49ec6bb62a680176b89ffdfca180eb4"}}]`
 )
-
-// DefaultOptions are the default options to use when creating an update
-// client.
-var DefaultOptions = defaultOptions
 
 // Updater is responsible for managing update state.
 //
@@ -245,10 +242,12 @@ func (u *Updater) Get(target string) (string, error) {
 			if err := u.download(target, repoPath, localPath); err != nil {
 				return "", fmt.Errorf("download %q: %w", repoPath, err)
 			}
-			t := u.opt.Targets[target] // this was accessed before. TODO(lucas): Fix me.
-			dirPath := filepath.Join(filepath.Dir(localPath), t.ExtractedExecSubPath[0])
-			if err := os.RemoveAll(dirPath); err != nil {
-				return "", fmt.Errorf("failed to remove old extracted dir: %q: %w", dirPath, err)
+			if strings.HasSuffix(localPath, ".tar.gz") {
+				t := u.opt.Targets[target] // this was accessed before. TODO(lucas): Fix me.
+				dirPath := filepath.Join(filepath.Dir(localPath), t.ExtractedExecSubPath[0])
+				if err := os.RemoveAll(dirPath); err != nil {
+					return "", fmt.Errorf("failed to remove old extracted dir: %q: %w", dirPath, err)
+				}
 			}
 		} else {
 			log.Debug().Str("path", localPath).Str("target", target).Msg("found expected target locally")
@@ -402,11 +401,16 @@ func (u *Updater) download(target, repoPath, localPath string) error {
 
 // checkExec checks/verifies a downloaded executable target by executing it.
 func (u *Updater) checkExec(target, path string) error {
+	t, ok := u.opt.Targets[target]
+	if !ok {
+		return fmt.Errorf("unknown target: %s", target)
+	}
+	if t.Platform != runtime.GOOS {
+		// Nothing to do, we can't check the executable if running cross-platform.
+		return nil
+	}
+
 	if strings.HasSuffix(path, ".tar.gz") {
-		t, ok := u.opt.Targets[target]
-		if !ok {
-			return fmt.Errorf("unknown target: %s", target)
-		}
 		if err := extractTarGz(path); err != nil {
 			return fmt.Errorf("extract %q: %w", path, err)
 		}

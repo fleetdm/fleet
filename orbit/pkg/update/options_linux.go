@@ -10,16 +10,5 @@ var defaultOptions = Options{
 	RootKeys:          defaultRootKeys,
 	LocalStore:        client.MemoryLocalStore(),
 	InsecureTransport: false,
-	Targets: Targets{
-		"orbit": TargetInfo{
-			Platform:   "linux",
-			Channel:    "stable",
-			TargetFile: "orbit",
-		},
-		"osqueryd": TargetInfo{
-			Platform: "linux",
-			Channel:  "stable",
-			Channel:  "osqueryd",
-		},
-	},
+	Targets:           LinuxTargets,
 }

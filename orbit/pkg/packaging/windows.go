@@ -37,7 +37,9 @@ func BuildMSI(opt Options) (string, error) {
 	// Initialize autoupdate metadata
 
 	updateOpt := update.DefaultOptions
+
 	updateOpt.RootDirectory = orbitRoot
+	updateOpt.Targets = update.WindowsTargets
 
 	// Override default channels with the provided values.
 	orbit := updateOpt.Targets["orbit"]

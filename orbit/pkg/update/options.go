@@ -1,0 +1,47 @@
+package update
+
+// DefaultOptions are the default options to use when creating an update
+// client.
+var DefaultOptions = defaultOptions
+
+var (
+	DarwinTargets = Targets{
+		"orbit": TargetInfo{
+			Platform:   "macos",
+			Channel:    "stable",
+			TargetFile: "orbit",
+		},
+		"osqueryd": TargetInfo{
+			Platform:             "macos-app",
+			Channel:              "stable",
+			TargetFile:           "osqueryd.app.tar.gz",
+			ExtractedExecSubPath: []string{"osquery.app", "Contents", "MacOS", "osqueryd"},
+		},
+	}
+
+	LinuxTargets = Targets{
+		"orbit": TargetInfo{
+			Platform:   "linux",
+			Channel:    "stable",
+			TargetFile: "orbit",
+		},
+		"osqueryd": TargetInfo{
+			Platform:   "linux",
+			Channel:    "stable",
+			TargetFile: "osqueryd",
+		},
+	}
+
+	WindowsTargets = Targets{
+		"orbit": TargetInfo{
+			Platform:   "windows",
+			Channel:    "stable",
+			TargetFile: "orbit.exe",
+		},
+		"osqueryd": TargetInfo{
+			Platform:   "windows",
+			Channel:    "stable",
+			TargetFile: "osqueryd.exe",
+		},
+	}
+)
