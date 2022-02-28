@@ -81,7 +81,6 @@ const SelectTargets = ({
   goToRunQuery,
   setSelectedTargets,
   setTargetsTotalCount,
-  targetsTotalCount,
 }: ISelectTargetsProps): JSX.Element => {
   const [allHostsLabels, setAllHostsLabels] = useState<ILabel[] | null>(null);
   const [platformLabels, setPlatformLabels] = useState<ILabel[] | null>(null);
@@ -135,10 +134,18 @@ const SelectTargets = ({
       },
     ],
     {
+      // onSuccess: (data) => {
+      //   setLabels;
+      //   setTargetsTotalCount(data.targetsTotalCount);
+      // },
       onSuccess: setLabels,
       staleTime: STALE_TIME,
     }
   );
+
+  useEffect(() => {
+    setTargetsTotalCount(targets?.targetsTotalCount || 0);
+  }, [targets]);
 
   const handleClickCancel = () => {
     setSelectedTargets([]);

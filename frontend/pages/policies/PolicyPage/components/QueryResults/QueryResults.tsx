@@ -65,9 +65,11 @@ const QueryResults = ({
   ] = useState<number>(0);
 
   useEffect(() => {
-    setTargetsRespondedPercent(
-      Math.round((totalRowsCount + errors?.length / targetsTotalCount) * 100)
-    );
+    const calculatePercent =
+      Math.round(
+        ((totalRowsCount + errors?.length) / targetsTotalCount) * 100
+      ) || 0;
+    setTargetsRespondedPercent(calculatePercent);
   }, [totalRowsCount, errors]);
 
   useEffect(() => {
