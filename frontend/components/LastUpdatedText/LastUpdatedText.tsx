@@ -3,6 +3,8 @@ import formatDistanceToNowStrict from "date-fns/formatDistanceToNowStrict";
 
 import TooltipWrapper from "components/TooltipWrapper";
 
+const baseClass = "component__last-updated-text";
+
 const renderLastUpdatedText = (
   lastUpdatedAt: string,
   whatToRetrieve: string
@@ -16,7 +18,7 @@ const renderLastUpdatedText = (
   }
 
   return (
-    <span className="last-updated">
+    <span className={baseClass}>
       <TooltipWrapper
         tipContent={`Fleet periodically queries all hosts to retrieve ${whatToRetrieve}`}
       >

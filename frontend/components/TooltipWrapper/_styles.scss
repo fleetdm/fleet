@@ -9,7 +9,7 @@
     }
   }
   &__element {
-    position: relative;
+    position: static;
     display: inline; // treat like a span but allow other tags as children
   }
   &__underline {

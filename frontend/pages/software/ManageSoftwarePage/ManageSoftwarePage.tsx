@@ -2,9 +2,7 @@ import React, { useCallback, useContext, useEffect, useState } from "react";
 import { useQuery } from "react-query";
 import { useDispatch } from "react-redux";
 import { InjectedRouter } from "react-router/lib/Router";
-import ReactTooltip from "react-tooltip";
 import { useDebouncedCallback } from "use-debounce/lib";
-import formatDistanceToNowStrict from "date-fns/formatDistanceToNowStrict";
 
 import { AppContext } from "context/app";
 import { IConfig, IConfigNested } from "interfaces/config";
@@ -33,7 +31,7 @@ import TableDataError from "components/TableDataError";
 import TeamsDropdownHeader, {
   ITeamsDropdownState,
 } from "components/PageHeader/TeamsDropdownHeader";
-import TooltipWrapper from "components/TooltipWrapper";
+import renderLastUpdatedText from "components/LastUpdatedText";
 
 import softwareTableHeaders from "./SoftwareTableConfig";
 import ManageAutomationsModal from "./components/ManageAutomationsModal";
@@ -319,11 +317,7 @@ const ManageSoftwarePage = ({
 
   const renderSoftwareCount = useCallback(() => {
     const count = softwareCount;
-    const lastUpdatedAt = software?.counts_updated_at
-      ? formatDistanceToNowStrict(new Date(software?.counts_updated_at), {
-          addSuffix: true,
-        })
-      : software?.counts_updated_at;
+    const lastUpdatedAt = software?.counts_updated_at;
 
     if (!isSoftwareEnabled || !lastUpdatedAt) {
       return null;
@@ -338,23 +332,20 @@ const ManageSoftwarePage = ({
     }
 
     // TODO: Use setInterval to keep last updated time current?
-    return count !== undefined ? (
-      <span
-        className={`${baseClass}__count ${
-          isFetchingCount ? "count-loading" : ""
-        }`}
-      >
-        {`${count} software item${count === 1 ? "" : "s"}`}
-        <span className="count-last-updated">
-          <TooltipWrapper
-            tipContent="Fleet periodically queries all hosts to retrieve software"
-            position="top"
-          >
-            {`Last updated ${lastUpdatedAt}`}
-          </TooltipWrapper>
-        </span>
-      </span>
-    ) : null;
+    if (count) {
+      return (
+        <div
+          className={`${baseClass}__count ${
+            isFetchingCount ? "count-loading" : ""
+          }`}
+        >
+          <span>{`${count} software item${count === 1 ? "" : "s"}`}</span>
+          {renderLastUpdatedText(lastUpdatedAt, "software")}
+        </div>
+      );
+    }
+
+    return null;
   }, [isFetchingCount, software, softwareCountError, softwareCount]);
 
   // TODO: retool this with react-router location descriptor objects
