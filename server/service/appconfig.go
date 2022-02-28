@@ -152,6 +152,8 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 		return nil, err
 	}
 
+	oldSmtpSettings := appConfig.SMTPSettings
+
 	// TODO(mna): this ports the validations from the old validationMiddleware
 	// correctly, but this could be optimized so that we don't unmarshal the
 	// incoming bytes twice.
@@ -172,9 +174,16 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 		return nil, &badRequestError{message: err.Error()}
 	}
 
-	if appConfig.SMTPSettings.SMTPEnabled || appConfig.SMTPSettings.SMTPConfigured {
-		if err = svc.sendTestEmail(ctx, appConfig); err != nil {
-			return nil, err
+	// ignore the values for SMTPEnabled and SMTP
+	oldSmtpSettings.SMTPEnabled = appConfig.SMTPSettings.SMTPEnabled
+	oldSmtpSettings.SMTPConfigured = appConfig.SMTPSettings.SMTPConfigured
+
+	// if we enable SMTP and the settings have changed, then we send a test email
+	if appConfig.SMTPSettings.SMTPEnabled {
+		if oldSmtpSettings != appConfig.SMTPSettings || !appConfig.SMTPSettings.SMTPConfigured {
+			if err = svc.sendTestEmail(ctx, appConfig); err != nil {
+				return nil, err
+			}
 		}
 		appConfig.SMTPSettings.SMTPConfigured = true
 	} else if appConfig.SMTPSettings.SMTPEnabled {
