@@ -39,9 +39,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		fleetConfig.Filesystem.EnableLogCompression,
 	)
 
-	if err != nil {
-		require.NoError(t, err)
-	}
+	require.NoError(t, err)
 
 	osqlogger := &logging.OsqueryLogger{Status: writer, Result: writer}
 	logger := kitlog.NewNopLogger()
