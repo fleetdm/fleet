@@ -133,7 +133,7 @@
           </div>
           <%/* Desktop Navigation bar */%>
           <div purpose="header-nav" class="d-none d-lg-flex align-items-center">
-            <div class="btn-group">
+            <div purpose="dropdown-button" class="btn-group">
               <a class="dropdown-toggle d-flex align-items-center py-2 px-3" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Use cases</a>
               <div purpose="header-dropdown" class="dropdown-menu">
                 <a class="dropdown-item mb-1" href="/platform">How it works</a>
@@ -144,7 +144,7 @@
                 <a class="dropdown-item" href="https://blog.fleetdm.com/fleet-user-stories-e5dc300b9e1c">F100 security & networking co.</a>
               </div>
             </div>
-            <div class="btn-group">
+            <div purpose="dropdown-button" class="btn-group">
               <a class="dropdown-toggle d-flex align-items-center py-2 px-3" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Documentation</a>
               <div purpose="header-dropdown" class="dropdown-menu">
                 <a class="dropdown-item mb-1" href="/docs">Docs</a>
@@ -156,7 +156,7 @@
                 <a class="dropdown-item" href="https://blog.fleetdm.com/deploying-fleet-on-render-2d743aed213f">Deploy on Render</a>
               </div>
             </div>
-            <div class="btn-group">
+            <div purpose="dropdown-button" class="btn-group">
               <a class="dropdown-toggle d-flex align-items-center py-2 px-3" data-toggle="dropdown">Community</a>
               <div purpose="header-dropdown" class="dropdown-menu">
                 <a class="dropdown-item mb-1" href="/docs/contributing">Contribute</a>
@@ -397,6 +397,18 @@
     <script>
     $(function() {
       $('[data-hide-until-rendered]').removeClass('invisible'); // Note: invisible is a bootstrap 4 class
+    });
+    <%/* Adding hover events to header dropdown menus*/%>
+    $(function(){
+      $('[purpose=dropdown-button]').hover(
+        function() {
+          $(this).children('.dropdown-menu').addClass('show');
+          $(this).children('.dropdown-toggle').attr('aria-expanded', true);
+        },
+        function() {
+        $(this).children('.dropdown-menu').removeClass('show');
+        $(this).children('.dropdown-toggle').attr('aria-expanded', false);
+      });
     });
     </script>
 
