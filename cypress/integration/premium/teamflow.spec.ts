@@ -61,7 +61,7 @@ describe("Teams flow (seeded)", () => {
           .type("Bananas");
         cy.findByRole("button", { name: /save/i }).click();
       });
-      cy.findByText(/successfully edited/i).should("be.visible");
+      cy.findByText(/updated team name/i).should("be.visible");
       cy.findByText(/apples/i).should("not.exist");
     });
     it("deletes an existing team", () => {

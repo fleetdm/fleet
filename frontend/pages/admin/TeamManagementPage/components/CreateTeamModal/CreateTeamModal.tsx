@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
@@ -15,17 +15,27 @@ export interface ICreateTeamFormData {
 interface ICreateTeamModalProps {
   onCancel: () => void;
   onSubmit: (formData: ICreateTeamFormData) => void;
+  backendValidators: { [key: string]: string };
 }
 
 const CreateTeamModal = ({
   onCancel,
   onSubmit,
+  backendValidators,
 }: ICreateTeamModalProps): JSX.Element => {
   const [name, setName] = useState("");
+  const [errors, setErrors] = useState<{ [key: string]: string }>(
+    backendValidators
+  );
+
+  useEffect(() => {
+    setErrors(backendValidators);
+  }, [backendValidators]);
 
   const onInputChange = useCallback(
     (value: string) => {
       setName(value);
+      setErrors({});
     },
     [setName]
   );
@@ -53,6 +63,7 @@ const CreateTeamModal = ({
           onChange={onInputChange}
           placeholder="Team name"
           value={name}
+          error={errors.name}
         />
         <InfoBanner className={`${baseClass}__sandbox-info`}>
           <p className={`${baseClass}__info-header`}>

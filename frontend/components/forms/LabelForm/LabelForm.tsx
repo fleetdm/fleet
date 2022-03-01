@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { IAceEditor } from "react-ace/lib/types";
 import { noop } from "lodash";
 
@@ -14,8 +14,9 @@ interface ILabelFormProps {
   selectedLabel?: ILabel;
   isEdit?: boolean;
   onCancel: () => void;
-  handleSubmit: (formData: ILabelFormData) => Promise<void>;
+  handleSubmit: (formData: ILabelFormData) => void;
   onOsqueryTableSelect?: (tableName: string) => void;
+  backendValidators: { [key: string]: string };
 }
 
 const baseClass = "label-form";
@@ -42,6 +43,7 @@ const LabelForm = ({
   onCancel,
   handleSubmit,
   onOsqueryTableSelect,
+  backendValidators,
 }: ILabelFormProps) => {
   const [name, setName] = useState<string>(selectedLabel?.name || "");
   const [nameError, setNameError] = useState<string>("");
@@ -53,6 +55,10 @@ const LabelForm = ({
   const [platform, setPlatform] = useState<string>(
     selectedLabel?.platform || ""
   );
+
+  useEffect(() => {
+    setNameError(backendValidators.name);
+  }, [backendValidators]);
 
   const onLoad = (editor: IAceEditor) => {
     editor.setOptions({
@@ -78,6 +84,7 @@ const LabelForm = ({
 
   const onNameChange = (value: string) => {
     setName(value);
+    setNameError("");
   };
 
   const onDescriptionChange = (value: string) => {

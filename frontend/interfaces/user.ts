@@ -43,10 +43,10 @@ export interface IUserUpdateBody {
 }
 
 export interface IUserFormErrors {
-  email: string | null;
-  name: string | null;
-  password: string | null;
-  sso_enabled: boolean | null;
+  email?: string | null;
+  name?: string | null;
+  password?: string | null;
+  sso_enabled?: boolean | null;
 }
 
 export interface ICreateUserFormData {

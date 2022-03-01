@@ -323,3 +323,7 @@ export const DEFAULT_CREATE_USER_ERRORS = {
   password: "",
   sso_enabled: null,
 };
+
+export const DEFAULT_CREATE_LABEL_ERRORS = {
+  name: "",
+};

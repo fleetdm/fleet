@@ -623,7 +623,7 @@ describe("Premium tier - Admin user", () => {
           .clear()
           .type("Mystic");
         cy.findByRole("button", { name: /save/i }).click();
-        cy.findByText(/team updated/i).should("exist");
+        cy.findByText(/updated team name/i).should("exist");
       });
     });
     describe("User profile page", () => {
