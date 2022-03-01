@@ -10,11 +10,11 @@ import convertToCSV from "utilities/convert_to_csv"; // @ts-ignore
 import { ICampaign, ICampaignQueryResult } from "interfaces/campaign";
 import { ITarget } from "interfaces/target";
 
-import IconToolTip from "components/IconToolTip";
 import Button from "components/buttons/Button"; // @ts-ignore
 import Spinner from "components/Spinner";
 import TableContainer from "components/TableContainer";
 import TabsWrapper from "components/TabsWrapper";
+import TooltipWrapper from "components/TooltipWrapper";
 import DownloadIcon from "../../../../../../assets/images/icon-download-12x12@2x.png";
 
 import resultsTableHeaders from "./QueryResultsTableConfig";
@@ -254,15 +254,14 @@ const QueryResults = ({
         <h1>{pageTitle}</h1>
         <div className={`${baseClass}__text-wrapper`}>
           <span>{targetsTotalCount}</span>&nbsp;hosts targeted&nbsp; (
-          {targetsRespondedPercent}% responded){" "}
-          <IconToolTip
-            isHtml
-            text={
-              "\
-                  <center><p>Hosts that respond may<br /> return results, errors, or <br />no results</p></center>\
-                "
-            }
-          />
+          {targetsRespondedPercent}%&nbsp;
+          <TooltipWrapper
+            tipContent={`
+                Hosts that respond may<br /> return results, errors, or <br />no results`}
+          >
+            responded
+          </TooltipWrapper>
+          )
         </div>
       </div>
       {isQueryFinished ? renderFinishedButtons() : renderStopQueryButton()}

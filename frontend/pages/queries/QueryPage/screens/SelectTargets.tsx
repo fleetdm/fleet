@@ -17,9 +17,9 @@ import { IHost } from "interfaces/host";
 
 // @ts-ignore
 import TargetsInput from "components/TargetsInput";
-import IconToolTip from "components/IconToolTip";
 import Button from "components/buttons/Button";
 import Spinner from "components/Spinner";
+import TooltipWrapper from "components/TooltipWrapper";
 import PlusIcon from "../../../../../assets/images/icon-plus-purple-32x32@2x.png";
 import CheckIcon from "../../../../../assets/images/icon-check-purple-32x32@2x.png";
 import ExternalURLIcon from "../../../../../assets/images/icon-external-url-12x12@2x.png";
@@ -96,7 +96,6 @@ const SelectTargets = ({
   targetsTotalCount,
 }: ISelectTargetsProps): JSX.Element => {
   const [allHostsLabels, setAllHostsLabels] = useState<ILabel[] | null>(null);
-  const [targetsOnlinePercent, setTargetsOnlinePercent] = useState<number>(0);
   const [platformLabels, setPlatformLabels] = useState<ILabel[] | null>(null);
   const [teams, setTeams] = useState<ITeam[] | null>(null);
   const [otherLabels, setOtherLabels] = useState<ILabel[] | null>(null);
@@ -322,15 +321,14 @@ const SelectTargets = ({
           {!!targets?.targetsTotalCount && (
             <>
               <span>{targets?.targetsTotalCount}</span>&nbsp;hosts
-              targeted&nbsp; ({targets?.targetsOnlinePercent}% online){" "}
-              <IconToolTip
-                isHtml
-                text={
-                  "\
-                  <center><p>Hosts are online if they<br /> have recently checked <br />into Fleet</p></center>\
-                "
-                }
-              />
+              targeted&nbsp; ({targets?.targetsOnlinePercent}%&nbsp;
+              <TooltipWrapper
+                tipContent={`
+                Hosts are online if they<br /> have recently checked <br />into Fleet`}
+              >
+                online
+              </TooltipWrapper>
+              ){" "}
             </>
           )}
         </div>

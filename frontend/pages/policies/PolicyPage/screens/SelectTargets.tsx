@@ -12,9 +12,9 @@ import { IHost } from "interfaces/host";
 
 // @ts-ignore
 import TargetsInput from "components/TargetsInput";
-import IconToolTip from "components/IconToolTip";
 import Button from "components/buttons/Button";
 import Spinner from "components/Spinner";
+import TooltipWrapper from "components/TooltipWrapper";
 import PlusIcon from "../../../../../assets/images/icon-plus-purple-32x32@2x.png";
 import CheckIcon from "../../../../../assets/images/icon-check-purple-32x32@2x.png";
 import ExternalURLIcon from "../../../../../assets/images/icon-external-url-12x12@2x.png";
@@ -306,15 +306,14 @@ const SelectTargets = ({
           {!!targets?.targetsTotalCount && (
             <>
               <span>{targets?.targetsTotalCount}</span>&nbsp;targets
-              selected&nbsp; ({targets?.targetsOnlinePercent}% online){" "}
-              <IconToolTip
-                isHtml
-                text={
-                  "\
-                  <center><p>Hosts are online if they<br /> have recently checked <br />into Fleet</p></center>\
-                "
-                }
-              />
+              selected&nbsp; ({targets?.targetsOnlinePercent}%&nbsp;
+              <TooltipWrapper
+                tipContent={`
+                Hosts are online if they<br /> have recently checked <br />into Fleet`}
+              >
+                online
+              </TooltipWrapper>
+              ){" "}
             </>
           )}
         </div>
