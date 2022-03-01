@@ -3045,9 +3045,9 @@ func (s *integrationTestSuite) TestStatus() {
 
 func (s *integrationTestSuite) TestOsqueryConfig() {
 	t := s.T()
+
 	hosts := s.createHosts(t)
 	req := getClientConfigRequest{NodeKey: hosts[0].NodeKey}
-
 	var resp getClientConfigResponse
 	s.DoJSON("POST", "/api/v1/osquery/config", req, http.StatusOK, &resp)
 

@@ -432,13 +432,11 @@ func submitDistributedQueryResultsEndpoint(ctx context.Context, request interfac
 	shim := request.(*submitDistributedQueryResultsRequestShim)
 	req, err := shim.toRequest(ctx)
 	if err != nil {
-		fmt.Println(">>>>> shimtorequest: ", err)
 		return submitDistributedQueryResultsResponse{Err: err}, nil
 	}
 
 	err = svc.SubmitDistributedQueryResults(ctx, req.Results, req.Statuses, req.Messages)
 	if err != nil {
-		fmt.Println(">>>>> submitdqr: ", err)
 		return submitDistributedQueryResultsResponse{Err: err}, nil
 	}
 	return submitDistributedQueryResultsResponse{}, nil

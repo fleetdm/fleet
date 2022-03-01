@@ -44,14 +44,12 @@ func authenticatedHost(svc fleet.Service, logger log.Logger, next endpoint.Endpo
 	authHostFunc := func(ctx context.Context, request interface{}) (interface{}, error) {
 		nodeKey, err := getNodeKey(request)
 		if err != nil {
-			fmt.Println(">>>>> authhost getnodekey failed: ", err)
 			return nil, err
 		}
 
 		host, debug, err := svc.AuthenticateHost(ctx, nodeKey)
 		if err != nil {
 			logging.WithErr(ctx, err)
-			fmt.Println(">>>>> authhost AuthHost failed: ", err)
 			return nil, err
 		}
 

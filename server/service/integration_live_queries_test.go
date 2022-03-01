@@ -453,3 +453,21 @@ func (s *liveQueriesTestSuite) TestCreateDistributedQueryCampaign() {
 		QuerySQL: "SELECT 3", Selected: distributedQueryCampaignTargetsByNames{Hosts: []string{h1.Hostname + "ZZZZZ"}}},
 		http.StatusOK, &createResp)
 }
+
+func (s *liveQueriesTestSuite) TestOsqueryDistributedRead() {
+	t := s.T()
+
+	hostID := s.hosts[1].ID
+	s.lq.On("QueriesForHost", hostID).Return(map[string]string{fmt.Sprintf("%d", hostID): "select 1 from osquery;"}, nil)
+
+	req := getDistributedQueriesRequest{NodeKey: s.hosts[1].NodeKey}
+	var resp getDistributedQueriesResponse
+	s.DoJSON("POST", "/api/v1/osquery/distributed/read", req, http.StatusOK, &resp)
+	assert.Contains(t, resp.Queries, hostDistributedQueryPrefix+fmt.Sprintf("%d", hostID))
+
+	// test with invalid node key
+	var errRes map[string]interface{}
+	req.NodeKey += "zzzz"
+	s.DoJSON("POST", "/api/v1/osquery/distributed/read", req, http.StatusUnauthorized, &errRes)
+	assert.Contains(t, errRes["error"], "invalid node key")
+}
