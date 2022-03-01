@@ -137,6 +137,10 @@ func authenticatedUser(svc fleet.Service, next endpoint.Endpoint) endpoint.Endpo
 	return logged(authUserFunc)
 }
 
+func unauthenticatedRequest(svc fleet.Service, next endpoint.Endpoint) endpoint.Endpoint {
+	return logged(next)
+}
+
 // logged wraps an endpoint and adds the error if the context supports it
 func logged(next endpoint.Endpoint) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {

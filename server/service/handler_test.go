@@ -54,10 +54,6 @@ func TestAPIRoutes(t *testing.T) {
 			verb: "POST",
 			uri:  "/api/v1/fleet/reset_password",
 		},
-		{
-			verb: "POST",
-			uri:  "/api/v1/osquery/enroll",
-		},
 	}
 
 	for _, route := range routes {

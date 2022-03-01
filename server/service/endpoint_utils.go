@@ -297,6 +297,16 @@ func newHostAuthenticatedEndpointer(svc fleet.Service, logger log.Logger, opts [
 	}
 }
 
+func newNoAuthEndpointer(svc fleet.Service, opts []kithttp.ServerOption, r *mux.Router, versions ...string) *authEndpointer {
+	return &authEndpointer{
+		svc:      svc,
+		opts:     opts,
+		r:        r,
+		authFunc: unauthenticatedRequest,
+		versions: versions,
+	}
+}
+
 var pathReplacer = strings.NewReplacer(
 	"/", "_",
 	"{", "_",
