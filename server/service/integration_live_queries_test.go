@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -96,13 +97,16 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestOneHostOneQuery() {
 
 	cid := getCIDForQ(s, q1)
 
-	distributedReq := SubmitDistributedQueryResultsRequest{
+	distributedReq := submitDistributedQueryResultsRequestShim{
 		NodeKey: host.NodeKey,
-		Results: map[string][]map[string]string{
-			hostDistributedQueryPrefix + cid: {{"col1": "a", "col2": "b"}},
+		Results: map[string]json.RawMessage{
+			hostDistributedQueryPrefix + cid:          json.RawMessage(`[{"col1": "a", "col2": "b"}]`),
+			hostDistributedQueryPrefix + "invalidcid": json.RawMessage(`""`), // empty string is sometimes sent for no results
+			hostDistributedQueryPrefix + "9999":       json.RawMessage(`""`),
 		},
-		Statuses: map[string]fleet.OsqueryStatus{
-			hostDistributedQueryPrefix + cid: 0,
+		Statuses: map[string]interface{}{
+			hostDistributedQueryPrefix + cid:    0,
+			hostDistributedQueryPrefix + "9999": "0",
 		},
 		Messages: map[string]string{
 			hostDistributedQueryPrefix + cid: "some msg",
@@ -353,13 +357,13 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestFailsOnSomeHost() {
 	// Give the above call a couple of seconds to create the campaign
 	time.Sleep(2 * time.Second)
 	cid1 := getCIDForQ(s, q1)
-	distributedReq := SubmitDistributedQueryResultsRequest{
+	distributedReq := submitDistributedQueryResultsRequestShim{
 		NodeKey: h1.NodeKey,
-		Results: map[string][]map[string]string{
-			hostDistributedQueryPrefix + cid1: {{"col1": "a", "col2": "b"}},
+		Results: map[string]json.RawMessage{
+			hostDistributedQueryPrefix + cid1: json.RawMessage(`[{"col1": "a", "col2": "b"}]`),
 		},
-		Statuses: map[string]fleet.OsqueryStatus{
-			hostDistributedQueryPrefix + cid1: 0,
+		Statuses: map[string]interface{}{
+			hostDistributedQueryPrefix + cid1: "0",
 		},
 		Messages: map[string]string{
 			hostDistributedQueryPrefix + cid1: "some msg",
@@ -368,12 +372,12 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestFailsOnSomeHost() {
 	distributedResp := submitDistributedQueryResultsResponse{}
 	s.DoJSON("POST", "/api/v1/osquery/distributed/write", distributedReq, http.StatusOK, &distributedResp)
 
-	distributedReq = SubmitDistributedQueryResultsRequest{
+	distributedReq = submitDistributedQueryResultsRequestShim{
 		NodeKey: h2.NodeKey,
-		Results: map[string][]map[string]string{
-			hostDistributedQueryPrefix + cid1: {},
+		Results: map[string]json.RawMessage{
+			hostDistributedQueryPrefix + cid1: json.RawMessage(`""`),
 		},
-		Statuses: map[string]fleet.OsqueryStatus{
+		Statuses: map[string]interface{}{
 			hostDistributedQueryPrefix + cid1: 123,
 		},
 		Messages: map[string]string{

@@ -35,53 +35,6 @@ func TestDecodeEnrollAgentRequest(t *testing.T) {
 	)
 }
 
-// TODO(mna): would be worth porting the test for the new makeDecoder-based approach,
-// to test the shim and conversion to the actual request struct.
-func TestDecodeSubmitDistributedQueryResultsRequest(t *testing.T) {
-	//	router := mux.NewRouter()
-	//	router.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
-	//		r, err := decodeSubmitDistributedQueryResultsRequest(context.Background(), request)
-	//		require.Nil(t, err)
-	//
-	//		params := r.(SubmitDistributedQueryResultsRequest)
-	//		assert.Equal(t, "key", params.NodeKey)
-	//		assert.Equal(t, fleet.OsqueryDistributedQueryResults{
-	//			"id1": {
-	//				{"col1": "val1", "col2": "val2"},
-	//				{"col1": "val3", "col2": "val4"},
-	//			},
-	//			"id2": {
-	//				{"col3": "val5", "col4": "val6"},
-	//			},
-	//			"id3": {},
-	//		}, params.Results)
-	//		assert.Equal(t, map[string]fleet.OsqueryStatus{"id1": 0, "id3": 1}, params.Statuses)
-	//	}).Methods("POST")
-	//
-	//	// Note we explicitly test the case that requires using the shim
-	//	// because of the inconsistent JSON schema
-	//	var body bytes.Buffer
-	//	body.Write([]byte(`{
-	//        "node_key": "key",
-	//        "queries": {
-	//          "id1": [
-	//            {"col1": "val1", "col2": "val2"},
-	//            {"col1": "val3", "col2": "val4"}
-	//          ],
-	//          "id2": [
-	//            {"col3": "val5", "col4": "val6"}
-	//          ],
-	//          "id3": ""
-	//        },
-	//        "statuses": {"id1": 0, "id3": "1"}
-	//    }`))
-	//
-	//	router.ServeHTTP(
-	//		httptest.NewRecorder(),
-	//		httptest.NewRequest("POST", "/", &body),
-	//	)
-}
-
 // TODO(mna): would be worth porting the test for the new makeDecoder-based approach
 func TestDecodeSubmitLogsRequest(t *testing.T) {
 	//router := mux.NewRouter()
