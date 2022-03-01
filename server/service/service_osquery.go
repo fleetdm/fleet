@@ -482,7 +482,7 @@ func (svc *Service) detailQueriesForHost(ctx context.Context, host *fleet.Host) 
 		if tracingContext != nil {
 			tracingContext.Name = name
 			if queryName, err := json.Marshal(tracingContext); err == nil {
-				queries[string(queryName)] = query.Query
+				queries[string(queryName)] = query
 			} else {
 				return nil, err
 			}
@@ -643,9 +643,9 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (map[string]strin
 		if tracingContext != nil {
 			tracingContext.Name = name
 			if queryName, err := json.Marshal(tracingContext); err == nil {
-				queries[string(queryName)] = query.Query
+				queries[string(queryName)] = query
 			} else {
-				return nil, err
+				return nil, 0, osqueryError{message: err.Error()}
 			}
 		} else {
 			queries[hostLabelQueryPrefix+name] = query
@@ -665,9 +665,9 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (map[string]strin
 			if tracingContext != nil {
 				tracingContext.Name = name
 				if queryName, err := json.Marshal(tracingContext); err == nil {
-					queries[string(queryName)] = query.Query
+					queries[string(queryName)] = query
 				} else {
-					return nil, err
+                    return nil, 0, osqueryError{message: err.Error()}
 				}
 			} else {
 				queries[hostDistributedQueryPrefix+name] = query
@@ -686,9 +686,9 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (map[string]strin
 		if tracingContext != nil {
 			tracingContext.Name = name
 			if queryName, err := json.Marshal(tracingContext); err == nil {
-				queries[string(queryName)] = query.Query
+				queries[string(queryName)] = query
 			} else {
-				return nil, err
+				return nil, 0, osqueryError{message: err.Error()}
 			}
 		} else {
 			queries[hostPolicyQueryPrefix+name] = query
