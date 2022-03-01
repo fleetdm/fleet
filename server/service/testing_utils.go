@@ -25,23 +25,24 @@ import (
 	"github.com/throttled/throttled/v2/store/memstore"
 )
 
-func newTestService(ds fleet.Datastore, rs fleet.QueryResultStore, lq fleet.LiveQueryStore, opts ...TestServerOpts) fleet.Service {
-	return newTestServiceWithConfig(ds, config.TestConfig(), rs, lq, opts...)
+func newTestService(t *testing.T, ds fleet.Datastore, rs fleet.QueryResultStore, lq fleet.LiveQueryStore, opts ...TestServerOpts) fleet.Service {
+	return newTestServiceWithConfig(t, ds, config.TestConfig(), rs, lq, opts...)
 }
 
-func newTestServiceWithConfig(ds fleet.Datastore, fleetConfig config.FleetConfig, rs fleet.QueryResultStore, lq fleet.LiveQueryStore, opts ...TestServerOpts) fleet.Service {
+func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig config.FleetConfig, rs fleet.QueryResultStore, lq fleet.LiveQueryStore, opts ...TestServerOpts) fleet.Service {
 	mailer := &mockMailService{SendEmailFn: func(e fleet.Email) error { return nil }}
 	license := &fleet.LicenseInfo{Tier: fleet.TierFree}
-	writer, _ := logging.NewFilesystemLogWriter(
+	writer, err := logging.NewFilesystemLogWriter(
 		fleetConfig.Filesystem.StatusLogFile,
 		kitlog.NewNopLogger(),
 		fleetConfig.Filesystem.EnableLogRotation,
 		fleetConfig.Filesystem.EnableLogCompression,
 	)
-	// See #1776
-	//if err != nil {
-	//	panic(err)
-	//}
+
+	if err != nil {
+		require.NoError(t, err)
+	}
+
 	osqlogger := &logging.OsqueryLogger{Status: writer, Result: writer}
 	logger := kitlog.NewNopLogger()
 
@@ -83,9 +84,9 @@ func newTestServiceWithConfig(ds fleet.Datastore, fleetConfig config.FleetConfig
 	return svc
 }
 
-func newTestServiceWithClock(ds fleet.Datastore, rs fleet.QueryResultStore, lq fleet.LiveQueryStore, c clock.Clock) fleet.Service {
+func newTestServiceWithClock(t *testing.T, ds fleet.Datastore, rs fleet.QueryResultStore, lq fleet.LiveQueryStore, c clock.Clock) fleet.Service {
 	testConfig := config.TestConfig()
-	svc := newTestServiceWithConfig(ds, testConfig, rs, lq, TestServerOpts{
+	svc := newTestServiceWithConfig(t, ds, testConfig, rs, lq, TestServerOpts{
 		Clock: c,
 	})
 	return svc
@@ -164,7 +165,7 @@ func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...TestServe
 	if len(opts) > 0 && opts[0].Lq != nil {
 		lq = opts[0].Lq
 	}
-	svc := newTestService(ds, rs, lq, opts...)
+	svc := newTestService(t, ds, rs, lq, opts...)
 	users := map[string]fleet.User{}
 	if len(opts) == 0 || (len(opts) > 0 && !opts[0].SkipCreateTestUsers) {
 		users = createTestUsers(t, ds)

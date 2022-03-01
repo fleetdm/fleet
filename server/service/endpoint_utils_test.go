@@ -275,7 +275,7 @@ func TestEndpointer(t *testing.T) {
 		return []*fleet.User{{GlobalRole: ptr.String(fleet.RoleAdmin)}}, nil
 	}
 
-	svc := newTestService(ds, nil, nil)
+	svc := newTestService(t, ds, nil, nil)
 
 	fleetAPIOptions := []kithttp.ServerOption{
 		kithttp.ServerBefore(

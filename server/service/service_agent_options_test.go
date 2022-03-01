@@ -14,7 +14,7 @@ import (
 
 func TestAgentOptionsForHost(t *testing.T) {
 	ds := new(mock.Store)
-	svc := newTestService(ds, nil, nil)
+	svc := newTestService(t, ds, nil, nil)
 
 	teamID := uint(1)
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {

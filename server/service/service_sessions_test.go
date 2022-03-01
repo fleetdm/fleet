@@ -19,7 +19,7 @@ func TestAuthenticate(t *testing.T) {
 	ds := mysql.CreateMySQLDS(t)
 	defer ds.Close()
 
-	svc := newTestService(ds, nil, nil)
+	svc := newTestService(t, ds, nil, nil)
 	createTestUsers(t, ds)
 
 	var loginTests = []struct {
@@ -60,7 +60,7 @@ func TestAuthenticate(t *testing.T) {
 
 func TestGetSessionByKey(t *testing.T) {
 	ds := new(mock.Store)
-	svc := newTestService(ds, nil, nil)
+	svc := newTestService(t, ds, nil, nil)
 	cfg := config.TestConfig()
 
 	theSession := &fleet.Session{UserID: 123, Key: "abc"}

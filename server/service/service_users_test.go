@@ -19,7 +19,7 @@ func TestAuthenticatedUser(t *testing.T) {
 	ds := mysql.CreateMySQLDS(t)
 
 	createTestUsers(t, ds)
-	svc := newTestService(ds, nil, nil)
+	svc := newTestService(t, ds, nil, nil)
 	admin1, err := ds.UserByEmail(context.Background(), "admin1@example.com")
 	assert.Nil(t, err)
 	admin1Session, err := ds.NewSession(context.Background(), &fleet.Session{
@@ -38,7 +38,7 @@ func TestAuthenticatedUser(t *testing.T) {
 func TestResetPassword(t *testing.T) {
 	ds := mysql.CreateMySQLDS(t)
 
-	svc := newTestService(ds, nil, nil)
+	svc := newTestService(t, ds, nil, nil)
 	createTestUsers(t, ds)
 	passwordResetTests := []struct {
 		token       string
@@ -103,7 +103,7 @@ func refreshCtx(t *testing.T, ctx context.Context, user *fleet.User, ds fleet.Da
 func TestPerformRequiredPasswordReset(t *testing.T) {
 	ds := mysql.CreateMySQLDS(t)
 
-	svc := newTestService(ds, nil, nil)
+	svc := newTestService(t, ds, nil, nil)
 
 	createTestUsers(t, ds)
 

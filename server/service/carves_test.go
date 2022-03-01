@@ -15,7 +15,7 @@ import (
 
 func TestListCarves(t *testing.T) {
 	ds := new(mock.Store)
-	svc := newTestService(ds, nil, nil)
+	svc := newTestService(t, ds, nil, nil)
 
 	ds.ListCarvesFunc = func(ctx context.Context, opts fleet.CarveListOptions) ([]*fleet.CarveMetadata, error) {
 		return []*fleet.CarveMetadata{
@@ -42,7 +42,7 @@ func TestListCarves(t *testing.T) {
 
 func TestGetCarve(t *testing.T) {
 	ds := new(mock.Store)
-	svc := newTestService(ds, nil, nil)
+	svc := newTestService(t, ds, nil, nil)
 
 	ds.CarveFunc = func(ctx context.Context, id int64) (*fleet.CarveMetadata, error) {
 		return &fleet.CarveMetadata{
