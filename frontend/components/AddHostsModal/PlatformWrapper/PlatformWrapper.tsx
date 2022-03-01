@@ -257,7 +257,7 @@ const PlatformWrapper = ({
                 </p>
               )}
               {!isFetchingCertificate &&
-                (certificate && !fetchCertificateError ? (
+                (!fetchCertificateError ? (
                   <p>
                     Prove the TLS certificate used by the Fleet server to enable
                     secure connections from osquery:
