@@ -13,6 +13,11 @@ import yaml from "js-yaml";
 import { IConfigNested } from "interfaces/config";
 import { ILabel } from "interfaces/label";
 import { IPack } from "interfaces/pack";
+import {
+  ISelectTargetsEntity,
+  ISelectedTargets,
+  IPackTargets,
+} from "interfaces/target";
 import { ITeam, ITeamSummary } from "interfaces/team";
 import { IUser } from "interfaces/user";
 import { IPackQueryFormData } from "interfaces/scheduled_query";
@@ -93,7 +98,7 @@ const labelStubs = [
 ];
 
 const filterTarget = (targetType: string) => {
-  return (target: any) => {
+  return (target: ISelectTargetsEntity) => {
     return target.target_type === targetType ? [target.id] : [];
   };
 };
@@ -226,19 +231,28 @@ const formatLabelResponse = (response: any): ILabel[] => {
 };
 
 export const formatSelectedTargetsForApi = (
-  selectedTargets: any,
-  appendID = false
-) => {
+  selectedTargets: ISelectTargetsEntity[]
+): ISelectedTargets => {
   const targets = selectedTargets || [];
   const hosts = flatMap(targets, filterTarget("hosts"));
   const labels = flatMap(targets, filterTarget("labels"));
   const teams = flatMap(targets, filterTarget("teams"));
 
-  if (appendID) {
-    return { host_ids: hosts, label_ids: labels, team_ids: teams };
-  }
+  const sortIds = (ids: Array<number | string>) =>
+    ids.sort((a, b) => Number(a) - Number(b));
 
-  return { hosts, labels, teams };
+  return {
+    hosts: sortIds(hosts),
+    labels: sortIds(labels),
+    teams: sortIds(teams),
+  };
+};
+
+export const formatPackTargetsForApi = (
+  targets: ISelectTargetsEntity[]
+): IPackTargets => {
+  const { hosts, labels, teams } = formatSelectedTargetsForApi(targets);
+  return { host_ids: hosts, label_ids: labels, team_ids: teams };
 };
 
 export const formatScheduledQueryForServer = (
@@ -557,7 +571,7 @@ export const humanHostLastSeen = (lastSeen: string): string => {
 };
 
 export const humanHostEnrolled = (enrolled: string): string => {
-  return format(new Date(enrolled), "MMM d yyyy, HH:mm:ss");
+  return formatDistanceToNow(new Date(enrolled), { addSuffix: true });
 };
 
 export const humanHostMemory = (bytes: number): string => {
@@ -727,6 +741,7 @@ export default {
   formatTeamScheduledQueryForClient,
   formatTeamScheduledQueryForServer,
   formatSelectedTargetsForApi,
+  formatPackTargetsForApi,
   generateRole,
   generateTeam,
   greyCell,

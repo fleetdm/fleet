@@ -136,24 +136,3 @@
     color: $ui-error;
   }
 }
-.homepage-info-card__section-title-detail {
-  .last-updated {
-    font-size: $xx-small;
-    color: $ui-fleet-black-75;
-    padding-right: $pad-small;
-
-    .tooltip {
-      padding-left: $pad-xsmall;
-    }
-
-    .tooltip__tooltip-text {
-      display: flex;
-      text-align: center;
-    }
-    img {
-      height: 16px;
-      width: 16px;
-      vertical-align: text-top;
-    }
-  }
-}

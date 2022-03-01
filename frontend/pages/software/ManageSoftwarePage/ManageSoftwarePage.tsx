@@ -2,9 +2,7 @@ import React, { useCallback, useContext, useEffect, useState } from "react";
 import { useQuery } from "react-query";
 import { useDispatch } from "react-redux";
 import { InjectedRouter } from "react-router/lib/Router";
-import ReactTooltip from "react-tooltip";
 import { useDebouncedCallback } from "use-debounce/lib";
-import formatDistanceToNowStrict from "date-fns/formatDistanceToNowStrict";
 
 import { AppContext } from "context/app";
 import { IConfig, IConfigNested } from "interfaces/config";
@@ -33,13 +31,12 @@ import TableDataError from "components/TableDataError";
 import TeamsDropdownHeader, {
   ITeamsDropdownState,
 } from "components/PageHeader/TeamsDropdownHeader";
-
-import ExternalLinkIcon from "../../../../assets/images/open-new-tab-12x12@2x.png";
-import QuestionIcon from "../../../../assets/images/icon-question-16x16@2x.png";
+import renderLastUpdatedText from "components/LastUpdatedText";
 
 import softwareTableHeaders from "./SoftwareTableConfig";
 import ManageAutomationsModal from "./components/ManageAutomationsModal";
 import EmptySoftware from "../components/EmptySoftware";
+import ExternalLinkIcon from "../../../../assets/images/open-new-tab-12x12@2x.png";
 
 interface IManageSoftwarePageProps {
   router: InjectedRouter;
@@ -320,11 +317,7 @@ const ManageSoftwarePage = ({
 
   const renderSoftwareCount = useCallback(() => {
     const count = softwareCount;
-    const lastUpdatedAt = software?.counts_updated_at
-      ? formatDistanceToNowStrict(new Date(software?.counts_updated_at), {
-          addSuffix: true,
-        })
-      : software?.counts_updated_at;
+    const lastUpdatedAt = software?.counts_updated_at;
 
     if (!isSoftwareEnabled || !lastUpdatedAt) {
       return null;
@@ -339,44 +332,20 @@ const ManageSoftwarePage = ({
     }
 
     // TODO: Use setInterval to keep last updated time current?
-    return count !== undefined ? (
-      <span
-        className={`${baseClass}__count ${
-          isFetchingCount ? "count-loading" : ""
-        }`}
-      >
-        {`${count} software item${count === 1 ? "" : "s"}`}
-        <span className="count-last-updated">
-          {`Last updated ${lastUpdatedAt}`}{" "}
-          <span className={`tooltip`}>
-            <span
-              className={`tooltip__tooltip-icon`}
-              data-tip
-              data-for="last-updated-tooltip"
-              data-tip-disable={false}
-            >
-              <img alt="question icon" src={QuestionIcon} />
-            </span>
-            <ReactTooltip
-              place="top"
-              type="dark"
-              effect="solid"
-              backgroundColor="#3e4771"
-              id="last-updated-tooltip"
-              data-html
-            >
-              <span className={`tooltip__tooltip-text`}>
-                Fleet periodically
-                <br />
-                queries all hosts
-                <br />
-                to retrieve software
-              </span>
-            </ReactTooltip>
-          </span>
-        </span>
-      </span>
-    ) : null;
+    if (count) {
+      return (
+        <div
+          className={`${baseClass}__count ${
+            isFetchingCount ? "count-loading" : ""
+          }`}
+        >
+          <span>{`${count} software item${count === 1 ? "" : "s"}`}</span>
+          {renderLastUpdatedText(lastUpdatedAt, "software")}
+        </div>
+      );
+    }
+
+    return null;
   }, [isFetchingCount, software, softwareCountError, softwareCount]);
 
   // TODO: retool this with react-router location descriptor objects
