@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { IAceEditor } from "react-ace/lib/types";
-import { noop } from "lodash";
+import { noop, size } from "lodash";
+import { useDebouncedCallback } from "use-debounce/lib";
 
 import { ILabel, ILabelFormData } from "interfaces/label";
 import Button from "components/buttons/Button"; // @ts-ignore
@@ -36,6 +37,18 @@ const platformOptions = [
   { label: "Centos", value: "centos" },
 ];
 
+const validateQuerySQL = (query: string) => {
+  const errors: { [key: string]: any } = {};
+  const { error: queryError, valid: queryValid } = validateQuery(query);
+
+  if (!queryValid) {
+    errors.query = queryError;
+  }
+
+  const valid = !size(errors);
+  return { valid, errors };
+};
+
 const LabelForm = ({
   baseError,
   selectedLabel,
@@ -56,9 +69,27 @@ const LabelForm = ({
     selectedLabel?.platform || ""
   );
 
+  const debounceSQL = useDebouncedCallback((queryString: string) => {
+    let valid = true;
+    const { valid: isValidated, errors: newErrors } = validateQuerySQL(
+      queryString
+    );
+    valid = isValidated;
+
+    if (query === "") {
+      setQueryError("");
+    } else {
+      setQueryError(newErrors.query);
+    }
+  }, 500);
+
   useEffect(() => {
     setNameError(backendValidators.name);
   }, [backendValidators]);
+
+  useEffect(() => {
+    debounceSQL(query);
+  }, [query]);
 
   const onLoad = (editor: IAceEditor) => {
     editor.setOptions({
