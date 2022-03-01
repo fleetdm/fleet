@@ -460,7 +460,7 @@ func (svc *Service) detailQueriesForHost(ctx context.Context, host *fleet.Host) 
 					return nil, err
 				}
 			} else {
-				queries[hostDetailQueryPrefix+name+tracingContext] = query.Query
+				queries[hostDetailQueryPrefix+name] = query.Query
 			}
 		}
 	}
@@ -487,7 +487,7 @@ func (svc *Service) detailQueriesForHost(ctx context.Context, host *fleet.Host) 
 				return nil, err
 			}
 		} else {
-			queries[hostAdditionalQueryPrefix+name+tracingContext] = query
+			queries[hostAdditionalQueryPrefix+name] = query
 		}
 	}
 
@@ -648,7 +648,7 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (map[string]strin
 				return nil, err
 			}
 		} else {
-			queries[hostLabelQueryPrefix+name+tracingContext] = query
+			queries[hostLabelQueryPrefix+name] = query
 		}
 	}
 
@@ -670,7 +670,7 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (map[string]strin
 					return nil, err
 				}
 			} else {
-				queries[hostDistributedQueryPrefix+name+tracingContext] = query
+				queries[hostDistributedQueryPrefix+name] = query
 			}
 		}
 	}
@@ -691,7 +691,7 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (map[string]strin
 				return nil, err
 			}
 		} else {
-			queries[hostPolicyQueryPrefix+name+tracingContext] = query
+			queries[hostPolicyQueryPrefix+name] = query
 		}
 	}
 
