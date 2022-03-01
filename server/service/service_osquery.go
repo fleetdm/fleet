@@ -412,16 +412,22 @@ const hostPolicyQueryPrefix = "fleet_policy_query_"
 // run from a distributed query campaign
 const hostDistributedQueryPrefix = "fleet_distributed_query_"
 
-func getTracingContext(ctx context.Context) string {
-	var tracingContext string
+func getTracingContext(ctx context.Context) *osqueryNameEmbeddedData {
 	if transaction := apm.TransactionFromContext(ctx); transaction != nil {
 		traceContext := transaction.TraceContext()
-		traceparent := apmhttp.FormatTraceparentHeader(traceContext)
-		tracestate := traceContext.State.String()
-		tracingContext = fmt.Sprintf(",%s,%s", traceparent, tracestate)
+		return &osqueryNameEmbeddedData{
+			TraceParent: apmhttp.FormatTraceparentHeader(traceContext),
+			TraceState:  traceContext.State.String(),
+		}
 	}
-	fmt.Print(tracingContext)
-	return tracingContext
+	return nil
+}
+
+type osqueryNameEmbeddedData struct {
+	Name        string
+	Type        string
+	TraceParent string `json:",omitempty"`
+	TraceState  string `json:",omitempty"`
 }
 
 // detailQueriesForHost returns the map of detail+additional queries that should be executed by
@@ -441,9 +447,21 @@ func (svc *Service) detailQueriesForHost(ctx context.Context, host *fleet.Host) 
 
 	queries := make(map[string]string)
 	detailQueries := osquery_utils.GetDetailQueries(config, svc.config)
+	if tracingContext != nil {
+		tracingContext.Type = hostDetailQueryPrefix
+	}
 	for name, query := range detailQueries {
 		if query.RunsForPlatform(host.Platform) {
-			queries[hostDetailQueryPrefix+name+tracingContext] = query.Query
+			if tracingContext != nil {
+				tracingContext.Name = name
+				if queryName, err := json.Marshal(tracingContext); err == nil {
+					queries[string(queryName)] = query.Query
+				} else {
+					return nil, err
+				}
+			} else {
+				queries[hostDetailQueryPrefix+name+tracingContext] = query.Query
+			}
 		}
 	}
 
@@ -457,8 +475,20 @@ func (svc *Service) detailQueriesForHost(ctx context.Context, host *fleet.Host) 
 		return nil, ctxerr.Wrap(ctx, err, "unmarshal additional queries")
 	}
 
+	if tracingContext != nil {
+		tracingContext.Type = hostAdditionalQueryPrefix
+	}
 	for name, query := range additionalQueries {
-		queries[hostAdditionalQueryPrefix+name+tracingContext] = query
+		if tracingContext != nil {
+			tracingContext.Name = name
+			if queryName, err := json.Marshal(tracingContext); err == nil {
+				queries[string(queryName)] = query.Query
+			} else {
+				return nil, err
+			}
+		} else {
+			queries[hostAdditionalQueryPrefix+name+tracingContext] = query
+		}
 	}
 
 	return queries, nil
@@ -606,8 +636,20 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (map[string]strin
 	if err != nil {
 		return nil, 0, osqueryError{message: err.Error()}
 	}
+	if tracingContext != nil {
+		tracingContext.Type = hostLabelQueryPrefix
+	}
 	for name, query := range labelQueries {
-		queries[hostLabelQueryPrefix+name+tracingContext] = query
+		if tracingContext != nil {
+			tracingContext.Name = name
+			if queryName, err := json.Marshal(tracingContext); err == nil {
+				queries[string(queryName)] = query.Query
+			} else {
+				return nil, err
+			}
+		} else {
+			queries[hostLabelQueryPrefix+name+tracingContext] = query
+		}
 	}
 
 	if liveQueries, err := svc.liveQueryStore.QueriesForHost(host.ID); err != nil {
@@ -616,8 +658,20 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (map[string]strin
 		// thus we just log the error.
 		level.Error(svc.logger).Log("op", "QueriesForHost", "err", err)
 	} else {
+		if tracingContext != nil {
+			tracingContext.Type = hostDistributedQueryPrefix
+		}
 		for name, query := range liveQueries {
-			queries[hostDistributedQueryPrefix+name+tracingContext] = query
+			if tracingContext != nil {
+				tracingContext.Name = name
+				if queryName, err := json.Marshal(tracingContext); err == nil {
+					queries[string(queryName)] = query.Query
+				} else {
+					return nil, err
+				}
+			} else {
+				queries[hostDistributedQueryPrefix+name+tracingContext] = query
+			}
 		}
 	}
 
@@ -625,8 +679,20 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (map[string]strin
 	if err != nil {
 		return nil, 0, osqueryError{message: err.Error()}
 	}
+	if tracingContext != nil {
+		tracingContext.Type = hostPolicyQueryPrefix
+	}
 	for name, query := range policyQueries {
-		queries[hostPolicyQueryPrefix+name+tracingContext] = query
+		if tracingContext != nil {
+			tracingContext.Name = name
+			if queryName, err := json.Marshal(tracingContext); err == nil {
+				queries[string(queryName)] = query.Query
+			} else {
+				return nil, err
+			}
+		} else {
+			queries[hostPolicyQueryPrefix+name+tracingContext] = query
+		}
 	}
 
 	accelerate := uint(0)
