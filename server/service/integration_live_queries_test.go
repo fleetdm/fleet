@@ -66,6 +66,11 @@ func (s *liveQueriesTestSuite) SetupSuite() {
 	}
 }
 
+func (s *liveQueriesTestSuite) TearDownTest() {
+	// reset the mock
+	s.lq.Mock = mock.Mock{}
+}
+
 func (s *liveQueriesTestSuite) TestLiveQueriesRestOneHostOneQuery() {
 	t := s.T()
 
