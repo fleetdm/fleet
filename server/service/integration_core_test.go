@@ -3043,6 +3043,21 @@ func (s *integrationTestSuite) TestStatus() {
 	s.DoJSON("GET", "/api/v1/fleet/status/live_query", nil, http.StatusOK, &statusResp)
 }
 
+func (s *integrationTestSuite) TestOsqueryConfig() {
+	t := s.T()
+	hosts := s.createHosts(t)
+	req := getClientConfigRequest{NodeKey: hosts[0].NodeKey}
+
+	var resp getClientConfigResponse
+	s.DoJSON("POST", "/api/v1/osquery/config", req, http.StatusOK, &resp)
+
+	// test with invalid node key
+	var errRes map[string]interface{}
+	req.NodeKey += "zzzz"
+	s.DoJSON("POST", "/api/v1/osquery/config", req, http.StatusUnauthorized, &errRes)
+	assert.Contains(t, errRes["error"], "invalid node key")
+}
+
 // creates a session and returns it, its key is to be passed as authorization header.
 func createSession(t *testing.T, uid uint, ds fleet.Datastore) *fleet.Session {
 	key := make([]byte, 64)
