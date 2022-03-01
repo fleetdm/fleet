@@ -1,5 +1,4 @@
 import React, { FormEvent, useState, useEffect } from "react";
-import ReactTooltip from "react-tooltip";
 import { Link } from "react-router";
 import PATHS from "router/paths";
 import { useDispatch } from "react-redux";
@@ -7,23 +6,14 @@ import { useDispatch } from "react-redux";
 import { ITeam } from "interfaces/team";
 import { IUserFormErrors } from "interfaces/user"; // @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions";
-
 // ignore TS error for now until these are rewritten in ts.
 import Button from "components/buttons/Button";
 import validatePresence from "components/forms/validators/validate_presence";
 import validEmail from "components/forms/validators/valid_email"; // @ts-ignore
 import validPassword from "components/forms/validators/valid_password"; // @ts-ignore
-// @ts-ignore
-import { renderFlash } from "redux/nodes/notifications/actions";
-// @ts-ignore
-import validPassword from "components/forms/validators/valid_password";
-import IconToolTip from "components/IconToolTip";
-// @ts-ignore
-import InputField from "components/forms/fields/InputField";
-// @ts-ignore
+import InputField from "components/forms/fields/InputField"; // @ts-ignore
 import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon";
-import Checkbox from "components/forms/fields/Checkbox";
-// @ts-ignore
+import Checkbox from "components/forms/fields/Checkbox"; // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 import Radio from "components/forms/fields/Radio";
 import InfoBanner from "components/InfoBanner/InfoBanner";
