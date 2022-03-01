@@ -62,7 +62,7 @@ const PlatformWrapper = ({
   selectedTeam,
   onCancel,
 }: IPlatformWrapperProp): JSX.Element => {
-  const { config } = useContext(AppContext);
+  const { config, isPreviewMode } = useContext(AppContext);
   const [copyMessage, setCopyMessage] = useState<string>("");
 
   const dispatch = useDispatch();
@@ -75,6 +75,7 @@ const PlatformWrapper = ({
     ["certificate"],
     () => configAPI.loadCertificate(),
     {
+      enabled: !isPreviewMode,
       refetchOnWindowFocus: false,
     }
   );
@@ -257,7 +258,7 @@ const PlatformWrapper = ({
                 </p>
               )}
               {!isFetchingCertificate &&
-                (!fetchCertificateError ? (
+                (certificate ? (
                   <p>
                     Prove the TLS certificate used by the Fleet server to enable
                     secure connections from osquery:
