@@ -400,7 +400,7 @@ func (u *Updater) download(target, repoPath, localPath string) error {
 		return fmt.Errorf("exec check failed %q: %w", tmp.Name(), err)
 	}
 
-	if constant.PlatformName == "windows" {
+	if runtime.GOOS == "windows" {
 		// Remove old file first
 		if err := os.Rename(localPath, localPath+".old"); err != nil && !errors.Is(err, os.ErrNotExist) {
 			return fmt.Errorf("rename old: %w", err)
@@ -414,14 +414,25 @@ func (u *Updater) download(target, repoPath, localPath string) error {
 	return nil
 }
 
+func goosFromPlatform(platform string) string {
+	switch platform {
+	case "macos", "macos-app":
+		return "darwin"
+	default:
+		return platform
+	}
+}
+
 // checkExec checks/verifies a downloaded executable target by executing it.
 func (u *Updater) checkExec(target, path string) error {
 	localTarget, err := u.localTarget(target)
 	if err != nil {
 		return err
 	}
-	if localTarget.info.Platform != runtime.GOOS {
+	if goosFromPlatform(localTarget.info.Platform) != runtime.GOOS {
 		// Nothing to do, we can't check the executable if running cross-platform.
+		// This generally happens when generating a package from a different platform
+		// than the target package (e.g. generating an MSI from macOS).
 		return nil
 	}
 
@@ -465,6 +476,11 @@ func extractTarGz(path string) error {
 			return nil
 		default:
 			return fmt.Errorf("tar reader %q: %w", path, err)
+		}
+
+		// Prevent zip-slip attack.
+		if strings.Contains(header.Name, "..") {
+			return fmt.Errorf("invalid path in tar.gz: %q", header.Name)
 		}
 
 		targetPath := filepath.Join(filepath.Dir(path), header.Name)

@@ -43,21 +43,23 @@ func TestMakeRepoPath(t *testing.T) {
 		{platform: "linux", name: "osqueryd", version: "3.3.2", expected: "osqueryd/linux/3.3.2/osqueryd"},
 		{platform: "macos", name: "osqueryd", version: "4.6.0", expected: "osqueryd/macos/4.6.0/osqueryd"},
 		{platform: "macos", name: "osqueryd", version: "3.3.2", expected: "osqueryd/macos/3.3.2/osqueryd"},
+		{platform: "macos-app", name: "osqueryd", version: "3.3.2", expected: "osqueryd/macos-app/3.3.2/osqueryd.app.tar.gz"},
 		{platform: "windows", name: "osqueryd", version: "4.6.0", expected: "osqueryd/windows/4.6.0/osqueryd.exe"},
 		{platform: "windows", name: "osqueryd", version: "3.3.2", expected: "osqueryd/windows/3.3.2/osqueryd.exe"},
 	}
 
 	for _, tt := range testCases {
+		tt := tt
 		t.Run(tt.expected, func(t *testing.T) {
 			t.Parallel()
 
 			opt := DefaultOptions
 
-			osqueryd := opt.Targets["osqueryd"]
+			osqueryd := opt.Targets[tt.name]
 			osqueryd.Platform = tt.platform
 			osqueryd.Channel = tt.version
 			osqueryd.TargetFile = filepath.Base(tt.expected)
-			opt.Targets["osqueryd"] = osqueryd
+			opt.Targets[tt.name] = osqueryd
 
 			u := Updater{opt: opt}
 			repoPath, err := u.repoPath(tt.name)
