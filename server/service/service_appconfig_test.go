@@ -279,10 +279,8 @@ func TestService_LoggingConfig(t *testing.T) {
 			},
 		},
 		{
-			name: "test unrecognized config",
-			fields: fields{config: config.FleetConfig{
-				Osquery: config.OsqueryConfig{ResultLogPlugin: "bar", StatusLogPlugin: "bar"},
-			}},
+			name:    "test unrecognized config",
+			fields:  fields{config: testUnrecognizedPluginConfig()},
 			args:    args{ctx: test.UserContext(test.UserAdmin)},
 			wantErr: true,
 			want:    nil,

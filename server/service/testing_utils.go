@@ -186,7 +186,6 @@ func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...TestServe
 
 func testKinesisPluginConfig() config.FleetConfig {
 	c := config.TestConfig()
-	c.Filesystem = config.FilesystemConfig{}
 	c.Osquery.ResultLogPlugin = "kinesis"
 	c.Osquery.StatusLogPlugin = "kinesis"
 	c.Kinesis = config.KinesisConfig{
@@ -202,7 +201,6 @@ func testKinesisPluginConfig() config.FleetConfig {
 
 func testFirehosePluginConfig() config.FleetConfig {
 	c := config.TestConfig()
-	c.Filesystem = config.FilesystemConfig{}
 	c.Osquery.ResultLogPlugin = "firehose"
 	c.Osquery.StatusLogPlugin = "firehose"
 	c.Firehose = config.FirehoseConfig{
@@ -218,7 +216,6 @@ func testFirehosePluginConfig() config.FleetConfig {
 
 func testLambdaPluginConfig() config.FleetConfig {
 	c := config.TestConfig()
-	c.Filesystem = config.FilesystemConfig{}
 	c.Osquery.ResultLogPlugin = "lambda"
 	c.Osquery.StatusLogPlugin = "lambda"
 	c.Lambda = config.LambdaConfig{
@@ -234,7 +231,6 @@ func testLambdaPluginConfig() config.FleetConfig {
 
 func testPubSubPluginConfig() config.FleetConfig {
 	c := config.TestConfig()
-	c.Filesystem = config.FilesystemConfig{}
 	c.Osquery.ResultLogPlugin = "pubsub"
 	c.Osquery.StatusLogPlugin = "pubsub"
 	c.PubSub = config.PubSubConfig{
@@ -248,9 +244,14 @@ func testPubSubPluginConfig() config.FleetConfig {
 
 func testStdoutPluginConfig() config.FleetConfig {
 	c := config.TestConfig()
-	c.Filesystem = config.FilesystemConfig{}
 	c.Osquery.ResultLogPlugin = "stdout"
 	c.Osquery.StatusLogPlugin = "stdout"
+	return c
+}
+
+func testUnrecognizedPluginConfig() config.FleetConfig {
+	c := config.TestConfig()
+	c.Osquery = config.OsqueryConfig{ResultLogPlugin: "bar", StatusLogPlugin: "bar"}
 	return c
 }
 
