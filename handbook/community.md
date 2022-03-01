@@ -17,9 +17,36 @@ Fleet's users and broader audience are spread across many online platforms.  Her
 
 ## Posting on social media as Fleet
 
+Posting to social media should follow a [personable tone](https://fleetdm.com/handbook/brand#communicating-as-fleet) and strive to deliver useful information across our social accounts.
+
+### Topics:
+
+- Fleet the product
+- Internal progress
+- Highlighting [community contributions](https://fleetdm.com/handbook/community#community-contributions-pull-requests)
+- Highlighting Fleet and osquery accomplishments
+- Industry news about osquery
+- Industry news about device management
+- Upcoming events, interviews, and podcasts
+
+### Guidelines:
+
+In keeping with our tone, only use hashtags inline, and only when it feels natural to do so. If it feels forced, don’t include any.
+
 Self-promotional tweets are non-ideal tweets.  (Same goes for, to varying degrees, Reddit, HN, Quora, StackOverflow, LinkedIn, Slack, and almost anywhere else.)  See also https://www.audible.com/pd/The-Impact-Equation-Audiobook/B00AR1VFBU
 
 Great brands are [magnanimous](https://en.wikipedia.org/wiki/Magnanimity).
+
+### Scheduling:
+
+Once a post has been drafted it needs to be delivered to our three main platforms.
+
+- [Twitter](https://twitter.com/fleetctl)
+- [LinkedIn](https://www.linkedin.com/company/fleetdm/)
+- [Facebook](https://www.facebook.com/fleetdm)
+
+Log in to [Sprout Social](https://app.sproutsocial.com/publishing/) and use the compose tool to deliver the post to each platform. (credentials in 1Password).
+
 
 ## Promoting blog posts on social media
 
