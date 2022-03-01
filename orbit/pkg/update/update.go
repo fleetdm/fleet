@@ -414,12 +414,14 @@ func (u *Updater) download(target, repoPath, localPath string) error {
 	return nil
 }
 
-func goosFromPlatform(platform string) string {
+func goosFromPlatform(platform string) (string, error) {
 	switch platform {
 	case "macos", "macos-app":
-		return "darwin"
+		return "darwin", nil
+	case "windows", "linux":
+		return platform, nil
 	default:
-		return platform
+		return "", fmt.Errorf("unknown platform: %s", platform)
 	}
 }
 
@@ -429,10 +431,14 @@ func (u *Updater) checkExec(target, path string) error {
 	if err != nil {
 		return err
 	}
-	if goosFromPlatform(localTarget.info.Platform) != runtime.GOOS {
+	platformGOOS, err := goosFromPlatform(localTarget.info.Platform)
+	if err != nil {
+		return err
+	}
+	if platformGOOS != runtime.GOOS {
 		// Nothing to do, we can't check the executable if running cross-platform.
 		// This generally happens when generating a package from a different platform
-		// than the target package (e.g. generating an MSI from macOS).
+		// than the target package (e.g. generating an MSI package from macOS).
 		return nil
 	}
 
@@ -440,6 +446,7 @@ func (u *Updater) checkExec(target, path string) error {
 		if err := extractTarGz(path); err != nil {
 			return fmt.Errorf("extract %q: %w", path, err)
 		}
+		// Remove extracted directory after the download check.
 		defer os.RemoveAll(localTarget.dirPath)
 		path = localTarget.execPath
 	}
