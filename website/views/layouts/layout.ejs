@@ -74,7 +74,7 @@
             <% } %>
           </a>
           <div class="d-flex d-lg-none">
-            <button style="font-size: 16px; text-decoration: none;" class="header-btn btn btn-link d-flex align-items-center" data-toggle="collapse" data-target="#navbarToggleExternalContent">
+            <button purpose="header-btn" style="font-size: 16px; text-decoration: none;" class="btn btn-link d-flex align-items-center" data-toggle="collapse" data-target="#navbarToggleExternalContent">
               <span class="mr-2">Menu</span>
               <% /* The hamburger icon on the homepage is white */ %>
               <% if (isHomepage) { %>
@@ -84,49 +84,92 @@
               <% } %>
             </button>
           </div>
-          <div class="mobile-menu collapse px-4 px-sm-5" id="navbarToggleExternalContent">
+          <%/* Mobile Navigation menu */%>
+          <div purpose="mobile-nav" class="collapse px-4 px-sm-5" id="navbarToggleExternalContent">
             <div class="d-flex justify-content-between">
               <a href="/">
                 <img alt="Fleet logo" src="/images/logo-blue-162x92@2x.png" style="height: 92px; width: 162px;" class="mt-3"/>
               </a>
-              <button style="font-size: 16px; text-decoration: none;" class="header-btn btn btn-link d-flex align-items-center" data-toggle="collapse" data-target="#navbarToggleExternalContent">
+              <button style="font-size: 16px; text-decoration: none;" class="btn btn-link d-flex align-items-center" data-toggle="collapse" data-target="#navbarToggleExternalContent">
                 <img alt="An 'X' icon indicating that this can be interacted with to close the navigation menu." src="/images/icon-close-16x16@2x.png" style="width: 16px;" />
               </button>
             </div>
-            <div class="pt-2">
-              <a href="/platform" class="menu-link d-flex align-items-center px-3 py-2 mb-4" style="text-decoration: none; font-weight: 700;">Platform</a>
-              <a href="/docs" class="menu-link d-flex align-items-center px-3 py-2 mb-4 text-decoration-none" style="text-decoration: none; font-weight: 700;">Docs</a>
-              <a href="/queries" class="menu-link d-flex align-items-center px-3 py-2 mb-4 text-decoration-none" style="text-decoration: none; font-weight: 700;">Queries</a>
-              <a href="/pricing" class="menu-link d-flex align-items-center px-3 py-2 mb-4 text-decoration-none" style="text-decoration: none; font-weight: 700;">Pricing</a>
+            <div id="mobileDropdowns" class="py-2">
+              <a purpose="mobile-dropdown-toggle" class="d-flex align-items-center collapsed" data-toggle="collapse" data-target="#mobileNavbarToggleUseCases" aria-haspopup="true" aria-expanded="false">Use cases</a>
+              <div class="d-block">
+                <div id="mobileNavbarToggleUseCases" purpose="mobile-dropdown" class="collapse align-items-start" data-parent="#mobileDropdowns">
+                  <a class="mb-1" href="/platform">How it works</a>
+                  <span>SUCCESS STORIES</span>
+                  <a class="pl-3 mb-1" href="https://blog.fleetdm.com/fleet-user-stories-e492a08cebfc">Wayfair</a>
+                  <a class="pl-3 mb-1" href="https://blog.fleetdm.com/fleet-user-stories-200c94ca8a10">Schrödinger</a>
+                  <a class="pl-3 mb-1" href="https://blog.fleetdm.com/fleet-user-stories-e5dc300b9e1c">F100 security & networking co.</a>
+                </div>
+              </div>
+              <hr>
+              <a purpose="mobile-dropdown-toggle" class="d-flex align-items-center mr-4 collapsed mb-0"  data-toggle="collapse" data-target="#mobileNavbarToggleDocumentation" aria-haspopup="true" aria-expanded="false">Documentation</a>
+              <div class="d-block">
+                <div id="mobileNavbarToggleDocumentation" purpose="mobile-dropdown" class="collapse" data-parent="#mobileDropdowns">
+                  <a class="mb-1" href="/docs">Docs</a>
+                  <a class="mb-1" href="https://github.com/fleetdm/fleet/releases">Releases</a>
+                  <a class="mb-1" href="/queries">Query library</a>
+                  <span>GUIDES</span>
+                  <a class="pl-3 mb-1" href="https://blog.fleetdm.com/deploying-fleet-on-aws-with-terraform-a58a908e8d40">Deploy on AWS with Terraform</a>
+                  <a class="pl-3 mb-1" href="https://blog.fleetdm.com/deploying-fleet-on-render-2d743aed213f">Deploy on Render</a>
+                </div>
+              </div>
+              <hr>
+              <a purpose="mobile-dropdown-toggle" class="d-flex align-items-center mr-4 collapsed mb-0" data-toggle="collapse" data-target="#mobileNavbarToggleCommunity">Community</a>
+              <div class="d-block">
+                <div id="mobileNavbarToggleCommunity" purpose="mobile-dropdown" class="collapse" data-parent="#mobileDropdowns">
+                  <a class="mb-1" href="/docs/contributing">Contribute</a>
+                  <a class="mb-1" href="/blog">Blog</a>
+                  <a class="mb-1" href="/logos">Logos & artwork</a>
+                </div>
+              </div>
+              <hr>
+              <a href="/pricing" class="d-flex align-items-center mb-2 pb-3" style="text-decoration: none; font-weight: 700;">Pricing</a>
               <a style="padding: 4px 16px; line-height: 24px; width: 100px" class="btn btn-sm btn-primary align-items-center d-flex " href="/get-started">Try it out</a>
-              <!-- <a href="/blog" class="menu-link d-flex align-items-center px-3 py-2 mb-4 text-decoration-none" style="text-decoration: none; font-weight: 700;">Blog</a> -->
-              <!-- <a href="/company/contact" class="menu-link d-flex align-items-center px-3 py-2 mb-4 text-decoration-none" style=" text-decoration: none; color: #192147; font-weight: 700;">Contact</a> -->
-              <!-- <a target="_blank" href="https://github.com/fleetdm/fleet" class="menu-link d-flex align-items-center px-3 py-2" style=" text-decoration: none; font-weight: 700;">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path fill-rule="evenodd" clip-rule="evenodd" d="M11.9633 0.5C5.3578 0.5 0 5.8578 0 12.4633C0 17.7477 3.44954 22.2248 8.14679 23.8394C8.73394 23.9128 8.95413 23.5459 8.95413 23.2523C8.95413 22.9587 8.95413 22.2248 8.95413 21.1972C5.65138 21.9312 4.91743 19.5826 4.91743 19.5826C4.40367 18.1881 3.59633 17.8211 3.59633 17.8211C2.49541 17.0872 3.66972 17.0872 3.66972 17.0872C4.84404 17.1606 5.50459 18.3349 5.50459 18.3349C6.6055 20.1697 8.29358 19.656 8.95413 19.3624C9.02752 18.555 9.3945 18.0413 9.68807 17.7477C7.04587 17.4541 4.25688 16.4266 4.25688 11.8028C4.25688 10.4817 4.69725 9.45413 5.50459 8.57339C5.43119 8.35321 4.99083 7.1055 5.65138 5.49083C5.65138 5.49083 6.6789 5.19725 8.95413 6.73853C9.90826 6.44495 10.9358 6.37156 11.9633 6.37156C12.9908 6.37156 14.0183 6.51835 14.9725 6.73853C17.2477 5.19725 18.2752 5.49083 18.2752 5.49083C18.9358 7.1055 18.4954 8.35321 18.422 8.64679C19.156 9.45413 19.6697 10.555 19.6697 11.8761C19.6697 16.5 16.8807 17.4541 14.2385 17.7477C14.6789 18.1147 15.0459 18.8486 15.0459 19.9495C15.0459 21.5642 15.0459 22.8119 15.0459 23.2523C15.0459 23.5459 15.2661 23.9128 15.8532 23.8394C20.6239 22.2248 24 17.7477 24 12.4633C23.9266 5.8578 18.5688 0.5 11.9633 0.5Z" fill="#192147"/>
-                </svg>
-                <span class="ml-2">GitHub</span>
-              </a> -->
             </div>
           </div>
-          <div class="d-none d-lg-flex">
-            <a href="/platform" class="header-link d-flex align-items-center px-3 py-2 mr-4 text-decoration-none <%= typeof currentPage !== 'undefined' && currentPage === 'platform' ? 'current-page' : '' %>" style="text-decoration: none; line-height: 23px;">Platform</a>
-            <a href="/docs" class="header-link d-flex align-items-center px-3 py-2 mr-4 text-decoration-none <%= typeof currentPage !== 'undefined' && currentPage === 'docs' ? 'current-page' : '' %>" style=" text-decoration: none; line-height: 23px;">Docs</a>
-            <a href="/queries" class="header-link d-flex align-items-center px-3 py-2 mr-4 text-decoration-none <%= typeof currentPage !== 'undefined' && currentPage === 'queries' ? 'current-page' : '' %>" style=" text-decoration: none; line-height: 23px;">Queries</a>
-            <a href="/pricing" class="header-link d-flex align-items-center px-3 py-2 mr-4 text-decoration-none <%= typeof currentPage !== 'undefined' && currentPage === 'pricing' ?  'current-page' : '' %>" style=" text-decoration: none; line-height: 23px;">Pricing</a>
-            <!-- <a target="_blank" href="/blog" class="header-link d-flex align-items-center px-3 py-2 mr-4 text-decoration-none" style=" text-decoration: none; line-height: 23px;">Blog</a> -->
-            <!-- <a href="/company/contact" class="header-link d-flex align-items-center px-3 py-2 mr-4 text-decoration-none" style=" text-decoration: none; line-height: 23px;">Contact</a> -->
-            <!-- <a target="_blank" href="https://github.com/fleetdm/fleet" class="header-link d-flex align-items-center px-3 py-2" style=" text-decoration: none;line-height: 23px;">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path fill-rule="evenodd" clip-rule="evenodd" d="M11.9633 0.5C5.3578 0.5 0 5.8578 0 12.4633C0 17.7477 3.44954 22.2248 8.14679 23.8394C8.73394 23.9128 8.95413 23.5459 8.95413 23.2523C8.95413 22.9587 8.95413 22.2248 8.95413 21.1972C5.65138 21.9312 4.91743 19.5826 4.91743 19.5826C4.40367 18.1881 3.59633 17.8211 3.59633 17.8211C2.49541 17.0872 3.66972 17.0872 3.66972 17.0872C4.84404 17.1606 5.50459 18.3349 5.50459 18.3349C6.6055 20.1697 8.29358 19.656 8.95413 19.3624C9.02752 18.555 9.3945 18.0413 9.68807 17.7477C7.04587 17.4541 4.25688 16.4266 4.25688 11.8028C4.25688 10.4817 4.69725 9.45413 5.50459 8.57339C5.43119 8.35321 4.99083 7.1055 5.65138 5.49083C5.65138 5.49083 6.6789 5.19725 8.95413 6.73853C9.90826 6.44495 10.9358 6.37156 11.9633 6.37156C12.9908 6.37156 14.0183 6.51835 14.9725 6.73853C17.2477 5.19725 18.2752 5.49083 18.2752 5.49083C18.9358 7.1055 18.4954 8.35321 18.422 8.64679C19.156 9.45413 19.6697 10.555 19.6697 11.8761C19.6697 16.5 16.8807 17.4541 14.2385 17.7477C14.6789 18.1147 15.0459 18.8486 15.0459 19.9495C15.0459 21.5642 15.0459 22.8119 15.0459 23.2523C15.0459 23.5459 15.2661 23.9128 15.8532 23.8394C20.6239 22.2248 24 17.7477 24 12.4633C23.9266 5.8578 18.5688 0.5 11.9633 0.5Z" fill="#192147"/>
-              </svg>
-              <span style="line-height: 24px;" class="ml-2 mr-4">GitHub</span>
-            </a> -->
-            <span class="header-link d-flex align-items-center mr-4 text-decoration-none">
+          <%/* Desktop Navigation bar */%>
+          <div purpose="header-nav" class="header-link d-none d-lg-flex align-items-center">
+            <div class="btn-group">
+              <a class="dropdown-toggle d-flex align-items-center py-2 px-3" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Use cases</a>
+              <div purpose="header-dropdown" class="dropdown-menu">
+                <a class="dropdown-item mb-1" href="/platform">How it works</a>
+                <div class="dropdown-divider"></div>
+                <h6 class="muted dropdown-header">SUCCESS STORIES</h6>
+                <a class="dropdown-item mb-1" href="https://blog.fleetdm.com/fleet-user-stories-e492a08cebfc">Wayfair</a>
+                <a class="dropdown-item mb-1" href="https://blog.fleetdm.com/fleet-user-stories-200c94ca8a10">Schrödinger</a>
+                <a class="dropdown-item" href="https://blog.fleetdm.com/fleet-user-stories-e5dc300b9e1c">F100 security & networking co.</a>
+              </div>
+            </div>
+            <div class="btn-group">
+              <a class="header-link dropdown-toggle d-flex align-items-center py-2 px-3" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Documentation</a>
+              <div purpose="header-dropdown" class="dropdown-menu">
+                <a class="dropdown-item mb-1" href="/docs">Docs</a>
+                <a class="dropdown-item mb-1" href="https://github.com/fleetdm/fleet/releases">Releases</a>
+                <a class="dropdown-item mb-1" href="/queries">Query library</a>
+                <div class="dropdown-divider"></div>
+                <span class="muted dropdown-header">GUIDES</span>
+                <a class="dropdown-item mb-1" href="https://blog.fleetdm.com/deploying-fleet-on-aws-with-terraform-a58a908e8d40">Deploy on AWS with Terraform</a>
+                <a class="dropdown-item" href="https://blog.fleetdm.com/deploying-fleet-on-render-2d743aed213f">Deploy on Render</a>
+              </div>
+            </div>
+            <div class="btn-group">
+              <a class="header-link dropdown-toggle d-flex align-items-center py-2 px-3" data-toggle="dropdown">Community</a>
+              <div purpose="header-dropdown" class="dropdown-menu">
+                <a class="dropdown-item mb-1" href="/docs/contributing">Contribute</a>
+                <a class="dropdown-item mb-1" href="/blog">Blog</a>
+                <a class="dropdown-item" href="/logos">Logos & artwork</a>
+              </div>
+            </div>
+            <a href="/pricing" class="header-link d-flex align-items-center py-2 px-3" style="text-decoration: none; line-height: 23px;">Pricing</a>
+            <span class="d-flex align-items-center px-3">
               <iframe src="//ghbtns.com/github-btn.html?user=fleetdm&amp;repo=fleet&amp;type=watch&amp;count=true"
               allowtransparency="true" frameborder="0" scrolling="0" width="100" height="20"></iframe>
             </span>
-            <a style="padding: 4px 16px; line-height: 24px;" class="btn btn-sm btn-primary align-items-center d-flex" href="/get-started">Try it out</a>
+            <a style="padding: 4px 16px; line-height: 24px; color: #FFFFFF" class="btn btn-sm btn-primary align-items-center d-flex" href="/get-started">Try it out</a>
           </div>
         </div>
       </div>
