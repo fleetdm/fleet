@@ -3127,6 +3127,167 @@ func (s *integrationTestSuite) TestEnrollHost() {
 	require.NotEmpty(t, resp.NodeKey)
 }
 
+func (s *integrationTestSuite) TestCarve() {
+	t := s.T()
+	hosts := s.createHosts(t)
+
+	// begin a carve with an invalid node key
+	var errRes map[string]interface{}
+	s.DoJSON("POST", "/api/v1/osquery/carve/begin", carveBeginRequest{
+		NodeKey:    hosts[0].NodeKey + "zzz",
+		BlockCount: 1,
+		BlockSize:  1,
+		CarveSize:  1,
+		CarveId:    "c1",
+	}, http.StatusUnauthorized, &errRes)
+	assert.Contains(t, errRes["error"], "invalid node key")
+
+	// invalid carve size
+	s.DoJSON("POST", "/api/v1/osquery/carve/begin", carveBeginRequest{
+		NodeKey:    hosts[0].NodeKey,
+		BlockCount: 3,
+		BlockSize:  3,
+		CarveSize:  0,
+		CarveId:    "c1",
+	}, http.StatusInternalServerError, &errRes) // TODO: should be 4xx, see #4406
+	assert.Contains(t, errRes["error"], "carve_size must be greater")
+
+	// invalid block size too big
+	s.DoJSON("POST", "/api/v1/osquery/carve/begin", carveBeginRequest{
+		NodeKey:    hosts[0].NodeKey,
+		BlockCount: 3,
+		BlockSize:  maxBlockSize + 1,
+		CarveSize:  maxCarveSize,
+		CarveId:    "c1",
+	}, http.StatusInternalServerError, &errRes) // TODO: should be 4xx, see #4406
+	assert.Contains(t, errRes["error"], "block_size exceeds max")
+
+	// invalid carve size too big
+	s.DoJSON("POST", "/api/v1/osquery/carve/begin", carveBeginRequest{
+		NodeKey:    hosts[0].NodeKey,
+		BlockCount: 3,
+		BlockSize:  maxBlockSize,
+		CarveSize:  maxCarveSize + 1,
+		CarveId:    "c1",
+	}, http.StatusInternalServerError, &errRes) // TODO: should be 4xx, see #4406
+	assert.Contains(t, errRes["error"], "carve_size exceeds max")
+
+	// invalid carve size, does not match blocks
+	s.DoJSON("POST", "/api/v1/osquery/carve/begin", carveBeginRequest{
+		NodeKey:    hosts[0].NodeKey,
+		BlockCount: 3,
+		BlockSize:  3,
+		CarveSize:  1,
+		CarveId:    "c1",
+	}, http.StatusInternalServerError, &errRes) // TODO: should be 4xx, see #4406
+	assert.Contains(t, errRes["error"], "carve_size does not match")
+
+	// valid carve begin
+	var beginResp carveBeginResponse
+	s.DoJSON("POST", "/api/v1/osquery/carve/begin", carveBeginRequest{
+		NodeKey:    hosts[0].NodeKey,
+		BlockCount: 3,
+		BlockSize:  3,
+		CarveSize:  8,
+		CarveId:    "c1",
+		RequestId:  "r1",
+	}, http.StatusOK, &beginResp)
+	require.NotEmpty(t, beginResp.SessionId)
+	sid := beginResp.SessionId
+
+	// duplicate carve begin, same carve id/request id
+	s.DoJSON("POST", "/api/v1/osquery/carve/begin", carveBeginRequest{
+		NodeKey:    hosts[0].NodeKey,
+		BlockCount: 3,
+		BlockSize:  3,
+		CarveSize:  8,
+		CarveId:    "c1",
+		RequestId:  "r1",
+	}, http.StatusInternalServerError, &errRes) // TODO: should be 409, see  #4406
+	assert.Contains(t, errRes["error"], "Error 1062: Duplicate entry")
+
+	// sending a block with invalid session id
+	var blockResp carveBlockResponse
+	s.DoJSON("POST", "/api/v1/osquery/carve/block", carveBlockRequest{
+		BlockId:   1,
+		SessionId: sid + "zz",
+		RequestId: "??",
+		Data:      []byte("p1."),
+	}, http.StatusNotFound, &blockResp)
+
+	// sending a block with valid session id but invalid request id
+	s.DoJSON("POST", "/api/v1/osquery/carve/block", carveBlockRequest{
+		BlockId:   1,
+		SessionId: sid,
+		RequestId: "??",
+		Data:      []byte("p1."),
+	}, http.StatusInternalServerError, &blockResp) // TODO: should be 400, see #4406
+
+	// sending a block with unexpected block id (expects 0, got 1)
+	s.DoJSON("POST", "/api/v1/osquery/carve/block", carveBlockRequest{
+		BlockId:   1,
+		SessionId: sid,
+		RequestId: "r1",
+		Data:      []byte("p1."),
+	}, http.StatusInternalServerError, &blockResp) // TODO: should be 400, see #4406
+
+	// sending a block with valid payload, block 0
+	s.DoJSON("POST", "/api/v1/osquery/carve/block", carveBlockRequest{
+		BlockId:   0,
+		SessionId: sid,
+		RequestId: "r1",
+		Data:      []byte("p1."),
+	}, http.StatusOK, &blockResp)
+	require.True(t, blockResp.Success)
+
+	// sending next block
+	blockResp = carveBlockResponse{}
+	s.DoJSON("POST", "/api/v1/osquery/carve/block", carveBlockRequest{
+		BlockId:   1,
+		SessionId: sid,
+		RequestId: "r1",
+		Data:      []byte("p2."),
+	}, http.StatusOK, &blockResp)
+	require.True(t, blockResp.Success)
+
+	// sending already-sent block again
+	blockResp = carveBlockResponse{}
+	s.DoJSON("POST", "/api/v1/osquery/carve/block", carveBlockRequest{
+		BlockId:   1,
+		SessionId: sid,
+		RequestId: "r1",
+		Data:      []byte("p2."),
+	}, http.StatusInternalServerError, &blockResp) // TODO: should be 400, see #4406
+
+	// sending final block with too many bytes
+	blockResp = carveBlockResponse{}
+	s.DoJSON("POST", "/api/v1/osquery/carve/block", carveBlockRequest{
+		BlockId:   2,
+		SessionId: sid,
+		RequestId: "r1",
+		Data:      []byte("p3extra"),
+	}, http.StatusInternalServerError, &blockResp) // TODO: should be 400, see #4406
+
+	// sending actual final block
+	blockResp = carveBlockResponse{}
+	s.DoJSON("POST", "/api/v1/osquery/carve/block", carveBlockRequest{
+		BlockId:   2,
+		SessionId: sid,
+		RequestId: "r1",
+		Data:      []byte("p3"),
+	}, http.StatusOK, &blockResp)
+	require.True(t, blockResp.Success)
+
+	// sending unexpected block
+	blockResp = carveBlockResponse{}
+	s.DoJSON("POST", "/api/v1/osquery/carve/block", carveBlockRequest{
+		BlockId:   3,
+		SessionId: sid,
+		RequestId: "r1",
+		Data:      []byte("p4."),
+	}, http.StatusInternalServerError, &blockResp) // TODO: should be 400, see #4406
+}
+
 // creates a session and returns it, its key is to be passed as authorization header.
 func createSession(t *testing.T, uid uint, ds fleet.Datastore) *fleet.Session {
 	key := make([]byte, 64)
