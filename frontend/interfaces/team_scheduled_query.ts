@@ -40,6 +40,8 @@ export interface ITeamScheduledQuery {
   shard?: number;
   denylist?: boolean;
   stats?: IScheduledQueryStats;
+  logging_type?: string;
+  team_id: number;
 }
 
 export interface ILoadAllTeamScheduledQueriesResponse {

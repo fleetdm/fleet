@@ -40,6 +40,7 @@ export interface IGlobalScheduledQuery {
   shard?: number;
   denylist?: boolean;
   stats?: IScheduledQueryStats;
+  logging_type?: string;
 }
 
 export interface ILoadAllGlobalScheduledQueriesResponse {

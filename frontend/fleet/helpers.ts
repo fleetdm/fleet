@@ -13,13 +13,18 @@ import { IConfigNested } from "interfaces/config";
 import { ILabel } from "interfaces/label";
 import { IPack } from "interfaces/pack";
 import {
+  IScheduledQuery,
+  IPackQueryFormData,
+} from "interfaces/scheduled_query";
+import { IGlobalScheduledQuery } from "interfaces/global_scheduled_query";
+import { ITeamScheduledQuery } from "interfaces/team_scheduled_query";
+import {
   ISelectTargetsEntity,
   ISelectedTargets,
   IPackTargets,
 } from "interfaces/target";
 import { ITeam, ITeamSummary } from "interfaces/team";
 import { IUser } from "interfaces/user";
-import { IPackQueryFormData } from "interfaces/scheduled_query";
 
 import stringUtils from "utilities/strings";
 import sortUtils from "utilities/sort";
@@ -295,7 +300,9 @@ export const formatScheduledQueryForServer = (
   return result;
 };
 
-export const formatScheduledQueryForClient = (scheduledQuery: any): any => {
+export const formatScheduledQueryForClient = (
+  scheduledQuery: IScheduledQuery
+): IScheduledQuery => {
   if (scheduledQuery.platform === "") {
     scheduledQuery.platform = "all";
   }
@@ -319,7 +326,9 @@ export const formatScheduledQueryForClient = (scheduledQuery: any): any => {
   return scheduledQuery;
 };
 
-export const formatGlobalScheduledQueryForServer = (scheduledQuery: any) => {
+export const formatGlobalScheduledQueryForServer = (
+  scheduledQuery: IGlobalScheduledQuery
+): IGlobalScheduledQuery => {
   const {
     interval,
     logging_type: loggingType,
@@ -354,8 +363,8 @@ export const formatGlobalScheduledQueryForServer = (scheduledQuery: any) => {
 };
 
 export const formatGlobalScheduledQueryForClient = (
-  scheduledQuery: any
-): any => {
+  scheduledQuery: IGlobalScheduledQuery
+): IGlobalScheduledQuery => {
   if (scheduledQuery.platform === "") {
     scheduledQuery.platform = "all";
   }
@@ -379,7 +388,9 @@ export const formatGlobalScheduledQueryForClient = (
   return scheduledQuery;
 };
 
-export const formatTeamScheduledQueryForServer = (scheduledQuery: any) => {
+export const formatTeamScheduledQueryForServer = (
+  scheduledQuery: ITeamScheduledQuery
+) => {
   const {
     interval,
     logging_type: loggingType,
@@ -418,7 +429,9 @@ export const formatTeamScheduledQueryForServer = (scheduledQuery: any) => {
   return result;
 };
 
-export const formatTeamScheduledQueryForClient = (scheduledQuery: any): any => {
+export const formatTeamScheduledQueryForClient = (
+  scheduledQuery: ITeamScheduledQuery
+): ITeamScheduledQuery => {
   if (scheduledQuery.platform === "") {
     scheduledQuery.platform = "all";
   }

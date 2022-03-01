@@ -49,7 +49,7 @@ export interface IScheduledQuery {
   removed: boolean;
   platform?: string;
   version?: string;
-  shard: number | null;
+  shard?: number | undefined;
   denylist?: boolean;
   logging_type?: string;
   stats: IScheduledQueryStats;
