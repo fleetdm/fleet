@@ -3094,6 +3094,39 @@ func (s *integrationTestSuite) TestOsqueryConfig() {
 	assert.Contains(t, errRes["error"], "invalid node key")
 }
 
+func (s *integrationTestSuite) TestEnrollHost() {
+	t := s.T()
+
+	// set the enroll secret
+	var applyResp applyEnrollSecretSpecResponse
+	s.DoJSON("POST", "/api/v1/fleet/spec/enroll_secret", applyEnrollSecretSpecRequest{
+		Spec: &fleet.EnrollSecretSpec{
+			Secrets: []*fleet.EnrollSecret{{Secret: t.Name()}},
+		},
+	}, http.StatusOK, &applyResp)
+
+	// invalid enroll secret fails
+	j, err := json.Marshal(&enrollAgentRequest{
+		EnrollSecret:   "nosuchsecret",
+		HostIdentifier: "abcd",
+	})
+	require.NoError(t, err)
+	s.DoRawNoAuth("POST", "/api/v1/osquery/enroll", j, http.StatusUnauthorized)
+
+	// valid enroll secret succeeds
+	j, err = json.Marshal(&enrollAgentRequest{
+		EnrollSecret:   t.Name(),
+		HostIdentifier: t.Name(),
+	})
+	require.NoError(t, err)
+
+	var resp enrollAgentResponse
+	hres := s.DoRawNoAuth("POST", "/api/v1/osquery/enroll", j, http.StatusOK)
+	defer hres.Body.Close()
+	require.NoError(t, json.NewDecoder(hres.Body).Decode(&resp))
+	require.NotEmpty(t, resp.NodeKey)
+}
+
 // creates a session and returns it, its key is to be passed as authorization header.
 func createSession(t *testing.T, uid uint, ds fleet.Datastore) *fleet.Session {
 	key := make([]byte, 64)

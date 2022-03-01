@@ -441,7 +441,7 @@ func attachNewStyleFleetAPIRoutes(r *mux.Router, svc fleet.Service, logger kitlo
 	// one-time authentication by verifying that a valid secret token is provided
 	// with the request.
 	ne := newNoAuthEndpointer(svc, opts, r, "v1")
-	ne.POST("/api/v1/osquery/enroll", enrollAgentEndpoint, enrollAgentRequest{})
+	ne.POST("/api/_version_/osquery/enroll", enrollAgentEndpoint, enrollAgentRequest{})
 }
 
 // TODO: this duplicates the one in makeKitHandler
