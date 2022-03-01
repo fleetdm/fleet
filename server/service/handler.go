@@ -293,6 +293,7 @@ func attachFleetAPIRoutes(r *mux.Router, h *fleetHandlers) {
 }
 
 func attachNewStyleFleetAPIRoutes(r *mux.Router, svc fleet.Service, logger kitlog.Logger, opts []kithttp.ServerOption) {
+	// user-authenticated endpoints
 	ue := newUserAuthenticatedEndpointer(svc, opts, r, "v1")
 
 	ue.GET("/api/_version_/fleet/me", meEndpoint, nil)
@@ -433,6 +434,7 @@ func attachNewStyleFleetAPIRoutes(r *mux.Router, svc fleet.Service, logger kitlo
 	ue.GET("/api/_version_/fleet/status/result_store", statusResultStoreEndpoint, nil)
 	ue.GET("/api/_version_/fleet/status/live_query", statusLiveQueryEndpoint, nil)
 
+	// host-authenticated endpoints
 	he := newHostAuthenticatedEndpointer(svc, logger, opts, r, "v1")
 	he.POST("/api/_version_/osquery/config", getClientConfigEndpoint, getClientConfigRequest{})
 	he.POST("/api/_version_/osquery/distributed/read", getDistributedQueriesEndpoint, getDistributedQueriesRequest{})
