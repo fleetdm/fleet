@@ -2,8 +2,10 @@ package service
 
 import (
 	"bytes"
+	"compress/gzip"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -125,10 +127,10 @@ func (s *integrationLoggerTestSuite) TestOsqueryEndpointsLogErrors() {
 `, logString)
 }
 
-func (s *integrationLoggerTestSuite) TestSubmitStatusLog() {
+func (s *integrationLoggerTestSuite) TestSubmitLog() {
 	t := s.T()
 
-	_, err := s.ds.NewHost(context.Background(), &fleet.Host{
+	h, err := s.ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
@@ -142,8 +144,9 @@ func (s *integrationLoggerTestSuite) TestSubmitStatusLog() {
 	})
 	require.NoError(t, err)
 
+	// submit status logs
 	req := submitLogsRequest{
-		NodeKey: "1234",
+		NodeKey: h.NodeKey,
 		LogType: "status",
 		Data:    nil,
 	}
@@ -151,8 +154,53 @@ func (s *integrationLoggerTestSuite) TestSubmitStatusLog() {
 	s.DoJSON("POST", "/api/v1/osquery/log", req, http.StatusOK, &res)
 
 	logString := s.buf.String()
-	assert.Equal(t, 1, strings.Count(logString, "\"ip_addr\""))
+	assert.Equal(t, 1, strings.Count(logString, `"ip_addr"`))
 	assert.Equal(t, 1, strings.Count(logString, "x_for_ip_addr"))
+	s.buf.Reset()
+
+	// submit results logs
+	req = submitLogsRequest{
+		NodeKey: h.NodeKey,
+		LogType: "result",
+		Data:    nil,
+	}
+	res = submitLogsResponse{}
+	s.DoJSON("POST", "/api/v1/osquery/log", req, http.StatusOK, &res)
+
+	logString = s.buf.String()
+	assert.Equal(t, 1, strings.Count(logString, `"ip_addr"`))
+	assert.Equal(t, 1, strings.Count(logString, "x_for_ip_addr"))
+	s.buf.Reset()
+
+	// submit invalid type logs
+	req = submitLogsRequest{
+		NodeKey: h.NodeKey,
+		LogType: "unknown",
+		Data:    nil,
+	}
+	var errRes map[string]string
+	s.DoJSON("POST", "/api/v1/osquery/log", req, http.StatusInternalServerError, &errRes)
+	assert.Contains(t, errRes["error"], "unknown log type")
+	s.buf.Reset()
+
+	// submit gzip-encoded request
+	var body bytes.Buffer
+	gw := gzip.NewWriter(&body)
+	_, err = fmt.Fprintf(gw, `{
+		"node_key": %q,
+		"log_type": "status",
+		"data":     null
+	}`, h.NodeKey)
+	require.NoError(t, err)
+	require.NoError(t, gw.Close())
+
+	s.DoRawWithHeaders("POST", "/api/v1/osquery/log", body.Bytes(), http.StatusOK, map[string]string{"Content-Encoding": "gzip"})
+	logString = s.buf.String()
+	assert.Equal(t, 1, strings.Count(logString, `"ip_addr"`))
+	assert.Equal(t, 1, strings.Count(logString, "x_for_ip_addr"))
+
+	// submit same payload without specifying gzip encoding fails
+	s.DoRawWithHeaders("POST", "/api/v1/osquery/log", body.Bytes(), http.StatusInternalServerError, nil)
 }
 
 func (s *integrationLoggerTestSuite) TestEnrollAgentLogsErrors() {
