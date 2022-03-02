@@ -2302,6 +2302,9 @@ func (s *integrationTestSuite) TestLabelSpecs() {
 }
 
 func (s *integrationTestSuite) TestUsers() {
+	// ensure that on exit, the admin token is used
+	defer func() { s.token = s.getTestAdminToken() }()
+
 	t := s.T()
 
 	// list existing users
@@ -2324,14 +2327,16 @@ func (s *integrationTestSuite) TestUsers() {
 
 	// create a new user
 	var createResp createUserResponse
+	userRawPwd := "pass"
 	params := fleet.UserPayload{
 		Name:       ptr.String("extra"),
 		Email:      ptr.String("extra@asd.com"),
-		Password:   ptr.String("pass"),
+		Password:   ptr.String(userRawPwd),
 		GlobalRole: ptr.String(fleet.RoleObserver),
 	}
 	s.DoJSON("POST", "/api/v1/fleet/users/admin", params, http.StatusOK, &createResp)
 	assert.NotZero(t, createResp.User.ID)
+	assert.True(t, createResp.User.AdminForcedPasswordReset)
 	u := *createResp.User
 
 	// login as that user and check that teams info is empty
@@ -2406,6 +2411,36 @@ func (s *integrationTestSuite) TestUsers() {
 		Name: ptr.String("nosuchuser"),
 	}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/users/%d", u.ID+1), params, http.StatusNotFound, &modResp)
+
+	// perform a required password change as the user themselves
+	s.token = s.getTestToken(u.Email, userRawPwd)
+	var perfPwdResetResp performRequiredPasswordResetResponse
+	newRawPwd := "new_password!"
+	s.DoJSON("POST", "/api/v1/fleet/perform_required_password_reset", performRequiredPasswordResetRequest{
+		Password: newRawPwd,
+		ID:       u.ID,
+	}, http.StatusOK, &perfPwdResetResp)
+	assert.False(t, perfPwdResetResp.User.AdminForcedPasswordReset)
+	oldUserRawPwd := userRawPwd
+	userRawPwd = newRawPwd
+
+	// perform a required password change again, this time it fails as there is no request pending
+	perfPwdResetResp = performRequiredPasswordResetResponse{}
+	newRawPwd = "new_password2!"
+	s.DoJSON("POST", "/api/v1/fleet/perform_required_password_reset", performRequiredPasswordResetRequest{
+		Password: newRawPwd,
+		ID:       u.ID,
+	}, http.StatusInternalServerError, &perfPwdResetResp) // TODO: should be 40?, see #4406
+	s.token = s.getTestAdminToken()
+
+	// login as that user to verify that the new password is active (userRawPwd was updated to the new pwd)
+	loginResp = loginResponse{}
+	s.DoJSON("POST", "/api/v1/fleet/login", loginRequest{Email: u.Email, Password: userRawPwd}, http.StatusOK, &loginResp)
+	require.Equal(t, loginResp.User.ID, u.ID)
+
+	// login as that user with previous pwd fails
+	loginResp = loginResponse{}
+	s.DoJSON("POST", "/api/v1/fleet/login", loginRequest{Email: u.Email, Password: oldUserRawPwd}, http.StatusUnauthorized, &loginResp)
 
 	// require a password reset
 	var reqResetResp requirePasswordResetResponse
@@ -3194,17 +3229,6 @@ func (s *integrationTestSuite) TestCarve() {
 	}, http.StatusOK, &beginResp)
 	require.NotEmpty(t, beginResp.SessionId)
 	sid := beginResp.SessionId
-
-	// duplicate carve begin, same carve id/request id
-	s.DoJSON("POST", "/api/v1/osquery/carve/begin", carveBeginRequest{
-		NodeKey:    hosts[0].NodeKey,
-		BlockCount: 3,
-		BlockSize:  3,
-		CarveSize:  8,
-		CarveId:    "c1",
-		RequestId:  "r1",
-	}, http.StatusInternalServerError, &errRes) // TODO: should be 409, see  #4406
-	assert.Contains(t, errRes["error"], "Error 1062: Duplicate entry")
 
 	// sending a block with invalid session id
 	var blockResp carveBlockResponse
