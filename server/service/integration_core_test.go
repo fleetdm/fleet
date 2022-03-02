@@ -1076,9 +1076,27 @@ func (s *integrationTestSuite) TestInvites() {
 	require.Len(t, verify.Teams, 1)
 	assert.Equal(t, team.ID, verify.Teams[0].ID)
 
+	// create user from valid invite - the token was not returned via the
+	// response's json, must get it from the db
+	inv, err := s.ds.Invite(context.Background(), validInvite.ID)
+	require.NoError(t, err)
+	validInviteToken := inv.Token
+
+	var createFromInviteResp createUserResponse
+	s.DoJSON("POST", "/api/v1/fleet/users", fleet.UserPayload{
+		Name:        ptr.String("Full Name"),
+		Password:    ptr.String("pass1word!"),
+		Email:       ptr.String("a@b.c"),
+		InviteToken: ptr.String(validInviteToken),
+	}, http.StatusOK, &createFromInviteResp)
+
+	// keep the invite token from the other valid invite (before deleting it)
+	inv, err = s.ds.Invite(context.Background(), createInviteResp.Invite.ID)
+	require.NoError(t, err)
+	deletedInviteToken := inv.Token
+
 	// delete an existing invite
 	var delResp deleteInviteResponse
-	s.DoJSON("DELETE", fmt.Sprintf("/api/v1/fleet/invites/%d", validInvite.ID), nil, http.StatusOK, &delResp)
 	s.DoJSON("DELETE", fmt.Sprintf("/api/v1/fleet/invites/%d", createInviteResp.Invite.ID), nil, http.StatusOK, &delResp)
 
 	// list invites, is now empty
@@ -1088,6 +1106,111 @@ func (s *integrationTestSuite) TestInvites() {
 
 	// delete a now non-existing invite
 	s.DoJSON("DELETE", fmt.Sprintf("/api/v1/fleet/invites/%d", validInvite.ID), nil, http.StatusNotFound, &delResp)
+
+	// create user from never used but deleted invite
+	s.DoJSON("POST", "/api/v1/fleet/users", fleet.UserPayload{
+		Name:        ptr.String("Full Name"),
+		Password:    ptr.String("pass1word!"),
+		Email:       ptr.String("a@b.c"),
+		InviteToken: ptr.String(deletedInviteToken),
+	}, http.StatusNotFound, &createFromInviteResp)
+}
+
+func (s *integrationTestSuite) TestCreateUserFromInviteErrors() {
+	t := s.T()
+
+	// create a valid invite
+	createInviteReq := createInviteRequest{InvitePayload: fleet.InvitePayload{
+		Email:      ptr.String("a@b.c"),
+		Name:       ptr.String("A"),
+		GlobalRole: null.StringFrom(fleet.RoleObserver),
+	}}
+	createInviteResp := createInviteResponse{}
+	s.DoJSON("POST", "/api/v1/fleet/invites", createInviteReq, http.StatusOK, &createInviteResp)
+
+	// make sure to delete it on exit
+	defer func() {
+		var delResp deleteInviteResponse
+		s.DoJSON("DELETE", fmt.Sprintf("/api/v1/fleet/invites/%d", createInviteResp.Invite.ID), nil, http.StatusOK, &delResp)
+	}()
+
+	// the token is not returned via the response's json, must get it from the db
+	invite, err := s.ds.Invite(context.Background(), createInviteResp.Invite.ID)
+	require.NoError(t, err)
+
+	cases := []struct {
+		desc string
+		pld  fleet.UserPayload
+		want int
+	}{
+		{
+			"empty name",
+			fleet.UserPayload{
+				Name:        ptr.String(""),
+				Password:    ptr.String("pass1word!"),
+				Email:       ptr.String("a@b.c"),
+				InviteToken: ptr.String(invite.Token),
+			},
+			http.StatusUnprocessableEntity,
+		},
+		{
+			"empty email",
+			fleet.UserPayload{
+				Name:        ptr.String("Name"),
+				Password:    ptr.String("pass1word!"),
+				Email:       ptr.String(""),
+				InviteToken: ptr.String(invite.Token),
+			},
+			http.StatusUnprocessableEntity,
+		},
+		{
+			"empty password",
+			fleet.UserPayload{
+				Name:        ptr.String("Name"),
+				Password:    ptr.String(""),
+				Email:       ptr.String("a@b.c"),
+				InviteToken: ptr.String(invite.Token),
+			},
+			http.StatusUnprocessableEntity,
+		},
+		{
+			"empty token",
+			fleet.UserPayload{
+				Name:        ptr.String("Name"),
+				Password:    ptr.String("pass1word!"),
+				Email:       ptr.String("a@b.c"),
+				InviteToken: ptr.String(""),
+			},
+			http.StatusUnprocessableEntity,
+		},
+		{
+			"invalid token",
+			fleet.UserPayload{
+				Name:        ptr.String("Name"),
+				Password:    ptr.String("pass1word!"),
+				Email:       ptr.String("a@b.c"),
+				InviteToken: ptr.String("invalid"),
+			},
+			http.StatusNotFound,
+		},
+		{
+			"invalid password",
+			fleet.UserPayload{
+				Name:        ptr.String("Name"),
+				Password:    ptr.String("password"), // no number or symbol
+				Email:       ptr.String("a@b.c"),
+				InviteToken: ptr.String(invite.Token),
+			},
+			http.StatusUnprocessableEntity,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			var resp createUserResponse
+			s.DoJSON("POST", "/api/v1/fleet/users", c.pld, c.want, &resp)
+		})
+	}
 }
 
 func (s *integrationTestSuite) TestGetHostSummary() {
