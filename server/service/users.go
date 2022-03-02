@@ -66,6 +66,49 @@ func (svc *Service) CreateUser(ctx context.Context, p fleet.UserPayload) (*fleet
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// Create User From Invite
+////////////////////////////////////////////////////////////////////////////////
+
+func createUserFromInviteEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*createUserRequest)
+	user, err := svc.CreateUserFromInvite(ctx, req.UserPayload)
+	if err != nil {
+		return createUserResponse{Err: err}, nil
+	}
+	return createUserResponse{User: user}, nil
+}
+
+func (svc *Service) CreateUserFromInvite(ctx context.Context, p fleet.UserPayload) (*fleet.User, error) {
+	// skipauth: There is no viewer context at this point. We rely on verifying
+	// the invite for authNZ.
+	svc.authz.SkipAuthorization(ctx)
+
+	if err := p.VerifyInviteCreate(); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "verify user payload")
+	}
+
+	invite, err := svc.VerifyInvite(ctx, *p.InviteToken)
+	if err != nil {
+		return nil, err
+	}
+
+	// set the payload role property based on an existing invite.
+	p.GlobalRole = invite.GlobalRole.Ptr()
+	p.Teams = &invite.Teams
+
+	user, err := svc.newUser(ctx, p)
+	if err != nil {
+		return nil, err
+	}
+
+	err = svc.ds.DeleteInvite(ctx, invite.ID)
+	if err != nil {
+		return nil, err
+	}
+	return user, nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // List Users
 ////////////////////////////////////////////////////////////////////////////////
 

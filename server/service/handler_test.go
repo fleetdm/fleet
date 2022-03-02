@@ -40,10 +40,6 @@ func TestAPIRoutes(t *testing.T) {
 	}{
 		{
 			verb: "POST",
-			uri:  "/api/v1/fleet/users",
-		},
-		{
-			verb: "POST",
 			uri:  "/api/v1/fleet/login",
 		},
 		{

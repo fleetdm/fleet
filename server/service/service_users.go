@@ -14,36 +14,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
-func (svc *Service) CreateUserFromInvite(ctx context.Context, p fleet.UserPayload) (*fleet.User, error) {
-	// skipauth: There is no viewer context at this point. We rely on verifying
-	// the invite for authNZ.
-	svc.authz.SkipAuthorization(ctx)
-
-	if err := p.VerifyInviteCreate(); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "verify user payload")
-	}
-
-	invite, err := svc.VerifyInvite(ctx, *p.InviteToken)
-	if err != nil {
-		return nil, err
-	}
-
-	// set the payload role property based on an existing invite.
-	p.GlobalRole = invite.GlobalRole.Ptr()
-	p.Teams = &invite.Teams
-
-	user, err := svc.newUser(ctx, p)
-	if err != nil {
-		return nil, err
-	}
-
-	err = svc.ds.DeleteInvite(ctx, invite.ID)
-	if err != nil {
-		return nil, err
-	}
-	return user, nil
-}
-
 func (svc *Service) CreateInitialUser(ctx context.Context, p fleet.UserPayload) (*fleet.User, error) {
 	// skipauth: Only the initial user creation should be allowed to skip
 	// authorization (because there is not yet a user context to check against).
