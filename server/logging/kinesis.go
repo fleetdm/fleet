@@ -105,6 +105,8 @@ func (k *kinesisLogWriter) Write(ctx context.Context, logs []json.RawMessage) er
 	var records []*kinesis.PutRecordsRequestEntry
 	totalBytes := 0
 	for _, log := range logs {
+		// so we get nice NDJSON
+		log = append(log, '\n')
 		// Evenly distribute logs across shards by assigning each
 		// kinesis.PutRecordsRequestEntry a random partition key.
 		partitionKey := fmt.Sprint(k.rand.Intn(256))
