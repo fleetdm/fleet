@@ -667,7 +667,7 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (map[string]strin
 				if queryName, err := json.Marshal(tracingContext); err == nil {
 					queries[string(queryName)] = query
 				} else {
-                    return nil, 0, osqueryError{message: err.Error()}
+					return nil, 0, osqueryError{message: err.Error()}
 				}
 			} else {
 				queries[hostDistributedQueryPrefix+name] = query
@@ -879,29 +879,61 @@ func (svc *Service) SubmitDistributedQueryResults(
 			level.Debug(svc.logger).Log("query", query, "message", messages[query])
 		}
 		var err error
-		switch {
-		case strings.HasPrefix(query, hostDetailQueryPrefix):
-			trimmedQuery := strings.TrimPrefix(query, hostDetailQueryPrefix)
-			var ingested bool
-			ingested, err = svc.directIngestDetailQuery(ctx, host, trimmedQuery, rows, failed)
-			if !ingested && err == nil {
-				err = svc.ingestDetailQuery(ctx, host, trimmedQuery, rows)
-				// No err != nil check here because ingestDetailQuery could have updated
-				// successfully some values of host.
-				detailUpdated = true
+		if strings.HasPrefix(query, "{") { // lazy json check
+			var data osqueryNameEmbeddedData
+			if err = json.Unmarshal(query, &data); err != nil {
+				return err
 			}
-		case strings.HasPrefix(query, hostAdditionalQueryPrefix):
-			name := strings.TrimPrefix(query, hostAdditionalQueryPrefix)
-			additionalResults[name] = rows
-			additionalUpdated = true
-		case strings.HasPrefix(query, hostLabelQueryPrefix):
-			err = ingestMembershipQuery(hostLabelQueryPrefix, query, rows, labelResults, failed)
-		case strings.HasPrefix(query, hostPolicyQueryPrefix):
-			err = ingestMembershipQuery(hostPolicyQueryPrefix, query, rows, policyResults, failed)
-		case strings.HasPrefix(query, hostDistributedQueryPrefix):
-			err = svc.ingestDistributedQuery(ctx, *host, query, rows, failed, messages[query])
-		default:
-			err = osqueryError{message: "unknown query prefix: " + query}
+
+			// do apm stuff
+			traceContext, _ := apmhttp.ParseTraceparentHeader(data.TraceParent)
+			traceContext.State, _ = apmhttp.ParseTracestateHeader(data.TraceState)
+			switch {
+			case data.Type == hostDetailQueryPrefix:
+				ingested, err = svc.directIngestDetailQuery(ctx, host, data.Name, rows, failed)
+				if !ingested && err == nil {
+					err = svc.ingestDetailQuery(ctx, host, data.Name, rows)
+					// No err != nil check here because ingestDetailQuery could have updated
+					// successfully some values of host.
+					detailUpdated = true
+				}
+			case data.Type == hostAdditionalQueryPrefix:
+				additionalResults[data.Name] = rows
+				additionalUpdated = true
+			case data.Type == hostLabelQueryPrefix:
+				err = ingestMembershipQuery(hostLabelQueryPrefix, query, rows, labelResults, failed)
+			case data.Type == hostPolicyQueryPrefix:
+				err = ingestMembershipQuery(hostPolicyQueryPrefix, query, rows, policyResults, failed)
+			case date.Type == hostDistributedQueryPrefix:
+				err = svc.ingestDistributedQuery(ctx, *host, query, rows, failed, messages[query])
+			default:
+				err = osqueryError{message: "unknown query prefix: " + query}
+			}
+		} else {
+			switch {
+			case strings.HasPrefix(query, hostDetailQueryPrefix):
+				trimmedQuery := strings.TrimPrefix(query, hostDetailQueryPrefix)
+				var ingested bool
+				ingested, err = svc.directIngestDetailQuery(ctx, host, trimmedQuery, rows, failed)
+				if !ingested && err == nil {
+					err = svc.ingestDetailQuery(ctx, host, trimmedQuery, rows)
+					// No err != nil check here because ingestDetailQuery could have updated
+					// successfully some values of host.
+					detailUpdated = true
+				}
+			case strings.HasPrefix(query, hostAdditionalQueryPrefix):
+				name := strings.TrimPrefix(query, hostAdditionalQueryPrefix)
+				additionalResults[name] = rows
+				additionalUpdated = true
+			case strings.HasPrefix(query, hostLabelQueryPrefix):
+				err = ingestMembershipQuery(hostLabelQueryPrefix, query, rows, labelResults, failed)
+			case strings.HasPrefix(query, hostPolicyQueryPrefix):
+				err = ingestMembershipQuery(hostPolicyQueryPrefix, query, rows, policyResults, failed)
+			case strings.HasPrefix(query, hostDistributedQueryPrefix):
+				err = svc.ingestDistributedQuery(ctx, *host, query, rows, failed, messages[query])
+			default:
+				err = osqueryError{message: "unknown query prefix: " + query}
+			}
 		}
 
 		if err != nil {
