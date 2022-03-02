@@ -1,6 +1,7 @@
 package logging
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -29,7 +30,8 @@ func makeKinesisWriterWithMock(client kinesisiface.KinesisAPI, stream string) *k
 func getLogsFromPutRecordsInput(input *kinesis.PutRecordsInput) []json.RawMessage {
 	var logs []json.RawMessage
 	for _, record := range input.Records {
-		logs = append(logs, record.Data)
+		// remove the newline appended to get back the original raw byte input
+		logs = append(logs, bytes.Trim(record.Data, "\n"))
 	}
 	return logs
 }
@@ -69,6 +71,25 @@ func TestKinesisNormalPut(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 1, callCount)
 }
+
+//func TestKinesisNormalPut(t *testing.T) {
+//	ctx := context.Background()
+//	callCount := 0
+//	//putFunc := func(input *kinesis.PutRecordsInput) (*kinesis.PutRecordsOutput, error) {
+//	//	callCount += 1
+//	//	assert.Equal(t, logs, getLogsFromPutRecordsInput(input))
+//	//	assert.Equal(t, "foobar", *input.StreamName)
+//	//	return &kinesis.PutRecordsOutput{FailedRecordCount: aws.Int64(0)}, nil
+//	//}
+//	kk, err := NewKinesisLogWriter("us-east-2", "", "", "", "", "test1", log.NewNopLogger())
+//	assert.NoError(t, err)
+//
+//	//k := &mock.KinesisMock{PutRecordsFunc: putFunc}
+//	//writer := makeKinesisWriterWithMock(k, "foobar")
+//	err = kk.Write(ctx, logs)
+//	assert.NoError(t, err)
+//	assert.Equal(t, 1, callCount)
+//}
 
 func TestKinesisSomeFailures(t *testing.T) {
 	ctx := context.Background()
