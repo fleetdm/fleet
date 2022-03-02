@@ -27,7 +27,6 @@ type FleetEndpoints struct {
 	Login          endpoint.Endpoint
 	Logout         endpoint.Endpoint
 	ForgotPassword endpoint.Endpoint
-	ResetPassword  endpoint.Endpoint
 	InitiateSSO    endpoint.Endpoint
 	CallbackSSO    endpoint.Endpoint
 	SSOSettings    endpoint.Endpoint
@@ -47,10 +46,9 @@ func MakeFleetServerEndpoints(svc fleet.Service, urlPrefix string, limitStore th
 			throttled.RateQuota{MaxRate: throttled.PerHour(10), MaxBurst: 9})(
 			logged(makeForgotPasswordEndpoint(svc)),
 		),
-		ResetPassword: logged(makeResetPasswordEndpoint(svc)),
-		InitiateSSO:   logged(makeInitiateSSOEndpoint(svc)),
-		CallbackSSO:   logged(makeCallbackSSOEndpoint(svc, urlPrefix)),
-		SSOSettings:   logged(makeSSOSettingsEndpoint(svc)),
+		InitiateSSO: logged(makeInitiateSSOEndpoint(svc)),
+		CallbackSSO: logged(makeCallbackSSOEndpoint(svc, urlPrefix)),
+		SSOSettings: logged(makeSSOSettingsEndpoint(svc)),
 	}
 }
 
@@ -58,7 +56,6 @@ type fleetHandlers struct {
 	Login          http.Handler
 	Logout         http.Handler
 	ForgotPassword http.Handler
-	ResetPassword  http.Handler
 	InitiateSSO    http.Handler
 	CallbackSSO    http.Handler
 	SettingsSSO    http.Handler
@@ -73,7 +70,6 @@ func makeKitHandlers(e FleetEndpoints, opts []kithttp.ServerOption) *fleetHandle
 		Login:          newServer(e.Login, decodeLoginRequest),
 		Logout:         newServer(e.Logout, decodeNoParamsRequest),
 		ForgotPassword: newServer(e.ForgotPassword, decodeForgotPasswordRequest),
-		ResetPassword:  newServer(e.ResetPassword, decodeResetPasswordRequest),
 		InitiateSSO:    newServer(e.InitiateSSO, decodeInitiateSSORequest),
 		CallbackSSO:    newServer(e.CallbackSSO, decodeCallbackSSORequest),
 		SettingsSSO:    newServer(e.SSOSettings, decodeNoParamsRequest),
@@ -254,7 +250,6 @@ func attachFleetAPIRoutes(r *mux.Router, h *fleetHandlers) {
 	r.Handle("/api/v1/fleet/login", h.Login).Methods("POST").Name("login")
 	r.Handle("/api/v1/fleet/logout", h.Logout).Methods("POST").Name("logout")
 	r.Handle("/api/v1/fleet/forgot_password", h.ForgotPassword).Methods("POST").Name("forgot_password")
-	r.Handle("/api/v1/fleet/reset_password", h.ResetPassword).Methods("POST").Name("reset_password")
 	r.Handle("/api/v1/fleet/sso", h.InitiateSSO).Methods("POST").Name("intiate_sso")
 	r.Handle("/api/v1/fleet/sso", h.SettingsSSO).Methods("GET").Name("sso_config")
 	r.Handle("/api/v1/fleet/sso/callback", h.CallbackSSO).Methods("POST").Name("callback_sso")
@@ -424,6 +419,7 @@ func attachNewStyleFleetAPIRoutes(r *mux.Router, svc fleet.Service, logger kitlo
 	ne.POST("/api/_version_/fleet/perform_required_password_reset", performRequiredPasswordResetEndpoint, performRequiredPasswordResetRequest{})
 	ne.POST("/api/_version_/fleet/users", createUserFromInviteEndpoint, createUserRequest{})
 	ne.GET("/api/_version_/fleet/invites/{token}", verifyInviteEndpoint, verifyInviteRequest{})
+	ne.POST("/api/v1/fleet/reset_password", resetPasswordEndpoint, resetPasswordRequest{})
 }
 
 // TODO: this duplicates the one in makeKitHandler

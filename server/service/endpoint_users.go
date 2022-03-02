@@ -9,29 +9,6 @@ import (
 )
 
 ////////////////////////////////////////////////////////////////////////////////
-// Reset Password
-////////////////////////////////////////////////////////////////////////////////
-
-type resetPasswordRequest struct {
-	PasswordResetToken string `json:"password_reset_token"`
-	NewPassword        string `json:"new_password"`
-}
-
-type resetPasswordResponse struct {
-	Err error `json:"error,omitempty"`
-}
-
-func (r resetPasswordResponse) error() error { return r.Err }
-
-func makeResetPasswordEndpoint(svc fleet.Service) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		req := request.(resetPasswordRequest)
-		err := svc.ResetPassword(ctx, req.PasswordResetToken, req.NewPassword)
-		return resetPasswordResponse{Err: err}, nil
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////
 // Forgot Password
 ////////////////////////////////////////////////////////////////////////////////
 

@@ -404,3 +404,9 @@ func (e *authEndpointer) WithAltPaths(paths ...string) *authEndpointer {
 	ae.alternativePaths = paths
 	return &ae
 }
+
+func (e *authEndpointer) WithCustomMiddleware(mws ...endpoint.Middleware) *authEndpointer {
+	// TODO(mna): use this approach for special-cases like rate-limiting?
+	ae := *e
+	return &ae
+}

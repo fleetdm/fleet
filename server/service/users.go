@@ -767,3 +767,77 @@ func (svc *Service) setNewPassword(ctx context.Context, user *fleet.User, passwo
 
 	return nil
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// Reset Password
+////////////////////////////////////////////////////////////////////////////////
+
+type resetPasswordRequest struct {
+	PasswordResetToken string `json:"password_reset_token"`
+	NewPassword        string `json:"new_password"`
+}
+
+type resetPasswordResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r resetPasswordResponse) error() error { return r.Err }
+
+func resetPasswordEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*resetPasswordRequest)
+	err := svc.ResetPassword(ctx, req.PasswordResetToken, req.NewPassword)
+	return resetPasswordResponse{Err: err}, nil
+}
+
+func (svc *Service) ResetPassword(ctx context.Context, token, password string) error {
+	// skipauth: No viewer context available. The user is locked out of their
+	// account and authNZ is performed entirely by providing a valid password
+	// reset token.
+	svc.authz.SkipAuthorization(ctx)
+
+	if token == "" {
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("token", "Token cannot be empty field"))
+	}
+	if password == "" {
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("new_password", "New password cannot be empty field"))
+	}
+	if err := fleet.ValidatePasswordRequirements(password); err != nil {
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("new_password", err.Error()))
+	}
+
+	reset, err := svc.ds.FindPasswordResetByToken(ctx, token)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "looking up reset by token")
+	}
+	user, err := svc.ds.UserByID(ctx, reset.UserID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "retrieving user")
+	}
+
+	if user.SSOEnabled {
+		return ctxerr.New(ctx, "password reset for single sign on user not allowed")
+	}
+
+	// prevent setting the same password
+	if err := user.ValidatePassword(password); err == nil {
+		return fleet.NewInvalidArgumentError("new_password", "cannot reuse old password")
+	}
+
+	err = svc.setNewPassword(ctx, user, password)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "setting new password")
+	}
+
+	// delete password reset tokens for user
+	if err := svc.ds.DeletePasswordResetRequestsForUser(ctx, user.ID); err != nil {
+		return ctxerr.Wrap(ctx, err, "delete password reset requests")
+	}
+
+	// Clear sessions so that any other browsers will have to log in with
+	// the new password
+	if err := svc.ds.DestroyAllSessionsForUser(ctx, user.ID); err != nil {
+		return ctxerr.Wrap(ctx, err, "delete user sessions")
+	}
+
+	return nil
+}
