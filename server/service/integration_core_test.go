@@ -978,6 +978,20 @@ func (s *integrationTestSuite) TestInvites() {
 	require.NotZero(t, createInviteResp.Invite.ID)
 	validInvite := *createInviteResp.Invite
 
+	// create user from valid invite - the token was not returned via the
+	// response's json, must get it from the db
+	inv, err := s.ds.Invite(context.Background(), validInvite.ID)
+	require.NoError(t, err)
+	validInviteToken := inv.Token
+
+	// verify the token with valid invite
+	var verifyInvResp verifyInviteResponse
+	s.DoJSON("GET", "/api/v1/fleet/invites/"+validInviteToken, nil, http.StatusOK, &verifyInvResp)
+	require.Equal(t, validInvite.ID, verifyInvResp.Invite.ID)
+
+	// verify the token with an invalid invite
+	s.DoJSON("GET", "/api/v1/fleet/invites/invalid", nil, http.StatusNotFound, &verifyInvResp)
+
 	// create invite without an email
 	createInviteReq = createInviteRequest{InvitePayload: fleet.InvitePayload{
 		Email:      nil,
@@ -1075,12 +1089,6 @@ func (s *integrationTestSuite) TestInvites() {
 	require.Equal(t, "", verify.GlobalRole.String)
 	require.Len(t, verify.Teams, 1)
 	assert.Equal(t, team.ID, verify.Teams[0].ID)
-
-	// create user from valid invite - the token was not returned via the
-	// response's json, must get it from the db
-	inv, err := s.ds.Invite(context.Background(), validInvite.ID)
-	require.NoError(t, err)
-	validInviteToken := inv.Token
 
 	var createFromInviteResp createUserResponse
 	s.DoJSON("POST", "/api/v1/fleet/users", fleet.UserPayload{

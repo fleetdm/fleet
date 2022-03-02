@@ -28,7 +28,6 @@ type FleetEndpoints struct {
 	Logout         endpoint.Endpoint
 	ForgotPassword endpoint.Endpoint
 	ResetPassword  endpoint.Endpoint
-	VerifyInvite   endpoint.Endpoint
 	InitiateSSO    endpoint.Endpoint
 	CallbackSSO    endpoint.Endpoint
 	SSOSettings    endpoint.Endpoint
@@ -49,7 +48,6 @@ func MakeFleetServerEndpoints(svc fleet.Service, urlPrefix string, limitStore th
 			logged(makeForgotPasswordEndpoint(svc)),
 		),
 		ResetPassword: logged(makeResetPasswordEndpoint(svc)),
-		VerifyInvite:  logged(makeVerifyInviteEndpoint(svc)),
 		InitiateSSO:   logged(makeInitiateSSOEndpoint(svc)),
 		CallbackSSO:   logged(makeCallbackSSOEndpoint(svc, urlPrefix)),
 		SSOSettings:   logged(makeSSOSettingsEndpoint(svc)),
@@ -61,7 +59,6 @@ type fleetHandlers struct {
 	Logout         http.Handler
 	ForgotPassword http.Handler
 	ResetPassword  http.Handler
-	VerifyInvite   http.Handler
 	InitiateSSO    http.Handler
 	CallbackSSO    http.Handler
 	SettingsSSO    http.Handler
@@ -77,7 +74,6 @@ func makeKitHandlers(e FleetEndpoints, opts []kithttp.ServerOption) *fleetHandle
 		Logout:         newServer(e.Logout, decodeNoParamsRequest),
 		ForgotPassword: newServer(e.ForgotPassword, decodeForgotPasswordRequest),
 		ResetPassword:  newServer(e.ResetPassword, decodeResetPasswordRequest),
-		VerifyInvite:   newServer(e.VerifyInvite, decodeVerifyInviteRequest),
 		InitiateSSO:    newServer(e.InitiateSSO, decodeInitiateSSORequest),
 		CallbackSSO:    newServer(e.CallbackSSO, decodeCallbackSSORequest),
 		SettingsSSO:    newServer(e.SSOSettings, decodeNoParamsRequest),
@@ -428,7 +424,6 @@ func attachNewStyleFleetAPIRoutes(r *mux.Router, svc fleet.Service, logger kitlo
 	ne.POST("/api/_version_/fleet/perform_required_password_reset", performRequiredPasswordResetEndpoint, performRequiredPasswordResetRequest{})
 	ne.POST("/api/_version_/fleet/users", createUserFromInviteEndpoint, createUserRequest{})
 	ne.GET("/api/_version_/fleet/invites/{token}", verifyInviteEndpoint, verifyInviteRequest{})
-	//r.Handle("/api/v1/fleet/invites/{token}", h.VerifyInvite).Methods("GET").Name("verify_invite")
 }
 
 // TODO: this duplicates the one in makeKitHandler
