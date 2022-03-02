@@ -19,6 +19,10 @@ func (svc *Service) CreateUserFromInvite(ctx context.Context, p fleet.UserPayloa
 	// the invite for authNZ.
 	svc.authz.SkipAuthorization(ctx)
 
+	if err := p.VerifyInviteCreate(); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "verify user payload")
+	}
+
 	invite, err := svc.VerifyInvite(ctx, *p.InviteToken)
 	if err != nil {
 		return nil, err
@@ -93,6 +97,16 @@ func (svc *Service) ResetPassword(ctx context.Context, token, password string) e
 	// account and authNZ is performed entirely by providing a valid password
 	// reset token.
 	svc.authz.SkipAuthorization(ctx)
+
+	if token == "" {
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("token", "Token cannot be empty field"))
+	}
+	if password == "" {
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("new_password", "New password cannot be empty field"))
+	}
+	if err := fleet.ValidatePasswordRequirements(password); err != nil {
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("new_password", err.Error()))
+	}
 
 	reset, err := svc.ds.FindPassswordResetByToken(ctx, token)
 	if err != nil {

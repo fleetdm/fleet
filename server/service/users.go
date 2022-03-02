@@ -49,6 +49,10 @@ func (svc *Service) CreateUser(ctx context.Context, p fleet.UserPayload) (*fleet
 		return nil, err
 	}
 
+	if err := p.VerifyAdminCreate(); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "verify user payload")
+	}
+
 	if invite, err := svc.ds.InviteByEmail(ctx, *p.Email); err == nil && invite != nil {
 		return nil, ctxerr.Errorf(ctx, "%s already invited", *p.Email)
 	}
@@ -213,6 +217,14 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 
 	if err := svc.authz.Authorize(ctx, user, fleet.ActionWrite); err != nil {
 		return nil, err
+	}
+
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return nil, ctxerr.New(ctx, "viewer not present") // should never happen, authorize would've failed
+	}
+	if err := p.VerifyModify(vc.UserID() == userID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "verify user payload")
 	}
 
 	if p.GlobalRole != nil || p.Teams != nil {
@@ -386,13 +398,21 @@ func (svc *Service) ChangePassword(ctx context.Context, oldPass, newPass string)
 		return err
 	}
 
+	if oldPass == "" {
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("old_password", "Old password cannot be empty"))
+	}
+	if newPass == "" {
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("new_password", "New password cannot be empty"))
+	}
+	if err := fleet.ValidatePasswordRequirements(newPass); err != nil {
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("new_password", err.Error()))
+	}
 	if vc.User.SSOEnabled {
 		return ctxerr.New(ctx, "change password for single sign on user not allowed")
 	}
 	if err := vc.User.ValidatePassword(newPass); err == nil {
-		return fleet.NewInvalidArgumentError("new_password", "cannot reuse old password")
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("new_password", "cannot reuse old password"))
 	}
-
 	if err := vc.User.ValidatePassword(oldPass); err != nil {
 		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("old_password", "old password does not match"))
 	}

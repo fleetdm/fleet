@@ -471,6 +471,7 @@ func testUsersChangePassword(t *testing.T, ds *mysql.Datastore) {
 			anyErr:      true,
 		},
 		{ // missing old password
+			user:        users["user1@example.com"],
 			newPassword: "123cataaa!",
 			wantErr:     fleet.NewInvalidArgumentError("old_password", "Old password cannot be empty"),
 		},
@@ -537,6 +538,59 @@ func testUsersRequirePasswordReset(t *testing.T, ds *mysql.Datastore) {
 			checkUser, err = ds.UserByEmail(context.Background(), tt.Email)
 			require.Nil(t, err)
 			assert.False(t, checkUser.AdminForcedPasswordReset)
+		})
+	}
+}
+
+func TestPerformRequiredPasswordReset(t *testing.T) {
+	ds := mysql.CreateMySQLDS(t)
+
+	svc := newTestService(ds, nil, nil)
+
+	createTestUsers(t, ds)
+
+	for _, tt := range testUsers {
+		t.Run(tt.Email, func(t *testing.T) {
+			user, err := ds.UserByEmail(context.Background(), tt.Email)
+			require.Nil(t, err)
+
+			ctx := context.Background()
+
+			_, err = svc.RequirePasswordReset(test.UserContext(test.UserAdmin), user.ID, true)
+			require.Nil(t, err)
+
+			ctx = refreshCtx(t, ctx, user, ds, nil)
+
+			session, err := ds.NewSession(context.Background(), &fleet.Session{UserID: user.ID})
+			require.Nil(t, err)
+			ctx = refreshCtx(t, ctx, user, ds, session)
+
+			// should error when reset not required
+			_, err = svc.RequirePasswordReset(ctx, user.ID, false)
+			require.Nil(t, err)
+			ctx = refreshCtx(t, ctx, user, ds, session)
+			_, err = svc.PerformRequiredPasswordReset(ctx, "new_pass")
+			require.NotNil(t, err)
+
+			_, err = svc.RequirePasswordReset(ctx, user.ID, true)
+			require.Nil(t, err)
+			ctx = refreshCtx(t, ctx, user, ds, session)
+
+			// should error when using same password
+			_, err = svc.PerformRequiredPasswordReset(ctx, tt.PlaintextPassword)
+			require.Equal(t, "validation failed: new_password cannot reuse old password", err.Error())
+
+			// should succeed with good new password
+			u, err := svc.PerformRequiredPasswordReset(ctx, "new_pass")
+			require.Nil(t, err)
+			assert.False(t, u.AdminForcedPasswordReset)
+
+			ctx = context.Background()
+
+			// Now user should be able to login with new password
+			u, _, err = svc.Login(ctx, tt.Email, "new_pass")
+			require.Nil(t, err)
+			assert.False(t, u.AdminForcedPasswordReset)
 		})
 	}
 }
