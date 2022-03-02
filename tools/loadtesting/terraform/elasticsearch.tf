@@ -1,5 +1,72 @@
 data "aws_default_tags" "current" {}
 
+resource "aws_security_group" "elasticsearch" {
+  name        = "${local.prefix} Elasticsearch"
+  description = "${local.prefix} Elasticsearch security group"
+  vpc_id      = module.vpc.vpc_id
+}
+
+resource "aws_security_group_rule" "elasticsearch" {
+  description = "${local.prefix}: allow traffic from vpc"
+  type        = "ingress"
+
+  from_port   = "9200"
+  to_port     = "9200"
+  protocol    = "tcp"
+  cidr_blocks = ["10.0.0.0/8"]
+
+  security_group_id = aws_security_group.elasticsearch.id
+}
+
+resource "aws_security_group_rule" "ssh" {
+  description = "${local.prefix}: allow traffic from vpc"
+  type        = "ingress"
+
+  from_port   = "22"
+  to_port     = "22"
+  protocol    = "tcp"
+  cidr_blocks = ["10.0.0.0/8"]
+
+  security_group_id = aws_security_group.elasticsearch.id
+}
+
+resource "aws_security_group_rule" "elasticapm" {
+  description = "${local.prefix}: allow traffic from vpc"
+  type        = "ingress"
+
+  from_port   = "8200"
+  to_port     = "8200"
+  protocol    = "tcp"
+  cidr_blocks = ["10.0.0.0/8"]
+
+  security_group_id = aws_security_group.elasticsearch.id
+}
+
+resource "aws_security_group_rule" "kibana" {
+  description = "${local.prefix}: allow traffic from vpc"
+  type        = "ingress"
+
+  from_port   = "5601"
+  to_port     = "5601"
+  protocol    = "tcp"
+  cidr_blocks = ["10.0.0.0/8"]
+
+  security_group_id = aws_security_group.elasticsearch.id
+}
+
+# Allow outbound traffic
+resource "aws_security_group_rule" "es-egress" {
+  description = "${local.prefix}: allow all outbound traffic"
+  type        = "egress"
+
+  from_port   = 0
+  to_port     = 0
+  protocol    = "-1"
+  cidr_blocks = ["0.0.0.0/0"]
+
+  security_group_id = aws_security_group.elasticsearch.id
+}
+
 resource "aws_autoscaling_group" "elasticstack" {
   name                      = "${local.prefix}-elasticstack"
   max_size                  = 1
@@ -49,16 +116,25 @@ resource "aws_autoscaling_group" "elasticstack" {
 
   tag {
     key                 = "ansible_branch"
-    value               = "zwinnerman-add-loadtest-infra-mine-fixup"
+    value               = data.git_repository.tf.branch
     propagate_at_launch = true
   }
 }
 
+resource "aws_iam_instance_profile" "elasticstack" {
+  name = "elasticstack"
+  role = aws_iam_role.elasticstack.name
+}
+
 data "aws_iam_policy_document" "elasticstack" {
   statement {
-    effect    = "Allow"
     actions   = ["secretsmanager:GetSecretValue"]
     resources = ["arn:aws:secretsmanager:us-east-2:917007347864:secret:/fleet/ssh/keys-7iQNe1"]
+  }
+
+  statement {
+    actions   = ["ec2:DescribeTags"]
+    resources = ["*"]
   }
 }
 
@@ -108,13 +184,19 @@ resource "aws_launch_template" "elasticstack" {
   image_id               = data.aws_ami.amazonlinux.image_id
   instance_type          = "t3.large"
   key_name               = "zwinnerman"
-  vpc_security_group_ids = [aws_security_group.lb.id]
+  vpc_security_group_ids = [aws_security_group.elasticsearch.id]
+
   metadata_options {
     instance_metadata_tags = "enabled"
     http_endpoint          = "enabled"
     http_tokens            = "required"
   }
+
   user_data = filebase64("${path.module}/elasticsearch.sh")
+
+  iam_instance_profile {
+    arn = aws_iam_instance_profile.elasticstack.arn
+  }
 }
 
 resource "aws_alb_listener" "elasticsearch" {
@@ -135,6 +217,9 @@ resource "aws_lb_target_group" "elasticsearch" {
   port     = 9200
   protocol = "HTTP"
   vpc_id   = module.vpc.vpc_id
+  health_check {
+    path = "/_cat/health"
+  }
 }
 
 resource "aws_alb_listener" "elasticapm" {
@@ -175,4 +260,7 @@ resource "aws_lb_target_group" "kibana" {
   port     = 5601
   protocol = "HTTP"
   vpc_id   = module.vpc.vpc_id
+  health_check {
+    path = "/api/status"
+  }
 }

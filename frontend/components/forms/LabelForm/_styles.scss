@@ -24,7 +24,6 @@
       color: $core-fleet-blue;
       padding-top: $pad-small;
     }
-
   }
 
   &__button-wrap {
@@ -34,10 +33,6 @@
     .query-form__run-query-btn,
     .query-form__stop-query-btn {
       margin-left: $pad-xsmall;
-    }
-
-    .kolide-timer {
-      display: block;
     }
   }
 

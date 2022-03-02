@@ -28,6 +28,7 @@ import {
   IEnrollSecret,
   IEnrollSecretsResponse,
 } from "interfaces/enroll_secret";
+import { IApiError } from "interfaces/errors";
 import { IHost } from "interfaces/host";
 import { ILabel, ILabelFormData } from "interfaces/label";
 import { IPolicy } from "interfaces/policy";
@@ -37,6 +38,7 @@ import { ITeam } from "interfaces/team";
 import deepDifference from "utilities/deep_difference";
 import sortUtils from "utilities/sort";
 import {
+  DEFAULT_CREATE_LABEL_ERRORS,
   PLATFORM_LABEL_DISPLAY_NAMES,
   PolicyResponse,
 } from "utilities/constants";
@@ -77,7 +79,7 @@ import {
 
 import DeleteSecretModal from "../../../components/DeleteSecretModal";
 import SecretEditorModal from "../../../components/SecretEditorModal";
-import GenerateInstallerModal from "../../../components/GenerateInstallerModal";
+import AddHostsModal from "../../../components/AddHostsModal";
 import EnrollSecretModal from "../../../components/EnrollSecretModal";
 // @ts-ignore
 import NoHosts from "./components/NoHosts";
@@ -226,10 +228,7 @@ const ManageHostsPage = ({
   const [showEditColumnsModal, setShowEditColumnsModal] = useState<boolean>(
     false
   );
-  const [
-    showGenerateInstallerModal,
-    setShowGenerateInstallerModal,
-  ] = useState<boolean>(false);
+  const [showAddHostsModal, setShowAddHostsModal] = useState<boolean>(false);
   const [showTransferHostModal, setShowTransferHostModal] = useState<boolean>(
     false
   );
@@ -261,6 +260,9 @@ const ManageHostsPage = ({
     currentQueryOptions,
     setCurrentQueryOptions,
   ] = useState<ILoadHostsOptions>();
+  const [labelValidator, setLabelValidator] = useState<{
+    [key: string]: string;
+  }>(DEFAULT_CREATE_LABEL_ERRORS);
 
   // ======== end states
 
@@ -328,7 +330,7 @@ const ManageHostsPage = ({
     }
   );
 
-  const generateInstallerTeam = currentTeam
+  const addHostsTeam = currentTeam
     ? { name: currentTeam.name, secrets: teamSecrets || null }
     : {
         name: "No team",
@@ -398,8 +400,8 @@ const ManageHostsPage = ({
     setShowDeleteHostModal(!showDeleteHostModal);
   };
 
-  const toggleGenerateInstallerModal = () => {
-    setShowGenerateInstallerModal(!showGenerateInstallerModal);
+  const toggleAddHostsModal = () => {
+    setShowAddHostsModal(!showAddHostsModal);
   };
 
   const toggleAllMatchingHosts = (shouldSelect: boolean) => {
@@ -660,11 +662,15 @@ const ManageHostsPage = ({
 
   const onAddLabelClick = (evt: React.MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();
+
+    setLabelValidator(DEFAULT_CREATE_LABEL_ERRORS);
     router.push(`${PATHS.MANAGE_HOSTS}${NEW_LABEL_HASH}`);
   };
 
   const onEditLabelClick = (evt: React.MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();
+
+    setLabelValidator(DEFAULT_CREATE_LABEL_ERRORS);
     router.push(
       `${PATHS.MANAGE_HOSTS}/${getLabelSelected()}${EDIT_LABEL_HASH}`
     );
@@ -877,29 +883,37 @@ const ManageHostsPage = ({
     }
   };
 
-  const onEditLabel = async (formData: ILabelFormData) => {
+  const onEditLabel = (formData: ILabelFormData) => {
     if (!selectedLabel) {
       console.error("Label isn't available. This should not happen.");
       return;
     }
 
     const updateAttrs = deepDifference(formData, selectedLabel);
-    try {
-      await labelsAPI.update(selectedLabel, updateAttrs);
-      refetchLabels();
-      router.push(`${PATHS.MANAGE_HOSTS}/${getLabelSelected()}`);
-      dispatch(
-        renderFlash(
-          "success",
-          "Label updated. Try refreshing this page in just a moment to see the updated host count for your label."
-        )
-      );
-    } catch (error) {
-      console.error(error);
-      dispatch(
-        renderFlash("error", "Could not create label. Please try again.")
-      );
-    }
+
+    labelsAPI
+      .update(selectedLabel, updateAttrs)
+      .then(() => {
+        refetchLabels();
+        dispatch(
+          renderFlash(
+            "success",
+            "Label updated. Try refreshing this page in just a moment to see the updated host count for your label."
+          )
+        );
+        setLabelValidator({});
+      })
+      .catch((updateError: { data: IApiError }) => {
+        if (updateError.data.errors[0].reason.includes("Duplicate")) {
+          setLabelValidator({
+            name: "A label with this name already exists",
+          });
+        } else {
+          dispatch(
+            renderFlash("error", "Could not create label. Please try again.")
+          );
+        }
+      });
   };
 
   const onLabelClick = (label: ILabel) => {
@@ -913,25 +927,31 @@ const ManageHostsPage = ({
     setSelectedOsqueryTable(tableName);
   };
 
-  const onSaveAddLabel = async (formData: ILabelFormData) => {
-    try {
-      await labelsAPI.create(formData);
-      router.push(PATHS.MANAGE_HOSTS);
-      refetchLabels();
-
-      // TODO flash messages are not visible seemingly because of page renders
-      dispatch(
-        renderFlash(
-          "success",
-          "Label created. Try refreshing this page in just a moment to see the updated host count for your label."
-        )
-      );
-    } catch (error) {
-      console.error(error);
-      dispatch(
-        renderFlash("error", "Could not create label. Please try again.")
-      );
-    }
+  const onSaveAddLabel = (formData: ILabelFormData) => {
+    labelsAPI
+      .create(formData)
+      .then(() => {
+        router.push(PATHS.MANAGE_HOSTS);
+        dispatch(
+          renderFlash(
+            "success",
+            "Label created. Try refreshing this page in just a moment to see the updated host count for your label."
+          )
+        );
+        setLabelValidator({});
+        refetchLabels();
+      })
+      .catch((updateError: any) => {
+        if (updateError.data.errors[0].reason.includes("Duplicate")) {
+          setLabelValidator({
+            name: "A label with this name already exists",
+          });
+        } else {
+          dispatch(
+            renderFlash("error", "Could not create label. Please try again.")
+          );
+        }
+      });
   };
 
   const onDeleteLabel = async () => {
@@ -1259,15 +1279,15 @@ const ManageHostsPage = ({
     );
   };
 
-  const renderGenerateInstallerModal = () => {
-    if (!showGenerateInstallerModal) {
+  const renderAddHostsModal = () => {
+    if (!showAddHostsModal) {
       return null;
     }
 
     return (
-      <GenerateInstallerModal
-        onCancel={toggleGenerateInstallerModal}
-        selectedTeam={generateInstallerTeam}
+      <AddHostsModal
+        onCancel={toggleAddHostsModal}
+        selectedTeam={addHostsTeam}
       />
     );
   };
@@ -1396,6 +1416,7 @@ const ManageHostsPage = ({
             onOsqueryTableSelect={onOsqueryTableSelect}
             handleSubmit={onSaveAddLabel}
             baseError={labelsError?.message || ""}
+            backendValidators={labelValidator}
           />
         </div>
       );
@@ -1410,6 +1431,7 @@ const ManageHostsPage = ({
             onOsqueryTableSelect={onOsqueryTableSelect}
             handleSubmit={onEditLabel}
             baseError={labelsError?.message || ""}
+            backendValidators={labelValidator}
             isEdit
           />
         </div>
@@ -1489,7 +1511,7 @@ const ManageHostsPage = ({
 
       return (
         <NoHosts
-          toggleGenerateInstallerModal={toggleGenerateInstallerModal}
+          toggleAddHostsModal={toggleAddHostsModal}
           canEnrollHosts={canEnrollHosts}
           includesSoftwareOrPolicyFilter={includesSoftwareOrPolicyFilter}
         />
@@ -1618,10 +1640,10 @@ const ManageHostsPage = ({
                   filteredHostCount === 0
                 ) && (
                   <Button
-                    onClick={toggleGenerateInstallerModal}
+                    onClick={toggleAddHostsModal}
                     className={`${baseClass}__add-hosts button button--brand`}
                   >
-                    <span>Generate installer</span>
+                    <span>Add hosts</span>
                   </Button>
                 )}
             </div>
@@ -1643,7 +1665,7 @@ const ManageHostsPage = ({
       {renderEnrollSecretModal()}
       {renderEditColumnsModal()}
       {renderDeleteLabelModal()}
-      {renderGenerateInstallerModal()}
+      {renderAddHostsModal()}
       {renderTransferHostModal()}
       {renderDeleteHostModal()}
     </div>

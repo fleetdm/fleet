@@ -31,6 +31,7 @@ type Session struct {
 	AccessedAt time.Time `db:"accessed_at"`
 	UserID     uint      `json:"user_id" db:"user_id"`
 	Key        string
+	APIOnly    *bool `json:"-" db:"api_only"`
 }
 
 func (s Session) AuthzType() string {

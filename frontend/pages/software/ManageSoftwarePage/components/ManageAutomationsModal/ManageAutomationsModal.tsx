@@ -6,7 +6,6 @@ import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
-import IconToolTip from "components/IconToolTip";
 import validURL from "components/forms/validators/valid_url";
 
 import { IWebhookSoftwareVulnerabilities } from "interfaces/webhook";
@@ -210,10 +209,7 @@ const ManageAutomationsModal = ({
               "For each new vulnerability detected, Fleet will send a JSON payload to this URL with a list of the affected hosts."
             }
             placeholder={"https://server.com/example"}
-          />
-          <IconToolTip
-            isHtml
-            text={"<p>Provide a URL to deliver a<br />webhook request to.</p>"}
+            tooltip="Provide a URL to deliver a webhook request to."
           />
         </div>
         <Button

@@ -43,7 +43,7 @@ describe("RegistrationPage - component", () => {
     expect(dispatchedActions).toContainEqual(redirectToHomeAction);
   });
 
-  it("displays the Kolide background triangles", () => {
+  it("displays the Fleet background triangles", () => {
     const mockStore = reduxMockStore(baseStore);
 
     mount(connectedComponent(ConnectedRegistrationPage, { mockStore }));

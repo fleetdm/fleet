@@ -1,11 +1,23 @@
 import { flatMap, omit, pick, size, memoize } from "lodash";
 import md5 from "js-md5";
-import moment from "moment";
+import {
+  format,
+  formatDistanceToNow,
+  formatDuration,
+  isAfter,
+  millisecondsToHours,
+  millisecondsToSeconds,
+} from "date-fns";
 import yaml from "js-yaml";
 
 import { IConfigNested } from "interfaces/config";
 import { ILabel } from "interfaces/label";
 import { IPack } from "interfaces/pack";
+import {
+  ISelectTargetsEntity,
+  ISelectedTargets,
+  IPackTargets,
+} from "interfaces/target";
 import { ITeam, ITeamSummary } from "interfaces/team";
 import { IUser } from "interfaces/user";
 import { IPackQueryFormData } from "interfaces/scheduled_query";
@@ -86,7 +98,7 @@ const labelStubs = [
 ];
 
 const filterTarget = (targetType: string) => {
-  return (target: any) => {
+  return (target: ISelectTargetsEntity) => {
     return target.target_type === targetType ? [target.id] : [];
   };
 };
@@ -219,19 +231,28 @@ const formatLabelResponse = (response: any): ILabel[] => {
 };
 
 export const formatSelectedTargetsForApi = (
-  selectedTargets: any,
-  appendID = false
-) => {
+  selectedTargets: ISelectTargetsEntity[]
+): ISelectedTargets => {
   const targets = selectedTargets || [];
   const hosts = flatMap(targets, filterTarget("hosts"));
   const labels = flatMap(targets, filterTarget("labels"));
   const teams = flatMap(targets, filterTarget("teams"));
 
-  if (appendID) {
-    return { host_ids: hosts, label_ids: labels, team_ids: teams };
-  }
+  const sortIds = (ids: Array<number | string>) =>
+    ids.sort((a, b) => Number(a) - Number(b));
 
-  return { hosts, labels, teams };
+  return {
+    hosts: sortIds(hosts),
+    labels: sortIds(labels),
+    teams: sortIds(teams),
+  };
+};
+
+export const formatPackTargetsForApi = (
+  targets: ISelectTargetsEntity[]
+): IPackTargets => {
+  const { hosts, labels, teams } = formatSelectedTargetsForApi(targets);
+  return { host_ids: hosts, label_ids: labels, team_ids: teams };
 };
 
 export const formatScheduledQueryForServer = (
@@ -536,25 +557,21 @@ export const inMilliseconds = (nanoseconds: number): number => {
   return nanoseconds / NANOSECONDS_PER_MILLISECOND;
 };
 
-export const humanTimeAgo = (dateSince: string): number => {
-  const now = moment();
-  const mDateSince = moment(dateSince);
-
-  return now.diff(mDateSince, "days");
-};
-
 export const humanHostUptime = (uptimeInNanoseconds: number): string => {
   const milliseconds = inMilliseconds(uptimeInNanoseconds);
 
-  return moment.duration(milliseconds, "milliseconds").humanize();
+  return formatDuration(
+    { hours: millisecondsToHours(milliseconds) },
+    { format: ["hours"] }
+  );
 };
 
 export const humanHostLastSeen = (lastSeen: string): string => {
-  return moment(lastSeen).format("MMM D YYYY, HH:mm:ss");
+  return format(new Date(lastSeen), "MMM d yyyy, HH:mm:ss");
 };
 
 export const humanHostEnrolled = (enrolled: string): string => {
-  return moment(enrolled).format("MMM D YYYY, HH:mm:ss");
+  return formatDistanceToNow(new Date(enrolled), { addSuffix: true });
 };
 
 export const humanHostMemory = (bytes: number): string => {
@@ -569,7 +586,7 @@ export const humanHostDetailUpdated = (detailUpdated: string): string => {
     return "Never";
   }
 
-  return moment(detailUpdated).fromNow();
+  return formatDistanceToNow(new Date(detailUpdated), { addSuffix: true });
 };
 
 export const hostTeamName = (teamName: string | null): string => {
@@ -587,11 +604,11 @@ export const humanQueryLastRun = (lastRun: string): string => {
     return "Has not run";
   }
 
-  return moment(lastRun).fromNow();
+  return formatDistanceToNow(new Date(lastRun), { addSuffix: true });
 };
 
 export const licenseExpirationWarning = (expiration: string): boolean => {
-  return moment(moment()).isAfter(expiration);
+  return isAfter(new Date(), new Date(expiration));
 };
 
 // IQueryStats became any when adding in IGlobalScheduledQuery and ITeamScheduledQuery
@@ -724,6 +741,7 @@ export default {
   formatTeamScheduledQueryForClient,
   formatTeamScheduledQueryForServer,
   formatSelectedTargetsForApi,
+  formatPackTargetsForApi,
   generateRole,
   generateTeam,
   greyCell,

@@ -1,4 +1,4 @@
-# Kolide Tests
+# Fleet tests
 
 The test directory contains helper functions, request mocks, and entity stubs
 for use in test files throughout the application. The test files for components and app functions are located in the same directory as the files they test.
@@ -61,8 +61,8 @@ import Test from 'test';
 const mocks = Test.Mocks;
 ```
 
-Documentation on request mocks can be found in the [Kolide Request Mock
-Documentation](./mocks/README.md)
+Documentation on request mocks can be found in the [Fleet request mock
+documentation](./mocks/README.md)
 
 ## [Stubs](./stubs.ts)
 
@@ -72,5 +72,5 @@ import Test from 'test';
 const stubs = Test.Stubs;
 ```
 
-The Stubs file contains objects that represent entities used in the Kolide
+The Stubs file contains objects that represent entities used in the Fleet
 application. These re-usable objects help keep the code DRY.

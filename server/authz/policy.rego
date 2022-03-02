@@ -438,25 +438,17 @@ allow {
 # Policies
 ##
 
-# Global Admin can read and write policies
+# Global Admin and Maintainer can read and write policies
 allow {
   object.type == "policy"
-  subject.global_role == admin
+  subject.global_role == [admin,maintainer][_]
   action == [read, write][_]
 }
 
-# Global Maintainer can read and write global policies
-allow {
-  is_null(object.team_id)
-  object.type == "policy"
-  subject.global_role == maintainer
-  action == [read, write][_]
-}
-
-# Global Maintainer and Observer users can read any policies
+# Global Observer can read any policies
 allow {
   object.type == "policy"
-  subject.global_role == [maintainer,observer][_]
+  subject.global_role == observer
   action == read
 }
 

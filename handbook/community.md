@@ -43,12 +43,12 @@ Keep headings brief and organize them in a logical order:
 Try to stay within 3 or 4 heading levels. Complicated documents may use more, but pages with a simpler structure are easier to read.
 
 ### Adding a link to the Fleet docs
-You can link documentation pages to each other using relative paths. For example, in `docs/01-Using-Fleet/01-Fleet-UI.md`, you can link to `docs/01-Using-Fleet/09-Permissions.md` by writing `[permissions](./09-Permissions.md)`. This will be automatically transformed into the appropriate URL for `fleetdm.com/docs`.
+You can link documentation pages to each other using relative paths. For example, in `docs/Using-Fleet/Fleet-UI.md`, you can link to `docs/Using-Fleet/Permissions.md` by writing `[permissions](./Permissions.md)`. This will be automatically transformed into the appropriate URL for `fleetdm.com/docs`.
 
 However, the `fleetdm.com/docs` compilation process does not account for relative links to directories **outside** of `/docs`.
-Therefore, when adding a link to Fleet docs, it is important to always use the absolute file path.
+This is why it’s essential to follow the file path exactly when adding a link to Fleet docs.
 
-When directly linking to a specific section within a page in the Fleet documentation, always format the spaces within a section name to use a hyphen `-` instead of an underscore `_`. For example, when linking to the `osquery_result_log_plugin` section of the configuration reference docs, use a relative link like the following: `./02-Configuration.md#osquery-result-log-plugin`.
+When directly linking to a specific section within a page in the Fleet documentation, always format the spaces within a section name to use a hyphen  "-" instead of an underscore "_". For example, when linking to the `osquery_result_log_plugin` section of the configuration reference docs, use a relative link like the following: `./Configuration.md#osquery-result-log-plugin`.
 
 ### Linking to a location on GitHub
 When adding a link to a location on GitHub that is outside of `/docs`, be sure to use the canonical form of the URL.
@@ -68,6 +68,14 @@ If the link lives outside `/docs`, head to the file's location on GitHub (in thi
 
 > Note that the instructions above also apply to adding links in the Fleet handbook.
 
+### Ordering a page in the Fleet docs
+The order we display documentation pages on fleetdm.com is determined by `pageOrderInSection` meta tags. These pages are sorted in their respective section by the `pageOrderInSection` value in **ascending** order. Every markdown file (except readme and faq pages) in the `docs/` folder must have a meta tag with a positive pageOrderInSection value.
+
+
+We leave large gaps between values to make future changes easier. For example, the first page in the "Using Fleet" section of the docs has a `pageOrderInSection` value of 100, and the next page has a value of 200. The large difference between values allows us to add, remove and reorder pages without the need for changing the value of multiple pages at a time.
+
+When adding or reordering a page, try to leave as much room between values as possible. If you were adding a new page that would go between the two pages from the example above, you would add `<meta name="pageOrderInSection" value="150">` to the page.
+
 ### Adding an image to the Fleet docs
 Try to keep images in the docs at a minimum. Images can be a quick way to help a user understand a concept or direct them towards a specific UI element, but too many can make the documentation feel cluttered and more difficult to maintain.
 
@@ -77,11 +85,42 @@ When adding images to the Fleet documentation, follow these guidelines:
 - Minimize images per doc page. More than one or two per page can get overwhelming, for doc maintainers and users.
 - The goal is for the docs to look good on every form factor, from 320px window width all the way up to infinity and beyond. Full window screenshots and images with too much padding on the sides will be less than the width of the user's screen. When adding a large image, make sure that it is easily readable at all widths.
 
-Images can be added to the docs using the Markdown image link format, e.g. `![Schedule Query Sidebar](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/schedule-query-sidebar.png)`
+Images can be added to the docs using the Markdown image link format, e.g. `![Schedule Query Sidebar](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/schedule-query-modal.png)`
 The images used in the docs live in `docs/images/`. Note that you must provide the url of the image in the Fleet Github repo for it to display properly on both Github and the Fleet website.
 
 > Note that the instructions above also apply to adding images in the Fleet handbook.
 
+### Adding a mermaid diagram to the Fleet Docs
+
+The Fleet Docs support diagrams that are written in mermaid.js syntax. Take a look at the [Mermaid docs](https://mermaid-js.github.io/mermaid/#/README) to learn about the syntax language and what types of diagrams you can display.
+
+To add a mermaid diagram to the docs, you need to add a code block and specify that it written in the mermaid language by adding `mermaid` to the opening backticks (i.e., ` ```mermaid`).
+
+For example, the following code block is a mermaid diagram that has **not** been specifed as a mermaid code block:
+
+```
+graph TD;
+    A-->D
+    B-->D
+    C-->D
+    D-->E
+```
+Once we specify the `mermaid` as the language in the code block, it will render as a mermaid diagram on fleetdm.com and GitHub.
+
+```mermaid
+graph TD;
+    A-->D
+    B-->D
+    C-->D
+    D-->E
+```
+
+If the mermaid syntax is incorrect, the diagram will be replaced with an image displaying an error, as shown in the following example where the code block was written with **intentional** syntax errors:
+
+```mermaid
+graph TD;
+    A--D
+```
 
 ## Press releases
 
@@ -101,7 +140,7 @@ The top priority when community members contribute PRs is to help the person fee
 Fleet. This means acknowledging the contribution quickly (within 1 business day), and driving to a
 resolution (close/merge) as soon as possible (may take longer than 1 business day).
 
-#### Process
+### Process
 
 1. Decide whether the change is acceptable (see below). If this will take time, acknowledge the
    contribution and let the user know that the team will respond. For changes that are not
@@ -120,7 +159,7 @@ resolution (close/merge) as soon as possible (may take longer than 1 business da
 
 Please refer to our [PRs from the community](https://docs.google.com/document/d/13r0vEhs9LOBdxWQWdZ8n5Ff9cyB3hQkTjI5OhcrHjVo/edit?usp=sharing) guide for more detailed information.
 
-#### What is acceptable?
+### What is acceptable?
 
 Generally, any small documentation update or bugfix is acceptable, and can be merged by any member
 of the Fleet team. Additions or fixes to the Standard Query Library are acceptable as long as the
@@ -128,5 +167,19 @@ SQL works properly and they attributed correctly. Please use your best judgement
 
 Larger changes and new features should be approved by the appropriate [Product
 DRI](./product.md#product-dris). Ask in the `#g-product` channel in Fleet Slack.
+
+## Fleet swag
+
+We want to recognize and congratulate community members for their contributions to Fleet. Nominating a contributor for [Fleet swag](https://www.printful.com/dashboard/product-templates?sortBy=created&sortDir=desc&page=1) is a great way to show our appreciation.
+
+### How to order swag
+
+1. Reach out to the contributor to thank them for their contribution and ask if they would like any swag.
+
+2. Fill out our [swag request sheet](https://docs.google.com/spreadsheets/d/1bySsYVYHY8EjxWhhAKMLVAPLNjg3IYVNpyg50clfB6I/edit?usp=sharing).
+
+3. Once approved, place the order through our [Printful](https://www.printful.com/dashboard/product-templates?sortBy=created&sortDir=desc&page=1) account (credentials in 1Password).
+
+4. If available through the ordering process, add a thank you note for their contribution and "feel free to tag us on Twitter."
 
 <meta name="maintainedBy" value="mike-j-thomas">

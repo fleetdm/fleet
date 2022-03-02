@@ -284,6 +284,8 @@ type ShouldSendStatisticsFunc func(ctx context.Context, frequency time.Duration,
 
 type RecordStatisticsSentFunc func(ctx context.Context) error
 
+type ApplyPolicySpecsFunc func(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error
+
 type NewGlobalPolicyFunc func(ctx context.Context, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error)
 
 type PolicyFunc func(ctx context.Context, id uint) (*fleet.Policy, error)
@@ -292,11 +294,11 @@ type SavePolicyFunc func(ctx context.Context, p *fleet.Policy) error
 
 type ListGlobalPoliciesFunc func(ctx context.Context) ([]*fleet.Policy, error)
 
+type PoliciesByIDFunc func(ctx context.Context, ids []uint) (map[uint]*fleet.Policy, error)
+
 type DeleteGlobalPoliciesFunc func(ctx context.Context, ids []uint) ([]uint, error)
 
 type PolicyQueriesForHostFunc func(ctx context.Context, host *fleet.Host) (map[string]string, error)
-
-type ApplyPolicySpecsFunc func(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error
 
 type AsyncBatchInsertPolicyMembershipFunc func(ctx context.Context, batch []fleet.PolicyMembershipResult) error
 
@@ -323,6 +325,8 @@ type ListTeamPoliciesFunc func(ctx context.Context, teamID uint) ([]*fleet.Polic
 type DeleteTeamPoliciesFunc func(ctx context.Context, teamID uint, ids []uint) ([]uint, error)
 
 type TeamPolicyFunc func(ctx context.Context, teamID uint, policyID uint) (*fleet.Policy, error)
+
+type CleanupPolicyMembershipFunc func(ctx context.Context, now time.Time) error
 
 type LockFunc func(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error)
 
@@ -787,6 +791,9 @@ type DataStore struct {
 	RecordStatisticsSentFunc        RecordStatisticsSentFunc
 	RecordStatisticsSentFuncInvoked bool
 
+	ApplyPolicySpecsFunc        ApplyPolicySpecsFunc
+	ApplyPolicySpecsFuncInvoked bool
+
 	NewGlobalPolicyFunc        NewGlobalPolicyFunc
 	NewGlobalPolicyFuncInvoked bool
 
@@ -799,14 +806,14 @@ type DataStore struct {
 	ListGlobalPoliciesFunc        ListGlobalPoliciesFunc
 	ListGlobalPoliciesFuncInvoked bool
 
+	PoliciesByIDFunc        PoliciesByIDFunc
+	PoliciesByIDFuncInvoked bool
+
 	DeleteGlobalPoliciesFunc        DeleteGlobalPoliciesFunc
 	DeleteGlobalPoliciesFuncInvoked bool
 
 	PolicyQueriesForHostFunc        PolicyQueriesForHostFunc
 	PolicyQueriesForHostFuncInvoked bool
-
-	ApplyPolicySpecsFunc        ApplyPolicySpecsFunc
-	ApplyPolicySpecsFuncInvoked bool
 
 	AsyncBatchInsertPolicyMembershipFunc        AsyncBatchInsertPolicyMembershipFunc
 	AsyncBatchInsertPolicyMembershipFuncInvoked bool
@@ -846,6 +853,9 @@ type DataStore struct {
 
 	TeamPolicyFunc        TeamPolicyFunc
 	TeamPolicyFuncInvoked bool
+
+	CleanupPolicyMembershipFunc        CleanupPolicyMembershipFunc
+	CleanupPolicyMembershipFuncInvoked bool
 
 	LockFunc        LockFunc
 	LockFuncInvoked bool
@@ -1609,6 +1619,11 @@ func (s *DataStore) RecordStatisticsSent(ctx context.Context) error {
 	return s.RecordStatisticsSentFunc(ctx)
 }
 
+func (s *DataStore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error {
+	s.ApplyPolicySpecsFuncInvoked = true
+	return s.ApplyPolicySpecsFunc(ctx, authorID, specs)
+}
+
 func (s *DataStore) NewGlobalPolicy(ctx context.Context, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error) {
 	s.NewGlobalPolicyFuncInvoked = true
 	return s.NewGlobalPolicyFunc(ctx, authorID, args)
@@ -1629,6 +1644,11 @@ func (s *DataStore) ListGlobalPolicies(ctx context.Context) ([]*fleet.Policy, er
 	return s.ListGlobalPoliciesFunc(ctx)
 }
 
+func (s *DataStore) PoliciesByID(ctx context.Context, ids []uint) (map[uint]*fleet.Policy, error) {
+	s.PoliciesByIDFuncInvoked = true
+	return s.PoliciesByIDFunc(ctx, ids)
+}
+
 func (s *DataStore) DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint, error) {
 	s.DeleteGlobalPoliciesFuncInvoked = true
 	return s.DeleteGlobalPoliciesFunc(ctx, ids)
@@ -1637,11 +1657,6 @@ func (s *DataStore) DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uin
 func (s *DataStore) PolicyQueriesForHost(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 	s.PolicyQueriesForHostFuncInvoked = true
 	return s.PolicyQueriesForHostFunc(ctx, host)
-}
-
-func (s *DataStore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error {
-	s.ApplyPolicySpecsFuncInvoked = true
-	return s.ApplyPolicySpecsFunc(ctx, authorID, specs)
 }
 
 func (s *DataStore) AsyncBatchInsertPolicyMembership(ctx context.Context, batch []fleet.PolicyMembershipResult) error {
@@ -1707,6 +1722,11 @@ func (s *DataStore) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []u
 func (s *DataStore) TeamPolicy(ctx context.Context, teamID uint, policyID uint) (*fleet.Policy, error) {
 	s.TeamPolicyFuncInvoked = true
 	return s.TeamPolicyFunc(ctx, teamID, policyID)
+}
+
+func (s *DataStore) CleanupPolicyMembership(ctx context.Context, now time.Time) error {
+	s.CleanupPolicyMembershipFuncInvoked = true
+	return s.CleanupPolicyMembershipFunc(ctx, now)
 }
 
 func (s *DataStore) Lock(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error) {

@@ -4,7 +4,6 @@ import {
   LOGIN_REQUEST,
   LOGIN_SUCCESS,
   UPDATE_USER_FAILURE,
-  UPDATE_USER_REQUEST,
   UPDATE_USER_SUCCESS,
   LOGOUT_FAILURE,
   LOGOUT_REQUEST,
@@ -38,7 +37,6 @@ const reducer = (state = initialState, action) => {
       };
     case LOGIN_REQUEST:
     case LOGOUT_REQUEST:
-    case UPDATE_USER_REQUEST:
     case SSO_REDIRECT_REQUEST:
     case SSO_SETTINGS_REQUEST:
       return {

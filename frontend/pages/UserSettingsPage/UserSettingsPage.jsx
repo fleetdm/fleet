@@ -2,7 +2,7 @@ import React, { Component } from "react";
 import PropTypes from "prop-types";
 import { connect } from "react-redux";
 import { goBack } from "react-router-redux";
-import moment from "moment";
+import { formatDistanceToNow } from "date-fns";
 import { authToken } from "utilities/local";
 import { stringToClipboard } from "utilities/copy_text";
 
@@ -183,7 +183,22 @@ export class UserSettingsPage extends Component {
 
         return true;
       })
-      .catch(() => false);
+      .catch((userErrors) => {
+        if (userErrors.base.includes("already exists")) {
+          // TODO: Revamp to create inline error requires jsx > tsx / form fields state/validators
+          dispatch(
+            renderFlash(
+              "error",
+              "A user with this email address already exists."
+            )
+          );
+        } else {
+          dispatch(
+            renderFlash("error", "Could not edit user. Please try again.")
+          );
+        }
+        this.setState({ showEmailModal: false });
+      });
   };
 
   handleSubmitPasswordForm = (formData) => {
@@ -336,7 +351,9 @@ export class UserSettingsPage extends Component {
     const roleText = generateRole(teams, globalRole);
     const teamsText = generateTeam(teams, globalRole);
 
-    const lastUpdatedAt = moment(updatedAt).fromNow();
+    const lastUpdatedAt = formatDistanceToNow(new Date(updatedAt), {
+      addSuffix: true,
+    });
 
     return (
       <div className={baseClass}>

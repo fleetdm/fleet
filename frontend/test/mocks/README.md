@@ -1,10 +1,10 @@
-# Kolide Request Mocks
+# Fleet request mocks
 
 Request mocks are used to intercept API requests when running tests. Requests
 are mocked to simulate valid and invalid requests. The naming convention is
 similar to the [API client entity CRUD methods](../../fleet/README.md).
 
-## Using Mocks
+## Using mocks
 
 ```js
 // import the mocks you want in the test file
@@ -26,7 +26,7 @@ mocks.queries.load.valid(bearerToken, queryID);
 mocks.packs.create.valid(bearerToken, params);
 ```
 
-## Creating Mocks
+## Creating mocks
 
 Mocks are created using the [`createRequestMock`](./create_request_mock.js) function.
 
@@ -106,12 +106,12 @@ the `endpoint` option.
 
 ### Examples
 
-[API Request](../../fleet/entities/packs.tests.js#L16-L30)
+[API request](../../fleet/entities/packs.tests.js#L16-L30)
 * The mocked request is saved as a variable in order to assert that the request
   is made
 
 
-[Component Test](../../components/forms/fields/SelectTargetsDropdown/SelectTargetsDropdown.tests.jsx#L35-L40)
+[Component test](../../components/forms/fields/SelectTargetsDropdown/SelectTargetsDropdown.tests.jsx#L35-L40)
 * The request is not saved but we want to prevent attempting to make an API request.
 * There is no API to hit in tests so attempting to make an API call with result
   in warnings in the test output.

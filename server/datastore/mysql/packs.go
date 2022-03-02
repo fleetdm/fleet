@@ -29,6 +29,7 @@ func applyPackSpecDB(ctx context.Context, tx sqlx.ExtContext, spec *fleet.PackSp
 	if spec.Name == "" {
 		return ctxerr.New(ctx, "pack name must not be empty")
 	}
+
 	// Insert/update pack
 	query := `
 		INSERT INTO packs (name, description, platform, disabled)
@@ -59,21 +60,21 @@ func applyPackSpecDB(ctx context.Context, tx sqlx.ExtContext, spec *fleet.PackSp
 	}
 
 	// Insert new scheduled queries for pack
+	query = `
+		INSERT INTO scheduled_queries (
+			pack_id, query_name, name, description, ` + "`interval`" + `,
+			snapshot, removed, shard, platform, version, denylist
+		)
+		VALUES (
+			?, ?, ?, ?, ?,
+			?, ?, ?, ?, ?, ?
+		)
+	`
 	for _, q := range spec.Queries {
 		// Default to query name if scheduled query name is not specified.
 		if q.Name == "" {
 			q.Name = q.QueryName
 		}
-		query = `
-			INSERT INTO scheduled_queries (
-				pack_id, query_name, name, description, ` + "`interval`" + `,
-				snapshot, removed, shard, platform, version, denylist
-			)
-			VALUES (
-				?, ?, ?, ?, ?,
-				?, ?, ?, ?, ?, ?
-			)
-		`
 		_, err := tx.ExecContext(ctx, query,
 			packID, q.QueryName, q.Name, q.Description, q.Interval,
 			q.Snapshot, q.Removed, q.Shard, q.Platform, q.Version, q.Denylist,
@@ -92,22 +93,32 @@ func applyPackSpecDB(ctx context.Context, tx sqlx.ExtContext, spec *fleet.PackSp
 		return ctxerr.Wrap(ctx, err, "delete existing targets")
 	}
 
-	// Insert targets
+	query = `
+		INSERT INTO pack_targets (pack_id, type, target_id)
+		VALUES (?, ?, (SELECT id FROM labels WHERE name = ?))
+	`
 	for _, l := range spec.Targets.Labels {
-		query = `
-			INSERT INTO pack_targets (pack_id, type, target_id)
-			VALUES (?, ?, (SELECT id FROM labels WHERE name = ?))
-		`
 		if _, err := tx.ExecContext(ctx, query, packID, fleet.TargetLabel, l); err != nil {
 			return ctxerr.Wrap(ctx, err, "adding label to pack")
+		}
+	}
+
+	query = `
+		INSERT INTO pack_targets (pack_id, type, target_id)
+		VALUES (?, ?, (SELECT id FROM teams WHERE name = ?))
+	`
+	for _, t := range spec.Targets.Teams {
+		if _, err := tx.ExecContext(ctx, query, packID, fleet.TargetTeam, t); err != nil {
+			return ctxerr.Wrap(ctx, err, "adding team to pack")
 		}
 	}
 
 	return nil
 }
 
-func (ds *Datastore) GetPackSpecs(ctx context.Context) (specs []*fleet.PackSpec, err error) {
-	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+func (ds *Datastore) GetPackSpecs(ctx context.Context) ([]*fleet.PackSpec, error) {
+	var specs []*fleet.PackSpec
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		// Get basic specs
 		query := "SELECT id, name, description, platform, disabled FROM packs WHERE pack_type IS NULL OR pack_type = ''"
 		if err := sqlx.SelectContext(ctx, tx, &specs, query); err != nil {
@@ -116,13 +127,25 @@ func (ds *Datastore) GetPackSpecs(ctx context.Context) (specs []*fleet.PackSpec,
 
 		// Load targets
 		for _, spec := range specs {
+
+			// Load labels
 			query = `
 SELECT l.name
 FROM labels l JOIN pack_targets pt
 WHERE pack_id = ? AND pt.type = ? AND pt.target_id = l.id
 `
 			if err := sqlx.SelectContext(ctx, tx, &spec.Targets.Labels, query, spec.ID, fleet.TargetLabel); err != nil {
-				return ctxerr.Wrap(ctx, err, "get pack targets")
+				return ctxerr.Wrap(ctx, err, "get pack label targets")
+			}
+
+			// Load teams
+			query = `
+SELECT t.name
+FROM teams t JOIN pack_targets pt
+WHERE pack_id = ? AND pt.type = ? AND pt.target_id = t.id
+`
+			if err := sqlx.SelectContext(ctx, tx, &spec.Targets.Teams, query, spec.ID, fleet.TargetTeam); err != nil {
+				return ctxerr.Wrap(ctx, err, "get pack team targets")
 			}
 		}
 
@@ -142,7 +165,6 @@ WHERE pack_id = ?
 
 		return nil
 	})
-
 	if err != nil {
 		return nil, err
 	}
@@ -150,31 +172,36 @@ WHERE pack_id = ?
 	return specs, nil
 }
 
-func (ds *Datastore) GetPackSpec(ctx context.Context, name string) (spec *fleet.PackSpec, err error) {
-	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+func (ds *Datastore) GetPackSpec(ctx context.Context, name string) (*fleet.PackSpec, error) {
+	spec := &fleet.PackSpec{}
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		// Get basic spec
-		var specs []*fleet.PackSpec
 		query := "SELECT id, name, description, platform, disabled FROM packs WHERE name = ?"
-		if err := sqlx.SelectContext(ctx, tx, &specs, query, name); err != nil {
+		if err := sqlx.GetContext(ctx, tx, spec, query, name); err != nil {
+			if err == sql.ErrNoRows {
+				return ctxerr.Wrap(ctx, notFound("Pack").WithName(name))
+			}
 			return ctxerr.Wrap(ctx, err, "get packs")
 		}
-		if len(specs) == 0 {
-			return ctxerr.Wrap(ctx, notFound("Pack").WithName(name))
-		}
-		if len(specs) > 1 {
-			return ctxerr.Errorf(ctx, "expected 1 pack row, got %d", len(specs))
-		}
 
-		spec = specs[0]
-
-		// Load targets
+		// Load label targets
 		query = `
 SELECT l.name
 FROM labels l JOIN pack_targets pt
 WHERE pack_id = ? AND pt.type = ? AND pt.target_id = l.id
 `
 		if err := sqlx.SelectContext(ctx, tx, &spec.Targets.Labels, query, spec.ID, fleet.TargetLabel); err != nil {
-			return ctxerr.Wrap(ctx, err, "get pack targets")
+			return ctxerr.Wrap(ctx, err, "get pack label targets")
+		}
+
+		// Load team targets
+		query = `
+SELECT t.name
+FROM teams t JOIN pack_targets pt
+WHERE pack_id = ? AND pt.type = ? AND pt.target_id = t.id
+`
+		if err := sqlx.SelectContext(ctx, tx, &spec.Targets.Teams, query, spec.ID, fleet.TargetTeam); err != nil {
+			return ctxerr.Wrap(ctx, err, "get pack team targets")
 		}
 
 		// Load queries
@@ -191,7 +218,6 @@ WHERE pack_id = ?
 
 		return nil
 	})
-
 	if err != nil {
 		return nil, err
 	}
@@ -254,25 +280,6 @@ func replacePackTargetsDB(ctx context.Context, tx sqlx.ExecerContext, pack *flee
 		return ctxerr.Wrap(ctx, err, "delete pack targets")
 	}
 
-	// Insert hosts
-	if len(pack.HostIDs) > 0 {
-		var args []interface{}
-		for _, id := range pack.HostIDs {
-			args = append(args, pack.ID, fleet.TargetHost, id)
-		}
-		values := strings.TrimSuffix(
-			strings.Repeat("(?,?,?),", len(pack.HostIDs)),
-			",",
-		)
-		sql = fmt.Sprintf(`
-			INSERT INTO pack_targets (pack_id, type, target_id)
-			VALUES %s
-		`, values)
-		if _, err := tx.ExecContext(ctx, sql, args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "insert host targets")
-		}
-	}
-
 	// Insert labels
 	if len(pack.LabelIDs) > 0 {
 		var args []interface{}
@@ -289,6 +296,25 @@ func replacePackTargetsDB(ctx context.Context, tx sqlx.ExecerContext, pack *flee
 		`, values)
 		if _, err := tx.ExecContext(ctx, sql, args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "insert label targets")
+		}
+	}
+
+	// Insert hosts
+	if len(pack.HostIDs) > 0 {
+		var args []interface{}
+		for _, id := range pack.HostIDs {
+			args = append(args, pack.ID, fleet.TargetHost, id)
+		}
+		values := strings.TrimSuffix(
+			strings.Repeat("(?,?,?),", len(pack.HostIDs)),
+			",",
+		)
+		sql = fmt.Sprintf(`
+			INSERT INTO pack_targets (pack_id, type, target_id)
+			VALUES %s
+		`, values)
+		if _, err := tx.ExecContext(ctx, sql, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "insert host targets")
 		}
 	}
 

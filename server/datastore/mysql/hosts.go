@@ -404,9 +404,9 @@ func (ds *Datastore) Host(ctx context.Context, id uint, skipLoadingExtras bool) 
 	return host, nil
 }
 
-func amountEnrolledHostsDB(db sqlx.Queryer) (int, error) {
+func amountEnrolledHostsDB(ctx context.Context, db sqlx.QueryerContext) (int, error) {
 	var amount int
-	err := sqlx.Get(db, &amount, `SELECT count(*) FROM hosts`)
+	err := sqlx.GetContext(ctx, db, &amount, `SELECT count(*) FROM hosts`)
 	if err != nil {
 		return 0, err
 	}
@@ -771,33 +771,19 @@ func (ds *Datastore) MarkHostsSeen(ctx context.Context, hostIDs []uint, t time.T
 
 // SearchHosts performs a search on the hosts table using the following criteria:
 //	- Use the provided team filter.
-//	- Full-text search with the "query" argument (if query == "", then no fulltext matching is executed).
-// 	Full-text search is used even if "query" is a short or stopword.
-//	(what defines a short word is the "ft_min_word_len" VARIABLE, set to 4 by default in Fleet deployments).
+//	- Search hostname, uuid, hardware_serial, and primary_ip using LIKE (mimics ListHosts behavior)
 //	- An optional list of IDs to omit from the search.
-func (ds *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Host, error) {
-	var sqlb strings.Builder
-	sqlb.WriteString(`SELECT
+func (ds *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, matchQuery string, omit ...uint) ([]*fleet.Host, error) {
+	query := `SELECT
 		h.*,
 		COALESCE(hst.seen_time, h.created_at) AS seen_time
 	FROM hosts h
 	LEFT JOIN host_seen_times hst
-	ON (h.id=hst.host_id) WHERE`)
+	ON (h.id=hst.host_id) WHERE TRUE `
 
 	var args []interface{}
-	if len(query) > 0 {
-		sqlb.WriteString(` (
-				MATCH (hostname, uuid) AGAINST (? IN BOOLEAN MODE)
-				OR MATCH (primary_ip, primary_mac) AGAINST (? IN BOOLEAN MODE)
-			) AND`)
-		// Transform query argument and append the truncation operator "*" for MATCH.
-		// From Oracle docs: "If a word is specified with the truncation operator, it is not
-		// stripped from a boolean query, even if it is too short or a stopword."
-		hostQuery := transformQueryWithSuffix(query, "*")
-		// Needs quotes to avoid each "." marking a word boundary.
-		// TODO(lucas): Currently matching the primary_mac doesn't work, see #1959.
-		ipQuery := `"` + query + `"`
-		args = append(args, hostQuery, ipQuery)
+	if len(matchQuery) > 0 {
+		query, args = hostSearchLike(query, args, matchQuery, hostSearchColumns...)
 	}
 	var in interface{}
 	// use -1 if there are no values to omit.
@@ -807,17 +793,17 @@ func (ds *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, q
 		in = -1
 	}
 	args = append(args, in)
-	sqlb.WriteString(" id NOT IN (?) AND ")
-	sqlb.WriteString(ds.whereFilterHostsByTeams(filter, "h"))
-	sqlb.WriteString(` ORDER BY h.id DESC LIMIT 10`)
+	query += " AND id NOT IN (?) AND "
+	query += ds.whereFilterHostsByTeams(filter, "h")
+	query += ` ORDER BY h.id DESC LIMIT 10`
 
-	sql, args, err := sqlx.In(sqlb.String(), args...)
+	query, args, err := sqlx.In(query, args...)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "searching default hosts")
 	}
-	sql = ds.reader.Rebind(sql)
+	query = ds.reader.Rebind(query)
 	hosts := []*fleet.Host{}
-	if err := sqlx.SelectContext(ctx, ds.reader, &hosts, sql, args...); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader, &hosts, query, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "searching hosts")
 	}
 	return hosts, nil

@@ -1,4 +1,11 @@
 import React, { useState, useContext, useEffect, KeyboardEvent } from "react";
+import { useDispatch } from "react-redux";
+import { push } from "react-router-redux";
+// @ts-ignore
+import { renderFlash } from "redux/nodes/notifications/actions";
+
+import PATHS from "router/paths";
+
 import { IAceEditor } from "react-ace/lib/types";
 import ReactTooltip from "react-tooltip";
 import { size } from "lodash";
@@ -9,6 +16,7 @@ import { addGravatarUrlToResource } from "fleet/helpers";
 // @ts-ignore
 import { listCompatiblePlatforms, parseSqlTables } from "utilities/sql_tools";
 
+import queryAPI from "services/entities/queries";
 import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
 import { IQuery, IQueryFormData } from "interfaces/query";
@@ -68,6 +76,8 @@ const QueryForm = ({
   renderLiveQueryWarning,
   backendValidators,
 }: IQueryFormProps): JSX.Element => {
+  const dispatch = useDispatch();
+
   const isEditMode = !!queryIdForEdit;
   const [errors, setErrors] = useState<{ [key: string]: any }>({});
   const [isSaveModalOpen, setIsSaveModalOpen] = useState<boolean>(false);
@@ -77,6 +87,7 @@ const QueryForm = ({
   const [isEditingDescription, setIsEditingDescription] = useState<boolean>(
     false
   );
+  const [isSaveAsNewLoading, setIsSaveAsNewLoading] = useState<boolean>(false);
 
   // Note: The QueryContext values should always be used for any mutable query data such as query name
   // The storedQuery prop should only be used to access immutable metadata such as author id
@@ -168,7 +179,7 @@ const QueryForm = ({
     }
   };
 
-  const promptSaveQuery = (forceNew = false) => (
+  const promptSaveAsNewQuery = () => (
     evt: React.MouseEvent<HTMLButtonElement>
   ) => {
     evt.preventDefault();
@@ -186,7 +197,81 @@ const QueryForm = ({
     valid = isValidated;
 
     if (valid) {
-      if (!isEditMode || forceNew) {
+      setIsSaveAsNewLoading(true);
+
+      queryAPI
+        .create({
+          name: lastEditedQueryName,
+          description: lastEditedQueryDescription,
+          query: lastEditedQueryBody,
+          observer_can_run: lastEditedQueryObserverCanRun,
+        })
+        .then((response: { query: IQuery }) => {
+          setIsSaveAsNewLoading(false);
+          dispatch(push(PATHS.EDIT_QUERY(response.query)));
+          dispatch(renderFlash("success", `Successfully added query.`));
+        })
+        .catch((createError: any) => {
+          if (createError.data.errors[0].reason.includes("already exists")) {
+            queryAPI
+              .create({
+                name: `Copy of ${lastEditedQueryName}`,
+                description: lastEditedQueryDescription,
+                query: lastEditedQueryBody,
+                observer_can_run: lastEditedQueryObserverCanRun,
+              })
+              .then((response: { query: IQuery }) => {
+                setIsSaveAsNewLoading(false);
+                dispatch(push(PATHS.EDIT_QUERY(response.query)));
+                dispatch(
+                  renderFlash(
+                    "success",
+                    `Successfully added query as "Copy of ${lastEditedQueryName}".`
+                  )
+                );
+              })
+              .catch((createCopyError: any) => {
+                if (
+                  createCopyError.data.errors[0].reason.includes(
+                    "already exists"
+                  )
+                ) {
+                  dispatch(
+                    renderFlash(
+                      "error",
+                      `"Copy of ${lastEditedQueryName}" already exists. Please rename your query and try again.`
+                    )
+                  );
+                }
+                setIsSaveAsNewLoading(false);
+              });
+          } else {
+            setIsSaveAsNewLoading(false);
+            dispatch(
+              renderFlash("error", "Could not create query. Please try again.")
+            );
+          }
+        });
+    }
+  };
+
+  const promptSaveQuery = () => (evt: React.MouseEvent<HTMLButtonElement>) => {
+    evt.preventDefault();
+
+    if (isEditMode && !lastEditedQueryName) {
+      return setErrors({
+        ...errors,
+        name: "Query name must be present",
+      });
+    }
+
+    let valid = true;
+    const { valid: isValidated } = validateQuerySQL(lastEditedQueryBody);
+
+    valid = isValidated;
+
+    if (valid) {
+      if (!isEditMode) {
         setIsSaveModalOpen(true);
       } else {
         onUpdate({
@@ -374,6 +459,11 @@ const QueryForm = ({
   const renderForGlobalAdminOrAnyMaintainer = (
     <>
       <form className={`${baseClass}__wrapper`} autoComplete="off">
+        {isSaveAsNewLoading && (
+          <div className={`${baseClass}__loading-overlay`}>
+            <Spinner />
+          </div>
+        )}
         <div className={`${baseClass}__title-bar`}>
           <div className="name-description">
             {renderName()}
@@ -420,9 +510,9 @@ const QueryForm = ({
             <>
               {isEditMode && (
                 <Button
-                  className={`${baseClass}__save`}
+                  className={`${baseClass}__save-as-new`}
                   variant="text-link"
-                  onClick={promptSaveQuery(true)}
+                  onClick={promptSaveAsNewQuery()}
                   disabled={false}
                 >
                   Save as new

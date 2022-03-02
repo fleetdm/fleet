@@ -69,28 +69,19 @@
     }
   }
 
-  .tweets {
+  [purpose='tweets'] {
     max-width: 1200px;
-  }
-
-  .tweet {
-    flex: 0 1 380px;
-    text-align: left;
-    background: #FFFFFF;
-    padding: 40px;
-    margin-bottom: 30px;
-    border: 1px solid #E2E4EA;
-    box-sizing: border-box;
-    box-shadow: 0px 7px 3px -5px rgba(25, 33, 71, 0.1);
-    border-radius: 16px;
-    &[purpose='top-row'] {
-      min-height: 390px;
-    }
-    &[purpose='middle-row'] {
-      min-height: 290px;
-    }
-    &[purpose='bottom-row'] {
-      min-height: 340px;
+    padding-bottom: 50px;
+    box-sizing: content-box;
+    [purpose='tweet-card'], [purpose='tweet-card-bottom-row'] {
+      text-align: left;
+      background: #FFFFFF;
+      padding: 40px;
+      margin-bottom: 30px;
+      border: 1px solid #E2E4EA;
+      box-sizing: border-box;
+      box-shadow: 0px 7px 3px 0px rgba(25, 33, 71, 0.1);
+      border-radius: 16px;
     }
   }
 
@@ -124,7 +115,7 @@
   [purpose='demo-cta'] {
     padding: 16px;
     background: rgba(25, 33, 71, 0.5);
-    border-radius: 12px;
+    border-radius: 16px;
     [purpose='demo-cta-text' ] {
       white-space: nowrap;
       p {
@@ -136,7 +127,9 @@
     }
     .form-control {
       height: 44px;
-      padding: 4px 4px 4px 16px;
+      padding: 4px 4px 4px 12px;
+      border: none;
+      border-radius: 6px;
       input {
         border: none;
         height: 36px;
@@ -179,8 +172,8 @@
     [purpose='register-button'] {
       padding: 8px 16px;
       font-size: 14px;
-      line-height: 19.1px;
-      height: 35px;
+      line-height: 20px;
+      height: 36px;
       border-radius: 4px;
       min-width: 87px;
     }
@@ -239,16 +232,34 @@
   }
 
   @media (min-width: 1200px) {
+    [purpose='tweets'] {
+      padding-left: 0px;
+      padding-right: 0px;
+      [purpose='tweet-card'] {
+        margin-left: 15px;
+        margin-right: 15px;
+        flex: 0 1 326px;
+      }
+      [purpose='tweet-card-bottom-row'] {
+        margin-left: 15px;
+        margin-right: 15px;
+        flex: 0 1 380px;
+      }
+    }
     [purpose='demo-cta'] {
       max-width: 960px;
     }
   }
 
   @media (max-width: 1200px) {
-    .tweets {
-      max-width: 390px;
-      &[purpose='top-row'], [purpose='middle-row'], [purpose='bottom-row'] {
-        min-height: auto;
+    [purpose='tweets'] {
+      padding-left: 72px;
+      padding-right: 72px;
+      [purpose='tweet-card'], [purpose='tweet-card-bottom-row'] {
+        flex: 1 1 360px;
+        margin-bottom: 15px;
+        margin-left: 8px;
+        margin-right: 8px;
       }
     }
     [purpose='demo-cta-container'] {
@@ -257,14 +268,20 @@
     }
   }
 
-  @media (min-width: 1024px){
+
+  @media (min-width: 1024px) {
     [purpose='demo-cta'] {
       [purpose='demo-cta-text' ] {
         white-space: normal;
       }
     }
   }
-  @media (max-width: 994px){
+  @media (max-width: 990px) {
+    [purpose='tweets'] {
+      [purpose='tweet-card'], [purpose='tweet-card-bottom-row'] {
+        flex: 1 1 295px;
+      }
+    }
     [purpose='demo-cta-container'] {
       padding-left: 45px;
       padding-right: 45px;
@@ -291,6 +308,13 @@
   }
 
   @media (max-width: 768px) {
+    [purpose='tweets'] {
+      padding-left: 52px;
+      padding-right: 52px;
+      [purpose='tweet-card'], [purpose='tweet-card-bottom-row'] {
+        flex: 1 1 316px;
+      }
+    }
     .hero-clouds {
       background: linear-gradient(0deg, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 1) 23%, rgba(255, 255, 255, 0) 48%, rgba(255, 255, 255, 0) 100%);
     }
@@ -326,6 +350,13 @@
     [purpose='demo-cta-container'] {
       padding-left: 20px;
       padding-right: 20px;
+    }
+    [purpose='tweets'] {
+      padding-left: 16px;
+      padding-right: 16px;
+      [purpose='tweet-card'], [purpose='tweet-card-bottom-row'] {
+        margin-bottom: 30px;
+      }
     }
   }
 

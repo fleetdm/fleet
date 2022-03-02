@@ -5,7 +5,7 @@ import fleetAvatar from "../../../../assets/images/fleet-avatar-24x24@2x.png";
 import OrgLogoIcon from "./OrgLogoIcon";
 
 describe("OrgLogoIcon - component", () => {
-  it("renders the Kolide Logo by default", () => {
+  it("renders the Fleet Logo by default", () => {
     const component = mount(<OrgLogoIcon />);
 
     expect(component.state("imageSrc")).toEqual(fleetAvatar);

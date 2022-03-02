@@ -7,7 +7,7 @@ import memoize from "memoize-one";
 
 import { IApiError } from "interfaces/errors";
 import { IInvite } from "interfaces/invite";
-import { IUser } from "interfaces/user";
+import { IUser, IUserFormErrors } from "interfaces/user";
 import { ITeam } from "interfaces/team";
 
 import { AppContext } from "context/app";
@@ -59,9 +59,12 @@ const UserManagementPage = (): JSX.Element => {
   );
   const [isFormSubmitting, setIsFormSubmitting] = useState<boolean>(false);
   const [userEditing, setUserEditing] = useState<any>(null);
-  const [createUserErrors, setCreateUserErrors] = useState<any>({
-    DEFAULT_CREATE_USER_ERRORS,
-  });
+  const [createUserErrors, setCreateUserErrors] = useState<IUserFormErrors>(
+    DEFAULT_CREATE_USER_ERRORS
+  );
+  const [editUserErrors, setEditUserErrors] = useState<IUserFormErrors>(
+    DEFAULT_CREATE_USER_ERRORS
+  );
   const [querySearchText, setQuerySearchText] = useState<string>("");
 
   // API CALLS
@@ -113,7 +116,7 @@ const UserManagementPage = (): JSX.Element => {
 
     // clear errors on close
     if (!showCreateUserModal) {
-      setCreateUserErrors({ DEFAULT_CREATE_USER_ERRORS });
+      setCreateUserErrors(DEFAULT_CREATE_USER_ERRORS);
     }
   }, [showCreateUserModal, setShowCreateUserModal]);
 
@@ -129,6 +132,7 @@ const UserManagementPage = (): JSX.Element => {
     (user?: IUser | IInvite) => {
       setShowEditUserModal(!showEditUserModal);
       setUserEditing(!showEditUserModal ? user : null);
+      setEditUserErrors(DEFAULT_CREATE_USER_ERRORS);
     },
     [showEditUserModal, setShowEditUserModal, setUserEditing]
   );
@@ -241,14 +245,11 @@ const UserManagementPage = (): JSX.Element => {
           toggleCreateUserModal();
           refetchInvites();
         })
-        .catch((userErrors: IApiError) => {
-          if (userErrors.errors?.[0].reason.includes("already exists")) {
-            dispatch(
-              renderFlash(
-                "error",
-                "A user with this email address already exists."
-              )
-            );
+        .catch((userErrors: { data: IApiError }) => {
+          if (userErrors.data.errors[0].reason.includes("already exists")) {
+            setCreateUserErrors({
+              email: "A user with this email address already exists",
+            });
           } else {
             dispatch(
               renderFlash("error", "Could not create user. Please try again.")
@@ -274,14 +275,11 @@ const UserManagementPage = (): JSX.Element => {
           toggleCreateUserModal();
           refetchUsers();
         })
-        .catch((userErrors: IApiError) => {
-          if (userErrors.errors?.[0].reason.includes("already exists")) {
-            dispatch(
-              renderFlash(
-                "error",
-                "A user with this email address already exists."
-              )
-            );
+        .catch((userErrors: { data: IApiError }) => {
+          if (userErrors.data.errors[0].reason.includes("Duplicate")) {
+            setCreateUserErrors({
+              email: "A user with this email address already exists",
+            });
           } else {
             dispatch(
               renderFlash("error", "Could not create user. Please try again.")
@@ -306,18 +304,22 @@ const UserManagementPage = (): JSX.Element => {
             dispatch(
               renderFlash("success", `Successfully edited ${userEditing?.name}`)
             );
-          })
-          .then(() => refetchInvites())
-          .catch(() => {
-            dispatch(
-              renderFlash(
-                "error",
-                `Could not edit ${userEditing?.name}. Please try again.`
-              )
-            );
-          })
-          .finally(() => {
             toggleEditUserModal();
+            refetchInvites();
+          })
+          .catch((userErrors: { data: IApiError }) => {
+            if (userErrors.data.errors[0].reason.includes("already exists")) {
+              setEditUserErrors({
+                email: "A user with this email address already exists",
+              });
+            } else {
+              dispatch(
+                renderFlash(
+                  "error",
+                  `Could not edit ${userEditing?.name}. Please try again.`
+                )
+              );
+            }
           })
       );
     }
@@ -331,9 +333,15 @@ const UserManagementPage = (): JSX.Element => {
             dispatch(
               renderFlash("success", `Successfully edited ${userEditing?.name}`)
             );
+            toggleEditUserModal();
+            refetchUsers();
           })
-          .then(() => refetchUsers())
-          .catch(() => {
+          .catch((userErrors: { data: IApiError }) => {
+            if (userErrors.data.errors[0].reason.includes("already exists")) {
+              setEditUserErrors({
+                email: "A user with this email address already exists",
+              });
+            }
             dispatch(
               renderFlash(
                 "error",
@@ -341,7 +349,6 @@ const UserManagementPage = (): JSX.Element => {
               )
             );
           })
-          .finally(() => toggleEditUserModal())
       );
     }
 
@@ -357,18 +364,22 @@ const UserManagementPage = (): JSX.Element => {
         .update(userData.id, formData)
         .then(() => {
           dispatch(renderFlash("success", userUpdatedFlashMessage));
-        })
-        .then(() => refetchUsers())
-        .catch(() => {
-          dispatch(
-            renderFlash(
-              "error",
-              `Could not edit ${userEditing?.name}. Please try again.`
-            )
-          );
-        })
-        .finally(() => {
           toggleEditUserModal();
+          refetchUsers();
+        })
+        .catch((userErrors: { data: IApiError }) => {
+          if (userErrors.data.errors[0].reason.includes("already exists")) {
+            setEditUserErrors({
+              email: "A user with this email address already exists",
+            });
+          } else {
+            dispatch(
+              renderFlash(
+                "error",
+                `Could not edit ${userEditing?.name}. Please try again.`
+              )
+            );
+          }
         })
     );
   };
@@ -483,6 +494,7 @@ const UserManagementPage = (): JSX.Element => {
             canUseSso={config?.enable_sso || false}
             isSsoEnabled={userData?.sso_enabled}
             isModifiedByGlobalAdmin
+            editUserErrors={editUserErrors}
           />
         </>
       </Modal>

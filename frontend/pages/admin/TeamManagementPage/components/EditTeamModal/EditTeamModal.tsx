@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 
 import Modal from "components/Modal";
 // @ts-ignore
@@ -15,18 +15,28 @@ interface IEditTeamModalProps {
   onCancel: () => void;
   onSubmit: (formData: IEditTeamFormData) => void;
   defaultName: string;
+  backendValidators: { [key: string]: string };
 }
 
 const EditTeamModal = ({
   onCancel,
   onSubmit,
   defaultName,
+  backendValidators,
 }: IEditTeamModalProps): JSX.Element => {
   const [name, setName] = useState(defaultName);
+  const [errors, setErrors] = useState<{ [key: string]: string }>(
+    backendValidators
+  );
+
+  useEffect(() => {
+    setErrors(backendValidators);
+  }, [backendValidators]);
 
   const onInputChange = useCallback(
     (value: string) => {
       setName(value);
+      setErrors({});
     },
     [setName]
   );
@@ -49,6 +59,7 @@ const EditTeamModal = ({
           onChange={onInputChange}
           placeholder="Team name"
           value={name}
+          error={errors.name}
         />
         <div className={`${baseClass}__btn-wrap`}>
           <Button

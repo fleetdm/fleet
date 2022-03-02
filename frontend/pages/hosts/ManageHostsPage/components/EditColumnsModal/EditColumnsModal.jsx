@@ -92,7 +92,7 @@ const EditColumnsModal = ({
 };
 
 EditColumnsModal.propTypes = {
-  columns: PropTypes.arrayOf(PropTypes.object), // TODO: create proper interface for this
+  columns: PropTypes.arrayOf(PropTypes.object), // eslint-disable-line react/forbid-prop-types
   hiddenColumns: PropTypes.arrayOf(PropTypes.string),
   onSaveColumns: PropTypes.func,
   onCancelColumns: PropTypes.func,

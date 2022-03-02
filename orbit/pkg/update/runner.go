@@ -22,10 +22,10 @@ type RunnerOptions struct {
 // Runner is a specialized runner for the updater. It is designed with Execute and
 // Interrupt functions to be compatible with oklog/run.
 type Runner struct {
-	client    *Updater
-	opt       RunnerOptions
-	cancel    chan struct{}
-	hashCache map[string][]byte
+	client      *Updater
+	opt         RunnerOptions
+	cancel      chan struct{}
+	localHashes map[string][]byte
 }
 
 // NewRunner creates a new runner with the provided options. The runner must be
@@ -38,29 +38,32 @@ func NewRunner(client *Updater, opt RunnerOptions) (*Runner, error) {
 		return nil, errors.New("Runner must have nonempty subscriptions")
 	}
 
-	// Initialize hash cache
-	cache := make(map[string][]byte)
+	// Initialize the hashes of the local files for all tracked targets.
+	//
+	// This is an optimization to not compute the hash of the local files every opt.CheckInterval
+	// (knowing that they are not expected to change during the execution of the runner).
+	localHashes := make(map[string][]byte)
 	for target, channel := range opt.Targets {
 		meta, err := client.Lookup(target, channel)
 		if err != nil {
 			return nil, fmt.Errorf("initialize update cache: %w", err)
 		}
-
-		_, hash, err := selectHashFunction(meta)
+		localPath := client.LocalPath(target, channel)
+		_, localHash, err := fileHashes(meta, localPath)
 		if err != nil {
-			return nil, fmt.Errorf("select hash for cache: %w", err)
+			return nil, fmt.Errorf("%s file hash: %w", target, err)
 		}
-		cache[target] = hash
+		localHashes[target] = localHash
+		log.Info().Msgf("hash(%s)=%x", target, localHash)
 	}
 
 	return &Runner{
 		client: client,
 		opt:    opt,
-
 		// chan gets capacity of 1 so we don't end up hung if Interrupt is
 		// called after Execute has already returned.
-		cancel:    make(chan struct{}, 1),
-		hashCache: cache,
+		cancel:      make(chan struct{}, 1),
+		localHashes: localHashes,
 	}, nil
 }
 
@@ -104,14 +107,13 @@ func (r *Runner) updateAction() (bool, error) {
 		if err != nil {
 			return didUpdate, fmt.Errorf("lookup failed: %w", err)
 		}
-
-		// Check whether the hash has changed
-		_, hash, err := selectHashFunction(meta)
+		_, metaHash, err := selectHashFunction(meta)
 		if err != nil {
 			return didUpdate, fmt.Errorf("select hash for cache: %w", err)
 		}
-
-		if !bytes.Equal(r.hashCache[target], hash) {
+		// Check whether the hash of the repository is different than
+		// that of the target local file.
+		if !bytes.Equal(r.localHashes[target], metaHash) {
 			// Update detected
 			log.Info().Str("target", target).Str("channel", channel).Msg("update detected")
 			if err := r.updateTarget(target, channel); err != nil {

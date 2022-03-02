@@ -1,8 +1,8 @@
-# Fleet Front-End
+# Fleet front-end
 
 The Fleet front-end is a Single Page Application using React with Typescript and Hooks.
 
-## Table of Contents
+## Table of contents
 - [Running the Fleet web app](#running-the-fleet-web-app)
 - [Storybook](#storybook)
 - [Directory Structure](#directory-structure)
@@ -18,7 +18,7 @@ The Fleet front-end is a Single Page Application using React with Typescript and
 ## Running the Fleet web app
 
 For details instruction on building and serving the Fleet web application
-consult the [Contributing documentation](../docs/03-Contributing/README.md).
+consult the [Contributing documentation](../docs/Contributing/README.md).
 
 ## Storybook
 
@@ -47,7 +47,7 @@ After creating a component, create a new file, `component.stories.tsx`, within i
 fill it with the appropriate Storybook code to create a new Storybook entry. You will be able to visualize 
 the component within Storybook to determine if it looks and behaves as expected.
 
-## Directory Structure
+## Directory structure
 
 Component directories in the Fleet front-end application encapsulate the entire
 component, including files for the component and its styles. The
@@ -195,7 +195,7 @@ const functionWithTableName = (tableName: string): boolean => {
 };
 ```
 
-### React Hooks (Functional Components)
+### React hooks (functional components)
 
 [Hooks](https://reactjs.org/docs/hooks-intro.html) are used to track state and use other features
 of React. Hooks are only allowed in functional components, which are created like so:
@@ -224,13 +224,13 @@ const PageOrComponent = (props) => {
 
 **Note: Other hooks are available per [React's documentation](https://reactjs.org/docs/hooks-intro.html).**
 
-### React Context
+### React context
 
-[React Context](https://reactjs.org/docs/context.html) is a store similar to Redux. It stores 
+[React context](https://reactjs.org/docs/context.html) is a store similar to Redux. It stores 
 data that is desired and allows for retrieval of that data in whatever component is in need.
 View currently working contexts in the [context directory](./context).
 
-### Fleet API Calls
+### Fleet API calls
 
 **Deprecated:** 
 
@@ -306,7 +306,7 @@ const PageOrComponent = (props) => {
 };
 ```
 
-### Page Routing
+### Page routing
 
 **Deprecated:** 
 

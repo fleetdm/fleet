@@ -1,6 +1,6 @@
-# Kolide API Client
+# Fleet API Client
 
-The Kolide API Client is used for communicating with the Kolide API. Kolide has
+The Fleet API Client is used for communicating with the Fleet API. Fleet has
 a number of entities (hosts, labels, packs, queries, users, etc), all of which
 have CRUD methods to perform on a specific entity or collection of entities.
 
