@@ -876,7 +876,7 @@ func generateConnectionString(conf config.MysqlConfig) string {
 
 func generateRDSConnectionString(conf config.MysqlConfig, authToken string) string {
 	tz := url.QueryEscape("'-00:00'")
-	return fmt.Sprintf("%s:%s@tcp(%s)/%s?tls=true&allowCleartextPasswords=true&charset=utf8mb4&parseTime=true&loc=UTC&time_zone=%s&clientFoundRows=true&allowNativePasswords=true",
+	return fmt.Sprintf("%s:%s@tcp(%s)/%s?tls=rds&allowCleartextPasswords=true&charset=utf8mb4&parseTime=true&loc=UTC&time_zone=%s&clientFoundRows=true&allowNativePasswords=true",
 		conf.Username,
 		authToken,
 		conf.Address,
