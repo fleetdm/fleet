@@ -622,3 +622,85 @@ func (svc *Service) modifyEmailAddress(ctx context.Context, user *fleet.User, em
 func (svc *Service) saveUser(ctx context.Context, user *fleet.User) error {
 	return svc.ds.SaveUser(ctx, user)
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// Perform Required Password Reset
+////////////////////////////////////////////////////////////////////////////////
+
+type performRequiredPasswordResetRequest struct {
+	Password string `json:"new_password"`
+	ID       uint   `json:"id"`
+}
+
+type performRequiredPasswordResetResponse struct {
+	User *fleet.User `json:"user,omitempty"`
+	Err  error       `json:"error,omitempty"`
+}
+
+func (r performRequiredPasswordResetResponse) error() error { return r.Err }
+
+func performRequiredPasswordResetEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*performRequiredPasswordResetRequest)
+	user, err := svc.PerformRequiredPasswordReset(ctx, req.Password)
+	if err != nil {
+		return performRequiredPasswordResetResponse{Err: err}, nil
+	}
+	return performRequiredPasswordResetResponse{User: user}, nil
+}
+
+func (svc *Service) PerformRequiredPasswordReset(ctx context.Context, password string) (*fleet.User, error) {
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return nil, fleet.ErrNoContext
+	}
+	if !vc.CanPerformPasswordReset() {
+		return nil, fleet.NewPermissionError("cannot reset password")
+	}
+	user := vc.User
+
+	if err := svc.authz.Authorize(ctx, user, fleet.ActionWrite); err != nil {
+		return nil, err
+	}
+
+	if user.SSOEnabled {
+		return nil, ctxerr.New(ctx, "password reset for single sign on user not allowed")
+	}
+	if !user.IsAdminForcedPasswordReset() {
+		return nil, ctxerr.New(ctx, "user does not require password reset")
+	}
+
+	// prevent setting the same password
+	if err := user.ValidatePassword(password); err == nil {
+		return nil, fleet.NewInvalidArgumentError("new_password", "cannot reuse old password")
+	}
+
+	user.AdminForcedPasswordReset = false
+	err := svc.setNewPassword(ctx, user, password)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "setting new password")
+	}
+
+	// Sessions should already have been cleared when the reset was
+	// required
+
+	return user, nil
+}
+
+// setNewPassword is a helper for changing a user's password. It should be
+// called to set the new password after proper authorization has been
+// performed.
+func (svc *Service) setNewPassword(ctx context.Context, user *fleet.User, password string) error {
+	err := user.SetPassword(password, svc.config.Auth.SaltKeySize, svc.config.Auth.BcryptCost)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "setting new password")
+	}
+	if user.SSOEnabled {
+		return ctxerr.New(ctx, "set password for single sign on user not allowed")
+	}
+	err = svc.saveUser(ctx, user)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "saving changed password")
+	}
+
+	return nil
+}

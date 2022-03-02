@@ -171,16 +171,3 @@ func authViewer(ctx context.Context, sessionKey string, svc fleet.Service) (*vie
 	}
 	return &viewer.Viewer{User: user, Session: session}, nil
 }
-
-func canPerformPasswordReset(next endpoint.Endpoint) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		vc, ok := viewer.FromContext(ctx)
-		if !ok {
-			return nil, fleet.ErrNoContext
-		}
-		if !vc.CanPerformPasswordReset() {
-			return nil, fleet.NewPermissionError("cannot reset password")
-		}
-		return next(ctx, request)
-	}
-}

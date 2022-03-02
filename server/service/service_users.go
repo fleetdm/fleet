@@ -9,7 +9,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mail"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -89,25 +88,6 @@ func (svc *Service) UserUnauthorized(ctx context.Context, id uint) (*fleet.User,
 	return svc.ds.UserByID(ctx, id)
 }
 
-// setNewPassword is a helper for changing a user's password. It should be
-// called to set the new password after proper authorization has been
-// performed.
-func (svc *Service) setNewPassword(ctx context.Context, user *fleet.User, password string) error {
-	err := user.SetPassword(password, svc.config.Auth.SaltKeySize, svc.config.Auth.BcryptCost)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "setting new password")
-	}
-	if user.SSOEnabled {
-		return ctxerr.New(ctx, "set password for single sign on user not allowed")
-	}
-	err = svc.saveUser(ctx, user)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "saving changed password")
-	}
-
-	return nil
-}
-
 func (svc *Service) ResetPassword(ctx context.Context, token, password string) error {
 	// skipauth: No viewer context available. The user is locked out of their
 	// account and authNZ is performed entirely by providing a valid password
@@ -149,41 +129,6 @@ func (svc *Service) ResetPassword(ctx context.Context, token, password string) e
 	}
 
 	return nil
-}
-
-func (svc *Service) PerformRequiredPasswordReset(ctx context.Context, password string) (*fleet.User, error) {
-	vc, ok := viewer.FromContext(ctx)
-	if !ok {
-		return nil, fleet.ErrNoContext
-	}
-	user := vc.User
-
-	if err := svc.authz.Authorize(ctx, user, fleet.ActionWrite); err != nil {
-		return nil, err
-	}
-
-	if user.SSOEnabled {
-		return nil, ctxerr.New(ctx, "password reset for single sign on user not allowed")
-	}
-	if !user.IsAdminForcedPasswordReset() {
-		return nil, ctxerr.New(ctx, "user does not require password reset")
-	}
-
-	// prevent setting the same password
-	if err := user.ValidatePassword(password); err == nil {
-		return nil, fleet.NewInvalidArgumentError("new_password", "cannot reuse old password")
-	}
-
-	user.AdminForcedPasswordReset = false
-	err := svc.setNewPassword(ctx, user, password)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "setting new password")
-	}
-
-	// Sessions should already have been cleared when the reset was
-	// required
-
-	return user, nil
 }
 
 func (svc *Service) RequestPasswordReset(ctx context.Context, email string) error {

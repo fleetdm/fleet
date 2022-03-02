@@ -47,33 +47,6 @@ func makeResetPasswordEndpoint(svc fleet.Service) endpoint.Endpoint {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Perform Required Password Reset
-////////////////////////////////////////////////////////////////////////////////
-
-type performRequiredPasswordResetRequest struct {
-	Password string `json:"new_password"`
-	ID       uint   `json:"id"`
-}
-
-type performRequiredPasswordResetResponse struct {
-	User *fleet.User `json:"user,omitempty"`
-	Err  error       `json:"error,omitempty"`
-}
-
-func (r performRequiredPasswordResetResponse) error() error { return r.Err }
-
-func makePerformRequiredPasswordResetEndpoint(svc fleet.Service) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		req := request.(performRequiredPasswordResetRequest)
-		user, err := svc.PerformRequiredPasswordReset(ctx, req.Password)
-		if err != nil {
-			return performRequiredPasswordResetResponse{Err: err}, nil
-		}
-		return performRequiredPasswordResetResponse{User: user}, nil
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////
 // Forgot Password
 ////////////////////////////////////////////////////////////////////////////////
 
