@@ -1,0 +1,1 @@
+* Update Kinesis logging plugin to append newline character to raw message bytes to properly format NDJSON for downstream consumers
