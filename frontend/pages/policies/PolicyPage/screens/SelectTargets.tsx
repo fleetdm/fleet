@@ -134,10 +134,6 @@ const SelectTargets = ({
       },
     ],
     {
-      // onSuccess: (data) => {
-      //   setLabels;
-      //   setTargetsTotalCount(data.targetsTotalCount);
-      // },
       onSuccess: setLabels,
       staleTime: STALE_TIME,
     }
