@@ -205,7 +205,7 @@ We want to recognize and congratulate community members for their contributions 
 
 2. Fill out our [swag request sheet](https://docs.google.com/spreadsheets/d/1bySsYVYHY8EjxWhhAKMLVAPLNjg3IYVNpyg50clfB6I/edit?usp=sharing).
 
-3. Once approved, place the order through our [Printful](https://www.printful.com/dashboard/product-templates?sortBy=created&sortDir=desc&page=1) account (credentials in 1Password).
+3. Once approved, place the order through our [Printful](https://www.printful.com/) account (credentials in 1Password).
 
 4. If available through the ordering process, add a thank you note for their contribution and "Feel free to tag us on Twitter."
 
