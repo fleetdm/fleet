@@ -108,7 +108,7 @@ func (svc *Service) ResetPassword(ctx context.Context, token, password string) e
 		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("new_password", err.Error()))
 	}
 
-	reset, err := svc.ds.FindPassswordResetByToken(ctx, token)
+	reset, err := svc.ds.FindPasswordResetByToken(ctx, token)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "looking up reset by token")
 	}
