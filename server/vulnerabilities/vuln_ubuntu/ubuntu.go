@@ -165,8 +165,11 @@ func crawl(root string, cacheDir string, verbose bool) error {
 			return
 		}
 
-		if strings.Contains(href, ".orig.tar") || strings.Contains(href, ".debian.tar") {
-			// skip debian source packages
+		// TODO: handle source packages
+		if strings.Contains(href, ".orig") || strings.Contains(href, ".debian") {
+			if verbose {
+				fmt.Printf("skipping source package, %s\n", href)
+			}
 			return
 		}
 
@@ -175,7 +178,7 @@ func crawl(root string, cacheDir string, verbose bool) error {
 			u.Path = path.Join(u.Path, href)
 			pkgURLs <- &u
 			if verbose {
-				fmt.Printf("%s\n", u.Path)
+				fmt.Println(u.Path)
 			}
 			return
 		}
@@ -371,7 +374,7 @@ func parseChangelog(filename string) ([]string, error) {
 const UbuntuFixedCVEsTable = "ubuntu_fixed_cves"
 
 // LoadUbuntuFixedCVEs loads the Ubuntu packages with known fixed CVEs from the given sqlite3 db.
-func LoadUbuntuFixedCVEs(ctx context.Context, db *sql.DB, logger kitlog.Logger) (map[Package]map[string]struct{}, error) {
+func LoadUbuntuFixedCVEs(ctx context.Context, db *sql.DB, logger kitlog.Logger) (FixedCVEsByPackage, error) {
 	rows, err := db.QueryContext(ctx, fmt.Sprintf(`SELECT name, version, cves FROM %s`, UbuntuFixedCVEsTable))
 	if err != nil {
 		return nil, fmt.Errorf("fetch packages: %w", err)
