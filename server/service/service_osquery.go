@@ -881,7 +881,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 		var err error
 		if strings.HasPrefix(query, "{") { // lazy json check
 			var data osqueryNameEmbeddedData
-			if err = json.Unmarshal(query, &data); err != nil {
+			if err = json.Unmarshal([]byte(query), &data); err != nil {
 				return err
 			}
 
@@ -895,6 +895,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 			thisCtx := apm.ContextWithTransaction(ctx, transaction)
 			switch {
 			case data.Type == hostDetailQueryPrefix:
+				var ingested bool
 				ingested, err = svc.directIngestDetailQuery(thisCtx, host, data.Name, rows, failed)
 				if !ingested && err == nil {
 					err = svc.ingestDetailQuery(thisCtx, host, data.Name, rows)
@@ -909,7 +910,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 				err = ingestMembershipQuery(hostLabelQueryPrefix, query, rows, labelResults, failed)
 			case data.Type == hostPolicyQueryPrefix:
 				err = ingestMembershipQuery(hostPolicyQueryPrefix, query, rows, policyResults, failed)
-			case date.Type == hostDistributedQueryPrefix:
+			case data.Type == hostDistributedQueryPrefix:
 				err = svc.ingestDistributedQuery(thisCtx, *host, query, rows, failed, messages[query])
 			default:
 				err = osqueryError{message: "unknown query prefix: " + query}
