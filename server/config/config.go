@@ -711,10 +711,11 @@ func (man Manager) LoadConfig() FleetConfig {
 			EnableLogCompression: man.getConfigBool("filesystem.enable_log_compression"),
 		},
 		KafkaREST: KafkaRESTConfig{
-			StatusTopic: man.getConfigString("kafkarest.status_topic"),
-			ResultTopic: man.getConfigString("kafkarest.result_topic"),
-			ProxyHost:   man.getConfigString("kafkarest.proxyhost"),
-			Timeout:     man.getConfigInt("kafkarest.timeout"),
+			StatusTopic:      man.getConfigString("kafkarest.status_topic"),
+			ResultTopic:      man.getConfigString("kafkarest.result_topic"),
+			ProxyHost:        man.getConfigString("kafkarest.proxyhost"),
+			ContentTypeValue: man.getConfigString("kafkarest.content_type_value"),
+			Timeout:          man.getConfigInt("kafkarest.timeout"),
 		},
 		License: LicenseConfig{
 			Key: man.getConfigString("license.key"),
