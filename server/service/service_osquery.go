@@ -888,11 +888,16 @@ func (svc *Service) SubmitDistributedQueryResults(
 			// do apm stuff
 			traceContext, _ := apmhttp.ParseTraceparentHeader(data.TraceParent)
 			traceContext.State, _ = apmhttp.ParseTracestateHeader(data.TraceState)
+			opts := apm.TransactionOptions{
+				TraceContext: traceContext,
+			}
+			transaction := apm.DefaultTracer.StartTransactionOptions("SubmitDistributedQueryResults", "request", opts)
+			thisCtx := apm.ContextWithTransaction(ctx, transaction)
 			switch {
 			case data.Type == hostDetailQueryPrefix:
-				ingested, err = svc.directIngestDetailQuery(ctx, host, data.Name, rows, failed)
+				ingested, err = svc.directIngestDetailQuery(thisCtx, host, data.Name, rows, failed)
 				if !ingested && err == nil {
-					err = svc.ingestDetailQuery(ctx, host, data.Name, rows)
+					err = svc.ingestDetailQuery(thisCtx, host, data.Name, rows)
 					// No err != nil check here because ingestDetailQuery could have updated
 					// successfully some values of host.
 					detailUpdated = true
@@ -905,10 +910,11 @@ func (svc *Service) SubmitDistributedQueryResults(
 			case data.Type == hostPolicyQueryPrefix:
 				err = ingestMembershipQuery(hostPolicyQueryPrefix, query, rows, policyResults, failed)
 			case date.Type == hostDistributedQueryPrefix:
-				err = svc.ingestDistributedQuery(ctx, *host, query, rows, failed, messages[query])
+				err = svc.ingestDistributedQuery(thisCtx, *host, query, rows, failed, messages[query])
 			default:
 				err = osqueryError{message: "unknown query prefix: " + query}
 			}
+			transaction.End()
 		} else {
 			switch {
 			case strings.HasPrefix(query, hostDetailQueryPrefix):
