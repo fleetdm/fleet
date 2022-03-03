@@ -37,6 +37,7 @@ require (
 	github.com/getsentry/sentry-go v0.12.0
 	github.com/ghodss/yaml v1.0.0
 	github.com/go-kit/kit v0.9.0
+	github.com/go-kit/log v0.1.0
 	github.com/go-sql-driver/mysql v1.6.0
 	github.com/go-stack/stack v1.8.1 // indirect
 	github.com/gocarina/gocsv v0.0.0-20220310154401-d4df709ca055
