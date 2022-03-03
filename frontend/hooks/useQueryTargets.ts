@@ -118,6 +118,7 @@ export const useQueryTargets = (
     {
       onSuccess: options.onSuccess,
       refetchOnWindowFocus: false,
+      refetchOnMount: "always",
       staleTime: options.staleTime,
     }
   );
