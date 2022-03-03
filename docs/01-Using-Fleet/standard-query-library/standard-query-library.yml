@@ -587,4 +587,13 @@ spec:
   resolution: "Ensure ClamAV and Freshclam are installed and running."
   platforms: Linux
   contributors: GuillaumeRoss
-  
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: MDM Enrolled (macOS)
+  query: SELECT 1 from mdm WHERE enrolled='true';
+  description: "Required: osquery deployed with Orbit, or manual installation of macadmins/osquery-extension. Checks that a Mac is enrolled to MDM. Add a AND on identity_certificate_uuid to check for a specific MDM."
+  resolution: "Enroll device to MDM"
+  platforms: macOS
+  contributors: GuillaumeRoss
