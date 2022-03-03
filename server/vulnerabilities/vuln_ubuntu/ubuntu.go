@@ -359,10 +359,7 @@ func processPKGURL(u *url.URL, parentDir string, verbose bool) error {
 		if err != nil {
 			return err
 		}
-
 	}
-
-	return nil
 }
 
 var cveRegex = regexp.MustCompile(`CVE\-[0-9]{4}\-[0-9]{4,}`)
