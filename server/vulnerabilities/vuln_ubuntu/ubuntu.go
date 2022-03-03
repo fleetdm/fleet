@@ -31,11 +31,7 @@ import (
 )
 
 func defaultCacheDir() (string, error) {
-	cacheDir, err := os.UserCacheDir()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(cacheDir, "fleet", "vuln", "ubuntu"), nil
+	return filepath.Join("vuln", "ubuntu"), nil
 }
 
 // UbuntuPkg holds data to identify a Ubuntu package.
@@ -45,6 +41,9 @@ type Package struct {
 }
 
 func parsePackage(s string) (Package, error) {
+	// handle source packages
+	s = strings.TrimSuffix(s, ".debian")
+
 	parts := strings.SplitN(s, "_", 2)
 	if len(parts) != 2 {
 		return Package{}, errors.New("wrong number of parts")
@@ -166,7 +165,7 @@ func crawl(root string, cacheDir string, verbose bool) error {
 		}
 
 		// TODO: handle source packages
-		if strings.Contains(href, ".orig") || strings.Contains(href, ".debian") {
+		if strings.Contains(href, ".orig") {
 			if verbose {
 				fmt.Printf("skipping source package, %s\n", href)
 			}
@@ -386,7 +385,7 @@ func LoadUbuntuFixedCVEs(ctx context.Context, db *sql.DB, logger kitlog.Logger) 
 		var pkg Package
 		var cvesStr string
 		if err := rows.Scan(&pkg.Name, &pkg.Version, &cvesStr); err != nil {
-			return nil, fmt.Errorf("scan package: %w")
+			return nil, fmt.Errorf("scan package: %w", err)
 		}
 		cves := strings.Split(cvesStr, ",")
 

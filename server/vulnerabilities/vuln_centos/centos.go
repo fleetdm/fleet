@@ -31,11 +31,7 @@ import (
 )
 
 func defaultCacheDir() (string, error) {
-	cacheDir, err := os.UserCacheDir()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(cacheDir, "fleet", "vuln", "centos"), nil
+	return filepath.Join("vuln", "centos"), nil
 }
 
 // CentOSPkg holds data to identify a CentOS package.

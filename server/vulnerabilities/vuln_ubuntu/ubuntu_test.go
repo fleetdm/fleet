@@ -32,10 +32,11 @@ func TestParseUbuntuRepository(t *testing.T) {
 	fixedCVEsByPackage, err := LoadUbuntuFixedCVEs(context.Background(), db, log.NewNopLogger())
 	require.NoError(t, err)
 
-	// aspell-0.60.8 should have fixed CVE-2019-25051
+	// aspell_0.60.8-1ubuntu0.1 should have fixed CVE-2019-25051
+	// https://ubuntu.pkgs.org/20.04/ubuntu-updates-main-amd64/aspell_0.60.8-1ubuntu0.1_amd64.deb.html
 	pkg := Package{
 		Name:    "aspell",
-		Version: "0.60.8",
+		Version: "0.60.8-1ubuntu0.1",
 	}
 	require.Contains(t, fixedCVEsByPackage[pkg], "CVE-2019-25051")
 }
