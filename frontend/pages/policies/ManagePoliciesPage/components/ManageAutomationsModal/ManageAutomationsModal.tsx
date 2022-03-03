@@ -11,7 +11,6 @@ import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
-import validURL from "components/forms/validators/valid_url";
 import PreviewPayloadModal from "../PreviewPayloadModal";
 
 interface IManageAutomationsModalProps {
@@ -75,8 +74,8 @@ const useCheckboxListStateManagement = (
 const validateWebhookURL = (url: string) => {
   const errors: { [key: string]: string } = {};
 
-  if (!validURL(url)) {
-    errors.url = "Please add a valid destination URL";
+  if (url === "") {
+    errors.url = "Please add a destination URL";
   }
 
   const valid = !size(errors);
@@ -123,14 +122,15 @@ const ManageAutomationsModal = ({
       ...newErrors,
     });
 
-    if (valid) {
-      const policy_ids =
-        policyItems &&
-        policyItems
-          .filter((policy) => policy.isChecked)
-          .map((policy) => policy.id);
-      const enable_failing_policies_webhook = true; // Leave nearest component in case we decide to add disabling as a UI feature
+    const policy_ids =
+      policyItems &&
+      policyItems
+        .filter((policy) => policy.isChecked)
+        .map((policy) => policy.id);
+    const enable_failing_policies_webhook = true; // Leave nearest component in case we decide to add disabling as a UI feature
 
+    // URL validation only needed if at least one policy is checked
+    if (valid || policy_ids.length === 0) {
       onCreateWebhookSubmit({
         destination_url,
         policy_ids,

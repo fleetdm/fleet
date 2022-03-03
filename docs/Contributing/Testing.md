@@ -10,6 +10,7 @@
 - [Seeding Data](./Seeding-Data.md)
 - [MySQL shell](#mysql-shell)
 - [Testing SSO](#testing-sso)
+- [Testing Kinesis Logging](#testing-kinesis-logging)
 
 ## License key
 
@@ -298,3 +299,98 @@ Use the Fleet UI to invite one of these users with the associated email. Be sure
 To add additional users, modify [tools/saml/users.php](https://github.com/fleetdm/fleet/tree/main/tools/saml/users.php) and restart the `simplesaml` container.
 
 <meta name="pageOrderInSection" value="200">
+
+## Testing Kinesis Logging
+
+Tip: Install [awslocal](https://github.com/localstack/awscli-local) to ease interaction with
+[localstack](https://github.com/localstack/localstack). Alternatively you can use the `aws` client
+and use `--endpoint-url=http://localhost:4566` on all invocations.
+
+The following guide assumes you have server dependencies running:
+```sh
+docker-compose up
+#
+# (Starts localstack with kinesis enabled.)
+#
+```
+
+First, create one stream for "status" logs and one for "result" logs (see
+https://osquery.readthedocs.io/en/stable/deployment/logging/ for more information around the two
+types of logs):
+
+```
+$ awslocal kinesis create-stream --stream-name "sample_status" --shard-count 1
+$ awslocal kinesis create-stream --stream-name "sample_result" --shard-count 1
+$ awslocal kinesis list-streams
+{
+    "StreamNames": [
+        "sample_result",
+        "sample_status"
+    ]
+}
+```
+
+Use the following configuration to run fleet:
+```
+FLEET_OSQUERY_RESULT_LOG_PLUGIN=kinesis
+FLEET_OSQUERY_STATUS_LOG_PLUGIN=kinesis
+FLEET_KINESIS_REGION=us-east-1
+FLEET_KINESIS_ENDPOINT_URL=http://localhost:4566
+FLEET_KINESIS_ACCESS_KEY_ID=default
+FLEET_KINESIS_SECRET_ACCESS_KEY=default
+FLEET_KINESIS_STATUS_STREAM=sample_status
+FLEET_KINESIS_RESULT_STREAM=sample_result 
+```
+
+Here's a sample command for running `fleet serve`:
+```
+make fleet && FLEET_OSQUERY_RESULT_LOG_PLUGIN=kinesis FLEET_OSQUERY_STATUS_LOG_PLUGIN=kinesis FLEET_KINESIS_REGION=us-east-1 FLEET_KINESIS_ENDPOINT_URL=http://localhost:4566 FLEET_KINESIS_ACCESS_KEY_ID=default FLEET_KINESIS_SECRET_ACCESS_KEY=default FLEET_KINESIS_STATUS_STREAM=sample_status FLEET_KINESIS_RESULT_STREAM=sample_result ./build/fleet serve --dev --dev_license --logging_debug
+```
+Fleet will now be relaying "status" and "result" logs from osquery agents to the localstack's
+kinesis.
+
+Let's work on inspecting "status" logs received by Kinesis ("status" logs are easier to verify, to generate "result" logs you need to configure "schedule queries").
+
+Get "status" logging stream shard ID:
+```
+$ awslocal kinesis list-shards --stream-name sample_status
+
+{
+    "Shards": [
+        {
+            "ShardId": "shardId-000000000000",
+            "HashKeyRange": {
+                "StartingHashKey": "0",
+                "EndingHashKey": "340282366920938463463374607431768211455"
+            },
+            "SequenceNumberRange": {
+                "StartingSequenceNumber": "49627262640659126499334026974892685537161954570981605378"
+            }
+        }
+    ]
+}
+```
+
+Get the shard-iterator for the status logging stream:
+```
+awslocal kinesis get-shard-iterator --shard-id shardId-000000000000 --shard-iterator-type TRIM_HORIZON --stream-name sample_status
+
+{
+    "ShardIterator": "AAAAAAAAAAERtiUrWGI0sq99TtpKnmDu6haj/80llVpP80D4A5XSUBFqWqcUvlwWPsTAiGin/pDYt0qJ683PeuSFP0gkNISIkGZVcW3cLvTYtERGh2QYVv+TrAlCs6cMpNvPuW0LwILTJDFlwWXdkcRaFMjtFUwikuOmWX7N4hIJA+1VsTx4A0kHfcDxHkjYi1WDe+8VMfYau+fB1XTEJx9AerfxdTBm"
+}
+```
+
+Finally, you can use the above `ShardIterator` to get "status" log records:
+```
+awslocal kinesis get-records --shard-iterator AAAAAAAAAAERtiUrWGI0sq99TtpKnmDu6haj/80llVpP80D4A5XSUBFqWqcUvlwWPsTAiGin/pDYt0qJ683PeuSFP0gkNISIkGZVcW3cLvTYtERGh2QYVv+TrAlCs6cMpNvPuW0LwILTJDFlwWXdkcRaFMjtFUwikuOmWX7N4hIJA+1VsTx4A0kHfcDxHkjYi1WDe+8VMfYau+fB1XTEJx9AerfxdTBm
+[...]
+        {
+            "SequenceNumber": "49627262640659126499334026986980734807488684740304699394",
+            "ApproximateArrivalTimestamp": "2022-03-02T19:45:54-03:00",
+            "Data": "eyJob3N0SWRlbnRpZmllciI6Ijg3OGE2ZWRmLTcxMzEtNGUyOC05NWEyLWQzNDQ5MDVjYWNhYiIsImNhbGVuZGFyVGltZSI6IldlZCBNYXIgIDIgMjI6MDI6NTQgMjAyMiBVVEMiLCJ1bml4VGltZSI6IjE2NDYyNTg1NzQiLCJzZXZlcml0eSI6IjAiLCJmaWxlbmFtZSI6Imdsb2dfbG9nZ2VyLmNwcCIsImxpbmUiOiI0OSIsIm1lc3NhZ2UiOiJDb3VsZCBub3QgZ2V0IFJQTSBoZWFkZXIgZmxhZy4iLCJ2ZXJzaW9uIjoiNC45LjAiLCJkZWNvcmF0aW9ucyI6eyJob3N0X3V1aWQiOiJlYjM5NDZiMi0wMDAwLTAwMDAtYjg4OC0yNTkxYTFiNjY2ZTkiLCJob3N0bmFtZSI6ImUwMDg4ZDI4YTYzZiJ9fQo=",
+            "PartitionKey": "149",
+            "EncryptionType": "NONE"
+        }
+    ],
+[...]
+```
