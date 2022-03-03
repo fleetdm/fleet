@@ -272,9 +272,6 @@ func parse(cacheDir string) (FixedCVEsByPackage, error) {
 	return fixedCVEs, nil
 }
 
-// supported archives
-//   - .tar.xz
-//   - .tar.bz2
 func processPKGURL(u *url.URL, parentDir string, verbose bool) error {
 	fname := filepath.Base(u.Path)
 
