@@ -275,7 +275,7 @@ const ScheduleEditorModal = ({
         <div>
           <Button
             variant="unstyled"
-            className={`${showAdvancedOptions ? "upcarat" : "downcarat"} 
+            className={`${showAdvancedOptions ? "afterupcarat" : "downcarat"} 
                ${baseClass}__advanced-options-button`}
             onClick={toggleAdvancedOptions}
           >
