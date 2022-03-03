@@ -174,12 +174,8 @@ const AppConfigFormFunctional = ({
         errors.idp_image_url = `${idpImageURL} is not a valid URL`;
       }
 
-      if (metadata === "") {
-        if (metadataURL === "") {
-          errors.metadata_url = "Metadata URL must be present";
-        } else if (!validUrl(metadataURL)) {
-          errors.metadata_url = `${metadataURL} is not a valid URL`;
-        }
+      if (metadata === "" && metadataURL === "") {
+        errors.metadata_url = "Metadata URL must be present";
       }
 
       if (!entityID) {
@@ -218,15 +214,8 @@ const AppConfigFormFunctional = ({
       }
     }
 
-    if (enableHostStatusWebhook) {
-      if (!hostStatusWebhookDestinationURL) {
-        errors.destination_url = "Destination URL must be present";
-      } else if (
-        hostStatusWebhookDestinationURL &&
-        !validUrl(hostStatusWebhookDestinationURL)
-      ) {
-        errors.destination_url = `${hostStatusWebhookDestinationURL} is not a valid URL`;
-      }
+    if (enableHostStatusWebhook && !hostStatusWebhookDestinationURL) {
+      errors.destination_url = "Destination URL must be present";
     }
 
     if (enableHostExpiry) {
