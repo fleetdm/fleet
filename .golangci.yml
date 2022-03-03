@@ -3,6 +3,7 @@ linters:
   enable:
     - deadcode
     - depguard
+    - gosec
     - gocritic
     - gofmt
     - govet
