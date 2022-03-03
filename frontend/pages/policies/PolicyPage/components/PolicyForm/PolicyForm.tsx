@@ -1,8 +1,9 @@
 /* eslint-disable jsx-a11y/no-noninteractive-element-to-interactive-role */
 /* eslint-disable jsx-a11y/interactive-supports-focus */
-import React, { useState, useContext, KeyboardEvent } from "react";
+import React, { useState, useContext, useEffect, KeyboardEvent } from "react";
 import { IAceEditor } from "react-ace/lib/types";
-import { isUndefined } from "lodash";
+import { useDebouncedCallback } from "use-debounce/lib";
+import { isUndefined, size } from "lodash";
 import classnames from "classnames";
 
 import { addGravatarUrlToResource } from "fleet/helpers";
@@ -15,6 +16,8 @@ import { IQueryPlatform } from "interfaces/query";
 
 import Avatar from "components/Avatar";
 import FleetAce from "components/FleetAce";
+// @ts-ignore
+import validateQuery from "components/forms/validators/validate_query";
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 import Spinner from "components/Spinner";
@@ -39,6 +42,18 @@ interface IPolicyFormProps {
   renderLiveQueryWarning: () => JSX.Element | null;
   backendValidators: { [key: string]: string };
 }
+
+const validateQuerySQL = (query: string) => {
+  const errors: { [key: string]: any } = {};
+  const { error: queryError, valid: queryValid } = validateQuery(query);
+
+  if (!queryValid) {
+    errors.query = queryError;
+  }
+
+  const valid = !size(errors);
+  return { valid, errors };
+};
 
 const PolicyForm = ({
   policyIdForEdit,
@@ -97,6 +112,22 @@ const PolicyForm = ({
     isTeamAdmin,
     isTeamMaintainer,
   } = useContext(AppContext);
+
+  policyIdForEdit = policyIdForEdit || 0;
+
+  const debounceSQL = useDebouncedCallback((sql: string) => {
+    let valid = true;
+    const { valid: isValidated, errors: newErrors } = validateQuerySQL(sql);
+    valid = isValidated;
+
+    setErrors({
+      ...newErrors,
+    });
+  }, 500);
+
+  useEffect(() => {
+    debounceSQL(lastEditedQueryBody);
+  }, [lastEditedQueryBody]);
 
   const isEditMode = !!policyIdForEdit && !isTeamObserver && !isGlobalObserver;
 
