@@ -23,6 +23,9 @@ linters-settings:
     packages-with-error-message:
       - github.com/rotisserie/eris: "use ctxerr.New or ctxerr.Wrap[f] instead"
       - github.com/pkg/errors: "use ctxerr if a context.Context is available or stdlib errors.New / fmt.Errorf with the %w verb"
+  gosec:
+    excludes:
+       - G110
 
   gocritic:
     enabled-checks:
@@ -62,3 +65,7 @@ issues:
     - path: server/datastore/mysql/migrations/[^/]+/[^/]+\.go
       linters:
         - depguard
+    # Test file which triggers many TLS warnings by design
+    - path: pkg/fleethttp/fleethttp_test.go
+      linters:
+        - gosec
