@@ -5,6 +5,7 @@
 build
 vendor
 node_modules
+vuln
 
 # generated artifacts
 assets/bundle*.*
