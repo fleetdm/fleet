@@ -142,11 +142,13 @@ func TestCentOSPostProcessingNoPkgs(t *testing.T) {
 	ctx := context.Background()
 	ds := new(mock.Store)
 	ds.ListVulnerableSoftwareBySourceFunc = func(ctx context.Context, source string) ([]fleet.SoftwareWithCPE, error) {
-		t.Error("this method shouldn't be called if there are no pkgs in the CentOS table")
 		return nil, nil
 	}
+
 	db, err := sql.Open("sqlite3", ":memory:")
 	require.NoError(t, err)
+
 	err = centosPostProcessing(ctx, ds, db, log.NewNopLogger(), config.FleetConfig{})
 	require.Error(t, err)
+	require.False(t, ds.ListVulnerableSoftwareBySourceFuncInvoked, "ListVulnerableSoftwareBySource should not be called")
 }

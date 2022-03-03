@@ -9,6 +9,8 @@ package vuln_ubuntu
 import (
 	"archive/tar"
 	"bufio"
+	"compress/bzip2"
+	"compress/gzip"
 	"context"
 	"database/sql"
 	"errors"
@@ -109,8 +111,8 @@ const (
 )
 
 // ParseUbuntuRepository performs the following operations:
-//   - Crawls the Ubuntu repository website to find urls for all .tar.xz files. Example http://archive.ubuntu.com/ubuntu/pool/universe/c/chromium-browser/chromium-browser_80.0.3987.163-0ubuntu1.tar.xz
-//   - Downloads .tar.xz files, decompresses and extracts changelog files
+//   - Crawls the Ubuntu repository website to find urls for all package archive files. Example http://archive.ubuntu.com/ubuntu/pool/universe/c/chromium-browser/chromium-browser_80.0.3987.163-0ubuntu1.tar.xz
+//   - Downloads archive files, decompresses and extracts changelogs from them
 //   - Parses changelogs for CVEs mentioned
 //
 // It writes progress messages to stdout.
@@ -172,7 +174,9 @@ func crawl(root string, cacheDir string, verbose bool) error {
 			return
 		}
 
-		if strings.HasSuffix(href, ".tar.xz") {
+		if strings.HasSuffix(href, ".tar.xz") ||
+			strings.HasSuffix(href, ".tar.bz2") ||
+			strings.HasSuffix(href, ".tar.gz") {
 			u := *e.Request.URL // clone the url
 			u.Path = path.Join(u.Path, href)
 			pkgURLs <- &u
@@ -268,8 +272,17 @@ func parse(cacheDir string) (FixedCVEsByPackage, error) {
 	return fixedCVEs, nil
 }
 
+// supported archives
+//   - .tar.xz
+//   - .tar.bz2
 func processPKGURL(u *url.URL, parentDir string, verbose bool) error {
-	destDir := filepath.Join(parentDir, strings.TrimSuffix(filepath.Base(u.Path), ".tar.xz"))
+	fname := filepath.Base(u.Path)
+
+	idx := strings.Index(fname, ".tar")
+	if idx < 0 {
+		return fmt.Errorf("not a tar archive: %s", fname)
+	}
+	destDir := filepath.Join(parentDir, fname[:idx])
 
 	if _, err := os.Stat(destDir); err == nil {
 		if verbose {
@@ -288,12 +301,26 @@ func processPKGURL(u *url.URL, parentDir string, verbose bool) error {
 		return fmt.Errorf("non 200 status code: %d", resp.StatusCode)
 	}
 
-	xzr, err := xz.NewReader(resp.Body)
-	if err != nil {
-		return fmt.Errorf("create xz reader: %w", err)
+	// decompress based on file extension
+	var r io.Reader
+	switch {
+	case strings.HasSuffix(fname, ".gz"):
+		gzr, err := gzip.NewReader(resp.Body)
+		if err != nil {
+			return err
+		}
+		defer gzr.Close()
+		r = gzr
+	case strings.HasSuffix(fname, ".bz2"):
+		r = bzip2.NewReader(resp.Body)
+	case strings.HasSuffix(fname, ".xz"):
+		r, err = xz.NewReader(resp.Body)
+		if err != nil {
+			return err
+		}
 	}
 
-	tr := tar.NewReader(xzr)
+	tr := tar.NewReader(r)
 	for {
 		header, err := tr.Next()
 		if err != nil {
