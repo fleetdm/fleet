@@ -164,10 +164,10 @@ func crawl(root string, cacheDir string, verbose bool) error {
 			return
 		}
 
-		// TODO: handle source packages
+		// TODO: handle .orig.tar.gz and supplementary .orig-component.tar.gz archives for source packages
 		if strings.Contains(href, ".orig") {
 			if verbose {
-				fmt.Printf("skipping source package, %s\n", href)
+				fmt.Printf("skipping %s\n", href)
 			}
 			return
 		}
