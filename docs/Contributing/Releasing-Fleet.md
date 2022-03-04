@@ -78,7 +78,7 @@ Note: Please prefix versions with `fleet-v` (eg. `fleet-v4.0.0`) in git tags, He
 > download, is still the latest _official_ release.
 
 5. Announce the release in the #fleet channel of [osquery
-   Slack](https://osquery.slack.com/join/shared_invite/zt-h29zm0gk-s2DBtGUTW4CFel0f0IjTEw#/) and
+   Slack](https://fleetdm.com/slack) and
    update the channel's topic with the link to this release. Using `@here` requires admin
    permissions, so typically this announcement will be done by `@zwass`.
 
