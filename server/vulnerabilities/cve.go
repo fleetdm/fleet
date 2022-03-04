@@ -265,9 +265,9 @@ func PostProcess(
 	}
 	defer db.Close()
 
-	// if err := centosPostProcessing(ctx, ds, db, logger, config); err != nil {
-	// 	return err
-	// }
+	if err := centosPostProcessing(ctx, ds, db, logger, config); err != nil {
+		return err
+	}
 
 	if err := ubuntuPostProcessing(ctx, ds, db, logger, config); err != nil {
 		return err
