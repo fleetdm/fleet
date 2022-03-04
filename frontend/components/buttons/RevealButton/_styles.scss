@@ -5,7 +5,7 @@
   font-size: $x-small;
 }
 
-.rightcaratbefore {
+.rightcaretbefore {
   &::before {
     content: url("../assets/images/icon-chevron-blue-16x16@2x.png");
     transform: scale(0.5) rotate(-90deg);
@@ -16,7 +16,7 @@
   }
 }
 
-.upcaratbefore {
+.upcaretbefore {
   &::before {
     content: url("../assets/images/icon-chevron-blue-16x16@2x.png");
     transform: scale(0.5) rotate(180deg);
@@ -31,7 +31,7 @@
   }
 }
 
-.downcaratafter {
+.downcaretafter {
   &::after {
     content: url("../assets/images/icon-chevron-blue-16x16@2x.png");
     transform: scale(0.5);
@@ -42,7 +42,7 @@
   }
 }
 
-.upcaratafter {
+.upcaretafter {
   &::after {
     content: url("../assets/images/icon-chevron-blue-16x16@2x.png");
     transform: scale(0.5) rotate(180deg);

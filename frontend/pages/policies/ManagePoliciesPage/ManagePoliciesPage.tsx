@@ -475,7 +475,7 @@ const ManagePolicyPage = ({
               showInheritedPolicies,
               globalPolicies.length
             )}
-            caratBefore
+            caretBefore
             tooltipHtml={
               '"All teams" policies are checked <br/> for this team’s hosts.'
             }

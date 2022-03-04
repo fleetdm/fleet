@@ -531,7 +531,7 @@ const ManageSchedulePage = ({
             baseClass={baseClass}
             hideText={`Hide ${inheritedScheduledQueriesList.length} inherited ${inheritedQueryOrQueries}`}
             showText={`Show ${inheritedScheduledQueriesList.length} inherited ${inheritedQueryOrQueries}`}
-            caratBefore
+            caretBefore
             tooltipHtml={
               'Queries from the "All teams"<br/>schedule run on this team’s hosts.'
             }

@@ -429,7 +429,7 @@ const QueryForm = ({
         baseClass={baseClass}
         hideText={"Hide SQL"}
         showText={"Show SQL"}
-        caratBefore
+        caretBefore
         onClick={() => setShowQueryEditor(!showQueryEditor)}
       />
       {showQueryEditor && (
