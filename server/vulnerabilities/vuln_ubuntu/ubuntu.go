@@ -245,7 +245,7 @@ func parse(cacheDir string) (FixedCVEsByPackage, error) {
 
 			pkg, err = parsePackage(rel)
 			if err != nil {
-				return fmt.Errorf("parse package name and version: %w", err)
+				return fmt.Errorf("parse package name and version %q: %w", rel, err)
 			}
 
 			return nil
