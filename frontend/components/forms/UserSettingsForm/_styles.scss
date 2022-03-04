@@ -3,11 +3,11 @@
     width: 100%;
   }
 
-  .form-field {
-    &__label {
-      font-size: $x-small;
-      font-weight: $bold;
-    }
+  .form-field__label {
+    font-size: $x-small;
+    font-weight: $bold;
+    // so tooltips won't be triggered with whitespace
+    display: inline-block;
   }
 
   &__email-hint {
