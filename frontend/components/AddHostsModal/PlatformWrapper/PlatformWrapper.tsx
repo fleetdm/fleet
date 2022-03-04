@@ -42,7 +42,7 @@ const platformSubNav: IPlatformSubNav[] = [
     type: "rpm",
   },
   {
-    name: "Linux (DEB)",
+    name: "Linux (deb)",
     type: "deb",
   },
   {
