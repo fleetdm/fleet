@@ -4,3 +4,11 @@
     resource: "{{ ansible_ec2_instance_id }}"
     region: "{{ ansible_ec2_placement_region }}"
   register: instance_tags
+- community.general.filesystem:
+    fstype: ext4
+    dev: /dev/sdb
+- ansible.posix.mount:
+    src: /dev/sdb
+    path: /usr/share/elasticsearch/data
+    fstype: ext4
+    state: present
