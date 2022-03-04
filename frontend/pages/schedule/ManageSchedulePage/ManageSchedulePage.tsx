@@ -525,7 +525,7 @@ const ManageSchedulePage = ({
         {/* must use ternary for NaN */}
         {selectedTeamId &&
         inheritedScheduledQueriesList &&
-        inheritedScheduledQueriesList?.length > 0 ? (
+        inheritedScheduledQueriesList.length > 0 ? (
           <RevealButton
             isShowing={showInheritedQueries}
             baseClass={baseClass}
@@ -537,7 +537,9 @@ const ManageSchedulePage = ({
             }
             onClick={toggleInheritedQueries}
           />
-        ) : null}
+        ) : (
+          nll
+        )}
         {showInheritedQueries &&
           inheritedScheduledQueriesList &&
           renderAllTeamsTable(
