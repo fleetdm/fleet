@@ -465,13 +465,13 @@ const ManagePolicyPage = ({
         </div>
         {showInheritedPoliciesButton && globalPolicies && (
           <RevealButton
-            showBoolean={showInheritedPolicies}
+            isShowing={showInheritedPolicies}
             baseClass={baseClass}
-            hideString={inheritedPoliciesButtonText(
+            hideText={inheritedPoliciesButtonText(
               showInheritedPolicies,
               globalPolicies.length
             )}
-            showString={inheritedPoliciesButtonText(
+            showText={inheritedPoliciesButtonText(
               showInheritedPolicies,
               globalPolicies.length
             )}

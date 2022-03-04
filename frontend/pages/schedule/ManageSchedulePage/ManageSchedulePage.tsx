@@ -527,10 +527,10 @@ const ManageSchedulePage = ({
           inheritedScheduledQueriesList &&
           inheritedScheduledQueriesList.length > 0 && (
             <RevealButton
-              showBoolean={showInheritedQueries}
+              isShowing={showInheritedQueries}
               baseClass={baseClass}
-              hideString={`Hide ${inheritedScheduledQueriesList.length} inherited ${inheritedQueryOrQueries}`}
-              showString={`Show ${inheritedScheduledQueriesList.length} inherited ${inheritedQueryOrQueries}`}
+              hideText={`Hide ${inheritedScheduledQueriesList.length} inherited ${inheritedQueryOrQueries}`}
+              showText={`Show ${inheritedScheduledQueriesList.length} inherited ${inheritedQueryOrQueries}`}
               caratBefore
               tooltipHtml={
                 'Queries from the "All teams"<br/>schedule run on this team’s hosts.'

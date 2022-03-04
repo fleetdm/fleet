@@ -275,10 +275,10 @@ const ScheduleEditorModal = ({
         </InfoBanner>
         <div>
           <RevealButton
-            showBoolean={showAdvancedOptions}
+            isShowing={showAdvancedOptions}
             baseClass={baseClass}
-            hideString={"Hide advanced options"}
-            showString={"Show advanced options"}
+            hideText={"Hide advanced options"}
+            showText={"Show advanced options"}
             caratAfter
             onClick={toggleAdvancedOptions}
           />

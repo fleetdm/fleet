@@ -3,10 +3,10 @@ import Button from "components/buttons/Button";
 import TooltipWrapper from "components/TooltipWrapper";
 
 export interface IRevealButtonProps {
-  showBoolean: boolean;
+  isShowing: boolean;
   baseClass: string;
-  hideString: string;
-  showString: string;
+  hideText: string;
+  showText: string;
   caratBefore?: boolean;
   caratAfter?: boolean;
   autofocus?: boolean;
@@ -18,10 +18,9 @@ export interface IRevealButtonProps {
 }
 
 const RevealButton = ({
-  showBoolean,
-  baseClass,
-  hideString,
-  showString,
+  isShowing,
+  hideText,
+  showText,
   caratBefore,
   caratAfter,
   autofocus,
@@ -31,39 +30,30 @@ const RevealButton = ({
 }: IRevealButtonProps): JSX.Element => {
   const classNameGenerator = () => {
     if (caratBefore) {
-      return showBoolean ? "reveal upcaratbefore" : "reveal rightcaratbefore";
+      return isShowing ? "reveal upcaratbefore" : "reveal rightcaratbefore";
     }
     if (caratAfter) {
-      return showBoolean ? "reveal upcaratafter" : "reveal downcaratafter";
+      return isShowing ? "reveal upcaratafter" : "reveal downcaratafter";
     }
   };
-
-  if (tooltipHtml) {
-    return (
-      <Button
-        variant="unstyled"
-        className={`reveal-button ${classNameGenerator()}`}
-        onClick={onClick}
-        autofocus={autofocus}
-        disabled={disabled}
-      >
-        <TooltipWrapper tipContent={tooltipHtml}>
-          {showBoolean ? hideString : showString}
-        </TooltipWrapper>
-      </Button>
-    );
-  }
 
   return (
     <Button
       variant="unstyled"
-      className={`${classNameGenerator()}
-                    ${baseClass}__reveal-button`}
+      className={`reveal-button ${classNameGenerator()}`}
       onClick={onClick}
       autofocus={autofocus}
       disabled={disabled}
     >
-      {showBoolean ? hideString : showString}
+      {tooltipHtml ? (
+        <TooltipWrapper tipContent={tooltipHtml}>
+          {isShowing ? hideText : showText}
+        </TooltipWrapper>
+      ) : isShowing ? (
+        hideText
+      ) : (
+        showText
+      )}
     </Button>
   );
 };

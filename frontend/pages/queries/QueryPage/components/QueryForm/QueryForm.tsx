@@ -425,10 +425,10 @@ const QueryForm = ({
         <div className="author">{renderAuthor()}</div>
       </div>
       <RevealButton
-        showBoolean={showQueryEditor}
+        isShowing={showQueryEditor}
         baseClass={baseClass}
-        hideString={"Hide SQL"}
-        showString={"Show SQL"}
+        hideText={"Hide SQL"}
+        showText={"Show SQL"}
         caratBefore
         onClick={() => setShowQueryEditor(!showQueryEditor)}
       />
