@@ -25,7 +25,7 @@ linters-settings:
       - github.com/pkg/errors: "use ctxerr if a context.Context is available or stdlib errors.New / fmt.Errorf with the %w verb"
   
   gosec:
-    includes:
+    excludes:
        - G110
 
   gocritic:
