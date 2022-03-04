@@ -26,6 +26,7 @@ import FleetAce from "components/FleetAce";
 // @ts-ignore
 import validateQuery from "components/forms/validators/validate_query";
 import Button from "components/buttons/Button";
+import RevealButton from "components/buttons/RevealButton";
 import Checkbox from "components/forms/fields/Checkbox";
 import Spinner from "components/Spinner";
 // @ts-ignore
@@ -423,14 +424,14 @@ const QueryForm = ({
         </div>
         <div className="author">{renderAuthor()}</div>
       </div>
-      <Button
-        className={`${baseClass}__toggle-sql`}
-        variant="text-link"
+      <RevealButton
+        showBoolean={showQueryEditor}
+        baseClass={baseClass}
+        hideString={"Hide SQL"}
+        showString={"Show SQL"}
+        caratBefore
         onClick={() => setShowQueryEditor(!showQueryEditor)}
-        disabled={false}
-      >
-        {showQueryEditor ? "Hide SQL" : "Show SQL"}
-      </Button>
+      />
       {showQueryEditor && (
         <FleetAce
           value={lastEditedQueryBody}
