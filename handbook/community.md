@@ -170,7 +170,7 @@ DRI](./product.md#product-dris). Ask in the `#g-product` channel in Fleet Slack.
 
 ## Fleet swag
 
-We want to recognize and congratulate community members for their contributions to Fleet. Nominating a contributor for [Fleet swag](https://www.printful.com/dashboard/product-templates?sortBy=created&sortDir=desc&page=1) is a great way to show our appreciation.
+We want to recognize and congratulate community members for their contributions to Fleet. Nominating a contributor for [Fleet swag](https://www.printful.com) is a great way to show our appreciation.
 
 ### How to order swag
 
@@ -178,7 +178,7 @@ We want to recognize and congratulate community members for their contributions 
 
 2. Fill out our [swag request sheet](https://docs.google.com/spreadsheets/d/1bySsYVYHY8EjxWhhAKMLVAPLNjg3IYVNpyg50clfB6I/edit?usp=sharing).
 
-3. Once approved, place the order through our [Printful](https://www.printful.com/dashboard/product-templates?sortBy=created&sortDir=desc&page=1) account (credentials in 1Password).
+3. Once approved, place the order through our [Printful](https://www.printful.com) account (credentials in 1Password).
 
 4. If available through the ordering process, add a thank you note for their contribution and "feel free to tag us on Twitter."
 

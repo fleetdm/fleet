@@ -13,6 +13,7 @@ import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
 import { IPolicy, IPolicyFormData } from "interfaces/policy";
 import { IQueryPlatform } from "interfaces/query";
+import { DEFAULT_POLICIES } from "utilities/constants";
 
 import Avatar from "components/Avatar";
 import FleetAce from "components/FleetAce";
@@ -131,6 +132,10 @@ const PolicyForm = ({
 
   const isEditMode = !!policyIdForEdit && !isTeamObserver && !isGlobalObserver;
 
+  const isNewTemplatePolicy =
+    !policyIdForEdit &&
+    DEFAULT_POLICIES.find((p) => p.name === lastEditedQueryName);
+
   const hasSavePermissions =
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
 
@@ -154,7 +159,7 @@ const PolicyForm = ({
       enableLinking: true,
     });
 
-    if (policyIdForEdit) {
+    if (policyIdForEdit || isNewTemplatePolicy) {
       setIsWindowsCompatible(!!lastEditedQueryPlatform?.includes("windows"));
       setIsDarwinCompatible(!!lastEditedQueryPlatform?.includes("darwin"));
       setIsLinuxCompatible(!!lastEditedQueryPlatform?.includes("linux"));
