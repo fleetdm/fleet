@@ -524,20 +524,20 @@ const ManageSchedulePage = ({
         </div>
         {/* must use ternary for NaN */}
         {selectedTeamId &&
-          inheritedScheduledQueriesList &&
-          inheritedScheduledQueriesList.length > 0 && (
-            <RevealButton
-              isShowing={showInheritedQueries}
-              baseClass={baseClass}
-              hideText={`Hide ${inheritedScheduledQueriesList.length} inherited ${inheritedQueryOrQueries}`}
-              showText={`Show ${inheritedScheduledQueriesList.length} inherited ${inheritedQueryOrQueries}`}
-              caratBefore
-              tooltipHtml={
-                'Queries from the "All teams"<br/>schedule run on this team’s hosts.'
-              }
-              onClick={toggleInheritedQueries}
-            />
-          )}
+        inheritedScheduledQueriesList &&
+        inheritedScheduledQueriesList?.length > 0 ? (
+          <RevealButton
+            isShowing={showInheritedQueries}
+            baseClass={baseClass}
+            hideText={`Hide ${inheritedScheduledQueriesList.length} inherited ${inheritedQueryOrQueries}`}
+            showText={`Show ${inheritedScheduledQueriesList.length} inherited ${inheritedQueryOrQueries}`}
+            caratBefore
+            tooltipHtml={
+              'Queries from the "All teams"<br/>schedule run on this team’s hosts.'
+            }
+            onClick={toggleInheritedQueries}
+          />
+        ) : null}
         {showInheritedQueries &&
           inheritedScheduledQueriesList &&
           renderAllTeamsTable(
