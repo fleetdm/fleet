@@ -558,12 +558,13 @@ export const inMilliseconds = (nanoseconds: number): number => {
 };
 
 export const humanHostUptime = (uptimeInNanoseconds: number): string => {
-  const milliseconds = inMilliseconds(uptimeInNanoseconds);
-
-  return formatDuration(
-    { hours: millisecondsToHours(milliseconds) },
-    { format: ["hours"] }
+  const uptimeMilliseconds = inMilliseconds(uptimeInNanoseconds);
+  const restartDate = new Date();
+  restartDate.setMilliseconds(
+    restartDate.getMilliseconds() - uptimeMilliseconds
   );
+
+  return formatDistanceToNow(new Date(restartDate), { addSuffix: true });
 };
 
 export const humanHostLastSeen = (lastSeen: string): string => {
