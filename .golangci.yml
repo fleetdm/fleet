@@ -67,4 +67,11 @@ issues:
     - path: server/datastore/mysql/migrations/[^/]+/[^/]+\.go
       linters:
         - depguard
-
+    # orbit gosec exclusions
+    - path: orbit/pkg/packaging/wix/wix.go
+      linters:
+        - gosec
+    # insecure proxy is insecure by design
+    - path: orbit/pkg/insecure/proxy.go
+      linters:
+        - gosec
