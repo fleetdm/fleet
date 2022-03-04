@@ -168,9 +168,6 @@ issues:
     - path: server/config/config.go
       linters:
         - gosec  
-    - path: server/datastore/redis/ratelimit_store.go
-      linters:
-        - gosec
     - path: server/datastore/mysql/testing_utils.go
       linters:
         - gosec
