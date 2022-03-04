@@ -10,7 +10,7 @@ import TableContainer, { ITableQueryData } from "components/TableContainer";
 import TableDataError from "components/TableDataError"; // TODO how do we handle errors? UI just keeps spinning?
 // @ts-ignore
 import Spinner from "components/Spinner";
-import renderLastUpdatedText from "../../components/LastUpdatedText/LastUpdatedText";
+import renderLastUpdatedText from "components/LastUpdatedText/LastUpdatedText";
 import generateTableHeaders from "./SoftwareTableConfig";
 
 interface ISoftwareCardProps {

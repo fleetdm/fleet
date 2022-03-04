@@ -13,11 +13,15 @@ The Fleet community follows best practices when coding. Here are some of the way
 
 ### Describe your secure coding practices, including code reviews, use of static/dynamic security testing tools, 3rd party scans/reviews.
 
-Every piece of code that is merged into Fleet is reviewed by at least one other engineer before merging. We don't use any security-specific testing tools.
+Code commits to Fleet go through a series of tests, including SAST (static application security testing). 
+
+Every piece of code that is merged into Fleet is reviewed by at least one other engineer before merging. 
 
 The server backend is built in Golang, which (besides for language-level vulnerabilities) eliminates buffer overflow and other memory related attacks.
 
 We use standard library cryptography wherever possible, and all cryptography is using well-known standards.
+
+Libraries are inventoried and monitored for vulnerabilities. Our process for fixing vulnerable libraries and other vulnerabilities is available in our [handbook](https://fleetdm.com/handbook/security#vulnerability-management).
 
 ### SQL injection
 

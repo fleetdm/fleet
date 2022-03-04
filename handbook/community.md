@@ -46,9 +46,9 @@ Try to stay within 3 or 4 heading levels. Complicated documents may use more, bu
 You can link documentation pages to each other using relative paths. For example, in `docs/Using-Fleet/Fleet-UI.md`, you can link to `docs/Using-Fleet/Permissions.md` by writing `[permissions](./Permissions.md)`. This will be automatically transformed into the appropriate URL for `fleetdm.com/docs`.
 
 However, the `fleetdm.com/docs` compilation process does not account for relative links to directories **outside** of `/docs`.
-Therefore, when adding a link to Fleet docs, it is important to always use the absolute file path.
+This is why it’s essential to follow the file path exactly when adding a link to Fleet docs.
 
-When directly linking to a specific section within a page in the Fleet documentation, always format the spaces within a section name to use a hyphen `-` instead of an underscore `_`. For example, when linking to the `osquery_result_log_plugin` section of the configuration reference docs, use a relative link like the following: `./Configuration.md#osquery-result-log-plugin`.
+When directly linking to a specific section within a page in the Fleet documentation, always format the spaces within a section name to use a hyphen  "-" instead of an underscore "_". For example, when linking to the `osquery_result_log_plugin` section of the configuration reference docs, use a relative link like the following: `./Configuration.md#osquery-result-log-plugin`.
 
 ### Linking to a location on GitHub
 When adding a link to a location on GitHub that is outside of `/docs`, be sure to use the canonical form of the URL.
@@ -140,7 +140,7 @@ The top priority when community members contribute PRs is to help the person fee
 Fleet. This means acknowledging the contribution quickly (within 1 business day), and driving to a
 resolution (close/merge) as soon as possible (may take longer than 1 business day).
 
-#### Process
+### Process
 
 1. Decide whether the change is acceptable (see below). If this will take time, acknowledge the
    contribution and let the user know that the team will respond. For changes that are not
@@ -159,7 +159,7 @@ resolution (close/merge) as soon as possible (may take longer than 1 business da
 
 Please refer to our [PRs from the community](https://docs.google.com/document/d/13r0vEhs9LOBdxWQWdZ8n5Ff9cyB3hQkTjI5OhcrHjVo/edit?usp=sharing) guide for more detailed information.
 
-#### What is acceptable?
+### What is acceptable?
 
 Generally, any small documentation update or bugfix is acceptable, and can be merged by any member
 of the Fleet team. Additions or fixes to the Standard Query Library are acceptable as long as the
@@ -167,5 +167,19 @@ SQL works properly and they attributed correctly. Please use your best judgement
 
 Larger changes and new features should be approved by the appropriate [Product
 DRI](./product.md#product-dris). Ask in the `#g-product` channel in Fleet Slack.
+
+## Fleet swag
+
+We want to recognize and congratulate community members for their contributions to Fleet. Nominating a contributor for [Fleet swag](https://www.printful.com) is a great way to show our appreciation.
+
+### How to order swag
+
+1. Reach out to the contributor to thank them for their contribution and ask if they would like any swag.
+
+2. Fill out our [swag request sheet](https://docs.google.com/spreadsheets/d/1bySsYVYHY8EjxWhhAKMLVAPLNjg3IYVNpyg50clfB6I/edit?usp=sharing).
+
+3. Once approved, place the order through our [Printful](https://www.printful.com) account (credentials in 1Password).
+
+4. If available through the ordering process, add a thank you note for their contribution and "feel free to tag us on Twitter."
 
 <meta name="maintainedBy" value="mike-j-thomas">

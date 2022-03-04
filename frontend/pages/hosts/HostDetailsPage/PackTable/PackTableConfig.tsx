@@ -1,16 +1,16 @@
 import React from "react";
-import ReactTooltip from "react-tooltip";
 import { uniqueId } from "lodash";
 
-import TextCell from "components/TableContainer/DataTable/TextCell";
-import PillCell from "components/TableContainer/DataTable/PillCell";
 import { IQueryStats } from "interfaces/query_stats";
 import {
   humanQueryLastRun,
   performanceIndicator,
   secondsToHms,
 } from "fleet/helpers";
-import IconToolTip from "components/IconToolTip";
+
+import TextCell from "components/TableContainer/DataTable/TextCell";
+import PillCell from "components/TableContainer/DataTable/PillCell";
+import TooltipWrapper from "components/TooltipWrapper";
 
 interface IHeaderProps {
   column: {
@@ -65,13 +65,9 @@ const generatePackTableHeaders = (): IDataColumn[] => {
       title: "Last run",
       Header: () => {
         return (
-          <>
+          <TooltipWrapper tipContent="The last time the query ran<br/>since the last time osquery <br/>started on this host.">
             Last run
-            <IconToolTip
-              isHtml
-              text={`The last time the query ran<br/>since the last time osquery <br/>started on this host.`}
-            />
-          </>
+          </TooltipWrapper>
         );
       },
       disableSortBy: true,
@@ -82,13 +78,9 @@ const generatePackTableHeaders = (): IDataColumn[] => {
       title: "Performance impact",
       Header: () => {
         return (
-          <>
+          <TooltipWrapper tipContent="This is the performance <br />impact on this host.">
             Performance impact
-            <IconToolTip
-              isHtml
-              text={`This is the performance <br />impact on this host.`}
-            />
-          </>
+          </TooltipWrapper>
         );
       },
       disableSortBy: true,

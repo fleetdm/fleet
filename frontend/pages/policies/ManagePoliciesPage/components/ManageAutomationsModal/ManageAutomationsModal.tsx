@@ -1,19 +1,16 @@
 import React, { useState } from "react";
 
+import { IPolicy } from "interfaces/policy";
+import { IWebhookFailingPolicies } from "interfaces/webhook";
+import { useDeepEffect } from "utilities/hooks";
+import { size } from "lodash";
+
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 // @ts-ignore
 import Checkbox from "components/forms/fields/Checkbox";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
-import IconToolTip from "components/IconToolTip";
-import validURL from "components/forms/validators/valid_url";
-
-import { IPolicy } from "interfaces/policy";
-import { IWebhookFailingPolicies } from "interfaces/webhook";
-import { useDeepEffect } from "utilities/hooks";
-import { size } from "lodash";
-
 import PreviewPayloadModal from "../PreviewPayloadModal";
 
 interface IManageAutomationsModalProps {
@@ -77,8 +74,8 @@ const useCheckboxListStateManagement = (
 const validateWebhookURL = (url: string) => {
   const errors: { [key: string]: string } = {};
 
-  if (!validURL(url)) {
-    errors.url = "Please add a valid destination URL";
+  if (url === "") {
+    errors.url = "Please add a destination URL";
   }
 
   const valid = !size(errors);
@@ -125,14 +122,15 @@ const ManageAutomationsModal = ({
       ...newErrors,
     });
 
-    if (valid) {
-      const policy_ids =
-        policyItems &&
-        policyItems
-          .filter((policy) => policy.isChecked)
-          .map((policy) => policy.id);
-      const enable_failing_policies_webhook = true; // Leave nearest component in case we decide to add disabling as a UI feature
+    const policy_ids =
+      policyItems &&
+      policyItems
+        .filter((policy) => policy.isChecked)
+        .map((policy) => policy.id);
+    const enable_failing_policies_webhook = true; // Leave nearest component in case we decide to add disabling as a UI feature
 
+    // URL validation only needed if at least one policy is checked
+    if (valid || policy_ids.length === 0) {
       onCreateWebhookSubmit({
         destination_url,
         policy_ids,
@@ -192,10 +190,7 @@ const ManageAutomationsModal = ({
               'For each policy, Fleet will send a JSON payload to this URL with a list of the hosts that updated their answer to "No."'
             }
             placeholder={"https://server.com/example"}
-          />
-          <IconToolTip
-            isHtml
-            text={"<p>Provide a URL to deliver a<br />webhook request to.</p>"}
+            tooltip="Provide a URL to deliver a webhook request to."
           />
         </div>
         <Button

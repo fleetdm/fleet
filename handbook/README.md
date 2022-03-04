@@ -46,6 +46,8 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [How we protect end-user devices](./security.md#how-we-protect-end-user-devices)
 
+[Google Workspace Security](./security.md#google-workspace-security)
+
 [Vulnerability management in Fleet](./security.md#vulnerability-management)
 
 
@@ -78,6 +80,8 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 [Press releases](./community.md#press-releases)
 
 [Community contributions (pull requests)](./community.md#community-contributions-pull-requests)
+
+[Fleet swag](./community.md#fleet-swag)
 
 ### Handbook
 

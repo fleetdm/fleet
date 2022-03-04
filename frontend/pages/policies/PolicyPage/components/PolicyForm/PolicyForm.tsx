@@ -1,9 +1,9 @@
 /* eslint-disable jsx-a11y/no-noninteractive-element-to-interactive-role */
 /* eslint-disable jsx-a11y/interactive-supports-focus */
-import React, { useState, useContext, KeyboardEvent } from "react";
+import React, { useState, useContext, useEffect, KeyboardEvent } from "react";
 import { IAceEditor } from "react-ace/lib/types";
-import ReactTooltip from "react-tooltip";
-import { isUndefined } from "lodash";
+import { useDebouncedCallback } from "use-debounce/lib";
+import { isUndefined, size } from "lodash";
 import classnames from "classnames";
 
 import { addGravatarUrlToResource } from "fleet/helpers";
@@ -13,16 +13,19 @@ import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
 import { IPolicy, IPolicyFormData } from "interfaces/policy";
 import { IQueryPlatform } from "interfaces/query";
+import { DEFAULT_POLICIES } from "utilities/constants";
 
 import Avatar from "components/Avatar";
 import FleetAce from "components/FleetAce";
+// @ts-ignore
+import validateQuery from "components/forms/validators/validate_query";
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 import Spinner from "components/Spinner";
 import AutoSizeInputField from "components/forms/fields/AutoSizeInputField";
+import TooltipWrapper from "components/TooltipWrapper";
 import NewPolicyModal from "../NewPolicyModal";
 import InfoIcon from "../../../../../../assets/images/icon-info-purple-14x14@2x.png";
-import QuestionIcon from "../../../../../../assets/images/icon-question-16x16@2x.png";
 import PencilIcon from "../../../../../../assets/images/icon-pencil-14x14@2x.png";
 
 const baseClass = "policy-form";
@@ -40,6 +43,18 @@ interface IPolicyFormProps {
   renderLiveQueryWarning: () => JSX.Element | null;
   backendValidators: { [key: string]: string };
 }
+
+const validateQuerySQL = (query: string) => {
+  const errors: { [key: string]: any } = {};
+  const { error: queryError, valid: queryValid } = validateQuery(query);
+
+  if (!queryValid) {
+    errors.query = queryError;
+  }
+
+  const valid = !size(errors);
+  return { valid, errors };
+};
 
 const PolicyForm = ({
   policyIdForEdit,
@@ -99,7 +114,27 @@ const PolicyForm = ({
     isTeamMaintainer,
   } = useContext(AppContext);
 
+  policyIdForEdit = policyIdForEdit || 0;
+
+  const debounceSQL = useDebouncedCallback((sql: string) => {
+    let valid = true;
+    const { valid: isValidated, errors: newErrors } = validateQuerySQL(sql);
+    valid = isValidated;
+
+    setErrors({
+      ...newErrors,
+    });
+  }, 500);
+
+  useEffect(() => {
+    debounceSQL(lastEditedQueryBody);
+  }, [lastEditedQueryBody]);
+
   const isEditMode = !!policyIdForEdit && !isTeamObserver && !isGlobalObserver;
+
+  const isNewTemplatePolicy =
+    !policyIdForEdit &&
+    DEFAULT_POLICIES.find((p) => p.name === lastEditedQueryName);
 
   const hasSavePermissions =
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
@@ -124,7 +159,7 @@ const PolicyForm = ({
       enableLinking: true,
     });
 
-    if (policyIdForEdit) {
+    if (policyIdForEdit || isNewTemplatePolicy) {
       setIsWindowsCompatible(!!lastEditedQueryPlatform?.includes("windows"));
       setIsDarwinCompatible(!!lastEditedQueryPlatform?.includes("darwin"));
       setIsLinuxCompatible(!!lastEditedQueryPlatform?.includes("linux"));
@@ -372,31 +407,9 @@ const PolicyForm = ({
           <>
             <b>Checks on:</b>
             <span className="platforms-text">
-              {displayPlatforms.join(", ")}
-            </span>
-            <span className={`tooltip`}>
-              <span
-                className={`tooltip__tooltip-icon`}
-                data-tip
-                data-for="query-compatibility-tooltip"
-                data-tip-disable={false}
-              >
-                <img alt="question icon" src={QuestionIcon} />
-              </span>
-              <ReactTooltip
-                place="bottom"
-                type="dark"
-                effect="solid"
-                backgroundColor="#3e4771"
-                id="query-compatibility-tooltip"
-                data-html
-              >
-                <span className={`tooltip__tooltip-text`}>
-                  To choose new platforms,
-                  <br />
-                  please create a new policy.
-                </span>
-              </ReactTooltip>
+              <TooltipWrapper tipContent="To choose new platforms, please create a new policy.">
+                {displayPlatforms.join(", ")}
+              </TooltipWrapper>
             </span>
           </>
         ) : (

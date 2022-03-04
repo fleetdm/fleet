@@ -111,7 +111,7 @@ func TestInvitesAuth(t *testing.T) {
 	}
 	ds.DeleteInviteFunc = func(context.Context, uint) error { return nil }
 	ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
-		return nil, &notFoundError{}
+		return nil, notFoundError{}
 	}
 	ds.NewInviteFunc = func(ctx context.Context, i *fleet.Invite) (*fleet.Invite, error) {
 		return &fleet.Invite{}, nil
