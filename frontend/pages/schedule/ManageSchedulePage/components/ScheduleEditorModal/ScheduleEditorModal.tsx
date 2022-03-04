@@ -10,6 +10,7 @@ import { ITeamScheduledQuery } from "interfaces/team_scheduled_query";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
+import RevealButton from "components/buttons/RevealButton";
 import InfoBanner from "components/InfoBanner/InfoBanner";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
@@ -273,16 +274,14 @@ const ScheduleEditorModal = ({
           </p>
         </InfoBanner>
         <div>
-          <Button
-            variant="unstyled"
-            className={`${showAdvancedOptions ? "afterupcarat" : "downcarat"} 
-               ${baseClass}__advanced-options-button`}
+          <RevealButton
+            showBoolean={showAdvancedOptions}
+            baseClass={baseClass}
+            hideString={"Hide advanced options"}
+            showString={"Show advanced options"}
+            caratAfter
             onClick={toggleAdvancedOptions}
-          >
-            {showAdvancedOptions
-              ? "Hide advanced options"
-              : "Show advanced options"}
-          </Button>
+          />
           {showAdvancedOptions && (
             <div>
               <Dropdown
