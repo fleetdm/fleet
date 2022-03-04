@@ -537,9 +537,7 @@ const ManageSchedulePage = ({
             }
             onClick={toggleInheritedQueries}
           />
-        ) : (
-          nll
-        )}
+        ) : null}
         {showInheritedQueries &&
           inheritedScheduledQueriesList &&
           renderAllTeamsTable(
