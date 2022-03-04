@@ -84,7 +84,6 @@ func cpe() string {
 	cpeDict, err := cpedict.Decode(gr)
 	panicif(err)
 
-	// TODO: consider caching using etag
 	fmt.Println("Generating DB...")
 	dbPath := path.Join(cwd, fmt.Sprintf("cpe-%s.sqlite", remoteEtag))
 	err = vulnerabilities.GenerateCPEDB(dbPath, cpeDict)
