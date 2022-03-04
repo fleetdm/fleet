@@ -37,6 +37,8 @@ const RevealButton = ({
     }
   };
 
+  const buttonText = isShowing ? hideText : showText;
+
   return (
     <Button
       variant="unstyled"
@@ -46,13 +48,9 @@ const RevealButton = ({
       disabled={disabled}
     >
       {tooltipHtml ? (
-        <TooltipWrapper tipContent={tooltipHtml}>
-          {isShowing ? hideText : showText}
-        </TooltipWrapper>
-      ) : isShowing ? (
-        hideText
+        <TooltipWrapper tipContent={tooltipHtml}>{buttonText}</TooltipWrapper>
       ) : (
-        showText
+        buttonText
       )}
     </Button>
   );
