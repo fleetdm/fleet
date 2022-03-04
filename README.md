@@ -43,7 +43,7 @@ Documentation for Fleet can be found [here](https://fleetdm.com/docs).
 
 #### Chat
 
-Please join us in the #fleet channel on [osquery Slack](https://osquery.slack.com/join/shared_invite/zt-h29zm0gk-s2DBtGUTW4CFel0f0IjTEw#/).
+Please join us in the #fleet channel on [osquery Slack](https://fleetdm.com/slack).
 
 #### Contributing
 
