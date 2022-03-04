@@ -23,8 +23,9 @@ linters-settings:
     packages-with-error-message:
       - github.com/rotisserie/eris: "use ctxerr.New or ctxerr.Wrap[f] instead"
       - github.com/pkg/errors: "use ctxerr if a context.Context is available or stdlib errors.New / fmt.Errorf with the %w verb"
+  
   gosec:
-    excludes:
+    includes:
        - G110
 
   gocritic:
