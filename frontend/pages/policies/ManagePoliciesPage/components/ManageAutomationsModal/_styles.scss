@@ -43,8 +43,7 @@
     }
 
     .form-field--input {
-      display: flex;
-      flex-direction: column;
+      display: block;
       width: 100%;
       margin-right: $pad-small;
       margin-bottom: 0;
@@ -61,6 +60,11 @@
         margin-top: -5px;
       }
     }
+  }
+
+  // so tooltips won't be triggered with whitespace
+  .form-field__label {
+    display: inline-block;
   }
 
   .form-field__label--error {

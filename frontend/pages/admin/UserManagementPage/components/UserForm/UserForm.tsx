@@ -366,7 +366,8 @@ const UserForm = ({
   return (
     <form className={baseClass} autoComplete="off">
       {/* {baseError && <div className="form__base-error">{baseError}</div>} */}
-      <InputFieldWithIcon
+      <InputField
+        label="Full name"
         autofocus
         error={errors.name}
         name="name"
@@ -377,7 +378,7 @@ const UserForm = ({
           maxLength: "80",
         }}
       />
-      <InputFieldWithIcon
+      <InputField
         label="Email"
         error={errors.email || serverErrors?.email}
         name="email"
