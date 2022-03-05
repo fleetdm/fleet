@@ -147,23 +147,21 @@ Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.
   - listen intently to feedback, and genuinely try to understand (especially constructive criticism)  <!-- TODO: Trust the feedback from counterparts. It’s easy to quickly say “no” or ignore feedback because we’re busy and we often default to our way of thinking is right. Trust that your counterpart is making a good suggestion and give it the time/consideration it deserves. -->
   - see failure as a beginning (it is rare to get things right the first time)
   - question yourself ("why do I think this?")
-- be realistic
-  - "strong opinions, loosely held"
-  - change your mind (in the face of new evidence)
+- underpromise, overdeliver
+  - quality results often take longer than we anticipate
   - be practical about your limits, and about what's possible with the time and resources we have
-  - avoid sunk cost fallacy (getting attached to something just because you invested time working on it, or came up with it)
-  - give credit where credit is due
-  - be fair to competitors ("may the best product win.")
-- prioritize truth (reality)
-  - be wrong
-  - show your work
-  - it's better to make the right decision than it is to be right
   - be thorough (don't settle for "the happy path"; every real-world edge case deserves handling)
+- prioritize truth (reality)
+  - be wrong, show your work (it's better to make the right decision than it is to be right)
+  - "strong opinions, loosely held"  (proceed boldly, but change your mind in the face of new evidence)
+  - avoid sunk cost fallacy (getting attached to something just because you invested time working on it, or came up with it)
+  - be fair to competitors ("may the best product win.")
+  - give credit where credit is due; don't show favoritism <!-- as it breeds resentment, destroys employee morale, and creates disincentives for good performance.  Seek out ways to be fair to everyone - https://about.gitlab.com/handbook/values/#permission-to-play -->
   - facts, over commentary
 - speak computer to computers
+  - a lucky fix without understanding does more harm than good
   - when something isn't working, use the scientific method
   - especially when there is a bug, or when something is slow, or when a customer is having a problem
-  - a lucky fix without understanding does more harm than good
   - assume it's your fault
   - assume nothing else
 - legendary rigour
