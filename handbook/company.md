@@ -17,6 +17,8 @@ We are dedicated to:
 ### All remote
 Fleet Device Management Inc. is an all-remote company, with team members spread across 4 continents and 7 time zones.  The wider team of contributors from [all over the world](https://github.com/fleetdm/fleet/graphs/contributors) submit patches, bug reports, troubleshooting tips, improvements, and real-world insights to Fleet's open source code base, documentation, website, and company handbook.
 
+### Open source
+The majority of the code, documentation, and content we create at Fleet is public and source-available, and we strive to be broadly open and transparent in the way we run the business; as much as confidentiality agreements (and time) allow. We perform better with an audience, and our audience performs better with us.
 
 ## 🌈 Values
 
@@ -72,61 +74,64 @@ Empathy leads to better understanding, better communication, and better decision
   - talking with users and contributors is time well spent
   - embrace the excitement of others (it's contagious)
   - make small talk at the beginning of meetings
+  - be generous (the majority of the features Fleet releases [will always be free](https://fleetdm.com/pricing))
   - apply customer service principles to all users, even if they never buy Fleet
-  - be our guest
+  - be our guest (go above and beyond for customers and the community)
 - legendary digital/human experience
 
 
 ### 🟠 Ownership
-<!-- TODO: write short preamble, like the others --> 
+
+<!-- TODO: short preamble -->
+
 - take responsibility
-  - follow through on commitments (actions match your words)
   - think like an owner
-  - fast forward 12 months, consider total cost of ownership (the eternity of maintenance)
   - be valuable (consider business impact)
+  - follow through on commitments (actions match your words)
+  - fast forward 12 months, consider total cost of ownership (the eternity of maintenance)
   - work on things that matter
   - understand "why?"  (or tell me why I'm wrong)
   - agree, or disagree and commit anyway
 - be responsive
   - respond quickly, even if you can't take further action at that exact moment
-  - keep comments brief and relevant (if you think you should send a message to communicate something, send it)
+  - communicate openly (if you think you should send a message to communicate something, send it; but keep comments brief and relevant)
+  - procrastination is a symptom of not knowing what to do next (if you find yourself avoiding reading or responding to a message, schedule a Zoom call with the people you need to figure it out)
+  - prefer short calls to long, asynchronous back and forth discussions in Slack
 - we win or lose together
   - think about the big picture, not just your team's goals
+  - you're not alone in this - there's a great team of people able and happy to help
   - don't be afraid to spend time helping users, customers, and contributors (including colleagues on other teams)
   - be proactive: ask other contributors how you can help, regardless who is assigned to what
   - get all the way done; help unblock team members and other contributors to deliver value  <!-- TODO: (collaborate; help teammates see tasks through to completion) -->
 - take pride in your work
-  - reread anything you write for users <!-- TODO: (Check everything that a user might read for clarity, spelling errors, and to make sure that it provides value.) -->
+  - be efficient   (your time is valuable, your work matters, and your focus is a finite resource; it matters how you spend it)
   - you don't need permission to be thoughtful
-  - be efficient (you are important; your time and focus are valuable, finite resources and it matters how you spend them)
   - be thorough (every real-world edge case deserves handling)
-- take yourself seriously
-  - you are on a hero's journey
-  - even boring tasks are more motivating, fun, and effective when you care
-  - motivate yourself intrinsically with self-talk
+  - reread anything you write for users <!-- TODO: (Check everything that a user might read for clarity, spelling errors, and to make sure that it provides value.) -->
   - take your ideas seriously (great ideas come from everyone; write them out and see if they have merit)
+  - you are on a hero's journey (motivate yourself intrinsically with self-talk; even boring tasks are more motivating, fun, and effective when you care)
 - legendary results
 
 ### 🟢 Balance
 Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.org/wiki/Golden_mean_%28philosophy%29).
 
-- think, fast
-  - balance thoughtfulness and planning with moving quickly
+- iterate
+  - baby steps <!-- TODO: (look for ways to make the smallest, minimally viable change. Small changes provide faster feedback, and help us to stay focused on quality) -->
+  - pick low-hanging fruit (deliver value quickly where you can)
   - think ahead, then make the right decision for now
+  - think, fast (balance thoughtfulness and planning with moving quickly)
+  - look before you leap (when facing a non-trivial problem, get perspective before you dive in; what if there is a simpler solution?) <!-- TODO: When facing a (non-trivial) problem, take a step back before diving into fixing it - put the problem back in context, think about the actual goal and not just the issue itself, sometimes the obvious solution misses the end goal, sometimes a simpler solution will emerge, or it may just confirm that the fix is the right one and you can go ahead with better confidence -->
 - move quickly
   - "everything is in draft"
-  - pick low-hanging fruit (deliver value quickly where you can)
   - avoid gold-plating
   - aim to deliver daily
   - move quicker than 90% of the humans you know
 - less is more
+  - focus on fewer tasks at one time  <!-- TODO: (By focusing on fewer tasks at once, we are able to get more done, and to a higher standard, while feeling more positive about our work in the process.) -->
   - "boring solutions"
-  - prefer short calls to long, asynchronous back and forth discussions in Slack
   - avoid bikeshedding
   - bite off what you can chew
   - finish what you start, or at least throw it away loudly in case someone wants it
-  - focus on fewer tasks at one time  <!-- TODO: (By focusing on fewer tasks at once, we are able to get more done, and to a higher standard, while feeling more positive about our work in the process.) -->
-  - iterate by taking baby steps <!-- TODO: (look for ways to make the smallest, minimally viable change. Small changes provide faster feedback, and help us to stay focused on quality) -->
 - make time for self-care
   - to help you bring your best self when communicating with others, making decisions, etc
   - consider taking a break or going for a walk
@@ -168,7 +173,7 @@ Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.
 - legendary rigour
 
 ### 🟣 Openness
-The majority of the code, documentation, and content we create at Fleet is public and source-available, and we strive to be broadly open and transparent in the way we run the business; as much as confidentiality agreements (and time) allow. We perform better with an audience, and our audience performs better with us.
+<!-- TODO: preamble -->
 
 - anyone can contribute
   - be outsider-friendly, inclusive, and approachable
@@ -189,8 +194,8 @@ The majority of the code, documentation, and content we create at Fleet is publi
   - ask questions the way you would want to be asked
 - be transparent
   - "public by default"
+  - build in the open
   - declassify with care (easier to overlook confidential info when declassifying vs. when changing something that is already public from the get-go)
-  - open source stewardship: the majority of the features Fleet releases [will be free](https://fleetdm.com/pricing)
   - [open source is forever](https://twitter.com/mikermcneil/status/1476799587423772674)
 - legendary transparency
 
