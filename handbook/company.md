@@ -49,13 +49,15 @@ Empathy leads to better understanding, better communication, and better decision
   - ask questions like you would want to be asked
   - assume positive intent
   - be kind
+  - quickly review pending changes where your review was requested <!-- TODO: (when you are requested as a reviewer in GitHub, respond quickly.  If pull requests start to stack up, merge conflicts can arise, or the original author can forget, or lose context for why they were making the change.  The more pending changes there are, the harder it is to sort through what needs to be reviewed next.) -->
   - be punctual
   - end meetings on time
 - role play as a user
-  - don't be afraid to rely on your imagination to understand 
+  - don't be afraid to rely on your imagination to understand <!-- TODO: (When making changes, put yourself in the mindset of the end user. Keep in mind how someone might use the product or process you're building for the first time, or how someone accustomed to the old way might react to a new change.) -->
   - developers are users too (REST API, fleetctl, docs)
   - contributor experience matters (but product quality and commitments come first)
   - bugs cause frustrating experiences and alienate users
+  - patch with care (upgrading to new releases of Fleet can be time-consuming for users running self-managed deployments) <!-- TODO: (patch releases are important for improving security, quality, and stability. Cut a patch release if there is a security concern, previously stable features are unusable, or if a new feature advertised in the current release is unusable.  But remember that people have to actually install these updates!) -->
   - confusing error messages make people feel helpless, and can fill them with despair
   - error messages deserve to be good (it's worth it to spend time on them)
   - UI help text and labels deserve to be good (it's worth it to spend time on them)
@@ -89,9 +91,9 @@ Empathy leads to better understanding, better communication, and better decision
 - we win or lose together
   - it's worth it to help team members and contributors
   - help unblock users, customers, and other contributors (including colleagues)
-  - help team members and contributors get all the way done, delivered all the way to completion
+  - help team members and contributors get all the way done, delivered all the way to completion <!-- TODO: (collaborate; help teammates see tasks through to completion) -->
 - take pride in your work
-  - reread anything you write for users
+  - reread anything you write for users <!-- TODO: (Check everything that a user might read for clarity, spelling errors, and to make sure that it provides value.) -->
   - you don't need permission to be thoughtful
   - every real-world edge case deserves handling (be thorough)
 - take yourself seriously
@@ -108,7 +110,6 @@ Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.
   - balance thoughtfulness and planning with moving quickly
 - move quickly
   - "everything is in draft"
-  - iterate by taking baby steps
   - pick low-hanging fruit (deliver value quickly where you can)
   - avoid gold-plating
   - aim to deliver daily
@@ -119,7 +120,8 @@ Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.
   - avoid bikeshedding
   - bite off what you can chew
   - finish what you start, or at least throw it away loudly in case someone wants it
-  - focus on fewer tasks at one time
+  - focus on fewer tasks at one time  <!-- TODO: (By focusing on fewer tasks at once, we are able to get more done, and to a higher standard, while feeling more positive about our work in the process.) -->
+  - iterate by taking baby steps <!-- TODO: (look for ways to make the smallest, minimally viable change. Small changes provide faster feedback, and help us to stay focused on quality) -->
 - make time for self-care
   - to help you bring your best self when communicating with others, making decisions, etc
   - consider taking a break or going for a walk
