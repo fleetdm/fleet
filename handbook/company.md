@@ -2,7 +2,7 @@
 
 ## About Fleet
 
-Fleet Device Management Inc is an open core company that sells subscriptions that offer more features and support for Fleet and [osquery](https://osquery.io), the leading open source endpoint agent.
+Fleet Device Management Inc is an [open core company](https://www.heavybit.com/library/video/commercial-open-source-business-strategies/) that sells subscriptions that offer [more features and support](https://fleetdm.com/pricing) for Fleet and [osquery](https://osquery.io), the leading open source endpoint agent.
 
 We are dedicated to:
 - 💍 growing the adoption of osquery (one agent to rule them all)
@@ -15,10 +15,10 @@ We are dedicated to:
 ## Culture
 
 ### All remote
-Fleet Device Management Inc. is an all-remote company, with team members spread across 4 continents and 7 time zones.  The wider team of contributors from [all over the world](https://github.com/fleetdm/fleet/graphs/contributors) submit patches, bug reports, troubleshooting tips, improvements, and real-world insights to Fleet's open source code base, documentation, website, and company handbook.
+Fleet Device Management Inc. is an all-remote company, with team members spread across 4 continents and 8 time zones.  The wider team of contributors from [all over the world](https://github.com/fleetdm/fleet/graphs/contributors) submit patches, bug reports, troubleshooting tips, improvements, and real-world insights to Fleet's open source code base, documentation, website, and company handbook.
 
-### Open core
-The majority of the code, documentation, and content we create at Fleet is public and source-available, and we strive to be broadly open and transparent in the way we [run the business](https://www.heavybit.com/library/video/commercial-open-source-business-strategies/); as much as confidentiality agreements (and time) allow. We perform better with an audience, and our audience performs better with us.
+### Open source
+The majority of the code, documentation, and content we create at Fleet is public and source-available, and we strive to be broadly open and transparent in the way we run the business; as much as confidentiality agreements (and time) allow. We perform better with an audience, and our audience performs better with us.
 
 ## 🌈 Values
 
