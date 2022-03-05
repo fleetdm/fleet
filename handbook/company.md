@@ -17,6 +17,8 @@ We are dedicated to:
 ### All remote
 Fleet Device Management Inc. is an all-remote company, with team members spread across 4 continents and 7 time zones.  The wider team of contributors from [all over the world](https://github.com/fleetdm/fleet/graphs/contributors) submit patches, bug reports, troubleshooting tips, improvements, and real-world insights to Fleet's open source code base, documentation, website, and company handbook.
 
+### Open source
+The majority of the code, documentation, and content we create at Fleet is public and source-available, and we strive to be broadly open and transparent in the way we run the business; as much as confidentiality agreements (and time) allow. We perform better with an audience, and our audience performs better with us.
 
 ## 🌈 Values
 
@@ -72,56 +74,63 @@ Empathy leads to better understanding, better communication, and better decision
   - talking with users and contributors is time well spent
   - embrace the excitement of others (it's contagious)
   - make small talk at the beginning of meetings
+  - be generous (go above and beyond; for example, the majority of the features Fleet releases [will always be free](https://fleetdm.com/pricing))
   - apply customer service principles to all users, even if they never buy Fleet
   - be our guest
 - legendary digital/human experience
 
 
 ### 🟠 Ownership
-<!-- TODO: write short preamble, like the others --> 
+
+<!-- TODO: short preamble -->
+
 - take responsibility
-  - follow through on commitments (actions match your words)
   - think like an owner
-  - be efficient
+  - work on things that matter (understand "why?")
   - be valuable (consider business impact)
-  - work on things that matter
+  - follow through on commitments (actions match your words)
   - fast forward 12 months, consider total cost of ownership (the eternity of maintenance)
-  - understand "why?"  (or tell me why I'm wrong)
-  - agree, or disagree and commit anyway
+- be responsive
+  - respond quickly, even if you can't take further action at that exact moment
+  - when you disagree, give your feedback; then agree and commit, or disagree and commit anyway
+  - prefer short calls to long, asynchronous back and forth discussions in Slack
+  - procrastination is a symptom of not knowing what to do next (if you find yourself avoiding reading or responding to a message, schedule a Zoom call with the people you need to figure it out)
 - we win or lose together
-  - it's worth it to help team members and contributors
-  - help unblock users, customers, and other contributors (including colleagues)
-  - help team members and contributors get all the way done, delivered all the way to completion <!-- TODO: (collaborate; help teammates see tasks through to completion) -->
+  - think about the big picture, not just your team's goals
+  - you're not alone in this - there's a great team of people able and happy to help
+  - don't be afraid to spend time helping users, customers, and contributors (including colleagues on other teams)
+  - be proactive: ask other contributors how you can help, regardless who is assigned to what
+  - get all the way done; help unblock team members and other contributors to deliver value  <!-- TODO: (collaborate; help teammates see tasks through to completion) -->
 - take pride in your work
-  - reread anything you write for users <!-- TODO: (Check everything that a user might read for clarity, spelling errors, and to make sure that it provides value.) -->
+  - be efficient   (your time is valuable, your work matters, and your focus is a finite resource; it matters how you spend it)
   - you don't need permission to be thoughtful
-  - every real-world edge case deserves handling (be thorough)
-- take yourself seriously
-  - you are on a hero's journey
-  - even boring tasks are more motivating, fun, and effective when you care
-  - motivate yourself intrinsically with self-talk
+  - reread anything you write for users <!-- TODO: (Check everything that a user might read for clarity, spelling errors, and to make sure that it provides value.) -->
   - take your ideas seriously (great ideas come from everyone; write them out and see if they have merit)
+  - think for yourself, from first principles
+  - use reason (believe in your brain's capacity to evaluate a solution or idea, regardless of how popular it is)
+  - you are on a hero's journey (motivate yourself intrinsically with self-talk; even boring tasks are more motivating, fun, and effective when you care)
 - legendary results
 
 ### 🟢 Balance
 Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.org/wiki/Golden_mean_%28philosophy%29).
 
-- think, fast
-  - balance thoughtfulness and planning with moving quickly
+- iterate
+  - baby steps <!-- TODO: (look for ways to make the smallest, minimally viable change. Small changes provide faster feedback, and help us to stay focused on quality) -->
+  - pick low-hanging fruit (deliver value quickly where you can)
+  - think ahead, then make the right decision for now
+  - think, fast (balance thoughtfulness and planning with moving quickly)
+  - look before you leap (when facing a non-trivial problem, get perspective before you dive in; what if there is a simpler solution?) <!-- TODO: When facing a (non-trivial) problem, take a step back before diving into fixing it - put the problem back in context, think about the actual goal and not just the issue itself, sometimes the obvious solution misses the end goal, sometimes a simpler solution will emerge, or it may just confirm that the fix is the right one and you can go ahead with better confidence -->
 - move quickly
   - "everything is in draft"
-  - pick low-hanging fruit (deliver value quickly where you can)
   - avoid gold-plating
   - aim to deliver daily
   - move quicker than 90% of the humans you know
 - less is more
+  - focus on fewer tasks at one time  <!-- TODO: (By focusing on fewer tasks at once, we are able to get more done, and to a higher standard, while feeling more positive about our work in the process.) -->
   - "boring solutions"
-  - prefer short calls to long, asynchronous back and forth discussions in Slack
   - avoid bikeshedding
   - bite off what you can chew
   - finish what you start, or at least throw it away loudly in case someone wants it
-  - focus on fewer tasks at one time  <!-- TODO: (By focusing on fewer tasks at once, we are able to get more done, and to a higher standard, while feeling more positive about our work in the process.) -->
-  - iterate by taking baby steps <!-- TODO: (look for ways to make the smallest, minimally viable change. Small changes provide faster feedback, and help us to stay focused on quality) -->
 - make time for self-care
   - to help you bring your best self when communicating with others, making decisions, etc
   - consider taking a break or going for a walk
@@ -134,48 +143,53 @@ Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.
 <!-- TODO: write short preamble, like the others --> 
 
 - be curious
-  - "strong opinions, loosely held"
   - ask great questions & take the time to truly listen
-  - listen intently, and genuinely try to understand
-  - change your mind (in the face of new evidence)
-  - it's better to make the right decision than it is to be right
-- be realistic 
-  - practical about your limits and what's possible with the time and resources we have
+  - listen intently to feedback, and genuinely try to understand (especially constructive criticism)  <!-- TODO: Trust the feedback from counterparts. It’s easy to quickly say “no” or ignore feedback because we’re busy and we often default to our way of thinking is right. Trust that your counterpart is making a good suggestion and give it the time/consideration it deserves. -->
+  - see failure as a beginning (it is rare to get things right the first time)
   - question yourself ("why do I think this?")
+- underpromise, overdeliver
+  - quality results often take longer than we anticipate
+  - be practical about your limits, and about what's possible with the time and resources we have
+  - be thorough (don't settle for "the happy path"; every real-world edge case deserves handling)
+- prioritize truth (reality)
+  - be wrong, show your work (it's better to make the right decision than it is to be right)
+  - "strong opinions, loosely held"  (proceed boldly, but change your mind in the face of new evidence)
   - avoid sunk cost fallacy (getting attached to something just because you invested time working on it, or came up with it)
   - be fair to competitors ("may the best product win.")
-- prioritize truth (reality)
-  - be wrong
-  - show your work
+  - give credit where credit is due; don't show favoritism <!-- as it breeds resentment, destroys employee morale, and creates disincentives for good performance.  Seek out ways to be fair to everyone - https://about.gitlab.com/handbook/values/#permission-to-play -->
   - facts, over commentary
-- think for yourself
-  - from first principles
-  - use reason
-  - believe in your brain's capacity to evaluate a solution or idea, regardless of how popular it is
 - speak computer to computers
+  - a lucky fix without understanding does more harm than good
   - when something isn't working, use the scientific method
   - especially when there is a bug, or when something is slow, or when a customer is having a problem
-  - a lucky fix without understanding does more harm than good
   - assume it's your fault
   - assume nothing else
 - legendary rigour
 
 ### 🟣 Openness
-The majority of the code, documentation, and content we create at Fleet is public and source-available, and we strive to be broadly open and transparent in the way we run the business; as much as confidentiality agreements (and time) allow. We perform better with an audience, and our audience performs better with us.
+<!-- TODO: preamble -->
 
 - anyone can contribute
   - be outsider-friendly, inclusive, and approachable
   - [use small words](http://www.paulgraham.com/writing44.html) so readers understand more easily
   - prioritize accessible terminology and simple explanations to provide value to the largest possible audience of users
   - welcome contributions to your team's work, from people inside or outside the company
+  - get comfortable letting others contribute to your domain
   - believe in everyone
+- write things down
+  - "handbook first"
+  - writing it down makes it real and allows others to read on their own time
+  - never stop consolidating and deduplicating content (gradually, consistently, bit by bit)
 - candor
-  - faster, better decisions
+  - "short toes" (don't be afraid of stepping on toes)
   - don't be afraid to speak up (ask questions, be direct, and interrupt)
+  - give pointed, respectful feedback <!-- (in the same way you would want to receive it) -->
+  - take initiative in trying to improve things (no need to wait [for consensus](https://twitter.com/ryanfalor/status/1182647229414166528?s=12))
+  - communicate openly (if you think you should send a message to communicate something, send it; but keep comments brief and relevant)
 - be transparent
   - "public by default"
+  - build in the open
   - declassify with care (easier to overlook confidential info when declassifying vs. when changing something that is already public from the get-go)
-  - open source stewardship: the majority of the features Fleet releases [will be free](https://fleetdm.com/pricing)
   - [open source is forever](https://twitter.com/mikermcneil/status/1476799587423772674)
 - legendary transparency
 
