@@ -63,11 +63,6 @@ Empathy leads to better understanding, better communication, and better decision
   - confusing error messages make people feel helpless, and can fill them with despair
   - error messages deserve to be good (it's worth it to spend time on them)
   - UI help text and labels deserve to be good (it's worth it to spend time on them)
-- simplify
-  - prioritize simplicity: people crave mental space (in design, in collaboration)
-  - reduce cognitive load via clarity, simpler words, fewer acronyms and idioms that might not translate
-  - use fewer words (lots of text == lots of work)
-  - but think fast, because i.e. "I would have written a shorter letter, but I did not have the time." -Blaise Pascal
 - hospitality
   - "be a helper"   -mr rogers
   - think and say [positive things](https://www.theatlantic.com/family/archive/2018/06/mr-rogers-neighborhood-talking-to-kids/562352/)
@@ -77,7 +72,7 @@ Empathy leads to better understanding, better communication, and better decision
   - be generous (go above and beyond; for example, the majority of the features Fleet releases [will always be free](https://fleetdm.com/pricing))
   - apply customer service principles to all users, even if they never buy Fleet
   - be our guest
-- legendary digital/human experience
+- legendary humanity
 
 
 ### 🟠 Ownership
@@ -85,19 +80,21 @@ Empathy leads to better understanding, better communication, and better decision
 <!-- TODO: short preamble -->
 
 - take responsibility
-  - think like an owner
-  - work on things that matter (understand "why?")
-  - be valuable (consider business impact)
+  - think like an owner (consider business impact)
   - follow through on commitments (actions match your words)
-  - fast forward 12 months, consider total cost of ownership (the eternity of maintenance)
+  - own up to mistakes
+  - understand why it matters (the goals of the work you are doing)
+  - consider business impact (fast forward 12 months, consider total cost of ownership over the eternity of maintenance)
+  - do things that don't scale, sometimes
 - be responsive
   - respond quickly, even if you can't take further action at that exact moment
   - when you disagree, give your feedback; then agree and commit, or disagree and commit anyway
   - prefer short calls to long, asynchronous back and forth discussions in Slack
   - procrastination is a symptom of not knowing what to do next (if you find yourself avoiding reading or responding to a message, schedule a Zoom call with the people you need to figure it out)
 - we win or lose together
-  - think about the big picture, not just your team's goals
-  - you're not alone in this - there's a great team of people able and happy to help
+  - think about the big picture, beyond your individual team's goals
+  - success == creating value for customers
+  - you're not alone in this - there's a great community of people able and happy to help
   - don't be afraid to spend time helping users, customers, and contributors (including colleagues on other teams)
   - be proactive: ask other contributors how you can help, regardless who is assigned to what
   - get all the way done; help unblock team members and other contributors to deliver value  <!-- TODO: (collaborate; help teammates see tasks through to completion) -->
@@ -122,21 +119,23 @@ Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.
   - look before you leap (when facing a non-trivial problem, get perspective before you dive in; what if there is a simpler solution?) <!-- TODO: When facing a (non-trivial) problem, take a step back before diving into fixing it - put the problem back in context, think about the actual goal and not just the issue itself, sometimes the obvious solution misses the end goal, sometimes a simpler solution will emerge, or it may just confirm that the fix is the right one and you can go ahead with better confidence -->
 - move quickly
   - "everything is in draft"
-  - avoid gold-plating
   - aim to deliver daily
   - move quicker than 90% of the humans you know
+  - resist gold-plating; avoid bike-shedding
 - less is more
   - focus on fewer tasks at one time  <!-- TODO: (By focusing on fewer tasks at once, we are able to get more done, and to a higher standard, while feeling more positive about our work in the process.) -->
   - "boring solutions"
-  - avoid bikeshedding
-  - bite off what you can chew
   - finish what you start, or at least throw it away loudly in case someone wants it
+  - keep it simple (prioritize simplicity; people crave mental space in design, collaboration, and most areas of life)
+  - reduce cognitive load via clarity, simpler words, fewer acronyms and idioms that might not translate
+  - use fewer words (lots of text == lots of work)
+  - as time allows  ("I would have written a shorter letter, but I did not have the time." -Blaise Pascal)
 - make time for self-care
   - to help you bring your best self when communicating with others, making decisions, etc
   - consider taking a break or going for a walk
   - take time off; it is better to have 100% focus for 80% of the time than it is to have 80% focus for 100% of the time
   - think about how to best organize your day/work hours to fit your life and maximize your focus
-- legendary execution
+- legendary focus
 
 
 ### 🔵 Objectivity
@@ -173,14 +172,15 @@ Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.
   - be outsider-friendly, inclusive, and approachable
   - [use small words](http://www.paulgraham.com/writing44.html) so readers understand more easily
   - prioritize accessible terminology and simple explanations to provide value to the largest possible audience of users
+  - avoid acronyms and idioms which might not translate
   - welcome contributions to your team's work, from people inside or outside the company
   - get comfortable letting others contribute to your domain
   - believe in everyone
 - write things down
   - "handbook first"
-  - writing it down makes it real and allows others to read on their own time
+  - writing it down makes it real and allows others to read on their own time (and in their own timezone)
   - never stop consolidating and deduplicating content (gradually, consistently, bit by bit)
-- candor
+- embrace candor
   - "short toes" (don't be afraid of stepping on toes)
   - don't be afraid to speak up (ask questions, be direct, and interrupt)
   - give pointed, respectful feedback <!-- (in the same way you would want to receive it) -->
@@ -191,7 +191,7 @@ Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.
   - build in the open
   - declassify with care (easier to overlook confidential info when declassifying vs. when changing something that is already public from the get-go)
   - [open source is forever](https://twitter.com/mikermcneil/status/1476799587423772674)
-- legendary transparency
+- legendary collaboration
 
 
 
