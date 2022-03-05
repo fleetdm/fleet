@@ -74,9 +74,9 @@ Empathy leads to better understanding, better communication, and better decision
   - talking with users and contributors is time well spent
   - embrace the excitement of others (it's contagious)
   - make small talk at the beginning of meetings
-  - be generous (the majority of the features Fleet releases [will always be free](https://fleetdm.com/pricing))
+  - be generous (go above and beyond; for example, the majority of the features Fleet releases [will always be free](https://fleetdm.com/pricing))
   - apply customer service principles to all users, even if they never buy Fleet
-  - be our guest (go above and beyond for customers and the community)
+  - be our guest
 - legendary digital/human experience
 
 
