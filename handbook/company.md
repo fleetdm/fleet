@@ -17,8 +17,8 @@ We are dedicated to:
 ### All remote
 Fleet Device Management Inc. is an all-remote company, with team members spread across 4 continents and 7 time zones.  The wider team of contributors from [all over the world](https://github.com/fleetdm/fleet/graphs/contributors) submit patches, bug reports, troubleshooting tips, improvements, and real-world insights to Fleet's open source code base, documentation, website, and company handbook.
 
-### Open source
-The majority of the code, documentation, and content we create at Fleet is public and source-available, and we strive to be broadly open and transparent in the way we run the business; as much as confidentiality agreements (and time) allow. We perform better with an audience, and our audience performs better with us.
+### Open core
+The majority of the code, documentation, and content we create at Fleet is public and source-available, and we strive to be broadly open and transparent in the way we [run the business](https://www.heavybit.com/library/video/commercial-open-source-business-strategies/); as much as confidentiality agreements (and time) allow. We perform better with an audience, and our audience performs better with us.
 
 ## 🌈 Values
 
