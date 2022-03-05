@@ -86,17 +86,15 @@ Empathy leads to better understanding, better communication, and better decision
 
 - take responsibility
   - think like an owner
+  - work on things that matter (understand "why?")
   - be valuable (consider business impact)
   - follow through on commitments (actions match your words)
   - fast forward 12 months, consider total cost of ownership (the eternity of maintenance)
-  - work on things that matter
-  - understand "why?"  (or tell me why I'm wrong)
-  - agree, or disagree and commit anyway
 - be responsive
   - respond quickly, even if you can't take further action at that exact moment
-  - communicate openly (if you think you should send a message to communicate something, send it; but keep comments brief and relevant)
-  - procrastination is a symptom of not knowing what to do next (if you find yourself avoiding reading or responding to a message, schedule a Zoom call with the people you need to figure it out)
+  - when you disagree, give your feedback; then agree and commit, or disagree and commit anyway
   - prefer short calls to long, asynchronous back and forth discussions in Slack
+  - procrastination is a symptom of not knowing what to do next (if you find yourself avoiding reading or responding to a message, schedule a Zoom call with the people you need to figure it out)
 - we win or lose together
   - think about the big picture, not just your team's goals
   - you're not alone in this - there's a great team of people able and happy to help
@@ -186,10 +184,10 @@ Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.
   - never stop consolidating and deduplicating content (gradually, consistently, bit by bit)
 - candor
   - "short toes" (don't be afraid of stepping on toes)
-  - give pointed, respectful feedback
-  - take initiative in trying to improve things (no need to wait [for consensus](https://twitter.com/ryanfalor/status/1182647229414166528?s=12), or to do with two what you can do for yourself)
   - don't be afraid to speak up (ask questions, be direct, and interrupt)
-  - ask questions the way you would want to be asked
+  - give pointed, respectful feedback <!-- (in the same way you would want to receive it) -->
+  - take initiative in trying to improve things (no need to wait [for consensus](https://twitter.com/ryanfalor/status/1182647229414166528?s=12), or to do with two what you can do for yourself)
+  - communicate openly (if you think you should send a message to communicate something, send it; but keep comments brief and relevant)
 - be transparent
   - "public by default"
   - build in the open
