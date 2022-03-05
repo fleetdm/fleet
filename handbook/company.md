@@ -126,8 +126,7 @@ Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.
   - focus on fewer tasks at one time  <!-- TODO: (By focusing on fewer tasks at once, we are able to get more done, and to a higher standard, while feeling more positive about our work in the process.) -->
   - "boring solutions"
   - finish what you start, or at least throw it away loudly in case someone wants it
-  - keep it simple (prioritize simplicity; people crave mental space in design, collaboration, and most areas of life)
-  - reduce cognitive load via clarity, simpler words, fewer acronyms and idioms that might not translate
+  - keep it simple (prioritize simplicity; people crave mental space in design, collaboration, and most areas of life) <!-- reduce cognitive load -->
   - use fewer words (lots of text == lots of work)
   - as time allows  ("I would have written a shorter letter, but I did not have the time." -Blaise Pascal)
 - make time for self-care
