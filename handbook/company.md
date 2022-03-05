@@ -82,20 +82,24 @@ Empathy leads to better understanding, better communication, and better decision
 - take responsibility
   - follow through on commitments (actions match your words)
   - think like an owner
-  - be efficient
+  - fast forward 12 months, consider total cost of ownership (the eternity of maintenance)
   - be valuable (consider business impact)
   - work on things that matter
-  - fast forward 12 months, consider total cost of ownership (the eternity of maintenance)
   - understand "why?"  (or tell me why I'm wrong)
   - agree, or disagree and commit anyway
+- be responsive
+  - respond quickly, even if you can't take further action at that exact moment
+  - keep comments brief and relevant (if you think you should send a message to communicate something, send it)
 - we win or lose together
-  - it's worth it to help team members and contributors
-  - help unblock users, customers, and other contributors (including colleagues)
-  - help team members and contributors get all the way done, delivered all the way to completion <!-- TODO: (collaborate; help teammates see tasks through to completion) -->
+  - think about the big picture, not just your team's goals
+  - don't be afraid to spend time helping users, customers, and contributors (including colleagues on other teams)
+  - be proactive: ask other contributors how you can help, regardless who is assigned to what
+  - get all the way done; help unblock team members and other contributors to deliver value  <!-- TODO: (collaborate; help teammates see tasks through to completion) -->
 - take pride in your work
   - reread anything you write for users <!-- TODO: (Check everything that a user might read for clarity, spelling errors, and to make sure that it provides value.) -->
   - you don't need permission to be thoughtful
-  - every real-world edge case deserves handling (be thorough)
+  - be efficient (you are important; your time and focus are valuable, finite resources and it matters how you spend them)
+  - be thorough (every real-world edge case deserves handling)
 - take yourself seriously
   - you are on a hero's journey
   - even boring tasks are more motivating, fun, and effective when you care
@@ -108,6 +112,7 @@ Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.
 
 - think, fast
   - balance thoughtfulness and planning with moving quickly
+  - think ahead, then make the right decision for now
 - move quickly
   - "everything is in draft"
   - pick low-hanging fruit (deliver value quickly where you can)
@@ -136,17 +141,19 @@ Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.
 - be curious
   - "strong opinions, loosely held"
   - ask great questions & take the time to truly listen
-  - listen intently, and genuinely try to understand
-  - change your mind (in the face of new evidence)
-  - it's better to make the right decision than it is to be right
+  - listen intently to feedback, and genuinely try to understand (especially constructive criticism)  <!-- TODO: Trust the feedback from counterparts. It’s easy to quickly say “no” or ignore feedback because we’re busy and we often default to our way of thinking is right. Trust that your counterpart is making a good suggestion and give it the time/consideration it deserves. -->
+  - see failure as a beginning (it is rare to get things right the first time)
+  - question yourself ("why do I think this?")
 - be realistic 
   - practical about your limits and what's possible with the time and resources we have
-  - question yourself ("why do I think this?")
+  - change your mind (in the face of new evidence)
   - avoid sunk cost fallacy (getting attached to something just because you invested time working on it, or came up with it)
+  - give credit where credit is due
   - be fair to competitors ("may the best product win.")
 - prioritize truth (reality)
   - be wrong
   - show your work
+  - it's better to make the right decision than it is to be right
   - facts, over commentary
 - think for yourself
   - from first principles
@@ -168,10 +175,18 @@ The majority of the code, documentation, and content we create at Fleet is publi
   - [use small words](http://www.paulgraham.com/writing44.html) so readers understand more easily
   - prioritize accessible terminology and simple explanations to provide value to the largest possible audience of users
   - welcome contributions to your team's work, from people inside or outside the company
+  - get comfortable letting others contribute to your domain
   - believe in everyone
+- write things down
+  - "handbook first"
+  - writing it down makes it real and allows others to read on their own time
+  - never stop consolidating and deduplicating content (gradually, consistently, bit by bit)
 - candor
-  - faster, better decisions
+  - "short toes" (don't be afraid of stepping on toes)
+  - give pointed, respectful feedback
+  - take initiative in trying to improve things (no need to wait [for consensus](https://twitter.com/ryanfalor/status/1182647229414166528?s=12), or to do with two what you can do for yourself)
   - don't be afraid to speak up (ask questions, be direct, and interrupt)
+  - ask questions the way you would want to be asked
 - be transparent
   - "public by default"
   - declassify with care (easier to overlook confidential info when declassifying vs. when changing something that is already public from the get-go)
