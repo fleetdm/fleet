@@ -80,7 +80,7 @@ Empathy leads to better understanding, better communication, and better decision
 <!-- TODO: short preamble -->
 
 - take responsibility
-  - think like an owner (consider business impact)
+  - think like an owner
   - follow through on commitments (actions match your words)
   - own up to mistakes
   - understand why it matters (the goals of the work you are doing)
@@ -115,10 +115,10 @@ Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.
   - baby steps <!-- TODO: (look for ways to make the smallest, minimally viable change. Small changes provide faster feedback, and help us to stay focused on quality) -->
   - pick low-hanging fruit (deliver value quickly where you can)
   - think ahead, then make the right decision for now
-  - think, fast (balance thoughtfulness and planning with moving quickly)
   - look before you leap (when facing a non-trivial problem, get perspective before you dive in; what if there is a simpler solution?) <!-- TODO: When facing a (non-trivial) problem, take a step back before diving into fixing it - put the problem back in context, think about the actual goal and not just the issue itself, sometimes the obvious solution misses the end goal, sometimes a simpler solution will emerge, or it may just confirm that the fix is the right one and you can go ahead with better confidence -->
 - move quickly
   - "everything is in draft"
+  - think, fast (balance thoughtfulness and planning with moving quickly)
   - aim to deliver daily
   - move quicker than 90% of the humans you know
   - resist gold-plating; avoid bike-shedding
