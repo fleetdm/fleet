@@ -184,7 +184,7 @@ Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.
   - "short toes" (don't be afraid of stepping on toes)
   - don't be afraid to speak up (ask questions, be direct, and interrupt)
   - give pointed, respectful feedback <!-- (in the same way you would want to receive it) -->
-  - take initiative in trying to improve things (no need to wait [for consensus](https://twitter.com/ryanfalor/status/1182647229414166528?s=12), or to do with two what you can do for yourself)
+  - take initiative in trying to improve things (no need to wait [for consensus](https://twitter.com/ryanfalor/status/1182647229414166528?s=12))
   - communicate openly (if you think you should send a message to communicate something, send it; but keep comments brief and relevant)
 - be transparent
   - "public by default"
