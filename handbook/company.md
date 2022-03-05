@@ -106,9 +106,10 @@ Empathy leads to better understanding, better communication, and better decision
 - take pride in your work
   - be efficient   (your time is valuable, your work matters, and your focus is a finite resource; it matters how you spend it)
   - you don't need permission to be thoughtful
-  - be thorough (every real-world edge case deserves handling)
   - reread anything you write for users <!-- TODO: (Check everything that a user might read for clarity, spelling errors, and to make sure that it provides value.) -->
   - take your ideas seriously (great ideas come from everyone; write them out and see if they have merit)
+  - think for yourself, from first principles
+  - use reason (believe in your brain's capacity to evaluate a solution or idea, regardless of how popular it is)
   - you are on a hero's journey (motivate yourself intrinsically with self-talk; even boring tasks are more motivating, fun, and effective when you care)
 - legendary results
 
@@ -144,14 +145,14 @@ Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.
 <!-- TODO: write short preamble, like the others --> 
 
 - be curious
-  - "strong opinions, loosely held"
   - ask great questions & take the time to truly listen
   - listen intently to feedback, and genuinely try to understand (especially constructive criticism)  <!-- TODO: Trust the feedback from counterparts. It’s easy to quickly say “no” or ignore feedback because we’re busy and we often default to our way of thinking is right. Trust that your counterpart is making a good suggestion and give it the time/consideration it deserves. -->
   - see failure as a beginning (it is rare to get things right the first time)
   - question yourself ("why do I think this?")
-- be realistic 
-  - practical about your limits and what's possible with the time and resources we have
+- be realistic
+  - "strong opinions, loosely held"
   - change your mind (in the face of new evidence)
+  - be practical about your limits, and about what's possible with the time and resources we have
   - avoid sunk cost fallacy (getting attached to something just because you invested time working on it, or came up with it)
   - give credit where credit is due
   - be fair to competitors ("may the best product win.")
@@ -159,11 +160,8 @@ Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.
   - be wrong
   - show your work
   - it's better to make the right decision than it is to be right
+  - be thorough (don't settle for "the happy path"; every real-world edge case deserves handling)
   - facts, over commentary
-- think for yourself
-  - from first principles
-  - use reason
-  - believe in your brain's capacity to evaluate a solution or idea, regardless of how popular it is
 - speak computer to computers
   - when something isn't working, use the scientific method
   - especially when there is a bug, or when something is slow, or when a customer is having a problem
