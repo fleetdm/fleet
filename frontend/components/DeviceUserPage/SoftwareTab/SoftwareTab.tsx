@@ -13,7 +13,7 @@ import SoftwareVulnCount from "./SoftwareVulnCount";
 
 import generateSoftwareTableHeaders from "./SoftwareTableConfig";
 
-const baseClass = "host-details";
+const baseClass = "device-user";
 
 interface ISoftwareTableProps {
   isLoading: boolean;
