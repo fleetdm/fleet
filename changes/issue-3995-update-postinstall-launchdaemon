@@ -1,1 +1,0 @@
-* Update macOS package postinstall script to use more modern `launchctl` commands.
