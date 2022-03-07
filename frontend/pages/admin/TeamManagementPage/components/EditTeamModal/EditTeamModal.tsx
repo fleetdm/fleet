@@ -2,7 +2,7 @@ import React, { useState, useCallback, useEffect } from "react";
 
 import Modal from "components/Modal";
 // @ts-ignore
-import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon";
+import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
 
 const baseClass = "edit-team-modal";
@@ -53,10 +53,11 @@ const EditTeamModal = ({
         onSubmit={onFormSubmit}
         autoComplete="off"
       >
-        <InputFieldWithIcon
+        <InputField
           autofocus
           name="name"
           onChange={onInputChange}
+          label="Team name"
           placeholder="Team name"
           value={name}
           error={errors.name}

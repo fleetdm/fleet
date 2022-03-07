@@ -4,7 +4,7 @@ import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import InfoBanner from "components/InfoBanner/InfoBanner";
 // @ts-ignore
-import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon";
+import InputField from "components/forms/fields/InputField";
 
 const baseClass = "create-team-modal";
 
@@ -57,10 +57,11 @@ const CreateTeamModal = ({
         onSubmit={onFormSubmit}
         autoComplete="off"
       >
-        <InputFieldWithIcon
+        <InputField
           autofocus
           name="name"
           onChange={onInputChange}
+          label="Team name"
           placeholder="Team name"
           value={name}
           error={errors.name}
