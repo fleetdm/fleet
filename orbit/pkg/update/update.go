@@ -426,7 +426,7 @@ func goosFromPlatform(platform string) (string, error) {
 }
 
 // checkExec checks/verifies a downloaded executable target by executing it.
-func (u *Updater) checkExec(target, path string) error {
+func (u *Updater) checkExec(target, tmpPath string) error {
 	localTarget, err := u.localTarget(target)
 	if err != nil {
 		return err
@@ -442,17 +442,17 @@ func (u *Updater) checkExec(target, path string) error {
 		return nil
 	}
 
-	if strings.HasSuffix(path, ".tar.gz") {
-		if err := extractTarGz(path); err != nil {
-			return fmt.Errorf("extract %q: %w", path, err)
+	if strings.HasSuffix(tmpPath, ".tar.gz") {
+		if err := extractTarGz(tmpPath); err != nil {
+			return fmt.Errorf("extract %q: %w", tmpPath, err)
 		}
-		// Remove extracted directory after the download check.
-		defer os.RemoveAll(localTarget.dirPath)
-		path = localTarget.execPath
+		tmpDirPath := filepath.Join(filepath.Dir(tmpPath), localTarget.info.ExtractedExecSubPath[0])
+		defer os.RemoveAll(tmpDirPath)
+		tmpPath = filepath.Join(append([]string{filepath.Dir(tmpPath)}, localTarget.info.ExtractedExecSubPath...)...)
 	}
 
 	// Note that this would fail for any binary that returns nonzero for --help.
-	out, err := exec.Command(path, "--help").CombinedOutput()
+	out, err := exec.Command(tmpPath, "--help").CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("exec new version: %s: %w", string(out), err)
 	}
