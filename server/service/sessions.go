@@ -3,12 +3,15 @@ package service
 import (
 	"context"
 	"errors"
+	"net/url"
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/go-kit/kit/log/level"
 )
 
@@ -225,4 +228,80 @@ func (svc *Service) DestroySession(ctx context.Context) error {
 	}
 
 	return svc.ds.DestroySession(ctx, session)
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Initiate SSO
+////////////////////////////////////////////////////////////////////////////////
+
+type initiateSSORequest struct {
+	RelayURL string `json:"relay_url"`
+}
+
+type initiateSSOResponse struct {
+	URL string `json:"url,omitempty"`
+	Err error  `json:"error,omitempty"`
+}
+
+func (r initiateSSOResponse) error() error { return r.Err }
+
+func initiateSSOEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*initiateSSORequest)
+	idProviderURL, err := svc.InitiateSSO(ctx, req.RelayURL)
+	if err != nil {
+		return initiateSSOResponse{Err: err}, nil
+	}
+	return initiateSSOResponse{URL: idProviderURL}, nil
+}
+
+// InitiateSSO initiates a Single Sign-On flow for a request to visit the
+// protected URL identified by redirectURL. It returns the URL of the identity
+// provider to make a request to to proceed with the authentication via that
+// external service, and stores ephemeral session state to validate the
+// callback from the identity provider to finalize the SSO flow.
+func (svc *Service) InitiateSSO(ctx context.Context, redirectURL string) (string, error) {
+	// skipauth: User context does not yet exist. Unauthenticated users may
+	// initiate SSO.
+	svc.authz.SkipAuthorization(ctx)
+
+	logging.WithLevel(ctx, level.Info)
+
+	appConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "InitiateSSO getting app config")
+	}
+
+	metadata, err := svc.getMetadata(appConfig)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "InitiateSSO getting metadata")
+	}
+
+	serverURL := appConfig.ServerSettings.ServerURL
+	settings := sso.Settings{
+		Metadata: metadata,
+		// Construct call back url to send to idp
+		AssertionConsumerServiceURL: serverURL + svc.config.Server.URLPrefix + "/api/v1/fleet/sso/callback",
+		SessionStore:                svc.ssoSessionStore,
+		OriginalURL:                 redirectURL,
+	}
+
+	// If issuer is not explicitly set, default to host name.
+	var issuer string
+	entityID := appConfig.SSOSettings.EntityID
+	if entityID == "" {
+		u, err := url.Parse(serverURL)
+		if err != nil {
+			return "", ctxerr.Wrap(ctx, err, "parse server url")
+		}
+		issuer = u.Hostname()
+	} else {
+		issuer = entityID
+	}
+
+	idpURL, err := sso.CreateAuthorizationRequest(&settings, issuer)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "InitiateSSO creating authorization")
+	}
+
+	return idpURL, nil
 }

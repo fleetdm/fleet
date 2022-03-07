@@ -9,28 +9,6 @@ import (
 	"github.com/go-kit/kit/endpoint"
 )
 
-type initiateSSORequest struct {
-	RelayURL string `json:"relay_url"`
-}
-
-type initiateSSOResponse struct {
-	URL string `json:"url,omitempty"`
-	Err error  `json:"error,omitempty"`
-}
-
-func (r initiateSSOResponse) error() error { return r.Err }
-
-func makeInitiateSSOEndpoint(svc fleet.Service) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		req := request.(initiateSSORequest)
-		idProviderURL, err := svc.InitiateSSO(ctx, req.RelayURL)
-		if err != nil {
-			return initiateSSOResponse{Err: err}, nil
-		}
-		return initiateSSOResponse{URL: idProviderURL}, nil
-	}
-}
-
 type callbackSSOResponse struct {
 	content string
 	Err     error `json:"error,omitempty"`
