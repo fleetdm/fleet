@@ -427,9 +427,8 @@ const QueryForm = ({
       <RevealButton
         isShowing={showQueryEditor}
         baseClass={baseClass}
-        hideText={"Hide SQL"}
-        showText={"Show SQL"}
-        caretBefore
+        hideText="Hide SQL"
+        showText="Show SQL"
         onClick={() => setShowQueryEditor(!showQueryEditor)}
       />
       {showQueryEditor && (

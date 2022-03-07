@@ -7,8 +7,7 @@ export interface IRevealButtonProps {
   baseClass: string;
   hideText: string;
   showText: string;
-  caretBefore?: boolean;
-  caretAfter?: boolean;
+  caretPosition?: "before" | "after";
   autofocus?: boolean;
   disabled?: boolean;
   tooltipHtml?: string;
@@ -21,20 +20,20 @@ const RevealButton = ({
   isShowing,
   hideText,
   showText,
-  caretBefore,
-  caretAfter,
+  caretPosition,
   autofocus,
   disabled,
   tooltipHtml,
   onClick,
 }: IRevealButtonProps): JSX.Element => {
   const classNameGenerator = () => {
-    if (caretBefore) {
+    if (caretPosition === "before") {
       return isShowing ? "reveal upcaretbefore" : "reveal rightcaretbefore";
     }
-    if (caretAfter) {
+    if (caretPosition === "after") {
       return isShowing ? "reveal upcaretafter" : "reveal downcaretafter";
     }
+    return "reveal";
   };
 
   const buttonText = isShowing ? hideText : showText;

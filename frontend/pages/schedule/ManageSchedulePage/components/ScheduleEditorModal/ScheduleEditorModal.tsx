@@ -279,7 +279,7 @@ const ScheduleEditorModal = ({
             baseClass={baseClass}
             hideText={"Hide advanced options"}
             showText={"Show advanced options"}
-            caretAfter
+            caretPosition={"after"}
             onClick={toggleAdvancedOptions}
           />
           {showAdvancedOptions && (
