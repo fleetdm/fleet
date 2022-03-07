@@ -250,4 +250,15 @@ When the final signature is added to an envelope in Docusign, it is marked as co
       [email subject]
       link: drive.google.com/[destinationFolderID]
    ```
+
+## Slack directory
+
+These are the Slack channels the digital experience team maintains. If the channel has a [directly responsible individual](#directly-resonsible-individuals) (**DRI**), they will be specified. These people are responsible for keeping up with all new messages, even if they aren't mentioned. 
+
+- **#g-digital-experience** - **DRI**: Mike McNeil
+- **#peepops** - **DRI**: Eric Shaw
+- **#help-onboarding** - **DRI**: Eric Shaw
+
+**Who should have these channels unmuted?** Members of this group, everyone else is encouraged to mute them.
+
 <meta name="maintainedBy" value="eashaw">
