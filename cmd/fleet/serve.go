@@ -40,6 +40,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/fleetdm/fleet/v4/server/service/redis_policy_set"
+	"github.com/fleetdm/fleet/v4/server/service/schedule"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities"
 	"github.com/fleetdm/fleet/v4/server/webhooks"
@@ -347,6 +348,7 @@ the way that the Fleet server works.
 			}
 
 			cancelBackground := runCrons(ds, task, kitlog.With(logger, "component", "crons"), config, license, failingPolicySet)
+			runSchedules(ctx, ds, logger, config) // FIX context
 
 			// Flush seen hosts every second
 			go func() {
@@ -586,6 +588,40 @@ func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.D
 	return ds.RecordStatisticsSent(ctx)
 }
 
+func runSchedules(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, config config.FleetConfig) {
+	instanceID, err := server.GenerateRandomText(64) // should locking identifier be per schedule or just per server instance?
+	if err != nil {
+		initFatal(errors.New("Error generating random instance identifier"), "")
+	}
+
+	vlogger := kitlog.With(logger, "cron", "vulnerabilities")
+	vulnerabilities, err := schedule.New(ctx, "vulnerabilities", instanceID, config.Vulnerabilities.Periodicity, ds, vlogger)
+	if err != nil {
+		fmt.Println("Error creating vulnerabilities schedule: ", err)
+	}
+	vulnerabilities.SetPreflightCheckFunc(func() bool { return config.Vulnerabilities.CurrentInstanceChecks == "auto" })
+	vulnerabilities.AddJob("cron_vulnerabilities", func(ctx context.Context) (interface{}, error) {
+		return schedule.DoAsyncVuln(ctx, ds, vlogger, config)
+	}, func(interface{}, error) {})
+
+	// cleanupsSched, err := NewSched(ctx, "asyncJobsCleanup", instanceID, 1*time.Hour, testStatsHandler)
+	// if err != nil {
+	// 	fmt.Println("error creating crons schedule: ", err)
+	// }
+	// cleanupsSched.AddJob("cleanupDistributedQueryCampaigns", newCronJobFunc(ds, logger, config, identifier, doAsyncCleanupDistributedQueryCampaigns))
+
+	// oncePerHourSched, err := NewSched(ctx, "asyncJobsOncePerHour", instanceID, 1*time.Hour, testStatsHandler)
+	// if err != nil {
+	// 	fmt.Println("error creating crons schedule: ", err)
+	// }
+	// for i := 1; i <= 1; i++ {
+	// 	oncePerHourSched.AddJob(fmt.Sprint("once_per_hour_job_", i), newAsyncJobFunc(ds, logger, config, identifier, doAsyncTestJob))
+	// }
+
+	// return cancelBackground
+	return
+}
+
 func runCrons(ds fleet.Datastore, task *async.Task, logger kitlog.Logger, config config.FleetConfig, license *fleet.LicenseInfo, failingPoliciesSet fleet.FailingPolicySet) context.CancelFunc {
 	ctx, cancelBackground := context.WithCancel(context.Background())
 
@@ -598,8 +634,8 @@ func runCrons(ds fleet.Datastore, task *async.Task, logger kitlog.Logger, config
 	task.StartCollectors(ctx, config.Osquery.AsyncHostCollectMaxJitterPercent, kitlog.With(logger, "cron", "async_task"))
 
 	go cronCleanups(ctx, ds, kitlog.With(logger, "cron", "cleanups"), ourIdentifier, license)
-	go cronVulnerabilities(
-		ctx, ds, kitlog.With(logger, "cron", "vulnerabilities"), ourIdentifier, config)
+	// go cronVulnerabilities(
+	// 	ctx, ds, kitlog.With(logger, "cron", "vulnerabilities"), ourIdentifier, config)
 	go cronWebhooks(ctx, ds, kitlog.With(logger, "cron", "webhooks"), ourIdentifier, failingPoliciesSet, 1*time.Hour)
 
 	return cancelBackground
