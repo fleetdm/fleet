@@ -4,20 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
-	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/sso"
 )
-
-func decodeLoginRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	var req loginRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		return nil, err
-	}
-	req.Email = strings.ToLower(req.Email)
-	return req, nil
-}
 
 func decodeInitiateSSORequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	var req initiateSSORequest

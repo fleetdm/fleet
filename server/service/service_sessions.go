@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/xml"
-	"errors"
 	"fmt"
 	"net/url"
 	"time"
@@ -193,47 +192,6 @@ func (svc *Service) CallbackSSO(ctx context.Context, auth fleet.Auth) (*fleet.SS
 		RedirectURL: redirectURL,
 	}
 	return result, nil
-}
-
-func (svc *Service) Login(ctx context.Context, email, password string) (*fleet.User, string, error) {
-	// skipauth: No user context available yet to authorize against.
-	svc.authz.SkipAuthorization(ctx)
-
-	logging.WithLevel(logging.WithNoUser(ctx), level.Info)
-
-	// If there is an error, sleep until the request has taken at least 1
-	// second. This means that generally a login failure for any reason will
-	// take ~1s and frustrate a timing attack.
-	var err error
-	defer func(start time.Time) {
-		if err != nil {
-			time.Sleep(time.Until(start.Add(1 * time.Second)))
-		}
-	}(time.Now())
-
-	user, err := svc.ds.UserByEmail(ctx, email)
-	var nfe fleet.NotFoundError
-	if errors.As(err, &nfe) {
-		return nil, "", fleet.NewAuthFailedError("user not found")
-	}
-	if err != nil {
-		return nil, "", fleet.NewAuthFailedError(err.Error())
-	}
-
-	if err = user.ValidatePassword(password); err != nil {
-		return nil, "", fleet.NewAuthFailedError("invalid password")
-	}
-
-	if user.SSOEnabled {
-		return nil, "", fleet.NewAuthFailedError("password login disabled for sso users")
-	}
-
-	token, err := svc.makeSession(ctx, user.ID)
-	if err != nil {
-		return nil, "", fleet.NewAuthFailedError(err.Error())
-	}
-
-	return user, token, nil
 }
 
 // makeSession is a helper that creates a new session after authentication

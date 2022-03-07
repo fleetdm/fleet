@@ -24,7 +24,6 @@ import (
 
 // FleetEndpoints is a collection of RPC endpoints implemented by the Fleet API.
 type FleetEndpoints struct {
-	Login       endpoint.Endpoint
 	Logout      endpoint.Endpoint
 	InitiateSSO endpoint.Endpoint
 	CallbackSSO endpoint.Endpoint
@@ -33,13 +32,7 @@ type FleetEndpoints struct {
 
 // MakeFleetServerEndpoints creates the Fleet API endpoints.
 func MakeFleetServerEndpoints(svc fleet.Service, urlPrefix string, limitStore throttled.GCRAStore, logger kitlog.Logger) FleetEndpoints {
-	limiter := ratelimit.NewMiddleware(limitStore)
-
 	return FleetEndpoints{
-		Login: limiter.Limit(
-			throttled.RateQuota{MaxRate: throttled.PerMin(10), MaxBurst: 9})(
-			makeLoginEndpoint(svc),
-		),
 		Logout:      logged(makeLogoutEndpoint(svc)),
 		InitiateSSO: logged(makeInitiateSSOEndpoint(svc)),
 		CallbackSSO: logged(makeCallbackSSOEndpoint(svc, urlPrefix)),
@@ -48,7 +41,6 @@ func MakeFleetServerEndpoints(svc fleet.Service, urlPrefix string, limitStore th
 }
 
 type fleetHandlers struct {
-	Login       http.Handler
 	Logout      http.Handler
 	InitiateSSO http.Handler
 	CallbackSSO http.Handler
@@ -61,7 +53,6 @@ func makeKitHandlers(e FleetEndpoints, opts []kithttp.ServerOption) *fleetHandle
 		return kithttp.NewServer(e, decodeFn, encodeResponse, opts...)
 	}
 	return &fleetHandlers{
-		Login:       newServer(e.Login, decodeLoginRequest),
 		Logout:      newServer(e.Logout, decodeNoParamsRequest),
 		InitiateSSO: newServer(e.InitiateSSO, decodeInitiateSSORequest),
 		CallbackSSO: newServer(e.CallbackSSO, decodeCallbackSSORequest),
@@ -240,7 +231,6 @@ func addMetrics(r *mux.Router) {
 }
 
 func attachFleetAPIRoutes(r *mux.Router, h *fleetHandlers) {
-	r.Handle("/api/v1/fleet/login", h.Login).Methods("POST").Name("login")
 	r.Handle("/api/v1/fleet/logout", h.Logout).Methods("POST").Name("logout")
 	r.Handle("/api/v1/fleet/sso", h.InitiateSSO).Methods("POST").Name("intiate_sso")
 	r.Handle("/api/v1/fleet/sso", h.SettingsSSO).Methods("GET").Name("sso_config")
@@ -416,7 +406,15 @@ func attachNewStyleFleetAPIRoutes(r *mux.Router, svc fleet.Service, logger kitlo
 	limiter := ratelimit.NewMiddleware(limitStore)
 	ne.
 		WithCustomMiddleware(limiter.Limit(throttled.RateQuota{MaxRate: throttled.PerHour(10), MaxBurst: 9})).
-		POST("/api/v1/fleet/forgot_password", forgotPasswordEndpoint, forgotPasswordRequest{})
+		POST("/api/_version_/fleet/forgot_password", forgotPasswordEndpoint, forgotPasswordRequest{})
+
+		// TODO(mna): before migration, the login endpoint was the only one *not* to be wrapped
+		// with "logged". Now, as part of ne (newNoAuthEndpointer), it *will* be wrapped with
+		// it. Is that ok? I don't see any technical reason why we wouldn't do this for that
+		// endpoint, looking at the implementation of logged.
+	ne.
+		WithCustomMiddleware(limiter.Limit(throttled.RateQuota{MaxRate: throttled.PerMin(10), MaxBurst: 9})).
+		POST("/api/_version_/fleet/login", loginEndpoint, loginRequest{})
 }
 
 // TODO: this duplicates the one in makeKitHandler

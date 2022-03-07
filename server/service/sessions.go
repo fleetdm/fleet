@@ -2,9 +2,14 @@ package service
 
 import (
 	"context"
+	"errors"
+	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/logging"
+	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/go-kit/kit/log/level"
 )
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -90,4 +95,88 @@ func (svc *Service) DeleteSession(ctx context.Context, id uint) error {
 	}
 
 	return svc.ds.DestroySession(ctx, session)
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Login
+////////////////////////////////////////////////////////////////////////////////
+
+type loginRequest struct {
+	Email    string
+	Password string
+}
+
+type loginResponse struct {
+	User           *fleet.User          `json:"user,omitempty"`
+	AvailableTeams []*fleet.TeamSummary `json:"available_teams"`
+	Token          string               `json:"token,omitempty"`
+	Err            error                `json:"error,omitempty"`
+}
+
+func (r loginResponse) error() error { return r.Err }
+
+func loginEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*loginRequest)
+	req.Email = strings.ToLower(req.Email)
+
+	user, token, err := svc.Login(ctx, req.Email, req.Password)
+	if err != nil {
+		return loginResponse{Err: err}, nil
+	}
+	// Add viewer context allow access to service teams for list of available teams
+	v, err := authViewer(ctx, token, svc)
+	if err != nil {
+		return loginResponse{Err: err}, nil
+	}
+	ctx = viewer.NewContext(ctx, *v)
+	availableTeams, err := svc.ListAvailableTeamsForUser(ctx, user)
+	if err != nil {
+		if errors.Is(err, fleet.ErrMissingLicense) {
+			availableTeams = []*fleet.TeamSummary{}
+		} else {
+			return loginResponse{Err: err}, nil
+		}
+	}
+	return loginResponse{user, availableTeams, token, nil}, nil
+}
+
+func (svc *Service) Login(ctx context.Context, email, password string) (*fleet.User, string, error) {
+	// skipauth: No user context available yet to authorize against.
+	svc.authz.SkipAuthorization(ctx)
+
+	logging.WithLevel(logging.WithNoUser(ctx), level.Info)
+
+	// If there is an error, sleep until the request has taken at least 1
+	// second. This means that generally a login failure for any reason will
+	// take ~1s and frustrate a timing attack.
+	var err error
+	defer func(start time.Time) {
+		if err != nil {
+			time.Sleep(time.Until(start.Add(1 * time.Second)))
+		}
+	}(time.Now())
+
+	user, err := svc.ds.UserByEmail(ctx, email)
+	var nfe fleet.NotFoundError
+	if errors.As(err, &nfe) {
+		return nil, "", fleet.NewAuthFailedError("user not found")
+	}
+	if err != nil {
+		return nil, "", fleet.NewAuthFailedError(err.Error())
+	}
+
+	if err = user.ValidatePassword(password); err != nil {
+		return nil, "", fleet.NewAuthFailedError("invalid password")
+	}
+
+	if user.SSOEnabled {
+		return nil, "", fleet.NewAuthFailedError("password login disabled for sso users")
+	}
+
+	token, err := svc.makeSession(ctx, user.ID)
+	if err != nil {
+		return nil, "", fleet.NewAuthFailedError(err.Error())
+	}
+
+	return user, token, nil
 }
