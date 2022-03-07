@@ -15,11 +15,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/ghodss/yaml"
 	"github.com/google/uuid"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -3443,6 +3445,62 @@ func (s *integrationTestSuite) TestCarve() {
 	}, http.StatusInternalServerError, &blockResp) // TODO: should be 400, see #4406
 }
 
+func (s *integrationTestSuite) TestPasswordReset() {
+	t := s.T()
+
+	// create a new user
+	var createResp createUserResponse
+	userRawPwd := "passw0rd!"
+	params := fleet.UserPayload{
+		Name:       ptr.String("forgotpwd"),
+		Email:      ptr.String("forgotpwd@example.com"),
+		Password:   ptr.String(userRawPwd),
+		GlobalRole: ptr.String(fleet.RoleObserver),
+	}
+	s.DoJSON("POST", "/api/v1/fleet/users/admin", params, http.StatusOK, &createResp)
+	require.NotZero(t, createResp.User.ID)
+	u := *createResp.User
+	_ = u
+
+	// request forgot password, invalid email
+	res := s.DoRawNoAuth("POST", "/api/v1/fleet/forgot_password", jsonMustMarshal(t, forgotPasswordRequest{Email: "invalid@asd.com"}), http.StatusAccepted)
+	res.Body.Close()
+
+	// TODO: tested manually (adds too much time to the test), works but hitting the rate
+	// limit returns 500 instead of 429, see #4406. We get the authz check missing error instead.
+	//// trigger the rate limit with a batch of requests in a short burst
+	//for i := 0; i < 20; i++ {
+	//	s.DoJSON("POST", "/api/v1/fleet/forgot_password", forgotPasswordRequest{Email: "invalid@asd.com"}, http.StatusAccepted, &forgotResp)
+	//}
+
+	// request forgot password, valid email
+	res = s.DoRawNoAuth("POST", "/api/v1/fleet/forgot_password", jsonMustMarshal(t, forgotPasswordRequest{Email: u.Email}), http.StatusAccepted)
+	res.Body.Close()
+
+	var token string
+	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), db, &token, "SELECT token FROM password_reset_requests WHERE user_id = ?", u.ID)
+	})
+
+	// proceed with reset password
+	userNewPwd := "newpassw0rd!"
+	res = s.DoRawNoAuth("POST", "/api/v1/fleet/reset_password", jsonMustMarshal(t, resetPasswordRequest{PasswordResetToken: token, NewPassword: userNewPwd}), http.StatusOK)
+	res.Body.Close()
+
+	// attempt it again with already-used token
+	userUnusedPwd := "unusedpassw0rd!"
+	res = s.DoRawNoAuth("POST", "/api/v1/fleet/reset_password", jsonMustMarshal(t, resetPasswordRequest{PasswordResetToken: token, NewPassword: userUnusedPwd}), http.StatusInternalServerError) // TODO: should be 40x, see #4406
+	res.Body.Close()
+
+	// login with the old password, should not succeed
+	res = s.DoRawNoAuth("POST", "/api/v1/fleet/login", jsonMustMarshal(t, loginRequest{Email: u.Email, Password: userRawPwd}), http.StatusUnauthorized)
+	res.Body.Close()
+
+	// login with the new password, should succeed
+	res = s.DoRawNoAuth("POST", "/api/v1/fleet/login", jsonMustMarshal(t, loginRequest{Email: u.Email, Password: userNewPwd}), http.StatusOK)
+	res.Body.Close()
+}
+
 // creates a session and returns it, its key is to be passed as authorization header.
 func createSession(t *testing.T, uid uint, ds fleet.Datastore) *fleet.Session {
 	key := make([]byte, 64)
@@ -3464,4 +3522,10 @@ func createSession(t *testing.T, uid uint, ds fleet.Datastore) *fleet.Session {
 func cleanupQuery(s *integrationTestSuite, queryID uint) {
 	var delResp deleteQueryByIDResponse
 	s.DoJSON("DELETE", fmt.Sprintf("/api/v1/fleet/queries/id/%d", queryID), nil, http.StatusOK, &delResp)
+}
+
+func jsonMustMarshal(t testing.TB, v interface{}) []byte {
+	b, err := json.Marshal(v)
+	require.NoError(t, err)
+	return b
 }

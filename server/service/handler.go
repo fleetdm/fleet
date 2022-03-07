@@ -414,13 +414,17 @@ func attachNewStyleFleetAPIRoutes(r *mux.Router, svc fleet.Service, logger kitlo
 	ne.POST("/api/_version_/fleet/reset_password", resetPasswordEndpoint, resetPasswordRequest{})
 
 	limiter := ratelimit.NewMiddleware(limitStore)
-	ne.WithCustomMiddleware(
-		limiter.Limit(throttled.RateQuota{MaxRate: throttled.PerHour(10), MaxBurst: 9})).
+	ne.
+		WithCustomMiddleware(limiter.Limit(throttled.RateQuota{MaxRate: throttled.PerHour(10), MaxBurst: 9})).
 		POST("/api/v1/fleet/forgot_password", forgotPasswordEndpoint, forgotPasswordRequest{})
 }
 
 // TODO: this duplicates the one in makeKitHandler
 func newServer(e endpoint.Endpoint, decodeFn kithttp.DecodeRequestFunc, opts []kithttp.ServerOption) http.Handler {
+	// TODO: some handlers don't have authz checks, and because the SkipAuth call is done only in the
+	// endpoint handler, any middleware that raises errors before the handler is reached will end up
+	// returning authz check missing instead of the more relevant error. Should be addressed as part
+	// of #4406.
 	e = authzcheck.NewMiddleware().AuthzCheck()(e)
 	return kithttp.NewServer(e, decodeFn, encodeResponse, opts...)
 }
