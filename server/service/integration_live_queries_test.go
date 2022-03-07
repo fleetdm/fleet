@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -65,6 +66,11 @@ func (s *liveQueriesTestSuite) SetupSuite() {
 	}
 }
 
+func (s *liveQueriesTestSuite) TearDownTest() {
+	// reset the mock
+	s.lq.Mock = mock.Mock{}
+}
+
 func (s *liveQueriesTestSuite) TestLiveQueriesRestOneHostOneQuery() {
 	t := s.T()
 
@@ -96,13 +102,16 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestOneHostOneQuery() {
 
 	cid := getCIDForQ(s, q1)
 
-	distributedReq := SubmitDistributedQueryResultsRequest{
+	distributedReq := submitDistributedQueryResultsRequestShim{
 		NodeKey: host.NodeKey,
-		Results: map[string][]map[string]string{
-			hostDistributedQueryPrefix + cid: {{"col1": "a", "col2": "b"}},
+		Results: map[string]json.RawMessage{
+			hostDistributedQueryPrefix + cid:          json.RawMessage(`[{"col1": "a", "col2": "b"}]`),
+			hostDistributedQueryPrefix + "invalidcid": json.RawMessage(`""`), // empty string is sometimes sent for no results
+			hostDistributedQueryPrefix + "9999":       json.RawMessage(`""`),
 		},
-		Statuses: map[string]fleet.OsqueryStatus{
-			hostDistributedQueryPrefix + cid: 0,
+		Statuses: map[string]interface{}{
+			hostDistributedQueryPrefix + cid:    0,
+			hostDistributedQueryPrefix + "9999": "0",
 		},
 		Messages: map[string]string{
 			hostDistributedQueryPrefix + cid: "some msg",
@@ -353,13 +362,13 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestFailsOnSomeHost() {
 	// Give the above call a couple of seconds to create the campaign
 	time.Sleep(2 * time.Second)
 	cid1 := getCIDForQ(s, q1)
-	distributedReq := SubmitDistributedQueryResultsRequest{
+	distributedReq := submitDistributedQueryResultsRequestShim{
 		NodeKey: h1.NodeKey,
-		Results: map[string][]map[string]string{
-			hostDistributedQueryPrefix + cid1: {{"col1": "a", "col2": "b"}},
+		Results: map[string]json.RawMessage{
+			hostDistributedQueryPrefix + cid1: json.RawMessage(`[{"col1": "a", "col2": "b"}]`),
 		},
-		Statuses: map[string]fleet.OsqueryStatus{
-			hostDistributedQueryPrefix + cid1: 0,
+		Statuses: map[string]interface{}{
+			hostDistributedQueryPrefix + cid1: "0",
 		},
 		Messages: map[string]string{
 			hostDistributedQueryPrefix + cid1: "some msg",
@@ -368,12 +377,12 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestFailsOnSomeHost() {
 	distributedResp := submitDistributedQueryResultsResponse{}
 	s.DoJSON("POST", "/api/v1/osquery/distributed/write", distributedReq, http.StatusOK, &distributedResp)
 
-	distributedReq = SubmitDistributedQueryResultsRequest{
+	distributedReq = submitDistributedQueryResultsRequestShim{
 		NodeKey: h2.NodeKey,
-		Results: map[string][]map[string]string{
-			hostDistributedQueryPrefix + cid1: {},
+		Results: map[string]json.RawMessage{
+			hostDistributedQueryPrefix + cid1: json.RawMessage(`""`),
 		},
-		Statuses: map[string]fleet.OsqueryStatus{
+		Statuses: map[string]interface{}{
 			hostDistributedQueryPrefix + cid1: 123,
 		},
 		Messages: map[string]string{
@@ -448,4 +457,22 @@ func (s *liveQueriesTestSuite) TestCreateDistributedQueryCampaign() {
 	s.DoJSON("POST", "/api/v1/fleet/queries/run_by_names", createDistributedQueryCampaignByNamesRequest{
 		QuerySQL: "SELECT 3", Selected: distributedQueryCampaignTargetsByNames{Hosts: []string{h1.Hostname + "ZZZZZ"}}},
 		http.StatusOK, &createResp)
+}
+
+func (s *liveQueriesTestSuite) TestOsqueryDistributedRead() {
+	t := s.T()
+
+	hostID := s.hosts[1].ID
+	s.lq.On("QueriesForHost", hostID).Return(map[string]string{fmt.Sprintf("%d", hostID): "select 1 from osquery;"}, nil)
+
+	req := getDistributedQueriesRequest{NodeKey: s.hosts[1].NodeKey}
+	var resp getDistributedQueriesResponse
+	s.DoJSON("POST", "/api/v1/osquery/distributed/read", req, http.StatusOK, &resp)
+	assert.Contains(t, resp.Queries, hostDistributedQueryPrefix+fmt.Sprintf("%d", hostID))
+
+	// test with invalid node key
+	var errRes map[string]interface{}
+	req.NodeKey += "zzzz"
+	s.DoJSON("POST", "/api/v1/osquery/distributed/read", req, http.StatusUnauthorized, &errRes)
+	assert.Contains(t, errRes["error"], "invalid node key")
 }

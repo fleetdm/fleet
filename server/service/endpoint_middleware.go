@@ -78,6 +78,9 @@ func getNodeKey(r interface{}) (string, error) {
 	// Retrieve node key by reflection (note that our options here
 	// are limited by the fact that request is an interface{})
 	v := reflect.ValueOf(r)
+	if v.Kind() == reflect.Ptr {
+		v = v.Elem()
+	}
 	if v.Kind() != reflect.Struct {
 		return "", osqueryError{
 			message: "request type is not struct. This is likely a Fleet programmer error.",
