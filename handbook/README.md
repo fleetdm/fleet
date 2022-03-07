@@ -46,7 +46,7 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [How we protect end-user devices](./security.md#how-we-protect-end-user-devices)
 
-[Google Workspace Security](./security.md#google-workspace-security)
+[Google Workspace security](./security.md#google-workspace-security)
 
 [Vulnerability management in Fleet](./security.md#vulnerability-management)
 

@@ -25,7 +25,7 @@
 
 For bug reports, please use the [Github issue tracker](https://github.com/fleetdm/fleet/issues).
 
-For questions and discussion, please join us in the #fleet channel of [osquery Slack](https://osquery.slack.com/join/shared_invite/zt-h29zm0gk-s2DBtGUTW4CFel0f0IjTEw#/).
+For questions and discussion, please join us in the #fleet channel of [osquery Slack](https://fleetdm.com/slack).
 
 ## Can multiple instances of the Fleet server be run behind a load-balancer?
 
