@@ -26,6 +26,7 @@ import PremiumTierRoutes from "components/PremiumTierRoutes";
 import ConfirmInvitePage from "pages/ConfirmInvitePage";
 import ConfirmSSOInvitePage from "pages/ConfirmSSOInvitePage";
 import CoreLayout from "layouts/CoreLayout";
+import DeviceUserPage from "components/DeviceUserPage";
 import EditPackPage from "pages/packs/EditPackPage";
 import EmailTokenRedirect from "components/EmailTokenRedirect";
 import HostDetailsPage from "pages/hosts/HostDetailsPage";
@@ -132,6 +133,7 @@ const routes = (
                   component={ManageHostsPage}
                 />
                 <Route path=":host_id" component={HostDetailsPage} />
+                <Route path="deviceuser/:host_id" component={DeviceUserPage} />
               </Route>
               <Route path="software" component={SoftwarePageWrapper}>
                 <IndexRedirect to={"manage"} />

@@ -1210,7 +1210,7 @@ const HostDetailsPage = ({
           </TabList>
           <TabPanel>
             <div className="section about">
-              <p className="section__header">About this host</p>
+              <p className="section__header">About</p>
               <div className="info-grid">
                 <div className="info-grid__block">
                   <span className="info-grid__header">First enrolled</span>
