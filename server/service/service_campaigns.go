@@ -162,8 +162,12 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 		// any results are written, to avoid the frontend showing "x of
 		// 0 Hosts Returning y Records")
 		select {
-		case res := <-readChan:
+		case res, ok := <-readChan:
 			// Receive a result and push it over the websocket
+			if !ok {
+				_ = svc.logger.Log("msg", "Redis closed the channel on us!", "err", nil)
+				return
+			}
 			switch res := res.(type) {
 			case fleet.DistributedQueryResult:
 				mapHostnameRows(&res)
