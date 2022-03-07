@@ -25,20 +25,17 @@ import (
 // FleetEndpoints is a collection of RPC endpoints implemented by the Fleet API.
 type FleetEndpoints struct {
 	CallbackSSO endpoint.Endpoint
-	SSOSettings endpoint.Endpoint
 }
 
 // MakeFleetServerEndpoints creates the Fleet API endpoints.
 func MakeFleetServerEndpoints(svc fleet.Service, urlPrefix string, limitStore throttled.GCRAStore, logger kitlog.Logger) FleetEndpoints {
 	return FleetEndpoints{
 		CallbackSSO: logged(makeCallbackSSOEndpoint(svc, urlPrefix)),
-		SSOSettings: logged(makeSSOSettingsEndpoint(svc)),
 	}
 }
 
 type fleetHandlers struct {
 	CallbackSSO http.Handler
-	SettingsSSO http.Handler
 }
 
 func makeKitHandlers(e FleetEndpoints, opts []kithttp.ServerOption) *fleetHandlers {
@@ -48,7 +45,6 @@ func makeKitHandlers(e FleetEndpoints, opts []kithttp.ServerOption) *fleetHandle
 	}
 	return &fleetHandlers{
 		CallbackSSO: newServer(e.CallbackSSO, decodeCallbackSSORequest),
-		SettingsSSO: newServer(e.SSOSettings, decodeNoParamsRequest),
 	}
 }
 
@@ -223,7 +219,6 @@ func addMetrics(r *mux.Router) {
 }
 
 func attachFleetAPIRoutes(r *mux.Router, h *fleetHandlers) {
-	r.Handle("/api/v1/fleet/sso", h.SettingsSSO).Methods("GET").Name("sso_config")
 	r.Handle("/api/v1/fleet/sso/callback", h.CallbackSSO).Methods("POST").Name("callback_sso")
 }
 
@@ -394,6 +389,8 @@ func attachNewStyleFleetAPIRoutes(r *mux.Router, svc fleet.Service, logger kitlo
 	ne.POST("/api/_version_/fleet/reset_password", resetPasswordEndpoint, resetPasswordRequest{})
 	ne.POST("/api/_version_/fleet/logout", logoutEndpoint, nil)
 	ne.POST("/api/_version_/fleet/sso", initiateSSOEndpoint, initiateSSORequest{})
+	//ne.POST("/api/_version_/fleet/sso/callback", callbackSSOEndpoint, callbackSSORequest{})
+	ne.GET("/api/_version_/fleet/sso", settingsSSOEndpoint, nil)
 
 	limiter := ratelimit.NewMiddleware(limitStore)
 	ne.

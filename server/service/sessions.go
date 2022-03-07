@@ -305,3 +305,45 @@ func (svc *Service) InitiateSSO(ctx context.Context, redirectURL string) (string
 
 	return idpURL, nil
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// SSO Settings
+////////////////////////////////////////////////////////////////////////////////
+
+type ssoSettingsResponse struct {
+	Settings *fleet.SessionSSOSettings `json:"settings,omitempty"`
+	Err      error                     `json:"error,omitempty"`
+}
+
+func (r ssoSettingsResponse) error() error { return r.Err }
+
+func settingsSSOEndpoint(ctx context.Context, _ interface{}, svc fleet.Service) (interface{}, error) {
+	settings, err := svc.SSOSettings(ctx)
+	if err != nil {
+		return ssoSettingsResponse{Err: err}, nil
+	}
+	return ssoSettingsResponse{Settings: settings}, nil
+}
+
+// SSOSettings returns a subset of the Single Sign-On settings as configured in
+// the app config. Those can be exposed e.g. via the response to an HTTP request,
+// and as such should not contain sensitive information.
+func (svc *Service) SSOSettings(ctx context.Context) (*fleet.SessionSSOSettings, error) {
+	// skipauth: Basic SSO settings are available to unauthenticated users (so
+	// that they have the necessary information to initiate SSO).
+	svc.authz.SkipAuthorization(ctx)
+
+	logging.WithLevel(ctx, level.Info)
+
+	appConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "SessionSSOSettings getting app config")
+	}
+
+	settings := &fleet.SessionSSOSettings{
+		IDPName:     appConfig.SSOSettings.IDPName,
+		IDPImageURL: appConfig.SSOSettings.IDPImageURL,
+		SSOEnabled:  appConfig.SSOSettings.EnableSSO,
+	}
+	return settings, nil
+}
