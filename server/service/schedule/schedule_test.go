@@ -125,10 +125,10 @@ TEST:
 	}
 }
 
-func statsHandlerFunc(jobName string, testStats map[string][]interface{}, testErrors map[string]error) func(interface{}, error) {
+func statsHandlerFunc(jobName string, testStats map[string][]interface{}, testErrors map[string][]error) func(interface{}, error) {
 	return func(stats interface{}, err error) {
 		if err != nil {
-			testErrors[jobName] = err
+			testErrors[jobName] = append(testErrors[jobName], err)
 		}
 		testStats[jobName] = append(testStats[jobName], stats)
 	}
@@ -136,7 +136,7 @@ func statsHandlerFunc(jobName string, testStats map[string][]interface{}, testEr
 
 func TestMultipleSchedules(t *testing.T) {
 	testStats := make(map[string][]interface{})
-	testErrors := make(map[string]error)
+	testErrors := make(map[string][]error)
 
 	sched1, err := New(context.Background(), "test_schedule_1", "test_instance", 10*time.Millisecond, nopLocker{}, log.NewNopLogger())
 	require.NoError(t, err)
@@ -146,22 +146,30 @@ func TestMultipleSchedules(t *testing.T) {
 
 	sched1.AddJob("test_job_1", func(ctx context.Context) (interface{}, error) {
 		runCheck <- true
-		return nil, nil
+		return "stats_job_1", nil
 	}, statsHandlerFunc("test_job_1", testStats, testErrors))
 
-	sched2, err := New(context.Background(), "test_schedule_2", "test_instance", 10*time.Millisecond, nopLocker{}, log.NewNopLogger())
+	sched2, err := New(context.Background(), "test_schedule_2", "test_instance", 100*time.Millisecond, nopLocker{}, log.NewNopLogger())
 	require.NoError(t, err)
 
 	sched2.AddJob("test_job_2", func(ctx context.Context) (interface{}, error) {
 		runCheck <- true
-		return nil, nil
+		return "stats_job_2", nil
 	}, statsHandlerFunc("test_job_2", testStats, testErrors))
+
+	sched3, err := New(context.Background(), "test_schedule_3", "test_instance", 100*time.Millisecond, nopLocker{}, log.NewNopLogger())
+	require.NoError(t, err)
+
+	sched3.AddJob("test_job_3", func(ctx context.Context) (interface{}, error) {
+		runCheck <- true
+		return nil, fmt.Errorf("error_job_3")
+	}, statsHandlerFunc("test_job_3", testStats, testErrors))
 
 TEST:
 	for {
 		select {
 		case <-runCheck:
-			if (len(testStats["test_job_1"]) > 2) && (len(testStats["test_job_2"]) > 2) {
+			if (len(testStats["test_job_1"]) > 2) && (len(testStats["test_job_2"]) > 2) && (len(testErrors["test_job_3"]) > 2) {
 				break TEST
 			}
 		case <-failCheck:
