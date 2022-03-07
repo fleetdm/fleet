@@ -67,6 +67,10 @@ func allFields(ifv reflect.Value) []reflect.StructField {
 	return fields
 }
 
+type requestDecoder interface {
+	DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error)
+}
+
 // makeDecoder creates a decoder for the type for the struct passed on. If the
 // struct has at least 1 json tag it'll unmarshall the body. If the struct has
 // a `url` tag with value list_options it'll gather fleet.ListOptions from the
@@ -79,12 +83,22 @@ func allFields(ifv reflect.Value) []reflect.StructField {
 // follows: `url:"some-id,optional"`.
 // The "list_options" are optional by default and it'll ignore the optional
 // portion of the tag.
+//
+// If iface implements the requestDecoder interface, it returns a function that
+// calls iface.DecodeRequest(ctx, r) - i.e. the value itself fully controls its
+// own decoding.
 func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 	if iface == nil {
 		return func(ctx context.Context, r *http.Request) (interface{}, error) {
 			return nil, nil
 		}
 	}
+	if rd, ok := iface.(requestDecoder); ok {
+		return func(ctx context.Context, r *http.Request) (interface{}, error) {
+			return rd.DecodeRequest(ctx, r)
+		}
+	}
+
 	t := reflect.TypeOf(iface)
 	if t.Kind() != reflect.Struct {
 		panic(fmt.Sprintf("makeDecoder only understands structs, not %T", iface))

@@ -22,32 +22,6 @@ import (
 	otmiddleware "go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux"
 )
 
-// FleetEndpoints is a collection of RPC endpoints implemented by the Fleet API.
-type FleetEndpoints struct {
-	CallbackSSO endpoint.Endpoint
-}
-
-// MakeFleetServerEndpoints creates the Fleet API endpoints.
-func MakeFleetServerEndpoints(svc fleet.Service, urlPrefix string, limitStore throttled.GCRAStore, logger kitlog.Logger) FleetEndpoints {
-	return FleetEndpoints{
-		CallbackSSO: logged(makeCallbackSSOEndpoint(svc, urlPrefix)),
-	}
-}
-
-type fleetHandlers struct {
-	CallbackSSO http.Handler
-}
-
-func makeKitHandlers(e FleetEndpoints, opts []kithttp.ServerOption) *fleetHandlers {
-	newServer := func(e endpoint.Endpoint, decodeFn kithttp.DecodeRequestFunc) http.Handler {
-		e = authzcheck.NewMiddleware().AuthzCheck()(e)
-		return kithttp.NewServer(e, decodeFn, encodeResponse, opts...)
-	}
-	return &fleetHandlers{
-		CallbackSSO: newServer(e.CallbackSSO, decodeCallbackSSORequest),
-	}
-}
-
 type errorHandler struct {
 	logger kitlog.Logger
 }
@@ -116,16 +90,12 @@ func MakeHandler(svc fleet.Service, config config.FleetConfig, logger kitlog.Log
 		),
 	}
 
-	fleetEndpoints := MakeFleetServerEndpoints(svc, config.Server.URLPrefix, limitStore, logger)
-	fleetHandlers := makeKitHandlers(fleetEndpoints, fleetAPIOptions)
-
 	r := mux.NewRouter()
 	if config.Logging.TracingEnabled && config.Logging.TracingType == "opentelemetry" {
 		r.Use(otmiddleware.Middleware("fleet"))
 	}
 
-	attachFleetAPIRoutes(r, fleetHandlers)
-	attachNewStyleFleetAPIRoutes(r, svc, logger, limitStore, fleetAPIOptions)
+	attachFleetAPIRoutes(r, svc, config, logger, limitStore, fleetAPIOptions)
 
 	// Results endpoint is handled different due to websockets use
 	// TODO: this would probably not work once v1 is deprecated
@@ -218,11 +188,9 @@ func addMetrics(r *mux.Router) {
 	r.Walk(walkFn)
 }
 
-func attachFleetAPIRoutes(r *mux.Router, h *fleetHandlers) {
-	r.Handle("/api/v1/fleet/sso/callback", h.CallbackSSO).Methods("POST").Name("callback_sso")
-}
+func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetConfig,
+	logger kitlog.Logger, limitStore throttled.GCRAStore, opts []kithttp.ServerOption) {
 
-func attachNewStyleFleetAPIRoutes(r *mux.Router, svc fleet.Service, logger kitlog.Logger, limitStore throttled.GCRAStore, opts []kithttp.ServerOption) {
 	// user-authenticated endpoints
 	ue := newUserAuthenticatedEndpointer(svc, opts, r, "v1")
 
@@ -389,7 +357,7 @@ func attachNewStyleFleetAPIRoutes(r *mux.Router, svc fleet.Service, logger kitlo
 	ne.POST("/api/_version_/fleet/reset_password", resetPasswordEndpoint, resetPasswordRequest{})
 	ne.POST("/api/_version_/fleet/logout", logoutEndpoint, nil)
 	ne.POST("/api/_version_/fleet/sso", initiateSSOEndpoint, initiateSSORequest{})
-	//ne.POST("/api/_version_/fleet/sso/callback", callbackSSOEndpoint, callbackSSORequest{})
+	ne.POST("/api/_version_/fleet/sso/callback", makeCallbackSSOEndpoint(config.Server.URLPrefix), callbackSSORequest{})
 	ne.GET("/api/_version_/fleet/sso", settingsSSOEndpoint, nil)
 
 	limiter := ratelimit.NewMiddleware(limitStore)
@@ -406,7 +374,6 @@ func attachNewStyleFleetAPIRoutes(r *mux.Router, svc fleet.Service, logger kitlo
 		POST("/api/_version_/fleet/login", loginEndpoint, loginRequest{})
 }
 
-// TODO: this duplicates the one in makeKitHandler
 func newServer(e endpoint.Endpoint, decodeFn kithttp.DecodeRequestFunc, opts []kithttp.ServerOption) http.Handler {
 	// TODO: some handlers don't have authz checks, and because the SkipAuth call is done only in the
 	// endpoint handler, any middleware that raises errors before the handler is reached will end up
