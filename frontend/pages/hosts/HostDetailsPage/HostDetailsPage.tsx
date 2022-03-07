@@ -298,8 +298,8 @@ const HostDetailsPage = ({
           }
           return; // exit early because refectch is pending so we can avoid unecessary steps below
         }
-        setHostSoftware(returnedHost.software);
-        setUsersState(returnedHost.users);
+        setHostSoftware(returnedHost.software || []);
+        setUsersState(returnedHost.users || []);
         if (returnedHost.pack_stats) {
           const packStatsByType = returnedHost.pack_stats.reduce(
             (
