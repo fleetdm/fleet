@@ -19,7 +19,10 @@ import fleetQueriesAPI from "services/entities/queries";
 import { renderFlash } from "redux/nodes/notifications/actions";
 import PATHS from "router/paths";
 // @ts-ignore
-import sqlTools from "utilities/sql_tools";
+import getCompatiblePlatforms, {
+  ICompatiblePlatform,
+  SUPPORTED_PLATFORMS,
+} from "utilities/sql_tools";
 import Button from "components/buttons/Button";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
@@ -37,7 +40,7 @@ interface IQueryTableData extends IQuery {
   platforms: string[];
 }
 
-const PLATFORMS = ["darwin", "linux", "windows"];
+// const PLATFORMS = ["darwin", "linux", "windows"];
 
 const PLATFORM_FILTER_OPTIONS = [
   {
@@ -66,11 +69,12 @@ const PLATFORM_FILTER_OPTIONS = [
   },
 ];
 
-const getPlatforms = (queryString: string): string[] =>
-  sqlTools
-    .listCompatiblePlatforms(sqlTools.parseSqlTables(queryString))
-    .filter((p: string) => PLATFORMS.includes(p));
-
+const getPlatforms = (queryString: string): ICompatiblePlatform[] => {
+  const platforms = getCompatiblePlatforms(queryString);
+  return platforms[0] === "all"
+    ? [...SUPPORTED_PLATFORMS]
+    : SUPPORTED_PLATFORMS.filter((p) => platforms.includes(p));
+};
 const enhanceQuery = (q: IQuery) => {
   return {
     ...q,

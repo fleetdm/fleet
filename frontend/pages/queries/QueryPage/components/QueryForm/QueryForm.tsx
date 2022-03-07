@@ -14,7 +14,10 @@ import classnames from "classnames";
 
 import { addGravatarUrlToResource } from "fleet/helpers";
 // @ts-ignore
-import { listCompatiblePlatforms, parseSqlTables } from "utilities/sql_tools";
+import {
+  getCompatiblePlatforms,
+  ICompatiblePlatform,
+} from "utilities/sql_tools";
 
 import queryAPI from "services/entities/queries";
 import { AppContext } from "context/app";
@@ -82,7 +85,9 @@ const QueryForm = ({
   const [errors, setErrors] = useState<{ [key: string]: any }>({});
   const [isSaveModalOpen, setIsSaveModalOpen] = useState<boolean>(false);
   const [showQueryEditor, setShowQueryEditor] = useState<boolean>(false);
-  const [compatiblePlatforms, setCompatiblePlatforms] = useState<string[]>([]);
+  const [compatiblePlatforms, setCompatiblePlatforms] = useState<
+    ICompatiblePlatform[]
+  >([]);
   const [isEditingName, setIsEditingName] = useState<boolean>(false);
   const [isEditingDescription, setIsEditingDescription] = useState<boolean>(
     false
@@ -114,9 +119,7 @@ const QueryForm = ({
 
   const debounceCompatiblePlatforms = useDebouncedCallback(
     (queryString: string) => {
-      setCompatiblePlatforms(
-        listCompatiblePlatforms(parseSqlTables(queryString))
-      );
+      setCompatiblePlatforms(getCompatiblePlatforms(queryString));
     },
     300,
     { leading: true }
