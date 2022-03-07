@@ -61,6 +61,15 @@ function create_repository() {
 
     # Compile the latest version of orbit from source.
     GOOS=$goose_value go build -o $orbit_target ./orbit/cmd/orbit
+
+    # If macOS and CODESIGN_IDENTITY is defined, sign the executable.
+    if [[ $system == "macos" && -n "$CODESIGN_IDENTITY" ]]; then
+      mkdir dist
+      codesign -s "$CODESIGN_IDENTITY" -i com.fleetdm.orbit -f -v --timestamp --options runtime orbit-darwin
+      zip -r ./dist/orbit_darwin_amd64.zip $orbit_target
+      go run github.com/mitchellh/gon/cmd/gon orbit/.gon.hcl
+    fi
+
     ./build/fleetctl updates add \
       --path $TUF_PATH \
       --target $orbit_target \
