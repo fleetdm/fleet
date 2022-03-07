@@ -102,8 +102,8 @@ func (svc *Service) DeleteSession(ctx context.Context, id uint) error {
 ////////////////////////////////////////////////////////////////////////////////
 
 type loginRequest struct {
-	Email    string
-	Password string
+	Email    string `json:"email"`
+	Password string `json:"password"`
 }
 
 type loginResponse struct {
