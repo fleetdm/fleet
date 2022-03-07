@@ -257,7 +257,7 @@ describe(
         cy.findByText(/run query/i).click({ force: true });
         cy.findByText(/select targets/i).should("exist");
         cy.findByText(/all hosts/i).click();
-        cy.findByText(/targets selected/i).should("exist"); // target count
+        cy.findByText(/hosts targeted/i).should("exist"); // target count
         cy.findByText(/run/i).click();
         cy.findByText(/querying selected hosts/i).should("exist"); // target count
       });
