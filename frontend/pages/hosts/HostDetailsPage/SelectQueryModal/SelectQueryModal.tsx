@@ -14,7 +14,6 @@ import OpenNewTabIcon from "../../../../../assets/images/open-new-tab-12x12@2x.p
 import ErrorIcon from "../../../../../assets/images/icon-error-16x16@2x.png";
 
 export interface ISelectQueryModalProps {
-  host: IHost;
   onCancel: () => void;
   onQueryHostCustom: () => void;
   onQueryHostSaved: (selectedQuery: IQuery) => void;

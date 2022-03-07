@@ -55,13 +55,6 @@ interface ITeamsResponse {
   teams: ITeam[];
 }
 
-interface ICreateEditUserErrors {
-  email?: string;
-  name?: string;
-  password?: string;
-  sso_enabled?: boolean | null;
-}
-
 // This is used to cache the table query data and make a request for the
 // members data at a future time. Practically, this allows us to re-fetch the users
 // with the same table query params after we have made an edit to a user.

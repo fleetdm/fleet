@@ -53,7 +53,6 @@ import {
 } from "react-accessible-accordion";
 import {
   humanHostUptime,
-  humanHostLastSeen,
   humanHostEnrolled,
   humanHostMemory,
   humanHostDetailUpdated,
