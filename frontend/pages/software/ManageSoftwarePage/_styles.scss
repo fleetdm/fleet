@@ -158,27 +158,16 @@
     }
   }
   &__count {
+    display: flex;
+    
+    :first-child {
+      margin-right: $pad-small;
+    }
     .count-error {
       color: $ui-error;
     }
     .count-loading {
       color: $ui-fleet-black-50;
-    }
-    .count-last-updated {
-      color: $ui-fleet-black-75;
-      font-size: $xx-small;
-      font-weight: normal;
-      padding-left: $pad-small;
-
-      .tooltip__tooltip-text {
-        display: flex;
-        text-align: center;
-      }
-      img {
-        height: 16px;
-        width: 16px;
-        vertical-align: text-top;
-      }
     }
   }
 

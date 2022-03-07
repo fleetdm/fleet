@@ -5,6 +5,11 @@ export default PropTypes.shape({
   base: PropTypes.string,
 });
 
+export interface IOldApiError {
+  http_status: number;
+  base: string;
+}
+
 export interface IError {
   name: string;
   reason: string;

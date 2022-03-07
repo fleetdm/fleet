@@ -508,14 +508,6 @@
         &:first-child {
           padding-right: 0px;
         }
-        .name-container {
-          .tooltip__tooltip-icon {
-            @include breakpoint(ltdesktop) {
-              position: absolute;
-              right: 0.5rem;
-            }
-          }
-        }
       }
 
       .software-link {
@@ -545,6 +537,12 @@
         &:last-child {
           text-overflow: unset;
         }
+      }
+
+      .name__cell,
+      .version__cell {
+        overflow: initial;
+        text-overflow: initial;
       }
     }
   }

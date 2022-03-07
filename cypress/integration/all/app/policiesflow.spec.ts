@@ -42,6 +42,19 @@ describe("Policies flow (empty)", () => {
         cy.findByText(/add a policy/i).click();
       });
       cy.findByText(/gatekeeper enabled/i).click();
+      cy.getAttached(".platforms-select")
+        .children()
+        .first()
+        .within(() => {
+          cy.getAttached('[type="checkbox"]').should("be.checked");
+        });
+      cy.getAttached(".platforms-select")
+        .children()
+        .first()
+        .next()
+        .within(() => {
+          cy.getAttached('[type="checkbox"]').should("not.be.checked");
+        });
       cy.findByRole("button", { name: /save policy/i }).click();
       cy.findByRole("button", { name: /^Save$/ }).click();
 

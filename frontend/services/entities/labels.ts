@@ -22,7 +22,7 @@ export default {
       };
     } catch (error) {
       console.error(error);
-      throw new Error("Could not create label.");
+      throw error;
     }
   },
   destroy: (label: ILabel) => {
@@ -39,7 +39,7 @@ export default {
       return { labels: helpers.formatLabelResponse(response) };
     } catch (error) {
       console.error(error);
-      throw new Error("Could not load all labels.");
+      throw error;
     }
   },
   update: async (label: ILabel, updatedAttrs: ILabel) => {
@@ -59,7 +59,7 @@ export default {
       };
     } catch (error) {
       console.error(error);
-      throw new Error("Could not update label.");
+      throw error;
     }
   },
 };

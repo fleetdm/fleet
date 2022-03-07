@@ -52,6 +52,8 @@ const AppSettingsPage = (): JSX.Element => {
   const onFormSubmit = useCallback(
     (formData: IConfigNested) => {
       const diff = deepDifference(formData, appConfig);
+      // send all formData.agent_options because diff overrides all agent options
+      diff.agent_options = formData.agent_options;
 
       configAPI
         .update(diff)

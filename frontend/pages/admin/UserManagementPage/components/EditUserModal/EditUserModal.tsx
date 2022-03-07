@@ -1,5 +1,4 @@
 import React from "react";
-import { useDispatch } from "react-redux";
 
 import { ITeam } from "interfaces/team";
 import { IUserFormErrors } from "interfaces/user";
@@ -44,8 +43,6 @@ const EditUserModal = ({
   editUserErrors,
   isModifiedByGlobalAdmin,
 }: IEditUserModalProps): JSX.Element => {
-  const dispatch = useDispatch();
-
   return (
     <Modal
       title="Edit user"
@@ -53,7 +50,7 @@ const EditUserModal = ({
       className={`${baseClass}__edit-user-modal`}
     >
       <UserForm
-        editUserErrors={editUserErrors}
+        createOrEditUserErrors={editUserErrors}
         defaultName={defaultName}
         defaultEmail={defaultEmail}
         defaultGlobalRole={defaultGlobalRole}
@@ -69,7 +66,6 @@ const EditUserModal = ({
         isSsoEnabled={isSsoEnabled}
         isModifiedByGlobalAdmin={isModifiedByGlobalAdmin}
         currentTeam={currentTeam}
-        dispatch={dispatch}
       />
     </Modal>
   );

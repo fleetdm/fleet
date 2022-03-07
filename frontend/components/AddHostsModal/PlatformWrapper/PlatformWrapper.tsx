@@ -42,7 +42,7 @@ const platformSubNav: IPlatformSubNav[] = [
     type: "rpm",
   },
   {
-    name: "Linux (DEB)",
+    name: "Linux (deb)",
     type: "deb",
   },
   {
@@ -62,7 +62,7 @@ const PlatformWrapper = ({
   selectedTeam,
   onCancel,
 }: IPlatformWrapperProp): JSX.Element => {
-  const { config } = useContext(AppContext);
+  const { config, isPreviewMode } = useContext(AppContext);
   const [copyMessage, setCopyMessage] = useState<string>("");
 
   const dispatch = useDispatch();
@@ -75,6 +75,7 @@ const PlatformWrapper = ({
     ["certificate"],
     () => configAPI.loadCertificate(),
     {
+      enabled: !isPreviewMode,
       refetchOnWindowFocus: false,
     }
   );

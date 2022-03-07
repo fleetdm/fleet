@@ -9,6 +9,8 @@ on:
   pull_request:
     paths:
       - '**.go'
+  workflow_dispatch: # Manual
+
 jobs:
   golangci:
     name: lint

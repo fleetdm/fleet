@@ -25,6 +25,7 @@ export interface IUser {
   role: string;
   force_password_reset: boolean;
   gravatar_url: string;
+  gravatarURL?: string; // Remove when CoreLayout.jsx is refactored to Typescript (it's adding this property to User)
   sso_enabled: boolean;
   global_role: string | null;
   api_only: boolean;
@@ -43,10 +44,10 @@ export interface IUserUpdateBody {
 }
 
 export interface IUserFormErrors {
-  email: string | null;
-  name: string | null;
-  password: string | null;
-  sso_enabled: boolean | null;
+  email?: string | null;
+  name?: string | null;
+  password?: string | null;
+  sso_enabled?: boolean | null;
 }
 
 export interface ICreateUserFormData {

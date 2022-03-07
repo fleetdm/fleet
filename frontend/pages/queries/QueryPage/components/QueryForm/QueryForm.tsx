@@ -122,6 +122,16 @@ const QueryForm = ({
     { leading: true }
   );
 
+  const debounceSQL = useDebouncedCallback((sql: string) => {
+    let valid = true;
+    const { valid: isValidated, errors: newErrors } = validateQuerySQL(sql);
+    valid = isValidated;
+
+    setErrors({
+      ...newErrors,
+    });
+  }, 500);
+
   queryIdForEdit = queryIdForEdit || 0;
 
   useEffect(() => {
@@ -129,14 +139,7 @@ const QueryForm = ({
       debounceCompatiblePlatforms(lastEditedQueryBody);
     }
 
-    let valid = true;
-    const { valid: isValidated, errors: newErrors } = validateQuerySQL(
-      lastEditedQueryBody
-    );
-    valid = isValidated;
-    setErrors({
-      ...newErrors,
-    });
+    debounceSQL(lastEditedQueryBody);
   }, [lastEditedQueryBody, lastEditedQueryId]);
 
   const hasTeamMaintainerPermissions = isEditMode

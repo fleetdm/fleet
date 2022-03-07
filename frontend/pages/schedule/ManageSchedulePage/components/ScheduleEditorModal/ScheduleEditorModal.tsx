@@ -263,7 +263,7 @@ const ScheduleEditorModal = ({
           <p>
             Check out the Fleet documentation on&nbsp;
             <a
-              href="https://github.com/fleetdm/fleet/blob/6649d08a05799811f6fb0566947946edbfebf63e/docs/2-Deploying/2-Configuration.md#osquery_result_log_plugin"
+              href="https://fleetdm.com/docs/deploying/configuration#osquery-result-log-plugin"
               target="_blank"
               rel="noopener noreferrer"
             >
@@ -275,7 +275,7 @@ const ScheduleEditorModal = ({
         <div>
           <Button
             variant="unstyled"
-            className={`${showAdvancedOptions ? "upcarat" : "downcarat"} 
+            className={`${showAdvancedOptions ? "afterupcarat" : "downcarat"} 
                ${baseClass}__advanced-options-button`}
             onClick={toggleAdvancedOptions}
           >

@@ -1,6 +1,7 @@
 package service
 
 import (
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"io"
@@ -53,6 +54,13 @@ func (e notFoundErr) Error() string {
 
 func (e notFoundErr) NotFound() bool {
 	return true
+}
+
+// Implement Is so that errors.Is(err, sql.ErrNoRows) returns true for an
+// error of type *notFoundError, without having to wrap sql.ErrNoRows
+// explicitly.
+func (e notFoundErr) Is(other error) bool {
+	return other == sql.ErrNoRows
 }
 
 type serverError struct {

@@ -101,13 +101,13 @@ a.text-danger:hover, a.text-danger:focus {
     }
     &.disabled, &:disabled {
       color: #fff;
-      background-color: darken(#ff5c83, 10%), 0.25;
-      border-color: darken(#ff5c83, 10%), 0.25;
+      background-color: darken(#ff5c83, 10%);
+      border-color: darken(#ff5c83, 10%);
     }
     &:not(:disabled):not(.disabled):active, &:not(:disabled):not(.disabled).active, .show > &.dropdown-toggle {
       color: #fff;
-      background-color: darken(#ff5c83, 10%), 0.25;
-      border-color: darken(#ff5c83, 10%), 0.25;
+      background-color: darken(#ff5c83, 10%);
+      border-color: darken(#ff5c83, 10%);
     }
     &:not(:disabled):not(.disabled):active:focus, &:not(:disabled):not(.disabled).active:focus, .show > &.dropdown-toggle:focus {
       box-shadow: 0 0 0.25rem 0.2rem #ff5c83;
@@ -169,7 +169,54 @@ a.text-danger:hover, a.text-danger:focus {
   pointer-events: none;
   font-weight: @bold;
 }
-
+[purpose='page-header'] {
+  .collapsing {
+    opacity: 0;
+    transition: 0s;
+  }
+  .collapse.show {
+    opacity: 1;
+    pointer-events: auto;
+    z-index: 3;
+    overflow-y: scroll;
+  }
+  .collapse {
+    opacity: 0;
+  }
+  .dropdown-menu {
+    left: 0px;
+  }
+  .dropdown-toggle::after {
+    display: none;
+  }
+  .dropdown-header {
+    padding-left: 16px;
+    padding-right: 16px;
+    padding-top: 16px;
+    color: @core-fleet-black-25;
+    font-size: 11px;
+    line-height: 20px;
+    font-weight: bold;
+  }
+  .dropdown-divider {
+    margin: 4px 16px 0px 16px;
+  }
+  .dropdown-item {
+    font-size: 14px;
+    line-height: 20px;
+    padding: 8px 16px;
+    display: inline-flex;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .dropdown-item:hover {
+    background-color: unset;
+    color: #6a67fe;
+  }
+  .dropdown-item:before {
+    content: none;
+  }
+}
 .form-control {
 	height: 54px;
 	padding: 8px 16px;
