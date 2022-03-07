@@ -9,26 +9,6 @@ import (
 	"github.com/go-kit/kit/endpoint"
 )
 
-////////////////////////////////////////////////////////////////////////////////
-// Logout
-////////////////////////////////////////////////////////////////////////////////
-
-type logoutResponse struct {
-	Err error `json:"error,omitempty"`
-}
-
-func (r logoutResponse) error() error { return r.Err }
-
-func makeLogoutEndpoint(svc fleet.Service) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		err := svc.Logout(ctx)
-		if err != nil {
-			return logoutResponse{Err: err}, nil
-		}
-		return logoutResponse{}, nil
-	}
-}
-
 type initiateSSORequest struct {
 	RelayURL string `json:"relay_url"`
 }

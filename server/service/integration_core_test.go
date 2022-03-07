@@ -2571,6 +2571,16 @@ func (s *integrationTestSuite) TestUsers() {
 	s.DoJSON("POST", "/api/v1/fleet/login", loginRequest{Email: u.Email, Password: userRawPwd}, http.StatusOK, &loginResp)
 	require.Equal(t, loginResp.User.ID, u.ID)
 
+	// logout for that user
+	s.token = loginResp.Token
+	var logoutResp logoutResponse
+	s.DoJSON("POST", "/api/v1/fleet/logout", nil, http.StatusOK, &logoutResp)
+
+	// logout again, even though not logged in
+	s.DoJSON("POST", "/api/v1/fleet/logout", nil, http.StatusInternalServerError, &logoutResp) // TODO: should be OK even if not logged in, see #4406.
+
+	s.token = s.getTestAdminToken()
+
 	// login as that user with previous pwd fails
 	loginResp = loginResponse{}
 	s.DoJSON("POST", "/api/v1/fleet/login", loginRequest{Email: u.Email, Password: oldUserRawPwd}, http.StatusUnauthorized, &loginResp)

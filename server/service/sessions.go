@@ -180,3 +180,49 @@ func (svc *Service) Login(ctx context.Context, email, password string) (*fleet.U
 
 	return user, token, nil
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// Logout
+////////////////////////////////////////////////////////////////////////////////
+
+type logoutResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r logoutResponse) error() error { return r.Err }
+
+func logoutEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	err := svc.Logout(ctx)
+	if err != nil {
+		return logoutResponse{Err: err}, nil
+	}
+	return logoutResponse{}, nil
+}
+
+func (svc *Service) Logout(ctx context.Context) error {
+	// skipauth: Any user can always log out of their own session.
+	svc.authz.SkipAuthorization(ctx)
+
+	logging.WithLevel(ctx, level.Info)
+
+	// TODO: this should not return an error if the user wasn't logged in
+	return svc.DestroySession(ctx)
+}
+
+func (svc *Service) DestroySession(ctx context.Context) error {
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return fleet.ErrNoContext
+	}
+
+	session, err := svc.ds.SessionByID(ctx, vc.SessionID())
+	if err != nil {
+		return err
+	}
+
+	if err := svc.authz.Authorize(ctx, session, fleet.ActionWrite); err != nil {
+		return err
+	}
+
+	return svc.ds.DestroySession(ctx, session)
+}

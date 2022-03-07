@@ -11,7 +11,6 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
-	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/go-kit/kit/log/level"
@@ -216,34 +215,6 @@ func (svc *Service) makeSession(ctx context.Context, id uint) (string, error) {
 	}
 
 	return sessionKey, nil
-}
-
-func (svc *Service) Logout(ctx context.Context) error {
-	// skipauth: Any user can always log out of their own session.
-	svc.authz.SkipAuthorization(ctx)
-
-	logging.WithLevel(ctx, level.Info)
-
-	// TODO: this should not return an error if the user wasn't logged in
-	return svc.DestroySession(ctx)
-}
-
-func (svc *Service) DestroySession(ctx context.Context) error {
-	vc, ok := viewer.FromContext(ctx)
-	if !ok {
-		return fleet.ErrNoContext
-	}
-
-	session, err := svc.ds.SessionByID(ctx, vc.SessionID())
-	if err != nil {
-		return err
-	}
-
-	if err := svc.authz.Authorize(ctx, session, fleet.ActionWrite); err != nil {
-		return err
-	}
-
-	return svc.ds.DestroySession(ctx, session)
 }
 
 func (svc *Service) GetSessionByKey(ctx context.Context, key string) (*fleet.Session, error) {

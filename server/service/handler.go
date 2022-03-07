@@ -24,7 +24,6 @@ import (
 
 // FleetEndpoints is a collection of RPC endpoints implemented by the Fleet API.
 type FleetEndpoints struct {
-	Logout      endpoint.Endpoint
 	InitiateSSO endpoint.Endpoint
 	CallbackSSO endpoint.Endpoint
 	SSOSettings endpoint.Endpoint
@@ -33,7 +32,6 @@ type FleetEndpoints struct {
 // MakeFleetServerEndpoints creates the Fleet API endpoints.
 func MakeFleetServerEndpoints(svc fleet.Service, urlPrefix string, limitStore throttled.GCRAStore, logger kitlog.Logger) FleetEndpoints {
 	return FleetEndpoints{
-		Logout:      logged(makeLogoutEndpoint(svc)),
 		InitiateSSO: logged(makeInitiateSSOEndpoint(svc)),
 		CallbackSSO: logged(makeCallbackSSOEndpoint(svc, urlPrefix)),
 		SSOSettings: logged(makeSSOSettingsEndpoint(svc)),
@@ -41,7 +39,6 @@ func MakeFleetServerEndpoints(svc fleet.Service, urlPrefix string, limitStore th
 }
 
 type fleetHandlers struct {
-	Logout      http.Handler
 	InitiateSSO http.Handler
 	CallbackSSO http.Handler
 	SettingsSSO http.Handler
@@ -53,7 +50,6 @@ func makeKitHandlers(e FleetEndpoints, opts []kithttp.ServerOption) *fleetHandle
 		return kithttp.NewServer(e, decodeFn, encodeResponse, opts...)
 	}
 	return &fleetHandlers{
-		Logout:      newServer(e.Logout, decodeNoParamsRequest),
 		InitiateSSO: newServer(e.InitiateSSO, decodeInitiateSSORequest),
 		CallbackSSO: newServer(e.CallbackSSO, decodeCallbackSSORequest),
 		SettingsSSO: newServer(e.SSOSettings, decodeNoParamsRequest),
@@ -231,7 +227,6 @@ func addMetrics(r *mux.Router) {
 }
 
 func attachFleetAPIRoutes(r *mux.Router, h *fleetHandlers) {
-	r.Handle("/api/v1/fleet/logout", h.Logout).Methods("POST").Name("logout")
 	r.Handle("/api/v1/fleet/sso", h.InitiateSSO).Methods("POST").Name("intiate_sso")
 	r.Handle("/api/v1/fleet/sso", h.SettingsSSO).Methods("GET").Name("sso_config")
 	r.Handle("/api/v1/fleet/sso/callback", h.CallbackSSO).Methods("POST").Name("callback_sso")
@@ -402,6 +397,7 @@ func attachNewStyleFleetAPIRoutes(r *mux.Router, svc fleet.Service, logger kitlo
 	ne.POST("/api/_version_/fleet/users", createUserFromInviteEndpoint, createUserRequest{})
 	ne.GET("/api/_version_/fleet/invites/{token}", verifyInviteEndpoint, verifyInviteRequest{})
 	ne.POST("/api/_version_/fleet/reset_password", resetPasswordEndpoint, resetPasswordRequest{})
+	ne.POST("/api/_version_/fleet/logout", logoutEndpoint, nil)
 
 	limiter := ratelimit.NewMiddleware(limitStore)
 	ne.
