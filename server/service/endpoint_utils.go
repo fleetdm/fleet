@@ -272,6 +272,7 @@ type authEndpointer struct {
 	startingAtVersion string
 	endingAtVersion   string
 	alternativePaths  []string
+	customMiddleware  []endpoint.Middleware
 }
 
 func newUserAuthenticatedEndpointer(svc fleet.Service, opts []kithttp.ServerOption, r *mux.Router, versions ...string) *authEndpointer {
@@ -384,7 +385,15 @@ func (e *authEndpointer) makeEndpoint(f handlerFunc, v interface{}) http.Handler
 	next := func(ctx context.Context, request interface{}) (interface{}, error) {
 		return f(ctx, request, e.svc)
 	}
-	return newServer(e.authFunc(e.svc, next), makeDecoder(v), e.opts)
+	endp := e.authFunc(e.svc, next)
+
+	// apply middleware in reverse order so that the first wraps the second
+	// wraps the third etc.
+	for i := len(e.customMiddleware) - 1; i >= 0; i-- {
+		mw := e.customMiddleware[i]
+		endp = mw(endp)
+	}
+	return newServer(endp, makeDecoder(v), e.opts)
 }
 
 func (e *authEndpointer) StartingAtVersion(version string) *authEndpointer {
@@ -406,7 +415,7 @@ func (e *authEndpointer) WithAltPaths(paths ...string) *authEndpointer {
 }
 
 func (e *authEndpointer) WithCustomMiddleware(mws ...endpoint.Middleware) *authEndpointer {
-	// TODO(mna): use this approach for special-cases like rate-limiting?
 	ae := *e
+	ae.customMiddleware = mws
 	return &ae
 }
