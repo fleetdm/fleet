@@ -200,20 +200,18 @@ const PlatformWrapper = ({
     return (
       <>
         {platform !== "advanced" && (
-          <>
-            <span className={`${baseClass}__cta`}>
-              With the{" "}
-              <a
-                href="https://fleetdm.com/get-started"
-                target="_blank"
-                rel="noopener noreferrer"
-                className={`${baseClass}__command-line-tool`}
-              >
-                Fleet command-line tool
-              </a>{" "}
-              installed:
-            </span>
-          </>
+          <span className={`${baseClass}__cta`}>
+            With the{" "}
+            <a
+              href="https://fleetdm.com/get-started"
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`${baseClass}__command-line-tool`}
+            >
+              Fleet command-line tool
+            </a>{" "}
+            installed:
+          </span>
         )}{" "}
         <span className={`${baseClass}__name`}>
           <span className="buttons">
