@@ -226,7 +226,7 @@ type Datastore interface {
 
 	NewPasswordResetRequest(ctx context.Context, req *PasswordResetRequest) (*PasswordResetRequest, error)
 	DeletePasswordResetRequestsForUser(ctx context.Context, userID uint) error
-	FindPassswordResetByToken(ctx context.Context, token string) (*PasswordResetRequest, error)
+	FindPasswordResetByToken(ctx context.Context, token string) (*PasswordResetRequest, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// SessionStore is the abstract interface that all session backends must conform to.

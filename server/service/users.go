@@ -6,6 +6,8 @@ import (
 	"encoding/base64"
 	"errors"
 	"html/template"
+	"net/http"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
@@ -49,6 +51,10 @@ func (svc *Service) CreateUser(ctx context.Context, p fleet.UserPayload) (*fleet
 		return nil, err
 	}
 
+	if err := p.VerifyAdminCreate(); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "verify user payload")
+	}
+
 	if invite, err := svc.ds.InviteByEmail(ctx, *p.Email); err == nil && invite != nil {
 		return nil, ctxerr.Errorf(ctx, "%s already invited", *p.Email)
 	}
@@ -59,6 +65,49 @@ func (svc *Service) CreateUser(ctx context.Context, p fleet.UserPayload) (*fleet
 	}
 
 	return svc.newUser(ctx, p)
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Create User From Invite
+////////////////////////////////////////////////////////////////////////////////
+
+func createUserFromInviteEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*createUserRequest)
+	user, err := svc.CreateUserFromInvite(ctx, req.UserPayload)
+	if err != nil {
+		return createUserResponse{Err: err}, nil
+	}
+	return createUserResponse{User: user}, nil
+}
+
+func (svc *Service) CreateUserFromInvite(ctx context.Context, p fleet.UserPayload) (*fleet.User, error) {
+	// skipauth: There is no viewer context at this point. We rely on verifying
+	// the invite for authNZ.
+	svc.authz.SkipAuthorization(ctx)
+
+	if err := p.VerifyInviteCreate(); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "verify user payload")
+	}
+
+	invite, err := svc.VerifyInvite(ctx, *p.InviteToken)
+	if err != nil {
+		return nil, err
+	}
+
+	// set the payload role property based on an existing invite.
+	p.GlobalRole = invite.GlobalRole.Ptr()
+	p.Teams = &invite.Teams
+
+	user, err := svc.newUser(ctx, p)
+	if err != nil {
+		return nil, err
+	}
+
+	err = svc.ds.DeleteInvite(ctx, invite.ID)
+	if err != nil {
+		return nil, err
+	}
+	return user, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -213,6 +262,14 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 
 	if err := svc.authz.Authorize(ctx, user, fleet.ActionWrite); err != nil {
 		return nil, err
+	}
+
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return nil, ctxerr.New(ctx, "viewer not present") // should never happen, authorize would've failed
+	}
+	if err := p.VerifyModify(vc.UserID() == userID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "verify user payload")
 	}
 
 	if p.GlobalRole != nil || p.Teams != nil {
@@ -386,13 +443,21 @@ func (svc *Service) ChangePassword(ctx context.Context, oldPass, newPass string)
 		return err
 	}
 
+	if oldPass == "" {
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("old_password", "Old password cannot be empty"))
+	}
+	if newPass == "" {
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("new_password", "New password cannot be empty"))
+	}
+	if err := fleet.ValidatePasswordRequirements(newPass); err != nil {
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("new_password", err.Error()))
+	}
 	if vc.User.SSOEnabled {
 		return ctxerr.New(ctx, "change password for single sign on user not allowed")
 	}
 	if err := vc.User.ValidatePassword(newPass); err == nil {
-		return fleet.NewInvalidArgumentError("new_password", "cannot reuse old password")
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("new_password", "cannot reuse old password"))
 	}
-
 	if err := vc.User.ValidatePassword(oldPass); err != nil {
 		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("old_password", "old password does not match"))
 	}
@@ -621,4 +686,246 @@ func (svc *Service) modifyEmailAddress(ctx context.Context, user *fleet.User, em
 // the service should expose actions for modifying a user instead
 func (svc *Service) saveUser(ctx context.Context, user *fleet.User) error {
 	return svc.ds.SaveUser(ctx, user)
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Perform Required Password Reset
+////////////////////////////////////////////////////////////////////////////////
+
+type performRequiredPasswordResetRequest struct {
+	Password string `json:"new_password"`
+	ID       uint   `json:"id"`
+}
+
+type performRequiredPasswordResetResponse struct {
+	User *fleet.User `json:"user,omitempty"`
+	Err  error       `json:"error,omitempty"`
+}
+
+func (r performRequiredPasswordResetResponse) error() error { return r.Err }
+
+func performRequiredPasswordResetEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*performRequiredPasswordResetRequest)
+	user, err := svc.PerformRequiredPasswordReset(ctx, req.Password)
+	if err != nil {
+		return performRequiredPasswordResetResponse{Err: err}, nil
+	}
+	return performRequiredPasswordResetResponse{User: user}, nil
+}
+
+func (svc *Service) PerformRequiredPasswordReset(ctx context.Context, password string) (*fleet.User, error) {
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return nil, fleet.ErrNoContext
+	}
+	if !vc.CanPerformPasswordReset() {
+		return nil, fleet.NewPermissionError("cannot reset password")
+	}
+	user := vc.User
+
+	if err := svc.authz.Authorize(ctx, user, fleet.ActionWrite); err != nil {
+		return nil, err
+	}
+
+	if user.SSOEnabled {
+		return nil, ctxerr.New(ctx, "password reset for single sign on user not allowed")
+	}
+	if !user.IsAdminForcedPasswordReset() {
+		return nil, ctxerr.New(ctx, "user does not require password reset")
+	}
+
+	// prevent setting the same password
+	if err := user.ValidatePassword(password); err == nil {
+		return nil, fleet.NewInvalidArgumentError("new_password", "cannot reuse old password")
+	}
+
+	user.AdminForcedPasswordReset = false
+	err := svc.setNewPassword(ctx, user, password)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "setting new password")
+	}
+
+	// Sessions should already have been cleared when the reset was
+	// required
+
+	return user, nil
+}
+
+// setNewPassword is a helper for changing a user's password. It should be
+// called to set the new password after proper authorization has been
+// performed.
+func (svc *Service) setNewPassword(ctx context.Context, user *fleet.User, password string) error {
+	err := user.SetPassword(password, svc.config.Auth.SaltKeySize, svc.config.Auth.BcryptCost)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "setting new password")
+	}
+	if user.SSOEnabled {
+		return ctxerr.New(ctx, "set password for single sign on user not allowed")
+	}
+	err = svc.saveUser(ctx, user)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "saving changed password")
+	}
+
+	return nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Reset Password
+////////////////////////////////////////////////////////////////////////////////
+
+type resetPasswordRequest struct {
+	PasswordResetToken string `json:"password_reset_token"`
+	NewPassword        string `json:"new_password"`
+}
+
+type resetPasswordResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r resetPasswordResponse) error() error { return r.Err }
+
+func resetPasswordEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*resetPasswordRequest)
+	err := svc.ResetPassword(ctx, req.PasswordResetToken, req.NewPassword)
+	return resetPasswordResponse{Err: err}, nil
+}
+
+func (svc *Service) ResetPassword(ctx context.Context, token, password string) error {
+	// skipauth: No viewer context available. The user is locked out of their
+	// account and authNZ is performed entirely by providing a valid password
+	// reset token.
+	svc.authz.SkipAuthorization(ctx)
+
+	if token == "" {
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("token", "Token cannot be empty field"))
+	}
+	if password == "" {
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("new_password", "New password cannot be empty field"))
+	}
+	if err := fleet.ValidatePasswordRequirements(password); err != nil {
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("new_password", err.Error()))
+	}
+
+	reset, err := svc.ds.FindPasswordResetByToken(ctx, token)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "looking up reset by token")
+	}
+	user, err := svc.ds.UserByID(ctx, reset.UserID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "retrieving user")
+	}
+
+	if user.SSOEnabled {
+		return ctxerr.New(ctx, "password reset for single sign on user not allowed")
+	}
+
+	// prevent setting the same password
+	if err := user.ValidatePassword(password); err == nil {
+		return fleet.NewInvalidArgumentError("new_password", "cannot reuse old password")
+	}
+
+	err = svc.setNewPassword(ctx, user, password)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "setting new password")
+	}
+
+	// delete password reset tokens for user
+	if err := svc.ds.DeletePasswordResetRequestsForUser(ctx, user.ID); err != nil {
+		return ctxerr.Wrap(ctx, err, "delete password reset requests")
+	}
+
+	// Clear sessions so that any other browsers will have to log in with
+	// the new password
+	if err := svc.ds.DestroyAllSessionsForUser(ctx, user.ID); err != nil {
+		return ctxerr.Wrap(ctx, err, "delete user sessions")
+	}
+
+	return nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Forgot Password
+////////////////////////////////////////////////////////////////////////////////
+
+type forgotPasswordRequest struct {
+	Email string `json:"email"`
+}
+
+type forgotPasswordResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r forgotPasswordResponse) error() error { return r.Err }
+func (r forgotPasswordResponse) status() int  { return http.StatusAccepted }
+
+func forgotPasswordEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*forgotPasswordRequest)
+	// Any error returned by the service should not be returned to the
+	// client to prevent information disclosure (it will be logged in the
+	// server logs).
+	_ = svc.RequestPasswordReset(ctx, req.Email)
+	return forgotPasswordResponse{}, nil
+}
+
+func (svc *Service) RequestPasswordReset(ctx context.Context, email string) error {
+	// skipauth: No viewer context available. The user is locked out of their
+	// account and trying to reset their password.
+	svc.authz.SkipAuthorization(ctx)
+
+	// Regardless of error, sleep until the request has taken at least 1 second.
+	// This means that any request to this method will take ~1s and frustrate a timing attack.
+	defer func(start time.Time) {
+		time.Sleep(time.Until(start.Add(1 * time.Second)))
+	}(time.Now())
+
+	user, err := svc.ds.UserByEmail(ctx, email)
+	if err != nil {
+		return err
+	}
+	if user.SSOEnabled {
+		return ctxerr.New(ctx, "password reset for single sign on user not allowed")
+	}
+
+	random, err := server.GenerateRandomText(svc.config.App.TokenKeySize)
+	if err != nil {
+		return err
+	}
+	token := base64.URLEncoding.EncodeToString([]byte(random))
+
+	request := &fleet.PasswordResetRequest{
+		ExpiresAt: time.Now().Add(time.Hour * 24),
+		UserID:    user.ID,
+		Token:     token,
+	}
+	_, err = svc.ds.NewPasswordResetRequest(ctx, request)
+	if err != nil {
+		return err
+	}
+
+	config, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return err
+	}
+
+	resetEmail := fleet.Email{
+		Subject: "Reset Your Fleet Password",
+		To:      []string{user.Email},
+		Config:  config,
+		Mailer: &mail.PasswordResetMailer{
+			BaseURL:  template.URL(config.ServerSettings.ServerURL + svc.config.Server.URLPrefix),
+			AssetURL: getAssetURL(),
+			Token:    token,
+		},
+	}
+
+	return svc.mailService.SendEmail(resetEmail)
+}
+
+func (svc *Service) ListAvailableTeamsForUser(ctx context.Context, user *fleet.User) ([]*fleet.TeamSummary, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return nil, fleet.ErrMissingLicense
 }

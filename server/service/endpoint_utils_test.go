@@ -1,6 +1,7 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"io"
 	"net/http"
@@ -14,6 +15,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/go-kit/kit/endpoint"
 	kitlog "github.com/go-kit/kit/log"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
@@ -251,7 +253,6 @@ func TestUniversalDecoderQueryAndListPlayNice(t *testing.T) {
 }
 
 func TestEndpointer(t *testing.T) {
-
 	r := mux.NewRouter()
 	ds := new(mock.Store)
 	ds.SessionByKeyFunc = func(ctx context.Context, key string) (*fleet.Session, error) {
@@ -394,4 +395,73 @@ func TestEndpointer(t *testing.T) {
 	for _, route := range mustNotMatch {
 		require.False(t, doesItMatch(route.method, route.path, false), route)
 	}
+}
+
+func TestEndpointerCustomMiddleware(t *testing.T) {
+	r := mux.NewRouter()
+	ds := new(mock.Store)
+	svc := newTestService(ds, nil, nil)
+
+	fleetAPIOptions := []kithttp.ServerOption{
+		kithttp.ServerBefore(
+			kithttp.PopulateRequestContext,
+			setRequestsContexts(svc),
+		),
+		kithttp.ServerErrorHandler(&errorHandler{kitlog.NewNopLogger()}),
+		kithttp.ServerErrorEncoder(encodeError),
+		kithttp.ServerAfter(
+			kithttp.SetContentType("application/json; charset=utf-8"),
+			logRequestEnd(kitlog.NewNopLogger()),
+			checkLicenseExpiration(svc),
+		),
+	}
+
+	var buf bytes.Buffer
+	e := newNoAuthEndpointer(svc, fleetAPIOptions, r, "v1")
+	e.GET("/none/", func(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+		buf.WriteString("H1")
+		return nil, nil
+	}, nil)
+
+	e.WithCustomMiddleware(
+		func(e endpoint.Endpoint) endpoint.Endpoint {
+			return func(ctx context.Context, request interface{}) (response interface{}, err error) {
+				buf.WriteString("A")
+				return e(ctx, request)
+			}
+		},
+		func(e endpoint.Endpoint) endpoint.Endpoint {
+			return func(ctx context.Context, request interface{}) (response interface{}, err error) {
+				buf.WriteString("B")
+				return e(ctx, request)
+			}
+		},
+		func(e endpoint.Endpoint) endpoint.Endpoint {
+			return func(ctx context.Context, request interface{}) (response interface{}, err error) {
+				buf.WriteString("C")
+				return e(ctx, request)
+			}
+		},
+	).
+		GET("/mw/", func(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+			buf.WriteString("H2")
+			return nil, nil
+		}, nil)
+
+	req := httptest.NewRequest("GET", "/none/", nil)
+	var m1 mux.RouteMatch
+
+	require.True(t, r.Match(req, &m1))
+	rec := httptest.NewRecorder()
+	m1.Handler.ServeHTTP(rec, req)
+	require.Equal(t, "H1", buf.String())
+
+	buf.Reset()
+	req = httptest.NewRequest("GET", "/mw/", nil)
+	var m2 mux.RouteMatch
+
+	require.True(t, r.Match(req, &m2))
+	rec = httptest.NewRecorder()
+	m2.Handler.ServeHTTP(rec, req)
+	require.Equal(t, "ABCH2", buf.String())
 }

@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
-	"strings"
+	"regexp"
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
@@ -21,92 +21,6 @@ import (
 	"github.com/throttled/throttled/v2"
 	otmiddleware "go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux"
 )
-
-// FleetEndpoints is a collection of RPC endpoints implemented by the Fleet API.
-type FleetEndpoints struct {
-	Login                        endpoint.Endpoint
-	Logout                       endpoint.Endpoint
-	ForgotPassword               endpoint.Endpoint
-	ResetPassword                endpoint.Endpoint
-	CreateUserWithInvite         endpoint.Endpoint
-	PerformRequiredPasswordReset endpoint.Endpoint
-	VerifyInvite                 endpoint.Endpoint
-	EnrollAgent                  endpoint.Endpoint
-	CarveBlock                   endpoint.Endpoint
-	InitiateSSO                  endpoint.Endpoint
-	CallbackSSO                  endpoint.Endpoint
-	SSOSettings                  endpoint.Endpoint
-}
-
-// MakeFleetServerEndpoints creates the Fleet API endpoints.
-func MakeFleetServerEndpoints(svc fleet.Service, urlPrefix string, limitStore throttled.GCRAStore, logger kitlog.Logger) FleetEndpoints {
-	limiter := ratelimit.NewMiddleware(limitStore)
-
-	return FleetEndpoints{
-		Login: limiter.Limit(
-			throttled.RateQuota{MaxRate: throttled.PerMin(10), MaxBurst: 9})(
-			makeLoginEndpoint(svc),
-		),
-		Logout: logged(makeLogoutEndpoint(svc)),
-		ForgotPassword: limiter.Limit(
-			throttled.RateQuota{MaxRate: throttled.PerHour(10), MaxBurst: 9})(
-			logged(makeForgotPasswordEndpoint(svc)),
-		),
-		ResetPassword:        logged(makeResetPasswordEndpoint(svc)),
-		CreateUserWithInvite: logged(makeCreateUserFromInviteEndpoint(svc)),
-		VerifyInvite:         logged(makeVerifyInviteEndpoint(svc)),
-		InitiateSSO:          logged(makeInitiateSSOEndpoint(svc)),
-		CallbackSSO:          logged(makeCallbackSSOEndpoint(svc, urlPrefix)),
-		SSOSettings:          logged(makeSSOSettingsEndpoint(svc)),
-
-		// PerformRequiredPasswordReset needs only to authenticate the
-		// logged in user
-		PerformRequiredPasswordReset: logged(canPerformPasswordReset(makePerformRequiredPasswordResetEndpoint(svc))),
-
-		// Osquery endpoints
-		EnrollAgent: logged(makeEnrollAgentEndpoint(svc)),
-		// For some reason osquery does not provide a node key with the block
-		// data. Instead the carve session ID should be verified in the service
-		// method.
-		CarveBlock: logged(makeCarveBlockEndpoint(svc)),
-	}
-}
-
-type fleetHandlers struct {
-	Login                        http.Handler
-	Logout                       http.Handler
-	ForgotPassword               http.Handler
-	ResetPassword                http.Handler
-	CreateUserWithInvite         http.Handler
-	PerformRequiredPasswordReset http.Handler
-	VerifyInvite                 http.Handler
-	EnrollAgent                  http.Handler
-	CarveBlock                   http.Handler
-	InitiateSSO                  http.Handler
-	CallbackSSO                  http.Handler
-	SettingsSSO                  http.Handler
-}
-
-func makeKitHandlers(e FleetEndpoints, opts []kithttp.ServerOption) *fleetHandlers {
-	newServer := func(e endpoint.Endpoint, decodeFn kithttp.DecodeRequestFunc) http.Handler {
-		e = authzcheck.NewMiddleware().AuthzCheck()(e)
-		return kithttp.NewServer(e, decodeFn, encodeResponse, opts...)
-	}
-	return &fleetHandlers{
-		Login:                        newServer(e.Login, decodeLoginRequest),
-		Logout:                       newServer(e.Logout, decodeNoParamsRequest),
-		ForgotPassword:               newServer(e.ForgotPassword, decodeForgotPasswordRequest),
-		ResetPassword:                newServer(e.ResetPassword, decodeResetPasswordRequest),
-		CreateUserWithInvite:         newServer(e.CreateUserWithInvite, decodeCreateUserRequest),
-		PerformRequiredPasswordReset: newServer(e.PerformRequiredPasswordReset, decodePerformRequiredPasswordResetRequest),
-		VerifyInvite:                 newServer(e.VerifyInvite, decodeVerifyInviteRequest),
-		EnrollAgent:                  newServer(e.EnrollAgent, decodeEnrollAgentRequest),
-		CarveBlock:                   newServer(e.CarveBlock, decodeCarveBlockRequest),
-		InitiateSSO:                  newServer(e.InitiateSSO, decodeInitiateSSORequest),
-		CallbackSSO:                  newServer(e.CallbackSSO, decodeCallbackSSORequest),
-		SettingsSSO:                  newServer(e.SSOSettings, decodeNoParamsRequest),
-	}
-}
 
 type errorHandler struct {
 	logger kitlog.Logger
@@ -176,18 +90,16 @@ func MakeHandler(svc fleet.Service, config config.FleetConfig, logger kitlog.Log
 		),
 	}
 
-	fleetEndpoints := MakeFleetServerEndpoints(svc, config.Server.URLPrefix, limitStore, logger)
-	fleetHandlers := makeKitHandlers(fleetEndpoints, fleetAPIOptions)
-
 	r := mux.NewRouter()
 	if config.Logging.TracingEnabled && config.Logging.TracingType == "opentelemetry" {
 		r.Use(otmiddleware.Middleware("fleet"))
 	}
 
-	attachFleetAPIRoutes(r, fleetHandlers)
-	attachNewStyleFleetAPIRoutes(r, svc, logger, fleetAPIOptions)
+	attachFleetAPIRoutes(r, svc, config, logger, limitStore, fleetAPIOptions)
 
 	// Results endpoint is handled different due to websockets use
+	// TODO: this would not work once v1 is deprecated - note that the handler too uses the /v1/ path
+	// and this routes on path prefix, not exact path (unlike the authendpointer struct).
 	r.PathPrefix("/api/v1/fleet/results/").
 		Handler(makeStreamDistributedQueryCampaignResultsHandler(svc, logger)).
 		Name("distributed_query_results")
@@ -277,22 +189,9 @@ func addMetrics(r *mux.Router) {
 	r.Walk(walkFn)
 }
 
-func attachFleetAPIRoutes(r *mux.Router, h *fleetHandlers) {
-	r.Handle("/api/v1/fleet/login", h.Login).Methods("POST").Name("login")
-	r.Handle("/api/v1/fleet/logout", h.Logout).Methods("POST").Name("logout")
-	r.Handle("/api/v1/fleet/forgot_password", h.ForgotPassword).Methods("POST").Name("forgot_password")
-	r.Handle("/api/v1/fleet/reset_password", h.ResetPassword).Methods("POST").Name("reset_password")
-	r.Handle("/api/v1/fleet/perform_required_password_reset", h.PerformRequiredPasswordReset).Methods("POST").Name("perform_required_password_reset")
-	r.Handle("/api/v1/fleet/sso", h.InitiateSSO).Methods("POST").Name("intiate_sso")
-	r.Handle("/api/v1/fleet/sso", h.SettingsSSO).Methods("GET").Name("sso_config")
-	r.Handle("/api/v1/fleet/sso/callback", h.CallbackSSO).Methods("POST").Name("callback_sso")
-	r.Handle("/api/v1/fleet/users", h.CreateUserWithInvite).Methods("POST").Name("create_user_with_invite")
-	r.Handle("/api/v1/fleet/invites/{token}", h.VerifyInvite).Methods("GET").Name("verify_invite")
-	r.Handle("/api/v1/osquery/enroll", h.EnrollAgent).Methods("POST").Name("enroll_agent")
-	r.Handle("/api/v1/osquery/carve/block", h.CarveBlock).Methods("POST").Name("carve_block")
-}
+func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetConfig,
+	logger kitlog.Logger, limitStore throttled.GCRAStore, opts []kithttp.ServerOption) {
 
-func attachNewStyleFleetAPIRoutes(r *mux.Router, svc fleet.Service, logger kitlog.Logger, opts []kithttp.ServerOption) {
 	// user-authenticated endpoints
 	ue := newUserAuthenticatedEndpointer(svc, opts, r, "v1")
 
@@ -441,10 +340,42 @@ func attachNewStyleFleetAPIRoutes(r *mux.Router, svc fleet.Service, logger kitlo
 	he.POST("/api/_version_/osquery/distributed/write", submitDistributedQueryResultsEndpoint, submitDistributedQueryResultsRequestShim{})
 	he.POST("/api/_version_/osquery/carve/begin", carveBeginEndpoint, carveBeginRequest{})
 	he.POST("/api/_version_/osquery/log", submitLogsEndpoint, submitLogsRequest{})
+
+	// unauthenticated endpoints - most of those are either login-related,
+	// invite-related or host-enrolling. So they typically do some kind of
+	// one-time authentication by verifying that a valid secret token is provided
+	// with the request.
+	ne := newNoAuthEndpointer(svc, opts, r, "v1")
+	ne.POST("/api/_version_/osquery/enroll", enrollAgentEndpoint, enrollAgentRequest{})
+
+	// For some reason osquery does not provide a node key with the block data.
+	// Instead the carve session ID should be verified in the service method.
+	ne.POST("/api/_version_/osquery/carve/block", carveBlockEndpoint, carveBlockRequest{})
+
+	ne.POST("/api/_version_/fleet/perform_required_password_reset", performRequiredPasswordResetEndpoint, performRequiredPasswordResetRequest{})
+	ne.POST("/api/_version_/fleet/users", createUserFromInviteEndpoint, createUserRequest{})
+	ne.GET("/api/_version_/fleet/invites/{token}", verifyInviteEndpoint, verifyInviteRequest{})
+	ne.POST("/api/_version_/fleet/reset_password", resetPasswordEndpoint, resetPasswordRequest{})
+	ne.POST("/api/_version_/fleet/logout", logoutEndpoint, nil)
+	ne.POST("/api/_version_/fleet/sso", initiateSSOEndpoint, initiateSSORequest{})
+	ne.POST("/api/_version_/fleet/sso/callback", makeCallbackSSOEndpoint(config.Server.URLPrefix), callbackSSORequest{})
+	ne.GET("/api/_version_/fleet/sso", settingsSSOEndpoint, nil)
+
+	limiter := ratelimit.NewMiddleware(limitStore)
+	ne.
+		WithCustomMiddleware(limiter.Limit("forgot_password", throttled.RateQuota{MaxRate: throttled.PerHour(10), MaxBurst: 9})).
+		POST("/api/_version_/fleet/forgot_password", forgotPasswordEndpoint, forgotPasswordRequest{})
+
+	ne.
+		WithCustomMiddleware(limiter.Limit("login", throttled.RateQuota{MaxRate: throttled.PerMin(10), MaxBurst: 9})).
+		POST("/api/_version_/fleet/login", loginEndpoint, loginRequest{})
 }
 
-// TODO: this duplicates the one in makeKitHandler
 func newServer(e endpoint.Endpoint, decodeFn kithttp.DecodeRequestFunc, opts []kithttp.ServerOption) http.Handler {
+	// TODO: some handlers don't have authz checks, and because the SkipAuth call is done only in the
+	// endpoint handler, any middleware that raises errors before the handler is reached will end up
+	// returning authz check missing instead of the more relevant error. Should be addressed as part
+	// of #4406.
 	e = authzcheck.NewMiddleware().AuthzCheck()(e)
 	return kithttp.NewServer(e, decodeFn, encodeResponse, opts...)
 }
@@ -453,15 +384,19 @@ func newServer(e endpoint.Endpoint, decodeFn kithttp.DecodeRequestFunc, opts []k
 // If setup hasn't been completed it serves the API with a setup middleware.
 // If the server is already configured, the default API handler is exposed.
 func WithSetup(svc fleet.Service, logger kitlog.Logger, next http.Handler) http.HandlerFunc {
+
+	rxOsquery := regexp.MustCompile(`^/api/[^/]+/osquery`)
 	return func(w http.ResponseWriter, r *http.Request) {
 		configRouter := http.NewServeMux()
+		// TODO: hard-codes v1 as a path fragment, which would probably not work once we
+		// deprecate it for newer versions, unless we want to treat the setup differently (not versioned?)
 		configRouter.Handle("/api/v1/setup", kithttp.NewServer(
 			makeSetupEndpoint(svc),
 			decodeSetupRequest,
 			encodeResponse,
 		))
 		// whitelist osqueryd endpoints
-		if strings.HasPrefix(r.URL.Path, "/api/v1/osquery") {
+		if rxOsquery.MatchString(r.URL.Path) {
 			next.ServeHTTP(w, r)
 			return
 		}

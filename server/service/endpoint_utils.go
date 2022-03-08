@@ -67,6 +67,10 @@ func allFields(ifv reflect.Value) []reflect.StructField {
 	return fields
 }
 
+type requestDecoder interface {
+	DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error)
+}
+
 // makeDecoder creates a decoder for the type for the struct passed on. If the
 // struct has at least 1 json tag it'll unmarshall the body. If the struct has
 // a `url` tag with value list_options it'll gather fleet.ListOptions from the
@@ -79,12 +83,22 @@ func allFields(ifv reflect.Value) []reflect.StructField {
 // follows: `url:"some-id,optional"`.
 // The "list_options" are optional by default and it'll ignore the optional
 // portion of the tag.
+//
+// If iface implements the requestDecoder interface, it returns a function that
+// calls iface.DecodeRequest(ctx, r) - i.e. the value itself fully controls its
+// own decoding.
 func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 	if iface == nil {
 		return func(ctx context.Context, r *http.Request) (interface{}, error) {
 			return nil, nil
 		}
 	}
+	if rd, ok := iface.(requestDecoder); ok {
+		return func(ctx context.Context, r *http.Request) (interface{}, error) {
+			return rd.DecodeRequest(ctx, r)
+		}
+	}
+
 	t := reflect.TypeOf(iface)
 	if t.Kind() != reflect.Struct {
 		panic(fmt.Sprintf("makeDecoder only understands structs, not %T", iface))
@@ -272,6 +286,7 @@ type authEndpointer struct {
 	startingAtVersion string
 	endingAtVersion   string
 	alternativePaths  []string
+	customMiddleware  []endpoint.Middleware
 }
 
 func newUserAuthenticatedEndpointer(svc fleet.Service, opts []kithttp.ServerOption, r *mux.Router, versions ...string) *authEndpointer {
@@ -293,6 +308,16 @@ func newHostAuthenticatedEndpointer(svc fleet.Service, logger log.Logger, opts [
 		opts:     opts,
 		r:        r,
 		authFunc: authFunc,
+		versions: versions,
+	}
+}
+
+func newNoAuthEndpointer(svc fleet.Service, opts []kithttp.ServerOption, r *mux.Router, versions ...string) *authEndpointer {
+	return &authEndpointer{
+		svc:      svc,
+		opts:     opts,
+		r:        r,
+		authFunc: unauthenticatedRequest,
 		versions: versions,
 	}
 }
@@ -374,7 +399,15 @@ func (e *authEndpointer) makeEndpoint(f handlerFunc, v interface{}) http.Handler
 	next := func(ctx context.Context, request interface{}) (interface{}, error) {
 		return f(ctx, request, e.svc)
 	}
-	return newServer(e.authFunc(e.svc, next), makeDecoder(v), e.opts)
+	endp := e.authFunc(e.svc, next)
+
+	// apply middleware in reverse order so that the first wraps the second
+	// wraps the third etc.
+	for i := len(e.customMiddleware) - 1; i >= 0; i-- {
+		mw := e.customMiddleware[i]
+		endp = mw(endp)
+	}
+	return newServer(endp, makeDecoder(v), e.opts)
 }
 
 func (e *authEndpointer) StartingAtVersion(version string) *authEndpointer {
@@ -392,5 +425,11 @@ func (e *authEndpointer) EndingAtVersion(version string) *authEndpointer {
 func (e *authEndpointer) WithAltPaths(paths ...string) *authEndpointer {
 	ae := *e
 	ae.alternativePaths = paths
+	return &ae
+}
+
+func (e *authEndpointer) WithCustomMiddleware(mws ...endpoint.Middleware) *authEndpointer {
+	ae := *e
+	ae.customMiddleware = mws
 	return &ae
 }
