@@ -42,30 +42,29 @@ func authenticatedDevice(svc fleet.Service, logger log.Logger, next endpoint.End
 		if err != nil {
 			return nil, err
 		}
-		_ = token
 
-		//host, debug, err := svc.AuthenticateDevice(ctx, token)
-		//if err != nil {
-		//	logging.WithErr(ctx, err)
-		//	return nil, err
-		//}
+		host, debug, err := svc.AuthenticateDevice(ctx, token)
+		if err != nil {
+			logging.WithErr(ctx, err)
+			return nil, err
+		}
 
-		//hlogger := log.With(logger, "host-id", host.ID)
-		//if debug {
-		//	logJSON(hlogger, request, "request")
-		//}
+		hlogger := log.With(logger, "host-id", host.ID)
+		if debug {
+			logJSON(hlogger, request, "request")
+		}
 
-		//ctx = hostctx.NewContext(ctx, host)
-		//instrumentHostLogger(ctx)
+		ctx = hostctx.NewContext(ctx, host)
+		instrumentHostLogger(ctx)
 
 		resp, err := next(ctx, request)
 		if err != nil {
 			return nil, err
 		}
 
-		//if debug {
-		//	logJSON(hlogger, request, "response")
-		//}
+		if debug {
+			logJSON(hlogger, request, "response")
+		}
 		return resp, nil
 	}
 	return logged(authDeviceFunc)
@@ -75,9 +74,7 @@ func getDeviceAuthToken(r interface{}) (string, error) {
 	if dat, ok := r.(interface{ deviceAuthToken() string }); ok {
 		return dat.deviceAuthToken(), nil
 	}
-	return "", osqueryError{
-		message: "request type does not implement deviceAuthToken method. This is likely a Fleet programmer error.",
-	}
+	return "", fleet.NewAuthRequiredError("request type does not implement deviceAuthToken method. This is likely a Fleet programmer error.")
 }
 
 // authenticatedHost wraps an endpoint, checks the validity of the node_key
