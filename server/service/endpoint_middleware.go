@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"reflect"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -43,32 +42,42 @@ func authenticatedDevice(svc fleet.Service, logger log.Logger, next endpoint.End
 		if err != nil {
 			return nil, err
 		}
+		_ = token
 
-		host, debug, err := svc.AuthenticateDevice(ctx, token)
-		if err != nil {
-			logging.WithErr(ctx, err)
-			return nil, err
-		}
+		//host, debug, err := svc.AuthenticateDevice(ctx, token)
+		//if err != nil {
+		//	logging.WithErr(ctx, err)
+		//	return nil, err
+		//}
 
-		hlogger := log.With(logger, "host-id", host.ID)
-		if debug {
-			logJSON(hlogger, request, "request")
-		}
+		//hlogger := log.With(logger, "host-id", host.ID)
+		//if debug {
+		//	logJSON(hlogger, request, "request")
+		//}
 
-		ctx = hostctx.NewContext(ctx, host)
-		instrumentHostLogger(ctx)
+		//ctx = hostctx.NewContext(ctx, host)
+		//instrumentHostLogger(ctx)
 
 		resp, err := next(ctx, request)
 		if err != nil {
 			return nil, err
 		}
 
-		if debug {
-			logJSON(hlogger, request, "response")
-		}
+		//if debug {
+		//	logJSON(hlogger, request, "response")
+		//}
 		return resp, nil
 	}
 	return logged(authDeviceFunc)
+}
+
+func getDeviceAuthToken(r interface{}) (string, error) {
+	if dat, ok := r.(interface{ deviceAuthToken() string }); ok {
+		return dat.deviceAuthToken(), nil
+	}
+	return "", osqueryError{
+		message: "request type does not implement deviceAuthToken method. This is likely a Fleet programmer error.",
+	}
 }
 
 // authenticatedHost wraps an endpoint, checks the validity of the node_key
@@ -109,29 +118,12 @@ func authenticatedHost(svc fleet.Service, logger log.Logger, next endpoint.Endpo
 }
 
 func getNodeKey(r interface{}) (string, error) {
-	// Retrieve node key by reflection (note that our options here
-	// are limited by the fact that request is an interface{})
-	v := reflect.ValueOf(r)
-	if v.Kind() == reflect.Ptr {
-		v = v.Elem()
+	if hnk, ok := r.(interface{ hostNodeKey() string }); ok {
+		return hnk.hostNodeKey(), nil
 	}
-	if v.Kind() != reflect.Struct {
-		return "", osqueryError{
-			message: "request type is not struct. This is likely a Fleet programmer error.",
-		}
+	return "", osqueryError{
+		message: "request type does not implement hostNodeKey method. This is likely a Fleet programmer error.",
 	}
-	nodeKeyField := v.FieldByName("NodeKey")
-	if !nodeKeyField.IsValid() {
-		return "", osqueryError{
-			message: "request struct missing NodeKey. This is likely a Fleet programmer error.",
-		}
-	}
-	if nodeKeyField.Kind() != reflect.String {
-		return "", osqueryError{
-			message: "NodeKey is not a string. This is likely a Fleet programmer error.",
-		}
-	}
-	return nodeKeyField.String(), nil
 }
 
 // authenticatedUser wraps an endpoint, requires that the Fleet user is

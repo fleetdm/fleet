@@ -335,7 +335,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 
 	// device-authenticated endpoints
 	de := newDeviceAuthenticatedEndpointer(svc, logger, opts, r, "v1")
-	de.GET("/api/_version_/fleet/device/{token}", nil, nil) // TODO(mna): endpoint
+	de.GET("/api/_version_/fleet/device/{token}", getDeviceHostEndpoint, getDeviceHostRequest{})
 
 	// host-authenticated endpoints
 	he := newHostAuthenticatedEndpointer(svc, logger, opts, r, "v1")

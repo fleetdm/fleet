@@ -148,6 +148,10 @@ type carveBeginRequest struct {
 	RequestId  string `json:"request_id"`
 }
 
+func (r *carveBeginRequest) hostNodeKey() string {
+	return r.NodeKey
+}
+
 type carveBeginResponse struct {
 	SessionId string `json:"session_id"`
 	Success   bool   `json:"success,omitempty"`
