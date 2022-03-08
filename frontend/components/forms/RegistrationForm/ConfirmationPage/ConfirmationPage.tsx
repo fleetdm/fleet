@@ -11,7 +11,7 @@ interface IConfirmationPageProps {
   className: string;
   currentPage: boolean;
   formData: IRegistrationFormData;
-  handleSubmit: () => void; // TODO: meant to be an event; figure out type for this
+  handleSubmit: React.FormEventHandler<HTMLFormElement>;
 }
 
 const ConfirmationPage = ({
