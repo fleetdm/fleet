@@ -1,7 +1,9 @@
 package fleet
 
 import (
+	"errors"
 	"fmt"
+	"unicode"
 
 	"github.com/fleetdm/fleet/v4/server"
 	"golang.org/x/crypto/bcrypt"
@@ -69,6 +71,104 @@ type UserPayload struct {
 	Teams                    *[]UserTeam `json:"teams,omitempty"`
 }
 
+func (p *UserPayload) VerifyInviteCreate() error {
+	invalid := &InvalidArgumentError{}
+	if p.Name == nil {
+		invalid.Append("name", "Full name missing required argument")
+	} else if *p.Name == "" {
+		invalid.Append("name", "Full name cannot be empty")
+	}
+
+	// we don't need a password for single sign on
+	if p.SSOInvite == nil || !*p.SSOInvite {
+		if p.Password == nil {
+			invalid.Append("password", "Password missing required argument")
+		} else if *p.Password == "" {
+			invalid.Append("password", "Password cannot be empty")
+		} else if err := ValidatePasswordRequirements(*p.Password); err != nil {
+			invalid.Append("password", err.Error())
+		}
+	}
+
+	if p.Email == nil {
+		invalid.Append("email", "Email missing required argument")
+	} else if *p.Email == "" {
+		invalid.Append("email", "Email cannot be empty")
+	}
+
+	if p.InviteToken == nil {
+		invalid.Append("invite_token", "Invite token missing required argument")
+	} else if *p.InviteToken == "" {
+		invalid.Append("invite_token", "Invite token cannot be empty")
+	}
+
+	if invalid.HasErrors() {
+		return invalid
+	}
+	return nil
+}
+
+func (p *UserPayload) VerifyAdminCreate() error {
+	invalid := &InvalidArgumentError{}
+	if p.Name == nil {
+		invalid.Append("name", "Full name missing required argument")
+	} else if *p.Name == "" {
+		invalid.Append("name", "Full name cannot be empty")
+	}
+
+	// we don't need a password for single sign on
+	if (p.SSOInvite == nil || !*p.SSOInvite) && (p.SSOEnabled == nil || !*p.SSOEnabled) {
+		if p.Password == nil {
+			invalid.Append("password", "Password missing required argument")
+		} else if *p.Password == "" {
+			invalid.Append("password", "Password cannot be empty")
+		}
+		// Skip password validation in the case of admin created users
+	}
+
+	if p.SSOEnabled != nil && *p.SSOEnabled && p.Password != nil && len(*p.Password) > 0 {
+		invalid.Append("password", "not allowed for SSO users")
+	}
+
+	if p.Email == nil {
+		invalid.Append("email", "Email missing required argument")
+	} else if *p.Email == "" {
+		invalid.Append("email", "Email cannot be empty")
+	}
+
+	if p.InviteToken != nil {
+		invalid.Append("invite_token", "Invite token should not be specified with admin user creation")
+	}
+
+	if invalid.HasErrors() {
+		return invalid
+	}
+	return nil
+}
+
+func (p *UserPayload) VerifyModify(ownUser bool) error {
+	invalid := &InvalidArgumentError{}
+	if p.Name != nil && *p.Name == "" {
+		invalid.Append("name", "Full name cannot be empty")
+	}
+
+	if p.Email != nil {
+		if *p.Email == "" {
+			invalid.Append("email", "Email cannot be empty")
+		}
+		// if the user is not an admin, or if an admin is changing their own email
+		// address a password is required,
+		if ownUser && p.Password == nil {
+			invalid.Append("password", "Password cannot be empty if email is changed")
+		}
+	}
+
+	if invalid.HasErrors() {
+		return invalid
+	}
+	return nil
+}
+
 // User creates a user from payload.
 func (p UserPayload) User(keySize, cost int) (*User, error) {
 	user := &User{
@@ -129,4 +229,32 @@ func (u *User) SetPassword(plaintext string, keySize, cost int) error {
 	u.Salt = salt
 	u.Password = hashed
 	return nil
+}
+
+// Requirements for user password:
+// at least 7 character length
+// at least 1 symbol
+// at least 1 number
+func ValidatePasswordRequirements(password string) error {
+	var (
+		number bool
+		symbol bool
+	)
+
+	for _, s := range password {
+		switch {
+		case unicode.IsNumber(s):
+			number = true
+		case unicode.IsPunct(s) || unicode.IsSymbol(s):
+			symbol = true
+		}
+	}
+
+	if len(password) >= 7 &&
+		number &&
+		symbol {
+		return nil
+	}
+
+	return errors.New("Password does not meet validation requirements")
 }

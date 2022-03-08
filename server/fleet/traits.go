@@ -2,7 +2,7 @@ package fleet
 
 import "time"
 
-// Createable contains common timestamp fields indicating create time
+// CreateTimestamp contains common timestamp fields indicating create time
 type CreateTimestamp struct {
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 }
