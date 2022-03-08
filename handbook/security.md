@@ -30,7 +30,7 @@ Our policy, which applies to Fleet owned laptops purchased via Apple's DEP (Devi
 | #   | Setting                                                                                |
 | --- | -------------------------------------------------------------------------------------- |
 | 1.1 | Ensure all Apple-provided software is current                                          |
-| 1.2 | Ensure auto update is enabled                                                          |                          |
+| 1.2 | Ensure auto update is enabled                                                          |
 | 1.4 | Ensure installation of app updates is enabled                                          |
 | 1.5 | Ensure system data files and security updates are downloaded automatically is enabled |
 | 1.6 | Ensure install of macOS updates is enabled                             |
