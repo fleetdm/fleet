@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	authzctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -265,10 +266,18 @@ func getHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service
 }
 
 func (svc *Service) GetHost(ctx context.Context, id uint) (*fleet.HostDetail, error) {
-	// First ensure the user has access to list hosts, then check the specific
-	// host once team_id is loaded.
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
-		return nil, err
+	// can be already authorized if coming from device auth token endpoint
+	var alreadyAuthd bool
+	if authctx, ok := authzctx.FromContext(ctx); ok {
+		alreadyAuthd = authctx.Checked()
+	}
+
+	if !alreadyAuthd {
+		// First ensure the user has access to list hosts, then check the specific
+		// host once team_id is loaded.
+		if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+			return nil, err
+		}
 	}
 
 	host, err := svc.ds.Host(ctx, id, false)
@@ -276,9 +285,11 @@ func (svc *Service) GetHost(ctx context.Context, id uint) (*fleet.HostDetail, er
 		return nil, ctxerr.Wrap(ctx, err, "get host")
 	}
 
-	// Authorize again with team loaded now that we have team_id
-	if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
-		return nil, err
+	if !alreadyAuthd {
+		// Authorize again with team loaded now that we have team_id
+		if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
+			return nil, err
+		}
 	}
 
 	return svc.getHostDetails(ctx, host)
