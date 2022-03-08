@@ -366,7 +366,7 @@ The following highlights should be considered when deciding if feature flags sho
 Fleet's feature flag guidelines borrows from GitLab's ["When to use feature flags" section](https://about.gitlab.com/handbook/product-development-flow/feature-flag-lifecycle/#when-to-use-feature-flags) of their handbook. Check out [GitLab's "Feature flags only when needed" video](https://www.youtube.com/watch?v=DQaGqyolOd8) for an explanation on the costs of introducing feature flags.
 
 
-## Slack directory
+## Slack channels
 
 These are the Slack channels the product team maintains. If the channel has a [directly responsible individual](./people.md#directly-resonsible-individuals) (**DRI**), they will be specified. These people are responsible for keeping up with all new messages, even if they aren't mentioned. 
 

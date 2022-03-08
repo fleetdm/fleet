@@ -551,7 +551,7 @@ We use [Dependabot](https://github.com/dependabot) to create pull requests to up
 
 We ensure the fixes to vulnerable dependencies are also performed according to our remediation timeline. We fix as many dependencies as possible in a single release.
 
-## Slack directory
+## Slack channels
 
 These are the Slack channels the security team maintains. If the channel has a [directly responsible individual](./people.md#directly-resonsible-individuals) (**DRI**), they will be specified. These people are responsible for keeping up with all new messages, even if they aren't mentioned. 
 

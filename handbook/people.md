@@ -148,7 +148,7 @@ We use threads in Slack as much as possible. Threads help limit noise for other 
 
 We configure our working hours in Slack to ensure everyone knows when they can get in touch with others.
 
-### Slack channels
+### Slack channel prefixes
 
 We have specific channels for various topics, but we also have more general channels for the teams at Fleet.
 
@@ -251,11 +251,11 @@ When the final signature is added to an envelope in Docusign, it is marked as co
       link: drive.google.com/[destinationFolderID]
    ```
 
-## Slack directory
+## Slack channels
 
 These are the Slack channels the digital experience team maintains. If the channel has a [directly responsible individual](#directly-resonsible-individuals) (**DRI**), they will be specified. These people are responsible for keeping up with all new messages, even if they aren't mentioned. 
 
-- **#g-digital-experience** - **DRI**: Mike McNeil
+- **#g-digital-experience** - **DRI**: Mike Thomas
 - **#peepops** - **DRI**: Eric Shaw
 - **#help-onboarding** - **DRI**: Eric Shaw
 

@@ -26,13 +26,13 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [People ops](./people.md#people-ops)
 
-[Slack directory](./people.md#slack-directory)
+[Slack channels](./people.md#slack-channels)
 
 ### Engineering
 
 [Release process](./engineering.md#release-process)
 
-[Slack directory](./engineering.md#slack-directory)
+[Slack channels](./engineering.md#slack-channels)
 
 ### Product
 
@@ -46,7 +46,7 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Feature flags](./product.md#feature-flags)
 
-[Slack directory](./product.md#slack-directory)
+[Slack channels](./product.md#slack-channels)
 
 ### Security
 
@@ -56,7 +56,7 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Vulnerability management in Fleet](./security.md#vulnerability-management)
 
-[Slack directory](./security.md#slack-directory)
+[Slack channels](./security.md#slack-channels)
 
 ### Brand
 
@@ -74,7 +74,7 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Support process](./customers.md#support-process)
 
-[Slack directory](./customers.md#slack-directory)
+[Slack channels](./customers.md#slack-channels)
 
 ### Community
 
@@ -92,7 +92,7 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Fleet swag](./community.md#fleet-swag)
 
-[Slack directory](./community.md#slack-directory)
+[Slack channels](./community.md#slack-channels)
 
 ### Handbook
 
