@@ -81,3 +81,29 @@ func (svc *Service) AuthenticateDevice(ctx context.Context, authToken string) (*
 
 	return host, svc.debugEnabledForHost(ctx, host.ID), nil
 }
+
+/////////////////////////////////////////////////////////////////////////////////
+// Refetch Current Device's Host
+/////////////////////////////////////////////////////////////////////////////////
+
+type refetchDeviceHostRequest struct {
+	Token string `url:"token"`
+}
+
+func (r *refetchDeviceHostRequest) deviceAuthToken() string {
+	return r.Token
+}
+
+func refetchDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
+		return getHostResponse{Err: err}, nil
+	}
+
+	err := svc.RefetchHost(ctx, host.ID)
+	if err != nil {
+		return refetchHostResponse{Err: err}, nil
+	}
+	return refetchHostResponse{}, nil
+}

@@ -556,22 +556,30 @@ func refetchHostEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 }
 
 func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
-		return err
+	// can be already authorized if coming from device auth token endpoint
+	var alreadyAuthd bool
+	if authctx, ok := authzctx.FromContext(ctx); ok {
+		alreadyAuthd = authctx.Checked()
 	}
 
-	host, err := svc.ds.HostLite(ctx, id)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "find host for refetch")
+	if !alreadyAuthd {
+		if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+			return err
+		}
+
+		host, err := svc.ds.HostLite(ctx, id)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "find host for refetch")
+		}
+
+		// We verify fleet.ActionRead instead of fleet.ActionWrite because we want to allow
+		// observers to be able to refetch hosts.
+		if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
+			return err
+		}
 	}
 
-	// We verify fleet.ActionRead instead of fleet.ActionWrite because we want to allow
-	// observers to be able to refetch hosts.
-	if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
-		return err
-	}
-
-	if err := svc.ds.UpdateHostRefetchRequested(ctx, host.ID, true); err != nil {
+	if err := svc.ds.UpdateHostRefetchRequested(ctx, id, true); err != nil {
 		return ctxerr.Wrap(ctx, err, "save host")
 	}
 
