@@ -452,7 +452,7 @@ const MembersPage = ({
         <TableContainer
           resultsTitle={"members"}
           columns={tableHeaders}
-          data={members}
+          data={members || []}
           isLoading={isLoadingMembers}
           defaultSortHeader={"name"}
           defaultSortDirection={"asc"}
