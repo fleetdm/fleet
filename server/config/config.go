@@ -395,7 +395,7 @@ func (man Manager) addConfigs() {
 	// Session
 	man.addConfigInt("session.key_size", 64,
 		"Size of generated session keys")
-	man.addConfigDuration("session.duration", 24*time.Hour,
+	man.addConfigDuration("session.duration", 24*5*time.Hour,
 		"Duration session keys remain valid (i.e. 4h)")
 
 	// Osquery
@@ -943,7 +943,7 @@ func TestConfig() FleetConfig {
 		},
 		Session: SessionConfig{
 			KeySize:  64,
-			Duration: 24 * 90 * time.Hour,
+			Duration: 24 * 5 * time.Hour,
 		},
 		Osquery: OsqueryConfig{
 			NodeKeySize:          24,

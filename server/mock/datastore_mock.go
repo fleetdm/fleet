@@ -190,7 +190,7 @@ type NewPasswordResetRequestFunc func(ctx context.Context, req *fleet.PasswordRe
 
 type DeletePasswordResetRequestsForUserFunc func(ctx context.Context, userID uint) error
 
-type FindPassswordResetByTokenFunc func(ctx context.Context, token string) (*fleet.PasswordResetRequest, error)
+type FindPasswordResetByTokenFunc func(ctx context.Context, token string) (*fleet.PasswordResetRequest, error)
 
 type SessionByKeyFunc func(ctx context.Context, key string) (*fleet.Session, error)
 
@@ -650,8 +650,8 @@ type DataStore struct {
 	DeletePasswordResetRequestsForUserFunc        DeletePasswordResetRequestsForUserFunc
 	DeletePasswordResetRequestsForUserFuncInvoked bool
 
-	FindPassswordResetByTokenFunc        FindPassswordResetByTokenFunc
-	FindPassswordResetByTokenFuncInvoked bool
+	FindPasswordResetByTokenFunc        FindPasswordResetByTokenFunc
+	FindPasswordResetByTokenFuncInvoked bool
 
 	SessionByKeyFunc        SessionByKeyFunc
 	SessionByKeyFuncInvoked bool
@@ -1384,9 +1384,9 @@ func (s *DataStore) DeletePasswordResetRequestsForUser(ctx context.Context, user
 	return s.DeletePasswordResetRequestsForUserFunc(ctx, userID)
 }
 
-func (s *DataStore) FindPassswordResetByToken(ctx context.Context, token string) (*fleet.PasswordResetRequest, error) {
-	s.FindPassswordResetByTokenFuncInvoked = true
-	return s.FindPassswordResetByTokenFunc(ctx, token)
+func (s *DataStore) FindPasswordResetByToken(ctx context.Context, token string) (*fleet.PasswordResetRequest, error) {
+	s.FindPasswordResetByTokenFuncInvoked = true
+	return s.FindPasswordResetByTokenFunc(ctx, token)
 }
 
 func (s *DataStore) SessionByKey(ctx context.Context, key string) (*fleet.Session, error) {

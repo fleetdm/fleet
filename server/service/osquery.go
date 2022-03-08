@@ -8,7 +8,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"sync"
 	"sync/atomic"
 	"time"
 
@@ -38,9 +37,7 @@ func (e osqueryError) NodeInvalid() bool {
 	return e.nodeInvalid
 }
 
-var counter = int64(0)
-
-func (svc Service) AuthenticateHost(ctx context.Context, nodeKey string) (*fleet.Host, bool, error) {
+func (svc *Service) AuthenticateHost(ctx context.Context, nodeKey string) (*fleet.Host, bool, error) {
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
 
@@ -78,23 +75,33 @@ func (svc Service) AuthenticateHost(ctx context.Context, nodeKey string) (*fleet
 	return host, svc.debugEnabledForHost(ctx, host.ID), nil
 }
 
-func (svc Service) debugEnabledForHost(ctx context.Context, id uint) bool {
-	hlogger := log.With(svc.logger, "host-id", id)
-	ac, err := svc.ds.AppConfig(ctx)
-	if err != nil {
-		level.Debug(hlogger).Log("err", ctxerr.Wrap(ctx, err, "getting app config for host debug"))
-		return false
-	}
+////////////////////////////////////////////////////////////////////////////////
+// Enroll Agent
+////////////////////////////////////////////////////////////////////////////////
 
-	for _, hostID := range ac.ServerSettings.DebugHostIDs {
-		if hostID == id {
-			return true
-		}
-	}
-	return false
+type enrollAgentRequest struct {
+	EnrollSecret   string                         `json:"enroll_secret"`
+	HostIdentifier string                         `json:"host_identifier"`
+	HostDetails    map[string](map[string]string) `json:"host_details"`
 }
 
-func (svc Service) EnrollAgent(ctx context.Context, enrollSecret, hostIdentifier string, hostDetails map[string](map[string]string)) (string, error) {
+type enrollAgentResponse struct {
+	NodeKey string `json:"node_key,omitempty"`
+	Err     error  `json:"error,omitempty"`
+}
+
+func (r enrollAgentResponse) error() error { return r.Err }
+
+func enrollAgentEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*enrollAgentRequest)
+	nodeKey, err := svc.EnrollAgent(ctx, req.EnrollSecret, req.HostIdentifier, req.HostDetails)
+	if err != nil {
+		return enrollAgentResponse{Err: err}, nil
+	}
+	return enrollAgentResponse{NodeKey: nodeKey}, nil
+}
+
+func (svc *Service) EnrollAgent(ctx context.Context, enrollSecret, hostIdentifier string, hostDetails map[string](map[string]string)) (string, error) {
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
 
@@ -166,7 +173,9 @@ func (svc Service) EnrollAgent(ctx context.Context, enrollSecret, hostIdentifier
 	return nodeKey, nil
 }
 
-func (svc Service) serialUpdateHost(host *fleet.Host) {
+var counter = int64(0)
+
+func (svc *Service) serialUpdateHost(host *fleet.Host) {
 	newVal := atomic.AddInt64(&counter, 1)
 	defer func() {
 		atomic.AddInt64(&counter, -1)
@@ -246,6 +255,48 @@ func getHostIdentifier(logger log.Logger, identifierOption, providedIdentifier s
 	}
 
 	return providedIdentifier
+}
+
+func (svc *Service) debugEnabledForHost(ctx context.Context, id uint) bool {
+	hlogger := log.With(svc.logger, "host-id", id)
+	ac, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		level.Debug(hlogger).Log("err", ctxerr.Wrap(ctx, err, "getting app config for host debug"))
+		return false
+	}
+
+	for _, hostID := range ac.ServerSettings.DebugHostIDs {
+		if hostID == id {
+			return true
+		}
+	}
+	return false
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Get Client Config
+////////////////////////////////////////////////////////////////////////////////
+
+type getClientConfigRequest struct {
+	NodeKey string `json:"node_key"`
+}
+
+type getClientConfigResponse struct {
+	Config map[string]interface{}
+	Err    error `json:"error,omitempty"`
+}
+
+func (r getClientConfigResponse) error() error { return r.Err }
+
+func getClientConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	config, err := svc.GetClientConfig(ctx)
+	if err != nil {
+		return getClientConfigResponse{Err: err}, nil
+	}
+
+	// We return the config here explicitly because osquery exepects the
+	// response for configs to be at the top-level of the JSON response
+	return config, nil
 }
 
 func (svc *Service) GetClientConfig(ctx context.Context) (map[string]interface{}, error) {
@@ -368,199 +419,60 @@ func (svc *Service) GetClientConfig(ctx context.Context) (map[string]interface{}
 	return config, nil
 }
 
-func (svc *Service) SubmitStatusLogs(ctx context.Context, logs []json.RawMessage) error {
-	// skipauth: Authorization is currently for user endpoints only.
-	svc.authz.SkipAuthorization(ctx)
+// AgentOptionsForHost gets the agent options for the provided host.
+// The host information should be used for filtering based on team, platform, etc.
+func (svc *Service) AgentOptionsForHost(ctx context.Context, hostTeamID *uint, hostPlatform string) (json.RawMessage, error) {
+	// Team agent options have priority over global options.
+	if hostTeamID != nil {
+		teamAgentOptions, err := svc.ds.TeamAgentOptions(ctx, *hostTeamID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "load team agent options for host")
+		}
 
-	if err := svc.osqueryLogWriter.Status.Write(ctx, logs); err != nil {
-		return osqueryError{message: "error writing status logs: " + err.Error()}
-	}
-	return nil
-}
-
-func (svc *Service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage) error {
-	// skipauth: Authorization is currently for user endpoints only.
-	svc.authz.SkipAuthorization(ctx)
-
-	if err := svc.osqueryLogWriter.Result.Write(ctx, logs); err != nil {
-		return osqueryError{message: "error writing result logs: " + err.Error()}
-	}
-	return nil
-}
-
-// hostLabelQueryPrefix is appended before the query name when a query is
-// provided as a label query. This allows the results to be retrieved when
-// osqueryd writes the distributed query results.
-const hostLabelQueryPrefix = "fleet_label_query_"
-
-// hostDetailQueryPrefix is appended before the query name when a query is
-// provided as a detail query.
-const hostDetailQueryPrefix = "fleet_detail_query_"
-
-// hostAdditionalQueryPrefix is appended before the query name when a query is
-// provided as an additional query (additional info for hosts to retrieve).
-const hostAdditionalQueryPrefix = "fleet_additional_query_"
-
-// hostPolicyQueryPrefix is appended before the query name when a query is
-// provided as a policy query. This allows the results to be retrieved when
-// osqueryd writes the distributed query results.
-const hostPolicyQueryPrefix = "fleet_policy_query_"
-
-// hostDistributedQueryPrefix is appended before the query name when a query is
-// run from a distributed query campaign
-const hostDistributedQueryPrefix = "fleet_distributed_query_"
-
-// detailQueriesForHost returns the map of detail+additional queries that should be executed by
-// osqueryd to fill in the host details.
-func (svc *Service) detailQueriesForHost(ctx context.Context, host *fleet.Host) (map[string]string, error) {
-	if !svc.shouldUpdate(host.DetailUpdatedAt, svc.config.Osquery.DetailUpdateInterval, host.ID) && !host.RefetchRequested {
-		return nil, nil
-	}
-
-	config, err := svc.ds.AppConfig(ctx)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "read app config")
-	}
-
-	queries := make(map[string]string)
-	detailQueries := osquery_utils.GetDetailQueries(config, svc.config)
-	for name, query := range detailQueries {
-		if query.RunsForPlatform(host.Platform) {
-			queries[hostDetailQueryPrefix+name] = query.Query
+		if teamAgentOptions != nil && len(*teamAgentOptions) > 0 {
+			var options fleet.AgentOptions
+			if err := json.Unmarshal(*teamAgentOptions, &options); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "unmarshal team agent options")
+			}
+			return options.ForPlatform(hostPlatform), nil
 		}
 	}
-
-	if config.HostSettings.AdditionalQueries == nil {
-		// No additional queries set
-		return queries, nil
+	// Otherwise return the appropriate override for global options.
+	appConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "load global agent options")
 	}
-
-	var additionalQueries map[string]string
-	if err := json.Unmarshal(*config.HostSettings.AdditionalQueries, &additionalQueries); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "unmarshal additional queries")
-	}
-
-	for name, query := range additionalQueries {
-		queries[hostAdditionalQueryPrefix+name] = query
-	}
-
-	return queries, nil
-}
-
-func (svc *Service) shouldUpdate(lastUpdated time.Time, interval time.Duration, hostID uint) bool {
-	svc.jitterMu.Lock()
-	defer svc.jitterMu.Unlock()
-
-	if svc.jitterH[interval] == nil {
-		svc.jitterH[interval] = newJitterHashTable(int(int64(svc.config.Osquery.MaxJitterPercent) * int64(interval.Minutes()) / 100.0))
-		level.Debug(svc.logger).Log("jitter", "created", "bucketCount", svc.jitterH[interval].bucketCount)
-	}
-
-	jitter := svc.jitterH[interval].jitterForHost(hostID)
-	cutoff := svc.clock.Now().Add(-(interval + jitter))
-	return lastUpdated.Before(cutoff)
-}
-
-// jitterHashTable implements a data structure that allows a fleet to generate a static jitter value
-// that is properly balanced. Balance in this context means that hosts would be distributed uniformly
-// across the total jitter time so there are no spikes.
-// The way this structure works is as follows:
-// Given an amount of buckets, we want to place hosts in buckets evenly. So we don't want bucket 0 to
-// have 1000 hosts, and all the other buckets 0. If there were 1000 buckets, and 1000 hosts, we should
-// end up with 1 per bucket.
-// The total amount of online hosts is unknown, so first it assumes that amount of buckets >= amount
-// of total hosts (maxCapacity of 1 per bucket). Once we have more hosts than buckets, then we
-// increase the maxCapacity by 1 for all buckets, and start placing hosts.
-// Hosts that have been placed in a bucket remain in that bucket for as long as the fleet instance is
-// running.
-// The preferred bucket for a host is the one at (host id % bucketCount). If that bucket is full, the
-// next one will be tried. If all buckets are full, then capacity gets increased and the bucket
-// selection process restarts.
-// Once a bucket is found, the index for the bucket (going from 0 to bucketCount) will be the amount of
-// minutes added to the host check in time.
-// For example: at a 1hr interval, and the default 10% max jitter percent. That allows hosts to
-// distribute within 6 minutes around the hour mark. We would have 6 buckets in that case.
-// In the worst possible case that all hosts start at the same time, max jitter percent can be set to
-// 100, and this method will distribute hosts evenly.
-// The main caveat of this approach is that it works at the fleet instance. So depending on what
-// instance gets chosen by the load balancer, the jitter might be different. However, load tests have
-// shown that the distribution in practice is pretty balance even when all hosts try to check in at
-// the same time.
-type jitterHashTable struct {
-	mu          sync.Mutex
-	maxCapacity int
-	bucketCount int
-	buckets     map[int]int
-	cache       map[uint]time.Duration
-}
-
-func newJitterHashTable(bucketCount int) *jitterHashTable {
-	if bucketCount == 0 {
-		bucketCount = 1
-	}
-	return &jitterHashTable{
-		maxCapacity: 1,
-		bucketCount: bucketCount,
-		buckets:     make(map[int]int),
-		cache:       make(map[uint]time.Duration),
-	}
-}
-
-func (jh *jitterHashTable) jitterForHost(hostID uint) time.Duration {
-	// if no jitter is configured just return 0
-	if jh.bucketCount <= 1 {
-		return 0
-	}
-
-	jh.mu.Lock()
-	if jitter, ok := jh.cache[hostID]; ok {
-		jh.mu.Unlock()
-		return jitter
-	}
-
-	for i := 0; i < jh.bucketCount; i++ {
-		possibleBucket := (int(hostID) + i) % jh.bucketCount
-
-		// if the next bucket has capacity, great!
-		if jh.buckets[possibleBucket] < jh.maxCapacity {
-			jh.buckets[possibleBucket]++
-			jitter := time.Duration(possibleBucket) * time.Minute
-			jh.cache[hostID] = jitter
-
-			jh.mu.Unlock()
-			return jitter
+	var options fleet.AgentOptions
+	if appConfig.AgentOptions != nil {
+		if err := json.Unmarshal(*appConfig.AgentOptions, &options); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "unmarshal global agent options")
 		}
 	}
-
-	// otherwise, bump the capacity and restart the process
-	jh.maxCapacity++
-
-	jh.mu.Unlock()
-	return jh.jitterForHost(hostID)
+	return options.ForPlatform(hostPlatform), nil
 }
 
-func (svc *Service) labelQueriesForHost(ctx context.Context, host *fleet.Host) (map[string]string, error) {
-	labelReportedAt := svc.task.GetHostLabelReportedAt(ctx, host)
-	if !svc.shouldUpdate(labelReportedAt, svc.config.Osquery.LabelUpdateInterval, host.ID) && !host.RefetchRequested {
-		return nil, nil
-	}
-	labelQueries, err := svc.ds.LabelQueriesForHost(ctx, host)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "retrieve label queries")
-	}
-	return labelQueries, nil
+////////////////////////////////////////////////////////////////////////////////
+// Get Distributed Queries
+////////////////////////////////////////////////////////////////////////////////
+
+type getDistributedQueriesRequest struct {
+	NodeKey string `json:"node_key"`
 }
 
-func (svc *Service) policyQueriesForHost(ctx context.Context, host *fleet.Host) (map[string]string, error) {
-	policyReportedAt := svc.task.GetHostPolicyReportedAt(ctx, host)
-	if !svc.shouldUpdate(policyReportedAt, svc.config.Osquery.PolicyUpdateInterval, host.ID) && !host.RefetchRequested {
-		return nil, nil
-	}
-	policyQueries, err := svc.ds.PolicyQueriesForHost(ctx, host)
+type getDistributedQueriesResponse struct {
+	Queries    map[string]string `json:"queries"`
+	Accelerate uint              `json:"accelerate,omitempty"`
+	Err        error             `json:"error,omitempty"`
+}
+
+func (r getDistributedQueriesResponse) error() error { return r.Err }
+
+func getDistributedQueriesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	queries, accelerate, err := svc.GetDistributedQueries(ctx)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "retrieve policy queries")
+		return getDistributedQueriesResponse{Err: err}, nil
 	}
-	return policyQueries, nil
+	return getDistributedQueriesResponse{Queries: queries, Accelerate: accelerate}, nil
 }
 
 func (svc *Service) GetDistributedQueries(ctx context.Context) (map[string]string, uint, error) {
@@ -620,148 +532,190 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (map[string]strin
 	return queries, accelerate, nil
 }
 
-// ingestDetailQuery takes the results of a detail query and modifies the
-// provided fleet.Host appropriately.
-func (svc *Service) ingestDetailQuery(ctx context.Context, host *fleet.Host, name string, rows []map[string]string) error {
+// detailQueriesForHost returns the map of detail+additional queries that should be executed by
+// osqueryd to fill in the host details.
+func (svc *Service) detailQueriesForHost(ctx context.Context, host *fleet.Host) (map[string]string, error) {
+	if !svc.shouldUpdate(host.DetailUpdatedAt, svc.config.Osquery.DetailUpdateInterval, host.ID) && !host.RefetchRequested {
+		return nil, nil
+	}
+
 	config, err := svc.ds.AppConfig(ctx)
 	if err != nil {
-		return osqueryError{message: "ingest detail query: " + err.Error()}
+		return nil, ctxerr.Wrap(ctx, err, "read app config")
 	}
 
+	queries := make(map[string]string)
 	detailQueries := osquery_utils.GetDetailQueries(config, svc.config)
-	query, ok := detailQueries[name]
-	if !ok {
-		return osqueryError{message: "unknown detail query " + name}
-	}
-
-	if query.IngestFunc != nil {
-		err = query.IngestFunc(svc.logger, host, rows)
-		if err != nil {
-			return osqueryError{
-				message: fmt.Sprintf("ingesting query %s: %s", name, err.Error()),
-			}
+	for name, query := range detailQueries {
+		if query.RunsForPlatform(host.Platform) {
+			queries[hostDetailQueryPrefix+name] = query.Query
 		}
 	}
 
-	return nil
+	if config.HostSettings.AdditionalQueries == nil {
+		// No additional queries set
+		return queries, nil
+	}
+
+	var additionalQueries map[string]string
+	if err := json.Unmarshal(*config.HostSettings.AdditionalQueries, &additionalQueries); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "unmarshal additional queries")
+	}
+
+	for name, query := range additionalQueries {
+		queries[hostAdditionalQueryPrefix+name] = query
+	}
+
+	return queries, nil
 }
 
-// ingestMembershipQuery records the results of label queries run by a host
-func ingestMembershipQuery(
-	prefix string,
-	query string,
-	rows []map[string]string,
-	results map[uint]*bool,
-	failed bool,
-) error {
-	trimmedQuery := strings.TrimPrefix(query, prefix)
-	trimmedQueryNum, err := strconv.Atoi(osquery_utils.EmptyToZero(trimmedQuery))
-	if err != nil {
-		return fmt.Errorf("converting query from string to int: %w", err)
-	}
-	// A label/policy query matches if there is at least one result for that
-	// query. We must also store negative results.
-	if failed {
-		results[uint(trimmedQueryNum)] = nil
-	} else {
-		results[uint(trimmedQueryNum)] = ptr.Bool(len(rows) > 0)
+func (svc *Service) shouldUpdate(lastUpdated time.Time, interval time.Duration, hostID uint) bool {
+	svc.jitterMu.Lock()
+	defer svc.jitterMu.Unlock()
+
+	if svc.jitterH[interval] == nil {
+		svc.jitterH[interval] = newJitterHashTable(int(int64(svc.config.Osquery.MaxJitterPercent) * int64(interval.Minutes()) / 100.0))
+		level.Debug(svc.logger).Log("jitter", "created", "bucketCount", svc.jitterH[interval].bucketCount)
 	}
 
-	return nil
+	jitter := svc.jitterH[interval].jitterForHost(hostID)
+	cutoff := svc.clock.Now().Add(-(interval + jitter))
+	return lastUpdated.Before(cutoff)
 }
 
-// ingestDistributedQuery takes the results of a distributed query and modifies the
-// provided fleet.Host appropriately.
-func (svc *Service) ingestDistributedQuery(ctx context.Context, host fleet.Host, name string, rows []map[string]string, failed bool, errMsg string) error {
-	trimmedQuery := strings.TrimPrefix(name, hostDistributedQueryPrefix)
-
-	campaignID, err := strconv.Atoi(osquery_utils.EmptyToZero(trimmedQuery))
+func (svc *Service) labelQueriesForHost(ctx context.Context, host *fleet.Host) (map[string]string, error) {
+	labelReportedAt := svc.task.GetHostLabelReportedAt(ctx, host)
+	if !svc.shouldUpdate(labelReportedAt, svc.config.Osquery.LabelUpdateInterval, host.ID) && !host.RefetchRequested {
+		return nil, nil
+	}
+	labelQueries, err := svc.ds.LabelQueriesForHost(ctx, host)
 	if err != nil {
-		return osqueryError{message: "unable to parse campaign ID: " + trimmedQuery}
+		return nil, ctxerr.Wrap(ctx, err, "retrieve label queries")
 	}
-
-	// Write the results to the pubsub store
-	res := fleet.DistributedQueryResult{
-		DistributedQueryCampaignID: uint(campaignID),
-		Host:                       host,
-		Rows:                       rows,
-	}
-	if failed {
-		res.Error = &errMsg
-	}
-
-	err = svc.resultStore.WriteResult(res)
-	if err != nil {
-		var pse pubsub.Error
-		ok := errors.As(err, &pse)
-		if !ok || !pse.NoSubscriber() {
-			return osqueryError{message: "writing results: " + err.Error()}
-		}
-
-		// If there are no subscribers, the campaign is "orphaned"
-		// and should be closed so that we don't continue trying to
-		// execute that query when we can't write to any subscriber
-		campaign, err := svc.ds.DistributedQueryCampaign(ctx, uint(campaignID))
-		if err != nil {
-			if err := svc.liveQueryStore.StopQuery(strconv.Itoa(campaignID)); err != nil {
-				return osqueryError{message: "stop orphaned campaign after load failure: " + err.Error()}
-			}
-			return osqueryError{message: "loading orphaned campaign: " + err.Error()}
-		}
-
-		if campaign.CreatedAt.After(svc.clock.Now().Add(-1 * time.Minute)) {
-			// Give the client a minute to connect before considering the
-			// campaign orphaned
-			return osqueryError{message: "campaign waiting for listener (please retry)"}
-		}
-
-		if campaign.Status != fleet.QueryComplete {
-			campaign.Status = fleet.QueryComplete
-			if err := svc.ds.SaveDistributedQueryCampaign(ctx, campaign); err != nil {
-				return osqueryError{message: "closing orphaned campaign: " + err.Error()}
-			}
-		}
-
-		if err := svc.liveQueryStore.StopQuery(strconv.Itoa(campaignID)); err != nil {
-			return osqueryError{message: "stopping orphaned campaign: " + err.Error()}
-		}
-
-		// No need to record query completion in this case
-		return osqueryError{message: "campaign stopped"}
-	}
-
-	err = svc.liveQueryStore.QueryCompletedByHost(strconv.Itoa(campaignID), host.ID)
-	if err != nil {
-		return osqueryError{message: "record query completion: " + err.Error()}
-	}
-
-	return nil
+	return labelQueries, nil
 }
 
-func (svc *Service) directIngestDetailQuery(ctx context.Context, host *fleet.Host, name string, rows []map[string]string, failed bool) (ingested bool, err error) {
-	config, err := svc.ds.AppConfig(ctx)
+func (svc *Service) policyQueriesForHost(ctx context.Context, host *fleet.Host) (map[string]string, error) {
+	policyReportedAt := svc.task.GetHostPolicyReportedAt(ctx, host)
+	if !svc.shouldUpdate(policyReportedAt, svc.config.Osquery.PolicyUpdateInterval, host.ID) && !host.RefetchRequested {
+		return nil, nil
+	}
+	policyQueries, err := svc.ds.PolicyQueriesForHost(ctx, host)
 	if err != nil {
-		return false, osqueryError{message: "ingest detail query: " + err.Error()}
+		return nil, ctxerr.Wrap(ctx, err, "retrieve policy queries")
 	}
-
-	detailQueries := osquery_utils.GetDetailQueries(config, svc.config)
-	query, ok := detailQueries[name]
-	if !ok {
-		return false, osqueryError{message: "unknown detail query " + name}
-	}
-	if query.DirectIngestFunc != nil {
-		err = query.DirectIngestFunc(ctx, svc.logger, host, svc.ds, rows, failed)
-		if err != nil {
-			return false, osqueryError{
-				message: fmt.Sprintf("ingesting query %s: %s", name, err.Error()),
-			}
-		}
-		return true, nil
-	}
-	return false, nil
+	return policyQueries, nil
 }
 
-var noSuchTableRegexp = regexp.MustCompile(`^no such table: \S+$`)
+////////////////////////////////////////////////////////////////////////////////
+// Write Distributed Query Results
+////////////////////////////////////////////////////////////////////////////////
+
+// When a distributed query has no results, the JSON schema is
+// inconsistent, so we use this shim and massage into a consistent
+// schema. For example (simplified from actual osqueryd 1.8.2 output):
+// {
+// "queries": {
+//   "query_with_no_results": "", // <- Note string instead of array
+//   "query_with_results": [{"foo":"bar","baz":"bang"}]
+//  },
+// "node_key":"IGXCXknWQ1baTa8TZ6rF3kAPZ4\/aTsui"
+// }
+type submitDistributedQueryResultsRequestShim struct {
+	NodeKey  string                     `json:"node_key"`
+	Results  map[string]json.RawMessage `json:"queries"`
+	Statuses map[string]interface{}     `json:"statuses"`
+	Messages map[string]string          `json:"messages"`
+}
+
+func (shim *submitDistributedQueryResultsRequestShim) toRequest(ctx context.Context) (*SubmitDistributedQueryResultsRequest, error) {
+	results := fleet.OsqueryDistributedQueryResults{}
+	for query, raw := range shim.Results {
+		queryResults := []map[string]string{}
+		// No need to handle error because the empty array is what we
+		// want if there was an error parsing the JSON (the error
+		// indicates that osquery sent us incosistently schemaed JSON)
+		_ = json.Unmarshal(raw, &queryResults)
+		results[query] = queryResults
+	}
+
+	// Statuses were represented by strings in osquery < 3.0 and now
+	// integers in osquery > 3.0. Massage to string for compatibility with
+	// the service definition.
+	statuses := map[string]fleet.OsqueryStatus{}
+	for query, status := range shim.Statuses {
+		switch s := status.(type) {
+		case string:
+			sint, err := strconv.Atoi(s)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "parse status to int")
+			}
+			statuses[query] = fleet.OsqueryStatus(sint)
+		case float64:
+			statuses[query] = fleet.OsqueryStatus(s)
+		default:
+			return nil, ctxerr.Errorf(ctx, "query status should be string or number, got %T", s)
+		}
+	}
+
+	return &SubmitDistributedQueryResultsRequest{
+		NodeKey:  shim.NodeKey,
+		Results:  results,
+		Statuses: statuses,
+		Messages: shim.Messages,
+	}, nil
+}
+
+type SubmitDistributedQueryResultsRequest struct {
+	NodeKey  string                               `json:"node_key"`
+	Results  fleet.OsqueryDistributedQueryResults `json:"queries"`
+	Statuses map[string]fleet.OsqueryStatus       `json:"statuses"`
+	Messages map[string]string                    `json:"messages"`
+}
+
+type submitDistributedQueryResultsResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r submitDistributedQueryResultsResponse) error() error { return r.Err }
+
+func submitDistributedQueryResultsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	shim := request.(*submitDistributedQueryResultsRequestShim)
+	req, err := shim.toRequest(ctx)
+	if err != nil {
+		return submitDistributedQueryResultsResponse{Err: err}, nil
+	}
+
+	err = svc.SubmitDistributedQueryResults(ctx, req.Results, req.Statuses, req.Messages)
+	if err != nil {
+		return submitDistributedQueryResultsResponse{Err: err}, nil
+	}
+	return submitDistributedQueryResultsResponse{}, nil
+}
+
+const (
+	// hostLabelQueryPrefix is appended before the query name when a query is
+	// provided as a label query. This allows the results to be retrieved when
+	// osqueryd writes the distributed query results.
+	hostLabelQueryPrefix = "fleet_label_query_"
+
+	// hostDetailQueryPrefix is appended before the query name when a query is
+	// provided as a detail query.
+	hostDetailQueryPrefix = "fleet_detail_query_"
+
+	// hostAdditionalQueryPrefix is appended before the query name when a query is
+	// provided as an additional query (additional info for hosts to retrieve).
+	hostAdditionalQueryPrefix = "fleet_additional_query_"
+
+	// hostPolicyQueryPrefix is appended before the query name when a query is
+	// provided as a policy query. This allows the results to be retrieved when
+	// osqueryd writes the distributed query results.
+	hostPolicyQueryPrefix = "fleet_policy_query_"
+
+	// hostDistributedQueryPrefix is appended before the query name when a query is
+	// run from a distributed query campaign
+	hostDistributedQueryPrefix = "fleet_distributed_query_"
+)
 
 func (svc *Service) SubmitDistributedQueryResults(
 	ctx context.Context,
@@ -900,6 +854,149 @@ func (svc *Service) SubmitDistributedQueryResults(
 	return nil
 }
 
+var noSuchTableRegexp = regexp.MustCompile(`^no such table: \S+$`)
+
+func (svc *Service) directIngestDetailQuery(ctx context.Context, host *fleet.Host, name string, rows []map[string]string, failed bool) (ingested bool, err error) {
+	config, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return false, osqueryError{message: "ingest detail query: " + err.Error()}
+	}
+
+	detailQueries := osquery_utils.GetDetailQueries(config, svc.config)
+	query, ok := detailQueries[name]
+	if !ok {
+		return false, osqueryError{message: "unknown detail query " + name}
+	}
+	if query.DirectIngestFunc != nil {
+		err = query.DirectIngestFunc(ctx, svc.logger, host, svc.ds, rows, failed)
+		if err != nil {
+			return false, osqueryError{
+				message: fmt.Sprintf("ingesting query %s: %s", name, err.Error()),
+			}
+		}
+		return true, nil
+	}
+	return false, nil
+}
+
+// ingestDistributedQuery takes the results of a distributed query and modifies the
+// provided fleet.Host appropriately.
+func (svc *Service) ingestDistributedQuery(ctx context.Context, host fleet.Host, name string, rows []map[string]string, failed bool, errMsg string) error {
+	trimmedQuery := strings.TrimPrefix(name, hostDistributedQueryPrefix)
+
+	campaignID, err := strconv.Atoi(osquery_utils.EmptyToZero(trimmedQuery))
+	if err != nil {
+		return osqueryError{message: "unable to parse campaign ID: " + trimmedQuery}
+	}
+
+	// Write the results to the pubsub store
+	res := fleet.DistributedQueryResult{
+		DistributedQueryCampaignID: uint(campaignID),
+		Host:                       host,
+		Rows:                       rows,
+	}
+	if failed {
+		res.Error = &errMsg
+	}
+
+	err = svc.resultStore.WriteResult(res)
+	if err != nil {
+		var pse pubsub.Error
+		ok := errors.As(err, &pse)
+		if !ok || !pse.NoSubscriber() {
+			return osqueryError{message: "writing results: " + err.Error()}
+		}
+
+		// If there are no subscribers, the campaign is "orphaned"
+		// and should be closed so that we don't continue trying to
+		// execute that query when we can't write to any subscriber
+		campaign, err := svc.ds.DistributedQueryCampaign(ctx, uint(campaignID))
+		if err != nil {
+			if err := svc.liveQueryStore.StopQuery(strconv.Itoa(campaignID)); err != nil {
+				return osqueryError{message: "stop orphaned campaign after load failure: " + err.Error()}
+			}
+			return osqueryError{message: "loading orphaned campaign: " + err.Error()}
+		}
+
+		if campaign.CreatedAt.After(svc.clock.Now().Add(-1 * time.Minute)) {
+			// Give the client a minute to connect before considering the
+			// campaign orphaned
+			return osqueryError{message: "campaign waiting for listener (please retry)"}
+		}
+
+		if campaign.Status != fleet.QueryComplete {
+			campaign.Status = fleet.QueryComplete
+			if err := svc.ds.SaveDistributedQueryCampaign(ctx, campaign); err != nil {
+				return osqueryError{message: "closing orphaned campaign: " + err.Error()}
+			}
+		}
+
+		if err := svc.liveQueryStore.StopQuery(strconv.Itoa(campaignID)); err != nil {
+			return osqueryError{message: "stopping orphaned campaign: " + err.Error()}
+		}
+
+		// No need to record query completion in this case
+		return osqueryError{message: "campaign stopped"}
+	}
+
+	err = svc.liveQueryStore.QueryCompletedByHost(strconv.Itoa(campaignID), host.ID)
+	if err != nil {
+		return osqueryError{message: "record query completion: " + err.Error()}
+	}
+
+	return nil
+}
+
+// ingestMembershipQuery records the results of label queries run by a host
+func ingestMembershipQuery(
+	prefix string,
+	query string,
+	rows []map[string]string,
+	results map[uint]*bool,
+	failed bool,
+) error {
+	trimmedQuery := strings.TrimPrefix(query, prefix)
+	trimmedQueryNum, err := strconv.Atoi(osquery_utils.EmptyToZero(trimmedQuery))
+	if err != nil {
+		return fmt.Errorf("converting query from string to int: %w", err)
+	}
+	// A label/policy query matches if there is at least one result for that
+	// query. We must also store negative results.
+	if failed {
+		results[uint(trimmedQueryNum)] = nil
+	} else {
+		results[uint(trimmedQueryNum)] = ptr.Bool(len(rows) > 0)
+	}
+
+	return nil
+}
+
+// ingestDetailQuery takes the results of a detail query and modifies the
+// provided fleet.Host appropriately.
+func (svc *Service) ingestDetailQuery(ctx context.Context, host *fleet.Host, name string, rows []map[string]string) error {
+	config, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return osqueryError{message: "ingest detail query: " + err.Error()}
+	}
+
+	detailQueries := osquery_utils.GetDetailQueries(config, svc.config)
+	query, ok := detailQueries[name]
+	if !ok {
+		return osqueryError{message: "unknown detail query " + name}
+	}
+
+	if query.IngestFunc != nil {
+		err = query.IngestFunc(svc.logger, host, rows)
+		if err != nil {
+			return osqueryError{
+				message: fmt.Sprintf("ingesting query %s: %s", name, err.Error()),
+			}
+		}
+	}
+
+	return nil
+}
+
 // filterPolicyResults filters out policies that aren't configured for webhook automation.
 func filterPolicyResults(incoming map[uint]*bool, webhookPolicies []uint) map[uint]*bool {
 	wp := make(map[uint]struct{})
@@ -949,4 +1046,75 @@ func (svc *Service) maybeDebugHost(
 		logJSON(hlogger, statuses, "statuses")
 		logJSON(hlogger, messages, "messages")
 	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Submit Logs
+////////////////////////////////////////////////////////////////////////////////
+
+type submitLogsRequest struct {
+	NodeKey string          `json:"node_key"`
+	LogType string          `json:"log_type"`
+	Data    json.RawMessage `json:"data"`
+}
+
+type submitLogsResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r submitLogsResponse) error() error { return r.Err }
+
+func submitLogsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*submitLogsRequest)
+
+	var err error
+	switch req.LogType {
+	case "status":
+		var statuses []json.RawMessage
+		if err := json.Unmarshal(req.Data, &statuses); err != nil {
+			err = osqueryError{message: "unmarshalling status logs: " + err.Error()}
+			break
+		}
+
+		err = svc.SubmitStatusLogs(ctx, statuses)
+		if err != nil {
+			break
+		}
+
+	case "result":
+		var results []json.RawMessage
+		if err := json.Unmarshal(req.Data, &results); err != nil {
+			err = osqueryError{message: "unmarshalling result logs: " + err.Error()}
+			break
+		}
+		err = svc.SubmitResultLogs(ctx, results)
+		if err != nil {
+			break
+		}
+
+	default:
+		err = osqueryError{message: "unknown log type: " + req.LogType}
+	}
+
+	return submitLogsResponse{Err: err}, nil
+}
+
+func (svc *Service) SubmitStatusLogs(ctx context.Context, logs []json.RawMessage) error {
+	// skipauth: Authorization is currently for user endpoints only.
+	svc.authz.SkipAuthorization(ctx)
+
+	if err := svc.osqueryLogWriter.Status.Write(ctx, logs); err != nil {
+		return osqueryError{message: "error writing status logs: " + err.Error()}
+	}
+	return nil
+}
+
+func (svc *Service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage) error {
+	// skipauth: Authorization is currently for user endpoints only.
+	svc.authz.SkipAuthorization(ctx)
+
+	if err := svc.osqueryLogWriter.Result.Write(ctx, logs); err != nil {
+		return osqueryError{message: "error writing result logs: " + err.Error()}
+	}
+	return nil
 }

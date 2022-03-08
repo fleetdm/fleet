@@ -78,6 +78,9 @@ func getNodeKey(r interface{}) (string, error) {
 	// Retrieve node key by reflection (note that our options here
 	// are limited by the fact that request is an interface{})
 	v := reflect.ValueOf(r)
+	if v.Kind() == reflect.Ptr {
+		v = v.Elem()
+	}
 	if v.Kind() != reflect.Struct {
 		return "", osqueryError{
 			message: "request type is not struct. This is likely a Fleet programmer error.",
@@ -134,6 +137,10 @@ func authenticatedUser(svc fleet.Service, next endpoint.Endpoint) endpoint.Endpo
 	return logged(authUserFunc)
 }
 
+func unauthenticatedRequest(svc fleet.Service, next endpoint.Endpoint) endpoint.Endpoint {
+	return logged(next)
+}
+
 // logged wraps an endpoint and adds the error if the context supports it
 func logged(next endpoint.Endpoint) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
@@ -163,17 +170,4 @@ func authViewer(ctx context.Context, sessionKey string, svc fleet.Service) (*vie
 		return nil, fleet.NewAuthRequiredError(err.Error())
 	}
 	return &viewer.Viewer{User: user, Session: session}, nil
-}
-
-func canPerformPasswordReset(next endpoint.Endpoint) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		vc, ok := viewer.FromContext(ctx)
-		if !ok {
-			return nil, fleet.ErrNoContext
-		}
-		if !vc.CanPerformPasswordReset() {
-			return nil, fleet.NewPermissionError("cannot reset password")
-		}
-		return next(ctx, request)
-	}
 }

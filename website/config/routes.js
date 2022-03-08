@@ -193,6 +193,7 @@ module.exports.routes = {
   'GET /legal':                      '/legal/terms',
   'GET /terms':                      '/legal/terms',
   'GET /login':                      '/customers/login',
+  'GET /slack':                      'https://osquery.fleetdm.com/channel/f0d7aeb6-ac7c-41ba-a0c1-0d2abe931efa',
 
   // Sitemap
   // =============================================================================================================
