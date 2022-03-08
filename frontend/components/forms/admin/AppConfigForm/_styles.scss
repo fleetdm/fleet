@@ -50,9 +50,12 @@
   }
 
   .form-field {
+    width: 100%;
+
     &__label {
       font-weight: $bold;
       margin-bottom: $pad-xsmall;
+      width: 100%;
     }
 
     &__hint {
