@@ -63,12 +63,17 @@ func (s *schedule) run() {
 	// each schedule runs in its own go routine
 	go func() {
 		step := 1
+		currentWait := 10 * time.Second
+		if currentWait > s.interval {
+			currentWait = s.interval
+		}
 		for {
 			fmt.Println(s.name, "loop", step)
 			select {
 			case <-s.ctx.Done():
 				return
-			case <-time.Tick(s.interval):
+			case <-time.Tick(currentWait):
+				currentWait = s.interval
 				if s.preflightCheck != nil {
 					if ok := s.preflightCheck(); !ok {
 						level.Debug(s.Logger).Log(s.name, "Preflight check failed. Skipping...")
@@ -83,20 +88,14 @@ func (s *schedule) run() {
 					continue
 				}
 
+				s.mu.Lock()
 				for id, job := range s.jobs {
 					fmt.Println("starting job... ", id)
 					job.statsHandler(job.exec(s.ctx)) // start new go routine for each job?
 				}
+				s.mu.Unlock()
 			}
 			step++
 		}
 	}()
 }
-
-// func StatsHandler(stats interface{}, err error) {
-// 	if err != nil {
-// 		fmt.Println(err.Error())
-// 		return
-// 	}
-// 	fmt.Println(fmt.Sprintf("stats %v", stats))
-// }

@@ -3,8 +3,11 @@ package schedule
 import (
 	"context"
 	"fmt"
+	"sync"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/log"
@@ -18,11 +21,11 @@ type nopLocker struct{}
 // counter++
 // should lock return tl.Lock()
 
-func (nopLocker) Lock(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error) {
+func (nopLocker) Lock(context.Context, string, string, time.Duration) (bool, error) {
 	return true, nil
 }
 
-func (nopLocker) Unlock(ctx context.Context, name string, owner string) error {
+func (nopLocker) Unlock(context.Context, string, string) error {
 	return nil
 }
 
@@ -31,7 +34,6 @@ func TestNewSchedule(t *testing.T) {
 	require.NoError(t, err)
 
 	runCheck := make(chan bool)
-	failCheck := time.After(1 * time.Second)
 
 	sched.AddJob("test_job", func(ctx context.Context) (interface{}, error) {
 		runCheck <- true
@@ -39,6 +41,7 @@ func TestNewSchedule(t *testing.T) {
 	}, nopStatsHandler)
 
 	runCount := 0
+	failCheck := time.After(1 * time.Second)
 
 TEST:
 	for {
@@ -49,6 +52,7 @@ TEST:
 				break TEST
 			}
 		case <-failCheck:
+			assert.Greater(t, runCount, 2)
 			t.FailNow()
 		}
 	}
@@ -59,7 +63,6 @@ func TestStatsHandler(t *testing.T) {
 	require.NoError(t, err)
 
 	runCheck := make(chan bool)
-	failCheck := time.After(1 * time.Second)
 
 	sched.AddJob("test_job", func(ctx context.Context) (interface{}, error) {
 		runCheck <- true
@@ -70,6 +73,7 @@ func TestStatsHandler(t *testing.T) {
 	})
 
 	runCount := 0
+	failCheck := time.After(1 * time.Second)
 
 TEST:
 	for {
@@ -80,6 +84,7 @@ TEST:
 				break TEST
 			}
 		case <-failCheck:
+			assert.Greater(t, runCount, 2)
 			t.FailNow()
 		}
 	}
@@ -89,12 +94,12 @@ type testLocker struct {
 	count *uint
 }
 
-func (l testLocker) Lock(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error) {
+func (l testLocker) Lock(context.Context, string, string, time.Duration) (bool, error) {
 	*l.count++
 	return true, nil
 }
 
-func (testLocker) Unlock(ctx context.Context, name string, owner string) error {
+func (testLocker) Unlock(context.Context, string, string) error {
 	return nil
 }
 
@@ -120,34 +125,45 @@ TEST:
 				break TEST
 			}
 		case <-failCheck:
+			assert.Greater(t, *locker.count, uint(2))
 			t.FailNow()
 		}
 	}
 }
 
-func statsHandlerFunc(jobName string, testStats map[string][]interface{}, testErrors map[string][]error) func(interface{}, error) {
+type testStats struct {
+	mu     sync.Mutex
+	stats  map[string][]interface{}
+	errors map[string][]error
+}
+
+// TODO: Ask Tomas about how to structure mutex for stats?
+func statsHandlerFunc(jobName string, ts *testStats) func(interface{}, error) {
 	return func(stats interface{}, err error) {
+		ts.mu.Lock()
+		defer ts.mu.Unlock()
 		if err != nil {
-			testErrors[jobName] = append(testErrors[jobName], err)
+			ts.errors[jobName] = append(ts.errors[jobName], err)
 		}
-		testStats[jobName] = append(testStats[jobName], stats)
+		ts.stats[jobName] = append(ts.stats[jobName], stats)
 	}
 }
 
 func TestMultipleSchedules(t *testing.T) {
-	testStats := make(map[string][]interface{})
-	testErrors := make(map[string][]error)
+	testStats := &testStats{
+		stats:  make(map[string][]interface{}),
+		errors: make(map[string][]error),
+	}
 
 	sched1, err := New(context.Background(), "test_schedule_1", "test_instance", 10*time.Millisecond, nopLocker{}, log.NewNopLogger())
 	require.NoError(t, err)
 
 	runCheck := make(chan bool)
-	failCheck := time.After(1 * time.Second)
 
 	sched1.AddJob("test_job_1", func(ctx context.Context) (interface{}, error) {
 		runCheck <- true
 		return "stats_job_1", nil
-	}, statsHandlerFunc("test_job_1", testStats, testErrors))
+	}, statsHandlerFunc("test_job_1", testStats))
 
 	sched2, err := New(context.Background(), "test_schedule_2", "test_instance", 100*time.Millisecond, nopLocker{}, log.NewNopLogger())
 	require.NoError(t, err)
@@ -155,7 +171,7 @@ func TestMultipleSchedules(t *testing.T) {
 	sched2.AddJob("test_job_2", func(ctx context.Context) (interface{}, error) {
 		runCheck <- true
 		return "stats_job_2", nil
-	}, statsHandlerFunc("test_job_2", testStats, testErrors))
+	}, statsHandlerFunc("test_job_2", testStats))
 
 	sched3, err := New(context.Background(), "test_schedule_3", "test_instance", 100*time.Millisecond, nopLocker{}, log.NewNopLogger())
 	require.NoError(t, err)
@@ -163,16 +179,21 @@ func TestMultipleSchedules(t *testing.T) {
 	sched3.AddJob("test_job_3", func(ctx context.Context) (interface{}, error) {
 		runCheck <- true
 		return nil, fmt.Errorf("error_job_3")
-	}, statsHandlerFunc("test_job_3", testStats, testErrors))
+	}, statsHandlerFunc("test_job_3", testStats))
+
+	failCheck := time.After(1 * time.Second)
 
 TEST:
 	for {
 		select {
 		case <-runCheck:
-			if (len(testStats["test_job_1"]) > 2) && (len(testStats["test_job_2"]) > 2) && (len(testErrors["test_job_3"]) > 2) {
+			if (len(testStats.stats["test_job_1"]) > 2) && (len(testStats.stats["test_job_2"]) > 2) && (len(testStats.stats["test_job_3"]) > 2) {
 				break TEST
 			}
 		case <-failCheck:
+			assert.Greater(t, len(testStats.stats["test_job_1"]), 2)
+			assert.Greater(t, len(testStats.stats["test_job_2"]), 2)
+			assert.Greater(t, len(testStats.errors["test_job_3"]), 2)
 			t.FailNow()
 		}
 	}
