@@ -16,6 +16,8 @@ import { IEnrollSecret } from "interfaces/enroll_secret";
 import Button from "components/buttons/Button";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
+import Checkbox from "components/forms/fields/Checkbox";
+import TooltipWrapper from "components/TooltipWrapper";
 import TabsWrapper from "components/TabsWrapper";
 
 import { isValidPemCertificate } from "../../../pages/hosts/ManageHostsPage/helpers";
@@ -64,6 +66,9 @@ const PlatformWrapper = ({
 }: IPlatformWrapperProp): JSX.Element => {
   const { config, isPreviewMode } = useContext(AppContext);
   const [copyMessage, setCopyMessage] = useState<string>("");
+  const [includeFleetDesktop, setIncludeFleetDesktop] = useState<boolean>(
+    false
+  );
 
   const dispatch = useDispatch();
 
@@ -173,7 +178,9 @@ const PlatformWrapper = ({
   const renderInstallerString = (platform: string) => {
     return platform === "advanced"
       ? "osqueryd --flagfile=flagfile.txt --verbose"
-      : `fleetctl package --type=${platform} --fleet-url=${config?.server_url} --enroll-secret=${enrollSecret}`;
+      : `fleetctl package --type=${platform} ${
+          includeFleetDesktop && "--fleet-desktop"
+        } --fleet-url=${config?.server_url} --enroll-secret=${enrollSecret}`;
   };
 
   const renderLabel = (platform: string, installerString: string) => {
@@ -193,18 +200,20 @@ const PlatformWrapper = ({
     return (
       <>
         {platform !== "advanced" && (
-          <span className={`${baseClass}__cta`}>
-            With the{" "}
-            <a
-              href="https://fleetdm.com/get-started"
-              target="_blank"
-              rel="noopener noreferrer"
-              className={`${baseClass}__command-line-tool`}
-            >
-              Fleet command-line tool
-            </a>{" "}
-            installed:
-          </span>
+          <>
+            <span className={`${baseClass}__cta`}>
+              With the{" "}
+              <a
+                href="https://fleetdm.com/get-started"
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`${baseClass}__command-line-tool`}
+              >
+                Fleet command-line tool
+              </a>{" "}
+              installed:
+            </span>
+          </>
         )}{" "}
         <span className={`${baseClass}__name`}>
           <span className="buttons">
@@ -335,6 +344,22 @@ const PlatformWrapper = ({
     }
     return (
       <>
+        <Checkbox
+          name="include-fleet-desktop"
+          onChange={() => setIncludeFleetDesktop(!includeFleetDesktop)}
+          value={includeFleetDesktop}
+        >
+          <>
+            Include&nbsp;
+            <TooltipWrapper
+              tipContent={
+                "<p>Lightweight application that allows end users to see information about their device.</p>"
+              }
+            >
+              Fleet Desktop
+            </TooltipWrapper>
+          </>
+        </Checkbox>
         <InputField
           disabled
           inputWrapperClass={`${baseClass}__installer-input ${baseClass}__installer-input-${platform}`}
