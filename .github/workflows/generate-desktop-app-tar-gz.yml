@@ -1,0 +1,54 @@
+name: Generate desktop.app.tar.gz for Orbit
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      # The workflow can be triggered by modifying FLEET_DESKTOP_VERSION env
+      # below and pushing/merging to main.
+      - '.github/workflows/generate-desktop-app-tar-gz.yml'
+  workflow_dispatch:
+
+env:
+  FLEET_DESKTOP_VERSION: 0.0.1
+
+jobs:
+  release:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Import signing keys
+        env:
+          APPLE_APPLICATION_CERTIFICATE: ${{ secrets.APPLE_APPLICATION_CERTIFICATE }}
+          APPLE_APPLICATION_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_APPLICATION_CERTIFICATE_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          echo "$APPLE_APPLICATION_CERTIFICATE" | base64 --decode > certificate.p12
+          security create-keychain -p $KEYCHAIN_PASSWORD build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p $KEYCHAIN_PASSWORD build.keychain
+          security import certificate.p12 -k build.keychain -P $APPLE_APPLICATION_CERTIFICATE_PASSWORD -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k $KEYCHAIN_PASSWORD build.keychain
+          security find-identity -vv
+          rm certificate.p12
+
+      - name: Generate desktop.app.tar.gz
+        env:
+          AC_USERNAME: ${{ secrets.APPLE_USERNAME }}
+          AC_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          CODESIGN_IDENTITY: 51049B247B25B3119FAE7E9C0CC4375A43E47237
+        run: |
+          AC_USERNAME=$AC_USERNAME \
+          AC_PASSWORD=$AC_PASSWORD \
+          FLEET_DESKTOP_APPLE_AUTHORITY=$CODESIGN_IDENTITY \
+          FLEET_DESKTOP_VERSION=$FLEET_DESKTOP_VERSION \
+          make desktop-app-tar-gz
+
+      - name: Upload desktop.app.tar.gz
+        uses: actions/upload-artifact@v2
+        with:
+          name: desktop.app.tar.gz
+          path: desktop.app.tar.gz

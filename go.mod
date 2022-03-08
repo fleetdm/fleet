@@ -29,6 +29,7 @@ require (
 	github.com/facebookincubator/nvdtools v0.1.4
 	github.com/fatih/color v1.12.0
 	github.com/fleetdm/goose v0.0.0-20220214194029-91b5e5eb8e77
+	github.com/getlantern/systray v1.2.0 // indirect
 	github.com/getsentry/sentry-go v0.12.0
 	github.com/ghodss/yaml v1.0.0
 	github.com/go-kit/kit v0.9.0

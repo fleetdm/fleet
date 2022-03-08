@@ -22,6 +22,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update/filestore"
 	"github.com/fleetdm/fleet/v4/pkg/certificate"
 	"github.com/fleetdm/fleet/v4/pkg/file"
+	"github.com/fleetdm/fleet/v4/pkg/open"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/oklog/run"
 	"github.com/rs/zerolog"
@@ -95,6 +96,12 @@ func main() {
 			Value:   "stable",
 			EnvVars: []string{"ORBIT_ORBIT_CHANNEL"},
 		},
+		&cli.StringFlag{
+			Name:    "desktop-channel",
+			Usage:   "Update channel of Fleet Desktop to use",
+			Value:   "stable",
+			EnvVars: []string{"ORBIT_DESKTOP_CHANNEL"},
+		},
 		&cli.BoolFlag{
 			Name:    "disable-updates",
 			Usage:   "Disables auto updates",
@@ -121,6 +128,11 @@ func main() {
 		&cli.BoolFlag{
 			Name:  "dev-darwin-legacy-targets",
 			Usage: "Use darwin legacy target (flag only used on darwin)",
+		},
+		&cli.BoolFlag{
+			Name:    "fleet-desktop",
+			Usage:   "Launch Fleet Desktop application (flag currently only used on darwin)",
+			EnvVars: []string{"ORBIT_FLEET_DESKTOP"},
 		},
 	}
 	app.Action = func(c *cli.Context) error {
@@ -187,13 +199,22 @@ func main() {
 
 		localStore, err := filestore.New(filepath.Join(c.String("root-dir"), "tuf-metadata.json"))
 		if err != nil {
-			log.Fatal().Err(err).Msg("failed to create local metadata store")
+			log.Fatal().Err(err).Msg("create local metadata store")
 		}
 
 		opt := update.DefaultOptions
 
 		if runtime.GOOS == "darwin" && c.Bool("dev-darwin-legacy-targets") {
 			opt.Targets = update.DarwinLegacyTargets
+		}
+
+		if runtime.GOOS == "darwin" && c.Bool("fleet-desktop") {
+			opt.Targets["desktop"] = update.TargetInfo{
+				Platform:             "macos",
+				Channel:              c.String("desktop-channel"),
+				TargetFile:           "desktop.app.tar.gz",
+				ExtractedExecSubPath: []string{"Fleet Desktop.app", "Contents", "MacOS", "fleet-desktop"},
+			}
 		}
 
 		// Override default channels with the provided values.
@@ -212,6 +233,7 @@ func main() {
 		var (
 			updater      *update.Updater
 			osquerydPath string
+			desktopPath  string
 		)
 
 		// NOTE: When running in dev-mode, even if `disable-updates` is set,
@@ -219,21 +241,37 @@ func main() {
 		if !c.Bool("disable-updates") || c.Bool("dev-mode") {
 			updater, err = update.New(opt)
 			if err != nil {
-				return fmt.Errorf("failed to create updater: %w", err)
+				return fmt.Errorf("create updater: %w", err)
 			}
 			if err := updater.UpdateMetadata(); err != nil {
-				log.Info().Err(err).Msg("failed to update metadata. using saved metadata.")
+				log.Info().Err(err).Msg("update metadata. using saved metadata.")
 			}
 			osquerydPath, err = updater.Get("osqueryd")
 			if err != nil {
-				return fmt.Errorf("failed to get osqueryd target: %w", err)
+				return fmt.Errorf("get osqueryd target: %w", err)
+			}
+			if runtime.GOOS == "darwin" && c.Bool("fleet-desktop") {
+				fleetDesktopPath, err := updater.Get("desktop")
+				if err != nil {
+					return fmt.Errorf("get desktop target: %w", err)
+				}
+				// TODO(lucas): Have some API in update provide this (or modify updater.Get).
+				desktopPath = filepath.Dir(filepath.Dir(filepath.Dir(fleetDesktopPath)))
 			}
 		} else {
 			log.Info().Msg("running with auto updates disabled")
 			updater = update.NewDisabled(opt)
 			osquerydPath, err = updater.ExecutableLocalPath("osqueryd")
 			if err != nil {
-				log.Fatal().Err(err).Msg("failed to locate osqueryd")
+				log.Fatal().Err(err).Msg("locate osqueryd")
+			}
+			if runtime.GOOS == "darwin" && c.Bool("fleet-desktop") {
+				fleetDesktopPath, err := updater.ExecutableLocalPath("desktop")
+				if err != nil {
+					return fmt.Errorf("get desktop target: %w", err)
+				}
+				// TODO(lucas): Have some API in update provide this (or modify updater.Get).
+				desktopPath = filepath.Dir(filepath.Dir(filepath.Dir(fleetDesktopPath)))
 			}
 		}
 
@@ -245,7 +283,7 @@ func main() {
 			}
 
 			if err := os.RemoveAll(path); err != nil {
-				log.Info().Err(err).Msg("failed to remove .old")
+				log.Info().Err(err).Msg("remove .old")
 				return nil
 			}
 			log.Debug().Str("path", path).Msg("cleaned up old")
@@ -408,12 +446,31 @@ func main() {
 		// Create an osquery runner with the provided options.
 		r, err := osquery.NewRunner(osquerydPath, options...)
 		if err != nil {
-			return fmt.Errorf("failed to create osquery runner: %w", err)
+			return fmt.Errorf("create osquery runner: %w", err)
 		}
 		g.Add(r.Execute, r.Interrupt)
 
 		ext := table.NewRunner(r.ExtensionSocketPath())
 		g.Add(ext.Execute, ext.Interrupt)
+
+		if runtime.GOOS == "darwin" && c.Bool("fleet-desktop") {
+			done := make(chan struct{})
+			// TODO(lucas): Kill .app in the interrupt.
+			g.Add(
+				func() error {
+					log.Info().Str("path", desktopPath).Msg("opening")
+					if err := open.App(desktopPath); err != nil {
+						return err
+					}
+					<-done
+					return nil
+				},
+				func(err error) {
+					// TODO(lucas): Implement me.
+					close(done)
+				},
+			)
+		}
 
 		// Install a signal handler
 		ctx, cancel := context.WithCancel(context.Background())

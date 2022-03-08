@@ -10,9 +10,6 @@ on:
       - '.github/workflows/generate-osqueryd-app-tar-gz.yml'
   workflow_dispatch:
 
-permissions:
-  contents: write
-
 env:
   OSQUERY_VERSION: 5.2.2
 

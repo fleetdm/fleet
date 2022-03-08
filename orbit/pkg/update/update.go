@@ -157,13 +157,22 @@ func (u *Updater) repoPath(target string) (string, error) {
 	return path.Join(target, t.Platform, t.Channel, t.TargetFile), nil
 }
 
-// ExecutableLocalPath returns the configured local path of a target.
+// ExecutableLocalPath returns the configured executable local path of a target.
 func (u *Updater) ExecutableLocalPath(target string) (string, error) {
 	localTarget, err := u.localTarget(target)
 	if err != nil {
 		return "", err
 	}
 	return localTarget.execPath, nil
+}
+
+// DirLocalPath returns the configured directory local path of a target.
+func (u *Updater) DirLocalPath(target string) (string, error) {
+	localTarget, err := u.localTarget(target)
+	if err != nil {
+		return "", err
+	}
+	return localTarget.dirPath, nil
 }
 
 // localTarget holds local paths of a target.
