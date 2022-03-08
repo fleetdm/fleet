@@ -366,10 +366,6 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 		WithCustomMiddleware(limiter.Limit("forgot_password", throttled.RateQuota{MaxRate: throttled.PerHour(10), MaxBurst: 9})).
 		POST("/api/_version_/fleet/forgot_password", forgotPasswordEndpoint, forgotPasswordRequest{})
 
-		// TODO(mna): before migration, the login endpoint was the only one *not* to be wrapped
-		// with "logged". Now, as part of ne (newNoAuthEndpointer), it *will* be wrapped with
-		// it. Is that ok? I don't see any technical reason why we wouldn't do this for that
-		// endpoint, looking at the implementation of logged.
 	ne.
 		WithCustomMiddleware(limiter.Limit("login", throttled.RateQuota{MaxRate: throttled.PerMin(10), MaxBurst: 9})).
 		POST("/api/_version_/fleet/login", loginEndpoint, loginRequest{})
