@@ -678,18 +678,26 @@ func listHostDeviceMappingEndpoint(ctx context.Context, request interface{}, svc
 }
 
 func (svc *Service) ListHostDeviceMapping(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
-		return nil, err
+	// can be already authorized if coming from device auth token endpoint
+	var alreadyAuthd bool
+	if authctx, ok := authzctx.FromContext(ctx); ok {
+		alreadyAuthd = authctx.Checked()
 	}
 
-	host, err := svc.ds.HostLite(ctx, id)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get host")
-	}
+	if !alreadyAuthd {
+		if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+			return nil, err
+		}
 
-	// Authorize again with team loaded now that we have team_id
-	if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
-		return nil, err
+		host, err := svc.ds.HostLite(ctx, id)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get host")
+		}
+
+		// Authorize again with team loaded now that we have team_id
+		if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
+			return nil, err
+		}
 	}
 
 	return svc.ds.ListHostDeviceMapping(ctx, id)

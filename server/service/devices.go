@@ -107,3 +107,29 @@ func refetchDeviceHostEndpoint(ctx context.Context, request interface{}, svc fle
 	}
 	return refetchHostResponse{}, nil
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// List Current Device's Host Device Mappings
+////////////////////////////////////////////////////////////////////////////////
+
+type listDeviceHostDeviceMappingRequest struct {
+	Token string `url:"token"`
+}
+
+func (r *listDeviceHostDeviceMappingRequest) deviceAuthToken() string {
+	return r.Token
+}
+
+func listDeviceHostDeviceMappingEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
+		return getHostResponse{Err: err}, nil
+	}
+
+	dms, err := svc.ListHostDeviceMapping(ctx, host.ID)
+	if err != nil {
+		return listHostDeviceMappingResponse{Err: err}, nil
+	}
+	return listHostDeviceMappingResponse{HostID: host.ID, DeviceMapping: dms}, nil
+}
