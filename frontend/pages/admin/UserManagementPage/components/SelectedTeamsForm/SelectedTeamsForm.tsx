@@ -79,13 +79,13 @@ const generateSelectedTeamData = (
 const updateFormState = (
   prevTeamItems: ITeamCheckboxListItem[],
   teamId: number,
-  newValue: any, // string | undefined or boolean | undefined
+  newValue: string | boolean | undefined,
   updateType: string
 ): ITeamCheckboxListItem[] => {
   const prevItemIndex = prevTeamItems.findIndex((item) => item.id === teamId);
   const prevItem = prevTeamItems[prevItemIndex];
 
-  if (updateType === "checkbox") {
+  if (typeof newValue === "boolean") {
     prevItem.isChecked = newValue;
   } else {
     prevItem.role = newValue;
