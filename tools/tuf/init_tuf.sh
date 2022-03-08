@@ -19,27 +19,14 @@ make fleetctl
 function create_repository() {
   ./build/fleetctl updates init --path $TUF_PATH
 
-  for system in macos-app macos linux windows; do
-
-    if [[ $system == "macos-app" ]]; then
-      # TODO(lucas): Implement code in this branch in a fleetctl command.
-      curl -L https://pkg.osquery.io/darwin/osquery-5.1.0.pkg --output $TUF_PATH/tmp/osquery-5.1.0.pkg
-      rm -rf $TUF_PATH/tmp/osquery_pkg_expanded
-      pkgutil --expand $TUF_PATH/tmp/osquery-5.1.0.pkg $TUF_PATH/tmp/osquery_pkg_expanded
-      rm -rf $TUF_PATH/tmp/osquery_pkg_payload_expanded
-      mkdir $TUF_PATH/tmp/osquery_pkg_payload_expanded
-      tar xf $TUF_PATH/tmp/osquery_pkg_expanded/Payload --directory $TUF_PATH/tmp/osquery_pkg_payload_expanded
-      osqueryd_path="$TUF_PATH/tmp/osqueryd.app.tar.gz"
-      tar czf $osqueryd_path -C $TUF_PATH/tmp/osquery_pkg_payload_expanded/opt/osquery/lib osquery.app
-    else
-      # Use latest stable version of osqueryd from our TUF server.
-      osqueryd="osqueryd"
-      if [[ $system == "windows" ]]; then
-        osqueryd="$osqueryd.exe"
-      fi
-      osqueryd_path="$TUF_PATH/tmp/$osqueryd"
-      curl https://tuf.fleetctl.com/targets/osqueryd/$system/stable/$osqueryd --output $osqueryd_path
+  for system in macos linux windows; do
+    # Use latest stable version of osqueryd from our TUF server.
+    osqueryd="osqueryd"
+    if [[ $system == "windows" ]]; then
+      osqueryd="$osqueryd.exe"
     fi
+    osqueryd_path="$TUF_PATH/tmp/$osqueryd"
+    curl https://tuf.fleetctl.com/targets/osqueryd/$system/stable/$osqueryd --output $osqueryd_path
 
     ./build/fleetctl updates add \
       --path $TUF_PATH \
@@ -51,7 +38,7 @@ function create_repository() {
     rm $osqueryd_path
 
     goose_value="$system"
-    if [[ $system == "macos" || $system == "macos-app" ]]; then
+    if [[ $system == "macos" ]]; then
       goose_value="darwin"
     fi
     orbit_target=orbit-$system
@@ -63,7 +50,7 @@ function create_repository() {
     GOOS=$goose_value go build -o $orbit_target ./orbit/cmd/orbit
 
     # If macOS and CODESIGN_IDENTITY is defined, sign the executable.
-    if [[ $system == "macos-app" && -n "$CODESIGN_IDENTITY" ]]; then
+    if [[ $system == "macos" && -n "$CODESIGN_IDENTITY" ]]; then
       codesign -s "$CODESIGN_IDENTITY" -i com.fleetdm.orbit -f -v --timestamp --options runtime $orbit_target
     fi
 
@@ -73,7 +60,27 @@ function create_repository() {
       --platform $system \
       --name orbit \
       --version 42.0.0 -t 42.0 -t 42 -t stable
+
+    rm $orbit_target
   done
+
+  # Finally, add osqueryd .app bundle for macos-app
+  # TODO(lucas): Implement code in this branch in a fleetctl command.
+  curl -L https://pkg.osquery.io/darwin/osquery-5.1.0.pkg --output $TUF_PATH/tmp/osquery-5.1.0.pkg
+  rm -rf $TUF_PATH/tmp/osquery_pkg_expanded
+  pkgutil --expand $TUF_PATH/tmp/osquery-5.1.0.pkg $TUF_PATH/tmp/osquery_pkg_expanded
+  rm -rf $TUF_PATH/tmp/osquery_pkg_payload_expanded
+  mkdir -p $TUF_PATH/tmp/osquery_pkg_payload_expanded
+  tar xf $TUF_PATH/tmp/osquery_pkg_expanded/Payload --directory $TUF_PATH/tmp/osquery_pkg_payload_expanded
+  osqueryd_path="$TUF_PATH/tmp/osqueryd.app.tar.gz"
+  tar czf $osqueryd_path -C $TUF_PATH/tmp/osquery_pkg_payload_expanded/opt/osquery/lib osquery.app
+  ./build/fleetctl updates add \
+    --path $TUF_PATH \
+    --target $osqueryd_path \
+    --platform macos-app \
+    --name osqueryd \
+    --version 42.0.0 -t 42.0 -t 42 -t stable
+  rm $osqueryd_path
 }
 
 
