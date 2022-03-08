@@ -387,9 +387,10 @@ const ManageSchedulePage = ({
       if (editQuery) {
         const updatedAttributes = deepDifference(formData, editQuery);
 
-        const editResponse = selectedTeamId
-          ? teamScheduledQueriesAPI.update(editQuery, updatedAttributes)
-          : globalScheduledQueriesAPI.update(editQuery, updatedAttributes);
+        const editResponse =
+          "team_id" in editQuery
+            ? teamScheduledQueriesAPI.update(editQuery, updatedAttributes)
+            : globalScheduledQueriesAPI.update(editQuery, updatedAttributes);
 
         editResponse
           .then(() => {

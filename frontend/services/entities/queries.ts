@@ -2,6 +2,7 @@
 import sendRequest from "services";
 import endpoints from "fleet/endpoints";
 import { IQueryFormData } from "interfaces/query";
+import { ISelectedTargets } from "interfaces/target";
 
 export default {
   create: ({ description, name, query, observer_can_run }: IQueryFormData) => {
@@ -38,11 +39,7 @@ export default {
   }: {
     query: string;
     queryId: number | null;
-    selected: {
-      hosts?: number[];
-      labels?: number[];
-      teams?: number[];
-    };
+    selected: ISelectedTargets;
   }) => {
     const { RUN_QUERY } = endpoints;
 

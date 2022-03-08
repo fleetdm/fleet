@@ -1303,7 +1303,6 @@ const HostDetailsPage = ({
       {showDeleteHostModal && renderDeleteHostModal()}
       {showQueryHostModal && host && (
         <SelectQueryModal
-          host={host}
           onCancel={() => setShowQueryHostModal(false)}
           queries={fleetQueries || []}
           queryErrors={fleetQueriesError}
