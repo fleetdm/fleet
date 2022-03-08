@@ -1,8 +1,6 @@
 import React, { useState, useCallback } from "react";
 
 import { filter, includes } from "lodash";
-
-import { IHost } from "interfaces/host";
 import { IQuery } from "interfaces/query";
 
 import Button from "components/buttons/Button";

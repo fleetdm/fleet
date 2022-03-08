@@ -19,12 +19,21 @@ interface IHeaderProps {
   };
 }
 
-interface ICellProps {
-  cell: {
-    value: any; // [string, number] | string, number, boolean
-  };
+interface IRowProps {
   row: {
     original: IQueryStats;
+  };
+}
+
+interface ICellProps extends IRowProps {
+  cell: {
+    value: string | number | boolean;
+  };
+}
+
+interface IPillCellProps extends IRowProps {
+  cell: {
+    value: [string, number];
   };
 }
 
@@ -32,7 +41,9 @@ interface IDataColumn {
   title: string;
   Header: ((props: IHeaderProps) => JSX.Element) | string;
   accessor: string;
-  Cell: (props: ICellProps) => JSX.Element;
+  Cell:
+    | ((props: ICellProps) => JSX.Element)
+    | ((props: IPillCellProps) => JSX.Element);
   disableHidden?: boolean;
   disableSortBy?: boolean;
 }
@@ -52,14 +63,18 @@ const generatePackTableHeaders = (): IDataColumn[] => {
       Header: "Query name",
       disableSortBy: true,
       accessor: "query_name",
-      Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
+      Cell: (cellProps: ICellProps) => (
+        <TextCell value={cellProps.cell.value} />
+      ),
     },
     {
       title: "Frequency",
       Header: "Frequency",
       disableSortBy: true,
       accessor: "frequency",
-      Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
+      Cell: (cellProps: ICellProps) => (
+        <TextCell value={cellProps.cell.value} />
+      ),
     },
     {
       title: "Last run",
@@ -72,7 +87,9 @@ const generatePackTableHeaders = (): IDataColumn[] => {
       },
       disableSortBy: true,
       accessor: "last_run",
-      Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
+      Cell: (cellProps: ICellProps) => (
+        <TextCell value={cellProps.cell.value} />
+      ),
     },
     {
       title: "Performance impact",
@@ -85,7 +102,7 @@ const generatePackTableHeaders = (): IDataColumn[] => {
       },
       disableSortBy: true,
       accessor: "performance",
-      Cell: (cellProps) => (
+      Cell: (cellProps: IPillCellProps) => (
         <PillCell
           value={cellProps.cell.value}
           customIdPrefix="query-perf-pill"

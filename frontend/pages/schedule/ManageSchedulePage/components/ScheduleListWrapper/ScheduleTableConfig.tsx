@@ -30,10 +30,7 @@ interface IHeaderProps {
   toggleAllRowsSelected: () => void;
 }
 
-interface ICellProps {
-  cell: {
-    value: any; // [string, number] | string, number, boolean, IDropdownOption[]
-  };
+interface IRowProps {
   row: {
     original: IGlobalScheduledQuery | ITeamScheduledQuery;
     getToggleRowSelectedProps: () => IGetToggleAllRowsSelectedProps;
@@ -41,9 +38,37 @@ interface ICellProps {
   };
 }
 
+interface ICellProps extends IRowProps {
+  cell: {
+    value: string | number | boolean;
+  };
+}
+
+interface INumberCellProps extends IRowProps {
+  cell: {
+    value: number;
+  };
+}
+
+interface IPillCellProps extends IRowProps {
+  cell: {
+    value: [string, number];
+  };
+}
+
+interface IDropdownCellProps extends IRowProps {
+  cell: {
+    value: IDropdownOption[];
+  };
+}
+
 interface IDataColumn {
   Header: ((props: IHeaderProps) => JSX.Element) | string;
-  Cell: (props: ICellProps) => JSX.Element;
+  Cell:
+    | ((props: ICellProps) => JSX.Element)
+    | ((props: INumberCellProps) => JSX.Element)
+    | ((props: IPillCellProps) => JSX.Element)
+    | ((props: IDropdownCellProps) => JSX.Element);
   id?: string;
   title?: string;
   accessor?: string;
@@ -102,7 +127,7 @@ const generateTableHeaders = (
       Header: "Frequency",
       disableSortBy: true,
       accessor: "interval",
-      Cell: (cellProps: ICellProps): JSX.Element => (
+      Cell: (cellProps: INumberCellProps): JSX.Element => (
         <TextCell value={secondsToDhms(cellProps.cell.value)} />
       ),
     },
@@ -127,14 +152,16 @@ const generateTableHeaders = (
       },
       disableSortBy: true,
       accessor: "performance",
-      Cell: (cellProps) => <PillCell value={cellProps.cell.value} />,
+      Cell: (cellProps: IPillCellProps) => (
+        <PillCell value={cellProps.cell.value} />
+      ),
     },
     {
       title: "Actions",
       Header: "",
       disableSortBy: true,
       accessor: "actions",
-      Cell: (cellProps) => (
+      Cell: (cellProps: IDropdownCellProps) => (
         <DropdownCell
           options={cellProps.cell.value}
           onChange={(value: string) =>
@@ -163,7 +190,7 @@ const generateInheritedQueriesTableHeaders = (): IDataColumn[] => {
       Header: "Frequency",
       disableSortBy: true,
       accessor: "interval",
-      Cell: (cellProps: ICellProps): JSX.Element => (
+      Cell: (cellProps: INumberCellProps): JSX.Element => (
         <TextCell value={secondsToDhms(cellProps.cell.value)} />
       ),
     },
@@ -172,7 +199,9 @@ const generateInheritedQueriesTableHeaders = (): IDataColumn[] => {
       Header: "Performance impact",
       disableSortBy: true,
       accessor: "performance",
-      Cell: (cellProps) => <PillCell value={cellProps.cell.value} />,
+      Cell: (cellProps: IPillCellProps) => (
+        <PillCell value={cellProps.cell.value} />
+      ),
     },
   ];
 };

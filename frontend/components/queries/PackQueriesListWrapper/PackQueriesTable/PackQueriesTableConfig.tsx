@@ -31,14 +31,29 @@ interface IHeaderProps {
   toggleAllRowsSelected: () => void;
 }
 
-interface ICellProps {
-  cell: {
-    value: any; // [string, number] | IDropdownOption[]
-  };
+interface IRowProps {
   row: {
     original: IScheduledQuery;
     getToggleRowSelectedProps: () => IGetToggleAllRowsSelectedProps;
     toggleRowSelected: () => void;
+  };
+}
+
+interface ICellProps extends IRowProps {
+  cell: {
+    value: string | number | boolean;
+  };
+}
+
+interface IPillCellProps extends IRowProps {
+  cell: {
+    value: [string, number];
+  };
+}
+
+interface IDropdownCellProps extends IRowProps {
+  cell: {
+    value: IDropdownOption[];
   };
 }
 
@@ -47,7 +62,10 @@ interface IDataColumn {
   title?: string;
   Header: ((props: IHeaderProps) => JSX.Element) | string;
   accessor?: string;
-  Cell: (props: ICellProps) => JSX.Element;
+  Cell:
+    | ((props: ICellProps) => JSX.Element)
+    | ((props: IPillCellProps) => JSX.Element)
+    | ((props: IDropdownCellProps) => JSX.Element);
   disableHidden?: boolean;
   disableSortBy?: boolean;
 }
@@ -92,14 +110,18 @@ const generateTableHeaders = (
         />
       ),
       accessor: "name",
-      Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
+      Cell: (cellProps: ICellProps) => (
+        <TextCell value={cellProps.cell.value} />
+      ),
     },
     {
       title: "Frequency",
       Header: "Frequency",
       disableSortBy: false,
       accessor: "interval",
-      Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
+      Cell: (cellProps: ICellProps) => (
+        <TextCell value={cellProps.cell.value} />
+      ),
     },
     {
       title: "Platform",
@@ -110,14 +132,18 @@ const generateTableHeaders = (
         />
       ),
       accessor: "platformTypeString",
-      Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
+      Cell: (cellProps: ICellProps) => (
+        <TextCell value={cellProps.cell.value} />
+      ),
     },
     {
       title: "Logging",
       Header: "Logging",
       disableSortBy: false,
       accessor: "loggingTypeString",
-      Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
+      Cell: (cellProps: ICellProps) => (
+        <TextCell value={cellProps.cell.value} />
+      ),
     },
     {
       title: "Performance impact",
@@ -134,14 +160,16 @@ const generateTableHeaders = (
       },
       disableSortBy: true,
       accessor: "performance",
-      Cell: (cellProps) => <PillCell value={cellProps.cell.value} />,
+      Cell: (cellProps: IPillCellProps) => (
+        <PillCell value={cellProps.cell.value} />
+      ),
     },
     {
       title: "Actions",
       Header: "",
       disableSortBy: true,
       accessor: "actions",
-      Cell: (cellProps) => (
+      Cell: (cellProps: IDropdownCellProps) => (
         <DropdownCell
           options={cellProps.cell.value}
           onChange={(value: string) =>

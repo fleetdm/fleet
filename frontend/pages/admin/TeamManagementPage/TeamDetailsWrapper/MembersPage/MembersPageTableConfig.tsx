@@ -13,12 +13,21 @@ interface IHeaderProps {
   };
 }
 
-interface ICellProps {
-  cell: {
-    value: any; // string | number | boolean or IDropdownOption[]
-  };
+interface IRowProps {
   row: {
     original: IUser;
+  };
+}
+
+interface ICellProps extends IRowProps {
+  cell: {
+    value: string | number | boolean;
+  };
+}
+
+interface IDropdownCellProps extends IRowProps {
+  cell: {
+    value: IDropdownOption[];
   };
 }
 
@@ -26,7 +35,9 @@ interface IDataColumn {
   title: string;
   Header: ((props: IHeaderProps) => JSX.Element) | string;
   accessor: string;
-  Cell: (props: ICellProps) => JSX.Element;
+  Cell:
+    | ((props: ICellProps) => JSX.Element)
+    | ((props: IDropdownCellProps) => JSX.Element);
   disableHidden?: boolean;
   disableSortBy?: boolean;
 }
@@ -51,28 +62,34 @@ const generateTableHeaders = (
       Header: "Name",
       disableSortBy: true,
       accessor: "name",
-      Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
+      Cell: (cellProps: ICellProps) => (
+        <TextCell value={cellProps.cell.value} />
+      ),
     },
     {
       title: "Email",
       Header: "Email",
       disableSortBy: true,
       accessor: "email",
-      Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
+      Cell: (cellProps: ICellProps) => (
+        <TextCell value={cellProps.cell.value} />
+      ),
     },
     {
       title: "Role",
       Header: "Role",
       disableSortBy: true,
       accessor: "role",
-      Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
+      Cell: (cellProps: ICellProps) => (
+        <TextCell value={cellProps.cell.value} />
+      ),
     },
     {
       title: "Actions",
       Header: "Actions",
       disableSortBy: true,
       accessor: "actions",
-      Cell: (cellProps) => (
+      Cell: (cellProps: IDropdownCellProps) => (
         <DropdownCell
           options={cellProps.cell.value}
           onChange={(value: string) =>

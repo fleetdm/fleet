@@ -16,12 +16,21 @@ interface IHeaderProps {
   };
 }
 
-interface ICellProps {
-  cell: {
-    value: any; // string | IDropdownOption
-  };
+interface IRowProps {
   row: {
     original: IUser | IInvite;
+  };
+}
+
+interface ICellProps extends IRowProps {
+  cell: {
+    value: string;
+  };
+}
+
+interface IDropdownCellProps extends IRowProps {
+  cell: {
+    value: IDropdownOption[];
   };
 }
 
@@ -29,7 +38,9 @@ interface IDataColumn {
   title: string;
   Header: ((props: IHeaderProps) => JSX.Element) | string;
   accessor: string;
-  Cell: (props: ICellProps) => JSX.Element;
+  Cell:
+    | ((props: ICellProps) => JSX.Element)
+    | ((props: IDropdownCellProps) => JSX.Element);
   disableHidden?: boolean;
   disableSortBy?: boolean;
 }
@@ -61,7 +72,9 @@ const generateTableHeaders = (
         />
       ),
       accessor: "name",
-      Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
+      Cell: (cellProps: ICellProps) => (
+        <TextCell value={cellProps.cell.value} />
+      ),
     },
     // TODO: need to add this info to API
     {
@@ -69,25 +82,29 @@ const generateTableHeaders = (
       Header: "Status",
       disableSortBy: true,
       accessor: "status",
-      Cell: (cellProps) => <StatusCell value={cellProps.cell.value} />,
+      Cell: (cellProps: ICellProps) => (
+        <StatusCell value={cellProps.cell.value} />
+      ),
     },
     {
       title: "Email",
-      Header: (cellProps) => (
+      Header: (cellProps: IHeaderProps) => (
         <HeaderCell
           value={cellProps.column.title}
           isSortedDesc={cellProps.column.isSortedDesc}
         />
       ),
       accessor: "email",
-      Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
+      Cell: (cellProps: ICellProps) => (
+        <TextCell value={cellProps.cell.value} />
+      ),
     },
     {
       title: "Roles",
       Header: "Roles",
       accessor: "roles",
       disableSortBy: true,
-      Cell: (cellProps) => (
+      Cell: (cellProps: ICellProps) => (
         <TextCell
           value={cellProps.cell.value}
           greyed={greyCell(cellProps.cell.value)}
@@ -99,7 +116,7 @@ const generateTableHeaders = (
       Header: "",
       disableSortBy: true,
       accessor: "actions",
-      Cell: (cellProps) => (
+      Cell: (cellProps: IDropdownCellProps) => (
         <DropdownCell
           options={cellProps.cell.value}
           onChange={(value: string) =>
@@ -118,7 +135,7 @@ const generateTableHeaders = (
       Header: "Teams",
       accessor: "teams",
       disableSortBy: true,
-      Cell: (cellProps) => (
+      Cell: (cellProps: ICellProps) => (
         <TextCell
           value={cellProps.cell.value}
           greyed={greyCell(cellProps.cell.value)}
