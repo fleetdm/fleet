@@ -11,13 +11,11 @@ import { find } from "lodash";
 import deepDifference from "utilities/deep_difference";
 import { ITeam } from "interfaces/team";
 import {
-  IGlobalScheduledQuery,
+  IScheduledQuery,
+  IEditScheduledQuery,
   ILoadAllGlobalScheduledQueriesResponse,
-} from "interfaces/global_scheduled_query";
-import {
-  ITeamScheduledQuery,
   ILoadAllTeamScheduledQueriesResponse,
-} from "interfaces/team_scheduled_query";
+} from "interfaces/scheduled_query";
 import fleetQueriesAPI from "services/entities/queries";
 import globalScheduledQueriesAPI from "services/entities/global_scheduled_queries";
 import teamScheduledQueriesAPI from "services/entities/team_scheduled_queries";
@@ -41,10 +39,9 @@ const baseClass = "manage-schedule-page";
 
 const renderTable = (
   onRemoveScheduledQueryClick: (selectIds: number[]) => void,
-  onEditScheduledQueryClick: (
-    selectedQuery: IGlobalScheduledQuery | ITeamScheduledQuery
-  ) => void,
-  allScheduledQueriesList: IGlobalScheduledQuery[] | ITeamScheduledQuery[],
+  onEditScheduledQueryClick: (selectedQuery: IEditScheduledQuery) => void,
+  // allScheduledQueriesList: IEditScheduledQuery[],
+  allScheduledQueriesList: any,
   allScheduledQueriesError: Error | null,
   toggleScheduleEditorModal: () => void,
   isOnGlobalTeam: boolean,
@@ -69,7 +66,8 @@ const renderTable = (
 };
 
 const renderAllTeamsTable = (
-  allTeamsScheduledQueriesList: IGlobalScheduledQuery[],
+  // allTeamsScheduledQueriesList: IEditScheduledQuery[],
+  allTeamsScheduledQueriesList: any,
   allTeamsScheduledQueriesError: Error | null,
   isOnGlobalTeam: boolean,
   selectedTeamData: ITeam | undefined,
@@ -187,7 +185,7 @@ const ManageSchedulePage = ({
   } = useQuery<
     ILoadAllGlobalScheduledQueriesResponse,
     Error,
-    IGlobalScheduledQuery[]
+    IScheduledQuery[]
   >(["globalScheduledQueries"], () => globalScheduledQueriesAPI.loadAll(), {
     enabled: !!availableTeams,
     select: (data) => data.global_schedule,
@@ -215,11 +213,7 @@ const ManageSchedulePage = ({
     error: teamScheduledQueriesError,
     isLoading: isLoadingTeamScheduledQueries,
     refetch: refetchTeamScheduledQueries,
-  } = useQuery<
-    ILoadAllTeamScheduledQueriesResponse,
-    Error,
-    ITeamScheduledQuery[]
-  >(
+  } = useQuery<ILoadAllTeamScheduledQueriesResponse, Error, IScheduledQuery[]>(
     ["teamScheduledQueries", selectedTeamId],
     () => teamScheduledQueriesAPI.loadAll(selectedTeamId),
     {
@@ -309,9 +303,10 @@ const ManageSchedulePage = ({
   const [selectedQueryIds, setSelectedQueryIds] = useState<number[] | never[]>(
     []
   );
-  const [selectedScheduledQuery, setSelectedScheduledQuery] = useState<
-    IGlobalScheduledQuery | ITeamScheduledQuery
-  >();
+  const [
+    selectedScheduledQuery,
+    setSelectedScheduledQuery,
+  ] = useState<IEditScheduledQuery>();
 
   const toggleInheritedQueries = () => {
     setShowInheritedQueries(!showInheritedQueries);
@@ -338,7 +333,7 @@ const ManageSchedulePage = ({
   };
 
   const onEditScheduledQueryClick = (
-    selectedQuery: IGlobalScheduledQuery | ITeamScheduledQuery
+    selectedQuery: IEditScheduledQuery
   ): void => {
     toggleScheduleEditorModal();
     setSelectedScheduledQuery(selectedQuery); // edit modal renders
@@ -380,15 +375,17 @@ const ManageSchedulePage = ({
   ]);
 
   const onAddScheduledQuerySubmit = useCallback(
-    (
-      formData: IFormData,
-      editQuery: IGlobalScheduledQuery | ITeamScheduledQuery | undefined
-    ) => {
+    (formData: IFormData, editQuery: IEditScheduledQuery | undefined) => {
       if (editQuery) {
         const updatedAttributes = deepDifference(formData, editQuery);
 
+        console.log(
+          "editQuery.type === team_scheduled_query",
+          editQuery.type === "team_scheduled_query"
+        );
+        debugger;
         const editResponse =
-          "team_id" in editQuery
+          editQuery.type === "team_scheduled_query"
             ? teamScheduledQueriesAPI.update(editQuery, updatedAttributes)
             : globalScheduledQueriesAPI.update(editQuery, updatedAttributes);
 

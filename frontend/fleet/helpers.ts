@@ -1,12 +1,6 @@
 import { flatMap, omit, pick, size, memoize } from "lodash";
 import md5 from "js-md5";
-import {
-  format,
-  formatDistanceToNow,
-  formatDuration,
-  isAfter,
-  millisecondsToHours,
-} from "date-fns";
+import { format, formatDistanceToNow, isAfter } from "date-fns";
 import yaml from "js-yaml";
 
 import { IConfigNested } from "interfaces/config";
@@ -16,8 +10,6 @@ import {
   IScheduledQuery,
   IPackQueryFormData,
 } from "interfaces/scheduled_query";
-import { IGlobalScheduledQuery } from "interfaces/global_scheduled_query";
-import { ITeamScheduledQuery } from "interfaces/team_scheduled_query";
 import {
   ISelectTargetsEntity,
   ISelectedTargets,
@@ -327,8 +319,8 @@ export const formatScheduledQueryForClient = (
 };
 
 export const formatGlobalScheduledQueryForServer = (
-  scheduledQuery: IGlobalScheduledQuery
-): IGlobalScheduledQuery => {
+  scheduledQuery: IScheduledQuery
+): IScheduledQuery => {
   const {
     interval,
     logging_type: loggingType,
@@ -363,8 +355,8 @@ export const formatGlobalScheduledQueryForServer = (
 };
 
 export const formatGlobalScheduledQueryForClient = (
-  scheduledQuery: IGlobalScheduledQuery
-): IGlobalScheduledQuery => {
+  scheduledQuery: IScheduledQuery
+): IScheduledQuery => {
   if (scheduledQuery.platform === "") {
     scheduledQuery.platform = "all";
   }
@@ -389,7 +381,7 @@ export const formatGlobalScheduledQueryForClient = (
 };
 
 export const formatTeamScheduledQueryForServer = (
-  scheduledQuery: ITeamScheduledQuery
+  scheduledQuery: IScheduledQuery
 ) => {
   const {
     interval,
@@ -430,8 +422,8 @@ export const formatTeamScheduledQueryForServer = (
 };
 
 export const formatTeamScheduledQueryForClient = (
-  scheduledQuery: ITeamScheduledQuery
-): ITeamScheduledQuery => {
+  scheduledQuery: IScheduledQuery
+): IScheduledQuery => {
   if (scheduledQuery.platform === "") {
     scheduledQuery.platform = "all";
   }
@@ -624,7 +616,6 @@ export const licenseExpirationWarning = (expiration: string): boolean => {
   return isAfter(new Date(), new Date(expiration));
 };
 
-// IQueryStats became any when adding in IGlobalScheduledQuery and ITeamScheduledQuery
 export const performanceIndicator = (
   scheduledQueryStats: IScheduledQueryStats
 ): string => {

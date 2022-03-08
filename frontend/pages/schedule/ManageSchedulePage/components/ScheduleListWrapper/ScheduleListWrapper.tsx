@@ -7,8 +7,8 @@ import { push } from "react-router-redux";
 import paths from "router/paths";
 
 import Button from "components/buttons/Button";
-import { IGlobalScheduledQuery } from "interfaces/global_scheduled_query";
-import { ITeamScheduledQuery } from "interfaces/team_scheduled_query";
+import { IEditScheduledQuery } from "interfaces/scheduled_query";
+
 import { ITeam } from "interfaces/team";
 
 import TableContainer from "components/TableContainer";
@@ -30,10 +30,8 @@ const TAGGED_TEMPLATES = {
 };
 interface IScheduleListWrapperProps {
   onRemoveScheduledQueryClick?: (selectIds: number[]) => void;
-  onEditScheduledQueryClick?: (
-    selectedQuery: IGlobalScheduledQuery | ITeamScheduledQuery
-  ) => void;
-  allScheduledQueriesList: IGlobalScheduledQuery[] | ITeamScheduledQuery[];
+  onEditScheduledQueryClick?: (selectedQuery: IEditScheduledQuery) => void;
+  allScheduledQueriesList: IEditScheduledQuery[];
   toggleScheduleEditorModal?: () => void;
   inheritedQueries?: boolean;
   isOnGlobalTeam: boolean;
@@ -126,7 +124,7 @@ const ScheduleListWrapper = ({
 
   const onActionSelection = (
     action: string,
-    global_scheduled_query: IGlobalScheduledQuery
+    global_scheduled_query: IEditScheduledQuery
   ): void => {
     switch (action) {
       case "edit":

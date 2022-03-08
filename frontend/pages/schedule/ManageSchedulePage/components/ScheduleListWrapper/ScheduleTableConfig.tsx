@@ -10,8 +10,7 @@ import TextCell from "components/TableContainer/DataTable/TextCell";
 import DropdownCell from "components/TableContainer/DataTable/DropdownCell";
 import PillCell from "components/TableContainer/DataTable/PillCell";
 import { IDropdownOption } from "interfaces/dropdownOption";
-import { IGlobalScheduledQuery } from "interfaces/global_scheduled_query";
-import { ITeamScheduledQuery } from "interfaces/team_scheduled_query";
+import { IEditScheduledQuery } from "interfaces/scheduled_query";
 import TooltipWrapper from "components/TooltipWrapper";
 
 interface IGetToggleAllRowsSelectedProps {
@@ -32,7 +31,7 @@ interface IHeaderProps {
 
 interface IRowProps {
   row: {
-    original: IGlobalScheduledQuery | ITeamScheduledQuery;
+    original: IEditScheduledQuery;
     getToggleRowSelectedProps: () => IGetToggleAllRowsSelectedProps;
     toggleRowSelected: () => void;
   };
@@ -88,7 +87,7 @@ interface IAllScheduledQueryTableData {
 const generateTableHeaders = (
   actionSelectHandler: (
     value: string,
-    all_scheduled_query: IGlobalScheduledQuery | ITeamScheduledQuery
+    all_scheduled_query: IEditScheduledQuery
   ) => void
 ): IDataColumn[] => {
   return [
@@ -223,11 +222,11 @@ const generateActionDropdownOptions = (): IDropdownOption[] => {
 };
 
 const enhanceAllScheduledQueryData = (
-  all_scheduled_queries: IGlobalScheduledQuery[] | ITeamScheduledQuery[],
+  all_scheduled_queries: IEditScheduledQuery[],
   teamId: number | undefined
 ): IAllScheduledQueryTableData[] => {
   return all_scheduled_queries.map(
-    (all_scheduled_query: IGlobalScheduledQuery | ITeamScheduledQuery) => {
+    (all_scheduled_query: IEditScheduledQuery) => {
       const scheduledQueryPerformance = {
         user_time_p50: all_scheduled_query.stats?.user_time_p50,
         system_time_p50: all_scheduled_query.stats?.system_time_p50,
@@ -256,7 +255,7 @@ const enhanceAllScheduledQueryData = (
 };
 
 const generateDataSet = (
-  all_scheduled_queries: IGlobalScheduledQuery[],
+  all_scheduled_queries: IEditScheduledQuery[],
   teamId: number | undefined
 ): IAllScheduledQueryTableData[] => {
   return [...enhanceAllScheduledQueryData(all_scheduled_queries, teamId)];

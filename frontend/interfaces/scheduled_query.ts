@@ -53,4 +53,31 @@ export interface IScheduledQuery {
   denylist?: boolean;
   logging_type?: string;
   stats: IScheduledQueryStats;
+  team_id?: number;
+}
+export interface IEditScheduledQuery extends IScheduledQuery {
+  type: "global_scheduled_query" | "team_scheduled_query";
+}
+export interface ILoadAllGlobalScheduledQueriesResponse {
+  global_schedule: IScheduledQuery[];
+}
+
+export interface ILoadAllGlobalScheduledQueriesResponse {
+  global_schedule: IScheduledQuery[];
+}
+
+export interface ILoadAllTeamScheduledQueriesResponse {
+  scheduled: IScheduledQuery[];
+}
+
+export interface IUpdateScheduledQuery {
+  interval?: number;
+  logging_type: string;
+  platform?: string;
+  version?: string;
+  shard?: number;
+}
+
+export interface IUpdateTeamScheduledQuery extends IUpdateScheduledQuery {
+  team_id: number;
 }
