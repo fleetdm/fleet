@@ -37,6 +37,40 @@ func instrumentHostLogger(ctx context.Context, extras ...interface{}) {
 	)
 }
 
+func authenticatedDevice(svc fleet.Service, logger log.Logger, next endpoint.Endpoint) endpoint.Endpoint {
+	authDeviceFunc := func(ctx context.Context, request interface{}) (interface{}, error) {
+		token, err := getDeviceAuthToken(request)
+		if err != nil {
+			return nil, err
+		}
+
+		host, debug, err := svc.AuthenticateDevice(ctx, token)
+		if err != nil {
+			logging.WithErr(ctx, err)
+			return nil, err
+		}
+
+		hlogger := log.With(logger, "host-id", host.ID)
+		if debug {
+			logJSON(hlogger, request, "request")
+		}
+
+		ctx = hostctx.NewContext(ctx, host)
+		instrumentHostLogger(ctx)
+
+		resp, err := next(ctx, request)
+		if err != nil {
+			return nil, err
+		}
+
+		if debug {
+			logJSON(hlogger, request, "response")
+		}
+		return resp, nil
+	}
+	return logged(authDeviceFunc)
+}
+
 // authenticatedHost wraps an endpoint, checks the validity of the node_key
 // provided in the request, and attaches the corresponding osquery host to the
 // context for the request
