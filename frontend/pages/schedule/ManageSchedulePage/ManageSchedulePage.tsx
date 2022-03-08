@@ -379,11 +379,6 @@ const ManageSchedulePage = ({
       if (editQuery) {
         const updatedAttributes = deepDifference(formData, editQuery);
 
-        console.log(
-          "editQuery.type === team_scheduled_query",
-          editQuery.type === "team_scheduled_query"
-        );
-        debugger;
         const editResponse =
           editQuery.type === "team_scheduled_query"
             ? teamScheduledQueriesAPI.update(editQuery, updatedAttributes)

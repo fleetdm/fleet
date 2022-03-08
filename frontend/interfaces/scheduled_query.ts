@@ -62,10 +62,6 @@ export interface ILoadAllGlobalScheduledQueriesResponse {
   global_schedule: IScheduledQuery[];
 }
 
-export interface ILoadAllGlobalScheduledQueriesResponse {
-  global_schedule: IScheduledQuery[];
-}
-
 export interface ILoadAllTeamScheduledQueriesResponse {
   scheduled: IScheduledQuery[];
 }
