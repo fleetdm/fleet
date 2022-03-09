@@ -40,7 +40,7 @@ const baseClass = "manage-schedule-page";
 const renderTable = (
   onRemoveScheduledQueryClick: (selectIds: number[]) => void,
   onEditScheduledQueryClick: (selectedQuery: IEditScheduledQuery) => void,
-  allScheduledQueriesList: IEditScheduledQuery[],
+  allScheduledQueriesList: IScheduledQuery[],
   allScheduledQueriesError: Error | null,
   toggleScheduleEditorModal: () => void,
   isOnGlobalTeam: boolean,
@@ -65,7 +65,7 @@ const renderTable = (
 };
 
 const renderAllTeamsTable = (
-  allTeamsScheduledQueriesList: IEditScheduledQuery[],
+  allTeamsScheduledQueriesList: IScheduledQuery[],
   allTeamsScheduledQueriesError: Error | null,
   isOnGlobalTeam: boolean,
   selectedTeamData: ITeam | undefined,
