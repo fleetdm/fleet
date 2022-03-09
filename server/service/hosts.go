@@ -728,17 +728,25 @@ func getMacadminsDataEndpoint(ctx context.Context, request interface{}, svc flee
 }
 
 func (svc *Service) MacadminsData(ctx context.Context, id uint) (*fleet.MacadminsData, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
-		return nil, err
+	// can be already authorized if coming from device auth token endpoint
+	var alreadyAuthd bool
+	if authctx, ok := authzctx.FromContext(ctx); ok {
+		alreadyAuthd = authctx.Checked()
 	}
 
-	host, err := svc.ds.HostLite(ctx, id)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "find host for macadmins")
-	}
+	if !alreadyAuthd {
+		if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+			return nil, err
+		}
 
-	if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
-		return nil, err
+		host, err := svc.ds.HostLite(ctx, id)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "find host for macadmins")
+		}
+
+		if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
+			return nil, err
+		}
 	}
 
 	var munkiInfo *fleet.HostMunkiInfo

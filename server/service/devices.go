@@ -21,17 +21,13 @@ func (r *getDeviceHostRequest) deviceAuthToken() string {
 }
 
 func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
-	// TODO(mna): since we have to reload the host information anyway (because otherwise
-	// we'd load the full host details on each device auth, which is unnecessary for
-	// many endpoints), we could just check that the host exists and store just the ID
-	// when authenticating via device auth token.
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
 		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
 		return getHostResponse{Err: err}, nil
 	}
 
-	// must still load the full host details
+	// must still load the full host details, as it returns more information
 	hostDetails, err := svc.GetHost(ctx, host.ID)
 	if err != nil {
 		return getHostResponse{Err: err}, nil
@@ -132,4 +128,30 @@ func listDeviceHostDeviceMappingEndpoint(ctx context.Context, request interface{
 		return listHostDeviceMappingResponse{Err: err}, nil
 	}
 	return listHostDeviceMappingResponse{HostID: host.ID, DeviceMapping: dms}, nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Get Current Device's Macadmins
+////////////////////////////////////////////////////////////////////////////////
+
+type getDeviceMacadminsDataRequest struct {
+	Token string `url:"token"`
+}
+
+func (r *getDeviceMacadminsDataRequest) deviceAuthToken() string {
+	return r.Token
+}
+
+func getDeviceMacadminsDataEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
+		return getHostResponse{Err: err}, nil
+	}
+
+	data, err := svc.MacadminsData(ctx, host.ID)
+	if err != nil {
+		return getMacadminsDataResponse{Err: err}, nil
+	}
+	return getMacadminsDataResponse{Macadmins: data}, nil
 }
