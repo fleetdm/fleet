@@ -277,6 +277,12 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 			return nil, err
 		}
 	}
+	if p.NewPassword != nil {
+		// TODO(mna): if a password is provided, authorize write_password
+		if err := fleet.ValidatePasswordRequirements(*p.NewPassword); err != nil {
+			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("new_password", err.Error()))
+		}
+	}
 	if p.Name != nil {
 		user.Name = *p.Name
 	}
@@ -320,7 +326,12 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 		user.GlobalRole = nil
 	}
 
-	err = svc.saveUser(ctx, user)
+	if p.NewPassword != nil {
+		// setNewPassword takes care of calling saveUser
+		err = svc.setNewPassword(ctx, user, *p.NewPassword)
+	} else {
+		err = svc.saveUser(ctx, user)
+	}
 	if err != nil {
 		return nil, err
 	}

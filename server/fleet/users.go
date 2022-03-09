@@ -69,6 +69,7 @@ type UserPayload struct {
 	AdminForcedPasswordReset *bool       `json:"admin_forced_password_reset,omitempty"`
 	APIOnly                  *bool       `json:"api_only,omitempty"`
 	Teams                    *[]UserTeam `json:"teams,omitempty"`
+	NewPassword              *string     `json:"new_password,omitempty"`
 }
 
 func (p *UserPayload) VerifyInviteCreate() error {
@@ -161,6 +162,10 @@ func (p *UserPayload) VerifyModify(ownUser bool) error {
 		if ownUser && p.Password == nil {
 			invalid.Append("password", "Password cannot be empty if email is changed")
 		}
+	}
+
+	if p.SSOEnabled != nil && *p.SSOEnabled && p.NewPassword != nil && len(*p.NewPassword) > 0 {
+		invalid.Append("new_password", "not allowed for SSO users")
 	}
 
 	if invalid.HasErrors() {
