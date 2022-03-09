@@ -16,7 +16,7 @@ func Up_20220307104655(tx *sql.Tx) error {
         host_id int(10) UNSIGNED NOT NULL,
         token VARCHAR(255) NOT NULL,
         PRIMARY KEY (host_id),
-        INDEX idx_host_device_auth_token (token)
+        UNIQUE INDEX idx_host_device_auth_token (token)
     );
 	`
 	if _, err := tx.Exec(hostDeviceAuthTable); err != nil {
