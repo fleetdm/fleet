@@ -1,7 +1,9 @@
 package fleet
 
 import (
+	"database/sql/driver"
 	"encoding/json"
+	"fmt"
 	"time"
 )
 
@@ -33,6 +35,7 @@ type Team struct {
 	Description string `json:"description" db:"description"`
 	// AgentOptions is the options for osquery and Orbit.
 	AgentOptions *json.RawMessage `json:"agent_options" db:"agent_options"`
+	Config       TeamConfig       `json:"config" db:"config"`
 
 	// Derived from JOINs
 
@@ -46,6 +49,29 @@ type Team struct {
 	Hosts []Host `json:"hosts,omitempty"`
 	// Secrets is the enroll secrets valid for this team.
 	Secrets []*EnrollSecret `json:"secrets,omitempty"`
+}
+
+type TeamConfig struct {
+	WebhookSettings WebhookSettings `json:"webhook_settings"`
+}
+
+// Scan implements the sql.Scanner interface
+func (t *TeamConfig) Scan(val interface{}) error {
+	switch v := val.(type) {
+	case []byte:
+		return json.Unmarshal(v, &t)
+	case string:
+		return json.Unmarshal([]byte(v), &t)
+	case nil: // sql NULL
+		return nil
+	default:
+		return fmt.Errorf("unsupported type: %T", v)
+	}
+}
+
+// Value implements the sql.Valuer interface
+func (t *TeamConfig) Value() (driver.Value, error) {
+	return json.Marshal(t)
 }
 
 type TeamSummary struct {
