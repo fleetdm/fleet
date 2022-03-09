@@ -47,7 +47,7 @@ function create_repository() {
     fi
 
     # Compile the latest version of orbit from source.
-    GOOS=$goose_value go build -o $orbit_target ./orbit/cmd/orbit
+    GOOS=$goose_value GOARCH=amd64 go build -o $orbit_target ./orbit/cmd/orbit
 
     # If macOS and CODESIGN_IDENTITY is defined, sign the executable.
     if [[ $system == "macos" && -n "$CODESIGN_IDENTITY" ]]; then
