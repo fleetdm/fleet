@@ -22,6 +22,7 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/spf13/cast"
+	"go.elastic.co/apm"
 )
 
 type osqueryError struct {
@@ -468,6 +469,8 @@ type getDistributedQueriesResponse struct {
 func (r getDistributedQueriesResponse) error() error { return r.Err }
 
 func getDistributedQueriesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	span, ctx := apm.StartSpan(ctx, "Get Distributed Queries", "endpoint.http.getDistributedQueries")
+	defer span.End()
 	queries, accelerate, err := svc.GetDistributedQueries(ctx)
 	if err != nil {
 		return getDistributedQueriesResponse{Err: err}, nil
