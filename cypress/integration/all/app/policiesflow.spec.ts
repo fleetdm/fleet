@@ -42,6 +42,19 @@ describe("Policies flow (empty)", () => {
         cy.findByText(/add a policy/i).click();
       });
       cy.findByText(/gatekeeper enabled/i).click();
+      cy.getAttached(".platforms-select")
+        .children()
+        .first()
+        .within(() => {
+          cy.getAttached('[type="checkbox"]').should("be.checked");
+        });
+      cy.getAttached(".platforms-select")
+        .children()
+        .first()
+        .next()
+        .within(() => {
+          cy.getAttached('[type="checkbox"]').should("not.be.checked");
+        });
       cy.findByRole("button", { name: /save policy/i }).click();
       cy.findByRole("button", { name: /^Save$/ }).click();
 
@@ -110,7 +123,9 @@ describe("Policies flow (seeded)", () => {
       cy.findByText(/backup/i).should("not.exist");
     });
     it("creates a failing policies webhook", () => {
-      cy.findByRole("button", { name: /manage automations/i }).click();
+      cy.getAttached(".button-wrap").within(() => {
+        cy.findByRole("button", { name: /manage automations/i }).click();
+      });
       cy.getAttached(".manage-automations-modal").within(() => {
         cy.getAttached(".fleet-checkbox__input").check({ force: true });
       });
@@ -118,7 +133,9 @@ describe("Policies flow (seeded)", () => {
       cy.findByRole("button", { name: /^Save$/ }).click();
       // Confirm failing policies webhook was added successfully
       cy.findByText(/updated policy automations/i).should("exist");
-      cy.findByRole("button", { name: /manage automations/i }).click();
+      cy.getAttached(".button-wrap").within(() => {
+        cy.findByRole("button", { name: /manage automations/i }).click();
+      });
       cy.getAttached(".manage-automations-modal").within(() => {
         cy.getAttached(".fleet-checkbox__input").should("be.checked");
       });

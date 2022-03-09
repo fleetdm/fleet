@@ -70,6 +70,15 @@ func (q *Query) Verify() error {
 	return nil
 }
 
+type TargetedQuery struct {
+	*Query
+	HostTargets HostTargets `json:"host_targets"`
+}
+
+func (tq *TargetedQuery) AuthzType() string {
+	return "targeted_query"
+}
+
 var (
 	validateSQLRegexp  = regexp.MustCompile(`(?i)attach[^\w]+.*[^\w]+as[^\w]+`)
 	errQueryEmptyName  = errors.New("query name cannot be empty")

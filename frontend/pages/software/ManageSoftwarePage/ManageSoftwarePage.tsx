@@ -1,11 +1,17 @@
-import React, { useCallback, useContext, useState } from "react";
+import React, { useCallback, useContext, useEffect, useState } from "react";
 import { useQuery } from "react-query";
+import { useDispatch } from "react-redux";
 import { InjectedRouter } from "react-router/lib/Router";
-import ReactTooltip from "react-tooltip";
 import { useDebouncedCallback } from "use-debounce/lib";
-import formatDistanceToNowStrict from "date-fns/formatDistanceToNowStrict";
 
 import { AppContext } from "context/app";
+import { IConfig, IConfigNested } from "interfaces/config";
+import { IWebhookSoftwareVulnerabilities } from "interfaces/webhook";
+// @ts-ignore
+import { getConfig } from "redux/nodes/app/actions";
+// @ts-ignore
+import { renderFlash } from "redux/nodes/notifications/actions";
+import configAPI from "services/entities/config";
 import softwareAPI, {
   ISoftwareResponse,
   ISoftwareCountResponse,
@@ -18,18 +24,19 @@ import {
 import Button from "components/buttons/Button";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
+// @ts-ignore
 import Spinner from "components/Spinner";
 import TableContainer, { ITableQueryData } from "components/TableContainer";
 import TableDataError from "components/TableDataError";
 import TeamsDropdownHeader, {
   ITeamsDropdownState,
 } from "components/PageHeader/TeamsDropdownHeader";
+import renderLastUpdatedText from "components/LastUpdatedText";
 
-import ExternalLinkIcon from "../../../../assets/images/open-new-tab-12x12@2x.png";
-import QuestionIcon from "../../../../assets/images/icon-question-16x16@2x.png";
-
-import generateTableHeaders from "./SoftwareTableConfig";
+import softwareTableHeaders from "./SoftwareTableConfig";
+import ManageAutomationsModal from "./components/ManageAutomationsModal";
 import EmptySoftware from "../components/EmptySoftware";
+import ExternalLinkIcon from "../../../../assets/images/open-new-tab-12x12@2x.png";
 
 interface IManageSoftwarePageProps {
   router: InjectedRouter;
@@ -38,6 +45,9 @@ interface IManageSoftwarePageProps {
     query: { vulnerable?: boolean };
     search: string;
   };
+}
+interface IHeaderButtonsState extends ITeamsDropdownState {
+  isLoading: boolean;
 }
 const DEFAULT_SORT_DIRECTION = "desc";
 const DEFAULT_SORT_HEADER = "hosts_count";
@@ -49,10 +59,16 @@ const ManageSoftwarePage = ({
   router,
   location,
 }: IManageSoftwarePageProps): JSX.Element => {
-  const { availableTeams, currentTeam } = useContext(AppContext);
+  const dispatch = useDispatch();
+  const {
+    availableTeams,
+    currentTeam,
+    setConfig,
+    isGlobalAdmin,
+    isGlobalMaintainer,
+  } = useContext(AppContext);
 
-  const [isLoadingSoftware, setIsLoadingSoftware] = useState(true);
-  const [isLoadingCount, setIsLoadingCount] = useState(true);
+  const [isSoftwareEnabled, setIsSoftwareEnabled] = useState<boolean>();
   const [filterVuln, setFilterVuln] = useState(
     location?.query?.vulnerable || false
   );
@@ -62,79 +78,107 @@ const ManageSoftwarePage = ({
   >(DEFAULT_SORT_DIRECTION);
   const [sortHeader, setSortHeader] = useState(DEFAULT_SORT_HEADER);
   const [pageIndex, setPageIndex] = useState(0);
+  const [showManageAutomationsModal, setShowManageAutomationsModal] = useState(
+    false
+  );
+  const [showPreviewPayloadModal, setShowPreviewPayloadModal] = useState(false);
 
-  const teamId = currentTeam?.id;
+  // TODO: experiment to see if we need this state and effect or can we rely solely on the router/location for the dropdown state?
+  useEffect(() => {
+    setFilterVuln(!!location.query.vulnerable);
+  }, [location]);
 
-  const { data: software, error: softwareError } = useQuery<
-    ISoftwareResponse,
-    Error
-  >(
+  const { data: config } = useQuery(["config"], configAPI.loadAll, {
+    onSuccess: (data) => {
+      setIsSoftwareEnabled(data?.host_settings?.enable_software_inventory);
+    },
+  });
+
+  const {
+    data: software,
+    error: softwareError,
+    isFetching: isFetchingSoftware,
+  } = useQuery<ISoftwareResponse, Error>(
     [
       "software",
       {
-        pageIndex,
-        pageSize: PAGE_SIZE,
-        searchQuery,
-        sortDirection,
-        sortHeader,
-        teamId,
-        vulnerable: filterVuln,
+        params: {
+          scope: "software",
+          pageIndex,
+          pageSize: PAGE_SIZE,
+          searchQuery,
+          sortDirection,
+          sortHeader,
+          teamId: currentTeam?.id,
+          vulnerable: !!location.query.vulnerable,
+        },
       },
+      location.pathname,
+      location.search,
     ],
+    // TODO: figure out typing and destructuring for query key inside query function
     () => {
-      setIsLoadingSoftware(true);
-      return softwareAPI.load({
+      const params = {
         page: pageIndex,
         perPage: PAGE_SIZE,
         query: searchQuery,
         orderKey: sortHeader,
         orderDir: sortDirection || DEFAULT_SORT_DIRECTION,
-        vulnerable: filterVuln,
-        teamId,
-      });
+        vulnerable: !!location.query.vulnerable,
+        teamId: currentTeam?.id,
+      };
+      return softwareAPI.load(params);
     },
     {
-      // If keepPreviousData is enabled,
-      // useQuery no longer returns isLoading when making new calls after load
-      // So we manage our own load states
       keepPreviousData: true,
-      staleTime: 30000, // TODO: Discuss a reasonable staleTime given that counts are only updated infrequently?
-      onSuccess: () => {
-        setIsLoadingSoftware(false);
-      },
-      onError: () => {
-        setIsLoadingSoftware(false);
-      },
+      staleTime: 30000, // stale time can be adjusted if fresher data is desired based on software inventory interval
     }
   );
 
-  const { data: softwareCount, error: softwareCountError } = useQuery<
-    ISoftwareCountResponse,
-    Error,
-    number
-  >(
-    ["softwareCount", { searchQuery, vulnerable: filterVuln, teamId }],
+  const {
+    data: softwareCount,
+    error: softwareCountError,
+    isFetching: isFetchingCount,
+  } = useQuery<ISoftwareCountResponse, Error, number>(
+    [
+      "softwareCount",
+      {
+        params: {
+          searchQuery,
+          vulnerable: !!location.query.vulnerable,
+          teamId: currentTeam?.id,
+        },
+      },
+    ],
     () => {
-      setIsLoadingCount(true);
       return softwareAPI.count({
         query: searchQuery,
-        vulnerable: filterVuln,
-        teamId,
+        vulnerable: !!location.query.vulnerable,
+        teamId: currentTeam?.id,
       });
     },
     {
       keepPreviousData: true,
-      staleTime: 30000, // TODO: Discuss a reasonable staleTime given that counts are only updated infrequently?
+      staleTime: 30000, // stale time can be adjusted if fresher data is desired based on software inventory interval
       refetchOnWindowFocus: false,
       retry: 1,
       select: (data) => data.count,
-      onSuccess: () => {
-        setIsLoadingCount(false);
-      },
-      onError: (err) => {
-        console.log("useQuery error: ", err);
-        setIsLoadingCount(false);
-      },
+    }
+  );
+
+  const canAddOrRemoveSoftwareWebhook = isGlobalAdmin || isGlobalMaintainer;
+
+  const {
+    data: softwareVulnerabilitiesWebhook,
+    isLoading: isLoadingSoftwareVulnerabilitiesWebhook,
+    refetch: refetchSoftwareVulnerabilitiesWebhook,
+  } = useQuery<IConfigNested, Error, IWebhookSoftwareVulnerabilities>(
+    ["config"],
+    () => configAPI.loadAll(),
+    {
+      enabled: canAddOrRemoveSoftwareWebhook,
+      select: (data: IConfigNested) =>
+        data.webhook_settings.vulnerabilities_webhook,
     }
   );
 
@@ -158,20 +202,72 @@ const ManageSoftwarePage = ({
     300
   );
 
+  const toggleManageAutomationsModal = () =>
+    setShowManageAutomationsModal(!showManageAutomationsModal);
+
+  const togglePreviewPayloadModal = useCallback(() => {
+    setShowPreviewPayloadModal(!showPreviewPayloadModal);
+  }, [setShowPreviewPayloadModal, showPreviewPayloadModal]);
+
+  const onManageAutomationsClick = () => {
+    toggleManageAutomationsModal();
+  };
+
+  const onCreateWebhookSubmit = async ({
+    destination_url,
+    enable_vulnerabilities_webhook,
+  }: IWebhookSoftwareVulnerabilities) => {
+    try {
+      const request = configAPI.update({
+        webhook_settings: {
+          vulnerabilities_webhook: {
+            destination_url,
+            enable_vulnerabilities_webhook,
+          },
+        },
+      });
+      await request.then(() => {
+        dispatch(
+          renderFlash(
+            "success",
+            "Successfully updated vulnerability automations."
+          )
+        );
+      });
+    } catch {
+      dispatch(
+        renderFlash(
+          "error",
+          "Could not update vulnerability automations. Please try again."
+        )
+      );
+    } finally {
+      toggleManageAutomationsModal();
+      refetchSoftwareVulnerabilitiesWebhook();
+      // Config must be updated in both Redux and AppContext
+      dispatch(getConfig())
+        .then((configState: IConfig) => {
+          setConfig(configState);
+        })
+        .catch(() => false);
+    }
+  };
+
   const onTeamSelect = () => {
     setPageIndex(0);
   };
 
   const renderHeaderButtons = (
-    state: ITeamsDropdownState
+    state: IHeaderButtonsState
   ): JSX.Element | null => {
     if (
       (state.isGlobalAdmin || state.isGlobalMaintainer) &&
-      state.teamId === 0
+      (!state.isPremiumTier || state.teamId === 0) &&
+      !state.isLoading
     ) {
       return (
         <Button
-          onClick={() => console.log("Manage automations button click")}
+          onClick={onManageAutomationsClick}
           className={`${baseClass}__manage-automations button`}
           variant="brand"
         >
@@ -185,8 +281,11 @@ const ManageSoftwarePage = ({
   const renderHeaderDescription = (state: ITeamsDropdownState) => {
     return (
       <p>
-        Search for installed software and manage automations for detected
-        vulnerabilities (CVEs) on{" "}
+        Search for installed software{" "}
+        {(state.isGlobalAdmin || state.isGlobalMaintainer) &&
+          (!state.isPremiumTier || state.teamId === 0) &&
+          "and manage automations for detected vulnerabilities (CVEs)"}{" "}
+        on{" "}
         <b>
           {state.isPremiumTier && !!state.teamId
             ? "all hosts assigned to this team"
@@ -206,23 +305,25 @@ const ManageSoftwarePage = ({
         onChange={onTeamSelect}
         defaultTitle="Software"
         description={renderHeaderDescription}
-        buttons={renderHeaderButtons}
+        buttons={(state) =>
+          renderHeaderButtons({
+            ...state,
+            isLoading: isLoadingSoftwareVulnerabilitiesWebhook,
+          })
+        }
       />
     );
-  }, [router, location]);
+  }, [router, location, isLoadingSoftwareVulnerabilitiesWebhook]);
 
   const renderSoftwareCount = useCallback(() => {
     const count = softwareCount;
-    let lastUpdatedAt = software?.counts_updated_at;
-    if (!lastUpdatedAt || lastUpdatedAt === "0001-01-01T00:00:00Z") {
-      lastUpdatedAt = "never";
-    } else {
-      lastUpdatedAt = formatDistanceToNowStrict(new Date(lastUpdatedAt), {
-        addSuffix: true,
-      });
+    const lastUpdatedAt = software?.counts_updated_at;
+
+    if (!isSoftwareEnabled || !lastUpdatedAt) {
+      return null;
     }
 
-    if (softwareCountError && !isLoadingCount) {
+    if (softwareCountError && !isFetchingCount) {
       return (
         <span className={`${baseClass}__count count-error`}>
           Failed to load software count
@@ -231,46 +332,23 @@ const ManageSoftwarePage = ({
     }
 
     // TODO: Use setInterval to keep last updated time current?
-    return count !== undefined ? (
-      <span
-        className={`${baseClass}__count ${
-          isLoadingCount ? "count-loading" : ""
-        }`}
-      >
-        {`${count} software item${count === 1 ? "" : "s"}`}
-        <span className="count-last-updated">
-          {`Last updated ${lastUpdatedAt}`}{" "}
-          <span className={`tooltip`}>
-            <span
-              className={`tooltip__tooltip-icon`}
-              data-tip
-              data-for="last-updated-tooltip"
-              data-tip-disable={false}
-            >
-              <img alt="question icon" src={QuestionIcon} />
-            </span>
-            <ReactTooltip
-              place="top"
-              type="dark"
-              effect="solid"
-              backgroundColor="#3e4771"
-              id="last-updated-tooltip"
-              data-html
-            >
-              <span className={`tooltip__tooltip-text`}>
-                Fleet periodically
-                <br />
-                queries all hosts
-                <br />
-                to retrieve software
-              </span>
-            </ReactTooltip>
-          </span>
-        </span>
-      </span>
-    ) : null;
-  }, [isLoadingCount, software, softwareCountError, softwareCount]);
+    if (count) {
+      return (
+        <div
+          className={`${baseClass}__count ${
+            isFetchingCount ? "count-loading" : ""
+          }`}
+        >
+          <span>{`${count} software item${count === 1 ? "" : "s"}`}</span>
+          {renderLastUpdatedText(lastUpdatedAt, "software")}
+        </div>
+      );
+    }
 
+    return null;
+  }, [isFetchingCount, software, softwareCountError, softwareCount]);
+
+  // TODO: retool this with react-router location descriptor objects
   const buildUrlQueryString = (queryString: string, vulnerable: boolean) => {
     queryString = queryString.startsWith("?")
       ? queryString.slice(1)
@@ -337,24 +415,38 @@ const ManageSoftwarePage = ({
     );
   };
 
-  return !availableTeams ? (
+  // TODO: Rework after backend is adjusted to differentiate empty search/filter results from
+  // collecting inventory
+  const isCollectingInventory =
+    !searchQuery &&
+    !filterVuln &&
+    !currentTeam?.id &&
+    !pageIndex &&
+    !software?.software &&
+    software?.counts_updated_at === null;
+
+  const isLastPage =
+    !!softwareCount &&
+    PAGE_SIZE * pageIndex + (software?.software?.length || 0) >= softwareCount;
+
+  return !availableTeams || !config ? (
     <Spinner />
   ) : (
     <div className={baseClass}>
       <div className={`${baseClass}__wrapper body-wrap`}>
         {renderHeader()}
-        {softwareError && !isLoadingSoftware ? (
+        {softwareError && !isFetchingSoftware ? (
           <TableDataError />
         ) : (
           <TableContainer
-            columns={generateTableHeaders()}
-            data={software?.software || []}
-            isLoading={isLoadingSoftware}
+            columns={softwareTableHeaders}
+            data={(isSoftwareEnabled && software?.software) || []}
+            isLoading={isFetchingSoftware || isFetchingCount}
             resultsTitle={"software items"}
             emptyComponent={() =>
               EmptySoftware(
-                (filterVuln && "vulnerable") ||
-                  (searchQuery && "search") ||
+                (!isSoftwareEnabled && "disabled") ||
+                  (isCollectingInventory && "collecting") ||
                   "default"
               )
             }
@@ -364,6 +456,7 @@ const ManageSoftwarePage = ({
             pageSize={PAGE_SIZE}
             showMarkAllPages={false}
             isAllPagesSelected={false}
+            disableNextPage={isLastPage}
             searchable
             inputPlaceHolder="Search software by name or vulnerabilities (CVEs)"
             onQueryChange={onQueryChange}
@@ -376,6 +469,24 @@ const ManageSoftwarePage = ({
             disableActionButton
             hideActionButton
             highlightOnHover
+          />
+        )}
+
+        {showManageAutomationsModal && (
+          <ManageAutomationsModal
+            onCancel={toggleManageAutomationsModal}
+            onCreateWebhookSubmit={onCreateWebhookSubmit}
+            togglePreviewPayloadModal={togglePreviewPayloadModal}
+            showPreviewPayloadModal={showPreviewPayloadModal}
+            softwareVulnerabilityWebhookEnabled={
+              softwareVulnerabilitiesWebhook &&
+              softwareVulnerabilitiesWebhook.enable_vulnerabilities_webhook
+            }
+            currentDestinationUrl={
+              (softwareVulnerabilitiesWebhook &&
+                softwareVulnerabilitiesWebhook.destination_url) ||
+              ""
+            }
           />
         )}
       </div>

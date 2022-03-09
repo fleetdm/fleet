@@ -1,42 +1,80 @@
 import React from "react";
-import { mount } from "enzyme";
-import { noop } from "lodash";
+import { fireEvent, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 
 import UserSettingsForm from "components/forms/UserSettingsForm";
-import helpers from "test/helpers";
-
-const { fillInFormInput, itBehavesLikeAFormInputElement } = helpers;
 
 describe("UserSettingsForm - component", () => {
   const defaultProps = {
-    handleSubmit: noop,
-    onCancel: noop,
+    handleSubmit: jest.fn(),
+    onCancel: jest.fn(),
   };
 
-  it("has the correct fields", () => {
-    const form = mount(<UserSettingsForm {...defaultProps} />);
+  it("renders correctly", () => {
+    render(<UserSettingsForm {...defaultProps} />);
 
-    itBehavesLikeAFormInputElement(form, "email");
-    itBehavesLikeAFormInputElement(form, "name");
+    expect(
+      screen.getByRole("textbox", { name: /email \(required\)/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("textbox", { name: /full name \(required\)/i })
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Update" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
+  });
+
+  it("should pass validation checks for input fields", async () => {
+    render(<UserSettingsForm {...defaultProps} />);
+
+    // when
+    fireEvent.click(screen.getByRole("button", { name: "Update" }));
+    // then
+    expect(defaultProps.handleSubmit).not.toHaveBeenCalled();
+    expect(
+      await screen.findByText("Email field must be completed")
+    ).toBeInTheDocument();
+    expect(
+      await screen.findByText("Full name field must be completed")
+    ).toBeInTheDocument();
+  });
+
+  it("should throw validation error when invalid email is entered", async () => {
+    render(<UserSettingsForm {...{ ...defaultProps, smtpConfigured: true }} />);
+
+    // when
+    userEvent.type(
+      screen.getByRole("textbox", { name: /email \(required\)/i }),
+      "invalid-email"
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Update" }));
+    // then
+    expect(defaultProps.handleSubmit).not.toHaveBeenCalled();
+    expect(
+      await screen.findByText("invalid-email is not a valid email")
+    ).toBeInTheDocument();
   });
 
   it("calls the handleSubmit props with form data", () => {
-    const handleSubmitSpy = jest.fn();
-    const props = { ...defaultProps, handleSubmit: handleSubmitSpy };
-    const form = mount(<UserSettingsForm {...props} />);
     const expectedFormData = {
       email: "email@example.com",
       name: "Jim Example",
     };
-    const emailInput = form.find({ name: "email" }).find("input");
-    const nameInput = form.find({ name: "name" }).find("input");
 
-    fillInFormInput(emailInput, expectedFormData.email);
-    fillInFormInput(nameInput, expectedFormData.name);
+    render(<UserSettingsForm {...{ ...defaultProps, smtpConfigured: true }} />);
 
-    form.find("form").simulate("submit");
+    // when
+    userEvent.type(
+      screen.getByRole("textbox", { name: /email \(required\)/i }),
+      expectedFormData.email
+    );
+    userEvent.type(
+      screen.getByRole("textbox", { name: /full name \(required\)/i }),
+      expectedFormData.name
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Update" }));
 
-    expect(handleSubmitSpy).toHaveBeenCalledWith(expectedFormData);
+    // then
+    expect(defaultProps.handleSubmit).toHaveBeenCalledWith(expectedFormData);
   });
 
   it("initializes the form with the users data", () => {
@@ -45,8 +83,14 @@ describe("UserSettingsForm - component", () => {
       name: "Jim Example",
     };
     const props = { ...defaultProps, formData: user };
-    const form = mount(<UserSettingsForm {...props} />);
 
-    expect(form.state().formData).toEqual(user);
+    render(<UserSettingsForm {...props} />);
+
+    expect(
+      screen.getByRole("textbox", { name: /email \(required\)/i })
+    ).toHaveValue(user.email);
+    expect(
+      screen.getByRole("textbox", { name: /full name \(required\)/i })
+    ).toHaveValue(user.name);
   });
 });

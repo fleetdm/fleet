@@ -1,3 +1,120 @@
+## Fleet 4.11.0 (Mar 7, 2022)
+
+* Improve vulnerability processing to reduce the number of false positives for RPM packages on Linux hosts.
+
+* Fleet Premium: Add a `teams` key to the `packs` yaml document to allow adding teams as targets when using CI/CD to manage query packs.
+
+* Fleet premium: Add the ability to retrieve configuration for a specific team with the `fleetctl get team --name
+<team-name-here>` command.
+
+* Remove the expiration for API tokens for API-only users. API-only users can be created using the
+  `fleetctl user create --api-only` command.
+
+* Improve performance of the osquery query used to collect software inventory for Linux hosts.
+
+* Update the activity feed on the **Home page** to include add, edit, and delete policy activities.
+  Activity information is also available in the `GET /activities` API route.
+
+* Update Kinesis logging plugin to append newline character to raw message bytes to properly format NDJSON for downstream consumers.
+
+* Clarify why the "Performance impact" for some queries is displayed as "Undetermined" in the Fleet
+  UI.
+
+* Add instructions for using plain osquery to add hosts to Fleet in the Fleet View these instructions by heading to **Hosts > Add hosts > Advanced**.
+
+* Fix a bug in which uninstalling Munki from one or more hosts would result in inaccurate Munki
+  versions displayed on the **Home > macOS** page.
+
+* Fix a bug in which a user, with access limited to one or more teams, was able to run a live query
+against hosts in any team. This bug is not exposed in the Fleet UI and is limited to users of the
+`POST run` API route. 
+
+* Fix a bug in the Fleet UI in which the "Select targets" search bar would not return the expected hosts.
+
+* Fix a bug in which global agent options were not updated correctly when editing these options in
+the Fleet UI.
+
+* Fix a bug in which the Fleet UI would incorrectly tag some URLs as invalid.
+
+* Fix a bug in which the Fleet UI would attempt to connect to an SMTP server when SMTP was disabled.
+
+* Fix a bug on the Software page in which the "Hosts" column was not filtered by team.
+
+* Fix a bug in which global maintainers were unable to add and edit policies that belonged to a
+  specific team.
+
+* Fix a bug in which the operating system version for some Linux distributions would not be
+displayed properly.
+
+* Fix a bug in which configuring an identity provider name to a value shorter than 4 characters was
+not allowed.
+
+* Fix a bug in which the avatar would not appear in the top navigation.
+
+
+## Fleet 4.10.0 (Feb 13, 2022)
+
+* Upgrade Go to 1.17.7 with security fixes for crypto/elliptic (CVE-2022-23806), math/big (CVE-2022-23772), and cmd/go (CVE-2022-23773). These are not likely to be high impact in Fleet deployments, but we are upgrading in an abundance of caution.
+
+* Add aggregate software and vulnerability information on the new **Software** page.
+
+* Add ability to see how many hosts have a specific vulnerable software installed on the
+  **Software** page. This information is also available in the `GET /api/v1/fleet/software` API route.
+
+* Add ability to send a webhook request if a new vulnerability (CVE) is
+found on at least one host. Documentation on what data is included the webhook
+request and when the webhook request is sent can be found here on [fleedm.com/docs](https://fleetdm.com/docs/using-fleet/automations#vulnerability-automations).
+
+* Add aggregate Mobile Device Management and Munki data on the **Home** page.
+
+* Add email and URL validation across the entire Fleet UI.
+
+* Add ability to filter software by "Vulnerable" on the **Host details** page.
+
+* Update standard policy templates to use new naming convention. For example, "Is FileVault enabled on macOS
+devices?" is now "Full disk encryption enabled (macOS)."
+
+* Add db-innodb-status and db-process-list to `fleetctl debug` command.
+
+* Fleet Premium: Add the ability to generate a Fleet installer and manage enroll secrets on the **Team details**
+  page. 
+
+* A ability for users with the observer role to view which platforms (macOS, Windows, Linux) a query
+  is compatible with.
+
+* Improve the experience for editing queries and policies in the Fleet UI.
+
+* Improve vulnerability processing for NPM packages.
+
+* Support triggering a webhook for newly detected vulnerabilities with a list of affected hosts.
+
+* Add filter software by CVE.
+
+* Add the ability to disable scheduled query performance statistics.
+
+* Add ability to filter the host summary information by platform (macOS, Windows, Linux) on the **Home** page.
+
+* Fix a bug in Fleet installers for Linux in which a computer restart would stop the host from
+  reporting to Fleet.
+
+* Make sure ApplyTeamSpec only works with premium deployments.
+
+* Disable MDM, Munki, and Chrome profile queries on unsupported platforms to reduce log noise.
+
+* Properly handle paths in CVE URL prefix.
+
+## Fleet 4.9.1 (Feb 2, 2022)
+
+### This is a security release.
+
+* **Security**: Fix a vulnerability in Fleet's SSO implementation that could allow a malicious or compromised SAML Service Provider (SP) to log into Fleet as an existing Fleet user. See https://github.com/fleetdm/fleet/security/advisories/GHSA-ch68-7cf4-35vr for details.
+
+* Allow MSI packages generated by `fleetctl package` to reinstall on Windows without uninstall.
+
+* Fix a bug in which a team's scheduled queries didn't render correctly on the **Schedule** page.
+
+* Fix a bug in which a new policy would always get added to "All teams" rather than the selected team.
+
 ## Fleet 4.9.0 (Jan 21, 2022)
 
 * Add ability to apply a `policy` yaml document so that GitOps workflows can be used to create and
@@ -294,7 +411,7 @@ Fleet server in non-debug mode.
 
   * Running an "Excessive" query, even infrequently, can have a significant impact on your host’s performance.
 
-* Add the ability to see a list of hosts that have a specific software version installed by selecting a software version on a specific host's **Host details** page. Software inventory is currently under a feature flag. To enable this feature flag, check out the [feature flag documentation](./docs/02-Deploying/03-Configuration.md#feature-flags).
+* Add the ability to see a list of hosts that have a specific software version installed by selecting a software version on a specific host's **Host details** page. Software inventory is currently under a feature flag. To enable this feature flag, check out the [feature flag documentation](https://fleetdm.com/docs/deploying/configuration#feature-flags).
 
 * Add the ability to see all vulnerable software detected across all your hosts with the `GET /api/v1/fleet/software` API route. Documentation for this new API route can be found [here on fleetdm.com/docs](https://fleetdm.com/docs/using-fleet/rest-api#software).
 
@@ -553,7 +670,7 @@ Fleet server in non-debug mode.
 
 * Add ability to create a Team schedule in Fleet. The Schedule feature was released in Fleet 4.1.0. For more information on the new Schedule feature, check out the [Fleet 4.1.0 release blog post](https://blog.fleetdm.com/fleet-4-1-0-57dfa25e89c1). *Available for Fleet Basic customers*.
 
-* Add Beta Vulnerable software feature which surfaces vulnerable software on the **Host details** page and the `GET /api/v1/fleet/hosts/{id}` API route. For information on how to configure the Vulnerable software feature and how exactly Fleet processes vulnerabilities, check out the [Vulnerability processing documentation](https://github.com/fleetdm/fleet/blob/main/docs/01-Using-Fleet/13-Vulnerability-Processing.md#vulnerability-processing).
+* Add Beta Vulnerable software feature which surfaces vulnerable software on the **Host details** page and the `GET /api/v1/fleet/hosts/{id}` API route. For information on how to configure the Vulnerable software feature and how exactly Fleet processes vulnerabilities, check out the [Vulnerability processing documentation](https://fleetdm.com/docs/using-fleet/vulnerability-processing#vulnerability-processing).
 
 * Add ability to see which logging destination is configured for Fleet in the Fleet UI. To see this information, head to the **Schedule** page and then select "Schedule a query." Configured logging destination information is also available in the `GET api/v1/fleet/config` API route.
 
@@ -563,9 +680,9 @@ Fleet server in non-debug mode.
 
 * Add ability to modify scheduled queries in your Schedule in Fleet. The Schedule feature was released in Fleet 4.1.0. For more information on the new Schedule feature, check out the [Fleet 4.1.0 release blog post](https://blog.fleetdm.com/fleet-4-1-0-57dfa25e89c1).
 
-* Add ability to disable the Users feature in Fleet by setting the new `enable_host_users` key to `true` in the `config` yaml, configuration file. For documentation on using configuration files in yaml syntax, check out the [Using yaml files in Fleet](https://github.com/fleetdm/fleet/tree/main/docs/01-Using-Fleet/configuration-files#using-yaml-files-in-fleet) documentation.
+* Add ability to disable the Users feature in Fleet by setting the new `enable_host_users` key to `true` in the `config` yaml, configuration file. For documentation on using configuration files in yaml syntax, check out the [Using yaml files in Fleet](https://fleetdm.com/docs/using-fleet/configuration-files#using-yaml-files-in-fleet) documentation.
 
-* Improve performance of the Software inventory feature. Software inventory is currently under a feature flag. To enable this feature flag, check out the [feature flag documentation](./docs/02-Deploying/03-Configuration.md#feature-flags).
+* Improve performance of the Software inventory feature. Software inventory is currently under a feature flag. To enable this feature flag, check out the [feature flag documentation](https://fleetdm.com/docs/deploying/configuration#feature-flags).
 
 * Improve performance of inserting `pack_stats` in the database. The `pack_stats` information is used to display "Frequency" and "Last run" information for a specific host's scheduled queries. You can find this information on the **Host details** page.
 
@@ -744,9 +861,9 @@ There are currently no known issues in this release. However, we recommend only 
 
 The primary additions in Fleet 4.0.0 are the new Role-based access control (RBAC) and Teams features. 
 
-RBAC adds the ability to define a user's access to information and features in Fleet. This way, more individuals in an organization can utilize Fleet with appropriate levels of access. Check out the [permissions documentation](https://github.com/fleetdm/fleet/blob/main/docs/01-Using-Fleet/09-Permissions.md) for a breakdown of the new user roles and their respective capabilities.
+RBAC adds the ability to define a user's access to information and features in Fleet. This way, more individuals in an organization can utilize Fleet with appropriate levels of access. Check out the [permissions documentation](https://fleetdm.com/docs/using-fleet/permissions) for a breakdown of the new user roles and their respective capabilities.
 
-Teams adds the ability to separate hosts into exclusive groups. This way, users can easily observe and apply operations to consistent groups of hosts. Read more about the Teams feature in [the documentation here](https://github.com/fleetdm/fleet/blob/main/docs/01-Using-Fleet/10-Teams.md).
+Teams adds the ability to separate hosts into exclusive groups. This way, users can easily observe and apply operations to consistent groups of hosts. Read more about the Teams feature in [the documentation here](https://fleetdm.com/docs/using-fleet/teams).
 
 There are several known issues that will be fixed for the stable release of Fleet 4.0.0. Therefore, we recommend only upgrading to Fleet 4.0.0 RC1 for testing purposes. Please file a GitHub issue for any issues discovered when testing Fleet 4.0.0!
 
@@ -814,7 +931,7 @@ Fleet 4.0.0 is a major release and introduces several breaking changes and datab
 
 * Improve Fleet performance by batch updating host seen time instead of updating synchronously. This improvement reduces MySQL CPU usage by ~33% with 4,000 simulated hosts and MySQL running in Docker.
 
-* Add support for software inventory, introducing a list of installed software items on each host's respective _Host details_ page. This feature is flagged off by default (for now). Check out [the feature flag documentation for instructions on how to turn this feature on](./docs/02-Deploying/03-Configuration.md#software-inventory).
+* Add support for software inventory, introducing a list of installed software items on each host's respective _Host details_ page. This feature is flagged off by default (for now). Check out [the feature flag documentation for instructions on how to turn this feature on](https://fleetdm.com/docs/deploying/configuration#software-inventory).
 
 * Add Windows support for `fleetctl` agent autoupdates. The `fleetctl updates` command provides the ability to self-manage an agent update server. Available for Fleet Basic customers.
 
@@ -1282,7 +1399,7 @@ to 2.0.0.
 
 ## Kolide Fleet 2.0.0 (currently preparing for release)
 
-The primary new addition in Fleet 2 is the new `fleetctl` CLI and file-format, which dramatically increases the flexibility and control that administrators have over their osquery deployment. The CLI and the file format are documented [in the Fleet documentation](https://github.com/fleetdm/fleet/blob/main/docs/01-Using-Fleet/02-fleetctl-CLI.md).
+The primary new addition in Fleet 2 is the new `fleetctl` CLI and file-format, which dramatically increases the flexibility and control that administrators have over their osquery deployment. The CLI and the file format are documented [in the Fleet documentation](https://fleetdm.com/docs/using-fleet/fleetctl-cli).
 
 ### New Features
 

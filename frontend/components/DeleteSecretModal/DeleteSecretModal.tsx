@@ -1,20 +1,13 @@
-import React from "react";
+import React, { useEffect } from "react";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import { ITeam } from "interfaces/team";
-import { IEnrollSecret } from "interfaces/enroll_secret";
 
 interface IDeleteSecretModal {
   selectedTeam: number;
   teams: ITeam[];
   onDeleteSecret: () => void;
   toggleDeleteSecretModal: () => void;
-}
-
-interface IRootState {
-  app: {
-    enrollSecret: IEnrollSecret[];
-  };
 }
 
 const baseClass = "delete-secret-modal";
@@ -35,6 +28,20 @@ const DeleteSecretModal = ({
     }
     return teams.find((team) => team.id === selectedTeam);
   };
+
+  useEffect(() => {
+    const listener = (event: KeyboardEvent) => {
+      if (event.code === "Enter" || event.code === "NumpadEnter") {
+        event.preventDefault();
+        onDeleteSecret();
+      }
+    };
+
+    document.addEventListener("keydown", listener);
+    return () => {
+      document.removeEventListener("keydown", listener);
+    };
+  }, []);
 
   return (
     <Modal

@@ -1,8 +1,6 @@
 import React, { useState } from "react";
 import { useQuery } from "react-query";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
-import ReactTooltip from "react-tooltip";
-import formatDistanceToNowStrict from "date-fns/formatDistanceToNowStrict";
 
 import paths from "router/paths";
 import softwareAPI, { ISoftwareResponse } from "services/entities/software";
@@ -12,15 +10,14 @@ import TableContainer, { ITableQueryData } from "components/TableContainer";
 import TableDataError from "components/TableDataError"; // TODO how do we handle errors? UI just keeps spinning?
 // @ts-ignore
 import Spinner from "components/Spinner";
-
+import renderLastUpdatedText from "components/LastUpdatedText/LastUpdatedText";
 import generateTableHeaders from "./SoftwareTableConfig";
-import QuestionIcon from "../../../../../assets/images/icon-question-16x16@2x.png";
 
 interface ISoftwareCardProps {
   currentTeamId?: number;
-  setShowSoftwareUI: (showSoftwareTitle: boolean) => void;
   showSoftwareUI: boolean;
-  setActionLink?: (url: string) => void;
+  setShowSoftwareUI: (showSoftwareTitle: boolean) => void;
+  setActionURL?: (url: string) => void;
   setTitleDetail?: (content: JSX.Element | string | null) => void;
 }
 
@@ -42,7 +39,7 @@ const EmptySoftware = (message: string): JSX.Element => {
       <p>
         Expecting to see software? Check out the Fleet documentation on{" "}
         <a
-          href="https://fleetdm.com/docs/deploying/configuration#software-inventory"
+          href="https://fleetdm.com/docs/using-fleet/vulnerability-processing#configuration"
           target="_blank"
           rel="noopener noreferrer"
         >
@@ -54,104 +51,50 @@ const EmptySoftware = (message: string): JSX.Element => {
   );
 };
 
-const renderLastUpdatedAt = (lastUpdatedAt: string) => {
-  if (!lastUpdatedAt || lastUpdatedAt === "0001-01-01T00:00:00Z") {
-    lastUpdatedAt = "never";
-  } else {
-    lastUpdatedAt = formatDistanceToNowStrict(new Date(lastUpdatedAt), {
-      addSuffix: true,
-    });
-  }
-  return (
-    <span className="last-updated">
-      {`Last updated ${lastUpdatedAt}`}
-      <span className={`tooltip`}>
-        <span
-          className={`tooltip__tooltip-icon`}
-          data-tip
-          data-for="last-updated-tooltip"
-          data-tip-disable={false}
-        >
-          <img alt="question icon" src={QuestionIcon} />
-        </span>
-        <ReactTooltip
-          place="top"
-          type="dark"
-          effect="solid"
-          backgroundColor="#3e4771"
-          id="last-updated-tooltip"
-          data-html
-        >
-          <span className={`tooltip__tooltip-text`}>
-            Fleet periodically
-            <br />
-            queries all hosts
-            <br />
-            to retrieve software
-          </span>
-        </ReactTooltip>
-      </span>
-    </span>
-  );
-};
-
 const Software = ({
   currentTeamId,
-  setShowSoftwareUI,
   showSoftwareUI,
-  setActionLink,
+  setShowSoftwareUI,
+  setActionURL,
   setTitleDetail,
 }: ISoftwareCardProps): JSX.Element => {
-  const [isLoadingSoftware, setIsLoadingSoftware] = useState<boolean>(true);
   const [navTabIndex, setNavTabIndex] = useState<number>(0);
   const [pageIndex, setPageIndex] = useState<number>(0);
 
-  const { data: software, error: errorSoftware } = useQuery<
-    ISoftwareResponse,
-    Error
-  >(
+  const {
+    data: software,
+    isFetching: isSoftwareFetching,
+    error: errorSoftware,
+  } = useQuery<ISoftwareResponse, Error>(
     [
       "software",
       {
         pageIndex,
         pageSize: PAGE_SIZE,
-        // searchQuery,
         sortDirection: DEFAULT_SORT_DIRECTION,
         sortHeader: DEFAULT_SORT_HEADER,
         teamId: currentTeamId,
         vulnerable: !!navTabIndex, // we can take the tab index as a boolean to represent the vulnerable flag :)
       },
     ],
-    () => {
-      setIsLoadingSoftware(true);
-      return softwareAPI.load({
+    () =>
+      softwareAPI.load({
         page: pageIndex,
         perPage: PAGE_SIZE,
-        // query: searchQuery,
-        // TODO confirm sort is working?
         orderKey: DEFAULT_SORT_HEADER,
         orderDir: DEFAULT_SORT_DIRECTION,
         vulnerable: !!navTabIndex, // we can take the tab index as a boolean to represent the vulnerable flag :)
         teamId: currentTeamId,
-      });
-    },
+      }),
     {
-      // initialData: { software: [], counts_updated_at: "" },
-      // placeholderData: { software: [], counts_updated_at: "" },
-      // enabled: true,
-      // If keepPreviousData is enabled,
-      // useQuery no longer returns isLoading when making new calls after load
-      // So we manage our own load states
       keepPreviousData: true,
       staleTime: 30000, // TODO: Discuss a reasonable staleTime given that counts are only updated infrequently?
       onSuccess: (data) => {
         setShowSoftwareUI(true);
-        setIsLoadingSoftware(false);
         setTitleDetail &&
-          setTitleDetail(renderLastUpdatedAt(data.counts_updated_at));
-      },
-      onError: () => {
-        setIsLoadingSoftware(false);
+          setTitleDetail(
+            renderLastUpdatedText(data.counts_updated_at, "software")
+          );
       },
     }
   );
@@ -169,8 +112,8 @@ const Software = ({
   const onTabChange = (index: number) => {
     const { MANAGE_SOFTWARE } = paths;
     setNavTabIndex(index);
-    setActionLink &&
-      setActionLink(
+    setActionURL &&
+      setActionURL(
         index === 1 ? `${MANAGE_SOFTWARE}?vulnerable=true` : MANAGE_SOFTWARE
       );
   };
@@ -195,16 +138,15 @@ const Software = ({
               <Tab>Vulnerable</Tab>
             </TabList>
             <TabPanel>
-              {!isLoadingSoftware && errorSoftware ? (
+              {!isSoftwareFetching && errorSoftware ? (
                 <TableDataError />
               ) : (
                 <TableContainer
                   columns={tableHeaders}
                   data={software?.software || []}
-                  isLoading={isLoadingSoftware}
+                  isLoading={isSoftwareFetching}
                   defaultSortHeader={DEFAULT_SORT_HEADER}
                   defaultSortDirection={DEFAULT_SORT_DIRECTION}
-                  // manualSortBy
                   hideActionButton
                   resultsTitle={"software"}
                   emptyComponent={EmptySoftware}
@@ -214,7 +156,6 @@ const Software = ({
                   disableActionButton
                   pageSize={PAGE_SIZE}
                   onQueryChange={onQueryChange}
-                  // additionalQueries={navTabIndex ? "vulnerable" : ""}
                 />
               )}
             </TabPanel>
@@ -222,10 +163,9 @@ const Software = ({
               <TableContainer
                 columns={tableHeaders}
                 data={software?.software || []}
-                isLoading={isLoadingSoftware}
+                isLoading={isSoftwareFetching}
                 defaultSortHeader={DEFAULT_SORT_HEADER}
                 defaultSortDirection={DEFAULT_SORT_DIRECTION}
-                // manualSortBy
                 hideActionButton
                 resultsTitle={"software"}
                 emptyComponent={() => EmptySoftware("vulnerable")}
@@ -235,7 +175,6 @@ const Software = ({
                 disableActionButton
                 pageSize={PAGE_SIZE}
                 onQueryChange={onQueryChange}
-                // additionalQueries={navTabIndex ? "vulnerable" : ""}
               />
             </TabPanel>
           </Tabs>

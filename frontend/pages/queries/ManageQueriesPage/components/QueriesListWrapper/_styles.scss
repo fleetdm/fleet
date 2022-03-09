@@ -33,6 +33,20 @@
     font-size: $x-small;
     color: $core-fleet-black;
   }
+
+  .queries-table__performance-impact-header {
+    margin-right: $pad-small;
+  }
+
+  .queries-table__performance-impact-tooltip {
+    font-weight: 400;
+  }
+
+  .column-with-tooltip {
+    height: 0;
+    position: relative;
+    top: -10px;
+  }
 }
 
 .no-queries {

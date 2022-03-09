@@ -22,6 +22,8 @@ func loginCommand() *cli.Command {
 fleetctl login [options]
 
 Interactively prompts for email and password if not specified in the flags or environment variables.
+
+Trying to login with SSO? First, login to the Fleet UI and retrieve your API token from the "My account" page. Then set your API token with the fleetctl set config --token <your-api-token-here> command. You're now logged in to fleetctl.
 `,
 		Flags: []cli.Flag{
 			&cli.StringFlag{

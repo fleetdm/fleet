@@ -11,6 +11,8 @@ func String(x string) *string {
 	return &x
 }
 
+// StringValueOrZero returns the string value.
+// Returns empty string if x is nil.
 func StringValueOrZero(x *string) string {
 	if x == nil {
 		return ""

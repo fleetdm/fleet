@@ -24,7 +24,7 @@ The Fleet UI is now available at http://localhost:1337.
 
 #### Now what?
 
-Check out the [Ask questions about your devices tutorial](./docs/01-Using-Fleet/00-Learn-how-to-use-Fleet.md#how-to-ask-questions-about-your-devices) to learn where to see your devices in Fleet, how to add Fleet's standard query library, and how to ask questions about your devices by running queries.
+Check out the [Ask questions about your devices tutorial](./docs/Using-Fleet/Learn-how-to-use-Fleet.md#how-to-ask-questions-about-your-devices) to learn where to see your devices in Fleet, how to add Fleet's standard query library, and how to ask questions about your devices by running queries.
 
 ## Team
 Fleet is [independently backed](https://linkedin.com/company/fleetdm) and actively maintained with the help of many amazing [contributors](https://github.com/fleetdm/fleet/graphs/contributors).
@@ -43,7 +43,7 @@ Documentation for Fleet can be found [here](https://fleetdm.com/docs).
 
 #### Chat
 
-Please join us in the #fleet channel on [osquery Slack](https://osquery.slack.com/join/shared_invite/zt-h29zm0gk-s2DBtGUTW4CFel0f0IjTEw#/).
+Please join us in the #fleet channel on [osquery Slack](https://fleetdm.com/slack).
 
 #### Contributing
 

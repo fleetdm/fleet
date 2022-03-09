@@ -39,24 +39,59 @@
       scrollbar-width: none; /* Firefox */
     }
 
+    .edit-link {
+      cursor: pointer;
+    }
+
     .name-description {
       flex-grow: 1;
-      margin-right: 24px;
-      .query-form__query-name {
-        margin-top: $pad-large;
-        line-height: 2rem;
-        height: 2rem;
+      margin: $pad-medium 24px 0 0;
+      .query-name-wrapper {
+        display: flex;
+        &:not(.query-form--editing) {
+          textarea:hover {
+            cursor: pointer;
+            color: $core-vibrant-blue;
+          }
+        }
+        .edit-icon {
+          position: relative;
+          left: 3px;
+          top: 13px;
+        }
+        .query-form__query-name,
+        .input-sizer::after {
+          font-size: $large;
+        }
+        .component__auto-size-input-field {
+          letter-spacing: -0.5px;
+          line-height: 2.3rem;
+          padding-top: 2px;
+        }
       }
-      .query-form__query-description:not(textarea) {
-        margin: 0.25rem 0 1rem;
+      .query-description-wrapper {
+        display: flex;
+        padding-top: $pad-small;
+        &:not(.query-form--editing) {
+          textarea:hover {
+            cursor: pointer;
+            color: $core-vibrant-blue;
+          }
+        }
+        .edit-icon {
+          position: relative;
+          left: 3px;
+          top: 0;
+        }
       }
-      textarea.query-form__query-description {
-        margin-top: 0.8125rem;
-      }
-      img {
-        transform: scale(0.5);
-        position: relative;
-        top: 6px;
+      .edit-icon {
+        width: 14px;
+        height: 14px;
+        opacity: 1;
+        transition: opacity 0.2s;
+        &.hide {
+          opacity: 0;
+        }
       }
     }
 
@@ -103,7 +138,7 @@
   }
 
   &__query-name {
-    margin-top: $pad-large;
+    margin-top: 0;
     font-size: $large;
 
     &.input-field--error {
@@ -114,15 +149,6 @@
   &__query-description {
     margin-top: 0;
     font-size: $x-small;
-  }
-
-  &__toggle-sql {
-    margin-top: $pad-large;
-  }
-
-  &__text-editor-wrapper {
-    margin: 0;
-    margin-top: $pad-large;
   }
 
   &__query-observer-can-run-wrapper {
@@ -171,5 +197,18 @@
     color: $core-fleet-black;
     display: inline-block;
     font-size: $large;
+  }
+
+  &__loading-overlay {
+    display: flex;
+    flex-grow: 1;
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background-color: rgba(255, 255, 255, 0.8);
+    z-index: 1;
+    align-items: center;
   }
 }

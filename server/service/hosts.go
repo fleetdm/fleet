@@ -265,10 +265,13 @@ func getHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service
 }
 
 func (svc *Service) GetHost(ctx context.Context, id uint) (*fleet.HostDetail, error) {
-	// First ensure the user has access to list hosts, then check the specific
-	// host once team_id is loaded.
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
-		return nil, err
+	alreadyAuthd := svc.authz.IsAlreadyAuthorized(ctx)
+	if !alreadyAuthd {
+		// First ensure the user has access to list hosts, then check the specific
+		// host once team_id is loaded.
+		if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+			return nil, err
+		}
 	}
 
 	host, err := svc.ds.Host(ctx, id, false)
@@ -276,9 +279,11 @@ func (svc *Service) GetHost(ctx context.Context, id uint) (*fleet.HostDetail, er
 		return nil, ctxerr.Wrap(ctx, err, "get host")
 	}
 
-	// Authorize again with team loaded now that we have team_id
-	if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
-		return nil, err
+	if !alreadyAuthd {
+		// Authorize again with team loaded now that we have team_id
+		if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
+			return nil, err
+		}
 	}
 
 	return svc.getHostDetails(ctx, host)
@@ -545,22 +550,24 @@ func refetchHostEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 }
 
 func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
-		return err
+	if !svc.authz.IsAlreadyAuthorized(ctx) {
+		if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+			return err
+		}
+
+		host, err := svc.ds.HostLite(ctx, id)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "find host for refetch")
+		}
+
+		// We verify fleet.ActionRead instead of fleet.ActionWrite because we want to allow
+		// observers to be able to refetch hosts.
+		if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
+			return err
+		}
 	}
 
-	host, err := svc.ds.HostLite(ctx, id)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "find host for refetch")
-	}
-
-	// We verify fleet.ActionRead instead of fleet.ActionWrite because we want to allow
-	// observers to be able to refetch hosts.
-	if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
-		return err
-	}
-
-	if err := svc.ds.UpdateHostRefetchRequested(ctx, host.ID, true); err != nil {
+	if err := svc.ds.UpdateHostRefetchRequested(ctx, id, true); err != nil {
 		return ctxerr.Wrap(ctx, err, "save host")
 	}
 
@@ -659,18 +666,20 @@ func listHostDeviceMappingEndpoint(ctx context.Context, request interface{}, svc
 }
 
 func (svc *Service) ListHostDeviceMapping(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
-		return nil, err
-	}
+	if !svc.authz.IsAlreadyAuthorized(ctx) {
+		if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+			return nil, err
+		}
 
-	host, err := svc.ds.HostLite(ctx, id)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get host")
-	}
+		host, err := svc.ds.HostLite(ctx, id)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get host")
+		}
 
-	// Authorize again with team loaded now that we have team_id
-	if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
-		return nil, err
+		// Authorize again with team loaded now that we have team_id
+		if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
+			return nil, err
+		}
 	}
 
 	return svc.ds.ListHostDeviceMapping(ctx, id)
@@ -701,17 +710,19 @@ func getMacadminsDataEndpoint(ctx context.Context, request interface{}, svc flee
 }
 
 func (svc *Service) MacadminsData(ctx context.Context, id uint) (*fleet.MacadminsData, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
-		return nil, err
-	}
+	if !svc.authz.IsAlreadyAuthorized(ctx) {
+		if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+			return nil, err
+		}
 
-	host, err := svc.ds.HostLite(ctx, id)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "find host for macadmins")
-	}
+		host, err := svc.ds.HostLite(ctx, id)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "find host for macadmins")
+		}
 
-	if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
-		return nil, err
+		if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
+			return nil, err
+		}
 	}
 
 	var munkiInfo *fleet.HostMunkiInfo
@@ -789,17 +800,22 @@ func (svc *Service) AggregatedMacadminsData(ctx context.Context, teamID *uint) (
 
 	agg := &fleet.AggregatedMacadminsData{}
 
-	versions, err := svc.ds.AggregatedMunkiVersion(ctx, teamID)
+	versions, munkiUpdatedAt, err := svc.ds.AggregatedMunkiVersion(ctx, teamID)
 	if err != nil {
 		return nil, err
 	}
 	agg.MunkiVersions = versions
 
-	status, err := svc.ds.AggregatedMDMStatus(ctx, teamID)
+	status, mdmUpdatedAt, err := svc.ds.AggregatedMDMStatus(ctx, teamID)
 	if err != nil {
 		return nil, err
 	}
 	agg.MDMStatus = status
+
+	agg.CountsUpdatedAt = munkiUpdatedAt
+	if mdmUpdatedAt.After(munkiUpdatedAt) {
+		agg.CountsUpdatedAt = mdmUpdatedAt
+	}
 
 	return agg, nil
 }

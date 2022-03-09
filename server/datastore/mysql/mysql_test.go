@@ -960,3 +960,15 @@ func TestRxLooseEmail(t *testing.T) {
 		})
 	}
 }
+
+func TestDebugs(t *testing.T) {
+	ds := CreateMySQLDS(t)
+
+	status, err := ds.InnoDBStatus(context.Background())
+	require.NoError(t, err)
+	assert.NotEmpty(t, status)
+
+	processList, err := ds.ProcessList(context.Background())
+	require.NoError(t, err)
+	require.Greater(t, len(processList), 0)
+}

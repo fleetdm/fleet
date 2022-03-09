@@ -12,10 +12,33 @@
             <h6 style="max-width: 580px;" class="mx-auto mt-3 mb-0">
               Quickly deploy <a target="_blank" style="color: white; text-decoration-line: underline;" href="https://osquery.io/">osquery</a> and scale your fleet to 100,000+ devices on top of a stable core technology.
             </h6>
-            <div style="max-width: 400px;" class="mt-5 mx-auto mb-0 d-sm-flex">
-              <a style="max-width: 280px" class="d-sm-flex align-items-center justify-content-center btn btn-block btn-primary px-3 px-sm-5 py-3 mx-auto" href="/get-started">Try it out</a>
-          </div>
-            <img alt="Fleet ctl terminal and Fleet UI" src="/images/fleetctl@2x.png" style="max-width: 810px; height: auto;" class="w-100 py-3 py-sm-5 mx-auto" />
+            <div purpose="demo-cta-container" class="mx-auto pb-5 pb-sm-2" style="padding-top: 32px;">
+              <ajax-form action="deliverDemoSignup" :form-errors.sync="formErrors" :form-data="formData" :form-rules="formRules" :syncing.sync="syncing" :cloud-error.sync="cloudError" @submitted="submittedForm()" v-if="!cloudSuccess">
+                <div purpose="demo-cta" class="flex-row row justify-content-between align-items-center mx-auto">
+                  <div purpose="demo-cta-text" class="pl-0 pr-3 text-left">
+                    <span style="font-size: 32px; vertical-align: middle;">💡</span>
+                    <p class="d-inline-block">
+                      <strong>Live Q&A session</strong>
+                      <br class="d-lg-none d-block">
+                      March 15th, 2022 2:30pm (CST)
+                    </p>
+                  </div>
+                  <div purpose="demo-cta-form" class="flex-grow-1 col-12 col-sm-auto px-0 pt-sm-0">
+                    <div class="form-control d-inline-flex" :class="[formErrors.emailAddress ? 'is-invalid' : '']">
+                      <input class="float-left pr-1" v-model.trim="formData.emailAddress" placeholder="Enter your email">
+                      <ajax-button purpose="register-button" spinner="true" :syncing="syncing" type="submit" class="btn btn-sm btn-info float-right">Register</ajax-button>
+                    </div>
+                    <div purpose="demo-cta-error-message" v-if="formErrors.emailAddress">
+                      Please enter a valid email address e.g., example@email.com
+                    </div>
+                  </div>
+                </div>
+              </ajax-form>
+              <div purpose="demo-cta-success-message" class="mx-auto" v-else>
+                <p class="text-center">Thank you for registering.<br class="d-sm-none d-block"> Please check your inbox for event details.</p>
+              </div>
+            </div>
+            <img alt="Fleet ctl terminal and Fleet UI" src="/images/fleetctl-687x506@2x.png" style="max-width: 810px; height: auto;" class="w-100 py-3 py-sm-5 mx-auto" />
           </div>
         </div>
       </div>
@@ -128,7 +151,7 @@
         <a
           style="max-width: 220px"
           class="btn btn-block btn-md btn-primary mx-4"
-          href="/get-started"
+          href="/get-started?tryitnow"
         >
           Try it out
         </a>
@@ -137,7 +160,7 @@
           class="btn btn-block btn-lg btn-white pl-0 m-0"
           purpose="animated-arrow-button"
           target="_blank"
-          href="https://calendly.com/fleetdm/demo"
+          href="https://calendly.com/fleetdm/demo?utm_source=homepage+demo+top"
           >Schedule a demo
         </a>
       </div>
@@ -150,8 +173,8 @@
       <p style="max-width: 860px" class="px-3 px-xs-5 px-md-4 mx-auto">
         That’s good news, since it means there are lots of other developers and security practitioners talking about Fleet, dreaming up features, and contributing patches.
       </p>
-      <div class="tweets d-flex flex-wrap justify-content-center align-items-start px-2 pt-3 pt-lg-5 pb-5 mx-auto">
-        <div purpose="top-row" class="tweet container">
+      <div purpose="tweets" class="d-flex card-deck justify-content-center pt-5 mx-auto">
+        <div purpose="tweet-card" class="card ">
           <div class="mb-4">
             <a href="https://twitter.com/osquery"><img width="140" height="36" alt="osquery logo" src="/images/social-proof-logo-osquery-140x36@2x.png"/></a>
           </div>
@@ -163,7 +186,7 @@
             </div>
           </div>
         </div>
-        <div purpose="top-row" class="tweet container">
+        <div purpose="tweet-card" class="card">
           <div class="mb-4">
             <a href="https://twitter.com/Wayfair"><img width="136" height="32" alt="Wayfair logo" src="/images/social-proof-logo-wayfair-136x32@2x.png"/></a>
           </div>
@@ -176,7 +199,7 @@
               </div>
           </div>
         </div>
-        <div purpose="top-row" class="tweet container">
+        <div purpose="tweet-card" class="card ">
           <div class="mb-4">
             <a href="https://twitter.com/SnowflakeDB"><img width="153" height="38" alt="Snowflake logo" src="/images/social-proof-logo-snowflake-153x38@2x.png"/></a>
           </div>
@@ -188,7 +211,7 @@
             </div>
           </div>
         </div>
-        <div purpose="middle-row" class="tweet container">
+        <div purpose="tweet-card" class="card ">
           <div class="mb-4">
             <a href="https://twitter.com/Uber"><img width="87" height="38" alt="Uber logo" src="/images/social-proof-logo-uber-87x38@2x.png"/></a>
           </div>
@@ -200,7 +223,7 @@
             </div>
           </div>
         </div>
-        <div purpose="middle-row" class="tweet container">
+        <div purpose="tweet-card" class="card">
           <div class="mb-4">
             <a href="https://twitter.com/Square"><img width="131" height="38" alt="Square logo" src="/images/social-proof-logo-square-131x38@2x.png"/></a>
           </div>
@@ -212,7 +235,7 @@
             </div>
           </div>
         </div>
-        <div purpose="middle-row" class="tweet container">
+        <div purpose="tweet-card" class="card ">
           <div class="mb-4">
             <a href="https://twitter.com/atlassian"><img width="162" height="20" alt="Atlassian logo" src="/images/social-proof-logo-atlassian-162x20@2x.png"/></a>
           </div>
@@ -224,7 +247,7 @@
             </div>
           </div>
         </div>
-        <div purpose="bottom-row" class="tweet container mr-0 mr-xl-2">
+        <div purpose="tweet-card-bottom-row" class="card ">
           <div class="mb-4">
             <a href="https://twitter.com/comcast"><img width="107" height="38" alt="Comcast logo" src="/images/social-proof-logo-comcast-107x38.png"/></a>
           </div>
@@ -236,15 +259,15 @@
             </div>
           </div>
         </div>
-        <div purpose="bottom-row" class="tweet container ml-0 ml-xl-2">
+        <div purpose="tweet-card-bottom-row" class="card ">
           <div class="mb-4">
-            <a href="https://twitter.com/versia"><img width="90" height="38" alt="Versia logo" src="/images/social-proof-logo-versia-90x38@2x.png"/></a>
+            <a href="https://twitter.com/grupoversia"><img width="90" height="38" alt="Versia logo" src="/images/social-proof-logo-versia-90x38@2x.png"/></a>
           </div>
           <p class="pb-2 mb-1">Thanks <a href="https://twitter.com/fleetctl">@fleetctl</a> for such an awesome tool to manage <a href="https://twitter.com/osquery">@osquery</a></p>
           <div class="row px-3 pt-2">
             <div>
               <p class="font-weight-bold m-0">Ruben Rodriguez</p>
-              <p class="m-0">Systems technician <a href="https://twitter.com/versia">@Versia</a></p>
+              <p class="m-0">Systems technician <a href="https://twitter.com/grupoversia">@Versia</a></p>
             </div>
           </div>
         </div>
@@ -260,7 +283,7 @@
           <a
             style="max-width: 220px"
             class="btn btn-block btn-md btn-primary mx-4"
-            href="/get-started"
+            href="/get-started?tryitnow"
           >
             Try it out
           </a>
@@ -269,7 +292,7 @@
             class="btn btn-block btn-lg btn-white pl-0 m-0"
             purpose="animated-arrow-button"
             target="_blank"
-            href="https://calendly.com/fleetdm/demo"
+            href="https://calendly.com/fleetdm/demo?utm_source=homepage+demo+bottom"
             >Schedule a demo
           </a>
         </div>

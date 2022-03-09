@@ -12,6 +12,10 @@
       font-weight: $bold;
       color: $core-vibrant-red;
     }
+
+    &[data-has-tooltip="true"] {
+      margin-bottom: $pad-small;
+    }
   }
 
   &__hint {

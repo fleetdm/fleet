@@ -1,19 +1,21 @@
 /* This component is used for creating and editing both global and team scheduled queries */
 
-import React, { useState, useCallback, useEffect } from "react";
-// @ts-ignore
-import Fleet from "fleet";
+import React, { useState, useCallback, useContext } from "react";
 import { pull } from "lodash";
+import { AppContext } from "context/app";
+
+import { IQuery } from "interfaces/query";
+import { IGlobalScheduledQuery } from "interfaces/global_scheduled_query";
+import { ITeamScheduledQuery } from "interfaces/team_scheduled_query";
+
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
+import RevealButton from "components/buttons/RevealButton";
 import InfoBanner from "components/InfoBanner/InfoBanner";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
-import { IQuery } from "interfaces/query";
-import { IGlobalScheduledQuery } from "interfaces/global_scheduled_query";
-import { ITeamScheduledQuery } from "interfaces/team_scheduled_query";
 import {
   FREQUENCY_DROPDOWN_OPTIONS,
   PLATFORM_DROPDOWN_OPTIONS,
@@ -92,23 +94,9 @@ const ScheduleEditorModal = ({
   togglePreviewDataModal,
   showPreviewDataModal,
 }: IScheduleEditorModalProps): JSX.Element => {
-  const [loggingConfig, setLoggingConfig] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
-  const [isLoadingError, setIsLoadingError] = useState(false);
+  const { config } = useContext(AppContext);
 
-  useEffect((): void => {
-    const getConfigDestination = async (): Promise<void> => {
-      try {
-        const responseConfig = await Fleet.config.loadAll();
-        setIsLoading(false);
-        setLoggingConfig(responseConfig.logging.result.plugin);
-      } catch (err) {
-        setIsLoadingError(true);
-        setIsLoading(false);
-      }
-    };
-    getConfigDestination();
-  }, []);
+  const loggingConfig = config?.result.plugin || "unknown";
 
   const [showAdvancedOptions, setShowAdvancedOptions] = useState<boolean>(
     false
@@ -268,13 +256,15 @@ const ScheduleEditorModal = ({
             Your configured log destination is <b>{loggingConfig}</b>.
           </p>
           <p>
-            This means that when this query is run on your hosts, the data will
-            be sent to {generateLoggingDestination(loggingConfig)}.
+            {loggingConfig === "unknown"
+              ? ""
+              : `This means that when this query is run on your hosts, the data will
+            be sent to ${generateLoggingDestination(loggingConfig)}.`}
           </p>
           <p>
             Check out the Fleet documentation on&nbsp;
             <a
-              href="https://github.com/fleetdm/fleet/blob/6649d08a05799811f6fb0566947946edbfebf63e/docs/2-Deploying/2-Configuration.md#osquery_result_log_plugin"
+              href="https://fleetdm.com/docs/deploying/configuration#osquery-result-log-plugin"
               target="_blank"
               rel="noopener noreferrer"
             >
@@ -284,16 +274,14 @@ const ScheduleEditorModal = ({
           </p>
         </InfoBanner>
         <div>
-          <Button
-            variant="unstyled"
-            className={`${showAdvancedOptions ? "upcarat" : "downcarat"} 
-               ${baseClass}__advanced-options-button`}
+          <RevealButton
+            isShowing={showAdvancedOptions}
+            baseClass={baseClass}
+            hideText={"Hide advanced options"}
+            showText={"Show advanced options"}
+            caretPosition={"after"}
             onClick={toggleAdvancedOptions}
-          >
-            {showAdvancedOptions
-              ? "Hide advanced options"
-              : "Show advanced options"}
-          </Button>
+          />
           {showAdvancedOptions && (
             <div>
               <Dropdown

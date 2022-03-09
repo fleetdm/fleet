@@ -19,6 +19,14 @@ type Software struct {
 	// Source is the source of the data (osquery table name).
 	Source string `json:"source" db:"source"`
 
+	// Release is the version of the OS this software was released on
+	// (e.g. "30.el7" for a CentOS package).
+	Release string `json:"release,omitempty" db:"release"`
+	// Vendor is the supplier of the software (e.g. "CentOS").
+	Vendor string `json:"vendor,omitempty" db:"vendor"`
+	// Arch is the architecture of the software (e.g. "x86_64").
+	Arch string `json:"arch,omitempty" db:"arch"`
+
 	// GenerateCPE is the CPE23 string that corresponds to the current software
 	GenerateCPE string `json:"generated_cpe" db:"generated_cpe"`
 	// Vulnerabilities lists all the found CVEs for the CPE

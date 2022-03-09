@@ -111,6 +111,49 @@ Cypress.Commands.add("seedQueries", () => {
   });
 });
 
+Cypress.Commands.add("seedSchedule", () => {
+  const scheduledQueries = [
+    {
+      interval: 86400,
+      platform: "",
+      query_id: 1,
+      removed: false,
+      shard: null,
+      snapshot: true,
+      version: "",
+    },
+    {
+      interval: 604800,
+      platform: "linux",
+      query_id: 2,
+      removed: true,
+      shard: 50,
+      snapshot: false,
+      version: "4.6.0",
+    },
+  ];
+
+  scheduledQueries.forEach((scheduleForm) => {
+    const {
+      interval,
+      platform,
+      query_id,
+      removed,
+      shard,
+      snapshot,
+      version,
+    } = scheduleForm;
+    cy.request({
+      url: "/api/v1/fleet/global/schedule",
+      method: "POST",
+      body: { interval, platform, query_id, removed, shard, snapshot, version },
+      auth: {
+        bearer: window.localStorage.getItem("FLEET::auth_token"),
+      },
+    });
+  });
+});
+
 Cypress.Commands.add("seedPacks", () => {
   const packs = [
     {

@@ -9,13 +9,6 @@
     display: flex;
     justify-content: center;
     align-items: center;
-
-    &:first-of-type {
-      justify-content: flex-end;
-    }
-    &:last-of-type {
-      justify-content: flex-start;
-    }
   }
 
   &__tile-count {

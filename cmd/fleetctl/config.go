@@ -226,7 +226,7 @@ func configSetCommand() *cli.Command {
 				EnvVars:     []string{"ROOTCA"},
 				Value:       "",
 				Destination: &flRootCA,
-				Usage:       "Specify RootCA chain used to communicate with fleet",
+				Usage:       "Specify RootCA chain used to communicate with Fleet",
 			},
 			&cli.StringFlag{
 				Name:        "url-prefix",

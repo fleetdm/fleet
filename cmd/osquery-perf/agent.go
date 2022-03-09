@@ -44,8 +44,8 @@ func init() {
 			continue
 		}
 		vulnerableSoftware = append(vulnerableSoftware, fleet.Software{
-			Name:    string(parts[0]),
-			Version: string(parts[1]),
+			Name:    strings.TrimSpace(string(parts[0])),
+			Version: strings.TrimSpace(string(parts[1])),
 			Source:  "apps",
 		})
 	}

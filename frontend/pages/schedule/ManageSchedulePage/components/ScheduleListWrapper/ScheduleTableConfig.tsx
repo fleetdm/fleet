@@ -12,13 +12,21 @@ import PillCell from "components/TableContainer/DataTable/PillCell";
 import { IDropdownOption } from "interfaces/dropdownOption";
 import { IGlobalScheduledQuery } from "interfaces/global_scheduled_query";
 import { ITeamScheduledQuery } from "interfaces/team_scheduled_query";
+import TooltipWrapper from "components/TooltipWrapper";
 
+interface IGetToggleAllRowsSelectedProps {
+  checked: boolean;
+  indeterminate: boolean;
+  title: string;
+  onChange: () => any;
+  style: { cursor: string };
+}
 interface IHeaderProps {
   column: {
     title: string;
     isSortedDesc: boolean;
   };
-  getToggleAllRowsSelectedProps: () => any; // TODO: do better with types
+  getToggleAllRowsSelectedProps: () => IGetToggleAllRowsSelectedProps;
   toggleAllRowsSelected: () => void;
 }
 
@@ -28,7 +36,7 @@ interface ICellProps {
   };
   row: {
     original: IGlobalScheduledQuery | ITeamScheduledQuery;
-    getToggleRowSelectedProps: () => any; // TODO: do better with types
+    getToggleRowSelectedProps: () => IGetToggleAllRowsSelectedProps;
     toggleRowSelected: () => void;
   };
 }
@@ -100,7 +108,23 @@ const generateTableHeaders = (
     },
     {
       title: "Performance impact",
-      Header: "Performance impact",
+      Header: () => {
+        return (
+          <div className="column-with-tooltip">
+            <span className="queries-table__performance-impact-header">
+              <TooltipWrapper
+                tipContent={`
+                This is the average <br />
+                performance impact <br />
+                across all hosts where this <br />
+                query was scheduled.`}
+              >
+                Performance impact
+              </TooltipWrapper>
+            </span>
+          </div>
+        );
+      },
       disableSortBy: true,
       accessor: "performance",
       Cell: (cellProps) => <PillCell value={cellProps.cell.value} />,

@@ -1,9 +1,10 @@
 /* eslint-disable jsx-a11y/no-noninteractive-element-to-interactive-role */
 /* eslint-disable jsx-a11y/interactive-supports-focus */
-import React, { useState, useContext } from "react";
+import React, { useState, useContext, useEffect, KeyboardEvent } from "react";
 import { IAceEditor } from "react-ace/lib/types";
-import ReactTooltip from "react-tooltip";
-import { isUndefined } from "lodash";
+import { useDebouncedCallback } from "use-debounce/lib";
+import { isUndefined, size } from "lodash";
+import classnames from "classnames";
 
 import { addGravatarUrlToResource } from "fleet/helpers";
 // @ts-ignore
@@ -12,17 +13,20 @@ import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
 import { IPolicy, IPolicyFormData } from "interfaces/policy";
 import { IQueryPlatform } from "interfaces/query";
+import { DEFAULT_POLICIES } from "utilities/constants";
 
 import Avatar from "components/Avatar";
 import FleetAce from "components/FleetAce";
+// @ts-ignore
+import validateQuery from "components/forms/validators/validate_query";
 import Button from "components/buttons/Button";
+import RevealButton from "components/buttons/RevealButton";
 import Checkbox from "components/forms/fields/Checkbox";
 import Spinner from "components/Spinner";
-// @ts-ignore
-import InputField from "components/forms/fields/InputField";
+import AutoSizeInputField from "components/forms/fields/AutoSizeInputField";
+import TooltipWrapper from "components/TooltipWrapper";
 import NewPolicyModal from "../NewPolicyModal";
 import InfoIcon from "../../../../../../assets/images/icon-info-purple-14x14@2x.png";
-import QuestionIcon from "../../../../../../assets/images/icon-question-16x16@2x.png";
 import PencilIcon from "../../../../../../assets/images/icon-pencil-14x14@2x.png";
 
 const baseClass = "policy-form";
@@ -38,7 +42,20 @@ interface IPolicyFormProps {
   onUpdate: (formData: IPolicyFormData) => void;
   onOpenSchemaSidebar: () => void;
   renderLiveQueryWarning: () => JSX.Element | null;
+  backendValidators: { [key: string]: string };
 }
+
+const validateQuerySQL = (query: string) => {
+  const errors: { [key: string]: any } = {};
+  const { error: queryError, valid: queryValid } = validateQuery(query);
+
+  if (!queryValid) {
+    errors.query = queryError;
+  }
+
+  const valid = !size(errors);
+  return { valid, errors };
+};
 
 const PolicyForm = ({
   policyIdForEdit,
@@ -51,8 +68,9 @@ const PolicyForm = ({
   onUpdate,
   onOpenSchemaSidebar,
   renderLiveQueryWarning,
+  backendValidators,
 }: IPolicyFormProps): JSX.Element => {
-  const [errors, setErrors] = useState<{ [key: string]: string }>({});
+  const [errors, setErrors] = useState<{ [key: string]: any }>({});
   const [isNewPolicyModalOpen, setIsNewPolicyModalOpen] = useState<boolean>(
     false
   );
@@ -87,7 +105,6 @@ const PolicyForm = ({
   } = useContext(PolicyContext);
 
   const {
-    currentTeam,
     currentUser,
     isTeamObserver,
     isGlobalObserver,
@@ -98,7 +115,27 @@ const PolicyForm = ({
     isTeamMaintainer,
   } = useContext(AppContext);
 
+  policyIdForEdit = policyIdForEdit || 0;
+
+  const debounceSQL = useDebouncedCallback((sql: string) => {
+    let valid = true;
+    const { valid: isValidated, errors: newErrors } = validateQuerySQL(sql);
+    valid = isValidated;
+
+    setErrors({
+      ...newErrors,
+    });
+  }, 500);
+
+  useEffect(() => {
+    debounceSQL(lastEditedQueryBody);
+  }, [lastEditedQueryBody]);
+
   const isEditMode = !!policyIdForEdit && !isTeamObserver && !isGlobalObserver;
+
+  const isNewTemplatePolicy =
+    !policyIdForEdit &&
+    DEFAULT_POLICIES.find((p) => p.name === lastEditedQueryName);
 
   const hasSavePermissions =
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
@@ -123,7 +160,7 @@ const PolicyForm = ({
       enableLinking: true,
     });
 
-    if (policyIdForEdit) {
+    if (policyIdForEdit || isNewTemplatePolicy) {
       setIsWindowsCompatible(!!lastEditedQueryPlatform?.includes("windows"));
       setIsDarwinCompatible(!!lastEditedQueryPlatform?.includes("darwin"));
       setIsLinuxCompatible(!!lastEditedQueryPlatform?.includes("linux"));
@@ -148,6 +185,16 @@ const PolicyForm = ({
 
   const onChangePolicy = (sqlString: string) => {
     setLastEditedQueryBody(sqlString);
+  };
+
+  const onInputKeypress = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key.toLowerCase() === "enter" && !event.shiftKey) {
+      event.preventDefault();
+      event.currentTarget.blur();
+      setIsEditingName(false);
+      setIsEditingDescription(false);
+      setIsEditingResolution(false);
+    }
   };
 
   const promptSavePolicy = (forceNew = false) => (
@@ -230,41 +277,45 @@ const PolicyForm = ({
     );
   };
 
+  const policyNameClasses = classnames("policy-name-wrapper", {
+    [`${baseClass}--editing`]: isEditingName,
+  });
+
+  const policyDescriptionClasses = classnames("policy-description-wrapper", {
+    [`${baseClass}--editing`]: isEditingDescription,
+  });
+
+  const policyResolutionClasses = classnames("policy-resolution-wrapper", {
+    [`${baseClass}--editing`]: isEditingResolution,
+  });
+
   const renderName = () => {
     if (isEditMode) {
-      if (isEditingName) {
-        return (
-          <InputField
-            id="policy-name"
-            type="textarea"
-            name="policy-name"
-            error={errors.name}
-            value={lastEditedQueryName}
-            placeholder="Add name here"
-            inputClassName={`${baseClass}__policy-name`}
-            onChange={setLastEditedQueryName}
-            inputOptions={{
-              autoFocus: true,
-              onFocus: (e: React.FocusEvent<HTMLInputElement>) => {
-                // sets cursor to end of inputfield
-                const val = e.target.value;
-                e.target.value = "";
-                e.target.value = val;
-              },
-            }}
-          />
-        );
-      }
-
       return (
-        <h1
-          role="button"
-          className={`${baseClass}__policy-name`}
-          onClick={() => setIsEditingName(true)}
-        >
-          {lastEditedQueryName}
-          <img alt="Edit name" src={PencilIcon} />
-        </h1>
+        <>
+          <div className={policyNameClasses}>
+            <AutoSizeInputField
+              name="policy-name"
+              placeholder="Add name here"
+              value={lastEditedQueryName}
+              hasError={errors && errors.name}
+              inputClassName={`${baseClass}__policy-name`}
+              maxLength="160"
+              onChange={setLastEditedQueryName}
+              onFocus={() => setIsEditingName(true)}
+              onBlur={() => setIsEditingName(false)}
+              onKeyPress={onInputKeypress}
+              isFocused={isEditingName}
+            />
+            <a className="edit-link" onClick={() => setIsEditingName(true)}>
+              <img
+                className={`edit-icon ${isEditingName && "hide"}`}
+                alt="Edit name"
+                src={PencilIcon}
+              />
+            </a>
+          </div>
+        </>
       );
     }
 
@@ -273,38 +324,33 @@ const PolicyForm = ({
 
   const renderDescription = () => {
     if (isEditMode) {
-      if (isEditingDescription) {
-        return (
-          <InputField
-            id="policy-description"
-            type="textarea"
-            name="policy-description"
-            value={lastEditedQueryDescription}
-            placeholder="Add description here."
-            inputClassName={`${baseClass}__policy-description`}
-            onChange={setLastEditedQueryDescription}
-            inputOptions={{
-              autoFocus: true,
-              onFocus: (e: React.FocusEvent<HTMLInputElement>) => {
-                // sets cursor to end of inputfield
-                const val = e.target.value;
-                e.target.value = "";
-                e.target.value = val;
-              },
-            }}
-          />
-        );
-      }
-
       return (
-        <span
-          role="button"
-          className={`${baseClass}__policy-description`}
-          onClick={() => setIsEditingDescription(true)}
-        >
-          {lastEditedQueryDescription || "Add description here."}
-          <img alt="Edit description" src={PencilIcon} />
-        </span>
+        <>
+          <div className={policyDescriptionClasses}>
+            <AutoSizeInputField
+              name="policy-description"
+              placeholder="Add description here."
+              value={lastEditedQueryDescription}
+              inputClassName={`${baseClass}__policy-description`}
+              maxLength="250"
+              onChange={setLastEditedQueryDescription}
+              onFocus={() => setIsEditingDescription(true)}
+              onBlur={() => setIsEditingDescription(false)}
+              onKeyPress={onInputKeypress}
+              isFocused={isEditingDescription}
+            />
+            <a
+              className="edit-link"
+              onClick={() => setIsEditingDescription(true)}
+            >
+              <img
+                className={`edit-icon ${isEditingDescription && "hide"}`}
+                alt="Edit name"
+                src={PencilIcon}
+              />
+            </a>
+          </div>
+        </>
       );
     }
 
@@ -313,52 +359,34 @@ const PolicyForm = ({
 
   const renderResolution = () => {
     if (isEditMode) {
-      if (isEditingResolution) {
-        return (
-          <div className={`${baseClass}__policy-resolve`}>
-            {" "}
-            <b>Resolve:</b> <br />
-            <InputField
-              id="policy-resolution"
-              type="textarea"
-              name="policy-resolution"
-              value={lastEditedQueryResolution}
-              placeholder="Add resolution here."
-              inputClassName={`${baseClass}__policy-resolution`}
-              onChange={setLastEditedQueryResolution}
-              inputOptions={{
-                autoFocus: true,
-                onFocus: (e: React.FocusEvent<HTMLInputElement>) => {
-                  // sets cursor to end of inputfield
-                  const val = e.target.value;
-                  e.target.value = "";
-                  e.target.value = val;
-                },
-              }}
-            />
-          </div>
-        );
-      }
-
       return (
         <>
-          <div className="resolve-text-wrapper">
-            <b>Resolve:</b>{" "}
-            <span
-              role="button"
-              className={`${baseClass}__policy-resolution`}
+          <p className="resolve-title">
+            <strong>Resolve:</strong>
+          </p>
+          <div className={policyResolutionClasses}>
+            <AutoSizeInputField
+              name="policy-resolution"
+              placeholder="Add resolution here."
+              value={lastEditedQueryResolution}
+              inputClassName={`${baseClass}__policy-resolution`}
+              maxLength="500"
+              onChange={setLastEditedQueryResolution}
+              onFocus={() => setIsEditingResolution(true)}
+              onBlur={() => setIsEditingResolution(false)}
+              onKeyPress={onInputKeypress}
+              isFocused={isEditingResolution}
+            />
+            <a
+              className="edit-link"
               onClick={() => setIsEditingResolution(true)}
             >
-              <img alt="Edit resolution" src={PencilIcon} />
-            </span>
-            <br />
-            <span
-              role="button"
-              className={`${baseClass}__policy-resolution`}
-              onClick={() => setIsEditingResolution(true)}
-            >
-              {lastEditedQueryResolution || "Add resolution here."}
-            </span>
+              <img
+                className={`edit-icon ${isEditingResolution && "hide"}`}
+                alt="Edit name"
+                src={PencilIcon}
+              />
+            </a>
           </div>
         </>
       );
@@ -380,31 +408,9 @@ const PolicyForm = ({
           <>
             <b>Checks on:</b>
             <span className="platforms-text">
-              {displayPlatforms.join(", ")}
-            </span>
-            <span className={`tooltip`}>
-              <span
-                className={`tooltip__tooltip-icon`}
-                data-tip
-                data-for="query-compatibility-tooltip"
-                data-tip-disable={false}
-              >
-                <img alt="question icon" src={QuestionIcon} />
-              </span>
-              <ReactTooltip
-                place="bottom"
-                type="dark"
-                effect="solid"
-                backgroundColor="#3e4771"
-                id="query-compatibility-tooltip"
-                data-html
-              >
-                <span className={`tooltip__tooltip-text`}>
-                  To choose new platforms,
-                  <br />
-                  please create a new policy.
-                </span>
-              </ReactTooltip>
+              <TooltipWrapper tipContent="To choose new platforms, please create a new policy.">
+                {displayPlatforms.join(", ")}
+              </TooltipWrapper>
             </span>
           </>
         ) : (
@@ -452,14 +458,13 @@ const PolicyForm = ({
         </div>
         <div className="author">{renderAuthor()}</div>
       </div>
-      <Button
-        className={`${baseClass}__toggle-sql`}
-        variant="text-link"
+      <RevealButton
+        isShowing={showQueryEditor}
+        baseClass={baseClass}
+        hideText="Hide SQL"
+        showText="Show SQL"
         onClick={() => setShowQueryEditor(!showQueryEditor)}
-        disabled={false}
-      >
-        {showQueryEditor ? "Hide SQL" : "Show SQL"}
-      </Button>
+      />
       {showQueryEditor && (
         <FleetAce
           value={lastEditedQueryBody}
@@ -532,6 +537,7 @@ const PolicyForm = ({
           onCreatePolicy={onCreatePolicy}
           setIsNewPolicyModalOpen={setIsNewPolicyModalOpen}
           platform={lastEditedQueryPlatform}
+          backendValidators={backendValidators}
         />
       )}
     </>

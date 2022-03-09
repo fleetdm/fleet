@@ -4,8 +4,12 @@
 import React from "react";
 import ReactTooltip from "react-tooltip";
 import formatDistanceToNow from "date-fns/formatDistanceToNow";
+import PATHS from "router/paths";
 
 import permissionsUtils from "utilities/permissions";
+import { IQuery } from "interfaces/query";
+import { IUser } from "interfaces/user";
+import { addGravatarUrlToResource } from "fleet/helpers";
 
 // @ts-ignore
 import Avatar from "components/Avatar";
@@ -15,23 +19,26 @@ import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCel
 import PlatformCell from "components/TableContainer/DataTable/PlatformCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import PillCell from "components/TableContainer/DataTable/PillCell";
-
-import PATHS from "router/paths";
-
-import { IQuery } from "interfaces/query";
-import { IUser } from "interfaces/user";
-import { addGravatarUrlToResource } from "fleet/helpers";
+import TooltipWrapper from "components/TooltipWrapper";
 
 interface IQueryRow {
   id: string;
   original: IQuery;
+}
+
+interface IGetToggleAllRowsSelectedProps {
+  checked: boolean;
+  indeterminate: boolean;
+  title: string;
+  onChange: () => any;
+  style: { cursor: string };
 }
 interface IHeaderProps {
   column: {
     title: string;
     isSortedDesc: boolean;
   };
-  getToggleAllRowsSelectedProps: () => any; // TODO: do better with types
+  getToggleAllRowsSelectedProps: () => IGetToggleAllRowsSelectedProps;
   toggleAllRowsSelected: () => void;
   toggleRowSelected: (id: string, value?: boolean) => void;
   rows: IQueryRow[];
@@ -44,7 +51,7 @@ interface ICellProps {
   };
   row: {
     original: IQuery;
-    getToggleRowSelectedProps: () => any; // TODO: do better with types
+    getToggleRowSelectedProps: () => IGetToggleAllRowsSelectedProps;
     toggleRowSelected: () => void;
   };
   toggleRowSelected: (id: string, value: boolean) => void;
@@ -98,7 +105,23 @@ const generateTableHeaders = (currentUser: IUser): IDataColumn[] => {
     },
     {
       title: "Performance impact",
-      Header: "Performance impact",
+      Header: () => {
+        return (
+          <div className="column-with-tooltip">
+            <span className="queries-table__performance-impact-header">
+              <TooltipWrapper
+                tipContent={`
+                This is the average <br />
+                performance impact <br />
+                across all hosts where this <br />
+                query was scheduled.`}
+              >
+                Performance impact
+              </TooltipWrapper>
+            </span>
+          </div>
+        );
+      },
       disableSortBy: true,
       accessor: "performance",
       Cell: (cellProps) => (

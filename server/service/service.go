@@ -4,13 +4,9 @@ package service
 
 import (
 	"context"
-	"crypto/rand"
 	"fmt"
 	"html/template"
-	"math"
-	"math/big"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/WatchBeam/clock"
@@ -46,7 +42,8 @@ type Service struct {
 
 	authz *authz.Authorizer
 
-	jitterSeed int64
+	jitterMu *sync.Mutex
+	jitterH  map[time.Duration]*jitterHashTable
 }
 
 // NewService creates a new service from the config struct
@@ -87,40 +84,13 @@ func NewService(
 		license:          license,
 		failingPolicySet: failingPolicySet,
 		authz:            authorizer,
+		jitterH:          make(map[time.Duration]*jitterHashTable),
+		jitterMu:         new(sync.Mutex),
 	}
-
-	// Try setting a first seed
-	svc.updateJitterSeedRand()
-	go svc.updateJitterSeed(ctx)
-
 	return validationMiddleware{svc, ds, sso}, nil
 }
 
-func (s *Service) updateJitterSeedRand() {
-	nBig, err := rand.Int(rand.Reader, big.NewInt(math.MaxInt))
-	if err != nil {
-		panic(err)
-	}
-	n := nBig.Int64()
-	atomic.StoreInt64(&s.jitterSeed, n)
-}
-
-func (s *Service) updateJitterSeed(ctx context.Context) {
-	for {
-		select {
-		case <-time.After(1 * time.Hour):
-			s.updateJitterSeedRand()
-		case <-ctx.Done():
-			return
-		}
-	}
-}
-
-func (s *Service) getJitterSeed() int64 {
-	return atomic.LoadInt64(&s.jitterSeed)
-}
-
-func (s Service) SendEmail(mail fleet.Email) error {
+func (s *Service) SendEmail(mail fleet.Email) error {
 	return s.mailService.SendEmail(mail)
 }
 

@@ -7,7 +7,7 @@ export default {
         bearerToken,
         endpoint: "/api/v1/fleet/config",
         method: "get",
-        response: { config: { name: "Kolide" } },
+        response: { config: { name: "Fleet" } },
       });
     },
   },

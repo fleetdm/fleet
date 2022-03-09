@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch } from "react-redux";
 import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
 import yaml from "js-yaml";
@@ -59,7 +59,9 @@ const AgentOptionsPage = ({
     }
   );
 
-  const onSaveOsqueryOptionsFormSubmit = (updatedForm: any): void | false => {
+  const onSaveOsqueryOptionsFormSubmit = (updatedForm: {
+    osquery_options: string;
+  }): void | false => {
     const { TEAMS_AGENT_OPTIONS } = endpoints;
     const { error } = validateYaml(updatedForm.osquery_options);
     if (error) {
@@ -75,7 +77,7 @@ const AgentOptionsPage = ({
       .then(() => {
         dispatch(renderFlash("success", "Successfully saved agent options"));
       })
-      .catch((errors: { [key: string]: any }) => {
+      .catch((errors: { [key: string]: string }) => {
         dispatch(renderFlash("error", errors.stack));
       });
   };
@@ -90,7 +92,7 @@ const AgentOptionsPage = ({
         See Fleet documentation for an example file that includes the overrides
         option.{" "}
         <a
-          href="https://github.com/fleetdm/fleet/tree/2f42c281f98e39a72ab4a5125ecd26d303a16a6b/docs/1-Using-Fleet/configuration-files#overrides-option"
+          href="https://fleetdm.com/docs/using-fleet/configuration-files#overrides-option"
           target="_blank"
           rel="noopener noreferrer"
         >

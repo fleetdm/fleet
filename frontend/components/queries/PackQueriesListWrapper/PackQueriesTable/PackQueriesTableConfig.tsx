@@ -5,20 +5,29 @@ import React from "react";
 import { find } from "lodash";
 
 import { performanceIndicator } from "fleet/helpers";
+import { IScheduledQuery } from "interfaces/scheduled_query";
+import { IDropdownOption } from "interfaces/dropdownOption";
+
 import Checkbox from "components/forms/fields/Checkbox";
 import DropdownCell from "components/TableContainer/DataTable/DropdownCell";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import PillCell from "components/TableContainer/DataTable/PillCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
-import { IScheduledQuery } from "interfaces/scheduled_query";
-import { IDropdownOption } from "interfaces/dropdownOption";
+import TooltipWrapper from "components/TooltipWrapper";
 
+interface IGetToggleAllRowsSelectedProps {
+  checked: boolean;
+  indeterminate: boolean;
+  title: string;
+  onChange: () => any;
+  style: { cursor: string };
+}
 interface IHeaderProps {
   column: {
     title: string;
     isSortedDesc: boolean;
   };
-  getToggleAllRowsSelectedProps: () => any; // TODO: do better with types
+  getToggleAllRowsSelectedProps: () => IGetToggleAllRowsSelectedProps;
   toggleAllRowsSelected: () => void;
 }
 
@@ -28,7 +37,7 @@ interface ICellProps {
   };
   row: {
     original: IScheduledQuery;
-    getToggleRowSelectedProps: () => any; // TODO: do better with types
+    getToggleRowSelectedProps: () => IGetToggleAllRowsSelectedProps;
     toggleRowSelected: () => void;
   };
 }
@@ -112,7 +121,17 @@ const generateTableHeaders = (
     },
     {
       title: "Performance impact",
-      Header: "Performance impact",
+      Header: () => {
+        return (
+          <div className="column-with-tooltip">
+            <span className="queries-table__performance-impact-header">
+              <TooltipWrapper tipContent="This is the average performance impact across all hosts where this query was scheduled.">
+                Performance impact
+              </TooltipWrapper>
+            </span>
+          </div>
+        );
+      },
       disableSortBy: true,
       accessor: "performance",
       Cell: (cellProps) => <PillCell value={cellProps.cell.value} />,

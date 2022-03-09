@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -33,11 +35,14 @@ func TestPolicies(t *testing.T) {
 		{"TeamPolicyProprietary", testTeamPolicyProprietary},
 		{"PolicyQueriesForHost", testPolicyQueriesForHost},
 		{"PolicyQueriesForHostPlatforms", testPolicyQueriesForHostPlatforms},
+		{"PoliciesByID", testPoliciesByID},
 		{"TeamPolicyTransfer", testTeamPolicyTransfer},
 		{"ApplyPolicySpec", testApplyPolicySpec},
 		{"Save", testPoliciesSave},
 		{"DelUser", testPoliciesDelUser},
 		{"FlippingPoliciesForHost", testFlippingPoliciesForHost},
+		{"PlatformUpdate", testPolicyPlatformUpdate},
+		{"CleanupPolicyMembership", testPolicyCleanupPolicyMembership},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -898,6 +903,24 @@ func testPolicyQueriesForHost(t *testing.T, ds *Datastore) {
 	assert.Empty(t, *policies[1].Resolution)
 }
 
+func testPoliciesByID(t *testing.T, ds *Datastore) {
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	policy1 := newTestPolicy(t, ds, user1, "policy1", "darwin", nil)
+	_ = newTestPolicy(t, ds, user1, "policy2", "darwin", nil)
+	policiesByID, err := ds.PoliciesByID(context.Background(), []uint{1, 2})
+	require.NoError(t, err)
+	assert.Equal(t, len(policiesByID), 2)
+	assert.Equal(t, policiesByID[1].ID, policy1.ID)
+	assert.Equal(t, policiesByID[1].Name, policy1.Name)
+	assert.Equal(t, policiesByID[2].ID, uint(2))
+	assert.Equal(t, policiesByID[2].Name, "policy2")
+
+	_, err = ds.PoliciesByID(context.Background(), []uint{1, 2, 3})
+	require.Error(t, err)
+	var nfe fleet.NotFoundError
+	require.ErrorAs(t, err, &nfe)
+}
+
 func testTeamPolicyTransfer(t *testing.T, ds *Datastore) {
 	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 	team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: t.Name() + "team1"})
@@ -1081,16 +1104,16 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 			Query:       "select 1 from updated;",
 			Description: "query1 desc updated",
 			Resolution:  "some resolution updated",
-			Team:        "", // TODO(lucas): no effect, #3220.
-			Platform:    "", // TODO(lucas): no effect, #3220.
+			Team:        "", // TODO(lucas): no effect.
+			Platform:    "",
 		},
 		{
 			Name:        "query2",
 			Query:       "select 2 from updated;",
 			Description: "query2 desc updated",
 			Resolution:  "some other resolution updated",
-			Team:        "team1",   // TODO(lucas): no effect, #3220.
-			Platform:    "windows", // TODO(lucas): no effect, #3220.
+			Team:        "team1", // TODO(lucas): no effect.
+			Platform:    "windows",
 		},
 	}))
 	policies, err = ds.ListGlobalPolicies(ctx)
@@ -1118,7 +1141,7 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 	assert.Equal(t, team1.ID, *teamPolicies[0].TeamID)
 	require.NotNil(t, teamPolicies[0].Resolution)
 	assert.Equal(t, "some other resolution updated", *teamPolicies[0].Resolution)
-	assert.Equal(t, "darwin", teamPolicies[0].Platform)
+	assert.Equal(t, "windows", teamPolicies[0].Platform)
 }
 
 func testPoliciesSave(t *testing.T, ds *Datastore) {
@@ -1413,4 +1436,354 @@ func testFlippingPoliciesForHost(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Empty(t, newFailing)
 	require.Empty(t, newPassing)
+}
+
+func testPolicyPlatformUpdate(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	const hostWin, hostMac, hostDeb, hostLin = 0, 1, 2, 3
+	platforms := []string{"windows", "darwin", "debian", "linux"}
+
+	// create hosts with different platforms, for that team
+	teamHosts := make([]*fleet.Host, len(platforms))
+	for i, pl := range platforms {
+		id := fmt.Sprintf("%s-%d", strings.ReplaceAll(t.Name(), "/", "_"), i)
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			OsqueryHostID:   id,
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			NodeKey:         id,
+			UUID:            id,
+			Hostname:        id,
+			Platform:        pl,
+			TeamID:          ptr.Uint(tm.ID),
+		})
+		require.NoError(t, err)
+		teamHosts[i] = h
+	}
+
+	// create hosts with different platforms, without team
+	globalHosts := make([]*fleet.Host, len(platforms))
+	for i, pl := range platforms {
+		id := fmt.Sprintf("g%s-%d", strings.ReplaceAll(t.Name(), "/", "_"), i)
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			OsqueryHostID:   id,
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			NodeKey:         id,
+			UUID:            id,
+			Hostname:        id,
+			Platform:        pl,
+		})
+		require.NoError(t, err)
+		globalHosts[i] = h
+	}
+
+	// new global policy for any platform
+	_, err = ds.NewGlobalPolicy(ctx, ptr.Uint(user.ID), fleet.PolicyPayload{Name: "g1", Query: "select 1", Platform: ""})
+	require.NoError(t, err)
+	// new team policy for any platform
+	_, err = ds.NewTeamPolicy(ctx, tm.ID, ptr.Uint(user.ID), fleet.PolicyPayload{Name: "t1", Query: "select 1", Platform: ""})
+	require.NoError(t, err)
+
+	// new global and team policies for Linux, via apply spec
+	err = ds.ApplyPolicySpecs(ctx, user.ID, []*fleet.PolicySpec{
+		{Name: "g2", Query: "select 2", Platform: "linux"},
+		{Name: "t2", Query: "select 2", Team: tm.Name, Platform: "linux"},
+	})
+	require.NoError(t, err)
+
+	// load the global policies
+	gpols, err := ds.ListGlobalPolicies(ctx)
+	require.NoError(t, err)
+	require.Len(t, gpols, 2)
+	// load the team policies
+	tpols, err := ds.ListTeamPolicies(ctx, tm.ID)
+	require.NoError(t, err)
+	require.Len(t, tpols, 2)
+
+	// index the policies by name for easier access in the rest of the test
+	polsByName := make(map[string]*fleet.Policy, len(gpols)+len(tpols))
+	for _, tpol := range tpols {
+		polsByName[tpol.Name] = tpol
+	}
+	for _, gpol := range gpols {
+		polsByName[gpol.Name] = gpol
+	}
+
+	// updating without change works fine
+	err = ds.SavePolicy(ctx, polsByName["g1"])
+	require.NoError(t, err)
+	err = ds.SavePolicy(ctx, polsByName["t2"])
+	require.NoError(t, err)
+	// apply specs that result in an update (without change) works fine
+	err = ds.ApplyPolicySpecs(ctx, user.ID, []*fleet.PolicySpec{
+		{Name: polsByName["g2"].Name, Query: polsByName["g2"].Query, Platform: polsByName["g2"].Platform},
+		{Name: polsByName["t1"].Name, Query: polsByName["t1"].Query, Team: tm.Name, Platform: polsByName["t1"].Platform},
+	})
+	require.NoError(t, err)
+
+	pol, err := ds.Policy(ctx, polsByName["g2"].ID)
+	require.NoError(t, err)
+	require.Equal(t, polsByName["g2"], pol)
+	pol, err = ds.Policy(ctx, polsByName["t1"].ID)
+	require.NoError(t, err)
+	require.Equal(t, polsByName["t1"], pol)
+
+	// record some results for each policy
+	for i, h := range teamHosts {
+		res := map[uint]*bool{
+			polsByName["t1"].ID: ptr.Bool(true),
+		}
+		if i == hostDeb || i == hostLin {
+			// also record a result for linux policy
+			res[polsByName["t2"].ID] = ptr.Bool(true)
+		}
+		err = ds.RecordPolicyQueryExecutions(ctx, h, res, time.Now(), false)
+		require.NoError(t, err)
+	}
+	for i, h := range globalHosts {
+		res := map[uint]*bool{
+			polsByName["g1"].ID: ptr.Bool(true),
+		}
+		if i == hostDeb || i == hostLin {
+			// also record a result for linux policy
+			res[polsByName["g2"].ID] = ptr.Bool(true)
+		}
+		err = ds.RecordPolicyQueryExecutions(ctx, h, res, time.Now(), false)
+		require.NoError(t, err)
+	}
+
+	wantHostsByPol := map[string][]uint{
+		"g1": {globalHosts[hostWin].ID, globalHosts[hostMac].ID, globalHosts[hostDeb].ID, globalHosts[hostLin].ID},
+		"g2": {globalHosts[hostDeb].ID, globalHosts[hostLin].ID},
+		"t1": {teamHosts[hostWin].ID, teamHosts[hostMac].ID, teamHosts[hostDeb].ID, teamHosts[hostLin].ID},
+		"t2": {teamHosts[hostDeb].ID, teamHosts[hostLin].ID},
+	}
+	assertPolicyMembership(t, ds, polsByName, wantHostsByPol)
+
+	// update global policy g1 from any => linux
+	g1 := polsByName["g1"]
+	g1.Platform = "linux"
+	polsByName["g1"] = g1
+	err = ds.SavePolicy(ctx, g1)
+	require.NoError(t, err)
+	wantHostsByPol["g1"] = []uint{globalHosts[hostDeb].ID, globalHosts[hostLin].ID}
+	assertPolicyMembership(t, ds, polsByName, wantHostsByPol)
+
+	// update team policy t1 from any => windows, darwin
+	t1 := polsByName["t1"]
+	t1.Platform = "windows,darwin"
+	polsByName["t1"] = t1
+	err = ds.SavePolicy(ctx, t1)
+	require.NoError(t, err)
+	wantHostsByPol["t1"] = []uint{teamHosts[hostWin].ID, teamHosts[hostMac].ID}
+	assertPolicyMembership(t, ds, polsByName, wantHostsByPol)
+
+	// update g2 from linux => any, t2 from linux => debian, via ApplySpecs
+	t2, g2 := polsByName["t2"], polsByName["g2"]
+	g2.Platform = ""
+	t2.Platform = "debian"
+	polsByName["t2"], polsByName["g2"] = t2, g2
+	err = ds.ApplyPolicySpecs(ctx, user.ID, []*fleet.PolicySpec{
+		{Name: g2.Name, Query: g2.Query, Platform: g2.Platform},
+		{Name: t2.Name, Query: t2.Query, Team: tm.Name, Platform: t2.Platform},
+	})
+	require.NoError(t, err)
+	// nothing should've changed for g2 (platform changed to any, so nothing to cleanup),
+	// while t2 should now only accept debian
+	wantHostsByPol["t2"] = []uint{teamHosts[hostDeb].ID}
+	assertPolicyMembership(t, ds, polsByName, wantHostsByPol)
+}
+
+func assertPolicyMembership(t *testing.T, ds *Datastore, polsByName map[string]*fleet.Policy, wantPolNameToHostIDs map[string][]uint) {
+	policyIDs := make([]uint, 0, len(polsByName))
+	for _, pol := range polsByName {
+		policyIDs = append(policyIDs, pol.ID)
+	}
+	loadMembershipStmt, args, err := sqlx.In(`SELECT policy_id, host_id FROM policy_membership WHERE policy_id IN (?)`, policyIDs)
+	require.NoError(t, err)
+
+	type polHostIDs struct {
+		PolicyID uint `db:"policy_id"`
+		HostID   uint `db:"host_id"`
+	}
+	var rows []polHostIDs
+	err = ds.writer.SelectContext(context.Background(), &rows, loadMembershipStmt, args...)
+	require.NoError(t, err)
+
+	// index the host IDs by policy ID
+	hostIDsByPolID := make(map[uint][]uint, len(policyIDs))
+	for _, row := range rows {
+		hostIDsByPolID[row.PolicyID] = append(hostIDsByPolID[row.PolicyID], row.HostID)
+	}
+
+	// assert that they match the expected list of hosts by policy
+	for polNm, hostIDs := range wantPolNameToHostIDs {
+		pol, ok := polsByName[polNm]
+		if !ok {
+			require.Len(t, hostIDs, 0)
+			continue
+		}
+		got := hostIDsByPolID[pol.ID]
+		require.ElementsMatch(t, hostIDs, got)
+	}
+}
+
+func testPolicyCleanupPolicyMembership(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user := test.NewUser(t, ds, "Bob", "bob@example.com", true)
+
+	// create hosts with different platforms
+	hostWin, hostMac, hostDeb, hostLin := 0, 1, 2, 3
+	platforms := []string{"windows", "darwin", "debian", "linux"}
+	hosts := make([]*fleet.Host, len(platforms))
+	for i, pl := range platforms {
+		id := fmt.Sprintf("%s-%d", strings.ReplaceAll(t.Name(), "/", "_"), i)
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			OsqueryHostID:   id,
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			NodeKey:         id,
+			UUID:            id,
+			Hostname:        id,
+			Platform:        pl,
+		})
+		require.NoError(t, err)
+		hosts[i] = h
+	}
+
+	// create some policies, using direct insert statements to control the timestamps
+	createPolStmt := `INSERT INTO policies (name, query, description, author_id, platforms, created_at, updated_at)
+                    VALUES (?, ?, '', ?, ?, ?, ?)`
+
+	jan2020 := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
+	feb2020 := time.Date(2020, 2, 1, 0, 0, 0, 0, time.UTC)
+	mar2020 := time.Date(2020, 3, 1, 0, 0, 0, 0, time.UTC)
+	apr2020 := time.Date(2020, 4, 1, 0, 0, 0, 0, time.UTC)
+	may2020 := time.Date(2020, 5, 1, 0, 0, 0, 0, time.UTC)
+	pols := make([]*fleet.Policy, 3)
+	for i, dt := range []time.Time{jan2020, feb2020, mar2020} {
+		res, err := ds.writer.ExecContext(ctx, createPolStmt, "p"+strconv.Itoa(i+1), "select 1", user.ID, "", dt, dt)
+		require.NoError(t, err)
+		id, _ := res.LastInsertId()
+		pol, err := ds.Policy(ctx, uint(id))
+		require.NoError(t, err)
+		pols[i] = pol
+	}
+	// index the policies by name for easier access in the rest of the test
+	polsByName := make(map[string]*fleet.Policy, len(pols))
+	for _, pol := range pols {
+		polsByName[pol.Name] = pol
+	}
+
+	wantHostsByPol := map[string][]uint{
+		"p1": {},
+		"p2": {},
+		"p3": {},
+	}
+	// no recently updated policies
+	err := ds.CleanupPolicyMembership(ctx, time.Now())
+	require.NoError(t, err)
+	assertPolicyMembership(t, ds, polsByName, wantHostsByPol)
+
+	// record results for each policy, all hosts, even if invalid for the policy
+	for _, h := range hosts {
+		res := map[uint]*bool{
+			polsByName["p1"].ID: ptr.Bool(true),
+			polsByName["p2"].ID: ptr.Bool(true),
+			polsByName["p3"].ID: ptr.Bool(true),
+		}
+		err = ds.RecordPolicyQueryExecutions(ctx, h, res, time.Now(), false)
+		require.NoError(t, err)
+	}
+
+	// no recently updated policies, so no host gets cleaned up
+	wantHostsByPol = map[string][]uint{
+		"p1": {hosts[hostWin].ID, hosts[hostMac].ID, hosts[hostDeb].ID, hosts[hostLin].ID},
+		"p2": {hosts[hostWin].ID, hosts[hostMac].ID, hosts[hostDeb].ID, hosts[hostLin].ID},
+		"p3": {hosts[hostWin].ID, hosts[hostMac].ID, hosts[hostDeb].ID, hosts[hostLin].ID},
+	}
+	err = ds.CleanupPolicyMembership(ctx, time.Now())
+	require.NoError(t, err)
+	assertPolicyMembership(t, ds, polsByName, wantHostsByPol)
+
+	// update policy p1, but do not change the platform (still any)
+	pols[0].Description = "updated"
+	updatePolicyWithTimestamp(t, ds, pols[0], feb2020)
+	err = ds.CleanupPolicyMembership(ctx, time.Now())
+	require.NoError(t, err)
+	assertPolicyMembership(t, ds, polsByName, wantHostsByPol)
+
+	// update policy p1 to "windows", but cleanup with a timestamp of apr2020, so
+	// not "recently updated", no changes
+	pols[0].Platform = "windows"
+	updatePolicyWithTimestamp(t, ds, pols[0], mar2020)
+	err = ds.CleanupPolicyMembership(ctx, apr2020)
+	require.NoError(t, err)
+	assertPolicyMembership(t, ds, polsByName, wantHostsByPol)
+
+	// now cleanup with a timestamp of mar2020+1h, so "recently updated", only windows
+	// hosts are kept
+	err = ds.CleanupPolicyMembership(ctx, mar2020.Add(time.Hour))
+	require.NoError(t, err)
+	wantHostsByPol["p1"] = []uint{hosts[hostWin].ID}
+	assertPolicyMembership(t, ds, polsByName, wantHostsByPol)
+
+	// update policy p2 to "linux,darwin", but cleanup with a timestamp of just over 24h, so
+	// not "recently updated", no changes
+	pols[1].Platform = "linux,darwin"
+	updatePolicyWithTimestamp(t, ds, pols[1], mar2020)
+	err = ds.CleanupPolicyMembership(ctx, mar2020.Add(25*time.Hour))
+	require.NoError(t, err)
+	assertPolicyMembership(t, ds, polsByName, wantHostsByPol)
+
+	// now cleanup with a timestamp of just under 24h, so it is "recently updated"
+	err = ds.CleanupPolicyMembership(ctx, mar2020.Add(23*time.Hour))
+	require.NoError(t, err)
+	wantHostsByPol["p2"] = []uint{hosts[hostMac].ID, hosts[hostDeb].ID, hosts[hostLin].ID}
+	assertPolicyMembership(t, ds, polsByName, wantHostsByPol)
+
+	// update policy p2 to just "linux", p3 to "debian", both get cleaned up (using apr2020
+	// because p3 was created with mar2020, so it will not be detected as updated if we use
+	// that same timestamp for the update).
+	pols[1].Platform = "linux"
+	updatePolicyWithTimestamp(t, ds, pols[1], apr2020)
+	pols[2].Platform = "debian"
+	updatePolicyWithTimestamp(t, ds, pols[2], apr2020)
+	err = ds.CleanupPolicyMembership(ctx, apr2020.Add(time.Hour))
+	require.NoError(t, err)
+	wantHostsByPol["p2"] = []uint{hosts[hostDeb].ID, hosts[hostLin].ID}
+	wantHostsByPol["p3"] = []uint{hosts[hostDeb].ID}
+	assertPolicyMembership(t, ds, polsByName, wantHostsByPol)
+
+	// cleaning up again 1h later doesn't change anything
+	err = ds.CleanupPolicyMembership(ctx, apr2020.Add(2*time.Hour))
+	require.NoError(t, err)
+	assertPolicyMembership(t, ds, polsByName, wantHostsByPol)
+
+	// update policy p1 to allow any, doesn't clean up anything
+	pols[0].Platform = ""
+	updatePolicyWithTimestamp(t, ds, pols[0], may2020)
+	err = ds.CleanupPolicyMembership(ctx, may2020.Add(time.Hour))
+	require.NoError(t, err)
+	assertPolicyMembership(t, ds, polsByName, wantHostsByPol)
+}
+
+func updatePolicyWithTimestamp(t *testing.T, ds *Datastore, p *fleet.Policy, ts time.Time) {
+	sql := `
+		UPDATE policies
+			SET name = ?, query = ?, description = ?, resolution = ?, platforms = ?, updated_at = ?
+			WHERE id = ?`
+	_, err := ds.writer.ExecContext(context.Background(), sql, p.Name, p.Query, p.Description, p.Resolution, p.Platform, ts, p.ID)
+	require.NoError(t, err)
 }

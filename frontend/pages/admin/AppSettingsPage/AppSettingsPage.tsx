@@ -1,4 +1,4 @@
-import React, { useCallback, useContext, useEffect } from "react";
+import React, { useCallback, useContext } from "react";
 import { useDispatch } from "react-redux";
 import { useQuery } from "react-query";
 // @ts-ignore
@@ -26,7 +26,7 @@ export const baseClass = "app-settings";
 const AppSettingsPage = (): JSX.Element => {
   const dispatch = useDispatch();
 
-  const { config, setConfig } = useContext(AppContext);
+  const { setConfig } = useContext(AppContext);
 
   const {
     data: appConfig,
@@ -52,15 +52,31 @@ const AppSettingsPage = (): JSX.Element => {
   const onFormSubmit = useCallback(
     (formData: IConfigNested) => {
       const diff = deepDifference(formData, appConfig);
+      // send all formData.agent_options because diff overrides all agent options
+      diff.agent_options = formData.agent_options;
 
       configAPI
         .update(diff)
         .then(() => {
           dispatch(renderFlash("success", "Successfully updated settings."));
         })
-        .catch((errors: any) => {
-          if (errors.base) {
-            dispatch(renderFlash("error", errors.base));
+        .catch((response: any) => {
+          if (
+            response.data.errors[0].reason.includes("could not dial smtp host")
+          ) {
+            dispatch(
+              renderFlash(
+                "error",
+                "Could not connect to SMTP server. Please try again."
+              )
+            );
+          } else if (response.data.errors) {
+            dispatch(
+              renderFlash(
+                "error",
+                `Could not update settings. ${response.data.errors[0].reason}`
+              )
+            );
           }
         })
         .finally(() => {
@@ -76,6 +92,19 @@ const AppSettingsPage = (): JSX.Element => {
     [dispatch, appConfig, getConfig, setConfig]
   );
 
+  // WHY???
+  // Because Firefox and Safari don't support anchor links :-(
+  const scrollInto = (elementId: string) => {
+    const yOffset = -215; // headers and tabs
+    const element = document.getElementById(elementId);
+
+    if (element) {
+      const top =
+        element.getBoundingClientRect().top + window.pageYOffset + yOffset;
+      window.scrollTo({ top });
+    }
+  };
+
   return (
     <div className={`${baseClass} body-wrap`}>
       <p className={`${baseClass}__page-description`}>
@@ -86,33 +115,45 @@ const AppSettingsPage = (): JSX.Element => {
         <nav>
           <ul className={`${baseClass}__form-nav-list`}>
             <li>
-              <a href="#organization-info">Organization info</a>
+              <a onClick={() => scrollInto("organization-info")}>
+                Organization info
+              </a>
             </li>
             <li>
-              <a href="#fleet-web-address">Fleet web address</a>
+              <a onClick={() => scrollInto("fleet-web-address")}>
+                Fleet web address
+              </a>
             </li>
             <li>
-              <a href="#saml">SAML single sign on options</a>
+              <a onClick={() => scrollInto("saml")}>
+                SAML single sign on options
+              </a>
             </li>
             <li>
-              <a href="#smtp">SMTP options</a>
+              <a onClick={() => scrollInto("smtp")}>SMTP options</a>
             </li>
             <li>
-              <a href="#osquery-enrollment-secrets">
+              <a onClick={() => scrollInto("osquery-enrollment-secrets")}>
                 Osquery enrollment secrets
               </a>
             </li>
             <li>
-              <a href="#agent-options">Global agent options</a>
+              <a onClick={() => scrollInto("agent-options")}>
+                Global agent options
+              </a>
             </li>
             <li>
-              <a href="#host-status-webhook">Host status webhook</a>
+              <a onClick={() => scrollInto("host-status-webhook")}>
+                Host status webhook
+              </a>
             </li>
             <li>
-              <a href="#usage-stats">Usage statistics</a>
+              <a onClick={() => scrollInto("usage-stats")}>Usage statistics</a>
             </li>
             <li>
-              <a href="#advanced-options">Advanced options</a>
+              <a onClick={() => scrollInto("advanced-options")}>
+                Advanced options
+              </a>
             </li>
           </ul>
         </nav>

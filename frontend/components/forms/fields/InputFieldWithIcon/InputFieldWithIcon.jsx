@@ -3,6 +3,7 @@ import PropTypes from "prop-types";
 import classnames from "classnames";
 
 import FleetIcon from "components/icons/FleetIcon";
+import TooltipWrapper from "components/TooltipWrapper";
 import InputField from "../InputField";
 
 const baseClass = "input-icon-field";
@@ -22,10 +23,12 @@ class InputFieldWithIcon extends InputField {
     className: PropTypes.string,
     disabled: PropTypes.bool,
     iconPosition: PropTypes.oneOf(["start", "end"]),
+    inputOptions: PropTypes.object, // eslint-disable-line react/forbid-prop-types
+    tooltip: PropTypes.string,
   };
 
   renderHeading = () => {
-    const { error, placeholder, name, label } = this.props;
+    const { error, placeholder, name, label, tooltip } = this.props;
     const labelClasses = classnames(`${baseClass}__label`);
 
     if (error) {
@@ -33,8 +36,16 @@ class InputFieldWithIcon extends InputField {
     }
 
     return (
-      <label htmlFor={name} className={labelClasses}>
-        {label || placeholder}
+      <label
+        htmlFor={name}
+        className={labelClasses}
+        data-has-tooltip={!!tooltip}
+      >
+        {tooltip ? (
+          <TooltipWrapper tipContent={tooltip}>{label}</TooltipWrapper>
+        ) : (
+          <>{label || placeholder}</>
+        )}
       </label>
     );
   };
@@ -61,6 +72,7 @@ class InputFieldWithIcon extends InputField {
       value,
       disabled,
       iconPosition,
+      inputOptions,
     } = this.props;
     const { onInputChange, renderHint } = this;
 
@@ -102,6 +114,7 @@ class InputFieldWithIcon extends InputField {
           type={type}
           value={value}
           disabled={disabled}
+          {...inputOptions}
         />
         {iconName && <FleetIcon name={iconName} className={iconClasses} />}
         {renderHint()}

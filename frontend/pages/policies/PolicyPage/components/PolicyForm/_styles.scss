@@ -39,27 +39,63 @@
       scrollbar-width: none; /* Firefox */
     }
 
+    .edit-link {
+      cursor: pointer;
+    }
+
     .name-description-resolve {
       flex-grow: 1;
-      margin-right: 24px;
-      .policy-form__policy-name {
-        margin: $pad-large 0;
-        line-height: 2rem;
-        height: 2rem;
+      margin: $pad-medium 24px 0 0;
+      .policy-name-wrapper,
+      .policy-description-wrapper,
+      .policy-resolution-wrapper {
+        display: flex;
+        &:not(.policy-form--editing) {
+          textarea:hover {
+            cursor: pointer;
+            color: $core-vibrant-blue;
+          }
+        }
+      }
+      .policy-name-wrapper {
+        .edit-icon {
+          position: relative;
+          left: 3px;
+          top: 13px;
+        }
+        .policy-form__policy-name,
+        .input-sizer::after {
+          font-size: $large;
+        }
+        .component__auto-size-input-field {
+          letter-spacing: -0.5px;
+          line-height: 2.3rem;
+          padding-top: 2px;
+        }
+      }
+      .policy-description-wrapper {
+        padding-top: $pad-small;
+        .edit-icon {
+          position: relative;
+          left: 3px;
+          top: 0;
+        }
+      }
+      .edit-icon {
+        width: 14px;
+        height: 14px;
+        opacity: 1;
+        transition: opacity 0.2s;
+        &.hide {
+          opacity: 0;
+        }
       }
       .policy-form__policy-resolve,
       .resolve-text-wrapper {
         margin-top: $pad-large;
       }
-      #policy-description {
-        height: 38px;
-      }
-      textarea.policy-form__policy-description {
-        margin-top: 0.8125rem;
-      }
-      img {
-        height: 14px;
-        padding-left: $pad-small;
+      .resolve-title {
+        margin-bottom: 0;
       }
     }
 
@@ -115,7 +151,6 @@
   }
 
   &__policy-name {
-    margin-top: $pad-large;
     font-size: $large;
 
     &.input-field--error {
@@ -127,15 +162,6 @@
   &__policy-resolution {
     margin-top: 0;
     font-size: $x-small;
-  }
-
-  &__toggle-sql {
-    margin-top: $pad-large;
-  }
-
-  &__text-editor-wrapper {
-    margin: 0;
-    margin-top: $pad-large;
   }
 
   &__button-wrap {

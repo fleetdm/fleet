@@ -1,0 +1,13 @@
+---
+- connection: local
+  gather_facts: false
+  hosts: 127.0.0.1
+  tasks:
+    - amazon.aws.s3_bucket:
+        name: fleet-loadtesting-tfstate
+        state: present
+    - community.aws.dynamodb_table:
+        name: fleet-loadtesting-tfstate
+        hash_key_name: LockID
+        hash_key_type: STRING
+        billing_mode: PAY_PER_REQUEST

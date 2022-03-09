@@ -1,13 +1,12 @@
 import React from "react";
 import classnames from "classnames";
 
-import IconToolTip from "components/IconToolTip";
 import { IOsqueryTable } from "interfaces/osquery_table"; // @ts-ignore
 import { osqueryTableNames } from "utilities/osquery_tables"; // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown"; // @ts-ignore
-import FleetIcon from "components/icons/FleetIcon"; // @ts-ignore
+import FleetIcon from "components/icons/FleetIcon";
+import TooltipWrapper from "components/TooltipWrapper"; // @ts-ignore
 import SecondarySidePanelContainer from "../SecondarySidePanelContainer";
-
 import AppleIcon from "../../../../assets/images/icon-apple-dark-20x20@2x.png";
 import LinuxIcon from "../../../../assets/images/icon-linux-dark-20x20@2x.png";
 import WindowsIcon from "../../../../assets/images/icon-windows-dark-20x20@2x.png";
@@ -25,7 +24,7 @@ const QuerySidePanel = ({
   selectedOsqueryTable,
   onOsqueryTableSelect,
   onClose,
-}: IQuerySidePanel) => {
+}: IQuerySidePanel): JSX.Element => {
   const displayTypeForDataType = (dataType: string) => {
     switch (dataType) {
       case "TEXT_TYPE":
@@ -49,8 +48,11 @@ const QuerySidePanel = ({
 
     return columns?.map((column) => (
       <li key={column.name} className={`${columnBaseClass}__item`}>
-        <span className={`${columnBaseClass}__name`}>{column.name}</span>
-        <IconToolTip text={column.description} />
+        <span className={`${columnBaseClass}__name`}>
+          <TooltipWrapper tipContent={column.description}>
+            {column.name}
+          </TooltipWrapper>
+        </span>
         <div className={`${columnBaseClass}__description`}>
           <span className={`${columnBaseClass}__type`}>
             {displayTypeForDataType(column.type)}

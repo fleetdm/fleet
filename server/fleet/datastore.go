@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"time"
 )
 
@@ -201,14 +202,18 @@ type Datastore interface {
 	CountHostsInLabel(ctx context.Context, filter TeamFilter, lid uint, opt HostListOptions) (int, error)
 	ListHostDeviceMapping(ctx context.Context, id uint) ([]*HostDeviceMapping, error)
 
+	// LoadHostByDeviceAuthToken loads the host identified by the device auth token.
+	// If the token is invalid it returns a NotFoundError.
+	LoadHostByDeviceAuthToken(ctx context.Context, authToken string) (*Host, error)
+
 	// ListPoliciesForHost lists the policies that a host will check and whether they are passing
 	ListPoliciesForHost(ctx context.Context, host *Host) ([]*HostPolicy, error)
 
 	GetMunkiVersion(ctx context.Context, hostID uint) (string, error)
 	GetMDM(ctx context.Context, hostID uint) (enrolled bool, serverURL string, installedFromDep bool, err error)
 
-	AggregatedMunkiVersion(ctx context.Context, teamID *uint) ([]AggregatedMunkiVersion, error)
-	AggregatedMDMStatus(ctx context.Context, teamID *uint) (AggregatedMDMStatus, error)
+	AggregatedMunkiVersion(ctx context.Context, teamID *uint) ([]AggregatedMunkiVersion, time.Time, error)
+	AggregatedMDMStatus(ctx context.Context, teamID *uint) (AggregatedMDMStatus, time.Time, error)
 	GenerateAggregatedMunkiAndMDM(ctx context.Context) error
 
 	///////////////////////////////////////////////////////////////////////////////
@@ -225,7 +230,7 @@ type Datastore interface {
 
 	NewPasswordResetRequest(ctx context.Context, req *PasswordResetRequest) (*PasswordResetRequest, error)
 	DeletePasswordResetRequestsForUser(ctx context.Context, userID uint) error
-	FindPassswordResetByToken(ctx context.Context, token string) (*PasswordResetRequest, error)
+	FindPasswordResetByToken(ctx context.Context, token string) (*PasswordResetRequest, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// SessionStore is the abstract interface that all session backends must conform to.
@@ -328,9 +333,16 @@ type Datastore interface {
 	AllSoftwareWithoutCPEIterator(ctx context.Context) (SoftwareIterator, error)
 	AddCPEForSoftware(ctx context.Context, software Software, cpe string) error
 	AllCPEs(ctx context.Context) ([]string, error)
-	InsertCVEForCPE(ctx context.Context, cve string, cpes []string) error
+	InsertCVEForCPE(ctx context.Context, cve string, cpes []string) (int64, error)
 	SoftwareByID(ctx context.Context, id uint) (*Software, error)
+	// CalculateHostsPerSoftware calculates the number of hosts having each
+	// software installed and stores that information in the software_host_counts
+	// table.
+	//
+	// After aggregation, it cleans up unused software (e.g. software installed
+	// on removed hosts, software uninstalled on hosts, etc.)
 	CalculateHostsPerSoftware(ctx context.Context, updatedAt time.Time) error
+	HostsByCPEs(ctx context.Context, cpes []string) ([]*CPEHost, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// ActivitiesStore
@@ -347,6 +359,10 @@ type Datastore interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// GlobalPoliciesStore
 
+	// ApplyPolicySpecs applies a list of policies (likely from a yaml file) to the datastore. Existing policies are updated,
+	// and new policies are created.
+	ApplyPolicySpecs(ctx context.Context, authorID uint, specs []*PolicySpec) error
+
 	NewGlobalPolicy(ctx context.Context, authorID *uint, args PolicyPayload) (*Policy, error)
 	Policy(ctx context.Context, id uint) (*Policy, error)
 	// SavePolicy updates some fields of the given policy on the datastore.
@@ -355,10 +371,10 @@ type Datastore interface {
 	SavePolicy(ctx context.Context, p *Policy) error
 
 	ListGlobalPolicies(ctx context.Context) ([]*Policy, error)
+	PoliciesByID(ctx context.Context, ids []uint) (map[uint]*Policy, error)
 	DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint, error)
 
 	PolicyQueriesForHost(ctx context.Context, host *Host) (map[string]string, error)
-	ApplyPolicySpecs(ctx context.Context, authorID uint, specs []*PolicySpec) error
 
 	// Methods used for async processing of host policy query results.
 	AsyncBatchInsertPolicyMembership(ctx context.Context, batch []PolicyMembershipResult) error
@@ -373,6 +389,10 @@ type Datastore interface {
 
 	ListSoftware(ctx context.Context, opt SoftwareListOptions) ([]Software, error)
 	CountSoftware(ctx context.Context, opt SoftwareListOptions) (int, error)
+	// ListVulnerableSoftwareBySource lists all the vulnerable software that matches the given source.
+	ListVulnerableSoftwareBySource(ctx context.Context, source string) ([]SoftwareWithCPE, error)
+	// DeleteVulnerabilities deletes the given list of vulnerabilities identified by CPE+CVE.
+	DeleteVulnerabilitiesByCPECVE(ctx context.Context, vulnerabilities []SoftwareVulnerability) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Team Policies
@@ -381,6 +401,8 @@ type Datastore interface {
 	ListTeamPolicies(ctx context.Context, teamID uint) ([]*Policy, error)
 	DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error)
 	TeamPolicy(ctx context.Context, teamID uint, policyID uint) (*Policy, error)
+
+	CleanupPolicyMembership(ctx context.Context, now time.Time) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Locking
@@ -489,6 +511,21 @@ type Datastore interface {
 	SerialUpdateHost(ctx context.Context, host *Host) error
 
 	///////////////////////////////////////////////////////////////////////////////
+	// Debug
+
+	InnoDBStatus(ctx context.Context) (string, error)
+	ProcessList(ctx context.Context) ([]MySQLProcess, error)
+}
+
+type MySQLProcess struct {
+	Id      int     `json:"id" db:"Id"`
+	User    string  `json:"user" db:"User"`
+	Host    string  `json:"host" db:"Host"`
+	DB      *string `json:"db" db:"db"`
+	Command string  `json:"command" db:"Command"`
+	Time    int     `json:"time" db:"Time"`
+	State   *string `json:"state" db:"State"`
+	Info    *string `json:"info" db:"Info"`
 }
 
 // HostOsqueryIntervals holds an osquery host's osquery interval configurations.
@@ -532,6 +569,26 @@ const (
 	// UnknownMigrations means some unidentified migrations were detected on the database.
 	UnknownMigrations
 )
+
+// SoftwareVulnerability identifies a vulnerability on a specific software (CPE).
+type SoftwareVulnerability struct {
+	// CPEID is the ID of the software CPE in the system.
+	CPEID uint
+	CVE   string
+}
+
+// String implements fmt.Stringer.
+func (sv SoftwareVulnerability) String() string {
+	return fmt.Sprintf("{%d,%s}", sv.CPEID, sv.CVE)
+}
+
+// SoftwareWithCPE holds a software piece alongside its CPE ID.
+type SoftwareWithCPE struct {
+	// Software holds the software data.
+	Software
+	// CPEID is the ID of the software CPE in the system.
+	CPEID uint
+}
 
 // NotFoundError is returned when the datastore resource cannot be found.
 type NotFoundError interface {

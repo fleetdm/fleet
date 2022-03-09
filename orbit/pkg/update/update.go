@@ -82,14 +82,14 @@ func New(opt Options) (*Updater, error) {
 	}
 
 	tufClient := client.NewClient(opt.LocalStore, remoteStore)
-	var rootKeys []*data.Key
+	var rootKeys []*data.PublicKey
 	if err := json.Unmarshal([]byte(opt.RootKeys), &rootKeys); err != nil {
 		return nil, fmt.Errorf("unmarshal root keys: %w", err)
 	}
 
 	meta, err := opt.LocalStore.GetMeta()
 	if err != nil || meta["root.json"] == nil {
-		var rootKeys []*data.Key
+		var rootKeys []*data.PublicKey
 		if err := json.Unmarshal([]byte(opt.RootKeys), &rootKeys); err != nil {
 			return nil, fmt.Errorf("unmarshal root keys: %w", err)
 		}
@@ -125,8 +125,13 @@ func (u *Updater) RepoPath(target, channel string) string {
 	return path.Join(target, u.opt.Platform, channel, target+constant.ExecutableExtension(u.opt.Platform))
 }
 
+// LocalPath defines the local file path of a target.
+func LocalPath(rootDir, target, channel, platform string) string {
+	return filepath.Join(rootDir, binDir, target, platform, channel, target+constant.ExecutableExtension(platform))
+}
+
 func (u *Updater) LocalPath(target, channel string) string {
-	return u.pathFromRoot(filepath.Join(binDir, target, u.opt.Platform, channel, target+constant.ExecutableExtension(u.opt.Platform)))
+	return LocalPath(u.opt.RootDirectory, target, channel, u.opt.Platform)
 }
 
 // Lookup looks up the provided target in the local target metadata. This should
@@ -176,7 +181,7 @@ func (u *Updater) Get(target, channel string) (string, error) {
 		return "", err
 	}
 
-	if err := CheckFileHash(meta, localPath); err != nil {
+	if err := checkFileHash(meta, localPath); err != nil {
 		log.Debug().Str("info", err.Error()).Msg("change detected")
 		return localPath, u.Download(repoPath, localPath)
 	}
@@ -300,13 +305,9 @@ func (u *Updater) Download(repoPath, localPath string) error {
 	return nil
 }
 
-func (u *Updater) pathFromRoot(parts ...string) string {
-	return filepath.Join(append([]string{u.opt.RootDirectory}, parts...)...)
-}
-
 func (u *Updater) initializeDirectories() error {
 	for _, dir := range []string{
-		u.pathFromRoot(binDir),
+		filepath.Join(u.opt.RootDirectory, binDir),
 	} {
 		err := secure.MkdirAll(dir, constant.DefaultDirMode)
 		if err != nil {

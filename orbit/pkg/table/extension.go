@@ -2,6 +2,7 @@ package table
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"time"
@@ -31,7 +32,7 @@ func NewRunner(socket string) *Runner {
 func (r *Runner) Execute() error {
 	log.Debug().Msg("start osquery extension")
 
-	if err := waitForSocket(r.socket, 1*time.Minute); err != nil {
+	if err := waitExtensionSocket(r.socket, 1*time.Minute); err != nil {
 		return err
 	}
 
@@ -44,7 +45,12 @@ func (r *Runner) Execute() error {
 		r.srv, err = osquery.NewExtensionManagerServer(
 			"com.fleetdm.orbit.osquery_extension.v1",
 			r.socket,
-			osquery.ServerTimeout(3*time.Second))
+			// This timeout is only used for registering the extension tables
+			// and for the heartbeat ping requests in r.srv.Run().
+			//
+			// On some systems, registering tables takes more than a couple
+			// of seconds, thus set timeout to minutes instead (see #3878).
+			osquery.ServerTimeout(5*time.Minute))
 		if err == nil {
 			ticker.Stop()
 			break
@@ -85,19 +91,33 @@ func (r *Runner) Interrupt(err error) {
 	}
 }
 
-// waitForSocket waits for the osquery socket to exist.
+// waitExtensionSocket waits until the osquery extension manager socket is ready.
+// First, it waits for the unix socket/Windows pipe to be available.
+// Then, it tries connecting as a client and sending a ping to ensure that osquery
+// is ready for extensions.
 //
-// This method was copied from osquery-go because we can't rely on option.ServerTimeout.
-// Such timeout is used both for waiting for the socket and for the thrift transport.
-func waitForSocket(sockPath string, timeout time.Duration) error {
-	ticker := time.NewTicker(200 * time.Millisecond)
-	defer ticker.Stop()
+// This method is a workaround for https://github.com/osquery/osquery-go/issues/80.
+func waitExtensionSocket(sockPath string, timeout time.Duration) error {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
+
+	if err := waitSocketExists(ctx, sockPath); err != nil {
+		return err
+	}
+	if err := waitSocketReady(ctx, sockPath); err != nil {
+		return err
+	}
+	return nil
+}
+
+func waitSocketExists(ctx context.Context, sockPath string) error {
+	ticker := time.NewTicker(200 * time.Millisecond)
+	defer ticker.Stop()
+
 	for {
 		select {
 		case <-ctx.Done():
-			return ctx.Err()
+			return errors.New("extension socket stat timeout")
 		case <-ticker.C:
 			switch _, err := os.Stat(sockPath); {
 			case err == nil:
@@ -107,6 +127,39 @@ func waitForSocket(sockPath string, timeout time.Duration) error {
 			default:
 				return fmt.Errorf("stat socket %s failed: %w", sockPath, err)
 			}
+		}
+	}
+}
+
+func waitSocketReady(ctx context.Context, sockPath string) error {
+	serverClient, err := osquery.NewClient(sockPath, 3*time.Second)
+	if err != nil {
+		return err
+	}
+	defer serverClient.Close()
+
+	ticker := time.NewTicker(200 * time.Millisecond)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return errors.New("extension socket ping timeout")
+		case <-ticker.C:
+			status, err := serverClient.Ping()
+			if err != nil {
+				log.Debug().Err(err).Msgf(
+					"failed to ping extension socket, retrying...",
+				)
+				continue
+			}
+			if status.Code == 0 {
+				log.Debug().Msg("extension manager checked")
+				return nil
+			}
+			log.Debug().Int32("status_code", status.Code).Str("status_message", status.Message).Msgf(
+				"extension socket not ready, retrying...",
+			)
 		}
 	}
 }

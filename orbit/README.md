@@ -167,6 +167,14 @@ This process may take several minutes to complete as the Notarization process co
 
 After successful notarization, the generated "ticket" is automatically stapled to the package.
 
+#### Orbit Osquery Result and Status Logs
+
+If the `logger_path` configuration is set to `filesystem`, Orbit will store osquery's "result" and
+"status" logs to the following directories:
+  - Windows: C:\Program Files\Orbit\osquery_log
+  - macOS: /var/lib/orbit/osquery_log
+  - Linux: /var/lib/orbit/osquery_log
+
 #### Orbit Development
 
 For ease of development of Orbit, `fleetctl package` allows the generation of a package with a
@@ -179,6 +187,29 @@ WARNING: You are attempting to override orbit with a dev build.
 Press Enter to continue, or Control-c to exit.
 [...]
 ```
+
+If you want to run orbit from source directly, you can do the following:
+
+```sh
+go run github.com/fleetdm/fleet/v4/orbit/cmd/orbit \
+    --dev-mode \
+    --disable-updates \
+    --root-dir /tmp/orbit \
+    --fleet-url https://localhost:8080 \
+    --insecure \
+    --enroll-secret Pz3zC0NMDdZfb3FtqiLgwoexItojrYh/ \
+    -- --verbose
+```
+
+Or, using a `flagfile.txt` for osqueryd:
+```sh 
+go run github.com/fleetdm/fleet/v4/orbit/cmd/orbit \
+    --dev-mode \
+    --disable-updates \
+    --root-dir /tmp/orbit \
+    -- --flagfile=flagfile.txt --verbose
+```
+
 
 ### Troubleshooting
 
@@ -232,7 +263,7 @@ Yes! Orbit is licensed under an MIT license and all uses are encouraged.
 
 ### How does orbit update osquery? And how do the stable and edge channels get triggered to update osquery on a self hosted Fleet instance?
 
-Orbit uses a configurable update server. We expect that many folks will just use the update server we manage (similar to what Kolide does with Launcher's update server). We are also offering [tooling for self-managing an update server](https://github.com/fleetdm/fleet/blob/main/docs/02-Deploying/04-fleetctl-agent-updates.md) as part of Fleet Premium (the subscription offering).
+Orbit uses a configurable update server. We expect that many folks will just use the update server we manage (similar to what Kolide does with Launcher's update server). We are also offering [tooling for self-managing an update server](https://fleetdm.com/docs/deploying/fleetctl-agent-updates) as part of Fleet Premium (the subscription offering).
 
 ## Community
 

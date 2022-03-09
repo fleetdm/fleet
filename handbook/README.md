@@ -2,7 +2,7 @@
 
 ## Introduction
 
-The Fleet handbook is the central guide for how we run the company. As part of our value of being transparent, the handbook is open to the world. We welcome feedback, and contributions, so please click to edit to suggest improvements throughout these pages.  
+The Fleet handbook is the central guide for how we run the company. As part of our value of [being transparent](./company.md#openness), the handbook is open to the world. We welcome feedback, and [contributions](./handbook.md#contributing-to-the-handbook), so please click to edit and suggest improvements throughout these pages.
 
 ### Company
 
@@ -20,13 +20,19 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Spending company money](./people.md#spending-company-money)
 
+[Paid time off](./people.md#paid-time-off)
+
 [Meetings](./people.md#meetings)
 
 [People ops](./people.md#people-ops)
 
+[Slack channels](./people.md#slack-channels)
+
 ### Engineering
 
 [Release process](./engineering.md#release-process)
+
+[Slack channels](./engineering.md#slack-channels)
 
 ### Product
 
@@ -34,33 +40,41 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Product quality](./product.md#product-quality)
 
-[Fleet docs](./product.md#fleet-docs)
-
 [UI design](./product.md#ui-design)
 
 [Release](./product.md#release)
 
 [Feature flags](./product.md#feature-flags)
 
+[Slack channels](./product.md#slack-channels)
+
 ### Security
 
 [How we protect end-user devices](./security.md#how-we-protect-end-user-devices)
 
-### Growth
+[Google Workspace security](./security.md#google-workspace-security)
+
+[Vulnerability management in Fleet](./security.md#vulnerability-management)
+
+[Slack channels](./security.md#slack-channels)
 
 ### Brand
-
-[Website](./brand.md#website)
 
 [Communicating as Fleet](./brand.md#communicating-as-fleet)
 
 [Voice and grammar guidelines](./brand.md#voice-and-grammar-guidelines)
+
+[Brand resources](./brand.md#brand-resources)
+
+[Website](./brand.md#website)
 
 ### Customers
 
 [Customer succcess](./customers.md#customer-success)
 
 [Support process](./customers.md#support-process)
+
+[Slack channels](./customers.md#slack-channels)
 
 ### Community
 
@@ -70,9 +84,15 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Promoting blog posts on social media](./community.md#promoting-blog-posts-on-social-media)
 
+[Fleet docs](./community.md#fleet-docs)
+
 [Press releases](./community.md#press-releases)
 
 [Community contributions (pull requests)](./community.md#community-contributions-pull-requests)
+
+[Fleet swag](./community.md#fleet-swag)
+
+[Slack channels](./community.md#slack-channels)
 
 ### Handbook
 

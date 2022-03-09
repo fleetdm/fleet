@@ -1,4 +1,4 @@
-# Customer experience
+# Customer engineering
 
 ## Customer success
 
@@ -73,6 +73,16 @@ Occasionally we will need to track public issues for customers that wish to rema
 Fleet's self-service license dispenser is the best way to generate trial license keys for small deployments of Fleet Premium.
 
 To generate a trial license key for a larger deployment, [create an opportunity issue](https://github.com/fleetdm/confidential/issues/new/choose) for the customer and follow the instructions in the issue for generating a trial license key.
+
+## Slack channels
+
+These are the Slack channels the customer engineering team maintains. If the channel has a [directly responsible individual](./people.md#directly-resonsible-individuals) (**DRI**), they will be specified. These people are responsible for keeping up with all new messages, even if they aren't mentioned. 
+
+- **#g-cutomer-engineering** - **DRI**: Tony Gauda
+- **#_from-prospective-customers** - **DRI**: Andrew Bare
+- **#help-sell** - **DRI**: Andrew Bare
+
+**Who should have these channels unmuted?** Members of this group, everyone else is encouraged to mute them.
 
 <meta name="maintainedBy" value="tgauda">
 

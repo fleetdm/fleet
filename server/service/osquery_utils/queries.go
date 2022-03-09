@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/kit/log"
@@ -112,13 +113,21 @@ var detailQueries = map[string]DetailQuery{
 				return nil
 			}
 
-			host.OSVersion = fmt.Sprintf(
-				"%s %s.%s.%s",
-				rows[0]["name"],
-				rows[0]["major"],
-				rows[0]["minor"],
-				rows[0]["patch"],
-			)
+			if rows[0]["major"] != "0" || rows[0]["minor"] != "0" || rows[0]["patch"] != "0" {
+				host.OSVersion = fmt.Sprintf(
+					"%s %s.%s.%s",
+					rows[0]["name"],
+					rows[0]["major"],
+					rows[0]["minor"],
+					rows[0]["patch"],
+				)
+			} else {
+				host.OSVersion = fmt.Sprintf(
+					"%s %s",
+					rows[0]["name"],
+					rows[0]["build"],
+				)
+			}
 			host.OSVersion = strings.Trim(host.OSVersion, ".")
 
 			if build, ok := rows[0]["build"]; ok {
@@ -267,13 +276,6 @@ var detailQueries = map[string]DetailQuery{
 			return nil
 		},
 	},
-	"scheduled_query_stats": {
-		Query: `
-			SELECT *,
-				(SELECT value from osquery_flags where name = 'pack_delimiter') AS delimiter
-			FROM osquery_schedule`,
-		DirectIngestFunc: directIngestScheduledQueryStats,
-	},
 	"disk_space_unix": {
 		Query: `
 SELECT (blocks_available * 100 / blocks) AS percent_disk_space_available,
@@ -293,14 +295,20 @@ FROM logical_drives WHERE file_system = 'NTFS' LIMIT 1;`,
 	"mdm": {
 		Query:            `select enrolled, server_url, installed_from_dep from mdm;`,
 		DirectIngestFunc: directIngestMDM,
+		Platforms:        []string{"darwin"},
 	},
 	"munki_info": {
 		Query:            `select version from munki_info;`,
 		DirectIngestFunc: directIngestMunkiInfo,
+		Platforms:        []string{"darwin"},
 	},
 	"google_chrome_profiles": {
 		Query:            `SELECT email FROM google_chrome_profiles WHERE NOT ephemeral`,
 		DirectIngestFunc: directIngestChromeProfiles,
+		// Technically this does work on Windows and Linux, but so far no one is
+		// deploying the extension to those platforms and it's causing log spam
+		// for customers. See https://github.com/fleetdm/fleet/issues/4123
+		Platforms: []string{"darwin"},
 	},
 }
 
@@ -372,6 +380,14 @@ FROM homebrew_packages;
 	DirectIngestFunc: directIngestSoftware,
 }
 
+var scheduledQueryStats = DetailQuery{
+	Query: `
+			SELECT *,
+				(SELECT value from osquery_flags where name = 'pack_delimiter') AS delimiter
+			FROM osquery_schedule`,
+	DirectIngestFunc: directIngestScheduledQueryStats,
+}
+
 var softwareLinux = DetailQuery{
 	Query: `
 WITH cached_users AS (SELECT * FROM users)
@@ -379,56 +395,80 @@ SELECT
   name AS name,
   version AS version,
   'Package (deb)' AS type,
-  'deb_packages' AS source
+  'deb_packages' AS source,
+  '' AS release,
+  '' AS vendor,
+  '' AS arch
 FROM deb_packages
 UNION
 SELECT
   package AS name,
   version AS version,
   'Package (Portage)' AS type,
-  'portage_packages' AS source
+  'portage_packages' AS source,
+  '' AS release,
+  '' AS vendor,
+  '' AS arch
 FROM portage_packages
 UNION
 SELECT
   name AS name,
   version AS version,
   'Package (RPM)' AS type,
-  'rpm_packages' AS source
+  'rpm_packages' AS source,
+  release AS release,
+  vendor AS vendor,
+  arch AS arch
 FROM rpm_packages
 UNION
 SELECT
   name AS name,
   version AS version,
   'Package (NPM)' AS type,
-  'npm_packages' AS source
+  'npm_packages' AS source,
+  '' AS release,
+  '' AS vendor,
+  '' AS arch
 FROM npm_packages
 UNION
 SELECT
   name AS name,
   version AS version,
   'Browser plugin (Chrome)' AS type,
-  'chrome_extensions' AS source
+  'chrome_extensions' AS source,
+  '' AS release,
+  '' AS vendor,
+  '' AS arch
 FROM cached_users CROSS JOIN chrome_extensions USING (uid)
 UNION
 SELECT
   name AS name,
   version AS version,
   'Browser plugin (Firefox)' AS type,
-  'firefox_addons' AS source
+  'firefox_addons' AS source,
+  '' AS release,
+  '' AS vendor,
+  '' AS arch
 FROM cached_users CROSS JOIN firefox_addons USING (uid)
 UNION
 SELECT
   name AS name,
   version AS version,
   'Package (Atom)' AS type,
-  'atom_packages' AS source
-FROM users CROSS JOIN atom_packages USING (uid)
+  'atom_packages' AS source,
+  '' AS release,
+  '' AS vendor,
+  '' AS arch
+FROM cached_users CROSS JOIN atom_packages USING (uid)
 UNION
 SELECT
   name AS name,
   version AS version,
   'Package (Python)' AS type,
-  'python_packages' AS source
+  'python_packages' AS source,
+  '' AS release,
+  '' AS vendor,
+  '' AS arch
 FROM python_packages;
 `,
 	Platforms:        fleet.HostLinuxOSs,
@@ -633,11 +673,16 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 			)
 			continue
 		}
+
 		s := fleet.Software{
 			Name:             name,
 			Version:          version,
 			Source:           source,
 			BundleIdentifier: bundleIdentifier,
+
+			Release: row["release"],
+			Vendor:  row["vendor"],
+			Arch:    row["arch"],
 		}
 		software = append(software, s)
 	}
@@ -711,14 +756,13 @@ func directIngestMDM(ctx context.Context, logger log.Logger, host *fleet.Host, d
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "parsing enrolled")
 	}
-	if !enrolled {
-		// A row with enrolled=false and all other columns empty is a host with the osquery
-		// MDM table extensions installed (e.g. Orbit) but MDM unconfigured/disabled.
-		return nil
-	}
-	installedFromDep, err := strconv.ParseBool(rows[0]["installed_from_dep"])
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "parsing installed_from_dep")
+	installedFromDepVal := rows[0]["installed_from_dep"]
+	installedFromDep := false
+	if installedFromDepVal != "" {
+		installedFromDep, err = strconv.ParseBool(installedFromDepVal)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "parsing installed_from_dep")
+		}
 	}
 
 	return ds.SetOrUpdateMDMData(ctx, host.ID, enrolled, rows[0]["server_url"], installedFromDep)
@@ -737,7 +781,7 @@ func directIngestMunkiInfo(ctx context.Context, logger log.Logger, host *fleet.H
 	return ds.SetOrUpdateMunkiVersion(ctx, host.ID, rows[0]["version"])
 }
 
-func GetDetailQueries(ac *fleet.AppConfig) map[string]DetailQuery {
+func GetDetailQueries(ac *fleet.AppConfig, fleetConfig config.FleetConfig) map[string]DetailQuery {
 	generatedMap := make(map[string]DetailQuery)
 	for key, query := range detailQueries {
 		generatedMap[key] = query
@@ -751,6 +795,10 @@ func GetDetailQueries(ac *fleet.AppConfig) map[string]DetailQuery {
 
 	if ac != nil && ac.HostSettings.EnableHostUsers {
 		generatedMap["users"] = usersQuery
+	}
+
+	if fleetConfig.App.EnableScheduledQueryStats {
+		generatedMap["scheduled_query_stats"] = scheduledQueryStats
 	}
 
 	return generatedMap

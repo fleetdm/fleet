@@ -1,6 +1,7 @@
 import React, { useCallback, useContext, useEffect, useState } from "react";
 import { useQuery } from "react-query";
 import { useDispatch } from "react-redux";
+import { InjectedRouter } from "react-router/lib/Router";
 import { noop } from "lodash";
 
 import { AppContext } from "context/app";
@@ -9,6 +10,9 @@ import { TableContext } from "context/table";
 import { inMilliseconds, secondsToHms } from "fleet/helpers";
 import { IPolicyStats, ILoadAllPoliciesResponse } from "interfaces/policy";
 import { IWebhookFailingPolicies } from "interfaces/webhook";
+import { IConfig, IConfigNested } from "interfaces/config";
+// @ts-ignore
+import { getConfig } from "redux/nodes/app/actions";
 // @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions";
 import PATHS from "router/paths";
@@ -19,8 +23,8 @@ import usersAPI, { IGetMeResponse } from "services/entities/users";
 import { DEFAULT_POLICY } from "utilities/constants";
 
 import Button from "components/buttons/Button";
+import RevealButton from "components/buttons/RevealButton";
 import InfoBanner from "components/InfoBanner/InfoBanner";
-import IconToolTip from "components/IconToolTip";
 import Spinner from "components/Spinner";
 import TeamsDropdown from "components/TeamsDropdown";
 import TableDataError from "components/TableDataError";
@@ -30,8 +34,15 @@ import AddPolicyModal from "./components/AddPolicyModal";
 import RemovePoliciesModal from "./components/RemovePoliciesModal";
 
 interface IManagePoliciesPageProps {
-  router: any;
-  location: any;
+  router: InjectedRouter; // v3
+  location: {
+    action: string;
+    hash: string;
+    key: string;
+    pathname: string;
+    query: { team_id?: string };
+    search: string;
+  };
 }
 
 const baseClass = "manage-policies-page";
@@ -59,9 +70,12 @@ const ManagePolicyPage = ({
     setAvailableTeams,
     setCurrentUser,
     setCurrentTeam,
+    setConfig,
   } = useContext(AppContext);
 
-  const teamId = parseInt(location?.query?.team_id, 10) || 0;
+  const teamId = location?.query?.team_id
+    ? parseInt(location?.query?.team_id, 10)
+    : 0;
 
   const {
     setLastEditedQueryName,
@@ -81,18 +95,6 @@ const ManagePolicyPage = ({
   const [showAddPolicyModal, setShowAddPolicyModal] = useState(false);
   const [showRemovePoliciesModal, setShowRemovePoliciesModal] = useState(false);
   const [showInheritedPolicies, setShowInheritedPolicies] = useState(false);
-
-  const [
-    isLoadingFailingPoliciesWebhook,
-    setIsLoadingFailingPoliciesWebhook,
-  ] = useState(true);
-  const [
-    isFailingPoliciesWebhookError,
-    setIsFailingPoliciesWebhookError,
-  ] = useState(false);
-  const [failingPoliciesWebhook, setFailingPoliciesWebhook] = useState<
-    IWebhookFailingPolicies | undefined
-  >();
   const [currentAutomatedPolicies, setCurrentAutomatedPolicies] = useState<
     number[]
   >();
@@ -137,6 +139,26 @@ const ManagePolicyPage = ({
     }
   );
 
+  const canAddOrRemovePolicy =
+    isGlobalAdmin || isGlobalMaintainer || isTeamMaintainer || isTeamAdmin;
+
+  const {
+    data: failingPoliciesWebhook,
+    isLoading: isLoadingFailingPoliciesWebhook,
+    refetch: refetchFailingPoliciesWebhook,
+  } = useQuery<IConfigNested, Error, IWebhookFailingPolicies>(
+    ["config"],
+    () => configAPI.loadAll(),
+    {
+      enabled: canAddOrRemovePolicy,
+      select: (data: IConfigNested) =>
+        data.webhook_settings.failing_policies_webhook,
+      onSuccess: (data) => {
+        setCurrentAutomatedPolicies(data.policy_ids);
+      },
+    }
+  );
+
   const refetchPolicies = (id?: number) => {
     refetchGlobalPolicies();
     if (id) {
@@ -162,25 +184,6 @@ const ManagePolicyPage = ({
     setCurrentTeam(selectedTeam);
     isStaleGlobalPolicies && refetchGlobalPolicies();
   };
-
-  const getFailingPoliciesWebhook = useCallback(async () => {
-    setIsLoadingFailingPoliciesWebhook(true);
-    setIsFailingPoliciesWebhookError(false);
-    let result;
-    try {
-      result = await configAPI
-        .loadAll()
-        .then((response) => response.webhook_settings.failing_policies_webhook);
-      setFailingPoliciesWebhook(result);
-      setCurrentAutomatedPolicies(result.policy_ids);
-    } catch (error) {
-      console.log(error);
-      setIsFailingPoliciesWebhookError(true);
-    } finally {
-      setIsLoadingFailingPoliciesWebhook(false);
-    }
-    return result;
-  }, []);
 
   const toggleManageAutomationsModal = () =>
     setShowManageAutomationsModal(!showManageAutomationsModal);
@@ -230,7 +233,13 @@ const ManagePolicyPage = ({
       );
     } finally {
       toggleManageAutomationsModal();
-      getFailingPoliciesWebhook();
+      refetchFailingPoliciesWebhook();
+      // Config must be updated in both Redux and AppContext
+      dispatch(getConfig())
+        .then((configState: IConfig) => {
+          setConfig(configState);
+        })
+        .catch(() => false);
     }
   };
 
@@ -288,9 +297,6 @@ const ManagePolicyPage = ({
       count > 1 ? "policies" : "policy"
     }`;
   };
-
-  const canAddOrRemovePolicy =
-    isGlobalAdmin || isGlobalMaintainer || isTeamMaintainer || isTeamAdmin;
 
   const policyUpdateInterval =
     secondsToHms(inMilliseconds(config?.osquery_policy || 0) / 1000) ||
@@ -366,15 +372,18 @@ const ManagePolicyPage = ({
             </div>
           </div>
           <div className={`${baseClass} button-wrap`}>
-            {canAddOrRemovePolicy && teamId === 0 && (
-              <Button
-                onClick={() => onManageAutomationsClick()}
-                className={`${baseClass}__manage-automations button`}
-                variant="inverse"
-              >
-                <span>Manage automations</span>
-              </Button>
-            )}
+            {canAddOrRemovePolicy &&
+              teamId === 0 &&
+              !isLoadingFailingPoliciesWebhook &&
+              !isLoadingGlobalPolicies && (
+                <Button
+                  onClick={() => onManageAutomationsClick()}
+                  className={`${baseClass}__manage-automations button`}
+                  variant="inverse"
+                >
+                  <span>Manage automations</span>
+                </Button>
+              )}
             {canAddOrRemovePolicy && (
               <div className={`${baseClass}__action-button-container`}>
                 <Button
@@ -422,7 +431,7 @@ const ManagePolicyPage = ({
           {!!teamId && teamPoliciesError && <TableDataError />}
           {!!teamId &&
             !teamPoliciesError &&
-            (isLoadingTeamPolicies ? (
+            (isLoadingTeamPolicies && isLoadingFailingPoliciesWebhook ? (
               <Spinner />
             ) : (
               <PoliciesListWrapper
@@ -454,30 +463,24 @@ const ManagePolicyPage = ({
               />
             ))}
         </div>
-        {showInheritedPoliciesButton && (
-          <span>
-            <Button
-              variant="unstyled"
-              className={`${showInheritedPolicies ? "upcarat" : "rightcarat"} 
-                     ${baseClass}__inherited-policies-button`}
-              onClick={toggleShowInheritedPolicies}
-            >
-              {inheritedPoliciesButtonText(
-                showInheritedPolicies,
-                globalPolicies.length
-              )}
-            </Button>
-            <div className={`${baseClass}__details`}>
-              <IconToolTip
-                isHtml
-                text={
-                  "\
-              <center><p>“All teams” policies are checked <br/> for this team’s hosts.</p></center>\
-            "
-                }
-              />
-            </div>
-          </span>
+        {showInheritedPoliciesButton && globalPolicies && (
+          <RevealButton
+            isShowing={showInheritedPolicies}
+            baseClass={baseClass}
+            hideText={inheritedPoliciesButtonText(
+              showInheritedPolicies,
+              globalPolicies.length
+            )}
+            showText={inheritedPoliciesButtonText(
+              showInheritedPolicies,
+              globalPolicies.length
+            )}
+            caretPosition={"before"}
+            tooltipHtml={
+              '"All teams" policies are checked <br/> for this team’s hosts.'
+            }
+            onClick={toggleShowInheritedPolicies}
+          />
         )}
         {showInheritedPoliciesButton && showInheritedPolicies && (
           <div className={`${baseClass}__inherited-policies-table`}>

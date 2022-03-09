@@ -2,7 +2,7 @@
 # All settings related to how Fleet is deployed in Kubernetes
 hostName: fleet.localhost
 replicas: 3 # The number of Fleet instances to deploy
-imageTag: v4.9.0 # Version of Fleet to deploy
+imageTag: v4.11.0 # Version of Fleet to deploy
 createIngress: true # Whether or not to automatically create an Ingress
 ingressAnnotations: {} # Additional annotation to add to the Ingress
 podAnnotations: {} # Additional annotations to add to the Fleet pod
@@ -44,8 +44,7 @@ fleet:
   # Name of the Secret resource storing TLS and S3 bucket secrets
   secretName: fleet
   # Whether or not to run `fleet db prepare` to run SQL migrations before starting Fleet
-  # WARNING: This may cause database corruption if more than one migration is attempted at a time
-  autoApplySQLMigrations: false
+  autoApplySQLMigrations: true
   tls:
     enabled: true
     compatibility: modern

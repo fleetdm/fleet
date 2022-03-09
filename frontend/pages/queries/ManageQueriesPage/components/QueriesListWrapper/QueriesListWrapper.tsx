@@ -18,7 +18,7 @@ interface IQueryTableData extends IQuery {
 interface IQueriesListWrapperProps {
   queriesList: IQueryTableData[] | null;
   isLoading: boolean;
-  onRemoveQueryClick: any;
+  onRemoveQueryClick: (selectedTableQueryIds: number[]) => void;
   onCreateQueryClick: () => void;
   searchable: boolean;
   customControl?: () => JSX.Element;

@@ -20,7 +20,7 @@ Non-release blocking bugs may include known issues that were not targeted for th
 ### Release day
 
 Documentation on completing the release process can be found
-[here](../docs/03-Contributing/05-Releasing-Fleet.md).
+[here](../docs/Contributing/Releasing-Fleet.md).
 
 ## On-call rotation
 
@@ -126,11 +126,25 @@ Every week, the on-call engineer changes. Here are some tips for making this han
    Click `@oncall`. In the right sidebar, click "Edit Members". Remove the former on-call, and add
    yourself.
 
-2. Handoff newer conversations. For newer threads, the former on-call can unsubscribe from the
+2. Hand off newer conversations. For newer threads, the former on-call can unsubscribe from the
    thread, and the new on-call should subscribe. The former on-call should explicitly share each of
    these threads, and the new on-call can select "Get notified about new replies" in the "..." menu.
    The former on-call can select "Turn off notifications for replies" in that same menu. It can be
    helpful for the former on-call to remain available for any conversations they were deeply involved
    in, so use your judgment on which threads to handoff.
+
+## Slack channels
+
+These are the Slack channels the core engineering team maintains. If the channel has a [directly responsible individual](./people.md#directly-resonsible-individuals) (**DRI**), they will be specified. These people are responsible for keeping up with all new messages, even if they aren't mentioned. 
+
+- **#g-core-engineering** - **DRI**: Zach Wasserman
+- **#help-oncall** - **DRI**: Zach Wasserman
+- **#help-golang** - **DRI**: Zach Wasserman
+- **#help-qa** - **DRI**: Reed Haynes
+- **#help-frontend** - **DRI**: Luke Heath
+- **#_pov-environments** - **DRI**: Ben Edwards
+
+**Who should have these channels unmuted?** Members of this group, everyone else is encouraged to mute them.
+
 
 <meta name="maintainedBy" value="zwass">

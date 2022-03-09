@@ -1,8 +1,8 @@
 import React from "react";
-import ReactTooltip from "react-tooltip";
+
+import TooltipWrapper from "components/TooltipWrapper";
 import CompatibleIcon from "../../../../../../assets/images/icon-compatible-green-16x16@2x.png";
 import IncompatibleIcon from "../../../../../../assets/images/icon-incompatible-red-16x16@2x.png";
-import QuestionIcon from "../../../../../../assets/images/icon-question-16x16@2x.png";
 
 const baseClass = "platform-compatibility";
 
@@ -40,33 +40,11 @@ const PlatformCompatibility = ({
   compatiblePlatforms = formatPlatformsForDisplay(compatiblePlatforms);
   return (
     <span className={baseClass}>
-      <b>Compatible with:</b>
-      <span className={`tooltip`}>
-        <span
-          className={`tooltip__tooltip-icon`}
-          data-tip
-          data-for="query-compatibility-tooltip"
-          data-tip-disable={false}
-        >
-          <img alt="question icon" src={QuestionIcon} />
-        </span>
-        <ReactTooltip
-          place="bottom"
-          type="dark"
-          effect="solid"
-          backgroundColor="#3e4771"
-          id="query-compatibility-tooltip"
-          data-html
-        >
-          <span className={`tooltip__tooltip-text`}>
-            Estimated compatiblity
-            <br />
-            based on the tables used
-            <br />
-            in the query
-          </span>
-        </ReactTooltip>
-      </span>
+      <b>
+        <TooltipWrapper tipContent="Estimated compatiblity based on the tables used in the query">
+          Compatible with:
+        </TooltipWrapper>
+      </b>
       {displayIncompatibilityText(compatiblePlatforms) ||
         (!!compatiblePlatforms.length &&
           DISPLAY_ORDER.map((platform) => {

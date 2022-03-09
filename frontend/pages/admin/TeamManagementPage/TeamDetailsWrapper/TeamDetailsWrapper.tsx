@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useContext } from "react";
+import React, { useState, useCallback, useContext } from "react";
 import { useDispatch } from "react-redux";
 import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
@@ -14,12 +14,15 @@ import { AppContext } from "context/app";
 // @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions";
 import teamsAPI from "services/entities/teams";
+import usersAPI, { IGetMeResponse } from "services/entities/users";
 import enrollSecretsAPI from "services/entities/enroll_secret";
 import teamActions from "redux/nodes/entities/teams/actions";
 import {
   IEnrollSecret,
   IEnrollSecretsResponse,
 } from "interfaces/enroll_secret";
+import { IOldApiError } from "interfaces/errors";
+import permissions from "utilities/permissions";
 import sortUtils from "utilities/sort";
 import Spinner from "components/Spinner";
 import Button from "components/buttons/Button";
@@ -31,7 +34,7 @@ import EditTeamModal from "../components/EditTeamModal";
 import { IEditTeamFormData } from "../components/EditTeamModal/EditTeamModal";
 import DeleteSecretModal from "../../../../components/DeleteSecretModal";
 import SecretEditorModal from "../../../../components/SecretEditorModal";
-import GenerateInstallerModal from "../../../../components/GenerateInstallerModal";
+import AddHostsModal from "../../../../components/AddHostsModal";
 import EnrollSecretModal from "../../../../components/EnrollSecretModal";
 
 import BackChevron from "../../../../../assets/images/icon-chevron-down-9x6@2x.png";
@@ -102,21 +105,21 @@ const TeamDetailsWrapper = ({
   const handlePageError = useErrorHandler();
   const teamIdFromURL = parseInt(routeParams.team_id, 10) || 0;
   const {
+    availableTeams,
     currentUser,
     isGlobalAdmin,
     currentTeam,
     isOnGlobalTeam,
     isPremiumTier,
+    setAvailableTeams,
+    setCurrentUser,
     setCurrentTeam,
   } = useContext(AppContext);
 
-  const userTeams = currentUser?.teams || [];
   const routeTemplate = route && route.path ? route.path : "";
 
   const [selectedSecret, setSelectedSecret] = useState<IEnrollSecret>();
-  const [showGenerateInstallerModal, setShowGenerateInstallerModal] = useState(
-    false
-  );
+  const [showAddHostsModal, setShowAddHostsModal] = useState(false);
   const [
     showManageEnrollSecretsModal,
     setShowManageEnrollSecretsModal,
@@ -126,6 +129,16 @@ const TeamDetailsWrapper = ({
   const [showSecretEditorModal, setShowSecretEditorModal] = useState(false);
   const [showDeleteTeamModal, setShowDeleteTeamModal] = useState(false);
   const [showEditTeamModal, setShowEditTeamModal] = useState(false);
+  const [backendValidators, setBackendValidators] = useState<{
+    [key: string]: string;
+  }>({});
+
+  const { refetch: refetchMe } = useQuery(["me"], () => usersAPI.me(), {
+    onSuccess: ({ user, available_teams }: IGetMeResponse) => {
+      setCurrentUser(user);
+      setAvailableTeams(available_teams);
+    },
+  });
 
   const {
     data: teams,
@@ -173,9 +186,9 @@ const TeamDetailsWrapper = ({
 
   const [teamMenuIsOpen, setTeamMenuIsOpen] = useState<boolean>(false);
 
-  const toggleGenerateInstallerModal = useCallback(() => {
-    setShowGenerateInstallerModal(!showGenerateInstallerModal);
-  }, [showGenerateInstallerModal, setShowGenerateInstallerModal]);
+  const toggleAddHostsModal = useCallback(() => {
+    setShowAddHostsModal(!showAddHostsModal);
+  }, [showAddHostsModal, setShowAddHostsModal]);
 
   const toggleManageEnrollSecretsModal = useCallback(() => {
     setShowManageEnrollSecretsModal(!showManageEnrollSecretsModal);
@@ -212,7 +225,8 @@ const TeamDetailsWrapper = ({
 
   const toggleEditTeamModal = useCallback(() => {
     setShowEditTeamModal(!showEditTeamModal);
-  }, [showEditTeamModal, setShowEditTeamModal]);
+    setBackendValidators({});
+  }, [showEditTeamModal, setShowEditTeamModal, setBackendValidators]);
 
   const onSaveSecret = async (enrollSecretString: string) => {
     // Creates new list of secrets removing selected secret and adding new secret
@@ -299,13 +313,31 @@ const TeamDetailsWrapper = ({
       dispatch(teamActions.update(currentTeam?.id, updatedAttrs))
         .then(() => {
           dispatch(teamActions.loadAll({ perPage: 500 }));
-          dispatch(renderFlash("success", "Team updated"));
-          // TODO: error handling
+          dispatch(
+            renderFlash(
+              "success",
+              `Successfully updated team name to ${updatedAttrs?.name}`
+            )
+          );
+          setBackendValidators({});
+          refetchTeams();
+          refetchMe();
+          toggleEditTeamModal();
         })
-        .catch(() => null);
-      toggleEditTeamModal();
+        .catch((updateError: IOldApiError) => {
+          if (updateError.base.includes("Duplicate")) {
+            setBackendValidators({
+              name: "A team with this name already exists",
+            });
+          } else {
+            dispatch(
+              renderFlash("error", "Could not create team. Please try again.")
+            );
+            toggleEditTeamModal();
+          }
+        });
     },
-    [dispatch, toggleEditTeamModal, currentTeam]
+    [dispatch, toggleEditTeamModal, currentTeam, setBackendValidators]
   );
 
   const handleTeamSelect = (teamId: number) => {
@@ -349,13 +381,13 @@ const TeamDetailsWrapper = ({
     );
   }
 
-  // const hostsCount = currentTeam.host_count;
-  const hostsCount = teams?.length || 1;
-  const hostsTotalDisplay = hostsCount === 1 ? "1 host" : `${hostsCount} hosts`;
-  const userAdminTeams = userTeams.filter(
-    (thisTeam) => thisTeam.role === "admin"
-  );
-  const adminTeams = isGlobalAdmin ? teams : userAdminTeams;
+  const hostCount = currentTeam.host_count;
+  const hostsTotalDisplay =
+    hostCount >= 2 ? `${hostCount} hosts` : `${hostCount} host`;
+
+  const adminTeams = isGlobalAdmin
+    ? availableTeams
+    : availableTeams?.filter((t) => permissions.isTeamAdmin(currentUser, t.id));
 
   return (
     <div className={teamWrapperClasses}>
@@ -390,9 +422,7 @@ const TeamDetailsWrapper = ({
             </span>
           </div>
           <div className={`${baseClass}__team-actions`}>
-            <Button onClick={toggleGenerateInstallerModal}>
-              Generate installer
-            </Button>
+            <Button onClick={toggleAddHostsModal}>Add hosts</Button>
             <Button
               onClick={toggleManageEnrollSecretsModal}
               variant={"text-icon"}
@@ -433,9 +463,9 @@ const TeamDetailsWrapper = ({
           </TabList>
         </Tabs>
       </TabsWrapper>
-      {showGenerateInstallerModal && (
-        <GenerateInstallerModal
-          onCancel={toggleGenerateInstallerModal}
+      {showAddHostsModal && (
+        <AddHostsModal
+          onCancel={toggleAddHostsModal}
           selectedTeam={{
             name: currentTeam.name,
             secrets: teamSecrets || null,
@@ -481,6 +511,7 @@ const TeamDetailsWrapper = ({
           onCancel={toggleEditTeamModal}
           onSubmit={onEditSubmit}
           defaultName={currentTeam.name}
+          backendValidators={backendValidators}
         />
       )}
       {children}

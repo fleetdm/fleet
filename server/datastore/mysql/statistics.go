@@ -17,41 +17,41 @@ type statistics struct {
 	Identifier string `db:"anonymous_identifier"`
 }
 
-func (d *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Duration, license *fleet.LicenseInfo) (fleet.StatisticsPayload, bool, error) {
-	amountEnrolledHosts, err := amountEnrolledHostsDB(d.writer)
+func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Duration, license *fleet.LicenseInfo) (fleet.StatisticsPayload, bool, error) {
+	amountEnrolledHosts, err := amountEnrolledHostsDB(ctx, ds.writer)
 	if err != nil {
 		return fleet.StatisticsPayload{}, false, ctxerr.Wrap(ctx, err, "amount enrolled hosts")
 	}
-	amountUsers, err := amountUsersDB(d.writer)
+	amountUsers, err := amountUsersDB(ctx, ds.writer)
 	if err != nil {
 		return fleet.StatisticsPayload{}, false, ctxerr.Wrap(ctx, err, "amount users")
 	}
-	amountTeams, err := amountTeamsDB(d.writer)
+	amountTeams, err := amountTeamsDB(ctx, ds.writer)
 	if err != nil {
 		return fleet.StatisticsPayload{}, false, ctxerr.Wrap(ctx, err, "amount teams")
 	}
-	amountPolicies, err := amountPoliciesDB(d.writer)
+	amountPolicies, err := amountPoliciesDB(ctx, ds.writer)
 	if err != nil {
 		return fleet.StatisticsPayload{}, false, ctxerr.Wrap(ctx, err, "amount policies")
 	}
-	amountLabels, err := amountLabelsDB(d.writer)
+	amountLabels, err := amountLabelsDB(ctx, ds.writer)
 	if err != nil {
 		return fleet.StatisticsPayload{}, false, ctxerr.Wrap(ctx, err, "amount labels")
 	}
-	appConfig, err := d.AppConfig(ctx)
+	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
 		return fleet.StatisticsPayload{}, false, ctxerr.Wrap(ctx, err, "statistics app config")
 	}
 
 	dest := statistics{}
-	err = sqlx.GetContext(ctx, d.writer, &dest, `SELECT created_at, updated_at, anonymous_identifier FROM statistics LIMIT 1`)
+	err = sqlx.GetContext(ctx, ds.writer, &dest, `SELECT created_at, updated_at, anonymous_identifier FROM statistics LIMIT 1`)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			anonIdentifier, err := server.GenerateRandomText(64)
 			if err != nil {
 				return fleet.StatisticsPayload{}, false, ctxerr.Wrap(ctx, err, "generate random text")
 			}
-			_, err = d.writer.ExecContext(ctx, `INSERT INTO statistics(anonymous_identifier) VALUES (?)`, anonIdentifier)
+			_, err = ds.writer.ExecContext(ctx, `INSERT INTO statistics(anonymous_identifier) VALUES (?)`, anonIdentifier)
 			if err != nil {
 				return fleet.StatisticsPayload{}, false, ctxerr.Wrap(ctx, err, "insert statistics")
 			}
@@ -95,7 +95,7 @@ func (d *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Dur
 	}, true, nil
 }
 
-func (d *Datastore) RecordStatisticsSent(ctx context.Context) error {
-	_, err := d.writer.ExecContext(ctx, `UPDATE statistics SET updated_at = CURRENT_TIMESTAMP LIMIT 1`)
+func (ds *Datastore) RecordStatisticsSent(ctx context.Context) error {
+	_, err := ds.writer.ExecContext(ctx, `UPDATE statistics SET updated_at = CURRENT_TIMESTAMP LIMIT 1`)
 	return ctxerr.Wrap(ctx, err, "update statistics")
 }

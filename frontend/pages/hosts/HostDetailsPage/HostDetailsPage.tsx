@@ -1,7 +1,7 @@
 import React, { useContext, useState, useCallback, useEffect } from "react";
 import { useDispatch } from "react-redux";
 import { Link } from "react-router";
-import { Params } from "react-router/lib/Router";
+import { Params, InjectedRouter } from "react-router/lib/Router";
 import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
@@ -43,6 +43,7 @@ import Modal from "components/Modal";
 import TableContainer from "components/TableContainer";
 import TabsWrapper from "components/TabsWrapper";
 import InfoBanner from "components/InfoBanner";
+import TooltipWrapper from "components/TooltipWrapper";
 import {
   Accordion,
   AccordionItem,
@@ -82,13 +83,12 @@ import CopyIcon from "../../../../assets/images/icon-copy-clipboard-fleet-blue-2
 import DeleteIcon from "../../../../assets/images/icon-action-delete-14x14@2x.png";
 import IssueIcon from "../../../../assets/images/icon-issue-fleet-black-50-16x16@2x.png";
 import QueryIcon from "../../../../assets/images/icon-action-query-16x16@2x.png";
-import QuestionIcon from "../../../../assets/images/icon-question-16x16@2x.png";
 import TransferIcon from "../../../../assets/images/icon-action-transfer-16x16@2x.png";
 
 const baseClass = "host-details";
 
 interface IHostDetailsProps {
-  router: any;
+  router: InjectedRouter; // v3
   params: Params;
 }
 
@@ -102,6 +102,13 @@ interface ITeamsResponse {
 
 interface IHostResponse {
   host: IHost;
+}
+interface ISearchQueryData {
+  searchQuery: string;
+  sortHeader: string;
+  sortDirection: string;
+  pageSize: number;
+  pageIndex: number;
 }
 
 const TAGGED_TEMPLATES = {
@@ -291,8 +298,8 @@ const HostDetailsPage = ({
           }
           return; // exit early because refectch is pending so we can avoid unecessary steps below
         }
-        setHostSoftware(returnedHost.software);
-        setUsersState(returnedHost.users);
+        setHostSoftware(returnedHost.software || []);
+        setUsersState(returnedHost.users || []);
         if (returnedHost.pack_stats) {
           const packStatsByType = returnedHost.pack_stats.reduce(
             (
@@ -514,10 +521,13 @@ const HostDetailsPage = ({
     }
   };
 
-  const onUsersTableSearchChange = useCallback((queryData: any) => {
-    const { searchQuery } = queryData;
-    setUsersSearchString(searchQuery);
-  }, []);
+  const onUsersTableSearchChange = useCallback(
+    (queryData: ISearchQueryData) => {
+      const { searchQuery } = queryData;
+      setUsersSearchString(searchQuery);
+    },
+    []
+  );
 
   const renderOsPolicyLabel = () => {
     const onCopyOsPolicy = (evt: React.MouseEvent) => {
@@ -601,29 +611,10 @@ const HostDetailsPage = ({
           </span>
         </p>
         <span className={`${baseClass}__os-modal-example-title`}>
-          Example policy:
-        </span>{" "}
-        <span
-          className="policy-isexamplesue tooltip__tooltip-icon"
-          data-tip
-          data-for="policy-example"
-          data-tip-disable={false}
-        >
-          <img alt="host issue" src={QuestionIcon} />
+          <TooltipWrapper tipContent="A policy is a yes or no question you can ask all your devices.">
+            Example policy:
+          </TooltipWrapper>
         </span>
-        <ReactTooltip
-          place="bottom"
-          type="dark"
-          effect="solid"
-          backgroundColor="#3e4771"
-          id="policy-example"
-          data-html
-        >
-          <span className={`${baseClass}__tooltip-text`}>
-            A policy is a yes or no question
-            <br /> you can ask all your devices.
-          </span>
-        </ReactTooltip>
         <InputField
           disabled
           inputWrapperClass={`${baseClass}__os-policy`}
@@ -1020,7 +1011,7 @@ const HostDetailsPage = ({
     if (numUsers) {
       return (
         <div className="info-grid__block">
-          <span className="info-grid__header">Device user</span>
+          <span className="info-grid__header">Used by</span>
           <span className="info-grid__data">
             {numUsers === 1 ? (
               deviceMapping[0].email || "---"
@@ -1213,7 +1204,7 @@ const HostDetailsPage = ({
               <p className="section__header">About this host</p>
               <div className="info-grid">
                 <div className="info-grid__block">
-                  <span className="info-grid__header">Created at</span>
+                  <span className="info-grid__header">First enrolled</span>
                   <span className="info-grid__data">
                     {wrapFleetHelper(
                       humanHostEnrolled,
@@ -1222,16 +1213,7 @@ const HostDetailsPage = ({
                   </span>
                 </div>
                 <div className="info-grid__block">
-                  <span className="info-grid__header">Updated at</span>
-                  <span className="info-grid__data">
-                    {wrapFleetHelper(
-                      humanHostLastSeen,
-                      titleData.detail_updated_at
-                    )}
-                  </span>
-                </div>
-                <div className="info-grid__block">
-                  <span className="info-grid__header">Uptime</span>
+                  <span className="info-grid__header">Last restarted</span>
                   <span className="info-grid__data">
                     {wrapFleetHelper(humanHostUptime, aboutData.uptime)}
                   </span>

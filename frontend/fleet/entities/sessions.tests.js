@@ -5,7 +5,7 @@ import mocks from "test/mocks";
 
 const { sessions: sessionMocks } = mocks;
 
-describe("Kolide - API client (session)", () => {
+describe("Fleet - API client (session)", () => {
   afterEach(() => {
     nock.cleanAll();
     Fleet.setBearerToken(null);

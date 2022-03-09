@@ -1,4 +1,4 @@
-import React, { useState, useContext, useEffect } from "react";
+import React, { useState, useContext, useEffect, useCallback } from "react";
 import { useDispatch } from "react-redux";
 import { useQuery } from "react-query";
 import { InjectedRouter, Params } from "react-router/lib/Router";
@@ -9,6 +9,7 @@ import ReactTooltip from "react-tooltip";
 import enrollSecretsAPI from "services/entities/enroll_secret";
 import labelsAPI from "services/entities/labels";
 import teamsAPI from "services/entities/teams";
+import usersAPI, { IGetMeResponse } from "services/entities/users";
 import globalPoliciesAPI from "services/entities/global_policies";
 import teamPoliciesAPI from "services/entities/team_policies";
 import hostsAPI, {
@@ -27,6 +28,7 @@ import {
   IEnrollSecret,
   IEnrollSecretsResponse,
 } from "interfaces/enroll_secret";
+import { IApiError } from "interfaces/errors";
 import { IHost } from "interfaces/host";
 import { ILabel, ILabelFormData } from "interfaces/label";
 import { IPolicy } from "interfaces/policy";
@@ -36,6 +38,7 @@ import { ITeam } from "interfaces/team";
 import deepDifference from "utilities/deep_difference";
 import sortUtils from "utilities/sort";
 import {
+  DEFAULT_CREATE_LABEL_ERRORS,
   PLATFORM_LABEL_DISPLAY_NAMES,
   PolicyResponse,
 } from "utilities/constants";
@@ -76,7 +79,7 @@ import {
 
 import DeleteSecretModal from "../../../components/DeleteSecretModal";
 import SecretEditorModal from "../../../components/SecretEditorModal";
-import GenerateInstallerModal from "../../../components/GenerateInstallerModal";
+import AddHostsModal from "../../../components/AddHostsModal";
 import EnrollSecretModal from "../../../components/EnrollSecretModal";
 // @ts-ignore
 import NoHosts from "./components/NoHosts";
@@ -132,8 +135,10 @@ const ManageHostsPage = ({
   const dispatch = useDispatch();
   const queryParams = location.query;
   const {
-    currentUser,
+    availableTeams,
     config,
+    currentTeam,
+    currentUser,
     isGlobalAdmin,
     isGlobalMaintainer,
     isTeamMaintainer,
@@ -142,9 +147,32 @@ const ManageHostsPage = ({
     isOnlyObserver,
     isPremiumTier,
     isFreeTier,
-    currentTeam,
+    setAvailableTeams,
     setCurrentTeam,
+    setCurrentUser,
   } = useContext(AppContext);
+
+  useQuery(["me"], () => usersAPI.me(), {
+    onSuccess: ({ user, available_teams }: IGetMeResponse) => {
+      setCurrentUser(user);
+      setAvailableTeams(available_teams);
+      if (queryParams.team_id) {
+        const teamIdParam = parseInt(queryParams.team_id, 10);
+        if (
+          isNaN(teamIdParam) ||
+          (teamIdParam &&
+            available_teams &&
+            !available_teams.find((t) => t.id === teamIdParam))
+        ) {
+          router.replace({
+            pathname: location.pathname,
+            query: omit(queryParams, "team_id"),
+          });
+        }
+      }
+    },
+  });
+
   const { selectedOsqueryTable, setSelectedOsqueryTable } = useContext(
     QueryContext
   );
@@ -200,10 +228,7 @@ const ManageHostsPage = ({
   const [showEditColumnsModal, setShowEditColumnsModal] = useState<boolean>(
     false
   );
-  const [
-    showGenerateInstallerModal,
-    setShowGenerateInstallerModal,
-  ] = useState<boolean>(false);
+  const [showAddHostsModal, setShowAddHostsModal] = useState<boolean>(false);
   const [showTransferHostModal, setShowTransferHostModal] = useState<boolean>(
     false
   );
@@ -235,6 +260,9 @@ const ManageHostsPage = ({
     currentQueryOptions,
     setCurrentQueryOptions,
   ] = useState<ILoadHostsOptions>();
+  const [labelValidator, setLabelValidator] = useState<{
+    [key: string]: string;
+  }>(DEFAULT_CREATE_LABEL_ERRORS);
 
   // ======== end states
 
@@ -302,7 +330,7 @@ const ManageHostsPage = ({
     }
   );
 
-  const generateInstallerTeam = currentTeam
+  const addHostsTeam = currentTeam
     ? { name: currentTeam.name, secrets: teamSecrets || null }
     : {
         name: "No team",
@@ -372,8 +400,8 @@ const ManageHostsPage = ({
     setShowDeleteHostModal(!showDeleteHostModal);
   };
 
-  const toggleGenerateInstallerModal = () => {
-    setShowGenerateInstallerModal(!showGenerateInstallerModal);
+  const toggleAddHostsModal = () => {
+    setShowAddHostsModal(!showAddHostsModal);
   };
 
   const toggleAllMatchingHosts = (shouldSelect: boolean) => {
@@ -398,7 +426,7 @@ const ManageHostsPage = ({
     options = {
       ...options,
       teamId: getValidatedTeamId(
-        teams || [],
+        availableTeams || [],
         options.teamId as number,
         currentUser,
         isOnGlobalTeam as boolean
@@ -429,7 +457,7 @@ const ManageHostsPage = ({
     options = {
       ...options,
       teamId: getValidatedTeamId(
-        teams || [],
+        availableTeams || [],
         options.teamId as number,
         currentUser,
         isOnGlobalTeam as boolean
@@ -459,9 +487,21 @@ const ManageHostsPage = ({
     retrieveHostCount(options);
   };
 
+  let teamSync = false;
+  if (currentUser && availableTeams) {
+    const teamIdParam = queryParams.team_id
+      ? parseInt(queryParams.team_id, 10) // we don't want to parse undefined so we can differntiate non-numeric strings as NaN
+      : undefined;
+    if (currentTeam?.id && !teamIdParam) {
+      teamSync = true;
+    } else if (teamIdParam === currentTeam?.id) {
+      teamSync = true;
+    }
+  }
+
   useEffect(() => {
     const teamId = parseInt(queryParams?.team_id, 10) || 0;
-    const selectedTeam = find(teams, ["id", teamId]);
+    const selectedTeam = find(availableTeams, ["id", teamId]);
     if (selectedTeam) {
       setCurrentTeam(selectedTeam);
     }
@@ -490,11 +530,12 @@ const ManageHostsPage = ({
     if (isEqual(options, currentQueryOptions)) {
       return;
     }
-
-    retrieveHosts(options);
-    retrieveHostCount(options);
-    setCurrentQueryOptions(options);
-  }, [location, labels]);
+    if (teamSync) {
+      retrieveHosts(options);
+      retrieveHostCount(options);
+      setCurrentQueryOptions(options);
+    }
+  }, [availableTeams, currentTeam, location, labels]);
 
   const handleLabelChange = ({ slug }: ILabel): boolean => {
     if (!slug) {
@@ -575,24 +616,15 @@ const ManageHostsPage = ({
   };
 
   const handleClearSoftwareFilter = () => {
-    // TODO: In current UX, clearing the software filter resets all URL params.
-    // The code below can be reimplemented if other URL params are to be preserved.
-    // router.replace(
-    //   getNextLocationPath({
-    //     pathPrefix: PATHS.MANAGE_HOSTS,
-    //     routeTemplate,
-    //     routeParams,
-    //     queryParams: omit(queryParams, ["software_id"]),
-    //   })
-    // );
     router.replace(PATHS.MANAGE_HOSTS);
+    setCurrentTeam(undefined);
     setSoftwareDetails(null);
   };
 
   const handleTeamSelect = (teamId: number) => {
     const { MANAGE_HOSTS } = PATHS;
     const teamIdParam = getValidatedTeamId(
-      teams || [],
+      availableTeams || [],
       teamId,
       currentUser,
       isOnGlobalTeam as boolean
@@ -615,7 +647,7 @@ const ManageHostsPage = ({
       queryParams: newQueryParams,
     });
     router.replace(nextLocation);
-    const selectedTeam = find(teams, ["id", teamId]);
+    const selectedTeam = find(availableTeams, ["id", teamId]);
     setCurrentTeam(selectedTeam);
   };
 
@@ -630,11 +662,15 @@ const ManageHostsPage = ({
 
   const onAddLabelClick = (evt: React.MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();
+
+    setLabelValidator(DEFAULT_CREATE_LABEL_ERRORS);
     router.push(`${PATHS.MANAGE_HOSTS}${NEW_LABEL_HASH}`);
   };
 
   const onEditLabelClick = (evt: React.MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();
+
+    setLabelValidator(DEFAULT_CREATE_LABEL_ERRORS);
     router.push(
       `${PATHS.MANAGE_HOSTS}/${getLabelSelected()}${EDIT_LABEL_HASH}`
     );
@@ -663,82 +699,87 @@ const ManageHostsPage = ({
   };
 
   // NOTE: this is called once on initial render and every time the query changes
-  const onTableQueryChange = async (newTableQuery: ITableQueryProps) => {
-    if (isEqual(newTableQuery, tableQueryData)) {
-      return;
-    }
+  const onTableQueryChange = useCallback(
+    async (newTableQuery: ITableQueryProps) => {
+      if (isEqual(newTableQuery, tableQueryData)) {
+        return;
+      }
 
-    setTableQueryData({ ...newTableQuery });
+      setTableQueryData({ ...newTableQuery });
 
-    const {
-      searchQuery: searchText,
-      sortHeader,
-      sortDirection,
-    } = newTableQuery;
+      const {
+        searchQuery: searchText,
+        sortHeader,
+        sortDirection,
+      } = newTableQuery;
 
-    const teamId = getValidatedTeamId(
-      teams || [],
-      currentTeam?.id as number,
+      let sort = sortBy;
+      if (sortHeader) {
+        sort = [
+          {
+            key: sortHeader,
+            direction: sortDirection || DEFAULT_SORT_DIRECTION,
+          },
+        ];
+      } else if (!sortBy.length) {
+        sort = [
+          { key: DEFAULT_SORT_HEADER, direction: DEFAULT_SORT_DIRECTION },
+        ];
+      }
+
+      if (!isEqual(sort, sortBy)) {
+        setSortBy([...sort]);
+      }
+
+      if (!isEqual(searchText, searchQuery)) {
+        setSearchQuery(searchText);
+      }
+
+      // Rebuild queryParams to dispatch new browser location to react-router
+      const newQueryParams: { [key: string]: string | number } = {};
+      if (!isEmpty(searchText)) {
+        newQueryParams.query = searchText;
+      }
+
+      newQueryParams.order_key = sort[0].key || DEFAULT_SORT_HEADER;
+      newQueryParams.order_direction =
+        sort[0].direction || DEFAULT_SORT_DIRECTION;
+
+      if (currentTeam?.id) {
+        newQueryParams.team_id = currentTeam.id;
+      }
+
+      if (policyId) {
+        newQueryParams.policy_id = policyId;
+      }
+
+      if (policyResponse) {
+        newQueryParams.policy_response = policyResponse;
+      }
+
+      if (softwareId && !policyId) {
+        newQueryParams.software_id = softwareId;
+      }
+
+      router.replace(
+        getNextLocationPath({
+          pathPrefix: PATHS.MANAGE_HOSTS,
+          routeTemplate,
+          routeParams,
+          queryParams: newQueryParams,
+        })
+      );
+    },
+    [
+      availableTeams,
+      currentTeam,
       currentUser,
-      isOnGlobalTeam as boolean
-    );
-
-    let sort = sortBy;
-    if (sortHeader) {
-      sort = [
-        { key: sortHeader, direction: sortDirection || DEFAULT_SORT_DIRECTION },
-      ];
-    } else if (!sortBy.length) {
-      sort = [{ key: DEFAULT_SORT_HEADER, direction: DEFAULT_SORT_DIRECTION }];
-    }
-
-    if (!isEqual(sort, sortBy)) {
-      setSortBy([...sort]);
-    }
-
-    if (!isEqual(searchText, searchQuery)) {
-      setSearchQuery(searchText);
-    }
-
-    // Rebuild queryParams to dispatch new browser location to react-router
-    const newQueryParams: { [key: string]: any } = {};
-    if (!isEmpty(searchText)) {
-      newQueryParams.query = searchText;
-    }
-
-    newQueryParams.order_key = sort[0].key || DEFAULT_SORT_HEADER;
-    newQueryParams.order_direction =
-      sort[0].direction || DEFAULT_SORT_DIRECTION;
-
-    if (teamId) {
-      newQueryParams.team_id = teamId;
-    }
-
-    if (queryParams.team_id) {
-      newQueryParams.team_id = queryParams.team_id;
-    }
-
-    if (policyId) {
-      newQueryParams.policy_id = policyId;
-    }
-
-    if (policyResponse) {
-      newQueryParams.policy_response = policyResponse;
-    }
-
-    if (softwareId && !policyId) {
-      newQueryParams.software_id = softwareId;
-    }
-
-    router.replace(
-      getNextLocationPath({
-        pathPrefix: PATHS.MANAGE_HOSTS,
-        routeTemplate,
-        routeParams,
-        queryParams: newQueryParams,
-      })
-    );
-  };
+      policyId,
+      queryParams,
+      softwareId,
+      sortBy,
+    ]
+  );
 
   const onSaveSecret = async (enrollSecretString: string) => {
     const { MANAGE_HOSTS } = PATHS;
@@ -842,29 +883,37 @@ const ManageHostsPage = ({
     }
   };
 
-  const onEditLabel = async (formData: ILabelFormData) => {
+  const onEditLabel = (formData: ILabelFormData) => {
     if (!selectedLabel) {
       console.error("Label isn't available. This should not happen.");
       return;
     }
 
     const updateAttrs = deepDifference(formData, selectedLabel);
-    try {
-      await labelsAPI.update(selectedLabel, updateAttrs);
-      refetchLabels();
-      router.push(`${PATHS.MANAGE_HOSTS}/${getLabelSelected()}`);
-      dispatch(
-        renderFlash(
-          "success",
-          "Label updated. Try refreshing this page in just a moment to see the updated host count for your label."
-        )
-      );
-    } catch (error) {
-      console.error(error);
-      dispatch(
-        renderFlash("error", "Could not create label. Please try again.")
-      );
-    }
+
+    labelsAPI
+      .update(selectedLabel, updateAttrs)
+      .then(() => {
+        refetchLabels();
+        dispatch(
+          renderFlash(
+            "success",
+            "Label updated. Try refreshing this page in just a moment to see the updated host count for your label."
+          )
+        );
+        setLabelValidator({});
+      })
+      .catch((updateError: { data: IApiError }) => {
+        if (updateError.data.errors[0].reason.includes("Duplicate")) {
+          setLabelValidator({
+            name: "A label with this name already exists",
+          });
+        } else {
+          dispatch(
+            renderFlash("error", "Could not create label. Please try again.")
+          );
+        }
+      });
   };
 
   const onLabelClick = (label: ILabel) => {
@@ -878,25 +927,31 @@ const ManageHostsPage = ({
     setSelectedOsqueryTable(tableName);
   };
 
-  const onSaveAddLabel = async (formData: ILabelFormData) => {
-    try {
-      await labelsAPI.create(formData);
-      router.push(PATHS.MANAGE_HOSTS);
-      refetchLabels();
-
-      // TODO flash messages are not visible seemingly because of page renders
-      dispatch(
-        renderFlash(
-          "success",
-          "Label created. Try refreshing this page in just a moment to see the updated host count for your label."
-        )
-      );
-    } catch (error) {
-      console.error(error);
-      dispatch(
-        renderFlash("error", "Could not create label. Please try again.")
-      );
-    }
+  const onSaveAddLabel = (formData: ILabelFormData) => {
+    labelsAPI
+      .create(formData)
+      .then(() => {
+        router.push(PATHS.MANAGE_HOSTS);
+        dispatch(
+          renderFlash(
+            "success",
+            "Label created. Try refreshing this page in just a moment to see the updated host count for your label."
+          )
+        );
+        setLabelValidator({});
+        refetchLabels();
+      })
+      .catch((updateError: any) => {
+        if (updateError.data.errors[0].reason.includes("Duplicate")) {
+          setLabelValidator({
+            name: "A label with this name already exists",
+          });
+        } else {
+          dispatch(
+            renderFlash("error", "Could not create label. Please try again.")
+          );
+        }
+      });
   };
 
   const onDeleteLabel = async () => {
@@ -1045,7 +1100,7 @@ const ManageHostsPage = ({
 
   const renderTeamsFilterDropdown = () => (
     <TeamsDropdown
-      currentUserTeams={teams || []}
+      currentUserTeams={availableTeams || []}
       selectedTeamId={
         (policyId && policy?.team_id) || (currentTeam?.id as number)
       }
@@ -1224,15 +1279,15 @@ const ManageHostsPage = ({
     );
   };
 
-  const renderGenerateInstallerModal = () => {
-    if (!showGenerateInstallerModal) {
+  const renderAddHostsModal = () => {
+    if (!showAddHostsModal) {
       return null;
     }
 
     return (
-      <GenerateInstallerModal
-        onCancel={toggleGenerateInstallerModal}
-        selectedTeam={generateInstallerTeam}
+      <AddHostsModal
+        onCancel={toggleAddHostsModal}
+        selectedTeam={addHostsTeam}
       />
     );
   };
@@ -1309,13 +1364,13 @@ const ManageHostsPage = ({
           <div className={`${baseClass}__title`}>
             {isFreeTier && <h1>Hosts</h1>}
             {isPremiumTier &&
-              teams &&
-              (teams.length > 1 || isOnGlobalTeam) &&
+              availableTeams &&
+              (availableTeams.length > 1 || isOnGlobalTeam) &&
               renderTeamsFilterDropdown()}
             {isPremiumTier &&
               !isOnGlobalTeam &&
-              teams &&
-              teams.length === 1 && <h1>{teams[0].name}</h1>}
+              availableTeams &&
+              availableTeams.length === 1 && <h1>{availableTeams[0].name}</h1>}
           </div>
         </div>
       </div>
@@ -1346,7 +1401,7 @@ const ManageHostsPage = ({
   };
 
   const renderSoftwareVulnerabilities = () => {
-    if (softwareDetails) {
+    if (softwareId && softwareDetails) {
       return <SoftwareVulnerabilities software={softwareDetails} />;
     }
     return null;
@@ -1361,6 +1416,7 @@ const ManageHostsPage = ({
             onOsqueryTableSelect={onOsqueryTableSelect}
             handleSubmit={onSaveAddLabel}
             baseError={labelsError?.message || ""}
+            backendValidators={labelValidator}
           />
         </div>
       );
@@ -1375,6 +1431,7 @@ const ManageHostsPage = ({
             onOsqueryTableSelect={onOsqueryTableSelect}
             handleSubmit={onEditLabel}
             baseError={labelsError?.message || ""}
+            backendValidators={labelValidator}
             isEdit
           />
         </div>
@@ -1430,7 +1487,8 @@ const ManageHostsPage = ({
       !currentUser ||
       !hosts ||
       selectedFilters.length === 0 ||
-      selectedLabel === undefined
+      selectedLabel === undefined ||
+      !teamSync
     ) {
       return <Spinner />;
     }
@@ -1442,16 +1500,18 @@ const ManageHostsPage = ({
     // There are no hosts for this instance yet
     if (
       getStatusSelected() === ALL_HOSTS_LABEL &&
+      !isHostCountLoading &&
       filteredHostCount === 0 &&
       searchQuery === "" &&
-      !isHostsLoading
+      !isHostsLoading &&
+      teamSync
     ) {
       const { software_id, policy_id } = queryParams || {};
       const includesSoftwareOrPolicyFilter = !!(software_id || policy_id);
 
       return (
         <NoHosts
-          toggleGenerateInstallerModal={toggleGenerateInstallerModal}
+          toggleAddHostsModal={toggleAddHostsModal}
           canEnrollHosts={canEnrollHosts}
           includesSoftwareOrPolicyFilter={includesSoftwareOrPolicyFilter}
         />
@@ -1549,6 +1609,10 @@ const ManageHostsPage = ({
     );
   };
 
+  if (!teamSync) {
+    return <Spinner />;
+  }
+
   return (
     <div className="has-sidebar">
       {renderForm()}
@@ -1576,10 +1640,10 @@ const ManageHostsPage = ({
                   filteredHostCount === 0
                 ) && (
                   <Button
-                    onClick={toggleGenerateInstallerModal}
+                    onClick={toggleAddHostsModal}
                     className={`${baseClass}__add-hosts button button--brand`}
                   >
-                    <span>Generate installer</span>
+                    <span>Add hosts</span>
                   </Button>
                 )}
             </div>
@@ -1601,7 +1665,7 @@ const ManageHostsPage = ({
       {renderEnrollSecretModal()}
       {renderEditColumnsModal()}
       {renderDeleteLabelModal()}
-      {renderGenerateInstallerModal()}
+      {renderAddHostsModal()}
       {renderTransferHostModal()}
       {renderDeleteHostModal()}
     </div>

@@ -14,10 +14,27 @@ import Chevron from "../../../../assets/images/icon-chevron-right-blue-16x16@2x.
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
 interface ICellProps {
   cell: {
-    value: any;
+    value: number | string | IVulnerability[];
   };
   row: {
     original: ISoftware;
+  };
+}
+interface IStringCellProps extends ICellProps {
+  cell: {
+    value: string;
+  };
+}
+
+interface INumberCellProps extends ICellProps {
+  cell: {
+    value: number;
+  };
+}
+
+interface IVulnCellProps extends ICellProps {
+  cell: {
+    value: IVulnerability[];
   };
 }
 interface IHeaderProps {
@@ -36,28 +53,54 @@ interface IDataColumn {
   disableSortBy?: boolean;
 }
 
+const condense = (vulnerabilities: IVulnerability[]): string[] => {
+  const condensed =
+    (vulnerabilities?.length &&
+      vulnerabilities
+        .slice(-3)
+        .map((v) => v.cve)
+        .reverse()) ||
+    [];
+  return vulnerabilities.length > 3
+    ? condensed.concat(`+${vulnerabilities.length - 3} more`)
+    : condensed;
+};
+
 const softwareTableHeaders = [
   {
     title: "Name",
     Header: "Name",
     disableSortBy: true,
     accessor: "name",
-    Cell: (cellProps: ICellProps) => <TextCell value={cellProps.cell.value} />,
+    Cell: (cellProps: IStringCellProps): JSX.Element => (
+      <TextCell value={cellProps.cell.value} />
+    ),
   },
   {
     title: "Version",
     Header: "Version",
     disableSortBy: true,
     accessor: "version",
-    Cell: (cellProps: ICellProps) => <TextCell value={cellProps.cell.value} />,
+    Cell: (cellProps: IStringCellProps): JSX.Element => (
+      <TextCell value={cellProps.cell.value} />
+    ),
   },
   {
     title: "Vulnerabilities",
     Header: "Vulnerabilities",
     disableSortBy: true,
     accessor: "vulnerabilities",
-    Cell: (cellProps: ICellProps) => {
-      const vulnerabilities: IVulnerability[] = cellProps.cell.value;
+    Cell: (cellProps: IVulnCellProps): JSX.Element => {
+      const vulnerabilities = cellProps.cell.value || [];
+      const tooltipText = condense(vulnerabilities)?.map((value) => {
+        return (
+          <span key={`vuln_${value}`}>
+            {value}
+            <br />
+          </span>
+        );
+      });
+
       if (!vulnerabilities?.length) {
         return <span className="vulnerabilities text-muted">---</span>;
       }
@@ -84,12 +127,7 @@ const softwareTableHeaders = [
             data-html
           >
             <span className={`vulnerabilities tooltip__tooltip-text`}>
-              {vulnerabilities.map((v) => (
-                <span key={v.cve}>
-                  {v.cve}
-                  <br />
-                </span>
-              ))}
+              {tooltipText}
             </span>
           </ReactTooltip>
         </>
@@ -98,7 +136,7 @@ const softwareTableHeaders = [
   },
   {
     title: "Hosts",
-    Header: (cellProps: IHeaderProps) => (
+    Header: (cellProps: IHeaderProps): JSX.Element => (
       <HeaderCell
         value={cellProps.column.title}
         isSortedDesc={cellProps.column.isSortedDesc}
@@ -106,14 +144,16 @@ const softwareTableHeaders = [
     ),
     disableSortBy: false,
     accessor: "hosts_count",
-    Cell: (cellProps: ICellProps) => <TextCell value={cellProps.cell.value} />,
+    Cell: (cellProps: INumberCellProps): JSX.Element => (
+      <TextCell value={cellProps.cell.value} />
+    ),
   },
   {
     title: "Actions",
     Header: "",
     disableSortBy: true,
     accessor: "id",
-    Cell: (cellProps: ICellProps) => {
+    Cell: (cellProps: INumberCellProps): JSX.Element => {
       return (
         <Link
           to={`${PATHS.MANAGE_HOSTS}?software_id=${cellProps.cell.value}`}
@@ -127,8 +167,4 @@ const softwareTableHeaders = [
   },
 ];
 
-const generateTableHeaders = (): IDataColumn[] => {
-  return softwareTableHeaders;
-};
-
-export default generateTableHeaders;
+export default softwareTableHeaders;

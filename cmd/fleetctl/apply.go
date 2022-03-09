@@ -64,28 +64,28 @@ func specGroupFromBytes(b []byte) (*specGroup, error) {
 		case fleet.QueryKind:
 			var querySpec *fleet.QuerySpec
 			if err := yaml.Unmarshal(s.Spec, &querySpec); err != nil {
-				return nil, fmt.Errorf("unmarshaling "+kind+" spec: %w", err)
+				return nil, fmt.Errorf("unmarshaling %s spec: %w", kind, err)
 			}
 			specs.Queries = append(specs.Queries, querySpec)
 
 		case fleet.PackKind:
 			var packSpec *fleet.PackSpec
 			if err := yaml.Unmarshal(s.Spec, &packSpec); err != nil {
-				return nil, fmt.Errorf("unmarshaling "+kind+" spec: %w", err)
+				return nil, fmt.Errorf("unmarshaling %s spec: %w", kind, err)
 			}
 			specs.Packs = append(specs.Packs, packSpec)
 
 		case fleet.LabelKind:
 			var labelSpec *fleet.LabelSpec
 			if err := yaml.Unmarshal(s.Spec, &labelSpec); err != nil {
-				return nil, fmt.Errorf("unmarshaling "+kind+" spec: %w", err)
+				return nil, fmt.Errorf("unmarshaling %s spec: %w", kind, err)
 			}
 			specs.Labels = append(specs.Labels, labelSpec)
 
 		case fleet.PolicyKind:
 			var policySpec *fleet.PolicySpec
 			if err := yaml.Unmarshal(s.Spec, &policySpec); err != nil {
-				return nil, fmt.Errorf("unmarshaling "+kind+" spec: %w", err)
+				return nil, fmt.Errorf("unmarshaling %s spec: %w", kind, err)
 			}
 			specs.Policies = append(specs.Policies, policySpec)
 
@@ -96,7 +96,7 @@ func specGroupFromBytes(b []byte) (*specGroup, error) {
 
 			var appConfigSpec interface{}
 			if err := yaml.Unmarshal(s.Spec, &appConfigSpec); err != nil {
-				return nil, fmt.Errorf("unmarshaling "+kind+" spec: %w", err)
+				return nil, fmt.Errorf("unmarshaling %s spec: %w", kind, err)
 			}
 			specs.AppConfig = appConfigSpec
 
@@ -107,21 +107,21 @@ func specGroupFromBytes(b []byte) (*specGroup, error) {
 
 			var enrollSecretSpec *fleet.EnrollSecretSpec
 			if err := yaml.Unmarshal(s.Spec, &enrollSecretSpec); err != nil {
-				return nil, fmt.Errorf("unmarshaling "+kind+" spec: %w", err)
+				return nil, fmt.Errorf("unmarshaling %s spec: %w", kind, err)
 			}
 			specs.EnrollSecret = enrollSecretSpec
 
 		case fleet.UserRolesKind:
 			var userRoleSpec *fleet.UsersRoleSpec
 			if err := yaml.Unmarshal(s.Spec, &userRoleSpec); err != nil {
-				return nil, fmt.Errorf("unmarshaling "+kind+" spec: %w", err)
+				return nil, fmt.Errorf("unmarshaling %s spec: %w", kind, err)
 			}
 			specs.UsersRoles = userRoleSpec
 
 		case fleet.TeamKind:
 			var teamSpec TeamSpec
 			if err := yaml.Unmarshal(s.Spec, &teamSpec); err != nil {
-				return nil, fmt.Errorf("unmarshaling "+kind+" spec: %w", err)
+				return nil, fmt.Errorf("unmarshaling %s spec: %w", kind, err)
 			}
 			specs.Teams = append(specs.Teams, teamSpec.Team)
 

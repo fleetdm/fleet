@@ -1,24 +1,36 @@
-import React, { useState, useContext, useEffect } from "react";
+import React, { useState, useContext, useEffect, KeyboardEvent } from "react";
+import { useDispatch } from "react-redux";
+import { push } from "react-router-redux";
+// @ts-ignore
+import { renderFlash } from "redux/nodes/notifications/actions";
+
+import PATHS from "router/paths";
+
 import { IAceEditor } from "react-ace/lib/types";
 import ReactTooltip from "react-tooltip";
 import { size } from "lodash";
 import { useDebouncedCallback } from "use-debounce/lib";
+import classnames from "classnames";
 
 import { addGravatarUrlToResource } from "fleet/helpers";
 // @ts-ignore
 import { listCompatiblePlatforms, parseSqlTables } from "utilities/sql_tools";
 
+import queryAPI from "services/entities/queries";
 import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
 import { IQuery, IQueryFormData } from "interfaces/query";
 
 import Avatar from "components/Avatar";
-import FleetAce from "components/FleetAce"; // @ts-ignore
+import FleetAce from "components/FleetAce";
+// @ts-ignore
 import validateQuery from "components/forms/validators/validate_query";
 import Button from "components/buttons/Button";
+import RevealButton from "components/buttons/RevealButton";
 import Checkbox from "components/forms/fields/Checkbox";
-import Spinner from "components/Spinner"; // @ts-ignore
-import InputField from "components/forms/fields/InputField";
+import Spinner from "components/Spinner";
+// @ts-ignore
+import AutoSizeInputField from "components/forms/fields/AutoSizeInputField";
 import NewQueryModal from "../NewQueryModal";
 import PlatformCompatibility from "../PlatformCompatibility";
 import InfoIcon from "../../../../../../assets/images/icon-info-purple-14x14@2x.png";
@@ -37,6 +49,7 @@ interface IQueryFormProps {
   onUpdate: (formData: IQueryFormData) => void;
   onOpenSchemaSidebar: () => void;
   renderLiveQueryWarning: () => JSX.Element | null;
+  backendValidators: { [key: string]: string };
 }
 
 const validateQuerySQL = (query: string) => {
@@ -62,7 +75,10 @@ const QueryForm = ({
   onUpdate,
   onOpenSchemaSidebar,
   renderLiveQueryWarning,
+  backendValidators,
 }: IQueryFormProps): JSX.Element => {
+  const dispatch = useDispatch();
+
   const isEditMode = !!queryIdForEdit;
   const [errors, setErrors] = useState<{ [key: string]: any }>({});
   const [isSaveModalOpen, setIsSaveModalOpen] = useState<boolean>(false);
@@ -72,6 +88,7 @@ const QueryForm = ({
   const [isEditingDescription, setIsEditingDescription] = useState<boolean>(
     false
   );
+  const [isSaveAsNewLoading, setIsSaveAsNewLoading] = useState<boolean>(false);
 
   // Note: The QueryContext values should always be used for any mutable query data such as query name
   // The storedQuery prop should only be used to access immutable metadata such as author id
@@ -106,6 +123,16 @@ const QueryForm = ({
     { leading: true }
   );
 
+  const debounceSQL = useDebouncedCallback((sql: string) => {
+    let valid = true;
+    const { valid: isValidated, errors: newErrors } = validateQuerySQL(sql);
+    valid = isValidated;
+
+    setErrors({
+      ...newErrors,
+    });
+  }, 500);
+
   queryIdForEdit = queryIdForEdit || 0;
 
   useEffect(() => {
@@ -113,14 +140,7 @@ const QueryForm = ({
       debounceCompatiblePlatforms(lastEditedQueryBody);
     }
 
-    let valid = true;
-    const { valid: isValidated, errors: newErrors } = validateQuerySQL(
-      lastEditedQueryBody
-    );
-    valid = isValidated;
-    setErrors({
-      ...newErrors,
-    });
+    debounceSQL(lastEditedQueryBody);
   }, [lastEditedQueryBody, lastEditedQueryId]);
 
   const hasTeamMaintainerPermissions = isEditMode
@@ -154,7 +174,16 @@ const QueryForm = ({
     setLastEditedQueryBody(sqlString);
   };
 
-  const promptSaveQuery = (forceNew = false) => (
+  const onInputKeypress = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key.toLowerCase() === "enter" && !event.shiftKey) {
+      event.preventDefault();
+      event.currentTarget.blur();
+      setIsEditingName(false);
+      setIsEditingDescription(false);
+    }
+  };
+
+  const promptSaveAsNewQuery = () => (
     evt: React.MouseEvent<HTMLButtonElement>
   ) => {
     evt.preventDefault();
@@ -172,7 +201,81 @@ const QueryForm = ({
     valid = isValidated;
 
     if (valid) {
-      if (!isEditMode || forceNew) {
+      setIsSaveAsNewLoading(true);
+
+      queryAPI
+        .create({
+          name: lastEditedQueryName,
+          description: lastEditedQueryDescription,
+          query: lastEditedQueryBody,
+          observer_can_run: lastEditedQueryObserverCanRun,
+        })
+        .then((response: { query: IQuery }) => {
+          setIsSaveAsNewLoading(false);
+          dispatch(push(PATHS.EDIT_QUERY(response.query)));
+          dispatch(renderFlash("success", `Successfully added query.`));
+        })
+        .catch((createError: any) => {
+          if (createError.data.errors[0].reason.includes("already exists")) {
+            queryAPI
+              .create({
+                name: `Copy of ${lastEditedQueryName}`,
+                description: lastEditedQueryDescription,
+                query: lastEditedQueryBody,
+                observer_can_run: lastEditedQueryObserverCanRun,
+              })
+              .then((response: { query: IQuery }) => {
+                setIsSaveAsNewLoading(false);
+                dispatch(push(PATHS.EDIT_QUERY(response.query)));
+                dispatch(
+                  renderFlash(
+                    "success",
+                    `Successfully added query as "Copy of ${lastEditedQueryName}".`
+                  )
+                );
+              })
+              .catch((createCopyError: any) => {
+                if (
+                  createCopyError.data.errors[0].reason.includes(
+                    "already exists"
+                  )
+                ) {
+                  dispatch(
+                    renderFlash(
+                      "error",
+                      `"Copy of ${lastEditedQueryName}" already exists. Please rename your query and try again.`
+                    )
+                  );
+                }
+                setIsSaveAsNewLoading(false);
+              });
+          } else {
+            setIsSaveAsNewLoading(false);
+            dispatch(
+              renderFlash("error", "Could not create query. Please try again.")
+            );
+          }
+        });
+    }
+  };
+
+  const promptSaveQuery = () => (evt: React.MouseEvent<HTMLButtonElement>) => {
+    evt.preventDefault();
+
+    if (isEditMode && !lastEditedQueryName) {
+      return setErrors({
+        ...errors,
+        name: "Query name must be present",
+      });
+    }
+
+    let valid = true;
+    const { valid: isValidated } = validateQuerySQL(lastEditedQueryBody);
+
+    valid = isValidated;
+
+    if (valid) {
+      if (!isEditMode) {
         setIsSaveModalOpen(true);
       } else {
         onUpdate({
@@ -233,48 +336,42 @@ const QueryForm = ({
     return <PlatformCompatibility compatiblePlatforms={compatiblePlatforms} />;
   };
 
+  const queryNameClasses = classnames("query-name-wrapper", {
+    [`${baseClass}--editing`]: isEditingName,
+  });
+
+  const queryDescriptionClasses = classnames("query-description-wrapper", {
+    [`${baseClass}--editing`]: isEditingDescription,
+  });
+
   const renderName = () => {
     if (isEditMode) {
-      if (isEditingName) {
-        return (
-          <InputField
-            id="query-name"
-            type="textarea"
-            name="query-name"
-            error={errors.name}
-            value={lastEditedQueryName}
-            placeholder="Add name here"
-            inputClassName={`${baseClass}__query-name`}
-            onChange={setLastEditedQueryName}
-            inputOptions={{
-              autoFocus: true,
-              onFocus: (e: React.FocusEvent<HTMLInputElement>) => {
-                // sets cursor to end of inputfield
-                const val = e.target.value;
-                e.target.value = "";
-                e.target.value = val;
-              },
-            }}
-          />
-        );
-      }
-
-      /* eslint-disable */
-      // eslint complains about the button role
-      // applied to H1 - this is needed to avoid
-      // using a real button
-      // prettier-ignore
       return (
-        <h1
-          role="button"
-          className={`${baseClass}__query-name`}
-          onClick={() => setIsEditingName(true)}
-        >
-          {lastEditedQueryName}
-          <img alt="Edit name" src={PencilIcon} />
-        </h1>
+        <>
+          <div className={queryNameClasses}>
+            <AutoSizeInputField
+              name="query-name"
+              placeholder="Add name here"
+              value={lastEditedQueryName}
+              inputClassName={`${baseClass}__query-name`}
+              maxLength="160"
+              hasError={errors && errors.name}
+              onChange={setLastEditedQueryName}
+              onFocus={() => setIsEditingName(true)}
+              onBlur={() => setIsEditingName(false)}
+              onKeyPress={onInputKeypress}
+              isFocused={isEditingName}
+            />
+            <a className="edit-link" onClick={() => setIsEditingName(true)}>
+              <img
+                className={`edit-icon ${isEditingName && "hide"}`}
+                alt="Edit name"
+                src={PencilIcon}
+              />
+            </a>
+          </div>
+        </>
       );
-      /* eslint-enable */
     }
 
     return <h1 className={`${baseClass}__query-name no-hover`}>New query</h1>;
@@ -282,47 +379,35 @@ const QueryForm = ({
 
   const renderDescription = () => {
     if (isEditMode) {
-      if (isEditingDescription) {
-        return (
-          <InputField
-            id="query-description"
-            type="textarea"
-            name="query-description"
-            value={lastEditedQueryDescription}
-            placeholder="Add description here."
-            inputClassName={`${baseClass}__query-description`}
-            onChange={setLastEditedQueryDescription}
-            inputOptions={{
-              autoFocus: true,
-              onFocus: (e: React.FocusEvent<HTMLInputElement>) => {
-                // sets cursor to end of inputfield
-                const val = e.target.value;
-                e.target.value = "";
-                e.target.value = val;
-              },
-            }}
-          />
-        );
-      }
-
-      /* eslint-disable */
-      // eslint complains about the button role
-      // applied to span - this is needed to avoid
-      // using a real button
-      // prettier-ignore
       return (
-        <span
-          role="button"
-          className={`${baseClass}__query-description`}
-          onClick={() => setIsEditingDescription(true)}
-        >
-          {lastEditedQueryDescription}
-          <img alt="Edit description" src={PencilIcon} />
-        </span>
+        <>
+          <div className={queryDescriptionClasses}>
+            <AutoSizeInputField
+              name="query-description"
+              placeholder="Add description here."
+              value={lastEditedQueryDescription}
+              maxLength="250"
+              inputClassName={`${baseClass}__query-description`}
+              onChange={setLastEditedQueryDescription}
+              onFocus={() => setIsEditingDescription(true)}
+              onBlur={() => setIsEditingDescription(false)}
+              onKeyPress={onInputKeypress}
+              isFocused={isEditingDescription}
+            />
+            <a
+              className="edit-link"
+              onClick={() => setIsEditingDescription(true)}
+            >
+              <img
+                className={`edit-icon ${isEditingDescription && "hide"}`}
+                alt="Edit name"
+                src={PencilIcon}
+              />
+            </a>
+          </div>
+        </>
       );
-      /* eslint-enable */
     }
-
     return null;
   };
 
@@ -339,14 +424,13 @@ const QueryForm = ({
         </div>
         <div className="author">{renderAuthor()}</div>
       </div>
-      <Button
-        className={`${baseClass}__toggle-sql`}
-        variant="text-link"
+      <RevealButton
+        isShowing={showQueryEditor}
+        baseClass={baseClass}
+        hideText="Hide SQL"
+        showText="Show SQL"
         onClick={() => setShowQueryEditor(!showQueryEditor)}
-        disabled={false}
-      >
-        {showQueryEditor ? "Hide SQL" : "Show SQL"}
-      </Button>
+      />
       {showQueryEditor && (
         <FleetAce
           value={lastEditedQueryBody}
@@ -355,6 +439,9 @@ const QueryForm = ({
           readOnly
         />
       )}
+      <span className={`${baseClass}__platform-compatibility`}>
+        {renderPlatformCompatibility()}
+      </span>
       {renderLiveQueryWarning()}
       {lastEditedQueryObserverCanRun && (
         <div
@@ -375,6 +462,11 @@ const QueryForm = ({
   const renderForGlobalAdminOrAnyMaintainer = (
     <>
       <form className={`${baseClass}__wrapper`} autoComplete="off">
+        {isSaveAsNewLoading && (
+          <div className={`${baseClass}__loading-overlay`}>
+            <Spinner />
+          </div>
+        )}
         <div className={`${baseClass}__title-bar`}>
           <div className="name-description">
             {renderName()}
@@ -421,9 +513,9 @@ const QueryForm = ({
             <>
               {isEditMode && (
                 <Button
-                  className={`${baseClass}__save`}
+                  className={`${baseClass}__save-as-new`}
                   variant="text-link"
-                  onClick={promptSaveQuery(true)}
+                  onClick={promptSaveAsNewQuery()}
                   disabled={false}
                 >
                   Save as new
@@ -486,6 +578,7 @@ const QueryForm = ({
           queryValue={lastEditedQueryBody}
           onCreateQuery={onCreateQuery}
           setIsSaveModalOpen={setIsSaveModalOpen}
+          backendValidators={backendValidators}
         />
       )}
     </>

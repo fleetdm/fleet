@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"fmt"
+	"errors"
 	"io/ioutil"
 	"os"
 	"testing"
@@ -167,11 +167,11 @@ spec:
       - secret: AAA
 `)
 
-	newAgentOpts := json.RawMessage("{\"config\":{\"something\":\"else\"}}")
+	newAgentOpts := json.RawMessage(`{"config":{"something":"else"}}`)
 
-	assert.Equal(t, "[+] applied 2 teams\n", runAppForTest(t, []string{"apply", "-f", tmpFile.Name()}))
-	assert.Equal(t, &agentOpts, teamsByName["team2"].AgentOptions)
-	assert.Equal(t, &newAgentOpts, teamsByName["team1"].AgentOptions)
+	require.Equal(t, "[+] applied 2 teams\n", runAppForTest(t, []string{"apply", "-f", tmpFile.Name()}))
+	assert.JSONEq(t, string(agentOpts), string(*teamsByName["team2"].AgentOptions))
+	assert.JSONEq(t, string(newAgentOpts), string(*teamsByName["team1"].AgentOptions))
 	assert.Equal(t, []*fleet.EnrollSecret{{Secret: "AAA"}}, enrolledSecretsCalled[uint(42)])
 }
 
@@ -286,7 +286,10 @@ func TestApplyPolicies(t *testing.T) {
 		if name == "Team1" {
 			return &fleet.Team{ID: 123}, nil
 		}
-		return nil, fmt.Errorf("unexpected team name!")
+		return nil, errors.New("unexpected team name!")
+	}
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {
+		return nil
 	}
 
 	name := writeTmpYml(t, `---
@@ -423,6 +426,9 @@ func TestApplyQueries(t *testing.T) {
 	_, ds := runServerWithMockedDS(t)
 
 	var appliedQueries []*fleet.Query
+	ds.QueryByNameFunc = func(ctx context.Context, name string, opts ...fleet.OptionalArg) (*fleet.Query, error) {
+		return nil, sql.ErrNoRows
+	}
 	ds.ApplyQueriesFunc = func(ctx context.Context, authorID uint, queries []*fleet.Query) error {
 		appliedQueries = queries
 		return nil

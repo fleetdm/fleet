@@ -195,6 +195,34 @@ spec:
 	}
 }
 
+func TestGetTeamsByName(t *testing.T) {
+	_, ds := runServerWithMockedDS(t, service.TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}})
+
+	ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
+		require.Equal(t, "test1", opt.MatchQuery)
+
+		created_at, err := time.Parse(time.RFC3339, "1999-03-10T02:45:06.371Z")
+		require.NoError(t, err)
+		return []*fleet.Team{
+			{
+				ID:          42,
+				CreatedAt:   created_at,
+				Name:        "team1",
+				Description: "team1 description",
+				UserCount:   99,
+			},
+		}, nil
+	}
+
+	expectedText := `+-----------+-------------------+------------+
+| TEAM NAME |    DESCRIPTION    | USER COUNT |
++-----------+-------------------+------------+
+| team1     | team1 description |         99 |
++-----------+-------------------+------------+
+`
+	assert.Equal(t, expectedText, runAppForTest(t, []string{"get", "teams", "--name", "test1"}))
+}
+
 func TestGetHosts(t *testing.T) {
 	_, ds := runServerWithMockedDS(t)
 
@@ -798,13 +826,29 @@ spec:
   platform: darwin
   targets:
     labels: null
+    teams: null
 `
-	expectedJson := `{"kind":"pack","apiVersion":"v1","spec":{"id":7,"name":"pack1","description":"some desc","platform":"darwin","disabled":false,"targets":{"labels":null}}}
+	expectedJson := `
+{
+  "kind": "pack",
+  "apiVersion": "v1",
+  "spec": {
+    "id": 7,
+    "name": "pack1",
+    "description": "some desc",
+    "platform": "darwin",
+    "disabled": false,
+    "targets": {
+      "labels": null,
+      "teams": null
+    }
+  }
+}
 `
 
 	assert.Equal(t, expected, runAppForTest(t, []string{"get", "packs"}))
-	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "packs", "--yaml"}))
-	assert.Equal(t, expectedJson, runAppForTest(t, []string{"get", "packs", "--json"}))
+	assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "packs", "--yaml"}))
+	assert.JSONEq(t, expectedJson, runAppForTest(t, []string{"get", "packs", "--json"}))
 }
 
 func TestGetPack(t *testing.T) {
@@ -846,13 +890,29 @@ spec:
   platform: darwin
   targets:
     labels: null
+    teams: null
 `
-	expectedJson := `{"kind":"pack","apiVersion":"v1","spec":{"id":7,"name":"pack1","description":"some desc","platform":"darwin","disabled":false,"targets":{"labels":null}}}
+	expectedJson := `
+{
+  "kind": "pack",
+  "apiVersion": "v1",
+  "spec": {
+    "id": 7,
+    "name": "pack1",
+    "description": "some desc",
+    "platform": "darwin",
+    "disabled": false,
+    "targets": {
+      "labels": null,
+      "teams": null
+    }
+  }
+}
 `
 
-	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "packs", "pack1"}))
-	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "packs", "--yaml", "pack1"}))
-	assert.Equal(t, expectedJson, runAppForTest(t, []string{"get", "packs", "--json", "pack1"}))
+	assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "packs", "pack1"}))
+	assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "packs", "--yaml", "pack1"}))
+	assert.JSONEq(t, expectedJson, runAppForTest(t, []string{"get", "packs", "--json", "pack1"}))
 }
 
 func TestGetQueries(t *testing.T) {

@@ -27,4 +27,8 @@ export const authToken = () => {
   return local.getItem("auth_token");
 };
 
+export const clearToken = () => {
+  return local.removeItem("auth_token");
+};
+
 export default local;
