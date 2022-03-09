@@ -16,6 +16,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/token"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/go-kit/kit/endpoint"
+	"go.elastic.co/apm"
 )
 
 func logJSON(logger log.Logger, v interface{}, key string) {
@@ -42,6 +43,8 @@ func instrumentHostLogger(ctx context.Context, extras ...interface{}) {
 // context for the request
 func authenticatedHost(svc fleet.Service, logger log.Logger, next endpoint.Endpoint) endpoint.Endpoint {
 	authHostFunc := func(ctx context.Context, request interface{}) (interface{}, error) {
+		span, ctx := apm.StartSpan(ctx, "Authenticate Host", "middleware.http.authenticatedHost")
+		defer span.End()
 		nodeKey, err := getNodeKey(request)
 		if err != nil {
 			return nil, err
