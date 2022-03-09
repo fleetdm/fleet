@@ -179,8 +179,8 @@ const PlatformWrapper = ({
     return platform === "advanced"
       ? "osqueryd --flagfile=flagfile.txt --verbose"
       : `fleetctl package --type=${platform} ${
-          includeFleetDesktop && "--fleet-desktop"
-        } --fleet-url=${config?.server_url} --enroll-secret=${enrollSecret}`;
+          includeFleetDesktop ? "--fleet-desktop " : ""
+        }--fleet-url=${config?.server_url} --enroll-secret=${enrollSecret}`;
   };
 
   const renderLabel = (platform: string, installerString: string) => {
