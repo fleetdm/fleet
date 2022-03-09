@@ -1641,7 +1641,7 @@ The URL of the host which to check for the topic existence and post messages to 
 - Environment variable: `FLEET_KAFKAREST_PROXYHOST`
 - Config file format:
 
-  ```
+  ```yaml
   kafkarest:
     proxyhost: "https://localhost:8443"
   ```
@@ -1656,7 +1656,7 @@ The identifier of the kafka topic that osquery status logs will be published to.
 - Environment variable: `FLEET_KAFKAREST_STATUS_TOPIC`
 - Config file format:
 
-  ```
+  ```yaml
   kafkarest:
     status_topic: osquery_status
   ```
@@ -1671,7 +1671,7 @@ The identifier of the kafka topic that osquery result logs will be published to.
 - Environment variable: `FLEET_KAFKAREST_RESULT_TOPIC`
 - Config file format:
 
-  ```
+  ```yaml
   kafkarest:
     status_topic: osquery_result
   ```
@@ -1686,10 +1686,27 @@ The timeout value for the http post attempt. Value is in units of seconds.
 - Environment variable: `FLEET_KAFKAREST_TIMEOUT`
 - Config file format:
 
-  ```
+  ```yaml
   kafkarest:
     timeout: 5
   ```
+
+##### kafkarest_content_type_value
+
+This flag only has effect if `osquery_status_log_plugin` is set to `kafkarest`.
+
+The value of the Content-Type header to use in Kafka REST Proxy API calls. More information about available versions
+can be found [here](https://docs.confluent.io/platform/current/kafka-rest/api.html#content-types). _Note: only JSON format is supported_
+
+- Default value: application/vnd.kafka.json.v1+json
+- Environment variable: `FLEET_KAFKAREST_CONTENT_TYPE_VALUE`
+- Config file format:
+
+  ```yaml
+  kafkarest:
+    content_type_value: application/vnd.kafka.json.v2+json
+  ```
+
 
 #### S3 file carving backend
 
