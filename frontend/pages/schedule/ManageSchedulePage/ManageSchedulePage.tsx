@@ -29,10 +29,10 @@ import { renderFlash } from "redux/nodes/notifications/actions";
 import sortUtils from "utilities/sort";
 import paths from "router/paths";
 import Button from "components/buttons/Button";
+import RevealButton from "components/buttons/RevealButton";
 import Spinner from "components/Spinner";
 import TeamsDropdown from "components/TeamsDropdown";
 import TableDataError from "components/TableDataError";
-import TooltipWrapper from "components/TooltipWrapper";
 import ScheduleListWrapper from "./components/ScheduleListWrapper";
 import ScheduleEditorModal from "./components/ScheduleEditorModal";
 import RemoveScheduledQueryModal from "./components/RemoveScheduledQueryModal";
@@ -526,24 +526,17 @@ const ManageSchedulePage = ({
         {selectedTeamId &&
         inheritedScheduledQueriesList &&
         inheritedScheduledQueriesList.length > 0 ? (
-          <span>
-            <Button
-              variant="unstyled"
-              className={`${showInheritedQueries ? "upcarat" : "rightcarat"} 
-                    ${baseClass}__inherited-queries-button`}
-              onClick={toggleInheritedQueries}
-            >
-              <TooltipWrapper
-                tipContent={
-                  'Queries from the "All teams"<br/>schedule run on this team’s hosts.'
-                }
-              >
-                {showInheritedQueries
-                  ? `Hide ${inheritedScheduledQueriesList.length} inherited ${inheritedQueryOrQueries}`
-                  : `Show ${inheritedScheduledQueriesList.length} inherited ${inheritedQueryOrQueries}`}
-              </TooltipWrapper>
-            </Button>
-          </span>
+          <RevealButton
+            isShowing={showInheritedQueries}
+            baseClass={baseClass}
+            hideText={`Hide ${inheritedScheduledQueriesList.length} inherited ${inheritedQueryOrQueries}`}
+            showText={`Show ${inheritedScheduledQueriesList.length} inherited ${inheritedQueryOrQueries}`}
+            caretPosition={"before"}
+            tooltipHtml={
+              'Queries from the "All teams"<br/>schedule run on this team’s hosts.'
+            }
+            onClick={toggleInheritedQueries}
+          />
         ) : null}
         {showInheritedQueries &&
           inheritedScheduledQueriesList &&
