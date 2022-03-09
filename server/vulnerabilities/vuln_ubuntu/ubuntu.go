@@ -36,10 +36,11 @@ func defaultCacheDir() (string, error) {
 	return filepath.Join("vuln", "ubuntu"), nil
 }
 
-// UbuntuPkg holds data to identify a Ubuntu package.
+// Package holds data to identify a Ubuntu package.
+// Note, does not contain arch because the Ubuntu repository does not have a clear way of indicating arch.
 type Package struct {
 	Name    string
-	Version string
+	Version string // contains the upstream version and ubuntu revision
 }
 
 func parsePackage(s string) (Package, error) {
@@ -252,8 +253,7 @@ func parse(cacheDir string) (FixedCVEsByPackage, error) {
 		}
 
 		if d.IsDir() || filepath.Base(path) != "changelog" {
-			// shouldn't happen
-			return nil
+			return fmt.Errorf("unexpected file: %s", path)
 		}
 
 		cves, err := parseChangelog(path)
