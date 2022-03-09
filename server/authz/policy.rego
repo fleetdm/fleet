@@ -14,7 +14,7 @@ read := "read"
 list := "list"
 write := "write"
 write_role := "write_role"
-change_other_password := "change_other_password"
+change_password := "change_password"
 run := "run"
 run_new := "run_new"
 
@@ -97,29 +97,29 @@ allow {
 # Users
 ##
 
-# Any user can write self (besides role)
+# Any user can write self (besides role) and change their own password.
 allow {
   object.type == "user"
   object.id == subject.id
   object.id != 0
-  action == write
+  action == [write, change_password][_]
 }
 
-# Any user can read other users
+# Any user can read other users.
 allow {
   object.type == "user"
   not is_null(subject)
   action == read
 }
 
-# Admins can write all users + roles
+# Admins can write all users + roles + change passwords.
 allow {
   object.type == "user"
   subject.global_role == admin
-  action == [write, write_role][_]
+  action == [write, write_role, change_password][_]
 }
 
-## Team admins can create or edit new users
+## Team admins can create or edit new users, but not change their password.
 allow {
   object.type == "user"
   team_role(subject, object.teams[_].id) == admin
