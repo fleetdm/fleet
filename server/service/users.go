@@ -277,12 +277,16 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 			return nil, err
 		}
 	}
+
 	if p.NewPassword != nil {
-		// TODO(mna): if a password is provided, authorize write_password
+		if err := svc.authz.Authorize(ctx, user, fleet.ActionChangePassword); err != nil {
+			return nil, err
+		}
 		if err := fleet.ValidatePasswordRequirements(*p.NewPassword); err != nil {
 			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("new_password", err.Error()))
 		}
 	}
+
 	if p.Name != nil {
 		user.Name = *p.Name
 	}
@@ -450,7 +454,7 @@ func (svc *Service) ChangePassword(ctx context.Context, oldPass, newPass string)
 		return fleet.ErrNoContext
 	}
 
-	if err := svc.authz.Authorize(ctx, vc.User, fleet.ActionWrite); err != nil {
+	if err := svc.authz.Authorize(ctx, vc.User, fleet.ActionChangePassword); err != nil {
 		return err
 	}
 
@@ -734,7 +738,7 @@ func (svc *Service) PerformRequiredPasswordReset(ctx context.Context, password s
 	}
 	user := vc.User
 
-	if err := svc.authz.Authorize(ctx, user, fleet.ActionWrite); err != nil {
+	if err := svc.authz.Authorize(ctx, user, fleet.ActionChangePassword); err != nil {
 		return nil, err
 	}
 
