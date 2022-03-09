@@ -3511,6 +3511,69 @@ func (s *integrationTestSuite) TestPasswordReset() {
 	res.Body.Close()
 }
 
+func (s *integrationTestSuite) TestDeviceAuthenticatedEndpoints() {
+	t := s.T()
+
+	hosts := s.createHosts(t)
+
+	// create an auth token for hosts[0]
+	token := "much_valid"
+	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+		_, err := db.ExecContext(context.Background(), `INSERT INTO host_device_auth (host_id, token) VALUES (?, ?)`, hosts[0].ID, token)
+		return err
+	})
+
+	// get host without token
+	res := s.DoRawNoAuth("GET", "/api/v1/fleet/device/", nil, http.StatusNotFound)
+	res.Body.Close()
+
+	// get host with invalid token
+	res = s.DoRawNoAuth("GET", "/api/v1/fleet/device/no_such_token", nil, http.StatusUnauthorized)
+	res.Body.Close()
+
+	// get host with valid token
+	var getHostResp getHostResponse
+	res = s.DoRawNoAuth("GET", "/api/v1/fleet/device/"+token, nil, http.StatusOK)
+	json.NewDecoder(res.Body).Decode(&getHostResp)
+	res.Body.Close()
+	require.Equal(t, hosts[0].ID, getHostResp.Host.ID)
+	require.False(t, getHostResp.Host.RefetchRequested)
+
+	// request a refetch for that valid host
+	res = s.DoRawNoAuth("POST", "/api/v1/fleet/device/"+token+"/refetch", nil, http.StatusOK)
+	res.Body.Close()
+
+	// host should have that flag turned to true
+	getHostResp = getHostResponse{}
+	res = s.DoRawNoAuth("GET", "/api/v1/fleet/device/"+token, nil, http.StatusOK)
+	json.NewDecoder(res.Body).Decode(&getHostResp)
+	res.Body.Close()
+	require.True(t, getHostResp.Host.RefetchRequested)
+
+	// request a refetch for an invalid token
+	res = s.DoRawNoAuth("POST", "/api/v1/fleet/device/no_such_token/refetch", nil, http.StatusUnauthorized)
+	res.Body.Close()
+
+	// list device mappings for valid token
+	var listDMResp listHostDeviceMappingResponse
+	res = s.DoRawNoAuth("GET", "/api/v1/fleet/device/"+token+"/device_mapping", nil, http.StatusOK)
+	json.NewDecoder(res.Body).Decode(&listDMResp)
+	res.Body.Close()
+	require.Equal(t, hosts[0].ID, listDMResp.HostID)
+
+	// list device mappings for invalid token
+	res = s.DoRawNoAuth("GET", "/api/v1/fleet/device/no_such_token/device_mapping", nil, http.StatusUnauthorized)
+	res.Body.Close()
+
+	// get macadmins for valid token
+	res = s.DoRawNoAuth("GET", "/api/v1/fleet/device/"+token+"/macadmins", nil, http.StatusOK)
+	res.Body.Close()
+
+	// get macadmins for invalid token
+	res = s.DoRawNoAuth("GET", "/api/v1/fleet/device/no_such_token/macadmins", nil, http.StatusUnauthorized)
+	res.Body.Close()
+}
+
 // creates a session and returns it, its key is to be passed as authorization header.
 func createSession(t *testing.T, uid uint, ds fleet.Datastore) *fleet.Session {
 	key := make([]byte, 64)
