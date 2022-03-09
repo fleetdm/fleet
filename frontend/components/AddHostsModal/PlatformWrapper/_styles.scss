@@ -28,13 +28,17 @@
   }
 
   &__info {
-    margin-top: $pad-small;
+    margin-top: $pad-medium;
   }
 
   &__cta {
     font-weight: $bold;
     padding-top: $pad-xsmall;
     margin: 0;
+  }
+
+  .fleet-checkbox {
+    display: flex;
   }
 
   .form-field {
