@@ -9,6 +9,8 @@ const (
 	ActionWrite = "write"
 	// ActionWriteRole is a write to a user's global roles and teams.
 	ActionWriteRole = "write_role"
+	// ActionWritePassword is a write to change a user's password.
+	ActionWritePassword = "write_password"
 	// ActionRun is the action for running a live query.
 	ActionRun = "run"
 	// ActionRunNew is the action for running a new live query.

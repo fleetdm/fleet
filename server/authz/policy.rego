@@ -14,6 +14,7 @@ read := "read"
 list := "list"
 write := "write"
 write_role := "write_role"
+change_other_password := "change_other_password"
 run := "run"
 run_new := "run_new"
 
