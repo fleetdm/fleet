@@ -62,19 +62,6 @@ func (svc *Service) AuthenticateDevice(ctx context.Context, authToken string) (*
 		return nil, false, ctxerr.Wrap(ctx, err, "authenticate device")
 	}
 
-	// TODO: do we want that seen time update for device auth token? It's not "seen"
-	// in the sense that it's not osquery that did ping back to fleet, so I think we
-	// might want to remove that from here?
-
-	//// Update the "seen" time used to calculate online status. These updates are
-	//// batched for MySQL performance reasons. Because this is done
-	//// asynchronously, it is possible for the server to shut down before
-	//// updating the seen time for these hosts. This seems to be an acceptable
-	//// tradeoff as an online host will continue to check in and quickly be
-	//// marked online again.
-	//svc.seenHostSet.addHostID(host.ID)
-	//host.SeenTime = svc.clock.Now()
-
 	return host, svc.debugEnabledForHost(ctx, host.ID), nil
 }
 

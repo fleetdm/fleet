@@ -4,7 +4,6 @@ import (
 	"context"
 	"time"
 
-	authzctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -266,12 +265,7 @@ func getHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service
 }
 
 func (svc *Service) GetHost(ctx context.Context, id uint) (*fleet.HostDetail, error) {
-	// can be already authorized if coming from device auth token endpoint
-	var alreadyAuthd bool
-	if authctx, ok := authzctx.FromContext(ctx); ok {
-		alreadyAuthd = authctx.Checked()
-	}
-
+	alreadyAuthd := svc.authz.IsAlreadyAuthorized(ctx)
 	if !alreadyAuthd {
 		// First ensure the user has access to list hosts, then check the specific
 		// host once team_id is loaded.
@@ -556,13 +550,7 @@ func refetchHostEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 }
 
 func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
-	// can be already authorized if coming from device auth token endpoint
-	var alreadyAuthd bool
-	if authctx, ok := authzctx.FromContext(ctx); ok {
-		alreadyAuthd = authctx.Checked()
-	}
-
-	if !alreadyAuthd {
+	if !svc.authz.IsAlreadyAuthorized(ctx) {
 		if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 			return err
 		}
@@ -678,13 +666,7 @@ func listHostDeviceMappingEndpoint(ctx context.Context, request interface{}, svc
 }
 
 func (svc *Service) ListHostDeviceMapping(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
-	// can be already authorized if coming from device auth token endpoint
-	var alreadyAuthd bool
-	if authctx, ok := authzctx.FromContext(ctx); ok {
-		alreadyAuthd = authctx.Checked()
-	}
-
-	if !alreadyAuthd {
+	if !svc.authz.IsAlreadyAuthorized(ctx) {
 		if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 			return nil, err
 		}
@@ -728,13 +710,7 @@ func getMacadminsDataEndpoint(ctx context.Context, request interface{}, svc flee
 }
 
 func (svc *Service) MacadminsData(ctx context.Context, id uint) (*fleet.MacadminsData, error) {
-	// can be already authorized if coming from device auth token endpoint
-	var alreadyAuthd bool
-	if authctx, ok := authzctx.FromContext(ctx); ok {
-		alreadyAuthd = authctx.Checked()
-	}
-
-	if !alreadyAuthd {
+	if !svc.authz.IsAlreadyAuthorized(ctx) {
 		if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 			return nil, err
 		}
