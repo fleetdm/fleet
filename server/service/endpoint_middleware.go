@@ -109,6 +109,8 @@ func getNodeKey(r interface{}) (string, error) {
 // If auth fails or the user must reset their password, an error is returned.
 func authenticatedUser(svc fleet.Service, next endpoint.Endpoint) endpoint.Endpoint {
 	authUserFunc := func(ctx context.Context, request interface{}) (interface{}, error) {
+		span, ctx := apm.StartSpan(ctx, "Authenticate User", "middleware.http.authenticatedUser")
+		defer span.End()
 		// first check if already successfully set
 		if v, ok := viewer.FromContext(ctx); ok {
 			if v.User.IsAdminForcedPasswordReset() {
@@ -147,6 +149,8 @@ func unauthenticatedRequest(svc fleet.Service, next endpoint.Endpoint) endpoint.
 // logged wraps an endpoint and adds the error if the context supports it
 func logged(next endpoint.Endpoint) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
+		span, ctx := apm.StartSpan(ctx, "Logging Middleware", "middleware.http.logged")
+		defer span.End()
 		res, err := next(ctx, request)
 		if err != nil {
 			logging.WithErr(ctx, err)
