@@ -48,7 +48,7 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Slack channels](./product.md#slack-channels)
 
-[Competitors](./product.md#competitors)
+[Competition](./product.md#competition)
 
 ### Security
 
