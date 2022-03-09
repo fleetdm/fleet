@@ -82,6 +82,7 @@ const PolicyPage = ({
 
   const [step, setStep] = useState<string>(QUERIES_PAGE_STEPS[1]);
   const [selectedTargets, setSelectedTargets] = useState<ITarget[]>([]);
+  const [targetsTotalCount, setTargetsTotalCount] = useState<number>(0);
   const [isLiveQueryRunnable, setIsLiveQueryRunnable] = useState<boolean>(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
   const [
@@ -215,6 +216,8 @@ const PolicyPage = ({
       goToQueryEditor: () => setStep(QUERIES_PAGE_STEPS[1]),
       goToRunQuery: () => setStep(QUERIES_PAGE_STEPS[3]),
       setSelectedTargets,
+      targetsTotalCount,
+      setTargetsTotalCount,
     };
 
     const step3Opts = {
@@ -223,6 +226,7 @@ const PolicyPage = ({
       policyIdForEdit,
       setSelectedTargets,
       goToQueryEditor: () => setStep(QUERIES_PAGE_STEPS[1]),
+      targetsTotalCount,
     };
 
     switch (step) {

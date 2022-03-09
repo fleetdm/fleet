@@ -294,10 +294,6 @@ func userListOptionsFromRequest(r *http.Request) (fleet.UserListOptions, error) 
 	return uopt, nil
 }
 
-func decodeNoParamsRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	return nil, nil
-}
-
 type getGenericSpecRequest struct {
 	Name string `url:"name"`
 }

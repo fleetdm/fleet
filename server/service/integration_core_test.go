@@ -15,11 +15,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/ghodss/yaml"
 	"github.com/google/uuid"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -978,6 +980,20 @@ func (s *integrationTestSuite) TestInvites() {
 	require.NotZero(t, createInviteResp.Invite.ID)
 	validInvite := *createInviteResp.Invite
 
+	// create user from valid invite - the token was not returned via the
+	// response's json, must get it from the db
+	inv, err := s.ds.Invite(context.Background(), validInvite.ID)
+	require.NoError(t, err)
+	validInviteToken := inv.Token
+
+	// verify the token with valid invite
+	var verifyInvResp verifyInviteResponse
+	s.DoJSON("GET", "/api/v1/fleet/invites/"+validInviteToken, nil, http.StatusOK, &verifyInvResp)
+	require.Equal(t, validInvite.ID, verifyInvResp.Invite.ID)
+
+	// verify the token with an invalid invite
+	s.DoJSON("GET", "/api/v1/fleet/invites/invalid", nil, http.StatusNotFound, &verifyInvResp)
+
 	// create invite without an email
 	createInviteReq = createInviteRequest{InvitePayload: fleet.InvitePayload{
 		Email:      nil,
@@ -1076,9 +1092,21 @@ func (s *integrationTestSuite) TestInvites() {
 	require.Len(t, verify.Teams, 1)
 	assert.Equal(t, team.ID, verify.Teams[0].ID)
 
+	var createFromInviteResp createUserResponse
+	s.DoJSON("POST", "/api/v1/fleet/users", fleet.UserPayload{
+		Name:        ptr.String("Full Name"),
+		Password:    ptr.String("pass1word!"),
+		Email:       ptr.String("a@b.c"),
+		InviteToken: ptr.String(validInviteToken),
+	}, http.StatusOK, &createFromInviteResp)
+
+	// keep the invite token from the other valid invite (before deleting it)
+	inv, err = s.ds.Invite(context.Background(), createInviteResp.Invite.ID)
+	require.NoError(t, err)
+	deletedInviteToken := inv.Token
+
 	// delete an existing invite
 	var delResp deleteInviteResponse
-	s.DoJSON("DELETE", fmt.Sprintf("/api/v1/fleet/invites/%d", validInvite.ID), nil, http.StatusOK, &delResp)
 	s.DoJSON("DELETE", fmt.Sprintf("/api/v1/fleet/invites/%d", createInviteResp.Invite.ID), nil, http.StatusOK, &delResp)
 
 	// list invites, is now empty
@@ -1088,6 +1116,111 @@ func (s *integrationTestSuite) TestInvites() {
 
 	// delete a now non-existing invite
 	s.DoJSON("DELETE", fmt.Sprintf("/api/v1/fleet/invites/%d", validInvite.ID), nil, http.StatusNotFound, &delResp)
+
+	// create user from never used but deleted invite
+	s.DoJSON("POST", "/api/v1/fleet/users", fleet.UserPayload{
+		Name:        ptr.String("Full Name"),
+		Password:    ptr.String("pass1word!"),
+		Email:       ptr.String("a@b.c"),
+		InviteToken: ptr.String(deletedInviteToken),
+	}, http.StatusNotFound, &createFromInviteResp)
+}
+
+func (s *integrationTestSuite) TestCreateUserFromInviteErrors() {
+	t := s.T()
+
+	// create a valid invite
+	createInviteReq := createInviteRequest{InvitePayload: fleet.InvitePayload{
+		Email:      ptr.String("a@b.c"),
+		Name:       ptr.String("A"),
+		GlobalRole: null.StringFrom(fleet.RoleObserver),
+	}}
+	createInviteResp := createInviteResponse{}
+	s.DoJSON("POST", "/api/v1/fleet/invites", createInviteReq, http.StatusOK, &createInviteResp)
+
+	// make sure to delete it on exit
+	defer func() {
+		var delResp deleteInviteResponse
+		s.DoJSON("DELETE", fmt.Sprintf("/api/v1/fleet/invites/%d", createInviteResp.Invite.ID), nil, http.StatusOK, &delResp)
+	}()
+
+	// the token is not returned via the response's json, must get it from the db
+	invite, err := s.ds.Invite(context.Background(), createInviteResp.Invite.ID)
+	require.NoError(t, err)
+
+	cases := []struct {
+		desc string
+		pld  fleet.UserPayload
+		want int
+	}{
+		{
+			"empty name",
+			fleet.UserPayload{
+				Name:        ptr.String(""),
+				Password:    ptr.String("pass1word!"),
+				Email:       ptr.String("a@b.c"),
+				InviteToken: ptr.String(invite.Token),
+			},
+			http.StatusUnprocessableEntity,
+		},
+		{
+			"empty email",
+			fleet.UserPayload{
+				Name:        ptr.String("Name"),
+				Password:    ptr.String("pass1word!"),
+				Email:       ptr.String(""),
+				InviteToken: ptr.String(invite.Token),
+			},
+			http.StatusUnprocessableEntity,
+		},
+		{
+			"empty password",
+			fleet.UserPayload{
+				Name:        ptr.String("Name"),
+				Password:    ptr.String(""),
+				Email:       ptr.String("a@b.c"),
+				InviteToken: ptr.String(invite.Token),
+			},
+			http.StatusUnprocessableEntity,
+		},
+		{
+			"empty token",
+			fleet.UserPayload{
+				Name:        ptr.String("Name"),
+				Password:    ptr.String("pass1word!"),
+				Email:       ptr.String("a@b.c"),
+				InviteToken: ptr.String(""),
+			},
+			http.StatusUnprocessableEntity,
+		},
+		{
+			"invalid token",
+			fleet.UserPayload{
+				Name:        ptr.String("Name"),
+				Password:    ptr.String("pass1word!"),
+				Email:       ptr.String("a@b.c"),
+				InviteToken: ptr.String("invalid"),
+			},
+			http.StatusNotFound,
+		},
+		{
+			"invalid password",
+			fleet.UserPayload{
+				Name:        ptr.String("Name"),
+				Password:    ptr.String("password"), // no number or symbol
+				Email:       ptr.String("a@b.c"),
+				InviteToken: ptr.String(invite.Token),
+			},
+			http.StatusUnprocessableEntity,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			var resp createUserResponse
+			s.DoJSON("POST", "/api/v1/fleet/users", c.pld, c.want, &resp)
+		})
+	}
 }
 
 func (s *integrationTestSuite) TestGetHostSummary() {
@@ -2302,6 +2435,9 @@ func (s *integrationTestSuite) TestLabelSpecs() {
 }
 
 func (s *integrationTestSuite) TestUsers() {
+	// ensure that on exit, the admin token is used
+	defer func() { s.token = s.getTestAdminToken() }()
+
 	t := s.T()
 
 	// list existing users
@@ -2324,14 +2460,16 @@ func (s *integrationTestSuite) TestUsers() {
 
 	// create a new user
 	var createResp createUserResponse
+	userRawPwd := "pass"
 	params := fleet.UserPayload{
 		Name:       ptr.String("extra"),
 		Email:      ptr.String("extra@asd.com"),
-		Password:   ptr.String("pass"),
+		Password:   ptr.String(userRawPwd),
 		GlobalRole: ptr.String(fleet.RoleObserver),
 	}
 	s.DoJSON("POST", "/api/v1/fleet/users/admin", params, http.StatusOK, &createResp)
 	assert.NotZero(t, createResp.User.ID)
+	assert.True(t, createResp.User.AdminForcedPasswordReset)
 	u := *createResp.User
 
 	// login as that user and check that teams info is empty
@@ -2406,6 +2544,46 @@ func (s *integrationTestSuite) TestUsers() {
 		Name: ptr.String("nosuchuser"),
 	}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/users/%d", u.ID+1), params, http.StatusNotFound, &modResp)
+
+	// perform a required password change as the user themselves
+	s.token = s.getTestToken(u.Email, userRawPwd)
+	var perfPwdResetResp performRequiredPasswordResetResponse
+	newRawPwd := "new_password!"
+	s.DoJSON("POST", "/api/v1/fleet/perform_required_password_reset", performRequiredPasswordResetRequest{
+		Password: newRawPwd,
+		ID:       u.ID,
+	}, http.StatusOK, &perfPwdResetResp)
+	assert.False(t, perfPwdResetResp.User.AdminForcedPasswordReset)
+	oldUserRawPwd := userRawPwd
+	userRawPwd = newRawPwd
+
+	// perform a required password change again, this time it fails as there is no request pending
+	perfPwdResetResp = performRequiredPasswordResetResponse{}
+	newRawPwd = "new_password2!"
+	s.DoJSON("POST", "/api/v1/fleet/perform_required_password_reset", performRequiredPasswordResetRequest{
+		Password: newRawPwd,
+		ID:       u.ID,
+	}, http.StatusInternalServerError, &perfPwdResetResp) // TODO: should be 40?, see #4406
+	s.token = s.getTestAdminToken()
+
+	// login as that user to verify that the new password is active (userRawPwd was updated to the new pwd)
+	loginResp = loginResponse{}
+	s.DoJSON("POST", "/api/v1/fleet/login", loginRequest{Email: u.Email, Password: userRawPwd}, http.StatusOK, &loginResp)
+	require.Equal(t, loginResp.User.ID, u.ID)
+
+	// logout for that user
+	s.token = loginResp.Token
+	var logoutResp logoutResponse
+	s.DoJSON("POST", "/api/v1/fleet/logout", nil, http.StatusOK, &logoutResp)
+
+	// logout again, even though not logged in
+	s.DoJSON("POST", "/api/v1/fleet/logout", nil, http.StatusInternalServerError, &logoutResp) // TODO: should be OK even if not logged in, see #4406.
+
+	s.token = s.getTestAdminToken()
+
+	// login as that user with previous pwd fails
+	loginResp = loginResponse{}
+	s.DoJSON("POST", "/api/v1/fleet/login", loginRequest{Email: u.Email, Password: oldUserRawPwd}, http.StatusUnauthorized, &loginResp)
 
 	// require a password reset
 	var reqResetResp requirePasswordResetResponse
@@ -3079,6 +3257,260 @@ func (s *integrationTestSuite) TestStatus() {
 	s.DoJSON("GET", "/api/v1/fleet/status/live_query", nil, http.StatusOK, &statusResp)
 }
 
+func (s *integrationTestSuite) TestOsqueryConfig() {
+	t := s.T()
+
+	hosts := s.createHosts(t)
+	req := getClientConfigRequest{NodeKey: hosts[0].NodeKey}
+	var resp getClientConfigResponse
+	s.DoJSON("POST", "/api/v1/osquery/config", req, http.StatusOK, &resp)
+
+	// test with invalid node key
+	var errRes map[string]interface{}
+	req.NodeKey += "zzzz"
+	s.DoJSON("POST", "/api/v1/osquery/config", req, http.StatusUnauthorized, &errRes)
+	assert.Contains(t, errRes["error"], "invalid node key")
+}
+
+func (s *integrationTestSuite) TestEnrollHost() {
+	t := s.T()
+
+	// set the enroll secret
+	var applyResp applyEnrollSecretSpecResponse
+	s.DoJSON("POST", "/api/v1/fleet/spec/enroll_secret", applyEnrollSecretSpecRequest{
+		Spec: &fleet.EnrollSecretSpec{
+			Secrets: []*fleet.EnrollSecret{{Secret: t.Name()}},
+		},
+	}, http.StatusOK, &applyResp)
+
+	// invalid enroll secret fails
+	j, err := json.Marshal(&enrollAgentRequest{
+		EnrollSecret:   "nosuchsecret",
+		HostIdentifier: "abcd",
+	})
+	require.NoError(t, err)
+	s.DoRawNoAuth("POST", "/api/v1/osquery/enroll", j, http.StatusUnauthorized)
+
+	// valid enroll secret succeeds
+	j, err = json.Marshal(&enrollAgentRequest{
+		EnrollSecret:   t.Name(),
+		HostIdentifier: t.Name(),
+	})
+	require.NoError(t, err)
+
+	var resp enrollAgentResponse
+	hres := s.DoRawNoAuth("POST", "/api/v1/osquery/enroll", j, http.StatusOK)
+	defer hres.Body.Close()
+	require.NoError(t, json.NewDecoder(hres.Body).Decode(&resp))
+	require.NotEmpty(t, resp.NodeKey)
+}
+
+func (s *integrationTestSuite) TestCarve() {
+	t := s.T()
+	hosts := s.createHosts(t)
+
+	// begin a carve with an invalid node key
+	var errRes map[string]interface{}
+	s.DoJSON("POST", "/api/v1/osquery/carve/begin", carveBeginRequest{
+		NodeKey:    hosts[0].NodeKey + "zzz",
+		BlockCount: 1,
+		BlockSize:  1,
+		CarveSize:  1,
+		CarveId:    "c1",
+	}, http.StatusUnauthorized, &errRes)
+	assert.Contains(t, errRes["error"], "invalid node key")
+
+	// invalid carve size
+	s.DoJSON("POST", "/api/v1/osquery/carve/begin", carveBeginRequest{
+		NodeKey:    hosts[0].NodeKey,
+		BlockCount: 3,
+		BlockSize:  3,
+		CarveSize:  0,
+		CarveId:    "c1",
+	}, http.StatusInternalServerError, &errRes) // TODO: should be 4xx, see #4406
+	assert.Contains(t, errRes["error"], "carve_size must be greater")
+
+	// invalid block size too big
+	s.DoJSON("POST", "/api/v1/osquery/carve/begin", carveBeginRequest{
+		NodeKey:    hosts[0].NodeKey,
+		BlockCount: 3,
+		BlockSize:  maxBlockSize + 1,
+		CarveSize:  maxCarveSize,
+		CarveId:    "c1",
+	}, http.StatusInternalServerError, &errRes) // TODO: should be 4xx, see #4406
+	assert.Contains(t, errRes["error"], "block_size exceeds max")
+
+	// invalid carve size too big
+	s.DoJSON("POST", "/api/v1/osquery/carve/begin", carveBeginRequest{
+		NodeKey:    hosts[0].NodeKey,
+		BlockCount: 3,
+		BlockSize:  maxBlockSize,
+		CarveSize:  maxCarveSize + 1,
+		CarveId:    "c1",
+	}, http.StatusInternalServerError, &errRes) // TODO: should be 4xx, see #4406
+	assert.Contains(t, errRes["error"], "carve_size exceeds max")
+
+	// invalid carve size, does not match blocks
+	s.DoJSON("POST", "/api/v1/osquery/carve/begin", carveBeginRequest{
+		NodeKey:    hosts[0].NodeKey,
+		BlockCount: 3,
+		BlockSize:  3,
+		CarveSize:  1,
+		CarveId:    "c1",
+	}, http.StatusInternalServerError, &errRes) // TODO: should be 4xx, see #4406
+	assert.Contains(t, errRes["error"], "carve_size does not match")
+
+	// valid carve begin
+	var beginResp carveBeginResponse
+	s.DoJSON("POST", "/api/v1/osquery/carve/begin", carveBeginRequest{
+		NodeKey:    hosts[0].NodeKey,
+		BlockCount: 3,
+		BlockSize:  3,
+		CarveSize:  8,
+		CarveId:    "c1",
+		RequestId:  "r1",
+	}, http.StatusOK, &beginResp)
+	require.NotEmpty(t, beginResp.SessionId)
+	sid := beginResp.SessionId
+
+	// sending a block with invalid session id
+	var blockResp carveBlockResponse
+	s.DoJSON("POST", "/api/v1/osquery/carve/block", carveBlockRequest{
+		BlockId:   1,
+		SessionId: sid + "zz",
+		RequestId: "??",
+		Data:      []byte("p1."),
+	}, http.StatusNotFound, &blockResp)
+
+	// sending a block with valid session id but invalid request id
+	s.DoJSON("POST", "/api/v1/osquery/carve/block", carveBlockRequest{
+		BlockId:   1,
+		SessionId: sid,
+		RequestId: "??",
+		Data:      []byte("p1."),
+	}, http.StatusInternalServerError, &blockResp) // TODO: should be 400, see #4406
+
+	// sending a block with unexpected block id (expects 0, got 1)
+	s.DoJSON("POST", "/api/v1/osquery/carve/block", carveBlockRequest{
+		BlockId:   1,
+		SessionId: sid,
+		RequestId: "r1",
+		Data:      []byte("p1."),
+	}, http.StatusInternalServerError, &blockResp) // TODO: should be 400, see #4406
+
+	// sending a block with valid payload, block 0
+	s.DoJSON("POST", "/api/v1/osquery/carve/block", carveBlockRequest{
+		BlockId:   0,
+		SessionId: sid,
+		RequestId: "r1",
+		Data:      []byte("p1."),
+	}, http.StatusOK, &blockResp)
+	require.True(t, blockResp.Success)
+
+	// sending next block
+	blockResp = carveBlockResponse{}
+	s.DoJSON("POST", "/api/v1/osquery/carve/block", carveBlockRequest{
+		BlockId:   1,
+		SessionId: sid,
+		RequestId: "r1",
+		Data:      []byte("p2."),
+	}, http.StatusOK, &blockResp)
+	require.True(t, blockResp.Success)
+
+	// sending already-sent block again
+	blockResp = carveBlockResponse{}
+	s.DoJSON("POST", "/api/v1/osquery/carve/block", carveBlockRequest{
+		BlockId:   1,
+		SessionId: sid,
+		RequestId: "r1",
+		Data:      []byte("p2."),
+	}, http.StatusInternalServerError, &blockResp) // TODO: should be 400, see #4406
+
+	// sending final block with too many bytes
+	blockResp = carveBlockResponse{}
+	s.DoJSON("POST", "/api/v1/osquery/carve/block", carveBlockRequest{
+		BlockId:   2,
+		SessionId: sid,
+		RequestId: "r1",
+		Data:      []byte("p3extra"),
+	}, http.StatusInternalServerError, &blockResp) // TODO: should be 400, see #4406
+
+	// sending actual final block
+	blockResp = carveBlockResponse{}
+	s.DoJSON("POST", "/api/v1/osquery/carve/block", carveBlockRequest{
+		BlockId:   2,
+		SessionId: sid,
+		RequestId: "r1",
+		Data:      []byte("p3"),
+	}, http.StatusOK, &blockResp)
+	require.True(t, blockResp.Success)
+
+	// sending unexpected block
+	blockResp = carveBlockResponse{}
+	s.DoJSON("POST", "/api/v1/osquery/carve/block", carveBlockRequest{
+		BlockId:   3,
+		SessionId: sid,
+		RequestId: "r1",
+		Data:      []byte("p4."),
+	}, http.StatusInternalServerError, &blockResp) // TODO: should be 400, see #4406
+}
+
+func (s *integrationTestSuite) TestPasswordReset() {
+	t := s.T()
+
+	// create a new user
+	var createResp createUserResponse
+	userRawPwd := "passw0rd!"
+	params := fleet.UserPayload{
+		Name:       ptr.String("forgotpwd"),
+		Email:      ptr.String("forgotpwd@example.com"),
+		Password:   ptr.String(userRawPwd),
+		GlobalRole: ptr.String(fleet.RoleObserver),
+	}
+	s.DoJSON("POST", "/api/v1/fleet/users/admin", params, http.StatusOK, &createResp)
+	require.NotZero(t, createResp.User.ID)
+	u := *createResp.User
+	_ = u
+
+	// request forgot password, invalid email
+	res := s.DoRawNoAuth("POST", "/api/v1/fleet/forgot_password", jsonMustMarshal(t, forgotPasswordRequest{Email: "invalid@asd.com"}), http.StatusAccepted)
+	res.Body.Close()
+
+	// TODO: tested manually (adds too much time to the test), works but hitting the rate
+	// limit returns 500 instead of 429, see #4406. We get the authz check missing error instead.
+	//// trigger the rate limit with a batch of requests in a short burst
+	//for i := 0; i < 20; i++ {
+	//	s.DoJSON("POST", "/api/v1/fleet/forgot_password", forgotPasswordRequest{Email: "invalid@asd.com"}, http.StatusAccepted, &forgotResp)
+	//}
+
+	// request forgot password, valid email
+	res = s.DoRawNoAuth("POST", "/api/v1/fleet/forgot_password", jsonMustMarshal(t, forgotPasswordRequest{Email: u.Email}), http.StatusAccepted)
+	res.Body.Close()
+
+	var token string
+	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), db, &token, "SELECT token FROM password_reset_requests WHERE user_id = ?", u.ID)
+	})
+
+	// proceed with reset password
+	userNewPwd := "newpassw0rd!"
+	res = s.DoRawNoAuth("POST", "/api/v1/fleet/reset_password", jsonMustMarshal(t, resetPasswordRequest{PasswordResetToken: token, NewPassword: userNewPwd}), http.StatusOK)
+	res.Body.Close()
+
+	// attempt it again with already-used token
+	userUnusedPwd := "unusedpassw0rd!"
+	res = s.DoRawNoAuth("POST", "/api/v1/fleet/reset_password", jsonMustMarshal(t, resetPasswordRequest{PasswordResetToken: token, NewPassword: userUnusedPwd}), http.StatusInternalServerError) // TODO: should be 40x, see #4406
+	res.Body.Close()
+
+	// login with the old password, should not succeed
+	res = s.DoRawNoAuth("POST", "/api/v1/fleet/login", jsonMustMarshal(t, loginRequest{Email: u.Email, Password: userRawPwd}), http.StatusUnauthorized)
+	res.Body.Close()
+
+	// login with the new password, should succeed
+	res = s.DoRawNoAuth("POST", "/api/v1/fleet/login", jsonMustMarshal(t, loginRequest{Email: u.Email, Password: userNewPwd}), http.StatusOK)
+	res.Body.Close()
+}
+
 // creates a session and returns it, its key is to be passed as authorization header.
 func createSession(t *testing.T, uid uint, ds fleet.Datastore) *fleet.Session {
 	key := make([]byte, 64)
@@ -3100,4 +3532,10 @@ func createSession(t *testing.T, uid uint, ds fleet.Datastore) *fleet.Session {
 func cleanupQuery(s *integrationTestSuite, queryID uint) {
 	var delResp deleteQueryByIDResponse
 	s.DoJSON("DELETE", fmt.Sprintf("/api/v1/fleet/queries/id/%d", queryID), nil, http.StatusOK, &delResp)
+}
+
+func jsonMustMarshal(t testing.TB, v interface{}) []byte {
+	b, err := json.Marshal(v)
+	require.NoError(t, err)
+	return b
 }

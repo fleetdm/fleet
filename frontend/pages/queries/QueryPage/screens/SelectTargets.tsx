@@ -19,6 +19,7 @@ import { IHost } from "interfaces/host";
 import TargetsInput from "components/TargetsInput";
 import Button from "components/buttons/Button";
 import Spinner from "components/Spinner";
+import TooltipWrapper from "components/TooltipWrapper";
 import PlusIcon from "../../../../../assets/images/icon-plus-purple-32x32@2x.png";
 import CheckIcon from "../../../../../assets/images/icon-check-purple-32x32@2x.png";
 import ExternalURLIcon from "../../../../../assets/images/icon-external-url-12x12@2x.png";
@@ -39,6 +40,8 @@ interface ISelectTargetsProps {
   goToQueryEditor: () => void;
   goToRunQuery: () => void;
   setSelectedTargets: React.Dispatch<React.SetStateAction<ITarget[]>>;
+  setTargetsTotalCount: React.Dispatch<React.SetStateAction<number>>;
+  targetsTotalCount: number;
 }
 
 const DEBOUNCE_DELAY = 500;
@@ -71,7 +74,11 @@ const TargetPillSelector = ({
       data-selected={isSelected}
       onClick={(e) => onClick(entity)(e)}
     >
-      <img alt="" src={isSelected ? CheckIcon : PlusIcon} />
+      <img
+        className={isSelected ? "check-icon" : "plus-icon"}
+        alt=""
+        src={isSelected ? CheckIcon : PlusIcon}
+      />
       <span className="selector-name">{displayText()}</span>
       <span className="selector-count">{entity.count}</span>
     </button>
@@ -85,6 +92,8 @@ const SelectTargets = ({
   goToQueryEditor,
   goToRunQuery,
   setSelectedTargets,
+  setTargetsTotalCount,
+  targetsTotalCount,
 }: ISelectTargetsProps): JSX.Element => {
   const [allHostsLabels, setAllHostsLabels] = useState<ILabel[] | null>(null);
   const [platformLabels, setPlatformLabels] = useState<ILabel[] | null>(null);
@@ -144,6 +153,10 @@ const SelectTargets = ({
       staleTime: STALE_TIME,
     }
   );
+
+  useEffect(() => {
+    setTargetsTotalCount(targets?.targetsTotalCount || 0);
+  }, [targets]);
 
   const handleClickCancel = () => {
     setSelectedTargets([]);
@@ -307,8 +320,15 @@ const SelectTargets = ({
         <div className={`${baseClass}__targets-total-count`}>
           {!!targets?.targetsTotalCount && (
             <>
-              <span>{targets?.targetsTotalCount}</span> targets selected&nbsp; (
-              {targets?.targetsOnlinePercent}% online)
+              <span>{targets?.targetsTotalCount}</span>&nbsp;hosts
+              targeted&nbsp; ({targets?.targetsOnlinePercent}%&nbsp;
+              <TooltipWrapper
+                tipContent={`
+                Hosts are online if they<br /> have recently checked <br />into Fleet`}
+              >
+                online
+              </TooltipWrapper>
+              ){" "}
             </>
           )}
         </div>
