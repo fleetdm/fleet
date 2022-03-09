@@ -489,6 +489,7 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (map[string]strin
 
 	queries := make(map[string]string)
 
+	span, ctx := apm.StartSpan(ctx, "Get detail queries for host", "app.fleet.detailQueriesForHost")
 	detailQueries, err := svc.detailQueriesForHost(ctx, host)
 	if err != nil {
 		return nil, 0, osqueryError{message: err.Error()}
@@ -496,7 +497,9 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (map[string]strin
 	for name, query := range detailQueries {
 		queries[name] = query
 	}
+	span.End()
 
+	span, ctx = apm.StartSpan(ctx, "Get label queries for host", "app.fleet.labelQueriesForHost")
 	labelQueries, err := svc.labelQueriesForHost(ctx, host)
 	if err != nil {
 		return nil, 0, osqueryError{message: err.Error()}
@@ -504,7 +507,9 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (map[string]strin
 	for name, query := range labelQueries {
 		queries[hostLabelQueryPrefix+name] = query
 	}
+	span.End()
 
+	span, ctx = apm.StartSpan(ctx, "Get live queries for host", "app.fleet.liveQueriesForHost")
 	if liveQueries, err := svc.liveQueryStore.QueriesForHost(host.ID); err != nil {
 		// If the live query store fails to fetch queries we still want the hosts
 		// to receive all the other queries (details, policies, labels, etc.),
@@ -515,7 +520,9 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (map[string]strin
 			queries[hostDistributedQueryPrefix+name] = query
 		}
 	}
+	span.End()
 
+	span, ctx = apm.StartSpan(ctx, "Get policy queries for host", "app.fleet.policyQueriesForHost")
 	policyQueries, err := svc.policyQueriesForHost(ctx, host)
 	if err != nil {
 		return nil, 0, osqueryError{message: err.Error()}
@@ -523,6 +530,7 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (map[string]strin
 	for name, query := range policyQueries {
 		queries[hostPolicyQueryPrefix+name] = query
 	}
+	span.End()
 
 	accelerate := uint(0)
 	if host.Hostname == "" || host.Platform == "" {
