@@ -2,7 +2,7 @@ import React from "react";
 
 interface ITextCellProps {
   value: string | number | boolean;
-  formatter?: (val: any) => string;
+  formatter?: (val: any) => string; // string, number, or null
   greyed?: string;
 }
 

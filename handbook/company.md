@@ -5,11 +5,11 @@
 Fleet Device Management Inc is an [open core company](https://www.heavybit.com/library/video/commercial-open-source-business-strategies/) that sells subscriptions that offer [more features and support](https://fleetdm.com/pricing) for Fleet and [osquery](https://osquery.io), the leading open source endpoint agent.
 
 We are dedicated to:
-- 💍 growing the adoption of osquery (one agent to rule them all)
-- 👁️ remaining the freshest, simplest source of truth for every kind of device and OS
-- 🧑‍🚀 making IT developer-friendly
-- 🪟 open source, as a more private, transparent, and trustworthy future for humanity
 - 💻 building a better way to manage computers
+- 🧑‍🚀 automating IT and security
+- 💍 reducing the proliferation of agents and growing the adoption of osquery (one agent to rule them all)
+- 👁️ remaining the freshest, simplest source of truth for every kind of computing device and OS
+- 🪟 privacy, transparency, and trust through open source software
 
 
 ## Culture
@@ -66,6 +66,7 @@ Empathy leads to better understanding, better communication, and better decision
 - hospitality
   - "be a helper"   -mr rogers
   - think and say [positive things](https://www.theatlantic.com/family/archive/2018/06/mr-rogers-neighborhood-talking-to-kids/562352/)
+  - use the `#thanks` channel to show genuine gratitude for other team member's actions
   - talking with users and contributors is time well spent
   - embrace the excitement of others (it's contagious)
   - make small talk at the beginning of meetings

@@ -2,6 +2,7 @@ import PropTypes from "prop-types";
 import { IHost } from "./host";
 import { ILabel } from "./label";
 import { ITeam } from "./team";
+import { ITarget } from "./target";
 
 export default PropTypes.shape({
   created_at: PropTypes.string,
@@ -34,4 +35,11 @@ export interface IPack {
   label_ids: number[];
   teams: ITeam[];
   team_ids: number[];
+}
+
+export interface IUpdatePack {
+  name?: string;
+  description?: string;
+  disabled?: boolean;
+  targets?: ITarget[];
 }

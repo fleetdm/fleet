@@ -148,6 +148,10 @@ type carveBeginRequest struct {
 	RequestId  string `json:"request_id"`
 }
 
+func (r *carveBeginRequest) hostNodeKey() string {
+	return r.NodeKey
+}
+
 type carveBeginResponse struct {
 	SessionId string `json:"session_id"`
 	Success   bool   `json:"success,omitempty"`
@@ -231,4 +235,76 @@ func (svc *Service) CarveBegin(ctx context.Context, payload fleet.CarveBeginPayl
 	}
 
 	return carve, nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Receive Block for File Carve
+////////////////////////////////////////////////////////////////////////////////
+
+type carveBlockRequest struct {
+	BlockId   int64  `json:"block_id"`
+	SessionId string `json:"session_id"`
+	RequestId string `json:"request_id"`
+	Data      []byte `json:"data"`
+}
+
+type carveBlockResponse struct {
+	Success bool  `json:"success,omitempty"`
+	Err     error `json:"error,omitempty"`
+}
+
+func (r carveBlockResponse) error() error { return r.Err }
+
+func carveBlockEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*carveBlockRequest)
+
+	payload := fleet.CarveBlockPayload{
+		SessionId: req.SessionId,
+		RequestId: req.RequestId,
+		BlockId:   req.BlockId,
+		Data:      req.Data,
+	}
+
+	err := svc.CarveBlock(ctx, payload)
+	if err != nil {
+		return carveBlockResponse{Err: err}, nil
+	}
+
+	return carveBlockResponse{Success: true}, nil
+}
+
+func (svc *Service) CarveBlock(ctx context.Context, payload fleet.CarveBlockPayload) error {
+	// skipauth: Authorization is currently for user endpoints only.
+	svc.authz.SkipAuthorization(ctx)
+
+	// Note host did not authenticate via node key. We need to authenticate them
+	// by the session ID and request ID
+	carve, err := svc.carveStore.CarveBySessionId(ctx, payload.SessionId)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "find carve by session_id")
+	}
+
+	if payload.RequestId != carve.RequestId {
+		return errors.New("request_id does not match")
+	}
+
+	// Request is now authenticated
+
+	if payload.BlockId > carve.BlockCount-1 {
+		return fmt.Errorf("block_id exceeds expected max (%d): %d", carve.BlockCount-1, payload.BlockId)
+	}
+
+	if payload.BlockId != carve.MaxBlock+1 {
+		return fmt.Errorf("block_id does not match expected block (%d): %d", carve.MaxBlock+1, payload.BlockId)
+	}
+
+	if int64(len(payload.Data)) > carve.BlockSize {
+		return fmt.Errorf("exceeded declared block size %d: %d", carve.BlockSize, len(payload.Data))
+	}
+
+	if err := svc.carveStore.NewBlock(ctx, carve, payload.BlockId, payload.Data); err != nil {
+		return ctxerr.Wrap(ctx, err, "save block data")
+	}
+
+	return nil
 }

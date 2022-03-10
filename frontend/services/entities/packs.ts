@@ -5,6 +5,7 @@ import { omit } from "lodash";
 import endpoints from "fleet/endpoints";
 import { formatPackTargetsForApi } from "fleet/helpers";
 import { ISelectTargetsEntity } from "interfaces/target";
+import { IUpdatePack } from "interfaces/pack";
 
 interface ICreateProps {
   name: string;
@@ -48,11 +49,12 @@ export default {
 
     return sendRequest("GET", PACKS);
   },
-  update: (packId: number, updatedPack: any) => {
+  update: (packId: number, updatedPack: IUpdatePack) => {
     const { PACKS } = endpoints;
     const { targets } = updatedPack;
     const path = `${PACKS}/${packId}`;
 
+    console.log("updatedPack", updatedPack);
     let packTargets = null;
     if (targets) {
       packTargets = formatPackTargetsForApi(targets);

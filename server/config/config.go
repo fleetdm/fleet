@@ -202,10 +202,11 @@ type FilesystemConfig struct {
 
 // KafkaRESTConfig defines configs for the Kafka REST Proxy logging plugin.
 type KafkaRESTConfig struct {
-	StatusTopic string `json:"status_topic" yaml:"status_topic"`
-	ResultTopic string `json:"result_topic" yaml:"result_topic"`
-	ProxyHost   string `json:"proxyhost" yaml:"proxyhost"`
-	Timeout     int    `json:"timeout" yaml:"timeout"`
+	StatusTopic      string `json:"status_topic" yaml:"status_topic"`
+	ResultTopic      string `json:"result_topic" yaml:"result_topic"`
+	ProxyHost        string `json:"proxyhost" yaml:"proxyhost"`
+	ContentTypeValue string `json:"content_type_value" yaml:"content_type_value"`
+	Timeout          int    `json:"timeout" yaml:"timeout"`
 }
 
 // LicenseConfig defines configs related to licensing Fleet.
@@ -395,7 +396,7 @@ func (man Manager) addConfigs() {
 	// Session
 	man.addConfigInt("session.key_size", 64,
 		"Size of generated session keys")
-	man.addConfigDuration("session.duration", 24*time.Hour,
+	man.addConfigDuration("session.duration", 24*5*time.Hour,
 		"Duration session keys remain valid (i.e. 4h)")
 
 	// Osquery
@@ -526,6 +527,8 @@ func (man Manager) addConfigs() {
 	man.addConfigString("kafkarest.status_topic", "", "Kafka REST topic for status logs")
 	man.addConfigString("kafkarest.result_topic", "", "Kafka REST topic for result logs")
 	man.addConfigString("kafkarest.proxyhost", "", "Kafka REST proxy host url")
+	man.addConfigString("kafkarest.content_type_value", "application/vnd.kafka.json.v1+json",
+		"Kafka REST proxy content type header (defaults to \"application/vnd.kafka.json.v1+json\"")
 	man.addConfigInt("kafkarest.timeout", 5, "Kafka REST proxy json post timeout")
 
 	// License
@@ -708,10 +711,11 @@ func (man Manager) LoadConfig() FleetConfig {
 			EnableLogCompression: man.getConfigBool("filesystem.enable_log_compression"),
 		},
 		KafkaREST: KafkaRESTConfig{
-			StatusTopic: man.getConfigString("kafkarest.status_topic"),
-			ResultTopic: man.getConfigString("kafkarest.result_topic"),
-			ProxyHost:   man.getConfigString("kafkarest.proxyhost"),
-			Timeout:     man.getConfigInt("kafkarest.timeout"),
+			StatusTopic:      man.getConfigString("kafkarest.status_topic"),
+			ResultTopic:      man.getConfigString("kafkarest.result_topic"),
+			ProxyHost:        man.getConfigString("kafkarest.proxyhost"),
+			ContentTypeValue: man.getConfigString("kafkarest.content_type_value"),
+			Timeout:          man.getConfigInt("kafkarest.timeout"),
 		},
 		License: LicenseConfig{
 			Key: man.getConfigString("license.key"),
@@ -943,7 +947,7 @@ func TestConfig() FleetConfig {
 		},
 		Session: SessionConfig{
 			KeySize:  64,
-			Duration: 24 * 90 * time.Hour,
+			Duration: 24 * 5 * time.Hour,
 		},
 		Osquery: OsqueryConfig{
 			NodeKeySize:          24,

@@ -3,8 +3,8 @@ import { isString, isPlainObject, isEmpty, reduce, trim, union } from "lodash";
 interface ILocationParams {
   pathPrefix?: string;
   routeTemplate?: string;
-  routeParams?: { [key: string]: any };
-  queryParams?: { [key: string]: any };
+  routeParams?: { [key: string]: string };
+  queryParams?: { [key: string]: string | number };
 }
 
 export const NEW_LABEL_HASH = "#new_label";

@@ -12,6 +12,7 @@ import {
   getEnrollSecret,
   // @ts-ignore
 } from "redux/nodes/app/actions";
+import { IApiError } from "interfaces/errors";
 import config from "./config";
 
 const { actions } = config;
@@ -44,7 +45,7 @@ export const addMembers = (
       .then((res: { team: ITeam }) => {
         return dispatch(successAction(res.team, updateSuccess));
       })
-      .catch((res: any) => {
+      .catch((res: IApiError) => {
         const errorsObject = formatErrorResponse(res);
         dispatch(addMembersFailure(errorsObject));
         throw errorsObject;
@@ -63,7 +64,7 @@ export const removeMembers = (
       .then((res: { team: ITeam }) => {
         return dispatch(successAction(res.team, updateSuccess));
       })
-      .catch((res: any) => {
+      .catch((res: IApiError) => {
         const errorsObject = formatErrorResponse(res);
         dispatch(removeMembersFailure(errorsObject));
         throw errorsObject;
@@ -79,7 +80,7 @@ export const transferHosts = (teamId: number, hostIds: number[]): any => {
       .then((res: { team: ITeam }) => {
         return dispatch(successAction(res.team, updateSuccess));
       })
-      .catch((res: any) => {
+      .catch((res: IApiError) => {
         const errorsObject = formatErrorResponse(res);
         dispatch(addMembersFailure(errorsObject));
         throw errorsObject;

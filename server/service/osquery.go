@@ -8,8 +8,10 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
@@ -22,12 +24,265 @@ import (
 	"github.com/spf13/cast"
 )
 
+type osqueryError struct {
+	message     string
+	nodeInvalid bool
+}
+
+func (e osqueryError) Error() string {
+	return e.message
+}
+
+func (e osqueryError) NodeInvalid() bool {
+	return e.nodeInvalid
+}
+
+func (svc *Service) AuthenticateHost(ctx context.Context, nodeKey string) (*fleet.Host, bool, error) {
+	// skipauth: Authorization is currently for user endpoints only.
+	svc.authz.SkipAuthorization(ctx)
+
+	if nodeKey == "" {
+		return nil, false, osqueryError{
+			message:     "authentication error: missing node key",
+			nodeInvalid: true,
+		}
+	}
+
+	host, err := svc.ds.LoadHostByNodeKey(ctx, nodeKey)
+	switch {
+	case err == nil:
+		// OK
+	case fleet.IsNotFound(err):
+		return nil, false, osqueryError{
+			message:     "authentication error: invalid node key: " + nodeKey,
+			nodeInvalid: true,
+		}
+	default:
+		return nil, false, osqueryError{
+			message: "authentication error: " + err.Error(),
+		}
+	}
+
+	// Update the "seen" time used to calculate online status. These updates are
+	// batched for MySQL performance reasons. Because this is done
+	// asynchronously, it is possible for the server to shut down before
+	// updating the seen time for these hosts. This seems to be an acceptable
+	// tradeoff as an online host will continue to check in and quickly be
+	// marked online again.
+	svc.seenHostSet.addHostID(host.ID)
+	host.SeenTime = svc.clock.Now()
+
+	return host, svc.debugEnabledForHost(ctx, host.ID), nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Enroll Agent
+////////////////////////////////////////////////////////////////////////////////
+
+type enrollAgentRequest struct {
+	EnrollSecret   string                         `json:"enroll_secret"`
+	HostIdentifier string                         `json:"host_identifier"`
+	HostDetails    map[string](map[string]string) `json:"host_details"`
+}
+
+type enrollAgentResponse struct {
+	NodeKey string `json:"node_key,omitempty"`
+	Err     error  `json:"error,omitempty"`
+}
+
+func (r enrollAgentResponse) error() error { return r.Err }
+
+func enrollAgentEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*enrollAgentRequest)
+	nodeKey, err := svc.EnrollAgent(ctx, req.EnrollSecret, req.HostIdentifier, req.HostDetails)
+	if err != nil {
+		return enrollAgentResponse{Err: err}, nil
+	}
+	return enrollAgentResponse{NodeKey: nodeKey}, nil
+}
+
+func (svc *Service) EnrollAgent(ctx context.Context, enrollSecret, hostIdentifier string, hostDetails map[string](map[string]string)) (string, error) {
+	// skipauth: Authorization is currently for user endpoints only.
+	svc.authz.SkipAuthorization(ctx)
+
+	logging.WithExtras(ctx, "hostIdentifier", hostIdentifier)
+
+	secret, err := svc.ds.VerifyEnrollSecret(ctx, enrollSecret)
+	if err != nil {
+		return "", osqueryError{
+			message:     "enroll failed: " + err.Error(),
+			nodeInvalid: true,
+		}
+	}
+
+	nodeKey, err := server.GenerateRandomText(svc.config.Osquery.NodeKeySize)
+	if err != nil {
+		return "", osqueryError{
+			message:     "generate node key failed: " + err.Error(),
+			nodeInvalid: true,
+		}
+	}
+
+	hostIdentifier = getHostIdentifier(svc.logger, svc.config.Osquery.HostIdentifier, hostIdentifier, hostDetails)
+
+	host, err := svc.ds.EnrollHost(ctx, hostIdentifier, nodeKey, secret.TeamID, svc.config.Osquery.EnrollCooldown)
+	if err != nil {
+		return "", osqueryError{message: "save enroll failed: " + err.Error(), nodeInvalid: true}
+	}
+
+	appConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return "", osqueryError{message: "app config load failed: " + err.Error(), nodeInvalid: true}
+	}
+
+	// Save enrollment details if provided
+	detailQueries := osquery_utils.GetDetailQueries(appConfig, svc.config)
+	save := false
+	if r, ok := hostDetails["os_version"]; ok {
+		err := detailQueries["os_version"].IngestFunc(svc.logger, host, []map[string]string{r})
+		if err != nil {
+			return "", ctxerr.Wrap(ctx, err, "Ingesting os_version")
+		}
+		save = true
+	}
+	if r, ok := hostDetails["osquery_info"]; ok {
+		err := detailQueries["osquery_info"].IngestFunc(svc.logger, host, []map[string]string{r})
+		if err != nil {
+			return "", ctxerr.Wrap(ctx, err, "Ingesting osquery_info")
+		}
+		save = true
+	}
+	if r, ok := hostDetails["system_info"]; ok {
+		err := detailQueries["system_info"].IngestFunc(svc.logger, host, []map[string]string{r})
+		if err != nil {
+			return "", ctxerr.Wrap(ctx, err, "Ingesting system_info")
+		}
+		save = true
+	}
+
+	if save {
+		if appConfig.ServerSettings.DeferredSaveHost {
+			go svc.serialUpdateHost(host)
+		} else {
+			if err := svc.ds.UpdateHost(ctx, host); err != nil {
+				return "", ctxerr.Wrap(ctx, err, "save host in enroll agent")
+			}
+		}
+	}
+
+	return nodeKey, nil
+}
+
+var counter = int64(0)
+
+func (svc *Service) serialUpdateHost(host *fleet.Host) {
+	newVal := atomic.AddInt64(&counter, 1)
+	defer func() {
+		atomic.AddInt64(&counter, -1)
+	}()
+	level.Debug(svc.logger).Log("background", newVal)
+
+	ctx, cancelFunc := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancelFunc()
+	err := svc.ds.SerialUpdateHost(ctx, host)
+	if err != nil {
+		level.Error(svc.logger).Log("background-err", err)
+	}
+}
+
+func getHostIdentifier(logger log.Logger, identifierOption, providedIdentifier string, details map[string](map[string]string)) string {
+	switch identifierOption {
+	case "provided":
+		// Use the host identifier already provided in the request.
+		return providedIdentifier
+
+	case "instance":
+		r, ok := details["osquery_info"]
+		if !ok {
+			level.Info(logger).Log(
+				"msg", "could not get host identifier",
+				"reason", "missing osquery_info",
+				"identifier", "instance",
+			)
+		} else if r["instance_id"] == "" {
+			level.Info(logger).Log(
+				"msg", "could not get host identifier",
+				"reason", "missing instance_id in osquery_info",
+				"identifier", "instance",
+			)
+		} else {
+			return r["instance_id"]
+		}
+
+	case "uuid":
+		r, ok := details["osquery_info"]
+		if !ok {
+			level.Info(logger).Log(
+				"msg", "could not get host identifier",
+				"reason", "missing osquery_info",
+				"identifier", "uuid",
+			)
+		} else if r["uuid"] == "" {
+			level.Info(logger).Log(
+				"msg", "could not get host identifier",
+				"reason", "missing instance_id in osquery_info",
+				"identifier", "uuid",
+			)
+		} else {
+			return r["uuid"]
+		}
+
+	case "hostname":
+		r, ok := details["system_info"]
+		if !ok {
+			level.Info(logger).Log(
+				"msg", "could not get host identifier",
+				"reason", "missing system_info",
+				"identifier", "hostname",
+			)
+		} else if r["hostname"] == "" {
+			level.Info(logger).Log(
+				"msg", "could not get host identifier",
+				"reason", "missing instance_id in system_info",
+				"identifier", "hostname",
+			)
+		} else {
+			return r["hostname"]
+		}
+
+	default:
+		panic("Unknown option for host_identifier: " + identifierOption)
+	}
+
+	return providedIdentifier
+}
+
+func (svc *Service) debugEnabledForHost(ctx context.Context, id uint) bool {
+	hlogger := log.With(svc.logger, "host-id", id)
+	ac, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		level.Debug(hlogger).Log("err", ctxerr.Wrap(ctx, err, "getting app config for host debug"))
+		return false
+	}
+
+	for _, hostID := range ac.ServerSettings.DebugHostIDs {
+		if hostID == id {
+			return true
+		}
+	}
+	return false
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Get Client Config
 ////////////////////////////////////////////////////////////////////////////////
 
 type getClientConfigRequest struct {
 	NodeKey string `json:"node_key"`
+}
+
+func (r *getClientConfigRequest) hostNodeKey() string {
+	return r.NodeKey
 }
 
 type getClientConfigResponse struct {
@@ -208,6 +463,10 @@ type getDistributedQueriesRequest struct {
 	NodeKey string `json:"node_key"`
 }
 
+func (r *getDistributedQueriesRequest) hostNodeKey() string {
+	return r.NodeKey
+}
+
 type getDistributedQueriesResponse struct {
 	Queries    map[string]string `json:"queries"`
 	Accelerate uint              `json:"accelerate,omitempty"`
@@ -375,6 +634,10 @@ type submitDistributedQueryResultsRequestShim struct {
 	Results  map[string]json.RawMessage `json:"queries"`
 	Statuses map[string]interface{}     `json:"statuses"`
 	Messages map[string]string          `json:"messages"`
+}
+
+func (shim *submitDistributedQueryResultsRequestShim) hostNodeKey() string {
+	return shim.NodeKey
 }
 
 func (shim *submitDistributedQueryResultsRequestShim) toRequest(ctx context.Context) (*SubmitDistributedQueryResultsRequest, error) {
@@ -805,6 +1068,10 @@ type submitLogsRequest struct {
 	NodeKey string          `json:"node_key"`
 	LogType string          `json:"log_type"`
 	Data    json.RawMessage `json:"data"`
+}
+
+func (r *submitLogsRequest) hostNodeKey() string {
+	return r.NodeKey
 }
 
 type submitLogsResponse struct {

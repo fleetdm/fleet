@@ -79,13 +79,12 @@ const generateSelectedTeamData = (
 const updateFormState = (
   prevTeamItems: ITeamCheckboxListItem[],
   teamId: number,
-  newValue: any,
-  updateType: string
+  newValue: string | boolean | undefined
 ): ITeamCheckboxListItem[] => {
   const prevItemIndex = prevTeamItems.findIndex((item) => item.id === teamId);
   const prevItem = prevTeamItems[prevItemIndex];
 
-  if (updateType === "checkbox") {
+  if (typeof newValue === "boolean") {
     prevItem.isChecked = newValue;
   } else {
     prevItem.role = newValue;
@@ -103,18 +102,9 @@ const useSelectedTeamState = (
     return generateFormListItems(allTeams, currentTeams);
   });
 
-  const updateSelectedTeams = (
-    teamId: number,
-    newValue: any,
-    updateType: string
-  ) => {
+  const updateSelectedTeams = (teamId: number, newValue: string | boolean) => {
     setTeamsFormList((prevState) => {
-      const updatedTeamFormList = updateFormState(
-        prevState,
-        teamId,
-        newValue,
-        updateType
-      );
+      const updatedTeamFormList = updateFormState(prevState, teamId, newValue);
       const selectedTeamsData = generateSelectedTeamData(updatedTeamFormList);
       formChange(selectedTeamsData);
       return updatedTeamFormList;
@@ -146,7 +136,7 @@ const SelectedTeamsForm = ({
                 value={isChecked}
                 name={name}
                 onChange={(newValue: boolean) =>
-                  updateSelectedTeams(teamItem.id, newValue, "checkbox")
+                  updateSelectedTeams(teamItem.id, newValue)
                 }
               >
                 {name}
@@ -157,7 +147,7 @@ const SelectedTeamsForm = ({
                 options={roles}
                 searchable={false}
                 onChange={(newValue: string) =>
-                  updateSelectedTeams(teamItem.id, newValue, "dropdown")
+                  updateSelectedTeams(teamItem.id, newValue)
                 }
                 testId={`${name}-checkbox`}
               />
