@@ -9,9 +9,9 @@ interface IIconTooltipCellProps<T> {
 
 const IconTooltipCell = ({
   value,
-}: IIconTooltipCellProps<any>): JSX.Element | null => {
+}: IIconTooltipCellProps<any>): JSX.Element => {
   if (isEmpty(value)) {
-    return null;
+    return <></>;
   }
 
   return <IconToolTip text={value} issue isHtml />;

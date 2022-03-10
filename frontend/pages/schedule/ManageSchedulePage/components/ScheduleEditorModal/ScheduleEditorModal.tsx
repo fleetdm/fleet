@@ -5,8 +5,7 @@ import { pull } from "lodash";
 import { AppContext } from "context/app";
 
 import { IQuery } from "interfaces/query";
-import { IGlobalScheduledQuery } from "interfaces/global_scheduled_query";
-import { ITeamScheduledQuery } from "interfaces/team_scheduled_query";
+import { IEditScheduledQuery } from "interfaces/scheduled_query";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
@@ -44,9 +43,9 @@ interface IScheduleEditorModalProps {
   onCancel: () => void;
   onScheduleSubmit: (
     formData: IFormData,
-    editQuery: IGlobalScheduledQuery | ITeamScheduledQuery | undefined
+    editQuery: IEditScheduledQuery | undefined
   ) => void;
-  editQuery?: IGlobalScheduledQuery | ITeamScheduledQuery;
+  editQuery?: IEditScheduledQuery;
   teamId?: number;
   togglePreviewDataModal: () => void;
   showPreviewDataModal: boolean;
@@ -56,7 +55,7 @@ interface INoQueryOption {
   name: string;
 }
 
-const generateLoggingType = (query: IGlobalScheduledQuery) => {
+const generateLoggingType = (query: IEditScheduledQuery) => {
   if (query.snapshot) {
     return "snapshot";
   }
@@ -102,7 +101,7 @@ const ScheduleEditorModal = ({
     false
   );
   const [selectedQuery, setSelectedQuery] = useState<
-    IGlobalScheduledQuery | INoQueryOption
+    IEditScheduledQuery | INoQueryOption
   >();
   const [selectedFrequency, setSelectedFrequency] = useState<number>(
     editQuery ? editQuery.interval : 86400
@@ -191,7 +190,7 @@ const ScheduleEditorModal = ({
     [setSelectedShard]
   );
 
-  const onFormSubmit = () => {
+  const onFormSubmit = (): void => {
     const query_id = () => {
       if (editQuery) {
         return editQuery.query_id;

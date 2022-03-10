@@ -8,11 +8,16 @@ import {
   IEditInviteFormData,
 } from "interfaces/invite";
 
+export interface ISortOption {
+  id: number;
+  desc: boolean;
+}
+
 interface IInviteSearchOptions {
   page?: number;
   perPage?: number;
   globalFilter?: string;
-  sortBy?: any[];
+  sortBy?: ISortOption[];
 }
 
 export default {

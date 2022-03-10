@@ -22,8 +22,6 @@ export const fetchQuery = (dispatch, queryID) => {
 
     dispatch(push(MANAGE_QUERIES));
     dispatch(renderFlash("error", errorMessage));
-
-    return false;
   });
 };
 

@@ -53,15 +53,6 @@ describe("AuthenticatedRoutes - component", () => {
       locationBeforeTransitions: {},
     },
   };
-  const storeWithoutUser = {
-    auth: {
-      loading: false,
-      user: null,
-    },
-    routing: {
-      locationBeforeTransitions: {},
-    },
-  };
   const storeLoadingUser = {
     auth: {
       loading: true,

@@ -9,11 +9,16 @@ import {
 } from "interfaces/user";
 import { ITeamSummary } from "interfaces/team";
 
+export interface ISortOption {
+  id: number;
+  desc: boolean;
+}
+
 interface IUserSearchOptions {
   page?: number;
   perPage?: number;
   globalFilter?: string;
-  sortBy?: any[];
+  sortBy?: ISortOption[];
   teamId?: number;
 }
 
@@ -116,10 +121,6 @@ export default {
     return sendRequest("POST", path, { require }).then((response) =>
       helpers.addGravatarUrlToResource(response.user)
     );
-  },
-  resetPassword: (formData: any) => {
-    const { RESET_PASSWORD } = endpoints;
-    return sendRequest("POST", RESET_PASSWORD, formData);
   },
   update: (userId: number, formData: IUpdateUserFormData) => {
     const { USERS } = endpoints;

@@ -20,6 +20,7 @@ import queryAPI from "services/entities/queries";
 import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
 import { IQuery, IQueryFormData } from "interfaces/query";
+import { IApiError } from "interfaces/errors";
 
 import Avatar from "components/Avatar";
 import FleetAce from "components/FleetAce";
@@ -53,7 +54,7 @@ interface IQueryFormProps {
 }
 
 const validateQuerySQL = (query: string) => {
-  const errors: { [key: string]: any } = {};
+  const errors: { [key: string]: string } = {};
   const { error: queryError, valid: queryValid } = validateQuery(query);
 
   if (!queryValid) {
@@ -80,7 +81,7 @@ const QueryForm = ({
   const dispatch = useDispatch();
 
   const isEditMode = !!queryIdForEdit;
-  const [errors, setErrors] = useState<{ [key: string]: any }>({});
+  const [errors, setErrors] = useState<{ [key: string]: any }>({}); // string | null | undefined or boolean | undefined
   const [isSaveModalOpen, setIsSaveModalOpen] = useState<boolean>(false);
   const [showQueryEditor, setShowQueryEditor] = useState<boolean>(false);
   const [compatiblePlatforms, setCompatiblePlatforms] = useState<string[]>([]);
@@ -215,7 +216,7 @@ const QueryForm = ({
           dispatch(push(PATHS.EDIT_QUERY(response.query)));
           dispatch(renderFlash("success", `Successfully added query.`));
         })
-        .catch((createError: any) => {
+        .catch((createError: { data: IApiError }) => {
           if (createError.data.errors[0].reason.includes("already exists")) {
             queryAPI
               .create({
@@ -234,7 +235,7 @@ const QueryForm = ({
                   )
                 );
               })
-              .catch((createCopyError: any) => {
+              .catch((createCopyError: { data: IApiError }) => {
                 if (
                   createCopyError.data.errors[0].reason.includes(
                     "already exists"
