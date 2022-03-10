@@ -7,13 +7,13 @@
 - [Teams](#teams)
 - [Organization settings](#organization-settings)
 
-Entities in Fleet, such as queries, packs, labels, agent options, and enroll secrets, can be managed with configuration files in yaml syntax.
+Entities in Fleet, such as queries, packs, labels, agent options, and enroll secrets, can be managed with configuration files in YAML syntax.
 
-This page contains links to examples that can help you understand the configuration options for your Fleet yaml file(s).
+This page contains links to examples that can help you understand the configuration options for your Fleet YAML file(s).
 
 Examples in this directory are presented in two forms:
-- [`single-file-configuration.yml`](./single-file-configuration.yml) presents multiple yaml documents in one file. One file is often easier to manage than several. Group related objects into a single file whenever it makes sense.
-- The `multi-file-configuration` directory presents multiple yaml documents in separate files. They are in the following structure:
+- [`single-file-configuration.yml`](./single-file-configuration.yml) presents multiple YAML documents in one file. One file is often easier to manage than several. Group related objects into a single file whenever it makes sense.
+- The `multi-file-configuration` directory presents multiple YAML documents in separate files. They are in the following structure:
 
 ```
 ├─ packs
@@ -24,9 +24,9 @@ Examples in this directory are presented in two forms:
 ├─ queries.yml
 ```
 
-## Using yaml files in Fleet
+## Using YAML files in Fleet
 
-A Fleet configuration is defined using one or more declarative "messages" in yaml syntax. Each message can live in it's own file or multiple in one file, each separated by `---`. Each file/message contains a few required top-level keys:
+A Fleet configuration is defined using one or more declarative "messages" in YAML syntax. Each message can live in it's own file or multiple in one file, each separated by `---`. Each file/message contains a few required top-level keys:
 
 - `apiVersion` - the API version of the file/request
 - `spec` - the "data" of the request
@@ -507,11 +507,11 @@ spec:
 ```
 
 WARNING: this will log potentially a lot of data. Some of that data might be private, please verify it before posting it
-in a public channel or a Github issue.
+in a public channel or a GitHub issue.
 
 ### Host settings
 
-The `host_settings` section of the configuration yaml allows to define what predefined queries are sent to the hosts and
+The `host_settings` section of the configuration YAML allows to define what predefined queries are sent to the hosts and
 later on processed by Fleet for different functionalities.
 
 - `host_settings.enable_host_users`: boolean value that when enabled Fleet will send the query needed to gather user data
