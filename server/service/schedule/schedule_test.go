@@ -18,9 +18,6 @@ func nopStatsHandler(interface{}, error) {}
 
 type nopLocker struct{}
 
-// counter++
-// should lock return tl.Lock()
-
 func (nopLocker) Lock(context.Context, string, string, time.Duration) (bool, error) {
 	return true, nil
 }
@@ -66,10 +63,10 @@ func TestStatsHandler(t *testing.T) {
 
 	sched.AddJob("test_job", func(ctx context.Context) (interface{}, error) {
 		runCheck <- true
-		return "stats foo", fmt.Errorf("stats error")
+		return "stats foo", fmt.Errorf("error foo")
 	}, func(stats interface{}, err error) {
 		require.Equal(t, "stats foo", stats)
-		require.Equal(t, fmt.Errorf("stats error"), err)
+		require.Equal(t, fmt.Errorf("error foo"), err)
 	})
 
 	runCount := 0
@@ -194,6 +191,71 @@ TEST:
 			assert.Greater(t, len(testStats.stats["test_job_1"]), 2)
 			assert.Greater(t, len(testStats.stats["test_job_2"]), 2)
 			assert.Greater(t, len(testStats.errors["test_job_3"]), 2)
+			t.FailNow()
+		}
+	}
+}
+
+func TestPreflightCheck(t *testing.T) {
+	preflightFailed := ptr.Bool(false)
+
+	sched, err := New(context.Background(), "test_schedule_1", "test_instance", 10*time.Millisecond, nopLocker{}, log.NewNopLogger())
+	require.NoError(t, err)
+
+	sched.SetPreflightCheck(func() bool {
+		preflightFailed = ptr.Bool(true)
+		return false
+	})
+
+	sched.AddJob("test_job_1", func(ctx context.Context) (interface{}, error) {
+		require.Equal(t, true, *preflightFailed)
+		t.FailNow() // preflight should fail so the job should never run
+		return nil, nil
+	}, nopStatsHandler)
+
+	failCheck := time.After(30 * time.Millisecond)
+
+TEST:
+	for {
+		select {
+		case <-failCheck:
+			require.Equal(t, true, *preflightFailed)
+			break TEST
+		}
+	}
+}
+
+func TestConfigCheck(t *testing.T) {
+	runCheck := make(chan bool)
+
+	sched, err := New(context.Background(), "test_schedule_1", "test_instance", 200*time.Millisecond, nopLocker{}, log.NewNopLogger())
+	require.NoError(t, err)
+
+	sched.AddJob("test_job_1", func(ctx context.Context) (interface{}, error) {
+		runCheck <- true
+		return nil, nil
+	}, nopStatsHandler)
+
+	sched.SetConfigCheck(func(time.Time, time.Duration) (*time.Duration, error) {
+		newInterval := 20 * time.Millisecond
+		return &newInterval, nil
+	})
+
+	failCheck := time.After(300 * time.Millisecond)
+
+TEST:
+	for {
+		select {
+		case <-runCheck:
+			if sched.interval == 20*time.Millisecond {
+				break TEST
+			}
+		case <-failCheck:
+			require.Equal(t, 20*time.Millisecond, sched.interval)
+			// fmt.Println(sched.interval)
+			// if sched.interval == 20*time.Millisecond {
+			// 	break TEST
+			// }
 			t.FailNow()
 		}
 	}

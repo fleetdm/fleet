@@ -16,13 +16,13 @@ import (
 	"github.com/go-kit/log/level"
 )
 
-type asyncVulnStats struct {
+type vulnerabilitiesJobStats struct {
 	StartedAt    time.Time `json:"started_at" db:"started_at"`
 	CompletedAt  time.Time `json:"completed_at" db:"completed_at"`
 	TotalRunTime string    `json:"total_run_time" db:"total_run_time"`
 }
 
-func DoAsyncVuln(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, config config.FleetConfig) (interface{}, error) {
+func DoVulnProcessing(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, config config.FleetConfig) (interface{}, error) {
 	stats := make(map[string]string)
 	startedAt := time.Now()
 
@@ -102,9 +102,9 @@ func DoAsyncVuln(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, 
 		}
 	}
 
-	level.Debug(logger).Log("loop", "done")
+	level.Debug(logger).Log("vulnerabilities", "done")
 
-	jobStats := &asyncVulnStats{
+	jobStats := &vulnerabilitiesJobStats{
 		StartedAt:    startedAt,
 		CompletedAt:  time.Now(),
 		TotalRunTime: fmt.Sprint(time.Now().Sub(startedAt)),
@@ -120,7 +120,8 @@ func DoAsyncVuln(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, 
 }
 
 func checkVulnerabilities(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
-	vulnPath string, config config.FleetConfig, vulnWebhookCfg fleet.VulnerabilitiesWebhookSettings) map[string][]string {
+	vulnPath string, config config.FleetConfig, vulnWebhookCfg fleet.VulnerabilitiesWebhookSettings,
+) map[string][]string {
 	err := vulnerabilities.TranslateSoftwareToCPE(ctx, ds, vulnPath, logger, config)
 	if err != nil {
 		level.Error(logger).Log("msg", "analyzing vulnerable software: Software->CPE", "err", err)
