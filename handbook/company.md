@@ -66,6 +66,7 @@ Empathy leads to better understanding, better communication, and better decision
 - hospitality
   - "be a helper"   -mr rogers
   - think and say [positive things](https://www.theatlantic.com/family/archive/2018/06/mr-rogers-neighborhood-talking-to-kids/562352/)
+  - use the `#thanks` channel to show genuine gratitude for other team member's actions
   - talking with users and contributors is time well spent
   - embrace the excitement of others (it's contagious)
   - make small talk at the beginning of meetings

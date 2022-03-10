@@ -64,7 +64,7 @@
     }
   }
 
-  .rightcarat {
+  .rightcaret {
     &::before {
       content: url("../assets/images/icon-chevron-blue-16x16@2x.png");
       transform: scale(0.5) rotate(-90deg);
@@ -76,7 +76,7 @@
     }
   }
 
-  .upcarat {
+  .upcaret {
     &::before {
       content: url("../assets/images/icon-chevron-blue-16x16@2x.png");
       transform: scale(0.5) rotate(180deg);
@@ -159,7 +159,7 @@
   }
   &__count {
     display: flex;
-    
+
     :first-child {
       margin-right: $pad-small;
     }

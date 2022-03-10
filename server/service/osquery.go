@@ -281,6 +281,10 @@ type getClientConfigRequest struct {
 	NodeKey string `json:"node_key"`
 }
 
+func (r *getClientConfigRequest) hostNodeKey() string {
+	return r.NodeKey
+}
+
 type getClientConfigResponse struct {
 	Config map[string]interface{}
 	Err    error `json:"error,omitempty"`
@@ -459,6 +463,10 @@ type getDistributedQueriesRequest struct {
 	NodeKey string `json:"node_key"`
 }
 
+func (r *getDistributedQueriesRequest) hostNodeKey() string {
+	return r.NodeKey
+}
+
 type getDistributedQueriesResponse struct {
 	Queries    map[string]string `json:"queries"`
 	Accelerate uint              `json:"accelerate,omitempty"`
@@ -626,6 +634,10 @@ type submitDistributedQueryResultsRequestShim struct {
 	Results  map[string]json.RawMessage `json:"queries"`
 	Statuses map[string]interface{}     `json:"statuses"`
 	Messages map[string]string          `json:"messages"`
+}
+
+func (shim *submitDistributedQueryResultsRequestShim) hostNodeKey() string {
+	return shim.NodeKey
 }
 
 func (shim *submitDistributedQueryResultsRequestShim) toRequest(ctx context.Context) (*SubmitDistributedQueryResultsRequest, error) {
@@ -1056,6 +1068,10 @@ type submitLogsRequest struct {
 	NodeKey string          `json:"node_key"`
 	LogType string          `json:"log_type"`
 	Data    json.RawMessage `json:"data"`
+}
+
+func (r *submitLogsRequest) hostNodeKey() string {
+	return r.NodeKey
 }
 
 type submitLogsResponse struct {

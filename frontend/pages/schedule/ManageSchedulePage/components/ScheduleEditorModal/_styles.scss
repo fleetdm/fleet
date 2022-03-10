@@ -36,38 +36,6 @@
     margin-left: 12px;
   }
 
-  &__advanced-options-button {
-    margin: $pad-medium 0;
-    color: $core-vibrant-blue;
-    font-weight: $bold;
-    font-size: $x-small;
-  }
-
-  .downcarat {
-    &::after {
-      content: url("../assets/images/icon-chevron-blue-16x16@2x.png");
-      transform: scale(0.5);
-      width: 16px;
-      border-radius: 0px;
-      padding: 0px;
-      padding-left: 2px;
-      margin-bottom: 2px;
-    }
-  }
-
-  .afterupcarat {
-    &::after {
-      content: url("../assets/images/icon-chevron-blue-16x16@2x.png");
-      transform: scale(0.5) rotate(180deg);
-      width: 16px;
-      border-radius: 0px;
-      padding: 0px;
-      padding-left: 2px;
-      margin-bottom: 4px;
-      margin-left: 14px;
-    }
-  }
-
   .Select-value-label {
     font-size: $small;
   }

@@ -129,7 +129,7 @@ CREATE TABLE `host_device_auth` (
   `host_id` int(10) unsigned NOT NULL,
   `token` varchar(255) NOT NULL,
   PRIMARY KEY (`host_id`),
-  KEY `idx_host_device_auth_token` (`token`)
+  UNIQUE KEY `idx_host_device_auth_token` (`token`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;

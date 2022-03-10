@@ -23,11 +23,11 @@ import usersAPI, { IGetMeResponse } from "services/entities/users";
 import { DEFAULT_POLICY } from "utilities/constants";
 
 import Button from "components/buttons/Button";
+import RevealButton from "components/buttons/RevealButton";
 import InfoBanner from "components/InfoBanner/InfoBanner";
 import Spinner from "components/Spinner";
 import TeamsDropdown from "components/TeamsDropdown";
 import TableDataError from "components/TableDataError";
-import TooltipWrapper from "components/TooltipWrapper";
 import PoliciesListWrapper from "./components/PoliciesListWrapper";
 import ManageAutomationsModal from "./components/ManageAutomationsModal";
 import AddPolicyModal from "./components/AddPolicyModal";
@@ -464,25 +464,23 @@ const ManagePolicyPage = ({
             ))}
         </div>
         {showInheritedPoliciesButton && globalPolicies && (
-          <span>
-            <Button
-              variant="unstyled"
-              className={`${showInheritedPolicies ? "upcarat" : "rightcarat"} 
-                     ${baseClass}__inherited-policies-button`}
-              onClick={toggleShowInheritedPolicies}
-            >
-              <TooltipWrapper
-                tipContent={
-                  '"All teams" policies are checked <br/> for this team’s hosts.'
-                }
-              >
-                {inheritedPoliciesButtonText(
-                  showInheritedPolicies,
-                  globalPolicies.length
-                )}
-              </TooltipWrapper>
-            </Button>
-          </span>
+          <RevealButton
+            isShowing={showInheritedPolicies}
+            baseClass={baseClass}
+            hideText={inheritedPoliciesButtonText(
+              showInheritedPolicies,
+              globalPolicies.length
+            )}
+            showText={inheritedPoliciesButtonText(
+              showInheritedPolicies,
+              globalPolicies.length
+            )}
+            caretPosition={"before"}
+            tooltipHtml={
+              '"All teams" policies are checked <br/> for this team’s hosts.'
+            }
+            onClick={toggleShowInheritedPolicies}
+          />
         )}
         {showInheritedPoliciesButton && showInheritedPolicies && (
           <div className={`${baseClass}__inherited-policies-table`}>
