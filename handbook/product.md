@@ -323,7 +323,6 @@ Use `---`, with color `$ui-fleet-black-50` as the default UI for empty columns.
 
 Pressing the return or enter key with an open form will cause the form to be submitted.
 
-<meta name="maintainedBy" value="noahtalerman">
 
 ## Release 
 
