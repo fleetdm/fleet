@@ -64,16 +64,10 @@ function create_repository() {
     rm $orbit_target
   done
 
-  # Finally, add osqueryd .app bundle for macos-app
-  # TODO(lucas): Implement code in this branch in a fleetctl command.
-  curl -L https://pkg.osquery.io/darwin/osquery-5.1.0.pkg --output $TUF_PATH/tmp/osquery-5.1.0.pkg
-  rm -rf $TUF_PATH/tmp/osquery_pkg_expanded
-  pkgutil --expand $TUF_PATH/tmp/osquery-5.1.0.pkg $TUF_PATH/tmp/osquery_pkg_expanded
-  rm -rf $TUF_PATH/tmp/osquery_pkg_payload_expanded
-  mkdir -p $TUF_PATH/tmp/osquery_pkg_payload_expanded
-  tar xf $TUF_PATH/tmp/osquery_pkg_expanded/Payload --directory $TUF_PATH/tmp/osquery_pkg_payload_expanded
-  osqueryd_path="$TUF_PATH/tmp/osqueryd.app.tar.gz"
-  tar czf $osqueryd_path -C $TUF_PATH/tmp/osquery_pkg_payload_expanded/opt/osquery/lib osquery.app
+  # Generate and add osqueryd .app bundle for macos-app.
+  osqueryd_path=$TUF_PATH/tmp/osqueryd.app.tar.gz
+  make osqueryd-app-tar-gz version=5.1.0 out-path=$(dirname $osqueryd_path)
+  osquery_path=$TUF_PATH/path/osqueryd.app.tar.gz
   ./build/fleetctl updates add \
     --path $TUF_PATH \
     --target $osqueryd_path \
@@ -82,7 +76,6 @@ function create_repository() {
     --version 42.0.0 -t 42.0 -t 42 -t stable
   rm $osqueryd_path
 }
-
 
 if [ ! -d "$TUF_PATH/repository" ]; then
   mkdir -p $TUF_PATH
