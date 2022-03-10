@@ -136,7 +136,7 @@ const ManageAutomationsModal = ({
         .map((policy) => policy.id);
 
     // URL validation only needed if at least one policy is checked
-    if (valid || policy_ids.length === 0) {
+    if (valid || !enableFailingPoliciesWebhook) {
       onCreateWebhookSubmit({
         destination_url,
         policy_ids,
