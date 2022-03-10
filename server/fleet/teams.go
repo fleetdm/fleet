@@ -52,7 +52,11 @@ type Team struct {
 }
 
 type TeamConfig struct {
-	WebhookSettings WebhookSettings `json:"webhook_settings"`
+	WebhookSettings TeamWebhookSettings `json:"webhook_settings"`
+}
+
+type TeamWebhookSettings struct {
+	FailingPoliciesWebhook FailingPoliciesWebhookSettings `json:"failing_policies_webhook"`
 }
 
 // Scan implements the sql.Scanner interface

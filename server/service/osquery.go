@@ -790,9 +790,27 @@ func (svc *Service) SubmitDistributedQueryResults(
 	}
 
 	if len(policyResults) > 0 {
+
+		// filter policy results for webhooks
+		var policyIDs []uint
 		if ac.WebhookSettings.FailingPoliciesWebhook.Enable {
-			incomingResults := filterPolicyResults(policyResults, ac.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
-			if failingPolicies, passingPolicies, err := svc.ds.FlippingPoliciesForHost(ctx, host.ID, incomingResults); err != nil {
+			policyIDs = append(policyIDs, ac.WebhookSettings.FailingPoliciesWebhook.PolicyIDs...)
+		}
+		if host.TeamID != nil {
+			// TODO: consider caching team config
+			team, err := svc.ds.Team(ctx, *host.TeamID)
+			if err != nil {
+				logging.WithErr(ctx, err)
+			} else {
+				if team.Config.WebhookSettings.FailingPoliciesWebhook.Enable {
+					policyIDs = append(policyIDs, team.Config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs...)
+				}
+			}
+		}
+
+		filteredResults := filterPolicyResults(policyResults, policyIDs)
+		if len(filteredResults) > 0 {
+			if failingPolicies, passingPolicies, err := svc.ds.FlippingPoliciesForHost(ctx, host.ID, filteredResults); err != nil {
 				logging.WithErr(ctx, err)
 			} else {
 				// Register the flipped policies on a goroutine to not block the hosts on redis requests.

@@ -845,7 +845,9 @@ func cronWebhooks(
 
 		// We set the db lock durations to match the intervalReload.
 		maybeTriggerHostStatus(ctx, ds, logger, identifier, appConfig, intervalReload)
-		maybeTriggerGlobalFailingPoliciesWebhook(ctx, ds, logger, identifier, appConfig, intervalReload, failingPoliciesSet)
+		maybeTriggerFailingPoliciesWebhook(ctx, ds, logger, identifier, appConfig, intervalReload, failingPoliciesSet)
+
+		// TODO: trigger team policies webhooks
 
 		level.Debug(logger).Log("loop", "done")
 	}
@@ -872,7 +874,7 @@ func maybeTriggerHostStatus(
 	}
 }
 
-func maybeTriggerGlobalFailingPoliciesWebhook(
+func maybeTriggerFailingPoliciesWebhook(
 	ctx context.Context,
 	ds fleet.Datastore,
 	logger kitlog.Logger,
@@ -886,7 +888,7 @@ func maybeTriggerGlobalFailingPoliciesWebhook(
 		return
 	}
 
-	if err := webhooks.TriggerGlobalFailingPoliciesWebhook(
+	if err := webhooks.TriggerFailingPoliciesWebhook(
 		ctx, ds, kitlog.With(logger, "webhook", "failing_policies"), appConfig, failingPoliciesSet, time.Now(),
 	); err != nil {
 		level.Error(logger).Log("err", "triggering failing policies webhook", "details", err)
