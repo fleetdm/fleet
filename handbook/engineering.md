@@ -26,18 +26,18 @@ Documentation on completing the release process can be found
 
 This section outlines the on-call rotation at Fleet.
 
-The on-call engineer is responsible for responding to technical Slack comments, Slack threads, and GitHub issues raised by customers and the community which cannot handled by the [Customer Success team](./customers.md).
+The on-call engineer is responsible for responding to technical Slack comments, Slack threads, and GitHub issues raised by customers and the community which cannot be handled by the [Customer Success team](./customers.md).
 
 ### Goals
-At Fleet, our primary quality objectives are *customer service* and *defect reduction*. This entails Key Performance Indicators such as customer response time and number of bugs resolved per cycle and. 
+At Fleet, our primary quality objectives are *customer service* and *defect reduction*. This entails Key Performance Indicators such as customer response time and the number of bugs resolved per cycle and: 
 
-- Get familiar with and stay abreast of what our community wants and the problems they're having.
+- Become familiar with and stay abreast of what our community wants and the problems they're having.
 
 - Make people feel heard and understood.  
 
 - Celebrate contributions. 
 
-- Triage bugs, identify community feature requests, community pull requests and community questions.
+- Triage bugs, identify community feature requests, community pull requests, and community questions.
 
 ### How?
 
@@ -55,19 +55,19 @@ At Fleet, our primary quality objectives are *customer service* and *defect redu
 
 Typically, the *questions*, *bug reports*, and *feature requests* raised by members of the community will be missing helpful context, recreation steps, or motivations respectively.
 
-❓ For questions that you don't immediately know the answer to, it's helpful to ask follow up questions to receive additional context. 
+❓ For questions that you don't immediately know the answer to, it's helpful to ask follow-up questions to receive additional context. 
 
-- Let's say a community member asks the question "How do I do X in Fleet?" A follow question could be "what are you attempting to accomplish by doing X?" 
-- This way, you now has additional details when the primary question is brought to the Roundup meeting. In addition, the community member receives a response and feels heard.
+- Let's say a community member asks the question "How do I do X in Fleet?" A follow question could be "What are you attempting to accomplish by doing X?" 
+- This way, you have additional details when the primary question is brought to the Roundup meeting. In addition, the community member receives a response and feels heard.
 
 🦟 For bug reports, it's helpful to ask for recreation steps so you're later able to verify the bug exists.
 
 - Let's say a community member submits a bug report. An example follow up question could be "Can you please walk me through how you encountered this issue so that I can attempt to recreate it?"
-- This way, you now have steps the verify whether the bug exists in Fleet or if the issue is specific to the community member's environment. If the latter, you now have additional information for further investigation and question asking.
+- This way, you now have steps that verify whether the bug exists in Fleet or if the issue is specific to the community member's environment. If the latter, you now have additional information for further investigation and question-asking.
 
-💡 For feature requests, it's helpful to ask follow up questions in an attempt to understand the "why?" or underlying motivation behind the request.
+💡 For feature requests, it's helpful to ask follow-up questions in an attempt to understand the "Why?" or underlying motivation behind the request.
 
-- Let's say a community member submits the feature request "I want the ability to do X in Fleet." A follow up question could be "If you were able to do X in Fleet, what's the next action you would take?" or "Why do you want to do X in Fleet?." 
+- Let's say a community member submits the feature request "I want the ability to do X in Fleet." A follow-up question could be "If you were able to do X in Fleet, what's the next action you would take?" or "Why do you want to do X in Fleet?." 
 - Both of these questions provide helpful context on the underlying motivation behind the feature request when it is brought to the Roundup meeting. In addition, the community member receives a response and feels heard.
 
 ### Feature requests
@@ -78,7 +78,7 @@ If the feature is requested by anyone other than a customer (ex. user in #fleet 
 
 ### Closing issues
 
-It is often a good idea to let the original poster (OP) close their issue themselves, since they are usually well equipped to decide whether the issue is resolved.   In some cases, circling back with the OP can be impractical, and for the sake of speed issues might get closed.
+It is often a good idea to let the original poster (OP) close their issue themselves since they are usually well equipped to decide whether the issue is resolved.   In some cases, circling back with the OP can be impractical, and for the sake of speed, issues might get closed.
 
 Keep in mind that this can feel jarring to the OP.  The effect is worse if issues are closed automatically by a bot (See [balderashy/sails#3423](https://github.com/balderdashy/sails/issues/3423#issuecomment-169751072) and [balderdashy/sails#4057](https://github.com/balderdashy/sails/issues/4057) for examples of this.)
 
@@ -105,7 +105,7 @@ There are four sources that the on-call engineer should monitor for activity:
 
 2. Community chatroom - https://osquery.slack.com, #fleet channel
 
-3. Reported bugs - [GitHub issues with the "bug" and ":reproduce" label](https://github.com/fleetdm/fleet/issues?q=is%3Aopen+is%3Aissue+label%3Abug+label%3A%3Areproduce). Please remove the ":reproduce" label after you've followed up in the issue.
+3. Reported bugs - [GitHub issues with the "bug" and ":reproduce" label](https://github.com/fleetdm/fleet/issues?q=is%3Aopen+is%3Aissue+label%3Abug+label%3A%3Areproduce). Please remove the ":reproduce" labels after you've followed up in the issue.
 
 4. Pull requests opened by the community - [GitHub open pull requests](https://github.com/fleetdm/fleet/pulls?q=is%3Aopen+is%3Apr)
 
@@ -116,6 +116,22 @@ There are several locations in Fleet's public and internal documentation that ca
 1. The frequently asked question (FAQ) documents in each section found in the `/docs` folder. These documents are the [Using Fleet FAQ](../docs/Using-Fleet/FAQ.md), [Deploying FAQ](../docs/Deploying/FAQ.md), and [Contributing FAQ](../docs/Contributing/FAQ.md).
 
 2. The [Internal FAQ](https://docs.google.com/document/d/1I6pJ3vz0EE-qE13VmpE2G3gd5zA1m3bb_u8Q2G3Gmp0/edit#heading=h.ltavvjy511qv) document.
+
+### Handoff
+
+Every week, the on-call engineer changes. Here are some tips for making this handoff go smoothly:
+
+1. The new on-call engineer should change the `@oncall` alias in Slack to point to them. In the
+   search box, type "people" and select "People & user groups". Switch to the "User groups" tab.
+   Click `@oncall`. In the right sidebar, click "Edit Members". Remove the former on-call, and add
+   yourself.
+
+2. Hand off newer conversations. For newer threads, the former on-call can unsubscribe from the
+   thread, and the new on-call should subscribe. The former on-call should explicitly share each of
+   these threads, and the new on-call can select "Get notified about new replies" in the "..." menu.
+   The former on-call can select "Turn off notifications for replies" in that same menu. It can be
+   helpful for the former on-call to remain available for any conversations they were deeply involved
+   in, so use your judgment on which threads to handoff.
 
 ## Slack channels
 
@@ -132,4 +148,3 @@ These are the Slack channels the core engineering team maintains. If the channel
 
 
 <meta name="maintainedBy" value="zwass">
-
