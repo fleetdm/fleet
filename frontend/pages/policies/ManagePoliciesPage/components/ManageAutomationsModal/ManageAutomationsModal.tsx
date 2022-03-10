@@ -22,6 +22,7 @@ interface IManageAutomationsModalProps {
   availablePolicies: IPolicy[];
   currentAutomatedPolicies?: number[];
   currentDestinationUrl?: string;
+  enableFailingPoliciesWebhook: boolean;
 }
 
 interface ICheckedPolicy {
@@ -93,6 +94,7 @@ const ManageAutomationsModal = ({
   availablePolicies,
   currentAutomatedPolicies,
   currentDestinationUrl,
+  enableFailingPoliciesWebhook,
 }: IManageAutomationsModalProps): JSX.Element => {
   const [destination_url, setDestinationUrl] = useState<string>(
     currentDestinationUrl || ""
@@ -101,7 +103,7 @@ const ManageAutomationsModal = ({
   const [
     policyAutomationEnabled,
     setPolicyAutomationEnabled,
-  ] = useState<boolean>(false);
+  ] = useState<boolean>(enableFailingPoliciesWebhook);
 
   const { policyItems, updatePolicyItems } = useCheckboxListStateManagement(
     availablePolicies,
@@ -132,14 +134,13 @@ const ManageAutomationsModal = ({
       policyItems
         .filter((policy) => policy.isChecked)
         .map((policy) => policy.id);
-    const enable_failing_policies_webhook = true; // Leave nearest component in case we decide to add disabling as a UI feature
 
     // URL validation only needed if at least one policy is checked
     if (valid || policy_ids.length === 0) {
       onCreateWebhookSubmit({
         destination_url,
         policy_ids,
-        enable_failing_policies_webhook,
+        enable_failing_policies_webhook: policyAutomationEnabled,
       });
 
       onReturnToApp();
