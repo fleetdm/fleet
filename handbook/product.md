@@ -374,5 +374,8 @@ These are the Slack channels the product team maintains. If the channel has a [d
 
 **Who should have these channels unmuted?** Members of this group, everyone else is encouraged to mute them.
 
+## Competition
+
+We track the capabilities of competitors in this [Google Doc](https://docs.google.com/document/d/1SpAP8Y8eLa-KvkaHi5m507efSFX570EaKbrbRHM4RGs/edit#) (private).
 
 <meta name="maintainedBy" value="noahtalerman">
