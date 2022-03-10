@@ -4,8 +4,6 @@ import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import Slider from "components/forms/fields/Slider";
 // @ts-ignore
-import Checkbox from "components/forms/fields/Checkbox";
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 
 import { IWebhookSoftwareVulnerabilities } from "interfaces/webhook";
