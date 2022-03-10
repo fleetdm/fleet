@@ -80,11 +80,11 @@ At Fleet, we have team members with various employment classifications in many d
 
 When a team member joins Fleet, they pick one of the following holiday schedules:
 
- - Based on the country where you work. Non-US team members should let their managers know the dates of national holidays.
+ - **Traditional**: Based on the country where you work. Non-US team members should let their managers know the dates of national holidays.
 
  **Or**
 
- - No set schedule, start with no holidays and add the days that are holidays to you.
+ - **Freestyle**: No set schedule, start with no holidays and add the days that are holidays to you.
 
 Either way, it's up to you to ensure that your responsibilities are covered and your team knows that you're out of the office.
 
