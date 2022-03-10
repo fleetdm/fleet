@@ -4,7 +4,7 @@
     position: relative;
   }
 
-  &__carat {
+  &__caret {
     font-size: 6px;
     vertical-align: middle;
     margin-left: 10px;
@@ -57,7 +57,7 @@
   }
 }
 
-.downcarat {
+.downcaret {
   &::after {
     content: url("../assets/images/icon-chevron-white-16x16@2x.png");
     transform: scale(0.5);

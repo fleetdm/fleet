@@ -44,15 +44,6 @@ interface IHeaderProps {
   };
 }
 
-interface IDataColumn {
-  title: string;
-  Header: ((props: IHeaderProps) => JSX.Element) | string;
-  accessor: string;
-  Cell: (props: ICellProps) => JSX.Element;
-  disableHidden?: boolean;
-  disableSortBy?: boolean;
-}
-
 const condense = (vulnerabilities: IVulnerability[]): string[] => {
   const condensed =
     (vulnerabilities?.length &&

@@ -234,6 +234,10 @@ type Service interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// HostService
 
+	// AuthenticateDevice loads host identified by the device's auth token.
+	// Returns an error if the auth token doesn't exist.
+	AuthenticateDevice(ctx context.Context, authToken string) (host *Host, debug bool, err error)
+
 	ListHosts(ctx context.Context, opt HostListOptions) (hosts []*Host, err error)
 	GetHost(ctx context.Context, id uint) (host *HostDetail, err error)
 	GetHostSummary(ctx context.Context, teamID *uint, platform *string) (summary *HostSummary, err error)

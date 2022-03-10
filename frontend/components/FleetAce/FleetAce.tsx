@@ -24,7 +24,7 @@ export interface IFleetAceProps {
   hint?: string;
   labelActionComponent?: React.ReactNode;
   onLoad?: (editor: IAceEditor) => void;
-  onChange?: (value: string, event?: any) => void;
+  onChange?: (value: string) => void;
   handleSubmit?: () => void;
 }
 

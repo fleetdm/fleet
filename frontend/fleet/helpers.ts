@@ -1,18 +1,15 @@
 import { flatMap, omit, pick, size, memoize } from "lodash";
 import md5 from "js-md5";
-import {
-  format,
-  formatDistanceToNow,
-  formatDuration,
-  isAfter,
-  millisecondsToHours,
-  millisecondsToSeconds,
-} from "date-fns";
+import { format, formatDistanceToNow, isAfter } from "date-fns";
 import yaml from "js-yaml";
 
 import { IConfigNested } from "interfaces/config";
 import { ILabel } from "interfaces/label";
 import { IPack } from "interfaces/pack";
+import {
+  IScheduledQuery,
+  IPackQueryFormData,
+} from "interfaces/scheduled_query";
 import {
   ISelectTargetsEntity,
   ISelectedTargets,
@@ -20,7 +17,6 @@ import {
 } from "interfaces/target";
 import { ITeam, ITeamSummary } from "interfaces/team";
 import { IUser } from "interfaces/user";
-import { IPackQueryFormData } from "interfaces/scheduled_query";
 
 import stringUtils from "utilities/strings";
 import sortUtils from "utilities/sort";
@@ -296,7 +292,9 @@ export const formatScheduledQueryForServer = (
   return result;
 };
 
-export const formatScheduledQueryForClient = (scheduledQuery: any): any => {
+export const formatScheduledQueryForClient = (
+  scheduledQuery: IScheduledQuery
+): IScheduledQuery => {
   if (scheduledQuery.platform === "") {
     scheduledQuery.platform = "all";
   }
@@ -320,7 +318,9 @@ export const formatScheduledQueryForClient = (scheduledQuery: any): any => {
   return scheduledQuery;
 };
 
-export const formatGlobalScheduledQueryForServer = (scheduledQuery: any) => {
+export const formatGlobalScheduledQueryForServer = (
+  scheduledQuery: IScheduledQuery
+): IScheduledQuery => {
   const {
     interval,
     logging_type: loggingType,
@@ -355,8 +355,8 @@ export const formatGlobalScheduledQueryForServer = (scheduledQuery: any) => {
 };
 
 export const formatGlobalScheduledQueryForClient = (
-  scheduledQuery: any
-): any => {
+  scheduledQuery: IScheduledQuery
+): IScheduledQuery => {
   if (scheduledQuery.platform === "") {
     scheduledQuery.platform = "all";
   }
@@ -380,7 +380,9 @@ export const formatGlobalScheduledQueryForClient = (
   return scheduledQuery;
 };
 
-export const formatTeamScheduledQueryForServer = (scheduledQuery: any) => {
+export const formatTeamScheduledQueryForServer = (
+  scheduledQuery: IScheduledQuery
+) => {
   const {
     interval,
     logging_type: loggingType,
@@ -419,7 +421,9 @@ export const formatTeamScheduledQueryForServer = (scheduledQuery: any) => {
   return result;
 };
 
-export const formatTeamScheduledQueryForClient = (scheduledQuery: any): any => {
+export const formatTeamScheduledQueryForClient = (
+  scheduledQuery: IScheduledQuery
+): IScheduledQuery => {
   if (scheduledQuery.platform === "") {
     scheduledQuery.platform = "all";
   }
@@ -612,7 +616,6 @@ export const licenseExpirationWarning = (expiration: string): boolean => {
   return isAfter(new Date(), new Date(expiration));
 };
 
-// IQueryStats became any when adding in IGlobalScheduledQuery and ITeamScheduledQuery
 export const performanceIndicator = (
   scheduledQueryStats: IScheduledQueryStats
 ): string => {

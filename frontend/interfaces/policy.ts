@@ -49,11 +49,11 @@ export interface ILoadAllPoliciesResponse {
 }
 
 export interface IPolicyFormData {
-  description?: string | number | boolean | any[] | undefined;
-  resolution?: string | number | boolean | any[] | undefined;
+  description?: string | number | boolean | undefined;
+  resolution?: string | number | boolean | undefined;
   platform?: IQueryPlatform;
-  name?: string | number | boolean | any[] | undefined;
-  query?: string | number | boolean | any[] | undefined;
+  name?: string | number | boolean | undefined;
+  query?: string | number | boolean | undefined;
   team_id?: number;
   id?: number;
 }

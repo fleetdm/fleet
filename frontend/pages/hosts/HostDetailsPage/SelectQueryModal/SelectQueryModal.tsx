@@ -1,8 +1,6 @@
 import React, { useState, useCallback } from "react";
 
 import { filter, includes } from "lodash";
-
-import { IHost } from "interfaces/host";
 import { IQuery } from "interfaces/query";
 
 import Button from "components/buttons/Button";
@@ -14,12 +12,11 @@ import OpenNewTabIcon from "../../../../../assets/images/open-new-tab-12x12@2x.p
 import ErrorIcon from "../../../../../assets/images/icon-error-16x16@2x.png";
 
 export interface ISelectQueryModalProps {
-  host: IHost;
   onCancel: () => void;
   onQueryHostCustom: () => void;
   onQueryHostSaved: (selectedQuery: IQuery) => void;
   queries: IQuery[] | [];
-  queryErrors: any | null;
+  queryErrors: Error | null;
   isOnlyObserver: boolean | undefined;
 }
 

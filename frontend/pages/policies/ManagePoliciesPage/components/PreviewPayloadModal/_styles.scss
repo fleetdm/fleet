@@ -39,7 +39,7 @@
     font-size: $x-small;
   }
 
-  .downcarat {
+  .downcaret {
     &::after {
       content: url("../assets/images/icon-chevron-blue-16x16@2x.png");
       transform: scale(0.5);
@@ -51,7 +51,7 @@
     }
   }
 
-  .upcarat {
+  .upcaret {
     &::after {
       content: url("../assets/images/icon-chevron-blue-16x16@2x.png");
       transform: scale(0.5) rotate(180deg);

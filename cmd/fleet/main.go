@@ -61,5 +61,4 @@ func applyDevFlags(cfg *config.FleetConfig) {
 	cfg.Mysql.Username = "fleet"
 	cfg.Mysql.Database = "fleet"
 	cfg.Mysql.Password = "insecure"
-	cfg.Session.Duration = 7 * 24 * time.Hour
 }

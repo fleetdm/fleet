@@ -64,7 +64,7 @@ const SoftwareTable = ({
     <div className="section section--software">
       <p className="section__header">Software</p>
 
-      {software.length ? (
+      {software?.length ? (
         <>
           {software && <SoftwareVulnCount softwareList={software} />}
           {software && (

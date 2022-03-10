@@ -10,6 +10,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mail"
@@ -263,4 +264,52 @@ func (svc *Service) DeleteInvite(ctx context.Context, id uint) error {
 		return err
 	}
 	return svc.ds.DeleteInvite(ctx, id)
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Verify invite
+////////////////////////////////////////////////////////////////////////////////
+
+type verifyInviteRequest struct {
+	Token string `url:"token"`
+}
+
+type verifyInviteResponse struct {
+	Invite *fleet.Invite `json:"invite"`
+	Err    error         `json:"error,omitempty"`
+}
+
+func (r verifyInviteResponse) error() error { return r.Err }
+
+func verifyInviteEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*verifyInviteRequest)
+	invite, err := svc.VerifyInvite(ctx, req.Token)
+	if err != nil {
+		return verifyInviteResponse{Err: err}, nil
+	}
+	return verifyInviteResponse{Invite: invite}, nil
+}
+
+func (svc *Service) VerifyInvite(ctx context.Context, token string) (*fleet.Invite, error) {
+	// skipauth: There is no viewer context at this point. We rely on verifying
+	// the invite for authNZ.
+	svc.authz.SkipAuthorization(ctx)
+
+	logging.WithExtras(ctx, "token", token)
+
+	invite, err := svc.ds.InviteByToken(ctx, token)
+	if err != nil {
+		return nil, err
+	}
+
+	if invite.Token != token {
+		return nil, fleet.NewInvalidArgumentError("invite_token", "Invite Token does not match Email Address.")
+	}
+
+	expiresAt := invite.CreatedAt.Add(svc.config.App.InviteTokenValidityPeriod)
+	if svc.clock.Now().After(expiresAt) {
+		return nil, fleet.NewInvalidArgumentError("invite_token", "Invite token has expired.")
+	}
+
+	return invite, nil
 }

@@ -319,9 +319,6 @@ We have certain design conventions that we include in Fleet. We will document mo
 
 Use `---`, with color `$ui-fleet-black-50` as the default UI for empty columns.
 
-
-<meta name="maintainedBy" value="noahtalerman">
-
 ## Release 
 
 This section outlines the communication between the product team and growth team and product team
@@ -367,3 +364,18 @@ The following highlights should be considered when deciding if feature flags sho
 - The feature flag will not be advertised. For example, advertising in the documentation on fleetdm.com/docs, release notes, release blog posts, and Twitter.
 
 Fleet's feature flag guidelines borrows from GitLab's ["When to use feature flags" section](https://about.gitlab.com/handbook/product-development-flow/feature-flag-lifecycle/#when-to-use-feature-flags) of their handbook. Check out [GitLab's "Feature flags only when needed" video](https://www.youtube.com/watch?v=DQaGqyolOd8) for an explanation on the costs of introducing feature flags.
+
+
+## Slack channels
+
+These are the Slack channels the product team maintains. If the channel has a [directly responsible individual](./people.md#directly-resonsible-individuals) (**DRI**), they will be specified. These people are responsible for keeping up with all new messages, even if they aren't mentioned. 
+
+- **#g-product** - **DRI**: - Noah Talerman
+
+**Who should have these channels unmuted?** Members of this group, everyone else is encouraged to mute them.
+
+## Competition
+
+We track the capabilities of competitors in this [Google Doc](https://docs.google.com/document/d/1SpAP8Y8eLa-KvkaHi5m507efSFX570EaKbrbRHM4RGs/edit#) (private).
+
+<meta name="maintainedBy" value="noahtalerman">
