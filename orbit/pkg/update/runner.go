@@ -19,7 +19,7 @@ type RunnerOptions struct {
 	Targets []string
 }
 
-// Runner is a specialized runner for a Updater. It is designed with Execute and
+// Runner is a specialized runner for an Updater. It is designed with Execute and
 // Interrupt functions to be compatible with oklog/run.
 //
 // It uses an Updater and makes sure to keep its targets up-to-date.

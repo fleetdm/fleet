@@ -289,7 +289,7 @@ db-restore:
 # make osqueryd-app-tar-gz version=5.1.0 out-path=.
 osqueryd-app-tar-gz:
 ifneq ($(shell uname), Darwin)
-	@echo "Target only supported on macOS"
+	@echo "Makefile target osqueryd-app-tar-gz is only supported on macOS"
 	@exit 1
 endif
 	$(eval TMP_DIR := $(shell mktemp -d))

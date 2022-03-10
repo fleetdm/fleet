@@ -66,7 +66,7 @@ function create_repository() {
 
   # Generate and add osqueryd .app bundle for macos-app.
   osqueryd_path=$TUF_PATH/tmp/osqueryd.app.tar.gz
-  make osqueryd-app-tar-gz version=5.1.0 out-path=$(dirname $osqueryd_path)
+  make osqueryd-app-tar-gz version=5.2.2 out-path=$(dirname $osqueryd_path)
   osquery_path=$TUF_PATH/path/osqueryd.app.tar.gz
   ./build/fleetctl updates add \
     --path $TUF_PATH \
