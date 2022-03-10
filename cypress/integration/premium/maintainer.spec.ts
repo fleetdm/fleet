@@ -306,6 +306,30 @@ describe("Premium tier - Maintainer user", () => {
           cy.findByRole("button", { name: /save/i }).should("exist");
         });
       });
+      // it("allows global maintainer to automate a global policy", () => {
+      //   cy.getAttached(".button-wrap")
+      //     .findByRole("button", { name: /manage automations/i })
+      //     .click();
+      //   cy.getAttached(".manage-automations-modal").within(() => {
+      //     cy.getAttached(".fleet-checkbox__input").check({ force: true });
+      //     cy.getAttached("#webhook-url").type("https://example.com");
+      //     cy.findByText(/save/i).click();
+      //   });
+      //   cy.findByText(/successfully updated policy automations/i).should("exist");
+      // });
+      // it("allows global maintainer to automate a team policy", () => {
+      //   cy.findByText(/all teams/i).click();
+      //   cy.findByText(/apples/i).click();
+      //   cy.getAttached(".button-wrap")
+      //     .findByRole("button", { name: /manage automations/i })
+      //     .click();
+      //   cy.getAttached(".manage-automations-modal").within(() => {
+      //     cy.getAttached(".fleet-checkbox__input").check({ force: true });
+      //     cy.getAttached("#webhook-url").clear().type("https://more-examples.com");
+      //     cy.findByText(/save/i).click();
+      //   });
+      //   cy.findByText(/successfully updated policy automations/i).should("exist");
+      // });
     });
     describe("User profile page", () => {
       it("renders elements according to role-based access controls", () => {

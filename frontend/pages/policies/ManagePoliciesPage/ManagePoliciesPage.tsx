@@ -200,10 +200,6 @@ const ManagePolicyPage = ({
   const toggleShowInheritedPolicies = () =>
     setShowInheritedPolicies(!showInheritedPolicies);
 
-  const onManageAutomationsClick = () => {
-    toggleManageAutomationsModal();
-  };
-
   const onCreateWebhookSubmit = async ({
     destination_url,
     policy_ids,
@@ -316,6 +312,9 @@ const ManagePolicyPage = ({
     !globalPoliciesError &&
     !!globalPolicies?.length;
 
+  const availablePoliciesForAutomation =
+    (teamId ? teamPolicies : globalPolicies) || [];
+
   // If team_id from URL query params is not valid, we instead use a default team
   // either the current team (if any) or all teams (for global users) or
   // the first available team (for non-global users)
@@ -373,11 +372,10 @@ const ManagePolicyPage = ({
           </div>
           <div className={`${baseClass} button-wrap`}>
             {canAddOrRemovePolicy &&
-              teamId === 0 &&
               !isLoadingFailingPoliciesWebhook &&
               !isLoadingGlobalPolicies && (
                 <Button
-                  onClick={() => onManageAutomationsClick()}
+                  onClick={() => toggleManageAutomationsModal()}
                   className={`${baseClass}__manage-automations button`}
                   variant="inverse"
                 >
@@ -510,7 +508,7 @@ const ManagePolicyPage = ({
             onCreateWebhookSubmit={onCreateWebhookSubmit}
             togglePreviewPayloadModal={togglePreviewPayloadModal}
             showPreviewPayloadModal={showPreviewPayloadModal}
-            availablePolicies={globalPolicies || []}
+            availablePolicies={availablePoliciesForAutomation}
             currentAutomatedPolicies={currentAutomatedPolicies || []}
             currentDestinationUrl={
               (failingPoliciesWebhook &&
