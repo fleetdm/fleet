@@ -137,7 +137,7 @@ const ManageAutomationsModal = ({
             </Button>
           </div>
           {!softwareAutomationsEnabled && (
-            <div className={`${baseClass}__overlay`}></div>
+            <div className={`${baseClass}__overlay`} />
           )}
         </div>
         <div className={`${baseClass}__button-wrap`}>

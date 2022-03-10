@@ -25,7 +25,7 @@ const Slider = (props: ISliderProps): JSX.Element => {
     [`${baseClass}__dot--active`]: value,
   });
 
-  const handleClick = (evt: any) => {
+  const handleClick = (evt: React.MouseEvent) => {
     evt.preventDefault();
 
     return onChange();
