@@ -127,6 +127,7 @@ describe("Policies flow (seeded)", () => {
         cy.findByRole("button", { name: /manage automations/i }).click();
       });
       cy.getAttached(".manage-automations-modal").within(() => {
+        cy.getAttached(".fleet-slider").click();
         cy.getAttached(".fleet-checkbox__input").check({ force: true });
       });
       cy.getAttached("#webhook-url").click().type("www.foo.com/bar");
