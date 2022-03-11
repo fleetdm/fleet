@@ -260,3 +260,22 @@ TEST:
 		}
 	}
 }
+<<<<<<< Updated upstream
+=======
+
+func TestTickerRaces(t *testing.T) {
+	schedTicker := time.NewTicker(2 * time.Hour)
+
+	go func() {
+		for {
+			schedTicker.Reset(1 * time.Hour)
+		}
+	}()
+	go func() {
+		for {
+			schedTicker.Reset(3 * time.Hour)
+		}
+	}()
+	time.Sleep(10 * time.Second)
+}
+>>>>>>> Stashed changes

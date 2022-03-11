@@ -13,13 +13,13 @@ import (
 
 func SetWebhooksConfigCheck(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger) func(start time.Time, prevInterval time.Duration) (*time.Duration, error) {
 	return func(time.Time, time.Duration) (*time.Duration, error) {
-		// appConfig, err := ds.AppConfig(ctx)
-		// if err != nil {
-		// 	level.Error(logger).Log("config", "couldn't read app config", "err", err)
-		// 	return nil, err
-		// }
-		// newInterval := appConfig.WebhookSettings.Interval.ValueOr(24 * time.Hour)
-		newInterval := 30 * time.Second
+		appConfig, err := ds.AppConfig(ctx)
+		if err != nil {
+			level.Error(logger).Log("config", "couldn't read app config", "err", err)
+			return nil, err
+		}
+		newInterval := appConfig.WebhookSettings.Interval.ValueOr(24 * time.Hour)
+		// newInterval := 30 * time.Second
 
 		return &newInterval, nil
 	}

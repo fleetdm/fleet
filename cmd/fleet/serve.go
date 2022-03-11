@@ -588,7 +588,14 @@ func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.D
 	return ds.RecordStatisticsSent(ctx)
 }
 
-func runSchedules(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, config config.FleetConfig, license *fleet.LicenseInfo, failingPoliciesSet fleet.FailingPolicySet) {
+func runSchedules(
+	ctx context.Context,
+	ds fleet.Datastore,
+	logger kitlog.Logger,
+	config config.FleetConfig,
+	license *fleet.LicenseInfo,
+	failingPoliciesSet fleet.FailingPolicySet,
+) {
 	instanceID, err := server.GenerateRandomText(64) // TODO: should locking identifier be per schedule or just per server instance?
 	if err != nil {
 		initFatal(errors.New("Error generating random instance identifier"), "")
@@ -597,6 +604,40 @@ func runSchedules(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 	if err != nil {
 		level.Error(logger).Log("config", "couldn't read app config", "err", err)
 	}
+
+	// cleanupsLogger := kitlog.With(logger, "cron", "cleanups")
+	// cleanups, err := schedule.New(ctx, "cleanups", instanceID, config.Vulnerabilities.Periodicity, ds, cleanupsLogger)
+	// if err != nil {
+	// 	fmt.Println("Error creating cleanups schedule: ", err)
+	// }
+	// cleanups.AddJob("cron_cleanups", func(ctx context.Context) (interface{}, error) {
+	// 	return schedule.DoCleanups(ctx, ds, cleanupsLogger, license)
+	// }, func(interface{}, error) {})
+
+	// vulnerabilitiesLogger := kitlog.With(logger, "cron", "vulnerabilities")
+	// vulnerabilities, err := schedule.New(ctx, "vulnerabilities", instanceID, config.Vulnerabilities.Periodicity, ds, vulnerabilitiesLogger)
+	// if err != nil {
+	// 	fmt.Println("Error creating vulnerabilities schedule: ", err)
+	// }
+	// vulnerabilities.SetPreflightCheck(func() bool { return config.Vulnerabilities.CurrentInstanceChecks == "auto" })
+	// vulnerabilities.AddJob("cron_vulnerabilities", func(ctx context.Context) (interface{}, error) {
+	// 	return schedule.DoVulnProcessing(ctx, ds, vulnerabilitiesLogger, config)
+	// }, func(interface{}, error) {})
+
+	// webhooksLogger := kitlog.With(logger, "cron", "webhooks")
+	// // webhooksInterval := appConfig.WebhookSettings.Interval.ValueOr(24 * time.Hour)
+	// webhooksInterval := appConfig.WebhookSettings.Interval.ValueOr(30 * time.Second)
+	// webhooks, err := schedule.New(ctx, "webhooks", instanceID, webhooksInterval, ds, webhooksLogger)
+	// if err != nil {
+	// 	fmt.Println("Error creating webhooks schedule: ", err)
+	// }
+	// // webhooks.SetPreflightCheckFunc(func() bool { return config.Vulnerabilities.CurrentInstanceChecks == "auto" })
+	// webhooks.SetConfigCheck(schedule.SetWebhooksConfigCheck(ctx, ds, webhooksLogger))
+	// webhooks.AddJob("cron_webhooks", func(ctx context.Context) (interface{}, error) {
+	// 	return schedule.DoWebhooks(ctx, ds, webhooksLogger, failingPoliciesSet, instanceID, webhooksInterval)
+	// }, func(interface{}, error) {})
+
+	// return cancelBackground
 
 	// cleanupsLogger := kitlog.With(logger, "cron", "cleanups")
 	// cleanups, err := schedule.New(ctx, "cleanups", instanceID, config.Vulnerabilities.Periodicity, ds, cleanupsLogger)
