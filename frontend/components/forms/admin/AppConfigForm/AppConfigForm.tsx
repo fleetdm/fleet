@@ -174,12 +174,8 @@ const AppConfigFormFunctional = ({
         errors.idp_image_url = `${idpImageURL} is not a valid URL`;
       }
 
-      if (metadata === "") {
-        if (metadataURL === "") {
-          errors.metadata_url = "Metadata URL must be present";
-        } else if (!validUrl(metadataURL)) {
-          errors.metadata_url = `${metadataURL} is not a valid URL`;
-        }
+      if (metadata === "" && metadataURL === "") {
+        errors.metadata_url = "Metadata URL must be present";
       }
 
       if (!entityID) {
@@ -218,15 +214,8 @@ const AppConfigFormFunctional = ({
       }
     }
 
-    if (enableHostStatusWebhook) {
-      if (!hostStatusWebhookDestinationURL) {
-        errors.destination_url = "Destination URL must be present";
-      } else if (
-        hostStatusWebhookDestinationURL &&
-        !validUrl(hostStatusWebhookDestinationURL)
-      ) {
-        errors.destination_url = `${hostStatusWebhookDestinationURL} is not a valid URL`;
-      }
+    if (enableHostStatusWebhook && !hostStatusWebhookDestinationURL) {
+      errors.destination_url = "Destination URL must be present";
     }
 
     if (enableHostExpiry) {
@@ -673,7 +662,7 @@ const AppConfigFormFunctional = ({
             How do global agent options interact with team-level agent
             options?&nbsp;
             <a
-              href="https://github.com/fleetdm/fleet/blob/2f42c281f98e39a72ab4a5125ecd26d303a16a6b/docs/1-Using-Fleet/1-Fleet-UI.md#configuring-agent-options"
+              href="https://fleetdm.com/docs/using-fleet/fleet-ui#configuring-agent-options"
               className={`${baseClass}__learn-more ${baseClass}__learn-more--inline`}
               target="_blank"
               rel="noopener noreferrer"
@@ -799,7 +788,7 @@ const AppConfigFormFunctional = ({
           <br />
           <br />
           <a
-            href="https://github.com/fleetdm/fleet/blob/2f42c281f98e39a72ab4a5125ecd26d303a16a6b/docs/1-Using-Fleet/11-Usage-statistics.md"
+            href="https://fleetdm.com/docs/using-fleet/usage-statistics#usage-statistics"
             className={`${baseClass}__learn-more`}
             target="_blank"
             rel="noopener noreferrer"

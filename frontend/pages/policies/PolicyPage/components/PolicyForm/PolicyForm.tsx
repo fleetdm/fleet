@@ -1,8 +1,9 @@
 /* eslint-disable jsx-a11y/no-noninteractive-element-to-interactive-role */
 /* eslint-disable jsx-a11y/interactive-supports-focus */
-import React, { useState, useContext, KeyboardEvent } from "react";
+import React, { useState, useContext, useEffect, KeyboardEvent } from "react";
 import { IAceEditor } from "react-ace/lib/types";
-import { isUndefined } from "lodash";
+import { useDebouncedCallback } from "use-debounce/lib";
+import { isUndefined, size } from "lodash";
 import classnames from "classnames";
 
 import { addGravatarUrlToResource } from "fleet/helpers";
@@ -12,10 +13,14 @@ import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
 import { IPolicy, IPolicyFormData } from "interfaces/policy";
 import { IQueryPlatform } from "interfaces/query";
+import { DEFAULT_POLICIES } from "utilities/constants";
 
 import Avatar from "components/Avatar";
 import FleetAce from "components/FleetAce";
+// @ts-ignore
+import validateQuery from "components/forms/validators/validate_query";
 import Button from "components/buttons/Button";
+import RevealButton from "components/buttons/RevealButton";
 import Checkbox from "components/forms/fields/Checkbox";
 import Spinner from "components/Spinner";
 import AutoSizeInputField from "components/forms/fields/AutoSizeInputField";
@@ -40,6 +45,18 @@ interface IPolicyFormProps {
   backendValidators: { [key: string]: string };
 }
 
+const validateQuerySQL = (query: string) => {
+  const errors: { [key: string]: any } = {};
+  const { error: queryError, valid: queryValid } = validateQuery(query);
+
+  if (!queryValid) {
+    errors.query = queryError;
+  }
+
+  const valid = !size(errors);
+  return { valid, errors };
+};
+
 const PolicyForm = ({
   policyIdForEdit,
   showOpenSchemaActionText,
@@ -53,7 +70,7 @@ const PolicyForm = ({
   renderLiveQueryWarning,
   backendValidators,
 }: IPolicyFormProps): JSX.Element => {
-  const [errors, setErrors] = useState<{ [key: string]: any }>({});
+  const [errors, setErrors] = useState<{ [key: string]: any }>({}); // string | null | undefined or boolean | undefined
   const [isNewPolicyModalOpen, setIsNewPolicyModalOpen] = useState<boolean>(
     false
   );
@@ -98,7 +115,27 @@ const PolicyForm = ({
     isTeamMaintainer,
   } = useContext(AppContext);
 
+  policyIdForEdit = policyIdForEdit || 0;
+
+  const debounceSQL = useDebouncedCallback((sql: string) => {
+    let valid = true;
+    const { valid: isValidated, errors: newErrors } = validateQuerySQL(sql);
+    valid = isValidated;
+
+    setErrors({
+      ...newErrors,
+    });
+  }, 500);
+
+  useEffect(() => {
+    debounceSQL(lastEditedQueryBody);
+  }, [lastEditedQueryBody]);
+
   const isEditMode = !!policyIdForEdit && !isTeamObserver && !isGlobalObserver;
+
+  const isNewTemplatePolicy =
+    !policyIdForEdit &&
+    DEFAULT_POLICIES.find((p) => p.name === lastEditedQueryName);
 
   const hasSavePermissions =
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
@@ -123,7 +160,7 @@ const PolicyForm = ({
       enableLinking: true,
     });
 
-    if (policyIdForEdit) {
+    if (policyIdForEdit || isNewTemplatePolicy) {
       setIsWindowsCompatible(!!lastEditedQueryPlatform?.includes("windows"));
       setIsDarwinCompatible(!!lastEditedQueryPlatform?.includes("darwin"));
       setIsLinuxCompatible(!!lastEditedQueryPlatform?.includes("linux"));
@@ -421,14 +458,13 @@ const PolicyForm = ({
         </div>
         <div className="author">{renderAuthor()}</div>
       </div>
-      <Button
-        className={`${baseClass}__toggle-sql`}
-        variant="text-link"
+      <RevealButton
+        isShowing={showQueryEditor}
+        baseClass={baseClass}
+        hideText="Hide SQL"
+        showText="Show SQL"
         onClick={() => setShowQueryEditor(!showQueryEditor)}
-        disabled={false}
-      >
-        {showQueryEditor ? "Hide SQL" : "Show SQL"}
-      </Button>
+      />
       {showQueryEditor && (
         <FleetAce
           value={lastEditedQueryBody}

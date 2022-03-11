@@ -16,6 +16,8 @@ import { IEnrollSecret } from "interfaces/enroll_secret";
 import Button from "components/buttons/Button";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
+import Checkbox from "components/forms/fields/Checkbox";
+import TooltipWrapper from "components/TooltipWrapper";
 import TabsWrapper from "components/TabsWrapper";
 
 import { isValidPemCertificate } from "../../../pages/hosts/ManageHostsPage/helpers";
@@ -42,7 +44,7 @@ const platformSubNav: IPlatformSubNav[] = [
     type: "rpm",
   },
   {
-    name: "Linux (DEB)",
+    name: "Linux (deb)",
     type: "deb",
   },
   {
@@ -62,8 +64,11 @@ const PlatformWrapper = ({
   selectedTeam,
   onCancel,
 }: IPlatformWrapperProp): JSX.Element => {
-  const { config } = useContext(AppContext);
+  const { config, isPreviewMode } = useContext(AppContext);
   const [copyMessage, setCopyMessage] = useState<string>("");
+  const [includeFleetDesktop, setIncludeFleetDesktop] = useState<boolean>(
+    false
+  );
 
   const dispatch = useDispatch();
 
@@ -75,6 +80,7 @@ const PlatformWrapper = ({
     ["certificate"],
     () => configAPI.loadCertificate(),
     {
+      enabled: !isPreviewMode,
       refetchOnWindowFocus: false,
     }
   );
@@ -126,7 +132,7 @@ const PlatformWrapper = ({
     enrollSecret = selectedTeam.secrets[0].secret;
   }
 
-  const onDownloadEnrollSecret = (evt: any) => {
+  const onDownloadEnrollSecret = (evt: React.MouseEvent) => {
     evt.preventDefault();
 
     const filename = "secret.txt";
@@ -137,7 +143,7 @@ const PlatformWrapper = ({
     return false;
   };
 
-  const onDownloadFlagfile = (evt: any) => {
+  const onDownloadFlagfile = (evt: React.MouseEvent) => {
     evt.preventDefault();
 
     const filename = "flagfile.txt";
@@ -172,7 +178,9 @@ const PlatformWrapper = ({
   const renderInstallerString = (platform: string) => {
     return platform === "advanced"
       ? "osqueryd --flagfile=flagfile.txt --verbose"
-      : `fleetctl package --type=${platform} --fleet-url=${config?.server_url} --enroll-secret=${enrollSecret}`;
+      : `fleetctl package --type=${platform} ${
+          includeFleetDesktop ? "--fleet-desktop " : ""
+        }--fleet-url=${config?.server_url} --enroll-secret=${enrollSecret}`;
   };
 
   const renderLabel = (platform: string, installerString: string) => {
@@ -334,6 +342,22 @@ const PlatformWrapper = ({
     }
     return (
       <>
+        <Checkbox
+          name="include-fleet-desktop"
+          onChange={() => setIncludeFleetDesktop(!includeFleetDesktop)}
+          value={includeFleetDesktop}
+        >
+          <>
+            Include&nbsp;
+            <TooltipWrapper
+              tipContent={
+                "<p>Lightweight application that allows end users to see information about their device.</p>"
+              }
+            >
+              Fleet Desktop
+            </TooltipWrapper>
+          </>
+        </Checkbox>
         <InputField
           disabled
           inputWrapperClass={`${baseClass}__installer-input ${baseClass}__installer-input-${platform}`}

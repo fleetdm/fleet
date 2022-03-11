@@ -139,7 +139,7 @@ const PackQueryEditorModal = ({
     setSelectedShard(value);
   };
 
-  const onFormSubmit = () => {
+  const onFormSubmit = (): void => {
     const query_id = () => {
       if (editQuery) {
         return editQuery.query_id;

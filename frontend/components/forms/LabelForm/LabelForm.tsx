@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { IAceEditor } from "react-ace/lib/types";
-import { noop } from "lodash";
+import { noop, size } from "lodash";
+import { useDebouncedCallback } from "use-debounce/lib";
 
 import { ILabel, ILabelFormData } from "interfaces/label";
 import Button from "components/buttons/Button"; // @ts-ignore
@@ -14,8 +15,9 @@ interface ILabelFormProps {
   selectedLabel?: ILabel;
   isEdit?: boolean;
   onCancel: () => void;
-  handleSubmit: (formData: ILabelFormData) => Promise<void>;
+  handleSubmit: (formData: ILabelFormData) => void;
   onOsqueryTableSelect?: (tableName: string) => void;
+  backendValidators: { [key: string]: string };
 }
 
 const baseClass = "label-form";
@@ -35,6 +37,18 @@ const platformOptions = [
   { label: "Centos", value: "centos" },
 ];
 
+const validateQuerySQL = (query: string) => {
+  const errors: { [key: string]: any } = {};
+  const { error: queryError, valid: queryValid } = validateQuery(query);
+
+  if (!queryValid) {
+    errors.query = queryError;
+  }
+
+  const valid = !size(errors);
+  return { valid, errors };
+};
+
 const LabelForm = ({
   baseError,
   selectedLabel,
@@ -42,7 +56,8 @@ const LabelForm = ({
   onCancel,
   handleSubmit,
   onOsqueryTableSelect,
-}: ILabelFormProps) => {
+  backendValidators,
+}: ILabelFormProps): JSX.Element => {
   const [name, setName] = useState<string>(selectedLabel?.name || "");
   const [nameError, setNameError] = useState<string>("");
   const [description, setDescription] = useState<string>(
@@ -53,6 +68,28 @@ const LabelForm = ({
   const [platform, setPlatform] = useState<string>(
     selectedLabel?.platform || ""
   );
+
+  const debounceSQL = useDebouncedCallback((queryString: string) => {
+    let valid = true;
+    const { valid: isValidated, errors: newErrors } = validateQuerySQL(
+      queryString
+    );
+    valid = isValidated;
+
+    if (query === "") {
+      setQueryError("");
+    } else {
+      setQueryError(newErrors.query);
+    }
+  }, 500);
+
+  useEffect(() => {
+    setNameError(backendValidators.name);
+  }, [backendValidators]);
+
+  useEffect(() => {
+    debounceSQL(query);
+  }, [query]);
 
   const onLoad = (editor: IAceEditor) => {
     editor.setOptions({
@@ -78,6 +115,7 @@ const LabelForm = ({
 
   const onNameChange = (value: string) => {
     setName(value);
+    setNameError("");
   };
 
   const onDescriptionChange = (value: string) => {

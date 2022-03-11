@@ -167,6 +167,14 @@ This process may take several minutes to complete as the Notarization process co
 
 After successful notarization, the generated "ticket" is automatically stapled to the package.
 
+#### Orbit Osquery Result and Status Logs
+
+If the `logger_path` configuration is set to `filesystem`, Orbit will store osquery's "result" and
+"status" logs to the following directories:
+  - Windows: C:\Program Files\Orbit\osquery_log
+  - macOS: /var/lib/orbit/osquery_log
+  - Linux: /var/lib/orbit/osquery_log
+
 #### Orbit Development
 
 For ease of development of Orbit, `fleetctl package` allows the generation of a package with a

@@ -92,25 +92,6 @@
     }
   }
 
-  &__inherited-queries-button {
-    margin: $pad-medium 0 0 0;
-    color: $core-vibrant-blue;
-    font-weight: $bold;
-    font-size: $x-small;
-  }
-
-  .rightcarat {
-    &::before {
-      content: url("../assets/images/icon-chevron-blue-16x16@2x.png");
-      transform: scale(0.5) rotate(-90deg);
-      width: 16px;
-      border-radius: 0px;
-      padding: 0px;
-      padding-right: 10px;
-      margin-top: 5px;
-    }
-  }
-
   &__details {
     display: inline-flex;
     vertical-align: middle;

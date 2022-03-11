@@ -36,7 +36,7 @@ const AgentOptionsPage = ({
   const teamIdFromURL = parseInt(team_id, 10);
   const dispatch = useDispatch();
 
-  const [formData, setFormData] = useState<any>({});
+  const [formData, setFormData] = useState<{ osquery_options?: string }>({});
   const handlePageError = useErrorHandler();
 
   useQuery<ITeamsResponse, Error, ITeam[]>(
@@ -80,6 +80,8 @@ const AgentOptionsPage = ({
       .catch((errors: { [key: string]: string }) => {
         dispatch(renderFlash("error", errors.stack));
       });
+
+    return false;
   };
 
   return (
@@ -92,7 +94,7 @@ const AgentOptionsPage = ({
         See Fleet documentation for an example file that includes the overrides
         option.{" "}
         <a
-          href="https://github.com/fleetdm/fleet/tree/2f42c281f98e39a72ab4a5125ecd26d303a16a6b/docs/1-Using-Fleet/configuration-files#overrides-option"
+          href="https://fleetdm.com/docs/using-fleet/configuration-files#overrides-option"
           target="_blank"
           rel="noopener noreferrer"
         >

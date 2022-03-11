@@ -50,9 +50,12 @@
   }
 
   .form-field {
+    width: 100%;
+
     &__label {
       font-weight: $bold;
       margin-bottom: $pad-xsmall;
+      width: 100%;
     }
 
     &__hint {
@@ -65,7 +68,7 @@
     @include clearfix;
     margin: 0 0 $pad-xlarge;
 
-    .upcarat::after {
+    .upcaret::after {
       content: url("../assets/images/icon-collapse-black-16x16@2x.png");
       transform: scale(0.5);
       border-radius: 0px;
@@ -74,7 +77,7 @@
       margin: $pad-xsmall;
     }
 
-    .downcarat::after {
+    .downcaret::after {
       content: url("../assets/images/icon-chevron-black-16x16@2x.png");
       transform: scale(0.5);
       border-radius: 0px;

@@ -1,3 +1,57 @@
+## Fleet 4.11.0 (Mar 7, 2022)
+
+* Improve vulnerability processing to reduce the number of false positives for RPM packages on Linux hosts.
+
+* Fleet Premium: Add a `teams` key to the `packs` yaml document to allow adding teams as targets when using CI/CD to manage query packs.
+
+* Fleet premium: Add the ability to retrieve configuration for a specific team with the `fleetctl get team --name
+<team-name-here>` command.
+
+* Remove the expiration for API tokens for API-only users. API-only users can be created using the
+  `fleetctl user create --api-only` command.
+
+* Improve performance of the osquery query used to collect software inventory for Linux hosts.
+
+* Update the activity feed on the **Home page** to include add, edit, and delete policy activities.
+  Activity information is also available in the `GET /activities` API route.
+
+* Update Kinesis logging plugin to append newline character to raw message bytes to properly format NDJSON for downstream consumers.
+
+* Clarify why the "Performance impact" for some queries is displayed as "Undetermined" in the Fleet
+  UI.
+
+* Add instructions for using plain osquery to add hosts to Fleet in the Fleet View these instructions by heading to **Hosts > Add hosts > Advanced**.
+
+* Fix a bug in which uninstalling Munki from one or more hosts would result in inaccurate Munki
+  versions displayed on the **Home > macOS** page.
+
+* Fix a bug in which a user, with access limited to one or more teams, was able to run a live query
+against hosts in any team. This bug is not exposed in the Fleet UI and is limited to users of the
+`POST run` API route. 
+
+* Fix a bug in the Fleet UI in which the "Select targets" search bar would not return the expected hosts.
+
+* Fix a bug in which global agent options were not updated correctly when editing these options in
+the Fleet UI.
+
+* Fix a bug in which the Fleet UI would incorrectly tag some URLs as invalid.
+
+* Fix a bug in which the Fleet UI would attempt to connect to an SMTP server when SMTP was disabled.
+
+* Fix a bug on the Software page in which the "Hosts" column was not filtered by team.
+
+* Fix a bug in which global maintainers were unable to add and edit policies that belonged to a
+  specific team.
+
+* Fix a bug in which the operating system version for some Linux distributions would not be
+displayed properly.
+
+* Fix a bug in which configuring an identity provider name to a value shorter than 4 characters was
+not allowed.
+
+* Fix a bug in which the avatar would not appear in the top navigation.
+
+
 ## Fleet 4.10.0 (Feb 13, 2022)
 
 * Upgrade Go to 1.17.7 with security fixes for crypto/elliptic (CVE-2022-23806), math/big (CVE-2022-23772), and cmd/go (CVE-2022-23773). These are not likely to be high impact in Fleet deployments, but we are upgrading in an abundance of caution.

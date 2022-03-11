@@ -20,7 +20,7 @@ interface IGetToggleAllRowsSelectedProps {
   checked: boolean;
   indeterminate: boolean;
   title: string;
-  onChange: () => any;
+  onChange: () => void;
   style: { cursor: string };
 }
 
@@ -35,7 +35,7 @@ interface IHeaderProps {
 
 interface ICellProps {
   cell: {
-    value: any;
+    value: string;
   };
   row: {
     original: IPack;

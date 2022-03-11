@@ -2,7 +2,7 @@
 
 Note: Please prefix versions with `fleet-v` (eg. `fleet-v4.0.0`) in git tags, Helm charts, and NPM configs.
 
-1. Update the [CHANGELOG](../../CHANGELOG.md) with the changes that have been made since the last
+1. Update the [CHANGELOG](https://github.com/fleetdm/fleet/blob/main/CHANGELOG.md) with the changes that have been made since the last
    Fleet release. Use `make changelog` to pull the changes files into `CHANGELOG.md`, then manually
    edit. When editing, order the most relevant/important changes at the time, and try to make the
    tone and syntax of the written language match throughout. `make changelog` will stage all changes
@@ -14,9 +14,9 @@ Note: Please prefix versions with `fleet-v` (eg. `fleet-v4.0.0`) in git tags, He
 
    Update version numbers in the relevant files:
 
-   - [package.json](../../tools/fleetctl-npm/package.json) (do not yet `npm publish`)
-   - [Helm chart](../../charts/fleet/Chart.yaml) and [values file](../../charts/fleet/values.yaml)
-   - [Terraform variables](../../tools/terraform/variables.tf)
+   - [package.json](https://github.com/fleetdm/fleet/blob/main/tools/fleetctl-npm/package.json) (do not yet `npm publish`)
+   - [Helm chart](https://github.com/fleetdm/fleet/blob/main/charts/fleet/Chart.yaml) and [values file](https://github.com/fleetdm/fleet/blob/main/charts/fleet/values.yaml)
+   - [Terraform variables](https://github.com/fleetdm/fleet/blob/main/tools/terraform/variables.tf)
 
    Commit these changes via Pull Request and pull the changes on the `main` branch locally. Check that
    `HEAD` of the `main` branch points to the commit with these changes.
@@ -52,7 +52,7 @@ Note: Please prefix versions with `fleet-v` (eg. `fleet-v4.0.0`) in git tags, He
 
    ### Upgrading
 
-   Please visit our [update guide](https://fleetdm.com/docs/using-fleet/updating-fleet) for upgrade instructions.
+   Please visit our [update guide](https://fleetdm.com/docs/deploying/upgrading-fleet) for upgrade instructions.
 
    ### Documentation
 
@@ -69,7 +69,7 @@ Note: Please prefix versions with `fleet-v` (eg. `fleet-v4.0.0`) in git tags, He
    When editing is complete, publish the release.
 
 4. Publish the new version of `fleetctl` on NPM. Run `npm publish` in the
-   [fleetctl-npm](../../tools/fleetctl-npm/) directory. Note that NPM does not allow replacing a
+   [fleetctl-npm](https://github.com/fleetdm/fleet/tree/main/tools/fleetctl-npm) directory. Note that NPM does not allow replacing a
    package without creating a new version number. Take care to get things correct before running
    `npm publish`!
 
@@ -78,7 +78,7 @@ Note: Please prefix versions with `fleet-v` (eg. `fleet-v4.0.0`) in git tags, He
 > download, is still the latest _official_ release.
 
 5. Announce the release in the #fleet channel of [osquery
-   Slack](https://osquery.slack.com/join/shared_invite/zt-h29zm0gk-s2DBtGUTW4CFel0f0IjTEw#/) and
+   Slack](https://fleetdm.com/slack) and
    update the channel's topic with the link to this release. Using `@here` requires admin
    permissions, so typically this announcement will be done by `@zwass`.
 
@@ -128,7 +128,7 @@ must be created and relevant changes cherry-picked onto that branch:
    be invoked to push a container image for QA with `fleetctl preview` (eg. `fleetctl preview --tag patch-fleet-v4.3.1`).
 
 4. Check in the GitHub UI that Actions ran successfully for this branch and perform [QA smoke
-   testing](../../.github/ISSUE_TEMPLATE/smoke-tests.md).
+   testing](https://github.com/fleetdm/fleet/blob/main/.github/ISSUE_TEMPLATE/smoke-tests.md).
 
 5. Follow the standard release instructions at the top of this document. Be sure that modifications
    to the changelog and config files are commited _on the `patch-*` branch_. When the patch has been

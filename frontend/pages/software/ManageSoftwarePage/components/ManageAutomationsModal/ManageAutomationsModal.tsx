@@ -6,7 +6,6 @@ import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
-import validURL from "components/forms/validators/valid_url";
 
 import { IWebhookSoftwareVulnerabilities } from "interfaces/webhook";
 import { useDeepEffect } from "utilities/hooks";
@@ -95,8 +94,8 @@ const useCheckboxListStateManagement = (
 const validateWebhookURL = (url: string) => {
   const errors: { [key: string]: string } = {};
 
-  if (!validURL(url)) {
-    errors.url = "Please add a valid destination URL";
+  if (url === "") {
+    errors.url = "Please add a destination URL";
   }
 
   const valid = !size(errors);
@@ -136,19 +135,20 @@ const ManageAutomationsModal = ({
   const handleSaveAutomation = (evt: React.MouseEvent<HTMLFormElement>) => {
     evt.preventDefault();
 
+    // Ability to add future software automations
+    const vulnerabilityWebhook = softwareAutomationsItems.find(
+      (softwareAutomationItem) =>
+        softwareAutomationItem.accessor === "vulnerability"
+    );
+
     const { valid, errors: newErrors } = validateWebhookURL(destination_url);
     setErrors({
       ...errors,
       ...newErrors,
     });
 
-    if (valid) {
-      // Ability to add future software automations
-      const vulnerabilityWebhook = softwareAutomationsItems.find(
-        (softwareAutomationItem) =>
-          softwareAutomationItem.accessor === "vulnerability"
-      );
-
+    // URL validation only needed if software automation is checked
+    if (valid || !vulnerabilityWebhook?.isChecked) {
       onCreateWebhookSubmit({
         destination_url,
         enable_vulnerabilities_webhook: vulnerabilityWebhook?.isChecked,

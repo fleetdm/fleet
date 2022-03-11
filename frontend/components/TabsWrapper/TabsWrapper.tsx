@@ -10,7 +10,7 @@ interface ITabsWrapperProps {
  */
 const baseClass = "component__tabs-wrapper";
 
-const TabsWrapper = ({ children }: ITabsWrapperProps) => {
+const TabsWrapper = ({ children }: ITabsWrapperProps): JSX.Element => {
   return <div className={baseClass}>{children}</div>;
 };
 

@@ -112,6 +112,15 @@ export const DEFAULT_POLICIES = [
   },
   {
     key: 10,
+    query: "SELECT 1 FROM mdm WHERE enrolled='true';",
+    name: "MDM Enrolled (macOS)",
+    description:
+      "Required: osquery deployed with Orbit, or manual installation of macadmins/osquery-extension. Checks that a Mac is enrolled to MDM. Add a AND on identity_certificate_uuid to check for a specific MDM.",
+    resolution: "Enroll device to MDM",
+    platform: "darwin",
+  },
+  {
+    key: 11,
     query:
       "SELECT 1 FROM managed_policies WHERE domain = 'com.apple.Terminal' AND name = 'SecureKeyboardEntry' AND value = 1 LIMIT 1;",
     name: "Secure keyboard entry for Terminal.app enabled (macOS)",
@@ -121,7 +130,7 @@ export const DEFAULT_POLICIES = [
     platform: "darwin",
   },
   {
-    key: 11,
+    key: 12,
     query:
       "SELECT 1 FROM sip_config WHERE config_flag = 'sip' AND enabled = 1;",
     name: "System Integrity Protection enabled (macOS)",
@@ -322,4 +331,8 @@ export const DEFAULT_CREATE_USER_ERRORS = {
   name: "",
   password: "",
   sso_enabled: null,
+};
+
+export const DEFAULT_CREATE_LABEL_ERRORS = {
+  name: "",
 };

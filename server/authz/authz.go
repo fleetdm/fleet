@@ -70,6 +70,20 @@ func (a *Authorizer) SkipAuthorization(ctx context.Context) {
 	}
 }
 
+// IsAlreadyAuthorized returns true if the context has already authorized. This
+// may be useful to skip authorization checks in the Service layer when e.g.
+// the current request has already been authorized due to its different
+// authentication method, such as the device authentication token which allows
+// reading the corresponding host's information even if there is no user
+// associated with the request (so typical user-based authorization checks
+// would fail).
+func (a *Authorizer) IsAlreadyAuthorized(ctx context.Context) bool {
+	if authctx, ok := authz_ctx.FromContext(ctx); ok {
+		return authctx.Checked()
+	}
+	return false
+}
+
 // Authorize checks authorization for the provided object, and action,
 // retrieving the subject from the context.
 //

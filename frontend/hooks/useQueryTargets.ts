@@ -30,8 +30,6 @@ export interface ITargetsQueryKey {
   includeLabels: boolean;
 }
 
-const STALE_TIME = 60000;
-
 const getTargets = async (
   queryKey: ITargetsQueryKey
 ): Promise<ITargetsQueryResponse> => {
@@ -118,6 +116,7 @@ export const useQueryTargets = (
     {
       onSuccess: options.onSuccess,
       refetchOnWindowFocus: false,
+      refetchOnMount: "always",
       staleTime: options.staleTime,
     }
   );

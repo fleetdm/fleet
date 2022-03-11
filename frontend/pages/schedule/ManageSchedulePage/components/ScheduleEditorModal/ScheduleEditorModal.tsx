@@ -5,11 +5,11 @@ import { pull } from "lodash";
 import { AppContext } from "context/app";
 
 import { IQuery } from "interfaces/query";
-import { IGlobalScheduledQuery } from "interfaces/global_scheduled_query";
-import { ITeamScheduledQuery } from "interfaces/team_scheduled_query";
+import { IEditScheduledQuery } from "interfaces/scheduled_query";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
+import RevealButton from "components/buttons/RevealButton";
 import InfoBanner from "components/InfoBanner/InfoBanner";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
@@ -43,9 +43,9 @@ interface IScheduleEditorModalProps {
   onCancel: () => void;
   onScheduleSubmit: (
     formData: IFormData,
-    editQuery: IGlobalScheduledQuery | ITeamScheduledQuery | undefined
+    editQuery: IEditScheduledQuery | undefined
   ) => void;
-  editQuery?: IGlobalScheduledQuery | ITeamScheduledQuery;
+  editQuery?: IEditScheduledQuery;
   teamId?: number;
   togglePreviewDataModal: () => void;
   showPreviewDataModal: boolean;
@@ -55,7 +55,7 @@ interface INoQueryOption {
   name: string;
 }
 
-const generateLoggingType = (query: IGlobalScheduledQuery) => {
+const generateLoggingType = (query: IEditScheduledQuery) => {
   if (query.snapshot) {
     return "snapshot";
   }
@@ -101,7 +101,7 @@ const ScheduleEditorModal = ({
     false
   );
   const [selectedQuery, setSelectedQuery] = useState<
-    IGlobalScheduledQuery | INoQueryOption
+    IEditScheduledQuery | INoQueryOption
   >();
   const [selectedFrequency, setSelectedFrequency] = useState<number>(
     editQuery ? editQuery.interval : 86400
@@ -190,7 +190,7 @@ const ScheduleEditorModal = ({
     [setSelectedShard]
   );
 
-  const onFormSubmit = () => {
+  const onFormSubmit = (): void => {
     const query_id = () => {
       if (editQuery) {
         return editQuery.query_id;
@@ -263,7 +263,7 @@ const ScheduleEditorModal = ({
           <p>
             Check out the Fleet documentation on&nbsp;
             <a
-              href="https://github.com/fleetdm/fleet/blob/6649d08a05799811f6fb0566947946edbfebf63e/docs/2-Deploying/2-Configuration.md#osquery_result_log_plugin"
+              href="https://fleetdm.com/docs/deploying/configuration#osquery-result-log-plugin"
               target="_blank"
               rel="noopener noreferrer"
             >
@@ -273,16 +273,14 @@ const ScheduleEditorModal = ({
           </p>
         </InfoBanner>
         <div>
-          <Button
-            variant="unstyled"
-            className={`${showAdvancedOptions ? "upcarat" : "downcarat"} 
-               ${baseClass}__advanced-options-button`}
+          <RevealButton
+            isShowing={showAdvancedOptions}
+            baseClass={baseClass}
+            hideText={"Hide advanced options"}
+            showText={"Show advanced options"}
+            caretPosition={"after"}
             onClick={toggleAdvancedOptions}
-          >
-            {showAdvancedOptions
-              ? "Hide advanced options"
-              : "Show advanced options"}
-          </Button>
+          />
           {showAdvancedOptions && (
             <div>
               <Dropdown
