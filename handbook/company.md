@@ -5,11 +5,12 @@
 Fleet Device Management Inc is an [open core company](https://www.heavybit.com/library/video/commercial-open-source-business-strategies/) that sells subscriptions that offer [more features and support](https://fleetdm.com/pricing) for Fleet and [osquery](https://osquery.io), the leading open source endpoint agent.
 
 We are dedicated to:
-- 💻 building a better way to manage computers
+
 - 🧑‍🚀 automating IT and security
 - 💍 reducing the proliferation of agents and growing the adoption of osquery (one agent to rule them all)
-- 👁️ remaining the freshest, simplest source of truth for every kind of computing device and OS
 - 🪟 privacy, transparency, and trust through open source software
+- 👁️ remaining the freshest, simplest source of truth for every kind of computing device and OS
+- 💻 building a better way to manage computers
 
 
 ## Culture
