@@ -28,7 +28,6 @@ jobs:
           make osqueryd-app-tar-gz out-path=. version=$OSQUERY_VERSION
 
       - name: Upload osqueryd.app.tar.gz
-        if: always()
         uses: actions/upload-artifact@v2
         with:
           name: osqueryd.app.tar.gz
