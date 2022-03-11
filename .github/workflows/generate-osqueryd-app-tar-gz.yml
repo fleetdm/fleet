@@ -27,10 +27,9 @@ jobs:
         run: |
           make osqueryd-app-tar-gz out-path=. version=$OSQUERY_VERSION
 
-      - name: Release
-        if: hashFiles('osqueryd.app.tar.gz') != ''
-        uses: softprops/action-gh-release@1e07f4398721186383de40550babbdf2b84acfc5 # v0.1.14
+      - name: Upload osqueryd.app.tar.gz
+        if: always()
+        uses: actions/upload-artifact@v2
         with:
-          files: "osqueryd.app.tar.gz"
-          tag_name: ${{ env.ETAG }}
-          token: ${{ secrets.GITHUB_TOKEN }}
+          name: osqueryd.app.tar.gz
+          path: osqueryd.app.tar.gz 
