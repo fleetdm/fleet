@@ -13,13 +13,13 @@ import (
 
 func SetWebhooksConfigCheck(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger) func(start time.Time, prevInterval time.Duration) (*time.Duration, error) {
 	return func(time.Time, time.Duration) (*time.Duration, error) {
-		appConfig, err := ds.AppConfig(ctx)
-		if err != nil {
-			level.Error(logger).Log("config", "couldn't read app config", "err", err)
-			return nil, err
-		}
-		newInterval := appConfig.WebhookSettings.Interval.ValueOr(24 * time.Hour)
-		// newInterval := 30 * time.Second
+		// appConfig, err := ds.AppConfig(ctx)
+		// if err != nil {
+		// 	level.Error(logger).Log("config", "couldn't read app config", "err", err)
+		// 	return nil, err
+		// }
+		// newInterval := appConfig.WebhookSettings.Interval.ValueOr(24 * time.Hour)
+		newInterval := 30 * time.Second
 
 		return &newInterval, nil
 	}
@@ -32,7 +32,6 @@ func DoWebhooks(
 	failingPoliciesSet fleet.FailingPolicySet,
 	instanceID string,
 	interval time.Duration,
-	// intervalReload time.Duration,
 ) (interface{}, error) {
 	stats := make(map[string]string)
 
@@ -42,7 +41,7 @@ func DoWebhooks(
 		return nil, err
 	}
 
-	// TODO: We set the db lock durations to match the intervalReload?
+	// TODO: Do we set the db lock durations to match the schedule interval or the config check interval?
 	maybeTriggerHostStatus(ctx, ds, logger, instanceID, appConfig, interval)
 	maybeTriggerGlobalFailingPoliciesWebhook(ctx, ds, logger, instanceID, appConfig, interval, failingPoliciesSet)
 

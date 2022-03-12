@@ -99,8 +99,8 @@ func (s *schedule) run() {
 		for {
 			fmt.Println(s.name, " loop ", step)
 			step++
-
-			level.Debug(s.Logger).Log("waiting", fmt.Sprint("on ticker..."))
+			_, currWait, _ := readTimes()
+			level.Debug(s.Logger).Log("waiting", fmt.Sprint("current wait time... ", currWait))
 
 			select {
 			case <-s.ctx.Done():
@@ -114,7 +114,7 @@ func (s *schedule) run() {
 				newStart := time.Now()
 				newWait := schedInterval
 
-				schedTicker.Reset(schedInterval) // TODO: confirm we want to the next interval to run from completion of the jobs (not before)
+				schedTicker.Reset(schedInterval) // TODO: confirm we want to the next interval to run from start of the jobs (not before)
 				setTimes(newStart, newWait, schedInterval)
 
 				s.muChecks.Lock() // TODO: talk with Tomas about this
@@ -144,13 +144,15 @@ func (s *schedule) run() {
 
 	// this periodically checks for config updates and resets the interval for the main loop
 	go func() {
-		_, _, schedInterval := readTimes()
-		w := 20 * time.Second
-		configTicker := time.NewTicker(w)
-		if w > schedInterval {
-			w = schedInterval
-			configTicker.Reset(w)
-		}
+		// _, _, schedInterval := readTimes()
+		// w := 20 * time.Second
+		// if w > schedInterval {
+		// 	w = schedInterval
+		// 	configTicker.Reset(w)
+		// }
+		// configTicker := time.NewTicker(1 * time.Minute)
+		configTicker := time.NewTicker(20 * time.Second)
+
 		for {
 			select {
 			case <-configTicker.C:
@@ -179,14 +181,14 @@ func (s *schedule) run() {
 
 				if time.Since(currStart) < *newInterval {
 					newWait = *newInterval - time.Since(currStart)
-					// start = time.Now()
 				}
 
 				setTimes(currStart, newWait, *newInterval)
 				schedTicker.Reset(newWait)
-				configTicker.Reset(newWait)
+				// configTicker.Reset(newWait)
 
 				level.Debug(s.Logger).Log(s.name, fmt.Sprint("new interval: ", *newInterval))
+				level.Debug(s.Logger).Log(s.name, fmt.Sprint("new wait: ", newWait))
 			}
 		}
 	}()
