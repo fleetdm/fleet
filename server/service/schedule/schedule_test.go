@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/log"
 	"github.com/stretchr/testify/require"
 )
@@ -118,9 +118,11 @@ TEST:
 	for {
 		select {
 		case <-runCheck:
+			sched.muChecks.Lock()
 			if *locker.count > 2 {
 				break TEST
 			}
+			sched.muChecks.Unlock()
 		case <-failCheck:
 			assert.Greater(t, *locker.count, uint(2))
 			t.FailNow()
@@ -184,31 +186,34 @@ TEST:
 	for {
 		select {
 		case <-runCheck:
+			testStats.mu.Lock()
 			if (len(testStats.stats["test_job_1"]) > 2) && (len(testStats.stats["test_job_2"]) > 2) && (len(testStats.stats["test_job_3"]) > 2) {
 				break TEST
 			}
+			testStats.mu.Unlock()
 		case <-failCheck:
+			testStats.mu.Lock()
 			assert.Greater(t, len(testStats.stats["test_job_1"]), 2)
 			assert.Greater(t, len(testStats.stats["test_job_2"]), 2)
 			assert.Greater(t, len(testStats.errors["test_job_3"]), 2)
+			testStats.mu.Unlock()
 			t.FailNow()
 		}
 	}
 }
 
 func TestPreflightCheck(t *testing.T) {
-	preflightFailed := ptr.Bool(false)
+	preflightFailed := make(chan bool)
 
 	sched, err := New(context.Background(), "test_schedule_1", "test_instance", 10*time.Millisecond, nopLocker{}, log.NewNopLogger())
 	require.NoError(t, err)
 
 	sched.SetPreflightCheck(func() bool {
-		preflightFailed = ptr.Bool(true)
+		preflightFailed <- true
 		return false
 	})
 
 	sched.AddJob("test_job_1", func(ctx context.Context) (interface{}, error) {
-		require.Equal(t, true, *preflightFailed)
 		t.FailNow() // preflight should fail so the job should never run
 		return nil, nil
 	}, nopStatsHandler)
@@ -218,9 +223,10 @@ func TestPreflightCheck(t *testing.T) {
 TEST:
 	for {
 		select {
-		case <-failCheck:
-			require.Equal(t, true, *preflightFailed)
+		case <-preflightFailed:
 			break TEST
+		case <-failCheck:
+			t.FailNow()
 		}
 	}
 }
@@ -247,9 +253,11 @@ TEST:
 	for {
 		select {
 		case <-runCheck:
+			sched.muChecks.Lock()
 			if sched.interval == 20*time.Millisecond {
 				break TEST
 			}
+			sched.muChecks.Unlock()
 		case <-failCheck:
 			require.Equal(t, 20*time.Millisecond, sched.interval)
 			// fmt.Println(sched.interval)
@@ -260,8 +268,6 @@ TEST:
 		}
 	}
 }
-<<<<<<< Updated upstream
-=======
 
 func TestTickerRaces(t *testing.T) {
 	schedTicker := time.NewTicker(2 * time.Hour)
@@ -278,4 +284,3 @@ func TestTickerRaces(t *testing.T) {
 	}()
 	time.Sleep(10 * time.Second)
 }
->>>>>>> Stashed changes

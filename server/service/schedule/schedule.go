@@ -14,11 +14,11 @@ type schedule struct {
 	ctx        context.Context
 	name       string
 	instanceID string
-	interval   time.Duration
-	locker     Locker
 	Logger     kitlog.Logger
 
 	muChecks       sync.Mutex
+	interval       time.Duration
+	locker         Locker
 	configCheck    func(start time.Time, wait time.Duration) (*time.Duration, error)
 	preflightCheck func() bool
 
@@ -79,17 +79,15 @@ func (s *schedule) run() {
 	}
 	schedTicker := time.NewTicker(currentWait)
 
-	muTimes := sync.Mutex{}
-
 	readTimes := func() (start time.Time, wait time.Duration, interval time.Duration) {
-		muTimes.Lock()
-		defer muTimes.Unlock()
+		s.muChecks.Lock()
+		defer s.muChecks.Unlock()
 		return currentStart, currentWait, s.interval
 	}
 
 	setTimes := func(start time.Time, wait time.Duration, interval time.Duration) {
-		muTimes.Lock()
-		defer muTimes.Unlock()
+		s.muChecks.Lock()
+		defer s.muChecks.Unlock()
 		currentStart = start
 		currentWait = wait
 		s.interval = interval
@@ -119,21 +117,25 @@ func (s *schedule) run() {
 				schedTicker.Reset(schedInterval) // TODO: confirm we want to the next interval to run from completion of the jobs (not before)
 				setTimes(newStart, newWait, schedInterval)
 
+				s.muChecks.Lock() // TODO: talk with Tomas about this
 				if s.preflightCheck != nil {
 					if ok := s.preflightCheck(); !ok {
 						level.Debug(s.Logger).Log(s.name, "preflight check failed... skipping...")
+						s.muChecks.Unlock()
 						continue
 					}
 				}
 				if locked, err := s.locker.Lock(s.ctx, s.name, s.instanceID, schedInterval); err != nil || !locked {
 					level.Debug(s.Logger).Log(s.name, "not the lock leader... Skipping...")
+					s.muChecks.Unlock()
 					continue
 				}
+				s.muChecks.Unlock()
 
 				s.muJobs.Lock()
 				for id, job := range s.jobs {
 					fmt.Println("starting job... ", id)
-					job.statsHandler(job.exec(s.ctx)) // start new go routine for each job?
+					job.statsHandler(job.exec(s.ctx)) // TODO: start new go routine for each job?
 				}
 				s.muJobs.Unlock()
 			}
@@ -152,6 +154,7 @@ func (s *schedule) run() {
 		for {
 			select {
 			case <-configTicker.C:
+				// TODO: What if we simply lock muChecks for the duration of this case?
 				currStart, currWait, schedInterval := readTimes()
 
 				fmt.Println("config check")
@@ -161,19 +164,17 @@ func (s *schedule) run() {
 				}
 
 				newInterval, err := s.configCheck(currStart, currWait)
-				fmt.Println(newInterval, s.interval)
 				if err != nil {
 					level.Error(s.Logger).Log("config", "could not check for updates to interval config", "err", err)
 					// sentry.CaptureException(err)
 					continue
 				}
 
-				if s.interval == *newInterval {
+				if schedInterval == *newInterval {
 					level.Debug(s.Logger).Log(s.name, "interval unchanged")
 					continue
 				}
 
-				// atomic.StoreInt64((*int64)(&s.interval)), int64(*newInterval))
 				newWait := 10 * time.Millisecond
 
 				if time.Since(currStart) < *newInterval {
