@@ -26,6 +26,21 @@
     color: $ui-error;
   }
 
+  &__overlay-container {
+    display: grid;
+  }
+
+  &__software-automation-enabled,
+  &__overlay {
+    grid-area: 1 / 1;
+  }
+
+  &__overlay {
+    background-color: $core-white;
+    z-index: 0;
+    opacity: 75%;
+  }
+
   &__software-automation-description {
     p {
       margin: $pad-large 0;

@@ -46,13 +46,9 @@ func (s *integrationTestSuite) TearDownTest() {
 	filter := fleet.TeamFilter{User: &u}
 	hosts, err := s.ds.ListHosts(ctx, filter, fleet.HostListOptions{})
 	require.NoError(t, err)
-	var ids []uint
 	for _, host := range hosts {
-		ids = append(ids, host.ID)
 		require.NoError(t, s.ds.UpdateHostSoftware(context.Background(), host.ID, nil))
-	}
-	if len(ids) > 0 {
-		require.NoError(t, s.ds.DeleteHosts(ctx, ids))
+		require.NoError(t, s.ds.DeleteHost(ctx, host.ID))
 	}
 
 	// recalculate software counts will remove the software entries
@@ -3508,6 +3504,100 @@ func (s *integrationTestSuite) TestPasswordReset() {
 
 	// login with the new password, should succeed
 	res = s.DoRawNoAuth("POST", "/api/v1/fleet/login", jsonMustMarshal(t, loginRequest{Email: u.Email, Password: userNewPwd}), http.StatusOK)
+	res.Body.Close()
+}
+
+func (s *integrationTestSuite) TestDeviceAuthenticatedEndpoints() {
+	t := s.T()
+
+	hosts := s.createHosts(t)
+
+	// create some mappings and MDM/Munki data
+	s.ds.ReplaceHostDeviceMapping(context.Background(), hosts[0].ID, []*fleet.HostDeviceMapping{
+		{HostID: hosts[0].ID, Email: "a@b.c", Source: "google_chrome_profiles"},
+		{HostID: hosts[0].ID, Email: "b@b.c", Source: "google_chrome_profiles"},
+	})
+	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), hosts[0].ID, true, "url", false))
+	require.NoError(t, s.ds.SetOrUpdateMunkiVersion(context.Background(), hosts[0].ID, "1.3.0"))
+
+	// create an auth token for hosts[0]
+	token := "much_valid"
+	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+		_, err := db.ExecContext(context.Background(), `INSERT INTO host_device_auth (host_id, token) VALUES (?, ?)`, hosts[0].ID, token)
+		return err
+	})
+
+	// get host without token
+	res := s.DoRawNoAuth("GET", "/api/v1/fleet/device/", nil, http.StatusNotFound)
+	res.Body.Close()
+
+	// get host with invalid token
+	res = s.DoRawNoAuth("GET", "/api/v1/fleet/device/no_such_token", nil, http.StatusUnauthorized)
+	res.Body.Close()
+
+	// get host with valid token
+	var getHostResp getHostResponse
+	res = s.DoRawNoAuth("GET", "/api/v1/fleet/device/"+token, nil, http.StatusOK)
+	json.NewDecoder(res.Body).Decode(&getHostResp)
+	res.Body.Close()
+	require.Equal(t, hosts[0].ID, getHostResp.Host.ID)
+	require.False(t, getHostResp.Host.RefetchRequested)
+	hostDevResp := getHostResp.Host
+
+	// make request for same host on the host details API endpoint, responses should match
+	getHostResp = getHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", hosts[0].ID), nil, http.StatusOK, &getHostResp)
+	require.Equal(t, hostDevResp, getHostResp.Host)
+
+	// request a refetch for that valid host
+	res = s.DoRawNoAuth("POST", "/api/v1/fleet/device/"+token+"/refetch", nil, http.StatusOK)
+	res.Body.Close()
+
+	// host should have that flag turned to true
+	getHostResp = getHostResponse{}
+	res = s.DoRawNoAuth("GET", "/api/v1/fleet/device/"+token, nil, http.StatusOK)
+	json.NewDecoder(res.Body).Decode(&getHostResp)
+	res.Body.Close()
+	require.True(t, getHostResp.Host.RefetchRequested)
+
+	// request a refetch for an invalid token
+	res = s.DoRawNoAuth("POST", "/api/v1/fleet/device/no_such_token/refetch", nil, http.StatusUnauthorized)
+	res.Body.Close()
+
+	// list device mappings for valid token
+	var listDMResp listHostDeviceMappingResponse
+	res = s.DoRawNoAuth("GET", "/api/v1/fleet/device/"+token+"/device_mapping", nil, http.StatusOK)
+	json.NewDecoder(res.Body).Decode(&listDMResp)
+	res.Body.Close()
+	require.Equal(t, hosts[0].ID, listDMResp.HostID)
+	require.Len(t, listDMResp.DeviceMapping, 2)
+	devDMs := listDMResp.DeviceMapping
+
+	// compare response with standard list device mapping API for that same host
+	listDMResp = listHostDeviceMappingResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d/device_mapping", hosts[0].ID), nil, http.StatusOK, &listDMResp)
+	require.Equal(t, hosts[0].ID, listDMResp.HostID)
+	require.Equal(t, devDMs, listDMResp.DeviceMapping)
+
+	// list device mappings for invalid token
+	res = s.DoRawNoAuth("GET", "/api/v1/fleet/device/no_such_token/device_mapping", nil, http.StatusUnauthorized)
+	res.Body.Close()
+
+	// get macadmins for valid token
+	var getMacadm getMacadminsDataResponse
+	res = s.DoRawNoAuth("GET", "/api/v1/fleet/device/"+token+"/macadmins", nil, http.StatusOK)
+	json.NewDecoder(res.Body).Decode(&getMacadm)
+	res.Body.Close()
+	require.Equal(t, "1.3.0", getMacadm.Macadmins.Munki.Version)
+	devMacadm := getMacadm.Macadmins
+
+	// compare response with standard macadmins API for that same host
+	getMacadm = getMacadminsDataResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d/macadmins", hosts[0].ID), nil, http.StatusOK, &getMacadm)
+	require.Equal(t, devMacadm, getMacadm.Macadmins)
+
+	// get macadmins for invalid token
+	res = s.DoRawNoAuth("GET", "/api/v1/fleet/device/no_such_token/macadmins", nil, http.StatusUnauthorized)
 	res.Body.Close()
 }
 

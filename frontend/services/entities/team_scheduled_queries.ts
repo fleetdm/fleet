@@ -2,7 +2,10 @@
 import sendRequest from "services";
 
 import endpoints from "fleet/endpoints";
-import { ITeamScheduledQuery } from "interfaces/team_scheduled_query";
+import {
+  IScheduledQuery,
+  IUpdateTeamScheduledQuery,
+} from "interfaces/scheduled_query";
 import helpers from "fleet/helpers";
 
 interface ICreateTeamScheduledQueryFormData {
@@ -58,7 +61,10 @@ export default {
 
     return sendRequest("GET", path);
   },
-  update: (teamScheduledQuery: ITeamScheduledQuery, updatedAttributes: any) => {
+  update: (
+    teamScheduledQuery: IScheduledQuery,
+    updatedAttributes: IUpdateTeamScheduledQuery
+  ) => {
     const { team_id } = updatedAttributes;
     const { TEAM_SCHEDULE } = endpoints;
     const path = `${TEAM_SCHEDULE(team_id)}/${teamScheduledQuery.id}`;

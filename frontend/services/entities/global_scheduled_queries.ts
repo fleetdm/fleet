@@ -2,7 +2,7 @@
 import sendRequest from "services";
 
 import endpoints from "fleet/endpoints";
-import { IGlobalScheduledQuery } from "interfaces/global_scheduled_query";
+import { IEditScheduledQuery } from "interfaces/scheduled_query";
 import helpers from "fleet/helpers";
 
 export default {
@@ -46,7 +46,7 @@ export default {
     return sendRequest("GET", path);
   },
   update: (
-    globalScheduledQuery: IGlobalScheduledQuery,
+    globalScheduledQuery: IEditScheduledQuery,
     updatedAttributes: any
   ) => {
     const { GLOBAL_SCHEDULE } = endpoints;
