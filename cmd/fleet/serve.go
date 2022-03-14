@@ -610,11 +610,13 @@ func runSchedules(
 	webhooksInterval := appConfig.WebhookSettings.Interval.ValueOr(30 * time.Second)
 	webhooks, err := schedule.New(ctx, "webhooks", instanceID, webhooksInterval, ds, webhooksLogger)
 	if err != nil {
-		fmt.Println("Error creating webhooks schedule: ", err) // TODO: Sentry?
+		fmt.Println("Error creating webhooks schedule: ", err)
+		sentry.CaptureException(err)
+
 	}
-	webhooks.SetConfigCheck(schedule.SetWebhooksConfigCheck(ctx, ds, webhooksLogger))
+	webhooks.SetConfigCheck(schedule.SetWebhooksConfigCheck(ctx, ds, webhooksLogger, &webhooks.MuChecks))
 	webhooks.AddJob("cron_webhooks", func(ctx context.Context) (interface{}, error) {
-		return schedule.DoWebhooks(ctx, ds, webhooksLogger, failingPoliciesSet, instanceID, webhooksInterval)
+		return schedule.DoWebhooks(ctx, ds, webhooksLogger, failingPoliciesSet, instanceID, &webhooks.MuChecks)
 	}, func(interface{}, error) {})
 
 	// cleanupsLogger := kitlog.With(logger, "cron", "cleanups")
@@ -659,71 +661,71 @@ func runCrons(ds fleet.Datastore, task *async.Task, logger kitlog.Logger, config
 	return cancelBackground
 }
 
-func cronCleanups(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, identifier string, license *fleet.LicenseInfo) {
-	ticker := time.NewTicker(10 * time.Second)
-	for {
-		level.Debug(logger).Log("waiting", "on ticker")
-		select {
-		case <-ticker.C:
-			level.Debug(logger).Log("waiting", "done")
-			ticker.Reset(1 * time.Hour)
-		case <-ctx.Done():
-			level.Debug(logger).Log("exit", "done with cron.")
-			return
-		}
-		if locked, err := ds.Lock(ctx, lockKeyLeader, identifier, time.Hour); err != nil || !locked {
-			level.Debug(logger).Log("leader", "Not the leader. Skipping...")
-			continue
-		}
-		_, err := ds.CleanupDistributedQueryCampaigns(ctx, time.Now())
-		if err != nil {
-			level.Error(logger).Log("err", "cleaning distributed query campaigns", "details", err)
-			sentry.CaptureException(err)
-		}
-		err = ds.CleanupIncomingHosts(ctx, time.Now())
-		if err != nil {
-			level.Error(logger).Log("err", "cleaning incoming hosts", "details", err)
-			sentry.CaptureException(err)
-		}
-		_, err = ds.CleanupCarves(ctx, time.Now())
-		if err != nil {
-			level.Error(logger).Log("err", "cleaning carves", "details", err)
-			sentry.CaptureException(err)
-		}
-		err = ds.UpdateQueryAggregatedStats(ctx)
-		if err != nil {
-			level.Error(logger).Log("err", "aggregating query stats", "details", err)
-			sentry.CaptureException(err)
-		}
-		err = ds.UpdateScheduledQueryAggregatedStats(ctx)
-		if err != nil {
-			level.Error(logger).Log("err", "aggregating scheduled query stats", "details", err)
-			sentry.CaptureException(err)
-		}
-		err = ds.CleanupExpiredHosts(ctx)
-		if err != nil {
-			level.Error(logger).Log("err", "cleaning expired hosts", "details", err)
-			sentry.CaptureException(err)
-		}
-		err = ds.GenerateAggregatedMunkiAndMDM(ctx)
-		if err != nil {
-			level.Error(logger).Log("err", "aggregating munki and mdm data", "details", err)
-			sentry.CaptureException(err)
-		}
-		err = ds.CleanupPolicyMembership(ctx, time.Now())
-		if err != nil {
-			level.Error(logger).Log("err", "cleanup policy membership", "details", err)
-			sentry.CaptureException(err)
-		}
-
-		err = trySendStatistics(ctx, ds, fleet.StatisticsFrequency, "https://fleetdm.com/api/v1/webhooks/receive-usage-analytics", license)
-		if err != nil {
-			level.Error(logger).Log("err", "sending statistics", "details", err)
-			sentry.CaptureException(err)
-		}
-		level.Debug(logger).Log("loop", "done")
-	}
-}
+// TODO: double check no recent changes that need to be ported
+// func cronCleanups(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, identifier string, license *fleet.LicenseInfo) {
+// 	ticker := time.NewTicker(10 * time.Second)
+// 	for {
+// 		level.Debug(logger).Log("waiting", "on ticker")
+// 		select {
+// 		case <-ticker.C:
+// 			level.Debug(logger).Log("waiting", "done")
+// 			ticker.Reset(1 * time.Hour)
+// 		case <-ctx.Done():
+// 			level.Debug(logger).Log("exit", "done with cron.")
+// 			return
+// 		}
+// 		if locked, err := ds.Lock(ctx, lockKeyLeader, identifier, time.Hour); err != nil || !locked {
+// 			level.Debug(logger).Log("leader", "Not the leader. Skipping...")
+// 			continue
+// 		}
+// 		_, err := ds.CleanupDistributedQueryCampaigns(ctx, time.Now())
+// 		if err != nil {
+// 			level.Error(logger).Log("err", "cleaning distributed query campaigns", "details", err)
+// 			sentry.CaptureException(err)
+// 		}
+// 		err = ds.CleanupIncomingHosts(ctx, time.Now())
+// 		if err != nil {
+// 			level.Error(logger).Log("err", "cleaning incoming hosts", "details", err)
+// 			sentry.CaptureException(err)
+// 		}
+// 		_, err = ds.CleanupCarves(ctx, time.Now())
+// 		if err != nil {
+// 			level.Error(logger).Log("err", "cleaning carves", "details", err)
+// 			sentry.CaptureException(err)
+// 		}
+// 		err = ds.UpdateQueryAggregatedStats(ctx)
+// 		if err != nil {
+// 			level.Error(logger).Log("err", "aggregating query stats", "details", err)
+// 			sentry.CaptureException(err)
+// 		}
+// 		err = ds.UpdateScheduledQueryAggregatedStats(ctx)
+// 		if err != nil {
+// 			level.Error(logger).Log("err", "aggregating scheduled query stats", "details", err)
+// 			sentry.CaptureException(err)
+// 		}
+// 		err = ds.CleanupExpiredHosts(ctx)
+// 		if err != nil {
+// 			level.Error(logger).Log("err", "cleaning expired hosts", "details", err)
+// 			sentry.CaptureException(err)
+// 		}
+// 		err = ds.GenerateAggregatedMunkiAndMDM(ctx)
+// 		if err != nil {
+// 			level.Error(logger).Log("err", "aggregating munki and mdm data", "details", err)
+// 			sentry.CaptureException(err)
+// 		}
+// 		err = ds.CleanupPolicyMembership(ctx, time.Now())
+// 		if err != nil {
+// 			level.Error(logger).Log("err", "cleanup policy membership", "details", err)
+// 			sentry.CaptureException(err)
+// 		}
+// 		err = trySendStatistics(ctx, ds, fleet.StatisticsFrequency, "https://fleetdm.com/api/v1/webhooks/receive-usage-analytics", license)
+// 		if err != nil {
+// 			level.Error(logger).Log("err", "sending statistics", "details", err)
+// 			sentry.CaptureException(err)
+// 		}
+// 		level.Debug(logger).Log("loop", "done")
+// 	}
+// }
 
 func cronVulnerabilities(
 	ctx context.Context,

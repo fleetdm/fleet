@@ -7,7 +7,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/go-kit/log"
@@ -118,11 +121,11 @@ TEST:
 	for {
 		select {
 		case <-runCheck:
-			sched.muChecks.Lock()
+			sched.MuChecks.Lock()
 			if *locker.count > 2 {
 				break TEST
 			}
-			sched.muChecks.Unlock()
+			sched.MuChecks.Unlock()
 		case <-failCheck:
 			assert.Greater(t, *locker.count, uint(2))
 			t.FailNow()
@@ -253,15 +256,15 @@ TEST:
 	for {
 		select {
 		case <-runCheck:
-			sched.muChecks.Lock()
-			if sched.interval == 20*time.Millisecond {
+			sched.MuChecks.Lock()
+			if sched.schedInterval == 20*time.Millisecond {
 				break TEST
 			}
-			sched.muChecks.Unlock()
+			sched.MuChecks.Unlock()
 		case <-failCheck:
-			require.Equal(t, 20*time.Millisecond, sched.interval)
-			// fmt.Println(sched.interval)
-			// if sched.interval == 20*time.Millisecond {
+			require.Equal(t, 20*time.Millisecond, sched.schedInterval)
+			// fmt.Println(sched.schedInterval)
+			// if sched.schedInterval == 20*time.Millisecond {
 			// 	break TEST
 			// }
 			t.FailNow()
@@ -283,4 +286,76 @@ func TestTickerRaces(t *testing.T) {
 		}
 	}()
 	time.Sleep(10 * time.Second)
+}
+
+func TestCronWebhooksIntervalChange(t *testing.T) {
+	ds := new(mock.Store)
+
+	interval := struct {
+		sync.Mutex
+		value time.Duration
+	}{
+		value: 5 * time.Hour,
+	}
+	configLoaded := make(chan struct{}, 1)
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		select {
+		case configLoaded <- struct{}{}:
+		default:
+			// OK
+		}
+
+		interval.Lock()
+		defer interval.Unlock()
+
+		return &fleet.AppConfig{
+			WebhookSettings: fleet.WebhookSettings{
+				Interval: fleet.Duration{Duration: interval.value},
+			},
+		}, nil
+	}
+
+	lockCalled := make(chan struct{}, 1)
+	ds.LockFunc = func(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error) {
+		select {
+		case lockCalled <- struct{}{}:
+		default:
+			// OK
+		}
+		return true, nil
+	}
+
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	defer cancelFunc()
+
+	appConfig, err := ds.AppConfig(ctx)
+	require.NoError(t, err)
+
+	webhooksLogger := log.NewNopLogger()
+	webhooksInterval := appConfig.WebhookSettings.Interval.ValueOr(30 * time.Second)
+	webhooks, err := New(ctx, "webhooks", "test_instance", webhooksInterval, ds, webhooksLogger)
+	require.NoError(t, err)
+
+	webhooks.setConfigInterval(200 * time.Millisecond)
+	webhooks.SetConfigCheck(SetWebhooksConfigCheck(ctx, ds, webhooksLogger, &webhooks.MuChecks))
+	webhooks.AddJob("cron_webhooks", func(ctx context.Context) (interface{}, error) {
+		return DoWebhooks(ctx, ds, webhooksLogger, service.NewMemFailingPolicySet(), "test_instance", &webhooks.MuChecks)
+	}, func(interface{}, error) {})
+
+	select {
+	case <-configLoaded:
+	case <-time.After(5 * time.Second):
+		t.Fatal("timeout: initial config load")
+	}
+
+	interval.Lock()
+	interval.value = 1 * time.Second
+	interval.Unlock()
+
+	select {
+	case <-lockCalled:
+	case <-time.After(5 * time.Second):
+		t.Fatal("timeout: schedInterval change did not trigger lock call")
+	}
 }
