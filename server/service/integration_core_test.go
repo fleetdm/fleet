@@ -3466,7 +3466,6 @@ func (s *integrationTestSuite) TestPasswordReset() {
 	s.DoJSON("POST", "/api/v1/fleet/users/admin", params, http.StatusOK, &createResp)
 	require.NotZero(t, createResp.User.ID)
 	u := *createResp.User
-	_ = u
 
 	// request forgot password, invalid email
 	res := s.DoRawNoAuth("POST", "/api/v1/fleet/forgot_password", jsonMustMarshal(t, forgotPasswordRequest{Email: "invalid@asd.com"}), http.StatusAccepted)
@@ -3599,6 +3598,28 @@ func (s *integrationTestSuite) TestDeviceAuthenticatedEndpoints() {
 	// get macadmins for invalid token
 	res = s.DoRawNoAuth("GET", "/api/v1/fleet/device/no_such_token/macadmins", nil, http.StatusUnauthorized)
 	res.Body.Close()
+}
+
+func (s *integrationTestSuite) TestModifyUserPassword() {
+	t := s.T()
+
+	// create a new user
+	var createResp createUserResponse
+	userRawPwd := "passw0rd!"
+	params := fleet.UserPayload{
+		Name:       ptr.String("moduser"),
+		Email:      ptr.String("moduser@example.com"),
+		Password:   ptr.String(userRawPwd),
+		GlobalRole: ptr.String(fleet.RoleObserver),
+	}
+	s.DoJSON("POST", "/api/v1/fleet/users/admin", params, http.StatusOK, &createResp)
+	require.NotZero(t, createResp.User.ID)
+	u := *createResp.User
+
+	// TODO(mna): add tests that changes user's email with/without old password (as user),
+	// set new password (as user, as admin, should it fail for as user?), then as admin
+	// change email AND set new password with/without old password.
+	_ = u
 }
 
 // creates a session and returns it, its key is to be passed as authorization header.
