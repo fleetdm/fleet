@@ -3664,9 +3664,44 @@ func (s *integrationTestSuite) TestModifyUser() {
 	require.Equal(t, u.ID, modResp.User.ID)
 	require.Equal(t, "moduser2", modResp.User.Name)
 
-	// TODO(mna): add tests that changes user's email with/without old password (as user),
-	// set new password (as user, as admin, should it fail for as user?), then as admin
-	// change email AND set new password with/without old password.
+	s.token = s.getTestToken(testUsers["user2"].Email, testUsers["user2"].PlaintextPassword)
+
+	// as a different user: set new password with different user's old password (ensure
+	// any other user that is not admin cannot change another user's password)
+	newRawPwd = userRawPwd + "3"
+	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/users/%d", u.ID), fleet.UserPayload{
+		NewPassword: ptr.String(newRawPwd),
+		Password:    ptr.String(testUsers["user2"].PlaintextPassword),
+	}, http.StatusForbidden, &modResp)
+
+	s.token = s.getTestAdminToken()
+
+	// as an admin, set a new email, name and password without a current password
+	newRawPwd = userRawPwd + "4"
+	modResp = modifyUserResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/users/%d", u.ID), fleet.UserPayload{
+		NewPassword: ptr.String(newRawPwd),
+		Email:       ptr.String("moduser3@example.com"),
+		Name:        ptr.String("moduser3"),
+	}, http.StatusOK, &modResp)
+	require.Equal(t, u.ID, modResp.User.ID)
+	require.Equal(t, "moduser3", modResp.User.Name)
+
+	// as an admin, set new password that doesn't meet requirements
+	invalidUserPwd := "abc"
+	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/users/%d", u.ID), fleet.UserPayload{
+		NewPassword: ptr.String(invalidUserPwd),
+	}, http.StatusUnprocessableEntity, &modResp)
+
+	// login as the user, with the last password successfully set (to confirm it is the current one)
+	var loginResp loginResponse
+	resp := s.DoRawNoAuth("POST", "/api/v1/fleet/login", jsonMustMarshal(t, loginRequest{
+		Email:    u.Email, // all email changes made are still pending, never confirmed
+		Password: newRawPwd,
+	}), http.StatusOK)
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&loginResp))
+	resp.Body.Close()
+	require.Equal(t, u.ID, loginResp.User.ID)
 }
 
 // creates a session and returns it, its key is to be passed as authorization header.
