@@ -36,7 +36,7 @@ func TestCleanupURL(t *testing.T) {
 
 func TestCreateAppConfig(t *testing.T) {
 	ds := new(mock.Store)
-	svc := newTestService(ds, nil, nil)
+	svc := newTestService(t, ds, nil, nil)
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
@@ -91,7 +91,7 @@ func TestCreateAppConfig(t *testing.T) {
 
 func TestEmptyEnrollSecret(t *testing.T) {
 	ds := new(mock.Store)
-	svc := newTestService(ds, nil, nil)
+	svc := newTestService(t, ds, nil, nil)
 
 	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
 		return nil
@@ -279,10 +279,8 @@ func TestService_LoggingConfig(t *testing.T) {
 			},
 		},
 		{
-			name: "test unrecognized config",
-			fields: fields{config: config.FleetConfig{
-				Osquery: config.OsqueryConfig{ResultLogPlugin: "bar", StatusLogPlugin: "bar"},
-			}},
+			name:    "test unrecognized config",
+			fields:  fields{config: testUnrecognizedPluginConfig()},
 			args:    args{ctx: test.UserContext(test.UserAdmin)},
 			wantErr: true,
 			want:    nil,
@@ -292,7 +290,7 @@ func TestService_LoggingConfig(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ds := new(mock.Store)
-			svc := newTestServiceWithConfig(ds, tt.fields.config, nil, nil)
+			svc := newTestServiceWithConfig(t, ds, tt.fields.config, nil, nil)
 			got, err := svc.LoggingConfig(tt.args.ctx)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("LoggingConfig() error = %v, wantErr %v", err, tt.wantErr)
@@ -307,7 +305,7 @@ func TestService_LoggingConfig(t *testing.T) {
 
 func TestModifyAppConfigPatches(t *testing.T) {
 	ds := new(mock.Store)
-	svc := newTestService(ds, nil, nil)
+	svc := newTestService(t, ds, nil, nil)
 
 	storedConfig := &fleet.AppConfig{}
 

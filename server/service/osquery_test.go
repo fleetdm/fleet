@@ -72,7 +72,7 @@ func TestGetClientConfig(t *testing.T) {
 		return &fleet.Host{ID: id}, nil
 	}
 
-	svc := newTestService(ds, nil, nil)
+	svc := newTestService(t, ds, nil, nil)
 
 	ctx1 := hostctx.NewContext(context.Background(), &fleet.Host{ID: 1})
 	ctx2 := hostctx.NewContext(context.Background(), &fleet.Host{ID: 2})
@@ -146,7 +146,7 @@ func TestGetClientConfig(t *testing.T) {
 
 func TestAgentOptionsForHost(t *testing.T) {
 	ds := new(mock.Store)
-	svc := newTestService(ds, nil, nil)
+	svc := newTestService(t, ds, nil, nil)
 
 	teamID := uint(1)
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
@@ -207,7 +207,7 @@ func TestEnrollAgent(t *testing.T) {
 		return &fleet.AppConfig{}, nil
 	}
 
-	svc := newTestService(ds, nil, nil)
+	svc := newTestService(t, ds, nil, nil)
 
 	nodeKey, err := svc.EnrollAgent(context.Background(), "valid_secret", "host123", nil)
 	require.NoError(t, err)
@@ -225,7 +225,7 @@ func TestEnrollAgentIncorrectEnrollSecret(t *testing.T) {
 		}
 	}
 
-	svc := newTestService(ds, nil, nil)
+	svc := newTestService(t, ds, nil, nil)
 
 	nodeKey, err := svc.EnrollAgent(context.Background(), "not_correct", "host123", nil)
 	assert.NotNil(t, err)
@@ -251,7 +251,7 @@ func TestEnrollAgentDetails(t *testing.T) {
 		return &fleet.AppConfig{}, nil
 	}
 
-	svc := newTestService(ds, nil, nil)
+	svc := newTestService(t, ds, nil, nil)
 
 	details := map[string](map[string]string){
 		"osquery_info": {"version": "2.12.0"},
@@ -278,7 +278,7 @@ func TestEnrollAgentDetails(t *testing.T) {
 
 func TestAuthenticateHost(t *testing.T) {
 	ds := new(mock.Store)
-	svc := newTestService(ds, nil, nil)
+	svc := newTestService(t, ds, nil, nil)
 
 	var gotKey string
 	host := fleet.Host{ID: 1, Hostname: "foobar"}
@@ -325,7 +325,7 @@ func TestAuthenticateHost(t *testing.T) {
 
 func TestAuthenticateHostFailure(t *testing.T) {
 	ds := new(mock.Store)
-	svc := newTestService(ds, nil, nil)
+	svc := newTestService(t, ds, nil, nil)
 
 	ds.LoadHostByNodeKeyFunc = func(ctx context.Context, nodeKey string) (*fleet.Host, error) {
 		return nil, errors.New("not found")
@@ -346,7 +346,7 @@ func (n *testJSONLogger) Write(ctx context.Context, logs []json.RawMessage) erro
 
 func TestSubmitStatusLogs(t *testing.T) {
 	ds := new(mock.Store)
-	svc := newTestService(ds, nil, nil)
+	svc := newTestService(t, ds, nil, nil)
 
 	// Hack to get at the service internals and modify the writer
 	serv := ((svc.(validationMiddleware)).Service).(*Service)
@@ -374,7 +374,7 @@ func TestSubmitStatusLogs(t *testing.T) {
 
 func TestSubmitResultLogs(t *testing.T) {
 	ds := new(mock.Store)
-	svc := newTestService(ds, nil, nil)
+	svc := newTestService(t, ds, nil, nil)
 
 	// Hack to get at the service internals and modify the writer
 	serv := ((svc.(validationMiddleware)).Service).(*Service)
@@ -466,7 +466,7 @@ func TestHostDetailQueries(t *testing.T) {
 }
 
 func TestGetDistributedQueriesMissingHost(t *testing.T) {
-	svc := newTestService(&mock.Store{}, nil, nil)
+	svc := newTestService(t, &mock.Store{}, nil, nil)
 
 	_, _, err := svc.GetDistributedQueries(context.Background())
 	require.NotNil(t, err)
@@ -477,7 +477,7 @@ func TestLabelQueries(t *testing.T) {
 	mockClock := clock.NewMockClock()
 	ds := new(mock.Store)
 	lq := new(live_query.MockLiveQuery)
-	svc := newTestServiceWithClock(ds, nil, lq, mockClock)
+	svc := newTestServiceWithClock(t, ds, nil, lq, mockClock)
 
 	host := &fleet.Host{
 		Platform: "darwin",
@@ -630,7 +630,7 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	ds := new(mock.Store)
 	mockClock := clock.NewMockClock()
 	lq := new(live_query.MockLiveQuery)
-	svc := newTestServiceWithClock(ds, nil, lq, mockClock)
+	svc := newTestServiceWithClock(t, ds, nil, lq, mockClock)
 
 	host := &fleet.Host{
 		ID:       1,
@@ -808,7 +808,7 @@ func TestDetailQueries(t *testing.T) {
 	ds := new(mock.Store)
 	mockClock := clock.NewMockClock()
 	lq := new(live_query.MockLiveQuery)
-	svc := newTestServiceWithClock(ds, nil, lq, mockClock)
+	svc := newTestServiceWithClock(t, ds, nil, lq, mockClock)
 
 	host := &fleet.Host{
 		ID:       1,
@@ -1111,7 +1111,7 @@ func TestNewDistributedQueryCampaign(t *testing.T) {
 	}
 	lq := &live_query.MockLiveQuery{}
 	mockClock := clock.NewMockClock()
-	svc := newTestServiceWithClock(ds, rs, lq, mockClock)
+	svc := newTestServiceWithClock(t, ds, rs, lq, mockClock)
 
 	ds.LabelQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
@@ -1178,7 +1178,7 @@ func TestDistributedQueryResults(t *testing.T) {
 	ds := new(mock.Store)
 	rs := pubsub.NewInmemQueryResults()
 	lq := new(live_query.MockLiveQuery)
-	svc := newTestServiceWithClock(ds, rs, lq, mockClock)
+	svc := newTestServiceWithClock(t, ds, rs, lq, mockClock)
 
 	campaign := &fleet.DistributedQueryCampaign{ID: 42}
 
@@ -1533,7 +1533,7 @@ func TestIngestDistributedQuery(t *testing.T) {
 func TestUpdateHostIntervals(t *testing.T) {
 	ds := new(mock.Store)
 
-	svc := newTestService(ds, nil, nil)
+	svc := newTestService(t, ds, nil, nil)
 
 	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Pack, error) {
 		return []*fleet.Pack{}, nil
@@ -1699,7 +1699,7 @@ func TestAuthenticationErrors(t *testing.T) {
 		return nil, nil
 	}
 
-	svc := newTestService(ms, nil, nil)
+	svc := newTestService(t, ms, nil, nil)
 	ctx := context.Background()
 
 	_, _, err := svc.AuthenticateHost(ctx, "")
@@ -1812,7 +1812,7 @@ func TestDistributedQueriesLogsManyErrors(t *testing.T) {
 	logger := log.NewJSONLogger(buf)
 	logger = level.NewFilter(logger, level.AllowDebug())
 	ds := new(mock.Store)
-	svc := newTestService(ds, nil, nil)
+	svc := newTestService(t, ds, nil, nil)
 
 	host := &fleet.Host{
 		ID:       1,
@@ -1862,7 +1862,7 @@ func TestDistributedQueriesLogsManyErrors(t *testing.T) {
 
 func TestDistributedQueriesReloadsHostIfDetailsAreIn(t *testing.T) {
 	ds := new(mock.Store)
-	svc := newTestService(ds, nil, nil)
+	svc := newTestService(t, ds, nil, nil)
 
 	host := &fleet.Host{
 		ID:       42,
@@ -1899,7 +1899,7 @@ func TestObserversCanOnlyRunDistributedCampaigns(t *testing.T) {
 	}
 	lq := &live_query.MockLiveQuery{}
 	mockClock := clock.NewMockClock()
-	svc := newTestServiceWithClock(ds, rs, lq, mockClock)
+	svc := newTestServiceWithClock(t, ds, rs, lq, mockClock)
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
@@ -1973,7 +1973,7 @@ func TestTeamMaintainerCanRunNewDistributedCampaigns(t *testing.T) {
 	}
 	lq := &live_query.MockLiveQuery{}
 	mockClock := clock.NewMockClock()
-	svc := newTestServiceWithClock(ds, rs, lq, mockClock)
+	svc := newTestServiceWithClock(t, ds, rs, lq, mockClock)
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
@@ -2026,7 +2026,7 @@ func TestPolicyQueries(t *testing.T) {
 	mockClock := clock.NewMockClock()
 	ds := new(mock.Store)
 	lq := new(live_query.MockLiveQuery)
-	svc := newTestServiceWithClock(ds, nil, lq, mockClock)
+	svc := newTestServiceWithClock(t, ds, nil, lq, mockClock)
 
 	host := &fleet.Host{
 		Platform: "darwin",
@@ -2203,7 +2203,7 @@ func TestPolicyWebhooks(t *testing.T) {
 	pool := redistest.SetupRedis(t, t.Name(), false, false, false)
 	failingPolicySet := redis_policy_set.NewFailingTest(t, pool)
 	testConfig := config.TestConfig()
-	svc := newTestServiceWithConfig(ds, testConfig, nil, lq, TestServerOpts{
+	svc := newTestServiceWithConfig(t, ds, testConfig, nil, lq, TestServerOpts{
 		FailingPolicySet: failingPolicySet,
 		Clock:            mockClock,
 	})
@@ -2467,7 +2467,7 @@ func TestLiveQueriesFailing(t *testing.T) {
 	cfg := config.TestConfig()
 	buf := new(bytes.Buffer)
 	logger := log.NewLogfmtLogger(buf)
-	svc := newTestServiceWithConfig(ds, cfg, nil, lq, TestServerOpts{
+	svc := newTestServiceWithConfig(t, ds, cfg, nil, lq, TestServerOpts{
 		Logger: logger,
 	})
 
