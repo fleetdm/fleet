@@ -819,3 +819,23 @@ func (svc *Service) AggregatedMacadminsData(ctx context.Context, teamID *uint) (
 
 	return agg, nil
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// Hosts Report in CSV downloadable file
+////////////////////////////////////////////////////////////////////////////////
+
+type hostsReportRequest struct {
+	Opts fleet.HostListOptions `url:"host_options"`
+}
+
+type hostsReportResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r hostsReportResponse) error() error { return r.Err }
+
+func hostsReportEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*hostsReportRequest)
+	_ = req
+	return hostsReportResponse{}, nil
+}
