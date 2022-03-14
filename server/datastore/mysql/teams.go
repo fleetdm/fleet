@@ -173,13 +173,16 @@ func saveUsersForTeamDB(ctx context.Context, exec sqlx.ExecerContext, team *flee
 func (ds *Datastore) SaveTeam(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		query := `
-		UPDATE teams SET
-			name = ?,
-			agent_options = ?,
-			description = ?
-		WHERE id = ?
-	`
-		_, err := tx.ExecContext(ctx, query, team.Name, team.AgentOptions, team.Description, team.ID)
+UPDATE teams
+SET
+    name = ?,
+    description = ?,
+    agent_options = ?,
+    config = ?
+WHERE
+    id = ?
+`
+		_, err := tx.ExecContext(ctx, query, team.Name, team.Description, team.AgentOptions, team.Config, team.ID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "saving team")
 		}

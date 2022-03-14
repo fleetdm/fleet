@@ -87,6 +87,9 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 	if payload.Description != nil {
 		team.Description = *payload.Description
 	}
+	if payload.Config != nil {
+		team.Config = *payload.Config
+	}
 
 	return svc.ds.SaveTeam(ctx, team)
 }

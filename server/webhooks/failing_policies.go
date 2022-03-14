@@ -38,15 +38,16 @@ func TriggerFailingPoliciesWebhook(
 	}
 	var globalWebhookURL *url.URL
 	if globalSettings.Enable {
-		globalWebhookURL, err = url.Parse(appConfig.WebhookSettings.FailingPoliciesWebhook.DestinationURL)
+		globalWebhookURL, err = url.Parse(globalSettings.DestinationURL)
 		if err != nil {
-			return ctxerr.Wrapf(ctx, err, "parse global webhook url", "err", err)
+			return ctxerr.Wrapf(ctx, err, "parse global webhook url: %s", globalSettings.DestinationURL)
 		}
 	}
 
 	// team caches
 	teamSettings := make(map[uint]fleet.FailingPoliciesWebhookSettings)
 	teamPolicyIDs := make(map[uint]map[uint]struct{})
+	teamWebhookURLs := make(map[uint]*url.URL)
 	getTeam := func(teamID uint) error {
 		settings, ok := teamSettings[teamID]
 		if ok {
@@ -65,6 +66,14 @@ func TriggerFailingPoliciesWebhook(
 			policyIDs[policyID] = struct{}{}
 		}
 		teamPolicyIDs[teamID] = policyIDs
+
+		if settings.Enable {
+			webhookURL, err := url.Parse(settings.DestinationURL)
+			if err != nil {
+				return ctxerr.Wrapf(ctx, err, "parse webhook url: %s", settings.DestinationURL)
+			}
+			teamWebhookURLs[teamID] = webhookURL
+		}
 
 		return nil
 	}
@@ -106,19 +115,17 @@ func TriggerFailingPoliciesWebhook(
 			if !settings.Enable {
 				continue
 			}
-			webhookURL, err := url.Parse(settings.DestinationURL)
-			if err != nil {
-				level.Error(logger).Log("msg", "failed to parse webhook url", "err", err)
-				continue
-			}
+
 			_, ok := teamPolicyIDs[*policy.TeamID][policy.ID]
 			if !ok {
-				level.Debug(logger).Log("msg", "skipping failing policy, deleted from team policy IDs", "policyID", policyID)
+				level.Debug(logger).Log("msg", "skipping failing policy, not found in team policy IDs", "policyID", policyID)
 				if err := failingPoliciesSet.RemoveSet(policy.ID); err != nil {
 					level.Error(logger).Log("msg", "failed to remove policy from set", "policyID", policyID, "err", err)
 				}
 				continue
 			}
+
+			webhookURL := teamWebhookURLs[*policy.TeamID]
 
 			err = sendFailingPoliciesBatchedPOSTs(
 				ctx,
@@ -227,6 +234,6 @@ func makeFailingHost(host fleet.PolicySetHost, serverURL *url.URL) FailingHost {
 	return FailingHost{
 		ID:       host.ID,
 		Hostname: host.Hostname,
-		URL:      serverURL.String(),
+		URL:      u.String(),
 	}
 }

@@ -18,6 +18,7 @@ type TeamPayload struct {
 	Description *string         `json:"description"`
 	Secrets     []*EnrollSecret `json:"secrets"`
 	// Note AgentOptions must be set by a separate endpoint.
+	Config *TeamConfig `json:"config"`
 }
 
 // Team is the data representation for the "Team" concept (group of hosts and
@@ -74,7 +75,7 @@ func (t *TeamConfig) Scan(val interface{}) error {
 }
 
 // Value implements the sql.Valuer interface
-func (t *TeamConfig) Value() (driver.Value, error) {
+func (t TeamConfig) Value() (driver.Value, error) {
 	return json.Marshal(t)
 }
 

@@ -847,8 +847,6 @@ func cronWebhooks(
 		maybeTriggerHostStatus(ctx, ds, logger, identifier, appConfig, intervalReload)
 		maybeTriggerFailingPoliciesWebhook(ctx, ds, logger, identifier, appConfig, intervalReload, failingPoliciesSet)
 
-		// TODO: trigger team policies webhooks
-
 		level.Debug(logger).Log("loop", "done")
 	}
 }
