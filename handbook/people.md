@@ -137,9 +137,7 @@ Settings that have a lock icon next to them have been locked by an administrator
 
 We use the Zoom add-on for Google Calendar to schedule Zoom meetings when we create calendar events. To add a Zoom meeting to a calendar event, click the "Add video conferencing" dropdown and select "Zoom Meeting." Google Calendar will automatically add the Zoom meeting details and instructions to join the event.
 
-Our Zoom meetings are configured to let participants join before the host starts the meeting. We do this to ensure meetings start on time, even if the host isn't there. This setting is locked across all Zoom accounts, but it **only** applies to meetings with scheduled start times.
-
-If you are organizing a recurring meeting, you need to make sure you configure the meeting room to have a start time. To set a recurring meeting's start time, go to your [upcoming meetings](https://zoom.us/meeting#/upcoming) page and find the meeting room with the same name as the calendar event. Click the edit button next to the meeting room, and add the meeting's start time.
+Our Zoom meetings are configured to let participants join before the host starts the meeting. We do this to ensure meetings start on time, even if the host isn't there.
 
 ## Slack
 
