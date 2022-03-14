@@ -20,8 +20,8 @@ DRIs help us collaborate efficiently by knowing exactly who is responsible and c
 | Customer PoV deployments like acme.fleetdm.com | Ben Edwards |
 | dogfood.fleetdm.com | Ben Edwards |
 | Quality of core product UI | Luke Heath |
-| Quality of tickets after Noah's done with them | Luke Heath 	|
-| ["Escaped work"](https://docs.google.com/document/d/1vXL_WSUqASJWuNnQhUVrkudIeG4zlaiOCqJEa7xB2do/edit) | Luke Heath |
+| Ticket movement from product to engineering | Luke Heath |
+| Lead engineering standup and sprint planning | Zach Wasserman* |
 | Customer Slack channels | Tony Gauda |
 | Customer renewals | Tony Gauda |
 | Quality of core product backend | Tomás Touceda |
@@ -33,8 +33,9 @@ DRIs help us collaborate efficiently by knowing exactly who is responsible and c
 | fleetdm.com | Mike Thomas |
 | Self-service Fleet Premium license dispenser | Mike Thomas |
 
+*Luke Heath is backup 
 
->You can read more about directly responsible individuals in [Gitlab's handbook](https://about.gitlab.com/handbook/people-group/directly-responsible-individuals/)
+>You can read more about directly responsible individuals in [GitLab's handbook](https://about.gitlab.com/handbook/people-group/directly-responsible-individuals/)
 
 ## Spending company money
 As we continue to expand our company policies, we use [GitLab's open expense policy](https://about.gitlab.com/handbook/spending-company-money/) as a guide for company spending.
