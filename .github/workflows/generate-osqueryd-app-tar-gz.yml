@@ -25,11 +25,10 @@ jobs:
 
       - name: Generate osqueryd.app.tar.gz
         run: |
-          mkdir artifacts
-          make osqueryd-app-tar-gz out-path=./artifacts version=$OSQUERY_VERSION
+          make osqueryd-app-tar-gz out-path=. version=$OSQUERY_VERSION
 
       - name: Upload osqueryd.app.tar.gz
         uses: actions/upload-artifact@v2
         with:
           name: osqueryd.app.tar.gz
-          path: artifacts
+          path: osqueryd.app.tar.gz
