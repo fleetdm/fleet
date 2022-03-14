@@ -268,7 +268,8 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 	if !ok {
 		return nil, ctxerr.New(ctx, "viewer not present") // should never happen, authorize would've failed
 	}
-	if err := p.VerifyModify(vc.UserID() == userID); err != nil {
+	ownUser := vc.UserID() == userID
+	if err := p.VerifyModify(ownUser); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "verify user payload")
 	}
 
@@ -284,6 +285,17 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 		}
 		if err := fleet.ValidatePasswordRequirements(*p.NewPassword); err != nil {
 			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("new_password", err.Error()))
+		}
+		if ownUser {
+			// when changing one's own password, user cannot reuse the same password
+			// and the old password must be provided (validated by p.VerifyModify above)
+			// and must be valid. If changed by admin, then this is not required.
+			if err := vc.User.ValidatePassword(*p.NewPassword); err == nil {
+				return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("new_password", "cannot reuse old password"))
+			}
+			if err := vc.User.ValidatePassword(*p.Password); err != nil {
+				return nil, ctxerr.Wrap(ctx, fleet.NewPermissionError("incorrect password"))
+			}
 		}
 	}
 
