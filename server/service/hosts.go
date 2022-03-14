@@ -825,7 +825,8 @@ func (svc *Service) AggregatedMacadminsData(ctx context.Context, teamID *uint) (
 ////////////////////////////////////////////////////////////////////////////////
 
 type hostsReportRequest struct {
-	Opts fleet.HostListOptions `url:"host_options"`
+	Opts    fleet.HostListOptions `url:"host_options"`
+	LabelID *uint                 `query:"label_id,optional"`
 }
 
 type hostsReportResponse struct {
@@ -836,6 +837,27 @@ func (r hostsReportResponse) error() error { return r.Err }
 
 func hostsReportEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
 	req := request.(*hostsReportRequest)
-	_ = req
+
+	// TODO(mna): is it ok to set those explicitly like this? They are not supported
+	// when listing hosts in a label, so that's just to make the output consistent
+	// whether a label is used or not.
+	req.Opts.DisableFailingPolicies = true
+	req.Opts.AdditionalFilters = nil
+
+	var (
+		hosts []*fleet.Host
+		err   error
+	)
+
+	if req.LabelID == nil {
+		hosts, err = svc.ListHosts(ctx, req.Opts)
+	} else {
+		hosts, err = svc.ListHostsInLabel(ctx, *req.LabelID, req.Opts)
+	}
+	if err != nil {
+		return hostsReportResponse{Err: err}, nil
+	}
+	// TODO(mna): prepare csv and downloadable response
+	_ = hosts
 	return hostsReportResponse{}, nil
 }
