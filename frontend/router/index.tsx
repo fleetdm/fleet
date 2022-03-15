@@ -26,6 +26,7 @@ import PremiumTierRoutes from "components/PremiumTierRoutes";
 import ConfirmInvitePage from "pages/ConfirmInvitePage";
 import ConfirmSSOInvitePage from "pages/ConfirmSSOInvitePage";
 import CoreLayout from "layouts/CoreLayout";
+import FleetDesktopLayout from "layouts/FleetDesktopLayout";
 import DeviceUserPage from "components/DeviceUserPage";
 import EditPackPage from "pages/packs/EditPackPage";
 import EmailTokenRedirect from "components/EmailTokenRedirect";
@@ -133,7 +134,6 @@ const routes = (
                   component={ManageHostsPage}
                 />
                 <Route path=":host_id" component={HostDetailsPage} />
-                <Route path="deviceuser/:host_id" component={DeviceUserPage} />
               </Route>
               <Route path="software" component={SoftwarePageWrapper}>
                 <IndexRedirect to={"manage"} />
@@ -179,6 +179,9 @@ const routes = (
               <Route path="profile" component={UserSettingsPage} />
             </Route>
           </Route>
+        </Route>
+        <Route component={FleetDesktopLayout}>
+          <Route path="/deviceuser/:host_id" component={DeviceUserPage} />
         </Route>
       </Route>
       <Route path="/apionlyuser" component={ApiOnlyUser} />

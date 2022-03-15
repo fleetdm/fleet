@@ -1,0 +1,24 @@
+.app-wrap {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.fleet-desktop-wrapper {
+  flex-grow: 1;
+  margin: 0;
+  padding: 0;
+  position: relative;
+  background-color: $core-white;
+  display: flex;
+  flex-direction: column;
+}
+
+.site-nav {
+  background: $gradients-dark-gradient;
+  box-sizing: border-box;
+  display: flex;
+  top: 0;
+  left: 0;
+  z-index: 100;
+}
