@@ -7,7 +7,7 @@ export interface INavItem {
   name: string;
   iconName: string;
   location: {
-    regex: any;
+    regex: RegExp;
     pathname: string;
   };
   withContext?: boolean;

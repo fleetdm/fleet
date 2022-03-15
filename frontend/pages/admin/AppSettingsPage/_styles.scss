@@ -61,6 +61,15 @@
 
   // so tooltips won't be triggered with whitespace
   .form-field__label {
-    display: inline-block; 
+    display: inline-block;
+
+    .buttons {
+      top: 22px;
+    }
+    .enroll-secrets__secret-input {
+      .input-field {
+        width: 100%;
+      }
+    }
   }
 }

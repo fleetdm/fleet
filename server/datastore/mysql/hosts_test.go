@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -111,6 +112,7 @@ func TestHosts(t *testing.T) {
 		{"HostLite", testHostsLite},
 		{"UpdateOsqueryIntervals", testUpdateOsqueryIntervals},
 		{"UpdateRefetchRequested", testUpdateRefetchRequested},
+		{"LoadHostByDeviceAuthToken", testHostsLoadHostByDeviceAuthToken},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -3687,4 +3689,31 @@ func testHostsSaveHostUsers(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, host.Users, 2)
 	test.ElementsMatchSkipID(t, users, host.Users)
+}
+
+func testHostsLoadHostByDeviceAuthToken(t *testing.T, ds *Datastore) {
+	host, err := ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         "1",
+		UUID:            "1",
+		Hostname:        "foo.local",
+		PrimaryIP:       "192.168.1.1",
+		PrimaryMac:      "30-65-EC-6F-C4-58",
+	})
+	require.NoError(t, err)
+
+	validToken := "abcd"
+	_, err = ds.writer.ExecContext(context.Background(), `INSERT INTO host_device_auth (host_id, token) VALUES (?, ?)`, host.ID, validToken)
+	require.NoError(t, err)
+
+	_, err = ds.LoadHostByDeviceAuthToken(context.Background(), "nosuchtoken")
+	require.Error(t, err)
+	assert.ErrorIs(t, err, sql.ErrNoRows)
+
+	h, err := ds.LoadHostByDeviceAuthToken(context.Background(), validToken)
+	require.NoError(t, err)
+	require.Equal(t, host.ID, h.ID)
 }

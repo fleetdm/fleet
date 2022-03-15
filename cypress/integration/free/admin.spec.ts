@@ -197,14 +197,24 @@ describe(
         cy.loginWithCySession("anna@organization.com", "user123#");
         cy.visit("/software/manage");
       });
-      it("allows global admin to click 'Manage automations' button", () => {
+      it("allows global admin to update software vulnerability automation", () => {
         cy.getAttached(".manage-software-page__header-wrap").within(() => {
           cy.findByRole("button", { name: /manage automations/i }).click();
         });
-        cy.getAttached(".manage-automations-modal__button-wrap").within(() => {
+        cy.getAttached(".manage-automations-modal").within(() => {
+          cy.getAttached(".fleet-slider").click();
+        });
+        cy.getAttached("#webhook-url").click().type("www.foo.com/bar");
+        cy.findByRole("button", { name: /^Save$/ }).click();
+        // Confirm manage automations webhook was added successfully
+        cy.findByText(/updated vulnerability automations/i).should("exist");
+        cy.getAttached(".button-wrap").within(() => {
           cy.findByRole("button", {
-            name: /cancel/i,
+            name: /manage automations/i,
           }).click();
+        });
+        cy.getAttached(".manage-automations-modal").within(() => {
+          cy.getAttached(".fleet-slider--active").should("exist");
         });
       });
     });
@@ -257,7 +267,7 @@ describe(
         cy.findByText(/run query/i).click({ force: true });
         cy.findByText(/select targets/i).should("exist");
         cy.findByText(/all hosts/i).click();
-        cy.findByText(/targets selected/i).should("exist"); // target count
+        cy.findByText(/hosts targeted/i).should("exist"); // target count
         cy.findByText(/run/i).click();
         cy.findByText(/querying selected hosts/i).should("exist"); // target count
       });

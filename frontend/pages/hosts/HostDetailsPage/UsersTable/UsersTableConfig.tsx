@@ -12,7 +12,7 @@ interface IHeaderProps {
 }
 interface ICellProps {
   cell: {
-    value: any;
+    value: string;
   };
   row: {
     original: { user: string };

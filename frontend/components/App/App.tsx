@@ -105,6 +105,7 @@ const App = ({ children }: IAppProps): JSX.Element => {
   // "any" is used on purpose. We are using Axios but this
   // function expects a native React Error type, which is incompatible.
   const renderErrorOverlay = ({ error }: any) => {
+    // @ts-ignore
     console.error(error);
 
     const overlayError = error as AxiosResponse;

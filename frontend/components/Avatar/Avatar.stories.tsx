@@ -1,5 +1,5 @@
 import React from "react";
-import { Meta } from "@storybook/react";
+import { Meta, Story } from "@storybook/react";
 
 import { DEFAULT_GRAVATAR_LINK } from "utilities/constants";
 
@@ -13,9 +13,9 @@ export default {
   title: "Components/Avatar",
 } as Meta;
 
-export const Default = () => (
+export const Default: Story = () => (
   <Avatar user={{ gravatarURL: DEFAULT_GRAVATAR_LINK }} />
 );
-export const Small = () => (
+export const Small: Story = () => (
   <Avatar user={{ gravatarURL: DEFAULT_GRAVATAR_LINK }} size="small" />
 );

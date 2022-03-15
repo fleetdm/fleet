@@ -23,6 +23,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/certificate"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
+	"github.com/google/uuid"
 	"github.com/oklog/run"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -179,6 +180,11 @@ func main() {
 
 		if err := secure.MkdirAll(c.String("root-dir"), constant.DefaultDirMode); err != nil {
 			return fmt.Errorf("initialize root dir: %w", err)
+		}
+
+		deviceAuthToken, err := loadOrGenerateToken(c.String("root-dir"))
+		if err != nil {
+			return fmt.Errorf("load identifier file: %w", err)
 		}
 
 		localStore, err := filestore.New(filepath.Join(c.String("root-dir"), "tuf-metadata.json"))
@@ -395,7 +401,9 @@ func main() {
 		}
 		g.Add(r.Execute, r.Interrupt)
 
-		ext := table.NewRunner(r.ExtensionSocketPath())
+		ext := table.NewRunner(r.ExtensionSocketPath(), table.WithExtension(orbitInfoExtension{
+			deviceAuthToken: deviceAuthToken,
+		}))
 		g.Add(ext.Execute, ext.Interrupt)
 
 		// Install a signal handler
@@ -412,6 +420,26 @@ func main() {
 
 	if err := app.Run(os.Args); err != nil {
 		log.Error().Err(err).Msg("run orbit failed")
+	}
+}
+
+func loadOrGenerateToken(rootDir string) (string, error) {
+	filePath := filepath.Join(rootDir, "identifier")
+	id, err := ioutil.ReadFile(filePath)
+	switch {
+	case err == nil:
+		return string(id), nil
+	case errors.Is(err, os.ErrNotExist):
+		id, err := uuid.NewRandom()
+		if err != nil {
+			return "", fmt.Errorf("generate identifier: %w", err)
+		}
+		if err := ioutil.WriteFile(filePath, []byte(id.String()), constant.DefaultFileMode); err != nil {
+			return "", fmt.Errorf("write identifier file %q: %w", filePath, err)
+		}
+		return id.String(), nil
+	default:
+		return "", fmt.Errorf("load identifier file %q: %w", filePath, err)
 	}
 }
 

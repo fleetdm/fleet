@@ -12,7 +12,7 @@ import (
 
 func TestTeamScheduleAuth(t *testing.T) {
 	ds := new(mock.Store)
-	svc := newTestService(ds, nil, nil)
+	svc := newTestService(t, ds, nil, nil)
 
 	ds.EnsureTeamPackFunc = func(ctx context.Context, teamID uint) (*fleet.Pack, error) {
 		return &fleet.Pack{ID: 999}, nil

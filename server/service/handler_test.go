@@ -16,83 +16,14 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/throttled/throttled/v2/store/memstore"
 )
 
-func TestAPIRoutes(t *testing.T) {
-	ds := new(mock.Store)
-
-	svc := newTestService(ds, nil, nil)
-
-	r := mux.NewRouter()
-	limitStore, _ := memstore.New(0)
-	ke := MakeFleetServerEndpoints(svc, "", limitStore, kitlog.NewNopLogger())
-	kh := makeKitHandlers(ke, nil)
-	attachFleetAPIRoutes(r, kh)
-	handler := mux.NewRouter()
-	handler.PathPrefix("/").Handler(r)
-
-	routes := []struct {
-		verb string
-		uri  string
-	}{
-		{
-			verb: "POST",
-			uri:  "/api/v1/fleet/users",
-		},
-		{
-			verb: "POST",
-			uri:  "/api/v1/fleet/login",
-		},
-		{
-			verb: "POST",
-			uri:  "/api/v1/fleet/forgot_password",
-		},
-		{
-			verb: "POST",
-			uri:  "/api/v1/fleet/reset_password",
-		},
-		{
-			verb: "POST",
-			uri:  "/api/v1/osquery/enroll",
-		},
-		{
-			verb: "POST",
-			uri:  "/api/v1/osquery/config",
-		},
-		{
-			verb: "POST",
-			uri:  "/api/v1/osquery/distributed/read",
-		},
-		{
-			verb: "POST",
-			uri:  "/api/v1/osquery/distributed/write",
-		},
-		{
-			verb: "POST",
-			uri:  "/api/v1/osquery/log",
-		},
-	}
-
-	for _, route := range routes {
-		t.Run(fmt.Sprintf(": %v", route.uri), func(st *testing.T) {
-			recorder := httptest.NewRecorder()
-			handler.ServeHTTP(
-				recorder,
-				httptest.NewRequest(route.verb, route.uri, nil),
-			)
-			assert.NotEqual(st, 404, recorder.Code)
-			assert.NotEqual(st, 405, recorder.Code, route.verb) // if it matches a path but with wrong verb
-		})
-	}
-}
-
 func TestAPIRoutesConflicts(t *testing.T) {
 	ds := new(mock.Store)
 
-	svc := newTestService(ds, nil, nil)
+	svc := newTestService(t, ds, nil, nil)
 	limitStore, _ := memstore.New(0)
 	h := MakeHandler(svc, config.TestConfig(), kitlog.NewNopLogger(), limitStore)
 	router := h.(*mux.Router)
@@ -158,7 +89,7 @@ func TestAPIRoutesMetrics(t *testing.T) {
 	t.Skip()
 	ds := new(mock.Store)
 
-	svc := newTestService(ds, nil, nil)
+	svc := newTestService(t, ds, nil, nil)
 	limitStore, _ := memstore.New(0)
 	h := MakeHandler(svc, config.TestConfig(), kitlog.NewNopLogger(), limitStore)
 	router := h.(*mux.Router)

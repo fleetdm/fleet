@@ -5,10 +5,11 @@
 Fleet Device Management Inc is an [open core company](https://www.heavybit.com/library/video/commercial-open-source-business-strategies/) that sells subscriptions that offer [more features and support](https://fleetdm.com/pricing) for Fleet and [osquery](https://osquery.io), the leading open source endpoint agent.
 
 We are dedicated to:
-- 💍 growing the adoption of osquery (one agent to rule them all)
-- 👁️ remaining the freshest, simplest source of truth for every kind of device and OS
-- 🧑‍🚀 making IT developer-friendly
-- 🪟 open source, as a more private, transparent, and trustworthy future for humanity
+
+- 🧑‍🚀 automating IT and security
+- 💍 reducing the proliferation of agents and growing the adoption of osquery (one agent to rule them all)
+- 🪟 privacy, transparency, and trust through open source software
+- 👁️ remaining the freshest, simplest source of truth for every kind of computing device and OS
 - 💻 building a better way to manage computers
 
 
@@ -66,13 +67,14 @@ Empathy leads to better understanding, better communication, and better decision
 - hospitality
   - "be a helper"   -mr rogers
   - think and say [positive things](https://www.theatlantic.com/family/archive/2018/06/mr-rogers-neighborhood-talking-to-kids/562352/)
+  - use the `#thanks` channel to show genuine gratitude for other team member's actions
   - talking with users and contributors is time well spent
   - embrace the excitement of others (it's contagious)
   - make small talk at the beginning of meetings
   - be generous (go above and beyond; for example, the majority of the features Fleet releases [will always be free](https://fleetdm.com/pricing))
   - apply customer service principles to all users, even if they never buy Fleet
   - be our guest
-- legendary humanity
+- better humanity
 
 
 ### 🟠 Ownership
@@ -106,7 +108,7 @@ Empathy leads to better understanding, better communication, and better decision
   - think for yourself, from first principles
   - use reason (believe in your brain's capacity to evaluate a solution or idea, regardless of how popular it is)
   - you are on a hero's journey (motivate yourself intrinsically with self-talk; even boring tasks are more motivating, fun, and effective when you care)
-- legendary results
+- better results
 
 ### 🟢 Balance
 Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.org/wiki/Golden_mean_%28philosophy%29).
@@ -134,7 +136,7 @@ Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.
   - consider taking a break or going for a walk
   - take time off; it is better to have 100% focus for 80% of the time than it is to have 80% focus for 100% of the time
   - think about how to best organize your day/work hours to fit your life and maximize your focus
-- legendary focus
+- better focus
 
 
 ### 🔵 Objectivity
@@ -162,7 +164,7 @@ Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.
   - especially when there is a bug, or when something is slow, or when a customer is having a problem
   - assume it's your fault
   - assume nothing else
-- legendary rigour
+- better rigour
 
 ### 🟣 Openness
 <!-- TODO: preamble -->
@@ -190,7 +192,7 @@ Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.
   - build in the open
   - declassify with care (easier to overlook confidential info when declassifying vs. when changing something that is already public from the get-go)
   - [open source is forever](https://twitter.com/mikermcneil/status/1476799587423772674)
-- legendary collaboration
+- better collaboration
 
 
 

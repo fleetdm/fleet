@@ -49,7 +49,7 @@ When creating a new issue, ensure the following:
 ## Runbook
 
 ### Responding to a request to change a credit card number
-TODO
+To change a customer credit card number you identify the customer's account email, log into Stripe, and choose the subscriptions associated with that account. You can then email the customer an invoice and they can update the payment method on file.
 
 ### Responding to a 500 error on fleetdm.com
 Production systems can fail for various reasons, and it can be frustrating to users when they do, and customer experience is significant to Fleet. In the event of system failure, Fleet will:
@@ -73,6 +73,16 @@ Occasionally we will need to track public issues for customers that wish to rema
 Fleet's self-service license dispenser is the best way to generate trial license keys for small deployments of Fleet Premium.
 
 To generate a trial license key for a larger deployment, [create an opportunity issue](https://github.com/fleetdm/confidential/issues/new/choose) for the customer and follow the instructions in the issue for generating a trial license key.
+
+## Slack channels
+
+These are the Slack channels the customer engineering team maintains. If the channel has a [directly responsible individual](./people.md#directly-resonsible-individuals) (**DRI**), they will be specified. These people are responsible for keeping up with all new messages, even if they aren't mentioned. 
+
+- **#g-cutomer-engineering** - **DRI**: Tony Gauda
+- **#_from-prospective-customers** - **DRI**: Andrew Bare
+- **#help-sell** - **DRI**: Andrew Bare
+
+**Who should have these channels unmuted?** Members of this group, everyone else is encouraged to mute them.
 
 <meta name="maintainedBy" value="tgauda">
 

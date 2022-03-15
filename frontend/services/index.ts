@@ -1,4 +1,4 @@
-import axios, { AxiosError, AxiosInstance } from "axios";
+import axios, { AxiosError } from "axios";
 // @ts-ignore
 import local from "utilities/local";
 import URL_PREFIX from "router/url_prefix";
