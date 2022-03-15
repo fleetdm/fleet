@@ -42,6 +42,12 @@ func (m *Middleware) AuthzCheck() endpoint.Middleware {
 				return nil, err
 			}
 
+			// TODO(mna): currently, any error detected before an authorization check gets
+			// lost and the response is always Unauthorized because of the following condition.
+			// I _think_ it would be safe to check here of response.error() returns a non-nil
+			// error and if so, leave that error go through instead of returning a check missing
+			// authorization error. To look into when addressing #4406.
+
 			// If authorization was not checked, return a response that will
 			// marshal to a generic error and log that the check was missed.
 			if !authzctx.Checked() {

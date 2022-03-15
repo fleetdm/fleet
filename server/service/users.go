@@ -884,7 +884,7 @@ type forgotPasswordResponse struct {
 }
 
 func (r forgotPasswordResponse) error() error { return r.Err }
-func (r forgotPasswordResponse) status() int  { return http.StatusAccepted }
+func (r forgotPasswordResponse) Status() int  { return http.StatusAccepted }
 
 func forgotPasswordEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
 	req := request.(*forgotPasswordRequest)

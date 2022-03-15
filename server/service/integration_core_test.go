@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -1033,7 +1034,8 @@ func (s *integrationTestSuite) TestInvites() {
 	updateInviteReq := updateInviteRequest{InvitePayload: fleet.InvitePayload{
 		Teams: []fleet.UserTeam{
 			{Team: fleet.Team{ID: team.ID}, Role: fleet.RoleObserver},
-		}}}
+		},
+	}}
 	updateInviteResp := updateInviteResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/invites/%d", validInvite.ID+1), updateInviteReq, http.StatusNotFound, &updateInviteResp)
 
@@ -3702,6 +3704,36 @@ func (s *integrationTestSuite) TestModifyUser() {
 	require.NoError(t, json.NewDecoder(resp.Body).Decode(&loginResp))
 	resp.Body.Close()
 	require.Equal(t, u.ID, loginResp.User.ID)
+}
+
+func (s *integrationTestSuite) TestHostsReportDownload() {
+	t := s.T()
+
+	hosts := s.createHosts(t)
+
+	res := s.DoRaw("GET", "/api/v1/fleet/hosts/report", nil, http.StatusUnsupportedMediaType, "format", "gzip")
+	var errs struct {
+		Message string `json:"message"`
+		Errors  []struct {
+			Name   string `json:"name"`
+			Reason string `json:"reason"`
+		} `json:"errors"`
+	}
+	require.NoError(t, json.NewDecoder(res.Body).Decode(&errs))
+	res.Body.Close()
+	require.Len(t, errs.Errors, 1)
+	assert.Equal(t, "format", errs.Errors[0].Name)
+
+	res = s.DoRaw("GET", "/api/v1/fleet/hosts/report", nil, http.StatusOK, "format", "csv")
+	rows, err := csv.NewReader(res.Body).ReadAll()
+	res.Body.Close()
+	require.NoError(t, err)
+	require.Len(t, rows, len(hosts)+1)
+	require.Contains(t, rows[0], "hostname") // first row contains headers
+	require.Contains(t, res.Header, "Content-Disposition")
+	require.Contains(t, res.Header, "Content-Type")
+	require.Contains(t, res.Header.Get("Content-Disposition"), "attachment;")
+	require.Contains(t, res.Header.Get("Content-Type"), "text/csv")
 }
 
 // creates a session and returns it, its key is to be passed as authorization header.
