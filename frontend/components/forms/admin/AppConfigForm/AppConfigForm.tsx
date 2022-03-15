@@ -832,86 +832,74 @@ const AppConfigFormFunctional = ({
           </p>
           <div className={`${baseClass}__inputs`}>
             <div className={`${baseClass}__form-fields`}>
-              <div className="tooltip-wrap tooltip-wrap--input">
-                <InputField
-                  label="Domain"
-                  onChange={handleInputChange}
-                  name="domain"
-                  value={domain}
-                  parseTarget
-                  tooltip={
-                    '<p>If you need to specify a HELO domain, <br />you can do it here <em className="hint hint--brand">(Default: <strong>Blank</strong>)</em></p>'
-                  }
-                />
-              </div>
-              <div className="tooltip-wrap">
-                <Checkbox
-                  onChange={handleInputChange}
-                  name="verifySSLCerts"
-                  value={verifySSLCerts}
-                  parseTarget
-                  tooltip={
-                    '<p>Turn this off (not recommended) <br />if you use a self-signed certificate <em className="hint hint--brand"><br />(Default: <strong>On</strong>)</em></p>'
-                  }
-                >
-                  Verify SSL certs
-                </Checkbox>
-              </div>
-              <div className="tooltip-wrap">
-                <Checkbox
-                  onChange={handleInputChange}
-                  name="enableStartTLS"
-                  value={enableStartTLS}
-                  parseTarget
-                  tooltip={
-                    '<p>Detects if STARTTLS is enabled <br />in your SMTP server and starts <br />to use it. <em className="hint hint--brand">(Default: <strong>On</strong>)</em></p>'
-                  }
-                >
-                  Enable STARTTLS
-                </Checkbox>
-              </div>
-              <div className="tooltip-wrap">
-                <Checkbox
-                  onChange={handleInputChange}
-                  name="enableHostExpiry"
-                  value={enableHostExpiry}
-                  parseTarget
-                  tooltip={
-                    '<p>When enabled, allows automatic cleanup <br />of hosts that have not communicated with Fleet <br />in some number of days. <em className="hint hint--brand">(Default: <strong>Off</strong>)</em></p>'
-                  }
-                >
-                  Host expiry
-                </Checkbox>
-              </div>
-              <div className="tooltip-wrap tooltip-wrap--input">
-                <InputField
-                  label="Host expiry window"
-                  type="number"
-                  disabled={!enableHostExpiry}
-                  onChange={handleInputChange}
-                  name="hostExpiryWindow"
-                  value={hostExpiryWindow}
-                  parseTarget
-                  onBlur={validateForm}
-                  error={formErrors.host_expiry_window}
-                  tooltip={
-                    "<p>If a host has not communicated with Fleet in the specified number of days, it will be removed.</p>"
-                  }
-                />
-              </div>
-              <div className="tooltip-wrap">
-                <Checkbox
-                  onChange={handleInputChange}
-                  name="disableLiveQuery"
-                  value={disableLiveQuery}
-                  parseTarget
-                  tooltip={
-                    '<p>When enabled, disables the ability to run live queries <br />(ad hoc queries executed via the UI or fleetctl). <em className="hint hint--brand">(Default: <strong>Off</strong>)</em></p>'
-                  }
-                >
-                  Disable live queries
-                </Checkbox>
-              </div>
+              <InputField
+                label="Domain"
+                onChange={handleInputChange}
+                name="domain"
+                value={domain}
+                parseTarget
+                tooltip={
+                  '<p>If you need to specify a HELO domain, <br />you can do it here <em className="hint hint--brand">(Default: <strong>Blank</strong>)</em></p>'
+                }
+              />
+              <Checkbox
+                onChange={handleInputChange}
+                name="verifySSLCerts"
+                value={verifySSLCerts}
+                parseTarget
+                tooltip={
+                  '<p>Turn this off (not recommended) <br />if you use a self-signed certificate <em className="hint hint--brand"><br />(Default: <strong>On</strong>)</em></p>'
+                }
+              >
+                Verify SSL certs
+              </Checkbox>
+              <Checkbox
+                onChange={handleInputChange}
+                name="enableStartTLS"
+                value={enableStartTLS}
+                parseTarget
+                tooltip={
+                  '<p>Detects if STARTTLS is enabled <br />in your SMTP server and starts <br />to use it. <em className="hint hint--brand">(Default: <strong>On</strong>)</em></p>'
+                }
+              >
+                Enable STARTTLS
+              </Checkbox>
+              <Checkbox
+                onChange={handleInputChange}
+                name="enableHostExpiry"
+                value={enableHostExpiry}
+                parseTarget
+                tooltip={
+                  '<p>When enabled, allows automatic cleanup <br />of hosts that have not communicated with Fleet <br />in some number of days. <em className="hint hint--brand">(Default: <strong>Off</strong>)</em></p>'
+                }
+              >
+                Host expiry
+              </Checkbox>
+              <InputField
+                label="Host expiry window"
+                type="number"
+                disabled={!enableHostExpiry}
+                onChange={handleInputChange}
+                name="hostExpiryWindow"
+                value={hostExpiryWindow}
+                parseTarget
+                onBlur={validateForm}
+                error={formErrors.host_expiry_window}
+                tooltip={
+                  "<p>If a host has not communicated with Fleet in the specified number of days, it will be removed.</p>"
+                }
+              />
+              <Checkbox
+                onChange={handleInputChange}
+                name="disableLiveQuery"
+                value={disableLiveQuery}
+                parseTarget
+                tooltip={
+                  '<p>When enabled, disables the ability to run live queries <br />(ad hoc queries executed via the UI or fleetctl). <em className="hint hint--brand">(Default: <strong>Off</strong>)</em></p>'
+                }
+              >
+                Disable live queries
+              </Checkbox>
             </div>
           </div>
         </div>
