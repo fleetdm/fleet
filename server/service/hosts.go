@@ -869,6 +869,9 @@ func hostsReportEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 	// make the output consistent whether a label is used or not.
 	req.Opts.DisableFailingPolicies = true
 	req.Opts.AdditionalFilters = nil
+	req.Opts.Page = 0
+	req.Opts.PerPage = 0 // explicitly disable any limit, we want all matching hosts
+	req.Opts.After = ""
 
 	var (
 		hosts []*fleet.Host
