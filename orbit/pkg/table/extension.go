@@ -18,7 +18,8 @@ import (
 
 // Runner wraps the osquery extension manager with okglog/run Execute and Interrupt functions.
 type Runner struct {
-	socket string
+	socket          string
+	tableExtensions []Extension
 
 	// mu protects access to srv and cancel in Execute and Interrupt.
 	mu     sync.Mutex
@@ -26,9 +27,32 @@ type Runner struct {
 	cancel func()
 }
 
+// Extension implements a osquery-go table extension.
+type Extension interface {
+	// Name returns the name of the table.
+	Name() string
+	// Column returns the definition of the table columns.
+	Columns() []table.ColumnDefinition
+	// GenerateFunc generates results for a query.
+	GenerateFunc(ctx context.Context, queryContext table.QueryContext) ([]map[string]string, error)
+}
+
+// Opt allows configuring a Runner.
+type Opt func(*Runner)
+
+// WithExtension registers the given Extension on the Runner.
+func WithExtension(t Extension) Opt {
+	return func(r *Runner) {
+		r.tableExtensions = append(r.tableExtensions, t)
+	}
+}
+
 // NewRunner creates an extension runner.
-func NewRunner(socket string) *Runner {
+func NewRunner(socket string, opts ...Opt) *Runner {
 	r := &Runner{socket: socket}
+	for _, fn := range opts {
+		fn(r)
+	}
 	return r
 }
 
@@ -76,6 +100,13 @@ func (r *Runner) Execute() error {
 		table.NewPlugin("file_lines", fileline.FileLineColumns(), fileline.FileLineGenerate),
 	}
 	plugins = append(plugins, platformTables()...)
+	for _, t := range r.tableExtensions {
+		plugins = append(plugins, table.NewPlugin(
+			t.Name(),
+			t.Columns(),
+			t.GenerateFunc,
+		))
+	}
 	r.srv.RegisterPlugin(plugins...)
 
 	if err := r.srv.Run(); err != nil {

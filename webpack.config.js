@@ -6,20 +6,18 @@ const bourbon = require("node-bourbon").includePaths;
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 const MiniCssExtractPlugin = require("mini-css-extract-plugin");
 const WebpackNotifierPlugin = require("webpack-notifier");
-const HardSourceWebpackPlugin = require("hard-source-webpack-plugin");
+const ForkTsCheckerWebpackPlugin = require("fork-ts-checker-webpack-plugin");
 
 const DEV_SOURCE_MAPS = "eval-source-map";
 
-var plugins = [
-  new webpack.NoEmitOnErrorsPlugin(),
+let plugins = [
+  new ForkTsCheckerWebpackPlugin(),
   new HtmlWebpackPlugin({
     filename: "../frontend/templates/react.tmpl",
     inject: false,
     template: "frontend/templates/react.ejs",
   }),
   new WebpackNotifierPlugin({
-    title: "Fleet",
-    contentImage: path.resolve("./assets/images/kolide-logo.svg"),
     excludeWarnings: true,
   }),
 ];
@@ -38,17 +36,12 @@ if (process.env.NODE_ENV === "production") {
   // development
   plugins = plugins.concat([
     new MiniCssExtractPlugin({ filename: "bundle.css", allChunks: false }),
-    // Huge speedup on subsequent builds by caching modules
-    new HardSourceWebpackPlugin({
-      // Allow pruning anything over an hour old
-      cachePrune: { maxAge: 60 * 60 * 1000 },
-    }),
   ]);
 }
 
-var repo = __dirname;
+const repo = __dirname;
 
-var config = {
+const config = {
   mode: process.env.NODE_ENV,
   entry: {
     bundle: path.join(repo, "frontend/index.jsx"),
@@ -59,7 +52,7 @@ var config = {
     filename: "[name].js",
   },
   devtool: process.env.NODE_ENV === "development" ? DEV_SOURCE_MAPS : false,
-  plugins: plugins,
+  plugins,
   optimization: {
     minimize: process.env.NODE_ENV === "production",
   },
@@ -83,9 +76,15 @@ var config = {
         },
       },
       {
-        test: /\.tsx?$/,
+        test: /(\.tsx?|\.jsx?)$/,
         exclude: /node_modules/,
-        use: { loader: "ts-loader" },
+        use: {
+          loader: "esbuild-loader",
+          options: {
+            loader: "tsx", // Or 'ts' if you don't need tsx
+            target: "es2016",
+          },
+        },
       },
       {
         test: /\.scss$/,

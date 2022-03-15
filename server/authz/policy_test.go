@@ -19,6 +19,7 @@ const (
 	writeRole = fleet.ActionWriteRole
 	run       = fleet.ActionRun
 	runNew    = fleet.ActionRunNew
+	changePwd = fleet.ActionChangePassword
 )
 
 var auth *Authorizer
@@ -93,38 +94,84 @@ func TestAuthorizeSession(t *testing.T) {
 func TestAuthorizeUser(t *testing.T) {
 	t.Parallel()
 
+	newUser := &fleet.User{}
 	user := &fleet.User{ID: 42}
+	newTeamUser := &fleet.User{
+		Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}},
+	}
+	teamAdmin := &fleet.User{
+		ID:    101,
+		Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}},
+	}
+	teamObserver := &fleet.User{
+		ID:    102,
+		Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}},
+	}
+
 	runTestCases(t, []authTestCase{
 		{user: nil, object: user, action: read, allow: false},
 		{user: nil, object: user, action: write, allow: false},
 		{user: nil, object: user, action: writeRole, allow: false},
+		{user: nil, object: user, action: changePwd, allow: false},
+		{user: nil, object: newUser, action: write, allow: false},
 
-		// Admin can read/write all
+		// Admin can read/write all and create new
 		{user: test.UserAdmin, object: user, action: read, allow: true},
 		{user: test.UserAdmin, object: user, action: write, allow: true},
 		{user: test.UserAdmin, object: user, action: writeRole, allow: true},
+		{user: test.UserAdmin, object: user, action: changePwd, allow: true},
+		{user: test.UserAdmin, object: newUser, action: write, allow: true},
+		{user: test.UserAdmin, object: test.UserAdmin, action: read, allow: true},
+		{user: test.UserAdmin, object: test.UserAdmin, action: write, allow: true},
+		{user: test.UserAdmin, object: test.UserAdmin, action: writeRole, allow: true},
+		{user: test.UserAdmin, object: test.UserAdmin, action: changePwd, allow: true},
 
-		// Regular users can read all users and write self (besides roles)
+		// Regular users can read all users and write self (besides roles), but not create
 		{user: test.UserMaintainer, object: user, action: read, allow: true},
 		{user: test.UserMaintainer, object: user, action: write, allow: false},
 		{user: test.UserMaintainer, object: user, action: writeRole, allow: false},
+		{user: test.UserMaintainer, object: user, action: changePwd, allow: false},
+		{user: test.UserMaintainer, object: newUser, action: write, allow: false},
 		{user: test.UserMaintainer, object: test.UserMaintainer, action: read, allow: true},
 		{user: test.UserMaintainer, object: test.UserMaintainer, action: write, allow: true},
 		{user: test.UserMaintainer, object: test.UserMaintainer, action: writeRole, allow: false},
+		{user: test.UserMaintainer, object: test.UserMaintainer, action: changePwd, allow: true},
 
 		{user: test.UserNoRoles, object: user, action: read, allow: true},
 		{user: test.UserNoRoles, object: user, action: write, allow: false},
 		{user: test.UserNoRoles, object: user, action: writeRole, allow: false},
+		{user: test.UserNoRoles, object: user, action: changePwd, allow: false},
+		{user: test.UserNoRoles, object: newUser, action: write, allow: false},
 		{user: test.UserNoRoles, object: test.UserNoRoles, action: read, allow: true},
 		{user: test.UserNoRoles, object: test.UserNoRoles, action: write, allow: true},
 		{user: test.UserNoRoles, object: test.UserNoRoles, action: writeRole, allow: false},
+		{user: test.UserNoRoles, object: test.UserNoRoles, action: changePwd, allow: true},
 
 		{user: test.UserObserver, object: user, action: read, allow: true},
 		{user: test.UserObserver, object: user, action: write, allow: false},
 		{user: test.UserObserver, object: user, action: writeRole, allow: false},
+		{user: test.UserObserver, object: user, action: changePwd, allow: false},
+		{user: test.UserObserver, object: newUser, action: write, allow: false},
 		{user: test.UserObserver, object: test.UserObserver, action: read, allow: true},
 		{user: test.UserObserver, object: test.UserObserver, action: write, allow: true},
 		{user: test.UserObserver, object: test.UserObserver, action: writeRole, allow: false},
+		{user: test.UserObserver, object: test.UserObserver, action: changePwd, allow: true},
+
+		// Team Admin can create/write/write role of any team user, but not change password
+		{user: teamAdmin, object: user, action: read, allow: true},
+		{user: teamAdmin, object: user, action: write, allow: false},
+		{user: teamAdmin, object: user, action: writeRole, allow: false},
+		{user: teamAdmin, object: user, action: changePwd, allow: false},
+		{user: teamAdmin, object: newUser, action: write, allow: false},
+		{user: teamAdmin, object: teamObserver, action: read, allow: true},
+		{user: teamAdmin, object: teamObserver, action: write, allow: true},
+		{user: teamAdmin, object: teamObserver, action: writeRole, allow: true},
+		{user: teamAdmin, object: teamObserver, action: changePwd, allow: false},
+		{user: teamAdmin, object: newTeamUser, action: write, allow: true},
+		{user: teamAdmin, object: teamAdmin, action: read, allow: true},
+		{user: teamAdmin, object: teamAdmin, action: write, allow: true},
+		{user: teamAdmin, object: teamAdmin, action: writeRole, allow: true},
+		{user: teamAdmin, object: teamAdmin, action: changePwd, allow: true},
 	})
 }
 

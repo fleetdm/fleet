@@ -74,6 +74,8 @@ function create_repository() {
         --name desktop \
         --version 42.0.0 -t 42.0 -t 42 -t stable
     fi
+
+    rm desktop.app.tar.gz
   done
 
   # Generate and add osqueryd .app bundle for macos-app.
@@ -118,7 +120,10 @@ if [ -n "$GENERATE_PKGS" ]; then
   echo "Generating pkg..."
   ./build/fleetctl package \
     --type=pkg \
+<<<<<<< HEAD
     ${FLEET_DESKTOP:+--fleet-desktop} \
+=======
+>>>>>>> main
     --fleet-url=https://$PKG_HOSTNAME:8080 \
     --enroll-secret=$ENROLL_SECRET \
     --insecure \
@@ -126,7 +131,10 @@ if [ -n "$GENERATE_PKGS" ]; then
     --update-roots="$root_keys" \
     --update-url=http://$PKG_HOSTNAME:8081
 
+<<<<<<< HEAD
   echo "Generating deb..."
+=======
+>>>>>>> main
   ./build/fleetctl package \
     --type=deb \
     --fleet-url=https://$DEB_HOSTNAME:8080 \
@@ -136,7 +144,10 @@ if [ -n "$GENERATE_PKGS" ]; then
     --update-roots="$root_keys" \
     --update-url=http://$DEB_HOSTNAME:8081
 
+<<<<<<< HEAD
   echo "Generating rpm..."
+=======
+>>>>>>> main
   ./build/fleetctl package \
     --type=rpm \
     --fleet-url=https://$RPM_HOSTNAME:8080 \
@@ -146,7 +157,10 @@ if [ -n "$GENERATE_PKGS" ]; then
     --update-roots="$root_keys" \
     --update-url=http://$RPM_HOSTNAME:8081
 
+<<<<<<< HEAD
   echo "Generating msi..."
+=======
+>>>>>>> main
   ./build/fleetctl package \
     --type=msi \
     --fleet-url=https://$MSI_HOSTNAME:8080 \
@@ -159,4 +173,8 @@ if [ -n "$GENERATE_PKGS" ]; then
   echo "Packages generated"
 fi
 
+<<<<<<< HEAD
 wait $SERVER_PID
+=======
+wait $SERVER_PID
+>>>>>>> main

@@ -46,12 +46,7 @@ func BuildPkg(opt Options) (string, error) {
 	updateOpt.Targets = update.DarwinTargets
 
 	if opt.Desktop {
-		updateOpt.Targets["desktop"] = update.TargetInfo{
-			Platform:             "macos",
-			Channel:              opt.DesktopChannel,
-			TargetFile:           "desktop.app.tar.gz",
-			ExtractedExecSubPath: []string{"Fleet Desktop.app", "Contents", "MacOS", "fleet-desktop"},
-		}
+		updateOpt.Targets["desktop"] = update.DesktopMacOSTarget
 	}
 
 	// Override default channels with the provided values.
@@ -61,6 +56,9 @@ func BuildPkg(opt Options) (string, error) {
 	osqueryd := updateOpt.Targets["osqueryd"]
 	osqueryd.Channel = opt.OsquerydChannel
 	updateOpt.Targets["osqueryd"] = osqueryd
+	desktop := updateOpt.Targets["desktop"]
+	desktop.Channel = opt.DesktopChannel
+	updateOpt.Targets["desktop"] = desktop
 
 	if opt.UpdateRoots != "" {
 		updateOpt.RootKeys = opt.UpdateRoots

@@ -20,6 +20,11 @@
       &:focus {
         box-shadow: none;
         outline: 0;
+
+        &:after {
+          left: 0;
+          bottom: 0;
+        }
       }
       // Bolding text when the button is active causes a layout shift
       // so we add a hidden pseudo element with the same text string

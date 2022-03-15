@@ -133,7 +133,7 @@ func (r *testNodeKeyRequest) hostNodeKey() string { return r.NodeKey }
 
 func TestAuthenticatedHost(t *testing.T) {
 	ds := new(mock.Store)
-	svc := newTestService(ds, nil, nil)
+	svc := newTestService(t, ds, nil, nil)
 
 	expectedHost := fleet.Host{Hostname: "foo!"}
 	goodNodeKey := "foo bar baz bing bang boom"
@@ -195,7 +195,7 @@ func TestAuthenticatedHost(t *testing.T) {
 
 func TestAuthenticatedUserMW(t *testing.T) {
 	ds := new(mock.Store)
-	svc := newTestService(ds, nil, nil)
+	svc := newTestService(t, ds, nil, nil)
 
 	authenticatedUserTests := []struct {
 		user      *fleet.User

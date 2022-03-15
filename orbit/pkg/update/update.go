@@ -166,15 +166,6 @@ func (u *Updater) ExecutableLocalPath(target string) (string, error) {
 	return localTarget.execPath, nil
 }
 
-// DirLocalPath returns the configured directory local path of a target.
-func (u *Updater) DirLocalPath(target string) (string, error) {
-	localTarget, err := u.localTarget(target)
-	if err != nil {
-		return "", err
-	}
-	return localTarget.dirPath, nil
-}
-
 // localTarget holds local paths of a target.
 //
 // E.g., for a osqueryd target:

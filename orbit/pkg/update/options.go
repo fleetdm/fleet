@@ -57,4 +57,11 @@ var (
 			TargetFile: "osqueryd.exe",
 		},
 	}
+
+	DesktopMacOSTarget = TargetInfo{
+		Platform:             "macos",
+		Channel:              "stable",
+		TargetFile:           "desktop.app.tar.gz",
+		ExtractedExecSubPath: []string{"Fleet Desktop.app", "Contents", "MacOS", "fleet-desktop"},
+	}
 )

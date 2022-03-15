@@ -24,6 +24,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/open"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
+	"github.com/google/uuid"
 	"github.com/oklog/run"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -197,6 +198,11 @@ func main() {
 			return fmt.Errorf("initialize root dir: %w", err)
 		}
 
+		deviceAuthToken, err := loadOrGenerateToken(c.String("root-dir"))
+		if err != nil {
+			return fmt.Errorf("load identifier file: %w", err)
+		}
+
 		localStore, err := filestore.New(filepath.Join(c.String("root-dir"), "tuf-metadata.json"))
 		if err != nil {
 			log.Fatal().Err(err).Msg("create local metadata store")
@@ -209,12 +215,7 @@ func main() {
 		}
 
 		if runtime.GOOS == "darwin" && c.Bool("fleet-desktop") {
-			opt.Targets["desktop"] = update.TargetInfo{
-				Platform:             "macos",
-				Channel:              c.String("desktop-channel"),
-				TargetFile:           "desktop.app.tar.gz",
-				ExtractedExecSubPath: []string{"Fleet Desktop.app", "Contents", "MacOS", "fleet-desktop"},
-			}
+			opt.Targets["desktop"] = update.DesktopMacOSTarget
 		}
 
 		// Override default channels with the provided values.
@@ -224,6 +225,9 @@ func main() {
 		osqueryd := opt.Targets["osqueryd"]
 		osqueryd.Channel = c.String("osqueryd-channel")
 		opt.Targets["osqueryd"] = osqueryd
+		desktop := opt.Targets["desktop"]
+		desktop.Channel = c.String("desktop-channel")
+		opt.Targets["desktop"] = desktop
 
 		opt.RootDirectory = c.String("root-dir")
 		opt.ServerURL = c.String("update-url")
@@ -450,7 +454,9 @@ func main() {
 		}
 		g.Add(r.Execute, r.Interrupt)
 
-		ext := table.NewRunner(r.ExtensionSocketPath())
+		ext := table.NewRunner(r.ExtensionSocketPath(), table.WithExtension(orbitInfoExtension{
+			deviceAuthToken: deviceAuthToken,
+		}))
 		g.Add(ext.Execute, ext.Interrupt)
 
 		if runtime.GOOS == "darwin" && c.Bool("fleet-desktop") {
@@ -486,6 +492,26 @@ func main() {
 
 	if err := app.Run(os.Args); err != nil {
 		log.Error().Err(err).Msg("run orbit failed")
+	}
+}
+
+func loadOrGenerateToken(rootDir string) (string, error) {
+	filePath := filepath.Join(rootDir, "identifier")
+	id, err := ioutil.ReadFile(filePath)
+	switch {
+	case err == nil:
+		return string(id), nil
+	case errors.Is(err, os.ErrNotExist):
+		id, err := uuid.NewRandom()
+		if err != nil {
+			return "", fmt.Errorf("generate identifier: %w", err)
+		}
+		if err := ioutil.WriteFile(filePath, []byte(id.String()), constant.DefaultFileMode); err != nil {
+			return "", fmt.Errorf("write identifier file %q: %w", filePath, err)
+		}
+		return id.String(), nil
+	default:
+		return "", fmt.Errorf("load identifier file %q: %w", filePath, err)
 	}
 }
 
