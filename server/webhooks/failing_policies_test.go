@@ -152,26 +152,45 @@ func TestTriggerFailingPoliciesWebhookTeam(t *testing.T) {
 
 	ds := new(mock.Store)
 
-	policyID := uint(1)
 	teamID := uint(1)
+
+	policiesByID := map[uint]*fleet.Policy{
+		1: {
+			PolicyData: fleet.PolicyData{
+				ID:          1,
+				Name:        "policy1",
+				Query:       "select 42",
+				Description: "policy1 description",
+				AuthorID:    ptr.Uint(1),
+				AuthorName:  "Alice",
+				AuthorEmail: "alice@example.com",
+				TeamID:      &teamID,
+				Resolution:  ptr.String("policy1 resolution"),
+				Platform:    "darwin",
+			},
+		},
+		2: {
+			PolicyData: fleet.PolicyData{
+				ID:          2,
+				Name:        "policy1",
+				Query:       "select 42",
+				Description: "policy1 description",
+				AuthorID:    ptr.Uint(1),
+				AuthorName:  "Alice",
+				AuthorEmail: "alice@example.com",
+				TeamID:      &teamID,
+				Resolution:  ptr.String("policy1 resolution"),
+				Platform:    "darwin",
+			},
+		},
+	}
+
 	ds.PolicyFunc = func(ctx context.Context, id uint) (*fleet.Policy, error) {
-		if id == policyID {
-			return &fleet.Policy{
-				PolicyData: fleet.PolicyData{
-					ID:          policyID,
-					Name:        "policy1",
-					Query:       "select 42",
-					Description: "policy1 description",
-					AuthorID:    ptr.Uint(1),
-					AuthorName:  "Alice",
-					AuthorEmail: "alice@example.com",
-					TeamID:      &teamID,
-					Resolution:  ptr.String("policy1 resolution"),
-					Platform:    "darwin",
-				},
-			}, nil
+		policy, ok := policiesByID[id]
+		if !ok {
+			return nil, ctxerr.Wrap(ctx, sql.ErrNoRows)
 		}
-		return nil, ctxerr.Wrap(ctx, sql.ErrNoRows)
+		return policy, nil
 	}
 	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
 		if tid == teamID {
@@ -182,7 +201,7 @@ func TestTriggerFailingPoliciesWebhookTeam(t *testing.T) {
 						FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
 							Enable:         true,
 							DestinationURL: ts.URL,
-							PolicyIDs:      []uint{policyID},
+							PolicyIDs:      []uint{1},
 						},
 					},
 				},
@@ -198,12 +217,12 @@ func TestTriggerFailingPoliciesWebhookTeam(t *testing.T) {
 	}
 
 	failingPolicySet := service.NewMemFailingPolicySet()
-	err := failingPolicySet.AddHost(policyID, fleet.PolicySetHost{
+	err := failingPolicySet.AddHost(1, fleet.PolicySetHost{
 		ID:       1,
 		Hostname: "host1",
 	})
 	require.NoError(t, err)
-	err = failingPolicySet.AddHost(policyID, fleet.PolicySetHost{
+	err = failingPolicySet.AddHost(2, fleet.PolicySetHost{
 		ID:       2,
 		Hostname: "host2",
 	})
@@ -242,16 +261,11 @@ func TestTriggerFailingPoliciesWebhookTeam(t *testing.T) {
             "id": 1,
             "hostname": "host1",
             "url": "https://fleet.example.com/hosts/1"
-        },
-        {
-            "id": 2,
-            "hostname": "host2",
-            "url": "https://fleet.example.com/hosts/2"
         }
     ]
 }`, timestamp), webhookBody)
 
-	hosts, err := failingPolicySet.ListHosts(policyID)
+	hosts, err := failingPolicySet.ListHosts(1)
 	require.NoError(t, err)
 	assert.Empty(t, hosts)
 
