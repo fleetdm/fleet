@@ -181,7 +181,7 @@ const TeamDetailsWrapper = ({
 
   const navigateToNav = (i: number): void => {
     const navPath = teamDetailsSubNav[i].getPathname(teamIdFromURL);
-    dispatch(push(navPath));
+    router.push(navPath);
   };
 
   const [teamMenuIsOpen, setTeamMenuIsOpen] = useState<boolean>(false);
@@ -294,7 +294,7 @@ const TeamDetailsWrapper = ({
     dispatch(teamActions.destroy(currentTeam?.id))
       .then(() => {
         dispatch(renderFlash("success", "Team removed"));
-        dispatch(push(PATHS.ADMIN_TEAMS));
+        router.push(PATHS.ADMIN_TEAMS);
         // TODO: error handling
       })
       .catch(() => null);
