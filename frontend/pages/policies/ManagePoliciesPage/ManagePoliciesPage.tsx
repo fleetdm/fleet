@@ -517,6 +517,11 @@ const ManagePolicyPage = ({
                 failingPoliciesWebhook.destination_url) ||
               ""
             }
+            enableFailingPoliciesWebhook={
+              (failingPoliciesWebhook &&
+                failingPoliciesWebhook.enable_failing_policies_webhook) ||
+              false
+            }
           />
         )}
         {showAddPolicyModal && (

@@ -49,7 +49,7 @@ When creating a new issue, ensure the following:
 ## Runbook
 
 ### Responding to a request to change a credit card number
-TODO
+To change a customer credit card number you identify the customer's account email, log into Stripe, and choose the subscriptions associated with that account. You can then email the customer an invoice and they can update the payment method on file.
 
 ### Responding to a 500 error on fleetdm.com
 Production systems can fail for various reasons, and it can be frustrating to users when they do, and customer experience is significant to Fleet. In the event of system failure, Fleet will:
