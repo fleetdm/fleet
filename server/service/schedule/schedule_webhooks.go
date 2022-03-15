@@ -2,7 +2,6 @@ package schedule
 
 import (
 	"context"
-	"sync"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -12,17 +11,14 @@ import (
 	"github.com/go-kit/log/level"
 )
 
-func SetWebhooksConfigCheck(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, mu *sync.Mutex) func(start time.Time, prevInterval time.Duration) (*time.Duration, error) {
+func SetWebhooksConfigCheck(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger) func(start time.Time, prevInterval time.Duration) (*time.Duration, error) {
 	return func(time.Time, time.Duration) (*time.Duration, error) {
-		mu.Lock()
-		defer mu.Unlock()
 		appConfig, err := ds.AppConfig(ctx)
 		if err != nil {
 			level.Error(logger).Log("config", "couldn't read app config", "err", err)
 			return nil, err
 		}
 		newInterval := appConfig.WebhookSettings.Interval.ValueOr(24 * time.Hour)
-		// newInterval := 30 * time.Second
 
 		return &newInterval, nil
 	}
@@ -33,23 +29,17 @@ func DoWebhooks(
 	ds fleet.Datastore,
 	logger kitlog.Logger,
 	failingPoliciesSet fleet.FailingPolicySet,
-	instanceID string,
-	mu *sync.Mutex,
-	// schedInterval time.Duration,
 ) (interface{}, error) {
 	stats := make(map[string]string)
 
-	mu.Lock()
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
 		level.Error(logger).Log("config", "couldn't read app config", "err", err)
 		return nil, err
 	}
-	mu.Unlock() // TODO: where to unlock, here or before return?
 
-	// TODO: Do we set the db lock durations to match the schedule schedInterval or the config check schedInterval?
-	maybeTriggerHostStatus(ctx, ds, logger, instanceID, appConfig)
-	maybeTriggerGlobalFailingPoliciesWebhook(ctx, ds, logger, instanceID, appConfig, failingPoliciesSet)
+	maybeTriggerHostStatus(ctx, ds, logger, appConfig)
+	maybeTriggerGlobalFailingPoliciesWebhook(ctx, ds, logger, appConfig, failingPoliciesSet)
 	level.Debug(logger).Log("webhooks", "done")
 
 	return stats, nil
@@ -59,16 +49,9 @@ func maybeTriggerHostStatus(
 	ctx context.Context,
 	ds fleet.Datastore,
 	logger kitlog.Logger,
-	identifier string,
 	appConfig *fleet.AppConfig,
-	// lockDuration time.Duration,
 ) {
 	level.Debug(logger).Log("webhook_host_status", "maybe trigger webhook...")
-
-	// if locked, err := ds.Lock(ctx, "webhook_host_status", identifier, lockDuration); err != nil || !locked {
-	// 	level.Debug(logger).Log("webhook_host_status", "Not the leader. Skipping...")
-	// 	return
-	// }
 
 	if err := webhooks.TriggerHostStatusWebhook(
 		ctx, ds, kitlog.With(logger, "webhook", "host_status"), appConfig,
@@ -82,17 +65,10 @@ func maybeTriggerGlobalFailingPoliciesWebhook(
 	ctx context.Context,
 	ds fleet.Datastore,
 	logger kitlog.Logger,
-	identifier string,
 	appConfig *fleet.AppConfig,
-	// lockDuration time.Duration,
 	failingPoliciesSet fleet.FailingPolicySet,
 ) {
 	level.Debug(logger).Log("webhook_failing_policies", "maybe trigger webhook...")
-
-	// if locked, err := ds.Lock(ctx, "webhook_failing_policies", identifier, lockDuration); err != nil || !locked {
-	// 	level.Debug(logger).Log("webhook_failing_policies", "Not the leader. Skipping...")
-	// 	return
-	// }
 
 	if err := webhooks.TriggerGlobalFailingPoliciesWebhook(
 		ctx, ds, kitlog.With(logger, "webhook", "failing_policies"), appConfig, failingPoliciesSet, time.Now(),

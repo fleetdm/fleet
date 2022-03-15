@@ -70,12 +70,15 @@ func DoVulnProcessing(ctx context.Context, ds fleet.Datastore, logger kitlog.Log
 			err := os.MkdirAll(vulnPath, 0o755)
 			if err != nil {
 				level.Error(logger).Log("databases-path", "creation failed, returning", "err", err)
-				return stats, nil // TODO
+				sentry.CaptureException(err)
+				return stats, err // TODO: how should we handle these kinds of errors/exits?
 			}
 		}
 	}
 
 	if !vulnDisabled {
+		level.Debug(logger).Log("vulnerabilities", "checking for recent vulnerabilities")
+		level.Debug(logger).Log("vuln-path", vulnPath)
 		recentVulns := checkVulnerabilities(ctx, ds, logger, vulnPath, config, appConfig.WebhookSettings.VulnerabilitiesWebhook)
 		if len(recentVulns) > 0 {
 			if err := webhooks.TriggerVulnerabilitiesWebhook(ctx, ds, kitlog.With(logger, "webhook", "vulnerabilities"),

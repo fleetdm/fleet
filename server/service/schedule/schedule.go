@@ -17,7 +17,7 @@ type schedule struct {
 	instanceID string
 	Logger     kitlog.Logger
 
-	MuChecks       sync.Mutex
+	muChecks       sync.Mutex
 	configInterval time.Duration
 	schedInterval  time.Duration
 	locker         Locker
@@ -29,43 +29,43 @@ type schedule struct {
 }
 
 func (s *schedule) getConfigInterval() time.Duration {
-	s.MuChecks.Lock()
-	defer s.MuChecks.Unlock()
+	s.muChecks.Lock()
+	defer s.muChecks.Unlock()
 	return s.configInterval
 }
 
 func (s *schedule) setConfigInterval(interval time.Duration) {
-	s.MuChecks.Lock()
-	defer s.MuChecks.Unlock()
+	s.muChecks.Lock()
+	defer s.muChecks.Unlock()
 	s.configInterval = interval
 }
 
 func (s *schedule) getSchedInterval() time.Duration {
-	s.MuChecks.Lock()
-	defer s.MuChecks.Unlock()
+	s.muChecks.Lock()
+	defer s.muChecks.Unlock()
 	return s.schedInterval
 }
 
 func (s *schedule) setSchedInterval(interval time.Duration) {
-	s.MuChecks.Lock()
-	defer s.MuChecks.Unlock()
+	s.muChecks.Lock()
+	defer s.muChecks.Unlock()
 	s.schedInterval = interval
 }
 
 func (s *schedule) SetPreflightCheck(fn func() bool) {
-	s.MuChecks.Lock()
-	defer s.MuChecks.Unlock()
+	s.muChecks.Lock()
+	defer s.muChecks.Unlock()
 	s.preflightCheck = fn
 }
 
 func (s *schedule) SetConfigCheck(fn func(start time.Time, wait time.Duration) (*time.Duration, error)) {
-	s.MuChecks.Lock()
-	defer s.MuChecks.Unlock()
+	s.muChecks.Lock()
+	defer s.muChecks.Unlock()
 	s.configCheck = fn
 }
 
 type job struct {
-	exec         func(context.Context) (interface{}, error)
+	run          func(context.Context) (interface{}, error)
 	statsHandler func(interface{}, error)
 }
 
@@ -95,7 +95,7 @@ func (s *schedule) AddJob(id string, newJob func(ctx context.Context) (interface
 	s.muJobs.Lock()
 	defer s.muJobs.Unlock()
 	// TODO: guard for job id uniqueness?
-	s.jobs[id] = job{exec: newJob, statsHandler: statsHandler}
+	s.jobs[id] = job{run: newJob, statsHandler: statsHandler}
 }
 
 // each schedule runs in its own go routine
@@ -104,14 +104,14 @@ func (s *schedule) run() {
 	currentWait := 10 * time.Second
 
 	getWaitTimes := func() (start time.Time, wait time.Duration) {
-		s.MuChecks.Lock()
-		defer s.MuChecks.Unlock()
+		s.muChecks.Lock()
+		defer s.muChecks.Unlock()
 		return currentStart, currentWait
 	}
 
 	setWaitTimes := func(start time.Time, wait time.Duration) {
-		s.MuChecks.Lock()
-		defer s.MuChecks.Unlock()
+		s.muChecks.Lock()
+		defer s.muChecks.Unlock()
 		currentStart = start
 		currentWait = wait
 	}
@@ -123,10 +123,7 @@ func (s *schedule) run() {
 	// this is the main loop for the schedule
 	schedTicker := time.NewTicker(currentWait)
 	go func() {
-		// step := 1
 		for {
-			// fmt.Println(s.name, " loop ", step)
-			// step++
 			_, currWait := getWaitTimes()
 			level.Debug(s.Logger).Log("waiting", fmt.Sprint("current wait time... ", currWait))
 
@@ -145,25 +142,14 @@ func (s *schedule) run() {
 				newWait := schedInterval
 				setWaitTimes(newStart, newWait)
 
-				s.MuChecks.Lock() // TODO: talk with Tomas about this for locker and preflightFn setter
-				if s.preflightCheck != nil {
-					if ok := s.preflightCheck(); !ok {
-						level.Debug(s.Logger).Log(s.name, "preflight check failed... skipping...")
-						s.MuChecks.Unlock()
-						continue
-					}
-				}
-				if locked, err := s.locker.Lock(s.ctx, s.name, s.instanceID, schedInterval); err != nil || !locked {
-					level.Debug(s.Logger).Log(s.name, "not the lock leader... Skipping...")
-					s.MuChecks.Unlock()
+				if ok := s.runScheduleChecks(); !ok {
 					continue
 				}
-				s.MuChecks.Unlock()
 
 				s.muJobs.Lock()
 				for id, job := range s.jobs {
 					level.Debug(s.Logger).Log(s.name, fmt.Sprint("starting job... ", id))
-					job.statsHandler(job.exec(s.ctx)) // TODO: start new go routine for each job?
+					job.statsHandler(job.run(s.ctx))
 				}
 				s.muJobs.Unlock()
 			}
@@ -175,42 +161,59 @@ func (s *schedule) run() {
 	go func() {
 		for {
 			select {
-			// TODO: What if we simply lock MuChecks for the duration of this case?
 			case <-configTicker.C:
+				level.Debug(s.Logger).Log(s.name, "config check...")
+
 				configInterval := s.getConfigInterval()
 				configTicker.Reset(configInterval)
 
 				schedInterval := s.getSchedInterval()
 				currStart, currWait := getWaitTimes()
 
-				fmt.Println("config check")
-				level.Debug(s.Logger).Log(s.name, "config check...")
 				if s.configCheck == nil {
+					level.Debug(s.Logger).Log(s.name, "config check function has not been set... skipping...")
 					continue
 				}
 
-				newSchedInterval, err := s.configCheck(currStart, currWait)
+				newInterval, err := s.configCheck(currStart, currWait)
+
 				if err != nil {
-					level.Error(s.Logger).Log("config", "could not check for updates to schedInterval", "err", err)
+					level.Error(s.Logger).Log("config", "could not check for updates to schedule interval", "err", err)
 					sentry.CaptureException(err)
 					continue
 				}
-				if schedInterval == *newSchedInterval {
-					level.Debug(s.Logger).Log(s.name, "schedInterval unchanged")
+				if schedInterval == *newInterval {
+					level.Debug(s.Logger).Log(s.name, "schedule interval unchanged")
 					continue
 				}
-				s.setSchedInterval(*newSchedInterval)
+				s.setSchedInterval(*newInterval)
 
 				newWait := 10 * time.Millisecond
-				if time.Since(currStart) < *newSchedInterval {
-					newWait = *newSchedInterval - time.Since(currStart)
+				if time.Since(currStart) < *newInterval {
+					newWait = *newInterval - time.Since(currStart)
 				}
 				setWaitTimes(currStart, newWait)
 				schedTicker.Reset(newWait)
 
-				level.Debug(s.Logger).Log(s.name, fmt.Sprint("new schedInterval: ", *newSchedInterval))
-				level.Debug(s.Logger).Log(s.name, fmt.Sprint("new wait: ", newWait))
+				level.Debug(s.Logger).Log(s.name, fmt.Sprint("new schedule interval: ", *newInterval))
+				level.Debug(s.Logger).Log(s.name, fmt.Sprint("wait time until next job run: ", newWait))
 			}
 		}
 	}()
+}
+
+func (s *schedule) runScheduleChecks() bool {
+	s.muChecks.Lock()
+	defer s.muChecks.Unlock()
+	if s.preflightCheck != nil {
+		if ok := s.preflightCheck(); !ok {
+			level.Debug(s.Logger).Log(s.name, "preflight check failed... skipping...")
+			return false
+		}
+	}
+	if locked, err := s.locker.Lock(s.ctx, s.name, s.instanceID, s.schedInterval); err != nil || !locked {
+		level.Debug(s.Logger).Log(s.name, "not the lock leader... Skipping...")
+		return false
+	}
+	return true
 }

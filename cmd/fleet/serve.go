@@ -596,7 +596,7 @@ func runSchedules(
 	license *fleet.LicenseInfo,
 	failingPoliciesSet fleet.FailingPolicySet,
 ) {
-	instanceID, err := server.GenerateRandomText(64) // TODO: should locking identifier be per schedule or just per server instance?
+	instanceID, err := server.GenerateRandomText(64)
 	if err != nil {
 		initFatal(errors.New("Error generating random instance identifier"), "")
 	}
@@ -614,9 +614,9 @@ func runSchedules(
 		sentry.CaptureException(err)
 
 	}
-	webhooks.SetConfigCheck(schedule.SetWebhooksConfigCheck(ctx, ds, webhooksLogger, &webhooks.MuChecks))
+	webhooks.SetConfigCheck(schedule.SetWebhooksConfigCheck(ctx, ds, webhooksLogger))
 	webhooks.AddJob("cron_webhooks", func(ctx context.Context) (interface{}, error) {
-		return schedule.DoWebhooks(ctx, ds, webhooksLogger, failingPoliciesSet, instanceID, &webhooks.MuChecks)
+		return schedule.DoWebhooks(ctx, ds, webhooksLogger, failingPoliciesSet)
 	}, func(interface{}, error) {})
 
 	// cleanupsLogger := kitlog.With(logger, "cron", "cleanups")
