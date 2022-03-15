@@ -2,8 +2,11 @@ package service
 
 import (
 	"context"
+	"fmt"
+	"net/http"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -827,16 +830,34 @@ func (svc *Service) AggregatedMacadminsData(ctx context.Context, teamID *uint) (
 type hostsReportRequest struct {
 	Opts    fleet.HostListOptions `url:"host_options"`
 	LabelID *uint                 `query:"label_id,optional"`
+	Format  string                `query:"format"`
 }
 
 type hostsReportResponse struct {
-	Err error `json:"error,omitempty"`
+	Hosts []*fleet.Host `json:"-"` // they get rendered explicitly, in csv
+	Err   error         `json:"error,omitempty"`
 }
 
 func (r hostsReportResponse) error() error { return r.Err }
 
+func (r hostsReportResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
+	fmt.Println(">>>>>> so happy to hijack the render!")
+	w.WriteHeader(http.StatusOK)
+}
+
 func hostsReportEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
 	req := request.(*hostsReportRequest)
+
+	// for now, only csv format is allowed
+	if req.Format != "csv" {
+		// prevent returning an "unauthorized" error, we want that specific error
+		if az, ok := authz.FromContext(ctx); ok {
+			az.SetChecked()
+		}
+		err := ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("format", "unsupported or unspecified report format").
+			WithStatus(http.StatusUnsupportedMediaType))
+		return hostsReportResponse{Err: err}, nil
+	}
 
 	// TODO(mna): is it ok to set those explicitly like this? They are not supported
 	// when listing hosts in a label, so that's just to make the output consistent
@@ -857,7 +878,5 @@ func hostsReportEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 	if err != nil {
 		return hostsReportResponse{Err: err}, nil
 	}
-	// TODO(mna): prepare csv and downloadable response
-	_ = hosts
-	return hostsReportResponse{}, nil
+	return hostsReportResponse{Hosts: hosts}, nil
 }
