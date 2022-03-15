@@ -1241,10 +1241,10 @@ requested by a web browser.
 `Status: 200`
 
 ```csv
-CreatedAt,UpdatedAt,ID,DetailUpdatedAt,LabelUpdatedAt,PolicyUpdatedAt,LastEnrolledAt,SeenTime,RefetchRequested,Hostname,UUID,Platform,OsqueryVersion,OSVersion,Build,PlatformLike,CodeName,Uptime,Memory,CPUType,CPUSubtype,CPUBrand,CPUPhysicalCores,CPULogicalCores,HardwareVendor,HardwareModel,HardwareVersion,HardwareSerial,ComputerName,PrimaryNetworkInterfaceID,PrimaryIP,PrimaryMac,DistributedInterval,ConfigTLSRefresh,LoggerTLSPeriod,TeamID,TeamName,GigsDiskSpaceAvailable,PercentDiskSpaceAvailable
-2022-03-15T15:26:01Z,2022-03-15T15:26:01Z,1,2022-03-15T15:26:02Z,2022-03-15T15:26:02Z,2022-03-15T15:26:02Z,2022-03-15T15:26:01Z,2022-03-15T15:26:02Z,false,foo.local0,998a7a39-bf9b-4f06-b851-14ce42f8e5dc,debian,,,,,,0s,0,,,,0,0,,,,,,,,,0,0,0,,,0,0
-2022-03-15T15:26:01Z,2022-03-15T15:26:01Z,2,2022-03-15T15:26:02Z,2022-03-15T15:26:02Z,2022-03-15T15:26:02Z,2022-03-15T15:26:01Z,2022-03-15T15:25:02Z,false,foo.local1,81eb5338-ca01-4ea0-b778-a79a97fb83ac,rhel,,,,,,0s,0,,,,0,0,,,,,,,,,0,0,0,,,0,0
-2022-03-15T15:26:01Z,2022-03-15T15:26:01Z,3,2022-03-15T15:26:02Z,2022-03-15T15:26:02Z,2022-03-15T15:26:02Z,2022-03-15T15:26:01Z,2022-03-15T15:24:02Z,false,foo.local2,2fb158ea-22a8-45a9-b908-a42b4c1f297b,linux,,,,,,0s,0,,,,0,0,,,,,,,,,0,0,0,,,0,0
+created_at,updated_at,id,detail_updated_at,label_updated_at,policy_updated_at,last_enrolled_at,seen_time,refetch_requested,hostname,uuid,platform,osquery_version,os_version,build,platform_like,code_name,uptime,memory,cpu_type,cpu_subtype,cpu_brand,cpu_physical_cores,cpu_logical_cores,hardware_vendor,hardware_model,hardware_version,hardware_serial,computer_name,primary_ip_id,primary_ip,primary_mac,distributed_interval,config_tls_refresh,logger_tls_period,team_id,team_name,gigs_disk_space_available,percent_disk_space_available
+2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,1,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,false,foo.local0,a4fc55a1-b5de-409c-a2f4-441f564680d3,debian,,,,,,0s,0,,,,0,0,,,,,,,,,0,0,0,,,0,0
+2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:22:56Z,false,foo.local1,689539e5-72f0-4bf7-9cc5-1530d3814660,rhel,,,,,,0s,0,,,,0,0,,,,,,,,,0,0,0,,,0,0
+2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,3,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:21:56Z,false,foo.local2,48ebe4b0-39c3-4a74-a67f-308f7b5dd171,linux,,,,,,0s,0,,,,0,0,,,,,,,,,0,0,0,,,0,0
 ```
 
 ---
