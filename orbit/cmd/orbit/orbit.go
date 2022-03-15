@@ -119,6 +119,10 @@ func main() {
 			Name:  "log-file",
 			Usage: "Log to this file path in addition to stderr",
 		},
+		&cli.BoolFlag{
+			Name:  "dev-darwin-legacy-targets",
+			Usage: "Use darwin legacy target (flag only used on darwin)",
+		},
 	}
 	app.Action = func(c *cli.Context) error {
 		if c.Bool("version") {
@@ -192,24 +196,33 @@ func main() {
 			log.Fatal().Err(err).Msg("failed to create local metadata store")
 		}
 
-		// Get the default osqueryd path from the installation/configuration.
-		osquerydPath := update.LocalPath(c.String("root-dir"), "osqueryd", c.String("osqueryd-channel"), constant.PlatformName)
+		opt := update.DefaultOptions
 
-		if c.Bool("disable-updates") {
-			log.Info().Msg("running with auto updates disabled")
+		if runtime.GOOS == "darwin" && c.Bool("dev-darwin-legacy-targets") {
+			opt.Targets = update.DarwinLegacyTargets
 		}
 
-		var updater *update.Updater
-		if !c.Bool("disable-updates") ||
-			// When running in dev-mode, even if `disable-updates` is set, fetch osqueryd once as part
-			// of initialization.
-			c.Bool("dev-mode") {
-			// Initialize updater and get expected version of osqueryd.
-			opt := update.DefaultOptions
-			opt.RootDirectory = c.String("root-dir")
-			opt.ServerURL = c.String("update-url")
-			opt.LocalStore = localStore
-			opt.InsecureTransport = c.Bool("insecure")
+		// Override default channels with the provided values.
+		orbit := opt.Targets["orbit"]
+		orbit.Channel = c.String("orbit-channel")
+		opt.Targets["orbit"] = orbit
+		osqueryd := opt.Targets["osqueryd"]
+		osqueryd.Channel = c.String("osqueryd-channel")
+		opt.Targets["osqueryd"] = osqueryd
+
+		opt.RootDirectory = c.String("root-dir")
+		opt.ServerURL = c.String("update-url")
+		opt.LocalStore = localStore
+		opt.InsecureTransport = c.Bool("insecure")
+
+		var (
+			updater      *update.Updater
+			osquerydPath string
+		)
+
+		// NOTE: When running in dev-mode, even if `disable-updates` is set,
+		// it fetches osqueryd once as part of initialization.
+		if !c.Bool("disable-updates") || c.Bool("dev-mode") {
 			updater, err = update.New(opt)
 			if err != nil {
 				return fmt.Errorf("failed to create updater: %w", err)
@@ -217,9 +230,16 @@ func main() {
 			if err := updater.UpdateMetadata(); err != nil {
 				log.Info().Err(err).Msg("failed to update metadata. using saved metadata.")
 			}
-			osquerydPath, err = updater.Get("osqueryd", c.String("osqueryd-channel"))
+			osquerydPath, err = updater.Get("osqueryd")
 			if err != nil {
 				return fmt.Errorf("failed to get osqueryd target: %w", err)
+			}
+		} else {
+			log.Info().Msg("running with auto updates disabled")
+			updater = update.NewDisabled(opt)
+			osquerydPath, err = updater.ExecutableLocalPath("osqueryd")
+			if err != nil {
+				log.Fatal().Err(err).Msg("failed to locate osqueryd")
 			}
 		}
 
@@ -246,10 +266,7 @@ func main() {
 		if !c.Bool("disable-updates") {
 			updateRunner, err := update.NewRunner(updater, update.RunnerOptions{
 				CheckInterval: 10 * time.Second,
-				Targets: map[string]string{
-					"osqueryd": c.String("osqueryd-channel"),
-					"orbit":    c.String("orbit-channel"),
-				},
+				Targets:       []string{"orbit", "osqueryd"},
 			})
 			if err != nil {
 				return err

@@ -2,11 +2,16 @@ package service
 
 import (
 	"context"
+	"fmt"
+	"net/http"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/gocarina/gocsv"
 )
 
 // HostResponse is the response struct that contains the full host information
@@ -818,4 +823,65 @@ func (svc *Service) AggregatedMacadminsData(ctx context.Context, teamID *uint) (
 	}
 
 	return agg, nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Hosts Report in CSV downloadable file
+////////////////////////////////////////////////////////////////////////////////
+
+type hostsReportRequest struct {
+	Opts    fleet.HostListOptions `url:"host_options"`
+	LabelID *uint                 `query:"label_id,optional"`
+	Format  string                `query:"format"`
+}
+
+type hostsReportResponse struct {
+	Hosts []*fleet.Host `json:"-"` // they get rendered explicitly, in csv
+	Err   error         `json:"error,omitempty"`
+}
+
+func (r hostsReportResponse) error() error { return r.Err }
+
+func (r hostsReportResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
+	w.Header().Add("Content-Disposition", fmt.Sprintf(`attachment; filename="Hosts %s.csv"`, time.Now().Format("2006-01-02")))
+	w.Header().Set("Content-Type", "text/csv")
+	w.WriteHeader(http.StatusOK)
+	if err := gocsv.Marshal(r.Hosts, w); err != nil {
+		logging.WithErr(ctx, err)
+	}
+}
+
+func hostsReportEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*hostsReportRequest)
+
+	// for now, only csv format is allowed
+	if req.Format != "csv" {
+		// prevent returning an "unauthorized" error, we want that specific error
+		if az, ok := authz.FromContext(ctx); ok {
+			az.SetChecked()
+		}
+		err := ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("format", "unsupported or unspecified report format").
+			WithStatus(http.StatusUnsupportedMediaType))
+		return hostsReportResponse{Err: err}, nil
+	}
+
+	// Those are not supported when listing hosts in a label, so that's just to
+	// make the output consistent whether a label is used or not.
+	req.Opts.DisableFailingPolicies = true
+	req.Opts.AdditionalFilters = nil
+
+	var (
+		hosts []*fleet.Host
+		err   error
+	)
+
+	if req.LabelID == nil {
+		hosts, err = svc.ListHosts(ctx, req.Opts)
+	} else {
+		hosts, err = svc.ListHostsInLabel(ctx, *req.LabelID, req.Opts)
+	}
+	if err != nil {
+		return hostsReportResponse{Err: err}, nil
+	}
+	return hostsReportResponse{Hosts: hosts}, nil
 }

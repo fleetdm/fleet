@@ -270,10 +270,12 @@ const QueryResults = ({
           <TabList>
             <Tab className={firstTabClass}>{NAV_TITLES.RESULTS}</Tab>
             <Tab disabled={!errors?.length}>
-              {errors?.length > 0 && (
-                <span className="count">{errors.length}</span>
-              )}
-              {NAV_TITLES.ERRORS}
+              <span>
+                {errors?.length > 0 && (
+                  <span className="count">{errors.length}</span>
+                )}
+                {NAV_TITLES.ERRORS}
+              </span>
             </Tab>
           </TabList>
           <TabPanel>{renderResultsTable()}</TabPanel>

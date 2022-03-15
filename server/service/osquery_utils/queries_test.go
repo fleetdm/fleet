@@ -290,7 +290,7 @@ func sortedKeysCompare(t *testing.T, m map[string]DetailQuery, expectedKeys []st
 
 func TestGetDetailQueries(t *testing.T) {
 	queriesNoConfig := GetDetailQueries(nil, config.FleetConfig{})
-	require.Len(t, queriesNoConfig, 11)
+	require.Len(t, queriesNoConfig, 12)
 	baseQueries := []string{
 		"network_interface",
 		"os_version",
@@ -303,15 +303,16 @@ func TestGetDetailQueries(t *testing.T) {
 		"mdm",
 		"munki_info",
 		"google_chrome_profiles",
+		"orbit_info",
 	}
 	sortedKeysCompare(t, queriesNoConfig, baseQueries)
 
 	queriesWithUsers := GetDetailQueries(&fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}}, config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}})
-	require.Len(t, queriesWithUsers, 13)
+	require.Len(t, queriesWithUsers, 14)
 	sortedKeysCompare(t, queriesWithUsers, append(baseQueries, "users", "scheduled_query_stats"))
 
 	queriesWithUsersAndSoftware := GetDetailQueries(&fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true, EnableSoftwareInventory: true}}, config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}})
-	require.Len(t, queriesWithUsersAndSoftware, 16)
+	require.Len(t, queriesWithUsersAndSoftware, 17)
 	sortedKeysCompare(t, queriesWithUsersAndSoftware,
 		append(baseQueries, "users", "software_macos", "software_linux", "software_windows", "scheduled_query_stats"))
 }
@@ -393,4 +394,24 @@ func TestDirectIngestMDM(t *testing.T) {
 	}, false)
 	require.NoError(t, err)
 	require.True(t, ds.SetOrUpdateMDMDataFuncInvoked)
+}
+
+func TestDirectIngestOrbitInfo(t *testing.T) {
+	ds := new(mock.Store)
+	ds.SetOrUpdateDeviceAuthTokenFunc = func(ctx context.Context, hostID uint, authToken string) error {
+		require.Equal(t, hostID, uint(1))
+		require.Equal(t, authToken, "foo")
+		return nil
+	}
+
+	host := fleet.Host{
+		ID: 1,
+	}
+
+	err := directIngestOrbitInfo(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{{
+		"version":           "42",
+		"device_auth_token": "foo",
+	}}, true)
+	require.NoError(t, err)
+	require.True(t, ds.SetOrUpdateDeviceAuthTokenFuncInvoked)
 }

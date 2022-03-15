@@ -762,6 +762,16 @@ func (ds *Datastore) LoadHostByDeviceAuthToken(ctx context.Context, authToken st
 	}
 }
 
+// SetOrUpdateDeviceAuthToken inserts or updates the auth token for a host.
+func (ds *Datastore) SetOrUpdateDeviceAuthToken(ctx context.Context, hostID uint, authToken string) error {
+	return ds.updateOrInsert(
+		ctx,
+		`UPDATE host_device_auth SET token=? WHERE host_id=?`,
+		`INSERT INTO host_device_auth(token, host_id) VALUES (?,?)`,
+		authToken, hostID,
+	)
+}
+
 func (ds *Datastore) MarkHostsSeen(ctx context.Context, hostIDs []uint, t time.Time) error {
 	if len(hostIDs) == 0 {
 		return nil

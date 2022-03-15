@@ -42,6 +42,7 @@ The following table depicts various permissions levels for each role.
 | Create users                                         |          |            | ✅    |
 | Edit users                                           |          |            | ✅    |
 | Delete users                                         |          |            | ✅    |
+| Edit own user information                            | ✅       | ✅         | ✅    |
 | Edit organization settings                           |          |            | ✅    |
 | Create enroll secrets                                |          | ✅         | ✅    |
 | Edit enroll secrets                                  |          | ✅         | ✅    |
