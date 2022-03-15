@@ -136,9 +136,12 @@ func newTLSService(t *testing.T) *mock.TLSService {
 
 		GetDistributedQueriesFunc: func(
 			ctx context.Context,
-		) (queries map[string]string, accelerate uint, err error) {
+		) (queries map[string]string, discovery map[string]string, accelerate uint, err error) {
 			queries = map[string]string{
 				"noop": `{"key": "value"}`,
+			}
+			discovery = map[string]string{
+				"noop": `select 1`,
 			}
 			return
 		},
