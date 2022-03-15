@@ -39,7 +39,6 @@ import InfoIcon from "../../../assets/images/icon-info-purple-14x14@2x.png";
 const baseClass = "device-user";
 
 interface IDeviceUserPageProps {
-  router: InjectedRouter; // v3
   params: Params;
 }
 
@@ -48,10 +47,9 @@ interface IHostResponse {
 }
 
 const DeviceUserPage = ({
-  router,
-  params: { host_id: device_user_auth_token },
+  params: { device_auth_token: device_auth_token },
 }: IDeviceUserPageProps): JSX.Element => {
-  const deviceUserAuthToken = device_user_auth_token;
+  const deviceAuthToken = device_auth_token;
   const dispatch = useDispatch();
   const handlePageError = useErrorHandler();
 
@@ -62,14 +60,11 @@ const DeviceUserPage = ({
   const [hostSoftware, setHostSoftware] = useState<ISoftware[]>([]);
 
   const { data: deviceMapping, refetch: refetchDeviceMapping } = useQuery(
-    ["deviceMapping", deviceUserAuthToken],
+    ["deviceMapping", deviceAuthToken],
     () =>
-      deviceUserAPI.loadHostDetailsExtension(
-        deviceUserAuthToken,
-        "device_mapping"
-      ),
+      deviceUserAPI.loadHostDetailsExtension(deviceAuthToken, "device_mapping"),
     {
-      enabled: !!deviceUserAuthToken,
+      enabled: !!deviceAuthToken,
       refetchOnMount: false,
       refetchOnReconnect: false,
       refetchOnWindowFocus: false,
@@ -79,11 +74,10 @@ const DeviceUserPage = ({
   );
 
   const { data: macadmins, refetch: refetchMacadmins } = useQuery(
-    ["macadmins", deviceUserAuthToken],
-    () =>
-      deviceUserAPI.loadHostDetailsExtension(deviceUserAuthToken, "macadmins"),
+    ["macadmins", deviceAuthToken],
+    () => deviceUserAPI.loadHostDetailsExtension(deviceAuthToken, "macadmins"),
     {
-      enabled: !!deviceUserAuthToken,
+      enabled: !!deviceAuthToken,
       refetchOnMount: false,
       refetchOnReconnect: false,
       refetchOnWindowFocus: false,
@@ -102,10 +96,10 @@ const DeviceUserPage = ({
     data: host,
     refetch: refetchHostDetails,
   } = useQuery<IHostResponse, Error, IHost>(
-    ["host", deviceUserAuthToken],
-    () => deviceUserAPI.loadHostDetails(deviceUserAuthToken),
+    ["host", deviceAuthToken],
+    () => deviceUserAPI.loadHostDetails(deviceAuthToken),
     {
-      enabled: !!deviceUserAuthToken,
+      enabled: !!deviceAuthToken,
       refetchOnMount: false,
       refetchOnReconnect: false,
       refetchOnWindowFocus: false,
