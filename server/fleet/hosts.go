@@ -74,14 +74,14 @@ type Host struct {
 	// OsqueryHostID is the key used in the request context that is
 	// used to retrieve host information.  It is sent from osquery and may currently be
 	// a GUID or a Host Name, but in either case, it MUST be unique
-	OsqueryHostID    string    `json:"-" db:"osquery_host_id"`
+	OsqueryHostID    string    `json:"-" db:"osquery_host_id" csv:"-"`
 	DetailUpdatedAt  time.Time `json:"detail_updated_at" db:"detail_updated_at"` // Time that the host details were last updated
 	LabelUpdatedAt   time.Time `json:"label_updated_at" db:"label_updated_at"`   // Time that the host labels were last updated
 	PolicyUpdatedAt  time.Time `json:"policy_updated_at" db:"policy_updated_at"` // Time that the host policies were last updated
 	LastEnrolledAt   time.Time `json:"last_enrolled_at" db:"last_enrolled_at"`   // Time that the host last enrolled
 	SeenTime         time.Time `json:"seen_time" db:"seen_time"`                 // Time that the host was last "seen"
 	RefetchRequested bool      `json:"refetch_requested" db:"refetch_requested"`
-	NodeKey          string    `json:"-" db:"node_key"`
+	NodeKey          string    `json:"-" db:"node_key" csv:"-"`
 	Hostname         string    `json:"hostname" db:"hostname"` // there is a fulltext index on this field
 	UUID             string    `json:"uuid" db:"uuid"`         // there is a fulltext index on this field
 	// Platform is the host's platform as defined by osquery's os_version.platform.
@@ -107,7 +107,7 @@ type Host struct {
 	// PrimaryNetworkInterfaceID if present indicates to primary network for the host, the details of which
 	// can be found in the NetworkInterfaces element with the same ip_address.
 	PrimaryNetworkInterfaceID *uint               `json:"primary_ip_id,omitempty" db:"primary_ip_id"`
-	NetworkInterfaces         []*NetworkInterface `json:"-" db:"-"`
+	NetworkInterfaces         []*NetworkInterface `json:"-" db:"-" csv:"-"`
 	PrimaryIP                 string              `json:"primary_ip" db:"primary_ip"`
 	PrimaryMac                string              `json:"primary_mac" db:"primary_mac"`
 	DistributedInterval       uint                `json:"distributed_interval" db:"distributed_interval"`
@@ -116,27 +116,27 @@ type Host struct {
 	TeamID                    *uint               `json:"team_id" db:"team_id"`
 
 	// Loaded via JOIN in DB
-	PackStats []PackStats `json:"pack_stats"`
+	PackStats []PackStats `json:"pack_stats" csv:"-"`
 	// TeamName is the name of the team, loaded by JOIN to the teams table.
 	TeamName *string `json:"team_name" db:"team_name"`
 	// Additional is the additional information from the host
 	// additional_queries. This should be stored in a separate DB table.
-	Additional *json.RawMessage `json:"additional,omitempty" db:"additional"`
+	Additional *json.RawMessage `json:"additional,omitempty" db:"additional" csv:"-"`
 
 	// Users currently in the host
-	Users []HostUser `json:"users,omitempty"`
+	Users []HostUser `json:"users,omitempty" csv:"-"`
 
 	GigsDiskSpaceAvailable    float64 `json:"gigs_disk_space_available" db:"gigs_disk_space_available"`
 	PercentDiskSpaceAvailable float64 `json:"percent_disk_space_available" db:"percent_disk_space_available"`
 
-	HostIssues `json:"issues,omitempty"`
+	HostIssues `json:"issues,omitempty" csv:"-"`
 
-	Modified bool `json:"-"`
+	Modified bool `json:"-" csv:"-"`
 }
 
 type HostIssues struct {
-	TotalIssuesCount     int `json:"total_issues_count" db:"total_issues_count"`
-	FailingPoliciesCount int `json:"failing_policies_count" db:"failing_policies_count"`
+	TotalIssuesCount     int `json:"total_issues_count" db:"total_issues_count" csv:"-"`
+	FailingPoliciesCount int `json:"failing_policies_count" db:"failing_policies_count" csv:"-"`
 }
 
 func (h Host) AuthzType() string {

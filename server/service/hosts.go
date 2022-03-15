@@ -8,8 +8,10 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/gocarina/gocsv"
 )
 
 // HostResponse is the response struct that contains the full host information
@@ -841,8 +843,12 @@ type hostsReportResponse struct {
 func (r hostsReportResponse) error() error { return r.Err }
 
 func (r hostsReportResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
-	fmt.Println(">>>>>> so happy to hijack the render!")
+	w.Header().Add("Content-Disposition", fmt.Sprintf(`attachment; filename="Hosts %s.csv"`, time.Now().Format("2006-01-02")))
+	w.Header().Set("Content-Type", "text/csv")
 	w.WriteHeader(http.StatusOK)
+	if err := gocsv.Marshal(r.Hosts, w); err != nil {
+		logging.WithErr(ctx, err)
+	}
 }
 
 func hostsReportEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
