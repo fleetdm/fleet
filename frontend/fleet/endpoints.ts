@@ -13,6 +13,7 @@ export default {
   GLOBAL_POLICIES: "/v1/fleet/global/policies",
   GLOBAL_SCHEDULE: "/v1/fleet/global/schedule",
   HOST_SUMMARY: "/v1/fleet/host_summary",
+  DEVICE_USER_DETAILS: "/v1/fleet/device",
   HOSTS: "/v1/fleet/hosts",
   HOSTS_COUNT: "/v1/fleet/hosts/count",
   HOSTS_DELETE: "/v1/fleet/hosts/delete",
