@@ -7,7 +7,6 @@ import React, {
 } from "react";
 import { useDispatch } from "react-redux";
 import { useQuery } from "react-query";
-import { push } from "react-router-redux";
 import { pick } from "lodash";
 
 import { AppContext } from "context/app";
@@ -27,8 +26,13 @@ import Spinner from "components/Spinner";
 import TableDataError from "components/TableDataError";
 import QueriesListWrapper from "./components/QueriesListWrapper";
 import RemoveQueryModal from "./components/RemoveQueryModal";
+import { InjectedRouter } from "react-router";
 
 const baseClass = "manage-queries-page";
+interface IManageQueriesPageProps {
+  router: InjectedRouter; // v3
+}
+
 interface IFleetQueriesResponse {
   queries: IQuery[];
 }
@@ -81,7 +85,9 @@ const enhanceQuery = (q: IQuery) => {
   };
 };
 
-const ManageQueriesPage = (): JSX.Element => {
+const ManageQueriesPage = ({
+  router,
+}: IManageQueriesPageProps): JSX.Element => {
   const dispatch = useDispatch();
 
   const { isOnlyObserver } = useContext(AppContext);
@@ -127,7 +133,7 @@ const ManageQueriesPage = (): JSX.Element => {
     }
   }, [enhancedQueriesList, isLoadingFleetQueries]);
 
-  const onCreateQueryClick = () => dispatch(push(PATHS.NEW_QUERY));
+  const onCreateQueryClick = () => router.push(PATHS.NEW_QUERY);
 
   const toggleRemoveQueryModal = useCallback(() => {
     setShowRemoveQueryModal(!showRemoveQueryModal);
