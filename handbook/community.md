@@ -55,12 +55,12 @@ Once a blog post has been written, approved, and published, please ensure that i
 ## Fleet docs
 
 ### Markdown
-Fleet's documentation and handbook are written in [Markdown](https://about.gitlab.com/handbook/markdown-guide/), this lets us keep our documentation consistantly formatted and viewable directly from the Fleet GitHub repo. The Markdown files in the `/docs` and `/handbook` folders are converted to html for Fleet website.
+Fleet's documentation and handbook are written in [Markdown](https://about.gitlab.com/handbook/markdown-guide/). Using Makrdown lets us keep our documentation consistently formatted and viewable directly from the Fleet GitHub repo. The Markdown files in the `/docs` and `/handbook` folders are converted to HTML for the Fleet website.
 
-When making changes to the Fleet docs or handbook, there are a few differences in the way the Markdown will render on Github and the Fleet website.
+When making changes to the Fleet docs or handbook, there are a few differences in how the Markdown will render on GitHub and the Fleet website.
 
 #### Linebreaks and newlines
-Any time you need to add a linebreak in Markdown, you should add a newline. It is important to make sure paragraphs are seperated by newlines, otherwise they will render as the same html element.
+Any time you need to add a linebreak in Markdown, you should add a newline. It is important to make sure paragraphs are separated by newlines otherwise, they will render as the same HTML element.
 
 For example, if you were adding this section to the docs:
 
@@ -69,12 +69,12 @@ line one
 line two
 ```
 
-the Markdown would render on fleetdm.com as:
+The Markdown would render on the Fleet Website as:
 
 line one
 line two
 
-To make sure formatting is consitent across GitHub and the Fleet website you'll need to add a newline anywhere you would put a linebreak. For example, if we seperate the lines with a newline:
+To ensure formatting is consistent across GitHub and the Fleet website, you'll need to add a newline anywhere you want a linebreak. For example, if we separate the lines with a newline:
 
 ```
 line one
@@ -82,7 +82,7 @@ line one
 line two
 ```
 
-The markdown will render correctly as
+The Markdown will render correctly as
 
 line one
 
@@ -90,11 +90,11 @@ line two
 
 #### Ordered lists
 
-Content nested within an ordered list needs to be indented, otherwise the number will reset on each list item.
+Content nested within an ordered list needs to be indented. If the list is not formatted correctly, the number will reset on each list item.
 
 For example, this list:
 
-```md
+```
 1. Item one
 
 Paragraph about item one
@@ -102,7 +102,7 @@ Paragraph about item one
 2. Item two
 ```
 
-On the Fleet website this ordered list would be rendered as:
+On the Fleet website, this ordered list would be rendered as:
 
 1. Item one
 
@@ -110,9 +110,9 @@ Paragraph about item one
 
 2. Item two
 
-To ensure that ordered lists incement on the Fleet website, you can indent the content nested within the list. For example, the same ordered list with indentation:
+To ensure that ordered lists increment on the Fleet website, you can indent the content nested within the list. For example, the same ordered list with indentation:
 
-```md
+```
 1. Item one
 
    Paragraph about item one
