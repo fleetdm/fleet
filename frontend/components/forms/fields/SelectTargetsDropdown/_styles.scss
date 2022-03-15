@@ -95,7 +95,7 @@
         padding: 0;
 
         &.is-disabled {
-          &.is-focused {
+          &:hover {
             background-color: $ui-vibrant-blue-10;
             border-radius: 8px;
           }
@@ -115,7 +115,7 @@
       }
     }
 
-    &.is-focused {
+    &:hover {
       .Select-control {
         border: 1px solid $core-vibrant-blue;
       }
