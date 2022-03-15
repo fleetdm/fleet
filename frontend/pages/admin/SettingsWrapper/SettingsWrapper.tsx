@@ -1,22 +1,14 @@
-import React from "react";
+import React, { useContext } from "react";
 import { Tab, Tabs, TabList } from "react-tabs";
-import { push } from "react-router-redux";
-import { useDispatch, useSelector } from "react-redux";
-import { IConfig } from "interfaces/config";
-import permissionUtils from "utilities/permissions";
+import { InjectedRouter } from "react-router";
 import PATHS from "router/paths";
+import { AppContext } from "context/app";
 
 import TabsWrapper from "components/TabsWrapper";
 
 interface ISettingSubNavItem {
   name: string;
   pathname: string;
-}
-
-interface IRootState {
-  app: {
-    config: IConfig;
-  };
 }
 
 const settingsSubNav: ISettingSubNavItem[] = [
@@ -35,6 +27,7 @@ interface ISettingsWrapperProp {
   location: {
     pathname: string;
   };
+  router: InjectedRouter; // v3
 }
 
 const getTabIndex = (path: string): number => {
@@ -48,22 +41,20 @@ const baseClass = "settings-wrapper";
 const SettingsWrapper = ({
   children,
   location: { pathname },
+  router,
 }: ISettingsWrapperProp): JSX.Element => {
-  // Add Teams tab for premium tier only
-  const config = useSelector((state: IRootState) => state.app.config);
-
-  if (settingsSubNav.length === 2 && permissionUtils.isPremiumTier(config)) {
+  const { isPremiumTier } = useContext(AppContext);
+  
+  if (isPremiumTier && settingsSubNav.length === 2) {
     settingsSubNav.push({
       name: "Teams",
       pathname: PATHS.ADMIN_TEAMS,
     });
   }
 
-  const dispatch = useDispatch();
-
   const navigateToNav = (i: number): void => {
     const navPath = settingsSubNav[i].pathname;
-    dispatch(push(navPath));
+    router.push(navPath);
   };
 
   return (
