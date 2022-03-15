@@ -1,3 +1,1 @@
-* Fleet to start using distributed discovery query feature.
-* Fleet will query `google_chrome_profiles` on all hosts via the distributed discovery feature.
-* Fleet will query `orbit_info` on all hosts via the distributed discovery feature.
+* Reduce osquery status log verbosity by only running detail queries when the relevant tables exist.
