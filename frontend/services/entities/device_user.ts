@@ -5,14 +5,14 @@ import endpoints from "fleet/endpoints";
 export type ILoadHostDetailsExtension = "device_mapping" | "macadmins";
 
 export default {
-  loadHostDetails: (deviceAuthToken: any) => {
+  loadHostDetails: (deviceAuthToken: string) => {
     const { DEVICE_USER_DETAILS } = endpoints;
     const path = `${DEVICE_USER_DETAILS}/${deviceAuthToken}`;
 
     return sendRequest("GET", path);
   },
   loadHostDetailsExtension: (
-    deviceAuthToken: any,
+    deviceAuthToken: string,
     extension: ILoadHostDetailsExtension
   ) => {
     const { DEVICE_USER_DETAILS } = endpoints;
@@ -20,7 +20,7 @@ export default {
 
     return sendRequest("GET", path);
   },
-  refetch: (deviceAuthToken: any) => {
+  refetch: (deviceAuthToken: string) => {
     const { DEVICE_USER_DETAILS } = endpoints;
     const path = `${DEVICE_USER_DETAILS}/${deviceAuthToken}/refetch`;
 

@@ -120,6 +120,8 @@ const App = ({ children }: IAppProps): JSX.Element => {
     return <Fleet500 />;
   };
 
+  console.log("app.tsx loading?");
+
   const wrapperStyles = classnames("wrapper");
   return isLoading ? (
     <Spinner />

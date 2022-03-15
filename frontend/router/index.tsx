@@ -181,7 +181,7 @@ const routes = (
           </Route>
         </Route>
         <Route component={FleetDesktopLayout}>
-          <Route path="/device/:host_id" component={DeviceUserPage} />
+          <Route path="/device/:device_auth_token" component={DeviceUserPage} />
         </Route>
       </Route>
       <Route path="/apionlyuser" component={ApiOnlyUser} />
@@ -192,6 +192,7 @@ const routes = (
   </Provider>
 );
 
-// TODO: Line 184 Replace :host_id with host identifier
+// TODO: Line 183 isn't running unless theres the auth token being sent with it
+// TODO: Figure out how to render without the auth token
 
 export default routes;

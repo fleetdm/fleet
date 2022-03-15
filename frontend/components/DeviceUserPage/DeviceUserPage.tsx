@@ -8,6 +8,7 @@ import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import classnames from "classnames";
 import { isEmpty, pick, reduce } from "lodash";
 
+import deviceUserAPI from "services/entities/device_user";
 import hostAPI from "services/entities/hosts";
 import {
   IHost,
@@ -48,9 +49,9 @@ interface IHostResponse {
 
 const DeviceUserPage = ({
   router,
-  params: { host_id },
+  params: { host_id: device_user_auth_token },
 }: IDeviceUserPageProps): JSX.Element => {
-  const hostIdFromURL = parseInt(host_id, 10);
+  const deviceUserAuthToken = device_user_auth_token;
   const dispatch = useDispatch();
   const handlePageError = useErrorHandler();
 
@@ -61,10 +62,14 @@ const DeviceUserPage = ({
   const [hostSoftware, setHostSoftware] = useState<ISoftware[]>([]);
 
   const { data: deviceMapping, refetch: refetchDeviceMapping } = useQuery(
-    ["deviceMapping", hostIdFromURL],
-    () => hostAPI.loadHostDetailsExtension(hostIdFromURL, "device_mapping"),
+    ["deviceMapping", deviceUserAuthToken],
+    () =>
+      deviceUserAPI.loadHostDetailsExtension(
+        deviceUserAuthToken,
+        "device_mapping"
+      ),
     {
-      enabled: !!hostIdFromURL,
+      enabled: !!deviceUserAuthToken,
       refetchOnMount: false,
       refetchOnReconnect: false,
       refetchOnWindowFocus: false,
@@ -74,10 +79,11 @@ const DeviceUserPage = ({
   );
 
   const { data: macadmins, refetch: refetchMacadmins } = useQuery(
-    ["macadmins", hostIdFromURL],
-    () => hostAPI.loadHostDetailsExtension(hostIdFromURL, "macadmins"),
+    ["macadmins", deviceUserAuthToken],
+    () =>
+      deviceUserAPI.loadHostDetailsExtension(deviceUserAuthToken, "macadmins"),
     {
-      enabled: !!hostIdFromURL,
+      enabled: !!deviceUserAuthToken,
       refetchOnMount: false,
       refetchOnReconnect: false,
       refetchOnWindowFocus: false,
@@ -96,10 +102,10 @@ const DeviceUserPage = ({
     data: host,
     refetch: refetchHostDetails,
   } = useQuery<IHostResponse, Error, IHost>(
-    ["host", hostIdFromURL],
-    () => hostAPI.loadHostDetails(hostIdFromURL),
+    ["host", deviceUserAuthToken],
+    () => deviceUserAPI.loadHostDetails(deviceUserAuthToken),
     {
-      enabled: !!hostIdFromURL,
+      enabled: !!deviceUserAuthToken,
       refetchOnMount: false,
       refetchOnReconnect: false,
       refetchOnWindowFocus: false,
