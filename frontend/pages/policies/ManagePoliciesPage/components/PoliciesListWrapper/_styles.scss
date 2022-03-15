@@ -1,4 +1,4 @@
-.policy-list-wrapper {
+.policies-list-wrapper {
   border-collapse: collapse;
 
   a {
@@ -23,30 +23,11 @@
       font-weight: $bold;
       text-align: left;
       padding: $pad-medium $pad-large;
-
-      .name__header {
-        width: 50%;
-      }
-
-      .passing_host_count__header {
-        width: 140px;
-      }
-
-      .failing_host_count__header {
-        width: 140px;
-      }
-
-      .webhook__header {
-        width: 140px;
-      }
-
-      &:nth-last-child(2) {
-        border-right: 0;
-      }
-
-      &:last-child {
-        width: 150px;
-        border-left: 0;
+      &:not(.name__header) {
+        width: 20%;
+        @media (min-width: $medium-width) {
+          width: 15%;
+        }
       }
     }
   }
