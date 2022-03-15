@@ -73,7 +73,7 @@ class SelectTargetsInput extends Component {
         scrollMenuIntoView={false}
         tabSelectsValue={false}
         value={selectedTargets}
-        valueKey="id"
+        valueKey="display_text" // must be unique, target ids are not unique
       />
     );
   }
