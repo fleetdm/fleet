@@ -107,7 +107,7 @@ func authenticatedHost(svc fleet.Service, logger log.Logger, next endpoint.Endpo
 		}
 
 		if debug {
-			logJSON(hlogger, request, "response")
+			logJSON(hlogger, resp, "response")
 		}
 		return resp, nil
 	}

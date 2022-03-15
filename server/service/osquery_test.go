@@ -404,6 +404,23 @@ func TestSubmitResultLogs(t *testing.T) {
 	assert.Equal(t, results, testLogger.logs)
 }
 
+func verifyDiscovery(t *testing.T, queries, discovery map[string]string) {
+	assert.Equal(t, len(queries), len(discovery))
+	// discoveryUsed holds the queries where we know use the distributed discovery feature.
+	discoveryUsed := map[string]struct{}{
+		hostDetailQueryPrefix + "google_chrome_profiles": {},
+		hostDetailQueryPrefix + "orbit_info":             {},
+	}
+	for name := range queries {
+		require.NotEmpty(t, discovery[name])
+		if _, ok := discoveryUsed[name]; ok {
+			require.NotEqual(t, alwaysTrueQuery, discovery[name])
+		} else {
+			require.Equal(t, alwaysTrueQuery, discovery[name])
+		}
+	}
+}
+
 func TestHostDetailQueries(t *testing.T) {
 	ds := new(mock.Store)
 	additional := json.RawMessage(`{"foobar": "select foo", "bim": "bam"}`)
@@ -439,23 +456,26 @@ func TestHostDetailQueries(t *testing.T) {
 		jitterH:  make(map[time.Duration]*jitterHashTable),
 	}
 
-	queries, err := svc.detailQueriesForHost(context.Background(), &host)
+	queries, discovery, err := svc.detailQueriesForHost(context.Background(), &host)
 	require.NoError(t, err)
 	assert.Empty(t, queries)
+	verifyDiscovery(t, queries, discovery)
 
 	// With refetch requested detail queries should be returned
 	host.RefetchRequested = true
-	queries, err = svc.detailQueriesForHost(context.Background(), &host)
+	queries, discovery, err = svc.detailQueriesForHost(context.Background(), &host)
 	require.NoError(t, err)
 	assert.NotEmpty(t, queries)
+	verifyDiscovery(t, queries, discovery)
 	host.RefetchRequested = false
 
 	// Advance the time
 	mockClock.AddTime(1*time.Hour + 1*time.Minute)
 
-	queries, err = svc.detailQueriesForHost(context.Background(), &host)
+	queries, discovery, err = svc.detailQueriesForHost(context.Background(), &host)
 	require.NoError(t, err)
 	require.Len(t, queries, expectedDetailQueries+2)
+	verifyDiscovery(t, queries, discovery)
 	for name := range queries {
 		assert.True(t,
 			strings.HasPrefix(name, hostDetailQueryPrefix) || strings.HasPrefix(name, hostAdditionalQueryPrefix),
@@ -468,7 +488,7 @@ func TestHostDetailQueries(t *testing.T) {
 func TestGetDistributedQueriesMissingHost(t *testing.T) {
 	svc := newTestService(t, &mock.Store{}, nil, nil)
 
-	_, _, err := svc.GetDistributedQueries(context.Background())
+	_, _, _, err := svc.GetDistributedQueries(context.Background())
 	require.NotNil(t, err)
 	assert.Contains(t, err.Error(), "missing host")
 }
@@ -506,9 +526,10 @@ func TestLabelQueries(t *testing.T) {
 
 	// With a new host, we should get the detail queries (and accelerate
 	// should be turned on so that we can quickly fill labels)
-	queries, acc, err := svc.GetDistributedQueries(ctx)
+	queries, discovery, acc, err := svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
 	require.Len(t, queries, expectedDetailQueries)
+	verifyDiscovery(t, queries, discovery)
 	assert.NotZero(t, acc)
 
 	// Simulate the detail queries being added.
@@ -516,9 +537,10 @@ func TestLabelQueries(t *testing.T) {
 	host.Hostname = "zwass.local"
 	ctx = hostctx.NewContext(ctx, host)
 
-	queries, acc, err = svc.GetDistributedQueries(ctx)
+	queries, discovery, acc, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	require.Len(t, queries, 0)
+	require.Empty(t, queries)
+	verifyDiscovery(t, queries, discovery)
 	assert.Zero(t, acc)
 
 	ds.LabelQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
@@ -530,9 +552,10 @@ func TestLabelQueries(t *testing.T) {
 	}
 
 	// Now we should get the label queries
-	queries, acc, err = svc.GetDistributedQueries(ctx)
+	queries, discovery, acc, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
 	require.Len(t, queries, 3)
+	verifyDiscovery(t, queries, discovery)
 	assert.Zero(t, acc)
 
 	var gotHost *fleet.Host
@@ -584,17 +607,19 @@ func TestLabelQueries(t *testing.T) {
 	// We should get no labels now.
 	host.LabelUpdatedAt = mockClock.Now()
 	ctx = hostctx.NewContext(ctx, host)
-	queries, acc, err = svc.GetDistributedQueries(ctx)
+	queries, discovery, acc, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	require.Len(t, queries, 0)
+	require.Empty(t, queries)
+	verifyDiscovery(t, queries, discovery)
 	assert.Zero(t, acc)
 
 	// With refetch requested details+label queries should be returned.
 	host.RefetchRequested = true
 	ctx = hostctx.NewContext(ctx, host)
-	queries, acc, err = svc.GetDistributedQueries(ctx)
+	queries, discovery, acc, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
 	require.Len(t, queries, expectedDetailQueries+3)
+	verifyDiscovery(t, queries, discovery)
 	assert.Zero(t, acc)
 
 	// Record a query execution
@@ -620,9 +645,10 @@ func TestLabelQueries(t *testing.T) {
 
 	// There shouldn't be any labels now.
 	ctx = hostctx.NewContext(context.Background(), host)
-	queries, acc, err = svc.GetDistributedQueries(ctx)
+	queries, discovery, acc, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	require.Len(t, queries, 0)
+	require.Empty(t, queries)
+	verifyDiscovery(t, queries, discovery)
 	assert.Zero(t, acc)
 }
 
@@ -658,9 +684,10 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 
 	// With a new host, we should get the detail queries (and accelerated
 	// queries)
-	queries, acc, err := svc.GetDistributedQueries(ctx)
+	queries, discovery, acc, err := svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	require.Len(t, queries, expectedDetailQueries-3)
+	require.Len(t, queries, expectedDetailQueries-2)
+	verifyDiscovery(t, queries, discovery)
 	assert.NotZero(t, acc)
 
 	resultJSON := `
@@ -747,6 +774,16 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 			"name":"logger_tls_period",
 			"value":""
 		}
+],
+"fleet_detail_query_orbit_info": [
+		{
+			"name":"version",
+			"value":"42"
+		},
+		{
+			"name":"device_auth_token",
+			"value":"foo"
+		}
 ]
 }
 `
@@ -790,17 +827,19 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 
 	// Now no detail queries should be required
 	ctx = hostctx.NewContext(context.Background(), host)
-	queries, acc, err = svc.GetDistributedQueries(ctx)
+	queries, discovery, acc, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	require.Len(t, queries, 0)
+	require.Empty(t, queries)
+	verifyDiscovery(t, queries, discovery)
 	assert.Zero(t, acc)
 
 	// Advance clock and queries should exist again
 	mockClock.AddTime(1*time.Hour + 1*time.Minute)
 
-	queries, acc, err = svc.GetDistributedQueries(ctx)
+	queries, discovery, acc, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
 	require.Len(t, queries, expectedDetailQueries)
+	verifyDiscovery(t, queries, discovery)
 	assert.Zero(t, acc)
 }
 
@@ -837,6 +876,11 @@ func TestDetailQueries(t *testing.T) {
 		require.Equal(t, "3.4.5", version)
 		return nil
 	}
+	ds.SetOrUpdateDeviceAuthTokenFunc = func(ctx context.Context, hostID uint, authToken string) error {
+		require.Equal(t, uint(1), hostID)
+		require.Equal(t, "foo", authToken)
+		return nil
+	}
 	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 		if id != 1 {
 			return nil, errors.New("not found")
@@ -846,9 +890,10 @@ func TestDetailQueries(t *testing.T) {
 
 	// With a new host, we should get the detail queries (and accelerated
 	// queries)
-	queries, acc, err := svc.GetDistributedQueries(ctx)
+	queries, discovery, acc, err := svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	require.Len(t, queries, expectedDetailQueries-2)
+	require.Len(t, queries, expectedDetailQueries-1)
+	verifyDiscovery(t, queries, discovery)
 	assert.NotZero(t, acc)
 
 	resultJSON := `
@@ -985,6 +1030,12 @@ func TestDetailQueries(t *testing.T) {
 	{
 		"version": "3.4.5"
 	}
+],
+"fleet_detail_query_orbit_info": [
+	{
+		"version": "42",
+		"device_auth_token": "foo"
+	}
 ]
 }
 `
@@ -1021,6 +1072,7 @@ func TestDetailQueries(t *testing.T) {
 
 	require.True(t, ds.SetOrUpdateMDMDataFuncInvoked)
 	require.True(t, ds.SetOrUpdateMunkiVersionFuncInvoked)
+	require.True(t, ds.SetOrUpdateDeviceAuthTokenFuncInvoked)
 
 	// osquery_info
 	assert.Equal(t, "darwin", gotHost.Platform)
@@ -1085,17 +1137,19 @@ func TestDetailQueries(t *testing.T) {
 
 	// Now no detail queries should be required
 	ctx = hostctx.NewContext(ctx, host)
-	queries, acc, err = svc.GetDistributedQueries(ctx)
+	queries, discovery, acc, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	require.Len(t, queries, 0)
+	require.Empty(t, queries)
+	verifyDiscovery(t, queries, discovery)
 	assert.Zero(t, acc)
 
 	// Advance clock and queries should exist again
 	mockClock.AddTime(1*time.Hour + 1*time.Minute)
 
-	queries, acc, err = svc.GetDistributedQueries(ctx)
+	queries, discovery, acc, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
 	require.Len(t, queries, expectedDetailQueries+1)
+	verifyDiscovery(t, queries, discovery)
 	assert.Zero(t, acc)
 }
 
@@ -1219,9 +1273,10 @@ func TestDistributedQueryResults(t *testing.T) {
 	lq.On("QueryCompletedByHost", strconv.Itoa(int(campaign.ID)), host.ID).Return(nil)
 
 	// Now we should get the active distributed query
-	queries, acc, err := svc.GetDistributedQueries(hostCtx)
+	queries, discovery, acc, err := svc.GetDistributedQueries(hostCtx)
 	require.NoError(t, err)
-	require.Len(t, queries, expectedDetailQueries-2)
+	require.Len(t, queries, expectedDetailQueries-1)
+	verifyDiscovery(t, queries, discovery)
 	queryKey := fmt.Sprintf("%s%d", hostDistributedQueryPrefix, campaign.ID)
 	assert.Equal(t, "select * from time", queries[queryKey])
 	assert.NotZero(t, acc)
@@ -2063,9 +2118,10 @@ func TestPolicyQueries(t *testing.T) {
 
 	ctx := hostctx.NewContext(context.Background(), host)
 
-	queries, _, err := svc.GetDistributedQueries(ctx)
+	queries, discovery, _, err := svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
 	require.Len(t, queries, expectedDetailQueries+2)
+	verifyDiscovery(t, queries, discovery)
 
 	checkPolicyResults := func(queries map[string]string) {
 		hasPolicy1, hasPolicy2 := false, false
@@ -2118,17 +2174,19 @@ func TestPolicyQueries(t *testing.T) {
 
 	// After the first time we get policies and update the host, then there shouldn't be any policies.
 	ctx = hostctx.NewContext(context.Background(), host)
-	queries, _, err = svc.GetDistributedQueries(ctx)
+	queries, discovery, _, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
 	require.Len(t, queries, expectedDetailQueries)
+	verifyDiscovery(t, queries, discovery)
 	noPolicyResults(queries)
 
 	// Let's move time forward, there should be policies now.
 	mockClock.AddTime(2 * time.Hour)
 
-	queries, _, err = svc.GetDistributedQueries(ctx)
+	queries, discovery, _, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
 	require.Len(t, queries, expectedDetailQueries+2)
+	verifyDiscovery(t, queries, discovery)
 	checkPolicyResults(queries)
 
 	// Record another query execution.
@@ -2153,17 +2211,19 @@ func TestPolicyQueries(t *testing.T) {
 
 	// There shouldn't be any policies now.
 	ctx = hostctx.NewContext(context.Background(), host)
-	queries, _, err = svc.GetDistributedQueries(ctx)
+	queries, discovery, _, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
 	require.Len(t, queries, expectedDetailQueries)
+	verifyDiscovery(t, queries, discovery)
 	noPolicyResults(queries)
 
 	// With refetch requested policy queries should be returned.
 	host.RefetchRequested = true
 	ctx = hostctx.NewContext(context.Background(), host)
-	queries, _, err = svc.GetDistributedQueries(ctx)
+	queries, discovery, _, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
 	require.Len(t, queries, expectedDetailQueries+2)
+	verifyDiscovery(t, queries, discovery)
 	checkPolicyResults(queries)
 
 	// Record another query execution.
@@ -2190,9 +2250,10 @@ func TestPolicyQueries(t *testing.T) {
 
 	// There shouldn't be any policies now.
 	ctx = hostctx.NewContext(context.Background(), host)
-	queries, _, err = svc.GetDistributedQueries(ctx)
+	queries, discovery, _, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
 	require.Len(t, queries, expectedDetailQueries)
+	verifyDiscovery(t, queries, discovery)
 	noPolicyResults(queries)
 }
 
@@ -2254,9 +2315,10 @@ func TestPolicyWebhooks(t *testing.T) {
 	}
 	ctx := hostctx.NewContext(context.Background(), host)
 
-	queries, _, err := svc.GetDistributedQueries(ctx)
+	queries, discovery, _, err := svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
 	require.Len(t, queries, expectedDetailQueries+3)
+	verifyDiscovery(t, queries, discovery)
 
 	checkPolicyResults := func(queries map[string]string) {
 		hasPolicy1, hasPolicy2, hasPolicy3 := false, false, false
@@ -2366,17 +2428,19 @@ func TestPolicyWebhooks(t *testing.T) {
 
 	// After the first time we get policies and update the host, then there shouldn't be any policies.
 	ctx = hostctx.NewContext(context.Background(), host)
-	queries, _, err = svc.GetDistributedQueries(ctx)
+	queries, discovery, _, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
 	require.Len(t, queries, expectedDetailQueries)
+	verifyDiscovery(t, queries, discovery)
 	noPolicyResults(queries)
 
 	// Let's move time forward, there should be policies now.
 	mockClock.AddTime(2 * time.Hour)
 
-	queries, _, err = svc.GetDistributedQueries(ctx)
+	queries, discovery, _, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
 	require.Len(t, queries, expectedDetailQueries+3)
+	verifyDiscovery(t, queries, discovery)
 	checkPolicyResults(queries)
 
 	ds.FlippingPoliciesForHostFunc = func(ctx context.Context, hostID uint, incomingResults map[uint]*bool) (newFailing []uint, newPassing []uint, err error) {
@@ -2496,9 +2560,10 @@ func TestLiveQueriesFailing(t *testing.T) {
 
 	ctx := hostctx.NewContext(context.Background(), host)
 
-	queries, _, err := svc.GetDistributedQueries(ctx)
+	queries, discovery, _, err := svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
 	require.Len(t, queries, expectedDetailQueries)
+	verifyDiscovery(t, queries, discovery)
 
 	logs, err := ioutil.ReadAll(buf)
 	require.NoError(t, err)

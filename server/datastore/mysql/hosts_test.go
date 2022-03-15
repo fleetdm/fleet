@@ -113,6 +113,7 @@ func TestHosts(t *testing.T) {
 		{"UpdateOsqueryIntervals", testUpdateOsqueryIntervals},
 		{"UpdateRefetchRequested", testUpdateRefetchRequested},
 		{"LoadHostByDeviceAuthToken", testHostsLoadHostByDeviceAuthToken},
+		{"SetOrUpdateDeviceAuthToken", testHostsSetOrUpdateDeviceAuthToken},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -3706,7 +3707,7 @@ func testHostsLoadHostByDeviceAuthToken(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	validToken := "abcd"
-	_, err = ds.writer.ExecContext(context.Background(), `INSERT INTO host_device_auth (host_id, token) VALUES (?, ?)`, host.ID, validToken)
+	err = ds.SetOrUpdateDeviceAuthToken(context.Background(), host.ID, validToken)
 	require.NoError(t, err)
 
 	_, err = ds.LoadHostByDeviceAuthToken(context.Background(), "nosuchtoken")
@@ -3716,4 +3717,65 @@ func testHostsLoadHostByDeviceAuthToken(t *testing.T, ds *Datastore) {
 	h, err := ds.LoadHostByDeviceAuthToken(context.Background(), validToken)
 	require.NoError(t, err)
 	require.Equal(t, host.ID, h.ID)
+}
+
+func testHostsSetOrUpdateDeviceAuthToken(t *testing.T, ds *Datastore) {
+	host, err := ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         "1",
+		UUID:            "1",
+		OsqueryHostID:   "1",
+		Hostname:        "foo.local",
+		PrimaryIP:       "192.168.1.1",
+		PrimaryMac:      "30-65-EC-6F-C4-58",
+	})
+	require.NoError(t, err)
+	host2, err := ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         "2",
+		UUID:            "2",
+		OsqueryHostID:   "2",
+		Hostname:        "foo.local2",
+		PrimaryIP:       "192.168.1.2",
+		PrimaryMac:      "30-65-EC-6F-C4-59",
+	})
+	require.NoError(t, err)
+
+	token1 := "token1"
+	err = ds.SetOrUpdateDeviceAuthToken(context.Background(), host.ID, token1)
+	require.NoError(t, err)
+
+	token2 := "token2"
+	err = ds.SetOrUpdateDeviceAuthToken(context.Background(), host2.ID, token2)
+	require.NoError(t, err)
+
+	h, err := ds.LoadHostByDeviceAuthToken(context.Background(), token1)
+	require.NoError(t, err)
+	require.Equal(t, host.ID, h.ID)
+
+	h, err = ds.LoadHostByDeviceAuthToken(context.Background(), token2)
+	require.NoError(t, err)
+	require.Equal(t, host2.ID, h.ID)
+
+	token2Updated := "token2_updated"
+	err = ds.SetOrUpdateDeviceAuthToken(context.Background(), host2.ID, token2Updated)
+	require.NoError(t, err)
+
+	h, err = ds.LoadHostByDeviceAuthToken(context.Background(), token1)
+	require.NoError(t, err)
+	require.Equal(t, host.ID, h.ID)
+
+	h, err = ds.LoadHostByDeviceAuthToken(context.Background(), token2Updated)
+	require.NoError(t, err)
+	require.Equal(t, host2.ID, h.ID)
+
+	h, err = ds.LoadHostByDeviceAuthToken(context.Background(), token2)
+	require.Error(t, err)
+	assert.ErrorIs(t, err, sql.ErrNoRows)
 }
