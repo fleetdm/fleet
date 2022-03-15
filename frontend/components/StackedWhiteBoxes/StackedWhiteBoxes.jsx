@@ -47,26 +47,6 @@ class StackedWhiteBoxes extends Component {
     });
   };
 
-  nowLeaving = (evt) => {
-    const { window } = global;
-    const { onLeave, previousLocation } = this.props;
-    evt.preventDefault();
-
-    this.setState({
-      isLoading: false,
-      isLoaded: false,
-      isLeaving: true,
-    });
-
-    if (previousLocation) {
-      window.setTimeout(() => {
-        onLeave(previousLocation);
-      }, 300);
-    }
-
-    return false;
-  };
-
   renderBackButton = () => {
     const { previousLocation } = this.props;
     const { nowLeaving } = this;
@@ -78,7 +58,6 @@ class StackedWhiteBoxes extends Component {
         <Link
           to={previousLocation}
           className={`${baseClass}__back-link`}
-          onClick={nowLeaving}
         >
           <FleetIcon name="x" />
         </Link>
