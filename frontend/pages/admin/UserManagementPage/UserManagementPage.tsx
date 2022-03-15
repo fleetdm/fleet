@@ -1,8 +1,7 @@
 import React, { useState, useCallback, useContext } from "react";
 import { useDispatch } from "react-redux";
+import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
-
-import { push } from "react-router-redux";
 import memoize from "memoize-one";
 
 import { IApiError } from "interfaces/errors";
@@ -33,11 +32,17 @@ import EditUserModal from "./components/EditUserModal";
 
 const baseClass = "user-management";
 
+interface IUserManagementProps {
+  router: InjectedRouter; // v3
+}
+
 interface ITeamsResponse {
   teams: ITeam[];
 }
 
-const UserManagementPage = (): JSX.Element => {
+const UserManagementPage = ({
+  router,
+}: IUserManagementProps): JSX.Element => {
   const dispatch = useDispatch();
 
   const { config, currentUser, isPremiumTier } = useContext(AppContext);
@@ -163,8 +168,7 @@ const UserManagementPage = (): JSX.Element => {
 
   const goToUserSettingsPage = () => {
     const { USER_SETTINGS } = paths;
-
-    dispatch(push(USER_SETTINGS));
+    router.push(USER_SETTINGS);
   };
 
   // NOTE: this is called once on the initial rendering. The initial render of
