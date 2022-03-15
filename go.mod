@@ -33,6 +33,7 @@ require (
 	github.com/ghodss/yaml v1.0.0
 	github.com/go-kit/kit v0.9.0
 	github.com/go-sql-driver/mysql v1.6.0
+	github.com/gocarina/gocsv v0.0.0-20220310154401-d4df709ca055 // indirect
 	github.com/gocolly/colly v1.2.0
 	github.com/golang-jwt/jwt/v4 v4.0.0
 	github.com/gomodule/redigo v1.8.5
