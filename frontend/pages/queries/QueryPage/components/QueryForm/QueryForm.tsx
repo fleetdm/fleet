@@ -1,6 +1,6 @@
 import React, { useState, useContext, useEffect, KeyboardEvent } from "react";
+import { InjectedRouter } from "react-router";
 import { useDispatch } from "react-redux";
-import { push } from "react-router-redux";
 // @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions";
 
@@ -40,6 +40,7 @@ import PencilIcon from "../../../../../../assets/images/icon-pencil-14x14@2x.png
 const baseClass = "query-form";
 
 interface IQueryFormProps {
+  router: InjectedRouter;
   queryIdForEdit: number | null;
   showOpenSchemaActionText: boolean;
   storedQuery: IQuery | undefined;
@@ -66,6 +67,7 @@ const validateQuerySQL = (query: string) => {
 };
 
 const QueryForm = ({
+  router,
   queryIdForEdit,
   showOpenSchemaActionText,
   storedQuery,
@@ -213,7 +215,7 @@ const QueryForm = ({
         })
         .then((response: { query: IQuery }) => {
           setIsSaveAsNewLoading(false);
-          dispatch(push(PATHS.EDIT_QUERY(response.query)));
+          router.push(PATHS.EDIT_QUERY(response.query));
           dispatch(renderFlash("success", `Successfully added query.`));
         })
         .catch((createError: { data: IApiError }) => {
@@ -227,7 +229,7 @@ const QueryForm = ({
               })
               .then((response: { query: IQuery }) => {
                 setIsSaveAsNewLoading(false);
-                dispatch(push(PATHS.EDIT_QUERY(response.query)));
+                router.push(PATHS.EDIT_QUERY(response.query));
                 dispatch(
                   renderFlash(
                     "success",
