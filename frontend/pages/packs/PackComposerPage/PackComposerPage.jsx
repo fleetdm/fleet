@@ -21,6 +21,7 @@ export class PackComposerPage extends Component {
       base: PropTypes.string,
     }),
     isPremiumTier: PropTypes.bool,
+    router: PropTypes.any,
   };
 
   static defaultProps = {
@@ -48,7 +49,7 @@ export class PackComposerPage extends Component {
     return dispatch(create(formData))
       .then((pack) => {
         const { id: packID } = pack;
-        dispatch(push(PATHS.PACK(packID)));
+        router.push(PATHS.PACK(packID));
         dispatch(
           renderFlash(
             "success",
