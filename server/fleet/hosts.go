@@ -70,55 +70,55 @@ type HostUser struct {
 type Host struct {
 	UpdateCreateTimestamps
 	HostSoftware
-	ID uint `json:"id"`
+	ID uint `json:"id" csv:"id"`
 	// OsqueryHostID is the key used in the request context that is
 	// used to retrieve host information.  It is sent from osquery and may currently be
 	// a GUID or a Host Name, but in either case, it MUST be unique
 	OsqueryHostID    string    `json:"-" db:"osquery_host_id" csv:"-"`
-	DetailUpdatedAt  time.Time `json:"detail_updated_at" db:"detail_updated_at"` // Time that the host details were last updated
-	LabelUpdatedAt   time.Time `json:"label_updated_at" db:"label_updated_at"`   // Time that the host labels were last updated
-	PolicyUpdatedAt  time.Time `json:"policy_updated_at" db:"policy_updated_at"` // Time that the host policies were last updated
-	LastEnrolledAt   time.Time `json:"last_enrolled_at" db:"last_enrolled_at"`   // Time that the host last enrolled
-	SeenTime         time.Time `json:"seen_time" db:"seen_time"`                 // Time that the host was last "seen"
-	RefetchRequested bool      `json:"refetch_requested" db:"refetch_requested"`
+	DetailUpdatedAt  time.Time `json:"detail_updated_at" db:"detail_updated_at" csv:"detail_updated_at"` // Time that the host details were last updated
+	LabelUpdatedAt   time.Time `json:"label_updated_at" db:"label_updated_at" csv:"label_updated_at"`    // Time that the host labels were last updated
+	PolicyUpdatedAt  time.Time `json:"policy_updated_at" db:"policy_updated_at" csv:"policy_updated_at"` // Time that the host policies were last updated
+	LastEnrolledAt   time.Time `json:"last_enrolled_at" db:"last_enrolled_at" csv:"last_enrolled_at"`    // Time that the host last enrolled
+	SeenTime         time.Time `json:"seen_time" db:"seen_time" csv:"seen_time"`                         // Time that the host was last "seen"
+	RefetchRequested bool      `json:"refetch_requested" db:"refetch_requested" csv:"refetch_requested"`
 	NodeKey          string    `json:"-" db:"node_key" csv:"-"`
-	Hostname         string    `json:"hostname" db:"hostname"` // there is a fulltext index on this field
-	UUID             string    `json:"uuid" db:"uuid"`         // there is a fulltext index on this field
+	Hostname         string    `json:"hostname" db:"hostname" csv:"hostname"` // there is a fulltext index on this field
+	UUID             string    `json:"uuid" db:"uuid" csv:"uuid"`             // there is a fulltext index on this field
 	// Platform is the host's platform as defined by osquery's os_version.platform.
-	Platform       string        `json:"platform"`
-	OsqueryVersion string        `json:"osquery_version" db:"osquery_version"`
-	OSVersion      string        `json:"os_version" db:"os_version"`
-	Build          string        `json:"build"`
-	PlatformLike   string        `json:"platform_like" db:"platform_like"`
-	CodeName       string        `json:"code_name" db:"code_name"`
-	Uptime         time.Duration `json:"uptime"`
-	Memory         int64         `json:"memory" sql:"type:bigint" db:"memory"`
+	Platform       string        `json:"platform" csv:"platform"`
+	OsqueryVersion string        `json:"osquery_version" db:"osquery_version" csv:"osquery_version"`
+	OSVersion      string        `json:"os_version" db:"os_version" csv:"os_version"`
+	Build          string        `json:"build" csv:"build"`
+	PlatformLike   string        `json:"platform_like" db:"platform_like" csv:"platform_like"`
+	CodeName       string        `json:"code_name" db:"code_name" csv:"code_name"`
+	Uptime         time.Duration `json:"uptime" csv:"uptime"`
+	Memory         int64         `json:"memory" sql:"type:bigint" db:"memory" csv:"memory"`
 	// system_info fields
-	CPUType          string `json:"cpu_type" db:"cpu_type"`
-	CPUSubtype       string `json:"cpu_subtype" db:"cpu_subtype"`
-	CPUBrand         string `json:"cpu_brand" db:"cpu_brand"`
-	CPUPhysicalCores int    `json:"cpu_physical_cores" db:"cpu_physical_cores"`
-	CPULogicalCores  int    `json:"cpu_logical_cores" db:"cpu_logical_cores"`
-	HardwareVendor   string `json:"hardware_vendor" db:"hardware_vendor"`
-	HardwareModel    string `json:"hardware_model" db:"hardware_model"`
-	HardwareVersion  string `json:"hardware_version" db:"hardware_version"`
-	HardwareSerial   string `json:"hardware_serial" db:"hardware_serial"`
-	ComputerName     string `json:"computer_name" db:"computer_name"`
+	CPUType          string `json:"cpu_type" db:"cpu_type" csv:"cpu_type"`
+	CPUSubtype       string `json:"cpu_subtype" db:"cpu_subtype" csv:"cpu_subtype"`
+	CPUBrand         string `json:"cpu_brand" db:"cpu_brand" csv:"cpu_brand"`
+	CPUPhysicalCores int    `json:"cpu_physical_cores" db:"cpu_physical_cores" csv:"cpu_physical_cores"`
+	CPULogicalCores  int    `json:"cpu_logical_cores" db:"cpu_logical_cores" csv:"cpu_logical_cores"`
+	HardwareVendor   string `json:"hardware_vendor" db:"hardware_vendor" csv:"hardware_vendor"`
+	HardwareModel    string `json:"hardware_model" db:"hardware_model" csv:"hardware_model"`
+	HardwareVersion  string `json:"hardware_version" db:"hardware_version" csv:"hardware_version"`
+	HardwareSerial   string `json:"hardware_serial" db:"hardware_serial" csv:"hardware_serial"`
+	ComputerName     string `json:"computer_name" db:"computer_name" csv:"computer_name"`
 	// PrimaryNetworkInterfaceID if present indicates to primary network for the host, the details of which
 	// can be found in the NetworkInterfaces element with the same ip_address.
-	PrimaryNetworkInterfaceID *uint               `json:"primary_ip_id,omitempty" db:"primary_ip_id"`
+	PrimaryNetworkInterfaceID *uint               `json:"primary_ip_id,omitempty" db:"primary_ip_id" csv:"primary_ip_id"`
 	NetworkInterfaces         []*NetworkInterface `json:"-" db:"-" csv:"-"`
-	PrimaryIP                 string              `json:"primary_ip" db:"primary_ip"`
-	PrimaryMac                string              `json:"primary_mac" db:"primary_mac"`
-	DistributedInterval       uint                `json:"distributed_interval" db:"distributed_interval"`
-	ConfigTLSRefresh          uint                `json:"config_tls_refresh" db:"config_tls_refresh"`
-	LoggerTLSPeriod           uint                `json:"logger_tls_period" db:"logger_tls_period"`
-	TeamID                    *uint               `json:"team_id" db:"team_id"`
+	PrimaryIP                 string              `json:"primary_ip" db:"primary_ip" csv:"primary_ip"`
+	PrimaryMac                string              `json:"primary_mac" db:"primary_mac" csv:"primary_mac"`
+	DistributedInterval       uint                `json:"distributed_interval" db:"distributed_interval" csv:"distributed_interval"`
+	ConfigTLSRefresh          uint                `json:"config_tls_refresh" db:"config_tls_refresh" csv:"config_tls_refresh"`
+	LoggerTLSPeriod           uint                `json:"logger_tls_period" db:"logger_tls_period" csv:"logger_tls_period"`
+	TeamID                    *uint               `json:"team_id" db:"team_id" csv:"team_id"`
 
 	// Loaded via JOIN in DB
 	PackStats []PackStats `json:"pack_stats" csv:"-"`
 	// TeamName is the name of the team, loaded by JOIN to the teams table.
-	TeamName *string `json:"team_name" db:"team_name"`
+	TeamName *string `json:"team_name" db:"team_name" csv:"team_name"`
 	// Additional is the additional information from the host
 	// additional_queries. This should be stored in a separate DB table.
 	Additional *json.RawMessage `json:"additional,omitempty" db:"additional" csv:"-"`
@@ -126,8 +126,8 @@ type Host struct {
 	// Users currently in the host
 	Users []HostUser `json:"users,omitempty" csv:"-"`
 
-	GigsDiskSpaceAvailable    float64 `json:"gigs_disk_space_available" db:"gigs_disk_space_available"`
-	PercentDiskSpaceAvailable float64 `json:"percent_disk_space_available" db:"percent_disk_space_available"`
+	GigsDiskSpaceAvailable    float64 `json:"gigs_disk_space_available" db:"gigs_disk_space_available" csv:"gigs_disk_space_available"`
+	PercentDiskSpaceAvailable float64 `json:"percent_disk_space_available" db:"percent_disk_space_available" csv:"percent_disk_space_available"`
 
 	HostIssues `json:"issues,omitempty" csv:"-"`
 

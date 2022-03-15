@@ -3729,7 +3729,7 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	res.Body.Close()
 	require.NoError(t, err)
 	require.Len(t, rows, len(hosts)+1)
-	require.Contains(t, rows[0], "Hostname") // first row contains headers
+	require.Contains(t, rows[0], "hostname") // first row contains headers
 	require.Contains(t, res.Header, "Content-Disposition")
 	require.Contains(t, res.Header, "Content-Type")
 	require.Contains(t, res.Header.Get("Content-Disposition"), "attachment;")

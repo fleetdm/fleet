@@ -865,9 +865,8 @@ func hostsReportEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 		return hostsReportResponse{Err: err}, nil
 	}
 
-	// TODO(mna): is it ok to set those explicitly like this? They are not supported
-	// when listing hosts in a label, so that's just to make the output consistent
-	// whether a label is used or not.
+	// Those are not supported when listing hosts in a label, so that's just to
+	// make the output consistent whether a label is used or not.
 	req.Opts.DisableFailingPolicies = true
 	req.Opts.AdditionalFilters = nil
 
