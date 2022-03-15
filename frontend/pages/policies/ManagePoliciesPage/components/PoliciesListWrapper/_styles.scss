@@ -1,4 +1,4 @@
-.policy-list-wrapper {
+.policies-list-wrapper {
   border-collapse: collapse;
 
   a {
@@ -23,23 +23,11 @@
       font-weight: $bold;
       text-align: left;
       padding: $pad-medium $pad-large;
-
-      &:nth-child(2) {
-        width: calc(49% - 20px);
-      }
-
-      &:nth-child(3) {
+      &:not(.name__header) {
         width: 20%;
-        max-width: 150px;
-      }
-
-      &:nth-last-child(2) {
-        border-right: 0;
-      }
-
-      &:last-child {
-        width: 150px;
-        border-left: 0;
+        @media (min-width: $medium-width) {
+          width: 15%;
+        }
       }
     }
   }
