@@ -6,13 +6,7 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 ### Company
 
-[About Fleet](./company.md#about-fleet)
-
-[History](./company.md#history)
-
-[Values](./company.md#values)
-
-[Culture](./company.md#culture)
+<autoinclude-links-to-headings from="./company.md"></autoinclude-links-to-headings>
 
 ### People
 
