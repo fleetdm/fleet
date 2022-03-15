@@ -2,8 +2,6 @@
  * Component when there is an error retrieving schedule set up in fleet
  */
 import React from "react";
-import { useDispatch } from "react-redux";
-import { push } from "react-router-redux";
 import paths from "router/paths";
 
 import Button from "components/buttons/Button";
@@ -22,6 +20,7 @@ import {
 } from "./ScheduleTableConfig";
 // @ts-ignore
 import scheduleSvg from "../../../../../../assets/images/no-schedule-322x138@2x.png";
+import { InjectedRouter } from "react-router";
 
 const baseClass = "schedule-list-wrapper";
 const noScheduleClass = "no-schedule";
@@ -32,6 +31,7 @@ const TAGGED_TEMPLATES = {
   },
 };
 interface IScheduleListWrapperProps {
+  router: InjectedRouter; // v3
   onRemoveScheduledQueryClick?: (selectIds: number[]) => void;
   onEditScheduledQueryClick?: (selectedQuery: IEditScheduledQuery) => void;
   allScheduledQueriesList: IScheduledQuery[];
@@ -44,6 +44,7 @@ interface IScheduleListWrapperProps {
 }
 
 const ScheduleListWrapper = ({
+  router,
   onRemoveScheduledQueryClick,
   allScheduledQueriesList,
   toggleScheduleEditorModal,
@@ -54,10 +55,9 @@ const ScheduleListWrapper = ({
   loadingInheritedQueriesTableData,
   loadingTeamQueriesTableData,
 }: IScheduleListWrapperProps): JSX.Element => {
-  const dispatch = useDispatch();
   const { MANAGE_PACKS, MANAGE_HOSTS } = paths;
 
-  const handleAdvanced = () => dispatch(push(MANAGE_PACKS));
+  const handleAdvanced = () => router.push(MANAGE_PACKS);
 
   const NoScheduledQueries = () => {
     return (
