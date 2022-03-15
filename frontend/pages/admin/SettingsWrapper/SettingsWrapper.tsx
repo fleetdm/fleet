@@ -44,7 +44,7 @@ const SettingsWrapper = ({
   router,
 }: ISettingsWrapperProp): JSX.Element => {
   const { isPremiumTier } = useContext(AppContext);
-  
+
   if (isPremiumTier && settingsSubNav.length === 2) {
     settingsSubNav.push({
       name: "Teams",

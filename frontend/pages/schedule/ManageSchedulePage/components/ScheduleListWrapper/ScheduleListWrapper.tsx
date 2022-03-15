@@ -2,6 +2,7 @@
  * Component when there is an error retrieving schedule set up in fleet
  */
 import React from "react";
+import { InjectedRouter } from "react-router";
 import paths from "router/paths";
 
 import Button from "components/buttons/Button";
@@ -20,7 +21,6 @@ import {
 } from "./ScheduleTableConfig";
 // @ts-ignore
 import scheduleSvg from "../../../../../../assets/images/no-schedule-322x138@2x.png";
-import { InjectedRouter } from "react-router";
 
 const baseClass = "schedule-list-wrapper";
 const noScheduleClass = "no-schedule";

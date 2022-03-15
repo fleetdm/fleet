@@ -5,6 +5,7 @@ import React, {
   useMemo,
   useState,
 } from "react";
+import { InjectedRouter } from "react-router";
 import { useDispatch } from "react-redux";
 import { useQuery } from "react-query";
 import { pick } from "lodash";
@@ -26,7 +27,6 @@ import Spinner from "components/Spinner";
 import TableDataError from "components/TableDataError";
 import QueriesListWrapper from "./components/QueriesListWrapper";
 import RemoveQueryModal from "./components/RemoveQueryModal";
-import { InjectedRouter } from "react-router";
 
 const baseClass = "manage-queries-page";
 interface IManageQueriesPageProps {

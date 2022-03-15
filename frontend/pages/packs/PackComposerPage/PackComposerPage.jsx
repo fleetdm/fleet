@@ -2,7 +2,6 @@ import React, { Component } from "react";
 import PropTypes from "prop-types";
 import { connect } from "react-redux";
 import { noop } from "lodash";
-import { push } from "react-router-redux";
 
 import { renderFlash } from "redux/nodes/notifications/actions";
 
@@ -21,7 +20,7 @@ export class PackComposerPage extends Component {
       base: PropTypes.string,
     }),
     isPremiumTier: PropTypes.bool,
-    router: PropTypes.any,
+    router: PropTypes.any, // eslint-disable-line react/forbid-prop-types
   };
 
   static defaultProps = {
@@ -44,7 +43,7 @@ export class PackComposerPage extends Component {
 
   handleSubmit = (formData) => {
     const { create } = packActions;
-    const { dispatch } = this.props;
+    const { dispatch, router } = this.props;
 
     return dispatch(create(formData))
       .then((pack) => {

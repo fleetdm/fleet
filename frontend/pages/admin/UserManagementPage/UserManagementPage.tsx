@@ -40,9 +40,7 @@ interface ITeamsResponse {
   teams: ITeam[];
 }
 
-const UserManagementPage = ({
-  router,
-}: IUserManagementProps): JSX.Element => {
+const UserManagementPage = ({ router }: IUserManagementProps): JSX.Element => {
   const dispatch = useDispatch();
 
   const { config, currentUser, isPremiumTier } = useContext(AppContext);

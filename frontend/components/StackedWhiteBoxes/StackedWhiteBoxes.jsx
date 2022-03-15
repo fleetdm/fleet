@@ -55,10 +55,7 @@ class StackedWhiteBoxes extends Component {
 
     return (
       <div className={`${baseClass}__back`}>
-        <Link
-          to={previousLocation}
-          className={`${baseClass}__back-link`}
-        >
+        <Link to={previousLocation} className={`${baseClass}__back-link`}>
           <FleetIcon name="x" />
         </Link>
       </div>
