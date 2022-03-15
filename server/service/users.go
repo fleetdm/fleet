@@ -268,7 +268,8 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 	if !ok {
 		return nil, ctxerr.New(ctx, "viewer not present") // should never happen, authorize would've failed
 	}
-	if err := p.VerifyModify(vc.UserID() == userID); err != nil {
+	ownUser := vc.UserID() == userID
+	if err := p.VerifyModify(ownUser); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "verify user payload")
 	}
 
@@ -277,6 +278,27 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 			return nil, err
 		}
 	}
+
+	if p.NewPassword != nil {
+		if err := svc.authz.Authorize(ctx, user, fleet.ActionChangePassword); err != nil {
+			return nil, err
+		}
+		if err := fleet.ValidatePasswordRequirements(*p.NewPassword); err != nil {
+			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("new_password", err.Error()))
+		}
+		if ownUser {
+			// when changing one's own password, user cannot reuse the same password
+			// and the old password must be provided (validated by p.VerifyModify above)
+			// and must be valid. If changed by admin, then this is not required.
+			if err := vc.User.ValidatePassword(*p.NewPassword); err == nil {
+				return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("new_password", "cannot reuse old password"))
+			}
+			if err := vc.User.ValidatePassword(*p.Password); err != nil {
+				return nil, ctxerr.Wrap(ctx, fleet.NewPermissionError("incorrect password"))
+			}
+		}
+	}
+
 	if p.Name != nil {
 		user.Name = *p.Name
 	}
@@ -320,7 +342,12 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 		user.GlobalRole = nil
 	}
 
-	err = svc.saveUser(ctx, user)
+	if p.NewPassword != nil {
+		// setNewPassword takes care of calling saveUser
+		err = svc.setNewPassword(ctx, user, *p.NewPassword)
+	} else {
+		err = svc.saveUser(ctx, user)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -439,7 +466,7 @@ func (svc *Service) ChangePassword(ctx context.Context, oldPass, newPass string)
 		return fleet.ErrNoContext
 	}
 
-	if err := svc.authz.Authorize(ctx, vc.User, fleet.ActionWrite); err != nil {
+	if err := svc.authz.Authorize(ctx, vc.User, fleet.ActionChangePassword); err != nil {
 		return err
 	}
 
@@ -723,7 +750,7 @@ func (svc *Service) PerformRequiredPasswordReset(ctx context.Context, password s
 	}
 	user := vc.User
 
-	if err := svc.authz.Authorize(ctx, user, fleet.ActionWrite); err != nil {
+	if err := svc.authz.Authorize(ctx, user, fleet.ActionChangePassword); err != nil {
 		return nil, err
 	}
 
