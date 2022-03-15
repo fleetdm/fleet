@@ -11,8 +11,6 @@ import OrgLogoIcon from "components/icons/OrgLogoIcon";
 import navItems, { INavItem } from "./navItems";
 
 interface IFleetDesktopTopNavProps {
-  onLogoutUser: () => void;
-  onNavItemClick: (path: string) => void;
   pathname: string;
   currentUser: IUser;
   config: IConfig;
@@ -24,7 +22,7 @@ const FleetDesktopTopNav = ({
   config,
 }: IFleetDesktopTopNavProps): JSX.Element => {
   const renderNavItem = (navItem: INavItem) => {
-    const { name, iconName, withContext } = navItem;
+    const { name } = navItem;
     const orgLogoURL = config.org_logo_url;
     const active = navItem.location.regex.test(pathname);
 

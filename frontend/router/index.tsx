@@ -181,7 +181,7 @@ const routes = (
           </Route>
         </Route>
         <Route component={FleetDesktopLayout}>
-          <Route path="/deviceuser/:host_id" component={DeviceUserPage} />
+          <Route path="/device/:host_id" component={DeviceUserPage} />
         </Route>
       </Route>
       <Route path="/apionlyuser" component={ApiOnlyUser} />
@@ -191,5 +191,7 @@ const routes = (
     </Router>
   </Provider>
 );
+
+// TODO: Line 184 Replace :host_id with host identifier
 
 export default routes;

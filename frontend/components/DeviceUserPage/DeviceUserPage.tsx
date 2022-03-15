@@ -8,7 +8,6 @@ import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import classnames from "classnames";
 import { isEmpty, pick, reduce } from "lodash";
 
-import PATHS from "router/paths";
 import hostAPI from "services/entities/hosts";
 import {
   IHost,
@@ -16,16 +15,12 @@ import {
   IMacadminsResponse,
 } from "interfaces/host";
 import { ISoftware } from "interfaces/software";
-import { ILabel } from "interfaces/label";
 // @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions";
 import ReactTooltip from "react-tooltip";
 import Spinner from "components/Spinner";
 import Button from "components/buttons/Button";
-import TableContainer from "components/TableContainer";
 import TabsWrapper from "components/TabsWrapper";
-import InfoBanner from "components/InfoBanner";
-import TooltipWrapper from "components/TooltipWrapper";
 import {
   humanHostUptime,
   humanHostLastSeen,
@@ -39,7 +34,6 @@ import SoftwareTab from "./SoftwareTab/SoftwareTab";
 import InfoModal from "./InfoModal";
 
 import InfoIcon from "../../../assets/images/icon-info-purple-14x14@2x.png";
-import IssueIcon from "../../../assets/images/icon-issue-fleet-black-50-16x16@2x.png";
 
 const baseClass = "device-user";
 
@@ -204,14 +198,6 @@ const DeviceUserPage = ({
     ])
   );
 
-  const operatingSystem = host?.os_version.slice(
-    0,
-    host?.os_version.lastIndexOf(" ")
-  );
-  const operatingSystemVersion = host?.os_version.slice(
-    host?.os_version.lastIndexOf(" ") + 1
-  );
-
   const aboutData = normalizeEmptyValues(
     pick(host, [
       "seen_time",
@@ -257,14 +243,6 @@ const DeviceUserPage = ({
     }
   };
 
-  const onLabelClick = (label: ILabel) => {
-    if (label.name === "All Hosts") {
-      return router.push(PATHS.MANAGE_HOSTS);
-    }
-
-    return router.push(`${PATHS.MANAGE_HOSTS}/labels/${label.id}`);
-  };
-
   const renderActionButtons = () => {
     return (
       <div className={`${baseClass}__action-button-container`}>
@@ -273,37 +251,6 @@ const DeviceUserPage = ({
             Info <img src={InfoIcon} alt="Host info icon" />
           </>
         </Button>
-      </div>
-    );
-  };
-
-  const renderLabels = () => {
-    const { labels = [] } = host || {};
-
-    const labelItems = labels.map((label) => {
-      return (
-        <li className="list__item" key={label.id}>
-          <Button
-            onClick={() => onLabelClick(label)}
-            variant="label"
-            className="list__button"
-          >
-            {label.name}
-          </Button>
-        </li>
-      );
-    });
-
-    return (
-      <div className="section labels col-50">
-        <p className="section__header">Labels</p>
-        {labels.length === 0 ? (
-          <p className="info-flex__item">
-            No labels are associated with this host.
-          </p>
-        ) : (
-          <ul className="list">{labelItems}</ul>
-        )}
       </div>
     );
   };
@@ -352,50 +299,6 @@ const DeviceUserPage = ({
       </>
     );
   };
-
-  const renderIssues = () => (
-    <div className="info-flex__item info-flex__item--title">
-      <span className="info-flex__header">Issues</span>
-      <span className="info-flex__data">
-        <span
-          className="host-issue tooltip__tooltip-icon"
-          data-tip
-          data-for="host-issue-count"
-          data-tip-disable={false}
-        >
-          <img alt="host issue" src={IssueIcon} />
-        </span>
-        <ReactTooltip
-          place="bottom"
-          type="dark"
-          effect="solid"
-          backgroundColor="#3e4771"
-          id="host-issue-count"
-          data-html
-        >
-          <span className={`tooltip__tooltip-text`}>
-            Failing policies ({host?.issues.failing_policies_count})
-          </span>
-        </ReactTooltip>
-        <span className={`total-issues-count`}>
-          {host?.issues.total_issues_count}
-        </span>
-      </span>
-    </div>
-  );
-
-  const renderHostTeam = () => (
-    <div className="info-flex__item info-flex__item--title">
-      <span className="info-flex__header">Team</span>
-      <span className={`info-flex__data`}>
-        {host?.team_name ? (
-          `${host?.team_name}`
-        ) : (
-          <span className="info-flex__no-team">No team</span>
-        )}
-      </span>
-    </div>
-  );
 
   const renderDeviceUser = () => {
     const numUsers = deviceMapping?.length;
@@ -501,7 +404,6 @@ const DeviceUserPage = ({
                 {titleData.status}
               </span>
             </div>
-            {titleData.issues?.total_issues_count > 0 && renderIssues()}
             <div className="info-flex__item info-flex__item--title">
               <span className="info-flex__header">Disk Space</span>
               {renderDiskSpace()}
