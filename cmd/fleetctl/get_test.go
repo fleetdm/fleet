@@ -154,6 +154,13 @@ kind: team
 spec:
   team:
     agent_options: null
+    config:
+      webhook_settings:
+        failing_policies_webhook:
+          destination_url: ""
+          enable_failing_policies_webhook: false
+          host_batch_size: 0
+          policy_ids: null
     created_at: "1999-03-10T02:45:06.371Z"
     description: team1 description
     host_count: 0
@@ -172,6 +179,13 @@ spec:
         platforms:
           darwin:
             foo: override
+    config:
+      webhook_settings:
+        failing_policies_webhook:
+          destination_url: ""
+          enable_failing_policies_webhook: false
+          host_batch_size: 0
+          policy_ids: null
     created_at: "1999-03-10T02:45:06.371Z"
     description: team2 description
     host_count: 0
@@ -179,8 +193,8 @@ spec:
     name: team2
     user_count: 87
 `
-			expectedJson := `{"kind":"team","apiVersion":"v1","spec":{"team":{"id":42,"created_at":"1999-03-10T02:45:06.371Z","name":"team1","description":"team1 description","agent_options":null,"user_count":99,"host_count":0}}}
-{"kind":"team","apiVersion":"v1","spec":{"team":{"id":43,"created_at":"1999-03-10T02:45:06.371Z","name":"team2","description":"team2 description","agent_options":{"config":{"foo":"bar"},"overrides":{"platforms":{"darwin":{"foo":"override"}}}},"user_count":87,"host_count":0}}}
+			expectedJson := `{"kind":"team","apiVersion":"v1","spec":{"team":{"id":42,"created_at":"1999-03-10T02:45:06.371Z","name":"team1","description":"team1 description","agent_options":null,"config":{"webhook_settings":{"failing_policies_webhook":{"enable_failing_policies_webhook":false,"destination_url":"","policy_ids":null,"host_batch_size":0}}},"user_count":99,"host_count":0}}}
+{"kind":"team","apiVersion":"v1","spec":{"team":{"id":43,"created_at":"1999-03-10T02:45:06.371Z","name":"team2","description":"team2 description","agent_options":{"config":{"foo":"bar"},"overrides":{"platforms":{"darwin":{"foo":"override"}}}},"config":{"webhook_settings":{"failing_policies_webhook":{"enable_failing_policies_webhook":false,"destination_url":"","policy_ids":null,"host_batch_size":0}}},"user_count":87,"host_count":0}}}
 `
 			if tt.shouldHaveExpiredBanner {
 				expectedJson = expiredBanner.String() + expectedJson

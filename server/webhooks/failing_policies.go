@@ -32,12 +32,13 @@ func TriggerFailingPoliciesWebhook(
 	}
 
 	globalSettings := appConfig.WebhookSettings.FailingPoliciesWebhook
-	globalPolicyIDs := make(map[uint]struct{}, len(globalSettings.PolicyIDs))
-	for _, policyID := range globalSettings.PolicyIDs {
-		globalPolicyIDs[policyID] = struct{}{}
-	}
+	var globalPolicyIDs map[uint]struct{}
 	var globalWebhookURL *url.URL
 	if globalSettings.Enable {
+		globalPolicyIDs = make(map[uint]struct{}, len(globalSettings.PolicyIDs))
+		for _, policyID := range globalSettings.PolicyIDs {
+			globalPolicyIDs[policyID] = struct{}{}
+		}
 		globalWebhookURL, err = url.Parse(globalSettings.DestinationURL)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "parse global webhook url: %s", globalSettings.DestinationURL)
@@ -61,13 +62,14 @@ func TriggerFailingPoliciesWebhook(
 
 		settings = team.Config.WebhookSettings.FailingPoliciesWebhook
 		teamSettings[teamID] = settings
-		policyIDs := make(map[uint]struct{}, len(settings.PolicyIDs))
-		for _, policyID := range settings.PolicyIDs {
-			policyIDs[policyID] = struct{}{}
-		}
-		teamPolicyIDs[teamID] = policyIDs
 
 		if settings.Enable {
+			policyIDs := make(map[uint]struct{}, len(settings.PolicyIDs))
+			for _, policyID := range settings.PolicyIDs {
+				policyIDs[policyID] = struct{}{}
+			}
+			teamPolicyIDs[teamID] = policyIDs
+
 			webhookURL, err := url.Parse(settings.DestinationURL)
 			if err != nil {
 				return ctxerr.Wrapf(ctx, err, "parse webhook url: %s", settings.DestinationURL)
