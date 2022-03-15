@@ -193,6 +193,7 @@ CREATE TABLE `host_users` (
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `removed_at` timestamp NULL DEFAULT NULL,
   `user_type` varchar(255) DEFAULT NULL,
+  `shell` varchar(255) DEFAULT '',
   PRIMARY KEY (`host_id`,`uid`,`username`),
   UNIQUE KEY `idx_uid_username` (`host_id`,`uid`,`username`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -416,6 +417,7 @@ CREATE TABLE `policies` (
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `team_id` int(10) unsigned DEFAULT NULL,
+  `resolution` text,
   `name` varchar(255) NOT NULL,
   `query` mediumtext NOT NULL,
   `description` mediumtext NOT NULL,
@@ -526,6 +528,7 @@ CREATE TABLE `software` (
   `name` varchar(255) NOT NULL,
   `version` varchar(255) NOT NULL DEFAULT '',
   `source` varchar(64) NOT NULL,
+  `bundle_identifier` varchar(255) DEFAULT '',
   `release` varchar(64) NOT NULL DEFAULT '',
   `vendor` varchar(32) NOT NULL DEFAULT '',
   `arch` varchar(16) NOT NULL DEFAULT '',
@@ -592,7 +595,6 @@ CREATE TABLE `teams` (
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `name` varchar(255) NOT NULL,
   `description` varchar(1023) NOT NULL DEFAULT '',
-  `agent_options` json DEFAULT NULL,
   `config` json DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `idx_name` (`name`)

@@ -667,12 +667,12 @@ func TestAuthenticatedUser(t *testing.T) {
 	createTestUsers(t, ds)
 	svc := newTestService(ds, nil, nil)
 	admin1, err := ds.UserByEmail(context.Background(), "admin1@example.com")
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	admin1Session, err := ds.NewSession(context.Background(), &fleet.Session{
 		UserID: admin1.ID,
 		Key:    "admin1",
 	})
-	assert.Nil(t, err)
+	require.NoError(t, err)
 
 	ctx := context.Background()
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin1, Session: admin1Session})

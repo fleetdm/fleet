@@ -86,8 +86,8 @@ spec:
 `
 
 	assert.Equal(t, expectedText, runAppForTest(t, []string{"get", "user_roles"}))
-	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "user_roles", "--yaml"}))
-	assert.Equal(t, expectedJson, runAppForTest(t, []string{"get", "user_roles", "--json"}))
+	assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "user_roles", "--yaml"}))
+	assert.JSONEq(t, expectedJson, runAppForTest(t, []string{"get", "user_roles", "--json"}))
 }
 
 func TestGetTeams(t *testing.T) {
@@ -130,12 +130,14 @@ func TestGetTeams(t *testing.T) {
 						UserCount:   99,
 					},
 					{
-						ID:           43,
-						CreatedAt:    created_at,
-						Name:         "team2",
-						Description:  "team2 description",
-						UserCount:    87,
-						AgentOptions: &agentOpts,
+						ID:          43,
+						CreatedAt:   created_at,
+						Name:        "team2",
+						Description: "team2 description",
+						UserCount:   87,
+						Config: fleet.TeamConfig{
+							AgentOptions: &agentOpts,
+						},
 					},
 				}, nil
 			}
@@ -154,19 +156,18 @@ kind: team
 spec:
   team:
     agent_options: null
-    config:
-      webhook_settings:
-        failing_policies_webhook:
-          destination_url: ""
-          enable_failing_policies_webhook: false
-          host_batch_size: 0
-          policy_ids: null
     created_at: "1999-03-10T02:45:06.371Z"
     description: team1 description
     host_count: 0
     id: 42
     name: team1
     user_count: 99
+    webhook_settings:
+      failing_policies_webhook:
+        destination_url: ""
+        enable_failing_policies_webhook: false
+        host_batch_size: 0
+        policy_ids: null
 ---
 apiVersion: v1
 kind: team
@@ -179,22 +180,21 @@ spec:
         platforms:
           darwin:
             foo: override
-    config:
-      webhook_settings:
-        failing_policies_webhook:
-          destination_url: ""
-          enable_failing_policies_webhook: false
-          host_batch_size: 0
-          policy_ids: null
     created_at: "1999-03-10T02:45:06.371Z"
     description: team2 description
     host_count: 0
     id: 43
     name: team2
     user_count: 87
+    webhook_settings:
+      failing_policies_webhook:
+        destination_url: ""
+        enable_failing_policies_webhook: false
+        host_batch_size: 0
+        policy_ids: null
 `
-			expectedJson := `{"kind":"team","apiVersion":"v1","spec":{"team":{"id":42,"created_at":"1999-03-10T02:45:06.371Z","name":"team1","description":"team1 description","agent_options":null,"config":{"webhook_settings":{"failing_policies_webhook":{"enable_failing_policies_webhook":false,"destination_url":"","policy_ids":null,"host_batch_size":0}}},"user_count":99,"host_count":0}}}
-{"kind":"team","apiVersion":"v1","spec":{"team":{"id":43,"created_at":"1999-03-10T02:45:06.371Z","name":"team2","description":"team2 description","agent_options":{"config":{"foo":"bar"},"overrides":{"platforms":{"darwin":{"foo":"override"}}}},"config":{"webhook_settings":{"failing_policies_webhook":{"enable_failing_policies_webhook":false,"destination_url":"","policy_ids":null,"host_batch_size":0}}},"user_count":87,"host_count":0}}}
+			expectedJson := `{"kind":"team","apiVersion":"v1","spec":{"team":{"id":42,"created_at":"1999-03-10T02:45:06.371Z","name":"team1","description":"team1 description","agent_options":null,"webhook_settings":{"failing_policies_webhook":{"enable_failing_policies_webhook":false,"destination_url":"","policy_ids":null,"host_batch_size":0}},"user_count":99,"host_count":0}}}
+{"kind":"team","apiVersion":"v1","spec":{"team":{"id":43,"created_at":"1999-03-10T02:45:06.371Z","name":"team2","description":"team2 description","agent_options":{"config":{"foo":"bar"},"overrides":{"platforms":{"darwin":{"foo":"override"}}}},"webhook_settings":{"failing_policies_webhook":{"enable_failing_policies_webhook":false,"destination_url":"","policy_ids":null,"host_batch_size":0}},"user_count":87,"host_count":0}}}
 `
 			if tt.shouldHaveExpiredBanner {
 				expectedJson = expiredBanner.String() + expectedJson

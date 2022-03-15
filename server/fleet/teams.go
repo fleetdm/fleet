@@ -14,11 +14,11 @@ const (
 )
 
 type TeamPayload struct {
-	Name        *string         `json:"name"`
-	Description *string         `json:"description"`
-	Secrets     []*EnrollSecret `json:"secrets"`
+	Name            *string              `json:"name"`
+	Description     *string              `json:"description"`
+	Secrets         []*EnrollSecret      `json:"secrets"`
+	WebhookSettings *TeamWebhookSettings `json:"webhook_settings"`
 	// Note AgentOptions must be set by a separate endpoint.
-	Config *TeamConfig `json:"config"`
 }
 
 // Team is the data representation for the "Team" concept (group of hosts and
@@ -33,10 +33,8 @@ type Team struct {
 	// Name is the human friendly name of the team.
 	Name string `json:"name" db:"name"`
 	// Description is an optional description for the team.
-	Description string `json:"description" db:"description"`
-	// AgentOptions is the options for osquery and Orbit.
-	AgentOptions *json.RawMessage `json:"agent_options" db:"agent_options"`
-	Config       TeamConfig       `json:"config" db:"config"`
+	Description string     `json:"description" db:"description"`
+	Config      TeamConfig `json:"-" db:"config"`
 
 	// Derived from JOINs
 
@@ -52,7 +50,75 @@ type Team struct {
 	Secrets []*EnrollSecret `json:"secrets,omitempty"`
 }
 
+func (t Team) MarshalJSON() ([]byte, error) {
+	// The reason for not embedding TeamConfig above, is that it also implements sql.Scanner/Valuer.
+	// We do not want it be promoted to the parent struct, because it causes issues when using sqlx for scanning.
+	// Also need to implement json.Marshaler/Unmarshaler on each type that embeds Team so because it will be promoted
+	// to the parent struct.
+	x := struct {
+		ID          uint            `json:"id"`
+		CreatedAt   time.Time       `json:"created_at"`
+		Name        string          `json:"name"`
+		Description string          `json:"description"`
+		TeamConfig                  // inline this using struct embedding
+		UserCount   int             `json:"user_count"`
+		Users       []TeamUser      `json:"users,omitempty"`
+		HostCount   int             `json:"host_count"`
+		Hosts       []Host          `json:"hosts,omitempty"`
+		Secrets     []*EnrollSecret `json:"secrets,omitempty"`
+	}{
+		ID:          t.ID,
+		CreatedAt:   t.CreatedAt,
+		Name:        t.Name,
+		Description: t.Description,
+		TeamConfig:  t.Config,
+		UserCount:   t.UserCount,
+		Users:       t.Users,
+		HostCount:   t.HostCount,
+		Hosts:       t.Hosts,
+		Secrets:     t.Secrets,
+	}
+
+	return json.Marshal(x)
+}
+
+func (t *Team) UnmarshalJSON(b []byte) error {
+	var x struct {
+		ID          uint            `json:"id"`
+		CreatedAt   time.Time       `json:"created_at"`
+		Name        string          `json:"name"`
+		Description string          `json:"description"`
+		TeamConfig                  // inline this using struct embedding
+		UserCount   int             `json:"user_count"`
+		Users       []TeamUser      `json:"users,omitempty"`
+		HostCount   int             `json:"host_count"`
+		Hosts       []Host          `json:"hosts,omitempty"`
+		Secrets     []*EnrollSecret `json:"secrets,omitempty"`
+	}
+
+	if err := json.Unmarshal(b, &x); err != nil {
+		return err
+	}
+
+	*t = Team{
+		ID:          x.ID,
+		CreatedAt:   x.CreatedAt,
+		Name:        x.Name,
+		Description: x.Description,
+		Config:      x.TeamConfig,
+		UserCount:   x.UserCount,
+		Users:       x.Users,
+		HostCount:   x.HostCount,
+		Hosts:       x.Hosts,
+		Secrets:     x.Secrets,
+	}
+
+	return nil
+}
+
 type TeamConfig struct {
+	// AgentOptions is the options for osquery and Orbit.
+	AgentOptions    *json.RawMessage    `json:"agent_options,omitempty"`
 	WebhookSettings TeamWebhookSettings `json:"webhook_settings"`
 }
 

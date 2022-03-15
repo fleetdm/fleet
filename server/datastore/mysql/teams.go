@@ -20,16 +20,16 @@ func (ds *Datastore) NewTeam(ctx context.Context, team *fleet.Team) (*fleet.Team
 		query := `
     INSERT INTO teams (
       name,
-      agent_options,
-      description
-    ) VALUES ( ?, ?, ? )
+      description,
+      config
+    ) VALUES (?, ?, ?)
     `
 		result, err := tx.ExecContext(
 			ctx,
 			query,
 			team.Name,
-			team.AgentOptions,
 			team.Description,
+			team.Config,
 		)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "insert team")
@@ -177,12 +177,11 @@ UPDATE teams
 SET
     name = ?,
     description = ?,
-    agent_options = ?,
     config = ?
 WHERE
     id = ?
 `
-		_, err := tx.ExecContext(ctx, query, team.Name, team.Description, team.AgentOptions, team.Config, team.ID)
+		_, err := tx.ExecContext(ctx, query, team.Name, team.Description, team.Config, team.ID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "saving team")
 		}
@@ -294,7 +293,7 @@ func amountTeamsDB(ctx context.Context, db sqlx.QueryerContext) (int, error) {
 
 // TeamAgentOptions loads the agents options of a team.
 func (ds *Datastore) TeamAgentOptions(ctx context.Context, tid uint) (*json.RawMessage, error) {
-	sql := `SELECT agent_options FROM teams WHERE id = ?`
+	sql := `SELECT config->"$.agent_options" FROM teams WHERE id = ?`
 	var agentOptions *json.RawMessage
 	if err := sqlx.GetContext(ctx, ds.reader, &agentOptions, sql, tid); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "select team")

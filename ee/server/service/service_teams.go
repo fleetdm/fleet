@@ -26,7 +26,9 @@ func (svc *Service) NewTeam(ctx context.Context, p fleet.TeamPayload) (*fleet.Te
 		return nil, err
 	}
 	team := &fleet.Team{
-		AgentOptions: globalConfig.AgentOptions,
+		Config: fleet.TeamConfig{
+			AgentOptions: globalConfig.AgentOptions,
+		},
 	}
 
 	if p.Name == nil {
@@ -87,8 +89,8 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 	if payload.Description != nil {
 		team.Description = *payload.Description
 	}
-	if payload.Config != nil {
-		team.Config = *payload.Config
+	if payload.WebhookSettings != nil {
+		team.Config.WebhookSettings = *payload.WebhookSettings
 	}
 
 	return svc.ds.SaveTeam(ctx, team)
@@ -105,9 +107,9 @@ func (svc *Service) ModifyTeamAgentOptions(ctx context.Context, teamID uint, opt
 	}
 
 	if options != nil {
-		team.AgentOptions = &options
+		team.Config.AgentOptions = &options
 	} else {
-		team.AgentOptions = nil
+		team.Config.AgentOptions = nil
 	}
 
 	return svc.ds.SaveTeam(ctx, team)
@@ -348,9 +350,11 @@ func (svc Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec) 
 					agentOptions = config.AgentOptions
 				}
 				_, err = svc.ds.NewTeam(ctx, &fleet.Team{
-					Name:         spec.Name,
-					AgentOptions: agentOptions,
-					Secrets:      secrets,
+					Name: spec.Name,
+					Config: fleet.TeamConfig{
+						AgentOptions: agentOptions,
+					},
+					Secrets: secrets,
 				})
 				if err != nil {
 					return err
@@ -362,7 +366,7 @@ func (svc Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec) 
 		}
 
 		team.Name = spec.Name
-		team.AgentOptions = spec.AgentOptions
+		team.Config.AgentOptions = spec.AgentOptions
 		team.Secrets = secrets
 
 		_, err = svc.ds.SaveTeam(ctx, team)

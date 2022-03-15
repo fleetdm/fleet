@@ -14,6 +14,12 @@ func Up_20220309133956(tx *sql.Tx) error {
 	if _, err := tx.Exec(`ALTER TABLE teams ADD COLUMN config JSON DEFAULT NULL`); err != nil {
 		return errors.Wrap(err, "add config column to teams table")
 	}
+	if _, err := tx.Exec(`UPDATE teams SET config = JSON_SET(config, 'agent_options', agent_options)`); err != nil {
+		return errors.Wrap(err, "migrate agent_options")
+	}
+	if _, err := tx.Exec(`ALTER TABLE teams DROP COLUMN agent_options`); err != nil {
+		return errors.Wrap(err, "drop agent_options column in teams table")
+	}
 	return nil
 }
 

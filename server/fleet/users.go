@@ -1,8 +1,10 @@
 package fleet
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
 	"unicode"
 
 	"github.com/fleetdm/fleet/v4/server"
@@ -45,6 +47,74 @@ type UserTeam struct {
 	Team
 	// Role is the role the user has for the team.
 	Role string `json:"role" db:"role"`
+}
+
+func (u UserTeam) MarshalJSON() ([]byte, error) {
+	x := struct {
+		ID          uint      `json:"id"`
+		CreatedAt   time.Time `json:"created_at"`
+		Name        string    `json:"name"`
+		Description string    `json:"description"`
+		TeamConfig
+		UserCount int             `json:"user_count"`
+		Users     []TeamUser      `json:"users,omitempty"`
+		HostCount int             `json:"host_count"`
+		Hosts     []Host          `json:"hosts,omitempty"`
+		Secrets   []*EnrollSecret `json:"secrets,omitempty"`
+		Role      string          `json:"role"`
+	}{
+		ID:          u.ID,
+		CreatedAt:   u.CreatedAt,
+		Name:        u.Name,
+		Description: u.Description,
+		TeamConfig:  u.Config,
+		UserCount:   u.UserCount,
+		Users:       u.Users,
+		HostCount:   u.HostCount,
+		Hosts:       u.Hosts,
+		Secrets:     u.Secrets,
+		Role:        u.Role,
+	}
+
+	return json.Marshal(x)
+}
+
+func (u *UserTeam) UnmarshalJSON(b []byte) error {
+	var x struct {
+		ID          uint      `json:"id"`
+		CreatedAt   time.Time `json:"created_at"`
+		Name        string    `json:"name"`
+		Description string    `json:"description"`
+		TeamConfig
+		UserCount int             `json:"user_count"`
+		Users     []TeamUser      `json:"users,omitempty"`
+		HostCount int             `json:"host_count"`
+		Hosts     []Host          `json:"hosts,omitempty"`
+		Secrets   []*EnrollSecret `json:"secrets,omitempty"`
+		Role      string          `json:"role"`
+	}
+
+	if err := json.Unmarshal(b, &x); err != nil {
+		return err
+	}
+
+	*u = UserTeam{
+		Team: Team{
+			ID:          x.ID,
+			CreatedAt:   x.CreatedAt,
+			Name:        x.Name,
+			Description: x.Description,
+			Config:      x.TeamConfig,
+			UserCount:   x.UserCount,
+			Users:       x.Users,
+			HostCount:   x.HostCount,
+			Hosts:       x.Hosts,
+			Secrets:     x.Secrets,
+		},
+		Role: x.Role,
+	}
+
+	return nil
 }
 
 // UserListOptions is additional options that can be set for listing users.

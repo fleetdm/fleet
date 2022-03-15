@@ -796,8 +796,8 @@ func (svc *Service) SubmitDistributedQueryResults(
 		if ac.WebhookSettings.FailingPoliciesWebhook.Enable {
 			policyIDs = append(policyIDs, ac.WebhookSettings.FailingPoliciesWebhook.PolicyIDs...)
 		}
+
 		if host.TeamID != nil {
-			// TODO: consider caching team config
 			team, err := svc.ds.Team(ctx, *host.TeamID)
 			if err != nil {
 				logging.WithErr(ctx, err)
