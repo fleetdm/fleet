@@ -463,6 +463,7 @@ This is the callback endpoint that the identity provider will use to send securi
 - [Bulk delete hosts by filter or ids](#bulk-delete-hosts-by-filter-or-ids)
 - [Get host's Google Chrome profiles](#get-hosts-google-chrome-profiles)
 - [Get host's mobile device management (MDM) and Munki information](#get-hosts-mobile-device-management-mdm-and-munki-information)
+- [Get hosts report in CSV](#get-hosts-report-in-csv)
 
 ### List hosts
 
@@ -1205,6 +1206,49 @@ Retrieves aggregated host's MDM enrollment status and Munki versions.
 ```
 
 ---
+
+### Get hosts report in CSV
+
+Returns the list of hosts corresponding to the search criteria in CSV format, ready for download when
+requested by a web browser.
+
+`GET /api/v1/fleet/hosts/report`
+
+#### Parameters
+
+| Name                    | Type    | In    | Description                                                                                                                                                                                                                                                                                                                                 |
+| ----------------------- | ------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| format                  | string  | query | **Required**, must be "csv" (only supported format for now).                                                                                                                                                                                                                                                                                |
+| page                    | integer | query | Page number of the results to fetch.                                                                                                                                                                                                                                                                                                        |
+| per_page                | integer | query | Results per page.                                                                                                                                                                                                                                                                                                                           |
+| order_key               | string  | query | What to order results by. Can be any column in the hosts table.                                                                                                                                                                                                                                                                             |
+| after                   | string  | query | The value to get results after. This needs order_key defined, as that's the column that would be used.                                                                                                                                                                                                                                      |
+| order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`.                                                                                                                                                                                                               |
+| status                  | string  | query | Indicates the status of the hosts to return. Can either be `new`, `online`, `offline`, or `mia`.                                                                                                                                                                                                                                            |
+| query                   | string  | query | Search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, `ipv4` and the hosts' email addresses (only searched if the query looks like an email address, i.e. contains an `@`, no space, etc.).                                                                                                                |
+| team_id                 | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts in the specified team.                                                                                                                                                                                                                                                 |
+| policy_id               | integer | query | The ID of the policy to filter hosts by. `policy_response` must also be specified with `policy_id`.                                                                                                                                                                                                                                         |
+| policy_response         | string  | query | Valid options are `passing` or `failing`.  `policy_id` must also be specified with `policy_response`.                                                                                                                                                                                                                                       |
+| software_id             | integer | query | The ID of the software to filter hosts by.                                                                                                                                                                                                                                                                                                  |
+| label_id                | integer | query | A valid label ID. It cannot be used alongside policy filters.                                                                                                                                                                                                                                                                               |
+
+#### Example
+
+`GET /api/v1/fleet/hosts/report?page=0&per_page=100&software_id=123`
+
+##### Default response
+
+`Status: 200`
+
+```csv
+CreatedAt,UpdatedAt,ID,DetailUpdatedAt,LabelUpdatedAt,PolicyUpdatedAt,LastEnrolledAt,SeenTime,RefetchRequested,Hostname,UUID,Platform,OsqueryVersion,OSVersion,Build,PlatformLike,CodeName,Uptime,Memory,CPUType,CPUSubtype,CPUBrand,CPUPhysicalCores,CPULogicalCores,HardwareVendor,HardwareModel,HardwareVersion,HardwareSerial,ComputerName,PrimaryNetworkInterfaceID,PrimaryIP,PrimaryMac,DistributedInterval,ConfigTLSRefresh,LoggerTLSPeriod,TeamID,TeamName,GigsDiskSpaceAvailable,PercentDiskSpaceAvailable
+2022-03-15T15:26:01Z,2022-03-15T15:26:01Z,1,2022-03-15T15:26:02Z,2022-03-15T15:26:02Z,2022-03-15T15:26:02Z,2022-03-15T15:26:01Z,2022-03-15T15:26:02Z,false,foo.local0,998a7a39-bf9b-4f06-b851-14ce42f8e5dc,debian,,,,,,0s,0,,,,0,0,,,,,,,,,0,0,0,,,0,0
+2022-03-15T15:26:01Z,2022-03-15T15:26:01Z,2,2022-03-15T15:26:02Z,2022-03-15T15:26:02Z,2022-03-15T15:26:02Z,2022-03-15T15:26:01Z,2022-03-15T15:25:02Z,false,foo.local1,81eb5338-ca01-4ea0-b778-a79a97fb83ac,rhel,,,,,,0s,0,,,,0,0,,,,,,,,,0,0,0,,,0,0
+2022-03-15T15:26:01Z,2022-03-15T15:26:01Z,3,2022-03-15T15:26:02Z,2022-03-15T15:26:02Z,2022-03-15T15:26:02Z,2022-03-15T15:26:01Z,2022-03-15T15:24:02Z,false,foo.local2,2fb158ea-22a8-45a9-b908-a42b4c1f297b,linux,,,,,,0s,0,,,,0,0,,,,,,,,,0,0,0,,,0,0
+```
+
+---
+
 
 ## Labels
 
