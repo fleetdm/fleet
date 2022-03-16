@@ -365,13 +365,13 @@ const PlatformWrapper = ({
                   </p>
                 </div>
                 {renderFleetCertificateBlock("plain")}
-                <div className={`${baseClass}__advanced--enroll-secrets`}>
+                <div className={`${baseClass}__advanced--flagfile`}>
                   <p className={`${baseClass}__advanced--heading`}>
                     Download your flagfile:
                   </p>
                   <p>
                     If using the enroll secret and server certificate downloaded
-                    above, us the generated flagfile. In some configurations,
+                    above, use the generated flagfile. In some configurations,
                     modifications may need to be made.
                     <br />
                     {fetchCertificateError ? (
