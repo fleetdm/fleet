@@ -77,8 +77,8 @@ const formatSoftwareType = (source: string) => {
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
-const generateSoftwareTableHeaders = (deviceUser = false): IDataColumn[] => {
-  const tableHeaders: IDataColumn[] = [
+const generateSoftwareTableHeaders = (): IDataColumn[] => {
+  return [
     {
       title: "Vulnerabilities",
       Header: "",
@@ -223,13 +223,6 @@ const generateSoftwareTableHeaders = (deviceUser = false): IDataColumn[] => {
       disableHidden: true,
     },
   ];
-
-  // Device user cannot view all hosts software
-  if (deviceUser) {
-    tableHeaders.pop();
-  }
-
-  return tableHeaders;
 };
 
 export default generateSoftwareTableHeaders;

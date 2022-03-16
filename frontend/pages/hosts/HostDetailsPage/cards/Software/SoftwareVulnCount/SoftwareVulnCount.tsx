@@ -11,13 +11,11 @@ const baseClass = "software-vuln-count";
 
 interface ISoftwareVulnCountProps {
   softwareList: ISoftware[];
-  deviceUser?: boolean;
 }
 
 const SoftwareVulnCount = ({
   softwareList,
-  deviceUser,
-}: ISoftwareVulnCountProps): JSX.Element => {
+}: ISoftwareVulnCountProps): JSX.Element | null => {
   const vulnCount = softwareList.reduce((sum, software) => {
     return software.vulnerabilities
       ? sum + software.vulnerabilities.length
@@ -32,16 +30,12 @@ const SoftwareVulnCount = ({
           ? "1 vulnerability detected"
           : `${vulnCount} vulnerabilities detected`}
       </div>
-      {!deviceUser && (
-        <p>
-          Click a vulnerable item below to see the associated Common
-          Vulnerabilites and Exposures (CVEs).
-        </p>
-      )}
+      <p>
+        Click a vulnerable item below to see the associated Common
+        Vulnerabilites and Exposures (CVEs).
+      </p>
     </div>
-  ) : (
-    <></>
-  );
+  ) : null;
 };
 
 export default SoftwareVulnCount;

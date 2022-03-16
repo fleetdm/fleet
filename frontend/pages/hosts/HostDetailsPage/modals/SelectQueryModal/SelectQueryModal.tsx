@@ -8,8 +8,8 @@ import Modal from "components/Modal";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 
-import OpenNewTabIcon from "../../../../../assets/images/open-new-tab-12x12@2x.png";
-import ErrorIcon from "../../../../../assets/images/icon-error-16x16@2x.png";
+import OpenNewTabIcon from "../../../../../../assets/images/open-new-tab-12x12@2x.png";
+import ErrorIcon from "../../../../../../assets/images/icon-error-16x16@2x.png";
 
 export interface ISelectQueryModalProps {
   onCancel: () => void;

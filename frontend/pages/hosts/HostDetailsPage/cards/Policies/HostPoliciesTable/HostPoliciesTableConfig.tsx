@@ -6,8 +6,8 @@ import Button from "components/buttons/Button";
 import { IHostPolicy } from "interfaces/policy";
 import { PolicyResponse } from "utilities/constants";
 
-import Chevron from "../../../../../assets/images/icon-chevron-right-9x6@2x.png";
-import ArrowIcon from "../../../../../assets/images/icon-arrow-right-vibrant-blue-10x18@2x.png";
+import Chevron from "../../../../../../../assets/images/icon-chevron-right-9x6@2x.png";
+import ArrowIcon from "../../../../../../../assets/images/icon-arrow-right-vibrant-blue-10x18@2x.png";
 
 const TAGGED_TEMPLATES = {
   hostsByPolicyRoute: (policyId: number, policyResponse: PolicyResponse) => {

@@ -8,8 +8,6 @@ import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 
 import classnames from "classnames";
 import { isEmpty, pick, reduce } from "lodash";
-// @ts-ignore
-import { stringToClipboard } from "utilities/copy_text";
 
 import PATHS from "router/paths";
 import hostAPI from "services/entities/hosts";
@@ -35,52 +33,30 @@ import { renderFlash } from "redux/nodes/notifications/actions";
 import permissionUtils from "utilities/permissions";
 
 import ReactTooltip from "react-tooltip";
-// @ts-ignore
-import InputField from "components/forms/fields/InputField";
 import Spinner from "components/Spinner";
 import Button from "components/buttons/Button";
-import Modal from "components/Modal";
-import TableContainer from "components/TableContainer";
 import TabsWrapper from "components/TabsWrapper";
-import InfoBanner from "components/InfoBanner";
-import TooltipWrapper from "components/TooltipWrapper";
-import {
-  Accordion,
-  AccordionItem,
-  AccordionItemHeading,
-  AccordionItemButton,
-  AccordionItemPanel,
-} from "react-accessible-accordion";
-import {
-  humanHostUptime,
-  humanHostEnrolled,
-  humanHostMemory,
-  humanHostDetailUpdated,
-  secondsToHms,
-} from "fleet/helpers";
 
-import SoftwareTab from "../SoftwareTab/SoftwareTab";
+import { humanHostDetailUpdated } from "fleet/helpers";
+
+import HostSummaryCard from "./cards/HostSummary";
+import AboutCard from "./cards/About";
+import AgentOptionsCard from "./cards/AgentOptions";
+import LabelsCard from "./cards/Labels";
+import SoftwareCard from "./cards/Software";
+import UsersCard from "./cards/Users";
+import PoliciesCard from "./cards/Policies";
+import ScheduleCard from "./cards/Schedule";
+import PacksCard from "./cards/Packs";
 // @ts-ignore
-import SelectQueryModal from "./SelectQueryModal";
-import TransferHostModal from "./TransferHostModal";
-import PolicyDetailsModal from "./HostPoliciesTable/PolicyDetailsModal";
-import {
-  generatePolicyTableHeaders,
-  generatePolicyDataSet,
-} from "./HostPoliciesTable/HostPoliciesTableConfig";
-import generateUsersTableHeaders from "./UsersTable/UsersTableConfig";
-import {
-  generatePackTableHeaders,
-  generatePackDataSet,
-} from "./PackTable/PackTableConfig";
-import EmptyUsers from "./EmptyUsers";
-import PolicyFailingCount from "./HostPoliciesTable/PolicyFailingCount";
-import { isValidPolicyResponse } from "../ManageHostsPage/helpers";
+import SelectQueryModal from "./modals/SelectQueryModal";
+import TransferHostModal from "./modals/TransferHostModal";
+import PolicyDetailsModal from "./cards/Policies/HostPoliciesTable/PolicyDetailsModal";
+import DeleteHostModal from "./modals/DeleteHostModal";
+import RenderOSPolicyModal from "./modals/OSPolicyModal";
 
 import BackChevron from "../../../../assets/images/icon-chevron-down-9x6@2x.png";
-import CopyIcon from "../../../../assets/images/icon-copy-clipboard-fleet-blue-20x20@2x.png";
 import DeleteIcon from "../../../../assets/images/icon-action-delete-14x14@2x.png";
-import IssueIcon from "../../../../assets/images/icon-issue-fleet-black-50-16x16@2x.png";
 import QueryIcon from "../../../../assets/images/icon-action-query-16x16@2x.png";
 import TransferIcon from "../../../../assets/images/icon-action-transfer-16x16@2x.png";
 
@@ -174,7 +150,6 @@ const HostDetailsPage = ({
   const [hostSoftware, setHostSoftware] = useState<ISoftware[]>([]);
   const [usersState, setUsersState] = useState<{ username: string }[]>([]);
   const [usersSearchString, setUsersSearchString] = useState<string>("");
-  const [copyMessage, setCopyMessage] = useState<string>("");
 
   const { data: fleetQueries, error: fleetQueriesError } = useQuery<
     IFleetQueriesResponse,
@@ -378,6 +353,7 @@ const HostDetailsPage = ({
       "detail_updated_at",
       "percent_disk_space_available",
       "gigs_disk_space_available",
+      "team_name",
     ])
   );
 
@@ -535,112 +511,6 @@ const HostDetailsPage = ({
     []
   );
 
-  const renderOsPolicyLabel = () => {
-    const onCopyOsPolicy = (evt: React.MouseEvent) => {
-      evt.preventDefault();
-
-      stringToClipboard(osPolicy)
-        .then(() => setCopyMessage("Copied!"))
-        .catch(() => setCopyMessage("Copy failed"));
-
-      // Clear message after 1 second
-      setTimeout(() => setCopyMessage(""), 1000);
-
-      return false;
-    };
-
-    return (
-      <div>
-        <span className={`${baseClass}__cta`}>{osPolicyLabel}</span>{" "}
-        <span className={`${baseClass}__name`}>
-          <span className="buttons">
-            {copyMessage && <span>{`${copyMessage} `}</span>}
-            <Button
-              variant="unstyled"
-              className={`${baseClass}__os-policy-copy-icon`}
-              onClick={onCopyOsPolicy}
-            >
-              <img src={CopyIcon} alt="copy" />
-            </Button>
-          </span>
-        </span>
-      </div>
-    );
-  };
-
-  const renderDeleteHostModal = () => (
-    <Modal
-      title="Delete host"
-      onExit={() => setShowDeleteHostModal(false)}
-      className={`${baseClass}__modal`}
-    >
-      <>
-        <p>
-          This action will delete the host <strong>{host?.hostname}</strong>{" "}
-          from your Fleet instance.
-        </p>
-        <p>
-          The host will automatically re-enroll when it checks back into Fleet.
-        </p>
-        <p>
-          To prevent re-enrollment, you can uninstall osquery on the host or
-          revoke the host&apos;s enroll secret.
-        </p>
-        <div className={`${baseClass}__modal-buttons`}>
-          <Button onClick={onDestroyHost} variant="alert">
-            Delete
-          </Button>
-          <Button
-            onClick={() => setShowDeleteHostModal(false)}
-            variant="inverse-alert"
-          >
-            Cancel
-          </Button>
-        </div>
-      </>
-    </Modal>
-  );
-
-  const renderOSPolicyModal = () => (
-    <Modal
-      title="Operating system"
-      onExit={() => setShowOSPolicyModal(false)}
-      className={`${baseClass}__modal`}
-    >
-      <>
-        <p>
-          <span className={`${baseClass}__os-modal-title`}>
-            {titleData.os_version}{" "}
-          </span>
-          <span className={`${baseClass}__os-modal-updated`}>
-            Reported {humanHostDetailUpdated(titleData.detail_updated_at)}
-          </span>
-        </p>
-        <span className={`${baseClass}__os-modal-example-title`}>
-          <TooltipWrapper tipContent="A policy is a yes or no question you can ask all your devices.">
-            Example policy:
-          </TooltipWrapper>
-        </span>
-        <InputField
-          disabled
-          inputWrapperClass={`${baseClass}__os-policy`}
-          name="os-policy"
-          label={renderOsPolicyLabel()}
-          type={"textarea"}
-          value={osPolicy}
-        />
-        <div className={`${baseClass}__modal-buttons`}>
-          <Button onClick={onCreateNewPolicy} variant="brand">
-            Create new policy
-          </Button>
-          <Button onClick={() => setShowOSPolicyModal(false)} variant="inverse">
-            Close
-          </Button>
-        </div>
-      </>
-    </Modal>
-  );
-
   const renderActionButtons = () => {
     const isOnline = host?.status === "online";
 
@@ -694,246 +564,6 @@ const HostDetailsPage = ({
     );
   };
 
-  const renderLabels = () => {
-    const { labels = [] } = host || {};
-
-    const labelItems = labels.map((label) => {
-      return (
-        <li className="list__item" key={label.id}>
-          <Button
-            onClick={() => onLabelClick(label)}
-            variant="label"
-            className="list__button"
-          >
-            {label.name}
-          </Button>
-        </li>
-      );
-    });
-
-    return (
-      <div className="section labels col-50">
-        <p className="section__header">Labels</p>
-        {labels.length === 0 ? (
-          <p className="info-flex__item">
-            No labels are associated with this host.
-          </p>
-        ) : (
-          <ul className="list">{labelItems}</ul>
-        )}
-      </div>
-    );
-  };
-
-  const renderPacks = () => {
-    const packs = packsState;
-    const wrapperClassName = `${baseClass}__pack-table`;
-    const tableHeaders = generatePackTableHeaders();
-
-    let packsAccordion;
-    if (packs) {
-      packsAccordion = packs.map((pack) => {
-        return (
-          <AccordionItem key={pack.pack_id}>
-            <AccordionItemHeading>
-              <AccordionItemButton>{pack.pack_name}</AccordionItemButton>
-            </AccordionItemHeading>
-            <AccordionItemPanel>
-              {pack.query_stats.length === 0 ? (
-                <div>There are no schedule queries for this pack.</div>
-              ) : (
-                <>
-                  {!!pack.query_stats.length && (
-                    <div className={`${wrapperClassName}`}>
-                      <TableContainer
-                        columns={tableHeaders}
-                        data={generatePackDataSet(pack.query_stats)}
-                        isLoading={isLoadingHost}
-                        onQueryChange={() => null}
-                        resultsTitle={"queries"}
-                        defaultSortHeader={"scheduled_query_name"}
-                        defaultSortDirection={"asc"}
-                        showMarkAllPages={false}
-                        isAllPagesSelected={false}
-                        emptyComponent={() => <></>}
-                        disablePagination
-                        disableCount
-                      />
-                    </div>
-                  )}
-                </>
-              )}
-            </AccordionItemPanel>
-          </AccordionItem>
-        );
-      });
-    }
-
-    return !packs || !packs.length ? null : (
-      <div className="section section--packs">
-        <p className="section__header">Packs</p>
-        <Accordion allowMultipleExpanded allowZeroExpanded>
-          {packsAccordion}
-        </Accordion>
-      </div>
-    );
-  };
-
-  const renderSchedule = () => {
-    const schedule = scheduleState;
-    const wrapperClassName = `${baseClass}__pack-table`;
-    const tableHeaders = generatePackTableHeaders();
-
-    return (
-      <div className="section section--packs">
-        <p className="section__header">Schedule</p>
-        {!schedule || !schedule.length ? (
-          <div className="results__data">
-            <b>No queries are scheduled for this host.</b>
-            <p>
-              Expecting to see queries? Try selecting “Refetch” to ask this host
-              to report new vitals.
-            </p>
-          </div>
-        ) : (
-          <div className={`${wrapperClassName}`}>
-            <TableContainer
-              columns={tableHeaders}
-              data={generatePackDataSet(schedule)}
-              isLoading={isLoadingHost}
-              onQueryChange={() => null}
-              resultsTitle={"queries"}
-              defaultSortHeader={"scheduled_query_name"}
-              defaultSortDirection={"asc"}
-              showMarkAllPages={false}
-              isAllPagesSelected={false}
-              emptyComponent={() => <></>}
-              disablePagination
-              disableCount
-            />
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  const renderPolicies = () => {
-    if (!host?.policies?.length) {
-      return (
-        <div className="section section--policies">
-          <p className="section__header">Policies</p>
-          <div className="results__data">
-            <b>No policies are checked for this host.</b>
-            <p>
-              Expecting to see policies? Try selecting “Refetch” to ask this
-              host to report new vitals.
-            </p>
-          </div>
-        </div>
-      );
-    }
-
-    const tableHeaders = generatePolicyTableHeaders(togglePolicyDetailsModal);
-    const noResponses: IHostPolicy[] =
-      host?.policies?.filter(
-        (policy) => !isValidPolicyResponse(policy.response)
-      ) || [];
-    const failingResponses: IHostPolicy[] =
-      host?.policies?.filter((policy) => policy.response === "fail") || [];
-
-    return (
-      <div className="section section--policies">
-        <p className="section__header">Policies</p>
-
-        {host?.policies?.length && (
-          <>
-            {failingResponses?.length > 0 && (
-              <PolicyFailingCount policyList={host?.policies} />
-            )}
-            {noResponses?.length > 0 && (
-              <InfoBanner>
-                <p>
-                  This host is not updating the response for some policies.
-                  Check out the Fleet documentation on&nbsp;
-                  <a
-                    href="https://fleetdm.com/docs/using-fleet/faq#why-my-host-is-not-updating-a-policys-response"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    why the response might not be updating
-                  </a>
-                  .
-                </p>
-              </InfoBanner>
-            )}
-            <TableContainer
-              columns={tableHeaders}
-              data={generatePolicyDataSet(host.policies)}
-              isLoading={isLoadingHost}
-              defaultSortHeader={"name"}
-              defaultSortDirection={"asc"}
-              resultsTitle={"policy items"}
-              emptyComponent={() => <></>}
-              showMarkAllPages={false}
-              isAllPagesSelected={false}
-              disablePagination
-              disableCount
-              highlightOnHover
-            />
-          </>
-        )}
-      </div>
-    );
-  };
-
-  const renderUsers = () => {
-    const { users } = host || {};
-
-    const tableHeaders = generateUsersTableHeaders();
-
-    if (users) {
-      return (
-        <div className="section section--users">
-          <p className="section__header">Users</p>
-          {users.length === 0 ? (
-            <p className="results__data">
-              No users were detected on this host.
-            </p>
-          ) : (
-            <TableContainer
-              columns={tableHeaders}
-              data={usersState}
-              isLoading={isLoadingHost}
-              defaultSortHeader={"username"}
-              defaultSortDirection={"asc"}
-              inputPlaceHolder={"Search users by username"}
-              onQueryChange={onUsersTableSearchChange}
-              resultsTitle={"users"}
-              emptyComponent={EmptyUsers}
-              showMarkAllPages={false}
-              isAllPagesSelected={false}
-              searchable
-              wideSearch
-              filteredCount={usersState.length}
-              isClientSidePagination
-            />
-          )}
-        </div>
-      );
-    }
-
-    return (
-      <div className="section section--users">
-        <p className="section__header">Users</p>
-        <p className="results__data">No users were detected on this host.</p>
-      </div>
-    );
-  };
-
-  const renderSoftware = () => {
-    return <SoftwareTab isLoading={isLoadingHost} software={hostSoftware} />;
-  };
-
   const renderRefetch = () => {
     const isOnline = host?.status === "online";
 
@@ -975,6 +605,7 @@ const HostDetailsPage = ({
     );
   };
 
+<<<<<<< HEAD
   const renderIssues = () => (
     <div className="info-flex__item info-flex__item--title">
       <span className="info-flex__header">Issues</span>
@@ -1143,11 +774,14 @@ const HostDetailsPage = ({
     );
   };
 
+=======
+>>>>>>> a3a8adf97 (Refactor host details page into components)
   if (isLoadingHost) {
     return <Spinner />;
   }
 
   const statusClassName = classnames("status", `status--${host?.status}`);
+
   return (
     <div className={`${baseClass} body-wrap`}>
       <div>
@@ -1171,56 +805,14 @@ const HostDetailsPage = ({
         </div>
         {renderActionButtons()}
       </div>
-      <div className="section title">
-        <div className="title__inner">
-          <div className="info-flex">
-            <div className="info-flex__item info-flex__item--title">
-              <span className="info-flex__header">Status</span>
-              <span className={`${statusClassName} info-flex__data`}>
-                {titleData.status}
-              </span>
-            </div>
-            {titleData.issues?.total_issues_count > 0 && renderIssues()}
-            {isPremiumTier && renderHostTeam()}
-            <div className="info-flex__item info-flex__item--title">
-              <span className="info-flex__header">Disk Space</span>
-              {renderDiskSpace()}
-            </div>
-            <div className="info-flex__item info-flex__item--title">
-              <span className="info-flex__header">RAM</span>
-              <span className="info-flex__data">
-                {wrapFleetHelper(humanHostMemory, titleData.memory)}
-              </span>
-            </div>
-            <div className="info-flex__item info-flex__item--title">
-              <span className="info-flex__header">CPU</span>
-              <span className="info-flex__data">{titleData.cpu_type}</span>
-            </div>
-            <div className="info-flex__item info-flex__item--title">
-              <span className="info-flex__header">OS</span>
-              <span className="info-flex__data">
-                {isOnlyObserver ? (
-                  `${titleData.os_version}`
-                ) : (
-                  <Button
-                    onClick={() => toggleOSPolicyModal()}
-                    variant="text-link"
-                    className={`${baseClass}__os-policy-button`}
-                  >
-                    {titleData.os_version}
-                  </Button>
-                )}
-              </span>
-            </div>
-            <div className="info-flex__item info-flex__item--title">
-              <span className="info-flex__header">Osquery</span>
-              <span className="info-flex__data">
-                {titleData.osquery_version}
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
+      <HostSummaryCard
+        statusClassName={statusClassName}
+        titleData={titleData}
+        isPremiumTier={isPremiumTier}
+        isOnlyObserver={isOnlyObserver}
+        wrapFleetHelper={wrapFleetHelper}
+        toggleOSPolicyModal={toggleOSPolicyModal}
+      />
       <TabsWrapper>
         <Tabs>
           <TabList>
@@ -1230,103 +822,56 @@ const HostDetailsPage = ({
             <Tab>Policies</Tab>
           </TabList>
           <TabPanel>
-            <div className="section about">
-              <p className="section__header">About</p>
-              <div className="info-grid">
-                <div className="info-grid__block">
-                  <span className="info-grid__header">First enrolled</span>
-                  <span className="info-grid__data">
-                    {wrapFleetHelper(
-                      humanHostEnrolled,
-                      aboutData.last_enrolled_at
-                    )}
-                  </span>
-                </div>
-                <div className="info-grid__block">
-                  <span className="info-grid__header">Last restarted</span>
-                  <span className="info-grid__data">
-                    {wrapFleetHelper(humanHostUptime, aboutData.uptime)}
-                  </span>
-                </div>
-                <div className="info-grid__block">
-                  <span className="info-grid__header">Hardware model</span>
-                  <span className="info-grid__data">
-                    {aboutData.hardware_model}
-                  </span>
-                </div>
-                <div className="info-grid__block">
-                  <span className="info-grid__header">Serial number</span>
-                  <span className="info-grid__data">
-                    {aboutData.hardware_serial}
-                  </span>
-                </div>
-                <div className="info-grid__block">
-                  <span className="info-grid__header">Internal IP address</span>
-                  <span className="info-grid__data">
-                    {aboutData.primary_ip}
-                  </span>
-                </div>
-                <div className="info-grid__block">
-                  <span className="info-grid__header">Public IP address</span>
-                  <span className="info-grid__data">{aboutData.public_ip}</span>
-                </div>
-                {renderMunkiData()}
-                {renderMdmData()}
-                {renderDeviceUser()}
-                {renderGeolocation()}
-              </div>
-            </div>
+            <AboutCard
+              aboutData={aboutData}
+              deviceMapping={deviceMapping}
+              macadmins={macadmins}
+              wrapFleetHelper={wrapFleetHelper}
+            />
             <div className="col-2">
-              <div className="section osquery col-50">
-                <p className="section__header">Agent options</p>
-                <div className="info-grid">
-                  <div className="info-grid__block">
-                    <span className="info-grid__header">
-                      Config TLS refresh
-                    </span>
-                    <span className="info-grid__data">
-                      {wrapFleetHelper(
-                        secondsToHms,
-                        osqueryData.config_tls_refresh
-                      )}
-                    </span>
-                  </div>
-                  <div className="info-grid__block">
-                    <span className="info-grid__header">Logger TLS period</span>
-                    <span className="info-grid__data">
-                      {wrapFleetHelper(
-                        secondsToHms,
-                        osqueryData.logger_tls_period
-                      )}
-                    </span>
-                  </div>
-                  <div className="info-grid__block">
-                    <span className="info-grid__header">
-                      Distributed interval
-                    </span>
-                    <span className="info-grid__data">
-                      {wrapFleetHelper(
-                        secondsToHms,
-                        osqueryData.distributed_interval
-                      )}
-                    </span>
-                  </div>
-                </div>
-              </div>
-              {renderLabels()}
+              <AgentOptionsCard
+                osqueryData={osqueryData}
+                wrapFleetHelper={wrapFleetHelper}
+              />
+              <LabelsCard
+                labels={host?.labels || []}
+                onLabelClick={onLabelClick}
+              />
             </div>
-            {renderUsers()}
+            <UsersCard
+              users={host?.users || []}
+              usersState={usersState}
+              isLoading={isLoadingHost}
+              onUsersTableSearchChange={onUsersTableSearchChange}
+            />
           </TabPanel>
-          <TabPanel>{renderSoftware()}</TabPanel>
           <TabPanel>
-            {renderSchedule()}
-            {renderPacks()}
+            <SoftwareCard isLoading={isLoadingHost} software={hostSoftware} />
           </TabPanel>
-          <TabPanel>{renderPolicies()}</TabPanel>
+          <TabPanel>
+            <ScheduleCard
+              scheduleState={scheduleState}
+              isLoading={isLoadingHost}
+            />
+            <PacksCard packsState={packsState} isLoading={isLoadingHost} />
+          </TabPanel>
+          <TabPanel>
+            <PoliciesCard
+              policies={host?.policies || []}
+              isLoading={isLoadingHost}
+              togglePolicyDetailsModal={togglePolicyDetailsModal}
+            />
+          </TabPanel>
         </Tabs>
       </TabsWrapper>
 
-      {showDeleteHostModal && renderDeleteHostModal()}
+      {showDeleteHostModal && (
+        <DeleteHostModal
+          onCancel={() => setShowDeleteHostModal(false)}
+          onSubmit={onDestroyHost}
+          hostName={host?.hostname}
+        />
+      )}
       {showQueryHostModal && host && (
         <SelectQueryModal
           onCancel={() => setShowQueryHostModal(false)}
@@ -1351,7 +896,15 @@ const HostDetailsPage = ({
           policy={selectedPolicy}
         />
       )}
-      {showOSPolicyModal && renderOSPolicyModal()}
+      {showOSPolicyModal && (
+        <RenderOSPolicyModal
+          onCancel={() => setShowOSPolicyModal(false)}
+          onCreateNewPolicy={onCreateNewPolicy}
+          titleData={titleData}
+          osPolicy={osPolicy}
+          osPolicyLabel={osPolicyLabel}
+        />
+      )}
     </div>
   );
 };
