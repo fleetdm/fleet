@@ -331,10 +331,17 @@ the way that the Fleet server works.
 				defer sentry.Flush(2 * time.Second)
 			}
 
+			var geoIP fleet.GeoIP
+			if config.GeoIP.DatabasePath != "" {
+				geoIP = fleet.NewMaxMindGeoIP(config.GeoIP.DatabasePath)
+			} else {
+				geoIP = &fleet.NoOpGeoIP{}
+			}
+
 			// TODO: gather all the different contexts and use just one
 			ctx, cancelFunc := context.WithCancel(context.Background())
 			defer cancelFunc()
-			svc, err := service.NewService(ctx, ds, task, resultStore, logger, osqueryLogger, config, mailService, clock.C, ssoSessionStore, liveQueryStore, carveStore, *license, failingPolicySet)
+			svc, err := service.NewService(ctx, ds, task, resultStore, logger, osqueryLogger, config, mailService, clock.C, ssoSessionStore, liveQueryStore, carveStore, *license, failingPolicySet, geoIP)
 			if err != nil {
 				initFatal(err, "initializing service")
 			}

@@ -139,21 +139,21 @@ func (svc *Service) EnrollAgent(ctx context.Context, enrollSecret, hostIdentifie
 	detailQueries := osquery_utils.GetDetailQueries(appConfig, svc.config)
 	save := false
 	if r, ok := hostDetails["os_version"]; ok {
-		err := detailQueries["os_version"].IngestFunc(svc.logger, host, []map[string]string{r})
+		err := detailQueries["os_version"].IngestFunc(ctx, svc.logger, host, []map[string]string{r})
 		if err != nil {
 			return "", ctxerr.Wrap(ctx, err, "Ingesting os_version")
 		}
 		save = true
 	}
 	if r, ok := hostDetails["osquery_info"]; ok {
-		err := detailQueries["osquery_info"].IngestFunc(svc.logger, host, []map[string]string{r})
+		err := detailQueries["osquery_info"].IngestFunc(ctx, svc.logger, host, []map[string]string{r})
 		if err != nil {
 			return "", ctxerr.Wrap(ctx, err, "Ingesting osquery_info")
 		}
 		save = true
 	}
 	if r, ok := hostDetails["system_info"]; ok {
-		err := detailQueries["system_info"].IngestFunc(svc.logger, host, []map[string]string{r})
+		err := detailQueries["system_info"].IngestFunc(ctx, svc.logger, host, []map[string]string{r})
 		if err != nil {
 			return "", ctxerr.Wrap(ctx, err, "Ingesting system_info")
 		}
@@ -1033,7 +1033,7 @@ func (svc *Service) ingestDetailQuery(ctx context.Context, host *fleet.Host, nam
 	}
 
 	if query.IngestFunc != nil {
-		err = query.IngestFunc(svc.logger, host, rows)
+		err = query.IngestFunc(ctx, svc.logger, host, rows)
 		if err != nil {
 			return osqueryError{
 				message: fmt.Sprintf("ingesting query %s: %s", name, err.Error()),

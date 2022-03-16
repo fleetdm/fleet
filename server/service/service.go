@@ -19,6 +19,8 @@ import (
 	kitlog "github.com/go-kit/kit/log"
 )
 
+var _ fleet.Service = (*Service)(nil)
+
 // Service is the struct implementing fleet.Service. Create a new one with NewService.
 type Service struct {
 	ds             fleet.Datastore
@@ -44,6 +46,12 @@ type Service struct {
 
 	jitterMu *sync.Mutex
 	jitterH  map[time.Duration]*jitterHashTable
+
+	geoIP fleet.GeoIP
+}
+
+func (svc *Service) Lookup(ctx context.Context, ip string) *fleet.GeoLocation {
+	return svc.geoIP.Lookup(ctx, ip)
 }
 
 // NewService creates a new service from the config struct
@@ -62,6 +70,7 @@ func NewService(
 	carveStore fleet.CarveStore,
 	license fleet.LicenseInfo,
 	failingPolicySet fleet.FailingPolicySet,
+	geoIP fleet.GeoIP,
 ) (fleet.Service, error) {
 	authorizer, err := authz.NewAuthorizer()
 	if err != nil {
@@ -86,6 +95,7 @@ func NewService(
 		authz:            authorizer,
 		jitterH:          make(map[time.Duration]*jitterHashTable),
 		jitterMu:         new(sync.Mutex),
+		geoIP:            geoIP,
 	}
 	return validationMiddleware{svc, ds, sso}, nil
 }
