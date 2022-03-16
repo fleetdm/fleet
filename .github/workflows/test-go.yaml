@@ -19,7 +19,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        go-version: ['^1.17.0']
+        go-version: ['^1.17.8']
         mysql: ["mysql:5.7", "mysql:8"]
     runs-on: ${{ matrix.os }}
 

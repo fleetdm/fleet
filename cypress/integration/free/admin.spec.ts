@@ -338,6 +338,23 @@ describe(
       it("hides assigning a user to a team", () => {
         cy.findByText(/team/i).should("not.exist");
       });
+      it("allows admin to edit existing user password", () => {
+        cy.visit("/settings/users");
+        cy.getAttached("tbody").within(() => {
+          cy.findByText(/mary@organization.com/i)
+            .parent()
+            .next()
+            .next()
+            .within(() => cy.getAttached(".Select-placeholder").click());
+        });
+        cy.getAttached(".Select-menu").within(() => {
+          cy.findByText(/edit/i).click();
+        });
+        cy.getAttached(".create-user-form").within(() => {
+          cy.findByLabelText(/email/i).should("exist");
+          cy.findByLabelText(/password/i).should("exist");
+        });
+      });
       it("verifies admin is not authorized to reach the Team Settings page", () => {
         cy.visit("/settings/teams");
         cy.findByText(/you do not have permissions/i).should("exist");
