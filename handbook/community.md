@@ -236,7 +236,7 @@ IT and security teams love Fleet because of its flexibility and conventions. Ins
 
 That means better privacy. Better device performance. And better data, with less noise.
 
-## Sponsoring Events
+## Sponsoring events
 
 When reaching out for sponsorships, Fleet's goal is to expose potential hires, contributors, and users to Fleet and osquery.
 Track prospective sponsorships in our [partnerships and outreach Google Sheet:](https://docs.google.com/spreadsheets/d/107AwHKqFjt7TWItnf8pFknSwwxb_gsp6awB66t7YE_w/edit#gid=2108184225)
@@ -252,7 +252,7 @@ Once a relevant sponsorship opportunity and its prospectus has been reviewed:
  
 5. Invoices should be received at billing@fleetdm.com and sent to Eric Shaw for approval.
  
-6. Eric Shaw will route signatures required over to Mike McNeil with Docusign.
+6. Eric Shaw (Business Operations) will route signatures required over to Mike McNeil (CEO) with Docusign.
  
 7. Once the above steps have been completed, use the [Speaking events issue template](https://github.com/fleetdm/confidential/issues/new?assignees=mike-j-thomas&labels=&template=6-speaking-event.md&title=Speaking+event) to prepare speakers and participants for the event.
 
