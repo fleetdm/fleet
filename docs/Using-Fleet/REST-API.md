@@ -1231,7 +1231,7 @@ requested by a web browser.
 
 #### Example
 
-`GET /api/v1/fleet/hosts/report?page=0&per_page=100&software_id=123`
+`GET /api/v1/fleet/hosts/report?software_id=123&format=csv`
 
 ##### Default response
 
