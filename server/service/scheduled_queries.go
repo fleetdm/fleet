@@ -271,7 +271,7 @@ func (svc *Service) unauthorizedModifyScheduledQuery(ctx context.Context, id uin
 // Delete Scheduled Query
 ////////////////////////////////////////////////////////////////////////////////
 
-type deleteScheduledQueryRequest struct {
+type deprecatedDeleteScheduledQueryRequest struct {
 	ID uint `url:"id"`
 }
 
@@ -281,14 +281,35 @@ type deleteScheduledQueryResponse struct {
 
 func (r deleteScheduledQueryResponse) error() error { return r.Err }
 
-func deleteScheduledQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
-	req := request.(*deleteScheduledQueryRequest)
+func deprecatedDeleteScheduledQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*deprecatedDeleteScheduledQueryRequest)
 
 	err := svc.DeleteScheduledQuery(ctx, req.ID)
 	if err != nil {
 		return deleteScheduledQueryResponse{Err: err}, nil
 	}
 
+	return deleteScheduledQueryResponse{}, nil
+}
+
+type deleteScheduledQueryRequest struct {
+	ID     uint  `url:"id"`
+	TeamID *uint `url:"team_id"` // TODO(mna): how will that team_id be provided? It is not part of the new path.
+}
+
+func deleteScheduledQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*deleteScheduledQueryRequest)
+
+	var err error
+	if req.TeamID != nil {
+		err = svc.DeleteTeamScheduledQueries(ctx, *req.TeamID, req.ID)
+	} else {
+		err = svc.DeleteScheduledQuery(ctx, req.ID)
+	}
+
+	if err != nil {
+		return deleteScheduledQueryResponse{Err: err}, nil
+	}
 	return deleteScheduledQueryResponse{}, nil
 }
 
