@@ -33,15 +33,15 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
     - name: Install Node
-      uses: actions/setup-node@v2
+      uses: actions/setup-node@1f8c6b94b26d0feae1e387ca63ccbdc44d27b561 # v2
       with:
         node-version: '14'
     - name: Install Go
-      uses: actions/setup-go@v2
+      uses: actions/setup-go@bfdd3570ce990073878bf10f6b2d79082de49492 # v2
       with:
         go-version: ${{ matrix.go-version }}
     - name: Checkout Code
-      uses: actions/checkout@v2
+      uses: actions/checkout@629c2de402a417ea7690ca6ce3f33229e27606a5 # v2
 
     # Pre-starting dependencies here means they are ready to go when we need them.
     - name: Start Infra Dependencies
@@ -50,7 +50,7 @@ jobs:
 
     - name: JS Dependency Cache
       id: js-cache
-      uses: actions/cache@v2
+      uses: actions/cache@661fd3eb7f2f20d8c7c84bc2b0509efd7a826628 # v2
       with:
         path: |
           **/node_modules
@@ -63,7 +63,7 @@ jobs:
 
     - name: Go Cache
       id: go-cache
-      uses: actions/cache@v2
+      uses: actions/cache@661fd3eb7f2f20d8c7c84bc2b0509efd7a826628 # v2
       with:
         # In order:
         # * Module download cache
@@ -105,7 +105,7 @@ jobs:
 
     - name: Upload artifacts
       if: failure()
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@82c141cc518b40d92cc801eee768e7aafc9c2fa2 # v2
       with:
         name: cypress
         path: |
@@ -121,11 +121,11 @@ jobs:
 
     steps:
     - name: Checkout Code
-      uses: actions/checkout@v2
+      uses: actions/checkout@629c2de402a417ea7690ca6ce3f33229e27606a5 # v2
 
     - name: JS Dependency Cache
       id: js-cache
-      uses: actions/cache@v2
+      uses: actions/cache@661fd3eb7f2f20d8c7c84bc2b0509efd7a826628 # v2
       with:
         path: |
           **/node_modules
@@ -151,11 +151,11 @@ jobs:
 
     steps:
     - name: Checkout Code
-      uses: actions/checkout@v2
+      uses: actions/checkout@629c2de402a417ea7690ca6ce3f33229e27606a5 # v2
 
     - name: JS Dependency Cache
       id: js-cache
-      uses: actions/cache@v2
+      uses: actions/cache@661fd3eb7f2f20d8c7c84bc2b0509efd7a826628 # v2
       with:
         path: |
           **/node_modules
