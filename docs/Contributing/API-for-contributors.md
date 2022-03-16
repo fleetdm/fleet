@@ -10,7 +10,7 @@ Unlike the [Fleet REST API documentation](../Using-Fleet/REST-API.md), the API r
 - [Get packs spec](#get-packs-spec)
 - [Apply packs spec](#apply-packs-spec)
 - [Get pack spec by name](#get-pack-spec-by-name)
-- [Apply teams spec](#apply-policy-spec)
+- [Apply team spec](#apply-team-spec)
 - [Apply labels spec](#apply-labels-spec)
 - [Get labels spec](#get-labels-spec)
 - [Get label spec](#get-label-spec)
@@ -18,8 +18,8 @@ Unlike the [Fleet REST API documentation](../Using-Fleet/REST-API.md), the API r
 - [Modify enroll secrets](#modify-enroll-secrets)
 - [Check live query status](#check-live-query-status)
 - [Check result store status](#check-result-store-status)
-- [Retrieve live query results (standard WebSocket API)](#retrieve-live-query-results-standard-websocket-api)
-- [Retrieve live query results (SockJS)](#retrieve-live-query-results-sockjs)
+- [Retrieve live query results (standard WebSocket API)](#retrieve-live-query-results-standard-web-socket-api)
+- [Retrieve live query results (SockJS)](#retrieve-live-query-results-sock-js)
 - [Run live query by name](#run-live-query-by-name)
 - [Apply policies spec](#apply-policies-spec)
 
@@ -725,7 +725,7 @@ Replaces the active global enroll secrets with the secrets specified.
 
 `Status: 200`
 
-### Live query health check
+### Check live query status
 
 Checks the status of the Fleet's ability to run a live query. If an error is present in the response, Fleet won't be able to successfully run a live query. This endpoint is used by the Fleet UI to make sure that the Fleet instance is correctly configured to run live queries.
 
@@ -743,7 +743,7 @@ None.
 
 `Status: 200`
 
-### Live query result store health check
+### Check result store status
 
 Checks the status of the Fleet's result store. If an error is present in the response, Fleet won't be able to successfully run a live query. This endpoint is used by the Fleet UI to make sure that the Fleet instance is correctly configured to run live queries.
 

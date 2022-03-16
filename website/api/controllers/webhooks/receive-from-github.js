@@ -51,6 +51,8 @@ module.exports = {
       'sharvilshah',
       'michalnicp',
       'desmi-dizney',
+      'charlottechance',
+      'timmy-k',
 
     ];
     let GITHUB_USERNAME_OF_DRI_FOR_LABELS = 'noahtalerman';// « Used below
@@ -199,7 +201,7 @@ module.exports = {
           let isSenderDRIForAllChangedPaths = false;
           let DRI_BY_PATH = {
             'README.md': 'mike-j-thomas',// (github brandfront)
-            'handbook': 'eashaw',// (default for handbook)
+            'handbook': 'mikermcneil',// (default for handbook)
             'handbook/README.md': 'mikermcneil',
             'handbook/company.md': 'mikermcneil',
             'handbook/people.md': 'eashaw',

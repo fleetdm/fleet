@@ -202,6 +202,12 @@ type Datastore interface {
 	CountHostsInLabel(ctx context.Context, filter TeamFilter, lid uint, opt HostListOptions) (int, error)
 	ListHostDeviceMapping(ctx context.Context, id uint) ([]*HostDeviceMapping, error)
 
+	// LoadHostByDeviceAuthToken loads the host identified by the device auth token.
+	// If the token is invalid it returns a NotFoundError.
+	LoadHostByDeviceAuthToken(ctx context.Context, authToken string) (*Host, error)
+	// SetOrUpdateDeviceAuthToken inserts or updates the auth token for a host.
+	SetOrUpdateDeviceAuthToken(ctx context.Context, hostID uint, authToken string) error
+
 	// ListPoliciesForHost lists the policies that a host will check and whether they are passing
 	ListPoliciesForHost(ctx context.Context, host *Host) ([]*HostPolicy, error)
 

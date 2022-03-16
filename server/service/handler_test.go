@@ -23,7 +23,7 @@ import (
 func TestAPIRoutesConflicts(t *testing.T) {
 	ds := new(mock.Store)
 
-	svc := newTestService(ds, nil, nil)
+	svc := newTestService(t, ds, nil, nil)
 	limitStore, _ := memstore.New(0)
 	h := MakeHandler(svc, config.TestConfig(), kitlog.NewNopLogger(), limitStore)
 	router := h.(*mux.Router)
@@ -89,7 +89,7 @@ func TestAPIRoutesMetrics(t *testing.T) {
 	t.Skip()
 	ds := new(mock.Store)
 
-	svc := newTestService(ds, nil, nil)
+	svc := newTestService(t, ds, nil, nil)
 	limitStore, _ := memstore.New(0)
 	h := MakeHandler(svc, config.TestConfig(), kitlog.NewNopLogger(), limitStore)
 	router := h.(*mux.Router)

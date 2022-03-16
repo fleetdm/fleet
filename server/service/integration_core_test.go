@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -46,13 +47,9 @@ func (s *integrationTestSuite) TearDownTest() {
 	filter := fleet.TeamFilter{User: &u}
 	hosts, err := s.ds.ListHosts(ctx, filter, fleet.HostListOptions{})
 	require.NoError(t, err)
-	var ids []uint
 	for _, host := range hosts {
-		ids = append(ids, host.ID)
 		require.NoError(t, s.ds.UpdateHostSoftware(context.Background(), host.ID, nil))
-	}
-	if len(ids) > 0 {
-		require.NoError(t, s.ds.DeleteHosts(ctx, ids))
+		require.NoError(t, s.ds.DeleteHost(ctx, host.ID))
 	}
 
 	// recalculate software counts will remove the software entries
@@ -1037,7 +1034,8 @@ func (s *integrationTestSuite) TestInvites() {
 	updateInviteReq := updateInviteRequest{InvitePayload: fleet.InvitePayload{
 		Teams: []fleet.UserTeam{
 			{Team: fleet.Team{ID: team.ID}, Role: fleet.RoleObserver},
-		}}}
+		},
+	}}
 	updateInviteResp := updateInviteResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/invites/%d", validInvite.ID+1), updateInviteReq, http.StatusNotFound, &updateInviteResp)
 
@@ -3470,7 +3468,6 @@ func (s *integrationTestSuite) TestPasswordReset() {
 	s.DoJSON("POST", "/api/v1/fleet/users/admin", params, http.StatusOK, &createResp)
 	require.NotZero(t, createResp.User.ID)
 	u := *createResp.User
-	_ = u
 
 	// request forgot password, invalid email
 	res := s.DoRawNoAuth("POST", "/api/v1/fleet/forgot_password", jsonMustMarshal(t, forgotPasswordRequest{Email: "invalid@asd.com"}), http.StatusAccepted)
@@ -3509,6 +3506,271 @@ func (s *integrationTestSuite) TestPasswordReset() {
 	// login with the new password, should succeed
 	res = s.DoRawNoAuth("POST", "/api/v1/fleet/login", jsonMustMarshal(t, loginRequest{Email: u.Email, Password: userNewPwd}), http.StatusOK)
 	res.Body.Close()
+}
+
+func (s *integrationTestSuite) TestDeviceAuthenticatedEndpoints() {
+	t := s.T()
+
+	hosts := s.createHosts(t)
+	ac, err := s.ds.AppConfig(context.Background())
+	require.NoError(t, err)
+	ac.OrgInfo.OrgLogoURL = "http://example.com/logo"
+	err = s.ds.SaveAppConfig(context.Background(), ac)
+	require.NoError(t, err)
+
+	// create some mappings and MDM/Munki data
+	s.ds.ReplaceHostDeviceMapping(context.Background(), hosts[0].ID, []*fleet.HostDeviceMapping{
+		{HostID: hosts[0].ID, Email: "a@b.c", Source: "google_chrome_profiles"},
+		{HostID: hosts[0].ID, Email: "b@b.c", Source: "google_chrome_profiles"},
+	})
+	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), hosts[0].ID, true, "url", false))
+	require.NoError(t, s.ds.SetOrUpdateMunkiVersion(context.Background(), hosts[0].ID, "1.3.0"))
+
+	// create an auth token for hosts[0]
+	token := "much_valid"
+	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+		_, err := db.ExecContext(context.Background(), `INSERT INTO host_device_auth (host_id, token) VALUES (?, ?)`, hosts[0].ID, token)
+		return err
+	})
+
+	// get host without token
+	res := s.DoRawNoAuth("GET", "/api/v1/fleet/device/", nil, http.StatusNotFound)
+	res.Body.Close()
+
+	// get host with invalid token
+	res = s.DoRawNoAuth("GET", "/api/v1/fleet/device/no_such_token", nil, http.StatusUnauthorized)
+	res.Body.Close()
+
+	// get host with valid token
+	var getHostResp getDeviceHostResponse
+	res = s.DoRawNoAuth("GET", "/api/v1/fleet/device/"+token, nil, http.StatusOK)
+	json.NewDecoder(res.Body).Decode(&getHostResp)
+	res.Body.Close()
+	require.Equal(t, hosts[0].ID, getHostResp.Host.ID)
+	require.False(t, getHostResp.Host.RefetchRequested)
+	require.Equal(t, "http://example.com/logo", getHostResp.OrgLogoURL)
+	hostDevResp := getHostResp.Host
+
+	// make request for same host on the host details API endpoint, responses should match
+	getHostResp = getDeviceHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", hosts[0].ID), nil, http.StatusOK, &getHostResp)
+	require.Equal(t, hostDevResp, getHostResp.Host)
+
+	// request a refetch for that valid host
+	res = s.DoRawNoAuth("POST", "/api/v1/fleet/device/"+token+"/refetch", nil, http.StatusOK)
+	res.Body.Close()
+
+	// host should have that flag turned to true
+	getHostResp = getDeviceHostResponse{}
+	res = s.DoRawNoAuth("GET", "/api/v1/fleet/device/"+token, nil, http.StatusOK)
+	json.NewDecoder(res.Body).Decode(&getHostResp)
+	res.Body.Close()
+	require.True(t, getHostResp.Host.RefetchRequested)
+
+	// request a refetch for an invalid token
+	res = s.DoRawNoAuth("POST", "/api/v1/fleet/device/no_such_token/refetch", nil, http.StatusUnauthorized)
+	res.Body.Close()
+
+	// list device mappings for valid token
+	var listDMResp listHostDeviceMappingResponse
+	res = s.DoRawNoAuth("GET", "/api/v1/fleet/device/"+token+"/device_mapping", nil, http.StatusOK)
+	json.NewDecoder(res.Body).Decode(&listDMResp)
+	res.Body.Close()
+	require.Equal(t, hosts[0].ID, listDMResp.HostID)
+	require.Len(t, listDMResp.DeviceMapping, 2)
+	devDMs := listDMResp.DeviceMapping
+
+	// compare response with standard list device mapping API for that same host
+	listDMResp = listHostDeviceMappingResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d/device_mapping", hosts[0].ID), nil, http.StatusOK, &listDMResp)
+	require.Equal(t, hosts[0].ID, listDMResp.HostID)
+	require.Equal(t, devDMs, listDMResp.DeviceMapping)
+
+	// list device mappings for invalid token
+	res = s.DoRawNoAuth("GET", "/api/v1/fleet/device/no_such_token/device_mapping", nil, http.StatusUnauthorized)
+	res.Body.Close()
+
+	// get macadmins for valid token
+	var getMacadm getMacadminsDataResponse
+	res = s.DoRawNoAuth("GET", "/api/v1/fleet/device/"+token+"/macadmins", nil, http.StatusOK)
+	json.NewDecoder(res.Body).Decode(&getMacadm)
+	res.Body.Close()
+	require.Equal(t, "1.3.0", getMacadm.Macadmins.Munki.Version)
+	devMacadm := getMacadm.Macadmins
+
+	// compare response with standard macadmins API for that same host
+	getMacadm = getMacadminsDataResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d/macadmins", hosts[0].ID), nil, http.StatusOK, &getMacadm)
+	require.Equal(t, devMacadm, getMacadm.Macadmins)
+
+	// get macadmins for invalid token
+	res = s.DoRawNoAuth("GET", "/api/v1/fleet/device/no_such_token/macadmins", nil, http.StatusUnauthorized)
+	res.Body.Close()
+}
+
+func (s *integrationTestSuite) TestModifyUser() {
+	t := s.T()
+
+	// create a new user
+	var createResp createUserResponse
+	userRawPwd := "passw0rd!"
+	params := fleet.UserPayload{
+		Name:                     ptr.String("moduser"),
+		Email:                    ptr.String("moduser@example.com"),
+		Password:                 ptr.String(userRawPwd),
+		GlobalRole:               ptr.String(fleet.RoleObserver),
+		AdminForcedPasswordReset: ptr.Bool(false),
+	}
+	s.DoJSON("POST", "/api/v1/fleet/users/admin", params, http.StatusOK, &createResp)
+	require.NotZero(t, createResp.User.ID)
+	u := *createResp.User
+
+	s.token = s.getTestToken(u.Email, userRawPwd)
+	require.NotEmpty(t, s.token)
+	defer func() { s.token = s.getTestAdminToken() }()
+
+	// as the user: modify email without providing current password
+	var modResp modifyUserResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/users/%d", u.ID), fleet.UserPayload{
+		Email: ptr.String("moduser2@example.com"),
+	}, http.StatusUnprocessableEntity, &modResp)
+
+	// as the user: modify email with invalid password
+	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/users/%d", u.ID), fleet.UserPayload{
+		Email:    ptr.String("moduser2@example.com"),
+		Password: ptr.String("nosuchpwd"),
+	}, http.StatusForbidden, &modResp)
+
+	// as the user: modify email with current password
+	newEmail := "moduser2@example.com"
+	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/users/%d", u.ID), fleet.UserPayload{
+		Email:    ptr.String(newEmail),
+		Password: ptr.String(userRawPwd),
+	}, http.StatusOK, &modResp)
+	require.Equal(t, u.ID, modResp.User.ID)
+	require.Equal(t, u.Email, modResp.User.Email) // new email is pending confirmation, not changed immediately
+
+	// as the user: set new password without providing current one
+	newRawPwd := userRawPwd + "2"
+	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/users/%d", u.ID), fleet.UserPayload{
+		NewPassword: ptr.String(newRawPwd),
+	}, http.StatusUnprocessableEntity, &modResp)
+
+	// as the user: set new password with an invalid current password
+	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/users/%d", u.ID), fleet.UserPayload{
+		NewPassword: ptr.String(newRawPwd),
+		Password:    ptr.String("nosuchpwd"),
+	}, http.StatusForbidden, &modResp)
+
+	// as the user: set new password and change name, with a valid current password
+	modResp = modifyUserResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/users/%d", u.ID), fleet.UserPayload{
+		NewPassword: ptr.String(newRawPwd),
+		Password:    ptr.String(userRawPwd),
+		Name:        ptr.String("moduser2"),
+	}, http.StatusOK, &modResp)
+	require.Equal(t, u.ID, modResp.User.ID)
+	require.Equal(t, "moduser2", modResp.User.Name)
+
+	s.token = s.getTestToken(testUsers["user2"].Email, testUsers["user2"].PlaintextPassword)
+
+	// as a different user: set new password with different user's old password (ensure
+	// any other user that is not admin cannot change another user's password)
+	newRawPwd = userRawPwd + "3"
+	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/users/%d", u.ID), fleet.UserPayload{
+		NewPassword: ptr.String(newRawPwd),
+		Password:    ptr.String(testUsers["user2"].PlaintextPassword),
+	}, http.StatusForbidden, &modResp)
+
+	s.token = s.getTestAdminToken()
+
+	// as an admin, set a new email, name and password without a current password
+	newRawPwd = userRawPwd + "4"
+	modResp = modifyUserResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/users/%d", u.ID), fleet.UserPayload{
+		NewPassword: ptr.String(newRawPwd),
+		Email:       ptr.String("moduser3@example.com"),
+		Name:        ptr.String("moduser3"),
+	}, http.StatusOK, &modResp)
+	require.Equal(t, u.ID, modResp.User.ID)
+	require.Equal(t, "moduser3", modResp.User.Name)
+
+	// as an admin, set new password that doesn't meet requirements
+	invalidUserPwd := "abc"
+	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/users/%d", u.ID), fleet.UserPayload{
+		NewPassword: ptr.String(invalidUserPwd),
+	}, http.StatusUnprocessableEntity, &modResp)
+
+	// login as the user, with the last password successfully set (to confirm it is the current one)
+	var loginResp loginResponse
+	resp := s.DoRawNoAuth("POST", "/api/v1/fleet/login", jsonMustMarshal(t, loginRequest{
+		Email:    u.Email, // all email changes made are still pending, never confirmed
+		Password: newRawPwd,
+	}), http.StatusOK)
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&loginResp))
+	resp.Body.Close()
+	require.Equal(t, u.ID, loginResp.User.ID)
+}
+
+func (s *integrationTestSuite) TestHostsReportDownload() {
+	t := s.T()
+
+	hosts := s.createHosts(t)
+	err := s.ds.ApplyLabelSpecs(context.Background(), []*fleet.LabelSpec{
+		{Name: t.Name(), LabelMembershipType: fleet.LabelMembershipTypeManual, Query: "select 1", Hosts: []string{hosts[2].Hostname}},
+	})
+	require.NoError(t, err)
+	lids, err := s.ds.LabelIDsByName(context.Background(), []string{t.Name()})
+	require.NoError(t, err)
+	require.Len(t, lids, 1)
+	customLabelID := lids[0]
+
+	res := s.DoRaw("GET", "/api/v1/fleet/hosts/report", nil, http.StatusUnsupportedMediaType, "format", "gzip")
+	var errs struct {
+		Message string `json:"message"`
+		Errors  []struct {
+			Name   string `json:"name"`
+			Reason string `json:"reason"`
+		} `json:"errors"`
+	}
+	require.NoError(t, json.NewDecoder(res.Body).Decode(&errs))
+	res.Body.Close()
+	require.Len(t, errs.Errors, 1)
+	assert.Equal(t, "format", errs.Errors[0].Name)
+
+	res = s.DoRaw("GET", "/api/v1/fleet/hosts/report", nil, http.StatusOK, "format", "csv")
+	rows, err := csv.NewReader(res.Body).ReadAll()
+	res.Body.Close()
+	require.NoError(t, err)
+	require.Len(t, rows, len(hosts)+1)
+	require.Contains(t, rows[0], "hostname") // first row contains headers
+	require.Contains(t, res.Header, "Content-Disposition")
+	require.Contains(t, res.Header, "Content-Type")
+	require.Contains(t, res.Header.Get("Content-Disposition"), "attachment;")
+	require.Contains(t, res.Header.Get("Content-Type"), "text/csv")
+
+	// pagination does not apply to this endpoint, it returns the complete list of hosts
+	res = s.DoRaw("GET", "/api/v1/fleet/hosts/report", nil, http.StatusOK, "format", "csv", "page", "1", "per_page", "2")
+	rows, err = csv.NewReader(res.Body).ReadAll()
+	res.Body.Close()
+	require.NoError(t, err)
+	require.Len(t, rows, len(hosts)+1)
+
+	// search criteria are applied
+	res = s.DoRaw("GET", "/api/v1/fleet/hosts/report", nil, http.StatusOK, "format", "csv", "query", "local0")
+	rows, err = csv.NewReader(res.Body).ReadAll()
+	res.Body.Close()
+	require.NoError(t, err)
+	require.Len(t, rows, 2) // headers + matching host
+	require.Contains(t, rows[1], hosts[0].Hostname)
+
+	// with a label id
+	res = s.DoRaw("GET", "/api/v1/fleet/hosts/report", nil, http.StatusOK, "format", "csv", "label_id", fmt.Sprintf("%d", customLabelID))
+	rows, err = csv.NewReader(res.Body).ReadAll()
+	res.Body.Close()
+	require.NoError(t, err)
+	require.Len(t, rows, 2) // headers + member host
+	require.Contains(t, rows[1], hosts[2].Hostname)
 }
 
 // creates a session and returns it, its key is to be passed as authorization header.

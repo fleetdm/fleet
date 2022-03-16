@@ -52,7 +52,7 @@ Note: Please prefix versions with `fleet-v` (eg. `fleet-v4.0.0`) in git tags, He
 
    ### Upgrading
 
-   Please visit our [update guide](https://fleetdm.com/docs/using-fleet/updating-fleet) for upgrade instructions.
+   Please visit our [update guide](https://fleetdm.com/docs/deploying/upgrading-fleet) for upgrade instructions.
 
    ### Documentation
 

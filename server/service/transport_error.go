@@ -90,7 +90,11 @@ func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 			Message: "Validation Failed",
 			Errors:  e.Invalid(),
 		}
-		w.WriteHeader(http.StatusUnprocessableEntity)
+		if statusErr, ok := e.(statuser); ok {
+			w.WriteHeader(statusErr.Status())
+		} else {
+			w.WriteHeader(http.StatusUnprocessableEntity)
+		}
 		enc.Encode(ve)
 	case permissionErrorInterface:
 		pe := jsonError{

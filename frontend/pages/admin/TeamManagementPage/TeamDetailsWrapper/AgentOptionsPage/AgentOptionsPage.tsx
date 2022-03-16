@@ -36,7 +36,7 @@ const AgentOptionsPage = ({
   const teamIdFromURL = parseInt(team_id, 10);
   const dispatch = useDispatch();
 
-  const [formData, setFormData] = useState<any>({});
+  const [formData, setFormData] = useState<{ osquery_options?: string }>({});
   const handlePageError = useErrorHandler();
 
   useQuery<ITeamsResponse, Error, ITeam[]>(
@@ -80,6 +80,8 @@ const AgentOptionsPage = ({
       .catch((errors: { [key: string]: string }) => {
         dispatch(renderFlash("error", errors.stack));
       });
+
+    return false;
   };
 
   return (

@@ -170,6 +170,10 @@ type CountHostsInLabelFunc func(ctx context.Context, filter fleet.TeamFilter, li
 
 type ListHostDeviceMappingFunc func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error)
 
+type LoadHostByDeviceAuthTokenFunc func(ctx context.Context, authToken string) (*fleet.Host, error)
+
+type SetOrUpdateDeviceAuthTokenFunc func(ctx context.Context, hostID uint, authToken string) error
+
 type ListPoliciesForHostFunc func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error)
 
 type GetMunkiVersionFunc func(ctx context.Context, hostID uint) (string, error)
@@ -619,6 +623,12 @@ type DataStore struct {
 
 	ListHostDeviceMappingFunc        ListHostDeviceMappingFunc
 	ListHostDeviceMappingFuncInvoked bool
+
+	LoadHostByDeviceAuthTokenFunc        LoadHostByDeviceAuthTokenFunc
+	LoadHostByDeviceAuthTokenFuncInvoked bool
+
+	SetOrUpdateDeviceAuthTokenFunc        SetOrUpdateDeviceAuthTokenFunc
+	SetOrUpdateDeviceAuthTokenFuncInvoked bool
 
 	ListPoliciesForHostFunc        ListPoliciesForHostFunc
 	ListPoliciesForHostFuncInvoked bool
@@ -1332,6 +1342,16 @@ func (s *DataStore) CountHostsInLabel(ctx context.Context, filter fleet.TeamFilt
 func (s *DataStore) ListHostDeviceMapping(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
 	s.ListHostDeviceMappingFuncInvoked = true
 	return s.ListHostDeviceMappingFunc(ctx, id)
+}
+
+func (s *DataStore) LoadHostByDeviceAuthToken(ctx context.Context, authToken string) (*fleet.Host, error) {
+	s.LoadHostByDeviceAuthTokenFuncInvoked = true
+	return s.LoadHostByDeviceAuthTokenFunc(ctx, authToken)
+}
+
+func (s *DataStore) SetOrUpdateDeviceAuthToken(ctx context.Context, hostID uint, authToken string) error {
+	s.SetOrUpdateDeviceAuthTokenFuncInvoked = true
+	return s.SetOrUpdateDeviceAuthTokenFunc(ctx, hostID, authToken)
 }
 
 func (s *DataStore) ListPoliciesForHost(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {

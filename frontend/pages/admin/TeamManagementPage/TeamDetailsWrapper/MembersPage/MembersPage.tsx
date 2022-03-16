@@ -55,13 +55,6 @@ interface ITeamsResponse {
   teams: ITeam[];
 }
 
-interface ICreateEditUserErrors {
-  email?: string;
-  name?: string;
-  password?: string;
-  sso_enabled?: boolean | null;
-}
-
 // This is used to cache the table query data and make a request for the
 // members data at a future time. Practically, this allows us to re-fetch the users
 // with the same table query params after we have made an edit to a user.
@@ -97,7 +90,6 @@ const MembersPage = ({
   const [editUserErrors, setEditUserErrors] = useState<IUserFormErrors>(
     DEFAULT_CREATE_USER_ERRORS
   );
-  const [members, setMembers] = useState<IMembersTableData[]>([]);
   const [memberIds, setMemberIds] = useState<number[]>([]);
   const [currentTeam, setCurrentTeam] = useState<ITeam>();
 
@@ -116,9 +108,9 @@ const MembersPage = ({
   // API CALLS
 
   const {
-    data: users,
-    isLoading: isLoadingUsers,
-    error: loadingUsersError,
+    data: members,
+    isLoading: isLoadingMembers,
+    error: loadingMembersError,
     refetch: refetchUsers,
   } = useQuery<IUser[], Error, IMembersTableData[]>(
     ["users", teamId, searchString],
@@ -126,7 +118,6 @@ const MembersPage = ({
     {
       select: (data: IUser[]) => generateDataSet(teamId, data),
       onSuccess: (data) => {
-        setMembers(data);
         setMemberIds(data.map((member) => member.id));
       },
     }
@@ -180,8 +171,7 @@ const MembersPage = ({
         dispatch(
           renderFlash("success", `Successfully removed ${userEditing?.name}`)
         );
-        // If user removes self from team,
-        // redirect to home
+        // If user removes self from team, redirect to home
         if (currentUser && currentUser.id === removedUsers.users[0].id) {
           window.location.href = "/";
         }
@@ -454,16 +444,16 @@ const MembersPage = ({
           </Link>
         )}
       </p>
-      {loadingUsersError ||
+      {loadingMembersError ||
       loadingTeamsError ||
-      (!currentTeam && !isLoadingTeams && !isLoadingUsers) ? (
+      (!currentTeam && !isLoadingTeams && !isLoadingMembers) ? (
         <TableDataError />
       ) : (
         <TableContainer
           resultsTitle={"members"}
           columns={tableHeaders}
-          data={members}
-          isLoading={isLoadingUsers}
+          data={members || []}
+          isLoading={isLoadingMembers}
           defaultSortHeader={"name"}
           defaultSortDirection={"asc"}
           onActionButtonClick={toggleAddUserModal}

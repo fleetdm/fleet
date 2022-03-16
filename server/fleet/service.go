@@ -27,7 +27,7 @@ type OsqueryService interface {
 	//
 	// To enable the osquery "accelerated checkins" feature, a positive integer (number of seconds to activate for)
 	// should be returned. Returning 0 for this will not activate the feature.
-	GetDistributedQueries(ctx context.Context) (queries map[string]string, accelerate uint, err error)
+	GetDistributedQueries(ctx context.Context) (queries map[string]string, discovery map[string]string, accelerate uint, err error)
 	SubmitDistributedQueryResults(
 		ctx context.Context,
 		results OsqueryDistributedQueryResults,
@@ -233,6 +233,10 @@ type Service interface {
 
 	///////////////////////////////////////////////////////////////////////////////
 	// HostService
+
+	// AuthenticateDevice loads host identified by the device's auth token.
+	// Returns an error if the auth token doesn't exist.
+	AuthenticateDevice(ctx context.Context, authToken string) (host *Host, debug bool, err error)
 
 	ListHosts(ctx context.Context, opt HostListOptions) (hosts []*Host, err error)
 	GetHost(ctx context.Context, id uint) (host *HostDetail, err error)

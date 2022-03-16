@@ -16,10 +16,8 @@ import (
 	"github.com/gorilla/mux"
 )
 
-var (
-	// errBadRoute is used for mux errors
-	errBadRoute = errors.New("bad route")
-)
+// errBadRoute is used for mux errors
+var errBadRoute = errors.New("bad route")
 
 func encodeResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
 	// The has to happen first, if an error happens we'll redirect to an error
@@ -35,9 +33,14 @@ func encodeResponse(ctx context.Context, w http.ResponseWriter, response interfa
 		return nil
 	}
 
+	if render, ok := response.(renderHijacker); ok {
+		render.hijackRender(ctx, w)
+		return nil
+	}
+
 	if e, ok := response.(statuser); ok {
-		w.WriteHeader(e.status())
-		if e.status() == http.StatusNoContent {
+		w.WriteHeader(e.Status())
+		if e.Status() == http.StatusNoContent {
 			return nil
 		}
 	}
@@ -50,13 +53,19 @@ func encodeResponse(ctx context.Context, w http.ResponseWriter, response interfa
 // statuser allows response types to implement a custom
 // http success status - default is 200 OK
 type statuser interface {
-	status() int
+	Status() int
 }
 
 // loads a html page
 type htmlPage interface {
 	html() string
 	error() error
+}
+
+// renderHijacker can be implemented by response values to take control of
+// their own rendering.
+type renderHijacker interface {
+	hijackRender(ctx context.Context, w http.ResponseWriter)
 }
 
 func uintFromRequest(r *http.Request, name string) (uint64, error) {

@@ -57,7 +57,7 @@ const LabelForm = ({
   handleSubmit,
   onOsqueryTableSelect,
   backendValidators,
-}: ILabelFormProps) => {
+}: ILabelFormProps): JSX.Element => {
   const [name, setName] = useState<string>(selectedLabel?.name || "");
   const [nameError, setNameError] = useState<string>("");
   const [description, setDescription] = useState<string>(

@@ -139,6 +139,7 @@ type UserPayload struct {
 	AdminForcedPasswordReset *bool       `json:"admin_forced_password_reset,omitempty"`
 	APIOnly                  *bool       `json:"api_only,omitempty"`
 	Teams                    *[]UserTeam `json:"teams,omitempty"`
+	NewPassword              *string     `json:"new_password,omitempty"`
 }
 
 func (p *UserPayload) VerifyInviteCreate() error {
@@ -227,9 +228,20 @@ func (p *UserPayload) VerifyModify(ownUser bool) error {
 			invalid.Append("email", "Email cannot be empty")
 		}
 		// if the user is not an admin, or if an admin is changing their own email
-		// address a password is required,
+		// address a password is required.
 		if ownUser && p.Password == nil {
 			invalid.Append("password", "Password cannot be empty if email is changed")
+		}
+	}
+
+	if p.SSOEnabled != nil && *p.SSOEnabled && p.NewPassword != nil && len(*p.NewPassword) > 0 {
+		invalid.Append("new_password", "not allowed for SSO users")
+	}
+	if p.NewPassword != nil {
+		// if the user is not an admin, or if an admin is changing their own password
+		// a password is required.
+		if ownUser && p.Password == nil {
+			invalid.Append("password", "Old password cannot be empty")
 		}
 	}
 

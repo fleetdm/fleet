@@ -31,7 +31,7 @@ func TestStreamCampaignResultsClosesReditOnWSClose(t *testing.T) {
 	mockClock := clock.NewMockClock()
 	ds := new(mock.Store)
 	lq := new(live_query.MockLiveQuery)
-	svc := newTestServiceWithClock(ds, store, lq, mockClock)
+	svc := newTestServiceWithClock(t, ds, store, lq, mockClock)
 
 	campaign := &fleet.DistributedQueryCampaign{ID: 42}
 
