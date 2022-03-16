@@ -3512,6 +3512,11 @@ func (s *integrationTestSuite) TestDeviceAuthenticatedEndpoints() {
 	t := s.T()
 
 	hosts := s.createHosts(t)
+	ac, err := s.ds.AppConfig(context.Background())
+	require.NoError(t, err)
+	ac.OrgInfo.OrgLogoURL = "http://example.com/logo"
+	err = s.ds.SaveAppConfig(context.Background(), ac)
+	require.NoError(t, err)
 
 	// create some mappings and MDM/Munki data
 	s.ds.ReplaceHostDeviceMapping(context.Background(), hosts[0].ID, []*fleet.HostDeviceMapping{
@@ -3537,16 +3542,17 @@ func (s *integrationTestSuite) TestDeviceAuthenticatedEndpoints() {
 	res.Body.Close()
 
 	// get host with valid token
-	var getHostResp getHostResponse
+	var getHostResp getDeviceHostResponse
 	res = s.DoRawNoAuth("GET", "/api/v1/fleet/device/"+token, nil, http.StatusOK)
 	json.NewDecoder(res.Body).Decode(&getHostResp)
 	res.Body.Close()
 	require.Equal(t, hosts[0].ID, getHostResp.Host.ID)
 	require.False(t, getHostResp.Host.RefetchRequested)
+	require.Equal(t, "http://example.com/logo", getHostResp.OrgLogoURL)
 	hostDevResp := getHostResp.Host
 
 	// make request for same host on the host details API endpoint, responses should match
-	getHostResp = getHostResponse{}
+	getHostResp = getDeviceHostResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", hosts[0].ID), nil, http.StatusOK, &getHostResp)
 	require.Equal(t, hostDevResp, getHostResp.Host)
 
@@ -3555,7 +3561,7 @@ func (s *integrationTestSuite) TestDeviceAuthenticatedEndpoints() {
 	res.Body.Close()
 
 	// host should have that flag turned to true
-	getHostResp = getHostResponse{}
+	getHostResp = getDeviceHostResponse{}
 	res = s.DoRawNoAuth("GET", "/api/v1/fleet/device/"+token, nil, http.StatusOK)
 	json.NewDecoder(res.Body).Decode(&getHostResp)
 	res.Body.Close()
