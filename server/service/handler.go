@@ -212,8 +212,11 @@ var (
 func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetConfig,
 	logger kitlog.Logger, limitStore throttled.GCRAStore, opts []kithttp.ServerOption,
 ) {
+
+	apiVersions := []string{"v1", "2022-03"}
+
 	// user-authenticated endpoints
-	ue := newUserAuthenticatedEndpointer(svc, opts, r, "v1")
+	ue := newUserAuthenticatedEndpointer(svc, opts, r, apiVersions...)
 
 	ue.GET("/api/_version_/fleet/me", meEndpoint, nil)
 	ue.GET("/api/_version_/fleet/sessions/{id:[0-9]+}", getInfoAboutSessionEndpoint, getInfoAboutSessionRequest{})
@@ -356,14 +359,14 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.GET("/api/_version_/fleet/status/live_query", statusLiveQueryEndpoint, nil)
 
 	// device-authenticated endpoints
-	de := newDeviceAuthenticatedEndpointer(svc, logger, opts, r, "v1")
+	de := newDeviceAuthenticatedEndpointer(svc, logger, opts, r, apiVersions...)
 	de.GET("/api/_version_/fleet/device/{token}", getDeviceHostEndpoint, getDeviceHostRequest{})
 	de.POST("/api/_version_/fleet/device/{token}/refetch", refetchDeviceHostEndpoint, refetchDeviceHostRequest{})
 	de.GET("/api/_version_/fleet/device/{token}/device_mapping", listDeviceHostDeviceMappingEndpoint, listDeviceHostDeviceMappingRequest{})
 	de.GET("/api/_version_/fleet/device/{token}/macadmins", getDeviceMacadminsDataEndpoint, getDeviceMacadminsDataRequest{})
 
 	// host-authenticated endpoints
-	he := newHostAuthenticatedEndpointer(svc, logger, opts, r, "v1")
+	he := newHostAuthenticatedEndpointer(svc, logger, opts, r, apiVersions...)
 	he.POST("/api/_version_/osquery/config", getClientConfigEndpoint, getClientConfigRequest{})
 	he.POST("/api/_version_/osquery/distributed/read", getDistributedQueriesEndpoint, getDistributedQueriesRequest{})
 	he.POST("/api/_version_/osquery/distributed/write", submitDistributedQueryResultsEndpoint, submitDistributedQueryResultsRequestShim{})
@@ -374,7 +377,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// invite-related or host-enrolling. So they typically do some kind of
 	// one-time authentication by verifying that a valid secret token is provided
 	// with the request.
-	ne := newNoAuthEndpointer(svc, opts, r, "v1")
+	ne := newNoAuthEndpointer(svc, opts, r, apiVersions...)
 	ne.POST("/api/_version_/osquery/enroll", enrollAgentEndpoint, enrollAgentRequest{})
 
 	// For some reason osquery does not provide a node key with the block data.
