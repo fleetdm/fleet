@@ -382,8 +382,11 @@ const TeamDetailsWrapper = ({
   }
 
   const hostCount = currentTeam.host_count;
-  const hostsTotalDisplay =
-    hostCount >= 2 ? `${hostCount} hosts` : `${hostCount} host`;
+  let hostsTotalDisplay: string | undefined;
+  if (hostCount !== undefined) {
+    hostsTotalDisplay =
+      hostCount === 1 ? `${hostCount} host` : `${hostCount} hosts`;
+  }
 
   const adminTeams = isGlobalAdmin
     ? availableTeams
@@ -417,9 +420,11 @@ const TeamDetailsWrapper = ({
                 onClose={handleTeamMenuClose}
               />
             )}
-            <span className={`${baseClass}__host-count`}>
-              {hostsTotalDisplay}
-            </span>
+            {!!hostsTotalDisplay && (
+              <span className={`${baseClass}__host-count`}>
+                {hostsTotalDisplay}
+              </span>
+            )}
           </div>
           <div className={`${baseClass}__team-actions`}>
             <Button onClick={toggleAddHostsModal}>Add hosts</Button>
