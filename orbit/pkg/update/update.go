@@ -296,24 +296,23 @@ func (u *Updater) Get(target string) (*LocalTarget, error) {
 	}
 
 	if strings.HasSuffix(localTarget.Path, ".tar.gz") {
-		switch s, err := os.Stat(localTarget.ExecPath); {
+		s, err := os.Stat(localTarget.ExecPath)
+		switch {
 		case err == nil:
-			if s.IsDir() {
-				return nil, fmt.Errorf("expected executable %q: %w", localTarget.ExecPath, err)
-			}
+			// OK
 		case errors.Is(err, os.ErrNotExist):
 			if err := extractTarGz(localTarget.Path); err != nil {
 				return nil, fmt.Errorf("extract %q: %w", localTarget.Path, err)
 			}
-			s, err := os.Stat(localTarget.ExecPath)
+			s, err = os.Stat(localTarget.ExecPath)
 			if err != nil {
 				return nil, fmt.Errorf("stat %q: %w", localTarget.ExecPath, err)
 			}
-			if s.IsDir() {
-				return nil, fmt.Errorf("expected executable %q: %w", localTarget.ExecPath, err)
-			}
 		default:
 			return nil, fmt.Errorf("stat %q: %w", localTarget.ExecPath, err)
+		}
+		if !s.Mode().IsRegular() {
+			return nil, fmt.Errorf("expected a regular file: %q", localTarget.ExecPath)
 		}
 	}
 

@@ -121,22 +121,22 @@ func createMacOSApp(version, authority string) error {
 	)
 
 	if runtime.GOOS != "darwin" {
-		return errors.New("The \"Fleet Desktop\" macOS app can only be created from macOS")
+		return errors.New(`the "Fleet Desktop" macOS app can only be created from macOS`)
 	}
 
 	defer os.RemoveAll(appDir)
 
 	contentsDir := filepath.Join(appDir, "Contents")
 	macOSDir := filepath.Join(contentsDir, "MacOS")
-	for _, dir := range []string{macOSDir} {
-		if err := secure.MkdirAll(dir, constant.DefaultDirMode); err != nil {
-			return fmt.Errorf("create directories: %w", err)
-		}
+	if err := secure.MkdirAll(macOSDir, constant.DefaultDirMode); err != nil {
+		return fmt.Errorf("create directory %q: %w", macOSDir, err)
 	}
 
 	infoFile := filepath.Join(contentsDir, "Info.plist")
 	infoPListContents := fmt.Sprintf(infoPList, bundleIdentifier, version, version)
-	ioutil.WriteFile(infoFile, []byte(infoPListContents), 0o644)
+	if err := ioutil.WriteFile(infoFile, []byte(infoPListContents), 0o644); err != nil {
+		return fmt.Errorf("create Info.plist file %q: %w", infoFile, err)
+	}
 
 	/* #nosec G204 -- arguments are actually well defined */
 	buildExec := exec.Command("go", "build", "-o", filepath.Join(macOSDir, "fleet-desktop"), "./"+filepath.Join("orbit", "cmd", "desktop"))
@@ -185,6 +185,10 @@ func compressDir(outPath, dirPath string) error {
 	defer tw.Close()
 
 	if err := filepath.Walk(dirPath, func(file string, fi os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
 		header, err := tar.FileInfoHeader(fi, file)
 		if err != nil {
 			return err

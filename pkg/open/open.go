@@ -40,7 +40,6 @@ func AppWithEnv(name, value string) AppOption {
 }
 
 // App opens an application at path with the default application.
-// Returns the application process ID.
 func App(path string, opts ...AppOption) error {
 	var o appOpts
 	for _, fn := range opts {
