@@ -29,6 +29,7 @@ import (
 	"github.com/oklog/run"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	gopsutil_process "github.com/shirou/gopsutil/v3/process"
 	"github.com/urfave/cli/v2"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
@@ -217,6 +218,9 @@ func main() {
 
 		if runtime.GOOS == "darwin" && c.Bool("fleet-desktop") {
 			opt.Targets["desktop"] = update.DesktopMacOSTarget
+			desktop := opt.Targets["desktop"]
+			desktop.Channel = c.String("desktop-channel")
+			opt.Targets["desktop"] = desktop
 		}
 
 		// Override default channels with the provided values.
@@ -226,9 +230,6 @@ func main() {
 		osqueryd := opt.Targets["osqueryd"]
 		osqueryd.Channel = c.String("osqueryd-channel")
 		opt.Targets["osqueryd"] = osqueryd
-		desktop := opt.Targets["desktop"]
-		desktop.Channel = c.String("desktop-channel")
-		opt.Targets["desktop"] = desktop
 
 		opt.RootDirectory = c.String("root-dir")
 		opt.ServerURL = c.String("update-url")
@@ -236,9 +237,9 @@ func main() {
 		opt.InsecureTransport = c.Bool("insecure")
 
 		var (
-			updater      *update.Updater
-			osquerydPath string
-			desktopPath  string
+			updater        *update.Updater
+			osquerydPath   string
+			desktopAppPath string
 		)
 
 		// NOTE: When running in dev-mode, even if `disable-updates` is set,
@@ -251,17 +252,17 @@ func main() {
 			if err := updater.UpdateMetadata(); err != nil {
 				log.Info().Err(err).Msg("update metadata. using saved metadata.")
 			}
-			osquerydPath, err = updater.Get("osqueryd")
+			osquerydLocalTarget, err := updater.Get("osqueryd")
 			if err != nil {
 				return fmt.Errorf("get osqueryd target: %w", err)
 			}
+			osquerydPath = osquerydLocalTarget.ExecPath
 			if runtime.GOOS == "darwin" && c.Bool("fleet-desktop") {
-				fleetDesktopPath, err := updater.Get("desktop")
+				fleetDesktopLocalTarget, err := updater.Get("desktop")
 				if err != nil {
 					return fmt.Errorf("get desktop target: %w", err)
 				}
-				// TODO(lucas): Have some API in update provide this (or modify updater.Get).
-				desktopPath = filepath.Dir(filepath.Dir(filepath.Dir(fleetDesktopPath)))
+				desktopAppPath = fleetDesktopLocalTarget.DirPath
 			}
 		} else {
 			log.Info().Msg("running with auto updates disabled")
@@ -271,12 +272,10 @@ func main() {
 				log.Fatal().Err(err).Msg("locate osqueryd")
 			}
 			if runtime.GOOS == "darwin" && c.Bool("fleet-desktop") {
-				fleetDesktopPath, err := updater.ExecutableLocalPath("desktop")
+				desktopAppPath, err = updater.DirLocalPath("desktop")
 				if err != nil {
 					return fmt.Errorf("get desktop target: %w", err)
 				}
-				// TODO(lucas): Have some API in update provide this (or modify updater.Get).
-				desktopPath = filepath.Dir(filepath.Dir(filepath.Dir(fleetDesktopPath)))
 			}
 		}
 
@@ -461,23 +460,8 @@ func main() {
 		g.Add(ext.Execute, ext.Interrupt)
 
 		if runtime.GOOS == "darwin" && c.Bool("fleet-desktop") {
-			done := make(chan struct{})
-			// TODO(lucas): Kill .app in the interrupt.
-			g.Add(
-				func() error {
-					log.Info().Str("path", desktopPath).Msg("opening")
-					url := path.Join(fleetURL, "device", deviceAuthToken)
-					if err := open.App(desktopPath, url); err != nil {
-						return err
-					}
-					<-done
-					return nil
-				},
-				func(err error) {
-					// TODO(lucas): Implement me.
-					close(done)
-				},
-			)
+			desktopRunner := newDesktopRunner(desktopAppPath, fleetURL, deviceAuthToken)
+			g.Add(desktopRunner.execute, desktopRunner.interrupt)
 		}
 
 		// Install a signal handler
@@ -494,6 +478,43 @@ func main() {
 
 	if err := app.Run(os.Args); err != nil {
 		log.Error().Err(err).Msg("run orbit failed")
+	}
+}
+
+type desktopRunner struct {
+	appPath         string
+	fleetURL        string
+	deviceAuthToken string
+	done            chan struct{}
+}
+
+func newDesktopRunner(appPath, fleetURL, deviceAuthToken string) *desktopRunner {
+	return &desktopRunner{
+		appPath:         appPath,
+		fleetURL:        fleetURL,
+		deviceAuthToken: deviceAuthToken,
+		done:            make(chan struct{}),
+	}
+}
+
+func (d *desktopRunner) execute() error {
+	log.Info().Str("path", d.appPath).Msg("opening")
+	url := path.Join(d.fleetURL, "device", d.deviceAuthToken)
+	if err := open.App(d.appPath, open.AppWithEnv("FLEET_DESKTOP_DEVICE_URL", url)); err != nil {
+		return fmt.Errorf("open desktop app: %w", err)
+	}
+	// TODO(lucas): Orbit currently does not monitor the Fleet Desktop
+	// application (e.g. in case of crashes).
+	<-d.done
+	return nil
+}
+
+func (d *desktopRunner) interrupt(err error) {
+	log.Debug().Err(err).Msg("interrupt desktopRunner")
+	defer close(d.done)
+
+	if err := killProcessByName(d.appPath); err != nil {
+		log.Error().Err(err).Msg("killProcess")
 	}
 }
 
@@ -515,6 +536,32 @@ func loadOrGenerateToken(rootDir string) (string, error) {
 	default:
 		return "", fmt.Errorf("load identifier file %q: %w", filePath, err)
 	}
+}
+
+func killProcessByName(name string) error {
+	processes, err := gopsutil_process.Processes()
+	if err != nil {
+		return err
+	}
+	var foundProcess *gopsutil_process.Process
+	for _, process := range processes {
+		processName, err := process.Name()
+		if err != nil {
+			log.Debug().Err(err).Int32("pid", process.Pid).Msg("get process name")
+			continue
+		}
+		if processName == "fleet-desktop" {
+			foundProcess = process
+			break
+		}
+	}
+	if foundProcess == nil {
+		return fmt.Errorf("process not found: %s", name)
+	}
+	if err := foundProcess.Kill(); err != nil {
+		return fmt.Errorf("kill process %d: %w", foundProcess.Pid, err)
+	}
+	return nil
 }
 
 var versionCommand = &cli.Command{

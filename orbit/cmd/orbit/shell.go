@@ -70,10 +70,11 @@ var shellCommand = &cli.Command{
 		if err := updater.UpdateMetadata(); err != nil {
 			log.Info().Err(err).Msg("failed to update metadata. using saved metadata.")
 		}
-		osquerydPath, err := updater.Get("osqueryd")
+		osquerydLocalTarget, err := updater.Get("osqueryd")
 		if err != nil {
 			return err
 		}
+		osquerydPath := osquerydLocalTarget.ExecPath
 
 		var g run.Group
 

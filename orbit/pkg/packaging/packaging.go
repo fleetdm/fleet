@@ -109,10 +109,11 @@ func InitializeUpdates(updateOpt update.Options) (*UpdatesData, error) {
 		return nil, fmt.Errorf("failed to update metadata: %w", err)
 	}
 
-	osquerydPath, err := updater.Get("osqueryd")
+	osquerydLocalTarget, err := updater.Get("osqueryd")
 	if err != nil {
 		return nil, fmt.Errorf("failed to get osqueryd: %w", err)
 	}
+	osquerydPath := osquerydLocalTarget.ExecPath
 	osquerydMeta, err := updater.Lookup("osqueryd")
 	if err != nil {
 		return nil, fmt.Errorf("failed to get osqueryd metadata: %w", err)
@@ -125,10 +126,11 @@ func InitializeUpdates(updateOpt update.Options) (*UpdatesData, error) {
 		return nil, fmt.Errorf("failed to get osqueryd version: %w", err)
 	}
 
-	orbitPath, err := updater.Get("orbit")
+	orbitLocalTarget, err := updater.Get("orbit")
 	if err != nil {
 		return nil, fmt.Errorf("failed to get orbit: %w", err)
 	}
+	orbitPath := orbitLocalTarget.ExecPath
 	orbitMeta, err := updater.Lookup("orbit")
 	if err != nil {
 		return nil, fmt.Errorf("failed to get orbit metadata: %w", err)
@@ -143,10 +145,11 @@ func InitializeUpdates(updateOpt update.Options) (*UpdatesData, error) {
 		desktopCustom custom
 	)
 	if _, ok := updateOpt.Targets["desktop"]; ok {
-		desktopPath, err = updater.Get("desktop")
+		desktopLocalTarget, err := updater.Get("desktop")
 		if err != nil {
 			return nil, fmt.Errorf("failed to get desktop: %w", err)
 		}
+		desktopPath = desktopLocalTarget.ExecPath
 		desktopMeta, err := updater.Lookup("desktop")
 		if err != nil {
 			return nil, fmt.Errorf("failed to get orbit metadata: %w", err)

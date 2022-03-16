@@ -21,11 +21,12 @@ func main() {
 		return
 	}
 
-	if len(os.Args) < 2 {
-		fmt.Println("Missing URL argument")
+	devURL := os.Getenv("FLEET_DESKTOP_DEVICE_URL")
+	if devURL == "" {
+		fmt.Println("Missing URL environment FLEET_DESKTOP_DEVICE_URL")
 		os.Exit(1)
 	}
-	url, err := url.Parse(os.Args[1])
+	deviceURL, err := url.Parse(devURL)
 	if err != nil {
 		fmt.Printf("Invalid URL argument: %s\n", err)
 		os.Exit(1)
@@ -38,7 +39,7 @@ func main() {
 
 		go func() {
 			for range myDeviceItem.ClickedCh {
-				if err := open.Browser(url.String()); err != nil {
+				if err := open.Browser(deviceURL.String()); err != nil {
 					log.Printf("open browser: %s", err)
 				}
 			}

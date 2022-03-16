@@ -25,30 +25,46 @@ func Browser(url string) error {
 	return nil
 }
 
+type appOpts struct {
+	env [][2]string
+}
+
+// AppOption are options to use when opening the application with App.
+type AppOption func(*appOpts)
+
+// AppWithEnv sets the environment for opening an application.
+func AppWithEnv(name, value string) AppOption {
+	return func(a *appOpts) {
+		a.env = append(a.env, [2]string{name, value})
+	}
+}
+
 // App opens an application at path with the default application.
-func App(path string, args ...string) error {
+// Returns the application process ID.
+func App(path string, opts ...AppOption) error {
+	var o appOpts
+	for _, fn := range opts {
+		fn(&o)
+	}
 	info, err := os.Stat(path)
 	if err != nil {
 		return fmt.Errorf("stat path %q: %w", path, err)
 	}
 
-	var cmd *exec.Cmd
 	switch runtime.GOOS {
 	case "darwin":
 		if !info.IsDir() {
 			return fmt.Errorf("path is not an .app directory: %s", path)
 		}
 		arg := []string{path}
-		if len(args) > 0 {
-			arg = append(append(arg, "--args"), args...)
+		for _, nv := range o.env {
+			arg = append(arg, "--env", fmt.Sprintf("%s=%s", nv[0], nv[1]))
 		}
-		cmd = exec.Command("open", arg...)
+		if err := exec.Command("open", arg...).Run(); err != nil {
+			return fmt.Errorf("open path: %w", err)
+		}
+		return nil
 	default:
 		return fmt.Errorf("platform unsupported: %s", runtime.GOOS)
 	}
-
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("open path: %w", err)
-	}
-	return nil
 }

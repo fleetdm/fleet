@@ -267,7 +267,7 @@ func TestUpdatesIntegration(t *testing.T) {
 	require.NoError(t, err)
 	other, err := updater.Get("other")
 	require.NoError(t, err)
-	require.Equal(t, filepath.Base(other), filepath.Base(testPath))
+	require.Equal(t, filepath.Base(other.ExecPath), filepath.Base(testPath))
 
 	repo, err = openRepo(tmpDir)
 	require.NoError(t, err)
@@ -342,12 +342,12 @@ func TestUpdatesIntegration(t *testing.T) {
 	// Remove the old other copy first
 	o, err := updater.Get("other")
 	require.NoError(t, err)
-	require.NoError(t, os.RemoveAll(filepath.Join(filepath.Dir(o), "other.app.tar.gz")))
-	require.NoError(t, os.RemoveAll(filepath.Join(filepath.Dir(o), filepath.Base(testPath))))
+	require.NoError(t, os.RemoveAll(filepath.Join(filepath.Dir(o.ExecPath), "other.app.tar.gz")))
+	require.NoError(t, os.RemoveAll(filepath.Join(filepath.Dir(o.ExecPath), filepath.Base(testPath))))
 	o2, err := updater.Get("other")
 	require.NoError(t, err)
 	require.Equal(t, o, o2)
-	_, err = os.Stat(o2)
+	_, err = os.Stat(o2.ExecPath)
 	require.NoError(t, err)
 
 	// Update client should be able to initialize with new root

@@ -31,4 +31,4 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: osqueryd.app.tar.gz
-          path: osqueryd.app.tar.gz 
+          path: osqueryd.app.tar.gz
