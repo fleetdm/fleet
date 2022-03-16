@@ -253,6 +253,24 @@ describe("Premium tier - Admin user", () => {
         cy.findByRole("button", { name: /create user/i }).click();
         cy.findByText(/assign teams/i).should("exist");
       });
+      it("allows global admin to edit existing user password", () => {
+        cy.visit("/settings/users");
+        cy.getAttached("tbody").within(() => {
+          cy.findByText(/oliver@organization.com/i)
+            .parent()
+            .next()
+            .next()
+            .next()
+            .within(() => cy.getAttached(".Select-placeholder").click());
+        });
+        cy.getAttached(".Select-menu").within(() => {
+          cy.findByText(/edit/i).click();
+        });
+        cy.getAttached(".create-user-form").within(() => {
+          cy.findByLabelText(/email/i).should("exist");
+          cy.findByLabelText(/password/i).should("exist");
+        });
+      });
     });
     describe("User profile page", () => {
       it("renders elements according to role-based access controls", () => {
@@ -625,6 +643,20 @@ describe("Premium tier - Admin user", () => {
             .within(() => {
               cy.findByText(/maintainer/i).should("exist");
             });
+        });
+      });
+      it("does not allow team admin to edit existing user password", () => {
+        cy.getAttached("tbody").within(() => {
+          cy.getAttached("tr")
+            .eq(1)
+            .within(() => {
+              cy.findByText(/action/i).click();
+              cy.findByText(/edit/i).click();
+            });
+        });
+        cy.getAttached(".create-user-form").within(() => {
+          cy.findByLabelText(/email/i).should("exist");
+          cy.findByLabelText(/password/i).should("not.exist");
         });
       });
       it("allows team admin to edit team name", () => {
