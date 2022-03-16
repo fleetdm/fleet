@@ -29,12 +29,12 @@ jobs:
 
     steps:
     - name: Install Go
-      uses: actions/setup-go@v2
+      uses: actions/setup-go@bfdd3570ce990073878bf10f6b2d79082de49492 # v2
       with:
         go-version: ${{ matrix.go-version }}
 
     - name: Checkout Code
-      uses: actions/checkout@v2
+      uses: actions/checkout@629c2de402a417ea7690ca6ce3f33229e27606a5 # v2
 
     # Pre-starting dependencies here means they are ready to go when we need them.
     - name: Start Infra Dependencies
@@ -61,13 +61,13 @@ jobs:
         NETWORK_TEST=1 REDIS_TEST=1 MYSQL_TEST=1 RACE_ENABLED=$RACE_ENABLED GO_TEST_TIMEOUT=$GO_TEST_TIMEOUT make test-go
 
     - name: Upload to Codecov
-      uses: codecov/codecov-action@v2
+      uses: codecov/codecov-action@f32b3a3741e1053eb607407145bc9619351dc93b # v2
       with:
         files: coverage.txt
 
     - name: Slack Notification
       if: github.event.schedule == '0 4 * * *' && failure()
-      uses: slackapi/slack-github-action@v1.18.0
+      uses: slackapi/slack-github-action@16b6c78ee73689a627b65332b34e5d409c7299da # v1.18.0
       with:
         payload: |
           {
