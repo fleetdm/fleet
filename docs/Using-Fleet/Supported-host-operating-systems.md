@@ -2,7 +2,7 @@
 
 # Supported host operating systems
 
-The following operating system versions are supported by the osquery agent. 
+The following operating system versions are supported by the osquery agent: 
 
 | OS      | Supported Version(s)                    |
 | :------ | :-------------------------------------  |
@@ -22,7 +22,7 @@ If a table is not available for your host, Fleet will generally handle things be
 The osquery installer generated for MacOS by `fleetctl package` does not include native support for M1 Macs. Some values returned may reflect the information returned by Rosetta rather than the system. For example, CPU will show up as `i486`. 
 
 ### Linux
-The osquery installer should run on most Linux distributions where glibc is >= 2.2 (there is ongoing work to make osquery work with glibc 2.12+)
+The osquery installer will run on Linux distributions where glibc is >= 2.2 (there is ongoing work to make osquery work with glibc 2.12+).
 
 
 <meta name="pageOrderInSection" value="1200">
