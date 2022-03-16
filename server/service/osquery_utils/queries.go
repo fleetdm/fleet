@@ -17,7 +17,11 @@ import (
 )
 
 type DetailQuery struct {
+	// Query is the SQL query string.
 	Query string
+	// Discovery is the SQL query that defines whether the query will run or the host or not.
+	// If not set, Fleet makes sure the query will always run.
+	Discovery string
 	// Platforms is a list of platforms to run the query on. If this value is
 	// empty, run on all platforms.
 	Platforms []string
@@ -305,11 +309,18 @@ FROM logical_drives WHERE file_system = 'NTFS' LIMIT 1;`,
 	"google_chrome_profiles": {
 		Query:            `SELECT email FROM google_chrome_profiles WHERE NOT ephemeral`,
 		DirectIngestFunc: directIngestChromeProfiles,
-		// Technically this does work on Windows and Linux, but so far no one is
-		// deploying the extension to those platforms and it's causing log spam
-		// for customers. See https://github.com/fleetdm/fleet/issues/4123
-		Platforms: []string{"darwin"},
+		Discovery:        discoveryTable("google_chrome_profiles"),
 	},
+	"orbit_info": {
+		Query:            `SELECT * FROM orbit_info`,
+		DirectIngestFunc: directIngestOrbitInfo,
+		Discovery:        discoveryTable("orbit_info"),
+	},
+}
+
+// discoveryTable returns a query to determine whether a table exists or not.
+func discoveryTable(tableName string) string {
+	return fmt.Sprintf("SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = '%s';", tableName)
 }
 
 var softwareMacOS = DetailQuery{
@@ -566,6 +577,20 @@ func directIngestChromeProfiles(ctx context.Context, logger log.Logger, host *fl
 		})
 	}
 	return ds.ReplaceHostDeviceMapping(ctx, host.ID, mapping)
+}
+
+func directIngestOrbitInfo(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
+	if len(rows) != 1 {
+		return ctxerr.Errorf(ctx, "invalid number of orbit_info rows: %d", len(rows))
+	}
+	deviceAuthToken := rows[0]["device_auth_token"]
+	if deviceAuthToken == "" {
+		return ctxerr.New(ctx, "empty orbit_info.device_auth_token")
+	}
+	if err := ds.SetOrUpdateDeviceAuthToken(ctx, host.ID, deviceAuthToken); err != nil {
+		return ctxerr.Wrap(ctx, err, "set or update device_auth_token")
+	}
+	return nil
 }
 
 func directIngestScheduledQueryStats(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {

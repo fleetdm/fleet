@@ -11,6 +11,7 @@ import (
 	"github.com/go-kit/kit/log/level"
 	kithttp "github.com/go-kit/kit/transport/http"
 
+	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/token"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
@@ -56,6 +57,9 @@ func authenticatedDevice(svc fleet.Service, logger log.Logger, next endpoint.End
 
 		ctx = hostctx.NewContext(ctx, host)
 		instrumentHostLogger(ctx)
+		if ac, ok := authz_ctx.FromContext(ctx); ok {
+			ac.SetAuthnMethod(authz_ctx.AuthnDeviceToken)
+		}
 
 		resp, err := next(ctx, request)
 		if err != nil {
@@ -100,6 +104,9 @@ func authenticatedHost(svc fleet.Service, logger log.Logger, next endpoint.Endpo
 
 		ctx = hostctx.NewContext(ctx, host)
 		instrumentHostLogger(ctx)
+		if ac, ok := authz_ctx.FromContext(ctx); ok {
+			ac.SetAuthnMethod(authz_ctx.AuthnHostToken)
+		}
 
 		resp, err := next(ctx, request)
 		if err != nil {
@@ -107,7 +114,7 @@ func authenticatedHost(svc fleet.Service, logger log.Logger, next endpoint.Endpo
 		}
 
 		if debug {
-			logJSON(hlogger, request, "response")
+			logJSON(hlogger, resp, "response")
 		}
 		return resp, nil
 	}
@@ -154,6 +161,9 @@ func authenticatedUser(svc fleet.Service, next endpoint.Endpoint) endpoint.Endpo
 		}
 
 		ctx = viewer.NewContext(ctx, *v)
+		if ac, ok := authz_ctx.FromContext(ctx); ok {
+			ac.SetAuthnMethod(authz_ctx.AuthnUserToken)
+		}
 		return next(ctx, request)
 	}
 

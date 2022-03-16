@@ -57,7 +57,7 @@ func TestHostDetails(t *testing.T) {
 
 func TestHostAuth(t *testing.T) {
 	ds := new(mock.Store)
-	svc := newTestService(ds, nil, nil)
+	svc := newTestService(t, ds, nil, nil)
 
 	teamHost := &fleet.Host{TeamID: ptr.Uint(1)}
 	globalHost := &fleet.Host{}
@@ -225,7 +225,7 @@ func TestHostAuth(t *testing.T) {
 
 func TestListHosts(t *testing.T) {
 	ds := new(mock.Store)
-	svc := newTestService(ds, nil, nil)
+	svc := newTestService(t, ds, nil, nil)
 
 	ds.ListHostsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
 		return []*fleet.Host{
@@ -250,7 +250,7 @@ func TestListHosts(t *testing.T) {
 
 func TestGetHostSummary(t *testing.T) {
 	ds := new(mock.Store)
-	svc := newTestService(ds, nil, nil)
+	svc := newTestService(t, ds, nil, nil)
 
 	ds.GenerateHostStatusStatisticsFunc = func(ctx context.Context, filter fleet.TeamFilter, now time.Time, platform *string) (*fleet.HostSummary, error) {
 		return &fleet.HostSummary{
@@ -284,7 +284,7 @@ func TestDeleteHost(t *testing.T) {
 	ds := mysql.CreateMySQLDS(t)
 	defer ds.Close()
 
-	svc := newTestService(ds, nil, nil)
+	svc := newTestService(t, ds, nil, nil)
 
 	mockClock := clock.NewMockClock()
 	host := test.NewHost(t, ds, "foo", "192.168.1.10", "1", "1", mockClock.Now())
@@ -301,7 +301,7 @@ func TestDeleteHost(t *testing.T) {
 
 func TestAddHostsToTeamByFilter(t *testing.T) {
 	ds := new(mock.Store)
-	svc := newTestService(ds, nil, nil)
+	svc := newTestService(t, ds, nil, nil)
 
 	expectedHostIDs := []uint{1, 2, 4}
 	expectedTeam := (*uint)(nil)
@@ -326,7 +326,7 @@ func TestAddHostsToTeamByFilter(t *testing.T) {
 
 func TestAddHostsToTeamByFilterLabel(t *testing.T) {
 	ds := new(mock.Store)
-	svc := newTestService(ds, nil, nil)
+	svc := newTestService(t, ds, nil, nil)
 
 	expectedHostIDs := []uint{6}
 	expectedTeam := ptr.Uint(1)
@@ -352,7 +352,7 @@ func TestAddHostsToTeamByFilterLabel(t *testing.T) {
 
 func TestAddHostsToTeamByFilterEmptyHosts(t *testing.T) {
 	ds := new(mock.Store)
-	svc := newTestService(ds, nil, nil)
+	svc := newTestService(t, ds, nil, nil)
 
 	ds.ListHostsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
 		return []*fleet.Host{}, nil
@@ -368,7 +368,7 @@ func TestAddHostsToTeamByFilterEmptyHosts(t *testing.T) {
 
 func TestRefetchHost(t *testing.T) {
 	ds := new(mock.Store)
-	svc := newTestService(ds, nil, nil)
+	svc := newTestService(t, ds, nil, nil)
 
 	host := &fleet.Host{ID: 3}
 
@@ -390,7 +390,7 @@ func TestRefetchHost(t *testing.T) {
 
 func TestRefetchHostUserInTeams(t *testing.T) {
 	ds := new(mock.Store)
-	svc := newTestService(ds, nil, nil)
+	svc := newTestService(t, ds, nil, nil)
 
 	host := &fleet.Host{ID: 3, TeamID: ptr.Uint(4)}
 

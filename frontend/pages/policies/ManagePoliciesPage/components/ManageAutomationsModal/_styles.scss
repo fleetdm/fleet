@@ -26,40 +26,19 @@
     color: $ui-error;
   }
 
-  .tooltip-wrap {
-    display: flex;
-    align-items: center;
-    width: 100%;
-    margin-bottom: $pad-large;
-
-    .icon-tooltip {
-      span {
-        display: flex;
-        align-items: center;
-      }
-      p {
-        text-align: center;
-      }
-    }
-
-    .form-field--input {
-      display: block;
-      width: 100%;
-      margin-right: $pad-small;
-      margin-bottom: 0;
-    }
-
-    .form-field__hint {
-      font-style: normal;
-    }
+  &__overlay-container {
+    display: grid;
   }
 
-  .tooltip-wrap--input {
-    .icon-tooltip {
-      span {
-        margin-top: -5px;
-      }
-    }
+  &__policy-automation-enabled,
+  &__overlay {
+    grid-area: 1 / 1;
+  }
+
+  &__overlay {
+    background-color: $core-white;
+    z-index: 0;
+    opacity: 75%;
   }
 
   // so tooltips won't be triggered with whitespace

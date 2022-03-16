@@ -52,10 +52,17 @@ var shellCommand = &cli.Command{
 
 		// Initialize updater and get expected version
 		opt := update.DefaultOptions
+
+		// Override default channels with the provided values.
+		osqueryd := opt.Targets["osqueryd"]
+		osqueryd.Channel = c.String("osqueryd-channel")
+		opt.Targets["osqueryd"] = osqueryd
+
 		opt.RootDirectory = c.String("root-dir")
 		opt.ServerURL = c.String("update-url")
 		opt.LocalStore = localStore
 		opt.InsecureTransport = c.Bool("insecure")
+
 		updater, err := update.New(opt)
 		if err != nil {
 			return err
@@ -63,7 +70,7 @@ var shellCommand = &cli.Command{
 		if err := updater.UpdateMetadata(); err != nil {
 			log.Info().Err(err).Msg("failed to update metadata. using saved metadata.")
 		}
-		osquerydPath, err := updater.Get("osqueryd", c.String("osqueryd-channel"))
+		osquerydPath, err := updater.Get("osqueryd")
 		if err != nil {
 			return err
 		}

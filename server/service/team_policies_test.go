@@ -14,7 +14,7 @@ import (
 
 func TestTeamPoliciesAuth(t *testing.T) {
 	ds := new(mock.Store)
-	svc := newTestService(ds, nil, nil)
+	svc := newTestService(t, ds, nil, nil)
 
 	ds.NewTeamPolicyFunc = func(ctx context.Context, teamID uint, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error) {
 		return &fleet.Policy{

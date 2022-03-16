@@ -70,10 +70,10 @@ interface IDataColumn {
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
 const generateTableHeaders = (options: {
   selectedTeamId: number | undefined | null;
-  showSelectionColumn: boolean | undefined;
+  canAddOrRemovePolicy: boolean | undefined;
   tableType: string | undefined;
 }): IDataColumn[] => {
-  const { selectedTeamId, tableType, showSelectionColumn } = options;
+  const { selectedTeamId, tableType, canAddOrRemovePolicy } = options;
 
   switch (tableType) {
     case "inheritedPolicies":
@@ -154,6 +154,33 @@ const generateTableHeaders = (options: {
           ),
         },
       ];
+
+      if (!canAddOrRemovePolicy) {
+        return tableHeaders;
+      }
+
+      tableHeaders.unshift({
+        id: "selection",
+        Header: (cellProps: IHeaderProps): JSX.Element => {
+          const props = cellProps.getToggleAllRowsSelectedProps();
+          const checkboxProps = {
+            value: props.checked,
+            indeterminate: props.indeterminate,
+            onChange: () => cellProps.toggleAllRowsSelected(),
+          };
+          return <Checkbox {...checkboxProps} />;
+        },
+        Cell: (cellProps: ICellProps): JSX.Element => {
+          const props = cellProps.row.getToggleRowSelectedProps();
+          const checkboxProps = {
+            value: props.checked,
+            onChange: () => cellProps.row.toggleRowSelected(),
+          };
+          return <Checkbox {...checkboxProps} />;
+        },
+        disableHidden: true,
+      });
+
       if (!selectedTeamId) {
         tableHeaders.push({
           title: "Automations",
@@ -165,29 +192,7 @@ const generateTableHeaders = (options: {
           ),
         });
       }
-      if (showSelectionColumn) {
-        tableHeaders.splice(0, 0, {
-          id: "selection",
-          Header: (cellProps: IHeaderProps): JSX.Element => {
-            const props = cellProps.getToggleAllRowsSelectedProps();
-            const checkboxProps = {
-              value: props.checked,
-              indeterminate: props.indeterminate,
-              onChange: () => cellProps.toggleAllRowsSelected(),
-            };
-            return <Checkbox {...checkboxProps} />;
-          },
-          Cell: (cellProps: ICellProps): JSX.Element => {
-            const props = cellProps.row.getToggleRowSelectedProps();
-            const checkboxProps = {
-              value: props.checked,
-              onChange: () => cellProps.row.toggleRowSelected(),
-            };
-            return <Checkbox {...checkboxProps} />;
-          },
-          disableHidden: true,
-        });
-      }
+
       return tableHeaders;
     }
   }

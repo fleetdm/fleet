@@ -20,8 +20,8 @@ DRIs help us collaborate efficiently by knowing exactly who is responsible and c
 | Customer PoV deployments like acme.fleetdm.com | Ben Edwards |
 | dogfood.fleetdm.com | Ben Edwards |
 | Quality of core product UI | Luke Heath |
-| Quality of tickets after Noah's done with them | Luke Heath 	|
-| ["Escaped work"](https://docs.google.com/document/d/1vXL_WSUqASJWuNnQhUVrkudIeG4zlaiOCqJEa7xB2do/edit) | Luke Heath |
+| Ticket movement from product to engineering | Luke Heath |
+| Lead engineering standup and sprint planning | Zach Wasserman* |
 | Customer Slack channels | Tony Gauda |
 | Customer renewals | Tony Gauda |
 | Quality of core product backend | Tomás Touceda |
@@ -33,8 +33,9 @@ DRIs help us collaborate efficiently by knowing exactly who is responsible and c
 | fleetdm.com | Mike Thomas |
 | Self-service Fleet Premium license dispenser | Mike Thomas |
 
+*Luke Heath is backup 
 
->You can read more about directly responsible individuals in [Gitlab's handbook](https://about.gitlab.com/handbook/people-group/directly-responsible-individuals/)
+>You can read more about directly responsible individuals in [GitLab's handbook](https://about.gitlab.com/handbook/people-group/directly-responsible-individuals/)
 
 ## Spending company money
 As we continue to expand our company policies, we use [GitLab's open expense policy](https://about.gitlab.com/handbook/spending-company-money/) as a guide for company spending.
@@ -136,9 +137,7 @@ Settings that have a lock icon next to them have been locked by an administrator
 
 We use the Zoom add-on for Google Calendar to schedule Zoom meetings when we create calendar events. To add a Zoom meeting to a calendar event, click the "Add video conferencing" dropdown and select "Zoom Meeting." Google Calendar will automatically add the Zoom meeting details and instructions to join the event.
 
-Our Zoom meetings are configured to let participants join before the host starts the meeting. We do this to ensure meetings start on time, even if the host isn't there. This setting is locked across all Zoom accounts, but it **only** applies to meetings with scheduled start times.
-
-If you are organizing a recurring meeting, you need to make sure you configure the meeting room to have a start time. To set a recurring meeting's start time, go to your [upcoming meetings](https://zoom.us/meeting#/upcoming) page and find the meeting room with the same name as the calendar event. Click the edit button next to the meeting room, and add the meeting's start time.
+Our Zoom meetings are configured to let participants join before the host starts the meeting. We do this to ensure meetings start on time, even if the host isn't there.
 
 ## Slack
 

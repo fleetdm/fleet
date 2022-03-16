@@ -20,7 +20,7 @@ import (
 
 func TestUserAuth(t *testing.T) {
 	ds := new(mock.Store)
-	svc := newTestService(ds, nil, nil)
+	svc := newTestService(t, ds, nil, nil)
 
 	ds.InviteByTokenFunc = func(ctx context.Context, token string) (*fleet.Invite, error) {
 		return &fleet.Invite{
@@ -236,7 +236,7 @@ func TestModifyUserEmail(t *testing.T) {
 		assert.Equal(t, "minion", u.Position)
 		return nil
 	}
-	svc := newTestService(ms, nil, nil)
+	svc := newTestService(t, ms, nil, nil)
 	ctx := context.Background()
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
 	payload := fleet.UserPayload{
@@ -278,7 +278,7 @@ func TestModifyUserEmailNoPassword(t *testing.T) {
 	ms.SaveUserFunc = func(ctx context.Context, u *fleet.User) error {
 		return nil
 	}
-	svc := newTestService(ms, nil, nil)
+	svc := newTestService(t, ms, nil, nil)
 	ctx := context.Background()
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
 	payload := fleet.UserPayload{
@@ -324,7 +324,7 @@ func TestModifyAdminUserEmailNoPassword(t *testing.T) {
 	ms.SaveUserFunc = func(ctx context.Context, u *fleet.User) error {
 		return nil
 	}
-	svc := newTestService(ms, nil, nil)
+	svc := newTestService(t, ms, nil, nil)
 	ctx := context.Background()
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
 	payload := fleet.UserPayload{
@@ -376,7 +376,7 @@ func TestModifyAdminUserEmailPassword(t *testing.T) {
 	ms.SaveUserFunc = func(ctx context.Context, u *fleet.User) error {
 		return nil
 	}
-	svc := newTestService(ms, nil, nil)
+	svc := newTestService(t, ms, nil, nil)
 	ctx := context.Background()
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
 	payload := fleet.UserPayload{
@@ -411,7 +411,7 @@ func TestUsersWithDS(t *testing.T) {
 // Test that CreateUser creates a user that will be forced to
 // reset its password upon first login (see #2570).
 func testUsersCreateUserForcePasswdReset(t *testing.T, ds *mysql.Datastore) {
-	svc := newTestService(ds, nil, nil)
+	svc := newTestService(t, ds, nil, nil)
 
 	// Create admin user.
 	admin := &fleet.User{
@@ -440,7 +440,7 @@ func testUsersCreateUserForcePasswdReset(t *testing.T, ds *mysql.Datastore) {
 }
 
 func testUsersChangePassword(t *testing.T, ds *mysql.Datastore) {
-	svc := newTestService(ds, nil, nil)
+	svc := newTestService(t, ds, nil, nil)
 	users := createTestUsers(t, ds)
 	passwordChangeTests := []struct {
 		user        fleet.User
@@ -504,7 +504,7 @@ func testUsersChangePassword(t *testing.T, ds *mysql.Datastore) {
 }
 
 func testUsersRequirePasswordReset(t *testing.T, ds *mysql.Datastore) {
-	svc := newTestService(ds, nil, nil)
+	svc := newTestService(t, ds, nil, nil)
 	createTestUsers(t, ds)
 
 	for _, tt := range testUsers {
@@ -546,7 +546,7 @@ func testUsersRequirePasswordReset(t *testing.T, ds *mysql.Datastore) {
 func TestPerformRequiredPasswordReset(t *testing.T) {
 	ds := mysql.CreateMySQLDS(t)
 
-	svc := newTestService(ds, nil, nil)
+	svc := newTestService(t, ds, nil, nil)
 
 	createTestUsers(t, ds)
 
@@ -599,7 +599,7 @@ func TestPerformRequiredPasswordReset(t *testing.T) {
 func TestResetPassword(t *testing.T) {
 	ds := mysql.CreateMySQLDS(t)
 
-	svc := newTestService(ds, nil, nil)
+	svc := newTestService(t, ds, nil, nil)
 	createTestUsers(t, ds)
 	passwordResetTests := []struct {
 		token       string
@@ -665,7 +665,7 @@ func TestAuthenticatedUser(t *testing.T) {
 	ds := mysql.CreateMySQLDS(t)
 
 	createTestUsers(t, ds)
-	svc := newTestService(ds, nil, nil)
+	svc := newTestService(t, ds, nil, nil)
 	admin1, err := ds.UserByEmail(context.Background(), "admin1@example.com")
 	assert.Nil(t, err)
 	admin1Session, err := ds.NewSession(context.Background(), &fleet.Session{

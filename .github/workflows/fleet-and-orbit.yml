@@ -183,6 +183,7 @@ jobs:
         go run github.com/fleetdm/fleet/v4/orbit/cmd/orbit \
           --debug \
           --dev-mode \
+          --dev-darwin-legacy-targets \
           --disable-updates \
           --root-dir /tmp/orbit \
           --fleet-url ${{ needs.gen.outputs.address }} \
