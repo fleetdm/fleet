@@ -21,6 +21,10 @@ func TestConfigRoundtrip(t *testing.T) {
 	// Newly added config values will automatically be tested in this
 	// function because of the reflection on the config struct.
 
+	// viper tries to load config from the environment too, clear it in case
+	// any config values are set in the environment.
+	os.Clearenv()
+
 	cmd := &cobra.Command{}
 	// Leaving this flag unset means that no attempt will be made to load
 	// the config file
