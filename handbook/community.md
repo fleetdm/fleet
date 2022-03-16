@@ -238,10 +238,10 @@ That means better privacy. Better device performance. And better data, with less
 
 ## Sponsoring Events
 
-When reaching out for sponsorships, Fleet's goal is expose potential hires, contributors, and users to Fleet and osquery.
-Prospective sponsorships should be tracked in our [partnerships and outreach Google Sheet:](https://docs.google.com/spreadsheets/d/107AwHKqFjt7TWItnf8pFknSwwxb_gsp6awB66t7YE_w/edit#gid=2108184225)
+When reaching out for sponsorships, Fleet's goal is to expose potential hires, contributors, and users to Fleet and osquery.
+Track prospective sponsorships in our [partnerships and outreach Google Sheet:](https://docs.google.com/spreadsheets/d/107AwHKqFjt7TWItnf8pFknSwwxb_gsp6awB66t7YE_w/edit#gid=2108184225)
 
-Once a relevant sponsorship opportunity, and its prospectus has been reviewed:
+Once a relevant sponsorship opportunity and its prospectus has been reviewed:
 1. Create a new [GitHub issue](https://github.com/fleetdm/fleet/issues/new)
  
 2. Detail the important information of the event, such as date, name of the event, location, and page links to the relevant prospectus. 
@@ -254,7 +254,7 @@ Once a relevant sponsorship opportunity, and its prospectus has been reviewed:
  
 6. Eric will route signatures required over to Mike with Docusign.
  
-7. Once the above steps have been completed,. use the [Speaking events issue template](https://github.com/fleetdm/confidential/issues/new?assignees=mike-j-thomas&labels=&template=6-speaking-event.md&title=Speaking+event) to prepare speakers and participants for the event.
+7. Once the above steps have been completed, use the [Speaking events issue template](https://github.com/fleetdm/confidential/issues/new?assignees=mike-j-thomas&labels=&template=6-speaking-event.md&title=Speaking+event) to prepare speakers and participants for the event.
 
 ## Community contributions (pull requests)
 
