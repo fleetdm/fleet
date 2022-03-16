@@ -25,8 +25,8 @@ func Browser(url string) error {
 	return nil
 }
 
-// App opens the file at path with the default application.
-func App(path string) error {
+// App opens an application at path with the default application.
+func App(path string, args ...string) error {
 	info, err := os.Stat(path)
 	if err != nil {
 		return fmt.Errorf("stat path %q: %w", path, err)
@@ -38,7 +38,11 @@ func App(path string) error {
 		if !info.IsDir() {
 			return fmt.Errorf("path is not an .app directory: %s", path)
 		}
-		cmd = exec.Command("open", path)
+		arg := []string{path}
+		if len(args) > 0 {
+			arg = append(append(arg, "--args"), args...)
+		}
+		cmd = exec.Command("open", arg...)
 	default:
 		return fmt.Errorf("platform unsupported: %s", runtime.GOOS)
 	}

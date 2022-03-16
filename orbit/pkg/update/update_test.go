@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
+	"github.com/jinzhu/copier"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -50,10 +51,12 @@ func TestMakeRepoPath(t *testing.T) {
 
 	for _, tt := range testCases {
 		tt := tt
+		var opt Options
+		err := copier.CopyWithOption(&opt, DefaultOptions, copier.Option{DeepCopy: true})
+		require.NoError(t, err)
+
 		t.Run(tt.expected, func(t *testing.T) {
 			t.Parallel()
-
-			opt := DefaultOptions
 
 			osqueryd := opt.Targets[tt.name]
 			osqueryd.Platform = tt.platform

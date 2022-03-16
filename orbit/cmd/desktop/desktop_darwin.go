@@ -4,6 +4,7 @@ import (
 	_ "embed"
 	"fmt"
 	"log"
+	"net/url"
 	"os"
 
 	"github.com/fleetdm/fleet/v4/pkg/open"
@@ -20,6 +21,16 @@ func main() {
 		return
 	}
 
+	if len(os.Args) < 2 {
+		fmt.Println("Missing URL argument")
+		os.Exit(1)
+	}
+	url, err := url.Parse(os.Args[1])
+	if err != nil {
+		fmt.Printf("Invalid URL argument: %s\n", err)
+		os.Exit(1)
+	}
+
 	onReady := func() {
 		systray.SetIcon(icoBytes)
 		systray.SetTooltip("Fleet Device Management Desktop Application")
@@ -27,8 +38,7 @@ func main() {
 
 		go func() {
 			for range myDeviceItem.ClickedCh {
-				// TODO(lucas): Just using dummy URL for testing.
-				if err := open.Browser("https://localhost:8080"); err != nil {
+				if err := open.Browser(url.String()); err != nil {
 					log.Printf("open browser: %s", err)
 				}
 			}

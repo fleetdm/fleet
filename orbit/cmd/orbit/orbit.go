@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -465,7 +466,8 @@ func main() {
 			g.Add(
 				func() error {
 					log.Info().Str("path", desktopPath).Msg("opening")
-					if err := open.App(desktopPath); err != nil {
+					url := path.Join(fleetURL, "device", deviceAuthToken)
+					if err := open.App(desktopPath, url); err != nil {
 						return err
 					}
 					<-done
