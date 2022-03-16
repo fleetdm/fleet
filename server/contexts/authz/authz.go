@@ -27,8 +27,17 @@ type AuthenticationMethod int
 
 // List of supported authentication methods.
 const (
+	// AuthnUserToken is when authentication is done via a user's API token,
+	// obtained via user/password login (or fleetctl for API-only users).
+	// This authentication mode supports granular authorization.
 	AuthnUserToken AuthenticationMethod = iota
+	// AuthnHostToken is when authentication is done via the osquery host
+	// authentication token. This authentication mode does not support granular
+	// authorization.
 	AuthnHostToken
+	// AuthnDeviceToken i swhen authentication is done via the orbit identifier,
+	// which only allows limited access to the device's own host information.
+	// This authentication mode does not support granular authorization.
 	AuthnDeviceToken
 )
 
