@@ -313,7 +313,7 @@ Retrieves the user data for the authenticated user.
 
 Resets the password of the authenticated user. Requires that `force_password_reset` is set to `true` prior to the request.
 
-`POST /api/v1/fleet/perform_require_password_reset`
+`POST /api/v1/fleet/perform_required_password_reset`
 
 #### Example
 
