@@ -29,7 +29,7 @@ L2: If the customer does not join the call after 3-minutes, contact the customer
 - LinkedIn, send a direct message.
 - Phone, try finding their number to text and/or call (as appropriate to the device type: landline vs cell phone).
 
-L3: In these communications to the customer remember to approach the situation with empathy. ==Anything could have happened==.
+L3: In these communications to the customer remember to approach the situation with empathy. Anything could have happened.
 
 L4: Be ready to supply an alternative date and time to reschedule the call. Suggest 2-3 options for the customer to choose from.
 
