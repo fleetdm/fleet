@@ -3710,6 +3710,14 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	t := s.T()
 
 	hosts := s.createHosts(t)
+	err := s.ds.ApplyLabelSpecs(context.Background(), []*fleet.LabelSpec{
+		{Name: t.Name(), LabelMembershipType: fleet.LabelMembershipTypeManual, Query: "select 1", Hosts: []string{hosts[2].Hostname}},
+	})
+	require.NoError(t, err)
+	lids, err := s.ds.LabelIDsByName(context.Background(), []string{t.Name()})
+	require.NoError(t, err)
+	require.Len(t, lids, 1)
+	customLabelID := lids[0]
 
 	res := s.DoRaw("GET", "/api/v1/fleet/hosts/report", nil, http.StatusUnsupportedMediaType, "format", "gzip")
 	var errs struct {
@@ -3734,6 +3742,29 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	require.Contains(t, res.Header, "Content-Type")
 	require.Contains(t, res.Header.Get("Content-Disposition"), "attachment;")
 	require.Contains(t, res.Header.Get("Content-Type"), "text/csv")
+
+	// pagination does not apply to this endpoint, it returns the complete list of hosts
+	res = s.DoRaw("GET", "/api/v1/fleet/hosts/report", nil, http.StatusOK, "format", "csv", "page", "1", "per_page", "2")
+	rows, err = csv.NewReader(res.Body).ReadAll()
+	res.Body.Close()
+	require.NoError(t, err)
+	require.Len(t, rows, len(hosts)+1)
+
+	// search criteria are applied
+	res = s.DoRaw("GET", "/api/v1/fleet/hosts/report", nil, http.StatusOK, "format", "csv", "query", "local0")
+	rows, err = csv.NewReader(res.Body).ReadAll()
+	res.Body.Close()
+	require.NoError(t, err)
+	require.Len(t, rows, 2) // headers + matching host
+	require.Contains(t, rows[1], hosts[0].Hostname)
+
+	// with a label id
+	res = s.DoRaw("GET", "/api/v1/fleet/hosts/report", nil, http.StatusOK, "format", "csv", "label_id", fmt.Sprintf("%d", customLabelID))
+	rows, err = csv.NewReader(res.Body).ReadAll()
+	res.Body.Close()
+	require.NoError(t, err)
+	require.Len(t, rows, 2) // headers + member host
+	require.Contains(t, rows[1], hosts[2].Hostname)
 }
 
 // creates a session and returns it, its key is to be passed as authorization header.
