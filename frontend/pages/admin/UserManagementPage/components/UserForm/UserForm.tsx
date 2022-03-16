@@ -562,7 +562,7 @@ const UserForm = ({
       <div className={`${baseClass}__btn-wrap`}>
         <Button
           className={`${baseClass}__btn`}
-          type="button"
+          type="submit"
           variant="brand"
           onClick={onFormSubmit}
         >
