@@ -35,7 +35,7 @@ const (
 	// authentication token. This authentication mode does not support granular
 	// authorization.
 	AuthnHostToken
-	// AuthnDeviceToken i swhen authentication is done via the orbit identifier,
+	// AuthnDeviceToken is when authentication is done via the orbit identifier,
 	// which only allows limited access to the device's own host information.
 	// This authentication mode does not support granular authorization.
 	AuthnDeviceToken
