@@ -19,7 +19,7 @@ jobs:
         node-version: [14.x]
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@629c2de402a417ea7690ca6ce3f33229e27606a5 # v2
 
     # Configure our access credentials for the Heroku CLI
     - uses: akhileshns/heroku-deploy@cdd8fc68da4ad96ca0384cfa50d9e3eb2a6f6c1b # v3.6.8
@@ -32,7 +32,7 @@ jobs:
 
     # Set the Node.js version
     - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v1
+      uses: actions/setup-node@f1f314fca9dfce2769ece7d933488f076716723e # v1
       with:
         node-version: ${{ matrix.node-version }}
 
