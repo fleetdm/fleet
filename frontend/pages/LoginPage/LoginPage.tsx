@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useContext } from "react";
+import { InjectedRouter } from "react-router";
 import { connect } from "react-redux";
 import { size } from "lodash";
-import { push } from "react-router-redux";
 import { Dispatch } from "redux";
 
 // @ts-ignore
@@ -36,6 +36,7 @@ interface ILoginPageProps {
   redirectLocation: IRedirectLocation;
   user: IUser;
   ssoSettings: ISSOSettings;
+  router: InjectedRouter; // v3
 }
 
 export interface ILoginUserResponse {
@@ -53,6 +54,7 @@ const LoginPage = ({
   redirectLocation,
   user,
   ssoSettings,
+  router,
 }: ILoginPageProps) => {
   const { setAvailableTeams, setCurrentUser, setCurrentTeam } = useContext(
     AppContext
@@ -63,9 +65,9 @@ const LoginPage = ({
     const { HOME, LOGIN } = paths;
 
     if (user && pathname === LOGIN) {
-      dispatch(push(HOME));
+      router.push(HOME);
     }
-  }, []);
+  }, [router]);
 
   const onChange = () => {
     if (size(errors)) {
@@ -85,7 +87,7 @@ const LoginPage = ({
         // Redirect to password reset page if user is forced to reset password.
         // Any other requests will fail.
         if (returnedUser.force_password_reset) {
-          return dispatch(push(paths.RESET_PASSWORD));
+          return router.push(paths.RESET_PASSWORD);
         }
 
         // transitioning to context API - 9/1/21 MP
@@ -98,7 +100,7 @@ const LoginPage = ({
         setTimeout(() => {
           const nextLocation = redirectLocation || HOME;
           dispatch(clearRedirectLocation);
-          return dispatch(push(nextLocation));
+          return router.push(nextLocation);
         }, redirectTime);
       })
       .catch(() => false);
