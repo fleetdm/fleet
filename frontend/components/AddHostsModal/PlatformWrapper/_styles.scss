@@ -129,10 +129,39 @@
 
   &__advanced {
     padding-top: 6px;
+    .input-field__textarea {
+      min-height: 92px;
+    }
+    .reveal-button {
+      margin: 8px 0 0 0;
+    }
   }
 
   &__advanced--heading {
     font-weight: $bold;
     margin-bottom: $pad-small;
+  }
+
+  &__advanced--text {
+    font-weight: normal;
+  }
+
+  &__advanced--installer {
+    p {
+      margin: 0;
+    }
+  }
+
+  &__advanced--osqueryd {
+    .buttons {
+      top: 90px;
+    }
+  }
+
+  .download-certificate--tooltip {
+    margin-bottom: 0;
+    div {
+      display: inline;
+    }
   }
 }
