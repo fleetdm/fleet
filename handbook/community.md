@@ -250,9 +250,9 @@ Once a relevant sponsorship opportunity and its prospectus has been reviewed:
  
 4. Schedule a meeting with the representatives at the event to discuss pricing and sponsorship tiers.
  
-5. Invoices should be received at billing@fleetdm.com and sent to Eric for approval.
+5. Invoices should be received at billing@fleetdm.com and sent to Eric Shaw for approval.
  
-6. Eric will route signatures required over to Mike with Docusign.
+6. Eric Shaw will route signatures required over to Mike McNeil with Docusign.
  
 7. Once the above steps have been completed, use the [Speaking events issue template](https://github.com/fleetdm/confidential/issues/new?assignees=mike-j-thomas&labels=&template=6-speaking-event.md&title=Speaking+event) to prepare speakers and participants for the event.
 
