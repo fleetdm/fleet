@@ -11,16 +11,18 @@ export default {
   create: ({ email, password }: ICreateSessionProps) => {
     const { LOGIN } = endpoints;
 
-    return sendRequest("POST", LOGIN, JSON.stringify({ email, password })).then((response) => {
-      const { user, available_teams } = response;
-      const userWithGravatarUrl = helpers.addGravatarUrlToResource(user);
+    return sendRequest("POST", LOGIN, JSON.stringify({ email, password })).then(
+      (response) => {
+        const { user, available_teams } = response;
+        const userWithGravatarUrl = helpers.addGravatarUrlToResource(user);
 
-      return {
-        ...response,
-        user: userWithGravatarUrl,
-        available_teams,
-      };
-    });
+        return {
+          ...response,
+          user: userWithGravatarUrl,
+          available_teams,
+        };
+      }
+    );
   },
   destroy: () => {
     const { LOGOUT } = endpoints;
