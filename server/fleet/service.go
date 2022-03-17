@@ -451,5 +451,5 @@ type Service interface {
 	GetTeamPolicyByIDQueries(ctx context.Context, teamID uint, policyID uint) (*Policy, error)
 
 	/// Geolocation
-	Lookup(ctx context.Context, ip string) *GeoLocation
+	LookupGeoIP(ctx context.Context, ip string) *GeoLocation
 }

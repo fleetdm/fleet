@@ -1,4 +1,4 @@
-package realip
+package publicip
 
 import (
 	"context"

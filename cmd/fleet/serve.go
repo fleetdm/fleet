@@ -333,7 +333,7 @@ the way that the Fleet server works.
 
 			var geoIP fleet.GeoIP
 			if config.GeoIP.DatabasePath != "" {
-				geoIP = fleet.NewMaxMindGeoIP(config.GeoIP.DatabasePath)
+				geoIP = fleet.NewMaxMindGeoIP(logger, config.GeoIP.DatabasePath)
 			} else {
 				geoIP = &fleet.NoOpGeoIP{}
 			}

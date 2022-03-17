@@ -31,7 +31,7 @@ func hostResponseForHost(ctx context.Context, svc fleet.Service, host *fleet.Hos
 		Host:        host,
 		Status:      host.Status(time.Now()),
 		DisplayText: host.Hostname,
-		Geolocation: svc.Lookup(ctx, host.PublicIP),
+		Geolocation: svc.LookupGeoIP(ctx, host.PublicIP),
 	}, nil
 }
 
@@ -49,7 +49,7 @@ func hostDetailResponseForHost(ctx context.Context, svc fleet.Service, host *fle
 		HostDetail:  *host,
 		Status:      host.Status(time.Now()),
 		DisplayText: host.Hostname,
-		Geolocation: svc.Lookup(ctx, host.PublicIP),
+		Geolocation: svc.LookupGeoIP(ctx, host.PublicIP),
 	}, nil
 }
 

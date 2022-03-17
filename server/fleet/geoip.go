@@ -3,6 +3,8 @@ package fleet
 import (
 	"context"
 	"errors"
+	"github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/log/level"
 	"github.com/oschwald/geoip2-golang"
 	"net"
 )
@@ -11,6 +13,7 @@ var notCityDBError = geoip2.InvalidMethodError{}
 
 type GeoLocation struct {
 	CountryISO string    `json:"country_iso"`
+	CityName   string    `json:"city_name"`
 	Geometry   *Geometry `json:"geometry,omitempty"`
 }
 
@@ -25,6 +28,7 @@ type GeoIP interface {
 
 type MaxMindGeoIP struct {
 	reader *geoip2.Reader
+	l      log.Logger
 }
 
 type NoOpGeoIP struct{}
@@ -33,12 +37,12 @@ func (n *NoOpGeoIP) Lookup(ctx context.Context, ip string) *GeoLocation {
 	return nil
 }
 
-func NewMaxMindGeoIP(path string) GeoIP {
+func NewMaxMindGeoIP(logger log.Logger, path string) GeoIP {
 	r, err := geoip2.Open(path)
 	if err != nil {
 		return &NoOpGeoIP{}
 	}
-	return &MaxMindGeoIP{reader: r}
+	return &MaxMindGeoIP{reader: r, l: logger}
 }
 
 func (m *MaxMindGeoIP) Lookup(ctx context.Context, ip string) *GeoLocation {
@@ -54,6 +58,7 @@ func (m *MaxMindGeoIP) Lookup(ctx context.Context, ip string) *GeoLocation {
 	if errors.Is(err, notCityDBError) {
 		resp, err := m.reader.Country(parseIP)
 		if err != nil {
+			level.Debug(m.l).Log("err", err, "msg", "failed to lookup location from mmdb file")
 			return nil
 		}
 		// all we have is country iso, no geometry
@@ -65,16 +70,10 @@ func (m *MaxMindGeoIP) Lookup(ctx context.Context, ip string) *GeoLocation {
 func parseCity(resp *geoip2.City) *GeoLocation {
 	return &GeoLocation{
 		CountryISO: resp.Country.IsoCode,
+		CityName:   resp.City.Names["en"], // names is a map of language to city name names["us"] = "New York"
 		Geometry: &Geometry{
 			Type:        "Point",
-			Coordinates: makeCoordinates(resp.Location.Latitude, resp.Location.Longitude),
+			Coordinates: []float64{resp.Location.Latitude, resp.Location.Longitude},
 		},
 	}
-}
-
-func makeCoordinates(lat float64, lon float64) []float64 {
-	coords := make([]float64, 2)
-	coords[0] = lat
-	coords[1] = lon
-	return coords
 }

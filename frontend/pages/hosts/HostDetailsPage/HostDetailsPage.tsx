@@ -1122,6 +1122,22 @@ const HostDetailsPage = ({
     ) : null;
   };
 
+  const renderGeolocation = () => {
+    if (!host?.geolocation) {
+      return null;
+    }
+    const { geolocation } = host;
+    const location = [geolocation?.city_name, geolocation?.country_iso]
+      .filter(Boolean)
+      .join(", ");
+    return (
+      <div className="info-grid__block">
+        <span className="info-grid__header">Location</span>
+        <span className="info-grid__data">{location}</span>
+      </div>
+    );
+  };
+
   if (isLoadingHost) {
     return <Spinner />;
   }
@@ -1248,6 +1264,7 @@ const HostDetailsPage = ({
                 {renderMunkiData()}
                 {renderMdmData()}
                 {renderDeviceUser()}
+                {renderGeolocation()}
               </div>
             </div>
             <div className="col-2">

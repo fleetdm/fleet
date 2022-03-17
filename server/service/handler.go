@@ -3,7 +3,7 @@ package service
 import (
 	"context"
 	"errors"
-	"github.com/fleetdm/fleet/v4/server/contexts/realip"
+	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
 	"net/http"
 	"regexp"
 
@@ -97,7 +97,7 @@ func MakeHandler(svc fleet.Service, config config.FleetConfig, logger kitlog.Log
 		r.Use(otmiddleware.Middleware("fleet"))
 	}
 
-	r.Use(RealIP)
+	r.Use(publicIP)
 
 	attachFleetAPIRoutes(r, svc, config, logger, limitStore, fleetAPIOptions)
 
@@ -113,9 +113,9 @@ func MakeHandler(svc fleet.Service, config config.FleetConfig, logger kitlog.Log
 	return r
 }
 
-func RealIP(handler http.Handler) http.Handler {
+func publicIP(handler http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		handler.ServeHTTP(w, r.WithContext(realip.NewContext(r.Context(), realIP(r))))
+		handler.ServeHTTP(w, r.WithContext(publicip.NewContext(r.Context(), realIP(r))))
 	})
 }
 

@@ -3,7 +3,7 @@ package osquery_utils
 import (
 	"context"
 	"fmt"
-	"github.com/fleetdm/fleet/v4/server/contexts/realip"
+	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
 	"net"
 	"strconv"
 	"strings"
@@ -106,7 +106,7 @@ var detailQueries = map[string]DetailQuery{
 
 			host.PrimaryIP = selected["address"]
 			host.PrimaryMac = selected["mac"]
-			host.PublicIP = realip.FromContext(ctx)
+			host.PublicIP = publicip.FromContext(ctx)
 			return nil
 		},
 	},
