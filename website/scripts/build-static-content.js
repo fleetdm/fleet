@@ -9,10 +9,11 @@ module.exports = {
 
   inputs: {
     dry: { type: 'boolean', description: 'Whether to make this a dry run.  (.sailsrc file will not be overwritten.  HTML files will not be generated.)' },
+    local: { type: 'boolean', description: 'Whether to send requests to the GitHub API when running this script. If this option is set to `true`, uery contributer profiles will not be populated', defaultsTo: false },
   },
 
 
-  fn: async function ({ dry }) {
+  fn: async function ({ dry, local }) {
 
     let path = require('path');
     let YAML = require('yaml');
@@ -95,28 +96,37 @@ module.exports = {
 
         // Talk to GitHub and get additional information about each contributor.
         let githubDataByUsername = {};
-        await sails.helpers.flow.simultaneouslyForEach(githubUsernames, async(username)=>{
-          githubDataByUsername[username] = await sails.helpers.http.get.with({
-            url: 'https://api.github.com/users/' + encodeURIComponent(username),
-            headers: { 'User-Agent': 'Fleet-Standard-Query-Library', Accept: 'application/vnd.github.v3+json' }
-          });
-        });//∞
-
-        // Now expand queries with relevant profile data for the contributors.
-        for (let query of queries) {
-          let usernames = query.contributors.split(',');
-          let contributorProfiles = [];
-          for (let username of usernames) {
-            contributorProfiles.push({
-              name: githubDataByUsername[username].name,
-              handle: githubDataByUsername[username].login,
-              avatarUrl: githubDataByUsername[username].avatar_url,
-              htmlUrl: githubDataByUsername[username].html_url,
+        if(!local) { //If the local flag was provided, we'll skip querying GitHubs API
+          await sails.helpers.flow.simultaneouslyForEach(githubUsernames, async(username)=>{
+            githubDataByUsername[username] = await sails.helpers.http.get.with({
+              url: 'https://api.github.com/users/' + encodeURIComponent(username),
+              headers: { 'User-Agent': 'Fleet-Standard-Query-Library', Accept: 'application/vnd.github.v3+json' }
+            }).catch((err)=>{ // If the above GET requests return a non 200 response we'll look for signs that the user has hit their GitHub API rate limit.
+              if (err.raw.statusCode === 403 && err.raw.headers['x-ratelimit-remaining']) { // If the user has reached their GitHub API rate limit, we'll throw an error that suggest they run this script with the `--local` flag.
+                throw new Error('GitHub API rate limit exceeded. If running in a development environment use the `--local` flag to skip querying GitHub. See full error for more details:\n'+err);
+              } else {
+                throw err;
+              }
             });
-          }
-          query.contributors = contributorProfiles;
-        }
+          });//∞
 
+          // Now expand queries with relevant profile data for the contributors.
+          for (let query of queries) {
+            let usernames = query.contributors.split(',');
+            let contributorProfiles = [];
+            for (let username of usernames) {
+              contributorProfiles.push({
+                name: githubDataByUsername[username].name,
+                handle: githubDataByUsername[username].login,
+                avatarUrl: githubDataByUsername[username].avatar_url,
+                htmlUrl: githubDataByUsername[username].html_url,
+              });
+            }
+            query.contributors = contributorProfiles;
+          }
+        } else {
+          sails.log('Local run: Skipping GitHub API requests for contributer profiles');
+        }
         // Attach to what will become configuration for the Sails app.
         builtStaticContent.queries = queries;
         builtStaticContent.queryLibraryYmlRepoPath = RELATIVE_PATH_TO_QUERY_LIBRARY_YML_IN_FLEET_REPO;
