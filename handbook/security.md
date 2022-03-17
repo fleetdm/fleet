@@ -270,9 +270,9 @@ We need to host and collaborate on code as a company making open-source software
 
 This section covers our GitHub configuration. Like everything we do, we aim for the right level of security and productivity.
 
-We are concerned about the integrity of the code much more than by its confidentiality, because our
-code is open-source. This is why our configuration is aimed at protecting what is in the code, but we spend no
-effort preventing "leaks", since almost everything is public anyway.
+Because our code is open-source we are much more concerned about the integrity of the code than its confidentiality.
+This is why our configuration aims to protect what is in the code, but we spend no
+effort preventing "leaks" since almost everything is public anyway.
 
 ### Authentication
 
@@ -296,7 +296,7 @@ We do not require SSO - as most of the software we work on is open-source and ac
 
 | Member privileges feature | Setting | Note                                                                                                                         |
 | ------------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| Base permissions          | Write   | Admin is too powerful, as it allows reconfiguring the repositories themselves. Write is the perfect balance!                 |
+| Base permissions          | Write   | Admin is too powerful, as it allows reconfiguring the repositories themselves. Selecting Write provides the perfect balance!                 |
 | Repository creation       | None    | We want to limit repository creation in general, and eventually automate it  with the [GitHub Terraform provider](https://github.com/integrations/terraform-provider-github)     |
 | Repository forking        | Enabled | By default, we allow repository forking                                                                                      |
 | Pages creation            | None    | We do not use GitHub pages, so we disable them to be sure people use our actual website or handbook which are also in GitHub |
@@ -309,17 +309,17 @@ We do not require SSO - as most of the software we work on is open-source and ac
 | Allow members to delete or transfer repositories for this organization     | 🚫                   | We want to require org admin privileges to be able to delete or transfer any repository                                                                                       |
 | Allow repository administrators to delete issues for this organization     | 🚫                   | We want to require org admin privileges to be able to delete issues, which is something that is very rarely needed but could be, for example if we received GitHub issue spam |
 | Allow members to see comment author's profile name in private repositories | 🚫                   | We barely use private repositories, and have no need for this.                                                                                                                |
-| Allow users with read access to create discussions                         | 🚫                   | We do not currently use discussions, and want people to use issues as much as possible.                                                                                       |
-| Allow members to create teams                                              | 🚫                   | We want to automate the management of GitHub teams with the [GitHub Terraform provider](https://github.com/integrations/terraform-provider-github)                            |
+| Allow users with read access to create discussions                         | 🚫                   | We do not currently use discussions and want people to use issues as much as possible.                                                                                       |
+| Allow members to create teams                                              | 🚫                   | We automate the management of GitHub teams with the [GitHub Terraform provider](https://github.com/integrations/terraform-provider-github)                            |
 
 ### Team Discussions
 We do not use team discussions, and therefore have disabled it. This is simply to avoid discussions
-being located into to many places, and not security related.
+being located in too many places and not security-related.
 
 ### Repository Security
 
 #### Branch protection
-Branch protection is one of the most important settings to configure, and the main reason we should not have members with administrative privileges on the repositories.
+Branch protection is one of the most important settings to configure and the main reason we should not have members with administrative privileges on the repositories.
 
 Located in the Branches section of repository settings, we create a rule for **main** that applies:
 
@@ -337,12 +337,12 @@ Located in the Branches section of repository settings, we create a rule for **m
 | Require linear history                                           | 🚫     |                                                                                                                       |
 | Include administrators                                           | ✅     | We want these rules to apply to *everyone*.                                                                           |
 | Restrict who can push to matching branches                       | 🚫     | Anyone in our organization should be able to merge PRs that get reviewed, and nobody should be able to push directly. |
-| Allow force pushes                                               | 🚫     | We have never had a need for this, so we do not allow it.                                                             |
+| Allow force pushes                                               | 🚫     | We have need this, so we do not allow it.                                                             |
 | Allow deletions                                                  | 🚫     | We do not want ANYONE to be able to delete the *main* branch.                                                         |
 
 ### Scanning tools
 Though not technically a part of GitHub itself, we feel like the security tools we use to scan our
-code, workflows and GitHub configuration are part of our overall GitHub configuration.
+code, workflows, and GitHub configuration are part of our overall GitHub configuration.
 
 
 
