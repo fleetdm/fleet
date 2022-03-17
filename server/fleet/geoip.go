@@ -42,9 +42,14 @@ func NewMaxMindGeoIP(path string) GeoIP {
 }
 
 func (m *MaxMindGeoIP) Lookup(ctx context.Context, ip string) *GeoLocation {
+	if ip == "" {
+		return nil
+	}
 	// City has location data, so we'll start there first
-	var err error
 	parseIP := net.ParseIP(ip)
+	if parseIP == nil {
+		return nil
+	}
 	resp, err := m.reader.City(parseIP)
 	if errors.Is(err, notCityDBError) {
 		resp, err := m.reader.Country(parseIP)
