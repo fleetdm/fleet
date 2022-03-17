@@ -130,9 +130,9 @@ type TeamWebhookSettings struct {
 func (t *TeamConfig) Scan(val interface{}) error {
 	switch v := val.(type) {
 	case []byte:
-		return json.Unmarshal(v, &t)
+		return json.Unmarshal(v, t)
 	case string:
-		return json.Unmarshal([]byte(v), &t)
+		return json.Unmarshal([]byte(v), t)
 	case nil: // sql NULL
 		return nil
 	default:
