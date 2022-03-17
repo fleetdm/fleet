@@ -151,7 +151,7 @@ const generateTableHeaders = (
         return (
           <div className="column-with-tooltip">
             <span className="queries-table__performance-impact-header">
-              <TooltipWrapper tipContent="This is the average performance impact across all hosts where this query was scheduled.">
+              <TooltipWrapper tipContent="This is the average performance<br />impact across all hosts where<br />this query was scheduled.">
                 Performance impact
               </TooltipWrapper>
             </span>
