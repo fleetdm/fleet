@@ -92,11 +92,7 @@ const SoftwareTable = ({
       ) : (
         <div className="results">
           <p className="results__header">
-            No installed software detected on this host.
-          </p>
-          <p className="results__data">
-            Expecting to see software? Try again in a few seconds as the system
-            catches up.
+            No installed software detected on this device.
           </p>
         </div>
       )}

@@ -19,23 +19,24 @@ import { ISoftware } from "interfaces/software";
 // @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions";
 import ReactTooltip from "react-tooltip";
-import FleetDesktopTopNav from "components/top_nav/FleetDesktopTopNav";
+import PageError from "components/PageError";
+// @ts-ignore
+import OrgLogoIcon from "components/icons/OrgLogoIcon";
 import Spinner from "components/Spinner";
 import Button from "components/buttons/Button";
 import TabsWrapper from "components/TabsWrapper";
 import {
   humanHostUptime,
-  humanHostLastSeen,
   humanHostEnrolled,
   humanHostMemory,
   humanHostDetailUpdated,
-  secondsToHms,
 } from "fleet/helpers";
 
 import SoftwareTab from "./SoftwareTab/SoftwareTab";
 import InfoModal from "./InfoModal";
 
 import InfoIcon from "../../../assets/images/icon-info-purple-14x14@2x.png";
+import FleetIcon from "../../../assets/images/fleet-avatar-24x24@2x.png";
 
 const baseClass = "device-user";
 
@@ -97,7 +98,7 @@ const DeviceUserPage = ({
 
   const {
     isLoading: isLoadingHost,
-    data: deviceUser,
+    error: loadingDeviceUserError,
     refetch: refetchHostDetails,
   } = useQuery<IHostResponse, Error, IHostResponse>(
     ["host", deviceAuthToken],
@@ -212,14 +213,6 @@ const DeviceUserPage = ({
       "hardware_model",
       "hardware_serial",
       "primary_ip",
-    ])
-  );
-
-  const osqueryData = normalizeEmptyValues(
-    pick(host, [
-      "config_tls_refresh",
-      "logger_tls_period",
-      "distributed_interval",
     ])
   );
 
@@ -379,112 +372,124 @@ const DeviceUserPage = ({
 
   const renderShowInfoModal = () => <InfoModal onCancel={toggleInfoModal} />;
 
-  if (isLoadingHost) {
-    return <Spinner />;
-  }
-
   const statusClassName = classnames("status", `status--${host?.status}`);
 
   const renderDeviceUserPage = () => {
     return (
-      <div className={`${baseClass} body-wrap`}>
-        <div className="header title">
-          <div className="title__inner">
-            <div className="hostname-container">
-              <h1 className="hostname">My device</h1>
-              <p className="last-fetched">
-                {`Last reported vitals ${humanHostDetailUpdated(
-                  titleData.detail_updated_at
-                )}`}
-                &nbsp;
-              </p>
-              {renderRefetch()}
-            </div>
-          </div>
-          {renderActionButtons()}
-        </div>
-        <div className="section title">
-          <div className="title__inner">
-            <div className="info-flex">
-              <div className="info-flex__item info-flex__item--title">
-                <span className="info-flex__header">Status</span>
-                <span className={`${statusClassName} info-flex__data`}>
-                  {titleData.status}
-                </span>
-              </div>
-              <div className="info-flex__item info-flex__item--title">
-                <span className="info-flex__header">Disk Space</span>
-                {renderDiskSpace()}
-              </div>
-              <div className="info-flex__item info-flex__item--title">
-                <span className="info-flex__header">Memory</span>
-                <span className="info-flex__data">
-                  {wrapFleetHelper(humanHostMemory, titleData.memory)}
-                </span>
-              </div>
-              <div className="info-flex__item info-flex__item--title">
-                <span className="info-flex__header">Processor type</span>
-                <span className="info-flex__data">{titleData.cpu_type}</span>
-              </div>
-              <div className="info-flex__item info-flex__item--title">
-                <span className="info-flex__header">Operating system</span>
-                <span className="info-flex__data">{titleData.os_version}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-        <TabsWrapper>
-          <Tabs>
-            <TabList>
-              <Tab>Details</Tab>
-              <Tab>Software</Tab>
-            </TabList>
-            <TabPanel>
-              <div className="section about">
-                <p className="section__header">About</p>
-                <div className="info-grid">
-                  <div className="info-grid__block">
-                    <span className="info-grid__header">Last restarted</span>
-                    <span className="info-grid__data">
-                      {wrapFleetHelper(humanHostUptime, aboutData.uptime)}
-                    </span>
-                  </div>
-                  <div className="info-grid__block">
-                    <span className="info-grid__header">Hardware model</span>
-                    <span className="info-grid__data">
-                      {aboutData.hardware_model}
-                    </span>
-                  </div>
-                  <div className="info-grid__block">
-                    <span className="info-grid__header">Added to Fleet</span>
-                    <span className="info-grid__data">
-                      {wrapFleetHelper(
-                        humanHostEnrolled,
-                        aboutData.last_enrolled_at
-                      )}
-                    </span>
-                  </div>
-                  <div className="info-grid__block">
-                    <span className="info-grid__header">Serial number</span>
-                    <span className="info-grid__data">
-                      {aboutData.hardware_serial}
-                    </span>
-                  </div>
-                  <div className="info-grid__block">
-                    <span className="info-grid__header">IP address</span>
-                    <span className="info-grid__data">
-                      {aboutData.primary_ip}
-                    </span>
-                  </div>
-                  {renderDeviceUser()}
+      <div className="fleet-desktop-wrapper">
+        {isLoadingHost ? (
+          <Spinner />
+        ) : (
+          <div className={`${baseClass} body-wrap`}>
+            <div className="header title">
+              <div className="title__inner">
+                <div className="hostname-container">
+                  <h1 className="hostname">My device</h1>
+                  <p className="last-fetched">
+                    {`Last reported vitals ${humanHostDetailUpdated(
+                      titleData.detail_updated_at
+                    )}`}
+                    &nbsp;
+                  </p>
+                  {renderRefetch()}
                 </div>
               </div>
-            </TabPanel>
-            <TabPanel>{renderSoftware()}</TabPanel>
-          </Tabs>
-        </TabsWrapper>
+              {renderActionButtons()}
+            </div>
+            <div className="section title">
+              <div className="title__inner">
+                <div className="info-flex">
+                  <div className="info-flex__item info-flex__item--title">
+                    <span className="info-flex__header">Status</span>
+                    <span className={`${statusClassName} info-flex__data`}>
+                      {titleData.status}
+                    </span>
+                  </div>
+                  <div className="info-flex__item info-flex__item--title">
+                    <span className="info-flex__header">Disk Space</span>
+                    {renderDiskSpace()}
+                  </div>
+                  <div className="info-flex__item info-flex__item--title">
+                    <span className="info-flex__header">Memory</span>
+                    <span className="info-flex__data">
+                      {wrapFleetHelper(humanHostMemory, titleData.memory)}
+                    </span>
+                  </div>
+                  <div className="info-flex__item info-flex__item--title">
+                    <span className="info-flex__header">Processor type</span>
+                    <span className="info-flex__data">
+                      {titleData.cpu_type}
+                    </span>
+                  </div>
+                  <div className="info-flex__item info-flex__item--title">
+                    <span className="info-flex__header">Operating system</span>
+                    <span className="info-flex__data">
+                      {titleData.os_version}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <TabsWrapper>
+              <Tabs>
+                <TabList>
+                  <Tab>Details</Tab>
+                  <Tab>Software</Tab>
+                </TabList>
+                <TabPanel>
+                  <div className="section about">
+                    <p className="section__header">About</p>
+                    <div className="info-grid">
+                      <div className="info-grid__block">
+                        <span className="info-grid__header">
+                          Last restarted
+                        </span>
+                        <span className="info-grid__data">
+                          {wrapFleetHelper(humanHostUptime, aboutData.uptime)}
+                        </span>
+                      </div>
+                      <div className="info-grid__block">
+                        <span className="info-grid__header">
+                          Hardware model
+                        </span>
+                        <span className="info-grid__data">
+                          {aboutData.hardware_model}
+                        </span>
+                      </div>
+                      <div className="info-grid__block">
+                        <span className="info-grid__header">
+                          Added to Fleet
+                        </span>
+                        <span className="info-grid__data">
+                          {wrapFleetHelper(
+                            humanHostEnrolled,
+                            aboutData.last_enrolled_at
+                          )}
+                        </span>
+                      </div>
+                      <div className="info-grid__block">
+                        <span className="info-grid__header">Serial number</span>
+                        <span className="info-grid__data">
+                          {aboutData.hardware_serial}
+                        </span>
+                      </div>
+                      <div className="info-grid__block">
+                        <span className="info-grid__header">IP address</span>
+                        <span className="info-grid__data">
+                          {aboutData.primary_ip}
+                        </span>
+                      </div>
+                      {renderDeviceUser()}
+                    </div>
+                  </div>
+                </TabPanel>
+                <TabPanel>{renderSoftware()}</TabPanel>
+              </Tabs>
+            </TabsWrapper>
 
-        {showInfoModal && renderShowInfoModal()}
+            {showInfoModal && renderShowInfoModal()}
+          </div>
+        )}
       </div>
     );
   };
@@ -492,9 +497,15 @@ const DeviceUserPage = ({
   return (
     <div className="app-wrap">
       <nav className="site-nav">
-        <FleetDesktopTopNav orgLogoURL={orgLogoURL || ""} />
+        <div className="site-nav-container">
+          <ul className="site-nav-list">
+            <li className={`site-nav-item--logo`} key={`nav-item`}>
+              <OrgLogoIcon className="logo" src={orgLogoURL || FleetIcon} />
+            </li>
+          </ul>
+        </div>
       </nav>
-      <div className="fleet-desktop-wrapper">{renderDeviceUserPage()}</div>
+      {loadingDeviceUserError ? <PageError /> : renderDeviceUserPage()}
     </div>
   );
 };
