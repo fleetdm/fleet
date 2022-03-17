@@ -172,14 +172,14 @@ func TestTriggerFailingPoliciesWebhookTeam(t *testing.T) {
 		2: {
 			PolicyData: fleet.PolicyData{
 				ID:          2,
-				Name:        "policy1",
-				Query:       "select 42",
-				Description: "policy1 description",
+				Name:        "policy2",
+				Query:       "select 43",
+				Description: "policy2 description",
 				AuthorID:    ptr.Uint(1),
 				AuthorName:  "Alice",
 				AuthorEmail: "alice@example.com",
 				TeamID:      &teamID,
-				Resolution:  ptr.String("policy1 resolution"),
+				Resolution:  ptr.String("policy2 resolution"),
 				Platform:    "darwin",
 			},
 		},
