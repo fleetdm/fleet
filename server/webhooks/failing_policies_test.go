@@ -183,6 +183,20 @@ func TestTriggerFailingPoliciesWebhookTeam(t *testing.T) {
 				Platform:    "darwin",
 			},
 		},
+		3: {
+			PolicyData: fleet.PolicyData{
+				ID:          2,
+				Name:        "policy1",
+				Query:       "select 42",
+				Description: "policy1 description",
+				AuthorID:    ptr.Uint(1),
+				AuthorName:  "Alice",
+				AuthorEmail: "alice@example.com",
+				TeamID:      nil, // global policy
+				Resolution:  ptr.String("policy1 resolution"),
+				Platform:    "darwin",
+			},
+		},
 	}
 
 	ds.PolicyFunc = func(ctx context.Context, id uint) (*fleet.Policy, error) {
