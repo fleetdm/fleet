@@ -189,7 +189,4 @@ const routes = (
   </Provider>
 );
 
-// TODO: Line 183 isn't running unless theres the auth token being sent with it
-// TODO: Figure out how to render without the auth token
-
 export default routes;
