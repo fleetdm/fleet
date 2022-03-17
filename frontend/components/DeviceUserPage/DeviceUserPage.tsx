@@ -45,6 +45,7 @@ interface IDeviceUserPageProps {
 
 interface IHostResponse {
   host: IHost;
+  org_logo_url: string;
 }
 
 const DeviceUserPage = ({
@@ -59,6 +60,8 @@ const DeviceUserPage = ({
   const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
   const [showRefetchSpinner, setShowRefetchSpinner] = useState<boolean>(false);
   const [hostSoftware, setHostSoftware] = useState<ISoftware[]>([]);
+  const [host, setHost] = useState<IHost | null>();
+  const [orgLogoURL, setOrgLogoURL] = useState<string>("");
 
   const { data: deviceMapping, refetch: refetchDeviceMapping } = useQuery(
     ["deviceMapping", deviceAuthToken],
@@ -94,9 +97,9 @@ const DeviceUserPage = ({
 
   const {
     isLoading: isLoadingHost,
-    data: host,
+    data: deviceUser,
     refetch: refetchHostDetails,
-  } = useQuery<IHostResponse, Error, IHost>(
+  } = useQuery<IHostResponse, Error, IHostResponse>(
     ["host", deviceAuthToken],
     () => deviceUserAPI.loadHostDetails(deviceAuthToken),
     {
@@ -105,10 +108,10 @@ const DeviceUserPage = ({
       refetchOnReconnect: false,
       refetchOnWindowFocus: false,
       retry: false,
-      select: (data: IHostResponse) => data.host,
+      select: (data: IHostResponse) => data,
       onSuccess: (returnedHost) => {
-        setShowRefetchSpinner(returnedHost.refetch_requested);
-        if (returnedHost.refetch_requested) {
+        setShowRefetchSpinner(returnedHost.host.refetch_requested);
+        if (returnedHost.host.refetch_requested) {
           // If the API reports that a Fleet refetch request is pending, we want to check back for fresh
           // host details. Here we set a one second timeout and poll the API again using
           // fullyReloadHost. We will repeat this process with each onSuccess cycle for a total of
@@ -118,7 +121,7 @@ const DeviceUserPage = ({
             // If our 60 second timer wasn't already started (e.g., if a refetch was pending when
             // the first page loads), we start it now if the host is online. If the host is offline,
             // we skip the refetch on page load.
-            if (returnedHost.status === "online") {
+            if (returnedHost.host.status === "online") {
               setRefetchStartTime(Date.now());
               setTimeout(() => {
                 refetchHostDetails();
@@ -130,7 +133,7 @@ const DeviceUserPage = ({
           } else {
             const totalElapsedTime = Date.now() - refetchStartTime;
             if (totalElapsedTime < 60000) {
-              if (returnedHost.status === "online") {
+              if (returnedHost.host.status === "online") {
                 setTimeout(() => {
                   refetchHostDetails();
                   refetchExtensions();
@@ -156,7 +159,9 @@ const DeviceUserPage = ({
           }
           return; // exit early because refectch is pending so we can avoid unecessary steps below
         }
-        setHostSoftware(returnedHost.software);
+        setHostSoftware(returnedHost.host.software);
+        setHost(returnedHost.host);
+        setOrgLogoURL(returnedHost.org_logo_url);
       },
       onError: (error) => handlePageError(error),
     }
@@ -487,7 +492,7 @@ const DeviceUserPage = ({
   return (
     <div className="app-wrap">
       <nav className="site-nav">
-        <FleetDesktopTopNav />
+        <FleetDesktopTopNav orgLogoURL={orgLogoURL || ""} />
       </nav>
       <div className="fleet-desktop-wrapper">{renderDeviceUserPage()}</div>
     </div>

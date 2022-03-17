@@ -1,25 +1,23 @@
 import React from "react";
-
-import { IUser } from "interfaces/user";
-import { IConfig } from "interfaces/config";
+import FleetIcon from "../../../../assets/images/fleet-avatar-24x24@2x.png";
 
 // @ts-ignore
 import OrgLogoIcon from "components/icons/OrgLogoIcon";
 
 interface IFleetDesktopTopNavProps {
-  config: IConfig;
+  orgLogoURL?: string;
 }
 
 const FleetDesktopTopNav = ({
-  config,
+  orgLogoURL,
 }: IFleetDesktopTopNavProps): JSX.Element => {
-  const orgLogoURL = config.org_logo_url;
+  const logo = orgLogoURL || FleetIcon;
 
   return (
     <div className="site-nav-container">
       <ul className="site-nav-list">
         <li className={`site-nav-item--logo`} key={`nav-item`}>
-          <OrgLogoIcon className="logo" src={orgLogoURL} />
+          <OrgLogoIcon className="logo" src={logo} />
         </li>
       </ul>
     </div>

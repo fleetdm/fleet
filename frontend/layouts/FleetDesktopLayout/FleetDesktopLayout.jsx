@@ -30,8 +30,6 @@ export class FleetDesktopLayout extends Component {
     const { onLogoutUser, onNavItemClick } = this;
     const { pathname } = global.window.location;
 
-    console.log("fleetdesktoplayout.jsx");
-
     return (
       <div className="app-wrap">
         <nav className="site-nav">
