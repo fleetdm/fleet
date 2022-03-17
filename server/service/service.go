@@ -51,7 +51,7 @@ type Service struct {
 }
 
 func (s *Service) LookupGeoIP(ctx context.Context, ip string) *fleet.GeoLocation {
-	return svc.geoIP.Lookup(ctx, ip)
+	return s.geoIP.Lookup(ctx, ip)
 }
 
 // NewService creates a new service from the config struct
