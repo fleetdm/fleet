@@ -3646,8 +3646,11 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
       "author_id": 42,
       "author_name": "John",
       "author_email": "john@example.com",
+      "team_id": null,
       "resolution": "Resolution steps",
       "platform": "darwin",
+      "created_at": "2021-12-15T15:23:57Z",
+      "updated_at": "2021-12-15T15:23:57Z",
       "passing_host_count": 2000,
       "failing_host_count": 300
     },
@@ -3659,8 +3662,11 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
       "author_id": 43,
       "author_name": "Alice",
       "author_email": "alice@example.com",
+      "team_id": null,
       "resolution": "Resolution steps",
       "platform": "windows",
+      "created_at": "2021-12-31T14:52:27Z",
+      "updated_at": "2022-02-10T20:59:35Z",
       "passing_host_count": 2300,
       "failing_host_count": 0
     }
@@ -3689,18 +3695,21 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
 ```json
 {
   "policy": {
-    "id": 1,
-    "name": "Gatekeeper enabled",
-    "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
-    "description": "Checks if gatekeeper is enabled on macOS devices",
-    "author_id": 42,
-    "author_name": "John",
-    "author_email": "john@example.com",
-    "resolution": "Resolution steps",
-    "platform": "darwin",
-    "passing_host_count": 2000,
-    "failing_host_count": 300
-  }
+      "id": 1,
+      "name": "Gatekeeper enabled",
+      "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
+      "description": "Checks if gatekeeper is enabled on macOS devices",
+      "author_id": 42,
+      "author_name": "John",
+      "author_email": "john@example.com",
+      "team_id": null,
+      "resolution": "Resolution steps",
+      "platform": "darwin",
+      "created_at": "2021-12-15T15:23:57Z",
+      "updated_at": "2021-12-15T15:23:57Z",
+      "passing_host_count": 2000,
+      "failing_host_count": 300
+    }
 }
 ```
 
@@ -3758,8 +3767,11 @@ Either `query` or `query_id` must be provided.
     "author_id": 42,
     "author_name": "John",
     "author_email": "john@example.com",
+    "team_id": null,
     "resolution": "Resolution steps",
     "platform": "darwin",
+    "created_at": "2022-03-17T20:15:55Z",
+    "updated_at": "2022-03-17T20:15:55Z",
     "passing_host_count": 0,
     "failing_host_count": 0
   }
@@ -3794,8 +3806,11 @@ Where `query_id` references an existing `query`.
     "author_id": 42,
     "author_name": "John",
     "author_email": "john@example.com",
+    "team_id": null,
     "resolution": "Resolution steps",
     "platform": "darwin",
+    "created_at": "2022-03-17T20:15:55Z",
+    "updated_at": "2022-03-17T20:15:55Z",
     "passing_host_count": 0,
     "failing_host_count": 0
   }
@@ -3879,8 +3894,11 @@ Where `query_id` references an existing `query`.
     "author_id": 43,
     "author_name": "John",
     "author_email": "john@example.com",
+    "team_id": null,
     "resolution": "Resolution steps",
     "platform": "darwin",
+    "created_at": "2022-03-17T20:15:55Z",
+    "updated_at": "2022-03-17T20:15:55Z",
     "passing_host_count": 0,
     "failing_host_count": 0
   }
@@ -3933,6 +3951,8 @@ Team policies work the same as policies, but at the team level.
       "team_id": 1,
       "resolution": "Resolution steps",
       "platform": "darwin",
+      "created_at": "2021-12-16T14:37:37Z",
+      "updated_at": "2021-12-16T16:39:00Z",
       "passing_host_count": 2000,
       "failing_host_count": 300
     },
@@ -3947,6 +3967,8 @@ Team policies work the same as policies, but at the team level.
       "team_id": 1,
       "resolution": "Resolution steps",
       "platform": "windows",
+      "created_at": "2021-12-16T14:37:37Z",
+      "updated_at": "2021-12-16T16:39:00Z",
       "passing_host_count": 2300,
       "failing_host_count": 0
     }
@@ -3986,6 +4008,8 @@ Team policies work the same as policies, but at the team level.
     "team_id": 1,
     "resolution": "Resolution steps",
     "platform": "darwin",
+    "created_at": "2021-12-16T14:37:37Z",
+    "updated_at": "2021-12-16T16:39:00Z",
     "passing_host_count": 0,
     "failing_host_count": 0
   }
@@ -4045,6 +4069,8 @@ Either `query` or `query_id` must be provided.
     "team_id": 1,
     "resolution": "Resolution steps",
     "platform": "darwin",
+    "created_at": "2021-12-16T14:37:37Z",
+    "updated_at": "2021-12-16T16:39:00Z",
     "passing_host_count": 0,
     "failing_host_count": 0
   }
@@ -4133,6 +4159,8 @@ Either `query` or `query_id` must be provided.
     "resolution": "Resolution steps",
     "platform": "darwin",
     "team_id": 2,
+    "created_at": "2021-12-16T14:37:37Z",
+    "updated_at": "2021-12-16T16:39:00Z",
     "passing_host_count": 0,
     "failing_host_count": 0
   }
