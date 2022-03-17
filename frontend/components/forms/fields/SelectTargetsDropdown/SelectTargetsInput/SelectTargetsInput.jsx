@@ -52,13 +52,17 @@ class SelectTargetsInput extends Component {
 
     const { handleInputChange } = this;
 
+    // must have unique key to select correctly
     const uniqueKeyTargets = targets.map((target) => ({
       ...target,
       unique_key: target.uuid || `${target.target_type}-${target.id}`,
     }));
 
-    console.log("targets", targets);
-    console.log("uniqueKeyTargets", uniqueKeyTargets);
+    // must have unique key to deselect correctly
+    const uniqueSelectedTargets = selectedTargets.map((target) => ({
+      ...target,
+      unique_key: target.uuid || `${target.target_type}-${target.id}`,
+    }));
 
     return (
       <Select
@@ -80,7 +84,7 @@ class SelectTargetsInput extends Component {
         resetValue={[]}
         scrollMenuIntoView={false}
         tabSelectsValue={false}
-        value={selectedTargets}
+        value={uniqueSelectedTargets}
         valueKey="unique_key" // must be unique, target ids are not unique
       />
     );
