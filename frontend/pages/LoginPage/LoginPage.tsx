@@ -65,7 +65,7 @@ const LoginPage = ({
     const { HOME, LOGIN } = paths;
 
     if (user && pathname === LOGIN) {
-      router.push(HOME);
+      router?.push(HOME);
     }
   }, [router]);
 
