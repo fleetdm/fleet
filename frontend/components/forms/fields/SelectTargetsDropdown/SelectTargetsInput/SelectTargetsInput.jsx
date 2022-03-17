@@ -52,6 +52,14 @@ class SelectTargetsInput extends Component {
 
     const { handleInputChange } = this;
 
+    const uniqueKeyTargets = targets.map((target) => ({
+      ...target,
+      unique_key: target.uuid || `${target.target_type}-${target.id}`,
+    }));
+
+    console.log("targets", targets);
+    console.log("uniqueKeyTargets", uniqueKeyTargets);
+
     return (
       <Select
         className={`${className} target-select`}
@@ -62,7 +70,7 @@ class SelectTargetsInput extends Component {
         menuRenderer={menuRenderer}
         multi
         name="targets"
-        options={targets}
+        options={uniqueKeyTargets}
         onChange={onTargetSelect}
         onClose={onClose}
         onOpen={onOpen}
@@ -73,7 +81,7 @@ class SelectTargetsInput extends Component {
         scrollMenuIntoView={false}
         tabSelectsValue={false}
         value={selectedTargets}
-        valueKey="display_text" // must be unique, target ids are not unique
+        valueKey="unique_key" // must be unique, target ids are not unique
       />
     );
   }
