@@ -245,7 +245,7 @@ We configure Chrome on company-owned devices with a basic policy.
 | --------------------------------------------------------- |
 | Enforce Chrome updates and Chrome restart within 48 hours |
 | Block intrusive ads                                       |
-| uBlock Origin ad blocker extension deployed               |
+| uBlock Origin adblocker extension deployed               |
 | Password manager extension deployed                       |
 | Chrome Endpoint Verification extension deployed           |
 
@@ -255,14 +255,96 @@ We configure Chrome on company-owned devices with a basic policy.
 
 **User experience impact**
 
-* Chrome needs to be restarted within 48 hours of patches being installed. The automatic restart happens after 19:00 and before 6:00 if the computer is running, and tabs are restored (except for incognito tabs).
+* Chrome needs to be restarted within 48 hours of patch installation. The automatic restart happens after 19:00 and before 6:00 if the computer is running, and tabs are restored (except for incognito tabs).
 * Ads considered intrusive are blocked.
 * uBlock Origin is enabled by default, and is 100% configurable, improving security and performance of browsing.
 * Endpoint Verification is used to make access decisions based on the security posture of the device. For example, an outdated Mac could be prevented access to Google Drive.
 
 ### Personal mobile devices
 
-The use of personal devices is allowed for some applications, as long as the iOS or Android device is kept up to date.
+The use of personal devices is allowed for some applications, as long as the iOS or Android device
+is kept up to date.
+
+## GitHub Security
+We need to host and collaborate on code as a company making open-source software! We do this using GitHub.
+
+This section covers our GitHub configuration. Like everything we do, we aim for the right level of security and productivity.
+
+We are concerned about the integrity of the code much more than by its confidentiality, because our
+code is open-source. This is why our configuration is aimed at protecting what is in the code, but we spend no
+effort preventing "leaks", since almost everything is public anyway.
+
+### Authentication
+
+Authentication is the lynchpin of security on SaaS applications such as GitHub.
+
+GitHub authentication differs from many SaaS products in one crucial way: accounts are global. Developers can carry their accounts from company to company and use them for open source projects.
+
+Require two-factor authentication for everyone in the organization.
+We do not require SSO - as most of the software we work on is open-source and accessible to external collaborators and GitHub charges a 4x premium for it. As our security requirements increase, we will consider it, but for the moment, enforcing 2FA and code reviews is good enough.
+
+### Code security and analysis
+
+
+| Code security and analysis feature | Setting                                                            | Note                                                                        |
+| ---------------------------------- | ------------------------------------------------------------------ | --------------------------------------------------------------------------- |
+| Dependency graph                   | Automatically enable for new private repositories + enabled on all | Default on all public repositories                                               |
+| Dependabot alerts                  | Automatically enable for new repositories + enabled for all        | We want to be alerted if any dependency is vulnerable                       |
+| Dependabot security updates        | Automatically enable for new repositories                          | This automatically creates PRs to fix vulnerable dependencies when possible |
+
+### Member Privileges
+
+| Member privileges feature | Setting | Note                                                                                                                         |
+| ------------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Base permissions          | Write   | Admin is too powerful, as it allows reconfiguring the repositories themselves. Write is the perfect balance!                 |
+| Repository creation       | None    | We want to limit repository creation in general, and eventually automate it  with the [GitHub Terraform provider](https://github.com/integrations/terraform-provider-github)     |
+| Repository forking        | Enabled | By default, we allow repository forking                                                                                      |
+| Pages creation            | None    | We do not use GitHub pages, so we disable them to be sure people use our actual website or handbook which are also in GitHub |
+
+#### Admin repository permissions
+
+| Admin privileges feature                                                   | Member privileges feature | Note                                                                                                                                                                          |
+| -------------------------------------------------------------------------- | ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Allow members to change repository visibilities for this organization      | 🚫                   | Most of our repos are public, but for the few that are private we want to require org admin privileges to make them public                                                    |
+| Allow members to delete or transfer repositories for this organization     | 🚫                   | We want to require org admin privileges to be able to delete or transfer any repository                                                                                       |
+| Allow repository administrators to delete issues for this organization     | 🚫                   | We want to require org admin privileges to be able to delete issues, which is something that is very rarely needed but could be, for example if we received GitHub issue spam |
+| Allow members to see comment author's profile name in private repositories | 🚫                   | We barely use private repositories, and have no need for this.                                                                                                                |
+| Allow users with read access to create discussions                         | 🚫                   | We do not currently use discussions, and want people to use issues as much as possible.                                                                                       |
+| Allow members to create teams                                              | 🚫                   | We want to automate the management of GitHub teams with the [GitHub Terraform provider](https://github.com/integrations/terraform-provider-github)                            |
+
+### Team Discussions
+We do not use team discussions, and therefore have disabled it. This is simply to avoid discussions
+being located into to many places, and not security related.
+
+### Repository Security
+
+#### Branch protection
+Branch protection is one of the most important settings to configure, and the main reason we should not have members with administrative privileges on the repositories.
+
+Located in the Branches section of repository settings, we create a rule for **main** that applies:
+
+| Setting                                                          | Value | Note                                                                                                                  |
+| ---------------------------------------------------------------- | ----- | --------------------------------------------------------------------------------------------------------------------- |
+| Require a pull request before merging                            | ✅     | We enforce code reviews, which require PRs.                                                                           |
+| Require approvals                                                | 1️⃣   | We require approval from one person in the team.                                                                      |
+| Dismiss stale pull request approvals when new commits are pushed | ✅     | Without this, someone could get approval for a small, very nice PR then change everything about it!                   |
+| Require review from Code Owners                                  | 🗓     | We are working towards enabling this, but at our current size, it is not needed.                                      |
+| Restrict who can dismiss pull request reviews                    | 🚫     | As we are a team working in multiple timezones, we want to allow dismissing reviews and getting another one.          |
+| Allow specified actors to bypass required pull requests          | 🚫     | We do not want anyone pushing directly to main.                                                                       |
+| Require status checks to pass before merging                     | ✅     | Because of our monorepo, it is hard to pick many checks that work for all types of PRs, but we still enable this.     |
+| Require conversation resolution before merging                   | 🚫     | Reviewers should not approve if they do not think it's ready for merging.                                             |
+| Require signed commits                                           | 🗓     | We are working towards enabling this, manually keeping track of unverified commits.                                   |
+| Require linear history                                           | 🚫     |                                                                                                                       |
+| Include administrators                                           | ✅     | We want these rules to apply to *everyone*.                                                                           |
+| Restrict who can push to matching branches                       | 🚫     | Anyone in our organization should be able to merge PRs that get reviewed, and nobody should be able to push directly. |
+| Allow force pushes                                               | 🚫     | We have never had a need for this, so we do not allow it.                                                             |
+| Allow deletions                                                  | 🚫     | We do not want ANYONE to be able to delete the *main* branch.                                                         |
+
+### Scanning tools
+Though not technically a part of GitHub itself, we feel like the security tools we use to scan our
+code, workflows and GitHub configuration are part of our overall GitHub configuration.
+
+
 
 ## Google Workspace security
 Google Workspace is our collaboration tool and the source of truth for our user identities.
