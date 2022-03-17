@@ -26,7 +26,6 @@ import PremiumTierRoutes from "components/PremiumTierRoutes";
 import ConfirmInvitePage from "pages/ConfirmInvitePage";
 import ConfirmSSOInvitePage from "pages/ConfirmSSOInvitePage";
 import CoreLayout from "layouts/CoreLayout";
-import FleetDesktopLayout from "layouts/FleetDesktopLayout";
 import DeviceUserPage from "components/DeviceUserPage";
 import EditPackPage from "pages/packs/EditPackPage";
 import EmailTokenRedirect from "components/EmailTokenRedirect";

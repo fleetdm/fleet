@@ -50,7 +50,7 @@ interface IHostResponse {
 }
 
 const DeviceUserPage = ({
-  params: { device_auth_token: device_auth_token },
+  params: { device_auth_token },
 }: IDeviceUserPageProps): JSX.Element => {
   const deviceAuthToken = device_auth_token;
   const dispatch = useDispatch();
