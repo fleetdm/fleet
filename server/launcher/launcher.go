@@ -73,13 +73,14 @@ func (svc *launcherWrapper) RequestQueries(ctx context.Context, nodeKey string) 
 		return nil, invalid, err
 	}
 
-	queryMap, accelerate, err := svc.tls.GetDistributedQueries(newCtx)
+	queryMap, discoveryMap, accelerate, err := svc.tls.GetDistributedQueries(newCtx)
 	if err != nil {
 		return nil, false, ctxerr.Wrap(ctx, err, "get queries for launcher")
 	}
 
 	result := &distributed.GetQueriesResult{
 		Queries:           queryMap,
+		Discovery:         discoveryMap,
 		AccelerateSeconds: int(accelerate),
 	}
 

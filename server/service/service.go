@@ -90,7 +90,7 @@ func NewService(
 	return validationMiddleware{svc, ds, sso}, nil
 }
 
-func (s Service) SendEmail(mail fleet.Email) error {
+func (s *Service) SendEmail(mail fleet.Email) error {
 	return s.mailService.SendEmail(mail)
 }
 

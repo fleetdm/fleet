@@ -11,14 +11,20 @@ on:
       - '**.go'
   workflow_dispatch: # Manual
 
+permissions:
+  contents: read
+
 jobs:
   golangci:
+    permissions:
+      contents: read  # for actions/checkout to fetch code
+      pull-requests: read  # for golangci/golangci-lint-action to fetch pull requests
     name: lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@629c2de402a417ea7690ca6ce3f33229e27606a5 # v2
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v2
+        uses: golangci/golangci-lint-action@5c56cd6c9dc07901af25baab6f2b0d9f3b7c3018 # v2
         with:
           # Required: the version of golangci-lint is required and must be
           # specified without patch version: we always use the latest patch

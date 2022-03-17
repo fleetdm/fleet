@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
     - name: checkout
-      uses: actions/checkout@v2
+      uses: actions/checkout@629c2de402a417ea7690ca6ce3f33229e27606a5 # v2
     - name: create temp dir
       run: mkdir -p helm-temp
     - name: helm template -- default values
@@ -40,7 +40,7 @@ jobs:
           > helm-temp/${FILE}
         done
     - name: kubeval sanity check
-      uses: instrumenta/kubeval-action@master
+      uses: instrumenta/kubeval-action@5915e4adba5adccac07cb156b82e54c3fed74921 # master
       with:
         files: helm-temp
         version: ${{ matrix.kube-version }}

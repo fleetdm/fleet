@@ -70,6 +70,18 @@ func (a *Authorizer) SkipAuthorization(ctx context.Context) {
 	}
 }
 
+// IsAuthenticatedWith returns true if the request has been authenticated with
+// the specified authentication method, false otherwise. This is useful to avoid
+// calling Authorize if the request is authenticated with a method that doesn't
+// support granular authorizations - provided it is ok to grant access to the
+// protected data.
+func (a *Authorizer) IsAuthenticatedWith(ctx context.Context, method authz_ctx.AuthenticationMethod) bool {
+	if authctx, ok := authz_ctx.FromContext(ctx); ok {
+		return authctx.AuthnMethod() == method
+	}
+	return false
+}
+
 // Authorize checks authorization for the provided object, and action,
 // retrieving the subject from the context.
 //

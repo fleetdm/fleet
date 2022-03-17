@@ -1,0 +1,34 @@
+name: Generate osqueryd.app.tar.gz for Orbit
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      # The workflow can be triggered by modifying OSQUERY_VERSION env.
+      - '.github/workflows/generate-osqueryd-app-tar-gz.yml'
+  pull_request:
+    paths:
+      # The workflow can be triggered by modifying OSQUERY_VERSION env.
+      - '.github/workflows/generate-osqueryd-app-tar-gz.yml'
+  workflow_dispatch:
+
+env:
+  OSQUERY_VERSION: 5.2.2
+
+jobs:
+  generate:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@629c2de402a417ea7690ca6ce3f33229e27606a5 # v2
+
+      - name: Generate osqueryd.app.tar.gz
+        run: |
+          make osqueryd-app-tar-gz out-path=. version=$OSQUERY_VERSION
+
+      - name: Upload osqueryd.app.tar.gz
+        uses: actions/upload-artifact@82c141cc518b40d92cc801eee768e7aafc9c2fa2 # v2
+        with:
+          name: osqueryd.app.tar.gz
+          path: osqueryd.app.tar.gz

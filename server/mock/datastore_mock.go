@@ -170,6 +170,10 @@ type CountHostsInLabelFunc func(ctx context.Context, filter fleet.TeamFilter, li
 
 type ListHostDeviceMappingFunc func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error)
 
+type LoadHostByDeviceAuthTokenFunc func(ctx context.Context, authToken string) (*fleet.Host, error)
+
+type SetOrUpdateDeviceAuthTokenFunc func(ctx context.Context, hostID uint, authToken string) error
+
 type ListPoliciesForHostFunc func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error)
 
 type GetMunkiVersionFunc func(ctx context.Context, hostID uint) (string, error)
@@ -190,7 +194,7 @@ type NewPasswordResetRequestFunc func(ctx context.Context, req *fleet.PasswordRe
 
 type DeletePasswordResetRequestsForUserFunc func(ctx context.Context, userID uint) error
 
-type FindPassswordResetByTokenFunc func(ctx context.Context, token string) (*fleet.PasswordResetRequest, error)
+type FindPasswordResetByTokenFunc func(ctx context.Context, token string) (*fleet.PasswordResetRequest, error)
 
 type SessionByKeyFunc func(ctx context.Context, key string) (*fleet.Session, error)
 
@@ -620,6 +624,12 @@ type DataStore struct {
 	ListHostDeviceMappingFunc        ListHostDeviceMappingFunc
 	ListHostDeviceMappingFuncInvoked bool
 
+	LoadHostByDeviceAuthTokenFunc        LoadHostByDeviceAuthTokenFunc
+	LoadHostByDeviceAuthTokenFuncInvoked bool
+
+	SetOrUpdateDeviceAuthTokenFunc        SetOrUpdateDeviceAuthTokenFunc
+	SetOrUpdateDeviceAuthTokenFuncInvoked bool
+
 	ListPoliciesForHostFunc        ListPoliciesForHostFunc
 	ListPoliciesForHostFuncInvoked bool
 
@@ -650,8 +660,8 @@ type DataStore struct {
 	DeletePasswordResetRequestsForUserFunc        DeletePasswordResetRequestsForUserFunc
 	DeletePasswordResetRequestsForUserFuncInvoked bool
 
-	FindPassswordResetByTokenFunc        FindPassswordResetByTokenFunc
-	FindPassswordResetByTokenFuncInvoked bool
+	FindPasswordResetByTokenFunc        FindPasswordResetByTokenFunc
+	FindPasswordResetByTokenFuncInvoked bool
 
 	SessionByKeyFunc        SessionByKeyFunc
 	SessionByKeyFuncInvoked bool
@@ -1334,6 +1344,16 @@ func (s *DataStore) ListHostDeviceMapping(ctx context.Context, id uint) ([]*flee
 	return s.ListHostDeviceMappingFunc(ctx, id)
 }
 
+func (s *DataStore) LoadHostByDeviceAuthToken(ctx context.Context, authToken string) (*fleet.Host, error) {
+	s.LoadHostByDeviceAuthTokenFuncInvoked = true
+	return s.LoadHostByDeviceAuthTokenFunc(ctx, authToken)
+}
+
+func (s *DataStore) SetOrUpdateDeviceAuthToken(ctx context.Context, hostID uint, authToken string) error {
+	s.SetOrUpdateDeviceAuthTokenFuncInvoked = true
+	return s.SetOrUpdateDeviceAuthTokenFunc(ctx, hostID, authToken)
+}
+
 func (s *DataStore) ListPoliciesForHost(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
 	s.ListPoliciesForHostFuncInvoked = true
 	return s.ListPoliciesForHostFunc(ctx, host)
@@ -1384,9 +1404,9 @@ func (s *DataStore) DeletePasswordResetRequestsForUser(ctx context.Context, user
 	return s.DeletePasswordResetRequestsForUserFunc(ctx, userID)
 }
 
-func (s *DataStore) FindPassswordResetByToken(ctx context.Context, token string) (*fleet.PasswordResetRequest, error) {
-	s.FindPassswordResetByTokenFuncInvoked = true
-	return s.FindPassswordResetByTokenFunc(ctx, token)
+func (s *DataStore) FindPasswordResetByToken(ctx context.Context, token string) (*fleet.PasswordResetRequest, error) {
+	s.FindPasswordResetByTokenFuncInvoked = true
+	return s.FindPasswordResetByTokenFunc(ctx, token)
 }
 
 func (s *DataStore) SessionByKey(ctx context.Context, key string) (*fleet.Session, error) {

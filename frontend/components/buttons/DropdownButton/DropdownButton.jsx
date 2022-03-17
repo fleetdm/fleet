@@ -92,7 +92,7 @@ export class DropdownButton extends Component {
     return (
       <div className={`${baseClass}__wrapper`} ref={setDOMNode}>
         <Button
-          className={`${buttonClass} downcarat`}
+          className={`${buttonClass} downcaret`}
           disabled={disabled}
           onClick={toggleDropdown}
           size={size}

@@ -101,11 +101,11 @@ func InitializeUpdates(updateOpt update.Options) (*UpdatesData, error) {
 	if err := updater.UpdateMetadata(); err != nil {
 		return nil, fmt.Errorf("failed to update metadata: %w", err)
 	}
-	osquerydPath, err := updater.Get("osqueryd", updateOpt.OsquerydChannel)
+	osquerydPath, err := updater.Get("osqueryd")
 	if err != nil {
 		return nil, fmt.Errorf("failed to get osqueryd: %w", err)
 	}
-	osquerydMeta, err := updater.Lookup("osqueryd", updateOpt.OsquerydChannel)
+	osquerydMeta, err := updater.Lookup("osqueryd")
 	if err != nil {
 		return nil, fmt.Errorf("failed to get osqueryd metadata: %w", err)
 	}
@@ -116,11 +116,11 @@ func InitializeUpdates(updateOpt update.Options) (*UpdatesData, error) {
 	if err := json.Unmarshal(*osquerydMeta.Custom, &osquerydCustom); err != nil {
 		return nil, fmt.Errorf("failed to get osqueryd version: %w", err)
 	}
-	orbitPath, err := updater.Get("orbit", updateOpt.OrbitChannel)
+	orbitPath, err := updater.Get("orbit")
 	if err != nil {
 		return nil, fmt.Errorf("failed to get orbit: %w", err)
 	}
-	orbitMeta, err := updater.Lookup("orbit", updateOpt.OrbitChannel)
+	orbitMeta, err := updater.Lookup("orbit")
 	if err != nil {
 		return nil, fmt.Errorf("failed to get orbit metadata: %w", err)
 	}
@@ -130,7 +130,7 @@ func InitializeUpdates(updateOpt update.Options) (*UpdatesData, error) {
 	}
 
 	if devBuildPath := os.Getenv("FLEETCTL_ORBIT_DEV_BUILD_PATH"); devBuildPath != "" {
-		updater.CopyDevBuild("orbit", updateOpt.OrbitChannel, devBuildPath)
+		updater.CopyDevBuild("orbit", devBuildPath)
 	}
 
 	return &UpdatesData{

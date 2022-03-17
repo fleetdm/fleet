@@ -13,7 +13,7 @@ const baseClass = "api-only-user";
 const ApiOnlyUser = (): JSX.Element => {
   const dispatch = useDispatch();
   const { LOGIN, HOME } = paths;
-  const handleClick = (event: any) => dispatch(logoutUser());
+  const handleClick = () => dispatch(logoutUser());
 
   useEffect(() => {
     dispatch(fetchCurrentUser()).then((user: any) => {

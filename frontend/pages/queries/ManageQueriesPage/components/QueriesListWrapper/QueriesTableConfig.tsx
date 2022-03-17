@@ -30,7 +30,7 @@ interface IGetToggleAllRowsSelectedProps {
   checked: boolean;
   indeterminate: boolean;
   title: string;
-  onChange: () => any;
+  onChange: () => void;
   style: { cursor: string };
 }
 interface IHeaderProps {
@@ -44,11 +44,7 @@ interface IHeaderProps {
   rows: IQueryRow[];
   selectedFlatRows: IQueryRow[];
 }
-
-interface ICellProps {
-  cell: {
-    value: any;
-  };
+interface IRowProps {
   row: {
     original: IQuery;
     getToggleRowSelectedProps: () => IGetToggleAllRowsSelectedProps;
@@ -57,9 +53,23 @@ interface ICellProps {
   toggleRowSelected: (id: string, value: boolean) => void;
 }
 
+interface ICellProps extends IRowProps {
+  cell: {
+    value: string;
+  };
+}
+
+interface IPlatformCellProps extends IRowProps {
+  cell: {
+    value: string[];
+  };
+}
+
 interface IDataColumn {
   Header: ((props: IHeaderProps) => JSX.Element) | string;
-  Cell: (props: ICellProps) => JSX.Element;
+  Cell:
+    | ((props: ICellProps) => JSX.Element)
+    | ((props: IPlatformCellProps) => JSX.Element);
   id?: string;
   title?: string;
   accessor?: string;
@@ -99,7 +109,7 @@ const generateTableHeaders = (currentUser: IUser): IDataColumn[] => {
       Header: "Platform",
       disableSortBy: true,
       accessor: "platforms",
-      Cell: (cellProps: ICellProps): JSX.Element => {
+      Cell: (cellProps: IPlatformCellProps): JSX.Element => {
         return <PlatformCell value={cellProps.cell.value} />;
       },
     },
@@ -124,7 +134,7 @@ const generateTableHeaders = (currentUser: IUser): IDataColumn[] => {
       },
       disableSortBy: true,
       accessor: "performance",
-      Cell: (cellProps) => (
+      Cell: (cellProps: ICellProps) => (
         <PillCell value={[cellProps.cell.value, cellProps.row.original.id]} />
       ),
     },

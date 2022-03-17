@@ -17,6 +17,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"github.com/throttled/throttled/v2"
 )
 
 type withDS struct {
@@ -36,19 +37,22 @@ func (ts *withDS) TearDownSuite() {
 type withServer struct {
 	withDS
 
-	server *httptest.Server
-	users  map[string]fleet.User
-	token  string
+	server           *httptest.Server
+	users            map[string]fleet.User
+	token            string
+	cachedAdminToken string
 }
 
 func (ts *withServer) SetupSuite(dbName string) {
 	ts.withDS.SetupSuite(dbName)
 
+	loginRateLimit = throttled.PerMin(100)
 	rs := pubsub.NewInmemQueryResults()
 	users, server := RunServerForTestsWithDS(ts.s.T(), ts.ds, TestServerOpts{Rs: rs})
 	ts.server = server
 	ts.users = users
 	ts.token = ts.getTestAdminToken()
+	ts.cachedAdminToken = ts.token
 }
 
 func (ts *withServer) TearDownSuite() {
@@ -122,7 +126,13 @@ func (ts *withServer) DoJSON(verb, path string, params interface{}, expectedStat
 func (ts *withServer) getTestAdminToken() string {
 	testUser := testUsers["admin1"]
 
-	return ts.getTestToken(testUser.Email, testUser.PlaintextPassword)
+	// because the login endpoint is rate-limited, use the cached admin token
+	// if available (if for some reason a test needs to logout the admin user,
+	// then set cachedAdminToken = "" so that a new token is retrieved).
+	if ts.cachedAdminToken == "" {
+		ts.cachedAdminToken = ts.getTestToken(testUser.Email, testUser.PlaintextPassword)
+	}
+	return ts.cachedAdminToken
 }
 
 func (ts *withServer) getTestToken(email string, password string) string {

@@ -709,8 +709,8 @@ func (ds *Datastore) EnrollHost(ctx context.Context, osqueryHostID, nodeKey stri
 	return &host, nil
 }
 
-// GetContextTryStmt will attempt to run sqlx.GetContext on a cached statement if available, resorting to ds.reader.
-func (ds *Datastore) GetContextTryStmt(ctx context.Context, dest interface{}, query string, args ...interface{}) error {
+// getContextTryStmt will attempt to run sqlx.GetContext on a cached statement if available, resorting to ds.reader.
+func (ds *Datastore) getContextTryStmt(ctx context.Context, dest interface{}, query string, args ...interface{}) error {
 	var err error
 	//nolint the statements are closed in Datastore.Close.
 	if stmt := ds.loadOrPrepareStmt(ctx, query); stmt != nil {
@@ -727,7 +727,7 @@ func (ds *Datastore) LoadHostByNodeKey(ctx context.Context, nodeKey string) (*fl
 	query := `SELECT * FROM hosts WHERE node_key = ?`
 
 	var host fleet.Host
-	switch err := ds.GetContextTryStmt(ctx, &host, query, nodeKey); {
+	switch err := ds.getContextTryStmt(ctx, &host, query, nodeKey); {
 	case err == nil:
 		return &host, nil
 	case errors.Is(err, sql.ErrNoRows):
@@ -735,6 +735,41 @@ func (ds *Datastore) LoadHostByNodeKey(ctx context.Context, nodeKey string) (*fl
 	default:
 		return nil, ctxerr.Wrap(ctx, err, "find host")
 	}
+}
+
+// LoadHostByDeviceAuthToken loads the whole host identified by the device auth token.
+// If the token is invalid it returns a NotFoundError.
+func (ds *Datastore) LoadHostByDeviceAuthToken(ctx context.Context, authToken string) (*fleet.Host, error) {
+	const query = `
+    SELECT
+      h.*
+    FROM
+      host_device_auth hda
+    INNER JOIN
+      hosts h
+    ON
+      hda.host_id = h.id
+    WHERE hda.token = ?`
+
+	var host fleet.Host
+	switch err := sqlx.GetContext(ctx, ds.reader, &host, query, authToken); {
+	case err == nil:
+		return &host, nil
+	case errors.Is(err, sql.ErrNoRows):
+		return nil, ctxerr.Wrap(ctx, notFound("Host"))
+	default:
+		return nil, ctxerr.Wrap(ctx, err, "find host")
+	}
+}
+
+// SetOrUpdateDeviceAuthToken inserts or updates the auth token for a host.
+func (ds *Datastore) SetOrUpdateDeviceAuthToken(ctx context.Context, hostID uint, authToken string) error {
+	return ds.updateOrInsert(
+		ctx,
+		`UPDATE host_device_auth SET token=? WHERE host_id=?`,
+		`INSERT INTO host_device_auth(token, host_id) VALUES (?,?)`,
+		authToken, hostID,
+	)
 }
 
 func (ds *Datastore) MarkHostsSeen(ctx context.Context, hostIDs []uint, t time.Time) error {
