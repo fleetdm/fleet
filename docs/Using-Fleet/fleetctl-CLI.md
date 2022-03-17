@@ -199,7 +199,7 @@ Now that `fleetctl` and the Fleet server are configured, it can be helpful to cr
 To create your new API-only user using `fleetctl user create` and passing a name, email and password and setting the `api-only` flag to `true`:
 
 ```
-fleetctl user create --name "API User" --email api@example.com --password temp!pass --global-role observer --api-only true
+fleetctl user create --name "API User" --email api@example.com --password temp!pass --api-only
 ```
 
 ### Reset the password
