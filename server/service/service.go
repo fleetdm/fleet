@@ -50,7 +50,7 @@ type Service struct {
 	geoIP fleet.GeoIP
 }
 
-func (svc *Service) LookupGeoIP(ctx context.Context, ip string) *fleet.GeoLocation {
+func (s *Service) LookupGeoIP(ctx context.Context, ip string) *fleet.GeoLocation {
 	return svc.geoIP.Lookup(ctx, ip)
 }
 
