@@ -180,9 +180,7 @@ const routes = (
             </Route>
           </Route>
         </Route>
-        <Route component={FleetDesktopLayout}>
-          <Route path="/device/:device_auth_token" component={DeviceUserPage} />
-        </Route>
+        <Route path="/device/:device_auth_token" component={DeviceUserPage} />
       </Route>
       <Route path="/apionlyuser" component={ApiOnlyUser} />
       <Route path="/404" component={Fleet404} />
