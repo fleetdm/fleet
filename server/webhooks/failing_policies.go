@@ -147,6 +147,15 @@ func TriggerFailingPoliciesWebhook(
 		}
 
 		// global policy
+		_, ok := globalPolicyIDs[policy.ID]
+		if !ok {
+			level.Debug(logger).Log("msg", "skipping failing policy, not found in global policy IDs", "policyID", policyID)
+			if err := failingPoliciesSet.RemoveSet(policy.ID); err != nil {
+				level.Error(logger).Log("msg", "failed to remove policy from set", "policyID", policyID, "err", err)
+			}
+			continue
+		}
+
 		err = sendFailingPoliciesBatchedPOSTs(
 			ctx,
 			policy,
