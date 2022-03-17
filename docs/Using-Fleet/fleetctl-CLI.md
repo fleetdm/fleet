@@ -196,7 +196,7 @@ Now that `fleetctl` and the Fleet server are configured, it can be helpful to cr
 
 ### Create an API-only user
 
-To create your new API-only user using `fleetctl user create` and passing a name, email and password and setting the `api-only` flag to `true`:
+To create your new API-only user using `fleetctl user create` and picking a name, email, and password and setting the `api-only` flag to `true`:
 
 ```
 fleetctl user create --name "API User" --email api@example.com --password temp!pass --api-only
@@ -250,7 +250,7 @@ Now that the password has been reset, you will need to log in again using the up
 
 ### Create a new context for your standard user (optional)
 
-If you would like to use your API user by default for automated workflows and still use `fleetctl` with your standard user account, you can create an additional context. In the example below, a new `admin` context will be created:
+If you would like to use your API user by default for automated workflows and still use `fleetctl` with your standard user account, you can create an additional context. In the example below, a new `admin` context will be created.
 
 ```
 fleetctl config set --address https://fleet.corp.example.com --context admin
