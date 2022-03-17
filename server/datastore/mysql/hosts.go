@@ -1567,7 +1567,7 @@ func (ds *Datastore) UpdateHost(ctx context.Context, host *fleet.Host) error {
 			team_id = ?,
 			primary_ip = ?,
 			primary_mac = ?,
-		    public_ip = ?,
+			public_ip = ?,
 			refetch_requested = ?,
 			gigs_disk_space_available = ?,
 			percent_disk_space_available = ?
