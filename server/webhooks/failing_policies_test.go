@@ -159,7 +159,7 @@ func TestTriggerFailingPoliciesWebhookTeam(t *testing.T) {
 			PolicyData: fleet.PolicyData{
 				ID:          1,
 				Name:        "policy1",
-				Query:       "select 42",
+				Query:       "select 1",
 				Description: "policy1 description",
 				AuthorID:    ptr.Uint(1),
 				AuthorName:  "Alice",
@@ -173,7 +173,7 @@ func TestTriggerFailingPoliciesWebhookTeam(t *testing.T) {
 			PolicyData: fleet.PolicyData{
 				ID:          2,
 				Name:        "policy2",
-				Query:       "select 43",
+				Query:       "select 2",
 				Description: "policy2 description",
 				AuthorID:    ptr.Uint(1),
 				AuthorName:  "Alice",
@@ -186,14 +186,14 @@ func TestTriggerFailingPoliciesWebhookTeam(t *testing.T) {
 		3: {
 			PolicyData: fleet.PolicyData{
 				ID:          2,
-				Name:        "policy1",
-				Query:       "select 42",
-				Description: "policy1 description",
+				Name:        "policy3",
+				Query:       "select 3",
+				Description: "policy3 description",
 				AuthorID:    ptr.Uint(1),
 				AuthorName:  "Alice",
 				AuthorEmail: "alice@example.com",
 				TeamID:      nil, // global policy
-				Resolution:  ptr.String("policy1 resolution"),
+				Resolution:  ptr.String("policy3 resolution"),
 				Platform:    "darwin",
 			},
 		},
