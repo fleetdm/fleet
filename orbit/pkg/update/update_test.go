@@ -57,7 +57,8 @@ func TestMakeRepoPath(t *testing.T) {
 			var opt Options
 			// Must deep copy DefaultOptions, otherwise there is a race condition when modifying the
 			// opt.Targets map in parallel tests below.
-			copier.Copy(&opt, &DefaultOptions)
+			err := copier.CopyWithOption(&opt, DefaultOptions, copier.Option{DeepCopy: true})
+			require.NoError(t, err)
 
 			osqueryd := opt.Targets[tt.name]
 			osqueryd.Platform = tt.platform
