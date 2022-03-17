@@ -3,12 +3,12 @@ package service
 import (
 	"context"
 	"errors"
-	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
 	"net/http"
 	"regexp"
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
+	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/authzcheck"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/ratelimit"
