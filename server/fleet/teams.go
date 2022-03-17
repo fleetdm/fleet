@@ -34,7 +34,7 @@ type Team struct {
 	Name string `json:"name" db:"name"`
 	// Description is an optional description for the team.
 	Description string     `json:"description" db:"description"`
-	Config      TeamConfig `json:"-" db:"config"`
+	Config      TeamConfig `json:"-" db:"config"` // see json.MarshalJSON/UnmarshalJSON implementations
 
 	// Derived from JOINs
 
