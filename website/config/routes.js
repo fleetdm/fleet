@@ -193,7 +193,7 @@ module.exports.routes = {
   'GET /legal':                      '/legal/terms',
   'GET /terms':                      '/legal/terms',
   'GET /login':                      '/customers/login',
-  'GET /slack':                      'https://osquery.fleetdm.com/c/fleet',
+  'GET /slack':                      'https://osquery.slack.com/join/shared_invite/zt-h29zm0gk-s2DBtGUTW4CFel0f0IjTEw#/', // FUTURE: revert back to 'https://osquery.fleetdm.com/c/fleet' when we're sure it won't return a 500 error.
   'GET /docs/using-fleet/updating-fleet': '/docs/deploying/upgrading-fleet',
 
   // Sitemap
