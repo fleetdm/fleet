@@ -55,7 +55,7 @@ func (m *MaxMindGeoIP) Lookup(ctx context.Context, ip string) *GeoLocation {
 		return nil
 	}
 	resp, err := m.reader.City(parseIP)
-	if errors.Is(err, notCityDBError) {
+	if err != nil && errors.Is(err, notCityDBError) {
 		resp, err := m.reader.Country(parseIP)
 		if err != nil {
 			level.Debug(m.l).Log("err", err, "msg", "failed to lookup location from mmdb file")
@@ -66,6 +66,10 @@ func (m *MaxMindGeoIP) Lookup(ctx context.Context, ip string) *GeoLocation {
 		}
 		// all we have is country iso, no geometry
 		return &GeoLocation{CountryISO: resp.Country.IsoCode}
+	}
+	if err != nil {
+		level.Debug(m.l).Log("err", err, "msg", "failed to lookup location from mmdb file")
+		return nil
 	}
 	return parseCity(resp)
 }
