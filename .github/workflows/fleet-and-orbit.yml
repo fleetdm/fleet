@@ -17,8 +17,13 @@ on:
       - 'orbit/**.go'
   workflow_dispatch: # Manual
 
+permissions:
+  contents: read
+
 jobs:
   gen:
+    permissions:
+      contents: none
     runs-on: ubuntu-latest
     outputs:
       subdomain: ${{ steps.gen.outputs.subdomain }}
