@@ -255,22 +255,22 @@ We configure Chrome on company-owned devices with a basic policy.
 
 **User experience impact**
 
-* Chrome needs to be restarted within 48 hours of patch installation. The automatic restart happens after 19:00 and before 6:00 if the computer is running, and tabs are restored (except for incognito tabs).
+* Chrome needs to be restarted within 48 hours of patch installation. The automatic restart happens after 19:00 and before 6:00 if the computer is running and tabs are restored (except for incognito tabs).
 * Ads considered intrusive are blocked.
 * uBlock Origin is enabled by default, and is 100% configurable, improving security and performance of browsing.
 * Endpoint Verification is used to make access decisions based on the security posture of the device. For example, an outdated Mac could be prevented access to Google Drive.
 
 ### Personal mobile devices
 
-The use of personal devices is allowed for some applications, as long as the iOS or Android device
+The use of personal devices is allowed for some applications, so long as the iOS or Android device's OS
 is kept up to date.
 
 ## GitHub Security
-We need to host and collaborate on code as a company making open-source software! We do this using GitHub.
+Since Fleet makes open source software, we need to host and collaborate on code. We do this using GitHub.
 
 This section covers our GitHub configuration. Like everything we do, we aim for the right level of security and productivity.
 
-Because our code is open-source we are much more concerned about the integrity of the code than its confidentiality.
+Because our code is open source we are much more concerned about the integrity of the code than its confidentiality.
 This is why our configuration aims to protect what is in the code, but we spend no
 effort preventing "leaks" since almost everything is public anyway.
 
@@ -284,13 +284,13 @@ is also one of the few controls we have to secure SaaS apps in general.
 
 GitHub authentication differs from many SaaS products in one crucial way: accounts are global.
 Developers can carry their accounts from company to company and use them for open source projects.
-There is no reason to require company-specific GitHub accounts, as our code is public, and if it was
+There is no reason to require company-specific GitHub accounts, as our code is public, and if it were
 not, we would enforce Single Sign-On (SSO) to access our organization.
 
-We enable: Require two-factor authentication for everyone in the organization.
+We enable *Require two-factor authentication* for everyone in the organization.
 
 Fleet requires two-factor authentication for everyone in the organization. We do not require Single Sign-on (SSO) -
-as most of the software we work on is open-source and accessible to external collaborators. GitHub
+as most of the software we work on is open source and accessible to external collaborators. If you can imagine, GitHub
 charges a [4x premium](https://sso.tax/) for this feature.
 
 ### Code security and analysis
@@ -306,7 +306,7 @@ charges a [4x premium](https://sso.tax/) for this feature.
 
 | Member privileges feature | Setting | Note                                                                                                                         |
 | ------------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| Base permissions          | Write   | Admin is too powerful, as it allows reconfiguring the repositories themselves. Selecting Write provides the perfect balance!                 |
+| Base permissions          | Write   | Admin is too powerful, as it allows reconfiguring the repositories themselves. Selecting *Write* provides the perfect balance!                 |
 | Repository creation       | None    | We want to limit repository creation in general, and eventually automate it  with the [GitHub Terraform provider](https://github.com/integrations/terraform-provider-github)     |
 | Repository forking        | Enabled | By default, we allow repository forking                                                                                      |
 | Pages creation            | None    | We do not use GitHub pages, so we disable them to be sure people use our actual website or handbook which are also in GitHub |
@@ -323,7 +323,7 @@ charges a [4x premium](https://sso.tax/) for this feature.
 | Allow members to create teams                                              | 🚫                   | We automate the management of GitHub teams with the [GitHub Terraform provider](https://github.com/integrations/terraform-provider-github)                            |
 
 ### Team Discussions
-We do not use team discussions, and therefore have disabled it. This is simply to avoid discussions
+We do not use team discussions and therefore have disabled it. This is simply to avoid discussions
 being located in too many places and not security-related.
 
 ### Repository Security
