@@ -28,7 +28,7 @@ func (o orbitInfoExtension) Columns() []table.ColumnDefinition {
 }
 
 // GenerateFunc partially implements orbit_table.Extension.
-func (o orbitInfoExtension) GenerateFunc(ctx context.Context, _ table.QueryContext) ([]map[string]string, error) {
+func (o orbitInfoExtension) GenerateFunc(_ context.Context, _ table.QueryContext) ([]map[string]string, error) {
 	v := version
 	if v == "" {
 		v = "unknown"

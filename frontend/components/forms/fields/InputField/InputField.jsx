@@ -21,7 +21,7 @@ class InputField extends Component {
     onFocus: PropTypes.func,
     placeholder: PropTypes.string,
     type: PropTypes.string,
-    blockAutoComplete: PropTypes.boolean,
+    blockAutoComplete: PropTypes.bool,
     value: PropTypes.oneOfType([
       PropTypes.bool,
       PropTypes.string,

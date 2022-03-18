@@ -20,25 +20,44 @@ func (r *getDeviceHostRequest) deviceAuthToken() string {
 	return r.Token
 }
 
+type getDeviceHostResponse struct {
+	Host       *HostDetailResponse `json:"host"`
+	OrgLogoURL string              `json:"org_logo_url"`
+	Err        error               `json:"error,omitempty"`
+}
+
+func (r getDeviceHostResponse) error() error { return r.Err }
+
 func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
 		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
-		return getHostResponse{Err: err}, nil
+		return getDeviceHostResponse{Err: err}, nil
 	}
 
 	// must still load the full host details, as it returns more information
 	hostDetails, err := svc.GetHost(ctx, host.ID)
 	if err != nil {
-		return getHostResponse{Err: err}, nil
+		return getDeviceHostResponse{Err: err}, nil
 	}
 
 	resp, err := hostDetailResponseForHost(ctx, svc, hostDetails)
 	if err != nil {
-		return getHostResponse{Err: err}, nil
+		return getDeviceHostResponse{Err: err}, nil
 	}
 
-	return getHostResponse{Host: resp}, nil
+	// the org logo URL config is required by the frontend to render the page;
+	// we need to be careful with what we return from AppConfig in the response
+	// as this is a weakly authenticated endpoint (with the device auth token).
+	ac, err := svc.AppConfig(ctx)
+	if err != nil {
+		return getDeviceHostResponse{Err: err}, nil
+	}
+
+	return getDeviceHostResponse{
+		Host:       resp,
+		OrgLogoURL: ac.OrgInfo.OrgLogoURL,
+	}, nil
 }
 
 // AuthenticateDevice returns the host identified by the device authentication

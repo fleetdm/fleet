@@ -144,6 +144,7 @@ const SelectQueryModal = ({
                 onChange={onFilterQueries}
                 placeholder="Filter queries"
                 value={queriesFilter}
+                autofocus
               />
             </div>
             {!isOnlyObserver && (
@@ -168,6 +169,7 @@ const SelectQueryModal = ({
                 onChange={onFilterQueries}
                 placeholder="Filter queries"
                 value={queriesFilter}
+                autofocus
               />
             </div>
             {!isOnlyObserver && (

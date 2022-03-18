@@ -112,22 +112,20 @@ const ManageAutomationsModal = ({
                 days.
               </p>
             </div>
-            <div className="tooltip-wrap tooltip-wrap--input">
-              <InputField
-                inputWrapperClass={`${baseClass}__url-input`}
-                name="webhook-url"
-                label={"Destination URL"}
-                type={"text"}
-                value={destination_url}
-                onChange={onURLChange}
-                error={errors.url}
-                hint={
-                  "For each new vulnerability detected, Fleet will send a JSON payload to this URL with a list of the affected hosts."
-                }
-                placeholder={"https://server.com/example"}
-                tooltip="Provide a URL to deliver a webhook request to."
-              />
-            </div>
+            <InputField
+              inputWrapperClass={`${baseClass}__url-input`}
+              name="webhook-url"
+              label={"Destination URL"}
+              type={"text"}
+              value={destination_url}
+              onChange={onURLChange}
+              error={errors.url}
+              hint={
+                "For each new vulnerability detected, Fleet will send a JSON payload to this URL with a list of the affected hosts."
+              }
+              placeholder={"https://server.com/example"}
+              tooltip="Provide a URL to deliver a webhook request to."
+            />
             <Button
               type="button"
               variant="text-link"

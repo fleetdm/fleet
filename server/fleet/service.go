@@ -27,7 +27,7 @@ type OsqueryService interface {
 	//
 	// To enable the osquery "accelerated checkins" feature, a positive integer (number of seconds to activate for)
 	// should be returned. Returning 0 for this will not activate the feature.
-	GetDistributedQueries(ctx context.Context) (queries map[string]string, accelerate uint, err error)
+	GetDistributedQueries(ctx context.Context) (queries map[string]string, discovery map[string]string, accelerate uint, err error)
 	SubmitDistributedQueryResults(
 		ctx context.Context,
 		results OsqueryDistributedQueryResults,
