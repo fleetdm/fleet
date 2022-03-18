@@ -274,14 +274,24 @@ Because our code is open-source we are much more concerned about the integrity o
 This is why our configuration aims to protect what is in the code, but we spend no
 effort preventing "leaks" since almost everything is public anyway.
 
+If you are reading this from another organization that makes code that is not open-source, we
+recommend checking out [this guide](https://oops.computer/posts/safer-github-setup/).
+
 ### Authentication
 
-Authentication is the lynchpin of security on SaaS applications such as GitHub.
+Authentication is the lynchpin of security on Software-as-a-Service (SaaS) applications such as GitHub. It
+is also one of the few controls we have to secure SaaS apps in general.
 
-GitHub authentication differs from many SaaS products in one crucial way: accounts are global. Developers can carry their accounts from company to company and use them for open source projects.
+GitHub authentication differs from many SaaS products in one crucial way: accounts are global.
+Developers can carry their accounts from company to company and use them for open source projects.
+There is no reason to require company-specific GitHub accounts, as our code is public, and if it was
+not, we would enforce Single Sign-On (SSO) to access our organization.
 
-Require two-factor authentication for everyone in the organization.
-We do not require SSO - as most of the software we work on is open-source and accessible to external collaborators and GitHub charges a 4x premium for it. As our security requirements increase, we will consider it, but for the moment, enforcing 2FA and code reviews is good enough.
+We enable: Require two-factor authentication for everyone in the organization.
+
+Fleet requires two-factor authentication for everyone in the organization. We do not require Single Sign-on (SSO) -
+as most of the software we work on is open-source and accessible to external collaborators. GitHub
+charges a [4x premium](https://sso.tax/) for this feature.
 
 ### Code security and analysis
 
@@ -331,7 +341,7 @@ Located in the Branches section of repository settings, we create a rule for **m
 | Require review from Code Owners                                  | 🗓     | We are working towards enabling this, but at our current size, it is not needed.                                      |
 | Restrict who can dismiss pull request reviews                    | 🚫     | As we are a team working in multiple timezones, we want to allow dismissing reviews and getting another one.          |
 | Allow specified actors to bypass required pull requests          | 🚫     | We do not want anyone pushing directly to main.                                                                       |
-| Require status checks to pass before merging                     | ✅     | Because of our monorepo, it is hard to pick many checks that work for all types of PRs, but we still enable this.     |
+| Require status checks to pass before merging                     | ✅     | Because of our [monorepo](https://en.wikipedia.org/wiki/Monorepo#:~:text=In%20version%20control%20systems%2C%20a,as%20a%20'shared%20codebase'.), it is hard to pick many checks that work for all types of PRs, but we still enable this.     |
 | Require conversation resolution before merging                   | 🚫     | Reviewers should not approve if they do not think it's ready for merging.                                             |
 | Require signed commits                                           | 🗓     | We are working towards enabling this, manually keeping track of unverified commits.                                   |
 | Require linear history                                           | 🚫     |                                                                                                                       |
