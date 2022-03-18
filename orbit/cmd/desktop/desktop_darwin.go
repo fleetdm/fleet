@@ -11,7 +11,7 @@ import (
 	"github.com/getlantern/systray"
 )
 
-//go:embed favicon.ico
+//go:embed icon_white.png
 var icoBytes []byte
 
 func main() {

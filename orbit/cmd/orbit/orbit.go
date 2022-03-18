@@ -297,7 +297,7 @@ func main() {
 		if !c.Bool("disable-updates") {
 			updateRunner, err := update.NewRunner(updater, update.RunnerOptions{
 				CheckInterval: 10 * time.Second,
-				Targets:       []string{"orbit", "osqueryd"},
+				Targets:       []string{"orbit", "osqueryd", "desktop"},
 			})
 			if err != nil {
 				return err
