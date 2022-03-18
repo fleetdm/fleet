@@ -21,6 +21,7 @@ on:
       - '**.tsx'
   schedule:
     - cron: '18 17 * * 1'
+  workflow_dispatch: # Manual
       
 permissions:
     actions: read
