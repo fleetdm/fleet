@@ -3,7 +3,7 @@ import React from "react";
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
 
-import OpenNewTabIcon from "../../../../assets/images/open-new-tab-12x12@2x.png";
+import OpenNewTabIcon from "../../../../../assets/images/open-new-tab-12x12@2x.png";
 
 export interface IInfoModalProps {
   onCancel: () => void;
