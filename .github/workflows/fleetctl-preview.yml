@@ -5,8 +5,13 @@ on:
   schedule:
   - cron: '0 2 * * *' # Nightly 2AM UTC
 
+permissions:
+  contents: read
+
 jobs:
   test-preview:
+    permissions:
+      contents: none
     timeout-minutes: 60
     strategy:
       matrix:
