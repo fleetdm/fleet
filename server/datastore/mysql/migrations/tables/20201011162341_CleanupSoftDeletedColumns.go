@@ -56,7 +56,7 @@ func cleanupSoftDeleteFields(tx *sql.Tx, dbTable string) error {
 }
 
 func addSoftDeleteFields(tx *sql.Tx, dbTable string) error {
-	addDeletedStmt := fmt.Sprint(
+	addDeletedStmt := fmt.Sprintf(
 		"ALTER TABLE `%s` "+
 			"ADD COLUMN `deleted` TINYINT(1) NOT NULL DEFAULT FALSE;",
 		dbTable)
@@ -65,7 +65,7 @@ func addSoftDeleteFields(tx *sql.Tx, dbTable string) error {
 		return err
 	}
 
-	addDeletedAtStmt := fmt.Sprint(
+	addDeletedAtStmt := fmt.Sprintf(
 		"ALTER TABLE `%s` "+
 			"ADD COLUMN `deleted_at` TIMESTAMP NULL DEFAULT NULL;",
 		dbTable)

@@ -193,7 +193,7 @@ module.exports.routes = {
   'GET /legal':                      '/legal/terms',
   'GET /terms':                      '/legal/terms',
   'GET /login':                      '/customers/login',
-  'GET /slack':                      'https://osquery.fleetdm.com/c/fleet',
+  'GET /slack':                      (_, res) => { res.status(301).redirect('https://osquery.fleetdm.com/c/fleet'); },
   'GET /docs/using-fleet/updating-fleet': '/docs/deploying/upgrading-fleet',
 
   // Sitemap
