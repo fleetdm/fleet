@@ -395,6 +395,7 @@ const HostDetailsPage = ({
       "hardware_model",
       "hardware_serial",
       "primary_ip",
+      "public_ip",
     ])
   );
 
@@ -1256,10 +1257,14 @@ const HostDetailsPage = ({
                   </span>
                 </div>
                 <div className="info-grid__block">
-                  <span className="info-grid__header">IPv4</span>
+                  <span className="info-grid__header">Internal IPv4</span>
                   <span className="info-grid__data">
                     {aboutData.primary_ip}
                   </span>
+                </div>
+                <div className="info-grid__block">
+                  <span className="info-grid__header">Public IP</span>
+                  <span className="info-grid__data">{aboutData.public_ip}</span>
                 </div>
                 {renderMunkiData()}
                 {renderMdmData()}
