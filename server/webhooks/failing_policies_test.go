@@ -257,7 +257,7 @@ func TestTriggerFailingPoliciesWebhookTeam(t *testing.T) {
     "policy": {
         "id": 1,
         "name": "policy1",
-        "query": "select 42",
+        "query": "select 1",
         "description": "policy1 description",
         "author_id": 1,
         "author_name": "Alice",
