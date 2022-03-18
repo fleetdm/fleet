@@ -3,6 +3,7 @@ import PropTypes from "prop-types";
 import { difference } from "lodash";
 import Select from "react-select";
 import "react-select/dist/react-select.css";
+import { v4 as uuidv4 } from "uuid";
 
 import debounce from "utilities/debounce";
 import targetInterface from "interfaces/target";
@@ -53,15 +54,15 @@ class SelectTargetsInput extends Component {
     const { handleInputChange } = this;
 
     // must have unique key to select correctly
-    const uniqueKeyTargets = targets.map((target) => ({
+    const uuidTargets = targets.map((target) => ({
       ...target,
-      unique_key: target.uuid || `${target.target_type}-${target.id}`,
+      uuid: uuidv4(),
     }));
 
     // must have unique key to deselect correctly
-    const uniqueSelectedTargets = selectedTargets.map((target) => ({
+    const uuidSelectedTargets = selectedTargets.map((target) => ({
       ...target,
-      unique_key: target.uuid || `${target.target_type}-${target.id}`,
+      uuid: uuidv4(),
     }));
 
     return (
@@ -74,7 +75,7 @@ class SelectTargetsInput extends Component {
         menuRenderer={menuRenderer}
         multi
         name="targets"
-        options={uniqueKeyTargets}
+        options={uuidTargets}
         onChange={onTargetSelect}
         onClose={onClose}
         onOpen={onOpen}
@@ -84,8 +85,8 @@ class SelectTargetsInput extends Component {
         resetValue={[]}
         scrollMenuIntoView={false}
         tabSelectsValue={false}
-        value={uniqueSelectedTargets}
-        valueKey="unique_key" // must be unique, target ids are not unique
+        value={uuidSelectedTargets}
+        valueKey="uuid" // must be unique, target ids are not unique
       />
     );
   }
