@@ -1,13 +1,19 @@
 import React from "react";
+import { Link } from "react-router";
 import ReactTooltip from "react-tooltip";
 import { isEmpty } from "lodash";
 
+// TODO: Enable after backend has been updated to provide last_opened_at
+// import distanceInWordsToNow from "date-fns/distance_in_words_to_now";
+
 import { ISoftware } from "interfaces/software";
 
+import PATHS from "router/paths";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import TooltipWrapper from "components/TooltipWrapper";
 import IssueIcon from "../../../../assets/images/icon-issue-fleet-black-50-16x16@2x.png";
+import Chevron from "../../../../assets/images/icon-chevron-right-9x6@2x.png";
 
 interface IHeaderProps {
   column: {
@@ -17,7 +23,7 @@ interface IHeaderProps {
 }
 interface ICellProps {
   cell: {
-    value: any;
+    value: string;
   };
   row: {
     original: ISoftware;
@@ -162,6 +168,54 @@ const generateSoftwareTableHeaders = (): IDataColumn[] => {
       disableSortBy: true,
       accessor: "version",
       Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
+    },
+    // TODO: Enable after backend has been updated to provide last_opened_at
+    // {
+    //   title: "Last used",
+    //   Header: (cellProps) => (
+    //     <HeaderCell
+    //       value={cellProps.column.title}
+    //       isSortedDesc={cellProps.column.isSortedDesc}
+    //     />
+    //   ),
+    //   accessor: "last_opened_at",
+    //   Cell: (cellProps) => {
+    //     const lastUsed = isNaN(Date.parse(cellProps.cell.value))
+    //       ? "Unavailable"
+    //       : `${distanceInWordsToNow(Date.parse(cellProps.cell.value))} ago`;
+    //     return (
+    //       <span
+    //         className={
+    //           lastUsed === "Unavailable"
+    //             ? "software-last-used-muted"
+    //             : "software-last-used"
+    //         }
+    //       >
+    //         {lastUsed}
+    //       </span>
+    //     );
+    //   },
+    //   sortType: "dateStrings",
+    // },
+    {
+      title: "",
+      Header: "",
+      disableSortBy: true,
+      accessor: "linkToFilteredHosts",
+      Cell: (cellProps) => {
+        return (
+          <Link
+            to={`${
+              PATHS.MANAGE_HOSTS
+            }?software_id=${cellProps.row.original.id.toString()}`}
+            className={`software-link`}
+          >
+            View all hosts{" "}
+            <img alt="link to hosts filtered by software ID" src={Chevron} />
+          </Link>
+        );
+      },
+      disableHidden: true,
     },
   ];
 };

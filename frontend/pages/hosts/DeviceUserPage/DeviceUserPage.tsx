@@ -32,8 +32,8 @@ import {
   humanHostDetailUpdated,
 } from "fleet/helpers";
 
-import SoftwareTab from "./SoftwareTab/SoftwareTab";
 import InfoModal from "./InfoModal";
+import SoftwareTab from "../SoftwareTab/SoftwareTab";
 
 import InfoIcon from "../../../assets/images/icon-info-purple-14x14@2x.png";
 import FleetIcon from "../../../assets/images/fleet-avatar-24x24@2x.png";
