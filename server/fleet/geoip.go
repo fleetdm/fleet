@@ -37,12 +37,12 @@ func (n *NoOpGeoIP) Lookup(ctx context.Context, ip string) *GeoLocation {
 	return nil
 }
 
-func NewMaxMindGeoIP(logger log.Logger, path string) GeoIP {
+func NewMaxMindGeoIP(logger log.Logger, path string) (*MaxMindGeoIP, error) {
 	r, err := geoip2.Open(path)
 	if err != nil {
-		return &NoOpGeoIP{}
+		return nil, err
 	}
-	return &MaxMindGeoIP{reader: r, l: logger}
+	return &MaxMindGeoIP{reader: r, l: logger}, nil
 }
 
 func (m *MaxMindGeoIP) Lookup(ctx context.Context, ip string) *GeoLocation {
@@ -61,6 +61,9 @@ func (m *MaxMindGeoIP) Lookup(ctx context.Context, ip string) *GeoLocation {
 			level.Debug(m.l).Log("err", err, "msg", "failed to lookup location from mmdb file")
 			return nil
 		}
+		if resp == nil {
+			return nil
+		}
 		// all we have is country iso, no geometry
 		return &GeoLocation{CountryISO: resp.Country.IsoCode}
 	}
@@ -68,6 +71,9 @@ func (m *MaxMindGeoIP) Lookup(ctx context.Context, ip string) *GeoLocation {
 }
 
 func parseCity(resp *geoip2.City) *GeoLocation {
+	if resp == nil {
+		return nil
+	}
 	return &GeoLocation{
 		CountryISO: resp.Country.IsoCode,
 		CityName:   resp.City.Names["en"], // names is a map of language to city name names["us"] = "New York"

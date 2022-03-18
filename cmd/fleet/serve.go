@@ -332,10 +332,14 @@ the way that the Fleet server works.
 			}
 
 			var geoIP fleet.GeoIP
+			geoIP = &fleet.NoOpGeoIP{}
 			if config.GeoIP.DatabasePath != "" {
-				geoIP = fleet.NewMaxMindGeoIP(logger, config.GeoIP.DatabasePath)
-			} else {
-				geoIP = &fleet.NoOpGeoIP{}
+				maxmind, err := fleet.NewMaxMindGeoIP(logger, config.GeoIP.DatabasePath)
+				if err != nil {
+					level.Error(logger).Log("msg", "failed to initialize maxmind geoip, check database path", "database_path", config.GeoIP.DatabasePath, "error", err)
+				} else {
+					geoIP = maxmind
+				}
 			}
 
 			// TODO: gather all the different contexts and use just one
