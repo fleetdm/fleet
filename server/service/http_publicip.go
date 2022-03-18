@@ -11,7 +11,7 @@ var trueClientIP = http.CanonicalHeaderKey("True-Client-IP")
 var xForwardedFor = http.CanonicalHeaderKey("X-Forwarded-For")
 var xRealIP = http.CanonicalHeaderKey("X-Real-IP")
 
-func realIP(r *http.Request) string {
+func extractIP(r *http.Request) string {
 	var ip string
 
 	if tcip := r.Header.Get(trueClientIP); tcip != "" {

@@ -115,7 +115,11 @@ func MakeHandler(svc fleet.Service, config config.FleetConfig, logger kitlog.Log
 
 func publicIP(handler http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		handler.ServeHTTP(w, r.WithContext(publicip.NewContext(r.Context(), realIP(r))))
+		ip := extractIP(r)
+		if ip != "" {
+			r.RemoteAddr = ip
+		}
+		handler.ServeHTTP(w, r.WithContext(publicip.NewContext(r.Context(), ip)))
 	})
 }
 

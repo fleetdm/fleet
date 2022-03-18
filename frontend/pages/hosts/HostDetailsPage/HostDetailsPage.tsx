@@ -1257,13 +1257,13 @@ const HostDetailsPage = ({
                   </span>
                 </div>
                 <div className="info-grid__block">
-                  <span className="info-grid__header">Internal IPv4</span>
+                  <span className="info-grid__header">Internal IP address</span>
                   <span className="info-grid__data">
                     {aboutData.primary_ip}
                   </span>
                 </div>
                 <div className="info-grid__block">
-                  <span className="info-grid__header">Public IP</span>
+                  <span className="info-grid__header">Public IP address</span>
                   <span className="info-grid__data">{aboutData.public_ip}</span>
                 </div>
                 {renderMunkiData()}
