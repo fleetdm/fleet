@@ -22,6 +22,7 @@ interface IEditUserModalProps {
   isSsoEnabled?: boolean; // corresponds to whether SSO is enabled for the individual user
   editUserErrors?: IUserFormErrors;
   isModifiedByGlobalAdmin?: boolean | false;
+  isInvitePending?: boolean;
 }
 
 const baseClass = "edit-user-modal";
@@ -42,6 +43,7 @@ const EditUserModal = ({
   currentTeam,
   editUserErrors,
   isModifiedByGlobalAdmin,
+  isInvitePending,
 }: IEditUserModalProps): JSX.Element => {
   return (
     <Modal
@@ -65,6 +67,7 @@ const EditUserModal = ({
         canUseSso={canUseSso}
         isSsoEnabled={isSsoEnabled}
         isModifiedByGlobalAdmin={isModifiedByGlobalAdmin}
+        isInvitePending={isInvitePending}
         currentTeam={currentTeam}
       />
     </Modal>

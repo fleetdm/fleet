@@ -51,12 +51,14 @@ func TestMakeRepoPath(t *testing.T) {
 
 	for _, tt := range testCases {
 		tt := tt
-		var opt Options
-		err := copier.CopyWithOption(&opt, DefaultOptions, copier.Option{DeepCopy: true})
-		require.NoError(t, err)
-
 		t.Run(tt.expected, func(t *testing.T) {
 			t.Parallel()
+
+			var opt Options
+			// Must deep copy DefaultOptions, otherwise there is a race condition when modifying the
+			// opt.Targets map in parallel tests below.
+			err := copier.CopyWithOption(&opt, DefaultOptions, copier.Option{DeepCopy: true})
+			require.NoError(t, err)
 
 			osqueryd := opt.Targets[tt.name]
 			osqueryd.Platform = tt.platform

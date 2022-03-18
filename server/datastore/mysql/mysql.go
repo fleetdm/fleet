@@ -592,7 +592,7 @@ func appendListOptionsToSelect(ds *goqu.SelectDataset, opts fleet.ListOptions) *
 	}
 
 	perPage := opts.PerPage
-	// If caller doesn't supply a limit apply a default limit of 1000
+	// If caller doesn't supply a limit apply a reasonably large default limit
 	// to insure that an unbounded query with many results doesn't consume too
 	// much memory or hang
 	if perPage == 0 {

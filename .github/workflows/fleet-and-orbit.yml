@@ -42,12 +42,12 @@ jobs:
     steps:
 
     - name: Install Go
-      uses: actions/setup-go@v2
+      uses: actions/setup-go@bfdd3570ce990073878bf10f6b2d79082de49492 # v2
       with:
         go-version: ${{ matrix.go-version }}
 
     - name: Checkout Code
-      uses: actions/checkout@v2
+      uses: actions/checkout@629c2de402a417ea7690ca6ce3f33229e27606a5 # v2
 
     - name: Start tunnel
       env: 
@@ -111,7 +111,7 @@ jobs:
 
     - name: Upload fleet logs
       if: always()
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@82c141cc518b40d92cc801eee768e7aafc9c2fa2 # v2
       with:
         name: fleet-logs
         path: |
@@ -128,12 +128,12 @@ jobs:
     steps:
 
     - name: Install Go
-      uses: actions/setup-go@v2
+      uses: actions/setup-go@bfdd3570ce990073878bf10f6b2d79082de49492 # v2
       with:
         go-version: ${{ matrix.go-version }}
 
     - name: Checkout Code
-      uses: actions/checkout@v2
+      uses: actions/checkout@629c2de402a417ea7690ca6ce3f33229e27606a5 # v2
 
     - name: Build Fleetctl
       run: make fleetctl
@@ -166,12 +166,12 @@ jobs:
     steps:
 
     - name: Install Go
-      uses: actions/setup-go@v2
+      uses: actions/setup-go@bfdd3570ce990073878bf10f6b2d79082de49492 # v2
       with:
         go-version: ${{ matrix.go-version }}
 
     - name: Checkout Code
-      uses: actions/checkout@v2
+      uses: actions/checkout@629c2de402a417ea7690ca6ce3f33229e27606a5 # v2
 
     - name: Build and Run Orbit
       run: |
@@ -200,7 +200,7 @@ jobs:
 
     - name: Upload orbit logs
       if: always()
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@82c141cc518b40d92cc801eee768e7aafc9c2fa2 # v2
       with:
         name: orbit-${{ matrix.os }}-logs-${{ matrix.osqueryd-channel }}
         path: |
@@ -212,18 +212,18 @@ jobs:
       matrix:
         # TODO(lucas): Add edge channel for osqueryd.
         osqueryd-channel: ['stable']
-        go-version: ['^1.17.0']
+        go-version: ['^1.17.8']
     needs: [gen, get-enroll-secret]
     runs-on: windows-latest
     steps:
     
     - name: Install Go
-      uses: actions/setup-go@v2
+      uses: actions/setup-go@bfdd3570ce990073878bf10f6b2d79082de49492 # v2
       with:
         go-version: ${{ matrix.go-version }}
 
     - name: Checkout Code
-      uses: actions/checkout@v2
+      uses: actions/checkout@629c2de402a417ea7690ca6ce3f33229e27606a5 # v2
 
     - name: Build and Run Orbit
       shell: bash
@@ -250,7 +250,7 @@ jobs:
 
     - name: Upload orbit logs
       if: always()
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@82c141cc518b40d92cc801eee768e7aafc9c2fa2 # v2
       with:
         name: orbit-windows-logs-${{ matrix.osqueryd-channel }}
         path: |

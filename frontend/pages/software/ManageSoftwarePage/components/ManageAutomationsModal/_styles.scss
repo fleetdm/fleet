@@ -47,42 +47,6 @@
     }
   }
 
-  .tooltip-wrap {
-    display: flex;
-    align-items: center;
-    width: 100%;
-    margin-bottom: $pad-large;
-
-    .icon-tooltip {
-      span {
-        display: flex;
-        align-items: center;
-      }
-      p {
-        text-align: center;
-      }
-    }
-
-    .form-field--input {
-      display: block;
-      width: 100%;
-      margin-right: $pad-small;
-      margin-bottom: 0;
-    }
-
-    .form-field__hint {
-      font-style: normal;
-    }
-  }
-
-  .tooltip-wrap--input {
-    .icon-tooltip {
-      span {
-        margin-top: -5px;
-      }
-    }
-  }
-
   // so tooltips won't be triggered with whitespace
   .form-field__label {
     display: inline-block;
