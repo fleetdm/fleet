@@ -639,12 +639,8 @@ func downloadOrbitAndStart(destDir, enrollSecret, address, orbitChannel, osquery
 	}
 
 	// Override default channels with the provided values.
-	orbit := updateOpt.Targets["orbit"]
-	orbit.Channel = orbitChannel
-	updateOpt.Targets["orbit"] = orbit
-	osqueryd := updateOpt.Targets["osqueryd"]
-	osqueryd.Channel = osquerydChannel
-	updateOpt.Targets["osqueryd"] = osqueryd
+	updateOpt.Targets.SetTargetChannel("orbit", orbitChannel)
+	updateOpt.Targets.SetTargetChannel("osqueryd", osquerydChannel)
 
 	updateOpt.RootDirectory = destDir
 

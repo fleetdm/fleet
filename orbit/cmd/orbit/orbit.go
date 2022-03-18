@@ -218,18 +218,13 @@ func main() {
 
 		if runtime.GOOS == "darwin" && c.Bool("fleet-desktop") {
 			opt.Targets["desktop"] = update.DesktopMacOSTarget
-			desktop := opt.Targets["desktop"]
-			desktop.Channel = c.String("desktop-channel")
-			opt.Targets["desktop"] = desktop
+			// Override default channel with the provided value.
+			opt.Targets.SetTargetChannel("desktop", c.String("desktop-channel"))
 		}
 
 		// Override default channels with the provided values.
-		orbit := opt.Targets["orbit"]
-		orbit.Channel = c.String("orbit-channel")
-		opt.Targets["orbit"] = orbit
-		osqueryd := opt.Targets["osqueryd"]
-		osqueryd.Channel = c.String("osqueryd-channel")
-		opt.Targets["osqueryd"] = osqueryd
+		opt.Targets.SetTargetChannel("orbit", c.String("orbit-channel"))
+		opt.Targets.SetTargetChannel("osqueryd", c.String("osqueryd-channel"))
 
 		opt.RootDirectory = c.String("root-dir")
 		opt.ServerURL = c.String("update-url")

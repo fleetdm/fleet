@@ -66,6 +66,13 @@ type Options struct {
 // Targets is a map of target name and its tracking information.
 type Targets map[string]TargetInfo
 
+// SetTargetChannel sets the channel of a target in the map.
+func (ts Targets) SetTargetChannel(target, channel string) {
+	t := ts[target]
+	t.Channel = channel
+	ts[target] = t
+}
+
 // TargetInfo holds all the information to track target updates.
 type TargetInfo struct {
 	// Platform is the target's platform string.

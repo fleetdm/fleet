@@ -47,18 +47,13 @@ func BuildPkg(opt Options) (string, error) {
 
 	if opt.Desktop {
 		updateOpt.Targets["desktop"] = update.DesktopMacOSTarget
-		desktop := updateOpt.Targets["desktop"]
-		desktop.Channel = opt.DesktopChannel
-		updateOpt.Targets["desktop"] = desktop
+		// Override default channel with the provided value.
+		updateOpt.Targets.SetTargetChannel("desktop", opt.DesktopChannel)
 	}
 
 	// Override default channels with the provided values.
-	orbit := updateOpt.Targets["orbit"]
-	orbit.Channel = opt.OrbitChannel
-	updateOpt.Targets["orbit"] = orbit
-	osqueryd := updateOpt.Targets["osqueryd"]
-	osqueryd.Channel = opt.OsquerydChannel
-	updateOpt.Targets["osqueryd"] = osqueryd
+	updateOpt.Targets.SetTargetChannel("orbit", opt.OrbitChannel)
+	updateOpt.Targets.SetTargetChannel("osqueryd", opt.OsquerydChannel)
 
 	if opt.UpdateRoots != "" {
 		updateOpt.RootKeys = opt.UpdateRoots
