@@ -257,6 +257,7 @@ These are the Slack channels the digital experience team maintains. If the chann
 - **#g-digital-experience** - **DRI**: Mike Thomas
 - **#peepops** - **DRI**: Eric Shaw
 - **#help-onboarding** - **DRI**: Eric Shaw
+- **#oooh-automation** - **DRI**: Mike McNeil
 
 **Who should have these channels unmuted?** Members of this group, everyone else is encouraged to mute them.
 
