@@ -370,6 +370,9 @@ The following highlights should be considered when deciding if feature flags sho
 
 Fleet's feature flag guidelines borrows from GitLab's ["When to use feature flags" section](https://about.gitlab.com/handbook/product-development-flow/feature-flag-lifecycle/#when-to-use-feature-flags) of their handbook. Check out [GitLab's "Feature flags only when needed" video](https://www.youtube.com/watch?v=DQaGqyolOd8) for an explanation on the costs of introducing feature flags.
 
+## Competition
+
+We track the capabilities of competitors and adjacent (or commonly integrated) products in this [Google Doc](https://docs.google.com/document/d/1Bqdui6oQthdv5XtD5l7EZVB-duNRcqVRg7NVA4lCXeI/edit) (private).
 
 ## Slack channels
 
@@ -378,9 +381,5 @@ These are the Slack channels the product team maintains. If the channel has a [d
 - **#g-product** - **DRI**: - Noah Talerman
 
 **Who should have these channels unmuted?** Members of this group, everyone else is encouraged to mute them.
-
-## Competition
-
-We track the capabilities of competitors in this [Google Doc](https://docs.google.com/document/d/1SpAP8Y8eLa-KvkaHi5m507efSFX570EaKbrbRHM4RGs/edit#) (private).
 
 <meta name="maintainedBy" value="noahtalerman">
