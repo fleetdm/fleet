@@ -1949,7 +1949,7 @@ To download the data streams, you can use `fleetctl vulnerability-data-stream --
 
 The path to a valid Maxmind GeoIP database(mmdb). Support exists for the country & city versions of the database. If city database is supplied
 then Fleet will attempt to resolve the location via the city lookup, otherwise it defaults to the country lookup. The IP address used
-to determine location is extracted via `X-FORWARDED-FOR` [headers](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Forwarded-For)
+to determine location is extracted via HTTP headers in the following order: `X-FORWARDED-FOR` [headers](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Forwarded-For), `True-Client-IP`, `X-Real-IP`
 on the Fleet web server.
 
 - Default value: none
