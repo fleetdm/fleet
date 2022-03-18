@@ -89,7 +89,7 @@ When a team member joins Fleet, they pick one of the following holiday schedules
 
 Either way, it's up to you to ensure that your responsibilities are covered and your team knows that you're out of the office.
 
-### New Parent Leave
+### New parent leave
 
 Fleet gives new parents six weeks paid leave. After six weeks, if you don't feel ready to return yet, we'll set up a quick call to discuss and work together to come up with a plan to help you return to work gradually or when you're ready.
 
