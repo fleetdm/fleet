@@ -488,6 +488,7 @@ const UserManagementPage = (): JSX.Element => {
             canUseSso={config?.enable_sso || false}
             isSsoEnabled={userData?.sso_enabled}
             isModifiedByGlobalAdmin
+            isInvitePending={userEditing.type === "invite"}
             editUserErrors={editUserErrors}
           />
         </>

@@ -80,6 +80,7 @@ interface ICreateUserFormProps {
   canUseSso: boolean; // corresponds to whether SSO is enabled for the organization
   isSsoEnabled?: boolean; // corresponds to whether SSO is enabled for the individual user
   isNewUser?: boolean;
+  isInvitePending?: boolean;
   serverErrors?: { base: string; email: string }; // "server" because this form does its own client validation
   createOrEditUserErrors?: IUserFormErrors;
 }
@@ -102,6 +103,7 @@ const UserForm = ({
   canUseSso,
   isSsoEnabled,
   isNewUser,
+  isInvitePending,
   serverErrors,
   createOrEditUserErrors,
 }: ICreateUserFormProps): JSX.Element => {
@@ -186,7 +188,10 @@ const UserForm = ({
   const createSubmitData = (): IFormData => {
     const submitData = formData;
 
-    if (!isNewUser) {
+    if (!isNewUser && !isInvitePending) {
+      // if a new password is being set for an existing user, the API expects `new_password` rather than `password`
+      submitData.new_password = formData.password;
+      delete submitData.password;
       delete submitData.newUserType; // this field will not be submitted when form is used to edit an existing user
     }
 
@@ -216,6 +221,20 @@ const UserForm = ({
       setErrors({
         ...errors,
         email: `${formData.email} is not a valid email`,
+      });
+
+      return false;
+    }
+
+    if (
+      !isNewUser &&
+      !isInvitePending &&
+      formData.password &&
+      !validPassword(formData.password)
+    ) {
+      setErrors({
+        ...errors,
+        password: "Password must meet the criteria below",
       });
 
       return false;
@@ -393,6 +412,25 @@ const UserForm = ({
             "
         }
       />
+      {!isNewUser && !isInvitePending && isModifiedByGlobalAdmin && (
+        <div className={`${baseClass}__edit-password`}>
+          <div className={`${baseClass}__password`}>
+            <InputField
+              label="Password"
+              error={errors.password}
+              name="password"
+              onChange={onInputChange("password")}
+              placeholder="••••••••"
+              value={formData.password || ""}
+              type="password"
+              hint={[
+                "Must include 7 characters, at least 1 number (e.g. 0 - 9), and at least 1 symbol (e.g. &*#)",
+              ]}
+              blockAutoComplete
+            />
+          </div>
+        </div>
+      )}
       <div className={`${baseClass}__sso-input`}>
         <Checkbox
           name="sso_enabled"
@@ -524,7 +562,7 @@ const UserForm = ({
       <div className={`${baseClass}__btn-wrap`}>
         <Button
           className={`${baseClass}__btn`}
-          type="button"
+          type="submit"
           variant="brand"
           onClick={onFormSubmit}
         >

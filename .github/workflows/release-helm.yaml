@@ -11,7 +11,7 @@ jobs:
   publish-chart:
     runs-on: ubuntu-20.04
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@629c2de402a417ea7690ca6ce3f33229e27606a5 # v2
     - uses: stefanprodan/helm-gh-pages@f1701eb82e4d4b82016e7965501c8b6d79feaec9
       with:
         token: ${{ secrets.GITHUB_TOKEN }}

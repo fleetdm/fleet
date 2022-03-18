@@ -1,4 +1,4 @@
-import { mount } from "enzyme";
+import { render } from "@testing-library/react";
 import nock from "nock";
 
 import { connectedComponent, reduxMockStore } from "test/helpers";
@@ -34,7 +34,7 @@ describe("QueryPageWrapper - component", () => {
 
       const mockStore = reduxMockStore(storeWithoutQuery);
 
-      mount(
+      render(
         connectedComponent(QueryPageWrapper, { mockStore, props: locationProp })
       );
 
@@ -50,7 +50,7 @@ describe("QueryPageWrapper - component", () => {
       const fetchQuerySpy = jest.spyOn(helpers, "fetchQuery");
       const mockStore = reduxMockStore(storeWithoutQuery);
 
-      mount(
+      render(
         connectedComponent(QueryPageWrapper, { mockStore, props: locationProp })
       );
 
