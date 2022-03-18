@@ -1958,7 +1958,7 @@ on the Fleet web server.
 
   ```yaml
   geoip:
-  	databases_path: /some/path
+  	database_path: /some/path
   ```
 
 
