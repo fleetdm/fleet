@@ -34,13 +34,21 @@ func main() {
 
 	onReady := func() {
 		systray.SetIcon(icoBytes)
-		systray.SetTooltip("Fleet Device Management Desktop Application")
-		myDeviceItem := systray.AddMenuItem("My Device", "Access My Device Details")
+		systray.SetTooltip("Fleet Device Management Menu.")
+		myDeviceItem := systray.AddMenuItem("My device", "")
+		transparencyItem := systray.AddMenuItem("Transparency", "")
 
 		go func() {
-			for range myDeviceItem.ClickedCh {
-				if err := open.Browser(deviceURL.String()); err != nil {
-					log.Printf("open browser: %s", err)
+			for {
+				select {
+				case <-myDeviceItem.ClickedCh:
+					if err := open.Browser(deviceURL.String()); err != nil {
+						log.Printf("open browser my device: %s", err)
+					}
+				case <-transparencyItem.ClickedCh:
+					if err := open.Browser("https://fleetdm.com/transparency"); err != nil {
+						log.Printf("open browser transparency: %s", err)
+					}
 				}
 			}
 		}()
