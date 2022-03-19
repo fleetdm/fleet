@@ -3,6 +3,7 @@ import sqliteParser from "sqlite-parser";
 import { intersection, isPlainObject } from "lodash";
 // @ts-ignore
 import { osqueryTables } from "utilities/osquery_tables";
+import { IOsqueryPlatform, SUPPORTED_PLATFORMS } from "interfaces/platform";
 
 type IAstNode = Record<string | number | symbol, unknown>;
 
@@ -15,7 +16,6 @@ interface ISqlCteNode {
     name: string;
   };
 }
-export type IOsqueryPlatform = "darwin" | "windows" | "linux" | "freebsd";
 
 // TODO: Research if there are any preexisting types for osquery schema
 // TODO: Is it ever possible that osquery_tables.json would be missing name or platforms?
@@ -24,19 +24,7 @@ interface IOsqueryTable {
   platforms: IOsqueryPlatform[];
 }
 
-export const SUPPORTED_PLATFORMS = ["darwin", "windows", "linux"] as const;
-
-export type IParserResult =
-  | "invalid query syntax"
-  | "no tables in query AST"
-  | IOsqueryPlatform
-  | string;
-
-export type ICompatiblePlatform =
-  | "all"
-  | "none"
-  | "invalid query syntax"
-  | IOsqueryPlatform;
+export type IParserResult = Error | IOsqueryPlatform | string;
 
 type IPlatformDictionay = Record<string, IOsqueryPlatform[]>;
 
@@ -71,25 +59,20 @@ const _visit = (
   }
 };
 
-export const filterPlatforms = (
-  parserResults: IParserResult[]
-): ICompatiblePlatform[] => {
-  console.log(osqueryTables);
-  if (parserResults[0] === "invalid query syntax") {
-    return ["invalid query syntax"];
-  }
-  // if a query has no tables but is still syntatically valid sql, it is treated as compatible with all platforms
-  if (parserResults[0] === "no tables in query AST") {
-    return ["all"];
+export const filterCompatiblePlatforms = (
+  sqlTables: string[]
+): IOsqueryPlatform[] => {
+  if (!sqlTables.length) {
+    return [...SUPPORTED_PLATFORMS]; // if a query has no tables but is still syntatically valid sql, it is treated as compatible with all platforms
   }
 
   const compatiblePlatforms = intersection(
-    ...parserResults?.map(
-      (tableName: IParserResult) => platformsByTableDictionary[tableName]
+    ...sqlTables.map(
+      (tableName: string) => platformsByTableDictionary[tableName]
     )
   );
 
-  return compatiblePlatforms.length ? compatiblePlatforms : ["none"];
+  return SUPPORTED_PLATFORMS.filter((p) => compatiblePlatforms.includes(p));
 };
 
 export const parseSqlTables = (
@@ -125,19 +108,32 @@ export const parseSqlTables = (
       results = results.filter((r: string) => !cteTables.includes(r));
     }
 
-    return results.length ? results : ["no tables in query AST"];
+    return results;
   } catch (err) {
     // console.log(`Invalid query syntax: ${err.message}\n\n${sqlString}`);
 
-    return ["invalid query syntax"];
+    throw err; // TODO
   }
 };
 
-export const getCompatiblePlatforms = (
+export const checkPlatformCompatibility = (
   sqlString: string,
   includeCteTables = false
-): ICompatiblePlatform[] => {
-  return filterPlatforms(parseSqlTables(sqlString, includeCteTables));
+): IOsqueryPlatform[] => {
+  let sqlTables: string[] | undefined;
+  try {
+    sqlTables = parseSqlTables(sqlString, includeCteTables);
+  } catch (err) {
+    throw err;
+  }
+
+  if (sqlTables === undefined) {
+    throw new Error(
+      "Unexpected error checking platform compatibility: sqlTables are undefined"
+    );
+  }
+
+  return filterCompatiblePlatforms(sqlTables);
 };
 
-export default getCompatiblePlatforms;
+export default checkPlatformCompatibility;

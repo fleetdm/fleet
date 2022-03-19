@@ -12,18 +12,13 @@ import { size } from "lodash";
 import { useDebouncedCallback } from "use-debounce/lib";
 import classnames from "classnames";
 
-import { addGravatarUrlToResource } from "fleet/helpers";
-// @ts-ignore
-import {
-  getCompatiblePlatforms,
-  ICompatiblePlatform,
-} from "utilities/sql_tools";
-
-import queryAPI from "services/entities/queries";
 import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
-import { IQuery, IQueryFormData } from "interfaces/query";
+import { addGravatarUrlToResource } from "fleet/helpers";
+import usePlatformCompatibility from "hooks/usePlatformCompatibility";
 import { IApiError } from "interfaces/errors";
+import { IQuery, IQueryFormData } from "interfaces/query";
+import queryAPI from "services/entities/queries";
 
 import Avatar from "components/Avatar";
 import FleetAce from "components/FleetAce";
@@ -33,10 +28,8 @@ import Button from "components/buttons/Button";
 import RevealButton from "components/buttons/RevealButton";
 import Checkbox from "components/forms/fields/Checkbox";
 import Spinner from "components/Spinner";
-// @ts-ignore
 import AutoSizeInputField from "components/forms/fields/AutoSizeInputField";
 import NewQueryModal from "../NewQueryModal";
-import PlatformCompatibility from "../PlatformCompatibility";
 import InfoIcon from "../../../../../../assets/images/icon-info-purple-14x14@2x.png";
 import PencilIcon from "../../../../../../assets/images/icon-pencil-14x14@2x.png";
 
@@ -87,9 +80,6 @@ const QueryForm = ({
   const [errors, setErrors] = useState<{ [key: string]: any }>({}); // string | null | undefined or boolean | undefined
   const [isSaveModalOpen, setIsSaveModalOpen] = useState<boolean>(false);
   const [showQueryEditor, setShowQueryEditor] = useState<boolean>(false);
-  const [compatiblePlatforms, setCompatiblePlatforms] = useState<
-    ICompatiblePlatform[]
-  >([]);
   const [isEditingName, setIsEditingName] = useState<boolean>(false);
   const [isEditingDescription, setIsEditingDescription] = useState<boolean>(
     false
@@ -119,13 +109,8 @@ const QueryForm = ({
     isGlobalMaintainer,
   } = useContext(AppContext);
 
-  const debounceCompatiblePlatforms = useDebouncedCallback(
-    (queryString: string) => {
-      setCompatiblePlatforms(getCompatiblePlatforms(queryString));
-    },
-    300,
-    { leading: true }
-  );
+  const platformCompatibility = usePlatformCompatibility();
+  const { setCompatiblePlatforms } = platformCompatibility;
 
   const debounceSQL = useDebouncedCallback((sql: string) => {
     let valid = true;
@@ -141,7 +126,7 @@ const QueryForm = ({
 
   useEffect(() => {
     if (queryIdForEdit === lastEditedQueryId) {
-      debounceCompatiblePlatforms(lastEditedQueryBody);
+      setCompatiblePlatforms(lastEditedQueryBody);
     }
 
     debounceSQL(lastEditedQueryBody);
@@ -329,15 +314,11 @@ const QueryForm = ({
   };
 
   const renderPlatformCompatibility = () => {
-    if (
-      isStoredQueryLoading ||
-      queryIdForEdit !== lastEditedQueryId ||
-      !compatiblePlatforms.length
-    ) {
+    if (isStoredQueryLoading || queryIdForEdit !== lastEditedQueryId) {
       return null;
     }
 
-    return <PlatformCompatibility compatiblePlatforms={compatiblePlatforms} />;
+    return platformCompatibility.render();
   };
 
   const queryNameClasses = classnames("query-name-wrapper", {

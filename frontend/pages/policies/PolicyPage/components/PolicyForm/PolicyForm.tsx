@@ -2,17 +2,19 @@
 /* eslint-disable jsx-a11y/interactive-supports-focus */
 import React, { useState, useContext, useEffect, KeyboardEvent } from "react";
 import { IAceEditor } from "react-ace/lib/types";
+import ReactTooltip from "react-tooltip";
 import { useDebouncedCallback } from "use-debounce/lib";
-import { isUndefined, size } from "lodash";
+import { size } from "lodash";
 import classnames from "classnames";
 
 import { addGravatarUrlToResource } from "fleet/helpers";
-// @ts-ignore
-
 import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
+import usePlatformCompatibility from "hooks/usePlatformCompatibility";
+import usePlatformSelector from "hooks/usePlaformSelector";
+
 import { IPolicy, IPolicyFormData } from "interfaces/policy";
-import { IQueryPlatform } from "interfaces/query";
+import { IOsqueryPlatform, IPlatformString } from "interfaces/platform";
 import { DEFAULT_POLICIES } from "utilities/constants";
 
 import Avatar from "components/Avatar";
@@ -21,10 +23,8 @@ import FleetAce from "components/FleetAce";
 import validateQuery from "components/forms/validators/validate_query";
 import Button from "components/buttons/Button";
 import RevealButton from "components/buttons/RevealButton";
-import Checkbox from "components/forms/fields/Checkbox";
 import Spinner from "components/Spinner";
 import AutoSizeInputField from "components/forms/fields/AutoSizeInputField";
-import TooltipWrapper from "components/TooltipWrapper";
 import NewPolicyModal from "../NewPolicyModal";
 import InfoIcon from "../../../../../../assets/images/icon-info-purple-14x14@2x.png";
 import PencilIcon from "../../../../../../assets/images/icon-pencil-14x14@2x.png";
@@ -82,16 +82,12 @@ const PolicyForm = ({
   const [isEditingResolution, setIsEditingResolution] = useState<boolean>(
     false
   );
-  const [isDarwinCompatible, setIsDarwinCompatible] = useState<boolean>(false);
-  const [isWindowsCompatible, setIsWindowsCompatible] = useState<boolean>(
-    false
-  );
-  const [isLinuxCompatible, setIsLinuxCompatible] = useState<boolean>(false);
 
   // Note: The PolicyContext values should always be used for any mutable policy data such as query name
   // The storedPolicy prop should only be used to access immutable metadata such as author id
   const {
     policyTeamId,
+    lastEditedQueryId,
     lastEditedQueryName,
     lastEditedQueryDescription,
     lastEditedQueryBody,
@@ -115,21 +111,31 @@ const PolicyForm = ({
     isTeamMaintainer,
   } = useContext(AppContext);
 
-  policyIdForEdit = policyIdForEdit || 0;
-
   const debounceSQL = useDebouncedCallback((sql: string) => {
-    let valid = true;
-    const { valid: isValidated, errors: newErrors } = validateQuerySQL(sql);
-    valid = isValidated;
+    const { errors: newErrors } = validateQuerySQL(sql);
 
     setErrors({
       ...newErrors,
     });
   }, 500);
 
-  useEffect(() => {
-    debounceSQL(lastEditedQueryBody);
-  }, [lastEditedQueryBody]);
+  const platformCompatibility = usePlatformCompatibility();
+  const {
+    getCompatiblePlatforms,
+    setCompatiblePlatforms,
+  } = platformCompatibility;
+
+  const platformSelector = usePlatformSelector(
+    lastEditedQueryPlatform,
+    baseClass
+  );
+  const {
+    getSelectedPlatforms,
+    setSelectedPlatforms,
+    isAnyPlatformSelected,
+  } = platformSelector;
+
+  policyIdForEdit = policyIdForEdit || 0;
 
   const isEditMode = !!policyIdForEdit && !isTeamObserver && !isGlobalObserver;
 
@@ -137,38 +143,30 @@ const PolicyForm = ({
     !policyIdForEdit &&
     DEFAULT_POLICIES.find((p) => p.name === lastEditedQueryName);
 
+  useEffect(() => {
+    if (isNewTemplatePolicy) {
+      setCompatiblePlatforms(lastEditedQueryBody);
+    }
+  }, []);
+
+  useEffect(() => {
+    debounceSQL(lastEditedQueryBody);
+    if (
+      (policyIdForEdit && policyIdForEdit !== lastEditedQueryId) ||
+      (isNewTemplatePolicy && !lastEditedQueryBody)
+    ) {
+      return;
+    }
+    setCompatiblePlatforms(lastEditedQueryBody);
+  }, [lastEditedQueryBody, lastEditedQueryId]);
+
   const hasSavePermissions =
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
-
-  const displayOrder = [
-    {
-      selected: isDarwinCompatible,
-      displayName: "macOS",
-    },
-    {
-      selected: isWindowsCompatible,
-      displayName: "Windows",
-    },
-    {
-      selected: isLinuxCompatible,
-      displayName: "Linux",
-    },
-  ];
 
   const onLoad = (editor: IAceEditor) => {
     editor.setOptions({
       enableLinking: true,
     });
-
-    if (policyIdForEdit || isNewTemplatePolicy) {
-      setIsWindowsCompatible(!!lastEditedQueryPlatform?.includes("windows"));
-      setIsDarwinCompatible(!!lastEditedQueryPlatform?.includes("darwin"));
-      setIsLinuxCompatible(!!lastEditedQueryPlatform?.includes("linux"));
-    } else {
-      setIsWindowsCompatible(true);
-      setIsDarwinCompatible(true);
-      setIsLinuxCompatible(true);
-    }
 
     // @ts-expect-error
     // the string "linkClick" is not officially in the lib but we need it
@@ -197,9 +195,7 @@ const PolicyForm = ({
     }
   };
 
-  const promptSavePolicy = (forceNew = false) => (
-    evt: React.MouseEvent<HTMLButtonElement>
-  ) => {
+  const promptSavePolicy = () => (evt: React.MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();
 
     if (isEditMode && !lastEditedQueryName) {
@@ -209,22 +205,25 @@ const PolicyForm = ({
       });
     }
 
-    const selectedPlatforms = [];
-
-    const areCheckboxesUndefined = [
-      isDarwinCompatible,
-      isWindowsCompatible,
-      isLinuxCompatible,
-    ].some((val) => isUndefined(val));
-
-    if (!areCheckboxesUndefined) {
-      isDarwinCompatible && selectedPlatforms.push("darwin");
-      isWindowsCompatible && selectedPlatforms.push("windows");
-      isLinuxCompatible && selectedPlatforms.push("linux");
-      setLastEditedQueryPlatform(selectedPlatforms.join(",") as IQueryPlatform);
+    if (isEditMode && !isAnyPlatformSelected) {
+      return setErrors({
+        ...errors,
+        name: "At least one platform must be selected",
+      });
     }
 
-    if (!isEditMode || forceNew) {
+    let selectedPlatforms: IOsqueryPlatform[] = [];
+    if (isEditMode) {
+      selectedPlatforms = getSelectedPlatforms();
+    } else {
+      selectedPlatforms = getCompatiblePlatforms();
+      setSelectedPlatforms(selectedPlatforms);
+    }
+
+    const newPlatformString = selectedPlatforms.join(",") as IPlatformString;
+    setLastEditedQueryPlatform(newPlatformString);
+
+    if (!isEditMode) {
       setIsNewPolicyModalOpen(true);
     } else {
       onUpdate({
@@ -232,7 +231,7 @@ const PolicyForm = ({
         description: lastEditedQueryDescription,
         query: lastEditedQueryBody,
         resolution: lastEditedQueryResolution,
-        platform: lastEditedQueryPlatform,
+        platform: newPlatformString,
       });
     }
 
@@ -396,53 +395,14 @@ const PolicyForm = ({
   };
 
   const renderPlatformCompatibility = () => {
-    let chosenPlatforms = displayOrder.filter((platform) => platform.selected);
-    chosenPlatforms = chosenPlatforms.length ? chosenPlatforms : displayOrder;
-    const displayPlatforms = chosenPlatforms.map(
-      (platform) => platform.displayName
-    );
+    if (
+      isEditMode &&
+      (isStoredPolicyLoading || policyIdForEdit !== lastEditedQueryId)
+    ) {
+      return null;
+    }
 
-    return (
-      <span className={`${baseClass}__platform-compatibility`}>
-        {isEditMode ? (
-          <>
-            <b>Checks on:</b>
-            <span className="platforms-text">
-              <TooltipWrapper tipContent="To choose new platforms, please create a new policy.">
-                {displayPlatforms.join(", ")}
-              </TooltipWrapper>
-            </span>
-          </>
-        ) : (
-          <>
-            <b>Checks on:</b>
-            <div className="platforms-select">
-              <Checkbox
-                value={isDarwinCompatible}
-                onChange={(value: boolean) => setIsDarwinCompatible(value)}
-                wrapperClassName={`${baseClass}__platform-checkbox-wrapper`}
-              >
-                macOS
-              </Checkbox>
-              <Checkbox
-                value={isWindowsCompatible}
-                onChange={(value: boolean) => setIsWindowsCompatible(value)}
-                wrapperClassName={`${baseClass}__platform-checkbox-wrapper`}
-              >
-                Windows
-              </Checkbox>
-              <Checkbox
-                value={isLinuxCompatible}
-                onChange={(value: boolean) => setIsLinuxCompatible(value)}
-                wrapperClassName={`${baseClass}__platform-checkbox-wrapper`}
-              >
-                Linux
-              </Checkbox>
-            </div>
-          </>
-        )}
-      </span>
-    );
+    return platformCompatibility.render();
   };
 
   const renderRunForObserver = (
@@ -499,35 +459,51 @@ const PolicyForm = ({
           onChange={onChangePolicy}
           handleSubmit={promptSavePolicy}
         />
-        {renderPlatformCompatibility()}
+        <span className={`${baseClass}__platform-compatibility`}>
+          {renderPlatformCompatibility()}
+        </span>
+        {isEditMode && platformSelector.render()}
         {renderLiveQueryWarning()}
-        <div
-          className={`${baseClass}__button-wrap ${baseClass}__button-wrap--new-policy`}
-        >
-          {hasSavePermissions && (
-            <div className="query-form__button-wrap--save-policy-button">
-              <div
-                data-tip
-                data-for="save-query-button"
-                data-tip-disable={!(isTeamAdmin || isTeamMaintainer)}
-              >
-                <Button
-                  className={`${baseClass}__save`}
-                  variant="brand"
-                  onClick={promptSavePolicy()}
-                >
-                  <>Save{!isEditMode && " policy"}</>
-                </Button>
-              </div>
-            </div>
-          )}
-          <Button
-            className={`${baseClass}__run`}
-            variant="blue-green"
-            onClick={goToSelectTargets}
+        <div className={`${baseClass}__button-wrap`}>
+          <span
+            className={`${baseClass}__button-wrap--tooltip`}
+            data-tip
+            data-for={`${baseClass}__button-wrap--tooltip`}
+            data-tip-disable={!isEditMode || isAnyPlatformSelected}
           >
-            Run
-          </Button>
+            {hasSavePermissions && (
+              <Button
+                className={`${baseClass}__save`}
+                variant="brand"
+                onClick={promptSavePolicy()}
+                disabled={isEditMode && !isAnyPlatformSelected}
+              >
+                <>Save</>
+              </Button>
+            )}
+            <Button
+              className={`${baseClass}__run`}
+              variant="blue-green"
+              onClick={goToSelectTargets}
+              disabled={isEditMode && !isAnyPlatformSelected}
+            >
+              Run
+            </Button>
+          </span>
+          <ReactTooltip
+            className={`${baseClass}__button-wrap--tooltip`}
+            place="bottom"
+            type="dark"
+            effect="solid"
+            id={`${baseClass}__button-wrap--tooltip`}
+            backgroundColor="#3e4771"
+          >
+            Select the platform(s) this
+            <br />
+            policy will be checked on
+            <br />
+            to save or run the policy.
+          </ReactTooltip>
         </div>
       </form>
       {isNewPolicyModalOpen && (
@@ -536,8 +512,8 @@ const PolicyForm = ({
           queryValue={lastEditedQueryBody}
           onCreatePolicy={onCreatePolicy}
           setIsNewPolicyModalOpen={setIsNewPolicyModalOpen}
-          platform={lastEditedQueryPlatform}
           backendValidators={backendValidators}
+          platformSelector={platformSelector}
         />
       )}
     </>

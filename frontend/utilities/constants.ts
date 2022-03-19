@@ -1,5 +1,5 @@
 import URL_PREFIX from "router/url_prefix";
-import { IQueryPlatform } from "interfaces/query";
+import { IOsqueryPlatform, IPlatformString } from "interfaces/platform";
 import { IPolicyNew } from "interfaces/policy";
 
 const { origin } = global.window.location;
@@ -213,7 +213,7 @@ export const DEFAULT_QUERY = {
   packs: [],
 };
 
-const DEFAULT_POLICY_PLATFORM: IQueryPlatform = "";
+const DEFAULT_POLICY_PLATFORM: IPlatformString = "";
 
 export const DEFAULT_POLICY = {
   id: 1,
@@ -264,6 +264,13 @@ export const DEFAULT_CAMPAIGN_STATE = {
   targetsCount: 0,
   targetsError: null,
   campaign: { ...DEFAULT_CAMPAIGN },
+};
+
+export const PLATFORM_DISPLAY_NAMES: Record<string, IOsqueryPlatform> = {
+  darwin: "macOS",
+  freebsd: "FreeBSD",
+  linux: "Linux",
+  windows: "Windows",
 };
 
 // as returned by the TARGETS API; based on display_text
