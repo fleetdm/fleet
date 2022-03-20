@@ -182,7 +182,7 @@ describe("Premium tier - Admin user", () => {
           .click();
         // Add a default policy
         cy.findByText(/gatekeeper enabled/i).click();
-        cy.getAttached(".policy-form__button-wrap--new-policy").within(() => {
+        cy.getAttached(".policy-form__button-wrap").within(() => {
           cy.findByRole("button", { name: /run/i }).should("exist");
           cy.findByRole("button", { name: /save policy/i }).click();
         });
@@ -567,7 +567,7 @@ describe("Premium tier - Admin user", () => {
           .click();
         // Add a default policy
         cy.findByText(/gatekeeper enabled/i).click();
-        cy.getAttached(".policy-form__button-wrap--new-policy").within(() => {
+        cy.getAttached(".policy-form__button-wrap").within(() => {
           cy.findByRole("button", { name: /run/i }).should("exist");
           cy.findByRole("button", { name: /save policy/i }).click();
         });

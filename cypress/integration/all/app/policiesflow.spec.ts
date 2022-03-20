@@ -42,23 +42,65 @@ describe("Policies flow (empty)", () => {
         cy.findByText(/add a policy/i).click();
       });
       cy.findByText(/gatekeeper enabled/i).click();
-      cy.getAttached(".platforms-select")
-        .children()
+      cy.getAttached(".platform")
         .first()
         .within(() => {
-          cy.getAttached('[type="checkbox"]').should("be.checked");
+          cy.getAttached('[alt="compatible"]').should("exist");
         });
-      cy.getAttached(".platforms-select")
-        .children()
+      cy.getAttached(".platform")
         .first()
         .next()
         .within(() => {
-          cy.getAttached('[type="checkbox"]').should("not.be.checked");
+          cy.getAttached('[alt="incompatible"]').should("exist");
+        });
+      cy.getAttached(".platform")
+        .first()
+        .next()
+        .next()
+        .within(() => {
+          cy.getAttached('[alt="incompatible"]').should("exist");
         });
       cy.findByRole("button", { name: /save policy/i }).click();
-      cy.findByRole("button", { name: /^Save$/ }).click();
-
+      cy.getAttached(".policy-form__save-modal-form").within(() => {
+        cy.getAttached(".platform-selector").within(() => {
+          cy.getAttached(".fleet-checkbox__input").first().should("be.checked");
+          cy.getAttached(".fleet-checkbox__input")
+            .first()
+            .next()
+            .should("not.be.checked");
+          cy.getAttached(".fleet-checkbox__input")
+            .last()
+            .should("not.be.checked");
+          cy.getAttached(".fleet-checkbox__label").first().click();
+        });
+      });
+      cy.getAttached(".policy-form__button-wrap--modal").within(() => {
+        cy.findAllByRole("button", { name: /^Save$/ }).should("be.disabled");
+      });
+      cy.getAttached(".policy-form__save-modal-form").within(() => {
+        cy.getAttached(".platform-selector").within(() => {
+          cy.getAttached(".fleet-checkbox__label").last().click();
+        });
+      });
+      cy.getAttached(".policy-form__button-wrap--modal").within(() => {
+        cy.findAllByRole("button", { name: /^Save$/ }).click();
+      });
       cy.findByText(/policy created/i).should("exist");
+      cy.visit("/policies/2");
+      cy.getAttached(".policy-form__policy-name").should(
+        "have.text",
+        "Gatekeeper enabled (macOS)"
+      );
+      cy.getAttached(".platform-selector").within(() => {
+        cy.getAttached(".fleet-checkbox__input")
+          .first()
+          .should("not.be.checked");
+        cy.getAttached(".fleet-checkbox__input")
+          .first()
+          .next()
+          .should("not.be.checked");
+        cy.getAttached(".fleet-checkbox__input").last().should("be.checked");
+      });
     });
   });
 });
@@ -102,8 +144,11 @@ describe("Policies flow (seeded)", () => {
         .type(
           "{selectall}SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;"
         );
+      cy.getAttached(".fleet-checkbox__label").first().click();
       cy.getAttached(".policy-form__save").click();
       cy.findByText(/policy updated/i).should("exist");
+      cy.visit("policies/2");
+      cy.getAttached(".fleet-checkbox__input").first().should("not.be.checked");
     });
 
     it("deletes an existing policy", () => {

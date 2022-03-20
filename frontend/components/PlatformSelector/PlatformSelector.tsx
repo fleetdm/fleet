@@ -23,7 +23,7 @@ export const PlatformSelector = ({
   const baseClass = "platform-selector";
 
   return (
-    <div className={`${parentClass} ${baseClass}`}>
+    <div className={`${parentClass}__${baseClass} ${baseClass}`}>
       <span>
         <b>Checks on:</b>
         <span className={`${baseClass}__checkboxes`}>

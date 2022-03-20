@@ -189,6 +189,7 @@ Cypress.Commands.add("seedPolicies", (team = "") => {
         "Checks to make sure that the Filevault feature is enabled on macOS devices.",
       resolution:
         "Choose Apple menu > System Preferences, then click Security & Privacy. Click the FileVault tab. Click the Lock icon, then enter an administrator name and password. Click Turn On FileVault.",
+      platform: "darwin,linux",
     },
     {
       name: "Is Ubuntu, version 20.4.0 installed?",
@@ -197,16 +198,16 @@ Cypress.Commands.add("seedPolicies", (team = "") => {
       description:
         "Returns yes or no for detecting operating system and version",
       resolution: "Update OS if needed",
+      platform: "darwin,windows,linux",
     },
   ];
 
   if (team === "apples") {
     policies.forEach((policyForm) => {
-      const { name, query, description, resolution } = policyForm;
       cy.request({
         url: "/api/v1/fleet/teams/1/policies",
         method: "POST",
-        body: { name, query, description, resolution },
+        body: { ...policyForm },
         auth: {
           bearer: window.localStorage.getItem("FLEET::auth_token"),
         },
@@ -214,11 +215,10 @@ Cypress.Commands.add("seedPolicies", (team = "") => {
     });
   } else {
     policies.forEach((policyForm) => {
-      const { name, query, description, resolution } = policyForm;
       cy.request({
         url: "/api/v1/fleet/global/policies",
         method: "POST",
-        body: { name, query, description, resolution },
+        body: { ...policyForm },
         auth: {
           bearer: window.localStorage.getItem("FLEET::auth_token"),
         },

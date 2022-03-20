@@ -478,7 +478,7 @@ const PolicyForm = ({
                 onClick={promptSavePolicy()}
                 disabled={isEditMode && !isAnyPlatformSelected}
               >
-                <>Save</>
+                <>{!isEditMode ? "Save policy" : "Save"}</>
               </Button>
             )}
             <Button
