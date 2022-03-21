@@ -41,6 +41,9 @@
     },
     {
       "pattern": "angel.co"
+    },
+    {
+      "pattern": "github.com/orgs/fleetdm/projects"
     }
   ],
   "retryOn429": true,
