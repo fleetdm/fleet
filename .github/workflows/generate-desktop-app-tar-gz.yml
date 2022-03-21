@@ -54,6 +54,7 @@ jobs:
           AC_USERNAME=$AC_USERNAME \
           AC_PASSWORD=$AC_PASSWORD \
           FLEET_DESKTOP_APPLE_AUTHORITY=$CODESIGN_IDENTITY \
+          FLEET_DESKTOP_NOTARIZE=true \
           FLEET_DESKTOP_VERSION=$FLEET_DESKTOP_VERSION \
           make desktop-app-tar-gz
       - name: Upload desktop.app.tar.gz

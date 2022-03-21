@@ -117,7 +117,7 @@ func BuildPkg(opt Options) (string, error) {
 	}
 
 	if opt.Notarize {
-		if err := notarizePkg(generatedPath); err != nil {
+		if err := NotarizeStaple(generatedPath, "com.fleetdm.orbit"); err != nil {
 			return "", err
 		}
 	}

@@ -3,6 +3,7 @@ package main
 import (
 	"archive/tar"
 	"compress/gzip"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -13,8 +14,10 @@ import (
 	"runtime"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/packaging"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/kolide/kit/version"
+	"github.com/mitchellh/gon/package/zip"
 	"github.com/rs/zerolog"
 	zlog "github.com/rs/zerolog/log"
 	"github.com/urfave/cli/v2"
@@ -75,17 +78,22 @@ func macos() *cli.Command {
 				Usage:   "Authority to use on the codesign invocation (if not set, app is not signed)",
 				EnvVars: []string{"FLEET_DESKTOP_APPLE_AUTHORITY"},
 			},
+			&cli.BoolFlag{
+				Name:    "notarize",
+				Usage:   "If true, the generated application will be notarized and stapled. Requires the `AC_USERNAME` and `AC_PASSWORD` to be set in the environment",
+				EnvVars: []string{"FLEET_DESKTOP_NOTARIZE"},
+			},
 		},
 		Action: func(c *cli.Context) error {
 			if !c.Bool("verbose") {
 				zlog.Logger = zerolog.Nop()
 			}
-			return createMacOSApp(c.String("version"), c.String("authority"))
+			return createMacOSApp(c.String("version"), c.String("authority"), c.Bool("notarize"))
 		},
 	}
 }
 
-func createMacOSApp(version, authority string) error {
+func createMacOSApp(version, authority string, notarize bool) error {
 	const (
 		appDir           = "Fleet Desktop.app"
 		bundleIdentifier = "com.fleetdm.desktop"
@@ -160,6 +168,25 @@ func createMacOSApp(version, authority string) error {
 		if err := codeSign.Run(); err != nil {
 			return fmt.Errorf("sign application: %w", err)
 		}
+	}
+
+	if notarize {
+		const notarizationZip = "desktop.zip"
+		// Note that the app needs to be zipped in order to upload to Apple for Notarization, but
+		// the Stapling has to happen on just the app (not zipped). Apple is a bit inconsistent here.
+		if err := zip.Zip(context.Background(), &zip.Options{Files: []string{appDir}, OutputPath: notarizationZip}); err != nil {
+			return fmt.Errorf("zip app for notarization: %w", err)
+		}
+		defer os.Remove(notarizationZip)
+
+		if err := packaging.Notarize(notarizationZip, "com.fleetdm.desktop"); err != nil {
+			return err
+		}
+
+		if err := packaging.Staple(appDir); err != nil {
+			return err
+		}
+
 	}
 
 	const tarGzName = "desktop.app.tar.gz"
