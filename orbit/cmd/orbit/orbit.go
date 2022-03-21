@@ -456,7 +456,7 @@ func main() {
 
 		if runtime.GOOS == "darwin" && c.Bool("fleet-desktop") {
 			desktopRunner := newDesktopRunner(desktopAppPath, fleetURL, deviceAuthToken)
-			g.Add(desktopRunner.execute, desktopRunner.interrupt)
+			g.Add(desktopRunner.actor())
 		}
 
 		// Install a signal handler
@@ -492,23 +492,39 @@ func newDesktopRunner(appPath, fleetURL, deviceAuthToken string) *desktopRunner 
 	}
 }
 
+func (d *desktopRunner) actor() (func() error, func(error)) {
+	return d.execute, d.interrupt
+}
+
 func (d *desktopRunner) execute() error {
 	log.Info().Str("path", d.appPath).Msg("opening")
 	url := path.Join(d.fleetURL, "device", d.deviceAuthToken)
-	if err := open.App(d.appPath, open.AppWithEnv("FLEET_DESKTOP_DEVICE_URL", url)); err != nil {
+	if err := open.App(d.appPath,
+		open.AppWithEnv("FLEET_DESKTOP_DEVICE_URL", url),
+	); err != nil {
 		return fmt.Errorf("open desktop app: %w", err)
 	}
-	// TODO(lucas): Orbit currently does not monitor the Fleet Desktop
-	// application (e.g. in case of crashes).
-	<-d.done
-	return nil
+
+	// Monitor the fleet-desktop application.
+	ticker := time.NewTicker(10 * time.Second)
+	for {
+		select {
+		case <-d.done:
+			return nil
+		case <-ticker.C:
+			if _, err := getProcessByName("fleet-desktop"); err != nil {
+				log.Err(err).Msg("desktopRunner.execute exit")
+				return fmt.Errorf("get desktop process: %w", err)
+			}
+		}
+	}
 }
 
 func (d *desktopRunner) interrupt(err error) {
 	log.Debug().Err(err).Msg("interrupt desktopRunner")
 	defer close(d.done)
 
-	if err := killProcessByName(d.appPath); err != nil {
+	if err := killProcessByName("fleet-desktop"); err != nil {
 		log.Error().Err(err).Msg("killProcess")
 	}
 }
@@ -534,9 +550,22 @@ func loadOrGenerateToken(rootDir string) (string, error) {
 }
 
 func killProcessByName(name string) error {
+	foundProcess, err := getProcessByName(name)
+	if err != nil {
+		return fmt.Errorf("get process: %w", err)
+	}
+	if err := foundProcess.Kill(); err != nil {
+		return fmt.Errorf("kill process %d: %w", foundProcess.Pid, err)
+	}
+	return nil
+}
+
+var errProcessNotFound = errors.New("process not found")
+
+func getProcessByName(name string) (*gopsutil_process.Process, error) {
 	processes, err := gopsutil_process.Processes()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	var foundProcess *gopsutil_process.Process
 	for _, process := range processes {
@@ -545,18 +574,15 @@ func killProcessByName(name string) error {
 			log.Debug().Err(err).Int32("pid", process.Pid).Msg("get process name")
 			continue
 		}
-		if processName == "fleet-desktop" {
+		if processName == name {
 			foundProcess = process
 			break
 		}
 	}
 	if foundProcess == nil {
-		return fmt.Errorf("process not found: %s", name)
+		return nil, errProcessNotFound
 	}
-	if err := foundProcess.Kill(); err != nil {
-		return fmt.Errorf("kill process %d: %w", foundProcess.Pid, err)
-	}
-	return nil
+	return foundProcess, nil
 }
 
 var versionCommand = &cli.Command{

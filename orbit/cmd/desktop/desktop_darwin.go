@@ -23,16 +23,18 @@ func main() {
 
 	devURL := os.Getenv("FLEET_DESKTOP_DEVICE_URL")
 	if devURL == "" {
-		fmt.Println("Missing URL environment FLEET_DESKTOP_DEVICE_URL")
+		log.Println("missing URL environment FLEET_DESKTOP_DEVICE_URL")
 		os.Exit(1)
 	}
 	deviceURL, err := url.Parse(devURL)
 	if err != nil {
-		fmt.Printf("Invalid URL argument: %s\n", err)
+		log.Printf("invalid URL argument: %s\n", err)
 		os.Exit(1)
 	}
 
 	onReady := func() {
+		log.Println("ready")
+
 		systray.SetIcon(icoBytes)
 		systray.SetTooltip("Fleet Device Management Menu.")
 		myDeviceItem := systray.AddMenuItem("My device", "")
@@ -53,5 +55,9 @@ func main() {
 			}
 		}()
 	}
-	systray.Run(onReady, nil)
+	onExit := func() {
+		log.Println("exit")
+	}
+
+	systray.Run(onReady, onExit)
 }

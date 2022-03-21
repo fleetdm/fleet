@@ -26,7 +26,8 @@ func Browser(url string) error {
 }
 
 type appOpts struct {
-	env [][2]string
+	env        [][2]string
+	stderrPath string
 }
 
 // AppOption are options to use when opening the application with App.
@@ -36,6 +37,13 @@ type AppOption func(*appOpts)
 func AppWithEnv(name, value string) AppOption {
 	return func(a *appOpts) {
 		a.env = append(a.env, [2]string{name, value})
+	}
+}
+
+// AppWithStderr sets the stderr destination for the application.
+func AppWithStderr(path string) AppOption {
+	return func(a *appOpts) {
+		a.stderrPath = path
 	}
 }
 
@@ -55,11 +63,18 @@ func App(path string, opts ...AppOption) error {
 		if !info.IsDir() {
 			return fmt.Errorf("path is not an .app directory: %s", path)
 		}
-		arg := []string{path}
+		var arg []string
+		if o.stderrPath != "" {
+			arg = append(arg, "--stderr", o.stderrPath)
+		}
 		for _, nv := range o.env {
 			arg = append(arg, "--env", fmt.Sprintf("%s=%s", nv[0], nv[1]))
 		}
-		if err := exec.Command("open", arg...).Run(); err != nil {
+		arg = append(arg, path)
+		cmd := exec.Command("open", arg...)
+		cmd.Stderr = os.Stderr
+		cmd.Stdout = os.Stdout
+		if err := cmd.Run(); err != nil {
 			return fmt.Errorf("open path: %w", err)
 		}
 		return nil
