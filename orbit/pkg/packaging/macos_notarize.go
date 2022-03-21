@@ -56,7 +56,7 @@ func Staple(path string) error {
 	return nil
 }
 
-// Notarize will notarize and staple a macOS artifact.
+// NotarizeStaple will notarize and staple a macOS artifact.
 func NotarizeStaple(path, bundleIdentifier string) error {
 	if err := Notarize(path, bundleIdentifier); err != nil {
 		return err
