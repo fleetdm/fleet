@@ -263,6 +263,8 @@ type Service interface {
 	MacadminsData(ctx context.Context, id uint) (*MacadminsData, error)
 	AggregatedMacadminsData(ctx context.Context, teamID *uint) (*AggregatedMacadminsData, error)
 
+	OSVersions(ctx context.Context, platform *string, teamID *uint) (*OSVersions, error)
+
 	///////////////////////////////////////////////////////////////////////////////
 	// AppConfigService provides methods for configuring  the Fleet application
 

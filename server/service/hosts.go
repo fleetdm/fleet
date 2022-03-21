@@ -896,37 +896,18 @@ func hostsReportEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 
 type osVersionsRequest struct {
 	Platform *string `query:"platform,optional"`
-	TeamID   *uint   `query:"label_id,optional"`
-}
-
-type osVersionsResponse struct {
-	CountsUpdatedAt time.Time   `json:"counts_updated_at"`
-	OsVersions      []OSVersion `json:"os_versions"`
-}
-
-type OSVersion struct {
-	ID         uint   `json:"id"`
-	Name       string `json:"name"`
-	HostsCount int    `json:"hosts_count"`
+	TeamID   *uint   `query:"team_id,optional"`
 }
 
 func osVersionsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
-	// req := request.(*osVersionsRequest)
-	agg := &fleet.AggregatedMacadminsData{}
+	req := request.(*osVersionsRequest)
 
-	versions, munkiUpdatedAt, err := svc.ds.AggregatedMunkiVersion(ctx, teamID)
+	osVersions, err := svc.OSVersions(ctx, req.Platform, req.TeamID)
 	if err != nil {
 		return nil, err
 	}
-	agg.MunkiVersions = versions
 
-	status, mdmUpdatedAt, err := svc.ds.AggregatedMDMStatus(ctx, teamID)
-	if err != nil {
-		return nil, err
-	}
-	agg.MDMStatus = status
-
-	return nil, nil
+	return osVersions, nil
 }
 
 func (svc *Service) OSVersions(ctx context.Context, platform *string, teamID *uint) (*fleet.OSVersions, error) {
