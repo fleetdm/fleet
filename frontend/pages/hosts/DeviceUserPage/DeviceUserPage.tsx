@@ -10,11 +10,7 @@ import { isEmpty, pick, reduce } from "lodash";
 
 import deviceUserAPI from "services/entities/device_user";
 import hostAPI from "services/entities/hosts";
-import {
-  IHost,
-  IDeviceMappingResponse,
-  IMacadminsResponse,
-} from "interfaces/host";
+import { IHost, IDeviceMappingResponse } from "interfaces/host";
 import { ISoftware } from "interfaces/software";
 // @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions";
@@ -78,22 +74,8 @@ const DeviceUserPage = ({
     }
   );
 
-  const { data: macadmins, refetch: refetchMacadmins } = useQuery(
-    ["macadmins", deviceAuthToken],
-    () => deviceUserAPI.loadHostDetailsExtension(deviceAuthToken, "macadmins"),
-    {
-      enabled: !!deviceAuthToken,
-      refetchOnMount: false,
-      refetchOnReconnect: false,
-      refetchOnWindowFocus: false,
-      retry: false,
-      select: (data: IMacadminsResponse) => data.macadmins,
-    }
-  );
-
   const refetchExtensions = () => {
     deviceMapping !== null && refetchDeviceMapping();
-    macadmins !== null && refetchMacadmins();
   };
 
   const {
