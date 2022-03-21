@@ -893,3 +893,25 @@ func hostsReportEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 	}
 	return hostsReportResponse{Hosts: hosts}, nil
 }
+
+type osVersionsRequest struct {
+	Platform *string `query:"platform,optional"`
+	TeamID   *uint   `query:"label_id,optional"`
+}
+
+type osVersionsResponse struct {
+	CountsUpdatedAt time.Time   `json:"counts_updated_at"`
+	OsVersions      []OSVersion `json:"os_versions"`
+}
+
+type OSVersion struct {
+	ID         uint   `json:"id"`
+	Name       string `json:"name"`
+	HostsCount int    `json:"hosts_count"`
+}
+
+func osVersionsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	// req := request.(*osVersionsRequest)
+
+	return nil, nil
+}

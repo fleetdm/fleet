@@ -1615,3 +1615,53 @@ func (ds *Datastore) UpdateHost(ctx context.Context, host *fleet.Host) error {
 	}
 	return nil
 }
+
+func (ds *Datastore) GetOSVersions(ctx context.Context) (*fleet.OSVersions, error) {
+	query := `
+SELECT
+    json_value,
+    updated_at
+FROM aggregated_stats
+WHERE
+    id = 0 AND
+    type = 'os_versions'
+`
+
+	osVersions := &fleet.OSVersions{}
+	if err := sqlx.GetContext(ctx, ds.reader, osVersions, query); err != nil {
+		return nil, err
+	}
+
+	return osVersions, nil
+}
+
+func (ds *Datastore) updateOSVersionsAggregatedStats(ctx context.Context) error {
+	query := `
+INSERT INTO aggregated_stats
+    (id, type, json_value)
+SELECT
+    0 id,
+    'os_versions' type,
+    COALESCE(JSON_ARRAYAGG(JSON_OBJECT(
+        'hosts_count', hosts_count,
+        'name', name,
+        'platform', platform
+    )), '[]') json_value
+FROM
+    (
+        SELECT
+            COUNT(*) hosts_count,
+            os_version name,
+            platform
+        FROM hosts
+        GROUP BY os_version, platform
+    ) AS os_versions
+ON DUPLICATE KEY UPDATE json_value = VALUES(json_value)
+`
+	_, err := ds.writer.ExecContext(ctx, query)
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "update aggregated stats for os_versions")
+	}
+
+	return nil
+}

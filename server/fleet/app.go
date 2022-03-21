@@ -293,6 +293,10 @@ type ListOptions struct {
 	After string `query:"after,optional"`
 }
 
+func (l ListOptions) Empty() bool {
+	return l.Page == 0 && l.PerPage == 0 && l.OrderKey == "" && l.OrderDirection == 0 && l.MatchQuery == ""
+}
+
 type ListQueryOptions struct {
 	ListOptions
 
