@@ -1,9 +1,11 @@
 import React from "react";
 import { useQuery } from "react-query";
 
+import { IOsqueryPlatform } from "interfaces/platform";
 import operatingSystemsAPI, {
   IOperatingSystemsResponse,
 } from "services/entities/operating_systems";
+import { PLATFORM_DISPLAY_NAMES } from "utilities/constants";
 
 import TableContainer from "components/TableContainer";
 // @ts-ignore
@@ -14,33 +16,28 @@ import generateTableHeaders from "./OperatingSystemsTableConfig";
 
 interface IOperatingSystemsCardProps {
   currentTeamId: number | undefined;
-  selectedPlatform: string;
+  selectedPlatform: IOsqueryPlatform;
   showOperatingSystemsUI: boolean;
   setShowOperatingSystemsUI: (showOperatingSystemsTitle: boolean) => void;
   setTitleDetail?: (content: JSX.Element | string | null) => void;
 }
 
-type IOsQueryPlatform = "darwin" | "linux" | "windows"; // TODO: replace these with imports once my platform PR is merged
-const OS_API_SUPPORTED_PLATFORMS: IOsQueryPlatform[] = ["darwin"];
+// TODO: add platforms to this constant as new ones are supported
+const OS_API_SUPPORTED_PLATFORMS: IOsqueryPlatform[] = ["darwin"];
 
 const DEFAULT_SORT_DIRECTION = "desc";
 const DEFAULT_SORT_HEADER = "hosts_count";
 const PAGE_SIZE = 8;
 const baseClass = "operating-systems";
 
-const EmptyOperatingSystems = (): JSX.Element => (
-  <div className={`${baseClass}__empty-munki`}>
-    <h1>Unable to detect operating systems versions.</h1>
+const EmptyOperatingSystems = (platform: IOsqueryPlatform): JSX.Element => (
+  <div className={`${baseClass}__empty-os`}>
+    <h1>{`No ${
+      PLATFORM_DISPLAY_NAMES[platform] || "supported"
+    } operating systems detected`}</h1>
     <p>
-      To see operating systems versions, deploy&nbsp;
-      <a
-        href="https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer"
-        target="_blank"
-        rel="noopener noreferrer"
-      >
-        Fleet&apos;s osquery installer
-      </a>
-      .
+      {`Did you add ${`${PLATFORM_DISPLAY_NAMES[platform]} ` || ""}hosts to
+      Fleet? Try again in a few seconds as the system catches up.`}
     </p>
   </div>
 );
@@ -52,27 +49,31 @@ const OperatingSystems = ({
   setShowOperatingSystemsUI,
   setTitleDetail,
 }: IOperatingSystemsCardProps): JSX.Element => {
-  const platform = selectedPlatform as IOsQueryPlatform;
-
-  const { data: osInfo, isFetching } = useQuery<
+  const { data: osInfo, error, isFetching } = useQuery<
     IOperatingSystemsResponse,
     Error,
     IOperatingSystemsResponse,
     Array<{
       scope: string;
-      platform: IOsQueryPlatform;
+      platform: IOsqueryPlatform;
       teamId: number | undefined;
     }>
   >(
-    [{ scope: "os_version", platform, teamId: currentTeamId }],
+    [
+      {
+        scope: "os_version",
+        platform: selectedPlatform,
+        teamId: currentTeamId,
+      },
+    ],
     ({ queryKey: [{ platform, teamId }] }) => {
       return operatingSystemsAPI.getVersions({
         platform,
-        teamId: currentTeamId,
+        teamId,
       });
     },
     {
-      enabled: OS_API_SUPPORTED_PLATFORMS.includes(platform),
+      enabled: OS_API_SUPPORTED_PLATFORMS.includes(selectedPlatform),
       keepPreviousData: true,
       onSuccess: (data) => {
         setShowOperatingSystemsUI(true);
@@ -88,7 +89,9 @@ const OperatingSystems = ({
 
   // Renders opaque information as host information is loading
   const opacity = showOperatingSystemsUI ? { opacity: 1 } : { opacity: 0 };
+  console.log("teamId: ", currentTeamId);
 
+  // TODO: error states? different for teams?
   return (
     <div className={baseClass}>
       {!showOperatingSystemsUI && (
@@ -105,12 +108,12 @@ const OperatingSystems = ({
           defaultSortDirection={DEFAULT_SORT_DIRECTION}
           hideActionButton
           resultsTitle={"Operating systems"}
-          emptyComponent={EmptyOperatingSystems}
+          emptyComponent={() => EmptyOperatingSystems(selectedPlatform)}
           showMarkAllPages={false}
           isAllPagesSelected={false}
           disableCount
           disableActionButton
-          disablePagination
+          isClientSidePagination
           pageSize={PAGE_SIZE}
         />
       </div>

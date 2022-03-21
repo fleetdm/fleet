@@ -6,6 +6,7 @@ import { find } from "lodash";
 import hostSummaryAPI from "services/entities/host_summary";
 import teamsAPI from "services/entities/teams";
 import { IHostSummary, IHostSummaryPlatforms } from "interfaces/host_summary";
+import { IOsqueryPlatform } from "interfaces/platform";
 import { ITeam } from "interfaces/team";
 import sortUtils from "utilities/sort";
 import { PLATFORM_DROPDOWN_OPTIONS } from "utilities/constants";
@@ -244,7 +245,7 @@ const Homepage = (): JSX.Element => {
     children: (
       <OperatingSystems
         currentTeamId={currentTeam?.id}
-        selectedPlatform={selectedPlatform}
+        selectedPlatform={selectedPlatform as IOsqueryPlatform}
         setShowOperatingSystemsUI={setShowOperatingSystemsUI}
         showOperatingSystemsUI={showOperatingSystemsUI}
       />
