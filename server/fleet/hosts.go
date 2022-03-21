@@ -316,4 +316,5 @@ type OSVersions struct {
 type OSVersion struct {
 	HostsCount int    `json:"hosts_count"`
 	Name       string `json:"name"`
+	Platform   string `json:"platform"`
 }

@@ -1627,9 +1627,24 @@ WHERE
     type = 'os_versions'
 `
 
-	osVersions := &fleet.OSVersions{}
-	if err := sqlx.GetContext(ctx, ds.reader, osVersions, query); err != nil {
+	var row struct {
+		JSONValue *json.RawMessage `db:"json_value"`
+		UpdatedAt time.Time        `db:"updated_at"`
+	}
+
+	if err := sqlx.GetContext(ctx, ds.reader, &row, query); err != nil {
 		return nil, err
+	}
+
+	osVersions := &fleet.OSVersions{
+		CountsUpdatedAt: row.UpdatedAt,
+	}
+
+	if row.JSONValue != nil {
+		err := json.Unmarshal(*row.JSONValue, &osVersions.OSVersions)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return osVersions, nil
@@ -1637,26 +1652,63 @@ WHERE
 
 func (ds *Datastore) UpdateOSVersions(ctx context.Context) error {
 	query := `
-INSERT INTO aggregated_stats
-    (id, type, json_value)
+INSERT INTO
+  aggregated_stats (id, type, json_value)
 SELECT
-    0 id,
-    'os_versions' type,
-    COALESCE(JSON_ARRAYAGG(JSON_OBJECT(
-        'hosts_count', hosts_count,
-        'name', name,
-        'platform', platform
-    )), '[]') json_value
+  0 id,
+  'os_versions' type,
+  COALESCE(
+    JSON_OBJECTAGG(team_id, team_json_value),
+    JSON_OBJECT()
+  ) json_value
 FROM
-    (
-        SELECT
-            COUNT(*) hosts_count,
-            os_version name,
+  (
+    SELECT
+      team_id,
+      COALESCE(
+        JSON_ARRAYAGG(
+          JSON_OBJECT(
+            'hosts_count',
+            hosts_count,
+            'name',
+            name,
+            'platform',
             platform
-        FROM hosts
-        GROUP BY os_version, platform
-    ) AS os_versions
-ON DUPLICATE KEY UPDATE json_value = VALUES(json_value)
+          )
+        ),
+        JSON_ARRAY()
+      ) team_json_value
+    FROM
+      (
+        SELECT
+          COUNT(*) hosts_count,
+          h.os_version name,
+          h.platform,
+          '*' team_id
+        FROM
+          hosts h
+        GROUP BY
+          h.os_version,
+          h.platform
+        UNION
+        SELECT
+          COUNT(*) hosts_count,
+          h.os_version name,
+          h.platform,
+          h.team_id
+        FROM
+          hosts h
+          JOIN teams t ON t.id = h.team_id
+        GROUP BY
+          h.os_version,
+          h.platform,
+          h.team_id
+      ) as team_os_versions
+    GROUP BY
+      team_id
+  ) as os_versions ON DUPLICATE KEY
+UPDATE
+  json_value = VALUES(json_value)
 `
 	_, err := ds.writer.ExecContext(ctx, query)
 	if err != nil {
