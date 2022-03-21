@@ -912,6 +912,33 @@ type OSVersion struct {
 
 func osVersionsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
 	// req := request.(*osVersionsRequest)
+	agg := &fleet.AggregatedMacadminsData{}
+
+	versions, munkiUpdatedAt, err := svc.ds.AggregatedMunkiVersion(ctx, teamID)
+	if err != nil {
+		return nil, err
+	}
+	agg.MunkiVersions = versions
+
+	status, mdmUpdatedAt, err := svc.ds.AggregatedMDMStatus(ctx, teamID)
+	if err != nil {
+		return nil, err
+	}
+	agg.MDMStatus = status
 
 	return nil, nil
+}
+
+func (svc *Service) OSVersions(ctx context.Context, platform *string, teamID *uint) (*fleet.OSVersions, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionList); err != nil {
+		return nil, err
+	}
+
+	osVersions, err := svc.ds.OSVersions(ctx, platform, teamID)
+	if err != nil {
+		return nil, err
+	}
+
+	return osVersions, nil
+
 }

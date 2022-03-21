@@ -1616,7 +1616,7 @@ func (ds *Datastore) UpdateHost(ctx context.Context, host *fleet.Host) error {
 	return nil
 }
 
-func (ds *Datastore) GetOSVersions(ctx context.Context) (*fleet.OSVersions, error) {
+func (ds *Datastore) OSVersions(ctx context.Context, platform *string, teamID *uint) (*fleet.OSVersions, error) {
 	query := `
 SELECT
     json_value,
@@ -1635,7 +1635,7 @@ WHERE
 	return osVersions, nil
 }
 
-func (ds *Datastore) updateOSVersionsAggregatedStats(ctx context.Context) error {
+func (ds *Datastore) UpdateOSVersions(ctx context.Context) error {
 	query := `
 INSERT INTO aggregated_stats
     (id, type, json_value)
