@@ -335,6 +335,7 @@ func (ds *Datastore) DeleteHost(ctx context.Context, hid uint) error {
 			"policy_membership",
 			"host_mdm",
 			"host_munki_info",
+			"host_device_auth",
 		}
 
 		for _, table := range hostRefs {

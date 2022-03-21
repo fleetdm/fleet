@@ -54,7 +54,7 @@ func NewRunner(updater *Updater, opt RunnerOptions) (*Runner, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to get local path for %s: %w", target, err)
 		}
-		_, localHash, err := fileHashes(meta, localTarget.path)
+		_, localHash, err := fileHashes(meta, localTarget.Path)
 		if err != nil {
 			return nil, fmt.Errorf("%s file hash: %w", target, err)
 		}
@@ -135,10 +135,11 @@ func (r *Runner) updateAction() (bool, error) {
 }
 
 func (r *Runner) updateTarget(target string) error {
-	path, err := r.updater.Get(target)
+	localTarget, err := r.updater.Get(target)
 	if err != nil {
 		return fmt.Errorf("get binary: %w", err)
 	}
+	path := localTarget.ExecPath
 
 	if target != "orbit" {
 		return nil
