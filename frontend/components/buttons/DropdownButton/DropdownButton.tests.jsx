@@ -1,5 +1,5 @@
 import React from "react";
-import { mount } from "enzyme";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { noop } from "lodash";
 
 import { DropdownButton } from "./DropdownButton";
@@ -11,18 +11,14 @@ describe("DropdownButton - component", () => {
       { label: "btn1", onClick: noop },
       { label: "btn2", onClick: optionSpy },
     ];
-    const component = mount(
+
+    render(
       <DropdownButton options={dropdownOptions}>New Button</DropdownButton>
     );
 
-    component.find("button.dropdown-button").simulate("click");
-    expect(component.state().isOpen).toEqual(true);
+    fireEvent.click(screen.getByText("New Button"));
 
-    component
-      .find("li.dropdown-button__option")
-      .last()
-      .find("Button")
-      .simulate("click");
+    fireEvent.click(screen.getByRole("button", { name: "btn2" }));
     expect(optionSpy).toHaveBeenCalled();
   });
 });
