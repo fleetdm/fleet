@@ -5714,45 +5714,47 @@ _Available in Fleet Premium_
 
 ```json
 {
-  "team": {
-    "name": "workstations",
-    "id": 1,
-    "user_ids": [],
-    "host_ids": [],
-    "user_count": 0,
-    "host_count": 0,
-    "agent_options": {
-      "spec": {
-        "config": {
-          "options": {
-            "logger_plugin": "tls",
-            "pack_delimiter": "/",
-            "logger_tls_period": 10,
-            "distributed_plugin": "tls",
-            "disable_distributed": false,
-            "logger_tls_endpoint": "/api/v1/osquery/log",
-            "distributed_interval": 10,
-            "distributed_tls_max_attempts": 3
+  "teams": [
+    {
+      "name": "workstations",
+      "id": 1,
+      "user_ids": [],
+      "host_ids": [],
+      "user_count": 0,
+      "host_count": 0,
+      "agent_options": {
+        "spec": {
+          "config": {
+            "options": {
+              "logger_plugin": "tls",
+              "pack_delimiter": "/",
+              "logger_tls_period": 10,
+              "distributed_plugin": "tls",
+              "disable_distributed": false,
+              "logger_tls_endpoint": "/api/v1/osquery/log",
+              "distributed_interval": 10,
+              "distributed_tls_max_attempts": 3
+            },
+            "decorators": {
+              "load": [
+                "select uuid as host_uuid from system_info;",
+                "select hostname as hostname from system_info;"
+              ]
+            }
           },
-          "decorators": {
-            "load": [
-              "SELECT uuid AS host_uuid FROM system_info;",
-              "SELECT hostname AS hostname FROM system_info;"
-            ]
-          }
-        },
-        "overrides": {}
-      }
-    },
-    "webhook_settings": {
-      "failing_policies_webhook": {
-        "enable_failing_policies_webhook": false,
-        "destination_url": "",
-        "policy_ids": null,
-        "host_batch_size": 0
+          "overrides": {}
+        }
+      },
+      "webhook_settings": {
+        "failing_policies_webhook": {
+          "enable_failing_policies_webhook": false,
+          "destination_url": "",
+          "policy_ids": null,
+          "host_batch_size": 0
+        }
       }
     }
-  }
+  ]
 }
 ```
 
