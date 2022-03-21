@@ -401,6 +401,7 @@ const DeviceUserPage = ({
                   <SoftwareCard
                     isLoading={isLoadingHost}
                     software={hostSoftware}
+                    deviceUser
                   />
                 </TabPanel>
               </Tabs>
