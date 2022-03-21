@@ -38,6 +38,7 @@ import RemoveScheduledQueryModal from "./components/RemoveScheduledQueryModal";
 const baseClass = "manage-schedule-page";
 
 const renderTable = (
+  router: InjectedRouter,
   onRemoveScheduledQueryClick: (selectIds: number[]) => void,
   onEditScheduledQueryClick: (selectedQuery: IEditScheduledQuery) => void,
   allScheduledQueriesList: IScheduledQuery[],
@@ -52,6 +53,7 @@ const renderTable = (
     <TableDataError />
   ) : (
     <ScheduleListWrapper
+      router={router}
       onRemoveScheduledQueryClick={onRemoveScheduledQueryClick}
       onEditScheduledQueryClick={onEditScheduledQueryClick}
       allScheduledQueriesList={allScheduledQueriesList}
@@ -65,6 +67,7 @@ const renderTable = (
 };
 
 const renderAllTeamsTable = (
+  router: InjectedRouter,
   allTeamsScheduledQueriesList: IScheduledQuery[],
   allTeamsScheduledQueriesError: Error | null,
   isOnGlobalTeam: boolean,
@@ -77,6 +80,7 @@ const renderAllTeamsTable = (
   ) : (
     <div className={`${baseClass}__all-teams-table`}>
       <ScheduleListWrapper
+        router={router}
         inheritedQueries
         allScheduledQueriesList={allTeamsScheduledQueriesList}
         isOnGlobalTeam={isOnGlobalTeam}
@@ -501,6 +505,7 @@ const ManageSchedulePage = ({
             <Spinner />
           ) : (
             renderTable(
+              router,
               onRemoveScheduledQueryClick,
               onEditScheduledQueryClick,
               allScheduledQueriesList,
@@ -532,6 +537,7 @@ const ManageSchedulePage = ({
         {showInheritedQueries &&
           inheritedScheduledQueriesList &&
           renderAllTeamsTable(
+            router,
             inheritedScheduledQueriesList,
             inheritedScheduledQueriesError,
             isOnGlobalTeam || false,

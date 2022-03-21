@@ -146,6 +146,7 @@ const QueryEditor = ({
         <span>Back to queries</span>
       </Link>
       <QueryForm
+        router={router}
         onCreateQuery={onSaveQueryFormSubmit}
         goToSelectTargets={goToSelectTargets}
         onOsqueryTableSelect={onOsqueryTableSelect}
