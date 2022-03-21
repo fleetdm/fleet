@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
@@ -39,6 +40,78 @@ type teamSearchResult struct {
 	*fleet.Team
 	DisplayText string `json:"display_text"`
 	Count       int    `json:"count"`
+}
+
+func (t teamSearchResult) MarshalJSON() ([]byte, error) {
+	x := struct {
+		ID          uint      `json:"id"`
+		CreatedAt   time.Time `json:"created_at"`
+		Name        string    `json:"name"`
+		Description string    `json:"description"`
+		fleet.TeamConfig
+		UserCount   int                   `json:"user_count"`
+		Users       []fleet.TeamUser      `json:"users,omitempty"`
+		HostCount   int                   `json:"host_count"`
+		Hosts       []fleet.Host          `json:"hosts,omitempty"`
+		Secrets     []*fleet.EnrollSecret `json:"secrets,omitempty"`
+		DisplayText string                `json:"display_text"`
+		Count       int                   `json:"count"`
+	}{
+		ID:          t.ID,
+		CreatedAt:   t.CreatedAt,
+		Name:        t.Name,
+		Description: t.Description,
+		TeamConfig:  t.Config,
+		UserCount:   t.UserCount,
+		Users:       t.Users,
+		HostCount:   t.HostCount,
+		Hosts:       t.Hosts,
+		Secrets:     t.Secrets,
+		DisplayText: t.DisplayText,
+		Count:       t.Count,
+	}
+
+	return json.Marshal(x)
+}
+
+func (t *teamSearchResult) UnmarshalJSON(b []byte) error {
+	var x struct {
+		ID          uint      `json:"id"`
+		CreatedAt   time.Time `json:"created_at"`
+		Name        string    `json:"name"`
+		Description string    `json:"description"`
+		fleet.TeamConfig
+		UserCount   int                   `json:"user_count"`
+		Users       []fleet.TeamUser      `json:"users,omitempty"`
+		HostCount   int                   `json:"host_count"`
+		Hosts       []fleet.Host          `json:"hosts,omitempty"`
+		Secrets     []*fleet.EnrollSecret `json:"secrets,omitempty"`
+		DisplayText string                `json:"display_text"`
+		Count       int                   `json:"count"`
+	}
+
+	if err := json.Unmarshal(b, &x); err != nil {
+		return err
+	}
+
+	*t = teamSearchResult{
+		Team: &fleet.Team{
+			ID:          x.ID,
+			CreatedAt:   x.CreatedAt,
+			Name:        x.Name,
+			Description: x.Description,
+			Config:      x.TeamConfig,
+			UserCount:   x.UserCount,
+			Users:       x.Users,
+			HostCount:   x.HostCount,
+			Hosts:       x.Hosts,
+			Secrets:     x.Secrets,
+		},
+		DisplayText: x.DisplayText,
+		Count:       x.Count,
+	}
+
+	return nil
 }
 
 type targetsData struct {

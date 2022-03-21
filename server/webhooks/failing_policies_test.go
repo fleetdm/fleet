@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"sort"
 	"testing"
 	"time"
 
@@ -86,7 +85,7 @@ func TestTriggerFailingPoliciesWebhookBasic(t *testing.T) {
 	require.NoError(t, err)
 
 	mockClock := time.Now()
-	err = TriggerGlobalFailingPoliciesWebhook(context.Background(), ds, kitlog.NewNopLogger(), ac, failingPolicySet, mockClock)
+	err = TriggerFailingPoliciesWebhook(context.Background(), ds, kitlog.NewNopLogger(), ac, failingPolicySet, mockClock)
 	require.NoError(t, err)
 	timestamp, err := mockClock.MarshalJSON()
 	require.NoError(t, err)
@@ -130,9 +129,165 @@ func TestTriggerFailingPoliciesWebhookBasic(t *testing.T) {
 
 	requestBody = ""
 
-	err = TriggerGlobalFailingPoliciesWebhook(context.Background(), ds, kitlog.NewNopLogger(), ac, failingPolicySet, mockClock)
+	err = TriggerFailingPoliciesWebhook(context.Background(), ds, kitlog.NewNopLogger(), ac, failingPolicySet, mockClock)
 	require.NoError(t, err)
 	assert.Empty(t, requestBody)
+}
+
+func TestTriggerFailingPoliciesWebhookTeam(t *testing.T) {
+	// webhook server
+	webhookBody := ""
+	webhookCalled := false
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		webhookCalled = true
+		requestBodyBytes, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+		webhookBody = string(requestBodyBytes)
+	}))
+	t.Cleanup(func() {
+		ts.Close()
+	})
+
+	ds := new(mock.Store)
+
+	teamID := uint(1)
+
+	policiesByID := map[uint]*fleet.Policy{
+		1: {
+			PolicyData: fleet.PolicyData{
+				ID:          1,
+				Name:        "policy1",
+				Query:       "select 1",
+				Description: "policy1 description",
+				AuthorID:    ptr.Uint(1),
+				AuthorName:  "Alice",
+				AuthorEmail: "alice@example.com",
+				TeamID:      &teamID,
+				Resolution:  ptr.String("policy1 resolution"),
+				Platform:    "darwin",
+			},
+		},
+		2: {
+			PolicyData: fleet.PolicyData{
+				ID:          2,
+				Name:        "policy2",
+				Query:       "select 2",
+				Description: "policy2 description",
+				AuthorID:    ptr.Uint(1),
+				AuthorName:  "Alice",
+				AuthorEmail: "alice@example.com",
+				TeamID:      &teamID,
+				Resolution:  ptr.String("policy2 resolution"),
+				Platform:    "darwin",
+			},
+		},
+		3: {
+			PolicyData: fleet.PolicyData{
+				ID:          2,
+				Name:        "policy3",
+				Query:       "select 3",
+				Description: "policy3 description",
+				AuthorID:    ptr.Uint(1),
+				AuthorName:  "Alice",
+				AuthorEmail: "alice@example.com",
+				TeamID:      nil, // global policy
+				Resolution:  ptr.String("policy3 resolution"),
+				Platform:    "darwin",
+			},
+		},
+	}
+
+	ds.PolicyFunc = func(ctx context.Context, id uint) (*fleet.Policy, error) {
+		policy, ok := policiesByID[id]
+		if !ok {
+			return nil, ctxerr.Wrap(ctx, sql.ErrNoRows)
+		}
+		return policy, nil
+	}
+	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+		if tid == teamID {
+			return &fleet.Team{
+				ID: teamID,
+				Config: fleet.TeamConfig{
+					WebhookSettings: fleet.TeamWebhookSettings{
+						FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
+							Enable:         true,
+							DestinationURL: ts.URL,
+							PolicyIDs:      []uint{1},
+						},
+					},
+				},
+			}, nil
+		}
+		return nil, ctxerr.Wrap(ctx, sql.ErrNoRows)
+	}
+
+	ac := &fleet.AppConfig{
+		ServerSettings: fleet.ServerSettings{
+			ServerURL: "https://fleet.example.com",
+		},
+	}
+
+	failingPolicySet := service.NewMemFailingPolicySet()
+	err := failingPolicySet.AddHost(1, fleet.PolicySetHost{
+		ID:       1,
+		Hostname: "host1",
+	})
+	require.NoError(t, err)
+	err = failingPolicySet.AddHost(2, fleet.PolicySetHost{
+		ID:       2,
+		Hostname: "host2",
+	})
+	require.NoError(t, err)
+
+	now := time.Now()
+	err = TriggerFailingPoliciesWebhook(context.Background(), ds, kitlog.NewNopLogger(), ac, failingPolicySet, now)
+	require.NoError(t, err)
+
+	timestamp, err := now.MarshalJSON()
+	require.NoError(t, err)
+
+	// Request body as defined in #2756.
+	require.True(t, webhookCalled, "webhook was not called")
+	require.JSONEq(
+		t, fmt.Sprintf(`{
+    "timestamp": %s,
+    "policy": {
+        "id": 1,
+        "name": "policy1",
+        "query": "select 1",
+        "description": "policy1 description",
+        "author_id": 1,
+        "author_name": "Alice",
+        "author_email": "alice@example.com",
+        "team_id": 1,
+        "resolution": "policy1 resolution",
+        "platform": "darwin",
+        "created_at": "0001-01-01T00:00:00Z",
+        "updated_at": "0001-01-01T00:00:00Z",
+        "passing_host_count": 0,
+        "failing_host_count": 0
+    },
+    "hosts": [
+        {
+            "id": 1,
+            "hostname": "host1",
+            "url": "https://fleet.example.com/hosts/1"
+        }
+    ]
+}`, timestamp), webhookBody)
+
+	hosts, err := failingPolicySet.ListHosts(1)
+	require.NoError(t, err)
+	assert.Empty(t, hosts)
+
+	webhookBody = ""
+
+	err = TriggerFailingPoliciesWebhook(context.Background(), ds, kitlog.NewNopLogger(), ac, failingPolicySet, now)
+	require.NoError(t, err)
+	assert.Empty(t, webhookBody)
 }
 
 func TestSendBatchedPOSTs(t *testing.T) {
@@ -244,13 +399,18 @@ func TestSendBatchedPOSTs(t *testing.T) {
 				err := failingPolicySet.AddHost(p.ID, host)
 				require.NoError(t, err)
 			}
-			err := sendFailingPoliciesBatchedPOSTs(context.Background(),
-				p, failingPolicySet, postData{
-					serverURL:  serverURL,
-					now:        now,
-					webhookURL: ts.URL,
-				},
+
+			webhookURL, err := url.Parse(ts.URL)
+			require.NoError(t, err)
+
+			err = sendFailingPoliciesBatchedPOSTs(
+				context.Background(),
+				p,
+				failingPolicySet,
 				tc.batchSize,
+				serverURL,
+				webhookURL,
+				now,
 				kitlog.NewNopLogger(),
 			)
 			require.NoError(t, err)
@@ -262,87 +422,6 @@ func TestSendBatchedPOSTs(t *testing.T) {
 			setHosts, err := failingPolicySet.ListHosts(p.ID)
 			require.NoError(t, err)
 			assert.Empty(t, setHosts)
-		})
-	}
-}
-
-func TestFilterPolicies(t *testing.T) {
-	ds := new(mock.Store)
-	for _, tc := range []struct {
-		name        string
-		set         []uint
-		cfg         []uint
-		nonExisting []uint
-		expIDs      []uint
-	}{
-		{
-			name:        "one-non-configured",
-			set:         []uint{1, 2, 6},
-			cfg:         []uint{1, 2, 3},
-			nonExisting: []uint{},
-			expIDs:      []uint{1, 2},
-		},
-		{
-			name:        "none-configured",
-			set:         []uint{1, 2, 6},
-			cfg:         []uint{},
-			nonExisting: []uint{},
-			expIDs:      []uint{},
-		},
-		{
-			name:        "one-non-existing-and-one-non-configured",
-			set:         []uint{1, 2, 6},
-			cfg:         []uint{1, 2},
-			nonExisting: []uint{1},
-			expIDs:      []uint{2},
-		},
-		{
-			name:        "empty-set",
-			set:         []uint{},
-			cfg:         []uint{1, 2},
-			nonExisting: []uint{1},
-			expIDs:      []uint{},
-		},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			failingPoliciesSet := service.NewMemFailingPolicySet()
-			for _, policyID := range tc.set {
-				err := failingPoliciesSet.AddHost(policyID, fleet.PolicySetHost{ID: 1})
-				require.NoError(t, err)
-			}
-			ds.PolicyFunc = func(ctx context.Context, id uint) (*fleet.Policy, error) {
-				for _, nonID := range tc.nonExisting {
-					if nonID == id {
-						return nil, sql.ErrNoRows
-					}
-				}
-				return &fleet.Policy{
-					PolicyData: fleet.PolicyData{
-						ID: id,
-					},
-				}, nil
-			}
-			policies, err := filterPolicies(
-				context.Background(),
-				ds,
-				tc.cfg,
-				failingPoliciesSet,
-				kitlog.NewNopLogger(),
-			)
-			require.NoError(t, err)
-			require.Len(t, policies, len(tc.expIDs))
-			sets, err := failingPoliciesSet.ListSets()
-			sort.Slice(sets, func(i, j int) bool {
-				return sets[i] < sets[j]
-			})
-			sort.Slice(policies, func(i, j int) bool {
-				return policies[i].ID < policies[j].ID
-			})
-			require.NoError(t, err)
-			for i := range policies {
-				require.Equal(t, tc.expIDs[i], policies[i].ID)
-				require.Equal(t, sets[i], policies[i].ID)
-			}
 		})
 	}
 }
