@@ -295,9 +295,13 @@ func main() {
 		var g run.Group
 
 		if !c.Bool("disable-updates") {
+			targets := []string{"orbit", "osqueryd"}
+			if runtime.GOOS == "darwin" && c.Bool("fleet-desktop") {
+				targets = append(targets, "desktop")
+			}
 			updateRunner, err := update.NewRunner(updater, update.RunnerOptions{
 				CheckInterval: 10 * time.Second,
-				Targets:       []string{"orbit", "osqueryd", "desktop"},
+				Targets:       targets,
 			})
 			if err != nil {
 				return err
