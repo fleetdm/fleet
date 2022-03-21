@@ -12,13 +12,8 @@ import PATHS from "router/paths";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import TooltipWrapper from "components/TooltipWrapper";
-<<<<<<< HEAD:frontend/pages/hosts/SoftwareTab/SoftwareTableConfig.tsx
-import IssueIcon from "../../../../assets/images/icon-issue-fleet-black-50-16x16@2x.png";
-import Chevron from "../../../../assets/images/icon-chevron-right-9x6@2x.png";
-=======
 import IssueIcon from "../../../../../../assets/images/icon-issue-fleet-black-50-16x16@2x.png";
 import Chevron from "../../../../../../assets/images/icon-chevron-right-9x6@2x.png";
->>>>>>> b2894709e (Refactor host details page into components):frontend/pages/hosts/HostDetailsPage/cards/Software/SoftwareTableConfig.tsx
 
 interface IHeaderProps {
   column: {
@@ -77,8 +72,8 @@ const formatSoftwareType = (source: string) => {
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
-const generateSoftwareTableHeaders = (): IDataColumn[] => {
-  return [
+const generateSoftwareTableHeaders = (deviceUser = false): IDataColumn[] => {
+  const tableHeaders: IDataColumn[] = [
     {
       title: "Vulnerabilities",
       Header: "",
@@ -223,6 +218,13 @@ const generateSoftwareTableHeaders = (): IDataColumn[] => {
       disableHidden: true,
     },
   ];
+
+  // Device user cannot view all hosts software
+  if (deviceUser) {
+    tableHeaders.pop();
+  }
+
+  return tableHeaders;
 };
 
 export default generateSoftwareTableHeaders;

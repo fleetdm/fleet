@@ -13,7 +13,7 @@ import Button from "components/buttons/Button";
 
 import { ITeam } from "interfaces/team";
 
-import CopyIcon from "../../../../../../assets/images/icon-copy-clipboard-fleet-blue-20x20@2x.png";
+import CopyIcon from "../../../../../../../assets/images/icon-copy-clipboard-fleet-blue-20x20@2x.png";
 
 interface IRenderOSPolicyModal {
   onCreateNewPolicy: (team: ITeam) => void;

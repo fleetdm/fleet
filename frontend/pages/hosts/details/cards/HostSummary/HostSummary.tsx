@@ -14,7 +14,8 @@ interface IHostSummaryProps {
   isPremiumTier?: boolean;
   wrapFleetHelper: (helperFn: (value: any) => string, value: string) => string;
   isOnlyObserver?: boolean;
-  toggleOSPolicyModal: () => void;
+  toggleOSPolicyModal?: () => void;
+  deviceUser?: boolean;
 }
 
 const HostSummary = ({
@@ -24,6 +25,7 @@ const HostSummary = ({
   wrapFleetHelper,
   isOnlyObserver,
   toggleOSPolicyModal,
+  deviceUser,
 }: IHostSummaryProps): JSX.Element => {
   const renderIssues = () => (
     <div className="info-flex__item info-flex__item--title">
@@ -96,6 +98,41 @@ const HostSummary = ({
     return <span className="info-flex__data">No data available</span>;
   };
 
+  if (deviceUser) {
+    return (
+      <div className="section title">
+        <div className="title__inner">
+          <div className="info-flex">
+            <div className="info-flex__item info-flex__item--title">
+              <span className="info-flex__header">Status</span>
+              <span className={`${statusClassName} info-flex__data`}>
+                {titleData.status}
+              </span>
+            </div>
+            <div className="info-flex__item info-flex__item--title">
+              <span className="info-flex__header">Disk Space</span>
+              {renderDiskSpace()}
+            </div>
+            <div className="info-flex__item info-flex__item--title">
+              <span className="info-flex__header">Memory</span>
+              <span className="info-flex__data">
+                {wrapFleetHelper(humanHostMemory, titleData.memory)}
+              </span>
+            </div>
+            <div className="info-flex__item info-flex__item--title">
+              <span className="info-flex__header">Processor type</span>
+              <span className="info-flex__data">{titleData.cpu_type}</span>
+            </div>
+            <div className="info-flex__item info-flex__item--title">
+              <span className="info-flex__header">Operating system</span>
+              <span className="info-flex__data">{titleData.os_version}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="section title">
       <div className="title__inner">
@@ -129,7 +166,7 @@ const HostSummary = ({
                 `${titleData.os_version}`
               ) : (
                 <Button
-                  onClick={() => toggleOSPolicyModal()}
+                  onClick={() => toggleOSPolicyModal && toggleOSPolicyModal()}
                   variant="text-link"
                   className={`${baseClass}__os-policy-button`}
                 >

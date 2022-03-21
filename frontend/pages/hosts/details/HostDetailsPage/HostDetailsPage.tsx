@@ -39,26 +39,26 @@ import TabsWrapper from "components/TabsWrapper";
 
 import { humanHostDetailUpdated } from "fleet/helpers";
 
-import HostSummaryCard from "./cards/HostSummary";
-import AboutCard from "./cards/About";
-import AgentOptionsCard from "./cards/AgentOptions";
-import LabelsCard from "./cards/Labels";
-import SoftwareCard from "./cards/Software";
-import UsersCard from "./cards/Users";
-import PoliciesCard from "./cards/Policies";
-import ScheduleCard from "./cards/Schedule";
-import PacksCard from "./cards/Packs";
+import HostSummaryCard from "../cards/HostSummary";
+import AboutCard from "../cards/About";
+import AgentOptionsCard from "../cards/AgentOptions";
+import LabelsCard from "../cards/Labels";
+import SoftwareCard from "../cards/Software";
+import UsersCard from "../cards/Users";
+import PoliciesCard from "../cards/Policies";
+import ScheduleCard from "../cards/Schedule";
+import PacksCard from "../cards/Packs";
 // @ts-ignore
 import SelectQueryModal from "./modals/SelectQueryModal";
 import TransferHostModal from "./modals/TransferHostModal";
-import PolicyDetailsModal from "./cards/Policies/HostPoliciesTable/PolicyDetailsModal";
+import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
 import DeleteHostModal from "./modals/DeleteHostModal";
 import RenderOSPolicyModal from "./modals/OSPolicyModal";
 
-import BackChevron from "../../../../assets/images/icon-chevron-down-9x6@2x.png";
-import DeleteIcon from "../../../../assets/images/icon-action-delete-14x14@2x.png";
-import QueryIcon from "../../../../assets/images/icon-action-query-16x16@2x.png";
-import TransferIcon from "../../../../assets/images/icon-action-transfer-16x16@2x.png";
+import BackChevron from "../../../../../assets/images/icon-chevron-down-9x6@2x.png";
+import DeleteIcon from "../../../../../assets/images/icon-action-delete-14x14@2x.png";
+import QueryIcon from "../../../../../assets/images/icon-action-query-16x16@2x.png";
+import TransferIcon from "../../../../../assets/images/icon-action-transfer-16x16@2x.png";
 
 const baseClass = "host-details";
 

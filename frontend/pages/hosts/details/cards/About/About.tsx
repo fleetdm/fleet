@@ -15,6 +15,7 @@ interface IAboutProps {
     munki: IMunkiData | null;
     mobile_device_management: IMDMData | null;
   } | null;
+  deviceUser?: boolean;
 }
 
 const About = ({
@@ -22,6 +23,7 @@ const About = ({
   wrapFleetHelper,
   deviceMapping,
   macadmins,
+  deviceUser,
 }: IAboutProps): JSX.Element => {
   const renderDeviceUser = () => {
     const numUsers = deviceMapping?.length;
@@ -103,6 +105,41 @@ const About = ({
       </>
     ) : null;
   };
+
+  if (deviceUser) {
+    return (
+      <div className="section about">
+        <p className="section__header">About</p>
+        <div className="info-grid">
+          <div className="info-grid__block">
+            <span className="info-grid__header">Last restarted</span>
+            <span className="info-grid__data">
+              {wrapFleetHelper(humanHostUptime, aboutData.uptime)}
+            </span>
+          </div>
+          <div className="info-grid__block">
+            <span className="info-grid__header">Hardware model</span>
+            <span className="info-grid__data">{aboutData.hardware_model}</span>
+          </div>
+          <div className="info-grid__block">
+            <span className="info-grid__header">Added to Fleet</span>
+            <span className="info-grid__data">
+              {wrapFleetHelper(humanHostEnrolled, aboutData.last_enrolled_at)}
+            </span>
+          </div>
+          <div className="info-grid__block">
+            <span className="info-grid__header">Serial number</span>
+            <span className="info-grid__data">{aboutData.hardware_serial}</span>
+          </div>
+          <div className="info-grid__block">
+            <span className="info-grid__header">IP address</span>
+            <span className="info-grid__data">{aboutData.primary_ip}</span>
+          </div>
+          {renderDeviceUser()}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="section about">
