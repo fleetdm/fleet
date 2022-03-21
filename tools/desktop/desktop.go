@@ -139,7 +139,7 @@ func createMacOSApp(version, authority string) error {
 	}
 
 	/* #nosec G204 -- arguments are actually well defined */
-	buildExec := exec.Command("go", "build", "-o", filepath.Join(macOSDir, "fleet-desktop"), "./"+filepath.Join("orbit", "cmd", "desktop"))
+	buildExec := exec.Command("go", "build", "-o", filepath.Join(macOSDir, constant.DesktopAppExecName), "./"+filepath.Join("orbit", "cmd", "desktop"))
 	buildExec.Env = append(os.Environ(), "CGO_ENABLED=1")
 	buildExec.Stderr = os.Stderr
 	buildExec.Stdout = os.Stdout

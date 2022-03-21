@@ -512,7 +512,7 @@ func (d *desktopRunner) execute() error {
 		case <-d.done:
 			return nil
 		case <-ticker.C:
-			if _, err := getProcessByName("fleet-desktop"); err != nil {
+			if _, err := getProcessByName(constant.DesktopAppExecName); err != nil {
 				log.Err(err).Msg("desktopRunner.execute exit")
 				return fmt.Errorf("get desktop process: %w", err)
 			}
@@ -524,7 +524,7 @@ func (d *desktopRunner) interrupt(err error) {
 	log.Debug().Err(err).Msg("interrupt desktopRunner")
 	defer close(d.done)
 
-	if err := killProcessByName("fleet-desktop"); err != nil {
+	if err := killProcessByName(constant.DesktopAppExecName); err != nil {
 		log.Error().Err(err).Msg("killProcess")
 	}
 }
