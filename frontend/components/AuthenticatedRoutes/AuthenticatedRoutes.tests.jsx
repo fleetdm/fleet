@@ -1,5 +1,5 @@
 import React from "react";
-import { mount } from "enzyme";
+import { render, screen } from "@testing-library/react";
 import { Provider } from "react-redux";
 
 import AuthenticatedRoutes from "./index";
@@ -66,7 +66,7 @@ describe("AuthenticatedRoutes - component", () => {
   it("renders if there is a user in state", () => {
     const { reduxMockStore } = helpers;
     const mockStore = reduxMockStore(storeWithUser);
-    const component = mount(
+    render(
       <Provider store={mockStore}>
         <AuthenticatedRoutes>
           <div>{renderedText}</div>
@@ -74,13 +74,13 @@ describe("AuthenticatedRoutes - component", () => {
       </Provider>
     );
 
-    expect(component.text()).toEqual(renderedText);
+    expect(screen.getByText(renderedText)).toBeInTheDocument();
   });
 
   it("redirects to reset password is force_password_reset is true", () => {
     const { reduxMockStore } = helpers;
     const mockStore = reduxMockStore(storeWithUserRequiringPwReset);
-    mount(
+    render(
       <Provider store={mockStore}>
         <AuthenticatedRoutes>
           <div>{renderedText}</div>
@@ -110,7 +110,7 @@ describe("AuthenticatedRoutes - component", () => {
   it("does not redirect to login if the user is loading", () => {
     const { reduxMockStore } = helpers;
     const mockStore = reduxMockStore(storeLoadingUser);
-    const component = mount(
+    render(
       <Provider store={mockStore}>
         <AuthenticatedRoutes>
           <div>{renderedText}</div>
@@ -119,6 +119,6 @@ describe("AuthenticatedRoutes - component", () => {
     );
 
     expect(mockStore.getActions()).not.toContainEqual(redirectToLoginAction);
-    expect(component.html()).toBeFalsy();
+    expect(screen.queryByText(renderedText)).not.toBeInTheDocument();
   });
 });

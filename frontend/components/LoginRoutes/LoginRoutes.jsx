@@ -15,6 +15,7 @@ export class LoginRoutes extends Component {
     isPreviewLoginPage: PropTypes.bool,
     pathname: PropTypes.string,
     token: PropTypes.string,
+    router: PropTypes.any, // eslint-disable-line
   };
 
   componentWillMount() {
@@ -39,6 +40,7 @@ export class LoginRoutes extends Component {
       isPreviewLoginPage,
       pathname,
       token,
+      router,
     } = this.props;
 
     if (isPreviewLoginPage) {
@@ -53,6 +55,7 @@ export class LoginRoutes extends Component {
             token={token}
             isForgotPassPage={isForgotPassPage}
             isResetPassPage={isResetPassPage}
+            router={router}
           />
         )}
       </div>

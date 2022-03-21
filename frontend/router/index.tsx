@@ -26,6 +26,7 @@ import PremiumTierRoutes from "components/PremiumTierRoutes";
 import ConfirmInvitePage from "pages/ConfirmInvitePage";
 import ConfirmSSOInvitePage from "pages/ConfirmSSOInvitePage";
 import CoreLayout from "layouts/CoreLayout";
+import DeviceUserPage from "pages/hosts/DeviceUserPage";
 import EditPackPage from "pages/packs/EditPackPage";
 import EmailTokenRedirect from "components/EmailTokenRedirect";
 import HostDetailsPage from "pages/hosts/HostDetailsPage";
@@ -178,6 +179,7 @@ const routes = (
             </Route>
           </Route>
         </Route>
+        <Route path="/device/:device_auth_token" component={DeviceUserPage} />
       </Route>
       <Route path="/apionlyuser" component={ApiOnlyUser} />
       <Route path="/404" component={Fleet404} />

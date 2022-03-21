@@ -108,6 +108,7 @@ type Host struct {
 	// can be found in the NetworkInterfaces element with the same ip_address.
 	PrimaryNetworkInterfaceID *uint               `json:"primary_ip_id,omitempty" db:"primary_ip_id" csv:"primary_ip_id"`
 	NetworkInterfaces         []*NetworkInterface `json:"-" db:"-" csv:"-"`
+	PublicIP                  string              `json:"public_ip" db:"public_ip" csv:"public_ip"`
 	PrimaryIP                 string              `json:"primary_ip" db:"primary_ip" csv:"primary_ip"`
 	PrimaryMac                string              `json:"primary_mac" db:"primary_mac" csv:"primary_mac"`
 	DistributedInterval       uint                `json:"distributed_interval" db:"distributed_interval" csv:"distributed_interval"`

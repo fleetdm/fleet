@@ -233,6 +233,10 @@ type SentryConfig struct {
 	Dsn string `json:"dsn"`
 }
 
+type GeoIPConfig struct {
+	DatabasePath string `json:"database_path" yaml:"database_path"`
+}
+
 // FleetConfig stores the application configuration. Each subcategory is
 // broken up into it's own struct, defined above. When editing any of these
 // structs, Manager.addConfigs and Manager.LoadConfig should be
@@ -258,6 +262,7 @@ type FleetConfig struct {
 	Vulnerabilities  VulnerabilitiesConfig
 	Upgrades         UpgradesConfig
 	Sentry           SentryConfig
+	GeoIP            GeoIPConfig
 }
 
 type TLS struct {
@@ -554,6 +559,9 @@ func (man Manager) addConfigs() {
 
 	// Sentry
 	man.addConfigString("sentry.dsn", "", "DSN for Sentry")
+
+	// GeoIP
+	man.addConfigString("geoip.database_path", "", "path to mmdb file")
 }
 
 // LoadConfig will load the config variables into a fully initialized
@@ -733,6 +741,9 @@ func (man Manager) LoadConfig() FleetConfig {
 		},
 		Sentry: SentryConfig{
 			Dsn: man.getConfigString("sentry.dsn"),
+		},
+		GeoIP: GeoIPConfig{
+			DatabasePath: man.getConfigString("geoip.database_path"),
 		},
 	}
 }

@@ -59,7 +59,7 @@ import {
   secondsToHms,
 } from "fleet/helpers";
 
-import SoftwareTab from "./SoftwareTab/SoftwareTab";
+import SoftwareTab from "../SoftwareTab/SoftwareTab";
 // @ts-ignore
 import SelectQueryModal from "./SelectQueryModal";
 import TransferHostModal from "./TransferHostModal";
@@ -395,6 +395,7 @@ const HostDetailsPage = ({
       "hardware_model",
       "hardware_serial",
       "primary_ip",
+      "public_ip",
     ])
   );
 
@@ -1021,7 +1022,7 @@ const HostDetailsPage = ({
         <div className="info-grid__block">
           <span className="info-grid__header">Used by</span>
           <span className="info-grid__data">
-            {numUsers === 1 ? (
+            {numUsers === 1 && deviceMapping ? (
               deviceMapping[0].email || "---"
             ) : (
               <span className={`${baseClass}__device-mapping`}>
@@ -1122,6 +1123,22 @@ const HostDetailsPage = ({
     ) : null;
   };
 
+  const renderGeolocation = () => {
+    if (!host?.geolocation) {
+      return null;
+    }
+    const { geolocation } = host;
+    const location = [geolocation?.city_name, geolocation?.country_iso]
+      .filter(Boolean)
+      .join(", ");
+    return (
+      <div className="info-grid__block">
+        <span className="info-grid__header">Location</span>
+        <span className="info-grid__data">{location}</span>
+      </div>
+    );
+  };
+
   if (isLoadingHost) {
     return <Spinner />;
   }
@@ -1210,7 +1227,7 @@ const HostDetailsPage = ({
           </TabList>
           <TabPanel>
             <div className="section about">
-              <p className="section__header">About this host</p>
+              <p className="section__header">About</p>
               <div className="info-grid">
                 <div className="info-grid__block">
                   <span className="info-grid__header">First enrolled</span>
@@ -1240,14 +1257,19 @@ const HostDetailsPage = ({
                   </span>
                 </div>
                 <div className="info-grid__block">
-                  <span className="info-grid__header">IPv4</span>
+                  <span className="info-grid__header">Internal IP address</span>
                   <span className="info-grid__data">
                     {aboutData.primary_ip}
                   </span>
                 </div>
+                <div className="info-grid__block">
+                  <span className="info-grid__header">Public IP address</span>
+                  <span className="info-grid__data">{aboutData.public_ip}</span>
+                </div>
                 {renderMunkiData()}
                 {renderMdmData()}
                 {renderDeviceUser()}
+                {renderGeolocation()}
               </div>
             </div>
             <div className="col-2">
