@@ -7,7 +7,7 @@ import { useErrorHandler } from "react-error-boundary";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 
 import classnames from "classnames";
-import { isEmpty, pick, reduce } from "lodash";
+import { pick } from "lodash";
 
 import PATHS from "router/paths";
 import hostAPI from "services/entities/hosts";
@@ -37,7 +37,11 @@ import Spinner from "components/Spinner";
 import Button from "components/buttons/Button";
 import TabsWrapper from "components/TabsWrapper";
 
-import { humanHostDetailUpdated } from "fleet/helpers";
+import {
+  humanHostDetailUpdated,
+  normalizeEmptyValues,
+  wrapFleetHelper,
+} from "fleet/helpers";
 
 import HostSummaryCard from "../cards/HostSummary";
 import AboutCard from "../cards/About";
@@ -48,7 +52,6 @@ import UsersCard from "../cards/Users";
 import PoliciesCard from "../cards/Policies";
 import ScheduleCard from "../cards/Schedule";
 import PacksCard from "../cards/Packs";
-// @ts-ignore
 import SelectQueryModal from "./modals/SelectQueryModal";
 import TransferHostModal from "./modals/TransferHostModal";
 import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
@@ -315,31 +318,6 @@ const HostDetailsPage = ({
       );
     });
   }, [usersSearchString]);
-
-  // returns a mixture of props from host
-  const normalizeEmptyValues = (
-    hostData: Partial<IHost>
-  ): { [key: string]: any } => {
-    return reduce(
-      hostData,
-      (result, value, key) => {
-        if ((Number.isFinite(value) && value !== 0) || !isEmpty(value)) {
-          Object.assign(result, { [key]: value });
-        } else {
-          Object.assign(result, { [key]: "---" });
-        }
-        return result;
-      },
-      {}
-    );
-  };
-
-  const wrapFleetHelper = (
-    helperFn: (value: any) => string, // number or string or never
-    value: string
-  ): string => {
-    return value === "---" ? value : helperFn(value);
-  };
 
   const titleData = normalizeEmptyValues(
     pick(host, [

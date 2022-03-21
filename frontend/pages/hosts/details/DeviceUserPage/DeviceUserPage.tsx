@@ -6,7 +6,7 @@ import { useErrorHandler } from "react-error-boundary";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 
 import classnames from "classnames";
-import { isEmpty, pick, reduce } from "lodash";
+import { pick } from "lodash";
 
 import deviceUserAPI from "services/entities/device_user";
 import { IHost, IDeviceMappingResponse } from "interfaces/host";
@@ -20,12 +20,16 @@ import OrgLogoIcon from "components/icons/OrgLogoIcon";
 import Spinner from "components/Spinner";
 import Button from "components/buttons/Button";
 import TabsWrapper from "components/TabsWrapper";
-import { humanHostDetailUpdated } from "fleet/helpers";
+import {
+  humanHostDetailUpdated,
+  normalizeEmptyValues,
+  wrapFleetHelper,
+} from "fleet/helpers";
 
-import InfoModal from "./InfoModal";
 import HostSummaryCard from "../cards/HostSummary";
 import AboutCard from "../cards/About";
 import SoftwareCard from "../cards/Software";
+import InfoModal from "./InfoModal";
 
 import InfoIcon from "../../../../../assets/images/icon-info-purple-14x14@2x.png";
 import FleetIcon from "../../../../../assets/images/fleet-avatar-24x24@2x.png";
@@ -149,28 +153,6 @@ const DeviceUserPage = ({
       onError: (error) => handlePageError(error),
     }
   );
-
-  const wrapFleetHelper = (
-    helperFn: (value: any) => string,
-    value: string
-  ): any => {
-    return value === "---" ? value : helperFn(value);
-  };
-  // returns a mixture of props from host
-  const normalizeEmptyValues = (hostData: any): { [key: string]: any } => {
-    return reduce(
-      hostData,
-      (result, value, key) => {
-        if ((Number.isFinite(value) && value !== 0) || !isEmpty(value)) {
-          Object.assign(result, { [key]: value });
-        } else {
-          Object.assign(result, { [key]: "---" });
-        }
-        return result;
-      },
-      {}
-    );
-  };
 
   const titleData = normalizeEmptyValues(
     pick(host, [
@@ -406,7 +388,6 @@ const DeviceUserPage = ({
                 </TabPanel>
               </Tabs>
             </TabsWrapper>
-
             {showInfoModal && renderShowInfoModal()}
           </div>
         )}
