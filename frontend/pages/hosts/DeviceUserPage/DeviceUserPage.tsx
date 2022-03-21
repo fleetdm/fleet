@@ -255,7 +255,13 @@ const DeviceUserPage = ({
   };
 
   const renderSoftware = () => {
-    return <SoftwareTab isLoading={isLoadingHost} software={hostSoftware} />;
+    return (
+      <SoftwareTab
+        isLoading={isLoadingHost}
+        software={hostSoftware}
+        deviceUser
+      />
+    );
   };
 
   const renderRefetch = () => {

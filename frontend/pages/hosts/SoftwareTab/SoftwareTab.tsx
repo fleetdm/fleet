@@ -18,11 +18,13 @@ const baseClass = "host-details";
 interface ISoftwareTableProps {
   isLoading: boolean;
   software: ISoftware[];
+  deviceUser?: boolean;
 }
 
 const SoftwareTable = ({
   isLoading,
   software,
+  deviceUser,
 }: ISoftwareTableProps): JSX.Element => {
   const [filterName, setFilterName] = useState("");
   const [filterVuln, setFilterVuln] = useState(false);
@@ -58,7 +60,7 @@ const SoftwareTable = ({
     );
   };
 
-  const tableHeaders = generateSoftwareTableHeaders();
+  const tableHeaders = generateSoftwareTableHeaders(deviceUser);
 
   return (
     <div className="section section--software">
