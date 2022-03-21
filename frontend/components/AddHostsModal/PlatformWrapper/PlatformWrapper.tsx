@@ -14,6 +14,7 @@ import { stringToClipboard } from "utilities/copy_text";
 import { ITeam } from "interfaces/team";
 import { IEnrollSecret } from "interfaces/enroll_secret";
 import Button from "components/buttons/Button";
+import RevealButton from "components/buttons/RevealButton";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Checkbox from "components/forms/fields/Checkbox";
@@ -65,10 +66,11 @@ const PlatformWrapper = ({
   onCancel,
 }: IPlatformWrapperProp): JSX.Element => {
   const { config, isPreviewMode } = useContext(AppContext);
-  const [copyMessage, setCopyMessage] = useState<string>("");
+  const [copyMessage, setCopyMessage] = useState<Record<string, string>>({});
   const [includeFleetDesktop, setIncludeFleetDesktop] = useState<boolean>(
     false
   );
+  const [showPlainOsquery, setShowPlainOsquery] = useState<boolean>(false);
 
   const dispatch = useDispatch();
 
@@ -175,9 +177,66 @@ const PlatformWrapper = ({
     return false;
   };
 
+  const renderFleetCertificateBlock = (type: "plain" | "tooltip") => {
+    return (
+      <div className={`${baseClass}__advanced--fleet-certificate`}>
+        {type === "plain" ? (
+          <p className={`${baseClass}__advanced--heading`}>
+            Download your Fleet certificate
+          </p>
+        ) : (
+          <p
+            className={`${baseClass}__advanced--heading download-certificate--tooltip`}
+          >
+            Download your{" "}
+            <TooltipWrapper tipContent="A Fleet certificate is required if Fleet is running with a self signed or otherwise untrusted certificate.">
+              Fleet certificate:
+            </TooltipWrapper>
+          </p>
+        )}
+        {isFetchingCertificate && (
+          <p className={`${baseClass}__certificate-loading`}>
+            Loading your certificate
+          </p>
+        )}
+        {!isFetchingCertificate &&
+          (certificate ? (
+            <p>
+              {type === "plain" && (
+                <>
+                  Prove the TLS certificate used by the Fleet server to enable
+                  secure connections from osquery:
+                  <br />
+                </>
+              )}
+              <a
+                href="#downloadCertificate"
+                className={`${baseClass}__fleet-certificate-download`}
+                onClick={onDownloadCertificate}
+              >
+                Download
+                <img src={DownloadIcon} alt="download" />
+              </a>
+            </p>
+          ) : (
+            <p className={`${baseClass}__certificate-error`}>
+              <em>Fleet failed to load your certificate.</em>
+              <span>
+                If you&apos;re able to access Fleet at a private or secure
+                (HTTPS) IP address, please log into Fleet at this address to
+                load your certificate.
+              </span>
+            </p>
+          ))}
+      </div>
+    );
+  };
+
   const renderInstallerString = (platform: string) => {
     return platform === "advanced"
-      ? "osqueryd --flagfile=flagfile.txt --verbose"
+      ? `fleetctl package --type=rpm --fleet-url=${config?.server_url}
+--enroll-secret=${enrollSecret}
+--fleet-certificate=PATH_TO_YOUR_CERTIFICATE/fleet.pem`
       : `fleetctl package --type=${platform} ${
           includeFleetDesktop ? "--fleet-desktop " : ""
         }--fleet-url=${config?.server_url} --enroll-secret=${enrollSecret}`;
@@ -188,18 +247,43 @@ const PlatformWrapper = ({
       evt.preventDefault();
 
       stringToClipboard(installerString)
-        .then(() => setCopyMessage("Copied!"))
-        .catch(() => setCopyMessage("Copy failed"));
+        .then(() =>
+          setCopyMessage((prev) => ({ ...prev, [platform]: "Copied!" }))
+        )
+        .catch(() =>
+          setCopyMessage((prev) => ({ ...prev, [platform]: "Copy failed" }))
+        );
 
       // Clear message after 1 second
-      setTimeout(() => setCopyMessage(""), 1000);
+      setTimeout(
+        () => setCopyMessage((prev) => ({ ...prev, [platform]: "" })),
+        1000
+      );
 
       return false;
     };
 
     return (
       <>
-        {platform !== "advanced" && (
+        {platform === "plain-osquery" ? (
+          <>
+            <p className={`${baseClass}__advanced--heading`}>
+              With{" "}
+              <a
+                href="https://www.osquery.io/downloads"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                osquery
+              </a>{" "}
+              installed:
+            </p>
+            <p className={`${baseClass}__advanced--text`}>
+              Run osquery from the directory containing the above files (may
+              require sudo or Run as Administrator privileges):
+            </p>
+          </>
+        ) : (
           <span className={`${baseClass}__cta`}>
             With the{" "}
             <a
@@ -215,10 +299,10 @@ const PlatformWrapper = ({
         )}{" "}
         <span className={`${baseClass}__name`}>
           <span className="buttons">
-            {copyMessage && (
+            {copyMessage[platform] && (
               <span
                 className={`${baseClass}__copy-message`}
-              >{`${copyMessage} `}</span>
+              >{`${copyMessage[platform]} `}</span>
             )}
             <Button
               variant="unstyled"
@@ -238,104 +322,85 @@ const PlatformWrapper = ({
       return (
         <div className={baseClass}>
           <div className={`${baseClass}__advanced`}>
-            <div className={`${baseClass}__advanced--enroll-secrets`}>
-              <p className={`${baseClass}__advanced--heading`}>
-                Download your enroll secret:
-              </p>
+            {renderFleetCertificateBlock("tooltip")}
+            <div className={`${baseClass}__advanced--installer`}>
+              <InputField
+                disabled
+                inputWrapperClass={`${baseClass}__installer-input ${baseClass}__installer-input-${platform}`}
+                name="installer"
+                label={renderLabel(platform, renderInstallerString(platform))}
+                type={"textarea"}
+                value={renderInstallerString(platform)}
+              />
               <p>
-                Osquery uses an enroll secret to authenticate with the Fleet
-                server.
-                <br />
-                <a
-                  href="#downloadEnrollSecret"
-                  onClick={onDownloadEnrollSecret}
-                >
-                  Download
-                  <img src={DownloadIcon} alt="download icon" />
-                </a>
+                Generates an installer that your devices will use to connect to
+                Fleet.
               </p>
             </div>
-            <div className={`${baseClass}__advanced--fleet-certificate`}>
-              <p className={`${baseClass}__advanced--heading`}>
-                Download your Fleet certificate:
-              </p>
-              {isFetchingCertificate && (
-                <p className={`${baseClass}__certificate-loading`}>
-                  Loading your certificate
-                </p>
-              )}
-              {!isFetchingCertificate &&
-                (certificate ? (
+            <RevealButton
+              baseClass={baseClass}
+              isShowing={showPlainOsquery}
+              hideText={"Plain osquery"}
+              showText={"Plain osquery"}
+              caretPosition={"after"}
+              onClick={() => setShowPlainOsquery((prev) => !prev)}
+            />
+            {showPlainOsquery && (
+              <>
+                <div className={`${baseClass}__advanced--enroll-secrets`}>
+                  <p className={`${baseClass}__advanced--heading`}>
+                    Download your enroll secret:
+                  </p>
                   <p>
-                    Prove the TLS certificate used by the Fleet server to enable
-                    secure connections from osquery:
+                    Osquery uses an enroll secret to authenticate with the Fleet
+                    server.
                     <br />
                     <a
-                      href="#downloadCertificate"
-                      className={`${baseClass}__fleet-certificate-download`}
-                      onClick={onDownloadCertificate}
+                      href="#downloadEnrollSecret"
+                      onClick={onDownloadEnrollSecret}
                     >
                       Download
-                      <img src={DownloadIcon} alt="download" />
+                      <img src={DownloadIcon} alt="download icon" />
                     </a>
                   </p>
-                ) : (
-                  <p className={`${baseClass}__certificate-error`}>
-                    <em>Fleet failed to load your certificate.</em>
-                    <span>
-                      If you&apos;re able to access Fleet at a private or secure
-                      (HTTPS) IP address, please log into Fleet at this address
-                      to load your certificate.
-                    </span>
+                </div>
+                {renderFleetCertificateBlock("plain")}
+                <div className={`${baseClass}__advanced--flagfile`}>
+                  <p className={`${baseClass}__advanced--heading`}>
+                    Download your flagfile:
                   </p>
-                ))}
-            </div>
-            <div className={`${baseClass}__advanced--enroll-secrets`}>
-              <p className={`${baseClass}__advanced--heading`}>
-                Download your flagfile:
-              </p>
-              <p>
-                If using the enroll secret and server certificate downloaded
-                above, us the generated flagfile. In some configurations,
-                modifications may need to be made.
-                <br />
-                {fetchCertificateError ? (
-                  <span className={`${baseClass}__error`}>
-                    {fetchCertificateError}
-                  </span>
-                ) : (
-                  <a href="#downloadFlagfile" onClick={onDownloadFlagfile}>
-                    Download
-                    <img src={DownloadIcon} alt="download icon" />
-                  </a>
-                )}
-              </p>
-            </div>
-            <div className={`${baseClass}__advanced--enroll-secrets`}>
-              <p className={`${baseClass}__advanced--heading`}>
-                With{" "}
-                <a
-                  href="https://www.osquery.io/downloads"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  osquery
-                </a>{" "}
-                installed:
-              </p>
-              <p>
-                Run osquery from the directory containing the above files (may
-                require sudo or Run as Administrator privileges):
-                <InputField
-                  disabled
-                  inputWrapperClass={`${baseClass}__run-osquery-input`}
-                  name="run-osquery"
-                  label={renderLabel(platform, renderInstallerString(platform))}
-                  type={"text"}
-                  value={renderInstallerString(platform)}
-                />
-              </p>
-            </div>
+                  <p>
+                    If using the enroll secret and server certificate downloaded
+                    above, use the generated flagfile. In some configurations,
+                    modifications may need to be made.
+                    <br />
+                    {fetchCertificateError ? (
+                      <span className={`${baseClass}__error`}>
+                        {fetchCertificateError}
+                      </span>
+                    ) : (
+                      <a href="#downloadFlagfile" onClick={onDownloadFlagfile}>
+                        Download
+                        <img src={DownloadIcon} alt="download icon" />
+                      </a>
+                    )}
+                  </p>
+                </div>
+                <div className={`${baseClass}__advanced--osqueryd`}>
+                  <InputField
+                    disabled
+                    inputWrapperClass={`${baseClass}__run-osquery-input`}
+                    name="run-osquery"
+                    label={renderLabel(
+                      "plain-osquery",
+                      "osqueryd --flagfile=flagfile.txt --verbose"
+                    )}
+                    type={"text"}
+                    value={"osqueryd --flagfile=flagfile.txt --verbose"}
+                  />
+                </div>
+              </>
+            )}
           </div>
         </div>
       );
