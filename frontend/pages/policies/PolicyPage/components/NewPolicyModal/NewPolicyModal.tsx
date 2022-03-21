@@ -134,7 +134,6 @@ const NewPolicyModal = ({
           className={`${baseClass}__button-wrap ${baseClass}__button-wrap--modal`}
         >
           <Button
-            // className={`${baseClass}__modal-save--cancel-btn`}
             className={`${baseClass}__button--modal-cancel`}
             onClick={() => setIsNewPolicyModalOpen(false)}
             variant="text-link"
