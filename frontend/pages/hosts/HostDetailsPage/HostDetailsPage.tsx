@@ -59,7 +59,7 @@ import {
   secondsToHms,
 } from "fleet/helpers";
 
-import SoftwareTab from "./SoftwareTab/SoftwareTab";
+import SoftwareTab from "../SoftwareTab/SoftwareTab";
 // @ts-ignore
 import SelectQueryModal from "./SelectQueryModal";
 import TransferHostModal from "./TransferHostModal";
@@ -1021,7 +1021,7 @@ const HostDetailsPage = ({
         <div className="info-grid__block">
           <span className="info-grid__header">Used by</span>
           <span className="info-grid__data">
-            {numUsers === 1 ? (
+            {numUsers === 1 && deviceMapping ? (
               deviceMapping[0].email || "---"
             ) : (
               <span className={`${baseClass}__device-mapping`}>
@@ -1210,7 +1210,7 @@ const HostDetailsPage = ({
           </TabList>
           <TabPanel>
             <div className="section about">
-              <p className="section__header">About this host</p>
+              <p className="section__header">About</p>
               <div className="info-grid">
                 <div className="info-grid__block">
                   <span className="info-grid__header">First enrolled</span>
