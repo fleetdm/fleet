@@ -23,6 +23,7 @@ import LearnFleet from "./cards/LearnFleet";
 import WelcomeHost from "./cards/WelcomeHost";
 import MDM from "./cards/MDM";
 import Munki from "./cards/Munki";
+import OperatingSystems from "./cards/OperatingSystems";
 import ExternalURLIcon from "../../../assets/images/icon-external-url-12x12@2x.png";
 
 interface ITeamsResponse {
@@ -54,6 +55,9 @@ const Homepage = (): JSX.Element => {
   const [showSoftwareUI, setShowSoftwareUI] = useState<boolean>(false);
   const [showMunkiUI, setShowMunkiUI] = useState<boolean>(false);
   const [showMDMUI, setShowMDMUI] = useState<boolean>(false);
+  const [showOperatingSystemsUI, setShowOperatingSystemsUI] = useState<boolean>(
+    false
+  );
   const [showHostsUI, setShowHostsUI] = useState<boolean>(false); // Hides UI on first load only
 
   const { data: teams } = useQuery<ITeamsResponse, Error, ITeam[]>(
@@ -234,6 +238,19 @@ const Homepage = (): JSX.Element => {
     ),
   });
 
+  const OperatingSystemsCard = useInfoCard({
+    title: "Operating systems",
+    showTitle: showOperatingSystemsUI,
+    children: (
+      <OperatingSystems
+        currentTeamId={currentTeam?.id}
+        selectedPlatform={selectedPlatform}
+        setShowOperatingSystemsUI={setShowOperatingSystemsUI}
+        showOperatingSystemsUI={showOperatingSystemsUI}
+      />
+    ),
+  });
+
   const allLayout = () => (
     <div className={`${baseClass}__section`}>
       {isPreviewMode && (
@@ -251,6 +268,7 @@ const Homepage = (): JSX.Element => {
 
   const macOSLayout = () => (
     <div className={`${baseClass}__section`}>
+      {OperatingSystemsCard}
       {MunkiCard}
       {MDMCard}
     </div>
