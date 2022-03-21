@@ -5,6 +5,7 @@ export default {
   CONFIRM_EMAIL_CHANGE: (token: string): string => {
     return `/v1/fleet/email/change/${token}`;
   },
+  DEVICE_USER_DETAILS: "/v1/fleet/device",
   ENABLE_USER: (id: number): string => {
     return `/v1/fleet/users/${id}/enable`;
   },

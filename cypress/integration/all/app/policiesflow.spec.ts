@@ -37,28 +37,264 @@ describe("Policies flow (empty)", () => {
       cy.findByRole("button", { name: /^Save$/ }).click();
       cy.findByText(/policy created/i).should("exist");
     });
+
     it("creates a default policy", () => {
       cy.getAttached(".manage-policies-page__header-wrap").within(() => {
         cy.findByText(/add a policy/i).click();
       });
       cy.findByText(/gatekeeper enabled/i).click();
-      cy.getAttached(".platforms-select")
-        .children()
+      cy.findByRole("button", { name: /save policy/i }).click();
+      cy.getAttached(".policy-form__button-wrap--modal").within(() => {
+        cy.findAllByRole("button", { name: /^Save$/ }).click();
+      });
+      cy.findByText(/policy created/i).should("exist");
+    });
+  });
+
+  describe("Platform compatibility", () => {
+    beforeEach(() => {
+      cy.loginWithCySession();
+      cy.visit("/policies/manage");
+    });
+    const platforms = ["macOS", "Windows", "Linux"];
+
+    const testCompatibility = (
+      el: JQuery<HTMLElement>,
+      i: number,
+      expected: boolean[]
+    ) => {
+      const check = expected[i] ? "compatible" : "incompatible";
+      assert(
+        el.children("img").attr("alt") === check,
+        `expected policy to be ${platforms[i]} ${check}`
+      );
+    };
+
+    const testSelections = (
+      el: JQuery<HTMLElement>,
+      i: number,
+      expected: boolean[]
+    ) => {
+      assert(
+        el.prop("checked") === expected[i],
+        `expected ${platforms[i]} to be ${
+          expected[i] ? "selected " : "not selected"
+        }`
+      );
+    };
+
+    it("checks sql statement for platform compatibility", () => {
+      cy.visit("/policies/manage");
+      cy.getAttached(".manage-policies-page__header-wrap").within(() => {
+        cy.findByText(/add a policy/i).click();
+      });
+      cy.getAttached(".add-policy-modal__modal").within(() => {
+        cy.findByRole("button", { name: /create your own policy/i }).click();
+      });
+
+      cy.getAttached(".platform").each((el, i) => {
+        testCompatibility(el, i, [true, true, true]);
+      });
+
+      // Query with unknown table name displays error message
+      cy.getAttached(".ace_scroller")
         .first()
-        .within(() => {
-          cy.getAttached('[type="checkbox"]').should("be.checked");
-        });
-      cy.getAttached(".platforms-select")
-        .children()
+        .click({ force: true })
+        .type("{selectall}SELECT 1 FROM foo WHERE start_time > 1;");
+      // eslint-disable-next-line cypress/no-unnecessary-waiting
+      cy.wait(700); // wait for text input debounce
+      cy.getAttached(".platform-compatibility").within(() => {
+        cy.findByText(
+          "No platforms (check your query for invalid tables or tables that are supported on different platforms)"
+        ).should("exist");
+      });
+
+      // Query with syntax error displays error message
+      cy.getAttached(".ace_scroller")
         .first()
-        .next()
-        .within(() => {
-          cy.getAttached('[type="checkbox"]').should("not.be.checked");
+        .click({ force: true })
+        .type("{selectall}SELEC 1 FRO osquery_info WHER start_time > 1;");
+      // eslint-disable-next-line cypress/no-unnecessary-waiting
+      cy.wait(700); // wait for text input debounce
+      cy.getAttached(".platform-compatibility").within(() => {
+        cy.findByText(
+          "No platforms (check your query for a possible syntax error)"
+        ).should("exist");
+      });
+
+      // Query with no tables treated as compatible with all platforms
+      cy.getAttached(".ace_scroller")
+        .first()
+        .click({ force: true })
+        .type("{selectall}SELECT * WHERE 1 = 1;");
+      // eslint-disable-next-line cypress/no-unnecessary-waiting
+      cy.wait(700); // wait for text input debounce
+      cy.getAttached(".platform").each((el, i) => {
+        testCompatibility(el, i, [true, true, true]);
+      });
+
+      // Tables defined in common table expression not factored into compatibility check
+      cy.getAttached(".ace_scroller")
+        .first()
+        .click({ force: true })
+        .type("{selectall} ")
+        .type(
+          `WITH target_jars AS ( SELECT DISTINCT path FROM ( WITH split(word, str) AS( SELECT '', cmdline || ' ' FROM processes UNION ALL SELECT substr(str, 0, instr(str, ' ')), substr(str, instr(str, ' ') + 1) FROM split WHERE str != '') SELECT word AS path FROM split WHERE word LIKE '%.jar' UNION ALL SELECT path FROM process_open_files WHERE path LIKE '%.jar' ) ) SELECT path, matches FROM yara WHERE path IN (SELECT path FROM target_jars) AND count > 0 AND sigrule IN ( 'rule log4jJndiLookup { strings: $jndilookup = "JndiLookup" condition: $jndilookup }', 'rule log4jJavaClass { strings: $javaclass = "org/apache/logging/log4j" condition: $javaclass }' );`,
+          { parseSpecialCharSequences: false }
+        );
+      // eslint-disable-next-line cypress/no-unnecessary-waiting
+      cy.wait(700); // wait for text input debounce
+      cy.getAttached(".platform").each((el, i) => {
+        testCompatibility(el, i, [true, false, true]);
+      });
+
+      // Query with only macOS tables treated as compatible only with macOS
+      cy.getAttached(".ace_scroller")
+        .first()
+        .click({ force: true })
+        .type(
+          "{selectall}SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;"
+        );
+      // eslint-disable-next-line cypress/no-unnecessary-waiting
+      cy.wait(700); // wait for text input debounce
+      cy.getAttached(".platform").each((el, i) => {
+        testCompatibility(el, i, [true, false, false]);
+      });
+    });
+
+    it("preselects platforms to check based on platform compatiblity when saving new policy", () => {
+      cy.getAttached(".manage-policies-page__header-wrap").within(() => {
+        cy.findByText(/add a policy/i).click();
+      });
+      cy.getAttached(".add-policy-modal__modal").within(() => {
+        cy.findByText("Automatic login disabled (macOS)").click();
+      });
+
+      cy.getAttached(".platform-compatibility").within(() => {
+        cy.getAttached(".platform").each((el, i) => {
+          testCompatibility(el, i, [true, false, false]);
         });
+      });
+      cy.findByRole("button", { name: /save policy/i }).click(); // open save policy modal
+
+      cy.getAttached(".platform-selector").within(() => {
+        cy.getAttached(".fleet-checkbox__input").each((el, i) => {
+          testSelections(el, i, [true, false, false]);
+        });
+      });
+    });
+
+    it("disables modal save button if no platforms are selected", () => {
+      cy.getAttached(".manage-policies-page__header-wrap").within(() => {
+        cy.findByText(/add a policy/i).click();
+      });
+      cy.getAttached(".add-policy-modal__modal").within(() => {
+        cy.findByText("Automatic login disabled (macOS)").click();
+      });
+      cy.findByRole("button", { name: /save policy/i }).click(); // open save policy modal
+
+      cy.getAttached(".platform-selector").within(() => {
+        cy.getAttached(".fleet-checkbox__input").each((el, i) => {
+          testSelections(el, i, [true, false, false]);
+        });
+        cy.getAttached(".fleet-checkbox__label").first().click(); // deselect macOS
+        cy.getAttached(".fleet-checkbox__input").each((el, i) => {
+          testSelections(el, i, [false, false, false]);
+        });
+      });
+      cy.findByRole("button", { name: /^Save$/ }).should("be.disabled");
+    });
+
+    it("allows user to overide preselected platforms when saving new policy", () => {
+      cy.getAttached(".manage-policies-page__header-wrap").within(() => {
+        cy.findByText(/add a policy/i).click();
+      });
+      cy.getAttached(".add-policy-modal__modal").within(() => {
+        cy.findByText("Automatic login disabled (macOS)").click();
+      });
+
+      cy.getAttached(".platform-compatibility").within(() => {
+        cy.getAttached(".platform").each((el, i) => {
+          testCompatibility(el, i, [true, false, false]);
+        });
+      });
+      cy.findByRole("button", { name: /save policy/i }).click(); // open save policy modal
+
+      cy.getAttached(".platform-selector").within(() => {
+        cy.getAttached(".fleet-checkbox__input").each((el, i) => {
+          testSelections(el, i, [true, false, false]);
+        });
+        cy.getAttached(".fleet-checkbox__label").first().click(); // deselect macOS
+        cy.getAttached(".fleet-checkbox__label").last().click(); // select Linux
+        cy.getAttached(".fleet-checkbox__input").each((el, i) => {
+          testSelections(el, i, [false, false, true]);
+        });
+      });
+      cy.findByRole("button", { name: /^Save$/ }).click();
+      cy.findByText(/policy created/i).should("exist");
+
+      // confirm that new policy was saved with user-selected platforms
+      cy.visit("policies/manage");
+      cy.getAttached("tbody").within(() => {
+        cy.getAttached(".name__cell .button--text-link")
+          .contains("Automatic login disabled (macOS)")
+          .click();
+      });
+      cy.getAttached(".platform-selector").within(() => {
+        cy.getAttached(".fleet-checkbox__input").each((el, i) => {
+          testSelections(el, i, [false, false, true]);
+        });
+      });
+    });
+
+    it("allows user to edit existing policy platform selections", () => {
+      // add a default policy for this test
+      cy.getAttached(".manage-policies-page__header-wrap").within(() => {
+        cy.findByText(/add a policy/i).click();
+      });
+      cy.getAttached(".add-policy-modal__modal").within(() => {
+        cy.findByText("Antivirus healthy (macOS)").click();
+      });
       cy.findByRole("button", { name: /save policy/i }).click();
       cy.findByRole("button", { name: /^Save$/ }).click();
-
       cy.findByText(/policy created/i).should("exist");
+
+      // edit platform selections for policy
+      cy.visit("policies/manage");
+      cy.getAttached(".name__cell .button--text-link")
+        .contains("Antivirus healthy (macOS)")
+        .click();
+      cy.getAttached(".platform-selector").within(() => {
+        cy.getAttached(".fleet-checkbox__input").each((el, i) => {
+          testSelections(el, i, [true, false, false]);
+        });
+        cy.getAttached(".fleet-checkbox__label").first().click(); // deselect macOS
+      });
+
+      // confirm save/run buttons are disabled when no platforms are selected
+      cy.findByRole("button", { name: /^Save$/ }).should("be.disabled");
+      cy.findByRole("button", { name: /^Run$/ }).should("be.disabled");
+      cy.getAttached(".platform-selector").within(() => {
+        cy.getAttached(".fleet-checkbox__label").last().click(); // select Linux
+        cy.getAttached(".fleet-checkbox__input").each((el, i) => {
+          testSelections(el, i, [false, false, true]);
+        });
+      });
+
+      // save policy with new selection
+      cy.findByRole("button", { name: /^Save$/ }).click();
+      cy.findByText(/policy updated/i).should("exist");
+
+      // confirm that policy was saved with new selection
+      cy.visit("policies/manage");
+      cy.getAttached(".name__cell .button--text-link")
+        .contains("Antivirus healthy (macOS)")
+        .click();
+      cy.getAttached(".platform-selector").within(() => {
+        cy.getAttached(".fleet-checkbox__input").each((el, i) => {
+          testSelections(el, i, [false, false, true]);
+        });
+      });
     });
   });
 });
@@ -96,14 +332,19 @@ describe("Policies flow (seeded)", () => {
       });
     });
     it("edits an existing policy", () => {
-      cy.getAttached(".name__cell .button--text-link").last().click();
+      cy.getAttached("tbody").within(() => {
+        cy.getAttached(".name__cell .button--text-link").last().click();
+      });
       cy.getAttached(".ace_scroller")
         .click({ force: true })
         .type(
           "{selectall}SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;"
         );
+      cy.getAttached(".fleet-checkbox__label").first().click();
       cy.getAttached(".policy-form__save").click();
       cy.findByText(/policy updated/i).should("exist");
+      cy.visit("policies/2");
+      cy.getAttached(".fleet-checkbox__input").first().should("not.be.checked");
     });
 
     it("deletes an existing policy", () => {

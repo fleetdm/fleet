@@ -4,13 +4,13 @@ import { InjectedRouter, Params } from "react-router/lib/Router";
 import { useErrorHandler } from "react-error-boundary";
 
 // @ts-ignore
-import Fleet from "fleet"; // @ts-ignore
+import Fleet from "fleet";
 import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
 import { QUERIES_PAGE_STEPS, DEFAULT_POLICY } from "utilities/constants";
-import globalPoliciesAPI from "services/entities/global_policies"; // @ts-ignore
-import teamPoliciesAPI from "services/entities/team_policies"; // @ts-ignore
-import hostAPI from "services/entities/hosts"; // @ts-ignore
+import globalPoliciesAPI from "services/entities/global_policies";
+import teamPoliciesAPI from "services/entities/team_policies";
+import hostAPI from "services/entities/hosts";
 import { IPolicyFormData, IPolicy } from "interfaces/policy";
 import { ITarget } from "interfaces/target";
 import { IHost } from "interfaces/host";
@@ -57,6 +57,7 @@ const PolicyPage = ({
     lastEditedQueryBody,
     selectedOsqueryTable,
     setSelectedOsqueryTable,
+    setLastEditedQueryId,
     setLastEditedQueryName,
     setLastEditedQueryDescription,
     setLastEditedQueryBody,
@@ -108,6 +109,7 @@ const PolicyPage = ({
       retry: false,
       select: (data: IStoredPolicyResponse) => data.policy,
       onSuccess: (returnedQuery) => {
+        setLastEditedQueryId(returnedQuery.id);
         setLastEditedQueryName(returnedQuery.name);
         setLastEditedQueryDescription(returnedQuery.description);
         setLastEditedQueryBody(returnedQuery.query);

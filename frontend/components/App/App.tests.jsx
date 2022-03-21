@@ -1,4 +1,4 @@
-import { mount } from "enzyme";
+import { render } from "@testing-library/react";
 
 import ConnectedApp from "./App";
 import * as authActions from "../../redux/nodes/auth/actions";
@@ -10,14 +10,14 @@ const { connectedComponent, reduxMockStore } = helpers;
 describe("App - component", () => {
   const store = { app: {}, auth: {}, notifications: {} };
   const mockStore = reduxMockStore(store);
-  const component = mount(connectedComponent(ConnectedApp, { mockStore }));
+  const component = render(connectedComponent(ConnectedApp, { mockStore }));
 
   afterEach(() => {
     local.setItem("auth_token", null);
   });
 
   it("renders", () => {
-    expect(component).toBeTruthy();
+    expect(component).not.toBeNull();
   });
 
   it("loads the current user if there is an auth token but no user", () => {
@@ -33,7 +33,7 @@ describe("App - component", () => {
       });
     const application = connectedComponent(ConnectedApp, { mockStore });
 
-    mount(application);
+    render(application);
     expect(spy).toHaveBeenCalled();
   });
 
@@ -60,7 +60,7 @@ describe("App - component", () => {
       mockStore: mockStoreWithUser,
     });
 
-    mount(application);
+    render(application);
     expect(spy).not.toHaveBeenCalled();
   });
 
@@ -74,7 +74,7 @@ describe("App - component", () => {
       });
     const application = connectedComponent(ConnectedApp, { mockStore });
 
-    mount(application);
+    render(application);
     expect(spy).not.toHaveBeenCalled();
   });
 });
