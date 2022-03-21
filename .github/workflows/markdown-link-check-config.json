@@ -43,7 +43,7 @@
       "pattern": "angel.co"
     },
     {
-      "pattern": "github.com/orgs/fleetdm/projects"
+      "pattern": "github.com/orgs/fleetdm/projects/(34|31|30|28|26|23|22|21|19|16|14|13|12|11|9|4|3|1)(\D|$)"
     }
   ],
   "retryOn429": true,
