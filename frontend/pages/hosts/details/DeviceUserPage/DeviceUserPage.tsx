@@ -13,7 +13,6 @@ import { IHost, IDeviceMappingResponse } from "interfaces/host";
 import { ISoftware } from "interfaces/software";
 // @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions";
-import ReactTooltip from "react-tooltip";
 import PageError from "components/PageError";
 // @ts-ignore
 import OrgLogoIcon from "components/icons/OrgLogoIcon";
@@ -218,6 +217,7 @@ const DeviceUserPage = ({
     );
   };
 
+<<<<<<< HEAD
   const renderRefetch = () => {
     const isOnline = host?.status === "online";
 
@@ -335,6 +335,8 @@ const DeviceUserPage = ({
 >>>>>>> 8c170f37a (Refactor device user to have components with host details):frontend/pages/hosts/details/DeviceUserPage/DeviceUserPage.tsx
   const renderShowInfoModal = () => <InfoModal onCancel={toggleInfoModal} />;
 
+=======
+>>>>>>> 632841afc (Move repeated header into HostSummaryCard)
   const statusClassName = classnames("status", `status--${host?.status}`);
 
   const renderDeviceUserPage = () => {
@@ -344,25 +346,12 @@ const DeviceUserPage = ({
           <Spinner />
         ) : (
           <div className={`${baseClass} body-wrap`}>
-            <div className="header title">
-              <div className="title__inner">
-                <div className="hostname-container">
-                  <h1 className="hostname">My device</h1>
-                  <p className="last-fetched">
-                    {`Last reported vitals ${humanHostDetailUpdated(
-                      titleData.detail_updated_at
-                    )}`}
-                    &nbsp;
-                  </p>
-                  {renderRefetch()}
-                </div>
-              </div>
-              {renderActionButtons()}
-            </div>
             <HostSummaryCard
               statusClassName={statusClassName}
               titleData={titleData}
-              wrapFleetHelper={wrapFleetHelper}
+              showRefetchSpinner={showRefetchSpinner}
+              onRefetchHost={onRefetchHost}
+              renderActionButtons={renderActionButtons}
               deviceUser
             />
             <TabsWrapper>
@@ -388,7 +377,7 @@ const DeviceUserPage = ({
                 </TabPanel>
               </Tabs>
             </TabsWrapper>
-            {showInfoModal && renderShowInfoModal()}
+            {showInfoModal && <InfoModal onCancel={toggleInfoModal} />}
           </div>
         )}
       </div>

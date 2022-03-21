@@ -3,7 +3,11 @@ import React from "react";
 import ReactTooltip from "react-tooltip";
 
 import Button from "components/buttons/Button";
-import { humanHostMemory } from "fleet/helpers";
+import {
+  humanHostMemory,
+  humanHostDetailUpdated,
+  wrapFleetHelper,
+} from "fleet/helpers";
 import IssueIcon from "../../../../../../assets/images/icon-issue-fleet-black-50-16x16@2x.png";
 
 const baseClass = "host-summary";
@@ -12,9 +16,13 @@ interface IHostSummaryProps {
   statusClassName: string;
   titleData: any;
   isPremiumTier?: boolean;
-  wrapFleetHelper: (helperFn: (value: any) => string, value: string) => string;
   isOnlyObserver?: boolean;
   toggleOSPolicyModal?: () => void;
+  showRefetchSpinner: boolean;
+  onRefetchHost: (
+    evt: React.MouseEvent<HTMLButtonElement, React.MouseEvent>
+  ) => void;
+  renderActionButtons: () => JSX.Element;
   deviceUser?: boolean;
 }
 
@@ -22,11 +30,54 @@ const HostSummary = ({
   statusClassName,
   titleData,
   isPremiumTier,
-  wrapFleetHelper,
   isOnlyObserver,
   toggleOSPolicyModal,
+  showRefetchSpinner,
+  onRefetchHost,
+  renderActionButtons,
   deviceUser,
 }: IHostSummaryProps): JSX.Element => {
+  const renderRefetch = () => {
+    const isOnline = titleData.status === "online";
+
+    return (
+      <>
+        <div
+          className="refetch"
+          data-tip
+          data-for="refetch-tooltip"
+          data-tip-disable={isOnline || showRefetchSpinner}
+        >
+          <Button
+            className={`
+              button
+              button--unstyled
+              ${!isOnline ? "refetch-offline" : ""} 
+              ${showRefetchSpinner ? "refetch-spinner" : "refetch-btn"}
+            `}
+            disabled={!isOnline}
+            onClick={onRefetchHost}
+          >
+            {showRefetchSpinner
+              ? "Fetching fresh vitals...this may take a moment"
+              : "Refetch"}
+          </Button>
+        </div>
+        <ReactTooltip
+          place="bottom"
+          type="dark"
+          effect="solid"
+          id="refetch-tooltip"
+          backgroundColor="#3e4771"
+        >
+          <span className={`${baseClass}__tooltip-text`}>
+            You can’t fetch data from <br /> an offline host.
+          </span>
+        </ReactTooltip>
+      </>
+    );
+  };
+
   const renderIssues = () => (
     <div className="info-flex__item info-flex__item--title">
       <span className="info-flex__header">Issues</span>
@@ -98,90 +149,111 @@ const HostSummary = ({
     return <span className="info-flex__data">No data available</span>;
   };
 
-  if (deviceUser) {
+  const renderDeviceUserSummary = () => {
     return (
-      <div className="section title">
-        <div className="title__inner">
-          <div className="info-flex">
-            <div className="info-flex__item info-flex__item--title">
-              <span className="info-flex__header">Status</span>
-              <span className={`${statusClassName} info-flex__data`}>
-                {titleData.status}
-              </span>
-            </div>
-            <div className="info-flex__item info-flex__item--title">
-              <span className="info-flex__header">Disk Space</span>
-              {renderDiskSpace()}
-            </div>
-            <div className="info-flex__item info-flex__item--title">
-              <span className="info-flex__header">Memory</span>
-              <span className="info-flex__data">
-                {wrapFleetHelper(humanHostMemory, titleData.memory)}
-              </span>
-            </div>
-            <div className="info-flex__item info-flex__item--title">
-              <span className="info-flex__header">Processor type</span>
-              <span className="info-flex__data">{titleData.cpu_type}</span>
-            </div>
-            <div className="info-flex__item info-flex__item--title">
-              <span className="info-flex__header">Operating system</span>
-              <span className="info-flex__data">{titleData.os_version}</span>
-            </div>
-          </div>
+      <div className="info-flex">
+        <div className="info-flex__item info-flex__item--title">
+          <span className="info-flex__header">Status</span>
+          <span className={`${statusClassName} info-flex__data`}>
+            {titleData.status}
+          </span>
+        </div>
+        <div className="info-flex__item info-flex__item--title">
+          <span className="info-flex__header">Disk Space</span>
+          {renderDiskSpace()}
+        </div>
+        <div className="info-flex__item info-flex__item--title">
+          <span className="info-flex__header">Memory</span>
+          <span className="info-flex__data">
+            {wrapFleetHelper(humanHostMemory, titleData.memory)}
+          </span>
+        </div>
+        <div className="info-flex__item info-flex__item--title">
+          <span className="info-flex__header">Processor type</span>
+          <span className="info-flex__data">{titleData.cpu_type}</span>
+        </div>
+        <div className="info-flex__item info-flex__item--title">
+          <span className="info-flex__header">Operating system</span>
+          <span className="info-flex__data">{titleData.os_version}</span>
         </div>
       </div>
     );
-  }
+  };
 
-  return (
-    <div className="section title">
-      <div className="title__inner">
-        <div className="info-flex">
-          <div className="info-flex__item info-flex__item--title">
-            <span className="info-flex__header">Status</span>
-            <span className={`${statusClassName} info-flex__data`}>
-              {titleData.status}
-            </span>
-          </div>
-          {titleData.issues?.total_issues_count > 0 && renderIssues()}
-          {isPremiumTier && renderHostTeam()}
-          <div className="info-flex__item info-flex__item--title">
-            <span className="info-flex__header">Disk Space</span>
-            {renderDiskSpace()}
-          </div>
-          <div className="info-flex__item info-flex__item--title">
-            <span className="info-flex__header">RAM</span>
-            <span className="info-flex__data">
-              {wrapFleetHelper(humanHostMemory, titleData.memory)}
-            </span>
-          </div>
-          <div className="info-flex__item info-flex__item--title">
-            <span className="info-flex__header">CPU</span>
-            <span className="info-flex__data">{titleData.cpu_type}</span>
-          </div>
-          <div className="info-flex__item info-flex__item--title">
-            <span className="info-flex__header">OS</span>
-            <span className="info-flex__data">
-              {isOnlyObserver ? (
-                `${titleData.os_version}`
-              ) : (
-                <Button
-                  onClick={() => toggleOSPolicyModal && toggleOSPolicyModal()}
-                  variant="text-link"
-                  className={`${baseClass}__os-policy-button`}
-                >
-                  {titleData.os_version}
-                </Button>
-              )}
-            </span>
-          </div>
-          <div className="info-flex__item info-flex__item--title">
-            <span className="info-flex__header">Osquery</span>
-            <span className="info-flex__data">{titleData.osquery_version}</span>
-          </div>
+  const renderHostDetailsSummary = () => {
+    return (
+      <div className="info-flex">
+        <div className="info-flex__item info-flex__item--title">
+          <span className="info-flex__header">Status</span>
+          <span className={`${statusClassName} info-flex__data`}>
+            {titleData.status}
+          </span>
+        </div>
+        {titleData.issues?.total_issues_count > 0 && renderIssues()}
+        {isPremiumTier && renderHostTeam()}
+        <div className="info-flex__item info-flex__item--title">
+          <span className="info-flex__header">Disk Space</span>
+          {renderDiskSpace()}
+        </div>
+        <div className="info-flex__item info-flex__item--title">
+          <span className="info-flex__header">RAM</span>
+          <span className="info-flex__data">
+            {wrapFleetHelper(humanHostMemory, titleData.memory)}
+          </span>
+        </div>
+        <div className="info-flex__item info-flex__item--title">
+          <span className="info-flex__header">CPU</span>
+          <span className="info-flex__data">{titleData.cpu_type}</span>
+        </div>
+        <div className="info-flex__item info-flex__item--title">
+          <span className="info-flex__header">OS</span>
+          <span className="info-flex__data">
+            {isOnlyObserver ? (
+              `${titleData.os_version}`
+            ) : (
+              <Button
+                onClick={() => toggleOSPolicyModal && toggleOSPolicyModal()}
+                variant="text-link"
+                className={`${baseClass}__os-policy-button`}
+              >
+                {titleData.os_version}
+              </Button>
+            )}
+          </span>
+        </div>
+        <div className="info-flex__item info-flex__item--title">
+          <span className="info-flex__header">Osquery</span>
+          <span className="info-flex__data">{titleData.osquery_version}</span>
         </div>
       </div>
-    </div>
+    );
+  };
+
+  return (
+    <>
+      <div className="header title">
+        <div className="title__inner">
+          <div className="hostname-container">
+            <h1 className="hostname">
+              {deviceUser ? "My device" : titleData.hostname || "---"}
+            </h1>
+            <p className="last-fetched">
+              {`Last fetched ${humanHostDetailUpdated(
+                titleData.detail_updated_at
+              )}`}
+              &nbsp;
+            </p>
+            {renderRefetch()}
+          </div>
+        </div>
+        {renderActionButtons()}
+      </div>
+      <div className="section title">
+        <div className="title__inner">
+          {deviceUser ? renderDeviceUserSummary() : renderHostDetailsSummary()}
+        </div>
+      </div>
+    </>
   );
 };
 

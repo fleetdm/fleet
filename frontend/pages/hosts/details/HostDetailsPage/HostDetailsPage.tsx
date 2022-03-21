@@ -332,6 +332,7 @@ const HostDetailsPage = ({
       "percent_disk_space_available",
       "gigs_disk_space_available",
       "team_name",
+      "hostname",
     ])
   );
 
@@ -542,6 +543,7 @@ const HostDetailsPage = ({
     );
   };
 
+<<<<<<< HEAD
   const renderRefetch = () => {
     const isOnline = host?.status === "online";
 
@@ -754,6 +756,8 @@ const HostDetailsPage = ({
 
 =======
 >>>>>>> a3a8adf97 (Refactor host details page into components)
+=======
+>>>>>>> 632841afc (Move repeated header into HostSummaryCard)
   if (isLoadingHost) {
     return <Spinner />;
   }
@@ -768,28 +772,15 @@ const HostDetailsPage = ({
           <span>Back to all hosts</span>
         </Link>
       </div>
-      <div className="header title">
-        <div className="title__inner">
-          <div className="hostname-container">
-            <h1 className="hostname">{host?.hostname || "---"}</h1>
-            <p className="last-fetched">
-              {`Last fetched ${humanHostDetailUpdated(
-                titleData.detail_updated_at
-              )}`}
-              &nbsp;
-            </p>
-            {renderRefetch()}
-          </div>
-        </div>
-        {renderActionButtons()}
-      </div>
       <HostSummaryCard
         statusClassName={statusClassName}
         titleData={titleData}
         isPremiumTier={isPremiumTier}
         isOnlyObserver={isOnlyObserver}
-        wrapFleetHelper={wrapFleetHelper}
         toggleOSPolicyModal={toggleOSPolicyModal}
+        showRefetchSpinner={showRefetchSpinner}
+        onRefetchHost={onRefetchHost}
+        renderActionButtons={renderActionButtons}
       />
       <TabsWrapper>
         <Tabs>
