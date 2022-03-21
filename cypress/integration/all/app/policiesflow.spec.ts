@@ -160,6 +160,17 @@ describe("Policies flow (empty)", () => {
       cy.getAttached(".platform").each((el, i) => {
         testCompatibility(el, i, [true, false, false]);
       });
+
+      // Query with macadmins extension table is not treated as incompatible
+      cy.getAttached(".ace_scroller")
+        .first()
+        .click({ force: true })
+        .type("{selectall}SELECT 1 FROM mdm WHERE enrolled='true';");
+      // eslint-disable-next-line cypress/no-unnecessary-waiting
+      cy.wait(700); // wait for text input debounce
+      cy.getAttached(".platform").each((el, i) => {
+        testCompatibility(el, i, [true, false, false]);
+      });
     });
 
     it("preselects platforms to check based on platform compatiblity when saving new policy", () => {
