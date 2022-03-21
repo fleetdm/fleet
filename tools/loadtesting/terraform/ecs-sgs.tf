@@ -48,7 +48,7 @@ resource "aws_security_group_rule" "lb-es-apm" {
   from_port   = "8200"
   to_port     = "8200"
   protocol    = "tcp"
-  cidr_blocks = ["10.0.0.0/8"]
+  cidr_blocks = concat(["10.0.0.0/8"], [for ip in module.vpc.nat_public_ips : "${ip}/32"])
 
   security_group_id = aws_security_group.lb.id
 }
