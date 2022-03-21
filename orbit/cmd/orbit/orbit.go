@@ -459,7 +459,7 @@ func main() {
 		g.Add(ext.Execute, ext.Interrupt)
 
 		if runtime.GOOS == "darwin" && c.Bool("fleet-desktop") {
-			desktopRunner := newDesktopRunner(desktopAppPath, fleetURL, deviceAuthToken)
+			desktopRunner := newDesktopRunner(desktopAppPath, fleetURL, deviceAuthToken, c.Bool("insecure"))
 			g.Add(desktopRunner.actor())
 		}
 
@@ -484,14 +484,16 @@ type desktopRunner struct {
 	appPath         string
 	fleetURL        string
 	deviceAuthToken string
+	insecure        bool
 	done            chan struct{}
 }
 
-func newDesktopRunner(appPath, fleetURL, deviceAuthToken string) *desktopRunner {
+func newDesktopRunner(appPath, fleetURL, deviceAuthToken string, insecure bool) *desktopRunner {
 	return &desktopRunner{
 		appPath:         appPath,
 		fleetURL:        fleetURL,
 		deviceAuthToken: deviceAuthToken,
+		insecure:        insecure,
 		done:            make(chan struct{}),
 	}
 }
@@ -502,15 +504,25 @@ func (d *desktopRunner) actor() (func() error, func(error)) {
 
 func (d *desktopRunner) execute() error {
 	log.Info().Str("path", d.appPath).Msg("opening")
-	url := path.Join(d.fleetURL, "device", d.deviceAuthToken)
-	if err := open.App(d.appPath,
-		open.AppWithEnv("FLEET_DESKTOP_DEVICE_URL", url),
-	); err != nil {
+	url, err := url.Parse(d.fleetURL)
+	if err != nil {
+		return fmt.Errorf("invalid fleet-url: %w", err)
+	}
+	url.Path = path.Join(url.Path, "device", d.deviceAuthToken)
+	opts := []open.AppOption{
+		open.AppWithEnv("FLEET_DESKTOP_DEVICE_URL", url.String()),
+		open.AppWithEnv("FLEET_DESKTOP_DEVICE_API_TEST_PATH", path.Join("api", "latest", "fleet", "device", d.deviceAuthToken)),
+	}
+	if d.insecure {
+		opts = append(opts, open.AppWithEnv("FLEET_DESKTOP_INSECURE", "1"))
+	}
+	if err := open.App(d.appPath, opts...); err != nil {
 		return fmt.Errorf("open desktop app: %w", err)
 	}
 
 	// Monitor the fleet-desktop application.
 	ticker := time.NewTicker(10 * time.Second)
+	defer ticker.Stop()
 	for {
 		select {
 		case <-d.done:
