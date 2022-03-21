@@ -10,6 +10,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
@@ -27,7 +28,7 @@ type DetailQuery struct {
 	Platforms []string
 	// IngestFunc translates a query result into an update to the host struct,
 	// around data that lives on the hosts table.
-	IngestFunc func(logger log.Logger, host *fleet.Host, rows []map[string]string) error
+	IngestFunc func(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error
 	// DirectIngestFunc gathers results from a query and directly works with the datastore to
 	// persist them. This is usually used for host data that is stored in a separate table.
 	DirectIngestFunc func(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error
@@ -55,7 +56,7 @@ var detailQueries = map[string]DetailQuery{
                         from interface_details id join interface_addresses ia
                                on ia.interface = id.interface where length(mac) > 0
                                order by (ibytes + obytes) desc`,
-		IngestFunc: func(logger log.Logger, host *fleet.Host, rows []map[string]string) (err error) {
+		IngestFunc: func(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) (err error) {
 			if len(rows) == 0 {
 				logger.Log("component", "service", "method", "IngestFunc", "err",
 					"detail_query_network_interface expected 1 or more results")
@@ -105,12 +106,13 @@ var detailQueries = map[string]DetailQuery{
 
 			host.PrimaryIP = selected["address"]
 			host.PrimaryMac = selected["mac"]
+			host.PublicIP = publicip.FromContext(ctx)
 			return nil
 		},
 	},
 	"os_version": {
 		Query: "select * from os_version limit 1",
-		IngestFunc: func(logger log.Logger, host *fleet.Host, rows []map[string]string) error {
+		IngestFunc: func(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
 			if len(rows) != 1 {
 				logger.Log("component", "service", "method", "IngestFunc", "err",
 					fmt.Sprintf("detail_query_os_version expected single result got %d", len(rows)))
@@ -158,7 +160,7 @@ var detailQueries = map[string]DetailQuery{
 		// distributed_interval (but it's not required), and typically
 		// do not control config_tls_refresh.
 		Query: `select name, value from osquery_flags where name in ("distributed_interval", "config_tls_refresh", "config_refresh", "logger_tls_period")`,
-		IngestFunc: func(logger log.Logger, host *fleet.Host, rows []map[string]string) error {
+		IngestFunc: func(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
 			var configTLSRefresh, configRefresh uint
 			var configRefreshSeen, configTLSRefreshSeen bool
 			for _, row := range rows {
@@ -215,7 +217,7 @@ var detailQueries = map[string]DetailQuery{
 	},
 	"osquery_info": {
 		Query: "select * from osquery_info limit 1",
-		IngestFunc: func(logger log.Logger, host *fleet.Host, rows []map[string]string) error {
+		IngestFunc: func(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
 			if len(rows) != 1 {
 				logger.Log("component", "service", "method", "IngestFunc", "err",
 					fmt.Sprintf("detail_query_osquery_info expected single result got %d", len(rows)))
@@ -229,7 +231,7 @@ var detailQueries = map[string]DetailQuery{
 	},
 	"system_info": {
 		Query: "select * from system_info limit 1",
-		IngestFunc: func(logger log.Logger, host *fleet.Host, rows []map[string]string) error {
+		IngestFunc: func(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
 			if len(rows) != 1 {
 				logger.Log("component", "service", "method", "IngestFunc", "err",
 					fmt.Sprintf("detail_query_system_info expected single result got %d", len(rows)))
@@ -264,7 +266,7 @@ var detailQueries = map[string]DetailQuery{
 	},
 	"uptime": {
 		Query: "select * from uptime limit 1",
-		IngestFunc: func(logger log.Logger, host *fleet.Host, rows []map[string]string) error {
+		IngestFunc: func(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
 			if len(rows) != 1 {
 				logger.Log("component", "service", "method", "IngestFunc", "err",
 					fmt.Sprintf("detail_query_uptime expected single result got %d", len(rows)))
@@ -745,7 +747,7 @@ func directIngestUsers(ctx context.Context, logger log.Logger, host *fleet.Host,
 	return nil
 }
 
-func ingestDiskSpace(logger log.Logger, host *fleet.Host, rows []map[string]string) error {
+func ingestDiskSpace(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
 	if len(rows) != 1 {
 		logger.Log("component", "service", "method", "ingestDiskSpace", "err",
 			fmt.Sprintf("detail_query_disk_space expected single result got %d", len(rows)))

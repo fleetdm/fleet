@@ -33,7 +33,7 @@ require (
 	github.com/ghodss/yaml v1.0.0
 	github.com/go-kit/kit v0.9.0
 	github.com/go-sql-driver/mysql v1.6.0
-	github.com/gocarina/gocsv v0.0.0-20220310154401-d4df709ca055 // indirect
+	github.com/gocarina/gocsv v0.0.0-20220310154401-d4df709ca055
 	github.com/gocolly/colly v1.2.0
 	github.com/golang-jwt/jwt/v4 v4.0.0
 	github.com/gomodule/redigo v1.8.5
@@ -66,12 +66,12 @@ require (
 	github.com/oklog/run v1.1.0
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/open-policy-agent/opa v0.24.0
+	github.com/oschwald/geoip2-golang v1.6.1
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.11.0
 	github.com/prometheus/common v0.32.1 // indirect
 	github.com/prometheus/procfs v0.7.3 // indirect
-	github.com/quasilyte/go-ruleguard/dsl v0.3.17 // indirect
 	github.com/rcrowley/go-metrics v0.0.0-20200313005456-10cdbea86bc0 // indirect
 	github.com/rotisserie/eris v0.5.1
 	github.com/rs/zerolog v1.20.0
