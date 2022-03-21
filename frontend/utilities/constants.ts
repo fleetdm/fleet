@@ -113,7 +113,7 @@ export const DEFAULT_POLICIES = [
   {
     key: 10,
     query: "SELECT 1 FROM mdm WHERE enrolled='true';",
-    name: "MDM Enrolled (macOS)",
+    name: "MDM enrolled (macOS)",
     description:
       "Required: osquery deployed with Orbit, or manual installation of macadmins/osquery-extension. Checks that a Mac is enrolled to MDM. Add a AND on identity_certificate_uuid to check for a specific MDM.",
     resolution: "Enroll device to MDM",

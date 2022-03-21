@@ -3,7 +3,11 @@ import sqliteParser from "sqlite-parser";
 import { intersection, isPlainObject } from "lodash";
 // @ts-ignore
 import { osqueryTables } from "utilities/osquery_tables";
-import { IOsqueryPlatform, SUPPORTED_PLATFORMS } from "interfaces/platform";
+import {
+  IOsqueryPlatform,
+  EXTENSION_TABLES,
+  SUPPORTED_PLATFORMS,
+} from "interfaces/platform";
 
 type IAstNode = Record<string | number | symbol, unknown>;
 
@@ -35,6 +39,10 @@ const platformsByTableDictionary: IPlatformDictionay = (osqueryTables as IOsquer
   },
   {}
 );
+
+Object.entries(EXTENSION_TABLES).forEach(([tableName, platforms]) => {
+  platformsByTableDictionary[tableName] = platforms;
+});
 
 // The isNode and visit functionality is informed by https://lihautan.com/manipulating-ast-with-javascript/#traversing-an-ast
 const _isNode = (node: unknown): node is IAstNode => {

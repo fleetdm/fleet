@@ -36,7 +36,7 @@ const usePlatformCompatibility = (): IPlatformCompatibility => {
       tryCheckCompatibility(queryString);
     },
     DEBOUNCE_DELAY,
-    { leading: true }
+    { leading: true, trailing: true }
   );
 
   const getCompatiblePlatforms = useCallback(

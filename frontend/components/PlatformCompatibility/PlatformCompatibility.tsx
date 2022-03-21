@@ -61,7 +61,6 @@ const PlatformCompatibility = ({
     );
   }
 
-  console.log("platform compatibility: ", compatiblePlatforms);
   const displayPlatforms = formatPlatformsForDisplay(compatiblePlatforms);
   return (
     <span className={baseClass}>
