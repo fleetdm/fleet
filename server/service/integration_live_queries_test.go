@@ -94,7 +94,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestOneHostOneQuery() {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		s.DoJSON("GET", "/api/v1/fleet/queries/run", liveQueryRequest, http.StatusOK, &liveQueryResp)
+		s.DoJSON("GET", "/api/latest/fleet/queries/run", liveQueryRequest, http.StatusOK, &liveQueryResp)
 	}()
 
 	// Give the above call a couple of seconds to create the campaign
@@ -118,7 +118,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestOneHostOneQuery() {
 		},
 	}
 	distributedResp := submitDistributedQueryResultsResponse{}
-	s.DoJSON("POST", "/api/v1/osquery/distributed/write", distributedReq, http.StatusOK, &distributedResp)
+	s.DoJSON("POST", "/api/latest/osquery/distributed/write", distributedReq, http.StatusOK, &distributedResp)
 
 	wg.Wait()
 
@@ -160,7 +160,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestOneHostMultipleQuery() {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		s.DoJSON("GET", "/api/v1/fleet/queries/run", liveQueryRequest, http.StatusOK, &liveQueryResp)
+		s.DoJSON("GET", "/api/latest/fleet/queries/run", liveQueryRequest, http.StatusOK, &liveQueryResp)
 	}()
 
 	// Give the above call a couple of seconds to create the campaign
@@ -185,7 +185,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestOneHostMultipleQuery() {
 		},
 	}
 	distributedResp := submitDistributedQueryResultsResponse{}
-	s.DoJSON("POST", "/api/v1/osquery/distributed/write", distributedReq, http.StatusOK, &distributedResp)
+	s.DoJSON("POST", "/api/latest/osquery/distributed/write", distributedReq, http.StatusOK, &distributedResp)
 
 	wg.Wait()
 
@@ -259,7 +259,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestMultipleHostMultipleQuery() {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		s.DoJSON("GET", "/api/v1/fleet/queries/run", liveQueryRequest, http.StatusOK, &liveQueryResp)
+		s.DoJSON("GET", "/api/latest/fleet/queries/run", liveQueryRequest, http.StatusOK, &liveQueryResp)
 	}()
 
 	// Give the above call a couple of seconds to create the campaign
@@ -283,7 +283,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestMultipleHostMultipleQuery() {
 			},
 		}
 		distributedResp := submitDistributedQueryResultsResponse{}
-		s.DoJSON("POST", "/api/v1/osquery/distributed/write", distributedReq, http.StatusOK, &distributedResp)
+		s.DoJSON("POST", "/api/latest/osquery/distributed/write", distributedReq, http.StatusOK, &distributedResp)
 	}
 
 	wg.Wait()
@@ -323,7 +323,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestFailsToCreateCampaign() {
 	}
 	liveQueryResp := runLiveQueryResponse{}
 
-	s.DoJSON("GET", "/api/v1/fleet/queries/run", liveQueryRequest, http.StatusOK, &liveQueryResp)
+	s.DoJSON("GET", "/api/latest/fleet/queries/run", liveQueryRequest, http.StatusOK, &liveQueryResp)
 
 	require.Len(t, liveQueryResp.Results, 1)
 	assert.Equal(t, 0, liveQueryResp.Summary.RespondedHostCount)
@@ -356,7 +356,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestFailsOnSomeHost() {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		s.DoJSON("GET", "/api/v1/fleet/queries/run", liveQueryRequest, http.StatusOK, &liveQueryResp)
+		s.DoJSON("GET", "/api/latest/fleet/queries/run", liveQueryRequest, http.StatusOK, &liveQueryResp)
 	}()
 
 	// Give the above call a couple of seconds to create the campaign
@@ -375,7 +375,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestFailsOnSomeHost() {
 		},
 	}
 	distributedResp := submitDistributedQueryResultsResponse{}
-	s.DoJSON("POST", "/api/v1/osquery/distributed/write", distributedReq, http.StatusOK, &distributedResp)
+	s.DoJSON("POST", "/api/latest/osquery/distributed/write", distributedReq, http.StatusOK, &distributedResp)
 
 	distributedReq = submitDistributedQueryResultsRequestShim{
 		NodeKey: h2.NodeKey,
@@ -390,7 +390,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestFailsOnSomeHost() {
 		},
 	}
 	distributedResp = submitDistributedQueryResultsResponse{}
-	s.DoJSON("POST", "/api/v1/osquery/distributed/write", distributedReq, http.StatusOK, &distributedResp)
+	s.DoJSON("POST", "/api/latest/osquery/distributed/write", distributedReq, http.StatusOK, &distributedResp)
 
 	wg.Wait()
 
@@ -420,13 +420,13 @@ func (s *liveQueriesTestSuite) TestCreateDistributedQueryCampaign() {
 
 	// create with no payload
 	var createResp createDistributedQueryCampaignResponse
-	s.DoJSON("POST", "/api/v1/fleet/queries/run", nil, http.StatusUnprocessableEntity, &createResp)
+	s.DoJSON("POST", "/api/latest/fleet/queries/run", nil, http.StatusUnprocessableEntity, &createResp)
 
 	// create with unknown query
-	s.DoJSON("POST", "/api/v1/fleet/queries/run", createDistributedQueryCampaignRequest{QueryID: ptr.Uint(9999)}, http.StatusNotFound, &createResp)
+	s.DoJSON("POST", "/api/latest/fleet/queries/run", createDistributedQueryCampaignRequest{QueryID: ptr.Uint(9999)}, http.StatusNotFound, &createResp)
 
 	// create with new query
-	s.DoJSON("POST", "/api/v1/fleet/queries/run", createDistributedQueryCampaignRequest{QuerySQL: "SELECT 1"}, http.StatusOK, &createResp)
+	s.DoJSON("POST", "/api/latest/fleet/queries/run", createDistributedQueryCampaignRequest{QuerySQL: "SELECT 1"}, http.StatusOK, &createResp)
 	assert.NotZero(t, createResp.Campaign.ID)
 	assert.Equal(t, fleet.QueryWaiting, createResp.Campaign.Status)
 	assert.Equal(t, uint(0), createResp.Campaign.Metrics.TotalHosts)
@@ -436,7 +436,7 @@ func (s *liveQueriesTestSuite) TestCreateDistributedQueryCampaign() {
 	time.Sleep(time.Second)
 
 	// create with new query for specific hosts
-	s.DoJSON("POST", "/api/v1/fleet/queries/run", createDistributedQueryCampaignRequest{QuerySQL: "SELECT 2", Selected: fleet.HostTargets{HostIDs: []uint{h1.ID, h2.ID}}}, http.StatusOK, &createResp)
+	s.DoJSON("POST", "/api/latest/fleet/queries/run", createDistributedQueryCampaignRequest{QuerySQL: "SELECT 2", Selected: fleet.HostTargets{HostIDs: []uint{h1.ID, h2.ID}}}, http.StatusOK, &createResp)
 	assert.NotEqual(t, camp1.ID, createResp.Campaign.ID)
 	assert.Equal(t, uint(2), createResp.Campaign.Metrics.TotalHosts)
 
@@ -444,7 +444,7 @@ func (s *liveQueriesTestSuite) TestCreateDistributedQueryCampaign() {
 	time.Sleep(time.Second)
 
 	// create by host name
-	s.DoJSON("POST", "/api/v1/fleet/queries/run_by_names", createDistributedQueryCampaignByNamesRequest{
+	s.DoJSON("POST", "/api/latest/fleet/queries/run_by_names", createDistributedQueryCampaignByNamesRequest{
 		QuerySQL: "SELECT 3", Selected: distributedQueryCampaignTargetsByNames{Hosts: []string{h1.Hostname}}},
 		http.StatusOK, &createResp)
 	assert.NotEqual(t, camp1.ID, createResp.Campaign.ID)
@@ -454,7 +454,7 @@ func (s *liveQueriesTestSuite) TestCreateDistributedQueryCampaign() {
 	time.Sleep(time.Second)
 
 	// create by unknown host name - it ignores the unknown names
-	s.DoJSON("POST", "/api/v1/fleet/queries/run_by_names", createDistributedQueryCampaignByNamesRequest{
+	s.DoJSON("POST", "/api/latest/fleet/queries/run_by_names", createDistributedQueryCampaignByNamesRequest{
 		QuerySQL: "SELECT 3", Selected: distributedQueryCampaignTargetsByNames{Hosts: []string{h1.Hostname + "ZZZZZ"}}},
 		http.StatusOK, &createResp)
 }
@@ -467,12 +467,12 @@ func (s *liveQueriesTestSuite) TestOsqueryDistributedRead() {
 
 	req := getDistributedQueriesRequest{NodeKey: s.hosts[1].NodeKey}
 	var resp getDistributedQueriesResponse
-	s.DoJSON("POST", "/api/v1/osquery/distributed/read", req, http.StatusOK, &resp)
+	s.DoJSON("POST", "/api/latest/osquery/distributed/read", req, http.StatusOK, &resp)
 	assert.Contains(t, resp.Queries, hostDistributedQueryPrefix+fmt.Sprintf("%d", hostID))
 
 	// test with invalid node key
 	var errRes map[string]interface{}
 	req.NodeKey += "zzzz"
-	s.DoJSON("POST", "/api/v1/osquery/distributed/read", req, http.StatusUnauthorized, &errRes)
+	s.DoJSON("POST", "/api/latest/osquery/distributed/read", req, http.StatusUnauthorized, &errRes)
 	assert.Contains(t, errRes["error"], "invalid node key")
 }
