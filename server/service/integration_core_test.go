@@ -3874,6 +3874,44 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	require.Contains(t, rows[1], hosts[2].Hostname)
 }
 
+// this test can be deleted once the "v1" version is removed.
+func (s *integrationTestSuite) TestAPIVersion_v1_2022_04() {
+	t := s.T()
+
+	// create a query that can be scheduled
+	qr, err := s.ds.NewQuery(context.Background(), &fleet.Query{
+		Name:           "TestQuery2",
+		Query:          "select * from osquery;",
+		ObserverCanRun: true,
+	})
+	require.NoError(t, err)
+
+	// try to schedule that query on the endpoint that is deprecated
+	// in that version
+	gsParams := fleet.ScheduledQueryPayload{QueryID: ptr.Uint(qr.ID), Interval: ptr.Uint(42)}
+	res := s.DoRaw("POST", "/api/2022-04/fleet/global/schedule", jsonMustMarshal(t, gsParams), http.StatusNotFound)
+	res.Body.Close()
+	// use the correct version for that deprecated API
+	createResp := globalScheduleQueryResponse{}
+	s.DoJSON("POST", "/api/v1/fleet/global/schedule", gsParams, http.StatusOK, &createResp)
+	require.NotZero(t, createResp.Scheduled.ID)
+
+	// list the scheduled queries with the new endpoint, but the old version
+	res = s.DoRaw("GET", "/api/v1/fleet/schedule", nil, http.StatusMethodNotAllowed)
+	res.Body.Close()
+	// list again, this time with the correct version
+	gs := fleet.GlobalSchedulePayload{}
+	s.DoJSON("GET", "/api/2022-04/fleet/schedule", nil, http.StatusOK, &gs)
+	require.Len(t, gs.GlobalSchedule, 1)
+
+	// delete using the old endpoint but on the wrong new version
+	res = s.DoRaw("DELETE", fmt.Sprintf("/api/2022-04/fleet/global/schedule/%d", createResp.Scheduled.ID), nil, http.StatusNotFound)
+	res.Body.Close()
+	// properly delete with old endpoint and old version
+	var delResp deleteGlobalScheduleResponse
+	s.DoJSON("DELETE", fmt.Sprintf("/api/v1/fleet/global/schedule/%d", createResp.Scheduled.ID), nil, http.StatusOK, &delResp)
+}
+
 // creates a session and returns it, its key is to be passed as authorization header.
 func createSession(t *testing.T, uid uint, ds fleet.Datastore) *fleet.Session {
 	key := make([]byte, 64)
