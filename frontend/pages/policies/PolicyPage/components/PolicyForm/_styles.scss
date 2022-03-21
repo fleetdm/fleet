@@ -165,30 +165,40 @@
   }
 
   &__button-wrap {
+    display: flex;
+    align-items: center;
     margin: 0;
-    margin-top: $pad-large;
 
-    &--new-policy {
-      display: flex;
-      align-items: center;
-    }
     &--modal {
       display: flex;
       justify-content: flex-end;
       align-items: center;
     }
-    button {
-      margin-right: $pad-medium;
+
+    &--tooltip {
+      display: flex;
+    }
+
+    &--modal-save {
+      margin-left: $pad-medium;
+    }
+
+    .policy-form__save {
+      margin-right: $pad-small;
+    }
+    .policy-form__run {
+      min-width: 64px;
+      margin: 0;
+    }
+    .__react_component_tooltip {
+      text-align: center;
     }
   }
 
-  &__button-wrap--save-policy-button:first-child {
-    margin-right: $pad-medium;
-  }
-
-  &__save-policy-btn,
-  &__cancel-btn {
-    margin-right: $pad-xsmall;
+  &__button-wrap--modal {
+    padding-top: 30px;
+    border-top: 1px solid $ui-fleet-blue-15;
+    margin-top: 6px;
   }
 
   &__title {
@@ -204,6 +214,10 @@
       margin: 0;
       margin-top: $pad-small;
     }
+
+    .fleet-checkbox__label {
+      transform: translateY(2px);
+    }
   }
 
   &__platform-error {
@@ -214,7 +228,7 @@
   &__platform-compatibility {
     display: flex;
     align-items: center;
-    padding-top: $pad-medium;
+    padding-bottom: $pad-large;
 
     b,
     img,
@@ -251,16 +265,6 @@
     label {
       font-weight: $regular;
       margin-right: $pad-medium;
-    }
-
-    .tooltip {
-      img {
-        padding: 0px;
-      }
-
-      &__tooltip-text {
-        text-align: center;
-      }
     }
   }
 }

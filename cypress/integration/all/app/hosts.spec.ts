@@ -103,7 +103,7 @@ describe("Hosts flow", () => {
         cy.findByText(/filevault/i)
           .should("exist")
           .click();
-        cy.findByText(/run/i).should("exist").click();
+        cy.getAttached(".policy-form__run").should("exist").click();
         cy.findByText(/all hosts/i)
           .should("exist")
           .click()
