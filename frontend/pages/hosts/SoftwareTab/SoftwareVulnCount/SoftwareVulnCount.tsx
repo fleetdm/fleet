@@ -1,7 +1,7 @@
 import React from "react";
 
 import { ISoftware } from "interfaces/software";
-import IssueIcon from "../../../../../../assets/images/icon-issue-fleet-black-50-16x16@2x.png";
+import IssueIcon from "../../../../../assets/images/icon-issue-fleet-black-50-16x16@2x.png";
 
 const baseClass = "software-vuln-count";
 

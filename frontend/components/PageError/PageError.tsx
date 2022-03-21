@@ -1,12 +1,12 @@
 /**
- * Component when there is an error retrieving schedule set up in fleet
+ * Component when there is an error retrieving a page in fleet
  */
 import React from "react";
 
-import OpenNewTabIcon from "../../../../../../assets/images/open-new-tab-12x12@2x.png";
-import ErrorIcon from "../../../../../../assets/images/icon-error-16x16@2x.png";
+import OpenNewTabIcon from "../../../assets/images/open-new-tab-12x12@2x.png";
+import ErrorIcon from "../../../assets/images/icon-error-16x16@2x.png";
 
-const baseClass = "schedule-error";
+const baseClass = "page-error";
 
 const ScheduleError = (): JSX.Element => {
   return (
