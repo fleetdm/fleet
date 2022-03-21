@@ -69,12 +69,6 @@ export class ResetPasswordPage extends Component {
       .catch(() => false);
   });
 
-  handleLeave = (location) => {
-    const { dispatch } = this.props;
-
-    return dispatch(push(location));
-  };
-
   loggedInUser = (formData) => {
     const { dispatch } = this.props;
     const { new_password: password } = formData;
@@ -92,10 +86,7 @@ export class ResetPasswordPage extends Component {
     const { errors } = this.props;
 
     return (
-      <StackedWhiteBoxes
-        leadText="Create a new password. Your new password must include 7 characters, at least 1 number (e.g. 0 - 9), and at least 1 symbol (e.g. &*#)"
-        onLeave={handleLeave}
-      >
+      <StackedWhiteBoxes leadText="Create a new password. Your new password must include 7 characters, at least 1 number (e.g. 0 - 9), and at least 1 symbol (e.g. &*#)">
         <ResetPasswordForm
           handleSubmit={onSubmit}
           onChangeFunc={onResetErrors}

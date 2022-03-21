@@ -1942,6 +1942,25 @@ To download the data streams, you can use `fleetctl vulnerability-data-stream --
   vulnerabilities:
   	disable_data_sync: true
   ```
+  
+### GeoIP
+
+##### database_path
+
+The path to a valid Maxmind GeoIP database(mmdb). Support exists for the country & city versions of the database. If city database is supplied
+then Fleet will attempt to resolve the location via the city lookup, otherwise it defaults to the country lookup. The IP address used
+to determine location is extracted via HTTP headers in the following order: `True-Client-IP`, `X-Real-IP`, and finally `X-FORWARDED-FOR` [headers](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Forwarded-For)
+on the Fleet web server.
+
+- Default value: none
+- Environment variable: `FLEET_GEOIP_DATABASE_PATH`
+- Config file format:
+
+  ```yaml
+  geoip:
+  	database_path: /some/path
+  ```
+
 
 ## Managing osquery configurations
 

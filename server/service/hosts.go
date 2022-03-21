@@ -20,9 +20,10 @@ import (
 // rendering in the UI.
 type HostResponse struct {
 	*fleet.Host
-	Status      fleet.HostStatus `json:"status"`
-	DisplayText string           `json:"display_text"`
-	Labels      []fleet.Label    `json:"labels,omitempty"`
+	Status      fleet.HostStatus   `json:"status"`
+	DisplayText string             `json:"display_text"`
+	Labels      []fleet.Label      `json:"labels,omitempty"`
+	Geolocation *fleet.GeoLocation `json:"geolocation,omitempty"`
 }
 
 func hostResponseForHost(ctx context.Context, svc fleet.Service, host *fleet.Host) (*HostResponse, error) {
@@ -30,6 +31,7 @@ func hostResponseForHost(ctx context.Context, svc fleet.Service, host *fleet.Hos
 		Host:        host,
 		Status:      host.Status(time.Now()),
 		DisplayText: host.Hostname,
+		Geolocation: svc.LookupGeoIP(ctx, host.PublicIP),
 	}, nil
 }
 
@@ -37,8 +39,9 @@ func hostResponseForHost(ctx context.Context, svc fleet.Service, host *fleet.Hos
 // with the HostDetail details.
 type HostDetailResponse struct {
 	fleet.HostDetail
-	Status      fleet.HostStatus `json:"status"`
-	DisplayText string           `json:"display_text"`
+	Status      fleet.HostStatus   `json:"status"`
+	DisplayText string             `json:"display_text"`
+	Geolocation *fleet.GeoLocation `json:"geolocation,omitempty"`
 }
 
 func hostDetailResponseForHost(ctx context.Context, svc fleet.Service, host *fleet.HostDetail) (*HostDetailResponse, error) {
@@ -46,6 +49,7 @@ func hostDetailResponseForHost(ctx context.Context, svc fleet.Service, host *fle
 		HostDetail:  *host,
 		Status:      host.Status(time.Now()),
 		DisplayText: host.Hostname,
+		Geolocation: svc.LookupGeoIP(ctx, host.PublicIP),
 	}, nil
 }
 
