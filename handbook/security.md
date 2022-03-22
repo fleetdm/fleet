@@ -13,6 +13,7 @@ We follow the guiding principles below to secure our company-owned devices:
 
 
 ### macOS devices
+> *Find more information about the process of implementing security on the Fleet blog. The first [Tales from Fleet security: securing the startup](https://blog.fleetdm.com/tales-from-fleet-security-securing-the-startup-448ea590ea3a) article covers the process of securing our laptops.
 
 We use configuration profiles to standardize security settings for our Mac devices. We use [CIS Benchmark for macOS 12](https://www.cisecurity.org/benchmark/apple_os), as our configuration baseline, and adapt it to:
 * Suit a remote team
@@ -290,7 +291,7 @@ not, we would enforce Single Sign-On (SSO) to access our organization.
 We enable *Require two-factor authentication* for everyone in the organization.
 
 Fleet requires two-factor authentication for everyone in the organization. We do not require Single Sign-on (SSO) -
-as most of the software we work on is open source and accessible to external collaborators. If you can imagine, GitHub
+as most of the software we work on is open-source and accessible to external collaborators. If you can imagine, GitHub
 charges a [4x premium](https://sso.tax/) for this feature.
 
 ### Code security and analysis
@@ -298,29 +299,29 @@ charges a [4x premium](https://sso.tax/) for this feature.
 
 | Code security and analysis feature | Setting                                                            | Note                                                                        |
 | ---------------------------------- | ------------------------------------------------------------------ | --------------------------------------------------------------------------- |
-| Dependency graph                   | Automatically enable for new private repositories + enabled on all | Default on all public repositories                                               |
-| Dependabot alerts                  | Automatically enable for new repositories + enabled for all        | We want to be alerted if any dependency is vulnerable                       |
-| Dependabot security updates        | Automatically enable for new repositories                          | This automatically creates PRs to fix vulnerable dependencies when possible |
+| Dependency graph                   | Automatically enable for new private repositories + enabled on all | Default on all public repositories.                                               |
+| Dependabot alerts                  | Automatically enable for new repositories + enabled for all        | We want to be alerted if any dependency is vulnerable.                       |
+| Dependabot security updates        | Automatically enable for new repositories                          | This automatically creates PRs to fix vulnerable dependencies when possible. |
 
 ### Member Privileges
 
 | Member privileges feature | Setting | Note                                                                                                                         |
 | ------------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------- |
 | Base permissions          | Write   | Admin is too powerful, as it allows reconfiguring the repositories themselves. Selecting *Write* provides the perfect balance!                 |
-| Repository creation       | None    | We want to limit repository creation in general, and eventually automate it  with the [GitHub Terraform provider](https://github.com/integrations/terraform-provider-github)     |
-| Repository forking        | Enabled | By default, we allow repository forking                                                                                      |
-| Pages creation            | None    | We do not use GitHub pages, so we disable them to be sure people use our actual website or handbook which are also in GitHub |
+| Repository creation       | None    | We want to limit repository creation, and eventually automate it with the [GitHub Terraform provider](https://github.com/integrations/terraform-provider-github).     |
+| Repository forking        | ✅  | By default, we allow repository forking.                                                                                      |
+| Pages creation            | None    | We do not use GitHub pages, so we disable them to be sure people use our actual website or handbook which are also in GitHub. |
 
 #### Admin repository permissions
 
 | Admin privileges feature                                                   | Member privileges feature | Note                                                                                                                                                                          |
 | -------------------------------------------------------------------------- | ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Allow members to change repository visibilities for this organization      | 🚫                   | Most of our repos are public, but for the few that are private we want to require org admin privileges to make them public                                                    |
-| Allow members to delete or transfer repositories for this organization     | 🚫                   | We want to require org admin privileges to be able to delete or transfer any repository                                                                                       |
-| Allow repository administrators to delete issues for this organization     | 🚫                   | We want to require org admin privileges to be able to delete issues, which is something that is very rarely needed but could be, for example if we received GitHub issue spam |
+| Allow members to delete or transfer repositories for this organization     | 🚫                   | We want to require org admin privileges to be able to delete or transfer any repository.                                                                                       |
+| Allow repository administrators to delete issues for this organization     | 🚫                   | We want to require org admin privileges to be able to delete issues, which is something that is very rarely needed but could be, for example if we received GitHub issue spam. |
 | Allow members to see comment author's profile name in private repositories | 🚫                   | We barely use private repositories, and have no need for this.                                                                                                                |
 | Allow users with read access to create discussions                         | 🚫                   | We do not currently use discussions and want people to use issues as much as possible.                                                                                       |
-| Allow members to create teams                                              | 🚫                   | We automate the management of GitHub teams with the [GitHub Terraform provider](https://github.com/integrations/terraform-provider-github)                            |
+| Allow members to create teams                                              | 🚫                   | We automate the management of GitHub teams with the [GitHub Terraform provider](https://github.com/integrations/terraform-provider-github).                            |
 
 ### Team Discussions
 We do not use team discussions and therefore have disabled it. This is simply to avoid discussions
@@ -338,23 +339,52 @@ Located in the Branches section of repository settings, we create a rule for **m
 | Require a pull request before merging                            | ✅     | We enforce code reviews, which require PRs.                                                                           |
 | Require approvals                                                | 1️⃣   | We require approval from one person in the team.                                                                      |
 | Dismiss stale pull request approvals when new commits are pushed | ✅     | Without this, someone could get approval for a small, very nice PR then change everything about it!                   |
-| Require review from Code Owners                                  | 🗓     | We are working towards enabling this, but at our current size, it is not needed.                                      |
+| Require review from Code Owners                                  | 🗓     | We are working towards enabling this as our team grows and allows for more flexibility                                    |
 | Restrict who can dismiss pull request reviews                    | 🚫     | As we are a team working in multiple timezones, we want to allow dismissing reviews and getting another one.          |
 | Allow specified actors to bypass required pull requests          | 🚫     | We do not want anyone pushing directly to main.                                                                       |
 | Require status checks to pass before merging                     | ✅     | Because of our [monorepo](https://en.wikipedia.org/wiki/Monorepo#:~:text=In%20version%20control%20systems%2C%20a,as%20a%20'shared%20codebase'.), it is hard to pick many checks that work for all types of PRs, but we still enable this.     |
 | Require conversation resolution before merging                   | 🚫     | Reviewers should not approve if they do not think it's ready for merging.                                             |
 | Require signed commits                                           | 🗓     | We are working towards enabling this, manually keeping track of unverified commits.                                   |
-| Require linear history                                           | 🚫     |                                                                                                                       |
+| Require linear history                                           | 🚫     | We do not currently use or enforce practices to generate linear history.                                                                                                                      |
 | Include administrators                                           | ✅     | We want these rules to apply to *everyone*.                                                                           |
 | Restrict who can push to matching branches                       | 🚫     | Anyone in our organization should be able to merge PRs that get reviewed, and nobody should be able to push directly. |
 | Allow force pushes                                               | 🚫     | We have need this, so we do not allow it.                                                             |
 | Allow deletions                                                  | 🚫     | We do not want ANYONE to be able to delete the *main* branch.                                                         |
 
 ### Scanning tools
-Though not technically a part of GitHub itself, we feel like the security tools we use to scan our
-code, workflows, and GitHub configuration are part of our overall GitHub configuration.
+Though not technically a part of GitHub itself, we feel like the security tools we use to scan our code, workflows, and GitHub configuration are part of our overall GitHub configuration.
 
+#### SAST and configuration scanning
+| Scanning Tool                                       | Purpose                                                                                                                                              | Configuration                                                                                                  |
+| --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| [OSSF Scorecard](https://github.com/ossf/scorecard) | Scan our GitHub repository for best practices and send problems to GitHub Security.                                                                  | [scorecard-analysis.yml](https://github.com/fleetdm/fleet/blob/main/.github/workflows/scorecards-analysis.yml) |
+| [CodeQL](https://codeql.github.com/)                | Discover vulnerabilities across our codebase, both in the backend and frontend code.                                                                 | [codeql-analysis.yml](https://github.com/fleetdm/fleet/blob/main/.github/workflows/codeql-analysis.yml)        |
+| [gosec](https://github.com/securego/gosec)          | Scan golang code for common security mistakes. We use gosec as one of the linters used by [golangci-lint](https://github.com/golangci/golangci-lint) | [golangci-lint.yml](https://github.com/fleetdm/fleet/blob/main/.github/workflows/golangci-lint.yml)            |
 
+We are planning on adding [tfsec](https://github.com/aquasecurity/tfsec) to scan for configuration vulnerabilities in the Terraform code provided to deploy Fleet infrastructure in the cloud. 
+Once we have full coverage from a static analysis point of view, we will evaluate dynamic analysis
+and fuzzing options.
+
+#### Dependabot
+As described in *Code security and analysis*, we use Dependabot for security updates to libraries.
+Our [dependabot.yml](https://github.com/fleetdm/fleet/blob/main/.github/dependabot.yml) only
+mentions GitHub actions. Through the configuration of the repository, security update to
+dependencies generate pull requests for everything in the repository. As GitHub actions have no impact on the Fleet software itself, we are
+simply more aggressive on updating actions even if the update does not resolve a vulnerability.
+
+### Actions configuration
+We configure GitHub Actions to have *Read repository contents permission* by default. This is
+located in *organization/settings/actions*. As our code is open-source, we allow all GitHub actions,
+but limit their default privileges so they do not create any additional risk. Additional permissions
+needed can be configured in the YAML file for each workflow.
+
+We pin actions to specific versions using a complete hash.
+
+### Automation
+We manage our GitHub configuration, creation of repositories and team memberships manually. In the
+future, we will consider automating most of it using the [Terraform
+provider](https://github.com/integrations/terraform-provider-github) for GitHub. Our strategy for
+this will be similar to what is described in [this blog post](https://oops.computer/posts/github_automation/).
 
 ## Google Workspace security
 Google Workspace is our collaboration tool and the source of truth for our user identities.
