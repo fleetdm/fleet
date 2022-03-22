@@ -54,7 +54,7 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [How we protect end-user devices](./security.md#how-we-protect-end-user-devices)
 
-[How we secure our GitHub](./security.md#github-security)
+[How we secure GitHub](./security#git-hub-security)
 
 [Google Workspace security](./security.md#google-workspace-security)
 
