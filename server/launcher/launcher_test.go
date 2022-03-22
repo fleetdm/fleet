@@ -9,7 +9,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/health"
 	"github.com/fleetdm/fleet/v4/server/service/mock"
 	"github.com/go-kit/kit/log"
-	"github.com/kolide/osquery-go/plugin/distributed"
+	"github.com/osquery/osquery-go/plugin/distributed"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

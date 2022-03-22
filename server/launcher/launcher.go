@@ -18,8 +18,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/health"
 	"github.com/go-kit/kit/log"
-	"github.com/kolide/osquery-go/plugin/distributed"
-	"github.com/kolide/osquery-go/plugin/logger"
+	"github.com/osquery/osquery-go/plugin/distributed"
+	"github.com/osquery/osquery-go/plugin/logger"
 )
 
 // launcherWrapper wraps the TLS interface.
