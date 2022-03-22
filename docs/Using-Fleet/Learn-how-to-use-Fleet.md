@@ -1,8 +1,8 @@
 # Learn how to use Fleet
 
-> This tutorial assumes that you have a preview environment of Fleet up and running. If you haven't already done so, check out our [Get Started](https://fleetdm.com/get-started) guide for instructions on how to start a preview environment of Fleet.
+> This guide assumes that you have a preview environment of Fleet up and running. If you haven't already done so, check out our [Get Started](https://fleetdm.com/get-started) guide for instructions on how to start a preview environment of Fleet.
 
-In this tutorial, we'll cover the following concepts:
+In this guide, we'll cover the following concepts:
 
 - [Where to see your device in Fleet](#where-to-see-your-device-in-fleet)
 - [How to ask questions about your device](#how-to-ask-questions-about-your-devices)
