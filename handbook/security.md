@@ -258,7 +258,7 @@ We configure Chrome on company-owned devices with a basic policy.
 
 * Chrome needs to be restarted within 48 hours of patch installation. The automatic restart happens after 19:00 and before 6:00 if the computer is running and tabs are restored (except for incognito tabs).
 * Ads considered intrusive are blocked.
-* uBlock Origin is enabled by default, and is 100% configurable, improving security and performance of browsing.
+* uBlock Origin is enabled by default, and is 100% configurable, improving security and the performance of browsing.
 * Endpoint Verification is used to make access decisions based on the security posture of the device. For example, an outdated Mac could be prevented access to Google Drive.
 
 ### Personal mobile devices
