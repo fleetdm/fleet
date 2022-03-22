@@ -1207,7 +1207,70 @@ Retrieves aggregated host's MDM enrollment status and Munki versions.
 }
 ```
 
----
+### Get host OS versions
+
+Retrieves the aggregated host OS versions information.
+
+`GET /api/v1/fleet/os_versions`
+
+#### Parameters
+
+| Name     | Type     | In    | Description                                                                                                                          |
+| ---      | ---      | ---   | ---                                                                                                                                  |
+| team_id  | integery | query | _Available in Fleet Premium_ Filters the hosts to only include hosts in the specified team. If not provided, all hosts are included. |
+| platform | string   | query | Filters the hosts to the specified platform                                                                                          |
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "counts_updated_at": "2022-03-22T21:38:31Z",
+  "os_versions": [
+    {
+      "hosts_count": 1,
+      "name": "CentOS 6.10.0",
+      "platform": "rhel"
+    },
+    {
+      "hosts_count": 1,
+      "name": "CentOS Linux 7.9.2009",
+      "platform": "rhel"
+    },
+    {
+      "hosts_count": 1,
+      "name": "CentOS Linux 8.3.2011",
+      "platform": "rhel"
+    },
+    {
+      "hosts_count": 1,
+      "name": "Debian GNU/Linux 10.0.0",
+      "platform": "debian"
+    },
+    {
+      "hosts_count": 1,
+      "name": "Debian GNU/Linux 9.0.0",
+      "platform": "debian"
+    },
+    {
+      "hosts_count": 1,
+      "name": "Ubuntu 16.4.0",
+      "platform": "ubuntu"
+    },
+    {
+      "hosts_count": 1,
+      "name": "Ubuntu 18.4.0",
+      "platform": "ubuntu"
+    },
+    {
+      "hosts_count": 1,
+      "name": "Ubuntu 20.4.0",
+      "platform": "ubuntu"
+    }
+  ]
+}
+```
 
 ### Get hosts report in CSV
 
