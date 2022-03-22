@@ -363,8 +363,8 @@ Given a working flagfile for connecting osquery agents to Fleet, add the followi
 ```
 --disable_carver=false
 --carver_disable_function=false
---carver_start_endpoint=/api/v1/osquery/carve/begin
---carver_continue_endpoint=/api/v1/osquery/carve/block
+--carver_start_endpoint=/api/latest/osquery/carve/begin
+--carver_continue_endpoint=/api/latest/osquery/carve/block
 --carver_block_size=2097152
 ```
 
