@@ -689,7 +689,7 @@ func cleanUpSocketFiles(path string) error {
 			continue
 		}
 		entryPath := filepath.Join(path, entry.Name())
-		if err := os.RemoveAll(entryPath); err != nil {
+		if err := os.Remove(entryPath); err != nil {
 			return fmt.Errorf("remove %q: %w", entryPath, err)
 		}
 	}
