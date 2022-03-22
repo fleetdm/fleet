@@ -629,6 +629,9 @@ func downloadOrbitAndStart(destDir, enrollSecret, address, orbitChannel, osquery
 	if err := os.RemoveAll(path.Join(destDir, "orbit.db")); err != nil {
 		fmt.Println("Warning: clearing orbit db dir:", err)
 	}
+	if err := cleanUpSocketFiles(destDir); err != nil {
+		fmt.Println("Warning: cleaning up socket files:", err)
+	}
 
 	updateOpt := update.DefaultOptions
 
@@ -670,6 +673,26 @@ func downloadOrbitAndStart(destDir, enrollSecret, address, orbitChannel, osquery
 		return fmt.Errorf("saving pid file: %w", err)
 	}
 
+	return nil
+}
+
+// cleanUpSocketFiles cleans up fleet-osqueryd's socket file
+// ("orbit-osquery.em") and osquery extension socket files
+// ("orbit-osquery.em.*").
+func cleanUpSocketFiles(path string) error {
+	entries, err := os.ReadDir(path)
+	if err != nil {
+		return fmt.Errorf("read dir: %w", err)
+	}
+	for _, entry := range entries {
+		if !strings.HasPrefix(entry.Name(), "orbit-osquery.em") {
+			continue
+		}
+		entryPath := filepath.Join(path, entry.Name())
+		if err := os.RemoveAll(entryPath); err != nil {
+			return fmt.Errorf("remove %q: %w", entryPath, err)
+		}
+	}
 	return nil
 }
 
