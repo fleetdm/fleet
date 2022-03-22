@@ -654,40 +654,6 @@
     color: $ui-fleet-black-50;
   }
 
-  &__os-modal-title {
-    padding-right: $pad-medium;
-    font-size: $medium;
-    font-weight: $bold;
-  }
-  &__os-modal-updated {
-    font-style: italic;
-  }
-  &__os-modal-example-title {
-    font-size: $x-small;
-    font-weight: $bold;
-  }
-  &__os-policy {
-    padding-top: $pad-medium;
-
-    .form-field__label {
-      font-weight: normal;
-    }
-    #os-policy {
-      color: $core-fleet-purple;
-      line-height: 20px;
-      font-size: $x-small;
-      font-family: "SourceCodePro", $monospace;
-      min-height: 55px;
-      padding-right: $pad-xxlarge;
-    }
-  }
-
-  &__os-policy-copy-icon {
-    color: $core-vibrant-blue;
-    margin-left: $pad-small;
-    margin-right: $pad-medium;
-  }
-
   .buttons {
     display: flex;
     align-items: center;
@@ -711,35 +677,5 @@
   }
   .form-field--dropdown {
     margin: 0;
-  }
-  &__vuln_dropdown {
-    width: 219px;
-
-    .Select-menu-outer {
-      width: 364px;
-      max-height: 310px;
-
-      .Select-menu {
-        max-height: none;
-      }
-    }
-    .Select-value {
-      padding-left: $pad-medium;
-      padding-right: $pad-medium;
-
-      &::before {
-        display: inline-block;
-        position: absolute;
-        padding: 5px 0 0 0; // centers spin
-        content: url(../assets/images/icon-filter-black-16x16@2x.png);
-        transform: scale(0.5);
-        height: 26px;
-        left: 2px;
-      }
-    }
-    .Select-value-label {
-      padding-left: $pad-large;
-      font-size: $small !important;
-    }
   }
 }
