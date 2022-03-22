@@ -1,7 +1,7 @@
 .component__tooltip-wrapper {
   position: relative;
   cursor: help;
-  
+
   &:hover {
     .component__tooltip-wrapper__tip-text {
       visibility: visible;
@@ -16,6 +16,7 @@
     position: absolute;
     top: 0;
     left: 0;
+    bottom: 0;
 
     &::before {
       content: attr(data-text);
@@ -40,7 +41,7 @@
     background-color: $core-fleet-blue;
     font-weight: $regular;
     font-size: $xx-small;
-    border-radius: 4px; 
+    border-radius: 4px;
     position: absolute;
     top: calc(100% + 6px);
     left: 0;
@@ -48,7 +49,7 @@
     z-index: 99; // not more than the site nav
     visibility: hidden;
     opacity: 0;
-    transition: opacity .3s ease;
+    transition: opacity 0.3s ease;
     line-height: 1.375;
 
     // invisible block to cover space so
@@ -69,7 +70,7 @@
     .component__tooltip-wrapper__tip-text {
       top: auto;
       bottom: 100%;
-      
+
       &::before {
         display: none;
       }
