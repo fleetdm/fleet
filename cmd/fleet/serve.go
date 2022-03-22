@@ -620,26 +620,25 @@ func runSchedules(
 		return schedule.DoWebhooks(ctx, ds, webhooksLogger, failingPoliciesSet)
 	}, func(interface{}, error) {})
 
-	// cleanupsLogger := kitlog.With(logger, "cron", "cleanups")
-	// cleanups, err := schedule.New(ctx, "cleanups", instanceID, config.Vulnerabilities.Periodicity, ds, cleanupsLogger)
-	// if err != nil {
-	// 	fmt.Println("Error creating cleanups schedule: ", err)
-	// }
-	// cleanups.AddJob("cron_cleanups", func(ctx context.Context) (interface{}, error) {
-	// 	return schedule.DoCleanups(ctx, ds, cleanupsLogger, license)
-	// }, func(interface{}, error) {})
+	cleanupsLogger := kitlog.With(logger, "cron", "cleanups")
+	cleanups, err := schedule.New(ctx, "cleanups", instanceID, config.Vulnerabilities.Periodicity, ds, cleanupsLogger)
+	if err != nil {
+		fmt.Println("Error creating cleanups schedule: ", err)
+	}
+	cleanups.AddJob("cron_cleanups", func(ctx context.Context) (interface{}, error) {
+		return schedule.DoCleanups(ctx, ds, cleanupsLogger, license)
+	}, func(interface{}, error) {})
 
-	// vulnerabilitiesLogger := kitlog.With(logger, "cron", "vulnerabilities")
-	// vulnerabilities, err := schedule.New(ctx, "vulnerabilities", instanceID, config.Vulnerabilities.Periodicity, ds, vulnerabilitiesLogger)
-	// if err != nil {
-	// 	fmt.Println("Error creating vulnerabilities schedule: ", err)
-	// }
-	// vulnerabilities.SetPreflightCheck(func() bool { return config.Vulnerabilities.CurrentInstanceChecks == "auto" })
-	// vulnerabilities.AddJob("cron_vulnerabilities", func(ctx context.Context) (interface{}, error) {
-	// 	return schedule.DoVulnProcessing(ctx, ds, vulnerabilitiesLogger, config)
-	// }, func(interface{}, error) {})
+	vulnerabilitiesLogger := kitlog.With(logger, "cron", "vulnerabilities")
+	vulnerabilities, err := schedule.New(ctx, "vulnerabilities", instanceID, config.Vulnerabilities.Periodicity, ds, vulnerabilitiesLogger)
+	if err != nil {
+		fmt.Println("Error creating vulnerabilities schedule: ", err)
+	}
+	vulnerabilities.SetPreflightCheck(func() bool { return config.Vulnerabilities.CurrentInstanceChecks == "auto" })
+	vulnerabilities.AddJob("cron_vulnerabilities", func(ctx context.Context) (interface{}, error) {
+		return schedule.DoVulnProcessing(ctx, ds, vulnerabilitiesLogger, config)
+	}, func(interface{}, error) {})
 
-	// return cancelBackground
 	return
 }
 
@@ -663,7 +662,7 @@ func runCrons(ds fleet.Datastore, task *async.Task, logger kitlog.Logger, config
 	return cancelBackground
 }
 
-// TODO: This will be deleted after confirming no recent changes need to be ported
+// TODO: This has been moved to the schedule package and will be deleted after confirming no recent changes need to be ported
 func cronCleanups(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, identifier string, license *fleet.LicenseInfo) {
 	ticker := time.NewTicker(10 * time.Second)
 	for {
@@ -729,7 +728,7 @@ func cronCleanups(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 	}
 }
 
-// TODO: This will be deleted after confirming no recent changes need to be ported
+// TODO: This has been moved to the schedule package and will be deleted after confirming no recent changes need to be ported
 func cronVulnerabilities(
 	ctx context.Context,
 	ds fleet.Datastore,
@@ -835,7 +834,7 @@ func cronVulnerabilities(
 	}
 }
 
-// TODO: This will be deleted after confirming no recent changes need to be ported
+// TODO: This has been moved to the schedule package and will be deleted after confirming no recent changes need to be ported
 func checkVulnerabilities(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 	vulnPath string, config config.FleetConfig, vulnWebhookCfg fleet.VulnerabilitiesWebhookSettings,
 ) map[string][]string {
@@ -913,7 +912,7 @@ func cronWebhooks(
 	}
 }
 
-// TODO: This will be deleted after confirming no recent changes need to be ported
+// TODO: This has been moved to the schedule package and will be deleted after confirming no recent changes need to be ported
 func maybeTriggerHostStatus(
 	ctx context.Context,
 	ds fleet.Datastore,
