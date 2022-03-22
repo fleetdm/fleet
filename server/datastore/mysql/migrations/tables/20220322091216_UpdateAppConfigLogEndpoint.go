@@ -5,8 +5,8 @@ import (
 	"database/sql"
 	"encoding/json"
 
-	"github.com/pkg/errors"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/pkg/errors"
 )
 
 func init() {
@@ -32,17 +32,17 @@ func Up_20220322091216(tx *sql.Tx) error {
 	var (
 		oldPath = []byte(`"/api/v1/osquery/log"`)
 		newPath = []byte(`"/api/latest/osquery/log"`)
-    updated = false
+		updated = false
 	)
 	if config.AgentOptions != nil {
 		oldOpts := []byte(*config.AgentOptions)
 		newOpts := json.RawMessage(bytes.ReplaceAll(oldOpts, oldPath, newPath))
 		config.AgentOptions = &newOpts
-    updated = !bytes.Equal(oldOpts, newOpts)
+		updated = !bytes.Equal(oldOpts, newOpts)
 	}
-  if !updated {
-    return nil
-  }
+	if !updated {
+		return nil
+	}
 
 	b, err := json.Marshal(config)
 	if err != nil {
