@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -22,10 +23,13 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update/filestore"
 	"github.com/fleetdm/fleet/v4/pkg/certificate"
 	"github.com/fleetdm/fleet/v4/pkg/file"
+	"github.com/fleetdm/fleet/v4/pkg/open"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
+	"github.com/google/uuid"
 	"github.com/oklog/run"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	gopsutil_process "github.com/shirou/gopsutil/v3/process"
 	"github.com/urfave/cli/v2"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
@@ -95,6 +99,12 @@ func main() {
 			Value:   "stable",
 			EnvVars: []string{"ORBIT_ORBIT_CHANNEL"},
 		},
+		&cli.StringFlag{
+			Name:    "desktop-channel",
+			Usage:   "Update channel of Fleet Desktop to use",
+			Value:   "stable",
+			EnvVars: []string{"ORBIT_DESKTOP_CHANNEL"},
+		},
 		&cli.BoolFlag{
 			Name:    "disable-updates",
 			Usage:   "Disables auto updates",
@@ -117,6 +127,15 @@ func main() {
 		&cli.StringFlag{
 			Name:  "log-file",
 			Usage: "Log to this file path in addition to stderr",
+		},
+		&cli.BoolFlag{
+			Name:  "dev-darwin-legacy-targets",
+			Usage: "Use darwin legacy target (flag only used on darwin)",
+		},
+		&cli.BoolFlag{
+			Name:    "fleet-desktop",
+			Usage:   "Launch Fleet Desktop application (flag currently only used on darwin)",
+			EnvVars: []string{"ORBIT_FLEET_DESKTOP"},
 		},
 	}
 	app.Action = func(c *cli.Context) error {
@@ -181,39 +200,77 @@ func main() {
 			return fmt.Errorf("initialize root dir: %w", err)
 		}
 
+		deviceAuthToken, err := loadOrGenerateToken(c.String("root-dir"))
+		if err != nil {
+			return fmt.Errorf("load identifier file: %w", err)
+		}
+
 		localStore, err := filestore.New(filepath.Join(c.String("root-dir"), "tuf-metadata.json"))
 		if err != nil {
-			log.Fatal().Err(err).Msg("failed to create local metadata store")
+			log.Fatal().Err(err).Msg("create local metadata store")
 		}
 
-		// Get the default osqueryd path from the installation/configuration.
-		osquerydPath := update.LocalPath(c.String("root-dir"), "osqueryd", c.String("osqueryd-channel"), constant.PlatformName)
+		opt := update.DefaultOptions
 
-		if c.Bool("disable-updates") {
-			log.Info().Msg("running with auto updates disabled")
+		if runtime.GOOS == "darwin" && c.Bool("dev-darwin-legacy-targets") {
+			opt.Targets = update.DarwinLegacyTargets
 		}
 
-		var updater *update.Updater
-		if !c.Bool("disable-updates") ||
-			// When running in dev-mode, even if `disable-updates` is set, fetch osqueryd once as part
-			// of initialization.
-			c.Bool("dev-mode") {
-			// Initialize updater and get expected version of osqueryd.
-			opt := update.DefaultOptions
-			opt.RootDirectory = c.String("root-dir")
-			opt.ServerURL = c.String("update-url")
-			opt.LocalStore = localStore
-			opt.InsecureTransport = c.Bool("insecure")
+		if runtime.GOOS == "darwin" && c.Bool("fleet-desktop") {
+			opt.Targets["desktop"] = update.DesktopMacOSTarget
+			// Override default channel with the provided value.
+			opt.Targets.SetTargetChannel("desktop", c.String("desktop-channel"))
+		}
+
+		// Override default channels with the provided values.
+		opt.Targets.SetTargetChannel("orbit", c.String("orbit-channel"))
+		opt.Targets.SetTargetChannel("osqueryd", c.String("osqueryd-channel"))
+
+		opt.RootDirectory = c.String("root-dir")
+		opt.ServerURL = c.String("update-url")
+		opt.LocalStore = localStore
+		opt.InsecureTransport = c.Bool("insecure")
+
+		var (
+			updater        *update.Updater
+			osquerydPath   string
+			desktopAppPath string
+		)
+
+		// NOTE: When running in dev-mode, even if `disable-updates` is set,
+		// it fetches osqueryd once as part of initialization.
+		if !c.Bool("disable-updates") || c.Bool("dev-mode") {
 			updater, err = update.New(opt)
 			if err != nil {
-				return fmt.Errorf("failed to create updater: %w", err)
+				return fmt.Errorf("create updater: %w", err)
 			}
 			if err := updater.UpdateMetadata(); err != nil {
-				log.Info().Err(err).Msg("failed to update metadata. using saved metadata.")
+				log.Info().Err(err).Msg("update metadata. using saved metadata.")
 			}
-			osquerydPath, err = updater.Get("osqueryd", c.String("osqueryd-channel"))
+			osquerydLocalTarget, err := updater.Get("osqueryd")
 			if err != nil {
-				return fmt.Errorf("failed to get osqueryd target: %w", err)
+				return fmt.Errorf("get osqueryd target: %w", err)
+			}
+			osquerydPath = osquerydLocalTarget.ExecPath
+			if runtime.GOOS == "darwin" && c.Bool("fleet-desktop") {
+				fleetDesktopLocalTarget, err := updater.Get("desktop")
+				if err != nil {
+					return fmt.Errorf("get desktop target: %w", err)
+				}
+				desktopAppPath = fleetDesktopLocalTarget.DirPath
+			}
+		} else {
+			log.Info().Msg("running with auto updates disabled")
+			updater = update.NewDisabled(opt)
+			osquerydPath, err = updater.ExecutableLocalPath("osqueryd")
+			if err != nil {
+				log.Fatal().Err(err).Msg("locate osqueryd")
+			}
+			if runtime.GOOS == "darwin" && c.Bool("fleet-desktop") {
+				desktopAppPath, err = updater.DirLocalPath("desktop")
+				if err != nil {
+					return fmt.Errorf("get desktop target: %w", err)
+				}
 			}
 		}
 
@@ -225,7 +282,7 @@ func main() {
 			}
 
 			if err := os.RemoveAll(path); err != nil {
-				log.Info().Err(err).Msg("failed to remove .old")
+				log.Info().Err(err).Msg("remove .old")
 				return nil
 			}
 			log.Debug().Str("path", path).Msg("cleaned up old")
@@ -238,12 +295,13 @@ func main() {
 		var g run.Group
 
 		if !c.Bool("disable-updates") {
+			targets := []string{"orbit", "osqueryd"}
+			if runtime.GOOS == "darwin" && c.Bool("fleet-desktop") {
+				targets = append(targets, "desktop")
+			}
 			updateRunner, err := update.NewRunner(updater, update.RunnerOptions{
 				CheckInterval: 10 * time.Second,
-				Targets: map[string]string{
-					"osqueryd": c.String("osqueryd-channel"),
-					"orbit":    c.String("orbit-channel"),
-				},
+				Targets:       targets,
 			})
 			if err != nil {
 				return err
@@ -391,12 +449,19 @@ func main() {
 		// Create an osquery runner with the provided options.
 		r, err := osquery.NewRunner(osquerydPath, options...)
 		if err != nil {
-			return fmt.Errorf("failed to create osquery runner: %w", err)
+			return fmt.Errorf("create osquery runner: %w", err)
 		}
 		g.Add(r.Execute, r.Interrupt)
 
-		ext := table.NewRunner(r.ExtensionSocketPath())
+		ext := table.NewRunner(r.ExtensionSocketPath(), table.WithExtension(orbitInfoExtension{
+			deviceAuthToken: deviceAuthToken,
+		}))
 		g.Add(ext.Execute, ext.Interrupt)
+
+		if runtime.GOOS == "darwin" && c.Bool("fleet-desktop") {
+			desktopRunner := newDesktopRunner(desktopAppPath, fleetURL, deviceAuthToken, c.Bool("insecure"))
+			g.Add(desktopRunner.actor())
+		}
 
 		// Install a signal handler
 		ctx, cancel := context.WithCancel(context.Background())
@@ -413,6 +478,127 @@ func main() {
 	if err := app.Run(os.Args); err != nil {
 		log.Error().Err(err).Msg("run orbit failed")
 	}
+}
+
+type desktopRunner struct {
+	appPath         string
+	fleetURL        string
+	deviceAuthToken string
+	insecure        bool
+	done            chan struct{}
+}
+
+func newDesktopRunner(appPath, fleetURL, deviceAuthToken string, insecure bool) *desktopRunner {
+	return &desktopRunner{
+		appPath:         appPath,
+		fleetURL:        fleetURL,
+		deviceAuthToken: deviceAuthToken,
+		insecure:        insecure,
+		done:            make(chan struct{}),
+	}
+}
+
+func (d *desktopRunner) actor() (func() error, func(error)) {
+	return d.execute, d.interrupt
+}
+
+func (d *desktopRunner) execute() error {
+	log.Info().Str("path", d.appPath).Msg("opening")
+	url, err := url.Parse(d.fleetURL)
+	if err != nil {
+		return fmt.Errorf("invalid fleet-url: %w", err)
+	}
+	url.Path = path.Join(url.Path, "device", d.deviceAuthToken)
+	opts := []open.AppOption{
+		open.AppWithEnv("FLEET_DESKTOP_DEVICE_URL", url.String()),
+		open.AppWithEnv("FLEET_DESKTOP_DEVICE_API_TEST_PATH", path.Join("api", "latest", "fleet", "device", d.deviceAuthToken)),
+	}
+	if d.insecure {
+		opts = append(opts, open.AppWithEnv("FLEET_DESKTOP_INSECURE", "1"))
+	}
+	if err := open.App(d.appPath, opts...); err != nil {
+		return fmt.Errorf("open desktop app: %w", err)
+	}
+
+	// Monitor the fleet-desktop application.
+	ticker := time.NewTicker(10 * time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-d.done:
+			return nil
+		case <-ticker.C:
+			if _, err := getProcessByName(constant.DesktopAppExecName); err != nil {
+				log.Err(err).Msg("desktopRunner.execute exit")
+				return fmt.Errorf("get desktop process: %w", err)
+			}
+		}
+	}
+}
+
+func (d *desktopRunner) interrupt(err error) {
+	log.Debug().Err(err).Msg("interrupt desktopRunner")
+	defer close(d.done)
+
+	if err := killProcessByName(constant.DesktopAppExecName); err != nil {
+		log.Error().Err(err).Msg("killProcess")
+	}
+}
+
+func loadOrGenerateToken(rootDir string) (string, error) {
+	filePath := filepath.Join(rootDir, "identifier")
+	id, err := ioutil.ReadFile(filePath)
+	switch {
+	case err == nil:
+		return string(id), nil
+	case errors.Is(err, os.ErrNotExist):
+		id, err := uuid.NewRandom()
+		if err != nil {
+			return "", fmt.Errorf("generate identifier: %w", err)
+		}
+		if err := ioutil.WriteFile(filePath, []byte(id.String()), constant.DefaultFileMode); err != nil {
+			return "", fmt.Errorf("write identifier file %q: %w", filePath, err)
+		}
+		return id.String(), nil
+	default:
+		return "", fmt.Errorf("load identifier file %q: %w", filePath, err)
+	}
+}
+
+func killProcessByName(name string) error {
+	foundProcess, err := getProcessByName(name)
+	if err != nil {
+		return fmt.Errorf("get process: %w", err)
+	}
+	if err := foundProcess.Kill(); err != nil {
+		return fmt.Errorf("kill process %d: %w", foundProcess.Pid, err)
+	}
+	return nil
+}
+
+var errProcessNotFound = errors.New("process not found")
+
+func getProcessByName(name string) (*gopsutil_process.Process, error) {
+	processes, err := gopsutil_process.Processes()
+	if err != nil {
+		return nil, err
+	}
+	var foundProcess *gopsutil_process.Process
+	for _, process := range processes {
+		processName, err := process.Name()
+		if err != nil {
+			log.Debug().Err(err).Int32("pid", process.Pid).Msg("get process name")
+			continue
+		}
+		if processName == name {
+			foundProcess = process
+			break
+		}
+	}
+	if foundProcess == nil {
+		return nil, errProcessNotFound
+	}
+	return foundProcess, nil
 }
 
 var versionCommand = &cli.Command{

@@ -3,7 +3,6 @@ import { useQuery } from "react-query";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 
 import { useDispatch } from "react-redux";
-import { push } from "react-router-redux";
 
 import { IPack } from "interfaces/pack";
 import { IQuery } from "interfaces/query";
@@ -122,7 +121,7 @@ const EditPacksPage = ({
     : [];
 
   const onCancelEditPack = () => {
-    return dispatch(push(PATHS.MANAGE_PACKS));
+    return router.push(PATHS.MANAGE_PACKS);
   };
 
   const onFetchTargets = useCallback(

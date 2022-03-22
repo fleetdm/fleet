@@ -5,21 +5,21 @@ import React, {
   useMemo,
   useState,
 } from "react";
+import { InjectedRouter } from "react-router";
 import { useDispatch } from "react-redux";
 import { useQuery } from "react-query";
-import { push } from "react-router-redux";
 import { pick } from "lodash";
 
 import { AppContext } from "context/app";
 import { TableContext } from "context/table";
 import { performanceIndicator } from "fleet/helpers";
+import { IOsqueryPlatform } from "interfaces/platform";
 import { IQuery } from "interfaces/query";
 import fleetQueriesAPI from "services/entities/queries";
 // @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions";
 import PATHS from "router/paths";
-// @ts-ignore
-import sqlTools from "utilities/sql_tools";
+import checkPlatformCompatibility from "utilities/sql_tools";
 import Button from "components/buttons/Button";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
@@ -29,6 +29,10 @@ import QueriesListWrapper from "./components/QueriesListWrapper";
 import RemoveQueryModal from "./components/RemoveQueryModal";
 
 const baseClass = "manage-queries-page";
+interface IManageQueriesPageProps {
+  router: InjectedRouter; // v3
+}
+
 interface IFleetQueriesResponse {
   queries: IQuery[];
 }
@@ -36,8 +40,6 @@ interface IQueryTableData extends IQuery {
   performance: string;
   platforms: string[];
 }
-
-const PLATFORMS = ["darwin", "linux", "windows"];
 
 const PLATFORM_FILTER_OPTIONS = [
   {
@@ -66,11 +68,9 @@ const PLATFORM_FILTER_OPTIONS = [
   },
 ];
 
-const getPlatforms = (queryString: string): string[] =>
-  sqlTools
-    .listCompatiblePlatforms(sqlTools.parseSqlTables(queryString))
-    .filter((p: string) => PLATFORMS.includes(p));
-
+const getPlatforms = (queryString: string): IOsqueryPlatform[] => {
+  return checkPlatformCompatibility(queryString);
+};
 const enhanceQuery = (q: IQuery) => {
   return {
     ...q,
@@ -81,7 +81,9 @@ const enhanceQuery = (q: IQuery) => {
   };
 };
 
-const ManageQueriesPage = (): JSX.Element => {
+const ManageQueriesPage = ({
+  router,
+}: IManageQueriesPageProps): JSX.Element => {
   const dispatch = useDispatch();
 
   const { isOnlyObserver } = useContext(AppContext);
@@ -127,7 +129,7 @@ const ManageQueriesPage = (): JSX.Element => {
     }
   }, [enhancedQueriesList, isLoadingFleetQueries]);
 
-  const onCreateQueryClick = () => dispatch(push(PATHS.NEW_QUERY));
+  const onCreateQueryClick = () => router.push(PATHS.NEW_QUERY);
 
   const toggleRemoveQueryModal = useCallback(() => {
     setShowRemoveQueryModal(!showRemoveQueryModal);

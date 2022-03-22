@@ -31,7 +31,7 @@ Posting to social media should follow a [personable tone](https://fleetdm.com/ha
 
 ### Guidelines:
 
-In keeping with our tone, only use hashtags inline, and only when it feels natural. If it feels forced, don’t include any.
+In keeping with our tone, only use hashtags in line and only when it feels natural. If it feels forced, don’t include any.
 
 Self-promotional tweets are non-ideal tweets.  (Same goes for, to varying degrees, Reddit, HN, Quora, StackOverflow, LinkedIn, Slack, and almost anywhere else.)  See also https://www.audible.com/pd/The-Impact-Equation-Audiobook/B00AR1VFBU
 
@@ -54,11 +54,86 @@ Once a blog post has been written, approved, and published, please ensure that i
 
 ## Fleet docs
 
+### Markdown
+Fleet's documentation and handbook are written in [Markdown](https://about.gitlab.com/handbook/markdown-guide/). Using Markdown lets us keep our documentation consistently formatted and viewable directly from the Fleet GitHub repo. The Markdown files in the `/docs` and `/handbook` folders are converted to HTML for the Fleet website.
+
+When making changes to the Fleet docs or handbook, there are a few differences in how the Markdown will render on GitHub and the Fleet website.
+
+#### Linebreaks and newlines
+Any time you need to add a line break in Markdown, you should add a new line. It is vital to make sure paragraphs are separated by new lines otherwise they will render as the same HTML element.
+
+For example, if you were adding this section to the docs:
+
+```
+line one
+line two
+```
+
+The Markdown would render on the Fleet Website as:
+
+line one
+line two
+
+To ensure formatting is consistent across GitHub and the Fleet website, you'll need to add a new line anywhere you want a line break. For example, if we separate the lines with a new line:
+
+```
+line one
+
+line two
+```
+
+
+The Markdown will render correctly as:
+
+line one
+
+line two
+
+#### Ordered lists
+
+Content nested within an ordered list needs to be indented. If the list is not formatted correctly, the number will reset on each list item.
+
+For example, this list:
+
+```
+1. Item one
+
+Paragraph about item one
+
+2. Item two
+```
+
+On the Fleet website, this ordered list would be rendered as:
+
+1. Item one
+
+Paragraph about item one
+
+2. Item two
+
+To ensure that ordered lists increment on the Fleet website, you can indent the content nested within the list. For example, the same ordered list with indentation:
+
+```
+1. Item one
+
+   Paragraph about item one
+
+2. Item two
+```
+
+This ordered list will render correctly as:
+
+1. Item one
+
+   Paragraph about item one
+
+2. Item two
+
 ### Docs style guide
 
 #### Headings
 
-Headings help readers easily scan content to find what they need. Organize page content using clear headings, specific to the topic they describe.
+Headings help readers quickly scan content to find what they need. Organize page content using clear headings specific to the topic they describe.
 
 Keep headings brief, organized, and in a logical order:
 
@@ -70,12 +145,12 @@ Keep headings brief, organized, and in a logical order:
 Try to stay within 3 or 4 heading levels. Complicated documents may use more, but pages with a simpler structure are easier to read.
 
 ### Adding a link to the Fleet docs
-You can link documentation pages to each other using relative paths. For example, in `docs/Using-Fleet/Fleet-UI.md`, you can link to `docs/Using-Fleet/Permissions.md` by writing `[permissions](./Permissions.md)`. This will be automatically transformed into the appropriate URL for `fleetdm.com/docs`.
+You can link documentation pages to each other using relative paths. For example, in `docs/Using-Fleet/Fleet-UI.md`, you can link to `docs/Using-Fleet/Permissions.md` by writing `[permissions](./Permissions.md)`. This will automatically transformed into the appropriate URL for `fleetdm.com/docs`.
 
 However, the `fleetdm.com/docs` compilation process does not account for relative links to directories **outside** of `/docs`.
 This is why it’s essential to follow the file path exactly when adding a link to Fleet docs.
 
-When directly linking to a specific section within a page in the Fleet documentation, always format the spaces within a section name to use a hyphen  "-" instead of an underscore "_". For example, when linking to the `osquery_result_log_plugin` section of the configuration reference docs, use a relative link like the following: `./Configuration.md#osquery-result-log-plugin`.
+In the Fleet documentation, when directly linking to a specific section, always format the spaces within a section name to use a hyphen  "-" instead of an underscore "_". For example, when linking to the `osquery_result_log_plugin` section of the configuration reference docs, use a relative link like the following: `./Configuration.md#osquery-result-log-plugin`.
 
 ### Linking to a location on GitHub
 When adding a link to a location on GitHub outside of `/docs`, be sure to use the canonical form of the URL.
@@ -83,7 +158,7 @@ When adding a link to a location on GitHub outside of `/docs`, be sure to use th
 To do this, navigate to the file's location on GitHub, and press "y" to transform the URL into its canonical form.
 
 ### How to fix a broken link
-For instances in which a broken link is discovered on fleetdm.com, check if the link is a relative link to a directory outside of `/docs`. 
+For instances in which a broken link is discovered on fleetdm.com, always check if the link is a relative link to a directory outside of `/docs`. 
 
 An example of a link that lives outside of `/docs` is:
 
@@ -96,7 +171,7 @@ If the link lives outside `/docs`, head to the file's location on GitHub (in thi
 > Note that the instructions above also apply to adding links in the Fleet handbook.
 
 ### Ordering a page in the Fleet docs
-The order we display documentation pages on fleetdm.com is determined by `pageOrderInSection` meta tags. These pages are sorted in their respective section by the `pageOrderInSection` value in **ascending** order. Every markdown file (except readme and faq pages) in the `docs/` folder must have a meta tag with a positive pageOrderInSection value.
+The order we display documentation pages on fleetdm.com is determined by `pageOrderInSection` meta tags. These pages are sorted in their respective section by the `pageOrderInSection` value in **ascending** order. Every markdown file (except readme and faq pages) in the `docs/` folder must have a meta tag with a positive 'pageOrderInSection' value.
 
 
 We leave large gaps between values to make future changes easier. For example, the first page in the "Using Fleet" section of the docs has a `pageOrderInSection` value of 100, and the next page has a value of 200. The significant difference between values allows us to add, remove and reorder pages without the need for changing the value of multiple pages at a time.
@@ -161,6 +236,26 @@ IT and security teams love Fleet because of its flexibility and conventions. Ins
 
 That means better privacy. Better device performance. And better data, with less noise.
 
+## Sponsoring events
+
+When reaching out for sponsorships, Fleet's goal is to expose potential hires, contributors, and users to Fleet and osquery.
+Track prospective sponsorships in our [partnerships and outreach Google Sheet:](https://docs.google.com/spreadsheets/d/107AwHKqFjt7TWItnf8pFknSwwxb_gsp6awB66t7YE_w/edit#gid=2108184225)
+
+Once a relevant sponsorship opportunity and its prospectus are reviewed:
+1. Create a new [GitHub issue](https://github.com/fleetdm/fleet/issues/new).
+ 
+2. Detail the important information of the event, such as date, name of the event, location, and page links to the relevant prospectus. 
+ 
+3. Add the issue to the “Conferences/speaking” column of the [Growth plan project](https://github.com/orgs/fleetdm/projects/21).
+ 
+4. Schedule a meeting with the representatives at the event to discuss pricing and sponsorship tiers.
+ 
+5. Invoices should be received at billing@fleetdm.com and sent to Eric Shaw for approval.
+ 
+6. Eric Shaw (Business Operations) will route signatures required over to Mike McNeil (CEO) with Docusign.
+ 
+7. Once the above steps are completed, use the [Speaking events issue template](https://github.com/fleetdm/confidential/issues/new?assignees=mike-j-thomas&labels=&template=6-speaking-event.md&title=Speaking+event) to prepare speakers and participants for the event.
+
 ## Community contributions (pull requests)
 
 The top priority when community members contribute PRs is to help the person feel engaged with
@@ -171,7 +266,7 @@ resolution (close/merge) as soon as possible (may take longer than 1 business da
 
 1. Decide whether the change is acceptable (see below). If this will take time, acknowledge the
    contribution and let the user know that the team will respond. For changes that are not
-   acceptable, thank the contributor for their interest and encourage them to open an issue, or
+   acceptable, thank the contributor for their interest and encourage them to open an issue or
    discuss proposed changes in the `#fleet` channel of osquery Slack before working on any more
    code.
 2. Help the contributor make the content appropriate for merging. Ensure that the appropriate manual
@@ -179,8 +274,8 @@ resolution (close/merge) as soon as possible (may take longer than 1 business da
    Usually, this is best done by code review and coaching the user. Sometimes (typically for
    customers), a Fleet team member may take a PR to completion by adding the appropriate testing and
    code review improvements.
-3. After reviewing a PR and addressing all necessary changes any Fleet team member may merge a 
-   community it. Before merging, double-check that the CI is passing, documentation is updated, and
+3. After reviewing a PR and addressing all necessary changes, any Fleet team member may merge a 
+   community. Before merging, double-check that the CI is passing, documentation is updated, and
    changes file is created. Please use your best judgment.
 4. Once a PR has been approved and merged, thank and congratulate the contributor, then share with the team in the `#help-promote` channel of Fleet Slack to be publicized on social media. Those who contribute to Fleet and are recognized for their contributions often become great champions for the project.
 

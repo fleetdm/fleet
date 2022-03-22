@@ -17,6 +17,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"github.com/throttled/throttled/v2"
 )
 
 type withDS struct {
@@ -45,6 +46,7 @@ type withServer struct {
 func (ts *withServer) SetupSuite(dbName string) {
 	ts.withDS.SetupSuite(dbName)
 
+	loginRateLimit = throttled.PerMin(100)
 	rs := pubsub.NewInmemQueryResults()
 	users, server := RunServerForTestsWithDS(ts.s.T(), ts.ds, TestServerOpts{Rs: rs})
 	ts.server = server

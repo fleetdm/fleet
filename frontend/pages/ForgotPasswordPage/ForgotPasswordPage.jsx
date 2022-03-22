@@ -1,58 +1,47 @@
 import React, { Component } from "react";
-import PropTypes from "prop-types";
-import { connect } from "react-redux";
-import { push } from "react-router-redux";
-import { noop } from "lodash";
 
 import PATHS from "router/paths";
+import usersAPI from "services/entities/users";
 
-import {
-  clearForgotPasswordErrors,
-  forgotPasswordAction,
-} from "redux/nodes/components/ForgotPasswordPage/actions";
+import { formatErrorResponse } from "redux/nodes/entities/base/helpers";
 import debounce from "utilities/debounce";
 import ForgotPasswordForm from "components/forms/ForgotPasswordForm";
 import StackedWhiteBoxes from "components/StackedWhiteBoxes";
 
 export class ForgotPasswordPage extends Component {
-  static propTypes = {
-    dispatch: PropTypes.func,
-    email: PropTypes.string,
-    errors: PropTypes.shape({
-      base: PropTypes.string,
-    }),
-  };
+  constructor() {
+    super();
 
-  static defaultProps = {
-    dispatch: noop,
-  };
+    this.state = {
+      email: null,
+      errors: {},
+    };
+  }
 
   componentWillUnmount() {
     return this.clearErrors();
   }
 
-  handleLeave = (location) => {
-    const { dispatch } = this.props;
+  handleSubmit = debounce(async (formData) => {
+    try {
+      await usersAPI.forgotPassword(formData);
 
-    return dispatch(push(location));
-  };
-
-  handleSubmit = debounce((formData) => {
-    const { dispatch } = this.props;
-
-    return dispatch(forgotPasswordAction(formData)).catch(() => false);
+      const { email } = formData;
+      this.setState({ email, errors: {} });
+    } catch (response) {
+      const errorObject = formatErrorResponse(response);
+      this.setState({ email: null, errors: errorObject });
+      return false;
+    }
   });
 
   clearErrors = () => {
-    const { dispatch } = this.props;
-
-    return dispatch(clearForgotPasswordErrors);
+    this.setState({ errors: {} });
   };
 
   renderContent = () => {
     const { clearErrors, handleSubmit } = this;
-    const { email, errors } = this.props;
-
+    const { email, errors } = this.state;
     const baseClass = "forgot-password";
 
     if (email) {
@@ -79,7 +68,6 @@ export class ForgotPasswordPage extends Component {
   };
 
   render() {
-    const { handleLeave } = this;
     const leadText =
       "Enter your email below and we will email you a link so that you can reset your password.";
 
@@ -88,7 +76,6 @@ export class ForgotPasswordPage extends Component {
         leadText={leadText}
         previousLocation={PATHS.LOGIN}
         className="forgot-password"
-        onLeave={handleLeave}
       >
         {this.renderContent()}
       </StackedWhiteBoxes>
@@ -96,8 +83,4 @@ export class ForgotPasswordPage extends Component {
   }
 }
 
-const mapStateToProps = (state) => {
-  return state.components.ForgotPasswordPage;
-};
-
-export default connect(mapStateToProps)(ForgotPasswordPage);
+export default ForgotPasswordPage;

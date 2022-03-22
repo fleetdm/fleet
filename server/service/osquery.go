@@ -139,21 +139,21 @@ func (svc *Service) EnrollAgent(ctx context.Context, enrollSecret, hostIdentifie
 	detailQueries := osquery_utils.GetDetailQueries(appConfig, svc.config)
 	save := false
 	if r, ok := hostDetails["os_version"]; ok {
-		err := detailQueries["os_version"].IngestFunc(svc.logger, host, []map[string]string{r})
+		err := detailQueries["os_version"].IngestFunc(ctx, svc.logger, host, []map[string]string{r})
 		if err != nil {
 			return "", ctxerr.Wrap(ctx, err, "Ingesting os_version")
 		}
 		save = true
 	}
 	if r, ok := hostDetails["osquery_info"]; ok {
-		err := detailQueries["osquery_info"].IngestFunc(svc.logger, host, []map[string]string{r})
+		err := detailQueries["osquery_info"].IngestFunc(ctx, svc.logger, host, []map[string]string{r})
 		if err != nil {
 			return "", ctxerr.Wrap(ctx, err, "Ingesting osquery_info")
 		}
 		save = true
 	}
 	if r, ok := hostDetails["system_info"]; ok {
-		err := detailQueries["system_info"].IngestFunc(svc.logger, host, []map[string]string{r})
+		err := detailQueries["system_info"].IngestFunc(ctx, svc.logger, host, []map[string]string{r})
 		if err != nil {
 			return "", ctxerr.Wrap(ctx, err, "Ingesting system_info")
 		}
@@ -469,6 +469,7 @@ func (r *getDistributedQueriesRequest) hostNodeKey() string {
 
 type getDistributedQueriesResponse struct {
 	Queries    map[string]string `json:"queries"`
+	Discovery  map[string]string `json:"discovery"`
 	Accelerate uint              `json:"accelerate,omitempty"`
 	Err        error             `json:"error,omitempty"`
 }
@@ -476,35 +477,43 @@ type getDistributedQueriesResponse struct {
 func (r getDistributedQueriesResponse) error() error { return r.Err }
 
 func getDistributedQueriesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
-	queries, accelerate, err := svc.GetDistributedQueries(ctx)
+	queries, discovery, accelerate, err := svc.GetDistributedQueries(ctx)
 	if err != nil {
 		return getDistributedQueriesResponse{Err: err}, nil
 	}
-	return getDistributedQueriesResponse{Queries: queries, Accelerate: accelerate}, nil
+	return getDistributedQueriesResponse{
+		Queries:    queries,
+		Discovery:  discovery,
+		Accelerate: accelerate,
+	}, nil
 }
 
-func (svc *Service) GetDistributedQueries(ctx context.Context) (map[string]string, uint, error) {
+func (svc *Service) GetDistributedQueries(ctx context.Context) (queries map[string]string, discovery map[string]string, accelerate uint, err error) {
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
 
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
-		return nil, 0, osqueryError{message: "internal error: missing host from request context"}
+		return nil, nil, 0, osqueryError{message: "internal error: missing host from request context"}
 	}
 
-	queries := make(map[string]string)
+	queries = make(map[string]string)
+	discovery = make(map[string]string)
 
-	detailQueries, err := svc.detailQueriesForHost(ctx, host)
+	detailQueries, detailDiscovery, err := svc.detailQueriesForHost(ctx, host)
 	if err != nil {
-		return nil, 0, osqueryError{message: err.Error()}
+		return nil, nil, 0, osqueryError{message: err.Error()}
 	}
 	for name, query := range detailQueries {
 		queries[name] = query
 	}
+	for name, query := range detailDiscovery {
+		discovery[name] = query
+	}
 
 	labelQueries, err := svc.labelQueriesForHost(ctx, host)
 	if err != nil {
-		return nil, 0, osqueryError{message: err.Error()}
+		return nil, nil, 0, osqueryError{message: err.Error()}
 	}
 	for name, query := range labelQueries {
 		queries[hostLabelQueryPrefix+name] = query
@@ -523,13 +532,13 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (map[string]strin
 
 	policyQueries, err := svc.policyQueriesForHost(ctx, host)
 	if err != nil {
-		return nil, 0, osqueryError{message: err.Error()}
+		return nil, nil, 0, osqueryError{message: err.Error()}
 	}
 	for name, query := range policyQueries {
 		queries[hostPolicyQueryPrefix+name] = query
 	}
 
-	accelerate := uint(0)
+	accelerate = uint(0)
 	if host.Hostname == "" || host.Platform == "" {
 		// Assume this host is just enrolling, and accelerate checkins
 		// (to allow for platform restricted labels to run quickly
@@ -537,44 +546,70 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (map[string]strin
 		accelerate = 10
 	}
 
-	return queries, accelerate, nil
+	// The way osquery's distributed "discovery" queries work is:
+	// If len(discovery) > 0, then only those queries that have a "discovery"
+	// query and return more than one row are executed on the host.
+	//
+	// Thus, we set the alwaysTrueQuery for all queries, except for those where we set
+	// an explicit discovery query (e.g. orbit_info, google_chrome_profiles).
+	for name := range queries {
+		discoveryQuery := discovery[name]
+		if discoveryQuery == "" {
+			discoveryQuery = alwaysTrueQuery
+		}
+		discovery[name] = discoveryQuery
+	}
+
+	return queries, discovery, accelerate, nil
 }
+
+const alwaysTrueQuery = "SELECT 1"
 
 // detailQueriesForHost returns the map of detail+additional queries that should be executed by
 // osqueryd to fill in the host details.
-func (svc *Service) detailQueriesForHost(ctx context.Context, host *fleet.Host) (map[string]string, error) {
+func (svc *Service) detailQueriesForHost(ctx context.Context, host *fleet.Host) (queries map[string]string, discovery map[string]string, err error) {
 	if !svc.shouldUpdate(host.DetailUpdatedAt, svc.config.Osquery.DetailUpdateInterval, host.ID) && !host.RefetchRequested {
-		return nil, nil
+		return nil, nil, nil
 	}
 
 	config, err := svc.ds.AppConfig(ctx)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "read app config")
+		return nil, nil, ctxerr.Wrap(ctx, err, "read app config")
 	}
 
-	queries := make(map[string]string)
+	queries = make(map[string]string)
+	discovery = make(map[string]string)
+
 	detailQueries := osquery_utils.GetDetailQueries(config, svc.config)
 	for name, query := range detailQueries {
 		if query.RunsForPlatform(host.Platform) {
-			queries[hostDetailQueryPrefix+name] = query.Query
+			queryName := hostDetailQueryPrefix + name
+			queries[queryName] = query.Query
+			discoveryQuery := query.Discovery
+			if discoveryQuery == "" {
+				discoveryQuery = alwaysTrueQuery
+			}
+			discovery[queryName] = discoveryQuery
 		}
 	}
 
 	if config.HostSettings.AdditionalQueries == nil {
 		// No additional queries set
-		return queries, nil
+		return queries, discovery, nil
 	}
 
 	var additionalQueries map[string]string
 	if err := json.Unmarshal(*config.HostSettings.AdditionalQueries, &additionalQueries); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "unmarshal additional queries")
+		return nil, nil, ctxerr.Wrap(ctx, err, "unmarshal additional queries")
 	}
 
 	for name, query := range additionalQueries {
-		queries[hostAdditionalQueryPrefix+name] = query
+		queryName := hostAdditionalQueryPrefix + name
+		queries[queryName] = query
+		discovery[queryName] = alwaysTrueQuery
 	}
 
-	return queries, nil
+	return queries, discovery, nil
 }
 
 func (svc *Service) shouldUpdate(lastUpdated time.Time, interval time.Duration, hostID uint) bool {
@@ -802,9 +837,27 @@ func (svc *Service) SubmitDistributedQueryResults(
 	}
 
 	if len(policyResults) > 0 {
+
+		// filter policy results for webhooks
+		var policyIDs []uint
 		if ac.WebhookSettings.FailingPoliciesWebhook.Enable {
-			incomingResults := filterPolicyResults(policyResults, ac.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
-			if failingPolicies, passingPolicies, err := svc.ds.FlippingPoliciesForHost(ctx, host.ID, incomingResults); err != nil {
+			policyIDs = append(policyIDs, ac.WebhookSettings.FailingPoliciesWebhook.PolicyIDs...)
+		}
+
+		if host.TeamID != nil {
+			team, err := svc.ds.Team(ctx, *host.TeamID)
+			if err != nil {
+				logging.WithErr(ctx, err)
+			} else {
+				if team.Config.WebhookSettings.FailingPoliciesWebhook.Enable {
+					policyIDs = append(policyIDs, team.Config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs...)
+				}
+			}
+		}
+
+		filteredResults := filterPolicyResults(policyResults, policyIDs)
+		if len(filteredResults) > 0 {
+			if failingPolicies, passingPolicies, err := svc.ds.FlippingPoliciesForHost(ctx, host.ID, filteredResults); err != nil {
 				logging.WithErr(ctx, err)
 			} else {
 				// Register the flipped policies on a goroutine to not block the hosts on redis requests.
@@ -998,7 +1051,7 @@ func (svc *Service) ingestDetailQuery(ctx context.Context, host *fleet.Host, nam
 	}
 
 	if query.IngestFunc != nil {
-		err = query.IngestFunc(svc.logger, host, rows)
+		err = query.IngestFunc(ctx, svc.logger, host, rows)
 		if err != nil {
 			return osqueryError{
 				message: fmt.Sprintf("ingesting query %s: %s", name, err.Error()),

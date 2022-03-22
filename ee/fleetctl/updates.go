@@ -241,9 +241,16 @@ func updatesAddFunc(c *cli.Context) error {
 
 	var paths []string
 	for _, tag := range append([]string{version}, tags...) {
+		// NOTE(lucas): "updates add" expects the target file to match the target name.
+		// E.g.
+		// 	- an ".app.tar.gz" file for target=osqueryd is expected to be called "osqueryd.app.tar.gz".
+		// 	- an ".exe" file for target=osqueryd is expected to be called "osqueryd.exe".
 		dstPath := filepath.Join(name, platform, tag, name)
-		if strings.HasSuffix(target, ".exe") {
+		switch {
+		case strings.HasSuffix(target, ".exe"):
 			dstPath += ".exe"
+		case strings.HasSuffix(target, ".app.tar.gz"):
+			dstPath += ".app.tar.gz"
 		}
 		fullPath := filepath.Join(targetsPath, dstPath)
 		paths = append(paths, dstPath)

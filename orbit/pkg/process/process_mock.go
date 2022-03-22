@@ -17,7 +17,7 @@ func (m *mockOsProcess) Signal(sig os.Signal) error {
 	if err == nil {
 		return nil
 	}
-	return err.(error)
+	return err
 }
 
 func (m *mockOsProcess) Kill() error {
@@ -26,7 +26,7 @@ func (m *mockOsProcess) Kill() error {
 	if err == nil {
 		return nil
 	}
-	return err.(error)
+	return err
 }
 
 type mockExecCmd struct {
@@ -40,7 +40,7 @@ func (m *mockExecCmd) Start() error {
 	if err == nil {
 		return nil
 	}
-	return err.(error)
+	return err
 }
 
 func (m *mockExecCmd) Wait() error {
@@ -49,7 +49,7 @@ func (m *mockExecCmd) Wait() error {
 	if err == nil {
 		return nil
 	}
-	return err.(error)
+	return err
 }
 
 func (m *mockExecCmd) OsProcess() OsProcess {

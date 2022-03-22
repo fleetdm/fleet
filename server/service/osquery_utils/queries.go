@@ -10,6 +10,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
@@ -17,13 +18,17 @@ import (
 )
 
 type DetailQuery struct {
+	// Query is the SQL query string.
 	Query string
+	// Discovery is the SQL query that defines whether the query will run or the host or not.
+	// If not set, Fleet makes sure the query will always run.
+	Discovery string
 	// Platforms is a list of platforms to run the query on. If this value is
 	// empty, run on all platforms.
 	Platforms []string
 	// IngestFunc translates a query result into an update to the host struct,
 	// around data that lives on the hosts table.
-	IngestFunc func(logger log.Logger, host *fleet.Host, rows []map[string]string) error
+	IngestFunc func(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error
 	// DirectIngestFunc gathers results from a query and directly works with the datastore to
 	// persist them. This is usually used for host data that is stored in a separate table.
 	DirectIngestFunc func(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error
@@ -51,7 +56,7 @@ var detailQueries = map[string]DetailQuery{
                         from interface_details id join interface_addresses ia
                                on ia.interface = id.interface where length(mac) > 0
                                order by (ibytes + obytes) desc`,
-		IngestFunc: func(logger log.Logger, host *fleet.Host, rows []map[string]string) (err error) {
+		IngestFunc: func(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) (err error) {
 			if len(rows) == 0 {
 				logger.Log("component", "service", "method", "IngestFunc", "err",
 					"detail_query_network_interface expected 1 or more results")
@@ -101,12 +106,13 @@ var detailQueries = map[string]DetailQuery{
 
 			host.PrimaryIP = selected["address"]
 			host.PrimaryMac = selected["mac"]
+			host.PublicIP = publicip.FromContext(ctx)
 			return nil
 		},
 	},
 	"os_version": {
 		Query: "select * from os_version limit 1",
-		IngestFunc: func(logger log.Logger, host *fleet.Host, rows []map[string]string) error {
+		IngestFunc: func(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
 			if len(rows) != 1 {
 				logger.Log("component", "service", "method", "IngestFunc", "err",
 					fmt.Sprintf("detail_query_os_version expected single result got %d", len(rows)))
@@ -154,7 +160,7 @@ var detailQueries = map[string]DetailQuery{
 		// distributed_interval (but it's not required), and typically
 		// do not control config_tls_refresh.
 		Query: `select name, value from osquery_flags where name in ("distributed_interval", "config_tls_refresh", "config_refresh", "logger_tls_period")`,
-		IngestFunc: func(logger log.Logger, host *fleet.Host, rows []map[string]string) error {
+		IngestFunc: func(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
 			var configTLSRefresh, configRefresh uint
 			var configRefreshSeen, configTLSRefreshSeen bool
 			for _, row := range rows {
@@ -211,7 +217,7 @@ var detailQueries = map[string]DetailQuery{
 	},
 	"osquery_info": {
 		Query: "select * from osquery_info limit 1",
-		IngestFunc: func(logger log.Logger, host *fleet.Host, rows []map[string]string) error {
+		IngestFunc: func(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
 			if len(rows) != 1 {
 				logger.Log("component", "service", "method", "IngestFunc", "err",
 					fmt.Sprintf("detail_query_osquery_info expected single result got %d", len(rows)))
@@ -225,7 +231,7 @@ var detailQueries = map[string]DetailQuery{
 	},
 	"system_info": {
 		Query: "select * from system_info limit 1",
-		IngestFunc: func(logger log.Logger, host *fleet.Host, rows []map[string]string) error {
+		IngestFunc: func(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
 			if len(rows) != 1 {
 				logger.Log("component", "service", "method", "IngestFunc", "err",
 					fmt.Sprintf("detail_query_system_info expected single result got %d", len(rows)))
@@ -260,7 +266,7 @@ var detailQueries = map[string]DetailQuery{
 	},
 	"uptime": {
 		Query: "select * from uptime limit 1",
-		IngestFunc: func(logger log.Logger, host *fleet.Host, rows []map[string]string) error {
+		IngestFunc: func(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
 			if len(rows) != 1 {
 				logger.Log("component", "service", "method", "IngestFunc", "err",
 					fmt.Sprintf("detail_query_uptime expected single result got %d", len(rows)))
@@ -305,11 +311,18 @@ FROM logical_drives WHERE file_system = 'NTFS' LIMIT 1;`,
 	"google_chrome_profiles": {
 		Query:            `SELECT email FROM google_chrome_profiles WHERE NOT ephemeral`,
 		DirectIngestFunc: directIngestChromeProfiles,
-		// Technically this does work on Windows and Linux, but so far no one is
-		// deploying the extension to those platforms and it's causing log spam
-		// for customers. See https://github.com/fleetdm/fleet/issues/4123
-		Platforms: []string{"darwin"},
+		Discovery:        discoveryTable("google_chrome_profiles"),
 	},
+	"orbit_info": {
+		Query:            `SELECT * FROM orbit_info`,
+		DirectIngestFunc: directIngestOrbitInfo,
+		Discovery:        discoveryTable("orbit_info"),
+	},
+}
+
+// discoveryTable returns a query to determine whether a table exists or not.
+func discoveryTable(tableName string) string {
+	return fmt.Sprintf("SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = '%s';", tableName)
 }
 
 var softwareMacOS = DetailQuery{
@@ -568,6 +581,20 @@ func directIngestChromeProfiles(ctx context.Context, logger log.Logger, host *fl
 	return ds.ReplaceHostDeviceMapping(ctx, host.ID, mapping)
 }
 
+func directIngestOrbitInfo(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
+	if len(rows) != 1 {
+		return ctxerr.Errorf(ctx, "invalid number of orbit_info rows: %d", len(rows))
+	}
+	deviceAuthToken := rows[0]["device_auth_token"]
+	if deviceAuthToken == "" {
+		return ctxerr.New(ctx, "empty orbit_info.device_auth_token")
+	}
+	if err := ds.SetOrUpdateDeviceAuthToken(ctx, host.ID, deviceAuthToken); err != nil {
+		return ctxerr.Wrap(ctx, err, "set or update device_auth_token")
+	}
+	return nil
+}
+
 func directIngestScheduledQueryStats(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
 	if failed {
 		level.Error(logger).Log("op", "directIngestScheduledQueryStats", "err", "failed")
@@ -720,7 +747,7 @@ func directIngestUsers(ctx context.Context, logger log.Logger, host *fleet.Host,
 	return nil
 }
 
-func ingestDiskSpace(logger log.Logger, host *fleet.Host, rows []map[string]string) error {
+func ingestDiskSpace(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
 	if len(rows) != 1 {
 		logger.Log("component", "service", "method", "ingestDiskSpace", "err",
 			fmt.Sprintf("detail_query_disk_space expected single result got %d", len(rows)))

@@ -282,3 +282,32 @@ db-backup:
 # Restore the development DB from file
 db-restore:
 	./tools/backup_db/restore.sh
+
+# Generate osqueryd.tar.gz bundle from osquery.io.
+#
+# Usage:
+# make osqueryd-app-tar-gz version=5.1.0 out-path=.
+osqueryd-app-tar-gz:
+ifneq ($(shell uname), Darwin)
+	@echo "Makefile target osqueryd-app-tar-gz is only supported on macOS"
+	@exit 1
+endif
+	$(eval TMP_DIR := $(shell mktemp -d))
+	curl -L https://pkg.osquery.io/darwin/osquery-$(version).pkg --output $(TMP_DIR)/osquery-$(version).pkg
+	pkgutil --expand $(TMP_DIR)/osquery-$(version).pkg $(TMP_DIR)/osquery_pkg_expanded
+	rm -rf $(TMP_DIR)/osquery_pkg_payload_expanded
+	mkdir -p $(TMP_DIR)/osquery_pkg_payload_expanded
+	tar xf $(TMP_DIR)/osquery_pkg_expanded/Payload --directory $(TMP_DIR)/osquery_pkg_payload_expanded
+	tar czf $(out-path)/osqueryd.app.tar.gz -C $(TMP_DIR)/osquery_pkg_payload_expanded/opt/osquery/lib osquery.app
+	rm -r $(TMP_DIR)
+
+# Build and generate desktop.app.tar.gz bundle.
+#
+# Usage:
+# FLEET_DESKTOP_APPLE_AUTHORITY=foo FLEET_DESKTOP_VERSION=0.0.1 make desktop-app-tar-gz
+desktop-app-tar-gz:
+ifneq ($(shell uname), Darwin)
+	@echo "Makefile target desktop-app-tar-gz is only supported on macOS"
+	@exit 1
+endif
+	go run ./tools/desktop macos

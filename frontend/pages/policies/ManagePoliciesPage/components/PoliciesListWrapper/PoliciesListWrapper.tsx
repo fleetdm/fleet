@@ -102,7 +102,7 @@ const PoliciesListWrapper = ({
           resultsTitle={resultsTitle || "policies"}
           columns={generateTableHeaders({
             selectedTeamId: currentTeam?.id,
-            showSelectionColumn: canAddOrRemovePolicy,
+            canAddOrRemovePolicy,
             tableType,
           })}
           data={generateDataSet(policiesList, currentAutomatedPolicies)}

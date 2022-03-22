@@ -40,6 +40,7 @@ interface IDataColumn {
     | ((props: IDropdownCellProps) => JSX.Element);
   disableHidden?: boolean;
   disableSortBy?: boolean;
+  sortType?: string;
 }
 
 interface ITeamTableData extends ITeam {
@@ -56,6 +57,7 @@ const generateTableHeaders = (
       title: "Name",
       Header: "Name",
       disableSortBy: true,
+      sortType: "caseInsensitive",
       accessor: "name",
       Cell: (cellProps: ICellProps) => (
         <LinkCell

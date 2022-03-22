@@ -14,7 +14,7 @@ $base-class: "button";
       color: $active;
     }
   } @else {
-    &:hover {
+    &:hover:not(.button--disabled) {
       background-color: $hover;
     }
 

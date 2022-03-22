@@ -1,0 +1,1 @@
+* (Beta) Add `--fleet-desktop` flag to fleetctl for `--type=pkg` to generate a Fleet-osquery installer for macOS with "Fleet Desktop" support.

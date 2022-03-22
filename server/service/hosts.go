@@ -2,11 +2,17 @@ package service
 
 import (
 	"context"
+	"fmt"
+	"net/http"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/authz"
+	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/gocarina/gocsv"
 )
 
 // HostResponse is the response struct that contains the full host information
@@ -14,9 +20,10 @@ import (
 // rendering in the UI.
 type HostResponse struct {
 	*fleet.Host
-	Status      fleet.HostStatus `json:"status"`
-	DisplayText string           `json:"display_text"`
-	Labels      []fleet.Label    `json:"labels,omitempty"`
+	Status      fleet.HostStatus   `json:"status"`
+	DisplayText string             `json:"display_text"`
+	Labels      []fleet.Label      `json:"labels,omitempty"`
+	Geolocation *fleet.GeoLocation `json:"geolocation,omitempty"`
 }
 
 func hostResponseForHost(ctx context.Context, svc fleet.Service, host *fleet.Host) (*HostResponse, error) {
@@ -24,6 +31,7 @@ func hostResponseForHost(ctx context.Context, svc fleet.Service, host *fleet.Hos
 		Host:        host,
 		Status:      host.Status(time.Now()),
 		DisplayText: host.Hostname,
+		Geolocation: svc.LookupGeoIP(ctx, host.PublicIP),
 	}, nil
 }
 
@@ -31,8 +39,9 @@ func hostResponseForHost(ctx context.Context, svc fleet.Service, host *fleet.Hos
 // with the HostDetail details.
 type HostDetailResponse struct {
 	fleet.HostDetail
-	Status      fleet.HostStatus `json:"status"`
-	DisplayText string           `json:"display_text"`
+	Status      fleet.HostStatus   `json:"status"`
+	DisplayText string             `json:"display_text"`
+	Geolocation *fleet.GeoLocation `json:"geolocation,omitempty"`
 }
 
 func hostDetailResponseForHost(ctx context.Context, svc fleet.Service, host *fleet.HostDetail) (*HostDetailResponse, error) {
@@ -40,6 +49,7 @@ func hostDetailResponseForHost(ctx context.Context, svc fleet.Service, host *fle
 		HostDetail:  *host,
 		Status:      host.Status(time.Now()),
 		DisplayText: host.Hostname,
+		Geolocation: svc.LookupGeoIP(ctx, host.PublicIP),
 	}, nil
 }
 
@@ -265,7 +275,7 @@ func getHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service
 }
 
 func (svc *Service) GetHost(ctx context.Context, id uint) (*fleet.HostDetail, error) {
-	alreadyAuthd := svc.authz.IsAlreadyAuthorized(ctx)
+	alreadyAuthd := svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken)
 	if !alreadyAuthd {
 		// First ensure the user has access to list hosts, then check the specific
 		// host once team_id is loaded.
@@ -550,7 +560,7 @@ func refetchHostEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 }
 
 func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
-	if !svc.authz.IsAlreadyAuthorized(ctx) {
+	if !svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken) {
 		if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 			return err
 		}
@@ -666,7 +676,7 @@ func listHostDeviceMappingEndpoint(ctx context.Context, request interface{}, svc
 }
 
 func (svc *Service) ListHostDeviceMapping(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
-	if !svc.authz.IsAlreadyAuthorized(ctx) {
+	if !svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken) {
 		if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 			return nil, err
 		}
@@ -710,7 +720,7 @@ func getMacadminsDataEndpoint(ctx context.Context, request interface{}, svc flee
 }
 
 func (svc *Service) MacadminsData(ctx context.Context, id uint) (*fleet.MacadminsData, error) {
-	if !svc.authz.IsAlreadyAuthorized(ctx) {
+	if !svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken) {
 		if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 			return nil, err
 		}
@@ -818,4 +828,68 @@ func (svc *Service) AggregatedMacadminsData(ctx context.Context, teamID *uint) (
 	}
 
 	return agg, nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Hosts Report in CSV downloadable file
+////////////////////////////////////////////////////////////////////////////////
+
+type hostsReportRequest struct {
+	Opts    fleet.HostListOptions `url:"host_options"`
+	LabelID *uint                 `query:"label_id,optional"`
+	Format  string                `query:"format"`
+}
+
+type hostsReportResponse struct {
+	Hosts []*fleet.Host `json:"-"` // they get rendered explicitly, in csv
+	Err   error         `json:"error,omitempty"`
+}
+
+func (r hostsReportResponse) error() error { return r.Err }
+
+func (r hostsReportResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
+	w.Header().Add("Content-Disposition", fmt.Sprintf(`attachment; filename="Hosts %s.csv"`, time.Now().Format("2006-01-02")))
+	w.Header().Set("Content-Type", "text/csv")
+	w.WriteHeader(http.StatusOK)
+	if err := gocsv.Marshal(r.Hosts, w); err != nil {
+		logging.WithErr(ctx, err)
+	}
+}
+
+func hostsReportEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*hostsReportRequest)
+
+	// for now, only csv format is allowed
+	if req.Format != "csv" {
+		// prevent returning an "unauthorized" error, we want that specific error
+		if az, ok := authz.FromContext(ctx); ok {
+			az.SetChecked()
+		}
+		err := ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("format", "unsupported or unspecified report format").
+			WithStatus(http.StatusUnsupportedMediaType))
+		return hostsReportResponse{Err: err}, nil
+	}
+
+	// Those are not supported when listing hosts in a label, so that's just to
+	// make the output consistent whether a label is used or not.
+	req.Opts.DisableFailingPolicies = true
+	req.Opts.AdditionalFilters = nil
+	req.Opts.Page = 0
+	req.Opts.PerPage = 0 // explicitly disable any limit, we want all matching hosts
+	req.Opts.After = ""
+
+	var (
+		hosts []*fleet.Host
+		err   error
+	)
+
+	if req.LabelID == nil {
+		hosts, err = svc.ListHosts(ctx, req.Opts)
+	} else {
+		hosts, err = svc.ListHostsInLabel(ctx, *req.LabelID, req.Opts)
+	}
+	if err != nil {
+		return hostsReportResponse{Err: err}, nil
+	}
+	return hostsReportResponse{Hosts: hosts}, nil
 }

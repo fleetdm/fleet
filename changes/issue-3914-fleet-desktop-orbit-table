@@ -1,0 +1,1 @@
+* Reduce osquery status log verbosity by only running detail queries when the relevant tables exist.
