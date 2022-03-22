@@ -6,7 +6,6 @@ require (
 	cloud.google.com/go/pubsub v1.16.0
 	github.com/AbGuthrie/goquery/v2 v2.0.1
 	github.com/DATA-DOG/go-sqlmock v1.5.0
-	github.com/Microsoft/go-winio v0.5.2 // indirect
 	github.com/OneOfOne/xxhash v1.2.8 // indirect
 	github.com/PuerkitoBio/goquery v1.8.0 // indirect
 	github.com/VividCortex/gohistogram v1.0.0 // indirect
@@ -57,7 +56,6 @@ require (
 	github.com/kevinburke/go-bindata v3.22.0+incompatible
 	github.com/kolide/kit v0.0.0-20191023141830-6312ecc11c23
 	github.com/kolide/launcher v0.11.25-0.20220321235155-c3e9480037d2
-	github.com/kolide/osquery-go v0.0.0-20200604192029-b019be7063ac
 	github.com/macadmins/osquery-extension v0.0.7
 	github.com/mattermost/xml-roundtrip-validator v0.0.0-20201213122252-bcd7e1b9601e
 	github.com/mattn/go-sqlite3 v1.14.8
@@ -69,7 +67,7 @@ require (
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/open-policy-agent/opa v0.24.0
 	github.com/oschwald/geoip2-golang v1.6.1
-	github.com/osquery/osquery-go v0.0.0-20220317165851-954ac78f381f // indirect
+	github.com/osquery/osquery-go v0.0.0-20220317165851-954ac78f381f
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.11.0
