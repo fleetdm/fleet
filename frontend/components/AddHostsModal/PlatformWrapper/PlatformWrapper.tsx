@@ -407,7 +407,7 @@ const PlatformWrapper = ({
     }
     return (
       <>
-        <Checkbox
+        {/* <Checkbox
           name="include-fleet-desktop"
           onChange={() => setIncludeFleetDesktop(!includeFleetDesktop)}
           value={includeFleetDesktop}
@@ -422,7 +422,7 @@ const PlatformWrapper = ({
               Fleet Desktop
             </TooltipWrapper>
           </>
-        </Checkbox>
+        </Checkbox> */}
         <InputField
           disabled
           inputWrapperClass={`${baseClass}__installer-input ${baseClass}__installer-input-${platform}`}
