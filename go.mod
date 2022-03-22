@@ -58,7 +58,7 @@ require (
 	github.com/kolide/kit v0.0.0-20180421083548-36eb8dc43916
 	github.com/kolide/launcher v0.0.0-20180427153757-cb412b945cf7
 	github.com/kolide/osquery-go v0.0.0-20200604192029-b019be7063ac
-	github.com/macadmins/osquery-extension v0.0.5
+	github.com/macadmins/osquery-extension v0.0.7
 	github.com/mattermost/xml-roundtrip-validator v0.0.0-20201213122252-bcd7e1b9601e
 	github.com/mattn/go-sqlite3 v1.14.8
 	github.com/mitchellh/go-ps v1.0.0
@@ -86,7 +86,7 @@ require (
 	github.com/spf13/cobra v1.2.1
 	github.com/spf13/viper v1.8.1
 	github.com/stretchr/objx v0.3.0 // indirect
-	github.com/stretchr/testify v1.7.0
+	github.com/stretchr/testify v1.7.1
 	github.com/temoto/robotstxt v1.1.2 // indirect
 	github.com/theupdateframework/go-tuf v0.0.0-20220121203041-e3557e322879
 	github.com/throttled/throttled/v2 v2.8.0
