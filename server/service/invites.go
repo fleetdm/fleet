@@ -200,7 +200,7 @@ func (svc *Service) UpdateInvite(ctx context.Context, id uint, payload fleet.Inv
 		return nil, err
 	}
 
-	if payload.Email != nil {
+	if payload.Email != nil && *payload.Email != invite.Email {
 		switch _, err := svc.ds.UserByEmail(ctx, *payload.Email); {
 		case err == nil:
 			return nil, ctxerr.Wrap(ctx, alreadyExistsError{})
