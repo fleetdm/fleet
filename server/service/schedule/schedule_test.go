@@ -25,6 +25,8 @@ func (nopLocker) Unlock(context.Context, string, string) error {
 	return nil
 }
 
+// TODO: review integration tests
+
 func TestNewSchedule(t *testing.T) {
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
