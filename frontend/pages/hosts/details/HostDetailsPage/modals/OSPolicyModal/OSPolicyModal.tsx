@@ -95,12 +95,12 @@ const RenderOSPolicyModal = ({
           type={"textarea"}
           value={osPolicy}
         />
-        <div className={`${baseClass}__modal-buttons`}>
-          <Button onClick={onCreateNewPolicy} variant="brand">
-            Create new policy
-          </Button>
+        <div className={"modal-btn-wrap"}>
           <Button onClick={onCancel} variant="inverse">
             Close
+          </Button>
+          <Button onClick={onCreateNewPolicy} variant="brand">
+            Create new policy
           </Button>
         </div>
       </>

@@ -80,22 +80,17 @@ const TransferHostModal = ({
             </Link>
           </p>
         )}
-        <div className={`${baseClass}__btn-wrap`}>
+        <div className={"modal-btn-wrap"}>
+          <Button onClick={onCancel} variant="inverse">
+            Cancel
+          </Button>
           <Button
             disabled={selectedTeam === undefined}
-            className={`${baseClass}__btn transfer-action-btn`}
             type="button"
             variant="brand"
             onClick={onSubmitTransferHost}
           >
             Transfer
-          </Button>
-          <Button
-            className={`${baseClass}__btn`}
-            onClick={onCancel}
-            variant="inverse"
-          >
-            Cancel
           </Button>
         </div>
       </form>

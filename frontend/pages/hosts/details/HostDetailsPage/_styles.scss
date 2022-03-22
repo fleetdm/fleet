@@ -363,19 +363,13 @@
     margin-right: $pad-large;
   }
 
-  &__modal {
-    p {
-      font-size: $x-small;
-    }
-  }
-
-  &__modal-buttons {
+  .modal-btn-wrap {
     display: flex;
-    flex-direction: row-reverse;
+    justify-content: flex-end;
 
-    .button--alert,
-    .button--brand {
-      margin-left: 15px;
+    .button--inverse-alert,
+    .button--inverse {
+      margin-right: $pad-small;
     }
   }
 

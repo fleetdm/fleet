@@ -1,23 +1,4 @@
 .section--software {
-  // Modified table container nav positioning
-  .table-container__results-count {
-    width: 150px;
-  }
-
-  .table-container__header {
-    justify-content: initial;
-  }
-
-  .table-container__table-controls {
-    margin-left: $pad-medium;
-    width: 100%;
-    justify-content: initial;
-  }
-
-  .table-container__search-input {
-    width: 100%;
-  }
-
   .data-table__table {
     table-layout: fixed;
 
@@ -28,7 +9,7 @@
         padding-right: 0px;
       }
       &:nth-child(2) {
-        width: 33%;
+        width: 25%;
         padding-right: 0px;
       }
       &:last-child {
@@ -37,7 +18,11 @@
       }
 
       &.source__header {
-        width: 33%;
+        width: 20%;
+      }
+
+      &.version__header {
+        border-right: 0;
       }
     }
 
@@ -46,6 +31,22 @@
         position: relative;
         &:first-child {
           padding-right: 0px;
+        }
+      }
+
+      .software-link {
+        visibility: hidden;
+        img {
+          vertical-align: text-top;
+        }
+      }
+
+      &:hover {
+        .software-link {
+          visibility: visible;
+          img {
+            width: 16px;
+          }
         }
       }
     }
@@ -65,27 +66,4 @@
       text-overflow: initial;
     }
   }
-}
-
-tbody {
-  td {
-    padding: 12px 27px;
-    white-space: nowrap;
-  }
-}
-
-.tooltip__tooltip-icon {
-  img {
-    vertical-align: middle;
-    height: 16px;
-    width: auto;
-  }
-}
-
-.software-name {
-  margin-left: 8px;
-}
-
-.software-last-used-muted {
-  color: $ui-fleet-black-50;
 }
