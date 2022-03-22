@@ -1666,6 +1666,10 @@ WHERE
 		osVersions.OSVersions = filtered
 	}
 
+	// Sort by os versions. We can't control the order when using json_arrayagg
+	// See https://dev.mysql.com/doc/refman/5.7/en/aggregate-functions.html#function_json-arrayagg.
+	sort.Slice(osVersions.OSVersions, func(i, j int) bool { return osVersions.OSVersions[i].Name < osVersions.OSVersions[j].Name })
+
 	return osVersions, nil
 }
 
