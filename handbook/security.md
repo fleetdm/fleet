@@ -271,7 +271,7 @@ Since Fleet makes open source software, we need to host and collaborate on code.
 
 This section covers our GitHub configuration. Like everything we do, we aim for the right level of security and productivity.
 
-Because our code is open source we are much more concerned about the integrity of the code than its confidentiality.
+Because our code is open source, we are much more concerned about the integrity of the code than its confidentiality.
 This is why our configuration aims to protect what is in the code, but we spend no
 effort preventing "leaks" since almost everything is public anyway.
 
@@ -308,9 +308,9 @@ charges a [4x premium](https://sso.tax/) for this feature.
 | Member privileges feature | Setting | Note                                                                                                                         |
 | ------------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------- |
 | Base permissions          | Write   | Admin is too powerful, as it allows reconfiguring the repositories themselves. Selecting *Write* provides the perfect balance!                 |
-| Repository creation       | None    | We want to limit repository creation, and eventually automate it with the [GitHub Terraform provider](https://github.com/integrations/terraform-provider-github).     |
+| Repository creation       | None    | We want to limit repository creation and eventually automate it with the [GitHub Terraform provider](https://github.com/integrations/terraform-provider-github).     |
 | Repository forking        | ✅  | By default, we allow repository forking.                                                                                      |
-| Pages creation            | None    | We do not use GitHub pages, so we disable them to be sure people use our actual website or handbook which are also in GitHub. |
+| Pages creation            | None    | We do not use GitHub pages, so we disable them to ensure people use our actual website or handbook, which are also in GitHub. |
 
 #### Admin repository permissions
 
@@ -318,13 +318,13 @@ charges a [4x premium](https://sso.tax/) for this feature.
 | -------------------------------------------------------------------------- | ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Allow members to change repository visibilities for this organization      | 🚫                   | Most of our repos are public, but for the few that are private we want to require org admin privileges to make them public                                                    |
 | Allow members to delete or transfer repositories for this organization     | 🚫                   | We want to require org admin privileges to be able to delete or transfer any repository.                                                                                       |
-| Allow repository administrators to delete issues for this organization     | 🚫                   | We want to require org admin privileges to be able to delete issues, which is something that is very rarely needed but could be, for example if we received GitHub issue spam. |
+| Allow repository administrators to delete issues for this organization     | 🚫                   | We want to require org admin privileges to be able to delete issues, which is something that is very rarely needed but could be, for example, if we received GitHub issue spam. |
 | Allow members to see comment author's profile name in private repositories | 🚫                   | We barely use private repositories, and have no need for this.                                                                                                                |
 | Allow users with read access to create discussions                         | 🚫                   | We do not currently use discussions and want people to use issues as much as possible.                                                                                       |
 | Allow members to create teams                                              | 🚫                   | We automate the management of GitHub teams with the [GitHub Terraform provider](https://github.com/integrations/terraform-provider-github).                            |
 
 ### Team Discussions
-We do not use team discussions and therefore have disabled it. This is simply to avoid discussions
+We do not use team discussions and therefore have disabled them. This is simply to avoid discussions
 being located in too many places and not security-related.
 
 ### Repository Security
@@ -343,12 +343,12 @@ Located in the Branches section of repository settings, we create a rule for **m
 | Restrict who can dismiss pull request reviews                    | 🚫     | As we are a team working in multiple timezones, we want to allow dismissing reviews and getting another one.          |
 | Allow specified actors to bypass required pull requests          | 🚫     | We do not want anyone pushing directly to main.                                                                       |
 | Require status checks to pass before merging                     | ✅     | Because of our [monorepo](https://en.wikipedia.org/wiki/Monorepo#:~:text=In%20version%20control%20systems%2C%20a,as%20a%20'shared%20codebase'.), it is hard to pick many checks that work for all types of PRs, but we still enable this.     |
-| Require conversation resolution before merging                   | 🚫     | Reviewers should not approve if they do not think it's ready for merging.                                             |
+| Require conversation resolution before merging                   | 🚫     | Reviewers should not approve a pull request if they do not think it's ready for merging.                                             |
 | Require signed commits                                           | 🗓     | We are working towards enabling this, manually keeping track of unverified commits.                                   |
-| Require linear history                                           | 🚫     | We do not currently use or enforce practices to generate linear history.                                                                                                                      |
+| Require linear history                                           | 🚫     | We do not currently use or enforce practices to generate a linear history.                                                                                                                      |
 | Include administrators                                           | ✅     | We want these rules to apply to *everyone*.                                                                           |
 | Restrict who can push to matching branches                       | 🚫     | Anyone in our organization should be able to merge PRs that get reviewed, and nobody should be able to push directly. |
-| Allow force pushes                                               | 🚫     | We have need this, so we do not allow it.                                                             |
+| Allow force pushes                                               | 🚫     | We do not have a need this, so we do not allow it.                                                             |
 | Allow deletions                                                  | 🚫     | We do not want ANYONE to be able to delete the *main* branch.                                                         |
 
 ### Scanning tools
@@ -374,14 +374,14 @@ simply more aggressive on updating actions even if the update does not resolve a
 
 ### Actions configuration
 We configure GitHub Actions to have *Read repository contents permission* by default. This is
-located in *organization/settings/actions*. As our code is open-source, we allow all GitHub actions,
-but limit their default privileges so they do not create any additional risk. Additional permissions
+located in *organization/settings/actions*. As our code is open-source, we allow all GitHub actions
+but limit their default privileges, so they do not create any additional risk. Additional permissions
 needed can be configured in the YAML file for each workflow.
 
 We pin actions to specific versions using a complete hash.
 
 ### Automation
-We manage our GitHub configuration, creation of repositories and team memberships manually. In the
+We manage our GitHub configuration, creation of repositories, and team memberships manually. In the
 future, we will consider automating most of it using the [Terraform
 provider](https://github.com/integrations/terraform-provider-github) for GitHub. Our strategy for
 this will be similar to what is described in [this blog post](https://oops.computer/posts/github_automation/).
