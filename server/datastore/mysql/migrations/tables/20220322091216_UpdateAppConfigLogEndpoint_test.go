@@ -23,7 +23,7 @@ func TestUp_20220322091216(t *testing.T) {
 		require.ErrorIs(t, err, sql.ErrNoRows)
 	})
 
-	db = applyUpToPrev(t) // must be done in top-level test as the migration comes from the test name
+	db = applyUpToPrev(t)
 	t.Run("required update", func(t *testing.T) {
 		var raw string
 		err := db.Get(&raw, `SELECT json_value FROM app_config_json`)
@@ -40,7 +40,7 @@ func TestUp_20220322091216(t *testing.T) {
 		require.Contains(t, raw, "/api/latest/osquery/log")
 	})
 
-	db = applyUpToPrev(t) // must be done in top-level test as the migration comes from the test name
+	db = applyUpToPrev(t)
 	t.Run("no update required", func(t *testing.T) {
 		var raw string
 		err := db.Get(&raw, `SELECT json_value FROM app_config_json`)
