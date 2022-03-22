@@ -1,5 +1,5 @@
 import URL_PREFIX from "router/url_prefix";
-import { IQueryPlatform } from "interfaces/query";
+import { IOsqueryPlatform, IPlatformString } from "interfaces/platform";
 import { IPolicyNew } from "interfaces/policy";
 
 const { origin } = global.window.location;
@@ -113,7 +113,7 @@ export const DEFAULT_POLICIES = [
   {
     key: 10,
     query: "SELECT 1 FROM mdm WHERE enrolled='true';",
-    name: "MDM Enrolled (macOS)",
+    name: "MDM enrolled (macOS)",
     description:
       "Required: osquery deployed with Orbit, or manual installation of macadmins/osquery-extension. Checks that a Mac is enrolled to MDM. Add a AND on identity_certificate_uuid to check for a specific MDM.",
     resolution: "Enroll device to MDM",
@@ -213,7 +213,7 @@ export const DEFAULT_QUERY = {
   packs: [],
 };
 
-const DEFAULT_POLICY_PLATFORM: IQueryPlatform = "";
+const DEFAULT_POLICY_PLATFORM: IPlatformString = "";
 
 export const DEFAULT_POLICY = {
   id: 1,
@@ -264,6 +264,13 @@ export const DEFAULT_CAMPAIGN_STATE = {
   targetsCount: 0,
   targetsError: null,
   campaign: { ...DEFAULT_CAMPAIGN },
+};
+
+export const PLATFORM_DISPLAY_NAMES: Record<string, IOsqueryPlatform> = {
+  darwin: "macOS",
+  freebsd: "FreeBSD",
+  linux: "Linux",
+  windows: "Windows",
 };
 
 // as returned by the TARGETS API; based on display_text

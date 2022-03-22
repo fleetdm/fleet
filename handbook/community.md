@@ -236,6 +236,26 @@ IT and security teams love Fleet because of its flexibility and conventions. Ins
 
 That means better privacy. Better device performance. And better data, with less noise.
 
+## Sponsoring events
+
+When reaching out for sponsorships, Fleet's goal is to expose potential hires, contributors, and users to Fleet and osquery.
+Track prospective sponsorships in our [partnerships and outreach Google Sheet:](https://docs.google.com/spreadsheets/d/107AwHKqFjt7TWItnf8pFknSwwxb_gsp6awB66t7YE_w/edit#gid=2108184225)
+
+Once a relevant sponsorship opportunity and its prospectus are reviewed:
+1. Create a new [GitHub issue](https://github.com/fleetdm/fleet/issues/new).
+ 
+2. Detail the important information of the event, such as date, name of the event, location, and page links to the relevant prospectus. 
+ 
+3. Add the issue to the “Conferences/speaking” column of the [Growth plan project](https://github.com/orgs/fleetdm/projects/21).
+ 
+4. Schedule a meeting with the representatives at the event to discuss pricing and sponsorship tiers.
+ 
+5. Invoices should be received at billing@fleetdm.com and sent to Eric Shaw for approval.
+ 
+6. Eric Shaw (Business Operations) will route signatures required over to Mike McNeil (CEO) with Docusign.
+ 
+7. Once the above steps are completed, use the [Speaking events issue template](https://github.com/fleetdm/confidential/issues/new?assignees=mike-j-thomas&labels=&template=6-speaking-event.md&title=Speaking+event) to prepare speakers and participants for the event.
+
 ## Community contributions (pull requests)
 
 The top priority when community members contribute PRs is to help the person feel engaged with

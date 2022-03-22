@@ -335,6 +335,7 @@ func (ds *Datastore) DeleteHost(ctx context.Context, hid uint) error {
 			"policy_membership",
 			"host_mdm",
 			"host_munki_info",
+			"host_device_auth",
 		}
 
 		for _, table := range hostRefs {
@@ -1567,6 +1568,7 @@ func (ds *Datastore) UpdateHost(ctx context.Context, host *fleet.Host) error {
 			team_id = ?,
 			primary_ip = ?,
 			primary_mac = ?,
+			public_ip = ?,
 			refetch_requested = ?,
 			gigs_disk_space_available = ?,
 			percent_disk_space_available = ?
@@ -1603,6 +1605,7 @@ func (ds *Datastore) UpdateHost(ctx context.Context, host *fleet.Host) error {
 		host.TeamID,
 		host.PrimaryIP,
 		host.PrimaryMac,
+		host.PublicIP,
 		host.RefetchRequested,
 		host.GigsDiskSpaceAvailable,
 		host.PercentDiskSpaceAvailable,

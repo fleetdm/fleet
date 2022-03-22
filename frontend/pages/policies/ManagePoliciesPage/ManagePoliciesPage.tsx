@@ -20,7 +20,6 @@ import configAPI from "services/entities/config";
 import globalPoliciesAPI from "services/entities/global_policies";
 import teamPoliciesAPI from "services/entities/team_policies";
 import usersAPI, { IGetMeResponse } from "services/entities/users";
-import { DEFAULT_POLICY } from "utilities/constants";
 
 import Button from "components/buttons/Button";
 import RevealButton from "components/buttons/RevealButton";
@@ -246,7 +245,6 @@ const ManagePolicyPage = ({
   const onAddPolicyClick = () => {
     setLastEditedQueryName("");
     setLastEditedQueryDescription("");
-    setLastEditedQueryBody(DEFAULT_POLICY.query);
     setLastEditedQueryResolution("");
     toggleAddPolicyModal();
   };

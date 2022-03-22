@@ -1,4 +1,4 @@
-import { mount } from "enzyme";
+import { render, screen } from "@testing-library/react";
 
 import helpers from "test/helpers";
 import { userStub } from "test/stubs";
@@ -38,13 +38,12 @@ describe("CoreLayout - layouts", () => {
       mockStore,
     });
 
-    const appWithFlash = mount(componentWithFlash);
-    const appWithoutFlash = mount(componentWithoutFlash);
+    const { container, rerender } = render(componentWithFlash);
 
-    expect(appWithFlash.length).toEqual(1);
-    expect(appWithoutFlash.length).toEqual(1);
+    expect(container.querySelector(".flash-message")).toBeInTheDocument();
 
-    expect(appWithFlash.find("FlashMessage").html()).toBeTruthy();
-    expect(appWithoutFlash.find("FlashMessage").html()).toBeFalsy();
+    rerender(componentWithoutFlash);
+
+    expect(container.querySelector(".flash-message")).not.toBeInTheDocument();
   });
 });

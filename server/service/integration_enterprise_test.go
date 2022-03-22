@@ -59,7 +59,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	require.NoError(t, err)
 
 	assert.Len(t, team.Secrets, 0)
-	require.JSONEq(t, string(agentOpts), string(*team.AgentOptions))
+	require.JSONEq(t, string(agentOpts), string(*team.Config.AgentOptions))
 
 	// creates a team with default agent options
 	user, err := s.ds.UserByEmail(context.Background(), "admin1@example.com")
@@ -81,8 +81,8 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 
 	defaultOpts := `{"config": {"options": {"logger_plugin": "tls", "pack_delimiter": "/", "logger_tls_period": 10, "distributed_plugin": "tls", "disable_distributed": false, "logger_tls_endpoint": "/api/v1/osquery/log", "distributed_interval": 10, "distributed_tls_max_attempts": 3}, "decorators": {"load": ["SELECT uuid AS host_uuid FROM system_info;", "SELECT hostname AS hostname FROM system_info;"]}}, "overrides": {}}`
 	assert.Len(t, team.Secrets, 0)
-	require.NotNil(t, team.AgentOptions)
-	require.JSONEq(t, defaultOpts, string(*team.AgentOptions))
+	require.NotNil(t, team.Config.AgentOptions)
+	require.JSONEq(t, defaultOpts, string(*team.Config.AgentOptions))
 
 	// updates secrets
 	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: "team2", Secrets: []fleet.EnrollSecret{{Secret: "ABC"}}}}}
@@ -436,7 +436,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 	opts := map[string]string{"x": "y"}
 	s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/teams/%d/agent_options", tm1ID), opts, http.StatusOK, &tmResp)
 	var m map[string]string
-	require.NoError(t, json.Unmarshal(*tmResp.Team.AgentOptions, &m))
+	require.NoError(t, json.Unmarshal(*tmResp.Team.Config.AgentOptions, &m))
 	assert.Equal(t, opts, m)
 
 	// modify team agent options - unknown team
