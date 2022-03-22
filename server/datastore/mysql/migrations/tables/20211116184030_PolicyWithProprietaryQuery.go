@@ -59,7 +59,7 @@ func Up_20211116184030(tx *sql.Tx) error {
 	}
 	query, args, err := sqlx.In(`
         UPDATE policies
-		SET name = CONCAT(name, " (", CONVERT(id, CHAR) ,")")
+		SET name = CONCAT(name, ' (', CONVERT(id, CHAR) ,')')
 		WHERE query_id IN (?)`,
 		queryIDs,
 	)
