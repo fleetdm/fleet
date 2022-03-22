@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"database/sql"
 	"encoding/json"
-	"errors"
 
+	"github.com/pkg/errors"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
@@ -23,29 +23,35 @@ func Up_20220322091216(tx *sql.Tx) error {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil
 		}
-		return err
+		return errors.Wrap(err, "select app_config_json")
 	}
 	if err := json.Unmarshal(raw, &config); err != nil {
-		return err
+		return errors.Wrap(err, "unmarshal appconfig")
 	}
 
 	var (
 		oldPath = []byte(`"/api/v1/osquery/log"`)
 		newPath = []byte(`"/api/latest/osquery/log"`)
+    updated = false
 	)
 	if config.AgentOptions != nil {
 		oldOpts := []byte(*config.AgentOptions)
 		newOpts := json.RawMessage(bytes.ReplaceAll(oldOpts, oldPath, newPath))
 		config.AgentOptions = &newOpts
+    updated = !bytes.Equal(oldOpts, newOpts)
 	}
+  if !updated {
+    return nil
+  }
+
 	b, err := json.Marshal(config)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "marshal updated appconfig")
 	}
 
 	const updateStmt = `UPDATE app_config_json SET json_value = ? WHERE id = 1`
 	if _, err := tx.Exec(updateStmt, b); err != nil {
-		return err
+		return errors.Wrap(err, "update app_config_json")
 	}
 
 	return nil
