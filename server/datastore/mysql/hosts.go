@@ -1616,14 +1616,15 @@ func (ds *Datastore) UpdateHost(ctx context.Context, host *fleet.Host) error {
 	return nil
 }
 
-func (ds *Datastore) OSVersions(ctx context.Context, platform *string, teamID *uint) (*fleet.OSVersions, error) {
+// OSVersions gets the aggregated os version host counts. If a non-nil teamID is passed, it will filter hosts by team.
+func (ds *Datastore) OSVersions(ctx context.Context, teamID *uint, platform *string) (*fleet.OSVersions, error) {
 	query := `
 SELECT
     json_value,
     updated_at
 FROM aggregated_stats
 WHERE
-    id = 0 AND
+    id = ? AND
     type = 'os_versions'
 `
 
@@ -1632,7 +1633,14 @@ WHERE
 		UpdatedAt time.Time        `db:"updated_at"`
 	}
 
-	if err := sqlx.GetContext(ctx, ds.reader, &row, query); err != nil {
+	var args []interface{}
+	if teamID == nil { // all hosts
+		args = append(args, 0)
+	} else {
+		args = append(args, *teamID)
+	}
+
+	if err := sqlx.GetContext(ctx, ds.reader, &row, query, args...); err != nil {
 		return nil, err
 	}
 
@@ -1647,72 +1655,70 @@ WHERE
 		}
 	}
 
+	// filter by os versions by platform
+	if platform != nil {
+		var filtered []fleet.OSVersion
+		for _, osVersion := range osVersions.OSVersions {
+			if *platform == osVersion.Platform {
+				filtered = append(filtered, osVersion)
+			}
+		}
+		osVersions.OSVersions = filtered
+	}
+
 	return osVersions, nil
 }
 
 func (ds *Datastore) UpdateOSVersions(ctx context.Context) error {
 	query := `
-INSERT INTO
-  aggregated_stats (id, type, json_value)
+INSERT INTO aggregated_stats (id, type, json_value)
 SELECT
-  0 id,
+  team_id id,
   'os_versions' type,
   COALESCE(
-    JSON_OBJECTAGG(team_id, team_json_value),
-    JSON_OBJECT()
+    JSON_ARRAYAGG(
+      JSON_OBJECT(
+        'hosts_count', hosts_count,
+        'name', name,
+        'platform', platform
+      )
+    ),
+    JSON_ARRAY()
   ) json_value
 FROM
   (
     SELECT
-      team_id,
-      COALESCE(
-        JSON_ARRAYAGG(
-          JSON_OBJECT(
-            'hosts_count',
-            hosts_count,
-            'name',
-            name,
-            'platform',
-            platform
-          )
-        ),
-        JSON_ARRAY()
-      ) team_json_value
+      COUNT(*) hosts_count,
+      h.os_version name,
+      h.platform,
+      0 team_id
     FROM
-      (
-        SELECT
-          COUNT(*) hosts_count,
-          h.os_version name,
-          h.platform,
-          '*' team_id
-        FROM
-          hosts h
-        GROUP BY
-          h.os_version,
-          h.platform
-        UNION
-        SELECT
-          COUNT(*) hosts_count,
-          h.os_version name,
-          h.platform,
-          h.team_id
-        FROM
-          hosts h
-          JOIN teams t ON t.id = h.team_id
-        GROUP BY
-          h.os_version,
-          h.platform,
-          h.team_id
-      ) as team_os_versions
+      hosts h
     GROUP BY
-      team_id
-  ) as os_versions ON DUPLICATE KEY
-UPDATE
+      h.os_version,
+      h.platform
+    UNION
+    SELECT
+      COUNT(*) hosts_count,
+      h.os_version name,
+      h.platform,
+      h.team_id
+    FROM
+      hosts h
+      JOIN teams t ON t.id = h.team_id
+    GROUP BY
+      h.os_version,
+      h.platform,
+      h.team_id
+  ) as team_os_versions
+GROUP BY
+  team_id
+ON DUPLICATE KEY UPDATE
   json_value = VALUES(json_value)
 `
 	_, err := ds.writer.ExecContext(ctx, query)
 	if err != nil {
-		return ctxerr.Wrapf(ctx, err, "update aggregated stats for os_versions")
+		return ctxerr.Wrapf(ctx, err, "update aggregated stats for os versions")
 	}
 
 	return nil

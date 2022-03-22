@@ -218,7 +218,7 @@ type Datastore interface {
 	AggregatedMDMStatus(ctx context.Context, teamID *uint) (AggregatedMDMStatus, time.Time, error)
 	GenerateAggregatedMunkiAndMDM(ctx context.Context) error
 
-	OSVersions(ctx context.Context, platform *string, teamID *uint) (*OSVersions, error)
+	OSVersions(ctx context.Context, teamID *uint, platform *string) (*OSVersions, error)
 	UpdateOSVersions(ctx context.Context) error
 
 	///////////////////////////////////////////////////////////////////////////////

@@ -895,14 +895,14 @@ func hostsReportEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 }
 
 type osVersionsRequest struct {
-	Platform *string `query:"platform,optional"`
 	TeamID   *uint   `query:"team_id,optional"`
+	Platform *string `query:"platform,optional"`
 }
 
 func osVersionsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
 	req := request.(*osVersionsRequest)
 
-	osVersions, err := svc.OSVersions(ctx, req.Platform, req.TeamID)
+	osVersions, err := svc.OSVersions(ctx, req.TeamID, req.Platform)
 	if err != nil {
 		return nil, err
 	}
@@ -910,12 +910,12 @@ func osVersionsEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 	return osVersions, nil
 }
 
-func (svc *Service) OSVersions(ctx context.Context, platform *string, teamID *uint) (*fleet.OSVersions, error) {
+func (svc *Service) OSVersions(ctx context.Context, teamID *uint, platform *string) (*fleet.OSVersions, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionList); err != nil {
 		return nil, err
 	}
 
-	osVersions, err := svc.ds.OSVersions(ctx, platform, teamID)
+	osVersions, err := svc.ds.OSVersions(ctx, teamID, platform)
 	if err != nil {
 		return nil, err
 	}
