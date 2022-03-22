@@ -35,14 +35,14 @@ func DoWebhooks(
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
 		level.Error(logger).Log("config", "couldn't read app config", "err", err)
-		return nil, err
+		return nil, err // TODO: how should we handle stats/errors here?
 	}
 
 	maybeTriggerHostStatus(ctx, ds, logger, appConfig)
 	maybeTriggerGlobalFailingPoliciesWebhook(ctx, ds, logger, appConfig, failingPoliciesSet)
 	level.Debug(logger).Log("webhooks", "done")
 
-	return stats, nil
+	return stats, nil // TODO: how should we handle stats/errors here?
 }
 
 func maybeTriggerHostStatus(

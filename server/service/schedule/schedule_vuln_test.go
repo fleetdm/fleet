@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"os"
 	"path"
 	"testing"
 	"time"
@@ -85,6 +86,7 @@ TEST:
 	}
 }
 
+// TODO: fix races
 func TestCronVulnerabilitiesAcceptsExistingDbPath(t *testing.T) {
 	ds := new(mock.Store)
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
@@ -156,77 +158,146 @@ TEST:
 	}
 }
 
-// func TestCronVulnerabilitiesQuitsIfErrorVulnPath(t *testing.T) {
-// 	buf := new(bytes.Buffer)
-// 	logger := kitlog.NewJSONLogger(buf)
-// 	logger = level.NewFilter(logger, level.AllowDebug())
+// TODO: fix races
+func TestCronVulnerabilitiesQuitsIfErrorVulnPath(t *testing.T) {
+	ds := new(mock.Store)
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			HostSettings: fleet.HostSettings{EnableSoftwareInventory: true},
+		}, nil
+	}
+	ds.LockFunc = func(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error) {
+		return true, nil
+	}
+	ds.UnlockFunc = func(ctx context.Context, name string, owner string) error {
+		return nil
+	}
 
-// 	ctx, cancelFunc := context.WithCancel(context.Background())
-// 	defer cancelFunc()
-// 	ds := new(mock.Store)
-// 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-// 		return &fleet.AppConfig{
-// 			HostSettings: fleet.HostSettings{EnableSoftwareInventory: true},
-// 		}, nil
-// 	}
-// 	ds.LockFunc = func(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error) {
-// 		return true, nil
-// 	}
-// 	ds.UnlockFunc = func(ctx context.Context, name string, owner string) error {
-// 		return nil
-// 	}
+	// because the logic we care about should be created before the bulk of vuln processing begins,
+	// we can use a call to any ds methods below to signal a failed test
+	dsSoftwareFnCalled := make(chan bool)
+	ds.AllSoftwareWithoutCPEIteratorFunc = func(ctx context.Context) (fleet.SoftwareIterator, error) {
+		dsSoftwareFnCalled <- true
+		return nil, fmt.Errorf("forced error for test purposes")
+	}
+	ds.CalculateHostsPerSoftwareFunc = func(ctx context.Context, time time.Time) error {
+		dsSoftwareFnCalled <- true
+		return fmt.Errorf("forced error for test purposes")
+	}
 
-// 	fileVulnPath := path.Join(t.TempDir(), "somefile")
-// 	_, err := os.Create(fileVulnPath)
-// 	require.NoError(t, err)
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	defer cancelFunc()
 
-// 	fleetConfig := config.FleetConfig{
-// 		Vulnerabilities: config.VulnerabilitiesConfig{
-// 			DatabasesPath:         fileVulnPath,
-// 			Periodicity:           10 * time.Second,
-// 			CurrentInstanceChecks: "auto",
-// 		},
-// 	}
+	buf := new(bytes.Buffer)
+	logger := kitlog.NewJSONLogger(buf)
+	logger = level.NewFilter(logger, level.AllowDebug())
 
-// 	// We cancel right away so cronsVulnerailities finishes. The logic we are testing happens before the loop starts
-// 	cancelFunc()
-// 	cronVulnerabilities(ctx, ds, logger, "AAA", fleetConfig)
+	fileVulnPath := path.Join(t.TempDir(), "somefile")
+	_, err := os.Create(fileVulnPath)
+	require.NoError(t, err)
 
-// 	require.Contains(t, buf.String(), `"databases-path":"creation failed, returning"`)
-// }
+	fleetConfig := config.FleetConfig{
+		Vulnerabilities: config.VulnerabilitiesConfig{
+			DatabasesPath:         fileVulnPath,
+			Periodicity:           1 * time.Second,
+			CurrentInstanceChecks: "auto",
+			DisableDataSync:       true, // TODO: do we need for this test?
+		},
+	}
 
-// func TestCronVulnerabilitiesSkipCreationIfStatic(t *testing.T) {
-// 	buf := new(bytes.Buffer)
-// 	logger := kitlog.NewJSONLogger(buf)
-// 	logger = level.NewFilter(logger, level.AllowDebug())
+	vulnerabilities, err := New(ctx, "vulnerabilities", "test_instance", fleetConfig.Vulnerabilities.Periodicity, ds, logger)
+	require.NoError(t, err)
 
-// 	ctx, cancelFunc := context.WithCancel(context.Background())
-// 	defer cancelFunc()
-// 	ds := new(mock.Store)
-// 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-// 		return &fleet.AppConfig{}, nil
-// 	}
-// 	ds.LockFunc = func(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error) {
-// 		return true, nil
-// 	}
-// 	ds.UnlockFunc = func(ctx context.Context, name string, owner string) error {
-// 		return nil
-// 	}
+	vulnerabilities.SetPreflightCheck(func() bool { return fleetConfig.Vulnerabilities.CurrentInstanceChecks == "auto" })
+	vulnerabilities.SetConfigCheck(func(time.Time, time.Duration) (*time.Duration, error) {
+		return &fleetConfig.Vulnerabilities.Periodicity, nil
+	})
+	vulnerabilities.AddJob("cron_vulnerabilities", func(ctx context.Context) (interface{}, error) {
+		return DoVulnProcessing(ctx, ds, logger, fleetConfig)
+	}, func(interface{}, error) {})
 
-// 	vulnPath := path.Join(t.TempDir(), "something")
-// 	require.NoDirExists(t, vulnPath)
+	failCheck := time.After(5 * time.Second)
 
-// 	fleetConfig := config.FleetConfig{
-// 		Vulnerabilities: config.VulnerabilitiesConfig{
-// 			DatabasesPath:         vulnPath,
-// 			Periodicity:           10 * time.Second,
-// 			CurrentInstanceChecks: "1",
-// 		},
-// 	}
+TEST:
+	for {
+		select {
+		case <-dsSoftwareFnCalled:
+			t.FailNow() // TODO: review this test with Tomas
+		case <-failCheck:
+			require.Contains(t, buf.String(), `"databases-path":"creation failed, returning"`)
+			break TEST
+		}
+	}
+}
 
-// 	// We cancel right away so cronsVulnerailities finishes. The logic we are testing happens before the loop starts
-// 	cancelFunc()
-// 	cronVulnerabilities(ctx, ds, logger, "AAA", fleetConfig)
+// TODO: fix races
+func TestCronVulnerabilitiesSkipCreationIfStatic(t *testing.T) {
+	ds := new(mock.Store)
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			HostSettings: fleet.HostSettings{EnableSoftwareInventory: true},
+		}, nil
+	}
+	ds.LockFunc = func(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error) {
+		return true, nil
+	}
+	ds.UnlockFunc = func(ctx context.Context, name string, owner string) error {
+		return nil
+	}
 
-// 	require.NoDirExists(t, vulnPath)
-// }
+	// because the logic we care about should be created before the bulk of vuln processing begins,
+	// we can use a call to any ds methods below to signal a failed test
+	dsSoftwareFnCalled := make(chan bool)
+	ds.AllSoftwareWithoutCPEIteratorFunc = func(ctx context.Context) (fleet.SoftwareIterator, error) {
+		dsSoftwareFnCalled <- true
+		return nil, fmt.Errorf("forced error for test purposes")
+	}
+	ds.CalculateHostsPerSoftwareFunc = func(ctx context.Context, time time.Time) error {
+		dsSoftwareFnCalled <- true
+		return fmt.Errorf("forced error for test purposes")
+	}
+
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	defer cancelFunc()
+
+	buf := new(bytes.Buffer)
+	logger := kitlog.NewJSONLogger(buf)
+	logger = level.NewFilter(logger, level.AllowDebug())
+
+	vulnPath := path.Join(t.TempDir(), "something")
+	require.NoDirExists(t, vulnPath)
+
+	fleetConfig := config.FleetConfig{
+		Vulnerabilities: config.VulnerabilitiesConfig{
+			DatabasesPath:         vulnPath,
+			Periodicity:           1 * time.Second,
+			CurrentInstanceChecks: "1",
+			DisableDataSync:       true, // TODO: do we need for this test?
+
+		},
+	}
+
+	vulnerabilities, err := New(ctx, "vulnerabilities", "test_instance", fleetConfig.Vulnerabilities.Periodicity, ds, logger)
+	require.NoError(t, err)
+
+	vulnerabilities.SetPreflightCheck(func() bool { return fleetConfig.Vulnerabilities.CurrentInstanceChecks == "auto" })
+	vulnerabilities.SetConfigCheck(func(time.Time, time.Duration) (*time.Duration, error) {
+		return &fleetConfig.Vulnerabilities.Periodicity, nil
+	})
+	vulnerabilities.AddJob("cron_vulnerabilities", func(ctx context.Context) (interface{}, error) {
+		return DoVulnProcessing(ctx, ds, logger, fleetConfig)
+	}, func(interface{}, error) {})
+
+	failCheck := time.After(5 * time.Second)
+
+TEST:
+	for {
+		select {
+		case <-dsSoftwareFnCalled:
+			t.FailNow() // TODO: review this test with Tomas
+		case <-failCheck:
+			require.NoDirExists(t, vulnPath)
+			break TEST
+		}
+	}
+}

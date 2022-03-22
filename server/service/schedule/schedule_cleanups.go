@@ -88,7 +88,7 @@ func DoCleanups(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, l
 	}
 	stats["do_cleanups"] = string(statsData)
 
-	return stats, nil // TODO
+	return stats, nil // TODO: how should we handle stats/errors here?
 }
 
 func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.Duration, url string, license *fleet.LicenseInfo) error {

@@ -28,13 +28,13 @@ func DoVulnProcessing(ctx context.Context, ds fleet.Datastore, logger kitlog.Log
 
 	if config.Vulnerabilities.CurrentInstanceChecks == "no" || config.Vulnerabilities.CurrentInstanceChecks == "0" {
 		level.Info(logger).Log("vulnerability scanning", "host not configured to check for vulnerabilities")
-		return stats, nil // TODO
+		return stats, nil // TODO: how should we handle stats/errors here?
 	}
 
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
 		level.Error(logger).Log("config", "couldn't read app config", "err", err)
-		return stats, nil // TODO
+		return stats, nil // TODO: how should we handle stats/errors here?
 	}
 
 	vulnDisabled := false
@@ -45,7 +45,7 @@ func DoVulnProcessing(ctx context.Context, ds fleet.Datastore, logger kitlog.Log
 	}
 	if !appConfig.HostSettings.EnableSoftwareInventory {
 		level.Info(logger).Log("software inventory", "not configured")
-		return stats, nil // TODO
+		return stats, nil // TODO: how should we handle stats/errors here?
 	}
 
 	vulnPath := appConfig.VulnerabilitySettings.DatabasesPath
@@ -71,7 +71,7 @@ func DoVulnProcessing(ctx context.Context, ds fleet.Datastore, logger kitlog.Log
 			if err != nil {
 				level.Error(logger).Log("databases-path", "creation failed, returning", "err", err)
 				sentry.CaptureException(err)
-				return stats, err // TODO: how should we handle these kinds of errors/exits?
+				return stats, err // TODO: how should we handle stats/errors here?
 			}
 		}
 	}
@@ -119,7 +119,7 @@ func DoVulnProcessing(ctx context.Context, ds fleet.Datastore, logger kitlog.Log
 	}
 	stats["do_async_vuln"] = string(statsData)
 
-	return stats, nil // TODO
+	return stats, nil // TODO: how should we handle stats/errors here?
 }
 
 func checkVulnerabilities(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,

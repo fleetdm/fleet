@@ -19,7 +19,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TODO: sometimes races?
+// TODO: fix races?
 func TestCronWebhooks(t *testing.T) {
 	ds := new(mock.Store)
 
@@ -93,8 +93,9 @@ func TestCronWebhooks(t *testing.T) {
 	assert.GreaterOrEqual(t, int32(2), atomic.LoadInt32(&endpointCalled))
 }
 
-// TestCronWebhooksLockDuration tests that the Lock method is being called
-// for the current webhook crons and that their duration is always one hour (see #3584).
+// TestCronWebhooksLockDuration tests that the Lock method is being called with a duration equal to the schedule interval
+// TODO: should the lock duration be the schedule interval or always be set to one hour (see #3584)?
+// TODO: fix races
 func TestCronWebhooksLockDuration(t *testing.T) {
 	ds := new(mock.Store)
 	interval := 1 * time.Second
@@ -162,6 +163,7 @@ func TestCronWebhooksLockDuration(t *testing.T) {
 	require.False(t, unknownName)
 }
 
+// TODO: fix races
 func TestCronWebhooksIntervalChange(t *testing.T) {
 	ds := new(mock.Store)
 
