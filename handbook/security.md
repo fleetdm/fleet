@@ -368,8 +368,7 @@ and fuzzing options.
 #### Dependabot
 As described in *Code security and analysis*, we use Dependabot for security updates to libraries.
 Our [dependabot.yml](https://github.com/fleetdm/fleet/blob/main/.github/dependabot.yml) only
-mentions GitHub actions. Through the configuration of the repository, security update to
-dependencies generate pull requests for everything in the repository. As GitHub actions have no impact on the Fleet software itself, we are
+mentions GitHub actions. Security updates to all other dependencies are performed by Dependaot automatically, even though we do not configure all package managers explicitly in the configuration file, as that is specified in the repository configuration. As GitHub actions have no impact on the Fleet software itself, we are
 simply more aggressive on updating actions even if the update does not resolve a vulnerability.
 
 ### Actions configuration
