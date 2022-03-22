@@ -269,7 +269,7 @@ spec:
 `)
 
 	runAppCheckErr(t, []string{"apply", "-f", name},
-		"applying fleet config: PATCH /api/v1/fleet/config received status 400 Bad request: json: unknown field \"enabled_software_inventory\"",
+		"applying fleet config: PATCH /api/latest/fleet/config received status 400 Bad request: json: unknown field \"enabled_software_inventory\"",
 	)
 	require.Nil(t, savedAppConfig)
 }

@@ -50,7 +50,7 @@ func (s *integrationDSTestSuite) TestLicenseExpiration() {
 			ts.s = &s.Suite
 			ts.token = ts.getTestAdminToken()
 
-			resp := ts.Do("GET", "/api/v1/fleet/config", nil, http.StatusOK)
+			resp := ts.Do("GET", "/api/latest/fleet/config", nil, http.StatusOK)
 			if tt.shouldHaveHeader {
 				require.Equal(t, fleet.HeaderLicenseValueExpired, resp.Header.Get(fleet.HeaderLicenseKey))
 			} else {

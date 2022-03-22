@@ -464,7 +464,7 @@ or provide an <address> argument to debug: fleetctl debug connection localhost:8
 			}
 
 			// Check that the server responds with expected responses (by
-			// making a POST to /api/v1/osquery/enroll with an invalid
+			// making a POST to /api/latest/osquery/enroll with an invalid
 			// secret).
 			if err := checkAPIEndpoint(c.Context, timeoutPerCheck, baseURL, cli); err != nil {
 				return fmt.Errorf("Fail: agent API endpoint: %w", err)
@@ -681,7 +681,7 @@ func checkAPIEndpoint(ctx context.Context, timeout time.Duration, baseURL *url.U
 		"Accept":       "application/json",
 	}
 
-	baseURL.Path = "/api/v1/osquery/enroll"
+	baseURL.Path = "/api/latest/osquery/enroll"
 	req, err := http.NewRequestWithContext(
 		ctx,
 		"POST",
