@@ -55,8 +55,8 @@ require (
 	github.com/jonboulle/clockwork v0.2.2 // indirect
 	github.com/kennygrant/sanitize v1.2.4 // indirect
 	github.com/kevinburke/go-bindata v3.22.0+incompatible
-	github.com/kolide/kit v0.0.0-20180421083548-36eb8dc43916
-	github.com/kolide/launcher v0.0.0-20180427153757-cb412b945cf7
+	github.com/kolide/kit v0.0.0-20191023141830-6312ecc11c23
+	github.com/kolide/launcher v0.11.25-0.20220321235155-c3e9480037d2
 	github.com/kolide/osquery-go v0.0.0-20200604192029-b019be7063ac
 	github.com/macadmins/osquery-extension v0.0.7
 	github.com/mattermost/xml-roundtrip-validator v0.0.0-20201213122252-bcd7e1b9601e
@@ -106,7 +106,7 @@ require (
 	golang.org/x/sys v0.0.0-20220319134239-a9b59b0215f8
 	google.golang.org/grpc v1.42.0
 	gopkg.in/guregu/null.v3 v3.4.0
-	gopkg.in/natefinch/lumberjack.v2 v2.0.0-20170531160350-a96e63847dc3
+	gopkg.in/natefinch/lumberjack.v2 v2.0.0
 	gopkg.in/yaml.v2 v2.4.0
 )
 

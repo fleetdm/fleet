@@ -18,6 +18,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/health"
 	"github.com/go-kit/kit/log"
+	"github.com/kolide/launcher/pkg/service"
 	"github.com/osquery/osquery-go/plugin/distributed"
 	"github.com/osquery/osquery-go/plugin/logger"
 )
@@ -29,7 +30,7 @@ type launcherWrapper struct {
 	healthCheckers map[string]health.Checker
 }
 
-func (svc *launcherWrapper) RequestEnrollment(ctx context.Context, enrollSecret, hostIdentifier string) (string, bool, error) {
+func (svc *launcherWrapper) RequestEnrollment(ctx context.Context, enrollSecret, hostIdentifier string, _ service.EnrollmentDetails) (string, bool, error) {
 	nodeKey, err := svc.tls.EnrollAgent(ctx, enrollSecret, hostIdentifier, map[string](map[string]string){})
 	if err != nil {
 		var authErr nodeInvalidErr

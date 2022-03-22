@@ -9,6 +9,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/health"
 	"github.com/fleetdm/fleet/v4/server/service/mock"
 	"github.com/go-kit/kit/log"
+	"github.com/kolide/launcher/pkg/service"
 	"github.com/osquery/osquery-go/plugin/distributed"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -18,7 +19,7 @@ func TestLauncherEnrollment(t *testing.T) {
 	launcher, tls := newTestService(t)
 	ctx := context.Background()
 
-	nodeKey, invalid, err := launcher.RequestEnrollment(ctx, "secret", "identifier")
+	nodeKey, invalid, err := launcher.RequestEnrollment(ctx, "secret", "identifier", service.EnrollmentDetails{})
 	require.Nil(t, err)
 	assert.True(t, tls.EnrollAgentFuncInvoked)
 	assert.False(t, invalid)
