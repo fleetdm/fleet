@@ -80,7 +80,7 @@ const TransferHostModal = ({
             </Link>
           </p>
         )}
-        <div className={"modal-btn-wrap"}>
+        <div className={`${baseClass}__button-wrap modal-btn-wrap`}>
           <Button onClick={onCancel} variant="inverse">
             Cancel
           </Button>

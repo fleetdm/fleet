@@ -68,7 +68,12 @@ const SoftwareTable = ({
 
       {software?.length ? (
         <>
-          {software && <SoftwareVulnCount softwareList={software} />}
+          {software && (
+            <SoftwareVulnCount
+              softwareList={software}
+              deviceUser={deviceUser}
+            />
+          )}
           {software && (
             <TableContainer
               columns={tableHeaders}

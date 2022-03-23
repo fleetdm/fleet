@@ -168,14 +168,16 @@ describe("Premium tier - Maintainer user", () => {
           cy.findByText(/apples/i).should("exist");
           cy.findByText(/oranges/i).click();
         });
-        cy.getAttached(".transfer-action-btn").click();
+        cy.getAttached(".transfer-host-modal__button-wrap")
+          .contains("button", /transfer/i)
+          .click();
         cy.findByText(/transferred to oranges/i).should("exist");
         cy.findByText(/team/i).next().contains("Oranges");
       });
       it("allows global maintainer to create an operating system policy", () => {
         cy.getAttached(".info-flex").within(() => {
           cy.findByText(/ubuntu/i).should("exist");
-          cy.getAttached(".host-details__os-policy-button").click();
+          cy.getAttached(".host-summary__os-policy-button").click();
         });
         cy.getAttached(".modal__content")
           .findByRole("button", { name: /create new policy/i })
@@ -190,7 +192,7 @@ describe("Premium tier - Maintainer user", () => {
         cy.getAttached(".host-details__action-button-container")
           .contains("button", /delete/i)
           .click();
-        cy.getAttached(".host-details__modal").within(() => {
+        cy.getAttached(".delete-host-modal__modal").within(() => {
           cy.findByText(/delete host/i).should("exist");
           cy.contains("button", /delete/i).should("exist");
           cy.getAttached(".modal__ex").click();

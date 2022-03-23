@@ -95,7 +95,7 @@ const RenderOSPolicyModal = ({
           type={"textarea"}
           value={osPolicy}
         />
-        <div className={"modal-btn-wrap"}>
+        <div className={`${baseClass}__button-wrap modal-btn-wrap`}>
           <Button onClick={onCancel} variant="inverse">
             Close
           </Button>
