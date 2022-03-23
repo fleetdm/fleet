@@ -9,7 +9,6 @@ import classnames from "classnames";
 import { isEmpty, pick, reduce } from "lodash";
 
 import deviceUserAPI from "services/entities/device_user";
-import hostAPI from "services/entities/hosts";
 import { IHost, IDeviceMappingResponse } from "interfaces/host";
 import { ISoftware } from "interfaces/software";
 // @ts-ignore
@@ -209,7 +208,7 @@ const DeviceUserPage = ({
       // method.
       setShowRefetchSpinner(true);
       try {
-        await hostAPI.refetch(host).then(() => {
+        await deviceUserAPI.refetch(deviceAuthToken).then(() => {
           setRefetchStartTime(Date.now());
           setTimeout(() => {
             refetchHostDetails();
