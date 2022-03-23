@@ -10,9 +10,9 @@ describe("ForgotPasswordPage - component", () => {
     expect(page.find("ForgotPasswordForm").length).toEqual(1);
   });
 
-  it("renders the email sent text when the email prop is present", () => {
+  it("renders the email sent text when the email state is present", () => {
     const email = "hi@thegnar.co";
-    const page = mount(<ForgotPasswordPage email={email} />);
+    const page = mount(<ForgotPasswordPage />).setState({ email });
 
     expect(page.find("ForgotPasswordForm").length).toEqual(0);
     expect(page.text()).toContain(`An email was sent to ${email}.`);

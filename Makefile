@@ -300,3 +300,14 @@ endif
 	tar xf $(TMP_DIR)/osquery_pkg_expanded/Payload --directory $(TMP_DIR)/osquery_pkg_payload_expanded
 	tar czf $(out-path)/osqueryd.app.tar.gz -C $(TMP_DIR)/osquery_pkg_payload_expanded/opt/osquery/lib osquery.app
 	rm -r $(TMP_DIR)
+
+# Build and generate desktop.app.tar.gz bundle.
+#
+# Usage:
+# FLEET_DESKTOP_APPLE_AUTHORITY=foo FLEET_DESKTOP_VERSION=0.0.1 make desktop-app-tar-gz
+desktop-app-tar-gz:
+ifneq ($(shell uname), Darwin)
+	@echo "Makefile target desktop-app-tar-gz is only supported on macOS"
+	@exit 1
+endif
+	go run ./tools/desktop macos

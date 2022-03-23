@@ -449,4 +449,7 @@ type Service interface {
 	DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error)
 	ModifyTeamPolicy(ctx context.Context, teamID uint, id uint, p ModifyPolicyPayload) (*Policy, error)
 	GetTeamPolicyByIDQueries(ctx context.Context, teamID uint, policyID uint) (*Policy, error)
+
+	/// Geolocation
+	LookupGeoIP(ctx context.Context, ip string) *GeoLocation
 }

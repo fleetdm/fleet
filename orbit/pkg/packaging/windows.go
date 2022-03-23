@@ -42,12 +42,8 @@ func BuildMSI(opt Options) (string, error) {
 	updateOpt.Targets = update.WindowsTargets
 
 	// Override default channels with the provided values.
-	orbit := updateOpt.Targets["orbit"]
-	orbit.Channel = opt.OrbitChannel
-	updateOpt.Targets["orbit"] = orbit
-	osqueryd := updateOpt.Targets["osqueryd"]
-	osqueryd.Channel = opt.OsquerydChannel
-	updateOpt.Targets["osqueryd"] = osqueryd
+	updateOpt.Targets.SetTargetChannel("orbit", opt.OrbitChannel)
+	updateOpt.Targets.SetTargetChannel("osqueryd", opt.OsquerydChannel)
 
 	updateOpt.ServerURL = opt.UpdateURL
 	if opt.UpdateRoots != "" {

@@ -8,6 +8,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
+	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/authzcheck"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/ratelimit"
@@ -79,6 +80,7 @@ func MakeHandler(svc fleet.Service, config config.FleetConfig, logger kitlog.Log
 	fleetAPIOptions := []kithttp.ServerOption{
 		kithttp.ServerBefore(
 			kithttp.PopulateRequestContext, // populate the request context with common fields
+
 			setRequestsContexts(svc),
 		),
 		kithttp.ServerErrorHandler(&errorHandler{logger}),
@@ -95,6 +97,8 @@ func MakeHandler(svc fleet.Service, config config.FleetConfig, logger kitlog.Log
 		r.Use(otmiddleware.Middleware("fleet"))
 	}
 
+	r.Use(publicIP)
+
 	attachFleetAPIRoutes(r, svc, config, logger, limitStore, fleetAPIOptions)
 
 	// Results endpoint is handled different due to websockets use
@@ -107,6 +111,16 @@ func MakeHandler(svc fleet.Service, config config.FleetConfig, logger kitlog.Log
 	addMetrics(r)
 
 	return r
+}
+
+func publicIP(handler http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ip := extractIP(r)
+		if ip != "" {
+			r.RemoteAddr = ip
+		}
+		handler.ServeHTTP(w, r.WithContext(publicip.NewContext(r.Context(), ip)))
+	})
 }
 
 // InstrumentHandler wraps the provided handler with prometheus metrics

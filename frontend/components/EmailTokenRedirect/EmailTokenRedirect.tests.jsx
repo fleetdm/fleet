@@ -1,5 +1,5 @@
 import React from "react";
-import { mount } from "enzyme";
+import { render } from "@testing-library/react";
 
 import { connectedComponent, reduxMockStore } from "test/helpers";
 import ConnectedEmailTokenRedirect, {
@@ -33,7 +33,7 @@ describe("EmailTokenRedirect - component", () => {
     it("calls the API when a token and user are present", () => {
       const mockStore = reduxMockStore(authStore);
 
-      mount(
+      render(
         connectedComponent(ConnectedEmailTokenRedirect, {
           mockStore,
           props: defaultProps,
@@ -49,7 +49,7 @@ describe("EmailTokenRedirect - component", () => {
     it("does not call the API when only a token is present", () => {
       const mockStore = reduxMockStore({ auth: {} });
 
-      mount(
+      render(
         connectedComponent(ConnectedEmailTokenRedirect, {
           mockStore,
           props: defaultProps,
@@ -64,11 +64,20 @@ describe("EmailTokenRedirect - component", () => {
     it("calls the API when a user is received", () => {
       const mockStore = reduxMockStore();
       const props = { dispatch: mockStore.dispatch, token };
-      const Component = mount(<EmailTokenRedirect {...props} />);
+      const { rerender } = render(<EmailTokenRedirect {...props} />);
 
       expect(Fleet.users.confirmEmailChange).not.toHaveBeenCalled();
 
-      Component.setProps({ user: userStub });
+      rerender(
+        <EmailTokenRedirect
+          {...{
+            ...props,
+            ...{
+              user: userStub,
+            },
+          }}
+        />
+      );
 
       expect(Fleet.users.confirmEmailChange).toHaveBeenCalledWith(
         userStub,

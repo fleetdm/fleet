@@ -34,6 +34,9 @@ export default {
   HOST_DETAILS: (host: IHost): string => {
     return `${URL_PREFIX}/hosts/${host.id}`;
   },
+  DEVICE_USER_DETAILS: (deviceAuthToken: any): string => {
+    return `${URL_PREFIX}/device/${deviceAuthToken}`;
+  },
   MANAGE_SOFTWARE: `${URL_PREFIX}/software/manage`,
   TEAM_DETAILS_MEMBERS: (teamId: number): string => {
     return `${URL_PREFIX}/settings/teams/${teamId}/members`;

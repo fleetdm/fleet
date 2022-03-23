@@ -36,8 +36,9 @@ describe("Hosts flow", () => {
           .should("exist")
           .click();
       });
+      cy.getAttached(".reveal-button").click();
       cy.getAttached('a[href*="#downloadEnrollSecret"]').click();
-      cy.getAttached('a[href*="#downloadCertificate"]').click();
+      cy.getAttached('a[href*="#downloadCertificate"]').last().click();
       cy.getAttached('a[href*="#downloadFlagfile"]').click();
 
       // NOTE: This test often fails when the Cypress downloads folder was not cleared properly
@@ -103,7 +104,7 @@ describe("Hosts flow", () => {
         cy.findByText(/filevault/i)
           .should("exist")
           .click();
-        cy.findByText(/run/i).should("exist").click();
+        cy.getAttached(".policy-form__run").should("exist").click();
         cy.findByText(/all hosts/i)
           .should("exist")
           .click()

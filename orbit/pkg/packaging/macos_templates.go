@@ -94,6 +94,12 @@ var macosLaunchdTemplate = template.Must(template.New("").Option("missingkey=err
 		<string>{{ .OsquerydChannel }}</string>
 		<key>ORBIT_UPDATE_URL</key>
 		<string>{{ .UpdateURL }}</string>
+		{{- if .Desktop }}
+		<key>ORBIT_FLEET_DESKTOP</key>
+		<string>true</string>
+		<key>ORBIT_DESKTOP_CHANNEL</key>
+		<string>{{ .DesktopChannel }}</string>
+		{{- end }}
 	</dict>
 	<key>KeepAlive</key>
 	<true/>
