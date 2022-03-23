@@ -64,11 +64,15 @@ const QueryResults = ({
     setTargetsRespondedPercent,
   ] = useState<number>(0);
 
+  console.log("campaign", campaign);
+
   useEffect(() => {
     const calculatePercent =
-      Math.round(
-        ((totalRowsCount + errors?.length) / targetsTotalCount) * 100
-      ) || 0;
+      campaign.totals && campaign.totals.online !== 0
+        ? Math.round(
+            (campaign.hosts_count.successful / campaign.totals.online) * 100
+          )
+        : 0;
     setTargetsRespondedPercent(calculatePercent);
   }, [totalRowsCount, errors]);
 
@@ -250,7 +254,8 @@ const QueryResults = ({
         <h1>{pageTitle}</h1>
         <div className={`${baseClass}__text-wrapper`}>
           <span>{targetsTotalCount}</span>&nbsp;hosts targeted&nbsp; (
-          {targetsRespondedPercent}%&nbsp;
+          {targetsRespondedPercent}% of{" "}
+          {campaign.totals ? campaign.totals.online : 0} online hosts&nbsp;
           <TooltipWrapper
             tipContent={`
                 Hosts that respond may<br /> return results, errors, or <br />no results`}
