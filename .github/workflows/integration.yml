@@ -14,8 +14,6 @@ on:
 
 jobs:
   gen:
-    permissions:
-      contents: none
     runs-on: ubuntu-latest
     outputs:
       subdomain: ${{ steps.gen.outputs.subdomain }}
@@ -28,9 +26,6 @@ jobs:
         echo "::set-output name=address::https://fleet-test-$UUID.fleetuem.com"
   
   run-server:
-    permissions:
-      actions: read  # for dawidd6/action-download-artifact to query and download artifacts
-      pull-requests: read  # for dawidd6/action-download-artifact to query commit hash
     runs-on: ubuntu-latest
     needs: gen
     steps:
@@ -87,9 +82,6 @@ jobs:
       run: cloudflared tunnel --origincert cert.pem delete --force ${{ needs.gen.outputs.subdomain }}    
 
   login:
-   permissions:
-     actions: read  # for dawidd6/action-download-artifact to query and download artifacts
-     pull-requests: read  # for dawidd6/action-download-artifact to query commit hash
    runs-on: ubuntu-latest
    needs: gen
    outputs:
@@ -121,8 +113,6 @@ jobs:
         echo "::set-output name=token::$TOKEN"
       
   orbit-macos:
-    permissions:
-      contents: none
     timeout-minutes: 15
     strategy:
       matrix:
@@ -153,9 +143,6 @@ jobs:
         done
 
   orbit-ubuntu:
-    permissions:
-      actions: read  # for dawidd6/action-download-artifact to query and download artifacts
-      pull-requests: read  # for dawidd6/action-download-artifact to query commit hash
     timeout-minutes: 15
     strategy:
       matrix:
@@ -232,8 +219,6 @@ jobs:
       uses: mxschmitt/action-tmate@8b4e4ac71822ed7e0ad5fb3d1c33483e9e8fb270 # v3
 
   orbit-windows:
-    permissions:
-      contents: none
     timeout-minutes: 15
     strategy:
       matrix:

@@ -24,7 +24,6 @@ on:
   workflow_dispatch: # Manual
       
 permissions:
-    actions: read
     contents: read
 
 jobs:
