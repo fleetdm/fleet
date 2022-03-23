@@ -64,8 +64,6 @@ const QueryResults = ({
     setTargetsRespondedPercent,
   ] = useState<number>(0);
 
-  console.log("campaign", campaign);
-
   useEffect(() => {
     const calculatePercent =
       campaign.totals && campaign.totals.online !== 0
@@ -74,7 +72,7 @@ const QueryResults = ({
           )
         : 0;
     setTargetsRespondedPercent(calculatePercent);
-  }, [totalRowsCount, errors]);
+  }, [campaign]);
 
   useEffect(() => {
     if (isQueryFinished) {
