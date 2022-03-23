@@ -69,7 +69,11 @@ const DeviceUserPage = ({
       refetchOnReconnect: false,
       refetchOnWindowFocus: false,
       retry: false,
-      select: (data: IDeviceMappingResponse) => data.device_mapping,
+      select: (data: IDeviceMappingResponse) =>
+        data.device_mapping &&
+        data.device_mapping.filter(
+          (deviceUser) => deviceUser.email && deviceUser.email.length
+        ),
     }
   );
 
@@ -298,7 +302,7 @@ const DeviceUserPage = ({
             ) : (
               <span className={`${baseClass}__device-mapping`}>
                 <span
-                  className="device-user"
+                  className="device-user-list"
                   data-tip
                   data-for="device-user-tooltip"
                 >
