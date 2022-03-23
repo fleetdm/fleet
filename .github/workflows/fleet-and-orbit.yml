@@ -22,8 +22,6 @@ permissions:
 
 jobs:
   gen:
-    permissions:
-      contents: none
     runs-on: ubuntu-latest
     outputs:
       subdomain: ${{ steps.gen.outputs.subdomain }}

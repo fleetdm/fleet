@@ -10,8 +10,6 @@ permissions:
 
 jobs:
   test-preview:
-    permissions:
-      contents: none
     timeout-minutes: 60
     strategy:
       matrix:
