@@ -30,7 +30,7 @@ _**Note if using [terraform reference architecture](https://github.com/fleetdm/f
 assume On-Demand pricing (savings are available through Reserved Instances). Calculations do not take into account NAT gateway charges or other networking related ingress/egress costs.**_
 
 ### Example configuration breakpoints
-#### [Up to 1000 hosts](https://calculator.aws/#/estimate?id=ae7d7ddec64bb979f3f6611d23616b1dff0e8dbd)
+#### [Up to 2500 hosts](https://calculator.aws/#/estimate?id=591e3b8176acb074f40959b2ed651947fc8e8388)
 
 | Fleet instances | CPU Units     | RAM |
 |-----------------|---------------|-----|
@@ -38,14 +38,14 @@ assume On-Demand pricing (savings are available through Reserved Instances). Cal
 
 | Dependencies | Version                 | Instance type |
 |--------------|-------------------------|---------------|
-| Redis        | 6                       | t4g.small     |
-| MySQL        | 5.7.mysql_aurora.2.10.0 | db.t3.small   |        
+| Redis        | 6                       | db.t4g.medium     |
+| MySQL        | 5.7.mysql_aurora.2.10.0 | db.t4g.small   |        
 
-#### [Up to 25000 hosts](https://calculator.aws/#/estimate?id=4a3e3168275967d1e79a3d1fcfedc5b17d67a271)
+#### [Up to 25000 hosts](https://calculator.aws/#/estimate?id=855c3796002c329de1cfa7d4628a9b1cc03d1db6)
 
 | Fleet instances | CPU Units     | RAM |
 |-----------------|---------------|-----|
-| 10 Fargate task  | 1024 CPU Units | 4GB |
+| 5 Fargate task  | 1024 CPU Units | 4GB |
 
 | Dependencies | Version                 | Instance type |
 |--------------|-------------------------|---------------|
@@ -53,16 +53,16 @@ assume On-Demand pricing (savings are available through Reserved Instances). Cal
 | MySQL        | 5.7.mysql_aurora.2.10.0 | db.r6g.large  |
 
 
-#### [Up to 150000 hosts](https://calculator.aws/#/estimate?id=6a852ef873c0902f0c953045dec3e29fcd32aef8)
+#### [Up to 150000 hosts](https://calculator.aws/#/estimate?id=f40ef392f51175a388b3a9cce5d2acc1fa745181)
 
 | Fleet instances | CPU Units      | RAM |
 |-----------------|----------------|-----|
-| 30 Fargate task | 1024 CPU Units | 4GB |
+| 20 Fargate task | 1024 CPU Units | 4GB |
 
 | Dependencies | Version                 | Instance type  | Nodes |
 |--------------|-------------------------|----------------|-------|
 | Redis        | 6                       | m6g.large      | 3     |
-| MySQL        | 5.7.mysql_aurora.2.10.0 | db.m6g.8xlarge | 1     |
+| MySQL        | 5.7.mysql_aurora.2.10.0 | db.r6g.8xlarge | 2     |
 
 
 ## Cloud providers
