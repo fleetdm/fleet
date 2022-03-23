@@ -324,3 +324,10 @@ func mockRouteHandler(route *mux.Route, status int) (verb, path string, err erro
 	route.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(status) })
 	return meths[0], path, nil
 }
+
+func TestOpenAPIGeneration(t *testing.T) {
+	ds := new(mock.Store)
+	svc := newTestService(t, ds, nil, nil)
+	limitStore, _ := memstore.New(0)
+	MakeHandler(svc, config.TestConfig(), kitlog.NewNopLogger(), limitStore)
+}

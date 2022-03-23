@@ -12,6 +12,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/authzcheck"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/ratelimit"
+	"github.com/fleetdm/fleet/v4/server/service/openapi"
 	"github.com/go-kit/kit/endpoint"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
@@ -208,6 +209,9 @@ var (
 	forgotPasswordRateLimit = throttled.PerHour(10)
 	loginRateLimit          = throttled.PerMin(10)
 )
+
+// TODO(mna): this is temporary, just to test out openapi generation.
+var openAPIDocument openapi.Document
 
 func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetConfig,
 	logger kitlog.Logger, limitStore throttled.GCRAStore, opts []kithttp.ServerOption) {

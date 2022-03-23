@@ -400,10 +400,12 @@ func (e *authEndpointer) handle(path string, f handlerFunc, v interface{}, verb 
 	versionedPath := strings.Replace(path, "/_version_/", fmt.Sprintf("/{fleetversion:(?:%s)}/", strings.Join(versions, "|")), 1)
 	nameAndVerb := getNameFromPathAndVerb(verb, path)
 	endpoint := e.makeEndpoint(f, v)
+	openAPIDocument.RegisterEndpoint(nameAndVerb, verb, versionedPath, v)
 	e.r.Handle(versionedPath, endpoint).Name(nameAndVerb).Methods(verb)
 	for _, alias := range e.alternativePaths {
 		nameAndVerb := getNameFromPathAndVerb(verb, alias)
 		versionedPath := strings.Replace(alias, "/_version_/", fmt.Sprintf("/{fleetversion:(?:%s)}/", strings.Join(versions, "|")), 1)
+		openAPIDocument.RegisterEndpoint(nameAndVerb, verb, versionedPath, v)
 		e.r.Handle(versionedPath, endpoint).Name(nameAndVerb).Methods(verb)
 	}
 }
