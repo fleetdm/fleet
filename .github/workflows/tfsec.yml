@@ -8,7 +8,7 @@ on:
   pull_request:
     paths:
       - '**.tf'
-    workflow_dispatch: # Manual dispatch
+  workflow_dispatch: # Manual dispatch
 jobs:
   tfsec:
     name: tfsec sarif report
