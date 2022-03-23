@@ -420,7 +420,48 @@ If you go back to [https://localhost:8080/hosts/manage](https://localhost:8080/h
 
 ## Deploying Fleet on Kubernetes
 
-In this guide, we're going to install Fleet and all of its application dependencies on a Kubernetes cluster. Kubernetes is a container orchestration tool that was open sourced by Google in 2014.
+In this guide, we're going to focus on deploying Fleet only on a Kubernetes cluster. Kubernetes is a container orchestration tool that was open sourced by Google in 2014.
+
+We will assume you have `kubectl` all set up and optionally you have minikube to test your deployment locally on your machine.
+
+To deploy the Fleet server we will set up a `deployment.yml` file with the following specifications:
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fleet-deployment
+  labels:
+    app: fleet
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: fleet
+  template:
+    metadata:
+      labels:
+        app: fleet
+    spec:
+      containers:
+      - name: fleet
+        image: fleetdm/fleet
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "250m"
+          limits:
+            memory: "128Mi"
+            cpu: "500m"
+        ports:
+        - containerPort: 3000
+
+```
+
+Let's tell Kubernetes to create the cluster by running the below command
+
+`kubectl apply -f ./deployment.yml`
+
 
 ### Installing infrastructure dependencies
 
