@@ -45,7 +45,7 @@ func main() {
 	onReady := func() {
 		log.Println("ready")
 
-		systray.SetIcon(icoBytes)
+		systray.SetTemplateIcon(icoBytes, icoBytes)
 		systray.SetTooltip("Fleet Device Management Menu.")
 		myDeviceItem := systray.AddMenuItem("Initializing...", "")
 		myDeviceItem.Disable()
