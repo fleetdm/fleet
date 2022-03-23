@@ -1718,7 +1718,8 @@ FROM
 GROUP BY
   team_id
 ON DUPLICATE KEY UPDATE
-  json_value = VALUES(json_value)
+  json_value = VALUES(json_value),
+  updated_at = CURRENT_TIMESTAMP
 `
 	_, err := ds.writer.ExecContext(ctx, query)
 	if err != nil {
