@@ -66,10 +66,8 @@ const QueryResults = ({
 
   useEffect(() => {
     const calculatePercent =
-      campaign.totals && campaign.totals.online !== 0
-        ? Math.round(
-            (campaign.hosts_count.total / campaign.totals.online) * 100
-          )
+      targetsTotalCount !== 0
+        ? Math.round((campaign.hosts_count.total / targetsTotalCount) * 100)
         : 0;
     setTargetsRespondedPercent(calculatePercent);
   }, [campaign]);
@@ -252,8 +250,7 @@ const QueryResults = ({
         <h1>{pageTitle}</h1>
         <div className={`${baseClass}__text-wrapper`}>
           <span>{targetsTotalCount}</span>&nbsp;hosts targeted&nbsp; (
-          {targetsRespondedPercent}% of{" "}
-          {campaign.totals ? campaign.totals.online : 0} online hosts&nbsp;
+          {targetsRespondedPercent}%&nbsp;
           <TooltipWrapper
             tipContent={`
                 Hosts that respond may<br /> return results, errors, or <br />no results`}
@@ -269,10 +266,12 @@ const QueryResults = ({
           <TabList>
             <Tab className={firstTabClass}>{NAV_TITLES.RESULTS}</Tab>
             <Tab disabled={!errors?.length}>
-              {errors?.length > 0 && (
-                <span className="count">{errors.length}</span>
-              )}
-              {NAV_TITLES.ERRORS}
+              <span>
+                {errors?.length > 0 && (
+                  <span className="count">{errors.length}</span>
+                )}
+                {NAV_TITLES.ERRORS}
+              </span>
             </Tab>
           </TabList>
           <TabPanel>{renderTable()}</TabPanel>
