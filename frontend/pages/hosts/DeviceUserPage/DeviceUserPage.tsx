@@ -202,22 +202,24 @@ const DeviceUserPage = ({
   }, [showInfoModal, setShowInfoModal]);
 
   const onRefetchHost = async () => {
-    // Once the user clicks to refetch, the refetch loading spinner should continue spinning
-    // unless there is an error. The spinner state is also controlled in the fullyReloadHost
-    // method.
-    setShowRefetchSpinner(true);
-    try {
-      await deviceUserAPI.refetch(deviceAuthToken).then(() => {
-        setRefetchStartTime(Date.now());
-        setTimeout(() => {
-          refetchHostDetails();
-          refetchExtensions();
-        }, 1000);
-      });
-    } catch (error) {
-      console.log(error);
-      dispatch(renderFlash("error", `Host "${host.hostname}" refetch error`));
-      setShowRefetchSpinner(false);
+    if (host) {
+      // Once the user clicks to refetch, the refetch loading spinner should continue spinning
+      // unless there is an error. The spinner state is also controlled in the fullyReloadHost
+      // method.
+      setShowRefetchSpinner(true);
+      try {
+        await deviceUserAPI.refetch(deviceAuthToken).then(() => {
+          setRefetchStartTime(Date.now());
+          setTimeout(() => {
+            refetchHostDetails();
+            refetchExtensions();
+          }, 1000);
+        });
+      } catch (error) {
+        console.log(error);
+        dispatch(renderFlash("error", `Host "${host.hostname}" refetch error`));
+        setShowRefetchSpinner(false);
+      }
     }
   };
 
