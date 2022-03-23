@@ -38,7 +38,7 @@ assume On-Demand pricing (savings are available through Reserved Instances). Cal
 
 | Dependencies | Version                 | Instance type |
 |--------------|-------------------------|---------------|
-| Redis        | 6                       | db.t4g.medium     |
+| Redis        | 5.0.6                   | db.t4g.medium     |
 | MySQL        | 5.7.mysql_aurora.2.10.0 | db.t4g.small   |        
 
 #### [Up to 25000 hosts](https://calculator.aws/#/estimate?id=855c3796002c329de1cfa7d4628a9b1cc03d1db6)
@@ -49,7 +49,7 @@ assume On-Demand pricing (savings are available through Reserved Instances). Cal
 
 | Dependencies | Version                 | Instance type |
 |--------------|-------------------------|---------------|
-| Redis        | 6                       |  m6g.large    |
+| Redis        | 5.0.6                   |  m6g.large    |
 | MySQL        | 5.7.mysql_aurora.2.10.0 | db.r6g.large  |
 
 
@@ -61,7 +61,7 @@ assume On-Demand pricing (savings are available through Reserved Instances). Cal
 
 | Dependencies | Version                 | Instance type  | Nodes |
 |--------------|-------------------------|----------------|-------|
-| Redis        | 6                       | m6g.large      | 3     |
+| Redis        | 5.0.6                   | m6g.large      | 3     |
 | MySQL        | 5.7.mysql_aurora.2.10.0 | db.r6g.8xlarge | 2     |
 
 
