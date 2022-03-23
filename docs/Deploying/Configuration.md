@@ -1970,7 +1970,10 @@ We recommend that you use an infrastructure configuration management tool to man
 
 Once you've verified that you can run Fleet in your shell, you'll likely want to keep Fleet running in the background and after the server reboots. To do that we recommend using [systemd](https://coreos.com/os/docs/latest/getting-started-with-systemd.html).
 
-Below is a sample unit file.
+Below is a sample unit file, assuming a `fleet` user exists on the system. Any user with sufficient
+permissions to execute the binary, open the configuration files, and write the log files can be
+used. It is also possible to run as `root`, though as with any other web server it is discouraged
+to run Fleet as `root`.
 
 ```
 
@@ -1979,6 +1982,8 @@ Description=Fleet
 After=network.target
 
 [Service]
+User=fleet
+Group=fleet
 LimitNOFILE=8192
 ExecStart=/usr/local/bin/fleet serve \
   --mysql_address=127.0.0.1:3306 \

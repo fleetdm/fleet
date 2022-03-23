@@ -309,6 +309,23 @@ func loadHostUsersDB(ctx context.Context, db sqlx.QueryerContext, hostID uint) (
 	return users, nil
 }
 
+// hostRefs are the tables referenced by hosts.
+//
+// Defined here for testing purposes.
+var hostRefs = []string{
+	"host_seen_times",
+	"host_software",
+	"host_users",
+	"host_emails",
+	"host_additional",
+	"scheduled_query_stats",
+	"label_membership",
+	"policy_membership",
+	"host_mdm",
+	"host_munki_info",
+	"host_device_auth",
+}
+
 func (ds *Datastore) DeleteHost(ctx context.Context, hid uint) error {
 	delHostRef := func(tx sqlx.ExtContext, table string) error {
 		_, err := tx.ExecContext(ctx, fmt.Sprintf(`DELETE FROM %s WHERE host_id=?`, table), hid)
@@ -322,19 +339,6 @@ func (ds *Datastore) DeleteHost(ctx context.Context, hid uint) error {
 		_, err := tx.ExecContext(ctx, `DELETE FROM hosts WHERE id = ?`, hid)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "delete host")
-		}
-
-		hostRefs := []string{
-			"host_seen_times",
-			"host_software",
-			"host_users",
-			"host_emails",
-			"host_additional",
-			"scheduled_query_stats",
-			"label_membership",
-			"policy_membership",
-			"host_mdm",
-			"host_munki_info",
 		}
 
 		for _, table := range hostRefs {
@@ -1017,41 +1021,11 @@ func (ds *Datastore) TotalAndUnseenHostsSince(ctx context.Context, daysCount int
 }
 
 func (ds *Datastore) DeleteHosts(ctx context.Context, ids []uint) error {
-	_, err := ds.deleteEntities(ctx, hostsTable, ids)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "deleting hosts")
+	for _, id := range ids {
+		if err := ds.DeleteHost(ctx, id); err != nil {
+			return ctxerr.Wrapf(ctx, err, "delete host %d", id)
+		}
 	}
-
-	query, args, err := sqlx.In(`DELETE FROM host_seen_times WHERE host_id in (?)`, ids)
-	if err != nil {
-		return ctxerr.Wrapf(ctx, err, "building delete host_seen_times query")
-	}
-
-	_, err = ds.writer.ExecContext(ctx, query, args...)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "deleting host seen times")
-	}
-
-	query, args, err = sqlx.In(`DELETE FROM host_emails WHERE host_id in (?)`, ids)
-	if err != nil {
-		return ctxerr.Wrapf(ctx, err, "building delete host_emails query")
-	}
-
-	_, err = ds.writer.ExecContext(ctx, query, args...)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "deleting host emails")
-	}
-
-	query, args, err = sqlx.In(`DELETE FROM pack_targets WHERE type=? AND target_id in (?)`, fleet.TargetHost, ids)
-	if err != nil {
-		return ctxerr.Wrapf(ctx, err, "building delete pack_targets query")
-	}
-
-	_, err = ds.writer.ExecContext(ctx, query, args...)
-	if err != nil {
-		return ctxerr.Wrapf(ctx, err, "deleting pack_targets for hosts")
-	}
-
 	return nil
 }
 

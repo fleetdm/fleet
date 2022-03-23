@@ -1,27 +1,14 @@
-variable "maintenance_window" {
-  default = ""
-}
-variable "engine_version" {
-  default = "5.0.6"
-}
-variable "number_cache_clusters" {
-  default = 3
-}
-variable "redis_instance" {
-  default = "cache.m5.large"
-}
 resource "aws_elasticache_replication_group" "default" {
   availability_zones            = ["us-east-2a", "us-east-2b", "us-east-2c"]
   engine                        = "redis"
-  parameter_group_name          = "default.redis5.0"
+  parameter_group_name          = aws_elasticache_parameter_group.default.id
   subnet_group_name             = module.vpc.elasticache_subnet_group_name
   security_group_ids            = [aws_security_group.redis.id, aws_security_group.backend.id]
   replication_group_id          = "fleetdm-redis"
-  number_cache_clusters         = var.number_cache_clusters
-  node_type                     = var.redis_instance
-  engine_version                = var.engine_version
+  number_cache_clusters         = 3
+  node_type                     = "cache.m6g.large"
+  engine_version                = "5.0.6"
   port                          = "6379"
-  maintenance_window            = var.maintenance_window
   snapshot_retention_limit      = 0
   automatic_failover_enabled    = true
   at_rest_encryption_enabled    = false
@@ -29,6 +16,20 @@ resource "aws_elasticache_replication_group" "default" {
   apply_immediately             = true
   replication_group_description = "fleetdm-redis"
 
+}
+
+resource "aws_elasticache_parameter_group" "default" {
+  name   = "fleetdm-redis-foobar"
+  family = "redis5.0"
+
+  parameter {
+    name  = "client-output-buffer-limit-pubsub-hard-limit"
+    value = "0"
+  }
+  parameter {
+    name  = "client-output-buffer-limit-pubsub-soft-limit"
+    value = "0"
+  }
 }
 
 resource "aws_security_group" "redis" {

@@ -47,7 +47,7 @@ class LoginForm extends Component {
 
     let legend = "Single sign on";
     if (idpName !== "") {
-      legend = `Sign On With ${idpName}`;
+      legend = `Sign on with ${idpName}`;
     }
     if (imageURL !== "") {
       legend = showLegendWithImage(imageURL, idpName);
@@ -96,7 +96,7 @@ class LoginForm extends Component {
               className={`${baseClass}__forgot-link`}
               to={paths.FORGOT_PASSWORD}
             >
-              Forgot Password?
+              Forgot password?
             </Link>
           </div>
           <Button

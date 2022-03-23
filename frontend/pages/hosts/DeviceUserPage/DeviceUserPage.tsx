@@ -9,12 +9,7 @@ import classnames from "classnames";
 import { isEmpty, pick, reduce } from "lodash";
 
 import deviceUserAPI from "services/entities/device_user";
-import hostAPI from "services/entities/hosts";
-import {
-  IHost,
-  IDeviceMappingResponse,
-  IMacadminsResponse,
-} from "interfaces/host";
+import { IHost, IDeviceMappingResponse } from "interfaces/host";
 import { ISoftware } from "interfaces/software";
 // @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions";
@@ -74,26 +69,16 @@ const DeviceUserPage = ({
       refetchOnReconnect: false,
       refetchOnWindowFocus: false,
       retry: false,
-      select: (data: IDeviceMappingResponse) => data.device_mapping,
-    }
-  );
-
-  const { data: macadmins, refetch: refetchMacadmins } = useQuery(
-    ["macadmins", deviceAuthToken],
-    () => deviceUserAPI.loadHostDetailsExtension(deviceAuthToken, "macadmins"),
-    {
-      enabled: !!deviceAuthToken,
-      refetchOnMount: false,
-      refetchOnReconnect: false,
-      refetchOnWindowFocus: false,
-      retry: false,
-      select: (data: IMacadminsResponse) => data.macadmins,
+      select: (data: IDeviceMappingResponse) =>
+        data.device_mapping &&
+        data.device_mapping.filter(
+          (deviceUser) => deviceUser.email && deviceUser.email.length
+        ),
     }
   );
 
   const refetchExtensions = () => {
     deviceMapping !== null && refetchDeviceMapping();
-    macadmins !== null && refetchMacadmins();
   };
 
   const {
@@ -227,7 +212,7 @@ const DeviceUserPage = ({
       // method.
       setShowRefetchSpinner(true);
       try {
-        await hostAPI.refetch(host).then(() => {
+        await deviceUserAPI.refetch(deviceAuthToken).then(() => {
           setRefetchStartTime(Date.now());
           setTimeout(() => {
             refetchHostDetails();
@@ -317,7 +302,7 @@ const DeviceUserPage = ({
             ) : (
               <span className={`${baseClass}__device-mapping`}>
                 <span
-                  className="device-user"
+                  className="device-user-list"
                   data-tip
                   data-for="device-user-tooltip"
                 >

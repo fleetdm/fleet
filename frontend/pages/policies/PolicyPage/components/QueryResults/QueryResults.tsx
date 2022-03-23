@@ -66,11 +66,11 @@ const QueryResults = ({
 
   useEffect(() => {
     const calculatePercent =
-      Math.round(
-        ((totalRowsCount + errors?.length) / targetsTotalCount) * 100
-      ) || 0;
+      targetsTotalCount !== 0
+        ? Math.round((campaign.hosts_count.total / targetsTotalCount) * 100)
+        : 0;
     setTargetsRespondedPercent(calculatePercent);
-  }, [totalRowsCount, errors]);
+  }, [campaign]);
 
   useEffect(() => {
     if (isQueryFinished) {
@@ -266,10 +266,12 @@ const QueryResults = ({
           <TabList>
             <Tab className={firstTabClass}>{NAV_TITLES.RESULTS}</Tab>
             <Tab disabled={!errors?.length}>
-              {errors?.length > 0 && (
-                <span className="count">{errors.length}</span>
-              )}
-              {NAV_TITLES.ERRORS}
+              <span>
+                {errors?.length > 0 && (
+                  <span className="count">{errors.length}</span>
+                )}
+                {NAV_TITLES.ERRORS}
+              </span>
             </Tab>
           </TabList>
           <TabPanel>{renderTable()}</TabPanel>

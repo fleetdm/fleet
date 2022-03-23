@@ -19,7 +19,7 @@ To add new updates (osqueryd or orbit), use `push_target.sh`.
 E.g. to add a new version of `orbit` for Windows:
 ```sh
 # Compile a new version of Orbit:
-GOOS=windows go build -o orbit-windows.exe ./orbit/cmd/orbit
+GOOS=windows GOARCH=amd64 go build -o orbit-windows.exe ./orbit/cmd/orbit
 
 # Push the compiled Orbit as a new version:
 ./tools/tuf/push_target.sh windows orbit orbit-windows.exe 43

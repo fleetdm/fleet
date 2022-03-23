@@ -5,7 +5,7 @@ import { intersection, isPlainObject } from "lodash";
 import { osqueryTables } from "utilities/osquery_tables";
 import {
   IOsqueryPlatform,
-  EXTENSION_TABLES,
+  MACADMINS_EXTENSION_TABLES,
   SUPPORTED_PLATFORMS,
 } from "interfaces/platform";
 
@@ -40,7 +40,7 @@ const platformsByTableDictionary: IPlatformDictionay = (osqueryTables as IOsquer
   {}
 );
 
-Object.entries(EXTENSION_TABLES).forEach(([tableName, platforms]) => {
+Object.entries(MACADMINS_EXTENSION_TABLES).forEach(([tableName, platforms]) => {
   platformsByTableDictionary[tableName] = platforms;
 });
 

@@ -196,6 +196,10 @@ type Datastore interface {
 
 	TotalAndUnseenHostsSince(ctx context.Context, daysCount int) (total int, unseen int, err error)
 
+	// DeleteHosts deletes associated tables for multiple hosts.
+	//
+	// It atomically deletes each host but if it returns an error, some of the hosts may be
+	// deleted and others not.
 	DeleteHosts(ctx context.Context, ids []uint) error
 
 	CountHosts(ctx context.Context, filter TeamFilter, opt HostListOptions) (int, error)
