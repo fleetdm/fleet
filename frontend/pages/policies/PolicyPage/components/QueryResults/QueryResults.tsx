@@ -68,7 +68,7 @@ const QueryResults = ({
     const calculatePercent =
       campaign.totals && campaign.totals.online !== 0
         ? Math.round(
-            (campaign.hosts_count.successful / campaign.totals.online) * 100
+            (campaign.hosts_count.total / campaign.totals.online) * 100
           )
         : 0;
     setTargetsRespondedPercent(calculatePercent);
