@@ -899,15 +899,26 @@ type osVersionsRequest struct {
 	Platform *string `query:"platform,optional"`
 }
 
+type osVersionsResponse struct {
+	CountsUpdatedAt time.Time         `json:"counts_updated_at,omitempty"`
+	OSVersions      []fleet.OSVersion `json:"os_versions,omitempty"`
+	Err             error             `json:"error,omitempty"`
+}
+
+func (r osVersionsResponse) error() error { return r.Err }
+
 func osVersionsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
 	req := request.(*osVersionsRequest)
 
 	osVersions, err := svc.OSVersions(ctx, req.TeamID, req.Platform)
 	if err != nil {
-		return nil, err
+		return &osVersionsResponse{Err: err}, nil
 	}
 
-	return osVersions, nil
+	return &osVersionsResponse{
+		CountsUpdatedAt: osVersions.CountsUpdatedAt,
+		OSVersions:      osVersions.OSVersions,
+	}, nil
 }
 
 func (svc *Service) OSVersions(ctx context.Context, teamID *uint, platform *string) (*fleet.OSVersions, error) {
