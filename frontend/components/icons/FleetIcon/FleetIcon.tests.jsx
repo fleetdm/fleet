@@ -1,10 +1,13 @@
 import React from "react";
-import { mount } from "enzyme";
+import { render } from "@testing-library/react";
 
 import FleetIcon from "./FleetIcon";
 
 describe("FleetIcon - component", () => {
   it("renders", () => {
-    expect(mount(<FleetIcon name="success-check" />)).toBeTruthy();
+    const { container } = render(<FleetIcon name="success-check" />);
+    expect(
+      container.querySelector(".fleeticon-success-check")
+    ).toBeInTheDocument();
   });
 });
