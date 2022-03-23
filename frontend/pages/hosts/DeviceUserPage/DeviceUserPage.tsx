@@ -9,7 +9,6 @@ import classnames from "classnames";
 import { isEmpty, pick, reduce } from "lodash";
 
 import deviceUserAPI from "services/entities/device_user";
-import hostAPI from "services/entities/hosts";
 import { IHost, IDeviceMappingResponse } from "interfaces/host";
 import { ISoftware } from "interfaces/software";
 // @ts-ignore
@@ -203,24 +202,22 @@ const DeviceUserPage = ({
   }, [showInfoModal, setShowInfoModal]);
 
   const onRefetchHost = async () => {
-    if (host) {
-      // Once the user clicks to refetch, the refetch loading spinner should continue spinning
-      // unless there is an error. The spinner state is also controlled in the fullyReloadHost
-      // method.
-      setShowRefetchSpinner(true);
-      try {
-        await hostAPI.refetch(host).then(() => {
-          setRefetchStartTime(Date.now());
-          setTimeout(() => {
-            refetchHostDetails();
-            refetchExtensions();
-          }, 1000);
-        });
-      } catch (error) {
-        console.log(error);
-        dispatch(renderFlash("error", `Host "${host.hostname}" refetch error`));
-        setShowRefetchSpinner(false);
-      }
+    // Once the user clicks to refetch, the refetch loading spinner should continue spinning
+    // unless there is an error. The spinner state is also controlled in the fullyReloadHost
+    // method.
+    setShowRefetchSpinner(true);
+    try {
+      await deviceUserAPI.refetch(deviceAuthToken).then(() => {
+        setRefetchStartTime(Date.now());
+        setTimeout(() => {
+          refetchHostDetails();
+          refetchExtensions();
+        }, 1000);
+      });
+    } catch (error) {
+      console.log(error);
+      dispatch(renderFlash("error", `Host "${host.hostname}" refetch error`));
+      setShowRefetchSpinner(false);
     }
   };
 
