@@ -45,7 +45,7 @@ const AddPolicyModal = ({
     setLastEditedQueryBody(selectedPolicy.query);
     setLastEditedQueryResolution(selectedPolicy.resolution);
     setPolicyTeamId(teamId);
-    setLastEditedQueryPlatform(selectedPolicy.platform || "");
+    setLastEditedQueryPlatform(selectedPolicy.platform || null);
     router.push(PATHS.NEW_POLICY);
   };
 
