@@ -37,6 +37,13 @@ export interface IGetMeResponse {
 }
 
 export default {
+  confirmEmailChange: (currentUser: IUser, token: string) => {
+    const { CONFIRM_EMAIL_CHANGE } = endpoints;
+
+    return sendRequest("GET", CONFIRM_EMAIL_CHANGE(token)).then((response) => {
+      return { ...currentUser, email: response.new_email };
+    });
+  },
   create: (formData: ICreateUserWithInvitationFormData) => {
     const { USERS } = endpoints;
 
