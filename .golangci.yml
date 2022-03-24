@@ -4,6 +4,7 @@ linters:
     - deadcode
     - depguard
     - gosec
+    - gocritic
     - gofmt
     - govet
     - ineffassign
