@@ -192,7 +192,6 @@
       margin-right: $pad-small;
 
       .refetch-btn {
-        color: $core-vibrant-blue;
         cursor: default;
         font-size: $x-small;
         height: 38px;
@@ -257,11 +256,20 @@
   }
 
   .component__tabs-wrapper {
+    background-color: $ui-off-white;
     width: 100%;
 
     .react-tabs__tab {
       padding: 6px 0px 16px 0px;
       margin-right: $pad-xxlarge;
+    }
+
+    .react-tabs__tab--selected {
+      background-color: $ui-off-white;
+    }
+
+    .focus-visible {
+      background-color: $ui-vibrant-blue-10;
     }
 
     .section {
