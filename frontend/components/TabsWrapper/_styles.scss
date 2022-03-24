@@ -19,6 +19,7 @@
 
       &:focus {
         box-shadow: none;
+        outline: 0;
         background-color: $ui-vibrant-blue-10;
 
         &:after {

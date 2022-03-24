@@ -3,7 +3,7 @@
     background-color: transparent;
     height: 50px;
 
-    &:focus {
+    &.focus-visible {
       border: 1px solid $ui-vibrant-blue-10;
       border-right: 0;
     }

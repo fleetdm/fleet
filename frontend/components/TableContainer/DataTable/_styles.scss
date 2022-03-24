@@ -32,8 +32,7 @@
       &.single-row {
         cursor: pointer;
 
-        &:hover,
-        &:focus {
+        &:hover {
           background-color: rgba($core-vibrant-blue, 0.1);
         }
       }
