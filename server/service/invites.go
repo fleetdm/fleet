@@ -227,15 +227,11 @@ func (svc *Service) UpdateInvite(ctx context.Context, id uint, payload fleet.Inv
 		invite.SSOEnabled = *payload.SSOEnabled
 	}
 
-	if payload.GlobalRole.Valid {
-		invite.GlobalRole = payload.GlobalRole
-	}
-	if len(invite.Teams) > 0 {
-		invite.Teams = payload.Teams
-	}
-	if err := fleet.ValidateRole(invite.GlobalRole.Ptr(), invite.Teams); err != nil {
+	if err := fleet.ValidateRole(payload.GlobalRole.Ptr(), payload.Teams); err != nil {
 		return nil, err
 	}
+	invite.GlobalRole = payload.GlobalRole
+	invite.Teams = payload.Teams
 
 	return svc.ds.UpdateInvite(ctx, id, invite)
 }
