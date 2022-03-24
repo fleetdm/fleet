@@ -4,10 +4,12 @@ import classnames from "classnames";
 import Button from "components/buttons/Button";
 import { IQuery } from "interfaces/query";
 import { ITarget, ITargetsAPIResponse } from "interfaces/target";
+import { IEditPackFormData } from "interfaces/pack";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 // @ts-ignore
 import SelectTargetsDropdown from "components/forms/fields/SelectTargetsDropdown";
+import { AxiosError } from "axios";
 
 const baseClass = "pack-form";
 
@@ -20,13 +22,7 @@ interface IPackForm {
   ) => boolean;
   selectedTargetsCount?: number;
   isPremiumTier?: boolean;
-  serverErrors: { base: string };
-}
-
-interface IEditPackFormData {
-  name: string;
-  description: string;
-  targets: ITarget[];
+  serverError: string;
 }
 
 const EditPackForm = ({
@@ -35,7 +31,7 @@ const EditPackForm = ({
   onFetchTargets,
   selectedTargetsCount,
   isPremiumTier,
-  serverErrors,
+  serverError,
 }: IPackForm): JSX.Element => {
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [packName, setPackName] = useState<string>("");
@@ -74,8 +70,8 @@ const EditPackForm = ({
   return (
     <form className={packFormClass} onSubmit={onFormSubmit} autoComplete="off">
       <h1>New pack</h1>
-      {serverErrors?.base && (
-        <div className="form__base-error">{serverErrors.base}</div>
+      {!!serverError && (
+        <div className="form__base-error">{serverError}</div>
       )}
       <InputField
         onChange={onChangePackName}
