@@ -1,19 +1,15 @@
-import React, { useState } from "react";
+import React, { useContext, useState } from "react";
 import { useDispatch } from "react-redux";
 import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
 import yaml from "js-yaml";
+
+import { NotificationContext } from "context/notification";
 import { ITeam } from "interfaces/team";
 import endpoints from "fleet/endpoints";
-import teamsAPI from "services/entities/teams";
-// ignore TS error for now until these are rewritten in ts.
-// @ts-ignore
-import { renderFlash } from "redux/nodes/notifications/actions";
-// @ts-ignore
-import osqueryOptionsActions from "redux/nodes/osquery/actions";
-// @ts-ignore
-import validateYaml from "components/forms/validators/validate_yaml";
-// @ts-ignore
+import teamsAPI from "services/entities/teams"; // @ts-ignore
+import osqueryOptionsActions from "redux/nodes/osquery/actions"; // @ts-ignore
+import validateYaml from "components/forms/validators/validate_yaml"; // @ts-ignore
 import OsqueryOptionsForm from "components/forms/admin/OsqueryOptionsForm";
 import InfoBanner from "components/InfoBanner/InfoBanner";
 import OpenNewTabIcon from "../../../../../../assets/images/open-new-tab-12x12@2x.png";
@@ -35,6 +31,7 @@ const AgentOptionsPage = ({
 }: IAgentOptionsPageProps): JSX.Element => {
   const teamIdFromURL = parseInt(team_id, 10);
   const dispatch = useDispatch();
+  const { renderFlash } = useContext(NotificationContext);
 
   const [formData, setFormData] = useState<{ osquery_options?: string }>({});
   const handlePageError = useErrorHandler();
@@ -65,7 +62,7 @@ const AgentOptionsPage = ({
     const { TEAMS_AGENT_OPTIONS } = endpoints;
     const { error } = validateYaml(updatedForm.osquery_options);
     if (error) {
-      dispatch(renderFlash("error", error.reason));
+      renderFlash("error", error.reason);
       return false;
     }
     dispatch(
@@ -75,10 +72,10 @@ const AgentOptionsPage = ({
       )
     )
       .then(() => {
-        dispatch(renderFlash("success", "Successfully saved agent options"));
+        renderFlash("success", "Successfully saved agent options");
       })
       .catch((errors: { [key: string]: string }) => {
-        dispatch(renderFlash("error", errors.stack));
+        renderFlash("error", errors.stack);
       });
 
     return false;

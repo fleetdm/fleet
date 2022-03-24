@@ -1,19 +1,15 @@
 import React, { useContext, useEffect, useState } from "react";
 import { Link } from "react-router";
-import { useDispatch } from "react-redux";
 import { InjectedRouter } from "react-router/lib/Router";
 import { UseMutateAsyncFunction } from "react-query";
 
 import queryAPI from "services/entities/queries";
 import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
+import { NotificationContext } from "context/notification";
 import { IQueryFormData, IQuery } from "interfaces/query";
-// @ts-ignore
-import { renderFlash } from "redux/nodes/notifications/actions";
-import PATHS from "router/paths";
-// @ts-ignore
-import debounce from "utilities/debounce";
-// @ts-ignore
+import PATHS from "router/paths"; // @ts-ignore
+import debounce from "utilities/debounce"; // @ts-ignore
 import deepDifference from "utilities/deep_difference";
 
 import QueryForm from "pages/queries/QueryPage/components/QueryForm";
@@ -53,8 +49,8 @@ const QueryEditor = ({
   onOpenSchemaSidebar,
   renderLiveQueryWarning,
 }: IQueryEditorProps): JSX.Element | null => {
-  const dispatch = useDispatch();
   const { currentUser } = useContext(AppContext);
+  const { renderFlash } = useContext(NotificationContext);
 
   // Note: The QueryContext values should always be used for any mutable query data such as query name
   // The storedQuery prop should only be used to access immutable metadata such as author id
@@ -67,11 +63,9 @@ const QueryEditor = ({
 
   useEffect(() => {
     if (storedQueryError) {
-      dispatch(
-        renderFlash(
-          "error",
-          "Something went wrong retrieving your query. Please try again."
-        )
+      renderFlash(
+        "error",
+        "Something went wrong retrieving your query. Please try again."
       );
     }
   }, []);
@@ -84,18 +78,16 @@ const QueryEditor = ({
     try {
       const { query }: { query: IQuery } = await createQuery(formData);
       router.push(PATHS.EDIT_QUERY(query));
-      dispatch(renderFlash("success", "Query created!"));
+      renderFlash("success", "Query created!");
       setBackendValidators({});
     } catch (createError: any) {
       console.error(createError);
       if (createError.data.errors[0].reason.includes("already exists")) {
         setBackendValidators({ name: "A query with this name already exists" });
       } else {
-        dispatch(
-          renderFlash(
-            "error",
-            "Something went wrong creating your query. Please try again."
-          )
+        renderFlash(
+          "error",
+          "Something went wrong creating your query. Please try again."
         );
       }
     }
@@ -115,19 +107,15 @@ const QueryEditor = ({
 
     try {
       await queryAPI.update(queryIdForEdit, updatedQuery);
-      dispatch(renderFlash("success", "Query updated!"));
+      renderFlash("success", "Query updated!");
     } catch (updateError: any) {
       console.error(updateError);
       if (updateError.data.errors[0].reason.includes("Duplicate")) {
-        dispatch(
-          renderFlash("error", "A query with this name already exists.")
-        );
+        renderFlash("error", "A query with this name already exists.");
       } else {
-        dispatch(
-          renderFlash(
-            "error",
-            "Something went wrong updating your query. Please try again."
-          )
+        renderFlash(
+          "error",
+          "Something went wrong updating your query. Please try again."
         );
       }
     }

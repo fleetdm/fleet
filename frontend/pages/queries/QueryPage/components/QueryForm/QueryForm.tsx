@@ -1,28 +1,23 @@
 import React, { useState, useContext, useEffect, KeyboardEvent } from "react";
 import { InjectedRouter } from "react-router";
-import { useDispatch } from "react-redux";
-// @ts-ignore
-import { renderFlash } from "redux/nodes/notifications/actions";
+import { size } from "lodash";
+import classnames from "classnames";
+import { useDebouncedCallback } from "use-debounce/lib";
 
 import PATHS from "router/paths";
-
-import { IAceEditor } from "react-ace/lib/types";
-import ReactTooltip from "react-tooltip";
-import { size } from "lodash";
-import { useDebouncedCallback } from "use-debounce/lib";
-import classnames from "classnames";
-
 import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
+import { NotificationContext } from "context/notification";
 import { addGravatarUrlToResource } from "fleet/helpers";
 import usePlatformCompatibility from "hooks/usePlatformCompatibility";
 import { IApiError } from "interfaces/errors";
 import { IQuery, IQueryFormData } from "interfaces/query";
 import queryAPI from "services/entities/queries";
 
+import { IAceEditor } from "react-ace/lib/types";
+import ReactTooltip from "react-tooltip";
 import Avatar from "components/Avatar";
-import FleetAce from "components/FleetAce";
-// @ts-ignore
+import FleetAce from "components/FleetAce"; // @ts-ignore
 import validateQuery from "components/forms/validators/validate_query";
 import Button from "components/buttons/Button";
 import RevealButton from "components/buttons/RevealButton";
@@ -76,8 +71,6 @@ const QueryForm = ({
   renderLiveQueryWarning,
   backendValidators,
 }: IQueryFormProps): JSX.Element => {
-  const dispatch = useDispatch();
-
   const isEditMode = !!queryIdForEdit;
   const [errors, setErrors] = useState<{ [key: string]: any }>({}); // string | null | undefined or boolean | undefined
   const [isSaveModalOpen, setIsSaveModalOpen] = useState<boolean>(false);
@@ -110,6 +103,7 @@ const QueryForm = ({
     isGlobalAdmin,
     isGlobalMaintainer,
   } = useContext(AppContext);
+  const { renderFlash } = useContext(NotificationContext);
 
   const platformCompatibility = usePlatformCompatibility();
   const { setCompatiblePlatforms } = platformCompatibility;
@@ -204,7 +198,7 @@ const QueryForm = ({
         .then((response: { query: IQuery }) => {
           setIsSaveAsNewLoading(false);
           router.push(PATHS.EDIT_QUERY(response.query));
-          dispatch(renderFlash("success", `Successfully added query.`));
+          renderFlash("success", `Successfully added query.`);
         })
         .catch((createError: { data: IApiError }) => {
           if (createError.data.errors[0].reason.includes("already exists")) {
@@ -218,11 +212,9 @@ const QueryForm = ({
               .then((response: { query: IQuery }) => {
                 setIsSaveAsNewLoading(false);
                 router.push(PATHS.EDIT_QUERY(response.query));
-                dispatch(
-                  renderFlash(
-                    "success",
-                    `Successfully added query as "Copy of ${lastEditedQueryName}".`
-                  )
+                renderFlash(
+                  "success",
+                  `Successfully added query as "Copy of ${lastEditedQueryName}".`
                 );
               })
               .catch((createCopyError: { data: IApiError }) => {
@@ -231,20 +223,16 @@ const QueryForm = ({
                     "already exists"
                   )
                 ) {
-                  dispatch(
-                    renderFlash(
-                      "error",
-                      `"Copy of ${lastEditedQueryName}" already exists. Please rename your query and try again.`
-                    )
+                  renderFlash(
+                    "error",
+                    `"Copy of ${lastEditedQueryName}" already exists. Please rename your query and try again.`
                   );
                 }
                 setIsSaveAsNewLoading(false);
               });
           } else {
             setIsSaveAsNewLoading(false);
-            dispatch(
-              renderFlash("error", "Could not create query. Please try again.")
-            );
+            renderFlash("error", "Could not create query. Please try again.");
           }
         });
     }
