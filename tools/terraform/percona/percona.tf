@@ -27,6 +27,7 @@ resource "aws_lb" "main" {
   security_groups = [aws_security_group.lb.id, aws_security_group.backend.id]
   subnets         = var.public_subnets
   idle_timeout    = 120
+  drop_invalid_header_fields = true
 }
 
 resource "aws_lb_listener" "https" {
@@ -61,6 +62,9 @@ resource "aws_instance" "percona" {
   subnet_id              = var.private_subnet
   vpc_security_group_ids = [aws_security_group.backend.id]
   iam_instance_profile   = aws_iam_instance_profile.profile.name
+  metadata_options {
+  http_tokens = "required"
+  }  
 }
 
 resource "aws_iam_instance_profile" "profile" {

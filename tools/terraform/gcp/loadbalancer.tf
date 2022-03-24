@@ -1,6 +1,9 @@
 resource "google_dns_managed_zone" "default" {
   dns_name = var.dns_name
   name     = "${var.prefix}-zone"
+  dnssec_config {
+     state = "on"
+   }
 }
 
 resource "google_dns_record_set" "default" {

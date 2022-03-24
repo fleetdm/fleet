@@ -1,5 +1,5 @@
 resource "random_password" "database_password" {
-  length  = 16
+  length  = 32
   special = false
 }
 

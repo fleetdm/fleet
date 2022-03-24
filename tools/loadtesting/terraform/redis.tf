@@ -11,8 +11,8 @@ resource "aws_elasticache_replication_group" "default" {
   port                          = "6379"
   snapshot_retention_limit      = 0
   automatic_failover_enabled    = true
-  at_rest_encryption_enabled    = false
-  transit_encryption_enabled    = false
+  at_rest_encryption_enabled    = true
+  transit_encryption_enabled    = true
   apply_immediately             = true
   replication_group_description = "fleetdm-redis"
 
