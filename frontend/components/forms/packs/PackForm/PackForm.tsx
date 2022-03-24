@@ -5,11 +5,10 @@ import Button from "components/buttons/Button";
 import { IQuery } from "interfaces/query";
 import { ITarget, ITargetsAPIResponse } from "interfaces/target";
 import { IEditPackFormData } from "interfaces/pack";
+
 // @ts-ignore
-import InputField from "components/forms/fields/InputField";
-// @ts-ignore
+import InputField from "components/forms/fields/InputField"; // @ts-ignore
 import SelectTargetsDropdown from "components/forms/fields/SelectTargetsDropdown";
-import { AxiosError } from "axios";
 
 const baseClass = "pack-form";
 
