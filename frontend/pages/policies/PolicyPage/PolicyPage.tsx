@@ -72,6 +72,13 @@ const PolicyPage = ({
     }
   }, []);
 
+  useEffect(() => {
+    // cleanup when component unmounts
+    return () => {
+      setLastEditedQueryPlatform(null);
+    };
+  }, []);
+
   if (currentUser && currentUser.teams.length && policyTeamId && !currentTeam) {
     const thisPolicyTeam = currentUser.teams.find(
       (team) => team.id === policyTeamId
