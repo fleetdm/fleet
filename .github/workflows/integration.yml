@@ -185,6 +185,7 @@ jobs:
           sudo systemctl status orbit.service || true
           sleep 1
         done
+        sudo apt remove fleet-osquery -y
 
   orbit-windows-build:
     timeout-minutes: 15
