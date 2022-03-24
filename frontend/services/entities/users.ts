@@ -6,6 +6,7 @@ import {
   ICreateUserFormData,
   IUpdateUserFormData,
   IUser,
+  ICreateUserWithInvitationFormData,
 } from "interfaces/user";
 import { ITeamSummary } from "interfaces/team";
 
@@ -36,6 +37,13 @@ export interface IGetMeResponse {
 }
 
 export default {
+  create: (formData: ICreateUserWithInvitationFormData) => {
+    const { USERS } = endpoints;
+
+    return sendRequest("POST", USERS, formData).then((response) =>
+      helpers.addGravatarUrlToResource(response.user)
+    );
+  },
   createUserWithoutInvitation: (formData: ICreateUserFormData) => {
     const { USERS_ADMIN } = endpoints;
 
