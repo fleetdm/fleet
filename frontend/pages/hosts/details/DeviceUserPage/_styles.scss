@@ -257,15 +257,11 @@
   }
 
   .component__tabs-wrapper {
-    background-color: $ui-off-white;
     width: 100%;
 
     .react-tabs__tab {
       padding: 6px 0px 16px 0px;
       margin-right: $pad-xxlarge;
-    }
-    .react-tabs__tab--selected {
-      background-color: $ui-off-white;
     }
 
     .section {
