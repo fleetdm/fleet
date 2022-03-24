@@ -15,7 +15,7 @@
   option](https://fleetdm.com/docs/deploying/configuration#kafkarest-content-type-value) to allow
   the use of different versions of the Kafka REST Proxy.
 
-* Add [database_path] GeoIP configuration option to specify a GeoIP database. When configured,
+* Add [`database_path` GeoIP configuration option](https://fleetdm.com/docs/deploying/configuration#database-path) to specify a GeoIP database. When configured,
   geolocation information is presented on the **Host details** page and in the `GET /hosts/{id}` API route.
 
 * Add ability to retrieve a host's public IP address. This information is available on the **Host
