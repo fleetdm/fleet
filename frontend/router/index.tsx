@@ -159,7 +159,7 @@ const routes = (
                   />
                 </Route>
               </Route>
-              <Route path="queries" component={QueryPageWrapper}>
+              <Route path="queries">
                 <IndexRedirect to={"manage"} />
                 <Route path="manage" component={ManageQueriesPage} />
                 <Route component={AuthAnyMaintainerAnyAdminRoutes}>
