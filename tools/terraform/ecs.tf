@@ -12,12 +12,12 @@ resource "aws_route53_record" "record" {
 }
 
 resource "aws_alb" "main" {
-  name            = "fleetdm"
-  internal        = false
-  security_groups = [aws_security_group.lb.id, aws_security_group.backend.id]
-  subnets         = module.vpc.public_subnets
-  idle_timeout    = 120
-  drop_invalid_header_fields = true
+  name                       = "fleetdm"
+  internal                   = false
+  security_groups            = [aws_security_group.lb.id, aws_security_group.backend.id]
+  subnets                    = module.vpc.public_subnets
+  idle_timeout               = 120
+  drop_invalid_header_fields = false #tfsec:ignore:aws-elb-drop-invalid-headers:exp:2023-04-01
 }
 
 resource "aws_alb_target_group" "main" {
