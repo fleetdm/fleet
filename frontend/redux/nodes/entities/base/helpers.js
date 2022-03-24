@@ -31,7 +31,10 @@ const formatServerErrors = (errors) => {
 };
 
 export const formatErrorResponse = (errorResponse) => {
-  const errors = get(errorResponse, "message.errors") || get(errorResponse, "data.errors") || [];
+  const errors =
+    get(errorResponse, "message.errors") ||
+    get(errorResponse, "data.errors") ||
+    [];
 
   return {
     ...formatServerErrors(errors),

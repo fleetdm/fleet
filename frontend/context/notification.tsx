@@ -1,5 +1,6 @@
 import React, { createContext, useReducer, ReactNode } from "react";
 import { INotification } from "interfaces/notification";
+import { noop } from "lodash";
 
 type Props = {
   children: ReactNode;
@@ -17,8 +18,8 @@ type InitialStateType = {
 
 const initialState = {
   notification: null,
-  renderFlash: () => {},
-  hideFlash: () => {},
+  renderFlash: noop,
+  hideFlash: noop,
 };
 
 const actions = {
@@ -45,7 +46,9 @@ const reducer = (state: any, action: any) => {
   }
 };
 
-export const NotificationContext = createContext<InitialStateType>(initialState);
+export const NotificationContext = createContext<InitialStateType>(
+  initialState
+);
 
 const NotificationProvider = ({ children }: Props) => {
   const [state, dispatch] = useReducer(reducer, initialState);
@@ -70,7 +73,9 @@ const NotificationProvider = ({ children }: Props) => {
   };
 
   return (
-    <NotificationContext.Provider value={value}>{children}</NotificationContext.Provider>
+    <NotificationContext.Provider value={value}>
+      {children}
+    </NotificationContext.Provider>
   );
 };
 

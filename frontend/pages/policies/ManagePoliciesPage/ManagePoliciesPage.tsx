@@ -262,7 +262,8 @@ const ManagePolicyPage = ({
       await request.then(() => {
         renderFlash(
           "success",
-          `Successfully removed ${selectedPolicyIds?.length === 1 ? "policy" : "policies"
+          `Successfully removed ${
+            selectedPolicyIds?.length === 1 ? "policy" : "policies"
           }.`
         );
         setResetSelectedRows(true);
@@ -271,7 +272,8 @@ const ManagePolicyPage = ({
     } catch {
       renderFlash(
         "error",
-        `Unable to remove ${selectedPolicyIds?.length === 1 ? "policy" : "policies"
+        `Unable to remove ${
+          selectedPolicyIds?.length === 1 ? "policy" : "policies"
         }. Please try again.`
       );
     } finally {

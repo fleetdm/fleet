@@ -60,7 +60,7 @@ const MembersPage = ({
   params: { team_id },
 }: IMembersPageProps): JSX.Element => {
   const teamId = parseInt(team_id, 10);
-  
+
   const { renderFlash } = useContext(NotificationContext);
   const { config, isGlobalAdmin, currentUser, isPremiumTier } = useContext(
     AppContext
@@ -189,13 +189,13 @@ const MembersPage = ({
     (newMembers: INewMembersBody) => {
       teamsAPI
         .addMembers(teamId, newMembers)
-        .then(() => 
+        .then(() =>
           renderFlash(
             "success",
             `${newMembers.users.length} members successfully added to ${currentTeam?.name}.`
           )
         )
-        .catch(() => 
+        .catch(() =>
           renderFlash("error", "Could not add members. Please try again.")
         )
         .finally(() => {

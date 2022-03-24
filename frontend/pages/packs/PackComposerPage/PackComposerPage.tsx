@@ -21,16 +21,17 @@ interface IPackComposerPageProps {
 
 const baseClass = "pack-composer";
 
-const PackComposerPage = ({
-  router,
-}: IPackComposerPageProps) => {
+const PackComposerPage = ({ router }: IPackComposerPageProps) => {
   const { isPremiumTier } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
   const [serverError, setServerError] = useState<string>("");
   const [selectedTargetsCount, setSelectedTargetsCount] = useState<number>(0);
 
-  const onFetchTargets = (query: IQuery, targetsResponse: ITargetsAPIResponse) => {
+  const onFetchTargets = (
+    query: IQuery,
+    targetsResponse: ITargetsAPIResponse
+  ) => {
     const { targets_count } = targetsResponse;
     setSelectedTargetsCount(targets_count);
     return false;
@@ -40,7 +41,9 @@ const PackComposerPage = ({
     const { create } = packsAPI;
 
     try {
-      const { pack: { id: packID } } = await create(formData);
+      const {
+        pack: { id: packID },
+      } = await create(formData);
       router.push(PATHS.PACK(packID));
       renderFlash(
         "success",
@@ -74,6 +77,6 @@ const PackComposerPage = ({
       <PackInfoSidePanel />
     </div>
   );
-}
+};
 
 export default PackComposerPage;

@@ -7,7 +7,7 @@ import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 import { useDeepEffect } from "utilities/hooks";
 import usersAPI from "services/entities/users";
- 
+
 interface IEmailTokenRedirectProps {
   router: InjectedRouter; // v3
   params: Params;
@@ -29,15 +29,15 @@ const EmailTokenRedirect = ({
           renderFlash("success", "Email updated successfully!");
         } catch (error) {
           console.log(error);
-          router.push(PATHS.LOGIN)
+          router.push(PATHS.LOGIN);
         }
       }
     };
-    
+
     confirmEmailChange();
   }, [currentUser, token]);
-      
+
   return null;
-}
+};
 
 export default EmailTokenRedirect;

@@ -69,9 +69,7 @@ const EditPackForm = ({
   return (
     <form className={packFormClass} onSubmit={onFormSubmit} autoComplete="off">
       <h1>New pack</h1>
-      {!!serverError && (
-        <div className="form__base-error">{serverError}</div>
-      )}
+      {!!serverError && <div className="form__base-error">{serverError}</div>}
       <InputField
         onChange={onChangePackName}
         value={packName}

@@ -821,7 +821,8 @@ const ManageHostsPage = ({
       console.error(error);
       renderFlash(
         "error",
-        `Could not ${selectedSecret ? "edit" : "add"
+        `Could not ${
+          selectedSecret ? "edit" : "add"
         } enroll secret. Please try again.`
       );
     }
@@ -863,10 +864,7 @@ const ManageHostsPage = ({
       renderFlash("success", `Successfully deleted enroll secret.`);
     } catch (error) {
       console.error(error);
-      renderFlash(
-        "error",
-        "Could not delete enroll secret. Please try again."
-      );
+      renderFlash("error", "Could not delete enroll secret. Please try again.");
     }
   };
 
@@ -1064,7 +1062,8 @@ const ManageHostsPage = ({
     } catch (error) {
       renderFlash(
         "error",
-        `Could not delete ${selectedHostIds.length === 1 ? "host" : "hosts"
+        `Could not delete ${
+          selectedHostIds.length === 1 ? "host" : "hosts"
         }. Please try again.`
       );
     }

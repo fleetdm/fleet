@@ -32,15 +32,17 @@ const expirationMessage = (
   </>
 );
 
-const CoreLayout = ({
-  children,
-  router,
-}: ICoreLayoutProps) => {
+const CoreLayout = ({ children, router }: ICoreLayoutProps) => {
   const dispatch = useDispatch();
   const { config, currentUser, isPremiumTier } = useContext(AppContext);
-  const { notification, renderFlash, hideFlash } = useContext(NotificationContext);
+  const { notification, renderFlash, hideFlash } = useContext(
+    NotificationContext
+  );
   const { setResetSelectedRows } = useContext(TableContext);
-  const [showExpirationFlashMessage, setShowExpirationFlashMessage] = useState<boolean>(false);
+  const [
+    showExpirationFlashMessage,
+    setShowExpirationFlashMessage,
+  ] = useState<boolean>(false);
 
   // on success of an action, the table will reset its checkboxes.
   // setTimeout is to help with race conditions as table reloads
@@ -55,7 +57,9 @@ const CoreLayout = ({
       }, 0);
     }
 
-    setShowExpirationFlashMessage(licenseExpirationWarning(config?.expiration || ""));
+    setShowExpirationFlashMessage(
+      licenseExpirationWarning(config?.expiration || "")
+    );
   }, [notification]);
 
   const onLogoutUser = async () => {
@@ -122,7 +126,9 @@ const CoreLayout = ({
           <FlashMessage
             fullWidth={fullWidthFlash}
             notification={expirationNotification}
-            onRemoveFlash={() => setShowExpirationFlashMessage(!showExpirationFlashMessage)}
+            onRemoveFlash={() =>
+              setShowExpirationFlashMessage(!showExpirationFlashMessage)
+            }
           />
         )}
         <FlashMessage
@@ -135,6 +141,6 @@ const CoreLayout = ({
       </div>
     </div>
   );
-}
+};
 
 export default CoreLayout;

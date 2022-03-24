@@ -136,7 +136,7 @@ const App = ({ children }: IAppProps): JSX.Element => {
               >
                 <div className={wrapperStyles}>{children}</div>
               </ErrorBoundary>
-            </NotificationProvider>  
+            </NotificationProvider>
           </PolicyProvider>
         </QueryProvider>
       </TableProvider>

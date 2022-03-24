@@ -1,6 +1,6 @@
 import React, { useContext, useState } from "react";
 import { InjectedRouter } from "react-router";
-import { Params } from "react-router/lib/Router"
+import { Params } from "react-router/lib/Router";
 
 import { NotificationContext } from "context/notification";
 import { ICreateUserWithInvitationFormData } from "interfaces/user";
@@ -12,7 +12,6 @@ import { formatErrorResponse } from "redux/nodes/entities/base/helpers";
 import AuthenticationFormWrapper from "components/AuthenticationFormWrapper"; // @ts-ignore
 import ConfirmInviteForm from "components/forms/ConfirmInviteForm"; // @ts-ignore
 import EnsureUnauthenticated from "components/EnsureUnauthenticated";
-
 
 interface IConfirmInvitePageProps {
   router: InjectedRouter; // v3
@@ -33,7 +32,7 @@ const ConfirmInvitePage = ({
   const [userErrors, setUserErrors] = useState<any>({});
 
   const { renderFlash } = useContext(NotificationContext);
-  
+
   const onSubmit = async (formData: ICreateUserWithInvitationFormData) => {
     const { create } = usersAPI;
     const { LOGIN } = paths;
@@ -72,6 +71,6 @@ const ConfirmInvitePage = ({
       </div>
     </AuthenticationFormWrapper>
   );
-}
+};
 
 export default EnsureUnauthenticated(ConfirmInvitePage);

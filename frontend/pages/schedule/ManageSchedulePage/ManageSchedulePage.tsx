@@ -406,10 +406,7 @@ const ManageSchedulePage = ({
             refetchScheduledQueries();
           })
           .catch(() => {
-            renderFlash(
-              "error",
-              "Could not schedule query. Please try again."
-            );
+            renderFlash("error", "Could not schedule query. Please try again.");
           });
       }
       toggleScheduleEditorModal();

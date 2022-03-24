@@ -9,7 +9,7 @@ export default PropTypes.shape({
 
 export interface INotification {
   alertType: "success" | "error" | "warning-filled" | null;
-  isVisible: Boolean;
+  isVisible: boolean;
   message: JSX.Element | string | null;
   undoAction?: () => void;
 }

@@ -44,7 +44,6 @@ import PackComposerPage from "pages/packs/PackComposerPage";
 import PoliciesPageWrapper from "components/policies/PoliciesPageWrapper";
 import PolicyPage from "pages/policies/PolicyPage";
 import QueryPage from "pages/queries/QueryPage";
-import QueryPageWrapper from "components/queries/QueryPageWrapper";
 import RegistrationPage from "pages/RegistrationPage";
 import SchedulePageWrapper from "components/schedule/SchedulePageWrapper";
 import SoftwarePageWrapper from "components/software/SoftwarePageWrapper";
