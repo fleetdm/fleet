@@ -38,7 +38,9 @@ With the infrastructure listed below, 150,000 hosts successfully communicate wit
 |&#8203;| Version                 |Instance type   |
 |-------|-------------------------|----------------|
 | Redis | 5.0.6                   | cache.m6g.large |
-| MySQL | 5.7.mysql_aurora.2.10.0 | db.m6g.medium (with RR) |
+| MySQL | 5.7.mysql_aurora.2.10.0 | db.r6g.8xlarge (with RR) |
+
+In the above setup, the read replica was the same size as the writer node.
 
 The above setup auto scaled based on CPU usage. After a while, the task count ended up at 25 instances even while live querying or adding a new label.
 
