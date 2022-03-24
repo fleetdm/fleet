@@ -104,8 +104,8 @@
     }
 
     .Select.is-focused:not(.is-open) > .Select-control {
-      border: none;
       box-shadow: none;
+      background-color: $ui-vibrant-blue-10;
     }
 
     .Select.is-open {
