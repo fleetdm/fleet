@@ -80,7 +80,7 @@ var shellCommand = &cli.Command{
 		r, _ := osquery.NewRunner(
 			osquerydPath,
 			osquery.WithShell(),
-			osquery.WithDataPath(c.String("root-dir")),
+			osquery.WithDataPath(filepath.Join(c.String("root-dir"), "shell")),
 			// Handle additional args after --
 			osquery.WithFlags(c.Args().Slice()),
 		)

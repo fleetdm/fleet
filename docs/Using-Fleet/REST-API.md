@@ -3891,7 +3891,7 @@ Where `query_id` references an existing `query`.
 
 ---
 
-## Team policies
+### Team policies
 
 - [List team policies](#list-team-policies)
 - [Get team policy by ID](#get-team-policy-by-id)

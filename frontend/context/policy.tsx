@@ -47,13 +47,13 @@ type InitialStateType = {
   lastEditedQueryDescription: string;
   lastEditedQueryBody: string;
   lastEditedQueryResolution: string;
-  lastEditedQueryPlatform: IPlatformString | null | undefined;
+  lastEditedQueryPlatform: IPlatformString | null;
   setLastEditedQueryId: (value: number) => void;
   setLastEditedQueryName: (value: string) => void;
   setLastEditedQueryDescription: (value: string) => void;
   setLastEditedQueryBody: (value: string) => void;
   setLastEditedQueryResolution: (value: string) => void;
-  setLastEditedQueryPlatform: (value: IPlatformString) => void;
+  setLastEditedQueryPlatform: (value: IPlatformString | null) => void;
   policyTeamId: number;
   setPolicyTeamId: (id: number) => void;
   selectedOsqueryTable: IOsqueryTable;
@@ -66,7 +66,7 @@ const initialState = {
   lastEditedQueryDescription: "",
   lastEditedQueryBody: "",
   lastEditedQueryResolution: "",
-  lastEditedQueryPlatform: "" as IPlatformString,
+  lastEditedQueryPlatform: null,
   setLastEditedQueryId: () => null,
   setLastEditedQueryName: () => null,
   setLastEditedQueryDescription: () => null,

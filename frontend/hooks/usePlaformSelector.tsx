@@ -45,6 +45,9 @@ const usePlatformSelector = (
   const isAnyPlatformSelected = Object.values(checksByPlatform).includes(true);
 
   useEffect(() => {
+    if (platformContext === "") {
+      setSelectedPlatforms(["darwin", "windows", "linux"]);
+    }
     platformContext && setSelectedPlatforms(platformContext.split(","));
   }, [platformContext]);
 
