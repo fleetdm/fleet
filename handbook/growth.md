@@ -1,7 +1,7 @@
 # Growth
 
 As an open-core company, Fleet endeavors to build a community of engaged users, customers, and
-contributors.
+contributors. The purpose of the growth team is to own and improve the growth funnel to drive awareness, adoption, and referrals of Fleet while honoring the ideals and voice of the open source community, and our company values.
 
 ## Posting on social media as Fleet
 
