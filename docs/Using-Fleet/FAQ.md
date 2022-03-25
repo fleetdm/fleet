@@ -23,7 +23,8 @@
 - [Can I bundle osquery extensions into Orbit?](#can-i-bundle-osquery-extensions-into-orbit)
 - [How does Fleet work with osquery extensions?](#how-does-fleet-work-with-osquery-extensions)
 - [Why am I seeing "unknown certificate error" when adding hosts to my dev server?](#why-am-i-seeing-"unknown-certificate-error"-when-adding-hosts-to-my-dev-server)
-- [Can I hide known vulnerabilities that I feel are insignificant?]
+- [Can I hide known vulnerabilities that I feel are insignificant?](#can-i-hide-known-vulnerabilities-that-i-feel-are-insignificant)
+- [Can I create reports based on historical data in Fleet?](#can-i-create-reports-based-on-historical-data-in-fleet)
 
 ## What do I need to do to switch from Kolide Fleet to FleetDM Fleet?
 
@@ -218,3 +219,7 @@ fleetctl package --fleetctl package --type=deb --fleet-url=https://localhost:808
 ## Can I hide known vulnerabilities that I feel are insignificant?
 
 This isn't currently supported, but we're working on it! You can track that issue [here](https://github.com/fleetdm/fleet/issues/3152).
+
+## Can I create reports based on historical data in Fleet?
+
+Currently, Fleet only stores the current state of your hosts (when they last communicated with Fleet). The best way to maintain historical data currently would be to use the [REST API](./REST-API.md) or the [`fleetctl` CLI](./fleetctl-CLI.md) to manually retrieve and save the data you need on your schedule. 
