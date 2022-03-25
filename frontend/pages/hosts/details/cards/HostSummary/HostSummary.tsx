@@ -163,7 +163,7 @@ const HostSummary = ({
           renderIssues()}
         {!deviceUser && isPremiumTier && renderHostTeam()}
         <div className="info-flex__item info-flex__item--title">
-          <span className="info-flex__header">Disk Space</span>
+          <span className="info-flex__header">Disk space</span>
           {renderDiskSpace()}
         </div>
         <div className="info-flex__item info-flex__item--title">
