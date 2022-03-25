@@ -149,7 +149,7 @@ const HostSummary = ({
     return <span className="info-flex__data">No data available</span>;
   };
 
-  const renderDeviceUserSummary = () => {
+  const renderSummary = () => {
     return (
       <div className="info-flex">
         <div className="info-flex__item info-flex__item--title">
@@ -158,6 +158,10 @@ const HostSummary = ({
             {titleData.status}
           </span>
         </div>
+        {!deviceUser &&
+          titleData.issues?.total_issues_count > 0 &&
+          renderIssues()}
+        {!deviceUser && isPremiumTier && renderHostTeam()}
         <div className="info-flex__item info-flex__item--title">
           <span className="info-flex__header">Disk Space</span>
           {renderDiskSpace()}
@@ -174,41 +178,8 @@ const HostSummary = ({
         </div>
         <div className="info-flex__item info-flex__item--title">
           <span className="info-flex__header">Operating system</span>
-          <span className="info-flex__data">{titleData.os_version}</span>
-        </div>
-      </div>
-    );
-  };
-
-  const renderHostDetailsSummary = () => {
-    return (
-      <div className="info-flex">
-        <div className="info-flex__item info-flex__item--title">
-          <span className="info-flex__header">Status</span>
-          <span className={`${statusClassName} info-flex__data`}>
-            {titleData.status}
-          </span>
-        </div>
-        {titleData.issues?.total_issues_count > 0 && renderIssues()}
-        {isPremiumTier && renderHostTeam()}
-        <div className="info-flex__item info-flex__item--title">
-          <span className="info-flex__header">Disk Space</span>
-          {renderDiskSpace()}
-        </div>
-        <div className="info-flex__item info-flex__item--title">
-          <span className="info-flex__header">RAM</span>
           <span className="info-flex__data">
-            {wrapFleetHelper(humanHostMemory, titleData.memory)}
-          </span>
-        </div>
-        <div className="info-flex__item info-flex__item--title">
-          <span className="info-flex__header">CPU</span>
-          <span className="info-flex__data">{titleData.cpu_type}</span>
-        </div>
-        <div className="info-flex__item info-flex__item--title">
-          <span className="info-flex__header">OS</span>
-          <span className="info-flex__data">
-            {isOnlyObserver ? (
+            {isOnlyObserver || deviceUser ? (
               `${titleData.os_version}`
             ) : (
               <Button
@@ -221,10 +192,12 @@ const HostSummary = ({
             )}
           </span>
         </div>
-        <div className="info-flex__item info-flex__item--title">
-          <span className="info-flex__header">Osquery</span>
-          <span className="info-flex__data">{titleData.osquery_version}</span>
-        </div>
+        {!deviceUser && (
+          <div className="info-flex__item info-flex__item--title">
+            <span className="info-flex__header">Osquery</span>
+            <span className="info-flex__data">{titleData.osquery_version}</span>
+          </div>
+        )}
       </div>
     );
   };
@@ -249,9 +222,7 @@ const HostSummary = ({
         {renderActionButtons()}
       </div>
       <div className="section title">
-        <div className="title__inner">
-          {deviceUser ? renderDeviceUserSummary() : renderHostDetailsSummary()}
-        </div>
+        <div className="title__inner">{renderSummary()}</div>
       </div>
     </>
   );
