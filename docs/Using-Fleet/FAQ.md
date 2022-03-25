@@ -20,9 +20,10 @@
 - [How does Fleet deal with IP duplication?](#how-does-fleet-deal-with-ip-duplication)
 - [Can Orbit run alongside osquery?](#can-orbit-run-alongside-osquery)
 - [Can I disable auto updates for Orbit?](#can-i-disable-auto-updates-for-orbit)
-- [Can I bundle osquery extensions into Orbit?]
+- [Can I bundle osquery extensions into Orbit?](#can-i-bundle-osquery-extensions-into-orbit)
 - [How does Fleet work with osquery extensions?](#how-does-fleet-work-with-osquery-extensions)
 - [Why am I seeing "unknown certificate error" when adding hosts to my dev server?](#why-am-i-seeing-"unknown-certificate-error"-when-adding-hosts-to-my-dev-server)
+- [Can I hide known vulnerabilities that I feel are insignificant?]
 
 ## What do I need to do to switch from Kolide Fleet to FleetDM Fleet?
 
@@ -213,3 +214,7 @@ If you are using a self-signed certificate on `localhost`, add the  `--insecure`
 ```
 fleetctl package --fleetctl package --type=deb --fleet-url=https://localhost:8080 --enroll-secret=superRandomSecret --insecure
 ```
+
+## Can I hide known vulnerabilities that I feel are insignificant?
+
+This isn't currently supported, but we're working on it! You can track that issue [here](https://github.com/fleetdm/fleet/issues/3152).
