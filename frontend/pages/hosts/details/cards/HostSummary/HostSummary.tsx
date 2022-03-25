@@ -51,12 +51,12 @@ const HostSummary = ({
           <Button
             className={`
               button
-              button--unstyled
               ${!isOnline ? "refetch-offline" : ""} 
               ${showRefetchSpinner ? "refetch-spinner" : "refetch-btn"}
             `}
             disabled={!isOnline}
             onClick={onRefetchHost}
+            variant="text-icon"
           >
             {showRefetchSpinner
               ? "Fetching fresh vitals...this may take a moment"
