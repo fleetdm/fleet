@@ -29,14 +29,14 @@ import { sendRequest } from "services";
 
 Configuration consists of two files: `config` and `responses`. 
 
-**Responses file**
-Define you static JSON responses as constants in the `responses` file inside the `./mocks` folder.
+### Responses file
+Declare your static JSON responses as constants in the `responses` file inside the `./mocks` folder.
 Each JSON response should be given its own unique name and added to the default export for the file. 
 These responses will be imported as `STATIC` in the `config` file where you will map the responses
 to the the request paths for your API service.
 
-**Config file**
-Define your endpoint and each of your API request paths to its expected JSON response in the
+### Config file
+Declare your endpoint and each of your API request paths to its expected JSON response in the
 `config` file inside the `./mocks` folder. 
 
 Set the `DELAY` constant (in milliseconds) if you want to simulate a delayed API response.
@@ -54,8 +54,8 @@ const REQUEST_RESPONSE_MAPPINGS = {
 };
 ```
 
-You can declare different responses for specific route parameters or query parameters. Or you can
-use wildcards if you don't particularly care what parameter value is contained in the request. 
+You can declare different responses for specific route parameters or query parameters. Alteratively,
+you can use wildcards if you don't particularly care what parameter value is contained in the request. 
 The example below shows how you might use wildcards or specific values as the `id` route parameter 
 to get a host's device mapping by host id and how you might use wildcards or specific values 
 for the `team_id` query parameter to get hosts filtered by team id.
