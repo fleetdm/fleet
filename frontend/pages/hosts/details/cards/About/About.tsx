@@ -25,6 +25,61 @@ const About = ({
   wrapFleetHelper,
   deviceUser,
 }: IAboutProps): JSX.Element => {
+  const renderSerialAndIPs = () => {
+    return (
+      <>
+        <div className="info-grid__block">
+          <span className="info-grid__header">Serial number</span>
+          <span className="info-grid__data">{aboutData.hardware_serial}</span>
+        </div>
+        <div className="info-grid__block">
+          <span className="info-grid__header">Internal IP address</span>
+          <span className="info-grid__data">{aboutData.primary_ip}</span>
+        </div>
+        <div className="info-grid__block">
+          <span className="info-grid__header">Public IP address</span>
+          <span className="info-grid__data">{aboutData.public_ip}</span>
+        </div>
+      </>
+    );
+  };
+
+  const renderMunkiData = () => {
+    if (!macadmins) {
+      return null;
+    }
+    const { munki } = macadmins;
+    return munki ? (
+      <>
+        <div className="info-grid__block">
+          <span className="info-grid__header">Munki version</span>
+          <span className="info-grid__data">{munki.version || "---"}</span>
+        </div>
+      </>
+    ) : null;
+  };
+
+  const renderMdmData = () => {
+    if (!macadmins?.mobile_device_management) {
+      return null;
+    }
+    const mdm = macadmins.mobile_device_management;
+    return mdm.enrollment_status !== "Unenrolled" ? (
+      <>
+        <div className="info-grid__block">
+          <span className="info-grid__header">MDM enrollment</span>
+          <span className="info-grid__data">
+            {mdm.enrollment_status || "---"}
+          </span>
+        </div>
+        <div className="info-grid__block">
+          <span className="info-grid__header">MDM server URL</span>
+          <span className="info-grid__data">{mdm.server_url || "---"}</span>
+        </div>
+      </>
+    ) : null;
+  };
+
   const renderDeviceUser = () => {
     const numUsers = deviceMapping?.length;
     if (numUsers) {
@@ -70,42 +125,6 @@ const About = ({
     return null;
   };
 
-  const renderMdmData = () => {
-    if (!macadmins?.mobile_device_management) {
-      return null;
-    }
-    const mdm = macadmins.mobile_device_management;
-    return mdm.enrollment_status !== "Unenrolled" ? (
-      <>
-        <div className="info-grid__block">
-          <span className="info-grid__header">MDM enrollment</span>
-          <span className="info-grid__data">
-            {mdm.enrollment_status || "---"}
-          </span>
-        </div>
-        <div className="info-grid__block">
-          <span className="info-grid__header">MDM server URL</span>
-          <span className="info-grid__data">{mdm.server_url || "---"}</span>
-        </div>
-      </>
-    ) : null;
-  };
-
-  const renderMunkiData = () => {
-    if (!macadmins) {
-      return null;
-    }
-    const { munki } = macadmins;
-    return munki ? (
-      <>
-        <div className="info-grid__block">
-          <span className="info-grid__header">Munki version</span>
-          <span className="info-grid__data">{munki.version || "---"}</span>
-        </div>
-      </>
-    ) : null;
-  };
-
   const renderGeolocation = () => {
     const geolocation = aboutData.geolocation;
 
@@ -145,18 +164,7 @@ const About = ({
               {wrapFleetHelper(humanHostEnrolled, aboutData.last_enrolled_at)}
             </span>
           </div>
-          <div className="info-grid__block">
-            <span className="info-grid__header">Serial number</span>
-            <span className="info-grid__data">{aboutData.hardware_serial}</span>
-          </div>
-          <div className="info-grid__block">
-            <span className="info-grid__header">Internal IP address</span>
-            <span className="info-grid__data">{aboutData.primary_ip}</span>
-          </div>
-          <div className="info-grid__block">
-            <span className="info-grid__header">Public IP address</span>
-            <span className="info-grid__data">{aboutData.public_ip}</span>
-          </div>
+          {renderSerialAndIPs()}
           {renderDeviceUser()}
         </div>
       </div>
@@ -183,18 +191,7 @@ const About = ({
           <span className="info-grid__header">Hardware model</span>
           <span className="info-grid__data">{aboutData.hardware_model}</span>
         </div>
-        <div className="info-grid__block">
-          <span className="info-grid__header">Serial number</span>
-          <span className="info-grid__data">{aboutData.hardware_serial}</span>
-        </div>
-        <div className="info-grid__block">
-          <span className="info-grid__header">Internal IP address</span>
-          <span className="info-grid__data">{aboutData.primary_ip}</span>
-        </div>
-        <div className="info-grid__block">
-          <span className="info-grid__header">Public IP address</span>
-          <span className="info-grid__data">{aboutData.public_ip}</span>
-        </div>
+        {renderSerialAndIPs()}
         {renderMunkiData()}
         {renderMdmData()}
         {renderDeviceUser()}
