@@ -9,7 +9,7 @@ based on the API specification for your feature. Then, you simply import the moc
 in place of `sendRequest` when you build out the `/services/entities` methods for your feature. 
 
 The mock service simulates async network requests and responses for the API. The mock service tries 
-to match incoming request URLs against the paths declared in`REQUEST_RESPONSE_MAPPINGS`. 
+to match incoming request URLs against the paths declared in `REQUEST_RESPONSE_MAPPINGS`. 
 If a match is found, the mock service returns the expected JSON response with `Promise.resolve`. 
 If no match is found, the mock service returns an error with `Promise.reject`.
  
