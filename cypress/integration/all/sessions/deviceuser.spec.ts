@@ -6,7 +6,7 @@ describe("Device user only", () => {
   describe("Device user page", () => {
     beforeEach(() => {
       cy.loginWithCySession();
-      cy.visit("/device/deviceauthtoken"); // TODO
+      cy.visit("/device/deviceauthtoken"); // TODO: Lucas will create a script using token: deviceauthtoken
     });
     it("renders the device user information and info modal", () => {
       cy.getAttached(".status--online").should("exist");
@@ -33,6 +33,7 @@ describe("Device user only", () => {
       });
       let initialCount = 0;
       cy.getAttached(".section--software").within(() => {
+        // TODO: Lucas creating a device which will include software
         cy.getAttached(".table-container__results-count")
           .invoke("text")
           .then((text) => {
