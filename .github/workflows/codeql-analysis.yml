@@ -13,7 +13,8 @@ on:
       - '**.jsx'
       - '**.ts'
       - '**.tsx'
-
+permissions:
+    contents: read
 jobs:
   analyze:
     name: Analyze

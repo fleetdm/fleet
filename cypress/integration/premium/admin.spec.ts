@@ -83,14 +83,16 @@ describe("Premium tier - Admin user", () => {
           cy.findByText(/oranges/i).should("exist");
           cy.findByText(/apples/i).click();
         });
-        cy.getAttached(".transfer-action-btn").click();
+        cy.getAttached(".transfer-host-modal__button-wrap")
+          .contains("button", /transfer/i)
+          .click();
         cy.findByText(/transferred to apples/i).should("exist");
         cy.findByText(/team/i).next().contains("Apples");
       });
       it("allows global admin to create an operating system policy", () => {
         cy.getAttached(".info-flex").within(() => {
           cy.findByText(/ubuntu/i).should("exist");
-          cy.getAttached(".host-details__os-policy-button").click();
+          cy.getAttached(".host-summary__os-policy-button").click();
         });
         cy.getAttached(".modal__content")
           .findByRole("button", { name: /create new policy/i })
@@ -105,7 +107,7 @@ describe("Premium tier - Admin user", () => {
         cy.getAttached(".host-details__action-button-container")
           .contains("button", /delete/i)
           .click();
-        cy.getAttached(".host-details__modal").within(() => {
+        cy.getAttached(".delete-host-modal__modal").within(() => {
           cy.findByText(/delete host/i).should("exist");
           cy.contains("button", /delete/i).should("exist");
           cy.getAttached(".modal__ex").click();
@@ -441,7 +443,7 @@ describe("Premium tier - Admin user", () => {
       it("allows team admin to create an operating system policy", () => {
         cy.getAttached(".info-flex").within(() => {
           cy.findByText(/ubuntu/i).should("exist");
-          cy.getAttached(".host-details__os-policy-button").click();
+          cy.getAttached(".host-summary__os-policy-button").click();
         });
         cy.getAttached(".modal__content")
           .findByRole("button", { name: /create new policy/i })
@@ -455,7 +457,7 @@ describe("Premium tier - Admin user", () => {
         cy.getAttached(".host-details__action-button-container")
           .contains("button", /delete/i)
           .click();
-        cy.getAttached(".host-details__modal").within(() => {
+        cy.getAttached(".delete-host-modal__modal").within(() => {
           cy.findByText(/delete host/i).should("exist");
           cy.contains("button", /delete/i).should("exist");
           cy.getAttached(".modal__ex").click();

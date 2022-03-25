@@ -90,7 +90,7 @@ func TriggerFailingPoliciesWebhook(
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
 			level.Debug(logger).Log("msg", "skipping failing policy, deleted", "policyID", policyID)
-			if err := failingPoliciesSet.RemoveSet(policy.ID); err != nil {
+			if err := failingPoliciesSet.RemoveSet(policyID); err != nil {
 				level.Error(logger).Log("msg", "failed to remove policy from set", "policyID", policyID, "err", err)
 			}
 			continue
