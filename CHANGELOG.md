@@ -1,3 +1,43 @@
+## Fleet 4.12.0 (Mar 24, 2022)
+
+* Add ability to update which platform (macOS, Windows, Linux) a policy is checked on.
+
+* Add ability to detect compatibility for custom policies.
+
+* Increase the default session duration to 5 days. Session duration can be updated using the
+  [`session_duration` configuration option](https://fleetdm.com/docs/deploying/configuration#session-duration).
+
+* Add ability to see the percentage of hosts that responded to a live query.
+
+* Add ability for user's with [admin permissions](https://fleetdm.com/docs/using-fleet/permissions#user-permissions) to update any user's password.
+
+* Add [`content_type_value` Kafka REST Proxy configuration
+  option](https://fleetdm.com/docs/deploying/configuration#kafkarest-content-type-value) to allow
+  the use of different versions of the Kafka REST Proxy.
+
+* Add [`database_path` GeoIP configuration option](https://fleetdm.com/docs/deploying/configuration#database-path) to specify a GeoIP database. When configured,
+  geolocation information is presented on the **Host details** page and in the `GET /hosts/{id}` API route.
+
+* Add ability to retrieve a host's public IP address. This information is available on the **Host
+  details** page and `GET /hosts/{id}` API route.
+
+* Add instructions and materials needed to add hosts to Fleet using [plain osquery](https://fleetdm.com/docs/using-fleet/adding-hosts#plain-osquery). These instructions
+can be found in **Hosts > Add hosts > Advanced** in the Fleet UI.
+
+* Add Beta support for Fleet Desktop on macOS. Fleet Desktop allows the device user to see
+  information about their device. To add Fleet Desktop to a macOS device, first add the
+  `--fleet-desktop` flag to the `fleectl package` command to generate a Fleet-osquery installer that
+  includes Fleet Desktop. Then, open this installer on the device.
+
+* Reduce the noise of osquery status logs by only running a host vital query, which populate the
+**Host details** page, when the query includes tables that are compatible with a specific host.
+
+* Fix a bug on the **Edit pack** page in which the "Select targets" element would display the hover effect for the wrong target.
+
+* Fix a bug on the **Software** page in which software items from deleted hosts were not removed.
+
+* Fix a bug in which the platform for Amazon Linux 2 hosts would be displayed incorrectly.
+
 ## Fleet 4.11.0 (Mar 7, 2022)
 
 * Improve vulnerability processing to reduce the number of false positives for RPM packages on Linux hosts.
