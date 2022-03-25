@@ -90,6 +90,16 @@ A browser compatibility check of [fleetdm.com](https://fleetdm.com/) should be c
 - Document any issues in GitHub as a [bug report](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&template=bug-report.md&title=), and assign for fixing.
 - If in doubt about anything regarding design or layout, please reach out to the Design team.
 
+### How to Make Usability Changes to the Website
+
+We want to make it as easy as possible to manage devices with Fleet. Our team should change the website whenever it will improve ease of use. 
+
+To propose changes:
+1. Decide what you want to change. A small change is the best place to start.
+2. Wireframe the design. Usually digital experience does this but anyone can contribute.
+3. Present your change to the website DRI. They will approve it or suggest revisions.
+4. Code the website change. Again, digital experience often does this but anyone can help.
+5. Measure if the change made it easier to use. This can be tricky, but the growth team will have ideas on how to do this.
 
 <meta name="maintainedBy" value="mike-j-thomas">
 
