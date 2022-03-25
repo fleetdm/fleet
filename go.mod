@@ -55,10 +55,9 @@ require (
 	github.com/jonboulle/clockwork v0.2.2 // indirect
 	github.com/kennygrant/sanitize v1.2.4 // indirect
 	github.com/kevinburke/go-bindata v3.22.0+incompatible
-	github.com/kolide/kit v0.0.0-20180421083548-36eb8dc43916
-	github.com/kolide/launcher v0.0.0-20180427153757-cb412b945cf7
-	github.com/kolide/osquery-go v0.0.0-20200604192029-b019be7063ac
-	github.com/macadmins/osquery-extension v0.0.5
+	github.com/kolide/kit v0.0.0-20191023141830-6312ecc11c23
+	github.com/kolide/launcher v0.11.25-0.20220321235155-c3e9480037d2
+	github.com/macadmins/osquery-extension v0.0.7
 	github.com/mattermost/xml-roundtrip-validator v0.0.0-20201213122252-bcd7e1b9601e
 	github.com/mattn/go-sqlite3 v1.14.8
 	github.com/mitchellh/go-ps v1.0.0
@@ -69,6 +68,7 @@ require (
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/open-policy-agent/opa v0.24.0
 	github.com/oschwald/geoip2-golang v1.6.1
+	github.com/osquery/osquery-go v0.0.0-20220317165851-954ac78f381f
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.11.0
@@ -85,7 +85,7 @@ require (
 	github.com/spf13/cobra v1.2.1
 	github.com/spf13/viper v1.8.1
 	github.com/stretchr/objx v0.3.0 // indirect
-	github.com/stretchr/testify v1.7.0
+	github.com/stretchr/testify v1.7.1
 	github.com/temoto/robotstxt v1.1.2 // indirect
 	github.com/theupdateframework/go-tuf v0.0.0-20220121203041-e3557e322879
 	github.com/throttled/throttled/v2 v2.8.0
@@ -102,10 +102,10 @@ require (
 	go.opentelemetry.io/otel/sdk v1.3.0
 	golang.org/x/crypto v0.0.0-20220112180741-5e0467b6c7ce
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
-	golang.org/x/sys v0.0.0-20220114195835-da31bd327af9
+	golang.org/x/sys v0.0.0-20220319134239-a9b59b0215f8
 	google.golang.org/grpc v1.42.0
 	gopkg.in/guregu/null.v3 v3.4.0
-	gopkg.in/natefinch/lumberjack.v2 v2.0.0-20170531160350-a96e63847dc3
+	gopkg.in/natefinch/lumberjack.v2 v2.0.0
 	gopkg.in/yaml.v2 v2.4.0
 )
 

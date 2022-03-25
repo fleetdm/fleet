@@ -1,9 +1,10 @@
-import { flatMap, omit, pick, size, memoize } from "lodash";
+import { isEmpty, flatMap, omit, pick, size, memoize, reduce } from "lodash";
 import md5 from "js-md5";
 import { format, formatDistanceToNow, isAfter } from "date-fns";
 import yaml from "js-yaml";
 
 import { IConfigNested } from "interfaces/config";
+import { IHost } from "interfaces/host";
 import { ILabel } from "interfaces/label";
 import { IPack } from "interfaces/pack";
 import {
@@ -734,6 +735,31 @@ export const getValidatedTeamId = (
   return validatedTeamId;
 };
 
+// returns a mixture of props from host
+export const normalizeEmptyValues = (
+  hostData: Partial<IHost>
+): { [key: string]: any } => {
+  return reduce(
+    hostData,
+    (result, value, key) => {
+      if ((Number.isFinite(value) && value !== 0) || !isEmpty(value)) {
+        Object.assign(result, { [key]: value });
+      } else {
+        Object.assign(result, { [key]: "---" });
+      }
+      return result;
+    },
+    {}
+  );
+};
+
+export const wrapFleetHelper = (
+  helperFn: (value: any) => string, // number or string or never
+  value: string
+): string => {
+  return value === "---" ? value : helperFn(value);
+};
+
 export default {
   addGravatarUrlToResource,
   formatConfigDataForServer,
@@ -765,4 +791,6 @@ export default {
   frontendFormattedConfig,
   syntaxHighlight,
   getValidatedTeamId,
+  normalizeEmptyValues,
+  wrapFleetHelper,
 };

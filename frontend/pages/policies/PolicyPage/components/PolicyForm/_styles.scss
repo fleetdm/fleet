@@ -153,6 +153,10 @@
   &__policy-name {
     font-size: $large;
 
+    &--new {
+      padding-bottom: $pad-large;
+    }
+
     &.input-field--error {
       border: 1px solid $core-vibrant-red;
     }
