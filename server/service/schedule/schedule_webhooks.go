@@ -39,7 +39,7 @@ func DoWebhooks(
 	}
 
 	maybeTriggerHostStatus(ctx, ds, logger, appConfig)
-	maybeTriggerGlobalFailingPoliciesWebhook(ctx, ds, logger, appConfig, failingPoliciesSet)
+	maybeTriggerFailingPoliciesWebhook(ctx, ds, logger, appConfig, failingPoliciesSet)
 	level.Debug(logger).Log("webhooks", "done")
 
 	return stats, nil // TODO: how should we handle stats/errors here?
@@ -61,7 +61,7 @@ func maybeTriggerHostStatus(
 	}
 }
 
-func maybeTriggerGlobalFailingPoliciesWebhook(
+func maybeTriggerFailingPoliciesWebhook(
 	ctx context.Context,
 	ds fleet.Datastore,
 	logger kitlog.Logger,
@@ -70,7 +70,7 @@ func maybeTriggerGlobalFailingPoliciesWebhook(
 ) {
 	level.Debug(logger).Log("webhook_failing_policies", "maybe trigger webhook...")
 
-	if err := webhooks.TriggerGlobalFailingPoliciesWebhook(
+	if err := webhooks.TriggerFailingPoliciesWebhook(
 		ctx, ds, kitlog.With(logger, "webhook", "failing_policies"), appConfig, failingPoliciesSet, time.Now(),
 	); err != nil {
 		level.Error(logger).Log("err", "triggering failing policies webhook", "details", err)
