@@ -13,8 +13,8 @@ After a customer conversation, it can sometimes feel like there are 1001 things 
 This section outlines the customer and community support process at Fleet.
 
 - L1: Basic help desk resolution and service delivery -> CS team handles these with occasional support from L2
-- L2: In-depth technical suppport -> CS Team with L2 Oncall Technician
-- L3: Expert product and service support -> CS team liases with L2 and L3 Oncall Technician.
+- L2: In-depth technical suppport -> CS team with L2 oncall technician
+- L3: Expert product and service support -> CS team liases with L2 and L3 oncall technician.
 
 In each case, if possible, the resulting solution should be made more clear in the documentation and/or the FAQs.
 
