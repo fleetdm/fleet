@@ -18,6 +18,11 @@
 - [Why my host is not updating a policy's response.](#why-my-host-is-not-updating-a-policys-response)
 - [What should I do if my computer is showing up as an offline host?](#what-should-i-do-if-my-computer-is-showing-up-as-an-offline-host)
 - [How does Fleet deal with IP duplication?](#how-does-fleet-deal-with-ip-duplication)
+- [Can Orbit run alongside osquery?](#can-orbit-run-alongside-osquery)
+- [Can I disable auto updates for Orbit?](#can-i-disable-auto-updates-for-orbit)
+- [Can I bundle osquery extensions into Orbit?]
+- [How does Fleet work with osquery extensions?](#how-does-fleet-work-with-osquery-extensions)
+- [Why am I seeing "unknown certificate error" when adding hosts to my dev server?](#why-am-i-seeing-"unknown-certificate-error"-when-adding-hosts-to-my-dev-server)
 
 ## What do I need to do to switch from Kolide Fleet to FleetDM Fleet?
 
@@ -27,7 +32,7 @@ Minor version upgrades in Kolide Fleet often included database migrations and th
 
 To migrate from `kolide/fleet` to the new Fleet, please follow the steps outlined in the [Upgrading Fleet section](../Deploying/Upgrading-Fleet.md) of the documentation.
 
-## Has anyone stress tested Fleet? How many clients can the Fleet server handle?
+## Has anyone stress tested Fleet? How many hosts can the Fleet server handle?
 
 Fleet has been stress tested to 150,000 online hosts and 400,000 total enrolled hosts. Production deployments exist with over 100,000 hosts and numerous production deployments manage tens of thousands of hosts.
 
@@ -182,6 +187,29 @@ Fleet relies on UUIDs so any overlap with host IP addresses should not cause a p
 
 Yes, Orbit can be run alongside osquery. The osquery instance that Orbit runs uses its own database directory that is stored within the Orbit directory.
 
+## Can I disable auto updates for Orbit?
+
+Yes, auto updates can be disabled either by passing `--disable-updates` as a flag when running `fleetctl package` to generate your installer (easy), or by deploying a modified systemd file to your hosts (more complicated). We'd reccomend the flag:
+
+```
+fleetctl package --fleetctl package --type=deb --fleet-url=https://localhost:8080 --enroll-secret=superRandomSecret --disable-updates
+```
+## Can I bundle osquery extensions into Orbit?
+
+This isn't supported yet, but we're working on it! 
+
 ## What happens to osquery logs if my Fleet server or my logging destination is offline?
 
 If Fleet can't send logs to the destination, it will return an error to osquery. This causes osquery to retry sending the logs. The logs will then be stored in osquery's internal buffer until they are sent successfully, or they get expired if the `buffered_log_max`(defaults to 1,000,000 logs) is exceeded. Check out the [Remote logging buffering section](https://osquery.readthedocs.io/en/latest/deployment/remote/#remote-logging-buffering) on the osquery docs for more on this behavior.
+
+## How does Fleet work with osquery extensions?
+
+Any extension table available in a host enrolled to Fleet can be queried by Fleet. Note that the "compatible with" message may show an error because it won't know your extension table, but the query will still work and Fleet will gracefully ignore errors from any incompatible hosts.
+
+## Why am I seeing "Unknown Certificate Error" when adding hosts to my dev server?
+
+If you are using a self-signed certificate on `localhost`, add the  `--insecure` flag when building your installation packages:
+
+```
+fleetctl package --fleetctl package --type=deb --fleet-url=https://localhost:8080 --enroll-secret=superRandomSecret --insecure
+```

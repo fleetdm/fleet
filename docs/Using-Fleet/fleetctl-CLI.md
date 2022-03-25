@@ -1,6 +1,9 @@
 # fleetctl CLI
 
 - [Introduction](#introduction)
+- [Using fleetctl](#using-fleetctl)
+  - [Available commands](#available-commands)
+  - [Get more info about a command](#get-more-info-about-a-command)
 - [Setting Up Fleet](#setting-up-fleet)
   - [Running Fleet](#running-fleet)
   - [`fleetctl config`](#fleetctl-config)
@@ -19,6 +22,64 @@
 Fleetctl (pronounced "Fleet control") is a CLI tool for managing Fleet from the command line. Fleetctl enables a GitOps workflow with Fleet and osquery. With fleetctl, you can manage configurations, queries, packs, generate osquery installers, etc.
 
 Fleetctl also provides a quick way to work with all the data exposed by Fleet without having to use the Fleet UI or work directly with the Fleet API.
+
+## Using fleetctl
+
+You can use `fleetctl` to accomplish many of the tasks you would typically need to do through the User Interface and to set up or apply configuration files to the Fleet server. 
+
+### Available commands
+
+Much of the functionality available in the Fleet UI is also available in `fleetctl`. You can run queries, add and remove users, generate install packages to add new hosts, get information about existing hosts, and more! The following commands are available for use with `fleetctl`:
+
+```
+   apply                      Apply files to declaratively manage osquery configurations
+   delete                     Specify files to declaratively batch delete osquery configurations
+   setup                      Set up a Fleet instance
+   login                      Login to Fleet
+   logout                     Log out of Fleet
+   query                      Run a live query
+   get                        Get/list resources
+   config                     Modify Fleet server connection settings
+   convert                    Convert osquery packs into decomposed fleet configs
+   goquery                    Start the goquery interface
+   user                       Manage Fleet users
+   debug                      Tools for debugging Fleet
+   preview                    Start a preview deployment of the Fleet server
+   updates                    Manage client updates
+   hosts                      Manage Fleet hosts
+   vulnerability-data-stream  Download the vulnerability data stream
+   package                    Create an Orbit installer package
+   help, h                    Shows a list of commands or help for one command
+```
+
+### Get more info about a command
+
+Each command available to `fleetctl` has a help menu with additional information. To pull up the help menu, run `fleetctl <command> --help`:
+
+```
+> fleetctl setup --help
+```
+
+You will see more info about the command, including the usage and info about any additional commands and options (or 'flags') that can be passed with it:
+
+```
+NAME:
+   fleetctl setup - Set up a Fleet instance
+
+USAGE:
+   fleetctl setup [options]
+
+OPTIONS:
+   --email value     Email of the admin user to create (required) [$EMAIL]
+   --name value      Name or nickname of the admin user to create (required) [$NAME]
+   --password value  Password for the admin user (recommended to use interactive entry) [$PASSWORD]
+   --org-name value  Name of the organization (required) [$ORG_NAME]
+   --config value    Path to the fleetctl config file (default: "/Users/ksatter/.fleet/config") [$CONFIG]
+   --context value   Name of fleetctl config context to use (default: "default") [$CONTEXT]
+   --debug           Enable debug http request logging (default: false) [$DEBUG]
+   --help, -h        show help (default: false)
+
+```
 
 ## Setting up Fleet
 

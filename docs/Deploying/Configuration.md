@@ -89,10 +89,11 @@ FLEET_LOGGING_JSON=true \
 /usr/bin/fleet serve
 ```
 
-##### Using a config file
+##### Using a YAML config file 
 
 ```
 echo '
+
 mysql:
   address: 127.0.0.1:3306
   database: fleet
@@ -108,6 +109,9 @@ logging:
 ' > /tmp/fleet.yml
 fleet serve --config /tmp/fleet.yml
 ```
+//TODO: add link
+
+For more information on using YAML configuration files with fleet, please see the [configuration files](../Using-Fleet/configuration-files/README.md) documentation.
 
 ### What are the options?
 
@@ -303,6 +307,21 @@ Maximum amount of time, in seconds, a connection may be reused.
   mysql:
   	conn_max_lifetime: 50
   ```
+
+##### Example YAML
+
+```yaml
+apiVersion: v1
+kind: config
+spec:
+  msyql:
+    address: localhost:3306
+    database: fleet
+    password: fleet
+    max_open_conns: 50
+    max_idle_conns: 50
+    conn_max_lifetime: 50
+```
 
 #### Redis
 
@@ -614,7 +633,21 @@ A value of 0 means no timeout.
   	write_timeout: 5s
   ```
 
-#### Server
+##### Example YAML
+
+```yaml
+apiVersion: v1
+kind: config
+spec:
+  redis:
+    address: localhost:7369
+    password: foobar
+    database: 14
+    connect_timeout: 10s
+    connect_retry_attempts: 2
+```
+
+### Server
 
 ##### server_address
 
@@ -713,6 +746,20 @@ Turning off keepalives has helped reduce outstanding TCP connections in some dep
   	keepalive: true
   ```
 
+##### Example YAML
+
+```yaml
+apiVersion: v1
+kind: config
+spec:
+  server:
+    address: 0.0.0.0:443
+    password: foobar
+    cert: /tmp/fleet.crt
+    key: /tmp/fleet.key
+    invite_token_validity_period: 1d
+```
+
 #### Auth
 
 ##### auth_bcrypt_cost
@@ -740,6 +787,17 @@ The key size of the salt which is generated when hashing user passwords.
   auth:
   	salt_key_size: 36
   ```
+
+##### Example YAML
+
+```yaml
+apiVersion: v1
+kind: config
+spec:
+  auth:
+    bcrypt_cost: 14
+    salt_key_size: 36
+```
 
 #### App
 
@@ -782,6 +840,18 @@ Determines whether Fleet gets scheduled query statistics from hosts or not.
   	enable_scheduled_query_stats: true
   ```
 
+##### Example YAML
+
+```yaml
+apiVersion: v1
+kind: config
+spec:
+  app:
+    token_key_size: 36
+    salt_key_size: 36
+    invite_token_validity_period: 1d
+```
+
 #### License
 
 ##### license_key
@@ -796,6 +866,16 @@ The license key provided to Fleet customers which provides access to Fleet Premi
   license:
     key: foobar
   ```
+
+##### Example YAML
+
+```yaml
+apiVersion: v1
+kind: config
+spec:
+ license:
+    key: foobar
+```
 
 #### Session
 
@@ -826,6 +906,16 @@ Valid time units are `s`, `m`, `h`.
   session:
   	duration: 4h
   ```
+
+##### Example YAML
+
+```yaml
+apiVersion: v1
+kind: config
+spec:
+  session:
+  	duration: 4h
+```
 
 #### Osquery
 
@@ -1108,6 +1198,20 @@ Applies only when `osquery_enable_async_host_processing` is enabled. Order of ma
   	async_host_redis_scan_keys_count: 100
   ```
 
+##### Example YAML
+
+```yaml
+apiVersion: v1
+kind: config
+spec:
+  osquery:
+    host_identifier: uuid
+    policy_update_interval: 30m
+    duration: 4h
+    status_log_plugin: firehose
+    result_log_plugin: firehose
+```
+
 #### Logging (Fleet server logging)
 
 ##### logging_debug
@@ -1164,6 +1268,17 @@ and a negative value to disable storage of errors in Redis.
   	error_retention_period: 1h
   ```
 
+##### Example YAML
+
+```yaml
+apiVersion: v1
+kind: config
+spec:
+  logging:
+    disable_banner: true
+    policy_update_interval: 30m
+    error_retention_period: 1h
+```
 #### Filesystem
 
 ##### filesystem_status_log_file
@@ -1226,6 +1341,21 @@ This flag will cause the rotated logs to be compressed with gzip.
   filesystem:
      enable_log_compression: true
   ```
+
+##### Example YAML
+
+```yaml
+apiVersion: v1
+kind: config
+spec:
+  osquery:
+    osquery_status_log_plugin: filesystem
+    osquery_result_log_plugin: filesystem
+  filesystem:
+    status_log_file: /var/log/osquery/status.log
+    result_log_file: /var/log/osquery/result.log
+    enable_log_rotation: true
+```
 
 #### Firehose
 
@@ -1333,6 +1463,24 @@ the stream listed:
 
 - `firehose:DescribeDeliveryStream`
 - `firehose:PutRecordBatch`
+
+##### Example YAML
+
+```yaml
+apiVersion: v1
+kind: config
+spec:
+  osquery:
+    osquery_status_log_plugin: firehose
+    osquery_result_log_plugin: firehose
+  firehose:
+    region: ca-central-1
+    access_key_id: AKIAIOSFODNN7EXAMPLE
+    secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+    sts_assume_role_arn: arn:aws:iam::1234567890:role/firehose-role
+    status_stream: osquery_status
+    result_stream: osquery_result
+```
 
 #### Kinesis
 
@@ -1446,6 +1594,26 @@ the stream listed:
 - `kinesis:DescribeStream`
 - `kinesis:PutRecords`
 
+##### Example YAML
+
+```yaml
+apiVersion: v1
+kind: config
+spec:
+  osquery:
+    osquery_status_log_plugin: kinesis
+    osquery_result_log_plugin: kinesis
+  kinesis:
+    region: ca-central-1
+    result_log_file: /var/log/osquery/result.log
+    access_key_id: AKIAIOSFODNN7EXAMPLE
+    secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+    sts_assume_role_arn: arn:aws:iam::1234567890:role/firehose-role
+    status_stream: osquery_status
+    result_stream: osquery_result
+```
+
+
 #### Lambda
 
 ##### lambda_region
@@ -1556,6 +1724,24 @@ the function listed:
 
 - `lambda:InvokeFunction`
 
+##### Example YAML
+
+```yaml
+apiVersion: v1
+kind: config
+spec:
+  osquery:
+    osquery_status_log_plugin: lamda
+    osquery_result_log_plugin: lamda
+  lamda:
+    region: ca-central-1
+    access_key_id: AKIAIOSFODNN7EXAMPLE
+    secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+    sts_assume_role_arn: arn:aws:iam::1234567890:role/firehose-role
+    status_function: statusFunction
+    result_function: resultFunction
+```
+
 #### PubSub
 
 ##### pubsub_project
@@ -1626,8 +1812,26 @@ This feature is useful when combined with [subscription filters](https://cloud.g
 
   ```
   pubsub:
-    status_topic: osquery_status
+    add_attributes: true
   ```
+
+##### Example YAML
+
+```yaml
+apiVersion: v1
+kind: config
+spec:
+  osquery:
+    osquery_status_log_plugin: pubsub
+    osquery_result_log_plugin: pubsub
+  pubsub:
+    project: my-gcp-project
+    result_topic: osquery_result
+    status_topic: osquery_status
+    sts_assume_role_arn: arn:aws:iam::1234567890:role/firehose-role
+    status_function: statusFunction
+    result_function: resultFunction
+```
 
 #### Kafka REST Proxy logging
 
@@ -1707,7 +1911,20 @@ can be found [here](https://docs.confluent.io/platform/current/kafka-rest/api.ht
     content_type_value: application/vnd.kafka.json.v2+json
   ```
 
+##### Example YAML
 
+```yaml
+apiVersion: v1
+kind: config
+spec:
+  osquery:
+    osquery_status_log_plugin: kafkarest
+    osquery_result_log_plugin: kafkarest
+  kafkarest:
+    proxyhost: "https://localhost:8443"
+    result_topic: osquery_result
+    status_topic: osquery_status
+```
 #### S3 file carving backend
 
 ##### s3_bucket
@@ -1842,6 +2059,21 @@ Minio users must set this to any nonempty value (eg. `minio`), as Minio does not
   	region: us-east-1
   ```
 
+##### Example YAML
+
+```yaml
+apiVersion: v1
+kind: config
+spec:
+  s3:
+    bucket: some-carve-bucket
+    prefix: carves-go-here/
+    access_key_id: AKIAIOSFODNN7EXAMPLE
+    secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+    sts_assume_role_arn: arn:aws:iam::1234567890:role/some-s3-role
+    region: us-east-1
+```
+
 #### Upgrades
 
 ##### allow_missing_migrations
@@ -1853,8 +2085,11 @@ If set then `fleet serve` will run even if there are database migrations missing
 - Config file format:
 
   ```
-  upgrades:
-    allow_missing_migrations: true
+  apiVersion: v1
+    kind: config
+    spec:
+      upgrades:
+        allow_missing_migrations: true
   ```
 
 #### Vulnerabilities
@@ -1943,7 +2178,19 @@ To download the data streams, you can use `fleetctl vulnerability-data-stream --
   	disable_data_sync: true
   ```
   
-### GeoIP
+##### Example YAML
+
+```yaml
+apiVersion: v1
+kind: config
+spec:
+  vulnerabilities:
+    databases_path: /some/path
+    current_instance_checks: yes
+    disable_data_sync: true
+
+```
+#### GeoIP
 
 ##### database_path
 
@@ -1957,8 +2204,11 @@ on the Fleet web server.
 - Config file format:
 
   ```yaml
-  geoip:
-  	database_path: /some/path
+  apiVersion: v1
+  kind: config
+  spec:
+    geoip:
+    dd	database_path: /some/path
   ```
 
 
