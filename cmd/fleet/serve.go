@@ -597,16 +597,6 @@ func runCrons(ds fleet.Datastore, task *async.Task, logger kitlog.Logger, config
 	// StartCollectors starts a goroutine per collector, using ctx to cancel.
 	task.StartCollectors(ctx, config.Osquery.AsyncHostCollectMaxJitterPercent, kitlog.With(logger, "cron", "async_task"))
 
-	// TODO remove
-	// ONE TIME CLEAN UP HOSTS BEFORE START
-	if locked, err := ds.Lock(ctx, lockKeyLeader, ourIdentifier, time.Minute*15); err != nil && locked {
-		err = ds.CleanupExpiredHosts(ctx)
-		if err != nil {
-			level.Error(logger).Log("err", "cleaning expired hosts", "details", err)
-			sentry.CaptureException(err)
-		}
-	}
-
 	go cronCleanups(ctx, ds, kitlog.With(logger, "cron", "cleanups"), ourIdentifier, license)
 	go cronVulnerabilities(
 		ctx, ds, kitlog.With(logger, "cron", "vulnerabilities"), ourIdentifier, config)
@@ -622,7 +612,7 @@ func cronCleanups(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 		select {
 		case <-ticker.C:
 			level.Debug(logger).Log("waiting", "done")
-			ticker.Reset(1 * time.Hour)
+			ticker.Reset(1 * time.Minute)
 		case <-ctx.Done():
 			level.Debug(logger).Log("exit", "done with cron.")
 			return
