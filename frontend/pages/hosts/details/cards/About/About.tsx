@@ -176,7 +176,7 @@ const About = ({
       <p className="section__header">About</p>
       <div className="info-grid">
         <div className="info-grid__block">
-          <span className="info-grid__header">First enrolled</span>
+          <span className="info-grid__header">Added to Fleet</span>
           <span className="info-grid__data">
             {wrapFleetHelper(humanHostEnrolled, aboutData.last_enrolled_at)}
           </span>
