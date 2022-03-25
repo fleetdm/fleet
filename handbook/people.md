@@ -157,7 +157,7 @@ We use these prefixes to organize the Fleet Slack:
  * ***help-***: for asking for help on specific topics.
  * ***at*** or ***fleet-at***: for customer channels.
 
-## People Ops
+## People ops
 
 ### Performance feedback
 At Fleet, performance feedback is a continuous process. We give feedback (especially negative) as soon as possible. Most feedback will happen during 1:1 meetings, if not sooner.
