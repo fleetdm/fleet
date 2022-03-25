@@ -172,6 +172,7 @@ const DeviceUserPage = ({
       "hardware_model",
       "hardware_serial",
       "primary_ip",
+      "public_ip",
     ])
   );
 
