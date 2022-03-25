@@ -45,7 +45,7 @@ const REQUEST_RESPONSE_MAPPINGS: IResponses = {
       count: 1,
     },
   },
-  // Additional mappings can be specified for other HTTP request types (POST, PATCH, DELETE, etc.)
+  // additional mappings can be specified for other HTTP request types (POST, PATCH, DELETE, etc.)
   POST: {
     "/:id/refetch": {}, // this wildcard route returns empty JSON
   },
