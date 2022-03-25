@@ -9,20 +9,20 @@ const baseClass = "host-summary";
 
 interface IAboutProps {
   aboutData: { [key: string]: any };
-  wrapFleetHelper: (helperFn: (value: any) => string, value: string) => string;
   deviceMapping?: IDeviceUser[];
   macadmins?: {
     munki: IMunkiData | null;
     mobile_device_management: IMDMData | null;
   } | null;
+  wrapFleetHelper: (helperFn: (value: any) => string, value: string) => string;
   deviceUser?: boolean;
 }
 
 const About = ({
   aboutData,
-  wrapFleetHelper,
   deviceMapping,
   macadmins,
+  wrapFleetHelper,
   deviceUser,
 }: IAboutProps): JSX.Element => {
   const renderDeviceUser = () => {
@@ -106,6 +106,24 @@ const About = ({
     ) : null;
   };
 
+  const renderGeolocation = () => {
+    const geolocation = aboutData.geolocation;
+
+    if (!geolocation) {
+      return null;
+    }
+
+    const location = [geolocation?.city_name, geolocation?.country_iso]
+      .filter(Boolean)
+      .join(", ");
+    return (
+      <div className="info-grid__block">
+        <span className="info-grid__header">Location</span>
+        <span className="info-grid__data">{location}</span>
+      </div>
+    );
+  };
+
   if (deviceUser) {
     return (
       <div className="section about">
@@ -132,8 +150,12 @@ const About = ({
             <span className="info-grid__data">{aboutData.hardware_serial}</span>
           </div>
           <div className="info-grid__block">
-            <span className="info-grid__header">IP address</span>
+            <span className="info-grid__header">Internal IP address</span>
             <span className="info-grid__data">{aboutData.primary_ip}</span>
+          </div>
+          <div className="info-grid__block">
+            <span className="info-grid__header">Public IP address</span>
+            <span className="info-grid__data">{aboutData.public_ip}</span>
           </div>
           {renderDeviceUser()}
         </div>
@@ -166,12 +188,17 @@ const About = ({
           <span className="info-grid__data">{aboutData.hardware_serial}</span>
         </div>
         <div className="info-grid__block">
-          <span className="info-grid__header">IPv4</span>
+          <span className="info-grid__header">Internal IP address</span>
           <span className="info-grid__data">{aboutData.primary_ip}</span>
+        </div>
+        <div className="info-grid__block">
+          <span className="info-grid__header">Public IP address</span>
+          <span className="info-grid__data">{aboutData.public_ip}</span>
         </div>
         {renderMunkiData()}
         {renderMdmData()}
         {renderDeviceUser()}
+        {renderGeolocation()}
       </div>
     </div>
   );
