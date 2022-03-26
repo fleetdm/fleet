@@ -248,15 +248,19 @@ unset token
 
 Now that the password has been reset, you will need to log in again using the updated password with `fleetctl login`. You'll now be able to perform tasks using `fleetctl` as your new API-only user. 
 
-### Create a new context for your standard user (optional)
+### Switching users
 
-If you would like to use your API user by default for automated workflows and still use `fleetctl` with your standard user account, you can create an additional context. In the example below, a new `admin` context will be created:
+If you would like to use your API user by default for automated workflows and still use `fleetctl` with your standard user account, you can set up your `fleetctl` config with a new `context` to hold the credentials for your admin user using the `--context` flag:
 
 ```
 fleetctl config set --address https://fleet.corp.example.com --context admin
 [+] Context "admin" not found, creating it with default values
 [+] Set the address config key to "https://dogfood.fleetdm.com" in the "admin" context
+```
 
+Then log in using the `context` you just created and your usual Fleet credentials:
+
+```
 fleetctl login --context admin
 Log in using the admin Fleet credentials.
 Email: admin@example.com
@@ -264,7 +268,7 @@ Password:
 [+] Fleet login successful and context configured!
 ```
 
-Now, you can use the `context` flag to indicate which profile should be used rather than logging in and out every time you need to do something with elevated permissions. Running a command with no context will use the default profile (currently the new API-only user with `Observer` privileges):
+Now, you can use the `context` flag to indicate which profile should be used rather than logging in and out every time you need to switch accounts. Running a command with no context will use the default profile (currently the new API-only user with `Observer` privileges):
 
 ```
 fleetctl user create --email test@example.com --name "New User"
