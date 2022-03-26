@@ -199,10 +199,12 @@ module.exports = {
         let isAutoApproved = await sails.helpers.flow.build(async()=>{
 
           let isSenderDRIForAllChangedPaths = false;
+          let isSenderMaintainer = GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS.includes(sender.login);
           let DRI_BY_PATH = {
             'README.md': 'mike-j-thomas',// (github brandfront)
-            'handbook': 'mikermcneil',// (default for handbook)
-            'handbook/README.md': 'mikermcneil',
+            
+            'handbook': 'eashaw',// (default for handbook)
+            'handbook/README.md': '*',// (any core maintainer can update this page)
             'handbook/company.md': 'mikermcneil',
             'handbook/people.md': 'eashaw',
             'handbook/engineering.md': 'zwass',
@@ -212,11 +214,15 @@ module.exports = {
             'handbook/customers.md': 'tgauda',
             'handbook/community.md': 'mike-j-thomas',
             'handbook/handbook.md': 'mike-j-thomas',
-            'website': 'mikermcneil',// (default for website)
+            
+            'website': 'eashaw',// (default for website)
             'website/views': 'eashaw',
             'website/assets': 'eashaw',
-            'website/config/routes.js': 'mike-j-thomas',
-            'docs': 'mike-j-thomas',
+            'website/config/routes.js': 'mike-j-thomas',// (default for URLs)
+            
+            'docs': 'mike-j-thomas',// (default for docs)
+            
+            'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': 'guillaumeross',// (standard query library)
           };
 
           // [?] https://docs.github.com/en/rest/reference/pulls#list-pull-requests-files
@@ -230,14 +236,14 @@ module.exports = {
 
             require('assert')(sender.login !== undefined);
             sails.log.verbose(`…checking DRI of changed path "${changedPath}"`);
-            if (sender.login === DRI_BY_PATH[changedPath]) {
+            if (sender.login === DRI_BY_PATH[changedPath] || (isSenderMaintainer && '*' === DRI_BY_PATH[changedPath])) {
               return true;
             }
             let numRemainingPathsToCheck = changedPath.split('/').length;
             while (numRemainingPathsToCheck > 0) {
               let ancestralPath = changedPath.split('/').slice(0, -1 * numRemainingPathsToCheck).join('/');
               sails.log.verbose(`…checking DRI of ancestral path "${ancestralPath}" for changed path`);
-              if (sender.login === DRI_BY_PATH[ancestralPath]) {
+              if (sender.login === DRI_BY_PATH[ancestralPath] || (isSenderMaintainer && '*' === DRI_BY_PATH[ancestralPath])) {
                 return true;
               }
               numRemainingPathsToCheck--;
