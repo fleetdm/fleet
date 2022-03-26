@@ -219,7 +219,13 @@ module.exports = {
             'website/assets': 'eashaw',
             'website/config/routes.js': ['eashaw', 'mike-j-thomas'],// (for managing website URLs)
 
-            'docs': ['mike-j-thomas', 'zwass'],// (default for docs)
+            'docs': 'zwass',// (default for docs)
+            'docs/images': ['noahtalerman', 'eashaw', 'mike-j-thomas'],// (inline images in docs)
+            'docs/Using-Fleet/REST-API.md': 'lukeheath',// (API reference documentation)
+            'docs/Contributing/API-for-contributors.md': 'lukeheath',
+            'docs/Deploying/FAQ.md': ['ksatter', 'dominuskelvin'],// (FAQs)
+            'docs/Contributing/FAQ.md': ['ksatter', 'dominuskelvin'],
+            'docs/Using-Fleet/FAQ.md': ['ksatter', 'dominuskelvin'],
 
             'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': ['guillaumeross', 'zwass'],// (standard query library)
           };
