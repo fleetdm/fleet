@@ -216,8 +216,9 @@ module.exports = {
             'handbook/handbook.md': 'mike-j-thomas',
             
             'website': 'eashaw',// (default for website)
-            'website/views': 'eashaw',
-            'website/assets': 'eashaw',
+            'website/scripts': 'mikermcneil',
+            'website/api': 'mikermcneil',
+            'website/config': 'mikermcneil',
             'website/config/routes.js': 'mike-j-thomas',// (default for URLs)
             
             'docs': 'mike-j-thomas',// (default for docs)
