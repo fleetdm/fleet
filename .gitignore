@@ -67,3 +67,6 @@ cmd/cpe/cpe*.sqlite.gz
 
 # Testing TUF server
 test_tuf
+
+
+[plz don't merge] test of a change that should not auto-approve
