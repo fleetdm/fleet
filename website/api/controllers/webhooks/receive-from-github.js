@@ -220,14 +220,14 @@ module.exports = {
             'website/config/routes.js': ['eashaw', 'mike-j-thomas'],// (for managing website URLs)
 
             'docs': 'zwass',// (default for docs)
-            'docs/images': ['noahtalerman', 'eashaw', 'mike-j-thomas'],// (inline images in docs)
-            'docs/Using-Fleet/REST-API.md': 'lukeheath',// (API reference documentation)
+            'docs/images': ['noahtalerman', 'eashaw', 'mike-j-thomas'],
+            'docs/Using-Fleet/REST-API.md': 'lukeheath',
             'docs/Contributing/API-for-contributors.md': 'lukeheath',
-            'docs/Deploying/FAQ.md': ['ksatter', 'dominuskelvin'],// (FAQs)
+            'docs/Deploying/FAQ.md': ['ksatter', 'dominuskelvin'],
             'docs/Contributing/FAQ.md': ['ksatter', 'dominuskelvin'],
             'docs/Using-Fleet/FAQ.md': ['ksatter', 'dominuskelvin'],
 
-            'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': ['guillaumeross', 'zwass'],// (standard query library)
+            'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': 'guillaumeross',// (standard query library)
           };
 
           // [?] https://docs.github.com/en/rest/reference/pulls#list-pull-requests-files
