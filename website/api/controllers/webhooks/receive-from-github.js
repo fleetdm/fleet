@@ -243,7 +243,7 @@ module.exports = {
             require('assert')(sender.login !== undefined);
             sails.log.verbose(`…checking DRI of changed path "${changedPath}"`);
 
-            let selfMergers = DRI_BY_PATH[changedPath] ? [].concat(DRI_BY_PATH[changedPath]) : undefined;// « ensure array
+            let selfMergers = DRI_BY_PATH[changedPath] ? [].concat(DRI_BY_PATH[changedPath]) : [];// « ensure array
             if (selfMergers.includes(sender.login) || (isSenderMaintainer && selfMergers.includes('*'))) {
               return true;
             }//•
@@ -251,7 +251,7 @@ module.exports = {
             while (numRemainingPathsToCheck > 0) {
               let ancestralPath = changedPath.split('/').slice(0, -1 * numRemainingPathsToCheck).join('/');
               sails.log.verbose(`…checking DRI of ancestral path "${ancestralPath}" for changed path`);
-              let selfMergers = DRI_BY_PATH[ancestralPath] ? [].concat(DRI_BY_PATH[ancestralPath]) : undefined;// « ensure array
+              let selfMergers = DRI_BY_PATH[ancestralPath] ? [].concat(DRI_BY_PATH[ancestralPath]) : [];// « ensure array
               if (selfMergers.includes(sender.login) || (isSenderMaintainer && selfMergers.includes('*'))) {
                 return true;
               }//•
