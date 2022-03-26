@@ -46,9 +46,9 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Feature flags](./product.md#feature-flags)
 
-[Slack channels](./product.md#slack-channels)
-
 [Competition](./product.md#competition)
+
+[Slack channels](./product.md#slack-channels)
 
 ### Security
 
@@ -80,17 +80,23 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Slack channels](./customers.md#slack-channels)
 
+### Growth
+
+[Posting on social media as Fleet](./growth.md#posting-on-social-media-as-fleet)
+
+[Promoting blog posts on social media](./growth.md#promoting-blog-posts-on-social-media)
+
+[Press releases](./growth.md#press-releases)
+
+[Sponsoring events](./growth.md#sponsoring-events)
+
+[Slack channels](./growth.md#slack-channels)
+
 ### Community
 
 [Communities](./community.md#communities)
 
-[Posting on social media as Fleet](./community.md#posting-on-social-media-as-fleet)
-
-[Promoting blog posts on social media](./community.md#promoting-blog-posts-on-social-media)
-
 [Fleet docs](./community.md#fleet-docs)
-
-[Press releases](./community.md#press-releases)
 
 [Community contributions (pull requests)](./community.md#community-contributions-pull-requests)
 
