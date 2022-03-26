@@ -210,7 +210,7 @@ module.exports = {
             'handbook/product.md': 'noahtalerman',
             'handbook/security.md': 'guillaumeross',
             'handbook/brand.md': 'mike-j-thomas',
-            'handbook/brand.md': 'timmy-k',
+            'handbook/growth.md': 'timmy-k',
             'handbook/customers.md': 'tgauda',
             'handbook/community.md': ['dominuskelvin', 'ksatter'],
             'handbook/README.md': '*',// (any fleetie can update this page)
