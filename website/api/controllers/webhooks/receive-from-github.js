@@ -202,28 +202,26 @@ module.exports = {
           let isSenderMaintainer = GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS.includes(sender.login);
           let DRI_BY_PATH = {
             'README.md': 'mike-j-thomas',// (github brandfront)
-            
-            'handbook': 'eashaw',// (default for handbook)
+
+            'handbook': ['eashaw', 'mike-j-thomas', 'mikermcneil'],// (default for handbook)
             'handbook/README.md': '*',// (any core maintainer can update this page)
             'handbook/company.md': 'mikermcneil',
-            'handbook/people.md': 'eashaw',
+            'handbook/people.md': ['eashaw', 'mike-j-thomas'],
             'handbook/engineering.md': 'zwass',
             'handbook/product.md': 'noahtalerman',
             'handbook/security.md': 'guillaumeross',
             'handbook/brand.md': 'mike-j-thomas',
             'handbook/customers.md': 'tgauda',
-            'handbook/community.md': 'mike-j-thomas',
-            'handbook/handbook.md': 'mike-j-thomas',
-            
-            'website': 'eashaw',// (default for website)
-            'website/scripts': 'mikermcneil',
-            'website/api': 'mikermcneil',
-            'website/config': 'mikermcneil',
-            'website/config/routes.js': 'mike-j-thomas',// (default for URLs)
-            
-            'docs': 'mike-j-thomas',// (default for docs)
-            
-            'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': 'guillaumeross',// (standard query library)
+            'handbook/community.md': ['dominuskelvin', 'ksatter', 'mike-j-thomas'],
+
+            'website': 'mikermcneil',// (default for website)
+            'website/views': 'eashaw',
+            'website/assets': 'eashaw',
+            'website/config/routes.js': ['eashaw', 'mike-j-thomas'],// (for managing website URLs)
+
+            'docs': ['mike-j-thomas', 'zwass'],// (default for docs)
+
+            'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': ['guillaumeross', 'zwass'],// (standard query library)
           };
 
           // [?] https://docs.github.com/en/rest/reference/pulls#list-pull-requests-files
@@ -237,16 +235,19 @@ module.exports = {
 
             require('assert')(sender.login !== undefined);
             sails.log.verbose(`…checking DRI of changed path "${changedPath}"`);
-            if (sender.login === DRI_BY_PATH[changedPath] || (isSenderMaintainer && '*' === DRI_BY_PATH[changedPath])) {
+
+            let rule = DRI_BY_PATH[changedPath] ? [].concat(DRI_BY_PATH[changedPath]) : undefined;// « ensure array
+            if (sender.login === rule || (isSenderMaintainer && '*' === rule)) {
               return true;
-            }
+            }//•
             let numRemainingPathsToCheck = changedPath.split('/').length;
             while (numRemainingPathsToCheck > 0) {
               let ancestralPath = changedPath.split('/').slice(0, -1 * numRemainingPathsToCheck).join('/');
               sails.log.verbose(`…checking DRI of ancestral path "${ancestralPath}" for changed path`);
-              if (sender.login === DRI_BY_PATH[ancestralPath] || (isSenderMaintainer && '*' === DRI_BY_PATH[ancestralPath])) {
+              let rule = DRI_BY_PATH[ancestralPath] ? [].concat(DRI_BY_PATH[ancestralPath]) : undefined;// « ensure array
+              if (sender.login === rule || (isSenderMaintainer && '*' === rule)) {
                 return true;
-              }
+              }//•
               numRemainingPathsToCheck--;
             }//∞
           });//∞
@@ -258,7 +259,7 @@ module.exports = {
           }
         });
 
-        // Now, if appropriate, auto-approve the PR.
+        // Now, if appropriate, auto-approve the change.
         if (isAutoApproved) {
           // [?] https://docs.github.com/en/rest/reference/pulls#create-a-review-for-a-pull-request
           await sails.helpers.http.post(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/reviews`, {
