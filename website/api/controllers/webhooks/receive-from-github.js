@@ -204,7 +204,7 @@ module.exports = {
             'README.md': 'mike-j-thomas',// (github brandfront)
 
             'handbook': ['eashaw', 'mike-j-thomas', 'mikermcneil'],// (default for handbook)
-            'handbook/README.md': '*',// (any core maintainer can update this page)
+            'handbook/README.md': '*',// (any fleetie can update this page)
             'handbook/company.md': 'mikermcneil',
             'handbook/people.md': ['eashaw', 'mike-j-thomas'],
             'handbook/engineering.md': 'zwass',
