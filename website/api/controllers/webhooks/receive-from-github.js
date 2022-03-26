@@ -203,16 +203,17 @@ module.exports = {
           let DRI_BY_PATH = {
             'README.md': 'mike-j-thomas',// (github brandfront)
 
-            'handbook': ['eashaw', 'mike-j-thomas', 'mikermcneil'],// (default for handbook)
-            'handbook/README.md': '*',// (any fleetie can update this page)
+            'handbook': ['desmi-dizney', 'mike-j-thomas', 'mikermcneil'],// (default for handbook)
             'handbook/company.md': 'mikermcneil',
             'handbook/people.md': ['eashaw', 'mike-j-thomas'],
             'handbook/engineering.md': 'zwass',
             'handbook/product.md': 'noahtalerman',
             'handbook/security.md': 'guillaumeross',
             'handbook/brand.md': 'mike-j-thomas',
+            'handbook/brand.md': 'timmy-k',
             'handbook/customers.md': 'tgauda',
-            'handbook/community.md': ['dominuskelvin', 'ksatter', 'mike-j-thomas'],
+            'handbook/community.md': ['dominuskelvin', 'ksatter'],
+            'handbook/README.md': '*',// (any fleetie can update this page)
 
             'website': 'mikermcneil',// (default for website)
             'website/views': 'eashaw',
