@@ -12,11 +12,11 @@ resource "aws_route53_record" "record" {
 }
 
 resource "aws_alb" "main" {
-  name            = "fleetdm"
-  internal        = false
-  security_groups = [aws_security_group.lb.id, aws_security_group.backend.id]
-  subnets         = module.vpc.public_subnets
-  idle_timeout    = 120
+  name                       = "fleetdm"
+  internal                   = false
+  security_groups            = [aws_security_group.lb.id, aws_security_group.backend.id]
+  subnets                    = module.vpc.public_subnets
+  idle_timeout               = 120
   drop_invalid_header_fields = true
 }
 
@@ -195,6 +195,10 @@ resource "aws_ecs_task_definition" "backend" {
             value = "${aws_elasticache_replication_group.default.primary_endpoint_address}:6379"
           },
           {
+            name  = "FLEET_REDIS_USE_TLS"
+            value = "true"
+          },
+          {
             name  = "FLEET_FIREHOSE_STATUS_STREAM"
             value = aws_kinesis_firehose_delivery_stream.osquery_status.name
           },
@@ -310,6 +314,10 @@ resource "aws_ecs_task_definition" "migration" {
             name  = "FLEET_REDIS_ADDRESS"
             value = "${aws_elasticache_replication_group.default.primary_endpoint_address}:6379"
           },
+          {
+            name  = "FLEET_REDIS_USE_TLS"
+            value = "true"
+          }
         ]
       }
   ])
