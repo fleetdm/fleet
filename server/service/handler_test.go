@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -330,4 +331,5 @@ func TestOpenAPIGeneration(t *testing.T) {
 	svc := newTestService(t, ds, nil, nil)
 	limitStore, _ := memstore.New(0)
 	MakeHandler(svc, config.TestConfig(), kitlog.NewNopLogger(), limitStore)
+	openAPIDocument.Render(os.Stdout)
 }

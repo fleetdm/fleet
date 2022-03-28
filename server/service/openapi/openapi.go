@@ -2,7 +2,10 @@ package openapi
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
+	"regexp"
+	"strings"
 
 	"github.com/invopop/jsonschema"
 )
@@ -22,8 +25,8 @@ type Document struct {
 	// Provides metadata about the API.
 	Info Info `json:"info"`
 
-	Servers []*Server      `json:"servers,omitempty"`
-	Paths   []*PathPattern `json:"paths,omitempty"`
+	Servers []*Server    `json:"servers,omitempty"`
+	Paths   PathPatterns `json:"paths,omitempty"`
 	// Components
 	// Security
 	// Tags
@@ -32,7 +35,91 @@ type Document struct {
 	endpoints []*endpoint
 }
 
+type PathPatterns []*PathPattern
+
+func (p PathPatterns) MarshalJSON() ([]byte, error) {
+	m := make(map[string]PathItem, len(p))
+	for _, pat := range p {
+		m[pat.Pattern] = pat.Item
+	}
+	return json.Marshal(m)
+}
+
+var (
+	rxRemoveRegex = regexp.MustCompile(`\{\w+(:[^\}]+)\}`)
+	rxURLParams   = regexp.MustCompile(`\{(\w+)\}`)
+)
+
 func (d *Document) Render(w io.Writer) error {
+	d.OpenAPI = "3.0.3"
+	d.Info.Title = "Fleet API"
+	d.Info.Version = "2022-04" // can be determined by the endpoints, can generate multiple docs for each version
+	d.Servers = []*Server{{URL: "/api/latest"}}
+
+	pathDict := make(map[string]PathItem)
+	for i, ep := range d.endpoints {
+		parts := strings.SplitN(ep.path, "/", 4)
+		// version is in parts[2]
+		if !strings.Contains(parts[2], "latest") {
+			continue
+		}
+
+		if i > 10 {
+			break
+		}
+
+		path := "/" + strings.Join(parts[3:], "/")
+		if match := rxRemoveRegex.FindStringSubmatchIndex(path); match != nil {
+			path = path[:match[2]] + path[match[3]:]
+		}
+		item := pathDict[path] // TODO: must replace regex in {} in path, only keep parameter name
+		op := &Operation{
+			OperationID: ep.name,
+			// Deprecated could be set on non-latest endpoints
+		}
+
+		// parameters
+		if urlPs := rxURLParams.FindStringSubmatch(path); urlPs != nil {
+			for i := 1; i < len(urlPs); i++ {
+				// TODO: parameter requires a schema or content (e.g. at least type="string" or other)
+				op.Parameters = append(op.Parameters, &Parameter{
+					Name:     urlPs[i],
+					In:       "path",
+					Required: true,
+					Schema:   &Schema{Schema: jsonschema.Schema{Type: "string"}},
+				})
+			}
+		}
+
+		op.Responses = []*ResponsePattern{
+			{StatusCode: "200", Response: Response{Content: map[string]MediaType{"application/json": {}}}},
+		}
+
+		switch ep.verb {
+		case "GET":
+			item.GET = op
+		case "POST":
+			item.POST = op
+		case "PATCH":
+			item.PATCH = op
+		case "DELETE":
+			item.DELETE = op
+		case "PUT":
+			item.PUT = op
+		default:
+			return errors.New("unexpected endpoint verb: " + ep.verb)
+		}
+		pathDict[path] = item
+	}
+
+	for pat, item := range pathDict {
+		d.Paths = append(d.Paths, &PathPattern{Pattern: pat, Item: item})
+	}
+
+	enc := json.NewEncoder(w)
+	enc.SetIndent("", "  ")
+
+	return enc.Encode(d)
 }
 
 func (d *Document) RegisterEndpoint(name, verb, path string, req interface{}) {
@@ -68,10 +155,6 @@ type Server struct {
 type PathPattern struct {
 	Pattern string
 	Item    PathItem
-}
-
-func (p PathPattern) MarshalJSON() ([]byte, error) {
-	return json.Marshal(map[string]PathItem{p.Pattern: p.Item})
 }
 
 type PathItem struct {
@@ -115,10 +198,10 @@ type Operation struct {
 	Summary     string   `json:"summary,omitempty"`
 	Description string   `json:"description,omitempty"`
 	// ExternalDocs
-	OperationID string             `json:"operationId,omitempty"`
-	Parameters  []*Parameter       `json:"parameters,omitempty"`
-	RequestBody *RequestBody       `json:"requestBody,omitempty"`
-	Responses   []*ResponsePattern `json:"responses,omitempty"`
+	OperationID string            `json:"operationId,omitempty"`
+	Parameters  []*Parameter      `json:"parameters,omitempty"`
+	RequestBody *RequestBody      `json:"requestBody,omitempty"`
+	Responses   ResponsesPatterns `json:"responses,omitempty"`
 	// Callbacks
 	Deprecated bool `json:"deprecated,omitempty"`
 	// Security
@@ -129,6 +212,16 @@ type RequestBody struct {
 	Description string               `json:"description,omitempty"`
 	Content     map[string]MediaType `json:"content"`
 	Required    bool                 `json:"required"`
+}
+
+type ResponsesPatterns []*ResponsePattern
+
+func (p ResponsesPatterns) MarshalJSON() ([]byte, error) {
+	m := make(map[string]Response, len(p))
+	for _, pat := range p {
+		m[pat.StatusCode] = pat.Response
+	}
+	return json.Marshal(m)
 }
 
 type ResponsePattern struct {
