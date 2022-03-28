@@ -190,37 +190,22 @@ graph TD;
 
 ## Community contributions (pull requests)
 
-The top priority when community members contribute PRs is to help the person feel engaged with
-Fleet. This means acknowledging the contribution quickly (within 1 business day) and driving to a
-resolution (close/merge) as soon as possible (may take longer than 1 business day).
+When community members contribute PRs Fleet’s top priority is to help them feel engaged. We must acknowledge contributions as soon as possible, within 1 business day. We must also drive to a resolution (close/merge) as soon as possible, though this may take longer than 1 business day.
 
 ### Process
 
-1. Decide whether the change is acceptable (see below). If this will take time, acknowledge the
-   contribution and let the user know that the team will respond. For changes that are not
-   acceptable, thank the contributor for their interest and encourage them to open an issue or
-   discuss proposed changes in the `#fleet` channel of osquery Slack before working on any more
-   code.
-2. Help the contributor make the content appropriate for merging. Ensure that the appropriate manual
-   and automated testing has been performed, changes to files and documentation are updated, etc.
-   Usually, this is best done by code review and coaching the user. Sometimes (typically for
-   customers), a Fleet team member may take a PR to completion by adding the appropriate testing and
-   code review improvements.
-3. After reviewing a PR and addressing all necessary changes, any Fleet team member may merge a 
-   community. Before merging, double-check that the CI is passing, documentation is updated, and
-   changes file is created. Please use your best judgment.
-4. Once a PR has been approved and merged, thank and congratulate the contributor, then share with the team in the `#help-promote` channel of Fleet Slack to be publicized on social media. Those who contribute to Fleet and are recognized for their contributions often become great champions for the project.
+1. Decide if the change is acceptable (see below). If this will take time, acknowledge the contribution and let the user know that the team will respond. If you choose not to approve a change first thank the contributor for their interest. Next, encourage them to open an issue or discuss their ideas before writing more code. This can occur in the #fleet channel of osquery's Slack.
+2. Help the contributor make the content suitable for merging. Ensure appropriate manual and automated testing occurred. Also confirm that changes to files and documentation are updated. Usually this is best done with code review and coaching the user. Sometimes Fleet may complete a PR by improving testing and code review.
+3. After reviewing and addressing all the changes a PR needs a Fleet team member may merge. Before merging, please use your best judgment. Double-check that CI is passing, documentation is updated, and changes file is created.
+4. Once a PR is approved and merged, thank and congratulate the contributor. Next share it with the team in the #help-promote channel of Fleet's Slack so they can promote it on social media. Recognized contributors often become project champions.
 
 Please refer to our [PRs from the community](https://docs.google.com/document/d/13r0vEhs9LOBdxWQWdZ8n5Ff9cyB3hQkTjI5OhcrHjVo/edit?usp=sharing) guide for more detailed information.
 
 ### What is acceptable?
 
-Generally, any minor documentation update or bug fix is acceptable and can be merged by any member
-of the Fleet team. Additions or fixes to the Standard Query Library(SQL) are acceptable as long as 
-the SQL works properly and they are attributed correctly. Please use your best judgment.
+Merges for minor documentation updates or bug fixes are usually done by the Fleet team. Working Standard Query Library(SQL) additions or fixes are acceptable with correct attribution. Please use your best judgment.
 
-More extensive changes and new features should be approved by the appropriate [Product
-DRI](./product.md#product-dris). Ask in the `#g-product` channel in Fleet Slack.
+[Product DRIs](./product.md#product-dris) should approve extensive changes and new features. Ask in the #g-product channel in Fleet's Slack for more information.
 
 ## Fleet swag
 
