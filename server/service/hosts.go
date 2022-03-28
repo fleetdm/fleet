@@ -893,3 +893,44 @@ func hostsReportEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 	}
 	return hostsReportResponse{Hosts: hosts}, nil
 }
+
+type osVersionsRequest struct {
+	TeamID   *uint   `query:"team_id,optional"`
+	Platform *string `query:"platform,optional"`
+}
+
+type osVersionsResponse struct {
+	CountsUpdatedAt *time.Time        `json:"counts_updated_at,omitempty"`
+	OSVersions      []fleet.OSVersion `json:"os_versions,omitempty"`
+	Err             error             `json:"error,omitempty"`
+}
+
+func (r osVersionsResponse) error() error { return r.Err }
+
+func osVersionsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*osVersionsRequest)
+
+	osVersions, err := svc.OSVersions(ctx, req.TeamID, req.Platform)
+	if err != nil {
+		return &osVersionsResponse{Err: err}, nil
+	}
+
+	return &osVersionsResponse{
+		CountsUpdatedAt: &osVersions.CountsUpdatedAt,
+		OSVersions:      osVersions.OSVersions,
+	}, nil
+}
+
+func (svc *Service) OSVersions(ctx context.Context, teamID *uint, platform *string) (*fleet.OSVersions, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionList); err != nil {
+		return nil, err
+	}
+
+	osVersions, err := svc.ds.OSVersions(ctx, teamID, platform)
+	if err != nil {
+		return nil, err
+	}
+
+	return osVersions, nil
+
+}
