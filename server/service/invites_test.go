@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"database/sql"
 	"testing"
 	"time"
 
@@ -53,6 +54,48 @@ func TestInviteNewUserMock(t *testing.T) {
 	ms.UserByEmailFunc = mock.UserByEmailWithUser(new(fleet.User))
 	_, err = svc.InviteNewUser(test.UserContext(test.UserAdmin), payload)
 	require.NotNil(t, err, "should err if the user we're inviting already exists")
+}
+
+func TestUpdateInvite(t *testing.T) {
+	ms := new(mock.Store)
+	ms.InviteFunc = func(ctx context.Context, id uint) (*fleet.Invite, error) {
+		if id != 1 {
+			return nil, sql.ErrNoRows
+		}
+
+		return &fleet.Invite{
+			ID:         1,
+			Name:       "John Appleseed",
+			Email:      "john_appleseed@example.com",
+			GlobalRole: null.NewString("observer", true),
+		}, nil
+	}
+	ms.UpdateInviteFunc = func(ctx context.Context, id uint, i *fleet.Invite) (*fleet.Invite, error) {
+		return nil, nil
+	}
+
+	mailer := &mockMailService{SendEmailFn: func(e fleet.Email) error { return nil }}
+
+	svc := validationMiddleware{&Service{
+		ds:          ms,
+		config:      config.TestConfig(),
+		mailService: mailer,
+		clock:       clock.NewMockClock(),
+		authz:       authz.Must(),
+	}, ms, nil}
+
+	// email is the same
+	payload := fleet.InvitePayload{
+		Name:  ptr.String("Johnny Appleseed"),
+		Email: ptr.String("john_appleseed@example.com"),
+	}
+
+	ctx := test.UserContext(test.UserAdmin)
+
+	// update the invite (email is the same)
+	_, err := svc.UpdateInvite(ctx, 1, payload)
+	require.NoError(t, err)
+	require.True(t, ms.InviteFuncInvoked)
 }
 
 func TestVerifyInvite(t *testing.T) {
