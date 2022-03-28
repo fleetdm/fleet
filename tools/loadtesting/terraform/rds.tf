@@ -17,15 +17,15 @@ resource "aws_secretsmanager_secret_version" "database_password_secret_version" 
   secret_string = random_password.database_password.result
 }
 
-module "aurora_mysql" {
+module "aurora_mysql" { #tfsec:ignore:aws-rds-enable-performance-insights-encryption tfsec:ignore:aws-rds-encrypt-cluster-storage-data tfsec:ignore:aws-vpc-add-description-to-security-group
   source  = "terraform-aws-modules/rds-aurora/aws"
   version = "5.3.0"
 
   name                  = "${local.name}-mysql-iam"
   engine                = "aurora-mysql"
   engine_version        = "5.7.mysql_aurora.2.10.0"
-  instance_type         = "db.r5.2xlarge"
-  instance_type_replica = "db.r5.2xlarge"
+  instance_type         = "db.r6g.large"
+  instance_type_replica = "db.r6g.large"
 
   iam_database_authentication_enabled = true
   storage_encrypted                   = true
@@ -43,11 +43,11 @@ module "aurora_mysql" {
   create_security_group  = true
   allowed_cidr_blocks    = module.vpc.private_subnets_cidr_blocks
 
-  replica_count         = 1
+  replica_count         = var.scale_down ? 0 : 1
   replica_scale_enabled = true
-  replica_scale_min     = 1
-  replica_scale_max     = 3
-  snapshot_identifier   = "arn:aws:rds:us-east-2:917007347864:cluster-snapshot:fleetdm-mysql-iam-final-prerebuild"
+  replica_scale_min     = var.scale_down ? 0 : 1
+  replica_scale_max     = var.scale_down ? 0 : 3
+  snapshot_identifier   = "arn:aws:rds:us-east-2:917007347864:cluster-snapshot:bens-thing"
 
   monitoring_interval           = 60
   iam_role_name                 = "${local.name}-rds-enhanced-monitoring"

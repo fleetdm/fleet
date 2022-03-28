@@ -157,7 +157,7 @@ We use these prefixes to organize the Fleet Slack:
  * ***help-***: for asking for help on specific topics.
  * ***at*** or ***fleet-at***: for customer channels.
 
-## People Ops
+## People ops
 
 ### Performance feedback
 At Fleet, performance feedback is a continuous process. We give feedback (especially negative) as soon as possible. Most feedback will happen during 1:1 meetings, if not sooner.
@@ -174,10 +174,8 @@ We evaluate and update compensation decisions yearly, shortly after the annivers
 
 4. After compensation has been determined, create two documents for the candidate:
 
-- "Exit scenarios" spreadsheet
-- "Informal offer email" template. 
-
-If you need these templates, reach out to Eric on Slack, and he will provide you links that automatically create copies. 
+- [Exit scenarios (template)](https://docs.google.com/spreadsheets/d/1k2TzsFYR0QxlD-KGPxuhuvvlJMrCvLPo2z8s8oGChT0/copy)
+- [Informal offer email (template)](https://docs.google.com/document/d/1zpNN2LWzAj-dVBC8iOg9jLurNlSe7XWKU69j7ntWtbY/copy).
 
 Change the name of the documents accordingly (e.g., "[candidate's name]'s copy of exit scenarios,") and link to the exit scenarios spreadsheet from the offer email.
 

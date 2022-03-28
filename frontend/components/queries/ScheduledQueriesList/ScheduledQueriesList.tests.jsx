@@ -1,6 +1,5 @@
 import React from "react";
-import { mount } from "enzyme";
-import { noop } from "lodash";
+import { render, screen } from "@testing-library/react";
 
 import { scheduledQueryStub } from "test/stubs";
 import ScheduledQueriesList from "./index";
@@ -11,57 +10,59 @@ const scheduledQueries = [
 ];
 
 const defaultProps = {
-  onCheckAllQueries: noop,
-  onCheckQuery: noop,
-  onDblClickQuery: noop,
+  onCheckAllQueries: jest.fn(),
+  onCheckQuery: jest.fn(),
+  onDblClickQuery: jest.fn(),
   checkedScheduledQueryIDs: [],
 };
 
 describe("ScheduledQueriesList - component", () => {
   it("renders a ScheduledQueriesListItem for each scheduled query", () => {
-    const component = mount(
+    const { container } = render(
       <ScheduledQueriesList
         {...defaultProps}
         allQueries={[]}
-        onHidePackForm={noop}
-        onSelectQuery={noop}
+        onHidePackForm={jest.fn()}
+        onSelectQuery={jest.fn()}
         scheduledQueries={scheduledQueries}
         selectedScheduledQueryIDs={[]}
       />
     );
-
-    expect(component.find("ScheduledQueriesListItem").length).toEqual(2);
+    screen.debug();
+    expect(
+      container.querySelectorAll(".scheduled-query-list-item").length
+    ).toEqual(2);
   });
 
   it('renders "No queries found" help text when scheduled queries are available but the scheduled queries are filtered out', () => {
-    const component = mount(
+    render(
       <ScheduledQueriesList
         {...defaultProps}
         allQueries={[]}
         isScheduledQueriesAvailable
-        onHidePackForm={noop}
-        onSelectQuery={noop}
+        onHidePackForm={jest.fn()}
+        onSelectQuery={jest.fn()}
         scheduledQueries={[]}
         selectedScheduledQueryIDs={[]}
       />
     );
 
-    expect(component.text()).toContain(
-      "No queries matched your search criteria"
-    );
+    expect(
+      screen.getByText("No queries matched your search criteria.")
+    ).toBeInTheDocument();
   });
 
   it("renders initial help text when no queries have been scheduled yet", () => {
-    const component = mount(
+    render(
       <ScheduledQueriesList
         allQueries={[]}
-        onHidePackForm={noop}
-        onSelectQuery={noop}
+        onHidePackForm={jest.fn()}
+        onSelectQuery={jest.fn()}
         scheduledQueries={[]}
         selectedScheduledQueryIDs={[]}
       />
     );
 
-    expect(component.text()).toContain("Your pack is empty");
+    expect(screen.getByText("Your pack is empty.")).toBeInTheDocument();
   });
 });

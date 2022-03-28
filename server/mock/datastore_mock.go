@@ -186,6 +186,10 @@ type AggregatedMDMStatusFunc func(ctx context.Context, teamID *uint) (fleet.Aggr
 
 type GenerateAggregatedMunkiAndMDMFunc func(ctx context.Context) error
 
+type OSVersionsFunc func(ctx context.Context, teamID *uint, platform *string) (*fleet.OSVersions, error)
+
+type UpdateOSVersionsFunc func(ctx context.Context) error
+
 type CountHostsInTargetsFunc func(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error)
 
 type HostIDsInTargetsFunc func(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets) ([]uint, error)
@@ -647,6 +651,12 @@ type DataStore struct {
 
 	GenerateAggregatedMunkiAndMDMFunc        GenerateAggregatedMunkiAndMDMFunc
 	GenerateAggregatedMunkiAndMDMFuncInvoked bool
+
+	OSVersionsFunc        OSVersionsFunc
+	OSVersionsFuncInvoked bool
+
+	UpdateOSVersionsFunc        UpdateOSVersionsFunc
+	UpdateOSVersionsFuncInvoked bool
 
 	CountHostsInTargetsFunc        CountHostsInTargetsFunc
 	CountHostsInTargetsFuncInvoked bool
@@ -1382,6 +1392,16 @@ func (s *DataStore) AggregatedMDMStatus(ctx context.Context, teamID *uint) (flee
 func (s *DataStore) GenerateAggregatedMunkiAndMDM(ctx context.Context) error {
 	s.GenerateAggregatedMunkiAndMDMFuncInvoked = true
 	return s.GenerateAggregatedMunkiAndMDMFunc(ctx)
+}
+
+func (s *DataStore) OSVersions(ctx context.Context, teamID *uint, platform *string) (*fleet.OSVersions, error) {
+	s.OSVersionsFuncInvoked = true
+	return s.OSVersionsFunc(ctx, teamID, platform)
+}
+
+func (s *DataStore) UpdateOSVersions(ctx context.Context) error {
+	s.UpdateOSVersionsFuncInvoked = true
+	return s.UpdateOSVersionsFunc(ctx)
 }
 
 func (s *DataStore) CountHostsInTargets(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error) {

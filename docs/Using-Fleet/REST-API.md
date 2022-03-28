@@ -1207,7 +1207,70 @@ Retrieves aggregated host's MDM enrollment status and Munki versions.
 }
 ```
 
----
+### Get host OS versions
+
+Retrieves the aggregated host OS versions information.
+
+`GET /api/v1/fleet/os_versions`
+
+#### Parameters
+
+| Name     | Type     | In    | Description                                                                                                                          |
+| ---      | ---      | ---   | ---                                                                                                                                  |
+| team_id  | integery | query | _Available in Fleet Premium_ Filters the hosts to only include hosts in the specified team. If not provided, all hosts are included. |
+| platform | string   | query | Filters the hosts to the specified platform                                                                                          |
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "counts_updated_at": "2022-03-22T21:38:31Z",
+  "os_versions": [
+    {
+      "hosts_count": 1,
+      "name": "CentOS 6.10.0",
+      "platform": "rhel"
+    },
+    {
+      "hosts_count": 1,
+      "name": "CentOS Linux 7.9.2009",
+      "platform": "rhel"
+    },
+    {
+      "hosts_count": 1,
+      "name": "CentOS Linux 8.3.2011",
+      "platform": "rhel"
+    },
+    {
+      "hosts_count": 1,
+      "name": "Debian GNU/Linux 10.0.0",
+      "platform": "debian"
+    },
+    {
+      "hosts_count": 1,
+      "name": "Debian GNU/Linux 9.0.0",
+      "platform": "debian"
+    },
+    {
+      "hosts_count": 1,
+      "name": "Ubuntu 16.4.0",
+      "platform": "ubuntu"
+    },
+    {
+      "hosts_count": 1,
+      "name": "Ubuntu 18.4.0",
+      "platform": "ubuntu"
+    },
+    {
+      "hosts_count": 1,
+      "name": "Ubuntu 20.4.0",
+      "platform": "ubuntu"
+    }
+  ]
+}
+```
 
 ### Get hosts report in CSV
 
@@ -3891,7 +3954,7 @@ Where `query_id` references an existing `query`.
 
 ---
 
-## Team policies
+### Team policies
 
 - [List team policies](#list-team-policies)
 - [Get team policy by ID](#get-team-policy-by-id)
@@ -5673,6 +5736,14 @@ _Available in Fleet Premium_
         },
         "overrides": {}
       }
+    },
+    "webhook_settings": {
+      "failing_policies_webhook": {
+        "enable_failing_policies_webhook": false,
+        "destination_url": "",
+        "policy_ids": null,
+        "host_batch_size": 0
+      }
     }
   }
 }
@@ -5731,12 +5802,20 @@ _Available in Fleet Premium_
             },
             "decorators": {
               "load": [
-                "SELECT uuid AS host_uuid FROM system_info;",
-                "SELECT hostname AS hostname FROM system_info;"
+                "select uuid as host_uuid from system_info;",
+                "select hostname as hostname from system_info;"
               ]
             }
           },
           "overrides": {}
+        }
+      },
+      "webhook_settings": {
+        "failing_policies_webhook": {
+          "enable_failing_policies_webhook": false,
+          "destination_url": "",
+          "policy_ids": null,
+          "host_batch_size": 0
         }
       }
     }
@@ -5752,12 +5831,18 @@ _Available in Fleet Premium_
 
 #### Parameters
 
-| Name     | Type   | In   | Description                                   |
-| -------- | ------ | ---- | --------------------------------------------- |
-| id       | string | body | **Required.** The desired team's ID.          |
-| name     | string | body | The team's name.                              |
-| host_ids | list   | body | A list of hosts that belong to the team.      |
-| user_ids | list   | body | A list of users that are members of the team. |
+| Name                                                    | Type    | In   | Description                                                                                                                                                  |
+| ---                                                     | ---     | ---  | ---                                                                                                                                                          |
+| id                                                      | string  | body | **Required.** The desired team's ID.                                                                                                                         |
+| name                                                    | string  | body | The team's name.                                                                                                                                             |
+| host_ids                                                | list    | body | A list of hosts that belong to the team.                                                                                                                     |
+| user_ids                                                | list    | body | A list of users that are members of the team.                                                                                                                |
+| webhook_settings                                        | object  | body | Webhook settings contains for the team.                                                                                                                      |
+| &nbsp;&nbsp;failing_policies_webhook                    | object  | body | Failing policies webhook settings.                                                                                                                           |
+| &nbsp;&nbsp;&nbsp;&nbsp;enable_failing_policies_webhook | boolean | body | Whether or not the failing policies webhook is enabled.                                                                                                      |
+| &nbsp;&nbsp;&nbsp;&nbsp;destination_url                 | string  | body | The URL to deliver the webhook requests to.                                                                                                                  |
+| &nbsp;&nbsp;&nbsp;&nbsp;policy_ids                      | array   | body | List of policy IDs to enable failing policies webhook.                                                                                                       |
+| &nbsp;&nbsp;&nbsp;&nbsp;host_batch_size                 | integer | body | Maximum number of hosts to batch on failing policy webhook requests. The default, 0, means no batching (all hosts failing a policy are sent on one request). |
 
 #### Example (add users to a team)
 
@@ -5805,6 +5890,14 @@ _Available in Fleet Premium_
           }
         },
         "overrides": {}
+      }
+    },
+    "webhook_settings": {
+      "failing_policies_webhook": {
+        "enable_failing_policies_webhook": false,
+        "destination_url": "",
+        "policy_ids": null,
+        "host_batch_size": 0
       }
     }
   }
@@ -5857,6 +5950,14 @@ _Available in Fleet Premium_
           }
         },
         "overrides": {}
+      }
+    },
+    "webhook_settings": {
+      "failing_policies_webhook": {
+        "enable_failing_policies_webhook": false,
+        "destination_url": "",
+        "policy_ids": null,
+        "host_batch_size": 0
       }
     }
   }
@@ -5931,6 +6032,14 @@ _Available in Fleet Premium_
           }
         },
         "overrides": {}
+      }
+    },
+    "webhook_settings": {
+      "failing_policies_webhook": {
+        "enable_failing_policies_webhook": false,
+        "destination_url": "",
+        "policy_ids": null,
+        "host_batch_size": 0
       }
     }
   }

@@ -1,11 +1,54 @@
 resource "aws_alb" "main" {
   name                       = "fleetdm"
-  internal                   = false
+  internal                   = false #tfsec:ignore:aws-elb-alb-not-public
   security_groups            = [aws_security_group.lb.id, aws_security_group.backend.id]
   subnets                    = module.vpc.public_subnets
   idle_timeout               = 600
   drop_invalid_header_fields = true
   #checkov:skip=CKV_AWS_150:don't like it
+}
+
+resource "aws_alb" "internal" {
+  name                       = "fleetdm-internal"
+  internal                   = true
+  security_groups            = [aws_security_group.lb.id, aws_security_group.backend.id]
+  subnets                    = module.vpc.private_subnets
+  idle_timeout               = 600
+  drop_invalid_header_fields = true
+  #checkov:skip=CKV_AWS_150:don't like it
+}
+
+resource "aws_alb_listener" "https-fleetdm-internal" {
+  load_balancer_arn = aws_alb.internal.arn
+  port              = 80
+  protocol          = "HTTP" #tfsec:ignore:aws-elb-http-not-used
+
+  default_action {
+    target_group_arn = aws_alb_target_group.internal.arn
+    type             = "forward"
+  }
+}
+
+resource "aws_alb_target_group" "internal" {
+  name                 = "fleetdm-internal"
+  protocol             = "HTTP"
+  target_type          = "ip"
+  port                 = "8080"
+  vpc_id               = module.vpc.vpc_id
+  deregistration_delay = 30
+
+  load_balancing_algorithm_type = "least_outstanding_requests"
+
+  health_check {
+    path                = "/healthz"
+    matcher             = "200"
+    timeout             = 10
+    interval            = 15
+    healthy_threshold   = 5
+    unhealthy_threshold = 5
+  }
+
+  depends_on = [aws_alb.main]
 }
 
 resource "aws_alb_target_group" "main" {
@@ -73,10 +116,16 @@ resource "aws_ecs_service" "fleet" {
   launch_type                        = "FARGATE"
   cluster                            = aws_ecs_cluster.fleet.id
   task_definition                    = aws_ecs_task_definition.backend.arn
-  desired_count                      = 10
+  desired_count                      = var.scale_down ? 0 : 10
   deployment_minimum_healthy_percent = 100
   deployment_maximum_percent         = 200
   health_check_grace_period_seconds  = 30
+
+  load_balancer {
+    target_group_arn = aws_alb_target_group.internal.arn
+    container_name   = "fleet"
+    container_port   = 8080
+  }
 
   load_balancer {
     target_group_arn = aws_alb_target_group.main.arn
@@ -92,7 +141,7 @@ resource "aws_ecs_service" "fleet" {
   depends_on = [aws_alb_listener.http, aws_alb_listener.https-fleetdm]
 }
 
-resource "aws_cloudwatch_log_group" "backend" {
+resource "aws_cloudwatch_log_group" "backend" { #tfsec:ignore:aws-cloudwatch-log-group-customer-key
   name              = "fleetdm"
   retention_in_days = 1
 }
@@ -110,7 +159,7 @@ resource "aws_ecs_task_definition" "backend" {
   execution_role_arn       = aws_iam_role.main.arn
   task_role_arn            = aws_iam_role.main.arn
   cpu                      = 1024
-  memory                   = 2048
+  memory                   = 4096
   container_definitions = jsonencode(
     [
       {
@@ -144,7 +193,7 @@ resource "aws_ecs_task_definition" "backend" {
         name        = "fleet"
         image       = docker_registry_image.fleet.name
         cpu         = 1024
-        memory      = 2048
+        memory      = 4096
         mountPoints = []
         volumesFrom = []
         essential   = true
@@ -339,8 +388,8 @@ resource "aws_ecs_task_definition" "migration" {
 }
 
 resource "aws_appautoscaling_target" "ecs_target" {
-  max_capacity       = 100
-  min_capacity       = 10
+  max_capacity       = var.scale_down ? 0 : 10
+  min_capacity       = var.scale_down ? 0 : 10
   resource_id        = "service/${aws_ecs_cluster.fleet.name}/${aws_ecs_service.fleet.name}"
   scalable_dimension = "ecs:service:DesiredCount"
   service_namespace  = "ecs"
@@ -373,7 +422,7 @@ resource "aws_appautoscaling_policy" "ecs_policy_cpu" {
       predefined_metric_type = "ECSServiceAverageCPUUtilization"
     }
 
-    target_value = 60
+    target_value = 90
   }
 }
 

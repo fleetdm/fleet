@@ -309,6 +309,23 @@ func loadHostUsersDB(ctx context.Context, db sqlx.QueryerContext, hostID uint) (
 	return users, nil
 }
 
+// hostRefs are the tables referenced by hosts.
+//
+// Defined here for testing purposes.
+var hostRefs = []string{
+	"host_seen_times",
+	"host_software",
+	"host_users",
+	"host_emails",
+	"host_additional",
+	"scheduled_query_stats",
+	"label_membership",
+	"policy_membership",
+	"host_mdm",
+	"host_munki_info",
+	"host_device_auth",
+}
+
 func (ds *Datastore) DeleteHost(ctx context.Context, hid uint) error {
 	delHostRef := func(tx sqlx.ExtContext, table string) error {
 		_, err := tx.ExecContext(ctx, fmt.Sprintf(`DELETE FROM %s WHERE host_id=?`, table), hid)
@@ -322,19 +339,6 @@ func (ds *Datastore) DeleteHost(ctx context.Context, hid uint) error {
 		_, err := tx.ExecContext(ctx, `DELETE FROM hosts WHERE id = ?`, hid)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "delete host")
-		}
-
-		hostRefs := []string{
-			"host_seen_times",
-			"host_software",
-			"host_users",
-			"host_emails",
-			"host_additional",
-			"scheduled_query_stats",
-			"label_membership",
-			"policy_membership",
-			"host_mdm",
-			"host_munki_info",
 		}
 
 		for _, table := range hostRefs {
@@ -1017,41 +1021,11 @@ func (ds *Datastore) TotalAndUnseenHostsSince(ctx context.Context, daysCount int
 }
 
 func (ds *Datastore) DeleteHosts(ctx context.Context, ids []uint) error {
-	_, err := ds.deleteEntities(ctx, hostsTable, ids)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "deleting hosts")
+	for _, id := range ids {
+		if err := ds.DeleteHost(ctx, id); err != nil {
+			return ctxerr.Wrapf(ctx, err, "delete host %d", id)
+		}
 	}
-
-	query, args, err := sqlx.In(`DELETE FROM host_seen_times WHERE host_id in (?)`, ids)
-	if err != nil {
-		return ctxerr.Wrapf(ctx, err, "building delete host_seen_times query")
-	}
-
-	_, err = ds.writer.ExecContext(ctx, query, args...)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "deleting host seen times")
-	}
-
-	query, args, err = sqlx.In(`DELETE FROM host_emails WHERE host_id in (?)`, ids)
-	if err != nil {
-		return ctxerr.Wrapf(ctx, err, "building delete host_emails query")
-	}
-
-	_, err = ds.writer.ExecContext(ctx, query, args...)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "deleting host emails")
-	}
-
-	query, args, err = sqlx.In(`DELETE FROM pack_targets WHERE type=? AND target_id in (?)`, fleet.TargetHost, ids)
-	if err != nil {
-		return ctxerr.Wrapf(ctx, err, "building delete pack_targets query")
-	}
-
-	_, err = ds.writer.ExecContext(ctx, query, args...)
-	if err != nil {
-		return ctxerr.Wrapf(ctx, err, "deleting pack_targets for hosts")
-	}
-
 	return nil
 }
 
@@ -1613,5 +1587,118 @@ func (ds *Datastore) UpdateHost(ctx context.Context, host *fleet.Host) error {
 	if err != nil {
 		return ctxerr.Wrapf(ctx, err, "save host with id %d", host.ID)
 	}
+	return nil
+}
+
+// OSVersions gets the aggregated os version host counts. If a non-nil teamID is passed, it will filter hosts by team.
+func (ds *Datastore) OSVersions(ctx context.Context, teamID *uint, platform *string) (*fleet.OSVersions, error) {
+	query := `
+SELECT
+    json_value,
+    updated_at
+FROM aggregated_stats
+WHERE
+    id = ? AND
+    type = 'os_versions'
+`
+
+	var row struct {
+		JSONValue *json.RawMessage `db:"json_value"`
+		UpdatedAt time.Time        `db:"updated_at"`
+	}
+
+	var args []interface{}
+	if teamID == nil { // all hosts
+		args = append(args, 0)
+	} else {
+		args = append(args, *teamID)
+	}
+
+	if err := sqlx.GetContext(ctx, ds.reader, &row, query, args...); err != nil {
+		return nil, err
+	}
+
+	osVersions := &fleet.OSVersions{
+		CountsUpdatedAt: row.UpdatedAt,
+	}
+
+	if row.JSONValue != nil {
+		err := json.Unmarshal(*row.JSONValue, &osVersions.OSVersions)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// filter by os versions by platform
+	if platform != nil {
+		var filtered []fleet.OSVersion
+		for _, osVersion := range osVersions.OSVersions {
+			if *platform == osVersion.Platform {
+				filtered = append(filtered, osVersion)
+			}
+		}
+		osVersions.OSVersions = filtered
+	}
+
+	// Sort by os versions. We can't control the order when using json_arrayagg
+	// See https://dev.mysql.com/doc/refman/5.7/en/aggregate-functions.html#function_json-arrayagg.
+	sort.Slice(osVersions.OSVersions, func(i, j int) bool { return osVersions.OSVersions[i].Name < osVersions.OSVersions[j].Name })
+
+	return osVersions, nil
+}
+
+func (ds *Datastore) UpdateOSVersions(ctx context.Context) error {
+	query := `
+INSERT INTO aggregated_stats (id, type, json_value)
+SELECT
+  team_id id,
+  'os_versions' type,
+  COALESCE(
+    JSON_ARRAYAGG(
+      JSON_OBJECT(
+        'hosts_count', hosts_count,
+        'name', name,
+        'platform', platform
+      )
+    ),
+    JSON_ARRAY()
+  ) json_value
+FROM
+  (
+    SELECT
+      COUNT(*) hosts_count,
+      h.os_version name,
+      h.platform,
+      0 team_id
+    FROM
+      hosts h
+    GROUP BY
+      h.os_version,
+      h.platform
+    UNION
+    SELECT
+      COUNT(*) hosts_count,
+      h.os_version name,
+      h.platform,
+      h.team_id
+    FROM
+      hosts h
+      JOIN teams t ON t.id = h.team_id
+    GROUP BY
+      h.os_version,
+      h.platform,
+      h.team_id
+  ) as team_os_versions
+GROUP BY
+  team_id
+ON DUPLICATE KEY UPDATE
+  json_value = VALUES(json_value),
+  updated_at = CURRENT_TIMESTAMP
+`
+	_, err := ds.writer.ExecContext(ctx, query)
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "update aggregated stats for os versions")
+	}
+
 	return nil
 }

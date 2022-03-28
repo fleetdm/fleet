@@ -55,10 +55,6 @@ func (h HostListOptions) Empty() bool {
 	return h.ListOptions.Empty() && len(h.AdditionalFilters) == 0 && h.StatusFilter == "" && h.TeamFilter == nil && h.PolicyIDFilter == nil && h.PolicyResponseFilter == nil
 }
 
-func (l ListOptions) Empty() bool {
-	return l.Page == 0 && l.PerPage == 0 && l.OrderKey == "" && l.OrderDirection == 0 && l.MatchQuery == ""
-}
-
 type HostUser struct {
 	Uid       uint   `json:"uid" db:"uid"`
 	Username  string `json:"username" db:"username"`
@@ -310,4 +306,15 @@ type AggregatedMacadminsData struct {
 type CPEHost struct {
 	ID       uint   `json:"id" db:"id"`
 	Hostname string `json:"hostname" db:"hostname"`
+}
+
+type OSVersions struct {
+	CountsUpdatedAt time.Time   `json:"counts_updated_at"`
+	OSVersions      []OSVersion `json:"os_versions"`
+}
+
+type OSVersion struct {
+	HostsCount int    `json:"hosts_count"`
+	Name       string `json:"name"`
+	Platform   string `json:"platform"`
 }

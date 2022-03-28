@@ -160,6 +160,17 @@ describe("Policies flow (empty)", () => {
       cy.getAttached(".platform").each((el, i) => {
         testCompatibility(el, i, [true, false, false]);
       });
+
+      // Query with macadmins extension table is not treated as incompatible
+      cy.getAttached(".ace_scroller")
+        .first()
+        .click({ force: true })
+        .type("{selectall}SELECT 1 FROM mdm WHERE enrolled='true';");
+      // eslint-disable-next-line cypress/no-unnecessary-waiting
+      cy.wait(700); // wait for text input debounce
+      cy.getAttached(".platform").each((el, i) => {
+        testCompatibility(el, i, [true, false, false]);
+      });
     });
 
     it("preselects platforms to check based on platform compatiblity when saving new policy", () => {
@@ -261,9 +272,11 @@ describe("Policies flow (empty)", () => {
 
       // edit platform selections for policy
       cy.visit("policies/manage");
-      cy.getAttached(".name__cell .button--text-link")
-        .contains("Antivirus healthy (macOS)")
-        .click();
+      cy.getAttached("tbody").within(() => {
+        cy.getAttached(".name__cell .button--text-link")
+          .contains("Antivirus healthy (macOS)")
+          .click();
+      });
       cy.getAttached(".platform-selector").within(() => {
         cy.getAttached(".fleet-checkbox__input").each((el, i) => {
           testSelections(el, i, [true, false, false]);
@@ -287,9 +300,11 @@ describe("Policies flow (empty)", () => {
 
       // confirm that policy was saved with new selection
       cy.visit("policies/manage");
-      cy.getAttached(".name__cell .button--text-link")
-        .contains("Antivirus healthy (macOS)")
-        .click();
+      cy.getAttached("tbody").within(() => {
+        cy.getAttached(".name__cell .button--text-link")
+          .contains("Antivirus healthy (macOS)")
+          .click();
+      });
       cy.getAttached(".platform-selector").within(() => {
         cy.getAttached(".fleet-checkbox__input").each((el, i) => {
           testSelections(el, i, [false, false, true]);
@@ -333,7 +348,7 @@ describe("Policies flow (seeded)", () => {
     });
     it("edits an existing policy", () => {
       cy.getAttached("tbody").within(() => {
-        cy.getAttached(".name__cell .button--text-link").last().click();
+        cy.getAttached(".name__cell .button--text-link").first().click();
       });
       cy.getAttached(".ace_scroller")
         .click({ force: true })
@@ -343,7 +358,7 @@ describe("Policies flow (seeded)", () => {
       cy.getAttached(".fleet-checkbox__label").first().click();
       cy.getAttached(".policy-form__save").click();
       cy.findByText(/policy updated/i).should("exist");
-      cy.visit("policies/2");
+      cy.visit("policies/1");
       cy.getAttached(".fleet-checkbox__input").first().should("not.be.checked");
     });
 
@@ -380,6 +395,38 @@ describe("Policies flow (seeded)", () => {
       });
       cy.getAttached(".manage-automations-modal").within(() => {
         cy.getAttached(".fleet-checkbox__input").should("be.checked");
+      });
+    });
+  });
+  describe("Platform compatibility", () => {
+    beforeEach(() => {
+      cy.loginWithCySession();
+      cy.visit("/policies/manage");
+    });
+    const platforms = ["macOS", "Windows", "Linux"];
+
+    const testSelections = (
+      el: JQuery<HTMLElement>,
+      i: number,
+      expected: boolean[]
+    ) => {
+      assert(
+        el.prop("checked") === expected[i],
+        `expected ${platforms[i]} to be ${
+          expected[i] ? "selected " : "not selected"
+        }`
+      );
+    };
+    it('preselects all platforms if API response contains `platform: ""`', () => {
+      cy.getAttached("tbody").within(() => {
+        cy.getAttached(".name__cell .button--text-link")
+          .contains("Is Ubuntu, version 16.4.0 or later, installed?")
+          .click();
+      });
+      cy.getAttached(".platform-selector").within(() => {
+        cy.getAttached(".fleet-checkbox__input").each((el, i) => {
+          testSelections(el, i, [true, true, true]);
+        });
       });
     });
   });

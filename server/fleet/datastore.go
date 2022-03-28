@@ -196,6 +196,10 @@ type Datastore interface {
 
 	TotalAndUnseenHostsSince(ctx context.Context, daysCount int) (total int, unseen int, err error)
 
+	// DeleteHosts deletes associated tables for multiple hosts.
+	//
+	// It atomically deletes each host but if it returns an error, some of the hosts may be
+	// deleted and others not.
 	DeleteHosts(ctx context.Context, ids []uint) error
 
 	CountHosts(ctx context.Context, filter TeamFilter, opt HostListOptions) (int, error)
@@ -217,6 +221,9 @@ type Datastore interface {
 	AggregatedMunkiVersion(ctx context.Context, teamID *uint) ([]AggregatedMunkiVersion, time.Time, error)
 	AggregatedMDMStatus(ctx context.Context, teamID *uint) (AggregatedMDMStatus, time.Time, error)
 	GenerateAggregatedMunkiAndMDM(ctx context.Context) error
+
+	OSVersions(ctx context.Context, teamID *uint, platform *string) (*OSVersions, error)
+	UpdateOSVersions(ctx context.Context) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// TargetStore

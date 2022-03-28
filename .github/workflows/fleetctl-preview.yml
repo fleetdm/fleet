@@ -5,6 +5,9 @@ on:
   schedule:
   - cron: '0 2 * * *' # Nightly 2AM UTC
 
+permissions:
+  contents: read
+
 jobs:
   test-preview:
     timeout-minutes: 60

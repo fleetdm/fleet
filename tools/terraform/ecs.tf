@@ -17,6 +17,7 @@ resource "aws_alb" "main" {
   security_groups = [aws_security_group.lb.id, aws_security_group.backend.id]
   subnets         = module.vpc.public_subnets
   idle_timeout    = 120
+  drop_invalid_header_fields = true
 }
 
 resource "aws_alb_target_group" "main" {
