@@ -37,6 +37,7 @@ interface IDataColumn {
   Cell: (props: ICellProps) => JSX.Element;
   disableHidden?: boolean;
   disableSortBy?: boolean;
+  disableGlobalFilter?: boolean;
   sortType?: string;
   // Filter can be used by react-table to render a filter input inside the column header
   Filter?: () => null | JSX.Element;
@@ -123,8 +124,8 @@ const generateSoftwareTableHeaders = (deviceUser = false): IDataColumn[] => {
         />
       ),
       accessor: "name",
-      Filter: () => null, // input for this column filter is rendered outside of column header
-      filter: "text", // filters name text based on the user's search query
+      // Filter: () => null, // input for this column filter is rendered outside of column header
+      // filter: "text", // filters name text based on the user's search query
       Cell: (cellProps) => {
         const { name, bundle_identifier } = cellProps.row.original;
         if (bundle_identifier) {
@@ -157,6 +158,7 @@ const generateSoftwareTableHeaders = (deviceUser = false): IDataColumn[] => {
         />
       ),
       disableSortBy: false,
+      disableGlobalFilter: true,
       accessor: "source",
       Cell: (cellProps) => (
         <TextCell value={cellProps.cell.value} formatter={formatSoftwareType} />
@@ -166,6 +168,7 @@ const generateSoftwareTableHeaders = (deviceUser = false): IDataColumn[] => {
       title: "Installed version",
       Header: "Installed version",
       disableSortBy: true,
+      disableGlobalFilter: true,
       accessor: "version",
       Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
     },
@@ -201,6 +204,7 @@ const generateSoftwareTableHeaders = (deviceUser = false): IDataColumn[] => {
       title: "",
       Header: "",
       disableSortBy: true,
+      disableGlobalFilter: true,
       accessor: "linkToFilteredHosts",
       Cell: (cellProps) => {
         return (

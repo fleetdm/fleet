@@ -47,17 +47,19 @@ const SoftwareVulnerabilities = ({
           <ul>
             {vulnerabilities?.map((v) => {
               return (
-                <li key={v.cve}>
-                  Read more about{" "}
-                  <a
-                    href={v.details_link}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    {v.cve} vulnerability{" "}
-                    <img alt="External link" src={ExternalLinkIcon} />
-                  </a>
-                </li>
+                typeof v !== "string" && (
+                  <li key={v.cve}>
+                    Read more about{" "}
+                    <a
+                      href={v.details_link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      {v.cve} vulnerability{" "}
+                      <img alt="External link" src={ExternalLinkIcon} />
+                    </a>
+                  </li>
+                )
               );
             })}
           </ul>

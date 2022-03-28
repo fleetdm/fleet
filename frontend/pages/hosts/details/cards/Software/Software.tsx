@@ -15,6 +15,10 @@ import generateSoftwareTableHeaders from "./SoftwareTableConfig";
 
 const baseClass = "host-details";
 
+export interface ITableSoftware extends Omit<ISoftware, "vulnerabilities"> {
+  vulnerabilities: string[];
+}
+
 interface ISoftwareTableProps {
   isLoading: boolean;
   software: ISoftware[];
@@ -26,20 +30,30 @@ const SoftwareTable = ({
   software,
   deviceUser,
 }: ISoftwareTableProps): JSX.Element => {
-  const [filterName, setFilterName] = useState("");
+  const tableSoftware: ITableSoftware[] = software.map((s) => {
+    return {
+      ...s,
+      vulnerabilities:
+        s.vulnerabilities?.map((v) => {
+          return v.cve;
+        }) || [],
+    };
+  });
+
+  const [filterGlobal, setFilterGlobal] = useState("");
   const [filterVuln, setFilterVuln] = useState(false);
   const [filters, setFilters] = useState({
-    name: filterName,
+    global: filterGlobal,
     vulnerabilities: filterVuln,
   });
 
   useEffect(() => {
-    setFilters({ name: filterName, vulnerabilities: filterVuln });
-  }, [filterName, filterVuln]);
+    setFilters({ global: filterGlobal, vulnerabilities: filterVuln });
+  }, [filterGlobal, filterVuln]);
 
   const onQueryChange = useDebouncedCallback(
     ({ searchQuery }: { searchQuery: string }) => {
-      setFilterName(searchQuery);
+      setFilterGlobal(searchQuery);
     },
     300
   );
@@ -77,7 +91,7 @@ const SoftwareTable = ({
           {software && (
             <TableContainer
               columns={tableHeaders}
-              data={software}
+              data={tableSoftware}
               filters={filters}
               isLoading={isLoading}
               defaultSortHeader={"name"}
