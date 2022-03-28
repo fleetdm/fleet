@@ -9,8 +9,14 @@ on:
     paths:
       - '**.tf'
   workflow_dispatch: # Manual dispatch
+permissions:
+  contents: read
+
 jobs:
   tfsec:
+    permissions:
+      contents: read  # for actions/checkout to fetch code
+      security-events: write  # for github/codeql-action/upload-sarif to upload SARIF results
     name: tfsec sarif report
     runs-on: ubuntu-latest
 
