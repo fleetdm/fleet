@@ -191,7 +191,7 @@ Yes, Orbit can be run alongside osquery. The osquery instance that Orbit runs us
 
 ## Can I disable auto-updates for Orbit?
 
-Yes, auto-updates can be disabled either by passing `--disable-updates` as a flag when running `fleetctl package` to generate your installer (easy) or by deploying a modified systemd file to your hosts (more complicated). We'd recommend the flag:
+Yes, auto-updates can be disabled by passing `--disable-updates` as a flag when running `fleetctl package` to generate your installer (easy) or by deploying a modified systemd file to your hosts (more complicated). We'd recommend the flag:
 
 ```
 fleetctl package --fleetctl package --type=deb --fleet-url=https://localhost:8080 --enroll-secret=superRandomSecret --disable-updates
