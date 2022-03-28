@@ -26,23 +26,23 @@ const SoftwareTable = ({
   software,
   deviceUser,
 }: ISoftwareTableProps): JSX.Element => {
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchString, setSearchString] = useState("");
   const [filterVuln, setFilterVuln] = useState(false);
   const [filters, setFilters] = useState({
-    name: searchQuery,
+    name: searchString,
     vulnerabilities: filterVuln,
   });
 
   useEffect(() => {
     setFilters({
-      name: searchQuery,
+      name: searchString,
       vulnerabilities: filterVuln,
     });
-  }, [searchQuery, filterVuln]);
+  }, [searchString, filterVuln]);
 
   const onQueryChange = useDebouncedCallback(
     ({ searchQuery }: { searchQuery: string }) => {
-      setSearchQuery(searchQuery);
+      setSearchString(searchQuery);
     },
     300
   );
