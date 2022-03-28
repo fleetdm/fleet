@@ -1,4 +1,4 @@
-# Using Fleet FAQ
+https://github.com/fleetdm/fleet/pull/4818/files# Using Fleet FAQ
 
 - [What do I need to do to switch from Kolide Fleet to FleetDM Fleet?](#waht-do-i-need-to-do-to-switch-from-kolide-fleet-to-fleetdm-fleet)
 - [Has anyone stress tested Fleet? How many clients can the Fleet server handle?](#has-anyone-stress-tested-fleet-how-many-clients-can-the-fleet-server-handle)
@@ -189,9 +189,9 @@ Fleet relies on UUIDs so any overlap with host IP addresses should not cause a p
 
 Yes, Orbit can be run alongside osquery. The osquery instance that Orbit runs uses its own database directory that is stored within the Orbit directory.
 
-## Can I disable auto updates for Orbit?
+## Can I disable auto-updates for Orbit?
 
-Yes, auto updates can be disabled either by passing `--disable-updates` as a flag when running `fleetctl package` to generate your installer (easy), or by deploying a modified systemd file to your hosts (more complicated). We'd reccomend the flag:
+Yes, auto-updates can be disabled either by passing `--disable-updates` as a flag when running `fleetctl package` to generate your installer (easy) or by deploying a modified systemd file to your hosts (more complicated). We'd recommend the flag:
 
 ```
 fleetctl package --fleetctl package --type=deb --fleet-url=https://localhost:8080 --enroll-secret=superRandomSecret --disable-updates
@@ -206,9 +206,9 @@ If Fleet can't send logs to the destination, it will return an error to osquery.
 
 ## How does Fleet work with osquery extensions?
 
-Any extension table available in a host enrolled to Fleet can be queried by Fleet. Note that the "compatible with" message may show an error because it won't know your extension table, but the query will still work and Fleet will gracefully ignore errors from any incompatible hosts.
+Any extension table available in a host enrolled to Fleet can be queried by Fleet. Note that the "compatible with" message may show an error because it won't know your extension table, but the query will still work, and Fleet will gracefully ignore errors from any incompatible hosts.
 
-## Why am I seeing "Unknown Certificate Error" when adding hosts to my dev server?
+## Why do I see "Unknown Certificate Error" when adding hosts to my dev server?
 
 If you are using a self-signed certificate on `localhost`, add the  `--insecure` flag when building your installation packages:
 
@@ -222,7 +222,7 @@ This isn't currently supported, but we're working on it! You can track that issu
 
 ## Can I create reports based on historical data in Fleet?
 
-Currently, Fleet only stores the current state of your hosts (when they last communicated with Fleet). The best way to maintain historical data currently would be to use the [REST API](./REST-API.md) or the [`fleetctl` CLI](./fleetctl-CLI.md) to manually retrieve and save the data you need on your schedule. 
+Currently, Fleet only stores the current state of your hosts (when they last communicated with Fleet). The best way at the moment to maintain historical data would be to use the [REST API](./REST-API.md) or the [`fleetctl` CLI](./fleetctl-CLI.md) to retrieve it manually. Then save the data you need to your schedule. 
 
 ## When do I need fleetctl vs the REST API vs the Fleet UI?
 
