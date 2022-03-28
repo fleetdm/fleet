@@ -8,11 +8,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/kolide/osquery-go"
-	"github.com/kolide/osquery-go/plugin/table"
 	"github.com/macadmins/osquery-extension/tables/chromeuserprofiles"
 	"github.com/macadmins/osquery-extension/tables/fileline"
 	"github.com/macadmins/osquery-extension/tables/puppet"
+	"github.com/osquery/osquery-go"
+	"github.com/osquery/osquery-go/plugin/table"
 	"github.com/rs/zerolog/log"
 )
 

@@ -318,7 +318,13 @@ const PolicyForm = ({
       );
     }
 
-    return <h1 className={`${baseClass}__policy-name no-hover`}>New policy</h1>;
+    return (
+      <h1
+        className={`${baseClass}__policy-name ${baseClass}__policy-name--new no-hover`}
+      >
+        New policy
+      </h1>
+    );
   };
 
   const renderDescription = () => {

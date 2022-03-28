@@ -22,6 +22,9 @@ on:
 
 name: Run Tests
 
+permissions:
+  contents: read
+
 jobs:
   test-e2e:
     strategy:
