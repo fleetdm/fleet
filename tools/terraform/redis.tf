@@ -23,7 +23,7 @@ resource "aws_elasticache_replication_group" "default" {
   port                          = "6379"
   maintenance_window            = var.maintenance_window
   snapshot_retention_limit      = 0
-  automatic_failover_enabled    = false
+  automatic_failover_enabled    = true
   at_rest_encryption_enabled    = true
   transit_encryption_enabled    = true
   apply_immediately             = true

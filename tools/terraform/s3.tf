@@ -21,9 +21,9 @@ resource "aws_s3_bucket" "osquery-carve" { #tfsec:ignore:aws-s3-enable-versionin
 }
 
 resource "aws_s3_bucket_public_access_block" "osquery-carve" {
-  bucket = aws_s3_bucket.osquery-carve.id
-  block_public_acls = true
-  block_public_policy = true
-  ignore_public_acls = true
-  restrict_public_buckets = true 
+  bucket                  = aws_s3_bucket.osquery-carve.id
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
 }

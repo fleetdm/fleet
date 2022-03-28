@@ -19,11 +19,11 @@ resource "aws_s3_bucket" "osquery-results" {
 }
 
 resource "aws_s3_bucket_public_access_block" "osquery-results" {
-  bucket = aws_s3_bucket.osquery-results.id
-  block_public_acls = true
-  block_public_policy = true
-  ignore_public_acls = true
-  restrict_public_buckets = true 
+  bucket                  = aws_s3_bucket.osquery-results.id
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
 }
 
 resource "aws_s3_bucket" "osquery-status" {
@@ -47,11 +47,11 @@ resource "aws_s3_bucket" "osquery-status" {
 }
 
 resource "aws_s3_bucket_public_access_block" "osquery-status" {
-  bucket = aws_s3_bucket.osquery-status.id
-  block_public_acls = true
-  block_public_policy = true
-  ignore_public_acls = true
-  restrict_public_buckets = true 
+  bucket                  = aws_s3_bucket.osquery-status.id
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
 }
 
 data "aws_iam_policy_document" "osquery_results_policy_doc" {
