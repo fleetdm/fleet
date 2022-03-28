@@ -1,0 +1,1413 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Fleet API",
+    "version": "2022-04"
+  },
+  "servers": [
+    {
+      "url": "/api/latest"
+    }
+  ],
+  "paths": {
+    "/fleet/hosts": {
+      "get": {
+        "operationId": "get_hosts",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "hosts": {
+                      "items": {
+                        "properties": {
+                          "created_at": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "updated_at": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "software": {
+                            "items": {
+                              "properties": {
+                                "id": {
+                                  "type": "integer"
+                                },
+                                "name": {
+                                  "type": "string"
+                                },
+                                "version": {
+                                  "type": "string"
+                                },
+                                "bundle_identifier": {
+                                  "type": "string"
+                                },
+                                "source": {
+                                  "type": "string"
+                                },
+                                "release": {
+                                  "type": "string"
+                                },
+                                "vendor": {
+                                  "type": "string"
+                                },
+                                "arch": {
+                                  "type": "string"
+                                },
+                                "generated_cpe": {
+                                  "type": "string"
+                                },
+                                "vulnerabilities": {
+                                  "items": {
+                                    "properties": {
+                                      "cve": {
+                                        "type": "string"
+                                      },
+                                      "details_link": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "additionalProperties": false,
+                                    "type": "object",
+                                    "required": [
+                                      "cve",
+                                      "details_link"
+                                    ]
+                                  },
+                                  "type": "array"
+                                },
+                                "hosts_count": {
+                                  "type": "integer"
+                                }
+                              },
+                              "additionalProperties": false,
+                              "type": "object",
+                              "required": [
+                                "id",
+                                "name",
+                                "version",
+                                "source",
+                                "generated_cpe",
+                                "vulnerabilities"
+                              ]
+                            },
+                            "type": "array"
+                          },
+                          "id": {
+                            "type": "integer"
+                          },
+                          "detail_updated_at": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "label_updated_at": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "policy_updated_at": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "last_enrolled_at": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "seen_time": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "refetch_requested": {
+                            "type": "boolean"
+                          },
+                          "hostname": {
+                            "type": "string"
+                          },
+                          "uuid": {
+                            "type": "string"
+                          },
+                          "platform": {
+                            "type": "string"
+                          },
+                          "osquery_version": {
+                            "type": "string"
+                          },
+                          "os_version": {
+                            "type": "string"
+                          },
+                          "build": {
+                            "type": "string"
+                          },
+                          "platform_like": {
+                            "type": "string"
+                          },
+                          "code_name": {
+                            "type": "string"
+                          },
+                          "uptime": {
+                            "type": "integer"
+                          },
+                          "memory": {
+                            "type": "integer"
+                          },
+                          "cpu_type": {
+                            "type": "string"
+                          },
+                          "cpu_subtype": {
+                            "type": "string"
+                          },
+                          "cpu_brand": {
+                            "type": "string"
+                          },
+                          "cpu_physical_cores": {
+                            "type": "integer"
+                          },
+                          "cpu_logical_cores": {
+                            "type": "integer"
+                          },
+                          "hardware_vendor": {
+                            "type": "string"
+                          },
+                          "hardware_model": {
+                            "type": "string"
+                          },
+                          "hardware_version": {
+                            "type": "string"
+                          },
+                          "hardware_serial": {
+                            "type": "string"
+                          },
+                          "computer_name": {
+                            "type": "string"
+                          },
+                          "primary_ip_id": {
+                            "type": "integer"
+                          },
+                          "public_ip": {
+                            "type": "string"
+                          },
+                          "primary_ip": {
+                            "type": "string"
+                          },
+                          "primary_mac": {
+                            "type": "string"
+                          },
+                          "distributed_interval": {
+                            "type": "integer"
+                          },
+                          "config_tls_refresh": {
+                            "type": "integer"
+                          },
+                          "logger_tls_period": {
+                            "type": "integer"
+                          },
+                          "team_id": {
+                            "type": "integer"
+                          },
+                          "pack_stats": {
+                            "items": {
+                              "properties": {
+                                "pack_id": {
+                                  "type": "integer"
+                                },
+                                "pack_name": {
+                                  "type": "string"
+                                },
+                                "type": {
+                                  "type": "string"
+                                },
+                                "query_stats": {
+                                  "items": {
+                                    "properties": {
+                                      "scheduled_query_name": {
+                                        "type": "string"
+                                      },
+                                      "scheduled_query_id": {
+                                        "type": "integer"
+                                      },
+                                      "query_name": {
+                                        "type": "string"
+                                      },
+                                      "description": {
+                                        "type": "string"
+                                      },
+                                      "pack_name": {
+                                        "type": "string"
+                                      },
+                                      "pack_id": {
+                                        "type": "integer"
+                                      },
+                                      "average_memory": {
+                                        "type": "integer"
+                                      },
+                                      "denylisted": {
+                                        "type": "boolean"
+                                      },
+                                      "executions": {
+                                        "type": "integer"
+                                      },
+                                      "interval": {
+                                        "type": "integer"
+                                      },
+                                      "last_executed": {
+                                        "type": "string",
+                                        "format": "date-time"
+                                      },
+                                      "output_size": {
+                                        "type": "integer"
+                                      },
+                                      "system_time": {
+                                        "type": "integer"
+                                      },
+                                      "user_time": {
+                                        "type": "integer"
+                                      },
+                                      "wall_time": {
+                                        "type": "integer"
+                                      }
+                                    },
+                                    "additionalProperties": false,
+                                    "type": "object",
+                                    "required": [
+                                      "average_memory",
+                                      "denylisted",
+                                      "executions",
+                                      "interval",
+                                      "last_executed",
+                                      "output_size",
+                                      "system_time",
+                                      "user_time",
+                                      "wall_time"
+                                    ]
+                                  },
+                                  "type": "array"
+                                }
+                              },
+                              "additionalProperties": false,
+                              "type": "object",
+                              "required": [
+                                "pack_id",
+                                "pack_name",
+                                "type",
+                                "query_stats"
+                              ]
+                            },
+                            "type": "array"
+                          },
+                          "team_name": {
+                            "type": "string"
+                          },
+                          "additional": true,
+                          "users": {
+                            "items": {
+                              "properties": {
+                                "uid": {
+                                  "type": "integer"
+                                },
+                                "username": {
+                                  "type": "string"
+                                },
+                                "type": {
+                                  "type": "string"
+                                },
+                                "groupname": {
+                                  "type": "string"
+                                },
+                                "shell": {
+                                  "type": "string"
+                                }
+                              },
+                              "additionalProperties": false,
+                              "type": "object",
+                              "required": [
+                                "uid",
+                                "username",
+                                "type",
+                                "groupname",
+                                "shell"
+                              ]
+                            },
+                            "type": "array"
+                          },
+                          "gigs_disk_space_available": {
+                            "type": "number"
+                          },
+                          "percent_disk_space_available": {
+                            "type": "number"
+                          },
+                          "issues": {
+                            "properties": {
+                              "total_issues_count": {
+                                "type": "integer"
+                              },
+                              "failing_policies_count": {
+                                "type": "integer"
+                              }
+                            },
+                            "additionalProperties": false,
+                            "type": "object",
+                            "required": [
+                              "total_issues_count",
+                              "failing_policies_count"
+                            ]
+                          },
+                          "status": {
+                            "type": "string"
+                          },
+                          "display_text": {
+                            "type": "string"
+                          },
+                          "labels": {
+                            "items": {
+                              "properties": {
+                                "created_at": {
+                                  "type": "string",
+                                  "format": "date-time"
+                                },
+                                "updated_at": {
+                                  "type": "string",
+                                  "format": "date-time"
+                                },
+                                "id": {
+                                  "type": "integer"
+                                },
+                                "name": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                },
+                                "query": {
+                                  "type": "string"
+                                },
+                                "platform": {
+                                  "type": "string"
+                                },
+                                "label_type": {
+                                  "type": "integer"
+                                },
+                                "label_membership_type": {
+                                  "type": "integer"
+                                },
+                                "host_count": {
+                                  "type": "integer"
+                                }
+                              },
+                              "additionalProperties": false,
+                              "type": "object",
+                              "required": [
+                                "created_at",
+                                "updated_at",
+                                "id",
+                                "name",
+                                "description",
+                                "query",
+                                "platform",
+                                "label_type",
+                                "label_membership_type"
+                              ]
+                            },
+                            "type": "array"
+                          },
+                          "geolocation": {
+                            "properties": {
+                              "country_iso": {
+                                "type": "string"
+                              },
+                              "city_name": {
+                                "type": "string"
+                              },
+                              "geometry": {
+                                "properties": {
+                                  "type": {
+                                    "type": "string"
+                                  },
+                                  "coordinates": {
+                                    "items": {
+                                      "type": "number"
+                                    },
+                                    "type": "array"
+                                  }
+                                },
+                                "additionalProperties": false,
+                                "type": "object",
+                                "required": [
+                                  "type",
+                                  "coordinates"
+                                ]
+                              }
+                            },
+                            "additionalProperties": false,
+                            "type": "object",
+                            "required": [
+                              "country_iso",
+                              "city_name"
+                            ]
+                          }
+                        },
+                        "additionalProperties": false,
+                        "type": "object",
+                        "required": [
+                          "created_at",
+                          "updated_at",
+                          "id",
+                          "detail_updated_at",
+                          "label_updated_at",
+                          "policy_updated_at",
+                          "last_enrolled_at",
+                          "seen_time",
+                          "refetch_requested",
+                          "hostname",
+                          "uuid",
+                          "platform",
+                          "osquery_version",
+                          "os_version",
+                          "build",
+                          "platform_like",
+                          "code_name",
+                          "uptime",
+                          "memory",
+                          "cpu_type",
+                          "cpu_subtype",
+                          "cpu_brand",
+                          "cpu_physical_cores",
+                          "cpu_logical_cores",
+                          "hardware_vendor",
+                          "hardware_model",
+                          "hardware_version",
+                          "hardware_serial",
+                          "computer_name",
+                          "public_ip",
+                          "primary_ip",
+                          "primary_mac",
+                          "distributed_interval",
+                          "config_tls_refresh",
+                          "logger_tls_period",
+                          "team_id",
+                          "pack_stats",
+                          "team_name",
+                          "gigs_disk_space_available",
+                          "percent_disk_space_available",
+                          "status",
+                          "display_text"
+                        ]
+                      },
+                      "type": "array"
+                    },
+                    "software": {
+                      "properties": {
+                        "id": {
+                          "type": "integer"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "version": {
+                          "type": "string"
+                        },
+                        "bundle_identifier": {
+                          "type": "string"
+                        },
+                        "source": {
+                          "type": "string"
+                        },
+                        "release": {
+                          "type": "string"
+                        },
+                        "vendor": {
+                          "type": "string"
+                        },
+                        "arch": {
+                          "type": "string"
+                        },
+                        "generated_cpe": {
+                          "type": "string"
+                        },
+                        "vulnerabilities": {
+                          "items": {
+                            "properties": {
+                              "cve": {
+                                "type": "string"
+                              },
+                              "details_link": {
+                                "type": "string"
+                              }
+                            },
+                            "additionalProperties": false,
+                            "type": "object",
+                            "required": [
+                              "cve",
+                              "details_link"
+                            ]
+                          },
+                          "type": "array"
+                        },
+                        "hosts_count": {
+                          "type": "integer"
+                        }
+                      },
+                      "additionalProperties": false,
+                      "type": "object",
+                      "required": [
+                        "id",
+                        "name",
+                        "version",
+                        "source",
+                        "generated_cpe",
+                        "vulnerabilities"
+                      ]
+                    },
+                    "error": true
+                  },
+                  "additionalProperties": false,
+                  "type": "object",
+                  "required": [
+                    "hosts"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/fleet/hosts/delete": {
+      "post": {
+        "operationId": "post_hosts_delete",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "ids": {
+                    "items": {
+                      "type": "integer"
+                    },
+                    "type": "array"
+                  },
+                  "filters": {
+                    "properties": {
+                      "query": {
+                        "type": "string"
+                      },
+                      "status": {
+                        "type": "string"
+                      },
+                      "label_id": {
+                        "type": "integer"
+                      },
+                      "team_id": {
+                        "type": "integer"
+                      }
+                    },
+                    "additionalProperties": false,
+                    "type": "object",
+                    "required": [
+                      "query",
+                      "status",
+                      "label_id",
+                      "team_id"
+                    ]
+                  }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                  "ids",
+                  "filters"
+                ]
+              }
+            }
+          },
+          "required": false
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "error": true
+                  },
+                  "additionalProperties": false,
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/fleet/me": {
+      "get": {
+        "operationId": "get_me",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "user": {
+                      "properties": {
+                        "created_at": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "updated_at": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "id": {
+                          "type": "integer"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "email": {
+                          "type": "string"
+                        },
+                        "force_password_reset": {
+                          "type": "boolean"
+                        },
+                        "gravatar_url": {
+                          "type": "string"
+                        },
+                        "position": {
+                          "type": "string"
+                        },
+                        "sso_enabled": {
+                          "type": "boolean"
+                        },
+                        "global_role": {
+                          "type": "string"
+                        },
+                        "api_only": {
+                          "type": "boolean"
+                        },
+                        "teams": {
+                          "items": {
+                            "properties": {},
+                            "additionalProperties": false,
+                            "type": "object"
+                          },
+                          "type": "array"
+                        }
+                      },
+                      "additionalProperties": false,
+                      "type": "object",
+                      "required": [
+                        "created_at",
+                        "updated_at",
+                        "id",
+                        "name",
+                        "email",
+                        "force_password_reset",
+                        "gravatar_url",
+                        "sso_enabled",
+                        "global_role",
+                        "api_only",
+                        "teams"
+                      ]
+                    },
+                    "available_teams": {
+                      "items": {
+                        "properties": {
+                          "id": {
+                            "type": "integer"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "description": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": false,
+                        "type": "object",
+                        "required": [
+                          "id",
+                          "name",
+                          "description"
+                        ]
+                      },
+                      "type": "array"
+                    },
+                    "error": true
+                  },
+                  "additionalProperties": false,
+                  "type": "object",
+                  "required": [
+                    "available_teams"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/fleet/sessions/{id}": {
+      "get": {
+        "operationId": "get_sessions__id:[0-9]+_",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "session_id": {
+                      "type": "integer"
+                    },
+                    "user_id": {
+                      "type": "integer"
+                    },
+                    "created_at": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "error": true
+                  },
+                  "additionalProperties": false,
+                  "type": "object",
+                  "required": [
+                    "session_id",
+                    "user_id",
+                    "created_at"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/fleet/teams": {
+      "post": {
+        "operationId": "post_teams",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "secrets": {
+                    "items": {
+                      "properties": {
+                        "secret": {
+                          "type": "string"
+                        },
+                        "created_at": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "team_id": {
+                          "type": "integer"
+                        }
+                      },
+                      "additionalProperties": false,
+                      "type": "object",
+                      "required": [
+                        "secret",
+                        "created_at"
+                      ]
+                    },
+                    "type": "array"
+                  },
+                  "webhook_settings": {
+                    "properties": {
+                      "failing_policies_webhook": {
+                        "properties": {
+                          "enable_failing_policies_webhook": {
+                            "type": "boolean"
+                          },
+                          "destination_url": {
+                            "type": "string"
+                          },
+                          "policy_ids": {
+                            "items": {
+                              "type": "integer"
+                            },
+                            "type": "array"
+                          },
+                          "host_batch_size": {
+                            "type": "integer"
+                          }
+                        },
+                        "additionalProperties": false,
+                        "type": "object",
+                        "required": [
+                          "enable_failing_policies_webhook",
+                          "destination_url",
+                          "policy_ids",
+                          "host_batch_size"
+                        ]
+                      }
+                    },
+                    "additionalProperties": false,
+                    "type": "object",
+                    "required": [
+                      "failing_policies_webhook"
+                    ]
+                  }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                  "name",
+                  "description",
+                  "secrets",
+                  "webhook_settings"
+                ]
+              }
+            }
+          },
+          "required": false
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "team": {
+                      "properties": {
+                        "id": {
+                          "type": "integer"
+                        },
+                        "created_at": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "description": {
+                          "type": "string"
+                        },
+                        "user_count": {
+                          "type": "integer"
+                        },
+                        "users": {
+                          "items": {
+                            "properties": {
+                              "created_at": {
+                                "type": "string",
+                                "format": "date-time"
+                              },
+                              "updated_at": {
+                                "type": "string",
+                                "format": "date-time"
+                              },
+                              "id": {
+                                "type": "integer"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "email": {
+                                "type": "string"
+                              },
+                              "force_password_reset": {
+                                "type": "boolean"
+                              },
+                              "gravatar_url": {
+                                "type": "string"
+                              },
+                              "position": {
+                                "type": "string"
+                              },
+                              "sso_enabled": {
+                                "type": "boolean"
+                              },
+                              "global_role": {
+                                "type": "string"
+                              },
+                              "api_only": {
+                                "type": "boolean"
+                              },
+                              "teams": {
+                                "items": {
+                                  "properties": {},
+                                  "additionalProperties": false,
+                                  "type": "object"
+                                },
+                                "type": "array"
+                              },
+                              "role": {
+                                "type": "string"
+                              }
+                            },
+                            "additionalProperties": false,
+                            "type": "object",
+                            "required": [
+                              "created_at",
+                              "updated_at",
+                              "id",
+                              "name",
+                              "email",
+                              "force_password_reset",
+                              "gravatar_url",
+                              "sso_enabled",
+                              "global_role",
+                              "api_only",
+                              "teams",
+                              "role"
+                            ]
+                          },
+                          "type": "array"
+                        },
+                        "host_count": {
+                          "type": "integer"
+                        },
+                        "hosts": {
+                          "items": {
+                            "properties": {
+                              "created_at": {
+                                "type": "string",
+                                "format": "date-time"
+                              },
+                              "updated_at": {
+                                "type": "string",
+                                "format": "date-time"
+                              },
+                              "software": {
+                                "items": {
+                                  "properties": {
+                                    "id": {
+                                      "type": "integer"
+                                    },
+                                    "name": {
+                                      "type": "string"
+                                    },
+                                    "version": {
+                                      "type": "string"
+                                    },
+                                    "bundle_identifier": {
+                                      "type": "string"
+                                    },
+                                    "source": {
+                                      "type": "string"
+                                    },
+                                    "release": {
+                                      "type": "string"
+                                    },
+                                    "vendor": {
+                                      "type": "string"
+                                    },
+                                    "arch": {
+                                      "type": "string"
+                                    },
+                                    "generated_cpe": {
+                                      "type": "string"
+                                    },
+                                    "vulnerabilities": {
+                                      "items": {
+                                        "properties": {
+                                          "cve": {
+                                            "type": "string"
+                                          },
+                                          "details_link": {
+                                            "type": "string"
+                                          }
+                                        },
+                                        "additionalProperties": false,
+                                        "type": "object",
+                                        "required": [
+                                          "cve",
+                                          "details_link"
+                                        ]
+                                      },
+                                      "type": "array"
+                                    },
+                                    "hosts_count": {
+                                      "type": "integer"
+                                    }
+                                  },
+                                  "additionalProperties": false,
+                                  "type": "object",
+                                  "required": [
+                                    "id",
+                                    "name",
+                                    "version",
+                                    "source",
+                                    "generated_cpe",
+                                    "vulnerabilities"
+                                  ]
+                                },
+                                "type": "array"
+                              },
+                              "id": {
+                                "type": "integer"
+                              },
+                              "detail_updated_at": {
+                                "type": "string",
+                                "format": "date-time"
+                              },
+                              "label_updated_at": {
+                                "type": "string",
+                                "format": "date-time"
+                              },
+                              "policy_updated_at": {
+                                "type": "string",
+                                "format": "date-time"
+                              },
+                              "last_enrolled_at": {
+                                "type": "string",
+                                "format": "date-time"
+                              },
+                              "seen_time": {
+                                "type": "string",
+                                "format": "date-time"
+                              },
+                              "refetch_requested": {
+                                "type": "boolean"
+                              },
+                              "hostname": {
+                                "type": "string"
+                              },
+                              "uuid": {
+                                "type": "string"
+                              },
+                              "platform": {
+                                "type": "string"
+                              },
+                              "osquery_version": {
+                                "type": "string"
+                              },
+                              "os_version": {
+                                "type": "string"
+                              },
+                              "build": {
+                                "type": "string"
+                              },
+                              "platform_like": {
+                                "type": "string"
+                              },
+                              "code_name": {
+                                "type": "string"
+                              },
+                              "uptime": {
+                                "type": "integer"
+                              },
+                              "memory": {
+                                "type": "integer"
+                              },
+                              "cpu_type": {
+                                "type": "string"
+                              },
+                              "cpu_subtype": {
+                                "type": "string"
+                              },
+                              "cpu_brand": {
+                                "type": "string"
+                              },
+                              "cpu_physical_cores": {
+                                "type": "integer"
+                              },
+                              "cpu_logical_cores": {
+                                "type": "integer"
+                              },
+                              "hardware_vendor": {
+                                "type": "string"
+                              },
+                              "hardware_model": {
+                                "type": "string"
+                              },
+                              "hardware_version": {
+                                "type": "string"
+                              },
+                              "hardware_serial": {
+                                "type": "string"
+                              },
+                              "computer_name": {
+                                "type": "string"
+                              },
+                              "primary_ip_id": {
+                                "type": "integer"
+                              },
+                              "public_ip": {
+                                "type": "string"
+                              },
+                              "primary_ip": {
+                                "type": "string"
+                              },
+                              "primary_mac": {
+                                "type": "string"
+                              },
+                              "distributed_interval": {
+                                "type": "integer"
+                              },
+                              "config_tls_refresh": {
+                                "type": "integer"
+                              },
+                              "logger_tls_period": {
+                                "type": "integer"
+                              },
+                              "team_id": {
+                                "type": "integer"
+                              },
+                              "pack_stats": {
+                                "items": {
+                                  "properties": {
+                                    "pack_id": {
+                                      "type": "integer"
+                                    },
+                                    "pack_name": {
+                                      "type": "string"
+                                    },
+                                    "type": {
+                                      "type": "string"
+                                    },
+                                    "query_stats": {
+                                      "items": {
+                                        "properties": {
+                                          "scheduled_query_name": {
+                                            "type": "string"
+                                          },
+                                          "scheduled_query_id": {
+                                            "type": "integer"
+                                          },
+                                          "query_name": {
+                                            "type": "string"
+                                          },
+                                          "description": {
+                                            "type": "string"
+                                          },
+                                          "pack_name": {
+                                            "type": "string"
+                                          },
+                                          "pack_id": {
+                                            "type": "integer"
+                                          },
+                                          "average_memory": {
+                                            "type": "integer"
+                                          },
+                                          "denylisted": {
+                                            "type": "boolean"
+                                          },
+                                          "executions": {
+                                            "type": "integer"
+                                          },
+                                          "interval": {
+                                            "type": "integer"
+                                          },
+                                          "last_executed": {
+                                            "type": "string",
+                                            "format": "date-time"
+                                          },
+                                          "output_size": {
+                                            "type": "integer"
+                                          },
+                                          "system_time": {
+                                            "type": "integer"
+                                          },
+                                          "user_time": {
+                                            "type": "integer"
+                                          },
+                                          "wall_time": {
+                                            "type": "integer"
+                                          }
+                                        },
+                                        "additionalProperties": false,
+                                        "type": "object",
+                                        "required": [
+                                          "average_memory",
+                                          "denylisted",
+                                          "executions",
+                                          "interval",
+                                          "last_executed",
+                                          "output_size",
+                                          "system_time",
+                                          "user_time",
+                                          "wall_time"
+                                        ]
+                                      },
+                                      "type": "array"
+                                    }
+                                  },
+                                  "additionalProperties": false,
+                                  "type": "object",
+                                  "required": [
+                                    "pack_id",
+                                    "pack_name",
+                                    "type",
+                                    "query_stats"
+                                  ]
+                                },
+                                "type": "array"
+                              },
+                              "team_name": {
+                                "type": "string"
+                              },
+                              "additional": true,
+                              "users": {
+                                "items": {
+                                  "properties": {
+                                    "uid": {
+                                      "type": "integer"
+                                    },
+                                    "username": {
+                                      "type": "string"
+                                    },
+                                    "type": {
+                                      "type": "string"
+                                    },
+                                    "groupname": {
+                                      "type": "string"
+                                    },
+                                    "shell": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "additionalProperties": false,
+                                  "type": "object",
+                                  "required": [
+                                    "uid",
+                                    "username",
+                                    "type",
+                                    "groupname",
+                                    "shell"
+                                  ]
+                                },
+                                "type": "array"
+                              },
+                              "gigs_disk_space_available": {
+                                "type": "number"
+                              },
+                              "percent_disk_space_available": {
+                                "type": "number"
+                              },
+                              "issues": {
+                                "properties": {
+                                  "total_issues_count": {
+                                    "type": "integer"
+                                  },
+                                  "failing_policies_count": {
+                                    "type": "integer"
+                                  }
+                                },
+                                "additionalProperties": false,
+                                "type": "object",
+                                "required": [
+                                  "total_issues_count",
+                                  "failing_policies_count"
+                                ]
+                              }
+                            },
+                            "additionalProperties": false,
+                            "type": "object",
+                            "required": [
+                              "created_at",
+                              "updated_at",
+                              "id",
+                              "detail_updated_at",
+                              "label_updated_at",
+                              "policy_updated_at",
+                              "last_enrolled_at",
+                              "seen_time",
+                              "refetch_requested",
+                              "hostname",
+                              "uuid",
+                              "platform",
+                              "osquery_version",
+                              "os_version",
+                              "build",
+                              "platform_like",
+                              "code_name",
+                              "uptime",
+                              "memory",
+                              "cpu_type",
+                              "cpu_subtype",
+                              "cpu_brand",
+                              "cpu_physical_cores",
+                              "cpu_logical_cores",
+                              "hardware_vendor",
+                              "hardware_model",
+                              "hardware_version",
+                              "hardware_serial",
+                              "computer_name",
+                              "public_ip",
+                              "primary_ip",
+                              "primary_mac",
+                              "distributed_interval",
+                              "config_tls_refresh",
+                              "logger_tls_period",
+                              "team_id",
+                              "pack_stats",
+                              "team_name",
+                              "gigs_disk_space_available",
+                              "percent_disk_space_available"
+                            ]
+                          },
+                          "type": "array"
+                        },
+                        "secrets": {
+                          "items": {
+                            "properties": {
+                              "secret": {
+                                "type": "string"
+                              },
+                              "created_at": {
+                                "type": "string",
+                                "format": "date-time"
+                              },
+                              "team_id": {
+                                "type": "integer"
+                              }
+                            },
+                            "additionalProperties": false,
+                            "type": "object",
+                            "required": [
+                              "secret",
+                              "created_at"
+                            ]
+                          },
+                          "type": "array"
+                        }
+                      },
+                      "additionalProperties": false,
+                      "type": "object",
+                      "required": [
+                        "id",
+                        "created_at",
+                        "name",
+                        "description",
+                        "user_count",
+                        "host_count"
+                      ]
+                    },
+                    "error": true
+                  },
+                  "additionalProperties": false,
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

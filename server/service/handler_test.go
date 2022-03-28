@@ -331,5 +331,9 @@ func TestOpenAPIGeneration(t *testing.T) {
 	svc := newTestService(t, ds, nil, nil)
 	limitStore, _ := memstore.New(0)
 	MakeHandler(svc, config.TestConfig(), kitlog.NewNopLogger(), limitStore)
-	openAPIDocument.Render(os.Stdout)
+
+	f, err := os.Create("../../openapi.json")
+	require.NoError(t, err)
+	defer f.Close()
+	openAPIDocument.Render(f)
 }

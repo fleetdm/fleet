@@ -65,15 +65,17 @@ func (d *Document) Render(w io.Writer) error {
 	d.Servers = []*Server{{URL: "/api/latest"}}
 
 	pathDict := make(map[string]PathItem)
-	for i, ep := range d.endpoints {
+	for _, ep := range d.endpoints {
+		if ep.res == nil {
+			// skip any endpoint that has no response object, as a simple way to filter
+			// the selected endpoints I've added a response object to in handler.go
+			continue
+		}
+
 		parts := strings.SplitN(ep.path, "/", 4)
 		// version is in parts[2]
 		if !strings.Contains(parts[2], "latest") {
 			continue
-		}
-
-		if i > 10 {
-			break
 		}
 
 		path := "/" + strings.Join(parts[3:], "/")
