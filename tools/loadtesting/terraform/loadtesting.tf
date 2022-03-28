@@ -3,7 +3,7 @@ resource "aws_ecs_service" "loadtest" {
   launch_type                        = "FARGATE"
   cluster                            = aws_ecs_cluster.fleet.id
   task_definition                    = aws_ecs_task_definition.loadtest.arn
-  desired_count                      = var.scale_down ? 0 : 1
+  desired_count                      = var.scale_down ? 0 : 0
   deployment_minimum_healthy_percent = 100
   deployment_maximum_percent         = 200
 
@@ -19,15 +19,15 @@ resource "aws_ecs_task_definition" "loadtest" {
   requires_compatibilities = ["FARGATE"]
   execution_role_arn       = aws_iam_role.main.arn
   task_role_arn            = aws_iam_role.main.arn
-  cpu                      = 1024
-  memory                   = 2048
+  cpu                      = 256
+  memory                   = 512
   container_definitions = jsonencode(
     [
       {
         name        = "loadtest"
         image       = docker_registry_image.loadtest.name
-        cpu         = 1024
-        memory      = 2048
+        cpu         = 256
+        memory      = 512
         mountPoints = []
         volumesFrom = []
         essential   = true
@@ -51,7 +51,7 @@ resource "aws_ecs_task_definition" "loadtest" {
         command = [
           "go", "run", "/go/fleet/cmd/osquery-perf/agent.go",
           "-enroll_secret", data.aws_secretsmanager_secret_version.enroll_secret.secret_string,
-          "-host_count", "10000",
+          "-host_count", "5000",
           "-server_url", "http://${aws_alb.internal.dns_name}",
           "-node_key_file", "nodekeys",
           "--policy_pass_prob", "0.5",
