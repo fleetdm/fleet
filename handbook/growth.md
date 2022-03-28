@@ -79,7 +79,7 @@ These are the Slack channels the growth team maintains. If the channel has a [di
 
 - **#g-growth** **DRI**: Tim Kern
 - **#help-swag** **DRI**: Drew Baker
-- **#help-promote**
+- **#help-promote**: Tim Kern
 
 **Who should have these channels unmuted?** Members of this group, everyone else is encouraged to mute them.
 
