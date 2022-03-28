@@ -132,6 +132,7 @@ const DataTable = ({
     setPageSize,
     setFilter,
     setAllFilters,
+    setGlobalFilter,
   } = useTable(
     {
       columns,
@@ -147,7 +148,7 @@ const DataTable = ({
       // Initializes as false, but changes briefly to true on successful notification
       autoResetSelectedRows: resetSelectedRows,
       // Expands the enumerated `filterTypes` for react-table
-      // (see https://github.com/tannerlinsley/react-table/blob/master/src/filterTypes.js)
+      // (see https://github.com/TanStack/react-table/blob/alpha/packages/react-table/src/filterTypes.ts)
       // with custom `filterTypes` defined for this `useTable` instance
       filterTypes: React.useMemo(
         () => ({
@@ -206,7 +207,9 @@ const DataTable = ({
         id,
         value,
       }));
+      console.log("allFilters", allFilters);
       !!allFilters.length && setAllFilters(allFilters);
+      // !!allFilters.length && setGlobalFilter(tableFilters?.name);
     }
   }, [tableFilters]);
 
@@ -214,6 +217,7 @@ const DataTable = ({
 
   const setDebouncedClientFilter = useDebouncedCallback(
     (column: string, query: string) => {
+      console.log("setDebouncedClientFilter");
       setFilter(column, query);
     },
     300
@@ -228,6 +232,7 @@ const DataTable = ({
   useEffect(() => {
     if (isClientSideFilter && searchQueryColumn) {
       setDebouncedClientFilter(searchQueryColumn, searchQuery || "");
+      console.log("searchQueryColumn", searchQueryColumn);
     }
   }, [searchQuery, searchQueryColumn]);
 

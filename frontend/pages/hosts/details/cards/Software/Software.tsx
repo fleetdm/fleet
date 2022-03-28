@@ -26,20 +26,25 @@ const SoftwareTable = ({
   software,
   deviceUser,
 }: ISoftwareTableProps): JSX.Element => {
-  const [filterName, setFilterName] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const [filterVuln, setFilterVuln] = useState(false);
   const [filters, setFilters] = useState({
-    name: filterName,
+    name: searchQuery,
     vulnerabilities: filterVuln,
+    version: searchQuery,
   });
 
   useEffect(() => {
-    setFilters({ name: filterName, vulnerabilities: filterVuln });
-  }, [filterName, filterVuln]);
+    setFilters({
+      name: searchQuery,
+      vulnerabilities: filterVuln,
+      version: searchQuery,
+    });
+  }, [searchQuery, filterVuln]);
 
   const onQueryChange = useDebouncedCallback(
     ({ searchQuery }: { searchQuery: string }) => {
-      setFilterName(searchQuery);
+      setSearchQuery(searchQuery);
     },
     300
   );
@@ -82,8 +87,13 @@ const SoftwareTable = ({
               isLoading={isLoading}
               defaultSortHeader={"name"}
               defaultSortDirection={"asc"}
-              inputPlaceHolder={"Filter software"}
+              inputPlaceHolder={
+                "Search software by name or vulnerabilities (CVEs)"
+              }
               onQueryChange={onQueryChange}
+              // additionalQueries={filterVuln ? "vulnerable" : ""} // additionalQueries serves as a trigger
+              // // for the useDeepEffect hook to fire onQueryChange for events happeing outside of
+              // // the TableContainer
               resultsTitle={"software items"}
               emptyComponent={EmptySoftware}
               showMarkAllPages={false}
@@ -92,6 +102,7 @@ const SoftwareTable = ({
               customControl={renderVulnFilterDropdown}
               isClientSidePagination
               isClientSideFilter
+              searchQueryColumn={"version"}
               highlightOnHover
             />
           )}

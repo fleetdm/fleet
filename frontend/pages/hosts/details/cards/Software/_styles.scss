@@ -1,14 +1,12 @@
 .section--software {
+  .table-container__search-input {
+    width: 411px;
+  }
   .data-table__table {
     table-layout: fixed;
 
     th {
-      &:first-child {
-        border-right: none;
-        width: 16px;
-        padding-right: 0px;
-      }
-      &:nth-child(2) {
+      &:first-child(2) {
         width: 25%;
         padding-right: 0px;
       }
@@ -19,10 +17,6 @@
 
       &.source__header {
         width: 20%;
-      }
-
-      &.version__header {
-        border-right: 0;
       }
     }
 
@@ -97,5 +91,8 @@
       padding-left: $pad-large;
       font-size: $small !important;
     }
+  }
+  .text-muted {
+    color: $ui-fleet-black-50;
   }
 }
