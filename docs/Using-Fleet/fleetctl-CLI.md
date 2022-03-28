@@ -25,7 +25,7 @@ Fleetctl also provides a quick way to work with all the data exposed by Fleet wi
 
 ## Using fleetctl
 
-You can use `fleetctl` to accomplish many of the tasks you would typically need to do through the User Interface and to set up or apply configuration files to the Fleet server. 
+You can use `fleetctl` to accomplish many tasks you would typically need to do through the UI(User Interface). You can even set up or apply configuration files to the Fleet server. 
 
 ### Available commands
 
@@ -40,7 +40,7 @@ Much of the functionality available in the Fleet UI is also available in `fleetc
    query                      Run a live query
    get                        Get/list resources
    config                     Modify Fleet server connection settings
-   convert                    Convert osquery packs into decomposed fleet configs
+   convert                    Convert osquery packs into decomposed Fleet configs
    goquery                    Start the goquery interface
    user                       Manage Fleet users
    debug                      Tools for debugging Fleet
@@ -60,7 +60,7 @@ Each command available to `fleetctl` has a help menu with additional information
 > fleetctl setup --help
 ```
 
-You will see more info about the command, including the usage and info about any additional commands and options (or 'flags') that can be passed with it:
+You will see more info about the command, including the usage and information about any additional commands and options (or 'flags') that can be passed with it:
 
 ```
 NAME:
