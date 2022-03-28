@@ -6,7 +6,6 @@ import (
 	"compress/gzip"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -23,11 +22,13 @@ func Decompressed(client *http.Client, u url.URL, path string) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
-	tmpFile, err := ioutil.TempFile("", fmt.Sprintf("%s*", filepath.Base(path)))
+
+	// will truncate if file already exists
+	f, err := os.Create(path)
 	if err != nil {
 		return err
 	}
-	defer tmpFile.Close()
+	defer f.Close()
 
 	req, err := http.NewRequest(http.MethodGet, u.String(), nil)
 	if err != nil {
@@ -57,14 +58,14 @@ func Decompressed(client *http.Client, u url.URL, path string) error {
 	default:
 		return fmt.Errorf("unknown extension: %s", u.Path)
 	}
-	if _, err := io.Copy(tmpFile, decompressor); err != nil {
+
+	if _, err := io.Copy(f, decompressor); err != nil {
 		return err
 	}
-	if err := tmpFile.Close(); err != nil {
+
+	if err := f.Close(); err != nil {
 		return err
 	}
-	if err := os.Rename(tmpFile.Name(), path); err != nil {
-		return err
-	}
+
 	return nil
 }
