@@ -17,7 +17,7 @@ resource "aws_secretsmanager_secret_version" "database_password_secret_version" 
   secret_string = random_password.database_password.result
 }
 
-module "aurora_mysql" {
+module "aurora_mysql" { #tfsec:ignore:aws-rds-enable-performance-insights-encryption tfsec:ignore:aws-rds-encrypt-cluster-storage-data tfsec:ignore:aws-vpc-add-description-to-security-group
   source  = "terraform-aws-modules/rds-aurora/aws"
   version = "5.3.0"
 
