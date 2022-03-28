@@ -1,6 +1,5 @@
 import React from "react";
-import { mount } from "enzyme";
-import { noop } from "lodash";
+import { fireEvent, render, screen } from "@testing-library/react";
 
 import ConfirmationPage from "components/forms/RegistrationForm/ConfirmationPage";
 
@@ -11,26 +10,29 @@ describe("ConfirmationPage - form", () => {
     org_name: "Fleet",
     server_url: "http://localhost:8080",
   };
+  const handleSubmitSpy = jest.fn();
 
   it("renders the user information", () => {
-    const form = mount(
-      <ConfirmationPage formData={formData} handleSubmit={noop} />
+    render(
+      <ConfirmationPage formData={formData} handleSubmit={handleSubmitSpy} />
     );
 
-    expect(form.text()).toContain(formData.name);
-    expect(form.text()).toContain(formData.email);
-    expect(form.text()).toContain(formData.org_name);
-    expect(form.text()).toContain(formData.server_url);
+    expect(screen.getByText(formData.name)).toBeInTheDocument();
+    expect(screen.getByText(formData.email)).toBeInTheDocument();
+    expect(screen.getByText(formData.org_name)).toBeInTheDocument();
+    expect(screen.getByText(formData.server_url)).toBeInTheDocument();
   });
 
   it("submits the form", () => {
-    const handleSubmitSpy = jest.fn();
-    const form = mount(
-      <ConfirmationPage formData={formData} handleSubmit={handleSubmitSpy} />
+    render(
+      <ConfirmationPage
+        formData={formData}
+        handleSubmit={handleSubmitSpy}
+        currentPage
+      />
     );
-    const htmlForm = form.find("form");
 
-    htmlForm.simulate("submit");
+    fireEvent.click(screen.getByText("Confirm"));
 
     expect(handleSubmitSpy).toHaveBeenCalled();
   });
