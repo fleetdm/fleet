@@ -194,16 +194,16 @@ When community members contribute PRs Fleet’s top priority is to help them fee
 
 ### Process
 
-1. Decide if the change is acceptable (see below). If this will take time, acknowledge the contribution and let the user know that the team will respond. If you choose not to approve a change first thank the contributor for their interest. Next, encourage them to open an issue or discuss their ideas before writing more code. This can occur in the #fleet channel of osquery's Slack.
-2. Help the contributor make the content suitable for merging. Ensure appropriate manual and automated testing occurred. Also confirm that changes to files and documentation are updated. Usually this is best done with code review and coaching the user. Sometimes Fleet may complete a PR by improving testing and code review.
-3. After reviewing and addressing all the changes a PR needs a Fleet team member may merge. Before merging, please use your best judgment. Double-check that CI is passing, documentation is updated, and changes file is created.
-4. Once a PR is approved and merged, thank and congratulate the contributor. Next share it with the team in the #help-promote channel of Fleet's Slack so they can promote it on social media. Recognized contributors often become project champions.
+1. Decide if the change is acceptable (see below). If this will take time, acknowledge the contribution and let the user know that the team will respond. If you choose not to approve a change, first thank the contributor for their interest. Next, encourage them to open an issue or discuss their ideas before writing more code. This can occur in the #fleet channel of osquery's Slack.
+2. Help the contributor make the content suitable for merging. Ensure appropriate manual and automated testing occurred. Also, confirm that changes to files and documentation are updated. Usually, this is best done with code review and coaching the user. Sometimes Fleet may complete a PR by improving testing and code review.
+3. After reviewing and addressing all the changes a PR needs, a Fleet team member may merge. Before merging, please use your best judgment. Double-check that CI is passing, documentation is updated, and a changes file is created.
+4. Once a PR is approved and merged, thank and congratulate the contributor. Next, share it with the team in the #help-promote channel of Fleet's Slack so they can promote it on social media. Recognized contributors often become project champions.
 
 Please refer to our [PRs from the community](https://docs.google.com/document/d/13r0vEhs9LOBdxWQWdZ8n5Ff9cyB3hQkTjI5OhcrHjVo/edit?usp=sharing) guide for more detailed information.
 
 ### What is acceptable?
 
-Merges for minor documentation updates or bug fixes are usually done by the Fleet team. Working Standard Query Library(SQL) additions or fixes are acceptable with correct attribution. Please use your best judgment.
+The Fleet team usually does Merges for minor documentation updates or bug fixes Working Standard Query Library(SQL) additions or fixes are acceptable with correct attribution. Please use your best judgment.
 
 [Product DRIs](./product.md#product-dris) should approve extensive changes and new features. Ask in the #g-product channel in Fleet's Slack for more information.
 
