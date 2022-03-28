@@ -11,6 +11,9 @@ on:
   workflow_dispatch: # Manual
   schedule:
   - cron: '0 2 * * *' # Nightly 2AM UTC
+    
+permissions:
+  contents: read
 
 jobs:
   gen:

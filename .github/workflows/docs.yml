@@ -8,6 +8,9 @@ on:
   workflow_dispatch: # Manual
   schedule:
   - cron: '0 6 * * *' # Nightly 6AM UTC
+    
+permissions:
+  contents: read
 
 jobs:
   markdown-link-check:
