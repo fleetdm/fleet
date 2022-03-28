@@ -114,6 +114,7 @@ func TestHosts(t *testing.T) {
 		{"UpdateRefetchRequested", testUpdateRefetchRequested},
 		{"LoadHostByDeviceAuthToken", testHostsLoadHostByDeviceAuthToken},
 		{"SetOrUpdateDeviceAuthToken", testHostsSetOrUpdateDeviceAuthToken},
+		{"OSVersions", testOSVersions},
 		{"DeleteHosts", testHostsDeleteHosts},
 	}
 	for _, c := range cases {
@@ -3776,9 +3777,138 @@ func testHostsSetOrUpdateDeviceAuthToken(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, host2.ID, h.ID)
 
-	h, err = ds.LoadHostByDeviceAuthToken(context.Background(), token2)
+	_, err = ds.LoadHostByDeviceAuthToken(context.Background(), token2)
 	require.Error(t, err)
 	assert.ErrorIs(t, err, sql.ErrNoRows)
+}
+
+func testOSVersions(t *testing.T, ds *Datastore) {
+	team1, err := ds.NewTeam(context.Background(), &fleet.Team{
+		Name: "team1",
+	})
+	require.NoError(t, err)
+
+	team2, err := ds.NewTeam(context.Background(), &fleet.Team{
+		Name: "team2",
+	})
+	require.NoError(t, err)
+
+	// create some hosts for testing
+	hosts := []*fleet.Host{
+		{
+			Platform:  "darwin",
+			OSVersion: "macOS 12.1.0",
+		},
+		{
+			Platform:  "darwin",
+			OSVersion: "macOS 12.2.1",
+			TeamID:    &team1.ID,
+		},
+		{
+			Platform:  "darwin",
+			OSVersion: "macOS 12.2.1",
+			TeamID:    &team1.ID,
+		},
+		{
+			Platform:  "darwin",
+			OSVersion: "macOS 12.2.1",
+			TeamID:    &team2.ID,
+		},
+		{
+			Platform:  "darwin",
+			OSVersion: "macOS 12.3.0",
+			TeamID:    &team2.ID,
+		},
+		{
+			Platform:  "darwin",
+			OSVersion: "macOS 12.3.0",
+			TeamID:    &team2.ID,
+		},
+		{
+			Platform:  "darwin",
+			OSVersion: "macOS 12.3.0",
+			TeamID:    &team2.ID,
+		},
+		{
+			Platform:  "rhel",
+			OSVersion: "CentOS Stream 8.0.0",
+		},
+		{
+			Platform:  "ubuntu",
+			OSVersion: "Ubuntu 20.4.0",
+			TeamID:    &team1.ID,
+		},
+		{
+			Platform:  "ubuntu",
+			OSVersion: "Ubuntu 20.4.0",
+			TeamID:    &team1.ID,
+		},
+	}
+
+	for i, host := range hosts {
+		host.DetailUpdatedAt = time.Now()
+		host.LabelUpdatedAt = time.Now()
+		host.PolicyUpdatedAt = time.Now()
+		host.SeenTime = time.Now()
+		host.OsqueryHostID = strconv.Itoa(i)
+		host.NodeKey = strconv.Itoa(i)
+		host.UUID = strconv.Itoa(i)
+		host.Hostname = fmt.Sprintf("%d.localdomain", i)
+
+		_, err := ds.NewHost(context.Background(), host)
+		require.NoError(t, err)
+	}
+
+	ctx := context.Background()
+
+	err = ds.UpdateOSVersions(ctx)
+	require.NoError(t, err)
+
+	// all hosts
+	osVersions, err := ds.OSVersions(ctx, nil, nil)
+	require.NoError(t, err)
+
+	require.True(t, time.Now().After(osVersions.CountsUpdatedAt))
+	expected := []fleet.OSVersion{
+		{HostsCount: 1, Name: "CentOS Stream 8.0.0", Platform: "rhel"},
+		{HostsCount: 2, Name: "Ubuntu 20.4.0", Platform: "ubuntu"},
+		{HostsCount: 1, Name: "macOS 12.1.0", Platform: "darwin"},
+		{HostsCount: 3, Name: "macOS 12.2.1", Platform: "darwin"},
+		{HostsCount: 3, Name: "macOS 12.3.0", Platform: "darwin"},
+	}
+	require.Equal(t, expected, osVersions.OSVersions)
+
+	// filter by platform
+	platform := "darwin"
+	osVersions, err = ds.OSVersions(ctx, nil, &platform)
+	require.NoError(t, err)
+
+	expected = []fleet.OSVersion{
+		{HostsCount: 1, Name: "macOS 12.1.0", Platform: "darwin"},
+		{HostsCount: 3, Name: "macOS 12.2.1", Platform: "darwin"},
+		{HostsCount: 3, Name: "macOS 12.3.0", Platform: "darwin"},
+	}
+	require.Equal(t, expected, osVersions.OSVersions)
+
+	// team 1
+	osVersions, err = ds.OSVersions(ctx, &team1.ID, nil)
+	require.NoError(t, err)
+
+	expected = []fleet.OSVersion{
+		{HostsCount: 2, Name: "Ubuntu 20.4.0", Platform: "ubuntu"},
+		{HostsCount: 2, Name: "macOS 12.2.1", Platform: "darwin"},
+	}
+	require.Equal(t, expected, osVersions.OSVersions)
+
+	// team 2
+	osVersions, err = ds.OSVersions(ctx, &team2.ID, nil)
+	require.NoError(t, err)
+
+	expected = []fleet.OSVersion{
+		{HostsCount: 1, Name: "macOS 12.2.1", Platform: "darwin"},
+		{HostsCount: 3, Name: "macOS 12.3.0", Platform: "darwin"},
+	}
+	require.Equal(t, expected, osVersions.OSVersions)
 }
 
 func testHostsDeleteHosts(t *testing.T, ds *Datastore) {

@@ -608,7 +608,7 @@ func runCrons(ds fleet.Datastore, task *async.Task, logger kitlog.Logger, config
 	// StartCollectors starts a goroutine per collector, using ctx to cancel.
 	task.StartCollectors(ctx, config.Osquery.AsyncHostCollectMaxJitterPercent, kitlog.With(logger, "cron", "async_task"))
 
-	go cronCleanups(ctx, ds, kitlog.With(logger, "cron", "cleanups"), ourIdentifier, license)
+	go cronDB(ctx, ds, kitlog.With(logger, "cron", "cleanups"), ourIdentifier, license)
 	go cronVulnerabilities(
 		ctx, ds, kitlog.With(logger, "cron", "vulnerabilities"), ourIdentifier, config)
 	go cronWebhooks(ctx, ds, kitlog.With(logger, "cron", "webhooks"), ourIdentifier, failingPoliciesSet, 1*time.Hour)
@@ -616,7 +616,7 @@ func runCrons(ds fleet.Datastore, task *async.Task, logger kitlog.Logger, config
 	return cancelBackground
 }
 
-func cronCleanups(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, identifier string, license *fleet.LicenseInfo) {
+func cronDB(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, identifier string, license *fleet.LicenseInfo) {
 	ticker := time.NewTicker(10 * time.Second)
 	for {
 		level.Debug(logger).Log("waiting", "on ticker")
@@ -628,10 +628,12 @@ func cronCleanups(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 			level.Debug(logger).Log("exit", "done with cron.")
 			return
 		}
+
 		if locked, err := ds.Lock(ctx, lockKeyLeader, identifier, time.Hour); err != nil || !locked {
 			level.Debug(logger).Log("leader", "Not the leader. Skipping...")
 			continue
 		}
+
 		_, err := ds.CleanupDistributedQueryCampaigns(ctx, time.Now())
 		if err != nil {
 			level.Error(logger).Log("err", "cleaning distributed query campaigns", "details", err)
@@ -672,12 +674,18 @@ func cronCleanups(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 			level.Error(logger).Log("err", "cleanup policy membership", "details", err)
 			sentry.CaptureException(err)
 		}
+		err = ds.UpdateOSVersions(ctx)
+		if err != nil {
+			level.Error(logger).Log("err", "update os versions", "details", err)
+			sentry.CaptureException(err)
+		}
 
 		err = trySendStatistics(ctx, ds, fleet.StatisticsFrequency, "https://fleetdm.com/api/v1/webhooks/receive-usage-analytics", license)
 		if err != nil {
 			level.Error(logger).Log("err", "sending statistics", "details", err)
 			sentry.CaptureException(err)
 		}
+
 		level.Debug(logger).Log("loop", "done")
 	}
 }

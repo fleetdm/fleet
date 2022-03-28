@@ -1589,3 +1589,116 @@ func (ds *Datastore) UpdateHost(ctx context.Context, host *fleet.Host) error {
 	}
 	return nil
 }
+
+// OSVersions gets the aggregated os version host counts. If a non-nil teamID is passed, it will filter hosts by team.
+func (ds *Datastore) OSVersions(ctx context.Context, teamID *uint, platform *string) (*fleet.OSVersions, error) {
+	query := `
+SELECT
+    json_value,
+    updated_at
+FROM aggregated_stats
+WHERE
+    id = ? AND
+    type = 'os_versions'
+`
+
+	var row struct {
+		JSONValue *json.RawMessage `db:"json_value"`
+		UpdatedAt time.Time        `db:"updated_at"`
+	}
+
+	var args []interface{}
+	if teamID == nil { // all hosts
+		args = append(args, 0)
+	} else {
+		args = append(args, *teamID)
+	}
+
+	if err := sqlx.GetContext(ctx, ds.reader, &row, query, args...); err != nil {
+		return nil, err
+	}
+
+	osVersions := &fleet.OSVersions{
+		CountsUpdatedAt: row.UpdatedAt,
+	}
+
+	if row.JSONValue != nil {
+		err := json.Unmarshal(*row.JSONValue, &osVersions.OSVersions)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// filter by os versions by platform
+	if platform != nil {
+		var filtered []fleet.OSVersion
+		for _, osVersion := range osVersions.OSVersions {
+			if *platform == osVersion.Platform {
+				filtered = append(filtered, osVersion)
+			}
+		}
+		osVersions.OSVersions = filtered
+	}
+
+	// Sort by os versions. We can't control the order when using json_arrayagg
+	// See https://dev.mysql.com/doc/refman/5.7/en/aggregate-functions.html#function_json-arrayagg.
+	sort.Slice(osVersions.OSVersions, func(i, j int) bool { return osVersions.OSVersions[i].Name < osVersions.OSVersions[j].Name })
+
+	return osVersions, nil
+}
+
+func (ds *Datastore) UpdateOSVersions(ctx context.Context) error {
+	query := `
+INSERT INTO aggregated_stats (id, type, json_value)
+SELECT
+  team_id id,
+  'os_versions' type,
+  COALESCE(
+    JSON_ARRAYAGG(
+      JSON_OBJECT(
+        'hosts_count', hosts_count,
+        'name', name,
+        'platform', platform
+      )
+    ),
+    JSON_ARRAY()
+  ) json_value
+FROM
+  (
+    SELECT
+      COUNT(*) hosts_count,
+      h.os_version name,
+      h.platform,
+      0 team_id
+    FROM
+      hosts h
+    GROUP BY
+      h.os_version,
+      h.platform
+    UNION
+    SELECT
+      COUNT(*) hosts_count,
+      h.os_version name,
+      h.platform,
+      h.team_id
+    FROM
+      hosts h
+      JOIN teams t ON t.id = h.team_id
+    GROUP BY
+      h.os_version,
+      h.platform,
+      h.team_id
+  ) as team_os_versions
+GROUP BY
+  team_id
+ON DUPLICATE KEY UPDATE
+  json_value = VALUES(json_value),
+  updated_at = CURRENT_TIMESTAMP
+`
+	_, err := ds.writer.ExecContext(ctx, query)
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "update aggregated stats for os versions")
+	}
+
+	return nil
+}

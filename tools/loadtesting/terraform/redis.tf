@@ -18,7 +18,7 @@ resource "aws_elasticache_replication_group" "default" {
 
 }
 
-resource "aws_elasticache_parameter_group" "default" {
+resource "aws_elasticache_parameter_group" "default" { #tfsec:ignore:aws-vpc-add-description-to-security-group-rule
   name   = "fleetdm-redis-foobar"
   family = "redis5.0"
 
@@ -32,7 +32,7 @@ resource "aws_elasticache_parameter_group" "default" {
   }
 }
 
-resource "aws_security_group" "redis" {
+resource "aws_security_group" "redis" { #tfsec:ignore:aws-cloudwatch-log-group-customer-key tfsec:ignore:aws-vpc-add-description-to-security-group
   name   = local.security_group_name
   description = "Security group for Redis"
   vpc_id = module.vpc.vpc_id
@@ -44,6 +44,7 @@ locals {
 
 resource "aws_security_group_rule" "ingress" {
   description       = "Redis from private VPC"
+resource "aws_security_group_rule" "ingress" { #tfsec:ignore:aws-vpc-add-description-to-security-group-rule
   type              = "ingress"
   from_port         = "6379"
   to_port           = "6379"
@@ -54,6 +55,7 @@ resource "aws_security_group_rule" "ingress" {
 
 resource "aws_security_group_rule" "egress" {
   description       = "Redis VPC egress"
+resource "aws_security_group_rule" "egress" { #tfsec:ignore:aws-vpc-add-description-to-security-group-rule
   type              = "egress"
   from_port         = 0
   to_port           = 0

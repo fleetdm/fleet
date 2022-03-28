@@ -164,8 +164,8 @@ const ManageAutomationsModal = ({
             onChange={() =>
               setPolicyAutomationEnabled(!policyAutomationEnabled)
             }
-            inactiveText={"Vulnerability automations disabled"}
-            activeText={"Vulnerability automations enabled"}
+            inactiveText={"Policy automations disabled"}
+            activeText={"Policy automations enabled"}
           />
         </div>
         <div className={`${baseClass}__overlay-container`}>

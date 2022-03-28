@@ -15,7 +15,6 @@ resource "aws_security_group_rule" "lb-ingress" {
   protocol    = "tcp"
   // Internet connectivity here is by design
   cidr_blocks = ["0.0.0.0/0"] #tfsec:ignore:aws-vpc-no-public-ingress-sgr
-
   security_group_id = aws_security_group.lb.id
 }
 
@@ -75,7 +74,7 @@ resource "aws_security_group_rule" "lb-egress" {  #tfsec:ignore:aws-vpc-no-publi
   from_port   = 0
   to_port     = 0
   protocol    = "-1"
-  cidr_blocks = ["0.0.0.0/0"]
+  cidr_blocks = ["0.0.0.0/0"] #tfsec:ignore:aws-vpc-no-public-egress-sgr
 
   security_group_id = aws_security_group.lb.id
 }

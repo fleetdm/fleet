@@ -8,6 +8,9 @@ on:
       - 'docs/**'
       - 'handbook/**'
       
+permissions:
+  contents: read
+
 jobs:
   build:
     if: ${{ github.repository == 'fleetdm/fleet' }}

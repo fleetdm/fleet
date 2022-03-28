@@ -62,6 +62,14 @@ resource "aws_s3_bucket" "osquery-status" { #tfsec:ignore:aws-s3-encryption-cust
   #checkov:skip=CKV_AWS_144:dev env
   #checkov:skip=CKV_AWS_21:dev env
 }
+resource "aws_s3_bucket_public_access_block" "osquery-status" {
+  bucket = aws_s3_bucket.osquery-status.id
+
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
 
 resource "aws_s3_bucket_public_access_block" "osquery-status" {
   bucket              = aws_s3_bucket.osquery-status.id
