@@ -196,10 +196,16 @@ Now that `fleetctl` and the Fleet server is configured, it can be helpful to cre
 
 ### Create an API-only user
 
-To create your new API-only user using `fleetctl user create` and picking a name, email, and password and setting the `api-only` flag to `true`:
+To create your new API-only user, run `fleetctl user create` and pass values for `--name`, `--email`, and `--password`, and include the `--api-only` flag:
 
 ```
 fleetctl user create --name "API User" --email api@example.com --password temp!pass --api-only
+```
+
+If you'd like your API-only user to have a different access level than the default `Observer` role, you can specify what level of access the new user should have using the `--global-role` flag:
+
+```
+fleetctl user create --name "API User" --email api@example.com --password temp!pass --api-only --global-role admin
 ```
 
 ### Reset the password
@@ -278,7 +284,7 @@ Error: Failed to create user: POST /api/v1/fleet/users/admin received status 403
 The user creation failed because the API-only user doesn't have the right permissions. Running the command with the admin `context` specified will succeed:
 
 ```
-fleetctl user create --email test@example.com --name "New User" --context admin
+$ fleetctl user create --email test@example.com --name "New User" --context admin
 Enter password for user: 
 Enter password for user (confirm): 
 ```
