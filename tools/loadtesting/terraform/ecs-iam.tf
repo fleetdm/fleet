@@ -39,7 +39,8 @@ data "aws_iam_policy_document" "fleet" {
     resources = [aws_kinesis_firehose_delivery_stream.osquery_results.arn, aws_kinesis_firehose_delivery_stream.osquery_status.arn]
   }
 
-  statement {
+// We use wildcards on these actions for buckets that are single-use.
+  statement { #tfsec:ignore:aws-iam-no-policy-wildcards
     actions = [
       "kms:Encrypt*",
       "kms:Decrypt*",

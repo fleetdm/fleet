@@ -37,7 +37,9 @@ locals {
 }
 
 // sns topic to send cloudwatch alarms to
-resource "aws_sns_topic" "cloudwatch_alarm_topic" {
+// sns topic encryption is not currently supported but is something we will investigate providing in
+// the future
+resource "aws_sns_topic" "cloudwatch_alarm_topic" { #tfsec:ignore:aws-sns-enable-topic-encryption:exp:2022-08-01
   name = "cloudwatch-alarm-${terraform.workspace}"
 }
 

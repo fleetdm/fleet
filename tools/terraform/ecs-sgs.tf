@@ -13,7 +13,8 @@ resource "aws_security_group_rule" "lb-ingress" {
   from_port   = "443"
   to_port     = "443"
   protocol    = "tcp"
-  cidr_blocks = ["0.0.0.0/0"]
+  // Internet connectivity here is by design
+  cidr_blocks = ["0.0.0.0/0"] #tfsec:ignore:aws-vpc-no-public-ingress-sgr
 
   security_group_id = aws_security_group.lb.id
 }
@@ -25,7 +26,8 @@ resource "aws_security_group_rule" "lb-http-ingress" {
   from_port   = "80"
   to_port     = "80"
   protocol    = "tcp"
-  cidr_blocks = ["0.0.0.0/0"]
+  // Internet connectivity here is by design
+  cidr_blocks = ["0.0.0.0/0"] #tfsec:ignore:aws-vpc-no-public-ingress-sgr
 
   security_group_id = aws_security_group.lb.id
 }
@@ -38,7 +40,8 @@ resource "aws_security_group_rule" "lb-egress" {
   from_port   = 0
   to_port     = 0
   protocol    = "-1"
-  cidr_blocks = ["0.0.0.0/0"]
+  // Egress filtering is not currently provided by our Terraform templates.
+  cidr_blocks = ["0.0.0.0/0"] #tfsec:ignore:aws-vpc-no-public-egress-sgr:exp:2022-10-01
 
   security_group_id = aws_security_group.lb.id
 }
@@ -72,7 +75,8 @@ resource "aws_security_group_rule" "backend-egress" {
   from_port   = 0
   to_port     = 0
   protocol    = "-1"
-  cidr_blocks = ["0.0.0.0/0"]
+  // Egress filtering is not currently provided by our Terraform templates.
+  cidr_blocks = ["0.0.0.0/0"] #tfsec:ignore:aws-vpc-no-public-egress-sgr:exp:2022-10-01
 
   security_group_id = aws_security_group.backend.id
 }

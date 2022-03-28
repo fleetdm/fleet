@@ -2,8 +2,9 @@ resource "random_password" "database_password" {
   length  = 32
   special = false
 }
-
-resource "aws_secretsmanager_secret" "database_password_secret" {
+// Customer keys are not supported in our Fleet Terraforms at the moment. We will evaluate the
+// possibility of providing this capability in the future.
+resource "aws_secretsmanager_secret" "database_password_secret" { #tfsec:ignore:aws-ssm-secret-use-customer-key:exp:2022-07-01
   name = "/fleet/database/password/master"
 }
 

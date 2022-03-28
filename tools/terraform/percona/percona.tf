@@ -23,7 +23,8 @@ resource "aws_route53_record" "record" {
 
 resource "aws_lb" "main" {
   name            = "percona"
-  internal        = false
+  // Exposed to the Internet by design
+  internal        = false #tfsec:ignore:aws-elb-alb-not-public
   security_groups = [aws_security_group.lb.id, aws_security_group.backend.id]
   subnets         = var.public_subnets
   idle_timeout    = 120
@@ -56,7 +57,8 @@ resource "aws_lb_target_group_attachment" "percona" {
   target_id        = aws_instance.percona.id
 }
 
-resource "aws_instance" "percona" {
+// No permanent EBS encrypted volume at the moment.
+resource "aws_instance" "percona" { #tfsec:ignore:aws-ec2-enable-at-rest-encryption:exp:2022-07-15
   ami                    = data.aws_ami.percona.id
   instance_type          = "m5.large"
   subnet_id              = var.private_subnet
@@ -91,8 +93,8 @@ resource "aws_iam_role" "role" {
 }
 EOF
 }
-
-resource "aws_iam_policy" "policy" {
+// This bucket is single-purpose and using a wildcard is not problematic
+resource "aws_iam_policy" "policy" { #tfsec:ignore:aws-iam-no-policy-wildcards
   name        = "percona-policy"
   description = "policy to discover rds instances"
 
