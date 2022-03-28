@@ -15,7 +15,7 @@ module.exports.bootstrap = async function() {
   var path = require('path');
 
   // This bootstrap version indicates what version of fake data we're dealing with here.
-  var HARD_CODED_DATA_VERSION = 0;
+  var HARD_CODED_DATA_VERSION = 1;
 
   // This path indicates where to store/look for the JSON file that tracks the "last run bootstrap info"
   // locally on this development computer (if we happen to be on a development computer).
@@ -68,14 +68,16 @@ module.exports.bootstrap = async function() {
     password: await sails.helpers.passwords.hashPassword('abc123')
   }).fetch();
 
-  let stripeCustomerId = await sails.helpers.stripe.saveBillingInfo.with({
-    emailAddress: adminUser.emailAddress
-  }).timeout(5000).retry();
+  if (sails.config.custom.enableBillingFeatures) {
+    let stripeCustomerId = await sails.helpers.stripe.saveBillingInfo.with({
+      emailAddress: adminUser.emailAddress
+    }).timeout(5000).retry();
 
-  await User.updateOne({id: adminUser.id})
-  .set({
-    stripeCustomerId
-  });
+    await User.updateOne({id: adminUser.id})
+    .set({
+      stripeCustomerId
+    });
+  }
 
 
   // Save new bootstrap version
