@@ -30,31 +30,32 @@ You can use `fleetctl` to accomplish many tasks you would typically need to do t
 ### Available commands
 
 Much of the functionality available in the Fleet UI is also available in `fleetctl`. You can run queries, add and remove users, generate install packages to add new hosts, get information about existing hosts, and more! The following commands are available for use with `fleetctl`:
+  
+   | Command                    | Description                                                        |
+   |:---------------------------|:-------------------------------------------------------------------|
+   | apply                      | Apply files to declaratively manage osquery configurations         |
+   | delete                     | Specify files to declaratively batch delete osquery configurations |
+   | setup                      | Set up a Fleet instance                                            |
+   | login                      | Login to Fleet                                                     |
+   | logout                     | Log out of Fleet                                                   |
+   | query                      | Run a live query                                                   |
+   | get                        | Get/list resources                                                 |
+   | config                     | Modify Fleet server connection settings                            |
+   | convert                    | Convert osquery packs into decomposed Fleet configs                |
+   | goquery                    | Start the goquery interface                                        |
+   | user                       | Manage Fleet users                                                 |
+   | debug                      | Tools for debugging Fleet                                          |
+   | preview                    | Start a preview deployment of the Fleet server                     |
+   | updates                    | Manage client updates                                              |
+   | hosts                      | Manage Fleet hosts                                                 |
+   | vulnerability-data-stream  | Download the vulnerability data stream                             |
+   | package                    | Create an Orbit installer package                                  |
+   | help, h                    | Shows a list of commands or help for one command                   |
 
-```
-   apply                      Apply files to declaratively manage osquery configurations
-   delete                     Specify files to declaratively batch delete osquery configurations
-   setup                      Set up a Fleet instance
-   login                      Login to Fleet
-   logout                     Log out of Fleet
-   query                      Run a live query
-   get                        Get/list resources
-   config                     Modify Fleet server connection settings
-   convert                    Convert osquery packs into decomposed Fleet configs
-   goquery                    Start the goquery interface
-   user                       Manage Fleet users
-   debug                      Tools for debugging Fleet
-   preview                    Start a preview deployment of the Fleet server
-   updates                    Manage client updates
-   hosts                      Manage Fleet hosts
-   vulnerability-data-stream  Download the vulnerability data stream
-   package                    Create an Orbit installer package
-   help, h                    Shows a list of commands or help for one command
-```
 
 ### Get more info about a command
 
-Each command available to `fleetctl` has a help menu with additional information. To pull up the help menu, run `fleetctl <command> --help`:
+Each command available to `fleetctl` has a help menu with additional information. To pull up the help menu, run `fleetctl <command> --help`, replacing `<command>` with the command you're looking up:
 
 ```
 > fleetctl setup --help
