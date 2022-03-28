@@ -44,7 +44,6 @@ locals {
 
 resource "aws_security_group_rule" "ingress" {
   description       = "Redis from private VPC"
-resource "aws_security_group_rule" "ingress" { #tfsec:ignore:aws-vpc-add-description-to-security-group-rule
   type              = "ingress"
   from_port         = "6379"
   to_port           = "6379"
@@ -55,7 +54,6 @@ resource "aws_security_group_rule" "ingress" { #tfsec:ignore:aws-vpc-add-descrip
 
 resource "aws_security_group_rule" "egress" {
   description       = "Redis VPC egress"
-resource "aws_security_group_rule" "egress" { #tfsec:ignore:aws-vpc-add-description-to-security-group-rule
   type              = "egress"
   from_port         = 0
   to_port           = 0

@@ -12,17 +12,12 @@ resource "aws_route53_record" "record" {
 }
 
 resource "aws_alb" "main" {
-  name                       = "fleetdm"
   // Exposed to the Internet by design
   internal                   = false #tfsec:ignore:aws-elb-alb-not-public
   security_groups            = [aws_security_group.lb.id, aws_security_group.backend.id]
   subnets                    = module.vpc.public_subnets
   idle_timeout               = 120
-  name            = "fleetdm"
-  internal        = false
-  security_groups = [aws_security_group.lb.id, aws_security_group.backend.id]
-  subnets         = module.vpc.public_subnets
-  idle_timeout    = 120
+  name                       = "fleetdm"
   drop_invalid_header_fields = true
 }
 
