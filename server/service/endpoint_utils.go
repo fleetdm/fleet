@@ -346,23 +346,23 @@ func getNameFromPathAndVerb(verb, path string) string {
 		pathReplacer.Replace(strings.TrimPrefix(strings.TrimRight(path, "/"), "/api/_version_/fleet/"))
 }
 
-func (e *authEndpointer) POST(path string, f handlerFunc, v interface{}) {
-	e.handle(path, f, v, "POST")
+func (e *authEndpointer) POST(path string, f handlerFunc, v interface{}, res ...interface{}) {
+	e.handle(path, f, v, "POST", res)
 }
 
-func (e *authEndpointer) GET(path string, f handlerFunc, v interface{}) {
-	e.handle(path, f, v, "GET")
+func (e *authEndpointer) GET(path string, f handlerFunc, v interface{}, res ...interface{}) {
+	e.handle(path, f, v, "GET", res)
 }
 
-func (e *authEndpointer) PATCH(path string, f handlerFunc, v interface{}) {
-	e.handle(path, f, v, "PATCH")
+func (e *authEndpointer) PATCH(path string, f handlerFunc, v interface{}, res ...interface{}) {
+	e.handle(path, f, v, "PATCH", res)
 }
 
-func (e *authEndpointer) DELETE(path string, f handlerFunc, v interface{}) {
-	e.handle(path, f, v, "DELETE")
+func (e *authEndpointer) DELETE(path string, f handlerFunc, v interface{}, res ...interface{}) {
+	e.handle(path, f, v, "DELETE", res)
 }
 
-func (e *authEndpointer) handle(path string, f handlerFunc, v interface{}, verb string) {
+func (e *authEndpointer) handle(path string, f handlerFunc, v interface{}, verb string, res []interface{}) {
 	versions := e.versions
 	if e.startingAtVersion != "" {
 		startIndex := -1
@@ -397,15 +397,19 @@ func (e *authEndpointer) handle(path string, f handlerFunc, v interface{}, verb 
 		versions = append(versions, "latest")
 	}
 
+	var actualRes interface{}
+	if len(res) > 0 {
+		actualRes = res[0]
+	}
 	versionedPath := strings.Replace(path, "/_version_/", fmt.Sprintf("/{fleetversion:(?:%s)}/", strings.Join(versions, "|")), 1)
 	nameAndVerb := getNameFromPathAndVerb(verb, path)
 	endpoint := e.makeEndpoint(f, v)
-	openAPIDocument.RegisterEndpoint(nameAndVerb, verb, versionedPath, v)
+	openAPIDocument.RegisterEndpoint(nameAndVerb, verb, versionedPath, v, actualRes)
 	e.r.Handle(versionedPath, endpoint).Name(nameAndVerb).Methods(verb)
 	for _, alias := range e.alternativePaths {
 		nameAndVerb := getNameFromPathAndVerb(verb, alias)
 		versionedPath := strings.Replace(alias, "/_version_/", fmt.Sprintf("/{fleetversion:(?:%s)}/", strings.Join(versions, "|")), 1)
-		openAPIDocument.RegisterEndpoint(nameAndVerb, verb, versionedPath, v)
+		openAPIDocument.RegisterEndpoint(nameAndVerb, verb, versionedPath, v, actualRes)
 		e.r.Handle(versionedPath, endpoint).Name(nameAndVerb).Methods(verb)
 	}
 }

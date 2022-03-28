@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/invopop/jsonschema"
 )
 
@@ -15,6 +16,7 @@ type endpoint struct {
 	verb string
 	path string
 	req  interface{}
+	res  interface{}
 }
 
 type Document struct {
@@ -51,6 +53,12 @@ var (
 )
 
 func (d *Document) Render(w io.Writer) error {
+	reflector := jsonschema.Reflector{
+		Anonymous:      true,
+		DoNotReference: true,
+		IgnoredTypes:   []interface{}{errors.New(""), fleet.UserTeam{}}, // UserTeam creates cycles with User
+	}
+
 	d.OpenAPI = "3.0.3"
 	d.Info.Title = "Fleet API"
 	d.Info.Version = "2022-04" // can be determined by the endpoints, can generate multiple docs for each version
@@ -90,9 +98,25 @@ func (d *Document) Render(w io.Writer) error {
 				})
 			}
 		}
+		if ep.req != nil && ep.verb != "GET" && ep.verb != "DELETE" {
+			// TODO: would need to distinguish a request body from url/query params
+			schema := reflector.Reflect(ep.req)
+			// must clear the added $schema key
+			schema.Version = ""
+			op.RequestBody = &RequestBody{
+				Content: map[string]MediaType{"application/json": {Schema: Schema{Schema: *schema}}},
+			}
+		}
+
+		var resSchema jsonschema.Schema
+		if ep.res != nil {
+			schema := reflector.Reflect(ep.res)
+			schema.Version = ""
+			resSchema = *schema
+		}
 
 		op.Responses = []*ResponsePattern{
-			{StatusCode: "200", Response: Response{Content: map[string]MediaType{"application/json": {}}}},
+			{StatusCode: "200", Response: Response{Content: map[string]MediaType{"application/json": {Schema: Schema{Schema: resSchema}}}}},
 		}
 
 		switch ep.verb {
@@ -122,8 +146,8 @@ func (d *Document) Render(w io.Writer) error {
 	return enc.Encode(d)
 }
 
-func (d *Document) RegisterEndpoint(name, verb, path string, req interface{}) {
-	d.endpoints = append(d.endpoints, &endpoint{name, verb, path, req})
+func (d *Document) RegisterEndpoint(name, verb, path string, req, res interface{}) {
+	d.endpoints = append(d.endpoints, &endpoint{name, verb, path, req, res})
 }
 
 type Info struct {

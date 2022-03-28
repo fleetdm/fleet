@@ -219,8 +219,8 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// user-authenticated endpoints
 	ue := newUserAuthenticatedEndpointer(svc, opts, r, "v1")
 
-	ue.GET("/api/_version_/fleet/me", meEndpoint, nil)
-	ue.GET("/api/_version_/fleet/sessions/{id:[0-9]+}", getInfoAboutSessionEndpoint, getInfoAboutSessionRequest{})
+	ue.GET("/api/_version_/fleet/me", meEndpoint, nil, getUserResponse{})
+	ue.GET("/api/_version_/fleet/sessions/{id:[0-9]+}", getInfoAboutSessionEndpoint, getInfoAboutSessionRequest{}, getInfoAboutSessionResponse{})
 	ue.DELETE("/api/_version_/fleet/sessions/{id:[0-9]+}", deleteSessionEndpoint, deleteSessionRequest{})
 
 	ue.GET("/api/_version_/fleet/config/certificate", getCertificateEndpoint, nil)
