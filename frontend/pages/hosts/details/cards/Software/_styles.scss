@@ -21,13 +21,6 @@
     }
 
     tr {
-      td {
-        position: relative;
-        &:first-child {
-          padding-right: 0px;
-        }
-      }
-
       .software-link {
         visibility: hidden;
         img {

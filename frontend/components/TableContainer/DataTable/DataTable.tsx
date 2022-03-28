@@ -132,7 +132,6 @@ const DataTable = ({
     setPageSize,
     setFilter,
     setAllFilters,
-    setGlobalFilter,
   } = useTable(
     {
       columns,

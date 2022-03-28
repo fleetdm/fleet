@@ -127,8 +127,6 @@ const generateSoftwareTableHeaders = (deviceUser = false): IDataColumn[] => {
       Header: "Version",
       disableSortBy: true,
       accessor: "version",
-      Filter: () => null, // input for this column filter is rendered outside of column header
-      filter: "includesString", // filters name text based on the user's search query
       Cell: (cellProps: IStringCellProps) => {
         return <TextCell value={cellProps.cell.value} />;
       },
@@ -152,8 +150,6 @@ const generateSoftwareTableHeaders = (deviceUser = false): IDataColumn[] => {
       Header: "Vulnerabilities",
       disableSortBy: true,
       accessor: "vulnerabilities",
-      Filter: () => null, // input for this column filter is rendered outside of column header
-      filter: "text", // filters name text based on the user's search query
       Cell: (cellProps: IVulnCellProps): JSX.Element => {
         const vulnerabilities = cellProps.cell.value || [];
         const tooltipText = condenseVulnColumn(vulnerabilities)?.map(
