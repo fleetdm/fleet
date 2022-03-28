@@ -109,7 +109,6 @@ logging:
 ' > /tmp/fleet.yml
 fleet serve --config /tmp/fleet.yml
 ```
-//TODO: add link
 
 For more information on using YAML configuration files with fleet, please see the [configuration files](../Using-Fleet/configuration-files/README.md) documentation.
 
