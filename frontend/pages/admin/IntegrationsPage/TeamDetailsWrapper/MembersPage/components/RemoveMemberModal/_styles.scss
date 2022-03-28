@@ -1,0 +1,20 @@
+.remove-member-modal {
+  &__name,
+  &__team-name {
+    font-weight: $bold;
+  }
+
+  &__warning {
+    color: $ui-error;
+  }
+
+  &__btn-wrap {
+    display: flex;
+    flex-direction: row-reverse;
+    margin-top: $pad-xxlarge;
+  }
+
+  &__btn {
+    margin-left: 12px;
+  }
+}
