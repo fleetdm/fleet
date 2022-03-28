@@ -96,7 +96,7 @@ We want to make it as easy as possible to learn how to manage devices with Fleet
 
 To propose changes:
 1. Decide what you want to change. A small change is the best place to start.
-2. Wireframe the design. Usually digital experience does this but anyone can contribute.
+2. Wireframe the design. Usually, digital experience does this but anyone can contribute.
 3. Present your change to the website DRI. They will approve it or suggest revisions.
 4. Code the website change. Again, digital experience often does this but anyone can help.
 5. Measure if the change made it easier to use. This can be tricky, but the growth team will have ideas on how to do this.
