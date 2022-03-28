@@ -31,14 +31,12 @@ const SoftwareTable = ({
   const [filters, setFilters] = useState({
     name: searchQuery,
     vulnerabilities: filterVuln,
-    version: searchQuery,
   });
 
   useEffect(() => {
     setFilters({
       name: searchQuery,
       vulnerabilities: filterVuln,
-      version: searchQuery,
     });
   }, [searchQuery, filterVuln]);
 
@@ -91,9 +89,6 @@ const SoftwareTable = ({
                 "Search software by name or vulnerabilities (CVEs)"
               }
               onQueryChange={onQueryChange}
-              // additionalQueries={filterVuln ? "vulnerable" : ""} // additionalQueries serves as a trigger
-              // // for the useDeepEffect hook to fire onQueryChange for events happeing outside of
-              // // the TableContainer
               resultsTitle={"software items"}
               emptyComponent={EmptySoftware}
               showMarkAllPages={false}
@@ -102,7 +97,6 @@ const SoftwareTable = ({
               customControl={renderVulnFilterDropdown}
               isClientSidePagination
               isClientSideFilter
-              searchQueryColumn={"version"}
               highlightOnHover
             />
           )}

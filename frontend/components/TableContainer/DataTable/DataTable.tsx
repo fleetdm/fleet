@@ -207,9 +207,7 @@ const DataTable = ({
         id,
         value,
       }));
-      console.log("allFilters", allFilters);
       !!allFilters.length && setAllFilters(allFilters);
-      // !!allFilters.length && setGlobalFilter(tableFilters?.name);
     }
   }, [tableFilters]);
 
@@ -217,7 +215,6 @@ const DataTable = ({
 
   const setDebouncedClientFilter = useDebouncedCallback(
     (column: string, query: string) => {
-      console.log("setDebouncedClientFilter");
       setFilter(column, query);
     },
     300
@@ -232,7 +229,6 @@ const DataTable = ({
   useEffect(() => {
     if (isClientSideFilter && searchQueryColumn) {
       setDebouncedClientFilter(searchQueryColumn, searchQuery || "");
-      console.log("searchQueryColumn", searchQueryColumn);
     }
   }, [searchQuery, searchQueryColumn]);
 
