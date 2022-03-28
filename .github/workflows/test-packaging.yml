@@ -9,6 +9,9 @@ on:
     paths:
       - '**.go'
 
+permissions:
+  contents: read
+
 jobs:
   test-packaging:
     strategy:

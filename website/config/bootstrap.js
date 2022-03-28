@@ -68,14 +68,16 @@ module.exports.bootstrap = async function() {
     password: await sails.helpers.passwords.hashPassword('abc123')
   }).fetch();
 
-  let stripeCustomerId = await sails.helpers.stripe.saveBillingInfo.with({
-    emailAddress: adminUser.emailAddress
-  }).timeout(5000).retry();
+  if (sails.config.custom.enableBillingFeatures) {
+    let stripeCustomerId = await sails.helpers.stripe.saveBillingInfo.with({
+      emailAddress: adminUser.emailAddress
+    }).timeout(5000).retry();
 
-  await User.updateOne({id: adminUser.id})
-  .set({
-    stripeCustomerId
-  });
+    await User.updateOne({id: adminUser.id})
+    .set({
+      stripeCustomerId
+    });
+  }
 
 
   // Save new bootstrap version
