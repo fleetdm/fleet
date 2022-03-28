@@ -102,6 +102,7 @@ func MakeHandler(svc fleet.Service, config config.FleetConfig, logger kitlog.Log
 	attachFleetAPIRoutes(r, svc, config, logger, limitStore, fleetAPIOptions)
 
 	// Results endpoint is handled different due to websockets use
+
 	// TODO: this would not work once v1 is deprecated - note that the handler too uses the /v1/ path
 	// and this routes on path prefix, not exact path (unlike the authendpointer struct).
 	r.PathPrefix("/api/v1/fleet/results/").
