@@ -8,7 +8,6 @@ import operatingSystemsAPI, {
 import { PLATFORM_DISPLAY_NAMES } from "utilities/constants";
 
 import TableContainer from "components/TableContainer";
-// @ts-ignore
 import Spinner from "components/Spinner";
 import renderLastUpdatedText from "components/LastUpdatedText";
 
@@ -91,7 +90,10 @@ const OperatingSystems = ({
   const opacity = showOperatingSystemsUI ? { opacity: 1 } : { opacity: 0 };
   console.log("teamId: ", currentTeamId);
 
-  // TODO: error states? different for teams?
+  // TODO: Error states? Product says if any card on homepage fails the whole page should 500. Is
+  // that really what we want to happen? Do we want that to happen always? What if just one card
+  // fails? What if platform or team filter is applied?
+  // Currenly none of the homepage cards behave this way AFAICT.
   return (
     <div className={baseClass}>
       {!showOperatingSystemsUI && (
