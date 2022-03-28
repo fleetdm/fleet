@@ -15,6 +15,7 @@ func init() {
 
 func Up_20220322091216(tx *sql.Tx) error {
 	const selectStmt = `SELECT json_value FROM app_config_json LIMIT 1`
+
 	var raw json.RawMessage
 	var config fleet.AppConfig
 
