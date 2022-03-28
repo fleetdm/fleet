@@ -192,7 +192,7 @@ spec:
 
 ## Using fleetctl with an API-only user
 
-Now that `fleetctl` and the Fleet server are configured, it can be helpful to create an API-only user to use when running automated workflows. An API-only user can be given a role based on the abilities it needs. The default access level is `Observer`. For more information on roles, see the [user permissions documentation](./Permissions.md#user-permissions).
+Now that `fleetctl` and the Fleet server is configured, it can be helpful to create an API-only user to use when running automated workflows. An API-only user can be given a role based on the abilities it needs. The default access level is `Observer`. For more information on roles, see the [user permissions documentation](./Permissions.md#user-permissions).
 
 ### Create an API-only user
 
@@ -204,7 +204,7 @@ fleetctl user create --name "API User" --email api@example.com --password temp!p
 
 ### Reset the password
 
-When a new user is created, a password reset is needed before that user will be able to perform queries. Since an API-only user cannot log in to the Fleet UI, this needs to be done through the REST API. We'll be doing this through the terminal using `curl`. 
+When a new user is created, a password reset is needed before that user can perform queries. Since an API-only user cannot log in to the Fleet UI, this is done through the REST API. We'll be doing this through the terminal using `curl`. 
 
 First, log in to the new user account using `fleetctl login`. Once you're logged in successfully to the API-only user, set up a variable to hold the user's token:
 
@@ -246,7 +246,7 @@ unset token
 
 ### Use fleetctl as the new user
 
-Now that the password has been reset, you will need to log in again using the updated password with `fleetctl login`. You'll now be able to perform tasks using `fleetctl` as your new API-only user. 
+Now that the password is reset, you will need to log in again using the updated password with `fleetctl login`. You'll now be able to perform tasks using `fleetctl` as your new API-only user. 
 
 ### Switching users
 
