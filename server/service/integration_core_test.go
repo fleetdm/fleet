@@ -2693,25 +2693,25 @@ func (s *integrationTestSuite) TestIntegrationsConfig() {
 
 	// cannot have two integrations enabled at the same time
 	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(`{
-		"integrations": {
-    		"jira": [
-            {
-              "url": "http://some/url",
-              "username": "foo",
-              "password": "bar",
-              "project_key": "qux",
-              "enable_software_vulnerabilities": true
-            },
-            {
-              "url": "http://some/url/2",
-              "username": "foo2",
-              "password": "bar2",
-              "project_key": "qux2",
-              "enable_software_vulnerabilities": true
-            }
-          ]
-  		}
-	}`), http.StatusUnprocessableEntity)
+    "integrations": {
+      "jira": [
+        {
+          "url": "http://some/url",
+          "username": "foo",
+          "password": "bar",
+          "project_key": "qux",
+          "enable_software_vulnerabilities": true
+        },
+        {
+          "url": "http://some/url/2",
+          "username": "foo2",
+          "password": "bar2",
+          "project_key": "qux2",
+          "enable_software_vulnerabilities": true
+        }
+      ]
+    }
+  }`), http.StatusUnprocessableEntity)
 
 	// cannot enable webhook with a jira integration already enabled
 	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(`{
