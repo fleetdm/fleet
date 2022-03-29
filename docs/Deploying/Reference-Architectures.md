@@ -62,7 +62,7 @@ assume On-Demand pricing (savings are available through Reserved Instances). Cal
 | Dependencies | Version                 | Instance type  | Nodes |
 |--------------|-------------------------|----------------|-------|
 | Redis        | 5.0.6                   | m6g.large      | 3     |
-| MySQL        | 5.7.mysql_aurora.2.10.0 | db.r6g.8xlarge | 2     |
+| MySQL        | 5.7.mysql_aurora.2.10.0 | db.r6g.4xlarge | 1     |
 
 
 ## Cloud providers
