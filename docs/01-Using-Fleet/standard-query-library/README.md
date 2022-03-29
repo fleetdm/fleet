@@ -1,6 +1,6 @@
 # Standard query library
 
-Fleet's standard query library includes a growing collection of useful queries for organizations deploying Fleet and osquery.
+Fleet's [standard query library](https://fleetdm.com/queries) includes a growing collection of useful policies and miscellaneous queries for organizations deploying Fleet and osquery.
 
 ## Importing the queries in Fleet
 
