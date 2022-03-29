@@ -203,7 +203,7 @@ Please refer to our [PRs from the community](https://docs.google.com/document/d/
 
 ### What is acceptable?
 
-The Fleet team usually does Merges for minor documentation updates or bug fixes Working Standard Query Library(SQL) additions or fixes are acceptable with correct attribution. Please use your best judgment.
+Everyone can contribute bug fixes and improvements to the documentation, whether or not they work for Fleet. Working Standard Query Library(SQL) additions or fixes are acceptable with correct attribution. Please use your best judgment.
 
 [Product DRIs](./product.md#product-dris) should approve extensive changes and new features. Ask in the #g-product channel in Fleet's Slack for more information.
 
