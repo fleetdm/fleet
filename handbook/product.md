@@ -376,10 +376,13 @@ We track the capabilities of competitors and adjacent (or commonly integrated) p
 
 ## Slack channels
 
-These are the Slack channels the product team maintains. If the channel has a [directly responsible individual](./people.md#directly-resonsible-individuals) (**DRI**), they will be specified. These people are responsible for keeping up with all new messages, even if they aren't mentioned. 
+The following [Slack channels are maintained](https://fleetdm.com/handbook/company#group-slack-channels) by this group:
 
-- **#g-product** - **DRI**: - Noah Talerman
+| Slack channel                       | [DRI](https://fleetdm.com/handbook/company#group-slack-channels)    |
+|:------------------------------------|:--------------------------------------------------------------------|
+| `#g-product`                        | Noah Talerman
+| `#help-qa`                          | Reed Haynes
 
-**Who should have these channels unmuted?** Members of this group, everyone else is encouraged to mute them.
+
 
 <meta name="maintainedBy" value="noahtalerman">
