@@ -7,16 +7,17 @@ import InfoBanner from "components/InfoBanner/InfoBanner";
 import InputField from "components/forms/fields/InputField";
 // @ts-ignore
 import FleetIcon from "components/icons/FleetIcon";
-
+import { IConfig } from "interfaces/config";
+import { IJiraIntegration } from "interfaces/integration";
 const baseClass = "create-integration-modal";
 
-export interface ICreateIntegrationFormData {
-  name: string;
-}
+// export interface ICreateIntegrationFormData {
+//   name: string;
+// }
 
 interface ICreateIntegrationModalProps {
   onCancel: () => void;
-  onSubmit: (formData: ICreateIntegrationFormData) => void;
+  onSubmit: (formData: IJiraIntegration) => void;
   backendValidators: { [key: string]: string };
 }
 
@@ -25,7 +26,15 @@ const CreateIntegrationModal = ({
   onSubmit,
   backendValidators,
 }: ICreateIntegrationModalProps): JSX.Element => {
-  const [name, setName] = useState("");
+  const [url, setURL] = useState<string>("");
+  const [username, setUsername] = useState<string>("");
+  const [password, setPassword] = useState<string>("");
+  const [projectKey, setProjectKey] = useState<string>("");
+  const [
+    enableSoftwareVulnerabilities,
+    setEnableSoftwareVulnerabilities,
+  ] = useState<boolean>(false);
+
   const [errors, setErrors] = useState<{ [key: string]: string }>(
     backendValidators
   );
@@ -36,17 +45,21 @@ const CreateIntegrationModal = ({
 
   const onInputChange = useCallback(
     (value: string) => {
-      setName(value);
+      setURL(value);
       setErrors({});
     },
-    [setName]
+    [setURL]
   );
 
   const onFormSubmit = useCallback(
     (evt) => {
       evt.preventDefault();
       onSubmit({
-        name,
+        url: url,
+        username: username,
+        password: password,
+        project_key: projectKey,
+        enable_software_vulnerabilities: enableSoftwareVulnerabilities,
       });
     },
     [onSubmit, name]
@@ -128,7 +141,7 @@ const CreateIntegrationModal = ({
               className={`${baseClass}__btn`}
               type="submit"
               variant="brand"
-              disabled={name === ""}
+              disabled={url === ""}
             >
               Create
             </Button>

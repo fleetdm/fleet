@@ -3,6 +3,8 @@ import { useDispatch } from "react-redux";
 import { useQuery } from "react-query";
 
 import { ITeam } from "interfaces/team";
+import { IConfig, IConfigNested } from "interfaces/config";
+import { IIntegrations, IJiraIntegration } from "interfaces/integration";
 import { IApiError } from "interfaces/errors";
 // ignore TS error for now until these are rewritten in ts.
 // @ts-ignore
@@ -11,7 +13,10 @@ import Button from "components/buttons/Button";
 // @ts-ignore
 import FleetIcon from "components/icons/FleetIcon";
 
+import configAPI from "services/entities/config";
 import teamsAPI from "services/entities/teams";
+
+import MOCKS from "services/mock_service/mocks/responses";
 
 import TableContainer from "components/TableContainer";
 // @ts-ignore
@@ -19,8 +24,8 @@ import TableDataError from "components/TableDataError";
 import AddIntegrationModal from "./components/CreateIntegrationModal";
 import DeleteIntegrationModal from "./components/DeleteIntegrationModal";
 import EditIntegrationModal from "./components/EditIntegrationModal";
-import { ICreateIntegrationFormData } from "./components/CreateIntegrationModal/CreateIntegrationModal";
-import { IEditTeamFormData } from "./components/EditIntegrationModal/EditIntegrationModal";
+// import { ICreateIntegrationFormData } from "./components/CreateIntegrationModal/CreateIntegrationModal";
+// import { IEditIntegrationFormData } from "./components/EditIntegrationModal/EditIntegrationModal";
 import {
   generateTableHeaders,
   generateDataSet,
@@ -42,13 +47,15 @@ const IntegrationsPage = (): JSX.Element => {
   const [showEditIntegrationModal, setShowEditIntegrationModal] = useState(
     false
   );
-  const [integrationEditing, setIntegrationEditing] = useState<ITeam>(); // TODO: Change to IIntegration
+  const [
+    integrationEditing,
+    setIntegrationEditing,
+  ] = useState<IJiraIntegration>(); // TODO: Change to IIntegration
   const [searchString, setSearchString] = useState<string>("");
   const [backendValidators, setBackendValidators] = useState<{
     [key: string]: string;
   }>({});
 
-  // TODO: Change to integration useQuery
   const {
     data: teams,
     isLoading: isLoadingTeams,
@@ -62,6 +69,25 @@ const IntegrationsPage = (): JSX.Element => {
     }
   );
 
+  // might need to switch this around so data is config
+  // and then we make setIntegrations(data.integrations.jira)
+  // or just do integrations = config.integrations.jira anytime we want to do integrations
+
+  const {
+    data: integrations,
+    isLoading: isLoadingIntegrations,
+    error: loadingIntegrationsError,
+    refetch: refetchIntegrations,
+  } = useQuery<IConfigNested, Error, IJiraIntegration[]>(
+    ["integrations"],
+    () => configAPI.loadIntegrations(),
+    {
+      select: (data: IConfigNested) => {
+        return data.integrations.jira;
+      },
+    }
+  );
+
   const toggleAddIntegrationModal = useCallback(() => {
     setShowAddIntegrationModal(!showAddIntegrationModal);
     setBackendValidators({});
@@ -72,9 +98,11 @@ const IntegrationsPage = (): JSX.Element => {
   ]);
 
   const toggleDeleteIntegrationModal = useCallback(
-    (team?: ITeam) => {
+    (integration?: IJiraIntegration) => {
       setShowDeleteIntegrationModal(!showDeleteIntegrationModal);
-      team ? setIntegrationEditing(team) : setIntegrationEditing(undefined);
+      integration
+        ? setIntegrationEditing(integration)
+        : setIntegrationEditing(undefined);
     },
     [
       showDeleteIntegrationModal,
@@ -84,10 +112,12 @@ const IntegrationsPage = (): JSX.Element => {
   );
 
   const toggleEditIntegrationModal = useCallback(
-    (team?: ITeam) => {
+    (integration?: IJiraIntegration) => {
       setShowEditIntegrationModal(!showEditIntegrationModal);
       setBackendValidators({});
-      team ? setIntegrationEditing(team) : setIntegrationEditing(undefined);
+      integration
+        ? setIntegrationEditing(integration)
+        : setIntegrationEditing(undefined);
     },
     [
       showEditIntegrationModal,
@@ -97,32 +127,19 @@ const IntegrationsPage = (): JSX.Element => {
     ]
   );
 
-  const onQueryChange = useCallback(
-    (queryData) => {
-      if (teams) {
-        setSearchString(queryData.searchQuery);
-        const { pageIndex, pageSize, searchQuery } = queryData;
-        teamsAPI.loadAll({
-          page: pageIndex,
-          perPage: pageSize,
-          globalFilter: searchQuery,
-        });
-      }
-    },
-    [dispatch, setSearchString]
-  );
-
   const onCreateSubmit = useCallback(
-    (formData: ICreateIntegrationFormData) => {
-      teamsAPI
-        .create(formData)
+    (formData: IJiraIntegration) => {
+      // replace with .update when we have the API
+      configAPI
+        .updateIntegrations(MOCKS.configAdd2)
         .then(() => {
           dispatch(
-            renderFlash("success", `Successfully added ${formData.name}.`) // TODO: formData.URL
+            // renderFlash("success", `Successfully added ${formData.url}.`)
+            renderFlash("success", `Successfully added.`) // TODO: fix
           );
           setBackendValidators({});
           toggleAddIntegrationModal();
-          refetchTeams();
+          refetchIntegrations();
         })
         .catch((createError: { data: IApiError }) => {
           if (createError.data.errors[0].reason.includes("Duplicate")) {
@@ -133,7 +150,8 @@ const IntegrationsPage = (): JSX.Element => {
             dispatch(
               renderFlash(
                 "error",
-                `Could not add ${formData.name}. Please try again.` // TODO: formData.URL
+                // `Could not add ${formData.url}. Please try again.`
+                `Could not add. Please try again.` // TODO: fix
               )
             );
             toggleAddIntegrationModal();
@@ -144,14 +162,15 @@ const IntegrationsPage = (): JSX.Element => {
   );
 
   const onDeleteSubmit = useCallback(() => {
+    // replace with .update when we have the APIs
     if (integrationEditing) {
-      teamsAPI
-        .destroy(integrationEditing.id)
+      configAPI
+        .updateIntegrations(MOCKS.config1)
         .then(() => {
           dispatch(
             renderFlash(
               "success",
-              `Successfully deleted ${integrationEditing.name}.`
+              `Successfully deleted ${integrationEditing.url}.`
             )
           );
         })
@@ -159,62 +178,60 @@ const IntegrationsPage = (): JSX.Element => {
           dispatch(
             renderFlash(
               "error",
-              `Could not delete ${integrationEditing.name}. Please try again.`
+              `Could not delete ${integrationEditing.url}. Please try again.`
             )
           );
         })
         .finally(() => {
-          refetchTeams();
+          refetchIntegrations();
           toggleDeleteIntegrationModal();
         });
     }
   }, [dispatch, integrationEditing, toggleDeleteIntegrationModal]);
 
   const onEditSubmit = useCallback(
-    (formData: IEditTeamFormData) => {
-      if (formData.name === integrationEditing?.name) {
-        toggleEditIntegrationModal();
-      } else if (integrationEditing) {
-        teamsAPI
-          .update(integrationEditing.id, formData)
-          .then(() => {
+    (formData: IJiraIntegration) => {
+      // replace with .update when we have the API
+      configAPI
+        .updateIntegrations(MOCKS.config2)
+        .then(() => {
+          dispatch(
+            // renderFlash("success", `Successfully edited ${formData.url}.`)
+            renderFlash("success", `Successfully edited.`) // TODO: fix later
+          );
+          setBackendValidators({});
+          toggleEditIntegrationModal();
+          refetchIntegrations();
+        })
+        .catch((updateError: { data: IApiError }) => {
+          console.error(updateError);
+          if (updateError.data.errors[0].reason.includes("Duplicate")) {
+            setBackendValidators({
+              name: "A team with this name already exists",
+            });
+          } else {
             dispatch(
               renderFlash(
-                "success",
-                `Successfully edited ${formData.name}.` // TODO: formData.URL
+                "error",
+                `Could not edit ${integrationEditing?.url}. Please try again.`
               )
             );
-            setBackendValidators({});
-            toggleEditIntegrationModal();
-            refetchTeams();
-          })
-          .catch((updateError: { data: IApiError }) => {
-            console.error(updateError);
-            if (updateError.data.errors[0].reason.includes("Duplicate")) {
-              setBackendValidators({
-                name: "A team with this name already exists",
-              });
-            } else {
-              dispatch(
-                renderFlash(
-                  "error",
-                  `Could not edit ${integrationEditing.name}. Please try again.` // TODO: integrationEditing.URL
-                )
-              );
-            }
-          });
-      }
+          }
+        });
     },
     [dispatch, integrationEditing, toggleEditIntegrationModal]
   );
 
-  const onActionSelection = (action: string, team: ITeam): void => {
+  const onActionSelection = (
+    action: string,
+    integration: IJiraIntegration
+  ): void => {
     switch (action) {
       case "edit":
-        toggleEditIntegrationModal(team);
+        toggleEditIntegrationModal(integration);
         break;
       case "delete":
-        toggleDeleteIntegrationModal(team);
+        toggleDeleteIntegrationModal(integration);
         break;
       default:
     }
@@ -255,7 +272,7 @@ const IntegrationsPage = (): JSX.Element => {
   };
 
   const tableHeaders = generateTableHeaders(onActionSelection);
-  const tableData = teams ? generateDataSet(teams) : [];
+  const tableData = integrations ? generateDataSet(integrations) : [];
 
   return (
     <div className={`${baseClass}`}>
@@ -263,26 +280,29 @@ const IntegrationsPage = (): JSX.Element => {
         Add or edit integrations to create tickets when Fleet detects new
         vulnerabilities.
       </p>
-      {loadingTeamsError ? (
+      {loadingIntegrationsError ? (
         <TableDataError />
       ) : (
         <TableContainer
           columns={tableHeaders}
           data={tableData}
-          isLoading={isLoadingTeams}
+          isLoading={isLoadingIntegrations}
           defaultSortHeader={"name"}
           defaultSortDirection={"asc"}
           inputPlaceHolder={"Search"}
           actionButtonText={"Add integration"}
           actionButtonVariant={"brand"}
-          hideActionButton={teams && teams.length === 0 && searchString === ""}
+          hideActionButton={
+            integrations && integrations.length === 0 && searchString === ""
+          }
           onActionButtonClick={toggleAddIntegrationModal}
-          onQueryChange={onQueryChange}
-          resultsTitle={"teams"}
+          resultsTitle={"integrations"}
           emptyComponent={NoIntegrationsComponent}
           showMarkAllPages={false}
           isAllPagesSelected={false}
-          searchable={teams && teams.length > 0 && searchString !== ""}
+          searchable={
+            integrations && integrations.length > 0 && searchString !== ""
+          }
           disablePagination
         />
       )}
@@ -297,14 +317,14 @@ const IntegrationsPage = (): JSX.Element => {
         <DeleteIntegrationModal
           onCancel={toggleDeleteIntegrationModal}
           onSubmit={onDeleteSubmit}
-          name={integrationEditing?.name || ""}
+          url={integrationEditing?.url || ""}
         />
       ) : null}
       {showEditIntegrationModal ? (
         <EditIntegrationModal
           onCancel={toggleEditIntegrationModal}
           onSubmit={onEditSubmit}
-          defaultName={integrationEditing?.name || ""}
+          defaultName={integrationEditing?.url || ""}
           backendValidators={backendValidators}
         />
       ) : null}

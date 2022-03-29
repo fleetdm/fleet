@@ -1,11 +1,10 @@
 import React from "react";
 
-import LinkCell from "components/TableContainer/DataTable/LinkCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import DropdownCell from "components/TableContainer/DataTable/DropdownCell";
-import { ITeam } from "interfaces/team";
+
+import { IIntegrations, IJiraIntegration } from "interfaces/integration";
 import { IDropdownOption } from "interfaces/dropdownOption";
-import PATHS from "router/paths";
 
 import JiraIcon from "../../../../assets/images/icon-jira-24x24@2x.png";
 
@@ -18,7 +17,7 @@ interface IHeaderProps {
 
 interface IRowProps {
   row: {
-    original: ITeam;
+    original: IJiraIntegration;
   };
 }
 interface ICellProps extends IRowProps {
@@ -45,14 +44,15 @@ interface IDataColumn {
   sortType?: string;
 }
 
-interface IIntegrationTableData extends ITeam {
+interface IIntegrationTableData extends IJiraIntegration {
   actions: IDropdownOption[];
+  name: string;
 }
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
 const generateTableHeaders = (
-  actionSelectHandler: (value: string, team: ITeam) => void
+  actionSelectHandler: (value: string, integration: IJiraIntegration) => void
 ): IDataColumn[] => {
   return [
     {
@@ -70,10 +70,7 @@ const generateTableHeaders = (
       sortType: "caseInsensitive",
       accessor: "name",
       Cell: (cellProps: ICellProps) => (
-        <LinkCell
-          value={cellProps.cell.value}
-          path={PATHS.TEAM_DETAILS_MEMBERS(cellProps.row.original.id)}
-        />
+        <TextCell value={cellProps.cell.value} />
       ),
     },
     {
@@ -110,21 +107,27 @@ const generateActionDropdownOptions = (): IDropdownOption[] => {
   ];
 };
 
-const enhanceTeamData = (teams: ITeam[]): IIntegrationTableData[] => {
-  return Object.values(teams).map((team) => {
+const enhanceIntegrationData = (
+  integrations: IJiraIntegration[]
+): IIntegrationTableData[] => {
+  return Object.values(integrations).map((integration) => {
     return {
-      description: team.description,
-      name: team.name,
-      host_count: team.host_count,
-      user_count: team.user_count,
+      url: integration.url,
+      username: integration.username,
+      password: integration.password,
+      project_key: integration.project_key,
       actions: generateActionDropdownOptions(),
-      id: team.id,
+      enable_software_vulnerabilities:
+        integration.enable_software_vulnerabilities,
+      name: `${integration.url} - ${integration.project_key}`,
     };
   });
 };
 
-const generateDataSet = (teams: ITeam[]): IIntegrationTableData[] => {
-  return [...enhanceTeamData(teams)];
+const generateDataSet = (
+  integrations: IJiraIntegration[]
+): IIntegrationTableData[] => {
+  return [...enhanceIntegrationData(integrations)];
 };
 
 export { generateTableHeaders, generateDataSet };

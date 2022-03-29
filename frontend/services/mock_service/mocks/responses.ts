@@ -4,93 +4,177 @@
  * Also please check the README for how to use the mock service :)
  */
 
-const HOST_ID = {
-  host: {
-    created_at: "2021-03-31T00:00:00Z",
-    updated_at: "2021-03-31T00:00:00Z",
-    software: [],
-    id: 1337,
-    detail_updated_at: "2021-03-31T00:00:00Z",
-    label_updated_at: "2021-03-31T00:00:00Z",
-    policy_updated_at: "2021-03-31T00:00:00Z",
-    last_enrolled_at: "2021-03-31T00:00:00Z",
-    seen_time: "2021-03-31T00:00:00ZZ",
-    refetch_requested: false,
-    hostname: "myf1337d3v1c3",
-    uuid: "13371337-0000-0000-1337-133713371337",
-    platform: "rhel",
-    osquery_version: "5.1.0",
-    os_version: "Ubuntu 20.4.0",
-    build: "",
-    platform_like: "deb",
-    code_name: "",
-    uptime: 13371337133713371337,
-    memory: 143593800000,
-    cpu_type: "1337",
-    cpu_subtype: "1337",
-    cpu_brand: "Intel(R) Core(TM) i3-37k CPU @ 13.37GHz",
-    cpu_physical_cores: 8,
-    cpu_logical_cores: 8,
-    hardware_vendor: "",
-    hardware_model: "",
-    hardware_version: "",
-    hardware_serial: "",
-    computer_name: "myf1337d3v1c3",
-    primary_ip: "133.7.133.7",
-    primary_mac: "13:37:13:37:13:37",
-    distributed_interval: 1337,
-    config_tls_refresh: 1337,
-    logger_tls_period: 1337,
-    team_id: null,
-    pack_stats: [],
-    team_name: null,
-    users: [
-      {
-        uid: 1337,
-        username: "root",
-        type: "",
-        groupname: "root",
-        shell: "/bin/bash",
-      },
-    ],
-    gigs_disk_space_available: 13.37,
-    percent_disk_space_available: 13.37,
-    issues: {
-      total_issues_count: 1337,
-      failing_policies_count: 1337,
-    },
-    labels: [],
-    packs: [],
-    policies: [],
-    status: "online",
-    display_text: "myf1337d3v1c3",
-  },
+const mockJira1 = {
+  url: "https://example.jira.com",
+  username: "adminUser",
+  password: "abc123",
+  project_key: "PROJECT",
+  enable_software_vulnerabilities: false,
 };
-const HOST_1337 = {
-  ...HOST_ID,
-  team_id: 1337,
-  team_name: "h4x0r",
+
+const mockJira2 = {
+  url: "https://config2.jira.com",
+  username: "adminUser",
+  password: "abc123",
+  project_key: "KEY",
+  enable_software_vulnerabilities: true,
+};
+
+const mockIntegration1 = {
+  jira: [mockJira1],
+};
+
+const mockIntegration2 = {
+  jira: [mockJira2],
+};
+
+const mockIntegrationAdd2 = {
+  jira: [mockJira1, mockJira2],
+};
+
+const mockConfig = {
+  org_info: {
+    org_name: "s",
+    org_logo_url: "",
+  },
+  server_settings: {
+    server_url: "https://localhost:8080",
+    live_query_disabled: false,
+    enable_analytics: true,
+    deferred_save_host: false,
+  },
+  smtp_settings: {
+    enable_smtp: false,
+    configured: true,
+    sender_address: "",
+    server: "",
+    port: 0,
+    authentication_type: "authtype_none",
+    user_name: "",
+    password: "",
+    enable_ssl_tls: true,
+    authentication_method: "authmethod_plain",
+    domain: "",
+    verify_ssl_certs: true,
+    enable_start_tls: true,
+  },
+  host_expiry_settings: {
+    host_expiry_enabled: true,
+    host_expiry_window: 9,
+  },
+  host_settings: {
+    enable_host_users: true,
+    enable_software_inventory: true,
+  },
+  agent_options: {
+    config: {
+      options: {
+        logger_plugin: "tls",
+        pack_delimiter: "/",
+        logger_tls_period: 100,
+        distributed_plugin: "tls",
+        disable_distributed: false,
+        logger_tls_endpoint: "/api/v1/osquery/log",
+        distributed_interval: 10,
+        distributed_tls_max_attempts: 3,
+      },
+      decorators: {
+        load: [
+          "SELECT uuid AS host_uuid FROM system_info;",
+          "SELECT hostname AS hostname FROM system_info;",
+        ],
+      },
+    },
+    overrides: {},
+  },
+  sso_settings: {
+    entity_id: "",
+    issuer_uri: "",
+    idp_image_url: "",
+    metadata: "",
+    metadata_url: "http://localhost:9080/simplesaml/saml2/idp/metadata.php",
+    idp_name: "",
+    enable_sso: false,
+    enable_sso_idp_login: false,
+  },
+  vulnerability_settings: {
+    databases_path: "",
+  },
+  webhook_settings: {
+    host_status_webhook: {
+      enable_host_status_webhook: false,
+      destination_url: "",
+      host_percentage: 0,
+      days_count: 0,
+    },
+    failing_policies_webhook: {
+      enable_failing_policies_webhook: false,
+      destination_url: "",
+      policy_ids: [],
+      host_batch_size: 0,
+    },
+    vulnerabilities_webhook: {
+      enable_vulnerabilities_webhook: true,
+      destination_url: "www.example.com/",
+      host_batch_size: 0,
+    },
+    interval: "24h0m0s",
+  },
+  update_interval: {
+    osquery_detail: 10000000000,
+    osquery_policy: 3600000000000,
+  },
+  vulnerabilities: {
+    databases_path: "/tmp/vulndbs",
+    periodicity: 3600000000000,
+    cpe_database_url: "",
+    cve_feed_prefix_url: "",
+    current_instance_checks: "auto",
+    disable_data_sync: false,
+  },
+  license: {
+    tier: "premium",
+    organization: "development-only",
+    device_count: 100,
+    expiration: "2022-06-30T20:00:00-04:00",
+    note: "for development only",
+  },
+  logging: {
+    debug: false,
+    json: false,
+    result: {
+      plugin: "filesystem",
+      config: {
+        status_log_file:
+          "/var/folders/xh/bxm1d2615tv3vrg4zrxq540h0000gn/T/osquery_status",
+        result_log_file:
+          "/var/folders/xh/bxm1d2615tv3vrg4zrxq540h0000gn/T/osquery_result",
+        enable_log_rotation: false,
+        enable_log_compression: false,
+      },
+    },
+    status: {
+      plugin: "filesystem",
+      config: {
+        status_log_file:
+          "/var/folders/xh/bxm1d2615tv3vrg4zrxq540h0000gn/T/osquery_status",
+        result_log_file:
+          "/var/folders/xh/bxm1d2615tv3vrg4zrxq540h0000gn/T/osquery_result",
+        enable_log_rotation: false,
+        enable_log_compression: false,
+      },
+    },
+  },
 };
 
 export default {
-  ALL_HOSTS: {
-    hosts: [HOST_ID.host],
+  config1: { ...mockConfig, integrations: mockIntegration1 },
+  config2: {
+    ...mockConfig,
+    integrations: mockIntegration2,
   },
-  HOSTS_TEAM_ID: {
-    hosts: [{ ...HOST_ID.host, team_id: 2, team_name: "n00bz" }],
-  },
-  HOSTS_TEAM_1337: {
-    hosts: [HOST_1337.host],
-  },
-  HOST_ID,
-  HOST_1337,
-  DEVICE_MAPPING: {
-    host_id: 1337,
-    device_mapping: null,
-    foo: "bar",
-  },
-  MACADMINS: {
-    macadmins: null,
-    foo: "bar",
+  configAdd2: {
+    ...mockConfig,
+    integrations: mockIntegrationAdd2,
   },
 };

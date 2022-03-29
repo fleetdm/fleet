@@ -1,6 +1,7 @@
 /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
 
 import sendRequest from "services";
+import sendMockRequest from "services/mock_service";
 import endpoints from "fleet/endpoints";
 import { IConfig } from "interfaces/config";
 
@@ -38,5 +39,17 @@ export default {
     const { CONFIG } = endpoints;
 
     return sendRequest("PATCH", CONFIG, formData);
+  },
+  // remove these when we have the API and use .loadAll and .update
+  updateIntegrations: (formData: any) => {
+    const { CONFIG } = endpoints;
+
+    return sendMockRequest("PATCH", CONFIG, formData);
+  },
+  loadIntegrations: (): Promise<IConfigNested> => {
+    const { CONFIG } = endpoints;
+    const path = `${CONFIG}`;
+
+    return sendMockRequest("GET", path);
   },
 };

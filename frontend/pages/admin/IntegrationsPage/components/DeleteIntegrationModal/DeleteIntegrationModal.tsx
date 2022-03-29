@@ -6,13 +6,13 @@ import Button from "components/buttons/Button";
 const baseClass = "delete-integration-modal";
 
 interface IDeleteIntegrationModalProps {
-  name: string;
+  url: string;
   onSubmit: () => void;
   onCancel: () => void;
 }
 
 const DeleteIntegrationModal = ({
-  name: url, // TODO: Changed to url only
+  url,
   onSubmit,
   onCancel,
 }: IDeleteIntegrationModalProps): JSX.Element => {
