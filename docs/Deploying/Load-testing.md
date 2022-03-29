@@ -16,7 +16,7 @@ A test is deemed successful when the Fleet server is able to receive and make re
 
 ### 2,500 hosts
 
-With the following infrastructure, 1,000 hosts successfully communicate with Fleet. The Fleet server is able to run live queries against all hosts.
+With the following infrastructure, 2,500 hosts successfully communicate with Fleet. The Fleet server is able to run live queries against all hosts.
 
 |Fleet instances| CPU Units       |RAM             |
 |-------|-------------------------|----------------|
