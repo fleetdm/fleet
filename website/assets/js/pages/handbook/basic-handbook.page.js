@@ -36,6 +36,16 @@ parasails.registerPage('basic-handbook', {
       },
     });
 
+    // Handle hashes in urls when coming from an external page.
+    if(window.location.hash){
+      let possibleHashToScrollTo = _.trimLeft(window.location.hash, '#');
+      let hashToScrollTo = document.getElementById(possibleHashToScrollTo);
+      // If the hash matches a header's ID, we'll scroll to that section.
+      if(hashToScrollTo){
+        hashToScrollTo.scrollIntoView();
+      }
+    }
+
     this.subtopics = (() => {
       let subtopics;
       if(!this.isHandbookLandingPage){
