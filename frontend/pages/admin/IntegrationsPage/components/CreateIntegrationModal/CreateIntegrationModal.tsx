@@ -1,40 +1,35 @@
 import React, { useState, useCallback, useEffect } from "react";
 
 import Modal from "components/Modal";
-import Button from "components/buttons/Button";
 import InfoBanner from "components/InfoBanner/InfoBanner";
 // @ts-ignore
-import InputField from "components/forms/fields/InputField";
-// @ts-ignore
 import FleetIcon from "components/icons/FleetIcon";
-import { IConfig } from "interfaces/config";
-import { IJiraIntegration } from "interfaces/integration";
-const baseClass = "create-integration-modal";
+import {
+  IJiraIntegration,
+  IJiraIntegrationFormData,
+  IJiraIntegrationFormErrors,
+} from "interfaces/integration";
+import IntegrationForm from "../IntegrationForm";
 
-// export interface ICreateIntegrationFormData {
-//   name: string;
-// }
+const baseClass = "create-integration-modal";
 
 interface ICreateIntegrationModalProps {
   onCancel: () => void;
-  onSubmit: (formData: IJiraIntegration) => void;
+  onSubmit: (jiraIntegrationSubmitData: IJiraIntegration[]) => void;
+  serverErrors?: { base: string; email: string };
+  createIntegrationErrors: IJiraIntegrationFormErrors;
   backendValidators: { [key: string]: string };
+  integrations: IJiraIntegration[];
 }
 
 const CreateIntegrationModal = ({
   onCancel,
   onSubmit,
   backendValidators,
+  serverErrors,
+  createIntegrationErrors,
+  integrations,
 }: ICreateIntegrationModalProps): JSX.Element => {
-  const [url, setURL] = useState<string>("");
-  const [username, setUsername] = useState<string>("");
-  const [password, setPassword] = useState<string>("");
-  const [projectKey, setProjectKey] = useState<string>("");
-  const [
-    enableSoftwareVulnerabilities,
-    setEnableSoftwareVulnerabilities,
-  ] = useState<boolean>(false);
-
   const [errors, setErrors] = useState<{ [key: string]: string }>(
     backendValidators
   );
@@ -43,29 +38,6 @@ const CreateIntegrationModal = ({
     setErrors(backendValidators);
   }, [backendValidators]);
 
-  const onInputChange = useCallback(
-    (value: string) => {
-      setURL(value);
-      setErrors({});
-    },
-    [setURL]
-  );
-
-  const onFormSubmit = useCallback(
-    (evt) => {
-      evt.preventDefault();
-      onSubmit({
-        url: url,
-        username: username,
-        password: password,
-        project_key: projectKey,
-        enable_software_vulnerabilities: enableSoftwareVulnerabilities,
-      });
-    },
-    [onSubmit, name]
-  );
-
-  // TODO: Move this form to IntegrationForm.tsx and have that component used for create and edit integration modal
   return (
     <Modal title={"Add integration"} onExit={onCancel} className={baseClass}>
       <>
@@ -82,78 +54,13 @@ const CreateIntegrationModal = ({
             </a>
           </p>
         </InfoBanner>
-        <form
-          className={`${baseClass}__form`}
-          onSubmit={onFormSubmit}
-          autoComplete="off"
-        >
-          <InputField
-            autofocus
-            name="name"
-            onChange={onInputChange}
-            label="Jira site URL"
-            placeholder="https://jira.example.com"
-            value={name}
-            error={errors.name}
-          />
-          <InputField
-            autofocus
-            name="name"
-            onChange={onInputChange}
-            label="Jira username"
-            placeholder="name@example.com"
-            value={name}
-            error={errors.name}
-            tooltip={
-              "\
-              This user must have “Create issues” for the project <br/> \
-              in which the issues are created. \
-            "
-            }
-          />
-          <InputField
-            autofocus
-            name="name"
-            onChange={onInputChange}
-            label="Jira password"
-            value={name}
-            error={errors.name}
-          />
-          <InputField
-            autofocus
-            name="name"
-            onChange={onInputChange}
-            label="Jira project key"
-            placeholder="JRAEXAMPLE"
-            value={name}
-            error={errors.name}
-            tooltip={
-              "\
-              To find the Jira project key, head to your project in <br /> \
-              Jira. Your project key is in URL. For example, in <br /> \
-              “jira.example.com/projects/JRAEXAMPLE,” <br /> \
-              “JRAEXAMPLE” is your project key. \
-            "
-            }
-          />
-          <div className={`${baseClass}__btn-wrap`}>
-            <Button
-              className={`${baseClass}__btn`}
-              type="submit"
-              variant="brand"
-              disabled={url === ""}
-            >
-              Create
-            </Button>
-            <Button
-              className={`${baseClass}__btn`}
-              onClick={onCancel}
-              variant="inverse"
-            >
-              Cancel
-            </Button>
-          </div>
-        </form>
+        <IntegrationForm
+          serverErrors={serverErrors}
+          createOrEditIntegrationErrors={createIntegrationErrors}
+          onCancel={onCancel}
+          onSubmit={onSubmit}
+          integrations={integrations}
+        />
       </>
     </Modal>
   );

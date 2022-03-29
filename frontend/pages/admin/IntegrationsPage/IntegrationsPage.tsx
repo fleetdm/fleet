@@ -4,7 +4,12 @@ import { useQuery } from "react-query";
 
 import { ITeam } from "interfaces/team";
 import { IConfig, IConfigNested } from "interfaces/config";
-import { IIntegrations, IJiraIntegration } from "interfaces/integration";
+import {
+  IIntegrations,
+  IJiraIntegration,
+  IJiraIntegrationFormData,
+  IJiraIntegrationFormErrors,
+} from "interfaces/integration";
 import { IApiError } from "interfaces/errors";
 // ignore TS error for now until these are rewritten in ts.
 // @ts-ignore
@@ -24,8 +29,9 @@ import TableDataError from "components/TableDataError";
 import AddIntegrationModal from "./components/CreateIntegrationModal";
 import DeleteIntegrationModal from "./components/DeleteIntegrationModal";
 import EditIntegrationModal from "./components/EditIntegrationModal";
-// import { ICreateIntegrationFormData } from "./components/CreateIntegrationModal/CreateIntegrationModal";
-// import { IEditIntegrationFormData } from "./components/EditIntegrationModal/EditIntegrationModal";
+
+import { DEFAULT_CREATE_INTEGRATION_ERRORS } from "utilities/constants";
+
 import {
   generateTableHeaders,
   generateDataSet,
@@ -50,11 +56,14 @@ const IntegrationsPage = (): JSX.Element => {
   const [
     integrationEditing,
     setIntegrationEditing,
-  ] = useState<IJiraIntegration>(); // TODO: Change to IIntegration
-  const [searchString, setSearchString] = useState<string>("");
+  ] = useState<IJiraIntegration>();
   const [backendValidators, setBackendValidators] = useState<{
     [key: string]: string;
   }>({});
+  const [
+    createIntegrationError,
+    setCreateIntegrationError,
+  ] = useState<IJiraIntegrationFormErrors>(DEFAULT_CREATE_INTEGRATION_ERRORS);
 
   const {
     data: teams,
@@ -128,7 +137,7 @@ const IntegrationsPage = (): JSX.Element => {
   );
 
   const onCreateSubmit = useCallback(
-    (formData: IJiraIntegration) => {
+    (jiraIntegrationSubmitData: IJiraIntegration[]) => {
       // replace with .update when we have the API
       configAPI
         .updateIntegrations(MOCKS.configAdd2)
@@ -289,45 +298,41 @@ const IntegrationsPage = (): JSX.Element => {
           isLoading={isLoadingIntegrations}
           defaultSortHeader={"name"}
           defaultSortDirection={"asc"}
-          inputPlaceHolder={"Search"}
           actionButtonText={"Add integration"}
           actionButtonVariant={"brand"}
-          hideActionButton={
-            integrations && integrations.length === 0 && searchString === ""
-          }
+          hideActionButton={integrations && integrations.length === 0}
           onActionButtonClick={toggleAddIntegrationModal}
           resultsTitle={"integrations"}
           emptyComponent={NoIntegrationsComponent}
           showMarkAllPages={false}
           isAllPagesSelected={false}
-          searchable={
-            integrations && integrations.length > 0 && searchString !== ""
-          }
           disablePagination
         />
       )}
-      {showAddIntegrationModal ? (
+      {showAddIntegrationModal && (
         <AddIntegrationModal
           onCancel={toggleAddIntegrationModal}
           onSubmit={onCreateSubmit}
           backendValidators={backendValidators}
+          integrations={integrations || []}
+          createIntegrationErrors={createIntegrationError}
         />
-      ) : null}
-      {showDeleteIntegrationModal ? (
+      )}
+      {showDeleteIntegrationModal && (
         <DeleteIntegrationModal
           onCancel={toggleDeleteIntegrationModal}
           onSubmit={onDeleteSubmit}
           url={integrationEditing?.url || ""}
         />
-      ) : null}
-      {showEditIntegrationModal ? (
+      )}
+      {showEditIntegrationModal && (
         <EditIntegrationModal
           onCancel={toggleEditIntegrationModal}
           onSubmit={onEditSubmit}
           defaultName={integrationEditing?.url || ""}
           backendValidators={backendValidators}
         />
-      ) : null}
+      )}
     </div>
   );
 };

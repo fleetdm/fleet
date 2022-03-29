@@ -19,7 +19,7 @@ const WILDCARDS: string[] = [":", "*", "{", "}"];
 // REQUEST_RESPONSE_MAPPINGS dictionary maps your static responses to the specified API request path
 const REQUEST_RESPONSE_MAPPINGS: IResponses = {
   GET: {
-    configz: RESPONSES.config1, // just first integration
+    config: RESPONSES.config1, // just first integration -- to throw error, rename config as configz
   },
   // additional mappings can be specified for other HTTP request types (POST, PATCH, DELETE, etc.)
   PATCH: {

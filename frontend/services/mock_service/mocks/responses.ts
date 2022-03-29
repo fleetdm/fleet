@@ -4,8 +4,16 @@
  * Also please check the README for how to use the mock service :)
  */
 
+const mockJira0 = {
+  url: "https://example0.jira.com",
+  username: "adminUser",
+  password: "abc123",
+  project_key: "EXAMPLE",
+  enable_software_vulnerabilities: false,
+};
+
 const mockJira1 = {
-  url: "https://example.jira.com",
+  url: "https://example1.jira.com",
   username: "adminUser",
   password: "abc123",
   project_key: "PROJECT",
@@ -13,7 +21,7 @@ const mockJira1 = {
 };
 
 const mockJira2 = {
-  url: "https://config2.jira.com",
+  url: "https://example2.jira.com",
   username: "adminUser",
   password: "abc123",
   project_key: "KEY",
@@ -21,7 +29,7 @@ const mockJira2 = {
 };
 
 const mockIntegration1 = {
-  jira: [mockJira1],
+  jira: [mockJira0, mockJira1],
 };
 
 const mockIntegration2 = {
@@ -29,7 +37,7 @@ const mockIntegration2 = {
 };
 
 const mockIntegrationAdd2 = {
-  jira: [mockJira1, mockJira2],
+  jira: [mockJira0, mockJira1, mockJira2],
 };
 
 const mockConfig = {
