@@ -78,7 +78,7 @@ NODE_TLS_REJECT_UNAUTHORIZED=0 sails console
 
 Redis has an internal buffer limit for pubsub that Fleet uses to communicate query results. If this buffer is filled, extra data is dropped. To fix this, we recommend disabling the buffer size limit. Most installs of Redis should have plenty of spare memory to not run into issues. More info about this limit can be found [here](https://redis.io/topics/clients#:~:text=Pub%2FSub%20clients%20have%20a,64%20megabyte%20per%2060%20second.) and [here](https://raw.githubusercontent.com/redis/redis/unstable/redis.conf) (search for client-output-buffer-limit).
 
-We recomend a config like the following:
+We recommend a config like the following:
 ```
 client-output-buffer-limit pubsub 0 0 60
 ```
