@@ -2663,16 +2663,16 @@ func (s *integrationTestSuite) TestIntegrationsConfig() {
 	t := s.T()
 
 	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(`{
-		"integrations": {
-    		"jira": [{
-          "url": "http://some/url",
-     	 		"username": "foo",
-     	 		"password": "bar",
-          "project_key": "qux",
-          "enable_software_vulnerabilities": true
-    		}]
-  		}
-	}`), http.StatusOK)
+    "integrations": {
+      "jira": [{
+        "url": "http://some/url",
+        "username": "foo",
+        "password": "bar",
+        "project_key": "qux",
+        "enable_software_vulnerabilities": true
+      }]
+    }
+  }`), http.StatusOK)
 
 	config := s.getConfig()
 	require.Len(t, config.Integrations.Jira, 1)
@@ -2683,81 +2683,81 @@ func (s *integrationTestSuite) TestIntegrationsConfig() {
 	require.True(t, config.Integrations.Jira[0].EnableSoftwareVulnerabilities)
 
 	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(`{
-		"integrations": {
-    		"jira": [{
-          "url": "http:/some/url",
-     	 		"UNKNOWN_FIELD": "foo"
-    		}]
-  		}
-	}`), http.StatusBadRequest)
+    "integrations": {
+      "jira": [{
+        "url": "http:/some/url",
+        "UNKNOWN_FIELD": "foo"
+      }]
+    }
+  }`), http.StatusBadRequest)
 
 	// cannot have two integrations enabled at the same time
 	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(`{
 		"integrations": {
     		"jira": [
-          {
-            "url": "http://some/url",
-            "username": "foo",
-            "password": "bar",
-            "project_key": "qux",
-            "enable_software_vulnerabilities": true
-          },
-          {
-            "url": "http://some/url/2",
-            "username": "foo2",
-            "password": "bar2",
-            "project_key": "qux2",
-            "enable_software_vulnerabilities": true
-          }
-        ]
+            {
+              "url": "http://some/url",
+              "username": "foo",
+              "password": "bar",
+              "project_key": "qux",
+              "enable_software_vulnerabilities": true
+            },
+            {
+              "url": "http://some/url/2",
+              "username": "foo2",
+              "password": "bar2",
+              "project_key": "qux2",
+              "enable_software_vulnerabilities": true
+            }
+          ]
   		}
 	}`), http.StatusUnprocessableEntity)
 
 	// cannot enable webhook with a jira integration already enabled
 	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(`{
-		"webhook_settings": {
-    		"vulnerabilities_webhook": {
-     	 		"enable_vulnerabilities_webhook": true,
-     	 		"destination_url": "http://some/url",
-     	 		"host_batch_size": 1234
-    		},
-    		"interval": "1h"
-  		}
-	}`), http.StatusUnprocessableEntity)
+    "webhook_settings": {
+      "vulnerabilities_webhook": {
+        "enable_vulnerabilities_webhook": true,
+        "destination_url": "http://some/url",
+        "host_batch_size": 1234
+      },
+      "interval": "1h"
+    }
+  }`), http.StatusUnprocessableEntity)
 
 	// disable jira, now we can enable webhook
 	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(`{
-		"integrations": {
-    		"jira": [{
-          "url": "http://some/url",
-     	 		"username": "foo",
-     	 		"password": "bar",
-          "project_key": "qux",
-          "enable_software_vulnerabilities": false
-    		}]
-  		},
-		"webhook_settings": {
-    		"vulnerabilities_webhook": {
-     	 		"enable_vulnerabilities_webhook": true,
-     	 		"destination_url": "http://some/url",
-     	 		"host_batch_size": 1234
-    		},
-    		"interval": "1h"
-  		}
-	}`), http.StatusOK)
+    "integrations": {
+      "jira": [{
+        "url": "http://some/url",
+        "username": "foo",
+        "password": "bar",
+        "project_key": "qux",
+        "enable_software_vulnerabilities": false
+      }]
+      },
+      "webhook_settings": {
+        "vulnerabilities_webhook": {
+        "enable_vulnerabilities_webhook": true,
+        "destination_url": "http://some/url",
+        "host_batch_size": 1234
+      },
+    "interval": "1h"
+    }
+  }`), http.StatusOK)
 
 	// cannot enable jira with webhook already enabled
 	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(`{
-		"integrations": {
-    		"jira": [{
-          "url": "http://some/url",
-     	 		"username": "foo",
-     	 		"password": "bar",
-          "project_key": "qux",
-          "enable_software_vulnerabilities": true
-    		}]
-  		}
-	}`), http.StatusUnprocessableEntity)
+    "integrations": {
+      "jira": [{
+        "url": "http://some/url",
+        "username": "foo",
+        "password": "bar",
+        "project_key": "qux",
+        "enable_software_vulnerabilities": true
+      }]
+    }
+  }`), http.StatusUnprocessableEntity)
 }
 
 func (s *integrationTestSuite) TestQueriesBadRequests() {
