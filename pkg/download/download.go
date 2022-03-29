@@ -6,6 +6,7 @@ import (
 	"compress/gzip"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -19,16 +20,34 @@ import (
 //
 // It supports gz, bz2 and xz compressed files.
 func Decompressed(client *http.Client, u url.URL, path string) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+
+	// atomically write to file
+	dir, file := filepath.Split(path)
+	if dir == "" {
+		// If the file is in the current working directory, then dir will be "".
+		// However, this means that ioutil.TempFile will use the default directory
+		// for temporary files, which is wrong.
+		dir = "."
+	}
+
+	// ensure dir exists
+	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}
 
-	// will truncate if file already exists
-	f, err := os.Create(path)
+	tmpFile, err := ioutil.TempFile(dir, file)
 	if err != nil {
-		return err
+		return fmt.Errorf("create temporary file: %w", err)
 	}
-	defer f.Close()
+	defer tmpFile.Close()
+
+	// Clean up tmp file if not moved
+	moved := false
+	defer func() {
+		if !moved {
+			os.Remove(tmpFile.Name())
+		}
+	}()
 
 	req, err := http.NewRequest(http.MethodGet, u.String(), nil)
 	if err != nil {
@@ -59,13 +78,15 @@ func Decompressed(client *http.Client, u url.URL, path string) error {
 		return fmt.Errorf("unknown extension: %s", u.Path)
 	}
 
-	if _, err := io.Copy(f, decompressor); err != nil {
+	if _, err := io.Copy(tmpFile, decompressor); err != nil {
 		return err
 	}
 
-	if err := f.Close(); err != nil {
+	if err := os.Rename(tmpFile.Name(), path); err != nil {
 		return err
 	}
+
+	moved = true
 
 	return nil
 }
