@@ -1,0 +1,43 @@
+.render-os-policy-modal {
+  &__modal {
+    @include position(absolute, 22px null null null);
+    background-color: $core-white;
+    width: 658px;
+    padding: $pad-xxlarge;
+    border-radius: $pad-small;
+  }
+
+  &__os-modal-title {
+    padding-right: $pad-medium;
+    font-size: $medium;
+    font-weight: $bold;
+  }
+  &__os-modal-updated {
+    font-style: italic;
+  }
+  &__os-modal-example-title {
+    font-size: $x-small;
+    font-weight: $bold;
+  }
+  &__os-policy {
+    padding-top: $pad-medium;
+
+    .form-field__label {
+      font-weight: normal;
+    }
+    #os-policy {
+      color: $core-fleet-purple;
+      line-height: 20px;
+      font-size: $x-small;
+      font-family: "SourceCodePro", $monospace;
+      min-height: 55px;
+      padding-right: $pad-xxlarge;
+    }
+  }
+
+  &__os-policy-copy-icon {
+    color: $core-vibrant-blue;
+    margin-left: $pad-small;
+    margin-right: $pad-medium;
+  }
+}

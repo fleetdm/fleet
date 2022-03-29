@@ -1,34 +1,43 @@
 import React from "react";
-import { mount } from "enzyme";
+import { render, screen } from "@testing-library/react";
 
 import RegistrationForm from "components/forms/RegistrationForm";
 
 describe("RegistrationForm - component", () => {
   it("renders AdminDetails and header on the first page", () => {
-    const form = mount(<RegistrationForm page={1} />);
+    const { container } = render(<RegistrationForm page={1} />);
 
-    expect(form.find("AdminDetails").length).toEqual(1);
-    expect(form.text()).toContain("Setup user");
+    expect(
+      container.querySelectorAll(".user-registration__container--admin").length
+    ).toEqual(1);
+    expect(screen.getByText("Setup user")).toBeInTheDocument();
   });
 
   it("renders OrgDetails on the second page", () => {
-    const form = mount(<RegistrationForm page={2} />);
+    const { container } = render(<RegistrationForm page={2} />);
 
-    expect(form.find("OrgDetails").length).toEqual(1);
-    expect(form.text()).toContain("Organization details");
+    expect(
+      container.querySelectorAll(".user-registration__container--org").length
+    ).toEqual(1);
+    expect(screen.getByText("Organization details")).toBeInTheDocument();
   });
 
   it("renders FleetDetails on the third page", () => {
-    const form = mount(<RegistrationForm page={3} />);
+    const { container } = render(<RegistrationForm page={3} />);
 
-    expect(form.find("FleetDetails").length).toEqual(1);
-    expect(form.text()).toContain("Set Fleet URL");
+    expect(
+      container.querySelectorAll(".user-registration__container--fleet").length
+    ).toEqual(1);
+    expect(screen.getByText("Set Fleet URL")).toBeInTheDocument();
   });
 
   it("renders ConfirmationPage on the fourth page", () => {
-    const form = mount(<RegistrationForm page={4} />);
+    const { container } = render(<RegistrationForm page={4} />);
 
-    expect(form.find("ConfirmationPage").length).toEqual(1);
-    expect(form.text()).toContain("Success");
+    expect(
+      container.querySelectorAll(".user-registration__container--confirmation")
+        .length
+    ).toEqual(1);
+    expect(screen.getByText("Success")).toBeInTheDocument();
   });
 });

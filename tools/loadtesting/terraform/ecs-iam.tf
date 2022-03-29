@@ -40,7 +40,7 @@ data "aws_iam_policy_document" "fleet" {
   }
 
   statement {
-    actions = [
+    actions = [ #tfsec:ignore:aws-iam-no-policy-wildcards
       "kms:Encrypt*",
       "kms:Decrypt*",
       "kms:ReEncrypt*",

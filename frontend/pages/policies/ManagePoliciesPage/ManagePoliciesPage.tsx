@@ -98,6 +98,10 @@ const ManagePolicyPage = ({
     number[]
   >();
 
+  useEffect(() => {
+    setLastEditedQueryPlatform(null);
+  }, []);
+
   useQuery(["me"], () => usersAPI.me(), {
     onSuccess: ({ user, available_teams }: IGetMeResponse) => {
       setCurrentUser(user);
@@ -119,7 +123,6 @@ const ManagePolicyPage = ({
     {
       enabled: !!availableTeams,
       select: (data) => data.policies,
-      onSuccess: () => setLastEditedQueryPlatform(""),
       staleTime: 3000,
     }
   );

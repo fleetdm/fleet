@@ -45,7 +45,8 @@
       height: 38px;
       letter-spacing: -0.5px;
 
-      &:hover {
+      &:hover,
+      &:focus {
         background-color: $ui-vibrant-blue-10;
         color: $core-fleet-blue;
       }

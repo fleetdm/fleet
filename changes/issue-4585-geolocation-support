@@ -1,3 +1,0 @@
-* Add support for geolocation via public IP
-* Add public_ip to host table (default empty string)
-* Add public_ip to host(s) API response

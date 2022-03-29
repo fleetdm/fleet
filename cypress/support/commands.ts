@@ -200,6 +200,15 @@ Cypress.Commands.add("seedPolicies", (team = "") => {
       resolution: "Update OS if needed",
       platform: "darwin,windows,linux",
     },
+    {
+      name: "Is Ubuntu, version 16.4.0 or later, installed?",
+      query:
+        "SELECT 1 from os_version WHERE name = 'Ubuntu' AND major || '.' || minor || '.' || patch >= '16.4.0';",
+      description:
+        "Returns yes or no for detecting operating system and version",
+      resolution: "Update OS if needed",
+      platform: "",
+    },
   ];
 
   if (team === "apples") {

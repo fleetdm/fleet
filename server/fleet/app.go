@@ -293,6 +293,10 @@ type ListOptions struct {
 	After string `query:"after,optional"`
 }
 
+func (l ListOptions) Empty() bool {
+	return l == ListOptions{}
+}
+
 type ListQueryOptions struct {
 	ListOptions
 

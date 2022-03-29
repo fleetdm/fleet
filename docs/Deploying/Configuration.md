@@ -818,7 +818,7 @@ The amount of time that a session should last for.
 
 Valid time units are `s`, `m`, `h`.
 
-- Default value: `24h` (24 hours)
+- Default value: `5d` (5 days)
 - Environment variable: `FLEET_SESSION_DURATION`
 - Config file format:
 

@@ -103,8 +103,8 @@
     }
 
     .Select.is-focused:not(.is-open) > .Select-control {
-      border: none;
       box-shadow: none;
+      background-color: $ui-vibrant-blue-10;
     }
 
     .Select.is-open {
@@ -320,11 +320,13 @@
       }
     }
 
-    button:hover {
+    button:hover,
+    button:focus {
       background-color: $ui-vibrant-blue-10;
     }
 
-    .button--disabled:hover {
+    .button--disabled:hover,
+    .button--disabled:focus {
       background-color: transparent;
     }
 
