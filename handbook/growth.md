@@ -85,5 +85,4 @@ The following [Slack channels are maintained](https://fleetdm.com/handbook/compa
 | `#help-swag`                | Drew Baker                                                          |
 
 
-
 <meta name="maintainedBy" value="timmy-k">

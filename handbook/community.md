@@ -238,11 +238,6 @@ We want to recognize and congratulate community members for their contributions 
 
 ## Slack channels
 
-These are the Slack channels the growth team maintains. If the channel has a [directly responsible individual](./people.md#directly-resonsible-individuals) (**DRI**), they will be specified. These people are responsible for keeping up with all new messages, even if they aren't mentioned. 
-
-- **#g-community**
-- **#g-digital-experience**
-
-**Who should have these channels unmuted?** Members of this group, everyone else is encouraged to mute them.
+Please see [Digital experience > Slack channels](https://fleetdm.com/handbook/brand#slack-channels).
 
 <meta name="maintainedBy" value="zwass">
