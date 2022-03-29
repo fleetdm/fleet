@@ -21,6 +21,12 @@ Fleet Device Management Inc. is an all-remote company, with team members spread 
 ### Open source
 The majority of the code, documentation, and content we create at Fleet is public and source-available, and we strive to be broadly open and transparent in the way we run the business; as much as confidentiality agreements (and time) allow. We perform better with an audience, and our audience performs better with us.
 
+### Direct responsibility
+We use the concept of [directly responsible individuals](https://fleetdm.com/handbook/people#directly-responsible-individuals) (DRIs) to know who is responsible for what.  Every group maintains their own dedicated [handbook page](https://fleetdm.com/handbook), which is kept up to date with accurate, current information, including the group's [kanban board](https://github.com/orgs/fleetdm/projects?type=beta), Slack channels, and recurring tasks ("rituals").
+
+#### Group Slack channels
+Every group at Fleet maintains certain Slack channels, which all group members join and keep unmuted.  Everyone else at Fleet is encouraged to mute these channels, using them only as needed.  Each channel has a directly responsible individual who is responsible for keeping up with all new messages, even if they aren't explicitly mentioned (`@`).
+
 ## 🌈 Values
 
 Fleet's values are a set of five ideals adopted by everyone on the team.  They describe the culture we are working together to deliver, inside and outside the company:
