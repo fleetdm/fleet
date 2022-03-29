@@ -57,6 +57,20 @@ To download official Fleet logos, product screenshots, and wallpapers, head over
 
 See also [https://fleetdm.com/handbook/community#press-releases](https://fleetdm.com/handbook/community#press-releases) for our press-release boilerplate.
 
+
+## Email blasts
+
+Need to send out a branded email blast to multiple recipients?
+
+### The manual way
+Use "bcc" so recipients don't see each other's email addresses and send an email manually using Gmail.   (Good for small lists.  Definitely a "thing that doesn't scale".)
+
+### The automated way
+
+- First, design the email (could be figma, could be a google drawing or doc- just something) -- you can base it off of one of the existing email templates.  (For example, try the "Forgot your password?" flow available to users of "license dispenser" from fleetdm.com, and check out the example email template.)
+- Bring your request to the digital experience team by posting in [their primary Slack channel](#slack-channels), along with your urgency/timeline.  The digital experience team will finalize language for consistency, then fork and customize [one of the existing email templates](https://github.com/fleetdm/fleet/blob/de280a478834a7f85772bea4f552f953c65bb29e/website/views/emails/email-order-confirmation.ejs) for you, and write you a script that will deliver it to your desired recipients. Then, digital experience will merge that, test it by hand to make sure it's attractive and links work, and then tell you how to run the script with e.g. `sails run deliver-release-announcement --emailAddresses='["foo@example.com","bar@example.com"]'`
+
+
 ## Fleet website
 
 ### Responding to a 5xx error on fleetdm.com
