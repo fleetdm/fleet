@@ -17,7 +17,7 @@ import (
 
 // Decompressed downloads and decompresses a file from a URL to a local path.
 //
-// It supports gz, bz2 and gz compressed files.
+// It supports gz, bz2 and xz compressed files.
 func Decompressed(client *http.Client, u url.URL, path string) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
