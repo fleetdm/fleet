@@ -85,16 +85,6 @@ When creating a new issue, ensure the following:
 ### Responding to a request to change a credit card number
 To change a customer credit card number you identify the customer's account email, log into Stripe, and choose the subscriptions associated with that account. You can then email the customer an invoice and they can update the payment method on file.
 
-### Responding to a 500 error on fleetdm.com
-Production systems can fail for various reasons, and it can be frustrating to users when they do, and customer experience is significant to Fleet. In the event of system failure, Fleet will:
-* Investigate the problem to determine the root cause
-* Identify affected users
-* Escalate if necessary
-* Understand and remediate the problem
-* Notify impacted users of any steps they need to take (if any).  If a customer paid with a credit card and had a bad experience, default to refunding their money.
-* Conduct an incident post-mortem to determine any additional steps we need (including monitoring) to take to prevent this class of problems from happening in the future
-
-
 ## Incident postmortems
 At Fleet, we take customer incidents very seriously. After working with customers to resolve issues, we will conduct an internal postmortem to determine any documentation or coding changes to prevent similar incidents from happening in the future. Why? We strive to make Fleet the best osquery management platform globally, and we sincerely believe that starts with sharing lessons learned with the community to become stronger together.
 
