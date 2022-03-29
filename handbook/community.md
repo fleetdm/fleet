@@ -190,11 +190,11 @@ graph TD;
 
 ## Community contributions (pull requests)
 
-When community members contribute PRs Fleet’s top priority is to help them feel engaged. We must acknowledge contributions as soon as possible, within 1 business day. We must also drive to a resolution (close/merge) as soon as possible, though this may take longer than 1 business day.
+When community members contribute changes, Fleet’s top priority is to help them feel engaged. We acknowledge contributions as soon as possible, within 1 business day. We also drive to a resolution (close/merge) as soon as possible, though this may take longer than 1 business day.
 
 ### Process
 
-1. Decide if the change is acceptable (see below). If this will take time, acknowledge the contribution and let the user know that the team will respond. If you choose not to approve a change, first thank the contributor for their interest. Next, encourage them to open an issue or discuss their ideas before writing more code. This can occur in the #fleet channel of osquery's Slack.
+1. Decide if the change is acceptable (see below). If this will take time, acknowledge the contribution and let the user know that the team will respond. If you choose not to approve a change, first thank the contributor for their interest. Next, encourage them to open an issue or share their ideas before writing more code. Discussions can occur in the #fleet channel of osquery's Slack.
 2. Help the contributor make the content suitable for merging. Ensure appropriate manual and automated testing occurred. Also, confirm that changes to files and documentation are updated. Usually, this is best done with code review and coaching the user. Sometimes Fleet may complete a PR by improving testing and code review.
 3. After reviewing and addressing all the changes a PR needs, a Fleet team member may merge. Before merging, please use your best judgment. Double-check that CI is passing, documentation is updated, and a changes file is created.
 4. Once a PR is approved and merged, thank and congratulate the contributor. Next, share it with the team in the #help-promote channel of Fleet's Slack so they can promote it on social media. Recognized contributors often become project champions.
