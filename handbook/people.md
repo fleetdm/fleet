@@ -259,4 +259,11 @@ These are the Slack channels the digital experience team maintains. If the chann
 
 **Who should have these channels unmuted?** Members of this group, everyone else is encouraged to mute them.
 
+## Rituals
+
+### OKR Planning
+
+
+
+
 <meta name="maintainedBy" value="eashaw">
