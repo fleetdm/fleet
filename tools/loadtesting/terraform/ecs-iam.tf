@@ -40,7 +40,7 @@ data "aws_iam_policy_document" "fleet" {
   }
 
 
-// We use wildcards on these actions for buckets that are single-use.
+  // We use wildcards on these actions for buckets that are single-use.
   statement {
     actions = [ #tfsec:ignore:aws-iam-no-policy-wildcards
       "kms:Encrypt*",

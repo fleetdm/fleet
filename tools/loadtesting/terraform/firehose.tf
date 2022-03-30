@@ -28,11 +28,11 @@ resource "aws_s3_bucket" "osquery-results" { #tfsec:ignore:aws-s3-encryption-cus
 }
 
 resource "aws_s3_bucket_public_access_block" "osquery-results" {
-  bucket              = aws_s3_bucket.osquery-results.id
-  block_public_acls   = true
-  block_public_policy = true
-  ignore_public_acls = true
-  restrict_public_buckets = true 
+  bucket                  = aws_s3_bucket.osquery-results.id
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
 }
 // Customer keys are not supported in our Fleet Terraforms at the moment. We will evaluate the
 // possibility of providing this capability in the future.
@@ -72,11 +72,11 @@ resource "aws_s3_bucket_public_access_block" "osquery-status" {
 }
 
 resource "aws_s3_bucket_public_access_block" "osquery-status" {
-  bucket              = aws_s3_bucket.osquery-status.id
-  block_public_acls   = true
-  block_public_policy = true
-  ignore_public_acls = true
-  restrict_public_buckets = true 
+  bucket                  = aws_s3_bucket.osquery-status.id
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
 }
 
 data "aws_iam_policy_document" "osquery_results_policy_doc" {

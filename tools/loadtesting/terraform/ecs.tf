@@ -1,5 +1,5 @@
 resource "aws_alb" "main" {
-  name                       = "fleetdm"
+  name = "fleetdm"
   // Exposed to the Internet by design
   internal                   = false #tfsec:ignore:aws-elb-alb-not-public
   security_groups            = [aws_security_group.lb.id, aws_security_group.backend.id]
@@ -23,7 +23,7 @@ resource "aws_alb_listener" "https-fleetdm-internal" {
   load_balancer_arn = aws_alb.internal.arn
   port              = 80
   // We will evaluate removing all HTTP eventually, including the removal of HTTP redirects.
-  protocol          = "HTTP" #tfsec:ignore:aws-elb-http-not-used:exp:2022-06-01
+  protocol = "HTTP" #tfsec:ignore:aws-elb-http-not-used:exp:2022-06-01
 
   default_action {
     target_group_arn = aws_alb_target_group.internal.arn
