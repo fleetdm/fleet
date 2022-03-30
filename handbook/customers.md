@@ -104,7 +104,7 @@ The following [Slack channels are maintained](https://fleetdm.com/handbook/compa
 
 | Slack channel                       | [DRI](https://fleetdm.com/handbook/company#group-slack-channels)    |
 |:------------------------------------|:--------------------------------------------------------------------|
-| `#g-cutomer-engineering`            | Tony Gauda                                                          |
+| `#g-customer-engineering`           | Tony Gauda                                                          |
 | `#fleet-at-*` _(customer channels)_ | Tony Gauda                                                          |
 | `#help-sell`                        | Andrew Bare                                                         |
 | `#_from-prospective-customers`      | Andrew Bare                                                         |
