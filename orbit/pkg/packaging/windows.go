@@ -41,6 +41,12 @@ func BuildMSI(opt Options) (string, error) {
 	updateOpt.RootDirectory = orbitRoot
 	updateOpt.Targets = update.WindowsTargets
 
+	if opt.Desktop {
+		updateOpt.Targets["desktop"] = update.DesktopWindowsTarget
+		// Override default channel with the provided value.
+		updateOpt.Targets.SetTargetChannel("desktop", opt.DesktopChannel)
+	}
+
 	// Override default channels with the provided values.
 	updateOpt.Targets.SetTargetChannel("orbit", opt.OrbitChannel)
 	updateOpt.Targets.SetTargetChannel("osqueryd", opt.OsquerydChannel)

@@ -14,9 +14,6 @@ import (
 	"github.com/getlantern/systray"
 )
 
-//go:embed icon_white.png
-var icoBytes []byte
-
 func main() {
 	// Our TUF provided targets must support launching with "--help".
 	if len(os.Args) > 1 && os.Args[1] == "--help" {

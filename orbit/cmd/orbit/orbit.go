@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/execuser"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/insecure"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/osquery"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table"
@@ -23,7 +24,6 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update/filestore"
 	"github.com/fleetdm/fleet/v4/pkg/certificate"
 	"github.com/fleetdm/fleet/v4/pkg/file"
-	"github.com/fleetdm/fleet/v4/pkg/open"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/google/uuid"
 	"github.com/oklog/run"
@@ -216,8 +216,15 @@ func main() {
 			opt.Targets = update.DarwinLegacyTargets
 		}
 
-		if runtime.GOOS == "darwin" && c.Bool("fleet-desktop") {
-			opt.Targets["desktop"] = update.DesktopMacOSTarget
+		if c.Bool("fleet-desktop") {
+			switch runtime.GOOS {
+			case "darwin":
+				opt.Targets["desktop"] = update.DesktopMacOSTarget
+			case "windows":
+				opt.Targets["desktop"] = update.DesktopWindowsTarget
+			default:
+				log.Fatal().Str("GOOS", runtime.GOOS).Msg("unsupported GOOS for desktop target")
+			}
 			// Override default channel with the provided value.
 			opt.Targets.SetTargetChannel("desktop", c.String("desktop-channel"))
 		}
@@ -232,9 +239,9 @@ func main() {
 		opt.InsecureTransport = c.Bool("insecure")
 
 		var (
-			updater        *update.Updater
-			osquerydPath   string
-			desktopAppPath string
+			updater      *update.Updater
+			osquerydPath string
+			desktopPath  string
 		)
 
 		// NOTE: When running in dev-mode, even if `disable-updates` is set,
@@ -252,12 +259,16 @@ func main() {
 				return fmt.Errorf("get osqueryd target: %w", err)
 			}
 			osquerydPath = osquerydLocalTarget.ExecPath
-			if runtime.GOOS == "darwin" && c.Bool("fleet-desktop") {
+			if c.Bool("fleet-desktop") {
 				fleetDesktopLocalTarget, err := updater.Get("desktop")
 				if err != nil {
 					return fmt.Errorf("get desktop target: %w", err)
 				}
-				desktopAppPath = fleetDesktopLocalTarget.DirPath
+				if runtime.GOOS == "darwin" {
+					desktopPath = fleetDesktopLocalTarget.DirPath
+				} else {
+					desktopPath = fleetDesktopLocalTarget.ExecPath
+				}
 			}
 		} else {
 			log.Info().Msg("running with auto updates disabled")
@@ -266,10 +277,17 @@ func main() {
 			if err != nil {
 				log.Fatal().Err(err).Msg("locate osqueryd")
 			}
-			if runtime.GOOS == "darwin" && c.Bool("fleet-desktop") {
-				desktopAppPath, err = updater.DirLocalPath("desktop")
-				if err != nil {
-					return fmt.Errorf("get desktop target: %w", err)
+			if c.Bool("fleet-desktop") {
+				if runtime.GOOS == "darwin" {
+					desktopPath, err = updater.DirLocalPath("desktop")
+					if err != nil {
+						return fmt.Errorf("get desktop target: %w", err)
+					}
+				} else {
+					desktopPath, err = updater.ExecutableLocalPath("desktop")
+					if err != nil {
+						return fmt.Errorf("get desktop target: %w", err)
+					}
 				}
 			}
 		}
@@ -296,7 +314,7 @@ func main() {
 
 		if !c.Bool("disable-updates") {
 			targets := []string{"orbit", "osqueryd"}
-			if runtime.GOOS == "darwin" && c.Bool("fleet-desktop") {
+			if c.Bool("fleet-desktop") && (runtime.GOOS == "darwin" || runtime.GOOS == "windows") {
 				targets = append(targets, "desktop")
 			}
 			updateRunner, err := update.NewRunner(updater, update.RunnerOptions{
@@ -458,8 +476,8 @@ func main() {
 		}))
 		g.Add(ext.Execute, ext.Interrupt)
 
-		if runtime.GOOS == "darwin" && c.Bool("fleet-desktop") {
-			desktopRunner := newDesktopRunner(desktopAppPath, fleetURL, deviceAuthToken, c.Bool("insecure"))
+		if c.Bool("fleet-desktop") && (runtime.GOOS == "darwin" || runtime.GOOS == "windows") {
+			desktopRunner := newDesktopRunner(desktopPath, fleetURL, deviceAuthToken, c.Bool("insecure"))
 			g.Add(desktopRunner.actor())
 		}
 
@@ -481,16 +499,16 @@ func main() {
 }
 
 type desktopRunner struct {
-	appPath         string
+	desktopPath     string
 	fleetURL        string
 	deviceAuthToken string
 	insecure        bool
 	done            chan struct{}
 }
 
-func newDesktopRunner(appPath, fleetURL, deviceAuthToken string, insecure bool) *desktopRunner {
+func newDesktopRunner(desktopPath, fleetURL, deviceAuthToken string, insecure bool) *desktopRunner {
 	return &desktopRunner{
-		appPath:         appPath,
+		desktopPath:     desktopPath,
 		fleetURL:        fleetURL,
 		deviceAuthToken: deviceAuthToken,
 		insecure:        insecure,
@@ -503,20 +521,25 @@ func (d *desktopRunner) actor() (func() error, func(error)) {
 }
 
 func (d *desktopRunner) execute() error {
-	log.Info().Str("path", d.appPath).Msg("opening")
+	log.Info().Str("path", d.desktopPath).Msg("opening")
 	url, err := url.Parse(d.fleetURL)
 	if err != nil {
 		return fmt.Errorf("invalid fleet-url: %w", err)
 	}
 	url.Path = path.Join(url.Path, "device", d.deviceAuthToken)
-	opts := []open.AppOption{
-		open.AppWithEnv("FLEET_DESKTOP_DEVICE_URL", url.String()),
-		open.AppWithEnv("FLEET_DESKTOP_DEVICE_API_TEST_PATH", path.Join("api", "latest", "fleet", "device", d.deviceAuthToken)),
+	opts := []execuser.Option{
+		execuser.WithEnv("FLEET_DESKTOP_DEVICE_URL", url.String()),
+		execuser.WithEnv("FLEET_DESKTOP_DEVICE_API_TEST_PATH", path.Join("api", "latest", "fleet", "device", d.deviceAuthToken)),
 	}
 	if d.insecure {
-		opts = append(opts, open.AppWithEnv("FLEET_DESKTOP_INSECURE", "1"))
+		opts = append(opts, execuser.WithEnv("FLEET_DESKTOP_INSECURE", "1"))
 	}
-	if err := open.App(d.appPath, opts...); err != nil {
+
+	// Orbit runs as root user on Unix and as SYSTEM (Windows Service) user on Windows.
+	// To be able to run the desktop application (mostly to register the icon in the system tray)
+	// we need to run the application as the login user.
+	// Package execuser provides multi-platform support for this.
+	if err := execuser.Run(d.desktopPath, opts...); err != nil {
 		return fmt.Errorf("open desktop app: %w", err)
 	}
 
@@ -590,7 +613,7 @@ func getProcessByName(name string) (*gopsutil_process.Process, error) {
 			log.Debug().Err(err).Int32("pid", process.Pid).Msg("get process name")
 			continue
 		}
-		if processName == name {
+		if strings.HasPrefix(processName, name) {
 			foundProcess = process
 			break
 		}
