@@ -31,9 +31,8 @@ resource "aws_elasticache_replication_group" "default" {
 }
 
 resource "aws_security_group" "redis" {
-  description = "Security group for Redis"
-  name        = local.security_group_name
-  vpc_id      = module.vpc.vpc_id
+  name   = local.security_group_name
+  vpc_id = module.vpc.vpc_id
 }
 
 locals {
@@ -41,7 +40,6 @@ locals {
 }
 
 resource "aws_security_group_rule" "ingress" {
-  description       = "Redis from private VPC"
   type              = "ingress"
   from_port         = "6379"
   to_port           = "6379"
@@ -51,11 +49,10 @@ resource "aws_security_group_rule" "ingress" {
 }
 
 resource "aws_security_group_rule" "egress" {
-  type        = "egress"
-  description = "Redis VPC egress"
-  from_port   = 0
-  to_port     = 0
-  protocol    = "-1"
+  type      = "egress"
+  from_port = 0
+  to_port   = 0
+  protocol  = "-1"
   // Egress filtering is not currently provided by our Terraform templates.
   cidr_blocks       = ["0.0.0.0/0"] #tfsec:ignore:aws-vpc-no-public-egress-sgr:exp:2022-10-01
   security_group_id = aws_security_group.redis.id
