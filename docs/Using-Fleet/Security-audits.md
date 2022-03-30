@@ -7,7 +7,7 @@ Back in 2021, when Orbit was still new, alpha, and likely not used by anyone but
 
 For more context around why we did this, please see this [post](https://blog.fleetdm.com/) on the Fleet blog.
 
-**A ACTUAL LINK TO THE POST WILL BE ADDED AS SOON AS BLOG IS PUBLIC.**
+**AN ACTUAL LINK TO THE POST WILL BE ADDED AS SOON AS BLOG IS PUBLIC.**
 
 You can find the full report here: [2021-04-26-orbit-auto-updater-assessment.pdf](https://github.com/fleetdm/fleet/raw/3ad02fc697e196b5628bc07e807fbc2db3086393/docs/files/2021-04-26-orbit-auto-updater-assessment.pdf)
 
