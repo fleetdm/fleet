@@ -1,5 +1,7 @@
-//go:build !windows
-// +build !windows
+//go:build darwin
+// +build darwin
+
+// TODO(lucas): Once we support Linux, amend the above build tags.
 
 package main
 
