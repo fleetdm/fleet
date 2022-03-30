@@ -53,7 +53,7 @@ assume On-Demand pricing (savings are available through Reserved Instances). Cal
 | MySQL        | 5.7.mysql_aurora.2.10.0 | db.r6g.large  |
 
 
-#### [Up to 150000 hosts](https://calculator.aws/#/estimate?id=f40ef392f51175a388b3a9cce5d2acc1fa745181)
+#### [Up to 150000 hosts](https://calculator.aws/#/estimate?id=eed68e1f1854ff2b0eacdacddb5803022101c207)
 
 | Fleet instances | CPU Units      | RAM |
 |-----------------|----------------|-----|
