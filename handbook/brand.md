@@ -123,5 +123,18 @@ In Figma:
   * Avoid using SVGs or icon fonts.
 3. Click the __Export__ button.
 
-<meta name="maintainedBy" value="mike-j-thomas">
+## Slack channels
 
+The following [Slack channels are maintained](https://fleetdm.com/handbook/company#group-slack-channels) by this group:
+
+| Slack channel               | [DRI](https://fleetdm.com/handbook/company#group-slack-channels)    |
+|:----------------------------|:--------------------------------------------------------------------|
+| `#g-digital-experience`     | Mike Thomas                                                         |
+| `#oooh-automation`          | Mike McNeil                                                         |
+| `#g-community`              | Kathy Satterlee                                                     |
+| `#g-people`                 | Eric Shaw                                                           |
+| `#help-onboarding`          | Eric Shaw                                                           |
+| `#help-finance`             | Eric Shaw                                                           |
+
+
+<meta name="maintainedBy" value="mike-j-thomas">
