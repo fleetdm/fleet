@@ -36,11 +36,11 @@ resource "aws_s3_bucket" "remote_state" { #tfsec:ignore:aws-s3-encryption-custom
 }
 
 resource "aws_s3_bucket_public_access_block" "fleet_terraform_state" {
-  bucket              = aws_s3_bucket.remote_state.id
-  block_public_acls   = true
-  block_public_policy = true
-  ignore_public_acls = true
-  restrict_public_buckets = true 
+  bucket                  = aws_s3_bucket.remote_state.id
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
 }
 
 
@@ -57,13 +57,13 @@ resource "aws_dynamodb_table" "fleet_terraform_state_lock" {
   tags = {
     Name = "DynamoDB Terraform State Lock Table"
   }
-// Customer keys are not supported in our Fleet Terraforms at the moment. We will evaluate the
-// possibility of providing this capability in the future.
+  // Customer keys are not supported in our Fleet Terraforms at the moment. We will evaluate the
+  // possibility of providing this capability in the future.
   server_side_encryption { #tfsec:ignore:aws-dynamodb-table-customer-key:exp:2022-07-01
-    enabled = true // enabled server side encryption
-    }
-  
+    enabled = true         // enabled server side encryption
+  }
+
   point_in_time_recovery {
-        enabled = true
-    }
+    enabled = true
+  }
 }

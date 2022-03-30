@@ -22,12 +22,12 @@ resource "aws_route53_record" "record" {
 }
 
 resource "aws_lb" "main" {
-  name            = "percona"
+  name = "percona"
   // Exposed to the Internet by design
-  internal        = false #tfsec:ignore:aws-elb-alb-not-public
-  security_groups = [aws_security_group.lb.id, aws_security_group.backend.id]
-  subnets         = var.public_subnets
-  idle_timeout    = 120
+  internal                   = false #tfsec:ignore:aws-elb-alb-not-public
+  security_groups            = [aws_security_group.lb.id, aws_security_group.backend.id]
+  subnets                    = var.public_subnets
+  idle_timeout               = 120
   drop_invalid_header_fields = true
 }
 
@@ -65,8 +65,8 @@ resource "aws_instance" "percona" { #tfsec:ignore:aws-ec2-enable-at-rest-encrypt
   vpc_security_group_ids = [aws_security_group.backend.id]
   iam_instance_profile   = aws_iam_instance_profile.profile.name
   metadata_options {
-  http_tokens = "required"
-  }  
+    http_tokens = "required"
+  }
 }
 
 resource "aws_iam_instance_profile" "profile" {

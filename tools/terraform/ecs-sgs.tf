@@ -10,9 +10,9 @@ resource "aws_security_group_rule" "lb-ingress" {
   description = "${var.prefix}: allow traffic from public internet"
   type        = "ingress"
 
-  from_port   = "443"
-  to_port     = "443"
-  protocol    = "tcp"
+  from_port = "443"
+  to_port   = "443"
+  protocol  = "tcp"
   // Internet connectivity here is by design
   cidr_blocks = ["0.0.0.0/0"] #tfsec:ignore:aws-vpc-no-public-ingress-sgr
 
@@ -23,9 +23,9 @@ resource "aws_security_group_rule" "lb-http-ingress" {
   description = "${var.prefix}: allow traffic from public internet"
   type        = "ingress"
 
-  from_port   = "80"
-  to_port     = "80"
-  protocol    = "tcp"
+  from_port = "80"
+  to_port   = "80"
+  protocol  = "tcp"
   // Internet connectivity here is by design
   cidr_blocks = ["0.0.0.0/0"] #tfsec:ignore:aws-vpc-no-public-ingress-sgr
 
@@ -37,9 +37,9 @@ resource "aws_security_group_rule" "lb-egress" {
   description = "${var.prefix}: allow all outbound traffic"
   type        = "egress"
 
-  from_port   = 0
-  to_port     = 0
-  protocol    = "-1"
+  from_port = 0
+  to_port   = 0
+  protocol  = "-1"
   // Egress filtering is not currently provided by our Terraform templates.
   cidr_blocks = ["0.0.0.0/0"] #tfsec:ignore:aws-vpc-no-public-egress-sgr:exp:2022-10-01
 
@@ -72,9 +72,9 @@ resource "aws_security_group_rule" "backend-egress" {
   description = "${var.prefix}: allow all outbound traffic"
   type        = "egress"
 
-  from_port   = 0
-  to_port     = 0
-  protocol    = "-1"
+  from_port = 0
+  to_port   = 0
+  protocol  = "-1"
   // Egress filtering is not currently provided by our Terraform templates.
   cidr_blocks = ["0.0.0.0/0"] #tfsec:ignore:aws-vpc-no-public-egress-sgr:exp:2022-10-01
 

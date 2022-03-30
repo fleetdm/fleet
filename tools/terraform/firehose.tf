@@ -24,7 +24,7 @@ resource "aws_s3_bucket" "osquery-results" { #tfsec:ignore:aws-s3-encryption-cus
   }
 }
 
-resource "aws_s3_bucket_public_access_block" "osquery-results" { 
+resource "aws_s3_bucket_public_access_block" "osquery-results" {
   bucket                  = aws_s3_bucket.osquery-results.id
   block_public_acls       = true
   block_public_policy     = true
