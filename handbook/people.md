@@ -250,13 +250,7 @@ When the final signature is added to an envelope in Docusign, it is marked as co
 
 ## Slack channels
 
-These are the Slack channels the digital experience team maintains. If the channel has a [directly responsible individual](#directly-resonsible-individuals) (**DRI**), they will be specified. These people are responsible for keeping up with all new messages, even if they aren't mentioned. 
+Please see [Brand > Slack channels](https://fleetdm.com/handbook/brand#slack-channels).
 
-- **#g-digital-experience** - **DRI**: Mike Thomas
-- **#peepops** - **DRI**: Eric Shaw
-- **#help-onboarding** - **DRI**: Eric Shaw
-- **#oooh-automation** - **DRI**: Mike McNeil
-
-**Who should have these channels unmuted?** Members of this group, everyone else is encouraged to mute them.
 
 <meta name="maintainedBy" value="eashaw">
