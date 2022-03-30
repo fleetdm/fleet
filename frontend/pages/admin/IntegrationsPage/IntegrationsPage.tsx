@@ -57,6 +57,9 @@ const IntegrationsPage = (): JSX.Element => {
     integrationEditing,
     setIntegrationEditing,
   ] = useState<IJiraIntegration>();
+  const [integrationsIndexed, setIntegrationsIndexed] = useState<
+    IJiraIntegration[]
+  >();
   const [backendValidators, setBackendValidators] = useState<{
     [key: string]: string;
   }>({});
@@ -78,10 +81,6 @@ const IntegrationsPage = (): JSX.Element => {
     }
   );
 
-  // might need to switch this around so data is config
-  // and then we make setIntegrations(data.integrations.jira)
-  // or just do integrations = config.integrations.jira anytime we want to do integrations
-
   const {
     data: integrations,
     isLoading: isLoadingIntegrations,
@@ -93,6 +92,13 @@ const IntegrationsPage = (): JSX.Element => {
     {
       select: (data: IConfigNested) => {
         return data.integrations.jira;
+      },
+      onSuccess: (data) => {
+        const addIndex = data.map((integration, index) => {
+          return { ...integration, integrationIndex: index };
+        });
+        console.log("addIndex", addIndex);
+        setIntegrationsIndexed(addIndex);
       },
     }
   );
@@ -138,13 +144,25 @@ const IntegrationsPage = (): JSX.Element => {
 
   const onCreateSubmit = useCallback(
     (jiraIntegrationSubmitData: IJiraIntegration[]) => {
+      console.log("jiraIntegrationSubmitData", jiraIntegrationSubmitData);
       // replace with .update when we have the API
       configAPI
         .updateIntegrations(MOCKS.configAdd2)
         .then(() => {
           dispatch(
-            // renderFlash("success", `Successfully added ${formData.url}.`)
-            renderFlash("success", `Successfully added.`) // TODO: fix
+            renderFlash(
+              "success",
+              <>
+                Successfully added{" "}
+                <b>
+                  {
+                    jiraIntegrationSubmitData[
+                      jiraIntegrationSubmitData.length - 1
+                    ].url
+                  }
+                </b>
+              </>
+            )
           );
           setBackendValidators({});
           toggleAddIntegrationModal();
@@ -159,8 +177,17 @@ const IntegrationsPage = (): JSX.Element => {
             dispatch(
               renderFlash(
                 "error",
-                // `Could not add ${formData.url}. Please try again.`
-                `Could not add. Please try again.` // TODO: fix
+                <>
+                  Could not add{" "}
+                  <b>
+                    {
+                      jiraIntegrationSubmitData[
+                        jiraIntegrationSubmitData.length - 1
+                      ].url
+                    }
+                  </b>
+                  . Please try again.
+                </>
               )
             );
             toggleAddIntegrationModal();
@@ -171,15 +198,21 @@ const IntegrationsPage = (): JSX.Element => {
   );
 
   const onDeleteSubmit = useCallback(() => {
-    // replace with .update when we have the APIs
     if (integrationEditing) {
+      const removeIntegration =
+        integrationEditing.integrationIndex &&
+        integrations?.splice(integrationEditing.integrationIndex, 1);
+
+      // replace with .update(removeIntegration) when we have the APIs
       configAPI
         .updateIntegrations(MOCKS.config1)
         .then(() => {
           dispatch(
             renderFlash(
               "success",
-              `Successfully deleted ${integrationEditing.url}.`
+              <>
+                Successfully deleted <b>{integrationEditing.url}</b>
+              </>
             )
           );
         })
@@ -187,7 +220,10 @@ const IntegrationsPage = (): JSX.Element => {
           dispatch(
             renderFlash(
               "error",
-              `Could not delete ${integrationEditing.url}. Please try again.`
+              <>
+                Could not delete <b>{integrationEditing.url}</b>. Please try
+                again.
+              </>
             )
           );
         })
@@ -200,13 +236,21 @@ const IntegrationsPage = (): JSX.Element => {
 
   const onEditSubmit = useCallback(
     (formData: IJiraIntegration) => {
-      // replace with .update when we have the API
+      const replaceIntegration =
+        integrationEditing?.integrationIndex &&
+        integrations?.splice(integrationEditing.integrationIndex, 1, formData);
+
+      // replace with .update(replaceIntegration) when we have the API
       configAPI
         .updateIntegrations(MOCKS.config2)
         .then(() => {
           dispatch(
-            // renderFlash("success", `Successfully edited ${formData.url}.`)
-            renderFlash("success", `Successfully edited.`) // TODO: fix later
+            renderFlash(
+              "success",
+              <>
+                Successfully edited <b>{formData.url}</b>
+              </>
+            )
           );
           setBackendValidators({});
           toggleEditIntegrationModal();
@@ -222,7 +266,10 @@ const IntegrationsPage = (): JSX.Element => {
             dispatch(
               renderFlash(
                 "error",
-                `Could not edit ${integrationEditing?.url}. Please try again.`
+                <>
+                  Could not edit <b>{integrationEditing?.url}</b>. Please try
+                  again.
+                </>
               )
             );
           }
@@ -235,6 +282,12 @@ const IntegrationsPage = (): JSX.Element => {
     action: string,
     integration: IJiraIntegration
   ): void => {
+    console.log(
+      "\nonActionSelection in Table:\naction:",
+      action,
+      "\nintegration",
+      integration
+    );
     switch (action) {
       case "edit":
         toggleEditIntegrationModal(integration);
@@ -281,7 +334,9 @@ const IntegrationsPage = (): JSX.Element => {
   };
 
   const tableHeaders = generateTableHeaders(onActionSelection);
-  const tableData = integrations ? generateDataSet(integrations) : [];
+  const tableData = integrationsIndexed
+    ? generateDataSet(integrationsIndexed)
+    : [];
 
   return (
     <div className={`${baseClass}`}>

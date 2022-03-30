@@ -44,7 +44,7 @@ interface IDataColumn {
   sortType?: string;
 }
 
-interface IIntegrationTableData extends IJiraIntegration {
+export interface IIntegrationTableData extends IJiraIntegration {
   actions: IDropdownOption[];
   name: string;
 }
@@ -120,6 +120,7 @@ const enhanceIntegrationData = (
       enable_software_vulnerabilities:
         integration.enable_software_vulnerabilities,
       name: `${integration.url} - ${integration.project_key}`,
+      integrationIndex: integration.integrationIndex,
     };
   });
 };

@@ -4,6 +4,7 @@ export interface IJiraIntegration {
   password: string;
   project_key: string;
   enable_software_vulnerabilities?: boolean;
+  integrationIndex?: number;
 }
 
 export interface IJiraIntegrationFormData {

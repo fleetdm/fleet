@@ -1,5 +1,6 @@
 import React, { FormEvent, useState, useEffect } from "react";
 import { useDispatch } from "react-redux";
+import ReactTooltip from "react-tooltip";
 
 import {
   IJiraIntegration,
@@ -9,7 +10,6 @@ import {
 import { IUserFormErrors } from "interfaces/user";
 // ignore TS error for now until these are rewritten in ts.
 import Button from "components/buttons/Button";
-import validatePresence from "components/forms/validators/validate_presence";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 
@@ -22,6 +22,11 @@ interface IIntegrationFormProps {
   createOrEditIntegrationErrors: IJiraIntegrationFormErrors;
   integrationEditing?: IJiraIntegration;
   integrations: IJiraIntegration[];
+}
+
+interface IFormField {
+  name: string;
+  value: string;
 }
 
 const IntegrationForm = ({
@@ -42,88 +47,68 @@ const IntegrationForm = ({
       integrationEditing?.enable_software_vulnerabilities || false,
   });
 
-  useEffect(() => {
-    setErrors(createOrEditIntegrationErrors);
-  }, [createOrEditIntegrationErrors]);
+  const { url, username, password, projectKey } = formData;
 
-  const onInputChange = (formField: string): ((value: string) => void) => {
-    return (value: string) => {
-      setErrors({
-        ...errors,
-        [formField]: null,
-      });
-      setFormData({
-        ...formData,
-        [formField]: value,
-      });
-    };
+  const onInputChange = ({ name, value }: IFormField) => {
+    setErrors({});
+    setFormData({ ...formData, [name]: value });
   };
 
   // IntegrationForm component can be used to create a new jira integration or edit an existing jira integration so submitData will be assembled accordingly
   const createSubmitData = (): IJiraIntegration[] => {
     let jiraIntegrationSubmitData = integrations;
 
-    if (!integrationEditing) {
-      // add to the jira array
+    if (integrationEditing) {
+      // Edit existing integration
+    } else {
+      // Create new integration
       jiraIntegrationSubmitData = [
         ...jiraIntegrationSubmitData,
         {
-          url: formData.url,
-          username: formData.username,
-          password: formData.password,
-          project_key: formData.projectKey,
+          url: url,
+          username: username,
+          password: password,
+          project_key: projectKey,
         },
       ];
-    } else {
-      // modify the array
     }
 
     return jiraIntegrationSubmitData;
   };
 
-  const validate = (): boolean => {
-    if (!validatePresence(formData.url)) {
-      setErrors({
-        ...errors,
-        url: "This field is required",
-      });
+  const validateForm = (name: string) => {
+    const validationErrors: IJiraIntegrationFormErrors = {};
 
-      return false;
+    switch (name) {
+      case "url":
+        if (!url) {
+          validationErrors.url = "Jira URL is required";
+        }
+        break;
+      case "username":
+        if (!username) {
+          validationErrors.username = "Jira username is required";
+        }
+        break;
+      case "password":
+        if (!password) {
+          validationErrors.password = "Jira password is required";
+        }
+        break;
+      case "projectKey":
+        if (!projectKey) {
+          validationErrors.projectKey = "Project Key is required";
+        }
+        break;
     }
 
-    if (!validatePresence(formData.username)) {
-      setErrors({
-        ...errors,
-        username: "This field is required",
-      });
-
-      return false;
-    }
-    if (!validatePresence(formData.password)) {
-      setErrors({
-        ...errors,
-        password: "This field is required",
-      });
-
-      return false;
-    }
-    if (!validatePresence(formData.projectKey)) {
-      setErrors({
-        ...errors,
-        projectKey: "This field is required",
-      });
-
-      return false;
-    }
-    return true;
+    setErrors(validationErrors);
   };
 
   const onFormSubmit = (evt: FormEvent): void => {
     evt.preventDefault();
-    const valid = validate();
-    if (valid) {
-      return onSubmit(createSubmitData());
-    }
+
+    return onSubmit(createSubmitData());
   };
 
   return (
@@ -138,7 +123,9 @@ const IntegrationForm = ({
         onChange={onInputChange}
         label="Jira site URL"
         placeholder="https://jira.example.com"
-        value={formData.url}
+        parseTarget
+        // onBlur={validateForm("url")}
+        value={url}
         error={errors.url}
       />
       <InputField
@@ -146,7 +133,9 @@ const IntegrationForm = ({
         onChange={onInputChange}
         label="Jira username"
         placeholder="name@example.com"
-        value={formData.username}
+        parseTarget
+        // onBlur={validateForm("username")}
+        value={username}
         error={errors.username}
         tooltip={
           "\
@@ -159,7 +148,9 @@ const IntegrationForm = ({
         name="password"
         onChange={onInputChange}
         label="Jira password"
-        value={formData.password}
+        parseTarget
+        // onBlur={validateForm("password")}
+        value={password}
         error={errors.password}
       />
       <InputField
@@ -167,7 +158,9 @@ const IntegrationForm = ({
         onChange={onInputChange}
         label="Jira project key"
         placeholder="JRAEXAMPLE"
-        value={formData.projectKey}
+        parseTarget
+        // onBlur={validateForm("projectKey")}
+        value={projectKey}
         error={errors.projectKey}
         tooltip={
           "\
@@ -179,19 +172,48 @@ const IntegrationForm = ({
         }
       />
       <div className={`${baseClass}__btn-wrap`}>
-        <Button
-          className={`${baseClass}__btn`}
-          type="submit"
-          variant="brand"
-          disabled={
-            formData.url === "" ||
-            formData.username === "" ||
-            formData.password === "" ||
-            formData.projectKey === ""
+        <div
+          data-tip
+          data-for="create-integration-button"
+          data-tip-disable={
+            !(
+              formData.url === "" ||
+              formData.username === "" ||
+              formData.password === "" ||
+              formData.projectKey === ""
+            )
           }
         >
-          Create
-        </Button>
+          <Button
+            className={`${baseClass}__btn`}
+            type="submit"
+            variant="brand"
+            disabled={
+              formData.url === "" ||
+              formData.username === "" ||
+              formData.password === "" ||
+              formData.projectKey === ""
+            }
+          >
+            Save
+          </Button>
+        </div>{" "}
+        <ReactTooltip
+          className={`create-integration-tooltip`}
+          place="bottom"
+          type="dark"
+          effect="solid"
+          backgroundColor="#3e4771"
+          id="create-integration-button"
+          data-html
+        >
+          <div
+            className={`tooltip`}
+            style={{ width: "152px", textAlign: "center" }}
+          >
+            All fields are required
+          </div>
+        </ReactTooltip>
         <Button
           className={`${baseClass}__btn`}
           onClick={onCancel}
