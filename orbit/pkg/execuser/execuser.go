@@ -4,7 +4,7 @@ package execuser
 
 type eopts struct {
 	env        [][2]string
-	stderrPath string //nolint:structcheck
+	stderrPath string //nolint:structcheck,unused
 }
 
 // Option allows configuring the application.
