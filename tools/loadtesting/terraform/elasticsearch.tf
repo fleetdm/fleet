@@ -59,10 +59,11 @@ resource "aws_security_group_rule" "es-egress" {
   description = "${local.prefix}: allow all outbound traffic"
   type        = "egress"
 
-  from_port   = 0
-  to_port     = 0
-  protocol    = "-1"
-  cidr_blocks = ["0.0.0.0/0"] #tfsec:ignore:aws-vpc-no-public-egress-sgr
+  from_port = 0
+  to_port   = 0
+  protocol  = "-1"
+  // Egress filtering is not currently provided by our Terraform templates.
+  cidr_blocks = ["0.0.0.0/0"] #tfsec:ignore:aws-vpc-no-public-egress-sgr:exp:2022-10-01
 
   security_group_id = aws_security_group.elasticsearch.id
 }

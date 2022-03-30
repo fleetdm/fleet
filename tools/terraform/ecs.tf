@@ -12,11 +12,12 @@ resource "aws_route53_record" "record" {
 }
 
 resource "aws_alb" "main" {
-  name            = "fleetdm"
-  internal        = false
-  security_groups = [aws_security_group.lb.id, aws_security_group.backend.id]
-  subnets         = module.vpc.public_subnets
-  idle_timeout    = 120
+  // Exposed to the Internet by design
+  internal                   = false #tfsec:ignore:aws-elb-alb-not-public
+  security_groups            = [aws_security_group.lb.id, aws_security_group.backend.id]
+  subnets                    = module.vpc.public_subnets
+  idle_timeout               = 120
+  name                       = "fleetdm"
   drop_invalid_header_fields = true
 }
 
@@ -108,8 +109,9 @@ resource "aws_ecs_service" "fleet" {
 
   depends_on = [aws_alb_listener.http, aws_alb_listener.https-fleetdm]
 }
-
-resource "aws_cloudwatch_log_group" "backend" {
+// Customer keys are not supported in our Fleet Terraforms at the moment. We will evaluate the
+// possibility of providing this capability in the future.
+resource "aws_cloudwatch_log_group" "backend" { #tfsec:ignore:aws-cloudwatch-log-group-customer-key:exp:2022-07-01
   name              = "fleetdm"
   retention_in_days = 1
 }
@@ -193,6 +195,10 @@ resource "aws_ecs_task_definition" "backend" {
           {
             name  = "FLEET_REDIS_ADDRESS"
             value = "${aws_elasticache_replication_group.default.primary_endpoint_address}:6379"
+          },
+          {
+            name  = "FLEET_REDIS_USE_TLS"
+            value = "true"
           },
           {
             name  = "FLEET_FIREHOSE_STATUS_STREAM"
@@ -310,6 +316,10 @@ resource "aws_ecs_task_definition" "migration" {
             name  = "FLEET_REDIS_ADDRESS"
             value = "${aws_elasticache_replication_group.default.primary_endpoint_address}:6379"
           },
+          {
+            name  = "FLEET_REDIS_USE_TLS"
+            value = "true"
+          }
         ]
       }
   ])
