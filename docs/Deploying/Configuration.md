@@ -47,7 +47,7 @@ The `fleet` binary contains several "commands". Similarly to how `git` has many 
 - `fleet prepare db`
 - `fleet serve`
 - `fleet version`
-- `fleet config_dump`
+- `fleet config_dump` 
 
 ### Options
 
