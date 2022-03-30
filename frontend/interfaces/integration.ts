@@ -7,6 +7,10 @@ export interface IJiraIntegration {
   integrationIndex?: number;
 }
 
+export interface IJiraIntegrationIndexed extends IJiraIntegration {
+  integrationIndex: number;
+}
+
 export interface IJiraIntegrationFormData {
   url: string;
   username: string;

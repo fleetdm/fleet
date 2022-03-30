@@ -3,7 +3,10 @@ import React from "react";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import DropdownCell from "components/TableContainer/DataTable/DropdownCell";
 
-import { IIntegrations, IJiraIntegration } from "interfaces/integration";
+import {
+  IJiraIntegration,
+  IJiraIntegrationIndexed,
+} from "interfaces/integration";
 import { IDropdownOption } from "interfaces/dropdownOption";
 
 import JiraIcon from "../../../../assets/images/icon-jira-24x24@2x.png";
@@ -17,7 +20,7 @@ interface IHeaderProps {
 
 interface IRowProps {
   row: {
-    original: IJiraIntegration;
+    original: IJiraIntegrationIndexed;
   };
 }
 interface ICellProps extends IRowProps {
@@ -52,7 +55,10 @@ export interface IIntegrationTableData extends IJiraIntegration {
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
 const generateTableHeaders = (
-  actionSelectHandler: (value: string, integration: IJiraIntegration) => void
+  actionSelectHandler: (
+    value: string,
+    integration: IJiraIntegrationIndexed
+  ) => void
 ): IDataColumn[] => {
   return [
     {
@@ -108,7 +114,7 @@ const generateActionDropdownOptions = (): IDropdownOption[] => {
 };
 
 const enhanceIntegrationData = (
-  integrations: IJiraIntegration[]
+  integrations: IJiraIntegrationIndexed[]
 ): IIntegrationTableData[] => {
   return Object.values(integrations).map((integration) => {
     return {
@@ -126,7 +132,7 @@ const enhanceIntegrationData = (
 };
 
 const generateDataSet = (
-  integrations: IJiraIntegration[]
+  integrations: IJiraIntegrationIndexed[]
 ): IIntegrationTableData[] => {
   return [...enhanceIntegrationData(integrations)];
 };

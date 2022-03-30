@@ -4,6 +4,7 @@ import ReactTooltip from "react-tooltip";
 import {
   IJiraIntegration,
   IJiraIntegrationFormData,
+  IJiraIntegrationIndexed,
   IJiraIntegrationFormErrors,
 } from "interfaces/integration";
 
@@ -16,9 +17,7 @@ const baseClass = "integration-form";
 interface IIntegrationFormProps {
   onCancel: () => void;
   onSubmit: (jiraIntegrationSubmitData: IJiraIntegration[]) => void;
-  serverErrors?: { base: string; email: string }; // "server" because this form does its own client validation
-  createOrEditIntegrationErrors: IJiraIntegrationFormErrors;
-  integrationEditing?: IJiraIntegration;
+  integrationEditing?: IJiraIntegrationIndexed;
   integrations: IJiraIntegration[];
 }
 
@@ -31,11 +30,8 @@ const IntegrationForm = ({
   onCancel,
   onSubmit,
   integrationEditing,
-  serverErrors,
-  createOrEditIntegrationErrors,
   integrations,
 }: IIntegrationFormProps): JSX.Element => {
-  const [errors, setErrors] = useState<any>(createOrEditIntegrationErrors);
   const [formData, setFormData] = useState<IJiraIntegrationFormData>({
     url: integrationEditing?.url || "",
     username: integrationEditing?.username || "",
@@ -48,7 +44,6 @@ const IntegrationForm = ({
   const { url, username, password, projectKey } = formData;
 
   const onInputChange = ({ name, value }: IFormField) => {
-    setErrors({});
     setFormData({ ...formData, [name]: value });
   };
 
@@ -57,9 +52,15 @@ const IntegrationForm = ({
     let jiraIntegrationSubmitData = integrations;
 
     if (integrationEditing) {
-      // Edit existing integration
+      // Edit existing integration using array replacement
+      jiraIntegrationSubmitData.splice(integrationEditing.integrationIndex, 1, {
+        url,
+        username,
+        password,
+        project_key: projectKey,
+      });
     } else {
-      // Create new integration
+      // Create new integration at end of array
       jiraIntegrationSubmitData = [
         ...jiraIntegrationSubmitData,
         {
@@ -72,35 +73,6 @@ const IntegrationForm = ({
     }
 
     return jiraIntegrationSubmitData;
-  };
-
-  const validateForm = (name: string) => {
-    const validationErrors: IJiraIntegrationFormErrors = {};
-
-    switch (name) {
-      case "url":
-        if (!url) {
-          validationErrors.url = "Jira URL is required";
-        }
-        break;
-      case "username":
-        if (!username) {
-          validationErrors.username = "Jira username is required";
-        }
-        break;
-      case "password":
-        if (!password) {
-          validationErrors.password = "Jira password is required";
-        }
-        break;
-      default:
-        if (!projectKey) {
-          validationErrors.projectKey = "Project Key is required";
-        }
-        break;
-    }
-
-    setErrors(validationErrors);
   };
 
   const onFormSubmit = (evt: FormEvent): void => {
@@ -122,9 +94,7 @@ const IntegrationForm = ({
         label="Jira site URL"
         placeholder="https://jira.example.com"
         parseTarget
-        // onBlur={validateForm("url")}
         value={url}
-        error={errors.url}
       />
       <InputField
         name="username"
@@ -132,9 +102,7 @@ const IntegrationForm = ({
         label="Jira username"
         placeholder="name@example.com"
         parseTarget
-        // onBlur={validateForm("username")}
         value={username}
-        error={errors.username}
         tooltip={
           "\
               This user must have “Create issues” for the project <br/> \
@@ -147,9 +115,7 @@ const IntegrationForm = ({
         onChange={onInputChange}
         label="Jira password"
         parseTarget
-        // onBlur={validateForm("password")}
         value={password}
-        error={errors.password}
       />
       <InputField
         name="projectKey"
@@ -157,9 +123,7 @@ const IntegrationForm = ({
         label="Jira project key"
         placeholder="JRAEXAMPLE"
         parseTarget
-        // onBlur={validateForm("projectKey")}
         value={projectKey}
-        error={errors.projectKey}
         tooltip={
           "\
               To find the Jira project key, head to your project in <br /> \
@@ -209,7 +173,7 @@ const IntegrationForm = ({
             className={`tooltip`}
             style={{ width: "152px", textAlign: "center" }}
           >
-            All fields are required
+            Complete all fields to save the integration
           </div>
         </ReactTooltip>
         <Button

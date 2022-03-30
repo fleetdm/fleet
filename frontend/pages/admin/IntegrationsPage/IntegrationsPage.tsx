@@ -7,6 +7,7 @@ import { IConfigNested } from "interfaces/config";
 import {
   IIntegrations,
   IJiraIntegration,
+  IJiraIntegrationIndexed,
   IJiraIntegrationFormData,
   IJiraIntegrationFormErrors,
 } from "interfaces/integration";
@@ -53,9 +54,9 @@ const IntegrationsPage = (): JSX.Element => {
   const [
     integrationEditing,
     setIntegrationEditing,
-  ] = useState<IJiraIntegration>();
+  ] = useState<IJiraIntegrationIndexed>();
   const [integrationsIndexed, setIntegrationsIndexed] = useState<
-    IJiraIntegration[]
+    IJiraIntegrationIndexed[]
   >();
   const [backendValidators, setBackendValidators] = useState<{
     [key: string]: string;
@@ -94,7 +95,6 @@ const IntegrationsPage = (): JSX.Element => {
         const addIndex = data.map((integration, index) => {
           return { ...integration, integrationIndex: index };
         });
-        console.log("addIndex", addIndex);
         setIntegrationsIndexed(addIndex);
       },
     }
@@ -110,7 +110,7 @@ const IntegrationsPage = (): JSX.Element => {
   ]);
 
   const toggleDeleteIntegrationModal = useCallback(
-    (integration?: IJiraIntegration) => {
+    (integration?: IJiraIntegrationIndexed) => {
       setShowDeleteIntegrationModal(!showDeleteIntegrationModal);
       integration
         ? setIntegrationEditing(integration)
@@ -124,7 +124,7 @@ const IntegrationsPage = (): JSX.Element => {
   );
 
   const toggleEditIntegrationModal = useCallback(
-    (integration?: IJiraIntegration) => {
+    (integration?: IJiraIntegrationIndexed) => {
       setShowEditIntegrationModal(!showEditIntegrationModal);
       setBackendValidators({});
       integration
@@ -141,7 +141,10 @@ const IntegrationsPage = (): JSX.Element => {
 
   const onCreateSubmit = useCallback(
     (jiraIntegrationSubmitData: IJiraIntegration[]) => {
-      console.log("jiraIntegrationSubmitData", jiraIntegrationSubmitData);
+      console.log(
+        "onCreateSubmit data \njiraIntegrationSubmitData:",
+        jiraIntegrationSubmitData
+      );
       // replace with .update when we have the API
       configAPI
         .updateIntegrations(MOCKS.configAdd2)
@@ -196,10 +199,15 @@ const IntegrationsPage = (): JSX.Element => {
 
   const onDeleteSubmit = useCallback(() => {
     if (integrationEditing) {
-      const removeIntegration =
-        integrationEditing.integrationIndex &&
-        integrations?.splice(integrationEditing.integrationIndex, 1);
+      const removeIntegration = integrations?.splice(
+        integrationEditing.integrationIndex,
+        1
+      );
 
+      console.log(
+        "onDeleteSubmit data \n removeIntegration:",
+        removeIntegration
+      );
       // replace with .update(removeIntegration) when we have the APIs
       configAPI
         .updateIntegrations(MOCKS.config1)
@@ -232,52 +240,61 @@ const IntegrationsPage = (): JSX.Element => {
   }, [dispatch, integrationEditing, toggleDeleteIntegrationModal]);
 
   const onEditSubmit = useCallback(
-    (formData: IJiraIntegration) => {
-      const replaceIntegration =
-        integrationEditing?.integrationIndex &&
-        integrations?.splice(integrationEditing.integrationIndex, 1, formData);
+    (jiraIntegrationSubmitData: IJiraIntegration[]) => {
+      console.log(
+        "onEditSubmit data \njiraIntegrationSubmitData:",
+        jiraIntegrationSubmitData
+      );
 
-      // replace with .update(replaceIntegration) when we have the API
-      configAPI
-        .updateIntegrations(MOCKS.config2)
-        .then(() => {
-          dispatch(
-            renderFlash(
-              "success",
-              <>
-                Successfully edited <b>{formData.url}</b>
-              </>
-            )
-          );
-          setBackendValidators({});
-          toggleEditIntegrationModal();
-          refetchIntegrations();
-        })
-        .catch((updateError: { data: IApiError }) => {
-          console.error(updateError);
-          if (updateError.data.errors[0].reason.includes("Duplicate")) {
-            setBackendValidators({
-              name: "A team with this name already exists",
-            });
-          } else {
+      if (integrationEditing) {
+        configAPI
+          .updateIntegrations(MOCKS.config2)
+          .then(() => {
             dispatch(
               renderFlash(
-                "error",
+                "success",
                 <>
-                  Could not edit <b>{integrationEditing?.url}</b>. Please try
-                  again.
+                  Successfully edited{" "}
+                  <b>
+                    {
+                      jiraIntegrationSubmitData[
+                        integrationEditing?.integrationIndex
+                      ].url
+                    }
+                  </b>
                 </>
               )
             );
-          }
-        });
+            setBackendValidators({});
+            toggleEditIntegrationModal();
+            refetchIntegrations();
+          })
+          .catch((updateError: { data: IApiError }) => {
+            console.error(updateError);
+            if (updateError.data.errors[0].reason.includes("Duplicate")) {
+              setBackendValidators({
+                name: "A team with this name already exists",
+              });
+            } else {
+              dispatch(
+                renderFlash(
+                  "error",
+                  <>
+                    Could not edit <b>{integrationEditing?.url}</b>. Please try
+                    again.
+                  </>
+                )
+              );
+            }
+          });
+      }
     },
     [dispatch, integrationEditing, toggleEditIntegrationModal]
   );
 
   const onActionSelection = (
     action: string,
-    integration: IJiraIntegration
+    integration: IJiraIntegrationIndexed
   ): void => {
     console.log(
       "\nonActionSelection in Table:\naction:",
@@ -367,7 +384,6 @@ const IntegrationsPage = (): JSX.Element => {
           onSubmit={onCreateSubmit}
           backendValidators={backendValidators}
           integrations={integrations || []}
-          createIntegrationErrors={createIntegrationError}
         />
       )}
       {showDeleteIntegrationModal && (
@@ -381,8 +397,9 @@ const IntegrationsPage = (): JSX.Element => {
         <EditIntegrationModal
           onCancel={toggleEditIntegrationModal}
           onSubmit={onEditSubmit}
-          defaultName={integrationEditing?.url || ""}
           backendValidators={backendValidators}
+          integrations={integrations || []}
+          integrationEditing={integrationEditing}
         />
       )}
     </div>

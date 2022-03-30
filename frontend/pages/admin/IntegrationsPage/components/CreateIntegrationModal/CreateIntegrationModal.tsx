@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 
 import Modal from "components/Modal";
 import InfoBanner from "components/InfoBanner/InfoBanner";
@@ -17,7 +17,6 @@ interface ICreateIntegrationModalProps {
   onCancel: () => void;
   onSubmit: (jiraIntegrationSubmitData: IJiraIntegration[]) => void;
   serverErrors?: { base: string; email: string };
-  createIntegrationErrors: IJiraIntegrationFormErrors;
   backendValidators: { [key: string]: string };
   integrations: IJiraIntegration[];
 }
@@ -27,7 +26,6 @@ const CreateIntegrationModal = ({
   onSubmit,
   backendValidators,
   serverErrors,
-  createIntegrationErrors,
   integrations,
 }: ICreateIntegrationModalProps): JSX.Element => {
   const [errors, setErrors] = useState<{ [key: string]: string }>(
@@ -55,8 +53,6 @@ const CreateIntegrationModal = ({
           </p>
         </InfoBanner>
         <IntegrationForm
-          serverErrors={serverErrors}
-          createOrEditIntegrationErrors={createIntegrationErrors}
           onCancel={onCancel}
           onSubmit={onSubmit}
           integrations={integrations}
