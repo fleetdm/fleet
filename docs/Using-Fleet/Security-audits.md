@@ -134,4 +134,8 @@ We have documented the actual permissions expected on April 26, 2021, as you can
 ### Summary
 ToB identified a few issues, and we addressed most of them. Most of these impacted the security of the resulting agent installation, such as permission-related issues.
 
-Our goal with this audit was to ensure that our auto-updater mechanism, built with [TUF](https://theupdateframework.io/), was sound. We believe it is, and we are planning future improvements to make it more robust and resilient to compromise.
+Our goal with this audit was to ensure that our auto-updater mechanism, built with
+[TUF](https://theupdateframework.io/), was sound. We believe it is, and we are planning future
+improvements to make it more robust and resilient to compromise.
+
+<meta name="pageOrderInSection" value="790">
