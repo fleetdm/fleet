@@ -2,9 +2,6 @@ import React, { useState, useCallback, useEffect } from "react";
 
 import Modal from "components/Modal";
 // @ts-ignore
-import InputField from "components/forms/fields/InputField";
-import Button from "components/buttons/Button";
-import { IConfig } from "interfaces/config";
 import { IJiraIntegration } from "interfaces/integration";
 
 const baseClass = "edit-team-modal";
@@ -19,7 +16,6 @@ interface IEditIntegrationModalProps {
 const EditIntegrationModal = ({
   onCancel,
   onSubmit,
-  defaultName,
   backendValidators,
 }: IEditIntegrationModalProps): JSX.Element => {
   const [url, setURL] = useState<string>("");
@@ -39,25 +35,6 @@ const EditIntegrationModal = ({
   useEffect(() => {
     setErrors(backendValidators);
   }, [backendValidators]);
-
-  const onInputChange = useCallback(
-    (value: string) => {
-      setURL(value);
-      setErrors({});
-    },
-    [setURL]
-  );
-
-  const onFormSubmit = (evt: React.MouseEvent<HTMLFormElement>) => {
-    evt.preventDefault();
-    onSubmit({
-      url: url,
-      username: username,
-      password: password,
-      project_key: projectKey,
-      enable_software_vulnerabilities: enableSoftwareVulnerabilities,
-    });
-  };
 
   return (
     <Modal title={"Edit integration"} onExit={onCancel} className={baseClass}>

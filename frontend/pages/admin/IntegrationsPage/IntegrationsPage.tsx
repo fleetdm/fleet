@@ -3,7 +3,7 @@ import { useDispatch } from "react-redux";
 import { useQuery } from "react-query";
 
 import { ITeam } from "interfaces/team";
-import { IConfig, IConfigNested } from "interfaces/config";
+import { IConfigNested } from "interfaces/config";
 import {
   IIntegrations,
   IJiraIntegration,
@@ -11,26 +11,23 @@ import {
   IJiraIntegrationFormErrors,
 } from "interfaces/integration";
 import { IApiError } from "interfaces/errors";
-// ignore TS error for now until these are rewritten in ts.
+
 // @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions";
 import Button from "components/buttons/Button";
 // @ts-ignore
 import FleetIcon from "components/icons/FleetIcon";
+import { DEFAULT_CREATE_INTEGRATION_ERRORS } from "utilities/constants";
 
 import configAPI from "services/entities/config";
 import teamsAPI from "services/entities/teams";
-
 import MOCKS from "services/mock_service/mocks/responses";
 
 import TableContainer from "components/TableContainer";
-// @ts-ignore
 import TableDataError from "components/TableDataError";
 import AddIntegrationModal from "./components/CreateIntegrationModal";
 import DeleteIntegrationModal from "./components/DeleteIntegrationModal";
 import EditIntegrationModal from "./components/EditIntegrationModal";
-
-import { DEFAULT_CREATE_INTEGRATION_ERRORS } from "utilities/constants";
 
 import {
   generateTableHeaders,

@@ -1,5 +1,4 @@
-import React, { FormEvent, useState, useEffect } from "react";
-import { useDispatch } from "react-redux";
+import React, { FormEvent, useState } from "react";
 import ReactTooltip from "react-tooltip";
 
 import {
@@ -7,8 +6,7 @@ import {
   IJiraIntegrationFormData,
   IJiraIntegrationFormErrors,
 } from "interfaces/integration";
-import { IUserFormErrors } from "interfaces/user";
-// ignore TS error for now until these are rewritten in ts.
+
 import Button from "components/buttons/Button";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
@@ -65,9 +63,9 @@ const IntegrationForm = ({
       jiraIntegrationSubmitData = [
         ...jiraIntegrationSubmitData,
         {
-          url: url,
-          username: username,
-          password: password,
+          url,
+          username,
+          password,
           project_key: projectKey,
         },
       ];
@@ -95,7 +93,7 @@ const IntegrationForm = ({
           validationErrors.password = "Jira password is required";
         }
         break;
-      case "projectKey":
+      default:
         if (!projectKey) {
           validationErrors.projectKey = "Project Key is required";
         }
