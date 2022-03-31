@@ -36,6 +36,75 @@ DRIs help us collaborate efficiently by knowing exactly who is responsible and c
 *Luke Heath is backup 
 
 >You can read more about directly responsible individuals in [GitLab's handbook](https://about.gitlab.com/handbook/people-group/directly-responsible-individuals/)
+Things new and old employees should know
+## Some things you should know about Fleet's proccess culture
+### Why do we wireframe first?
+- Wireframing is called “drafting” at Fleet and is done in Figma.
+- Anyone can make a wireframe suggestion, and wireframes are easy to contribute without being code literate.
+- Drafting is completed for each change.
+- It can be thrown away after changes. Coding first leaves verbiage that is difficult to update, if it ever gets done at all.
+- It allows you to simplify the creation and testing of error messages.
+- Iterating in wireframes first lets us do all this for:
+    - Error messages
+    - Layouts
+    - Flows
+    - Interactions
+    - Help text
+    - Button text
+    - Forms
+    - URLs
+    - API parameters
+    - API response data…and more
+
+### Why mono repo?
+
+- One repo keeps all of the relevant work in one place. The only exception is when working on something confidential.
+- One repo means that there is less to get lost.
+- One repo pools GitHub stars to reflect Fleet’s actual presence better.
+
+### Why organize work in team-based kanban boards?
+
+- Kanban boards provide a uniform layout across all teams where anyone in the company can look to see what other teams are working on and have coming up.
+- The different columns on the boards allow us to create a game plan for our to-do list for each 3 week iteration.
+- These boards allow anyone in the world to contribute.
+
+### Why 3 week cadence?
+
+- Fleet product is released every 3 weeks so everyone in the company is synced up to this same schedule.
+- Other companies use a 4 week release cycle but at Fleet, we like to move a little faster so we can get more done.
+- Everyone always knows when the new release is so they also know when their work is due.
+
+### Why agile?
+
+- See: https://agilemanifesto.org/
+- Collaborating and pushing for the next release creates the best product and culture.
+
+Our values and mission.
+
+- See: https://fleetdm.com/handbook/company
+
+### Why the emphasis on training?
+
+- Investing in people makes them better and faster contributors.
+- Creating a culture of helping others results in people feeling more comfortable and confident even if they aren’t familiar with osquery.
+- A sharp focus on training means things are written down.
+
+### Why handbook-first strategy?
+
+- Watch: https://www.youtube.com/watch?v=aZrK8AQM8Ro
+- For more details see: https://about.gitlab.com/company/culture/all-remote/handbook-first-documentation/
+- Documenting in the handbook allows Fleet to scale up and retain knowledge for consistency.
+
+### Why not continuously generate REST API docs from javadoc-style code comments?
+- It looks cheap. Those using open API still are embarrassed by their docs.
+- Generated documentation via tools like Swagger/OpenAPI have a tendency to get out of date and becomes harder to fix to make it up to date.
+- There is less control over how to add annotations to the doc.
+- It has less visibility/ accessibility/ modifiability for people without Golang coding experience.
+- Fully integrating with swagger's format sufficiently to document everything involves more people on the team learning about the intricacies of swagger (instead of editing markdown that looks like any other markdown in the docs/website)).
+- Autogenerating docs is not the only way to make sure docs accurately reflect the API.
+- Generated docs become just as out of date as handmade docs, except since they are generated makes them more difficult to edit and therefore gated/siloed. Adaptability is efficient.
+- Using markdown allows anyone to edit our docs.
+- Replacing markdown files with code comments makes API reference docs harder to locate and edit.
 
 ## Spending company money
 As we continue to expand our company policies, we use [GitLab's open expense policy](https://about.gitlab.com/handbook/spending-company-money/) as a guide for company spending.
@@ -48,7 +117,7 @@ In brief, this means that as a Fleet team member, you may:
 
 For more developed thoughts about __spending guidelines and limits__, please read [GitLab's open expense policy](https://about.gitlab.com/handbook/spending-company-money/).
 
-### Purchasing a company-issued device.
+### Purchasing a company-issued device
 
 Fleet provides laptops for team members to use while working at Fleet. As soon as an offer is accepted, `eashaw` will reach out to the new team member to start this process. `Eashaw` will work with the new team member to get their laptop purchased and shipped to them.
 
