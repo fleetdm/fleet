@@ -1,16 +1,98 @@
 # Product
 
-🛸 Product team (weekly) board: https://github.com/orgs/fleetdm/projects/17
+⚗️ #g-product: https://github.com/orgs/fleetdm/projects/17
 
-🧱📡 Fleet core roadmap board: https://github.com/orgs/fleetdm/projects/8
+🧱📡 Fleet core roadmap: https://github.com/orgs/fleetdm/projects/8
 
 ## Job to be done
 
 Every product should have a single job that it strives to do. At Fleet we use the [Jobs to be Done
-(JTBD) framework](https://about.gitlab.com/handbook/engineering/ux/jobs-to-be-done/). Fleet's overarching job to be done is:
+(JTBD) framework](https://about.gitlab.com/handbook/engineering/ux/jobs-to-be-done/). Fleet's
+overarching job to be done is the following:
 
-> I need a way to see what laptops and servers I have, and what I need to do to keep them secure and
-> compliant."
+"I need a way to see what laptops and servers I have, and what I need to do to keep them secure and
+compliant."
+
+## Objectives and key results
+
+Fleet uses objectives and key results (OKRs) so that the organization is aligned on measurable
+goals.
+
+The product team is responsible for sub-OKRs that contribute to organization wide OKRs.
+
+### Q2 OKRs
+
+This section lists the sub-OKRs that product is responsible for under each organization wide OKR for
+Q2.
+
+#### Grow revenue with a repeatable customer experience on top of a popular brand
+
+KR: Reduce time to value with a stable and publically available Fleet sandbox for self-service demos on fleetdm.com
+
+* Draft the sandbox experience (by May 5)
+* Draft the downloadable Fleet-osquery installers experience (by May 5)
+* Determine what needs to be added to usage statistics to record demo usage (by May 5)
+
+### Deliver a simple, trustworthy, actively-used product that works every time
+
+KR 1: Customers have Fleet Desktop successfully deployed and working on the majority of their production workstations (macOS, Windows, and Linux).
+
+* Ensure that Fleet Desktop includes features that motivate a production deployment (by April 14)
+
+KR 2: Everyone on the Fleet team is able to say how "active" users are (retention) in the
+Fleet UI.
+
+KR 3: Everyone on the Fleet team is able to say what the number of hosts enrolled per operating system version is (including the distinction between e.g. CentOS 6 and Debian 5).
+
+* Determine what needs to be added to usage statistics to understand usage/adoption (by April 14)
+
+KR 4: Customers have Fleet's built-in Jira and Zendesk integrations successfully configured
+for vulnerability ticketing.
+
+* Draft the integrations experience in the Fleet UI (by April 14)
+
+KR 5: Improve the usability of the vulnerability management product as measured by accuracy
+and user adoption.
+
+* Prioritize improvements to accuracy by deciding which platforms and software types we want to
+  focus on (by April 14)
+
+* Get non-binding commitment from customer that the drafted wireframes will allow them to using
+  Fleet for vulnerability management (by April 14)
+
+* Decide which vulnerability improvements to prioritize in Q2 (by April 14)
+
+* Update documentation for vuln processing so that it answers “what software does Fleet check for
+  vulns? What software does Fleet not check?” (by April 14)
+
+KR 6: Improve quality metrics by measuring weekly the number of bugs reported in actually-released
+code.
+
+* Create “released bug” label (by April 14)
+
+* Document the following ritual: Every week, product looks at all issues labeled as “bug” and adds
+  the “released bug” label if they are reporting a bug in a released version of Fleet (by May 5)
+
+KR 7: Provide obvious value and minimal cruft out of the box with Fleet by including only ≤10
+built-in policies.
+
+* Draft the new installs experience in the Fleet UI (by April 14)
+
+* Work with Security to define what these policies are (April 14)
+
+KR 8: Bug reports are taken seriously, verified quickly, and fixed as a top priority.
+
+* Document bug triage process (by May 26)
+
+KR 9: 100% of osquery tables advertised inside the product work correctly
+
+* Test all osquery tables and be able to answer “which tables work and which don’t?”  All osquery
+  tables in the product and documentation have been tested and are verified to be working (by May 5)
+
+* Draft the removal of broken tables from Fleet’s documentation sidebar in the core product  (and/or
+  clearly mark certain tables as “deprecated” or document out the known issues) (by May 5)
+
+### Recruit, train, and equip great contributors to deliver value quickly
 
 ## Q1 2022 product objectives
 
