@@ -1,4 +1,4 @@
-import { mount } from "enzyme";
+import { render } from "@testing-library/react";
 
 import { configStub } from "test/stubs";
 import { connectedComponent, reduxMockStore } from "test/helpers";
@@ -12,18 +12,20 @@ describe("PackComposerPage - component", () => {
     app: { config: configStub },
   });
   it("renders", () => {
-    const page = mount(
+    const { container } = render(
       connectedComponent(ConnectedPacksComposerPage, { mockStore })
     );
 
-    expect(page.length).toEqual(1);
+    expect(container).not.toBeNull();
   });
 
   it("renders a PackInfoSidePanel component", () => {
-    const page = mount(
+    const { container } = render(
       connectedComponent(ConnectedPacksComposerPage, { mockStore })
     );
 
-    expect(page.find("PackInfoSidePanel").length).toEqual(1);
+    expect(container.querySelectorAll(".pack-info-side-panel").length).toEqual(
+      1
+    );
   });
 });
