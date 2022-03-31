@@ -196,22 +196,67 @@ resolution (close/merge) as soon as possible (may take longer than 1 business da
 
 ### Process
 
-1. Decide whether the change is acceptable (see below). If this will take time, acknowledge the
-   contribution and let the user know that the team will respond. For changes that are not
-   acceptable, thank the contributor for their interest and encourage them to open an issue or
-   discuss proposed changes in the `#fleet` channel of osquery Slack before working on any more
-   code.
-2. Help the contributor make the content appropriate for merging. Ensure that the appropriate manual
-   and automated testing has been performed, changes to files and documentation are updated, etc.
-   Usually, this is best done by code review and coaching the user. Sometimes (typically for
-   customers), a Fleet team member may take a PR to completion by adding the appropriate testing and
-   code review improvements.
-3. After reviewing a PR and addressing all necessary changes, any Fleet team member may merge a 
-   community. Before merging, double-check that the CI is passing, documentation is updated, and
-   changes file is created. Please use your best judgment.
-4. Once a PR has been approved and merged, thank and congratulate the contributor, then share with the team in the `#help-promote` channel of Fleet Slack to be publicized on social media. Those who contribute to Fleet and are recognized for their contributions often become great champions for the project.
+The Community team is responsible for ensuring that community conributions are seen, acknowledged and resolved quickly and appropriately as well as maintining a line of communication with the contributor.
 
-Please refer to our [PRs from the community](https://docs.google.com/document/d/13r0vEhs9LOBdxWQWdZ8n5Ff9cyB3hQkTjI5OhcrHjVo/edit?usp=sharing) guide for more detailed information.
+A member of the community team will be assigned as DRI for community contributions. 
+
+Each business day, the DRI will check open pull requests to:
+
+1. Identify new community contributions and assign for review. 
+2. Approve any community contributions that are ready to be merged. 
+3. Ensure that any blockers in ongoing community contributions have been communicated to the contributor. 
+4. Merge community contributions that have been approved. 
+
+#### Identify Community Contributions
+
+When a new pull request is submitted by a community contributor (someone not a member of the Fleet organization):
+
+1. Add the `:community` label.
+2. Self-assign for review. 
+3. Determine if additional review is needed. 
+4. If additional review is needed:
+   - Request review from the appropriate [Product
+DRI](./product.md#product-dris). 
+   - Tag the requested reviewer and the contributor in a comment on the PR thanking the contributor and explaining why additional review is needed
+4. Search for any open issues associated with the contribution and add them to the PR.
+
+#### Approve Reviews
+
+If your approval is requested for a community contribution, it is important to respond quickly and stay enganged with the contributor. Within one business day of the request, you should:
+
+1. Determine if the contribution is [acceptable](#what-is-acceptable). 
+   - For changes that are not acceptable:
+      - Thank the contributor for their contribution and explain why the changes are not being approved. 
+      - Encourage the contributor to open an issue or discuss proposed changes in the #fleet channel of osquery Slack before working on any more code.
+      - Continue checking the PR every business day to act on any updates or responses from the contributor.
+2. Make sure the contribution is ready for merge.
+   - Double-check that the CI is passing, documentation is updated, and changes file is created.
+   - If not ready for merge:
+      - Help the contributor get the content ready for merging through code review and coaching. **
+      - Continue checking the PR every business day to act on any updates or responses from the contributor.
+3. After any needed changes have been made and the PR is ready for merge, approve the review. 
+
+** Sometimes (typically for customers), a Fleet team member may take a PR to completion by adding the appropriate testing and code review improvements.
+
+#### Communicate with contributors
+
+During every step of the merge process, it is important to maintain communication with our contributors.  
+
+While each team member is responsible for monitoring their active issues and pull requests, the Community team will ultimately be responsible for ensuring that there aren't delays in communication. 
+
+Every business day, the current DRI for community contributions will review outstanding pull requests with the `:community` label to ensure that the line of communication is being maintained and that all contributor comments and updates are addressed within one business day. 
+
+If necessary, reach out in the appropriate slack channel for additional information. 
+
+#### Merge Community PRs
+
+When merging a pull request from a community contributor:
+
+1. Ensure that checklist for submitter is complete.
+2. Verify that all necessary reviews have been approved. 
+3. Merge the PR. 
+4. Thank and congratulate the contributor. 
+5. Share with the team in the `#help-promote` channel of Fleet Slack to be publicized on social media. Those who contribute to Fleet and are recognized for their contributions often become great champions for the project.
 
 ### What is acceptable?
 
@@ -221,6 +266,8 @@ the SQL works properly and they are attributed correctly. Please use your best j
 
 More extensive changes and new features should be approved by the appropriate [Product
 DRI](./product.md#product-dris). Ask in the `#g-product` channel in Fleet Slack.
+
+Please refer to our [PRs from the community](https://docs.google.com/document/d/13r0vEhs9LOBdxWQWdZ8n5Ff9cyB3hQkTjI5OhcrHjVo/edit?usp=sharing) guide for more detailed information.
 
 ## Fleet swag
 
