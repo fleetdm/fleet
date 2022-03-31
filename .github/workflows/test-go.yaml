@@ -7,9 +7,6 @@ on:
       - patch-*
     paths:
       - '**.go'
-  pull_request:
-    paths:
-      - '**.go'
   workflow_dispatch: # Manual
   schedule:
     - cron: '0 4 * * *'
