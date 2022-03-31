@@ -126,7 +126,7 @@ func getCurrentUserSessionId() (windows.Handle, error) {
 		}
 	}
 
-	// TODO(lucas): Do we need to support this?
+	// TODO(lucas): Check which sessions is assigned to current log in user.
 	if sessionId, _, err := procWTSGetActiveConsoleSessionId.Call(); sessionId == 0xFFFFFFFF {
 		return 0xFFFFFFFF, fmt.Errorf("get current user session token: call native WTSGetActiveConsoleSessionId: %s", err)
 	} else {
@@ -209,6 +209,7 @@ func startProcessAsCurrentUser(appPath, cmdLine, workDir string) error {
 		return fmt.Errorf("create environment details for process: %s", err)
 	}
 
+	// TODO(lucas): Test out creation flags and startup info values.
 	creationFlags := CREATE_UNICODE_ENVIRONMENT | CREATE_NEW_CONSOLE
 	startupInfo.ShowWindow = SW_SHOW
 	startupInfo.Desktop = windows.StringToUTF16Ptr("winsta0\\default")

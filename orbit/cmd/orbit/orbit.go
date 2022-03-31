@@ -520,6 +520,15 @@ func (d *desktopRunner) actor() (func() error, func(error)) {
 	return d.execute, d.interrupt
 }
 
+// execute makes sure the fleet-desktop application is running.
+//
+// We have to support the scenario where the user closes its sessions (log out).
+// To support this, we add retries to execuser.Run. Basically retry execuser.Run until it succeds,
+// which will happen when the user logs in.
+// Once fleet-desktop is started, the process is monitored (user processes get killed when the user
+// closes all its sessions).
+//
+// NOTE(lucas): This logic could be improved to detect if there's a valid session or not first.
 func (d *desktopRunner) execute() error {
 	log.Info().Str("path", d.desktopPath).Msg("opening")
 	url, err := url.Parse(d.fleetURL)
@@ -535,26 +544,53 @@ func (d *desktopRunner) execute() error {
 		opts = append(opts, execuser.WithEnv("FLEET_DESKTOP_INSECURE", "1"))
 	}
 
-	// Orbit runs as root user on Unix and as SYSTEM (Windows Service) user on Windows.
-	// To be able to run the desktop application (mostly to register the icon in the system tray)
-	// we need to run the application as the login user.
-	// Package execuser provides multi-platform support for this.
-	if err := execuser.Run(d.desktopPath, opts...); err != nil {
-		return fmt.Errorf("open desktop app: %w", err)
-	}
-
-	// Monitor the fleet-desktop application.
-	ticker := time.NewTicker(10 * time.Second)
-	defer ticker.Stop()
 	for {
-		select {
-		case <-d.done:
-			return nil
-		case <-ticker.C:
-			if _, err := getProcessByName(constant.DesktopAppExecName); err != nil {
-				log.Err(err).Msg("desktopRunner.execute exit")
-				return fmt.Errorf("get desktop process: %w", err)
+		// First retry logic to start fleet-desktop.
+		if done := retry(30*time.Second, d.done, func() bool {
+			// Orbit runs as root user on Unix and as SYSTEM (Windows Service) user on Windows.
+			// To be able to run the desktop application (mostly to register the icon in the system tray)
+			// we need to run the application as the login user.
+			// Package execuser provides multi-platform support for this.
+			if err := execuser.Run(d.desktopPath, opts...); err != nil {
+				log.Debug().Err(err).Msg("execuser.Run")
+				return true
 			}
+			return false
+		}); done {
+			return nil
+		}
+
+		// Second retry logic to monitor fleet-desktop.
+		if done := retry(30*time.Second, d.done, func() bool {
+			switch _, err := getProcessByName(constant.DesktopAppExecName); {
+			case err == nil:
+				return true // all good, process is running, retry.
+			case errors.Is(err, errProcessNotFound):
+				log.Debug().Msgf("%s process not running", constant.DesktopAppExecName)
+				return false // process is not running, do not retry.
+			default:
+				log.Debug().Err(err).Msg("getProcessByName")
+				return true // failed to get process by name, retry.
+			}
+		}); done {
+			return nil
+		}
+	}
+}
+
+func retry(d time.Duration, done chan struct{}, fn func() bool) bool {
+	ticker := time.NewTicker(d)
+	defer ticker.Stop()
+
+	for {
+		if retry := fn(); !retry {
+			return false
+		}
+		select {
+		case <-done:
+			return true
+		case <-ticker.C:
+			// OK
 		}
 	}
 }
