@@ -2,7 +2,6 @@ import React, { useState, useCallback } from "react";
 import { useDispatch } from "react-redux";
 import { useQuery } from "react-query";
 
-import { ITeam } from "interfaces/team";
 import { IConfigNested } from "interfaces/config";
 import {
   IIntegrations,
@@ -35,10 +34,6 @@ import {
   generateDataSet,
 } from "./IntegrationsTableConfig";
 
-interface ITeamsResponse {
-  teams: ITeam[];
-}
-
 const baseClass = "integrations-management";
 const noIntegrationsClass = "no-integrations";
 
@@ -65,19 +60,7 @@ const IntegrationsPage = (): JSX.Element => {
     createIntegrationError,
     setCreateIntegrationError,
   ] = useState<IJiraIntegrationFormErrors>(DEFAULT_CREATE_INTEGRATION_ERRORS);
-
-  const {
-    data: teams,
-    isLoading: isLoadingTeams,
-    error: loadingTeamsError,
-    refetch: refetchTeams,
-  } = useQuery<ITeamsResponse, Error, ITeam[]>(
-    ["teams"],
-    () => teamsAPI.loadAll(),
-    {
-      select: (data: ITeamsResponse) => data.teams,
-    }
-  );
+  const [testingConnection, setTestingConnection] = useState<boolean>(false);
 
   const {
     data: integrations,
@@ -145,6 +128,7 @@ const IntegrationsPage = (): JSX.Element => {
         "onCreateSubmit data \njiraIntegrationSubmitData:",
         jiraIntegrationSubmitData
       );
+      setTestingConnection(true);
       // replace with .update when we have the API
       configAPI
         .updateIntegrations(MOCKS.configAdd2)
@@ -192,6 +176,9 @@ const IntegrationsPage = (): JSX.Element => {
             );
             toggleAddIntegrationModal();
           }
+        })
+        .finally(() => {
+          setTestingConnection(false);
         });
     },
     [dispatch, toggleAddIntegrationModal]
@@ -247,6 +234,7 @@ const IntegrationsPage = (): JSX.Element => {
       );
 
       if (integrationEditing) {
+        setTestingConnection(true);
         configAPI
           .updateIntegrations(MOCKS.config2)
           .then(() => {
@@ -266,6 +254,7 @@ const IntegrationsPage = (): JSX.Element => {
               )
             );
             setBackendValidators({});
+            setTestingConnection(false);
             toggleEditIntegrationModal();
             refetchIntegrations();
           })
@@ -286,6 +275,9 @@ const IntegrationsPage = (): JSX.Element => {
                 )
               );
             }
+          })
+          .finally(() => {
+            setTestingConnection(false);
           });
       }
     },
@@ -384,6 +376,7 @@ const IntegrationsPage = (): JSX.Element => {
           onSubmit={onCreateSubmit}
           backendValidators={backendValidators}
           integrations={integrations || []}
+          testingConnection={testingConnection}
         />
       )}
       {showDeleteIntegrationModal && (
@@ -400,6 +393,7 @@ const IntegrationsPage = (): JSX.Element => {
           backendValidators={backendValidators}
           integrations={integrations || []}
           integrationEditing={integrationEditing}
+          testingConnection={testingConnection}
         />
       )}
     </div>

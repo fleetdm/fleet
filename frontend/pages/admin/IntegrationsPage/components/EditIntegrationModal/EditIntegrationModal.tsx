@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 
 import Modal from "components/Modal";
+import Spinner from "components/Spinner";
 // @ts-ignore
 import {
   IJiraIntegration,
@@ -16,6 +17,7 @@ interface IEditIntegrationModalProps {
   backendValidators: { [key: string]: string };
   integrations: IJiraIntegration[];
   integrationEditing?: IJiraIntegrationIndexed;
+  testingConnection: boolean;
 }
 
 const EditIntegrationModal = ({
@@ -24,6 +26,7 @@ const EditIntegrationModal = ({
   backendValidators,
   integrations,
   integrationEditing,
+  testingConnection,
 }: IEditIntegrationModalProps): JSX.Element => {
   const [errors, setErrors] = useState<{ [key: string]: string }>(
     backendValidators
@@ -33,14 +36,23 @@ const EditIntegrationModal = ({
     setErrors(backendValidators);
   }, [backendValidators]);
 
+  console.log("testingConnection", testingConnection);
+
   return (
     <Modal title={"Edit integration"} onExit={onCancel} className={baseClass}>
-      <IntegrationForm
-        onCancel={onCancel}
-        onSubmit={onSubmit}
-        integrations={integrations}
-        integrationEditing={integrationEditing}
-      />
+      {testingConnection ? (
+        <div className={`${baseClass}__testing-connection`}>
+          <b>Testing connection to Jira</b>
+          <Spinner />
+        </div>
+      ) : (
+        <IntegrationForm
+          onCancel={onCancel}
+          onSubmit={onSubmit}
+          integrations={integrations}
+          integrationEditing={integrationEditing}
+        />
+      )}
     </Modal>
   );
 };
