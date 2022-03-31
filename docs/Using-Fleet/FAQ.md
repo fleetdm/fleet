@@ -1,4 +1,4 @@
-https://github.com/fleetdm/fleet/pull/4818/files# Using Fleet FAQ
+# Using Fleet FAQ
 
 - [What do I need to do to switch from Kolide Fleet to FleetDM Fleet?](#waht-do-i-need-to-do-to-switch-from-kolide-fleet-to-fleetdm-fleet)
 - [Has anyone stress tested Fleet? How many clients can the Fleet server handle?](#has-anyone-stress-tested-fleet-how-many-clients-can-the-fleet-server-handle)
@@ -168,7 +168,7 @@ If your device is showing up as an offline host in the Fleet instance, and you'r
 
 ## Fleet preview fails with Invalid interpolation. What should I do?
 
-If you tried running fleet preview and you get the following error:
+If you tried running `fleetctl preview` and you get the following error:
 
 ```
 fleetctl preview

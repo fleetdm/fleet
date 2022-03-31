@@ -134,7 +134,7 @@ All duration-based settings accept valid time units of `s`, `m`, `h`.
 
 #### MySQL
 
-This section describes the configuration options for the primary - if you also want to setup a read replica, the options are the same, except that the yaml section is `mysql_read_replica`, and the flags have the `mysql_read_replica_` prefix instead of `mysql_` (the corresponding environment variables follow the same transformation). Note that there is no default value for `mysql_read_replica_address`, it must be set explicitly for fleet to use a read replica, and it is recommended in that case to set a non-zero value for `mysql_read_replica_conn_max_lifetime` as in some environments, the replica's address may dynamically change to point
+This section describes the configuration options for the primary - if you also want to setup a read replica, the options are the same, except that the yaml section is `mysql_read_replica`, and the flags have the `mysql_read_replica_` prefix instead of `mysql_` (the corresponding environment variables follow the same transformation). Note that there is no default value for `mysql_read_replica_address`, it must be set explicitly for Fleet to use a read replica, and it is recommended in that case to set a non-zero value for `mysql_read_replica_conn_max_lifetime` as in some environments, the replica's address may dynamically change to point
 from the primary to an actual distinct replica based on auto-scaling options, so existing idle connections need to be recycled
 periodically.
 
@@ -1054,7 +1054,7 @@ Given an update interval (label, or details), this will add up to the defined pe
 The goal of this is to prevent all hosts from checking in with data at the same time.
 
 So for example, if the label_update_interval is 1h, and this is set to 10. It'll add up a random number between 0 and 6 minutes
-to the amount of time it takes for fleet to give the host the label queries.
+to the amount of time it takes for Fleet to give the host the label queries.
 
 - Default value: `10`
 - Environment variable: `FLEET_OSQUERY_MAX_JITTER_PERCENT`
@@ -1067,7 +1067,7 @@ to the amount of time it takes for fleet to give the host the label queries.
 
 ##### osquery_enable_async_host_processing
 
-**Experimental feature**. Enable asynchronous processing of hosts query results. Currently, only supported for label query execution and policy membership results. This may improve performance and CPU usage of the fleet instances and MySQL database servers for setups with a large number of hosts, while requiring more resources from Redis server(s).
+**Experimental feature**. Enable asynchronous processing of hosts query results. Currently, only supported for label query execution and policy membership results. This may improve performance and CPU usage of the Fleet instances and MySQL database servers for setups with a large number of hosts, while requiring more resources from Redis server(s).
 
 Note that currently, if both the failing policies webhook *and* this `osquery.enable_async_host_processing` option are set, some failing policies webhooks could be missing (some transitions from succeeding to failing or vice-versa could happen without triggering a webhook request).
 
@@ -1082,7 +1082,7 @@ Note that currently, if both the failing policies webhook *and* this `osquery.en
 
 ##### osquery_async_host_collect_interval
 
-Applies only when `osquery_enable_async_host_processing` is enabled. Sets the interval at which the host data will be collected into the database. Each fleet instance will attempt to do the collection at this interval (with some optional jitter added, see `osquery_async_host_collect_max_jitter_percent`), with only one succeeding to get the exclusive lock.
+Applies only when `osquery_enable_async_host_processing` is enabled. Sets the interval at which the host data will be collected into the database. Each Fleet instance will attempt to do the collection at this interval (with some optional jitter added, see `osquery_async_host_collect_max_jitter_percent`), with only one succeeding to get the exclusive lock.
 
 - Default value: 30s
 - Environment variable: `FLEET_OSQUERY_ASYNC_HOST_COLLECT_INTERVAL`
@@ -1108,7 +1108,7 @@ Applies only when `osquery_enable_async_host_processing` is enabled. A number in
 
 ##### osquery_async_host_collect_lock_timeout
 
-Applies only when `osquery_enable_async_host_processing` is enabled. Timeout of the lock acquired by a fleet instance to collect host data into the database. If the collection runs for too long or the instance crashes unexpectedly, the lock will be automatically released after this duration and another fleet instance can proceed with the next collection.
+Applies only when `osquery_enable_async_host_processing` is enabled. Timeout of the lock acquired by a Fleet instance to collect host data into the database. If the collection runs for too long or the instance crashes unexpectedly, the lock will be automatically released after this duration and another Fleet instance can proceed with the next collection.
 
 - Default value: 1m
 - Environment variable: `FLEET_OSQUERY_ASYNC_HOST_COLLECT_LOCK_TIMEOUT`
@@ -2095,7 +2095,7 @@ If set then `fleet serve` will run even if there are database migrations missing
 
 ##### databases_path
 
-The path specified needs to exist and fleet needs to be able to read and write to and from it. This is the only mandatory configuration needed for vulnerability processing to work.
+The path specified needs to exist and Fleet needs to be able to read and write to and from it. This is the only mandatory configuration needed for vulnerability processing to work.
 
 When `current_instance_checks` is set to `auto` (the default), Fleet instances will try to create the `databases_path` if it doesn't exist.
 
@@ -2123,7 +2123,7 @@ How often vulnerabilities are checked. This is also the interval at which the co
 
 ##### cpe_database_url
 
-URL to fetch the CPE dictionary database from. Some users want to control where fleet gets its database from. When Fleet sees this value defined, it downloads the file directly. It expects a file in the same format as can be found in https://github.com/fleetdm/nvd/releases. If this value is not defined, Fleet checks for the latest release in Github and only downloads it if needed.
+URL to fetch the CPE dictionary database from. Some users want to control where Fleet gets its database from. When Fleet sees this value defined, it downloads the file directly. It expects a file in the same format as can be found in https://github.com/fleetdm/nvd/releases. If this value is not defined, Fleet checks for the latest release in Github and only downloads it if needed.
 
 - Default value: `""`
 - Environment variable: `FLEET_VULNERABILITIES_CPE_DATABASE_URL`
@@ -2207,7 +2207,7 @@ on the Fleet web server.
   kind: config
   spec:
     geoip:
-    dd	database_path: /some/path
+      database_path: /some/path
   ```
 
 

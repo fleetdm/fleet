@@ -52,7 +52,6 @@ Much of the functionality available in the Fleet UI is also available in `fleetc
    | package                    | Create an Orbit installer package                                  |
    | help, h                    | Shows a list of commands or help for one command                   |
 
-
 ### Get more info about a command
 
 Each command available to `fleetctl` has a help menu with additional information. To pull up the help menu, run `fleetctl <command> --help`, replacing `<command>` with the command you're looking up:
@@ -84,7 +83,7 @@ OPTIONS:
 
 ## Setting up Fleet
 
-This section walks through setting up and configuring Fleet via the CLI. If you already have a running fleet instance, skip ahead to [Logging in to an existing Fleet instance](#logging-in-to-an-existing-fleet-instance) to configure the `fleetctl` CLI.
+This section walks through setting up and configuring Fleet via the CLI. If you already have a running Fleet instance, skip ahead to [Logging in to an existing Fleet instance](#logging-in-to-an-existing-fleet-instance) to configure the `fleetctl` CLI.
 
 This guide illustrates:
 
