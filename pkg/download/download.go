@@ -13,7 +13,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/pkg/errors"
 	"github.com/ulikunitz/xz"
 )
 
@@ -85,7 +84,7 @@ func Decompressed(client *http.Client, u url.URL, path string) error {
 
 	// Writes are not synchronous. Handle errors from writes returned by Close.
 	if err := tmpFile.Close(); err != nil {
-		return errors.Wrapf(err, "write and close temporary file")
+		return fmt.Errorf("write and close temporary file: %w", err)
 	}
 
 	if err := os.Rename(tmpFile.Name(), path); err != nil {
