@@ -503,7 +503,8 @@ type desktopRunner struct {
 	fleetURL        string
 	deviceAuthToken string
 	insecure        bool
-	done            chan struct{}
+	interruptCh     chan struct{} // closed when interrupt is triggered
+	executeDoneCh   chan struct{} // closed when execute returns
 }
 
 func newDesktopRunner(desktopPath, fleetURL, deviceAuthToken string, insecure bool) *desktopRunner {
@@ -512,7 +513,8 @@ func newDesktopRunner(desktopPath, fleetURL, deviceAuthToken string, insecure bo
 		fleetURL:        fleetURL,
 		deviceAuthToken: deviceAuthToken,
 		insecure:        insecure,
-		done:            make(chan struct{}),
+		interruptCh:     make(chan struct{}),
+		executeDoneCh:   make(chan struct{}),
 	}
 }
 
@@ -530,6 +532,8 @@ func (d *desktopRunner) actor() (func() error, func(error)) {
 //
 // NOTE(lucas): This logic could be improved to detect if there's a valid session or not first.
 func (d *desktopRunner) execute() error {
+	defer close(d.executeDoneCh)
+
 	log.Info().Str("path", d.desktopPath).Msg("opening")
 	url, err := url.Parse(d.fleetURL)
 	if err != nil {
@@ -546,7 +550,7 @@ func (d *desktopRunner) execute() error {
 
 	for {
 		// First retry logic to start fleet-desktop.
-		if done := retry(30*time.Second, d.done, func() bool {
+		if done := retry(30*time.Second, d.interruptCh, func() bool {
 			// Orbit runs as root user on Unix and as SYSTEM (Windows Service) user on Windows.
 			// To be able to run the desktop application (mostly to register the icon in the system tray)
 			// we need to run the application as the login user.
@@ -561,7 +565,7 @@ func (d *desktopRunner) execute() error {
 		}
 
 		// Second retry logic to monitor fleet-desktop.
-		if done := retry(30*time.Second, d.done, func() bool {
+		if done := retry(30*time.Second, d.interruptCh, func() bool {
 			switch _, err := getProcessByName(constant.DesktopAppExecName); {
 			case err == nil:
 				return true // all good, process is running, retry.
@@ -597,7 +601,9 @@ func retry(d time.Duration, done chan struct{}, fn func() bool) bool {
 
 func (d *desktopRunner) interrupt(err error) {
 	log.Debug().Err(err).Msg("interrupt desktopRunner")
-	defer close(d.done)
+
+	close(d.interruptCh) // Signal execute to return.
+	<-d.executeDoneCh    // Wait for execute to return.
 
 	if err := killProcessByName(constant.DesktopAppExecName); err != nil {
 		log.Error().Err(err).Msg("killProcess")
