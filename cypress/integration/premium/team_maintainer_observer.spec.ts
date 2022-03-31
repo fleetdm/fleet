@@ -276,7 +276,7 @@ describe("Premium tier - Team observer/maintainer user", () => {
         cy.findByText(/apples/i).click();
         
         // Ensures switch to team oranges
-        cy.getAttached(".no-policies").within(() => {
+        cy.getAttached(".manage-policies-page__header").within(() => {
           cy.findByText(/oranges/i).click();
         });
 
