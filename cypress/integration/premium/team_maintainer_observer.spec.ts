@@ -274,7 +274,11 @@ describe("Premium tier - Team observer/maintainer user", () => {
         cy.visit("/policies/manage");
         // Switch to from team apples to team oranges
         cy.findByText(/apples/i).click();
-        cy.findByText(/oranges/i).click();
+        
+        // Ensures switch to team oranges
+        cy.getAttached(".no-policies").within(() => {
+          cy.findByText(/oranges/i).should("exist");
+        });
 
         // On maintaining team, not see the "Manage automations" button
         cy.findByText(/manage automations/i).should("not.exist");
