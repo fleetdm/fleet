@@ -67,15 +67,6 @@ const generateTableHeaders = (
       ),
     },
     {
-      title: "Email",
-      Header: "Email",
-      disableSortBy: true,
-      accessor: "email",
-      Cell: (cellProps: ICellProps) => (
-        <TextCell value={cellProps.cell.value} />
-      ),
-    },
-    {
       title: "Role",
       Header: "Role",
       disableSortBy: true,
@@ -85,8 +76,17 @@ const generateTableHeaders = (
       ),
     },
     {
+      title: "Email",
+      Header: "Email",
+      disableSortBy: true,
+      accessor: "email",
+      Cell: (cellProps: ICellProps) => (
+        <TextCell value={cellProps.cell.value} />
+      ),
+    },
+    {
       title: "Actions",
-      Header: "Actions",
+      Header: "",
       disableSortBy: true,
       accessor: "actions",
       Cell: (cellProps: IDropdownCellProps) => (

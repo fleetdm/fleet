@@ -12,6 +12,60 @@
       text-decoration: none;
     }
   }
+
+  .data-table-block {
+    .data-table__table {
+      thead {
+        .name__header {
+          width: $col-md;
+        }
+  
+        .role__header {
+          width: $col-md;
+          border-right: none;
+        }
+  
+        .email__header {
+          display: none;
+          width: 0;
+        }
+  
+        @media (min-width: $break-1400) {
+          .role__header {
+            border-right: 1px solid $ui-fleet-blue-15;
+          }
+  
+          .email__header {
+            display: table-cell;
+            width: $col-lg;
+            border-right: none;
+          }
+        }
+      }
+  
+      tbody {
+        .name__cell {
+          width: $col-md;
+        }
+  
+        .role__cell {
+          width: $col-md;
+        }
+  
+        .email__cell {
+          display: none;
+          width: 0;
+        }
+  
+        @media (min-width: $break-1400) {
+          .email__cell {
+            display: table-cell;
+            width: $col-lg;
+          }
+        }
+      }
+    }
+  }
 }
 
 .no-members {

@@ -6,6 +6,59 @@
     @include sticky-settings-description;
     padding-bottom: $pad-medium;
   }
+  .data-table-block {
+    .data-table__table {
+      thead {
+        .name__header {
+          width: $col-md;
+        }
+
+        .host_count__header {
+          width: $col-md;
+          border-right: none;
+        }
+  
+        .user_count__header {
+          display: none;
+          width: 0;
+        }
+  
+        @media (min-width: $break-990) {
+          .host_count__header {
+            border-right: 1px solid $ui-fleet-blue-15;
+          }
+  
+          .user_count__header {
+            display: table-cell;
+            width: $col-md;
+            border-right: none;
+          }
+        }
+      }
+  
+      tbody {
+        .name__cell {
+          width: $col-md;
+        }
+  
+        .host_count__cell {
+          width: $col-md;
+        }
+  
+        .user_count__cell {
+          display: none;
+          width: 0;
+        }
+  
+        @media (min-width: $break-990) {
+          .user_count__cell {
+            display: table-cell;
+            width: $col-md;
+          }
+        }
+      }
+    }
+  }
 }
 
 .team-details__team-details {

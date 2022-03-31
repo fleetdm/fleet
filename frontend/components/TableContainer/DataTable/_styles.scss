@@ -90,7 +90,7 @@
         }
 
         &:last-child {
-          // border-right: none;
+          border-right: none;
           border-top-right-radius: 6px;
         }
       }
@@ -177,9 +177,12 @@
 
     tbody {
       td {
-        padding: 0 $pad-large;
-        white-space: nowrap;
         height: 40px;
+        // TODO: how/where do we want to handle long text fields in body and headers?
+        // overflow: hidden;
+        white-space: nowrap;
+        // text-overflow: ellipsis;
+        padding: 0 $pad-large;
 
         &.selection__cell {
           width: 0px;
