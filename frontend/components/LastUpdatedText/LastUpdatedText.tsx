@@ -5,6 +5,13 @@ import TooltipWrapper from "components/TooltipWrapper";
 
 const baseClass = "component__last-updated-text";
 
+const abbreviateUnits = (distance: string) => {
+  if (distance === "never") {
+    return distance;
+  }
+  return distance.replace("minute", "min").replace("second", "sec");
+};
+
 const renderLastUpdatedText = (
   lastUpdatedAt: string,
   whatToRetrieve: string
@@ -22,7 +29,7 @@ const renderLastUpdatedText = (
       <TooltipWrapper
         tipContent={`Fleet periodically queries all hosts to retrieve ${whatToRetrieve}`}
       >
-        {`Last updated ${lastUpdatedAt}`}
+        {`Last updated ${abbreviateUnits(lastUpdatedAt)}`}
       </TooltipWrapper>
     </span>
   );

@@ -1,4 +1,4 @@
-.data-table-container {
+.data-table-block {
   position: relative;
   display: inline-block;
   width: 100%;
@@ -39,6 +39,8 @@
 
       // override styles of checkbox data cells
       .form-field--checkbox {
+        display: flex;
+        justify-content: center;
         margin-bottom: 0;
 
         .fleet-checkbox__label {
@@ -74,23 +76,22 @@
       }
 
       th {
-        padding: $pad-medium 27px;
+        padding: $pad-medium $pad-large;
         white-space: nowrap;
         border-right: 1px solid $ui-fleet-blue-15;
 
         &:first-child {
           border-top-left-radius: 6px;
-          padding: $pad-medium 17px;
         }
 
         &.selection__header {
-          width: 1px;
+          width: 0px;
+          padding: $pad-medium;
         }
 
         &:last-child {
-          border-right: none;
+          // border-right: none;
           border-top-right-radius: 6px;
-          max-width: 140px;
         }
       }
 
@@ -138,8 +139,14 @@
       border: 0;
       border-radius: 6px;
 
+      &__checkbox {
+        padding: 16px;
+        width: 26px;
+      }
+
       &__container {
-        padding: 0 27px;
+        // padding: 0 27px;
+        padding: 0 24px;
       }
 
       &__inner {
@@ -170,13 +177,13 @@
 
     tbody {
       td {
-        padding: 0 27px;
+        padding: 0 $pad-large;
         white-space: nowrap;
         height: 40px;
 
-        &:first-child {
-          padding: 0 17px;
-          width: 1px;
+        &.selection__cell {
+          width: 0px;
+          padding: 0 $pad-medium;
         }
 
         // form-field wraps the dropdown menu
@@ -187,6 +194,9 @@
           background-color: $core-white;
           border: none;
         }
+      }
+      .highlight-on-hover:hover {
+        background-color: $ui-off-white;
       }
     }
 

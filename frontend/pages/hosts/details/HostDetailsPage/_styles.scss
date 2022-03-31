@@ -252,10 +252,6 @@
     }
   }
 
-  .button img {
-    transform: scale(0.5);
-  }
-
   .component__tabs-wrapper {
     background-color: $ui-off-white;
     width: 100%;
@@ -357,14 +353,8 @@
     }
   }
 
-  &__action-button-container {
-    display: flex;
-    align-items: center;
-  }
-
-  &__query-button,
-  &__transfer-button {
-    margin-right: $pad-large;
+  .form-field--dropdown {
+    margin: 0;
   }
 
   .modal-btn-wrap {
@@ -377,11 +367,56 @@
     }
   }
 
-  &__tooltip-text {
-    font-size: $x-small;
+  .buttons {
     display: flex;
-    justify-content: center;
-    text-align: center;
+    align-items: center;
+    position: absolute;
+    right: 25px;
+
+    span {
+      font-weight: $regular;
+    }
+
+    a {
+      display: flex;
+      align-items: center;
+    }
+  }
+
+  .button img {
+    transform: scale(0.5);
+  }
+
+  &__button-wrap {
+    display: flex;
+    justify-content: flex-end;
+    margin: $pad-xxlarge 0 0;
+  }
+
+  &__action-button-container {
+    display: flex;
+    align-items: center;
+  }
+
+  &__query-button,
+  &__transfer-button {
+    margin-right: $pad-large;
+  }
+
+  &__back-link {
+    display: flex;
+    align-items: center;
+    padding-bottom: $pad-small;
+    height: 16px;
+    font-size: $x-small;
+    color: $core-vibrant-blue;
+    font-weight: $bold;
+    text-decoration: none;
+  }
+
+  #back-chevron {
+    width: 16px;
+    margin-right: $pad-small;
   }
 
   &__device-mapping {
@@ -400,64 +435,81 @@
     box-shadow: inset -8px 0 17px -10px #e8edf4;
   }
 
-  &__table {
-    width: 100%;
-    border-collapse: collapse;
-    color: $core-fleet-black;
+  &__tooltip-text {
     font-size: $x-small;
-  }
-  tr {
-    border-bottom: 1px solid $ui-fleet-blue-15;
-
-    &:last-child {
-      border-bottom: 0;
-    }
+    display: flex;
+    justify-content: center;
+    text-align: center;
   }
 
-  thead {
-    background-color: $ui-off-white;
-    color: $core-fleet-black;
-    text-align: left;
-    border-bottom: 1px solid $ui-fleet-blue-15;
-
-    th {
-      padding: $pad-medium 27px;
-      white-space: nowrap;
-      border-right: 1px solid $ui-fleet-blue-15;
-
-      &:last-child {
-        border-right: none;
-      }
+  .tooltip__tooltip-icon {
+    img {
+      vertical-align: middle;
+      height: 16px;
+      width: auto;
     }
   }
 
-  .section--policies {
-    .linkToFilteredHosts__header {
-      width: 140px;
-    }
-
-    tr {
-      .policy-link {
-        visibility: hidden;
-        text-overflow: none;
-        img {
-          vertical-align: text-top;
-          width: 16px;
-        }
-      }
-
-      &:hover {
-        .policy-link {
-          visibility: visible;
-          text-overflow: none;
-        }
-      }
-    }
-
+  .section--packs {
     .table-container__header {
       display: none;
     }
-
+    .data-table-block {
+      .data-table__table {
+        thead {
+          .query_name__header {
+            width: $col-lg;
+          }
+          .frequency__header {
+            width: $col-md;
+          }
+          .last_run__header {
+            display: none;
+            width: 0;
+          }
+          .performance__header {
+            display: none;
+            width: 0;
+          }
+          @media (min-width: $break-990) {
+            .last_run__header {
+              display: table-cell;
+            }
+            .performance__header {
+              display: table-cell;
+              width: $col-md;
+            }
+          }
+        }
+        tbody {
+          .query_name__cell {
+            width: $col-lg;
+          }
+          .frequency__cell {
+            width: $col-md;
+          }
+          .last_run__cell {
+            display: none;
+            width: 0;
+          }
+          .performance__cell {
+            display: none;
+            width: 0;
+          }
+          @media (min-width: $break-990) {
+            .last_run__cell {
+              display: table-cell;
+            }
+            .performance__cell {
+              display: table-cell;
+              width: $col-md;
+            }
+          }
+        }
+      }
+    }
+  }
+  .section--policies {
     .info-banner {
       margin-bottom: 1rem;
       p {
@@ -465,61 +517,122 @@
         margin: 0;
       }
     }
-
-    th:first-child {
-      width: 70%;
+    .table-container__header {
+      display: none;
     }
-
-    .response__header {
-      border-right: none;
+    .data-table-block {
+      .data-table__table {
+        thead {
+          .name__header {
+            width: $col-md;
+          }
+          .response__header {
+            width: 0;
+            border-right: none;
+          }
+          .linkToFilteredHosts__header {
+            width: 140px;
+          }
+        }
+        tbody {
+          tr {
+            .policy-link {
+              visibility: hidden;
+              text-overflow: none;
+              img {
+                vertical-align: text-top;
+                width: 16px;
+              }
+            }
+            &:hover {
+              .policy-link {
+                visibility: visible;
+                text-overflow: none;
+              }
+            }
+          }
+        }
+      }
     }
   }
-
   .section--users {
     margin-top: $pad-medium;
+    .data-table-block {
+      .data-table__table {
+        thead {
+          .username__header {
+            width: $col-md;
+          }
 
-    .host-details__wrapper {
-      overflow: auto;
-    }
-
-    .username__header {
-      width: 80%;
-    }
-
-    .shell__header {
-      width: 20%;
-
-      span {
-        margin-right: $pad-small;
-      }
-
-      .host-users-table__shell-tooltip {
-        font-weight: 400;
+          .shell__header {
+            width: $col-md;
+          }
+          @media (min-width: $break-768) {
+            .username__header {
+              width: $col-lg;
+            }
+          }
+        }
       }
     }
   }
-
-  tbody {
-    td {
-      padding: 12px 27px;
-      white-space: nowrap;
+  .section--schedule {
+    margin-top: $pad-medium;
+    .section__header {
+      margin-bottom: $pad-medium;
+    }
+    .table-container__header {
+      display: none;
+    }
+    .data-table-block {
+      .data-table__table {
+        thead {
+          .query_name__header {
+            width: $col-lg;
+          }
+          .frequency__header {
+            width: 0;
+          }
+          .performance__header {
+            display: none;
+            width: 0;
+          }
+          @media (min-width: $break-990) {
+            .performance__header {
+              display: table-cell;
+              width: $col-md;
+            }
+          }
+        }
+        tbody {
+          .query_name__cell {
+            width: $col-lg;
+          }
+          .frequency__cell {
+            width: 0;
+          }
+          .performance__cell {
+            display: none;
+            width: 0;
+          }
+          @media (min-width: $break-990) {
+            .performance__cell {
+              display: table-cell;
+              width: $col-md;
+            }
+          }
+        }
+      }
     }
   }
+  .section--software {
+    .software-name {
+      margin-left: 8px;
+    }
 
-  &__back-link {
-    display: flex;
-    align-items: center;
-    padding-bottom: $pad-small;
-    height: 16px;
-    font-size: $x-small;
-    color: $core-vibrant-blue;
-    font-weight: $bold;
-    text-decoration: none;
-  }
-
-  #back-chevron {
-    width: 16px;
-    margin-right: $pad-small;
+    .software-last-used-muted {
+      color: $ui-fleet-black-50;
+    }
   }
 
   .accordion {
@@ -584,102 +697,5 @@
     100% {
       opacity: 1;
     }
-  }
-
-  &__pack-table {
-    padding-bottom: 12px;
-
-    .table-container__header {
-      display: none;
-    }
-
-    .data-table__table {
-      table-layout: fixed;
-
-      thead {
-        // Width for all columns except the "Query name" column
-        // Width calculation adjusts for each row's horizontal padding
-        th {
-          // Width for the "Query name" column
-          &:first-child {
-            width: 40%;
-            padding-right: 0px;
-          }
-
-          &:nth-child(2) {
-            width: 12%;
-          }
-
-          &:nth-child(3) {
-            width: 18%;
-          }
-
-          &:last-child {
-            width: 30%;
-            padding-right: 0px;
-          }
-        }
-      }
-
-      tbody {
-        td {
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-      }
-
-      .__react_component_tooltip {
-        text-align: center;
-      }
-    }
-
-    .icon-tooltip {
-      display: inline;
-      position: relative;
-      top: 2px;
-      margin-left: $pad-small;
-      font-weight: 400;
-      text-align: center;
-    }
-  }
-  .tooltip__tooltip-icon {
-    img {
-      vertical-align: middle;
-      height: 16px;
-      width: auto;
-    }
-  }
-
-  .software-name {
-    margin-left: 8px;
-  }
-
-  .software-last-used-muted {
-    color: $ui-fleet-black-50;
-  }
-
-  .buttons {
-    display: flex;
-    align-items: center;
-    position: absolute;
-    right: 25px;
-
-    span {
-      font-weight: $regular;
-    }
-
-    a {
-      display: flex;
-      align-items: center;
-    }
-  }
-
-  &__button-wrap {
-    display: flex;
-    justify-content: flex-end;
-    margin: $pad-xxlarge 0 0;
-  }
-  .form-field--dropdown {
-    margin: 0;
   }
 }

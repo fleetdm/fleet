@@ -6,22 +6,48 @@
 
   &__header {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
+    flex-direction: column-reverse;
+    padding-bottom: $pad-medium;
+    @media (min-width: $break-768) {
+      flex-direction: row;
+      align-items: flex-end;
+      justify-content: space-between;
+    }
+
+    @media (min-width: $break-990) {
+      align-items: center;
+    }
+  }
+
+  &__header-left {
+    width: 100%;
+    display: flex;
+    flex-direction: column-reverse;
+
+    @media (min-width: $break-990) {
+      flex-direction: row;
+      justify-content: space-between;
+      align-items: center;
+    }
   }
 
   &__results-count {
     font-size: $x-small;
     font-weight: $bold;
     color: $core-fleet-black;
+    padding-top: $pad-large;
     margin: 0;
+
+    @media (min-width: $break-990) {
+      padding-top: 0;
+    }
   }
 
-  &__table-controls {
-    display: flex;
-    justify-content: flex-end;
-    align-items: center;
-  }
+  // &__table-controls {
+  //   display: flex;
+  //   justify-content: flex-end;
+  //   align-items: center;
+  // }
 
   &__edit-columns-button:hover {
     cursor: pointer;
@@ -32,8 +58,13 @@
   &__search-input {
     position: relative;
     color: $core-fleet-blue;
-    width: 344px;
-    margin-left: $pad-medium;
+    width: 335px;
+    padding-bottom: $pad-large;
+
+    @media (min-width: $break-768) {
+      margin-left: $pad-medium;
+      padding-bottom: 0;
+    }
 
     &::before {
       display: inline-block;
@@ -91,11 +122,5 @@
   #search-tooltip {
     width: 196px;
     text-align: center;
-  }
-
-  tbody {
-    .highlight-on-hover:hover {
-      background-color: $ui-off-white;
-    }
   }
 }

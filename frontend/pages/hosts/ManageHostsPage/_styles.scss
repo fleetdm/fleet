@@ -1,4 +1,5 @@
 .manage-hosts {
+  min-width: 768px;
   .header-wrap {
     display: flex;
     align-items: center;
@@ -104,12 +105,20 @@
 
   .table-container {
     padding-top: $pad-small;
-  }
-
-  .data-table-container {
-    .data-table {
-      &__wrapper {
-        overflow-x: scroll;
+    .table-container__header {
+      .table-container__header-left {
+        .controls {
+          display: flex;
+        }
+      }
+    }
+    .table-container__data-table-block {
+      .data-table-block {
+        .data-table {
+          &__wrapper {
+            overflow-x: scroll;
+          }
+        }
       }
     }
   }

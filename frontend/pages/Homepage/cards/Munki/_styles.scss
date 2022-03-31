@@ -34,10 +34,11 @@
       text-decoration: none;
     }
   }
-  .data-table-container {
+  .data-table-block {
     .data-table__table {
-      table-layout: fixed;
+      table-layout: fixed; // TODO
 
+      // TODO
       thead {
         .name__header {
           width: 60%;

@@ -114,6 +114,30 @@ const generateTableHeaders = (currentUser: IUser): IDataColumn[] => {
       },
     },
     {
+      title: "Author",
+      Header: (cellProps) => (
+        <HeaderCell
+          value={cellProps.column.title}
+          isSortedDesc={cellProps.column.isSortedDesc}
+        />
+      ),
+      accessor: "author_name",
+      Cell: (cellProps: ICellProps): JSX.Element => {
+        const { author_name, author_email } = cellProps.row.original;
+        const author = author_name === currentUser.name ? "You" : author_name;
+        return (
+          <span>
+            <Avatar
+              user={addGravatarUrlToResource({ email: author_email })}
+              size="xsmall"
+            />
+            {author}
+          </span>
+        );
+      },
+      sortType: "caseInsensitive",
+    },
+    {
       title: "Performance impact",
       Header: () => {
         return (
@@ -137,30 +161,6 @@ const generateTableHeaders = (currentUser: IUser): IDataColumn[] => {
       Cell: (cellProps: ICellProps) => (
         <PillCell value={[cellProps.cell.value, cellProps.row.original.id]} />
       ),
-    },
-    {
-      title: "Author",
-      Header: (cellProps) => (
-        <HeaderCell
-          value={cellProps.column.title}
-          isSortedDesc={cellProps.column.isSortedDesc}
-        />
-      ),
-      accessor: "author_name",
-      Cell: (cellProps: ICellProps): JSX.Element => {
-        const { author_name, author_email } = cellProps.row.original;
-        const author = author_name === currentUser.name ? "You" : author_name;
-        return (
-          <span>
-            <Avatar
-              user={addGravatarUrlToResource({ email: author_email })}
-              size="xsmall"
-            />
-            {author}
-          </span>
-        );
-      },
-      sortType: "caseInsensitive",
     },
     {
       title: "Last modified",
@@ -267,22 +267,6 @@ const generateTableHeaders = (currentUser: IUser): IDataColumn[] => {
         );
       },
       disableHidden: true,
-    });
-    tableHeaders.splice(2, 0, {
-      title: "Observer can run",
-      Header: (cellProps) => (
-        <HeaderCell
-          value={cellProps.column.title}
-          isSortedDesc={cellProps.column.isSortedDesc}
-        />
-      ),
-      accessor: "observer_can_run",
-      Cell: (cellProps: ICellProps): JSX.Element => (
-        <TextCell
-          value={cellProps.row.original.observer_can_run ? "Yes" : "No"}
-        />
-      ),
-      sortType: "basic",
     });
   }
   return tableHeaders;

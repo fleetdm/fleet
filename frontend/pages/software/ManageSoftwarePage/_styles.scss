@@ -39,7 +39,7 @@
 
   &__description {
     margin: 0;
-    margin-bottom: 40px;
+    margin-bottom: $pad-large;
 
     h2 {
       text-transform: uppercase;
@@ -110,9 +110,9 @@
   .table-container {
     min-height: 435px;
   }
-  .data-table__wrapper {
-    overflow-x: auto;
-  }
+  // .data-table__wrapper {
+  //   overflow-x: auto;
+  // }
   .form-field--dropdown {
     margin: 0;
   }
@@ -201,74 +201,122 @@
       font-size: $small !important;
     }
   }
-  .table-container__search-input {
-    width: 420px;
+  .text-muted {
+    color: $ui-fleet-black-50;
   }
-  .data-table-container {
-    .data-table__table {
-      table-layout: fixed;
 
-      thead {
-        .name__header {
-          width: 35%;
-        }
-        .hosts_count__header {
-          width: 56px;
-          border-right: 0;
-        }
-        .id__header {
-          width: 180px;
-        }
-      }
-
-      tbody {
-        .name__cell,
-        .version__cell {
-          overflow: hidden;
-          white-space: nowrap;
-          text-overflow: ellipsis;
-        }
-        .id__cell {
-          padding: 0;
-        }
-        .vulnerabilities__cell {
-          img {
-            transform: scale(0.5);
+  &__table {
+    .data-table-block {
+      .data-table__table {
+        thead {
+          .name__header {
+            width: $col-md;
           }
-        }
-      }
-
-      tr {
-        .software-link {
-          color: $core-vibrant-blue;
-          visibility: hidden;
-          font-weight: bold;
-          text-decoration: none;
-          vertical-align: middle;
-
-          a {
-            text-decoration: none;
+          .version__header {
+            width: 0px;
           }
-          img {
-            height: 16px;
-            width: 16px;
-            vertical-align: middle;
+          .source__header {
+            display: none;
+            width: 0px;
           }
-
-          .link-text {
-            padding-right: $pad-xxsmall;
+          .vulnerabilities__header {
+            display: none;
+            width: 0px;
+          }
+          .hosts_count__header {
+            border-right: 0;
+          }
+          @media (min-width: $break-990) {
+            .version__header {
+              width: $col-md;
+            }
+            .vulnerabilities__header {
+              display: table-cell;
+            }
+          }
+          @media (min-width: $break-1400) {
+            .source__header {
+              display: table-cell;
+            }
           }
         }
 
-        &:hover {
+        tbody {
+          .name__cell,
+          .version__cell {
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+          }
+          .source__cell {
+            display: none;
+            width: 0px;
+          }
+          .vulnerabilities__cell {
+            width: 0px;
+            display: none;
+          }
+          .hosts_count__cell {
+            .hosts-cell__wrapper {
+              display: flex;
+              justify-content: space-between;
+              .hosts-cell__count {
+                display: none;
+              }
+              .hosts-cell__link {
+                display: flex;
+              }
+            }
+          }
+          @media (min-width: $break-990) {
+            .vulnerabilities__cell {
+              display: table-cell;
+            }
+          }
+          @media (min-width: $break-1400) {
+            .source__cell {
+              display: table-cell;
+              width: 0px;
+            }
+            .hosts_count__cell {
+              .hosts-cell__wrapper {
+                .hosts-cell__count {
+                  display: flex;
+                }
+              }
+            }
+          }
+        }
+
+        tr {
           .software-link {
-            visibility: visible;
+            color: $core-vibrant-blue;
+            visibility: hidden;
+            font-weight: bold;
+            text-decoration: none;
+            vertical-align: middle;
+
+            a {
+              text-decoration: none;
+            }
+            img {
+              height: 16px;
+              width: 16px;
+              vertical-align: middle;
+            }
+
+            .link-text {
+              padding-right: $pad-xxsmall;
+            }
+          }
+
+          &:hover {
+            .software-link {
+              visibility: visible;
+            }
           }
         }
       }
     }
-  }
-  .text-muted {
-    color: $ui-fleet-black-50;
   }
 }

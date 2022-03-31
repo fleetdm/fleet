@@ -108,25 +108,284 @@
   }
 
   &__all-teams-table {
-    .table-container__header {
+    // .table-container__header {
+    //   height: 0;
+    // }
+
+    // th {
+    //   border-right: 1px solid #e2e4ea !important;
+    // }
+    .data-table-block {
+      .data-table__table {
+        thead {
+          .query_name__header {
+            width: $col-lg;
+          }
+          .interval__header {
+            width: 0;
+          }
+          .performance__header {
+            display: none;
+            width: 0;
+          }
+          @media (min-width: $break-990) {
+            .performance__header {
+              display: table-cell;
+              width: $col-lg;
+            }
+          }
+        }
+        tbody {
+          .query_name__cell {
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+          }
+          .interval__cell {
+            width: 0;
+          }
+          .performance__cell {
+            display: none;
+            width: 0;
+          }
+          @media (min-width: $break-990) {
+            .performance__cell {
+              display: table-cell;
+              width: $col-lg;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  .schedule-list-wrapper {
+    .data-table-block {
+      .data-table__table {
+        thead {
+          .query_name__header {
+            width: $col-lg;
+          }
+          .interval__header {
+            width: 0;
+          }
+          .performance__header {
+            display: none;
+            width: 0;
+          }
+          @media (min-width: $break-990) {
+            .performance__header {
+              display: table-cell;
+              width: $col-lg;
+            }
+          }
+        }
+        tbody {
+          .query_name__cell {
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+          }
+          .interval__cell {
+            width: 0;
+          }
+          .performance__cell {
+            display: none;
+            width: 0;
+          }
+          @media (min-width: $break-990) {
+            .performance__cell {
+              display: table-cell;
+              width: $col-lg;
+            }
+          }
+        }
+      }
+    }
+
+    a {
+      color: $core-vibrant-blue;
+      font-size: $x-small;
+      text-decoration: none;
+    }
+
+    border-collapse: collapse;
+
+    &__wrapper {
+      border: 1px solid $ui-fleet-blue-15;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-top: $pad-medium;
+    }
+
+    thead {
+      background-color: $ui-off-white;
+      border-bottom: 1px solid $ui-fleet-blue-15;
+
+      th {
+        font-size: $x-small;
+        font-weight: $bold;
+        text-align: left;
+        padding: $pad-medium $pad-large;
+
+        &:nth-child(2) {
+          width: calc(49% - 20px);
+        }
+
+        &:nth-child(3) {
+          width: 20%;
+          max-width: 150px;
+        }
+
+        &:nth-last-child(2) {
+          border-right: 0;
+        }
+
+        &:last-child {
+          width: 150px;
+          border-left: 0;
+        }
+        .performance__header {
+          width: 20% !important;
+        }
+      }
+    }
+
+    &__th-pack-name {
+      padding-left: 0;
+      text-align: left;
+    }
+
+    &__select-all {
+      margin-bottom: 0;
+    }
+
+    &__empty-table {
+      text-align: center;
+      font-size: $x-small;
+      color: $core-fleet-black;
+    }
+
+    &__scheduled-query-count {
+      color: $core-fleet-black;
+      font-size: $x-small;
+      font-weight: $bold;
+      margin: 0 12px 0 0;
+      display: inline-block;
+    }
+
+    .queries-table__performance-impact-header {
+      margin-right: $pad-small;
+    }
+
+    .queries-table__performance-impact-tooltip {
+      font-weight: 400;
+    }
+
+    .column-with-tooltip {
       height: 0;
+      position: relative;
+      top: -10px;
+    }
+  }
+
+  .no-schedule {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding-top: $pad-xxxlarge;
+
+    h1 {
+      font-size: $large;
+      font-weight: $regular;
+      line-height: normal;
+      letter-spacing: normal;
+      color: $core-fleet-black;
     }
 
-    th {
-      border-right: 1px solid #e2e4ea !important;
+    h2 {
+      font-size: $small;
+      font-weight: $bold;
+      margin: 0 0 $pad-large;
+      line-height: 20px;
+      color: $core-fleet-black;
     }
 
-    .query_name__header {
-      width: calc(50%);
+    ul {
+      margin: 0;
+      padding: 0;
+      color: $core-fleet-black;
+      list-style: none;
+
+      li {
+        &::before {
+          content: "•";
+          color: $core-vibrant-blue;
+          margin-right: $pad-medium;
+        }
+      }
     }
 
-    .interval__header {
-      width: calc(20%);
+    &__inner {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+
+      h1 {
+        font-size: $small;
+        font-weight: $bold;
+        margin-bottom: $pad-medium;
+      }
+
+      img {
+        width: 322px;
+      }
+
+      p {
+        color: $core-fleet-black;
+        font-weight: $regular;
+        font-size: $x-small;
+        margin: 0;
+        margin-bottom: $pad-large;
+      }
+
+      .no-filter-results {
+        display: flex;
+        flex-direction: column;
+        width: 350px;
+      }
     }
 
-    .performance_header {
-      width: calc(30%);
-      max-width: none;
+    &__inner-text {
+      width: 400px;
+      padding: $pad-xxlarge 0;
     }
+
+    &__schedule-button {
+      margin-right: $pad-medium;
+    }
+
+    .query-pagination__pager-wrap {
+      margin-top: $pad-medium;
+    }
+
+    &__no-hosts-contact {
+      text-align: left;
+      margin-top: $pad-large;
+
+      p {
+        color: $core-fleet-black;
+        font-weight: $bold;
+        font-size: $x-small;
+        margin: 0;
+      }
+    }
+  }
+
+  .no-team-schedule {
+    border: 1px solid #e2e4ea;
+    box-sizing: border-box;
+    border-radius: 8px;
   }
 }

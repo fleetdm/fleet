@@ -435,43 +435,44 @@ const ManageSoftwarePage = ({
     <div className={baseClass}>
       <div className={`${baseClass}__wrapper body-wrap`}>
         {renderHeader()}
-        {softwareError && !isFetchingSoftware ? (
-          <TableDataError />
-        ) : (
-          <TableContainer
-            columns={softwareTableHeaders}
-            data={(isSoftwareEnabled && software?.software) || []}
-            isLoading={isFetchingSoftware || isFetchingCount}
-            resultsTitle={"software items"}
-            emptyComponent={() =>
-              EmptySoftware(
-                (!isSoftwareEnabled && "disabled") ||
-                  (isCollectingInventory && "collecting") ||
-                  "default"
-              )
-            }
-            defaultSortHeader={"hosts_count"}
-            defaultSortDirection={"desc"}
-            manualSortBy
-            pageSize={PAGE_SIZE}
-            showMarkAllPages={false}
-            isAllPagesSelected={false}
-            disableNextPage={isLastPage}
-            searchable
-            inputPlaceHolder="Search software by name or vulnerabilities (CVEs)"
-            onQueryChange={onQueryChange}
-            additionalQueries={filterVuln ? "vulnerable" : ""} // additionalQueries serves as a trigger
-            // for the useDeepEffect hook to fire onQueryChange for events happeing outside of
-            // the TableContainer
-            customControl={renderVulnFilterDropdown}
-            renderCount={renderSoftwareCount}
-            renderFooter={renderTableFooter}
-            disableActionButton
-            hideActionButton
-            highlightOnHover
-          />
-        )}
-
+        <div className={`${baseClass}__table`}>
+          {softwareError && !isFetchingSoftware ? (
+            <TableDataError />
+          ) : (
+            <TableContainer
+              columns={softwareTableHeaders}
+              data={(isSoftwareEnabled && software?.software) || []}
+              isLoading={isFetchingSoftware || isFetchingCount}
+              resultsTitle={"software items"}
+              emptyComponent={() =>
+                EmptySoftware(
+                  (!isSoftwareEnabled && "disabled") ||
+                    (isCollectingInventory && "collecting") ||
+                    "default"
+                )
+              }
+              defaultSortHeader={"hosts_count"}
+              defaultSortDirection={"desc"}
+              manualSortBy
+              pageSize={PAGE_SIZE}
+              showMarkAllPages={false}
+              isAllPagesSelected={false}
+              disableNextPage={isLastPage}
+              searchable
+              inputPlaceHolder="Search software by name or vulnerabilities (CVEs)"
+              onQueryChange={onQueryChange}
+              additionalQueries={filterVuln ? "vulnerable" : ""} // additionalQueries serves as a trigger
+              // for the useDeepEffect hook to fire onQueryChange for events happeing outside of
+              // the TableContainer
+              customControl={renderVulnFilterDropdown}
+              renderCount={renderSoftwareCount}
+              renderFooter={renderTableFooter}
+              disableActionButton
+              hideActionButton
+              highlightOnHover
+            />
+          )}
+        </div>
         {showManageAutomationsModal && (
           <ManageAutomationsModal
             onCancel={toggleManageAutomationsModal}
