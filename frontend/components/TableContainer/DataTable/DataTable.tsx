@@ -461,7 +461,7 @@ const DataTable = ({
               </tr>
             </thead>
           )}
-          <thead>
+          <thead className={"data-table__header"}>
             {headerGroups.map((headerGroup) => (
               <tr {...headerGroup.getHeaderGroupProps()}>
                 {headerGroup.headers.map((column) => (
