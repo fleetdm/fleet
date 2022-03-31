@@ -23,7 +23,7 @@
       font-weight: $bold;
       text-align: left;
       padding: $pad-medium $pad-large;
-      &:not(.name__header) {
+      &.passing_host_count__header, &.failing_host_count__header, &.webhook__header {
         width: 20%;
         @media (min-width: $medium-width) {
           width: 15%;
