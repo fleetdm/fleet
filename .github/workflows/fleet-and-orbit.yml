@@ -12,9 +12,6 @@ on:
       - patch-*
     paths:
       - 'orbit/**.go'
-  pull_request:
-    paths:
-      - 'orbit/**.go'
   workflow_dispatch: # Manual
 
 permissions:
