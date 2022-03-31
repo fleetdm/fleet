@@ -7,10 +7,6 @@ on:
     paths:
       # The workflow can be triggered by modifying FLEET_DESKTOP_VERSION env.
       - '.github/workflows/generate-desktop-app-tar-gz.yml'
-  pull_request:
-    paths:
-      # The workflow can be triggered by modifying FLEET_DESKTOP_VERSION env.
-      - '.github/workflows/generate-desktop-app-tar-gz.yml'
   workflow_dispatch:
 
 env:
