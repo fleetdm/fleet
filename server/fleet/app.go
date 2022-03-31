@@ -118,6 +118,7 @@ type AppConfig struct {
 	VulnerabilitySettings VulnerabilitySettings `json:"vulnerability_settings"`
 
 	WebhookSettings WebhookSettings `json:"webhook_settings"`
+	Integrations    Integrations    `json:"integrations"`
 }
 
 // EnrichedAppConfig contains the AppConfig along with additional fleet
@@ -209,6 +210,21 @@ type VulnerabilitiesWebhookSettings struct {
 	HostBatchSize int `json:"host_batch_size"`
 }
 
+// JiraIntegration configures an instance of an integration with the Jira
+// system.
+type JiraIntegration struct {
+	URL                           string `json:"url"`
+	Username                      string `json:"username"`
+	Password                      string `json:"password"`
+	ProjectKey                    string `json:"project_key"`
+	EnableSoftwareVulnerabilities bool   `json:"enable_software_vulnerabilities"`
+}
+
+// Integrations configures the integrations with external systems.
+type Integrations struct {
+	Jira []*JiraIntegration `json:"jira"`
+}
+
 func (c *AppConfig) ApplyDefaultsForNewInstalls() {
 	c.ServerSettings.EnableAnalytics = true
 
@@ -291,6 +307,10 @@ type ListOptions struct {
 	// After denotes the row to start from. This is meant to be used in conjunction with OrderKey
 	// If OrderKey is "id", it'll assume After is a number and will try to convert it.
 	After string `query:"after,optional"`
+}
+
+func (l ListOptions) Empty() bool {
+	return l == ListOptions{}
 }
 
 type ListQueryOptions struct {

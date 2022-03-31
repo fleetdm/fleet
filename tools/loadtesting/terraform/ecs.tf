@@ -1,6 +1,7 @@
 resource "aws_alb" "main" {
-  name                       = "fleetdm"
-  internal                   = false
+  name = "fleetdm"
+  // Exposed to the Internet by design
+  internal                   = false #tfsec:ignore:aws-elb-alb-not-public
   security_groups            = [aws_security_group.lb.id, aws_security_group.backend.id]
   subnets                    = module.vpc.public_subnets
   idle_timeout               = 600
@@ -21,7 +22,8 @@ resource "aws_alb" "internal" {
 resource "aws_alb_listener" "https-fleetdm-internal" {
   load_balancer_arn = aws_alb.internal.arn
   port              = 80
-  protocol          = "HTTP"
+  // We will evaluate removing all HTTP eventually, including the removal of HTTP redirects.
+  protocol = "HTTP" #tfsec:ignore:aws-elb-http-not-used:exp:2022-06-01
 
   default_action {
     target_group_arn = aws_alb_target_group.internal.arn
@@ -140,8 +142,9 @@ resource "aws_ecs_service" "fleet" {
 
   depends_on = [aws_alb_listener.http, aws_alb_listener.https-fleetdm]
 }
-
-resource "aws_cloudwatch_log_group" "backend" {
+// Customer keys are not supported in our Fleet Terraforms at the moment. We will evaluate the
+// possibility of providing this capability in the future.
+resource "aws_cloudwatch_log_group" "backend" { #tfsec:ignore:aws-cloudwatch-log-group-customer-key:exp:2022-07-01
   name              = "fleetdm"
   retention_in_days = 1
 }

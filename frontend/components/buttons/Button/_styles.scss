@@ -4,7 +4,8 @@ $base-class: "button";
   background-color: $color;
 
   @if $inverse {
-    &:hover {
+    &:hover,
+    &:focus {
       border: 2px solid $hover;
       color: $hover;
     }
@@ -14,7 +15,8 @@ $base-class: "button";
       color: $active;
     }
   } @else {
-    &:hover:not(.button--disabled) {
+    &:hover:not(.button--disabled),
+    &:focus {
       background-color: $hover;
     }
 
@@ -108,7 +110,8 @@ $base-class: "button";
       box-shadow: inset 2px 2px 2px rgba(0, 0, 0, 0.25);
     }
 
-    &:hover {
+    &:hover,
+    &:focus {
       border: 1px solid $core-vibrant-blue;
     }
   }
@@ -135,7 +138,8 @@ $base-class: "button";
       outline: none;
     }
 
-    &:hover {
+    &:hover,
+    &:focus {
       color: $core-vibrant-blue-over;
       background-color: transparent;
       box-shadow: none;
@@ -169,7 +173,8 @@ $base-class: "button";
       outline: none;
     }
 
-    &:hover {
+    &:hover,
+    &:focus {
       color: $core-vibrant-blue-over;
     }
   }
@@ -199,7 +204,8 @@ $base-class: "button";
       outline: none;
     }
 
-    &:hover {
+    &:hover,
+    &:focus {
       color: $core-vibrant-blue-over;
     }
   }
@@ -216,7 +222,8 @@ $base-class: "button";
     box-sizing: border-box;
     padding: 0;
 
-    &:hover {
+    &:hover,
+    &:focus {
       border: 0;
     }
   }
@@ -233,7 +240,8 @@ $base-class: "button";
     box-sizing: border-box;
     padding: 0;
 
-    &:hover {
+    &:hover,
+    &:focus {
       border: 0;
     }
   }
@@ -248,7 +256,8 @@ $base-class: "button";
     filter: grayscale(0.5);
     cursor: default;
 
-    &:hover {
+    &:hover,
+    &:focus {
       cursor: default;
     }
   }
@@ -273,7 +282,8 @@ $base-class: "button";
       outline: none;
     }
 
-    &:hover {
+    &:hover,
+    &:focus {
       background-color: transparent;
       box-shadow: none;
     }
@@ -303,7 +313,8 @@ $base-class: "button";
       outline: none;
     }
 
-    &:hover {
+    &:hover,
+    &:focus {
       background-color: $ui-vibrant-blue-10;
       box-shadow: none;
     }

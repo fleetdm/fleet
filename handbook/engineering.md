@@ -8,14 +8,14 @@ The current release cadence is once every 3 weeks and concentrated around Wednes
 
 ### Release freeze period
 
-In order to ensure quality releases, Fleet has a freeze period for testing prior to each release. Effective at the start of the freeze period, new feature work will not be merged. 
+In order to ensure quality releases, Fleet has a freeze period for testing prior to each release. Effective at the start of the freeze period, new feature work will not be merged.
 
 Release blocking bugs are exempt from the freeze period and are defined by the same rules as patch releases, which include:
 1. Regressions
 2. Security concerns
 3. Issues with features targeted for current release
 
-Non-release blocking bugs may include known issues that were not targeted for the current release, or newly documented behaviors that reproduce in older stable versions. These may be addressed during a release period by mutual agreement between [Product](./product.md) and Engineering teams. 
+Non-release blocking bugs may include known issues that were not targeted for the current release, or newly documented behaviors that reproduce in older stable versions. These may be addressed during a release period by mutual agreement between [Product](./product.md) and Engineering teams.
 
 ### Release day
 
@@ -29,13 +29,13 @@ This section outlines the on-call rotation at Fleet.
 The on-call engineer is responsible for responding to technical Slack comments, Slack threads, and GitHub issues raised by customers and the community which cannot be handled by the [Customer Success team](./customers.md).
 
 ### Goals
-At Fleet, our primary quality objectives are *customer service* and *defect reduction*. This entails Key Performance Indicators such as customer response time and the number of bugs resolved per cycle and: 
+At Fleet, our primary quality objectives are *customer service* and *defect reduction*. This entails Key Performance Indicators such as customer response time and the number of bugs resolved per cycle and:
 
 - Become familiar with and stay abreast of what our community wants and the problems they're having.
 
-- Make people feel heard and understood.  
+- Make people feel heard and understood.
 
-- Celebrate contributions. 
+- Celebrate contributions.
 
 - Triage bugs, identify community feature requests, community pull requests, and community questions.
 
@@ -55,9 +55,9 @@ At Fleet, our primary quality objectives are *customer service* and *defect redu
 
 Typically, the *questions*, *bug reports*, and *feature requests* raised by members of the community will be missing helpful context, recreation steps, or motivations respectively.
 
-❓ For questions that you don't immediately know the answer to, it's helpful to ask follow-up questions to receive additional context. 
+❓ For questions that you don't immediately know the answer to, it's helpful to ask follow-up questions to receive additional context.
 
-- Let's say a community member asks the question "How do I do X in Fleet?" A follow question could be "What are you attempting to accomplish by doing X?" 
+- Let's say a community member asks the question "How do I do X in Fleet?" A follow question could be "What are you attempting to accomplish by doing X?"
 - This way, you have additional details when the primary question is brought to the Roundup meeting. In addition, the community member receives a response and feels heard.
 
 🦟 For bug reports, it's helpful to ask for recreation steps so you're later able to verify the bug exists.
@@ -67,7 +67,7 @@ Typically, the *questions*, *bug reports*, and *feature requests* raised by memb
 
 💡 For feature requests, it's helpful to ask follow-up questions in an attempt to understand the "Why?" or underlying motivation behind the request.
 
-- Let's say a community member submits the feature request "I want the ability to do X in Fleet." A follow-up question could be "If you were able to do X in Fleet, what's the next action you would take?" or "Why do you want to do X in Fleet?." 
+- Let's say a community member submits the feature request "I want the ability to do X in Fleet." A follow-up question could be "If you were able to do X in Fleet, what's the next action you would take?" or "Why do you want to do X in Fleet?."
 - Both of these questions provide helpful context on the underlying motivation behind the feature request when it is brought to the Roundup meeting. In addition, the community member receives a response and feels heard.
 
 ### Feature requests
@@ -90,7 +90,7 @@ green labels that begin with "+".  To explore them, type `+` from GitHub's label
 In order to provide the most accurate and efficient support, Fleet will only target fixes based on the latest released version. Fixes in current versions will not be backported to older releases.
 
 Community version supported for bug fixes: **Latest version only**
- 
+
 Community support for support/troubleshooting: **Current major version**
 
 Premium version supported for bug fixes: **Latest version only**
@@ -105,9 +105,18 @@ There are four sources that the on-call engineer should monitor for activity:
 
 2. Community chatroom - https://osquery.slack.com, #fleet channel
 
-3. Reported bugs - [GitHub issues with the "bug" and ":reproduce" label](https://github.com/fleetdm/fleet/issues?q=is%3Aopen+is%3Aissue+label%3Abug+label%3A%3Areproduce). Please remove the ":reproduce" labels after you've followed up in the issue.
+3. Reported bugs - [GitHub issues with the "bug" and ":reproduce" label](https://github.com/fleetdm/fleet/issues?q=is%3Aissue+is%3Aopen+label%3Abug+label%3A%3Areproduce). Please remove the ":reproduce" labels after you've followed up in the issue.
 
-4. Pull requests opened by the community - [GitHub open pull requests](https://github.com/fleetdm/fleet/pulls?q=is%3Aopen+is%3Apr)
+4. Pull requests opened by the community - [GitHub open pull requests](https://github.com/fleetdm/fleet/pulls?q=is%3Apr+is%3Aopen)
+
+### Tools
+
+There is a script located in `scripts/on-call` for use during on-call rotation (only been tested on macOS and linux).
+It's use is completely optional, but contains several useful commands for checking issues and prs that may require attention.
+You will need to install the following tools in order to use it:
+
+- [Github CLI](https://cli.github.com/manual/installation)
+- [jq](https://stedolan.github.io/jq/download/)
 
 ### Resources
 
@@ -135,16 +144,16 @@ Every week, the on-call engineer changes. Here are some tips for making this han
 
 ## Slack channels
 
-These are the Slack channels the core engineering team maintains. If the channel has a [directly responsible individual](./people.md#directly-resonsible-individuals) (**DRI**), they will be specified. These people are responsible for keeping up with all new messages, even if they aren't mentioned. 
+The following [Slack channels are maintained](https://fleetdm.com/handbook/company#group-slack-channels) by this group:
 
-- **#g-core-engineering** - **DRI**: Zach Wasserman
-- **#help-oncall** - **DRI**: Zach Wasserman
-- **#help-golang** - **DRI**: Zach Wasserman
-- **#help-qa** - **DRI**: Reed Haynes
-- **#help-frontend** - **DRI**: Luke Heath
-- **#_pov-environments** - **DRI**: Ben Edwards
+| Slack channel                       | [DRI](https://fleetdm.com/handbook/company#group-slack-channels)    |
+|:------------------------------------|:--------------------------------------------------------------------|
+| `#g-core-engineering`               | Zach Wasserman
+| `#help-oncall`                      | Zach Wasserman
+| `#help-golang`                      | Zach Wasserman
+| `#help-frontend`                    | Luke Heath
+| `#_pov-environments`                | Ben Edwards
 
-**Who should have these channels unmuted?** Members of this group, everyone else is encouraged to mute them.
 
 
 <meta name="maintainedBy" value="zwass">

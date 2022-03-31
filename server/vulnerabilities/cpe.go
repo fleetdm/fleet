@@ -39,7 +39,7 @@ var cpeSqliteRegex = regexp.MustCompile(`^cpe-.*\.sqlite\.gz$`)
 func GetLatestNVDRelease(client *http.Client) (*NVDRelease, error) {
 	ghclient := github.NewClient(client)
 	ctx := context.Background()
-	releases, _, err := ghclient.Repositories.ListReleases(ctx, owner, repo, &github.ListOptions{Page: 0, PerPage: 1})
+	releases, _, err := ghclient.Repositories.ListReleases(ctx, owner, repo, &github.ListOptions{Page: 0, PerPage: 10})
 	if err != nil {
 		return nil, err
 	}

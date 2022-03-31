@@ -2,6 +2,9 @@ name: Docker publish
 
 on: push
 
+permissions:
+  contents: read
+
 jobs:
   publish:
     # Only run it when the push is to the fleetdm/fleet repo. Otherwise the secrets for pushing to
