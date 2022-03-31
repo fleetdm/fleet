@@ -1,14 +1,16 @@
 import React from "react";
-import { mount } from "enzyme";
+import { render } from "@testing-library/react";
 
 import ConnectedPage, { ResetPasswordPage } from "./ResetPasswordPage";
 import testHelpers from "../../test/helpers";
 
 describe("ResetPasswordPage - component", () => {
   it("renders a ResetPasswordForm", () => {
-    const page = mount(<ResetPasswordPage token="ABC123" />);
+    const { container } = render(<ResetPasswordPage token="ABC123" />);
 
-    expect(page.find("ResetPasswordForm").length).toEqual(1);
+    expect(container.querySelectorAll(".reset-password-form").length).toEqual(
+      1
+    );
   });
 
   it("Redirects to the login page when there is no token or user", () => {
@@ -31,7 +33,7 @@ describe("ResetPasswordPage - component", () => {
     };
     const mockStore = reduxMockStore(store);
 
-    mount(connectedComponent(ConnectedPage, { mockStore }));
+    render(connectedComponent(ConnectedPage, { mockStore }));
 
     const dispatchedActions = mockStore.getActions();
 

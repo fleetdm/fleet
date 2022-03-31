@@ -144,16 +144,16 @@ Every week, the on-call engineer changes. Here are some tips for making this han
 
 ## Slack channels
 
-These are the Slack channels the core engineering team maintains. If the channel has a [directly responsible individual](./people.md#directly-resonsible-individuals) (**DRI**), they will be specified. These people are responsible for keeping up with all new messages, even if they aren't mentioned.
+The following [Slack channels are maintained](https://fleetdm.com/handbook/company#group-slack-channels) by this group:
 
-- **#g-core-engineering** - **DRI**: Zach Wasserman
-- **#help-oncall** - **DRI**: Zach Wasserman
-- **#help-golang** - **DRI**: Zach Wasserman
-- **#help-qa** - **DRI**: Reed Haynes
-- **#help-frontend** - **DRI**: Luke Heath
-- **#_pov-environments** - **DRI**: Ben Edwards
+| Slack channel                       | [DRI](https://fleetdm.com/handbook/company#group-slack-channels)    |
+|:------------------------------------|:--------------------------------------------------------------------|
+| `#g-core-engineering`               | Zach Wasserman
+| `#help-oncall`                      | Zach Wasserman
+| `#help-golang`                      | Zach Wasserman
+| `#help-frontend`                    | Luke Heath
+| `#_pov-environments`                | Ben Edwards
 
-**Who should have these channels unmuted?** Members of this group, everyone else is encouraged to mute them.
 
 
 <meta name="maintainedBy" value="zwass">

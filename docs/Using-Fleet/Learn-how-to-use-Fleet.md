@@ -1,6 +1,6 @@
 # Learn how to use Fleet
 
-> This guide assumes that you have a preview environment of Fleet up and running. If you haven't already done so, check out our [Get Started](https://fleetdm.com/get-started) guide for instructions on how to start a preview environment of Fleet.
+> This guide assumes that you have a preview environment of Fleet up and running. If you haven't already done so, check out our [Get started](https://fleetdm.com/get-started) guide for instructions on how to start a preview environment of Fleet.
 
 In this guide, we'll cover the following concepts:
 

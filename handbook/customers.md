@@ -46,9 +46,9 @@ After a customer conversation, it can sometimes feel like there are 1001 things 
 
 This section outlines the customer and community support process at Fleet.
 
-L1: Basic help desk resolution and service delivery -> CS team handles these with occasional support from L2
-L2: In-depth technical suppport -> CS Team with L2 Oncall Technician
-L3: Expert product and service support -> CS team liases with L2 and L3 Oncall Technician.
+- L1: Basic help desk resolution and service delivery -> CS team handles these with occasional support from L2
+- L2: In-depth technical suppport -> CS team with L2 oncall technician
+- L3: Expert product and service support -> CS team liases with L2 and L3 oncall technician.
 
 In each case, if possible, the resulting solution should be made more clear in the documentation and/or the FAQs.
 
@@ -85,16 +85,6 @@ When creating a new issue, ensure the following:
 ### Responding to a request to change a credit card number
 To change a customer credit card number you identify the customer's account email, log into Stripe, and choose the subscriptions associated with that account. You can then email the customer an invoice and they can update the payment method on file.
 
-### Responding to a 500 error on fleetdm.com
-Production systems can fail for various reasons, and it can be frustrating to users when they do, and customer experience is significant to Fleet. In the event of system failure, Fleet will:
-* Investigate the problem to determine the root cause
-* Identify affected users
-* Escalate if necessary
-* Understand and remediate the problem
-* Notify impacted users of any steps they need to take (if any).  If a customer paid with a credit card and had a bad experience, default to refunding their money.
-* Conduct an incident post-mortem to determine any additional steps we need (including monitoring) to take to prevent this class of problems from happening in the future
-
-
 ## Incident postmortems
 At Fleet, we take customer incidents very seriously. After working with customers to resolve issues, we will conduct an internal postmortem to determine any documentation or coding changes to prevent similar incidents from happening in the future. Why? We strive to make Fleet the best osquery management platform globally, and we sincerely believe that starts with sharing lessons learned with the community to become stronger together.
 
@@ -110,13 +100,16 @@ To generate a trial license key for a larger deployment, [create an opportunity 
 
 ## Slack channels
 
-These are the Slack channels the customer engineering team maintains. If the channel has a [directly responsible individual](./people.md#directly-resonsible-individuals) (**DRI**), they will be specified. These people are responsible for keeping up with all new messages, even if they aren't mentioned. 
+The following [Slack channels are maintained](https://fleetdm.com/handbook/company#group-slack-channels) by this group:
 
-- **#g-cutomer-engineering** - **DRI**: Tony Gauda
-- **#_from-prospective-customers** - **DRI**: Andrew Bare
-- **#help-sell** - **DRI**: Andrew Bare
+| Slack channel                       | [DRI](https://fleetdm.com/handbook/company#group-slack-channels)    |
+|:------------------------------------|:--------------------------------------------------------------------|
+| `#g-customer-engineering`           | Tony Gauda                                                          |
+| `#fleet-at-*` _(customer channels)_ | Tony Gauda                                                          |
+| `#help-sell`                        | Andrew Bare                                                         |
+| `#_from-prospective-customers`      | Andrew Bare                                                         |
 
-**Who should have these channels unmuted?** Members of this group, everyone else is encouraged to mute them.
+
 
 <meta name="maintainedBy" value="tgauda">
 

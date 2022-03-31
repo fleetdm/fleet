@@ -118,6 +118,7 @@ type AppConfig struct {
 	VulnerabilitySettings VulnerabilitySettings `json:"vulnerability_settings"`
 
 	WebhookSettings WebhookSettings `json:"webhook_settings"`
+	Integrations    Integrations    `json:"integrations"`
 }
 
 // EnrichedAppConfig contains the AppConfig along with additional fleet
@@ -207,6 +208,21 @@ type VulnerabilitiesWebhookSettings struct {
 	// HostBatchSize allows sending multiple requests in batches of hosts for each vulnerable software found.
 	// A value of 0 means no batching.
 	HostBatchSize int `json:"host_batch_size"`
+}
+
+// JiraIntegration configures an instance of an integration with the Jira
+// system.
+type JiraIntegration struct {
+	URL                           string `json:"url"`
+	Username                      string `json:"username"`
+	Password                      string `json:"password"`
+	ProjectKey                    string `json:"project_key"`
+	EnableSoftwareVulnerabilities bool   `json:"enable_software_vulnerabilities"`
+}
+
+// Integrations configures the integrations with external systems.
+type Integrations struct {
+	Jira []*JiraIntegration `json:"jira"`
 }
 
 func (c *AppConfig) ApplyDefaultsForNewInstalls() {

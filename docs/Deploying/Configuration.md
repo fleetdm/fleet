@@ -47,7 +47,7 @@ The `fleet` binary contains several "commands". Similarly to how `git` has many 
 - `fleet prepare db`
 - `fleet serve`
 - `fleet version`
-- `fleet config_dump`
+- `fleet config_dump` 
 
 ### Options
 
@@ -89,10 +89,11 @@ FLEET_LOGGING_JSON=true \
 /usr/bin/fleet serve
 ```
 
-##### Using a config file
+##### Using a YAML config file 
 
 ```
 echo '
+
 mysql:
   address: 127.0.0.1:3306
   database: fleet
@@ -108,6 +109,8 @@ logging:
 ' > /tmp/fleet.yml
 fleet serve --config /tmp/fleet.yml
 ```
+
+For more information on using YAML configuration files with fleet, please see the [configuration files](../Using-Fleet/configuration-files/README.md) documentation.
 
 ### What are the options?
 
@@ -131,7 +134,7 @@ All duration-based settings accept valid time units of `s`, `m`, `h`.
 
 #### MySQL
 
-This section describes the configuration options for the primary - if you also want to setup a read replica, the options are the same, except that the yaml section is `mysql_read_replica`, and the flags have the `mysql_read_replica_` prefix instead of `mysql_` (the corresponding environment variables follow the same transformation). Note that there is no default value for `mysql_read_replica_address`, it must be set explicitly for fleet to use a read replica, and it is recommended in that case to set a non-zero value for `mysql_read_replica_conn_max_lifetime` as in some environments, the replica's address may dynamically change to point
+This section describes the configuration options for the primary - if you also want to setup a read replica, the options are the same, except that the yaml section is `mysql_read_replica`, and the flags have the `mysql_read_replica_` prefix instead of `mysql_` (the corresponding environment variables follow the same transformation). Note that there is no default value for `mysql_read_replica_address`, it must be set explicitly for Fleet to use a read replica, and it is recommended in that case to set a non-zero value for `mysql_read_replica_conn_max_lifetime` as in some environments, the replica's address may dynamically change to point
 from the primary to an actual distinct replica based on auto-scaling options, so existing idle connections need to be recycled
 periodically.
 
@@ -303,6 +306,21 @@ Maximum amount of time, in seconds, a connection may be reused.
   mysql:
   	conn_max_lifetime: 50
   ```
+
+##### Example YAML
+
+```yaml
+apiVersion: v1
+kind: config
+spec:
+  msyql:
+    address: localhost:3306
+    database: fleet
+    password: fleet
+    max_open_conns: 50
+    max_idle_conns: 50
+    conn_max_lifetime: 50
+```
 
 #### Redis
 
@@ -614,7 +632,21 @@ A value of 0 means no timeout.
   	write_timeout: 5s
   ```
 
-#### Server
+##### Example YAML
+
+```yaml
+apiVersion: v1
+kind: config
+spec:
+  redis:
+    address: localhost:7369
+    password: foobar
+    database: 14
+    connect_timeout: 10s
+    connect_retry_attempts: 2
+```
+
+### Server
 
 ##### server_address
 
@@ -713,6 +745,20 @@ Turning off keepalives has helped reduce outstanding TCP connections in some dep
   	keepalive: true
   ```
 
+##### Example YAML
+
+```yaml
+apiVersion: v1
+kind: config
+spec:
+  server:
+    address: 0.0.0.0:443
+    password: foobar
+    cert: /tmp/fleet.crt
+    key: /tmp/fleet.key
+    invite_token_validity_period: 1d
+```
+
 #### Auth
 
 ##### auth_bcrypt_cost
@@ -740,6 +786,17 @@ The key size of the salt which is generated when hashing user passwords.
   auth:
   	salt_key_size: 36
   ```
+
+##### Example YAML
+
+```yaml
+apiVersion: v1
+kind: config
+spec:
+  auth:
+    bcrypt_cost: 14
+    salt_key_size: 36
+```
 
 #### App
 
@@ -782,6 +839,18 @@ Determines whether Fleet gets scheduled query statistics from hosts or not.
   	enable_scheduled_query_stats: true
   ```
 
+##### Example YAML
+
+```yaml
+apiVersion: v1
+kind: config
+spec:
+  app:
+    token_key_size: 36
+    salt_key_size: 36
+    invite_token_validity_period: 1d
+```
+
 #### License
 
 ##### license_key
@@ -796,6 +865,16 @@ The license key provided to Fleet customers which provides access to Fleet Premi
   license:
     key: foobar
   ```
+
+##### Example YAML
+
+```yaml
+apiVersion: v1
+kind: config
+spec:
+ license:
+    key: foobar
+```
 
 #### Session
 
@@ -826,6 +905,16 @@ Valid time units are `s`, `m`, `h`.
   session:
   	duration: 4h
   ```
+
+##### Example YAML
+
+```yaml
+apiVersion: v1
+kind: config
+spec:
+  session:
+  	duration: 4h
+```
 
 #### Osquery
 
@@ -965,7 +1054,7 @@ Given an update interval (label, or details), this will add up to the defined pe
 The goal of this is to prevent all hosts from checking in with data at the same time.
 
 So for example, if the label_update_interval is 1h, and this is set to 10. It'll add up a random number between 0 and 6 minutes
-to the amount of time it takes for fleet to give the host the label queries.
+to the amount of time it takes for Fleet to give the host the label queries.
 
 - Default value: `10`
 - Environment variable: `FLEET_OSQUERY_MAX_JITTER_PERCENT`
@@ -978,7 +1067,7 @@ to the amount of time it takes for fleet to give the host the label queries.
 
 ##### osquery_enable_async_host_processing
 
-**Experimental feature**. Enable asynchronous processing of hosts query results. Currently, only supported for label query execution and policy membership results. This may improve performance and CPU usage of the fleet instances and MySQL database servers for setups with a large number of hosts, while requiring more resources from Redis server(s).
+**Experimental feature**. Enable asynchronous processing of hosts query results. Currently, only supported for label query execution and policy membership results. This may improve performance and CPU usage of the Fleet instances and MySQL database servers for setups with a large number of hosts, while requiring more resources from Redis server(s).
 
 Note that currently, if both the failing policies webhook *and* this `osquery.enable_async_host_processing` option are set, some failing policies webhooks could be missing (some transitions from succeeding to failing or vice-versa could happen without triggering a webhook request).
 
@@ -993,7 +1082,7 @@ Note that currently, if both the failing policies webhook *and* this `osquery.en
 
 ##### osquery_async_host_collect_interval
 
-Applies only when `osquery_enable_async_host_processing` is enabled. Sets the interval at which the host data will be collected into the database. Each fleet instance will attempt to do the collection at this interval (with some optional jitter added, see `osquery_async_host_collect_max_jitter_percent`), with only one succeeding to get the exclusive lock.
+Applies only when `osquery_enable_async_host_processing` is enabled. Sets the interval at which the host data will be collected into the database. Each Fleet instance will attempt to do the collection at this interval (with some optional jitter added, see `osquery_async_host_collect_max_jitter_percent`), with only one succeeding to get the exclusive lock.
 
 - Default value: 30s
 - Environment variable: `FLEET_OSQUERY_ASYNC_HOST_COLLECT_INTERVAL`
@@ -1019,7 +1108,7 @@ Applies only when `osquery_enable_async_host_processing` is enabled. A number in
 
 ##### osquery_async_host_collect_lock_timeout
 
-Applies only when `osquery_enable_async_host_processing` is enabled. Timeout of the lock acquired by a fleet instance to collect host data into the database. If the collection runs for too long or the instance crashes unexpectedly, the lock will be automatically released after this duration and another fleet instance can proceed with the next collection.
+Applies only when `osquery_enable_async_host_processing` is enabled. Timeout of the lock acquired by a Fleet instance to collect host data into the database. If the collection runs for too long or the instance crashes unexpectedly, the lock will be automatically released after this duration and another Fleet instance can proceed with the next collection.
 
 - Default value: 1m
 - Environment variable: `FLEET_OSQUERY_ASYNC_HOST_COLLECT_LOCK_TIMEOUT`
@@ -1108,6 +1197,20 @@ Applies only when `osquery_enable_async_host_processing` is enabled. Order of ma
   	async_host_redis_scan_keys_count: 100
   ```
 
+##### Example YAML
+
+```yaml
+apiVersion: v1
+kind: config
+spec:
+  osquery:
+    host_identifier: uuid
+    policy_update_interval: 30m
+    duration: 4h
+    status_log_plugin: firehose
+    result_log_plugin: firehose
+```
+
 #### Logging (Fleet server logging)
 
 ##### logging_debug
@@ -1164,6 +1267,17 @@ and a negative value to disable storage of errors in Redis.
   	error_retention_period: 1h
   ```
 
+##### Example YAML
+
+```yaml
+apiVersion: v1
+kind: config
+spec:
+  logging:
+    disable_banner: true
+    policy_update_interval: 30m
+    error_retention_period: 1h
+```
 #### Filesystem
 
 ##### filesystem_status_log_file
@@ -1226,6 +1340,21 @@ This flag will cause the rotated logs to be compressed with gzip.
   filesystem:
      enable_log_compression: true
   ```
+
+##### Example YAML
+
+```yaml
+apiVersion: v1
+kind: config
+spec:
+  osquery:
+    osquery_status_log_plugin: filesystem
+    osquery_result_log_plugin: filesystem
+  filesystem:
+    status_log_file: /var/log/osquery/status.log
+    result_log_file: /var/log/osquery/result.log
+    enable_log_rotation: true
+```
 
 #### Firehose
 
@@ -1333,6 +1462,24 @@ the stream listed:
 
 - `firehose:DescribeDeliveryStream`
 - `firehose:PutRecordBatch`
+
+##### Example YAML
+
+```yaml
+apiVersion: v1
+kind: config
+spec:
+  osquery:
+    osquery_status_log_plugin: firehose
+    osquery_result_log_plugin: firehose
+  firehose:
+    region: ca-central-1
+    access_key_id: AKIAIOSFODNN7EXAMPLE
+    secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+    sts_assume_role_arn: arn:aws:iam::1234567890:role/firehose-role
+    status_stream: osquery_status
+    result_stream: osquery_result
+```
 
 #### Kinesis
 
@@ -1446,6 +1593,26 @@ the stream listed:
 - `kinesis:DescribeStream`
 - `kinesis:PutRecords`
 
+##### Example YAML
+
+```yaml
+apiVersion: v1
+kind: config
+spec:
+  osquery:
+    osquery_status_log_plugin: kinesis
+    osquery_result_log_plugin: kinesis
+  kinesis:
+    region: ca-central-1
+    result_log_file: /var/log/osquery/result.log
+    access_key_id: AKIAIOSFODNN7EXAMPLE
+    secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+    sts_assume_role_arn: arn:aws:iam::1234567890:role/firehose-role
+    status_stream: osquery_status
+    result_stream: osquery_result
+```
+
+
 #### Lambda
 
 ##### lambda_region
@@ -1556,6 +1723,24 @@ the function listed:
 
 - `lambda:InvokeFunction`
 
+##### Example YAML
+
+```yaml
+apiVersion: v1
+kind: config
+spec:
+  osquery:
+    osquery_status_log_plugin: lamda
+    osquery_result_log_plugin: lamda
+  lamda:
+    region: ca-central-1
+    access_key_id: AKIAIOSFODNN7EXAMPLE
+    secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+    sts_assume_role_arn: arn:aws:iam::1234567890:role/firehose-role
+    status_function: statusFunction
+    result_function: resultFunction
+```
+
 #### PubSub
 
 ##### pubsub_project
@@ -1626,8 +1811,26 @@ This feature is useful when combined with [subscription filters](https://cloud.g
 
   ```
   pubsub:
-    status_topic: osquery_status
+    add_attributes: true
   ```
+
+##### Example YAML
+
+```yaml
+apiVersion: v1
+kind: config
+spec:
+  osquery:
+    osquery_status_log_plugin: pubsub
+    osquery_result_log_plugin: pubsub
+  pubsub:
+    project: my-gcp-project
+    result_topic: osquery_result
+    status_topic: osquery_status
+    sts_assume_role_arn: arn:aws:iam::1234567890:role/firehose-role
+    status_function: statusFunction
+    result_function: resultFunction
+```
 
 #### Kafka REST Proxy logging
 
@@ -1707,7 +1910,20 @@ can be found [here](https://docs.confluent.io/platform/current/kafka-rest/api.ht
     content_type_value: application/vnd.kafka.json.v2+json
   ```
 
+##### Example YAML
 
+```yaml
+apiVersion: v1
+kind: config
+spec:
+  osquery:
+    osquery_status_log_plugin: kafkarest
+    osquery_result_log_plugin: kafkarest
+  kafkarest:
+    proxyhost: "https://localhost:8443"
+    result_topic: osquery_result
+    status_topic: osquery_status
+```
 #### S3 file carving backend
 
 ##### s3_bucket
@@ -1842,6 +2058,21 @@ Minio users must set this to any nonempty value (eg. `minio`), as Minio does not
   	region: us-east-1
   ```
 
+##### Example YAML
+
+```yaml
+apiVersion: v1
+kind: config
+spec:
+  s3:
+    bucket: some-carve-bucket
+    prefix: carves-go-here/
+    access_key_id: AKIAIOSFODNN7EXAMPLE
+    secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+    sts_assume_role_arn: arn:aws:iam::1234567890:role/some-s3-role
+    region: us-east-1
+```
+
 #### Upgrades
 
 ##### allow_missing_migrations
@@ -1853,15 +2084,18 @@ If set then `fleet serve` will run even if there are database migrations missing
 - Config file format:
 
   ```
-  upgrades:
-    allow_missing_migrations: true
+  apiVersion: v1
+    kind: config
+    spec:
+      upgrades:
+        allow_missing_migrations: true
   ```
 
 #### Vulnerabilities
 
 ##### databases_path
 
-The path specified needs to exist and fleet needs to be able to read and write to and from it. This is the only mandatory configuration needed for vulnerability processing to work.
+The path specified needs to exist and Fleet needs to be able to read and write to and from it. This is the only mandatory configuration needed for vulnerability processing to work.
 
 When `current_instance_checks` is set to `auto` (the default), Fleet instances will try to create the `databases_path` if it doesn't exist.
 
@@ -1889,7 +2123,7 @@ How often vulnerabilities are checked. This is also the interval at which the co
 
 ##### cpe_database_url
 
-URL to fetch the CPE dictionary database from. Some users want to control where fleet gets its database from. When Fleet sees this value defined, it downloads the file directly. It expects a file in the same format as can be found in https://github.com/fleetdm/nvd/releases. If this value is not defined, Fleet checks for the latest release in Github and only downloads it if needed.
+URL to fetch the CPE dictionary database from. Some users want to control where Fleet gets its database from. When Fleet sees this value defined, it downloads the file directly. It expects a file in the same format as can be found in https://github.com/fleetdm/nvd/releases. If this value is not defined, Fleet checks for the latest release in Github and only downloads it if needed.
 
 - Default value: `""`
 - Environment variable: `FLEET_VULNERABILITIES_CPE_DATABASE_URL`
@@ -1943,7 +2177,19 @@ To download the data streams, you can use `fleetctl vulnerability-data-stream --
   	disable_data_sync: true
   ```
   
-### GeoIP
+##### Example YAML
+
+```yaml
+apiVersion: v1
+kind: config
+spec:
+  vulnerabilities:
+    databases_path: /some/path
+    current_instance_checks: yes
+    disable_data_sync: true
+
+```
+#### GeoIP
 
 ##### database_path
 
@@ -1957,8 +2203,11 @@ on the Fleet web server.
 - Config file format:
 
   ```yaml
-  geoip:
-  	database_path: /some/path
+  apiVersion: v1
+  kind: config
+  spec:
+    geoip:
+      database_path: /some/path
   ```
 
 
