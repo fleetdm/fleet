@@ -22,81 +22,17 @@ The product team is responsible for sub-OKRs that contribute to organization wid
 
 ### Q2 OKRs
 
-This section lists the sub-OKRs that product is responsible for under each organization wide OKR for
-Q2.
+The following Q2 OKRs Google doc lists the "Product" sub-OKRs under each organization wide OKR:
 
-#### Grow revenue with a repeatable customer experience on top of a popular brand
-
-KR: Reduce time to value with a stable and publically available Fleet sandbox for self-service demos on fleetdm.com
-
-* Draft the sandbox experience (by May 5)
-* Draft the downloadable Fleet-osquery installers experience (by May 5)
-* Determine what needs to be added to usage statistics to record demo usage (by May 5)
-
-### Deliver a simple, trustworthy, actively-used product that works every time
-
-KR 1: Customers have Fleet Desktop successfully deployed and working on the majority of their production workstations (macOS, Windows, and Linux).
-
-* Ensure that Fleet Desktop includes features that motivate a production deployment (by April 14)
-
-KR 2: Everyone on the Fleet team is able to say how "active" users are (retention) in the
-Fleet UI.
-
-KR 3: Everyone on the Fleet team is able to say what the number of hosts enrolled per operating system version is (including the distinction between e.g. CentOS 6 and Debian 5).
-
-* Determine what needs to be added to usage statistics to understand usage/adoption (by April 14)
-
-KR 4: Customers have Fleet's built-in Jira and Zendesk integrations successfully configured
-for vulnerability ticketing.
-
-* Draft the integrations experience in the Fleet UI (by April 14)
-
-KR 5: Improve the usability of the vulnerability management product as measured by accuracy
-and user adoption.
-
-* Prioritize improvements to accuracy by deciding which platforms and software types we want to
-  focus on (by April 14)
-
-* Get non-binding commitment from customer that the drafted wireframes will allow them to using
-  Fleet for vulnerability management (by April 14)
-
-* Decide which vulnerability improvements to prioritize in Q2 (by April 14)
-
-* Update documentation for vuln processing so that it answers “what software does Fleet check for
-  vulns? What software does Fleet not check?” (by April 14)
-
-KR 6: Improve quality metrics by measuring weekly the number of bugs reported in actually-released
-code.
-
-* Create “released bug” label (by April 14)
-
-* Document the following ritual: Every week, product looks at all issues labeled as “bug” and adds
-  the “released bug” label if they are reporting a bug in a released version of Fleet (by May 5)
-
-KR 7: Provide obvious value and minimal cruft out of the box with Fleet by including only ≤10
-built-in policies.
-
-* Draft the new installs experience in the Fleet UI (by April 14)
-
-* Work with Security to define what these policies are (April 14)
-
-KR 8: Bug reports are taken seriously, verified quickly, and fixed as a top priority.
-
-* Document bug triage process (by May 26)
-
-KR 9: 100% of osquery tables advertised inside the product work correctly
-
-* Test all osquery tables and be able to answer “which tables work and which don’t?”  All osquery
-  tables in the product and documentation have been tested and are verified to be working (by May 5)
-
-* Draft the removal of broken tables from Fleet’s documentation sidebar in the core product  (and/or
-  clearly mark certain tables as “deprecated” or document out the known issues) (by May 5)
-
-### Recruit, train, and equip great contributors to deliver value quickly
+[Q2 OKRs](https://docs.google.com/document/d/1SfzdeY0mLXSg1Ew0N4yhJppakCgGnDW7Bf8xpKkBczo/edit#heading=h.krtfhfsshh3u)
 
 ## Q1 2022 product objectives
 
-For Q1 2022, the 7 product objectives we are focused on are:
+In Q1 2022, the Fleet organization set comapny wide objectives. The product team was reponsible for
+the product objectives that contributed to the company wide objectives.
+
+The following list includes the company wide objectives, product objectives and whether or not the
+product team hit or missed each objective:
 
 #### Ultimate source of truth
 
@@ -105,12 +41,12 @@ data](https://osquery.io/schema/5.1.0/) for all their devices. We want to build 
 by always providing the freshest, most accurate, and most understandable data possible
 in the UI and API.
 
-##### Execution plan
+##### How?
 
-We will solve the "Undetermined" performance impact limitation for new scheduled queries as well as
-reflect unfinished policy runs in the UI/API. In addition, we will only advertise working
-osquery tables inside the product (looking at you `wifi_networks` table). Moreover, we will improve the Fleet server's
-performance and improve reliability and accuracy of the vulnerability detections.
+- Solve the "Undetermined" performance impact limitation for new scheduled queries as well as
+reflect unfinished policy runs in the UI/API (Miss)
+- Only advertise working osquery tables inside the product (looking at you `wifi_networks` table)
+  (Miss)
 
 #### Programmable
 
@@ -118,48 +54,41 @@ Fleet differentiate's itself from other security tools by providing a simple and
 CLI tool (fleetctl). This allows users and customers to leverage Fleet's superb ability to gather
 device data in ways that are unique to their organization.
 
-##### Execution plan
+##### How?
 
-We will add integrations for policy and vulnerability automations as well as get closer to parity
-with Rapid7's vulnerability features. In addition, we will roll up software and vulnerabilities
-across the entire organization and teams.
+- Add integrations for policy and vulnerability automations as well as get closer to parity with
+  other vulnerability management solutions. (Miss)
+- Roll up software and vulnerabilities across the entire organization and teams.(Hit)
 
 #### Who's watching the watchers
 
 Many current Fleet users and customers hire Fleet to increase their confidence that other security
 tools are functioning properly. We will continue to expose valuable information about these tools to meet customer requirements.
 
-##### Execution plan
+##### How?
 
-We will invest in sending the health of other installed agents and verify device enrollment in Jamf,
-Kandji, and SimpleMDM. In addition we will roll up mobile device management (MDM) and Munki data
-across the entire organization and teams.
+- Detect the health of other installed agents and verify device enrollment in Jamf,
+Kandji, and SimpleMDM. (Hit)
+- Roll up mobile device management (MDM) and Munki data across the entire organization and teams. (Hit)
 
 #### Self-service, 2-way IT
 
 Fleet is poised to enable an organization's employees to resolve issues with their devices on their own. Not only does this save time for IT administrators and security practitioners but it also builds
 trust so that an organization can focus on achieving their business outcomes together.
 
-##### Execution plan
+##### How?
 
-We will focus on enabling end users to self serve issues with their devices using Fleet Desktop. In
-addition, Fleet Desktop will begin to provide end users with the ability to see what information is collected
-about their device (scope transparency).
+- Enable end users to self serve issues with their devices using Fleet Desktop. (Miss)
+- Enable end users to see what information is collected about their device (scope transparency). (Hit)
 
 #### Easy to use
 
-We'd like to make maintaining secure laptops and servers as
-easy as possible. This quarter we'll focus on improving the time to value for new Fleet users and
-customers by providing instructions and tools to quickly bolster any organization's security program. 
+We'd like to make maintaining secure laptops and servers as easy as possible.
 
-##### Execution plan
+##### How?
 
-We will focus on improving the standard query library so that it includes 80% of the most common
-policies that any organization needs. In addition, we will provide documentation that makes it dead
-simple to deploy on every major cloud platform (Reference architectures, AWS, GCP, Azure) as well as
-open source our own internal security program. Moreover, we will eliminate fear, uncertainty and
-doubt (FUD) related to the production readiness of Fleet's osquery installers.
-
+- Improve the standard query library so that it includes 80% of the most common
+policies that any organization needs. (Miss)
 
 ## Product design process
 
