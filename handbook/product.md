@@ -28,7 +28,7 @@ The following Q2 OKRs Google doc lists the "Product" sub-OKRs under each organiz
 
 ## Q1 2022 product objectives
 
-In Q1 2022, Fleet organization set company wide objectives. The product team was reponsible for
+In Q1 2022, Fleet set company wide objectives. The product team was reponsible for
 the product objectives that contributed to the company wide objectives.
 
 The following list includes the company wide objectives, product objectives ("How?" sections) and whether or not the
