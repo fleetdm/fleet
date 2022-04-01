@@ -38,25 +38,23 @@ func (mw metricsMiddleware) CallbackSSO(ctx context.Context, auth fleet.Auth) (s
 	return
 }
 
-func (mw metricsMiddleware) Login(ctx context.Context, email string, password string) (*fleet.User, string, error) {
+func (mw metricsMiddleware) Login(ctx context.Context, email string, password string) (*fleet.User, *fleet.Session, error) {
 	var (
-		user  *fleet.User
-		token string
-		err   error
+		user    *fleet.User
+		session *fleet.Session
+		err     error
 	)
 	defer func(begin time.Time) {
 		lvs := []string{"method", "Login", "error", fmt.Sprint(err != nil)}
 		mw.requestCount.With(lvs...).Add(1)
 		mw.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
-	user, token, err = mw.Service.Login(ctx, email, password)
-	return user, token, err
+	user, session, err = mw.Service.Login(ctx, email, password)
+	return user, session, err
 }
 
 func (mw metricsMiddleware) Logout(ctx context.Context) error {
-	var (
-		err error
-	)
+	var err error
 	defer func(begin time.Time) {
 		lvs := []string{"method", "Logout", "error", fmt.Sprint(err != nil)}
 		mw.requestCount.With(lvs...).Add(1)
@@ -67,9 +65,7 @@ func (mw metricsMiddleware) Logout(ctx context.Context) error {
 }
 
 func (mw metricsMiddleware) DestroySession(ctx context.Context) error {
-	var (
-		err error
-	)
+	var err error
 	defer func(begin time.Time) {
 		lvs := []string{"method", "DestroySession", "error", fmt.Sprint(err != nil)}
 		mw.requestCount.With(lvs...).Add(1)
@@ -94,9 +90,7 @@ func (mw metricsMiddleware) GetInfoAboutSessionsForUser(ctx context.Context, id 
 }
 
 func (mw metricsMiddleware) DeleteSessionsForUser(ctx context.Context, id uint) error {
-	var (
-		err error
-	)
+	var err error
 	defer func(begin time.Time) {
 		lvs := []string{"method", "DeleteSessionsForUser", "error", fmt.Sprint(err != nil)}
 		mw.requestCount.With(lvs...).Add(1)
@@ -121,9 +115,7 @@ func (mw metricsMiddleware) GetInfoAboutSession(ctx context.Context, id uint) (*
 }
 
 func (mw metricsMiddleware) DeleteSession(ctx context.Context, id uint) error {
-	var (
-		err error
-	)
+	var err error
 	defer func(begin time.Time) {
 		lvs := []string{"method", "DeleteSession", "error", fmt.Sprint(err != nil)}
 		mw.requestCount.With(lvs...).Add(1)

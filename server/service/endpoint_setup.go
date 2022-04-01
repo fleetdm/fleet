@@ -64,13 +64,14 @@ func makeSetupEndpoint(svc fleet.Service) endpoint.Endpoint {
 			return setupResponse{Err: err}, nil
 		}
 
-		// If everything works to this point, log the user in and return token.  If
-		// the login fails for some reason, ignore the error and don't return
+		// If everything works to this point, log the user in and return token.
+		_, session, err := svc.Login(ctx, *req.Admin.Email, *req.Admin.Password)
+
+		// If the login fails for some reason, ignore the error and don't return
 		// a token, forcing the user to log in manually
-		token := new(string)
-		_, *token, err = svc.Login(ctx, *req.Admin.Email, *req.Admin.Password)
-		if err != nil {
-			token = nil
+		var token *string
+		if err == nil {
+			token = &session.Key
 		}
 		return setupResponse{
 			Admin:     admin,
