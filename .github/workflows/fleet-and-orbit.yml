@@ -114,7 +114,7 @@ jobs:
 
     - name: Upload fleet logs
       if: always()
-      uses: actions/upload-artifact@82c141cc518b40d92cc801eee768e7aafc9c2fa2 # v2
+      uses: actions/upload-artifact@6673cd052c4cd6fcf4b4e6e60ea986c889389535 # v2
       with:
         name: fleet-logs
         path: |
@@ -203,7 +203,7 @@ jobs:
 
     - name: Upload orbit logs
       if: always()
-      uses: actions/upload-artifact@82c141cc518b40d92cc801eee768e7aafc9c2fa2 # v2
+      uses: actions/upload-artifact@6673cd052c4cd6fcf4b4e6e60ea986c889389535 # v2
       with:
         name: orbit-${{ matrix.os }}-logs-${{ matrix.osqueryd-channel }}
         path: |
@@ -253,7 +253,7 @@ jobs:
 
     - name: Upload orbit logs
       if: always()
-      uses: actions/upload-artifact@82c141cc518b40d92cc801eee768e7aafc9c2fa2 # v2
+      uses: actions/upload-artifact@6673cd052c4cd6fcf4b4e6e60ea986c889389535 # v2
       with:
         name: orbit-windows-logs-${{ matrix.osqueryd-channel }}
         path: |
