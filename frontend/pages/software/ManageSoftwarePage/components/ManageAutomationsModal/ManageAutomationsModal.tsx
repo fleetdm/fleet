@@ -1,8 +1,23 @@
 import React, { useState } from "react";
+import { useQuery } from "react-query";
 
 import { Link } from "react-router";
 import PATHS from "router/paths";
 
+import {
+  IIntegrations,
+  IJiraIntegration,
+  IJiraIntegrationIndexed,
+  IJiraIntegrationFormData,
+  IJiraIntegrationFormErrors,
+} from "interfaces/integration";
+import { IConfigNested } from "interfaces/config";
+
+import configAPI from "services/entities/config";
+import MOCKS from "services/mock_service/mocks/responses";
+
+// @ts-ignore
+import Dropdown from "components/forms/fields/Dropdown";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import Slider from "components/forms/fields/Slider";
@@ -55,12 +70,40 @@ const ManageAutomationsModal = ({
     setSoftwareAutomationsEnabled,
   ] = useState<boolean>(softwareVulnerabilityWebhookEnabled || false);
   const [jiraEnabled, setJiraEnabled] = useState<boolean>(false);
+  const [integrationsIndexed, setIntegrationsIndexed] = useState<
+    IJiraIntegrationIndexed[]
+  >();
+  const [
+    selectedIntegration,
+    setSelectedIntegration,
+  ] = useState<IJiraIntegration>();
 
   useDeepEffect(() => {
     if (destination_url) {
       setErrors({});
     }
   }, [destination_url]);
+
+  const {
+    data: integrations,
+    isLoading: isLoadingIntegrations,
+    error: loadingIntegrationsError,
+    refetch: refetchIntegrations,
+  } = useQuery<IConfigNested, Error, IJiraIntegration[]>(
+    ["integrations"],
+    () => configAPI.loadIntegrations(),
+    {
+      select: (data: IConfigNested) => {
+        return data.integrations.jira;
+      },
+      onSuccess: (data) => {
+        const addIndex = data.map((integration, index) => {
+          return { ...integration, integrationIndex: index };
+        });
+        setIntegrationsIndexed(addIndex);
+      },
+    }
+  );
 
   const onURLChange = (value: string) => {
     setDestinationUrl(value);
@@ -86,6 +129,26 @@ const ManageAutomationsModal = ({
     }
   };
 
+  const createIntegrationDropdownOptions = () => {
+    const integrationOptions = integrationsIndexed?.map((i) => {
+      return {
+        value: String(i.integrationIndex),
+        label: i.url,
+      };
+    });
+    return integrationOptions;
+  };
+
+  const onChangeSelectIntegration = (selectIntegrationIndex: string) => {
+    const integrationWithIndex:
+      | IJiraIntegrationIndexed
+      | undefined = integrationsIndexed?.find(
+      (integ: IJiraIntegrationIndexed) =>
+        integ.integrationIndex === parseInt(selectIntegrationIndex, 10)
+    );
+    setSelectedIntegration(integrationWithIndex);
+  };
+
   const onRadioChange = (jira: boolean): ((evt: string) => void) => {
     console.log("onRadioChange formField", jira);
     return (evt: string) => {
@@ -105,8 +168,19 @@ const ManageAutomationsModal = ({
             vulnerability (CVE) was published in the last 2 days.
           </p>
         </div>
-        {integrations ? (
-          <>Integration dropdown here</>
+        {integrationsIndexed ? (
+          <Dropdown
+            searchable
+            options={createIntegrationDropdownOptions()}
+            onChange={onChangeSelectIntegration}
+            placeholder={"Every day"}
+            value={selectedIntegration?.integrationIndex}
+            label={"Integration"}
+            wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--frequency`}
+            hint={
+              "For each new vulnerability detected, Fleet will create a ticket with a list of the affected hosts."
+            }
+          />
         ) : (
           <div className={`${baseClass}__no-integrations`}>
             <div>

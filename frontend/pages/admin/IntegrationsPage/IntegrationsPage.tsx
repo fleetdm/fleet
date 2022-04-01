@@ -20,7 +20,6 @@ import FleetIcon from "components/icons/FleetIcon";
 import { DEFAULT_CREATE_INTEGRATION_ERRORS } from "utilities/constants";
 
 import configAPI from "services/entities/config";
-import teamsAPI from "services/entities/teams";
 import MOCKS from "services/mock_service/mocks/responses";
 
 import TableContainer from "components/TableContainer";
@@ -155,7 +154,7 @@ const IntegrationsPage = (): JSX.Element => {
         .catch((createError: { data: IApiError }) => {
           if (createError.data.errors[0].reason.includes("Duplicate")) {
             setBackendValidators({
-              name: "A team with this name already exists",
+              name: "A team with this name already exists", // TODO: Any backend errors here
             });
           } else {
             dispatch(
@@ -262,7 +261,7 @@ const IntegrationsPage = (): JSX.Element => {
             console.error(updateError);
             if (updateError.data.errors[0].reason.includes("Duplicate")) {
               setBackendValidators({
-                name: "A team with this name already exists",
+                name: "A team with this name already exists", // TODO: Any backend errors here
               });
             } else {
               dispatch(
