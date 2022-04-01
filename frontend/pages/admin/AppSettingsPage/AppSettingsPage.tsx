@@ -1,12 +1,10 @@
 import React, { useCallback, useContext } from "react";
 import { useDispatch } from "react-redux";
 import { useQuery } from "react-query";
-// @ts-ignore
-import { getConfig } from "redux/nodes/app/actions";
-// @ts-ignore
-import { renderFlash } from "redux/nodes/notifications/actions";
-
 import { AppContext } from "context/app";
+import { NotificationContext } from "context/notification"; // @ts-ignore
+import { getConfig } from "redux/nodes/app/actions";
+
 import enrollSecretsAPI from "services/entities/enroll_secret";
 import configAPI from "services/entities/config";
 
@@ -26,6 +24,7 @@ export const baseClass = "app-settings";
 
 const AppSettingsPage = (): JSX.Element => {
   const dispatch = useDispatch();
+  const { renderFlash } = useContext(NotificationContext);
 
   const { setConfig } = useContext(AppContext);
 
@@ -59,24 +58,20 @@ const AppSettingsPage = (): JSX.Element => {
       configAPI
         .update(diff)
         .then(() => {
-          dispatch(renderFlash("success", "Successfully updated settings."));
+          renderFlash("success", "Successfully updated settings.");
         })
         .catch((response: { data: IApiError }) => {
           if (
-            response.data.errors[0].reason.includes("could not dial smtp host")
+            response?.data.errors[0].reason.includes("could not dial smtp host")
           ) {
-            dispatch(
-              renderFlash(
-                "error",
-                "Could not connect to SMTP server. Please try again."
-              )
+            renderFlash(
+              "error",
+              "Could not connect to SMTP server. Please try again."
             );
-          } else if (response.data.errors) {
-            dispatch(
-              renderFlash(
-                "error",
-                `Could not update settings. ${response.data.errors[0].reason}`
-              )
+          } else if (response?.data.errors) {
+            renderFlash(
+              "error",
+              `Could not update settings. ${response.data.errors[0].reason}`
             );
           }
         })

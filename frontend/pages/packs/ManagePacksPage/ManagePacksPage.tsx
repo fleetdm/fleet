@@ -1,19 +1,15 @@
 import React, { useState, useCallback, useContext } from "react";
-import { useDispatch } from "react-redux";
 import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router/lib/Router";
 
 import { IPack } from "interfaces/pack";
 import { IError } from "interfaces/errors";
-
 import { AppContext } from "context/app";
+import { NotificationContext } from "context/notification";
 import packsAPI from "services/entities/packs";
-// @ts-ignore
-import { renderFlash } from "redux/nodes/notifications/actions";
-
 import PATHS from "router/paths";
-// @ts-ignore
 
+// @ts-ignore
 import Button from "components/buttons/Button";
 import TableDataError from "components/TableDataError";
 import Spinner from "components/Spinner";
@@ -59,8 +55,7 @@ const renderTable = (
 
 const ManagePacksPage = ({ router }: IManagePacksPageProps): JSX.Element => {
   const { isOnlyObserver } = useContext(AppContext);
-
-  const dispatch = useDispatch();
+  const { renderFlash } = useContext(NotificationContext);
 
   const onCreatePackClick = () => router.push(PATHS.NEW_PACK);
 
@@ -103,23 +98,19 @@ const ManagePacksPage = ({ router }: IManagePacksPageProps): JSX.Element => {
 
     return Promise.all(promises)
       .then(() => {
-        dispatch(
-          renderFlash("success", `Successfully deleted ${packOrPacks}.`)
-        );
+        renderFlash("success", `Successfully deleted ${packOrPacks}.`);
       })
       .catch(() => {
-        dispatch(
-          renderFlash(
-            "error",
-            `Unable to remove ${packOrPacks}. Please try again.`
-          )
+        renderFlash(
+          "error",
+          `Unable to remove ${packOrPacks}. Please try again.`
         );
       })
       .finally(() => {
         refetchPacks();
         toggleRemovePackModal();
       });
-  }, [dispatch, refetchPacks, selectedPackIds, toggleRemovePackModal]);
+  }, [refetchPacks, selectedPackIds, toggleRemovePackModal]);
 
   const onEnableDisablePackSubmit = useCallback(
     (selectedTablePackIds: number[], disablePack: boolean) => {
@@ -132,26 +123,22 @@ const ManagePacksPage = ({ router }: IManagePacksPageProps): JSX.Element => {
 
       return Promise.all(promises)
         .then(() => {
-          dispatch(
-            renderFlash(
-              "success",
-              `Successfully ${enableOrDisable} selected ${packOrPacks}.`
-            )
+          renderFlash(
+            "success",
+            `Successfully ${enableOrDisable} selected ${packOrPacks}.`
           );
         })
         .catch(() => {
-          dispatch(
-            renderFlash(
-              "error",
-              `Unable to ${enableOrDisable} selected ${packOrPacks}. Please try again.`
-            )
+          renderFlash(
+            "error",
+            `Unable to ${enableOrDisable} selected ${packOrPacks}. Please try again.`
           );
         })
         .finally(() => {
           refetchPacks();
         });
     },
-    [dispatch, refetchPacks, selectedPackIds]
+    [refetchPacks, selectedPackIds]
   );
 
   const onEnablePackClick = (selectedTablePackIds: number[]) => {
