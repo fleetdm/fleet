@@ -3,7 +3,6 @@ import { useDispatch } from "react-redux";
 import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
 import { InjectedRouter, Link, RouteProps } from "react-router";
-import { push } from "react-router-redux";
 import { Tab, TabList, Tabs } from "react-tabs";
 import { find, toNumber } from "lodash";
 import classnames from "classnames";
@@ -24,8 +23,8 @@ import {
 import { IOldApiError } from "interfaces/errors";
 import permissions from "utilities/permissions";
 import sortUtils from "utilities/sort";
+import ActionButtons from "components/buttons/ActionButtons/ActionButtons";
 import Spinner from "components/Spinner";
-import Button from "components/buttons/Button";
 import TabsWrapper from "components/TabsWrapper";
 import TeamsDropdown from "components/TeamsDropdown";
 import { getNextLocationPath } from "pages/admin/UserManagementPage/helpers/userManagementHelpers";
@@ -426,30 +425,38 @@ const TeamDetailsWrapper = ({
               </span>
             )}
           </div>
-          <div className={`${baseClass}__team-actions`}>
-            <Button onClick={toggleAddHostsModal}>Add hosts</Button>
-            <Button
-              onClick={toggleManageEnrollSecretsModal}
-              variant={"text-icon"}
-            >
-              <>
-                Manage enroll secrets{" "}
-                <img src={EyeIcon} alt="Manage enroll secrets icon" />
-              </>
-            </Button>
-            <Button onClick={toggleEditTeamModal} variant={"text-icon"}>
-              <>
-                Edit team <img src={PencilIcon} alt="Edit team icon" />
-              </>
-            </Button>
-            {isGlobalAdmin && (
-              <Button onClick={toggleDeleteTeamModal} variant={"text-icon"}>
-                <>
-                  Delete team <img src={TrashIcon} alt="Delete team icon" />
-                </>
-              </Button>
-            )}
-          </div>
+          <ActionButtons
+            baseClass={baseClass}
+            actions={[
+              {
+                type: "primary",
+                label: "Add hosts",
+                onClick: toggleAddHostsModal,
+              },
+              {
+                type: "secondary",
+                label: "Manage enroll secrets",
+                buttonVariant: "text-icon",
+                icon: EyeIcon,
+                onClick: toggleManageEnrollSecretsModal,
+              },
+              {
+                type: "secondary",
+                label: "Edit team",
+                buttonVariant: "text-icon",
+                icon: PencilIcon,
+                onClick: toggleEditTeamModal,
+              },
+              {
+                type: "secondary",
+                label: "Delete team",
+                buttonVariant: "text-icon",
+                icon: TrashIcon,
+                hideAction: !isGlobalAdmin,
+                onClick: toggleDeleteTeamModal,
+              },
+            ]}
+          />
         </div>
         <Tabs
           selectedIndex={getTabIndex(pathname, teamIdFromURL)}

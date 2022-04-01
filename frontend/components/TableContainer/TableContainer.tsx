@@ -72,6 +72,7 @@ interface ITableContainerProps {
   onQueryChange?: (queryData: ITableQueryData) => void;
   onPrimarySelectActionClick?: (selectedItemIds: number[]) => void;
   customControl?: () => JSX.Element;
+  stackControls?: boolean;
   onSelectSingleRow?: (value: Row) => void;
   filters?: Record<string, string | number | boolean>;
   renderCount?: () => JSX.Element | null;
@@ -127,6 +128,7 @@ const TableContainer = ({
   onQueryChange,
   onPrimarySelectActionClick,
   customControl,
+  stackControls,
   onSelectSingleRow,
   renderCount,
   renderFooter,
@@ -144,6 +146,8 @@ const TableContainer = ({
   const wrapperClasses = classnames(baseClass, className);
 
   const EmptyComponent = emptyComponent;
+
+  console.log(stackControls);
 
   const onSortChange = useCallback(
     (id?: string, isDesc?: boolean) => {
@@ -250,16 +254,34 @@ const TableContainer = ({
           />
         </div>
       )}
-      <div className={`${baseClass}__header`}>
-        <div className={`${baseClass}__header-left`}>
+      <div
+        className={`${baseClass}__header ${
+          stackControls ? "stack-table-controls" : ""
+        }`}
+      >
+        <div
+          className={`${baseClass}__header-left ${
+            stackControls ? "stack-table-controls" : ""
+          }`}
+        >
           <span className="results-count">
             {renderCount && (
-              <div className={`${baseClass}__results-count`} style={opacity}>
+              <div
+                className={`${baseClass}__results-count ${
+                  stackControls ? "stack-table-controls" : ""
+                }`}
+                style={opacity}
+              >
                 {renderCount()}
               </div>
             )}
             {!renderCount && data && displayCount() && !disableCount ? (
-              <div className={`${baseClass}__results-count`} style={opacity}>
+              <div
+                className={`${baseClass}__results-count ${
+                  stackControls ? "stack-table-controls" : ""
+                }`}
+                style={opacity}
+              >
                 {TableContainerUtils.generateResultsCountText(
                   resultsTitle,
                   displayCount()
@@ -298,7 +320,9 @@ const TableContainer = ({
           {searchable && !wideSearch && (
             <>
               <div
-                className={`${baseClass}__search-input`}
+                className={`${baseClass}__search-input ${
+                  stackControls ? "stack-table-controls" : ""
+                }`}
                 data-tip
                 data-for="search-tooltip"
                 data-tip-disable={!searchToolTipText}

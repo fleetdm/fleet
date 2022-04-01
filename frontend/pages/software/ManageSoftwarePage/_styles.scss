@@ -40,6 +40,10 @@
   &__description {
     margin: 0;
     margin-bottom: $pad-large;
+    max-width: 75%;
+    @media (min-width: $break-990) {
+      max-width: none;
+    }
 
     h2 {
       text-transform: uppercase;
@@ -56,69 +60,6 @@
     }
   }
 
-  .button {
-    font-size: $x-small;
-
-    img {
-      transform: scale(0.5);
-    }
-  }
-
-  .rightcaret {
-    &::before {
-      content: url("../assets/images/icon-chevron-blue-16x16@2x.png");
-      transform: scale(0.5) rotate(-90deg);
-      width: 16px;
-      border-radius: 0px;
-      padding: 0px;
-      padding-right: 10px;
-      margin-top: 5px;
-    }
-  }
-
-  .upcaret {
-    &::before {
-      content: url("../assets/images/icon-chevron-blue-16x16@2x.png");
-      transform: scale(0.5) rotate(180deg);
-      width: 16px;
-      border-radius: 0px;
-      padding: 0px;
-      padding-right: 2px;
-      margin-right: $pad-small;
-      margin-top: 5px;
-      position: relative;
-      top: -4px;
-      left: 6px;
-    }
-  }
-
-  &__details {
-    display: inline-flex;
-    vertical-align: middle;
-    margin-left: $pad-small;
-    margin-top: -20px;
-
-    .hint {
-      color: $core-fleet-black;
-
-      &--brand {
-        color: $core-vibrant-blue;
-      }
-    }
-  }
-
-  .table-container {
-    min-height: 435px;
-  }
-  // .data-table__wrapper {
-  //   overflow-x: auto;
-  // }
-  .form-field--dropdown {
-    margin: 0;
-  }
-  .component__tabs-wrapper .table-container__header {
-    display: none;
-  }
   &__empty-software {
     margin: 80px auto 0;
     display: flex;
@@ -157,162 +98,189 @@
       }
     }
   }
-  &__count {
-    display: flex;
-
-    :first-child {
-      margin-right: $pad-small;
-    }
-    .count-error {
-      color: $ui-error;
-    }
-    .count-loading {
-      color: $ui-fleet-black-50;
-    }
-  }
-
-  &__status_dropdown {
-    width: 219px;
-
-    .Select-menu-outer {
-      width: 364px;
-      max-height: 310px;
-
-      .Select-menu {
-        max-height: none;
-      }
-    }
-    .Select-value {
-      padding-left: $pad-medium;
-      padding-right: $pad-medium;
-
-      &::before {
-        display: inline-block;
-        position: absolute;
-        padding: 5px 0 0 0; // centers spin
-        content: url(../assets/images/icon-filter-black-16x16@2x.png);
-        transform: scale(0.5);
-        height: 26px;
-        left: 2px;
-      }
-    }
-    .Select-value-label {
-      padding-left: $pad-large;
-      font-size: $small !important;
-    }
-  }
-  .text-muted {
-    color: $ui-fleet-black-50;
-  }
 
   &__table {
-    .data-table-block {
-      .data-table__table {
-        thead {
-          .name__header {
-            width: $col-md;
+    .table-container {
+      min-height: 435px;
+      &__header-left {
+        .manage-software-page__count {
+          display: flex;
+
+          :first-child {
+            margin-right: $pad-small;
           }
-          .version__header {
-            width: 0px;
+          .count-error {
+            color: $ui-error;
           }
-          .source__header {
-            display: none;
-            width: 0px;
+          .count-loading {
+            color: $ui-fleet-black-50;
           }
-          .vulnerabilities__header {
-            display: none;
-            width: 0px;
+        }
+        .controls {
+          .form-field--dropdown {
+            margin: 0;
           }
-          .hosts_count__header {
-            border-right: 0;
-          }
-          @media (min-width: $break-990) {
-            .version__header {
-              width: $col-md;
+          .manage-software-page__vuln_dropdown {
+            width: 219px;
+
+            .Select-menu-outer {
+              width: 364px;
+              max-height: 310px;
+
+              .Select-menu {
+                max-height: none;
+              }
             }
-            .vulnerabilities__header {
-              display: table-cell;
+            .Select-value {
+              padding-left: $pad-medium;
+              padding-right: $pad-medium;
+
+              &::before {
+                display: inline-block;
+                position: absolute;
+                padding: 5px 0 0 0; // centers spin
+                content: url(../assets/images/icon-filter-black-16x16@2x.png);
+                transform: scale(0.5);
+                height: 26px;
+                left: 2px;
+              }
             }
-          }
-          @media (min-width: $break-1400) {
-            .source__header {
-              display: table-cell;
+            .Select-value-label {
+              padding-left: $pad-large;
+              font-size: $small !important;
             }
           }
         }
+      }
+      &__search {
+        width: 100%;
+        .search-field__input-wrapper {
+          width: 100%;
+        }
+        @media (min-width: $break-768) {
+          width: auto;
+          .search-field__input-wrapper {
+            width: 411px;
+          }
+        }
+      }
+      &__data-table-block {
+        // .data-table__wrapper {
+        //   overflow-x: auto;
+        // }
+        .data-table-block {
+          .data-table__table {
+            tr {
+              .software-link {
+                color: $core-vibrant-blue;
+                visibility: hidden;
+                font-weight: bold;
+                text-decoration: none;
+                vertical-align: middle;
 
-        tbody {
-          .name__cell,
-          .version__cell {
-            overflow: hidden;
-            white-space: nowrap;
-            text-overflow: ellipsis;
-          }
-          .source__cell {
-            display: none;
-            width: 0px;
-          }
-          .vulnerabilities__cell {
-            width: 0px;
-            display: none;
-          }
-          .hosts_count__cell {
-            .hosts-cell__wrapper {
-              display: flex;
-              justify-content: space-between;
-              .hosts-cell__count {
-                display: none;
+                a {
+                  text-decoration: none;
+                }
+                img {
+                  height: 16px;
+                  width: 16px;
+                  vertical-align: middle;
+                }
+
+                .link-text {
+                  padding-right: $pad-xxsmall;
+                }
               }
-              .hosts-cell__link {
-                display: flex;
-              }
-            }
-          }
-          @media (min-width: $break-990) {
-            .vulnerabilities__cell {
-              display: table-cell;
-            }
-          }
-          @media (min-width: $break-1400) {
-            .source__cell {
-              display: table-cell;
-              width: 0px;
-            }
-            .hosts_count__cell {
-              .hosts-cell__wrapper {
-                .hosts-cell__count {
-                  display: flex;
+
+              &:hover {
+                .software-link {
+                  visibility: visible;
                 }
               }
             }
-          }
-        }
 
-        tr {
-          .software-link {
-            color: $core-vibrant-blue;
-            visibility: hidden;
-            font-weight: bold;
-            text-decoration: none;
-            vertical-align: middle;
-
-            a {
-              text-decoration: none;
+            thead {
+              .name__header {
+                width: $col-md;
+              }
+              .version__header {
+                width: 0px;
+              }
+              .source__header {
+                display: none;
+                width: 0px;
+              }
+              .vulnerabilities__header {
+                display: none;
+                width: 0px;
+              }
+              .hosts_count__header {
+                border-right: 0;
+              }
+              @media (min-width: $break-990) {
+                .version__header {
+                  width: $col-md;
+                }
+                .vulnerabilities__header {
+                  display: table-cell;
+                }
+              }
+              @media (min-width: $break-1400) {
+                .source__header {
+                  display: table-cell;
+                }
+              }
             }
-            img {
-              height: 16px;
-              width: 16px;
-              vertical-align: middle;
-            }
 
-            .link-text {
-              padding-right: $pad-xxsmall;
-            }
-          }
+            tbody {
+              .name__cell,
+              .version__cell {
+                overflow: hidden;
+                white-space: nowrap;
+                text-overflow: ellipsis;
+              }
+              .source__cell {
+                display: none;
+                width: 0px;
+              }
+              .vulnerabilities__cell {
+                width: 0px;
+                display: none;
 
-          &:hover {
-            .software-link {
-              visibility: visible;
+                .text-muted {
+                  color: $ui-fleet-black-50;
+                }
+              }
+              .hosts_count__cell {
+                .hosts-cell__wrapper {
+                  display: flex;
+                  justify-content: space-between;
+                  .hosts-cell__count {
+                    display: none;
+                  }
+                  .hosts-cell__link {
+                    display: flex;
+                  }
+                }
+              }
+              @media (min-width: $break-990) {
+                .vulnerabilities__cell {
+                  display: table-cell;
+                }
+                .hosts_count__cell {
+                  .hosts-cell__wrapper {
+                    .hosts-cell__count {
+                      display: flex;
+                    }
+                  }
+                }
+              }
+              @media (min-width: $break-1400) {
+                .source__cell {
+                  display: table-cell;
+                  width: 0px;
+                }
+              }
             }
           }
         }

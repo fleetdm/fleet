@@ -92,20 +92,20 @@
     }
   }
 
-  &__details {
-    display: inline-flex;
-    vertical-align: middle;
-    margin-left: $pad-small;
-    margin-top: -20px;
+  // &__details {
+  //   display: inline-flex;
+  //   vertical-align: middle;
+  //   margin-left: $pad-small;
+  //   margin-top: -20px;
 
-    .hint {
-      color: $core-fleet-black;
+  //   .hint {
+  //     color: $core-fleet-black;
 
-      &--brand {
-        color: $core-vibrant-blue;
-      }
-    }
-  }
+  //     &--brand {
+  //       color: $core-vibrant-blue;
+  //     }
+  //   }
+  // }
 
   &__all-teams-table {
     // .table-container__header {

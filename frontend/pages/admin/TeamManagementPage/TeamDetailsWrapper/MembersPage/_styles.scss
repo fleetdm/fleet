@@ -1,9 +1,9 @@
 .members {
   &__page-description {
     font-size: $x-small;
-    color: $core-fleet-black;
-    @include sticky-settings-description;
+    padding-top: 40px;
     padding-bottom: $pad-medium;
+    margin: 0;
 
     a {
       color: $core-vibrant-blue;
@@ -19,22 +19,22 @@
         .name__header {
           width: $col-md;
         }
-  
+
         .role__header {
           width: $col-md;
           border-right: none;
         }
-  
+
         .email__header {
           display: none;
           width: 0;
         }
-  
+
         @media (min-width: $break-1400) {
           .role__header {
             border-right: 1px solid $ui-fleet-blue-15;
           }
-  
+
           .email__header {
             display: table-cell;
             width: $col-lg;
@@ -42,21 +42,21 @@
           }
         }
       }
-  
+
       tbody {
         .name__cell {
           width: $col-md;
         }
-  
+
         .role__cell {
           width: $col-md;
         }
-  
+
         .email__cell {
           display: none;
           width: 0;
         }
-  
+
         @media (min-width: $break-1400) {
           .email__cell {
             display: table-cell;

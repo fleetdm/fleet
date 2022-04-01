@@ -29,7 +29,7 @@ const renderLastUpdatedText = (
       <TooltipWrapper
         tipContent={`Fleet periodically queries all hosts to retrieve ${whatToRetrieve}`}
       >
-        {`Last updated ${abbreviateUnits(lastUpdatedAt)}`}
+        {`Updated ${abbreviateUnits(lastUpdatedAt)}`}
       </TooltipWrapper>
     </span>
   );

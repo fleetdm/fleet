@@ -391,7 +391,7 @@ const ManageSoftwarePage = ({
     return (
       <Dropdown
         value={filterVuln}
-        className={`${baseClass}__status_dropdown`}
+        className={`${baseClass}__vuln_dropdown`}
         options={VULNERABLE_DROPDOWN_OPTIONS}
         searchable={false}
         onChange={onVulnFilterChange}
@@ -465,6 +465,7 @@ const ManageSoftwarePage = ({
               // for the useDeepEffect hook to fire onQueryChange for events happeing outside of
               // the TableContainer
               customControl={renderVulnFilterDropdown}
+              stackControls
               renderCount={renderSoftwareCount}
               renderFooter={renderTableFooter}
               disableActionButton

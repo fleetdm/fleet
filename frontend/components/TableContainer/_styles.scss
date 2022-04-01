@@ -6,28 +6,41 @@
 
   &__header {
     display: flex;
-    flex-direction: column-reverse;
+    width: 100%;
+    justify-content: space-between;
+    align-items: center;
     padding-bottom: $pad-medium;
-    @media (min-width: $break-768) {
-      flex-direction: row;
-      align-items: flex-end;
-      justify-content: space-between;
-    }
 
-    @media (min-width: $break-990) {
-      align-items: center;
+    &.stack-table-controls {
+      flex-direction: column-reverse;
+      align-items: start;
+
+      @media (min-width: $break-768) {
+        flex-direction: row;
+        align-items: end;
+        justify-content: space-between;
+      }
+      @media (min-width: $break-990) {
+        align-items: center;
+      }
     }
   }
 
   &__header-left {
-    width: 100%;
     display: flex;
-    flex-direction: column-reverse;
+    width: 100%;
+    justify-content: space-between;
+    align-items: center;
 
-    @media (min-width: $break-990) {
-      flex-direction: row;
-      justify-content: space-between;
-      align-items: center;
+    &.stack-table-controls {
+      flex-direction: column-reverse;
+      align-items: start;
+
+      @media (min-width: $break-990) {
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+      }
     }
   }
 
@@ -35,11 +48,14 @@
     font-size: $x-small;
     font-weight: $bold;
     color: $core-fleet-black;
-    padding-top: $pad-large;
     margin: 0;
 
-    @media (min-width: $break-990) {
-      padding-top: 0;
+    &.stack-table-controls {
+      padding-top: $pad-large;
+
+      @media (min-width: $break-990) {
+        padding-top: 0;
+      }
     }
   }
 
@@ -58,12 +74,28 @@
   &__search-input {
     position: relative;
     color: $core-fleet-blue;
-    width: 335px;
-    padding-bottom: $pad-large;
+    width: 100%;
+    margin-left: $pad-small;
 
-    @media (min-width: $break-768) {
-      margin-left: $pad-medium;
-      padding-bottom: 0;
+    .search-field__input-wrapper {
+      width: 250px;
+      margin-bottom: 0;
+      @media (min-width: $break-768) {
+        width: 300px;
+      }
+      @media (min-width: $break-990) {
+        width: 344px;
+      }
+    }
+
+    &.stack-table-controls {
+      padding-bottom: $pad-large;
+      margin-left: 0;
+
+      @media (min-width: $break-768) {
+        margin-left: $pad-medium;
+        padding-bottom: 0;
+      }
     }
 
     &::before {
@@ -75,10 +107,6 @@
       height: 20px;
       top: 3px;
       left: 8px;
-    }
-
-    .table-container__input-wrapper {
-      margin-bottom: 0;
     }
 
     .input-field {
