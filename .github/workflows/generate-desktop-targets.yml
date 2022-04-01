@@ -1,4 +1,4 @@
-name: Generate desktop.app.tar.gz for Orbit
+name: Generate Fleet Desktop targets for Orbit
 
 on:
   push:
@@ -6,11 +6,7 @@ on:
       - main
     paths:
       # The workflow can be triggered by modifying FLEET_DESKTOP_VERSION env.
-      - '.github/workflows/generate-desktop-app-tar-gz.yml'
-  pull_request:
-    paths:
-      # The workflow can be triggered by modifying FLEET_DESKTOP_VERSION env.
-      - '.github/workflows/generate-desktop-app-tar-gz.yml'
+      - '.github/workflows/generate-desktop-targets.yml'
   workflow_dispatch:
 
 env:
@@ -20,9 +16,10 @@ permissions:
   contents: read
 
 jobs:
-  release:
+  desktop-macos:
     runs-on: macos-latest
     steps:
+
       - name: Install Go
         uses: actions/setup-go@bfdd3570ce990073878bf10f6b2d79082de49492 # v2
         with:
@@ -45,6 +42,7 @@ jobs:
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k $KEYCHAIN_PASSWORD build.keychain
           security find-identity -vv
           rm certificate.p12
+
       - name: Generate desktop.app.tar.gz
         env:
           AC_USERNAME: ${{ secrets.APPLE_USERNAME }}
@@ -57,8 +55,32 @@ jobs:
           FLEET_DESKTOP_NOTARIZE=true \
           FLEET_DESKTOP_VERSION=$FLEET_DESKTOP_VERSION \
           make desktop-app-tar-gz
+
       - name: Upload desktop.app.tar.gz
         uses: actions/upload-artifact@82c141cc518b40d92cc801eee768e7aafc9c2fa2 # v2
         with:
           name: desktop.app.tar.gz
           path: desktop.app.tar.gz
+
+  desktop-windows:
+    runs-on: macos-latest
+    steps:
+
+      - name: Install Go
+        uses: actions/setup-go@bfdd3570ce990073878bf10f6b2d79082de49492 # v2
+        with:
+          go-version: '^1.17.0'
+
+      - name: Checkout
+        uses: actions/checkout@629c2de402a417ea7690ca6ce3f33229e27606a5 # v2
+
+      - name: Generate fleet-desktop.exe
+        run: |
+          FLEET_DESKTOP_VERSION=$FLEET_DESKTOP_VERSION \
+          make desktop-windows
+
+      - name: Upload fleet-desktop.exe
+        uses: actions/upload-artifact@82c141cc518b40d92cc801eee768e7aafc9c2fa2 # v2
+        with:
+          name: fleet-desktop.exe
+          path: fleet-desktop.exe

@@ -3,21 +3,15 @@ import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import { useQuery } from "react-query";
 import FileSaver from "file-saver";
 
-import { useDispatch } from "react-redux";
-// @ts-ignore
-import { renderFlash } from "redux/nodes/notifications/actions";
-
+import { NotificationContext } from "context/notification";
 import configAPI from "services/entities/config";
-import { AppContext } from "context/app";
-// @ts-ignore
+import { AppContext } from "context/app"; // @ts-ignore
 import { stringToClipboard } from "utilities/copy_text";
 import { ITeam } from "interfaces/team";
 import { IEnrollSecret } from "interfaces/enroll_secret";
 import Button from "components/buttons/Button";
-import RevealButton from "components/buttons/RevealButton";
-// @ts-ignore
+import RevealButton from "components/buttons/RevealButton"; // @ts-ignore
 import InputField from "components/forms/fields/InputField";
-import Checkbox from "components/forms/fields/Checkbox";
 import TooltipWrapper from "components/TooltipWrapper";
 import TabsWrapper from "components/TabsWrapper";
 
@@ -66,13 +60,12 @@ const PlatformWrapper = ({
   onCancel,
 }: IPlatformWrapperProp): JSX.Element => {
   const { config, isPreviewMode } = useContext(AppContext);
+  const { renderFlash } = useContext(NotificationContext);
   const [copyMessage, setCopyMessage] = useState<Record<string, string>>({});
   const [includeFleetDesktop, setIncludeFleetDesktop] = useState<boolean>(
     false
   );
   const [showPlainOsquery, setShowPlainOsquery] = useState<boolean>(false);
-
-  const dispatch = useDispatch();
 
   const {
     data: certificate,
@@ -167,11 +160,9 @@ const PlatformWrapper = ({
 
       FileSaver.saveAs(file);
     } else {
-      dispatch(
-        renderFlash(
-          "error",
-          "Your certificate could not be downloaded. Please check your Fleet configuration."
-        )
+      renderFlash(
+        "error",
+        "Your certificate could not be downloaded. Please check your Fleet configuration."
       );
     }
     return false;

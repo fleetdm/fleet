@@ -186,8 +186,8 @@ const ScheduleListWrapper = ({
         disablePagination
         onPrimarySelectActionClick={onRemoveScheduledQueryClick}
         primarySelectActionButtonVariant="text-icon"
-        primarySelectActionButtonIcon="close"
-        primarySelectActionButtonText={"Remove"}
+        primarySelectActionButtonIcon="delete"
+        primarySelectActionButtonText={"Delete"}
         emptyComponent={NoScheduledQueries}
       />
     </div>

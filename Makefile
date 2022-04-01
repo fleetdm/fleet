@@ -311,3 +311,10 @@ ifneq ($(shell uname), Darwin)
 	@exit 1
 endif
 	go run ./tools/desktop macos
+
+# Build desktop executable for Windows.
+#
+# Usage:
+# FLEET_DESKTOP_VERSION=0.0.1 make desktop-windows
+desktop-windows:
+	GOOS=windows GOARCH=amd64 go build -ldflags "-H=windowsgui" -o fleet-desktop.exe ./orbit/cmd/desktop

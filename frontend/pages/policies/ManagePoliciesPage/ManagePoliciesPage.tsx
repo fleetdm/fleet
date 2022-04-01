@@ -7,14 +7,12 @@ import { noop } from "lodash";
 import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
 import { TableContext } from "context/table";
+import { NotificationContext } from "context/notification";
 import { inMilliseconds, secondsToHms } from "fleet/helpers";
 import { IPolicyStats, ILoadAllPoliciesResponse } from "interfaces/policy";
 import { IWebhookFailingPolicies } from "interfaces/webhook";
-import { IConfig, IConfigNested } from "interfaces/config";
-// @ts-ignore
+import { IConfig, IConfigNested } from "interfaces/config"; // @ts-ignore
 import { getConfig } from "redux/nodes/app/actions";
-// @ts-ignore
-import { renderFlash } from "redux/nodes/notifications/actions";
 import PATHS from "router/paths";
 import configAPI from "services/entities/config";
 import globalPoliciesAPI from "services/entities/global_policies";
@@ -71,6 +69,7 @@ const ManagePolicyPage = ({
     setCurrentTeam,
     setConfig,
   } = useContext(AppContext);
+  const { renderFlash } = useContext(NotificationContext);
 
   const teamId = location?.query?.team_id
     ? parseInt(location?.query?.team_id, 10)
@@ -222,16 +221,12 @@ const ManagePolicyPage = ({
         },
       });
       await request.then(() => {
-        dispatch(
-          renderFlash("success", "Successfully updated policy automations.")
-        );
+        renderFlash("success", "Successfully updated policy automations.");
       });
     } catch {
-      dispatch(
-        renderFlash(
-          "error",
-          "Could not update policy automations. Please try again."
-        )
+      renderFlash(
+        "error",
+        "Could not update policy automations. Please try again."
       );
     } finally {
       toggleManageAutomationsModal();
@@ -265,25 +260,21 @@ const ManagePolicyPage = ({
         : globalPoliciesAPI.destroy(selectedPolicyIds);
 
       await request.then(() => {
-        dispatch(
-          renderFlash(
-            "success",
-            `Successfully removed ${
-              selectedPolicyIds?.length === 1 ? "policy" : "policies"
-            }.`
-          )
+        renderFlash(
+          "success",
+          `Successfully removed ${
+            selectedPolicyIds?.length === 1 ? "policy" : "policies"
+          }.`
         );
         setResetSelectedRows(true);
         refetchPolicies(id);
       });
     } catch {
-      dispatch(
-        renderFlash(
-          "error",
-          `Unable to remove ${
-            selectedPolicyIds?.length === 1 ? "policy" : "policies"
-          }. Please try again.`
-        )
+      renderFlash(
+        "error",
+        `Unable to remove ${
+          selectedPolicyIds?.length === 1 ? "policy" : "policies"
+        }. Please try again.`
       );
     } finally {
       toggleRemovePoliciesModal();

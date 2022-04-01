@@ -7,11 +7,10 @@ import { Tab, TabList, Tabs } from "react-tabs";
 import { find, toNumber } from "lodash";
 import classnames from "classnames";
 
+import { NotificationContext } from "context/notification";
+import { AppContext } from "context/app";
 import PATHS from "router/paths";
 import { ITeam, ITeamSummary } from "interfaces/team";
-import { AppContext } from "context/app";
-// @ts-ignore
-import { renderFlash } from "redux/nodes/notifications/actions";
 import teamsAPI from "services/entities/teams";
 import usersAPI, { IGetMeResponse } from "services/entities/users";
 import enrollSecretsAPI from "services/entities/enroll_secret";
@@ -101,6 +100,7 @@ const TeamDetailsWrapper = ({
   params: routeParams,
 }: ITeamDetailsPageProps): JSX.Element => {
   const dispatch = useDispatch();
+  const { renderFlash } = useContext(NotificationContext);
   const handlePageError = useErrorHandler();
   const teamIdFromURL = parseInt(routeParams.team_id, 10) || 0;
   const {
@@ -245,21 +245,17 @@ const TeamDetailsWrapper = ({
 
       toggleSecretEditorModal();
       isPremiumTier && refetchTeams();
-      dispatch(
-        renderFlash(
-          "success",
-          `Successfully ${selectedSecret ? "edited" : "added"} enroll secret.`
-        )
+      renderFlash(
+        "success",
+        `Successfully ${selectedSecret ? "edited" : "added"} enroll secret.`
       );
     } catch (error) {
       console.error(error);
-      dispatch(
-        renderFlash(
-          "error",
-          `Could not ${
-            selectedSecret ? "edit" : "add"
-          } enroll secret. Please try again.`
-        )
+      renderFlash(
+        "error",
+        `Could not ${
+          selectedSecret ? "edit" : "add"
+        } enroll secret. Please try again.`
       );
     }
   };
@@ -277,28 +273,23 @@ const TeamDetailsWrapper = ({
       refetchTeamSecrets();
       toggleDeleteSecretModal();
       refetchTeams();
-      dispatch(renderFlash("success", `Successfully deleted enroll secret.`));
+      renderFlash("success", `Successfully deleted enroll secret.`);
     } catch (error) {
       console.error(error);
-      dispatch(
-        renderFlash(
-          "error",
-          "Could not delete enroll secret. Please try again."
-        )
-      );
+      renderFlash("error", "Could not delete enroll secret. Please try again.");
     }
   };
 
   const onDeleteSubmit = useCallback(() => {
     dispatch(teamActions.destroy(currentTeam?.id))
       .then(() => {
-        dispatch(renderFlash("success", "Team removed"));
+        renderFlash("success", "Team removed");
         router.push(PATHS.ADMIN_TEAMS);
         // TODO: error handling
       })
       .catch(() => null);
     toggleDeleteTeamModal();
-  }, [dispatch, toggleDeleteTeamModal, currentTeam?.id]);
+  }, [toggleDeleteTeamModal, currentTeam?.id]);
 
   const onEditSubmit = useCallback(
     (formData: IEditTeamFormData) => {
@@ -312,11 +303,9 @@ const TeamDetailsWrapper = ({
       dispatch(teamActions.update(currentTeam?.id, updatedAttrs))
         .then(() => {
           dispatch(teamActions.loadAll({ perPage: 500 }));
-          dispatch(
-            renderFlash(
-              "success",
-              `Successfully updated team name to ${updatedAttrs?.name}`
-            )
+          renderFlash(
+            "success",
+            `Successfully updated team name to ${updatedAttrs?.name}`
           );
           setBackendValidators({});
           refetchTeams();
@@ -329,14 +318,12 @@ const TeamDetailsWrapper = ({
               name: "A team with this name already exists",
             });
           } else {
-            dispatch(
-              renderFlash("error", "Could not create team. Please try again.")
-            );
+            renderFlash("error", "Could not create team. Please try again.");
             toggleEditTeamModal();
           }
         });
     },
-    [dispatch, toggleEditTeamModal, currentTeam, setBackendValidators]
+    [toggleEditTeamModal, currentTeam, setBackendValidators]
   );
 
   const handleTeamSelect = (teamId: number) => {
