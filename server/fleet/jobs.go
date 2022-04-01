@@ -5,22 +5,19 @@ import (
 	"time"
 )
 
-type JobState int
+type JobState string
 
 // The possible states for a job
 //
-//     ┌─────────┐
-//     │         │
-//     ▼         │
-//  Queued───►Running───►Success
-//               │
-//               │
-//               └──────►Failure
+//  Queued───►Success
+//    │
+//    │
+//    └──────►Failure
 //
 const (
-	JobStateQueued JobState = iota + 1
-	JobStateSuccess
-	JobStateFailure
+	JobStateQueued  JobState = "queued"
+	JobStateSuccess JobState = "success"
+	JobStateFailure JobState = "failure"
 )
 
 // Job describes an asynchronous job started via the queue package.
