@@ -76,6 +76,19 @@ function create_repository() {
       rm desktop.app.tar.gz
     fi
 
+    # Add Fleet Desktop application on  (if enabled).
+    if [[ $system == "windows" && -n "$FLEET_DESKTOP" ]]; then
+      FLEET_DESKTOP_VERSION=42.0.0 \
+      make desktop-windows
+      ./build/fleetctl updates add \
+        --path $TUF_PATH \
+        --target fleet-desktop.exe \
+        --platform windows \
+        --name desktop \
+        --version 42.0.0 -t 42.0 -t 42 -t stable
+      rm fleet-desktop.exe
+    fi
+
   done
 
   # Generate and add osqueryd .app bundle for macos-app.
@@ -151,6 +164,7 @@ if [ -n "$GENERATE_PKGS" ]; then
   echo "Generating msi..."
   ./build/fleetctl package \
     --type=msi \
+    ${FLEET_DESKTOP:+--fleet-desktop} \
     --fleet-url=https://$MSI_HOSTNAME:8080 \
     --enroll-secret=$ENROLL_SECRET \
     --insecure \
