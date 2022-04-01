@@ -1,14 +1,14 @@
 import { mount } from "enzyme";
 
-import ConfirmInvitePage from "pages/ConfirmInvitePage";
+import ConfirmSSOInvitePage from "pages/ConfirmSSOInvitePage";
 import { connectedComponent, reduxMockStore } from "test/helpers";
 
-describe("ConfirmInvitePage - component", () => {
+describe("ConfirmSSOInvitePage - component", () => {
   const inviteToken = "abc123";
   const location = { query: { email: "hi@gnar.dog", name: "Gnar Dog" } };
   const params = { invite_token: inviteToken };
   const mockStore = reduxMockStore({ auth: {}, entities: { users: {} } });
-  const component = connectedComponent(ConfirmInvitePage, {
+  const component = connectedComponent(ConfirmSSOInvitePage, {
     props: { location, params },
     mockStore,
   });
@@ -16,15 +16,15 @@ describe("ConfirmInvitePage - component", () => {
 
   it("renders", () => {
     expect(page.length).toEqual(1);
-    expect(page.find("ConfirmInvitePage").prop("inviteFormData")).toEqual({
+    expect(page.find("ConfirmSSOInvitePage").prop("inviteFormData")).toEqual({
       email: "hi@gnar.dog",
       invite_token: inviteToken,
       name: "Gnar Dog",
     });
   });
 
-  it("renders a ConfirmInviteForm", () => {
-    expect(page.find("ConfirmInviteForm").length).toEqual(1);
+  it("renders a ConfirmSSOInviteForm", () => {
+    expect(page.find("ConfirmSSOInviteForm").length).toEqual(1);
   });
 
   it("clears errors on unmount", () => {

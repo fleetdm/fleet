@@ -1,5 +1,4 @@
 import React, { useState, useContext, useEffect, useCallback } from "react";
-import { useDispatch } from "react-redux";
 import { useQuery } from "react-query";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 import { RouteProps } from "react-router/lib/Route";
@@ -24,6 +23,7 @@ import PATHS from "router/paths";
 import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
 import { TableContext } from "context/table";
+import { NotificationContext } from "context/notification";
 import {
   IEnrollSecret,
   IEnrollSecretsResponse,
@@ -33,8 +33,7 @@ import { IHost } from "interfaces/host";
 import { ILabel, ILabelFormData } from "interfaces/label";
 import { IPolicy } from "interfaces/policy";
 import { ISoftware } from "interfaces/software";
-import { ITeam } from "interfaces/team";
-// @ts-ignore
+import { ITeam } from "interfaces/team"; // @ts-ignore
 import deepDifference from "utilities/deep_difference";
 import sortUtils from "utilities/sort";
 import {
@@ -42,14 +41,10 @@ import {
   PLATFORM_LABEL_DISPLAY_NAMES,
   PolicyResponse,
 } from "utilities/constants";
-// @ts-ignore
-import { renderFlash } from "redux/nodes/notifications/actions";
 
-import Button from "components/buttons/Button";
-// @ts-ignore
+import Button from "components/buttons/Button"; // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
-import HostSidePanel from "components/side_panels/HostSidePanel";
-// @ts-ignore
+import HostSidePanel from "components/side_panels/HostSidePanel"; // @ts-ignore
 import LabelForm from "components/forms/LabelForm";
 import Modal from "components/Modal";
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
@@ -80,12 +75,10 @@ import {
 import DeleteSecretModal from "../../../components/DeleteSecretModal";
 import SecretEditorModal from "../../../components/SecretEditorModal";
 import AddHostsModal from "../../../components/AddHostsModal";
-import EnrollSecretModal from "../../../components/EnrollSecretModal";
-// @ts-ignore
+import EnrollSecretModal from "../../../components/EnrollSecretModal"; // @ts-ignore
 import NoHosts from "./components/NoHosts";
 import EmptyHosts from "./components/EmptyHosts";
-import PoliciesFilter from "./components/PoliciesFilter";
-// @ts-ignore
+import PoliciesFilter from "./components/PoliciesFilter"; // @ts-ignore
 import EditColumnsModal from "./components/EditColumnsModal/EditColumnsModal";
 import TransferHostModal from "./components/TransferHostModal";
 import DeleteHostModal from "./components/DeleteHostModal";
@@ -132,8 +125,8 @@ const ManageHostsPage = ({
   params: routeParams,
   location,
 }: IManageHostsProps): JSX.Element => {
-  const dispatch = useDispatch();
   const queryParams = location.query;
+
   const {
     availableTeams,
     config,
@@ -151,6 +144,7 @@ const ManageHostsPage = ({
     setCurrentTeam,
     setCurrentUser,
   } = useContext(AppContext);
+  const { renderFlash } = useContext(NotificationContext);
 
   useQuery(["me"], () => usersAPI.me(), {
     onSuccess: ({ user, available_teams }: IGetMeResponse) => {
@@ -819,21 +813,17 @@ const ManageHostsPage = ({
           queryParams,
         })
       );
-      dispatch(
-        renderFlash(
-          "success",
-          `Successfully ${selectedSecret ? "edited" : "added"} enroll secret.`
-        )
+      renderFlash(
+        "success",
+        `Successfully ${selectedSecret ? "edited" : "added"} enroll secret.`
       );
     } catch (error) {
       console.error(error);
-      dispatch(
-        renderFlash(
-          "error",
-          `Could not ${
-            selectedSecret ? "edit" : "add"
-          } enroll secret. Please try again.`
-        )
+      renderFlash(
+        "error",
+        `Could not ${
+          selectedSecret ? "edit" : "add"
+        } enroll secret. Please try again.`
       );
     }
   };
@@ -871,15 +861,10 @@ const ManageHostsPage = ({
           queryParams,
         })
       );
-      dispatch(renderFlash("success", `Successfully deleted enroll secret.`));
+      renderFlash("success", `Successfully deleted enroll secret.`);
     } catch (error) {
       console.error(error);
-      dispatch(
-        renderFlash(
-          "error",
-          "Could not delete enroll secret. Please try again."
-        )
-      );
+      renderFlash("error", "Could not delete enroll secret. Please try again.");
     }
   };
 
@@ -895,11 +880,9 @@ const ManageHostsPage = ({
       .update(selectedLabel, updateAttrs)
       .then(() => {
         refetchLabels();
-        dispatch(
-          renderFlash(
-            "success",
-            "Label updated. Try refreshing this page in just a moment to see the updated host count for your label."
-          )
+        renderFlash(
+          "success",
+          "Label updated. Try refreshing this page in just a moment to see the updated host count for your label."
         );
         setLabelValidator({});
       })
@@ -909,9 +892,7 @@ const ManageHostsPage = ({
             name: "A label with this name already exists",
           });
         } else {
-          dispatch(
-            renderFlash("error", "Could not create label. Please try again.")
-          );
+          renderFlash("error", "Could not create label. Please try again.");
         }
       });
   };
@@ -932,11 +913,9 @@ const ManageHostsPage = ({
       .create(formData)
       .then(() => {
         router.push(PATHS.MANAGE_HOSTS);
-        dispatch(
-          renderFlash(
-            "success",
-            "Label created. Try refreshing this page in just a moment to see the updated host count for your label."
-          )
+        renderFlash(
+          "success",
+          "Label created. Try refreshing this page in just a moment to see the updated host count for your label."
         );
         setLabelValidator({});
         refetchLabels();
@@ -947,9 +926,7 @@ const ManageHostsPage = ({
             name: "A label with this name already exists",
           });
         } else {
-          dispatch(
-            renderFlash("error", "Could not create label. Please try again.")
-          );
+          renderFlash("error", "Could not create label. Please try again.");
         }
       });
   };
@@ -976,9 +953,7 @@ const ManageHostsPage = ({
       );
     } catch (error) {
       console.error(error);
-      dispatch(
-        renderFlash("error", "Could not delete label. Please try again.")
-      );
+      renderFlash("error", "Could not delete label. Please try again.");
     }
   };
 
@@ -1023,7 +998,7 @@ const ManageHostsPage = ({
           ? `Hosts successfully removed from teams.`
           : `Hosts successfully transferred to  ${team.name}.`;
 
-      dispatch(renderFlash("success", successMessage));
+      renderFlash("success", successMessage);
       setResetSelectedRows(true);
       refetchHosts({
         selectedLabels: selectedFilters,
@@ -1039,9 +1014,7 @@ const ManageHostsPage = ({
       setSelectedHostIds([]);
       setIsAllMatchingHostsSelected(false);
     } catch (error) {
-      dispatch(
-        renderFlash("error", "Could not transfer hosts. Please try again.")
-      );
+      renderFlash("error", "Could not transfer hosts. Please try again.");
     }
   };
 
@@ -1070,7 +1043,7 @@ const ManageHostsPage = ({
         selectedHostIds.length === 1 ? "Host" : "Hosts"
       } successfully deleted.`;
 
-      dispatch(renderFlash("success", successMessage));
+      renderFlash("success", successMessage);
       setResetSelectedRows(true);
       refetchHosts({
         selectedLabels: selectedFilters,
@@ -1087,13 +1060,11 @@ const ManageHostsPage = ({
       setSelectedHostIds([]);
       setIsAllMatchingHostsSelected(false);
     } catch (error) {
-      dispatch(
-        renderFlash(
-          "error",
-          `Could not delete ${
-            selectedHostIds.length === 1 ? "host" : "hosts"
-          }. Please try again.`
-        )
+      renderFlash(
+        "error",
+        `Could not delete ${
+          selectedHostIds.length === 1 ? "host" : "hosts"
+        }. Please try again.`
       );
     }
   };

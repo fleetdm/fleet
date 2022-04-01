@@ -68,3 +68,11 @@ export interface IUpdateUserFormData {
   sso_enabled?: boolean;
   teams?: ITeam[];
 }
+
+export interface ICreateUserWithInvitationFormData {
+  email: string;
+  invite_token: string;
+  name: string;
+  password: string;
+  password_confirmation: string;
+}

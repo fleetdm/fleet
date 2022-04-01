@@ -16,6 +16,7 @@ import { IUser } from "interfaces/user";
 import TableProvider from "context/table";
 import QueryProvider from "context/query";
 import PolicyProvider from "context/policy";
+import NotificationProvider from "context/notification";
 import { AppContext } from "context/app";
 
 import { ErrorBoundary } from "react-error-boundary"; // @ts-ignore
@@ -128,12 +129,14 @@ const App = ({ children }: IAppProps): JSX.Element => {
       <TableProvider>
         <QueryProvider>
           <PolicyProvider>
-            <ErrorBoundary
-              fallbackRender={renderErrorOverlay}
-              resetKeys={[location.pathname]}
-            >
-              <div className={wrapperStyles}>{children}</div>
-            </ErrorBoundary>
+            <NotificationProvider>
+              <ErrorBoundary
+                fallbackRender={renderErrorOverlay}
+                resetKeys={[location.pathname]}
+              >
+                <div className={wrapperStyles}>{children}</div>
+              </ErrorBoundary>
+            </NotificationProvider>
           </PolicyProvider>
         </QueryProvider>
       </TableProvider>

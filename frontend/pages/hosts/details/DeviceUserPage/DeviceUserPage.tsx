@@ -1,5 +1,4 @@
-import React, { useState, useCallback } from "react";
-import { useDispatch } from "react-redux";
+import React, { useState, useContext, useCallback } from "react";
 import { Params } from "react-router/lib/Router";
 import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
@@ -8,11 +7,10 @@ import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import classnames from "classnames";
 import { pick } from "lodash";
 
+import { NotificationContext } from "context/notification";
 import deviceUserAPI from "services/entities/device_user";
 import { IHost, IDeviceMappingResponse } from "interfaces/host";
 import { ISoftware } from "interfaces/software";
-// @ts-ignore
-import { renderFlash } from "redux/nodes/notifications/actions";
 import PageError from "components/PageError";
 // @ts-ignore
 import OrgLogoIcon from "components/icons/OrgLogoIcon";
@@ -44,7 +42,7 @@ const DeviceUserPage = ({
   params: { device_auth_token },
 }: IDeviceUserPageProps): JSX.Element => {
   const deviceAuthToken = device_auth_token;
-  const dispatch = useDispatch();
+  const { renderFlash } = useContext(NotificationContext);
   const handlePageError = useErrorHandler();
 
   const [showInfoModal, setShowInfoModal] = useState<boolean>(false);
@@ -121,20 +119,16 @@ const DeviceUserPage = ({
                   refetchExtensions();
                 }, 1000);
               } else {
-                dispatch(
-                  renderFlash(
-                    "error",
-                    `This host is offline. Please try refetching host vitals later.`
-                  )
+                renderFlash(
+                  "error",
+                  `This host is offline. Please try refetching host vitals later.`
                 );
                 setShowRefetchSpinner(false);
               }
             } else {
-              dispatch(
-                renderFlash(
-                  "error",
-                  `We're having trouble fetching fresh vitals for this host. Please try again later.`
-                )
+              renderFlash(
+                "error",
+                `We're having trouble fetching fresh vitals for this host. Please try again later.`
               );
               setShowRefetchSpinner(false);
             }
@@ -196,7 +190,7 @@ const DeviceUserPage = ({
         });
       } catch (error) {
         console.log(error);
-        dispatch(renderFlash("error", `Host "${host.hostname}" refetch error`));
+        renderFlash("error", `Host "${host.hostname}" refetch error`);
         setShowRefetchSpinner(false);
       }
     }

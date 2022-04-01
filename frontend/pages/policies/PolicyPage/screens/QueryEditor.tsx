@@ -1,13 +1,12 @@
 import React, { useContext, useEffect, useState } from "react";
 import { Link } from "react-router";
-import { useDispatch } from "react-redux";
 import { InjectedRouter } from "react-router/lib/Router";
 
 import globalPoliciesAPI from "services/entities/global_policies";
 import teamPoliciesAPI from "services/entities/team_policies";
 import { AppContext } from "context/app";
-import { PolicyContext } from "context/policy"; // @ts-ignore
-import { renderFlash } from "redux/nodes/notifications/actions";
+import { PolicyContext } from "context/policy";
+import { NotificationContext } from "context/notification";
 import PATHS from "router/paths"; // @ts-ignore
 import debounce from "utilities/debounce"; // @ts-ignore
 import deepDifference from "utilities/deep_difference";
@@ -45,8 +44,8 @@ const QueryEditor = ({
   onOpenSchemaSidebar,
   renderLiveQueryWarning,
 }: IQueryEditorProps): JSX.Element | null => {
-  const dispatch = useDispatch();
   const { currentUser } = useContext(AppContext);
+  const { renderFlash } = useContext(NotificationContext);
 
   // Note: The PolicyContext values should always be used for any mutable policy data such as query name
   // The storedPolicy prop should only be used to access immutable metadata such as author id
@@ -61,11 +60,9 @@ const QueryEditor = ({
 
   useEffect(() => {
     if (storedPolicyError) {
-      dispatch(
-        renderFlash(
-          "error",
-          "Something went wrong retrieving your policy. Please try again."
-        )
+      renderFlash(
+        "error",
+        "Something went wrong retrieving your policy. Please try again."
       );
     }
   }, []);
@@ -84,7 +81,7 @@ const QueryEditor = ({
         (data) => data.policy
       );
       router.push(PATHS.EDIT_POLICY(policy));
-      dispatch(renderFlash("success", "Policy created!"));
+      renderFlash("success", "Policy created!");
     } catch (createError: any) {
       console.error(createError);
       if (createError.data.errors[0].reason.includes("already exists")) {
@@ -92,11 +89,9 @@ const QueryEditor = ({
           name: "A policy with this name already exists",
         });
       } else {
-        dispatch(
-          renderFlash(
-            "error",
-            "Something went wrong creating your policy. Please try again."
-          )
+        renderFlash(
+          "error",
+          "Something went wrong creating your policy. Please try again."
         );
       }
     }
@@ -129,19 +124,15 @@ const QueryEditor = ({
 
     try {
       await updateAPIRequest();
-      dispatch(renderFlash("success", "Policy updated!"));
+      renderFlash("success", "Policy updated!");
     } catch (updateError: any) {
       console.error(updateError);
       if (updateError.data.errors[0].reason.includes("Duplicate")) {
-        dispatch(
-          renderFlash("error", "A policy with this name already exists.")
-        );
+        renderFlash("error", "A policy with this name already exists.");
       } else {
-        dispatch(
-          renderFlash(
-            "error",
-            "Something went wrong updating your policy. Please try again."
-          )
+        renderFlash(
+          "error",
+          "Something went wrong updating your policy. Please try again."
         );
       }
     }

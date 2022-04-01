@@ -6,22 +6,19 @@ import React, {
   useState,
 } from "react";
 import { InjectedRouter } from "react-router";
-import { useDispatch } from "react-redux";
 import { useQuery } from "react-query";
 import { pick } from "lodash";
 
 import { AppContext } from "context/app";
 import { TableContext } from "context/table";
+import { NotificationContext } from "context/notification";
 import { performanceIndicator } from "fleet/helpers";
 import { IOsqueryPlatform } from "interfaces/platform";
 import { IQuery } from "interfaces/query";
 import fleetQueriesAPI from "services/entities/queries";
-// @ts-ignore
-import { renderFlash } from "redux/nodes/notifications/actions";
 import PATHS from "router/paths";
 import checkPlatformCompatibility from "utilities/sql_tools";
-import Button from "components/buttons/Button";
-// @ts-ignore
+import Button from "components/buttons/Button"; // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 import Spinner from "components/Spinner";
 import TableDataError from "components/TableDataError";
@@ -84,10 +81,9 @@ const enhanceQuery = (q: IQuery) => {
 const ManageQueriesPage = ({
   router,
 }: IManageQueriesPageProps): JSX.Element => {
-  const dispatch = useDispatch();
-
   const { isOnlyObserver } = useContext(AppContext);
   const { setResetSelectedRows } = useContext(TableContext);
+  const { renderFlash } = useContext(NotificationContext);
 
   const [queriesList, setQueriesList] = useState<IQueryTableData[] | null>(
     null
@@ -149,26 +145,20 @@ const ManageQueriesPage = ({
 
     try {
       await Promise.all(removeQueries).then(() => {
-        dispatch(
-          renderFlash("success", `Successfully removed ${queryOrQueries}.`)
-        );
+        renderFlash("success", `Successfully removed ${queryOrQueries}.`);
         setResetSelectedRows(true);
         refetchFleetQueries();
       });
-      dispatch(
-        renderFlash("success", `Successfully removed ${queryOrQueries}.`)
-      );
+      renderFlash("success", `Successfully removed ${queryOrQueries}.`);
     } catch (errorResponse) {
-      dispatch(
-        renderFlash(
-          "error",
-          `There was an error removing your ${queryOrQueries}. Please try again later.`
-        )
+      renderFlash(
+        "error",
+        `There was an error removing your ${queryOrQueries}. Please try again later.`
       );
     } finally {
       toggleRemoveQueryModal();
     }
-  }, [dispatch, refetchFleetQueries, selectedQueryIds, toggleRemoveQueryModal]);
+  }, [refetchFleetQueries, selectedQueryIds, toggleRemoveQueryModal]);
 
   const renderPlatformDropdown = () => {
     return (
