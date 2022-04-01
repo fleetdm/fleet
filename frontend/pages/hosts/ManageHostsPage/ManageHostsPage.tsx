@@ -4,6 +4,8 @@ import { InjectedRouter, Params } from "react-router/lib/Router";
 import { RouteProps } from "react-router/lib/Route";
 import { find, isEmpty, isEqual, omit } from "lodash";
 import ReactTooltip from "react-tooltip";
+import { format } from "date-fns";
+import FileSaver from "file-saver";
 
 import enrollSecretsAPI from "services/entities/enroll_secret";
 import labelsAPI from "services/entities/labels";
@@ -89,6 +91,7 @@ import TrashIcon from "../../../../assets/images/icon-trash-14x14@2x.png";
 import CloseIcon from "../../../../assets/images/icon-close-vibrant-blue-16x16@2x.png";
 import CloseIconBlack from "../../../../assets/images/icon-close-fleet-black-16x16@2x.png";
 import PolicyIcon from "../../../../assets/images/icon-policy-fleet-black-12x12@2x.png";
+import DownloadIcon from "../../../../assets/images/icon-download-12x12@2x.png";
 
 interface IManageHostsProps {
   route: RouteProps;
@@ -117,6 +120,7 @@ interface ITableQueryProps {
   sortDirection: string;
 }
 
+const CSV_HOSTS_TITLE = "Hosts";
 const baseClass = "manage-hosts";
 
 const ManageHostsPage = ({
@@ -1348,6 +1352,73 @@ const ManageHostsPage = ({
     );
   };
 
+  const onExportHostsResults = async (
+    evt: React.MouseEvent<HTMLButtonElement>
+  ) => {
+    evt.preventDefault();
+
+    let options = {
+      selectedLabels: selectedFilters,
+      globalFilter: searchQuery,
+      sortBy,
+      teamId: currentTeam?.id,
+      policyId,
+      policyResponse,
+      softwareId,
+    };
+
+    options = {
+      ...options,
+      teamId: getValidatedTeamId(
+        availableTeams || [],
+        options.teamId as number,
+        currentUser,
+        isOnGlobalTeam as boolean
+      ),
+    };
+
+    if (queryParams.team_id) {
+      options.teamId = queryParams.team_id;
+    }
+
+    try {
+      const exportHostResults = await hostsAPI.exportHosts(options);
+
+      const formattedTime = format(new Date(), "yyyy-MM-dd");
+      const filename = `${CSV_HOSTS_TITLE} ${formattedTime}.csv`;
+      const file = new global.window.File([exportHostResults], filename, {
+        type: "text/csv",
+      });
+
+      FileSaver.saveAs(file);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const renderHostCount = useCallback(() => {
+    const count = filteredHostCount;
+
+    return (
+      <div
+        className={`${baseClass}__count ${
+          isHostCountLoading ? "count-loading" : ""
+        }`}
+      >
+        <span>{`${count} host${count === 1 ? "" : "s"}`}</span>
+        <Button
+          className={`${baseClass}__export-btn`}
+          onClick={onExportHostsResults}
+          variant="text-link"
+        >
+          <>
+            Export hosts <img alt="" src={DownloadIcon} />
+          </>
+        </Button>
+      </div>
+    );
+  }, [isHostCountLoading, filteredHostCount]);
+
   const renderActiveFilterBlock = () => {
     const showSelectedLabel =
       selectedLabel &&
@@ -1528,6 +1599,7 @@ const ManageHostsPage = ({
         showMarkAllPages
         isAllPagesSelected={isAllMatchingHostsSelected}
         searchable
+        renderCount={renderHostCount}
         filteredCount={filteredHostCount}
         searchToolTipText={
           "Search hosts by hostname, UUID, machine serial or IP address"
