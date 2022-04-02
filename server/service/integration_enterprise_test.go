@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -304,13 +303,7 @@ func (s *integrationEnterpriseTestSuite) TestAvailableTeams() {
 	// test available teams returned by `/me` endpoint
 	key := make([]byte, 64)
 	sessionKey := base64.StdEncoding.EncodeToString(key)
-	session := &fleet.Session{
-		UserID:     user.ID,
-		Key:        sessionKey,
-		AccessedAt: time.Now().UTC(),
-	}
-
-	_, err = s.ds.NewSession(context.Background(), session)
+	_, err = s.ds.NewSession(context.Background(), user.ID, sessionKey)
 	require.NoError(t, err)
 	resp := s.DoRawWithHeaders("GET", "/api/v1/fleet/me", []byte(""), http.StatusOK, map[string]string{
 		"Authorization": fmt.Sprintf("Bearer %s", sessionKey),

@@ -503,27 +503,18 @@ func (svc *Service) SSOSettings(ctx context.Context) (*fleet.SessionSSOSettings,
 	return settings, nil
 }
 
-// makeSession is a helper that creates a new session after authentication
-func (svc *Service) makeSession(ctx context.Context, id uint) (*fleet.Session, error) {
+// makeSession creates a new session for the given user.
+func (svc *Service) makeSession(ctx context.Context, userID uint) (*fleet.Session, error) {
 	sessionKeySize := svc.config.Session.KeySize
 	key := make([]byte, sessionKeySize)
 	_, err := rand.Read(key)
 	if err != nil {
 		return nil, err
 	}
-
-	sessionKey := base64.StdEncoding.EncodeToString(key)
-	session := &fleet.Session{
-		UserID:     id,
-		Key:        sessionKey,
-		AccessedAt: time.Now().UTC(),
-	}
-
-	session, err = svc.ds.NewSession(ctx, session)
+	session, err := svc.ds.NewSession(ctx, userID, base64.StdEncoding.EncodeToString(key))
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creating new session")
 	}
-
 	return session, nil
 }
 

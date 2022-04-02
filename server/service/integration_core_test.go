@@ -3881,12 +3881,7 @@ func createSession(t *testing.T, uid uint, ds fleet.Datastore) *fleet.Session {
 	require.NoError(t, err)
 
 	sessionKey := base64.StdEncoding.EncodeToString(key)
-	session := &fleet.Session{
-		UserID:     uid,
-		Key:        sessionKey,
-		AccessedAt: time.Now().UTC(),
-	}
-	ssn, err := ds.NewSession(context.Background(), session)
+	ssn, err := ds.NewSession(context.Background(), uid, sessionKey)
 	require.NoError(t, err)
 
 	return ssn
