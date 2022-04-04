@@ -22,13 +22,6 @@
   .component__tabs-wrapper .table-container__header {
     display: none;
   }
-  &__software-modal {
-    width: 780px;
-
-    .data-table__wrapper {
-      margin-top: $pad-large;
-    }
-  }
   &__empty-software {
     margin: $pad-large auto 0;
 
@@ -51,10 +44,6 @@
       font-weight: $bold;
       text-decoration: none;
     }
-  }
-  &__empty-software-modal {
-    width: 550px;
-    margin: $pad-large auto;
   }
   &__status_dropdown {
     width: 219px;

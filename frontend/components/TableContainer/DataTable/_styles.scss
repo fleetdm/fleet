@@ -13,8 +13,6 @@
 
     &__wrapper {
       position: relative;
-      overflow-x: auto; // TODO: what setting? scroll, hidden, can we make something the default?
-
       border: 1px solid $ui-fleet-blue-15;
       border-radius: 6px; // TODO: confirm not 8 or 4px?
       margin-top: $pad-small;
@@ -119,56 +117,53 @@
       }
     }
 
-    // .active-selection {
-    //   position: absolute;
-    //   top: 0px;
-    //   width: 100%;
-    //   border: 0;
-    //   border-radius: 6px;
+    .active-selection {
+      position: absolute;
+      top: 0px;
+      width: 100%;
+      border: 0;
+      border-radius: 6px;
 
-    //   &__checkbox {
-    //     padding: 16px;
-    //     width: 26px;
-    //   }
+      &__checkbox {
+        padding: 16px;
+        width: 26px;
+      }
 
-    //   &__container {
-    //     // padding: 0 27px;
-    //     padding: 0 24px;
-    //   }
+      &__container {
+        padding: 0 24px;
+      }
 
-    //   &__inner {
-    //     display: flex;
-    //     justify-content: space-between;
-    //     align-items: center;
+      &__inner {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
 
-    //     p {
-    //       margin: 0 $pad-medium 0 0;
-    //       font-weight: $regular;
+        p {
+          margin: 0 $pad-medium 0 0;
+          font-weight: $regular;
 
-    //       span {
-    //         font-weight: $bold;
-    //       }
-    //     }
+          span {
+            font-weight: $bold;
+          }
+        }
 
-    //     button {
-    //       margin-right: $pad-medium;
-    //     }
-    //   }
+        button {
+          margin-right: $pad-medium;
+        }
+      }
 
-    //   &__inner-left,
-    //   &__inner-right {
-    //     display: flex;
-    //     align-items: center;
-    //   }
-    // }
+      &__inner-left,
+      &__inner-right {
+        display: flex;
+        align-items: center;
+      }
+    }
 
     tbody {
       td {
         height: 40px;
-        // TODO: how/where do we want to handle long text fields in body and headers?
-        // overflow: hidden;
         white-space: nowrap;
-        // text-overflow: ellipsis;
+        text-overflow: ellipsis;
         padding: 0 $pad-large;
 
         &.selection__cell {

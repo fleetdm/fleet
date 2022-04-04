@@ -36,9 +36,8 @@
   }
   .data-table-block {
     .data-table__table {
-      table-layout: fixed; // TODO: include on all tables?
+      table-layout: fixed;
 
-      // TODO
       thead {
         .name__header {
           width: 60%;
