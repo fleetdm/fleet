@@ -46,11 +46,9 @@ export const addGravatarUrlToResource = (resource: any): any => {
 
 const labelSlug = (label: ILabel): string => {
   const { id, name } = label;
-
   if (name === "All Hosts") {
     return "all-hosts";
   }
-
   return `labels/${id}`;
 };
 
