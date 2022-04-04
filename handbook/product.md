@@ -90,7 +90,7 @@ We'd like to make maintaining secure laptops and servers as easy as possible.
 - Improve the standard query library so that it includes 80% of the most common
 policies that any organization needs. (Miss)
 
-## Product  process
+## Product process
 
 The product team is responsible for product design tasks. These include drafting
 changes to the Fleet product, reviewing and collecting feedback from engineering, sales, customer success, and marketing counterparts, and delivering
