@@ -336,7 +336,7 @@ Pressing the return or enter key with an open form will cause the form to be sub
 
 **External links**
 
-When adding an external link to text, use `$core-blue` as the color and `xs-bold` styling. The link-out icon will also be included to the right of the text.
+For a link that navigates the user to an external site (ex. fleetdm.com/docs), use the `$core-blue` color and `xs-bold` styling for the link's text. Also, place the link-out icon to the right of the link's text.
 
 ## Release 
 
