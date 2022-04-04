@@ -240,7 +240,7 @@ binary-arch: .pre-binary-arch .pre-binary-bundle .pre-fleet
 
 # Drop, create, and migrate the e2e test database
 e2e-reset-db:
-	docker-compose exec -T mysql_test bash -c 'echo "drop database if exists e2e; create database e2e;" | mysql -uroot -ptoor'
+	docker-compose exec -T mysql_test bash -c 'echo "drop database if exists e2e; create database e2e;" | MYSQL_PWD=toor mysql -uroot'
 	./build/fleet prepare db --mysql_address=localhost:3307  --mysql_username=root --mysql_password=toor --mysql_database=e2e
 
 e2e-setup:
@@ -272,7 +272,7 @@ changelog-orbit:
 
 # Reset the development DB
 db-reset:
-	docker-compose exec -T mysql bash -c 'echo "drop database if exists fleet; create database fleet;" | mysql -uroot -ptoor'
+	docker-compose exec -T mysql bash -c 'echo "drop database if exists fleet; create database fleet;" | MYSQL_PWD=toor mysql -uroot'
 	./build/fleet prepare db --dev
 
 # Back up the development DB to file
@@ -318,3 +318,28 @@ endif
 # FLEET_DESKTOP_VERSION=0.0.1 make desktop-windows
 desktop-windows:
 	GOOS=windows GOARCH=amd64 go build -ldflags "-H=windowsgui" -o fleet-desktop.exe ./orbit/cmd/desktop
+
+# db-replica-setup setups one main and one read replica MySQL instance for dev/testing.
+#	- Assumes the docker containers are already running (tools/mysql-replica-testing/docker-compose.yml)
+# 	- MySQL instance listening on 3308 is the main instance.
+# 	- MySQL instance listening on 3309 is the read instance.
+#	- Sets a delay of 1s for replication.
+db-replica-setup:
+	$(eval MYSQL_REPLICATION_USER := replicator)
+	$(eval MYSQL_REPLICATION_PASSWORD := rotacilper)
+	MYSQL_PWD=toor mysql --host 127.0.0.1 --port 3309 -uroot -AN -e "stop slave; reset slave all;"
+	MYSQL_PWD=toor mysql --host 127.0.0.1 --port 3308 -uroot -AN -e "drop user if exists '$(MYSQL_REPLICATION_USER)'; create user '$(MYSQL_REPLICATION_USER)'@'%'; grant replication slave on *.* to '$(MYSQL_REPLICATION_USER)'@'%' identified by '$(MYSQL_REPLICATION_PASSWORD)'; flush privileges;"
+	$(eval MAIN_POSITION := $(shell MYSQL_PWD=toor mysql --host 127.0.0.1 --port 3308 -uroot -e 'show master status \G' | grep Position | grep -o '[0-9]*'))
+	$(eval MAIN_FILE := $(shell MYSQL_PWD=toor mysql --host 127.0.0.1 --port 3308 -uroot -e 'show master status \G' | grep File | sed -n -e 's/^.*: //p'))
+	MYSQL_PWD=toor mysql --host 127.0.0.1 --port 3309 -uroot -AN -e "change master to master_host='mysql_main',master_user='$(MYSQL_REPLICATION_USER)',master_password='$(MYSQL_REPLICATION_PASSWORD)',master_log_file='$(MAIN_FILE)',master_log_pos=$(MAIN_POSITION);"
+	MYSQL_PWD=toor mysql --host 127.0.0.1 --port 3309 -uroot -AN -e "change master to master_delay=1;"
+	MYSQL_PWD=toor mysql --host 127.0.0.1 --port 3309 -uroot -AN -e "start slave;"
+
+# db-replica-reset resets the main MySQL instance.
+db-replica-reset: fleet
+	MYSQL_PWD=toor mysql --host 127.0.0.1 --port 3308 -uroot -e "drop database if exists fleet; create database fleet;"
+	FLEET_MYSQL_ADDRESS=127.0.0.1:3308 ./build/fleet prepare db --dev
+
+# db-replica-run runs fleet serve with one main and one read MySQL instance.
+db-replica-run: fleet
+	FLEET_MYSQL_ADDRESS=127.0.0.1:3308 FLEET_MYSQL_READ_REPLICA_ADDRESS=127.0.0.1:3309 FLEET_MYSQL_READ_REPLICA_USERNAME=fleet FLEET_MYSQL_READ_REPLICA_DATABASE=fleet FLEET_MYSQL_READ_REPLICA_PASSWORD=insecure ./build/fleet serve --dev --dev_license
