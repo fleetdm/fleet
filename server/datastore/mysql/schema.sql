@@ -288,7 +288,7 @@ CREATE TABLE `jobs` (
   `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `name` varchar(255) NOT NULL,
   `args` json DEFAULT NULL,
-  `state` int(11) NOT NULL,
+  `state` varchar(255) NOT NULL,
   `retries` int(11) NOT NULL DEFAULT '0',
   `error` text,
   PRIMARY KEY (`id`)
