@@ -1,11 +1,11 @@
 import React, { useState, useContext } from "react";
 import { InjectedRouter } from "react-router";
 import { useDispatch } from "react-redux"; // @ts-ignore
-import { logoutUser } from "redux/nodes/auth/actions";
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 import { TableContext } from "context/table";
 
+import paths from "router/paths";
 import { useDeepEffect } from "utilities/hooks";
 import FlashMessage from "components/FlashMessage";
 import SiteTopNav from "components/top_nav/SiteTopNav";
@@ -63,12 +63,8 @@ const CoreLayout = ({ children, router }: ICoreLayoutProps) => {
   }, [notification]);
 
   const onLogoutUser = async () => {
-    try {
-      dispatch(logoutUser());
-    } catch (error) {
-      renderFlash("error", "Unable to log out of your account");
-      console.log(error);
-    }
+    const { LOGOUT } = paths;
+    router.push(LOGOUT);
   };
 
   const onNavItemClick = (path: string) => {
