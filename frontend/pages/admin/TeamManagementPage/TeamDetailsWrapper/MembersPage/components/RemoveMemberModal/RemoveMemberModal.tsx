@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
@@ -18,8 +18,21 @@ const RemoveMemberModal = ({
   onSubmit,
   onCancel,
 }: IDeleteTeamModalProps): JSX.Element => {
+  useEffect(() => {
+    const listener = (event: KeyboardEvent) => {
+      if (event.code === "Enter" || event.code === "NumpadEnter") {
+        event.preventDefault();
+        onSubmit();
+      }
+    };
+    document.addEventListener("keydown", listener);
+    return () => {
+      document.removeEventListener("keydown", listener);
+    };
+  }, []);
+
   return (
-    <Modal title={"Delete team"} onExit={onCancel} className={baseClass}>
+    <Modal title={"Remove team member"} onExit={onCancel} className={baseClass}>
       <form className={`${baseClass}__form`}>
         <p>
           You are about to remove{" "}

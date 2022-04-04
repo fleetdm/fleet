@@ -1,6 +1,6 @@
 /* This component is used for creating and editing both global and team scheduled queries */
 
-import React, { useState, useCallback, useContext } from "react";
+import React, { useState, useCallback, useContext, useEffect } from "react";
 import { pull } from "lodash";
 import { AppContext } from "context/app";
 
@@ -219,6 +219,19 @@ const ScheduleEditorModal = ({
       editQuery
     );
   };
+
+  useEffect(() => {
+    const listener = (event: KeyboardEvent) => {
+      if (event.code === "Enter" || event.code === "NumpadEnter") {
+        event.preventDefault();
+        onFormSubmit();
+      }
+    };
+    document.addEventListener("keydown", listener);
+    return () => {
+      document.removeEventListener("keydown", listener);
+    };
+  }, [onFormSubmit]);
 
   if (showPreviewDataModal) {
     return <PreviewDataModal onCancel={togglePreviewDataModal} />;

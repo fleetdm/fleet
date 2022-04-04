@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 // @ts-ignore
@@ -31,6 +31,20 @@ const EnrollSecretModal = ({
   setSelectedSecret,
   globalSecrets,
 }: IEnrollSecretModal): JSX.Element => {
+  useEffect(() => {
+    const listener = (event: KeyboardEvent) => {
+      if (event.code === "Enter" || event.code === "NumpadEnter") {
+        event.preventDefault();
+        onReturnToApp();
+      }
+    };
+
+    document.addEventListener("keydown", listener);
+    return () => {
+      document.removeEventListener("keydown", listener);
+    };
+  }, []);
+
   const renderTeam = () => {
     if (typeof selectedTeam === "string") {
       selectedTeam = parseInt(selectedTeam, 10);

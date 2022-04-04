@@ -71,7 +71,9 @@ const NewPolicyModal = ({
     setErrors(backendValidators);
   }, [backendValidators]);
 
-  const handleSavePolicy = (evt: React.MouseEvent<HTMLFormElement>) => {
+  const handleSavePolicy = (
+    evt: React.MouseEvent<HTMLFormElement> | KeyboardEvent
+  ) => {
     evt.preventDefault();
 
     const newPlatformString = platformSelector
@@ -95,6 +97,19 @@ const NewPolicyModal = ({
       });
     }
   };
+
+  useEffect(() => {
+    const listener = (event: KeyboardEvent) => {
+      if (event.code === "Enter" || event.code === "NumpadEnter") {
+        event.preventDefault();
+        handleSavePolicy(event);
+      }
+    };
+    document.addEventListener("keydown", listener);
+    return () => {
+      document.removeEventListener("keydown", listener);
+    };
+  }, [handleSavePolicy]);
 
   return (
     <Modal title={"Save policy"} onExit={() => setIsNewPolicyModalOpen(false)}>

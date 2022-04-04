@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useState, useEffect } from "react";
 
 import { INewMembersBody, ITeam } from "interfaces/team";
 import endpoints from "fleet/endpoints";
@@ -29,6 +29,7 @@ const AddMemberModal = ({
   const onChangeDropdown = useCallback(
     (values) => {
       setSelectedMembers(values);
+      console.log("selectedMembers", selectedMembers);
     },
     [setSelectedMembers]
   );
@@ -41,7 +42,7 @@ const AddMemberModal = ({
   }, [selectedMembers, onSubmit]);
 
   return (
-    <Modal onExit={onCancel} title={"Add Members"} className={baseClass}>
+    <Modal onExit={onCancel} title={"Add members"} className={baseClass}>
       <form className={`${baseClass}__form`}>
         <p className="title">Add team members</p>
         <AutocompleteDropdown
