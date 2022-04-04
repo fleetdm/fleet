@@ -1393,6 +1393,7 @@ const ManageHostsPage = ({
       FileSaver.saveAs(file);
     } catch (error) {
       console.error(error);
+      renderFlash("error", "Could not export hosts. Please try again.");
     }
   };
 
