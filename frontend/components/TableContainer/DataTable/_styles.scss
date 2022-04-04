@@ -14,7 +14,7 @@
     &__wrapper {
       position: relative;
       border: 1px solid $ui-fleet-blue-15;
-      border-radius: 6px; // TODO: confirm not 8 or 4px?
+      border-radius: 6px;
       margin-top: $pad-small;
       box-shadow: inset -8px 0 17px -10px #e8edf4;
       flex-grow: 1;
@@ -126,7 +126,7 @@
 
       &__checkbox {
         padding: 16px;
-        width: 26px;
+        width: 20px;
       }
 
       &__container {
