@@ -5,19 +5,18 @@ import (
 	"database/sql"
 	"encoding/json"
 
-	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/pkg/errors"
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20220322091216, Down_20220322091216)
+	MigrationClient.AddMigration(Up_20220404091216, Down_20220404091216)
 }
 
-func Up_20220322091216(tx *sql.Tx) error {
+func Up_20220404091216(tx *sql.Tx) error {
 	const selectStmt = `SELECT json_value FROM app_config_json LIMIT 1`
 
 	var raw json.RawMessage
-	var config fleet.AppConfig
+	var config map[string]*json.RawMessage
 
 	row := tx.QueryRow(selectStmt)
 	if err := row.Scan(&raw); err != nil {
@@ -35,10 +34,10 @@ func Up_20220322091216(tx *sql.Tx) error {
 		newPath = []byte(`"/api/osquery/log"`)
 		updated = false
 	)
-	if config.AgentOptions != nil {
-		oldOpts := []byte(*config.AgentOptions)
+	if opts := config["agent_options"]; opts != nil {
+		oldOpts := []byte(*opts)
 		newOpts := json.RawMessage(bytes.ReplaceAll(oldOpts, oldPath, newPath))
-		config.AgentOptions = &newOpts
+		config["agent_options"] = &newOpts
 		updated = !bytes.Equal(oldOpts, newOpts)
 	}
 	if !updated {
@@ -58,6 +57,6 @@ func Up_20220322091216(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20220322091216(tx *sql.Tx) error {
+func Down_20220404091216(tx *sql.Tx) error {
 	return nil
 }
