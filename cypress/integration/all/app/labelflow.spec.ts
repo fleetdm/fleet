@@ -49,7 +49,7 @@ describe("Labels flow", () => {
         cy.findByText(/show all mac usernames/i).click();
       });
       cy.getAttached(".manage-hosts__label-block button").last().click();
-      cy.getAttached(".manage-hosts__modal-buttons > .button--alert")
+      cy.getAttached(".delete-label-modal > .button--alert")
         .contains("button", /delete/i)
         .click();
       cy.getAttached(".host-side-panel").within(() => {
