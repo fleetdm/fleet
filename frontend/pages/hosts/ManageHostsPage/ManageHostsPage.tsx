@@ -1600,7 +1600,6 @@ const ManageHostsPage = ({
         isAllPagesSelected={isAllMatchingHostsSelected}
         searchable
         renderCount={renderHostCount}
-        filteredCount={filteredHostCount}
         searchToolTipText={
           "Search hosts by hostname, UUID, machine serial or IP address"
         }
