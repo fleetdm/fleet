@@ -42,3 +42,4 @@ jobs:
           # version.
           version: v1.42
           args: --timeout 10m
+          skip-cache: true
