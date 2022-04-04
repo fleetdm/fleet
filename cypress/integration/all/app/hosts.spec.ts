@@ -171,7 +171,7 @@ describe("Hosts flow", () => {
             initialCount = parseInt(newCount[0], 10);
             expect(initialCount).to.be.at.least(1);
           });
-        cy.findByPlaceholderText(/filter software/i).type("lib");
+        cy.findByPlaceholderText(/search software/i).type("lib");
         // Ensures search completes
         cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
         cy.getAttached(".table-container__results-count")

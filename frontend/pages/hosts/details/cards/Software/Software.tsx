@@ -26,20 +26,23 @@ const SoftwareTable = ({
   software,
   deviceUser,
 }: ISoftwareTableProps): JSX.Element => {
-  const [filterName, setFilterName] = useState("");
+  const [searchString, setSearchString] = useState("");
   const [filterVuln, setFilterVuln] = useState(false);
   const [filters, setFilters] = useState({
-    name: filterName,
+    name: searchString,
     vulnerabilities: filterVuln,
   });
 
   useEffect(() => {
-    setFilters({ name: filterName, vulnerabilities: filterVuln });
-  }, [filterName, filterVuln]);
+    setFilters({
+      name: searchString,
+      vulnerabilities: filterVuln,
+    });
+  }, [searchString, filterVuln]);
 
   const onQueryChange = useDebouncedCallback(
     ({ searchQuery }: { searchQuery: string }) => {
-      setFilterName(searchQuery);
+      setSearchString(searchQuery);
     },
     300
   );
@@ -82,7 +85,9 @@ const SoftwareTable = ({
               isLoading={isLoading}
               defaultSortHeader={"name"}
               defaultSortDirection={"asc"}
-              inputPlaceHolder={"Filter software"}
+              inputPlaceHolder={
+                "Search software by name or vulnerabilities (CVEs)"
+              }
               onQueryChange={onQueryChange}
               resultsTitle={"software items"}
               emptyComponent={EmptySoftware}

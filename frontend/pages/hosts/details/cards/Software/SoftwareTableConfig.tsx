@@ -1,18 +1,18 @@
 import React from "react";
 import { Link } from "react-router";
 import ReactTooltip from "react-tooltip";
-import { isEmpty } from "lodash";
 
 // TODO: Enable after backend has been updated to provide last_opened_at
 // import distanceInWordsToNow from "date-fns/distance_in_words_to_now";
 
+import { condenseVulnColumn } from "fleet/helpers";
 import { ISoftware } from "interfaces/software";
+import { IVulnerability } from "interfaces/vulnerability";
 
 import PATHS from "router/paths";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import TooltipWrapper from "components/TooltipWrapper";
-import IssueIcon from "../../../../../../assets/images/icon-issue-fleet-black-50-16x16@2x.png";
 import Chevron from "../../../../../../assets/images/icon-chevron-right-9x6@2x.png";
 
 interface IHeaderProps {
@@ -23,10 +23,22 @@ interface IHeaderProps {
 }
 interface ICellProps {
   cell: {
-    value: string;
+    value: number | string | IVulnerability[];
   };
   row: {
     original: ISoftware;
+  };
+}
+
+interface IStringCellProps extends ICellProps {
+  cell: {
+    value: string;
+  };
+}
+
+interface IVulnCellProps extends ICellProps {
+  cell: {
+    value: IVulnerability[];
   };
 }
 
@@ -34,7 +46,9 @@ interface IDataColumn {
   title: string;
   Header: ((props: IHeaderProps) => JSX.Element) | string;
   accessor: string;
-  Cell: (props: ICellProps) => JSX.Element;
+  Cell:
+    | ((props: IStringCellProps) => JSX.Element)
+    | ((props: IVulnCellProps) => JSX.Element);
   disableHidden?: boolean;
   disableSortBy?: boolean;
   sortType?: string;
@@ -75,46 +89,6 @@ const formatSoftwareType = (source: string) => {
 const generateSoftwareTableHeaders = (deviceUser = false): IDataColumn[] => {
   const tableHeaders: IDataColumn[] = [
     {
-      title: "Vulnerabilities",
-      Header: "",
-      disableSortBy: true,
-      accessor: "vulnerabilities",
-      Filter: () => null, // input for this column filter outside of column header
-      filter: "hasLength", // filters out rows where vulnerabilities has no length if filter value is `true`
-      Cell: (cellProps) => {
-        const vulnerabilities = cellProps.cell.value;
-        if (isEmpty(vulnerabilities)) {
-          return <></>;
-        }
-        return (
-          <>
-            <span
-              className={`vulnerabilities tooltip__tooltip-icon`}
-              data-tip
-              data-for={`vulnerabilities__${cellProps.row.original.id.toString()}`}
-              data-tip-disable={false}
-            >
-              <img alt="software vulnerabilities" src={IssueIcon} />
-            </span>
-            <ReactTooltip
-              place="bottom"
-              type="dark"
-              effect="solid"
-              backgroundColor="#3e4771"
-              id={`vulnerabilities__${cellProps.row.original.id.toString()}`}
-              data-html
-            >
-              <span className={`vulnerabilities tooltip__tooltip-text`}>
-                {vulnerabilities.length === 1
-                  ? "1 vulnerability detected"
-                  : `${vulnerabilities.length} vulnerabilities detected`}
-              </span>
-            </ReactTooltip>
-          </>
-        );
-      },
-    },
-    {
       title: "Name",
       Header: (cellProps) => (
         <HeaderCell
@@ -125,7 +99,7 @@ const generateSoftwareTableHeaders = (deviceUser = false): IDataColumn[] => {
       accessor: "name",
       Filter: () => null, // input for this column filter is rendered outside of column header
       filter: "text", // filters name text based on the user's search query
-      Cell: (cellProps) => {
+      Cell: (cellProps: IStringCellProps) => {
         const { name, bundle_identifier } = cellProps.row.original;
         if (bundle_identifier) {
           return (
@@ -149,6 +123,15 @@ const generateSoftwareTableHeaders = (deviceUser = false): IDataColumn[] => {
       sortType: "caseInsensitive",
     },
     {
+      title: "Version",
+      Header: "Version",
+      disableSortBy: true,
+      accessor: "version",
+      Cell: (cellProps: IStringCellProps) => {
+        return <TextCell value={cellProps.cell.value} />;
+      },
+    },
+    {
       title: "Type",
       Header: (cellProps) => (
         <HeaderCell
@@ -158,16 +141,60 @@ const generateSoftwareTableHeaders = (deviceUser = false): IDataColumn[] => {
       ),
       disableSortBy: false,
       accessor: "source",
-      Cell: (cellProps) => (
+      Cell: (cellProps: IStringCellProps) => (
         <TextCell value={cellProps.cell.value} formatter={formatSoftwareType} />
       ),
     },
     {
-      title: "Installed version",
-      Header: "Installed version",
+      title: "Vulnerabilities",
+      Header: "Vulnerabilities",
       disableSortBy: true,
-      accessor: "version",
-      Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
+      accessor: "vulnerabilities",
+      Cell: (cellProps: IVulnCellProps): JSX.Element => {
+        const vulnerabilities = cellProps.cell.value || [];
+        const tooltipText = condenseVulnColumn(vulnerabilities)?.map(
+          (value) => {
+            return (
+              <span key={`vuln_${value}`}>
+                {value}
+                <br />
+              </span>
+            );
+          }
+        );
+
+        if (!vulnerabilities?.length) {
+          return <span className="vulnerabilities text-muted">---</span>;
+        }
+        return (
+          <>
+            <span
+              className={`vulnerabilities ${
+                vulnerabilities.length > 1 ? "text-muted" : ""
+              }`}
+              data-tip
+              data-for={`vulnerabilities__${cellProps.row.original.id.toString()}`}
+              data-tip-disable={vulnerabilities.length <= 1}
+            >
+              {vulnerabilities.length === 1
+                ? vulnerabilities[0].cve
+                : `${vulnerabilities.length} vulnerabilities`}
+            </span>
+            <ReactTooltip
+              place="top"
+              type="dark"
+              effect="solid"
+              backgroundColor="#3e4771"
+              id={`vulnerabilities__${cellProps.row.original.id.toString()}`}
+              data-html
+            >
+              <span className={`vulnerabilities tooltip__tooltip-text`}>
+                {tooltipText}
+              </span>
+            </ReactTooltip>
+          </>
+        );
+      },
     },
     // TODO: Enable after backend has been updated to provide last_opened_at
     // {
@@ -202,7 +229,7 @@ const generateSoftwareTableHeaders = (deviceUser = false): IDataColumn[] => {
       Header: "",
       disableSortBy: true,
       accessor: "linkToFilteredHosts",
-      Cell: (cellProps) => {
+      Cell: (cellProps: IStringCellProps) => {
         return (
           <Link
             to={`${
