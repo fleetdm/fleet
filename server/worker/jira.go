@@ -2,6 +2,7 @@ package worker
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	kitlog "github.com/go-kit/kit/log"
@@ -24,7 +25,7 @@ func (j *Jira) Name() string {
 	return "jira"
 }
 
-func (j *Jira) Run(ctx context.Context, args map[string]interface{}) error {
+func (j *Jira) Run(ctx context.Context, argsJSON json.RawMessage) error {
 	// TODO: implement me
 	return nil
 }

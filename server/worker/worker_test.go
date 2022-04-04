@@ -15,15 +15,15 @@ import (
 
 type testJob struct {
 	name string
-	run  func(ctx context.Context, args map[string]interface{}) error
+	run  func(ctx context.Context, argsJSON json.RawMessage) error
 }
 
 func (t testJob) Name() string {
 	return t.name
 }
 
-func (t testJob) Run(ctx context.Context, args map[string]interface{}) error {
-	return t.run(ctx, args)
+func (t testJob) Run(ctx context.Context, argsJSON json.RawMessage) error {
+	return t.run(ctx, argsJSON)
 }
 
 func TestWorker(t *testing.T) {
@@ -58,10 +58,10 @@ func TestWorker(t *testing.T) {
 	jobCalled := false
 	j := testJob{
 		name: "test",
-		run: func(ctx context.Context, args map[string]interface{}) error {
+		run: func(ctx context.Context, argsJSON json.RawMessage) error {
 			jobCalled = true
 
-			assert.Equal(t, "foo", args["arg1"])
+			assert.Equal(t, json.RawMessage(`{"arg1":"foo"}`), argsJSON)
 			return nil
 		},
 	}
@@ -123,7 +123,7 @@ func TestWorkerRetries(t *testing.T) {
 	jobCalled := 0
 	j := testJob{
 		name: "test",
-		run: func(ctx context.Context, args map[string]interface{}) error {
+		run: func(ctx context.Context, argsJSON json.RawMessage) error {
 			jobCalled++
 			return errors.New("unknown error")
 		},

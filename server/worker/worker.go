@@ -18,7 +18,7 @@ type Job interface {
 	Name() string
 
 	// Run performs the actual work.
-	Run(ctx context.Context, args map[string]interface{}) error
+	Run(ctx context.Context, argsJSON json.RawMessage) error
 }
 
 // Worker runs jobs. NOT SAFE FOR CONCURRENT USE.
@@ -103,11 +103,9 @@ func (w *Worker) processJob(ctx context.Context, job *fleet.Job) error {
 		return fmt.Errorf("unknown job: %s", job.Name)
 	}
 
-	var args map[string]interface{}
+	var args json.RawMessage
 	if job.Args != nil {
-		if err := json.Unmarshal(*job.Args, &args); err != nil {
-			return fmt.Errorf("unmarshal job args: %w", err)
-		}
+		args = *job.Args
 	}
 
 	return j.Run(ctx, args)
