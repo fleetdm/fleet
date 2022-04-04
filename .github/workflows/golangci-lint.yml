@@ -19,7 +19,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        go-version: ['^1.17.8']
+        go-version: ['1.17.8']
     runs-on: ${{ matrix.os }}
     permissions:
       contents: read  # for actions/checkout to fetch code
