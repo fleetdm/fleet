@@ -47,9 +47,18 @@ func (w *Worker) Register(jobs ...Job) {
 	}
 }
 
-func (w *Worker) QueueJob(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
-	job.State = fleet.JobStateQueued
-	return w.ds.NewJob(ctx, job)
+func QueueJob(ctx context.Context, ds fleet.Datastore, name string, args interface{}) (*fleet.Job, error) {
+	argsJSON, err := json.Marshal(args)
+	if err != nil {
+		return nil, fmt.Errorf("marshal args: %w", err)
+	}
+	job := &fleet.Job{
+		Name:  name,
+		Args:  (*json.RawMessage)(&argsJSON),
+		State: fleet.JobStateQueued,
+	}
+
+	return ds.NewJob(ctx, job)
 }
 
 // ProcessJobs processes all queued jobs.

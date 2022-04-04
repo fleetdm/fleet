@@ -339,7 +339,8 @@ func cronWorker(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, i
 
 	w := worker.NewWorker(ds, logger)
 
-	jira := worker.NewJira(ds, logger)
+	// TODO: pass config and jira client
+	jira := worker.NewJira(nil, ds, logger, nil)
 	w.Register(jira)
 
 	ticker := time.NewTicker(10 * time.Second)
