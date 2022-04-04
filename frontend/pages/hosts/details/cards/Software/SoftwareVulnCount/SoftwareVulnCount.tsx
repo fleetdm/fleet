@@ -28,12 +28,6 @@ const SoftwareVulnCount = ({
           ? "1 vulnerability detected"
           : `${vulnCount} vulnerabilities detected`}
       </div>
-      {!deviceUser && (
-        <p>
-          Click a vulnerable item below to see the associated Common
-          Vulnerabilites and Exposures (CVEs).
-        </p>
-      )}
     </div>
   ) : (
     <></>
