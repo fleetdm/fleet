@@ -88,6 +88,7 @@ func cronDB(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, ident
 		level.Debug(logger).Log("loop", "done")
 	}
 }
+
 func cronVulnerabilities(
 	ctx context.Context,
 	ds fleet.Datastore,
