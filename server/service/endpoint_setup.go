@@ -7,6 +7,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/kit/endpoint"
+	kitlog "github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/log/level"
 )
 
 type setupRequest struct {
@@ -27,7 +29,7 @@ type setupResponse struct {
 
 func (r setupResponse) error() error { return r.Err }
 
-func makeSetupEndpoint(svc fleet.Service) endpoint.Endpoint {
+func makeSetupEndpoint(svc fleet.Service, logger kitlog.Logger) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(setupRequest)
 		config := &fleet.AppConfig{}
@@ -65,14 +67,16 @@ func makeSetupEndpoint(svc fleet.Service) endpoint.Endpoint {
 		}
 
 		// If everything works to this point, log the user in and return token.
-		_, session, err := svc.Login(ctx, *req.Admin.Email, *req.Admin.Password)
-
 		// If the login fails for some reason, ignore the error and don't return
-		// a token, forcing the user to log in manually
+		// a token, forcing the user to log in manually.
 		var token *string
-		if err == nil {
+		_, session, err := svc.Login(ctx, *req.Admin.Email, *req.Admin.Password)
+		if err != nil {
+			level.Debug(logger).Log("endpoint", "setup", "op", "login", "err", err)
+		} else {
 			token = &session.Key
 		}
+
 		return setupResponse{
 			Admin:     admin,
 			OrgInfo:   &config.OrgInfo,
