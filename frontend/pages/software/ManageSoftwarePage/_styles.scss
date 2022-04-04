@@ -101,7 +101,6 @@
 
   &__table {
     .table-container {
-      min-height: 435px;
       &__header-left {
         .manage-software-page__count {
           display: flex;
@@ -122,11 +121,9 @@
           }
           .manage-software-page__vuln_dropdown {
             width: 219px;
-
             .Select-menu-outer {
               width: 364px;
               max-height: 310px;
-
               .Select-menu {
                 max-height: none;
               }
@@ -134,7 +131,6 @@
             .Select-value {
               padding-left: $pad-medium;
               padding-right: $pad-medium;
-
               &::before {
                 display: inline-block;
                 position: absolute;
@@ -181,6 +177,7 @@
                 a {
                   text-decoration: none;
                 }
+
                 img {
                   height: 16px;
                   width: 16px;
@@ -204,17 +201,18 @@
                 width: $col-md;
               }
               .version__header {
-                width: 0px;
+                width: 0;
               }
               .source__header {
                 display: none;
-                width: 0px;
+                width: 0;
               }
               .vulnerabilities__header {
                 display: none;
-                width: 0px;
+                width: 0;
               }
               .hosts_count__header {
+                width: auto;
                 border-right: 0;
               }
               @media (min-width: $break-990) {
@@ -233,18 +231,18 @@
             }
 
             tbody {
-              .name__cell,
+              .name__cell {
+                width: $col-md;
+              }
               .version__cell {
-                overflow: hidden;
-                white-space: nowrap;
-                text-overflow: ellipsis;
+                width: 0;
               }
               .source__cell {
                 display: none;
-                width: 0px;
+                width: 0;
               }
               .vulnerabilities__cell {
-                width: 0px;
+                width: 0;
                 display: none;
 
                 .text-muted {
@@ -252,6 +250,7 @@
                 }
               }
               .hosts_count__cell {
+                width: auto;
                 .hosts-cell__wrapper {
                   display: flex;
                   justify-content: space-between;
@@ -264,6 +263,9 @@
                 }
               }
               @media (min-width: $break-990) {
+                .version_cell {
+                  width: $col-md;
+                }
                 .vulnerabilities__cell {
                   display: table-cell;
                 }
@@ -278,7 +280,6 @@
               @media (min-width: $break-1400) {
                 .source__cell {
                   display: table-cell;
-                  width: 0px;
                 }
               }
             }
