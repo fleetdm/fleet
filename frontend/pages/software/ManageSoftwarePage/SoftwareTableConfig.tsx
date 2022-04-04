@@ -2,6 +2,7 @@ import React from "react";
 import { Link } from "react-router";
 import ReactTooltip from "react-tooltip";
 
+import { condenseVulnColumn } from "fleet/helpers";
 import PATHS from "router/paths";
 import { ISoftware } from "interfaces/software";
 import { IVulnerability } from "interfaces/vulnerability";
@@ -44,19 +45,6 @@ interface IHeaderProps {
   };
 }
 
-const condense = (vulnerabilities: IVulnerability[]): string[] => {
-  const condensed =
-    (vulnerabilities?.length &&
-      vulnerabilities
-        .slice(-3)
-        .map((v) => v.cve)
-        .reverse()) ||
-    [];
-  return vulnerabilities.length > 3
-    ? condensed.concat(`+${vulnerabilities.length - 3} more`)
-    : condensed;
-};
-
 const softwareTableHeaders = [
   {
     title: "Name",
@@ -83,7 +71,7 @@ const softwareTableHeaders = [
     accessor: "vulnerabilities",
     Cell: (cellProps: IVulnCellProps): JSX.Element => {
       const vulnerabilities = cellProps.cell.value || [];
-      const tooltipText = condense(vulnerabilities)?.map((value) => {
+      const tooltipText = condenseVulnColumn(vulnerabilities)?.map((value) => {
         return (
           <span key={`vuln_${value}`}>
             {value}

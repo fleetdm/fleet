@@ -11,7 +11,6 @@ import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
-import EnrollSecretTable from "components/EnrollSecretTable";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 // @ts-ignore
@@ -42,7 +41,6 @@ const baseClass = "app-config-form";
 
 const AppConfigFormFunctional = ({
   appConfig,
-  enrollSecret,
   handleSubmit,
 }: IAppConfigFormProps): JSX.Element => {
   // STATE
@@ -627,22 +625,6 @@ const AppConfigFormFunctional = ({
     );
   };
 
-  const renderOsqueryEnrollmentSecretsSection = () => {
-    return (
-      <div className={`${baseClass}__section`}>
-        <h2>
-          <a id="osquery-enrollment-secrets">Osquery enrollment secrets</a>
-        </h2>
-        <div className={`${baseClass}__inputs`}>
-          <p className={`${baseClass}__enroll-secret-label`}>
-            Manage secrets with <code>fleetctl</code>. Active secrets:
-          </p>
-          <EnrollSecretTable secrets={enrollSecret} />
-        </div>
-      </div>
-    );
-  };
-
   const renderGlobalAgentOptionsSection = () => {
     return (
       <div className={`${baseClass}__section`}>
@@ -977,7 +959,6 @@ const AppConfigFormFunctional = ({
         {renderFleetWebAddressSection()}
         {renderSAMLSingleSignOnOptionsSection()}
         {renderSMTPOptionsSection()}
-        {renderOsqueryEnrollmentSecretsSection()}
         {renderGlobalAgentOptionsSection()}
         {renderHostStatusWebhookSection()}
         {renderUsageStatistics()}

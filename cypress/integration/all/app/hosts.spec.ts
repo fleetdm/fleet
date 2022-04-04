@@ -1,4 +1,5 @@
 import * as path from "path";
+import { format } from "date-fns";
 
 let hostname = "";
 
@@ -28,6 +29,7 @@ describe("Hosts flow", () => {
       cy.visit("/hosts/manage");
 
       cy.getAttached(".manage-hosts").within(() => {
+        cy.getAttached(".manage-hosts__export-btn").click();
         cy.contains("button", /add hosts/i).click();
       });
       cy.getAttached(".react-tabs").within(() => {
@@ -45,6 +47,11 @@ describe("Hosts flow", () => {
       // before each test run (seems to be related to issues with Cypress trashAssetsBeforeRun)
       if (Cypress.platform !== "win32") {
         // windows has issues with downloads location
+        const formattedTime = format(new Date(), "yyyy-MM-dd");
+        const filename = `Hosts ${formattedTime}.csv`;
+        cy.readFile(path.join(Cypress.config("downloadsFolder"), filename), {
+          timeout: 5000,
+        });
         cy.readFile(
           path.join(Cypress.config("downloadsFolder"), "secret.txt"),
           {
@@ -171,7 +178,7 @@ describe("Hosts flow", () => {
             initialCount = parseInt(newCount[0], 10);
             expect(initialCount).to.be.at.least(1);
           });
-        cy.findByPlaceholderText(/filter software/i).type("lib");
+        cy.findByPlaceholderText(/search software/i).type("lib");
         // Ensures search completes
         cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
         cy.getAttached(".table-container__results-count")

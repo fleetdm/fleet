@@ -1,4 +1,4 @@
-import { mount } from "enzyme";
+import { render, screen } from "@testing-library/react";
 
 import { connectedComponent, reduxMockStore } from "../../test/helpers";
 import LoginPage from "./LoginPage";
@@ -10,9 +10,11 @@ describe("LoginPage - component", () => {
     const mockStore = reduxMockStore({ auth: { ssoSettings } });
 
     it("renders the LoginForm", () => {
-      const page = mount(connectedComponent(LoginPage, { mockStore }));
+      const { container } = render(
+        connectedComponent(LoginPage, { mockStore })
+      );
 
-      expect(page.find("LoginForm").length).toEqual(1);
+      expect(container.querySelectorAll(".login-form").length).toEqual(1);
     });
   });
 
@@ -25,13 +27,15 @@ describe("LoginPage - component", () => {
     });
 
     it("renders the LoginForm base errors", () => {
-      const page = mount(connectedComponent(LoginPage, { mockStore }));
-      const loginForm = page.find("LoginForm");
+      const { container } = render(
+        connectedComponent(LoginPage, { mockStore })
+      );
+      const loginForm = container.querySelectorAll(".login-form");
 
       expect(loginForm.length).toEqual(1);
-      expect(loginForm.prop("serverErrors")).toEqual({
-        base: "Unable to authenticate the current user",
-      });
+      expect(
+        screen.getByText("Unable to authenticate the current user")
+      ).toBeInTheDocument();
     });
   });
 });
