@@ -14,7 +14,6 @@ linters:
     - structcheck
     - typecheck
     - unconvert
-    - unused
 
 linters-settings:
   depguard:
