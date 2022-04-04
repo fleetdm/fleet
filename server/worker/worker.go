@@ -39,7 +39,11 @@ func NewWorker(ds fleet.Datastore, log kitlog.Logger) *Worker {
 
 func (w *Worker) Register(jobs ...Job) {
 	for _, j := range jobs {
-		w.registry[j.Name()] = j
+		name := j.Name()
+		if _, ok := w.registry[name]; ok {
+			panic(fmt.Sprintf("job %s already registered", name))
+		}
+		w.registry[name] = j
 	}
 }
 
