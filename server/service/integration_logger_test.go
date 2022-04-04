@@ -117,13 +117,13 @@ func (s *integrationLoggerTestSuite) TestOsqueryEndpointsLogErrors() {
 	require.NoError(t, err)
 
 	requestBody := io.NopCloser(bytes.NewBuffer([]byte(`{"node_key":"1234","log_type":"status","data":[}`)))
-	req, _ := http.NewRequest("POST", s.server.URL+"/api/latest/osquery/log", requestBody)
+	req, _ := http.NewRequest("POST", s.server.URL+"/api/osquery/log", requestBody)
 	client := fleethttp.NewClient()
 	_, err = client.Do(req)
 	require.Nil(t, err)
 
 	logString := s.buf.String()
-	assert.Contains(t, logString, `invalid character '}' looking for beginning of value","level":"info","path":"/api/latest/osquery/log"}
+	assert.Contains(t, logString, `invalid character '}' looking for beginning of value","level":"info","path":"/api/osquery/log"}
 `, logString)
 }
 
@@ -151,7 +151,7 @@ func (s *integrationLoggerTestSuite) TestSubmitLog() {
 		Data:    nil,
 	}
 	res := submitLogsResponse{}
-	s.DoJSON("POST", "/api/latest/osquery/log", req, http.StatusOK, &res)
+	s.DoJSON("POST", "/api/osquery/log", req, http.StatusOK, &res)
 
 	logString := s.buf.String()
 	assert.Equal(t, 1, strings.Count(logString, `"ip_addr"`))
@@ -165,7 +165,7 @@ func (s *integrationLoggerTestSuite) TestSubmitLog() {
 		Data:    nil,
 	}
 	res = submitLogsResponse{}
-	s.DoJSON("POST", "/api/latest/osquery/log", req, http.StatusOK, &res)
+	s.DoJSON("POST", "/api/osquery/log", req, http.StatusOK, &res)
 
 	logString = s.buf.String()
 	assert.Equal(t, 1, strings.Count(logString, `"ip_addr"`))
@@ -179,7 +179,7 @@ func (s *integrationLoggerTestSuite) TestSubmitLog() {
 		Data:    nil,
 	}
 	var errRes map[string]string
-	s.DoJSON("POST", "/api/latest/osquery/log", req, http.StatusInternalServerError, &errRes)
+	s.DoJSON("POST", "/api/osquery/log", req, http.StatusInternalServerError, &errRes)
 	assert.Contains(t, errRes["error"], "unknown log type")
 	s.buf.Reset()
 
@@ -194,13 +194,13 @@ func (s *integrationLoggerTestSuite) TestSubmitLog() {
 	require.NoError(t, err)
 	require.NoError(t, gw.Close())
 
-	s.DoRawWithHeaders("POST", "/api/latest/osquery/log", body.Bytes(), http.StatusOK, map[string]string{"Content-Encoding": "gzip"})
+	s.DoRawWithHeaders("POST", "/api/osquery/log", body.Bytes(), http.StatusOK, map[string]string{"Content-Encoding": "gzip"})
 	logString = s.buf.String()
 	assert.Equal(t, 1, strings.Count(logString, `"ip_addr"`))
 	assert.Equal(t, 1, strings.Count(logString, "x_for_ip_addr"))
 
 	// submit same payload without specifying gzip encoding fails
-	s.DoRawWithHeaders("POST", "/api/latest/osquery/log", body.Bytes(), http.StatusInternalServerError, nil)
+	s.DoRawWithHeaders("POST", "/api/osquery/log", body.Bytes(), http.StatusInternalServerError, nil)
 }
 
 func (s *integrationLoggerTestSuite) TestEnrollAgentLogsErrors() {
@@ -225,7 +225,7 @@ func (s *integrationLoggerTestSuite) TestEnrollAgentLogsErrors() {
 	})
 	require.NoError(t, err)
 
-	s.DoRawNoAuth("POST", "/api/latest/osquery/enroll", j, http.StatusUnauthorized)
+	s.DoRawNoAuth("POST", "/api/osquery/enroll", j, http.StatusUnauthorized)
 
 	parts := strings.Split(strings.TrimSpace(s.buf.String()), "\n")
 	require.Len(t, parts, 1)

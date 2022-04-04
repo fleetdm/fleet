@@ -388,22 +388,37 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 
 	// host-authenticated endpoints
 	he := newHostAuthenticatedEndpointer(svc, logger, opts, r, apiVersions...)
-	he.POST("/api/_version_/osquery/config", getClientConfigEndpoint, getClientConfigRequest{})
-	he.POST("/api/_version_/osquery/distributed/read", getDistributedQueriesEndpoint, getDistributedQueriesRequest{})
-	he.POST("/api/_version_/osquery/distributed/write", submitDistributedQueryResultsEndpoint, submitDistributedQueryResultsRequestShim{})
-	he.POST("/api/_version_/osquery/carve/begin", carveBeginEndpoint, carveBeginRequest{})
-	he.POST("/api/_version_/osquery/log", submitLogsEndpoint, submitLogsRequest{})
+
+	// Note that the /osquery/ endpoints are *not* versioned, i.e. there is no
+	// `_version_` placeholder in the path. This is deliberate, see
+	// https://github.com/fleetdm/fleet/pull/4731#discussion_r838931732 For now
+	// we add an alias to `/api/v1/osquery` so that it is backwards compatible,
+	// but even that `v1` is *not* part of the standard versioning, it will still
+	// work even after we remove support for the `v1` version for the rest of the
+	// API. This allows us to deprecate osquery endpoints separately.
+	he.WithAltPaths("/api/v1/osquery/config").
+		POST("/api/osquery/config", getClientConfigEndpoint, getClientConfigRequest{})
+	he.WithAltPaths("/api/v1/osquery/distributed/read").
+		POST("/api/osquery/distributed/read", getDistributedQueriesEndpoint, getDistributedQueriesRequest{})
+	he.WithAltPaths("/api/v1/osquery/distributed/write").
+		POST("/api/osquery/distributed/write", submitDistributedQueryResultsEndpoint, submitDistributedQueryResultsRequestShim{})
+	he.WithAltPaths("/api/v1/osquery/carve/begin").
+		POST("/api/osquery/carve/begin", carveBeginEndpoint, carveBeginRequest{})
+	he.WithAltPaths("/api/v1/osquery/log").
+		POST("/api/osquery/log", submitLogsEndpoint, submitLogsRequest{})
 
 	// unauthenticated endpoints - most of those are either login-related,
 	// invite-related or host-enrolling. So they typically do some kind of
 	// one-time authentication by verifying that a valid secret token is provided
 	// with the request.
 	ne := newNoAuthEndpointer(svc, opts, r, apiVersions...)
-	ne.POST("/api/_version_/osquery/enroll", enrollAgentEndpoint, enrollAgentRequest{})
+	ne.WithAltPaths("/api/v1/osquery/enroll").
+		POST("/api/osquery/enroll", enrollAgentEndpoint, enrollAgentRequest{})
 
-	// For some reason osquery does not provide a node key with the block data.
-	// Instead the carve session ID should be verified in the service method.
-	ne.POST("/api/_version_/osquery/carve/block", carveBlockEndpoint, carveBlockRequest{})
+		// For some reason osquery does not provide a node key with the block data.
+		// Instead the carve session ID should be verified in the service method.
+	ne.WithAltPaths("/api/v1/osquery/carve/block").
+		POST("/api/osquery/carve/block", carveBlockEndpoint, carveBlockRequest{})
 
 	ne.POST("/api/_version_/fleet/perform_required_password_reset", performRequiredPasswordResetEndpoint, performRequiredPasswordResetRequest{})
 	ne.POST("/api/_version_/fleet/users", createUserFromInviteEndpoint, createUserRequest{})

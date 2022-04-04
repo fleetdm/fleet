@@ -29,7 +29,7 @@ func TestUp_20220322091216(t *testing.T) {
 		err := db.Get(&raw, `SELECT json_value FROM app_config_json`)
 		require.NoError(t, err)
 		require.Contains(t, raw, "/api/v1/osquery/log")
-		require.NotContains(t, raw, "/api/latest/osquery/log")
+		require.NotContains(t, raw, "/api/osquery/log")
 
 		// Apply current migration.
 		applyNext(t, db)
@@ -37,7 +37,7 @@ func TestUp_20220322091216(t *testing.T) {
 		err = db.Get(&raw, `SELECT json_value FROM app_config_json`)
 		require.NoError(t, err)
 		require.NotContains(t, raw, "/api/v1/osquery/log")
-		require.Contains(t, raw, "/api/latest/osquery/log")
+		require.Contains(t, raw, "/api/osquery/log")
 	})
 
 	db = applyUpToPrev(t)
@@ -54,7 +54,7 @@ func TestUp_20220322091216(t *testing.T) {
 
 		err = db.Get(&raw, `SELECT json_value FROM app_config_json`)
 		require.NoError(t, err)
-		require.NotContains(t, raw, "/api/latest/osquery/log")
+		require.NotContains(t, raw, "/api/osquery/log")
 		require.Contains(t, raw, "/api/v2/osquery/log")
 	})
 }

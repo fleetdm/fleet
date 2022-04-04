@@ -23,7 +23,7 @@
 
 Fleet is powered by a Go API server which serves three types of endpoints:
 
-- Endpoints starting with `/api/latest/osquery/` are osquery TLS server API endpoints. All of these endpoints are used for talking to osqueryd agents and that's it.
+- Endpoints starting with `/api/osquery/` are osquery TLS server API endpoints. All of these endpoints are used for talking to osqueryd agents and that's it.
 - Endpoints starting with `/api/latest/fleet/` are endpoints to interact with the Fleet data model (packs, queries, scheduled queries, labels, hosts, etc) as well as application endpoints (configuring settings, logging in, session management, etc).
 - All other endpoints are served by the React single page application bundle.
   The React app uses React Router to determine whether or not the URI is a valid
@@ -4682,7 +4682,7 @@ None.
           "logger_tls_period": 10,
           "distributed_plugin": "tls",
           "disable_distributed": false,
-          "logger_tls_endpoint": "/api/latest/osquery/log",
+          "logger_tls_endpoint": "/api/osquery/log",
           "distributed_interval": 10,
           "distributed_tls_max_attempts": 3
         },
@@ -4921,7 +4921,7 @@ Modifies the Fleet's configuration with the supplied information.
           "logger_tls_period": 10,
           "distributed_plugin": "tls",
           "disable_distributed": false,
-          "logger_tls_endpoint": "/api/latest/osquery/log",
+          "logger_tls_endpoint": "/api/osquery/log",
           "distributed_interval": 10,
           "distributed_tls_max_attempts": 3
         },
@@ -5676,7 +5676,7 @@ _Available in Fleet Premium_
             "logger_tls_period": 10,
             "distributed_plugin": "tls",
             "disable_distributed": false,
-            "logger_tls_endpoint": "/api/latest/osquery/log",
+            "logger_tls_endpoint": "/api/osquery/log",
             "distributed_interval": 10,
             "distributed_tls_max_attempts": 3
           },
@@ -5713,7 +5713,7 @@ _Available in Fleet Premium_
               "logger_tls_period": 10,
               "distributed_plugin": "tls",
               "disable_distributed": false,
-              "logger_tls_endpoint": "/api/latest/osquery/log",
+              "logger_tls_endpoint": "/api/osquery/log",
               "distributed_interval": 10,
               "distributed_tls_max_attempts": 3
             },
@@ -5779,7 +5779,7 @@ _Available in Fleet Premium_
             "logger_tls_period": 10,
             "distributed_plugin": "tls",
             "disable_distributed": false,
-            "logger_tls_endpoint": "/api/latest/osquery/log",
+            "logger_tls_endpoint": "/api/osquery/log",
             "distributed_interval": 10,
             "distributed_tls_max_attempts": 3
           },
@@ -5852,7 +5852,7 @@ _Available in Fleet Premium_
               "logger_tls_period": 10,
               "distributed_plugin": "tls",
               "disable_distributed": false,
-              "logger_tls_endpoint": "/api/latest/osquery/log",
+              "logger_tls_endpoint": "/api/osquery/log",
               "distributed_interval": 10,
               "distributed_tls_max_attempts": 3
             },
@@ -5934,7 +5934,7 @@ _Available in Fleet Premium_
             "logger_tls_period": 10,
             "distributed_plugin": "tls",
             "disable_distributed": false,
-            "logger_tls_endpoint": "/api/latest/osquery/log",
+            "logger_tls_endpoint": "/api/osquery/log",
             "distributed_interval": 10,
             "distributed_tls_max_attempts": 3
           },
@@ -5994,7 +5994,7 @@ _Available in Fleet Premium_
             "logger_tls_period": 10,
             "distributed_plugin": "tls",
             "disable_distributed": false,
-            "logger_tls_endpoint": "/api/latest/osquery/log",
+            "logger_tls_endpoint": "/api/osquery/log",
             "distributed_interval": 10,
             "distributed_tls_max_attempts": 3
           },
@@ -6037,7 +6037,7 @@ _Available in Fleet Premium_
           "logger_tls_period": 20,
           "distributed_plugin": "tls",
           "disable_distributed": false,
-          "logger_tls_endpoint": "/api/latest/osquery/log",
+          "logger_tls_endpoint": "/api/osquery/log",
           "distributed_interval": 60,
           "distributed_tls_max_attempts": 3
         },
@@ -6076,7 +6076,7 @@ _Available in Fleet Premium_
             "logger_tls_period": 20,
             "distributed_plugin": "tls",
             "disable_distributed": false,
-            "logger_tls_endpoint": "/api/latest/osquery/log",
+            "logger_tls_endpoint": "/api/osquery/log",
             "distributed_interval": 60,
             "distributed_tls_max_attempts": 3
           },

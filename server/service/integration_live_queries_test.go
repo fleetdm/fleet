@@ -118,7 +118,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestOneHostOneQuery() {
 		},
 	}
 	distributedResp := submitDistributedQueryResultsResponse{}
-	s.DoJSON("POST", "/api/latest/osquery/distributed/write", distributedReq, http.StatusOK, &distributedResp)
+	s.DoJSON("POST", "/api/osquery/distributed/write", distributedReq, http.StatusOK, &distributedResp)
 
 	wg.Wait()
 
@@ -185,7 +185,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestOneHostMultipleQuery() {
 		},
 	}
 	distributedResp := submitDistributedQueryResultsResponse{}
-	s.DoJSON("POST", "/api/latest/osquery/distributed/write", distributedReq, http.StatusOK, &distributedResp)
+	s.DoJSON("POST", "/api/osquery/distributed/write", distributedReq, http.StatusOK, &distributedResp)
 
 	wg.Wait()
 
@@ -283,7 +283,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestMultipleHostMultipleQuery() {
 			},
 		}
 		distributedResp := submitDistributedQueryResultsResponse{}
-		s.DoJSON("POST", "/api/latest/osquery/distributed/write", distributedReq, http.StatusOK, &distributedResp)
+		s.DoJSON("POST", "/api/osquery/distributed/write", distributedReq, http.StatusOK, &distributedResp)
 	}
 
 	wg.Wait()
@@ -375,7 +375,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestFailsOnSomeHost() {
 		},
 	}
 	distributedResp := submitDistributedQueryResultsResponse{}
-	s.DoJSON("POST", "/api/latest/osquery/distributed/write", distributedReq, http.StatusOK, &distributedResp)
+	s.DoJSON("POST", "/api/osquery/distributed/write", distributedReq, http.StatusOK, &distributedResp)
 
 	distributedReq = submitDistributedQueryResultsRequestShim{
 		NodeKey: h2.NodeKey,
@@ -390,7 +390,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestFailsOnSomeHost() {
 		},
 	}
 	distributedResp = submitDistributedQueryResultsResponse{}
-	s.DoJSON("POST", "/api/latest/osquery/distributed/write", distributedReq, http.StatusOK, &distributedResp)
+	s.DoJSON("POST", "/api/osquery/distributed/write", distributedReq, http.StatusOK, &distributedResp)
 
 	wg.Wait()
 
@@ -467,12 +467,12 @@ func (s *liveQueriesTestSuite) TestOsqueryDistributedRead() {
 
 	req := getDistributedQueriesRequest{NodeKey: s.hosts[1].NodeKey}
 	var resp getDistributedQueriesResponse
-	s.DoJSON("POST", "/api/latest/osquery/distributed/read", req, http.StatusOK, &resp)
+	s.DoJSON("POST", "/api/osquery/distributed/read", req, http.StatusOK, &resp)
 	assert.Contains(t, resp.Queries, hostDistributedQueryPrefix+fmt.Sprintf("%d", hostID))
 
 	// test with invalid node key
 	var errRes map[string]interface{}
 	req.NodeKey += "zzzz"
-	s.DoJSON("POST", "/api/latest/osquery/distributed/read", req, http.StatusUnauthorized, &errRes)
+	s.DoJSON("POST", "/api/osquery/distributed/read", req, http.StatusUnauthorized, &errRes)
 	assert.Contains(t, errRes["error"], "invalid node key")
 }

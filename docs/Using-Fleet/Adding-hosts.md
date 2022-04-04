@@ -136,18 +136,18 @@ sudo osqueryd \
  --tls_server_certs=/etc/osquery/fleet.crt \
  --tls_hostname=fleet.example.com \
  --host_identifier=uuid \
- --enroll_tls_endpoint=/api/latest/osquery/enroll \
+ --enroll_tls_endpoint=/api/osquery/enroll \
  --config_plugin=tls \
- --config_tls_endpoint=/api/latest/osquery/config \
+ --config_tls_endpoint=/api/osquery/config \
  --config_refresh=10 \
  --disable_distributed=false \
  --distributed_plugin=tls \
  --distributed_interval=10 \
  --distributed_tls_max_attempts=3 \
- --distributed_tls_read_endpoint=/api/latest/osquery/distributed/read \
- --distributed_tls_write_endpoint=/api/latest/osquery/distributed/write \
+ --distributed_tls_read_endpoint=/api/osquery/distributed/read \
+ --distributed_tls_write_endpoint=/api/osquery/distributed/write \
  --logger_plugin=tls \
- --logger_tls_endpoint=/api/latest/osquery/log \
+ --logger_tls_endpoint=/api/osquery/log \
  --logger_tls_period=10
 ```
 

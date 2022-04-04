@@ -32,7 +32,7 @@ func Up_20220322091216(tx *sql.Tx) error {
 
 	var (
 		oldPath = []byte(`"/api/v1/osquery/log"`)
-		newPath = []byte(`"/api/latest/osquery/log"`)
+		newPath = []byte(`"/api/osquery/log"`)
 		updated = false
 	)
 	if config.AgentOptions != nil {

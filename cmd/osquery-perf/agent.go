@@ -279,7 +279,7 @@ func (a *agent) enroll(i int, onlyAlreadyEnrolled bool) error {
 	req.Header.SetMethod("POST")
 	req.Header.SetContentType("application/json")
 	req.Header.Add("User-Agent", "osquery/4.6.0")
-	req.SetRequestURI(a.serverAddress + "/api/latest/osquery/enroll")
+	req.SetRequestURI(a.serverAddress + "/api/osquery/enroll")
 	res := fasthttp.AcquireResponse()
 
 	a.waitingDo(req, res)
@@ -314,7 +314,7 @@ func (a *agent) config() {
 	req.Header.SetMethod("POST")
 	req.Header.SetContentType("application/json")
 	req.Header.Add("User-Agent", "osquery/4.6.0")
-	req.SetRequestURI(a.serverAddress + "/api/latest/osquery/config")
+	req.SetRequestURI(a.serverAddress + "/api/osquery/config")
 	res := fasthttp.AcquireResponse()
 
 	a.waitingDo(req, res)
@@ -435,7 +435,7 @@ func (a *agent) DistributedRead() (*distributedReadResponse, error) {
 	req.Header.SetMethod("POST")
 	req.Header.SetContentType("application/json")
 	req.Header.Add("User-Agent", "osquery/4.6.0")
-	req.SetRequestURI(a.serverAddress + "/api/latest/osquery/distributed/read")
+	req.SetRequestURI(a.serverAddress + "/api/osquery/distributed/read")
 	res := fasthttp.AcquireResponse()
 
 	a.waitingDo(req, res)
@@ -587,7 +587,7 @@ func (a *agent) DistributedWrite(queries map[string]string) {
 	req.Header.SetMethod("POST")
 	req.Header.SetContentType("application/json")
 	req.Header.Add("User-Agent", "osquery/5.0.1")
-	req.SetRequestURI(a.serverAddress + "/api/latest/osquery/distributed/write")
+	req.SetRequestURI(a.serverAddress + "/api/osquery/distributed/write")
 	res := fasthttp.AcquireResponse()
 
 	a.waitingDo(req, res)

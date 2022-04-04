@@ -3362,12 +3362,12 @@ func (s *integrationTestSuite) TestOsqueryConfig() {
 	hosts := s.createHosts(t)
 	req := getClientConfigRequest{NodeKey: hosts[0].NodeKey}
 	var resp getClientConfigResponse
-	s.DoJSON("POST", "/api/latest/osquery/config", req, http.StatusOK, &resp)
+	s.DoJSON("POST", "/api/osquery/config", req, http.StatusOK, &resp)
 
 	// test with invalid node key
 	var errRes map[string]interface{}
 	req.NodeKey += "zzzz"
-	s.DoJSON("POST", "/api/latest/osquery/config", req, http.StatusUnauthorized, &errRes)
+	s.DoJSON("POST", "/api/osquery/config", req, http.StatusUnauthorized, &errRes)
 	assert.Contains(t, errRes["error"], "invalid node key")
 }
 
@@ -3388,7 +3388,7 @@ func (s *integrationTestSuite) TestEnrollHost() {
 		HostIdentifier: "abcd",
 	})
 	require.NoError(t, err)
-	s.DoRawNoAuth("POST", "/api/latest/osquery/enroll", j, http.StatusUnauthorized)
+	s.DoRawNoAuth("POST", "/api/osquery/enroll", j, http.StatusUnauthorized)
 
 	// valid enroll secret succeeds
 	j, err = json.Marshal(&enrollAgentRequest{
@@ -3398,7 +3398,7 @@ func (s *integrationTestSuite) TestEnrollHost() {
 	require.NoError(t, err)
 
 	var resp enrollAgentResponse
-	hres := s.DoRawNoAuth("POST", "/api/latest/osquery/enroll", j, http.StatusOK)
+	hres := s.DoRawNoAuth("POST", "/api/osquery/enroll", j, http.StatusOK)
 	defer hres.Body.Close()
 	require.NoError(t, json.NewDecoder(hres.Body).Decode(&resp))
 	require.NotEmpty(t, resp.NodeKey)
@@ -3410,7 +3410,7 @@ func (s *integrationTestSuite) TestCarve() {
 
 	// begin a carve with an invalid node key
 	var errRes map[string]interface{}
-	s.DoJSON("POST", "/api/latest/osquery/carve/begin", carveBeginRequest{
+	s.DoJSON("POST", "/api/osquery/carve/begin", carveBeginRequest{
 		NodeKey:    hosts[0].NodeKey + "zzz",
 		BlockCount: 1,
 		BlockSize:  1,
@@ -3420,7 +3420,7 @@ func (s *integrationTestSuite) TestCarve() {
 	assert.Contains(t, errRes["error"], "invalid node key")
 
 	// invalid carve size
-	s.DoJSON("POST", "/api/latest/osquery/carve/begin", carveBeginRequest{
+	s.DoJSON("POST", "/api/osquery/carve/begin", carveBeginRequest{
 		NodeKey:    hosts[0].NodeKey,
 		BlockCount: 3,
 		BlockSize:  3,
@@ -3430,7 +3430,7 @@ func (s *integrationTestSuite) TestCarve() {
 	assert.Contains(t, errRes["error"], "carve_size must be greater")
 
 	// invalid block size too big
-	s.DoJSON("POST", "/api/latest/osquery/carve/begin", carveBeginRequest{
+	s.DoJSON("POST", "/api/osquery/carve/begin", carveBeginRequest{
 		NodeKey:    hosts[0].NodeKey,
 		BlockCount: 3,
 		BlockSize:  maxBlockSize + 1,
@@ -3440,7 +3440,7 @@ func (s *integrationTestSuite) TestCarve() {
 	assert.Contains(t, errRes["error"], "block_size exceeds max")
 
 	// invalid carve size too big
-	s.DoJSON("POST", "/api/latest/osquery/carve/begin", carveBeginRequest{
+	s.DoJSON("POST", "/api/osquery/carve/begin", carveBeginRequest{
 		NodeKey:    hosts[0].NodeKey,
 		BlockCount: 3,
 		BlockSize:  maxBlockSize,
@@ -3450,7 +3450,7 @@ func (s *integrationTestSuite) TestCarve() {
 	assert.Contains(t, errRes["error"], "carve_size exceeds max")
 
 	// invalid carve size, does not match blocks
-	s.DoJSON("POST", "/api/latest/osquery/carve/begin", carveBeginRequest{
+	s.DoJSON("POST", "/api/osquery/carve/begin", carveBeginRequest{
 		NodeKey:    hosts[0].NodeKey,
 		BlockCount: 3,
 		BlockSize:  3,
@@ -3461,7 +3461,7 @@ func (s *integrationTestSuite) TestCarve() {
 
 	// valid carve begin
 	var beginResp carveBeginResponse
-	s.DoJSON("POST", "/api/latest/osquery/carve/begin", carveBeginRequest{
+	s.DoJSON("POST", "/api/osquery/carve/begin", carveBeginRequest{
 		NodeKey:    hosts[0].NodeKey,
 		BlockCount: 3,
 		BlockSize:  3,
@@ -3474,7 +3474,7 @@ func (s *integrationTestSuite) TestCarve() {
 
 	// sending a block with invalid session id
 	var blockResp carveBlockResponse
-	s.DoJSON("POST", "/api/latest/osquery/carve/block", carveBlockRequest{
+	s.DoJSON("POST", "/api/osquery/carve/block", carveBlockRequest{
 		BlockId:   1,
 		SessionId: sid + "zz",
 		RequestId: "??",
@@ -3482,7 +3482,7 @@ func (s *integrationTestSuite) TestCarve() {
 	}, http.StatusNotFound, &blockResp)
 
 	// sending a block with valid session id but invalid request id
-	s.DoJSON("POST", "/api/latest/osquery/carve/block", carveBlockRequest{
+	s.DoJSON("POST", "/api/osquery/carve/block", carveBlockRequest{
 		BlockId:   1,
 		SessionId: sid,
 		RequestId: "??",
@@ -3490,7 +3490,7 @@ func (s *integrationTestSuite) TestCarve() {
 	}, http.StatusInternalServerError, &blockResp) // TODO: should be 400, see #4406
 
 	// sending a block with unexpected block id (expects 0, got 1)
-	s.DoJSON("POST", "/api/latest/osquery/carve/block", carveBlockRequest{
+	s.DoJSON("POST", "/api/osquery/carve/block", carveBlockRequest{
 		BlockId:   1,
 		SessionId: sid,
 		RequestId: "r1",
@@ -3498,7 +3498,7 @@ func (s *integrationTestSuite) TestCarve() {
 	}, http.StatusInternalServerError, &blockResp) // TODO: should be 400, see #4406
 
 	// sending a block with valid payload, block 0
-	s.DoJSON("POST", "/api/latest/osquery/carve/block", carveBlockRequest{
+	s.DoJSON("POST", "/api/osquery/carve/block", carveBlockRequest{
 		BlockId:   0,
 		SessionId: sid,
 		RequestId: "r1",
@@ -3508,7 +3508,7 @@ func (s *integrationTestSuite) TestCarve() {
 
 	// sending next block
 	blockResp = carveBlockResponse{}
-	s.DoJSON("POST", "/api/latest/osquery/carve/block", carveBlockRequest{
+	s.DoJSON("POST", "/api/osquery/carve/block", carveBlockRequest{
 		BlockId:   1,
 		SessionId: sid,
 		RequestId: "r1",
@@ -3518,7 +3518,7 @@ func (s *integrationTestSuite) TestCarve() {
 
 	// sending already-sent block again
 	blockResp = carveBlockResponse{}
-	s.DoJSON("POST", "/api/latest/osquery/carve/block", carveBlockRequest{
+	s.DoJSON("POST", "/api/osquery/carve/block", carveBlockRequest{
 		BlockId:   1,
 		SessionId: sid,
 		RequestId: "r1",
@@ -3527,7 +3527,7 @@ func (s *integrationTestSuite) TestCarve() {
 
 	// sending final block with too many bytes
 	blockResp = carveBlockResponse{}
-	s.DoJSON("POST", "/api/latest/osquery/carve/block", carveBlockRequest{
+	s.DoJSON("POST", "/api/osquery/carve/block", carveBlockRequest{
 		BlockId:   2,
 		SessionId: sid,
 		RequestId: "r1",
@@ -3536,7 +3536,7 @@ func (s *integrationTestSuite) TestCarve() {
 
 	// sending actual final block
 	blockResp = carveBlockResponse{}
-	s.DoJSON("POST", "/api/latest/osquery/carve/block", carveBlockRequest{
+	s.DoJSON("POST", "/api/osquery/carve/block", carveBlockRequest{
 		BlockId:   2,
 		SessionId: sid,
 		RequestId: "r1",
@@ -3546,7 +3546,7 @@ func (s *integrationTestSuite) TestCarve() {
 
 	// sending unexpected block
 	blockResp = carveBlockResponse{}
-	s.DoJSON("POST", "/api/latest/osquery/carve/block", carveBlockRequest{
+	s.DoJSON("POST", "/api/osquery/carve/block", carveBlockRequest{
 		BlockId:   3,
 		SessionId: sid,
 		RequestId: "r1",

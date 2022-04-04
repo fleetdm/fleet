@@ -26,12 +26,12 @@ Fleetctl also provides a quick way to work with all the data exposed by Fleet wi
 
 ## Using fleetctl
 
-You can use `fleetctl` to accomplish many tasks you would typically need to do through the UI(User Interface). You can even set up or apply configuration files to the Fleet server. 
+You can use `fleetctl` to accomplish many tasks you would typically need to do through the UI(User Interface). You can even set up or apply configuration files to the Fleet server.
 
 ### Available commands
 
 Much of the functionality available in the Fleet UI is also available in `fleetctl`. You can run queries, add and remove users, generate install packages to add new hosts, get information about existing hosts, and more! The following commands are available for use with `fleetctl`:
-  
+
    | Command                    | Description                                                        |
    |:---------------------------|:-------------------------------------------------------------------|
    | apply                      | Apply files to declaratively manage osquery configurations         |
@@ -208,7 +208,7 @@ Note the token can also be set with `fleetctl config set --token`, but this may 
 
 ## Using fleetctl to configure Fleet
 
-A Fleet configuration is defined using one or more declarative "messages" in yaml syntax. 
+A Fleet configuration is defined using one or more declarative "messages" in yaml syntax.
 
 Fleet configuration can be retrieved and applied using the `fleetctl` tool.
 
@@ -271,7 +271,7 @@ fleetctl user create --name "API User" --email api@example.com --password temp!p
 
 ### Reset the password
 
-When a new user is created, a password reset is needed before that user can perform queries. Since an API-only user cannot log in to the Fleet UI, this is done through the REST API. We'll be doing this through the terminal using `curl`. 
+When a new user is created, a password reset is needed before that user can perform queries. Since an API-only user cannot log in to the Fleet UI, this is done through the REST API. We'll be doing this through the terminal using `curl`.
 
 First, log in to the new user account using `fleetctl login`. Once you're logged in successfully to the API-only user, set up a variable to hold the user's token:
 
@@ -313,7 +313,7 @@ unset token
 
 ### Use fleetctl as the new user
 
-Now that the password is reset, you will need to log in again using the updated password with `fleetctl login`. You'll now be able to perform tasks using `fleetctl` as your new API-only user. 
+Now that the password is reset, you will need to log in again using the updated password with `fleetctl login`. You'll now be able to perform tasks using `fleetctl` as your new API-only user.
 
 ### Switching users
 
@@ -346,8 +346,8 @@ The user creation failed because the API-only user doesn't have the right permis
 
 ```
 $ fleetctl user create --email test@example.com --name "New User" --context admin
-Enter password for user: 
-Enter password for user (confirm): 
+Enter password for user:
+Enter password for user (confirm):
 ```
 
 ## File carving
@@ -363,8 +363,8 @@ Given a working flagfile for connecting osquery agents to Fleet, add the followi
 ```
 --disable_carver=false
 --carver_disable_function=false
---carver_start_endpoint=/api/latest/osquery/carve/begin
---carver_continue_endpoint=/api/latest/osquery/carve/block
+--carver_start_endpoint=/api/osquery/carve/begin
+--carver_continue_endpoint=/api/osquery/carve/block
 --carver_block_size=2097152
 ```
 

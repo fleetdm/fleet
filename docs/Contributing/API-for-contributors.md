@@ -477,7 +477,7 @@ If the `name` is not already associated with an existing team, this API route cr
               "logger_tls_period": 10,
               "distributed_plugin": "tls",
               "disable_distributed": false,
-              "logger_tls_endpoint": "/api/latest/osquery/log",
+              "logger_tls_endpoint": "/api/osquery/log",
               "distributed_interval": 10,
               "distributed_tls_max_attempts": 3
             },
