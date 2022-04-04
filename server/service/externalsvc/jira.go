@@ -1,6 +1,7 @@
 package externalsvc
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/andygrunwald/go-jira"
@@ -33,4 +34,11 @@ func NewJiraClient(opts *JiraOptions) (*Jira, error) {
 		return nil, err
 	}
 	return &Jira{client: client}, nil
+}
+
+// CreateIssue creates an issue on the jira server targeted by the Jira client.
+// It returns the created issue or an error.
+func (j *Jira) CreateIssue(ctx context.Context, issue *jira.Issue) (*jira.Issue, error) {
+	iss, _, err := j.client.Issue.CreateWithContext(ctx, issue)
+	return iss, err
 }
