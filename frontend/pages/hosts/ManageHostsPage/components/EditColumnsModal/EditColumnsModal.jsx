@@ -60,8 +60,8 @@ const EditColumnsModal = ({
   return (
     <Modal
       title="Edit columns"
-      onExit={toggleSecretEditorModal}
-      className={baseClass}
+      onExit={onCancelColumns}
+      className={"edit-columns-modal"}
     >
       <>
         <p>Choose which columns you see:</p>

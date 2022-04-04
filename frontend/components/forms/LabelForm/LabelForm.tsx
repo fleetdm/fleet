@@ -95,13 +95,6 @@ const LabelForm = ({
     const listener = (event: KeyboardEvent) => {
       if (event.code === "Enter" || event.code === "NumpadEnter") {
         event.preventDefault();
-        console.log(
-          "name, query, description, platform",
-          name,
-          query,
-          description,
-          platform
-        );
         handleSubmit({
           name,
           query,
@@ -142,7 +135,6 @@ const LabelForm = ({
   const onNameChange = (value: string) => {
     setName(value);
     setNameError("");
-    console.log("name", name);
   };
 
   const onDescriptionChange = (value: string) => {

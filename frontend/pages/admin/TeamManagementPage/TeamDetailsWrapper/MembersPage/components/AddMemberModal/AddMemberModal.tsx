@@ -29,7 +29,6 @@ const AddMemberModal = ({
   const onChangeDropdown = useCallback(
     (values) => {
       setSelectedMembers(values);
-      console.log("selectedMembers", selectedMembers);
     },
     [setSelectedMembers]
   );
