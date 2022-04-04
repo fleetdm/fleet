@@ -67,7 +67,7 @@ const FlashMessage = ({
         {alertType === "success" ? (
           <FleetIcon name="success-check" />
         ) : (
-          <img src={ErrorIcon} />
+          <img alt="error icon" src={ErrorIcon} />
         )}
         <span>{message}</span>
         {onUndoActionClick && undoAction && (
