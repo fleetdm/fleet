@@ -1,0 +1,104 @@
+package worker
+
+import (
+	"bytes"
+	"context"
+	"fmt"
+	"html/template"
+
+	jira "github.com/andygrunwald/go-jira"
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	kitlog "github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/log/level"
+)
+
+var jiraSummaryTmpl = template.Must(template.New("").Parse(
+	`{{ .cve }} detected on {{ .numHosts }} hosts`,
+))
+
+var jiraDescriptionTmpl = template.Must(template.New("").Parse(
+	`See vulnerability (CVE) details in National Vulnerability Database (NVD) here: <Link to CVE details in NVD>
+
+See all hosts affected by this vulnerability (CVE) in Fleet: <Link to Hosts page in Fleet with software filter applied>
+
+Affected hosts:
+{{ range .hosts }}
+- {{ .hostname }}: {{ .fleet_url }}/api/v1/fleet/hosts/{{ .id }}
+{{ end }}
+`,
+))
+
+// https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-issues/#api-rest-api-3-issue-createmeta-get
+
+type JiraClient interface {
+	CreateIssue(issue *jira.Issue) (*jira.Issue, *jira.Response, error)
+}
+
+type Jira struct {
+	ds         fleet.Datastore
+	log        kitlog.Logger
+	jiraClient JiraClient
+	// fleetURL
+	// nvdURL?
+}
+
+func NewJira(ds fleet.Datastore, log kitlog.Logger, jiraClient JiraClient) *Jira {
+	return &Jira{
+		ds:         ds,
+		log:        log,
+		jiraClient: jiraClient,
+	}
+}
+
+func (j *Jira) Name() string {
+	return "jira"
+}
+
+func (j *Jira) Run(ctx context.Context, args map[string]interface{}) error {
+	// TODO: implement me
+
+	// issueTypeID Bug, Task
+	// projectIdOrKey
+	// TODO: use text/template
+	tmplArgs := map[string]interface{}{}
+
+	var buf bytes.Buffer
+	err := jiraSummaryTmpl.Execute(&buf, tmplArgs)
+	if err != nil {
+		return fmt.Errorf("execute summary template: %w", err)
+	}
+	summary := buf.String()
+
+	buf.Reset()
+	err = jiraDescriptionTmpl.Execute(&buf, tmplArgs)
+	if err != nil {
+		return fmt.Errorf("execute summary template: %w", err)
+	}
+	description := buf.String()
+
+	// TODO: see if a jira issue already exists for this cve? update existing? reopen?
+
+	issue := &jira.Issue{
+		Fields: &jira.IssueFields{
+			Project: jira.Project{
+				// ID:
+				Key: "VR",
+			},
+			Type: jira.IssueType{
+				// ID:
+				Name: "Bug",
+			},
+			Summary:     summary,
+			Description: description,
+		},
+	}
+
+	issue, _, err = j.jiraClient.CreateIssue(issue)
+	if err != nil {
+		return fmt.Errorf("create issue: %w", err)
+	}
+
+	level.Debug(j.log).Log("msg", "created jira issue", "projectID", 1, "issueID", issue.ID)
+
+	return nil
+}
