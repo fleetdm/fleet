@@ -62,12 +62,12 @@ const generateTableHeaders = (): IDataColumn[] => {
           {cellProps.cell.value.length ? (
             <>
               <img alt="host passing" src={PassIcon} />
-              <span className="header-icon-text">Yes</span>
+              <span className="status-header-text">Yes</span>
             </>
           ) : (
             <>
               <img alt="host passing" src={FailIcon} />
-              <span className="header-icon-text">No</span>
+              <span className="status-header-text">No</span>
             </>
           )}
         </>

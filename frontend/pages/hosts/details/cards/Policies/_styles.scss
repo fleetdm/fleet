@@ -1,0 +1,46 @@
+.section--policies {
+  .info-banner {
+    margin-bottom: 1rem;
+    p {
+      font-size: 0.875rem;
+      margin: 0;
+    }
+  }
+  .table-container__header {
+    display: none;
+  }
+  .data-table-block {
+    .data-table__table {
+      thead {
+        .name__header {
+          width: $col-md;
+        }
+        .response__header {
+          width: 0;
+          border-right: none;
+        }
+        .linkToFilteredHosts__header {
+          width: 140px;
+        }
+      }
+      tbody {
+        tr {
+          .policy-link {
+            visibility: hidden;
+            text-overflow: none;
+            img {
+              vertical-align: text-top;
+              width: 16px;
+            }
+          }
+          &:hover {
+            .policy-link {
+              visibility: visible;
+              text-overflow: none;
+            }
+          }
+        }
+      }
+    }
+  }
+}

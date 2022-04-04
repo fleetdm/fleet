@@ -1,0 +1,69 @@
+.data-table__status {
+  color: $core-fleet-blue;
+  text-transform: capitalize;
+
+  &:before {
+    border-radius: 100%;
+    content: " ";
+    display: inline-block;
+    margin-right: $pad-small;
+    height: 8px;
+    width: 8px;
+    margin-bottom: 1px;
+  }
+
+  // host status
+  &--online:before,
+  &--enabled:before,
+  &--on:before {
+    background-color: $ui-success;
+  }
+  &--offline:before,
+  &--disabled:before,
+  &--mia:before,
+  &--off:before {
+    background-color: $ui-offline;
+  }
+  &--mia {
+    text-transform: uppercase;
+  }
+
+  // policy status
+  &--yes:before {
+    padding-right: 10px;
+    content: url(../assets/images/icon-check-circle-green-16x16@2x.png);
+    transform: translate(-5px, -1px) scale(0.5);
+    vertical-align: text-top;
+  }
+  &--no:before {
+    padding-right: 8px;
+    content: url(../assets/images/icon-exclamation-circle-red-16x16@2x.png);
+    transform: translate(-5px, -1px) scale(0.5);
+    vertical-align: text-top;
+  }
+  &--indeterminate {
+    color: $ui-fleet-black-50;
+    &:before {
+      height: 0;
+      width: 0;
+      margin: 0;
+    }
+  }
+
+  // user status
+  &--active {
+    &:before {
+      background-color: $ui-success;
+    }
+  }
+  &--no-access {
+    &:before {
+      background-color: $ui-offline;
+    }
+  }
+  &--invite-pending {
+    &:before {
+      background-color: $ui-warning;
+    }
+  }
+}

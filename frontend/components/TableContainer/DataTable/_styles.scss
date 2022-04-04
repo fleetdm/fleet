@@ -4,10 +4,19 @@
   width: 100%;
 
   .data-table {
+    a {
+      font-size: $x-small;
+      color: $core-vibrant-blue;
+      font-weight: $bold;
+      text-decoration: none;
+    }
+
     &__wrapper {
       position: relative;
-      border: solid 1px $ui-fleet-blue-15;
-      border-radius: 6px;
+      // overflow: hidden;
+
+      border: 1px solid $ui-fleet-blue-15;
+      border-radius: 6px; // TODO: confirm not 8 or 4px?
       margin-top: $pad-small;
       box-shadow: inset -8px 0 17px -10px #e8edf4;
       flex-grow: 1;
@@ -71,10 +80,6 @@
         }
       }
 
-      .header-icon-text {
-        margin-left: 10px;
-      }
-
       th {
         padding: $pad-medium $pad-large;
         white-space: nowrap;
@@ -114,77 +119,48 @@
       }
     }
 
-    .Select.is-focused:not(.is-open) > .Select-control {
-      box-shadow: none;
-      background-color: $ui-vibrant-blue-10;
-    }
+    // .active-selection {
+    //   position: absolute;
+    //   top: 0px;
+    //   width: 100%;
+    //   border: 0;
+    //   border-radius: 6px;
 
-    .Select.is-open {
-      .Select-arrow {
-        margin-top: 4px;
-        margin-bottom: -2px;
-      }
-      .Select-placeholder {
-        margin-top: 1px;
-      }
-    }
+    //   &__checkbox {
+    //     padding: 16px;
+    //     width: 26px;
+    //   }
 
-    .Select-arrow {
-      margin-top: 3px;
-    }
+    //   &__container {
+    //     // padding: 0 27px;
+    //     padding: 0 24px;
+    //   }
 
-    .Select-control:hover {
-      box-shadow: none;
-    }
+    //   &__inner {
+    //     display: flex;
+    //     justify-content: space-between;
+    //     align-items: center;
 
-    .Select-placeholder {
-      font-size: 14px;
-      margin-top: 2px;
-      padding-left: 0;
-    }
+    //     p {
+    //       margin: 0 $pad-medium 0 0;
+    //       font-weight: $regular;
 
-    .active-selection {
-      position: absolute;
-      top: 0px;
-      width: 100%;
-      border: 0;
-      border-radius: 6px;
+    //       span {
+    //         font-weight: $bold;
+    //       }
+    //     }
 
-      &__checkbox {
-        padding: 16px;
-        width: 26px;
-      }
+    //     button {
+    //       margin-right: $pad-medium;
+    //     }
+    //   }
 
-      &__container {
-        // padding: 0 27px;
-        padding: 0 24px;
-      }
-
-      &__inner {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-
-        p {
-          margin: 0 $pad-medium 0 0;
-          font-weight: $regular;
-
-          span {
-            font-weight: $bold;
-          }
-        }
-
-        button {
-          margin-right: $pad-medium;
-        }
-      }
-
-      &__inner-left,
-      &__inner-right {
-        display: flex;
-        align-items: center;
-      }
-    }
+    //   &__inner-left,
+    //   &__inner-right {
+    //     display: flex;
+    //     align-items: center;
+    //   }
+    // }
 
     tbody {
       td {
@@ -199,50 +175,9 @@
           width: 0px;
           padding: 0 $pad-medium;
         }
-
-        // form-field wraps the dropdown menu
-        .form-field {
-          margin: 0;
-        }
-        .Select-control {
-          background-color: $core-white;
-          border: none;
-        }
       }
       .highlight-on-hover:hover {
         background-color: $ui-off-white;
-      }
-    }
-
-    &__hostname {
-      color: $core-fleet-black;
-    }
-
-    &__pill {
-      color: $core-fleet-black;
-      font-weight: $bold;
-      padding: 4px 12px;
-      border-radius: 29px;
-
-      span {
-        border-radius: 29px;
-        background-color: $core-fleet-purple;
-      }
-      &--undetermined {
-        color: $ui-fleet-black-50;
-        font-style: italic;
-        font-weight: 400;
-        padding: 0;
-        border-radius: 0;
-      }
-      &--minimal {
-        background-color: $ui-vibrant-blue-10;
-      }
-      &--considerable {
-        background-color: $ui-vibrant-blue-25;
-      }
-      &--excessive {
-        background-color: $ui-vibrant-blue-50;
       }
     }
 
@@ -250,53 +185,8 @@
       display: flex;
       justify-content: center;
     }
-
-    &__status {
-      color: $core-fleet-blue;
-      text-transform: capitalize;
-
-      &:before {
-        border-radius: 100%;
-        content: " ";
-        display: inline-block;
-        margin-right: $pad-small;
-        height: 8px;
-        width: 8px;
-        margin-bottom: 1px;
-      }
-
-      &--online:before,
-      &--enabled:before,
-      &--on:before {
-        background-color: $ui-success;
-      }
-
-      &--offline:before,
-      &--disabled:before,
-      &--mia:before,
-      &--off:before {
-        background-color: $ui-offline;
-      }
-
-      &--yes:before {
-        padding-right: 10px;
-        content: url(../assets/images/icon-check-circle-green-16x16@2x.png);
-        transform: scale(0.5);
-        vertical-align: text-top;
-      }
-
-      &--no:before {
-        padding-right: 10px;
-        content: url(../assets/images/icon-exclamation-circle-red-16x16@2x.png);
-        transform: scale(0.5);
-        vertical-align: text-top;
-      }
-
-      &--mia {
-        text-transform: uppercase;
-      }
-    }
   }
+
   .loading-overlay {
     display: flex;
     flex-grow: 1;

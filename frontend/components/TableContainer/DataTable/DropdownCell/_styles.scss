@@ -1,23 +1,39 @@
 .dropdown-cell {
   width: 80px;
 
+  .form-field {
+    margin: 0;
+  }
+
   .Select {
     position: relative;
 
     .Select-control {
-      height: auto;
       display: flex;
+      background-color: $core-white;
+      height: auto;
       justify-content: space-between;
       border: 0;
       cursor: pointer;
+
+      &:hover {
+        box-shadow: none;
+      }
 
       &:hover .Select-placeholder {
         color: $core-vibrant-blue;
       }
 
+      .Select-arrow {
+        margin-top: 3px;
+      }
+
       .Select-placeholder {
-        line-height: normal;
         color: $core-fleet-black;
+        font-size: 14px;
+        line-height: normal;
+        padding-left: 0;
+        margin-top: 2px;
       }
 
       .Select-input {
@@ -51,6 +67,17 @@
       .Select-control .Select-placeholder {
         color: $core-vibrant-blue;
       }
+      .Select-arrow {
+        margin-top: 4px;
+        margin-bottom: -2px;
+      }
+      .Select-placeholder {
+        margin-top: 1px;
+      }
     }
   }
+  // .Select.is-focused:not(.is-open) > .Select-control {
+  //   box-shadow: none;
+  //   background-color: $ui-vibrant-blue-10;
+  // }
 }

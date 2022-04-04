@@ -119,6 +119,10 @@
         .teams__cell {
           display: none;
           width: 0;
+          .grey-cell {
+            color: $ui-fleet-black-50;
+            font-style: italic;
+          }
         }
         .status__cell {
           display: none;
@@ -147,33 +151,6 @@
           }
         }
       }
-    }
-  }
-
-  .data-table {
-    &__status {
-      &--active {
-        &:before {
-          background-color: $ui-success;
-        }
-      }
-
-      &--no-access {
-        &:before {
-          background-color: $ui-offline;
-        }
-      }
-
-      &--invite-pending {
-        &:before {
-          background-color: $ui-warning;
-        }
-      }
-    }
-
-    .grey-cell {
-      color: $ui-fleet-black-50;
-      font-style: italic;
     }
   }
 }

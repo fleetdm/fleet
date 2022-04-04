@@ -38,20 +38,20 @@
     }
   }
 
-  tbody td img {
-    width: 16px;
-    height: 16px;
-    vertical-align: sub;
-    padding-right: 4px;
-  }
-
-  &__th-pack-name {
-    padding-left: 0;
-    text-align: left;
-  }
-
-  &__select-all {
-    margin-bottom: 0;
+  tbody {
+    td {
+      img {
+        width: 16px;
+        height: 16px;
+        vertical-align: sub;
+        padding-right: 4px;
+      }
+    }
+    .query_results__cell {
+      .status-header-text {
+        margin-left: 10px;
+      }
+    }
   }
 
   &__empty-table {

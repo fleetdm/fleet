@@ -1,7 +1,42 @@
 .section--software {
+  .table-container__header-left {
+    .controls {
+      // vulnerable software dropdown filter
+      .Select {
+        width: 219px;
+
+        .Select-menu-outer {
+          width: 364px;
+          max-height: 310px;
+
+          .Select-menu {
+            max-height: none;
+          }
+        }
+        .Select-value {
+          padding-left: $pad-medium;
+          padding-right: $pad-medium;
+
+          &::before {
+            display: inline-block;
+            position: absolute;
+            padding: 5px 0 0 0; // centers spin
+            content: url(../assets/images/icon-filter-black-16x16@2x.png);
+            transform: scale(0.5);
+            height: 26px;
+            left: 2px;
+          }
+        }
+        .Select-value-label {
+          padding-left: $pad-large;
+          font-size: $small !important;
+        }
+      }
+    }
+  }
+
   .data-table-block {
     .data-table__table {
-      table-layout: fixed;
       thead {
         .name__header {
           width: $col-md;
@@ -31,6 +66,7 @@
         @media (min-width: $break-1400) {
           .source__header {
             display: table-cell;
+            width: $col-md;
           }
         }
       }
@@ -70,7 +106,7 @@
         @media (min-width: $break-1400) {
           .source__cell {
             display: table-cell;
-            width: 0px;
+            width: $col-md;
           }
           .hosts_count__cell {
             .hosts-cell__wrapper {
@@ -110,38 +146,6 @@
           }
         }
       }
-    }
-  }
-}
-.host-details {
-  &__vuln_dropdown {
-    width: 219px;
-
-    .Select-menu-outer {
-      width: 364px;
-      max-height: 310px;
-
-      .Select-menu {
-        max-height: none;
-      }
-    }
-    .Select-value {
-      padding-left: $pad-medium;
-      padding-right: $pad-medium;
-
-      &::before {
-        display: inline-block;
-        position: absolute;
-        padding: 5px 0 0 0; // centers spin
-        content: url(../assets/images/icon-filter-black-16x16@2x.png);
-        transform: scale(0.5);
-        height: 26px;
-        left: 2px;
-      }
-    }
-    .Select-value-label {
-      padding-left: $pad-large;
-      font-size: $small !important;
     }
   }
 }

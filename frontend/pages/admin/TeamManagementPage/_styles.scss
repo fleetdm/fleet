@@ -17,17 +17,17 @@
           width: $col-md;
           border-right: none;
         }
-  
+
         .user_count__header {
           display: none;
           width: 0;
         }
-  
+
         @media (min-width: $break-990) {
           .host_count__header {
             border-right: 1px solid $ui-fleet-blue-15;
           }
-  
+
           .user_count__header {
             display: table-cell;
             width: $col-md;
@@ -35,21 +35,21 @@
           }
         }
       }
-  
+
       tbody {
         .name__cell {
           width: $col-md;
         }
-  
+
         .host_count__cell {
           width: $col-md;
         }
-  
+
         .user_count__cell {
           display: none;
           width: 0;
         }
-  
+
         @media (min-width: $break-990) {
           .user_count__cell {
             display: table-cell;
@@ -61,22 +61,22 @@
   }
 }
 
-.team-details__team-details {
-  .form-field--dropdown {
-    margin-bottom: 0;
-  }
-}
+// .team-details__team-details {
+//   .form-field--dropdown {
+//     margin-bottom: 0;
+//   }
+// }
 
-.team-details.team-select-open {
-  .component__tabs-wrapper {
-    position: relative;
-    z-index: 2;
-  }
-  .members {
-    position: relative;
-    z-index: 1;
-  }
-}
+// .team-details.team-select-open {
+//   .component__tabs-wrapper {
+//     position: relative;
+//     z-index: 2;
+//   }
+//   .members {
+//     position: relative;
+//     z-index: 1;
+//   }
+// }
 
 .no-teams {
   display: flex;

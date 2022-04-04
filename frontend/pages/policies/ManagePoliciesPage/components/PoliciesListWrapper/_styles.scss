@@ -23,22 +23,21 @@
       font-weight: $bold;
       text-align: left;
       padding: $pad-medium $pad-large;
-      &.passing_host_count__header, &.failing_host_count__header, &.webhook__header {
+      &.passing_host_count__header,
+      &.failing_host_count__header,
+      &.webhook__header {
         width: 20%;
         @media (min-width: $medium-width) {
           width: 15%;
         }
       }
+      &.passing_host_count__header,
+      &.failing_host_count__header {
+        .status-header-text {
+          margin-left: 10px;
+        }
+      }
     }
-  }
-
-  &__th-pack-name {
-    padding-left: 0;
-    text-align: left;
-  }
-
-  &__select-all {
-    margin-bottom: 0;
   }
 
   &__empty-table {

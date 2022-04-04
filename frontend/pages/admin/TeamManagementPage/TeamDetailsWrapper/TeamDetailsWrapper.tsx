@@ -355,7 +355,7 @@ const TeamDetailsWrapper = ({
   };
 
   const teamWrapperClasses = classnames(baseClass, {
-    "team-select-open": teamMenuIsOpen,
+    "team-select-open": teamMenuIsOpen, // TODO: is this still needed?
     "team-settings": !isOnGlobalTeam,
   });
 
