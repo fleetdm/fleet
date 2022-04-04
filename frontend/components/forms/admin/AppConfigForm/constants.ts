@@ -1,7 +1,9 @@
-import { IConfigNested } from "interfaces/config";
+import { IConfig } from "interfaces/config";
+import { IEnrollSecret } from "interfaces/enroll_secret";
 
 export interface IAppConfigFormProps {
-  appConfig: IConfigNested;
+  appConfig: IConfig;
+  enrollSecret: IEnrollSecret[] | undefined;
   handleSubmit: any;
 }
 

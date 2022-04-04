@@ -58,7 +58,7 @@ const CoreLayout = ({ children, router }: ICoreLayoutProps) => {
     }
 
     setShowExpirationFlashMessage(
-      licenseExpirationWarning(config?.expiration || "")
+      licenseExpirationWarning(config?.license.expiration || "")
     );
   }, [notification]);
 

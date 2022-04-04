@@ -11,7 +11,7 @@ import { NotificationContext } from "context/notification";
 import { inMilliseconds, secondsToHms } from "fleet/helpers";
 import { IPolicyStats, ILoadAllPoliciesResponse } from "interfaces/policy";
 import { IWebhookFailingPolicies } from "interfaces/webhook";
-import { IConfig, IConfigNested } from "interfaces/config"; // @ts-ignore
+import { IConfig } from "interfaces/config"; // @ts-ignore
 import { getConfig } from "redux/nodes/app/actions";
 import PATHS from "router/paths";
 import configAPI from "services/entities/config";
@@ -147,12 +147,12 @@ const ManagePolicyPage = ({
     data: failingPoliciesWebhook,
     isLoading: isLoadingFailingPoliciesWebhook,
     refetch: refetchFailingPoliciesWebhook,
-  } = useQuery<IConfigNested, Error, IWebhookFailingPolicies>(
+  } = useQuery<IConfig, Error, IWebhookFailingPolicies>(
     ["config"],
     () => configAPI.loadAll(),
     {
       enabled: canAddOrRemovePolicy,
-      select: (data: IConfigNested) =>
+      select: (data: IConfig) =>
         data.webhook_settings.failing_policies_webhook,
       onSuccess: (data) => {
         setCurrentAutomatedPolicies(data.policy_ids);
@@ -291,7 +291,7 @@ const ManagePolicyPage = ({
   };
 
   const policyUpdateInterval =
-    secondsToHms(inMilliseconds(config?.osquery_policy || 0) / 1000) ||
+    secondsToHms(inMilliseconds(config?.update_interval.osquery_policy || 0) / 1000) ||
     "osquery policy update interval";
 
   const showTeamDescription = isPremiumTier && !!teamId;

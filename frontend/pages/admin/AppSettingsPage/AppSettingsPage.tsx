@@ -9,7 +9,7 @@ import configAPI from "services/entities/config";
 
 // @ts-ignore
 import deepDifference from "utilities/deep_difference";
-import { IConfig, IConfigNested } from "interfaces/config";
+import { IConfig } from "interfaces/config";
 import { IApiError } from "interfaces/errors";
 
 // @ts-ignore
@@ -27,16 +27,16 @@ const AppSettingsPage = (): JSX.Element => {
     data: appConfig,
     isLoading: isLoadingConfig,
     refetch: refetchConfig,
-  } = useQuery<IConfigNested, Error, IConfigNested>(
+  } = useQuery<IConfig, Error, IConfig>(
     ["config"],
     () => configAPI.loadAll(),
     {
-      select: (data: IConfigNested) => data,
+      select: (data: IConfig) => data,
     }
   );
 
   const onFormSubmit = useCallback(
-    (formData: IConfigNested) => {
+    (formData: IConfig) => {
       const diff = deepDifference(formData, appConfig);
       // send all formData.agent_options because diff overrides all agent options
       diff.agent_options = formData.agent_options;

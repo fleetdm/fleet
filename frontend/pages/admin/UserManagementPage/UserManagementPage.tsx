@@ -234,7 +234,7 @@ const UserManagementPage = ({ router }: IUserManagementProps): JSX.Element => {
         .then(() => {
           renderFlash(
             "success",
-            `An invitation email was sent from ${config?.sender_address} to ${formData.email}.`
+            `An invitation email was sent from ${config?.smtp_settings.sender_address} to ${formData.email}.`
           );
           toggleCreateUserModal();
           refetchInvites();
@@ -335,7 +335,7 @@ const UserManagementPage = ({ router }: IUserManagementProps): JSX.Element => {
     let userUpdatedFlashMessage = `Successfully edited ${formData.name}`;
 
     if (userData?.email !== formData.email) {
-      userUpdatedFlashMessage += `: A confirmation email was sent from ${config?.sender_address} to ${formData.email}`;
+      userUpdatedFlashMessage += `: A confirmation email was sent from ${config?.smtp_settings.sender_address} to ${formData.email}`;
     }
 
     return (
@@ -454,8 +454,8 @@ const UserManagementPage = ({ router }: IUserManagementProps): JSX.Element => {
             onSubmit={onEditUser}
             availableTeams={teams || []}
             isPremiumTier={isPremiumTier || false}
-            smtpConfigured={config?.configured || false}
-            canUseSso={config?.enable_sso || false}
+            smtpConfigured={config?.smtp_settings.configured || false}
+            canUseSso={config?.sso_settings.enable_sso || false}
             isSsoEnabled={userData?.sso_enabled}
             isModifiedByGlobalAdmin
             isInvitePending={userEditing.type === "invite"}
@@ -476,8 +476,8 @@ const UserManagementPage = ({ router }: IUserManagementProps): JSX.Element => {
         defaultGlobalRole={"observer"}
         defaultTeams={[]}
         isPremiumTier={isPremiumTier || false}
-        smtpConfigured={config?.configured || false}
-        canUseSso={config?.enable_sso || false}
+        smtpConfigured={config?.smtp_settings.configured || false}
+        canUseSso={config?.sso_settings.enable_sso || false}
         isFormSubmitting={isFormSubmitting}
         isModifiedByGlobalAdmin
       />

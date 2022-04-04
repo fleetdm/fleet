@@ -2,7 +2,7 @@ import React, { useState, useContext, useEffect, KeyboardEvent } from "react";
 import { InjectedRouter } from "react-router";
 import { size } from "lodash";
 import classnames from "classnames";
-import { useDebouncedCallback } from "use-debounce/lib";
+import { useDebouncedCallback } from "use-debounce";
 
 import PATHS from "router/paths";
 import { AppContext } from "context/app";

@@ -15,7 +15,7 @@ import {
   Column,
 } from "react-table";
 import { isString, kebabCase, noop } from "lodash";
-import { useDebouncedCallback } from "use-debounce/lib";
+import { useDebouncedCallback } from "use-debounce";
 
 import { useDeepEffect } from "utilities/hooks";
 import sort from "utilities/sort";

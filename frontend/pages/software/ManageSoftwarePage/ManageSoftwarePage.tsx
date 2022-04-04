@@ -2,13 +2,12 @@ import React, { useCallback, useContext, useEffect, useState } from "react";
 import { useQuery } from "react-query";
 import { useDispatch } from "react-redux";
 import { InjectedRouter } from "react-router/lib/Router";
-import { useDebouncedCallback } from "use-debounce/lib";
+import { useDebouncedCallback } from "use-debounce";
 
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
-import { IConfig, IConfigNested } from "interfaces/config";
-import { IWebhookSoftwareVulnerabilities } from "interfaces/webhook";
-// @ts-ignore
+import { IConfig } from "interfaces/config";
+import { IWebhookSoftwareVulnerabilities } from "interfaces/webhook"; // @ts-ignore
 import { getConfig } from "redux/nodes/app/actions";
 import configAPI from "services/entities/config";
 import softwareAPI, {
@@ -172,12 +171,12 @@ const ManageSoftwarePage = ({
     data: softwareVulnerabilitiesWebhook,
     isLoading: isLoadingSoftwareVulnerabilitiesWebhook,
     refetch: refetchSoftwareVulnerabilitiesWebhook,
-  } = useQuery<IConfigNested, Error, IWebhookSoftwareVulnerabilities>(
+  } = useQuery<IConfig, Error, IWebhookSoftwareVulnerabilities>(
     ["config"],
     () => configAPI.loadAll(),
     {
       enabled: canAddOrRemoveSoftwareWebhook,
-      select: (data: IConfigNested) =>
+      select: (data: IConfig) =>
         data.webhook_settings.vulnerabilities_webhook,
     }
   );

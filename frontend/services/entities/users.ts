@@ -27,6 +27,10 @@ interface IForgotPassword {
   email: string;
 }
 
+interface IUpdatePassword {
+  password: string;
+}
+
 interface IRequirePasswordReset {
   require: boolean;
 }
@@ -37,6 +41,11 @@ export interface IGetMeResponse {
 }
 
 export default {
+  changePassword: (passwordParams: IUpdatePassword) => {
+    const { CHANGE_PASSWORD } = endpoints;
+    
+    return sendRequest("POST", CHANGE_PASSWORD, passwordParams);
+  },
   confirmEmailChange: (currentUser: IUser, token: string) => {
     const { CONFIRM_EMAIL_CHANGE } = endpoints;
 
@@ -70,12 +79,18 @@ export default {
 
     return sendRequest("DELETE", path);
   },
+  enable: (user: IUser, enabled: boolean) => {
+    const { ENABLE_USER } = endpoints;
+
+    return sendRequest("POST", ENABLE_USER(user.id), { enabled }).then((response) =>
+      helpers.addGravatarUrlToResource(response.user)
+    );
+  },
   forgotPassword: ({ email }: IForgotPassword) => {
     const { FORGOT_PASSWORD } = endpoints;
 
     return sendRequest("POST", FORGOT_PASSWORD, { email });
   },
-  // TODO: changePassword (UserSettingsPage.jsx refactor)
   loadAll: ({
     page = 0,
     perPage = 100,
@@ -126,6 +141,13 @@ export default {
       };
     });
   },
+  performRequiredPasswordReset: (new_password: string) => {
+    const { PERFORM_REQUIRED_PASSWORD_RESET } = endpoints;
+
+    return sendRequest("POST", PERFORM_REQUIRED_PASSWORD_RESET, { new_password }).then((response) =>
+      helpers.addGravatarUrlToResource(response.user)
+    );
+  },
   requirePasswordReset: (
     userId: number,
     { require }: IRequirePasswordReset
@@ -137,11 +159,23 @@ export default {
       helpers.addGravatarUrlToResource(response.user)
     );
   },
+  resetPassword: (formData: any) => {
+    const { RESET_PASSWORD } = endpoints;
+
+    return sendRequest("POST", RESET_PASSWORD, formData);
+  },
   update: (userId: number, formData: IUpdateUserFormData) => {
     const { USERS } = endpoints;
     const path = `${USERS}/${userId}`;
 
     return sendRequest("PATCH", path, formData).then((response) =>
+      helpers.addGravatarUrlToResource(response.user)
+    );
+  },
+  updateAdmin: (user: IUser, admin: boolean) => {
+    const { UPDATE_USER_ADMIN } = endpoints;
+
+    return sendRequest("POST", UPDATE_USER_ADMIN(user.id), admin).then((response) =>
       helpers.addGravatarUrlToResource(response.user)
     );
   },

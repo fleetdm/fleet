@@ -12,8 +12,7 @@ import sortUtils from "utilities/sort";
 import { PLATFORM_DROPDOWN_OPTIONS } from "utilities/constants";
 
 import TeamsDropdown from "components/TeamsDropdown";
-import Spinner from "components/Spinner";
-// @ts-ignore
+import Spinner from "components/Spinner"; // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 import useInfoCard from "./components/InfoCard";
 import HostsStatus from "./cards/HostsStatus";
@@ -297,7 +296,7 @@ const Homepage = (): JSX.Element => {
         <div className={`${baseClass}__header`}>
           <div className={`${baseClass}__text`}>
             <div className={`${baseClass}__title`}>
-              {isFreeTier && <h1>{config?.org_name}</h1>}
+              {isFreeTier && <h1>{config?.org_info.org_name}</h1>}
               {isPremiumTier &&
                 teams &&
                 (teams.length > 1 || isOnGlobalTeam) && (

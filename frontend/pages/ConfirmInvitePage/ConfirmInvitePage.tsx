@@ -15,7 +15,7 @@ import EnsureUnauthenticated from "components/EnsureUnauthenticated";
 
 interface IConfirmInvitePageProps {
   router: InjectedRouter; // v3
-  location: any; // no type in v3
+  location: any; // no type in react-router v3
   params: Params;
 }
 

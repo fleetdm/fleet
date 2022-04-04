@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useContext } from "react";
 import { useQuery } from "react-query";
+import { useErrorHandler } from "react-error-boundary";
 
 import { NotificationContext } from "context/notification";
 import { ITeam } from "interfaces/team";
@@ -34,6 +35,7 @@ const TeamManagementPage = (): JSX.Element => {
   const [backendValidators, setBackendValidators] = useState<{
     [key: string]: string;
   }>({});
+  const handlePageError = useErrorHandler();
 
   const {
     data: teams,
@@ -45,7 +47,8 @@ const TeamManagementPage = (): JSX.Element => {
     () => teamsAPI.loadAll(),
     {
       select: (data: ITeamsResponse) => data.teams,
-    }
+      onError: (error) => handlePageError(error),
+    },
   );
 
   const toggleCreateTeamModal = useCallback(() => {
