@@ -761,21 +761,6 @@ export const wrapFleetHelper = (
   return value === "---" ? value : helperFn(value);
 };
 
-export const condenseVulnColumn = (
-  vulnerabilities: IVulnerability[]
-): string[] => {
-  const condensed =
-    (vulnerabilities?.length &&
-      vulnerabilities
-        .slice(-3)
-        .map((v) => v.cve)
-        .reverse()) ||
-    [];
-  return vulnerabilities.length > 3
-    ? condensed.concat(`+${vulnerabilities.length - 3} more`)
-    : condensed;
-};
-
 export default {
   addGravatarUrlToResource,
   formatConfigDataForServer,
@@ -809,5 +794,4 @@ export default {
   getValidatedTeamId,
   normalizeEmptyValues,
   wrapFleetHelper,
-  condenseVulnColumn,
 };

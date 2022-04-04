@@ -16,7 +16,7 @@ import generateSoftwareTableHeaders from "./SoftwareTableConfig";
 const baseClass = "host-details";
 
 export interface ITableSoftware extends Omit<ISoftware, "vulnerabilities"> {
-  vulnerabilities: string[];
+  vulnerabilities: string[]; // for client-side search purposes, we only want an array of cve strings
 }
 
 interface ISoftwareTableProps {
