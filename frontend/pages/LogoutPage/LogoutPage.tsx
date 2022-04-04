@@ -3,7 +3,7 @@ import { InjectedRouter } from "react-router";
 
 import { NotificationContext } from "context/notification";
 import sessionsAPI from "services/entities/sessions";
-import { clearToken } from "../../utilities/local";
+import { clearToken } from "utilities/local";
 
 interface ILogoutPageProps {
   router: InjectedRouter;

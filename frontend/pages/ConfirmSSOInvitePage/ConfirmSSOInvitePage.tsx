@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useContext } from "react";
-import { connect } from "react-redux";
 import { InjectedRouter } from "react-router";
 import { Params } from "react-router/lib/Router";
 

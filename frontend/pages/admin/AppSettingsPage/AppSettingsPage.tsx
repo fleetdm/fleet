@@ -1,9 +1,7 @@
 import React, { useCallback, useContext } from "react";
-import { useDispatch } from "react-redux";
 import { useQuery } from "react-query";
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification"; // @ts-ignore
-import { getConfig } from "redux/nodes/app/actions";
 
 import configAPI from "services/entities/config";
 
@@ -18,9 +16,7 @@ import AppConfigForm from "components/forms/admin/AppConfigForm";
 export const baseClass = "app-settings";
 
 const AppSettingsPage = (): JSX.Element => {
-  const dispatch = useDispatch();
   const { renderFlash } = useContext(NotificationContext);
-
   const { setConfig } = useContext(AppContext);
 
   const {
@@ -63,15 +59,10 @@ const AppSettingsPage = (): JSX.Element => {
         })
         .finally(() => {
           refetchConfig();
-          // Config must be updated in both Redux and AppContext
-          dispatch(getConfig())
-            .then((configState: IConfig) => {
-              setConfig(configState);
-            })
-            .catch(() => false);
+          appConfig && setConfig(appConfig);
         });
     },
-    [dispatch, appConfig, getConfig, setConfig]
+    [appConfig, setConfig]
   );
 
   // WHY???

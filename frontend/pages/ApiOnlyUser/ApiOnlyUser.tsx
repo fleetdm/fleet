@@ -1,6 +1,5 @@
 import React, { useEffect } from "react";
 import { InjectedRouter } from "react-router";
-import { useDispatch } from "react-redux";
 
 import paths from "router/paths";
 import usersAPI from "services/entities/users";
@@ -15,7 +14,6 @@ interface IApiOnlyUserProps {
 const baseClass = "api-only-user";
 
 const ApiOnlyUser = ({ router }: IApiOnlyUserProps): JSX.Element => {
-  const dispatch = useDispatch();
   const { LOGIN, HOME, LOGOUT } = paths;
   const handleClick = () => router.push(LOGOUT);
 

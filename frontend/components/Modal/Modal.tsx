@@ -1,8 +1,6 @@
-import React, { useEffect } from "react";
-import { useDispatch } from "react-redux";
+import React, { useContext, useEffect } from "react";
 import classnames from "classnames";
-// @ts-ignore
-import { hideFlash } from "redux/nodes/notifications/actions";
+import { NotificationContext } from "context/notification";
 
 const baseClass = "modal";
 
@@ -19,7 +17,8 @@ const Modal = ({
   title,
   className,
 }: IModalProps): JSX.Element => {
-  const dispatch = useDispatch();
+  const { hideFlash } = useContext(NotificationContext);
+
   useEffect(() => {
     const closeWithEscapeKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -27,8 +26,7 @@ const Modal = ({
       }
     };
 
-    dispatch(hideFlash);
-
+    hideFlash();
     document.addEventListener("keydown", closeWithEscapeKey);
 
     return () => {

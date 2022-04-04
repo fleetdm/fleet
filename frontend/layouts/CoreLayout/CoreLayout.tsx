@@ -1,6 +1,5 @@
 import React, { useState, useContext } from "react";
 import { InjectedRouter } from "react-router";
-import { useDispatch } from "react-redux"; // @ts-ignore
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 import { TableContext } from "context/table";
@@ -33,9 +32,8 @@ const expirationMessage = (
 );
 
 const CoreLayout = ({ children, router }: ICoreLayoutProps) => {
-  const dispatch = useDispatch();
   const { config, currentUser, isPremiumTier } = useContext(AppContext);
-  const { notification, renderFlash, hideFlash } = useContext(
+  const { notification, hideFlash } = useContext(
     NotificationContext
   );
   const { setResetSelectedRows } = useContext(TableContext);

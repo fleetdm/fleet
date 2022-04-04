@@ -1,6 +1,5 @@
 import React, { useCallback, useContext, useEffect, useState } from "react";
 import { useQuery } from "react-query";
-import { useDispatch } from "react-redux";
 import { InjectedRouter } from "react-router/lib/Router";
 import { useDebouncedCallback } from "use-debounce";
 
@@ -8,7 +7,6 @@ import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 import { IConfig } from "interfaces/config";
 import { IWebhookSoftwareVulnerabilities } from "interfaces/webhook"; // @ts-ignore
-import { getConfig } from "redux/nodes/app/actions";
 import configAPI from "services/entities/config";
 import softwareAPI, {
   ISoftwareResponse,
@@ -57,7 +55,6 @@ const ManageSoftwarePage = ({
   router,
   location,
 }: IManageSoftwarePageProps): JSX.Element => {
-  const dispatch = useDispatch();
   const {
     availableTeams,
     currentTeam,
@@ -68,6 +65,7 @@ const ManageSoftwarePage = ({
   const { renderFlash } = useContext(NotificationContext);
 
   const [isSoftwareEnabled, setIsSoftwareEnabled] = useState<boolean>();
+  const [softwareVulnerabilitiesWebhook, setSoftwareVulnerabilitiesWebhook] = useState<IWebhookSoftwareVulnerabilities>();
   const [filterVuln, setFilterVuln] = useState(
     location?.query?.vulnerable || false
   );
@@ -166,18 +164,19 @@ const ManageSoftwarePage = ({
   );
 
   const canAddOrRemoveSoftwareWebhook = isGlobalAdmin || isGlobalMaintainer;
-
+  
   const {
-    data: softwareVulnerabilitiesWebhook,
-    isLoading: isLoadingSoftwareVulnerabilitiesWebhook,
-    refetch: refetchSoftwareVulnerabilitiesWebhook,
-  } = useQuery<IConfig, Error, IWebhookSoftwareVulnerabilities>(
+    isLoading: isLoadingConfig,
+    refetch: refetchConfig,
+  } = useQuery<IConfig, Error>(
     ["config"],
     () => configAPI.loadAll(),
     {
       enabled: canAddOrRemoveSoftwareWebhook,
-      select: (data: IConfig) =>
-        data.webhook_settings.vulnerabilities_webhook,
+      onSuccess: (data) => {
+        setSoftwareVulnerabilitiesWebhook(data.webhook_settings.vulnerabilities_webhook);
+        setConfig(data);
+      },
     }
   );
 
@@ -238,13 +237,7 @@ const ManageSoftwarePage = ({
       );
     } finally {
       toggleManageAutomationsModal();
-      refetchSoftwareVulnerabilitiesWebhook();
-      // Config must be updated in both Redux and AppContext
-      dispatch(getConfig())
-        .then((configState: IConfig) => {
-          setConfig(configState);
-        })
-        .catch(() => false);
+      refetchConfig();
     }
   };
 
@@ -303,12 +296,12 @@ const ManageSoftwarePage = ({
         buttons={(state) =>
           renderHeaderButtons({
             ...state,
-            isLoading: isLoadingSoftwareVulnerabilitiesWebhook,
+            isLoading: isLoadingConfig,
           })
         }
       />
     );
-  }, [router, location, isLoadingSoftwareVulnerabilitiesWebhook]);
+  }, [router, location, isLoadingConfig]);
 
   const renderSoftwareCount = useCallback(() => {
     const count = softwareCount;
