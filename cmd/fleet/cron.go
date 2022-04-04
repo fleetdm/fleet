@@ -318,6 +318,8 @@ func cronWorker(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, i
 	jira := worker.NewJira(ds, logger)
 	w.Register(jira)
 
+	logger = kitlog.With(logger, "key", lockKeyWorker)
+
 	ticker := time.NewTicker(10 * time.Second)
 	for {
 		select {
@@ -329,14 +331,17 @@ func cronWorker(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, i
 			return
 		}
 
-		if locked, err := ds.Lock(ctx, lockKeyWorker, identifier, 10*time.Minute); err != nil || !locked {
-			level.Debug(logger).Log("leader", "Not the leader. Skipping...")
+		if locked, err := ds.Lock(ctx, lockKeyWorker, identifier, 10*time.Minute); err != nil {
+			level.Error(logger).Log("msg", "Error acquiring lock", "err", err)
+			continue
+		} else if !locked {
+			level.Debug(logger).Log("msg", "Not the leader. Skipping...")
 			continue
 		}
 
 		err := w.ProcessJobs(ctx)
 		if err != nil {
-			level.Error(logger).Log("msg", "processing jobs", "err", err)
+			level.Error(logger).Log("msg", "Error processing jobs", "err", err)
 		}
 	}
 }
