@@ -28,7 +28,8 @@ interface IForgotPassword {
 }
 
 interface IUpdatePassword {
-  password: string;
+  new_password: string;
+  old_password: string;
 }
 
 interface IRequirePasswordReset {
