@@ -47,7 +47,7 @@ module "aurora_mysql" { #tfsec:ignore:aws-rds-enable-performance-insights-encryp
   replica_scale_enabled = true
   replica_scale_min     = var.scale_down ? 0 : 1
   replica_scale_max     = var.scale_down ? 0 : 3
-  snapshot_identifier   = "arn:aws:rds:us-east-2:917007347864:cluster-snapshot:bens-thing"
+  snapshot_identifier   = "arn:aws:rds:us-east-2:917007347864:cluster-snapshot:cleaned"
 
   monitoring_interval           = 60
   iam_role_name                 = "${local.name}-rds-enhanced-monitoring"

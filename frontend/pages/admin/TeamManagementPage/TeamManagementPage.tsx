@@ -1,20 +1,14 @@
-import React, { useState, useCallback } from "react";
-import { useDispatch } from "react-redux";
+import React, { useState, useCallback, useContext } from "react";
 import { useQuery } from "react-query";
 
+import { NotificationContext } from "context/notification";
 import { ITeam } from "interfaces/team";
 import { IApiError } from "interfaces/errors";
-// ignore TS error for now until these are rewritten in ts.
-// @ts-ignore
-import { renderFlash } from "redux/nodes/notifications/actions";
-import Button from "components/buttons/Button";
-// @ts-ignore
-import FleetIcon from "components/icons/FleetIcon";
-
 import teamsAPI from "services/entities/teams";
 
-import TableContainer from "components/TableContainer";
-// @ts-ignore
+import Button from "components/buttons/Button"; // @ts-ignore
+import FleetIcon from "components/icons/FleetIcon";
+import TableContainer from "components/TableContainer"; // @ts-ignore
 import TableDataError from "components/TableDataError";
 import CreateTeamModal from "./components/CreateTeamModal";
 import DeleteTeamModal from "./components/DeleteTeamModal";
@@ -31,7 +25,7 @@ const baseClass = "team-management";
 const noTeamsClass = "no-teams";
 
 const TeamManagementPage = (): JSX.Element => {
-  const dispatch = useDispatch();
+  const { renderFlash } = useContext(NotificationContext);
   const [showCreateTeamModal, setShowCreateTeamModal] = useState(false);
   const [showDeleteTeamModal, setShowDeleteTeamModal] = useState(false);
   const [showEditTeamModal, setShowEditTeamModal] = useState(false);
@@ -93,7 +87,7 @@ const TeamManagementPage = (): JSX.Element => {
         });
       }
     },
-    [dispatch, setSearchString]
+    [setSearchString]
   );
 
   const onCreateSubmit = useCallback(
@@ -101,9 +95,7 @@ const TeamManagementPage = (): JSX.Element => {
       teamsAPI
         .create(formData)
         .then(() => {
-          dispatch(
-            renderFlash("success", `Successfully created ${formData.name}.`)
-          );
+          renderFlash("success", `Successfully created ${formData.name}.`);
           setBackendValidators({});
           toggleCreateTeamModal();
           refetchTeams();
@@ -114,14 +106,12 @@ const TeamManagementPage = (): JSX.Element => {
               name: "A team with this name already exists",
             });
           } else {
-            dispatch(
-              renderFlash("error", "Could not create team. Please try again.")
-            );
+            renderFlash("error", "Could not create team. Please try again.");
             toggleCreateTeamModal();
           }
         });
     },
-    [dispatch, toggleCreateTeamModal]
+    [toggleCreateTeamModal]
   );
 
   const onDeleteSubmit = useCallback(() => {
@@ -129,16 +119,12 @@ const TeamManagementPage = (): JSX.Element => {
       teamsAPI
         .destroy(teamEditing.id)
         .then(() => {
-          dispatch(
-            renderFlash("success", `Successfully deleted ${teamEditing.name}.`)
-          );
+          renderFlash("success", `Successfully deleted ${teamEditing.name}.`);
         })
         .catch(() => {
-          dispatch(
-            renderFlash(
-              "error",
-              `Could not delete ${teamEditing.name}. Please try again.`
-            )
+          renderFlash(
+            "error",
+            `Could not delete ${teamEditing.name}. Please try again.`
           );
         })
         .finally(() => {
@@ -146,7 +132,7 @@ const TeamManagementPage = (): JSX.Element => {
           toggleDeleteTeamModal();
         });
     }
-  }, [dispatch, teamEditing, toggleDeleteTeamModal]);
+  }, [teamEditing, toggleDeleteTeamModal]);
 
   const onEditSubmit = useCallback(
     (formData: IEditTeamFormData) => {
@@ -156,11 +142,9 @@ const TeamManagementPage = (): JSX.Element => {
         teamsAPI
           .update(teamEditing.id, formData)
           .then(() => {
-            dispatch(
-              renderFlash(
-                "success",
-                `Successfully updated team name to ${formData.name}.`
-              )
+            renderFlash(
+              "success",
+              `Successfully updated team name to ${formData.name}.`
             );
             setBackendValidators({});
             toggleEditTeamModal();
@@ -173,17 +157,15 @@ const TeamManagementPage = (): JSX.Element => {
                 name: "A team with this name already exists",
               });
             } else {
-              dispatch(
-                renderFlash(
-                  "error",
-                  `Could not edit ${teamEditing.name}. Please try again.`
-                )
+              renderFlash(
+                "error",
+                `Could not edit ${teamEditing.name}. Please try again.`
               );
             }
           });
       }
     },
-    [dispatch, teamEditing, toggleEditTeamModal]
+    [teamEditing, toggleEditTeamModal]
   );
 
   const onActionSelection = (action: string, team: ITeam): void => {

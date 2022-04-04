@@ -66,4 +66,10 @@ var (
 		TargetFile:           "desktop.app.tar.gz",
 		ExtractedExecSubPath: []string{"Fleet Desktop.app", "Contents", "MacOS", constant.DesktopAppExecName},
 	}
+
+	DesktopWindowsTarget = TargetInfo{
+		Platform:   "windows",
+		Channel:    "stable",
+		TargetFile: constant.DesktopAppExecName + ".exe",
+	}
 )

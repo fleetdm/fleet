@@ -23,14 +23,15 @@ resource "aws_elasticache_replication_group" "default" {
   port                          = "6379"
   maintenance_window            = var.maintenance_window
   snapshot_retention_limit      = 0
-  automatic_failover_enabled    = false
-  at_rest_encryption_enabled    = false
-  transit_encryption_enabled    = false
+  automatic_failover_enabled    = true
+  at_rest_encryption_enabled    = true
+  transit_encryption_enabled    = true
   apply_immediately             = true
   replication_group_description = "fleetdm-redis"
 }
 
-resource "aws_security_group" "redis" {
+resource "aws_security_group" "redis" { #tfsec:ignore:aws-vpc-add-description-to-security-group
+  // description = "Security group for Redis" // cannot add description without recreation
   name   = local.security_group_name
   vpc_id = module.vpc.vpc_id
 }
@@ -40,6 +41,7 @@ locals {
 }
 
 resource "aws_security_group_rule" "ingress" {
+  description       = "Redis from private VPC"
   type              = "ingress"
   from_port         = "6379"
   to_port           = "6379"
@@ -49,11 +51,13 @@ resource "aws_security_group_rule" "ingress" {
 }
 
 resource "aws_security_group_rule" "egress" {
-  type              = "egress"
-  from_port         = 0
-  to_port           = 0
-  protocol          = "-1"
-  cidr_blocks       = ["0.0.0.0/0"]
+  description = "Redis VPC egress"
+  type        = "egress"
+  from_port   = 0
+  to_port     = 0
+  protocol    = "-1"
+  // Egress filtering is not currently provided by our Terraform templates.
+  cidr_blocks       = ["0.0.0.0/0"] #tfsec:ignore:aws-vpc-no-public-egress-sgr:exp:2022-10-01
   security_group_id = aws_security_group.redis.id
 }
 

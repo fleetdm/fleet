@@ -57,17 +57,30 @@ To download official Fleet logos, product screenshots, and wallpapers, head over
 
 See also [https://fleetdm.com/handbook/community#press-releases](https://fleetdm.com/handbook/community#press-releases) for our press-release boilerplate.
 
+
+## Email blasts
+
+Need to send out a branded email blast to multiple recipients?
+
+### The manual way
+Use "bcc" so recipients don't see each other's email addresses and send an email manually using Gmail.   (Good for small lists.  Definitely a "thing that doesn't scale".)
+
+### The automated way
+
+- First, design the email (could be figma, could be a google drawing or doc- just something) -- you can base it off of one of the existing email templates.  (For example, try the "Forgot your password?" flow available to users of "license dispenser" from fleetdm.com, and check out the example email template.)
+- Bring your request to the digital experience team by posting in [their primary Slack channel](./people.md#slack-channels), along with your urgency/timeline.  The digital experience team will finalize language for consistency, then fork and customize [one of the existing email templates](https://github.com/fleetdm/fleet/blob/de280a478834a7f85772bea4f552f953c65bb29e/website/views/emails/email-order-confirmation.ejs) for you, and write you a script that will deliver it to your desired recipients. Then, digital experience will merge that, test it by hand to make sure it's attractive and links work, and then tell you how to run the script with e.g. `sails run deliver-release-announcement --emailAddresses='["foo@example.com","bar@example.com"]'`
+
+
 ## Fleet website
 
-### How to export images
-In Figma:
-1. Select the layers you want to export.
-2. Confirm export settings and naming convention:
-  * item name - color variant - (css)size - @2x.fileformat (e.g., `os-macos-black-16x16@2x.png`)
-  * note that the dimensions in the filename are in CSS pixels.  In this example, the image would actually have dimensions of 32x32px, if you opened it in preview.  But in the filename, and in HTML/CSS, we'll size it as if it were 16x16.  This is so that we support retina displays by default.
-  * File extension might be .jpg or .png.
-  * Avoid using SVGs or icon fonts.
-3. Click the __Export__ button.
+### Responding to a 5xx error on fleetdm.com
+Production systems can fail for various reasons, and it can be frustrating to users when they do, and customer experience is significant to Fleet. In the event of system failure, Fleet will:
+* Investigate the problem to determine the root cause
+* Identify affected users
+* Escalate if necessary
+* Understand and remediate the problem
+* Notify impacted users of any steps they need to take (if any).  If a customer paid with a credit card and had a bad experience, default to refunding their money.
+* Conduct an incident post-mortem to determine any additional steps we need (including monitoring) to take to prevent this class of problems from happening in the future
 
 ### When can I merge a change to the website?
 When merging a PR to master, bear in mind that whatever you merge to master gets deployed live immediately. So if the PR's changes contain anything that you don't think is appropriate to be seen publicly by all guests of [fleetdm.com](https://fleetdm.com/), then please do not merge.
@@ -80,8 +93,7 @@ If the action fails, please complete the following steps:
 2. Select "Roll back to here" on the second to most recent deploy.
 3. Head to the fleetdm/fleet GitHub repository and re-run the Deploy Fleet Website action.
 
-
-### Browser compatibility checking
+### Maintaining browser compatibility
 
 A browser compatibility check of [fleetdm.com](https://fleetdm.com/) should be carried out monthly to verify that the website looks, and functions as expected across all [supported browsers](../docs/Using-Fleet/Supported-browsers.md).
 
@@ -90,6 +102,39 @@ A browser compatibility check of [fleetdm.com](https://fleetdm.com/) should be c
 - Document any issues in GitHub as a [bug report](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&template=bug-report.md&title=), and assign for fixing.
 - If in doubt about anything regarding design or layout, please reach out to the Design team.
 
+### How to make usability changes to the website
+
+We want to make it as easy as possible to learn how to manage devices with Fleet. Anyone inside or outside the company can suggest changes to the website to improve ease of use and clarity. 
+
+To propose changes:
+1. Decide what you want to change. A small change is the best place to start.
+2. Wireframe the design. Usually, digital experience does this but anyone can contribute.
+3. Present your change to the website DRI. They will approve it or suggest revisions.
+4. Code the website change. Again, digital experience often does this but anyone can help.
+5. Measure if the change made it easier to use. This can be tricky, but the growth team will have ideas on how to do this.
+
+### How to export images for the website
+In Figma:
+1. Select the layers you want to export.
+2. Confirm export settings and naming convention:
+  * item name - color variant - (css)size - @2x.fileformat (e.g., `os-macos-black-16x16@2x.png`)
+  * note that the dimensions in the filename are in CSS pixels.  In this example, the image would actually have dimensions of 32x32px, if you opened it in preview.  But in the filename, and in HTML/CSS, we'll size it as if it were 16x16.  This is so that we support retina displays by default.
+  * File extension might be .jpg or .png.
+  * Avoid using SVGs or icon fonts.
+3. Click the __Export__ button.
+
+## Slack channels
+
+The following [Slack channels are maintained](https://fleetdm.com/handbook/company#group-slack-channels) by this group:
+
+| Slack channel               | [DRI](https://fleetdm.com/handbook/company#group-slack-channels)    |
+|:----------------------------|:--------------------------------------------------------------------|
+| `#g-digital-experience`     | Mike Thomas                                                         |
+| `#oooh-automation`          | Mike McNeil                                                         |
+| `#g-community`              | Kathy Satterlee                                                     |
+| `#g-people`                 | Eric Shaw                                                           |
+| `#help-onboarding`          | Eric Shaw                                                           |
+| `#help-finance`             | Eric Shaw                                                           |
+
 
 <meta name="maintainedBy" value="mike-j-thomas">
-

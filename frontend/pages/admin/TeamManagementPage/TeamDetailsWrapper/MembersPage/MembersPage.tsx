@@ -1,17 +1,13 @@
 import React, { useCallback, useContext, useState } from "react";
-import { useDispatch } from "react-redux";
 import { useQuery } from "react-query";
 
-// @ts-ignore
+import { NotificationContext } from "context/notification";
 import PATHS from "router/paths";
 import { IApiError } from "interfaces/errors";
 import { IUser, IUserFormErrors } from "interfaces/user";
 import { INewMembersBody, ITeam } from "interfaces/team";
 import { Link } from "react-router";
 import { AppContext } from "context/app";
-// ignore TS error for now until these are rewritten in ts.
-// @ts-ignore
-import { renderFlash } from "redux/nodes/notifications/actions";
 import usersAPI from "services/entities/users";
 import inviteAPI from "services/entities/invites";
 import teamsAPI from "services/entities/teams";
@@ -64,8 +60,8 @@ const MembersPage = ({
   params: { team_id },
 }: IMembersPageProps): JSX.Element => {
   const teamId = parseInt(team_id, 10);
-  const dispatch = useDispatch();
 
+  const { renderFlash } = useContext(NotificationContext);
   const { config, isGlobalAdmin, currentUser, isPremiumTier } = useContext(
     AppContext
   );
@@ -168,25 +164,20 @@ const MembersPage = ({
     teamsAPI
       .removeMembers(teamId, removedUsers)
       .then(() => {
-        dispatch(
-          renderFlash("success", `Successfully removed ${userEditing?.name}`)
-        );
+        renderFlash("success", `Successfully removed ${userEditing?.name}`);
         // If user removes self from team, redirect to home
         if (currentUser && currentUser.id === removedUsers.users[0].id) {
           window.location.href = "/";
         }
       })
       .catch(() =>
-        dispatch(
-          renderFlash("error", "Unable to remove members. Please try again.")
-        )
+        renderFlash("error", "Unable to remove members. Please try again.")
       )
       .finally(() => {
         toggleRemoveMemberModal();
         refetchUsers();
       });
   }, [
-    dispatch,
     teamId,
     userEditing?.id,
     userEditing?.name,
@@ -198,25 +189,21 @@ const MembersPage = ({
     (newMembers: INewMembersBody) => {
       teamsAPI
         .addMembers(teamId, newMembers)
-        .then(() => {
-          dispatch(
-            renderFlash(
-              "success",
-              `${newMembers.users.length} members successfully added to ${currentTeam?.name}.`
-            )
-          );
-        })
-        .catch(() => {
-          dispatch(
-            renderFlash("error", "Could not add members. Please try again.")
-          );
-        })
+        .then(() =>
+          renderFlash(
+            "success",
+            `${newMembers.users.length} members successfully added to ${currentTeam?.name}.`
+          )
+        )
+        .catch(() =>
+          renderFlash("error", "Could not add members. Please try again.")
+        )
         .finally(() => {
           toggleAddUserModal();
           refetchUsers();
         });
     },
-    [dispatch, teamId, toggleAddUserModal, currentTeam?.name, refetchUsers]
+    [teamId, toggleAddUserModal, currentTeam?.name, refetchUsers]
   );
 
   const fetchUsers = useCallback(
@@ -229,7 +216,7 @@ const MembersPage = ({
         teamId,
       });
     },
-    [dispatch, teamId]
+    [teamId]
   );
 
   const onCreateMemberSubmit = (formData: IFormData) => {
@@ -246,11 +233,9 @@ const MembersPage = ({
       inviteAPI
         .create(requestData)
         .then(() => {
-          dispatch(
-            renderFlash(
-              "success",
-              `An invitation email was sent from ${config?.sender_address} to ${formData.email}.`
-            )
+          renderFlash(
+            "success",
+            `An invitation email was sent from ${config?.sender_address} to ${formData.email}.`
           );
           fetchUsers(tableQueryData);
           toggleCreateMemberModal();
@@ -272,9 +257,7 @@ const MembersPage = ({
               email: "A user with this email address has already been invited",
             });
           } else {
-            dispatch(
-              renderFlash("error", "Could not invite user. Please try again.")
-            );
+            renderFlash("error", "Could not invite user. Please try again.");
           }
         })
         .finally(() => {
@@ -289,9 +272,7 @@ const MembersPage = ({
       usersAPI
         .createUserWithoutInvitation(requestData)
         .then(() => {
-          dispatch(
-            renderFlash("success", `Successfully created ${requestData.name}.`)
-          );
+          renderFlash("success", `Successfully created ${requestData.name}.`);
           fetchUsers(tableQueryData);
           toggleCreateMemberModal();
         })
@@ -307,9 +288,7 @@ const MembersPage = ({
               email: "A user with this email address has already been invited",
             });
           } else {
-            dispatch(
-              renderFlash("error", "Could not create user. Please try again.")
-            );
+            renderFlash("error", "Could not create user. Please try again.");
           }
         })
         .finally(() => {
@@ -333,9 +312,7 @@ const MembersPage = ({
         usersAPI
           .update(userEditing.id, updatedAttrs)
           .then(() => {
-            dispatch(
-              renderFlash("success", `Successfully edited ${userName}.`)
-            );
+            renderFlash("success", `Successfully edited ${userName}.`);
 
             if (
               currentUser &&
@@ -362,16 +339,14 @@ const MembersPage = ({
                 email: "A user with this email address already exists",
               });
             } else {
-              dispatch(
-                renderFlash(
-                  "error",
-                  `Could not edit ${userName}. Please try again.`
-                )
+              renderFlash(
+                "error",
+                `Could not edit ${userName}. Please try again.`
               );
             }
           });
     },
-    [dispatch, toggleEditMemberModal, userEditing, refetchUsers]
+    [toggleEditMemberModal, userEditing, refetchUsers]
   );
 
   const onQueryChange = useCallback(

@@ -674,11 +674,12 @@ We ensure the fixes to vulnerable dependencies are also performed according to o
 
 ## Slack channels
 
-These are the Slack channels the security team maintains. If the channel has a [directly responsible individual](./people.md#directly-resonsible-individuals) (**DRI**), they will be specified. These people are responsible for keeping up with all new messages, even if they aren't mentioned. 
+The following [Slack channels are maintained](https://fleetdm.com/handbook/company#group-slack-channels) by this group:
 
-- **#g-security** - **DRI**: Guillaume Ross
-- **#help-login** - **DRI**: Guillaume Ross
+| Slack channel                       | [DRI](https://fleetdm.com/handbook/company#group-slack-channels)    |
+|:------------------------------------|:--------------------------------------------------------------------|
+| `#g-security`                       | Guillaume Ross
+| `#help-login`                       | Guillaume Ross
 
-**Who should have these channels unmuted?** Members of this group, everyone else is encouraged to mute them.
 
-<meta name="maintainedBy" value="GuillaumeRoss">
+<meta name="maintainedBy" value="guillaumeross">

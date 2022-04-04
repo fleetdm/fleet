@@ -17,7 +17,7 @@
         // We explicityly use rgba(255,255,255,0) because it's equivalent to transparent for most broswers except Safari.
         background-image: linear-gradient(
           to bottom,
-          #f9fafc,
+          $ui-off-white,
           rgba(255, 255, 255, 0)
         );
       }
@@ -34,7 +34,7 @@
         background-image: linear-gradient(
           to bottom,
           rgba(255, 255, 255, 0),
-          #f9fafc
+          $ui-off-white
         );
       }
     }

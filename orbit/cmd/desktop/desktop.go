@@ -1,3 +1,6 @@
+//go:build darwin || windows
+// +build darwin windows
+
 package main
 
 import (
@@ -13,9 +16,6 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/open"
 	"github.com/getlantern/systray"
 )
-
-//go:embed icon_white.png
-var icoBytes []byte
 
 func main() {
 	// Our TUF provided targets must support launching with "--help".

@@ -94,17 +94,28 @@
         }
       }
 
-      &.active-selection th {
-        border: 0;
+      &.active-selection {
+        background: none;
+        z-index: 1;
+        th {
+          border: 0;
+        }
         .fleet-checkbox {
           opacity: 0;
+        }
+        .active-selection__container {
+          background-color: $ui-off-white;
+          width: 100% !important; // Too much specificity currently at page-level styling. Revisit after data table CSS update to remove !important.
+          .active-selection__inner {
+            justify-content: flex-start;
+          }
         }
       }
     }
 
     .Select.is-focused:not(.is-open) > .Select-control {
-      border: none;
       box-shadow: none;
+      background-color: $ui-vibrant-blue-10;
     }
 
     .Select.is-open {
@@ -320,11 +331,13 @@
       }
     }
 
-    button:hover {
+    button:hover,
+    button:focus {
       background-color: $ui-vibrant-blue-10;
     }
 
-    .button--disabled:hover {
+    .button--disabled:hover,
+    .button--disabled:focus {
       background-color: transparent;
     }
 

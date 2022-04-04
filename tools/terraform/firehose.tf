@@ -1,4 +1,10 @@
-resource "aws_s3_bucket" "osquery-results" {
+// Customer keys are not supported in our Fleet Terraforms at the moment. We will evaluate the
+// possibility of providing this capability in the future. 
+// No versioning on this bucket is by design.
+// Bucket logging is not supported in our Fleet Terraforms at the moment. It can be enabled by the
+// organizations deploying Fleet, and we will evaluate the possibility of providing this capability
+// in the future.
+resource "aws_s3_bucket" "osquery-results" { #tfsec:ignore:aws-s3-encryption-customer-key:exp:2022-07-01  #tfsec:ignore:aws-s3-enable-versioning #tfsec:ignore:aws-s3-enable-bucket-logging:exp:2022-06-15
   bucket = var.osquery_results_s3_bucket
   acl    = "private"
 
@@ -18,7 +24,21 @@ resource "aws_s3_bucket" "osquery-results" {
   }
 }
 
-resource "aws_s3_bucket" "osquery-status" {
+resource "aws_s3_bucket_public_access_block" "osquery-results" {
+  bucket                  = aws_s3_bucket.osquery-results.id
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+// Customer keys are not supported in our Fleet Terraforms at the moment. We will evaluate the
+// possibility of providing this capability in the future.
+// No versioning on this bucket is by design.
+// Bucket logging is not supported in our Fleet Terraforms at the moment. It can be enabled by the
+// organizations deploying Fleet, and we will evaluate the possibility of providing this capability
+// in the future.
+resource "aws_s3_bucket" "osquery-status" { #tfsec:ignore:aws-s3-encryption-customer-key:exp:2022-07-01 #tfsec:ignore:aws-s3-enable-versioning #tfsec:ignore:aws-s3-enable-bucket-logging:exp:2022-06-15
   bucket = var.osquery_status_s3_bucket
   acl    = "private"
 
@@ -38,6 +58,14 @@ resource "aws_s3_bucket" "osquery-status" {
   }
 }
 
+resource "aws_s3_bucket_public_access_block" "osquery-status" {
+  bucket                  = aws_s3_bucket.osquery-status.id
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
 data "aws_iam_policy_document" "osquery_results_policy_doc" {
   statement {
     effect = "Allow"
@@ -48,7 +76,8 @@ data "aws_iam_policy_document" "osquery_results_policy_doc" {
       "s3:ListBucketMultipartUploads",
       "s3:PutObject"
     ]
-    resources = [aws_s3_bucket.osquery-results.arn, "${aws_s3_bucket.osquery-results.arn}/*"]
+    // This bucket is single-purpose and using a wildcard is not problematic
+    resources = [aws_s3_bucket.osquery-results.arn, "${aws_s3_bucket.osquery-results.arn}/*"] #tfsec:ignore:aws-iam-no-policy-wildcards
   }
 }
 
@@ -62,7 +91,8 @@ data "aws_iam_policy_document" "osquery_status_policy_doc" {
       "s3:ListBucketMultipartUploads",
       "s3:PutObject"
     ]
-    resources = [aws_s3_bucket.osquery-status.arn, "${aws_s3_bucket.osquery-status.arn}/*"]
+    // This bucket is single-purpose and using a wildcard is not problematic
+    resources = [aws_s3_bucket.osquery-status.arn, "${aws_s3_bucket.osquery-status.arn}/*"] #tfsec:ignore:aws-iam-no-policy-wildcards
   }
 }
 

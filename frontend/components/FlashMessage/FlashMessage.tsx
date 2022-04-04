@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import classnames from "classnames";
 
-import { INotifications } from "interfaces/notification";
+import { INotification } from "interfaces/notification";
 // @ts-ignore
 import FleetIcon from "components/icons/FleetIcon";
 import Button from "components/buttons/Button";
@@ -13,10 +13,10 @@ const baseClass = "flash-message";
 
 export interface IFlashMessage {
   fullWidth: boolean;
-  notification: INotifications;
+  notification: INotification | null;
   isPersistent?: boolean;
   onRemoveFlash: () => void;
-  onUndoActionClick: (
+  onUndoActionClick?: (
     value: () => void
   ) => (evt: React.MouseEvent<HTMLButtonElement, MouseEvent>) => void;
 }
@@ -28,7 +28,7 @@ const FlashMessage = ({
   onRemoveFlash,
   onUndoActionClick,
 }: IFlashMessage): JSX.Element | null => {
-  const { alertType, isVisible, message, undoAction } = notification;
+  const { alertType, isVisible, message, undoAction } = notification || {};
   const klass = classnames(baseClass, `${baseClass}--${alertType}`, {
     [`${baseClass}--full-width`]: fullWidth,
   });
@@ -57,7 +57,7 @@ const FlashMessage = ({
   }, [notification, alertType, isVisible, setHide]);
 
   if (hide || !isVisible) {
-    return <></>;
+    return null;
   }
 
   const alertIcon =
@@ -67,7 +67,7 @@ const FlashMessage = ({
     <div className={klass} id={klass}>
       <div className={`${baseClass}__content`}>
         <FleetIcon name={alertIcon} /> <span>{message}</span>
-        {undoAction && (
+        {onUndoActionClick && undoAction && (
           <Button
             className={`${baseClass}__undo`}
             variant="unstyled"

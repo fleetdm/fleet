@@ -92,6 +92,7 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 			AgentOptions:       agentOptions,
 
 			WebhookSettings: config.WebhookSettings,
+			Integrations:    config.Integrations,
 		},
 		UpdateInterval:  updateIntervalConfig,
 		Vulnerabilities: vulnConfig,
@@ -165,6 +166,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 	if err := json.Unmarshal(p, &newAppConfig); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
+
 	validateSSOSettings(newAppConfig, appConfig, invalid)
 	if invalid.HasErrors() {
 		return nil, ctxerr.Wrap(ctx, invalid)
@@ -175,6 +177,11 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(&appConfig); err != nil {
 		return nil, &badRequestError{message: err.Error()}
+	}
+
+	validateVulnerabilitiesAutomation(appConfig, invalid)
+	if invalid.HasErrors() {
+		return nil, ctxerr.Wrap(ctx, invalid)
 	}
 
 	// ignore the values for SMTPEnabled and SMTPConfigured
@@ -223,6 +230,22 @@ func validateSSOSettings(p fleet.AppConfig, existing *fleet.AppConfig, invalid *
 				invalid.Append("idp_name", "required")
 			}
 		}
+	}
+}
+
+func validateVulnerabilitiesAutomation(merged *fleet.AppConfig, invalid *fleet.InvalidArgumentError) {
+	webhookEnabled := merged.WebhookSettings.VulnerabilitiesWebhook.Enable
+	var jiraEnabledCount int
+	for _, jira := range merged.Integrations.Jira {
+		if jira.EnableSoftwareVulnerabilities {
+			jiraEnabledCount++
+		}
+	}
+	if webhookEnabled && jiraEnabledCount > 0 {
+		invalid.Append("vulnerabilities", "cannot enable both webhook vulnerabilities and jira integration automations")
+	}
+	if jiraEnabledCount > 1 {
+		invalid.Append("vulnerabilities", "cannot enable more than one jira integration")
 	}
 }
 

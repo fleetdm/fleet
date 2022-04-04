@@ -40,20 +40,29 @@ const SoftwareTable = ({
     };
   });
 
-  const [filterGlobal, setFilterGlobal] = useState("");
+  const [searchString, setSearchString] = useState("");
   const [filterVuln, setFilterVuln] = useState(false);
   const [filters, setFilters] = useState({
-    global: filterGlobal,
+    global: searchString,
     vulnerabilities: filterVuln,
   });
 
   useEffect(() => {
-    setFilters({ global: filterGlobal, vulnerabilities: filterVuln });
-  }, [filterGlobal, filterVuln]);
+    setFilters({ global: searchString, vulnerabilities: filterVuln });
+  }, [searchString, filterVuln]);
+
+  // const onQueryChange = useDebouncedCallback(
+  //   ({ searchQuery }: { searchQuery: string }) => {
+  //     setFilterGlobal(searchQuery);
+  //   setFilters({
+  //     name: searchString,
+  //     vulnerabilities: filterVuln,
+  //   });
+  // }, [searchString, filterVuln]);
 
   const onQueryChange = useDebouncedCallback(
     ({ searchQuery }: { searchQuery: string }) => {
-      setFilterGlobal(searchQuery);
+      setSearchString(searchQuery);
     },
     300
   );
@@ -96,7 +105,9 @@ const SoftwareTable = ({
               isLoading={isLoading}
               defaultSortHeader={"name"}
               defaultSortDirection={"asc"}
-              inputPlaceHolder={"Filter software"}
+              inputPlaceHolder={
+                "Search software by name or vulnerabilities (CVEs)"
+              }
               onQueryChange={onQueryChange}
               resultsTitle={"software items"}
               emptyComponent={EmptySoftware}

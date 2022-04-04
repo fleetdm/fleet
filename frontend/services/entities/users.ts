@@ -6,6 +6,7 @@ import {
   ICreateUserFormData,
   IUpdateUserFormData,
   IUser,
+  ICreateUserWithInvitationFormData,
 } from "interfaces/user";
 import { ITeamSummary } from "interfaces/team";
 
@@ -36,6 +37,20 @@ export interface IGetMeResponse {
 }
 
 export default {
+  confirmEmailChange: (currentUser: IUser, token: string) => {
+    const { CONFIRM_EMAIL_CHANGE } = endpoints;
+
+    return sendRequest("GET", CONFIRM_EMAIL_CHANGE(token)).then((response) => {
+      return { ...currentUser, email: response.new_email };
+    });
+  },
+  create: (formData: ICreateUserWithInvitationFormData) => {
+    const { USERS } = endpoints;
+
+    return sendRequest("POST", USERS, formData).then((response) =>
+      helpers.addGravatarUrlToResource(response.user)
+    );
+  },
   createUserWithoutInvitation: (formData: ICreateUserFormData) => {
     const { USERS_ADMIN } = endpoints;
 
