@@ -20,7 +20,7 @@ const (
 	JobStateFailure JobState = "failure"
 )
 
-// Job describes an asynchronous job started via the queue package.
+// Job describes an asynchronous job started via the worker package.
 type Job struct {
 	ID        uint             `json:"id" db:"id"`
 	CreatedAt time.Time        `json:"created_at" db:"created_at"`
