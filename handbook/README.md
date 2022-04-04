@@ -70,6 +70,8 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Brand resources](./brand.md#brand-resources)
 
+[Email blasts](./brand.md#email-blasts)
+
 [Website](./brand.md#website)
 
 ### Customers
