@@ -1,8 +1,9 @@
-import React, { useState } from "react";
+import React, { useContext, useState, useEffect } from "react";
 import { InjectedRouter } from "react-router";
 import { max } from "lodash";
 
 import paths from "router/paths"; // @ts-ignore
+import { AppContext } from "context/app";
 import usersAPI from "services/entities/users";
 
 // @ts-ignore
@@ -15,8 +16,17 @@ interface IRegistrationPageProps {
 }
 
 const RegistrationPage = ({ router }: IRegistrationPageProps) => {
+  const { currentUser } = useContext(AppContext);
   const [page, setPage] = useState<number>(1);
   const [pageProgress, setPageProgress] = useState<number>(1);
+
+  useEffect(() => {
+    const { HOME } = paths;
+
+    if (currentUser) {
+      return router.push(HOME);
+    }
+  }, [currentUser]);
 
   const onNextPage = () => {
     const nextPage = page + 1;
