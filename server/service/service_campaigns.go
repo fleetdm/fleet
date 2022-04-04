@@ -62,7 +62,7 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 	// Ensure the same user is opening to read results as initiated the query
 	if campaign.UserID != vc.User.ID {
 		level.Info(svc.logger).Log(
-			"err", "stream results ID does not match",
+			"err", "campaign user ID does not match",
 			"expected", campaign.UserID,
 			"got", vc.User.ID,
 		)
