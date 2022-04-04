@@ -1,38 +1,40 @@
 .packs-list-wrapper {
-  border-collapse: collapse;
+  .data-table-block {
+    .data-table__table {
+      thead {
+        .name__header {
+          width: $col-lg;
+        }
 
-  &__wrapper {
-    border: 1px solid $ui-fleet-blue-15;
-    border-radius: 4px;
-    overflow: hidden;
-    margin-top: $pad-medium;
-  }
-
-  thead {
-    background-color: $ui-off-white;
-    border-bottom: 1px solid $ui-fleet-blue-15;
-
-    th + th {
-      border-left: 1px solid $ui-fleet-blue-15;
-    }
-
-    th {
-      font-size: $x-small;
-      font-weight: $bold;
-      text-align: left;
-      padding: $pad-medium $pad-large;
-
-      &:nth-child(3),
-      &:nth-child(4) {
-        width: 11%;
+        .query_count__header {
+          width: 0;
+        }
+        .total_hosts_count__header {
+          width: 0;
+        }
+        .updated_at__header {
+          width: 0;
+        }
+        .status__header {
+          width: auto;
+        }
       }
-
-      &:nth-child(5) {
-        width: 9%;
-      }
-
-      &:nth-child(6) {
-        width: 12%;
+      tbody {
+        .name__cell {
+          width: $col-lg;
+        }
+        .query_count__cell {
+          width: 0;
+        }
+        .total_hosts_count__cell {
+          width: 0;
+        }
+        .updated_at__cell {
+          width: 0;
+        }
+        .status__header {
+          width: auto;
+        }
       }
     }
   }

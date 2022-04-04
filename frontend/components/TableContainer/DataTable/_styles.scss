@@ -13,7 +13,7 @@
 
     &__wrapper {
       position: relative;
-      // overflow: hidden;
+      overflow-x: auto; // TODO: what setting? scroll, hidden, can we make something the default?
 
       border: 1px solid $ui-fleet-blue-15;
       border-radius: 6px; // TODO: confirm not 8 or 4px?

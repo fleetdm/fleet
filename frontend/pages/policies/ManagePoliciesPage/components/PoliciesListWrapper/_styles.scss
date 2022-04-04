@@ -7,22 +7,8 @@
     text-decoration: none;
   }
 
-  &__wrapper {
-    border: 1px solid $ui-fleet-blue-15;
-    border-radius: 4px;
-    overflow: hidden;
-    margin-top: $pad-medium;
-  }
-
   thead {
-    background-color: $ui-off-white;
-    border-bottom: 1px solid $ui-fleet-blue-15;
-
     th {
-      font-size: $x-small;
-      font-weight: $bold;
-      text-align: left;
-      padding: $pad-medium $pad-large;
       &.passing_host_count__header,
       &.failing_host_count__header,
       &.webhook__header {
@@ -44,14 +30,6 @@
     text-align: center;
     font-size: $x-small;
     color: $core-fleet-black;
-  }
-
-  &__policy-count {
-    color: $core-fleet-black;
-    font-size: $x-small;
-    font-weight: $bold;
-    margin: 0 12px 0 0;
-    display: inline-block;
   }
 }
 
