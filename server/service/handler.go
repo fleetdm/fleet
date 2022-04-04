@@ -210,8 +210,8 @@ var (
 )
 
 func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetConfig,
-	logger kitlog.Logger, limitStore throttled.GCRAStore, opts []kithttp.ServerOption) {
-
+	logger kitlog.Logger, limitStore throttled.GCRAStore, opts []kithttp.ServerOption,
+) {
 	// user-authenticated endpoints
 	ue := newUserAuthenticatedEndpointer(svc, opts, r, "v1")
 
@@ -412,14 +412,13 @@ func newServer(e endpoint.Endpoint, decodeFn kithttp.DecodeRequestFunc, opts []k
 // If setup hasn't been completed it serves the API with a setup middleware.
 // If the server is already configured, the default API handler is exposed.
 func WithSetup(svc fleet.Service, logger kitlog.Logger, next http.Handler) http.HandlerFunc {
-
 	rxOsquery := regexp.MustCompile(`^/api/[^/]+/osquery`)
 	return func(w http.ResponseWriter, r *http.Request) {
 		configRouter := http.NewServeMux()
 		// TODO: hard-codes v1 as a path fragment, which would probably not work once we
 		// deprecate it for newer versions, unless we want to treat the setup differently (not versioned?)
 		configRouter.Handle("/api/v1/setup", kithttp.NewServer(
-			makeSetupEndpoint(svc),
+			makeSetupEndpoint(svc, logger),
 			decodeSetupRequest,
 			encodeResponse,
 		))

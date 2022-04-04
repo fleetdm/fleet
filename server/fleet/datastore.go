@@ -253,7 +253,7 @@ type Datastore interface {
 	ListSessionsForUser(ctx context.Context, id uint) ([]*Session, error)
 
 	// NewSession stores a new session struct
-	NewSession(ctx context.Context, session *Session) (*Session, error)
+	NewSession(ctx context.Context, userID uint, sessionKey string) (*Session, error)
 
 	// DestroySession destroys the currently tracked session
 	DestroySession(ctx context.Context, session *Session) error

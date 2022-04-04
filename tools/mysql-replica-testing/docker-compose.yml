@@ -1,0 +1,51 @@
+---
+version: "2"
+services:
+  mysql_main:
+    image: ${FLEET_MYSQL_IMAGE:-mysql:5.7}
+    platform: linux/x86_64
+    volumes:
+      - mysql-persistent-volume-replica-main:/tmp
+    command: [
+        "mysqld",
+        "--datadir=/tmp/mysqldata-replica-main",
+        "--event-scheduler=ON",
+        # These 3 keys run MySQL with GTID consistency enforced to avoid issues with production deployments that use it.
+        "--enforce-gtid-consistency=ON",
+        "--log-bin=bin.log",
+        "--server-id=1",
+      ]
+    environment: &mysql-default-environment
+      MYSQL_ROOT_PASSWORD: toor
+      MYSQL_DATABASE: fleet
+      MYSQL_USER: fleet
+      MYSQL_PASSWORD: insecure
+    ports:
+      - "3308:3306"
+
+  mysql_read_replica:
+    image: ${FLEET_MYSQL_IMAGE:-mysql:5.7}
+    platform: linux/x86_64
+    volumes:
+      - mysql-persistent-volume-replica-read:/tmp
+    # innodb-file-per-table=OFF gives ~20% speedup for test runs.
+    command: [
+        "mysqld",
+        "--datadir=/tmp/mysqldata-replica-read",
+        "--slow_query_log=1",
+        "--log_output=TABLE",
+        "--log-queries-not-using-indexes",
+        "--event-scheduler=ON",
+        "--innodb-file-per-table=OFF",
+        # These 3 keys run MySQL with GTID consistency enforced to avoid issues with production deployments that use it.
+        "--enforce-gtid-consistency=ON",
+        "--log-bin=bin.log",
+        "--server-id=2",
+      ]
+    environment: *mysql-default-environment
+    ports:
+      - "3309:3306"
+
+volumes:
+  mysql-persistent-volume-replica-main:
+  mysql-persistent-volume-replica-read:

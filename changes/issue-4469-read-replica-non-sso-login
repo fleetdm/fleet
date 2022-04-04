@@ -1,0 +1,1 @@
+* Fix non-SSO login bug when running Fleet with MySQL read replica/s.
