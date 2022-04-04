@@ -164,6 +164,12 @@ export default {
 
     return sendRequest("POST", RESET_PASSWORD, formData);
   },
+  setup: (formData: any) => {
+    const { SETUP } = endpoints;
+    const setupData = helpers.setupData(formData);
+
+    return sendRequest("POST", SETUP, setupData);
+  },
   update: (userId: number, formData: IUpdateUserFormData) => {
     const { USERS } = endpoints;
     const path = `${USERS}/${userId}`;
