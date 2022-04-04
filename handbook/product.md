@@ -1,20 +1,38 @@
 # Product
 
-🛸 Product team (weekly) board: https://github.com/orgs/fleetdm/projects/17
+⚗️ #g-product: https://github.com/orgs/fleetdm/projects/17
 
-🧱📡 Fleet core roadmap board: https://github.com/orgs/fleetdm/projects/8
+🧱📡 Fleet core roadmap: https://github.com/orgs/fleetdm/projects/8
 
 ## Job to be done
 
 Every product should have a single job that it strives to do. At Fleet we use the [Jobs to be Done
-(JTBD) framework](https://about.gitlab.com/handbook/engineering/ux/jobs-to-be-done/). Fleet's overarching job to be done is:
+(JTBD) framework](https://about.gitlab.com/handbook/engineering/ux/jobs-to-be-done/). Fleet's
+overarching job to be done is the following:
 
-> I need a way to see what laptops and servers I have, and what I need to do to keep them secure and
-> compliant."
+"I need a way to see what laptops and servers I have, and what I need to do to keep them secure and
+compliant."
+
+## Objectives and key results
+
+Fleet uses objectives and key results (OKRs) so that the organization is aligned on measurable
+goals.
+
+The product team is responsible for sub-OKRs that contribute to organization wide OKRs.
+
+### Q2 OKRs
+
+The following Q2 OKRs Google doc lists the "Product" sub-OKRs under each organization wide OKR:
+
+[Q2 OKRs](https://docs.google.com/document/d/1SfzdeY0mLXSg1Ew0N4yhJppakCgGnDW7Bf8xpKkBczo/edit#heading=h.krtfhfsshh3u)
 
 ## Q1 2022 product objectives
 
-For Q1 2022, the 7 product objectives we are focused on are:
+In Q1 2022, Fleet set company wide objectives. The product team was reponsible for
+the product objectives that contributed to the company wide objectives.
+
+The following list includes the company wide objectives, product objectives ("How?" sections) and whether or not the
+product team hit or missed each objective:
 
 #### Ultimate source of truth
 
@@ -23,12 +41,12 @@ data](https://osquery.io/schema/5.1.0/) for all their devices. We want to build 
 by always providing the freshest, most accurate, and most understandable data possible
 in the UI and API.
 
-##### Execution plan
+##### How?
 
-We will solve the "Undetermined" performance impact limitation for new scheduled queries as well as
-reflect unfinished policy runs in the UI/API. In addition, we will only advertise working
-osquery tables inside the product (looking at you `wifi_networks` table). Moreover, we will improve the Fleet server's
-performance and improve reliability and accuracy of the vulnerability detections.
+- Solve the "Undetermined" performance impact limitation for new scheduled queries as well as
+reflect unfinished policy runs in the UI/API (Miss)
+- Only advertise working osquery tables inside the product (looking at you `wifi_networks` table)
+  (Miss)
 
 #### Programmable
 
@@ -36,48 +54,41 @@ Fleet differentiate's itself from other security tools by providing a simple and
 CLI tool (fleetctl). This allows users and customers to leverage Fleet's superb ability to gather
 device data in ways that are unique to their organization.
 
-##### Execution plan
+##### How?
 
-We will add integrations for policy and vulnerability automations as well as get closer to parity
-with Rapid7's vulnerability features. In addition, we will roll up software and vulnerabilities
-across the entire organization and teams.
+- Add integrations for policy and vulnerability automations as well as get closer to parity with
+  other vulnerability management solutions. (Miss)
+- Roll up software and vulnerabilities across the entire organization and teams.(Hit)
 
 #### Who's watching the watchers
 
 Many current Fleet users and customers hire Fleet to increase their confidence that other security
 tools are functioning properly. We will continue to expose valuable information about these tools to meet customer requirements.
 
-##### Execution plan
+##### How?
 
-We will invest in sending the health of other installed agents and verify device enrollment in Jamf,
-Kandji, and SimpleMDM. In addition we will roll up mobile device management (MDM) and Munki data
-across the entire organization and teams.
+- Detect the health of other installed agents and verify device enrollment in Jamf,
+Kandji, and SimpleMDM. (Hit)
+- Roll up mobile device management (MDM) and Munki data across the entire organization and teams. (Hit)
 
 #### Self-service, 2-way IT
 
 Fleet is poised to enable an organization's employees to resolve issues with their devices on their own. Not only does this save time for IT administrators and security practitioners but it also builds
 trust so that an organization can focus on achieving their business outcomes together.
 
-##### Execution plan
+##### How?
 
-We will focus on enabling end users to self serve issues with their devices using Fleet Desktop. In
-addition, Fleet Desktop will begin to provide end users with the ability to see what information is collected
-about their device (scope transparency).
+- Enable end users to self serve issues with their devices using Fleet Desktop. (Miss)
+- Enable end users to see what information is collected about their device (scope transparency). (Hit)
 
 #### Easy to use
 
-We'd like to make maintaining secure laptops and servers as
-easy as possible. This quarter we'll focus on improving the time to value for new Fleet users and
-customers by providing instructions and tools to quickly bolster any organization's security program. 
+We'd like to make maintaining secure laptops and servers as easy as possible.
 
-##### Execution plan
+##### How?
 
-We will focus on improving the standard query library so that it includes 80% of the most common
-policies that any organization needs. In addition, we will provide documentation that makes it dead
-simple to deploy on every major cloud platform (Reference architectures, AWS, GCP, Azure) as well as
-open source our own internal security program. Moreover, we will eliminate fear, uncertainty and
-doubt (FUD) related to the production readiness of Fleet's osquery installers.
-
+- Improve the standard query library so that it includes 80% of the most common
+policies that any organization needs. (Miss)
 
 ## Product design process
 

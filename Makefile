@@ -312,6 +312,13 @@ ifneq ($(shell uname), Darwin)
 endif
 	go run ./tools/desktop macos
 
+# Build desktop executable for Windows.
+#
+# Usage:
+# FLEET_DESKTOP_VERSION=0.0.1 make desktop-windows
+desktop-windows:
+	GOOS=windows GOARCH=amd64 go build -ldflags "-H=windowsgui" -o fleet-desktop.exe ./orbit/cmd/desktop
+
 # db-replica-setup setups one main and one read replica MySQL instance for dev/testing.
 #	- Assumes the docker containers are already running (tools/mysql-replica-testing/docker-compose.yml)
 # 	- MySQL instance listening on 3308 is the main instance.
