@@ -16,6 +16,8 @@ import (
 )
 
 func cronDB(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, identifier string, license *fleet.LicenseInfo) {
+	logger = kitlog.With(logger, "cron", lockKeyLeader)
+
 	ticker := time.NewTicker(10 * time.Second)
 	for {
 		level.Debug(logger).Log("waiting", "on ticker")
@@ -28,8 +30,11 @@ func cronDB(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, ident
 			return
 		}
 
-		if locked, err := ds.Lock(ctx, lockKeyLeader, identifier, time.Hour); err != nil || !locked {
-			level.Debug(logger).Log("leader", "Not the leader. Skipping...")
+		if locked, err := ds.Lock(ctx, lockKeyLeader, identifier, 1*time.Hour); err != nil {
+			level.Error(logger).Log("msg", "Error acquiring lock", "err", err)
+			continue
+		} else if !locked {
+			level.Debug(logger).Log("msg", "Not the leader. Skipping...")
 			continue
 		}
 
@@ -96,6 +101,8 @@ func cronVulnerabilities(
 	identifier string,
 	config config.FleetConfig,
 ) {
+	logger = kitlog.With(logger, "cron", lockKeyVulnerabilities)
+
 	if config.Vulnerabilities.CurrentInstanceChecks == "no" || config.Vulnerabilities.CurrentInstanceChecks == "0" {
 		level.Info(logger).Log("vulnerability scanning", "host not configured to check for vulnerabilities")
 		return
@@ -157,8 +164,11 @@ func cronVulnerabilities(
 			return
 		}
 		if config.Vulnerabilities.CurrentInstanceChecks == "auto" {
-			if locked, err := ds.Lock(ctx, lockKeyVulnerabilities, identifier, 1*time.Hour); err != nil || !locked {
-				level.Debug(logger).Log("leader", "Not the leader. Skipping...")
+			if locked, err := ds.Lock(ctx, lockKeyVulnerabilities, identifier, 1*time.Hour); err != nil {
+				level.Error(logger).Log("msg", "Error acquiring lock", "err", err)
+				continue
+			} else if !locked {
+				level.Debug(logger).Log("msg", "Not the leader. Skipping...")
 				continue
 			}
 		}
@@ -277,8 +287,13 @@ func maybeTriggerHostStatus(
 	appConfig *fleet.AppConfig,
 	lockDuration time.Duration,
 ) {
-	if locked, err := ds.Lock(ctx, lockKeyWebhooksHostStatus, identifier, lockDuration); err != nil || !locked {
-		level.Debug(logger).Log("leader-host-status", "Not the leader. Skipping...")
+	logger = kitlog.With(logger, "cron", lockKeyWebhooksHostStatus)
+
+	if locked, err := ds.Lock(ctx, lockKeyWebhooksHostStatus, identifier, lockDuration); err != nil {
+		level.Error(logger).Log("msg", "Error acquiring lock", "err", err)
+		return
+	} else if !locked {
+		level.Debug(logger).Log("msg", "Not the leader. Skipping...")
 		return
 	}
 
@@ -299,8 +314,13 @@ func maybeTriggerFailingPoliciesWebhook(
 	lockDuration time.Duration,
 	failingPoliciesSet fleet.FailingPolicySet,
 ) {
-	if locked, err := ds.Lock(ctx, lockKeyWebhooksFailingPolicies, identifier, lockDuration); err != nil || !locked {
-		level.Debug(logger).Log("leader-failing-policies", "Not the leader. Skipping...")
+	logger = kitlog.With(logger, "cron", lockKeyWebhooksFailingPolicies)
+
+	if locked, err := ds.Lock(ctx, lockKeyWebhooksFailingPolicies, identifier, lockDuration); err != nil {
+		level.Error(logger).Log("msg", "Error acquiring lock", "err", err)
+		return
+	} else if !locked {
+		level.Debug(logger).Log("msg", "Not the leader. Skipping...")
 		return
 	}
 
@@ -313,12 +333,12 @@ func maybeTriggerFailingPoliciesWebhook(
 }
 
 func cronWorker(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, identifier string) {
+	logger = kitlog.With(logger, "cron", lockKeyWorker)
+
 	w := worker.NewWorker(ds, logger)
 
 	jira := worker.NewJira(ds, logger)
 	w.Register(jira)
-
-	logger = kitlog.With(logger, "key", lockKeyWorker)
 
 	ticker := time.NewTicker(10 * time.Second)
 	for {
