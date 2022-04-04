@@ -14,7 +14,7 @@ export default {
   loadCertificate: () => {
     const { CONFIG } = endpoints;
     const path = `${CONFIG}/certificate`;
-    
+
     return sendRequest("GET", path).then(({ certificate_chain }) => {
       let decodedCertificate;
       try {
@@ -25,13 +25,13 @@ export default {
       if (!decodedCertificate) {
         return Promise.reject("Missing or undefined certificate.");
       }
-      
+
       return Promise.resolve(decodedCertificate);
     });
   },
   loadEnrollSecret: () => {
     const { GLOBAL_ENROLL_SECRETS } = endpoints;
-    
+
     return sendRequest("GET", GLOBAL_ENROLL_SECRETS);
   },
   update: (formData: any) => {

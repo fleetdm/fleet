@@ -12,7 +12,7 @@ import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
 const ForgotPasswordPage = () => {
   const [email, setEmail] = useState<string>("");
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
-  
+
   useEffect(() => {
     setErrors({});
   }, []);
@@ -21,8 +21,7 @@ const ForgotPasswordPage = () => {
     try {
       await usersAPI.forgotPassword(formData);
 
-      const { email } = formData;
-      setEmail(email);
+      setEmail(formData.email);
       setErrors({});
     } catch (response) {
       const errorObject = formatErrorResponse(response);
@@ -72,6 +71,6 @@ const ForgotPasswordPage = () => {
       </StackedWhiteBoxes>
     </AuthenticationFormWrapper>
   );
-}
+};
 
 export default ForgotPasswordPage;

@@ -23,13 +23,9 @@ const AppSettingsPage = (): JSX.Element => {
     data: appConfig,
     isLoading: isLoadingConfig,
     refetch: refetchConfig,
-  } = useQuery<IConfig, Error, IConfig>(
-    ["config"],
-    () => configAPI.loadAll(),
-    {
-      select: (data: IConfig) => data,
-    }
-  );
+  } = useQuery<IConfig, Error, IConfig>(["config"], () => configAPI.loadAll(), {
+    select: (data: IConfig) => data,
+  });
 
   const onFormSubmit = useCallback(
     (formData: IConfig) => {

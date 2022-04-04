@@ -33,9 +33,7 @@ const expirationMessage = (
 
 const CoreLayout = ({ children, router }: ICoreLayoutProps) => {
   const { config, currentUser, isPremiumTier } = useContext(AppContext);
-  const { notification, hideFlash } = useContext(
-    NotificationContext
-  );
+  const { notification, hideFlash } = useContext(NotificationContext);
   const { setResetSelectedRows } = useContext(TableContext);
   const [
     showExpirationFlashMessage,

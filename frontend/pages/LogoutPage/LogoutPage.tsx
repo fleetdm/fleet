@@ -11,7 +11,7 @@ interface ILogoutPageProps {
 
 const LogoutPage = ({ router }: ILogoutPageProps): boolean => {
   const { renderFlash } = useContext(NotificationContext);
-  
+
   useEffect(() => {
     const logoutUser = async () => {
       try {

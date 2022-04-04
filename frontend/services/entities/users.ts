@@ -44,7 +44,7 @@ export interface IGetMeResponse {
 export default {
   changePassword: (passwordParams: IUpdatePassword) => {
     const { CHANGE_PASSWORD } = endpoints;
-    
+
     return sendRequest("POST", CHANGE_PASSWORD, passwordParams);
   },
   confirmEmailChange: (currentUser: IUser, token: string) => {
@@ -83,9 +83,9 @@ export default {
   enable: (user: IUser, enabled: boolean) => {
     const { ENABLE_USER } = endpoints;
 
-    return sendRequest("POST", ENABLE_USER(user.id), { enabled }).then((response) =>
-      helpers.addGravatarUrlToResource(response.user)
-    );
+    return sendRequest("POST", ENABLE_USER(user.id), {
+      enabled,
+    }).then((response) => helpers.addGravatarUrlToResource(response.user));
   },
   forgotPassword: ({ email }: IForgotPassword) => {
     const { FORGOT_PASSWORD } = endpoints;
@@ -145,9 +145,9 @@ export default {
   performRequiredPasswordReset: (new_password: string) => {
     const { PERFORM_REQUIRED_PASSWORD_RESET } = endpoints;
 
-    return sendRequest("POST", PERFORM_REQUIRED_PASSWORD_RESET, { new_password }).then((response) =>
-      helpers.addGravatarUrlToResource(response.user)
-    );
+    return sendRequest("POST", PERFORM_REQUIRED_PASSWORD_RESET, {
+      new_password,
+    }).then((response) => helpers.addGravatarUrlToResource(response.user));
   },
   requirePasswordReset: (
     userId: number,
@@ -182,8 +182,10 @@ export default {
   updateAdmin: (user: IUser, admin: boolean) => {
     const { UPDATE_USER_ADMIN } = endpoints;
 
-    return sendRequest("POST", UPDATE_USER_ADMIN(user.id), admin).then((response) =>
-      helpers.addGravatarUrlToResource(response.user)
-    );
+    return sendRequest(
+      "POST",
+      UPDATE_USER_ADMIN(user.id),
+      admin
+    ).then((response) => helpers.addGravatarUrlToResource(response.user));
   },
 };

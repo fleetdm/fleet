@@ -38,7 +38,7 @@ const ConfirmSSOInvitePage = ({
       return router.push(HOME);
     }
   }, [currentUser]);
-  
+
   const onSubmit = async (formData: any) => {
     const { HOME } = paths;
 
@@ -74,6 +74,6 @@ const ConfirmSSOInvitePage = ({
       </div>
     </AuthenticationFormWrapper>
   );
-}
+};
 
 export default ConfirmSSOInvitePage;

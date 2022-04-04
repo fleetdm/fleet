@@ -83,8 +83,14 @@ const routes = (
         <Route path="setup" component={RegistrationPage} />
         <Route path="previewlogin" component={LoginPreviewPage} />
         <Route path="login" component={LoginPage} />
-        <Route path="login/invites/:invite_token" component={ConfirmInvitePage} />
-        <Route path="login/ssoinvites/:invite_token" component={ConfirmSSOInvitePage} />
+        <Route
+          path="login/invites/:invite_token"
+          component={ConfirmInvitePage}
+        />
+        <Route
+          path="login/ssoinvites/:invite_token"
+          component={ConfirmSSOInvitePage}
+        />
         <Route path="login/forgot" component={ForgotPasswordPage} />
         <Route path="login/reset" component={ResetPasswordPage} />
         <Route component={AuthenticatedRoutes}>
@@ -97,10 +103,7 @@ const routes = (
               <IndexRedirect to={"/dashboard"} />
               <Route component={SettingsWrapper}>
                 <Route component={AuthenticatedAdminRoutes}>
-                  <Route
-                    path="organization"
-                    component={AdminAppSettingsPage}
-                  />
+                  <Route path="organization" component={AdminAppSettingsPage} />
                   <Route path="users" component={AdminUserManagementPage} />
                   <Route path="teams" component={AdminTeamManagementPage} />
                 </Route>
@@ -117,10 +120,7 @@ const routes = (
                 path="manage/labels/:label_id"
                 component={ManageHostsPage}
               />
-              <Route
-                path="manage/:active_label"
-                component={ManageHostsPage}
-              />
+              <Route path="manage/:active_label" component={ManageHostsPage} />
               <Route
                 path="manage/labels/:label_id/:active_label"
                 component={ManageHostsPage}

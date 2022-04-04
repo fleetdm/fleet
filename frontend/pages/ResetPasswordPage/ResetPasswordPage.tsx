@@ -41,7 +41,7 @@ const ResetPasswordPage = ({ location, router }: IResetPasswordPageProps) => {
       await usersAPI.performRequiredPasswordReset(new_password as string);
       const config = await configAPI.loadAll();
       setConfig(config);
-      return router.push(PATHS.HOME)
+      return router.push(PATHS.HOME);
     } catch (response) {
       const errorObject = formatErrorResponse(response);
       setErrors(errorObject);
@@ -80,6 +80,6 @@ const ResetPasswordPage = ({ location, router }: IResetPasswordPageProps) => {
       </StackedWhiteBoxes>
     </AuthenticationFormWrapper>
   );
-}
+};
 
 export default ResetPasswordPage;

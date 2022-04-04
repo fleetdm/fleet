@@ -5,7 +5,7 @@ import endpoints from "fleet/endpoints";
 export default {
   load: () => {
     const { VERSION } = endpoints;
-    
+
     return sendRequest("GET", VERSION);
   },
 };

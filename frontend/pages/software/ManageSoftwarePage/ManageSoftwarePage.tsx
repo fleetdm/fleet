@@ -65,7 +65,10 @@ const ManageSoftwarePage = ({
   const { renderFlash } = useContext(NotificationContext);
 
   const [isSoftwareEnabled, setIsSoftwareEnabled] = useState<boolean>();
-  const [softwareVulnerabilitiesWebhook, setSoftwareVulnerabilitiesWebhook] = useState<IWebhookSoftwareVulnerabilities>();
+  const [
+    softwareVulnerabilitiesWebhook,
+    setSoftwareVulnerabilitiesWebhook,
+  ] = useState<IWebhookSoftwareVulnerabilities>();
   const [filterVuln, setFilterVuln] = useState(
     location?.query?.vulnerable || false
   );
@@ -164,21 +167,19 @@ const ManageSoftwarePage = ({
   );
 
   const canAddOrRemoveSoftwareWebhook = isGlobalAdmin || isGlobalMaintainer;
-  
-  const {
-    isLoading: isLoadingConfig,
-    refetch: refetchConfig,
-  } = useQuery<IConfig, Error>(
-    ["config"],
-    () => configAPI.loadAll(),
-    {
-      enabled: canAddOrRemoveSoftwareWebhook,
-      onSuccess: (data) => {
-        setSoftwareVulnerabilitiesWebhook(data.webhook_settings.vulnerabilities_webhook);
-        setConfig(data);
-      },
-    }
-  );
+
+  const { isLoading: isLoadingConfig, refetch: refetchConfig } = useQuery<
+    IConfig,
+    Error
+  >(["config"], () => configAPI.loadAll(), {
+    enabled: canAddOrRemoveSoftwareWebhook,
+    onSuccess: (data) => {
+      setSoftwareVulnerabilitiesWebhook(
+        data.webhook_settings.vulnerabilities_webhook
+      );
+      setConfig(data);
+    },
+  });
 
   const onQueryChange = useDebouncedCallback(
     async ({

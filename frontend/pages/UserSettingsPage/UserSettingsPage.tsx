@@ -19,7 +19,7 @@ import Button from "components/buttons/Button"; // @ts-ignore
 import ChangeEmailForm from "components/forms/ChangeEmailForm"; // @ts-ignore
 import ChangePasswordForm from "components/forms/ChangePasswordForm"; // @ts-ignore
 import FleetIcon from "components/icons/FleetIcon"; // @ts-ignore
-import InputField from "components/forms/fields/InputField"; 
+import InputField from "components/forms/fields/InputField";
 import Modal from "components/Modal"; // @ts-ignore
 import UserSettingsForm from "components/forms/UserSettingsForm";
 
@@ -30,11 +30,7 @@ interface IUserSettingsPageProps {
 }
 
 const UserSettingsPage = ({ router }: IUserSettingsPageProps) => {
-  const {
-    config,
-    currentUser,
-    isPremiumTier,
-  } = useContext(AppContext);
+  const { config, currentUser, isPremiumTier } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
   const [pendingEmail, setPendingEmail] = useState<string>("");
   const [showEmailModal, setShowEmailModal] = useState<boolean>(false);
@@ -46,7 +42,7 @@ const UserSettingsPage = ({ router }: IUserSettingsPageProps) => {
   const [versionData, setVersionData] = useState<IVersionData>();
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [userErrors, setUserErrors] = useState<{ [key: string]: string }>({});
-  
+
   useEffect(() => {
     const getVersionData = async () => {
       try {
@@ -76,9 +72,9 @@ const UserSettingsPage = ({ router }: IUserSettingsPageProps) => {
     return false;
   };
 
-  const onToggleEmailModal = (updatedUser = {}) => {
+  const onToggleEmailModal = (updated = {}) => {
     setShowEmailModal(!showEmailModal);
-    setUpdatedUser(updatedUser);
+    setUpdatedUser(updated);
     return false;
   };
 
@@ -116,36 +112,33 @@ const UserSettingsPage = ({ router }: IUserSettingsPageProps) => {
     if (!currentUser) {
       return false;
     }
-    
-    const updatedUser = deepDifference(formData, currentUser);
 
-    if (updatedUser.email && !updatedUser.password) {
-      return onToggleEmailModal(updatedUser);
+    const updated = deepDifference(formData, currentUser);
+
+    if (updated.email && !updated.password) {
+      return onToggleEmailModal(updated);
     }
 
     try {
-      await usersAPI.update(currentUser.id, updatedUser);
+      await usersAPI.update(currentUser.id, updated);
       let accountUpdatedFlashMessage = "Account updated";
-      if (updatedUser.email) {
-        accountUpdatedFlashMessage += `: A confirmation email was sent from ${config?.smtp_settings.sender_address} to ${updatedUser.email}`;
-        setPendingEmail(updatedUser.email);
+      if (updated.email) {
+        accountUpdatedFlashMessage += `: A confirmation email was sent from ${config?.smtp_settings.sender_address} to ${updated.email}`;
+        setPendingEmail(updated.email);
       }
-  
+
       renderFlash("success", accountUpdatedFlashMessage);
       return true;
     } catch (response) {
       const errorObject = formatErrorResponse(response);
       setErrors(errorObject);
-      
+
       if (errorObject.base.includes("already exists")) {
-        renderFlash(
-          "error",
-          "A user with this email address already exists."
-        );
+        renderFlash("error", "A user with this email address already exists.");
       } else {
         renderFlash("error", "Could not edit user. Please try again.");
       }
-      
+
       setShowEmailModal(false);
       return false;
     }
@@ -279,9 +272,11 @@ const UserSettingsPage = ({ router }: IUserSettingsPageProps) => {
   const roleText = generateRole(teams, globalRole);
   const teamsText = generateTeam(teams, globalRole);
 
-  const lastUpdatedAt = updatedAt && formatDistanceToNow(new Date(updatedAt), {
-    addSuffix: true,
-  });
+  const lastUpdatedAt =
+    updatedAt &&
+    formatDistanceToNow(new Date(updatedAt), {
+      addSuffix: true,
+    });
 
   return (
     <div className={baseClass}>
@@ -299,9 +294,7 @@ const UserSettingsPage = ({ router }: IUserSettingsPageProps) => {
       <div className={`${baseClass}__additional body-wrap`}>
         <div className={`${baseClass}__change-avatar`}>
           <Avatar user={currentUser} className={`${baseClass}__avatar`} />
-          <a href="http://en.gravatar.com/emails/">
-            Change photo at Gravatar
-          </a>
+          <a href="http://en.gravatar.com/emails/">Change photo at Gravatar</a>
         </div>
         {isPremiumTier && (
           <div className={`${baseClass}__more-info-detail`}>
@@ -362,6 +355,6 @@ const UserSettingsPage = ({ router }: IUserSettingsPageProps) => {
       {renderApiTokenModal()}
     </div>
   );
-}
+};
 
 export default UserSettingsPage;

@@ -13,7 +13,11 @@ interface IAppProps {
   router: InjectedRouter;
 }
 
-export const AuthenticatedRoutes = ({ children, location, router }: IAppProps) => {
+export const AuthenticatedRoutes = ({
+  children,
+  location,
+  router,
+}: IAppProps) => {
   const { setRedirectLocation } = useContext(RoutingContext);
   const { currentUser } = useContext(AppContext);
 

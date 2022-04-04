@@ -48,7 +48,7 @@ const TeamManagementPage = (): JSX.Element => {
     {
       select: (data: ITeamsResponse) => data.teams,
       onError: (error) => handlePageError(error),
-    },
+    }
   );
 
   const toggleCreateTeamModal = useCallback(() => {

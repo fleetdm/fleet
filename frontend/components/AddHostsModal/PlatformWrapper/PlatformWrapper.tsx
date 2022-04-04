@@ -232,7 +232,9 @@ const PlatformWrapper = ({
 --fleet-certificate=PATH_TO_YOUR_CERTIFICATE/fleet.pem`
       : `fleetctl package --type=${platform} ${
           includeFleetDesktop ? "--fleet-desktop " : ""
-        }--fleet-url=${config?.server_settings.server_url} --enroll-secret=${enrollSecret}`;
+        }--fleet-url=${
+          config?.server_settings.server_url
+        } --enroll-secret=${enrollSecret}`;
   };
 
   const renderLabel = (platform: string, installerString: string) => {

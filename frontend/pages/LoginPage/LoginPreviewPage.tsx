@@ -5,7 +5,7 @@ import paths from "router/paths";
 import { AppContext } from "context/app"; // @ts-ignore
 import sessionsAPI from "services/entities/sessions";
 import local from "utilities/local"; // @ts-ignore
-import { formatErrorResponse } from "redux/nodes/entities/base/helpers"
+import { formatErrorResponse } from "redux/nodes/entities/base/helpers";
 
 // @ts-ignore
 import LoginSuccessfulPage from "pages/LoginSuccessfulPage"; // @ts-ignore
@@ -21,16 +21,21 @@ interface ILoginData {
 }
 
 const LoginPreviewPage = ({ router }: ILoginPreviewPageProps): JSX.Element => {
-  const { isPreviewMode, setAvailableTeams, setCurrentUser, setCurrentTeam } = useContext(
-    AppContext
-  );
+  const {
+    isPreviewMode,
+    setAvailableTeams,
+    setCurrentUser,
+    setCurrentTeam,
+  } = useContext(AppContext);
   const [loginVisible, setLoginVisible] = useState<boolean>(true);
 
   const onSubmit = async (formData: ILoginData) => {
     const { HOME } = paths;
 
     try {
-      const { user, available_teams, token } = await sessionsAPI.create(formData)
+      const { user, available_teams, token } = await sessionsAPI.create(
+        formData
+      );
       local.setItem("auth_token", token);
 
       setLoginVisible(false);

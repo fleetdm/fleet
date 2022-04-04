@@ -46,12 +46,12 @@ const RegistrationPage = ({ router }: IRegistrationPageProps) => {
     }
   };
 
-  const onSetPage = (page: number) => {
-    if (page > pageProgress) {
+  const onSetPage = (pageNum: number) => {
+    if (pageNum > pageProgress) {
       return false;
     }
 
-    setPage(page);
+    setPage(pageNum);
   };
 
   return (
@@ -73,6 +73,6 @@ const RegistrationPage = ({ router }: IRegistrationPageProps) => {
       />
     </div>
   );
-}
+};
 
 export default RegistrationPage;

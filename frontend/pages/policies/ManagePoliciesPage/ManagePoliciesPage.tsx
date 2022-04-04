@@ -90,7 +90,10 @@ const ManagePolicyPage = ({
   const [showAddPolicyModal, setShowAddPolicyModal] = useState(false);
   const [showRemovePoliciesModal, setShowRemovePoliciesModal] = useState(false);
   const [showInheritedPolicies, setShowInheritedPolicies] = useState(false);
-  const [failingPoliciesWebhook, setFailingPoliciesWebhook] = useState<IWebhookFailingPolicies>();
+  const [
+    failingPoliciesWebhook,
+    setFailingPoliciesWebhook,
+  ] = useState<IWebhookFailingPolicies>();
   const [currentAutomatedPolicies, setCurrentAutomatedPolicies] = useState<
     number[]
   >();
@@ -141,21 +144,19 @@ const ManagePolicyPage = ({
   const canAddOrRemovePolicy =
     isGlobalAdmin || isGlobalMaintainer || isTeamMaintainer || isTeamAdmin;
 
-  const {
-    isLoading: isLoadingConfig,
-    refetch: refetchConfig,
-  } = useQuery<IConfig, Error>(
-    ["config"],
-    () => configAPI.loadAll(),
-    {
-      enabled: canAddOrRemovePolicy,
-      onSuccess: (data) => {
-        setFailingPoliciesWebhook(data.webhook_settings.failing_policies_webhook);
-        setCurrentAutomatedPolicies(data.webhook_settings.failing_policies_webhook.policy_ids);
-        setConfig(data);
-      },
-    }
-  );
+  const { isLoading: isLoadingConfig, refetch: refetchConfig } = useQuery<
+    IConfig,
+    Error
+  >(["config"], () => configAPI.loadAll(), {
+    enabled: canAddOrRemovePolicy,
+    onSuccess: (data) => {
+      setFailingPoliciesWebhook(data.webhook_settings.failing_policies_webhook);
+      setCurrentAutomatedPolicies(
+        data.webhook_settings.failing_policies_webhook.policy_ids
+      );
+      setConfig(data);
+    },
+  });
 
   const refetchPolicies = (id?: number) => {
     refetchGlobalPolicies();
@@ -282,8 +283,9 @@ const ManagePolicyPage = ({
   };
 
   const policyUpdateInterval =
-    secondsToHms(inMilliseconds(config?.update_interval.osquery_policy || 0) / 1000) ||
-    "osquery policy update interval";
+    secondsToHms(
+      inMilliseconds(config?.update_interval.osquery_policy || 0) / 1000
+    ) || "osquery policy update interval";
 
   const showTeamDescription = isPremiumTier && !!teamId;
 
@@ -419,9 +421,7 @@ const ManagePolicyPage = ({
             ) : (
               <PoliciesListWrapper
                 policiesList={teamPolicies || []}
-                isLoading={
-                  isLoadingTeamPolicies && isLoadingConfig
-                }
+                isLoading={isLoadingTeamPolicies && isLoadingConfig}
                 onRemovePoliciesClick={onRemovePoliciesClick}
                 canAddOrRemovePolicy={canAddOrRemovePolicy}
                 currentTeam={currentTeam}
@@ -436,9 +436,7 @@ const ManagePolicyPage = ({
             ) : (
               <PoliciesListWrapper
                 policiesList={globalPolicies || []}
-                isLoading={
-                  isLoadingGlobalPolicies && isLoadingConfig
-                }
+                isLoading={isLoadingGlobalPolicies && isLoadingConfig}
                 onRemovePoliciesClick={onRemovePoliciesClick}
                 canAddOrRemovePolicy={canAddOrRemovePolicy}
                 currentTeam={currentTeam}
@@ -473,9 +471,7 @@ const ManagePolicyPage = ({
                 <Spinner />
               ) : (
                 <PoliciesListWrapper
-                  isLoading={
-                    isLoadingGlobalPolicies && isLoadingConfig
-                  }
+                  isLoading={isLoadingGlobalPolicies && isLoadingConfig}
                   policiesList={globalPolicies || []}
                   onRemovePoliciesClick={noop}
                   resultsTitle="policies"

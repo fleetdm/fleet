@@ -24,13 +24,12 @@ interface ILoginData {
   password: string;
 }
 
-
 const LoginPage = ({ router }: ILoginPageProps) => {
   const {
     currentUser,
     setAvailableTeams,
     setCurrentUser,
-    setCurrentTeam
+    setCurrentTeam,
   } = useContext(AppContext);
   const { redirectLocation } = useContext(RoutingContext);
   const [loginVisible, setLoginVisible] = useState<boolean>(true);
@@ -68,7 +67,9 @@ const LoginPage = ({ router }: ILoginPageProps) => {
     const { HOME, RESET_PASSWORD } = paths;
 
     try {
-      const { user, available_teams, token } = await sessionsAPI.create(formData);
+      const { user, available_teams, token } = await sessionsAPI.create(
+        formData
+      );
       local.setItem("auth_token", token);
 
       setLoginVisible(false);

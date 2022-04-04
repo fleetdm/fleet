@@ -64,7 +64,7 @@ const App = ({ children, router }: IAppProps): JSX.Element => {
         setIsLoading(false);
       }
     };
-    
+
     // on page refresh
     if (!currentUser && authToken()) {
       fetchCurrentUser();
@@ -95,7 +95,7 @@ const App = ({ children, router }: IAppProps): JSX.Element => {
         return false;
       }
     };
-    
+
     if (canGetEnrollSecret) {
       getEnrollSecret();
     }
