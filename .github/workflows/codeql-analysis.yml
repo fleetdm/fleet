@@ -11,14 +11,14 @@ on:
       - '**.ts'
       - '**.tsx'
   pull_request:
-    # The branches below must be a subset of the branches above
-    branches: [ main ]
-    paths:
-      - '**.go'
-      - '**.js'
-      - '**.jsx'
-      - '**.ts'
-      - '**.tsx'
+#    # The branches below must be a subset of the branches above
+#    branches: [ main ]
+#    paths:
+#      - '**.go'
+#      - '**.js'
+#      - '**.jsx'
+#      - '**.ts'
+#      - '**.tsx'
   schedule:
     - cron: '18 17 * * 1'
 
@@ -45,10 +45,10 @@ jobs:
 
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL
-      uses: github/codeql-action/init@883476649888a9e8e219d5b2e6b789dc024f690c # v1
+      uses: github/codeql-action/init@81bfc289f5947eca8a3358341c874cb4f4697b64 # v2.8.4
       with:
         languages: ${{ matrix.language }}
         config-file: .github/workflows/config/codeql.yml
 
     - name: Perform CodeQL Analysis
-      uses: github/codeql-action/analyze@883476649888a9e8e219d5b2e6b789dc024f690c # v1
+      uses: github/codeql-action/analyze@81bfc289f5947eca8a3358341c874cb4f4697b64 # v2.8.4
