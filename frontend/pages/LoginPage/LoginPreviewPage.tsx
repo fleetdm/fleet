@@ -20,7 +20,7 @@ interface ILoginData {
   password: string;
 }
 
-const PreviewLoginPage = ({ router }: ILoginPreviewPageProps): JSX.Element => {
+const LoginPreviewPage = ({ router }: ILoginPreviewPageProps): JSX.Element => {
   const { isPreviewMode, setAvailableTeams, setCurrentUser, setCurrentTeam } = useContext(
     AppContext
   );
@@ -62,4 +62,4 @@ const PreviewLoginPage = ({ router }: ILoginPreviewPageProps): JSX.Element => {
   );
 };
 
-export default PreviewLoginPage;
+export default LoginPreviewPage;

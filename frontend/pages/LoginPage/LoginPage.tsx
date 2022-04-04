@@ -8,7 +8,7 @@ import { RoutingContext } from "context/routing";
 import { ISSOSettings } from "interfaces/ssoSettings";
 import local from "utilities/local";
 import sessionsAPI from "services/entities/sessions"; // @ts-ignore
-import { formatErrorResponse } from "redux/nodes/entities/base/helpers"
+import { formatErrorResponse } from "redux/nodes/entities/base/helpers";
 
 // @ts-ignore
 import AuthenticationFormWrapper from "components/AuthenticationFormWrapper"; // @ts-ignore
@@ -68,7 +68,7 @@ const LoginPage = ({ router }: ILoginPageProps) => {
     const { HOME, RESET_PASSWORD } = paths;
 
     try {
-      const { user, available_teams, token } = await sessionsAPI.create(formData)
+      const { user, available_teams, token } = await sessionsAPI.create(formData);
       local.setItem("auth_token", token);
 
       setLoginVisible(false);
