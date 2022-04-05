@@ -59,6 +59,10 @@ footer {
   color: @core-vibrant-red !important; //lesshint-disable-line importantRule
 }
 
+.text-muted {
+  color: @core-fleet-black-50 !important; //lesshint-disable-line importantRule
+}
+
 a.text-danger:hover, a.text-danger:focus {
   color: darken(@core-vibrant-red, 20%) !important; //lesshint-disable-line importantRule
 }
@@ -71,6 +75,10 @@ a.text-danger:hover, a.text-danger:focus {
   font-size: 20px;
   line-height: 23px;
   border-radius: 10px;
+
+  &:focus {
+    box-shadow: none;
+  }
 
   &.btn-link {
     color: #ffffff;
@@ -131,6 +139,22 @@ a.text-danger:hover, a.text-danger:focus {
     }
     &:not(:disabled):not(.disabled):focus {
       box-shadow: none;
+    }
+  }
+
+  &.btn-outline-secondary {
+    color: @core-fleet-black;
+    border: 1px solid #C5C7D1;
+    &:hover {
+      background: #fff;
+    }
+    &:focus {
+      box-shadow: none;
+    }
+    &:not(:disabled):not(.disabled):active, &:not(:disabled):not(.disabled).active, .show > &.dropdown-toggle {
+      color: @core-fleet-black;
+      background: none;
+      border: 1px solid #C5C7D1;
     }
   }
 }
