@@ -129,24 +129,16 @@ const IntegrationsPage = (): JSX.Element => {
         .then(() => {
           renderFlash(
             "success",
-            // <>
-            //   Successfully added{" "}
-            //   <b>
-            //     {
-            //       jiraIntegrationSubmitData[
-            //         jiraIntegrationSubmitData.length - 1
-            //       ].url
-            //     }
-            //   </b>
-            // </>
-            `
-                Successfully added 
-                  ${
-                    jiraIntegrationSubmitData[
-                      jiraIntegrationSubmitData.length - 1
-                    ].url
-                  }
-              `
+            <>
+              Successfully added{" "}
+              <b>
+                {
+                  jiraIntegrationSubmitData[
+                    jiraIntegrationSubmitData.length - 1
+                  ].url
+                }
+              </b>
+            </>
           );
           setBackendValidators({});
           toggleAddIntegrationModal();
@@ -160,25 +152,17 @@ const IntegrationsPage = (): JSX.Element => {
           } else {
             renderFlash(
               "error",
-              // <>
-              //   Could not add{" "}
-              //   <b>
-              //     {
-              //       jiraIntegrationSubmitData[
-              //         jiraIntegrationSubmitData.length - 1
-              //       ].url
-              //     }
-              //   </b>
-              //   . Please try again.
-              // </>
-              `
-                  Could not add
-                    ${
-                      jiraIntegrationSubmitData[
-                        jiraIntegrationSubmitData.length - 1
-                      ].url
-                    }
-                  . Please try again.`
+              <>
+                Could not add{" "}
+                <b>
+                  {
+                    jiraIntegrationSubmitData[
+                      jiraIntegrationSubmitData.length - 1
+                    ].url
+                  }
+                </b>
+                . Please try again.
+              </>
             );
             toggleAddIntegrationModal();
           }
@@ -198,25 +182,18 @@ const IntegrationsPage = (): JSX.Element => {
         .then(() => {
           renderFlash(
             "success",
-            // <>
-            //   Successfully deleted <b>{integrationEditing.url}</b>
-            // </>
-            `
-                Successfully deleted ${integrationEditing.url}
-              `
+            <>
+              Successfully deleted <b>{integrationEditing.url}</b>
+            </>
           );
         })
         .catch(() => {
           renderFlash(
             "error",
-            // <>
-            //   Could not delete <b>{integrationEditing.url}</b>. Please try
-            //   again.
-            // </>
-            `
-                Could not delete ${integrationEditing.url}. Please try
-                again.
-              `
+            <>
+              Could not delete <b>{integrationEditing.url}</b>. Please try
+              again.
+            </>
           );
         })
         .finally(() => {
@@ -240,24 +217,16 @@ const IntegrationsPage = (): JSX.Element => {
           .then(() => {
             renderFlash(
               "success",
-              // <>
-              //   Successfully edited{" "}
-              //   <b>
-              //     {
-              //       jiraIntegrationSubmitData[
-              //         integrationEditing?.integrationIndex
-              //       ].url
-              //     }
-              //   </b>
-              // </>
-              `
-                  Successfully edited 
-                    ${
-                      jiraIntegrationSubmitData[
-                        integrationEditing?.integrationIndex
-                      ].url
-                    }
-                `
+              <>
+                Successfully edited{" "}
+                <b>
+                  {
+                    jiraIntegrationSubmitData[
+                      integrationEditing?.integrationIndex
+                    ].url
+                  }
+                </b>
+              </>
             );
             setBackendValidators({});
             setTestingConnection(false);
@@ -273,14 +242,10 @@ const IntegrationsPage = (): JSX.Element => {
             } else {
               renderFlash(
                 "error",
-                // <>
-                //   Could not edit <b>{integrationEditing?.url}</b>. Please try
-                //   again.
-                // </>
-                `
-                    Could not edit ${integrationEditing?.url}. Please try
-                    again.
-                  `
+                <>
+                  Could not edit <b>{integrationEditing?.url}</b>. Please try
+                  again.
+                </>
               );
             }
           })

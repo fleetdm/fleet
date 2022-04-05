@@ -10,7 +10,7 @@ type InitialStateType = {
   notification: INotification | null;
   renderFlash: (
     alertType: "success" | "error" | "warning-filled" | null,
-    message: string | null,
+    message: JSX.Element | string | null,
     undoAction?: (evt: React.MouseEvent<HTMLButtonElement>) => void
   ) => void;
   hideFlash: () => void;
@@ -57,7 +57,7 @@ const NotificationProvider = ({ children }: Props) => {
     notification: state.notification,
     renderFlash: (
       alertType: "success" | "error" | "warning-filled" | null,
-      message: string | null,
+      message: JSX.Element | string | null,
       undoAction?: (evt: React.MouseEvent<HTMLButtonElement>) => void
     ) => {
       dispatch({
