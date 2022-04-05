@@ -91,7 +91,7 @@ Empathy leads to better understanding, better communication, and better decision
   - Think like an owner.
   - Follow through on commitments (actions match your words).
   - Own up to your mistakes.
-  - Understand why our goals matters.
+  - Understand why our goals matter.
   - Consider the business impact (fast forward 12 months, consider the total cost of ownership over the eternity of maintenance).
   - Do things that don't scale, sometimes.
 - Be responsive.
