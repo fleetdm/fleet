@@ -149,7 +149,7 @@ Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.
 <!-- TODO: write short preamble, like the others --> 
 
 - Be curious.
-  - Ask great questions & take the time to listen genuinely. 
+  - Ask great questions & take the time to truly listen. 
   - Listen intently to feedback, and truly try to understand (especially constructive criticism).  <!-- TODO: Trust the feedback from counterparts. It’s easy to quickly say “no” or ignore feedback because we’re busy and we often default to our way of thinking is right. Trust that your counterpart is making a good suggestion and give it the time/consideration it deserves. -->
   - See failure as a beginning (it is rare to get things right the first time).
   - Question yourself "why do I think this?".
