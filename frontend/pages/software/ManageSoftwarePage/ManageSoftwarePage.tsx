@@ -5,12 +5,11 @@ import { InjectedRouter } from "react-router/lib/Router";
 import { useDebouncedCallback } from "use-debounce/lib";
 
 import { AppContext } from "context/app";
+import { NotificationContext } from "context/notification";
 import { IConfig, IConfigNested } from "interfaces/config";
 import { IWebhookSoftwareVulnerabilities } from "interfaces/webhook";
 // @ts-ignore
 import { getConfig } from "redux/nodes/app/actions";
-// @ts-ignore
-import { renderFlash } from "redux/nodes/notifications/actions";
 import configAPI from "services/entities/config";
 import softwareAPI, {
   ISoftwareResponse,
@@ -67,6 +66,7 @@ const ManageSoftwarePage = ({
     isGlobalAdmin,
     isGlobalMaintainer,
   } = useContext(AppContext);
+  const { renderFlash } = useContext(NotificationContext);
 
   const [isSoftwareEnabled, setIsSoftwareEnabled] = useState<boolean>();
   const [filterVuln, setFilterVuln] = useState(
@@ -227,19 +227,15 @@ const ManageSoftwarePage = ({
         },
       });
       await request.then(() => {
-        dispatch(
-          renderFlash(
-            "success",
-            "Successfully updated vulnerability automations."
-          )
+        renderFlash(
+          "success",
+          "Successfully updated vulnerability automations."
         );
       });
     } catch {
-      dispatch(
-        renderFlash(
-          "error",
-          "Could not update vulnerability automations. Please try again."
-        )
+      renderFlash(
+        "error",
+        "Could not update vulnerability automations. Please try again."
       );
     } finally {
       toggleManageAutomationsModal();
