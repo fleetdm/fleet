@@ -25,6 +25,9 @@ const AppSettingsPage = (): JSX.Element => {
     refetch: refetchConfig,
   } = useQuery<IConfig, Error, IConfig>(["config"], () => configAPI.loadAll(), {
     select: (data: IConfig) => data,
+    onSuccess: (data) => {
+      setConfig(data);
+    },
   });
 
   const onFormSubmit = useCallback(
@@ -55,10 +58,9 @@ const AppSettingsPage = (): JSX.Element => {
         })
         .finally(() => {
           refetchConfig();
-          appConfig && setConfig(appConfig);
         });
     },
-    [appConfig, setConfig]
+    [appConfig]
   );
 
   // WHY???
