@@ -300,8 +300,8 @@ Our goals with security keys are to:
 
 ### Setting up security keys on Google
 
-We recommend setting up **three** security keys on your Google account for redundancy purposes as well as
-to minimize.
+We recommend setting up **three** security keys on your Google account for redundancy purposes: two
+YubiKeys and your phone as the third key.
 
 If you get a warning during this process about your keyboard not being identified, this is due to
 YubiKeys having a feature that can simulate a keyboard. Ignore the "Your keyboard cannot be
