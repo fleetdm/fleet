@@ -24,7 +24,7 @@ DRIs help us collaborate efficiently by knowing exactly who is responsible and c
 | Lead engineering standup and sprint planning | Zach Wasserman* |
 | Customer Slack channels | Tony Gauda |
 | Customer renewals | Tony Gauda |
-| Documentation quality | Tony Gauda, Kathy Satterlee, Kelvin Omereshone |
+| Documentation quality | Michael Thomas |
 | Quality of core product backend | Tomás Touceda |
 | Quality of fleetctl (and other tools) | Tomás Touceda |
 | Final cut of what goes into each release | Zach Wasserman |
