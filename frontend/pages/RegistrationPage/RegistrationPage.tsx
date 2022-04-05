@@ -5,6 +5,7 @@ import { max } from "lodash";
 import paths from "router/paths"; // @ts-ignore
 import { AppContext } from "context/app";
 import usersAPI from "services/entities/users";
+import local from "utilities/local";
 
 // @ts-ignore
 import RegistrationForm from "components/forms/RegistrationForm"; // @ts-ignore
@@ -16,7 +17,7 @@ interface IRegistrationPageProps {
 }
 
 const RegistrationPage = ({ router }: IRegistrationPageProps) => {
-  const { currentUser } = useContext(AppContext);
+  const { currentUser, setCurrentUser, setAvailableTeams } = useContext(AppContext);
   const [page, setPage] = useState<number>(1);
   const [pageProgress, setPageProgress] = useState<number>(1);
 
@@ -38,7 +39,12 @@ const RegistrationPage = ({ router }: IRegistrationPageProps) => {
     const { MANAGE_HOSTS } = paths;
 
     try {
-      await usersAPI.setup(formData);
+      const { token } = await usersAPI.setup(formData);
+      local.setItem("auth_token", token);
+
+      const { user, available_teams } = await usersAPI.me();
+      setCurrentUser(user);
+      setAvailableTeams(available_teams);
       return router.push(MANAGE_HOSTS);
     } catch (response) {
       console.error(response);

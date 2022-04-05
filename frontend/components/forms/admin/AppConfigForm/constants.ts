@@ -1,9 +1,7 @@
 import { IConfig } from "interfaces/config";
-import { IEnrollSecret } from "interfaces/enroll_secret";
 
 export interface IAppConfigFormProps {
   appConfig: IConfig;
-  enrollSecret: IEnrollSecret[] | undefined;
   handleSubmit: any;
 }
 
