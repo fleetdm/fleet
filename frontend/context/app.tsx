@@ -155,10 +155,10 @@ const reducer = (state: InitialStateType, action: IAction) => {
 
       return {
         ...state,
-        availableTeams: availableTeams.sort(
-          (a: ITeamSummary, b: ITeamSummary) =>
+        availableTeams:
+          availableTeams?.sort((a: ITeamSummary, b: ITeamSummary) =>
             sort.caseInsensitiveAsc(a.name, b.name)
-        ),
+          ) || [],
       };
     }
     case ACTIONS.SET_CURRENT_USER: {
