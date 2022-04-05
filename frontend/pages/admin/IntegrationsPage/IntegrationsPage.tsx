@@ -1,7 +1,7 @@
-import React, { useState, useCallback } from "react";
-import { useDispatch } from "react-redux";
+import React, { useState, useContext, useCallback } from "react";
 import { useQuery } from "react-query";
 
+import { NotificationContext } from "context/notification";
 import { IConfigNested } from "interfaces/config";
 import {
   IIntegrations,
@@ -12,15 +12,12 @@ import {
 } from "interfaces/integration";
 import { IApiError } from "interfaces/errors";
 
-// @ts-ignore
-import { renderFlash } from "redux/nodes/notifications/actions";
 import Button from "components/buttons/Button";
 // @ts-ignore
 import FleetIcon from "components/icons/FleetIcon";
 import { DEFAULT_CREATE_INTEGRATION_ERRORS } from "utilities/constants";
 
 import configAPI from "services/entities/config";
-import MOCKS from "services/mock_service/mocks/responses";
 
 import TableContainer from "components/TableContainer";
 import TableDataError from "components/TableDataError";
@@ -37,7 +34,8 @@ const baseClass = "integrations-management";
 const noIntegrationsClass = "no-integrations";
 
 const IntegrationsPage = (): JSX.Element => {
-  const dispatch = useDispatch();
+  const { renderFlash } = useContext(NotificationContext);
+
   const [showAddIntegrationModal, setShowAddIntegrationModal] = useState(false);
   const [showDeleteIntegrationModal, setShowDeleteIntegrationModal] = useState(
     false
@@ -68,16 +66,18 @@ const IntegrationsPage = (): JSX.Element => {
     refetch: refetchIntegrations,
   } = useQuery<IConfigNested, Error, IJiraIntegration[]>(
     ["integrations"],
-    () => configAPI.loadIntegrations(),
+    () => configAPI.loadAll(),
     {
       select: (data: IConfigNested) => {
         return data.integrations.jira;
       },
       onSuccess: (data) => {
-        const addIndex = data.map((integration, index) => {
-          return { ...integration, integrationIndex: index };
-        });
-        setIntegrationsIndexed(addIndex);
+        if (data) {
+          const addIndex = data.map((integration, index) => {
+            return { ...integration, integrationIndex: index };
+          });
+          setIntegrationsIndexed(addIndex);
+        }
       },
     }
   );
@@ -123,29 +123,30 @@ const IntegrationsPage = (): JSX.Element => {
 
   const onCreateSubmit = useCallback(
     (jiraIntegrationSubmitData: IJiraIntegration[]) => {
-      console.log(
-        "onCreateSubmit data \njiraIntegrationSubmitData:",
-        jiraIntegrationSubmitData
-      );
       setTestingConnection(true);
-      // replace with .update when we have the API
       configAPI
-        .updateIntegrations(MOCKS.configAdd2)
+        .update({ integrations: { jira: jiraIntegrationSubmitData } })
         .then(() => {
-          dispatch(
-            renderFlash(
-              "success",
-              <>
-                Successfully added{" "}
-                <b>
-                  {
+          renderFlash(
+            "success",
+            // <>
+            //   Successfully added{" "}
+            //   <b>
+            //     {
+            //       jiraIntegrationSubmitData[
+            //         jiraIntegrationSubmitData.length - 1
+            //       ].url
+            //     }
+            //   </b>
+            // </>
+            `
+                Successfully added 
+                  ${
                     jiraIntegrationSubmitData[
                       jiraIntegrationSubmitData.length - 1
                     ].url
                   }
-                </b>
-              </>
-            )
+              `
           );
           setBackendValidators({});
           toggleAddIntegrationModal();
@@ -157,21 +158,27 @@ const IntegrationsPage = (): JSX.Element => {
               name: "A team with this name already exists", // TODO: Any backend errors here
             });
           } else {
-            dispatch(
-              renderFlash(
-                "error",
-                <>
-                  Could not add{" "}
-                  <b>
-                    {
+            renderFlash(
+              "error",
+              // <>
+              //   Could not add{" "}
+              //   <b>
+              //     {
+              //       jiraIntegrationSubmitData[
+              //         jiraIntegrationSubmitData.length - 1
+              //       ].url
+              //     }
+              //   </b>
+              //   . Please try again.
+              // </>
+              `
+                  Could not add
+                    ${
                       jiraIntegrationSubmitData[
                         jiraIntegrationSubmitData.length - 1
                       ].url
                     }
-                  </b>
-                  . Please try again.
-                </>
-              )
+                  . Please try again.`
             );
             toggleAddIntegrationModal();
           }
@@ -180,42 +187,36 @@ const IntegrationsPage = (): JSX.Element => {
           setTestingConnection(false);
         });
     },
-    [dispatch, toggleAddIntegrationModal]
+    [toggleAddIntegrationModal]
   );
 
   const onDeleteSubmit = useCallback(() => {
     if (integrationEditing) {
-      const removeIntegration = integrations?.splice(
-        integrationEditing.integrationIndex,
-        1
-      );
-
-      console.log(
-        "onDeleteSubmit data \n removeIntegration:",
-        removeIntegration
-      );
-      // replace with .update(removeIntegration) when we have the APIs
+      integrations?.splice(integrationEditing.integrationIndex, 1);
       configAPI
-        .updateIntegrations(MOCKS.config1)
+        .update({ integrations: { jira: integrations } })
         .then(() => {
-          dispatch(
-            renderFlash(
-              "success",
-              <>
-                Successfully deleted <b>{integrationEditing.url}</b>
-              </>
-            )
+          renderFlash(
+            "success",
+            // <>
+            //   Successfully deleted <b>{integrationEditing.url}</b>
+            // </>
+            `
+                Successfully deleted ${integrationEditing.url}
+              `
           );
         })
         .catch(() => {
-          dispatch(
-            renderFlash(
-              "error",
-              <>
-                Could not delete <b>{integrationEditing.url}</b>. Please try
+          renderFlash(
+            "error",
+            // <>
+            //   Could not delete <b>{integrationEditing.url}</b>. Please try
+            //   again.
+            // </>
+            `
+                Could not delete ${integrationEditing.url}. Please try
                 again.
-              </>
-            )
+              `
           );
         })
         .finally(() => {
@@ -223,7 +224,7 @@ const IntegrationsPage = (): JSX.Element => {
           toggleDeleteIntegrationModal();
         });
     }
-  }, [dispatch, integrationEditing, toggleDeleteIntegrationModal]);
+  }, [integrationEditing, toggleDeleteIntegrationModal]);
 
   const onEditSubmit = useCallback(
     (jiraIntegrationSubmitData: IJiraIntegration[]) => {
@@ -235,26 +236,32 @@ const IntegrationsPage = (): JSX.Element => {
       if (integrationEditing) {
         setTestingConnection(true);
         configAPI
-          .updateIntegrations(MOCKS.config2)
+          .update({ integrations: { jira: jiraIntegrationSubmitData } })
           .then(() => {
-            dispatch(
-              renderFlash(
-                "success",
-                <>
-                  Successfully edited{" "}
-                  <b>
-                    {
+            renderFlash(
+              "success",
+              // <>
+              //   Successfully edited{" "}
+              //   <b>
+              //     {
+              //       jiraIntegrationSubmitData[
+              //         integrationEditing?.integrationIndex
+              //       ].url
+              //     }
+              //   </b>
+              // </>
+              `
+                  Successfully edited 
+                    ${
                       jiraIntegrationSubmitData[
                         integrationEditing?.integrationIndex
                       ].url
                     }
-                  </b>
-                </>
-              )
+                `
             );
             setBackendValidators({});
             setTestingConnection(false);
-            toggleEditIntegrationModal();
+            setShowEditIntegrationModal(false);
             refetchIntegrations();
           })
           .catch((updateError: { data: IApiError }) => {
@@ -264,14 +271,16 @@ const IntegrationsPage = (): JSX.Element => {
                 name: "A team with this name already exists", // TODO: Any backend errors here
               });
             } else {
-              dispatch(
-                renderFlash(
-                  "error",
-                  <>
-                    Could not edit <b>{integrationEditing?.url}</b>. Please try
+              renderFlash(
+                "error",
+                // <>
+                //   Could not edit <b>{integrationEditing?.url}</b>. Please try
+                //   again.
+                // </>
+                `
+                    Could not edit ${integrationEditing?.url}. Please try
                     again.
-                  </>
-                )
+                  `
               );
             }
           })
@@ -280,7 +289,7 @@ const IntegrationsPage = (): JSX.Element => {
           });
       }
     },
-    [dispatch, integrationEditing, toggleEditIntegrationModal]
+    [integrationEditing, toggleEditIntegrationModal]
   );
 
   const onActionSelection = (
@@ -360,7 +369,7 @@ const IntegrationsPage = (): JSX.Element => {
           defaultSortDirection={"asc"}
           actionButtonText={"Add integration"}
           actionButtonVariant={"brand"}
-          hideActionButton={integrations && integrations.length === 0}
+          hideActionButton={!integrations || integrations.length === 0}
           onActionButtonClick={toggleAddIntegrationModal}
           resultsTitle={"integrations"}
           emptyComponent={NoIntegrationsComponent}
