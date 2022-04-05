@@ -6,8 +6,8 @@ import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 import { ICreateUserWithInvitationFormData } from "interfaces/user";
 import paths from "router/paths";
-import usersAPI from "services/entities/users"; // @ts-ignore
-import { formatErrorResponse } from "redux/nodes/entities/base/helpers";
+import usersAPI from "services/entities/users";
+import formatErrorResponse from "utilities/format_error_response";
 
 // @ts-ignore
 import AuthenticationFormWrapper from "components/AuthenticationFormWrapper"; // @ts-ignore

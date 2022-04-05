@@ -3,8 +3,7 @@ import React, { useEffect, useState } from "react";
 import PATHS from "router/paths";
 import usersAPI from "services/entities/users";
 
-// @ts-ignore
-import { formatErrorResponse } from "redux/nodes/entities/base/helpers"; // @ts-ignore
+import formatErrorResponse from "utilities/format_error_response"; // @ts-ignore
 import ForgotPasswordForm from "components/forms/ForgotPasswordForm"; // @ts-ignore
 import StackedWhiteBoxes from "components/StackedWhiteBoxes"; // @ts-ignore
 import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";

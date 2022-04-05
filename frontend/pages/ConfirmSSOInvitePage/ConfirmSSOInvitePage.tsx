@@ -5,8 +5,8 @@ import { Params } from "react-router/lib/Router";
 import paths from "router/paths";
 import { AppContext } from "context/app";
 import usersAPI from "services/entities/users";
-import sessionsAPI from "services/entities/sessions"; // @ts-ignore
-import { formatErrorResponse } from "redux/nodes/entities/base/helpers";
+import sessionsAPI from "services/entities/sessions";
+import formatErrorResponse from "utilities/format_error_response";
 
 // @ts-ignore
 import AuthenticationFormWrapper from "components/AuthenticationFormWrapper"; // @ts-ignore

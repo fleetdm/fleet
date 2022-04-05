@@ -5,9 +5,10 @@ import { size } from "lodash";
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
 import usersAPI from "services/entities/users";
-import configAPI from "services/entities/config"; // @ts-ignore
-import { formatErrorResponse } from "redux/nodes/entities/base/helpers"; // @ts-ignore
+import configAPI from "services/entities/config";
+import formatErrorResponse from "utilities/format_error_response";
 
+// @ts-ignore
 import ResetPasswordForm from "components/forms/ResetPasswordForm"; // @ts-ignore
 import StackedWhiteBoxes from "components/StackedWhiteBoxes"; // @ts-ignore
 import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";

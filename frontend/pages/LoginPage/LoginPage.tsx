@@ -7,8 +7,8 @@ import { AppContext } from "context/app";
 import { RoutingContext } from "context/routing";
 import { ISSOSettings } from "interfaces/ssoSettings";
 import local from "utilities/local";
-import sessionsAPI from "services/entities/sessions"; // @ts-ignore
-import { formatErrorResponse } from "redux/nodes/entities/base/helpers";
+import sessionsAPI from "services/entities/sessions";
+import formatErrorResponse from "utilities/format_error_response";
 
 // @ts-ignore
 import AuthenticationFormWrapper from "components/AuthenticationFormWrapper"; // @ts-ignore

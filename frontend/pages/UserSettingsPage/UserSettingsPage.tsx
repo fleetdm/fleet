@@ -10,8 +10,8 @@ import { IVersionData } from "interfaces/version";
 import { IUser } from "interfaces/user"; // @ts-ignore
 import deepDifference from "utilities/deep_difference";
 import usersAPI from "services/entities/users";
-import versionAPI from "services/entities/version"; // @ts-ignore
-import { formatErrorResponse } from "redux/nodes/entities/base/helpers";
+import versionAPI from "services/entities/version";
+import formatErrorResponse from "utilities/format_error_response";
 import { generateRole, generateTeam, greyCell } from "fleet/helpers";
 
 import Avatar from "components/Avatar";

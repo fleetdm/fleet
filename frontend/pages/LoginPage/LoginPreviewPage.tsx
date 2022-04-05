@@ -4,8 +4,7 @@ import { InjectedRouter } from "react-router";
 import paths from "router/paths";
 import { AppContext } from "context/app"; // @ts-ignore
 import sessionsAPI from "services/entities/sessions";
-import local from "utilities/local"; // @ts-ignore
-import { formatErrorResponse } from "redux/nodes/entities/base/helpers";
+import local from "utilities/local";
 
 // @ts-ignore
 import LoginSuccessfulPage from "pages/LoginSuccessfulPage"; // @ts-ignore
