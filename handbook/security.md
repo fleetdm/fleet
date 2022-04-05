@@ -524,7 +524,7 @@ Google's name for Two-Factor Authentication (2FA) or Multi-Factor Authentication
 | SMS/Phone-based 2FA                                                           | Puts trust in the phone number itself, which attackers can hijack by [social engineering phone companies](https://www.vice.com/en/topic/sim-hijacking).      |
 | Time-based one-time password (TOTP - Google Authenticator type 6 digit codes) | Phishable as long as the attacker uses it within its short lifetime by intercepting the login form. |
 | App-based push notifications                                                  | Harder to phish than TOTP, but by sending a lot of prompts to a phone, a user might accidentally accept a nefarious notification.       |
-| Hardware security keys                                                        | [Most secure](https://krebsonsecurity.com/2018/07/google-security-keys-neutralized-employee-phishing/), but requires extra hardware or a recent smartphone.                                                                 |
+| Hardware security keys                                                        | [Most secure](https://krebsonsecurity.com/2018/07/google-security-keys-neutralized-employee-phishing/), but requires extra hardware or a recent smartphone. Configure this as soon as you receive your Fleet YubiKeys                                                                |
 
 **2-Step Verification in Google Workspace**
 
@@ -540,9 +540,12 @@ We apply the following settings to *Security/2-Step Verification* to all users a
 
 **Hardware security keys**
 
-We strongly recommend providing users with hardware security keys. [Titan Keys](https://store.google.com/us/config/titan_security_key?hl=en-US) from Google are compatible with laptops, iPad Pros, iPhones (NFC), and Android phones (NFC or USB-C). The [YubiKey 5C NFC](https://www.yubico.com/ca/product/yubikey-5c-nfc/) is also compatible and includes extra features like support for OpenPGP and additional protocols. It is also possible to use a phone as a [security key](https://support.google.com/accounts/answer/9289445?hl=en&co=GENIE.Platform%3DAndroid).
+We strongly recommend the use of hardware security keys. 
 
-Specific groups of users, such as privileged user accounts, separate from regular day-to-day accounts, should be configured with a policy that enforces the use of hardware security keys, which prevent credential theft better than other methods of 2FA/2-SV.
+Privileged user accounts are configured with a policy that enforces the use of hardware security
+keys, which prevent credential theft better than other methods of 2FA/2-SV. See [hardware security
+keys](https://fleetdm.com/handbook/security#hardware-security-keys) for information about setting
+them up, as well as the model we use and why.
 
 
 #### Passwords
