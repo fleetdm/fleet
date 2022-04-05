@@ -51,15 +51,6 @@ const SoftwareTable = ({
     setFilters({ global: searchString, vulnerabilities: filterVuln });
   }, [searchString, filterVuln]);
 
-  // const onQueryChange = useDebouncedCallback(
-  //   ({ searchQuery }: { searchQuery: string }) => {
-  //     setFilterGlobal(searchQuery);
-  //   setFilters({
-  //     name: searchString,
-  //     vulnerabilities: filterVuln,
-  //   });
-  // }, [searchString, filterVuln]);
-
   const onQueryChange = useDebouncedCallback(
     ({ searchQuery }: { searchQuery: string }) => {
       setSearchString(searchQuery);
