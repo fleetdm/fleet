@@ -52,14 +52,57 @@ func NewJiraClient(opts *JiraOptions) (*Jira, error) {
 	}, nil
 }
 
+// CurrentUser returns information about the user configured to make Jira API
+// requests. It can be used to test authentication and connection parameters
+// to the Jira instance.
+func (j *Jira) CurrentUser(ctx context.Context) (*jira.User, error) {
+	var user *jira.User
+
+	op := func() (*jira.Response, error) {
+		var (
+			err  error
+			resp *jira.Response
+		)
+		user, resp, err = j.client.User.GetSelfWithContext(ctx)
+		return resp, err
+	}
+
+	if err := doWithRetry(op); err != nil {
+		return nil, err
+	}
+	return user, nil
+}
+
 // CreateIssue creates an issue on the jira server targeted by the Jira client.
 // It returns the created issue or an error.
 func (j *Jira) CreateIssue(ctx context.Context, issue *jira.Issue) (*jira.Issue, error) {
+	if issue.Fields == nil {
+		issue.Fields = &jira.IssueFields{}
+	}
+	issue.Fields.Project.Key = j.projectKey
+
 	var createdIssue *jira.Issue
-	op := func() error {
-		var err error
-		var resp *jira.Response
+	op := func() (*jira.Response, error) {
+		var (
+			err  error
+			resp *jira.Response
+		)
 		createdIssue, resp, err = j.client.Issue.CreateWithContext(ctx, issue)
+		return resp, err
+	}
+
+	if err := doWithRetry(op); err != nil {
+		return nil, err
+	}
+	return createdIssue, nil
+}
+
+func doWithRetry(fn func() (*jira.Response, error)) error {
+	op := func() error {
+		resp, err := fn()
+		if err == nil {
+			return nil
+		}
 
 		var netErr net.Error
 		if errors.As(err, &netErr) {
@@ -69,27 +112,15 @@ func (j *Jira) CreateIssue(ctx context.Context, issue *jira.Issue) (*jira.Issue,
 			}
 		}
 
-		if err != nil && resp.StatusCode >= http.StatusInternalServerError {
+		if resp.StatusCode >= http.StatusInternalServerError {
 			// 500+ status, can be worth retrying
 			return err
 		}
 
-		if err != nil {
-			// at this point, this is a non-retryable error
-			return backoff.Permanent(err)
-		}
-
-		return err
+		// at this point, this is a non-retryable error
+		return backoff.Permanent(err)
 	}
-
-	if issue.Fields == nil {
-		issue.Fields = &jira.IssueFields{}
-	}
-	issue.Fields.Project.Key = j.projectKey
 
 	boff := backoff.WithMaxRetries(backoff.NewConstantBackOff(retryBackoff), uint64(maxRetries))
-	if err := backoff.Retry(op, boff); err != nil {
-		return nil, err
-	}
-	return createdIssue, nil
+	return backoff.Retry(op, boff)
 }

@@ -55,6 +55,8 @@ func TestJira(t *testing.T) {
 	})
 
 	t.Run("success", func(t *testing.T) {
+		countCalls = 0
+
 		client, err := NewJiraClient(&JiraOptions{
 			BaseURL:           srv.URL,
 			BasicAuthUsername: "ok",
@@ -69,5 +71,6 @@ func TestJira(t *testing.T) {
 		})
 		require.NoError(t, err)
 		require.NotZero(t, iss.ID)
+		require.Equal(t, 1, countCalls)
 	})
 }
