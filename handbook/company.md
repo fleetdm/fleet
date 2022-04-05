@@ -162,7 +162,7 @@ Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.
   - Proceed boldly, but change your mind in the face of new evidence ("strong opinions, loosely held").
   - Avoid the sunk cost fallacy (getting attached to something just because you invested time working on it, or came up with it).
   - Be fair to competitors ("may the best product win")
-  - Give credit where credit is due  (don't show favoritism). <!-- as it breeds resentment, destroys employee morale, and creates disincentives for good performance.  Seek out ways to be fair to everyone - https://about.gitlab.com/handbook/values/#permission-to-play -->
+  - Give credit where credit is due (don't show favoritism). <!-- as it breeds resentment, destroys employee morale, and disincentives for good performance. Seek out ways to be fair to everyone - https://about.gitlab.com/handbook/values/#permission-to-play -->
   - Work based on facts, over commentary.
 - Speak computer to computers.
   - A lucky fix without understanding does more harm than good.
