@@ -126,7 +126,7 @@ Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.
   - Look before you leap (when facing a non-trivial problem, get perspective before you dive in; there may be a simpler solution). <!-- TODO: When facing a (non-trivial) problem, take a step back before diving into fixing it - put the problem back in context, think about the actual goal and not just the issue itself, sometimes the obvious solution misses the end goal, sometimes a simpler solution will emerge, or it may just confirm that the fix is the right one and you can go ahead with better confidence -->
 - Move quickly.
   - "Everything is in draft."
-  - Think, fast so you can work quickly.
+  - Think fast (balance thoughtfulness and planning with moving quickly).
   - Aim to deliver results daily.
   - Move faster than 90% of the humans you know.
   - Resist gold-plating and avoid bike-shedding.
