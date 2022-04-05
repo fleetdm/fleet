@@ -5,10 +5,12 @@ import { InjectedRouter } from "react-router/lib/Router";
 import { useDebouncedCallback } from "use-debounce/lib";
 
 import { AppContext } from "context/app";
-import { NotificationContext } from "context/notification";
 import { IConfig, IConfigNested } from "interfaces/config";
-import { IWebhookSoftwareVulnerabilities } from "interfaces/webhook"; // @ts-ignore
+import { IWebhookSoftwareVulnerabilities } from "interfaces/webhook";
+// @ts-ignore
 import { getConfig } from "redux/nodes/app/actions";
+// @ts-ignore
+import { renderFlash } from "redux/nodes/notifications/actions";
 import configAPI from "services/entities/config";
 import softwareAPI, {
   ISoftwareResponse,
@@ -19,8 +21,10 @@ import {
   VULNERABLE_DROPDOWN_OPTIONS,
 } from "utilities/constants";
 
-import Button from "components/buttons/Button"; // @ts-ignore
-import Dropdown from "components/forms/fields/Dropdown"; // @ts-ignore
+import Button from "components/buttons/Button";
+// @ts-ignore
+import Dropdown from "components/forms/fields/Dropdown";
+// @ts-ignore
 import Spinner from "components/Spinner";
 import TableContainer, { ITableQueryData } from "components/TableContainer";
 import TableDataError from "components/TableDataError";
@@ -28,6 +32,7 @@ import TeamsDropdownHeader, {
   ITeamsDropdownState,
 } from "components/PageHeader/TeamsDropdownHeader";
 import renderLastUpdatedText from "components/LastUpdatedText";
+
 import softwareTableHeaders from "./SoftwareTableConfig";
 import ManageAutomationsModal from "./components/ManageAutomationsModal";
 import EmptySoftware from "../components/EmptySoftware";
@@ -62,7 +67,6 @@ const ManageSoftwarePage = ({
     isGlobalAdmin,
     isGlobalMaintainer,
   } = useContext(AppContext);
-  const { renderFlash } = useContext(NotificationContext);
 
   const [isSoftwareEnabled, setIsSoftwareEnabled] = useState<boolean>();
   const [filterVuln, setFilterVuln] = useState(
@@ -223,15 +227,19 @@ const ManageSoftwarePage = ({
         },
       });
       await request.then(() => {
-        renderFlash(
-          "success",
-          "Successfully updated vulnerability automations."
+        dispatch(
+          renderFlash(
+            "success",
+            "Successfully updated vulnerability automations."
+          )
         );
       });
     } catch {
-      renderFlash(
-        "error",
-        "Could not update vulnerability automations. Please try again."
+      dispatch(
+        renderFlash(
+          "error",
+          "Could not update vulnerability automations. Please try again."
+        )
       );
     } finally {
       toggleManageAutomationsModal();
