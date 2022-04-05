@@ -75,14 +75,11 @@ const Software = ({
       staleTime: 30000, // TODO: Discuss a reasonable staleTime given that counts are only updated infrequently?
       onSuccess: (data) => {
         setShowSoftwareUI(true);
-        if (isSoftwareEnabled) {
+        if (isSoftwareEnabled && software?.software.length !== 0) {
           setTitleDetail &&
             setTitleDetail(
               renderLastUpdatedText(data.counts_updated_at, "software")
             );
-        }
-        if (software?.software.length === 0) {
-          setTitleDetail && setTitleDetail("");
         }
       },
     }
