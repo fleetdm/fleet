@@ -91,16 +91,20 @@ const ManageAutomationsModal = ({
     refetch: refetchIntegrations,
   } = useQuery<IConfigNested, Error, IJiraIntegration[]>(
     ["integrations"],
-    () => configAPI.loadIntegrations(),
+    () => configAPI.loadAll(),
     {
       select: (data: IConfigNested) => {
         return data.integrations.jira;
       },
       onSuccess: (data) => {
-        const addIndex = data.map((integration, index) => {
-          return { ...integration, integrationIndex: index };
-        });
-        setIntegrationsIndexed(addIndex);
+        if (data) {
+          const addIndex = data.map((integration, index) => {
+            return { ...integration, integrationIndex: index };
+          });
+          setIntegrationsIndexed(addIndex);
+
+          console.log("addIndex", addIndex);
+        }
       },
     }
   );
@@ -133,7 +137,7 @@ const ManageAutomationsModal = ({
     const integrationOptions = integrationsIndexed?.map((i) => {
       return {
         value: String(i.integrationIndex),
-        label: i.url,
+        label: `${i.url} - ${i.project_key}`,
       };
     });
     return integrationOptions;
@@ -166,12 +170,12 @@ const ManageAutomationsModal = ({
             vulnerability (CVE) was published in the last 2 days.
           </p>
         </div>
-        {integrationsIndexed ? (
+        {integrationsIndexed && integrationsIndexed.length > 0 ? (
           <Dropdown
             searchable
             options={createIntegrationDropdownOptions()}
             onChange={onChangeSelectIntegration}
-            placeholder={"Every day"}
+            placeholder={"Select Jira integration"}
             value={selectedIntegration?.integrationIndex}
             label={"Integration"}
             wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--frequency`}
