@@ -194,7 +194,7 @@ Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.
   - Take initiative to improve things (no need to wait [for consensus](https://twitter.com/ryanfalor/status/1182647229414166528?s=12)).
   - Communicate openly (if you think you should send a message to communicate something, send it; but keep comments brief and relevant).
 - Be transparent.
-  - What we do is "public by default."
+  - We're "public by default."
   - We build in the open.
   - Always declassify with care (easier to overlook confidential info when declassifying vs. when changing something that is already public from the get-go).
   - [Open source is forever.](https://twitter.com/mikermcneil/status/1476799587423772674)
