@@ -29,6 +29,7 @@ export default {
   LOGOUT: "/v1/fleet/logout",
   MACADMINS: "/v1/fleet/macadmins",
   ME: "/v1/fleet/me",
+  OS_VERSIONS: "/v1/fleet/os_versions",
   OSQUERY_OPTIONS: "/v1/fleet/spec/osquery_options",
   PACKS: "/v1/fleet/packs",
   PERFORM_REQUIRED_PASSWORD_RESET: "/v1/fleet/perform_required_password_reset",

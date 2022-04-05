@@ -262,7 +262,7 @@ const DataTable = ({
   }, [isAllPagesSelected, toggleAllRowsSelected]);
 
   useEffect(() => {
-    setPageSize(CLIENT_SIDE_DEFAULT_PAGE_SIZE);
+    setPageSize(defaultPageSize || CLIENT_SIDE_DEFAULT_PAGE_SIZE);
   }, [setPageSize]);
 
   useDeepEffect(() => {
