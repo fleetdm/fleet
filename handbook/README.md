@@ -58,6 +58,8 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Google Workspace security](./security.md#google-workspace-security)
 
+[Hardware security keys](./security.md#hardware-security-keys)
+
 [Vulnerability management in Fleet](./security.md#vulnerability-management)
 
 [Slack channels](./security.md#slack-channels)
