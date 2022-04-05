@@ -24,12 +24,12 @@ DRIs help us collaborate efficiently by knowing exactly who is responsible and c
 | Lead engineering standup and sprint planning | Zach Wasserman* |
 | Customer Slack channels | Tony Gauda |
 | Customer renewals | Tony Gauda |
-| Documentation quality | Michael Thomas |
 | Quality of core product backend | Tomás Touceda |
 | Quality of fleetctl (and other tools) | Tomás Touceda |
 | Final cut of what goes into each release | Zach Wasserman |
 | When we cut a release, version numbers, and whether to release | Zach Wasserman |
 | Release notes | Noah Talerman |
+| Documentation quality | Mike Thomas |
 | Publishing release blog post, and promoting releases | Mike Thomas |
 | fleetdm.com | Mike Thomas |
 | Self-service Fleet Premium license dispenser | Mike Thomas |
