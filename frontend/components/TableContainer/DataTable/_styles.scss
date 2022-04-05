@@ -162,13 +162,25 @@
     tbody {
       td {
         height: 40px;
-        white-space: nowrap;
-        text-overflow: ellipsis;
         padding: 0 $pad-large;
 
         &.selection__cell {
           width: 0px;
           padding: 0 $pad-medium;
+        }
+        .link-cell,
+        .text-cell {
+          display: block;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          margin: 0;
+        }
+        .w400 {
+          max-width: calc(400px - 48px);
+        }
+        .w250 {
+          max-width: calc(250px - 48px);
         }
       }
       .highlight-on-hover:hover {

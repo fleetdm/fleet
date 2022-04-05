@@ -4,12 +4,14 @@ interface ITextCellProps {
   value: string | number | boolean;
   formatter?: (val: any) => string; // string, number, or null
   greyed?: string;
+  classes?: string;
 }
 
 const TextCell = ({
   value,
   formatter = (val) => val, // identity function if no formatter is provided
   greyed,
+  classes: className = "w250",
 }: ITextCellProps): JSX.Element => {
   let val = value;
 
@@ -17,7 +19,11 @@ const TextCell = ({
     val = value.toString();
   }
 
-  return <span className={greyed}>{formatter(val)}</span>;
+  return (
+    <span className={`text-cell ${className} ${greyed || ""}`}>
+      {formatter(val)}
+    </span>
+  );
 };
 
 export default TextCell;

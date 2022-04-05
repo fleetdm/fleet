@@ -121,7 +121,7 @@ const generateTableHeaders = (
       disableSortBy: true,
       accessor: "query_name",
       Cell: (cellProps: ICellProps): JSX.Element => (
-        <TextCell value={cellProps.cell.value} />
+        <TextCell classes="w400" value={cellProps.cell.value} />
       ),
     },
     {

@@ -98,6 +98,7 @@ const generateTableHeaders = (currentUser: IUser): IDataColumn[] => {
       accessor: "name",
       Cell: (cellProps: ICellProps): JSX.Element => (
         <LinkCell
+          classes="w400"
           value={cellProps.cell.value}
           path={PATHS.EDIT_QUERY(cellProps.row.original)}
         />
@@ -131,7 +132,7 @@ const generateTableHeaders = (currentUser: IUser): IDataColumn[] => {
               user={addGravatarUrlToResource({ email: author_email })}
               size="xsmall"
             />
-            {author}
+            <span className="text-cell author-name">{author}</span>
           </span>
         );
       },

@@ -118,6 +118,21 @@
           &__wrapper {
             overflow-x: scroll;
           }
+          &__table {
+            tbody {
+              .issues__cell {
+                display: flex;
+                align-items: center;
+                .host-issue {
+                  img {
+                    width: 16px;
+                    height: 16px;
+                    vertical-align: sub;
+                  }
+                }
+              }
+            }
+          }
         }
       }
     }
@@ -254,14 +269,6 @@
     }
     &:not(:only-child) {
       margin-bottom: $pad-medium;
-    }
-  }
-
-  .host-issue {
-    img {
-      width: 16px;
-      height: 16px;
-      vertical-align: sub;
     }
   }
 

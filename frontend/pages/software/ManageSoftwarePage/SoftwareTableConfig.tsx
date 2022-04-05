@@ -95,7 +95,7 @@ const softwareTableHeaders = [
       return (
         <>
           <span
-            className={`vulnerabilities ${
+            className={`text-cell vulnerabilities ${
               vulnerabilities.length > 1 ? "text-muted" : ""
             }`}
             data-tip

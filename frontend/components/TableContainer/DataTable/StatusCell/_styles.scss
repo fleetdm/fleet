@@ -1,4 +1,6 @@
 .data-table__status {
+  display: flex;
+  align-items: center;
   color: $core-fleet-blue;
   text-transform: capitalize;
 
@@ -32,14 +34,12 @@
   &--yes:before {
     padding-right: 10px;
     content: url(../assets/images/icon-check-circle-green-16x16@2x.png);
-    transform: translate(-5px, -1px) scale(0.5);
-    vertical-align: text-top;
+    transform: translate(-4px, -6px) scale(0.5);
   }
   &--no:before {
     padding-right: 8px;
     content: url(../assets/images/icon-exclamation-circle-red-16x16@2x.png);
-    transform: translate(-5px, -1px) scale(0.5);
-    vertical-align: text-top;
+    transform: translate(-4px, -6px) scale(0.5);
   }
   &--indeterminate {
     color: $ui-fleet-black-50;
