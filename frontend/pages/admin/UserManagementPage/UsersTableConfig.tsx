@@ -67,12 +67,6 @@ const generateTableHeaders = (
       title: "Name",
       Header: "Name",
       disableSortBy: true,
-      // Header: (cellProps) => (
-      //   <HeaderCell
-      //     value={cellProps.column.title}
-      //     isSortedDesc={cellProps.column.isSortedDesc}
-      //   />
-      // ),
       accessor: "name",
       Cell: (cellProps: ICellProps) => (
         <TextCell value={cellProps.cell.value} />
@@ -131,7 +125,6 @@ const generateTableHeaders = (
 
   // Add Teams tab for premium tier only
   if (isPremiumTier) {
-    // TODO: confirm order for teams vs. roles per figma
     tableHeaders.splice(2, 0, {
       title: "Teams",
       Header: "Teams",

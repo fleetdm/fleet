@@ -48,12 +48,10 @@ a {
   margin: 0;
 }
 
-// TODO: figure out how body wrap changes impact the manage hosts page and any others?
 .body-wrap {
   padding: $pad-xlarge;
   border-radius: 3px;
   background-color: $core-white;
-  // min-width: 768px;
 }
 
 .has-sidebar {
