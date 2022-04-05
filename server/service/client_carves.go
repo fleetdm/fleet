@@ -11,14 +11,14 @@ import (
 
 // ListCarves lists the file carving sessions
 func (c *Client) ListCarves(opt fleet.CarveListOptions) ([]*fleet.CarveMetadata, error) {
-	endpoint := "/api/v1/fleet/carves"
+	endpoint := "/api/latest/fleet/carves"
 	rawQuery := ""
 	if opt.Expired {
 		rawQuery = "expired=1"
 	}
 	response, err := c.AuthenticatedDo("GET", endpoint, rawQuery, nil)
 	if err != nil {
-		return nil, fmt.Errorf("GET /api/v1/fleet/carves: %w", err)
+		return nil, fmt.Errorf("GET /api/latest/fleet/carves: %w", err)
 	}
 	defer response.Body.Close()
 
@@ -49,7 +49,7 @@ func (c *Client) ListCarves(opt fleet.CarveListOptions) ([]*fleet.CarveMetadata,
 }
 
 func (c *Client) GetCarve(carveId int64) (*fleet.CarveMetadata, error) {
-	endpoint := fmt.Sprintf("/api/v1/fleet/carves/%d", carveId)
+	endpoint := fmt.Sprintf("/api/latest/fleet/carves/%d", carveId)
 	response, err := c.AuthenticatedDo("GET", endpoint, "", nil)
 	if err != nil {
 		return nil, fmt.Errorf("GET "+endpoint+": %w", err)
@@ -77,7 +77,7 @@ func (c *Client) GetCarve(carveId int64) (*fleet.CarveMetadata, error) {
 
 func (c *Client) getCarveBlock(carveId, blockId int64) ([]byte, error) {
 	path := fmt.Sprintf(
-		"/api/v1/fleet/carves/%d/block/%d",
+		"/api/latest/fleet/carves/%d/block/%d",
 		carveId,
 		blockId,
 	)
@@ -160,7 +160,7 @@ func (r *carveReader) Read(p []byte) (n int, err error) {
 
 // DownloadCarve creates a Reader downloading a carve (by ID)
 func (c *Client) DownloadCarve(id int64) (io.Reader, error) {
-	path := fmt.Sprintf("/api/v1/fleet/carves/%d", id)
+	path := fmt.Sprintf("/api/latest/fleet/carves/%d", id)
 	response, err := c.AuthenticatedDo("GET", path, "", nil)
 	if err != nil {
 		return nil, fmt.Errorf("GET %s: %w", path, err)

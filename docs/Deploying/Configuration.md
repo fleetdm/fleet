@@ -2299,10 +2299,10 @@ _**Note that the email being used in the SAML Assertion must match a user that a
 Setting up the service provider (Fleet) with an identity provider generally requires the following information:
 
 - _Assertion Consumer Service_ - This is the call back URL that the identity provider
-  will use to send security assertions to Fleet. In Okta, this field is called _Single sign on URL_. On Google it is "ACS URL". The value that you supply will be a fully qualified URL consisting of your Fleet web address and the callback path `/api/v1/fleet/sso/callback`. For example, if your Fleet web address is https://fleet.example.com, then the value you would use in the identity provider configuration would be:
+  will use to send security assertions to Fleet. In Okta, this field is called _Single sign on URL_. On Google it is "ACS URL". The value that you supply will be a fully qualified URL consisting of your Fleet web address and the callback path `/api/latest/fleet/sso/callback`. For example, if your Fleet web address is https://fleet.example.com, then the value you would use in the identity provider configuration would be:
 
   ```
-  https://fleet.example.com/api/v1/fleet/sso/callback
+  https://fleet.example.com/api/latest/fleet/sso/callback
   ```
 
 - _Entity ID_ - This value is an identifier that you choose. It identifies your Fleet instance as the service provider that issues authorization requests. The value must exactly match the Entity ID that you define in the Fleet SSO configuration.
@@ -2390,7 +2390,7 @@ Follow these steps to configure Fleet SSO with Google Workspace. This will requi
 
 5. In Google Workspace, configure the _Service provider details_.
 
-  - For _ACS URL_, use `https://<your_fleet_url>/api/v1/fleet/sso/callback` (eg. `https://fleet.example.com/api/v1/fleet/sso/callback`).
+  - For _ACS URL_, use `https://<your_fleet_url>/api/latest/fleet/sso/callback` (eg. `https://fleet.example.com/api/latest/fleet/sso/callback`).
   - For Entity ID, use **the same unique identifier from step 4** (eg. `fleet.example.com`).
   - For _Name ID format_ choose `EMAIL`.
   - For _Name ID_ choose `Basic Information > Primary email`.

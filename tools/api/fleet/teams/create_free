@@ -5,7 +5,7 @@
 source $FLEET_ENV_PATH
 
 # Create users
-create_user_endpoint="api/v1/fleet/users/admin"
+create_user_endpoint="api/latest/fleet/users/admin"
 
 # Create Anna
 data='{

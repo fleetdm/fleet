@@ -206,7 +206,7 @@ type SessionByIDFunc func(ctx context.Context, id uint) (*fleet.Session, error)
 
 type ListSessionsForUserFunc func(ctx context.Context, id uint) ([]*fleet.Session, error)
 
-type NewSessionFunc func(ctx context.Context, session *fleet.Session) (*fleet.Session, error)
+type NewSessionFunc func(ctx context.Context, userID uint, sessionKey string) (*fleet.Session, error)
 
 type DestroySessionFunc func(ctx context.Context, session *fleet.Session) error
 
@@ -1459,9 +1459,9 @@ func (s *DataStore) ListSessionsForUser(ctx context.Context, id uint) ([]*fleet.
 	return s.ListSessionsForUserFunc(ctx, id)
 }
 
-func (s *DataStore) NewSession(ctx context.Context, session *fleet.Session) (*fleet.Session, error) {
+func (s *DataStore) NewSession(ctx context.Context, userID uint, sessionKey string) (*fleet.Session, error) {
 	s.NewSessionFuncInvoked = true
-	return s.NewSessionFunc(ctx, session)
+	return s.NewSessionFunc(ctx, userID, sessionKey)
 }
 
 func (s *DataStore) DestroySession(ctx context.Context, session *fleet.Session) error {

@@ -490,7 +490,7 @@ the way that the Fleet server works.
 
 			defaultWritetimeout := 40 * time.Second
 			writeTimeout := defaultWritetimeout
-			// The "GET /api/v1/fleet/queries/run" API requires
+			// The "GET /api/latest/fleet/queries/run" API requires
 			// WriteTimeout to be higher than the live query rest period
 			// (otherwise the response is not sent back to the client).
 			//

@@ -248,6 +248,18 @@ When the final signature is added to an envelope in Docusign, it is marked as co
       link: drive.google.com/[destinationFolderID]
    ```
 
+## Rituals
+
+### OKR Planning
+
+OKRs help inform what to prioritize, and communicate company goals while encouraging cross team collaboration.
+
+At the end of the quarter, and at key points throughout the quarter (every 3 weeks), we review the status of each OKR (depending on the KR, either 100% or ≥70% completion is considered "success")
+
+- Review topdown and departmental OKRs as they are turned in.
+- OKRs they are finalized 1 week from when topdown OKRs were initially reviewed.
+- Finalized OKRs are shared company-wide and at "all hands" and, at least to some degree, become public.
+
 ## Slack channels
 
 Please see [Brand > Slack channels](https://fleetdm.com/handbook/brand#slack-channels).
