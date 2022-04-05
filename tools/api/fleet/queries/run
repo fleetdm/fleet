@@ -1,6 +1,6 @@
 #!/bin/bash
 source $FLEET_ENV_PATH
-endpoint="api/v1/fleet/queries/run"
+endpoint="api/latest/fleet/queries/run"
 echo "By default, $endpoint will take 90 seconds..."
 jq -n \
   --argjson query_ids "$1" \

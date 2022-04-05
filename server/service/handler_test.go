@@ -43,21 +43,10 @@ func TestAPIRoutesConflicts(t *testing.T) {
 	// is used to name the sub-test for that route.
 	status := 200
 	err := router.Walk(func(route *mux.Route, router *mux.Router, ancestores []*mux.Route) error {
-		routeStatus := status
 		_, path, err := mockRouteHandler(route, status)
 		if path == "" || err != nil { // failure or no method set
 			return err
 		}
-		path = reSimpleVar.ReplaceAllString(path, "$1")
-		// for now at least, the only times we use regexp-constrained vars is
-		// for numeric arguments.
-		path = reNumVar.ReplaceAllStringFunc(path, func(s string) string {
-			if strings.Index(s, "fleetversion") != -1 {
-				parts := strings.Split(strings.TrimPrefix(s, "{fleetversion:(?:"), "|")
-				return strings.TrimSuffix(parts[0], ")}")
-			}
-			return "1"
-		})
 
 		meths, _ := route.GetMethods()
 		for _, meth := range meths {
@@ -65,7 +54,7 @@ func TestAPIRoutesConflicts(t *testing.T) {
 				name: route.GetName(),
 				path: path,
 				verb: meth,
-				want: routeStatus,
+				want: status,
 			})
 		}
 
@@ -312,11 +301,13 @@ func mockRouteHandler(route *mux.Route, status int) (verb, path string, err erro
 
 	path = reSimpleVar.ReplaceAllString(path, "$1")
 	// for now at least, the only times we use regexp-constrained vars is
-	// for numeric arguments.
+	// for numeric arguments or the fleetversion specifier.
 	path = reNumVar.ReplaceAllStringFunc(path, func(s string) string {
-		if strings.Index(s, "fleetversion") != -1 {
+		if strings.Contains(s, "fleetversion") {
 			parts := strings.Split(strings.TrimPrefix(s, "{fleetversion:(?:"), "|")
-			return strings.TrimSuffix(parts[0], ")}")
+			// test with "latest" if not deprecated, or last supported version for that route
+			// (for either case, this will be in the last part)
+			return strings.TrimSuffix(parts[len(parts)-1], ")}")
 		}
 		return "1"
 	})

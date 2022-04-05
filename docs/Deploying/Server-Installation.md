@@ -225,18 +225,18 @@ sudo /usr/bin/osqueryd \
   --tls_server_certs=/var/osquery/server.pem \
   --tls_hostname=localhost:8080 \
   --host_identifier=instance \
-  --enroll_tls_endpoint=/api/v1/osquery/enroll \
+  --enroll_tls_endpoint=/api/osquery/enroll \
   --config_plugin=tls \
-  --config_tls_endpoint=/api/v1/osquery/config \
+  --config_tls_endpoint=/api/osquery/config \
   --config_refresh=10 \
   --disable_distributed=false \
   --distributed_plugin=tls \
   --distributed_interval=3 \
   --distributed_tls_max_attempts=3 \
-  --distributed_tls_read_endpoint=/api/v1/osquery/distributed/read \
-  --distributed_tls_write_endpoint=/api/v1/osquery/distributed/write \
+  --distributed_tls_read_endpoint=/api/osquery/distributed/read \
+  --distributed_tls_write_endpoint=/api/osquery/distributed/write \
   --logger_plugin=tls \
-  --logger_tls_endpoint=/api/v1/osquery/log \
+  --logger_tls_endpoint=/api/osquery/log \
   --logger_tls_period=10
 ```
 
@@ -398,18 +398,18 @@ sudo /usr/bin/osqueryd \
   --tls_server_certs=/var/osquery/server.pem \
   --tls_hostname=localhost:8080 \
   --host_identifier=instance \
-  --enroll_tls_endpoint=/api/v1/osquery/enroll \
+  --enroll_tls_endpoint=/api/osquery/enroll \
   --config_plugin=tls \
-  --config_tls_endpoint=/api/v1/osquery/config \
+  --config_tls_endpoint=/api/osquery/config \
   --config_refresh=10 \
   --disable_distributed=false \
   --distributed_plugin=tls \
   --distributed_interval=3 \
   --distributed_tls_max_attempts=3 \
-  --distributed_tls_read_endpoint=/api/v1/osquery/distributed/read \
-  --distributed_tls_write_endpoint=/api/v1/osquery/distributed/write \
+  --distributed_tls_read_endpoint=/api/osquery/distributed/read \
+  --distributed_tls_write_endpoint=/api/osquery/distributed/write \
   --logger_plugin=tls \
-  --logger_tls_endpoint=/api/v1/osquery/log \
+  --logger_tls_endpoint=/api/osquery/log \
   --logger_tls_period=10
 ```
 
