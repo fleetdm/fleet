@@ -91,7 +91,7 @@ func (svc *Service) makeTestJiraRequest(ctx context.Context, jiraSettings *fleet
 	if err != nil {
 		return &badRequestError{message: fmt.Sprintf("jira integration request failed: %s", err.Error())}
 	}
-	if _, err := client.CurrentUser(ctx); err != nil {
+	if _, err := client.GetProject(ctx); err != nil {
 		return &badRequestError{message: fmt.Sprintf("jira integration request failed: %s", err.Error())}
 	}
 	return nil

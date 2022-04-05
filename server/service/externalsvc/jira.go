@@ -73,6 +73,28 @@ func (j *Jira) CurrentUser(ctx context.Context) (*jira.User, error) {
 	return user, nil
 }
 
+// GetProject returns the project details for the project key provided in the
+// Jira client options. It can be used to test in one request the
+// authentication and connection parameters to the Jira instance as well as the
+// existence of the project.
+func (j *Jira) GetProject(ctx context.Context) (*jira.Project, error) {
+	var proj *jira.Project
+
+	op := func() (*jira.Response, error) {
+		var (
+			err  error
+			resp *jira.Response
+		)
+		proj, resp, err = j.client.Project.GetWithContext(ctx, j.projectKey)
+		return resp, err
+	}
+
+	if err := doWithRetry(op); err != nil {
+		return nil, err
+	}
+	return proj, nil
+}
+
 // CreateIssue creates an issue on the jira server targeted by the Jira client.
 // It returns the created issue or an error.
 func (j *Jira) CreateIssue(ctx context.Context, issue *jira.Issue) (*jira.Issue, error) {
