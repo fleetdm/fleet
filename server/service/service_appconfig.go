@@ -11,6 +11,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mail"
+	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
 )
 
 // mailError is set when an error performing mail operations
@@ -76,6 +77,22 @@ func (svc *Service) sendTestEmail(ctx context.Context, config *fleet.AppConfig) 
 
 	if err := mail.Test(svc.mailService, testMail); err != nil {
 		return mailError{message: err.Error()}
+	}
+	return nil
+}
+
+func (svc *Service) makeTestJiraRequest(ctx context.Context, jiraSettings *fleet.JiraIntegration) error {
+	client, err := externalsvc.NewJiraClient(&externalsvc.JiraOptions{
+		BaseURL:           jiraSettings.URL,
+		BasicAuthUsername: jiraSettings.Username,
+		BasicAuthPassword: jiraSettings.Password,
+		ProjectKey:        jiraSettings.ProjectKey,
+	})
+	if err != nil {
+		return &badRequestError{message: fmt.Sprintf("jira integration request failed: %s", err.Error())}
+	}
+	if _, err := client.CurrentUser(ctx); err != nil {
+		return &badRequestError{message: fmt.Sprintf("jira integration request failed: %s", err.Error())}
 	}
 	return nil
 }
