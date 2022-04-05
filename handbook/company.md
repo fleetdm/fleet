@@ -129,7 +129,7 @@ Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.
   - Think fast (balance thoughtfulness and planning with moving quickly).
   - Aim to deliver results daily.
   - Move faster than 90% of the humans you know.
-  - Resist gold-plating and avoid bike-shedding.
+  - Resist gold-plating and avoid [bike-shedding](https://en.wikipedia.org/wiki/Law_of_triviality).
 - Remember, less is more.
   - Focus on fewer tasks at one time.  <!-- TODO: (By focusing on fewer tasks at once, we are able to get more done, and to a higher standard, while feeling more positive about our work in the process.) -->
   - Go with "boring solutions."
