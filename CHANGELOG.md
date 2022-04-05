@@ -1,4 +1,6 @@
-* Fix non-SSO login bug when running Fleet with MySQL read replica/s.
+## Fleet 4.12.1 (Apr 4, 2022)
+
+* Fix login error for non-SSO users when Fleet is deployed with a MySQL read replica.
 
 ## Fleet 4.12.0 (Mar 24, 2022)
 
