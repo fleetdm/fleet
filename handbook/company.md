@@ -97,7 +97,7 @@ Empathy leads to better understanding, better communication, and better decision
 - Be responsive.
   - Respond quickly, even if you can't take further action at that exact moment.
   - When you disagree, give your feedback; then agree and commit, or disagree and commit anyway.
-  - Favor short over long calls or asynchronous back and forth discussions in Slack.
+  - Favor short calls over long asynchronous back and forth discussions in Slack.
   - Procrastination is a symptom of not knowing what to do next (if you find yourself avoiding reading or responding to a message, schedule a Zoom call with the people you need to figure it out).
 - We win or lose together.
   - Think about the big picture, beyond your individual team's goals.
