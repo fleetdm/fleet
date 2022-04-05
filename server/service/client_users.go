@@ -9,7 +9,7 @@ import (
 
 // CreateUser creates a new user, skipping the invitation process.
 func (c *Client) CreateUser(p fleet.UserPayload) error {
-	verb, path := "POST", "/api/v1/fleet/users/admin"
+	verb, path := "POST", "/api/latest/fleet/users/admin"
 	var responseBody createUserResponse
 
 	return c.authenticatedRequest(p, verb, path, &responseBody)
@@ -17,7 +17,7 @@ func (c *Client) CreateUser(p fleet.UserPayload) error {
 
 // ListUsers retrieves the list of users.
 func (c *Client) ListUsers() ([]fleet.User, error) {
-	verb, path := "GET", "/api/v1/fleet/users"
+	verb, path := "GET", "/api/latest/fleet/users"
 	var responseBody listUsersResponse
 
 	err := c.authenticatedRequest(nil, verb, path, &responseBody)
@@ -30,13 +30,13 @@ func (c *Client) ListUsers() ([]fleet.User, error) {
 // ApplyUsersRoleSecretSpec applies the global and team roles for users.
 func (c *Client) ApplyUsersRoleSecretSpec(spec *fleet.UsersRoleSpec) error {
 	req := applyUserRoleSpecsRequest{Spec: spec}
-	verb, path := "POST", "/api/v1/fleet/users/roles/spec"
+	verb, path := "POST", "/api/latest/fleet/users/roles/spec"
 	var responseBody applyUserRoleSpecsResponse
 	return c.authenticatedRequest(req, verb, path, &responseBody)
 }
 
 func (c *Client) userIdFromEmail(email string) (uint, error) {
-	verb, path := "POST", "/api/v1/fleet/translate"
+	verb, path := "POST", "/api/latest/fleet/translate"
 	var responseBody translatorResponse
 
 	params := translatorRequest{List: []fleet.TranslatePayload{
@@ -63,7 +63,7 @@ func (c *Client) DeleteUser(email string) error {
 		return err
 	}
 
-	verb, path := "DELETE", fmt.Sprintf("/api/v1/fleet/users/%d", userID)
+	verb, path := "DELETE", fmt.Sprintf("/api/latest/fleet/users/%d", userID)
 	var responseBody deleteUserResponse
 	return c.authenticatedRequest(nil, verb, path, &responseBody)
 }

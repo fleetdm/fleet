@@ -8,7 +8,7 @@ func (c *Client) CreateGlobalPolicy(name, query, description, resolution, platfo
 		Resolution:  resolution,
 		Platform:    platform,
 	}
-	verb, path := "POST", "/api/v1/fleet/global/policies"
+	verb, path := "POST", "/api/latest/fleet/global/policies"
 	var responseBody globalPolicyResponse
 	return c.authenticatedRequest(req, verb, path, &responseBody)
 }
