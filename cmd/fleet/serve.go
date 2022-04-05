@@ -41,8 +41,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/fleetdm/fleet/v4/server/service/redis_policy_set"
 	"github.com/fleetdm/fleet/v4/server/sso"
-	"github.com/fleetdm/fleet/v4/server/vulnerabilities"
-	"github.com/fleetdm/fleet/v4/server/webhooks"
 	"github.com/getsentry/sentry-go"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
@@ -571,6 +569,7 @@ const (
 	lockKeyVulnerabilities         = "vulnerabilities"
 	lockKeyWebhooksHostStatus      = "webhooks" // keeping this name for backwards compatibility.
 	lockKeyWebhooksFailingPolicies = "webhooks:global_failing_policies"
+	lockKeyWorker                  = "worker"
 )
 
 func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.Duration, url string, license *fleet.LicenseInfo) error {
@@ -597,7 +596,14 @@ func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.D
 	return ds.RecordStatisticsSent(ctx)
 }
 
-func runCrons(ds fleet.Datastore, task *async.Task, logger kitlog.Logger, config config.FleetConfig, license *fleet.LicenseInfo, failingPoliciesSet fleet.FailingPolicySet) context.CancelFunc {
+func runCrons(
+	ds fleet.Datastore,
+	task *async.Task,
+	logger kitlog.Logger,
+	config config.FleetConfig,
+	license *fleet.LicenseInfo,
+	failingPoliciesSet fleet.FailingPolicySet,
+) context.CancelFunc {
 	ctx, cancelBackground := context.WithCancel(context.Background())
 
 	ourIdentifier, err := server.GenerateRandomText(64)
@@ -612,307 +618,9 @@ func runCrons(ds fleet.Datastore, task *async.Task, logger kitlog.Logger, config
 	go cronVulnerabilities(
 		ctx, ds, kitlog.With(logger, "cron", "vulnerabilities"), ourIdentifier, config)
 	go cronWebhooks(ctx, ds, kitlog.With(logger, "cron", "webhooks"), ourIdentifier, failingPoliciesSet, 1*time.Hour)
+	go cronWorker(ctx, ds, kitlog.With(logger, "cron", "worker"), ourIdentifier)
 
 	return cancelBackground
-}
-
-func cronDB(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, identifier string, license *fleet.LicenseInfo) {
-	ticker := time.NewTicker(10 * time.Second)
-	for {
-		level.Debug(logger).Log("waiting", "on ticker")
-		select {
-		case <-ticker.C:
-			level.Debug(logger).Log("waiting", "done")
-			ticker.Reset(1 * time.Hour)
-		case <-ctx.Done():
-			level.Debug(logger).Log("exit", "done with cron.")
-			return
-		}
-
-		if locked, err := ds.Lock(ctx, lockKeyLeader, identifier, time.Hour); err != nil || !locked {
-			level.Debug(logger).Log("leader", "Not the leader. Skipping...")
-			continue
-		}
-
-		_, err := ds.CleanupDistributedQueryCampaigns(ctx, time.Now())
-		if err != nil {
-			level.Error(logger).Log("err", "cleaning distributed query campaigns", "details", err)
-			sentry.CaptureException(err)
-		}
-		err = ds.CleanupIncomingHosts(ctx, time.Now())
-		if err != nil {
-			level.Error(logger).Log("err", "cleaning incoming hosts", "details", err)
-			sentry.CaptureException(err)
-		}
-		_, err = ds.CleanupCarves(ctx, time.Now())
-		if err != nil {
-			level.Error(logger).Log("err", "cleaning carves", "details", err)
-			sentry.CaptureException(err)
-		}
-		err = ds.UpdateQueryAggregatedStats(ctx)
-		if err != nil {
-			level.Error(logger).Log("err", "aggregating query stats", "details", err)
-			sentry.CaptureException(err)
-		}
-		err = ds.UpdateScheduledQueryAggregatedStats(ctx)
-		if err != nil {
-			level.Error(logger).Log("err", "aggregating scheduled query stats", "details", err)
-			sentry.CaptureException(err)
-		}
-		err = ds.CleanupExpiredHosts(ctx)
-		if err != nil {
-			level.Error(logger).Log("err", "cleaning expired hosts", "details", err)
-			sentry.CaptureException(err)
-		}
-		err = ds.GenerateAggregatedMunkiAndMDM(ctx)
-		if err != nil {
-			level.Error(logger).Log("err", "aggregating munki and mdm data", "details", err)
-			sentry.CaptureException(err)
-		}
-		err = ds.CleanupPolicyMembership(ctx, time.Now())
-		if err != nil {
-			level.Error(logger).Log("err", "cleanup policy membership", "details", err)
-			sentry.CaptureException(err)
-		}
-		err = ds.UpdateOSVersions(ctx)
-		if err != nil {
-			level.Error(logger).Log("err", "update os versions", "details", err)
-			sentry.CaptureException(err)
-		}
-
-		// NOTE(mna): this is not a route from the fleet server (not in server/service/handler.go) so it
-		// will not automatically support the /latest/ versioning. Leaving it as /v1/ for that reason.
-		err = trySendStatistics(ctx, ds, fleet.StatisticsFrequency, "https://fleetdm.com/api/v1/webhooks/receive-usage-analytics", license)
-		if err != nil {
-			level.Error(logger).Log("err", "sending statistics", "details", err)
-			sentry.CaptureException(err)
-		}
-
-		level.Debug(logger).Log("loop", "done")
-	}
-}
-
-func cronVulnerabilities(
-	ctx context.Context,
-	ds fleet.Datastore,
-	logger kitlog.Logger,
-	identifier string,
-	config config.FleetConfig,
-) {
-	if config.Vulnerabilities.CurrentInstanceChecks == "no" || config.Vulnerabilities.CurrentInstanceChecks == "0" {
-		level.Info(logger).Log("vulnerability scanning", "host not configured to check for vulnerabilities")
-		return
-	}
-
-	appConfig, err := ds.AppConfig(ctx)
-	if err != nil {
-		level.Error(logger).Log("config", "couldn't read app config", "err", err)
-		return
-	}
-
-	vulnDisabled := false
-	if appConfig.VulnerabilitySettings.DatabasesPath == "" &&
-		config.Vulnerabilities.DatabasesPath == "" {
-		level.Info(logger).Log("vulnerability scanning", "not configured")
-		vulnDisabled = true
-	}
-	if !appConfig.HostSettings.EnableSoftwareInventory {
-		level.Info(logger).Log("software inventory", "not configured")
-		return
-	}
-
-	vulnPath := appConfig.VulnerabilitySettings.DatabasesPath
-	if vulnPath == "" {
-		vulnPath = config.Vulnerabilities.DatabasesPath
-	}
-	if config.Vulnerabilities.DatabasesPath != "" && config.Vulnerabilities.DatabasesPath != vulnPath {
-		vulnPath = config.Vulnerabilities.DatabasesPath
-		level.Info(logger).Log(
-			"databases_path", "fleet config takes precedence over app config when both are configured",
-			"result", vulnPath)
-	}
-
-	if !vulnDisabled {
-		level.Info(logger).Log("databases-path", vulnPath)
-	}
-	level.Info(logger).Log("periodicity", config.Vulnerabilities.Periodicity)
-
-	if !vulnDisabled {
-		if config.Vulnerabilities.CurrentInstanceChecks == "auto" {
-			level.Debug(logger).Log("current instance checks", "auto", "trying to create databases-path", vulnPath)
-			err := os.MkdirAll(vulnPath, 0o755)
-			if err != nil {
-				level.Error(logger).Log("databases-path", "creation failed, returning", "err", err)
-				return
-			}
-		}
-	}
-
-	ticker := time.NewTicker(10 * time.Second)
-	for {
-		level.Debug(logger).Log("waiting", "on ticker")
-		select {
-		case <-ticker.C:
-			level.Debug(logger).Log("waiting", "done")
-			ticker.Reset(config.Vulnerabilities.Periodicity)
-		case <-ctx.Done():
-			level.Debug(logger).Log("exit", "done with cron.")
-			return
-		}
-		if config.Vulnerabilities.CurrentInstanceChecks == "auto" {
-			if locked, err := ds.Lock(ctx, lockKeyVulnerabilities, identifier, time.Hour); err != nil || !locked {
-				level.Debug(logger).Log("leader", "Not the leader. Skipping...")
-				continue
-			}
-		}
-
-		if !vulnDisabled {
-			recentVulns := checkVulnerabilities(ctx, ds, logger, vulnPath, config, appConfig.WebhookSettings.VulnerabilitiesWebhook)
-			if len(recentVulns) > 0 {
-				if err := webhooks.TriggerVulnerabilitiesWebhook(ctx, ds, kitlog.With(logger, "webhook", "vulnerabilities"),
-					recentVulns, appConfig, time.Now()); err != nil {
-
-					level.Error(logger).Log("err", "triggering vulnerabilities webhook", "details", err)
-					sentry.CaptureException(err)
-				}
-			}
-		}
-
-		if err := ds.CalculateHostsPerSoftware(ctx, time.Now()); err != nil {
-			level.Error(logger).Log("msg", "calculating hosts count per software", "err", err)
-			sentry.CaptureException(err)
-		}
-
-		// It's important vulnerabilities.PostProcess runs after ds.CalculateHostsPerSoftware
-		// because it cleans up any software that's not installed on the fleet (e.g. hosts removal,
-		// or software being uninstalled on hosts).
-		if !vulnDisabled {
-			if err := vulnerabilities.PostProcess(ctx, ds, vulnPath, logger, config); err != nil {
-				level.Error(logger).Log("msg", "post processing CVEs", "err", err)
-				sentry.CaptureException(err)
-			}
-		}
-
-		level.Debug(logger).Log("loop", "done")
-	}
-}
-
-func checkVulnerabilities(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
-	vulnPath string, config config.FleetConfig, vulnWebhookCfg fleet.VulnerabilitiesWebhookSettings) map[string][]string {
-	err := vulnerabilities.TranslateSoftwareToCPE(ctx, ds, vulnPath, logger, config)
-	if err != nil {
-		level.Error(logger).Log("msg", "analyzing vulnerable software: Software->CPE", "err", err)
-		sentry.CaptureException(err)
-		return nil
-	}
-
-	recentVulns, err := vulnerabilities.TranslateCPEToCVE(ctx, ds, vulnPath, logger, config, vulnWebhookCfg.Enable)
-	if err != nil {
-		level.Error(logger).Log("msg", "analyzing vulnerable software: CPE->CVE", "err", err)
-		sentry.CaptureException(err)
-		return nil
-	}
-	return recentVulns
-}
-
-func cronWebhooks(
-	ctx context.Context,
-	ds fleet.Datastore,
-	logger kitlog.Logger,
-	identifier string,
-	failingPoliciesSet fleet.FailingPolicySet,
-	intervalReload time.Duration,
-) {
-	appConfig, err := ds.AppConfig(ctx)
-	if err != nil {
-		level.Error(logger).Log("config", "couldn't read app config", "err", err)
-		return
-	}
-
-	interval := appConfig.WebhookSettings.Interval.ValueOr(24 * time.Hour)
-	level.Debug(logger).Log("interval", interval.String())
-	ticker := time.NewTicker(interval)
-	start := time.Now()
-	for {
-		level.Debug(logger).Log("waiting", "on ticker")
-		select {
-		case <-ticker.C:
-			level.Debug(logger).Log("waiting", "done")
-		case <-ctx.Done():
-			level.Debug(logger).Log("exit", "done with cron.")
-			return
-		case <-time.After(intervalReload):
-			// Reload interval and check if it has been reduced.
-			appConfig, err := ds.AppConfig(ctx)
-			if err != nil {
-				level.Error(logger).Log("config", "couldn't read app config", "err", err)
-				continue
-			}
-			if currInterval := appConfig.WebhookSettings.Interval.ValueOr(24 * time.Hour); time.Since(start) < currInterval {
-				continue
-			}
-		}
-
-		// Reread app config to be able to read latest data used by the webhook
-		// and update the ticker for the next run.
-		appConfig, err = ds.AppConfig(ctx)
-		if err != nil {
-			level.Error(logger).Log("config", "couldn't read app config", "err", err)
-			sentry.CaptureException(err)
-		} else {
-			ticker.Reset(appConfig.WebhookSettings.Interval.ValueOr(24 * time.Hour))
-			start = time.Now()
-		}
-
-		// We set the db lock durations to match the intervalReload.
-		maybeTriggerHostStatus(ctx, ds, logger, identifier, appConfig, intervalReload)
-		maybeTriggerFailingPoliciesWebhook(ctx, ds, logger, identifier, appConfig, intervalReload, failingPoliciesSet)
-
-		level.Debug(logger).Log("loop", "done")
-	}
-}
-
-func maybeTriggerHostStatus(
-	ctx context.Context,
-	ds fleet.Datastore,
-	logger kitlog.Logger,
-	identifier string,
-	appConfig *fleet.AppConfig,
-	lockDuration time.Duration,
-) {
-	if locked, err := ds.Lock(ctx, lockKeyWebhooksHostStatus, identifier, lockDuration); err != nil || !locked {
-		level.Debug(logger).Log("leader-host-status", "Not the leader. Skipping...")
-		return
-	}
-
-	if err := webhooks.TriggerHostStatusWebhook(
-		ctx, ds, kitlog.With(logger, "webhook", "host_status"), appConfig,
-	); err != nil {
-		level.Error(logger).Log("err", "triggering host status webhook", "details", err)
-		sentry.CaptureException(err)
-	}
-}
-
-func maybeTriggerFailingPoliciesWebhook(
-	ctx context.Context,
-	ds fleet.Datastore,
-	logger kitlog.Logger,
-	identifier string,
-	appConfig *fleet.AppConfig,
-	lockDuration time.Duration,
-	failingPoliciesSet fleet.FailingPolicySet,
-) {
-	if locked, err := ds.Lock(ctx, lockKeyWebhooksFailingPolicies, identifier, lockDuration); err != nil || !locked {
-		level.Debug(logger).Log("leader-failing-policies", "Not the leader. Skipping...")
-		return
-	}
-
-	if err := webhooks.TriggerFailingPoliciesWebhook(
-		ctx, ds, kitlog.With(logger, "webhook", "failing_policies"), appConfig, failingPoliciesSet, time.Now(),
-	); err != nil {
-		level.Error(logger).Log("err", "triggering failing policies webhook", "details", err)
-		sentry.CaptureException(err)
-	}
 }
 
 // Support for TLS security profiles, we set up the TLS configuation based on
