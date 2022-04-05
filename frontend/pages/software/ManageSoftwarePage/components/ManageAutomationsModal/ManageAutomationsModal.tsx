@@ -154,12 +154,10 @@ const ManageAutomationsModal = ({
     return (evt: string) => {
       console.log("onRadioChange evt", evt);
       setJiraEnabled(jira);
-      return;
     };
   };
 
   const renderTicket = () => {
-    const integrations = false;
     return (
       <div className={`${baseClass}__ticket`}>
         <div className={`${baseClass}__software-automation-description`}>
