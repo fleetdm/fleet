@@ -159,7 +159,7 @@ Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.
   - Be thorough and don't settle for "the happy path"(every real-world edge case deserves handling).
 - Prioritize the truth (reality).
   - Don’t resist being wrong, and always show your work (it's better to make the right decision than it is to be right).
-  - Proceed boldly, but change your mind in the face of new evidence ("strong opinions, loosely held"
+  - Proceed boldly, but change your mind in the face of new evidence ("strong opinions, loosely held").
   - Avoid the sunk cost fallacy (getting attached to something just because you invested time working on it, or came up with it).
   - Be fair to competitors ("may the best product win")
   - Give credit where credit is due  (don't show favoritism). <!-- as it breeds resentment, destroys employee morale, and creates disincentives for good performance.  Seek out ways to be fair to everyone - https://about.gitlab.com/handbook/values/#permission-to-play -->
