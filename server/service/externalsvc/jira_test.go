@@ -11,7 +11,11 @@ import (
 )
 
 func TestJira(t *testing.T) {
+	var countCalls int
+
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		countCalls++
+
 		switch usr, _, _ := r.BasicAuth(); usr {
 		case "fail":
 			w.WriteHeader(http.StatusInternalServerError)
@@ -36,6 +40,8 @@ func TestJira(t *testing.T) {
 	defer srv.Close()
 
 	t.Run("failure", func(t *testing.T) {
+		countCalls = 0
+
 		client, err := NewJiraClient(&JiraOptions{
 			BaseURL:           srv.URL,
 			BasicAuthUsername: "fail",
@@ -45,6 +51,7 @@ func TestJira(t *testing.T) {
 		_, err = client.CreateIssue(context.Background(), &jira.Issue{})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "Status code: 500")
+		require.Equal(t, 6, countCalls)
 	})
 
 	t.Run("success", func(t *testing.T) {
