@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -11,6 +12,7 @@ import (
 	"net/http/httptest"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -110,12 +112,8 @@ func TestLogin(t *testing.T) {
 func setupAuthTest(t *testing.T) (fleet.Datastore, map[string]fleet.User, *httptest.Server) {
 	ds := new(mock.Store)
 	var users []*fleet.User
-	var admin *fleet.User
 	sessions := make(map[string]*fleet.Session)
 	ds.NewUserFunc = func(ctx context.Context, user *fleet.User) (*fleet.User, error) {
-		if user.GlobalRole != nil && *user.GlobalRole == fleet.RoleAdmin {
-			admin = user
-		}
 		users = append(users, user)
 		return user, nil
 	}
@@ -123,21 +121,30 @@ func setupAuthTest(t *testing.T) (fleet.Datastore, map[string]fleet.User, *httpt
 		return sessions[key], nil
 	}
 	ds.MarkSessionAccessedFunc = func(ctx context.Context, session *fleet.Session) error {
+		s := sessions[session.Key]
+		s.AccessedAt = time.Now()
+		sessions[session.Key] = s
 		return nil
 	}
 	ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
-		return admin, nil
+		for _, user := range users {
+			if user.ID == id {
+				return user, nil
+			}
+		}
+		return nil, errors.New("user not found")
 	}
 	ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
 		return users, nil
 	}
 	ds.ListSessionsForUserFunc = func(ctx context.Context, id uint) ([]*fleet.Session, error) {
+		var userSessions []*fleet.Session
 		for _, session := range sessions {
 			if session.UserID == id {
-				return []*fleet.Session{session}, nil
+				userSessions = append(userSessions, session)
 			}
 		}
-		return nil, nil
+		return userSessions, nil
 	}
 	ds.SessionByIDFunc = func(ctx context.Context, id uint) (*fleet.Session, error) {
 		for _, session := range sessions {
@@ -145,7 +152,7 @@ func setupAuthTest(t *testing.T) (fleet.Datastore, map[string]fleet.User, *httpt
 				return session, nil
 			}
 		}
-		return nil, nil
+		return nil, errors.New("session not found")
 	}
 	ds.DestroySessionFunc = func(ctx context.Context, session *fleet.Session) error {
 		delete(sessions, session.Key)
@@ -156,8 +163,13 @@ func setupAuthTest(t *testing.T) (fleet.Datastore, map[string]fleet.User, *httpt
 		user := usersMap[email]
 		return &user, nil
 	}
-	ds.NewSessionFunc = func(ctx context.Context, session *fleet.Session) (*fleet.Session, error) {
-		sessions[session.Key] = session
+	ds.NewSessionFunc = func(ctx context.Context, userID uint, sessionKey string) (*fleet.Session, error) {
+		session := &fleet.Session{
+			UserID:     userID,
+			Key:        sessionKey,
+			AccessedAt: time.Now(),
+		}
+		sessions[sessionKey] = session
 		return session, nil
 	}
 	return ds, usersMap, server

@@ -29,6 +29,10 @@ func (ds *Datastore) SessionByKey(ctx context.Context, key string) (*fleet.Sessi
 }
 
 func (ds *Datastore) SessionByID(ctx context.Context, id uint) (*fleet.Session, error) {
+	return ds.sessionByID(ctx, ds.reader, id)
+}
+
+func (ds *Datastore) sessionByID(ctx context.Context, q sqlx.QueryerContext, id uint) (*fleet.Session, error) {
 	sqlStatement := `
 		SELECT s.*, u.api_only FROM sessions s
 		LEFT JOIN users u
@@ -37,7 +41,7 @@ func (ds *Datastore) SessionByID(ctx context.Context, id uint) (*fleet.Session, 
 		LIMIT 1
 	`
 	session := &fleet.Session{}
-	err := sqlx.GetContext(ctx, ds.reader, session, sqlStatement, id)
+	err := sqlx.GetContext(ctx, q, session, sqlStatement, id)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("Session").WithID(id))
@@ -64,7 +68,7 @@ func (ds *Datastore) ListSessionsForUser(ctx context.Context, id uint) ([]*fleet
 	return sessions, nil
 }
 
-func (ds *Datastore) NewSession(ctx context.Context, session *fleet.Session) (*fleet.Session, error) {
+func (ds *Datastore) NewSession(ctx context.Context, userID uint, sessionKey string) (*fleet.Session, error) {
 	sqlStatement := `
 		INSERT INTO sessions (
 			user_id,
@@ -72,14 +76,13 @@ func (ds *Datastore) NewSession(ctx context.Context, session *fleet.Session) (*f
 		)
 		VALUES(?,?)
 	`
-	result, err := ds.writer.ExecContext(ctx, sqlStatement, session.UserID, session.Key)
+	result, err := ds.writer.ExecContext(ctx, sqlStatement, userID, sessionKey)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "inserting session")
 	}
 
-	id, _ := result.LastInsertId()
-	session.ID = uint(id)
-	return session, nil
+	id, _ := result.LastInsertId() // cannot fail with the mysql driver
+	return ds.sessionByID(ctx, ds.writer, uint(id))
 }
 
 func (ds *Datastore) DestroySession(ctx context.Context, session *fleet.Session) error {

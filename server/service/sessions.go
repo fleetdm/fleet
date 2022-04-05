@@ -129,16 +129,15 @@ func loginEndpoint(ctx context.Context, request interface{}, svc fleet.Service) 
 	req := request.(*loginRequest)
 	req.Email = strings.ToLower(req.Email)
 
-	user, token, err := svc.Login(ctx, req.Email, req.Password)
+	user, session, err := svc.Login(ctx, req.Email, req.Password)
 	if err != nil {
 		return loginResponse{Err: err}, nil
 	}
-	// Add viewer context allow access to service teams for list of available teams
-	v, err := authViewer(ctx, token, svc)
-	if err != nil {
-		return loginResponse{Err: err}, nil
-	}
-	ctx = viewer.NewContext(ctx, *v)
+	// Add viewer to context to allow access to service teams for list of available teams.
+	ctx = viewer.NewContext(ctx, viewer.Viewer{
+		User:    user,
+		Session: session,
+	})
 	availableTeams, err := svc.ListAvailableTeamsForUser(ctx, user)
 	if err != nil {
 		if errors.Is(err, fleet.ErrMissingLicense) {
@@ -147,10 +146,10 @@ func loginEndpoint(ctx context.Context, request interface{}, svc fleet.Service) 
 			return loginResponse{Err: err}, nil
 		}
 	}
-	return loginResponse{user, availableTeams, token, nil}, nil
+	return loginResponse{user, availableTeams, session.Key, nil}, nil
 }
 
-func (svc *Service) Login(ctx context.Context, email, password string) (*fleet.User, string, error) {
+func (svc *Service) Login(ctx context.Context, email, password string) (*fleet.User, *fleet.Session, error) {
 	// skipauth: No user context available yet to authorize against.
 	svc.authz.SkipAuthorization(ctx)
 
@@ -169,26 +168,26 @@ func (svc *Service) Login(ctx context.Context, email, password string) (*fleet.U
 	user, err := svc.ds.UserByEmail(ctx, email)
 	var nfe fleet.NotFoundError
 	if errors.As(err, &nfe) {
-		return nil, "", fleet.NewAuthFailedError("user not found")
+		return nil, nil, fleet.NewAuthFailedError("user not found")
 	}
 	if err != nil {
-		return nil, "", fleet.NewAuthFailedError(err.Error())
+		return nil, nil, fleet.NewAuthFailedError(err.Error())
 	}
 
 	if err = user.ValidatePassword(password); err != nil {
-		return nil, "", fleet.NewAuthFailedError("invalid password")
+		return nil, nil, fleet.NewAuthFailedError("invalid password")
 	}
 
 	if user.SSOEnabled {
-		return nil, "", fleet.NewAuthFailedError("password login disabled for sso users")
+		return nil, nil, fleet.NewAuthFailedError("password login disabled for sso users")
 	}
 
-	token, err := svc.makeSession(ctx, user.ID)
+	session, err := svc.makeSession(ctx, user.ID)
 	if err != nil {
-		return nil, "", fleet.NewAuthFailedError(err.Error())
+		return nil, nil, fleet.NewAuthFailedError(err.Error())
 	}
 
-	return user, token, nil
+	return user, session, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -451,12 +450,12 @@ func (svc *Service) CallbackSSO(ctx context.Context, auth fleet.Auth) (*fleet.SS
 	if !user.SSOEnabled {
 		return nil, ctxerr.New(ctx, "user not configured to use sso")
 	}
-	token, err := svc.makeSession(ctx, user.ID)
+	session, err := svc.makeSession(ctx, user.ID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "make session in sso callback")
 	}
 	result := &fleet.SSOSession{
-		Token:       token,
+		Token:       session.Key,
 		RedirectURL: redirectURL,
 	}
 	return result, nil
@@ -504,28 +503,19 @@ func (svc *Service) SSOSettings(ctx context.Context) (*fleet.SessionSSOSettings,
 	return settings, nil
 }
 
-// makeSession is a helper that creates a new session after authentication
-func (svc *Service) makeSession(ctx context.Context, id uint) (string, error) {
+// makeSession creates a new session for the given user.
+func (svc *Service) makeSession(ctx context.Context, userID uint) (*fleet.Session, error) {
 	sessionKeySize := svc.config.Session.KeySize
 	key := make([]byte, sessionKeySize)
 	_, err := rand.Read(key)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-
-	sessionKey := base64.StdEncoding.EncodeToString(key)
-	session := &fleet.Session{
-		UserID:     id,
-		Key:        sessionKey,
-		AccessedAt: time.Now().UTC(),
-	}
-
-	_, err = svc.ds.NewSession(ctx, session)
+	session, err := svc.ds.NewSession(ctx, userID, base64.StdEncoding.EncodeToString(key))
 	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "creating new session")
+		return nil, ctxerr.Wrap(ctx, err, "creating new session")
 	}
-
-	return sessionKey, nil
+	return session, nil
 }
 
 func (svc *Service) getMetadata(config *fleet.AppConfig) (*sso.Metadata, error) {

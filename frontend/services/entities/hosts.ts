@@ -50,6 +50,74 @@ export default {
       },
     });
   },
+  exportHosts: (options: ILoadHostsOptions | undefined) => {
+    const { HOSTS_REPORT, LABEL_HOSTS } = endpoints;
+    const selectedLabels = options?.selectedLabels || [];
+    const globalFilter = options?.globalFilter || "";
+    const sortBy = options?.sortBy || [];
+    const teamId = options?.teamId || null;
+    const policyId = options?.policyId || null;
+    const policyResponse = options?.policyResponse || null;
+    const softwareId = options?.softwareId || null;
+
+    let orderKeyParam = "";
+    let orderDirection = "";
+    if (sortBy.length !== 0) {
+      const sortItem = sortBy[0];
+      orderKeyParam += `&order_key=${sortItem.key}`;
+      orderDirection = `&order_direction=${sortItem.direction}`;
+    }
+
+    let searchQuery = "";
+    if (globalFilter !== "") {
+      searchQuery = `&query=${globalFilter}`;
+    }
+
+    let path = "";
+    const labelPrefix = "labels/";
+
+    // Handle multiple filters
+    const label = selectedLabels.find((f) => f.includes(labelPrefix));
+    const status = selectedLabels.find((f) => !f.includes(labelPrefix));
+    const isValidStatus =
+      status === "new" ||
+      status === "online" ||
+      status === "offline" ||
+      status === "mia";
+
+    if (label) {
+      const lid = label.substr(labelPrefix.length);
+      path = `${LABEL_HOSTS(
+        parseInt(lid, 10)
+      )}?${searchQuery}${orderKeyParam}${orderDirection}`;
+
+      // connect status if applicable
+      if (status && isValidStatus) {
+        path += `&status=${status}`;
+      }
+    } else if (status && isValidStatus) {
+      path = `${HOSTS_REPORT}?&status=${status}${searchQuery}${orderKeyParam}${orderDirection}`;
+    } else {
+      path = `${HOSTS_REPORT}?${searchQuery}${orderKeyParam}${orderDirection}`;
+    }
+
+    if (teamId) {
+      path += `&team_id=${teamId}`;
+    }
+
+    if (!label && policyId) {
+      path += `&policy_id=${policyId}`;
+      path += `&policy_response=${policyResponse || "passing"}`; // TODO: confirm whether there should be a default if there is an id but no response sepcified
+    }
+    // TODO: consider how to check for mutually exclusive scenarios with label, policy and software
+    if (!label && !policyId && softwareId) {
+      path += `&software_id=${softwareId}`;
+    }
+
+    path += "&format=csv";
+
+    return sendRequest("GET", path);
+  },
   loadHosts: (options: ILoadHostsOptions | undefined) => {
     const { HOSTS, LABEL_HOSTS } = endpoints;
     const page = options?.page || 0;
