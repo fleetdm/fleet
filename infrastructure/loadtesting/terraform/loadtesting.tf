@@ -3,7 +3,7 @@ resource "aws_ecs_service" "loadtest" {
   launch_type                        = "FARGATE"
   cluster                            = aws_ecs_cluster.fleet.id
   task_definition                    = aws_ecs_task_definition.loadtest.arn
-  desired_count                      = var.scale_down ? 0 : 0
+  desired_count                      = var.scale_down ? 0 : var.loadtest_containers
   deployment_minimum_healthy_percent = 100
   deployment_maximum_percent         = 200
 

@@ -13,3 +13,9 @@ variable "scale_down" {
   type        = bool
   default     = false
 }
+
+variable "loadtest_containers" {
+  description = "The number of containers to loadtest with"
+  type        = int
+  default     = 0
+}
