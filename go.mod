@@ -12,6 +12,7 @@ require (
 	github.com/VividCortex/mysqlerr v0.0.0-20170204212430-6c6b55f8796f
 	github.com/WatchBeam/clock v0.0.0-20170901150240-b08e6b4da7ea
 	github.com/XSAM/otelsql v0.10.0
+	github.com/andygrunwald/go-jira v1.15.1 // indirect
 	github.com/antchfx/htmlquery v1.2.4 // indirect
 	github.com/antchfx/xmlquery v1.3.9 // indirect
 	github.com/aws/aws-sdk-go v1.40.34
@@ -40,7 +41,7 @@ require (
 	github.com/go-stack/stack v1.8.1 // indirect
 	github.com/gocarina/gocsv v0.0.0-20220310154401-d4df709ca055
 	github.com/gocolly/colly v1.2.0
-	github.com/golang-jwt/jwt/v4 v4.0.0
+	github.com/golang-jwt/jwt/v4 v4.3.0
 	github.com/gomodule/redigo v1.8.5
 	github.com/google/go-cmp v0.5.7
 	github.com/google/go-github/v37 v37.0.0

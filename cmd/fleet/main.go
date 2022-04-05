@@ -38,6 +38,7 @@ func initFatal(err error, message string) {
 }
 
 func createRootCmd() *cobra.Command {
+
 	// rootCmd represents the base command when called without any subcommands
 	rootCmd := &cobra.Command{
 		Use:   "fleet",

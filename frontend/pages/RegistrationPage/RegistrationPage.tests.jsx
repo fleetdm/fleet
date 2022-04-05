@@ -1,5 +1,5 @@
 import React from "react";
-import { mount, shallow } from "enzyme";
+import { render, screen } from "@testing-library/react";
 
 import paths from "router/paths";
 import { connectedComponent, reduxMockStore } from "test/helpers";
@@ -28,7 +28,7 @@ describe("RegistrationPage - component", () => {
     };
     const mockStore = reduxMockStore(storeWithUser);
 
-    mount(connectedComponent(ConnectedRegistrationPage, { mockStore }));
+    render(connectedComponent(ConnectedRegistrationPage, { mockStore }));
 
     const dispatchedActions = mockStore.getActions();
 
@@ -46,7 +46,7 @@ describe("RegistrationPage - component", () => {
   it("displays the Fleet background triangles", () => {
     const mockStore = reduxMockStore(baseStore);
 
-    mount(connectedComponent(ConnectedRegistrationPage, { mockStore }));
+    render(connectedComponent(ConnectedRegistrationPage, { mockStore }));
 
     expect(mockStore.getActions()).toContainEqual({
       type: "SHOW_BACKGROUND_IMAGE",
@@ -58,44 +58,40 @@ describe("RegistrationPage - component", () => {
       app: {},
       auth: { loading: true },
     });
-    const page = mount(
+
+    const { container } = render(
       connectedComponent(ConnectedRegistrationPage, { mockStore })
     );
 
-    expect(page.find("RegistrationForm").length).toEqual(0);
+    expect(container.querySelectorAll(".user-registration").length).toEqual(0);
   });
 
   it("renders the RegistrationForm when there is no user", () => {
     const mockStore = reduxMockStore(baseStore);
-    const page = mount(
+
+    const { container } = render(
       connectedComponent(ConnectedRegistrationPage, { mockStore })
     );
 
-    expect(page.find("RegistrationForm").length).toEqual(1);
+    expect(container.querySelectorAll(".user-registration").length).toEqual(1);
   });
 
   it("sets the page number to 1", () => {
-    const page = mount(<RegistrationPage />);
+    render(<RegistrationPage />);
 
-    expect(page.state()).toMatchObject({ page: 1 });
+    expect(
+      screen.getByRole("heading", { name: "Setup user" })
+    ).toBeInTheDocument();
   });
 
   it("displays the setup breadcrumbs", () => {
     const mockStore = reduxMockStore(baseStore);
-    const page = mount(
+    const { container } = render(
       connectedComponent(ConnectedRegistrationPage, { mockStore })
     );
 
-    expect(page.find("Breadcrumbs").length).toEqual(1);
-  });
-
-  describe("#onSetPage", () => {
-    it("sets state to the page number", () => {
-      const page = shallow(<RegistrationPage />);
-      page.setState({ page: 3 });
-      page.instance().onSetPage(3);
-
-      expect(page.state()).toMatchObject({ page: 3 });
-    });
+    expect(
+      container.querySelectorAll(".registration-breadcrumbs").length
+    ).toEqual(1);
   });
 });

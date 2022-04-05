@@ -242,7 +242,7 @@ func TestCronVulnerabilitiesAcceptsExistingDbPath(t *testing.T) {
 	cancelFunc()
 	cronVulnerabilities(ctx, ds, logger, "AAA", fleetConfig)
 
-	require.Contains(t, buf.String(), `{"level":"debug","waiting":"on ticker"}`)
+	require.Contains(t, buf.String(), `"waiting":"on ticker"`)
 }
 
 func TestCronVulnerabilitiesQuitsIfErrorVulnPath(t *testing.T) {
