@@ -107,7 +107,7 @@ Empathy leads to better understanding, better communication, and better decision
   - Be proactive (ask other contributors how you can help, regardless of who is assigned to what
   - Finish your work all the way before moving to something new (help unblock team members and other contributors to deliver value)  <!-- TODO: (collaborate; help teammates see tasks through to completion) -->
 - Take pride in your work.
-  - Be efficient with your valuable and finite time (your work matters so it matters how you spend your time).
+  - Be efficient (your time is valuable, your work matters, and your focus is a finite resource).
   - You don't need permission to be thoughtful.
   - Reread anything you write for users. <!-- TODO: (Check everything that a user might read for clarity, spelling errors, and to make sure that it provides value.) -->
   - Take your ideas seriously (great ideas come from everyone; write them out and see if they have merit).
