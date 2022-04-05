@@ -13,9 +13,11 @@ import (
 	"github.com/go-kit/kit/log/level"
 )
 
-const JiraName = "jira"
+const (
+	JiraName = "jira"
 
-const nvdCVEURL = "https://nvd.nist.gov/vuln/detail/"
+	nvdCVEURL = "https://nvd.nist.gov/vuln/detail/"
+)
 
 var jiraSummaryTmpl = template.Must(template.New("").Parse(
 	`{{ .CVE }} detected on hosts`,
@@ -36,29 +38,18 @@ type jiraTemplateArgs struct {
 }
 
 type JiraClient interface {
-	CreateIssue(ctx context.Context, issue *jira.Issue) (*jira.Issue, *jira.Response, error)
+	CreateIssue(ctx context.Context, issue *jira.Issue) (*jira.Issue, error)
 }
 
 type Jira struct {
-	fleetURL   string
-	projectKey string // TODO: should this be the whole *fleet.AppConfig?
-	ds         fleet.Datastore
-	log        kitlog.Logger
-	jiraClient JiraClient
-}
-
-func NewJira(fleetURL, projectKey string, ds fleet.Datastore, log kitlog.Logger, jiraClient JiraClient) *Jira {
-	return &Jira{
-		fleetURL:   fleetURL,
-		projectKey: projectKey,
-		ds:         ds,
-		log:        log,
-		jiraClient: jiraClient,
-	}
+	FleetURL   string
+	Datastore  fleet.Datastore
+	Log        kitlog.Logger
+	JiraClient JiraClient
 }
 
 func (j *Jira) Name() string {
-	return "jira"
+	return JiraName
 }
 
 type JiraArgs struct {
@@ -76,29 +67,23 @@ func (j *Jira) Run(ctx context.Context, argsJSON json.RawMessage) error {
 	tmplArgs := jiraTemplateArgs{
 		CVE:      args.CVE,
 		NVDURL:   nvdCVEURL + args.CVE,
-		FleetURL: fmt.Sprintf("%s/hosts/manage?order_key=hostname&order_direction=asc&software_id=%d", j.fleetURL, 1),
+		FleetURL: fmt.Sprintf("%s/hosts/manage?order_key=hostname&order_direction=asc&software_id=%d", j.FleetURL, 1),
 	}
 
 	var buf bytes.Buffer
-	err := jiraSummaryTmpl.Execute(&buf, &tmplArgs) // TODO: separate type for template args?
-	if err != nil {
+	if err := jiraSummaryTmpl.Execute(&buf, &tmplArgs); err != nil { // TODO: separate type for template args?
 		return fmt.Errorf("execute summary template: %w", err)
 	}
 	summary := buf.String()
 
 	buf.Reset() // reuse buffer
-	err = jiraDescriptionTmpl.Execute(&buf, &args)
-	if err != nil {
+	if err := jiraDescriptionTmpl.Execute(&buf, &args); err != nil {
 		return fmt.Errorf("execute summary template: %w", err)
 	}
 	description := buf.String()
 
 	issue := &jira.Issue{
 		Fields: &jira.IssueFields{
-			Project: jira.Project{
-				// ID:
-				Key: j.projectKey,
-			},
 			Type: jira.IssueType{
 				// ID:
 				Name: "Bug", // TODO: make this configurable
@@ -108,16 +93,15 @@ func (j *Jira) Run(ctx context.Context, argsJSON json.RawMessage) error {
 		},
 	}
 
-	issue, _, err = j.jiraClient.CreateIssue(ctx, issue)
+	createdIssue, err := j.JiraClient.CreateIssue(ctx, issue)
 	if err != nil {
 		return fmt.Errorf("create issue: %w", err)
 	}
 
-	level.Debug(j.log).Log(
+	level.Debug(j.Log).Log(
 		"msg", "created jira issue for cve",
 		"cve", args.CVE,
-		"project_key", j.projectKey,
-		"issue_id", issue.ID,
+		"issue_id", createdIssue.ID,
 	)
 
 	return nil

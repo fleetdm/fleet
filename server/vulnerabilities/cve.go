@@ -193,6 +193,9 @@ func checkCVEs(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 							continue // do not report a recent vuln that failed to be inserted in the DB
 						}
 
+						// TODO(mna): review this, might need to move to ~where vuln webhook processing happens,
+						// and only care about recent vulns.
+
 						// queue the job to create jira issue
 						args := &worker.JiraArgs{
 							CVE:  cveID,
@@ -203,6 +206,7 @@ func checkCVEs(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 						} else {
 							level.Debug(logger).Log("msg", "queued jira job", "job_id", job.ID)
 						}
+						// END TODO
 
 						// collect as recent vuln only if newCount > 0, otherwise we would send
 						// webhook requests for the same vulnerability over and over again until

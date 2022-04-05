@@ -7,6 +7,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities"
 	"github.com/fleetdm/fleet/v4/server/webhooks"
 	"github.com/fleetdm/fleet/v4/server/worker"
@@ -334,13 +335,54 @@ func maybeTriggerFailingPoliciesWebhook(
 	}
 }
 
-func cronWorker(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, identifier string) {
+func cronWorker(
+	ctx context.Context,
+	ds fleet.Datastore,
+	logger kitlog.Logger,
+	identifier string,
+) {
 	logger = kitlog.With(logger, "cron", lockKeyWorker)
 
+	appConfig, err := ds.AppConfig(ctx)
+	if err != nil {
+		level.Error(logger).Log("config", "couldn't read app config", "err", err)
+		return
+	}
+
+	// get the enabled jira config, if any
+	var jiraSettings *fleet.JiraIntegration
+	for _, intg := range appConfig.Integrations.Jira {
+		if intg.EnableSoftwareVulnerabilities {
+			jiraSettings = intg
+			break
+		}
+	}
+
+	// create the worker and register the Jira job even if no jira integration
+	// is enabled, as that config can change live (and if it's not enabled,
+	// there won't be any records to process so it will mostly just sleep).
 	w := worker.NewWorker(ds, logger)
 
 	// TODO: pass config and jira client
-	jira := worker.NewJira(nil, ds, logger, nil)
+	var jiraClient *externalsvc.Jira
+	if jiraSettings != nil {
+		client, err := externalsvc.NewJiraClient(&externalsvc.JiraOptions{
+			BaseURL:           jiraSettings.URL,
+			BasicAuthUsername: jiraSettings.Username,
+			BasicAuthPassword: jiraSettings.Password,
+			ProjectKey:        jiraSettings.ProjectKey,
+		})
+		if err != nil {
+			// TODO(mna): log error
+		}
+		jiraClient = client
+	}
+	jira := &worker.Jira{
+		FleetURL:   appConfig.ServerSettings.ServerURL,
+		Datastore:  ds,
+		Log:        logger,
+		JiraClient: jiraClient, // may be nil until a jira integration is enabled
+	}
 	w.Register(jira)
 
 	ticker := time.NewTicker(10 * time.Second)
