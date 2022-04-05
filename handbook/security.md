@@ -342,7 +342,7 @@ identified" warning.
 
 **Answer**: We highly recommend that you do so. Facebook accounts, personal email, Twitter accounts,
 cryptocurrency trading sites and much more support FIDO U2F authentication, the standard used by
-security keys. Fleet will **never ask for your keys back** they are yours to use everywhere you
+security keys. Fleet will **never ask for your keys back**. They are yours to use everywhere you
 can.
 
 2. Can I use my phone as a security key?
@@ -363,12 +363,12 @@ lost or stolen at the same time.
 
 4. I've lost one of my keys, what do I do?
 
-**Answer**: Post in the #g-security channel ASAP so we can disable the key. IF you find it later, no
+**Answer**: Post in the `#g-security` channel ASAP so we can disable the key. IF you find it later, no
 worries, just enroll it again!
 
 5. I lost all of my keys and I'm locked out! What do I do?
 
-**Answer**: Post in the #g-security channel, or if you are locked out of Slack, contact your
+**Answer**: Post in the `#help-login` channel, or if you are locked out of Slack, contact your
 manager. You will be provided a way to log back in and make your phone your security key, until you
 receive new ones.
 
