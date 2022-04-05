@@ -542,10 +542,10 @@ We apply the following settings to *Security/2-Step Verification* to all users a
 
 We strongly recommend the use of hardware security keys. 
 
-Privileged user accounts are configured with a policy that enforces the use of hardware security
-keys, which prevent credential theft better than other methods of 2FA/2-SV. See [hardware security
-keys](https://fleetdm.com/handbook/security#hardware-security-keys) for information about setting
-them up, as well as the model we use and why.
+Fleet configures privileged user accounts with a policy that enforces the use of hardware security
+keys. This prevents credential theft better than other methods of 2FA/2-SV. See [hardware security
+keys](https://fleetdm.com/handbook/security#hardware-security-keys) for information about the model we use, why and how to set
+them up, .
 
 
 #### Passwords
