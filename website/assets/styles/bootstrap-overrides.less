@@ -152,6 +152,9 @@ a.text-danger:hover, a.text-danger:focus {
       background: none;
       border: 1px solid #C5C7D1;
     }
+    &:not(:disabled):not(.disabled):active:focus, &:not(:disabled):not(.disabled).active:focus, .show > &.dropdown-toggle:focus {
+      box-shadow: none;
+    }
   }
 }
 
