@@ -1,0 +1,8 @@
+description: null
+content:
+  application/json:
+    schema:
+      type: object
+      properties:
+        user:
+          $ref: ../schemas/User.yaml

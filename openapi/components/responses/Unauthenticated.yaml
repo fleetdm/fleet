@@ -1,0 +1,5 @@
+description: Request not authenticated due to missing, invalid, authentication info.
+content:
+  application/json:
+    schema:
+      $ref: ../schemas/Error.yaml

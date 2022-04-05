@@ -1,0 +1,19 @@
+get:
+  operationId: getUserByID
+  summary: Get a user by ID
+  description: |
+    Get a user by ID
+  security:
+    - BearerAuth: []
+  parameters:
+    - in: path
+      name: userID
+      schema:
+        type: integer
+      required: true
+      description: The user's ID.
+  responses:
+    '200':
+      $ref: ../components/responses/User.yaml
+    '404':
+      $ref: ../components/responses/NotFound.yaml

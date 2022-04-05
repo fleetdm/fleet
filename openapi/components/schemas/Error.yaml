@@ -1,0 +1,21 @@
+description: |
+  todo
+type: object
+properties:
+  message:
+    type: string
+    description: |
+      A human readable error message.
+  errors:
+    type: array
+    items:
+      type: object
+      properties:
+        name:
+          type: string
+          description: todo
+        reason:
+          type: string
+          description: todo
+required:
+  - message

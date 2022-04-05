@@ -1,0 +1,24 @@
+openapi: 3.0.0
+info:
+  title: Fleet API
+  description: |
+    The Fleet REST API.
+  version: '2022-04-01'
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+
+servers:
+  - url: https://localhost:8080
+    description: Local development server.
+security: []
+paths:
+  /api/v1/fleet/login:
+    $ref: paths/api_v1_fleet_login.yaml
+  /api/v1/fleet/users/{userID}:
+    $ref: paths/api_v1_fleet_users_{userID}.yaml
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer

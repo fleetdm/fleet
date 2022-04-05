@@ -1,0 +1,34 @@
+post:
+  operationId: login
+  summary: Login
+  description: |
+    Authenticates the user with the specified credentials.
+    Use the token returned from this endpoint perform authenticated requests.
+
+    This API endpoint is not available to SSO users, since email/password login is disabled for SSO users.
+    To get an API token for an SSO user, you can use the Fleet UI.
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          type: object
+          properties:
+            email:
+              description: The user's email.
+            password:
+              description: The user's password.
+          required:
+            - email
+            - password
+  responses:
+    '200':
+      description: A JSON array of user names
+      content:
+        application/json:
+          schema:
+            properties:
+              token:
+                description: Token to use for authenticated requests.
+    '401':
+      $ref: ../components/responses/Unauthenticated.yaml

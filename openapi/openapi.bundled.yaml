@@ -1,0 +1,134 @@
+openapi: 3.0.0
+info:
+  title: Fleet API
+  description: |
+    The Fleet REST API.
+  version: '2022-04-01'
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+servers:
+  - url: https://localhost:8080
+    description: Local development server.
+security: []
+paths:
+  /api/v1/fleet/login:
+    post:
+      operationId: login
+      tags:
+        - authentication
+      summary: Login
+      description: >
+        Authenticates the user with the specified credentials.
+
+        Use the token returned from this endpoint perform authenticated
+        requests.
+
+
+        This API endpoint is not available to SSO users, since email/password
+        login is disabled for SSO users.
+
+        To get an API token for an SSO user, you can use the Fleet UI.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  description: The user's email.
+                password:
+                  description: The user's password.
+              required:
+                - email
+                - password
+      responses:
+        '200':
+          description: A JSON array of user names
+          content:
+            application/json:
+              schema:
+                properties:
+                  token:
+                    description: Token to use for authenticated requests.
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+  /api/v1/fleet/users/{userID}:
+    get:
+      operationId: getUserByID
+      summary: Get a user by ID
+      description: |
+        Get a user by ID
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: userID
+          schema:
+            type: integer
+          required: true
+          description: The user's ID.
+      responses:
+        '200':
+          $ref: '#/components/responses/User'
+        '404':
+          $ref: '#/components/responses/NotFound'
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+  schemas:
+    Error:
+      description: |
+        todo
+      type: object
+      properties:
+        message:
+          type: string
+          description: |
+            A human readable error message.
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+                description: todo
+              reason:
+                type: string
+                description: todo
+      required:
+        - message
+    User:
+      type: object
+      properties:
+        id:
+          format: int32
+          type: integer
+      required:
+        - id
+  responses:
+    Unauthenticated:
+      description: Request not authenticated due to missing, invalid, authentication info.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    User:
+      description: null
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              user:
+                $ref: '#/components/schemas/User'
+    NotFound:
+      description: A specified resource is not found.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
