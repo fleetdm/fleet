@@ -1,3 +1,5 @@
+* Fix non-SSO login bug when running Fleet with MySQL read replica/s.
+
 ## Fleet 4.12.0 (Mar 24, 2022)
 
 * Add ability to update which platform (macOS, Windows, Linux) a policy is checked on.
