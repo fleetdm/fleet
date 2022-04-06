@@ -54,9 +54,11 @@ const ActionButtons = ({ baseClass, actions }: IProps): JSX.Element => {
             (action) =>
               !action.hideAction &&
               (action.buttonVariant !== "text-icon" ? (
-                <Button variant={action.buttonVariant}>{action.label}</Button>
+                <Button variant={action.buttonVariant} onClick={action.onClick}>
+                  {action.label}
+                </Button>
               ) : (
-                <Button variant="text-icon">
+                <Button variant="text-icon" onClick={action.onClick}>
                   <>
                     {action.label}
                     {action.icon ? (

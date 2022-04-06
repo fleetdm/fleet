@@ -199,7 +199,7 @@ describe("Hosts flow", () => {
         cy.findByText(/schedule/i).click();
       });
       cy.getAttached(".data-table").within(() => {
-        cy.findByText(/query name/i).should("exist");
+        cy.getAttached(".query_name__header").should("exist");
       });
     });
     it("renders host's policies and links to filter hosts by policy status", () => {
