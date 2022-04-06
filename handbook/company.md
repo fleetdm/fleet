@@ -105,7 +105,7 @@ Empathy leads to better understanding, better communication, and better decision
   - You're not alone in this (there's a great community of people able and happy to help).
   - Don't be afraid to spend time helping users, customers, and contributors (including colleagues on other teams).
   - Be proactive (ask other contributors how you can help, regardless of who is assigned to what
-  - Finish your work all the way before moving to something new (help unblock team members and other contributors to deliver value)  <!-- TODO: (collaborate; help teammates see tasks through to completion) -->
+  - Finish tasks all the way before moving to something new (help unblock team members and other contributors to deliver value)  <!-- TODO: (collaborate; help teammates see tasks through to completion) -->
 - Take pride in your work.
   - Be efficient (your time is valuable, your work matters, and your focus is a finite resource).
   - You don't need permission to be thoughtful.
