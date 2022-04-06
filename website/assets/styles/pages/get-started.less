@@ -1,70 +1,9 @@
 #get-started {
 
-  a {
+  a:not(.btn) {
     color: @core-vibrant-blue;
   }
 
-  .btn {
-    font-size: 16px;
-    line-height: 25px;
-    padding: 16px 32px;
-  }
-
-  .btn-primary {
-    color: #fff;
-    &:active {
-      background: @core-vibrant-red;
-      border-color: @core-vibrant-red;
-    }
-  }
-
-  .btn-outline-secondary {
-    color: @core-fleet-black;
-    border: 1px solid #C5C7D1;
-    &:hover {
-      background: #fff;
-    }
-    &:focus {
-      box-shadow: none;
-    }
-  }
-
-  .btn-node {
-    color: #fff;
-    background: #333;
-    img {
-      display: inline;
-      height: 36px;
-      width: auto;
-    }
-    &:focus {
-      box-shadow: none;
-    }
-  }
-
-  .btn-docker {
-    color: #fff;
-    background: #0073EC;
-    img {
-      display: inline;
-      height: 36px;
-      width: auto;
-    }
-    &:focus {
-      box-shadow: none;
-    }
-  }
-
-  .btn-slack {
-    img {
-      display: inline;
-      height: 24px;
-      width: auto;
-    }
-    &:focus {
-      box-shadow: none;
-    }
-  }
   code {
     background-color: @ui-off-white;
     border: 1px solid @border-lt-gray;
@@ -76,24 +15,28 @@
     display: inline-block;
     border-radius: 6px;
   }
-  .muted {
+
+  [purpose='get-started-buttons'] {
+    a {
+      font-size: 16px;
+      line-height: 25px;
+      padding: 16px 32px;
+    }
+  }
+
+  [purpose='terminal-commands'] {
     padding: 24px;
     border: 1px solid @core-fleet-black-25;
     border-radius: 4px;
     margin: 16px 0px 32px;
     background: @ui-off-white;
     p {
+      color: @core-fleet-black;
       font-family: @code-font;
       font-weight: @normal;
       font-size: 18px;
       line-height: 32px;
       margin-bottom: 0px;
-    }
-    .comment {
-      color: @core-fleet-black-50;
-    }
-    .command {
-      color: @core-fleet-black;
     }
   }
 }
