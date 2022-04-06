@@ -237,6 +237,11 @@ describe("Premium tier - Admin user", () => {
     });
     describe("Admin settings page", () => {
       beforeEach(() => cy.visit("/settings/organization"));
+      it("allows global admin to access integrations settings", () => {
+        cy.getAttached(".react-tabs").within(() => {
+          cy.findByText(/integrations/i).click();
+        });
+      });
       it("allows global admin to access team settings", () => {
         cy.getAttached(".react-tabs").within(() => {
           cy.findByText(/teams/i).click();

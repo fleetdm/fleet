@@ -323,9 +323,12 @@ describe(
       it("hides access team settings", () => {
         cy.findByText(/teams/i).should("not.exist");
       });
-      it("allows admin to access other settings", () => {
+      it("allows admin to access integrations and users settings", () => {
         cy.getAttached(".react-tabs").within(() => {
           cy.findByText(/organization settings/i).should("exist");
+          cy.findByText(/integrations/i).click();
+        });
+        cy.getAttached(".react-tabs").within(() => {
           cy.findByText(/users/i).click();
         });
       });
