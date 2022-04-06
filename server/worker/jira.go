@@ -74,10 +74,16 @@ func (j *Jira) Run(ctx context.Context, argsJSON json.RawMessage) error {
 		return ctxerr.Wrap(ctx, err, "unmarshal args")
 	}
 
-	// TODO: need software_id, not cpes, which results in multiple links for a
-	// single CVE (and the page shows hosts affected by the _software_, not
-	// necessarily the CVE, there's a mismatch here due to not having the filter
-	// criteria by CVE).
+	// TODO(mna): as discussed as standup and explained here:
+	// https://github.com/fleetdm/fleet/issues/4521#issuecomment-1090718077
+	// we will create one ticket per _CPE_ for this release instead of one
+	// per CVE, so that we can include the relevant link to the hosts page
+	// with the corresponding software_id (the software_id associated with
+	// the CPE). I think we should do this here, turning this single
+	// Jira job into multiple Jira tickets. In the future, when we add the
+	// CVE filter in the hosts page, we can just remove the looping here
+	// and create a single ticket, no code elsewhere will have to change.
+
 	tmplArgs := jiraTemplateArgs{
 		CVE:      args.CVE,
 		NVDURL:   nvdCVEURL + args.CVE,
