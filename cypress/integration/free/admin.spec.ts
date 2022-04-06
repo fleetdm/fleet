@@ -341,7 +341,6 @@ describe(
           cy.findByText(/mary@organization.com/i)
             .parent()
             .next()
-            .next()
             .within(() => cy.getAttached(".Select-placeholder").click());
         });
         cy.getAttached(".Select-menu").within(() => {
