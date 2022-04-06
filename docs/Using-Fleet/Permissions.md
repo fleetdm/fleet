@@ -26,7 +26,7 @@ The following table depicts various permissions levels for each role.
 | Filter software by vulnerabilities                   | ✅       | ✅         | ✅    |
 | Filter hosts by software                             | ✅       | ✅         | ✅    |
 | Filter software by team*                             | ✅       | ✅         | ✅    |
-| Manage software by vulnerability automations         |          | ✅         | ✅    |
+| Manage vulnerability automations         |          | ✅         | ✅    |
 | Run saved queries as live queries against all hosts  | ✅       | ✅         | ✅    |
 | Run custom queries as live queries against all hosts |          | ✅         | ✅    |
 | Create, edit, and delete queries                     |          | ✅         | ✅    |
