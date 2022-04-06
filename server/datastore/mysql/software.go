@@ -512,7 +512,7 @@ func (ds *Datastore) AllCPEs(ctx context.Context) ([]string, error) {
 // InsertCVEForCPE inserts the cve into software_cve, linking it to all the
 // provided cpes. It returns the number of new rows inserted or an error. If
 // the CVE already existed for all CPEs, it would return 0, nil.
-func (ds *Datastore) InsertCVEForCPE(ctx context.Context, cve string, cpes []string) (int64, error) { // TODO: this should return a bool (inserted) so that caller can determine if it's actually inserted
+func (ds *Datastore) InsertCVEForCPE(ctx context.Context, cve string, cpes []string) (int64, error) {
 	var totalCount int64
 	for _, cpe := range cpes {
 		var ids []uint
