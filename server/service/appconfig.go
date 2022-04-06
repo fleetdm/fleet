@@ -158,6 +158,14 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 
 	oldSmtpSettings := appConfig.SMTPSettings
 
+	var oldEnabledJiraSettings *fleet.JiraIntegration
+	for _, jiraSettings := range appConfig.Integrations.Jira {
+		if jiraSettings.EnableSoftwareVulnerabilities {
+			oldEnabledJiraSettings = jiraSettings
+			break
+		}
+	}
+
 	// TODO(mna): this ports the validations from the old validationMiddleware
 	// correctly, but this could be optimized so that we don't unmarshal the
 	// incoming bytes twice.
@@ -176,7 +184,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 	decoder := json.NewDecoder(bytes.NewReader(p))
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(&appConfig); err != nil {
-		return nil, &badRequestError{message: err.Error()}
+		return nil, ctxerr.Wrap(ctx, &badRequestError{message: err.Error()})
 	}
 
 	validateVulnerabilitiesAutomation(appConfig, invalid)
@@ -192,12 +200,29 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 	if appConfig.SMTPSettings.SMTPEnabled {
 		if oldSmtpSettings != appConfig.SMTPSettings || !appConfig.SMTPSettings.SMTPConfigured {
 			if err = svc.sendTestEmail(ctx, appConfig); err != nil {
-				return nil, err
+				return nil, ctxerr.Wrap(ctx, err)
 			}
 		}
 		appConfig.SMTPSettings.SMTPConfigured = true
 	} else if appConfig.SMTPSettings.SMTPEnabled {
 		appConfig.SMTPSettings.SMTPConfigured = false
+	}
+
+	// if we enabled a (new or different) Jira integration, then we make a test
+	// request to see if the settings are valid.
+	var newEnabledJiraSettings *fleet.JiraIntegration
+	for _, jiraSettings := range appConfig.Integrations.Jira {
+		if jiraSettings.EnableSoftwareVulnerabilities {
+			newEnabledJiraSettings = jiraSettings
+			break
+		}
+	}
+	if newEnabledJiraSettings != nil {
+		if oldEnabledJiraSettings == nil || *newEnabledJiraSettings != *oldEnabledJiraSettings {
+			if err := svc.makeTestJiraRequest(ctx, newEnabledJiraSettings); err != nil {
+				return nil, ctxerr.Wrap(ctx, err)
+			}
+		}
 	}
 
 	if err := svc.ds.SaveAppConfig(ctx, appConfig); err != nil {

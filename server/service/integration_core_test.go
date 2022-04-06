@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"reflect"
 	"strconv"
@@ -2662,56 +2663,77 @@ func (s *integrationTestSuite) TestVulnerabilitiesWebhookConfig() {
 func (s *integrationTestSuite) TestIntegrationsConfig() {
 	t := s.T()
 
-	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(`{
+	// create a test http server to act as the Jira server
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "GET" {
+			w.WriteHeader(501)
+			return
+		}
+		if r.URL.Path != "/rest/api/2/project/qux" {
+			w.WriteHeader(502)
+			return
+		}
+
+		switch usr, _, _ := r.BasicAuth(); usr {
+		case "ok":
+			w.Write([]byte(jiraProjectResponsePayload))
+
+		case "fail":
+			w.WriteHeader(http.StatusUnauthorized)
+		}
+	}))
+	defer srv.Close()
+
+	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
     "integrations": {
       "jira": [{
-        "url": "http://some/url",
-        "username": "foo",
+        "url": %q,
+        "username": "ok",
         "password": "bar",
         "project_key": "qux",
         "enable_software_vulnerabilities": true
       }]
     }
-  }`), http.StatusOK)
+  }`, srv.URL)), http.StatusOK)
 
 	config := s.getConfig()
 	require.Len(t, config.Integrations.Jira, 1)
-	require.Equal(t, "http://some/url", config.Integrations.Jira[0].URL)
-	require.Equal(t, "foo", config.Integrations.Jira[0].Username)
+	require.Equal(t, srv.URL, config.Integrations.Jira[0].URL)
+	require.Equal(t, "ok", config.Integrations.Jira[0].Username)
 	require.Equal(t, "bar", config.Integrations.Jira[0].Password)
 	require.Equal(t, "qux", config.Integrations.Jira[0].ProjectKey)
 	require.True(t, config.Integrations.Jira[0].EnableSoftwareVulnerabilities)
 
-	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(`{
+	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
     "integrations": {
       "jira": [{
-        "url": "http:/some/url",
+        "url": %q,
         "UNKNOWN_FIELD": "foo"
       }]
     }
-  }`), http.StatusBadRequest)
+  }`, srv.URL)), http.StatusBadRequest)
 
 	// cannot have two integrations enabled at the same time
-	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(`{
+	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
     "integrations": {
       "jira": [
         {
-          "url": "http://some/url",
-          "username": "foo",
+          "url": %q,
+          "username": "ok",
           "password": "bar",
           "project_key": "qux",
           "enable_software_vulnerabilities": true
         },
         {
-          "url": "http://some/url/2",
-          "username": "foo2",
+          "url": %[1]q,
+          "username": "ok",
           "password": "bar2",
           "project_key": "qux2",
           "enable_software_vulnerabilities": true
         }
       ]
     }
-  }`), http.StatusUnprocessableEntity)
+  }`, srv.URL)), http.StatusUnprocessableEntity)
 
 	// cannot enable webhook with a jira integration already enabled
 	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(`{
@@ -2726,11 +2748,11 @@ func (s *integrationTestSuite) TestIntegrationsConfig() {
   }`), http.StatusUnprocessableEntity)
 
 	// disable jira, now we can enable webhook
-	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(`{
+	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
     "integrations": {
       "jira": [{
-        "url": "http://some/url",
-        "username": "foo",
+        "url": %q,
+        "username": "ok",
         "password": "bar",
         "project_key": "qux",
         "enable_software_vulnerabilities": false
@@ -2744,20 +2766,71 @@ func (s *integrationTestSuite) TestIntegrationsConfig() {
       },
     "interval": "1h"
     }
-  }`), http.StatusOK)
+  }`, srv.URL)), http.StatusOK)
 
 	// cannot enable jira with webhook already enabled
-	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(`{
+	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
     "integrations": {
       "jira": [{
-        "url": "http://some/url",
-        "username": "foo",
+        "url": %q,
+        "username": "ok",
         "password": "bar",
         "project_key": "qux",
         "enable_software_vulnerabilities": true
       }]
     }
-  }`), http.StatusUnprocessableEntity)
+  }`, srv.URL)), http.StatusUnprocessableEntity)
+
+	// disable webhook, enable jira with wrong credentials
+	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
+    "integrations": {
+      "jira": [{
+        "url": %q,
+        "username": "fail",
+        "password": "bar",
+        "project_key": "qux",
+        "enable_software_vulnerabilities": true
+      }]
+      },
+      "webhook_settings": {
+        "vulnerabilities_webhook": {
+        "enable_vulnerabilities_webhook": false,
+        "destination_url": "http://some/url",
+        "host_batch_size": 1234
+      },
+    "interval": "1h"
+    }
+  }`, srv.URL)), http.StatusBadRequest)
+
+	// update jira config to correct credentials (need to disable webhook too as
+	// last request failed)
+	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
+    "integrations": {
+      "jira": [{
+        "url": %q,
+        "username": "ok",
+        "password": "bar",
+        "project_key": "qux",
+        "enable_software_vulnerabilities": true
+      }]
+      },
+      "webhook_settings": {
+          "vulnerabilities_webhook": {
+          "enable_vulnerabilities_webhook": false,
+          "destination_url": "http://some/url",
+          "host_batch_size": 1234
+        },
+        "interval": "1h"
+      }
+  }`, srv.URL)), http.StatusOK)
+
+	// remove all integrations on exit, so that other tests can enable the
+	// webhook as needed
+	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(`{
+    "integrations": {
+      "jira": []
+      }
+  }`), http.StatusOK)
 }
 
 func (s *integrationTestSuite) TestQueriesBadRequests() {
@@ -3935,3 +4008,146 @@ func jsonMustMarshal(t testing.TB, v interface{}) []byte {
 	require.NoError(t, err)
 	return b
 }
+
+const (
+	// example response from the Jira docs
+	jiraProjectResponsePayload = `{
+  "self": "https://your-domain.atlassian.net/rest/api/2/project/EX",
+  "id": "10000",
+  "key": "EX",
+  "description": "This project was created as an example for REST.",
+  "lead": {
+    "self": "https://your-domain.atlassian.net/rest/api/2/user?accountId=5b10a2844c20165700ede21g",
+    "key": "",
+    "accountId": "5b10a2844c20165700ede21g",
+    "accountType": "atlassian",
+    "name": "",
+    "avatarUrls": {
+      "48x48": "https://avatar-management--avatars.server-location.prod.public.atl-paas.net/initials/MK-5.png?size=48&s=48",
+      "24x24": "https://avatar-management--avatars.server-location.prod.public.atl-paas.net/initials/MK-5.png?size=24&s=24",
+      "16x16": "https://avatar-management--avatars.server-location.prod.public.atl-paas.net/initials/MK-5.png?size=16&s=16",
+      "32x32": "https://avatar-management--avatars.server-location.prod.public.atl-paas.net/initials/MK-5.png?size=32&s=32"
+    },
+    "displayName": "Mia Krystof",
+    "active": false
+  },
+  "components": [
+    {
+      "self": "https://your-domain.atlassian.net/rest/api/2/component/10000",
+      "id": "10000",
+      "name": "Component 1",
+      "description": "This is a Jira component",
+      "lead": {
+        "self": "https://your-domain.atlassian.net/rest/api/2/user?accountId=5b10a2844c20165700ede21g",
+        "key": "",
+        "accountId": "5b10a2844c20165700ede21g",
+        "accountType": "atlassian",
+        "name": "",
+        "avatarUrls": {
+          "48x48": "https://avatar-management--avatars.server-location.prod.public.atl-paas.net/initials/MK-5.png?size=48&s=48",
+          "24x24": "https://avatar-management--avatars.server-location.prod.public.atl-paas.net/initials/MK-5.png?size=24&s=24",
+          "16x16": "https://avatar-management--avatars.server-location.prod.public.atl-paas.net/initials/MK-5.png?size=16&s=16",
+          "32x32": "https://avatar-management--avatars.server-location.prod.public.atl-paas.net/initials/MK-5.png?size=32&s=32"
+        },
+        "displayName": "Mia Krystof",
+        "active": false
+      },
+      "assigneeType": "PROJECT_LEAD",
+      "assignee": {
+        "self": "https://your-domain.atlassian.net/rest/api/2/user?accountId=5b10a2844c20165700ede21g",
+        "key": "",
+        "accountId": "5b10a2844c20165700ede21g",
+        "accountType": "atlassian",
+        "name": "",
+        "avatarUrls": {
+          "48x48": "https://avatar-management--avatars.server-location.prod.public.atl-paas.net/initials/MK-5.png?size=48&s=48",
+          "24x24": "https://avatar-management--avatars.server-location.prod.public.atl-paas.net/initials/MK-5.png?size=24&s=24",
+          "16x16": "https://avatar-management--avatars.server-location.prod.public.atl-paas.net/initials/MK-5.png?size=16&s=16",
+          "32x32": "https://avatar-management--avatars.server-location.prod.public.atl-paas.net/initials/MK-5.png?size=32&s=32"
+        },
+        "displayName": "Mia Krystof",
+        "active": false
+      },
+      "realAssigneeType": "PROJECT_LEAD",
+      "realAssignee": {
+        "self": "https://your-domain.atlassian.net/rest/api/2/user?accountId=5b10a2844c20165700ede21g",
+        "key": "",
+        "accountId": "5b10a2844c20165700ede21g",
+        "accountType": "atlassian",
+        "name": "",
+        "avatarUrls": {
+          "48x48": "https://avatar-management--avatars.server-location.prod.public.atl-paas.net/initials/MK-5.png?size=48&s=48",
+          "24x24": "https://avatar-management--avatars.server-location.prod.public.atl-paas.net/initials/MK-5.png?size=24&s=24",
+          "16x16": "https://avatar-management--avatars.server-location.prod.public.atl-paas.net/initials/MK-5.png?size=16&s=16",
+          "32x32": "https://avatar-management--avatars.server-location.prod.public.atl-paas.net/initials/MK-5.png?size=32&s=32"
+        },
+        "displayName": "Mia Krystof",
+        "active": false
+      },
+      "isAssigneeTypeValid": false,
+      "project": "HSP",
+      "projectId": 10000
+    }
+  ],
+  "issueTypes": [
+    {
+      "self": "https://your-domain.atlassian.net/rest/api/2/issueType/3",
+      "id": "3",
+      "description": "A task that needs to be done.",
+      "iconUrl": "https://your-domain.atlassian.net/secure/viewavatar?size=xsmall&avatarId=10299&avatarType=issuetype\",",
+      "name": "Task",
+      "subtask": false,
+      "avatarId": 1,
+      "hierarchyLevel": 0
+    },
+    {
+      "self": "https://your-domain.atlassian.net/rest/api/2/issueType/1",
+      "id": "1",
+      "description": "A problem with the software.",
+      "iconUrl": "https://your-domain.atlassian.net/secure/viewavatar?size=xsmall&avatarId=10316&avatarType=issuetype\",",
+      "name": "Bug",
+      "subtask": false,
+      "avatarId": 10002,
+      "entityId": "9d7dd6f7-e8b6-4247-954b-7b2c9b2a5ba2",
+      "hierarchyLevel": 0,
+      "scope": {
+        "type": "PROJECT",
+        "project": {
+          "id": "10000",
+          "key": "KEY",
+          "name": "Next Gen Project"
+        }
+      }
+    }
+  ],
+  "url": "https://www.example.com",
+  "email": "from-jira@example.com",
+  "assigneeType": "PROJECT_LEAD",
+  "versions": [],
+  "name": "Example",
+  "roles": {
+    "Developers": "https://your-domain.atlassian.net/rest/api/2/project/EX/role/10000"
+  },
+  "avatarUrls": {
+    "48x48": "https://your-domain.atlassian.net/secure/projectavatar?size=large&pid=10000",
+    "24x24": "https://your-domain.atlassian.net/secure/projectavatar?size=small&pid=10000",
+    "16x16": "https://your-domain.atlassian.net/secure/projectavatar?size=xsmall&pid=10000",
+    "32x32": "https://your-domain.atlassian.net/secure/projectavatar?size=medium&pid=10000"
+  },
+  "projectCategory": {
+    "self": "https://your-domain.atlassian.net/rest/api/2/projectCategory/10000",
+    "id": "10000",
+    "name": "FIRST",
+    "description": "First Project Category"
+  },
+  "simplified": false,
+  "style": "classic",
+  "properties": {
+    "propertyKey": "propertyValue"
+  },
+  "insight": {
+    "totalIssueCount": 100,
+    "lastIssueUpdateTime": "2022-04-05T04:51:35.670+0000"
+  }
+}`
+)
