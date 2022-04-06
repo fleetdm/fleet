@@ -30,12 +30,23 @@ import { useDeepEffect } from "utilities/hooks";
 import { size } from "lodash";
 
 import PreviewPayloadModal from "../PreviewPayloadModal";
+import config from "services/mock_service/examples/config";
+
+interface ISoftwareAutomations {
+  webhook_settings: {
+    vulnerabilities_webhook: IWebhookSoftwareVulnerabilities;
+  };
+  integrations: {
+    jira: IJiraIntegration[];
+  };
+}
 
 interface IManageAutomationsModalProps {
   onCancel: () => void;
-  onCreateWebhookSubmit: (formData: IWebhookSoftwareVulnerabilities) => void;
+  onCreateWebhookSubmit: (formData: ISoftwareAutomations) => void;
   togglePreviewPayloadModal: () => void;
   showPreviewPayloadModal: boolean;
+  softwareVulnerabilityAutomationEnabled?: boolean;
   softwareVulnerabilityWebhookEnabled?: boolean;
   currentDestinationUrl?: string;
 }
@@ -58,6 +69,7 @@ const ManageAutomationsModal = ({
   onCreateWebhookSubmit,
   togglePreviewPayloadModal,
   showPreviewPayloadModal,
+  softwareVulnerabilityAutomationEnabled,
   softwareVulnerabilityWebhookEnabled,
   currentDestinationUrl,
 }: IManageAutomationsModalProps): JSX.Element => {
@@ -68,8 +80,10 @@ const ManageAutomationsModal = ({
   const [
     softwareAutomationsEnabled,
     setSoftwareAutomationsEnabled,
-  ] = useState<boolean>(softwareVulnerabilityWebhookEnabled || false);
-  const [jiraEnabled, setJiraEnabled] = useState<boolean>(false);
+  ] = useState<boolean>(softwareVulnerabilityAutomationEnabled || false);
+  const [jiraEnabled, setJiraEnabled] = useState<boolean>(
+    !softwareVulnerabilityWebhookEnabled
+  );
   const [integrationsIndexed, setIntegrationsIndexed] = useState<
     IJiraIntegrationIndexed[]
   >();
@@ -84,30 +98,27 @@ const ManageAutomationsModal = ({
     }
   }, [destination_url]);
 
-  const {
-    data: integrations,
-    isLoading: isLoadingIntegrations,
-    error: loadingIntegrationsError,
-    refetch: refetchIntegrations,
-  } = useQuery<IConfigNested, Error, IJiraIntegration[]>(
-    ["integrations"],
-    () => configAPI.loadAll(),
-    {
-      select: (data: IConfigNested) => {
-        return data.integrations.jira;
-      },
-      onSuccess: (data) => {
-        if (data) {
-          const addIndex = data.map((integration, index) => {
-            return { ...integration, integrationIndex: index };
-          });
-          setIntegrationsIndexed(addIndex);
-
-          console.log("addIndex", addIndex);
-        }
-      },
-    }
-  );
+  const { data: integrations } = useQuery<
+    IConfigNested,
+    Error,
+    IJiraIntegration[]
+  >(["integrations"], () => configAPI.loadAll(), {
+    select: (data: IConfigNested) => {
+      return data.integrations.jira;
+    },
+    onSuccess: (data) => {
+      if (data) {
+        const addIndex = data.map((integration, index) => {
+          return { ...integration, integrationIndex: index };
+        });
+        setIntegrationsIndexed(addIndex);
+        const currentSelectedJiraIntegration = addIndex.find((integration) => {
+          return integration.enable_software_vulnerabilities === true;
+        });
+        setSelectedIntegration(currentSelectedJiraIntegration);
+      }
+    },
+  });
 
   const onURLChange = (value: string) => {
     setDestinationUrl(value);
@@ -122,15 +133,64 @@ const ManageAutomationsModal = ({
       ...newErrors,
     });
 
-    // URL validation only needed if software automation is checked
-    if (valid || !softwareAutomationsEnabled) {
-      onCreateWebhookSubmit({
-        destination_url,
-        enable_vulnerabilities_webhook: softwareAutomationsEnabled,
-      });
+    // Original config keys for software automation (webhook_settings, integrations)
+    const configSoftwareAutomations: ISoftwareAutomations = {
+      webhook_settings: {
+        vulnerabilities_webhook: {
+          destination_url,
+          enable_vulnerabilities_webhook: softwareAutomationsEnabled,
+        },
+      },
+      integrations: {
+        jira: integrations || [],
+      },
+    };
 
-      onReturnToApp();
+    if (!softwareAutomationsEnabled) {
+      // set enable_vulnerabilities_webhook to false and all jira.enable_software_vulnerabilities to false
+      configSoftwareAutomations.webhook_settings.vulnerabilities_webhook.enable_vulnerabilities_webhook = false;
+      const disableAllJira = configSoftwareAutomations.integrations.jira.map(
+        (integration) => {
+          return { ...integration, enable_software_vulnerabilities: false };
+        }
+      );
+      configSoftwareAutomations.integrations.jira = disableAllJira;
+    } else {
+      if (!jiraEnabled) {
+        if (valid) {
+          // set enable_vulnerabilities_webhook to true and all jira.enable_software_vulnerabilities to false
+          configSoftwareAutomations.webhook_settings.vulnerabilities_webhook.enable_vulnerabilities_webhook = true;
+          const disableAllJira = configSoftwareAutomations.integrations.jira.map(
+            (integration) => {
+              return {
+                ...integration,
+                enable_software_vulnerabilities: false,
+              };
+            }
+          );
+          configSoftwareAutomations.integrations.jira = disableAllJira;
+        } else {
+          return; // do not send request to API for webhook automation if url is !valid
+        }
+      } else {
+        // set enable_vulnerabilities_webhook to false and all jira.enable_software_vulnerabilities to false
+        // except the one jira integration selected
+        configSoftwareAutomations.webhook_settings.vulnerabilities_webhook.enable_vulnerabilities_webhook = false;
+        const enableSelectedJiraIntegrationOnly = configSoftwareAutomations.integrations.jira.map(
+          (integration, index) => {
+            return {
+              ...integration,
+              enable_software_vulnerabilities:
+                index === selectedIntegration?.integrationIndex,
+            };
+          }
+        );
+        configSoftwareAutomations.integrations.jira = enableSelectedJiraIntegrationOnly;
+      }
     }
+
+    onCreateWebhookSubmit(configSoftwareAutomations);
+    onReturnToApp();
   };
 
   const createIntegrationDropdownOptions = () => {
@@ -299,6 +359,7 @@ const ManageAutomationsModal = ({
             type="submit"
             variant="brand"
             onClick={handleSaveAutomation}
+            disabled={jiraEnabled && !selectedIntegration}
           >
             Save
           </Button>
