@@ -20,7 +20,6 @@ import (
 	"github.com/facebookincubator/nvdtools/wfn"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/worker"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 )
@@ -192,21 +191,6 @@ func checkCVEs(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 							level.Error(logger).Log("cpe processing", "error", "err", err)
 							continue // do not report a recent vuln that failed to be inserted in the DB
 						}
-
-						// TODO(mna): review this, might need to move to ~where vuln webhook processing happens,
-						// and only care about recent vulns.
-
-						// queue the job to create jira issue
-						args := &worker.JiraArgs{
-							CVE:  cveID,
-							CPEs: matchingCPEs,
-						}
-						if job, err := worker.QueueJob(ctx, ds, worker.JiraName, args); err != nil {
-							level.Error(logger).Log("msg", "queue jira job", "err", err)
-						} else {
-							level.Debug(logger).Log("msg", "queued jira job", "job_id", job.ID)
-						}
-						// END TODO
 
 						// collect as recent vuln only if newCount > 0, otherwise we would send
 						// webhook requests for the same vulnerability over and over again until

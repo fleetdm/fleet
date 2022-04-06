@@ -177,9 +177,39 @@ func cronVulnerabilities(
 		}
 
 		if !vulnDisabled {
-			recentVulns := checkVulnerabilities(ctx, ds, logger, vulnPath, config, appConfig.WebhookSettings.VulnerabilitiesWebhook)
-			if len(recentVulns) > 0 {
-				if err := webhooks.TriggerVulnerabilitiesWebhook(ctx, ds, kitlog.With(logger, "webhook", "vulnerabilities"),
+			// refresh app config to check if webhook or any jira integration is
+			// enabled, as this can be changed dynamically.
+			if freshAppConfig, err := ds.AppConfig(ctx); err != nil {
+				level.Error(logger).Log("config", "couldn't refresh app config", "err", err)
+				// continue with original app config
+			} else {
+				appConfig = freshAppConfig
+			}
+
+			var (
+				vulnAutomationEnabled bool
+				jiraIntgSettings      *fleet.JiraIntegration
+			)
+
+			// only one of the webhook or a jira integration can be enabled at a
+			// time, enforced when updating the appconfig.
+			if appConfig.WebhookSettings.VulnerabilitiesWebhook.Enable {
+				vulnAutomationEnabled = true
+			} else {
+				for _, intg := range appConfig.Integrations.Jira {
+					if intg.EnableSoftwareVulnerabilities {
+						jiraIntgSettings = intg
+						vulnAutomationEnabled = true
+						break
+					}
+				}
+			}
+
+			recentVulns := checkVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled)
+			if vulnAutomationEnabled && len(recentVulns) > 0 {
+				if jiraIntgSettings != nil {
+					// TODO(mna): queue jira ticket creation requests
+				} else if err := webhooks.TriggerVulnerabilitiesWebhook(ctx, ds, kitlog.With(logger, "webhook", "vulnerabilities"),
 					recentVulns, appConfig, time.Now()); err != nil {
 
 					level.Error(logger).Log("err", "triggering vulnerabilities webhook", "details", err)
@@ -208,7 +238,7 @@ func cronVulnerabilities(
 }
 
 func checkVulnerabilities(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
-	vulnPath string, config config.FleetConfig, vulnWebhookCfg fleet.VulnerabilitiesWebhookSettings) map[string][]string {
+	vulnPath string, config config.FleetConfig, collectRecentVulns bool) map[string][]string {
 	err := vulnerabilities.TranslateSoftwareToCPE(ctx, ds, vulnPath, logger, config)
 	if err != nil {
 		level.Error(logger).Log("msg", "analyzing vulnerable software: Software->CPE", "err", err)
@@ -216,7 +246,7 @@ func checkVulnerabilities(ctx context.Context, ds fleet.Datastore, logger kitlog
 		return nil
 	}
 
-	recentVulns, err := vulnerabilities.TranslateCPEToCVE(ctx, ds, vulnPath, logger, config, vulnWebhookCfg.Enable)
+	recentVulns, err := vulnerabilities.TranslateCPEToCVE(ctx, ds, vulnPath, logger, config, collectRecentVulns)
 	if err != nil {
 		level.Error(logger).Log("msg", "analyzing vulnerable software: CPE->CVE", "err", err)
 		sentry.CaptureException(err)
