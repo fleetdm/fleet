@@ -29,6 +29,7 @@ DRIs help us collaborate efficiently by knowing exactly who is responsible and c
 | Final cut of what goes into each release | Zach Wasserman |
 | When we cut a release, version numbers, and whether to release | Zach Wasserman |
 | Release notes | Noah Talerman |
+| Documentation quality | Mike Thomas |
 | Publishing release blog post, and promoting releases | Mike Thomas |
 | fleetdm.com | Mike Thomas |
 | Self-service Fleet Premium license dispenser | Mike Thomas |
@@ -118,6 +119,12 @@ Google Calendar and block out any personal time/events/PTO, so that team members
 schedule a time when you are not available. Many team members use the free tier of
 [reclaim.ai](https://reclaim.ai/) to synchronize personal event times (without event details) into
 their work calendars. It is also common practice to block out time for focused work.
+
+#### Modifying an event organized by someone else
+
+To edit an event where someone else at Fleet is the organizer, you can first subscribe to their calendar in Google Calendar, then edit the event on their calendar.  Your edits will automatically apply for all attendees.
+
+> This works because every fleetie grants edit access to everyone else at Fleet as part of onboarding.
 
 ### External meeting scheduling
 
