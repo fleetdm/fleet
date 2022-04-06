@@ -24,8 +24,6 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Vulnerability management in Fleet](./security.md#vulnerability-management)
 
-[Slack channels](./security.md#slack-channels)
-
 ### 💓 Brand
 
 [Communicating as Fleet](./brand.md#communicating-as-fleet)
@@ -48,13 +46,9 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Fleet swag](./community.md#fleet-swag)
 
-[Slack channels](./community.md#slack-channels)
-
 ### 🚀 Engineering
 
 [Release process](./engineering.md#release-process)
-
-[Slack channels](./engineering.md#slack-channels)
 
 ### ⚗️ Product
 
@@ -70,8 +64,6 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Competition](./product.md#competition)
 
-[Slack channels](./product.md#slack-channels)
-
 ### 🪴 Growth
 
 [Posting on social media as Fleet](./growth.md#posting-on-social-media-as-fleet)
@@ -82,15 +74,11 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Sponsoring events](./growth.md#sponsoring-events)
 
-[Slack channels](./growth.md#slack-channels)
-
 ### 🎈 Customers
 
 [Customer succcess](./customers.md#customer-success)
 
 [Support process](./customers.md#support-process)
-
-[Slack channels](./customers.md#slack-channels)
 
 ### 🧑‍🚀 People
 
@@ -103,8 +91,6 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 [Meetings](./people.md#meetings)
 
 [People ops](./people.md#people-ops)
-
-[Slack channels](./people.md#slack-channels)
 
 ### Handbook
 
