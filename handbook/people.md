@@ -208,7 +208,7 @@ We evaluate and update compensation decisions yearly, shortly after the annivers
 
 1. Once an offer is accepted in writing, reply to the candidate, CCing Eric via his Fleet email address to introduce the candidate to him.
 
-2. Eric creates a [hiring issue]() for the new team member in the [fleetdm/confidential](https://github.com/fleetdm/confidential/issues) repo and go through the checklist items.
+2. Eric creates a [hiring issue](https://github.com/fleetdm/confidential/blob/main/.github/ISSUE_TEMPLATE/hiring.md) for the new team member in the [fleetdm/confidential](https://github.com/fleetdm/confidential/issues) repo and go through the checklist items.
 
 3. Eric reaches out to the new team member to get any information he needs to send them an agreement and onboard them into our payroll system.
 
