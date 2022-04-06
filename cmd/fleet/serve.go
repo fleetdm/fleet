@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
+	"crypto/subtle"
 	"crypto/tls"
 	"database/sql/driver"
 	"errors"
@@ -394,7 +396,7 @@ the way that the Fleet server works.
 
 			var apiHandler, frontendHandler http.Handler
 			{
-				frontendHandler = service.InstrumentHandler("get_frontend", service.ServeFrontend(config.Server.URLPrefix, httpLogger))
+				frontendHandler = service.PrometheusMetricsHandler("get_frontend", service.ServeFrontend(config.Server.URLPrefix, httpLogger))
 				apiHandler = service.MakeHandler(svc, config, httpLogger, limiterStore)
 
 				setupRequired, err := svc.SetupRequired(context.Background())
@@ -436,10 +438,17 @@ the way that the Fleet server works.
 			eh := errorstore.NewHandler(ctx, redisPool, logger, config.Logging.ErrorRetentionPeriod)
 
 			rootMux := http.NewServeMux()
-			rootMux.Handle("/healthz", service.InstrumentHandler("healthz", health.Handler(httpLogger, healthCheckers)))
-			rootMux.Handle("/version", service.InstrumentHandler("version", version.Handler()))
-			rootMux.Handle("/assets/", service.InstrumentHandler("static_assets", service.ServeStaticAssets("/assets/")))
-			rootMux.Handle("/metrics", service.InstrumentHandler("metrics", promhttp.Handler()))
+			rootMux.Handle("/healthz", service.PrometheusMetricsHandler("healthz", health.Handler(httpLogger, healthCheckers)))
+			rootMux.Handle("/version", service.PrometheusMetricsHandler("version", version.Handler()))
+			rootMux.Handle("/assets/", service.PrometheusMetricsHandler("static_assets", service.ServeStaticAssets("/assets/")))
+
+			if config.Prometheus.Auth.Username != "" && config.Prometheus.Auth.Password != "" {
+				metricsHandler := basicAuthHandler(config.Prometheus.Auth.Username, config.Prometheus.Auth.Password, service.PrometheusMetricsHandler("metrics", promhttp.Handler()))
+				rootMux.Handle("/metrics", metricsHandler)
+			} else {
+				level.Info(logger).Log("msg", "metrics endpoint disabled (http basic auth credentials not set)")
+			}
+
 			rootMux.Handle("/api/", apiHandler)
 			rootMux.Handle("/", frontendHandler)
 			rootMux.Handle("/debug/", service.MakeDebugHandler(svc, config, logger, eh, ds))
@@ -562,6 +571,32 @@ the way that the Fleet server works.
 	serveCmd.PersistentFlags().BoolVar(&devExpiredLicense, "dev_expired_license", false, "Enable expired development license")
 
 	return serveCmd
+}
+
+// basicAuthHandler wraps the given handler behind HTTP Basic Auth.
+func basicAuthHandler(username, password string, next http.Handler) http.HandlerFunc {
+	hashFn := func(s string) []byte {
+		h := sha256.Sum256([]byte(s))
+		return h[:]
+	}
+	expectedUsernameHash := hashFn(username)
+	expectedPasswordHash := hashFn(password)
+
+	return func(w http.ResponseWriter, r *http.Request) {
+		recvUsername, recvPassword, ok := r.BasicAuth()
+		if ok {
+			usernameMatch := subtle.ConstantTimeCompare(hashFn(recvUsername), expectedUsernameHash) == 1
+			passwordMatch := subtle.ConstantTimeCompare(hashFn(recvPassword), expectedPasswordHash) == 1
+
+			if usernameMatch && passwordMatch {
+				next.ServeHTTP(w, r)
+				return
+			}
+		}
+
+		w.Header().Set("WWW-Authenticate", `Basic realm="restricted", charset="UTF-8"`)
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+	}
 }
 
 const (
