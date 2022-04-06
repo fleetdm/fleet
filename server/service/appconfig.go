@@ -157,12 +157,12 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 	}
 
 	oldSmtpSettings := appConfig.SMTPSettings
-
-	var oldEnabledJiraSettings *fleet.JiraIntegration
-	for _, jiraSettings := range appConfig.Integrations.Jira {
-		if jiraSettings.EnableSoftwareVulnerabilities {
-			oldEnabledJiraSettings = jiraSettings
-			break
+	var oldJiraSettings []*fleet.JiraIntegration
+	if len(appConfig.Integrations.Jira) > 0 {
+		oldJiraSettings = make([]*fleet.JiraIntegration, len(appConfig.Integrations.Jira))
+		for i, settings := range appConfig.Integrations.Jira {
+			oldSettings := *settings
+			oldJiraSettings[i] = &oldSettings
 		}
 	}
 
@@ -208,20 +208,17 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 		appConfig.SMTPSettings.SMTPConfigured = false
 	}
 
-	// if we enabled a (new or different) Jira integration, then we make a test
-	// request to see if the settings are valid.
-	var newEnabledJiraSettings *fleet.JiraIntegration
-	for _, jiraSettings := range appConfig.Integrations.Jira {
-		if jiraSettings.EnableSoftwareVulnerabilities {
-			newEnabledJiraSettings = jiraSettings
-			break
+	// if Jira integration settings are modified or added, test it.
+	newJiraSettings := appConfig.Integrations.Jira
+	for i, settings := range newJiraSettings {
+		if i < len(oldJiraSettings) && *oldJiraSettings[i] == *settings {
+			// unchanged
+			continue
 		}
-	}
-	if newEnabledJiraSettings != nil {
-		if oldEnabledJiraSettings == nil || *newEnabledJiraSettings != *oldEnabledJiraSettings {
-			if err := svc.makeTestJiraRequest(ctx, newEnabledJiraSettings); err != nil {
-				return nil, ctxerr.Wrap(ctx, err)
-			}
+
+		// new or updated, test it
+		if err := svc.makeTestJiraRequest(ctx, settings); err != nil {
+			return nil, ctxerr.Wrapf(ctx, err, "Jira integration at index %d", i)
 		}
 	}
 
