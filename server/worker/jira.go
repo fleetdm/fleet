@@ -75,7 +75,10 @@ func (j *Jira) Run(ctx context.Context, argsJSON json.RawMessage) error {
 		return ctxerr.Wrap(ctx, err, "unmarshal args")
 	}
 
-	// TODO: need software_id, not cpes...
+	// TODO: need software_id, not cpes, which results in multiple links for a
+	// single CVE (and the page shows hosts affected by the _software_, not
+	// necessarily the CVE, there's a mismatch here due to not having the filter
+	// criteria by CVE).
 	tmplArgs := jiraTemplateArgs{
 		CVE:      args.CVE,
 		NVDURL:   nvdCVEURL + args.CVE,
