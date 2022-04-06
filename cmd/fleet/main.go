@@ -62,6 +62,10 @@ func applyDevFlags(cfg *config.FleetConfig) {
 	cfg.Mysql.Database = "fleet"
 	cfg.Mysql.Password = "insecure"
 
-	cfg.Prometheus.Auth.Username = "fleet"
-	cfg.Prometheus.Auth.Password = "insecure"
+	if cfg.Prometheus.BasicAuth.Username == "" {
+		cfg.Prometheus.BasicAuth.Username = "fleet"
+	}
+	if cfg.Prometheus.BasicAuth.Password == "" {
+		cfg.Prometheus.BasicAuth.Password = "insecure"
+	}
 }

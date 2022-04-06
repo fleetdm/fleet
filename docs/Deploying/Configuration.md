@@ -2439,30 +2439,32 @@ If set then `fleet serve` will capture errors and panics and push them to Sentry
 
 #### Prometheus
 
-##### username
+##### basic_auth.username
 
 Username to use for HTTP Basic Auth on the `/metrics` endpoint.
 If not set then the prometheus `/metrics` endpoint is disabled.
 
 - Default value: `""`
-- Environment variable: `FLEET_PROMETHEUS_USERNAME`
+- Environment variable: `FLEET_PROMETHEUS_BASIC_AUTH_USERNAME`
 - Config file format:
 
-  ```
+  ```yaml
   prometheus:
-    username: "foo"
+    basic_auth:
+      username: "foo"
   ```
 
-##### password
+##### basic_auth.password
 
 Password to use for HTTP Basic Auth on the `/metrics` endpoint.
 If not set then the prometheus `/metrics` endpoint is disabled.
 
 - Default value: `""`
-- Environment variable: `FLEET_PROMETHEUS_PASSWORD`
+- Environment variable: `FLEET_PROMETHEUS_BASIC_AUTH_PASSWORD`
 - Config file format:
 
-  ```
+  ```yaml
   prometheus:
-    password: "bar"
+    basic_auth:
+      password: "bar"
   ```

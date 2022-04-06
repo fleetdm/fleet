@@ -442,8 +442,8 @@ the way that the Fleet server works.
 			rootMux.Handle("/version", service.PrometheusMetricsHandler("version", version.Handler()))
 			rootMux.Handle("/assets/", service.PrometheusMetricsHandler("static_assets", service.ServeStaticAssets("/assets/")))
 
-			if config.Prometheus.Auth.Username != "" && config.Prometheus.Auth.Password != "" {
-				metricsHandler := basicAuthHandler(config.Prometheus.Auth.Username, config.Prometheus.Auth.Password, service.PrometheusMetricsHandler("metrics", promhttp.Handler()))
+			if config.Prometheus.BasicAuth.Username != "" && config.Prometheus.BasicAuth.Password != "" {
+				metricsHandler := basicAuthHandler(config.Prometheus.BasicAuth.Username, config.Prometheus.BasicAuth.Password, service.PrometheusMetricsHandler("metrics", promhttp.Handler()))
 				rootMux.Handle("/metrics", metricsHandler)
 			} else {
 				level.Info(logger).Log("msg", "metrics endpoint disabled (http basic auth credentials not set)")

@@ -239,8 +239,8 @@ type GeoIPConfig struct {
 
 // PrometheusConfig holds the configuration for Fleet's prometheus metrics.
 type PrometheusConfig struct {
-	// Auth is the HTTP Basic Auth configuration.
-	Auth HTTPBasicAuthConfig
+	// BasicAuth is the HTTP Basic BasicAuth configuration.
+	BasicAuth HTTPBasicAuthConfig `json:"basic_auth" yaml:"basic_auth"`
 }
 
 // HTTPBasicAuthConfig holds configuration for HTTP Basic Auth.
@@ -579,8 +579,8 @@ func (man Manager) addConfigs() {
 	man.addConfigString("geoip.database_path", "", "path to mmdb file")
 
 	// Prometheus
-	man.addConfigString("prometheus.username", "", "Prometheus username for HTTP Basic Auth")
-	man.addConfigString("prometheus.password", "", "Prometheus password for HTTP Basic Auth")
+	man.addConfigString("prometheus.basic_auth.username", "", "Prometheus username for HTTP Basic Auth")
+	man.addConfigString("prometheus.basic_auth.password", "", "Prometheus password for HTTP Basic Auth")
 }
 
 // LoadConfig will load the config variables into a fully initialized
@@ -765,9 +765,9 @@ func (man Manager) LoadConfig() FleetConfig {
 			DatabasePath: man.getConfigString("geoip.database_path"),
 		},
 		Prometheus: PrometheusConfig{
-			Auth: HTTPBasicAuthConfig{
-				Username: man.getConfigString("prometheus.username"),
-				Password: man.getConfigString("prometheus.password"),
+			BasicAuth: HTTPBasicAuthConfig{
+				Username: man.getConfigString("prometheus.basic_auth.username"),
+				Password: man.getConfigString("prometheus.basic_auth.password"),
 			},
 		},
 	}
@@ -962,7 +962,7 @@ func (man Manager) loadConfigFile() {
 		os.Exit(1)
 	}
 
-	fmt.Println("Using config file: ", man.viper.ConfigFileUsed())
+	fmt.Println("Using config file:", man.viper.ConfigFileUsed())
 }
 
 // TestConfig returns a barebones configuration suitable for use in tests.
