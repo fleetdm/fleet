@@ -27,6 +27,77 @@ We use the concept of [directly responsible individuals](https://fleetdm.com/han
 #### Group Slack channels
 Every group at Fleet maintains certain Slack channels, which all group members join and keep unmuted.  Everyone else at Fleet is encouraged to mute these channels, using them only as needed.  Each channel has a directly responsible individual who is responsible for keeping up with all new messages, even if they aren't explicitly mentioned (`@`).
 
+## Things new and old team members should know
+### Why do we wireframe first?
+- Wireframing is called “drafting” at Fleet and is done in Figma.
+- Anyone can make a wireframe suggestion, and wireframes are easy to contribute without being code literate.
+- Drafting is completed for each change.
+- We can throw it away after changes. Coding first leaves verbiage that is difficult to update, if it ever gets done at all.
+- It allows you to simplify the creation and testing of error messages.
+- Iterating in wireframes first lets us do all this for:
+    - Error messages
+    - Layouts
+    - Flows
+    - Interactions
+    - Help text
+    - Button text
+    - Forms
+    - URLs
+    - API parameters
+    - API response data…and more
+
+### Why mono repo?
+
+- One repo keeps all of the relevant work in one place. The only exception is when working on something confidential.
+- One repo means that there is less to get lost.
+- One repo pools GitHub stars to reflect Fleet’s actual presence better.
+
+### Why organize work in team-based kanban boards?
+
+- Kanban boards provide a uniform layout across all teams where anyone in the company can look to see what other teams are working on and have coming up.
+- The different columns on the boards allow us to create a game plan for our to-do list for each 3 week iteration.
+- These boards allow anyone in the world to contribute.
+
+### Why 3 week cadence?
+
+- Fleet product is released every 3 weeks, so everyone in the company is synced up to this same schedule.
+- Other companies use a 4 week release cycle, but at Fleet, we like to move a little faster to get more done.
+- Everyone always knows when the new release is, so they also know when their work is due.
+
+### Why agile?
+
+- See [the agile manifesto](https://agilemanifesto.org/).
+- Collaborating and pushing for the next release creates the best product and culture.
+
+Our values and mission.
+
+- See [Fleet's values](./company.md#values).
+
+### Why the emphasis on training?
+
+- Investing in people makes them better and faster contributors.
+- Creating a culture of helping others results in people feeling more comfortable and confident even if they aren’t familiar with osquery.
+- A sharp focus on training means things are written down.
+
+### Why handbook-first strategy?
+
+- Watch [this video about the handbook-first strategy](https://www.youtube.com/watch?v=aZrK8AQM8Ro).
+- For more details, see [GitLab’s handbook-first strategy](https://about.gitlab.com/company/culture/all-remote/handbook-first-documentation/).
+- Documenting in the handbook allows Fleet to scale up and retain knowledge for consistency.
+
+### Why not continuously generate REST API docs from javadoc-style code comments?
+- It looks cheap. Those using open API still are embarrassed by their docs.
+- Generated documentation via tools like Swagger/OpenAPI has a tendency to get out of date and becomes harder to fix to make it up to date.
+- There is less control over how to add annotations to the doc.
+- It has less visibility/ accessibility/ modifiability for people without Golang coding experience.
+- Fully integrating with swagger's format sufficiently to document everything involves more people on the team learning about the intricacies of swagger (instead of editing in markdown that looks like any other markdown in the docs/website)).
+- Autogenerating docs is not the only way to make sure docs accurately reflect the API.
+- Generated docs become just as out of date as handmade docs, except since they are generated, they become more difficult to edit and therefore gated/siloed. Adaptability is efficient.
+- Using markdown allows anyone to edit our docs.
+- Replacing markdown files with code comments makes API reference docs harder to locate and edit.
+
+
+
 ## 🌈 Values
 
 Fleet's values are a set of five ideals adopted by everyone on the team.  They describe the culture we are working together to deliver, inside and outside the company:
