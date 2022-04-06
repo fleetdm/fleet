@@ -14,24 +14,6 @@ const SoftwareVulnCount = ({
   softwareList,
   deviceUser,
 }: ISoftwareVulnCountProps): JSX.Element => {
-  // const vulnCount = softwareList.reduce((sum, software) => {
-  //   return software.vulnerabilities
-  //     ? sum + software.vulnerabilities.length
-  //     : sum;
-  // }, 0);
-
-  // return vulnCount ? (
-  //   <div className={`${baseClass}`}>
-  //     <div className={`${baseClass}__count`}>
-  //       <img alt="Issue icon" src={IssueIcon} />
-  //       {vulnCount === 1
-  //         ? "1 vulnerability detected"
-  //         : `${vulnCount} vulnerabilities detected`}
-  //     </div>
-  //   </div>
-  // ) : (
-  //   <></>
-  // );
   const vulnCount = softwareList.reduce((sum, software) => {
     return software.vulnerabilities?.length ? sum + 1 : sum;
   }, 0);
