@@ -1,0 +1,1 @@
+* Queue Jira ticket creation jobs when new vulnerabilities are found and a Jira integration is enabled.
