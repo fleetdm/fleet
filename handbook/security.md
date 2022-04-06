@@ -266,6 +266,123 @@ We configure Chrome on company-owned devices with a basic policy.
 The use of personal devices is allowed for some applications, so long as the iOS or Android device's OS
 is kept up to date.
 
+## Hardware security keys
+
+If you do not already have a pair of hardware security keys, order [YubiKey 5C NFC security
+keys](https://www.yubico.com/ca/product/yubikey-5c-nfc-pack-of-2/) with your company card, or ask
+BizOps to get you one if you do not have a company card.
+
+### Are they YubiKeys or security keys?
+
+We use YubiKeys, a brand of hardware security keys that support the FIDO U2F protocol. You can use
+both terms interchangeably at Fleet. YubiKeys support more authentication protocols than regular
+security keys.
+
+### Who has to use security keys and why?
+
+Security keys are **strongly recommended** for everyone and **required** for team members with elevated privilege access. 
+
+Because they are the only type of Two-Factor Authentication (2FA) that prevents credentials from
+phishing, we will make them **mandatory for everyone** soon. 
+
+See the [Google Workspace security
+section](https://fleetdm.com/handbook/security#google-workspace-security-authentication) for more
+information on the security of different types of 2FA.
+
+### Goals
+
+Our goals with security keys are to:
+
+1. Eliminate the risk of credential phishing.
+2. Maintain the best user experience possible.
+3. Ensure team members can access systems as needed and that recovery procedures exist in case of a lost key.
+4. Ensure recovery mechanisms are safe to prevent attackers from bypassing 2FA completely.
+
+### Setting up security keys on Google
+
+We recommend setting up **three** security keys on your Google account for redundancy purposes: two
+YubiKeys and your phone as the third key.
+
+If you get a warning during this process about your keyboard not being identified, this is due to
+YubiKeys having a feature that can simulate a keyboard. Ignore the "Your keyboard cannot be
+identified" warning.
+
+1. Set up your first YubiKey by following [Google's
+   instructions](https://support.google.com/accounts/answer/6103523?hl=En). The instructions make
+   you enroll the key by following [this
+   link](https://myaccount.google.com/signinoptions/two-step-verification?flow=sk&opendialog=addsk).
+   When it comes to naming your keys, that is a name only used so you can identify which key was
+   registered. You can name them Key1 and Key2.
+2. Repeat the process with your 2nd YubiKey. 
+3. Configure your phone as [a security key](https://support.google.com/accounts/answer/9289445)  
+
+
+### Optional: getting rid of keyboard warnings
+
+1. Install YubiKey manager.You can do this from the **Managed Software Center** on managed Macs.
+   On other platforms, download it [from the official
+   website](https://www.yubico.com/support/download/yubikey-manager/#h-downloads)
+2. Open YubiKey manager with one of your keys connected.
+3. Go to the **Interfaces** tab.
+4. Uncheck the **OTP** checkboxes under **USB** and **NFC** and click *Save Interfaces*.
+5. Unplug your key and connect your 2nd one to repeat the process.
+
+
+### Optional: setting up security keys on GitHub
+
+1. Configure your two security keys to [access
+   GitHub](https://github.com/settings/two_factor_authentication/configure).
+2. If you are using a Mac, feel free to add it as a security key on GitHub. This brings most of the
+   advantages of the hardware security key, but allows you to log in by simply touching Touch ID as
+   your second factor.
+
+### FAQ
+
+1. Can I use my Fleet YubiKeys with personal accounts?
+
+**Answer**: We highly recommend that you do so. Facebook accounts, personal email, Twitter accounts,
+cryptocurrency trading sites and much more support FIDO U2F authentication, the standard used by
+security keys. Fleet will **never ask for your keys back**. They are yours to use everywhere you
+can.
+
+2. Can I use my phone as a security key?
+
+**Answer**: Yes. Google [provides
+instructions](https://support.google.com/accounts/answer/6103523?hl=En&co=GENIE.Platform%3DiOS&oco=1),
+and it works on Android devices as well as iPhones. When doing this, you will still need the YubiKey
+to access Google applications from the phone itself. 
+Since it requires Bluetooth, this option is also less reliable than using the USB-C security key.
+
+3. Can I leave my YubiKey connected to my laptop?
+
+**Answer**: Yes, unless you are traveling. We use security keys to eliminate the ability of
+attackers to phish our credentials remotely, not as any type of local security improvement. That
+being said, keeping it separate from the laptop when traveling means they are unlikely to both be
+lost or stolen at the same time.
+
+4. I've lost one of my keys, what do I do?
+
+**Answer**: Post in the `#g-security` channel ASAP so we can disable the key. IF you find it later, no
+worries, just enroll it again!
+
+5. I lost all of my keys and I'm locked out! What do I do?
+
+**Answer**: Post in the `#help-login` channel, or if you are locked out of Slack, contact your
+manager. You will be provided a way to log back in and make your phone your security key, until you
+receive new ones.
+
+6. Can I use security keys to log in from any device?
+
+**Answer**: The keys we use, YubiKeys 5C NFC, work over USB-C as well as NFC. They can be used on
+Mac/PC, Android as well as iPhone and iPad Pro with USB-C port. If some application or device does
+not support it, you can always browse to [g.co/sc](https://g.co/sc) from a device that does support
+security keys to generate a temporary code for the device that does not.
+
+7. Will I need my YubiKey every time I want to check my email?
+
+**Answer**: No. Using them does not make sessions shorter. For example, if using the GMail app on
+mobile, you'd need the keys to set up the app only.
+
 ## GitHub Security
 Since Fleet makes open source software, we need to host and collaborate on code. We do this using GitHub.
 
@@ -406,7 +523,7 @@ Google's name for Two-Factor Authentication (2FA) or Multi-Factor Authentication
 | SMS/Phone-based 2FA                                                           | Puts trust in the phone number itself, which attackers can hijack by [social engineering phone companies](https://www.vice.com/en/topic/sim-hijacking).      |
 | Time-based one-time password (TOTP - Google Authenticator type 6 digit codes) | Phishable as long as the attacker uses it within its short lifetime by intercepting the login form. |
 | App-based push notifications                                                  | Harder to phish than TOTP, but by sending a lot of prompts to a phone, a user might accidentally accept a nefarious notification.       |
-| Hardware security keys                                                        | [Most secure](https://krebsonsecurity.com/2018/07/google-security-keys-neutralized-employee-phishing/), but requires extra hardware or a recent smartphone.                                                                 |
+| Hardware security keys                                                        | [Most secure](https://krebsonsecurity.com/2018/07/google-security-keys-neutralized-employee-phishing/), but requires extra hardware or a recent smartphone. Configure this as soon as you receive your Fleet YubiKeys                                                                |
 
 **2-Step Verification in Google Workspace**
 
@@ -422,9 +539,12 @@ We apply the following settings to *Security/2-Step Verification* to all users a
 
 **Hardware security keys**
 
-We strongly recommend providing users with hardware security keys. [Titan Keys](https://store.google.com/us/config/titan_security_key?hl=en-US) from Google are compatible with laptops, iPad Pros, iPhones (NFC), and Android phones (NFC or USB-C). The [YubiKey 5C NFC](https://www.yubico.com/ca/product/yubikey-5c-nfc/) is also compatible and includes extra features like support for OpenPGP and additional protocols. It is also possible to use a phone as a [security key](https://support.google.com/accounts/answer/9289445?hl=en&co=GENIE.Platform%3DAndroid).
+We strongly recommend the use of hardware security keys. 
 
-Specific groups of users, such as privileged user accounts, separate from regular day-to-day accounts, should be configured with a policy that enforces the use of hardware security keys, which prevent credential theft better than other methods of 2FA/2-SV.
+Fleet configures privileged user accounts with a policy that enforces the use of hardware security
+keys. This prevents credential theft better than other methods of 2FA/2-SV. See [hardware security
+keys](https://fleetdm.com/handbook/security#hardware-security-keys) for information about the model we use, why and how to set
+them up, .
 
 
 #### Passwords
