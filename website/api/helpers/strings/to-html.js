@@ -107,6 +107,10 @@ module.exports = {
       }
     };
 
+    customRenderer.blockquote = function(quote) {
+      return '<blockquote><img src="/images/info-16x16@2x.png" alt="An icon indicating that this section has important information"><div class="d-block">'+quote+'</div></blockquote>';
+    };
+
     markedOpts.renderer = customRenderer;
     // Now actually compile the markdown to HTML.
     marked(inputs.mdString, markedOpts, function afterwards (err, htmlString) {
