@@ -341,47 +341,23 @@ func cronWorker(
 	logger kitlog.Logger,
 	identifier string,
 ) {
+	const (
+		lockDuration        = 10 * time.Minute
+		lockAttemptInterval = 10 * time.Minute
+	)
+
 	logger = kitlog.With(logger, "cron", lockKeyWorker)
-
-	appConfig, err := ds.AppConfig(ctx)
-	if err != nil {
-		level.Error(logger).Log("config", "couldn't read app config", "err", err)
-		return
-	}
-
-	// get the enabled jira config, if any
-	var jiraSettings *fleet.JiraIntegration
-	for _, intg := range appConfig.Integrations.Jira {
-		if intg.EnableSoftwareVulnerabilities {
-			jiraSettings = intg
-			break
-		}
-	}
 
 	// create the worker and register the Jira job even if no jira integration
 	// is enabled, as that config can change live (and if it's not enabled,
 	// there won't be any records to process so it will mostly just sleep).
 	w := worker.NewWorker(ds, logger)
 
-	// TODO: pass config and jira client
-	var jiraClient *externalsvc.Jira
-	if jiraSettings != nil {
-		client, err := externalsvc.NewJiraClient(&externalsvc.JiraOptions{
-			BaseURL:           jiraSettings.URL,
-			BasicAuthUsername: jiraSettings.Username,
-			BasicAuthPassword: jiraSettings.Password,
-			ProjectKey:        jiraSettings.ProjectKey,
-		})
-		if err != nil {
-			// TODO(mna): log error
-		}
-		jiraClient = client
-	}
+	// leave the FleetURL and JiraClient fields empty for now, will be filled
+	// when the lock is acquired with the up-to-date config.
 	jira := &worker.Jira{
-		FleetURL:   appConfig.ServerSettings.ServerURL,
-		Datastore:  ds,
-		Log:        logger,
-		JiraClient: jiraClient, // may be nil until a jira integration is enabled
+		Datastore: ds,
+		Log:       logger,
 	}
 	w.Register(jira)
 
@@ -390,13 +366,13 @@ func cronWorker(
 		select {
 		case <-ticker.C:
 			level.Debug(logger).Log("waiting", "done")
-			ticker.Reset(10 * time.Minute)
+			ticker.Reset(lockAttemptInterval)
 		case <-ctx.Done():
 			level.Debug(logger).Log("exit", "done with cron.")
 			return
 		}
 
-		if locked, err := ds.Lock(ctx, lockKeyWorker, identifier, 10*time.Minute); err != nil {
+		if locked, err := ds.Lock(ctx, lockKeyWorker, identifier, lockDuration); err != nil {
 			level.Error(logger).Log("msg", "Error acquiring lock", "err", err)
 			continue
 		} else if !locked {
@@ -404,9 +380,52 @@ func cronWorker(
 			continue
 		}
 
-		err := w.ProcessJobs(ctx)
+		// Read app config to be able to use the latest configuration for the Jira
+		// integration.
+		appConfig, err := ds.AppConfig(ctx)
 		if err != nil {
-			level.Error(logger).Log("msg", "Error processing jobs", "err", err)
+			level.Error(logger).Log("config", "couldn't read app config", "err", err)
+			sentry.CaptureException(err)
+			continue
 		}
+
+		// get the enabled jira config, if any
+		var jiraSettings *fleet.JiraIntegration
+		for _, intg := range appConfig.Integrations.Jira {
+			if intg.EnableSoftwareVulnerabilities {
+				jiraSettings = intg
+				break
+			}
+		}
+		if jiraSettings == nil {
+			// currently, Jira is the only job possible, so skip processing jobs if
+			// it is not enabled.
+			level.Debug(logger).Log("msg", "no Jira integration enabled")
+			continue
+		}
+
+		// create the client to make API calls to Jira
+		client, err := externalsvc.NewJiraClient(&externalsvc.JiraOptions{
+			BaseURL:           jiraSettings.URL,
+			BasicAuthUsername: jiraSettings.Username,
+			BasicAuthPassword: jiraSettings.Password,
+			ProjectKey:        jiraSettings.ProjectKey,
+		})
+		if err != nil {
+			level.Error(logger).Log("msg", "Error creating Jira client", "err", err)
+			sentry.CaptureException(err)
+			continue
+		}
+
+		// safe to update the Jira worker as it is not used concurrently
+		jira.FleetURL = appConfig.ServerSettings.ServerURL
+		jira.JiraClient = client
+
+		workCtx, cancel := context.WithTimeout(ctx, lockDuration)
+		if err := w.ProcessJobs(workCtx); err != nil {
+			level.Error(logger).Log("msg", "Error processing jobs", "err", err)
+			sentry.CaptureException(err)
+		}
+		cancel()
 	}
 }

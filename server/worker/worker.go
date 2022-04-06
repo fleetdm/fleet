@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
@@ -50,7 +51,7 @@ func (w *Worker) Register(jobs ...Job) {
 func QueueJob(ctx context.Context, ds fleet.Datastore, name string, args interface{}) (*fleet.Job, error) {
 	argsJSON, err := json.Marshal(args)
 	if err != nil {
-		return nil, fmt.Errorf("marshal args: %w", err)
+		return nil, ctxerr.Wrap(ctx, err, "marshal args")
 	}
 	job := &fleet.Job{
 		Name:  name,
@@ -63,13 +64,13 @@ func QueueJob(ctx context.Context, ds fleet.Datastore, name string, args interfa
 
 // ProcessJobs processes all queued jobs.
 func (w *Worker) ProcessJobs(ctx context.Context) error {
+	const maxNumJobs = 100
 
-	// process jobs until there are none left
-	maxNumJobs := 100
+	// process jobs until there are none left or the context is cancelled
 	for {
 		jobs, err := w.ds.GetQueuedJobs(ctx, maxNumJobs)
 		if err != nil {
-			return fmt.Errorf("get jobs: %w", err)
+			return ctxerr.Wrap(ctx, err, "get queued jobs")
 		}
 
 		if len(jobs) == 0 {
@@ -77,16 +78,20 @@ func (w *Worker) ProcessJobs(ctx context.Context) error {
 		}
 
 		for _, job := range jobs {
-			log := kitlog.With(w.log, "job_id", job.ID)
+			select {
+			case <-ctx.Done():
+				return ctxerr.Wrap(ctx, ctx.Err(), "context done")
+			default:
+			}
 
+			log := kitlog.With(w.log, "job_id", job.ID)
 			level.Debug(log).Log("msg", "processing job")
 
-			err := w.processJob(ctx, job)
-			if err != nil {
-				level.Error(log).Log("msg", "job failed", "err", err)
+			if err := w.processJob(ctx, job); err != nil {
+				level.Error(log).Log("msg", "process job", "err", err)
 				job.Error = err.Error()
 				if job.Retries < maxRetries {
-					level.Debug(log).Log("msg", "retrying job")
+					level.Debug(log).Log("msg", "will retry job")
 					job.Retries += 1
 				} else {
 					job.State = fleet.JobStateFailure
@@ -96,8 +101,7 @@ func (w *Worker) ProcessJobs(ctx context.Context) error {
 				job.Error = ""
 			}
 
-			_, err = w.ds.UpdateJob(ctx, job.ID, job)
-			if err != nil {
+			if _, err := w.ds.UpdateJob(ctx, job.ID, job); err != nil {
 				level.Error(log).Log("update job", "err", err)
 			}
 		}
@@ -109,7 +113,7 @@ func (w *Worker) ProcessJobs(ctx context.Context) error {
 func (w *Worker) processJob(ctx context.Context, job *fleet.Job) error {
 	j, ok := w.registry[job.Name]
 	if !ok {
-		return fmt.Errorf("unknown job: %s", job.Name)
+		return ctxerr.Errorf(ctx, "unknown job: %s", job.Name)
 	}
 
 	var args json.RawMessage
