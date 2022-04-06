@@ -331,7 +331,7 @@ identified" warning.
 ### Optional: setting up security keys on GitHub
 
 1. Configure your two security keys to [access
-   GitHub](https://docs.github.com/en/authentication/securing-your-account-with-two-factor-authentication-2fa/configuring-two-factor-authentication#configuring-two-factor-authentication-using-a-security-key).
+   GitHub](https://github.com/settings/two_factor_authentication/configure).
 2. If you are using a Mac, feel free to add it as a security key on GitHub. This brings most of the
    advantages of the hardware security key, but allows you to log in by simply touching Touch ID as
    your second factor.
@@ -350,9 +350,8 @@ can.
 **Answer**: Yes. Google [provides
 instructions](https://support.google.com/accounts/answer/6103523?hl=En&co=GENIE.Platform%3DiOS&oco=1),
 and it works on Android devices as well as iPhones. When doing this, you will still need the YubiKey
-to access Google applications from the phone itself.
-the 2nd factor for authentication initiated on itself. Since it requires Bluetooth, this option is
-also less reliable than using the USB-C security key.
+to access Google applications from the phone itself. 
+Since it requires Bluetooth, this option is also less reliable than using the USB-C security key.
 
 3. Can I leave my YubiKey connected to my laptop?
 
