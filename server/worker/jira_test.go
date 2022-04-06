@@ -3,11 +3,13 @@ package worker
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
 	kitlog "github.com/go-kit/kit/log"
@@ -59,4 +61,29 @@ func TestJiraRun(t *testing.T) {
 	}
 	err = jira.Run(context.Background(), json.RawMessage(`{"cve":"CVE-1234-test","cpes":[]}`))
 	require.NoError(t, err)
+}
+
+func TestJiraQueueJobs(t *testing.T) {
+	ds := new(mock.Store)
+	ctx := context.Background()
+	logger := kitlog.NewNopLogger()
+
+	t.Run("success", func(t *testing.T) {
+		ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
+			return job, nil
+		}
+		err := QueueJiraJobs(ctx, ds, logger, map[string][]string{"CVE-1234-test": {"a", "b"}})
+		require.NoError(t, err)
+		require.True(t, ds.NewJobFuncInvoked)
+	})
+
+	t.Run("failure", func(t *testing.T) {
+		ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
+			return nil, io.EOF
+		}
+		err := QueueJiraJobs(ctx, ds, logger, map[string][]string{"CVE-1234-test": {"a", "b"}})
+		require.Error(t, err)
+		require.ErrorIs(t, err, io.EOF)
+		require.True(t, ds.NewJobFuncInvoked)
+	})
 }
