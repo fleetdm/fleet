@@ -208,9 +208,9 @@ We evaluate and update compensation decisions yearly, shortly after the annivers
 
 1. Once an offer is accepted in writing, reply to the candidate, CCing Eric via his Fleet email address to introduce the candidate to him.
 
-2. Eric creates a [hiring issue](https://github.com/fleetdm/confidential/blob/main/.github/ISSUE_TEMPLATE/hiring.md) for the new team member in the [fleetdm/confidential](https://github.com/fleetdm/confidential/issues) repo and go through the checklist items.
+2. Eric creates a [hiring issue](https://github.com/fleetdm/confidential/blob/main/.github/ISSUE_TEMPLATE/hiring.md) for the new team member in the [fleetdm/confidential](https://github.com/fleetdm/confidential/issues) repo. Eric will use this issue to keep track of the hiring tasks for the new team member.
 
-3. Eric reaches out to the new team member to get any information he needs to send them an agreement and onboard them into our payroll system.
+3. Eric reaches out to the new team member via email to get any information he will need to prepare an agreement and add them into our payroll system.
 
    - **for US team members**: Eric will send the new team members agreement through [Docusign](https://www.docusign.com/).
    After an agreement is signed and stored in the correct Google Drive folder, Eric will invite the new team member to onboard in [Gusto](https://www.gusto.com/). If the new team member is a W-2 employee, Eric will reach out to them and schedule an I-9 verification meeting.
