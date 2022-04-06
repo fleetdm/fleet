@@ -29,6 +29,7 @@ DRIs help us collaborate efficiently by knowing exactly who is responsible and c
 | Final cut of what goes into each release | Zach Wasserman |
 | When we cut a release, version numbers, and whether to release | Zach Wasserman |
 | Release notes | Noah Talerman |
+| Documentation quality | Mike Thomas |
 | Publishing release blog post, and promoting releases | Mike Thomas |
 | fleetdm.com | Mike Thomas |
 | Self-service Fleet Premium license dispenser | Mike Thomas |

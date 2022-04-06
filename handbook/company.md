@@ -217,5 +217,20 @@ When Kolide's attention shifted away from Fleet and towards their separate, user
 Zach partnered with our CEO, Mike McNeil, to found a new, independent company: Fleet Device Management Inc.  In November 2020, we [announced](https://medium.com/fleetdm/a-new-fleet-d4096c7de978) the transition and kicked off the logistics of moving the GitHub repository.
 
 
+## Slack channels
+
+The following [Slack channels are maintained](https://fleetdm.com/handbook/company#group-slack-channels) by Fleet's founders and executive collaborators:
+
+| Slack channel               | [DRI](https://fleetdm.com/handbook/company#group-slack-channels)    |
+|:----------------------------|:--------------------------------------------------------------------|
+| `#g-founders`               | Mike McNeil
+| `#help-mission-control`     | Charlie Chance
+| `#help-okrs`                | Mike McNeil
+| `#help-manage`              | Mike McNeil
+| `#news-fundraising`         | Mike McNeil
+| `#help-open-core-ventures`  | Mike McNeil
+| `#general`                  | N/A _(announce something company-wide)_
+| `#thanks`                   | N/A _(say thank you)_
+| `#random`                   | N/A _(be random)_
 
 <meta name="maintainedBy" value="mikermcneil">
