@@ -36,7 +36,7 @@ DRIs help us collaborate efficiently by knowing exactly who is responsible and c
 *Luke Heath is backup 
 
 >You can read more about directly responsible individuals in [GitLab's handbook](https://about.gitlab.com/handbook/people-group/directly-responsible-individuals/)
-Things new and old employees should know
+Things new and old team members should know
 ## Some things you should know about Fleet's proccess culture
 ### Why do we wireframe first?
 - Wireframing is called “drafting” at Fleet and is done in Figma.
@@ -76,12 +76,12 @@ Things new and old employees should know
 
 ### Why agile?
 
-- See: https://agilemanifesto.org/
+- See [the agile manifesto](https://agilemanifesto.org/).
 - Collaborating and pushing for the next release creates the best product and culture.
 
 Our values and mission.
 
-- See: https://fleetdm.com/handbook/company
+- See [Fleet's values](./company.md#values).
 
 ### Why the emphasis on training?
 
@@ -91,8 +91,8 @@ Our values and mission.
 
 ### Why handbook-first strategy?
 
-- Watch: https://www.youtube.com/watch?v=aZrK8AQM8Ro
-- For more details see: https://about.gitlab.com/company/culture/all-remote/handbook-first-documentation/
+- Watch [this video about the handbook-first strategy](https://www.youtube.com/watch?v=aZrK8AQM8Ro).
+- For more details see [GitLab’s handbook-first strategy](https://about.gitlab.com/company/culture/all-remote/handbook-first-documentation/).
 - Documenting in the handbook allows Fleet to scale up and retain knowledge for consistency.
 
 ### Why not continuously generate REST API docs from javadoc-style code comments?
