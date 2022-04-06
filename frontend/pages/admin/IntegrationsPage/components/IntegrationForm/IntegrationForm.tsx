@@ -5,7 +5,6 @@ import {
   IJiraIntegration,
   IJiraIntegrationFormData,
   IJiraIntegrationIndexed,
-  IJiraIntegrationFormErrors,
 } from "interfaces/integration";
 
 import Button from "components/buttons/Button";

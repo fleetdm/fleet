@@ -4,10 +4,8 @@ import { useQuery } from "react-query";
 import { NotificationContext } from "context/notification";
 import { IConfigNested } from "interfaces/config";
 import {
-  IIntegrations,
   IJiraIntegration,
   IJiraIntegrationIndexed,
-  IJiraIntegrationFormData,
   IJiraIntegrationFormErrors,
 } from "interfaces/integration";
 import { IApiError } from "interfaces/errors";
