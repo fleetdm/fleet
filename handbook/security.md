@@ -680,6 +680,7 @@ The following [Slack channels are maintained](https://fleetdm.com/handbook/compa
 |:------------------------------------|:--------------------------------------------------------------------|
 | `#g-security`                       | Guillaume Ross
 | `#help-login`                       | Guillaume Ross
+| `#help-tines`                       | Guillaume Ross
 
 
 <meta name="maintainedBy" value="guillaumeross">
