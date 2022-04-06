@@ -29,6 +29,7 @@ DRIs help us collaborate efficiently by knowing exactly who is responsible and c
 | Final cut of what goes into each release | Zach Wasserman |
 | When we cut a release, version numbers, and whether to release | Zach Wasserman |
 | Release notes | Noah Talerman |
+| Documentation quality | Mike Thomas |
 | Publishing release blog post, and promoting releases | Mike Thomas |
 | fleetdm.com | Mike Thomas |
 | Self-service Fleet Premium license dispenser | Mike Thomas |
@@ -247,6 +248,18 @@ When the final signature is added to an envelope in Docusign, it is marked as co
       [email subject]
       link: drive.google.com/[destinationFolderID]
    ```
+
+## Rituals
+
+### OKR Planning
+
+OKRs help inform what to prioritize, and communicate company goals while encouraging cross team collaboration.
+
+At the end of the quarter, and at key points throughout the quarter (every 3 weeks), we review the status of each OKR (depending on the KR, either 100% or ≥70% completion is considered "success")
+
+- Review topdown and departmental OKRs as they are turned in.
+- OKRs they are finalized 1 week from when topdown OKRs were initially reviewed.
+- Finalized OKRs are shared company-wide and at "all hands" and, at least to some degree, become public.
 
 ## Slack channels
 

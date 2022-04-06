@@ -5,17 +5,12 @@ import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification"; // @ts-ignore
 import { getConfig } from "redux/nodes/app/actions";
 
-import enrollSecretsAPI from "services/entities/enroll_secret";
 import configAPI from "services/entities/config";
 
 // @ts-ignore
 import deepDifference from "utilities/deep_difference";
 import { IConfig, IConfigNested } from "interfaces/config";
 import { IApiError } from "interfaces/errors";
-import {
-  IEnrollSecret,
-  IEnrollSecretsResponse,
-} from "interfaces/enroll_secret";
 
 // @ts-ignore
 import AppConfigForm from "components/forms/admin/AppConfigForm";
@@ -39,15 +34,6 @@ const AppSettingsPage = (): JSX.Element => {
       select: (data: IConfigNested) => data,
     }
   );
-
-  const { data: globalSecrets } = useQuery<
-    IEnrollSecretsResponse,
-    Error,
-    IEnrollSecret[]
-  >(["global secrets"], () => enrollSecretsAPI.getGlobalEnrollSecrets(), {
-    enabled: true,
-    select: (data: IEnrollSecretsResponse) => data.secrets,
-  });
 
   const onFormSubmit = useCallback(
     (formData: IConfigNested) => {
@@ -104,8 +90,7 @@ const AppSettingsPage = (): JSX.Element => {
   return (
     <div className={`${baseClass} body-wrap`}>
       <p className={`${baseClass}__page-description`}>
-        Set your organization information, Configure SAML and SMTP, and view
-        host enroll secrets.
+        Set your organization information and configure SAML and SMTP.
       </p>
       <div className={`${baseClass}__settings-form`}>
         <nav>
@@ -129,11 +114,6 @@ const AppSettingsPage = (): JSX.Element => {
               <a onClick={() => scrollInto("smtp")}>SMTP options</a>
             </li>
             <li>
-              <a onClick={() => scrollInto("osquery-enrollment-secrets")}>
-                Osquery enrollment secrets
-              </a>
-            </li>
-            <li>
               <a onClick={() => scrollInto("agent-options")}>
                 Global agent options
               </a>
@@ -154,11 +134,7 @@ const AppSettingsPage = (): JSX.Element => {
           </ul>
         </nav>
         {!isLoadingConfig && appConfig && (
-          <AppConfigForm
-            appConfig={appConfig}
-            handleSubmit={onFormSubmit}
-            enrollSecret={globalSecrets}
-          />
+          <AppConfigForm appConfig={appConfig} handleSubmit={onFormSubmit} />
         )}
       </div>
     </div>

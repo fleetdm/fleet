@@ -147,7 +147,7 @@ const DataTable = ({
       // Initializes as false, but changes briefly to true on successful notification
       autoResetSelectedRows: resetSelectedRows,
       // Expands the enumerated `filterTypes` for react-table
-      // (see https://github.com/tannerlinsley/react-table/blob/master/src/filterTypes.js)
+      // (see https://github.com/TanStack/react-table/blob/alpha/packages/react-table/src/filterTypes.ts)
       // with custom `filterTypes` defined for this `useTable` instance
       filterTypes: React.useMemo(
         () => ({
@@ -262,7 +262,7 @@ const DataTable = ({
   }, [isAllPagesSelected, toggleAllRowsSelected]);
 
   useEffect(() => {
-    setPageSize(CLIENT_SIDE_DEFAULT_PAGE_SIZE);
+    setPageSize(defaultPageSize || CLIENT_SIDE_DEFAULT_PAGE_SIZE);
   }, [setPageSize]);
 
   useDeepEffect(() => {

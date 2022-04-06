@@ -6,7 +6,7 @@ import (
 
 // ListTeams retrieves the list of teams.
 func (c *Client) ListTeams(query string) ([]fleet.Team, error) {
-	verb, path := "GET", "/api/v1/fleet/teams"
+	verb, path := "GET", "/api/latest/fleet/teams"
 	var responseBody listTeamsResponse
 	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query)
 	if err != nil {
@@ -19,7 +19,7 @@ func (c *Client) ListTeams(query string) ([]fleet.Team, error) {
 // Fleet instance.
 func (c *Client) ApplyTeams(specs []*fleet.TeamSpec) error {
 	req := applyTeamSpecsRequest{Specs: specs}
-	verb, path := "POST", "/api/v1/fleet/spec/teams"
+	verb, path := "POST", "/api/latest/fleet/spec/teams"
 	var responseBody applyTeamSpecsResponse
 	return c.authenticatedRequest(req, verb, path, &responseBody)
 }
@@ -28,7 +28,7 @@ func (c *Client) ApplyTeams(specs []*fleet.TeamSpec) error {
 // Fleet instance.
 func (c *Client) ApplyPolicies(specs []*fleet.PolicySpec) error {
 	req := applyPolicySpecsRequest{Specs: specs}
-	verb, path := "POST", "/api/v1/fleet/spec/policies"
+	verb, path := "POST", "/api/latest/fleet/spec/policies"
 	var responseBody applyPolicySpecsResponse
 	return c.authenticatedRequest(req, verb, path, &responseBody)
 }

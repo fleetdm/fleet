@@ -16,7 +16,7 @@ func (c *Client) SearchTargets(query string, hostIDs, labelIDs []uint) (*fleet.T
 			// TODO handle TeamIDs
 		},
 	}
-	verb, path := "POST", "/api/v1/fleet/targets"
+	verb, path := "POST", "/api/latest/fleet/targets"
 	var responseBody searchTargetsResponse
 	err := c.authenticatedRequest(req, verb, path, &responseBody)
 	if err != nil {
