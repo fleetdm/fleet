@@ -279,7 +279,4 @@ We're happy you've ventured a trip around the sun with Fleet. Let's celebrate!
 Please see [Brand > Slack channels](https://fleetdm.com/handbook/brand#slack-channels).
 
 
-
-
-
 <meta name="maintainedBy" value="eashaw">
