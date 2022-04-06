@@ -25,7 +25,6 @@ var jiraSummaryTmpl = template.Must(template.New("").Parse(
 	`{{ .CVE }} detected on hosts`,
 ))
 
-// TODO: check if jira api supports markdown in summary/description
 var jiraDescriptionTmpl = template.Must(template.New("").Parse(
 	`See vulnerability (CVE) details in National Vulnerability Database (NVD) here: {{ .NVDURL }}
 
