@@ -48,6 +48,9 @@ func (w *Worker) Register(jobs ...Job) {
 	}
 }
 
+// QueueJob inserts a job to be processed by the worker for the job processor
+// identified by the name (e.g. "jira"). The args value is marshaled as JSON
+// and provided to the job processor when the job is executed.
 func QueueJob(ctx context.Context, ds fleet.Datastore, name string, args interface{}) (*fleet.Job, error) {
 	argsJSON, err := json.Marshal(args)
 	if err != nil {
