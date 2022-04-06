@@ -169,6 +169,7 @@ func cronVulnerabilities(
 		if config.Vulnerabilities.CurrentInstanceChecks == "auto" {
 			if locked, err := ds.Lock(ctx, lockKeyVulnerabilities, identifier, 1*time.Hour); err != nil {
 				level.Error(logger).Log("msg", "Error acquiring lock", "err", err)
+				sentry.CaptureException(err)
 				continue
 			} else if !locked {
 				level.Debug(logger).Log("msg", "Not the leader. Skipping...")
@@ -181,15 +182,13 @@ func cronVulnerabilities(
 			// enabled, as this can be changed dynamically.
 			if freshAppConfig, err := ds.AppConfig(ctx); err != nil {
 				level.Error(logger).Log("config", "couldn't refresh app config", "err", err)
-				// continue with original app config
+				sentry.CaptureException(err)
+				// continue with stale app config
 			} else {
 				appConfig = freshAppConfig
 			}
 
-			var (
-				vulnAutomationEnabled bool
-				jiraIntgSettings      *fleet.JiraIntegration
-			)
+			var vulnAutomationEnabled bool
 
 			// only one of the webhook or a jira integration can be enabled at a
 			// time, enforced when updating the appconfig.
@@ -198,7 +197,6 @@ func cronVulnerabilities(
 			} else {
 				for _, intg := range appConfig.Integrations.Jira {
 					if intg.EnableSoftwareVulnerabilities {
-						jiraIntgSettings = intg
 						vulnAutomationEnabled = true
 						break
 					}
@@ -207,13 +205,24 @@ func cronVulnerabilities(
 
 			recentVulns := checkVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled)
 			if vulnAutomationEnabled && len(recentVulns) > 0 {
-				if jiraIntgSettings != nil {
-					// TODO(mna): queue jira ticket creation requests
-				} else if err := webhooks.TriggerVulnerabilitiesWebhook(ctx, ds, kitlog.With(logger, "webhook", "vulnerabilities"),
-					recentVulns, appConfig, time.Now()); err != nil {
+				if appConfig.WebhookSettings.VulnerabilitiesWebhook.Enable {
 
-					level.Error(logger).Log("err", "triggering vulnerabilities webhook", "details", err)
-					sentry.CaptureException(err)
+					// send recent vulnerabilities via webhook
+					if err := webhooks.TriggerVulnerabilitiesWebhook(ctx, ds, kitlog.With(logger, "webhook", "vulnerabilities"),
+						recentVulns, appConfig, time.Now()); err != nil {
+
+						level.Error(logger).Log("err", "triggering vulnerabilities webhook", "details", err)
+						sentry.CaptureException(err)
+					}
+				} else {
+
+					// send recent vulnerabilities to Jira
+					if err := worker.QueueJiraJobs(ctx, ds, kitlog.With(logger, "jira", "vulnerabilities"),
+						recentVulns); err != nil {
+
+						level.Error(logger).Log("err", "queueing vulnerabilities to jira", "details", err)
+						sentry.CaptureException(err)
+					}
 				}
 			}
 		}

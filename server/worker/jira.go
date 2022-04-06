@@ -117,3 +117,18 @@ func (j *Jira) Run(ctx context.Context, argsJSON json.RawMessage) error {
 
 	return nil
 }
+
+// QueueJiraJobs queues the Jira vulnerability jobs to process asynchronously
+// via the worker.
+func QueueJiraJobs(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, recentVulns map[string][]string) error {
+	level.Debug(logger).Log("enabled", "true", "recentVulns", len(recentVulns))
+
+	for cve, cpes := range recentVulns {
+		job, err := QueueJob(ctx, ds, JiraName, JiraArgs{CVE: cve, CPEs: cpes})
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "queueing job")
+		}
+		level.Debug(logger).Log("job_id", job.ID)
+	}
+	return nil
+}
