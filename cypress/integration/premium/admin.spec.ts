@@ -6,6 +6,7 @@ describe("Premium tier - Admin user", () => {
     cy.seedPremium();
     cy.seedQueries();
     cy.seedPolicies("apples");
+    cy.seedIntegrations();
     cy.addDockerHost("apples"); // host not transferred
     cy.addDockerHost("oranges"); // host transferred between teams by global admin
   });
@@ -116,15 +117,15 @@ describe("Premium tier - Admin user", () => {
     });
     describe("Manage software page", () => {
       beforeEach(() => cy.visit("/software/manage"));
-      it("allows global admin to update software vulnerability automation", () => {
+      it("allows global admin to create webhook software vulnerability automation", () => {
+        // seedIntegration() has one jira integration set to true
         cy.getAttached(".manage-software-page__header-wrap").within(() => {
-          cy.getAttached(".Select").within(() => {
-            cy.findByText(/all teams/i).should("exist");
-          });
           cy.findByRole("button", { name: /manage automations/i }).click();
         });
         cy.getAttached(".manage-automations-modal").within(() => {
           cy.getAttached(".fleet-slider").click();
+          cy.getAttached(".fleet-slider").click();
+          cy.getAttached("#webhook-radio-btn").next().click();
         });
         cy.getAttached("#webhook-url").click().type("www.foo.com/bar");
         cy.findByRole("button", { name: /^Save$/ }).click();
@@ -137,6 +138,58 @@ describe("Premium tier - Admin user", () => {
         });
         cy.getAttached(".manage-automations-modal").within(() => {
           cy.getAttached(".fleet-slider--active").should("exist");
+          cy.getAttached("#webhook-url").should("exist");
+        });
+      });
+      it("allows global admin to create jira integration software vulnerability automation", () => {
+        // seedIntegration() has one jira integration set to true
+        cy.getAttached(".manage-software-page__header-wrap").within(() => {
+          cy.findByRole("button", {
+            name: /manage automations/i,
+          }).click();
+        });
+        cy.getAttached(".manage-automations-modal").within(() => {
+          cy.getAttached(".fleet-slider").click();
+          cy.getAttached(".fleet-slider").click();
+          cy.getAttached("#ticket-radio-btn").next().click();
+          cy.findByText(/select jira integration/i).click();
+          cy.findByText(/project 2/i).click();
+        });
+
+        cy.findByRole("button", { name: /^Save$/ }).click();
+        // Confirm jira integration was added successfully
+        cy.findByText(/updated vulnerability automations/i).should("exist");
+        cy.getAttached(".button-wrap").within(() => {
+          cy.findByRole("button", {
+            name: /manage automations/i,
+          }).click();
+        });
+        cy.getAttached(".manage-automations-modal").within(() => {
+          cy.getAttached(".fleet-slider--active").should("exist");
+          cy.findByText(/project 2/i).should("exist");
+        });
+      });
+      it("allows global admin to disable software vulnerability automation", () => {
+        // seedIntegration() has one jira integration set to true
+        cy.getAttached(".manage-software-page__header-wrap").within(() => {
+          cy.findByRole("button", {
+            name: /manage automations/i,
+          }).click();
+        });
+        cy.getAttached(".manage-automations-modal").within(() => {
+          cy.getAttached(".fleet-slider").click();
+        });
+
+        cy.findByRole("button", { name: /^Save$/ }).click();
+        // Confirm integration was disabled successfully
+        cy.findByText(/updated vulnerability automations/i).should("exist");
+        cy.getAttached(".button-wrap").within(() => {
+          cy.findByRole("button", {
+            name: /manage automations/i,
+          }).click();
+        });
+        cy.getAttached(".manage-automations-modal").within(() => {
+          cy.findByText(/vulnerability automations disabled/i).should("exist");
         });
       });
       it("hides manage automations button since all teams not selected", () => {
