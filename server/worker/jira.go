@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"html/template"
 
 	jira "github.com/andygrunwald/go-jira"
@@ -22,24 +21,45 @@ const (
 )
 
 var jiraSummaryTmpl = template.Must(template.New("").Parse(
-	`{{ .CVE }} detected on hosts`,
+	`Vulnerability {{ .CVE }} detected on {{ len .Hosts }} hosts`,
 ))
 
+// jira uses wiki markup in the v2 api?
 var jiraDescriptionTmpl = template.Must(template.New("").Parse(
-	`See vulnerability (CVE) details in National Vulnerability Database (NVD) here: {{ .NVDURL }}
+	`See [{{ .CVE }}|{{ .NVDURL }}{{ .CVE }}] for more details.
 
-See all hosts affected by this vulnerability (CVE) in Fleet: {{ .FleetURL }}
+Affected hosts:
 
---
+{{ $end := len .Hosts }}{{ if gt $end 50 }}{{ $end = 50 }}{{ end }}
+{{ range slice .Hosts 0 $end }}
+* [{{ .Hostname }}|{{ $.FleetURL }}/hosts/{{ .ID }}]
+{{ end }}
+{{ if gt (len .Hosts) 50 }}
+* Remaining hosts omitted ...
+{{ end }}
 
-This issue was created automatically by your Fleet to Jira integration.
+To view affected software and hosts:
+
+# Go to the [Manage Softare|{{ .FleetURL }}/manage/software] page.
+# Above the list of software, in the *Search software by ...* box, enter "{{ .CVE }}".
+# Hover over the affected software and click on *View all hosts*.
+
+----
+
+This issue was created automatically by your Fleet Jira integration.
 `,
 ))
 
 type jiraTemplateArgs struct {
-	CVE      string
 	NVDURL   string
 	FleetURL string
+	CVE      string
+	Hosts    []*fleet.HostShort
+}
+
+type jiraHost struct {
+	ID       uint
+	Hostname string
 }
 
 // JiraClient defines the method required for the client that makes API calls
@@ -51,7 +71,7 @@ type JiraClient interface {
 // Jira is the job processor for jira integrations.
 type Jira struct {
 	FleetURL   string
-	Datastore  fleet.Datastore // TODO: we may not need the datastore, though it depends on the URL issue
+	Datastore  fleet.Datastore
 	Log        kitlog.Logger
 	JiraClient JiraClient
 }
@@ -63,31 +83,36 @@ func (j *Jira) Name() string {
 
 // JiraArgs are the arguments for the Jira integration job.
 type JiraArgs struct {
-	CVE  string   `json:"cve"`
-	CPEs []string `json:"cpes"`
+	CVE string `json:"cve"`
 }
 
-// Run processes a worker message for the Jira integration.
+// Run executes the jira job.
 func (j *Jira) Run(ctx context.Context, argsJSON json.RawMessage) error {
 	var args JiraArgs
 	if err := json.Unmarshal(argsJSON, &args); err != nil {
 		return ctxerr.Wrap(ctx, err, "unmarshal args")
 	}
 
-	// TODO(mna): as discussed as standup and explained here:
-	// https://github.com/fleetdm/fleet/issues/4521#issuecomment-1090718077
-	// we will create one ticket per _CPE_ for this release instead of one
-	// per CVE, so that we can include the relevant link to the hosts page
-	// with the corresponding software_id (the software_id associated with
-	// the CPE). I think we should do this here, turning this single
-	// Jira job into multiple Jira tickets. In the future, when we add the
-	// CVE filter in the hosts page, we can just remove the looping here
-	// and create a single ticket, no code elsewhere will have to change.
+	// TODO(mna): Each CVE should correspond to a single Jira issue that contains
+	//  the list of hosts affected by the CVE with appropriate links to Fleet.
+	//  See https://github.com/fleetdm/fleet/issues/4521. This is currently not possible.
+	//
+	//  For the initial implementation, we are not concerned with duplicate issues.
+	//  Also, we cannot provide a link ie /manage/hosts?cve= to filter hosts affected by a
+	//  particular cve. The closest we can provide right now is a link to the /manage/software page
+	//  and instruct the user to filter by cve.
+	//  See https://github.com/fleetdm/fleet/issues/4977 and https://github.com/fleetdm/fleet/issues/4998.
+
+	hosts, err := j.Datastore.HostsByCVE(ctx, args.CVE)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "find hosts by cve")
+	}
 
 	tmplArgs := jiraTemplateArgs{
+		NVDURL:   nvdCVEURL,
+		FleetURL: j.FleetURL,
 		CVE:      args.CVE,
-		NVDURL:   nvdCVEURL + args.CVE,
-		FleetURL: fmt.Sprintf("%s/hosts/manage?order_key=hostname&order_direction=asc&software_id=%d", j.FleetURL, 1),
+		Hosts:    hosts,
 	}
 
 	var buf bytes.Buffer
@@ -98,9 +123,11 @@ func (j *Jira) Run(ctx context.Context, argsJSON json.RawMessage) error {
 
 	buf.Reset() // reuse buffer
 	if err := jiraDescriptionTmpl.Execute(&buf, &tmplArgs); err != nil {
-		return ctxerr.Wrap(ctx, err, "execute summary template")
+		return ctxerr.Wrap(ctx, err, "execute description template")
 	}
 	description := buf.String()
+
+	// Note, newlines get automatically escaped in json.
 
 	issue := &jira.Issue{
 		Fields: &jira.IssueFields{
@@ -121,6 +148,7 @@ func (j *Jira) Run(ctx context.Context, argsJSON json.RawMessage) error {
 		"msg", "created jira issue for cve",
 		"cve", args.CVE,
 		"issue_id", createdIssue.ID,
+		"issue_key", createdIssue.Key,
 	)
 
 	return nil
@@ -131,8 +159,8 @@ func (j *Jira) Run(ctx context.Context, argsJSON json.RawMessage) error {
 func QueueJiraJobs(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, recentVulns map[string][]string) error {
 	level.Debug(logger).Log("enabled", "true", "recentVulns", len(recentVulns))
 
-	for cve, cpes := range recentVulns {
-		job, err := QueueJob(ctx, ds, JiraName, JiraArgs{CVE: cve, CPEs: cpes})
+	for cve := range recentVulns {
+		job, err := QueueJob(ctx, ds, JiraName, JiraArgs{CVE: cve})
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "queueing job")
 		}

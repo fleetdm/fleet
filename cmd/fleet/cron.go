@@ -216,10 +216,13 @@ func cronVulnerabilities(
 					}
 				} else {
 
-					// send recent vulnerabilities to Jira
-					if err := worker.QueueJiraJobs(ctx, ds, kitlog.With(logger, "jira", "vulnerabilities"),
-						recentVulns); err != nil {
-
+					// queue job to create jira issues
+					if err := worker.QueueJiraJobs(
+						ctx,
+						ds,
+						kitlog.With(logger, "jira", "vulnerabilities"),
+						recentVulns,
+					); err != nil {
 						level.Error(logger).Log("err", "queueing vulnerabilities to jira", "details", err)
 						sentry.CaptureException(err)
 					}
@@ -465,6 +468,6 @@ func cronWorker(
 			level.Error(logger).Log("msg", "Error processing jobs", "err", err)
 			sentry.CaptureException(err)
 		}
-		cancel()
+		cancel() // don't use defer inside loop
 	}
 }

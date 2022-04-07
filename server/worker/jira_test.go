@@ -18,6 +18,14 @@ import (
 
 func TestJiraRun(t *testing.T) {
 	ds := new(mock.Store)
+	ds.HostsByCVEFunc = func(ctx context.Context, cve string) ([]*fleet.HostShort, error) {
+		return []*fleet.HostShort{
+			{
+				ID:       1,
+				Hostname: "test",
+			},
+		}, nil
+	}
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "POST" {
@@ -31,7 +39,7 @@ func TestJiraRun(t *testing.T) {
 
 		body, err := ioutil.ReadAll(r.Body)
 		require.NoError(t, err)
-		require.Contains(t, string(body), `"summary":"CVE-1234-test detected on hosts"`)
+		require.Contains(t, string(body), `"summary":"Vulnerability CVE-1234-5678 detected on 1 hosts"`)
 
 		w.WriteHeader(http.StatusCreated)
 		w.Write([]byte(`
@@ -59,7 +67,7 @@ func TestJiraRun(t *testing.T) {
 		Log:        kitlog.NewNopLogger(),
 		JiraClient: client,
 	}
-	err = jira.Run(context.Background(), json.RawMessage(`{"cve":"CVE-1234-test","cpes":[]}`))
+	err = jira.Run(context.Background(), json.RawMessage(`{"cve":"CVE-1234-5678"}`))
 	require.NoError(t, err)
 }
 
@@ -72,7 +80,7 @@ func TestJiraQueueJobs(t *testing.T) {
 		ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
 			return job, nil
 		}
-		err := QueueJiraJobs(ctx, ds, logger, map[string][]string{"CVE-1234-test": {"a", "b"}})
+		err := QueueJiraJobs(ctx, ds, logger, map[string][]string{"CVE-1234-5678": nil})
 		require.NoError(t, err)
 		require.True(t, ds.NewJobFuncInvoked)
 	})
@@ -81,7 +89,7 @@ func TestJiraQueueJobs(t *testing.T) {
 		ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
 			return nil, io.EOF
 		}
-		err := QueueJiraJobs(ctx, ds, logger, map[string][]string{"CVE-1234-test": {"a", "b"}})
+		err := QueueJiraJobs(ctx, ds, logger, map[string][]string{"CVE-1234-5678": nil})
 		require.Error(t, err)
 		require.ErrorIs(t, err, io.EOF)
 		require.True(t, ds.NewJobFuncInvoked)

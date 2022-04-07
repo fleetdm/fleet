@@ -13,9 +13,9 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"strconv"
-	"strings"
 
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	kitlog "github.com/go-kit/kit/log"
@@ -23,40 +23,71 @@ import (
 
 func main() {
 	var (
-		jiraURL        = flag.String("jira-url", "https://fleetdm.atlassian.net/", "The Jira instance URL")
+		jiraURL        = flag.String("jira-url", "", "The Jira instance URL")
 		jiraUsername   = flag.String("jira-username", "", "The Jira username")
 		jiraProjectKey = flag.String("jira-project-key", "", "The Jira project key")
-		fleetURL       = flag.String("fleet-url", "https://localhost:1307/", "The Fleet server URL")
-		cve            = flag.String("cve", "CVE-2020-8284", "The CVE to create a ticket for")
-		cpes           = flag.String("cpes", "", "Comma-separated list of CPEs associated with the CVE")
+		fleetURL       = flag.String("fleet-url", "https://localhost:8080", "The Fleet server URL")
+		cve            = flag.String("cve", "", "The CVE to create a Jira issue for")
 	)
 
 	flag.Parse()
 
+	if *jiraURL == "" {
+		fmt.Fprintf(os.Stderr, "-jira-url is required")
+		os.Exit(1)
+	}
+	if *jiraUsername == "" {
+		fmt.Fprintf(os.Stderr, "-jira-username is required")
+		os.Exit(1)
+	}
+	if *jiraProjectKey == "" {
+		fmt.Fprintf(os.Stderr, "-jira-project-key is required")
+		os.Exit(1)
+	}
+	if *cve == "" {
+		fmt.Fprintf(os.Stderr, "-cve is required")
+		os.Exit(1)
+	}
+
+	jiraPassword := os.Getenv("JIRA_PASSWORD")
+	if jiraPassword == "" {
+		fmt.Fprintf(os.Stderr, "JIRA_PASSWORD is required")
+		os.Exit(1)
+	}
+
 	logger := kitlog.NewLogfmtLogger(os.Stdout)
-	pwd := os.Getenv("JIRA_PASSWORD")
 
 	client, err := externalsvc.NewJiraClient(&externalsvc.JiraOptions{
 		BaseURL:           *jiraURL,
 		BasicAuthUsername: *jiraUsername,
-		BasicAuthPassword: pwd,
+		BasicAuthPassword: jiraPassword,
 		ProjectKey:        *jiraProjectKey,
 	})
 	if err != nil {
 		log.Fatal(err)
 	}
 
+	// TODO: connect to actual mysql database
+	ds := new(mock.Store)
+	ds.HostsByCVEFunc = func(ctx context.Context, cve string) ([]*fleet.HostShort, error) {
+		return []*fleet.HostShort{
+			{
+				ID:       1,
+				Hostname: "test",
+			},
+		}, nil
+	}
+
 	jira := &worker.Jira{
 		FleetURL:   *fleetURL,
+		Datastore:  ds,
 		Log:        logger,
 		JiraClient: client,
 	}
 
-	cpeVals := strings.Split(*cpes, ",")
-	for i, val := range cpeVals {
-		cpeVals[i] = strconv.Quote(val)
-	}
-	err = jira.Run(context.Background(), json.RawMessage(fmt.Sprintf(`{"cve":%q,"cpes":[%s]}`, *cve, strings.Join(cpeVals, ","))))
+	argsJSON := json.RawMessage(fmt.Sprintf(`{"cve":%q}`, *cve))
+
+	err = jira.Run(context.Background(), argsJSON)
 	if err != nil {
 		log.Fatal(err)
 	}
