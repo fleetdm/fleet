@@ -143,10 +143,23 @@ const IntegrationsPage = (): JSX.Element => {
           refetchIntegrations();
         })
         .catch((createError: { data: IApiError }) => {
-          if (createError.data.errors[0].reason.includes("Duplicate")) {
-            setBackendValidators({
-              name: "A team with this name already exists", // TODO: Any backend errors here
-            });
+          if (createError.data.message.includes("Validation Failed")) {
+            renderFlash(
+              "error",
+              "There was a problem with the information you provided."
+            );
+          }
+          if (createError.data.message.includes("Bad request")) {
+            renderFlash(
+              "error",
+              "Invalid login credentials or Jira URL. Please correct and try again."
+            );
+          }
+          if (createError.data.message.includes("Unknown Error")) {
+            renderFlash(
+              "error",
+              "We experienced an error when attempting to connect to Jira. Please try again later."
+            );
           } else {
             renderFlash(
               "error",
@@ -203,11 +216,6 @@ const IntegrationsPage = (): JSX.Element => {
 
   const onEditSubmit = useCallback(
     (jiraIntegrationSubmitData: IJiraIntegration[]) => {
-      console.log(
-        "onEditSubmit data \njiraIntegrationSubmitData:",
-        jiraIntegrationSubmitData
-      );
-
       if (integrationEditing) {
         setTestingConnection(true);
         configAPI
@@ -231,12 +239,24 @@ const IntegrationsPage = (): JSX.Element => {
             setShowEditIntegrationModal(false);
             refetchIntegrations();
           })
-          .catch((updateError: { data: IApiError }) => {
-            console.error(updateError);
-            if (updateError.data.errors[0].reason.includes("Duplicate")) {
-              setBackendValidators({
-                name: "A team with this name already exists", // TODO: Any backend errors here
-              });
+          .catch((editError: { data: IApiError }) => {
+            if (editError.data.message.includes("Validation Failed")) {
+              renderFlash(
+                "error",
+                "There was a problem with the information you provided."
+              );
+            }
+            if (editError.data.message.includes("Bad request")) {
+              renderFlash(
+                "error",
+                "Invalid login credentials or Jira URL. Please correct and try again."
+              );
+            }
+            if (editError.data.message.includes("Unknown Error")) {
+              renderFlash(
+                "error",
+                "We experienced an error when attempting to connect to Jira. Please try again later."
+              );
             } else {
               renderFlash(
                 "error",
@@ -259,12 +279,6 @@ const IntegrationsPage = (): JSX.Element => {
     action: string,
     integration: IJiraIntegrationIndexed
   ): void => {
-    console.log(
-      "\nonActionSelection in Table:\naction:",
-      action,
-      "\nintegration",
-      integration
-    );
     switch (action) {
       case "edit":
         toggleEditIntegrationModal(integration);

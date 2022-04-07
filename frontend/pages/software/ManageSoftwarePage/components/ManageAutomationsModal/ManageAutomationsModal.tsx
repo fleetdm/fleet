@@ -141,7 +141,6 @@ const ManageAutomationsModal = ({
     };
 
     if (!softwareAutomationsEnabled) {
-      console.log("softwareAutomation is disabled");
       // set enable_vulnerabilities_webhook to false and all jira.enable_software_vulnerabilities to false
       configSoftwareAutomations.webhook_settings.vulnerabilities_webhook.enable_vulnerabilities_webhook = false;
       const disableAllJira = configSoftwareAutomations.integrations.jira.map(
@@ -151,9 +150,7 @@ const ManageAutomationsModal = ({
       );
       configSoftwareAutomations.integrations.jira = disableAllJira;
     } else if (!jiraEnabled) {
-      console.log("softwareAutomjira is disabled");
       if (valid) {
-        console.log("webhook is enabled only");
         // set enable_vulnerabilities_webhook to true and all jira.enable_software_vulnerabilities to false
         configSoftwareAutomations.webhook_settings.vulnerabilities_webhook.enable_vulnerabilities_webhook = true;
         const disableAllJira = configSoftwareAutomations.integrations.jira.map(
@@ -169,7 +166,6 @@ const ManageAutomationsModal = ({
         return; // do not send request to API for webhook automation if url is !valid
       }
     } else {
-      console.log("webhook is disabled, enabled one jira integration");
       // set enable_vulnerabilities_webhook to false and all jira.enable_software_vulnerabilities to false
       // except the one jira integration selected
       configSoftwareAutomations.webhook_settings.vulnerabilities_webhook.enable_vulnerabilities_webhook = false;

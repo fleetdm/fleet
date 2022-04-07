@@ -36,8 +36,6 @@ const EditIntegrationModal = ({
     setErrors(backendValidators);
   }, [backendValidators]);
 
-  console.log("testingConnection", testingConnection);
-
   return (
     <Modal title={"Edit integration"} onExit={onCancel} className={baseClass}>
       {testingConnection ? (
