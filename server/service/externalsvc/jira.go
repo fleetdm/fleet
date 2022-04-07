@@ -52,25 +52,26 @@ func NewJiraClient(opts *JiraOptions) (*Jira, error) {
 	}, nil
 }
 
-// CurrentUser returns information about the user configured to make Jira API
-// requests. It can be used to test authentication and connection parameters
-// to the Jira instance.
-func (j *Jira) CurrentUser(ctx context.Context) (*jira.User, error) {
-	var user *jira.User
+// GetProject returns the project details for the project key provided in the
+// Jira client options. It can be used to test in one request the
+// authentication and connection parameters to the Jira instance as well as the
+// existence of the project.
+func (j *Jira) GetProject(ctx context.Context) (*jira.Project, error) {
+	var proj *jira.Project
 
 	op := func() (*jira.Response, error) {
 		var (
 			err  error
 			resp *jira.Response
 		)
-		user, resp, err = j.client.User.GetSelfWithContext(ctx)
+		proj, resp, err = j.client.Project.GetWithContext(ctx, j.projectKey)
 		return resp, err
 	}
 
 	if err := doWithRetry(op); err != nil {
 		return nil, err
 	}
-	return user, nil
+	return proj, nil
 }
 
 // CreateIssue creates an issue on the jira server targeted by the Jira client.

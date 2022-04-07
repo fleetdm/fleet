@@ -61,7 +61,7 @@ var (
 
 	// max age to be considered a recent vulnerability (relative to NVD's published date)
 	// (a var to be able to change in tests)
-	recentVulnMaxAge = 2 * 24 * time.Hour
+	recentVulnMaxAge = 30 * 24 * time.Hour
 
 	// this allows mocking the time package for tests, by default it is equivalent
 	// to the time functions, e.g. theClock.Now() == time.Now().
@@ -133,8 +133,14 @@ func TranslateCPEToCVE(
 	return recentVulns, nil
 }
 
-func checkCVEs(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
-	cpes []*wfn.Attributes, file string, recentVulns map[string][]string) error {
+func checkCVEs(
+	ctx context.Context,
+	ds fleet.Datastore,
+	logger kitlog.Logger,
+	cpes []*wfn.Attributes,
+	file string,
+	recentVulns map[string][]string,
+) error {
 
 	dict, err := cvefeed.LoadJSONDictionary(file)
 	if err != nil {

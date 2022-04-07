@@ -21,7 +21,6 @@ interface IPackForm {
   ) => boolean;
   selectedTargetsCount?: number;
   isPremiumTier?: boolean;
-  serverError: string;
 }
 
 const EditPackForm = ({
@@ -30,7 +29,6 @@ const EditPackForm = ({
   onFetchTargets,
   selectedTargetsCount,
   isPremiumTier,
-  serverError,
 }: IPackForm): JSX.Element => {
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [packName, setPackName] = useState<string>("");
@@ -69,7 +67,6 @@ const EditPackForm = ({
   return (
     <form className={packFormClass} onSubmit={onFormSubmit} autoComplete="off">
       <h1>New pack</h1>
-      {!!serverError && <div className="form__base-error">{serverError}</div>}
       <InputField
         onChange={onChangePackName}
         value={packName}

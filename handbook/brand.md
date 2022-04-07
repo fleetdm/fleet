@@ -131,12 +131,14 @@ The following [Slack channels are maintained](https://fleetdm.com/handbook/compa
 
 | Slack channel               | [DRI](https://fleetdm.com/handbook/company#group-slack-channels)    |
 |:----------------------------|:--------------------------------------------------------------------|
-| `#g-digital-experience`     | Mike Thomas                                                         |
-| `#oooh-automation`          | Mike McNeil                                                         |
-| `#g-community`              | Kathy Satterlee                                                     |
-| `#g-people`                 | Eric Shaw                                                           |
-| `#help-onboarding`          | Eric Shaw                                                           |
-| `#help-finance`             | Eric Shaw                                                           |
+| `#g-digital-experience`     | Mike Thomas
+| `#oooh-websites`            | Mike Thomas
+| `#oooh-automation`          | Mike McNeil
+| `#g-community`              | Kathy Satterlee
+| `#g-people`                 | Eric Shaw
+| `#help-onboarding`          | Eric Shaw
+| `#help-finance`             | Eric Shaw
+| `#help-brex-memos`          | Nathan Holliday
 
 
 <meta name="maintainedBy" value="mike-j-thomas">

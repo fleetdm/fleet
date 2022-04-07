@@ -6,3 +6,6 @@ scrape_configs:
       - targets: ['host.docker.internal:8080']
     tls_config:
       insecure_skip_verify: true
+    basic_auth:
+      username: fleet
+      password: insecure

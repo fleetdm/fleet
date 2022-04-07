@@ -29,6 +29,7 @@ DRIs help us collaborate efficiently by knowing exactly who is responsible and c
 | Final cut of what goes into each release | Zach Wasserman |
 | When we cut a release, version numbers, and whether to release | Zach Wasserman |
 | Release notes | Noah Talerman |
+| Documentation quality | Mike Thomas |
 | Publishing release blog post, and promoting releases | Mike Thomas |
 | fleetdm.com | Mike Thomas |
 | Self-service Fleet Premium license dispenser | Mike Thomas |
@@ -48,7 +49,17 @@ In brief, this means that as a Fleet team member, you may:
 
 For more developed thoughts about __spending guidelines and limits__, please read [GitLab's open expense policy](https://about.gitlab.com/handbook/spending-company-money/).
 
-### Purchasing a company-issued device.
+### Reimbursements
+
+We provide all of our team members with Brex cards for making purchases for the company. If a team member pays for work-related expenses with their personal funds, Fleet will reimburse them.
+
+Team members can request reimbursement through [Gusto](https://app.gusto.com/expenses) if they're in the US or [Pilot](https://pilot.co/) if they are an international team member. When submitting an expense report, team members need to provide the receipt, and a description of the expense.
+
+Operations will review the expense and reach out to the team member if they have any questions. When an expense is approved, the reimbursement will be added to the team member's next payroll.
+
+>Pilot handles reimbursements differently depending on if the international team member is classified as an employee or a contractor. If the reimbursement is for a contractor, Operations will need to add the expense reimbursement to an upcoming recurring payment or schedule the reimbursement as an off-cycle payment. If the reimbursement is for an employee, no other action is needed; Pilot will add the reimbursement to the team member's next payroll. 
+
+### Purchasing a company-issued device
 
 Fleet provides laptops for team members to use while working at Fleet. As soon as an offer is accepted, `eashaw` will reach out to the new team member to start this process. `Eashaw` will work with the new team member to get their laptop purchased and shipped to them.
 
@@ -118,6 +129,12 @@ Google Calendar and block out any personal time/events/PTO, so that team members
 schedule a time when you are not available. Many team members use the free tier of
 [reclaim.ai](https://reclaim.ai/) to synchronize personal event times (without event details) into
 their work calendars. It is also common practice to block out time for focused work.
+
+#### Modifying an event organized by someone else
+
+To edit an event where someone else at Fleet is the organizer, you can first subscribe to their calendar in Google Calendar, then edit the event on their calendar.  Your edits will automatically apply for all attendees.
+
+> This works because every fleetie grants edit access to everyone else at Fleet as part of onboarding.
 
 ### External meeting scheduling
 

@@ -6,6 +6,9 @@ interface IStatusCellProps {
 }
 
 const generateClassTag = (rawValue: string): string => {
+  if (rawValue === "---") {
+    return "indeterminate";
+  }
   return rawValue.replace(" ", "-").toLowerCase();
 };
 

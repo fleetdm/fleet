@@ -1,7 +1,7 @@
-import { IConfigNested } from "interfaces/config";
+import { IConfig } from "interfaces/config";
 
 export interface IAppConfigFormProps {
-  appConfig: IConfigNested;
+  appConfig: IConfig;
   handleSubmit: any;
 }
 

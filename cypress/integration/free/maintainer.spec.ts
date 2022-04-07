@@ -221,9 +221,6 @@ describe(
         cy.loginWithCySession("mary@organization.com", "user123#");
         cy.visit("/queries/manage");
       });
-      it("displays the 'Observer can run' column on the queries table", () => {
-        cy.contains(/observer can run/i);
-      });
       it("allows maintainer to add a new query", () => {
         cy.findByRole("button", { name: /new query/i }).click();
         cy.getAttached(".ace_text-input")

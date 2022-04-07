@@ -1,3 +1,5 @@
+// This component is used on ManageSoftwarePage.tsx and Homepage.tsx > Software.tsx card
+
 import React from "react";
 
 import ExternalLinkIcon from "../../../../assets/images/open-new-tab-12x12@2x.png";
@@ -43,10 +45,7 @@ const EmptySoftware = (message: IEmptySoftware): JSX.Element => {
         <div className={`${baseClass}__empty-software`}>
           <div className="empty-software__inner">
             <h1>No software matches the current search criteria.</h1>
-            <p>
-              Expecting to see software? Try again in about 1 hour as the system
-              catches up.
-            </p>
+            <p>Try again in about 1 hour as the system catches up.</p>
           </div>
         </div>
       );

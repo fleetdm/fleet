@@ -25,7 +25,6 @@ const PackComposerPage = ({ router }: IPackComposerPageProps) => {
   const { isPremiumTier } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
-  const [serverError, setServerError] = useState<string>("");
   const [selectedTargetsCount, setSelectedTargetsCount] = useState<number>(0);
 
   const onFetchTargets = (
@@ -51,7 +50,6 @@ const PackComposerPage = ({ router }: IPackComposerPageProps) => {
       );
     } catch (response) {
       const error = getError(response);
-      setServerError(error);
 
       if (error.includes("Error 1062: Duplicate entry")) {
         renderFlash(
@@ -71,7 +69,6 @@ const PackComposerPage = ({ router }: IPackComposerPageProps) => {
         handleSubmit={handleSubmit}
         onFetchTargets={onFetchTargets}
         selectedTargetsCount={selectedTargetsCount}
-        serverError={serverError}
         isPremiumTier={isPremiumTier}
       />
       <PackInfoSidePanel />

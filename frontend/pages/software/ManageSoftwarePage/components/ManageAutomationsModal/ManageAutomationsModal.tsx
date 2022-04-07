@@ -108,7 +108,7 @@ const ManageAutomationsModal = ({
             <div className={`${baseClass}__software-automation-description`}>
               <p>
                 A request will be sent to your configured <b>Destination URL</b>{" "}
-                if a detected vulnerability (CVE) was published in the last 2
+                if a detected vulnerability (CVE) was published in the last 30
                 days.
               </p>
             </div>

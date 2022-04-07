@@ -1,15 +1,13 @@
 import React, { useCallback, useContext } from "react";
-import { useDispatch } from "react-redux";
 import { useQuery } from "react-query";
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification"; // @ts-ignore
-import { getConfig } from "redux/nodes/app/actions";
 
 import configAPI from "services/entities/config";
 
 // @ts-ignore
 import deepDifference from "utilities/deep_difference";
-import { IConfig, IConfigNested } from "interfaces/config";
+import { IConfig } from "interfaces/config";
 import { IApiError } from "interfaces/errors";
 
 // @ts-ignore
@@ -18,25 +16,22 @@ import AppConfigForm from "components/forms/admin/AppConfigForm";
 export const baseClass = "app-settings";
 
 const AppSettingsPage = (): JSX.Element => {
-  const dispatch = useDispatch();
   const { renderFlash } = useContext(NotificationContext);
-
   const { setConfig } = useContext(AppContext);
 
   const {
     data: appConfig,
     isLoading: isLoadingConfig,
     refetch: refetchConfig,
-  } = useQuery<IConfigNested, Error, IConfigNested>(
-    ["config"],
-    () => configAPI.loadAll(),
-    {
-      select: (data: IConfigNested) => data,
-    }
-  );
+  } = useQuery<IConfig, Error, IConfig>(["config"], () => configAPI.loadAll(), {
+    select: (data: IConfig) => data,
+    onSuccess: (data) => {
+      setConfig(data);
+    },
+  });
 
   const onFormSubmit = useCallback(
-    (formData: IConfigNested) => {
+    (formData: IConfig) => {
       const diff = deepDifference(formData, appConfig);
       // send all formData.agent_options because diff overrides all agent options
       diff.agent_options = formData.agent_options;
@@ -63,15 +58,9 @@ const AppSettingsPage = (): JSX.Element => {
         })
         .finally(() => {
           refetchConfig();
-          // Config must be updated in both Redux and AppContext
-          dispatch(getConfig())
-            .then((configState: IConfig) => {
-              setConfig(configState);
-            })
-            .catch(() => false);
         });
     },
-    [dispatch, appConfig, getConfig, setConfig]
+    [appConfig]
   );
 
   // WHY???

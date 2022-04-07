@@ -80,7 +80,6 @@ func MakeHandler(svc fleet.Service, config config.FleetConfig, logger kitlog.Log
 	fleetAPIOptions := []kithttp.ServerOption{
 		kithttp.ServerBefore(
 			kithttp.PopulateRequestContext, // populate the request context with common fields
-
 			setRequestsContexts(svc),
 		),
 		kithttp.ServerErrorHandler(&errorHandler{logger}),
@@ -124,10 +123,10 @@ func publicIP(handler http.Handler) http.Handler {
 	})
 }
 
-// InstrumentHandler wraps the provided handler with prometheus metrics
+// PrometheusMetricsHandler wraps the provided handler with prometheus metrics
 // middleware and returns the resulting handler that should be mounted for that
 // route.
-func InstrumentHandler(name string, handler http.Handler) http.Handler {
+func PrometheusMetricsHandler(name string, handler http.Handler) http.Handler {
 	reg := prometheus.DefaultRegisterer
 	registerOrExisting := func(coll prometheus.Collector) prometheus.Collector {
 		if err := reg.Register(coll); err != nil {
@@ -198,7 +197,7 @@ func InstrumentHandler(name string, handler http.Handler) http.Handler {
 // addMetrics decorates each handler with prometheus instrumentation
 func addMetrics(r *mux.Router) {
 	walkFn := func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
-		route.Handler(InstrumentHandler(route.GetName(), route.GetHandler()))
+		route.Handler(PrometheusMetricsHandler(route.GetName(), route.GetHandler()))
 		return nil
 	}
 	r.Walk(walkFn)
@@ -213,7 +212,6 @@ var (
 func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetConfig,
 	logger kitlog.Logger, limitStore throttled.GCRAStore, opts []kithttp.ServerOption,
 ) {
-
 	apiVersions := []string{"v1", "2022-04"}
 
 	// user-authenticated endpoints
