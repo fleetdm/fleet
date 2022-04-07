@@ -185,11 +185,6 @@ describe("Free tier - Observer user", () => {
       cy.loginWithCySession("oliver@organization.com", "user123#");
       cy.visit("/queries/manage");
     });
-    it("hides 'Observer can run' column", () => {
-      cy.getAttached("thead").within(() => {
-        cy.findByText(/observer can run/i).should("not.exist");
-      });
-    });
     it("hides create a query button", () => {
       cy.findByRole("button", { name: /create new query/i }).should(
         "not.exist"

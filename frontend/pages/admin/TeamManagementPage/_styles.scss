@@ -6,22 +6,65 @@
     @include sticky-settings-description;
     padding-bottom: $pad-medium;
   }
-}
+  .data-table-block {
+    .data-table__table {
+      thead {
+        .name__header {
+          width: $col-md;
+        }
 
-.team-details__team-details {
-  .form-field--dropdown {
-    margin-bottom: 0;
-  }
-}
+        .host_count__header {
+          width: $col-md;
+          border-right: none;
+        }
 
-.team-details.team-select-open {
-  .component__tabs-wrapper {
-    position: relative;
-    z-index: 2;
-  }
-  .members {
-    position: relative;
-    z-index: 1;
+        .user_count__header {
+          display: none;
+          width: 0;
+        }
+
+        .actions__header {
+          width: auto;
+        }
+
+        @media (min-width: $break-990) {
+          .host_count__header {
+            border-right: 1px solid $ui-fleet-blue-15;
+          }
+
+          .user_count__header {
+            display: table-cell;
+            width: $col-md;
+            border-right: none;
+          }
+        }
+      }
+
+      tbody {
+        .name__cell {
+          max-width: $col-md;
+        }
+
+        .host_count__cell {
+          max-width: $col-md;
+        }
+
+        .user_count__cell {
+          display: none;
+        }
+
+        .actions__cell {
+          width: auto;
+        }
+
+        @media (min-width: $break-990) {
+          .user_count__cell {
+            display: table-cell;
+            max-width: $col-md;
+          }
+        }
+      }
+    }
   }
 }
 

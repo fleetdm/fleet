@@ -137,7 +137,7 @@ describe("Teams flow (seeded)", () => {
       });
     });
     it("allows to add new enroll secret to team", () => {
-      cy.getAttached(".team-details__team-actions")
+      cy.getAttached(".team-details__action-buttons--secondary-buttons")
         .contains("button", /manage enroll secret/i)
         .click();
       cy.getAttached(".enroll-secret-modal__add-secret")
@@ -151,7 +151,7 @@ describe("Teams flow (seeded)", () => {
         .click();
     });
     it("allows to see and click 'Add hosts'", () => {
-      cy.getAttached(".team-details__team-actions")
+      cy.getAttached(".team-details__action-buttons--primary")
         .contains("button", /add hosts/i)
         .click();
       cy.getAttached(".modal__content").contains("button", /done/i).click();

@@ -116,130 +116,181 @@
   }
 
   .queries-list-wrapper {
-    .data-table__table {
-      table-layout: fixed;
+    .data-table-block {
+      .data-table__table {
+        thead {
+          .name__header {
+            width: $col-lg;
+          }
+          .platforms__header {
+            width: auto;
+          }
+          .author_name__header {
+            display: none;
+            width: 0;
+          }
+          .performance__header {
+            display: none;
+            width: 0;
+          }
+          .updated_at__header {
+            display: none;
+            width: 0;
+          }
+          @media (min-width: $break-990) {
+            .platforms__header {
+              width: $col-md;
+            }
+            .author_name__header {
+              display: table-cell;
+              width: auto;
+            }
+          }
+          @media (min-width: $break-1400) {
+            .author_name__header {
+              width: $col-md;
+            }
+            .performance__header {
+              display: table-cell;
+              width: auto;
+            }
+          }
+          @media (min-width: $break-1600) {
+            .performance__header {
+              width: $col-md;
+            }
+            .updated_at__header {
+              display: table-cell;
+              width: auto;
+            }
+          }
+        }
+        tbody {
+          .name__cell {
+            max-width: $col-lg;
+          }
+          .platforms__cell {
+            max-width: $col-md;
+          }
+          .author_name__cell {
+            display: none;
+            max-width: $col-md;
+            img,
+            div,
+            span {
+              display: flex;
+              align-items: center;
+            }
+            div {
+              padding-right: $pad-small;
+            }
+            .author-name {
+              display: block;
+            }
+          }
+          .performance__cell {
+            display: none;
+            max-width: $col-md;
+          }
+          .updated_at__cell {
+            display: none;
+            max-width: $col-md;
+          }
+          @media (min-width: $break-990) {
+            .author_name__cell {
+              display: table-cell;
+            }
+          }
+          @media (min-width: $break-1400) {
+            .performance__cell {
+              display: table-cell;
+            }
+          }
+          @media (min-width: $break-1600) {
+            .updated_at__cell {
+              display: table-cell;
+            }
+          }
+        }
+      }
 
-      .selection__header {
+      &__empty-table {
         text-align: center;
-      }
-
-      &:not(.is-observer) {
-        thead {
-          th:not(:nth-child(1)):not(:nth-child(2)):not(:nth-child(4)) {
-            width: 100px;
-          }
-          th:nth-child(1) {
-            width: 8px;
-          }
-          th:nth-child(2) {
-            width: 200px;
-          }
-          th:nth-child(4) {
-            width: 40px;
-          }
-          @include breakpoint(tablet) {
-            th:nth-child(3),
-            th:nth-child(5),
-            th:nth-child(7) {
-              display: none;
-            }
-          }
-          @include breakpoint(ltdesktop) {
-            th:nth-child(1) {
-              width: 8px;
-            }
-            th:nth-child(3),
-            th:nth-child(5) {
-              display: none;
-            }
-          }
-        }
-
-        tbody {
-          td:nth-child(1) {
-            text-align: center;
-          }
-          @include breakpoint(tablet) {
-            td:nth-child(3),
-            td:nth-child(5),
-            td:nth-child(7) {
-              display: none;
-            }
-          }
-          @include breakpoint(ltdesktop) {
-            td:nth-child(3),
-            td:nth-child(5) {
-              display: none;
-            }
-          }
-        }
-      }
-
-      &.is-observer {
-        thead {
-          th:not(:nth-child(1)):not(:nth-child(2)) {
-            width: 100px;
-          }
-          th:nth-child(1) {
-            width: 200px;
-          }
-          th:nth-child(2) {
-            width: 40px;
-          }
-          @include breakpoint(tablet) {
-            th:nth-child(3),
-            th:nth-child(5) {
-              display: none;
-            }
-          }
-          @include breakpoint(ltdesktop) {
-            th:nth-child(3) {
-              display: none;
-            }
-          }
-        }
-
-        tbody {
-          @include breakpoint(tablet) {
-            td:nth-child(3),
-            td:nth-child(5),
-            td:nth-child(6) {
-              display: none;
-            }
-          }
-          @include breakpoint(ltdesktop) {
-            td:nth-child(3),
-            td:nth-child(5) {
-              display: none;
-            }
-          }
-        }
+        font-size: $x-small;
+        color: $core-fleet-black;
       }
     }
 
-    tbody {
-      td {
-        overflow: hidden;
-        text-overflow: ellipsis;
-        .button {
-          display: block;
-          text-align: start;
-          width: 100%;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-      }
-    }
-  }
-  .author_name__cell {
-    img,
-    div,
-    span {
+    .no-queries {
       display: flex;
+      flex-direction: column;
       align-items: center;
-    }
-    div {
-      padding-right: $pad-small;
+      margin-top: $pad-xxxlarge;
+
+      h1 {
+        font-size: $large;
+        font-weight: $regular;
+        line-height: normal;
+        letter-spacing: normal;
+        color: $core-fleet-black;
+      }
+
+      h2 {
+        font-size: $small;
+        font-weight: $bold;
+        margin: 0 0 $pad-large;
+        line-height: 20px;
+        color: $core-fleet-black;
+      }
+
+      ul {
+        margin: 0;
+        padding: 0;
+        color: $core-fleet-black;
+        list-style: none;
+
+        li {
+          &::before {
+            content: "•";
+            color: $core-vibrant-blue;
+            margin-right: $pad-medium;
+          }
+        }
+      }
+
+      &__inner {
+        display: flex;
+        flex-direction: row;
+
+        h1 {
+          font-size: $small;
+          font-weight: $bold;
+          margin-bottom: $pad-medium;
+        }
+
+        img {
+          width: 176px;
+          margin-right: $pad-xlarge;
+        }
+
+        p {
+          color: $core-fleet-black;
+          font-weight: $regular;
+          font-size: $x-small;
+          margin: 0;
+          margin-bottom: $pad-large;
+        }
+
+        .no-filter-results {
+          display: flex;
+          flex-direction: column;
+          width: 350px;
+        }
+      }
+
+      &__inner-text {
+        width: 485px;
+      }
     }
   }
 }

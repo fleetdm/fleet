@@ -72,6 +72,7 @@ interface ITableContainerProps {
   onQueryChange?: (queryData: ITableQueryData) => void;
   onPrimarySelectActionClick?: (selectedItemIds: number[]) => void;
   customControl?: () => JSX.Element;
+  stackControls?: boolean;
   onSelectSingleRow?: (value: Row) => void;
   filters?: Record<string, string | number | boolean>;
   renderCount?: () => JSX.Element | null;
@@ -127,6 +128,7 @@ const TableContainer = ({
   onQueryChange,
   onPrimarySelectActionClick,
   customControl,
+  stackControls,
   onSelectSingleRow,
   renderCount,
   renderFooter,
@@ -250,48 +252,75 @@ const TableContainer = ({
           />
         </div>
       )}
-      <div className={`${baseClass}__header`}>
-        {renderCount && (
-          <div className={`${baseClass}__results-count`} style={opacity}>
-            {renderCount()}
-          </div>
-        )}
-        {!renderCount && data && displayCount() && !disableCount ? (
-          <div className={`${baseClass}__results-count`} style={opacity}>
-            {TableContainerUtils.generateResultsCountText(
-              resultsTitle,
-              displayCount()
+      <div
+        className={`${baseClass}__header ${
+          stackControls ? "stack-table-controls" : ""
+        }`}
+      >
+        <div
+          className={`${baseClass}__header-left ${
+            stackControls ? "stack-table-controls" : ""
+          }`}
+        >
+          <span className="results-count">
+            {renderCount && (
+              <div
+                className={`${baseClass}__results-count ${
+                  stackControls ? "stack-table-controls" : ""
+                }`}
+                style={opacity}
+              >
+                {renderCount()}
+              </div>
             )}
-            {resultsHtml}
-          </div>
-        ) : (
-          <div />
-        )}
-        <div className={`${baseClass}__table-controls`}>
-          {!hideActionButton && actionButtonText && (
-            <Button
-              disabled={disableActionButton}
-              onClick={onActionButtonClick}
-              variant={actionButtonVariant}
-              className={`${baseClass}__table-action-button`}
-            >
-              <>
-                {actionButtonText}
-                {actionButtonIcon && (
-                  <img
-                    src={actionButtonIcon}
-                    alt={`${actionButtonText} icon`}
-                  />
+            {!renderCount && data && displayCount() && !disableCount ? (
+              <div
+                className={`${baseClass}__results-count ${
+                  stackControls ? "stack-table-controls" : ""
+                }`}
+                style={opacity}
+              >
+                {TableContainerUtils.generateResultsCountText(
+                  resultsTitle,
+                  displayCount()
                 )}
-              </>
-            </Button>
-          )}
-          {customControl && customControl()}
+                {resultsHtml}
+              </div>
+            ) : (
+              <div />
+            )}
+          </span>
+          <span className={"controls"}>
+            {!hideActionButton && actionButtonText && (
+              <Button
+                disabled={disableActionButton}
+                onClick={onActionButtonClick}
+                variant={actionButtonVariant}
+                className={`${baseClass}__table-action-button`}
+              >
+                <>
+                  {actionButtonText}
+                  {actionButtonIcon && (
+                    <img
+                      src={actionButtonIcon}
+                      alt={`${actionButtonText} icon`}
+                    />
+                  )}
+                </>
+              </Button>
+            )}
+            {customControl && customControl()}
+          </span>
+        </div>
+
+        <div className={`${baseClass}__search`}>
           {/* Render search bar only if not empty component */}
           {searchable && !wideSearch && (
             <>
               <div
-                className={`${baseClass}__search-input`}
+                className={`${baseClass}__search-input ${
+                  stackControls ? "stack-table-controls" : ""
+                }`}
                 data-tip
                 data-for="search-tooltip"
                 data-tip-disable={!searchToolTipText}
@@ -317,7 +346,7 @@ const TableContainer = ({
           )}
         </div>
       </div>
-      <div className={`${baseClass}__data-table-container`}>
+      <div className={`${baseClass}__data-table-block`}>
         {/* No entities for this result. */}
         {(!isLoading && data.length === 0) ||
         (searchQuery.length && data.length === 0) ? (

@@ -1,12 +1,19 @@
-.data-table-container {
+.data-table-block {
   position: relative;
   display: inline-block;
   width: 100%;
 
   .data-table {
+    a {
+      font-size: $x-small;
+      color: $core-vibrant-blue;
+      font-weight: $bold;
+      text-decoration: none;
+    }
+
     &__wrapper {
       position: relative;
-      border: solid 1px $ui-fleet-blue-15;
+      border: 1px solid $ui-fleet-blue-15;
       border-radius: 6px;
       margin-top: $pad-small;
       box-shadow: inset -8px 0 17px -10px #e8edf4;
@@ -39,6 +46,8 @@
 
       // override styles of checkbox data cells
       .form-field--checkbox {
+        display: flex;
+        justify-content: center;
         margin-bottom: 0;
 
         .fleet-checkbox__label {
@@ -69,28 +78,23 @@
         }
       }
 
-      .header-icon-text {
-        margin-left: 10px;
-      }
-
       th {
-        padding: $pad-medium 27px;
+        padding: $pad-medium $pad-large;
         white-space: nowrap;
         border-right: 1px solid $ui-fleet-blue-15;
 
         &:first-child {
           border-top-left-radius: 6px;
-          padding: $pad-medium 17px;
         }
 
         &.selection__header {
-          width: 1px;
+          width: 0px;
+          padding: $pad-medium;
         }
 
         &:last-child {
           border-right: none;
           border-top-right-radius: 6px;
-          max-width: 140px;
         }
       }
 
@@ -113,35 +117,6 @@
       }
     }
 
-    .Select.is-focused:not(.is-open) > .Select-control {
-      box-shadow: none;
-      background-color: $ui-vibrant-blue-10;
-    }
-
-    .Select.is-open {
-      .Select-arrow {
-        margin-top: 4px;
-        margin-bottom: -2px;
-      }
-      .Select-placeholder {
-        margin-top: 1px;
-      }
-    }
-
-    .Select-arrow {
-      margin-top: 3px;
-    }
-
-    .Select-control:hover {
-      box-shadow: none;
-    }
-
-    .Select-placeholder {
-      font-size: 14px;
-      margin-top: 2px;
-      padding-left: 0;
-    }
-
     .active-selection {
       position: absolute;
       top: 0px;
@@ -149,8 +124,13 @@
       border: 0;
       border-radius: 6px;
 
+      &__checkbox {
+        padding: 16px;
+        width: 20px;
+      }
+
       &__container {
-        padding: 0 27px;
+        padding: 0 24px;
       }
 
       &__inner {
@@ -181,55 +161,30 @@
 
     tbody {
       td {
-        padding: 0 27px;
-        white-space: nowrap;
         height: 40px;
+        padding: 0 $pad-large;
 
-        &:first-child {
-          padding: 0 17px;
-          width: 1px;
+        &.selection__cell {
+          width: 0px;
+          padding: 0 $pad-medium;
         }
-
-        // form-field wraps the dropdown menu
-        .form-field {
+        .link-cell,
+        .text-cell {
+          display: block;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
           margin: 0;
         }
-        .Select-control {
-          background-color: $core-white;
-          border: none;
+        .w400 {
+          max-width: calc(400px - 48px);
+        }
+        .w250 {
+          max-width: calc(250px - 48px);
         }
       }
-    }
-
-    &__hostname {
-      color: $core-fleet-black;
-    }
-
-    &__pill {
-      color: $core-fleet-black;
-      font-weight: $bold;
-      padding: 4px 12px;
-      border-radius: 29px;
-
-      span {
-        border-radius: 29px;
-        background-color: $core-fleet-purple;
-      }
-      &--undetermined {
-        color: $ui-fleet-black-50;
-        font-style: italic;
-        font-weight: 400;
-        padding: 0;
-        border-radius: 0;
-      }
-      &--minimal {
-        background-color: $ui-vibrant-blue-10;
-      }
-      &--considerable {
-        background-color: $ui-vibrant-blue-25;
-      }
-      &--excessive {
-        background-color: $ui-vibrant-blue-50;
+      .highlight-on-hover:hover {
+        background-color: $ui-off-white;
       }
     }
 
@@ -237,53 +192,8 @@
       display: flex;
       justify-content: center;
     }
-
-    &__status {
-      color: $core-fleet-blue;
-      text-transform: capitalize;
-
-      &:before {
-        border-radius: 100%;
-        content: " ";
-        display: inline-block;
-        margin-right: $pad-small;
-        height: 8px;
-        width: 8px;
-        margin-bottom: 1px;
-      }
-
-      &--online:before,
-      &--enabled:before,
-      &--on:before {
-        background-color: $ui-success;
-      }
-
-      &--offline:before,
-      &--disabled:before,
-      &--mia:before,
-      &--off:before {
-        background-color: $ui-offline;
-      }
-
-      &--yes:before {
-        padding-right: 10px;
-        content: url(../assets/images/icon-check-circle-green-16x16@2x.png);
-        transform: scale(0.5);
-        vertical-align: text-top;
-      }
-
-      &--no:before {
-        padding-right: 10px;
-        content: url(../assets/images/icon-exclamation-circle-red-16x16@2x.png);
-        transform: scale(0.5);
-        vertical-align: text-top;
-      }
-
-      &--mia {
-        text-transform: uppercase;
-      }
-    }
   }
+
   .loading-overlay {
     display: flex;
     flex-grow: 1;

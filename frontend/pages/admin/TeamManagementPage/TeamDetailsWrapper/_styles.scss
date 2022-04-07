@@ -36,6 +36,9 @@
   &__team-details {
     display: flex;
     align-items: center;
+    .form-field--dropdown {
+      margin-bottom: 0;
+    }
   }
 
   &__host-count {
@@ -45,13 +48,5 @@
     border-radius: 30px;
     margin-left: $pad-medium;
     padding: 4px 12px;
-  }
-
-  &__team-actions {
-    display: flex;
-
-    button {
-      margin-left: $pad-medium;
-    }
   }
 }

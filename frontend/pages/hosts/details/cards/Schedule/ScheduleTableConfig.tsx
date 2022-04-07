@@ -2,11 +2,7 @@ import React from "react";
 import { uniqueId } from "lodash";
 
 import { IQueryStats } from "interfaces/query_stats";
-import {
-  humanQueryLastRun,
-  performanceIndicator,
-  secondsToHms,
-} from "fleet/helpers";
+import { performanceIndicator, secondsToHms } from "fleet/helpers";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import PillCell from "components/TableContainer/DataTable/PillCell";
@@ -48,15 +44,14 @@ interface IDataColumn {
   disableSortBy?: boolean;
 }
 
-interface IPackTable extends Partial<IQueryStats> {
+interface IScheduleTable extends Partial<IQueryStats> {
   frequency: string;
-  last_run: string;
   performance: (string | number)[];
 }
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
-const generatePackTableHeaders = (): IDataColumn[] => {
+const generateTableHeaders = (): IDataColumn[] => {
   return [
     {
       title: "Query",
@@ -72,21 +67,6 @@ const generatePackTableHeaders = (): IDataColumn[] => {
       Header: "Frequency",
       disableSortBy: true,
       accessor: "frequency",
-      Cell: (cellProps: ICellProps) => (
-        <TextCell value={cellProps.cell.value} />
-      ),
-    },
-    {
-      title: "Last run",
-      Header: () => {
-        return (
-          <TooltipWrapper tipContent="The last time the query ran<br/>since the last time osquery <br/>started on this host.">
-            Last run
-          </TooltipWrapper>
-        );
-      },
-      disableSortBy: true,
-      accessor: "last_run",
       Cell: (cellProps: ICellProps) => (
         <TextCell value={cellProps.cell.value} />
       ),
@@ -113,7 +93,7 @@ const generatePackTableHeaders = (): IDataColumn[] => {
   ];
 };
 
-const enhancePackData = (query_stats: IQueryStats[]): IPackTable[] => {
+const enhanceScheduleData = (query_stats: IQueryStats[]): IScheduleTable[] => {
   return Object.values(query_stats).map((query) => {
     const scheduledQueryPerformance = {
       user_time_p50: query.user_time,
@@ -122,9 +102,7 @@ const enhancePackData = (query_stats: IQueryStats[]): IPackTable[] => {
     };
     return {
       query_name: query.query_name,
-      last_executed: query.last_executed,
       frequency: secondsToHms(query.interval),
-      last_run: humanQueryLastRun(query.last_executed),
       performance: [
         performanceIndicator(scheduledQueryPerformance),
         query.scheduled_query_id || uniqueId(),
@@ -133,12 +111,12 @@ const enhancePackData = (query_stats: IQueryStats[]): IPackTable[] => {
   });
 };
 
-const generatePackDataSet = (query_stats: IQueryStats[]): IPackTable[] => {
+const generateDataSet = (query_stats: IQueryStats[]): IScheduleTable[] => {
   if (!query_stats) {
     return query_stats;
   }
 
-  return [...enhancePackData(query_stats)];
+  return [...enhanceScheduleData(query_stats)];
 };
 
-export { generatePackTableHeaders, generatePackDataSet };
+export { generateTableHeaders, generateDataSet };

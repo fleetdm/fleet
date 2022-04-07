@@ -17,51 +17,6 @@
     font-size: $large;
   }
 
-  &__table {
-    border-collapse: collapse;
-    color: $core-fleet-black;
-    font-size: $x-small;
-    width: 100%;
-  }
-
-  tr {
-    border-bottom: 1px solid $ui-fleet-blue-15;
-
-    &:last-child {
-      border-bottom: 0;
-    }
-  }
-
-  thead {
-    background-color: $ui-off-white;
-    color: $core-fleet-black;
-    text-align: left;
-    border-bottom: 1px solid $ui-fleet-blue-15;
-
-    th {
-      padding: 18px 30px;
-      white-space: nowrap;
-      border-radius: 6px 0;
-
-      &:last-child {
-        min-width: 80px;
-      }
-    }
-  }
-
-  tbody {
-    td {
-      padding: 0 30px;
-      white-space: nowrap;
-    }
-
-    .user-row__actions {
-      padding: 4px 30px;
-      width: 120px;
-      float: right;
-    }
-  }
-
   &__heading-wrapper {
     width: 100%;
   }
@@ -101,31 +56,104 @@
       width: 540px;
     }
   }
-
-  .data-table {
-    &__status {
-      &--active {
-        &:before {
-          background-color: $ui-success;
+  .data-table-block {
+    .data-table__table {
+      thead {
+        .name__header {
+          width: $col-md;
+        }
+        .role__header {
+          width: $col-md;
+          border-right: none;
+        }
+        .teams__header {
+          display: none;
+          width: 0;
+        }
+        .status__header {
+          display: none;
+          width: 0;
+        }
+        .email__header {
+          display: none;
+          width: 0;
+        }
+        .actions__header {
+          width: auto;
+        }
+        @media (min-width: $break-990) {
+          .role__header {
+            border-right: 1px solid $ui-fleet-blue-15;
+          }
+          .teams__header {
+            display: table-cell;
+            width: $col-md;
+            border-right: none;
+          }
+        }
+        @media (min-width: $break-1400) {
+          .teams__header {
+            border-right: 1px solid $ui-fleet-blue-15;
+          }
+          .status__header {
+            display: table-cell;
+            width: $col-md;
+            border-right: none;
+          }
+        }
+        @media (min-width: $break-1600) {
+          .teams__header {
+            border-right: 1px solid $ui-fleet-blue-15;
+          }
+          .email__header {
+            display: table-cell;
+            width: $col-lg;
+            border-right: none;
+          }
         }
       }
-
-      &--no-access {
-        &:before {
-          background-color: $ui-offline;
+      tbody {
+        .name__cell {
+          max-width: $col-md;
+        }
+        .role__cell {
+          max-width: $col-md;
+        }
+        .teams__cell {
+          display: none;
+          max-width: $col-md;
+          .grey-cell {
+            color: $ui-fleet-black-50;
+            font-style: italic;
+          }
+        }
+        .status__cell {
+          display: none;
+          max-width: $col-md;
+        }
+        .email__cell {
+          display: none;
+          max-width: $col-md;
+        }
+        .actions__cell {
+          width: auto;
+        }
+        @media (min-width: $break-990) {
+          .teams__cell {
+            display: table-cell;
+          }
+        }
+        @media (min-width: $break-1400) {
+          .status__cell {
+            display: table-cell;
+          }
+        }
+        @media (min-width: $break-1600) {
+          .email__cell {
+            display: table-cell;
+          }
         }
       }
-
-      &--invite-pending {
-        &:before {
-          background-color: $ui-warning;
-        }
-      }
-    }
-
-    .grey-cell {
-      color: $ui-fleet-black-50;
-      font-style: italic;
     }
   }
 }

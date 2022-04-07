@@ -110,7 +110,7 @@ const generateTableHeaders = (options: {
           Header: () => (
             <>
               <img alt="host passing" src={PassIcon} />
-              <span className="header-icon-text">Yes</span>
+              <span className="status-header-text">Yes</span>
             </>
           ),
           disableSortBy: true,
@@ -134,7 +134,7 @@ const generateTableHeaders = (options: {
           Header: () => (
             <>
               <img alt="host passing" src={FailIcon} />
-              <span className="header-icon-text">No</span>
+              <span className="status-header-text">No</span>
             </>
           ),
           disableSortBy: true,

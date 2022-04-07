@@ -3,10 +3,7 @@ import React from "react";
 import { IQueryStats } from "interfaces/query_stats";
 import TableContainer from "components/TableContainer";
 
-import {
-  generatePackTableHeaders,
-  generatePackDataSet,
-} from "../Packs/PackTable/PackTableConfig";
+import { generateTableHeaders, generateDataSet } from "./ScheduleTableConfig";
 
 const baseClass = "schedule";
 
@@ -21,10 +18,10 @@ const Schedule = ({
 }: IScheduleProps): JSX.Element => {
   const schedule = scheduleState;
   const wrapperClassName = `${baseClass}__pack-table`;
-  const tableHeaders = generatePackTableHeaders();
+  const tableHeaders = generateTableHeaders();
 
   return (
-    <div className="section section--packs">
+    <div className="section section--schedule">
       <p className="section__header">Schedule</p>
       {!schedule || !schedule.length ? (
         <div className="results__data">
@@ -38,7 +35,7 @@ const Schedule = ({
         <div className={`${wrapperClassName}`}>
           <TableContainer
             columns={tableHeaders}
-            data={generatePackDataSet(schedule)}
+            data={generateDataSet(schedule)}
             isLoading={isLoading}
             onQueryChange={() => null}
             resultsTitle={"queries"}

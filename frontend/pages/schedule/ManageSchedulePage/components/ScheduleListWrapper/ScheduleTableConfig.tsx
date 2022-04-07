@@ -121,7 +121,7 @@ const generateTableHeaders = (
       disableSortBy: true,
       accessor: "query_name",
       Cell: (cellProps: ICellProps): JSX.Element => (
-        <TextCell value={cellProps.cell.value} />
+        <TextCell classes="w400" value={cellProps.cell.value} />
       ),
     },
     {
@@ -137,18 +137,16 @@ const generateTableHeaders = (
       title: "Performance impact",
       Header: () => {
         return (
-          <div className="column-with-tooltip">
-            <span className="queries-table__performance-impact-header">
-              <TooltipWrapper
-                tipContent={`
+          <div>
+            <TooltipWrapper
+              tipContent={`
                 This is the average <br />
                 performance impact <br />
                 across all hosts where this <br />
                 query was scheduled.`}
-              >
-                Performance impact
-              </TooltipWrapper>
-            </span>
+            >
+              Performance impact
+            </TooltipWrapper>
           </div>
         );
       },

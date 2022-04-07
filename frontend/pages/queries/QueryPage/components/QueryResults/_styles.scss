@@ -57,7 +57,7 @@
     overflow-x: scroll;
   }
 
-  .data-table-container .data-table thead th {
+  .data-table-block .data-table thead th {
     min-width: 140px;
     padding-left: 0px;
     padding-right: $pad-large;
@@ -68,7 +68,7 @@
     }
   }
 
-  .data-table-container .data-table tbody td {
+  .data-table-block .data-table tbody td {
     padding-left: 0px;
     padding-right: $pad-large;
 

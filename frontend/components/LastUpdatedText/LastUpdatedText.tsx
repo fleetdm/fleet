@@ -1,5 +1,6 @@
 import React from "react";
 import formatDistanceToNowStrict from "date-fns/formatDistanceToNowStrict";
+import { abbreviateTimeUnits } from "fleet/helpers";
 
 import TooltipWrapper from "components/TooltipWrapper";
 
@@ -12,9 +13,11 @@ const renderLastUpdatedText = (
   if (!lastUpdatedAt || lastUpdatedAt === "0001-01-01T00:00:00Z") {
     lastUpdatedAt = "never";
   } else {
-    lastUpdatedAt = formatDistanceToNowStrict(new Date(lastUpdatedAt), {
-      addSuffix: true,
-    });
+    lastUpdatedAt = abbreviateTimeUnits(
+      formatDistanceToNowStrict(new Date(lastUpdatedAt), {
+        addSuffix: true,
+      })
+    );
   }
 
   return (
@@ -22,7 +25,7 @@ const renderLastUpdatedText = (
       <TooltipWrapper
         tipContent={`Fleet periodically queries all hosts to retrieve ${whatToRetrieve}`}
       >
-        {`Last updated ${lastUpdatedAt}`}
+        {`Updated ${lastUpdatedAt}`}
       </TooltipWrapper>
     </span>
   );

@@ -98,6 +98,7 @@ const generateTableHeaders = (currentUser: IUser): IDataColumn[] => {
       accessor: "name",
       Cell: (cellProps: ICellProps): JSX.Element => (
         <LinkCell
+          classes="w400"
           value={cellProps.cell.value}
           path={PATHS.EDIT_QUERY(cellProps.row.original)}
         />
@@ -112,31 +113,6 @@ const generateTableHeaders = (currentUser: IUser): IDataColumn[] => {
       Cell: (cellProps: IPlatformCellProps): JSX.Element => {
         return <PlatformCell value={cellProps.cell.value} />;
       },
-    },
-    {
-      title: "Performance impact",
-      Header: () => {
-        return (
-          <div className="column-with-tooltip">
-            <span className="queries-table__performance-impact-header">
-              <TooltipWrapper
-                tipContent={`
-                This is the average <br />
-                performance impact <br />
-                across all hosts where this <br />
-                query was scheduled.`}
-              >
-                Performance impact
-              </TooltipWrapper>
-            </span>
-          </div>
-        );
-      },
-      disableSortBy: true,
-      accessor: "performance",
-      Cell: (cellProps: ICellProps) => (
-        <PillCell value={[cellProps.cell.value, cellProps.row.original.id]} />
-      ),
     },
     {
       title: "Author",
@@ -156,11 +132,34 @@ const generateTableHeaders = (currentUser: IUser): IDataColumn[] => {
               user={addGravatarUrlToResource({ email: author_email })}
               size="xsmall"
             />
-            {author}
+            <span className="text-cell author-name">{author}</span>
           </span>
         );
       },
       sortType: "caseInsensitive",
+    },
+    {
+      title: "Performance impact",
+      Header: () => {
+        return (
+          <div>
+            <TooltipWrapper
+              tipContent={`
+                This is the average <br />
+                performance impact <br />
+                across all hosts where this <br />
+                query was scheduled.`}
+            >
+              Performance impact
+            </TooltipWrapper>
+          </div>
+        );
+      },
+      disableSortBy: true,
+      accessor: "performance",
+      Cell: (cellProps: ICellProps) => (
+        <PillCell value={[cellProps.cell.value, cellProps.row.original.id]} />
+      ),
     },
     {
       title: "Last modified",
@@ -267,22 +266,6 @@ const generateTableHeaders = (currentUser: IUser): IDataColumn[] => {
         );
       },
       disableHidden: true,
-    });
-    tableHeaders.splice(2, 0, {
-      title: "Observer can run",
-      Header: (cellProps) => (
-        <HeaderCell
-          value={cellProps.column.title}
-          isSortedDesc={cellProps.column.isSortedDesc}
-        />
-      ),
-      accessor: "observer_can_run",
-      Cell: (cellProps: ICellProps): JSX.Element => (
-        <TextCell
-          value={cellProps.row.original.observer_can_run ? "Yes" : "No"}
-        />
-      ),
-      sortType: "basic",
     });
   }
   return tableHeaders;
