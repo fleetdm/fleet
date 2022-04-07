@@ -218,6 +218,27 @@ Change the name of the documents accordingly (e.g., "[candidate's name]'s copy o
 
 4. Before their first day at Fleet, Eric will create a [Google Workspace account](https://admin.google.com/ac/users) for the new team member, add them to the [Fleet Github organization](https://github.com/fleetdm), create an onboarding issue in the [fleetdm/confidential](https://github.com/fleetdm/confidential/issues) Github repo, and invite them to join the Fleet Slack. If the new team member needs to purchase a work computer, Eric will set them up with a [Brex](https://dashboard.brex.com/team/invite-user) card.
 
+### Team member onboarding
+
+It's important that every team member at Fleet takes the time to get fully trained and onboarded. 
+
+When a new team member joins Fleet, we create an onboarding issue for them in the [fleetdm/confidential](https://github.com/fleetdm/confidential) repo using this [issue template](https://github.com/fleetdm/confidential/blob/main/.github/ISSUE_TEMPLATE/onboarding.md). 
+
+We want to make sure that the new team member will be able to complete every task in their issue. To make sure the new team member is successful in their onboarding, we customize their issue by commenting out any tasks that won't need to complete.
+
+We believe onboarding and training should be taken seriously, and that the onboarding template is an important source of truth and a good use of time for every single new hire. If managers see a step that they don't feel like they take seriously, they should make a pull request to the [onboarding template](https://github.com/fleetdm/confidential/blob/main/.github/ISSUE_TEMPLATE/onboarding.md) and request review from People operations.
+
+#### Contributor experience training
+
+During their first week at Fleet, new team members are asked to schedule a contributor experience training call with People operations. During this call, the new team member will share their screen and People operations will:
+
+- Make sure emails are going to get seen and responded to quickly
+- Make sure Slack messages are going to get seen and responded to quickly
+- Make sure you know where your issues are tracked, which kanban board you use, what the columns mean
+- Make sure you can succeed with submitting a PR with the github web editor, modifying docs or handbook, and working with markdown
+- Talk about Google calendar
+- Give you a quick tour of the Fleet Google drive folder
+
 ### Onboarding a new advisor.
 
 Advisor agreements are sent through [DocuSign](https://www.docusign.com/), using the "Advisor Agreement"
