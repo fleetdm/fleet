@@ -61,12 +61,23 @@ assume On-Demand pricing (savings are available through Reserved Instances). Cal
 
 | Fleet instances | CPU Units      | RAM |
 |-----------------|----------------|-----|
-| 30 Fargate task | 1024 CPU Units | 4GB |
+| 20 Fargate task | 1024 CPU Units | 4GB |
 
 | Dependencies | Version                 | Instance type  | Nodes |
 |--------------|-------------------------|----------------|-------|
 | Redis        | 6                       | m6g.large      | 3     |
 | MySQL        | 5.7.mysql_aurora.2.10.0 | db.r6g.4xlarge | 1     |
+
+#### [Up to 300000 hosts](https://calculator.aws/#/estimate?id=f3da0597a172c6a0a3683023e2700a6df6d42c0b)
+
+| Fleet instances | CPU Units      | RAM |
+|-----------------|----------------|-----|
+| 20 Fargate task | 1024 CPU Units | 4GB |
+
+| Dependencies | Version                 | Instance type   | Nodes |
+|--------------|-------------------------|-----------------|-------|
+| Redis        | 6                       | m6g.large       | 3     |
+| MySQL        | 5.7.mysql_aurora.2.10.0 | db.r6g.16xlarge | 2     |
 
 AWS reference architecture can be found [here](https://github.com/fleetdm/fleet/tree/main/tools/terraform). This configuration includes:
 
