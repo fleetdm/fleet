@@ -3,21 +3,17 @@ import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import { useQuery } from "react-query";
 import FileSaver from "file-saver";
 
-import { useDispatch } from "react-redux";
-// @ts-ignore
-import { renderFlash } from "redux/nodes/notifications/actions";
-
-import configAPI from "services/entities/config";
-import { AppContext } from "context/app";
-// @ts-ignore
+import { NotificationContext } from "context/notification";
+import { AppContext } from "context/app"; // @ts-ignore
 import { stringToClipboard } from "utilities/copy_text";
 import { ITeam } from "interfaces/team";
 import { IEnrollSecret } from "interfaces/enroll_secret";
+
+import configAPI from "services/entities/config";
+
 import Button from "components/buttons/Button";
-import RevealButton from "components/buttons/RevealButton";
-// @ts-ignore
+import RevealButton from "components/buttons/RevealButton"; // @ts-ignore
 import InputField from "components/forms/fields/InputField";
-import Checkbox from "components/forms/fields/Checkbox";
 import TooltipWrapper from "components/TooltipWrapper";
 import TabsWrapper from "components/TabsWrapper";
 
@@ -66,13 +62,12 @@ const PlatformWrapper = ({
   onCancel,
 }: IPlatformWrapperProp): JSX.Element => {
   const { config, isPreviewMode } = useContext(AppContext);
+  const { renderFlash } = useContext(NotificationContext);
   const [copyMessage, setCopyMessage] = useState<Record<string, string>>({});
   const [includeFleetDesktop, setIncludeFleetDesktop] = useState<boolean>(
     false
   );
   const [showPlainOsquery, setShowPlainOsquery] = useState<boolean>(false);
-
-  const dispatch = useDispatch();
 
   const {
     data: certificate,
@@ -87,10 +82,10 @@ const PlatformWrapper = ({
     }
   );
 
-  let tlsHostname = config?.server_url || "";
+  let tlsHostname = config?.server_settings.server_url || "";
 
   try {
-    const serverUrl = new URL(config?.server_url || "");
+    const serverUrl = new URL(config?.server_settings.server_url || "");
     tlsHostname = serverUrl.hostname;
     if (serverUrl.port) {
       tlsHostname += `:${serverUrl.port}`;
@@ -167,11 +162,9 @@ const PlatformWrapper = ({
 
       FileSaver.saveAs(file);
     } else {
-      dispatch(
-        renderFlash(
-          "error",
-          "Your certificate could not be downloaded. Please check your Fleet configuration."
-        )
+      renderFlash(
+        "error",
+        "Your certificate could not be downloaded. Please check your Fleet configuration."
       );
     }
     return false;
@@ -234,12 +227,14 @@ const PlatformWrapper = ({
 
   const renderInstallerString = (platform: string) => {
     return platform === "advanced"
-      ? `fleetctl package --type=rpm --fleet-url=${config?.server_url}
+      ? `fleetctl package --type=rpm --fleet-url=${config?.server_settings.server_url}
 --enroll-secret=${enrollSecret}
 --fleet-certificate=PATH_TO_YOUR_CERTIFICATE/fleet.pem`
       : `fleetctl package --type=${platform} ${
           includeFleetDesktop ? "--fleet-desktop " : ""
-        }--fleet-url=${config?.server_url} --enroll-secret=${enrollSecret}`;
+        }--fleet-url=${
+          config?.server_settings.server_url
+        } --enroll-secret=${enrollSecret}`;
   };
 
   const renderLabel = (platform: string, installerString: string) => {

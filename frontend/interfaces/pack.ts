@@ -43,3 +43,9 @@ export interface IUpdatePack {
   disabled?: boolean;
   targets?: ITarget[];
 }
+
+export interface IEditPackFormData {
+  name: string;
+  description: string;
+  targets: ITarget[];
+}

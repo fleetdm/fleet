@@ -7,9 +7,9 @@ export default PropTypes.shape({
   undoAction: PropTypes.func,
 });
 
-export interface INotifications {
-  alertType: string;
+export interface INotification {
+  alertType: "success" | "error" | "warning-filled" | null;
   isVisible: boolean;
-  message: string | JSX.Element;
-  undoAction: () => void;
+  message: JSX.Element | string | null;
+  undoAction?: () => void;
 }

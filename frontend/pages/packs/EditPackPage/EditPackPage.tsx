@@ -2,8 +2,6 @@ import React, { useState, useCallback, useContext } from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 
-import { useDispatch } from "react-redux";
-
 import { IPack } from "interfaces/pack";
 import { IQuery } from "interfaces/query";
 import {
@@ -12,15 +10,13 @@ import {
 } from "interfaces/scheduled_query";
 import { ITarget, ITargetsAPIResponse } from "interfaces/target";
 import { AppContext } from "context/app";
+import { NotificationContext } from "context/notification";
 
 import packsAPI from "services/entities/packs";
 import queriesAPI from "services/entities/queries";
 import scheduledqueriesAPI from "services/entities/scheduled_queries";
 
-// @ts-ignore
-import { renderFlash } from "redux/nodes/notifications/actions";
-import PATHS from "router/paths";
-// @ts-ignore
+import PATHS from "router/paths"; // @ts-ignore
 import deepDifference from "utilities/deep_difference";
 
 import EditPackForm from "components/forms/packs/EditPackForm";
@@ -57,8 +53,8 @@ const EditPacksPage = ({
   params: { id: paramsPackId },
 }: IEditPacksPageProps): JSX.Element => {
   const { isPremiumTier } = useContext(AppContext);
+  const { renderFlash } = useContext(NotificationContext);
 
-  const dispatch = useDispatch();
   const packId: number = parseInt(paramsPackId, 10);
 
   const { data: fleetQueries } = useQuery<
@@ -159,23 +155,19 @@ const EditPacksPage = ({
       .update(packId, updatedPack)
       .then(() => {
         router.push(PATHS.MANAGE_PACKS);
-        dispatch(renderFlash("success", `Successfully updated this pack.`));
+        renderFlash("success", `Successfully updated this pack.`);
       })
       .catch((response) => {
         if (
           response.errors[0].reason.slice(0, 27) ===
           "Error 1062: Duplicate entry"
         ) {
-          dispatch(
-            renderFlash(
-              "error",
-              "Unable to update pack. Pack names must be unique."
-            )
+          renderFlash(
+            "error",
+            "Unable to update pack. Pack names must be unique."
           );
         } else {
-          dispatch(
-            renderFlash("error", `Could not update pack. Please try again.`)
-          );
+          renderFlash("error", `Could not update pack. Please try again.`);
         }
       });
   };
@@ -189,12 +181,10 @@ const EditPacksPage = ({
       : scheduledqueriesAPI.create(formData);
     request
       .then(() => {
-        dispatch(renderFlash("success", `Successfully updated this pack.`));
+        renderFlash("success", `Successfully updated this pack.`);
       })
       .catch(() => {
-        dispatch(
-          renderFlash("error", "Could not update this pack. Please try again.")
-        );
+        renderFlash("error", "Could not update this pack. Please try again.");
       })
       .finally(() => {
         togglePackQueryEditorModal();
@@ -213,19 +203,15 @@ const EditPacksPage = ({
 
     return Promise.all(promises)
       .then(() => {
-        dispatch(
-          renderFlash(
-            "success",
-            `Successfully removed ${queryOrQueries} from this pack.`
-          )
+        renderFlash(
+          "success",
+          `Successfully removed ${queryOrQueries} from this pack.`
         );
       })
       .catch(() => {
-        dispatch(
-          renderFlash(
-            "error",
-            `Unable to remove ${queryOrQueries} from this pack. Please try again.`
-          )
+        renderFlash(
+          "error",
+          `Unable to remove ${queryOrQueries} from this pack. Please try again.`
         );
       })
       .finally(() => {

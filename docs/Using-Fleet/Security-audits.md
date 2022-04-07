@@ -5,9 +5,7 @@ This page contains explanations of the latest external security audits performed
 
 Back in 2021, when Orbit was still new, alpha, and likely not used by anyone but us here at Fleet, we contracted Trail of Bits (ToB) to have them review the security of the auto-updater portion of it.
 
-For more context around why we did this, please see this [post](https://blog.fleetdm.com/) on the Fleet blog.
-
-**AN ACTUAL LINK TO THE POST WILL BE ADDED AS SOON AS BLOG IS PUBLIC.**
+For more context around why we did this, please see this [post](https://blog.fleetdm.com/security-testing-at-fleet-orbit-auto-updater-audit-7e3e99152a25) on the Fleet blog.
 
 You can find the full report here: [2021-04-26-orbit-auto-updater-assessment.pdf](https://github.com/fleetdm/fleet/raw/3ad02fc697e196b5628bc07e807fbc2db3086393/docs/files/2021-04-26-orbit-auto-updater-assessment.pdf)
 

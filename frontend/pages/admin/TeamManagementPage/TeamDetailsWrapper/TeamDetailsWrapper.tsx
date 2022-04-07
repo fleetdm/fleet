@@ -1,29 +1,26 @@
 import React, { useState, useCallback, useContext } from "react";
-import { useDispatch } from "react-redux";
 import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
 import { InjectedRouter, Link, RouteProps } from "react-router";
-import { push } from "react-router-redux";
 import { Tab, TabList, Tabs } from "react-tabs";
 import { find, toNumber } from "lodash";
 import classnames from "classnames";
 
+import { NotificationContext } from "context/notification";
+import { AppContext } from "context/app";
 import PATHS from "router/paths";
 import { ITeam, ITeamSummary } from "interfaces/team";
-import { AppContext } from "context/app";
-// @ts-ignore
-import { renderFlash } from "redux/nodes/notifications/actions";
 import teamsAPI from "services/entities/teams";
 import usersAPI, { IGetMeResponse } from "services/entities/users";
 import enrollSecretsAPI from "services/entities/enroll_secret";
-import teamActions from "redux/nodes/entities/teams/actions";
 import {
   IEnrollSecret,
   IEnrollSecretsResponse,
 } from "interfaces/enroll_secret";
-import { IOldApiError } from "interfaces/errors";
 import permissions from "utilities/permissions";
 import sortUtils from "utilities/sort";
+import formatErrorResponse from "utilities/format_error_response";
+
 import Spinner from "components/Spinner";
 import Button from "components/buttons/Button";
 import TabsWrapper from "components/TabsWrapper";
@@ -101,7 +98,7 @@ const TeamDetailsWrapper = ({
   location: { pathname },
   params: routeParams,
 }: ITeamDetailsPageProps): JSX.Element => {
-  const dispatch = useDispatch();
+  const { renderFlash } = useContext(NotificationContext);
   const handlePageError = useErrorHandler();
   const teamIdFromURL = parseInt(routeParams.team_id, 10) || 0;
   const {
@@ -246,21 +243,17 @@ const TeamDetailsWrapper = ({
 
       toggleSecretEditorModal();
       isPremiumTier && refetchTeams();
-      dispatch(
-        renderFlash(
-          "success",
-          `Successfully ${selectedSecret ? "edited" : "added"} enroll secret.`
-        )
+      renderFlash(
+        "success",
+        `Successfully ${selectedSecret ? "edited" : "added"} enroll secret.`
       );
     } catch (error) {
       console.error(error);
-      dispatch(
-        renderFlash(
-          "error",
-          `Could not ${
-            selectedSecret ? "edit" : "add"
-          } enroll secret. Please try again.`
-        )
+      renderFlash(
+        "error",
+        `Could not ${
+          selectedSecret ? "edit" : "add"
+        } enroll secret. Please try again.`
       );
     }
   };
@@ -278,66 +271,75 @@ const TeamDetailsWrapper = ({
       refetchTeamSecrets();
       toggleDeleteSecretModal();
       refetchTeams();
-      dispatch(renderFlash("success", `Successfully deleted enroll secret.`));
+      renderFlash("success", `Successfully deleted enroll secret.`);
     } catch (error) {
       console.error(error);
-      dispatch(
-        renderFlash(
-          "error",
-          "Could not delete enroll secret. Please try again."
-        )
-      );
+      renderFlash("error", "Could not delete enroll secret. Please try again.");
     }
   };
 
-  const onDeleteSubmit = useCallback(() => {
-    dispatch(teamActions.destroy(currentTeam?.id))
-      .then(() => {
-        dispatch(renderFlash("success", "Team removed"));
-        router.push(PATHS.ADMIN_TEAMS);
-        // TODO: error handling
-      })
-      .catch(() => null);
+  const onDeleteSubmit = useCallback(async () => {
+    if (!currentTeam) {
+      return false;
+    }
+
     toggleDeleteTeamModal();
-  }, [dispatch, toggleDeleteTeamModal, currentTeam?.id]);
+
+    try {
+      await teamsAPI.destroy(currentTeam.id);
+      renderFlash("success", "Team removed");
+      return router.push(PATHS.ADMIN_TEAMS);
+    } catch (response) {
+      renderFlash("error", "Something went wrong removing the team");
+      console.error(response);
+      return false;
+    }
+  }, [toggleDeleteTeamModal, currentTeam?.id]);
 
   const onEditSubmit = useCallback(
-    (formData: IEditTeamFormData) => {
+    async (formData: IEditTeamFormData) => {
       const updatedAttrs =
         currentTeam && generateUpdateData(currentTeam, formData);
+
+      if (!currentTeam) {
+        return false;
+      }
+
       // no updates, so no need for a request.
-      if (updatedAttrs === null) {
+      if (!updatedAttrs) {
         toggleEditTeamModal();
         return;
       }
-      dispatch(teamActions.update(currentTeam?.id, updatedAttrs))
-        .then(() => {
-          dispatch(teamActions.loadAll({ perPage: 500 }));
-          dispatch(
-            renderFlash(
-              "success",
-              `Successfully updated team name to ${updatedAttrs?.name}`
-            )
-          );
-          setBackendValidators({});
-          refetchTeams();
-          refetchMe();
+
+      try {
+        await teamsAPI.update(currentTeam.id, updatedAttrs);
+        await teamsAPI.loadAll({ perPage: 500 });
+
+        renderFlash(
+          "success",
+          `Successfully updated team name to ${updatedAttrs?.name}`
+        );
+        setBackendValidators({});
+        refetchTeams();
+        refetchMe();
+        toggleEditTeamModal();
+      } catch (response) {
+        console.error(response);
+        const errorObject = formatErrorResponse(response);
+
+        if (errorObject.base.includes("Duplicate")) {
+          setBackendValidators({
+            name: "A team with this name already exists",
+          });
+        } else {
+          renderFlash("error", "Could not create team. Please try again.");
           toggleEditTeamModal();
-        })
-        .catch((updateError: IOldApiError) => {
-          if (updateError.base.includes("Duplicate")) {
-            setBackendValidators({
-              name: "A team with this name already exists",
-            });
-          } else {
-            dispatch(
-              renderFlash("error", "Could not create team. Please try again.")
-            );
-            toggleEditTeamModal();
-          }
-        });
+        }
+
+        return false;
+      }
     },
-    [dispatch, toggleEditTeamModal, currentTeam, setBackendValidators]
+    [toggleEditTeamModal, currentTeam, setBackendValidators]
   );
 
   const handleTeamSelect = (teamId: number) => {

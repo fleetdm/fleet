@@ -1,22 +1,23 @@
 import React, { useEffect, useState } from "react";
 import classnames from "classnames";
 
-import { INotifications } from "interfaces/notification";
+import { INotification } from "interfaces/notification";
 // @ts-ignore
 import FleetIcon from "components/icons/FleetIcon";
 import Button from "components/buttons/Button";
 
 import CloseIcon from "../../../assets/images/icon-close-white-16x16@2x.png";
 import CloseIconBlack from "../../../assets/images/icon-close-fleet-black-16x16@2x.png";
+import ErrorIcon from "../../../assets/images/icon-error-white-16x16@2x.png";
 
 const baseClass = "flash-message";
 
 export interface IFlashMessage {
   fullWidth: boolean;
-  notification: INotifications;
+  notification: INotification | null;
   isPersistent?: boolean;
   onRemoveFlash: () => void;
-  onUndoActionClick: (
+  onUndoActionClick?: (
     value: () => void
   ) => (evt: React.MouseEvent<HTMLButtonElement, MouseEvent>) => void;
 }
@@ -28,7 +29,7 @@ const FlashMessage = ({
   onRemoveFlash,
   onUndoActionClick,
 }: IFlashMessage): JSX.Element | null => {
-  const { alertType, isVisible, message, undoAction } = notification;
+  const { alertType, isVisible, message, undoAction } = notification || {};
   const klass = classnames(baseClass, `${baseClass}--${alertType}`, {
     [`${baseClass}--full-width`]: fullWidth,
   });
@@ -57,17 +58,19 @@ const FlashMessage = ({
   }, [notification, alertType, isVisible, setHide]);
 
   if (hide || !isVisible) {
-    return <></>;
+    return null;
   }
-
-  const alertIcon =
-    alertType === "success" ? "success-check" : "warning-filled";
 
   return (
     <div className={klass} id={klass}>
       <div className={`${baseClass}__content`}>
-        <FleetIcon name={alertIcon} /> <span>{message}</span>
-        {undoAction && (
+        {alertType === "success" ? (
+          <FleetIcon name="success-check" />
+        ) : (
+          <img alt="error icon" src={ErrorIcon} />
+        )}
+        <span>{message}</span>
+        {onUndoActionClick && undoAction && (
           <Button
             className={`${baseClass}__undo`}
             variant="unstyled"

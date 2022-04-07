@@ -1,5 +1,4 @@
 import React, { useContext, useState, useCallback, useEffect } from "react";
-import { useDispatch } from "react-redux";
 import { Link } from "react-router";
 import { Params, InjectedRouter } from "react-router/lib/Router";
 import { useQuery } from "react-query";
@@ -15,6 +14,7 @@ import queryAPI from "services/entities/queries";
 import teamAPI from "services/entities/teams";
 import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
+import { NotificationContext } from "context/notification";
 import {
   IHost,
   IDeviceMappingResponse,
@@ -28,8 +28,6 @@ import { ILabel } from "interfaces/label";
 import { ITeam } from "interfaces/team";
 import { IQuery } from "interfaces/query";
 import { IUser } from "interfaces/user";
-// @ts-ignore
-import { renderFlash } from "redux/nodes/notifications/actions";
 import permissionUtils from "utilities/permissions";
 
 import ReactTooltip from "react-tooltip";
@@ -96,7 +94,6 @@ const HostDetailsPage = ({
   params: { host_id },
 }: IHostDetailsProps): JSX.Element => {
   const hostIdFromURL = parseInt(host_id, 10);
-  const dispatch = useDispatch();
   const {
     isGlobalAdmin,
     isPremiumTier,
@@ -111,6 +108,7 @@ const HostDetailsPage = ({
     setLastEditedQueryResolution,
     setPolicyTeamId,
   } = useContext(PolicyContext);
+  const { renderFlash } = useContext(NotificationContext);
   const handlePageError = useErrorHandler();
   const canTransferTeam =
     isPremiumTier && (isGlobalAdmin || isGlobalMaintainer);
@@ -255,20 +253,16 @@ const HostDetailsPage = ({
                   refetchExtensions();
                 }, 1000);
               } else {
-                dispatch(
-                  renderFlash(
-                    "error",
-                    `This host is offline. Please try refetching host vitals later.`
-                  )
+                renderFlash(
+                  "error",
+                  `This host is offline. Please try refetching host vitals later.`
                 );
                 setShowRefetchSpinner(false);
               }
             } else {
-              dispatch(
-                renderFlash(
-                  "error",
-                  `We're having trouble fetching fresh vitals for this host. Please try again later.`
-                )
+              renderFlash(
+                "error",
+                `We're having trouble fetching fresh vitals for this host. Please try again later.`
               );
               setShowRefetchSpinner(false);
             }
@@ -398,18 +392,14 @@ const HostDetailsPage = ({
     if (host) {
       try {
         await hostAPI.destroy(host);
-        dispatch(
-          renderFlash(
-            "success",
-            `Host "${host.hostname}" was successfully deleted.`
-          )
+        renderFlash(
+          "success",
+          `Host "${host.hostname}" was successfully deleted.`
         );
         router.push(PATHS.MANAGE_HOSTS);
       } catch (error) {
         console.log(error);
-        dispatch(
-          renderFlash("error", `Host "${host.hostname}" could not be deleted.`)
-        );
+        renderFlash("error", `Host "${host.hostname}" could not be deleted.`);
       } finally {
         setShowDeleteHostModal(false);
       }
@@ -432,7 +422,7 @@ const HostDetailsPage = ({
         });
       } catch (error) {
         console.log(error);
-        dispatch(renderFlash("error", `Host "${host.hostname}" refetch error`));
+        renderFlash("error", `Host "${host.hostname}" refetch error`);
         setShowRefetchSpinner(false);
       }
     }
@@ -468,14 +458,12 @@ const HostDetailsPage = ({
           ? `Host successfully removed from teams.`
           : `Host successfully transferred to  ${team.name}.`;
 
-      dispatch(renderFlash("success", successMessage));
+      renderFlash("success", successMessage);
       refetchHostDetails(); // Note: it is not necessary to `refetchExtensions` here because only team has changed
       setShowTransferHostModal(false);
     } catch (error) {
       console.log(error);
-      dispatch(
-        renderFlash("error", "Could not transfer host. Please try again.")
-      );
+      renderFlash("error", "Could not transfer host. Please try again.");
     }
   };
 

@@ -256,7 +256,7 @@ type Datastore interface {
 	ListSessionsForUser(ctx context.Context, id uint) ([]*Session, error)
 
 	// NewSession stores a new session struct
-	NewSession(ctx context.Context, session *Session) (*Session, error)
+	NewSession(ctx context.Context, userID uint, sessionKey string) (*Session, error)
 
 	// DestroySession destroys the currently tracked session
 	DestroySession(ctx context.Context, session *Session) error
@@ -518,6 +518,18 @@ type Datastore interface {
 	EnrollHost(ctx context.Context, osqueryHostId, nodeKey string, teamID *uint, cooldown time.Duration) (*Host, error)
 
 	SerialUpdateHost(ctx context.Context, host *Host) error
+
+	///////////////////////////////////////////////////////////////////////////////
+	// JobStore
+
+	// NewJob inserts a new job into the jobs table (queue).
+	NewJob(ctx context.Context, job *Job) (*Job, error)
+
+	// GetQueuedJobs gets queued jobs from the jobs table (queue).
+	GetQueuedJobs(ctx context.Context, maxNumJobs int) ([]*Job, error)
+
+	// UpdateJobs updates an existing job. Call this after processing a job.
+	UpdateJob(ctx context.Context, id uint, job *Job) (*Job, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Debug

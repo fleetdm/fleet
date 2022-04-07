@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useContext } from "react";
 import { useQuery, useMutation } from "react-query";
+import { useErrorHandler } from "react-error-boundary";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 
 // @ts-ignore
@@ -44,6 +45,7 @@ const QueryPage = ({
 }: IQueryPageProps): JSX.Element => {
   const queryIdForEdit = paramsQueryId ? parseInt(paramsQueryId, 10) : null;
 
+  const handlePageError = useErrorHandler();
   const {
     isGlobalAdmin,
     isGlobalMaintainer,
@@ -92,6 +94,7 @@ const QueryPage = ({
         setLastEditedQueryBody(returnedQuery.query);
         setLastEditedQueryObserverCanRun(returnedQuery.observer_can_run);
       },
+      onError: (error) => handlePageError(error),
     }
   );
 

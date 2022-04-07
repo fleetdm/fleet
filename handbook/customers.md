@@ -46,9 +46,9 @@ After a customer conversation, it can sometimes feel like there are 1001 things 
 
 This section outlines the customer and community support process at Fleet.
 
-L1: Basic help desk resolution and service delivery -> CS team handles these with occasional support from L2
-L2: In-depth technical suppport -> CS Team with L2 Oncall Technician
-L3: Expert product and service support -> CS team liases with L2 and L3 Oncall Technician.
+- L1: Basic help desk resolution and service delivery -> CS team handles these with occasional support from L2
+- L2: In-depth technical suppport -> CS team with L2 oncall technician
+- L3: Expert product and service support -> CS team liases with L2 and L3 oncall technician.
 
 In each case, if possible, the resulting solution should be made more clear in the documentation and/or the FAQs.
 
@@ -109,7 +109,9 @@ The following [Slack channels are maintained](https://fleetdm.com/handbook/compa
 | `#help-sell`                        | Andrew Bare                                                         |
 | `#_from-prospective-customers`      | Andrew Bare                                                         |
 
+## Documentation updates
 
+Occasionally users will either email or Slack questions about product usage. We will track these requests and occasionally update our documentation to simplify things for our users. We have a Zapier integration that will automatically create an entry in our customer questions Google doc (in Slack, right-click on the customer question and select send to Zapier). At the end of the week, one of our team members will take each request in the spreadsheet and make any helpful documentation updates to help prevent similar questions in the future.
 
 <meta name="maintainedBy" value="tgauda">
 

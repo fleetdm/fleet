@@ -1,19 +1,16 @@
-import React, { useState } from "react";
-import { useDispatch } from "react-redux";
+import React, { useContext, useState } from "react";
 import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
 import yaml from "js-yaml";
+
+import { NotificationContext } from "context/notification";
 import { ITeam } from "interfaces/team";
 import endpoints from "fleet/endpoints";
 import teamsAPI from "services/entities/teams";
-// ignore TS error for now until these are rewritten in ts.
+import osqueryOptionsAPI from "services/entities/osquery_options";
+
 // @ts-ignore
-import { renderFlash } from "redux/nodes/notifications/actions";
-// @ts-ignore
-import osqueryOptionsActions from "redux/nodes/osquery/actions";
-// @ts-ignore
-import validateYaml from "components/forms/validators/validate_yaml";
-// @ts-ignore
+import validateYaml from "components/forms/validators/validate_yaml"; // @ts-ignore
 import OsqueryOptionsForm from "components/forms/admin/OsqueryOptionsForm";
 import InfoBanner from "components/InfoBanner/InfoBanner";
 import OpenNewTabIcon from "../../../../../../assets/images/open-new-tab-12x12@2x.png";
@@ -34,7 +31,7 @@ const AgentOptionsPage = ({
   params: { team_id },
 }: IAgentOptionsPageProps): JSX.Element => {
   const teamIdFromURL = parseInt(team_id, 10);
-  const dispatch = useDispatch();
+  const { renderFlash } = useContext(NotificationContext);
 
   const [formData, setFormData] = useState<{ osquery_options?: string }>({});
   const handlePageError = useErrorHandler();
@@ -59,29 +56,25 @@ const AgentOptionsPage = ({
     }
   );
 
-  const onSaveOsqueryOptionsFormSubmit = (updatedForm: {
+  const onSaveOsqueryOptionsFormSubmit = async (updatedForm: {
     osquery_options: string;
-  }): void | false => {
+  }) => {
     const { TEAMS_AGENT_OPTIONS } = endpoints;
     const { error } = validateYaml(updatedForm.osquery_options);
     if (error) {
-      dispatch(renderFlash("error", error.reason));
-      return false;
+      return renderFlash("error", error.reason);
     }
-    dispatch(
-      osqueryOptionsActions.updateOsqueryOptions(
+
+    try {
+      await osqueryOptionsAPI.update(
         updatedForm,
         TEAMS_AGENT_OPTIONS(teamIdFromURL)
-      )
-    )
-      .then(() => {
-        dispatch(renderFlash("success", "Successfully saved agent options"));
-      })
-      .catch((errors: { [key: string]: string }) => {
-        dispatch(renderFlash("error", errors.stack));
-      });
-
-    return false;
+      );
+      return renderFlash("success", "Successfully saved agent options");
+    } catch (response) {
+      console.error(response);
+      return renderFlash("error", "Could not save agent options");
+    }
   };
 
   return (

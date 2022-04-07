@@ -3,7 +3,7 @@ import md5 from "js-md5";
 import { format, formatDistanceToNow, isAfter } from "date-fns";
 import yaml from "js-yaml";
 
-import { IConfigNested } from "interfaces/config";
+import { IConfig } from "interfaces/config";
 import { IHost } from "interfaces/host";
 import { ILabel } from "interfaces/label";
 import { IPack } from "interfaces/pack";
@@ -18,6 +18,7 @@ import {
 } from "interfaces/target";
 import { ITeam, ITeamSummary } from "interfaces/team";
 import { IUser } from "interfaces/user";
+import { IVulnerability } from "interfaces/vulnerability";
 
 import stringUtils from "utilities/strings";
 import sortUtils from "utilities/sort";
@@ -183,7 +184,7 @@ export const formatConfigDataForServer = (config: any): any => {
 };
 
 // TODO: Finalize interface for config - see frontend\interfaces\config.ts
-export const frontendFormattedConfig = (config: IConfigNested) => {
+export const frontendFormattedConfig = (config: IConfig) => {
   const {
     org_info: orgInfo,
     server_settings: serverSettings,

@@ -2,12 +2,10 @@
 
 import sendRequest from "services";
 import endpoints from "fleet/endpoints";
-import { IConfigNested } from "interfaces/config";
-
-// TODO: add other methods from "fleet/entities/config"
+import { IConfig } from "interfaces/config";
 
 export default {
-  loadAll: (): Promise<IConfigNested> => {
+  loadAll: (): Promise<IConfig> => {
     const { CONFIG } = endpoints;
     const path = `${CONFIG}`;
 
@@ -30,6 +28,11 @@ export default {
 
       return Promise.resolve(decodedCertificate);
     });
+  },
+  loadEnrollSecret: () => {
+    const { GLOBAL_ENROLL_SECRETS } = endpoints;
+
+    return sendRequest("GET", GLOBAL_ENROLL_SECRETS);
   },
   update: (formData: any) => {
     const { CONFIG } = endpoints;

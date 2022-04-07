@@ -1,6 +1,9 @@
 # fleetctl CLI
 
 - [Introduction](#introduction)
+- [Using fleetctl](#using-fleetctl)
+  - [Available commands](#available-commands)
+  - [Get more info about a command](#get-more-info-about-a-command)
 - [Setting Up Fleet](#setting-up-fleet)
   - [Running Fleet](#running-fleet)
   - [`fleetctl config`](#fleetctl-config)
@@ -21,9 +24,67 @@ Fleetctl (pronounced "Fleet control") is a CLI tool for managing Fleet from the 
 
 Fleetctl also provides a quick way to work with all the data exposed by Fleet without having to use the Fleet UI or work directly with the Fleet API.
 
+## Using fleetctl
+
+You can use `fleetctl` to accomplish many tasks you would typically need to do through the UI(User Interface). You can even set up or apply configuration files to the Fleet server.
+
+### Available commands
+
+Much of the functionality available in the Fleet UI is also available in `fleetctl`. You can run queries, add and remove users, generate install packages to add new hosts, get information about existing hosts, and more! The following commands are available for use with `fleetctl`:
+
+   | Command                    | Description                                                        |
+   |:---------------------------|:-------------------------------------------------------------------|
+   | apply                      | Apply files to declaratively manage osquery configurations         |
+   | delete                     | Specify files to declaratively batch delete osquery configurations |
+   | setup                      | Set up a Fleet instance                                            |
+   | login                      | Login to Fleet                                                     |
+   | logout                     | Log out of Fleet                                                   |
+   | query                      | Run a live query                                                   |
+   | get                        | Get/list resources                                                 |
+   | config                     | Modify Fleet server connection settings                            |
+   | convert                    | Convert osquery packs into decomposed Fleet configs                |
+   | goquery                    | Start the goquery interface                                        |
+   | user                       | Manage Fleet users                                                 |
+   | debug                      | Tools for debugging Fleet                                          |
+   | preview                    | Start a preview deployment of the Fleet server                     |
+   | updates                    | Manage client updates                                              |
+   | hosts                      | Manage Fleet hosts                                                 |
+   | vulnerability-data-stream  | Download the vulnerability data stream                             |
+   | package                    | Create an Orbit installer package                                  |
+   | help, h                    | Shows a list of commands or help for one command                   |
+
+### Get more info about a command
+
+Each command available to `fleetctl` has a help menu with additional information. To pull up the help menu, run `fleetctl <command> --help`, replacing `<command>` with the command you're looking up:
+
+```
+> fleetctl setup --help
+```
+
+You will see more info about the command, including the usage and information about any additional commands and options (or 'flags') that can be passed with it:
+
+```
+NAME:
+   fleetctl setup - Set up a Fleet instance
+
+USAGE:
+   fleetctl setup [options]
+
+OPTIONS:
+   --email value     Email of the admin user to create (required) [$EMAIL]
+   --name value      Name or nickname of the admin user to create (required) [$NAME]
+   --password value  Password for the admin user (recommended to use interactive entry) [$PASSWORD]
+   --org-name value  Name of the organization (required) [$ORG_NAME]
+   --config value    Path to the fleetctl config file (default: "/Users/ksatter/.fleet/config") [$CONFIG]
+   --context value   Name of fleetctl config context to use (default: "default") [$CONTEXT]
+   --debug           Enable debug http request logging (default: false) [$DEBUG]
+   --help, -h        show help (default: false)
+
+```
+
 ## Setting up Fleet
 
-This section walks through setting up and configuring Fleet via the CLI. If you already have a running fleet instance, skip ahead to [Logging in to an existing Fleet instance](#logging-in-to-an-existing-fleet-instance) to configure the `fleetctl` CLI.
+This section walks through setting up and configuring Fleet via the CLI. If you already have a running Fleet instance, skip ahead to [Logging in to an existing Fleet instance](#logging-in-to-an-existing-fleet-instance) to configure the `fleetctl` CLI.
 
 This guide illustrates:
 
@@ -147,7 +208,7 @@ Note the token can also be set with `fleetctl config set --token`, but this may 
 
 ## Using fleetctl to configure Fleet
 
-A Fleet configuration is defined using one or more declarative "messages" in yaml syntax. 
+A Fleet configuration is defined using one or more declarative "messages" in yaml syntax.
 
 Fleet configuration can be retrieved and applied using the `fleetctl` tool.
 
@@ -210,7 +271,7 @@ fleetctl user create --name "API User" --email api@example.com --password temp!p
 
 ### Reset the password
 
-When a new user is created, a password reset is needed before that user can perform queries. Since an API-only user cannot log in to the Fleet UI, this is done through the REST API. We'll be doing this through the terminal using `curl`. 
+When a new user is created, a password reset is needed before that user can perform queries. Since an API-only user cannot log in to the Fleet UI, this is done through the REST API. We'll be doing this through the terminal using `curl`.
 
 First, log in to the new user account using `fleetctl login`. Once you're logged in successfully to the API-only user, set up a variable to hold the user's token:
 
@@ -252,7 +313,7 @@ unset token
 
 ### Use fleetctl as the new user
 
-Now that the password is reset, you will need to log in again using the updated password with `fleetctl login`. You'll now be able to perform tasks using `fleetctl` as your new API-only user. 
+Now that the password is reset, you will need to log in again using the updated password with `fleetctl login`. You'll now be able to perform tasks using `fleetctl` as your new API-only user.
 
 ### Switching users
 
@@ -285,8 +346,8 @@ The user creation failed because the API-only user doesn't have the right permis
 
 ```
 $ fleetctl user create --email test@example.com --name "New User" --context admin
-Enter password for user: 
-Enter password for user (confirm): 
+Enter password for user:
+Enter password for user (confirm):
 ```
 
 ## File carving
@@ -302,8 +363,8 @@ Given a working flagfile for connecting osquery agents to Fleet, add the followi
 ```
 --disable_carver=false
 --carver_disable_function=false
---carver_start_endpoint=/api/v1/osquery/carve/begin
---carver_continue_endpoint=/api/v1/osquery/carve/block
+--carver_start_endpoint=/api/osquery/carve/begin
+--carver_continue_endpoint=/api/osquery/carve/block
 --carver_block_size=2097152
 ```
 

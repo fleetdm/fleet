@@ -44,7 +44,9 @@ interface IHeaderProps {
   };
 }
 
-const condense = (vulnerabilities: IVulnerability[]): string[] => {
+const condenseVulnerabilities = (
+  vulnerabilities: IVulnerability[]
+): string[] => {
   const condensed =
     (vulnerabilities?.length &&
       vulnerabilities
@@ -83,14 +85,16 @@ const softwareTableHeaders = [
     accessor: "vulnerabilities",
     Cell: (cellProps: IVulnCellProps): JSX.Element => {
       const vulnerabilities = cellProps.cell.value || [];
-      const tooltipText = condense(vulnerabilities)?.map((value) => {
-        return (
-          <span key={`vuln_${value}`}>
-            {value}
-            <br />
-          </span>
-        );
-      });
+      const tooltipText = condenseVulnerabilities(vulnerabilities)?.map(
+        (value) => {
+          return (
+            <span key={`vuln_${value}`}>
+              {value}
+              <br />
+            </span>
+          );
+        }
+      );
 
       if (!vulnerabilities?.length) {
         return <span className="vulnerabilities text-muted">---</span>;

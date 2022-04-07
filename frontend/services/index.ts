@@ -1,4 +1,4 @@
-import axios, { AxiosError } from "axios";
+import axios, { AxiosError, AxiosResponse } from "axios";
 // @ts-ignore
 import local from "utilities/local";
 import URL_PREFIX from "router/url_prefix";
@@ -28,6 +28,12 @@ const sendRequest = async (
     const axiosError = error as AxiosError;
     return Promise.reject(axiosError.response);
   }
+};
+
+// return the first error
+export const getError = (response: any): string => {
+  const r = response as AxiosResponse;
+  return r.data?.errors[0].reason || "";
 };
 
 export default sendRequest;

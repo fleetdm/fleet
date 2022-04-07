@@ -47,13 +47,13 @@ assume On-Demand pricing (savings are available through Reserved Instances). Cal
 
 #### [Up to 25000 hosts](https://calculator.aws/#/estimate?id=4a3e3168275967d1e79a3d1fcfedc5b17d67a271)
 
-| Fleet instances | CPU Units     | RAM |
-|-----------------|---------------|-----|
-| 10 Fargate task  | 1024 CPU Units | 4GB |
+| Fleet instances | CPU Units      | RAM |
+|-----------------|----------------|-----|
+| 10 Fargate task | 1024 CPU Units | 4GB |
 
 | Dependencies | Version                 | Instance type |
 |--------------|-------------------------|---------------|
-| Redis        | 6                       |  m6g.large    |
+| Redis        | 6                       | m6g.large     |
 | MySQL        | 5.7.mysql_aurora.2.10.0 | db.r6g.large  |
 
 

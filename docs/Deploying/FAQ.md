@@ -53,7 +53,7 @@ Osquery requires that all communication between the agent and Fleet are over a s
 - Try specifying the path to the full certificate chain used by the server using the `--tls_server_certs` flag in `osqueryd`. This is often unnecessary when using a certificate signed by an authority trusted by the system, but is mandatory when working with self-signed certificates. In all cases it can be a useful debugging step.
 - Ensure that the CNAME or one of the Subject Alternate Names (SANs) on the certificate matches the address at which the server is being accessed. If osquery connects via `https://localhost:443`, but the certificate is for `https://fleet.example.com`, the verification will fail.
 - Is Fleet behind a load-balancer? Ensure that if the load-balancer is terminating TLS, this is the certificate provided to osquery.
-- Does the certificate verify with `curl`? Try `curl -v -X POST https://fleetserver:port/api/v1/osquery/enroll`.
+- Does the certificate verify with `curl`? Try `curl -v -X POST https://fleetserver:port/api/osquery/enroll`.
 
 ## What do I need to do to change the Fleet server TLS certificate?
 
@@ -74,6 +74,14 @@ The exact solution to this depends on the request client you are using. For exam
 NODE_TLS_REJECT_UNAUTHORIZED=0 sails console
 ```
 
+## I'm only getting partial results from live queries
+
+Redis has an internal buffer limit for pubsub that Fleet uses to communicate query results. If this buffer is filled, extra data is dropped. To fix this, we recommend disabling the buffer size limit. Most installs of Redis should have plenty of spare memory to not run into issues. More info about this limit can be found [here](https://redis.io/topics/clients#:~:text=Pub%2FSub%20clients%20have%20a,64%20megabyte%20per%2060%20second.) and [here](https://raw.githubusercontent.com/redis/redis/unstable/redis.conf) (search for client-output-buffer-limit).
+
+We recommend a config like the following:
+```
+client-output-buffer-limit pubsub 0 0 60
+```
 
 ## When do I need to deploy a new enroll secret to my hosts?
 
@@ -229,7 +237,7 @@ Check out the [documentation on running database migrations](./Upgrading-Fleet.m
 
 ## What API endpoints should I expose to the public internet?
 
-If you would like to manage hosts that can travel outside your VPN or intranet we recommend only exposing the "/api/v1/osquery" endpoint to the public internet.
+If you would like to manage hosts that can travel outside your VPN or intranet we recommend only exposing the "/api/osquery" endpoint to the public internet.
 
 ## What is the minimum version of MySQL required by Fleet?
 
