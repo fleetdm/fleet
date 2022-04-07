@@ -31,11 +31,20 @@ export interface ITeam extends ITeamSummary {
   display_text?: string;
   count?: number;
   created_at?: string;
-  agent_options?: any;
+  agent_options?: {
+    [key: string]: any;
+  };
+  webhook_settings: {
+    [key: string]: any;
+  };
   user_count?: number;
   host_count?: number;
   secrets?: IEnrollSecret[];
   role?: string; // role value is included when the team is in the context of a user
+}
+
+export interface ILoadTeamResponse {
+  team: ITeam;
 }
 
 /**
