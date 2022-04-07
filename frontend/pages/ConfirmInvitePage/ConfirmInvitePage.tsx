@@ -1,21 +1,21 @@
-import React, { useContext, useState } from "react";
+import React, { useContext, useState, useEffect } from "react";
 import { InjectedRouter } from "react-router";
 import { Params } from "react-router/lib/Router";
 
+import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 import { ICreateUserWithInvitationFormData } from "interfaces/user";
 import paths from "router/paths";
-import usersAPI from "services/entities/users"; // @ts-ignore
-import { formatErrorResponse } from "redux/nodes/entities/base/helpers";
+import usersAPI from "services/entities/users";
+import formatErrorResponse from "utilities/format_error_response";
 
 // @ts-ignore
 import AuthenticationFormWrapper from "components/AuthenticationFormWrapper"; // @ts-ignore
-import ConfirmInviteForm from "components/forms/ConfirmInviteForm"; // @ts-ignore
-import EnsureUnauthenticated from "components/EnsureUnauthenticated";
+import ConfirmInviteForm from "components/forms/ConfirmInviteForm";
 
 interface IConfirmInvitePageProps {
   router: InjectedRouter; // v3
-  location: any; // no type in v3
+  location: any; // no type in react-router v3
   params: Params;
 }
 
@@ -29,9 +29,17 @@ const ConfirmInvitePage = ({
   const { email, name } = location.query;
   const { invite_token } = params;
   const inviteFormData = { email, invite_token, name };
+  const { currentUser } = useContext(AppContext);
+  const { renderFlash } = useContext(NotificationContext);
   const [userErrors, setUserErrors] = useState<any>({});
 
-  const { renderFlash } = useContext(NotificationContext);
+  useEffect(() => {
+    const { HOME } = paths;
+
+    if (currentUser) {
+      return router.push(HOME);
+    }
+  }, [currentUser]);
 
   const onSubmit = async (formData: ICreateUserWithInvitationFormData) => {
     const { create } = usersAPI;
@@ -73,4 +81,4 @@ const ConfirmInvitePage = ({
   );
 };
 
-export default EnsureUnauthenticated(ConfirmInvitePage);
+export default ConfirmInvitePage;

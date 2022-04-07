@@ -6,13 +6,13 @@ import { find } from "lodash";
 import hostSummaryAPI from "services/entities/host_summary";
 import teamsAPI from "services/entities/teams";
 import { IHostSummary, IHostSummaryPlatforms } from "interfaces/host_summary";
+import { IOsqueryPlatform } from "interfaces/platform";
 import { ITeam } from "interfaces/team";
 import sortUtils from "utilities/sort";
 import { PLATFORM_DROPDOWN_OPTIONS } from "utilities/constants";
 
 import TeamsDropdown from "components/TeamsDropdown";
-import Spinner from "components/Spinner";
-// @ts-ignore
+import Spinner from "components/Spinner"; // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 import useInfoCard from "./components/InfoCard";
 import HostsStatus from "./cards/HostsStatus";
@@ -23,6 +23,7 @@ import LearnFleet from "./cards/LearnFleet";
 import WelcomeHost from "./cards/WelcomeHost";
 import MDM from "./cards/MDM";
 import Munki from "./cards/Munki";
+import OperatingSystems from "./cards/OperatingSystems";
 import ExternalURLIcon from "../../../assets/images/icon-external-url-12x12@2x.png";
 
 interface ITeamsResponse {
@@ -54,6 +55,9 @@ const Homepage = (): JSX.Element => {
   const [showSoftwareUI, setShowSoftwareUI] = useState<boolean>(false);
   const [showMunkiUI, setShowMunkiUI] = useState<boolean>(false);
   const [showMDMUI, setShowMDMUI] = useState<boolean>(false);
+  const [showOperatingSystemsUI, setShowOperatingSystemsUI] = useState<boolean>(
+    false
+  );
   const [showHostsUI, setShowHostsUI] = useState<boolean>(false); // Hides UI on first load only
 
   const { data: teams } = useQuery<ITeamsResponse, Error, ITeam[]>(
@@ -234,6 +238,19 @@ const Homepage = (): JSX.Element => {
     ),
   });
 
+  const OperatingSystemsCard = useInfoCard({
+    title: "Operating systems",
+    showTitle: showOperatingSystemsUI,
+    children: (
+      <OperatingSystems
+        currentTeamId={currentTeam?.id}
+        selectedPlatform={selectedPlatform as IOsqueryPlatform}
+        setShowOperatingSystemsUI={setShowOperatingSystemsUI}
+        showOperatingSystemsUI={showOperatingSystemsUI}
+      />
+    ),
+  });
+
   const allLayout = () => (
     <div className={`${baseClass}__section`}>
       {isPreviewMode && (
@@ -251,6 +268,7 @@ const Homepage = (): JSX.Element => {
 
   const macOSLayout = () => (
     <div className={`${baseClass}__section`}>
+      {OperatingSystemsCard}
       {MunkiCard}
       {MDMCard}
     </div>
@@ -278,7 +296,7 @@ const Homepage = (): JSX.Element => {
         <div className={`${baseClass}__header`}>
           <div className={`${baseClass}__text`}>
             <div className={`${baseClass}__title`}>
-              {isFreeTier && <h1>{config?.org_name}</h1>}
+              {isFreeTier && <h1>{config?.org_info.org_name}</h1>}
               {isPremiumTier &&
                 teams &&
                 (teams.length > 1 || isOnGlobalTeam) && (

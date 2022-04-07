@@ -8,6 +8,7 @@ import Button from "components/buttons/Button";
 
 import CloseIcon from "../../../assets/images/icon-close-white-16x16@2x.png";
 import CloseIconBlack from "../../../assets/images/icon-close-fleet-black-16x16@2x.png";
+import ErrorIcon from "../../../assets/images/icon-error-white-16x16@2x.png";
 
 const baseClass = "flash-message";
 
@@ -60,13 +61,15 @@ const FlashMessage = ({
     return null;
   }
 
-  const alertIcon =
-    alertType === "success" ? "success-check" : "warning-filled";
-
   return (
     <div className={klass} id={klass}>
       <div className={`${baseClass}__content`}>
-        <FleetIcon name={alertIcon} /> <span>{message}</span>
+        {alertType === "success" ? (
+          <FleetIcon name="success-check" />
+        ) : (
+          <img alt="error icon" src={ErrorIcon} />
+        )}
+        <span>{message}</span>
         {onUndoActionClick && undoAction && (
           <Button
             className={`${baseClass}__undo`}

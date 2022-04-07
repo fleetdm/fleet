@@ -1,123 +1,110 @@
 import React, { useState, useEffect, useContext } from "react";
 import { InjectedRouter } from "react-router";
-import { connect } from "react-redux";
 import { size } from "lodash";
-import { Dispatch } from "redux";
+
+import paths from "router/paths";
+import { AppContext } from "context/app";
+import { RoutingContext } from "context/routing";
+import { ISSOSettings } from "interfaces/ssoSettings";
+import local from "utilities/local";
+import sessionsAPI from "services/entities/sessions";
+import formatErrorResponse from "utilities/format_error_response";
 
 // @ts-ignore
-import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
-import {
-  clearAuthErrors,
-  loginUser,
-  ssoRedirect, // @ts-ignore
-} from "redux/nodes/auth/actions"; // @ts-ignore
-import { clearRedirectLocation } from "redux/nodes/redirectLocation/actions"; // @ts-ignore
-import debounce from "utilities/debounce"; // @ts-ignore
+import AuthenticationFormWrapper from "components/AuthenticationFormWrapper"; // @ts-ignore
 import LoginForm from "components/forms/LoginForm"; // @ts-ignore
 import LoginSuccessfulPage from "pages/LoginSuccessfulPage"; // @ts-ignore
-import ForgotPasswordPage from "pages/ForgotPasswordPage"; // @ts-ignore
-import ResetPasswordPage from "pages/ResetPasswordPage";
-import paths from "router/paths";
-import { IRedirectLocation } from "interfaces/redirect_location";
-import { IUser } from "interfaces/user";
-import { ISSOSettings } from "interfaces/ssoSettings";
-import { ITeamSummary } from "interfaces/team";
-import { AppContext } from "context/app";
 
 interface ILoginPageProps {
-  dispatch: Dispatch;
-  errors: {
-    base: string;
-  };
-  pathname: string;
-  isForgotPassPage: boolean;
-  isResetPassPage: boolean;
-  token: string;
-  redirectLocation: IRedirectLocation;
-  user: IUser;
-  ssoSettings: ISSOSettings;
   router: InjectedRouter; // v3
 }
 
-export interface ILoginUserResponse {
-  user: IUser;
-  available_teams: ITeamSummary[];
+interface ILoginData {
+  email: string;
+  password: string;
 }
 
-const LoginPage = ({
-  dispatch,
-  errors,
-  pathname,
-  isForgotPassPage,
-  isResetPassPage,
-  token,
-  redirectLocation,
-  user,
-  ssoSettings,
-  router,
-}: ILoginPageProps) => {
-  const { setAvailableTeams, setCurrentUser, setCurrentTeam } = useContext(
-    AppContext
-  );
+const LoginPage = ({ router }: ILoginPageProps) => {
+  const {
+    currentUser,
+    setAvailableTeams,
+    setCurrentUser,
+    setCurrentTeam,
+  } = useContext(AppContext);
+  const { redirectLocation } = useContext(RoutingContext);
   const [loginVisible, setLoginVisible] = useState<boolean>(true);
+  const [ssoSettings, setSSOSettings] = useState<ISSOSettings>();
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
   useEffect(() => {
-    const { HOME, LOGIN } = paths;
+    const { HOME } = paths;
+    const getSSO = async () => {
+      try {
+        const { settings } = await sessionsAPI.ssoSettings();
+        setSSOSettings(settings);
+      } catch (error) {
+        console.error(error);
+        return false;
+      }
+    };
 
-    if (user && pathname === LOGIN) {
+    if (currentUser) {
       router?.push(HOME);
+    } else {
+      getSSO();
     }
   }, [router]);
 
   const onChange = () => {
     if (size(errors)) {
-      return dispatch(clearAuthErrors);
+      setErrors({});
     }
 
     return false;
   };
 
-  const onSubmit = debounce((formData: any) => {
-    const { HOME } = paths;
-    const redirectTime = 1500;
-    return dispatch(loginUser(formData))
-      .then(({ user: returnedUser, available_teams }: ILoginUserResponse) => {
-        setLoginVisible(false);
+  const onSubmit = async (formData: ILoginData) => {
+    const { HOME, RESET_PASSWORD } = paths;
 
-        // Redirect to password reset page if user is forced to reset password.
-        // Any other requests will fail.
-        if (returnedUser.force_password_reset) {
-          return router.push(paths.RESET_PASSWORD);
-        }
+    try {
+      const { user, available_teams, token } = await sessionsAPI.create(
+        formData
+      );
+      local.setItem("auth_token", token);
 
-        // transitioning to context API - 9/1/21 MP
-        setCurrentUser(returnedUser);
-        setAvailableTeams(available_teams);
+      setLoginVisible(false);
+      setCurrentUser(user);
+      setAvailableTeams(available_teams);
+      setCurrentTeam(undefined);
 
-        // Ensure team is undefined on login
-        setCurrentTeam(undefined);
+      // Redirect to password reset page if user is forced to reset password.
+      // Any other requests will fail.
+      if (user.force_password_reset) {
+        return router.push(RESET_PASSWORD);
+      }
 
-        setTimeout(() => {
-          const nextLocation = redirectLocation || HOME;
-          dispatch(clearRedirectLocation);
-          return router.push(nextLocation);
-        }, redirectTime);
-      })
-      .catch(() => false);
-  });
+      return router.push(redirectLocation || HOME);
+    } catch (response) {
+      const errorObject = formatErrorResponse(response);
+      setErrors(errorObject);
+      return false;
+    }
+  };
 
-  const ssoSignOn = () => {
+  const ssoSignOn = async () => {
     const { HOME } = paths;
     let returnToAfterAuth = HOME;
     if (redirectLocation != null) {
-      returnToAfterAuth = redirectLocation.pathname;
+      returnToAfterAuth = redirectLocation;
     }
 
-    dispatch(ssoRedirect(returnToAfterAuth))
-      .then((result: any) => {
-        window.location.href = result.payload.ssoRedirectURL;
-      })
-      .catch(() => false);
+    try {
+      const { url } = await sessionsAPI.initializeSSO(returnToAfterAuth);
+      window.location.href = url;
+    } catch (error) {
+      console.error(error);
+      return false;
+    }
   };
 
   return (
@@ -131,23 +118,8 @@ const LoginPage = ({
         ssoSettings={ssoSettings}
         handleSSOSignOn={ssoSignOn}
       />
-      {isForgotPassPage && <ForgotPasswordPage />}
-      {isResetPassPage && <ResetPasswordPage token={token} />}
     </AuthenticationFormWrapper>
   );
 };
 
-const mapStateToProps = (state: any) => {
-  const { errors, loading, user, ssoSettings } = state.auth;
-  const { redirectLocation } = state;
-
-  return {
-    errors,
-    loading,
-    redirectLocation,
-    user,
-    ssoSettings,
-  };
-};
-
-export default connect(mapStateToProps)(LoginPage);
+export default LoginPage;

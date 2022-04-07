@@ -206,7 +206,7 @@ type SessionByIDFunc func(ctx context.Context, id uint) (*fleet.Session, error)
 
 type ListSessionsForUserFunc func(ctx context.Context, id uint) ([]*fleet.Session, error)
 
-type NewSessionFunc func(ctx context.Context, session *fleet.Session) (*fleet.Session, error)
+type NewSessionFunc func(ctx context.Context, userID uint, sessionKey string) (*fleet.Session, error)
 
 type DestroySessionFunc func(ctx context.Context, session *fleet.Session) error
 
@@ -385,6 +385,12 @@ type VerifyEnrollSecretFunc func(ctx context.Context, secret string) (*fleet.Enr
 type EnrollHostFunc func(ctx context.Context, osqueryHostId string, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error)
 
 type SerialUpdateHostFunc func(ctx context.Context, host *fleet.Host) error
+
+type NewJobFunc func(ctx context.Context, job *fleet.Job) (*fleet.Job, error)
+
+type GetQueuedJobsFunc func(ctx context.Context, maxNumJobs int) ([]*fleet.Job, error)
+
+type UpdateJobFunc func(ctx context.Context, id uint, job *fleet.Job) (*fleet.Job, error)
 
 type InnoDBStatusFunc func(ctx context.Context) (string, error)
 
@@ -952,6 +958,15 @@ type DataStore struct {
 	SerialUpdateHostFunc        SerialUpdateHostFunc
 	SerialUpdateHostFuncInvoked bool
 
+	NewJobFunc        NewJobFunc
+	NewJobFuncInvoked bool
+
+	GetQueuedJobsFunc        GetQueuedJobsFunc
+	GetQueuedJobsFuncInvoked bool
+
+	UpdateJobFunc        UpdateJobFunc
+	UpdateJobFuncInvoked bool
+
 	InnoDBStatusFunc        InnoDBStatusFunc
 	InnoDBStatusFuncInvoked bool
 
@@ -1444,9 +1459,9 @@ func (s *DataStore) ListSessionsForUser(ctx context.Context, id uint) ([]*fleet.
 	return s.ListSessionsForUserFunc(ctx, id)
 }
 
-func (s *DataStore) NewSession(ctx context.Context, session *fleet.Session) (*fleet.Session, error) {
+func (s *DataStore) NewSession(ctx context.Context, userID uint, sessionKey string) (*fleet.Session, error) {
 	s.NewSessionFuncInvoked = true
-	return s.NewSessionFunc(ctx, session)
+	return s.NewSessionFunc(ctx, userID, sessionKey)
 }
 
 func (s *DataStore) DestroySession(ctx context.Context, session *fleet.Session) error {
@@ -1892,6 +1907,21 @@ func (s *DataStore) EnrollHost(ctx context.Context, osqueryHostId string, nodeKe
 func (s *DataStore) SerialUpdateHost(ctx context.Context, host *fleet.Host) error {
 	s.SerialUpdateHostFuncInvoked = true
 	return s.SerialUpdateHostFunc(ctx, host)
+}
+
+func (s *DataStore) NewJob(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
+	s.NewJobFuncInvoked = true
+	return s.NewJobFunc(ctx, job)
+}
+
+func (s *DataStore) GetQueuedJobs(ctx context.Context, maxNumJobs int) ([]*fleet.Job, error) {
+	s.GetQueuedJobsFuncInvoked = true
+	return s.GetQueuedJobsFunc(ctx, maxNumJobs)
+}
+
+func (s *DataStore) UpdateJob(ctx context.Context, id uint, job *fleet.Job) (*fleet.Job, error) {
+	s.UpdateJobFuncInvoked = true
+	return s.UpdateJobFunc(ctx, id, job)
 }
 
 func (s *DataStore) InnoDBStatus(ctx context.Context) (string, error) {

@@ -1,0 +1,1 @@
+* Introduce new API version (`/api/2022-04/...`, aliased as `/api/latest/...`) to introduce breaking changes that remove `/global` sections from the paths (the deprecated API is still available under `/api/v1/...`)

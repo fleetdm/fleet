@@ -5,17 +5,18 @@ import React, { useMemo, useEffect, useCallback, useContext } from "react";
 import { TableContext } from "context/table";
 import classnames from "classnames";
 import {
-  useTable,
-  useSortBy,
-  useRowSelect,
-  Row,
-  usePagination,
-  useFilters,
-  HeaderGroup,
   Column,
+  HeaderGroup,
+  Row,
+  useFilters,
+  useGlobalFilter,
+  usePagination,
+  useRowSelect,
+  useSortBy,
+  useTable,
 } from "react-table";
 import { isString, kebabCase, noop } from "lodash";
-import { useDebouncedCallback } from "use-debounce/lib";
+import { useDebouncedCallback } from "use-debounce";
 
 import { useDeepEffect } from "utilities/hooks";
 import sort from "utilities/sort";
@@ -130,8 +131,9 @@ const DataTable = ({
     nextPage,
     previousPage,
     setPageSize,
-    setFilter,
-    setAllFilters,
+    setFilter, // sets a specific column-level filter
+    setAllFilters, // sets all of the column-level filters; rows are included in filtered results only if each column filter return true
+    setGlobalFilter, // sets the global filter; this serves as a global free text search across all columns (excluding only those where `disableGlobalFilter: true`)
   } = useTable(
     {
       columns,
@@ -192,7 +194,8 @@ const DataTable = ({
         []
       ),
     },
-    useFilters,
+    useGlobalFilter, // order of these hooks matters; here we first apply the global filter (if any); this could be reversed depending on where we want to target performance
+    useFilters, // react-table applies column-level filters after first applying the global filter (if any)
     useSortBy,
     usePagination,
     useRowSelect
@@ -202,7 +205,11 @@ const DataTable = ({
 
   useEffect(() => {
     if (tableFilters) {
-      const allFilters = Object.entries(tableFilters).map(([id, value]) => ({
+      const filtersToSet = tableFilters;
+      const global = filtersToSet.global;
+      setGlobalFilter(global);
+      delete filtersToSet.global;
+      const allFilters = Object.entries(filtersToSet).map(([id, value]) => ({
         id,
         value,
       }));
@@ -262,7 +269,7 @@ const DataTable = ({
   }, [isAllPagesSelected, toggleAllRowsSelected]);
 
   useEffect(() => {
-    setPageSize(CLIENT_SIDE_DEFAULT_PAGE_SIZE);
+    setPageSize(defaultPageSize || CLIENT_SIDE_DEFAULT_PAGE_SIZE);
   }, [setPageSize]);
 
   useDeepEffect(() => {

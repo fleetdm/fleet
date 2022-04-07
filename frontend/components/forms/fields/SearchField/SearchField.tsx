@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useDebouncedCallback } from "use-debounce/lib";
+import { useDebouncedCallback } from "use-debounce";
 // @ts-ignore
 import InputField from "../InputField";
 

@@ -90,7 +90,7 @@ We'd like to make maintaining secure laptops and servers as easy as possible.
 - Improve the standard query library so that it includes 80% of the most common
 policies that any organization needs. (Miss)
 
-## Product design process
+## Product process
 
 The product team is responsible for product design tasks. These include drafting
 changes to the Fleet product, reviewing and collecting feedback from engineering, sales, customer success, and marketing counterparts, and delivering
@@ -334,6 +334,9 @@ Use `---`, with color `$ui-fleet-black-50` as the default UI for empty columns.
 
 Pressing the return or enter key with an open form will cause the form to be submitted.
 
+**External links**
+
+For a link that navigates the user to an external site (ex. fleetdm.com/docs), use the `$core-blue` color and `xs-bold` styling for the link's text. Also, place the link-out icon to the right of the link's text.
 
 ## Release 
 
