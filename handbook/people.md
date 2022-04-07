@@ -49,6 +49,16 @@ In brief, this means that as a Fleet team member, you may:
 
 For more developed thoughts about __spending guidelines and limits__, please read [GitLab's open expense policy](https://about.gitlab.com/handbook/spending-company-money/).
 
+### Reimbursements
+
+We provide all of our team members with Brex cards for making purchases for the company. If a team member pays for work related expense with their personal funds, Fleet will reimburse them. 
+
+Team members can request reimbursement through [Gusto](https://app.gusto.com/expenses) if theyre in the US or [Pilot](https://pilot.co/) if they are a international team member. When submitting a expense report, team members need to provide the receipt, and a description of what the expense is.
+
+Operations will review the expense, and reach out to the team member if they have any questions. When a expense is approved, the reimbursement will be added to the team member's next payroll.
+
+>Pilot handles reimbursments differently depending on if the international team member is a classified as an employee or a contractor. If the reimbursement is for a contractor, Operations will need to add the expense reimbursement to an upcoming recurring payment or schedule the reimbursement as an off-cycle payment. If the reimbursement is for an employee, no other action is needed, the reimbursement will be added to the team members next payroll. 
+
 ### Purchasing a company-issued device
 
 Fleet provides laptops for team members to use while working at Fleet. As soon as an offer is accepted, `eashaw` will reach out to the new team member to start this process. `Eashaw` will work with the new team member to get their laptop purchased and shipped to them.
