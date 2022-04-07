@@ -312,7 +312,7 @@ const TeamDetailsWrapper = ({
       }
 
       try {
-        await teamsAPI.update(currentTeam.id, updatedAttrs);
+        await teamsAPI.update(updatedAttrs, currentTeam.id);
         await teamsAPI.loadAll({ perPage: 500 });
 
         renderFlash(

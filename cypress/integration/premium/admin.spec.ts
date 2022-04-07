@@ -192,7 +192,9 @@ describe("Premium tier - Global Admin user", () => {
       cy.getAttached(".manage-automations-modal").within(() => {
         cy.getAttached(".fleet-slider").click();
         cy.getAttached(".fleet-checkbox__input").check({ force: true });
-        cy.getAttached("#webhook-url").clear().type("https://example.com/global_admin");
+        cy.getAttached("#webhook-url")
+          .clear()
+          .type("https://example.com/global_admin");
         cy.findByText(/save/i).click();
       });
       cy.findByText(/successfully updated policy automations/i).should("exist");

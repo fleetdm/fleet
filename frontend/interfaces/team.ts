@@ -34,7 +34,7 @@ export interface ITeam extends ITeamSummary {
   agent_options?: {
     [key: string]: any;
   };
-  webhook_settings: {
+  webhook_settings?: {
     [key: string]: any;
   };
   user_count?: number;

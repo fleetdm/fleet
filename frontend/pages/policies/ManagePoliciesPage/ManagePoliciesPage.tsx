@@ -164,10 +164,10 @@ const ManagePolicyPage = ({
       },
       onSuccess: (data) => {
         setFailingPoliciesWebhook(
-          data.webhook_settings.failing_policies_webhook
+          data.webhook_settings?.failing_policies_webhook
         );
         setCurrentAutomatedPolicies(
-          data.webhook_settings.failing_policies_webhook.policy_ids
+          data.webhook_settings?.failing_policies_webhook.policy_ids
         );
 
         if (has(data, "org_info")) {
