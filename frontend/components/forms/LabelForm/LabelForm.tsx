@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { IAceEditor } from "react-ace/lib/types";
 import { noop, size } from "lodash";
-import { useDebouncedCallback } from "use-debounce/lib";
+import { useDebouncedCallback } from "use-debounce";
 
 import { ILabel, ILabelFormData } from "interfaces/label";
 import Button from "components/buttons/Button"; // @ts-ignore

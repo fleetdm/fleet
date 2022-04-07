@@ -1,11 +1,10 @@
 import React, { useState, useContext } from "react";
 import { InjectedRouter } from "react-router";
-import { useDispatch } from "react-redux"; // @ts-ignore
-import { logoutUser } from "redux/nodes/auth/actions";
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 import { TableContext } from "context/table";
 
+import paths from "router/paths";
 import { useDeepEffect } from "utilities/hooks";
 import FlashMessage from "components/FlashMessage";
 import SiteTopNav from "components/top_nav/SiteTopNav";
@@ -33,11 +32,8 @@ const expirationMessage = (
 );
 
 const CoreLayout = ({ children, router }: ICoreLayoutProps) => {
-  const dispatch = useDispatch();
   const { config, currentUser, isPremiumTier } = useContext(AppContext);
-  const { notification, renderFlash, hideFlash } = useContext(
-    NotificationContext
-  );
+  const { notification, hideFlash } = useContext(NotificationContext);
   const { setResetSelectedRows } = useContext(TableContext);
   const [
     showExpirationFlashMessage,
@@ -58,17 +54,13 @@ const CoreLayout = ({ children, router }: ICoreLayoutProps) => {
     }
 
     setShowExpirationFlashMessage(
-      licenseExpirationWarning(config?.expiration || "")
+      licenseExpirationWarning(config?.license.expiration || "")
     );
   }, [notification]);
 
   const onLogoutUser = async () => {
-    try {
-      dispatch(logoutUser());
-    } catch (error) {
-      renderFlash("error", "Unable to log out of your account");
-      console.log(error);
-    }
+    const { LOGOUT } = paths;
+    router.push(LOGOUT);
   };
 
   const onNavItemClick = (path: string) => {

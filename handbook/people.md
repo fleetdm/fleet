@@ -49,7 +49,7 @@ In brief, this means that as a Fleet team member, you may:
 
 For more developed thoughts about __spending guidelines and limits__, please read [GitLab's open expense policy](https://about.gitlab.com/handbook/spending-company-money/).
 
-### Purchasing a company-issued device.
+### Purchasing a company-issued device
 
 Fleet provides laptops for team members to use while working at Fleet. As soon as an offer is accepted, `eashaw` will reach out to the new team member to start this process. `Eashaw` will work with the new team member to get their laptop purchased and shipped to them.
 

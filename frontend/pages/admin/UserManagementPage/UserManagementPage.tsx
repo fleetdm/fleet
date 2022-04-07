@@ -1,13 +1,14 @@
 import React, { useState, useCallback, useContext } from "react";
-import { useDispatch } from "react-redux";
 import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
 import memoize from "memoize-one";
 
+import paths from "router/paths";
 import { IApiError } from "interfaces/errors";
 import { IInvite } from "interfaces/invite";
 import { IUser, IUserFormErrors } from "interfaces/user";
 import { ITeam } from "interfaces/team";
+import { clearToken } from "utilities/local";
 
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
@@ -15,7 +16,6 @@ import teamsAPI from "services/entities/teams";
 import usersAPI from "services/entities/users";
 import invitesAPI from "services/entities/invites";
 
-import paths from "router/paths";
 import TableContainer, { ITableQueryData } from "components/TableContainer";
 import TableDataError from "components/TableDataError";
 import Modal from "components/Modal";
@@ -40,8 +40,6 @@ interface ITeamsResponse {
 }
 
 const UserManagementPage = ({ router }: IUserManagementProps): JSX.Element => {
-  const dispatch = useDispatch();
-
   const { config, currentUser, isPremiumTier } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
@@ -234,7 +232,7 @@ const UserManagementPage = ({ router }: IUserManagementProps): JSX.Element => {
         .then(() => {
           renderFlash(
             "success",
-            `An invitation email was sent from ${config?.sender_address} to ${formData.email}.`
+            `An invitation email was sent from ${config?.smtp_settings.sender_address} to ${formData.email}.`
           );
           toggleCreateUserModal();
           refetchInvites();
@@ -335,7 +333,7 @@ const UserManagementPage = ({ router }: IUserManagementProps): JSX.Element => {
     let userUpdatedFlashMessage = `Successfully edited ${formData.name}`;
 
     if (userData?.email !== formData.email) {
-      userUpdatedFlashMessage += `: A confirmation email was sent from ${config?.sender_address} to ${formData.email}`;
+      userUpdatedFlashMessage += `: A confirmation email was sent from ${config?.smtp_settings.sender_address} to ${formData.email}`;
     }
 
     return (
@@ -405,7 +403,10 @@ const UserManagementPage = ({ router }: IUserManagementProps): JSX.Element => {
       .deleteSessions(userEditing.id)
       .then(() => {
         if (isResettingCurrentUser) {
-          dispatch({ type: "LOGOUT_SUCCESS" });
+          clearToken();
+          setTimeout(() => {
+            window.location.href = "/";
+          }, 500);
           return;
         }
         renderFlash("success", "Successfully reset sessions.");
@@ -454,8 +455,8 @@ const UserManagementPage = ({ router }: IUserManagementProps): JSX.Element => {
             onSubmit={onEditUser}
             availableTeams={teams || []}
             isPremiumTier={isPremiumTier || false}
-            smtpConfigured={config?.configured || false}
-            canUseSso={config?.enable_sso || false}
+            smtpConfigured={config?.smtp_settings.configured || false}
+            canUseSso={config?.sso_settings.enable_sso || false}
             isSsoEnabled={userData?.sso_enabled}
             isModifiedByGlobalAdmin
             isInvitePending={userEditing.type === "invite"}
@@ -476,8 +477,8 @@ const UserManagementPage = ({ router }: IUserManagementProps): JSX.Element => {
         defaultGlobalRole={"observer"}
         defaultTeams={[]}
         isPremiumTier={isPremiumTier || false}
-        smtpConfigured={config?.configured || false}
-        canUseSso={config?.enable_sso || false}
+        smtpConfigured={config?.smtp_settings.configured || false}
+        canUseSso={config?.sso_settings.enable_sso || false}
         isFormSubmitting={isFormSubmitting}
         isModifiedByGlobalAdmin
       />

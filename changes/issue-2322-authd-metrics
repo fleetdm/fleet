@@ -1,0 +1,1 @@
+* Add HTTP Basic Auth to Fleet's `/metrics` endpoint. (If credentials are not set, the `/metrics` endpoint is disabled.)

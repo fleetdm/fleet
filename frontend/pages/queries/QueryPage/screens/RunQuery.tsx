@@ -3,9 +3,10 @@ import SockJS from "sockjs-client";
 
 import { QueryContext } from "context/query";
 import { NotificationContext } from "context/notification";
-import { formatSelectedTargetsForApi } from "fleet/helpers"; // @ts-ignore
-import campaignHelpers from "redux/nodes/entities/campaigns/helpers";
-import queryAPI from "services/entities/queries"; // @ts-ignore
+import { formatSelectedTargetsForApi } from "fleet/helpers";
+
+import queryAPI from "services/entities/queries";
+import campaignHelpers from "utilities/campaign_helpers"; // @ts-ignore
 import debounce from "utilities/debounce"; // @ts-ignore
 import { BASE_URL, DEFAULT_CAMPAIGN_STATE } from "utilities/constants"; // @ts-ignore
 import local from "utilities/local"; // @ts-ignore

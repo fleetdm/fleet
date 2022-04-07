@@ -1,14 +1,10 @@
-export const destroyFunc = (campaign) => {
-  return Promise.resolve(campaign);
-};
-
-const updateCampaignStateFromTotals = (campaign, { data }) => {
+const updateCampaignStateFromTotals = (campaign: any, { data }: any) => {
   return {
     campaign: { ...campaign, totals: data },
   };
 };
 
-const updateCampaignStateFromResults = (campaign, { data }) => {
+const updateCampaignStateFromResults = (campaign: any, { data }: any) => {
   const queryResults = campaign.query_results || [];
   const errors = campaign.errors || [];
   const hosts = campaign.hosts || [];
@@ -82,7 +78,7 @@ const updateCampaignStateFromResults = (campaign, { data }) => {
   };
 };
 
-const updateCampaignStateFromStatus = (campaign, { data }) => {
+const updateCampaignStateFromStatus = (campaign: any, { data }: any) => {
   const { status } = data;
   const updatedCampaign = { ...campaign, status };
 
@@ -92,8 +88,8 @@ const updateCampaignStateFromStatus = (campaign, { data }) => {
   };
 };
 
-export const updateCampaignState = (socketData) => {
-  return (prevState) => {
+export const updateCampaignState = (socketData: any) => {
+  return (prevState: any) => {
     const { campaign } = prevState;
 
     switch (socketData.type) {
@@ -109,4 +105,4 @@ export const updateCampaignState = (socketData) => {
   };
 };
 
-export default { destroyFunc, updateCampaignState };
+export default { updateCampaignState };
