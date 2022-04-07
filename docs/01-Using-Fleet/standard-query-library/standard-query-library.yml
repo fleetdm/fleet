@@ -603,8 +603,17 @@ kind: policy
 spec:
   name: Application is up to date or not present (macOS) (Docker example)
   query: SELECT 1 WHERE EXISTS (SELECT 1 FROM apps a1 WHERE a1.bundle_identifier = 'com.electron.dockerdesktop' AND a1.bundle_short_version>='4.6.1') OR NOT EXISTS (SELECT 1 FROM apps a2 WHERE a2.bundle_identifier = 'com.electron.dockerdesktop');
-  description: "Required: osquery deployed with Orbit, or manual installation of macadmins/osquery-extension. Checks that a Mac is enrolled to MDM. Add a AND on identity_certificate_uuid to check for a specific MDM."
-  resolution: "Enroll device to MDM"
+  description: "Checks if Docker is installed and at version 4.6.1 or above, or not installed. Fails if Docker is installed and on a lower version."
+  resolution: "Update Docker or remove it if not used."
   platforms: macOS
   contributors: GuillaumeRoss
- 
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: No unencrypted SSH keys are present
+  query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM users CROSS JOIN user_ssh_keys USING (uid) WHERE encrypted='0');
+  description: "Required: osquery must have Full Disk Access. Policy passes if no unencrypted SSH keys are found in the ~/.ssh of users on the system."
+  resolution: "Use this command to encrypt existing SSH keys: ssh-keygen -o -p -f keyfile"
+  platforms: macOS, Linux, Windows
+  contributors: GuillaumeRoss
