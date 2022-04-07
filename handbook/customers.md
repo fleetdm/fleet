@@ -109,7 +109,7 @@ The following [Slack channels are maintained](https://fleetdm.com/handbook/compa
 | `#help-sell`                        | Andrew Bare                                                         |
 | `#_from-prospective-customers`      | Andrew Bare                                                         |
 
-## Documentation Udpates
+## Documentation updates
 
 Occasionally users will either email or Slack questions about product usage. We will track these requests and occasionally update our documentation to simplify things for our users. We have a Zapier integration that will automatically create an entry in our customer questions Google doc (in Slack, right-click on the customer question and select send to Zapier). At the end of the week, one of our team members will take each request in the spreadsheet and make any helpful documentation updates to help prevent similar questions in the future.
 
