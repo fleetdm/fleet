@@ -1,5 +1,4 @@
 import React, { useContext, useState, useCallback, useEffect } from "react";
-import { useDispatch } from "react-redux";
 import { Link } from "react-router";
 import { Params, InjectedRouter } from "react-router/lib/Router";
 import { useQuery } from "react-query";
@@ -95,7 +94,6 @@ const HostDetailsPage = ({
   params: { host_id },
 }: IHostDetailsProps): JSX.Element => {
   const hostIdFromURL = parseInt(host_id, 10);
-  const dispatch = useDispatch();
   const {
     isGlobalAdmin,
     isPremiumTier,
@@ -465,9 +463,7 @@ const HostDetailsPage = ({
       setShowTransferHostModal(false);
     } catch (error) {
       console.log(error);
-      dispatch(
-        renderFlash("error", "Could not transfer host. Please try again.")
-      );
+      renderFlash("error", "Could not transfer host. Please try again.");
     }
   };
 

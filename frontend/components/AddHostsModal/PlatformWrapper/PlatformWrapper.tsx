@@ -4,11 +4,13 @@ import { useQuery } from "react-query";
 import FileSaver from "file-saver";
 
 import { NotificationContext } from "context/notification";
-import configAPI from "services/entities/config";
 import { AppContext } from "context/app"; // @ts-ignore
 import { stringToClipboard } from "utilities/copy_text";
 import { ITeam } from "interfaces/team";
 import { IEnrollSecret } from "interfaces/enroll_secret";
+
+import configAPI from "services/entities/config";
+
 import Button from "components/buttons/Button";
 import RevealButton from "components/buttons/RevealButton"; // @ts-ignore
 import InputField from "components/forms/fields/InputField";
@@ -80,10 +82,10 @@ const PlatformWrapper = ({
     }
   );
 
-  let tlsHostname = config?.server_url || "";
+  let tlsHostname = config?.server_settings.server_url || "";
 
   try {
-    const serverUrl = new URL(config?.server_url || "");
+    const serverUrl = new URL(config?.server_settings.server_url || "");
     tlsHostname = serverUrl.hostname;
     if (serverUrl.port) {
       tlsHostname += `:${serverUrl.port}`;
@@ -225,12 +227,14 @@ const PlatformWrapper = ({
 
   const renderInstallerString = (platform: string) => {
     return platform === "advanced"
-      ? `fleetctl package --type=rpm --fleet-url=${config?.server_url}
+      ? `fleetctl package --type=rpm --fleet-url=${config?.server_settings.server_url}
 --enroll-secret=${enrollSecret}
 --fleet-certificate=PATH_TO_YOUR_CERTIFICATE/fleet.pem`
       : `fleetctl package --type=${platform} ${
           includeFleetDesktop ? "--fleet-desktop " : ""
-        }--fleet-url=${config?.server_url} --enroll-secret=${enrollSecret}`;
+        }--fleet-url=${
+          config?.server_settings.server_url
+        } --enroll-secret=${enrollSecret}`;
   };
 
   const renderLabel = (platform: string, installerString: string) => {

@@ -10,10 +10,8 @@ import { IEditScheduledQuery } from "interfaces/scheduled_query";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import RevealButton from "components/buttons/RevealButton";
-import InfoBanner from "components/InfoBanner/InfoBanner";
-// @ts-ignore
-import Dropdown from "components/forms/fields/Dropdown";
-// @ts-ignore
+import InfoBanner from "components/InfoBanner/InfoBanner"; // @ts-ignore
+import Dropdown from "components/forms/fields/Dropdown"; // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import {
   FREQUENCY_DROPDOWN_OPTIONS,
@@ -95,7 +93,7 @@ const ScheduleEditorModal = ({
 }: IScheduleEditorModalProps): JSX.Element => {
   const { config } = useContext(AppContext);
 
-  const loggingConfig = config?.result.plugin || "unknown";
+  const loggingConfig = config?.logging.result.plugin || "unknown";
 
   const [showAdvancedOptions, setShowAdvancedOptions] = useState<boolean>(
     false

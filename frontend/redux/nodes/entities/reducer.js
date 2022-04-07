@@ -1,6 +1,5 @@
 import { combineReducers } from "redux";
 
-import campaigns from "./campaigns/reducer";
 import hosts from "./hosts/reducer";
 import invites from "./invites/reducer";
 import labels from "./labels/reducer";
@@ -13,7 +12,6 @@ import users from "./users/reducer";
 import teams from "./teams/reducer";
 
 export default combineReducers({
-  campaigns,
   hosts,
   invites,
   labels,

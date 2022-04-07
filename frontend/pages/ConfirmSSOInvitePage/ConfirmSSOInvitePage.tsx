@@ -1,37 +1,35 @@
-import React, { useContext, useState, useEffect } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import { InjectedRouter } from "react-router";
 import { Params } from "react-router/lib/Router";
 
-import { AppContext } from "context/app";
-import { NotificationContext } from "context/notification";
-import { ICreateUserWithInvitationFormData } from "interfaces/user";
 import paths from "router/paths";
+import { AppContext } from "context/app";
 import usersAPI from "services/entities/users";
+import sessionsAPI from "services/entities/sessions";
 import formatErrorResponse from "utilities/format_error_response";
 
 // @ts-ignore
 import AuthenticationFormWrapper from "components/AuthenticationFormWrapper"; // @ts-ignore
-import ConfirmInviteForm from "components/forms/ConfirmInviteForm";
+import ConfirmSSOInviteForm from "components/forms/ConfirmSSOInviteForm";
 
-interface IConfirmInvitePageProps {
-  router: InjectedRouter; // v3
+interface IConfirmSSOInvitePageProps {
   location: any; // no type in react-router v3
   params: Params;
+  router: InjectedRouter;
 }
 
 const baseClass = "confirm-invite-page";
 
-const ConfirmInvitePage = ({
-  router,
+const ConfirmSSOInvitePage = ({
   location,
   params,
-}: IConfirmInvitePageProps) => {
+  router,
+}: IConfirmSSOInvitePageProps) => {
   const { email, name } = location.query;
   const { invite_token } = params;
   const inviteFormData = { email, invite_token, name };
   const { currentUser } = useContext(AppContext);
-  const { renderFlash } = useContext(NotificationContext);
-  const [userErrors, setUserErrors] = useState<any>({});
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
   useEffect(() => {
     const { HOME } = paths;
@@ -41,22 +39,19 @@ const ConfirmInvitePage = ({
     }
   }, [currentUser]);
 
-  const onSubmit = async (formData: ICreateUserWithInvitationFormData) => {
-    const { create } = usersAPI;
-    const { LOGIN } = paths;
+  const onSubmit = async (formData: any) => {
+    const { HOME } = paths;
+
+    formData.sso_invite = true;
 
     try {
-      await create(formData);
-
-      router.push(LOGIN);
-      renderFlash(
-        "success",
-        "Registration successful! For security purposes, please log in."
-      );
-    } catch (error) {
-      console.error(error);
-      const errorsObject = formatErrorResponse(error);
-      setUserErrors(errorsObject);
+      await usersAPI.create(formData);
+      const { url } = await sessionsAPI.initializeSSO(HOME);
+      window.location.href = url;
+    } catch (response) {
+      const errorObject = formatErrorResponse(response);
+      setErrors(errorObject);
+      return false;
     }
   };
 
@@ -70,15 +65,15 @@ const ConfirmInvitePage = ({
             following information.
           </p>
         </div>
-        <ConfirmInviteForm
+        <ConfirmSSOInviteForm
           className={`${baseClass}__form`}
           formData={inviteFormData}
           handleSubmit={onSubmit}
-          serverErrors={userErrors}
+          serverErrors={errors}
         />
       </div>
     </AuthenticationFormWrapper>
   );
 };
 
-export default ConfirmInvitePage;
+export default ConfirmSSOInvitePage;
