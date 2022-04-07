@@ -120,6 +120,12 @@ schedule a time when you are not available. Many team members use the free tier 
 [reclaim.ai](https://reclaim.ai/) to synchronize personal event times (without event details) into
 their work calendars. It is also common practice to block out time for focused work.
 
+#### Modifying an event organized by someone else
+
+To edit an event where someone else at Fleet is the organizer, you can first subscribe to their calendar in Google Calendar, then edit the event on their calendar.  Your edits will automatically apply for all attendees.
+
+> This works because every fleetie grants edit access to everyone else at Fleet as part of onboarding.
+
 ### External meeting scheduling
 
 When scheduling external meetings, provide external participants with a

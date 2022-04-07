@@ -435,3 +435,73 @@ func TestCronWebhooksIntervalChange(t *testing.T) {
 		t.Fatal("timeout: interval change did not trigger lock call")
 	}
 }
+
+func TestBasicAuthHandler(t *testing.T) {
+	for _, tc := range []struct {
+		name           string
+		username       string
+		password       string
+		passes         bool
+		noBasicAuthSet bool
+	}{
+		{
+			name:     "good-credentials",
+			username: "foo",
+			password: "bar",
+			passes:   true,
+		},
+		{
+			name:     "empty-credentials",
+			username: "",
+			password: "",
+			passes:   false,
+		},
+		{
+			name:           "no-basic-auth-set",
+			username:       "",
+			password:       "",
+			noBasicAuthSet: true,
+			passes:         false,
+		},
+		{
+			name:     "wrong-username",
+			username: "foo1",
+			password: "bar",
+			passes:   false,
+		},
+		{
+			name:     "wrong-password",
+			username: "foo",
+			password: "bar1",
+			passes:   false,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			pass := false
+			h := basicAuthHandler("foo", "bar", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				pass = true
+				w.WriteHeader(http.StatusOK)
+			}))
+
+			r, err := http.NewRequest("GET", "", nil)
+			require.NoError(t, err)
+
+			if !tc.noBasicAuthSet {
+				r.SetBasicAuth(tc.username, tc.password)
+			}
+
+			var w httptest.ResponseRecorder
+			h.ServeHTTP(&w, r)
+
+			if pass != tc.passes {
+				t.Fatal("unexpected pass")
+			}
+
+			expStatusCode := http.StatusUnauthorized
+			if pass {
+				expStatusCode = http.StatusOK
+			}
+			require.Equal(t, w.Result().StatusCode, expStatusCode)
+		})
+	}
+}

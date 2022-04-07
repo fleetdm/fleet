@@ -72,6 +72,10 @@ a.text-danger:hover, a.text-danger:focus {
   line-height: 23px;
   border-radius: 10px;
 
+  &:focus {
+    box-shadow: none;
+  }
+
   &.btn-link {
     color: #ffffff;
     font-weight: 400;
@@ -130,6 +134,25 @@ a.text-danger:hover, a.text-danger:focus {
       border-color: #6A67FE;
     }
     &:not(:disabled):not(.disabled):focus {
+      box-shadow: none;
+    }
+  }
+
+  &.btn-outline-secondary {
+    color: @core-fleet-black;
+    border: 1px solid #C5C7D1;
+    &:hover {
+      background: #fff;
+    }
+    &:focus {
+      box-shadow: none;
+    }
+    &:not(:disabled):not(.disabled):active, &:not(:disabled):not(.disabled).active, .show > &.dropdown-toggle {
+      color: @core-fleet-black;
+      background: none;
+      border: 1px solid #C5C7D1;
+    }
+    &:not(:disabled):not(.disabled):active:focus, &:not(:disabled):not(.disabled).active:focus, .show > &.dropdown-toggle:focus {
       box-shadow: none;
     }
   }
