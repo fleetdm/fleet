@@ -6,7 +6,10 @@ set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
 gen() {
-    oapi-codegen -generate "types,client,chi-server,spec" openapi.bundled.yaml > openapi.gen.go
+    # oapi-codegen openapi.bundled.yaml > openapi.gen.go
+    # oapi-codegen -package openapi -generate "types,client,chi-server,spec" openapi.bundled.yaml > openapi.gen.go
+    oapi-codegen -templates templates -package openapi -generate "types,client,chi-server,spec" openapi.bundled.yaml > openapi.gen.go
+    # oapi-codegen -templates templates -generate "types,client,chi-server,spec" openapi.bundled.yaml > openapi.gen.go
 }
 
 bundle() {

@@ -24,6 +24,7 @@ import (
 	"github.com/e-dard/netbug"
 	"github.com/fleetdm/fleet/v4/ee/server/licensing"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
+	"github.com/fleetdm/fleet/v4/openapi"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -44,6 +45,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/redis_policy_set"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/getsentry/sentry-go"
+	"github.com/go-chi/chi/v5"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
@@ -389,15 +391,32 @@ the way that the Fleet server works.
 
 			httpLogger := kitlog.With(logger, "component", "http")
 
-			limiterStore := &redis.ThrottledStore{
-				Pool:      redisPool,
-				KeyPrefix: "ratelimit::",
-			}
+			// limiterStore := &redis.ThrottledStore{
+			// 	Pool:      redisPool,
+			// 	KeyPrefix: "ratelimit::",
+			// }
 
 			var apiHandler, frontendHandler http.Handler
 			{
 				frontendHandler = service.PrometheusMetricsHandler("get_frontend", service.ServeFrontend(config.Server.URLPrefix, httpLogger))
-				apiHandler = service.MakeHandler(svc, config, httpLogger, limiterStore)
+				// apiHandler = service.MakeHandler(svc, config, httpLogger, limiterStore)
+				srv := &Server{
+					svc: svc,
+				}
+				// TODO: use options.BaseRouter to register websocket route
+				baseRouter := chi.NewRouter()
+				// TODO: use baseRouter.Handle to attach websocket route
+				opts := openapi.ChiServerOptions{
+					BaseRouter: baseRouter,
+					Middlewares: []openapi.MiddlewareFunc{
+						// TODO: add httpLogger, limiterStore middleware
+						ErrorMiddleware(func(w http.ResponseWriter, r *http.Request, err error) {
+							// TODO: encode the error using encodeError in transport_error.go, or encodeResponse?
+							fmt.Printf("ERROR: %v\n", err)
+						}),
+					},
+				}
+				apiHandler = openapi.HandlerWithOptions(srv, opts)
 
 				setupRequired, err := svc.SetupRequired(context.Background())
 				if err != nil {

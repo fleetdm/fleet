@@ -1,0 +1,22 @@
+get:
+  operationId: getHosts
+  description: |
+    List hosts
+  security:
+    - BearerAuth: []
+  parameters:
+    - in: query
+      name: query
+      schema:
+        type: string
+      description: Search query keywords
+  responses:
+    '200':
+       content:
+         application/json:
+           schema:
+             type: array
+             items:
+               $ref: ../components/schemas/Host.yaml
+    '404':
+      $ref: ../components/responses/NotFound.yaml

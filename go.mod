@@ -21,6 +21,7 @@ require (
 	github.com/cenkalti/backoff/v4 v4.1.2
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/davecgh/go-spew v1.1.1
+	github.com/deepmap/oapi-codegen v1.9.1 // indirect
 	github.com/dgraph-io/badger/v2 v2.2007.2
 	github.com/dnaeon/go-vcr/v2 v2.0.1
 	github.com/doug-martin/goqu/v9 v9.18.0
@@ -30,12 +31,14 @@ require (
 	github.com/facebookincubator/nvdtools v0.1.4
 	github.com/fatih/color v1.12.0
 	github.com/fleetdm/goose v0.0.0-20220214194029-91b5e5eb8e77
+	github.com/getkin/kin-openapi v0.94.0 // indirect
 	github.com/getlantern/golog v0.0.0-20211223150227-d4d95a44d873 // indirect
 	github.com/getlantern/hidden v0.0.0-20220104173330-f221c5a24770 // indirect
 	github.com/getlantern/ops v0.0.0-20200403153110-8476b16edcd6 // indirect
 	github.com/getlantern/systray v1.2.2-0.20220329111105-6065fda28be8
 	github.com/getsentry/sentry-go v0.12.0
 	github.com/ghodss/yaml v1.0.0
+	github.com/go-chi/chi/v5 v5.0.7 // indirect
 	github.com/go-kit/kit v0.9.0
 	github.com/go-sql-driver/mysql v1.6.0
 	github.com/go-stack/stack v1.8.1 // indirect

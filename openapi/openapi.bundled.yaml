@@ -15,8 +15,6 @@ paths:
   /api/v1/fleet/login:
     post:
       operationId: login
-      tags:
-        - authentication
       summary: Login
       description: >
         Authenticates the user with the specified credentials.
@@ -31,27 +29,10 @@ paths:
         To get an API token for an SSO user, you can use the Fleet UI.
       requestBody:
         required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                email:
-                  description: The user's email.
-                password:
-                  description: The user's password.
-              required:
-                - email
-                - password
+        $ref: '#/components/requestBodies/Login'
       responses:
         '200':
-          description: A JSON array of user names
-          content:
-            application/json:
-              schema:
-                properties:
-                  token:
-                    description: Token to use for authenticated requests.
+          $ref: '#/components/responses/Token'
         '401':
           $ref: '#/components/responses/Unauthenticated'
   /api/v1/fleet/users/{userID}:
@@ -67,11 +48,35 @@ paths:
           name: userID
           schema:
             type: integer
+            format: uint
           required: true
           description: The user's ID.
       responses:
         '200':
           $ref: '#/components/responses/User'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/fleet/hosts:
+    get:
+      operationId: getHosts
+      description: |
+        List hosts
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: query
+          schema:
+            type: string
+          description: Search query keywords
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Host'
         '404':
           $ref: '#/components/responses/NotFound'
 components:
@@ -80,6 +85,24 @@ components:
       type: http
       scheme: bearer
   schemas:
+    Login:
+      type: object
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+      required:
+        - email
+        - password
+    Token:
+      type: object
+      properties:
+        token:
+          description: Token to use for authenticated requests.
+          type: string
+      required:
+        - token
     Error:
       description: |
         todo
@@ -106,11 +129,40 @@ components:
       type: object
       properties:
         id:
-          format: int32
           type: integer
+          format: uint
       required:
         - id
+    UserResponse:
+      type: object
+      properties:
+        user:
+          $ref: '#/components/schemas/User'
+    Host:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: uint
+        hostname:
+          type: string
+      required:
+        - id
+        - hostname
+  requestBodies:
+    Login:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Login'
+      required: true
   responses:
+    Token:
+      description: null
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Token'
     Unauthenticated:
       description: Request not authenticated due to missing, invalid, authentication info.
       content:
@@ -122,10 +174,7 @@ components:
       content:
         application/json:
           schema:
-            type: object
-            properties:
-              user:
-                $ref: '#/components/schemas/User'
+            $ref: '#/components/schemas/UserResponse'
     NotFound:
       description: A specified resource is not found.
       content:

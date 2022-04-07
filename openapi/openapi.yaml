@@ -17,6 +17,8 @@ paths:
     $ref: paths/api_v1_fleet_login.yaml
   /api/v1/fleet/users/{userID}:
     $ref: paths/api_v1_fleet_users_{userID}.yaml
+  /api/v1/fleet/hosts:
+    $ref: paths/api_v1_fleet_hosts.yaml
 components:
   securitySchemes:
     BearerAuth:

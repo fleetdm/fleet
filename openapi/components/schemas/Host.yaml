@@ -3,5 +3,8 @@ properties:
   id:
     type: integer
     format: uint
+  hostname:
+    type: string
 required:
   - id
+  - hostname

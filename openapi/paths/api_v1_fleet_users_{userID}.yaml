@@ -10,6 +10,7 @@ get:
       name: userID
       schema:
         type: integer
+        format: uint
       required: true
       description: The user's ID.
   responses:

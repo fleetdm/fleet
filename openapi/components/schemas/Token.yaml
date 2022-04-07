@@ -1,0 +1,7 @@
+type: object
+properties:
+  token:
+    description: Token to use for authenticated requests.
+    type: string
+required:
+  - token

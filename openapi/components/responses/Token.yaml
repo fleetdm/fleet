@@ -2,4 +2,4 @@ description: null
 content:
   application/json:
     schema:
-      $ref: ../schemas/UserResponse.yaml
+      $ref: ../schemas/Token.yaml
