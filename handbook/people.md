@@ -51,13 +51,13 @@ For more developed thoughts about __spending guidelines and limits__, please rea
 
 ### Reimbursements
 
-We provide all of our team members with Brex cards for making purchases for the company. If a team member pays for work related expense with their personal funds, Fleet will reimburse them. 
+We provide all of our team members with Brex cards for making purchases for the company. If a team member pays for work-related expenses with their personal funds, Fleet will reimburse them.
 
-Team members can request reimbursement through [Gusto](https://app.gusto.com/expenses) if theyre in the US or [Pilot](https://pilot.co/) if they are a international team member. When submitting a expense report, team members need to provide the receipt, and a description of what the expense is.
+Team members can request reimbursement through [Gusto](https://app.gusto.com/expenses) if they're in the US or [Pilot](https://pilot.co/) if they are an international team member. When submitting an expense report, team members need to provide the receipt, and a description of the expense.
 
-Operations will review the expense, and reach out to the team member if they have any questions. When a expense is approved, the reimbursement will be added to the team member's next payroll.
+Operations will review the expense and reach out to the team member if they have any questions. When an expense is approved, the reimbursement will be added to the team member's next payroll.
 
->Pilot handles reimbursments differently depending on if the international team member is a classified as an employee or a contractor. If the reimbursement is for a contractor, Operations will need to add the expense reimbursement to an upcoming recurring payment or schedule the reimbursement as an off-cycle payment. If the reimbursement is for an employee, no other action is needed, the reimbursement will be added to the team members next payroll. 
+>Pilot handles reimbursements differently depending on if the international team member is classified as an employee or a contractor. If the reimbursement is for a contractor, Operations will need to add the expense reimbursement to an upcoming recurring payment or schedule the reimbursement as an off-cycle payment. If the reimbursement is for an employee, no other action is needed; Pilot will add the reimbursement to the team member's next payroll. 
 
 ### Purchasing a company-issued device
 
