@@ -597,3 +597,14 @@ spec:
   resolution: "Enroll device to MDM"
   platforms: macOS
   contributors: GuillaumeRoss
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: Application is up to date or not present (macOS) (Docker example)
+  query: SELECT 1 WHERE EXISTS (SELECT 1 FROM apps a1 WHERE a1.bundle_identifier = 'com.electron.dockerdesktop' AND a1.bundle_short_version>='4.6.1') OR NOT EXISTS (SELECT 1 FROM apps a2 WHERE a2.bundle_identifier = 'com.electron.dockerdesktop');
+  description: "Required: osquery deployed with Orbit, or manual installation of macadmins/osquery-extension. Checks that a Mac is enrolled to MDM. Add a AND on identity_certificate_uuid to check for a specific MDM."
+  resolution: "Enroll device to MDM"
+  platforms: macOS
+  contributors: GuillaumeRoss
+  
