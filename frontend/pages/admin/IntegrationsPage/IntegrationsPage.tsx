@@ -2,7 +2,7 @@ import React, { useState, useContext, useCallback } from "react";
 import { useQuery } from "react-query";
 
 import { NotificationContext } from "context/notification";
-import { IConfigNested } from "interfaces/config";
+import { IConfig } from "interfaces/config";
 import {
   IJiraIntegration,
   IJiraIntegrationIndexed,
@@ -62,11 +62,11 @@ const IntegrationsPage = (): JSX.Element => {
     isLoading: isLoadingIntegrations,
     error: loadingIntegrationsError,
     refetch: refetchIntegrations,
-  } = useQuery<IConfigNested, Error, IJiraIntegration[]>(
+  } = useQuery<IConfig, Error, IJiraIntegration[]>(
     ["integrations"],
     () => configAPI.loadAll(),
     {
-      select: (data: IConfigNested) => {
+      select: (data: IConfig) => {
         return data.integrations.jira;
       },
       onSuccess: (data) => {

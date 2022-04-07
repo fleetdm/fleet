@@ -8,7 +8,7 @@ import {
   IJiraIntegration,
   IJiraIntegrationIndexed,
 } from "interfaces/integration";
-import { IConfigNested } from "interfaces/config";
+import { IConfig } from "interfaces/config";
 import configAPI from "services/entities/config";
 
 // @ts-ignore
@@ -92,27 +92,29 @@ const ManageAutomationsModal = ({
     }
   }, [destination_url]);
 
-  const { data: integrations } = useQuery<
-    IConfigNested,
-    Error,
-    IJiraIntegration[]
-  >(["integrations"], () => configAPI.loadAll(), {
-    select: (data: IConfigNested) => {
-      return data.integrations.jira;
-    },
-    onSuccess: (data) => {
-      if (data) {
-        const addIndex = data.map((integration, index) => {
-          return { ...integration, integrationIndex: index };
-        });
-        setIntegrationsIndexed(addIndex);
-        const currentSelectedJiraIntegration = addIndex.find((integration) => {
-          return integration.enable_software_vulnerabilities === true;
-        });
-        setSelectedIntegration(currentSelectedJiraIntegration);
-      }
-    },
-  });
+  const { data: integrations } = useQuery<IConfig, Error, IJiraIntegration[]>(
+    ["integrations"],
+    () => configAPI.loadAll(),
+    {
+      select: (data: IConfig) => {
+        return data.integrations.jira;
+      },
+      onSuccess: (data) => {
+        if (data) {
+          const addIndex = data.map((integration, index) => {
+            return { ...integration, integrationIndex: index };
+          });
+          setIntegrationsIndexed(addIndex);
+          const currentSelectedJiraIntegration = addIndex.find(
+            (integration) => {
+              return integration.enable_software_vulnerabilities === true;
+            }
+          );
+          setSelectedIntegration(currentSelectedJiraIntegration);
+        }
+      },
+    }
+  );
 
   const onURLChange = (value: string) => {
     setDestinationUrl(value);
@@ -217,7 +219,7 @@ const ManageAutomationsModal = ({
         <div className={`${baseClass}__software-automation-description`}>
           <p>
             A ticket will be created in your <b>Integration</b> if a detected
-            vulnerability (CVE) was published in the last 2 days.
+            vulnerability (CVE) was published in the last 30 days.
           </p>
         </div>
         {integrationsIndexed && integrationsIndexed.length > 0 ? (
@@ -258,7 +260,7 @@ const ManageAutomationsModal = ({
         <div className={`${baseClass}__software-automation-description`}>
           <p>
             A request will be sent to your configured <b>Destination URL</b> if
-            a detected vulnerability (CVE) was published in the last 2 days.
+            a detected vulnerability (CVE) was published in the last 30 days.
           </p>
         </div>
         <InputField

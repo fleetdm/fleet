@@ -40,16 +40,4 @@ export default {
 
     return sendRequest("PATCH", CONFIG, formData);
   },
-  // remove these when we have the API and use .loadAll and .update
-  updateIntegrations: (formData: any) => {
-    const { CONFIG } = endpoints;
-
-    return sendMockRequest("PATCH", CONFIG, formData);
-  },
-  loadIntegrations: (): Promise<IConfigNested> => {
-    const { CONFIG } = endpoints;
-    const path = `${CONFIG}`;
-
-    return sendMockRequest("GET", path);
-  },
 };
