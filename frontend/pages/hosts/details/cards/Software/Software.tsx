@@ -15,6 +15,10 @@ import generateSoftwareTableHeaders from "./SoftwareTableConfig";
 
 const baseClass = "host-details";
 
+export interface ITableSoftware extends Omit<ISoftware, "vulnerabilities"> {
+  vulnerabilities: string[]; // for client-side search purposes, we only want an array of cve strings
+}
+
 interface ISoftwareTableProps {
   isLoading: boolean;
   software: ISoftware[];
@@ -26,18 +30,25 @@ const SoftwareTable = ({
   software,
   deviceUser,
 }: ISoftwareTableProps): JSX.Element => {
+  const tableSoftware: ITableSoftware[] = software.map((s) => {
+    return {
+      ...s,
+      vulnerabilities:
+        s.vulnerabilities?.map((v) => {
+          return v.cve;
+        }) || [],
+    };
+  });
+
   const [searchString, setSearchString] = useState("");
   const [filterVuln, setFilterVuln] = useState(false);
   const [filters, setFilters] = useState({
-    name: searchString,
+    global: searchString,
     vulnerabilities: filterVuln,
   });
 
   useEffect(() => {
-    setFilters({
-      name: searchString,
-      vulnerabilities: filterVuln,
-    });
+    setFilters({ global: searchString, vulnerabilities: filterVuln });
   }, [searchString, filterVuln]);
 
   const onQueryChange = useDebouncedCallback(
@@ -80,7 +91,7 @@ const SoftwareTable = ({
           {software && (
             <TableContainer
               columns={tableHeaders}
-              data={software}
+              data={tableSoftware}
               filters={filters}
               isLoading={isLoading}
               defaultSortHeader={"name"}
