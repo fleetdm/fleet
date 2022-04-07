@@ -208,14 +208,14 @@ describe("App settings flow", () => {
     });
     it("creates a new jira integration", () => {
       cy.getAttached(".no-integrations__create-button").click();
-      cy.getAttached("#url").click().type("https://jira.example.com");
+      cy.getAttached("#url").click().type("https://fleetdm.atlassian.com");
       cy.getAttached("#username").click().type("jira@example.com");
       cy.getAttached("#password").click().type("jira123");
       cy.getAttached("#projectKey").click().type("PROJECT");
       cy.findByRole("button", { name: /save/i }).click();
       cy.findByText(/successfully added/i).should("exist");
       cy.getAttached(".table-container").within(() => {
-        cy.findByText(/jira.example.com - PROJECT/i).should("exist");
+        cy.findByText(/fleetdm.atlassian.com - PROJECT/i).should("exist");
       });
     });
   });
@@ -239,7 +239,7 @@ describe("App settings flow", () => {
         });
       cy.findByLabelText(/jira site url/i)
         .clear()
-        .type("https://jira0.example.com");
+        .type("https://fleetdm.atlassian.com");
       cy.findByLabelText(/jira username/i)
         .clear()
         .type("jira0@example.com");
@@ -257,7 +257,7 @@ describe("App settings flow", () => {
         .should("have.length", 3)
         .eq(1)
         .within(() => {
-          cy.findByText(/jira0.example.com - project 0/i).should("exist");
+          cy.findByText(/fleetdm.atlassian.com - project 0/i).should("exist");
         });
     });
     it("deletes jira integration", () => {
