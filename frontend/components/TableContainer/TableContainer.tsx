@@ -147,8 +147,6 @@ const TableContainer = ({
 
   const EmptyComponent = emptyComponent;
 
-  console.log(stackControls);
-
   const onSortChange = useCallback(
     (id?: string, isDesc?: boolean) => {
       if (id === undefined) {
