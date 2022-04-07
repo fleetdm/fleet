@@ -267,12 +267,11 @@ At the end of the quarter, and at key points throughout the quarter (every 3 wee
 - OKRs they are finalized 1 week from when topdown OKRs were initially reviewed.
 - Finalized OKRs are shared company-wide and at "all hands" and, at least to some degree, become public.
 
-## Workversaries
+## Workiversaries
 
 We're happy you've ventured a trip around the sun with Fleet. Let's celebrate!
 
-- Every week, People Operations reviews Fleeties start dates.
-- Weekly posts are made in #g-people and @mikermcneil is tagged.
+- Each Friday, if there are any upcoming workiversaries in the next 7 days, People Operations posts about them in #g-people and tags @mikermcneil to let them know.
 
 ## Slack channels
 
