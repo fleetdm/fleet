@@ -41,17 +41,27 @@ interface ITargetPillSelectorProps {
 
 interface ISelectTargetsProps {
   baseClass: string;
-  selectedTargets: ITarget[];
   queryIdForEdit: number | null;
+  selectedTargets: ITarget[];
+  targetedHosts: IHost[];
+  targetedLabels: ILabel[];
+  targetedTeams: ITeam[];
   goToQueryEditor: () => void;
   goToRunQuery: () => void;
   setSelectedTargets: React.Dispatch<React.SetStateAction<ITarget[]>>;
+  setTargetedHosts: React.Dispatch<React.SetStateAction<IHost[]>>;
+  setTargetedLabels: React.Dispatch<React.SetStateAction<ILabel[]>>;
+  setTargetedTeams: React.Dispatch<React.SetStateAction<ITeam[]>>;
+
   setTargetsTotalCount: React.Dispatch<React.SetStateAction<number>>;
-  targetsTotalCount: number;
+  targetsTotalCount: number; // why is this here?
 }
 
 const DEBOUNCE_DELAY = 500;
 const STALE_TIME = 60000;
+
+const isLabel = (entity: ISelectTargetsEntity) => "label_type" in entity;
+const isHost = (entity: ISelectTargetsEntity) => "hostname" in entity;
 
 const isSameSelectTargetsEntity = (
   e1: ISelectTargetsEntity,
@@ -93,13 +103,19 @@ const TargetPillSelector = ({
 
 const SelectTargets = ({
   baseClass,
-  selectedTargets,
   queryIdForEdit,
+  selectedTargets,
+  targetedHosts,
+  targetedLabels,
+  targetedTeams,
+  targetsTotalCount,
   goToQueryEditor,
   goToRunQuery,
   setSelectedTargets,
+  setTargetedHosts,
+  setTargetedLabels,
+  setTargetedTeams,
   setTargetsTotalCount,
-  targetsTotalCount,
 }: ISelectTargetsProps): JSX.Element => {
   const { selectedTargetsByQueryId, setSelectedTargetsByQueryId } = useContext(
     QueryContext
@@ -109,9 +125,9 @@ const SelectTargets = ({
   const [platformLabels, setPlatformLabels] = useState<ILabel[] | null>(null);
   const [teams, setTeams] = useState<ITeam[] | null>(null);
   const [otherLabels, setOtherLabels] = useState<ILabel[] | null>(null);
-  const [selectedLabels, setSelectedLabels] = useState<ISelectTargetsEntity[]>(
-    []
-  );
+  // const [targetedLabels, setSelectedLabels] = useState<ISelectTargetsEntity[]>(
+  //   []
+  // );
   const [inputTabIndex, setInputTabIndex] = useState<number | null>(null);
   const [searchText, setSearchText] = useState<string>("");
   const [debouncedSearchText, setDebouncedSearchText] = useState<string>("");
@@ -148,18 +164,18 @@ const SelectTargets = ({
     const all = filter(
       labels,
       ({ display_text: text }) => text === "All Hosts"
-    ).map((label) => ({ ...label, uuid: uuidv4() }));
+    ).map((label) => ({ ...label, target_type: "labels", uuid: uuidv4() }));
 
     const platform = filter(
       labels,
       ({ display_text: text }) =>
         text === "macOS" || text === "MS Windows" || text === "All Linux"
-    ).map((label) => ({ ...label, uuid: uuidv4() }));
+    ).map((label) => ({ ...label, target_type: "labels", uuid: uuidv4() }));
 
     const other = filter(
       labels,
       ({ label_type: type }) => type === "regular"
-    ).map((label) => ({ ...label, uuid: uuidv4() }));
+    ).map((label) => ({ ...label, target_type: "labels", uuid: uuidv4() }));
 
     return {
       all,
@@ -198,7 +214,13 @@ const SelectTargets = ({
 
   useQuery<Record<"teams", ITeam[]>>(["teams"], () => teamsAPI.loadAll(), {
     onSuccess: (data) => {
-      setTeams(data.teams.map((team) => ({ ...team, uuid: uuidv4() })));
+      setTeams(
+        data.teams.map((team) => ({
+          ...team,
+          target_type: "teams",
+          uuid: uuidv4(),
+        }))
+      );
     },
   });
 
@@ -273,62 +295,56 @@ const SelectTargets = ({
     }
   );
 
+  useEffect(() => {
+    setSelectedTargets([...targetedHosts, ...targetedLabels, ...targetedTeams]);
+  }, [targetedHosts, targetedLabels, targetedTeams]);
+
   const handleClickCancel = () => {
     // setSelectedTargets([]);
     goToQueryEditor();
   };
 
-  const handleSelectedLabels = (selectedLabel: ISelectTargetsEntity) => (
+  const handleButtonSelect = (selectedEntity: ISelectTargetsEntity) => (
     e: React.MouseEvent<HTMLButtonElement>
   ): void => {
     e.preventDefault();
 
-    let newTargets = selectedTargets;
-    const newLabels = selectedLabels;
-    const removed = remove(newLabels, (label) =>
-      isSameSelectTargetsEntity(label, selectedLabel)
-    );
+    const prevTargets: ISelectTargetsEntity[] = isLabel(selectedEntity)
+      ? targetedLabels
+      : targetedTeams;
 
-    // visually show selection
-    const isRemoval = removed.length > 0;
-    if (isRemoval) {
-      newTargets = newTargets.filter(
-        (t) => !isSameSelectTargetsEntity(t, selectedLabel)
-      );
-    } else {
-      newLabels.push(selectedLabel);
+    // if the target was previously selected, we want to remove it now
+    const newTargets = prevTargets.filter((t) => t.id !== selectedEntity.id);
+    // if the length remains the same, the target was not previously selected so we want to add it now
+    prevTargets.length === newTargets.length && newTargets.push(selectedEntity);
 
-      // prepare the labels data
-      forEach(newLabels, (label) => {
-        label.target_type = "label_type" in label ? "labels" : "teams";
-      });
+    // TODO: find a way to get rid of this step
+    forEach(newTargets, (t) => {
+      t.target_type = isLabel(selectedEntity) ? "labels" : "teams";
+    });
 
-      newTargets = unionWith(newTargets, newLabels, isSameSelectTargetsEntity);
-    }
-
-    setSelectedLabels([...newLabels]);
-    setSelectedTargets([...newTargets]);
+    isLabel(selectedEntity)
+      ? setTargetedLabels(newTargets as ILabel[])
+      : setTargetedTeams(newTargets as ITeam[]);
   };
 
   const handleRowSelect = (row: Row) => {
-    const newTargets = selectedTargets;
-    const hostTarget = row.original as any; // intentional so we can add to the object
+    const selectedHost = { ...row.original, target_type: "hosts" } as IHost;
+    const newTargets = [...targetedHosts];
 
-    hostTarget.target_type = "hosts";
-
-    newTargets.push(hostTarget as IHost);
-    setSelectedTargets([...newTargets]);
+    newTargets.push(selectedHost);
+    setTargetedHosts(newTargets);
     setSearchText("");
   };
 
   const handleRowRemove = (row: Row) => {
-    const newTargets = selectedTargets;
-    const hostTarget = row.original as ITarget;
-    remove(newTargets, (t) => t.id === hostTarget.id && "hostname" in t); // check if `hostname` is present to confirm target is of type `IHost`
+    const removedHost = { ...row.original } as IHost;
+    const newTargets = targetedHosts.filter((t) => t.id !== removedHost.id);
 
-    setSelectedTargets([...newTargets]);
+    setTargetedHosts(newTargets);
   };
 
+  // TODO: selections being saved but aren't rendering on initial mount
   const renderTargetEntityList = (
     header: string,
     entityList: ISelectLabel[] | ISelectTeam[]
@@ -337,16 +353,19 @@ const SelectTargets = ({
       <>
         {header && <h3>{header}</h3>}
         <div className="selector-block">
-          {entityList?.map((entity: ISelectLabel | ISelectTeam) => (
-            <TargetPillSelector
-              key={`target_${entity.target_type}_${entity.id}`}
-              entity={entity}
-              isSelected={selectedLabels.some((label) =>
-                isSameSelectTargetsEntity(label, entity)
-              )}
-              onClick={handleSelectedLabels}
-            />
-          ))}
+          {entityList?.map((entity: ISelectLabel | ISelectTeam) => {
+            const targetList = isLabel(entity) ? targetedLabels : targetedTeams;
+            return (
+              <TargetPillSelector
+                key={`target_${entity.target_type}_${entity.id}`}
+                entity={entity}
+                isSelected={targetList.some((t) =>
+                  isSameSelectTargetsEntity(t, entity)
+                )}
+                onClick={handleButtonSelect}
+              />
+            );
+          })}
         </div>
       </>
     );
@@ -441,9 +460,9 @@ const SelectTargets = ({
       <TargetsInput
         tabIndex={inputTabIndex || 0}
         searchText={searchText}
-        relatedHosts={searchResults || []}
+        searchResults={searchResults ? [...searchResults] : []}
         isTargetsLoading={isFetchingSearchResults || isDebouncing}
-        selectedTargets={[...selectedTargets]}
+        targetedHosts={[...targetedHosts]}
         hasFetchError={!!errorSearchResults}
         setSearchText={setSearchText}
         handleRowSelect={handleRowSelect}

@@ -31,11 +31,12 @@ interface ITargetPillSelectorProps {
 interface ISelectTargetsProps {
   baseClass: string;
   selectedTargets: ITarget[];
+  targetedHosts: IHost[];
+  targetsTotalCount: number;
   goToQueryEditor: () => void;
   goToRunQuery: () => void;
   setSelectedTargets: React.Dispatch<React.SetStateAction<ITarget[]>>;
   setTargetsTotalCount: React.Dispatch<React.SetStateAction<number>>;
-  targetsTotalCount: number;
 }
 
 const DEBOUNCE_DELAY = 500;
@@ -77,6 +78,7 @@ const TargetPillSelector = ({
 const SelectTargets = ({
   baseClass,
   selectedTargets,
+  targetedHosts,
   goToQueryEditor,
   goToRunQuery,
   setSelectedTargets,
@@ -273,9 +275,9 @@ const SelectTargets = ({
       <TargetsInput
         tabIndex={inputTabIndex}
         searchText={searchText}
-        relatedHosts={targets?.relatedHosts || []}
+        searchResults={targets?.relatedHosts || []}
         isTargetsLoading={isTargetsFetching || isDebouncing}
-        selectedTargets={[...selectedTargets]}
+        targetedHosts={[...targetedHosts]}
         hasFetchError={isTargetsError}
         setSearchText={setSearchText}
         handleRowSelect={handleRowSelect}

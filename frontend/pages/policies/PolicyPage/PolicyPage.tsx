@@ -90,6 +90,7 @@ const PolicyPage = ({
 
   const [step, setStep] = useState<string>(QUERIES_PAGE_STEPS[1]);
   const [selectedTargets, setSelectedTargets] = useState<ITarget[]>([]);
+  const [targetedHosts, setTargetedHosts] = useState<IHost[]>([]);
   const [targetsTotalCount, setTargetsTotalCount] = useState<number>(0);
   const [isLiveQueryRunnable, setIsLiveQueryRunnable] = useState<boolean>(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
@@ -222,10 +223,12 @@ const PolicyPage = ({
     const step2Opts = {
       baseClass,
       selectedTargets: [...selectedTargets],
+      targetedHosts,
+      targetsTotalCount,
       goToQueryEditor: () => setStep(QUERIES_PAGE_STEPS[1]),
       goToRunQuery: () => setStep(QUERIES_PAGE_STEPS[3]),
       setSelectedTargets,
-      targetsTotalCount,
+      setTargetedHosts,
       setTargetsTotalCount,
     };
 

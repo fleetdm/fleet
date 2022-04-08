@@ -11,6 +11,8 @@ import { QUERIES_PAGE_STEPS, DEFAULT_QUERY } from "utilities/constants";
 import queryAPI from "services/entities/queries";
 import hostAPI from "services/entities/hosts";
 import { IHost } from "interfaces/host";
+import { ILabel } from "interfaces/label";
+import { ITeam } from "interfaces/team";
 import { IQueryFormData, IQuery } from "interfaces/query";
 import { ITarget } from "interfaces/target";
 
@@ -66,6 +68,9 @@ const QueryPage = ({
   );
   const [step, setStep] = useState<string>(QUERIES_PAGE_STEPS[1]);
   const [selectedTargets, setSelectedTargets] = useState<ITarget[]>([]);
+  const [targetedHosts, setTargetedHosts] = useState<IHost[]>([]);
+  const [targetedLabels, setTargetedLabels] = useState<ILabel[]>([]);
+  const [targetedTeams, setTargetedTeams] = useState<ITeam[]>([]);
   const [targetsTotalCount, setTargetsTotalCount] = useState<number>(0);
   const [isLiveQueryRunnable, setIsLiveQueryRunnable] = useState<boolean>(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
@@ -106,6 +111,9 @@ const QueryPage = ({
       enabled: !!URLQuerySearch.host_ids && !queryParamHostsAdded,
       select: (data: IHostResponse) => data.host,
       onSuccess: (host) => {
+        setTargetedHosts((prevHosts) =>
+          prevHosts.filter((h) => h.id !== host.id).concat(host)
+        );
         const targets = selectedTargets;
         host.target_type = "hosts";
         targets.push(host);
@@ -194,17 +202,23 @@ const QueryPage = ({
 
     const step2Opts = {
       baseClass,
-      selectedTargets: [...selectedTargets],
       queryIdForEdit,
+      selectedTargets: [...selectedTargets], // why spread here?
+      targetedHosts, // spread here causes infinite loop on effect in child
+      targetedLabels,
+      targetedTeams,
+      targetsTotalCount,
       goToQueryEditor: () => setStep(QUERIES_PAGE_STEPS[1]),
       goToRunQuery: () => setStep(QUERIES_PAGE_STEPS[3]),
       setSelectedTargets,
-      targetsTotalCount,
+      setTargetedHosts,
+      setTargetedLabels,
+      setTargetedTeams,
       setTargetsTotalCount,
     };
 
     const step3Opts = {
-      selectedTargets,
+      selectedTargets, // not spread here?
       storedQuery,
       queryIdForEdit,
       setSelectedTargets,
