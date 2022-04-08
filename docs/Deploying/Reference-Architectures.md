@@ -1,7 +1,7 @@
 # Reference architectures
 
 You can easily run Fleet on a single VPS that would be capable of supporting hundreds if not thousands of hosts, but
-this page details an [opinionated view](https://github.com/fleetdm/fleet/tree/main/tools/terraform) of running Fleet in a production environment, as
+this page details an [opinionated view](https://github.com/fleetdm/fleet/tree/main/infrastructure/dogfood/terraform/aws) of running Fleet in a production environment, as
 well as different configuration strategies to enable High Availability (HA).
 
 ## Availability components
@@ -16,7 +16,7 @@ Fleet recommends RDS Aurora MySQL when running on AWS. More details about backup
 [here](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/Aurora.Managing.Backups.html). It is also
 possible to dynamically scale read replicas to increase performance and [enable database fail-over](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/Concepts.AuroraHighAvailability.html).
 It is also possible to use [Aurora Global](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/aurora-global-database.html) to
-span multiple regions for more advanced configurations(_not included in the [reference terraform](https://github.com/fleetdm/fleet/tree/main/tools/terraform)_).
+span multiple regions for more advanced configurations(_not included in the [reference terraform](https://github.com/fleetdm/fleet/tree/main/infrastructure/dogfood/terraform/aws)_).
 
 In some cases adding a read replica can increase database performance for specific access patterns. In scenarios when automating the API or with `fleetctl`
 there can be benefits to read performance.
@@ -26,7 +26,7 @@ Load balancing enables distributing request traffic over many instances of the b
 Load Balancer can also [offload SSL termination](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/create-https-listener.html), freeing Fleet to spend the majority of it's allocated compute dedicated 
 to its core functionality. More details about ALB can be found [here](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/introduction.html).
 
-_**Note if using [terraform reference architecture](https://github.com/fleetdm/fleet/tree/main/tools/terraform#terraform) all configurations can dynamically scale based on load(cpu/memory) and all configurations
+_**Note if using [terraform reference architecture](https://github.com/fleetdm/fleet/tree/main/infrastructure/dogfood/terraform/aws#terraform) all configurations can dynamically scale based on load(cpu/memory) and all configurations
 assume On-Demand pricing (savings are available through Reserved Instances). Calculations do not take into account NAT gateway charges or other networking related ingress/egress costs.**_
 
 ### Example configuration breakpoints
@@ -69,7 +69,7 @@ assume On-Demand pricing (savings are available through Reserved Instances). Cal
 
 ### AWS
 
-AWS reference architecture can be found [here](https://github.com/fleetdm/fleet/tree/main/tools/terraform). This configuration includes:
+AWS reference architecture can be found [here](https://github.com/fleetdm/fleet/tree/main/infrastructure/dogfood/terraform/aws). This configuration includes:
 
 - VPC
   - Subnets
@@ -83,7 +83,7 @@ AWS reference architecture can be found [here](https://github.com/fleetdm/fleet/
 - Elasticache Redis Engine
 - Firehose osquery log destination
   - S3 bucket sync to allow further ingestion/processing
-- [Monitoring via Cloudwatch alarms](https://github.com/fleetdm/fleet/tree/main/tools/terraform/monitoring)
+- [Monitoring via Cloudwatch alarms](https://github.com/fleetdm/fleet/tree/main/infrastructure/dogfood/terraform/aws/monitoring)
 
 Some AWS services used in the provider reference architecture are billed as pay-per-use such as Firehose. This means that osquery scheduled query frequency can have
 a direct correlation to how much these services cost, something to keep in mind when configuring Fleet in AWS.
