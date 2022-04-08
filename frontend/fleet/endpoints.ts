@@ -34,8 +34,7 @@ export default {
   OS_VERSIONS: `/${API_VERSION}/fleet/os_versions`,
   OSQUERY_OPTIONS: `/${API_VERSION}/fleet/spec/osquery_options`,
   PACKS: `/${API_VERSION}/fleet/packs`,
-  PERFORM_REQUIRED_PASSWORD_RESET:
-    `/${API_VERSION}/fleet/perform_required_password_reset`,
+  PERFORM_REQUIRED_PASSWORD_RESET: `/${API_VERSION}/fleet/perform_required_password_reset`,
   QUERIES: `/${API_VERSION}/fleet/queries`,
   RESET_PASSWORD: `/${API_VERSION}/fleet/reset_password`,
   RUN_QUERY: `/${API_VERSION}/fleet/queries/run`,
