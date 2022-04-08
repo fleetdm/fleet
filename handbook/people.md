@@ -204,7 +204,7 @@ Change the name of the documents accordingly (e.g., "[candidate's name]'s copy o
    - Equity offered to the candidate (make this information a link to the candidate's exit scenarios spreadsheet)
    - Benefits (determined by the candidate's location)
 
-6. Prepare the exit scenarios spreadsheet. Enter the percentage of equity offered to the candidate, and the spreadsheet will update to reflect this. 
+6. Prepare the exit scenarios spreadsheet. Enter the number of shares offered to the candidate, and the spreadsheet will update to reflect this. 
    
       >**_Note:_** *Don't play with numbers in the exit scenarios spreadsheet. The revision history is visible to the candidate, and they might misunderstand.*
 
