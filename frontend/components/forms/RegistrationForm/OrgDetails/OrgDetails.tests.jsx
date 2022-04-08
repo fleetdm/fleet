@@ -1,91 +1,62 @@
 import React from "react";
-import { mount } from "enzyme";
-import { noop } from "lodash";
+import { fireEvent, render, screen } from "@testing-library/react";
 
 import OrgDetails from "components/forms/RegistrationForm/OrgDetails";
-import { fillInFormInput } from "test/helpers";
+import userEvent from "@testing-library/user-event";
 
 describe("OrgDetails - form", () => {
-  describe("organization name input", () => {
-    it("renders an input field", () => {
-      const form = mount(<OrgDetails handleSubmit={noop} />);
-      const orgNameField = form.find({ name: "org_name" });
+  const handleSubmitSpy = jest.fn();
+  it("renders", () => {
+    render(<OrgDetails handleSubmit={handleSubmitSpy} />);
 
-      expect(orgNameField.length).toBeGreaterThan(0);
-    });
-
-    it("updates state when the field changes", () => {
-      const form = mount(<OrgDetails handleSubmit={noop} />);
-      const orgNameField = form.find({ name: "org_name" }).find("input");
-
-      fillInFormInput(orgNameField, "The Gnar Co");
-
-      expect(form.state().formData).toMatchObject({ org_name: "The Gnar Co" });
-    });
+    expect(
+      screen.getByRole("textbox", { name: "Organization name" })
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Next" })).toBeInTheDocument();
   });
 
-  describe("organization logo URL input", () => {
-    it("renders an input field", () => {
-      const form = mount(<OrgDetails handleSubmit={noop} />);
-      const orgLogoField = form.find({ name: "org_logo_url" });
-
-      expect(orgLogoField.length).toBeGreaterThan(0);
-    });
-
-    it("updates state when the field changes", () => {
-      const form = mount(<OrgDetails handleSubmit={noop} />);
-      const orgLogoField = form.find({ name: "org_logo_url" }).find("input");
-
-      fillInFormInput(orgLogoField, "http://www.thegnar.co/logo.png");
-
-      expect(form.state().formData).toMatchObject({
-        org_logo_url: "http://www.thegnar.co/logo.png",
-      });
-    });
+  it("validates presence of org_name field", () => {
+    render(<OrgDetails handleSubmit={handleSubmitSpy} currentPage />);
+    // when
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    // then
+    expect(handleSubmitSpy).not.toHaveBeenCalled();
+    expect(
+      screen.getByText("Organization name must be present")
+    ).toBeInTheDocument();
   });
 
-  describe("submitting the form", () => {
-    it("validates presence of org_name field", () => {
-      const handleSubmitSpy = jest.fn();
-      const form = mount(<OrgDetails handleSubmit={handleSubmitSpy} />);
-      const htmlForm = form.find("form");
+  it("validates the logo url field starts with https://", () => {
+    render(<OrgDetails handleSubmit={handleSubmitSpy} currentPage />);
+    // when
+    userEvent.type(
+      screen.getByRole("textbox", { name: "Organization logo URL (optional)" }),
+      "http://www.thegnar.co/logo.png"
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    // then
+    expect(handleSubmitSpy).not.toHaveBeenCalled();
+    expect(
+      screen.getByText("Organization logo URL must start with https://")
+    ).toBeInTheDocument();
+  });
 
-      htmlForm.simulate("submit");
-
-      expect(handleSubmitSpy).not.toHaveBeenCalled();
-      expect(form.state().errors).toMatchObject({
-        org_name: "Organization name must be present",
-      });
-    });
-
-    it("validates the logo url field starts with https://", () => {
-      const handleSubmitSpy = jest.fn();
-      const form = mount(<OrgDetails handleSubmit={handleSubmitSpy} />);
-      const orgLogoField = form.find({ name: "org_logo_url" }).find("input");
-      const htmlForm = form.find("form");
-
-      fillInFormInput(orgLogoField, "http://www.thegnar.co/logo.png");
-      htmlForm.simulate("submit");
-
-      expect(handleSubmitSpy).not.toHaveBeenCalled();
-      expect(form.state().errors).toMatchObject({
-        org_logo_url: "Organization logo URL must start with https://",
-      });
-    });
-
-    it("submits the form when valid", () => {
-      const handleSubmitSpy = jest.fn();
-      const form = mount(<OrgDetails handleSubmit={handleSubmitSpy} />);
-      const orgLogoField = form.find({ name: "org_logo_url" }).find("input");
-      const orgNameField = form.find({ name: "org_name" }).find("input");
-      const htmlForm = form.find("form");
-
-      fillInFormInput(orgLogoField, "https://www.thegnar.co/logo.png");
-      fillInFormInput(orgNameField, "The Gnar Co");
-
-      htmlForm.simulate("submit");
-
-      expect(handleSubmitSpy).toHaveBeenCalled();
+  it("submits the form when valid", () => {
+    render(<OrgDetails handleSubmit={handleSubmitSpy} currentPage />);
+    // when
+    userEvent.type(
+      screen.getByRole("textbox", { name: "Organization logo URL (optional)" }),
+      "https://www.thegnar.co/logo.png"
+    );
+    userEvent.type(
+      screen.getByRole("textbox", { name: "Organization name" }),
+      "The Gnar Co"
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    // then
+    expect(handleSubmitSpy).toHaveBeenCalledWith({
+      org_logo_url: "https://www.thegnar.co/logo.png",
+      org_name: "The Gnar Co",
     });
   });
 });
