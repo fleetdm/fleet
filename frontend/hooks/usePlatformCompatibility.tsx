@@ -20,20 +20,17 @@ const usePlatformCompatibility = (): IPlatformCompatibility => {
   >(null);
   const [error, setError] = useState<Error | null>(null);
 
-  const tryCheckCompatibility = (sqlStr: string) => {
-    try {
-      const platforms = checkPlatformCompatibility(sqlStr);
-      setCompatiblePlatforms(platforms);
-      setError(null);
-      return;
-    } catch (err: unknown) {
-      setError(new Error(`Invalid usage: ${err}`));
-    }
+  const checkCompatibility = (sqlStr: string) => {
+    const { platforms, error: compatibilityError } = checkPlatformCompatibility(
+      sqlStr
+    );
+    setCompatiblePlatforms(platforms);
+    setError(compatibilityError);
   };
 
   const debounceCompatiblePlatforms = useDebouncedCallback(
     (queryString: string) => {
-      tryCheckCompatibility(queryString);
+      checkCompatibility(queryString);
     },
     DEBOUNCE_DELAY,
     { leading: true, trailing: true }

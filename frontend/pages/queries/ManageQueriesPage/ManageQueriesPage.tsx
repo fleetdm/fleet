@@ -65,9 +65,12 @@ const PLATFORM_FILTER_OPTIONS = [
   },
 ];
 
-const getPlatforms = (queryString: string): IOsqueryPlatform[] => {
-  return checkPlatformCompatibility(queryString);
+const getPlatforms = (queryString: string): Array<IOsqueryPlatform | "---"> => {
+  const { platforms } = checkPlatformCompatibility(queryString);
+
+  return platforms || ["---"];
 };
+
 const enhanceQuery = (q: IQuery) => {
   return {
     ...q,
