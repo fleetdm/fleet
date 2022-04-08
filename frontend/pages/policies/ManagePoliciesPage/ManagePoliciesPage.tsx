@@ -7,7 +7,6 @@ import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
 import { TableContext } from "context/table";
 import { NotificationContext } from "context/notification";
-import { inMilliseconds, secondsToHms } from "fleet/helpers";
 import { IPolicyStats, ILoadAllPoliciesResponse } from "interfaces/policy";
 import { IWebhookFailingPolicies } from "interfaces/webhook";
 import { IConfig } from "interfaces/config";
@@ -20,7 +19,6 @@ import usersAPI, { IGetMeResponse } from "services/entities/users";
 
 import Button from "components/buttons/Button";
 import RevealButton from "components/buttons/RevealButton";
-import InfoBanner from "components/InfoBanner/InfoBanner";
 import Spinner from "components/Spinner";
 import TeamsDropdown from "components/TeamsDropdown";
 import TableDataError from "components/TableDataError";
@@ -43,16 +41,12 @@ interface IManagePoliciesPageProps {
 
 const baseClass = "manage-policies-page";
 
-const DOCS_LINK =
-  "https://fleetdm.com/docs/deploying/configuration#osquery-policy-update-interval";
-
 const ManagePolicyPage = ({
   router,
   location,
 }: IManagePoliciesPageProps): JSX.Element => {
   const {
     availableTeams,
-    config,
     isGlobalAdmin,
     isGlobalMaintainer,
     isOnGlobalTeam,
@@ -75,7 +69,6 @@ const ManagePolicyPage = ({
   const {
     setLastEditedQueryName,
     setLastEditedQueryDescription,
-    setLastEditedQueryBody,
     setLastEditedQueryResolution,
     setLastEditedQueryPlatform,
   } = useContext(PolicyContext);
@@ -282,16 +275,7 @@ const ManagePolicyPage = ({
     }`;
   };
 
-  const policyUpdateInterval =
-    secondsToHms(
-      inMilliseconds(config?.update_interval.osquery_policy || 0) / 1000
-    ) || "osquery policy update interval";
-
   const showTeamDescription = isPremiumTier && !!teamId;
-
-  const showInfoBanner =
-    (teamId && !teamPoliciesError && !!teamPolicies?.length) ||
-    (!teamId && !globalPoliciesError && !!globalPolicies?.length);
 
   const showInheritedPoliciesButton =
     !!teamId &&
@@ -395,23 +379,6 @@ const ManagePolicyPage = ({
             </p>
           )}
         </div>
-        {!!policyUpdateInterval && showInfoBanner && (
-          <InfoBanner className={`${baseClass}__sandbox-info`}>
-            <p>
-              Your policies are checked every{" "}
-              <b>{policyUpdateInterval.trim()}</b>.{" "}
-              {isGlobalAdmin && (
-                <span>
-                  Check out the Fleet documentation on{" "}
-                  <a href={DOCS_LINK} target="_blank" rel="noreferrer">
-                    <b>how to edit this frequency</b>
-                  </a>
-                  .
-                </span>
-              )}
-            </p>
-          </InfoBanner>
-        )}
         <div>
           {!!teamId && teamPoliciesError && <TableDataError />}
           {!!teamId &&
