@@ -1220,7 +1220,7 @@ Retrieves aggregated host's MDM enrollment status and Munki versions.
 
 Retrieves the aggregated host OS versions information.
 
-`GET /api/v1/fleet/os_versions`
+`GET /api/latest/fleet/os_versions`
 
 #### Parameters
 

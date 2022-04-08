@@ -5,7 +5,7 @@ export default {
     valid: (bearerToken, host) => {
       return createRequestMock({
         bearerToken,
-        endpoint: `/api/v1/fleet/hosts/${host.id}`,
+        endpoint: `/api/latest/fleet/hosts/${host.id}`,
         method: "delete",
         response: {},
       });
@@ -16,7 +16,7 @@ export default {
       return createRequestMock({
         bearerToken,
         endpoint:
-          "/api/v1/fleet/hosts?page=0&per_page=100&order_key=hostname&order_direction=asc",
+          "/api/latest/fleet/hosts?page=0&per_page=100&order_key=hostname&order_direction=asc",
         method: "get",
         response: { hosts: [] },
       });
@@ -25,7 +25,7 @@ export default {
       return createRequestMock({
         bearerToken,
         endpoint:
-          "/api/v1/fleet/hosts?page=3&per_page=100&status=new&order_key=hostname&order_direction=desc&query=testQuery",
+          "/api/latest/fleet/hosts?page=3&per_page=100&status=new&order_key=hostname&order_direction=desc&query=testQuery",
         method: "get",
         response: { hosts: [] },
       });

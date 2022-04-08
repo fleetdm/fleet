@@ -41,7 +41,7 @@ Declare your endpoint and each of your API request paths to its expected JSON re
 
 Set the `DELAY` constant (in milliseconds) if you want to simulate a delayed API response.
 
-Set the `ENDPOINT` constant to the base route for your API endpoint (for example, `/v1/fleet`). 
+Set the `ENDPOINT` constant to the base route for your API endpoint (for example, `/latest/fleet`). 
 
 Use the `REQUEST_RESPONSE_MAPPINGS` dictionary to declare your request-responses mappings. For example,
 here's how you might configure the `GET hosts/manage` and `GET hosts/count`endpoints:

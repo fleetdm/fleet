@@ -1,79 +1,81 @@
+const API_VERSION = "latest";
+
 export default {
-  ACTIVITIES: "/latest/fleet/activities",
-  CHANGE_PASSWORD: "/latest/fleet/change_password",
-  CONFIG: "/latest/fleet/config",
+  ACTIVITIES: `/${API_VERSION}/fleet/activities`,
+  CHANGE_PASSWORD: `/${API_VERSION}/fleet/change_password`,
+  CONFIG: `/${API_VERSION}/fleet/config`,
   CONFIRM_EMAIL_CHANGE: (token: string): string => {
-    return `/latest/fleet/email/change/${token}`;
+    return `/${API_VERSION}/fleet/email/change/${token}`;
   },
-  DEVICE_USER_DETAILS: "/latest/fleet/device",
+  DEVICE_USER_DETAILS: `/${API_VERSION}/fleet/device`,
   ENABLE_USER: (id: number): string => {
-    return `/latest/fleet/users/${id}/enable`;
+    return `/${API_VERSION}/fleet/users/${id}/enable`;
   },
-  FORGOT_PASSWORD: "/latest/fleet/forgot_password",
-  GLOBAL_ENROLL_SECRETS: "/latest/fleet/spec/enroll_secret",
-  GLOBAL_POLICIES: "/latest/fleet/policies",
-  GLOBAL_SCHEDULE: "/latest/fleet/schedule",
-  HOST_SUMMARY: "/latest/fleet/host_summary",
-  HOSTS: "/latest/fleet/hosts",
-  HOSTS_COUNT: "/latest/fleet/hosts/count",
-  HOSTS_DELETE: "/latest/fleet/hosts/delete",
-  HOSTS_REPORT: "/latest/fleet/hosts/report",
-  HOSTS_TRANSFER: "/latest/fleet/hosts/transfer",
-  HOSTS_TRANSFER_BY_FILTER: "/latest/fleet/hosts/transfer/filter",
-  INVITES: "/latest/fleet/invites",
-  LABELS: "/latest/fleet/labels",
+  FORGOT_PASSWORD: `/${API_VERSION}/fleet/forgot_password`,
+  GLOBAL_ENROLL_SECRETS: `/${API_VERSION}/fleet/spec/enroll_secret`,
+  GLOBAL_POLICIES: `/${API_VERSION}/fleet/policies`,
+  GLOBAL_SCHEDULE: `/${API_VERSION}/fleet/schedule`,
+  HOST_SUMMARY: `/${API_VERSION}/fleet/host_summary`,
+  HOSTS: `/${API_VERSION}/fleet/hosts`,
+  HOSTS_COUNT: `/${API_VERSION}/fleet/hosts/count`,
+  HOSTS_DELETE: `/${API_VERSION}/fleet/hosts/delete`,
+  HOSTS_REPORT: `/${API_VERSION}/fleet/hosts/report`,
+  HOSTS_TRANSFER: `/${API_VERSION}/fleet/hosts/transfer`,
+  HOSTS_TRANSFER_BY_FILTER: `/${API_VERSION}/fleet/hosts/transfer/filter`,
+  INVITES: `/${API_VERSION}/fleet/invites`,
+  LABELS: `/${API_VERSION}/fleet/labels`,
   LABEL_HOSTS: (id: number): string => {
-    return `/latest/fleet/labels/${id}/hosts`;
+    return `/${API_VERSION}/fleet/labels/${id}/hosts`;
   },
-  LOGIN: "/latest/fleet/login",
-  LOGOUT: "/latest/fleet/logout",
-  MACADMINS: "/latest/fleet/macadmins",
-  ME: "/latest/fleet/me",
-  OS_VERSIONS: "/latest/fleet/os_versions",
-  OSQUERY_OPTIONS: "/latest/fleet/spec/osquery_options",
-  PACKS: "/latest/fleet/packs",
+  LOGIN: `/${API_VERSION}/fleet/login`,
+  LOGOUT: `/${API_VERSION}/fleet/logout`,
+  MACADMINS: `/${API_VERSION}/fleet/macadmins`,
+  ME: `/${API_VERSION}/fleet/me`,
+  OS_VERSIONS: `/${API_VERSION}/fleet/os_versions`,
+  OSQUERY_OPTIONS: `/${API_VERSION}/fleet/spec/osquery_options`,
+  PACKS: `/${API_VERSION}/fleet/packs`,
   PERFORM_REQUIRED_PASSWORD_RESET:
-    "/latest/fleet/perform_required_password_reset",
-  QUERIES: "/latest/fleet/queries",
-  RESET_PASSWORD: "/latest/fleet/reset_password",
-  RUN_QUERY: "/latest/fleet/queries/run",
-  SCHEDULED_QUERIES: "/latest/fleet/schedule",
+    `/${API_VERSION}/fleet/perform_required_password_reset`,
+  QUERIES: `/${API_VERSION}/fleet/queries`,
+  RESET_PASSWORD: `/${API_VERSION}/fleet/reset_password`,
+  RUN_QUERY: `/${API_VERSION}/fleet/queries/run`,
+  SCHEDULED_QUERIES: `/${API_VERSION}/fleet/schedule`,
   SCHEDULED_QUERY: (id: number): string => {
-    return `/latest/fleet/packs/${id}/scheduled`;
+    return `/${API_VERSION}/fleet/packs/${id}/scheduled`;
   },
-  SETUP: "/latest/setup",
-  SOFTWARE: "/latest/fleet/software",
-  SSO: "/latest/fleet/sso",
-  STATUS_LABEL_COUNTS: "/latest/fleet/host_summary",
-  STATUS_LIVE_QUERY: "/latest/fleet/status/live_query",
-  STATUS_RESULT_STORE: "/latest/fleet/status/result_store",
-  TARGETS: "/latest/fleet/targets",
+  SETUP: `/${API_VERSION}/setup`,
+  SOFTWARE: `/${API_VERSION}/fleet/software`,
+  SSO: `/${API_VERSION}/fleet/sso`,
+  STATUS_LABEL_COUNTS: `/${API_VERSION}/fleet/host_summary`,
+  STATUS_LIVE_QUERY: `/${API_VERSION}/fleet/status/live_query`,
+  STATUS_RESULT_STORE: `/${API_VERSION}/fleet/status/result_store`,
+  TARGETS: `/${API_VERSION}/fleet/targets`,
   TEAM_POLICIES: (teamId: number): string => {
-    return `/latest/fleet/teams/${teamId}/policies`;
+    return `/${API_VERSION}/fleet/teams/${teamId}/policies`;
   },
   TEAM_SCHEDULE: (teamId: number): string => {
-    return `/latest/fleet/teams/${teamId}/schedule`;
+    return `/${API_VERSION}/fleet/teams/${teamId}/schedule`;
   },
-  TEAMS: "/latest/fleet/teams",
+  TEAMS: `/${API_VERSION}/fleet/teams`,
   TEAMS_AGENT_OPTIONS: (teamId: number): string => {
-    return `/latest/fleet/teams/${teamId}/agent_options`;
+    return `/${API_VERSION}/fleet/teams/${teamId}/agent_options`;
   },
   TEAMS_ENROLL_SECRETS: (teamId: number): string => {
-    return `/latest/fleet/teams/${teamId}/secrets`;
+    return `/${API_VERSION}/fleet/teams/${teamId}/secrets`;
   },
   TEAMS_MEMBERS: (teamId: number): string => {
-    return `/latest/fleet/teams/${teamId}/users`;
+    return `/${API_VERSION}/fleet/teams/${teamId}/users`;
   },
   TEAMS_TRANSFER_HOSTS: (teamId: number): string => {
-    return `/latest/fleet/teams/${teamId}/hosts`;
+    return `/${API_VERSION}/fleet/teams/${teamId}/hosts`;
   },
   UPDATE_USER_ADMIN: (id: number): string => {
-    return `/latest/fleet/users/${id}/admin`;
+    return `/${API_VERSION}/fleet/users/${id}/admin`;
   },
   USER_SESSIONS: (id: number): string => {
-    return `/latest/fleet/users/${id}/sessions`;
+    return `/${API_VERSION}/fleet/users/${id}/sessions`;
   },
-  USERS: "/latest/fleet/users",
-  USERS_ADMIN: "/latest/fleet/users/admin",
-  VERSION: "/latest/fleet/version",
+  USERS: `/${API_VERSION}/fleet/users`,
+  USERS_ADMIN: `/${API_VERSION}/fleet/users/admin`,
+  VERSION: `/${API_VERSION}/fleet/version`,
 };

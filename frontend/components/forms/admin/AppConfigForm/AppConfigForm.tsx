@@ -360,7 +360,7 @@ const AppConfigFormFunctional = ({
             label="Fleet app URL"
             hint={
               <span>
-                Include base path only (eg. no <code>/v1</code>)
+                Include base path only (eg. no <code>/latest</code>)
               </span>
             }
             onChange={handleInputChange}
