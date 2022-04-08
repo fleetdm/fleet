@@ -24,7 +24,7 @@ const usePlatformCompatibility = (): IPlatformCompatibility => {
     const { platforms, error: compatibilityError } = checkPlatformCompatibility(
       sqlStr
     );
-    setCompatiblePlatforms(platforms);
+    setCompatiblePlatforms(platforms || []);
     setError(compatibilityError);
   };
 

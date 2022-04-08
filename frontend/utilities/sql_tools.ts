@@ -114,7 +114,7 @@ const parseSqlTables = (
 
     return results;
   } catch (err) {
-    console.log(`Invalid query syntax: ${err}\n\n${sqlString}`);
+    // console.log(`sqlite-parser error: ${err}\n\n${sqlString}`);
 
     throw err;
   }
@@ -128,7 +128,7 @@ const checkPlatformCompatibility = (
   try {
     sqlTables = parseSqlTables(sqlString, includeCteTables);
   } catch (err) {
-    return { platforms: [], error: new Error(`${err}`) };
+    return { platforms: null, error: new Error(`${err}`) };
   }
 
   if (sqlTables === undefined) {
@@ -140,7 +140,12 @@ const checkPlatformCompatibility = (
     };
   }
 
-  return { platforms: filterCompatiblePlatforms(sqlTables), error: null };
+  try {
+    const platforms = filterCompatiblePlatforms(sqlTables);
+    return { platforms, error: null };
+  } catch (err) {
+    return { platforms: null, error: new Error(`${err}`) };
+  }
 };
 
 export default checkPlatformCompatibility;
