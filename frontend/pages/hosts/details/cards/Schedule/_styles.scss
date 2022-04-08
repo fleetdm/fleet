@@ -1,0 +1,49 @@
+.section--schedule {
+  margin-top: $pad-medium;
+  .section__header {
+    margin-bottom: $pad-medium;
+  }
+  .table-container__header {
+    display: none;
+  }
+  .data-table-block {
+    .data-table__table {
+      thead {
+        .query_name__header {
+          width: $col-lg;
+        }
+        .frequency__header {
+          width: $col-md;
+        }
+        .performance__header {
+          display: none;
+          width: 0;
+        }
+        @media (min-width: $break-990) {
+          .performance__header {
+            display: table-cell;
+            width: $col-md;
+          }
+        }
+      }
+      tbody {
+        .query_name__cell {
+          width: $col-lg;
+        }
+        .frequency__cell {
+          width: $col-md;
+        }
+        .performance__cell {
+          display: none;
+          width: 0;
+        }
+        @media (min-width: $break-990) {
+          .performance__cell {
+            display: table-cell;
+            width: $col-md;
+          }
+        }
+      }
+    }
+  }
+}

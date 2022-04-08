@@ -1,6 +1,5 @@
 import React, { useCallback, useContext, useEffect, useState } from "react";
 import { useQuery } from "react-query";
-import { useDispatch } from "react-redux";
 import { InjectedRouter } from "react-router/lib/Router";
 import { noop } from "lodash";
 
@@ -11,8 +10,8 @@ import { NotificationContext } from "context/notification";
 import { inMilliseconds, secondsToHms } from "fleet/helpers";
 import { IPolicyStats, ILoadAllPoliciesResponse } from "interfaces/policy";
 import { IWebhookFailingPolicies } from "interfaces/webhook";
-import { IConfig, IConfigNested } from "interfaces/config"; // @ts-ignore
-import { getConfig } from "redux/nodes/app/actions";
+import { IConfig } from "interfaces/config";
+
 import PATHS from "router/paths";
 import configAPI from "services/entities/config";
 import globalPoliciesAPI from "services/entities/global_policies";
@@ -51,8 +50,6 @@ const ManagePolicyPage = ({
   router,
   location,
 }: IManagePoliciesPageProps): JSX.Element => {
-  const dispatch = useDispatch();
-
   const {
     availableTeams,
     config,
@@ -93,6 +90,10 @@ const ManagePolicyPage = ({
   const [showAddPolicyModal, setShowAddPolicyModal] = useState(false);
   const [showRemovePoliciesModal, setShowRemovePoliciesModal] = useState(false);
   const [showInheritedPolicies, setShowInheritedPolicies] = useState(false);
+  const [
+    failingPoliciesWebhook,
+    setFailingPoliciesWebhook,
+  ] = useState<IWebhookFailingPolicies>();
   const [currentAutomatedPolicies, setCurrentAutomatedPolicies] = useState<
     number[]
   >();
@@ -143,22 +144,19 @@ const ManagePolicyPage = ({
   const canAddOrRemovePolicy =
     isGlobalAdmin || isGlobalMaintainer || isTeamMaintainer || isTeamAdmin;
 
-  const {
-    data: failingPoliciesWebhook,
-    isLoading: isLoadingFailingPoliciesWebhook,
-    refetch: refetchFailingPoliciesWebhook,
-  } = useQuery<IConfigNested, Error, IWebhookFailingPolicies>(
-    ["config"],
-    () => configAPI.loadAll(),
-    {
-      enabled: canAddOrRemovePolicy,
-      select: (data: IConfigNested) =>
-        data.webhook_settings.failing_policies_webhook,
-      onSuccess: (data) => {
-        setCurrentAutomatedPolicies(data.policy_ids);
-      },
-    }
-  );
+  const { isLoading: isLoadingConfig, refetch: refetchConfig } = useQuery<
+    IConfig,
+    Error
+  >(["config"], () => configAPI.loadAll(), {
+    enabled: canAddOrRemovePolicy,
+    onSuccess: (data) => {
+      setFailingPoliciesWebhook(data.webhook_settings.failing_policies_webhook);
+      setCurrentAutomatedPolicies(
+        data.webhook_settings.failing_policies_webhook.policy_ids
+      );
+      setConfig(data);
+    },
+  });
 
   const refetchPolicies = (id?: number) => {
     refetchGlobalPolicies();
@@ -230,13 +228,7 @@ const ManagePolicyPage = ({
       );
     } finally {
       toggleManageAutomationsModal();
-      refetchFailingPoliciesWebhook();
-      // Config must be updated in both Redux and AppContext
-      dispatch(getConfig())
-        .then((configState: IConfig) => {
-          setConfig(configState);
-        })
-        .catch(() => false);
+      refetchConfig();
     }
   };
 
@@ -291,8 +283,9 @@ const ManagePolicyPage = ({
   };
 
   const policyUpdateInterval =
-    secondsToHms(inMilliseconds(config?.osquery_policy || 0) / 1000) ||
-    "osquery policy update interval";
+    secondsToHms(
+      inMilliseconds(config?.update_interval.osquery_policy || 0) / 1000
+    ) || "osquery policy update interval";
 
   const showTeamDescription = isPremiumTier && !!teamId;
 
@@ -366,7 +359,7 @@ const ManagePolicyPage = ({
           <div className={`${baseClass} button-wrap`}>
             {canAddOrRemovePolicy &&
               teamId === 0 &&
-              !isLoadingFailingPoliciesWebhook &&
+              !isLoadingConfig &&
               !isLoadingGlobalPolicies && (
                 <Button
                   onClick={() => onManageAutomationsClick()}
@@ -423,14 +416,12 @@ const ManagePolicyPage = ({
           {!!teamId && teamPoliciesError && <TableDataError />}
           {!!teamId &&
             !teamPoliciesError &&
-            (isLoadingTeamPolicies && isLoadingFailingPoliciesWebhook ? (
+            (isLoadingTeamPolicies && isLoadingConfig ? (
               <Spinner />
             ) : (
               <PoliciesListWrapper
                 policiesList={teamPolicies || []}
-                isLoading={
-                  isLoadingTeamPolicies && isLoadingFailingPoliciesWebhook
-                }
+                isLoading={isLoadingTeamPolicies && isLoadingConfig}
                 onRemovePoliciesClick={onRemovePoliciesClick}
                 canAddOrRemovePolicy={canAddOrRemovePolicy}
                 currentTeam={currentTeam}
@@ -445,9 +436,7 @@ const ManagePolicyPage = ({
             ) : (
               <PoliciesListWrapper
                 policiesList={globalPolicies || []}
-                isLoading={
-                  isLoadingGlobalPolicies && isLoadingFailingPoliciesWebhook
-                }
+                isLoading={isLoadingGlobalPolicies && isLoadingConfig}
                 onRemovePoliciesClick={onRemovePoliciesClick}
                 canAddOrRemovePolicy={canAddOrRemovePolicy}
                 currentTeam={currentTeam}
@@ -482,9 +471,7 @@ const ManagePolicyPage = ({
                 <Spinner />
               ) : (
                 <PoliciesListWrapper
-                  isLoading={
-                    isLoadingGlobalPolicies && isLoadingFailingPoliciesWebhook
-                  }
+                  isLoading={isLoadingGlobalPolicies && isLoadingConfig}
                   policiesList={globalPolicies || []}
                   onRemovePoliciesClick={noop}
                   resultsTitle="policies"

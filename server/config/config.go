@@ -237,6 +237,20 @@ type GeoIPConfig struct {
 	DatabasePath string `json:"database_path" yaml:"database_path"`
 }
 
+// PrometheusConfig holds the configuration for Fleet's prometheus metrics.
+type PrometheusConfig struct {
+	// BasicAuth is the HTTP Basic BasicAuth configuration.
+	BasicAuth HTTPBasicAuthConfig `json:"basic_auth" yaml:"basic_auth"`
+}
+
+// HTTPBasicAuthConfig holds configuration for HTTP Basic Auth.
+type HTTPBasicAuthConfig struct {
+	// Username is the HTTP Basic Auth username.
+	Username string `json:"username" yaml:"username"`
+	// Password is the HTTP Basic Auth password.
+	Password string `json:"password" yaml:"password"`
+}
+
 // FleetConfig stores the application configuration. Each subcategory is
 // broken up into it's own struct, defined above. When editing any of these
 // structs, Manager.addConfigs and Manager.LoadConfig should be
@@ -263,6 +277,7 @@ type FleetConfig struct {
 	Upgrades         UpgradesConfig
 	Sentry           SentryConfig
 	GeoIP            GeoIPConfig
+	Prometheus       PrometheusConfig
 }
 
 type TLS struct {
@@ -562,6 +577,10 @@ func (man Manager) addConfigs() {
 
 	// GeoIP
 	man.addConfigString("geoip.database_path", "", "path to mmdb file")
+
+	// Prometheus
+	man.addConfigString("prometheus.basic_auth.username", "", "Prometheus username for HTTP Basic Auth")
+	man.addConfigString("prometheus.basic_auth.password", "", "Prometheus password for HTTP Basic Auth")
 }
 
 // LoadConfig will load the config variables into a fully initialized
@@ -744,6 +763,12 @@ func (man Manager) LoadConfig() FleetConfig {
 		},
 		GeoIP: GeoIPConfig{
 			DatabasePath: man.getConfigString("geoip.database_path"),
+		},
+		Prometheus: PrometheusConfig{
+			BasicAuth: HTTPBasicAuthConfig{
+				Username: man.getConfigString("prometheus.basic_auth.username"),
+				Password: man.getConfigString("prometheus.basic_auth.password"),
+			},
 		},
 	}
 }
@@ -937,7 +962,7 @@ func (man Manager) loadConfigFile() {
 		os.Exit(1)
 	}
 
-	fmt.Println("Using config file: ", man.viper.ConfigFileUsed())
+	fmt.Println("Using config file:", man.viper.ConfigFileUsed())
 }
 
 // TestConfig returns a barebones configuration suitable for use in tests.

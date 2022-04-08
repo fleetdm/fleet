@@ -31,7 +31,7 @@ const PlatformCell = ({
     platforms.includes(platform)
   );
   return (
-    <span>
+    <span className={`${baseClass}__wrapper`}>
       {orderedList.length ? (
         orderedList.map((platform) => {
           return ICONS[platform] ? (

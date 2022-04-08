@@ -38,7 +38,6 @@ func initFatal(err error, message string) {
 }
 
 func createRootCmd() *cobra.Command {
-
 	// rootCmd represents the base command when called without any subcommands
 	rootCmd := &cobra.Command{
 		Use:   "fleet",
@@ -62,4 +61,11 @@ func applyDevFlags(cfg *config.FleetConfig) {
 	cfg.Mysql.Username = "fleet"
 	cfg.Mysql.Database = "fleet"
 	cfg.Mysql.Password = "insecure"
+
+	if cfg.Prometheus.BasicAuth.Username == "" {
+		cfg.Prometheus.BasicAuth.Username = "fleet"
+	}
+	if cfg.Prometheus.BasicAuth.Password == "" {
+		cfg.Prometheus.BasicAuth.Password = "insecure"
+	}
 }

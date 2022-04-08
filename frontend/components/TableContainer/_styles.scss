@@ -6,8 +6,42 @@
 
   &__header {
     display: flex;
-    align-items: center;
+    width: 100%;
     justify-content: space-between;
+    align-items: center;
+    padding-bottom: $pad-medium;
+
+    &.stack-table-controls {
+      flex-direction: column-reverse;
+      align-items: start;
+
+      @media (min-width: $break-768) {
+        flex-direction: row;
+        align-items: end;
+        justify-content: space-between;
+      }
+      @media (min-width: $break-990) {
+        align-items: center;
+      }
+    }
+  }
+
+  &__header-left {
+    display: flex;
+    width: 100%;
+    justify-content: space-between;
+    align-items: center;
+
+    &.stack-table-controls {
+      flex-direction: column-reverse;
+      align-items: start;
+
+      @media (min-width: $break-990) {
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+      }
+    }
   }
 
   &__results-count {
@@ -15,12 +49,14 @@
     font-weight: $bold;
     color: $core-fleet-black;
     margin: 0;
-  }
 
-  &__table-controls {
-    display: flex;
-    justify-content: flex-end;
-    align-items: center;
+    &.stack-table-controls {
+      padding-top: $pad-large;
+
+      @media (min-width: $break-990) {
+        padding-top: 0;
+      }
+    }
   }
 
   &__edit-columns-button:hover {
@@ -32,8 +68,29 @@
   &__search-input {
     position: relative;
     color: $core-fleet-blue;
-    width: 344px;
-    margin-left: $pad-medium;
+    width: 100%;
+    margin-left: $pad-small;
+
+    .search-field__input-wrapper {
+      width: 250px;
+      margin-bottom: 0;
+      @media (min-width: $break-768) {
+        width: 300px;
+      }
+      @media (min-width: $break-990) {
+        width: 344px;
+      }
+    }
+
+    &.stack-table-controls {
+      padding-bottom: $pad-large;
+      margin-left: 0;
+
+      @media (min-width: $break-768) {
+        margin-left: $pad-medium;
+        padding-bottom: 0;
+      }
+    }
 
     &::before {
       display: inline-block;
@@ -44,10 +101,6 @@
       height: 20px;
       top: 3px;
       left: 8px;
-    }
-
-    .table-container__input-wrapper {
-      margin-bottom: 0;
     }
 
     .input-field {
@@ -64,10 +117,19 @@
     }
   }
 
-  .wide-search {
-    width: 100%;
+  .table-container__search-input.wide-search {
     margin-left: 0;
-    padding-bottom: $pad-medium;
+
+    .search-field__input-wrapper {
+      width: 100%;
+      margin-bottom: 0;
+      padding-bottom: $pad-medium;
+    }
+  }
+
+  #search-tooltip {
+    width: 196px;
+    text-align: center;
   }
 
   &__empty-page {
@@ -85,17 +147,6 @@
       button:last-child {
         display: none;
       }
-    }
-  }
-
-  #search-tooltip {
-    width: 196px;
-    text-align: center;
-  }
-
-  tbody {
-    .highlight-on-hover:hover {
-      background-color: $ui-off-white;
     }
   }
 }

@@ -223,9 +223,6 @@ describe(
         cy.loginWithCySession("anna@organization.com", "user123#");
         cy.visit("/queries/manage");
       });
-      it("displays the 'Observer can run' column on the queries table", () => {
-        cy.contains(/observer can run/i);
-      });
       it("allows admin add a new query", () => {
         cy.findByRole("button", { name: /new query/i }).click();
         cy.getAttached(".ace_text-input")
@@ -343,7 +340,6 @@ describe(
         cy.getAttached("tbody").within(() => {
           cy.findByText(/mary@organization.com/i)
             .parent()
-            .next()
             .next()
             .within(() => cy.getAttached(".Select-placeholder").click());
         });

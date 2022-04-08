@@ -49,7 +49,17 @@ In brief, this means that as a Fleet team member, you may:
 
 For more developed thoughts about __spending guidelines and limits__, please read [GitLab's open expense policy](https://about.gitlab.com/handbook/spending-company-money/).
 
-### Purchasing a company-issued device.
+### Reimbursements
+
+We provide all of our team members with Brex cards for making purchases for the company. If a team member pays for work-related expenses with their personal funds, Fleet will reimburse them.
+
+Team members can request reimbursement through [Gusto](https://app.gusto.com/expenses) if they're in the US or [Pilot](https://pilot.co/) if they are an international team member. When submitting an expense report, team members need to provide the receipt, and a description of the expense.
+
+Operations will review the expense and reach out to the team member if they have any questions. When an expense is approved, the reimbursement will be added to the team member's next payroll.
+
+>Pilot handles reimbursements differently depending on if the international team member is classified as an employee or a contractor. If the reimbursement is for a contractor, Operations will need to add the expense reimbursement to an upcoming recurring payment or schedule the reimbursement as an off-cycle payment. If the reimbursement is for an employee, no other action is needed; Pilot will add the reimbursement to the team member's next payroll. 
+
+### Purchasing a company-issued device
 
 Fleet provides laptops for team members to use while working at Fleet. As soon as an offer is accepted, `eashaw` will reach out to the new team member to start this process. `Eashaw` will work with the new team member to get their laptop purchased and shipped to them.
 
@@ -194,7 +204,7 @@ Change the name of the documents accordingly (e.g., "[candidate's name]'s copy o
    - Equity offered to the candidate (make this information a link to the candidate's exit scenarios spreadsheet)
    - Benefits (determined by the candidate's location)
 
-6. Prepare the exit scenarios spreadsheet. Enter the percentage of equity offered to the candidate, and the spreadsheet will update to reflect this. 
+6. Prepare the exit scenarios spreadsheet. Enter the number of shares offered to the candidate, and the spreadsheet will update to reflect this. 
    
       >**_Note:_** *Don't play with numbers in the exit scenarios spreadsheet. The revision history is visible to the candidate, and they might misunderstand.*
 
@@ -217,6 +227,27 @@ Change the name of the documents accordingly (e.g., "[candidate's name]'s copy o
    >**_Note:_** *If we're hiring in a new state, we'll have to register for state taxes and unemployment. This process can be handled by Gusto. Usually.*
 
 4. Before their first day at Fleet, Eric will create a [Google Workspace account](https://admin.google.com/ac/users) for the new team member, add them to the [Fleet Github organization](https://github.com/fleetdm), create an onboarding issue in the [fleetdm/confidential](https://github.com/fleetdm/confidential/issues) Github repo, and invite them to join the Fleet Slack. If the new team member needs to purchase a work computer, Eric will set them up with a [Brex](https://dashboard.brex.com/team/invite-user) card.
+
+### Team member onboarding
+
+It's important that every team member at Fleet takes the time to get fully trained and onboarded. 
+
+When a new team member joins Fleet, we create an onboarding issue for them in the [fleetdm/confidential](https://github.com/fleetdm/confidential) repo using this [issue template](https://github.com/fleetdm/confidential/blob/main/.github/ISSUE_TEMPLATE/onboarding.md). 
+
+We want to make sure that the new team member will be able to complete every task in their issue. To make sure the new team member is successful in their onboarding, we customize their issue by commenting on any tasks they won't need to complete.
+
+We believe onboarding and training should be taken seriously, and that the onboarding template is an essential source of truth and a good use of time for every single new hire. If managers see a step that they don't feel is necessary, they should make a pull request to the [onboarding template](https://github.com/fleetdm/confidential/blob/main/.github/ISSUE_TEMPLATE/onboarding.md) and request a review from People operations.
+
+#### Contributor experience training
+
+During their first week at Fleet, new team members are asked to schedule a contributor experience training call with People operations. During this call, the new team member will share their screen, and People operations will:
+
+- make sure emails are going to get seen and responded to quickly.
+- make sure Slack messages are going to get seen and responded to quickly.
+- Make sure you know where your issues are tracked, which kanban board you use, what the columns mean.
+- Make sure you can succeed with submitting a PR with the github web editor, modifying docs or handbook, and working with markdown.
+- talk about Google calendar.
+- give you a quick tour of the Fleet Google drive folder.
 
 ### Onboarding a new advisor.
 

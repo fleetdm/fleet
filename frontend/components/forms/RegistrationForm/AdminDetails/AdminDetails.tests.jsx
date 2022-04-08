@@ -1,125 +1,101 @@
 import React from "react";
-import { mount } from "enzyme";
-import { noop } from "lodash";
+import { fireEvent, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 
 import AdminDetails from "components/forms/RegistrationForm/AdminDetails";
-import { fillInFormInput, itBehavesLikeAFormInputElement } from "test/helpers";
 
 describe("AdminDetails - form", () => {
-  let form = mount(<AdminDetails handleSubmit={noop} />);
+  const onSubmitSpy = jest.fn();
+  it("renders", () => {
+    render(<AdminDetails handleSubmit={onSubmitSpy} />);
 
-  describe("full name input", () => {
-    it("renders an input field", () => {
-      itBehavesLikeAFormInputElement(form, "name");
-    });
+    expect(screen.getByPlaceholderText("Password")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Confirm password")).toBeInTheDocument();
+    expect(
+      screen.getByRole("textbox", { name: "Full name" })
+    ).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "Email" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Next" })).toBeInTheDocument();
   });
 
-  describe("password input", () => {
-    it("renders an input field", () => {
-      itBehavesLikeAFormInputElement(form, "password");
-    });
+  it("validates missing fields", () => {
+    render(<AdminDetails handleSubmit={onSubmitSpy} currentPage />);
+
+    // when
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    // then
+    expect(onSubmitSpy).not.toHaveBeenCalled();
+    expect(screen.getByText("Email must be present")).toBeInTheDocument();
+    expect(screen.getByText("Password must be present")).toBeInTheDocument();
+    expect(
+      screen.getByText("Password confirmation must be present")
+    ).toBeInTheDocument();
+    expect(screen.getByText("Full name must be present")).toBeInTheDocument();
   });
 
-  describe("password confirmation input", () => {
-    it("renders an input field", () => {
-      itBehavesLikeAFormInputElement(form, "password_confirmation");
-    });
+  it("validates the email field", () => {
+    render(<AdminDetails handleSubmit={onSubmitSpy} currentPage />);
+
+    // when
+    userEvent.type(
+      screen.getByRole("textbox", { name: "Email" }),
+      "invalid-email"
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    // then
+    expect(onSubmitSpy).not.toHaveBeenCalled();
+    expect(screen.getByText("Email must be a valid email")).toBeInTheDocument();
   });
 
-  describe("email input", () => {
-    it("renders an input field", () => {
-      itBehavesLikeAFormInputElement(form, "email");
-    });
+  it("validates the password fields match", () => {
+    render(<AdminDetails handleSubmit={onSubmitSpy} currentPage />);
+    // when
+    userEvent.type(screen.getByPlaceholderText("Password"), "p@ssw0rd");
+    userEvent.type(
+      screen.getByPlaceholderText("Confirm password"),
+      "password123"
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    // then
+    expect(onSubmitSpy).not.toHaveBeenCalled();
+    expect(
+      screen.getByText("Password confirmation does not match password")
+    ).toBeInTheDocument();
   });
 
-  describe("submitting the form", () => {
-    it("validates missing fields", () => {
-      const onSubmitSpy = jest.fn();
-      form = mount(<AdminDetails handleSubmit={onSubmitSpy} />);
-      const htmlForm = form.find("form");
+  it("validates the password field", () => {
+    render(<AdminDetails handleSubmit={onSubmitSpy} currentPage />);
+    // when
+    userEvent.type(screen.getByPlaceholderText("Password"), "passw0rd");
+    userEvent.type(screen.getByPlaceholderText("Confirm password"), "passw0rd");
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    // then
+    expect(onSubmitSpy).not.toHaveBeenCalled();
+    expect(
+      screen.getByText("Password must meet the criteria below")
+    ).toBeInTheDocument();
+  });
 
-      htmlForm.simulate("submit");
-
-      expect(onSubmitSpy).not.toHaveBeenCalled();
-      expect(form.state().errors).toMatchObject({
-        email: "Email must be present",
-        password: "Password must be present",
-        password_confirmation: "Password confirmation must be present",
-        name: "Full name must be present",
-      });
-    });
-
-    it("validates the email field", () => {
-      const onSubmitSpy = jest.fn();
-      form = mount(<AdminDetails handleSubmit={onSubmitSpy} />);
-      const emailField = form.find({ name: "email" }).find("input");
-      const htmlForm = form.find("form");
-
-      fillInFormInput(emailField, "invalid-email");
-      htmlForm.simulate("submit");
-
-      expect(onSubmitSpy).not.toHaveBeenCalled();
-      expect(form.state().errors).toMatchObject({
-        email: "Email must be a valid email",
-      });
-    });
-
-    it("validates the password fields match", () => {
-      const onSubmitSpy = jest.fn();
-      form = mount(<AdminDetails handleSubmit={onSubmitSpy} />);
-      const passwordConfirmationField = form
-        .find({ name: "password_confirmation" })
-        .find("input");
-      const passwordField = form.find({ name: "password" }).find("input");
-      const htmlForm = form.find("form");
-
-      fillInFormInput(passwordField, "p@ssw0rd");
-      fillInFormInput(passwordConfirmationField, "password123");
-      htmlForm.simulate("submit");
-
-      expect(onSubmitSpy).not.toHaveBeenCalled();
-      expect(form.state().errors).toMatchObject({
-        password_confirmation: "Password confirmation does not match password",
-      });
-    });
-
-    it("validates the password field", () => {
-      const onSubmitSpy = jest.fn();
-      form = mount(<AdminDetails handleSubmit={onSubmitSpy} />);
-      const passwordConfirmationField = form
-        .find({ name: "password_confirmation" })
-        .find("input");
-      const passwordField = form.find({ name: "password" }).find("input");
-      const htmlForm = form.find("form");
-
-      fillInFormInput(passwordField, "passw0rd");
-      fillInFormInput(passwordConfirmationField, "passw0rd");
-      htmlForm.simulate("submit");
-
-      expect(onSubmitSpy).not.toHaveBeenCalled();
-      expect(form.state().errors).toMatchObject({
-        password: "Password must meet the criteria below",
-      });
-    });
-
-    it("submits the form when valid", () => {
-      const onSubmitSpy = jest.fn();
-      form = mount(<AdminDetails handleSubmit={onSubmitSpy} />);
-      const emailField = form.find({ name: "email" }).find("input");
-      const passwordConfirmationField = form
-        .find({ name: "password_confirmation" })
-        .find("input");
-      const passwordField = form.find({ name: "password" }).find("input");
-      const nameField = form.find({ name: "name" }).find("input");
-      const htmlForm = form.find("form");
-
-      fillInFormInput(emailField, "hi@gnar.dog");
-      fillInFormInput(passwordField, "p@ssw0rd");
-      fillInFormInput(passwordConfirmationField, "p@ssw0rd");
-      fillInFormInput(nameField, "Gnar Dog");
-      htmlForm.simulate("submit");
-
-      expect(onSubmitSpy).toHaveBeenCalled();
+  it("submits the form when valid", () => {
+    render(<AdminDetails handleSubmit={onSubmitSpy} currentPage />);
+    // when
+    userEvent.type(
+      screen.getByRole("textbox", { name: "Email" }),
+      "hi@gnar.dog"
+    );
+    userEvent.type(screen.getByPlaceholderText("Password"), "p@ssw0rd");
+    userEvent.type(screen.getByPlaceholderText("Confirm password"), "p@ssw0rd");
+    userEvent.type(
+      screen.getByRole("textbox", { name: "Full name" }),
+      "Gnar Dog"
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    // then
+    expect(onSubmitSpy).toHaveBeenCalledWith({
+      email: "hi@gnar.dog",
+      name: "Gnar Dog",
+      password: "p@ssw0rd",
+      password_confirmation: "p@ssw0rd",
     });
   });
 });

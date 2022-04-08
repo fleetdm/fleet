@@ -1,0 +1,43 @@
+.action-buttons {
+  display: flex;
+
+  button {
+    margin-left: $pad-medium;
+  }
+
+  &__secondary-buttons {
+    display: none;
+    @media (min-width: 990px) {
+      display: flex;
+    }
+  }
+
+  &__secondary-dropdown {
+    .more-options-icon {
+      padding-left: $pad-small;
+      padding-right: $pad-medium;
+    }
+    .dropdown-button {
+      margin-left: $pad-large;
+    }
+    .dropdown-button__options {
+      padding: $pad-small;
+      right: 10px;
+      margin-top: 2px;
+
+      button {
+        display: inline-block;
+        min-width: 125px;
+
+        &:hover,
+        &:focus {
+          background-color: $ui-vibrant-blue-10;
+          color: $core-fleet-black;
+        }
+      }
+    }
+    @media (min-width: 990px) {
+      display: none;
+    }
+  }
+}

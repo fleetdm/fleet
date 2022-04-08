@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from "react";
-import { useDebouncedCallback } from "use-debounce/lib";
+import { useDebouncedCallback } from "use-debounce";
 
 import { IOsqueryPlatform, SUPPORTED_PLATFORMS } from "interfaces/platform";
 import checkPlatformCompatibility from "utilities/sql_tools";

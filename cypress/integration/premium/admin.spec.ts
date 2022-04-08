@@ -261,8 +261,6 @@ describe("Premium tier - Admin user", () => {
           cy.findByText(/oliver@organization.com/i)
             .parent()
             .next()
-            .next()
-            .next()
             .within(() => cy.getAttached(".Select-placeholder").click());
         });
         cy.getAttached(".Select-menu").within(() => {
