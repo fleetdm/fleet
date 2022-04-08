@@ -57,11 +57,6 @@ type jiraTemplateArgs struct {
 	Hosts    []*fleet.HostShort
 }
 
-type jiraHost struct {
-	ID       uint
-	Hostname string
-}
-
 // JiraClient defines the method required for the client that makes API calls
 // to Jira.
 type JiraClient interface {
