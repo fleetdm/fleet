@@ -4,7 +4,7 @@ describe("Activate user flow", () => {
     cy.setup();
     cy.loginWithCySession();
     cy.setupSMTP();
-    cy.viewport(1200, 660);
+    cy.viewport(1600, 900);
   });
   after(() => {
     cy.logout();
@@ -13,6 +13,7 @@ describe("Activate user flow", () => {
   describe("Users settings page", () => {
     beforeEach(() => {
       cy.loginWithCySession();
+      cy.viewport(1600, 900);
       cy.visit("/settings/organization");
       cy.getAttached(".component__tabs-wrapper").within(() => {
         cy.findByRole("tab", { name: /^users$/i }).click();
@@ -72,9 +73,10 @@ describe("Activate user flow", () => {
       cy.getAttached("tbody>tr>td")
         .contains("Ash Ketchum")
         .parent()
-        .next()
-        .findByText(/active/i)
-        .should("exist");
+        .parent()
+        .within(() => {
+          cy.findByText(/active/i).should("exist");
+        });
     });
   });
 });

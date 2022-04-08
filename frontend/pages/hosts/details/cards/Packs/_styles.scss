@@ -1,0 +1,124 @@
+.section--packs {
+  .table-container__header {
+    display: none;
+  }
+
+  .data-table-block {
+    .data-table__table {
+      thead {
+        .query_name__header {
+          width: $col-lg;
+        }
+        .frequency__header {
+          width: $col-md;
+        }
+        .last_run__header {
+          display: none;
+          width: 0;
+        }
+        .performance__header {
+          display: none;
+          width: 0;
+        }
+        @media (min-width: $break-990) {
+          .last_run__header {
+            display: table-cell;
+          }
+          .performance__header {
+            display: table-cell;
+            width: $col-md;
+          }
+        }
+      }
+      tbody {
+        .query_name__cell {
+          width: $col-lg;
+        }
+        .frequency__cell {
+          width: $col-md;
+        }
+        .last_run__cell {
+          display: none;
+          width: 0;
+        }
+        .performance__cell {
+          display: none;
+          width: 0;
+        }
+        @media (min-width: $break-990) {
+          .last_run__cell {
+            display: table-cell;
+          }
+          .performance__cell {
+            display: table-cell;
+            width: $col-md;
+          }
+        }
+      }
+    }
+  }
+
+  .accordion {
+    border-radius: 2px;
+
+    .accordion__item + .accordion__item {
+      border-top: 1px solid rgba(0, 0, 0, 0.1);
+    }
+
+    &__button {
+      background-color: #fff;
+      color: $core-fleet-black;
+      cursor: pointer;
+      text-align: left;
+      font-size: $x-small;
+      font-weight: bold;
+      border: none;
+      padding: 17px 12px;
+
+      &:hover {
+        background-color: $ui-vibrant-blue-10;
+      }
+
+      &:after {
+        display: block;
+        content: url("../assets/images/icon-chevron-purple-9x6@2x.png");
+        text-align: center;
+        top: 50%;
+        float: right;
+        width: 32px;
+        height: 32px;
+        border-radius: 4px;
+        transform: scale(0.5) translate(40%, -40%);
+      }
+
+      &[aria-expanded="true"]::after,
+      &[aria-selected="true"]::after {
+        background-color: $core-vibrant-blue;
+        content: url("../assets/images/icon-accordion-collapse-16x16@2x.png");
+      }
+    }
+
+    [hidden] {
+      display: none;
+    }
+
+    &__panel {
+      padding: 0;
+      animation: fadein 0.35s ease-in;
+    }
+
+    /* -------------------------------------------------- */
+    /* ---------------- Animation part ------------------ */
+    /* -------------------------------------------------- */
+
+    @keyframes fadein {
+      0% {
+        opacity: 0;
+      }
+
+      100% {
+        opacity: 1;
+      }
+    }
+  }
+}

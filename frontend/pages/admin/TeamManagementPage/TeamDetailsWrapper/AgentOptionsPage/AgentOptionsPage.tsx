@@ -78,7 +78,7 @@ const AgentOptionsPage = ({
   };
 
   return (
-    <div className={`${baseClass} body-wrap`}>
+    <div className={`${baseClass}`}>
       <p className={`${baseClass}__page-description`}>
         This file describes options returned to osquery when it checks for
         configuration.

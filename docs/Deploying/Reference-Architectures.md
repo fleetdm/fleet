@@ -29,8 +29,12 @@ to its core functionality. More details about ALB can be found [here](https://do
 _**Note if using [terraform reference architecture](https://github.com/fleetdm/fleet/tree/main/tools/terraform#terraform) all configurations can dynamically scale based on load(cpu/memory) and all configurations
 assume On-Demand pricing (savings are available through Reserved Instances). Calculations do not take into account NAT gateway charges or other networking related ingress/egress costs.**_
 
-### Example configuration breakpoints
-#### [Up to 2500 hosts](https://calculator.aws/#/estimate?id=591e3b8176acb074f40959b2ed651947fc8e8388)
+## Cloud providers
+
+### AWS
+
+#### Example configuration breakpoints
+#### [Up to 1000 hosts](https://calculator.aws/#/estimate?id=ae7d7ddec64bb979f3f6611d23616b1dff0e8dbd)
 
 | Fleet instances | CPU Units     | RAM |
 |-----------------|---------------|-----|
@@ -38,22 +42,22 @@ assume On-Demand pricing (savings are available through Reserved Instances). Cal
 
 | Dependencies | Version                 | Instance type |
 |--------------|-------------------------|---------------|
-| Redis        | 5.0.6                   | db.t4g.medium     |
-| MySQL        | 5.7.mysql_aurora.2.10.0 | db.t4g.small   |        
+| Redis        | 6                       | t4g.small     |
+| MySQL        | 5.7.mysql_aurora.2.10.0 | db.t3.small   |        
 
-#### [Up to 25000 hosts](https://calculator.aws/#/estimate?id=855c3796002c329de1cfa7d4628a9b1cc03d1db6)
+#### [Up to 25000 hosts](https://calculator.aws/#/estimate?id=4a3e3168275967d1e79a3d1fcfedc5b17d67a271)
 
-| Fleet instances | CPU Units     | RAM |
-|-----------------|---------------|-----|
-| 5 Fargate task  | 1024 CPU Units | 4GB |
+| Fleet instances | CPU Units      | RAM |
+|-----------------|----------------|-----|
+| 10 Fargate task | 1024 CPU Units | 4GB |
 
 | Dependencies | Version                 | Instance type |
 |--------------|-------------------------|---------------|
-| Redis        | 5.0.6                   |  m6g.large    |
+| Redis        | 6                       | m6g.large     |
 | MySQL        | 5.7.mysql_aurora.2.10.0 | db.r6g.large  |
 
 
-#### [Up to 150000 hosts](https://calculator.aws/#/estimate?id=eed68e1f1854ff2b0eacdacddb5803022101c207)
+#### [Up to 150000 hosts](https://calculator.aws/#/estimate?id=1d8fdd63f01e71027e9d898ed05f4a07299a7000)
 
 | Fleet instances | CPU Units      | RAM |
 |-----------------|----------------|-----|
@@ -61,13 +65,19 @@ assume On-Demand pricing (savings are available through Reserved Instances). Cal
 
 | Dependencies | Version                 | Instance type  | Nodes |
 |--------------|-------------------------|----------------|-------|
-| Redis        | 5.0.6                   | m6g.large      | 3     |
+| Redis        | 6                       | m6g.large      | 3     |
 | MySQL        | 5.7.mysql_aurora.2.10.0 | db.r6g.4xlarge | 1     |
 
+#### [Up to 300000 hosts](https://calculator.aws/#/estimate?id=f3da0597a172c6a0a3683023e2700a6df6d42c0b)
 
-## Cloud providers
+| Fleet instances | CPU Units      | RAM |
+|-----------------|----------------|-----|
+| 20 Fargate task | 1024 CPU Units | 4GB |
 
-### AWS
+| Dependencies | Version                 | Instance type   | Nodes |
+|--------------|-------------------------|-----------------|-------|
+| Redis        | 6                       | m6g.large       | 3     |
+| MySQL        | 5.7.mysql_aurora.2.10.0 | db.r6g.16xlarge | 2     |
 
 AWS reference architecture can be found [here](https://github.com/fleetdm/fleet/tree/main/tools/terraform). This configuration includes:
 
@@ -134,7 +144,46 @@ The following permissions are the minimum required to apply AWS terraform resour
 
 ### GCP
 
-Coming soon
+GCP reference architecture can be found [here](https://github.com/fleetdm/fleet/tree/main/tools/terraform/gcp). This configuration includes:
+
+- Cloud Run (Fleet backend)
+- Cloud SQL MySQL 5.7 (Fleet database)
+- Memorystore Redis (Fleet cache & live query orchestrator)
+
+#### Example configuration breakpoints
+#### [Up to 1000 hosts](https://cloud.google.com/products/calculator/#id=59670518-9af4-4044-af4a-cc100a9bed2f)
+
+| Fleet instances | CPU | RAM |
+|-----------------|-----|-----|
+| 2 Cloud Run     | 1   | 2GB |
+
+| Dependencies | Version                 | Instance type |
+|--------------|-------------------------|---------------|
+| Redis        | MemoryStore Redis 6     | M1 Basic      |
+| MySQL        | Cloud SQL for MySQL 5.7 | db-standard-1 |        
+
+#### [Up to 25000 hosts](https://cloud.google.com/products/calculator/#id=fadbb96c-967c-4397-9921-743d75b98d42)
+
+| Fleet instances | CPU | RAM |
+|-----------------|-----|-----|
+| 10 Cloud Run    | 1   | 2GB |
+
+| Dependencies | Version                 | Instance type |
+|--------------|-------------------------|---------------|
+| Redis        | MemoryStore Redis 6     | M1 2GB        |
+| MySQL        | Cloud SQL for MySQL 5.7 | db-standard-4 |
+
+
+#### [Up to 150000 hosts](https://cloud.google.com/products/calculator/#id=baff774c-d294-491f-a9da-dd97bbfa8ef2)
+
+| Fleet instances | CPU   | RAM |
+|-----------------|-------|-----|
+| 30 Cloud Run    | 1 CPU | 2GB |
+
+| Dependencies | Version                 | Instance type | Nodes |
+|--------------|-------------------------|---------------|-------|
+| Redis        | MemoryStore Redis 6     | M1 4GB        | 1     |
+| MySQL        | Cloud SQL for MySQL 5.7 | db-highmem-16 | 1     |
 
 ### Azure
 
