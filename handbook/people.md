@@ -191,10 +191,10 @@ We evaluate and update compensation decisions yearly, shortly after the annivers
 
 4. After compensation has been determined, create two documents for the candidate:
 
-- [Exit scenarios (template)](https://docs.google.com/spreadsheets/d/1k2TzsFYR0QxlD-KGPxuhuvvlJMrCvLPo2z8s8oGChT0/copy)
-- [Informal offer email (template)](https://docs.google.com/document/d/1zpNN2LWzAj-dVBC8iOg9jLurNlSe7XWKU69j7ntWtbY/copy).
+   - [Exit scenarios (template)](https://docs.google.com/spreadsheets/d/1k2TzsFYR0QxlD-KGPxuhuvvlJMrCvLPo2z8s8oGChT0/copy)
+   - [Informal offer email (template)](https://docs.google.com/document/d/1zpNN2LWzAj-dVBC8iOg9jLurNlSe7XWKU69j7ntWtbY/copy).
 
-Change the name of the documents accordingly (e.g., "[candidate's name]'s copy of exit scenarios,") and link to the exit scenarios spreadsheet from the offer email.
+   Change the name of the documents accordingly (e.g., "[candidate's name]'s a copy of exit scenarios") and link to the exit scenarios spreadsheet from the offer email.
 
 5. Prepare the informal offer email. You'll need to add the following information to the template: 
    - Candidate's name and email address
@@ -206,7 +206,7 @@ Change the name of the documents accordingly (e.g., "[candidate's name]'s copy o
 
 6. Prepare the exit scenarios spreadsheet. Enter the number of shares offered to the candidate, and the spreadsheet will update to reflect this. 
    
-      >**_Note:_** *Don't play with numbers in the exit scenarios spreadsheet. The revision history is visible to the candidate, and they might misunderstand.*
+   >**_Note:_** *Don't play with numbers in the exit scenarios spreadsheet. The revision history is visible to the candidate, and they might misunderstand.*
 
 7. Once both documents are complete, share the offer email draft, exit scenarios copy, and a link to the compensation decision, with Eric for confirmation.
 
@@ -218,15 +218,27 @@ Change the name of the documents accordingly (e.g., "[candidate's name]'s copy o
 
 1. Once an offer is accepted in writing, reply to the candidate, CCing Eric via his Fleet email address to introduce the candidate to him.
 
-2. If the new team member is in the United States, Eric will reach out to them and get any information needed (typically the new team member's home address and phone number) and send them a consulting or employment agreement through [Docusign](https://www.docusign.com/). If the new team member is an international employee or contractor, Eric will start the hiring process in [Pilot](https://pilot.co/).
+2. Eric creates a [hiring issue](https://github.com/fleetdm/confidential/blob/main/.github/ISSUE_TEMPLATE/hiring.md) for the new team member in the [fleetdm/confidential](https://github.com/fleetdm/confidential/issues) repo. Eric will use this issue to keep track of the hiring tasks for the new team member.
 
-   >**_Note:_** *International contractor and employment agreements are handled by Pilot.co when you start the hiring process.*
+3. Eric reaches out to the new team member via email to get any information he will need to prepare an agreement and add them to our payroll system.
 
-3. **For US employees/contractors:** After an agreement is signed and stored in the correct Google Drive folder, Eric will start onboarding the new team member in [Gusto](https://www.gusto.com/). If the new team member is a W-2 employee, Eric will reach out to them and schedule an I-9 verification meeting. 
+   - **For US team members**: Eric will send the new team member's agreement through [Docusign](https://www.docusign.com/).
+  After signing and storing an in the correct Google Drive folder, Eric will invite the new team member to onboard in [Gusto](https://www.gusto.com/). Eric will reach out to them if the new team member is a W-2 employee and schedule an I-9 verification meeting.
 
-   >**_Note:_** *If we're hiring in a new state, we'll have to register for state taxes and unemployment. This process can be handled by Gusto. Usually.*
+   >*If we're hiring in a new state, we'll have to register for state taxes and unemployment. This process can usually be handled by Gusto.*
 
-4. Before their first day at Fleet, Eric will create a [Google Workspace account](https://admin.google.com/ac/users) for the new team member, add them to the [Fleet Github organization](https://github.com/fleetdm), create an onboarding issue in the [fleetdm/confidential](https://github.com/fleetdm/confidential/issues) Github repo, and invite them to join the Fleet Slack. If the new team member needs to purchase a work computer, Eric will set them up with a [Brex](https://dashboard.brex.com/team/invite-user) card.
+   - **For international team members:** Eric enters the new team member's information into [Pilot](https://pilot.co/) to kick off their hiring process. Pilot creates an agreement for the new team member, and Eric reviews it to make sure that everything looks correct. After Eric confirms the information about the new hire Pilot invites the new team member to enter the rest of their information and informs Eric via email when the agreement has been signed.
+
+
+4. **As soon as we have a signed agreement with a new team member:** Eric reaches out to the new team member to provide them with a [work device](#purchasing-a-company-issued-device) and a pair of [YubiKeys](./security.md#hardware-security-keys). The new team member will be asked to send Eric a screenshot or link to their preferred device and configuration. Eric orders their device and Yubikeys using his Brex card and has them shipped directly to the new team member.
+
+   >*If the new team member is in the US and requests a MacBook, It will be purchased using our Apple business account. MacBooks purchased with this account will ship pre-configured and will be enrolled in our MDM.*
+
+5. **Two weeks before their first day at Fleet:** Eric creates a [Google Workspace account](https://admin.google.com/ac/users) for the new team member and invites them to join the [FleetDM](https://github.com/fleetdm) GitHub organization. 
+
+   When the new team member's work email is active, Eric will send invitations to join Fleet's Slack and to create Fleet managed 1Password and Zoom accounts with their Fleet email. Eric sends the sign-in instructions to the new team member, accompanied by a brief explanation of the invitations sent.
+
+6. **Before a new team member's first day:** Eric creates an onboarding issue in the [fleetdm/confidential](https://github.com/fleetdm/confidential/issues) GitHub repo for the new team member. Before creating the issue, Eric will go through it and comment on any steps that the new team member will not have to complete.
 
 ### Team member onboarding
 
