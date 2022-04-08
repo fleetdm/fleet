@@ -169,7 +169,7 @@ describe("Premium tier - Team Admin user", () => {
     it("allows team admin to create an operating system policy", () => {
       cy.getAttached(".info-flex").within(() => {
         cy.findByText(/ubuntu/i).should("exist");
-        cy.getAttached(".host-details__os-policy-button").click();
+        cy.getAttached(".host-summary__os-policy-button").click();
       });
       cy.getAttached(".modal__content")
         .findByRole("button", { name: /create new policy/i })
@@ -183,7 +183,7 @@ describe("Premium tier - Team Admin user", () => {
       cy.getAttached(".host-details__action-button-container")
         .contains("button", /delete/i)
         .click();
-      cy.getAttached(".host-details__modal").within(() => {
+      cy.getAttached(".delete-host-modal__modal").within(() => {
         cy.findByText(/delete host/i).should("exist");
         cy.contains("button", /delete/i).should("exist");
         cy.getAttached(".modal__ex").click();
@@ -295,7 +295,7 @@ describe("Premium tier - Team Admin user", () => {
         .click();
       // Add a default policy
       cy.findByText(/gatekeeper enabled/i).click();
-      cy.getAttached(".policy-form__button-wrap--new-policy").within(() => {
+      cy.getAttached(".policy-form__button-wrap").within(() => {
         cy.findByRole("button", { name: /run/i }).should("exist");
         cy.findByRole("button", { name: /save policy/i }).click();
       });
