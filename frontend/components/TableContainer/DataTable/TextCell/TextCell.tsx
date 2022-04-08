@@ -11,7 +11,7 @@ const TextCell = ({
   value,
   formatter = (val) => val, // identity function if no formatter is provided
   greyed,
-  classes: className = "w250",
+  classes,
 }: ITextCellProps): JSX.Element => {
   let val = value;
 
@@ -20,7 +20,7 @@ const TextCell = ({
   }
 
   return (
-    <span className={`text-cell ${className} ${greyed || ""}`}>
+    <span className={`text-cell ${classes} ${greyed || ""}`}>
       {formatter(val)}
     </span>
   );

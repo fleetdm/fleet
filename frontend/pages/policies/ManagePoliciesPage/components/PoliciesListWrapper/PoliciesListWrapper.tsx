@@ -1,4 +1,5 @@
-import React from "react";
+import React, { useContext } from "react";
+import { AppContext } from "context/app";
 import { noop } from "lodash";
 import paths from "router/paths";
 
@@ -41,6 +42,8 @@ const PoliciesListWrapper = ({
   currentAutomatedPolicies,
 }: IPoliciesListWrapperProps): JSX.Element => {
   const { MANAGE_HOSTS } = paths;
+
+  const { config } = useContext(AppContext);
 
   const NoPolicies = () => {
     return (
@@ -105,7 +108,11 @@ const PoliciesListWrapper = ({
             canAddOrRemovePolicy,
             tableType,
           })}
-          data={generateDataSet(policiesList, currentAutomatedPolicies)}
+          data={generateDataSet(
+            policiesList,
+            currentAutomatedPolicies,
+            config?.update_interval.osquery_policy
+          )}
           isLoading={isLoading}
           defaultSortHeader={"name"}
           defaultSortDirection={"asc"}
