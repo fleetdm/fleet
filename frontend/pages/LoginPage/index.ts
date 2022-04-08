@@ -1,4 +1,4 @@
 import LoginPage from "./LoginPage";
-import PreviewLoginPage from "./PreviewLoginPage";
+import LoginPreviewPage from "./LoginPreviewPage";
 
-export { LoginPage as default, PreviewLoginPage };
+export { LoginPage as default, LoginPreviewPage };

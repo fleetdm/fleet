@@ -92,41 +92,171 @@
     }
   }
 
-  &__details {
-    display: inline-flex;
-    vertical-align: middle;
-    margin-left: $pad-small;
-    margin-top: -20px;
+  .schedule-list-wrapper {
+    .data-table-block {
+      .data-table__table {
+        thead {
+          .query_name__header {
+            width: $col-lg;
+          }
+          .interval__header {
+            width: auto;
+          }
+          .performance__header {
+            display: none;
+            width: 0;
+          }
+          .actions__header {
+            width: auto;
+          }
+          @media (min-width: $break-1400) {
+            .interval__header {
+              width: 0;
+            }
+            .performance__header {
+              display: table-cell;
+              width: $col-lg;
+              border-left: 1px solid $ui-fleet-blue-15;
+            }
+          }
+        }
+        tbody {
+          .query_name__cell {
+            width: $col-lg;
+          }
+          .interval__cell {
+            width: auto;
+          }
+          .performance__cell {
+            display: none;
+            width: 0;
+          }
+          .actions__cell {
+            width: auto;
+          }
+          @media (min-width: $break-1400) {
+            .interval_cell {
+              width: 0;
+            }
+            .performance__cell {
+              display: table-cell;
+              width: $col-lg;
+            }
+          }
+        }
+      }
+    }
 
-    .hint {
+    a {
+      color: $core-vibrant-blue;
+      font-size: $x-small;
+      text-decoration: none;
+    }
+
+    &__empty-table {
+      text-align: center;
+      font-size: $x-small;
       color: $core-fleet-black;
+    }
+  }
 
-      &--brand {
-        color: $core-vibrant-blue;
+  .no-schedule {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding-top: $pad-xxxlarge;
+
+    h1 {
+      font-size: $large;
+      font-weight: $regular;
+      line-height: normal;
+      letter-spacing: normal;
+      color: $core-fleet-black;
+    }
+
+    h2 {
+      font-size: $small;
+      font-weight: $bold;
+      margin: 0 0 $pad-large;
+      line-height: 20px;
+      color: $core-fleet-black;
+    }
+
+    ul {
+      margin: 0;
+      padding: 0;
+      color: $core-fleet-black;
+      list-style: none;
+
+      li {
+        &::before {
+          content: "•";
+          color: $core-vibrant-blue;
+          margin-right: $pad-medium;
+        }
+      }
+    }
+
+    &__inner {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+
+      h1 {
+        font-size: $small;
+        font-weight: $bold;
+        margin-bottom: $pad-medium;
+      }
+
+      img {
+        width: 322px;
+      }
+
+      p {
+        color: $core-fleet-black;
+        font-weight: $regular;
+        font-size: $x-small;
+        margin: 0;
+        margin-bottom: $pad-large;
+      }
+
+      .no-filter-results {
+        display: flex;
+        flex-direction: column;
+        width: 350px;
+      }
+    }
+
+    &__inner-text {
+      width: 400px;
+      padding: $pad-xxlarge 0;
+    }
+
+    &__schedule-button {
+      margin-right: $pad-medium;
+    }
+
+    .query-pagination__pager-wrap {
+      margin-top: $pad-medium;
+    }
+
+    &__no-hosts-contact {
+      text-align: left;
+      margin-top: $pad-large;
+
+      p {
+        color: $core-fleet-black;
+        font-weight: $bold;
+        font-size: $x-small;
+        margin: 0;
       }
     }
   }
 
-  &__all-teams-table {
-    .table-container__header {
-      height: 0;
-    }
-
-    th {
-      border-right: 1px solid #e2e4ea !important;
-    }
-
-    .query_name__header {
-      width: calc(50%);
-    }
-
-    .interval__header {
-      width: calc(20%);
-    }
-
-    .performance_header {
-      width: calc(30%);
-      max-width: none;
-    }
+  .no-team-schedule {
+    border: 1px solid #e2e4ea;
+    box-sizing: border-box;
+    border-radius: 8px;
   }
 }

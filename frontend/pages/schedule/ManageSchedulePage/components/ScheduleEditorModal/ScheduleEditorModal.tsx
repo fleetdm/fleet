@@ -1,6 +1,6 @@
 /* This component is used for creating and editing both global and team scheduled queries */
 
-import React, { useState, useCallback, useContext } from "react";
+import React, { useState, useCallback, useContext, useEffect } from "react";
 import { pull } from "lodash";
 import { AppContext } from "context/app";
 
@@ -10,10 +10,8 @@ import { IEditScheduledQuery } from "interfaces/scheduled_query";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import RevealButton from "components/buttons/RevealButton";
-import InfoBanner from "components/InfoBanner/InfoBanner";
-// @ts-ignore
-import Dropdown from "components/forms/fields/Dropdown";
-// @ts-ignore
+import InfoBanner from "components/InfoBanner/InfoBanner"; // @ts-ignore
+import Dropdown from "components/forms/fields/Dropdown"; // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import {
   FREQUENCY_DROPDOWN_OPTIONS,
@@ -95,7 +93,7 @@ const ScheduleEditorModal = ({
 }: IScheduleEditorModalProps): JSX.Element => {
   const { config } = useContext(AppContext);
 
-  const loggingConfig = config?.result.plugin || "unknown";
+  const loggingConfig = config?.logging.result.plugin || "unknown";
 
   const [showAdvancedOptions, setShowAdvancedOptions] = useState<boolean>(
     false
@@ -219,6 +217,19 @@ const ScheduleEditorModal = ({
       editQuery
     );
   };
+
+  useEffect(() => {
+    const listener = (event: KeyboardEvent) => {
+      if (event.code === "Enter" || event.code === "NumpadEnter") {
+        event.preventDefault();
+        onFormSubmit();
+      }
+    };
+    document.addEventListener("keydown", listener);
+    return () => {
+      document.removeEventListener("keydown", listener);
+    };
+  }, [onFormSubmit]);
 
   if (showPreviewDataModal) {
     return <PreviewDataModal onCancel={togglePreviewDataModal} />;

@@ -50,7 +50,7 @@ export interface IUserTableData {
   status: string;
   email: string;
   teams: string;
-  roles: string;
+  role: string;
   actions: IDropdownOption[];
   id: number;
   type: string;
@@ -65,22 +65,33 @@ const generateTableHeaders = (
   const tableHeaders: IDataColumn[] = [
     {
       title: "Name",
+      Header: "Name",
+      disableSortBy: true,
+      accessor: "name",
+      Cell: (cellProps: ICellProps) => (
+        <TextCell value={cellProps.cell.value} />
+      ),
+    },
+    {
+      title: "Role",
+      Header: "Role",
+      accessor: "role",
+      disableSortBy: true,
+      Cell: (cellProps: ICellProps) => (
+        <TextCell
+          value={cellProps.cell.value}
+          greyed={greyCell(cellProps.cell.value)}
+        />
+      ),
+    },
+    {
+      title: "Status",
       Header: (cellProps) => (
         <HeaderCell
           value={cellProps.column.title}
           isSortedDesc={cellProps.column.isSortedDesc}
         />
       ),
-      accessor: "name",
-      Cell: (cellProps: ICellProps) => (
-        <TextCell value={cellProps.cell.value} />
-      ),
-    },
-    // TODO: need to add this info to API
-    {
-      title: "Status",
-      Header: "Status",
-      disableSortBy: true,
       accessor: "status",
       Cell: (cellProps: ICellProps) => (
         <StatusCell value={cellProps.cell.value} />
@@ -88,27 +99,11 @@ const generateTableHeaders = (
     },
     {
       title: "Email",
-      Header: (cellProps: IHeaderProps) => (
-        <HeaderCell
-          value={cellProps.column.title}
-          isSortedDesc={cellProps.column.isSortedDesc}
-        />
-      ),
+      Header: "Email",
+      disableSortBy: true,
       accessor: "email",
       Cell: (cellProps: ICellProps) => (
         <TextCell value={cellProps.cell.value} />
-      ),
-    },
-    {
-      title: "Roles",
-      Header: "Roles",
-      accessor: "roles",
-      disableSortBy: true,
-      Cell: (cellProps: ICellProps) => (
-        <TextCell
-          value={cellProps.cell.value}
-          greyed={greyCell(cellProps.cell.value)}
-        />
       ),
     },
     {
@@ -130,7 +125,7 @@ const generateTableHeaders = (
 
   // Add Teams tab for premium tier only
   if (isPremiumTier) {
-    tableHeaders.splice(3, 0, {
+    tableHeaders.splice(2, 0, {
       title: "Teams",
       Header: "Teams",
       accessor: "teams",
@@ -147,7 +142,6 @@ const generateTableHeaders = (
   return tableHeaders;
 };
 
-// TODO: need to rethink status data.
 const generateStatus = (type: string, data: IUser | IInvite): string => {
   const { teams, global_role } = data;
   if (global_role === null && teams.length === 0) {
@@ -203,7 +197,7 @@ const enhanceUserData = (
       status: generateStatus("user", user),
       email: user.email,
       teams: generateTeam(user.teams, user.global_role),
-      roles: generateRole(user.teams, user.global_role),
+      role: generateRole(user.teams, user.global_role),
       actions: generateActionDropdownOptions(
         user.id === currentUserId,
         false,
@@ -222,7 +216,7 @@ const enhanceInviteData = (invites: IInvite[]): IUserTableData[] => {
       status: generateStatus("invite", invite),
       email: invite.email,
       teams: generateTeam(invite.teams, invite.global_role),
-      roles: generateRole(invite.teams, invite.global_role),
+      role: generateRole(invite.teams, invite.global_role),
       actions: generateActionDropdownOptions(false, true, invite.sso_enabled),
       id: invite.id,
       type: "invite",

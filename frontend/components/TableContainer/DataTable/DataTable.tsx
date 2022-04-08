@@ -16,7 +16,7 @@ import {
   useTable,
 } from "react-table";
 import { isString, kebabCase, noop } from "lodash";
-import { useDebouncedCallback } from "use-debounce/lib";
+import { useDebouncedCallback } from "use-debounce";
 
 import { useDeepEffect } from "utilities/hooks";
 import sort from "utilities/sort";
@@ -30,7 +30,7 @@ import { ButtonVariant } from "components/buttons/Button/Button";
 // @ts-ignore
 import ActionButton, { IActionButtonProps } from "./ActionButton";
 
-const baseClass = "data-table-container";
+const baseClass = "data-table-block";
 
 interface IDataTableProps {
   columns: Column[];
@@ -431,6 +431,7 @@ const DataTable = ({
             <thead className={"active-selection"}>
               <tr {...headerGroups[0].getHeaderGroupProps()}>
                 <th
+                  className={"active-selection__checkbox"}
                   {...headerGroups[0].headers[0].getHeaderProps(
                     headerGroups[0].headers[0].getSortByToggleProps()
                   )}

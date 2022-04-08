@@ -1,15 +1,12 @@
 import React, { useCallback, useContext, useEffect, useState } from "react";
 import { useQuery } from "react-query";
-import { useDispatch } from "react-redux";
 import { InjectedRouter } from "react-router/lib/Router";
-import { useDebouncedCallback } from "use-debounce/lib";
+import { useDebouncedCallback } from "use-debounce";
 
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
-import { IConfig, IConfigNested } from "interfaces/config";
-import { IWebhookSoftwareVulnerabilities } from "interfaces/webhook";
-// @ts-ignore
-import { getConfig } from "redux/nodes/app/actions";
+import { IConfig } from "interfaces/config";
+import { IWebhookSoftwareVulnerabilities } from "interfaces/webhook"; // @ts-ignore
 import configAPI from "services/entities/config";
 import softwareAPI, {
   ISoftwareResponse,
@@ -58,7 +55,6 @@ const ManageSoftwarePage = ({
   router,
   location,
 }: IManageSoftwarePageProps): JSX.Element => {
-  const dispatch = useDispatch();
   const {
     availableTeams,
     currentTeam,
@@ -69,6 +65,10 @@ const ManageSoftwarePage = ({
   const { renderFlash } = useContext(NotificationContext);
 
   const [isSoftwareEnabled, setIsSoftwareEnabled] = useState<boolean>();
+  const [
+    softwareVulnerabilitiesWebhook,
+    setSoftwareVulnerabilitiesWebhook,
+  ] = useState<IWebhookSoftwareVulnerabilities>();
   const [filterVuln, setFilterVuln] = useState(
     location?.query?.vulnerable || false
   );
@@ -168,19 +168,18 @@ const ManageSoftwarePage = ({
 
   const canAddOrRemoveSoftwareWebhook = isGlobalAdmin || isGlobalMaintainer;
 
-  const {
-    data: softwareVulnerabilitiesWebhook,
-    isLoading: isLoadingSoftwareVulnerabilitiesWebhook,
-    refetch: refetchSoftwareVulnerabilitiesWebhook,
-  } = useQuery<IConfigNested, Error, IWebhookSoftwareVulnerabilities>(
-    ["config"],
-    () => configAPI.loadAll(),
-    {
-      enabled: canAddOrRemoveSoftwareWebhook,
-      select: (data: IConfigNested) =>
-        data.webhook_settings.vulnerabilities_webhook,
-    }
-  );
+  const { isLoading: isLoadingConfig, refetch: refetchConfig } = useQuery<
+    IConfig,
+    Error
+  >(["config"], () => configAPI.loadAll(), {
+    enabled: canAddOrRemoveSoftwareWebhook,
+    onSuccess: (data) => {
+      setSoftwareVulnerabilitiesWebhook(
+        data.webhook_settings.vulnerabilities_webhook
+      );
+      setConfig(data);
+    },
+  });
 
   const onQueryChange = useDebouncedCallback(
     async ({
@@ -239,13 +238,7 @@ const ManageSoftwarePage = ({
       );
     } finally {
       toggleManageAutomationsModal();
-      refetchSoftwareVulnerabilitiesWebhook();
-      // Config must be updated in both Redux and AppContext
-      dispatch(getConfig())
-        .then((configState: IConfig) => {
-          setConfig(configState);
-        })
-        .catch(() => false);
+      refetchConfig();
     }
   };
 
@@ -304,12 +297,12 @@ const ManageSoftwarePage = ({
         buttons={(state) =>
           renderHeaderButtons({
             ...state,
-            isLoading: isLoadingSoftwareVulnerabilitiesWebhook,
+            isLoading: isLoadingConfig,
           })
         }
       />
     );
-  }, [router, location, isLoadingSoftwareVulnerabilitiesWebhook]);
+  }, [router, location, isLoadingConfig]);
 
   const renderSoftwareCount = useCallback(() => {
     const count = softwareCount;
@@ -387,7 +380,7 @@ const ManageSoftwarePage = ({
     return (
       <Dropdown
         value={filterVuln}
-        className={`${baseClass}__status_dropdown`}
+        className={`${baseClass}__vuln_dropdown`}
         options={VULNERABLE_DROPDOWN_OPTIONS}
         searchable={false}
         onChange={onVulnFilterChange}
@@ -431,43 +424,45 @@ const ManageSoftwarePage = ({
     <div className={baseClass}>
       <div className={`${baseClass}__wrapper body-wrap`}>
         {renderHeader()}
-        {softwareError && !isFetchingSoftware ? (
-          <TableDataError />
-        ) : (
-          <TableContainer
-            columns={softwareTableHeaders}
-            data={(isSoftwareEnabled && software?.software) || []}
-            isLoading={isFetchingSoftware || isFetchingCount}
-            resultsTitle={"software items"}
-            emptyComponent={() =>
-              EmptySoftware(
-                (!isSoftwareEnabled && "disabled") ||
-                  (isCollectingInventory && "collecting") ||
-                  "default"
-              )
-            }
-            defaultSortHeader={"hosts_count"}
-            defaultSortDirection={"desc"}
-            manualSortBy
-            pageSize={PAGE_SIZE}
-            showMarkAllPages={false}
-            isAllPagesSelected={false}
-            disableNextPage={isLastPage}
-            searchable
-            inputPlaceHolder="Search software by name or vulnerabilities (CVEs)"
-            onQueryChange={onQueryChange}
-            additionalQueries={filterVuln ? "vulnerable" : ""} // additionalQueries serves as a trigger
-            // for the useDeepEffect hook to fire onQueryChange for events happeing outside of
-            // the TableContainer
-            customControl={renderVulnFilterDropdown}
-            renderCount={renderSoftwareCount}
-            renderFooter={renderTableFooter}
-            disableActionButton
-            hideActionButton
-            highlightOnHover
-          />
-        )}
-
+        <div className={`${baseClass}__table`}>
+          {softwareError && !isFetchingSoftware ? (
+            <TableDataError />
+          ) : (
+            <TableContainer
+              columns={softwareTableHeaders}
+              data={(isSoftwareEnabled && software?.software) || []}
+              isLoading={isFetchingSoftware || isFetchingCount}
+              resultsTitle={"software items"}
+              emptyComponent={() =>
+                EmptySoftware(
+                  (!isSoftwareEnabled && "disabled") ||
+                    (isCollectingInventory && "collecting") ||
+                    "default"
+                )
+              }
+              defaultSortHeader={"hosts_count"}
+              defaultSortDirection={"desc"}
+              manualSortBy
+              pageSize={PAGE_SIZE}
+              showMarkAllPages={false}
+              isAllPagesSelected={false}
+              disableNextPage={isLastPage}
+              searchable
+              inputPlaceHolder="Search software by name or vulnerabilities (CVEs)"
+              onQueryChange={onQueryChange}
+              additionalQueries={filterVuln ? "vulnerable" : ""} // additionalQueries serves as a trigger
+              // for the useDeepEffect hook to fire onQueryChange for events happeing outside of
+              // the TableContainer
+              customControl={renderVulnFilterDropdown}
+              stackControls
+              renderCount={renderSoftwareCount}
+              renderFooter={renderTableFooter}
+              disableActionButton
+              hideActionButton
+              highlightOnHover
+            />
+          )}
+        </div>
         {showManageAutomationsModal && (
           <ManageAutomationsModal
             onCancel={toggleManageAutomationsModal}
