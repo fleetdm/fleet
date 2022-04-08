@@ -2684,7 +2684,7 @@ For those familiar with osquery query packs, Fleet's query schedule can be thoug
 
 ### Get schedule
 
-`GET /api/latest/fleet/global/schedule`
+`GET /api/latest/fleet/schedule`
 
 #### Parameters
 
@@ -2692,7 +2692,7 @@ None.
 
 #### Example
 
-`GET /api/latest/fleet/global/schedule`
+`GET /api/latest/fleet/schedule`
 
 ##### Default response
 
@@ -2755,7 +2755,7 @@ None.
 
 ### Add query to schedule
 
-`POST /api/latest/fleet/global/schedule`
+`POST /api/latest/fleet/schedule`
 
 #### Parameters
 
@@ -2771,7 +2771,7 @@ None.
 
 #### Example
 
-`POST /api/latest/fleet/global/schedule`
+`POST /api/latest/fleet/schedule`
 
 ##### Request body
 
@@ -2813,7 +2813,7 @@ None.
 
 ### Edit query in schedule
 
-`PATCH /api/latest/fleet/global/schedule/{id}`
+`PATCH /api/latest/fleet/schedule/{id}`
 
 #### Parameters
 
@@ -2829,7 +2829,7 @@ None.
 
 #### Example
 
-`PATCH /api/latest/fleet/global/schedule/5`
+`PATCH /api/latest/fleet/schedule/5`
 
 ##### Request body
 
@@ -2866,7 +2866,7 @@ None.
 
 ### Remove query from schedule
 
-`DELETE /api/latest/fleet/global/schedule/{id}`
+`DELETE /api/latest/fleet/schedule/{id}`
 
 #### Parameters
 
@@ -2874,7 +2874,7 @@ None.
 
 #### Example
 
-`DELETE /api/latest/fleet/global/schedule/5`
+`DELETE /api/latest/fleet/schedule/5`
 
 ##### Default response
 
@@ -3625,11 +3625,11 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
 
 ### List policies
 
-`GET /api/latest/fleet/global/policies`
+`GET /api/latest/fleet/policies`
 
 #### Example
 
-`GET /api/latest/fleet/global/policies`
+`GET /api/latest/fleet/policies`
 
 ##### Default response
 
@@ -3670,7 +3670,7 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
 
 ### Get policy by ID
 
-`GET /api/latest/fleet/global/policies/{id}`
+`GET /api/latest/fleet/policies/{id}`
 
 #### Parameters
 
@@ -3680,7 +3680,7 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
 
 #### Example
 
-`GET /api/latest/fleet/global/policies/1`
+`GET /api/latest/fleet/policies/1`
 
 ##### Default response
 
@@ -3713,7 +3713,7 @@ then "query" must not be set, and "name" and "description" are ignored.
 
 An error is returned if both "query" and "query_id" are set on the request.
 
-`POST /api/latest/fleet/global/policies`
+`POST /api/latest/fleet/policies`
 
 #### Parameters
 
@@ -3730,7 +3730,7 @@ Either `query` or `query_id` must be provided.
 
 #### Example Add Policy
 
-`POST /api/latest/fleet/global/policies`
+`POST /api/latest/fleet/policies`
 
 #### Request body
 
@@ -3768,7 +3768,7 @@ Either `query` or `query_id` must be provided.
 
 #### Example Legacy Add Policy
 
-`POST /api/latest/fleet/global/policies`
+`POST /api/latest/fleet/policies`
 
 #### Request body
 
@@ -3804,7 +3804,7 @@ Where `query_id` references an existing `query`.
 
 ### Remove policies
 
-`POST /api/latest/fleet/global/policies/delete`
+`POST /api/latest/fleet/policies/delete`
 
 #### Parameters
 
@@ -3814,7 +3814,7 @@ Where `query_id` references an existing `query`.
 
 #### Example
 
-`POST /api/latest/fleet/global/policies/delete`
+`POST /api/latest/fleet/policies/delete`
 
 #### Request body
 
@@ -3836,7 +3836,7 @@ Where `query_id` references an existing `query`.
 
 ### Edit policy
 
-`PATCH /api/latest/fleet/global/policies/{policy_id}`
+`PATCH /api/latest/fleet/policies/{policy_id}`
 
 #### Parameters
 
@@ -3851,7 +3851,7 @@ Where `query_id` references an existing `query`.
 
 #### Example Edit Policy
 
-`PATCH /api/latest/fleet/global/policies/42`
+`PATCH /api/latest/fleet/policies/42`
 
 ##### Request body
 

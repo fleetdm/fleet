@@ -144,7 +144,7 @@ Cypress.Commands.add("seedSchedule", () => {
       version,
     } = scheduleForm;
     cy.request({
-      url: "/api/latest/fleet/global/schedule",
+      url: "/api/latest/fleet/schedule",
       method: "POST",
       body: { interval, platform, query_id, removed, shard, snapshot, version },
       auth: {
@@ -225,7 +225,7 @@ Cypress.Commands.add("seedPolicies", (team = "") => {
   } else {
     policies.forEach((policyForm) => {
       cy.request({
-        url: "/api/latest/fleet/global/policies",
+        url: "/api/latest/fleet/policies",
         method: "POST",
         body: { ...policyForm },
         auth: {
