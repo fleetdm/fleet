@@ -7,7 +7,7 @@ export default {
       const params = helpers.setupData(unformattedParams);
 
       return createRequestMock({
-        endpoint: "/api/latest/setup",
+        endpoint: "/api/v1/setup",
         method: "post",
         params,
         response: {},

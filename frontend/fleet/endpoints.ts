@@ -38,11 +38,11 @@ export default {
   QUERIES: `/${API_VERSION}/fleet/queries`,
   RESET_PASSWORD: `/${API_VERSION}/fleet/reset_password`,
   RUN_QUERY: `/${API_VERSION}/fleet/queries/run`,
-  SCHEDULED_QUERIES: `/${API_VERSION}/fleet/schedule`,
-  SCHEDULED_QUERY: (id: number): string => {
-    return `/${API_VERSION}/fleet/packs/${id}/scheduled`;
+  SCHEDULE_QUERY: `/${API_VERSION}/fleet/packs/schedule`,
+  SCHEDULED_QUERIES: (packId: number): string => {
+    return `/${API_VERSION}/fleet/packs/${packId}/scheduled`;
   },
-  SETUP: `/${API_VERSION}/setup`,
+  SETUP: `/v1/setup`, // not a typo - hasn't been updated yet
   SOFTWARE: `/${API_VERSION}/fleet/software`,
   SSO: `/${API_VERSION}/fleet/sso`,
   STATUS_LABEL_COUNTS: `/${API_VERSION}/fleet/host_summary`,

@@ -961,7 +961,7 @@ Before you retrieve the live query results, you must create a live query campaig
 
 Note that live queries are automatically cancelled if this method is not called to start retrieving the results within 60 seconds of initiating the query.
 
-`/api/latest/fleet/results/websockets`
+`/api/v1/fleet/results/websockets`
 
 ### Parameters
 
@@ -975,7 +975,7 @@ Note that live queries are automatically cancelled if this method is not called 
 #### Example script to handle request and response
 
 ```
-const socket = new WebSocket('wss://<your-base-url>/api/latest/fleet/results/websocket');
+const socket = new WebSocket('wss://<your-base-url>/api/v1/fleet/results/websocket');
 
 socket.onopen = () => {
   socket.send(JSON.stringify({ type: 'auth', data: { token: <auth-token> } }));
@@ -1099,7 +1099,7 @@ You can also retrieve live query results with a [SockJS client](https://github.c
 
 Note that SockJS has been found to be substantially less reliable than the [standard WebSockets approach](#retrieve-live-query-results-standard-websocket-api).
 
-`/api/latest/fleet/results/`
+`/api/v1/fleet/results/`
 
 ### Parameters
 
@@ -1113,7 +1113,7 @@ Note that SockJS has been found to be substantially less reliable than the [stan
 #### Example script to handle request and response
 
 ```
-const socket = new SockJS(`<your-base-url>/api/latest/fleet/results`, undefined, {});
+const socket = new SockJS(`<your-base-url>/api/v1/fleet/results`, undefined, {});
 
 socket.onopen = () => {
   socket.send(JSON.stringify({ type: 'auth', data: { token: <token> } }));

@@ -67,10 +67,14 @@ describe("Pack flow (seeded)", () => {
       cy.findByText(/get authorized/i).should("exist");
     });
     it("removes a query from an existing pack", () => {
-      cy.getAttached(".fleet-checkbox__input").check({ force: true });
-      cy.findByRole("button", { name: /remove/i }).click();
+      cy.getAttached("tbody tr")
+        .first()
+        .within(() => {
+          cy.getAttached(".fleet-checkbox__input").check({ force: true });
+        });
+      cy.findByRole("button", { name: /delete/i }).click();
       cy.getAttached(".remove-pack-query-modal__btn-wrap")
-        .contains("button", /remove/i)
+        .contains("button", /delete/i)
         .click();
     });
     it("edits an existing pack", () => {
