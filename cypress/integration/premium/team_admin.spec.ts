@@ -319,6 +319,20 @@ describe("Premium tier - Team Admin user", () => {
         cy.findByRole("button", { name: /save/i }).should("exist");
       });
     });
+    it("allows team admin to automate a team policy", () => {
+      cy.getAttached(".button-wrap")
+        .findByRole("button", { name: /manage automations/i })
+        .click();
+      cy.getAttached(".manage-automations-modal").within(() => {
+        cy.getAttached(".fleet-slider").click();
+        cy.getAttached(".fleet-checkbox__input").check({ force: true });
+        cy.getAttached("#webhook-url")
+          .clear()
+          .type("https://example.com/team_admin");
+        cy.findByText(/save/i).click();
+      });
+      cy.findByText(/successfully updated policy automations/i).should("exist");
+    });
     it("allows team admin to delete a team policy", () => {
       cy.visit("/policies/manage");
       cy.getAttached("tbody").within(() => {
@@ -335,20 +349,6 @@ describe("Premium tier - Team Admin user", () => {
         cy.findByRole("button", { name: /delete/i }).should("exist");
         cy.findByRole("button", { name: /cancel/i }).click();
       });
-    });
-    it("allows team admin to automate a team policy", () => {
-      cy.getAttached(".button-wrap")
-        .findByRole("button", { name: /manage automations/i })
-        .click();
-      cy.getAttached(".manage-automations-modal").within(() => {
-        cy.getAttached(".fleet-slider").click();
-        cy.getAttached(".fleet-checkbox__input").check({ force: true });
-        cy.getAttached("#webhook-url")
-          .clear()
-          .type("https://example.com/team_admin");
-        cy.findByText(/save/i).click();
-      });
-      cy.findByText(/successfully updated policy automations/i).should("exist");
     });
   });
   describe("Team admin settings page", () => {
