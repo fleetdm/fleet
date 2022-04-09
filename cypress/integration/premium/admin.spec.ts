@@ -96,7 +96,7 @@ describe("Premium tier - Global Admin user", () => {
       cy.getAttached(".modal__content")
         .findByRole("button", { name: /create new policy/i })
         .should("exist");
-      });
+    });
     it("allows global admin to create a custom query", () => {
       cy.getAttached(".host-details__query-button").click();
       cy.contains("button", /create custom query/i).should("exist");
