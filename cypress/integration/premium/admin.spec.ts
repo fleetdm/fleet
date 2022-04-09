@@ -265,8 +265,10 @@ describe("Premium tier - Global Admin user", () => {
     it("allows global admin to edit existing user password", () => {
       cy.visit("/settings/users");
       cy.getAttached("tbody").within(() => {
-        cy.findByText(/oliver@organization.com/i)
+        cy.findByText("Oliver") // case-sensitive
           .parent()
+          .next()
+          .next()
           .next()
           .next()
           .next()
