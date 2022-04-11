@@ -301,9 +301,8 @@ type AggregatedMacadminsData struct {
 	MDMStatus       AggregatedMDMStatus      `json:"mobile_device_management_enrollment_status"`
 }
 
-// CPEHost is a minimal host representation returned when querying hosts by
-// CPE.
-type CPEHost struct {
+// HostShort is a minimal host representation returned when querying hosts.
+type HostShort struct {
 	ID       uint   `json:"id" db:"id"`
 	Hostname string `json:"hostname" db:"hostname"`
 }

@@ -38,7 +38,7 @@ FROM
 WHERE
     state = ?
 ORDER BY
-    created_at asc
+    updated_at ASC
 LIMIT ?
 `
 
