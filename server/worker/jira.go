@@ -40,7 +40,7 @@ Affected hosts:
 
 View the affected software and more affected hosts:
 
-# Go to the [Manage Softare|{{ .FleetURL }}/manage/software] page in Fleet.
+# Go to the [Software|{{ .FleetURL }}/software/manage] page in Fleet.
 # Above the list of software, in the *Search software by ...* box, enter "{{ .CVE }}".
 # Hover over the affected software and click on *View all hosts*.
 
