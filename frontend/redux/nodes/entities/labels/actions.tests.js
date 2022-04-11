@@ -18,7 +18,7 @@ describe("Labels - actions", () => {
     describe("successful request", () => {
       it("does not call the LOAD_REQUEST action", (done) => {
         nock("http://localhost:8080")
-          .get("/api/v1/fleet/labels")
+          .get("/api/latest/fleet/labels")
           .reply(200, { labels: [labelStub] });
 
         const mockStore = reduxMockStore(store);
@@ -53,7 +53,7 @@ describe("Labels - actions", () => {
         };
 
         nock("http://localhost:8080")
-          .get("/api/v1/fleet/labels")
+          .get("/api/latest/fleet/labels")
           .reply(422, { errors });
 
         mockStore
