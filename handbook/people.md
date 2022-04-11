@@ -263,9 +263,9 @@ During their first week at Fleet, new team members are asked to schedule a contr
 
 #### Sightseeing Tour
 
-During their onboarding at Fleet, new team members are asked to schedule a sightseeing tour call with People operations. During this call the new team member will participate in an interactive tour which includes:
+During their onboarding at Fleet, new team members are asked to schedule a sightseeing tour call with People operations. During this call, the new team member will participate in an interactive tour that includes:
 
-- Github issues: the living bloodstream of the company.
+- GitHub issues: the living bloodstream of the company.
 - Kanban boards: the bulletin board of quests you can get, and how you update status and let folks know things are done.
 - Google Calendar: the future.
 - Gmail: like any mailbox; full of junk mail, plus some important things, so it is important to check carefully.
