@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"path/filepath"
 	"runtime"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/packaging"
 	"github.com/rs/zerolog"
@@ -128,6 +129,12 @@ func packageCommand() *cli.Command {
 				Name:        "fleet-desktop",
 				Usage:       "Include the Fleet Desktop Application in the package",
 				Destination: &opt.Desktop,
+			},
+			&cli.DurationFlag{
+				Name:        "update-interval",
+				Usage:       "Interval that Orbit will use to check for new updates (10s, 1h, etc.)",
+				Value:       15 * time.Minute,
+				Destination: &opt.OrbitUpdateInterval,
 			},
 		},
 		Action: func(c *cli.Context) error {
