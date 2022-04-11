@@ -1,7 +1,7 @@
 export interface IJiraIntegration {
   url: string;
   username: string;
-  password: string;
+  api_token: string;
   project_key: string;
   enable_software_vulnerabilities?: boolean;
   index?: number;
@@ -14,7 +14,7 @@ export interface IJiraIntegrationIndexed extends IJiraIntegration {
 export interface IJiraIntegrationFormData {
   url: string;
   username: string;
-  password: string;
+  apiToken: string;
   projectKey: string;
   enableSoftwareVulnerabilities?: boolean;
 }
@@ -22,7 +22,7 @@ export interface IJiraIntegrationFormData {
 export interface IJiraIntegrationFormErrors {
   url?: string | null;
   username?: string | null;
-  password?: string | null;
+  apiToken?: string | null;
   projectKey?: string | null;
 }
 
