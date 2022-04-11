@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"html/template"
+	"sort"
 
 	jira "github.com/andygrunwald/go-jira"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -14,9 +16,10 @@ import (
 )
 
 const (
-	// JiraName is the name of the job as registered in the worker.
-	JiraName = "jira"
-
+	// jiraName is the name of the job as registered in the worker.
+	jiraName = "jira"
+	// nvdCVEURL is the base link to a CVE on the NVD website, only the CVE code
+	// needs to be appended to make it a valid link.
 	nvdCVEURL = "https://nvd.nist.gov/vuln/detail/"
 )
 
@@ -24,7 +27,7 @@ var jiraSummaryTmpl = template.Must(template.New("").Parse(
 	`Vulnerability {{ .CVE }} detected on {{ len .Hosts }} host(s)`,
 ))
 
-// jira uses wiki markup in the v2 api?
+// Jira uses wiki markup in the v2 api.
 var jiraDescriptionTmpl = template.Must(template.New("").Parse(
 	`See vulnerability (CVE) details in National Vulnerability Database (NVD) here: [{{ .CVE }}|{{ .NVDURL }}{{ .CVE }}].
 
@@ -70,7 +73,7 @@ type Jira struct {
 
 // Name returns the name of the job.
 func (j *Jira) Name() string {
-	return JiraName
+	return jiraName
 }
 
 // JiraArgs are the arguments for the Jira integration job.
@@ -139,10 +142,20 @@ func (j *Jira) Run(ctx context.Context, argsJSON json.RawMessage) error {
 // QueueJiraJobs queues the Jira vulnerability jobs to process asynchronously
 // via the worker.
 func QueueJiraJobs(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, recentVulns map[string][]string) error {
-	level.Debug(logger).Log("enabled", "true", "recentVulns", len(recentVulns))
+	level.Info(logger).Log("enabled", "true", "recentVulns", len(recentVulns))
+
+	// for troubleshooting, log in debug level the CVEs that we will process
+	// (cannot be done in the loop below as we want to add the debug log
+	// _before_ we start processing them).
+	cves := make([]string, 0, len(recentVulns))
+	for cve := range recentVulns {
+		cves = append(cves, cve)
+	}
+	sort.Strings(cves)
+	level.Debug(logger).Log("recent_cves", fmt.Sprintf("%v", cves))
 
 	for cve := range recentVulns {
-		job, err := QueueJob(ctx, ds, JiraName, JiraArgs{CVE: cve})
+		job, err := QueueJob(ctx, ds, jiraName, JiraArgs{CVE: cve})
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "queueing job")
 		}
