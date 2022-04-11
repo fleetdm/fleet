@@ -248,28 +248,28 @@ const TeamManagementPage = (): JSX.Element => {
           disablePagination
         />
       )}
-      {showCreateTeamModal ? (
+      {showCreateTeamModal && (
         <CreateTeamModal
           onCancel={toggleCreateTeamModal}
           onSubmit={onCreateSubmit}
           backendValidators={backendValidators}
         />
-      ) : null}
-      {showDeleteTeamModal ? (
+      )}
+      {showDeleteTeamModal && (
         <DeleteTeamModal
           onCancel={toggleDeleteTeamModal}
           onSubmit={onDeleteSubmit}
           name={teamEditing?.name || ""}
         />
-      ) : null}
-      {showEditTeamModal ? (
+      )}
+      {showEditTeamModal && (
         <EditTeamModal
           onCancel={toggleEditTeamModal}
           onSubmit={onEditSubmit}
           defaultName={teamEditing?.name || ""}
           backendValidators={backendValidators}
         />
-      ) : null}
+      )}
     </div>
   );
 };
