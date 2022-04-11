@@ -9,7 +9,7 @@ describe("App settings flow", () => {
     cy.logout();
   });
 
-  describe("Organization settings page", () => {
+  describe("Teams settings page", () => {
     beforeEach(() => {
       cy.loginWithCySession();
       cy.visit("/settings/organization");
@@ -198,82 +198,6 @@ describe("App settings flow", () => {
           "Hello from Fleet"
         );
       });
-    });
-  });
-
-  describe("Integrations settings page (empty)", () => {
-    beforeEach(() => {
-      cy.loginWithCySession();
-      cy.visit("/settings/integrations");
-    });
-    it("creates a new jira integration", () => {
-      cy.getAttached(".no-integrations__create-button").click();
-      cy.getAttached("#url").click().type("https://fleetdm.atlassian.com");
-      cy.getAttached("#username").click().type("jira@example.com");
-      cy.getAttached("#password").click().type("jira123");
-      cy.getAttached("#projectKey").click().type("PROJECT");
-      cy.findByRole("button", { name: /save/i }).click();
-      cy.findByText(/successfully added/i).should("exist");
-      cy.getAttached(".table-container").within(() => {
-        cy.findByText(/fleetdm.atlassian.com - PROJECT/i).should("exist");
-      });
-    });
-  });
-
-  describe("Integrations settings page (seeded)", () => {
-    beforeEach(() => {
-      Cypress.session.clearAllSavedSessions();
-      cy.setup();
-      cy.loginWithCySession();
-      cy.seedIntegrations();
-      cy.viewport(1200, 660);
-      cy.visit("/settings/integrations");
-    });
-    it("edits jira integration", () => {
-      cy.getAttached("tbody>tr")
-        .should("have.length", 3)
-        .eq(1)
-        .within(() => {
-          cy.findByText(/action/i).click();
-          cy.findByText(/edit/i).click();
-        });
-      cy.findByLabelText(/jira site url/i)
-        .clear()
-        .type("https://fleetdm.atlassian.com");
-      cy.findByLabelText(/jira username/i)
-        .clear()
-        .type("jira0@example.com");
-      cy.findByLabelText(/jira password/i)
-        .clear()
-        .type("jira0123");
-      cy.findByLabelText(/jira project key/i)
-        .clear()
-        .type("PROJECT 0");
-      cy.getAttached(".integration-form__btn-wrap")
-        .contains("button", /save/i)
-        .click();
-      cy.findByText(/successfully edited/i).should("exist");
-      cy.getAttached("tbody>tr")
-        .should("have.length", 3)
-        .eq(1)
-        .within(() => {
-          cy.findByText(/fleetdm.atlassian.com - project 0/i).should("exist");
-        });
-    });
-    it("deletes jira integration", () => {
-      cy.getAttached("tbody>tr")
-        .eq(1)
-        .within(() => {
-          cy.findByText(/project 2/i).should("exist");
-          cy.findByText(/action/i).click();
-          cy.findByText(/delete/i).click();
-        });
-      cy.getAttached(".delete-integration-modal__btn-wrap")
-        .contains("button", /delete/i)
-        .click();
-      cy.findByText(/successfully deleted/i).should("exist");
-      cy.getAttached("tbody>tr").should("have.length", 2);
-      cy.findByText(/project 2/i).should("not.exist");
     });
   });
 });

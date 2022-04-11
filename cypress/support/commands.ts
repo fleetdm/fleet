@@ -236,41 +236,6 @@ Cypress.Commands.add("seedPolicies", (team = "") => {
   }
 });
 
-Cypress.Commands.add("seedIntegrations", () => {
-  const integrations = [
-    {
-      url: "https://fleetdm.atlassian.com",
-      username: "jira1@example.com",
-      password: "jira123",
-      project_key: "PROJECT 1",
-      enable_software_vulnerabilities: false,
-    },
-    {
-      url: "https://fleetdm.atlassian.com",
-      username: "jira2@example.com",
-      password: "jira123",
-      project_key: "PROJECT 2",
-      enable_software_vulnerabilities: true,
-    },
-    {
-      url: "https://fleetdm.atlassian.com",
-      username: "jira3@example.com",
-      password: "jira123",
-      project_key: "PROJECT 3",
-      enable_software_vulnerabilities: false,
-    },
-  ];
-
-  cy.request({
-    url: "/api/v1/fleet/config",
-    method: "PATCH",
-    body: { integrations: { jira: integrations } },
-    auth: {
-      bearer: window.localStorage.getItem("FLEET::auth_token"),
-    },
-  });
-});
-
 Cypress.Commands.add("setupSMTP", () => {
   const body = {
     smtp_settings: {

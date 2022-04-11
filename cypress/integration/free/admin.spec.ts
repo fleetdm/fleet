@@ -12,7 +12,6 @@ describe(
       cy.seedFree();
       cy.seedQueries();
       cy.seedPolicies();
-      cy.seedIntegrations();
       cy.addDockerHost();
     });
     after(() => {
@@ -20,193 +19,190 @@ describe(
       cy.stopDockerHost();
     });
 
-    // describe("Navigation", () => {
-    //   beforeEach(() => {
-    //     cy.loginWithCySession("anna@organization.com", "user123#");
-    //     cy.visit("/dashboard");
-    //   });
-    //   it("displays intended admin top navigation", () => {
-    //     cy.getAttached(".site-nav-container").within(() => {
-    //       cy.findByText(/hosts/i).should("exist");
-    //       cy.findByText(/software/i).should("exist");
-    //       cy.findByText(/queries/i).should("exist");
-    //       cy.findByText(/schedule/i).should("exist");
-    //       cy.findByText(/policies/i).should("exist");
-    //       cy.getAttached(".user-menu").click();
-    //       cy.findByText(/settings/i).click();
-    //     });
-    //     cy.getAttached(".react-tabs__tab--selected").within(() => {
-    //       cy.findByText(/organization/i).should("exist");
-    //     });
-    //     cy.getAttached(".site-nav-container").within(() => {
-    //       cy.getAttached(".user-menu").click();
-    //       cy.findByText(/manage users/i).click();
-    //     });
-    //     cy.getAttached(".react-tabs__tab--selected").within(() => {
-    //       cy.findByText(/users/i).should("exist");
-    //     });
-    //   });
-    // });
-    // describe("Dashboard", () => {
-    //   beforeEach(() => {
-    //     cy.loginWithCySession("anna@organization.com", "user123#");
-    //     cy.visit("/dashboard");
-    //   });
-    //   it("displays cards for all platforms", () => {
-    //     cy.getAttached(".homepage__wrapper").within(() => {
-    //       cy.findByText(/fleet test/i).should("exist");
-    //       cy.getAttached(".hosts-summary").should("exist");
-    //       cy.getAttached(".hosts-status").should("exist");
-    //       cy.getAttached(".home-software").should("exist");
-    //       cy.getAttached(".activity-feed").should("exist");
-    //     });
-    //   });
-    //   it("displays cards for windows only", () => {
-    //     cy.getAttached(".homepage__platforms").within(() => {
-    //       cy.getAttached(".Select-control").click();
-    //       cy.findByText(/windows/i).click();
-    //     });
-    //     cy.getAttached(".homepage__wrapper").within(() => {
-    //       cy.findByText(/fleet test/i).should("exist");
-    //       cy.getAttached(".hosts-summary").should("exist");
-    //       cy.getAttached(".hosts-status").should("exist");
-    //       // "get" because we expect it not to exist
-    //       cy.get(".home-software").should("not.exist");
-    //       cy.get(".activity-feed").should("not.exist");
-    //     });
-    //   });
-    //   it("displays cards for linux only", () => {
-    //     cy.getAttached(".homepage__platforms").within(() => {
-    //       cy.getAttached(".Select-control").click();
-    //       cy.findByText(/linux/i).click();
-    //     });
-    //     cy.getAttached(".homepage__wrapper").within(() => {
-    //       cy.findByText(/fleet test/i).should("exist");
-    //       cy.getAttached(".hosts-summary").should("exist");
-    //       cy.getAttached(".hosts-status").should("exist");
-    //       // "get" because we expect it not to exist
-    //       cy.get(".home-software").should("not.exist");
-    //       cy.get(".activity-feed").should("not.exist");
-    //     });
-    //   });
-    //   it("displays cards for macOS only", () => {
-    //     cy.getAttached(".homepage__platforms").within(() => {
-    //       cy.getAttached(".Select-control").click();
-    //       cy.findByText(/macos/i).click();
-    //     });
-    //     cy.getAttached(".homepage__wrapper").within(() => {
-    //       cy.findByText(/fleet test/i).should("exist");
-    //       cy.getAttached(".hosts-summary").should("exist");
-    //       cy.getAttached(".hosts-status").should("exist");
-    //       cy.getAttached(".home-munki").should("exist");
-    //       cy.getAttached(".home-mdm").should("exist");
-    //       // "get" because we expect it not to exist
-    //       cy.get(".home-software").should("not.exist");
-    //       cy.get(".activity-feed").should("not.exist");
-    //     });
-    //   });
-    //   it("views all hosts for all platforms", () => {
-    //     cy.findByText(/view all hosts/i).click();
-    //     cy.get(".manage-hosts__label-block").should("not.exist");
-    //   });
-    //   it("views all hosts for windows only", () => {
-    //     cy.getAttached(".homepage__platforms").within(() => {
-    //       cy.getAttached(".Select-control").click();
-    //       cy.findByText(/windows/i).click();
-    //     });
-    //     cy.findByText(/view all hosts/i).click();
-    //     cy.getAttached(".manage-hosts__label-block").within(() => {
-    //       cy.getAttached(".title").within(() => {
-    //         cy.findByText(/windows/i).should("exist");
-    //       });
-    //     });
-    //   });
-    //   it("views all hosts for linux only", () => {
-    //     cy.getAttached(".homepage__platforms").within(() => {
-    //       cy.getAttached(".Select-control").click();
-    //       cy.findByText(/linux/i).click();
-    //     });
-    //     cy.findByText(/view all hosts/i).click();
-    //     cy.getAttached(".manage-hosts__label-block").within(() => {
-    //       cy.getAttached(".title").within(() => {
-    //         cy.findByText(/linux/i).should("exist");
-    //       });
-    //     });
-    //   });
-    //   it("views all hosts for macOS only", () => {
-    //     cy.getAttached(".homepage__platforms").within(() => {
-    //       cy.getAttached(".Select-control").click();
-    //       cy.findByText(/macos/i).click();
-    //     });
-    //     cy.findByText(/view all hosts/i).click();
-    //     cy.getAttached(".manage-hosts__label-block").within(() => {
-    //       cy.getAttached(".title").within(() => {
-    //         cy.findByText(/macos/i).should("exist");
-    //       });
-    //     });
-    //   });
-    // });
-    // describe("Manage hosts page", () => {
-    //   beforeEach(() => {
-    //     cy.loginWithCySession("anna@organization.com", "user123#");
-    //     cy.visit("/hosts/manage");
-    //   });
-    //   it("verifies teams is disabled on Manage Host page", () => {
-    //     cy.contains(/team/i).should("not.exist");
-    //   });
-    //   it("allows admin to see and click the 'Add hosts' button", () => {
-    //     cy.findByRole("button", { name: /add hosts/i }).click();
-    //     cy.contains("button", /done/i).click();
-    //   });
-    //   it("allows admin to manage and add enroll secret", () => {
-    //     cy.contains("button", /manage enroll secret/i).click();
-    //     cy.contains("button", /add secret/i).click();
-    //     cy.contains("button", /save/i).click();
-    //     cy.contains("button", /done/i).click();
-    //   });
-    //   it("allows admin to open the 'Add label' form", () => {
-    //     cy.findByRole("button", { name: /add label/i }).click();
-    //     cy.findByRole("button", { name: /cancel/i }).click();
-    //   });
-    // });
-    // describe("Host details tests", () => {
-    //   beforeEach(() => {
-    //     cy.loginWithCySession("anna@organization.com", "user123#");
-    //     cy.visit("/hosts/1");
-    //   });
-    //   it("verifies teams is disabled on Host Details page", () => {
-    //     cy.findByText(/team/i).should("not.exist");
-    //     cy.contains("button", /transfer/i).should("not.exist");
-    //   });
-    //   it("allows admin to delete a query", () => {
-    //     cy.findByRole("button", { name: /delete/i }).click();
-    //     cy.findByText(/delete host/i).should("exist");
-    //     cy.findByRole("button", { name: /cancel/i }).click();
-    //   });
-    //   it("allows admin to create a new query", () => {
-    //     cy.findByRole("button", { name: /query/i }).click();
-    //     cy.findByRole("button", { name: /create custom query/i }).should(
-    //       "exist"
-    //     );
-    //     cy.getAttached(".modal__ex").within(() => {
-    //       cy.findByRole("button").click();
-    //     });
-    //   });
-    // });
+    describe("Navigation", () => {
+      beforeEach(() => {
+        cy.loginWithCySession("anna@organization.com", "user123#");
+        cy.visit("/dashboard");
+      });
+      it("displays intended admin top navigation", () => {
+        cy.getAttached(".site-nav-container").within(() => {
+          cy.findByText(/hosts/i).should("exist");
+          cy.findByText(/software/i).should("exist");
+          cy.findByText(/queries/i).should("exist");
+          cy.findByText(/schedule/i).should("exist");
+          cy.findByText(/policies/i).should("exist");
+          cy.getAttached(".user-menu").click();
+          cy.findByText(/settings/i).click();
+        });
+        cy.getAttached(".react-tabs__tab--selected").within(() => {
+          cy.findByText(/organization/i).should("exist");
+        });
+        cy.getAttached(".site-nav-container").within(() => {
+          cy.getAttached(".user-menu").click();
+          cy.findByText(/manage users/i).click();
+        });
+        cy.getAttached(".react-tabs__tab--selected").within(() => {
+          cy.findByText(/users/i).should("exist");
+        });
+      });
+    });
+    describe("Dashboard", () => {
+      beforeEach(() => {
+        cy.loginWithCySession("anna@organization.com", "user123#");
+        cy.visit("/dashboard");
+      });
+      it("displays cards for all platforms", () => {
+        cy.getAttached(".homepage__wrapper").within(() => {
+          cy.findByText(/fleet test/i).should("exist");
+          cy.getAttached(".hosts-summary").should("exist");
+          cy.getAttached(".hosts-status").should("exist");
+          cy.getAttached(".home-software").should("exist");
+          cy.getAttached(".activity-feed").should("exist");
+        });
+      });
+      it("displays cards for windows only", () => {
+        cy.getAttached(".homepage__platforms").within(() => {
+          cy.getAttached(".Select-control").click();
+          cy.findByText(/windows/i).click();
+        });
+        cy.getAttached(".homepage__wrapper").within(() => {
+          cy.findByText(/fleet test/i).should("exist");
+          cy.getAttached(".hosts-summary").should("exist");
+          cy.getAttached(".hosts-status").should("exist");
+          // "get" because we expect it not to exist
+          cy.get(".home-software").should("not.exist");
+          cy.get(".activity-feed").should("not.exist");
+        });
+      });
+      it("displays cards for linux only", () => {
+        cy.getAttached(".homepage__platforms").within(() => {
+          cy.getAttached(".Select-control").click();
+          cy.findByText(/linux/i).click();
+        });
+        cy.getAttached(".homepage__wrapper").within(() => {
+          cy.findByText(/fleet test/i).should("exist");
+          cy.getAttached(".hosts-summary").should("exist");
+          cy.getAttached(".hosts-status").should("exist");
+          // "get" because we expect it not to exist
+          cy.get(".home-software").should("not.exist");
+          cy.get(".activity-feed").should("not.exist");
+        });
+      });
+      it("displays cards for macOS only", () => {
+        cy.getAttached(".homepage__platforms").within(() => {
+          cy.getAttached(".Select-control").click();
+          cy.findByText(/macos/i).click();
+        });
+        cy.getAttached(".homepage__wrapper").within(() => {
+          cy.findByText(/fleet test/i).should("exist");
+          cy.getAttached(".hosts-summary").should("exist");
+          cy.getAttached(".hosts-status").should("exist");
+          cy.getAttached(".home-munki").should("exist");
+          cy.getAttached(".home-mdm").should("exist");
+          // "get" because we expect it not to exist
+          cy.get(".home-software").should("not.exist");
+          cy.get(".activity-feed").should("not.exist");
+        });
+      });
+      it("views all hosts for all platforms", () => {
+        cy.findByText(/view all hosts/i).click();
+        cy.get(".manage-hosts__label-block").should("not.exist");
+      });
+      it("views all hosts for windows only", () => {
+        cy.getAttached(".homepage__platforms").within(() => {
+          cy.getAttached(".Select-control").click();
+          cy.findByText(/windows/i).click();
+        });
+        cy.findByText(/view all hosts/i).click();
+        cy.getAttached(".manage-hosts__label-block").within(() => {
+          cy.getAttached(".title").within(() => {
+            cy.findByText(/windows/i).should("exist");
+          });
+        });
+      });
+      it("views all hosts for linux only", () => {
+        cy.getAttached(".homepage__platforms").within(() => {
+          cy.getAttached(".Select-control").click();
+          cy.findByText(/linux/i).click();
+        });
+        cy.findByText(/view all hosts/i).click();
+        cy.getAttached(".manage-hosts__label-block").within(() => {
+          cy.getAttached(".title").within(() => {
+            cy.findByText(/linux/i).should("exist");
+          });
+        });
+      });
+      it("views all hosts for macOS only", () => {
+        cy.getAttached(".homepage__platforms").within(() => {
+          cy.getAttached(".Select-control").click();
+          cy.findByText(/macos/i).click();
+        });
+        cy.findByText(/view all hosts/i).click();
+        cy.getAttached(".manage-hosts__label-block").within(() => {
+          cy.getAttached(".title").within(() => {
+            cy.findByText(/macos/i).should("exist");
+          });
+        });
+      });
+    });
+    describe("Manage hosts page", () => {
+      beforeEach(() => {
+        cy.loginWithCySession("anna@organization.com", "user123#");
+        cy.visit("/hosts/manage");
+      });
+      it("verifies teams is disabled on Manage Host page", () => {
+        cy.contains(/team/i).should("not.exist");
+      });
+      it("allows admin to see and click the 'Add hosts' button", () => {
+        cy.findByRole("button", { name: /add hosts/i }).click();
+        cy.contains("button", /done/i).click();
+      });
+      it("allows admin to manage and add enroll secret", () => {
+        cy.contains("button", /manage enroll secret/i).click();
+        cy.contains("button", /add secret/i).click();
+        cy.contains("button", /save/i).click();
+        cy.contains("button", /done/i).click();
+      });
+      it("allows admin to open the 'Add label' form", () => {
+        cy.findByRole("button", { name: /add label/i }).click();
+        cy.findByRole("button", { name: /cancel/i }).click();
+      });
+    });
+    describe("Host details tests", () => {
+      beforeEach(() => {
+        cy.loginWithCySession("anna@organization.com", "user123#");
+        cy.visit("/hosts/1");
+      });
+      it("verifies teams is disabled on Host Details page", () => {
+        cy.findByText(/team/i).should("not.exist");
+        cy.contains("button", /transfer/i).should("not.exist");
+      });
+      it("allows admin to delete a query", () => {
+        cy.findByRole("button", { name: /delete/i }).click();
+        cy.findByText(/delete host/i).should("exist");
+        cy.findByRole("button", { name: /cancel/i }).click();
+      });
+      it("allows admin to create a new query", () => {
+        cy.findByRole("button", { name: /query/i }).click();
+        cy.findByRole("button", { name: /create custom query/i }).should(
+          "exist"
+        );
+        cy.getAttached(".modal__ex").within(() => {
+          cy.findByRole("button").click();
+        });
+      });
+    });
     describe("Manage software page", () => {
       beforeEach(() => {
         cy.loginWithCySession("anna@organization.com", "user123#");
         cy.visit("/software/manage");
       });
-      it("allows admin to create webhook software vulnerability automation", () => {
-        // seedIntegration() has one jira integration set to true
+      it("allows global admin to update software vulnerability automation", () => {
         cy.getAttached(".manage-software-page__header-wrap").within(() => {
           cy.findByRole("button", { name: /manage automations/i }).click();
         });
         cy.getAttached(".manage-automations-modal").within(() => {
           cy.getAttached(".fleet-slider").click();
-          cy.getAttached(".fleet-slider").click();
-          cy.getAttached("#webhook-radio-btn").next().click();
         });
         cy.getAttached("#webhook-url").click().type("www.foo.com/bar");
         cy.findByRole("button", { name: /^Save$/ }).click();
@@ -219,58 +215,6 @@ describe(
         });
         cy.getAttached(".manage-automations-modal").within(() => {
           cy.getAttached(".fleet-slider--active").should("exist");
-          cy.getAttached("#webhook-url").should("exist");
-        });
-      });
-      it("allows admin to create jira integration software vulnerability automation", () => {
-        // seedIntegration() has one jira integration set to true
-        cy.getAttached(".manage-software-page__header-wrap").within(() => {
-          cy.findByRole("button", {
-            name: /manage automations/i,
-          }).click();
-        });
-        cy.getAttached(".manage-automations-modal").within(() => {
-          cy.getAttached(".fleet-slider").click();
-          cy.getAttached(".fleet-slider").click();
-          cy.getAttached("#ticket-radio-btn").next().click();
-          cy.findByText(/select jira integration/i).click();
-          cy.findByText(/project 2/i).click();
-        });
-
-        cy.findByRole("button", { name: /^Save$/ }).click();
-        // Confirm jira integration was added successfully
-        cy.findByText(/updated vulnerability automations/i).should("exist");
-        cy.getAttached(".button-wrap").within(() => {
-          cy.findByRole("button", {
-            name: /manage automations/i,
-          }).click();
-        });
-        cy.getAttached(".manage-automations-modal").within(() => {
-          cy.getAttached(".fleet-slider--active").should("exist");
-          cy.findByText(/project 2/i).should("exist");
-        });
-      });
-      it("allows admin to disable software vulnerability automation", () => {
-        // seedIntegration() has one jira integration set to true
-        cy.getAttached(".manage-software-page__header-wrap").within(() => {
-          cy.findByRole("button", {
-            name: /manage automations/i,
-          }).click();
-        });
-        cy.getAttached(".manage-automations-modal").within(() => {
-          cy.getAttached(".fleet-slider").click();
-        });
-
-        cy.findByRole("button", { name: /^Save$/ }).click();
-        // Confirm integration was disabled successfully
-        cy.findByText(/updated vulnerability automations/i).should("exist");
-        cy.getAttached(".button-wrap").within(() => {
-          cy.findByRole("button", {
-            name: /manage automations/i,
-          }).click();
-        });
-        cy.getAttached(".manage-automations-modal").within(() => {
-          cy.findByText(/vulnerability automations disabled/i).should("exist");
         });
       });
     });
@@ -379,12 +323,9 @@ describe(
       it("hides access team settings", () => {
         cy.findByText(/teams/i).should("not.exist");
       });
-      it("allows admin to access integrations and users settings", () => {
+      it("allows admin to access other settings", () => {
         cy.getAttached(".react-tabs").within(() => {
           cy.findByText(/organization settings/i).should("exist");
-          cy.findByText(/integrations/i).click();
-        });
-        cy.getAttached(".react-tabs").within(() => {
           cy.findByText(/users/i).click();
         });
       });

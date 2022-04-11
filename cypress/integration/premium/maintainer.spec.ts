@@ -201,17 +201,14 @@ describe("Premium tier - Maintainer user", () => {
     });
     describe("Manage software page", () => {
       beforeEach(() => cy.visit("/software/manage"));
-      it("should restrict global maintainer from 'Manage automations' button", () => {
-        it("hides manages software automations when all teams selected", () => {
+      it("allows global maintainer to click 'Manage automations' button", () => {
+        it("manages software automations when all teams selected", () => {
           cy.getAttached(".manage-software-page__header-wrap").within(() => {
             cy.getAttached(".Select").within(() => {
               cy.findByText(/all teams/i).should("exist");
             });
-            cy.getAttached(".manage-software-page__header-wrap").within(() => {
-              cy.findByRole("button", {
-                name: /manage automations/i,
-              }).should("not.exist");
-            });
+            cy.findByRole("button", { name: /manage automations/i }).click();
+            cy.findByRole("button", { name: /cancel/i }).click();
           });
         });
         it("hides manage automations button when all teams not selected", () => {
