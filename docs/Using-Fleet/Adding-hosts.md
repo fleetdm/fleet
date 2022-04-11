@@ -207,7 +207,8 @@ entries will appear in the Fleet UI. The older entries can be automatically clea
 expiration functionality configured in the application settings (UI or fleetctl).
 
 ## Grant full disk access to osquery on macOS
-macOS does not allow applications to access all system files by default. If you are using MDM, you
+macOS does not allow applications to access all system files by default. If you are using MDM, which
+is required to deploy these profiles, you
 can deploy a "Privacy Preferences Policy Control" policy to grant Orbit or osquery that level of
 access. This is necessary to query for files located in protected paths as well as to use event
 tables that require access to the [EndpointSecurity
@@ -218,7 +219,7 @@ API](https://developer.apple.com/documentation/endpointsecurity#overview), such 
 If you use plain osquery, instructions are [available here](https://osquery.readthedocs.io/en/stable/deployment/process-auditing/).
 
 On a system with osquery installed via the Fleet osquery installer (Orbit), obtain the
-`CodeRequirement` of it by running:
+`CodeRequirement` of Orbit by running:
 
 `codesign -dr - /private/var/lib/orbit/bin/orbit/macos/edge/orbit`
 
@@ -251,6 +252,7 @@ Preferences*, run this query from Fleet:
 `SELECT * FROM file WHERE path LIKE '/Users/%/Downloads/%%';`
 
 If this query returns files, the profile has been successfully applied, as *Downloads* is a
-protected location.
+protected location. You can now enjoy the benefits of osquery on all system files as well as start
+using the *es_process_events* table!
 
 <meta name="pageOrderInSection" value="500">
