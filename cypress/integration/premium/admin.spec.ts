@@ -137,29 +137,6 @@ describe("Premium tier - Global Admin user", () => {
         cy.getAttached("#webhook-url").should("exist");
       });
     });
-    it("allows global admin to update software vulnerability automation", () => {
-      cy.getAttached(".manage-software-page__header-wrap").within(() => {
-        cy.getAttached(".Select").within(() => {
-          cy.findByText(/all teams/i).should("exist");
-        });
-        cy.findByRole("button", { name: /manage automations/i }).click();
-      });
-      cy.getAttached(".manage-automations-modal").within(() => {
-        cy.getAttached(".fleet-slider").click();
-      });
-      cy.getAttached("#webhook-url").click().type("www.foo.com/bar");
-      cy.findByRole("button", { name: /^Save$/ }).click();
-      // Confirm manage automations webhook was added successfully
-      cy.findByText(/updated vulnerability automations/i).should("exist");
-      cy.getAttached(".button-wrap").within(() => {
-        cy.findByRole("button", {
-          name: /manage automations/i,
-        }).click();
-      });
-      cy.getAttached(".manage-automations-modal").within(() => {
-        cy.getAttached(".fleet-slider--active").should("exist");
-      });
-    });
     it("hides manage automations button since all teams not selected", () => {
       cy.getAttached(".manage-software-page__header-wrap").within(() => {
         cy.getAttached(".Select").within(() => {
