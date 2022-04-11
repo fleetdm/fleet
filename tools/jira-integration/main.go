@@ -28,6 +28,7 @@ func main() {
 		jiraProjectKey = flag.String("jira-project-key", "", "The Jira project key")
 		fleetURL       = flag.String("fleet-url", "https://localhost:8080", "The Fleet server URL")
 		cve            = flag.String("cve", "", "The CVE to create a Jira issue for")
+		hostsCount     = flag.Int("hosts-count", 1, "The number of hosts to match the CVE")
 	)
 
 	flag.Parse()
@@ -46,6 +47,10 @@ func main() {
 	}
 	if *cve == "" {
 		fmt.Fprintf(os.Stderr, "-cve is required")
+		os.Exit(1)
+	}
+	if *hostsCount <= 0 {
+		fmt.Fprintf(os.Stderr, "-hosts-count must be at least 1")
 		os.Exit(1)
 	}
 
@@ -67,15 +72,13 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// TODO: connect to actual mysql database
 	ds := new(mock.Store)
 	ds.HostsByCVEFunc = func(ctx context.Context, cve string) ([]*fleet.HostShort, error) {
-		return []*fleet.HostShort{
-			{
-				ID:       1,
-				Hostname: "test",
-			},
-		}, nil
+		hosts := make([]*fleet.HostShort, *hostsCount)
+		for i := 0; i < *hostsCount; i++ {
+			hosts[i] = &fleet.HostShort{ID: uint(i + 1), Hostname: fmt.Sprintf("host-test-%d", i+1)}
+		}
+		return hosts, nil
 	}
 
 	jira := &worker.Jira{
