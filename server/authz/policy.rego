@@ -141,9 +141,9 @@ allow {
 # Activities
 ##
 
-# All users can read activities
+# All global users can read activities
 allow {
-  not is_null(subject)
+  not is_null(subject.global_role)
   object.type == "activity"
   action == read
 }
