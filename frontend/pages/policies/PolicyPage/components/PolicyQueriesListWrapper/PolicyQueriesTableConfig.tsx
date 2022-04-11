@@ -4,8 +4,11 @@
 import React from "react";
 import { memoize } from "lodash";
 
-// @ts-ignore
+import { ColumnInstance } from "react-table";
+
 import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
+import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
+
 import { IHostPolicyQuery } from "interfaces/host";
 import sortUtils from "utilities/sort";
 import PassIcon from "../../../../../../assets/images/icon-check-circle-green-16x16@2x.png";
@@ -14,10 +17,7 @@ import FailIcon from "../../../../../../assets/images/icon-exclamation-circle-re
 // TODO functions for paths math e.g., path={PATHS.MANAGE_HOSTS + getParams(cellProps.row.original)}
 
 interface IHeaderProps {
-  column: {
-    host: string;
-    isSortedDesc: boolean;
-  };
+  column: ColumnInstance & IDataColumn;
 }
 
 interface ICellProps {
@@ -45,17 +45,28 @@ const generateTableHeaders = (): IDataColumn[] => {
   const tableHeaders: IDataColumn[] = [
     {
       title: "Host",
-      Header: "Host",
-      disableSortBy: true,
+      Header: (headerProps: IHeaderProps): JSX.Element => (
+        <HeaderCell
+          value={headerProps.column.title || headerProps.column.id}
+          isSortedDesc={headerProps.column.isSortedDesc}
+          disableSortBy={false}
+        />
+      ),
       accessor: "hostname",
       Cell: (cellProps: ICellProps): JSX.Element => (
         <TextCell value={cellProps.cell.value} />
       ),
+      disableSortBy: false,
     },
     {
       title: "Status",
-      Header: "Status",
-      disableSortBy: true,
+      Header: (headerProps: IHeaderProps) => (
+        <HeaderCell
+          value={headerProps.column.title || headerProps.column.id}
+          isSortedDesc={headerProps.column.isSortedDesc}
+          disableSortBy={false}
+        />
+      ),
       accessor: "query_results",
       Cell: (cellProps: ICellProps): JSX.Element => (
         <>
@@ -72,6 +83,7 @@ const generateTableHeaders = (): IDataColumn[] => {
           )}
         </>
       ),
+      disableSortBy: false,
     },
   ];
   return tableHeaders;

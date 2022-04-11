@@ -45,7 +45,6 @@ const PoliciesListWrapper = ({
         isLoading={isLoading}
         defaultSortHeader={"name"}
         defaultSortDirection={"asc"}
-        manualSortBy
         showMarkAllPages={false}
         isAllPagesSelected={false}
         disablePagination
