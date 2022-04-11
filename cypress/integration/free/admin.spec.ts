@@ -198,14 +198,12 @@ describe(
         cy.visit("/software/manage");
       });
       it("allows global admin to create webhook software vulnerability automation", () => {
-        // seedIntegration() has one jira integration set to true
         cy.getAttached(".manage-software-page__header-wrap").within(() => {
           cy.findByRole("button", {
             name: /manage automations/i,
           }).click();
         });
         cy.getAttached(".manage-automations-modal").within(() => {
-          cy.getAttached(".fleet-slider").click();
           cy.getAttached(".fleet-slider").click();
           cy.getAttached("#webhook-radio-btn").next().click();
         });

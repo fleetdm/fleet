@@ -22,7 +22,7 @@ import InputField from "components/forms/fields/InputField";
 
 import { IWebhookSoftwareVulnerabilities } from "interfaces/webhook";
 import { useDeepEffect } from "utilities/hooks";
-import { size } from "lodash";
+import _, { size } from "lodash";
 
 import PreviewPayloadModal from "../PreviewPayloadModal";
 
@@ -143,7 +143,8 @@ const ManageAutomationsModal = ({
         jira: integrations || [],
       },
     };
-    () => {
+
+    const updateSoftwareAutomation = () => {
       if (!softwareAutomationsEnabled) {
         // set enable_vulnerabilities_webhook to false and all jira.enable_software_vulnerabilities to false
         configSoftwareAutomations.webhook_settings.vulnerabilities_webhook.enable_vulnerabilities_webhook = false;
@@ -185,9 +186,9 @@ const ManageAutomationsModal = ({
         }
       );
       configSoftwareAutomations.integrations.jira = enableSelectedJiraIntegrationOnly;
-      return;
     };
 
+    updateSoftwareAutomation();
     onCreateWebhookSubmit(configSoftwareAutomations);
     onReturnToApp();
   };
