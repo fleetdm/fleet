@@ -40,6 +40,11 @@ declare namespace Cypress {
     seedPolicies(): Chainable<Element>;
 
     /**
+     * Custom command to add new jira integrations by default.
+     */
+    seedIntegrations(): Chainable<Element>;
+
+    /**
      * Custom command to add a new user in Fleet (via fleetctl).
      */
     addUser(options?: {
