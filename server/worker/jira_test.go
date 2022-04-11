@@ -39,7 +39,7 @@ func TestJiraRun(t *testing.T) {
 
 		body, err := ioutil.ReadAll(r.Body)
 		require.NoError(t, err)
-		require.Contains(t, string(body), `"summary":"Vulnerability CVE-1234-5678 detected on 1 hosts"`)
+		require.Contains(t, string(body), `"summary":"Vulnerability CVE-1234-5678 detected on 1 host(s)"`)
 
 		w.WriteHeader(http.StatusCreated)
 		w.Write([]byte(`

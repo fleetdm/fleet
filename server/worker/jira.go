@@ -21,12 +21,12 @@ const (
 )
 
 var jiraSummaryTmpl = template.Must(template.New("").Parse(
-	`Vulnerability {{ .CVE }} detected on {{ len .Hosts }} hosts`,
+	`Vulnerability {{ .CVE }} detected on {{ len .Hosts }} host(s)`,
 ))
 
 // jira uses wiki markup in the v2 api?
 var jiraDescriptionTmpl = template.Must(template.New("").Parse(
-	`See [{{ .CVE }}|{{ .NVDURL }}{{ .CVE }}] for more details.
+	`See vulnerability (CVE) details in National Vulnerability Database (NVD) here: [{{ .CVE }}|{{ .NVDURL }}{{ .CVE }}].
 
 Affected hosts:
 
@@ -38,9 +38,9 @@ Affected hosts:
 * Remaining hosts omitted ...
 {{ end }}
 
-To view affected software and hosts:
+View the affected software and more affected hosts:
 
-# Go to the [Manage Softare|{{ .FleetURL }}/manage/software] page.
+# Go to the [Manage Softare|{{ .FleetURL }}/manage/software] page in Fleet.
 # Above the list of software, in the *Search software by ...* box, enter "{{ .CVE }}".
 # Hover over the affected software and click on *View all hosts*.
 
@@ -87,16 +87,6 @@ func (j *Jira) Run(ctx context.Context, argsJSON json.RawMessage) error {
 	if err := json.Unmarshal(argsJSON, &args); err != nil {
 		return ctxerr.Wrap(ctx, err, "unmarshal args")
 	}
-
-	// TODO(mna): Each CVE should correspond to a single Jira issue that contains
-	//  the list of hosts affected by the CVE with appropriate links to Fleet.
-	//  See https://github.com/fleetdm/fleet/issues/4521. This is currently not possible.
-	//
-	//  For the initial implementation, we are not concerned with duplicate issues.
-	//  Also, we cannot provide a link ie /manage/hosts?cve= to filter hosts affected by a
-	//  particular cve. The closest we can provide right now is a link to the /manage/software page
-	//  and instruct the user to filter by cve.
-	//  See https://github.com/fleetdm/fleet/issues/4977 and https://github.com/fleetdm/fleet/issues/4998.
 
 	hosts, err := j.Datastore.HostsByCVE(ctx, args.CVE)
 	if err != nil {
