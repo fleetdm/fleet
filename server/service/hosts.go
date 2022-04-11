@@ -900,8 +900,8 @@ type osVersionsRequest struct {
 }
 
 type osVersionsResponse struct {
-	CountsUpdatedAt *time.Time        `json:"counts_updated_at,omitempty"`
-	OSVersions      []fleet.OSVersion `json:"os_versions,omitempty"`
+	CountsUpdatedAt *time.Time        `json:"counts_updated_at"`
+	OSVersions      []fleet.OSVersion `json:"os_versions"`
 	Err             error             `json:"error,omitempty"`
 }
 
@@ -932,5 +932,4 @@ func (svc *Service) OSVersions(ctx context.Context, teamID *uint, platform *stri
 	}
 
 	return osVersions, nil
-
 }

@@ -1615,7 +1615,11 @@ WHERE
 	}
 
 	if err := sqlx.GetContext(ctx, ds.reader, &row, query, args...); err != nil {
-		return nil, err
+		if err == sql.ErrNoRows {
+			return &fleet.OSVersions{}, nil
+		} else {
+			return nil, err
+		}
 	}
 
 	osVersions := &fleet.OSVersions{
