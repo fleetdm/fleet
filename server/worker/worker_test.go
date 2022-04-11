@@ -8,6 +8,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/stretchr/testify/require"
 	"github.com/tj/assert"
@@ -140,4 +141,96 @@ func TestWorkerRetries(t *testing.T) {
 	err := w.ProcessJobs(context.Background())
 	require.NoError(t, err)
 	require.Equal(t, maxRetries+1, jobCalled)
+}
+
+func TestWorkerMiddleJobFails(t *testing.T) {
+	ds := new(mock.Store)
+
+	// set up mocks
+	jobs := []*fleet.Job{
+		{
+			ID:      1,
+			Name:    "test",
+			State:   fleet.JobStateQueued,
+			Args:    ptr.RawMessage(json.RawMessage(`1`)),
+			Retries: 0,
+		},
+		{
+			ID:      2,
+			Name:    "test",
+			State:   fleet.JobStateQueued,
+			Args:    ptr.RawMessage(json.RawMessage(`2`)),
+			Retries: 0,
+		},
+		{
+			ID:      3,
+			Name:    "test",
+			State:   fleet.JobStateQueued,
+			Args:    ptr.RawMessage(json.RawMessage(`3`)),
+			Retries: 0,
+		},
+	}
+	ds.GetQueuedJobsFunc = func(ctx context.Context, maxNumJobs int) ([]*fleet.Job, error) {
+		var queued []*fleet.Job
+		for _, j := range jobs {
+			if j.State == fleet.JobStateQueued {
+				queued = append(queued, j)
+			}
+		}
+		return queued, nil
+	}
+
+	ds.UpdateJobFunc = func(ctx context.Context, id uint, job *fleet.Job) (*fleet.Job, error) {
+		return job, nil
+	}
+
+	logger := kitlog.NewNopLogger()
+	w := NewWorker(ds, logger)
+
+	// register a test job
+	var jobCallCount int
+	j := testJob{
+		name: "test",
+		run: func(ctx context.Context, argsJSON json.RawMessage) error {
+			jobCallCount++
+
+			var id int
+			if err := json.Unmarshal(argsJSON, &id); err != nil {
+				return err
+			}
+
+			if id == 2 {
+				// fail the job with id 2
+				return errors.New("unknown error")
+			}
+			return nil
+		},
+	}
+	w.Register(j)
+
+	// process the jobs, jobs 1 and 3 should be successful, job 2 still queued
+	err := w.ProcessJobs(context.Background())
+	require.NoError(t, err)
+
+	require.True(t, ds.GetQueuedJobsFuncInvoked)
+	require.True(t, ds.UpdateJobFuncInvoked)
+	ds.GetQueuedJobsFuncInvoked = false
+	ds.UpdateJobFuncInvoked = false
+
+	require.Equal(t, fleet.JobStateSuccess, jobs[0].State)
+	require.Equal(t, fleet.JobStateQueued, jobs[1].State)
+	require.Equal(t, 1, jobs[1].Retries)
+	require.Equal(t, fleet.JobStateSuccess, jobs[2].State)
+	require.Equal(t, 3, jobCallCount)
+
+	// processing again only processes job 2 (still queued)
+	err = w.ProcessJobs(context.Background())
+	require.NoError(t, err)
+
+	require.True(t, ds.GetQueuedJobsFuncInvoked)
+	require.True(t, ds.UpdateJobFuncInvoked)
+
+	require.Equal(t, fleet.JobStateQueued, jobs[1].State)
+	require.Equal(t, 2, jobs[1].Retries)
+	require.Equal(t, 4, jobCallCount)
 }
