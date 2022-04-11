@@ -32,7 +32,7 @@ nock.emitter.on("no match", (req) => {
 
 nock("http://localhost:8080")
   .persist()
-  .post("/api/v1/fleet/targets")
+  .post("/api/latest/fleet/targets")
   .reply(200, {
     targets_count: 1234,
     targets: [
@@ -48,12 +48,12 @@ nock("http://localhost:8080")
 
 nock("http://localhost:8080")
   .persist()
-  .get("/api/v1/fleet/status/live_query")
+  .get("/api/latest/fleet/status/live_query")
   .reply(200, {});
 
 nock("http://localhost:8080")
   .persist()
-  .get("/api/v1/fleet/version")
+  .get("/api/latest/fleet/version")
   .reply(200, {
     version: "3.10.0",
     branch: "master",

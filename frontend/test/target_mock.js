@@ -23,6 +23,6 @@ export default (
   responseStatus = 200
 ) => {
   return nock("http://localhost:8080")
-    .post("/api/v1/fleet/targets", JSON.stringify(params))
+    .post("/api/latest/fleet/targets", JSON.stringify(params))
     .reply(responseStatus, response);
 };

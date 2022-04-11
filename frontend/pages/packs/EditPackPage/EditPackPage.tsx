@@ -14,7 +14,7 @@ import { NotificationContext } from "context/notification";
 
 import packsAPI from "services/entities/packs";
 import queriesAPI from "services/entities/queries";
-import scheduledqueriesAPI from "services/entities/scheduled_queries";
+import scheduledQueriesAPI from "services/entities/scheduled_queries";
 
 import PATHS from "router/paths"; // @ts-ignore
 import deepDifference from "utilities/deep_difference";
@@ -79,7 +79,7 @@ const EditPacksPage = ({
     refetch: refetchStoredPackQueries,
   } = useQuery<IStoredPackQueriesResponse, Error, IScheduledQuery[]>(
     ["stored pack queries"],
-    () => scheduledqueriesAPI.loadAll(packId),
+    () => scheduledQueriesAPI.loadAll(packId),
     {
       select: (data: IStoredPackQueriesResponse) => data.scheduled,
     }
@@ -177,8 +177,8 @@ const EditPacksPage = ({
     editQuery: IScheduledQuery | undefined
   ) => {
     const request = editQuery
-      ? scheduledqueriesAPI.update(editQuery, formData)
-      : scheduledqueriesAPI.create(formData);
+      ? scheduledQueriesAPI.update(editQuery, formData)
+      : scheduledQueriesAPI.create(formData);
     request
       .then(() => {
         renderFlash("success", `Successfully updated this pack.`);
@@ -198,7 +198,7 @@ const EditPacksPage = ({
       selectedPackQueryIds.length === 1 ? "query" : "queries";
 
     const promises = selectedPackQueryIds.map((id: number) => {
-      return scheduledqueriesAPI.destroy(id);
+      return scheduledQueriesAPI.destroy(id);
     });
 
     return Promise.all(promises)

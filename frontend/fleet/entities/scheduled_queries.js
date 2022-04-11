@@ -4,7 +4,7 @@ import helpers from "fleet/helpers";
 export default (client) => {
   return {
     create: (formData) => {
-      const { SCHEDULED_QUERIES } = endpoints;
+      const { SCHEDULE_QUERY } = endpoints;
       const {
         interval,
         logging_type: loggingType,
@@ -30,29 +30,29 @@ export default (client) => {
 
       return client
         .authenticatedPost(
-          client._endpoint(SCHEDULED_QUERIES),
+          client._endpoint(SCHEDULE_QUERY),
           JSON.stringify(params)
         )
         .then((response) => response.scheduled);
     },
     destroy: ({ id }) => {
-      const { SCHEDULED_QUERIES } = endpoints;
-      const endpoint = `${client._endpoint(SCHEDULED_QUERIES)}/${id}`;
+      const { SCHEDULE_QUERY } = endpoints;
+      const endpoint = `${client._endpoint(SCHEDULE_QUERY)}/${id}`;
 
       return client.authenticatedDelete(endpoint);
     },
     loadAll: ({ id }) => {
-      const { SCHEDULED_QUERY } = endpoints;
-      const scheduledQueryPath = SCHEDULED_QUERY(id);
+      const { SCHEDULED_QUERIES } = endpoints;
+      const scheduledQueryPath = SCHEDULED_QUERIES(id);
 
       return client
         .authenticatedGet(client._endpoint(scheduledQueryPath))
         .then((response) => response.scheduled);
     },
     update: (scheduledQuery, updatedAttributes) => {
-      const { SCHEDULED_QUERIES } = endpoints;
+      const { SCHEDULE_QUERY } = endpoints;
       const endpoint = client._endpoint(
-        `${SCHEDULED_QUERIES}/${scheduledQuery.id}`
+        `${SCHEDULE_QUERY}/${scheduledQuery.id}`
       );
       const params = helpers.formatScheduledQueryForServer(updatedAttributes);
 

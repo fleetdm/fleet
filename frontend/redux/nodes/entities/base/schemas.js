@@ -22,7 +22,7 @@ export default {
   QUERIES: queriesSchema,
   GLOBAL_SCHEDULED_QUERIES: globalScheduledQueriesSchema,
   TEAM_SCHEDULED_QUERIES: teamScheduledQueriesSchema,
-  SCHEDULED_QUERIES: scheduledQueriesSchema,
+  SCHEDULE_QUERY: scheduledQueriesSchema,
   TARGETS: targetsSchema,
   USERS: usersSchema,
   TEAMS: teamsSchema,
