@@ -70,6 +70,7 @@ func (w *Worker) ProcessJobs(ctx context.Context) error {
 	const maxNumJobs = 100
 
 	// process jobs until there are none left or the context is cancelled
+	var startID uint
 	for {
 		jobs, err := w.ds.GetQueuedJobs(ctx, maxNumJobs)
 		if err != nil {
@@ -88,6 +89,11 @@ func (w *Worker) ProcessJobs(ctx context.Context) error {
 			}
 
 			log := kitlog.With(w.log, "job_id", job.ID)
+
+			if job.ID == startID {
+				level.Debug(log).Log("msg", "back to initial job of that batch, stopping until next cron execution")
+				return nil
+			}
 			level.Debug(log).Log("msg", "processing job")
 
 			if err := w.processJob(ctx, job); err != nil {
@@ -107,6 +113,13 @@ func (w *Worker) ProcessJobs(ctx context.Context) error {
 			if _, err := w.ds.UpdateJob(ctx, job.ID, job); err != nil {
 				level.Error(log).Log("update job", "err", err)
 			}
+		}
+
+		// keep track of the starting ID of processing, so that if we get back to
+		// that same job again, we stop processing, ensuring that at least one cron
+		// interval happens before a failed job is retried.
+		if startID == 0 {
+			startID = jobs[0].ID
 		}
 	}
 

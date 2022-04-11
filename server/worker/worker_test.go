@@ -81,28 +81,19 @@ func TestWorkerRetries(t *testing.T) {
 	ds := new(mock.Store)
 
 	// set up mocks
-	getQueuedJobsCalled := 0
+	argsJSON := json.RawMessage(`{"arg1":"foo"}`)
+	theJob := &fleet.Job{
+		ID:      1,
+		Name:    "test",
+		Args:    &argsJSON,
+		State:   fleet.JobStateQueued,
+		Retries: 0,
+	}
 	ds.GetQueuedJobsFunc = func(ctx context.Context, maxNumJobs int) ([]*fleet.Job, error) {
-
-		// don't return any jobs once its been called 5 (maxRetries) times
-		if getQueuedJobsCalled > maxRetries {
-			return nil, nil
+		if theJob.State == fleet.JobStateQueued {
+			return []*fleet.Job{theJob}, nil
 		}
-
-		argsJSON := json.RawMessage(`{"arg1":"foo"}`)
-		jobs := []*fleet.Job{
-			{
-				ID:      1,
-				Name:    "test",
-				Args:    &argsJSON,
-				State:   fleet.JobStateQueued,
-				Retries: getQueuedJobsCalled,
-			},
-		}
-
-		getQueuedJobsCalled++
-
-		return jobs, nil
+		return nil, nil
 	}
 
 	jobFailed := false
@@ -130,12 +121,23 @@ func TestWorkerRetries(t *testing.T) {
 	}
 	w.Register(j)
 
+	// the worker stops a ProcessJobs batch once it receives the same job again,
+	// so run it multiple times to test its retries.
+	for i := 0; i < maxRetries+1; i++ {
+		err := w.ProcessJobs(context.Background())
+		require.NoError(t, err)
+
+		require.True(t, ds.GetQueuedJobsFuncInvoked)
+		require.True(t, ds.UpdateJobFuncInvoked)
+		ds.GetQueuedJobsFuncInvoked = false
+		ds.UpdateJobFuncInvoked = false
+
+		require.Equal(t, i+1, jobCalled)
+		require.Equal(t, i == maxRetries, jobFailed) // true on last iteration, false otherwise
+	}
+
+	// processing again does nothing as the job is not queued anymore, it is failed
 	err := w.ProcessJobs(context.Background())
 	require.NoError(t, err)
-
-	require.True(t, ds.GetQueuedJobsFuncInvoked)
-	require.True(t, ds.UpdateJobFuncInvoked)
-
 	require.Equal(t, maxRetries+1, jobCalled)
-	require.True(t, jobFailed)
 }
