@@ -611,7 +611,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: No unencrypted SSH keys are present
+  name: SSH keys encrypted
   query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM users CROSS JOIN user_ssh_keys USING (uid) WHERE encrypted='0');
   description: "Required: osquery must have Full Disk Access. Policy passes if no unencrypted SSH keys are found in the ~/.ssh of users on the system."
   resolution: "Use this command to encrypt existing SSH keys: ssh-keygen -o -p -f keyfile"
