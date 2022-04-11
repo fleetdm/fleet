@@ -2735,6 +2735,29 @@ func (s *integrationTestSuite) TestIntegrationsConfig() {
     }
   }`, srv.URL)), http.StatusUnprocessableEntity)
 
+	// even disabled integrations are tested for Jira connection and credentials,
+	// so this fails because the 2nd one uses the "fail" username.
+	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
+    "integrations": {
+      "jira": [
+        {
+          "url": %q,
+          "username": "ok",
+          "password": "bar",
+          "project_key": "qux",
+          "enable_software_vulnerabilities": true
+        },
+        {
+          "url": %[1]q,
+          "username": "fail",
+          "password": "bar2",
+          "project_key": "qux",
+          "enable_software_vulnerabilities": false
+        }
+      ]
+    }
+  }`, srv.URL)), http.StatusBadRequest)
+
 	// cannot enable webhook with a jira integration already enabled
 	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(`{
     "webhook_settings": {

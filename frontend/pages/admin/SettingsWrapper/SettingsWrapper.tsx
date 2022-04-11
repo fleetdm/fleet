@@ -17,6 +17,10 @@ const settingsSubNav: ISettingSubNavItem[] = [
     pathname: PATHS.ADMIN_SETTINGS,
   },
   {
+    name: "Integrations",
+    pathname: PATHS.ADMIN_INTEGRATIONS,
+  },
+  {
     name: "Users",
     pathname: PATHS.ADMIN_USERS,
   },
@@ -45,7 +49,7 @@ const SettingsWrapper = ({
 }: ISettingsWrapperProp): JSX.Element => {
   const { isPremiumTier } = useContext(AppContext);
 
-  if (isPremiumTier && settingsSubNav.length === 2) {
+  if (isPremiumTier && settingsSubNav.length === 3) {
     settingsSubNav.push({
       name: "Teams",
       pathname: PATHS.ADMIN_TEAMS,

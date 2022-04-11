@@ -3,7 +3,7 @@ import Fleet from "fleet";
 import Config from "redux/nodes/entities/base/config";
 import schemas from "redux/nodes/entities/base/schemas";
 
-const { SCHEDULED_QUERIES: schema } = schemas;
+const { SCHEDULE_QUERY: schema } = schemas;
 
 export default new Config({
   createFunc: Fleet.scheduledQueries.create,

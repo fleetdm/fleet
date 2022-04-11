@@ -282,7 +282,9 @@ type SoftwareByIDFunc func(ctx context.Context, id uint) (*fleet.Software, error
 
 type CalculateHostsPerSoftwareFunc func(ctx context.Context, updatedAt time.Time) error
 
-type HostsByCPEsFunc func(ctx context.Context, cpes []string) ([]*fleet.CPEHost, error)
+type HostsByCPEsFunc func(ctx context.Context, cpes []string) ([]*fleet.HostShort, error)
+
+type HostsByCVEFunc func(ctx context.Context, cve string) ([]*fleet.HostShort, error)
 
 type NewActivityFunc func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error
 
@@ -804,6 +806,9 @@ type DataStore struct {
 
 	HostsByCPEsFunc        HostsByCPEsFunc
 	HostsByCPEsFuncInvoked bool
+
+	HostsByCVEFunc        HostsByCVEFunc
+	HostsByCVEFuncInvoked bool
 
 	NewActivityFunc        NewActivityFunc
 	NewActivityFuncInvoked bool
@@ -1649,9 +1654,14 @@ func (s *DataStore) CalculateHostsPerSoftware(ctx context.Context, updatedAt tim
 	return s.CalculateHostsPerSoftwareFunc(ctx, updatedAt)
 }
 
-func (s *DataStore) HostsByCPEs(ctx context.Context, cpes []string) ([]*fleet.CPEHost, error) {
+func (s *DataStore) HostsByCPEs(ctx context.Context, cpes []string) ([]*fleet.HostShort, error) {
 	s.HostsByCPEsFuncInvoked = true
 	return s.HostsByCPEsFunc(ctx, cpes)
+}
+
+func (s *DataStore) HostsByCVE(ctx context.Context, cve string) ([]*fleet.HostShort, error) {
+	s.HostsByCVEFuncInvoked = true
+	return s.HostsByCVEFunc(ctx, cve)
 }
 
 func (s *DataStore) NewActivity(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {

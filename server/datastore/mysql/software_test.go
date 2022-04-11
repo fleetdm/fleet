@@ -36,6 +36,7 @@ func TestSoftware(t *testing.T) {
 		{"CalculateHostsPerSoftware", testSoftwareCalculateHostsPerSoftware},
 		{"ListVulnerableSoftwareBySource", testListVulnerableSoftwareBySource},
 		{"DeleteVulnerabilitiesByCPECVE", testDeleteVulnerabilitiesByCPECVE},
+		{"HostsByCVE", testHostsByCVE},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -902,4 +903,25 @@ func testDeleteVulnerabilitiesByCPECVE(t *testing.T, ds *Datastore) {
 	software, err = ds.ListVulnerableSoftwareBySource(ctx, "chrome_extensions")
 	require.NoError(t, err)
 	require.Len(t, software, 1)
+}
+
+func testHostsByCVE(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	hosts, err := ds.HostsByCVE(ctx, "CVE-2022-1234")
+	require.NoError(t, err)
+	require.Len(t, hosts, 0)
+
+	insertVulnSoftwareForTest(t, ds)
+
+	// CVE of foo chrome 0.0.3, both hosts have it
+	hosts, err = ds.HostsByCVE(ctx, "cve-123-456-789")
+	require.NoError(t, err)
+	require.Len(t, hosts, 2)
+
+	// CVE of bar.rpm 0.0.3, only host 2 has it
+	hosts, err = ds.HostsByCVE(ctx, "cve-321-432-543")
+	require.NoError(t, err)
+	require.Len(t, hosts, 1)
+	require.Equal(t, hosts[0].Hostname, "host2")
 }

@@ -10,19 +10,19 @@ import helpers from "fleet/helpers";
 
 export default {
   create: (packQueryFormData: IPackQueryFormData) => {
-    const { SCHEDULED_QUERIES } = endpoints;
+    const { SCHEDULE_QUERY } = endpoints;
 
-    return sendRequest("POST", SCHEDULED_QUERIES, packQueryFormData);
+    return sendRequest("POST", SCHEDULE_QUERY, packQueryFormData);
   },
   destroy: (packQueryId: number) => {
-    const { SCHEDULED_QUERIES } = endpoints;
-    const path = `${SCHEDULED_QUERIES}/${packQueryId}`;
+    const { SCHEDULE_QUERY } = endpoints;
+    const path = `${SCHEDULE_QUERY}/${packQueryId}`;
 
     return sendRequest("DELETE", path);
   },
   loadAll: (packId: number) => {
-    const { SCHEDULED_QUERY } = endpoints;
-    const path = SCHEDULED_QUERY(packId);
+    const { SCHEDULED_QUERIES } = endpoints;
+    const path = SCHEDULED_QUERIES(packId);
 
     return sendRequest("GET", path);
   },
@@ -30,8 +30,8 @@ export default {
     scheduledQuery: IScheduledQuery,
     updatedAttributes: IPackQueryFormData
   ) => {
-    const { SCHEDULED_QUERIES } = endpoints;
-    const path = `${SCHEDULED_QUERIES}/${scheduledQuery.id}`;
+    const { SCHEDULE_QUERY } = endpoints;
+    const path = `${SCHEDULE_QUERY}/${scheduledQuery.id}`;
     const params = helpers.formatScheduledQueryForServer(updatedAttributes);
 
     return sendRequest("PATCH", path, params);
