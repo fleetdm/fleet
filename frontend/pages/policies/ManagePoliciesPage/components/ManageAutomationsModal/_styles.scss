@@ -41,6 +41,11 @@
     opacity: 75%;
   }
 
+  // so tooltips won't be triggered with whitespace
+  .form-field__label {
+    display: inline-block;
+  }
+
   .form-field__label--error {
     color: $ui-error;
   }

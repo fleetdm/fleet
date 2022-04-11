@@ -452,7 +452,7 @@ const MembersPage = ({
           onCreateNewMember={toggleCreateMemberModal}
         />
       ) : null}
-      {showEditUserModal && (
+      {showEditUserModal ? (
         <EditUserModal
           editUserErrors={editUserErrors}
           onCancel={toggleEditMemberModal}
@@ -470,8 +470,8 @@ const MembersPage = ({
           isModifiedByGlobalAdmin={isGlobalAdmin}
           currentTeam={currentTeam}
         />
-      )}
-      {showCreateUserModal && (
+      ) : null}
+      {showCreateUserModal ? (
         <CreateUserModal
           createUserErrors={createUserErrors}
           onCancel={toggleCreateMemberModal}
@@ -487,15 +487,15 @@ const MembersPage = ({
           isModifiedByGlobalAdmin={isGlobalAdmin}
           isFormSubmitting={isFormSubmitting}
         />
-      )}
-      {showRemoveMemberModal && currentTeam && (
+      ) : null}
+      {showRemoveMemberModal && currentTeam ? (
         <RemoveMemberModal
           memberName={userEditing?.name || ""}
           teamName={currentTeam.name}
           onCancel={toggleRemoveMemberModal}
           onSubmit={onRemoveMemberSubmit}
         />
-      )}
+      ) : null}
     </div>
   );
 };

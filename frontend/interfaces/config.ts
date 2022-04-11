@@ -6,7 +6,6 @@ import {
   IWebhookSoftwareVulnerabilities,
 } from "interfaces/webhook";
 import PropTypes from "prop-types";
-import { IIntegrations } from "./integration";
 
 export default PropTypes.shape({
   org_name: PropTypes.string,
@@ -179,7 +178,6 @@ export interface IConfig {
     failing_policies_webhook: IWebhookFailingPolicies;
     vulnerabilities_webhook: IWebhookSoftwareVulnerabilities;
   };
-  integrations: IIntegrations;
   logging: {
     debug: boolean;
     json: boolean;

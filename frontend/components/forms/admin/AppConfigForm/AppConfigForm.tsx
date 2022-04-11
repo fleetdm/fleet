@@ -39,7 +39,7 @@ import {
 
 const baseClass = "app-config-form";
 
-const AppConfigForm = ({
+const AppConfigFormFunctional = ({
   appConfig,
   handleSubmit,
 }: IAppConfigFormProps): JSX.Element => {
@@ -977,4 +977,4 @@ const AppConfigForm = ({
   );
 };
 
-export default AppConfigForm;
+export default AppConfigFormFunctional;

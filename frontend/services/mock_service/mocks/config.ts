@@ -19,15 +19,35 @@ const WILDCARDS: string[] = [":", "*", "{", "}"];
 // REQUEST_RESPONSE_MAPPINGS dictionary maps your static responses to the specified API request path
 const REQUEST_RESPONSE_MAPPINGS: IResponses = {
   GET: {
-    config: RESPONSES.config1, // just first integration -- to throw error, rename config as configz
+    // this is a basic path with no wildcards
+    "/hosts?page=0&per_page=100&order_key=hostname&order_direction=asc":
+      RESPONSES.ALL_HOSTS,
+    // this basic path only matches with '1337' as the value for the team id query param
+    "/hosts?page=0&per_page=100&order_key=hostname&order_direction=asc&team_id=1337":
+      RESPONSES.HOSTS_TEAM_1337,
+    // this wildcard path matches with any other value for the team id query param
+    "/hosts?page=0&per_page=100&order_key=hostname&order_direction=asc&team_id={team_id}":
+      RESPONSES.HOSTS_TEAM_ID,
+    // this basic path only matches with '1337' as the value for the host id route param
+    "/hosts/1337": RESPONSES.HOST_1337,
+    // this wildcard path matches with any other value for the host id route param
+    "/hosts/*id": RESPONSES.HOST_ID,
+    // this wildcard path matches with any value for the host id route param
+    "/hosts/:id/device_mapping": RESPONSES.DEVICE_MAPPING,
+    // this wildcard path matches with any value for the host id route param
+    "hosts/{*}/macadmins": RESPONSES.MACADMINS,
+    // this is a basic path with no wildcards
+    "hosts/count": {
+      count: 1,
+    },
+    // this wildcard path matches with any value for the team id route param
+    "hosts/count?team_id={*}": {
+      count: 1,
+    },
   },
   // additional mappings can be specified for other HTTP request types (POST, PATCH, DELETE, etc.)
-  PATCH: {
-    config: RESPONSES.configAdd2, // will add second integration to first one
-  },
-  DELETE: {
-    // will remove second integration
-    config: RESPONSES.config1,
+  POST: {
+    "/:id/refetch": {}, // this wildcard route returns empty JSON
   },
 } as IResponses;
 

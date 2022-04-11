@@ -8,7 +8,6 @@ export default {
   HOME: `${URL_PREFIX}/dashboard`,
   ADMIN_USERS: `${URL_PREFIX}/settings/users`,
   ADMIN_SETTINGS: `${URL_PREFIX}/settings/organization`,
-  ADMIN_INTEGRATIONS: `${URL_PREFIX}/settings/integrations`,
   ADMIN_TEAMS: `${URL_PREFIX}/settings/teams`,
   ALL_PACKS: `${URL_PREFIX}/packs/all`,
   EDIT_PACK: (packId: number): string => {

@@ -6,7 +6,6 @@ import { useDebouncedCallback } from "use-debounce";
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 import { IConfig } from "interfaces/config";
-import { IJiraIntegration } from "interfaces/integration";
 import { IWebhookSoftwareVulnerabilities } from "interfaces/webhook"; // @ts-ignore
 import configAPI from "services/entities/config";
 import softwareAPI, {
@@ -43,15 +42,6 @@ interface IManageSoftwarePageProps {
     search: string;
   };
 }
-
-interface ISoftwareAutomations {
-  webhook_settings: {
-    vulnerabilities_webhook: IWebhookSoftwareVulnerabilities;
-  };
-  integrations: {
-    jira: IJiraIntegration[];
-  };
-}
 interface IHeaderButtonsState extends ITeamsDropdownState {
   isLoading: boolean;
 }
@@ -76,9 +66,9 @@ const ManageSoftwarePage = ({
 
   const [isSoftwareEnabled, setIsSoftwareEnabled] = useState<boolean>();
   const [
-    isVulnerabilityAutomationsEnabled,
-    setIsVulnerabilityAutomationsEnabled,
-  ] = useState<boolean>();
+    softwareVulnerabilitiesWebhook,
+    setSoftwareVulnerabilitiesWebhook,
+  ] = useState<IWebhookSoftwareVulnerabilities>();
   const [filterVuln, setFilterVuln] = useState(
     location?.query?.vulnerable || false
   );
@@ -101,18 +91,6 @@ const ManageSoftwarePage = ({
   const { data: config } = useQuery(["config"], configAPI.loadAll, {
     onSuccess: (data) => {
       setIsSoftwareEnabled(data?.host_settings?.enable_software_inventory);
-      let jiraIntegrationEnabled = false;
-      if (data.integrations.jira) {
-        jiraIntegrationEnabled = data?.integrations.jira.some(
-          (integration: any) => {
-            return integration.enable_software_vulnerabilities;
-          }
-        );
-      }
-      setIsVulnerabilityAutomationsEnabled(
-        data?.webhook_settings?.vulnerabilities_webhook
-          .enable_vulnerabilities_webhook || jiraIntegrationEnabled
-      );
     },
   });
 
@@ -190,18 +168,18 @@ const ManageSoftwarePage = ({
 
   const canAddOrRemoveSoftwareWebhook = isGlobalAdmin || isGlobalMaintainer;
 
-  const {
-    data: softwareVulnerabilitiesWebhook,
-    isLoading: isLoadingSoftwareVulnerabilitiesWebhook,
-    refetch: refetchSoftwareVulnerabilitiesWebhook,
-  } = useQuery<IConfig, Error, IWebhookSoftwareVulnerabilities>(
-    ["config"],
-    () => configAPI.loadAll(),
-    {
-      enabled: canAddOrRemoveSoftwareWebhook,
-      select: (data: IConfig) => data.webhook_settings.vulnerabilities_webhook,
-    }
-  );
+  const { isLoading: isLoadingConfig, refetch: refetchConfig } = useQuery<
+    IConfig,
+    Error
+  >(["config"], () => configAPI.loadAll(), {
+    enabled: canAddOrRemoveSoftwareWebhook,
+    onSuccess: (data) => {
+      setSoftwareVulnerabilitiesWebhook(
+        data.webhook_settings.vulnerabilities_webhook
+      );
+      setConfig(data);
+    },
+  });
 
   const onQueryChange = useDebouncedCallback(
     async ({
@@ -234,11 +212,19 @@ const ManageSoftwarePage = ({
     toggleManageAutomationsModal();
   };
 
-  const onCreateWebhookSubmit = async (
-    configSoftwareAutomations: ISoftwareAutomations
-  ) => {
+  const onCreateWebhookSubmit = async ({
+    destination_url,
+    enable_vulnerabilities_webhook,
+  }: IWebhookSoftwareVulnerabilities) => {
     try {
-      const request = configAPI.update(configSoftwareAutomations);
+      const request = configAPI.update({
+        webhook_settings: {
+          vulnerabilities_webhook: {
+            destination_url,
+            enable_vulnerabilities_webhook,
+          },
+        },
+      });
       await request.then(() => {
         renderFlash(
           "success",
@@ -252,7 +238,7 @@ const ManageSoftwarePage = ({
       );
     } finally {
       toggleManageAutomationsModal();
-      refetchSoftwareVulnerabilitiesWebhook();
+      refetchConfig();
     }
   };
 
@@ -264,7 +250,7 @@ const ManageSoftwarePage = ({
     state: IHeaderButtonsState
   ): JSX.Element | null => {
     if (
-      state.isGlobalAdmin &&
+      (state.isGlobalAdmin || state.isGlobalMaintainer) &&
       (!state.isPremiumTier || state.teamId === 0) &&
       !state.isLoading
     ) {
@@ -311,12 +297,12 @@ const ManageSoftwarePage = ({
         buttons={(state) =>
           renderHeaderButtons({
             ...state,
-            isLoading: isLoadingSoftwareVulnerabilitiesWebhook,
+            isLoading: isLoadingConfig,
           })
         }
       />
     );
-  }, [router, location, isLoadingSoftwareVulnerabilitiesWebhook]);
+  }, [router, location, isLoadingConfig]);
 
   const renderSoftwareCount = useCallback(() => {
     const count = softwareCount;
@@ -483,9 +469,6 @@ const ManageSoftwarePage = ({
             onCreateWebhookSubmit={onCreateWebhookSubmit}
             togglePreviewPayloadModal={togglePreviewPayloadModal}
             showPreviewPayloadModal={showPreviewPayloadModal}
-            softwareVulnerabilityAutomationEnabled={
-              isVulnerabilityAutomationsEnabled
-            }
             softwareVulnerabilityWebhookEnabled={
               softwareVulnerabilitiesWebhook &&
               softwareVulnerabilitiesWebhook.enable_vulnerabilities_webhook

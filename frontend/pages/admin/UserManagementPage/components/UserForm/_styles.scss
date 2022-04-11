@@ -132,4 +132,9 @@
   &__tooltip-text {
     width: 300px;
   }
+
+  // so tooltips won't be triggered with whitespace
+  .form-field__label {
+    display: inline-block;
+  }
 }
