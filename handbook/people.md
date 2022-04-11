@@ -261,6 +261,21 @@ During their first week at Fleet, new team members are asked to schedule a contr
 - talk about Google calendar.
 - give you a quick tour of the Fleet Google drive folder.
 
+#### Sightseeing Tour
+
+During their onboarding at Fleet, new team members are asked to schedule a sightseeing tour call with People operations. During this call the new team member will participate in an interactive tour which includes:
+
+- Github issues: the living bloodstream of the company.
+- Kanban boards: the bulletin board of quests you can get, and how you update status and let folks know things are done.
+- Google Calendar: the future.
+- Gmail: like any mailbox; full of junk mail, plus some important things, so it is important to check carefully.
+- Salesforce: the Rolodex.
+- Google Docs: the archives.
+- Slack:
+  - The "office" (#g-, #general).
+  - The walkie talkies (DMs).
+  - The watering hole (#oooh-, #random, #news, #help-).
+
 ### Onboarding a new advisor.
 
 Advisor agreements are sent through [DocuSign](https://www.docusign.com/), using the "Advisor Agreement"
