@@ -60,6 +60,7 @@ const resultsTableHeaders = (results: ICampaignQueryResult[]): Column[] => {
       Cell: (cellProps: ICellProps) => cellProps?.cell?.value || null,
       Filter: DefaultColumnFilter,
       // filterType: "text",
+      disableSortBy: false,
     };
   });
   return _unshiftHostname(headers);
