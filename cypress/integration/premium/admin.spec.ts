@@ -116,15 +116,13 @@ describe("Premium tier - Admin user", () => {
     });
     describe("Manage software page", () => {
       beforeEach(() => cy.visit("/software/manage"));
-      it("allows global admin to update software vulnerability automation", () => {
+      it("allows global admin to create webhook software vulnerability automation", () => {
         cy.getAttached(".manage-software-page__header-wrap").within(() => {
-          cy.getAttached(".Select").within(() => {
-            cy.findByText(/all teams/i).should("exist");
-          });
           cy.findByRole("button", { name: /manage automations/i }).click();
         });
         cy.getAttached(".manage-automations-modal").within(() => {
           cy.getAttached(".fleet-slider").click();
+          cy.getAttached("#webhook-radio-btn").next().click();
         });
         cy.getAttached("#webhook-url").click().type("www.foo.com/bar");
         cy.findByRole("button", { name: /^Save$/ }).click();
@@ -137,6 +135,7 @@ describe("Premium tier - Admin user", () => {
         });
         cy.getAttached(".manage-automations-modal").within(() => {
           cy.getAttached(".fleet-slider--active").should("exist");
+          cy.getAttached("#webhook-url").should("exist");
         });
       });
       it("hides manage automations button since all teams not selected", () => {
