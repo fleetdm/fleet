@@ -126,7 +126,7 @@ const enhanceIntegrationData = (
       enable_software_vulnerabilities:
         integration.enable_software_vulnerabilities,
       name: `${integration.url} - ${integration.project_key}`,
-      integrationIndex: integration.integrationIndex,
+      index: integration.index,
     };
   });
 };

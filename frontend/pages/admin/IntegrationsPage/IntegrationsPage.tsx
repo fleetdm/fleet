@@ -31,6 +31,13 @@ import {
 const baseClass = "integrations-management";
 const noIntegrationsClass = "no-integrations";
 
+const VALIDATION_FAILED_ERROR =
+  "There was a problem with the information you provided.";
+const BAD_REQUEST_ERROR =
+  "Invalid login credentials or Jira URL. Please correct and try again.";
+const UNKNOWN_ERROR =
+  "We experienced an error when attempting to connect to Jira. Please try again later.";
+
 const IntegrationsPage = (): JSX.Element => {
   const { renderFlash } = useContext(NotificationContext);
 
@@ -72,7 +79,7 @@ const IntegrationsPage = (): JSX.Element => {
       onSuccess: (data) => {
         if (data) {
           const addIndex = data.map((integration, index) => {
-            return { ...integration, integrationIndex: index };
+            return { ...integration, index };
           });
           setIntegrationsIndexed(addIndex);
         }
@@ -144,22 +151,13 @@ const IntegrationsPage = (): JSX.Element => {
         })
         .catch((createError: { data: IApiError }) => {
           if (createError.data.message.includes("Validation Failed")) {
-            renderFlash(
-              "error",
-              "There was a problem with the information you provided."
-            );
+            renderFlash("error", VALIDATION_FAILED_ERROR);
           }
           if (createError.data.message.includes("Bad request")) {
-            renderFlash(
-              "error",
-              "Invalid login credentials or Jira URL. Please correct and try again."
-            );
+            renderFlash("error", BAD_REQUEST_ERROR);
           }
           if (createError.data.message.includes("Unknown Error")) {
-            renderFlash(
-              "error",
-              "We experienced an error when attempting to connect to Jira. Please try again later."
-            );
+            renderFlash("error", UNKNOWN_ERROR);
           } else {
             renderFlash(
               "error",
@@ -187,7 +185,7 @@ const IntegrationsPage = (): JSX.Element => {
 
   const onDeleteSubmit = useCallback(() => {
     if (integrationEditing) {
-      integrations?.splice(integrationEditing.integrationIndex, 1);
+      integrations?.splice(integrationEditing.index, 1);
       configAPI
         .update({ integrations: { jira: integrations } })
         .then(() => {
@@ -226,11 +224,7 @@ const IntegrationsPage = (): JSX.Element => {
               <>
                 Successfully edited{" "}
                 <b>
-                  {
-                    jiraIntegrationSubmitData[
-                      integrationEditing?.integrationIndex
-                    ].url
-                  }
+                  {jiraIntegrationSubmitData[integrationEditing?.index].url}
                 </b>
               </>
             );
@@ -241,22 +235,13 @@ const IntegrationsPage = (): JSX.Element => {
           })
           .catch((editError: { data: IApiError }) => {
             if (editError.data.message.includes("Validation Failed")) {
-              renderFlash(
-                "error",
-                "There was a problem with the information you provided."
-              );
+              renderFlash("error", VALIDATION_FAILED_ERROR);
             }
             if (editError.data.message.includes("Bad request")) {
-              renderFlash(
-                "error",
-                "Invalid login credentials or Jira URL. Please correct and try again."
-              );
+              renderFlash("error", BAD_REQUEST_ERROR);
             }
             if (editError.data.message.includes("Unknown Error")) {
-              renderFlash(
-                "error",
-                "We experienced an error when attempting to connect to Jira. Please try again later."
-              );
+              renderFlash("error", UNKNOWN_ERROR);
             } else {
               renderFlash(
                 "error",

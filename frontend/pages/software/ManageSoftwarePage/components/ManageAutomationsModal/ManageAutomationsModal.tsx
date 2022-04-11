@@ -102,7 +102,7 @@ const ManageAutomationsModal = ({
       onSuccess: (data) => {
         if (data) {
           const addIndex = data.map((integration, index) => {
-            return { ...integration, integrationIndex: index };
+            return { ...integration, index };
           });
           setIntegrationsIndexed(addIndex);
           const currentSelectedJiraIntegration = addIndex.find(
@@ -123,7 +123,9 @@ const ManageAutomationsModal = ({
   const handleSaveAutomation = (evt: React.MouseEvent<HTMLFormElement>) => {
     evt.preventDefault();
 
-    const { valid, errors: newErrors } = validateWebhookURL(destination_url);
+    const { valid: validUrl, errors: newErrors } = validateWebhookURL(
+      destination_url
+    );
     setErrors({
       ...errors,
       ...newErrors,
@@ -141,18 +143,22 @@ const ManageAutomationsModal = ({
         jira: integrations || [],
       },
     };
-
-    if (!softwareAutomationsEnabled) {
-      // set enable_vulnerabilities_webhook to false and all jira.enable_software_vulnerabilities to false
-      configSoftwareAutomations.webhook_settings.vulnerabilities_webhook.enable_vulnerabilities_webhook = false;
-      const disableAllJira = configSoftwareAutomations.integrations.jira.map(
-        (integration) => {
-          return { ...integration, enable_software_vulnerabilities: false };
+    () => {
+      if (!softwareAutomationsEnabled) {
+        // set enable_vulnerabilities_webhook to false and all jira.enable_software_vulnerabilities to false
+        configSoftwareAutomations.webhook_settings.vulnerabilities_webhook.enable_vulnerabilities_webhook = false;
+        const disableAllJira = configSoftwareAutomations.integrations.jira.map(
+          (integration) => {
+            return { ...integration, enable_software_vulnerabilities: false };
+          }
+        );
+        configSoftwareAutomations.integrations.jira = disableAllJira;
+        return;
+      }
+      if (!jiraEnabled) {
+        if (!validUrl) {
+          return;
         }
-      );
-      configSoftwareAutomations.integrations.jira = disableAllJira;
-    } else if (!jiraEnabled) {
-      if (valid) {
         // set enable_vulnerabilities_webhook to true and all jira.enable_software_vulnerabilities to false
         configSoftwareAutomations.webhook_settings.vulnerabilities_webhook.enable_vulnerabilities_webhook = true;
         const disableAllJira = configSoftwareAutomations.integrations.jira.map(
@@ -164,10 +170,8 @@ const ManageAutomationsModal = ({
           }
         );
         configSoftwareAutomations.integrations.jira = disableAllJira;
-      } else {
-        return; // do not send request to API for webhook automation if url is !valid
+        return;
       }
-    } else {
       // set enable_vulnerabilities_webhook to false and all jira.enable_software_vulnerabilities to false
       // except the one jira integration selected
       configSoftwareAutomations.webhook_settings.vulnerabilities_webhook.enable_vulnerabilities_webhook = false;
@@ -176,12 +180,13 @@ const ManageAutomationsModal = ({
           return {
             ...integration,
             enable_software_vulnerabilities:
-              index === selectedIntegration?.integrationIndex,
+              index === selectedIntegration?.index,
           };
         }
       );
       configSoftwareAutomations.integrations.jira = enableSelectedJiraIntegrationOnly;
-    }
+      return;
+    };
 
     onCreateWebhookSubmit(configSoftwareAutomations);
     onReturnToApp();
@@ -190,7 +195,7 @@ const ManageAutomationsModal = ({
   const createIntegrationDropdownOptions = () => {
     const integrationOptions = integrationsIndexed?.map((i) => {
       return {
-        value: String(i.integrationIndex),
+        value: String(i.index),
         label: `${i.url} - ${i.project_key}`,
       };
     });
@@ -202,7 +207,7 @@ const ManageAutomationsModal = ({
       | IJiraIntegrationIndexed
       | undefined = integrationsIndexed?.find(
       (integ: IJiraIntegrationIndexed) =>
-        integ.integrationIndex === parseInt(selectIntegrationIndex, 10)
+        integ.index === parseInt(selectIntegrationIndex, 10)
     );
     setSelectedIntegration(integrationWithIndex);
   };
@@ -228,7 +233,7 @@ const ManageAutomationsModal = ({
             options={createIntegrationDropdownOptions()}
             onChange={onChangeSelectIntegration}
             placeholder={"Select Jira integration"}
-            value={selectedIntegration?.integrationIndex}
+            value={selectedIntegration?.index}
             label={"Integration"}
             wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--frequency`}
             hint={

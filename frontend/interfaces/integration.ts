@@ -4,11 +4,11 @@ export interface IJiraIntegration {
   password: string;
   project_key: string;
   enable_software_vulnerabilities?: boolean;
-  integrationIndex?: number;
+  index?: number;
 }
 
 export interface IJiraIntegrationIndexed extends IJiraIntegration {
-  integrationIndex: number;
+  index: number;
 }
 
 export interface IJiraIntegrationFormData {

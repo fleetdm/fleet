@@ -52,7 +52,7 @@ const IntegrationForm = ({
 
     if (integrationEditing) {
       // Edit existing integration using array replacement
-      jiraIntegrationSubmitData.splice(integrationEditing.integrationIndex, 1, {
+      jiraIntegrationSubmitData.splice(integrationEditing.index, 1, {
         url,
         username,
         password,
