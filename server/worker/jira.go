@@ -34,9 +34,6 @@ Affected hosts:
 {{ range slice .Hosts 0 $end }}
 * [{{ .Hostname }}|{{ $.FleetURL }}/hosts/{{ .ID }}]
 {{ end }}
-{{ if gt (len .Hosts) 50 }}
-* Remaining hosts omitted ...
-{{ end }}
 
 View the affected software and more affected hosts:
 
