@@ -225,8 +225,10 @@ On a system with osquery installed via the Fleet osquery installer (Orbit), obta
 
 The output should be similar or identical to: 
 
-`Executable=/private/var/lib/orbit/bin/orbit/macos/edge/orbit
-designated => identifier "com.fleetdm.orbit" and anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] /* exists */ and certificate leaf[field.1.2.840.113635.100.6.1.13] /* exists */ and certificate leaf[subject.OU] = "8VBZ3948LU"`
+```
+Executable=/private/var/lib/orbit/bin/orbit/macos/edge/orbit
+designated => identifier "com.fleetdm.orbit" and anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] /* exists */ and certificate leaf[field.1.2.840.113635.100.6.1.13] /* exists */ and certificate leaf[subject.OU] = "8VBZ3948LU"
+```
 
 Note down the **executable path** and the entire **identifier**.
 
