@@ -126,6 +126,7 @@ const generateTableHeaders = (options: {
             <LinkCell
               value={cellProps.cell.value}
               path={PATHS.EDIT_POLICY(cellProps.row.original)}
+              classes="" // Override default
             />
           ),
         },

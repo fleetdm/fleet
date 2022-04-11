@@ -15,7 +15,7 @@ const LinkCell = ({
   value,
   path,
   title,
-  classes,
+  classes = "w250",
 }: ILinkCellProps): JSX.Element => {
   const dispatch = useDispatch();
 

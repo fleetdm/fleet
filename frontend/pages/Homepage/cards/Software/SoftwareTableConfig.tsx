@@ -40,7 +40,9 @@ const softwareTableHeaders = [
     Header: "Name",
     disableSortBy: true,
     accessor: "name",
-    Cell: (cellProps: ICellProps) => <TextCell value={cellProps.cell.value} />,
+    Cell: (cellProps: ICellProps) => (
+      <TextCell value={cellProps.cell.value} classes="w250" />
+    ),
   },
   {
     title: "Version",
