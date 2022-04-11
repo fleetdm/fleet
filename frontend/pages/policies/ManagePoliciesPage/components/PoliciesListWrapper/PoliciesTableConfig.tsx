@@ -232,6 +232,15 @@ const generateTableHeaders = (options: {
             );
           },
         },
+        {
+          title: "Automations",
+          Header: "Automations",
+          disableSortBy: true,
+          accessor: "webhook",
+          Cell: (cellProps: ICellProps): JSX.Element => (
+            <StatusCell value={cellProps.cell.value} />
+          ),
+        },
       ];
 
       if (!canAddOrRemovePolicy) {
@@ -259,18 +268,6 @@ const generateTableHeaders = (options: {
         },
         disableHidden: true,
       });
-
-      if (!selectedTeamId) {
-        tableHeaders.push({
-          title: "Automations",
-          Header: "Automations",
-          disableSortBy: true,
-          accessor: "webhook",
-          Cell: (cellProps: ICellProps): JSX.Element => (
-            <StatusCell value={cellProps.cell.value} />
-          ),
-        });
-      }
 
       return tableHeaders;
     }

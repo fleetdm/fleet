@@ -143,7 +143,7 @@ const TeamManagementPage = (): JSX.Element => {
         toggleEditTeamModal();
       } else if (teamEditing) {
         teamsAPI
-          .update(teamEditing.id, formData)
+          .update(formData, teamEditing.id)
           .then(() => {
             renderFlash(
               "success",
