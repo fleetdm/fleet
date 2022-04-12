@@ -85,7 +85,7 @@ func (svc *Service) makeTestJiraRequest(ctx context.Context, jiraSettings *fleet
 	client, err := externalsvc.NewJiraClient(&externalsvc.JiraOptions{
 		BaseURL:           jiraSettings.URL,
 		BasicAuthUsername: jiraSettings.Username,
-		BasicAuthPassword: jiraSettings.Password,
+		BasicAuthPassword: jiraSettings.APIToken,
 		ProjectKey:        jiraSettings.ProjectKey,
 	})
 	if err != nil {

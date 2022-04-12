@@ -215,7 +215,7 @@ type VulnerabilitiesWebhookSettings struct {
 type JiraIntegration struct {
 	URL                           string `json:"url"`
 	Username                      string `json:"username"`
-	Password                      string `json:"password"`
+	APIToken                      string `json:"api_token"`
 	ProjectKey                    string `json:"project_key"`
 	EnableSoftwareVulnerabilities bool   `json:"enable_software_vulnerabilities"`
 }
