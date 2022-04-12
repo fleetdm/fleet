@@ -75,6 +75,7 @@ func TestTranslateCPEToCVE(t *testing.T) {
 	err := SyncCVEData(tempDir, cfg)
 	require.NoError(t, err)
 	cfg.Vulnerabilities.DisableDataSync = true
+	cfg.Vulnerabilities.RecentVulnerabilityMaxAge = 365 * 24 * time.Hour
 
 	for _, tt := range cvetests {
 		t.Run(tt.cpe, func(t *testing.T) {
@@ -110,9 +111,6 @@ func TestTranslateCPEToCVE(t *testing.T) {
 
 		// consider recent vulnerabilities to be anything published in 2018
 		theClock = clock.NewMockClock(time.Date(2019, 01, 01, 0, 0, 0, 0, time.UTC))
-		oldMaxAge := recentVulnMaxAge
-		recentVulnMaxAge = 365 * 24 * time.Hour
-		defer func() { recentVulnMaxAge = oldMaxAge; theClock = clock.C }()
 
 		safeDS := &threadSafeDSMock{Store: ds}
 
