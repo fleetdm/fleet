@@ -1,8 +1,6 @@
-import { isString } from "lodash";
-
 const caseInsensitiveAsc = (a: any, b: any): number => {
-  a = isString(a) ? a.toLowerCase() : a;
-  b = isString(b) ? b.toLowerCase() : b;
+  a = typeof a === "string" ? a.toLowerCase() : a;
+  b = typeof b === "string" ? b.toLowerCase() : b;
 
   if (a < b) {
     return -1;
