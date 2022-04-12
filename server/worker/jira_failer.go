@@ -13,9 +13,9 @@ import (
 // logic can be tested at scale in a real environment (e.g. in the load-testing
 // environment).
 type TestJiraFailer struct {
-	// FailCallCountModulo is the number of calls to execute normally before
-	// inserting 1 failure. In other words, it will force a failure every time
-	// 1 % FailCallCountModule == 0. If it is <= 0, no forced failure is
+	// FailCallCountModulo is the number of calls to execute normally vs
+	// forcing a failure. In other words, it will force a failure every time
+	// callCounts % FailCallCountModulo == 0. If it is <= 0, no forced failure is
 	// introduced based on call counts.
 	FailCallCountModulo int
 
