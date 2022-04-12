@@ -34,7 +34,7 @@ const IntegrationForm = ({
   const [formData, setFormData] = useState<IJiraIntegrationFormData>({
     url: integrationEditing?.url || "",
     username: integrationEditing?.username || "",
-    apiToken: integrationEditing?.password || "",
+    apiToken: integrationEditing?.api_token || "",
     projectKey: integrationEditing?.project_key || "",
     enableSoftwareVulnerabilities:
       integrationEditing?.enable_software_vulnerabilities || false,
@@ -57,7 +57,7 @@ const IntegrationForm = ({
       jiraIntegrationSubmitData.splice(integrationEditing.index, 1, {
         url,
         username,
-        password: apiToken,
+        api_token: apiToken,
         project_key: projectKey,
       });
     } else {
@@ -67,7 +67,7 @@ const IntegrationForm = ({
         {
           url,
           username,
-          password: apiToken,
+          api_token: apiToken,
           project_key: projectKey,
         },
       ];
