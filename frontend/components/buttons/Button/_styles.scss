@@ -282,12 +282,6 @@ $base-class: "button";
     &:focus {
       outline: none;
     }
-
-    &:hover,
-    &:focus {
-      background-color: transparent;
-      box-shadow: none;
-    }
   }
 
   &--unstyled-modal-query {
