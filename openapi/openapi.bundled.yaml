@@ -27,6 +27,8 @@ paths:
         login is disabled for SSO users.
 
         To get an API token for an SSO user, you can use the Fleet UI.
+      x-oapi-codegen-middlewares:
+        - limit
       requestBody:
         required: true
         $ref: '#/components/requestBodies/Login'

@@ -54,6 +54,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
+	"github.com/throttled/throttled/v2"
 	"go.elastic.co/apm/module/apmhttp"
 	_ "go.elastic.co/apm/module/apmsql"
 	_ "go.elastic.co/apm/module/apmsql/mysql"
@@ -391,10 +392,10 @@ the way that the Fleet server works.
 
 			httpLogger := kitlog.With(logger, "component", "http")
 
-			// limiterStore := &redis.ThrottledStore{
-			// 	Pool:      redisPool,
-			// 	KeyPrefix: "ratelimit::",
-			// }
+			limiterStore := &redis.ThrottledStore{
+				Pool:      redisPool,
+				KeyPrefix: "ratelimit::",
+			}
 
 			var apiHandler, frontendHandler http.Handler
 			{
@@ -408,12 +409,8 @@ the way that the Fleet server works.
 				// TODO: use baseRouter.Handle to attach websocket route
 				opts := openapi.ChiServerOptions{
 					BaseRouter: baseRouter,
-					Middlewares: []openapi.MiddlewareFunc{
-						// TODO: add httpLogger, limiterStore middleware
-						ErrorMiddleware(func(w http.ResponseWriter, r *http.Request, err error) {
-							// TODO: encode the error using encodeError in transport_error.go, or encodeResponse?
-							fmt.Printf("ERROR: %v\n", err)
-						}),
+					Middlewares: map[string]openapi.MiddlewareFunc{
+						"limit-login": limitMiddleware(limiterStore, "login", throttled.RateQuota{MaxRate: throttled.PerMin(10), MaxBurst: 9}),
 					},
 				}
 				apiHandler = openapi.HandlerWithOptions(srv, opts)

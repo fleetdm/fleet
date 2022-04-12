@@ -1,6 +1,0 @@
-{{range .}}{{$opid := .OperationId}}
-{{range .TypeDefinitions}}
-// {{.TypeName}} defines parameters for {{$opid}}.
-type {{.TypeName}} {{if and (opts.AliasTypes) (.CanAlias)}}={{end}} {{.Schema.TypeDecl}}
-{{end}}
-{{end}}
