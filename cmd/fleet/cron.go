@@ -24,7 +24,7 @@ func cronDB(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, ident
 		select {
 		case <-ticker.C:
 			level.Debug(logger).Log("waiting", "done")
-			ticker.Reset(1 * time.Minute) // TODO: revert before merge
+			ticker.Reset(1 * time.Hour)
 		case <-ctx.Done():
 			level.Debug(logger).Log("exit", "done with cron.")
 			return
