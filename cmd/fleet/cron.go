@@ -24,7 +24,7 @@ func cronDB(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, ident
 		select {
 		case <-ticker.C:
 			level.Debug(logger).Log("waiting", "done")
-			ticker.Reset(1 * time.Hour)
+			ticker.Reset(1 * time.Minute) // TODO: revert before merge
 		case <-ctx.Done():
 			level.Debug(logger).Log("exit", "done with cron.")
 			return
@@ -207,7 +207,8 @@ func cronVulnerabilities(
 }
 
 func checkVulnerabilities(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
-	vulnPath string, config config.FleetConfig, vulnWebhookCfg fleet.VulnerabilitiesWebhookSettings) map[string][]string {
+	vulnPath string, config config.FleetConfig, vulnWebhookCfg fleet.VulnerabilitiesWebhookSettings,
+) map[string][]string {
 	err := vulnerabilities.TranslateSoftwareToCPE(ctx, ds, vulnPath, logger, config)
 	if err != nil {
 		level.Error(logger).Log("msg", "analyzing vulnerable software: Software->CPE", "err", err)

@@ -1652,11 +1652,58 @@ WHERE
 }
 
 func (ds *Datastore) UpdateOSVersions(ctx context.Context) error {
+	counts, err := ds.gatherOSCountsDB(ctx)
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "update aggregated stats for os versions")
+	}
+
+	teams, err := ds.TeamsSummary(ctx)
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "update aggregated stats for os versions")
+	}
+
+	countsByTeamId := make(map[uint]*json.RawMessage)
+	for _, c := range *counts {
+		countsByTeamId[c.TeamID] = c.OSVersions
+	}
+
+	for _, t := range teams {
+		if countsByTeamId[t.ID] == nil {
+			var raw json.RawMessage
+			raw, err = json.Marshal([]fleet.OSVersion{})
+			if err != nil {
+				return err
+			}
+			countsByTeamId[t.ID] = &raw
+		}
+	}
+
+	sql := `
+INSERT INTO aggregated_stats (id, type, json_value) 
+VALUES (?, ?, ?) 
+ON DUPLICATE KEY UPDATE
+	json_value = VALUES(json_value),
+	updated_at = CURRENT_TIMESTAMP
+`
+	for id, counts := range countsByTeamId {
+		if _, err := ds.writer.ExecContext(ctx, sql, id, "os_versions", counts); err != nil {
+			return ctxerr.Wrap(ctx, err, fmt.Sprint("update os versions for team id: ", id))
+		}
+	}
+
+	return nil
+}
+
+type osCounts struct {
+	TeamID     uint             `db:"id"`
+	OSVersions *json.RawMessage `db:"json_value"`
+}
+
+func (ds *Datastore) gatherOSCountsDB(ctx context.Context) (*[]osCounts, error,
+) {
 	query := `
-INSERT INTO aggregated_stats (id, type, json_value)
 SELECT
   team_id id,
-  'os_versions' type,
   COALESCE(
     JSON_ARRAYAGG(
       JSON_OBJECT(
@@ -1695,14 +1742,14 @@ FROM
   ) as team_os_versions
 GROUP BY
   team_id
-ON DUPLICATE KEY UPDATE
-  json_value = VALUES(json_value),
-  updated_at = CURRENT_TIMESTAMP
+
 `
-	_, err := ds.writer.ExecContext(ctx, query)
+
+	var counts []osCounts
+	err := sqlx.SelectContext(ctx, ds.reader, &counts, query)
 	if err != nil {
-		return ctxerr.Wrapf(ctx, err, "update aggregated stats for os versions")
+		return nil, ctxerr.Wrapf(ctx, err, "gather aggregated stats for os versions")
 	}
 
-	return nil
+	return &counts, nil
 }
