@@ -287,6 +287,7 @@ type authEndpointer struct {
 	endingAtVersion   string
 	alternativePaths  []string
 	customMiddleware  []endpoint.Middleware
+	usePathPrefix     bool
 }
 
 func newDeviceAuthenticatedEndpointer(svc fleet.Service, logger log.Logger, opts []kithttp.ServerOption, r *mux.Router, versions ...string) *authEndpointer {
@@ -400,11 +401,20 @@ func (e *authEndpointer) handle(path string, f handlerFunc, v interface{}, verb 
 	versionedPath := strings.Replace(path, "/_version_/", fmt.Sprintf("/{fleetversion:(?:%s)}/", strings.Join(versions, "|")), 1)
 	nameAndVerb := getNameFromPathAndVerb(verb, path)
 	endpoint := e.makeEndpoint(f, v)
-	e.r.Handle(versionedPath, endpoint).Name(nameAndVerb).Methods(verb)
+
+	if e.usePathPrefix {
+		e.r.PathPrefix(versionedPath).Handler(endpoint).Name(nameAndVerb).Methods(verb)
+	} else {
+		e.r.Handle(versionedPath, endpoint).Name(nameAndVerb).Methods(verb)
+	}
 	for _, alias := range e.alternativePaths {
 		nameAndVerb := getNameFromPathAndVerb(verb, alias)
 		versionedPath := strings.Replace(alias, "/_version_/", fmt.Sprintf("/{fleetversion:(?:%s)}/", strings.Join(versions, "|")), 1)
-		e.r.Handle(versionedPath, endpoint).Name(nameAndVerb).Methods(verb)
+		if e.usePathPrefix {
+			e.r.PathPrefix(versionedPath).Handler(endpoint).Name(nameAndVerb).Methods(verb)
+		} else {
+			e.r.Handle(versionedPath, endpoint).Name(nameAndVerb).Methods(verb)
+		}
 	}
 }
 
@@ -444,5 +454,11 @@ func (e *authEndpointer) WithAltPaths(paths ...string) *authEndpointer {
 func (e *authEndpointer) WithCustomMiddleware(mws ...endpoint.Middleware) *authEndpointer {
 	ae := *e
 	ae.customMiddleware = mws
+	return &ae
+}
+
+func (e *authEndpointer) UsePathPrefix() *authEndpointer {
+	ae := *e
+	ae.usePathPrefix = true
 	return &ae
 }

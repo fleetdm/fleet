@@ -446,6 +446,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ne.POST("/api/_version_/fleet/sso", initiateSSOEndpoint, initiateSSORequest{})
 	ne.POST("/api/_version_/fleet/sso/callback", makeCallbackSSOEndpoint(config.Server.URLPrefix), callbackSSORequest{})
 	ne.GET("/api/_version_/fleet/sso", settingsSSOEndpoint, nil)
+	// TODO(mna): complete with raw Handler: ne.UsePathPrefix().GET("/api/_version_/fleet/results/")
 
 	limiter := ratelimit.NewMiddleware(limitStore)
 	ne.
