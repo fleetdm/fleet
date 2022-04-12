@@ -6,6 +6,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestUserDelete(t *testing.T) {
@@ -52,39 +53,42 @@ func TestUserCreateForcePasswordReset(t *testing.T) {
 		return nil, &notFoundError{}
 	}
 
-	expectedAdminForcePasswordReset := false
+	for _, tc := range []struct {
+		name                            string
+		args                            []string
+		expectedAdminForcePasswordReset bool
+	}{
+		{
+			name:                            "sso",
+			args:                            []string{"--email", "foo@example.com", "--name", "foo", "--sso"},
+			expectedAdminForcePasswordReset: false,
+		},
+		{
+			name:                            "api-only",
+			args:                            []string{"--email", "bar@example.com", "--password", "p4ssw0rd.", "--name", "bar", "--api-only"},
+			expectedAdminForcePasswordReset: false,
+		},
+		{
+			name:                            "api-only-sso",
+			args:                            []string{"--email", "baz@example.com", "--name", "baz", "--api-only", "--sso"},
+			expectedAdminForcePasswordReset: false,
+		},
+		{
+			name:                            "non-sso-non-api-only",
+			args:                            []string{"--email", "zoo@example.com", "--password", "p4ssw0rd.", "--name", "zoo"},
+			expectedAdminForcePasswordReset: true,
+		},
+	} {
+		ds.NewUserFuncInvoked = false
+		ds.NewUserFunc = func(ctx context.Context, user *fleet.User) (*fleet.User, error) {
+			assert.Equal(t, tc.expectedAdminForcePasswordReset, user.AdminForcedPasswordReset)
+			return user, nil
+		}
 
-	ds.NewUserFunc = func(ctx context.Context, user *fleet.User) (*fleet.User, error) {
-		assert.Equal(t, expectedAdminForcePasswordReset, user.AdminForcedPasswordReset)
-		return user, nil
+		require.Equal(t, "", runAppForTest(t, append(
+			[]string{"user", "create"},
+			tc.args...,
+		)))
+		require.True(t, ds.NewUserFuncInvoked)
 	}
-
-	assert.Equal(t, "", runAppForTest(t, []string{
-		"user", "create",
-		"--email", "foo@example.com",
-		"--name", "foo",
-		"--sso",
-	}))
-	assert.Equal(t, "", runAppForTest(t, []string{
-		"user", "create",
-		"--email", "bar@example.com",
-		"--password", "p4ssw0rd.",
-		"--name", "bar",
-		"--api-only",
-	}))
-	assert.Equal(t, "", runAppForTest(t, []string{
-		"user", "create",
-		"--email", "bar@example.com",
-		"--name", "bar",
-		"--api-only",
-		"--sso",
-	}))
-
-	expectedAdminForcePasswordReset = true
-	assert.Equal(t, "", runAppForTest(t, []string{
-		"user", "create",
-		"--email", "zoo@example.com",
-		"--password", "p4ssw0rd.",
-		"--name", "zoo",
-	}))
 }
