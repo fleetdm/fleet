@@ -23,6 +23,10 @@ func (c *Client) Setup(email, name, password, org string) (string, error) {
 		ServerURL: &c.addr,
 	}
 
+	// NOTE(mna): leaving the /v1/ in for now, so that a new fleetctl talking to
+	// an older fleet instance still works (in particular, this is called from
+	// fleetctl preview to setup the preview instance). When the /v1/ support is
+	// dropped, it should be removed from here.
 	response, err := c.Do("POST", "/api/v1/setup", "", params)
 	if err != nil {
 		return "", fmt.Errorf("POST /api/v1/setup: %w", err)

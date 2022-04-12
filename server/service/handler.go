@@ -477,13 +477,16 @@ func WithSetup(svc fleet.Service, logger kitlog.Logger, next http.Handler) http.
 	rxOsquery := regexp.MustCompile(`^/api/[^/]+/osquery`)
 	return func(w http.ResponseWriter, r *http.Request) {
 		configRouter := http.NewServeMux()
-		// TODO: hard-codes v1 as a path fragment, which would probably not work once we
-		// deprecate it for newer versions, unless we want to treat the setup differently (not versioned?)
-		configRouter.Handle("/api/v1/setup", kithttp.NewServer(
+		srv := kithttp.NewServer(
 			makeSetupEndpoint(svc, logger),
 			decodeSetupRequest,
 			encodeResponse,
-		))
+		)
+		// NOTE: support setup on both /v1/ and version-less, in the future /v1/
+		// will be dropped.
+		configRouter.Handle("/api/v1/setup", srv)
+		configRouter.Handle("/api/setup", srv)
+
 		// whitelist osqueryd endpoints
 		if rxOsquery.MatchString(r.URL.Path) {
 			next.ServeHTTP(w, r)
