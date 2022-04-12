@@ -40,11 +40,9 @@ const IntegrationForm = ({
       integrationEditing?.enable_software_vulnerabilities || false,
   });
 
-  console.log("formData", formData);
   const { url, username, apiToken, projectKey } = formData;
 
   const onInputChange = ({ name, value }: IFormField) => {
-    console.log("name and value", name, value);
     setFormData({ ...formData, [name]: value });
   };
 
