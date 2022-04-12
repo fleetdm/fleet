@@ -1,6 +1,8 @@
-const caseInsensitiveAsc = (a: string, b: string): number => {
-  a = a.toLowerCase();
-  b = b.toLowerCase();
+import { isString } from "lodash";
+
+const caseInsensitiveAsc = (a: any, b: any): number => {
+  a = isString(a) ? a.toLowerCase() : a;
+  b = isString(b) ? b.toLowerCase() : b;
 
   if (a < b) {
     return -1;
@@ -36,4 +38,18 @@ const dateStringsAsc = (a: string, b: string): number => {
   return 0;
 };
 
-export default { caseInsensitiveAsc, dateStringsAsc };
+const hasLength = (a: unknown[], b: unknown[]): number => {
+  if (!a?.length && b?.length) {
+    return -1;
+  }
+  if (a?.length && !b?.length) {
+    return 1;
+  }
+  return 0;
+};
+
+export default {
+  caseInsensitiveAsc,
+  dateStringsAsc,
+  hasLength,
+};

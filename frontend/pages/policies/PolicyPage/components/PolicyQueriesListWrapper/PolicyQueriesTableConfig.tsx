@@ -49,14 +49,13 @@ const generateTableHeaders = (): IDataColumn[] => {
         <HeaderCell
           value={headerProps.column.title || headerProps.column.id}
           isSortedDesc={headerProps.column.isSortedDesc}
-          disableSortBy={false}
         />
       ),
+      disableSortBy: false,
       accessor: "hostname",
       Cell: (cellProps: ICellProps): JSX.Element => (
         <TextCell value={cellProps.cell.value} />
       ),
-      disableSortBy: false,
     },
     {
       title: "Status",
@@ -64,9 +63,10 @@ const generateTableHeaders = (): IDataColumn[] => {
         <HeaderCell
           value={headerProps.column.title || headerProps.column.id}
           isSortedDesc={headerProps.column.isSortedDesc}
-          disableSortBy={false}
         />
       ),
+      disableSortBy: false,
+      sortType: "hasLength",
       accessor: "query_results",
       Cell: (cellProps: ICellProps): JSX.Element => (
         <>
@@ -83,7 +83,6 @@ const generateTableHeaders = (): IDataColumn[] => {
           )}
         </>
       ),
-      disableSortBy: false,
     },
   ];
   return tableHeaders;

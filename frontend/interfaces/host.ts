@@ -97,6 +97,7 @@ export interface IPackStats {
 export interface IHostPolicyQuery {
   id: number;
   hostname: string;
+  query_results?: Array<Record<string, unknown>>;
   status?: string;
 }
 
