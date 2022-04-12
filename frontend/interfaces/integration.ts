@@ -1,7 +1,7 @@
 export interface IJiraIntegration {
   url: string;
   username: string;
-  api_token: string;
+  password: string;
   project_key: string;
   enable_software_vulnerabilities?: boolean;
   index?: number;

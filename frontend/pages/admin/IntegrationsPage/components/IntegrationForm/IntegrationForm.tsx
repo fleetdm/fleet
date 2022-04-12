@@ -34,15 +34,17 @@ const IntegrationForm = ({
   const [formData, setFormData] = useState<IJiraIntegrationFormData>({
     url: integrationEditing?.url || "",
     username: integrationEditing?.username || "",
-    apiToken: integrationEditing?.api_token || "",
+    apiToken: integrationEditing?.password || "",
     projectKey: integrationEditing?.project_key || "",
     enableSoftwareVulnerabilities:
       integrationEditing?.enable_software_vulnerabilities || false,
   });
 
+  console.log("formData", formData);
   const { url, username, apiToken, projectKey } = formData;
 
   const onInputChange = ({ name, value }: IFormField) => {
+    console.log("name and value", name, value);
     setFormData({ ...formData, [name]: value });
   };
 
@@ -55,7 +57,7 @@ const IntegrationForm = ({
       jiraIntegrationSubmitData.splice(integrationEditing.index, 1, {
         url,
         username,
-        api_token: apiToken,
+        password: apiToken,
         project_key: projectKey,
       });
     } else {
@@ -65,7 +67,7 @@ const IntegrationForm = ({
         {
           url,
           username,
-          api_token: apiToken,
+          password: apiToken,
           project_key: projectKey,
         },
       ];
@@ -110,7 +112,7 @@ const IntegrationForm = ({
         }
       />
       <InputField
-        name="password"
+        name="apiToken"
         onChange={onInputChange}
         label="Jira API token"
         parseTarget

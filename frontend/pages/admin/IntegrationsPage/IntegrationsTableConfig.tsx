@@ -120,7 +120,7 @@ const enhanceIntegrationData = (
     return {
       url: integration.url,
       username: integration.username,
-      api_token: integration.api_token,
+      password: integration.password,
       project_key: integration.project_key,
       actions: generateActionDropdownOptions(),
       enable_software_vulnerabilities:
