@@ -28,11 +28,11 @@ Click Uninstall again to confirm, and osquery will be removed from your Windows 
 
 ## On Linux:
 
-Open your terminal and paste the following commands to stop the running osquery service, uninstall osquery, and clean up files created by osquery.
+1. Open your terminal and paste the following commands to stop the running osquery service, uninstall osquery, and clean up files created by osquery.
 
-Note that `sudo` is required, and you’ll need administrative privileges to complete this process.
+2. Note that `sudo` is required, and you’ll need administrative privileges to complete this process.
 
-Using Debian package manager (Debian, Ubuntu, etc.) :
+3. Using Debian package manager (Debian, Ubuntu, etc.) :
 
 ```
 sudo systemctl stop osqueryd.service

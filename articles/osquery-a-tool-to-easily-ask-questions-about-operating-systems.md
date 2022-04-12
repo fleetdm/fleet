@@ -63,3 +63,4 @@ Ready to give Fleet a try? Head over to our get started page, and you can be up 
 <meta name="author" value="dominuskelvin">
 <meta name="publishedOn" value="2022-04-04">
 <meta name="articleTitle" value="Osquery: a tool to easily ask questions about operating systems">
+<meta name="heroImageURL" value="https://miro.medium.com/1*0iCxml_BJkCwz8w1VXvi3A.png">

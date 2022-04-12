@@ -33,5 +33,6 @@ module.exports.policies = {
   'view-press-kit': true,
   'view-platform': true,
   'deliver-demo-signup': true,
+  'articles/*': true,
 
 };

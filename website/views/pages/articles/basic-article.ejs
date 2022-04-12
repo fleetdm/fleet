@@ -1,0 +1,17 @@
+<div id="basic-article" v-cloak>
+  <div style="max-width: 800px;" class="container-fluid">
+    <div purpose="article-title">
+    <h1>{{thisPage.meta.articleTitle}}</h1>
+    </div>
+    <div purpose="article-details" class="d-flex flex-row align-items-center">
+    <span><js-timestamp format="billing" :at="thisPage.meta.publishedOn"></js-timestamp></span>
+    <span class="px-2">|</span>
+    <img style="height: 28px; width: 28px; border-radius: 100%;" :src="'https://github.com/'+thisPage.meta.author+'.png?size=200'">
+    <p class="pl-2 font-weight-bold">{{thisPage.meta.author}}</p>
+    </div>
+    <div purpose="article-content">
+      <%- partial(path.relative(path.dirname(__filename), path.resolve( sails.config.appPath, path.join(sails.config.builtStaticContent.compiledPagePartialsAppPath, thisPage.htmlId)))) %>
+    </div>
+  </div>
+</div>
+<%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

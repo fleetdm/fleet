@@ -276,6 +276,12 @@ module.exports = {
 
               });//∞
 
+              // for article pages, we'll grab the first image in the article and attach the url to that page.
+              let imagesInArticlePages = [];
+              if(sectionRepoPath === 'articles') {
+                imagesInArticlePages = htmlString.match(/img src=\"(https?:\/\/[^"]+)/g);
+              }
+
               // Extract metadata from markdown.
               // > • Parsing meta tags (consider renaming them to just <meta>- or by now there's probably a more standard way of embedding semantics in markdown files; prefer to use that): https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L180-L183
               // >   See also https://github.com/mikermcneil/machinepack-markdown/blob/5d8cee127e8ce45c702ec9bbb2b4f9bc4b7fafac/machines/parse-docmeta-tags.js#L42-L47
