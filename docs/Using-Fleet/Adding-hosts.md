@@ -206,4 +206,59 @@ installation should appear as the same host in the Fleet UI. If other settings a
 entries will appear in the Fleet UI. The older entries can be automatically cleaned up with the host
 expiration functionality configured in the application settings (UI or fleetctl).
 
+## Grant full disk access to osquery on macOS
+macOS does not allow applications to access all system files by default. If you are using MDM, which
+is required to deploy these profiles, you
+can deploy a "Privacy Preferences Policy Control" policy to grant Orbit or osquery that level of
+access. This is necessary to query for files located in protected paths as well as to use event
+tables that require access to the [EndpointSecurity
+API](https://developer.apple.com/documentation/endpointsecurity#overview), such as *es_process_events*.
+
+### Creating the configuration profile
+#### Obtaining identifiers
+If you use plain osquery, instructions are [available here](https://osquery.readthedocs.io/en/stable/deployment/process-auditing/).
+
+On a system with osquery installed via the Fleet osquery installer (Orbit), obtain the
+`CodeRequirement` of Orbit by running:
+
+```
+codesign -dr - /private/var/lib/orbit/bin/orbit/macos/edge/orbit
+```
+
+The output should be similar or identical to: 
+
+```
+Executable=/private/var/lib/orbit/bin/orbit/macos/edge/orbit
+designated => identifier "com.fleetdm.orbit" and anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] /* exists */ and certificate leaf[field.1.2.840.113635.100.6.1.13] /* exists */ and certificate leaf[subject.OU] = "8VBZ3948LU"
+```
+
+Note down the **executable path** and the entire **identifier**.
+
+Osqueryd will inherit the privileges from Orbit and does not need explicit permissions.
+
+#### Creating the profile
+Depending on your MDM, this might be possible in the UI or require a custom profile. If your MDM has a feature to configure *Policy Preferences*, follow these steps:
+
+1. Configure the identifier type to “path”
+2. Paste the full path to Orbit as the identifier. 
+3. Paste the full code signing identifier into the code requirement field.
+4. Allow “Access all files”. Access to Downloads, Documents etc is inherited from this.
+
+If your MDM does not have built-in support for privacy preferences profiles, you can use
+[PPPC-Utility](https://github.com/jamf/PPPC-Utility) to create a profile with those values, then upload it to
+your MDM as a custom profile.
+
+#### Test the profile
+Link the profile to a test group that contains at least one Mac.
+Once the computer has received the profile, which you can verify by looking at *Profiles* in *System
+Preferences*, run this query from Fleet:
+
+```sql
+SELECT * FROM file WHERE path LIKE '/Users/%/Downloads/%%';
+```
+
+If this query returns files, the profile has been successfully applied, as *Downloads* is a
+protected location. You can now enjoy the benefits of osquery on all system files as well as start
+using the *es_process_events* table!
+
 <meta name="pageOrderInSection" value="500">
