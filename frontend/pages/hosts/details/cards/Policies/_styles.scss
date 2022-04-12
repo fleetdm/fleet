@@ -25,6 +25,10 @@
       }
       tbody {
         tr {
+          .name__cell {
+            max-width: 0; // reset to variable width
+          }
+
           .policy-link {
             visibility: hidden;
             text-overflow: none;
@@ -37,6 +41,21 @@
             .policy-link {
               visibility: visible;
               text-overflow: none;
+            }
+          }
+          .policy-info {
+            width: 100%; // sets ellipses
+            justify-content: left;
+
+            .policy-info-text {
+              overflow: hidden;
+              white-space: nowrap;
+              text-overflow: ellipsis;
+            }
+
+            &::after {
+              content: url("../assets/images/icon-arrow-right-vibrant-blue-10x18@2x.png");
+              transform: scale(0.5);
             }
           }
         }
