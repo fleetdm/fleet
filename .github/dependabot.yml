@@ -3,8 +3,16 @@
 version: 2
 updates:
 
-  # Maintain dependencies for GitHub Actions
+# Maintain dependencies for GitHub Actions
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "daily"
+# Maintain dependencies for Dockerfiles
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "daily"
+    reviewers:
+      - "@fleetdm/go"
+      - "@fleetdm/infra"
