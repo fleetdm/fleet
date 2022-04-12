@@ -2,8 +2,7 @@
  * Component when there is an error retrieving schedule set up in fleet
  */
 import React from "react";
-import { useDispatch } from "react-redux";
-import { push } from "react-router-redux";
+import { InjectedRouter } from "react-router";
 import paths from "router/paths";
 
 import Button from "components/buttons/Button";
@@ -20,18 +19,18 @@ import {
   generateTableHeaders,
   generateDataSet,
 } from "./ScheduleTableConfig";
-// @ts-ignore
 import scheduleSvg from "../../../../../../assets/images/no-schedule-322x138@2x.png";
 
 const baseClass = "schedule-list-wrapper";
 const noScheduleClass = "no-schedule";
 
 const TAGGED_TEMPLATES = {
-  hostsByTeamPRoute: (teamId: number | undefined | null) => {
+  hostsByTeamRoute: (teamId: number | undefined | null) => {
     return `${teamId ? `/?team_id=${teamId}` : ""}`;
   },
 };
 interface IScheduleListWrapperProps {
+  router: InjectedRouter; // v3
   onRemoveScheduledQueryClick?: (selectIds: number[]) => void;
   onEditScheduledQueryClick?: (selectedQuery: IEditScheduledQuery) => void;
   allScheduledQueriesList: IScheduledQuery[];
@@ -44,6 +43,7 @@ interface IScheduleListWrapperProps {
 }
 
 const ScheduleListWrapper = ({
+  router,
   onRemoveScheduledQueryClick,
   allScheduledQueriesList,
   toggleScheduleEditorModal,
@@ -54,10 +54,9 @@ const ScheduleListWrapper = ({
   loadingInheritedQueriesTableData,
   loadingTeamQueriesTableData,
 }: IScheduleListWrapperProps): JSX.Element => {
-  const dispatch = useDispatch();
   const { MANAGE_PACKS, MANAGE_HOSTS } = paths;
 
-  const handleAdvanced = () => dispatch(push(MANAGE_PACKS));
+  const handleAdvanced = () => router.push(MANAGE_PACKS);
 
   const NoScheduledQueries = () => {
     return (
@@ -77,7 +76,7 @@ const ScheduleListWrapper = ({
                     <a
                       href={
                         MANAGE_HOSTS +
-                        TAGGED_TEMPLATES.hostsByTeamPRoute(selectedTeamData.id)
+                        TAGGED_TEMPLATES.hostsByTeamRoute(selectedTeamData.id)
                       }
                     >
                       {selectedTeamData.name}
@@ -187,8 +186,8 @@ const ScheduleListWrapper = ({
         disablePagination
         onPrimarySelectActionClick={onRemoveScheduledQueryClick}
         primarySelectActionButtonVariant="text-icon"
-        primarySelectActionButtonIcon="close"
-        primarySelectActionButtonText={"Remove"}
+        primarySelectActionButtonIcon="delete"
+        primarySelectActionButtonText={"Delete"}
         emptyComponent={NoScheduledQueries}
       />
     </div>

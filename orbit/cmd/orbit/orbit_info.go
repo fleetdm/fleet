@@ -4,7 +4,7 @@ import (
 	"context"
 
 	orbit_table "github.com/fleetdm/fleet/v4/orbit/pkg/table"
-	"github.com/kolide/osquery-go/plugin/table"
+	"github.com/osquery/osquery-go/plugin/table"
 )
 
 // orbitInfoExtension implements an extension table that provides info about Orbit.

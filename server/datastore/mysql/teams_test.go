@@ -307,8 +307,10 @@ func testTeamsAgentOptions(t *testing.T, ds *Datastore) {
 
 	agentOptions := json.RawMessage(`{"config":{"foo":"bar"},"overrides":{"platforms":{"darwin":{"foo":"override"}}}}`)
 	team2, err := ds.NewTeam(context.Background(), &fleet.Team{
-		Name:         "team2",
-		AgentOptions: &agentOptions,
+		Name: "team2",
+		Config: fleet.TeamConfig{
+			AgentOptions: &agentOptions,
+		},
 	})
 	require.NoError(t, err)
 

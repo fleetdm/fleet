@@ -63,11 +63,11 @@ const QueryResults = ({
 
   useEffect(() => {
     const calculatePercent =
-      Math.round(
-        ((totalRowsCount + errors?.length) / targetsTotalCount) * 100
-      ) || 0;
+      targetsTotalCount !== 0
+        ? Math.round((campaign.hosts_count.total / targetsTotalCount) * 100)
+        : 0;
     setTargetsRespondedPercent(calculatePercent);
-  }, [totalRowsCount, errors]);
+  }, [campaign]);
 
   useEffect(() => {
     if (isQueryFinished) {

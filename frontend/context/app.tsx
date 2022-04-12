@@ -155,10 +155,10 @@ const reducer = (state: InitialStateType, action: IAction) => {
 
       return {
         ...state,
-        availableTeams: availableTeams.sort(
-          (a: ITeamSummary, b: ITeamSummary) =>
+        availableTeams:
+          availableTeams?.sort((a: ITeamSummary, b: ITeamSummary) =>
             sort.caseInsensitiveAsc(a.name, b.name)
-        ),
+          ) || [],
       };
     }
     case ACTIONS.SET_CURRENT_USER: {
@@ -184,7 +184,7 @@ const reducer = (state: InitialStateType, action: IAction) => {
       return {
         ...state,
         config,
-        ...setPermissions(state.currentUser, config),
+        ...setPermissions(state.currentUser, config, state.currentTeam?.id),
       };
     }
     case ACTIONS.SET_ENROLL_SECRET: {

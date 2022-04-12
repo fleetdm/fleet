@@ -187,18 +187,18 @@ describe(
       });
     });
     describe("Manage software page", () => {
-      beforeEach(() => {
-        cy.loginWithCySession("mary@organization.com", "user123#");
-        cy.visit("/software/manage");
-      });
-      it("allows maintainer to click 'Manage automations' button", () => {
-        it("manages software automations when all teams selected", () => {
+      beforeEach(() => cy.visit("/software/manage"));
+      it("should restrict global maintainer from 'Manage automations' button", () => {
+        it("hides manages software automations when all teams selected", () => {
           cy.getAttached(".manage-software-page__header-wrap").within(() => {
             cy.getAttached(".Select").within(() => {
               cy.findByText(/all teams/i).should("exist");
             });
-            cy.findByRole("button", { name: /manage automations/i }).click();
-            cy.findByRole("button", { name: /cancel/i }).click();
+            cy.getAttached(".manage-software-page__header-wrap").within(() => {
+              cy.findByRole("button", {
+                name: /manage automations/i,
+              }).should("not.exist");
+            });
           });
         });
         it("hides manage automations button when all teams not selected", () => {
@@ -220,9 +220,6 @@ describe(
       beforeEach(() => {
         cy.loginWithCySession("mary@organization.com", "user123#");
         cy.visit("/queries/manage");
-      });
-      it("displays the 'Observer can run' column on the queries table", () => {
-        cy.contains(/observer can run/i);
       });
       it("allows maintainer to add a new query", () => {
         cy.findByRole("button", { name: /new query/i }).click();
@@ -314,7 +311,7 @@ describe(
               });
           });
         });
-        cy.getAttached(".policy-form__button-wrap--new-policy").within(() => {
+        cy.getAttached(".policy-form__button-wrap").within(() => {
           cy.findByRole("button", { name: /run/i }).should("exist");
           cy.findByRole("button", { name: /save/i }).should("exist");
         });

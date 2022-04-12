@@ -1,1 +1,0 @@
-* Add the ability to specify the Content Type Value for Kafka REST proxy logging plugin, this defaults to "application/vnd.kafka.json.v1+json" to not break existing integrations

@@ -101,7 +101,7 @@ const EnrollSecretRow = ({
         type={showSecret ? "text" : "password"}
         value={secret.secret}
       />
-      {toggleSecretEditorModal && toggleDeleteSecretModal ? (
+      {toggleSecretEditorModal && toggleDeleteSecretModal && (
         <>
           <Button
             onClick={onEditSecretClick}
@@ -122,7 +122,7 @@ const EnrollSecretRow = ({
             </>
           </Button>
         </>
-      ) : null}
+      )}
     </div>
   );
 };

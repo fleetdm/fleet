@@ -1,11 +1,18 @@
 import React from "react";
 import classnames from "classnames";
 
-import { IOsqueryTable } from "interfaces/osquery_table"; // @ts-ignore
-import { osqueryTableNames } from "utilities/osquery_tables"; // @ts-ignore
-import Dropdown from "components/forms/fields/Dropdown"; // @ts-ignore
+import { IOsqueryTable } from "interfaces/osquery_table";
+// @ts-ignore
+import { osqueryTableNames } from "utilities/osquery_tables";
+import { PLATFORM_DISPLAY_NAMES } from "utilities/constants";
+
+// @ts-ignore
+import Dropdown from "components/forms/fields/Dropdown";
+// @ts-ignore
 import FleetIcon from "components/icons/FleetIcon";
-import TooltipWrapper from "components/TooltipWrapper"; // @ts-ignore
+import TooltipWrapper from "components/TooltipWrapper";
+
+// @ts-ignore
 import SecondarySidePanelContainer from "../SecondarySidePanelContainer";
 import AppleIcon from "../../../../assets/images/icon-apple-dark-20x20@2x.png";
 import LinuxIcon from "../../../../assets/images/icon-linux-dark-20x20@2x.png";
@@ -99,19 +106,21 @@ const QuerySidePanel = ({
         <p className={`${baseClass}__description`}>{description}</p>
       </div>
       <div className={`${baseClass}__os-availability`}>
-        <h2 className={`${baseClass}__header`}>OS Availability</h2>
+        <h2 className={`${baseClass}__header`}>Compatible with:</h2>
         <ul className={`${baseClass}__platforms`}>
           {platforms?.map((platform) => {
             if (platform === "all") {
               return (
                 <li key={platform}>
-                  <FleetIcon name="hosts" /> {platform}
+                  <FleetIcon name="hosts" />{" "}
+                  {PLATFORM_DISPLAY_NAMES[platform] || platform}
                 </li>
               );
             } else if (platform === "freebsd") {
               return (
                 <li key={platform}>
-                  <FleetIcon name="single-host" /> {platform}
+                  <FleetIcon name="single-host" />{" "}
+                  {PLATFORM_DISPLAY_NAMES[platform]}
                 </li>
               );
             }
@@ -143,7 +152,7 @@ const QuerySidePanel = ({
 
             return (
               <li key={platform}>
-                {icon} {platform}
+                {icon} {PLATFORM_DISPLAY_NAMES[platform] || platform}
               </li>
             );
           })}

@@ -1,28 +1,39 @@
 import React, { useEffect } from "react";
-import { useDispatch } from "react-redux";
-import { push } from "react-router-redux";
-// @ts-ignore
-import { fetchCurrentUser, logoutUser } from "redux/nodes/auth/actions";
-import Button from "components/buttons/Button";
+import { InjectedRouter } from "react-router";
+
 import paths from "router/paths";
-// @ts-ignore
+import usersAPI from "services/entities/users";
+
+import Button from "components/buttons/Button"; // @ts-ignore
 import fleetLogoText from "../../../assets/images/fleet-logo-text-white.svg";
+
+interface IApiOnlyUserProps {
+  router: InjectedRouter;
+}
 
 const baseClass = "api-only-user";
 
-const ApiOnlyUser = (): JSX.Element => {
-  const dispatch = useDispatch();
-  const { LOGIN, HOME } = paths;
-  const handleClick = () => dispatch(logoutUser());
+const ApiOnlyUser = ({ router }: IApiOnlyUserProps): JSX.Element => {
+  const { LOGIN, HOME, LOGOUT } = paths;
+  const handleClick = () => router.push(LOGOUT);
 
   useEffect(() => {
-    dispatch(fetchCurrentUser()).then((user: any) => {
-      if (!user) {
-        dispatch(push(LOGIN));
-      } else if (user && !user.payload.user.api_only) {
-        dispatch(push(HOME));
+    const fetchCurrentUser = async () => {
+      try {
+        const { user } = await usersAPI.me();
+
+        if (!user) {
+          router.push(LOGIN);
+        } else if (!user?.api_only) {
+          router.push(HOME);
+        }
+      } catch (response) {
+        console.error(response);
+        return false;
       }
-    });
+    };
+
+    fetchCurrentUser();
   }, []);
 
   return (

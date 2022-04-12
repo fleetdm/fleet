@@ -27,7 +27,7 @@ describe("SSO Sessions", () => {
     cy.logout();
     cy.visit("/");
     // Log in
-    cy.contains("button", "Sign On With SimpleSAML");
+    cy.contains("button", "Sign on with SimpleSAML");
     cy.loginSSO();
     cy.contains("Hosts");
   });
@@ -36,7 +36,7 @@ describe("SSO Sessions", () => {
     cy.setupSSO();
     cy.logout();
     cy.visit("/");
-    cy.contains("button", "Sign On With SimpleSAML");
+    cy.contains("button", "Sign on with SimpleSAML");
     cy.loginSSO();
     // Log in should fail
     cy.contains("Password");

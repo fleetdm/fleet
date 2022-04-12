@@ -34,19 +34,14 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 	}
 
 	// Initialize autoupdate metadata
-
 	updateOpt := update.DefaultOptions
 
 	updateOpt.RootDirectory = orbitRoot
 	updateOpt.Targets = update.LinuxTargets
 
 	// Override default channels with the provided values.
-	orbit := updateOpt.Targets["orbit"]
-	orbit.Channel = opt.OrbitChannel
-	updateOpt.Targets["orbit"] = orbit
-	osqueryd := updateOpt.Targets["osqueryd"]
-	osqueryd.Channel = opt.OsquerydChannel
-	updateOpt.Targets["osqueryd"] = osqueryd
+	updateOpt.Targets.SetTargetChannel("orbit", opt.OrbitChannel)
+	updateOpt.Targets.SetTargetChannel("osqueryd", opt.OsquerydChannel)
 
 	updateOpt.ServerURL = opt.UpdateURL
 	if opt.UpdateRoots != "" {
@@ -203,6 +198,7 @@ var envTemplate = template.Must(template.New("env").Parse(`
 ORBIT_UPDATE_URL={{ .UpdateURL }}
 ORBIT_ORBIT_CHANNEL={{ .OrbitChannel }}
 ORBIT_OSQUERYD_CHANNEL={{ .OsquerydChannel }}
+ORBIT_UPDATE_INTERVAL={{ .OrbitUpdateInterval }}
 {{ if .Insecure }}ORBIT_INSECURE=true{{ end }}
 {{ if .DisableUpdates }}ORBIT_DISABLE_UPDATES=true{{ end }}
 {{ if .FleetURL }}ORBIT_FLEET_URL={{.FleetURL}}{{ end }}

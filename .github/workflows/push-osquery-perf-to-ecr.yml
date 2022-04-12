@@ -18,6 +18,9 @@ on:
         required: true
         default: latest
 
+permissions:
+  contents: read
+
 jobs:
   build-docker:
     runs-on: ubuntu-latest

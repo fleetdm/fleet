@@ -2,6 +2,6 @@
 
 package table
 
-import "github.com/kolide/osquery-go"
+import "github.com/osquery/osquery-go"
 
 func platformTables() []osquery.OsqueryPlugin { return nil }

@@ -1,0 +1,21 @@
+.section--users {
+  margin-top: $pad-medium;
+  .data-table-block {
+    .data-table__table {
+      thead {
+        .username__header {
+          width: $col-md;
+        }
+
+        .shell__header {
+          width: $col-md;
+        }
+        @media (min-width: $break-768) {
+          .username__header {
+            width: $col-lg;
+          }
+        }
+      }
+    }
+  }
+}

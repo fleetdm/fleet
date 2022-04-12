@@ -169,7 +169,6 @@ module.exports.routes = {
   'GET /try-fleet':                  '/get-started',
   'GET /docs/deploying/fleet-public-load-testing': '/docs/deploying/load-testing',
   'GET /handbook/customer-experience': '/handbook/customers',
-  'GET /handbook/growth': '/handbook/brand',
 
 
 
@@ -192,8 +191,9 @@ module.exports.routes = {
   'GET /contact':                    '/company/contact',
   'GET /legal':                      '/legal/terms',
   'GET /terms':                      '/legal/terms',
+  'GET /handbook/security/github':   '/handbook/security#git-hub-security',
   'GET /login':                      '/customers/login',
-  'GET /slack':                      'https://osquery.slack.com/join/shared_invite/zt-h29zm0gk-s2DBtGUTW4CFel0f0IjTEw#/', // FUTURE: revert back to 'https://osquery.fleetdm.com/c/fleet' when we're sure it won't return a 500 error.
+  'GET /slack':                      (_, res) => { res.status(301).redirect('https://osquery.fleetdm.com/c/fleet'); },
   'GET /docs/using-fleet/updating-fleet': '/docs/deploying/upgrading-fleet',
 
   // Sitemap

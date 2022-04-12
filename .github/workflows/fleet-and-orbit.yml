@@ -17,6 +17,9 @@ on:
       - 'orbit/**.go'
   workflow_dispatch: # Manual
 
+permissions:
+  contents: read
+
 jobs:
   gen:
     runs-on: ubuntu-latest

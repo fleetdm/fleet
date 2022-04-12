@@ -55,10 +55,6 @@ func (h HostListOptions) Empty() bool {
 	return h.ListOptions.Empty() && len(h.AdditionalFilters) == 0 && h.StatusFilter == "" && h.TeamFilter == nil && h.PolicyIDFilter == nil && h.PolicyResponseFilter == nil
 }
 
-func (l ListOptions) Empty() bool {
-	return l.Page == 0 && l.PerPage == 0 && l.OrderKey == "" && l.OrderDirection == 0 && l.MatchQuery == ""
-}
-
 type HostUser struct {
 	Uid       uint   `json:"uid" db:"uid"`
 	Username  string `json:"username" db:"username"`
@@ -108,6 +104,7 @@ type Host struct {
 	// can be found in the NetworkInterfaces element with the same ip_address.
 	PrimaryNetworkInterfaceID *uint               `json:"primary_ip_id,omitempty" db:"primary_ip_id" csv:"primary_ip_id"`
 	NetworkInterfaces         []*NetworkInterface `json:"-" db:"-" csv:"-"`
+	PublicIP                  string              `json:"public_ip" db:"public_ip" csv:"public_ip"`
 	PrimaryIP                 string              `json:"primary_ip" db:"primary_ip" csv:"primary_ip"`
 	PrimaryMac                string              `json:"primary_mac" db:"primary_mac" csv:"primary_mac"`
 	DistributedInterval       uint                `json:"distributed_interval" db:"distributed_interval" csv:"distributed_interval"`
@@ -304,9 +301,19 @@ type AggregatedMacadminsData struct {
 	MDMStatus       AggregatedMDMStatus      `json:"mobile_device_management_enrollment_status"`
 }
 
-// CPEHost is a minimal host representation returned when querying hosts by
-// CPE.
-type CPEHost struct {
+// HostShort is a minimal host representation returned when querying hosts.
+type HostShort struct {
 	ID       uint   `json:"id" db:"id"`
 	Hostname string `json:"hostname" db:"hostname"`
+}
+
+type OSVersions struct {
+	CountsUpdatedAt time.Time   `json:"counts_updated_at"`
+	OSVersions      []OSVersion `json:"os_versions"`
+}
+
+type OSVersion struct {
+	HostsCount int    `json:"hosts_count"`
+	Name       string `json:"name"`
+	Platform   string `json:"platform"`
 }

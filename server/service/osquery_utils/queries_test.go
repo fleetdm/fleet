@@ -22,7 +22,7 @@ func TestDetailQueryNetworkInterfaces(t *testing.T) {
 
 	ingest := GetDetailQueries(nil, config.FleetConfig{})["network_interface"].IngestFunc
 
-	assert.NoError(t, ingest(log.NewNopLogger(), &host, nil))
+	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, nil))
 	assert.Equal(t, initialHost, host)
 
 	var rows []map[string]string
@@ -39,7 +39,7 @@ func TestDetailQueryNetworkInterfaces(t *testing.T) {
 		&rows,
 	))
 
-	assert.NoError(t, ingest(log.NewNopLogger(), &host, rows))
+	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, rows))
 	assert.Equal(t, "192.168.1.3", host.PrimaryIP)
 	assert.Equal(t, "f4:5d:79:93:58:5b", host.PrimaryMac)
 
@@ -57,7 +57,7 @@ func TestDetailQueryNetworkInterfaces(t *testing.T) {
 		&rows,
 	))
 
-	assert.NoError(t, ingest(log.NewNopLogger(), &host, rows))
+	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, rows))
 	assert.Equal(t, "2604:3f08:1337:9411:cbe:814f:51a6:e4e3", host.PrimaryIP)
 	assert.Equal(t, "27:1b:aa:60:e8:0a", host.PrimaryMac)
 
@@ -76,7 +76,7 @@ func TestDetailQueryNetworkInterfaces(t *testing.T) {
 		&rows,
 	))
 
-	assert.NoError(t, ingest(log.NewNopLogger(), &host, rows))
+	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, rows))
 	assert.Equal(t, "205.111.43.79", host.PrimaryIP)
 	assert.Equal(t, "ab:1b:aa:60:e8:0a", host.PrimaryMac)
 
@@ -93,7 +93,7 @@ func TestDetailQueryNetworkInterfaces(t *testing.T) {
 		&rows,
 	))
 
-	assert.NoError(t, ingest(log.NewNopLogger(), &host, rows))
+	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, rows))
 	assert.Equal(t, "127.0.0.1", host.PrimaryIP)
 	assert.Equal(t, "00:00:00:00:00:00", host.PrimaryMac)
 }
@@ -323,7 +323,7 @@ func TestDetailQuerysOSVersion(t *testing.T) {
 
 	ingest := GetDetailQueries(nil, config.FleetConfig{})["os_version"].IngestFunc
 
-	assert.NoError(t, ingest(log.NewNopLogger(), &host, nil))
+	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, nil))
 	assert.Equal(t, initialHost, host)
 
 	// Rolling release for archlinux
@@ -345,7 +345,7 @@ func TestDetailQuerysOSVersion(t *testing.T) {
 		&rows,
 	))
 
-	assert.NoError(t, ingest(log.NewNopLogger(), &host, rows))
+	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, rows))
 	assert.Equal(t, "Arch Linux rolling", host.OSVersion)
 
 	// Simulate a linux with a proper version
@@ -366,7 +366,7 @@ func TestDetailQuerysOSVersion(t *testing.T) {
 		&rows,
 	))
 
-	assert.NoError(t, ingest(log.NewNopLogger(), &host, rows))
+	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, rows))
 	assert.Equal(t, "Arch Linux 1.2.3", host.OSVersion)
 }
 

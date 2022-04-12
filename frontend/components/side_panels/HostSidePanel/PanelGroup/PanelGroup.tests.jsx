@@ -1,5 +1,5 @@
 import React from "react";
-import { mount } from "enzyme";
+import { render, screen } from "@testing-library/react";
 
 import PanelGroup from "./PanelGroup";
 
@@ -9,10 +9,10 @@ describe("PanelGroup - component", () => {
     { type: "platform", display_text: "MAC OS", hosts_count: 10 },
   ];
 
-  const component = mount(<PanelGroup groupItems={validPanelGroupItems} />);
+  render(<PanelGroup groupItems={validPanelGroupItems} />);
 
   it("renders a PanelGroupItem for each group item", () => {
-    const panelGroupItems = component.find("PanelGroupItem");
+    const panelGroupItems = screen.queryAllByRole("button");
 
     expect(panelGroupItems.length).toEqual(2);
   });

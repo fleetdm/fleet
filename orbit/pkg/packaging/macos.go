@@ -45,13 +45,15 @@ func BuildPkg(opt Options) (string, error) {
 	updateOpt.ServerURL = opt.UpdateURL
 	updateOpt.Targets = update.DarwinTargets
 
+	if opt.Desktop {
+		updateOpt.Targets["desktop"] = update.DesktopMacOSTarget
+		// Override default channel with the provided value.
+		updateOpt.Targets.SetTargetChannel("desktop", opt.DesktopChannel)
+	}
+
 	// Override default channels with the provided values.
-	orbit := updateOpt.Targets["orbit"]
-	orbit.Channel = opt.OrbitChannel
-	updateOpt.Targets["orbit"] = orbit
-	osqueryd := updateOpt.Targets["osqueryd"]
-	osqueryd.Channel = opt.OsquerydChannel
-	updateOpt.Targets["osqueryd"] = osqueryd
+	updateOpt.Targets.SetTargetChannel("orbit", opt.OrbitChannel)
+	updateOpt.Targets.SetTargetChannel("osqueryd", opt.OsquerydChannel)
 
 	if opt.UpdateRoots != "" {
 		updateOpt.RootKeys = opt.UpdateRoots
@@ -115,7 +117,7 @@ func BuildPkg(opt Options) (string, error) {
 	}
 
 	if opt.Notarize {
-		if err := notarizePkg(generatedPath); err != nil {
+		if err := NotarizeStaple(generatedPath, "com.fleetdm.orbit"); err != nil {
 			return "", err
 		}
 	}
@@ -160,7 +162,7 @@ func writeScripts(opt Options, rootPath string) error {
 		return fmt.Errorf("execute template: %w", err)
 	}
 
-	if err := ioutil.WriteFile(path, contents.Bytes(), 0744); err != nil {
+	if err := ioutil.WriteFile(path, contents.Bytes(), 0o744); err != nil {
 		return fmt.Errorf("write file: %w", err)
 	}
 
@@ -179,7 +181,7 @@ func writeLaunchd(opt Options, rootPath string) error {
 		return fmt.Errorf("execute template: %w", err)
 	}
 
-	if err := ioutil.WriteFile(path, contents.Bytes(), 0644); err != nil {
+	if err := ioutil.WriteFile(path, contents.Bytes(), 0o644); err != nil {
 		return fmt.Errorf("write file: %w", err)
 	}
 
@@ -209,7 +211,7 @@ func writeCertificate(opt Options, orbitRoot string) error {
 	// Fleet TLS certificate
 	dstPath := filepath.Join(orbitRoot, "fleet.pem")
 
-	if err := file.Copy(opt.FleetCertificate, dstPath, 0644); err != nil {
+	if err := file.Copy(opt.FleetCertificate, dstPath, 0o644); err != nil {
 		return fmt.Errorf("write orbit: %w", err)
 	}
 
@@ -299,7 +301,7 @@ func xarBom(opt Options, rootPath string) error {
 
 func cpio(srcPath, dstPath string) error {
 	// This is the compression routine that is expected for pkg files.
-	dst, err := secure.OpenFile(dstPath, os.O_RDWR|os.O_CREATE, 0755)
+	dst, err := secure.OpenFile(dstPath, os.O_RDWR|os.O_CREATE, 0o755)
 	if err != nil {
 		return fmt.Errorf("open dst: %w", err)
 	}

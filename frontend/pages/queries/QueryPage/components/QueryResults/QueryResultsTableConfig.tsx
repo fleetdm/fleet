@@ -54,14 +54,13 @@ const resultsTableHeaders = (results: ICampaignQueryResult[]): Column[] => {
         <HeaderCell
           value={headerProps.column.title || headerProps.column.id}
           isSortedDesc={headerProps.column.isSortedDesc}
-          disableSortBy
         />
       ),
       accessor: key,
       Cell: (cellProps: ICellProps) => cellProps?.cell?.value || null,
       Filter: DefaultColumnFilter,
       // filterType: "text",
-      disableSortBy: true,
+      disableSortBy: false,
     };
   });
   return _unshiftHostname(headers);

@@ -1,9 +1,10 @@
-import { flatMap, omit, pick, size, memoize } from "lodash";
+import { isEmpty, flatMap, omit, pick, size, memoize, reduce } from "lodash";
 import md5 from "js-md5";
 import { format, formatDistanceToNow, isAfter } from "date-fns";
 import yaml from "js-yaml";
 
-import { IConfigNested } from "interfaces/config";
+import { IConfig } from "interfaces/config";
+import { IHost } from "interfaces/host";
 import { ILabel } from "interfaces/label";
 import { IPack } from "interfaces/pack";
 import {
@@ -17,6 +18,7 @@ import {
 } from "interfaces/target";
 import { ITeam, ITeamSummary } from "interfaces/team";
 import { IUser } from "interfaces/user";
+import { IVulnerability } from "interfaces/vulnerability";
 
 import stringUtils from "utilities/strings";
 import sortUtils from "utilities/sort";
@@ -182,7 +184,7 @@ export const formatConfigDataForServer = (config: any): any => {
 };
 
 // TODO: Finalize interface for config - see frontend\interfaces\config.ts
-export const frontendFormattedConfig = (config: IConfigNested) => {
+export const frontendFormattedConfig = (config: IConfig) => {
   const {
     org_info: orgInfo,
     server_settings: serverSettings,
@@ -671,6 +673,9 @@ export const secondsToDhms = (d: number): string => {
   return dDisplay + hDisplay + mDisplay + sDisplay;
 };
 
+export const abbreviateTimeUnits = (str: string): string =>
+  str.replace("minute", "min").replace("second", "sec");
+
 // TODO: Type any because ts files missing the following properties from type 'JSON': parse, stringify, [Symbol.toStringTag]
 export const syntaxHighlight = (json: any): string => {
   let jsonStr: string = JSON.stringify(json, undefined, 2);
@@ -734,6 +739,31 @@ export const getValidatedTeamId = (
   return validatedTeamId;
 };
 
+// returns a mixture of props from host
+export const normalizeEmptyValues = (
+  hostData: Partial<IHost>
+): { [key: string]: any } => {
+  return reduce(
+    hostData,
+    (result, value, key) => {
+      if ((Number.isFinite(value) && value !== 0) || !isEmpty(value)) {
+        Object.assign(result, { [key]: value });
+      } else {
+        Object.assign(result, { [key]: "---" });
+      }
+      return result;
+    },
+    {}
+  );
+};
+
+export const wrapFleetHelper = (
+  helperFn: (value: any) => string, // number or string or never
+  value: string
+): string => {
+  return value === "---" ? value : helperFn(value);
+};
+
 export default {
   addGravatarUrlToResource,
   formatConfigDataForServer,
@@ -765,4 +795,6 @@ export default {
   frontendFormattedConfig,
   syntaxHighlight,
   getValidatedTeamId,
+  normalizeEmptyValues,
+  wrapFleetHelper,
 };

@@ -60,8 +60,35 @@ function create_repository() {
       --platform $system \
       --name orbit \
       --version 42.0.0 -t 42.0 -t 42 -t stable
-
     rm $orbit_target
+
+    # Add Fleet Desktop application on macos (if enabled).
+    if [[ $system == "macos" && -n "$FLEET_DESKTOP" ]]; then
+      FLEET_DESKTOP_VERBOSE=1 \
+      FLEET_DESKTOP_VERSION=42.0.0 \
+      make desktop-app-tar-gz
+      ./build/fleetctl updates add \
+        --path $TUF_PATH \
+        --target desktop.app.tar.gz \
+        --platform macos \
+        --name desktop \
+        --version 42.0.0 -t 42.0 -t 42 -t stable
+      rm desktop.app.tar.gz
+    fi
+
+    # Add Fleet Desktop application on  (if enabled).
+    if [[ $system == "windows" && -n "$FLEET_DESKTOP" ]]; then
+      FLEET_DESKTOP_VERSION=42.0.0 \
+      make desktop-windows
+      ./build/fleetctl updates add \
+        --path $TUF_PATH \
+        --target fleet-desktop.exe \
+        --platform windows \
+        --name desktop \
+        --version 42.0.0 -t 42.0 -t 42 -t stable
+      rm fleet-desktop.exe
+    fi
+
   done
 
   # Generate and add osqueryd .app bundle for macos-app.
@@ -106,13 +133,16 @@ if [ -n "$GENERATE_PKGS" ]; then
   echo "Generating pkg..."
   ./build/fleetctl package \
     --type=pkg \
+    ${FLEET_DESKTOP:+--fleet-desktop} \
     --fleet-url=https://$PKG_HOSTNAME:8080 \
     --enroll-secret=$ENROLL_SECRET \
     --insecure \
     --debug \
     --update-roots="$root_keys" \
+    --update-interval=10s \
     --update-url=http://$PKG_HOSTNAME:8081
 
+  echo "Generating deb..."
   ./build/fleetctl package \
     --type=deb \
     --fleet-url=https://$DEB_HOSTNAME:8080 \
@@ -120,8 +150,10 @@ if [ -n "$GENERATE_PKGS" ]; then
     --insecure \
     --debug \
     --update-roots="$root_keys" \
+    --update-interval=10s \
     --update-url=http://$DEB_HOSTNAME:8081
 
+  echo "Generating rpm..."
   ./build/fleetctl package \
     --type=rpm \
     --fleet-url=https://$RPM_HOSTNAME:8080 \
@@ -129,15 +161,19 @@ if [ -n "$GENERATE_PKGS" ]; then
     --insecure \
     --debug \
     --update-roots="$root_keys" \
+    --update-interval=10s \
     --update-url=http://$RPM_HOSTNAME:8081
 
+  echo "Generating msi..."
   ./build/fleetctl package \
     --type=msi \
+    ${FLEET_DESKTOP:+--fleet-desktop} \
     --fleet-url=https://$MSI_HOSTNAME:8080 \
     --enroll-secret=$ENROLL_SECRET \
     --insecure \
     --debug \
     --update-roots="$root_keys" \
+    --update-interval=10s \
     --update-url=http://$MSI_HOSTNAME:8081
 
   echo "Packages generated"

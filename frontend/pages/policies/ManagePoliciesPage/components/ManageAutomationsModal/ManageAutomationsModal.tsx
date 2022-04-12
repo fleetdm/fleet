@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 
 import { IPolicy } from "interfaces/policy";
 import { IWebhookFailingPolicies } from "interfaces/webhook";
@@ -120,7 +120,9 @@ const ManageAutomationsModal = ({
     setDestinationUrl(value);
   };
 
-  const handleSaveAutomation = (evt: React.MouseEvent<HTMLFormElement>) => {
+  const handleSaveAutomation = (
+    evt: React.MouseEvent<HTMLFormElement> | KeyboardEvent
+  ) => {
     evt.preventDefault();
 
     const { valid, errors: newErrors } = validateWebhookURL(destination_url);
@@ -147,6 +149,19 @@ const ManageAutomationsModal = ({
     }
   };
 
+  useEffect(() => {
+    const listener = (event: KeyboardEvent) => {
+      if (event.code === "Enter" || event.code === "NumpadEnter") {
+        event.preventDefault();
+        handleSaveAutomation(event);
+      }
+    };
+    document.addEventListener("keydown", listener);
+    return () => {
+      document.removeEventListener("keydown", listener);
+    };
+  }, [handleSaveAutomation]);
+
   if (showPreviewPayloadModal) {
     return <PreviewPayloadModal onCancel={togglePreviewPayloadModal} />;
   }
@@ -164,8 +179,8 @@ const ManageAutomationsModal = ({
             onChange={() =>
               setPolicyAutomationEnabled(!policyAutomationEnabled)
             }
-            inactiveText={"Vulnerability automations disabled"}
-            activeText={"Vulnerability automations enabled"}
+            inactiveText={"Policy automations disabled"}
+            activeText={"Policy automations enabled"}
           />
         </div>
         <div className={`${baseClass}__overlay-container`}>

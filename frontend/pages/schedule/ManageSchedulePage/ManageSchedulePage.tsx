@@ -2,12 +2,11 @@
 
 import React, { useCallback, useContext, useEffect, useState } from "react";
 import { useQuery } from "react-query";
-import { useDispatch } from "react-redux";
-import { AppContext } from "context/app";
 import { InjectedRouter } from "react-router/lib/Router";
 import { find } from "lodash";
 
-// @ts-ignore
+import { AppContext } from "context/app";
+import { NotificationContext } from "context/notification"; // @ts-ignore
 import deepDifference from "utilities/deep_difference";
 import { ITeam } from "interfaces/team";
 import {
@@ -21,11 +20,9 @@ import globalScheduledQueriesAPI from "services/entities/global_scheduled_querie
 import teamScheduledQueriesAPI from "services/entities/team_scheduled_queries";
 import teamsAPI from "services/entities/teams";
 import usersAPI, { IGetMeResponse } from "services/entities/users";
-// @ts-ignore
-import { renderFlash } from "redux/nodes/notifications/actions";
-
 import sortUtils from "utilities/sort";
 import paths from "router/paths";
+
 import Button from "components/buttons/Button";
 import RevealButton from "components/buttons/RevealButton";
 import Spinner from "components/Spinner";
@@ -38,6 +35,7 @@ import RemoveScheduledQueryModal from "./components/RemoveScheduledQueryModal";
 const baseClass = "manage-schedule-page";
 
 const renderTable = (
+  router: InjectedRouter,
   onRemoveScheduledQueryClick: (selectIds: number[]) => void,
   onEditScheduledQueryClick: (selectedQuery: IEditScheduledQuery) => void,
   allScheduledQueriesList: IScheduledQuery[],
@@ -52,6 +50,7 @@ const renderTable = (
     <TableDataError />
   ) : (
     <ScheduleListWrapper
+      router={router}
       onRemoveScheduledQueryClick={onRemoveScheduledQueryClick}
       onEditScheduledQueryClick={onEditScheduledQueryClick}
       allScheduledQueriesList={allScheduledQueriesList}
@@ -65,6 +64,7 @@ const renderTable = (
 };
 
 const renderAllTeamsTable = (
+  router: InjectedRouter,
   allTeamsScheduledQueriesList: IScheduledQuery[],
   allTeamsScheduledQueriesError: Error | null,
   isOnGlobalTeam: boolean,
@@ -77,6 +77,7 @@ const renderAllTeamsTable = (
   ) : (
     <div className={`${baseClass}__all-teams-table`}>
       <ScheduleListWrapper
+        router={router}
         inheritedQueries
         allScheduledQueriesList={allTeamsScheduledQueriesList}
         isOnGlobalTeam={isOnGlobalTeam}
@@ -110,7 +111,7 @@ const ManageSchedulePage = ({
   params: { team_id },
   router,
 }: ITeamSchedulesPageProps): JSX.Element => {
-  const dispatch = useDispatch();
+  const { renderFlash } = useContext(NotificationContext);
   const { MANAGE_PACKS, MANAGE_SCHEDULE, MANAGE_TEAM_SCHEDULE } = paths;
   const handleAdvanced = () => router.push(MANAGE_PACKS);
 
@@ -346,26 +347,21 @@ const ManageSchedulePage = ({
     const queryOrQueries = selectedQueryIds.length === 1 ? "query" : "queries";
     return Promise.all(promises)
       .then(() => {
-        dispatch(
-          renderFlash(
-            "success",
-            `Successfully removed scheduled ${queryOrQueries}.`
-          )
+        renderFlash(
+          "success",
+          `Successfully removed scheduled ${queryOrQueries}.`
         );
         toggleRemoveScheduledQueryModal();
         refetchScheduledQueries();
       })
       .catch(() => {
-        dispatch(
-          renderFlash(
-            "error",
-            `Unable to remove scheduled ${queryOrQueries}. Please try again.`
-          )
+        renderFlash(
+          "error",
+          `Unable to remove scheduled ${queryOrQueries}. Please try again.`
         );
         toggleRemoveScheduledQueryModal();
       });
   }, [
-    dispatch,
     selectedTeamId,
     selectedQueryIds,
     toggleRemoveScheduledQueryModal,
@@ -384,20 +380,16 @@ const ManageSchedulePage = ({
 
         editResponse
           .then(() => {
-            dispatch(
-              renderFlash(
-                "success",
-                `Successfully updated ${formData.name} in the schedule.`
-              )
+            renderFlash(
+              "success",
+              `Successfully updated ${formData.name} in the schedule.`
             );
             refetchScheduledQueries();
           })
           .catch(() => {
-            dispatch(
-              renderFlash(
-                "error",
-                "Could not update scheduled query. Please try again."
-              )
+            renderFlash(
+              "error",
+              "Could not update scheduled query. Please try again."
             );
           });
       } else {
@@ -407,26 +399,19 @@ const ManageSchedulePage = ({
 
         createResponse
           .then(() => {
-            dispatch(
-              renderFlash(
-                "success",
-                `Successfully added ${formData.name} to the schedule.`
-              )
+            renderFlash(
+              "success",
+              `Successfully added ${formData.name} to the schedule.`
             );
             refetchScheduledQueries();
           })
           .catch(() => {
-            dispatch(
-              renderFlash(
-                "error",
-                "Could not schedule query. Please try again."
-              )
-            );
+            renderFlash("error", "Could not schedule query. Please try again.");
           });
       }
       toggleScheduleEditorModal();
     },
-    [dispatch, selectedTeamId, toggleScheduleEditorModal]
+    [selectedTeamId, toggleScheduleEditorModal]
   );
 
   return (
@@ -501,6 +486,7 @@ const ManageSchedulePage = ({
             <Spinner />
           ) : (
             renderTable(
+              router,
               onRemoveScheduledQueryClick,
               onEditScheduledQueryClick,
               allScheduledQueriesList,
@@ -532,6 +518,7 @@ const ManageSchedulePage = ({
         {showInheritedQueries &&
           inheritedScheduledQueriesList &&
           renderAllTeamsTable(
+            router,
             inheritedScheduledQueriesList,
             inheritedScheduledQueriesError,
             isOnGlobalTeam || false,

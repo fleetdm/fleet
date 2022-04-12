@@ -1,0 +1,28 @@
+.platform-compatibility {
+  display: flex;
+  font-size: $xx-small;
+  align-items: center;
+  padding-top: $pad-medium;
+
+  b,
+  img,
+  span {
+    display: flex;
+    align-items: center;
+  }
+
+  span {
+    padding-left: 12px;
+  }
+
+  .platform {
+    padding-left: 0px;
+  }
+
+  img {
+    height: 16px;
+    width: 16px;
+    padding-left: 12px;
+    padding-right: $pad-xsmall;
+  }
+}

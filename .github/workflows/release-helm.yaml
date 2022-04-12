@@ -4,11 +4,14 @@ on:
     types: [released] # don't trigger on pre-releases
   workflow_dispatch: # allow manual trigger
 
+
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   publish-chart:
+    permissions:
+      contents: write  # to push helm charts
     runs-on: ubuntu-20.04
     steps:
     - uses: actions/checkout@629c2de402a417ea7690ca6ce3f33229e27606a5 # v2

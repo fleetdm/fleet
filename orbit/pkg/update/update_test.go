@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
+	"github.com/jinzhu/copier"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -53,7 +54,11 @@ func TestMakeRepoPath(t *testing.T) {
 		t.Run(tt.expected, func(t *testing.T) {
 			t.Parallel()
 
-			opt := DefaultOptions
+			var opt Options
+			// Must deep copy DefaultOptions, otherwise there is a race condition when modifying the
+			// opt.Targets map in parallel tests below.
+			err := copier.CopyWithOption(&opt, DefaultOptions, copier.Option{DeepCopy: true})
+			require.NoError(t, err)
 
 			osqueryd := opt.Targets[tt.name]
 			osqueryd.Platform = tt.platform

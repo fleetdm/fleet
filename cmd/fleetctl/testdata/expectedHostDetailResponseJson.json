@@ -31,6 +31,7 @@
     "hardware_version":"",
     "hardware_serial":"",
     "computer_name":"test_host",
+    "public_ip": "",
     "primary_ip":"",
     "primary_mac":"",
     "distributed_interval":0,

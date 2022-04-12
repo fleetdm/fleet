@@ -236,7 +236,7 @@ func (ds *cachedMysql) SaveTeam(ctx context.Context, team *fleet.Team) (*fleet.T
 
 	key := fmt.Sprintf(teamAgentOptionsKey, team.ID)
 
-	ds.c.Set(key, team.AgentOptions, ds.teamAgentOptionsExp)
+	ds.c.Set(key, team.Config.AgentOptions, ds.teamAgentOptionsExp)
 
 	return team, nil
 }

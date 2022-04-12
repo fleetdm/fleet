@@ -196,6 +196,10 @@ type Datastore interface {
 
 	TotalAndUnseenHostsSince(ctx context.Context, daysCount int) (total int, unseen int, err error)
 
+	// DeleteHosts deletes associated tables for multiple hosts.
+	//
+	// It atomically deletes each host but if it returns an error, some of the hosts may be
+	// deleted and others not.
 	DeleteHosts(ctx context.Context, ids []uint) error
 
 	CountHosts(ctx context.Context, filter TeamFilter, opt HostListOptions) (int, error)
@@ -217,6 +221,9 @@ type Datastore interface {
 	AggregatedMunkiVersion(ctx context.Context, teamID *uint) ([]AggregatedMunkiVersion, time.Time, error)
 	AggregatedMDMStatus(ctx context.Context, teamID *uint) (AggregatedMDMStatus, time.Time, error)
 	GenerateAggregatedMunkiAndMDM(ctx context.Context) error
+
+	OSVersions(ctx context.Context, teamID *uint, platform *string) (*OSVersions, error)
+	UpdateOSVersions(ctx context.Context) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// TargetStore
@@ -249,7 +256,7 @@ type Datastore interface {
 	ListSessionsForUser(ctx context.Context, id uint) ([]*Session, error)
 
 	// NewSession stores a new session struct
-	NewSession(ctx context.Context, session *Session) (*Session, error)
+	NewSession(ctx context.Context, userID uint, sessionKey string) (*Session, error)
 
 	// DestroySession destroys the currently tracked session
 	DestroySession(ctx context.Context, session *Session) error
@@ -344,7 +351,8 @@ type Datastore interface {
 	// After aggregation, it cleans up unused software (e.g. software installed
 	// on removed hosts, software uninstalled on hosts, etc.)
 	CalculateHostsPerSoftware(ctx context.Context, updatedAt time.Time) error
-	HostsByCPEs(ctx context.Context, cpes []string) ([]*CPEHost, error)
+	HostsByCPEs(ctx context.Context, cpes []string) ([]*HostShort, error)
+	HostsByCVE(ctx context.Context, cve string) ([]*HostShort, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// ActivitiesStore
@@ -511,6 +519,18 @@ type Datastore interface {
 	EnrollHost(ctx context.Context, osqueryHostId, nodeKey string, teamID *uint, cooldown time.Duration) (*Host, error)
 
 	SerialUpdateHost(ctx context.Context, host *Host) error
+
+	///////////////////////////////////////////////////////////////////////////////
+	// JobStore
+
+	// NewJob inserts a new job into the jobs table (queue).
+	NewJob(ctx context.Context, job *Job) (*Job, error)
+
+	// GetQueuedJobs gets queued jobs from the jobs table (queue).
+	GetQueuedJobs(ctx context.Context, maxNumJobs int) ([]*Job, error)
+
+	// UpdateJobs updates an existing job. Call this after processing a job.
+	UpdateJob(ctx context.Context, id uint, job *Job) (*Job, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Debug

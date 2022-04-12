@@ -7,3 +7,9 @@ variable "fleet_config" {
   type        = map(string)
   default     = {}
 }
+
+variable "scale_down" {
+  description = "Whether to scale down the environment"
+  type        = bool
+  default     = false
+}

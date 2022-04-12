@@ -22,6 +22,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/packaging"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/pkg/open"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/mitchellh/go-ps"
@@ -108,10 +109,10 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			// Make sure the logs directory is writable, otherwise the Fleet
 			// server errors on startup. This can be a problem when running on
 			// Linux with a non-root user inside the container.
-			if err := os.Chmod(filepath.Join(previewDir, "logs"), 0777); err != nil {
+			if err := os.Chmod(filepath.Join(previewDir, "logs"), 0o777); err != nil {
 				return fmt.Errorf("make logs writable: %w", err)
 			}
-			if err := os.Chmod(filepath.Join(previewDir, "vulndb"), 0777); err != nil {
+			if err := os.Chmod(filepath.Join(previewDir, "vulndb"), 0o777); err != nil {
 				return fmt.Errorf("make vulndb writable: %w", err)
 			}
 
@@ -269,7 +270,7 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 					return fmt.Errorf("wait for current host: %w", err)
 				}
 
-				if err := openBrowser("http://localhost:1337/previewlogin"); err != nil {
+				if err := open.Browser("http://localhost:1337/previewlogin"); err != nil {
 					fmt.Println("Automatic browser open failed. Please navigate to http://localhost:1337/previewlogin.")
 				}
 
@@ -286,7 +287,7 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 					return errors.New("Failed to run docker-compose")
 				}
 			} else {
-				if err := openBrowser("http://localhost:1337/previewlogin"); err != nil {
+				if err := open.Browser("http://localhost:1337/previewlogin"); err != nil {
 					fmt.Println("Automatic browser open failed. Please navigate to http://localhost:1337/previewlogin.")
 				}
 			}
@@ -582,7 +583,7 @@ func previewResetCommand() *cli.Command {
 
 func storePidFile(destDir string, pid int) error {
 	pidFilePath := path.Join(destDir, "orbit.pid")
-	err := os.WriteFile(pidFilePath, []byte(fmt.Sprint(pid)), os.FileMode(0644))
+	err := os.WriteFile(pidFilePath, []byte(fmt.Sprint(pid)), os.FileMode(0o644))
 	if err != nil {
 		return fmt.Errorf("error writing pidfile %s: %s", pidFilePath, err)
 	}
@@ -628,6 +629,9 @@ func downloadOrbitAndStart(destDir, enrollSecret, address, orbitChannel, osquery
 	if err := os.RemoveAll(path.Join(destDir, "orbit.db")); err != nil {
 		fmt.Println("Warning: clearing orbit db dir:", err)
 	}
+	if err := cleanUpSocketFiles(destDir); err != nil {
+		fmt.Println("Warning: cleaning up socket files:", err)
+	}
 
 	updateOpt := update.DefaultOptions
 
@@ -638,12 +642,8 @@ func downloadOrbitAndStart(destDir, enrollSecret, address, orbitChannel, osquery
 	}
 
 	// Override default channels with the provided values.
-	orbit := updateOpt.Targets["orbit"]
-	orbit.Channel = orbitChannel
-	updateOpt.Targets["orbit"] = orbit
-	osqueryd := updateOpt.Targets["osqueryd"]
-	osqueryd.Channel = osquerydChannel
-	updateOpt.Targets["osqueryd"] = osqueryd
+	updateOpt.Targets.SetTargetChannel("orbit", orbitChannel)
+	updateOpt.Targets.SetTargetChannel("osqueryd", osquerydChannel)
 
 	updateOpt.RootDirectory = destDir
 
@@ -673,6 +673,26 @@ func downloadOrbitAndStart(destDir, enrollSecret, address, orbitChannel, osquery
 		return fmt.Errorf("saving pid file: %w", err)
 	}
 
+	return nil
+}
+
+// cleanUpSocketFiles cleans up fleet-osqueryd's socket file
+// ("orbit-osquery.em") and osquery extension socket files
+// ("orbit-osquery.em.*").
+func cleanUpSocketFiles(path string) error {
+	entries, err := os.ReadDir(path)
+	if err != nil {
+		return fmt.Errorf("read dir: %w", err)
+	}
+	for _, entry := range entries {
+		if !strings.HasPrefix(entry.Name(), "orbit-osquery.em") {
+			continue
+		}
+		entryPath := filepath.Join(path, entry.Name())
+		if err := os.Remove(entryPath); err != nil {
+			return fmt.Errorf("remove %q: %w", entryPath, err)
+		}
+	}
 	return nil
 }
 
@@ -709,23 +729,6 @@ func killFromPIDFile(destDir string, pidFileName string, expectedExecName string
 	}
 	if err := killPID(pid); err != nil {
 		return fmt.Errorf("killing %d: %w", pid, err)
-	}
-	return nil
-}
-
-func openBrowser(url string) error {
-	var cmd *exec.Cmd
-	switch runtime.GOOS {
-	case "windows":
-		cmd = exec.Command("cmd", "/c", "start", url)
-	case "darwin":
-		cmd = exec.Command("open", url)
-	default: // xdg-open is available on most Linux-y systems
-		cmd = exec.Command("xdg-open", url)
-	}
-
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("failed to open in browser: %w", err)
 	}
 	return nil
 }

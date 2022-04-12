@@ -1,5 +1,7 @@
 package update
 
+import "github.com/fleetdm/fleet/v4/orbit/pkg/constant"
+
 // DefaultOptions are the default options to use when creating an update
 // client.
 var DefaultOptions = defaultOptions
@@ -56,5 +58,18 @@ var (
 			Channel:    "stable",
 			TargetFile: "osqueryd.exe",
 		},
+	}
+
+	DesktopMacOSTarget = TargetInfo{
+		Platform:             "macos",
+		Channel:              "stable",
+		TargetFile:           "desktop.app.tar.gz",
+		ExtractedExecSubPath: []string{"Fleet Desktop.app", "Contents", "MacOS", constant.DesktopAppExecName},
+	}
+
+	DesktopWindowsTarget = TargetInfo{
+		Platform:   "windows",
+		Channel:    "stable",
+		TargetFile: constant.DesktopAppExecName + ".exe",
 	}
 )

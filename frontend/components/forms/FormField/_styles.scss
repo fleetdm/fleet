@@ -13,8 +13,10 @@
       color: $core-vibrant-red;
     }
 
+    // so tooltips won't be triggered with whitespace
     &[data-has-tooltip="true"] {
       margin-bottom: $pad-small;
+      display: inline-flex;
     }
   }
 

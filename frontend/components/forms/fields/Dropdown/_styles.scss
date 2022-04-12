@@ -54,10 +54,6 @@
       border-radius: 4px;
       background-color: $ui-off-white;
       border: solid 1px $core-dark-blue-grey;
-
-      &.is-focused {
-        border: 1px solid $core-vibrant-blue;
-      }
     }
   }
 
@@ -128,6 +124,7 @@
     &:not(.is-open) {
       .Select-control {
         box-shadow: none;
+        border-color: $core-vibrant-blue;
       }
     }
   }
@@ -278,3 +275,7 @@
     }
   }
 }
+
+// .is-focused {
+//   border: 1px solid $core-vibrant-blue;
+// }

@@ -66,6 +66,13 @@ type Options struct {
 // Targets is a map of target name and its tracking information.
 type Targets map[string]TargetInfo
 
+// SetTargetChannel sets the channel of a target in the map.
+func (ts Targets) SetTargetChannel(target, channel string) {
+	t := ts[target]
+	t.Channel = channel
+	ts[target] = t
+}
+
 // TargetInfo holds all the information to track target updates.
 type TargetInfo struct {
 	// Platform is the target's platform string.
@@ -157,53 +164,70 @@ func (u *Updater) repoPath(target string) (string, error) {
 	return path.Join(target, t.Platform, t.Channel, t.TargetFile), nil
 }
 
-// ExecutableLocalPath returns the configured local path of a target.
+// ExecutableLocalPath returns the configured executable local path of a target.
 func (u *Updater) ExecutableLocalPath(target string) (string, error) {
 	localTarget, err := u.localTarget(target)
 	if err != nil {
 		return "", err
 	}
-	return localTarget.execPath, nil
+	return localTarget.ExecPath, nil
 }
 
-// localTarget holds local paths of a target.
+// DirLocalPath returns the configured root directory local path of a tar.gz target.
+//
+// Returns empty for a non tar.gz target.
+func (u *Updater) DirLocalPath(target string) (string, error) {
+	localTarget, err := u.localTarget(target)
+	if err != nil {
+		return "", err
+	}
+	return localTarget.DirPath, nil
+}
+
+// LocalTarget holds local paths of a target.
 //
 // E.g., for a osqueryd target:
 //
-//	localTarget{
-//		info: TargetInfo{
+//	LocalTarget{
+//		Info: TargetInfo{
 //			Platform:             "macos-app",
 //			Channel:              "stable",
 //			TargetFile:           "osqueryd.app.tar.gz",
 //			ExtractedExecSubPath: []string{"osquery.app", "Contents", "MacOS", "osqueryd"},
 //		},
-//		path: "/local/path/to/osqueryd.app.tar.gz",
-//		dirPath: "/local/path/to/osqueryd.app",
-//		execPath: "/local/path/to/osqueryd.app/Contents/MacOS/osqueryd",
+//		Path: "/local/path/to/osqueryd.app.tar.gz",
+//		DirPath: "/local/path/to/osqueryd.app",
+//		ExecPath: "/local/path/to/osqueryd.app/Contents/MacOS/osqueryd",
 //	}
-type localTarget struct {
-	info     TargetInfo
-	path     string
-	dirPath  string // empty for non-tar.gz targets.
-	execPath string
+type LocalTarget struct {
+	// Info holds the TUF target and package structure info.
+	Info TargetInfo
+	// Path holds the location of the target as downloaded from TUF.
+	Path string
+	// DirPath holds the path of the extracted target.
+	//
+	// DirPath is empty for non-tar.gz targets.
+	DirPath string
+	// ExecPath is the path of the executable.
+	ExecPath string
 }
 
-// localPath returns the info and local path of a target.
-func (u *Updater) localTarget(target string) (*localTarget, error) {
+// localTarget returns the info and local path of a target.
+func (u *Updater) localTarget(target string) (*LocalTarget, error) {
 	t, ok := u.opt.Targets[target]
 	if !ok {
 		return nil, fmt.Errorf("unknown target: %s", target)
 	}
-	lt := &localTarget{
-		info: t,
-		path: filepath.Join(
+	lt := &LocalTarget{
+		Info: t,
+		Path: filepath.Join(
 			u.opt.RootDirectory, binDir, target, t.Platform, t.Channel, t.TargetFile,
 		),
 	}
-	lt.execPath = lt.path
-	if strings.HasSuffix(lt.path, ".tar.gz") {
-		lt.execPath = filepath.Join(append([]string{filepath.Dir(lt.path)}, t.ExtractedExecSubPath...)...)
-		lt.dirPath = filepath.Join(filepath.Dir(lt.path), lt.info.ExtractedExecSubPath[0])
+	lt.ExecPath = lt.Path
+	if strings.HasSuffix(lt.Path, ".tar.gz") {
+		lt.ExecPath = filepath.Join(append([]string{filepath.Dir(lt.Path)}, t.ExtractedExecSubPath...)...)
+		lt.DirPath = filepath.Join(filepath.Dir(lt.Path), lt.Info.ExtractedExecSubPath[0])
 	}
 	return lt, nil
 }
@@ -232,76 +256,74 @@ func (u *Updater) Targets() (data.TargetFiles, error) {
 	return targets, nil
 }
 
-// Get returns the local path to the specified target. The target is downloaded
-// if it does not yet exist locally or the hash does not match.
-func (u *Updater) Get(target string) (string, error) {
+// Get downloads (if it doesn't exist) a target and returns its local information.
+func (u *Updater) Get(target string) (*LocalTarget, error) {
 	if target == "" {
-		return "", errors.New("target is required")
+		return nil, errors.New("target is required")
 	}
 
 	localTarget, err := u.localTarget(target)
 	if err != nil {
-		return "", fmt.Errorf("failed to load local path for target %s: %w", target, err)
+		return nil, fmt.Errorf("failed to load local path for target %s: %w", target, err)
 	}
 	repoPath, err := u.repoPath(target)
 	if err != nil {
-		return "", fmt.Errorf("failed to load repository path for target %s: %w", target, err)
+		return nil, fmt.Errorf("failed to load repository path for target %s: %w", target, err)
 	}
 
-	switch stat, err := os.Stat(localTarget.path); {
+	switch stat, err := os.Stat(localTarget.Path); {
 	case err == nil:
 		if !stat.Mode().IsRegular() {
-			return "", fmt.Errorf("expected %s to be regular file", localTarget.path)
+			return nil, fmt.Errorf("expected %s to be regular file", localTarget.Path)
 		}
 		meta, err := u.Lookup(target)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
-		if err := checkFileHash(meta, localTarget.path); err != nil {
+		if err := checkFileHash(meta, localTarget.Path); err != nil {
 			log.Debug().Str("info", err.Error()).Msg("change detected")
-			if err := u.download(target, repoPath, localTarget.path); err != nil {
-				return "", fmt.Errorf("download %q: %w", repoPath, err)
+			if err := u.download(target, repoPath, localTarget.Path); err != nil {
+				return nil, fmt.Errorf("download %q: %w", repoPath, err)
 			}
-			if strings.HasSuffix(localTarget.path, ".tar.gz") {
-				if err := os.RemoveAll(localTarget.dirPath); err != nil {
-					return "", fmt.Errorf("failed to remove old extracted dir: %q: %w", localTarget.dirPath, err)
+			if strings.HasSuffix(localTarget.Path, ".tar.gz") {
+				if err := os.RemoveAll(localTarget.DirPath); err != nil {
+					return nil, fmt.Errorf("failed to remove old extracted dir: %q: %w", localTarget.DirPath, err)
 				}
 			}
 		} else {
-			log.Debug().Str("path", localTarget.path).Str("target", target).Msg("found expected target locally")
+			log.Debug().Str("path", localTarget.Path).Str("target", target).Msg("found expected target locally")
 		}
 	case errors.Is(err, os.ErrNotExist):
 		log.Debug().Err(err).Msg("stat file")
-		if err := u.download(target, repoPath, localTarget.path); err != nil {
-			return "", fmt.Errorf("download %q: %w", repoPath, err)
+		if err := u.download(target, repoPath, localTarget.Path); err != nil {
+			return nil, fmt.Errorf("download %q: %w", repoPath, err)
 		}
 	default:
-		return "", fmt.Errorf("stat %q: %w", localTarget.path, err)
+		return nil, fmt.Errorf("stat %q: %w", localTarget.Path, err)
 	}
 
-	if strings.HasSuffix(localTarget.path, ".tar.gz") {
-		switch s, err := os.Stat(localTarget.execPath); {
+	if strings.HasSuffix(localTarget.Path, ".tar.gz") {
+		s, err := os.Stat(localTarget.ExecPath)
+		switch {
 		case err == nil:
-			if s.IsDir() {
-				return "", fmt.Errorf("expected executable %q: %w", localTarget.execPath, err)
-			}
+			// OK
 		case errors.Is(err, os.ErrNotExist):
-			if err := extractTarGz(localTarget.path); err != nil {
-				return "", fmt.Errorf("extract %q: %w", localTarget.path, err)
+			if err := extractTarGz(localTarget.Path); err != nil {
+				return nil, fmt.Errorf("extract %q: %w", localTarget.Path, err)
 			}
-			s, err := os.Stat(localTarget.execPath)
+			s, err = os.Stat(localTarget.ExecPath)
 			if err != nil {
-				return "", fmt.Errorf("stat %q: %w", localTarget.execPath, err)
-			}
-			if s.IsDir() {
-				return "", fmt.Errorf("expected executable %q: %w", localTarget.execPath, err)
+				return nil, fmt.Errorf("stat %q: %w", localTarget.ExecPath, err)
 			}
 		default:
-			return "", fmt.Errorf("stat %q: %w", localTarget.execPath, err)
+			return nil, fmt.Errorf("stat %q: %w", localTarget.ExecPath, err)
+		}
+		if !s.Mode().IsRegular() {
+			return nil, fmt.Errorf("expected a regular file: %q", localTarget.ExecPath)
 		}
 	}
 
-	return localTarget.execPath, nil
+	return localTarget, nil
 }
 
 func writeDevWarningBanner(w io.Writer) {
@@ -431,7 +453,7 @@ func (u *Updater) checkExec(target, tmpPath string) error {
 	if err != nil {
 		return err
 	}
-	platformGOOS, err := goosFromPlatform(localTarget.info.Platform)
+	platformGOOS, err := goosFromPlatform(localTarget.Info.Platform)
 	if err != nil {
 		return err
 	}
@@ -446,9 +468,9 @@ func (u *Updater) checkExec(target, tmpPath string) error {
 		if err := extractTarGz(tmpPath); err != nil {
 			return fmt.Errorf("extract %q: %w", tmpPath, err)
 		}
-		tmpDirPath := filepath.Join(filepath.Dir(tmpPath), localTarget.info.ExtractedExecSubPath[0])
+		tmpDirPath := filepath.Join(filepath.Dir(tmpPath), localTarget.Info.ExtractedExecSubPath[0])
 		defer os.RemoveAll(tmpDirPath)
-		tmpPath = filepath.Join(append([]string{filepath.Dir(tmpPath)}, localTarget.info.ExtractedExecSubPath...)...)
+		tmpPath = filepath.Join(append([]string{filepath.Dir(tmpPath)}, localTarget.Info.ExtractedExecSubPath...)...)
 	}
 
 	// Note that this would fail for any binary that returns nonzero for --help.

@@ -1,10 +1,20 @@
+## Orbit 0.0.8 (Mar 25, 2022)
+
+- Fix `orbit shell` command to successfully run when Orbit is already running as daemon.
+
+- Add Fleet Desktop Beta support for macOS.
+
+- Support running osquery as an app bundle on macOS.
+
+- Upgrade [osquery-go](https://github.com/osquery/osquery-go) and [osquery-extension](https://github.com/macadmins/osquery-extension) dependencies.
+
 ## Orbit 0.0.7 (Mar 8, 2022)
 
 - Improve reliability of osquery extension connection at startup.
 
 - Fix orbit not detecting updates at startup when they are published while orbit was not running.
 
-- Set log path when launching osquery.
+- Create and set log paths for "result" and "status" logs when launching osquery.
 
 ## Orbit 0.0.6 (Jan 13, 2022)
 

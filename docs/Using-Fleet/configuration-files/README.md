@@ -191,7 +191,7 @@ spec:
           distributed_plugin: tls
           distributed_tls_max_attempts: 3
           logger_plugin: tls
-          logger_tls_endpoint: /api/v1/osquery/log
+          logger_tls_endpoint: /api/osquery/log
           logger_tls_period: 10
           pack_delimiter: /
       overrides: {}
@@ -218,10 +218,10 @@ spec:
         distributed_interval: 10
         distributed_plugin: tls
         distributed_tls_max_attempts: 3
-        distributed_tls_read_endpoint: /api/v1/osquery/distributed/read
-        distributed_tls_write_endpoint: /api/v1/osquery/distributed/write
+        distributed_tls_read_endpoint: /api/osquery/distributed/read
+        distributed_tls_write_endpoint: /api/osquery/distributed/write
         logger_plugin: tls
-        logger_tls_endpoint: /api/v1/osquery/log
+        logger_tls_endpoint: /api/osquery/log
         logger_tls_period: 10
         pack_delimiter: /
     overrides: {}
@@ -266,7 +266,7 @@ spec:
     failing_policies_webhook:
       enable_failing_policies_webhook: true
       destination_url": https://server.com
-      policy_ids: 
+      policy_ids:
         - 1
         - 2
         - 3
@@ -304,7 +304,7 @@ spec:
         distributed_interval: 3
         distributed_tls_max_attempts: 3
         logger_plugin: tls
-        logger_tls_endpoint: /api/v1/osquery/log
+        logger_tls_endpoint: /api/osquery/log
         logger_tls_period: 10
       decorators:
         load:
@@ -327,7 +327,7 @@ spec:
             distributed_interval: 10
             distributed_tls_max_attempts: 10
             logger_plugin: tls
-            logger_tls_endpoint: /api/v1/osquery/log
+            logger_tls_endpoint: /api/osquery/log
             logger_tls_period: 300
             disable_tables: chrome_extensions
             docker_socket: /var/run/docker.sock
@@ -343,7 +343,7 @@ spec:
             distributed_interval: 10
             distributed_tls_max_attempts: 3
             logger_plugin: tls
-            logger_tls_endpoint: /api/v1/osquery/log
+            logger_tls_endpoint: /api/osquery/log
             logger_tls_period: 60
             schedule_timeout: 60
             docker_socket: /etc/run/docker.sock

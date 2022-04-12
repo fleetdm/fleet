@@ -114,6 +114,8 @@ func TestHosts(t *testing.T) {
 		{"UpdateRefetchRequested", testUpdateRefetchRequested},
 		{"LoadHostByDeviceAuthToken", testHostsLoadHostByDeviceAuthToken},
 		{"SetOrUpdateDeviceAuthToken", testHostsSetOrUpdateDeviceAuthToken},
+		{"OSVersions", testOSVersions},
+		{"DeleteHosts", testHostsDeleteHosts},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -3775,7 +3777,268 @@ func testHostsSetOrUpdateDeviceAuthToken(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, host2.ID, h.ID)
 
-	h, err = ds.LoadHostByDeviceAuthToken(context.Background(), token2)
+	_, err = ds.LoadHostByDeviceAuthToken(context.Background(), token2)
 	require.Error(t, err)
 	assert.ErrorIs(t, err, sql.ErrNoRows)
+}
+
+func testOSVersions(t *testing.T, ds *Datastore) {
+	team1, err := ds.NewTeam(context.Background(), &fleet.Team{
+		Name: "team1",
+	})
+	require.NoError(t, err)
+
+	team2, err := ds.NewTeam(context.Background(), &fleet.Team{
+		Name: "team2",
+	})
+	require.NoError(t, err)
+
+	// create some hosts for testing
+	hosts := []*fleet.Host{
+		{
+			Platform:  "darwin",
+			OSVersion: "macOS 12.1.0",
+		},
+		{
+			Platform:  "darwin",
+			OSVersion: "macOS 12.2.1",
+			TeamID:    &team1.ID,
+		},
+		{
+			Platform:  "darwin",
+			OSVersion: "macOS 12.2.1",
+			TeamID:    &team1.ID,
+		},
+		{
+			Platform:  "darwin",
+			OSVersion: "macOS 12.2.1",
+			TeamID:    &team2.ID,
+		},
+		{
+			Platform:  "darwin",
+			OSVersion: "macOS 12.3.0",
+			TeamID:    &team2.ID,
+		},
+		{
+			Platform:  "darwin",
+			OSVersion: "macOS 12.3.0",
+			TeamID:    &team2.ID,
+		},
+		{
+			Platform:  "darwin",
+			OSVersion: "macOS 12.3.0",
+			TeamID:    &team2.ID,
+		},
+		{
+			Platform:  "rhel",
+			OSVersion: "CentOS Stream 8.0.0",
+		},
+		{
+			Platform:  "ubuntu",
+			OSVersion: "Ubuntu 20.4.0",
+			TeamID:    &team1.ID,
+		},
+		{
+			Platform:  "ubuntu",
+			OSVersion: "Ubuntu 20.4.0",
+			TeamID:    &team1.ID,
+		},
+	}
+
+	for i, host := range hosts {
+		host.DetailUpdatedAt = time.Now()
+		host.LabelUpdatedAt = time.Now()
+		host.PolicyUpdatedAt = time.Now()
+		host.SeenTime = time.Now()
+		host.OsqueryHostID = strconv.Itoa(i)
+		host.NodeKey = strconv.Itoa(i)
+		host.UUID = strconv.Itoa(i)
+		host.Hostname = fmt.Sprintf("%d.localdomain", i)
+
+		_, err := ds.NewHost(context.Background(), host)
+		require.NoError(t, err)
+	}
+
+	ctx := context.Background()
+
+	err = ds.UpdateOSVersions(ctx)
+	require.NoError(t, err)
+
+	// all hosts
+	osVersions, err := ds.OSVersions(ctx, nil, nil)
+	require.NoError(t, err)
+
+	require.True(t, time.Now().After(osVersions.CountsUpdatedAt))
+	expected := []fleet.OSVersion{
+		{HostsCount: 1, Name: "CentOS Stream 8.0.0", Platform: "rhel"},
+		{HostsCount: 2, Name: "Ubuntu 20.4.0", Platform: "ubuntu"},
+		{HostsCount: 1, Name: "macOS 12.1.0", Platform: "darwin"},
+		{HostsCount: 3, Name: "macOS 12.2.1", Platform: "darwin"},
+		{HostsCount: 3, Name: "macOS 12.3.0", Platform: "darwin"},
+	}
+	require.Equal(t, expected, osVersions.OSVersions)
+
+	// filter by platform
+	platform := "darwin"
+	osVersions, err = ds.OSVersions(ctx, nil, &platform)
+	require.NoError(t, err)
+
+	expected = []fleet.OSVersion{
+		{HostsCount: 1, Name: "macOS 12.1.0", Platform: "darwin"},
+		{HostsCount: 3, Name: "macOS 12.2.1", Platform: "darwin"},
+		{HostsCount: 3, Name: "macOS 12.3.0", Platform: "darwin"},
+	}
+	require.Equal(t, expected, osVersions.OSVersions)
+
+	// team 1
+	osVersions, err = ds.OSVersions(ctx, &team1.ID, nil)
+	require.NoError(t, err)
+
+	expected = []fleet.OSVersion{
+		{HostsCount: 2, Name: "Ubuntu 20.4.0", Platform: "ubuntu"},
+		{HostsCount: 2, Name: "macOS 12.2.1", Platform: "darwin"},
+	}
+	require.Equal(t, expected, osVersions.OSVersions)
+
+	// team 2
+	osVersions, err = ds.OSVersions(ctx, &team2.ID, nil)
+	require.NoError(t, err)
+
+	expected = []fleet.OSVersion{
+		{HostsCount: 1, Name: "macOS 12.2.1", Platform: "darwin"},
+		{HostsCount: 3, Name: "macOS 12.3.0", Platform: "darwin"},
+	}
+	require.Equal(t, expected, osVersions.OSVersions)
+}
+
+func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
+	// Updates hosts and host_seen_times.
+	host, err := ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         "1",
+		UUID:            "1",
+		Hostname:        "foo.local",
+	})
+	require.NoError(t, err)
+	require.NotNil(t, host)
+	// Updates host_software.
+	software := []fleet.Software{
+		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
+		{Name: "bar", Version: "1.0.0", Source: "deb_packages"},
+	}
+	err = ds.UpdateHostSoftware(context.Background(), host.ID, software)
+	require.NoError(t, err)
+	// Updates host_users.
+	users := []fleet.HostUser{
+		{
+			Uid:       42,
+			Username:  "user1",
+			Type:      "aaa",
+			GroupName: "group",
+			Shell:     "shell",
+		},
+		{
+			Uid:       43,
+			Username:  "user2",
+			Type:      "bbb",
+			GroupName: "group2",
+			Shell:     "bash",
+		},
+	}
+	err = ds.SaveHostUsers(context.Background(), host.ID, users)
+	require.NoError(t, err)
+	// Updates host_emails.
+	err = ds.ReplaceHostDeviceMapping(context.Background(), host.ID, []*fleet.HostDeviceMapping{
+		{HostID: host.ID, Email: "a@b.c", Source: "src"},
+	})
+	require.NoError(t, err)
+	// Updates host_additional.
+	additional := json.RawMessage(`{"additional": "result"}`)
+	host.Additional = &additional
+	err = saveHostAdditionalDB(context.Background(), ds.writer, host.ID, host.Additional)
+	require.NoError(t, err)
+	// Updates scheduled_query_stats.
+	pack, err := ds.NewPack(context.Background(), &fleet.Pack{
+		Name:    "test1",
+		HostIDs: []uint{host.ID},
+	})
+	require.NoError(t, err)
+	query := test.NewQuery(t, ds, "time", "select * from time", 0, true)
+	squery := test.NewScheduledQuery(t, ds, pack.ID, query.ID, 30, true, true, "time-scheduled")
+	stats := []fleet.ScheduledQueryStats{
+		{
+			ScheduledQueryName: squery.Name,
+			ScheduledQueryID:   squery.ID,
+			QueryName:          query.Name,
+			PackName:           pack.Name,
+			PackID:             pack.ID,
+			AverageMemory:      8000,
+			Denylisted:         false,
+			Executions:         164,
+			Interval:           30,
+			LastExecuted:       time.Unix(1620325191, 0).UTC(),
+			OutputSize:         1337,
+			SystemTime:         150,
+			UserTime:           180,
+			WallTime:           0,
+		},
+	}
+	host.PackStats = []fleet.PackStats{
+		{
+			PackName:   "test1",
+			QueryStats: stats,
+		},
+	}
+	err = ds.SaveHost(context.Background(), host)
+	require.NoError(t, err)
+	// Updates label_membership.
+	labelID := uint(1)
+	label := &fleet.LabelSpec{
+		ID:    labelID,
+		Name:  "label foo",
+		Query: "select * from time;",
+	}
+	err = ds.ApplyLabelSpecs(context.Background(), []*fleet.LabelSpec{label})
+	require.NoError(t, err)
+	err = ds.RecordLabelQueryExecutions(context.Background(), host, map[uint]*bool{label.ID: ptr.Bool(true)}, time.Now(), false)
+	require.NoError(t, err)
+	// Update policy_membership.
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	policy, err := ds.NewGlobalPolicy(context.Background(), &user1.ID, fleet.PolicyPayload{
+		Name:  "policy foo",
+		Query: "select * from time",
+	})
+	require.NoError(t, err)
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{policy.ID: ptr.Bool(true)}, time.Now(), false))
+	// Update host_mdm.
+	err = ds.SetOrUpdateMDMData(context.Background(), host.ID, false, "", false)
+	require.NoError(t, err)
+	// Update host_munki_info.
+	err = ds.SetOrUpdateMunkiVersion(context.Background(), host.ID, "42")
+	require.NoError(t, err)
+	// Update device_auth_token.
+	err = ds.SetOrUpdateDeviceAuthToken(context.Background(), host.ID, "foo")
+	require.NoError(t, err)
+
+	// Check there's an entry for the host in all the associated tables.
+	for _, hostRef := range hostRefs {
+		var ok bool
+		err = ds.writer.Get(&ok, fmt.Sprintf("SELECT 1 FROM %s WHERE host_id = ?", hostRef), host.ID)
+		require.NoError(t, err)
+		require.True(t, ok, "table: %s", hostRef)
+	}
+
+	err = ds.DeleteHosts(context.Background(), []uint{host.ID})
+	require.NoError(t, err)
+
+	// Check that all the associated tables were cleaned up.
+	for _, hostRef := range hostRefs {
+		var ok bool
+		err = ds.writer.Get(&ok, fmt.Sprintf("SELECT 1 FROM %s WHERE host_id = ?", hostRef), host.ID)
+		require.True(t, err == nil || errors.Is(err, sql.ErrNoRows), "table: %s", hostRef)
+		require.False(t, ok, "table: %s", hostRef)
+	}
 }

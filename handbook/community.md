@@ -15,42 +15,6 @@ Fleet's users and broader audience are spread across many online platforms.  Her
 - [reddit.com/r/SysAdminBlogs](https://www.reddit.com/r/SysAdminBlogs/)
 - [r/sysadmin Discord](https://discord.gg/sysadmin)
 
-## Posting on social media as Fleet
-
-Posting to social media should follow a [personable tone](https://fleetdm.com/handbook/brand#communicating-as-fleet) and strive to deliver useful information across our social accounts.
-
-### Topics:
-
-- Fleet the product
-- Internal progress
-- Highlighting [community contributions](https://fleetdm.com/handbook/community#community-contributions-pull-requests)
-- Highlighting Fleet and osquery accomplishments
-- Industry news about osquery
-- Industry news about device management
-- Upcoming events, interviews, and podcasts
-
-### Guidelines:
-
-In keeping with our tone, only use hashtags in line and only when it feels natural. If it feels forced, don’t include any.
-
-Self-promotional tweets are non-ideal tweets.  (Same goes for, to varying degrees, Reddit, HN, Quora, StackOverflow, LinkedIn, Slack, and almost anywhere else.)  See also https://www.audible.com/pd/The-Impact-Equation-Audiobook/B00AR1VFBU
-
-Great brands are [magnanimous](https://en.wikipedia.org/wiki/Magnanimity).
-
-### Scheduling:
-
-Once a post has been drafted, it needs to be delivered to our three main platforms.
-
-- [Twitter](https://twitter.com/fleetctl)
-- [LinkedIn](https://www.linkedin.com/company/fleetdm/)
-- [Facebook](https://www.facebook.com/fleetdm)
-
-Log in to [Sprout Social](https://app.sproutsocial.com/publishing/) and use the compose tool to deliver the post to each platform. (credentials in 1Password).
-
-
-## Promoting blog posts on social media
-
-Once a blog post has been written, approved, and published, please ensure that it has been promoted on social media. Please refer to our [Publishing as Fleet](https://docs.google.com/document/d/1cmyVgUAqAWKZj1e_Sgt6eY-nNySAYHH3qoEnhQusph0/edit?usp=sharing) guide for more detailed information. 
 
 ## Fleet docs
 
@@ -224,51 +188,24 @@ graph TD;
     A--D
 ```
 
-## Press releases
-
-If we are doing a press release, we are probably pitching it to one or more reporters as an exclusive story if they choose to take it.  Consider not sharing or publicizing any information related to the upcoming press release before the announcement.  See also https://www.quora.com/What-is-a-press-exclusive-and-how-does-it-work
-
-### Press release boilerplate
-
-Fleet gives teams fast, reliable access to data about the production servers, employee laptops, and other devices they manage - no matter the operating system. Users can search for any device data using SQL queries, making it faster to respond to incidents and automate IT. Fleet can also be used to monitor vulnerabilities, battery health, software, and even EDR and MDM tools like Crowdstrike, Munki, Jamf, and Carbon Black, to help confirm that those platforms are working how administrators think they are. Fleet is open-source software. It's easy to get started quickly, easy to deploy, and it even comes with an enterprise-friendly free tier available under the MIT license.
-
-IT and security teams love Fleet because of its flexibility and conventions. Instead of secretly collecting as much data as possible, Fleet defaults to privacy and transparency, capturing only the data your organization needs to meet its compliance, security, and management goals, with clearly-defined, flexible limits.   
-
-That means better privacy. Better device performance. And better data, with less noise.
-
 ## Community contributions (pull requests)
 
-The top priority when community members contribute PRs is to help the person feel engaged with
-Fleet. This means acknowledging the contribution quickly (within 1 business day) and driving to a
-resolution (close/merge) as soon as possible (may take longer than 1 business day).
+When community members contribute changes, Fleet’s top priority is to help them feel engaged. We acknowledge contributions as soon as possible, within 1 business day. We also drive to a resolution (close/merge) as soon as possible, though this may take longer than 1 business day.
 
 ### Process
 
-1. Decide whether the change is acceptable (see below). If this will take time, acknowledge the
-   contribution and let the user know that the team will respond. For changes that are not
-   acceptable, thank the contributor for their interest and encourage them to open an issue or
-   discuss proposed changes in the `#fleet` channel of osquery Slack before working on any more
-   code.
-2. Help the contributor make the content appropriate for merging. Ensure that the appropriate manual
-   and automated testing has been performed, changes to files and documentation are updated, etc.
-   Usually, this is best done by code review and coaching the user. Sometimes (typically for
-   customers), a Fleet team member may take a PR to completion by adding the appropriate testing and
-   code review improvements.
-3. After reviewing a PR and addressing all necessary changes, any Fleet team member may merge a 
-   community. Before merging, double-check that the CI is passing, documentation is updated, and
-   changes file is created. Please use your best judgment.
-4. Once a PR has been approved and merged, thank and congratulate the contributor, then share with the team in the `#help-promote` channel of Fleet Slack to be publicized on social media. Those who contribute to Fleet and are recognized for their contributions often become great champions for the project.
+1. Decide if the change is acceptable (see below). If this will take time, acknowledge the contribution and let the user know that the team will respond. If you choose not to approve a change, first thank the contributor for their interest. Next, encourage them to open an issue or share their ideas before writing more code. Discussions can occur in the #fleet channel of osquery's Slack.
+2. Help the contributor make the content suitable for merging. Ensure appropriate manual and automated testing occurred. Also, confirm that changes to files and documentation are updated. Usually, this is best done with code review and coaching the user. Sometimes Fleet may complete a PR by improving testing and code review.
+3. After reviewing and addressing all the changes a PR needs, a Fleet team member may merge. Before merging, please use your best judgment. Double-check that CI is passing, documentation is updated, and a changes file is created.
+4. Once a PR is approved and merged, thank and congratulate the contributor. Next, share it with the team in the #help-promote channel of Fleet's Slack so they can promote it on social media. Recognized contributors often become project champions.
 
 Please refer to our [PRs from the community](https://docs.google.com/document/d/13r0vEhs9LOBdxWQWdZ8n5Ff9cyB3hQkTjI5OhcrHjVo/edit?usp=sharing) guide for more detailed information.
 
 ### What is acceptable?
 
-Generally, any minor documentation update or bug fix is acceptable and can be merged by any member
-of the Fleet team. Additions or fixes to the Standard Query Library(SQL) are acceptable as long as 
-the SQL works properly and they are attributed correctly. Please use your best judgment.
+Everyone can contribute bug fixes and improvements to the documentation, whether or not they work for Fleet. Working Standard Query Library(SQL) additions or fixes are acceptable with correct attribution. Please use your best judgment.
 
-More extensive changes and new features should be approved by the appropriate [Product
-DRI](./product.md#product-dris). Ask in the `#g-product` channel in Fleet Slack.
+[Product DRIs](./product.md#product-dris) should approve extensive changes and new features. Ask in the #g-product channel in Fleet's Slack for more information.
 
 ## Fleet swag
 
@@ -286,11 +223,6 @@ We want to recognize and congratulate community members for their contributions 
 
 ## Slack channels
 
-These are the Slack channels the growth team maintains. If the channel has a [directly responsible individual](./people.md#directly-resonsible-individuals) (**DRI**), they will be specified. These people are responsible for keeping up with all new messages, even if they aren't mentioned. 
+Please see [Digital experience > Slack channels](https://fleetdm.com/handbook/brand#slack-channels).
 
-- **#g-growth** **DRI**: Tim Kern
-- **#help-swag** **DRI**: Drew Baker
-
-**Who should have these channels unmuted?** Members of this group, everyone else is encouraged to mute them.
-
-<meta name="maintainedBy" value="mike-j-thomas">
+<meta name="maintainedBy" value="zwass">

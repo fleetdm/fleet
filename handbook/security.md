@@ -13,6 +13,7 @@ We follow the guiding principles below to secure our company-owned devices:
 
 
 ### macOS devices
+> *Find more information about the process of implementing security on the Fleet blog. The first [Tales from Fleet security: securing the startup](https://blog.fleetdm.com/tales-from-fleet-security-securing-the-startup-448ea590ea3a) article covers the process of securing our laptops.*
 
 We use configuration profiles to standardize security settings for our Mac devices. We use [CIS Benchmark for macOS 12](https://www.cisecurity.org/benchmark/apple_os), as our configuration baseline, and adapt it to:
 * Suit a remote team
@@ -245,7 +246,7 @@ We configure Chrome on company-owned devices with a basic policy.
 | --------------------------------------------------------- |
 | Enforce Chrome updates and Chrome restart within 48 hours |
 | Block intrusive ads                                       |
-| uBlock Origin ad blocker extension deployed               |
+| uBlock Origin adblocker extension deployed               |
 | Password manager extension deployed                       |
 | Chrome Endpoint Verification extension deployed           |
 
@@ -255,14 +256,251 @@ We configure Chrome on company-owned devices with a basic policy.
 
 **User experience impact**
 
-* Chrome needs to be restarted within 48 hours of patches being installed. The automatic restart happens after 19:00 and before 6:00 if the computer is running, and tabs are restored (except for incognito tabs).
+* Chrome needs to be restarted within 48 hours of patch installation. The automatic restart happens after 19:00 and before 6:00 if the computer is running and tabs are restored (except for incognito tabs).
 * Ads considered intrusive are blocked.
-* uBlock Origin is enabled by default, and is 100% configurable, improving security and performance of browsing.
+* uBlock Origin is enabled by default, and is 100% configurable, improving security and the performance of browsing.
 * Endpoint Verification is used to make access decisions based on the security posture of the device. For example, an outdated Mac could be prevented access to Google Drive.
 
 ### Personal mobile devices
 
-The use of personal devices is allowed for some applications, as long as the iOS or Android device is kept up to date.
+The use of personal devices is allowed for some applications, so long as the iOS or Android device's OS
+is kept up to date.
+
+## Hardware security keys
+
+If you do not already have a pair of hardware security keys, order [YubiKey 5C NFC security
+keys](https://www.yubico.com/ca/product/yubikey-5c-nfc-pack-of-2/) with your company card, or ask
+BizOps to get you one if you do not have a company card.
+
+### Are they YubiKeys or security keys?
+
+We use YubiKeys, a brand of hardware security keys that support the FIDO U2F protocol. You can use
+both terms interchangeably at Fleet. YubiKeys support more authentication protocols than regular
+security keys.
+
+### Who has to use security keys and why?
+
+Security keys are **strongly recommended** for everyone and **required** for team members with elevated privilege access. 
+
+Because they are the only type of Two-Factor Authentication (2FA) that prevents credentials from
+phishing, we will make them **mandatory for everyone** soon. 
+
+See the [Google Workspace security
+section](https://fleetdm.com/handbook/security#google-workspace-security-authentication) for more
+information on the security of different types of 2FA.
+
+### Goals
+
+Our goals with security keys are to:
+
+1. Eliminate the risk of credential phishing.
+2. Maintain the best user experience possible.
+3. Ensure team members can access systems as needed and that recovery procedures exist in case of a lost key.
+4. Ensure recovery mechanisms are safe to prevent attackers from bypassing 2FA completely.
+
+### Setting up security keys on Google
+
+We recommend setting up **three** security keys on your Google account for redundancy purposes: two
+YubiKeys and your phone as the third key.
+
+If you get a warning during this process about your keyboard not being identified, this is due to
+YubiKeys having a feature that can simulate a keyboard. Ignore the "Your keyboard cannot be
+identified" warning.
+
+1. Set up your first YubiKey by following [Google's
+   instructions](https://support.google.com/accounts/answer/6103523?hl=En). The instructions make
+   you enroll the key by following [this
+   link](https://myaccount.google.com/signinoptions/two-step-verification?flow=sk&opendialog=addsk).
+   When it comes to naming your keys, that is a name only used so you can identify which key was
+   registered. You can name them Key1 and Key2.
+2. Repeat the process with your 2nd YubiKey. 
+3. Configure your phone as [a security key](https://support.google.com/accounts/answer/9289445)  
+
+
+### Optional: getting rid of keyboard warnings
+
+1. Install YubiKey manager.You can do this from the **Managed Software Center** on managed Macs.
+   On other platforms, download it [from the official
+   website](https://www.yubico.com/support/download/yubikey-manager/#h-downloads)
+2. Open YubiKey manager with one of your keys connected.
+3. Go to the **Interfaces** tab.
+4. Uncheck the **OTP** checkboxes under **USB** and **NFC** and click *Save Interfaces*.
+5. Unplug your key and connect your 2nd one to repeat the process.
+
+
+### Optional: setting up security keys on GitHub
+
+1. Configure your two security keys to [access
+   GitHub](https://github.com/settings/two_factor_authentication/configure).
+2. If you are using a Mac, feel free to add it as a security key on GitHub. This brings most of the
+   advantages of the hardware security key, but allows you to log in by simply touching Touch ID as
+   your second factor.
+
+### FAQ
+
+1. Can I use my Fleet YubiKeys with personal accounts?
+
+**Answer**: We highly recommend that you do so. Facebook accounts, personal email, Twitter accounts,
+cryptocurrency trading sites and much more support FIDO U2F authentication, the standard used by
+security keys. Fleet will **never ask for your keys back**. They are yours to use everywhere you
+can.
+
+2. Can I use my phone as a security key?
+
+**Answer**: Yes. Google [provides
+instructions](https://support.google.com/accounts/answer/6103523?hl=En&co=GENIE.Platform%3DiOS&oco=1),
+and it works on Android devices as well as iPhones. When doing this, you will still need the YubiKey
+to access Google applications from the phone itself. 
+Since it requires Bluetooth, this option is also less reliable than using the USB-C security key.
+
+3. Can I leave my YubiKey connected to my laptop?
+
+**Answer**: Yes, unless you are traveling. We use security keys to eliminate the ability of
+attackers to phish our credentials remotely, not as any type of local security improvement. That
+being said, keeping it separate from the laptop when traveling means they are unlikely to both be
+lost or stolen at the same time.
+
+4. I've lost one of my keys, what do I do?
+
+**Answer**: Post in the `#g-security` channel ASAP so we can disable the key. IF you find it later, no
+worries, just enroll it again!
+
+5. I lost all of my keys and I'm locked out! What do I do?
+
+**Answer**: Post in the `#help-login` channel, or if you are locked out of Slack, contact your
+manager. You will be provided a way to log back in and make your phone your security key, until you
+receive new ones.
+
+6. Can I use security keys to log in from any device?
+
+**Answer**: The keys we use, YubiKeys 5C NFC, work over USB-C as well as NFC. They can be used on
+Mac/PC, Android as well as iPhone and iPad Pro with USB-C port. If some application or device does
+not support it, you can always browse to [g.co/sc](https://g.co/sc) from a device that does support
+security keys to generate a temporary code for the device that does not.
+
+7. Will I need my YubiKey every time I want to check my email?
+
+**Answer**: No. Using them does not make sessions shorter. For example, if using the GMail app on
+mobile, you'd need the keys to set up the app only.
+
+## GitHub Security
+Since Fleet makes open source software, we need to host and collaborate on code. We do this using GitHub.
+
+This section covers our GitHub configuration. Like everything we do, we aim for the right level of security and productivity.
+
+Because our code is open source, we are much more concerned about the integrity of the code than its confidentiality.
+This is why our configuration aims to protect what is in the code, but we spend no
+effort preventing "leaks" since almost everything is public anyway.
+
+If you are reading this from another organization that makes code that is not open-source, we
+recommend checking out [this guide](https://oops.computer/posts/safer-github-setup/).
+
+### Authentication
+
+Authentication is the lynchpin of security on Software-as-a-Service (SaaS) applications such as GitHub. It
+is also one of the few controls we have to secure SaaS apps in general.
+
+GitHub authentication differs from many SaaS products in one crucial way: accounts are global.
+Developers can carry their accounts from company to company and use them for open source projects.
+There is no reason to require company-specific GitHub accounts, as our code is public, and if it were
+not, we would enforce Single Sign-On (SSO) to access our organization.
+
+We enable *Require two-factor authentication* for everyone in the organization.
+
+Fleet requires two-factor authentication for everyone in the organization. We do not require Single Sign-on (SSO) -
+as most of the software we work on is open-source and accessible to external collaborators. If you can imagine, GitHub
+charges a [4x premium](https://sso.tax/) for this feature.
+
+### Code security and analysis
+
+
+| Code security and analysis feature | Setting                                                            | Note                                                                        |
+| ---------------------------------- | ------------------------------------------------------------------ | --------------------------------------------------------------------------- |
+| Dependency graph                   | Automatically enable for new private repositories + enabled on all | Default on all public repositories.                                               |
+| Dependabot alerts                  | Automatically enable for new repositories + enabled for all        | We want to be alerted if any dependency is vulnerable.                       |
+| Dependabot security updates        | Automatically enable for new repositories                          | This automatically creates PRs to fix vulnerable dependencies when possible. |
+
+### Member Privileges
+
+| Member privileges feature | Setting | Note                                                                                                                         |
+| ------------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Base permissions          | Write   | Admin is too powerful, as it allows reconfiguring the repositories themselves. Selecting *Write* provides the perfect balance!                 |
+| Repository creation       | None    | We want to limit repository creation and eventually automate it with the [GitHub Terraform provider](https://github.com/integrations/terraform-provider-github).     |
+| Repository forking        | ✅  | By default, we allow repository forking.                                                                                      |
+| Pages creation            | None    | We do not use GitHub pages, so we disable them to ensure people use our actual website or handbook, which are also in GitHub. |
+
+#### Admin repository permissions
+
+| Admin privileges feature                                                   | Member privileges feature | Note                                                                                                                                                                          |
+| -------------------------------------------------------------------------- | ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Allow members to change repository visibilities for this organization      | 🚫                   | Most of our repos are public, but for the few that are private we want to require org admin privileges to make them public                                                    |
+| Allow members to delete or transfer repositories for this organization     | 🚫                   | We want to require org admin privileges to be able to delete or transfer any repository.                                                                                       |
+| Allow repository administrators to delete issues for this organization     | 🚫                   | We want to require org admin privileges to be able to delete issues, which is something that is very rarely needed but could be, for example, if we received GitHub issue spam. |
+| Allow members to see comment author's profile name in private repositories | 🚫                   | We barely use private repositories, and have no need for this.                                                                                                                |
+| Allow users with read access to create discussions                         | 🚫                   | We do not currently use discussions and want people to use issues as much as possible.                                                                                       |
+| Allow members to create teams                                              | 🚫                   | We automate the management of GitHub teams with the [GitHub Terraform provider](https://github.com/integrations/terraform-provider-github).                            |
+
+### Team Discussions
+We do not use team discussions and therefore have disabled them. This is simply to avoid discussions
+being located in too many places and not security-related.
+
+### Repository Security
+
+#### Branch protection
+Branch protection is one of the most important settings to configure and the main reason we should not have members with administrative privileges on the repositories.
+
+Located in the Branches section of repository settings, we create a rule for **main** that applies:
+
+| Setting                                                          | Value | Note                                                                                                                  |
+| ---------------------------------------------------------------- | ----- | --------------------------------------------------------------------------------------------------------------------- |
+| Require a pull request before merging                            | ✅     | We enforce code reviews, which require PRs.                                                                           |
+| Require approvals                                                | 1️⃣   | We require approval from one person in the team.                                                                      |
+| Dismiss stale pull request approvals when new commits are pushed | ✅     | Without this, someone could get approval for a small, very nice PR then change everything about it!                   |
+| Require review from Code Owners                                  | 🗓     | We are working towards enabling this as our team grows and allows for more flexibility                                    |
+| Restrict who can dismiss pull request reviews                    | 🚫     | As we are a team working in multiple timezones, we want to allow dismissing reviews and getting another one.          |
+| Allow specified actors to bypass required pull requests          | 🚫     | We do not want anyone pushing directly to main.                                                                       |
+| Require status checks to pass before merging                     | ✅     | Because of our [monorepo](https://en.wikipedia.org/wiki/Monorepo#:~:text=In%20version%20control%20systems%2C%20a,as%20a%20'shared%20codebase'.), it is hard to pick many checks that work for all types of PRs, but we still enable this.     |
+| Require conversation resolution before merging                   | 🚫     | Reviewers should not approve a pull request if they do not think it's ready for merging.                                             |
+| Require signed commits                                           | 🗓     | We are working towards enabling this, manually keeping track of unverified commits.                                   |
+| Require linear history                                           | 🚫     | We do not currently use or enforce practices to generate a linear history.                                                                                                                      |
+| Include administrators                                           | ✅     | We want these rules to apply to *everyone*.                                                                           |
+| Restrict who can push to matching branches                       | 🚫     | Anyone in our organization should be able to merge PRs that get reviewed, and nobody should be able to push directly. |
+| Allow force pushes                                               | 🚫     | We do not have a need this, so we do not allow it.                                                             |
+| Allow deletions                                                  | 🚫     | We do not want ANYONE to be able to delete the *main* branch.                                                         |
+
+### Scanning tools
+Though not technically a part of GitHub itself, we feel like the security tools we use to scan our code, workflows, and GitHub configuration are part of our overall GitHub configuration.
+
+#### SAST and configuration scanning
+| Scanning Tool                                       | Purpose                                                                                                                                              | Configuration                                                                                                  |
+| --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| [OSSF Scorecard](https://github.com/ossf/scorecard) | Scan our GitHub repository for best practices and send problems to GitHub Security.                                                                  | [scorecard-analysis.yml](https://github.com/fleetdm/fleet/blob/main/.github/workflows/scorecards-analysis.yml) |
+| [CodeQL](https://codeql.github.com/)                | Discover vulnerabilities across our codebase, both in the backend and frontend code.                                                                 | [codeql-analysis.yml](https://github.com/fleetdm/fleet/blob/main/.github/workflows/codeql-analysis.yml)        |
+| [gosec](https://github.com/securego/gosec)          | Scan golang code for common security mistakes. We use gosec as one of the linters used by [golangci-lint](https://github.com/golangci/golangci-lint) | [golangci-lint.yml](https://github.com/fleetdm/fleet/blob/main/.github/workflows/golangci-lint.yml)            |
+
+We are planning on adding [tfsec](https://github.com/aquasecurity/tfsec) to scan for configuration vulnerabilities in the Terraform code provided to deploy Fleet infrastructure in the cloud. 
+Once we have full coverage from a static analysis point of view, we will evaluate dynamic analysis
+and fuzzing options.
+
+#### Dependabot
+As described in *Code security and analysis*, we use Dependabot for security updates to libraries.
+Our [dependabot.yml](https://github.com/fleetdm/fleet/blob/main/.github/dependabot.yml) only
+mentions GitHub actions. Security updates to all other dependencies are performed by Dependabot automatically, even though we do not configure all package managers explicitly in the configuration file, as is specified in the repository configuration. As GitHub actions have no impact on the Fleet software itself, we are
+simply more aggressive on updating actions even if the update does not resolve a vulnerability.
+
+### Actions configuration
+We configure GitHub Actions to have *Read repository contents permission* by default. This is
+located in *organization/settings/actions*. As our code is open-source, we allow all GitHub actions
+but limit their default privileges, so they do not create any additional risk. Additional permissions
+needed can be configured in the YAML file for each workflow.
+
+We pin actions to specific versions using a complete hash.
+
+### Automation
+We manage our GitHub configuration, creation of repositories, and team memberships manually. In the
+future, we will consider automating most of it using the [Terraform
+provider](https://github.com/integrations/terraform-provider-github) for GitHub. Our strategy for
+this will be similar to what is described in [this blog post](https://oops.computer/posts/github_automation/).
 
 ## Google Workspace security
 Google Workspace is our collaboration tool and the source of truth for our user identities.
@@ -285,7 +523,7 @@ Google's name for Two-Factor Authentication (2FA) or Multi-Factor Authentication
 | SMS/Phone-based 2FA                                                           | Puts trust in the phone number itself, which attackers can hijack by [social engineering phone companies](https://www.vice.com/en/topic/sim-hijacking).      |
 | Time-based one-time password (TOTP - Google Authenticator type 6 digit codes) | Phishable as long as the attacker uses it within its short lifetime by intercepting the login form. |
 | App-based push notifications                                                  | Harder to phish than TOTP, but by sending a lot of prompts to a phone, a user might accidentally accept a nefarious notification.       |
-| Hardware security keys                                                        | [Most secure](https://krebsonsecurity.com/2018/07/google-security-keys-neutralized-employee-phishing/), but requires extra hardware or a recent smartphone.                                                                 |
+| Hardware security keys                                                        | [Most secure](https://krebsonsecurity.com/2018/07/google-security-keys-neutralized-employee-phishing/), but requires extra hardware or a recent smartphone. Configure this as soon as you receive your Fleet YubiKeys                                                                |
 
 **2-Step Verification in Google Workspace**
 
@@ -301,9 +539,12 @@ We apply the following settings to *Security/2-Step Verification* to all users a
 
 **Hardware security keys**
 
-We strongly recommend providing users with hardware security keys. [Titan Keys](https://store.google.com/us/config/titan_security_key?hl=en-US) from Google are compatible with laptops, iPad Pros, iPhones (NFC), and Android phones (NFC or USB-C). The [YubiKey 5C NFC](https://www.yubico.com/ca/product/yubikey-5c-nfc/) is also compatible and includes extra features like support for OpenPGP and additional protocols. It is also possible to use a phone as a [security key](https://support.google.com/accounts/answer/9289445?hl=en&co=GENIE.Platform%3DAndroid).
+We strongly recommend the use of hardware security keys. 
 
-Specific groups of users, such as privileged user accounts, separate from regular day-to-day accounts, should be configured with a policy that enforces the use of hardware security keys, which prevent credential theft better than other methods of 2FA/2-SV.
+Fleet configures privileged user accounts with a policy that enforces the use of hardware security
+keys. This prevents credential theft better than other methods of 2FA/2-SV. See [hardware security
+keys](https://fleetdm.com/handbook/security#hardware-security-keys) for information about the model we use, why and how to set
+them up, .
 
 
 #### Passwords
@@ -553,10 +794,13 @@ We ensure the fixes to vulnerable dependencies are also performed according to o
 
 ## Slack channels
 
-These are the Slack channels the security team maintains. If the channel has a [directly responsible individual](./people.md#directly-resonsible-individuals) (**DRI**), they will be specified. These people are responsible for keeping up with all new messages, even if they aren't mentioned. 
+The following [Slack channels are maintained](https://fleetdm.com/handbook/company#group-slack-channels) by this group:
 
-- **#help-login** - **DRI**: Guillame Ross
+| Slack channel                       | [DRI](https://fleetdm.com/handbook/company#group-slack-channels)    |
+|:------------------------------------|:--------------------------------------------------------------------|
+| `#g-security`                       | Guillaume Ross
+| `#help-login`                       | Guillaume Ross
+| `#help-tines`                       | Guillaume Ross
 
-**Who should have these channels unmuted?** Members of this group, everyone else is encouraged to mute them.
 
-<meta name="maintainedBy" value="GuillaumeRoss">
+<meta name="maintainedBy" value="guillaumeross">

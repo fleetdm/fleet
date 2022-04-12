@@ -54,7 +54,6 @@ export default {
     const { targets } = updatedPack;
     const path = `${PACKS}/${packId}`;
 
-    console.log("updatedPack", updatedPack);
     let packTargets = null;
     if (targets) {
       packTargets = formatPackTargetsForApi(targets);

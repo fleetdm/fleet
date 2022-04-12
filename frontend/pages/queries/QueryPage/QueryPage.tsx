@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useContext } from "react";
 import { useQuery, useMutation } from "react-query";
+import { useErrorHandler } from "react-error-boundary";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 
 // @ts-ignore
@@ -9,9 +10,9 @@ import { QueryContext } from "context/query";
 import { QUERIES_PAGE_STEPS, DEFAULT_QUERY } from "utilities/constants";
 import queryAPI from "services/entities/queries";
 import hostAPI from "services/entities/hosts";
+import { IHost } from "interfaces/host";
 import { IQueryFormData, IQuery } from "interfaces/query";
 import { ITarget } from "interfaces/target";
-import { IHost } from "interfaces/host";
 
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
 import QueryEditor from "pages/queries/QueryPage/screens/QueryEditor";
@@ -44,6 +45,7 @@ const QueryPage = ({
 }: IQueryPageProps): JSX.Element => {
   const queryIdForEdit = paramsQueryId ? parseInt(paramsQueryId, 10) : null;
 
+  const handlePageError = useErrorHandler();
   const {
     isGlobalAdmin,
     isGlobalMaintainer,
@@ -92,6 +94,7 @@ const QueryPage = ({
         setLastEditedQueryBody(returnedQuery.query);
         setLastEditedQueryObserverCanRun(returnedQuery.observer_can_run);
       },
+      onError: (error) => handlePageError(error),
     }
   );
 
