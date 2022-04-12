@@ -66,7 +66,7 @@ const generateTableHeaders = (
       Header: "",
       disableSortBy: true,
       sortType: "caseInsensitive",
-      accessor: "hosts",
+      accessor: "logo",
       Cell: () => <img src={JiraIcon} alt="jira-icon" />,
     },
     {
@@ -76,7 +76,7 @@ const generateTableHeaders = (
       sortType: "caseInsensitive",
       accessor: "name",
       Cell: (cellProps: ICellProps) => (
-        <TextCell value={cellProps.cell.value} />
+        <TextCell value={cellProps.cell.value} classes="w400" />
       ),
     },
     {
@@ -120,7 +120,7 @@ const enhanceIntegrationData = (
     return {
       url: integration.url,
       username: integration.username,
-      password: integration.password,
+      api_token: integration.api_token,
       project_key: integration.project_key,
       actions: generateActionDropdownOptions(),
       enable_software_vulnerabilities:
