@@ -145,13 +145,12 @@ module.exports.routes = {
       pageDescriptionForMeta: 'Learn about the Fleet\'s features.',
     }
   },
+
   'GET /landing': {
     action: 'view-landing',
     locals: {
       layout: 'layouts/layout-landing',
       currentPage: 'landing',
-      pageTitleForMeta: 'Fleet for osquery',
-      pageDescriptionForMeta: 'Open source software, built on osquery. With Fleet you can ask important questions about your devices. Whatever operating system, wherever they live.',
     }
   },
 
