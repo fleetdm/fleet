@@ -221,7 +221,9 @@ If you use plain osquery, instructions are [available here](https://osquery.read
 On a system with osquery installed via the Fleet osquery installer (Orbit), obtain the
 `CodeRequirement` of Orbit by running:
 
-`codesign -dr - /private/var/lib/orbit/bin/orbit/macos/edge/orbit`
+```
+codesign -dr - /private/var/lib/orbit/bin/orbit/macos/edge/orbit
+```
 
 The output should be similar or identical to: 
 
@@ -251,7 +253,9 @@ Link the profile to a test group that contains at least one Mac.
 Once the computer has received the profile, which you can verify by looking at *Profiles* in *System
 Preferences*, run this query from Fleet:
 
-`SELECT * FROM file WHERE path LIKE '/Users/%/Downloads/%%';`
+```sql
+SELECT * FROM file WHERE path LIKE '/Users/%/Downloads/%%';
+```
 
 If this query returns files, the profile has been successfully applied, as *Downloads* is a
 protected location. You can now enjoy the benefits of osquery on all system files as well as start
