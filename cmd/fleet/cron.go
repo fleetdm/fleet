@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"os"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -403,6 +405,25 @@ func cronWorker(
 	}
 	w.Register(jira)
 
+	// create a JiraClient wrapper to introduce forced failures if configured
+	// to do so via the environment variable.
+	var failerClient *worker.TestJiraFailer
+	forcedFailures := os.Getenv("FLEET_JIRA_CLIENT_FORCED_FAILURES")
+	if forcedFailures != "" {
+		// format is "<modulo number>;<cve1>,<cve2>,<cve3>,..."
+		parts := strings.Split(forcedFailures, ";")
+		if len(parts) == 2 {
+			mod, _ := strconv.Atoi(parts[0])
+			cves := strings.Split(parts[1], ",")
+			if mod > 0 || len(cves) > 0 {
+				failerClient = &worker.TestJiraFailer{
+					FailCallCountModulo: mod,
+					AlwaysFailCVEs:      cves,
+				}
+			}
+		}
+	}
+
 	ticker := time.NewTicker(10 * time.Second)
 	for {
 		select {
@@ -461,7 +482,12 @@ func cronWorker(
 
 		// safe to update the Jira worker as it is not used concurrently
 		jira.FleetURL = appConfig.ServerSettings.ServerURL
-		jira.JiraClient = client
+		if failerClient != nil {
+			failerClient.JiraClient = client
+			jira.JiraClient = failerClient
+		} else {
+			jira.JiraClient = client
+		}
 
 		workCtx, cancel := context.WithTimeout(ctx, lockDuration)
 		if err := w.ProcessJobs(workCtx); err != nil {
