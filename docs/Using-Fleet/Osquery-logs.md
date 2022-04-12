@@ -29,7 +29,7 @@ Note that Firehose logging has limits [discussed in the documentation](https://d
 
 To send logs to Snowflake, you must first configure Fleet to send logs to [Firehose](#firehose). This is because you'll use the Snowflake Snowpipe integration to direct logs to Snowflake.
 
-If you're using Fleet's [terraform reference architecture](https://github.com/fleetdm/fleet/blob/main/tools/terraform/firehose.tf), Firehose is already configured as your log destination.
+If you're using Fleet's [terraform reference architecture](https://github.com/fleetdm/fleet/blob/main/infrastructure/dogfood/terraform/aws/firehose.tf), Firehose is already configured as your log destination.
 
 With Fleet configured to send logs to Firehose, you then want to load the data from Firehose into a Snowflake database. AWS provides instructions on how to direct logs to a Snowflake database [here in the AWS documentation](https://docs.aws.amazon.com/prescriptive-guidance/latest/patterns/automate-data-stream-ingestion-into-a-snowflake-database-by-using-snowflake-snowpipe-amazon-s3-amazon-sns-and-amazon-kinesis-data-firehose.html)
 
@@ -41,7 +41,7 @@ To send logs to Splunk, you must first configure Fleet to send logs to [Firehose
 
 With Fleet configured to send logs to Firehose, you then want to load the data from Firehose into Splunk. AWS provides instructions on how to enable Firehose to forward directly to Splunk [here in the AWS documentation](https://docs.aws.amazon.com/firehose/latest/dev/create-destination.html#create-destination-splunk).
 
-If you're using Fleet's [terraform reference architecture](https://github.com/fleetdm/fleet/blob/main/tools/terraform), you want to replace the S3 destination with a Splunk destination. Hashicorp provides instructions on how to send Firehose data to Splunk [here in the Terraform documentation](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/kinesis_firehose_delivery_stream#splunk-destination).
+If you're using Fleet's [terraform reference architecture](https://github.com/fleetdm/fleet/blob/main/infrastructure/dogfood/terraform/aws), you want to replace the S3 destination with a Splunk destination. Hashicorp provides instructions on how to send Firehose data to Splunk [here in the Terraform documentation](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/kinesis_firehose_delivery_stream#splunk-destination).
 
 Splunk provides instructions on how to prepare the Splunk platform for Firehose data [here in the Splunk documentation](https://docs.splunk.com/Documentation/AddOns/latest/Firehose/ConfigureFirehose).
 
