@@ -408,8 +408,7 @@ func cronWorker(
 	// create a JiraClient wrapper to introduce forced failures if configured
 	// to do so via the environment variable.
 	var failerClient *worker.TestJiraFailer
-	forcedFailures := os.Getenv("FLEET_JIRA_CLIENT_FORCED_FAILURES")
-	if forcedFailures != "" {
+	if forcedFailures := os.Getenv("FLEET_JIRA_CLIENT_FORCED_FAILURES"); forcedFailures != "" {
 		// format is "<modulo number>;<cve1>,<cve2>,<cve3>,..."
 		parts := strings.Split(forcedFailures, ";")
 		if len(parts) == 2 {
@@ -482,7 +481,7 @@ func cronWorker(
 
 		// safe to update the Jira worker as it is not used concurrently
 		jira.FleetURL = appConfig.ServerSettings.ServerURL
-		if failerClient != nil {
+		if failerClient != nil && strings.Contains(jira.FleetURL, "fleetdm") {
 			failerClient.JiraClient = client
 			jira.JiraClient = failerClient
 		} else {
