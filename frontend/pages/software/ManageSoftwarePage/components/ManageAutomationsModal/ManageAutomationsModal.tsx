@@ -358,36 +358,46 @@ const ManageAutomationsModal = ({
             data-for="save-automation-button"
             data-tip-disable={
               !(
-                integrationsIndexed && integrationsIndexed.length === 0 && jiraEnabled && softwareAutomationsEnabled
+                integrationsIndexed &&
+                integrationsIndexed.length === 0 &&
+                jiraEnabled &&
+                softwareAutomationsEnabled
               )
             }
           >
-          <Button
-            className={`${baseClass}__btn`}
-            type="submit"
-            variant="brand"
-            onClick={handleSaveAutomation}
-            disabled={softwareAutomationsEnabled && jiraEnabled && !selectedIntegration || softwareAutomationsEnabled && !jiraEnabled && destinationUrl === ""}
-          >
-            Save
-          </Button>
+            <Button
+              className={`${baseClass}__btn`}
+              type="submit"
+              variant="brand"
+              onClick={handleSaveAutomation}
+              disabled={
+                (softwareAutomationsEnabled &&
+                  jiraEnabled &&
+                  !selectedIntegration) ||
+                (softwareAutomationsEnabled &&
+                  !jiraEnabled &&
+                  destinationUrl === "")
+              }
+            >
+              Save
+            </Button>
           </div>
-                          <ReactTooltip
-                  className={`save-automation-button-tooltip`}
-                  place="bottom"
-                  type="dark"
-                  effect="solid"
-                  backgroundColor="#3e4771"
-                  id="save-automation-button"
-                  data-html
-                >
-                  <div
-                    className={`tooltip`}
-                    style={{ width: "152px", textAlign: "center" }}
-                  >
-                    Add an integration to create tickets for vulnerability automations
-                  </div>
-                </ReactTooltip>
+          <ReactTooltip
+            className={`save-automation-button-tooltip`}
+            place="bottom"
+            type="dark"
+            effect="solid"
+            backgroundColor="#3e4771"
+            id="save-automation-button"
+            data-html
+          >
+            <div
+              className={`tooltip`}
+              style={{ width: "152px", textAlign: "center" }}
+            >
+              Add an integration to create tickets for vulnerability automations
+            </div>
+          </ReactTooltip>
         </div>
       </div>
     </Modal>
