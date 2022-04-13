@@ -275,7 +275,7 @@ BizOps to get you one if you do not have a company card.
 ### Are they YubiKeys or security keys?
 
 We use YubiKeys, a brand of hardware security keys that support the FIDO U2F protocol. You can use
-both terms interchangeably at Fleet. YubiKeys support more authentication protocols than regular
+both terms interchangeably at Fleet. We use YubiKeys because they support more authentication protocols than regular
 security keys.
 
 ### Who has to use security keys and why?
@@ -293,10 +293,10 @@ information on the security of different types of 2FA.
 
 Our goals with security keys are to:
 
-1. Eliminate the risk of credential phishing.
-2. Maintain the best user experience possible.
-3. Ensure team members can access systems as needed and that recovery procedures exist in case of a lost key.
-4. Ensure recovery mechanisms are safe to prevent attackers from bypassing 2FA completely.
+1. eliminate the risk of credential phishing.
+2. maintain the best user experience possible.
+3. ensure team members can access systems as needed, and that recovery procedures exist in case of a lost key.
+4. ensure recovery mechanisms are safe to prevent attackers from bypassing 2FA completely.
 
 ### Setting up security keys on Google
 
@@ -319,10 +319,10 @@ identified" warning.
 
 ### Optional: getting rid of keyboard warnings
 
-1. Install YubiKey manager.You can do this from the **Managed Software Center** on managed Macs.
+1. Install YubiKey manager. You can do this from the **Managed Software Center** on managed Macs.
    On other platforms, download it [from the official
-   website](https://www.yubico.com/support/download/yubikey-manager/#h-downloads)
-2. Open YubiKey manager with one of your keys connected.
+   website](https://www.yubico.com/support/download/yubikey-manager/#h-downloads).
+2. Open the YubiKey manager with one of your keys connected.
 3. Go to the **Interfaces** tab.
 4. Uncheck the **OTP** checkboxes under **USB** and **NFC** and click *Save Interfaces*.
 5. Unplug your key and connect your 2nd one to repeat the process.
@@ -333,7 +333,7 @@ identified" warning.
 1. Configure your two security keys to [access
    GitHub](https://github.com/settings/two_factor_authentication/configure).
 2. If you are using a Mac, feel free to add it as a security key on GitHub. This brings most of the
-   advantages of the hardware security key, but allows you to log in by simply touching Touch ID as
+   advantages of the hardware security key but allows you to log in by simply touching Touch ID as
    your second factor.
 
 ### FAQ
@@ -341,7 +341,7 @@ identified" warning.
 1. Can I use my Fleet YubiKeys with personal accounts?
 
 **Answer**: We highly recommend that you do so. Facebook accounts, personal email, Twitter accounts,
-cryptocurrency trading sites and much more support FIDO U2F authentication, the standard used by
+cryptocurrency trading sites, and many more support FIDO U2F authentication, the standard used by
 security keys. Fleet will **never ask for your keys back**. They are yours to use everywhere you
 can.
 
@@ -350,32 +350,32 @@ can.
 **Answer**: Yes. Google [provides
 instructions](https://support.google.com/accounts/answer/6103523?hl=En&co=GENIE.Platform%3DiOS&oco=1),
 and it works on Android devices as well as iPhones. When doing this, you will still need the YubiKey
-to access Google applications from the phone itself. 
-Since it requires Bluetooth, this option is also less reliable than using the USB-C security key.
+to access Google applications from your phone. 
+Since it requires Bluetooth, this option is also less reliable than the USB-C security key.
 
 3. Can I leave my YubiKey connected to my laptop?
 
 **Answer**: Yes, unless you are traveling. We use security keys to eliminate the ability of
 attackers to phish our credentials remotely, not as any type of local security improvement. That
-being said, keeping it separate from the laptop when traveling means they are unlikely to both be
-lost or stolen at the same time.
+being said, keeping it separate from the laptop when traveling means they are unlikely to be
+lost or stolen simultaneously.
 
 4. I've lost one of my keys, what do I do?
 
 **Answer**: Post in the `#g-security` channel ASAP so we can disable the key. IF you find it later, no
 worries, just enroll it again!
 
-5. I lost all of my keys and I'm locked out! What do I do?
+5. I lost all of my keys, and I'm locked out! What do I do?
 
 **Answer**: Post in the `#help-login` channel, or if you are locked out of Slack, contact your
-manager. You will be provided a way to log back in and make your phone your security key, until you
+manager. You will be provided a way to log back in and make your phone your security key until you
 receive new ones.
 
 6. Can I use security keys to log in from any device?
 
 **Answer**: The keys we use, YubiKeys 5C NFC, work over USB-C as well as NFC. They can be used on
-Mac/PC, Android as well as iPhone and iPad Pro with USB-C port. If some application or device does
-not support it, you can always browse to [g.co/sc](https://g.co/sc) from a device that does support
+Mac/PC, Android and iPhone and iPad Pro with USB-C port. If some application or device does
+not support it, you can always browse to [g.co/sc](https://g.co/sc) from a device that supports
 security keys to generate a temporary code for the device that does not.
 
 7. Will I need my YubiKey every time I want to check my email?
