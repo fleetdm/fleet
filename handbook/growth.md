@@ -87,45 +87,55 @@ The following [Slack channels are maintained](https://fleetdm.com/handbook/compa
 
 <meta name="maintainedBy" value="timmy-k">
 
-## Growth Rituals
+## Growth rituals
+
 The following rituals are engaged in by the  directly responsible individual (DRI) and at the frequency specified for the ritual.
 
-### Social Engagement Ritual: 
+### Social engagement ritual:
 Participate in 50 social media engagements per week.  
 DRI: Drew Baker
 
-### Daily Twitter Ritual:
+### Daily Twitter ritual:
+
 Post FleetDM content on Twitter every weekday.
 DRI: Drew Baker
 
-### Daily LinkedIn Ritual:
-Post FleetDM Content to LinkedIn every weekday. 
+### Daily LinkedIn ritual:
+
+Post Fleet content to LinkedIn every weekday. 
 DRI: Drew Baker
 
-### osQuery Jobs Ritual: 
+### osQuery jobs ritual:
+
 Post to @osqueryjobs two times per week.
 DRI: Drew Baker
 
-### Enriching Leads Ritual:
-Follow the Lead Enrichment Process every Friday.
+### Enriching leads ritual:
+
+Follow the lead enrichment process every Friday.
 DRI: Drew Baker
 
-### Outside Contributions Ritual:
-Check PRs for outside contributions every Monday.
+### Outside contributions ritual:
+
+Check pull requests for outside contributions every Monday.
 DRI: Drew Baker
 
-### Weekly Blogpost Ritual:
-Publish FleetDM blog post once per week.
+### Weekly blogpost ritual:
+
+Publish Fleet blog post once per week.
 Promote blog posts on socials once per week.
 
-### Weekly Ins and Outs Ritual:
+### Weekly ins and outs ritual:
+
 Track ins and outs once per week.
 DRI: Tim Kern
 
-### Podcast Outreach Ritual:
+### Podcast outreach ritual:
+
 Conduct podcast outreach twice per week.
 DRI: Drew Baker
 
-### Monthly Conference Ritual:
+### Monthly conference ritual:
+
 Check for conference openings and for conference sponsorships on the 1st of every month.
 DRI: Drew Baker
