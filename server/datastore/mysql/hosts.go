@@ -1393,7 +1393,7 @@ func (ds *Datastore) generateAggregatedMunkiVersion(ctx context.Context, teamID 
 INSERT INTO aggregated_stats (id, type, json_value)
 VALUES (?, ?, ?)
 ON DUPLICATE KEY UPDATE
-    json_value = VALUES (json_value),
+    json_value = VALUES(json_value),
     updated_at = CURRENT_TIMESTAMP
 `,
 		id, "munki_versions", versionsJson,
