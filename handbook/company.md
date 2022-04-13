@@ -21,13 +21,9 @@ Fleet Device Management Inc. is an all-remote company, with team members spread 
 ### Open source
 The majority of the code, documentation, and content we create at Fleet is public and source-available. We strive to be open and transparent in the way we run the business; as much as confidentiality agreements (and time) allow. We perform better with an audience, and our audience performs better with us.
 
-### Direct responsibility
-We use the concept of [directly responsible individuals](https://fleetdm.com/handbook/people#directly-responsible-individuals) (DRIs) to know who is responsible for what.  Every group maintains its own dedicated [handbook page](https://fleetdm.com/handbook), which is kept up to date with accurate, current information, including the group's [kanban board](https://github.com/orgs/fleetdm/projects?type=beta), Slack channels, and recurring tasks ("rituals").
 
-#### Group Slack channels
-Every group at Fleet maintains specific Slack channels, which all group members join and keep unmuted.  Everyone else at Fleet is encouraged to mute these channels, using them only as needed.  Each channel has a directly responsible individual responsible for keeping up with all new messages, even if they aren't explicitly mentioned (`@`).
+## Why this way?
 
-## Things new and old team members should know
 ### Why do we wireframe first?
 - Wireframing is called “drafting” at Fleet and is done in Figma.
 - Anyone can make a wireframe suggestion, and wireframes are easy to contribute without being code literate.
@@ -44,57 +40,52 @@ Every group at Fleet maintains specific Slack channels, which all group members 
     - forms.
     - URLs.
     - API parameters.
-    - API response data…and more.
+    - API response data…[and more.](https://github.com/fleetdm/fleet/issues/4821)
 
 ### Why mono repo?
-
 - One repo keeps all of the relevant work in one place. The only exception is when we're working on something confidential.
 - One repo means that there is less to get lost.
 - One repo pools GitHub stars to reflect Fleet’s actual presence better.
 
 ### Why organize work in team-based kanban boards?
-
 - Kanban boards provide a uniform layout across all teams where anyone in the company can look to see what other teams are working on and have coming up.
 - The different columns on the boards allow us to create a game plan for our to-do list for each 3-week iteration.
 - These boards allow anyone in the world to contribute.
 
 ### Why 3-week cadence?
-
 - Fleet product is released every 3 weeks, so everyone in the company is synced up to this same schedule.
 - Other companies use a 4-week release cycle, but at Fleet, we like to move a little faster to get more done.
 - Everyone knows when the new release is, so they also know when their work is due.
 
 ### Why agile?
-
 - See [the agile manifesto](https://agilemanifesto.org/).
 - Collaborating and pushing for the next release creates the best product and culture.
 
-Our values and mission.
-
-- See [Fleet's values](./company.md#values).
-
 ### Why the emphasis on training?
-
 - Investing in people makes them better and faster contributors.
 - Creating a culture of helping others results in people feeling more comfortable and confident even if they aren’t familiar with osquery.
 - A sharp focus on training means things are written down.
 
 ### Why handbook-first strategy?
-
 - Watch [this video about the handbook-first strategy](https://www.youtube.com/watch?v=aZrK8AQM8Ro).
 - For more details, see [GitLab’s handbook-first strategy](https://about.gitlab.com/company/culture/all-remote/handbook-first-documentation/).
 - Documenting in the handbook allows Fleet to scale up and retain knowledge for consistency.
 
-### Why not continuously generate REST API docs from javadoc-style code comments?
-- It looks cheap. Those using open API still are embarrassed by their docs.
-- Generated documentation via tools like Swagger/OpenAPI has a tendency to get out of date and becomes harder to fix to make it up to date.
-- There is less control over how to add annotations to the doc.
-- It has less visibility/ accessibility/ modifiability for people without Golang coding experience.
-- Fully integrating with swagger's format sufficiently to document everything involves more people on the team learning about the intricacies of swagger (instead of editing in Markdown that looks like any other Markdown in the docs/website)).
-- Autogenerating docs is not the only way to make sure docs accurately reflect the API.
-- Generated docs become just as out of date as handmade docs, except since they are generated, they become more difficult to edit and therefore gated/siloed. Adaptability is efficient.
-- Using Markdown allows anyone to edit our docs.
-- Replacing Markdown files with code comments makes API reference docs harder to locate and edit.
+### Why not continuously generate REST API reference docs from javadoc-style code comments?
+- Using Markdown allows anyone to edit Fleet's docs.
+- Generated docs become just as out of date as handmade docs, except since they are generated, they can become more difficult to edit and therefore gated/siloed.
+- Keeping the source of truth in code files confers less visibility/ accessibility/ modifiability for people without Golang coding experience.
+- Code comments are more difficult to locate and edit than a single Markdown file.
+- Autogenerating docs from code is not the only way to make sure reference docs accurately reflect the API.
+- As the Fleet REST API, documentation, and tools mature, a more declarative format such as OpenAPI might become the source of truth, but only after investing in a format and processes to make it visible, accessible, and modifiable for all contributors.
+
+### Why direct responsibility?
+We use the concept of [directly responsible individuals](https://fleetdm.com/handbook/people#directly-responsible-individuals) (DRIs) to know who is responsible for what.  Every group maintains its own dedicated [handbook page](https://fleetdm.com/handbook), which is kept up to date with accurate, current information, including the group's [kanban board](https://github.com/orgs/fleetdm/projects?type=beta), Slack channels, and recurring tasks ("rituals").
+
+#### Why group Slack channels?
+Groups are organized around goals.  Connecting people with the same goals helps them produce better results by fostering freer communication.  While groups sometimes align with the organization chart, some groups consist of people who do not report to the same manager.    For example, [product groups](https://fleetdm.com/handbook/product) like `#g-agent` include engineers too, not just the product manager.
+
+Every group at Fleet maintains specific Slack channels, which all group members join and keep unmuted.  Everyone else at Fleet is encouraged to mute these channels, using them only as needed.  Each channel has a directly responsible individual responsible for keeping up with all new messages, even if they aren't explicitly mentioned (`@`).
 
 
 
