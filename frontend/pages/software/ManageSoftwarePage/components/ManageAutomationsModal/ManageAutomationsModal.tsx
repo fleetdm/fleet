@@ -43,6 +43,7 @@ interface IManageAutomationsModalProps {
   softwareVulnerabilityAutomationEnabled?: boolean;
   softwareVulnerabilityWebhookEnabled?: boolean;
   currentDestinationUrl?: string;
+  recentVulnerabilityMaxAge: number;
 }
 
 const validateWebhookURL = (url: string) => {
@@ -66,6 +67,7 @@ const ManageAutomationsModal = ({
   softwareVulnerabilityAutomationEnabled,
   softwareVulnerabilityWebhookEnabled,
   currentDestinationUrl,
+  recentVulnerabilityMaxAge,
 }: IManageAutomationsModalProps): JSX.Element => {
   const [destination_url, setDestinationUrl] = useState<string>(
     currentDestinationUrl || ""
@@ -225,7 +227,8 @@ const ManageAutomationsModal = ({
         <div className={`${baseClass}__software-automation-description`}>
           <p>
             A ticket will be created in your <b>Integration</b> if a detected
-            vulnerability (CVE) was published in the last 30 days.
+            vulnerability (CVE) was published in the last{" "}
+            {recentVulnerabilityMaxAge} days.
           </p>
         </div>
         {integrationsIndexed && integrationsIndexed.length > 0 ? (
@@ -266,7 +269,8 @@ const ManageAutomationsModal = ({
         <div className={`${baseClass}__software-automation-description`}>
           <p>
             A request will be sent to your configured <b>Destination URL</b> if
-            a detected vulnerability (CVE) was published in the last 30 days.
+            a detected vulnerability (CVE) was published in the last
+            {recentVulnerabilityMaxAge} days.
           </p>
         </div>
         <InputField

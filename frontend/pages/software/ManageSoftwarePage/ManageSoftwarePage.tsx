@@ -79,6 +79,10 @@ const ManageSoftwarePage = ({
     isVulnerabilityAutomationsEnabled,
     setIsVulnerabilityAutomationsEnabled,
   ] = useState<boolean>();
+  const [
+    recentVulnerabilityMaxAge,
+    setRecentVulnerabilityMaxAge,
+  ] = useState<number>();
   const [filterVuln, setFilterVuln] = useState(
     location?.query?.vulnerable || false
   );
@@ -112,6 +116,12 @@ const ManageSoftwarePage = ({
       setIsVulnerabilityAutomationsEnabled(
         data?.webhook_settings?.vulnerabilities_webhook
           .enable_vulnerabilities_webhook || jiraIntegrationEnabled
+      );
+      // Convert from nanosecond to nearest day
+      setRecentVulnerabilityMaxAge(
+        Math.round(
+          data?.vulnerabilities?.recent_vulnerability_max_age / 86400000000000
+        )
       );
     },
   });
@@ -495,6 +505,7 @@ const ManageSoftwarePage = ({
                 softwareVulnerabilitiesWebhook.destination_url) ||
               ""
             }
+            recentVulnerabilityMaxAge={recentVulnerabilityMaxAge}
           />
         )}
       </div>
