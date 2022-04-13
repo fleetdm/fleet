@@ -237,8 +237,12 @@ func parse(cacheDir string) (FixedCVEsByPackage, error) {
 			return err
 		}
 
-		if filepath.Dir(path) == cacheDir {
-			// top level dir, parse package
+		if path == cacheDir {
+			return nil
+		}
+
+		if d.IsDir() && filepath.Dir(path) == cacheDir {
+			// parse package from dir
 			rel, err := filepath.Rel(cacheDir, path)
 			if err != nil {
 				return err
@@ -252,16 +256,16 @@ func parse(cacheDir string) (FixedCVEsByPackage, error) {
 			return nil
 		}
 
-		if d.IsDir() || filepath.Base(path) != "changelog" {
-			return fmt.Errorf("unexpected file: %s", path)
-		}
+		if !d.IsDir() && filepath.Base(path) == "changelog" {
+			cves, err := parseChangelog(path)
+			if err != nil {
+				return err
+			}
 
-		cves, err := parseChangelog(path)
-		if err != nil {
-			return err
-		}
+			fixedCVEs.Add(pkg, cves)
 
-		fixedCVEs.Add(pkg, cves)
+			return nil
+		}
 
 		return nil
 	})
