@@ -1,14 +1,12 @@
 import React from "react";
-import { mount } from "enzyme";
+import { render } from "@testing-library/react";
 
 import ScheduleQuerySidePanel from "./ScheduleQuerySidePanel";
 
 describe("ScheduleQuerySidePanel - component", () => {
-  const component = mount(<ScheduleQuerySidePanel />);
-
   it("renders SearchPackQuery", () => {
-    const scheduleQuery = component.find("SearchPackQuery");
+    const { container } = render(<ScheduleQuerySidePanel />);
 
-    expect(scheduleQuery.length).toEqual(1);
+    expect(container.querySelectorAll(".search-pack-query").length).toEqual(1);
   });
 });
