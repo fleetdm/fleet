@@ -1,0 +1,1 @@
+* Support Redis in standalone mode when CLUSTER commands are disabled via ACL.

@@ -39,7 +39,7 @@ import {
 
 const baseClass = "app-config-form";
 
-const AppConfigFormFunctional = ({
+const AppConfigForm = ({
   appConfig,
   handleSubmit,
 }: IAppConfigFormProps): JSX.Element => {
@@ -360,7 +360,7 @@ const AppConfigFormFunctional = ({
             label="Fleet app URL"
             hint={
               <span>
-                Include base path only (eg. no <code>/v1</code>)
+                Include base path only (eg. no <code>/latest</code>)
               </span>
             }
             onChange={handleInputChange}
@@ -977,4 +977,4 @@ const AppConfigFormFunctional = ({
   );
 };
 
-export default AppConfigFormFunctional;
+export default AppConfigForm;

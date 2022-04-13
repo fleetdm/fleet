@@ -47,6 +47,7 @@ var windowsWixTemplate = template.Must(template.New("").Option("missingkey=error
                 <File Source="root\bin\orbit\windows\{{ .OrbitChannel }}\orbit.exe">
                   <PermissionEx Sddl="O:SYG:SYD:P(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)(A;OICI;0x1200a9;;;BU)" />
                 </File>
+                <Environment Id='OrbitUpdateInterval' Name='ORBIT_UPDATE_INTERVAL' Value='{{ .OrbitUpdateInterval }}' Action='set' System='yes' />
                 <ServiceInstall
                   Name="Fleet osquery"
                   Account="NT AUTHORITY\SYSTEM"

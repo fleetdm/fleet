@@ -1220,7 +1220,7 @@ Retrieves aggregated host's MDM enrollment status and Munki versions.
 
 Retrieves the aggregated host OS versions information.
 
-`GET /api/v1/fleet/os_versions`
+`GET /api/latest/fleet/os_versions`
 
 #### Parameters
 
@@ -4962,7 +4962,7 @@ Modifies the Fleet's configuration with the supplied information.
       {
         "url": "https://jiraserver.com",
         "username": "some_user",
-        "password": "sec4et!",
+        "api_token": "sec4et!",
         "project_key": "jira_project",
         "enable_software_vulnerabilities": false
       }

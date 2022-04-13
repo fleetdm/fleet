@@ -5,7 +5,7 @@ export default {
     valid: (bearerToken, params) => {
       return createRequestMock({
         bearerToken,
-        endpoint: "/api/v1/fleet/invites",
+        endpoint: "/api/latest/fleet/invites",
         method: "post",
         params,
         response: { invite: params },
@@ -16,7 +16,7 @@ export default {
     valid: (bearerToken) => {
       return createRequestMock({
         bearerToken,
-        endpoint: "/api/v1/fleet/invites?page=0&per_page=100",
+        endpoint: "/api/latest/fleet/invites?page=0&per_page=100",
         method: "get",
         response: { invites: [] },
       });
@@ -25,7 +25,7 @@ export default {
       return createRequestMock({
         bearerToken,
         endpoint:
-          "/api/v1/fleet/invites?page=3&per_page=100&&order_key=name&order_direction=desc&query=testQuery",
+          "/api/latest/fleet/invites?page=3&per_page=100&&order_key=name&order_direction=desc&query=testQuery",
         method: "get",
         response: { invites: [] },
       });
@@ -35,7 +35,7 @@ export default {
     valid: (bearerToken, invite) => {
       return createRequestMock({
         bearerToken,
-        endpoint: `/api/v1/fleet/invites/${invite.id}`,
+        endpoint: `/api/latest/fleet/invites/${invite.id}`,
         method: "delete",
         response: {},
       });

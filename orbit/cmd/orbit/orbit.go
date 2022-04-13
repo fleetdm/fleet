@@ -105,6 +105,12 @@ func main() {
 			Value:   "stable",
 			EnvVars: []string{"ORBIT_DESKTOP_CHANNEL"},
 		},
+		&cli.DurationFlag{
+			Name:    "update-interval",
+			Usage:   "How often to check for updates",
+			Value:   15 * time.Minute,
+			EnvVars: []string{"ORBIT_UPDATE_INTERVAL"},
+		},
 		&cli.BoolFlag{
 			Name:    "disable-updates",
 			Usage:   "Disables auto updates",
@@ -318,7 +324,7 @@ func main() {
 				targets = append(targets, "desktop")
 			}
 			updateRunner, err := update.NewRunner(updater, update.RunnerOptions{
-				CheckInterval: 10 * time.Second,
+				CheckInterval: c.Duration("update-interval"),
 				Targets:       targets,
 			})
 			if err != nil {
