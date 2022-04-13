@@ -173,23 +173,25 @@ const DataTable = ({
       // with custom `sortTypes` defined for this `useTable` instance
       sortTypes: React.useMemo(
         () => ({
-          caseInsensitive: (a: any, b: any, id: any) => {
-            let valueA = a.values[id];
-            let valueB = b.values[id];
+          caseInsensitive: (
+            a: { values: Record<string, unknown> },
+            b: { values: Record<string, unknown> },
+            id: string
+          ) => sort.caseInsensitiveAsc(a.values[id], b.values[id]),
 
-            valueA = isString(valueA) ? valueA.toLowerCase() : valueA;
-            valueB = isString(valueB) ? valueB.toLowerCase() : valueB;
+          dateStrings: (
+            a: { values: Record<string, string> },
+            b: { values: Record<string, string> },
+            id: string
+          ) => sort.dateStringsAsc(a.values[id], b.values[id]),
 
-            if (valueB > valueA) {
-              return -1;
-            }
-            if (valueB < valueA) {
-              return 1;
-            }
-            return 0;
+          hasLength: (
+            a: { values: Record<string, unknown[]> },
+            b: { values: Record<string, unknown[]> },
+            id: string
+          ) => {
+            return sort.hasLength(a.values[id], b.values[id]);
           },
-          dateStrings: (a: any, b: any, id: any) =>
-            sort.dateStringsAsc(a.values[id], b.values[id]),
         }),
         []
       ),
