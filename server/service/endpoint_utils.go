@@ -348,22 +348,26 @@ func getNameFromPathAndVerb(verb, path string) string {
 }
 
 func (e *authEndpointer) POST(path string, f handlerFunc, v interface{}) {
-	e.handle(path, f, v, "POST")
+	e.handleEndpoint(path, f, v, "POST")
 }
 
 func (e *authEndpointer) GET(path string, f handlerFunc, v interface{}) {
-	e.handle(path, f, v, "GET")
+	e.handleEndpoint(path, f, v, "GET")
 }
 
 func (e *authEndpointer) PATCH(path string, f handlerFunc, v interface{}) {
-	e.handle(path, f, v, "PATCH")
+	e.handleEndpoint(path, f, v, "PATCH")
 }
 
 func (e *authEndpointer) DELETE(path string, f handlerFunc, v interface{}) {
-	e.handle(path, f, v, "DELETE")
+	e.handleEndpoint(path, f, v, "DELETE")
 }
 
-func (e *authEndpointer) handle(path string, f handlerFunc, v interface{}, verb string) {
+func (e *authEndpointer) Handler(verb, path string, handler http.Handler) {
+	e.handleHTTPHandler(path, handler, verb)
+}
+
+func (e *authEndpointer) handleHTTPHandler(path string, h http.Handler, verb string) {
 	versions := e.versions
 	if e.startingAtVersion != "" {
 		startIndex := -1
@@ -400,22 +404,25 @@ func (e *authEndpointer) handle(path string, f handlerFunc, v interface{}, verb 
 
 	versionedPath := strings.Replace(path, "/_version_/", fmt.Sprintf("/{fleetversion:(?:%s)}/", strings.Join(versions, "|")), 1)
 	nameAndVerb := getNameFromPathAndVerb(verb, path)
-	endpoint := e.makeEndpoint(f, v)
-
 	if e.usePathPrefix {
-		e.r.PathPrefix(versionedPath).Handler(endpoint).Name(nameAndVerb).Methods(verb)
+		e.r.PathPrefix(versionedPath).Handler(h).Name(nameAndVerb).Methods(verb)
 	} else {
-		e.r.Handle(versionedPath, endpoint).Name(nameAndVerb).Methods(verb)
+		e.r.Handle(versionedPath, h).Name(nameAndVerb).Methods(verb)
 	}
 	for _, alias := range e.alternativePaths {
 		nameAndVerb := getNameFromPathAndVerb(verb, alias)
 		versionedPath := strings.Replace(alias, "/_version_/", fmt.Sprintf("/{fleetversion:(?:%s)}/", strings.Join(versions, "|")), 1)
 		if e.usePathPrefix {
-			e.r.PathPrefix(versionedPath).Handler(endpoint).Name(nameAndVerb).Methods(verb)
+			e.r.PathPrefix(versionedPath).Handler(h).Name(nameAndVerb).Methods(verb)
 		} else {
-			e.r.Handle(versionedPath, endpoint).Name(nameAndVerb).Methods(verb)
+			e.r.Handle(versionedPath, h).Name(nameAndVerb).Methods(verb)
 		}
 	}
+}
+
+func (e *authEndpointer) handleEndpoint(path string, f handlerFunc, v interface{}, verb string) {
+	endpoint := e.makeEndpoint(f, v)
+	e.handleHTTPHandler(path, endpoint, verb)
 }
 
 func (e *authEndpointer) makeEndpoint(f handlerFunc, v interface{}) http.Handler {

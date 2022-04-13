@@ -124,15 +124,6 @@ func MakeHandler(
 	r.Use(publicIP)
 
 	attachFleetAPIRoutes(r, svc, config, logger, limitStore, fleetAPIOptions, eopts)
-
-	// Results endpoint is handled different due to websockets use
-
-	// TODO: this would not work once v1 is deprecated - note that the handler too uses the /v1/ path
-	// and this routes on path prefix, not exact path (unlike the authendpointer struct).
-	r.PathPrefix("/api/v1/fleet/results/").
-		Handler(makeStreamDistributedQueryCampaignResultsHandler(svc, logger)).
-		Name("distributed_query_results")
-
 	addMetrics(r)
 
 	return r
@@ -446,7 +437,12 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ne.POST("/api/_version_/fleet/sso", initiateSSOEndpoint, initiateSSORequest{})
 	ne.POST("/api/_version_/fleet/sso/callback", makeCallbackSSOEndpoint(config.Server.URLPrefix), callbackSSORequest{})
 	ne.GET("/api/_version_/fleet/sso", settingsSSOEndpoint, nil)
-	// TODO(mna): complete with raw Handler: ne.UsePathPrefix().GET("/api/_version_/fleet/results/")
+	// the websocket distributed query results endpoint is a bit different - the
+	// provided path is a prefix, not an exact match, and it is not a go-kit
+	// endpoint but a raw http.Handler. It uses the NoAuthEndpointer because
+	// authentication is done when the websocket session is established, inside
+	// the handler.
+	ne.UsePathPrefix().Handler("GET", "/api/_version_/fleet/results/", makeStreamDistributedQueryCampaignResultsHandler(svc, logger))
 
 	limiter := ratelimit.NewMiddleware(limitStore)
 	ne.
