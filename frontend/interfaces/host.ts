@@ -101,12 +101,6 @@ export interface IHostPolicyQuery {
   status?: string;
 }
 
-// export interface IHostPolicyQueryError {
-//   host_hostname: string;
-//   osquery_version: string;
-//   error: string;
-// }
-
 interface IGeoLocation {
   country_iso: string;
   city_name: string;
