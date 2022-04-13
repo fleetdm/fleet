@@ -1,8 +1,8 @@
 import React from "react";
 import { noop } from "lodash";
 
-import { IHostPolicyQueryError } from "interfaces/host";
 import TableContainer from "components/TableContainer";
+import { ICampaignError } from "interfaces/campaign";
 import {
   generateTableHeaders,
   generateDataSet,
@@ -12,7 +12,7 @@ const baseClass = "policies-queries-list-wrapper";
 const noPolicyQueries = "no-policy-queries";
 
 interface IPoliciesListWrapperProps {
-  errorsList: IHostPolicyQueryError[];
+  errorsList: ICampaignError[];
   isLoading: boolean;
   resultsTitle?: string;
   canAddOrRemovePolicy?: boolean;
