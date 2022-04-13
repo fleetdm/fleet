@@ -41,12 +41,6 @@ interface IMembersPageProps {
   };
 }
 
-interface IFetchParams {
-  pageIndex?: number;
-  pageSize?: number;
-  searchQuery?: string;
-}
-
 interface ITeamsResponse {
   teams: ITeam[];
 }
@@ -447,6 +441,8 @@ const MembersPage = ({
           createUserErrors={createUserErrors}
           onCancel={toggleCreateMemberModal}
           onSubmit={onCreateMemberSubmit}
+          defaultGlobalRole={null}
+          defaultTeamRole={"observer"}
           defaultTeams={[{ id: teamId, name: "", role: "observer" }]}
           availableTeams={teams}
           isPremiumTier={isPremiumTier || false}
