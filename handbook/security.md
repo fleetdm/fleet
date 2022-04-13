@@ -733,7 +733,7 @@ Fleet commits to remediating vulnerabilities on Fleet according to the following
 | Unspecified                        | 2 business days  | N/A              | N/A                                              |
 
 Refer to our commercial SLAs for more information on the definition of "business hours" and
-"business days".
+"business days."
 
 Other resources present in the Fleet repo but not as part of the Fleet product, like our website,
 are fixed on a case-by-case scenario depending on the risk.
@@ -744,7 +744,7 @@ We may not be able to fix all vulnerabilities or fix them as rapidly as we would
 a complex vulnerability reported to us that would require redesigning core parts of the Fleet
 architecture would not be fixable in 3 business days.
 
-For vulnerabilities reported by researchers: we ask and prefer to perform coordinated disclosure
+We ask for vulnerabilities reported by researchers and prefer to perform coordinated disclosure
 with the researcher. In some cases, we may take up to 90 days to fix complex issues, in which case
 we ask that the vulnerability remains private.
 
@@ -758,7 +758,7 @@ Fleet adapts the severity assigned to vulnerabilities when needed.
 
 The features we use in a library, for example, can mean that some vulnerabilities in the library are unexploitable. In other cases, it might make the vulnerability easier to exploit. In those cases, Fleet would first categorize the vulnerability using publicly available information, then lower or increase the severity based on additional context.
 
-When using externally provided CVSSv3 scores, Fleet maps them this way:
+When using externally provided CVSSv3 scores, Fleet maps them like this:
 
 | CVSSv3 score                       | Fleet severity                      |
 | ---------------------------------- | ----------------------------------- |
@@ -776,9 +776,9 @@ Researchers who discover vulnerabilities in Fleet can disclose them as per the [
 
 If Fleet confirms the vulnerability:
 
-1. Fleet's security team creates a private Github security advisory.
-2. Fleet asks the researcher if they want credit or anonymity. If the researcher wishes to be credited, we invite them to the private advisory on Github.
-3. We request a CVE through Github.
+1. Fleet's security team creates a private GitHub security advisory.
+2. Fleet asks the researcher if they want credit or anonymity. If the researcher wishes to be credited, we invite them to the private advisory on GitHub.
+3. We request a CVE through GitHub.
 4. Developers address the issue in a private branch.
 5. As we release the fix, we make the advisory public.
 
@@ -794,7 +794,7 @@ We ensure the fixes to vulnerable dependencies are also performed according to o
 
 ## Slack channels
 
-The following [Slack channels are maintained](https://fleetdm.com/handbook/company#group-slack-channels) by this group:
+This group maintains the following [Slack channels](https://fleetdm.com/handbook/company#group-slack-channels):
 
 | Slack channel                       | [DRI](https://fleetdm.com/handbook/company#group-slack-channels)    |
 |:------------------------------------|:--------------------------------------------------------------------|
