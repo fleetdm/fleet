@@ -47,7 +47,7 @@ The `fleet` binary contains several "commands". Similarly to how `git` has many 
 - `fleet prepare db`
 - `fleet serve`
 - `fleet version`
-- `fleet config_dump` 
+- `fleet config_dump`
 
 ### Options
 
@@ -89,7 +89,7 @@ FLEET_LOGGING_JSON=true \
 /usr/bin/fleet serve
 ```
 
-##### Using a YAML config file 
+##### Using a YAML config file
 
 ```
 echo '
@@ -2176,7 +2176,20 @@ To download the data streams, you can use `fleetctl vulnerability-data-stream --
   vulnerabilities:
   	disable_data_sync: true
   ```
-  
+
+##### recent_vulnerability_max_age
+
+Maximum age of a vulnerability (a CVE) to be considered "recent". The age is calculated based on the published date of the CVE in the [National Vulnerability Database](https://nvd.nist.gov/) (NVD). Recent vulnerabilities play a special role in Fleet's [automations](../Using-Fleet/Automations.md), as they are reported when discovered on a host if the vulnerabilities webhook or a vulnerability integration is enabled.
+
+- Default value: `720h` (30 days)
+- Environment variable: `FLEET_VULNERABILITIES_RECENT_VULNERABILITY_MAX_AGE`
+- Config file format:
+
+  ```
+  vulnerabilities:
+  	recent_vulnerability_max_age: 48h
+  ```
+
 ##### Example YAML
 
 ```yaml
@@ -2189,6 +2202,7 @@ spec:
     disable_data_sync: true
 
 ```
+
 #### GeoIP
 
 ##### database_path
@@ -2299,10 +2313,10 @@ _**Note that the email being used in the SAML Assertion must match a user that a
 Setting up the service provider (Fleet) with an identity provider generally requires the following information:
 
 - _Assertion Consumer Service_ - This is the call back URL that the identity provider
-  will use to send security assertions to Fleet. In Okta, this field is called _Single sign on URL_. On Google it is "ACS URL". The value that you supply will be a fully qualified URL consisting of your Fleet web address and the callback path `/api/v1/fleet/sso/callback`. For example, if your Fleet web address is https://fleet.example.com, then the value you would use in the identity provider configuration would be:
+  will use to send security assertions to Fleet. In Okta, this field is called _Single sign on URL_. On Google it is "ACS URL". The value that you supply will be a fully qualified URL consisting of your Fleet web address and the callback path `/api/latest/fleet/sso/callback`. For example, if your Fleet web address is https://fleet.example.com, then the value you would use in the identity provider configuration would be:
 
   ```
-  https://fleet.example.com/api/v1/fleet/sso/callback
+  https://fleet.example.com/api/latest/fleet/sso/callback
   ```
 
 - _Entity ID_ - This value is an identifier that you choose. It identifies your Fleet instance as the service provider that issues authorization requests. The value must exactly match the Entity ID that you define in the Fleet SSO configuration.
@@ -2390,7 +2404,7 @@ Follow these steps to configure Fleet SSO with Google Workspace. This will requi
 
 5. In Google Workspace, configure the _Service provider details_.
 
-  - For _ACS URL_, use `https://<your_fleet_url>/api/v1/fleet/sso/callback` (eg. `https://fleet.example.com/api/v1/fleet/sso/callback`).
+  - For _ACS URL_, use `https://<your_fleet_url>/api/latest/fleet/sso/callback` (eg. `https://fleet.example.com/api/latest/fleet/sso/callback`).
   - For Entity ID, use **the same unique identifier from step 4** (eg. `fleet.example.com`).
   - For _Name ID format_ choose `EMAIL`.
   - For _Name ID_ choose `Basic Information > Primary email`.
@@ -2436,3 +2450,35 @@ If set then `fleet serve` will capture errors and panics and push them to Sentry
   ```
 
 <meta name="pageOrderInSection" value="300">
+
+#### Prometheus
+
+##### basic_auth.username
+
+Username to use for HTTP Basic Auth on the `/metrics` endpoint.
+If not set then the prometheus `/metrics` endpoint is disabled.
+
+- Default value: `""`
+- Environment variable: `FLEET_PROMETHEUS_BASIC_AUTH_USERNAME`
+- Config file format:
+
+  ```yaml
+  prometheus:
+    basic_auth:
+      username: "foo"
+  ```
+
+##### basic_auth.password
+
+Password to use for HTTP Basic Auth on the `/metrics` endpoint.
+If not set then the prometheus `/metrics` endpoint is disabled.
+
+- Default value: `""`
+- Environment variable: `FLEET_PROMETHEUS_BASIC_AUTH_PASSWORD`
+- Config file format:
+
+  ```yaml
+  prometheus:
+    basic_auth:
+      password: "bar"
+  ```

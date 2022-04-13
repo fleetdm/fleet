@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useContext } from "react";
 import { useQuery } from "react-query";
+import { useErrorHandler } from "react-error-boundary";
 
 import { NotificationContext } from "context/notification";
 import { ITeam } from "interfaces/team";
@@ -34,6 +35,7 @@ const TeamManagementPage = (): JSX.Element => {
   const [backendValidators, setBackendValidators] = useState<{
     [key: string]: string;
   }>({});
+  const handlePageError = useErrorHandler();
 
   const {
     data: teams,
@@ -45,6 +47,7 @@ const TeamManagementPage = (): JSX.Element => {
     () => teamsAPI.loadAll(),
     {
       select: (data: ITeamsResponse) => data.teams,
+      onError: (error) => handlePageError(error),
     }
   );
 
@@ -140,7 +143,7 @@ const TeamManagementPage = (): JSX.Element => {
         toggleEditTeamModal();
       } else if (teamEditing) {
         teamsAPI
-          .update(teamEditing.id, formData)
+          .update(formData, teamEditing.id)
           .then(() => {
             renderFlash(
               "success",
@@ -245,28 +248,28 @@ const TeamManagementPage = (): JSX.Element => {
           disablePagination
         />
       )}
-      {showCreateTeamModal ? (
+      {showCreateTeamModal && (
         <CreateTeamModal
           onCancel={toggleCreateTeamModal}
           onSubmit={onCreateSubmit}
           backendValidators={backendValidators}
         />
-      ) : null}
-      {showDeleteTeamModal ? (
+      )}
+      {showDeleteTeamModal && (
         <DeleteTeamModal
           onCancel={toggleDeleteTeamModal}
           onSubmit={onDeleteSubmit}
           name={teamEditing?.name || ""}
         />
-      ) : null}
-      {showEditTeamModal ? (
+      )}
+      {showEditTeamModal && (
         <EditTeamModal
           onCancel={toggleEditTeamModal}
           onSubmit={onEditSubmit}
           defaultName={teamEditing?.name || ""}
           backendValidators={backendValidators}
         />
-      ) : null}
+      )}
     </div>
   );
 };

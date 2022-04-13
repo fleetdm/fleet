@@ -1,5 +1,4 @@
 import React, { useState, useCallback, useContext } from "react";
-import { useDispatch } from "react-redux";
 import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
 import { InjectedRouter, Link, RouteProps } from "react-router";
@@ -14,17 +13,16 @@ import { ITeam, ITeamSummary } from "interfaces/team";
 import teamsAPI from "services/entities/teams";
 import usersAPI, { IGetMeResponse } from "services/entities/users";
 import enrollSecretsAPI from "services/entities/enroll_secret";
-import teamActions from "redux/nodes/entities/teams/actions";
 import {
   IEnrollSecret,
   IEnrollSecretsResponse,
 } from "interfaces/enroll_secret";
-import { IOldApiError } from "interfaces/errors";
 import permissions from "utilities/permissions";
 import sortUtils from "utilities/sort";
+import ActionButtons from "components/buttons/ActionButtons/ActionButtons";
+import formatErrorResponse from "utilities/format_error_response";
 
 import Spinner from "components/Spinner";
-import Button from "components/buttons/Button";
 import TabsWrapper from "components/TabsWrapper";
 import TeamsDropdown from "components/TeamsDropdown";
 import { getNextLocationPath } from "pages/admin/UserManagementPage/helpers/userManagementHelpers";
@@ -100,7 +98,6 @@ const TeamDetailsWrapper = ({
   location: { pathname },
   params: routeParams,
 }: ITeamDetailsPageProps): JSX.Element => {
-  const dispatch = useDispatch();
   const { renderFlash } = useContext(NotificationContext);
   const handlePageError = useErrorHandler();
   const teamIdFromURL = parseInt(routeParams.team_id, 10) || 0;
@@ -281,48 +278,66 @@ const TeamDetailsWrapper = ({
     }
   };
 
-  const onDeleteSubmit = useCallback(() => {
-    dispatch(teamActions.destroy(currentTeam?.id))
-      .then(() => {
-        renderFlash("success", "Team removed");
-        router.push(PATHS.ADMIN_TEAMS);
-        // TODO: error handling
-      })
-      .catch(() => null);
+  const onDeleteSubmit = useCallback(async () => {
+    if (!currentTeam) {
+      return false;
+    }
+
     toggleDeleteTeamModal();
+
+    try {
+      await teamsAPI.destroy(currentTeam.id);
+      renderFlash("success", "Team removed");
+      return router.push(PATHS.ADMIN_TEAMS);
+    } catch (response) {
+      renderFlash("error", "Something went wrong removing the team");
+      console.error(response);
+      return false;
+    }
   }, [toggleDeleteTeamModal, currentTeam?.id]);
 
   const onEditSubmit = useCallback(
-    (formData: IEditTeamFormData) => {
+    async (formData: IEditTeamFormData) => {
       const updatedAttrs =
         currentTeam && generateUpdateData(currentTeam, formData);
+
+      if (!currentTeam) {
+        return false;
+      }
+
       // no updates, so no need for a request.
-      if (updatedAttrs === null) {
+      if (!updatedAttrs) {
         toggleEditTeamModal();
         return;
       }
-      dispatch(teamActions.update(currentTeam?.id, updatedAttrs))
-        .then(() => {
-          dispatch(teamActions.loadAll({ perPage: 500 }));
-          renderFlash(
-            "success",
-            `Successfully updated team name to ${updatedAttrs?.name}`
-          );
-          setBackendValidators({});
-          refetchTeams();
-          refetchMe();
+
+      try {
+        await teamsAPI.update(updatedAttrs, currentTeam.id);
+        await teamsAPI.loadAll({ perPage: 500 });
+
+        renderFlash(
+          "success",
+          `Successfully updated team name to ${updatedAttrs?.name}`
+        );
+        setBackendValidators({});
+        refetchTeams();
+        refetchMe();
+        toggleEditTeamModal();
+      } catch (response) {
+        console.error(response);
+        const errorObject = formatErrorResponse(response);
+
+        if (errorObject.base.includes("Duplicate")) {
+          setBackendValidators({
+            name: "A team with this name already exists",
+          });
+        } else {
+          renderFlash("error", "Could not create team. Please try again.");
           toggleEditTeamModal();
-        })
-        .catch((updateError: IOldApiError) => {
-          if (updateError.base.includes("Duplicate")) {
-            setBackendValidators({
-              name: "A team with this name already exists",
-            });
-          } else {
-            renderFlash("error", "Could not create team. Please try again.");
-            toggleEditTeamModal();
-          }
-        });
+        }
+
+        return false;
+      }
     },
     [toggleEditTeamModal, currentTeam, setBackendValidators]
   );
@@ -356,7 +371,6 @@ const TeamDetailsWrapper = ({
   };
 
   const teamWrapperClasses = classnames(baseClass, {
-    "team-select-open": teamMenuIsOpen,
     "team-settings": !isOnGlobalTeam,
   });
 
@@ -413,30 +427,38 @@ const TeamDetailsWrapper = ({
               </span>
             )}
           </div>
-          <div className={`${baseClass}__team-actions`}>
-            <Button onClick={toggleAddHostsModal}>Add hosts</Button>
-            <Button
-              onClick={toggleManageEnrollSecretsModal}
-              variant={"text-icon"}
-            >
-              <>
-                Manage enroll secrets{" "}
-                <img src={EyeIcon} alt="Manage enroll secrets icon" />
-              </>
-            </Button>
-            <Button onClick={toggleEditTeamModal} variant={"text-icon"}>
-              <>
-                Edit team <img src={PencilIcon} alt="Edit team icon" />
-              </>
-            </Button>
-            {isGlobalAdmin && (
-              <Button onClick={toggleDeleteTeamModal} variant={"text-icon"}>
-                <>
-                  Delete team <img src={TrashIcon} alt="Delete team icon" />
-                </>
-              </Button>
-            )}
-          </div>
+          <ActionButtons
+            baseClass={baseClass}
+            actions={[
+              {
+                type: "primary",
+                label: "Add hosts",
+                onClick: toggleAddHostsModal,
+              },
+              {
+                type: "secondary",
+                label: "Manage enroll secrets",
+                buttonVariant: "text-icon",
+                icon: EyeIcon,
+                onClick: toggleManageEnrollSecretsModal,
+              },
+              {
+                type: "secondary",
+                label: "Edit team",
+                buttonVariant: "text-icon",
+                icon: PencilIcon,
+                onClick: toggleEditTeamModal,
+              },
+              {
+                type: "secondary",
+                label: "Delete team",
+                buttonVariant: "text-icon",
+                icon: TrashIcon,
+                hideAction: !isGlobalAdmin,
+                onClick: toggleDeleteTeamModal,
+              },
+            ]}
+          />
         </div>
         <Tabs
           selectedIndex={getTabIndex(pathname, teamIdFromURL)}

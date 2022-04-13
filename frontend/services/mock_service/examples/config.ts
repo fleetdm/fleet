@@ -10,7 +10,7 @@ type IResponses = Record<string, Record<string, Record<string, unknown>>>;
 
 const DELAY = 1000; // modify the DELAY value (in milliseconds) to simulate a delayed async response
 
-const ENDPOINT = "/v1/fleet"; // modify the ENDPOINT string to correspond to your API spec
+const ENDPOINT = "/latest/fleet"; // modify the ENDPOINT string to correspond to your API spec
 
 // WILDCARDS can be used to represent URL parameters in any combination as illustrated below
 // modify the WILDCARDS array if you prefer to use different characters

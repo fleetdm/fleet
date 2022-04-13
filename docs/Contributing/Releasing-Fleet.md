@@ -16,7 +16,7 @@ Note: Please prefix versions with `fleet-v` (eg. `fleet-v4.0.0`) in git tags, He
 
    - [package.json](https://github.com/fleetdm/fleet/blob/main/tools/fleetctl-npm/package.json) (do not yet `npm publish`)
    - [Helm chart](https://github.com/fleetdm/fleet/blob/main/charts/fleet/Chart.yaml) and [values file](https://github.com/fleetdm/fleet/blob/main/charts/fleet/values.yaml)
-   - [Terraform variables](https://github.com/fleetdm/fleet/blob/main/tools/terraform/variables.tf)
+   - [Terraform variables](https://github.com/fleetdm/fleet/blob/main/infrastructure/dogfood/terraform/aws/variables.tf)
 
    Commit these changes via Pull Request and pull the changes on the `main` branch locally. Check that
    `HEAD` of the `main` branch points to the commit with these changes.

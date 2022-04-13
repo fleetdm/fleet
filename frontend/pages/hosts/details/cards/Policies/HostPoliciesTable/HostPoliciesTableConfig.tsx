@@ -63,19 +63,15 @@ const generatePolicyTableHeaders = (
       Cell: (cellProps) => {
         const { name } = cellProps.row.original;
         return (
-          <>
-            <Button
-              onClick={() => {
-                togglePolicyDetails(cellProps.row.original);
-              }}
-              variant={"text-icon"}
-            >
-              <>
-                {name}
-                <img src={ArrowIcon} alt="View policy details" />
-              </>
-            </Button>
-          </>
+          <Button
+            className={`policy-info`}
+            onClick={() => {
+              togglePolicyDetails(cellProps.row.original);
+            }}
+            variant={"text-icon"}
+          >
+            <span className={`policy-info-text`}>{name}</span>
+          </Button>
         );
       },
     },

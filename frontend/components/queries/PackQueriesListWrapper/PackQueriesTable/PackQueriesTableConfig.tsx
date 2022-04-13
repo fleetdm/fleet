@@ -4,7 +4,11 @@
 import React from "react";
 import { find } from "lodash";
 
-import { performanceIndicator } from "fleet/helpers";
+import {
+  performanceIndicator,
+  secondsToDhms,
+  abbreviateTimeUnits,
+} from "fleet/helpers";
 import { IScheduledQuery } from "interfaces/scheduled_query";
 import { IDropdownOption } from "interfaces/dropdownOption";
 
@@ -71,7 +75,7 @@ interface IDataColumn {
 }
 
 interface IPackQueriesTableData extends IScheduledQuery {
-  loggingTypeString: string;
+  logging_string: string;
 }
 
 // NOTE: cellProps come from react-table
@@ -102,7 +106,7 @@ const generateTableHeaders = (
       disableHidden: true,
     },
     {
-      title: "Query name",
+      title: "Query",
       Header: (cellProps) => (
         <HeaderCell
           value={cellProps.column.title}
@@ -120,7 +124,10 @@ const generateTableHeaders = (
       disableSortBy: false,
       accessor: "interval",
       Cell: (cellProps: ICellProps) => (
-        <TextCell value={cellProps.cell.value} />
+        <TextCell
+          formatter={(val) => abbreviateTimeUnits(secondsToDhms(val))}
+          value={cellProps.cell.value}
+        />
       ),
     },
     {
@@ -131,7 +138,7 @@ const generateTableHeaders = (
           isSortedDesc={cellProps.column.isSortedDesc}
         />
       ),
-      accessor: "platformTypeString",
+      accessor: "platform_string",
       Cell: (cellProps: ICellProps) => (
         <TextCell value={cellProps.cell.value} />
       ),
@@ -140,7 +147,7 @@ const generateTableHeaders = (
       title: "Logging",
       Header: "Logging",
       disableSortBy: false,
-      accessor: "loggingTypeString",
+      accessor: "logging_string",
       Cell: (cellProps: ICellProps) => (
         <TextCell value={cellProps.cell.value} />
       ),
@@ -149,12 +156,10 @@ const generateTableHeaders = (
       title: "Performance impact",
       Header: () => {
         return (
-          <div className="column-with-tooltip">
-            <span className="queries-table__performance-impact-header">
-              <TooltipWrapper tipContent="This is the average performance<br />impact across all hosts where<br />this query was scheduled.">
-                Performance impact
-              </TooltipWrapper>
-            </span>
+          <div>
+            <TooltipWrapper tipContent="This is the average performance<br />impact across all hosts where<br />this query was scheduled.">
+              Performance impact
+            </TooltipWrapper>
           </div>
         );
       },
@@ -271,11 +276,8 @@ const enhancePackQueriesData = (
       query_id: query.query_id,
       removed: query.removed,
       snapshot: query.snapshot,
-      loggingTypeString: generateLoggingTypeString(
-        query.snapshot,
-        query.removed
-      ),
-      platformTypeString: generatePlatformTypeString(query.platform),
+      logging_string: generateLoggingTypeString(query.snapshot, query.removed),
+      platform_string: generatePlatformTypeString(query.platform),
       shard: query.shard,
       version: query.version,
       versionString: generateVersionString(query.version),

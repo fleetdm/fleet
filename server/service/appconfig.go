@@ -157,6 +157,14 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 	}
 
 	oldSmtpSettings := appConfig.SMTPSettings
+	var oldJiraSettings []*fleet.JiraIntegration
+	if len(appConfig.Integrations.Jira) > 0 {
+		oldJiraSettings = make([]*fleet.JiraIntegration, len(appConfig.Integrations.Jira))
+		for i, settings := range appConfig.Integrations.Jira {
+			oldSettings := *settings
+			oldJiraSettings[i] = &oldSettings
+		}
+	}
 
 	// TODO(mna): this ports the validations from the old validationMiddleware
 	// correctly, but this could be optimized so that we don't unmarshal the
@@ -176,7 +184,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 	decoder := json.NewDecoder(bytes.NewReader(p))
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(&appConfig); err != nil {
-		return nil, &badRequestError{message: err.Error()}
+		return nil, ctxerr.Wrap(ctx, &badRequestError{message: err.Error()})
 	}
 
 	validateVulnerabilitiesAutomation(appConfig, invalid)
@@ -192,12 +200,26 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 	if appConfig.SMTPSettings.SMTPEnabled {
 		if oldSmtpSettings != appConfig.SMTPSettings || !appConfig.SMTPSettings.SMTPConfigured {
 			if err = svc.sendTestEmail(ctx, appConfig); err != nil {
-				return nil, err
+				return nil, ctxerr.Wrap(ctx, err)
 			}
 		}
 		appConfig.SMTPSettings.SMTPConfigured = true
 	} else if appConfig.SMTPSettings.SMTPEnabled {
 		appConfig.SMTPSettings.SMTPConfigured = false
+	}
+
+	// if Jira integration settings are modified or added, test it.
+	newJiraSettings := appConfig.Integrations.Jira
+	for i, settings := range newJiraSettings {
+		if i < len(oldJiraSettings) && *oldJiraSettings[i] == *settings {
+			// unchanged
+			continue
+		}
+
+		// new or updated, test it
+		if err := svc.makeTestJiraRequest(ctx, settings); err != nil {
+			return nil, ctxerr.Wrapf(ctx, err, "Jira integration at index %d", i)
+		}
 	}
 
 	if err := svc.ds.SaveAppConfig(ctx, appConfig); err != nil {

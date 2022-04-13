@@ -562,7 +562,7 @@ func TestPerformRequiredPasswordReset(t *testing.T) {
 
 			ctx = refreshCtx(t, ctx, user, ds, nil)
 
-			session, err := ds.NewSession(context.Background(), &fleet.Session{UserID: user.ID})
+			session, err := ds.NewSession(context.Background(), user.ID, "")
 			require.Nil(t, err)
 			ctx = refreshCtx(t, ctx, user, ds, session)
 
@@ -668,10 +668,7 @@ func TestAuthenticatedUser(t *testing.T) {
 	svc := newTestService(t, ds, nil, nil)
 	admin1, err := ds.UserByEmail(context.Background(), "admin1@example.com")
 	require.NoError(t, err)
-	admin1Session, err := ds.NewSession(context.Background(), &fleet.Session{
-		UserID: admin1.ID,
-		Key:    "admin1",
-	})
+	admin1Session, err := ds.NewSession(context.Background(), admin1.ID, "admin1")
 	require.NoError(t, err)
 
 	ctx := context.Background()

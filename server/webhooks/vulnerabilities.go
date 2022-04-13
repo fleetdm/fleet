@@ -66,7 +66,7 @@ type vulnHostPayload struct {
 	URL      string `json:"url"`
 }
 
-func sendVulnerabilityHostBatch(ctx context.Context, targetURL, cve string, hostBaseURL *url.URL, hosts []*fleet.CPEHost, now time.Time) error {
+func sendVulnerabilityHostBatch(ctx context.Context, targetURL, cve string, hostBaseURL *url.URL, hosts []*fleet.HostShort, now time.Time) error {
 	shortHosts := make([]*vulnHostPayload, len(hosts))
 	for i, h := range hosts {
 		hostURL := *hostBaseURL

@@ -768,7 +768,7 @@ func (ds *Datastore) CalculateHostsPerSoftware(ctx context.Context, updatedAt ti
 // HostsByCPEs returns a list of all hosts that have the software corresponding
 // to at least one of the CPEs installed. It returns a minimal represention of
 // matching hosts.
-func (ds *Datastore) HostsByCPEs(ctx context.Context, cpes []string) ([]*fleet.CPEHost, error) {
+func (ds *Datastore) HostsByCPEs(ctx context.Context, cpes []string) ([]*fleet.HostShort, error) {
 	queryStmt := `
     SELECT
       h.id,
@@ -792,9 +792,31 @@ func (ds *Datastore) HostsByCPEs(ctx context.Context, cpes []string) ([]*fleet.C
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "building query args")
 	}
-	var hosts []*fleet.CPEHost
+	var hosts []*fleet.HostShort
 	if err := sqlx.SelectContext(ctx, ds.reader, &hosts, stmt, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "select hosts by cpes")
+	}
+	return hosts, nil
+}
+
+func (ds *Datastore) HostsByCVE(ctx context.Context, cve string) ([]*fleet.HostShort, error) {
+	query := `
+SELECT
+    DISTINCT(h.id), h.hostname
+FROM
+    hosts h
+    JOIN host_software hs ON h.id = hs.host_id
+    JOIN software_cpe scp ON scp.software_id = hs.software_id
+    JOIN software_cve scv ON scv.cpe_id = scp.id
+WHERE
+    scv.cve = ?
+ORDER BY
+    h.id
+`
+
+	var hosts []*fleet.HostShort
+	if err := sqlx.SelectContext(ctx, ds.reader, &hosts, query, cve); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "select hosts by cves")
 	}
 	return hosts, nil
 }

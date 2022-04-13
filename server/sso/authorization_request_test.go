@@ -34,7 +34,7 @@ func TestCreateAuthorizationRequest(t *testing.T) {
 			},
 		},
 		// Construct call back url to send to idp
-		AssertionConsumerServiceURL: "http://localhost:8001/api/v1/fleet/sso/callback",
+		AssertionConsumerServiceURL: "http://localhost:8001/api/latest/fleet/sso/callback",
 		SessionStore:                store,
 		OriginalURL:                 "/redir",
 	}

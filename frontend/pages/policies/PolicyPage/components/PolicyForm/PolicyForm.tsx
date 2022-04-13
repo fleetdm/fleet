@@ -3,7 +3,7 @@
 import React, { useState, useContext, useEffect, KeyboardEvent } from "react";
 import { IAceEditor } from "react-ace/lib/types";
 import ReactTooltip from "react-tooltip";
-import { useDebouncedCallback } from "use-debounce/lib";
+import { useDebouncedCallback } from "use-debounce";
 import { size } from "lodash";
 import classnames from "classnames";
 

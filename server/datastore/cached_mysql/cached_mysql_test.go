@@ -260,7 +260,7 @@ func TestCachedTeamAgentOptions(t *testing.T) {
       "logger_tls_period": 10,
       "distributed_plugin": "tls",
       "disable_distributed": false,
-      "logger_tls_endpoint": "/api/v1/osquery/log",
+      "logger_tls_endpoint": "/api/osquery/log",
       "distributed_interval": 10,
       "distributed_tls_max_attempts": 3
     },

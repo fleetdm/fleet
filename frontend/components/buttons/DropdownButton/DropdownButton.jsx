@@ -24,6 +24,7 @@ export class DropdownButton extends Component {
     tabIndex: PropTypes.number,
     type: PropTypes.string,
     variant: PropTypes.string,
+    showCaret: PropTypes.bool,
   };
 
   static defaultProps = {
@@ -80,6 +81,7 @@ export class DropdownButton extends Component {
       tabIndex,
       type,
       variant,
+      showCaret = true,
     } = this.props;
     const { isOpen } = this.state;
     const { toggleDropdown, renderOptions, setDOMNode } = this;
@@ -92,7 +94,7 @@ export class DropdownButton extends Component {
     return (
       <div className={`${baseClass}__wrapper`} ref={setDOMNode}>
         <Button
-          className={`${buttonClass} downcaret`}
+          className={`${buttonClass} ${showCaret ? "downcaret" : ""}`}
           disabled={disabled}
           onClick={toggleDropdown}
           size={size}

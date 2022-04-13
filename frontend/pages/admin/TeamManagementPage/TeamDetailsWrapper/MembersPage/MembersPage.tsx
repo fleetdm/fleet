@@ -66,8 +66,8 @@ const MembersPage = ({
     AppContext
   );
 
-  const smtpConfigured = config?.configured || false;
-  const canUseSso = config?.enable_sso || false;
+  const smtpConfigured = config?.smtp_settings.configured || false;
+  const canUseSso = config?.sso_settings.enable_sso || false;
 
   const [showAddMemberModal, setShowAddMemberModal] = useState<boolean>(false);
   const [showRemoveMemberModal, setShowRemoveMemberModal] = useState<boolean>(
@@ -235,7 +235,7 @@ const MembersPage = ({
         .then(() => {
           renderFlash(
             "success",
-            `An invitation email was sent from ${config?.sender_address} to ${formData.email}.`
+            `An invitation email was sent from ${config?.smtp_settings.sender_address} to ${formData.email}.`
           );
           fetchUsers(tableQueryData);
           toggleCreateMemberModal();
@@ -452,7 +452,7 @@ const MembersPage = ({
           onCreateNewMember={toggleCreateMemberModal}
         />
       ) : null}
-      {showEditUserModal ? (
+      {showEditUserModal && (
         <EditUserModal
           editUserErrors={editUserErrors}
           onCancel={toggleEditMemberModal}
@@ -470,8 +470,8 @@ const MembersPage = ({
           isModifiedByGlobalAdmin={isGlobalAdmin}
           currentTeam={currentTeam}
         />
-      ) : null}
-      {showCreateUserModal ? (
+      )}
+      {showCreateUserModal && (
         <CreateUserModal
           createUserErrors={createUserErrors}
           onCancel={toggleCreateMemberModal}
@@ -487,15 +487,15 @@ const MembersPage = ({
           isModifiedByGlobalAdmin={isGlobalAdmin}
           isFormSubmitting={isFormSubmitting}
         />
-      ) : null}
-      {showRemoveMemberModal && currentTeam ? (
+      )}
+      {showRemoveMemberModal && currentTeam && (
         <RemoveMemberModal
           memberName={userEditing?.name || ""}
           teamName={currentTeam.name}
           onCancel={toggleRemoveMemberModal}
           onSubmit={onRemoveMemberSubmit}
         />
-      ) : null}
+      )}
     </div>
   );
 };

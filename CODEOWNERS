@@ -8,7 +8,7 @@ go.mod @fleetdm/go
 
 # Infra/terraform
 *.tf @edwardsb @zwinnerman-fleetdm
-/tools/loadtesting/terraform @zwinnerman-fleetdm
+/infrastructure/ @zwinnerman-fleetdm @edwardsb
 
 # GitHub settings + actions
 /.github/ @zwass

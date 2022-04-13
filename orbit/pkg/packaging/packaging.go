@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
@@ -57,6 +58,8 @@ type Options struct {
 	Debug bool
 	// Desktop determines whether to package the Fleet Desktop application.
 	Desktop bool
+	// OrbitUpdateInterval is the interval that Orbit will use to check for updates.
+	OrbitUpdateInterval time.Duration
 }
 
 func initializeTempDir() (string, error) {

@@ -1,93 +1,64 @@
 import React from "react";
-import { mount } from "enzyme";
-import { noop } from "lodash";
+import { fireEvent, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+
 import LoginForm from "./LoginForm";
-import { fillInFormInput } from "../../../test/helpers";
 
 describe("LoginForm - component", () => {
   const settings = { sso_enabled: false };
+  const submitSpy = jest.fn();
+  const baseError = "Unable to authenticate the current user";
 
   it("renders the base error", () => {
-    const baseError = "Unable to authenticate the current user";
-    const formWithError = mount(
+    render(
       <LoginForm
         serverErrors={{ base: baseError }}
-        handleSubmit={noop}
+        handleSubmit={submitSpy}
         ssoSettings={settings}
       />
     );
-    const formWithoutError = mount(
-      <LoginForm handleSubmit={noop} ssoSettings={settings} />
-    );
 
-    expect(formWithError.text()).toContain(baseError);
-    expect(formWithoutError.text()).not.toContain(baseError);
+    expect(screen.getByText(baseError)).toBeInTheDocument();
+  });
+
+  it("should not render the base error", () => {
+    render(<LoginForm handleSubmit={submitSpy} ssoSettings={settings} />);
+
+    expect(screen.queryByText(baseError)).not.toBeInTheDocument();
   });
 
   it("renders 2 InputField components", () => {
-    const form = mount(
-      <LoginForm handleSubmit={noop} ssoSettings={settings} />
-    );
+    render(<LoginForm handleSubmit={submitSpy} ssoSettings={settings} />);
 
-    expect(form.find("InputFieldWithIcon").length).toEqual(2);
-  });
-
-  it("updates component state when the email field is changed", () => {
-    const form = mount(
-      <LoginForm handleSubmit={noop} ssoSettings={settings} />
-    );
-    const email = "hi@thegnar.co";
-
-    const emailField = form.find({ name: "email" });
-    fillInFormInput(emailField, email);
-
-    const { formData } = form.state();
-    expect(formData).toMatchObject({ email });
-  });
-
-  it("updates component state when the password field is changed", () => {
-    const form = mount(
-      <LoginForm handleSubmit={noop} ssoSettings={settings} />
-    );
-
-    const passwordField = form.find({ name: "password" });
-    fillInFormInput(passwordField, "hello");
-
-    const { formData } = form.state();
-    expect(formData).toMatchObject({
-      password: "hello",
-    });
+    expect(screen.getByRole("textbox", { name: "Email" })).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Password")).toBeInTheDocument();
   });
 
   it("it does not submit the form when the form fields have not been filled out", () => {
-    const submitSpy = jest.fn();
-    const form = mount(
-      <LoginForm handleSubmit={submitSpy} ssoSettings={settings} />
-    );
-    const submitBtn = form.find("button");
+    render(<LoginForm handleSubmit={submitSpy} ssoSettings={settings} />);
 
-    submitBtn.simulate("click");
+    // when
+    fireEvent.click(screen.getByRole("button", { name: "Login" }));
 
-    expect(form.state().errors).toMatchObject({
-      email: "Email field must be completed",
-    });
+    // then
     expect(submitSpy).not.toHaveBeenCalled();
+    expect(
+      screen.getByText("Email field must be completed")
+    ).toBeInTheDocument();
   });
 
   it("submits the form data when form is submitted", () => {
-    const submitSpy = jest.fn();
+    render(<LoginForm handleSubmit={submitSpy} ssoSettings={settings} />);
 
-    const form = mount(
-      <LoginForm handleSubmit={submitSpy} ssoSettings={settings} />
+    // when
+    userEvent.type(
+      screen.getByRole("textbox", { name: "Email" }),
+      "my@email.com"
     );
-    const emailField = form.find({ name: "email" });
-    const passwordField = form.find({ name: "password" });
-    const submitBtn = form.find("button");
+    userEvent.type(screen.getByPlaceholderText("Password"), "p@ssw0rd");
+    fireEvent.click(screen.getByRole("button", { name: "Login" }));
 
-    fillInFormInput(emailField, "my@email.com");
-    fillInFormInput(passwordField, "p@ssw0rd");
-    submitBtn.simulate("submit");
-
+    // then
     expect(submitSpy).toHaveBeenCalledWith({
       email: "my@email.com",
       password: "p@ssw0rd",

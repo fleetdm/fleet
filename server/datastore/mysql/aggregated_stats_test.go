@@ -3,12 +3,11 @@ package mysql
 import (
 	"context"
 	"fmt"
+	"math"
 	"math/rand"
 	"strings"
-	"time"
-
-	"math"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/assert"
@@ -114,11 +113,11 @@ func TestAggregatedStats(t *testing.T) {
 					`
 select 
        id, 
-       JSON_EXTRACT(json_value, "$.user_time_p50") as user_time_p50, 
-       JSON_EXTRACT(json_value, "$.user_time_p95") as user_time_p95,
-       JSON_EXTRACT(json_value, "$.system_time_p50") as system_time_p50, 
-       JSON_EXTRACT(json_value, "$.system_time_p95") as system_time_p95,
-       JSON_EXTRACT(json_value, "$.total_executions") as total_executions
+       JSON_EXTRACT(json_value, '$.user_time_p50') as user_time_p50, 
+       JSON_EXTRACT(json_value, '$.user_time_p95') as user_time_p95,
+       JSON_EXTRACT(json_value, '$.system_time_p50') as system_time_p50, 
+       JSON_EXTRACT(json_value, '$.system_time_p95') as system_time_p95,
+       JSON_EXTRACT(json_value, '$.total_executions') as total_executions
 from aggregated_stats where type=?`, tt.aggregate))
 
 			require.True(t, len(stats) > 0)
