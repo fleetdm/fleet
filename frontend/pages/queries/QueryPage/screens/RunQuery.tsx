@@ -1,13 +1,12 @@
 import React, { useState, useEffect, useRef, useContext } from "react";
-import { useDispatch } from "react-redux";
 import SockJS from "sockjs-client";
 
-// @ts-ignore
 import { QueryContext } from "context/query";
-import { formatSelectedTargetsForApi } from "fleet/helpers"; // @ts-ignore
-import { renderFlash } from "redux/nodes/notifications/actions"; // @ts-ignore
-import campaignHelpers from "redux/nodes/entities/campaigns/helpers";
-import queryAPI from "services/entities/queries"; // @ts-ignore
+import { NotificationContext } from "context/notification";
+import { formatSelectedTargetsForApi } from "fleet/helpers";
+
+import queryAPI from "services/entities/queries";
+import campaignHelpers from "utilities/campaign_helpers"; // @ts-ignore
 import debounce from "utilities/debounce"; // @ts-ignore
 import { BASE_URL, DEFAULT_CAMPAIGN_STATE } from "utilities/constants"; // @ts-ignore
 import local from "utilities/local"; // @ts-ignore
@@ -15,7 +14,6 @@ import { ICampaign, ICampaignState } from "interfaces/campaign";
 import { IQuery } from "interfaces/query";
 import { ITarget } from "interfaces/target";
 
-// import { useLastEditedQueryInfo } from "../helpers";
 import QueryResults from "../components/QueryResults";
 
 interface IRunQueryProps {
@@ -35,13 +33,13 @@ const RunQuery = ({
   goToQueryEditor,
   targetsTotalCount,
 }: IRunQueryProps): JSX.Element | null => {
-  const dispatch = useDispatch();
+  const { lastEditedQueryBody } = useContext(QueryContext);
+  const { renderFlash } = useContext(NotificationContext);
 
   const [isQueryFinished, setIsQueryFinished] = useState<boolean>(false);
   const [campaignState, setCampaignState] = useState<ICampaignState>(
     DEFAULT_CAMPAIGN_STATE
   );
-  const { lastEditedQueryBody } = useContext(QueryContext);
 
   const ws = useRef(null);
   const runQueryInterval = useRef<any>(null);
@@ -140,11 +138,9 @@ const RunQuery = ({
 
   const onRunQuery = debounce(async () => {
     if (!lastEditedQueryBody) {
-      dispatch(
-        renderFlash(
-          "error",
-          "Something went wrong running your query. Please try again."
-        )
+      renderFlash(
+        "error",
+        "Something went wrong running your query. Please try again."
       );
       return false;
     }
@@ -168,11 +164,9 @@ const RunQuery = ({
       connectAndRunLiveQuery(returnedCampaign);
     } catch (campaignError: any) {
       if (campaignError === "resource already created") {
-        dispatch(
-          renderFlash(
-            "error",
-            "A campaign with the provided query text has already been created"
-          )
+        renderFlash(
+          "error",
+          "A campaign with the provided query text has already been created"
         );
       }
 
@@ -180,16 +174,12 @@ const RunQuery = ({
         const { message } = campaignError;
 
         if (message === "forbidden") {
-          dispatch(
-            renderFlash(
-              "error",
-              "It seems you do not have the rights to run this query. If you believe this is in error, please contact your administrator."
-            )
+          renderFlash(
+            "error",
+            "It seems you do not have the rights to run this query. If you believe this is in error, please contact your administrator."
           );
         } else {
-          dispatch(
-            renderFlash("error", "Something has gone wrong. Please try again.")
-          );
+          renderFlash("error", "Something has gone wrong. Please try again.");
         }
       }
 

@@ -61,7 +61,7 @@ func TestTriggerVulnerabilitiesWebhook(t *testing.T) {
 	t.Run("trigger requests", func(t *testing.T) {
 		now := time.Now()
 
-		hosts := []*fleet.CPEHost{
+		hosts := []*fleet.HostShort{
 			{ID: 1, Hostname: "h1"},
 			{ID: 2, Hostname: "h2"},
 			{ID: 3, Hostname: "h3"},
@@ -84,7 +84,7 @@ func TestTriggerVulnerabilitiesWebhook(t *testing.T) {
 		cases := []struct {
 			name  string
 			vulns map[string][]string
-			hosts []*fleet.CPEHost
+			hosts []*fleet.HostShort
 			want  string
 		}{
 			{
@@ -131,7 +131,7 @@ func TestTriggerVulnerabilitiesWebhook(t *testing.T) {
 				}))
 				defer srv.Close()
 
-				ds.HostsByCPEsFunc = func(ctx context.Context, cpes []string) ([]*fleet.CPEHost, error) {
+				ds.HostsByCPEsFunc = func(ctx context.Context, cpes []string) ([]*fleet.HostShort, error) {
 					return c.hosts, nil
 				}
 

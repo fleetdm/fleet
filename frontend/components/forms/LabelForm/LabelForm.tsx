@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { IAceEditor } from "react-ace/lib/types";
 import { noop, size } from "lodash";
-import { useDebouncedCallback } from "use-debounce/lib";
+import { useDebouncedCallback } from "use-debounce";
 
 import { ILabel, ILabelFormData } from "interfaces/label";
 import Button from "components/buttons/Button"; // @ts-ignore
@@ -90,6 +90,25 @@ const LabelForm = ({
   useEffect(() => {
     debounceSQL(query);
   }, [query]);
+
+  useEffect(() => {
+    const listener = (event: KeyboardEvent) => {
+      if (event.code === "Enter" || event.code === "NumpadEnter") {
+        event.preventDefault();
+        handleSubmit({
+          name,
+          query,
+          description,
+          platform,
+        });
+      }
+    };
+
+    document.addEventListener("keydown", listener);
+    return () => {
+      document.removeEventListener("keydown", listener);
+    };
+  }, [name, query, description, platform]);
 
   const onLoad = (editor: IAceEditor) => {
     editor.setOptions({

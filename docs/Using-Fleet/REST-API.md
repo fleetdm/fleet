@@ -1,6 +1,7 @@
 # REST API
 
 - [Overview](#overview)
+- [Versioning](#versioning)
 - [Authentication](#authentication)
 - [Hosts](#hosts)
 - [Labels](#labels)
@@ -22,8 +23,8 @@
 
 Fleet is powered by a Go API server which serves three types of endpoints:
 
-- Endpoints starting with `/api/v1/osquery/` are osquery TLS server API endpoints. All of these endpoints are used for talking to osqueryd agents and that's it.
-- Endpoints starting with `/api/v1/fleet/` are endpoints to interact with the Fleet data model (packs, queries, scheduled queries, labels, hosts, etc) as well as application endpoints (configuring settings, logging in, session management, etc).
+- Endpoints starting with `/api/osquery/` are osquery TLS server API endpoints. All of these endpoints are used for talking to osqueryd agents and that's it.
+- Endpoints starting with `/api/latest/fleet/` are endpoints to interact with the Fleet data model (packs, queries, scheduled queries, labels, hosts, etc) as well as application endpoints (configuring settings, logging in, session management, etc).
 - All other endpoints are served by the React single page application bundle.
   The React app uses React Router to determine whether or not the URI is a valid
   route and what to do.
@@ -43,17 +44,25 @@ The general idea with the current API is that there are many entities throughout
 
 Each set of objects follows a similar REST access pattern.
 
-- You can `GET /api/v1/fleet/packs` to get all packs
-- You can `GET /api/v1/fleet/packs/1` to get a specific pack.
-- You can `DELETE /api/v1/fleet/packs/1` to delete a specific pack.
-- You can `POST /api/v1/fleet/packs` (with a valid body) to create a new pack.
-- You can `PATCH /api/v1/fleet/packs/1` (with a valid body) to modify a specific pack.
+- You can `GET /api/latest/fleet/packs` to get all packs
+- You can `GET /api/latest/fleet/packs/1` to get a specific pack.
+- You can `DELETE /api/latest/fleet/packs/1` to delete a specific pack.
+- You can `POST /api/latest/fleet/packs` (with a valid body) to create a new pack.
+- You can `PATCH /api/latest/fleet/packs/1` (with a valid body) to modify a specific pack.
 
 Queries, packs, scheduled queries, labels, invites, users, sessions all behave this way. Some objects, like invites, have additional HTTP methods for additional functionality. Some objects, such as scheduled queries, are merely a relationship between two other objects (in this case, a query and a pack) with some details attached.
 
 All of these objects are put together and distributed to the appropriate osquery agents at the appropriate time. At this time, the best source of truth for the API is the [HTTP handler file](https://github.com/fleetdm/fleet/blob/main/server/service/handler.go) in the Go application. The REST API is exposed via a transport layer on top of an RPC service which is implemented using a micro-service library called [Go Kit](https://github.com/go-kit/kit). If using the Fleet API is important to you right now, being familiar with Go Kit would definitely be helpful.
 
 > [Check out Fleet v3's REST API documentation](https://github.com/fleetdm/fleet/blob/0bd6903b2df084c9c727f281e86dff0cbc2e0c25/docs/1-Using-Fleet/3-REST-API.md), if you're using a version of Fleet below 4.0.0. Warning: Fleet v3's documentation is no longer being maintained.
+
+## Versioning
+
+The API is versioned and new releases of Fleet *may* introduce a new version of the API if there are breaking changes. See [API Versioning](../Contributing/API-Versioning.md) for more details.
+
+This document describes the latest version of the API, which is `2022-04`. You can also browse those older versions:
+
+* [v1](./REST-API-v1.md)
 
 ## Authentication
 
@@ -83,7 +92,7 @@ Authorization: Bearer <your token>
 
 Authenticates the user with the specified credentials. Use the token returned from this endpoint to authenticate further API requests.
 
-`POST /api/v1/fleet/login`
+`POST /api/latest/fleet/login`
 
 > This API endpoint is not available to SSO users, since email/password login is disabled for SSO users. To get an API token for an SSO user, you can use the Fleet UI.
 
@@ -96,7 +105,7 @@ Authenticates the user with the specified credentials. Use the token returned fr
 
 #### Example
 
-`POST /api/v1/fleet/login`
+`POST /api/latest/fleet/login`
 
 ##### Request body
 
@@ -136,11 +145,11 @@ Authenticates the user with the specified credentials. Use the token returned fr
 
 Logs out the authenticated user.
 
-`POST /api/v1/fleet/logout`
+`POST /api/latest/fleet/logout`
 
 #### Example
 
-`POST /api/v1/fleet/logout`
+`POST /api/latest/fleet/logout`
 
 ##### Default response
 
@@ -152,7 +161,7 @@ Logs out the authenticated user.
 
 Sends a password reset email to the specified email. Requires that SMTP is configured for your Fleet server.
 
-`POST /api/v1/fleet/forgot_password`
+`POST /api/latest/fleet/forgot_password`
 
 #### Parameters
 
@@ -162,7 +171,7 @@ Sends a password reset email to the specified email. Requires that SMTP is confi
 
 #### Example
 
-`POST /api/v1/fleet/forgot_password`
+`POST /api/latest/fleet/forgot_password`
 
 ##### Request body
 
@@ -196,7 +205,7 @@ Sends a password reset email to the specified email. Requires that SMTP is confi
 
 ### Change password
 
-`POST /api/v1/fleet/change_password`
+`POST /api/latest/fleet/change_password`
 
 Changes the password for the authenticated user.
 
@@ -209,7 +218,7 @@ Changes the password for the authenticated user.
 
 #### Example
 
-`POST /api/v1/fleet/change_password`
+`POST /api/latest/fleet/change_password`
 
 ##### Request body
 
@@ -244,7 +253,7 @@ Changes the password for the authenticated user.
 
 Resets a user's password. Which user is determined by the password reset token used. The password reset token can be found in the password reset email sent to the desired user.
 
-`POST /api/v1/fleet/reset_password`
+`POST /api/latest/fleet/reset_password`
 
 #### Parameters
 
@@ -256,7 +265,7 @@ Resets a user's password. Which user is determined by the password reset token u
 
 #### Example
 
-`POST /api/v1/fleet/reset_password`
+`POST /api/latest/fleet/reset_password`
 
 ##### Request body
 
@@ -279,11 +288,11 @@ Resets a user's password. Which user is determined by the password reset token u
 
 Retrieves the user data for the authenticated user.
 
-`GET /api/v1/fleet/me`
+`GET /api/latest/fleet/me`
 
 #### Example
 
-`GET /api/v1/fleet/me`
+`GET /api/latest/fleet/me`
 
 ##### Default response
 
@@ -313,11 +322,11 @@ Retrieves the user data for the authenticated user.
 
 Resets the password of the authenticated user. Requires that `force_password_reset` is set to `true` prior to the request.
 
-`POST /api/v1/fleet/perform_require_password_reset`
+`POST /api/latest/fleet/perform_required_password_reset`
 
 #### Example
 
-`POST /api/v1/fleet/perform_required_password_reset`
+`POST /api/latest/fleet/perform_required_password_reset`
 
 ##### Request body
 
@@ -355,11 +364,11 @@ Resets the password of the authenticated user. Requires that `force_password_res
 
 Gets the current SSO configuration.
 
-`GET /api/v1/fleet/sso`
+`GET /api/latest/fleet/sso`
 
 #### Example
 
-`GET /api/v1/fleet/sso`
+`GET /api/latest/fleet/sso`
 
 ##### Default response
 
@@ -379,7 +388,7 @@ Gets the current SSO configuration.
 
 ### Initiate SSO
 
-`POST /api/v1/fleet/sso`
+`POST /api/latest/fleet/sso`
 
 #### Parameters
 
@@ -389,7 +398,7 @@ Gets the current SSO configuration.
 
 #### Example
 
-`POST /api/v1/fleet/sso`
+`POST /api/latest/fleet/sso`
 
 ##### Request body
 
@@ -423,7 +432,7 @@ Gets the current SSO configuration.
 
 This is the callback endpoint that the identity provider will use to send security assertions to Fleet. This is where Fleet receives and processes the response from the identify provider.
 
-`POST /api/v1/fleet/sso/callback`
+`POST /api/latest/fleet/sso/callback`
 
 #### Parameters
 
@@ -433,7 +442,7 @@ This is the callback endpoint that the identity provider will use to send securi
 
 #### Example
 
-`POST /api/v1/fleet/sso/callback`
+`POST /api/latest/fleet/sso/callback`
 
 ##### Request body
 
@@ -467,7 +476,7 @@ This is the callback endpoint that the identity provider will use to send securi
 
 ### List hosts
 
-`GET /api/v1/fleet/hosts`
+`GET /api/latest/fleet/hosts`
 
 #### Parameters
 
@@ -490,7 +499,7 @@ If `additional_info_filters` is not specified, no `additional` information will 
 
 #### Example
 
-`GET /api/v1/fleet/hosts?page=0&per_page=100&order_key=hostname&query=2ce`
+`GET /api/latest/fleet/hosts?page=0&per_page=100&order_key=hostname&query=2ce`
 
 ##### Request query parameters
 
@@ -559,7 +568,7 @@ If `additional_info_filters` is not specified, no `additional` information will 
 
 ### Count hosts
 
-`GET /api/v1/fleet/hosts/count`
+`GET /api/latest/fleet/hosts/count`
 
 #### Parameters
 
@@ -582,7 +591,7 @@ If `additional_info_filters` is not specified, no `additional` information will 
 
 #### Example
 
-`GET /api/v1/fleet/hosts/count?page=0&per_page=100&order_key=hostname&query=2ce`
+`GET /api/latest/fleet/hosts/count?page=0&per_page=100&order_key=hostname&query=2ce`
 
 ##### Request query parameters
 
@@ -608,7 +617,7 @@ If `additional_info_filters` is not specified, no `additional` information will 
 
 Returns the count of all hosts organized by status. `online_count` includes all hosts currently enrolled in Fleet. `offline_count` includes all hosts that haven't checked into Fleet recently. `mia_count` includes all hosts that haven't been seen by Fleet in more than 30 days. `new_count` includes the hosts that have been enrolled to Fleet in the last 24 hours.
 
-`GET /api/v1/fleet/host_summary`
+`GET /api/latest/fleet/host_summary`
 
 #### Parameters
 
@@ -619,7 +628,7 @@ Returns the count of all hosts organized by status. `online_count` includes all 
 
 #### Example
 
-`GET /api/v1/fleet/host_summary?team_id=1`
+`GET /api/latest/fleet/host_summary?team_id=1`
 
 ##### Default response
 
@@ -660,7 +669,7 @@ All the scheduled queries that are configured to run on the host (and their stat
 
 If the scheduled queries haven't run on the host yet, the stats have zero values.
 
-`GET /api/v1/fleet/hosts/{id}`
+`GET /api/latest/fleet/hosts/{id}`
 
 #### Parameters
 
@@ -670,7 +679,7 @@ If the scheduled queries haven't run on the host yet, the stats have zero values
 
 #### Example
 
-`GET /api/v1/fleet/hosts/121`
+`GET /api/latest/fleet/hosts/121`
 
 ##### Default response
 
@@ -842,7 +851,7 @@ If the scheduled queries haven't run on the host yet, the stats have zero values
 Returns the information of the host specified using the `uuid`, `osquery_host_id`, `hostname`, or
 `node_key` as an identifier
 
-`GET /api/v1/fleet/hosts/identifier/{identifier}`
+`GET /api/latest/fleet/hosts/identifier/{identifier}`
 
 #### Parameters
 
@@ -852,7 +861,7 @@ Returns the information of the host specified using the `uuid`, `osquery_host_id
 
 #### Example
 
-`GET /api/v1/fleet/hosts/identifier/392547dc-0000-0000-a87a-d701ff75bc65`
+`GET /api/latest/fleet/hosts/identifier/392547dc-0000-0000-a87a-d701ff75bc65`
 
 ##### Default response
 
@@ -908,7 +917,7 @@ Returns the information of the host specified using the `uuid`, `osquery_host_id
 
 Deletes the specified host from Fleet. Note that a deleted host will fail authentication with the previous node key, and in most osquery configurations will attempt to re-enroll automatically. If the host still has a valid enroll secret, it will re-enroll successfully.
 
-`DELETE /api/v1/fleet/hosts/{id}`
+`DELETE /api/latest/fleet/hosts/{id}`
 
 #### Parameters
 
@@ -918,7 +927,7 @@ Deletes the specified host from Fleet. Note that a deleted host will fail authen
 
 #### Example
 
-`DELETE /api/v1/fleet/hosts/121`
+`DELETE /api/latest/fleet/hosts/121`
 
 ##### Default response
 
@@ -929,7 +938,7 @@ Deletes the specified host from Fleet. Note that a deleted host will fail authen
 
 Flags the host details, labels and policies to be refetched the next time the host checks in for distributed queries. Note that we cannot be certain when the host will actually check in and update the query results. Further requests to the host APIs will indicate that the refetch has been requested through the `refetch_requested` field on the host object.
 
-`POST /api/v1/fleet/hosts/{id}/refetch`
+`POST /api/latest/fleet/hosts/{id}/refetch`
 
 #### Parameters
 
@@ -939,7 +948,7 @@ Flags the host details, labels and policies to be refetched the next time the ho
 
 #### Example
 
-`POST /api/v1/fleet/hosts/121/refetch`
+`POST /api/latest/fleet/hosts/121/refetch`
 
 ##### Default response
 
@@ -950,7 +959,7 @@ Flags the host details, labels and policies to be refetched the next time the ho
 
 _Available in Fleet Premium_
 
-`POST /api/v1/fleet/hosts/transfer`
+`POST /api/latest/fleet/hosts/transfer`
 
 #### Parameters
 
@@ -961,7 +970,7 @@ _Available in Fleet Premium_
 
 #### Example
 
-`POST /api/v1/fleet/hosts/transfer`
+`POST /api/latest/fleet/hosts/transfer`
 
 ##### Request body
 
@@ -981,7 +990,7 @@ _Available in Fleet Premium_
 
 _Available in Fleet Premium_
 
-`POST /api/v1/fleet/hosts/transfer/filter`
+`POST /api/latest/fleet/hosts/transfer/filter`
 
 #### Parameters
 
@@ -992,7 +1001,7 @@ _Available in Fleet Premium_
 
 #### Example
 
-`POST /api/v1/fleet/hosts/transfer/filter`
+`POST /api/latest/fleet/hosts/transfer/filter`
 
 ##### Request body
 
@@ -1011,7 +1020,7 @@ _Available in Fleet Premium_
 
 ### Bulk delete hosts by filter or ids
 
-`POST /api/v1/fleet/hosts/delete`
+`POST /api/latest/fleet/hosts/delete`
 
 #### Parameters
 
@@ -1044,7 +1053,7 @@ Request (`filters` is specified):
 
 #### Example
 
-`POST /api/v1/fleet/hosts/delete`
+`POST /api/latest/fleet/hosts/delete`
 
 ##### Request body
 
@@ -1073,7 +1082,7 @@ Currently supported only on macOS.
 Retrieves a host's Google Chrome profile information which can be used to link a host to a specific
 user by email.
 
-`GET /api/v1/fleet/hosts/{id}/device_mapping`
+`GET /api/latest/fleet/hosts/{id}/device_mapping`
 
 #### Parameters
 
@@ -1083,7 +1092,7 @@ user by email.
 
 #### Example
 
-`GET /api/v1/fleet/hosts/1/device_mapping`
+`GET /api/latest/fleet/hosts/1/device_mapping`
 
 ##### Default response
 
@@ -1113,7 +1122,7 @@ Currently supported only on macOS.
 
 Retrieves a host's MDM enrollment status, MDM server URL, and Munki version.
 
-`GET /api/v1/fleet/hosts/{id}/macadmins`
+`GET /api/latest/fleet/hosts/{id}/macadmins`
 
 #### Parameters
 
@@ -1123,7 +1132,7 @@ Retrieves a host's MDM enrollment status, MDM server URL, and Munki version.
 
 #### Example
 
-`GET /api/v1/fleet/hosts/32/macadmins`
+`GET /api/latest/fleet/hosts/32/macadmins`
 
 ##### Default response
 
@@ -1156,7 +1165,7 @@ Currently supported only on macOS.
 
 Retrieves aggregated host's MDM enrollment status and Munki versions.
 
-`GET /api/v1/fleet/macadmins`
+`GET /api/latest/fleet/macadmins`
 
 #### Parameters
 
@@ -1166,7 +1175,7 @@ Retrieves aggregated host's MDM enrollment status and Munki versions.
 
 #### Example
 
-`GET /api/v1/fleet/macadmins`
+`GET /api/latest/fleet/macadmins`
 
 ##### Default response
 
@@ -1211,7 +1220,7 @@ Retrieves aggregated host's MDM enrollment status and Munki versions.
 
 Retrieves the aggregated host OS versions information.
 
-`GET /api/v1/fleet/os_versions`
+`GET /api/latest/fleet/os_versions`
 
 #### Parameters
 
@@ -1277,7 +1286,7 @@ Retrieves the aggregated host OS versions information.
 Returns the list of hosts corresponding to the search criteria in CSV format, ready for download when
 requested by a web browser.
 
-`GET /api/v1/fleet/hosts/report`
+`GET /api/latest/fleet/hosts/report`
 
 #### Parameters
 
@@ -1296,7 +1305,7 @@ requested by a web browser.
 
 #### Example
 
-`GET /api/v1/fleet/hosts/report?software_id=123&format=csv`
+`GET /api/latest/fleet/hosts/report?software_id=123&format=csv`
 
 ##### Default response
 
@@ -1326,7 +1335,7 @@ created_at,updated_at,id,detail_updated_at,label_updated_at,policy_updated_at,la
 
 Creates a dynamic label.
 
-`POST /api/v1/fleet/labels`
+`POST /api/latest/fleet/labels`
 
 #### Parameters
 
@@ -1339,7 +1348,7 @@ Creates a dynamic label.
 
 #### Example
 
-`POST /api/v1/fleet/labels`
+`POST /api/latest/fleet/labels`
 
 ##### Request body
 
@@ -1378,7 +1387,7 @@ Creates a dynamic label.
 
 Modifies the specified label. Note: Label queries and platforms are immutable. To change these, you must delete the label and create a new label.
 
-`PATCH /api/v1/fleet/labels/{id}`
+`PATCH /api/latest/fleet/labels/{id}`
 
 #### Parameters
 
@@ -1390,7 +1399,7 @@ Modifies the specified label. Note: Label queries and platforms are immutable. T
 
 #### Example
 
-`PATCH /api/v1/fleet/labels/1`
+`PATCH /api/latest/fleet/labels/1`
 
 ##### Request body
 
@@ -1429,7 +1438,7 @@ Modifies the specified label. Note: Label queries and platforms are immutable. T
 
 Returns the specified label.
 
-`GET /api/v1/fleet/labels/{id}`
+`GET /api/latest/fleet/labels/{id}`
 
 #### Parameters
 
@@ -1439,7 +1448,7 @@ Returns the specified label.
 
 #### Example
 
-`GET /api/v1/fleet/labels/1`
+`GET /api/latest/fleet/labels/1`
 
 ##### Default response
 
@@ -1467,7 +1476,7 @@ Returns the specified label.
 
 Returns a list of all the labels in Fleet.
 
-`GET /api/v1/fleet/labels`
+`GET /api/latest/fleet/labels`
 
 #### Parameters
 
@@ -1479,7 +1488,7 @@ Returns a list of all the labels in Fleet.
 
 #### Example
 
-`GET /api/v1/fleet/labels`
+`GET /api/latest/fleet/labels`
 
 ##### Default response
 
@@ -1568,7 +1577,7 @@ Returns a list of all the labels in Fleet.
 
 Returns a list of the hosts that belong to the specified label.
 
-`GET /api/v1/fleet/labels/{id}/hosts`
+`GET /api/latest/fleet/labels/{id}/hosts`
 
 #### Parameters
 
@@ -1583,7 +1592,7 @@ Returns a list of the hosts that belong to the specified label.
 
 #### Example
 
-`GET /api/v1/fleet/labels/6/hosts&query=floobar`
+`GET /api/latest/fleet/labels/6/hosts&query=floobar`
 
 ##### Default response
 
@@ -1640,7 +1649,7 @@ Returns a list of the hosts that belong to the specified label.
 
 Deletes the label specified by name.
 
-`DELETE /api/v1/fleet/labels/{name}`
+`DELETE /api/latest/fleet/labels/{name}`
 
 #### Parameters
 
@@ -1650,7 +1659,7 @@ Deletes the label specified by name.
 
 #### Example
 
-`DELETE /api/v1/fleet/labels/ubuntu_label`
+`DELETE /api/latest/fleet/labels/ubuntu_label`
 
 ##### Default response
 
@@ -1661,7 +1670,7 @@ Deletes the label specified by name.
 
 Deletes the label specified by ID.
 
-`DELETE /api/v1/fleet/labels/id/{id}`
+`DELETE /api/latest/fleet/labels/id/{id}`
 
 #### Parameters
 
@@ -1671,7 +1680,7 @@ Deletes the label specified by ID.
 
 #### Example
 
-`DELETE /api/v1/fleet/labels/id/13`
+`DELETE /api/latest/fleet/labels/id/13`
 
 ##### Default response
 
@@ -1698,7 +1707,7 @@ The Fleet server exposes a handful of API endpoints that handles common user man
 
 Returns a list of all enabled users
 
-`GET /api/v1/fleet/users`
+`GET /api/latest/fleet/users`
 
 #### Parameters
 
@@ -1714,7 +1723,7 @@ Returns a list of all enabled users
 
 #### Example
 
-`GET /api/v1/fleet/users`
+`GET /api/latest/fleet/users`
 
 ##### Request query parameters
 
@@ -1772,7 +1781,7 @@ None.
 
 Creates a user account after an invited user provides registration information and submits the form.
 
-`POST /api/v1/fleet/users`
+`POST /api/latest/fleet/users`
 
 #### Parameters
 
@@ -1788,7 +1797,7 @@ Creates a user account after an invited user provides registration information a
 
 #### Example
 
-`POST /api/v1/fleet/users`
+`POST /api/latest/fleet/users`
 
 ##### Request query parameters
 
@@ -1889,7 +1898,7 @@ The same error will be returned whenever one of the required parameters fails th
 Creates a user account without requiring an invitation, the user is enabled immediately.
 By default, the user will be forced to reset its password upon first login.
 
-`POST /api/v1/fleet/users/admin`
+`POST /api/latest/fleet/users/admin`
 
 #### Parameters
 
@@ -1906,7 +1915,7 @@ By default, the user will be forced to reset its password upon first login.
 
 #### Example
 
-`POST /api/v1/fleet/users/admin`
+`POST /api/latest/fleet/users/admin`
 
 ##### Request body
 
@@ -1980,7 +1989,7 @@ By default, the user will be forced to reset its password upon first login.
 
 Returns all information about a specific user.
 
-`GET /api/v1/fleet/users/{id}`
+`GET /api/latest/fleet/users/{id}`
 
 #### Parameters
 
@@ -1990,7 +1999,7 @@ Returns all information about a specific user.
 
 #### Example
 
-`GET /api/v1/fleet/users/2`
+`GET /api/latest/fleet/users/2`
 
 ##### Request query parameters
 
@@ -2040,7 +2049,7 @@ Returns all information about a specific user.
 
 ### Modify user
 
-`PATCH /api/v1/fleet/users/{id}`
+`PATCH /api/latest/fleet/users/{id}`
 
 #### Parameters
 
@@ -2059,7 +2068,7 @@ Returns all information about a specific user.
 
 #### Example
 
-`PATCH /api/v1/fleet/users/2`
+`PATCH /api/latest/fleet/users/2`
 
 ##### Request body
 
@@ -2094,7 +2103,7 @@ Returns all information about a specific user.
 
 #### Example (modify a user's teams)
 
-`PATCH /api/v1/fleet/users/2`
+`PATCH /api/latest/fleet/users/2`
 
 ##### Request body
 
@@ -2148,7 +2157,7 @@ Returns all information about a specific user.
 
 Delete the specified user from Fleet.
 
-`DELETE /api/v1/fleet/users/{id}`
+`DELETE /api/latest/fleet/users/{id}`
 
 #### Parameters
 
@@ -2158,7 +2167,7 @@ Delete the specified user from Fleet.
 
 #### Example
 
-`DELETE /api/v1/fleet/users/3`
+`DELETE /api/latest/fleet/users/3`
 
 ##### Default response
 
@@ -2169,7 +2178,7 @@ Delete the specified user from Fleet.
 
 The selected user is logged out of Fleet and required to reset their password during the next attempt to log in. This also revokes all active Fleet API tokens for this user. Returns the user object.
 
-`POST /api/v1/fleet/users/{id}/require_password_reset`
+`POST /api/latest/fleet/users/{id}/require_password_reset`
 
 #### Parameters
 
@@ -2180,7 +2189,7 @@ The selected user is logged out of Fleet and required to reset their password du
 
 #### Example
 
-`POST /api/v1/fleet/users/{id}/require_password_reset`
+`POST /api/latest/fleet/users/{id}/require_password_reset`
 
 ##### Request body
 
@@ -2215,7 +2224,7 @@ The selected user is logged out of Fleet and required to reset their password du
 
 Returns a list of the user's sessions in Fleet.
 
-`GET /api/v1/fleet/users/{id}/sessions`
+`GET /api/latest/fleet/users/{id}/sessions`
 
 #### Parameters
 
@@ -2223,7 +2232,7 @@ None.
 
 #### Example
 
-`GET /api/v1/fleet/users/1/sessions`
+`GET /api/latest/fleet/users/1/sessions`
 
 ##### Default response
 
@@ -2255,7 +2264,7 @@ None.
 
 Deletes the selected user's sessions in Fleet. Also deletes the user's API token.
 
-`DELETE /api/v1/fleet/users/{id}/sessions`
+`DELETE /api/latest/fleet/users/{id}/sessions`
 
 #### Parameters
 
@@ -2265,7 +2274,7 @@ Deletes the selected user's sessions in Fleet. Also deletes the user's API token
 
 #### Example
 
-`DELETE /api/v1/fleet/users/1/sessions`
+`DELETE /api/latest/fleet/users/1/sessions`
 
 ##### Default response
 
@@ -2283,7 +2292,7 @@ Deletes the selected user's sessions in Fleet. Also deletes the user's API token
 
 Returns the session information for the session specified by ID.
 
-`GET /api/v1/fleet/sessions/{id}`
+`GET /api/latest/fleet/sessions/{id}`
 
 #### Parameters
 
@@ -2293,7 +2302,7 @@ Returns the session information for the session specified by ID.
 
 #### Example
 
-`GET /api/v1/fleet/sessions/1`
+`GET /api/latest/fleet/sessions/1`
 
 ##### Default response
 
@@ -2311,7 +2320,7 @@ Returns the session information for the session specified by ID.
 
 Deletes the session specified by ID. When the user associated with the session next attempts to access Fleet, they will be asked to log in.
 
-`DELETE /api/v1/fleet/sessions/{id}`
+`DELETE /api/latest/fleet/sessions/{id}`
 
 #### Parameters
 
@@ -2321,7 +2330,7 @@ Deletes the session specified by ID. When the user associated with the session n
 
 #### Example
 
-`DELETE /api/v1/fleet/sessions/1`
+`DELETE /api/latest/fleet/sessions/1`
 
 ##### Default response
 
@@ -2345,7 +2354,7 @@ Deletes the session specified by ID. When the user associated with the session n
 
 Returns the query specified by ID.
 
-`GET /api/v1/fleet/queries/{id}`
+`GET /api/latest/fleet/queries/{id}`
 
 #### Parameters
 
@@ -2355,7 +2364,7 @@ Returns the query specified by ID.
 
 #### Example
 
-`GET /api/v1/fleet/queries/31`
+`GET /api/latest/fleet/queries/31`
 
 ##### Default response
 
@@ -2394,7 +2403,7 @@ Returns the query specified by ID.
 
 Returns a list of all queries in the Fleet instance.
 
-`GET /api/v1/fleet/queries`
+`GET /api/latest/fleet/queries`
 
 #### Parameters
 
@@ -2405,7 +2414,7 @@ Returns a list of all queries in the Fleet instance.
 
 #### Example
 
-`GET /api/v1/fleet/queries`
+`GET /api/latest/fleet/queries`
 
 ##### Default response
 
@@ -2474,7 +2483,7 @@ Returns a list of all queries in the Fleet instance.
 
 ### Create query
 
-`POST /api/v1/fleet/queries`
+`POST /api/latest/fleet/queries`
 
 #### Parameters
 
@@ -2487,7 +2496,7 @@ Returns a list of all queries in the Fleet instance.
 
 #### Example
 
-`POST /api/v1/fleet/queries`
+`POST /api/latest/fleet/queries`
 
 ##### Request body
 
@@ -2526,7 +2535,7 @@ Returns a list of all queries in the Fleet instance.
 
 Returns the query specified by ID.
 
-`PATCH /api/v1/fleet/queries/{id}`
+`PATCH /api/latest/fleet/queries/{id}`
 
 #### Parameters
 
@@ -2540,7 +2549,7 @@ Returns the query specified by ID.
 
 #### Example
 
-`PATCH /api/v1/fleet/queries/2`
+`PATCH /api/latest/fleet/queries/2`
 
 ##### Request body
 
@@ -2576,7 +2585,7 @@ Returns the query specified by ID.
 
 Deletes the query specified by name.
 
-`DELETE /api/v1/fleet/queries/{name}`
+`DELETE /api/latest/fleet/queries/{name}`
 
 #### Parameters
 
@@ -2586,7 +2595,7 @@ Deletes the query specified by name.
 
 #### Example
 
-`DELETE /api/v1/fleet/queries/{name}`
+`DELETE /api/latest/fleet/queries/{name}`
 
 ##### Default response
 
@@ -2597,7 +2606,7 @@ Deletes the query specified by name.
 
 Deletes the query specified by ID.
 
-`DELETE /api/v1/fleet/queries/id/{id}`
+`DELETE /api/latest/fleet/queries/id/{id}`
 
 #### Parameters
 
@@ -2607,7 +2616,7 @@ Deletes the query specified by ID.
 
 #### Example
 
-`DELETE /api/v1/fleet/queries/id/28`
+`DELETE /api/latest/fleet/queries/id/28`
 
 ##### Default response
 
@@ -2618,7 +2627,7 @@ Deletes the query specified by ID.
 
 Deletes the queries specified by ID. Returns the count of queries successfully deleted.
 
-`POST /api/v1/fleet/queries/delete`
+`POST /api/latest/fleet/queries/delete`
 
 #### Parameters
 
@@ -2628,7 +2637,7 @@ Deletes the queries specified by ID. Returns the count of queries successfully d
 
 #### Example
 
-`POST /api/v1/fleet/queries/delete`
+`POST /api/latest/fleet/queries/delete`
 
 ##### Request body
 
@@ -2666,7 +2675,7 @@ load balancer timeout.
 
 > WARNING: This API endpoint collects responses in-memory (RAM) on the Fleet compute instance handling this request, which can overflow if the result set is large enough.  This has the potential to crash the process and/or cause an autoscaling event in your cloud provider, depending on how Fleet is deployed.
 
-`GET /api/v1/fleet/queries/run`
+`GET /api/latest/fleet/queries/run`
 
 #### Parameters
 
@@ -2678,7 +2687,7 @@ load balancer timeout.
 
 #### Example
 
-`GET /api/v1/fleet/queries/run`
+`GET /api/latest/fleet/queries/run`
 
 ##### Request body
 
@@ -2749,7 +2758,7 @@ For those familiar with osquery query packs, Fleet's query schedule can be thoug
 
 ### Get schedule
 
-`GET /api/v1/fleet/global/schedule`
+`GET /api/latest/fleet/schedule`
 
 #### Parameters
 
@@ -2757,7 +2766,7 @@ None.
 
 #### Example
 
-`GET /api/v1/fleet/global/schedule`
+`GET /api/latest/fleet/schedule`
 
 ##### Default response
 
@@ -2820,7 +2829,7 @@ None.
 
 ### Add query to schedule
 
-`POST /api/v1/fleet/global/schedule`
+`POST /api/latest/fleet/schedule`
 
 #### Parameters
 
@@ -2836,7 +2845,7 @@ None.
 
 #### Example
 
-`POST /api/v1/fleet/global/schedule`
+`POST /api/latest/fleet/schedule`
 
 ##### Request body
 
@@ -2878,7 +2887,7 @@ None.
 
 ### Edit query in schedule
 
-`PATCH /api/v1/fleet/global/schedule/{id}`
+`PATCH /api/latest/fleet/schedule/{id}`
 
 #### Parameters
 
@@ -2894,7 +2903,7 @@ None.
 
 #### Example
 
-`PATCH /api/v1/fleet/global/schedule/5`
+`PATCH /api/latest/fleet/schedule/5`
 
 ##### Request body
 
@@ -2931,7 +2940,7 @@ None.
 
 ### Remove query from schedule
 
-`DELETE /api/v1/fleet/global/schedule/{id}`
+`DELETE /api/latest/fleet/schedule/{id}`
 
 #### Parameters
 
@@ -2939,7 +2948,7 @@ None.
 
 #### Example
 
-`DELETE /api/v1/fleet/global/schedule/5`
+`DELETE /api/latest/fleet/schedule/5`
 
 ##### Default response
 
@@ -2961,7 +2970,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 #### Get team schedule
 
-`GET /api/v1/fleet/teams/{id}/schedule`
+`GET /api/latest/fleet/teams/{id}/schedule`
 
 #### Parameters
 
@@ -2975,7 +2984,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 #### Example
 
-`GET /api/v1/fleet/teams/2/schedule`
+`GET /api/latest/fleet/teams/2/schedule`
 
 ##### Default response
 
@@ -3038,7 +3047,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 #### Add query to team schedule
 
-`POST /api/v1/fleet/teams/{id}/schedule`
+`POST /api/latest/fleet/teams/{id}/schedule`
 
 #### Parameters
 
@@ -3055,7 +3064,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 #### Example
 
-`POST /api/v1/fleet/teams/2/schedule`
+`POST /api/latest/fleet/teams/2/schedule`
 
 ##### Request body
 
@@ -3093,7 +3102,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 #### Edit query in team schedule
 
-`PATCH /api/v1/fleet/teams/{team_id}/schedule/{scheduled_query_id}`
+`PATCH /api/latest/fleet/teams/{team_id}/schedule/{scheduled_query_id}`
 
 #### Parameters
 
@@ -3110,7 +3119,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 #### Example
 
-`PATCH /api/v1/fleet/teams/2/schedule/5`
+`PATCH /api/latest/fleet/teams/2/schedule/5`
 
 ##### Request body
 
@@ -3147,7 +3156,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 #### Remove query from team schedule
 
-`DELETE /api/v1/fleet/teams/{team_id}/schedule/{scheduled_query_id}`
+`DELETE /api/latest/fleet/teams/{team_id}/schedule/{scheduled_query_id}`
 
 #### Parameters
 
@@ -3158,7 +3167,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 #### Example
 
-`DELETE /api/v1/fleet/teams/2/schedule/5`
+`DELETE /api/latest/fleet/teams/2/schedule/5`
 
 ##### Default response
 
@@ -3183,7 +3192,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 ### Create pack
 
-`POST /api/v1/fleet/packs`
+`POST /api/latest/fleet/packs`
 
 #### Parameters
 
@@ -3197,7 +3206,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 #### Example
 
-`POST /api/v1/fleet/packs`
+`POST /api/latest/fleet/packs`
 
 ##### Request query parameters
 
@@ -3235,7 +3244,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 ### Modify pack
 
-`PATCH /api/v1/fleet/packs/{id}`
+`PATCH /api/latest/fleet/packs/{id}`
 
 #### Parameters
 
@@ -3250,7 +3259,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 #### Example
 
-`PATCH /api/v1/fleet/packs/{id}`
+`PATCH /api/latest/fleet/packs/{id}`
 
 ##### Request query parameters
 
@@ -3287,7 +3296,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 ### Get pack
 
-`GET /api/v1/fleet/packs/{id}`
+`GET /api/latest/fleet/packs/{id}`
 
 #### Parameters
 
@@ -3297,7 +3306,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 #### Example
 
-`GET /api/v1/fleet/packs/17`
+`GET /api/latest/fleet/packs/17`
 
 ##### Default response
 
@@ -3326,7 +3335,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 ### List packs
 
-`GET /api/v1/fleet/packs`
+`GET /api/latest/fleet/packs`
 
 #### Parameters
 
@@ -3337,7 +3346,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 #### Example
 
-`GET /api/v1/fleet/packs`
+`GET /api/latest/fleet/packs`
 
 ##### Default response
 
@@ -3380,7 +3389,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 ### Delete pack
 
-`DELETE /api/v1/fleet/packs/{name}`
+`DELETE /api/latest/fleet/packs/{name}`
 
 #### Parameters
 
@@ -3390,7 +3399,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 #### Example
 
-`DELETE /api/v1/fleet/packs/pack_number_one`
+`DELETE /api/latest/fleet/packs/pack_number_one`
 
 ##### Default response
 
@@ -3399,7 +3408,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 ### Delete pack by ID
 
-`DELETE /api/v1/fleet/packs/id/{id}`
+`DELETE /api/latest/fleet/packs/id/{id}`
 
 #### Parameters
 
@@ -3409,7 +3418,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 #### Example
 
-`DELETE /api/v1/fleet/packs/id/1`
+`DELETE /api/latest/fleet/packs/id/1`
 
 ##### Default response
 
@@ -3418,7 +3427,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 ### Get scheduled queries in a pack
 
-`GET /api/v1/fleet/packs/{id}/scheduled`
+`GET /api/latest/fleet/packs/{id}/scheduled`
 
 #### Parameters
 
@@ -3428,7 +3437,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 #### Example
 
-`GET /api/v1/fleet/packs/1/scheduled`
+`GET /api/latest/fleet/packs/1/scheduled`
 
 ##### Default response
 
@@ -3494,7 +3503,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 ### Add scheduled query to a pack
 
-`POST /api/v1/fleet/schedule`
+`POST /api/latest/fleet/packs/schedule`
 
 #### Parameters
 
@@ -3511,7 +3520,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 #### Example
 
-`POST /api/v1/fleet/schedule`
+`POST /api/latest/fleet/packs/schedule`
 
 #### Request body
 
@@ -3555,7 +3564,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 ### Get scheduled query
 
-`GET /api/v1/fleet/schedule/{id}`
+`GET /api/latest/fleet/schedule/{id}`
 
 #### Parameters
 
@@ -3565,7 +3574,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 #### Example
 
-`GET /api/v1/fleet/schedule/56`
+`GET /api/latest/fleet/schedule/56`
 
 ##### Default response
 
@@ -3595,7 +3604,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 ### Modify scheduled query
 
-`PATCH /api/v1/fleet/schedule/{id}`
+`PATCH /api/latest/fleet/packs/schedule/{id}`
 
 #### Parameters
 
@@ -3611,7 +3620,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 #### Example
 
-`PATCH /api/v1/fleet/schedule/56`
+`PATCH /api/latest/fleet/packs/schedule/56`
 
 #### Request body
 
@@ -3648,7 +3657,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 ### Delete scheduled query
 
-`DELETE /api/v1/fleet/schedule/{id}`
+`DELETE /api/latest/fleet/packs/schedule/{id}`
 
 #### Parameters
 
@@ -3658,7 +3667,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 #### Example
 
-`DELETE /api/v1/fleet/schedule/56`
+`DELETE /api/latest/fleet/packs/schedule/56`
 
 ##### Default response
 
@@ -3690,11 +3699,11 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
 
 ### List policies
 
-`GET /api/v1/fleet/global/policies`
+`GET /api/latest/fleet/policies`
 
 #### Example
 
-`GET /api/v1/fleet/global/policies`
+`GET /api/latest/fleet/policies`
 
 ##### Default response
 
@@ -3711,8 +3720,11 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
       "author_id": 42,
       "author_name": "John",
       "author_email": "john@example.com",
+      "team_id": null,
       "resolution": "Resolution steps",
       "platform": "darwin",
+      "created_at": "2021-12-15T15:23:57Z",
+      "updated_at": "2021-12-15T15:23:57Z",
       "passing_host_count": 2000,
       "failing_host_count": 300
     },
@@ -3724,8 +3736,11 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
       "author_id": 43,
       "author_name": "Alice",
       "author_email": "alice@example.com",
+      "team_id": null,
       "resolution": "Resolution steps",
       "platform": "windows",
+      "created_at": "2021-12-31T14:52:27Z",
+      "updated_at": "2022-02-10T20:59:35Z",
       "passing_host_count": 2300,
       "failing_host_count": 0
     }
@@ -3735,7 +3750,7 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
 
 ### Get policy by ID
 
-`GET /api/v1/fleet/global/policies/{id}`
+`GET /api/latest/fleet/policies/{id}`
 
 #### Parameters
 
@@ -3745,7 +3760,7 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
 
 #### Example
 
-`GET /api/v1/fleet/global/policies/1`
+`GET /api/latest/fleet/policies/1`
 
 ##### Default response
 
@@ -3754,18 +3769,21 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
 ```json
 {
   "policy": {
-    "id": 1,
-    "name": "Gatekeeper enabled",
-    "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
-    "description": "Checks if gatekeeper is enabled on macOS devices",
-    "author_id": 42,
-    "author_name": "John",
-    "author_email": "john@example.com",
-    "resolution": "Resolution steps",
-    "platform": "darwin",
-    "passing_host_count": 2000,
-    "failing_host_count": 300
-  }
+      "id": 1,
+      "name": "Gatekeeper enabled",
+      "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
+      "description": "Checks if gatekeeper is enabled on macOS devices",
+      "author_id": 42,
+      "author_name": "John",
+      "author_email": "john@example.com",
+      "team_id": null,
+      "resolution": "Resolution steps",
+      "platform": "darwin",
+      "created_at": "2021-12-15T15:23:57Z",
+      "updated_at": "2021-12-15T15:23:57Z",
+      "passing_host_count": 2000,
+      "failing_host_count": 300
+    }
 }
 ```
 
@@ -3778,7 +3796,7 @@ then "query" must not be set, and "name" and "description" are ignored.
 
 An error is returned if both "query" and "query_id" are set on the request.
 
-`POST /api/v1/fleet/global/policies`
+`POST /api/latest/fleet/policies`
 
 #### Parameters
 
@@ -3795,7 +3813,7 @@ Either `query` or `query_id` must be provided.
 
 #### Example Add Policy
 
-`POST /api/v1/fleet/global/policies`
+`POST /api/latest/fleet/policies`
 
 #### Request body
 
@@ -3823,8 +3841,11 @@ Either `query` or `query_id` must be provided.
     "author_id": 42,
     "author_name": "John",
     "author_email": "john@example.com",
+    "team_id": null,
     "resolution": "Resolution steps",
     "platform": "darwin",
+    "created_at": "2022-03-17T20:15:55Z",
+    "updated_at": "2022-03-17T20:15:55Z",
     "passing_host_count": 0,
     "failing_host_count": 0
   }
@@ -3833,7 +3854,7 @@ Either `query` or `query_id` must be provided.
 
 #### Example Legacy Add Policy
 
-`POST /api/v1/fleet/global/policies`
+`POST /api/latest/fleet/policies`
 
 #### Request body
 
@@ -3859,8 +3880,11 @@ Where `query_id` references an existing `query`.
     "author_id": 42,
     "author_name": "John",
     "author_email": "john@example.com",
+    "team_id": null,
     "resolution": "Resolution steps",
     "platform": "darwin",
+    "created_at": "2022-03-17T20:15:55Z",
+    "updated_at": "2022-03-17T20:15:55Z",
     "passing_host_count": 0,
     "failing_host_count": 0
   }
@@ -3869,7 +3893,7 @@ Where `query_id` references an existing `query`.
 
 ### Remove policies
 
-`POST /api/v1/fleet/global/policies/delete`
+`POST /api/latest/fleet/policies/delete`
 
 #### Parameters
 
@@ -3879,7 +3903,7 @@ Where `query_id` references an existing `query`.
 
 #### Example
 
-`POST /api/v1/fleet/global/policies/delete`
+`POST /api/latest/fleet/policies/delete`
 
 #### Request body
 
@@ -3901,7 +3925,7 @@ Where `query_id` references an existing `query`.
 
 ### Edit policy
 
-`PATCH /api/v1/fleet/global/policies/{policy_id}`
+`PATCH /api/latest/fleet/policies/{policy_id}`
 
 #### Parameters
 
@@ -3916,7 +3940,7 @@ Where `query_id` references an existing `query`.
 
 #### Example Edit Policy
 
-`PATCH /api/v1/fleet/global/policies/42`
+`PATCH /api/latest/fleet/policies/42`
 
 ##### Request body
 
@@ -3944,8 +3968,11 @@ Where `query_id` references an existing `query`.
     "author_id": 43,
     "author_name": "John",
     "author_email": "john@example.com",
+    "team_id": null,
     "resolution": "Resolution steps",
     "platform": "darwin",
+    "created_at": "2022-03-17T20:15:55Z",
+    "updated_at": "2022-03-17T20:15:55Z",
     "passing_host_count": 0,
     "failing_host_count": 0
   }
@@ -3968,7 +3995,7 @@ Team policies work the same as policies, but at the team level.
 
 ### List team policies
 
-`GET /api/v1/fleet/teams/{team_id}/policies`
+`GET /api/latest/fleet/teams/{team_id}/policies`
 
 #### Parameters
 
@@ -3978,7 +4005,7 @@ Team policies work the same as policies, but at the team level.
 
 #### Example
 
-`GET /api/v1/fleet/teams/1/policies`
+`GET /api/latest/fleet/teams/1/policies`
 
 ##### Default response
 
@@ -3998,6 +4025,8 @@ Team policies work the same as policies, but at the team level.
       "team_id": 1,
       "resolution": "Resolution steps",
       "platform": "darwin",
+      "created_at": "2021-12-16T14:37:37Z",
+      "updated_at": "2021-12-16T16:39:00Z",
       "passing_host_count": 2000,
       "failing_host_count": 300
     },
@@ -4012,6 +4041,8 @@ Team policies work the same as policies, but at the team level.
       "team_id": 1,
       "resolution": "Resolution steps",
       "platform": "windows",
+      "created_at": "2021-12-16T14:37:37Z",
+      "updated_at": "2021-12-16T16:39:00Z",
       "passing_host_count": 2300,
       "failing_host_count": 0
     }
@@ -4021,7 +4052,7 @@ Team policies work the same as policies, but at the team level.
 
 ### Get team policy by ID
 
-`GET /api/v1/fleet/teams/{team_id}/policies/{id}`
+`GET /api/latest/fleet/teams/{team_id}/policies/{id}`
 
 #### Parameters
 
@@ -4032,7 +4063,7 @@ Team policies work the same as policies, but at the team level.
 
 #### Example
 
-`GET /api/v1/fleet/teams/1/policies/43`
+`GET /api/latest/fleet/teams/1/policies/43`
 
 ##### Default response
 
@@ -4051,6 +4082,8 @@ Team policies work the same as policies, but at the team level.
     "team_id": 1,
     "resolution": "Resolution steps",
     "platform": "darwin",
+    "created_at": "2021-12-16T14:37:37Z",
+    "updated_at": "2021-12-16T16:39:00Z",
     "passing_host_count": 0,
     "failing_host_count": 0
   }
@@ -4061,7 +4094,7 @@ Team policies work the same as policies, but at the team level.
 
 The semantics for creating a team policy are the same as for global policies, see [Add policy](#add-policy).
 
-`POST /api/v1/fleet/teams/{team_id}/policies`
+`POST /api/latest/fleet/teams/{team_id}/policies`
 
 #### Parameters
 
@@ -4079,7 +4112,7 @@ Either `query` or `query_id` must be provided.
 
 #### Example
 
-`POST /api/v1/fleet/teams/1/policies`
+`POST /api/latest/fleet/teams/1/policies`
 
 ##### Request body
 
@@ -4110,6 +4143,8 @@ Either `query` or `query_id` must be provided.
     "team_id": 1,
     "resolution": "Resolution steps",
     "platform": "darwin",
+    "created_at": "2021-12-16T14:37:37Z",
+    "updated_at": "2021-12-16T16:39:00Z",
     "passing_host_count": 0,
     "failing_host_count": 0
   }
@@ -4118,7 +4153,7 @@ Either `query` or `query_id` must be provided.
 
 ### Remove team policies
 
-`POST /api/v1/fleet/teams/{team_id}/policies/delete`
+`POST /api/latest/fleet/teams/{team_id}/policies/delete`
 
 #### Parameters
 
@@ -4129,7 +4164,7 @@ Either `query` or `query_id` must be provided.
 
 #### Example
 
-`POST /api/v1/fleet/teams/1/policies/delete`
+`POST /api/latest/fleet/teams/1/policies/delete`
 
 ##### Request body
 
@@ -4151,7 +4186,7 @@ Either `query` or `query_id` must be provided.
 
 ### Edit team policy
 
-`PATCH /api/v1/fleet/teams/{team_id}/policies/{policy_id}`
+`PATCH /api/latest/fleet/teams/{team_id}/policies/{policy_id}`
 
 #### Parameters
 
@@ -4167,7 +4202,7 @@ Either `query` or `query_id` must be provided.
 
 #### Example Edit Policy
 
-`PATCH /api/v1/fleet/teams/2/policies/42`
+`PATCH /api/latest/fleet/teams/2/policies/42`
 
 ##### Request body
 
@@ -4198,6 +4233,8 @@ Either `query` or `query_id` must be provided.
     "resolution": "Resolution steps",
     "platform": "darwin",
     "team_id": 2,
+    "created_at": "2021-12-16T14:37:37Z",
+    "updated_at": "2021-12-16T16:39:00Z",
     "passing_host_count": 0,
     "failing_host_count": 0
   }
@@ -4228,7 +4265,7 @@ Returns a list of the activities that have been performed in Fleet. The followin
 - Created team - _Available in Fleet Premium_
 - Deleted team - _Available in Fleet Premium_
 
-`GET /api/v1/fleet/activities`
+`GET /api/latest/fleet/activities`
 
 #### Parameters
 
@@ -4241,7 +4278,7 @@ Returns a list of the activities that have been performed in Fleet. The followin
 
 #### Example
 
-`GET /api/v1/fleet/activities?page=0&per_page=10&order_key=created_at&order_direction=desc`
+`GET /api/latest/fleet/activities?page=0&per_page=10&order_key=created_at&order_direction=desc`
 
 ##### Default response
 
@@ -4392,7 +4429,7 @@ The search targets endpoint returns two lists. The first list includes the possi
 
 The returned lists are filtered based on the hosts the requesting user has access to.
 
-`POST /api/v1/fleet/targets`
+`POST /api/latest/fleet/targets`
 
 #### Parameters
 
@@ -4404,7 +4441,7 @@ The returned lists are filtered based on the hosts the requesting user has acces
 
 #### Example
 
-`POST /api/v1/fleet/targets`
+`POST /api/latest/fleet/targets`
 
 ##### Request body
 
@@ -4555,7 +4592,7 @@ The Fleet server exposes a handful of API endpoints that handle the configuratio
 
 Returns the Fleet certificate.
 
-`GET /api/v1/fleet/config/certificate`
+`GET /api/latest/fleet/config/certificate`
 
 #### Parameters
 
@@ -4563,7 +4600,7 @@ None.
 
 #### Example
 
-`GET /api/v1/fleet/config/certificate`
+`GET /api/latest/fleet/config/certificate`
 
 ##### Default response
 
@@ -4579,7 +4616,7 @@ None.
 
 Returns all information about the Fleet's configuration.
 
-`GET /api/v1/fleet/config`
+`GET /api/latest/fleet/config`
 
 #### Parameters
 
@@ -4587,7 +4624,7 @@ None.
 
 #### Example
 
-`GET /api/v1/fleet/config`
+`GET /api/latest/fleet/config`
 
 ##### Default response
 
@@ -4645,7 +4682,7 @@ None.
           "logger_tls_period": 10,
           "distributed_plugin": "tls",
           "disable_distributed": false,
-          "logger_tls_endpoint": "/api/v1/osquery/log",
+          "logger_tls_endpoint": "/api/osquery/log",
           "distributed_interval": 10,
           "distributed_tls_max_attempts": 3
         },
@@ -4713,6 +4750,9 @@ None.
       "host_batch_size": 1000
     }
   },
+  "integrations": {
+    "jira": null
+  },
   "logging": {
     "debug": false,
     "json": false,
@@ -4745,7 +4785,8 @@ None.
     "cve_feed_prefix_url": "",
     "databases_path": "",
     "disable_data_sync": false,
-    "periodicity": 3600000000000
+    "periodicity": 3600000000000,
+    "recent_vulnerability_max_age": 2592000000000000
   }
 }
 ```
@@ -4754,7 +4795,7 @@ None.
 
 Modifies the Fleet's configuration with the supplied information.
 
-`PATCH /api/v1/fleet/config`
+`PATCH /api/latest/fleet/config`
 
 #### Parameters
 
@@ -4786,21 +4827,26 @@ Modifies the Fleet's configuration with the supplied information.
 | host_expiry_window    | integer | body | _Host expiry settings_. If a host has not communicated with Fleet in the specified number of days, it will be removed.                                                                 |
 | agent_options         | objects | body | The agent_options spec that is applied to all hosts. In Fleet 4.0.0 the `api/v1/fleet/spec/osquery_options` endpoints were removed.                                                    |
 | enable_host_status_webhook    | boolean | body | _webhook_settings.host_status_webhook settings_. Whether or not the host status webhook is enabled.                                                                 |
-| destination_url    | string | body | _webhook_settings.host_status_webhook settings_. The URL to deliver the webhook request to.                                                     |
-| host_percentage    | integer | body | _webhook_settings.host_status_webhook settings_. The minimum percentage of hosts that must fail to check in to Fleet in order to trigger the webhook request.                                                              |
-| days_count    | integer | body | _webhook_settings.host_status_webhook settings_. The minimum number of days that the configured `host_percentage` must fail to check in to Fleet in order to trigger the webhook request.                                |
+| destination_url       | string | body | _webhook_settings.host_status_webhook settings_. The URL to deliver the webhook request to.                                                     |
+| host_percentage       | integer | body | _webhook_settings.host_status_webhook settings_. The minimum percentage of hosts that must fail to check in to Fleet in order to trigger the webhook request.                                                              |
+| days_count            | integer | body | _webhook_settings.host_status_webhook settings_. The minimum number of days that the configured `host_percentage` must fail to check in to Fleet in order to trigger the webhook request.                                |
 | enable_failing_policies_webhook   | boolean | body | _webhook_settings.failing_policies_webhook settings_. Whether or not the failing policies webhook is enabled. |
-| destination_url    | string | body | _webhook_settings.failing_policies_webhook settings_. The URL to deliver the webhook requests to.                                                     |
-| policy_ids    | array | body | _webhook_settings.failing_policies_webhook settings_. List of policy IDs to enable failing policies webhook.                                                              |
-| host_batch_size    | integer | body | _webhook_settings.failing_policies_webhook settings_. Maximum number of hosts to batch on failing policy webhook requests. The default, 0, means no batching (all hosts failing a policy are sent on one request). |
+| destination_url       | string | body | _webhook_settings.failing_policies_webhook settings_. The URL to deliver the webhook requests to.                                                     |
+| policy_ids            | array | body | _webhook_settings.failing_policies_webhook settings_. List of policy IDs to enable failing policies webhook.                                                              |
+| host_batch_size       | integer | body | _webhook_settings.failing_policies_webhook settings_. Maximum number of hosts to batch on failing policy webhook requests. The default, 0, means no batching (all hosts failing a policy are sent on one request). |
 | enable_vulnerabilities_webhook   | boolean | body | _webhook_settings.vulnerabilities_webhook settings_. Whether or not the vulnerabilities webhook is enabled. |
-| destination_url    | string | body | _webhook_settings.vulnerabilities_webhook settings_. The URL to deliver the webhook requests to.                                                     |
-| host_batch_size    | integer | body | _webhook_settings.vulnerabilities_webhook settings_. Maximum number of hosts to batch on vulnerabilities webhook requests. The default, 0, means no batching (all vulnerable hosts are sent on one request). |
+| destination_url       | string | body | _webhook_settings.vulnerabilities_webhook settings_. The URL to deliver the webhook requests to.                                                     |
+| host_batch_size       | integer | body | _webhook_settings.vulnerabilities_webhook settings_. Maximum number of hosts to batch on vulnerabilities webhook requests. The default, 0, means no batching (all vulnerable hosts are sent on one request). |
+| enable_software_vulnerabilities | boolean | body | _integrations.jira[] settings_. Whether or not that Jira integration is enabled. Only one vulnerabilities automation can be enabled at a given time (enable_vulnerabilities_webhook and enable_software_vulnerabilities). |
+| url                   | string | body | _integrations.jira[] settings_. The URL of the Jira server to integrate with. |
+| username              | string | body | _integrations.jira[] settings_. The Jira username to use for this Jira integration. |
+| password              | string | body | _integrations.jira[] settings_. The password of the Jira username to use for this Jira integration. |
+| project_key           | string | body | _integrations.jira[] settings_. The Jira project key to use for this integration. Jira tickets will be created in this project. |
 | additional_queries    | boolean | body | Whether or not additional queries are enabled on hosts.                                                                                                                                |
 
 #### Example
 
-`PATCH /api/v1/fleet/config`
+`PATCH /api/latest/fleet/config`
 
 ##### Request body
 
@@ -4876,7 +4922,7 @@ Modifies the Fleet's configuration with the supplied information.
           "logger_tls_period": 10,
           "distributed_plugin": "tls",
           "disable_distributed": false,
-          "logger_tls_endpoint": "/api/v1/osquery/log",
+          "logger_tls_endpoint": "/api/osquery/log",
           "distributed_interval": 10,
           "distributed_tls_max_attempts": 3
         },
@@ -4912,6 +4958,17 @@ Modifies the Fleet's configuration with the supplied information.
       "host_batch_size": 1000
     }
   },
+  "integrations": {
+    "jira": [
+      {
+        "url": "https://jiraserver.com",
+        "username": "some_user",
+        "api_token": "sec4et!",
+        "project_key": "jira_project",
+        "enable_software_vulnerabilities": false
+      }
+    ]
+  },
   "logging": {
       "debug": false,
       "json": false,
@@ -4940,7 +4997,7 @@ Modifies the Fleet's configuration with the supplied information.
 
 Returns the valid global enroll secrets.
 
-`GET /api/v1/fleet/spec/enroll_secret`
+`GET /api/latest/fleet/spec/enroll_secret`
 
 #### Parameters
 
@@ -4948,7 +5005,7 @@ None.
 
 #### Example
 
-`GET /api/v1/fleet/spec/enroll_secret`
+`GET /api/latest/fleet/spec/enroll_secret`
 
 ##### Default response
 
@@ -4975,7 +5032,7 @@ None.
 
 Replaces all existing global enroll secrets.
 
-`POST /api/v1/fleet/spec/enroll_secret`
+`POST /api/latest/fleet/spec/enroll_secret`
 
 #### Parameters
 
@@ -4986,7 +5043,7 @@ Replaces all existing global enroll secrets.
 
 Replace all global enroll secrets with a new enroll secret.
 
-`POST /api/v1/fleet/spec/enroll_secret`
+`POST /api/latest/fleet/spec/enroll_secret`
 
 ##### Request body
 
@@ -5014,7 +5071,7 @@ Replace all global enroll secrets with a new enroll secret.
 
 Delete all global enroll secrets.
 
-`POST /api/v1/fleet/spec/enroll_secret`
+`POST /api/latest/fleet/spec/enroll_secret`
 
 ##### Request body
 
@@ -5038,7 +5095,7 @@ Delete all global enroll secrets.
 
 Returns the valid team enroll secrets.
 
-`GET /api/v1/fleet/teams/{id}/secrets`
+`GET /api/latest/fleet/teams/{id}/secrets`
 
 #### Parameters
 
@@ -5046,7 +5103,7 @@ None.
 
 #### Example
 
-`GET /api/v1/fleet/teams/1/secrets`
+`GET /api/latest/fleet/teams/1/secrets`
 
 ##### Default response
 
@@ -5069,7 +5126,7 @@ None.
 
 Replaces all existing team enroll secrets.
 
-`PATCH /api/v1/fleet/teams/{id}/secrets`
+`PATCH /api/latest/fleet/teams/{id}/secrets`
 
 #### Parameters
 
@@ -5082,7 +5139,7 @@ Replaces all existing team enroll secrets.
 
 Replace all of a team's existing enroll secrets with a new enroll secret
 
-`PATCH /api/v1/fleet/teams/2/secrets`
+`PATCH /api/latest/fleet/teams/2/secrets`
 
 ##### Request body
 
@@ -5115,7 +5172,7 @@ Replace all of a team's existing enroll secrets with a new enroll secret
 
 Delete all of a team's existing enroll secrets
 
-`PATCH /api/v1/fleet/teams/2/secrets`
+`PATCH /api/latest/fleet/teams/2/secrets`
 
 ##### Request body
 
@@ -5137,7 +5194,7 @@ Delete all of a team's existing enroll secrets
 
 ### Create invite
 
-`POST /api/v1/fleet/invites`
+`POST /api/latest/fleet/invites`
 
 #### Parameters
 
@@ -5172,7 +5229,7 @@ Delete all of a team's existing enroll secrets
 }
 ```
 
-`POST /api/v1/fleet/invites`
+`POST /api/latest/fleet/invites`
 
 ##### Default response
 
@@ -5218,7 +5275,7 @@ Delete all of a team's existing enroll secrets
 
 Returns a list of the active invitations in Fleet.
 
-`GET /api/v1/fleet/invites`
+`GET /api/latest/fleet/invites`
 
 #### Parameters
 
@@ -5230,7 +5287,7 @@ Returns a list of the active invitations in Fleet.
 
 #### Example
 
-`GET /api/v1/fleet/invites`
+`GET /api/latest/fleet/invites`
 
 ##### Default response
 
@@ -5267,7 +5324,7 @@ Returns a list of the active invitations in Fleet.
 
 Delete the specified invite from Fleet.
 
-`DELETE /api/v1/fleet/invites/{id}`
+`DELETE /api/latest/fleet/invites/{id}`
 
 #### Parameters
 
@@ -5277,7 +5334,7 @@ Delete the specified invite from Fleet.
 
 #### Example
 
-`DELETE /api/v1/fleet/invites/{id}`
+`DELETE /api/latest/fleet/invites/{id}`
 
 ##### Default response
 
@@ -5288,7 +5345,7 @@ Delete the specified invite from Fleet.
 
 Verify the specified invite.
 
-`GET /api/v1/fleet/invites/{token}`
+`GET /api/latest/fleet/invites/{token}`
 
 #### Parameters
 
@@ -5298,7 +5355,7 @@ Verify the specified invite.
 
 #### Example
 
-`GET /api/v1/fleet/invites/{token}`
+`GET /api/latest/fleet/invites/{token}`
 
 ##### Default response
 
@@ -5337,7 +5394,7 @@ Verify the specified invite.
 
 ### Update invite
 
-`PATCH /api/v1/fleet/invites/{id}`
+`PATCH /api/latest/fleet/invites/{id}`
 
 #### Parameters
 
@@ -5351,7 +5408,7 @@ Verify the specified invite.
 
 #### Example
 
-`PATCH /api/v1/fleet/invites/123`
+`PATCH /api/latest/fleet/invites/123`
 
 ##### Request body
 
@@ -5418,7 +5475,7 @@ Verify the specified invite.
 
 Get version and build information from the Fleet server.
 
-`GET /api/v1/fleet/version`
+`GET /api/latest/fleet/version`
 
 #### Parameters
 
@@ -5426,7 +5483,7 @@ None.
 
 #### Example
 
-`GET /api/v1/fleet/version`
+`GET /api/latest/fleet/version`
 
 ##### Default response
 
@@ -5461,7 +5518,7 @@ For more information on executing a file carve in Fleet, go to the [File carving
 
 Retrieves a list of the non expired carves. Carve contents remain available for 24 hours after the first data is provided from the osquery client.
 
-`GET /api/v1/fleet/carves`
+`GET /api/latest/fleet/carves`
 
 #### Parameters
 
@@ -5469,7 +5526,7 @@ None.
 
 #### Example
 
-`GET /api/v1/fleet/carves`
+`GET /api/latest/fleet/carves`
 
 ##### Default response
 
@@ -5514,7 +5571,7 @@ None.
 
 Retrieves the specified carve.
 
-`GET /api/v1/fleet/carves/{id}`
+`GET /api/latest/fleet/carves/{id}`
 
 #### Parameters
 
@@ -5524,7 +5581,7 @@ Retrieves the specified carve.
 
 #### Example
 
-`GET /api/v1/fleet/carves/1`
+`GET /api/latest/fleet/carves/1`
 
 ##### Default response
 
@@ -5553,7 +5610,7 @@ Retrieves the specified carve.
 
 Retrieves the specified carve block. This endpoint retrieves the data that was carved.
 
-`GET /api/v1/fleet/carves/{id}/block/{block_id}`
+`GET /api/latest/fleet/carves/{id}/block/{block_id}`
 
 #### Parameters
 
@@ -5564,7 +5621,7 @@ Retrieves the specified carve block. This endpoint retrieves the data that was c
 
 #### Example
 
-`GET /api/v1/fleet/carves/1/block/0`
+`GET /api/latest/fleet/carves/1/block/0`
 
 ##### Default response
 
@@ -5584,7 +5641,7 @@ Retrieves the specified carve block. This endpoint retrieves the data that was c
 
 _Available in Fleet Premium_
 
-`GET /api/v1/fleet/teams`
+`GET /api/latest/fleet/teams`
 
 #### Parameters
 
@@ -5598,7 +5655,7 @@ _Available in Fleet Premium_
 
 #### Example
 
-`GET /api/v1/fleet/teams`
+`GET /api/latest/fleet/teams`
 
 ##### Default response
 
@@ -5620,7 +5677,7 @@ _Available in Fleet Premium_
             "logger_tls_period": 10,
             "distributed_plugin": "tls",
             "disable_distributed": false,
-            "logger_tls_endpoint": "/api/v1/osquery/log",
+            "logger_tls_endpoint": "/api/osquery/log",
             "distributed_interval": 10,
             "distributed_tls_max_attempts": 3
           },
@@ -5657,7 +5714,7 @@ _Available in Fleet Premium_
               "logger_tls_period": 10,
               "distributed_plugin": "tls",
               "disable_distributed": false,
-              "logger_tls_endpoint": "/api/v1/osquery/log",
+              "logger_tls_endpoint": "/api/osquery/log",
               "distributed_interval": 10,
               "distributed_tls_max_attempts": 3
             },
@@ -5689,7 +5746,7 @@ _Available in Fleet Premium_
 
 _Available in Fleet Premium_
 
-`GET /api/v1/fleet/teams/{id}`
+`GET /api/latest/fleet/teams/{id}`
 
 #### Parameters
 
@@ -5699,7 +5756,7 @@ _Available in Fleet Premium_
 
 #### Example
 
-`GET /api/v1/fleet/teams/1`
+`GET /api/latest/fleet/teams/1`
 
 ##### Default response
 
@@ -5723,7 +5780,7 @@ _Available in Fleet Premium_
             "logger_tls_period": 10,
             "distributed_plugin": "tls",
             "disable_distributed": false,
-            "logger_tls_endpoint": "/api/v1/osquery/log",
+            "logger_tls_endpoint": "/api/osquery/log",
             "distributed_interval": 10,
             "distributed_tls_max_attempts": 3
           },
@@ -5753,7 +5810,7 @@ _Available in Fleet Premium_
 
 _Available in Fleet Premium_
 
-`POST /api/v1/fleet/teams`
+`POST /api/latest/fleet/teams`
 
 #### Parameters
 
@@ -5763,7 +5820,7 @@ _Available in Fleet Premium_
 
 #### Example
 
-`POST /api/v1/fleet/teams`
+`POST /api/latest/fleet/teams`
 
 ##### Request body
 
@@ -5796,7 +5853,7 @@ _Available in Fleet Premium_
               "logger_tls_period": 10,
               "distributed_plugin": "tls",
               "disable_distributed": false,
-              "logger_tls_endpoint": "/api/v1/osquery/log",
+              "logger_tls_endpoint": "/api/osquery/log",
               "distributed_interval": 10,
               "distributed_tls_max_attempts": 3
             },
@@ -5827,7 +5884,7 @@ _Available in Fleet Premium_
 
 _Available in Fleet Premium_
 
-`PATCH /api/v1/fleet/teams/{id}`
+`PATCH /api/latest/fleet/teams/{id}`
 
 #### Parameters
 
@@ -5846,7 +5903,7 @@ _Available in Fleet Premium_
 
 #### Example (add users to a team)
 
-`PATCH /api/v1/fleet/teams/1`
+`PATCH /api/latest/fleet/teams/1`
 
 ##### Request body
 
@@ -5878,7 +5935,7 @@ _Available in Fleet Premium_
             "logger_tls_period": 10,
             "distributed_plugin": "tls",
             "disable_distributed": false,
-            "logger_tls_endpoint": "/api/v1/osquery/log",
+            "logger_tls_endpoint": "/api/osquery/log",
             "distributed_interval": 10,
             "distributed_tls_max_attempts": 3
           },
@@ -5906,7 +5963,7 @@ _Available in Fleet Premium_
 
 #### Example (transfer hosts to a team)
 
-`PATCH /api/v1/fleet/teams/1`
+`PATCH /api/latest/fleet/teams/1`
 
 ##### Request body
 
@@ -5938,7 +5995,7 @@ _Available in Fleet Premium_
             "logger_tls_period": 10,
             "distributed_plugin": "tls",
             "disable_distributed": false,
-            "logger_tls_endpoint": "/api/v1/osquery/log",
+            "logger_tls_endpoint": "/api/osquery/log",
             "distributed_interval": 10,
             "distributed_tls_max_attempts": 3
           },
@@ -5966,7 +6023,7 @@ _Available in Fleet Premium_
 
 #### Example (edit agent options for a team)
 
-`PATCH /api/v1/fleet/teams/1`
+`PATCH /api/latest/fleet/teams/1`
 
 ##### Request body
 
@@ -5981,7 +6038,7 @@ _Available in Fleet Premium_
           "logger_tls_period": 20,
           "distributed_plugin": "tls",
           "disable_distributed": false,
-          "logger_tls_endpoint": "/api/v1/osquery/log",
+          "logger_tls_endpoint": "/api/osquery/log",
           "distributed_interval": 60,
           "distributed_tls_max_attempts": 3
         },
@@ -6020,7 +6077,7 @@ _Available in Fleet Premium_
             "logger_tls_period": 20,
             "distributed_plugin": "tls",
             "disable_distributed": false,
-            "logger_tls_endpoint": "/api/v1/osquery/log",
+            "logger_tls_endpoint": "/api/osquery/log",
             "distributed_interval": 60,
             "distributed_tls_max_attempts": 3
           },
@@ -6050,7 +6107,7 @@ _Available in Fleet Premium_
 
 _Available in Fleet Premium_
 
-`DELETE /api/v1/fleet/teams/{id}`
+`DELETE /api/latest/fleet/teams/{id}`
 
 #### Parameters
 
@@ -6060,7 +6117,7 @@ _Available in Fleet Premium_
 
 #### Example
 
-`DELETE /api/v1/fleet/teams/1`
+`DELETE /api/latest/fleet/teams/1`
 
 #### Default response
 
@@ -6074,7 +6131,7 @@ _Available in Fleet Premium_
 
 Transforms a host name into a host id. For example, the Fleet UI use this endpoint when sending live queries to a set of hosts.
 
-`POST /api/v1/fleet/translate`
+`POST /api/latest/fleet/translate`
 
 #### Parameters
 
@@ -6084,7 +6141,7 @@ Transforms a host name into a host id. For example, the Fleet UI use this endpoi
 
 #### Example
 
-`POST /api/v1/fleet/translate`
+`POST /api/latest/fleet/translate`
 
 ##### Request body
 
@@ -6162,7 +6219,7 @@ Transforms a host name into a host id. For example, the Fleet UI use this endpoi
 
 ### List all software
 
-`GET /api/v1/fleet/software`
+`GET /api/latest/fleet/software`
 
 #### Parameters
 
@@ -6178,7 +6235,7 @@ Transforms a host name into a host id. For example, the Fleet UI use this endpoi
 
 #### Example
 
-`GET /api/v1/fleet/software`
+`GET /api/latest/fleet/software`
 
 ##### Default response
 
@@ -6231,23 +6288,23 @@ Transforms a host name into a host id. For example, the Fleet UI use this endpoi
 
 ### Count software
 
-`GET /api/v1/fleet/software/count`
+`GET /api/latest/fleet/software/count`
 
 #### Parameters
 
 | Name                    | Type    | In    | Description                                                                                                                                                                                                                                                                                                                                 |
 | ----------------------- | ------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| page                    | integer | query | Allowed for compatibility with GET /api/v1/fleet/software but ignored                                                                                                                                                                                                                                                                       |
-| per_page                | integer | query | Allowed for compatibility with GET /api/v1/fleet/software but ignored                                                                                                                                                                                                                                                                       |
-| order_key               | string  | query | Allowed for compatibility with GET /api/v1/fleet/software but ignored                                                                                                                                                                                                                                                                       |
-| order_direction         | string  | query | Allowed for compatibility with GET /api/v1/fleet/software but ignored                                                                                                                                                                                                                                                                       |
+| page                    | integer | query | Allowed for compatibility with GET /api/latest/fleet/software but ignored                                                                                                                                                                                                                                                                       |
+| per_page                | integer | query | Allowed for compatibility with GET /api/latest/fleet/software but ignored                                                                                                                                                                                                                                                                       |
+| order_key               | string  | query | Allowed for compatibility with GET /api/latest/fleet/software but ignored                                                                                                                                                                                                                                                                       |
+| order_direction         | string  | query | Allowed for compatibility with GET /api/latest/fleet/software but ignored                                                                                                                                                                                                                                                                       |
 | query                   | string  | query | Search query keywords. Searchable fields include `name`.                                                                                                                                                                                                                                                                                    |
 | team_id                 | integer | query | _Available in Fleet Premium_ Filters the software to only include the software installed on the hosts that are assigned to the specified team.                                                                                                                                                                                                   |
 | vulnerable              | bool    | query | If true or 1, only list software that has detected vulnerabilities                                                                                                                                                                                                                                                                          |
 
 #### Example
 
-`GET /api/v1/fleet/software/count`
+`GET /api/latest/fleet/software/count`
 
 ##### Default response
 

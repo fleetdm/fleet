@@ -1,12 +1,11 @@
-import React, { FormEvent, useState, useEffect } from "react";
+import React, { FormEvent, useState, useEffect, useContext } from "react";
 import { Link } from "react-router";
 import PATHS from "router/paths";
-import { useDispatch } from "react-redux";
 
+import { NotificationContext } from "context/notification";
 import { ITeam } from "interfaces/team";
-import { IUserFormErrors } from "interfaces/user"; // @ts-ignore
-import { renderFlash } from "redux/nodes/notifications/actions";
-// ignore TS error for now until these are rewritten in ts.
+import { IUserFormErrors } from "interfaces/user";
+
 import Button from "components/buttons/Button";
 import validatePresence from "components/forms/validators/validate_presence";
 import validEmail from "components/forms/validators/valid_email"; // @ts-ignore
@@ -107,7 +106,7 @@ const UserForm = ({
   serverErrors,
   createOrEditUserErrors,
 }: ICreateUserFormProps): JSX.Element => {
-  const dispatch = useDispatch();
+  const { renderFlash } = useContext(NotificationContext);
 
   const [errors, setErrors] = useState<any>(createOrEditUserErrors);
   const [formData, setFormData] = useState<any>({
@@ -264,9 +263,7 @@ const UserForm = ({
     }
 
     if (!formData.global_role && !formData.teams.length) {
-      dispatch(
-        renderFlash("error", `Please select at least one team for this user.`)
-      );
+      renderFlash("error", `Please select at least one team for this user.`);
       return false;
     }
 

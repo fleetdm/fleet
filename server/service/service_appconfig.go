@@ -11,6 +11,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mail"
+	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
 )
 
 // mailError is set when an error performing mail operations
@@ -80,6 +81,22 @@ func (svc *Service) sendTestEmail(ctx context.Context, config *fleet.AppConfig) 
 	return nil
 }
 
+func (svc *Service) makeTestJiraRequest(ctx context.Context, jiraSettings *fleet.JiraIntegration) error {
+	client, err := externalsvc.NewJiraClient(&externalsvc.JiraOptions{
+		BaseURL:           jiraSettings.URL,
+		BasicAuthUsername: jiraSettings.Username,
+		BasicAuthPassword: jiraSettings.APIToken,
+		ProjectKey:        jiraSettings.ProjectKey,
+	})
+	if err != nil {
+		return &badRequestError{message: fmt.Sprintf("jira integration request failed: %s", err.Error())}
+	}
+	if _, err := client.GetProject(ctx); err != nil {
+		return &badRequestError{message: fmt.Sprintf("jira integration request failed: %s", err.Error())}
+	}
+	return nil
+}
+
 func cleanupURL(url string) string {
 	return strings.TrimRight(strings.Trim(url, " \t\n"), "/")
 }
@@ -112,12 +129,13 @@ func (svc *Service) UpdateIntervalConfig(ctx context.Context) (*fleet.UpdateInte
 
 func (svc *Service) VulnerabilitiesConfig(ctx context.Context) (*fleet.VulnerabilitiesConfig, error) {
 	return &fleet.VulnerabilitiesConfig{
-		DatabasesPath:         svc.config.Vulnerabilities.DatabasesPath,
-		Periodicity:           svc.config.Vulnerabilities.Periodicity,
-		CPEDatabaseURL:        svc.config.Vulnerabilities.CPEDatabaseURL,
-		CVEFeedPrefixURL:      svc.config.Vulnerabilities.CVEFeedPrefixURL,
-		CurrentInstanceChecks: svc.config.Vulnerabilities.CurrentInstanceChecks,
-		DisableDataSync:       svc.config.Vulnerabilities.DisableDataSync,
+		DatabasesPath:             svc.config.Vulnerabilities.DatabasesPath,
+		Periodicity:               svc.config.Vulnerabilities.Periodicity,
+		CPEDatabaseURL:            svc.config.Vulnerabilities.CPEDatabaseURL,
+		CVEFeedPrefixURL:          svc.config.Vulnerabilities.CVEFeedPrefixURL,
+		CurrentInstanceChecks:     svc.config.Vulnerabilities.CurrentInstanceChecks,
+		DisableDataSync:           svc.config.Vulnerabilities.DisableDataSync,
+		RecentVulnerabilityMaxAge: svc.config.Vulnerabilities.RecentVulnerabilityMaxAge,
 	}, nil
 }
 

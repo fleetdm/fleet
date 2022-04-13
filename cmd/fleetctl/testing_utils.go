@@ -15,6 +15,9 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
+// runServerWithMockedDS runs the fleet server with several mocked DS methods.
+//
+// NOTE: Assumes the current session is always from the admin user (see ds.SessionByKeyFunc below).
 func runServerWithMockedDS(t *testing.T, opts ...service.TestServerOpts) (*httptest.Server, *mock.Store) {
 	ds := new(mock.Store)
 	var users []*fleet.User
@@ -31,7 +34,7 @@ func runServerWithMockedDS(t *testing.T, opts ...service.TestServerOpts) (*httpt
 			CreateTimestamp: fleet.CreateTimestamp{CreatedAt: time.Now()},
 			ID:              1,
 			AccessedAt:      time.Now(),
-			UserID:          1,
+			UserID:          admin.ID,
 			Key:             key,
 		}, nil
 	}

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useDebouncedCallback } from "use-debounce/lib";
+import { useDebouncedCallback } from "use-debounce";
 
 import { ISoftware } from "interfaces/software";
 import { VULNERABLE_DROPDOWN_OPTIONS } from "utilities/constants";
@@ -15,6 +15,10 @@ import generateSoftwareTableHeaders from "./SoftwareTableConfig";
 
 const baseClass = "host-details";
 
+export interface ITableSoftware extends Omit<ISoftware, "vulnerabilities"> {
+  vulnerabilities: string[]; // for client-side search purposes, we only want an array of cve strings
+}
+
 interface ISoftwareTableProps {
   isLoading: boolean;
   software: ISoftware[];
@@ -26,20 +30,30 @@ const SoftwareTable = ({
   software,
   deviceUser,
 }: ISoftwareTableProps): JSX.Element => {
-  const [filterName, setFilterName] = useState("");
+  const tableSoftware: ITableSoftware[] = software.map((s) => {
+    return {
+      ...s,
+      vulnerabilities:
+        s.vulnerabilities?.map((v) => {
+          return v.cve;
+        }) || [],
+    };
+  });
+
+  const [searchString, setSearchString] = useState("");
   const [filterVuln, setFilterVuln] = useState(false);
   const [filters, setFilters] = useState({
-    name: filterName,
+    global: searchString,
     vulnerabilities: filterVuln,
   });
 
   useEffect(() => {
-    setFilters({ name: filterName, vulnerabilities: filterVuln });
-  }, [filterName, filterVuln]);
+    setFilters({ global: searchString, vulnerabilities: filterVuln });
+  }, [searchString, filterVuln]);
 
   const onQueryChange = useDebouncedCallback(
     ({ searchQuery }: { searchQuery: string }) => {
-      setFilterName(searchQuery);
+      setSearchString(searchQuery);
     },
     300
   );
@@ -77,12 +91,14 @@ const SoftwareTable = ({
           {software && (
             <TableContainer
               columns={tableHeaders}
-              data={software}
+              data={tableSoftware}
               filters={filters}
               isLoading={isLoading}
               defaultSortHeader={"name"}
               defaultSortDirection={"asc"}
-              inputPlaceHolder={"Filter software"}
+              inputPlaceHolder={
+                "Search software by name or vulnerabilities (CVEs)"
+              }
               onQueryChange={onQueryChange}
               resultsTitle={"software items"}
               emptyComponent={EmptySoftware}

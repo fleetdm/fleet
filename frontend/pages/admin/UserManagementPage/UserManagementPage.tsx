@@ -1,22 +1,21 @@
 import React, { useState, useCallback, useContext } from "react";
-import { useDispatch } from "react-redux";
 import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
 import memoize from "memoize-one";
 
+import paths from "router/paths";
 import { IApiError } from "interfaces/errors";
 import { IInvite } from "interfaces/invite";
 import { IUser, IUserFormErrors } from "interfaces/user";
 import { ITeam } from "interfaces/team";
+import { clearToken } from "utilities/local";
 
 import { AppContext } from "context/app";
+import { NotificationContext } from "context/notification";
 import teamsAPI from "services/entities/teams";
 import usersAPI from "services/entities/users";
 import invitesAPI from "services/entities/invites";
 
-import paths from "router/paths";
-// @ts-ignore
-import { renderFlash } from "redux/nodes/notifications/actions";
 import TableContainer, { ITableQueryData } from "components/TableContainer";
 import TableDataError from "components/TableDataError";
 import Modal from "components/Modal";
@@ -41,9 +40,8 @@ interface ITeamsResponse {
 }
 
 const UserManagementPage = ({ router }: IUserManagementProps): JSX.Element => {
-  const dispatch = useDispatch();
-
   const { config, currentUser, isPremiumTier } = useContext(AppContext);
+  const { renderFlash } = useContext(NotificationContext);
 
   // STATES
 
@@ -232,11 +230,9 @@ const UserManagementPage = ({ router }: IUserManagementProps): JSX.Element => {
       invitesAPI
         .create(requestData)
         .then(() => {
-          dispatch(
-            renderFlash(
-              "success",
-              `An invitation email was sent from ${config?.sender_address} to ${formData.email}.`
-            )
+          renderFlash(
+            "success",
+            `An invitation email was sent from ${config?.smtp_settings.sender_address} to ${formData.email}.`
           );
           toggleCreateUserModal();
           refetchInvites();
@@ -247,9 +243,7 @@ const UserManagementPage = ({ router }: IUserManagementProps): JSX.Element => {
               email: "A user with this email address already exists",
             });
           } else {
-            dispatch(
-              renderFlash("error", "Could not create user. Please try again.")
-            );
+            renderFlash("error", "Could not create user. Please try again.");
           }
         })
         .finally(() => {
@@ -265,9 +259,7 @@ const UserManagementPage = ({ router }: IUserManagementProps): JSX.Element => {
       usersAPI
         .createUserWithoutInvitation(requestData)
         .then(() => {
-          dispatch(
-            renderFlash("success", `Successfully created ${requestData.name}.`)
-          );
+          renderFlash("success", `Successfully created ${requestData.name}.`);
           toggleCreateUserModal();
           refetchUsers();
         })
@@ -277,9 +269,7 @@ const UserManagementPage = ({ router }: IUserManagementProps): JSX.Element => {
               email: "A user with this email address already exists",
             });
           } else {
-            dispatch(
-              renderFlash("error", "Could not create user. Please try again.")
-            );
+            renderFlash("error", "Could not create user. Please try again.");
           }
         })
         .finally(() => {
@@ -297,9 +287,7 @@ const UserManagementPage = ({ router }: IUserManagementProps): JSX.Element => {
         invitesAPI
           .update(userData.id, formData)
           .then(() => {
-            dispatch(
-              renderFlash("success", `Successfully edited ${userEditing?.name}`)
-            );
+            renderFlash("success", `Successfully edited ${userEditing?.name}`);
             toggleEditUserModal();
             refetchInvites();
           })
@@ -309,11 +297,9 @@ const UserManagementPage = ({ router }: IUserManagementProps): JSX.Element => {
                 email: "A user with this email address already exists",
               });
             } else {
-              dispatch(
-                renderFlash(
-                  "error",
-                  `Could not edit ${userEditing?.name}. Please try again.`
-                )
+              renderFlash(
+                "error",
+                `Could not edit ${userEditing?.name}. Please try again.`
               );
             }
           })
@@ -326,9 +312,7 @@ const UserManagementPage = ({ router }: IUserManagementProps): JSX.Element => {
         usersAPI
           .update(userData.id, formData)
           .then(() => {
-            dispatch(
-              renderFlash("success", `Successfully edited ${userEditing?.name}`)
-            );
+            renderFlash("success", `Successfully edited ${userEditing?.name}`);
             toggleEditUserModal();
             refetchUsers();
           })
@@ -338,11 +322,9 @@ const UserManagementPage = ({ router }: IUserManagementProps): JSX.Element => {
                 email: "A user with this email address already exists",
               });
             }
-            dispatch(
-              renderFlash(
-                "error",
-                `Could not edit ${userEditing?.name}. Please try again.`
-              )
+            renderFlash(
+              "error",
+              `Could not edit ${userEditing?.name}. Please try again.`
             );
           })
       );
@@ -351,7 +333,7 @@ const UserManagementPage = ({ router }: IUserManagementProps): JSX.Element => {
     let userUpdatedFlashMessage = `Successfully edited ${formData.name}`;
 
     if (userData?.email !== formData.email) {
-      userUpdatedFlashMessage += `: A confirmation email was sent from ${config?.sender_address} to ${formData.email}`;
+      userUpdatedFlashMessage += `: A confirmation email was sent from ${config?.smtp_settings.sender_address} to ${formData.email}`;
     }
 
     return (
@@ -359,7 +341,7 @@ const UserManagementPage = ({ router }: IUserManagementProps): JSX.Element => {
       usersAPI
         .update(userData.id, formData)
         .then(() => {
-          dispatch(renderFlash("success", userUpdatedFlashMessage));
+          renderFlash("success", userUpdatedFlashMessage);
           toggleEditUserModal();
           refetchUsers();
         })
@@ -369,11 +351,9 @@ const UserManagementPage = ({ router }: IUserManagementProps): JSX.Element => {
               email: "A user with this email address already exists",
             });
           } else {
-            dispatch(
-              renderFlash(
-                "error",
-                `Could not edit ${userEditing?.name}. Please try again.`
-              )
+            renderFlash(
+              "error",
+              `Could not edit ${userEditing?.name}. Please try again.`
             );
           }
         })
@@ -385,16 +365,12 @@ const UserManagementPage = ({ router }: IUserManagementProps): JSX.Element => {
       invitesAPI
         .destroy(userEditing.id)
         .then(() => {
-          dispatch(
-            renderFlash("success", `Successfully deleted ${userEditing?.name}.`)
-          );
+          renderFlash("success", `Successfully deleted ${userEditing?.name}.`);
         })
         .catch(() => {
-          dispatch(
-            renderFlash(
-              "error",
-              `Could not delete ${userEditing?.name}. Please try again.`
-            )
+          renderFlash(
+            "error",
+            `Could not delete ${userEditing?.name}. Please try again.`
           );
         })
         .finally(() => {
@@ -405,16 +381,12 @@ const UserManagementPage = ({ router }: IUserManagementProps): JSX.Element => {
       usersAPI
         .destroy(userEditing.id)
         .then(() => {
-          dispatch(
-            renderFlash("success", `Successfully deleted ${userEditing?.name}.`)
-          );
+          renderFlash("success", `Successfully deleted ${userEditing?.name}.`);
         })
         .catch(() => {
-          dispatch(
-            renderFlash(
-              "error",
-              `Could not delete ${userEditing?.name}. Please try again.`
-            )
+          renderFlash(
+            "error",
+            `Could not delete ${userEditing?.name}. Please try again.`
           );
         })
         .finally(() => {
@@ -431,15 +403,16 @@ const UserManagementPage = ({ router }: IUserManagementProps): JSX.Element => {
       .deleteSessions(userEditing.id)
       .then(() => {
         if (isResettingCurrentUser) {
-          dispatch({ type: "LOGOUT_SUCCESS" });
+          clearToken();
+          setTimeout(() => {
+            window.location.href = "/";
+          }, 500);
           return;
         }
-        dispatch(renderFlash("success", "Successfully reset sessions."));
+        renderFlash("success", "Successfully reset sessions.");
       })
       .catch(() => {
-        dispatch(
-          renderFlash("error", "Could not reset sessions. Please try again.")
-        );
+        renderFlash("error", "Could not reset sessions. Please try again.");
       })
       .finally(() => {
         toggleResetSessionsUserModal();
@@ -450,16 +423,12 @@ const UserManagementPage = ({ router }: IUserManagementProps): JSX.Element => {
     return usersAPI
       .requirePasswordReset(user.id, { require: true })
       .then(() => {
-        dispatch(
-          renderFlash("success", "Successfully required a password reset.")
-        );
+        renderFlash("success", "Successfully required a password reset.");
       })
       .catch(() => {
-        dispatch(
-          renderFlash(
-            "error",
-            "Could not require a password reset. Please try again."
-          )
+        renderFlash(
+          "error",
+          "Could not require a password reset. Please try again."
         );
       })
       .finally(() => {
@@ -486,8 +455,8 @@ const UserManagementPage = ({ router }: IUserManagementProps): JSX.Element => {
             onSubmit={onEditUser}
             availableTeams={teams || []}
             isPremiumTier={isPremiumTier || false}
-            smtpConfigured={config?.configured || false}
-            canUseSso={config?.enable_sso || false}
+            smtpConfigured={config?.smtp_settings.configured || false}
+            canUseSso={config?.sso_settings.enable_sso || false}
             isSsoEnabled={userData?.sso_enabled}
             isModifiedByGlobalAdmin
             isInvitePending={userEditing.type === "invite"}
@@ -508,8 +477,8 @@ const UserManagementPage = ({ router }: IUserManagementProps): JSX.Element => {
         defaultGlobalRole={"observer"}
         defaultTeams={[]}
         isPremiumTier={isPremiumTier || false}
-        smtpConfigured={config?.configured || false}
-        canUseSso={config?.enable_sso || false}
+        smtpConfigured={config?.smtp_settings.configured || false}
+        canUseSso={config?.sso_settings.enable_sso || false}
         isFormSubmitting={isFormSubmitting}
         isModifiedByGlobalAdmin
       />

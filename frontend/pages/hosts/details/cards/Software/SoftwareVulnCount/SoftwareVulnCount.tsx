@@ -15,25 +15,16 @@ const SoftwareVulnCount = ({
   deviceUser,
 }: ISoftwareVulnCountProps): JSX.Element => {
   const vulnCount = softwareList.reduce((sum, software) => {
-    return software.vulnerabilities
-      ? sum + software.vulnerabilities.length
-      : sum;
+    return software.vulnerabilities?.length ? sum + 1 : sum;
   }, 0);
-
   return vulnCount ? (
     <div className={`${baseClass}`}>
       <div className={`${baseClass}__count`}>
         <img alt="Issue icon" src={IssueIcon} />
         {vulnCount === 1
-          ? "1 vulnerability detected"
-          : `${vulnCount} vulnerabilities detected`}
+          ? "1 software item with vulnerabilities detected"
+          : `${vulnCount} software items with vulnerabilities detected`}
       </div>
-      {!deviceUser && (
-        <p>
-          Click a vulnerable item below to see the associated Common
-          Vulnerabilites and Exposures (CVEs).
-        </p>
-      )}
     </div>
   ) : (
     <></>

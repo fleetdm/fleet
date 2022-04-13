@@ -16,6 +16,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -247,6 +248,9 @@ func updatesAddFunc(c *cli.Context) error {
 		// 	- an ".exe" file for target=osqueryd is expected to be called "osqueryd.exe".
 		dstPath := filepath.Join(name, platform, tag, name)
 		switch {
+		case name == "desktop" && platform == "windows":
+			// This is a special case for the desktop target on Windows.
+			dstPath = filepath.Join(filepath.Dir(dstPath), constant.DesktopAppExecName+".exe")
 		case strings.HasSuffix(target, ".exe"):
 			dstPath += ".exe"
 		case strings.HasSuffix(target, ".app.tar.gz"):
@@ -480,7 +484,7 @@ func startRotatePseudoTx(repoPath string) (commit, rollback func() error, err er
 func createBackups(dirPath string) error {
 	// Only *.json files need to be backed up (other files are not modified)
 	backupPath := filepath.Join(dirPath, backupDirectory)
-	if err := os.Mkdir(backupPath, os.ModeDir|0744); err != nil {
+	if err := os.Mkdir(backupPath, os.ModeDir|0o744); err != nil {
 		if errors.Is(err, fs.ErrExist) {
 			return fmt.Errorf("backup directory already exists: %w", err)
 		}
@@ -577,11 +581,11 @@ func copyTarget(srcPath, dstPath string) error {
 	}
 	defer src.Close()
 
-	if err := secure.MkdirAll(filepath.Dir(dstPath), 0755); err != nil {
+	if err := secure.MkdirAll(filepath.Dir(dstPath), 0o755); err != nil {
 		return fmt.Errorf("create dst dir for copy: %w", err)
 	}
 
-	dst, err := secure.OpenFile(dstPath, os.O_RDWR|os.O_CREATE, 0644)
+	dst, err := secure.OpenFile(dstPath, os.O_RDWR|os.O_CREATE, 0o644)
 	if err != nil {
 		return fmt.Errorf("open dst for copy: %w", err)
 	}

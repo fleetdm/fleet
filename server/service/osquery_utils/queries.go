@@ -490,7 +490,7 @@ FROM python_packages;
 
 var softwareWindows = DetailQuery{
 	Query: `
-WITH cached_users AS (SELECT * FROM users)
+WITH cached_users AS (SELECT * FROM users WHERE directory <> '')
 SELECT
   name AS name,
   version AS version,

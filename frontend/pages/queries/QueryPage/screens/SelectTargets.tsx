@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { Row } from "react-table";
 import { forEach, isEmpty, remove, unionWith } from "lodash";
-import { useDebouncedCallback } from "use-debounce/lib";
+import { useDebouncedCallback } from "use-debounce";
 
 import { formatSelectedTargetsForApi } from "fleet/helpers";
 import useQueryTargets, { ITargetsQueryResponse } from "hooks/useQueryTargets";

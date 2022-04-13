@@ -47,12 +47,32 @@
     }
   }
 
-  // so tooltips won't be triggered with whitespace
-  .form-field__label {
-    display: inline-block;
-  }
-
   .form-field__label--error {
     color: $ui-error;
+  }
+
+  &__workflow {
+    margin-top: $medium;
+  }
+
+  &__radio-input {
+    margin: $small 0;
+  }
+
+  &__no-integration--cta {
+    margin-top: $pad-medium;
+  }
+
+  &__add-integration-link {
+    font-size: $x-small;
+    color: $core-vibrant-blue;
+    font-weight: $bold;
+    text-decoration: none;
+    margin-top: $pad-large;
+
+    &:hover,
+    &:focus-visible {
+      text-decoration: underline;
+    }
   }
 }

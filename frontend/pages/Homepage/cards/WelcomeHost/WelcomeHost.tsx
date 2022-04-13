@@ -1,14 +1,13 @@
-import React, { useState } from "react";
+import React, { useContext, useState } from "react";
 import PATHS from "router/paths";
 import { Link } from "react-router";
 import { useQuery } from "react-query";
-import { useDispatch } from "react-redux";
 import { formatDistanceToNow } from "date-fns";
 
+import { NotificationContext } from "context/notification";
 import { IHost } from "interfaces/host";
 import { IHostPolicy } from "interfaces/policy";
-import hostAPI from "services/entities/hosts"; // @ts-ignore
-import { renderFlash } from "redux/nodes/notifications/actions";
+import hostAPI from "services/entities/hosts";
 
 import Spinner from "components/Spinner";
 import Button from "components/buttons/Button";
@@ -31,7 +30,7 @@ const policyPass = "pass";
 const policyFail = "fail";
 
 const WelcomeHost = (): JSX.Element => {
-  const dispatch = useDispatch();
+  const { renderFlash } = useContext(NotificationContext);
   const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
   const [currentPolicyShown, setCurrentPolicyShown] = useState<IHostPolicy>();
   const [showPolicyModal, setShowPolicyModal] = useState<boolean>(false);
@@ -78,20 +77,16 @@ const WelcomeHost = (): JSX.Element => {
                   fullyReloadHost();
                 }, 1000);
               } else {
-                dispatch(
-                  renderFlash(
-                    "error",
-                    `This host is offline. Please try refetching host vitals later.`
-                  )
+                renderFlash(
+                  "error",
+                  `This host is offline. Please try refetching host vitals later.`
                 );
                 setShowRefetchLoadingSpinner(false);
               }
             } else {
-              dispatch(
-                renderFlash(
-                  "error",
-                  `We're having trouble fetching fresh vitals for this host. Please try again later.`
-                )
+              renderFlash(
+                "error",
+                `We're having trouble fetching fresh vitals for this host. Please try again later.`
               );
               setShowRefetchLoadingSpinner(false);
             }
@@ -100,9 +95,7 @@ const WelcomeHost = (): JSX.Element => {
       },
       onError: (error) => {
         console.error(error);
-        dispatch(
-          renderFlash("error", `Unable to load host. Please try again.`)
-        );
+        renderFlash("error", `Unable to load host. Please try again.`);
       },
     }
   );
@@ -118,7 +111,7 @@ const WelcomeHost = (): JSX.Element => {
         });
       } catch (error) {
         console.error(error);
-        dispatch(renderFlash("error", `Host "${host.hostname}" refetch error`));
+        renderFlash("error", `Host "${host.hostname}" refetch error`);
         setShowRefetchLoadingSpinner(false);
       }
     }

@@ -15,7 +15,7 @@ export default {
 
       return createRequestMock({
         bearerToken,
-        endpoint: "/api/v1/fleet/global/schedule",
+        endpoint: "/api/latest/fleet/schedule",
         method: "post",
         params,
         response: { scheduled: globalScheduledQueryStub },
@@ -27,7 +27,7 @@ export default {
     valid: (bearerToken, globalScheduledQuery) => {
       return createRequestMock({
         bearerToken,
-        endpoint: `/api/v1/fleet/global/schedule/${globalScheduledQuery.id}`,
+        endpoint: `/api/latest/fleet/schedule/${globalScheduledQuery.id}`,
         method: "delete",
         response: {},
       });
@@ -37,7 +37,7 @@ export default {
     valid: (bearerToken) => {
       return createRequestMock({
         bearerToken,
-        endpoint: "/api/v1/fleet/global/schedule",
+        endpoint: "/api/latest/fleet/schedule",
         method: "get",
         response: { scheduled: [globalScheduledQueryStub] },
       });
@@ -47,7 +47,7 @@ export default {
     valid: (bearerToken, globalScheduledQuery, params) => {
       return createRequestMock({
         bearerToken,
-        endpoint: `/api/v1/fleet/global/schedule/${globalScheduledQuery.id}`,
+        endpoint: `/api/latest/fleet/schedule/${globalScheduledQuery.id}`,
         method: "patch",
         params,
         response: { scheduled: { ...globalScheduledQuery, ...params } },

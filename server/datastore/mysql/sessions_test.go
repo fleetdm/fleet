@@ -3,7 +3,9 @@ package mysql
 import (
 	"context"
 	"testing"
+	"time"
 
+	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/assert"
@@ -35,7 +37,7 @@ func testSessionsGetters(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	session, err := ds.NewSession(context.Background(), &fleet.Session{UserID: user.ID, Key: "somekey"})
+	session, err := ds.NewSession(context.Background(), user.ID, "somekey")
 	require.NoError(t, err)
 	require.NotZero(t, session.ID)
 
@@ -51,7 +53,7 @@ func testSessionsGetters(t *testing.T, ds *Datastore) {
 	require.NotNil(t, gotByKey.APIOnly)
 	assert.False(t, *gotByKey.APIOnly)
 
-	newSession, err := ds.NewSession(context.Background(), &fleet.Session{UserID: user.ID, Key: "somekey2"})
+	newSession, err := ds.NewSession(context.Background(), user.ID, "somekey2")
 	require.NoError(t, err)
 
 	sessions, err := ds.ListSessionsForUser(context.Background(), user.ID)
@@ -61,6 +63,10 @@ func testSessionsGetters(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.DestroySession(context.Background(), session))
 
 	prevAccessedAt := newSession.AccessedAt
+
+	// Advance ds's mock clock time (used by MarkSessionAccessed).
+	mc := ds.clock.(*clock.MockClock)
+	mc.AddTime(1 * time.Second)
 
 	require.NoError(t, ds.MarkSessionAccessed(context.Background(), newSession))
 
@@ -72,7 +78,7 @@ func testSessionsGetters(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.DestroyAllSessionsForUser(context.Background(), user.ID))
 
 	// session for a non-existing user
-	newSession, err = ds.NewSession(context.Background(), &fleet.Session{UserID: user.ID + 1, Key: "someotherkey"})
+	newSession, err = ds.NewSession(context.Background(), user.ID+1, "someotherkey")
 	require.NoError(t, err)
 
 	gotByKey, err = ds.SessionByKey(context.Background(), newSession.Key)
@@ -93,7 +99,7 @@ func testSessionsGetters(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// session for an api user
-	apiSession, err := ds.NewSession(context.Background(), &fleet.Session{UserID: apiUser.ID, Key: "someapikey"})
+	apiSession, err := ds.NewSession(context.Background(), apiUser.ID, "someapikey")
 	require.NoError(t, err)
 
 	gotByKey, err = ds.SessionByKey(context.Background(), apiSession.Key)

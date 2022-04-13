@@ -5,7 +5,7 @@ export default {
     valid: (bearerToken, query, queryId) => {
       return createRequestMock({
         bearerToken,
-        endpoint: "/api/v1/fleet/targets",
+        endpoint: "/api/latest/fleet/targets",
         method: "post",
         params: {
           query,

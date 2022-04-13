@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"os"
 	"testing"
 	"time"
 
@@ -9,6 +10,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/live_query"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service"
+	kitlog "github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/log/level"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -16,7 +19,24 @@ import (
 func TestLiveQuery(t *testing.T) {
 	rs := pubsub.NewInmemQueryResults()
 	lq := new(live_query.MockLiveQuery)
-	_, ds := runServerWithMockedDS(t, service.TestServerOpts{Rs: rs, Lq: lq})
+
+	logger := kitlog.NewJSONLogger(os.Stdout)
+	logger = level.NewFilter(logger, level.AllowDebug())
+
+	_, ds := runServerWithMockedDS(t, service.TestServerOpts{
+		Rs:     rs,
+		Lq:     lq,
+		Logger: logger,
+	})
+
+	users, err := ds.ListUsersFunc(context.Background(), fleet.UserListOptions{})
+	require.NoError(t, err)
+	var admin *fleet.User
+	for _, user := range users {
+		if user.GlobalRole != nil && *user.GlobalRole == fleet.RoleAdmin {
+			admin = user
+		}
+	}
 
 	ds.HostIDsByNameFunc = func(ctx context.Context, filter fleet.TeamFilter, hostnames []string) ([]uint, error) {
 		return []uint{1234}, nil
@@ -61,7 +81,10 @@ func TestLiveQuery(t *testing.T) {
 		return &fleet.HostTargets{HostIDs: []uint{99}}, nil
 	}
 	ds.DistributedQueryCampaignFunc = func(ctx context.Context, id uint) (*fleet.DistributedQueryCampaign, error) {
-		return &fleet.DistributedQueryCampaign{ID: 321}, nil
+		return &fleet.DistributedQueryCampaign{
+			ID:     321,
+			UserID: admin.ID,
+		}, nil
 	}
 	ds.SaveDistributedQueryCampaignFunc = func(ctx context.Context, camp *fleet.DistributedQueryCampaign) error {
 		return nil

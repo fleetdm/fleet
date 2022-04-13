@@ -216,12 +216,13 @@ type LicenseConfig struct {
 
 // VulnerabilitiesConfig defines configs related to vulnerability processing within Fleet.
 type VulnerabilitiesConfig struct {
-	DatabasesPath         string        `json:"databases_path" yaml:"databases_path"`
-	Periodicity           time.Duration `json:"periodicity" yaml:"periodicity"`
-	CPEDatabaseURL        string        `json:"cpe_database_url" yaml:"cpe_database_url"`
-	CVEFeedPrefixURL      string        `json:"cve_feed_prefix_url" yaml:"cve_feed_prefix_url"`
-	CurrentInstanceChecks string        `json:"current_instance_checks" yaml:"current_instance_checks"`
-	DisableDataSync       bool          `json:"disable_data_sync" yaml:"disable_data_sync"`
+	DatabasesPath             string        `json:"databases_path" yaml:"databases_path"`
+	Periodicity               time.Duration `json:"periodicity" yaml:"periodicity"`
+	CPEDatabaseURL            string        `json:"cpe_database_url" yaml:"cpe_database_url"`
+	CVEFeedPrefixURL          string        `json:"cve_feed_prefix_url" yaml:"cve_feed_prefix_url"`
+	CurrentInstanceChecks     string        `json:"current_instance_checks" yaml:"current_instance_checks"`
+	DisableDataSync           bool          `json:"disable_data_sync" yaml:"disable_data_sync"`
+	RecentVulnerabilityMaxAge time.Duration `json:"recent_vulnerability_max_age" yaml:"recent_vulnerability_max_age"`
 }
 
 // UpgradesConfig defines configs related to fleet server upgrades.
@@ -235,6 +236,20 @@ type SentryConfig struct {
 
 type GeoIPConfig struct {
 	DatabasePath string `json:"database_path" yaml:"database_path"`
+}
+
+// PrometheusConfig holds the configuration for Fleet's prometheus metrics.
+type PrometheusConfig struct {
+	// BasicAuth is the HTTP Basic BasicAuth configuration.
+	BasicAuth HTTPBasicAuthConfig `json:"basic_auth" yaml:"basic_auth"`
+}
+
+// HTTPBasicAuthConfig holds configuration for HTTP Basic Auth.
+type HTTPBasicAuthConfig struct {
+	// Username is the HTTP Basic Auth username.
+	Username string `json:"username" yaml:"username"`
+	// Password is the HTTP Basic Auth password.
+	Password string `json:"password" yaml:"password"`
 }
 
 // FleetConfig stores the application configuration. Each subcategory is
@@ -263,6 +278,7 @@ type FleetConfig struct {
 	Upgrades         UpgradesConfig
 	Sentry           SentryConfig
 	GeoIP            GeoIPConfig
+	Prometheus       PrometheusConfig
 }
 
 type TLS struct {
@@ -552,6 +568,8 @@ func (man Manager) addConfigs() {
 		"Allows to manually select an instance to do the vulnerability processing.")
 	man.addConfigBool("vulnerabilities.disable_data_sync", false,
 		"Skips synchronizing data streams and expects them to be available in the databases_path.")
+	man.addConfigDuration("vulnerabilities.recent_vulnerability_max_age", 30*24*time.Hour,
+		"Maximum age of the published date of a vulnerability (CVE) to be considered 'recent'.")
 
 	// Upgrades
 	man.addConfigBool("upgrades.allow_missing_migrations", false,
@@ -562,6 +580,10 @@ func (man Manager) addConfigs() {
 
 	// GeoIP
 	man.addConfigString("geoip.database_path", "", "path to mmdb file")
+
+	// Prometheus
+	man.addConfigString("prometheus.basic_auth.username", "", "Prometheus username for HTTP Basic Auth")
+	man.addConfigString("prometheus.basic_auth.password", "", "Prometheus password for HTTP Basic Auth")
 }
 
 // LoadConfig will load the config variables into a fully initialized
@@ -729,12 +751,13 @@ func (man Manager) LoadConfig() FleetConfig {
 			Key: man.getConfigString("license.key"),
 		},
 		Vulnerabilities: VulnerabilitiesConfig{
-			DatabasesPath:         man.getConfigString("vulnerabilities.databases_path"),
-			Periodicity:           man.getConfigDuration("vulnerabilities.periodicity"),
-			CPEDatabaseURL:        man.getConfigString("vulnerabilities.cpe_database_url"),
-			CVEFeedPrefixURL:      man.getConfigString("vulnerabilities.cve_feed_prefix_url"),
-			CurrentInstanceChecks: man.getConfigString("vulnerabilities.current_instance_checks"),
-			DisableDataSync:       man.getConfigBool("vulnerabilities.disable_data_sync"),
+			DatabasesPath:             man.getConfigString("vulnerabilities.databases_path"),
+			Periodicity:               man.getConfigDuration("vulnerabilities.periodicity"),
+			CPEDatabaseURL:            man.getConfigString("vulnerabilities.cpe_database_url"),
+			CVEFeedPrefixURL:          man.getConfigString("vulnerabilities.cve_feed_prefix_url"),
+			CurrentInstanceChecks:     man.getConfigString("vulnerabilities.current_instance_checks"),
+			DisableDataSync:           man.getConfigBool("vulnerabilities.disable_data_sync"),
+			RecentVulnerabilityMaxAge: man.getConfigDuration("vulnerabilities.recent_vulnerability_max_age"),
 		},
 		Upgrades: UpgradesConfig{
 			AllowMissingMigrations: man.getConfigBool("upgrades.allow_missing_migrations"),
@@ -744,6 +767,12 @@ func (man Manager) LoadConfig() FleetConfig {
 		},
 		GeoIP: GeoIPConfig{
 			DatabasePath: man.getConfigString("geoip.database_path"),
+		},
+		Prometheus: PrometheusConfig{
+			BasicAuth: HTTPBasicAuthConfig{
+				Username: man.getConfigString("prometheus.basic_auth.username"),
+				Password: man.getConfigString("prometheus.basic_auth.password"),
+			},
 		},
 	}
 }
@@ -937,7 +966,7 @@ func (man Manager) loadConfigFile() {
 		os.Exit(1)
 	}
 
-	fmt.Println("Using config file: ", man.viper.ConfigFileUsed())
+	fmt.Println("Using config file:", man.viper.ConfigFileUsed())
 }
 
 // TestConfig returns a barebones configuration suitable for use in tests.

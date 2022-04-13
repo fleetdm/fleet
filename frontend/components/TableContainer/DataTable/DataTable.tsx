@@ -5,17 +5,18 @@ import React, { useMemo, useEffect, useCallback, useContext } from "react";
 import { TableContext } from "context/table";
 import classnames from "classnames";
 import {
-  useTable,
-  useSortBy,
-  useRowSelect,
-  Row,
-  usePagination,
-  useFilters,
-  HeaderGroup,
   Column,
+  HeaderGroup,
+  Row,
+  useFilters,
+  useGlobalFilter,
+  usePagination,
+  useRowSelect,
+  useSortBy,
+  useTable,
 } from "react-table";
 import { isString, kebabCase, noop } from "lodash";
-import { useDebouncedCallback } from "use-debounce/lib";
+import { useDebouncedCallback } from "use-debounce";
 
 import { useDeepEffect } from "utilities/hooks";
 import sort from "utilities/sort";
@@ -29,7 +30,7 @@ import { ButtonVariant } from "components/buttons/Button/Button";
 // @ts-ignore
 import ActionButton, { IActionButtonProps } from "./ActionButton";
 
-const baseClass = "data-table-container";
+const baseClass = "data-table-block";
 
 interface IDataTableProps {
   columns: Column[];
@@ -130,8 +131,9 @@ const DataTable = ({
     nextPage,
     previousPage,
     setPageSize,
-    setFilter,
-    setAllFilters,
+    setFilter, // sets a specific column-level filter
+    setAllFilters, // sets all of the column-level filters; rows are included in filtered results only if each column filter return true
+    setGlobalFilter, // sets the global filter; this serves as a global free text search across all columns (excluding only those where `disableGlobalFilter: true`)
   } = useTable(
     {
       columns,
@@ -147,7 +149,7 @@ const DataTable = ({
       // Initializes as false, but changes briefly to true on successful notification
       autoResetSelectedRows: resetSelectedRows,
       // Expands the enumerated `filterTypes` for react-table
-      // (see https://github.com/tannerlinsley/react-table/blob/master/src/filterTypes.js)
+      // (see https://github.com/TanStack/react-table/blob/alpha/packages/react-table/src/filterTypes.ts)
       // with custom `filterTypes` defined for this `useTable` instance
       filterTypes: React.useMemo(
         () => ({
@@ -171,28 +173,31 @@ const DataTable = ({
       // with custom `sortTypes` defined for this `useTable` instance
       sortTypes: React.useMemo(
         () => ({
-          caseInsensitive: (a: any, b: any, id: any) => {
-            let valueA = a.values[id];
-            let valueB = b.values[id];
+          caseInsensitive: (
+            a: { values: Record<string, unknown> },
+            b: { values: Record<string, unknown> },
+            id: string
+          ) => sort.caseInsensitiveAsc(a.values[id], b.values[id]),
 
-            valueA = isString(valueA) ? valueA.toLowerCase() : valueA;
-            valueB = isString(valueB) ? valueB.toLowerCase() : valueB;
+          dateStrings: (
+            a: { values: Record<string, string> },
+            b: { values: Record<string, string> },
+            id: string
+          ) => sort.dateStringsAsc(a.values[id], b.values[id]),
 
-            if (valueB > valueA) {
-              return -1;
-            }
-            if (valueB < valueA) {
-              return 1;
-            }
-            return 0;
+          hasLength: (
+            a: { values: Record<string, unknown[]> },
+            b: { values: Record<string, unknown[]> },
+            id: string
+          ) => {
+            return sort.hasLength(a.values[id], b.values[id]);
           },
-          dateStrings: (a: any, b: any, id: any) =>
-            sort.dateStringsAsc(a.values[id], b.values[id]),
         }),
         []
       ),
     },
-    useFilters,
+    useGlobalFilter, // order of these hooks matters; here we first apply the global filter (if any); this could be reversed depending on where we want to target performance
+    useFilters, // react-table applies column-level filters after first applying the global filter (if any)
     useSortBy,
     usePagination,
     useRowSelect
@@ -202,7 +207,11 @@ const DataTable = ({
 
   useEffect(() => {
     if (tableFilters) {
-      const allFilters = Object.entries(tableFilters).map(([id, value]) => ({
+      const filtersToSet = tableFilters;
+      const global = filtersToSet.global;
+      setGlobalFilter(global);
+      delete filtersToSet.global;
+      const allFilters = Object.entries(filtersToSet).map(([id, value]) => ({
         id,
         value,
       }));
@@ -262,7 +271,7 @@ const DataTable = ({
   }, [isAllPagesSelected, toggleAllRowsSelected]);
 
   useEffect(() => {
-    setPageSize(CLIENT_SIDE_DEFAULT_PAGE_SIZE);
+    setPageSize(defaultPageSize || CLIENT_SIDE_DEFAULT_PAGE_SIZE);
   }, [setPageSize]);
 
   useDeepEffect(() => {
@@ -424,6 +433,7 @@ const DataTable = ({
             <thead className={"active-selection"}>
               <tr {...headerGroups[0].getHeaderGroupProps()}>
                 <th
+                  className={"active-selection__checkbox"}
                   {...headerGroups[0].headers[0].getHeaderProps(
                     headerGroups[0].headers[0].getSortByToggleProps()
                   )}
