@@ -24,7 +24,7 @@ We use configuration profiles to standardize security settings for our Mac devic
 
 
 
-Our policy, applies to Fleet-owned laptops purchased via Apple's DEP (Device Enrollment Program) which will retroactively be applied to every company-owned Mac consists of the below. 
+Our policy applies to Fleet-owned laptops purchased via Apple's DEP (Device Enrollment Program) which will retroactively be applied to every company-owned Mac consists of the below. 
 
 #### Enabling automatic updates
 
