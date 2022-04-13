@@ -1,5 +1,5 @@
 import React from "react";
-import { mount } from "enzyme";
+import { render, screen } from "@testing-library/react";
 
 import { stubbedOsqueryTable } from "test/helpers";
 
@@ -15,10 +15,10 @@ describe("QuerySidePanel - component", () => {
   };
 
   it("renders the selected table in the dropdown", () => {
-    const component = mount(<QuerySidePanel {...props} />);
-    const tableSelect = component.find("Dropdown");
+    render(<QuerySidePanel {...props} />);
 
-    expect(tableSelect.prop("value")).toEqual("users");
+    expect(screen.getByRole("combobox")).toBeInTheDocument();
+    expect(screen.getByText("users")).toBeInTheDocument();
   });
 
   // TODO: Functional components cannot test functions using Enzyme since
