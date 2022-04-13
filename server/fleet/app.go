@@ -391,13 +391,8 @@ type Logging struct {
 }
 
 type UpdateIntervalConfig struct {
-	OSQueryDetail Duration `json:"osquery_detail"`
-	OSQueryPolicy Duration `json:"osquery_policy"`
-}
-
-func (uic *UpdateIntervalConfig) Apply(osc config.OsqueryConfig) {
-	uic.OSQueryDetail = Duration{osc.DetailUpdateInterval}
-	uic.OSQueryPolicy = Duration{osc.PolicyUpdateInterval}
+	OSQueryDetail time.Duration `json:"osquery_detail"`
+	OSQueryPolicy time.Duration `json:"osquery_policy"`
 }
 
 // VulnerabilitiesConfig contains the vulnerabilities configuration of the
@@ -405,21 +400,12 @@ func (uic *UpdateIntervalConfig) Apply(osc config.OsqueryConfig) {
 // config file), not to be confused with VulnerabilitySettings which is the
 // configuration in AppConfig.
 type VulnerabilitiesConfig struct {
-	DatabasesPath         string   `json:"databases_path"`
-	Periodicity           Duration `json:"periodicity"`
-	CPEDatabaseURL        string   `json:"cpe_database_url"`
-	CVEFeedPrefixURL      string   `json:"cve_feed_prefix_url"`
-	CurrentInstanceChecks string   `json:"current_instance_checks"`
-	DisableDataSync       bool     `json:"disable_data_sync"`
-}
-
-func (vc *VulnerabilitiesConfig) Apply(cvc config.VulnerabilitiesConfig) {
-	vc.DatabasesPath = cvc.DatabasesPath
-	vc.Periodicity = Duration{cvc.Periodicity}
-	vc.CPEDatabaseURL = cvc.CPEDatabaseURL
-	vc.CVEFeedPrefixURL = cvc.CVEFeedPrefixURL
-	vc.CurrentInstanceChecks = cvc.CurrentInstanceChecks
-	vc.DisableDataSync = cvc.DisableDataSync
+	DatabasesPath         string        `json:"databases_path"`
+	Periodicity           time.Duration `json:"periodicity"`
+	CPEDatabaseURL        string        `json:"cpe_database_url"`
+	CVEFeedPrefixURL      string        `json:"cve_feed_prefix_url"`
+	CurrentInstanceChecks string        `json:"current_instance_checks"`
+	DisableDataSync       bool          `json:"disable_data_sync"`
 }
 
 type LoggingPlugin struct {

@@ -4671,8 +4671,8 @@ None.
     }
   },
   "update_interval": {
-    "osquery_detail": "1h0m0s",
-    "osquery_policy": "1h0m0s"
+    "osquery_detail": 3600000000000,
+    "osquery_policy": 3600000000000
   },
   "vulnerabilities": {
     "cpe_database_url": "",
@@ -4680,7 +4680,7 @@ None.
     "cve_feed_prefix_url": "",
     "databases_path": "",
     "disable_data_sync": false,
-    "periodicity": "1h0m0s"
+    "periodicity": 3600000000000
   }
 }
 ```

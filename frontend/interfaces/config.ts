@@ -152,8 +152,8 @@ export interface IConfig {
   };
   agent_options: string;
   update_interval: {
-    osquery_detail: string;
-    osquery_policy: string;
+    osquery_detail: number;
+    osquery_policy: number;
   };
   license: {
     organization: string;
@@ -164,7 +164,7 @@ export interface IConfig {
   };
   vulnerabilities: {
     databases_path: string;
-    periodicity: string;
+    periodicity: number;
     cpe_database_url: string;
     cve_feed_prefix_url: string;
     current_instance_checks: string;

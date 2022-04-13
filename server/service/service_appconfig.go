@@ -121,15 +121,21 @@ func (svc *Service) SetupRequired(ctx context.Context) (bool, error) {
 }
 
 func (svc *Service) UpdateIntervalConfig(ctx context.Context) (*fleet.UpdateIntervalConfig, error) {
-	config := &fleet.UpdateIntervalConfig{}
-	config.Apply(svc.config.Osquery)
-	return config, nil
+	return &fleet.UpdateIntervalConfig{
+		OSQueryDetail: svc.config.Osquery.DetailUpdateInterval,
+		OSQueryPolicy: svc.config.Osquery.PolicyUpdateInterval,
+	}, nil
 }
 
 func (svc *Service) VulnerabilitiesConfig(ctx context.Context) (*fleet.VulnerabilitiesConfig, error) {
-	config := &fleet.VulnerabilitiesConfig{}
-	config.Apply(svc.config.Vulnerabilities)
-	return config, nil
+	return &fleet.VulnerabilitiesConfig{
+		DatabasesPath:         svc.config.Vulnerabilities.DatabasesPath,
+		Periodicity:           svc.config.Vulnerabilities.Periodicity,
+		CPEDatabaseURL:        svc.config.Vulnerabilities.CPEDatabaseURL,
+		CVEFeedPrefixURL:      svc.config.Vulnerabilities.CVEFeedPrefixURL,
+		CurrentInstanceChecks: svc.config.Vulnerabilities.CurrentInstanceChecks,
+		DisableDataSync:       svc.config.Vulnerabilities.DisableDataSync,
+	}, nil
 }
 
 func (svc *Service) LoggingConfig(ctx context.Context) (*fleet.Logging, error) {

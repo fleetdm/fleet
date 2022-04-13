@@ -144,6 +144,31 @@ func printHostDetail(c *cli.Context, host *service.HostDetailResponse) error {
 	return printSpec(c, spec)
 }
 
+type updateIntervalConfigPresenter struct {
+	fleet.UpdateIntervalConfig
+	OSQueryDetail string `json:"osquery_detail"`
+	OSQueryPolicy string `json:"osquery_policy"`
+}
+
+type vulnerabilitiesConfigPresenter struct {
+	fleet.VulnerabilitiesConfig
+	Periodicity string `json:"periodicity"`
+}
+
+type enrichedAppConfigPresenter struct {
+	fleet.EnrichedAppConfig
+	UpdateInterval  updateIntervalConfigPresenter  `json:"update_interval,omitempty"`
+	Vulnerabilities vulnerabilitiesConfigPresenter `json:"vulnerabilities,omitempty"`
+}
+
+func newEnrichedAppConfigPresenter(eac fleet.EnrichedAppConfig) enrichedAppConfigPresenter {
+	config := enrichedAppConfigPresenter{EnrichedAppConfig: eac}
+	config.UpdateInterval.OSQueryDetail = eac.UpdateInterval.OSQueryDetail.String()
+	config.UpdateInterval.OSQueryPolicy = eac.UpdateInterval.OSQueryPolicy.String()
+	config.Vulnerabilities.Periodicity = eac.Vulnerabilities.Periodicity.String()
+	return config
+}
+
 func printConfig(c *cli.Context, config interface{}) error {
 	spec := specGeneric{
 		Kind:    fleet.AppConfigKind,
@@ -310,7 +335,6 @@ func getQueriesCommand() *cli.Command {
 			}
 
 			return nil
-
 		},
 	}
 }
@@ -428,7 +452,6 @@ func getPacksCommand() *cli.Command {
 			}
 
 			return printQueries()
-
 		},
 	}
 }
@@ -498,7 +521,6 @@ func getLabelsCommand() *cli.Command {
 
 			printLabel(c, label)
 			return nil
-
 		},
 	}
 }
@@ -563,7 +585,7 @@ func getAppConfigCommand() *cli.Command {
 			}
 
 			if c.Bool(includeServerConfigFlagName) {
-				err = printConfig(c, config)
+				err = printConfig(c, newEnrichedAppConfigPresenter(*config))
 			} else {
 				err = printConfig(c, config.AppConfig)
 			}

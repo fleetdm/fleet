@@ -11,7 +11,6 @@ import StatusCell from "components/TableContainer/DataTable/StatusCell/StatusCel
 import { IPolicyStats } from "interfaces/policy";
 import PATHS from "router/paths";
 import sortUtils from "utilities/sort";
-import stringUtils from "utilities/strings";
 
 import { PolicyResponse } from "utilities/constants";
 import PassIcon from "../../../../../../assets/images/icon-check-circle-green-16x16@2x.png";
@@ -279,7 +278,7 @@ const generateTableHeaders = (options: {
 const generateDataSet = (
   policiesList: IPolicyStats[] = [],
   currentAutomatedPolicies?: number[],
-  osqueryPolicyDuration?: string
+  osquery_policy?: number
 ): IPolicyStats[] => {
   policiesList = policiesList.sort((a, b) =>
     sortUtils.caseInsensitiveAsc(a.name, b.name)
@@ -287,8 +286,8 @@ const generateDataSet = (
   let policiesLastRun: Date;
   let osqueryPolicyMs: number;
 
-  if (osqueryPolicyDuration) {
-    osqueryPolicyMs = stringUtils.parseDuration(osqueryPolicyDuration);
+  if (osquery_policy) {
+    osqueryPolicyMs = osquery_policy / 1000000;
     // Convert from nanosecond to milliseconds
     policiesLastRun = new Date(Date.now() - osqueryPolicyMs);
   }

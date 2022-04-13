@@ -598,7 +598,7 @@ spec:
 
 		assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "config", "--include-server-config"}))
 		assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "config", "--include-server-config", "--yaml"}))
-		assert.Equal(t, expectedJson, runAppForTest(t, []string{"get", "config", "--include-server-config", "--json"}))
+		require.JSONEq(t, expectedJson, runAppForTest(t, []string{"get", "config", "--include-server-config", "--json"}))
 	})
 }
 
