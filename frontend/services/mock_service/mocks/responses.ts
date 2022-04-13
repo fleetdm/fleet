@@ -129,12 +129,12 @@ const mockConfig = {
     interval: "24h0m0s",
   },
   update_interval: {
-    osquery_detail: 10000000000,
-    osquery_policy: 3600000000000,
+    osquery_detail: "10s",
+    osquery_policy: "1h0m0s",
   },
   vulnerabilities: {
     databases_path: "/tmp/vulndbs",
-    periodicity: 3600000000000,
+    periodicity: "1h0m0s",
     cpe_database_url: "",
     cve_feed_prefix_url: "",
     current_instance_checks: "auto",

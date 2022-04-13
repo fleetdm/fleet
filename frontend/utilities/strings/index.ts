@@ -1,1 +1,1 @@
-export { default } from "./stringUtils";
+export { default } from "./string_utils";

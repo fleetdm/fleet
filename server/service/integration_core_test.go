@@ -311,7 +311,7 @@ func (s *integrationTestSuite) TestAppConfigAdditionalQueriesCanBeRemoved() {
 func (s *integrationTestSuite) TestAppConfigDefaultValues() {
 	config := s.getConfig()
 	s.Run("Update interval", func() {
-		require.Equal(s.T(), 1*time.Hour, config.UpdateInterval.OSQueryDetail)
+		require.Equal(s.T(), 1*time.Hour, config.UpdateInterval.OSQueryDetail.Duration)
 	})
 
 	s.Run("has logging", func() {
