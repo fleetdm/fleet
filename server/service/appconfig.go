@@ -12,6 +12,7 @@ import (
 	"net"
 	"net/url"
 
+	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -91,6 +92,7 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 			AgentOptions:       agentOptions,
 
 			WebhookSettings: config.WebhookSettings,
+			Integrations:    config.Integrations,
 		},
 		UpdateInterval:  updateIntervalConfig,
 		Vulnerabilities: vulnConfig,
@@ -101,8 +103,10 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 }
 
 func (svc *Service) AppConfig(ctx context.Context) (*fleet.AppConfig, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionRead); err != nil {
-		return nil, err
+	if !svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken) {
+		if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionRead); err != nil {
+			return nil, err
+		}
 	}
 
 	return svc.ds.AppConfig(ctx)
@@ -152,6 +156,16 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 		return nil, err
 	}
 
+	oldSmtpSettings := appConfig.SMTPSettings
+	var oldJiraSettings []*fleet.JiraIntegration
+	if len(appConfig.Integrations.Jira) > 0 {
+		oldJiraSettings = make([]*fleet.JiraIntegration, len(appConfig.Integrations.Jira))
+		for i, settings := range appConfig.Integrations.Jira {
+			oldSettings := *settings
+			oldJiraSettings[i] = &oldSettings
+		}
+	}
+
 	// TODO(mna): this ports the validations from the old validationMiddleware
 	// correctly, but this could be optimized so that we don't unmarshal the
 	// incoming bytes twice.
@@ -160,6 +174,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 	if err := json.Unmarshal(p, &newAppConfig); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
+
 	validateSSOSettings(newAppConfig, appConfig, invalid)
 	if invalid.HasErrors() {
 		return nil, ctxerr.Wrap(ctx, invalid)
@@ -169,16 +184,42 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 	decoder := json.NewDecoder(bytes.NewReader(p))
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(&appConfig); err != nil {
-		return nil, &badRequestError{message: err.Error()}
+		return nil, ctxerr.Wrap(ctx, &badRequestError{message: err.Error()})
 	}
 
-	if appConfig.SMTPSettings.SMTPEnabled || appConfig.SMTPSettings.SMTPConfigured {
-		if err = svc.sendTestEmail(ctx, appConfig); err != nil {
-			return nil, err
+	validateVulnerabilitiesAutomation(appConfig, invalid)
+	if invalid.HasErrors() {
+		return nil, ctxerr.Wrap(ctx, invalid)
+	}
+
+	// ignore the values for SMTPEnabled and SMTPConfigured
+	oldSmtpSettings.SMTPEnabled = appConfig.SMTPSettings.SMTPEnabled
+	oldSmtpSettings.SMTPConfigured = appConfig.SMTPSettings.SMTPConfigured
+
+	// if we enable SMTP and the settings have changed, then we send a test email
+	if appConfig.SMTPSettings.SMTPEnabled {
+		if oldSmtpSettings != appConfig.SMTPSettings || !appConfig.SMTPSettings.SMTPConfigured {
+			if err = svc.sendTestEmail(ctx, appConfig); err != nil {
+				return nil, ctxerr.Wrap(ctx, err)
+			}
 		}
 		appConfig.SMTPSettings.SMTPConfigured = true
 	} else if appConfig.SMTPSettings.SMTPEnabled {
 		appConfig.SMTPSettings.SMTPConfigured = false
+	}
+
+	// if Jira integration settings are modified or added, test it.
+	newJiraSettings := appConfig.Integrations.Jira
+	for i, settings := range newJiraSettings {
+		if i < len(oldJiraSettings) && *oldJiraSettings[i] == *settings {
+			// unchanged
+			continue
+		}
+
+		// new or updated, test it
+		if err := svc.makeTestJiraRequest(ctx, settings); err != nil {
+			return nil, ctxerr.Wrapf(ctx, err, "Jira integration at index %d", i)
+		}
 	}
 
 	if err := svc.ds.SaveAppConfig(ctx, appConfig); err != nil {
@@ -211,6 +252,22 @@ func validateSSOSettings(p fleet.AppConfig, existing *fleet.AppConfig, invalid *
 				invalid.Append("idp_name", "required")
 			}
 		}
+	}
+}
+
+func validateVulnerabilitiesAutomation(merged *fleet.AppConfig, invalid *fleet.InvalidArgumentError) {
+	webhookEnabled := merged.WebhookSettings.VulnerabilitiesWebhook.Enable
+	var jiraEnabledCount int
+	for _, jira := range merged.Integrations.Jira {
+		if jira.EnableSoftwareVulnerabilities {
+			jiraEnabledCount++
+		}
+	}
+	if webhookEnabled && jiraEnabledCount > 0 {
+		invalid.Append("vulnerabilities", "cannot enable both webhook vulnerabilities and jira integration automations")
+	}
+	if jiraEnabledCount > 1 {
+		invalid.Append("vulnerabilities", "cannot enable more than one jira integration")
 	}
 }
 

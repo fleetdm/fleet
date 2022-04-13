@@ -7,7 +7,7 @@ import { hostStub } from "test/stubs";
 
 const { hosts: hostMocks } = mocks;
 
-describe("Kolide - API client (hosts)", () => {
+describe("Fleet - API client (hosts)", () => {
   afterEach(() => {
     nock.cleanAll();
     Fleet.setBearerToken(null);
@@ -62,7 +62,7 @@ describe("Kolide - API client (hosts)", () => {
       const request = createRequestMock({
         bearerToken,
         endpoint:
-          "/api/v1/fleet/labels/6/hosts?page=2&per_page=50&order_key=hostname&order_direction=asc",
+          "/api/latest/fleet/labels/6/hosts?page=2&per_page=50&order_key=hostname&order_direction=asc",
         method: "get",
         response: { hosts: [] },
       });

@@ -3,11 +3,9 @@
 import React from "react";
 import { syntaxHighlight } from "fleet/helpers";
 
-import ReactTooltip from "react-tooltip";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
-
-import QuestionIcon from "../../../../../../assets/images/icon-question-16x16@2x.png";
+import TooltipWrapper from "components/TooltipWrapper";
 
 const baseClass = "preview-data-modal";
 
@@ -40,32 +38,12 @@ const PreviewDataModal = ({
     <Modal title={"Example data"} onExit={onCancel} className={baseClass}>
       <div className={`${baseClass}__preview-modal`}>
         <p>
-          The data sent to your configured log destination will look similar to
-          the following JSON:{" "}
-          <span
-            className={`tooltip__tooltip-icon`}
-            data-tip
-            data-for={"preview-tooltip"}
-            data-tip-disable={false}
+          <TooltipWrapper
+            tipContent={`The &quot;snapshot&quot; key includes the query&apos;s results. These will be unique to your query.`}
           >
-            <img alt="preview schedule" src={QuestionIcon} />
-          </span>
-          <ReactTooltip
-            place="bottom"
-            type="dark"
-            effect="solid"
-            backgroundColor="#3e4771"
-            id={"preview-tooltip"}
-            data-html
-          >
-            <span className={`software-name tooltip__tooltip-text`}>
-              <p>
-                The &quot;snapshot&quot; key includes the query&apos;s
-                <br />
-                results. These will be unique to your query.
-              </p>
-            </span>
-          </ReactTooltip>
+            The data sent to your configured log destination will look similar
+            to the following JSON:
+          </TooltipWrapper>
         </p>
         <div className={`${baseClass}__host-status-webhook-preview`}>
           <pre dangerouslySetInnerHTML={{ __html: syntaxHighlight(json) }} />

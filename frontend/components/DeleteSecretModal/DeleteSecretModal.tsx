@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import { ITeam } from "interfaces/team";
@@ -28,6 +28,20 @@ const DeleteSecretModal = ({
     }
     return teams.find((team) => team.id === selectedTeam);
   };
+
+  useEffect(() => {
+    const listener = (event: KeyboardEvent) => {
+      if (event.code === "Enter" || event.code === "NumpadEnter") {
+        event.preventDefault();
+        onDeleteSecret();
+      }
+    };
+
+    document.addEventListener("keydown", listener);
+    return () => {
+      document.removeEventListener("keydown", listener);
+    };
+  }, []);
 
   return (
     <Modal

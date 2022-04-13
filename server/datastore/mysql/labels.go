@@ -790,9 +790,9 @@ func (ds *Datastore) AsyncBatchUpdateLabelTimestamp(ctx context.Context, ids []u
 	})
 }
 
-func amountLabelsDB(db sqlx.Queryer) (int, error) {
+func amountLabelsDB(ctx context.Context, db sqlx.QueryerContext) (int, error) {
 	var amount int
-	err := sqlx.Get(db, &amount, `SELECT count(*) FROM labels`)
+	err := sqlx.GetContext(ctx, db, &amount, `SELECT count(*) FROM labels`)
 	if err != nil {
 		return 0, err
 	}

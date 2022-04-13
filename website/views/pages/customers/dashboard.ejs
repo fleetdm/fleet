@@ -75,7 +75,7 @@
             <div style="max-width: 16px;" class="col-1 px-0"><img style="margin-top: 5px; height: 16px; width: 16px;" src="/images/icon-calendar-32x32@2x.png" alt="A calendar icon"></div>
             <div class="col pl-3">
               <p>{{thisSubscription.numberOfHosts}} devices @ $1.00/device/month</p>
-              <p>Billed anually at ${{thisSubscription.subscriptionPrice}}.00/yr</p>
+              <p>Billed annually at ${{thisSubscription.subscriptionPrice}}.00/yr</p>
               <p>Next payment on <js-timestamp :at="thisSubscription.nextBillingAt" always-show-year format="billing"></js-timestamp></p>
             </div>
           </div>
@@ -97,7 +97,7 @@
         <a class="btn btn-info btn-sm btn-md-block mr-md-3 mb-3 mb-md-0" purpose="deploy-button" href="/docs/deploying/introduction">
           How to deploy Fleet
         </a>
-        <a class="btn btn-outline-secondary btn-sm btn-md-block" purpose="slack-button" href="https://osquery.slack.com/join/shared_invite/zt-h29zm0gk-s2DBtGUTW4CFel0f0IjTEw#/" target="_blank">
+        <a class="btn btn-outline-secondary btn-sm btn-md-block" purpose="slack-button" href="/slack" target="_blank">
           <img alt="Slack logo" src="/images/logo-slack-24x24@2x.png"/>
           Ask for help on Slack
         </a>

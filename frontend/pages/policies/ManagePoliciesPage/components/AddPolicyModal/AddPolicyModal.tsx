@@ -2,7 +2,7 @@ import React, { useCallback, useContext } from "react";
 import PATHS from "router/paths";
 import { InjectedRouter } from "react-router/lib/Router";
 
-import { DEFAULT_POLICIES } from "utilities/constants";
+import { DEFAULT_POLICY, DEFAULT_POLICIES } from "utilities/constants";
 
 import { IPolicyNew } from "interfaces/policy";
 
@@ -45,12 +45,13 @@ const AddPolicyModal = ({
     setLastEditedQueryBody(selectedPolicy.query);
     setLastEditedQueryResolution(selectedPolicy.resolution);
     setPolicyTeamId(teamId);
-    setLastEditedQueryPlatform(selectedPolicy.platform || "");
+    setLastEditedQueryPlatform(selectedPolicy.platform || null);
     router.push(PATHS.NEW_POLICY);
   };
 
   const onCreateYourOwnPolicyClick = useCallback(() => {
     setPolicyTeamId(currentTeam?.id || 0);
+    setLastEditedQueryBody(DEFAULT_POLICY.query);
     router.push(PATHS.NEW_POLICY);
   }, [currentTeam]);
 

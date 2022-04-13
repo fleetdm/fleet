@@ -2,28 +2,57 @@ package table
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
+	"sync"
 	"time"
 
-	"github.com/kolide/osquery-go"
-	"github.com/kolide/osquery-go/plugin/table"
 	"github.com/macadmins/osquery-extension/tables/chromeuserprofiles"
 	"github.com/macadmins/osquery-extension/tables/fileline"
 	"github.com/macadmins/osquery-extension/tables/puppet"
+	"github.com/osquery/osquery-go"
+	"github.com/osquery/osquery-go/plugin/table"
 	"github.com/rs/zerolog/log"
 )
 
 // Runner wraps the osquery extension manager with okglog/run Execute and Interrupt functions.
 type Runner struct {
-	socket string
+	socket          string
+	tableExtensions []Extension
+
+	// mu protects access to srv and cancel in Execute and Interrupt.
+	mu     sync.Mutex
 	srv    *osquery.ExtensionManagerServer
 	cancel func()
 }
 
+// Extension implements a osquery-go table extension.
+type Extension interface {
+	// Name returns the name of the table.
+	Name() string
+	// Column returns the definition of the table columns.
+	Columns() []table.ColumnDefinition
+	// GenerateFunc generates results for a query.
+	GenerateFunc(ctx context.Context, queryContext table.QueryContext) ([]map[string]string, error)
+}
+
+// Opt allows configuring a Runner.
+type Opt func(*Runner)
+
+// WithExtension registers the given Extension on the Runner.
+func WithExtension(t Extension) Opt {
+	return func(r *Runner) {
+		r.tableExtensions = append(r.tableExtensions, t)
+	}
+}
+
 // NewRunner creates an extension runner.
-func NewRunner(socket string) *Runner {
+func NewRunner(socket string, opts ...Opt) *Runner {
 	r := &Runner{socket: socket}
+	for _, fn := range opts {
+		fn(r)
+	}
 	return r
 }
 
@@ -31,21 +60,26 @@ func NewRunner(socket string) *Runner {
 func (r *Runner) Execute() error {
 	log.Debug().Msg("start osquery extension")
 
-	if err := waitForSocket(r.socket, 1*time.Minute); err != nil {
+	if err := waitExtensionSocket(r.socket, 1*time.Minute); err != nil {
 		return err
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	r.cancel = cancel
+	r.setCancel(cancel)
 
-	var err error
 	ticker := time.NewTicker(200 * time.Millisecond)
 	for {
-		r.srv, err = osquery.NewExtensionManagerServer(
+		srv, err := osquery.NewExtensionManagerServer(
 			"com.fleetdm.orbit.osquery_extension.v1",
 			r.socket,
-			osquery.ServerTimeout(3*time.Second))
+			// This timeout is only used for registering the extension tables
+			// and for the heartbeat ping requests in r.srv.Run().
+			//
+			// On some systems, registering tables takes more than a couple
+			// of seconds, thus set timeout to minutes instead (see #3878).
+			osquery.ServerTimeout(5*time.Minute))
 		if err == nil {
+			r.setSrv(srv)
 			ticker.Stop()
 			break
 		}
@@ -66,6 +100,13 @@ func (r *Runner) Execute() error {
 		table.NewPlugin("file_lines", fileline.FileLineColumns(), fileline.FileLineGenerate),
 	}
 	plugins = append(plugins, platformTables()...)
+	for _, t := range r.tableExtensions {
+		plugins = append(plugins, table.NewPlugin(
+			t.Name(),
+			t.Columns(),
+			t.GenerateFunc,
+		))
+	}
 	r.srv.RegisterPlugin(plugins...)
 
 	if err := r.srv.Run(); err != nil {
@@ -78,26 +119,41 @@ func (r *Runner) Execute() error {
 // Interrupt shuts down the osquery manager server.
 func (r *Runner) Interrupt(err error) {
 	log.Debug().Err(err).Msg("interrupt osquery extension")
-	r.cancel()
-
-	if r.srv != nil {
-		r.srv.Shutdown(context.Background())
+	if cancel := r.getCancel(); cancel != nil {
+		cancel()
+	}
+	if srv := r.getSrv(); srv != nil {
+		srv.Shutdown(context.Background())
 	}
 }
 
-// waitForSocket waits for the osquery socket to exist.
+// waitExtensionSocket waits until the osquery extension manager socket is ready.
+// First, it waits for the unix socket/Windows pipe to be available.
+// Then, it tries connecting as a client and sending a ping to ensure that osquery
+// is ready for extensions.
 //
-// This method was copied from osquery-go because we can't rely on option.ServerTimeout.
-// Such timeout is used both for waiting for the socket and for the thrift transport.
-func waitForSocket(sockPath string, timeout time.Duration) error {
-	ticker := time.NewTicker(200 * time.Millisecond)
-	defer ticker.Stop()
+// This method is a workaround for https://github.com/osquery/osquery-go/issues/80.
+func waitExtensionSocket(sockPath string, timeout time.Duration) error {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
+
+	if err := waitSocketExists(ctx, sockPath); err != nil {
+		return err
+	}
+	if err := waitSocketReady(ctx, sockPath); err != nil {
+		return err
+	}
+	return nil
+}
+
+func waitSocketExists(ctx context.Context, sockPath string) error {
+	ticker := time.NewTicker(200 * time.Millisecond)
+	defer ticker.Stop()
+
 	for {
 		select {
 		case <-ctx.Done():
-			return ctx.Err()
+			return errors.New("extension socket stat timeout")
 		case <-ticker.C:
 			switch _, err := os.Stat(sockPath); {
 			case err == nil:
@@ -109,4 +165,65 @@ func waitForSocket(sockPath string, timeout time.Duration) error {
 			}
 		}
 	}
+}
+
+func waitSocketReady(ctx context.Context, sockPath string) error {
+	serverClient, err := osquery.NewClient(sockPath, 3*time.Second)
+	if err != nil {
+		return err
+	}
+	defer serverClient.Close()
+
+	ticker := time.NewTicker(200 * time.Millisecond)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return errors.New("extension socket ping timeout")
+		case <-ticker.C:
+			status, err := serverClient.Ping()
+			if err != nil {
+				log.Debug().Err(err).Msgf(
+					"failed to ping extension socket, retrying...",
+				)
+				continue
+			}
+			if status.Code == 0 {
+				log.Debug().Msg("extension manager checked")
+				return nil
+			}
+			log.Debug().Int32("status_code", status.Code).Str("status_message", status.Message).Msgf(
+				"extension socket not ready, retrying...",
+			)
+		}
+	}
+}
+
+func (r *Runner) setSrv(s *osquery.ExtensionManagerServer) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	r.srv = s
+}
+
+func (r *Runner) setCancel(c func()) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	r.cancel = c
+}
+
+func (r *Runner) getSrv() *osquery.ExtensionManagerServer {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	return r.srv
+}
+
+func (r *Runner) getCancel() func() {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	return r.cancel
 }

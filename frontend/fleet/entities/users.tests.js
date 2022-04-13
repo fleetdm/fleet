@@ -6,7 +6,7 @@ import { userStub } from "test/stubs";
 
 const { users: userMocks } = mocks;
 
-describe("Kolide - API client (users)", () => {
+describe("Fleet - API client (users)", () => {
   afterEach(() => {
     nock.cleanAll();
     Fleet.setBearerToken(null);

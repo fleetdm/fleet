@@ -20,7 +20,7 @@ import (
 
 func TestAppConfigAuth(t *testing.T) {
 	ds := new(mock.Store)
-	svc := newTestService(ds, nil, nil)
+	svc := newTestService(t, ds, nil, nil)
 
 	// start a TLS server and use its URL as the server URL in the app config,
 	// required by the CertificateChain service call.
@@ -108,7 +108,7 @@ func TestAppConfigAuth(t *testing.T) {
 
 func TestEnrollSecretAuth(t *testing.T) {
 	ds := new(mock.Store)
-	svc := newTestService(ds, nil, nil)
+	svc := newTestService(t, ds, nil, nil)
 
 	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, tid *uint, secrets []*fleet.EnrollSecret) error {
 		return nil

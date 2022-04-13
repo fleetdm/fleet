@@ -1,5 +1,5 @@
 import PropTypes from "prop-types";
-import { IQueryPlatform } from "interfaces/query";
+import { IPlatformString } from "interfaces/platform";
 
 // Legacy PropTypes used on host interface
 export default PropTypes.shape({
@@ -26,7 +26,7 @@ export interface IPolicy {
   author_name: string;
   author_email: string;
   resolution: string;
-  platform: IQueryPlatform;
+  platform: IPlatformString;
   team_id?: number;
   created_at: string;
   updated_at: string;
@@ -37,6 +37,8 @@ export interface IPolicyStats extends IPolicy {
   passing_host_count: number;
   failing_host_count: number;
   webhook: string;
+  has_run: boolean;
+  osquery_policy_ms: number;
 }
 
 // Used on the host details page and other places where the status of individual hosts are displayed
@@ -49,11 +51,11 @@ export interface ILoadAllPoliciesResponse {
 }
 
 export interface IPolicyFormData {
-  description?: string | number | boolean | any[] | undefined;
-  resolution?: string | number | boolean | any[] | undefined;
-  platform?: IQueryPlatform;
-  name?: string | number | boolean | any[] | undefined;
-  query?: string | number | boolean | any[] | undefined;
+  description?: string | number | boolean | undefined;
+  resolution?: string | number | boolean | undefined;
+  platform?: IPlatformString;
+  name?: string | number | boolean | undefined;
+  query?: string | number | boolean | undefined;
   team_id?: number;
   id?: number;
 }
@@ -65,5 +67,5 @@ export interface IPolicyNew {
   description: string;
   query: string;
   resolution: string;
-  platform: IQueryPlatform;
+  platform: IPlatformString;
 }

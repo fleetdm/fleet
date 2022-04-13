@@ -1,8 +1,8 @@
 import React from "react";
-import { mount } from "enzyme";
+import { fireEvent, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 
 import Dropdown from "components/forms/fields/Dropdown";
-import { fillInFormInput } from "test/helpers";
 
 describe("Dropdown - component", () => {
   const options = [
@@ -16,19 +16,19 @@ describe("Dropdown - component", () => {
   };
 
   it("renders the dropdown", () => {
-    const component = mount(<Dropdown {...props} />);
-    const dropdownSelect = component.find("Select");
+    render(<Dropdown {...props} />);
+    const dropdownSelect = screen.getByRole("combobox");
 
-    expect(dropdownSelect).toBeTruthy();
+    expect(dropdownSelect).toBeInTheDocument();
   });
 
-  it("selects a value from dropdown", () => {
+  it("selects a value from dropdown", async () => {
     const onChangeSpy = jest.fn();
-    const component = mount(<Dropdown {...props} onChange={onChangeSpy} />);
-    const inputNode = component.find("input");
+    render(<Dropdown {...props} onChange={onChangeSpy} />);
+    const inputNode = screen.getByRole("combobox");
 
-    fillInFormInput(inputNode, "users");
-    component.find(".Select-option").first().simulate("mousedown");
+    userEvent.type(inputNode, "users");
+    fireEvent.mouseDown(screen.getByRole("option"));
 
     expect(onChangeSpy).toHaveBeenCalledWith("users");
   });

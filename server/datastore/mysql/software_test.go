@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
@@ -35,6 +36,7 @@ func TestSoftware(t *testing.T) {
 		{"CalculateHostsPerSoftware", testSoftwareCalculateHostsPerSoftware},
 		{"ListVulnerableSoftwareBySource", testListVulnerableSoftwareBySource},
 		{"DeleteVulnerabilitiesByCPECVE", testDeleteVulnerabilitiesByCPECVE},
+		{"HostsByCVE", testHostsByCVE},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -197,16 +199,19 @@ func testSoftwareInsertCVEs(t *testing.T, ds *Datastore) {
 	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
 
 	software := []fleet.Software{
-		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
+		{Name: "foo", Version: "0.0.1", Source: "deb_packages", Release: "1"},
+		{Name: "foo", Version: "0.0.1", Source: "deb_packages", Release: "2"},
 		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
 	}
 	require.NoError(t, ds.UpdateHostSoftware(context.Background(), host.ID, software))
 	require.NoError(t, ds.LoadHostSoftware(context.Background(), host))
 
 	require.NoError(t, ds.AddCPEForSoftware(context.Background(), host.Software[0], "somecpe"))
+	require.NoError(t, ds.AddCPEForSoftware(context.Background(), host.Software[1], "somecpe"))
 	count, err := ds.InsertCVEForCPE(context.Background(), "cve-123-123-132", []string{"somecpe"})
 	require.NoError(t, err)
-	assert.Equal(t, int64(1), count)
+	// inserts one per release
+	assert.Equal(t, int64(2), count)
 
 	// run again for the same CPE, should not create any new row
 	count, err = ds.InsertCVEForCPE(context.Background(), "cve-123-123-132", []string{"somecpe"})
@@ -575,14 +580,14 @@ func testSoftwareCalculateHostsPerSoftware(t *testing.T, ds *Datastore) {
 		{Name: "bar", Version: "0.0.3", Source: "deb_packages"},
 	}
 
-	require.NoError(t, ds.UpdateHostSoftware(context.Background(), host1.ID, software1))
-	require.NoError(t, ds.UpdateHostSoftware(context.Background(), host2.ID, software2))
+	require.NoError(t, ds.UpdateHostSoftware(ctx, host1.ID, software1))
+	require.NoError(t, ds.UpdateHostSoftware(ctx, host2.ID, software2))
 
 	err := ds.CalculateHostsPerSoftware(ctx, time.Now())
 	require.NoError(t, err)
 
-	swOpts := fleet.SoftwareListOptions{WithHostCounts: true, ListOptions: fleet.ListOptions{OrderKey: "hosts_count", OrderDirection: fleet.OrderDescending}}
-	swCounts := listSoftwareCheckCount(t, ds, 4, 4, swOpts, false)
+	globalOpts := fleet.SoftwareListOptions{WithHostCounts: true, ListOptions: fleet.ListOptions{OrderKey: "hosts_count", OrderDirection: fleet.OrderDescending}}
+	globalCounts := listSoftwareCheckCount(t, ds, 4, 4, globalOpts, false)
 
 	want := []fleet.Software{
 		{Name: "foo", Version: "0.0.3", HostsCount: 2},
@@ -590,25 +595,25 @@ func testSoftwareCalculateHostsPerSoftware(t *testing.T, ds *Datastore) {
 		{Name: "foo", Version: "v0.0.2", HostsCount: 1},
 		{Name: "bar", Version: "0.0.3", HostsCount: 1},
 	}
-	cmpNameVersionCount(want, swCounts)
+	cmpNameVersionCount(want, globalCounts)
 
 	// update host2, remove "bar" software
 	software2 = []fleet.Software{
 		{Name: "foo", Version: "v0.0.2", Source: "chrome_extensions"},
 		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
 	}
-	require.NoError(t, ds.UpdateHostSoftware(context.Background(), host2.ID, software2))
+	require.NoError(t, ds.UpdateHostSoftware(ctx, host2.ID, software2))
 
 	err = ds.CalculateHostsPerSoftware(ctx, time.Now())
 	require.NoError(t, err)
 
-	swCounts = listSoftwareCheckCount(t, ds, 3, 3, swOpts, false)
+	globalCounts = listSoftwareCheckCount(t, ds, 3, 3, globalOpts, false)
 	want = []fleet.Software{
 		{Name: "foo", Version: "0.0.3", HostsCount: 2},
 		{Name: "foo", Version: "0.0.1", HostsCount: 1},
 		{Name: "foo", Version: "v0.0.2", HostsCount: 1},
 	}
-	cmpNameVersionCount(want, swCounts)
+	cmpNameVersionCount(want, globalCounts)
 
 	// create a software entry without any host and any counts
 	_, err = ds.writer.ExecContext(ctx, `INSERT INTO software (name, version, source) VALUES ('baz', '0.0.1', 'testing')`)
@@ -635,6 +640,127 @@ func testSoftwareCalculateHostsPerSoftware(t *testing.T, ds *Datastore) {
 		{Name: "foo", Version: "v0.0.2", HostsCount: 0},
 	}
 	cmpNameVersionCount(want, allSw)
+
+	// create 2 teams and assign a new host to each
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team2"})
+	require.NoError(t, err)
+	host3 := test.NewHost(t, ds, "host3", "", "host3key", "host3uuid", time.Now())
+	require.NoError(t, ds.AddHostsToTeam(ctx, &team1.ID, []uint{host3.ID}))
+	host4 := test.NewHost(t, ds, "host4", "", "host4key", "host4uuid", time.Now())
+	require.NoError(t, ds.AddHostsToTeam(ctx, &team2.ID, []uint{host4.ID}))
+
+	// assign existing host1 to team1 too, so we have a team with multiple hosts
+	require.NoError(t, ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{host1.ID}))
+	// use some software for host3 and host4
+	software3 := []fleet.Software{
+		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
+	}
+	software4 := []fleet.Software{
+		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
+		{Name: "bar", Version: "0.0.3", Source: "deb_packages"},
+	}
+	require.NoError(t, ds.UpdateHostSoftware(ctx, host3.ID, software3))
+	require.NoError(t, ds.UpdateHostSoftware(ctx, host4.ID, software4))
+
+	// at this point, there's no counts per team, only global counts
+	globalCounts = listSoftwareCheckCount(t, ds, 3, 3, globalOpts, false)
+	want = []fleet.Software{
+		{Name: "foo", Version: "0.0.3", HostsCount: 2},
+		{Name: "foo", Version: "0.0.1", HostsCount: 1},
+		{Name: "foo", Version: "v0.0.2", HostsCount: 1},
+	}
+	cmpNameVersionCount(want, globalCounts)
+
+	team1Opts := fleet.SoftwareListOptions{WithHostCounts: true, TeamID: ptr.Uint(team1.ID), ListOptions: fleet.ListOptions{OrderKey: "hosts_count", OrderDirection: fleet.OrderDescending}}
+	team1Counts := listSoftwareCheckCount(t, ds, 0, 0, team1Opts, false)
+	want = []fleet.Software{}
+	cmpNameVersionCount(want, team1Counts)
+
+	// after a call to Calculate, the global counts are updated and the team counts appear
+	err = ds.CalculateHostsPerSoftware(ctx, time.Now())
+	require.NoError(t, err)
+
+	globalCounts = listSoftwareCheckCount(t, ds, 4, 4, globalOpts, false)
+	want = []fleet.Software{
+		{Name: "foo", Version: "0.0.3", HostsCount: 4},
+		{Name: "foo", Version: "0.0.1", HostsCount: 1},
+		{Name: "foo", Version: "v0.0.2", HostsCount: 1},
+		{Name: "bar", Version: "0.0.3", HostsCount: 1},
+	}
+	cmpNameVersionCount(want, globalCounts)
+
+	team1Counts = listSoftwareCheckCount(t, ds, 2, 2, team1Opts, false)
+	want = []fleet.Software{
+		{Name: "foo", Version: "0.0.3", HostsCount: 2},
+		{Name: "foo", Version: "0.0.1", HostsCount: 1},
+	}
+	cmpNameVersionCount(want, team1Counts)
+
+	team2Opts := fleet.SoftwareListOptions{WithHostCounts: true, TeamID: ptr.Uint(team2.ID), ListOptions: fleet.ListOptions{OrderKey: "hosts_count", OrderDirection: fleet.OrderDescending}}
+	team2Counts := listSoftwareCheckCount(t, ds, 2, 2, team2Opts, false)
+	want = []fleet.Software{
+		{Name: "foo", Version: "0.0.3", HostsCount: 1},
+		{Name: "bar", Version: "0.0.3", HostsCount: 1},
+	}
+	cmpNameVersionCount(want, team2Counts)
+
+	// update host4 (team2), remove "bar" software
+	software4 = []fleet.Software{
+		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
+	}
+	require.NoError(t, ds.UpdateHostSoftware(ctx, host4.ID, software4))
+
+	err = ds.CalculateHostsPerSoftware(ctx, time.Now())
+	require.NoError(t, err)
+
+	globalCounts = listSoftwareCheckCount(t, ds, 3, 3, globalOpts, false)
+	want = []fleet.Software{
+		{Name: "foo", Version: "0.0.3", HostsCount: 4},
+		{Name: "foo", Version: "0.0.1", HostsCount: 1},
+		{Name: "foo", Version: "v0.0.2", HostsCount: 1},
+	}
+	cmpNameVersionCount(want, globalCounts)
+
+	team1Counts = listSoftwareCheckCount(t, ds, 2, 2, team1Opts, false)
+	want = []fleet.Software{
+		{Name: "foo", Version: "0.0.3", HostsCount: 2},
+		{Name: "foo", Version: "0.0.1", HostsCount: 1},
+	}
+	cmpNameVersionCount(want, team1Counts)
+
+	team2Counts = listSoftwareCheckCount(t, ds, 1, 1, team2Opts, false)
+	want = []fleet.Software{
+		{Name: "foo", Version: "0.0.3", HostsCount: 1},
+	}
+	cmpNameVersionCount(want, team2Counts)
+
+	// update host4 (team2), remove all software and delete team
+	software4 = []fleet.Software{}
+	require.NoError(t, ds.UpdateHostSoftware(ctx, host4.ID, software4))
+	require.NoError(t, ds.DeleteTeam(ctx, team2.ID))
+
+	// this call will remove team2 from the software host counts table
+	err = ds.CalculateHostsPerSoftware(ctx, time.Now())
+	require.NoError(t, err)
+
+	globalCounts = listSoftwareCheckCount(t, ds, 3, 3, globalOpts, false)
+	want = []fleet.Software{
+		{Name: "foo", Version: "0.0.3", HostsCount: 3},
+		{Name: "foo", Version: "0.0.1", HostsCount: 1},
+		{Name: "foo", Version: "v0.0.2", HostsCount: 1},
+	}
+	cmpNameVersionCount(want, globalCounts)
+
+	team1Counts = listSoftwareCheckCount(t, ds, 2, 2, team1Opts, false)
+	want = []fleet.Software{
+		{Name: "foo", Version: "0.0.3", HostsCount: 2},
+		{Name: "foo", Version: "0.0.1", HostsCount: 1},
+	}
+	cmpNameVersionCount(want, team1Counts)
+
+	listSoftwareCheckCount(t, ds, 0, 0, team2Opts, false)
 }
 
 func insertVulnSoftwareForTest(t *testing.T, ds *Datastore) {
@@ -777,4 +903,25 @@ func testDeleteVulnerabilitiesByCPECVE(t *testing.T, ds *Datastore) {
 	software, err = ds.ListVulnerableSoftwareBySource(ctx, "chrome_extensions")
 	require.NoError(t, err)
 	require.Len(t, software, 1)
+}
+
+func testHostsByCVE(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	hosts, err := ds.HostsByCVE(ctx, "CVE-2022-1234")
+	require.NoError(t, err)
+	require.Len(t, hosts, 0)
+
+	insertVulnSoftwareForTest(t, ds)
+
+	// CVE of foo chrome 0.0.3, both hosts have it
+	hosts, err = ds.HostsByCVE(ctx, "cve-123-456-789")
+	require.NoError(t, err)
+	require.Len(t, hosts, 2)
+
+	// CVE of bar.rpm 0.0.3, only host 2 has it
+	hosts, err = ds.HostsByCVE(ctx, "cve-321-432-543")
+	require.NoError(t, err)
+	require.Len(t, hosts, 1)
+	require.Equal(t, hosts[0].Hostname, "host2")
 }

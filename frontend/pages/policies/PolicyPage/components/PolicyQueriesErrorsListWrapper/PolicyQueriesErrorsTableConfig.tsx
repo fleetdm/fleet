@@ -4,12 +4,10 @@
 import React from "react";
 import { memoize } from "lodash";
 
-// @ts-ignore
-import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
-import { IHostPolicyQueryError } from "interfaces/host";
+import { ICampaignError } from "interfaces/campaign";
 import sortUtils from "utilities/sort";
 
-// TODO functions for paths math e.g., path={PATHS.MANAGE_HOSTS + getParams(cellProps.row.original)}
+import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
 
 interface IHeaderProps {
   column: {
@@ -20,10 +18,10 @@ interface IHeaderProps {
 
 interface ICellProps {
   cell: {
-    value: any;
+    value: string;
   };
   row: {
-    original: IHostPolicyQueryError;
+    original: ICampaignError;
   };
 }
 
@@ -51,8 +49,8 @@ const generateTableHeaders = (): IDataColumn[] => {
       ),
     },
     {
-      title: "OSQuery Version",
-      Header: "OSQuery Version",
+      title: "Osquery version",
+      Header: "Osquery version",
       disableSortBy: true,
       accessor: "osquery_version",
       Cell: (cellProps: ICellProps): JSX.Element => (
@@ -73,9 +71,7 @@ const generateTableHeaders = (): IDataColumn[] => {
 };
 
 const generateDataSet = memoize(
-  (
-    policyHostsErrorsList: IHostPolicyQueryError[] = []
-  ): IHostPolicyQueryError[] => {
+  (policyHostsErrorsList: ICampaignError[] = []): ICampaignError[] => {
     policyHostsErrorsList = policyHostsErrorsList.sort((a, b) =>
       sortUtils.caseInsensitiveAsc(a.host_hostname, b.host_hostname)
     );

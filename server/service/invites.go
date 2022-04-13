@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"database/sql"
 	"encoding/base64"
 	"errors"
 	"html/template"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mail"
@@ -189,16 +191,30 @@ func (svc *Service) UpdateInvite(ctx context.Context, id uint, payload fleet.Inv
 		return nil, err
 	}
 
-	if err := fleet.ValidateRole(payload.GlobalRole.Ptr(), payload.Teams); err != nil {
-		return nil, err
-	}
-
 	invite, err := svc.ds.Invite(ctx, id)
 	if err != nil {
 		return nil, err
 	}
 
-	if payload.Email != nil {
+	if payload.Email != nil && *payload.Email != invite.Email {
+		switch _, err := svc.ds.UserByEmail(ctx, *payload.Email); {
+		case err == nil:
+			return nil, ctxerr.Wrap(ctx, alreadyExistsError{})
+		case errors.Is(err, sql.ErrNoRows):
+			// OK
+		default:
+			return nil, ctxerr.Wrap(ctx, err)
+		}
+
+		switch _, err = svc.ds.InviteByEmail(ctx, *payload.Email); {
+		case err == nil:
+			return nil, ctxerr.Wrap(ctx, alreadyExistsError{})
+		case errors.Is(err, sql.ErrNoRows):
+			// OK
+		default:
+			return nil, ctxerr.Wrap(ctx, err)
+		}
+
 		invite.Email = *payload.Email
 	}
 	if payload.Name != nil {
@@ -210,8 +226,14 @@ func (svc *Service) UpdateInvite(ctx context.Context, id uint, payload fleet.Inv
 	if payload.SSOEnabled != nil {
 		invite.SSOEnabled = *payload.SSOEnabled
 	}
-	invite.GlobalRole = payload.GlobalRole
-	invite.Teams = payload.Teams
+
+	if payload.GlobalRole.Valid || len(payload.Teams) > 0 {
+		if err := fleet.ValidateRole(payload.GlobalRole.Ptr(), payload.Teams); err != nil {
+			return nil, err
+		}
+		invite.GlobalRole = payload.GlobalRole
+		invite.Teams = payload.Teams
+	}
 
 	return svc.ds.UpdateInvite(ctx, id, invite)
 }
@@ -244,4 +266,52 @@ func (svc *Service) DeleteInvite(ctx context.Context, id uint) error {
 		return err
 	}
 	return svc.ds.DeleteInvite(ctx, id)
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Verify invite
+////////////////////////////////////////////////////////////////////////////////
+
+type verifyInviteRequest struct {
+	Token string `url:"token"`
+}
+
+type verifyInviteResponse struct {
+	Invite *fleet.Invite `json:"invite"`
+	Err    error         `json:"error,omitempty"`
+}
+
+func (r verifyInviteResponse) error() error { return r.Err }
+
+func verifyInviteEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*verifyInviteRequest)
+	invite, err := svc.VerifyInvite(ctx, req.Token)
+	if err != nil {
+		return verifyInviteResponse{Err: err}, nil
+	}
+	return verifyInviteResponse{Invite: invite}, nil
+}
+
+func (svc *Service) VerifyInvite(ctx context.Context, token string) (*fleet.Invite, error) {
+	// skipauth: There is no viewer context at this point. We rely on verifying
+	// the invite for authNZ.
+	svc.authz.SkipAuthorization(ctx)
+
+	logging.WithExtras(ctx, "token", token)
+
+	invite, err := svc.ds.InviteByToken(ctx, token)
+	if err != nil {
+		return nil, err
+	}
+
+	if invite.Token != token {
+		return nil, fleet.NewInvalidArgumentError("invite_token", "Invite Token does not match Email Address.")
+	}
+
+	expiresAt := invite.CreatedAt.Add(svc.config.App.InviteTokenValidityPeriod)
+	if svc.clock.Now().After(expiresAt) {
+		return nil, fleet.NewInvalidArgumentError("invite_token", "Invite token has expired.")
+	}
+
+	return invite, nil
 }

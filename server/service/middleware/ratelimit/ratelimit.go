@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"reflect"
-	"runtime"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/go-kit/kit/endpoint"
@@ -28,19 +26,15 @@ func NewMiddleware(store throttled.GCRAStore) *Middleware {
 }
 
 // Limit returns a new middleware function enforcing the provided quota.
-func (m *Middleware) Limit(quota throttled.RateQuota) endpoint.Middleware {
+func (m *Middleware) Limit(keyName string, quota throttled.RateQuota) endpoint.Middleware {
 	return func(next endpoint.Endpoint) endpoint.Endpoint {
-		// Get function name to use as a key for rate limiting (each wrapped function
-		// gets a separate quota)
-		funcName := runtime.FuncForPC(reflect.ValueOf(next).Pointer()).Name()
-
 		limiter, err := throttled.NewGCRARateLimiter(m.store, quota)
 		if err != nil {
 			panic(err)
 		}
 
 		return func(ctx context.Context, req interface{}) (response interface{}, err error) {
-			limited, result, err := limiter.RateLimit(funcName, 1)
+			limited, result, err := limiter.RateLimit(keyName, 1)
 			if err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "check rate limit")
 			}

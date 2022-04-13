@@ -7,7 +7,7 @@ import (
 
 	"github.com/go-kit/kit/log"
 	kithttp "github.com/go-kit/kit/transport/http"
-	launcher "github.com/kolide/launcher/service"
+	launcher "github.com/kolide/launcher/pkg/service"
 	grpc "google.golang.org/grpc"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"

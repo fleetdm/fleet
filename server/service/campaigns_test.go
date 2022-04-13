@@ -33,7 +33,7 @@ func (nopLiveQuery) QueryCompletedByHost(name string, hostID uint) error {
 func TestLiveQueryAuth(t *testing.T) {
 	ds := new(mock.Store)
 	qr := pubsub.NewInmemQueryResults()
-	svc := newTestService(ds, qr, nopLiveQuery{})
+	svc := newTestService(t, ds, qr, nopLiveQuery{})
 
 	teamMaintainer := &fleet.User{ID: 42, Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer}}}
 	query1ObsCanRun := &fleet.Query{

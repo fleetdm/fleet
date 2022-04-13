@@ -93,6 +93,7 @@ func (p *PackSpec) Verify() error {
 
 type PackSpecTargets struct {
 	Labels []string `json:"labels"`
+	Teams  []string `json:"teams"`
 }
 
 type PackSpecQuery struct {

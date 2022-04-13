@@ -5,7 +5,7 @@ state, and contain the same default actions (each action namespaced to the
 entity name). Some entities extend the default configuration but for the most
 part entities are configured as follows:
 
-## Entity Configuration
+## Entity configuration
 
 Entities are configured from the [base configuration
 class](./base/config.js).
@@ -49,7 +49,7 @@ The base configuration takes an options hash with the following attributes.
 
 - The function that calls the API to update an entity.
 
-### Example Entity Configuration
+### Example Entity configuration
 
 ```js
 // in redux/nodes/entities/packs/config.js

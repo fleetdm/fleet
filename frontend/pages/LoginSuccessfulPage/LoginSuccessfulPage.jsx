@@ -1,5 +1,4 @@
 import React, { Component } from "react";
-import { connect } from "react-redux";
 
 class LoginSuccessfulPage extends Component {
   render() {
@@ -15,5 +14,4 @@ class LoginSuccessfulPage extends Component {
   }
 }
 
-const ConnectedComponent = connect()(LoginSuccessfulPage);
-export default ConnectedComponent;
+export default LoginSuccessfulPage;

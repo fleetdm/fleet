@@ -4,8 +4,11 @@
 package eefleetctl
 
 import (
+	"archive/tar"
+	"compress/gzip"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -15,8 +18,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update/filestore"
+	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/theupdateframework/go-tuf/data"
@@ -157,6 +162,36 @@ func getRoots(t *testing.T, tmpDir string) string {
 	return string(out)
 }
 
+func compressSingleFile(t *testing.T, filePath, outFilePath string) {
+	outf, err := secure.OpenFile(outFilePath, os.O_CREATE|os.O_WRONLY, constant.DefaultFileMode)
+	require.NoError(t, err)
+	defer outf.Close()
+	gw := gzip.NewWriter(outf)
+	defer gw.Close()
+	tw := tar.NewWriter(gw)
+	defer tw.Close()
+	inf, err := os.Open(filePath)
+	require.NoError(t, err)
+	infi, err := inf.Stat()
+	require.NoError(t, err)
+	err = tw.WriteHeader(
+		&tar.Header{
+			Name: filepath.Base(filePath),
+			Size: infi.Size(),
+			Mode: 0o777,
+		},
+	)
+	require.NoError(t, err)
+	_, err = io.Copy(tw, inf)
+	require.NoError(t, err)
+	err = tw.Close()
+	require.NoError(t, err)
+	err = gw.Close()
+	require.NoError(t, err)
+	err = outf.Close()
+	require.NoError(t, err)
+}
+
 func TestUpdatesIntegration(t *testing.T) {
 	// Not t.Parallel() due to modifications to environment.
 	tmpDir := t.TempDir()
@@ -167,17 +202,43 @@ func TestUpdatesIntegration(t *testing.T) {
 
 	// Run an HTTP server to serve the update metadata
 	server := httptest.NewServer(http.FileServer(http.Dir(filepath.Join(tmpDir, "repository"))))
-	defer server.Close()
+	t.Cleanup(server.Close)
 
 	roots := getRoots(t, tmpDir)
+
+	// Use the current binary as target for this test so that it is a binary that
+	// is valid for execution on the current system.
+	testPath, err := os.Executable()
+	require.NoError(t, err)
+
+	tarGzFilePath := filepath.Join(filepath.Dir(testPath), "other.app.tar.gz")
+	compressSingleFile(t, testPath, tarGzFilePath)
 
 	// Initialize an update client
 	localStore, err := filestore.New(filepath.Join(tmpDir, "tuf-metadata.json"))
 	require.NoError(t, err)
-	client, err := update.New(update.Options{RootDirectory: tmpDir, ServerURL: server.URL, RootKeys: roots, LocalStore: localStore})
+	updater, err := update.New(update.Options{
+		RootDirectory: tmpDir,
+		ServerURL:     server.URL,
+		RootKeys:      roots,
+		LocalStore:    localStore,
+		Targets: update.Targets{
+			"test": update.TargetInfo{
+				Platform:   "macos",
+				Channel:    "1.3.3.7",
+				TargetFile: "test",
+			},
+			"other": update.TargetInfo{
+				Platform:             "macos-app",
+				Channel:              "1.3.3.8",
+				TargetFile:           "other.app.tar.gz",
+				ExtractedExecSubPath: []string{filepath.Base(testPath)},
+			},
+		},
+	})
 	require.NoError(t, err)
-	require.NoError(t, client.UpdateMetadata())
-	_, err = client.Lookup("any", "target")
+	require.NoError(t, updater.UpdateMetadata())
+	_, err = updater.Lookup("any")
 	require.Error(t, err, "lookup should fail before targets added")
 
 	repo, err := openRepo(tmpDir)
@@ -188,76 +249,77 @@ func TestUpdatesIntegration(t *testing.T) {
 	assertVersion(t, 1, repo.TimestampVersion)
 
 	// Add some targets
-	// Use the current binary for this test so that it is a binary that is valid for execution on
-	// the current system.
-	testPath, err := os.Executable()
-	require.NoError(t, err)
 	require.NoError(t, runUpdatesCommand("add", "--path", tmpDir, "--target", testPath, "--platform", "linux", "--name", "test", "--version", "1.3.3.7"))
 	require.NoError(t, runUpdatesCommand("add", "--path", tmpDir, "--target", testPath, "--platform", "macos", "--name", "test", "--version", "1.3.3.7"))
 	require.NoError(t, runUpdatesCommand("add", "--path", tmpDir, "--target", testPath, "--platform", "windows", "--name", "test", "--version", "1.3.3.7"))
+	require.NoError(t, runUpdatesCommand("add", "--path", tmpDir, "--target", tarGzFilePath, "--platform", "macos-app", "--name", "other", "--version", "1.3.3.8"))
 	assertFileExists(t, filepath.Join(tmpDir, "repository", "targets", "test", "linux", "1.3.3.7", "test"))
 	assertFileExists(t, filepath.Join(tmpDir, "repository", "targets", "test", "macos", "1.3.3.7", "test"))
 	assertFileExists(t, filepath.Join(tmpDir, "repository", "targets", "test", "windows", "1.3.3.7", "test"))
+	assertFileExists(t, filepath.Join(tmpDir, "repository", "targets", "other", "macos-app", "1.3.3.8", "other.app.tar.gz"))
 
 	// Verify the client can look up and download the updates
-	require.NoError(t, client.UpdateMetadata())
-	targets, err := client.Targets()
+	require.NoError(t, updater.UpdateMetadata())
+	targets, err := updater.Targets()
 	require.NoError(t, err)
-	assert.Len(t, targets, 3)
-	_, err = client.Get("test", "1.3.3.7")
+	assert.Len(t, targets, 4)
+	_, err = updater.Get("test")
 	require.NoError(t, err)
+	other, err := updater.Get("other")
+	require.NoError(t, err)
+	require.Equal(t, filepath.Base(other.ExecPath), filepath.Base(testPath))
 
 	repo, err = openRepo(tmpDir)
 	require.NoError(t, err)
 	assertVersion(t, 1, repo.RootVersion)
-	assertVersion(t, 4, repo.TargetsVersion)
-	assertVersion(t, 4, repo.SnapshotVersion)
-	assertVersion(t, 4, repo.TimestampVersion)
+	assertVersion(t, 5, repo.TargetsVersion)
+	assertVersion(t, 5, repo.SnapshotVersion)
+	assertVersion(t, 5, repo.TimestampVersion)
 
 	require.NoError(t, runUpdatesCommand("timestamp", "--path", tmpDir))
 
 	repo, err = openRepo(tmpDir)
 	require.NoError(t, err)
 	assertVersion(t, 1, repo.RootVersion)
-	assertVersion(t, 4, repo.TargetsVersion)
-	assertVersion(t, 4, repo.SnapshotVersion)
-	assertVersion(t, 5, repo.TimestampVersion)
+	assertVersion(t, 5, repo.TargetsVersion)
+	assertVersion(t, 5, repo.SnapshotVersion)
+	assertVersion(t, 6, repo.TimestampVersion)
 
 	// Rotate root
 	require.NoError(t, runUpdatesCommand("rotate", "--path", tmpDir, "root"))
 	repo, err = openRepo(tmpDir)
 	require.NoError(t, err)
 	assertVersion(t, 2, repo.RootVersion)
-	assertVersion(t, 5, repo.TargetsVersion)
-	assertVersion(t, 5, repo.SnapshotVersion)
-	assertVersion(t, 6, repo.TimestampVersion)
+	assertVersion(t, 6, repo.TargetsVersion)
+	assertVersion(t, 6, repo.SnapshotVersion)
+	assertVersion(t, 7, repo.TimestampVersion)
 
 	// Rotate targets
 	require.NoError(t, runUpdatesCommand("rotate", "--path", tmpDir, "targets"))
 	repo, err = openRepo(tmpDir)
 	require.NoError(t, err)
 	assertVersion(t, 3, repo.RootVersion)
-	assertVersion(t, 6, repo.TargetsVersion)
-	assertVersion(t, 6, repo.SnapshotVersion)
-	assertVersion(t, 7, repo.TimestampVersion)
+	assertVersion(t, 7, repo.TargetsVersion)
+	assertVersion(t, 7, repo.SnapshotVersion)
+	assertVersion(t, 8, repo.TimestampVersion)
 
 	// Rotate snapshot
 	require.NoError(t, runUpdatesCommand("rotate", "--path", tmpDir, "snapshot"))
 	repo, err = openRepo(tmpDir)
 	require.NoError(t, err)
 	assertVersion(t, 4, repo.RootVersion)
-	assertVersion(t, 7, repo.TargetsVersion)
-	assertVersion(t, 7, repo.SnapshotVersion)
-	assertVersion(t, 8, repo.TimestampVersion)
+	assertVersion(t, 8, repo.TargetsVersion)
+	assertVersion(t, 8, repo.SnapshotVersion)
+	assertVersion(t, 9, repo.TimestampVersion)
 
 	// Rotate timestamp
 	require.NoError(t, runUpdatesCommand("rotate", "--path", tmpDir, "timestamp"))
 	repo, err = openRepo(tmpDir)
 	require.NoError(t, err)
 	assertVersion(t, 5, repo.RootVersion)
-	assertVersion(t, 8, repo.TargetsVersion)
-	assertVersion(t, 8, repo.SnapshotVersion)
-	assertVersion(t, 9, repo.TimestampVersion)
+	assertVersion(t, 9, repo.TargetsVersion)
+	assertVersion(t, 9, repo.SnapshotVersion)
+	assertVersion(t, 10, repo.TimestampVersion)
 
 	// Should still be able to add after rotations
 	require.NoError(t, runUpdatesCommand("add", "--path", tmpDir, "--target", testPath, "--platform", "windows", "--name", "test", "--version", "1.3.3.7"))
@@ -267,22 +329,34 @@ func TestUpdatesIntegration(t *testing.T) {
 	assert.NotEqual(t, roots, newRoots)
 
 	// Should still be able to retrieve an update after rotations
-	require.NoError(t, client.UpdateMetadata())
-	targets, err = client.Targets()
+	require.NoError(t, updater.UpdateMetadata())
+	targets, err = updater.Targets()
 	require.NoError(t, err)
-	assert.Len(t, targets, 3)
-	// Remove the old copy first
-	require.NoError(t, os.RemoveAll(client.LocalPath("test", "1.3.3.7")))
-	_, err = client.Get("test", "1.3.3.7")
+	assert.Len(t, targets, 4)
+	// Remove the old test copy first
+	p, err := updater.ExecutableLocalPath("test")
+	require.NoError(t, err)
+	require.NoError(t, os.RemoveAll(p))
+	_, err = updater.Get("test")
+	require.NoError(t, err)
+	// Remove the old other copy first
+	o, err := updater.Get("other")
+	require.NoError(t, err)
+	require.NoError(t, os.RemoveAll(filepath.Join(filepath.Dir(o.ExecPath), "other.app.tar.gz")))
+	require.NoError(t, os.RemoveAll(filepath.Join(filepath.Dir(o.ExecPath), filepath.Base(testPath))))
+	o2, err := updater.Get("other")
+	require.NoError(t, err)
+	require.Equal(t, o, o2)
+	_, err = os.Stat(o2.ExecPath)
 	require.NoError(t, err)
 
 	// Update client should be able to initialize with new root
 	tmpDir = t.TempDir()
 	localStore, err = filestore.New(filepath.Join(tmpDir, "tuf-metadata.json"))
 	require.NoError(t, err)
-	client, err = update.New(update.Options{RootDirectory: tmpDir, ServerURL: server.URL, RootKeys: roots, LocalStore: localStore})
+	updater, err = update.New(update.Options{RootDirectory: tmpDir, ServerURL: server.URL, RootKeys: roots, LocalStore: localStore})
 	require.NoError(t, err)
-	require.NoError(t, client.UpdateMetadata())
+	require.NoError(t, updater.UpdateMetadata())
 }
 
 func TestCommit(t *testing.T) {

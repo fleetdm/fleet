@@ -22,7 +22,7 @@ func TestDetailQueryNetworkInterfaces(t *testing.T) {
 
 	ingest := GetDetailQueries(nil, config.FleetConfig{})["network_interface"].IngestFunc
 
-	assert.NoError(t, ingest(log.NewNopLogger(), &host, nil))
+	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, nil))
 	assert.Equal(t, initialHost, host)
 
 	var rows []map[string]string
@@ -39,7 +39,7 @@ func TestDetailQueryNetworkInterfaces(t *testing.T) {
 		&rows,
 	))
 
-	assert.NoError(t, ingest(log.NewNopLogger(), &host, rows))
+	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, rows))
 	assert.Equal(t, "192.168.1.3", host.PrimaryIP)
 	assert.Equal(t, "f4:5d:79:93:58:5b", host.PrimaryMac)
 
@@ -57,7 +57,7 @@ func TestDetailQueryNetworkInterfaces(t *testing.T) {
 		&rows,
 	))
 
-	assert.NoError(t, ingest(log.NewNopLogger(), &host, rows))
+	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, rows))
 	assert.Equal(t, "2604:3f08:1337:9411:cbe:814f:51a6:e4e3", host.PrimaryIP)
 	assert.Equal(t, "27:1b:aa:60:e8:0a", host.PrimaryMac)
 
@@ -76,7 +76,7 @@ func TestDetailQueryNetworkInterfaces(t *testing.T) {
 		&rows,
 	))
 
-	assert.NoError(t, ingest(log.NewNopLogger(), &host, rows))
+	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, rows))
 	assert.Equal(t, "205.111.43.79", host.PrimaryIP)
 	assert.Equal(t, "ab:1b:aa:60:e8:0a", host.PrimaryMac)
 
@@ -93,7 +93,7 @@ func TestDetailQueryNetworkInterfaces(t *testing.T) {
 		&rows,
 	))
 
-	assert.NoError(t, ingest(log.NewNopLogger(), &host, rows))
+	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, rows))
 	assert.Equal(t, "127.0.0.1", host.PrimaryIP)
 	assert.Equal(t, "00:00:00:00:00:00", host.PrimaryMac)
 }
@@ -290,7 +290,7 @@ func sortedKeysCompare(t *testing.T, m map[string]DetailQuery, expectedKeys []st
 
 func TestGetDetailQueries(t *testing.T) {
 	queriesNoConfig := GetDetailQueries(nil, config.FleetConfig{})
-	require.Len(t, queriesNoConfig, 11)
+	require.Len(t, queriesNoConfig, 12)
 	baseQueries := []string{
 		"network_interface",
 		"os_version",
@@ -303,15 +303,16 @@ func TestGetDetailQueries(t *testing.T) {
 		"mdm",
 		"munki_info",
 		"google_chrome_profiles",
+		"orbit_info",
 	}
 	sortedKeysCompare(t, queriesNoConfig, baseQueries)
 
 	queriesWithUsers := GetDetailQueries(&fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}}, config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}})
-	require.Len(t, queriesWithUsers, 13)
+	require.Len(t, queriesWithUsers, 14)
 	sortedKeysCompare(t, queriesWithUsers, append(baseQueries, "users", "scheduled_query_stats"))
 
 	queriesWithUsersAndSoftware := GetDetailQueries(&fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true, EnableSoftwareInventory: true}}, config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}})
-	require.Len(t, queriesWithUsersAndSoftware, 16)
+	require.Len(t, queriesWithUsersAndSoftware, 17)
 	sortedKeysCompare(t, queriesWithUsersAndSoftware,
 		append(baseQueries, "users", "software_macos", "software_linux", "software_windows", "scheduled_query_stats"))
 }
@@ -322,7 +323,7 @@ func TestDetailQuerysOSVersion(t *testing.T) {
 
 	ingest := GetDetailQueries(nil, config.FleetConfig{})["os_version"].IngestFunc
 
-	assert.NoError(t, ingest(log.NewNopLogger(), &host, nil))
+	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, nil))
 	assert.Equal(t, initialHost, host)
 
 	// Rolling release for archlinux
@@ -344,7 +345,7 @@ func TestDetailQuerysOSVersion(t *testing.T) {
 		&rows,
 	))
 
-	assert.NoError(t, ingest(log.NewNopLogger(), &host, rows))
+	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, rows))
 	assert.Equal(t, "Arch Linux rolling", host.OSVersion)
 
 	// Simulate a linux with a proper version
@@ -365,7 +366,7 @@ func TestDetailQuerysOSVersion(t *testing.T) {
 		&rows,
 	))
 
-	assert.NoError(t, ingest(log.NewNopLogger(), &host, rows))
+	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, rows))
 	assert.Equal(t, "Arch Linux 1.2.3", host.OSVersion)
 }
 
@@ -393,4 +394,24 @@ func TestDirectIngestMDM(t *testing.T) {
 	}, false)
 	require.NoError(t, err)
 	require.True(t, ds.SetOrUpdateMDMDataFuncInvoked)
+}
+
+func TestDirectIngestOrbitInfo(t *testing.T) {
+	ds := new(mock.Store)
+	ds.SetOrUpdateDeviceAuthTokenFunc = func(ctx context.Context, hostID uint, authToken string) error {
+		require.Equal(t, hostID, uint(1))
+		require.Equal(t, authToken, "foo")
+		return nil
+	}
+
+	host := fleet.Host{
+		ID: 1,
+	}
+
+	err := directIngestOrbitInfo(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{{
+		"version":           "42",
+		"device_auth_token": "foo",
+	}}, true)
+	require.NoError(t, err)
+	require.True(t, ds.SetOrUpdateDeviceAuthTokenFuncInvoked)
 }

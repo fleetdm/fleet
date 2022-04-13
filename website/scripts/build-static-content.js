@@ -312,9 +312,32 @@ module.exports = {
                 pageTitle = fallbackPageTitle;
               }
 
+
+              // If the page has a pageOrderInSection meta tag, we'll use that to sort pages in their bottom level sections.
+              let pageOrderInSection;
+              if(sectionRepoPath === 'docs/') {
+                // Set a flag to determine if the page is a readme (e.g. /docs/Using-Fleet/configuration-files/readme.md) or a FAQ page.
+                // READMEs in subfolders and FAQ pages don't have pageOrderInSection values, they are always sorted at the end of sections.
+                let isPageAReadmeOrFAQ = (_.last(pageUnextensionedLowercasedRelPath.split(/\//)) === 'faq' || _.last(pageUnextensionedLowercasedRelPath.split(/\//)) === 'readme');
+                if(embeddedMetadata.pageOrderInSection) {
+                  if(isPageAReadmeOrFAQ) {
+                  // Throwing an error if a FAQ or README page has a pageOrderInSection meta tag
+                    throw new Error(`Failed compiling markdown content: A FAQ or README page has a pageOrderInSection meta tag (<meta name="pageOrderInSection" value="${embeddedMetadata.pageOrderInSection}">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, remove this meta tag from the markdown file.`);
+                  }
+                  // Checking if the meta tag's value is a number higher than 0
+                  if (embeddedMetadata.pageOrderInSection <= 0 || _.isNaN(parseInt(embeddedMetadata.pageOrderInSection)) ) {
+                    throw new Error(`Failed compiling markdown content: Invalid page rank (<meta name="pageOrderInSection" value="${embeddedMetadata.pageOrderInSection}">) embedded in "${path.join(topLvlRepoPath, sectionRepoPath)}".  To resolve, try changing the rank to a number higher than 0, then rebuild.`);
+                  } else {
+                    pageOrderInSection = parseInt(embeddedMetadata.pageOrderInSection);
+                  }
+                } else if(!embeddedMetadata.pageOrderInSection && !isPageAReadmeOrFAQ){
+                  // If the page is not a Readme or a FAQ, we'll throw an error if its missing a pageOrderInSection meta tag.
+                  throw new Error(`Failed compiling markdown content: A Non FAQ or README Documentation page is missing a pageOrderInSection meta tag (<meta name="pageOrderInSection" value="">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, add a meta tag with a number higher than 0.`);
+                }
+              }
+
               // Determine unique HTML id
               // > • This will become the filename of the resulting HTML.
-              // > • And it will be attached to menu data for use in sorting pages within their bottom-level sections.
               let htmlId = (
                 sectionRepoPath.slice(0,10)+
                 '--'+
@@ -332,7 +355,7 @@ module.exports = {
               }
 
               // Determine the path of the file in the fleet repo so we can link to
-              // the file on github from fleetdm.com (e.g. 01-Using-Fleet/02-fleetctl-CLI.md)
+              // the file on github from fleetdm.com (e.g. Using-Fleet/fleetctl-CLI.md)
               let sectionRelativeRepoPath = path.relative(path.join(topLvlRepoPath, sectionRepoPath), path.resolve(pageSourcePath));
 
               // Append to what will become configuration for the Sails app.
@@ -341,8 +364,9 @@ module.exports = {
                 title: pageTitle,
                 lastModifiedAt: lastModifiedAt,
                 htmlId: htmlId,
+                pageOrderInSectionPath: pageOrderInSection,
                 sectionRelativeRepoPath: sectionRelativeRepoPath,
-                meta: _.omit(embeddedMetadata, 'title')
+                meta: _.omit(embeddedMetadata, ['title', 'pageOrderInSection'])
               });
             }
           }//∞ </each source file>

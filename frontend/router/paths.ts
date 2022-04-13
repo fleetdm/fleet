@@ -8,6 +8,7 @@ export default {
   HOME: `${URL_PREFIX}/dashboard`,
   ADMIN_USERS: `${URL_PREFIX}/settings/users`,
   ADMIN_SETTINGS: `${URL_PREFIX}/settings/organization`,
+  ADMIN_INTEGRATIONS: `${URL_PREFIX}/settings/integrations`,
   ADMIN_TEAMS: `${URL_PREFIX}/settings/teams`,
   ALL_PACKS: `${URL_PREFIX}/packs/all`,
   EDIT_PACK: (packId: number): string => {
@@ -27,12 +28,14 @@ export default {
   FORGOT_PASSWORD: `${URL_PREFIX}/login/forgot`,
   API_ONLY_USER: `${URL_PREFIX}/apionlyuser`,
   FLEET_403: `${URL_PREFIX}/403`,
-  // FLEET_500: `${URL_PREFIX}/500`,
   LOGIN: `${URL_PREFIX}/login`,
   LOGOUT: `${URL_PREFIX}/logout`,
   MANAGE_HOSTS: `${URL_PREFIX}/hosts/manage`,
   HOST_DETAILS: (host: IHost): string => {
     return `${URL_PREFIX}/hosts/${host.id}`;
+  },
+  DEVICE_USER_DETAILS: (deviceAuthToken: any): string => {
+    return `${URL_PREFIX}/device/${deviceAuthToken}`;
   },
   MANAGE_SOFTWARE: `${URL_PREFIX}/software/manage`,
   TEAM_DETAILS_MEMBERS: (teamId: number): string => {

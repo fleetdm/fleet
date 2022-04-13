@@ -1,1 +1,0 @@
-* Fix software inventory query for linux hosts to improve performance when getting atom packages.

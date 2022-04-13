@@ -14,7 +14,7 @@ import (
 
 func TestNewQueryAttach(t *testing.T) {
 	ds := new(mock.Store)
-	svc := newTestService(ds, nil, nil)
+	svc := newTestService(t, ds, nil, nil)
 
 	name := "bad"
 	query := "attach '/nope' as bad"
@@ -43,7 +43,7 @@ func TestFilterQueriesForObserver(t *testing.T) {
 
 func TestListQueries(t *testing.T) {
 	ds := new(mock.Store)
-	svc := newTestService(ds, nil, nil)
+	svc := newTestService(t, ds, nil, nil)
 
 	cases := [...]struct {
 		title        string
@@ -85,7 +85,7 @@ func TestListQueries(t *testing.T) {
 
 func TestQueryAuth(t *testing.T) {
 	ds := new(mock.Store)
-	svc := newTestService(ds, nil, nil)
+	svc := newTestService(t, ds, nil, nil)
 
 	authoredQueryID := uint(1)
 	authoredQueryName := "authored"

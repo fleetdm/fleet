@@ -1,6 +1,7 @@
 package logging
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -29,7 +30,8 @@ func makeKinesisWriterWithMock(client kinesisiface.KinesisAPI, stream string) *k
 func getLogsFromPutRecordsInput(input *kinesis.PutRecordsInput) []json.RawMessage {
 	var logs []json.RawMessage
 	for _, record := range input.Records {
-		logs = append(logs, record.Data)
+		// remove the newline appended to get back the original raw byte input
+		logs = append(logs, bytes.Trim(record.Data, "\n"))
 	}
 	return logs
 }

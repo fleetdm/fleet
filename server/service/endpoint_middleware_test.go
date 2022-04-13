@@ -125,70 +125,15 @@ import (
 // 	}
 // }
 
-// TestGetNodeKey tests the reflection logic for pulling the node key from
-// various (fake) request types
-func TestGetNodeKey(t *testing.T) {
-	type Foo struct {
-		Foo     string
-		NodeKey string
-	}
-
-	type Bar struct {
-		Bar     string
-		NodeKey string
-	}
-
-	type Nope struct {
-		Nope string
-	}
-
-	type Almost struct {
-		NodeKey int
-	}
-
-	getNodeKeyTests := []struct {
-		i         interface{}
-		expectKey string
-		shouldErr bool
-	}{
-		{
-			i:         Foo{Foo: "foo", NodeKey: "fookey"},
-			expectKey: "fookey",
-			shouldErr: false,
-		},
-		{
-			i:         Bar{Bar: "bar", NodeKey: "barkey"},
-			expectKey: "barkey",
-			shouldErr: false,
-		},
-		{
-			i:         Nope{Nope: "nope"},
-			expectKey: "",
-			shouldErr: true,
-		},
-		{
-			i:         Almost{NodeKey: 10},
-			expectKey: "",
-			shouldErr: true,
-		},
-	}
-
-	for _, tt := range getNodeKeyTests {
-		t.Run("", func(t *testing.T) {
-			key, err := getNodeKey(tt.i)
-			assert.Equal(t, tt.expectKey, key)
-			if tt.shouldErr {
-				assert.IsType(t, osqueryError{}, err)
-			} else {
-				assert.Nil(t, err)
-			}
-		})
-	}
+type testNodeKeyRequest struct {
+	NodeKey string
 }
+
+func (r *testNodeKeyRequest) hostNodeKey() string { return r.NodeKey }
 
 func TestAuthenticatedHost(t *testing.T) {
 	ds := new(mock.Store)
-	svc := newTestService(ds, nil, nil)
+	svc := newTestService(t, ds, nil, nil)
 
 	expectedHost := fleet.Host{Hostname: "foo!"}
 	goodNodeKey := "foo bar baz bing bang boom"
@@ -237,7 +182,7 @@ func TestAuthenticatedHost(t *testing.T) {
 
 	for _, tt := range authenticatedHostTests {
 		t.Run("", func(t *testing.T) {
-			r := struct{ NodeKey string }{NodeKey: tt.nodeKey}
+			r := &testNodeKeyRequest{NodeKey: tt.nodeKey}
 			_, err := endpoint(context.Background(), r)
 			if tt.shouldErr {
 				assert.IsType(t, osqueryError{}, err)
@@ -250,7 +195,7 @@ func TestAuthenticatedHost(t *testing.T) {
 
 func TestAuthenticatedUserMW(t *testing.T) {
 	ds := new(mock.Store)
-	svc := newTestService(ds, nil, nil)
+	svc := newTestService(t, ds, nil, nil)
 
 	authenticatedUserTests := []struct {
 		user      *fleet.User

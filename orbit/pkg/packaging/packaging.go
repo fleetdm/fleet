@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
@@ -39,10 +40,14 @@ type Options struct {
 	Notarize bool
 	// FleetCertificate is a path to a server certificate to include in the package.
 	FleetCertificate string
+	// DisableUpdates disables auto updates on the generated package.
+	DisableUpdates bool
 	// OrbitChannel is the update channel to use for Orbit.
 	OrbitChannel string
 	// OsquerydChannel is the update channel to use for Osquery (osqueryd).
 	OsquerydChannel string
+	// DesktopChannel is the update channel to use for the Fleet Desktop application.
+	DesktopChannel string
 	// UpdateURL is the base URL of the update server (TUF repository).
 	UpdateURL string
 	// UpdateRoots is the root JSON metadata for update server (TUF repository).
@@ -51,6 +56,10 @@ type Options struct {
 	OsqueryFlagfile string
 	// Debug determines whether to enable debug logging for the agent.
 	Debug bool
+	// Desktop determines whether to package the Fleet Desktop application.
+	Desktop bool
+	// OrbitUpdateInterval is the interval that Orbit will use to check for updates.
+	OrbitUpdateInterval time.Duration
 }
 
 func initializeTempDir() (string, error) {
@@ -60,7 +69,7 @@ func initializeTempDir() (string, error) {
 		return "", fmt.Errorf("failed to create temp dir: %w", err)
 	}
 
-	if err := os.Chmod(tmpDir, 0755); err != nil {
+	if err := os.Chmod(tmpDir, 0o755); err != nil {
 		_ = os.RemoveAll(tmpDir)
 		return "", fmt.Errorf("change temp directory permissions: %w", err)
 	}
@@ -75,6 +84,9 @@ type UpdatesData struct {
 
 	OsquerydPath    string
 	OsquerydVersion string
+
+	DesktopPath    string
+	DesktopVersion string
 }
 
 func (u UpdatesData) String() string {
@@ -99,11 +111,13 @@ func InitializeUpdates(updateOpt update.Options) (*UpdatesData, error) {
 	if err := updater.UpdateMetadata(); err != nil {
 		return nil, fmt.Errorf("failed to update metadata: %w", err)
 	}
-	osquerydPath, err := updater.Get("osqueryd", updateOpt.OsquerydChannel)
+
+	osquerydLocalTarget, err := updater.Get("osqueryd")
 	if err != nil {
 		return nil, fmt.Errorf("failed to get osqueryd: %w", err)
 	}
-	osquerydMeta, err := updater.Lookup("osqueryd", updateOpt.OsquerydChannel)
+	osquerydPath := osquerydLocalTarget.ExecPath
+	osquerydMeta, err := updater.Lookup("osqueryd")
 	if err != nil {
 		return nil, fmt.Errorf("failed to get osqueryd metadata: %w", err)
 	}
@@ -114,11 +128,13 @@ func InitializeUpdates(updateOpt update.Options) (*UpdatesData, error) {
 	if err := json.Unmarshal(*osquerydMeta.Custom, &osquerydCustom); err != nil {
 		return nil, fmt.Errorf("failed to get osqueryd version: %w", err)
 	}
-	orbitPath, err := updater.Get("orbit", updateOpt.OrbitChannel)
+
+	orbitLocalTarget, err := updater.Get("orbit")
 	if err != nil {
 		return nil, fmt.Errorf("failed to get orbit: %w", err)
 	}
-	orbitMeta, err := updater.Lookup("orbit", updateOpt.OrbitChannel)
+	orbitPath := orbitLocalTarget.ExecPath
+	orbitMeta, err := updater.Lookup("orbit")
 	if err != nil {
 		return nil, fmt.Errorf("failed to get orbit metadata: %w", err)
 	}
@@ -127,8 +143,27 @@ func InitializeUpdates(updateOpt update.Options) (*UpdatesData, error) {
 		return nil, fmt.Errorf("failed to get orbit version: %w", err)
 	}
 
+	var (
+		desktopPath   string
+		desktopCustom custom
+	)
+	if _, ok := updateOpt.Targets["desktop"]; ok {
+		desktopLocalTarget, err := updater.Get("desktop")
+		if err != nil {
+			return nil, fmt.Errorf("failed to get desktop: %w", err)
+		}
+		desktopPath = desktopLocalTarget.ExecPath
+		desktopMeta, err := updater.Lookup("desktop")
+		if err != nil {
+			return nil, fmt.Errorf("failed to get orbit metadata: %w", err)
+		}
+		if err := json.Unmarshal(*desktopMeta.Custom, &desktopCustom); err != nil {
+			return nil, fmt.Errorf("failed to get orbit version: %w", err)
+		}
+	}
+
 	if devBuildPath := os.Getenv("FLEETCTL_ORBIT_DEV_BUILD_PATH"); devBuildPath != "" {
-		updater.CopyDevBuild("orbit", updateOpt.OrbitChannel, devBuildPath)
+		updater.CopyDevBuild("orbit", devBuildPath)
 	}
 
 	return &UpdatesData{
@@ -137,6 +172,9 @@ func InitializeUpdates(updateOpt update.Options) (*UpdatesData, error) {
 
 		OsquerydPath:    osquerydPath,
 		OsquerydVersion: osquerydCustom.Version,
+
+		DesktopPath:    desktopPath,
+		DesktopVersion: desktopCustom.Version,
 	}, nil
 }
 
@@ -147,7 +185,7 @@ func writeSecret(opt Options, orbitRoot string) error {
 		return fmt.Errorf("mkdir: %w", err)
 	}
 
-	if err := ioutil.WriteFile(path, []byte(opt.EnrollSecret), 0600); err != nil {
+	if err := ioutil.WriteFile(path, []byte(opt.EnrollSecret), 0o600); err != nil {
 		return fmt.Errorf("write file: %w", err)
 	}
 
@@ -181,7 +219,7 @@ var osqueryCerts []byte
 func writeOsqueryCertPEM(opt Options, orbitRoot string) error {
 	dstPath := filepath.Join(orbitRoot, "certs.pem")
 
-	if err := ioutil.WriteFile(dstPath, osqueryCerts, 0644); err != nil {
+	if err := ioutil.WriteFile(dstPath, osqueryCerts, 0o644); err != nil {
 		return fmt.Errorf("write file: %w", err)
 	}
 

@@ -18,23 +18,23 @@ type statistics struct {
 }
 
 func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Duration, license *fleet.LicenseInfo) (fleet.StatisticsPayload, bool, error) {
-	amountEnrolledHosts, err := amountEnrolledHostsDB(ds.writer)
+	amountEnrolledHosts, err := amountEnrolledHostsDB(ctx, ds.writer)
 	if err != nil {
 		return fleet.StatisticsPayload{}, false, ctxerr.Wrap(ctx, err, "amount enrolled hosts")
 	}
-	amountUsers, err := amountUsersDB(ds.writer)
+	amountUsers, err := amountUsersDB(ctx, ds.writer)
 	if err != nil {
 		return fleet.StatisticsPayload{}, false, ctxerr.Wrap(ctx, err, "amount users")
 	}
-	amountTeams, err := amountTeamsDB(ds.writer)
+	amountTeams, err := amountTeamsDB(ctx, ds.writer)
 	if err != nil {
 		return fleet.StatisticsPayload{}, false, ctxerr.Wrap(ctx, err, "amount teams")
 	}
-	amountPolicies, err := amountPoliciesDB(ds.writer)
+	amountPolicies, err := amountPoliciesDB(ctx, ds.writer)
 	if err != nil {
 		return fleet.StatisticsPayload{}, false, ctxerr.Wrap(ctx, err, "amount policies")
 	}
-	amountLabels, err := amountLabelsDB(ds.writer)
+	amountLabels, err := amountLabelsDB(ctx, ds.writer)
 	if err != nil {
 		return fleet.StatisticsPayload{}, false, ctxerr.Wrap(ctx, err, "amount labels")
 	}

@@ -169,6 +169,23 @@ func setupPackSpecsTest(t *testing.T, ds fleet.Datastore) []*fleet.PackSpec {
 	err = ds.ApplyLabelSpecs(context.Background(), labels)
 	require.Nil(t, err)
 
+	// create some teams
+	teams := []*fleet.Team{
+		{
+			Name: "team1",
+		},
+		{
+			Name: "team2",
+		},
+		{
+			Name: "team3",
+		},
+	}
+	for _, team := range teams {
+		_, err := ds.NewTeam(context.Background(), team)
+		require.NoError(t, err)
+	}
+
 	expectedSpecs := []*fleet.PackSpec{
 		{
 			ID:   1,
@@ -178,6 +195,10 @@ func setupPackSpecsTest(t *testing.T, ds fleet.Datastore) []*fleet.PackSpec {
 					"foo",
 					"bar",
 					"bing",
+				},
+				Teams: []string{
+					"team1",
+					"team2",
 				},
 			},
 			Queries: []fleet.PackSpecQuery{

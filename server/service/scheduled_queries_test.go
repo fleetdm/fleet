@@ -15,7 +15,7 @@ import (
 
 func TestScheduledQueriesAuth(t *testing.T) {
 	ds := new(mock.Store)
-	svc := newTestService(ds, nil, nil)
+	svc := newTestService(t, ds, nil, nil)
 
 	ds.ListScheduledQueriesInPackWithStatsFunc = func(ctx context.Context, id uint, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error) {
 		return nil, nil
@@ -103,7 +103,7 @@ func TestScheduledQueriesAuth(t *testing.T) {
 
 func TestScheduleQuery(t *testing.T) {
 	ds := new(mock.Store)
-	svc := newTestService(ds, nil, nil)
+	svc := newTestService(t, ds, nil, nil)
 
 	expectedQuery := &fleet.ScheduledQuery{
 		Name:      "foobar",
@@ -123,7 +123,7 @@ func TestScheduleQuery(t *testing.T) {
 
 func TestScheduleQueryNoName(t *testing.T) {
 	ds := new(mock.Store)
-	svc := newTestService(ds, nil, nil)
+	svc := newTestService(t, ds, nil, nil)
 
 	expectedQuery := &fleet.ScheduledQuery{
 		Name:      "foobar",
@@ -158,7 +158,7 @@ func TestScheduleQueryNoName(t *testing.T) {
 
 func TestScheduleQueryNoNameMultiple(t *testing.T) {
 	ds := new(mock.Store)
-	svc := newTestService(ds, nil, nil)
+	svc := newTestService(t, ds, nil, nil)
 
 	expectedQuery := &fleet.ScheduledQuery{
 		Name:      "foobar-1",

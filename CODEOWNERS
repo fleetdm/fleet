@@ -1,5 +1,5 @@
 # Go engineers are automatically added as reviewers when changes are made to go
-files or related backend files.
+# files or related backend files.
 *.go @fleetdm/go
 go.sum @fleetdm/go
 go.mod @fleetdm/go
@@ -7,7 +7,8 @@ go.mod @fleetdm/go
 /cmd/ @fleetdm/go
 
 # Infra/terraform
-*.tf @edwardsb
+*.tf @edwardsb @zwinnerman-fleetdm
+/infrastructure/ @zwinnerman-fleetdm @edwardsb
 
 # GitHub settings + actions
 /.github/ @zwass

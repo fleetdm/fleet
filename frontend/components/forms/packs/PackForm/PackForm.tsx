@@ -4,9 +4,10 @@ import classnames from "classnames";
 import Button from "components/buttons/Button";
 import { IQuery } from "interfaces/query";
 import { ITarget, ITargetsAPIResponse } from "interfaces/target";
+import { IEditPackFormData } from "interfaces/pack";
+
 // @ts-ignore
-import InputField from "components/forms/fields/InputField";
-// @ts-ignore
+import InputField from "components/forms/fields/InputField"; // @ts-ignore
 import SelectTargetsDropdown from "components/forms/fields/SelectTargetsDropdown";
 
 const baseClass = "pack-form";
@@ -20,13 +21,6 @@ interface IPackForm {
   ) => boolean;
   selectedTargetsCount?: number;
   isPremiumTier?: boolean;
-  baseError: any;
-}
-
-interface IEditPackFormData {
-  name: string;
-  description: string;
-  targets: ITarget[];
 }
 
 const EditPackForm = ({
@@ -35,7 +29,6 @@ const EditPackForm = ({
   onFetchTargets,
   selectedTargetsCount,
   isPremiumTier,
-  baseError,
 }: IPackForm): JSX.Element => {
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [packName, setPackName] = useState<string>("");
@@ -44,6 +37,7 @@ const EditPackForm = ({
 
   const onChangePackName = (value: string) => {
     setPackName(value);
+    setErrors({});
   };
 
   const onChangePackDescription = (value: string) => {
@@ -54,7 +48,7 @@ const EditPackForm = ({
     setPackFormTargets(value);
   };
 
-  const onFormSubmit = () => {
+  const onFormSubmit = (): void => {
     if (packName === "") {
       return setErrors({
         ...errors,
@@ -62,7 +56,7 @@ const EditPackForm = ({
       });
     }
 
-    handleSubmit({
+    return handleSubmit({
       name: packName,
       description: packDescription,
       targets: [...packFormTargets],
@@ -74,7 +68,6 @@ const EditPackForm = ({
   return (
     <form className={packFormClass} onSubmit={onFormSubmit} autoComplete="off">
       <h1>New pack</h1>
-      {baseError && <div className="form__base-error">{baseError}</div>}
       <InputField
         onChange={onChangePackName}
         value={packName}

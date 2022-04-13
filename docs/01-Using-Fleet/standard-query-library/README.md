@@ -1,6 +1,6 @@
 # Standard query library
 
-Fleet's standard query library includes a growing collection of useful queries for organizations deploying Fleet and osquery.
+Fleet's [standard query library](https://fleetdm.com/queries) includes a growing collection of useful policies and miscellaneous queries for organizations deploying Fleet and osquery.
 
 ## Importing the queries in Fleet
 
@@ -35,7 +35,7 @@ Want to add your own query?
 3. If you want to contribute multiple queries, please open one pull request that includes all your queries.
 
 For instructions on submitting pull requests to Fleet check out [the Committing Changes
-section](../../03-Contributing/04-Committing-Changes.md#committing-changes) in the Contributors
+section](../../Contributing/Committing-Changes.md#committing-changes) in the Contributors
 documentation.
 
 

@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"fmt"
+	"errors"
 	"io/ioutil"
 	"os"
 	"testing"
@@ -170,8 +170,8 @@ spec:
 	newAgentOpts := json.RawMessage(`{"config":{"something":"else"}}`)
 
 	require.Equal(t, "[+] applied 2 teams\n", runAppForTest(t, []string{"apply", "-f", tmpFile.Name()}))
-	assert.JSONEq(t, string(agentOpts), string(*teamsByName["team2"].AgentOptions))
-	assert.JSONEq(t, string(newAgentOpts), string(*teamsByName["team1"].AgentOptions))
+	assert.JSONEq(t, string(agentOpts), string(*teamsByName["team2"].Config.AgentOptions))
+	assert.JSONEq(t, string(newAgentOpts), string(*teamsByName["team1"].Config.AgentOptions))
 	assert.Equal(t, []*fleet.EnrollSecret{{Secret: "AAA"}}, enrolledSecretsCalled[uint(42)])
 }
 
@@ -269,7 +269,7 @@ spec:
 `)
 
 	runAppCheckErr(t, []string{"apply", "-f", name},
-		"applying fleet config: PATCH /api/v1/fleet/config received status 400 Bad request: json: unknown field \"enabled_software_inventory\"",
+		"applying fleet config: PATCH /api/latest/fleet/config received status 400 Bad request: json: unknown field \"enabled_software_inventory\"",
 	)
 	require.Nil(t, savedAppConfig)
 }
@@ -286,7 +286,7 @@ func TestApplyPolicies(t *testing.T) {
 		if name == "Team1" {
 			return &fleet.Team{ID: 123}, nil
 		}
-		return nil, fmt.Errorf("unexpected team name!")
+		return nil, errors.New("unexpected team name!")
 	}
 	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {
 		return nil

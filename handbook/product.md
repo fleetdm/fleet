@@ -1,10 +1,96 @@
 # Product
 
-🛸 Product team (weekly) board: https://github.com/orgs/fleetdm/projects/17
+⚗️ #g-product: https://github.com/orgs/fleetdm/projects/17
 
-🧱📡 Fleet core roadmap board: https://github.com/orgs/fleetdm/projects/8
+🧱📡 Fleet core roadmap: https://github.com/orgs/fleetdm/projects/8
 
-## Product design process
+## Job to be done
+
+Every product should have a single job that it strives to do. At Fleet we use the [Jobs to be Done
+(JTBD) framework](https://about.gitlab.com/handbook/engineering/ux/jobs-to-be-done/). Fleet's
+overarching job to be done is the following:
+
+"I need a way to see what laptops and servers I have, and what I need to do to keep them secure and
+compliant."
+
+## Objectives and key results
+
+Fleet uses objectives and key results (OKRs) so that the organization is aligned on measurable
+goals.
+
+The product team is responsible for sub-OKRs that contribute to organization wide OKRs.
+
+### Q2 OKRs
+
+The following Q2 OKRs Google doc lists the "Product" sub-OKRs under each organization wide OKR:
+
+[Q2 OKRs](https://docs.google.com/document/d/1SfzdeY0mLXSg1Ew0N4yhJppakCgGnDW7Bf8xpKkBczo/edit#heading=h.krtfhfsshh3u)
+
+## Q1 2022 product objectives
+
+In Q1 2022, Fleet set company wide objectives. The product team was reponsible for
+the product objectives that contributed to the company wide objectives.
+
+The following list includes the company wide objectives, product objectives ("How?" sections) and whether or not the
+product team hit or missed each objective:
+
+#### Ultimate source of truth
+
+Fleet + osquery gives organizations the ability to see an almost [endless amount of
+data](https://osquery.io/schema/5.1.0/) for all their devices. We want to build on this reputation
+by always providing the freshest, most accurate, and most understandable data possible
+in the UI and API.
+
+##### How?
+
+- Solve the "Undetermined" performance impact limitation for new scheduled queries as well as
+reflect unfinished policy runs in the UI/API (Miss)
+- Only advertise working osquery tables inside the product (looking at you `wifi_networks` table)
+  (Miss)
+
+#### Programmable
+
+Fleet differentiate's itself from other security tools by providing a simple and easy to use API and
+CLI tool (fleetctl). This allows users and customers to leverage Fleet's superb ability to gather
+device data in ways that are unique to their organization.
+
+##### How?
+
+- Add integrations for policy and vulnerability automations as well as get closer to parity with
+  other vulnerability management solutions. (Miss)
+- Roll up software and vulnerabilities across the entire organization and teams.(Hit)
+
+#### Who's watching the watchers
+
+Many current Fleet users and customers hire Fleet to increase their confidence that other security
+tools are functioning properly. We will continue to expose valuable information about these tools to meet customer requirements.
+
+##### How?
+
+- Detect the health of other installed agents and verify device enrollment in Jamf,
+Kandji, and SimpleMDM. (Hit)
+- Roll up mobile device management (MDM) and Munki data across the entire organization and teams. (Hit)
+
+#### Self-service, 2-way IT
+
+Fleet is poised to enable an organization's employees to resolve issues with their devices on their own. Not only does this save time for IT administrators and security practitioners but it also builds
+trust so that an organization can focus on achieving their business outcomes together.
+
+##### How?
+
+- Enable end users to self serve issues with their devices using Fleet Desktop. (Miss)
+- Enable end users to see what information is collected about their device (scope transparency). (Hit)
+
+#### Easy to use
+
+We'd like to make maintaining secure laptops and servers as easy as possible.
+
+##### How?
+
+- Improve the standard query library so that it includes 80% of the most common
+policies that any organization needs. (Miss)
+
+## Product process
 
 The product team is responsible for product design tasks. These include drafting
 changes to the Fleet product, reviewing and collecting feedback from engineering, sales, customer success, and marketing counterparts, and delivering
@@ -38,9 +124,7 @@ these changes to the engineering team.
   a link to the correct page in the Fleet EE (scratchpad) Figma. This page is where the design
   specifications live.
 
-* Add the ":product" and ":architect" labels to the issue and remove all other labels. This will add the issue to the [🛸 Product
-  board on ZenHub](https://app.zenhub.com/workspaces/--product-6192dd66ea2562000faea25c/board?repos=309820286). In the ZenHub board, move the issue into the "Architect" column in the product
-  board. This way, an architect on the engineering team knows that the issue is ready for engineering specification and later,
+* Add the issue to the 🏛 Architect column in [the 🛸 Product project](https://github.com/orgs/fleetdm/projects/27). This way, an architect on the engineering team knows that the issue is ready for engineering specification and later,
   engineering estimation.
 
 #### Priority drafting
@@ -98,7 +182,7 @@ The goal of quality assurance is to catch unexpected behavior prior to release:
 
 ### Collecting bugs
 
-All QA steps should be possible using `fleetctl preview`.  Please refer to [docs/03-Contributing/02-Testing.md](https://fleetdm.com/docs/contributing/testing) for flows that cannot be completed using `fleetctl preview`.
+All QA steps should be possible using `fleetctl preview`.  Please refer to [docs/Contributing/Testing.md](https://fleetdm.com/docs/contributing/testing) for flows that cannot be completed using `fleetctl preview`.
 
 Please start the manual QA process by creating a blank GitHub issue. As you complete each of the
 flows, record a list of the bugs you encounter in this new issue. Each item in this list should
@@ -196,9 +280,9 @@ Run the "Get the version of the resident operating system" query against your lo
 
 Apply a pack by running the following commands:
 
-`fleetctl apply -f docs/01-Using-Fleet/configuration-files/multi-file-configuration/queries.yml`
+`fleetctl apply -f docs/Using-Fleet/configuration-files/multi-file-configuration/queries.yml`
 
-`fleetctl apply -f docs/01-Using-Fleet/configuration-files/multi-file-configuration/pack.yml`
+`fleetctl apply -f docs/Using-Fleet/configuration-files/multi-file-configuration/pack.yml`
 
 Make sure the pack was successfully added by running the following command:
 
@@ -208,7 +292,7 @@ Make sure the pack was successfully added by running the following command:
 
 Apply organization settings by running the following command:
 
-`fleetctl apply -f docs/01-Using-Fleet/configuration-files/multi-file-configuration/organization-settings.yml`
+`fleetctl apply -f docs/Using-Fleet/configuration-files/multi-file-configuration/organization-settings.yml`
 
 #### Manage users flow
 
@@ -246,8 +330,13 @@ We have certain design conventions that we include in Fleet. We will document mo
 
 Use `---`, with color `$ui-fleet-black-50` as the default UI for empty columns.
 
+**Form behavior**
 
-<meta name="maintainedBy" value="noahtalerman">
+Pressing the return or enter key with an open form will cause the form to be submitted.
+
+**External links**
+
+For a link that navigates the user to an external site (ex. fleetdm.com/docs), use the `$core-blue` color and `xs-bold` styling for the link's text. Also, place the link-out icon to the right of the link's text.
 
 ## Release 
 
@@ -294,3 +383,20 @@ The following highlights should be considered when deciding if feature flags sho
 - The feature flag will not be advertised. For example, advertising in the documentation on fleetdm.com/docs, release notes, release blog posts, and Twitter.
 
 Fleet's feature flag guidelines borrows from GitLab's ["When to use feature flags" section](https://about.gitlab.com/handbook/product-development-flow/feature-flag-lifecycle/#when-to-use-feature-flags) of their handbook. Check out [GitLab's "Feature flags only when needed" video](https://www.youtube.com/watch?v=DQaGqyolOd8) for an explanation on the costs of introducing feature flags.
+
+## Competition
+
+We track the capabilities of competitors and adjacent (or commonly integrated) products in this [Google Doc](https://docs.google.com/document/d/1Bqdui6oQthdv5XtD5l7EZVB-duNRcqVRg7NVA4lCXeI/edit) (private).
+
+## Slack channels
+
+The following [Slack channels are maintained](https://fleetdm.com/handbook/company#group-slack-channels) by this group:
+
+| Slack channel                       | [DRI](https://fleetdm.com/handbook/company#group-slack-channels)    |
+|:------------------------------------|:--------------------------------------------------------------------|
+| `#g-product`                        | Noah Talerman
+| `#help-qa`                          | Reed Haynes
+
+
+
+<meta name="maintainedBy" value="noahtalerman">

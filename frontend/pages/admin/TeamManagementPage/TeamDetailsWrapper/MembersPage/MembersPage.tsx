@@ -1,16 +1,13 @@
 import React, { useCallback, useContext, useState } from "react";
-import { useDispatch } from "react-redux";
 import { useQuery } from "react-query";
 
-// @ts-ignore
+import { NotificationContext } from "context/notification";
 import PATHS from "router/paths";
-import { IUser } from "interfaces/user";
+import { IApiError } from "interfaces/errors";
+import { IUser, IUserFormErrors } from "interfaces/user";
 import { INewMembersBody, ITeam } from "interfaces/team";
 import { Link } from "react-router";
 import { AppContext } from "context/app";
-// ignore TS error for now until these are rewritten in ts.
-// @ts-ignore
-import { renderFlash } from "redux/nodes/notifications/actions";
 import usersAPI from "services/entities/users";
 import inviteAPI from "services/entities/invites";
 import teamsAPI from "services/entities/teams";
@@ -54,23 +51,18 @@ interface ITeamsResponse {
   teams: ITeam[];
 }
 
-// This is used to cache the table query data and make a request for the
-// members data at a future time. Practically, this allows us to re-fetch the users
-// with the same table query params after we have made an edit to a user.
-let tableQueryData = {};
-
 const MembersPage = ({
   params: { team_id },
 }: IMembersPageProps): JSX.Element => {
   const teamId = parseInt(team_id, 10);
-  const dispatch = useDispatch();
 
+  const { renderFlash } = useContext(NotificationContext);
   const { config, isGlobalAdmin, currentUser, isPremiumTier } = useContext(
     AppContext
   );
 
-  const smtpConfigured = config?.configured || false;
-  const canUseSso = config?.enable_sso || false;
+  const smtpConfigured = config?.smtp_settings.configured || false;
+  const canUseSso = config?.sso_settings.enable_sso || false;
 
   const [showAddMemberModal, setShowAddMemberModal] = useState<boolean>(false);
   const [showRemoveMemberModal, setShowRemoveMemberModal] = useState<boolean>(
@@ -83,9 +75,12 @@ const MembersPage = ({
   const [isFormSubmitting, setIsFormSubmitting] = useState<boolean>(false);
   const [userEditing, setUserEditing] = useState<IUser>();
   const [searchString, setSearchString] = useState<string>("");
-  const [createUserErrors] = useState(DEFAULT_CREATE_USER_ERRORS);
-  const [editUserErrors] = useState(DEFAULT_CREATE_USER_ERRORS);
-  const [members, setMembers] = useState<IMembersTableData[]>([]);
+  const [createUserErrors, setCreateUserErrors] = useState<IUserFormErrors>(
+    DEFAULT_CREATE_USER_ERRORS
+  );
+  const [editUserErrors, setEditUserErrors] = useState<IUserFormErrors>(
+    DEFAULT_CREATE_USER_ERRORS
+  );
   const [memberIds, setMemberIds] = useState<number[]>([]);
   const [currentTeam, setCurrentTeam] = useState<ITeam>();
 
@@ -104,9 +99,9 @@ const MembersPage = ({
   // API CALLS
 
   const {
-    data: users,
-    isLoading: isLoadingUsers,
-    error: loadingUsersError,
+    data: members,
+    isLoading: isLoadingMembers,
+    error: loadingMembersError,
     refetch: refetchUsers,
   } = useQuery<IUser[], Error, IMembersTableData[]>(
     ["users", teamId, searchString],
@@ -114,7 +109,6 @@ const MembersPage = ({
     {
       select: (data: IUser[]) => generateDataSet(teamId, data),
       onSuccess: (data) => {
-        setMembers(data);
         setMemberIds(data.map((member) => member.id));
       },
     }
@@ -141,6 +135,7 @@ const MembersPage = ({
     (user?: IUser) => {
       setShowEditUserModal(!showEditUserModal);
       user ? setUserEditing(user) : setUserEditing(undefined);
+      setEditUserErrors(DEFAULT_CREATE_USER_ERRORS);
     },
     [showEditUserModal, setShowEditUserModal, setUserEditing]
   );
@@ -164,26 +159,20 @@ const MembersPage = ({
     teamsAPI
       .removeMembers(teamId, removedUsers)
       .then(() => {
-        dispatch(
-          renderFlash("success", `Successfully removed ${userEditing?.name}`)
-        );
-        // If user removes self from team,
-        // redirect to home
+        renderFlash("success", `Successfully removed ${userEditing?.name}`);
+        // If user removes self from team, redirect to home
         if (currentUser && currentUser.id === removedUsers.users[0].id) {
           window.location.href = "/";
         }
       })
       .catch(() =>
-        dispatch(
-          renderFlash("error", "Unable to remove members. Please try again.")
-        )
+        renderFlash("error", "Unable to remove members. Please try again.")
       )
       .finally(() => {
         toggleRemoveMemberModal();
         refetchUsers();
       });
   }, [
-    dispatch,
     teamId,
     userEditing?.id,
     userEditing?.name,
@@ -195,38 +184,21 @@ const MembersPage = ({
     (newMembers: INewMembersBody) => {
       teamsAPI
         .addMembers(teamId, newMembers)
-        .then(() => {
-          dispatch(
-            renderFlash(
-              "success",
-              `${newMembers.users.length} members successfully added to ${currentTeam?.name}.`
-            )
-          );
-        })
-        .catch(() => {
-          dispatch(
-            renderFlash("error", "Could not add members. Please try again.")
-          );
-        })
+        .then(() =>
+          renderFlash(
+            "success",
+            `${newMembers.users.length} members successfully added to ${currentTeam?.name}.`
+          )
+        )
+        .catch(() =>
+          renderFlash("error", "Could not add members. Please try again.")
+        )
         .finally(() => {
           toggleAddUserModal();
           refetchUsers();
         });
     },
-    [dispatch, teamId, toggleAddUserModal, currentTeam?.name, refetchUsers]
-  );
-
-  const fetchUsers = useCallback(
-    (fetchParams: IFetchParams) => {
-      const { pageIndex, pageSize, searchQuery } = fetchParams;
-      usersAPI.loadAll({
-        page: pageIndex,
-        perPage: pageSize,
-        globalFilter: searchQuery,
-        teamId,
-      });
-    },
-    [dispatch, teamId]
+    [teamId, toggleAddUserModal, currentTeam?.name, refetchUsers]
   );
 
   const onCreateMemberSubmit = (formData: IFormData) => {
@@ -243,27 +215,31 @@ const MembersPage = ({
       inviteAPI
         .create(requestData)
         .then(() => {
-          dispatch(
-            renderFlash(
-              "success",
-              `An invitation email was sent from ${config?.sender_address} to ${formData.email}.`
-            )
+          renderFlash(
+            "success",
+            `An invitation email was sent from ${config?.smtp_settings.sender_address} to ${formData.email}.`
           );
-          fetchUsers(tableQueryData);
+          refetchUsers();
           toggleCreateMemberModal();
         })
-        .catch((userErrors: any) => {
-          if (userErrors.base.includes("Duplicate")) {
-            dispatch(
-              renderFlash(
-                "error",
-                "A user with this email address already exists."
-              )
-            );
+        .catch((userErrors: { data: IApiError }) => {
+          if (
+            userErrors.data.errors?.[0].reason.includes(
+              "a user with this account already exists"
+            )
+          ) {
+            setCreateUserErrors({
+              email: "A user with this email address already exists",
+            });
+          } else if (
+            userErrors.data.errors?.[0].reason.includes("Invite") &&
+            userErrors.data.errors?.[0].reason.includes("already exists")
+          ) {
+            setCreateUserErrors({
+              email: "A user with this email address has already been invited",
+            });
           } else {
-            dispatch(
-              renderFlash("error", "Could not create user. Please try again.")
-            );
+            renderFlash("error", "Could not invite user. Please try again.");
           }
         })
         .finally(() => {
@@ -278,31 +254,23 @@ const MembersPage = ({
       usersAPI
         .createUserWithoutInvitation(requestData)
         .then(() => {
-          dispatch(
-            renderFlash("success", `Successfully created ${requestData.name}.`)
-          );
-          fetchUsers(tableQueryData);
+          renderFlash("success", `Successfully created ${requestData.name}.`);
+          refetchUsers();
           toggleCreateMemberModal();
         })
-        .catch((userErrors: any) => {
-          if (userErrors.base.includes("Duplicate")) {
-            dispatch(
-              renderFlash(
-                "error",
-                "A user with this email address already exists."
-              )
-            );
-          } else if (userErrors.base.includes("already invited")) {
-            dispatch(
-              renderFlash(
-                "error",
-                "A user with this email address has already been invited."
-              )
-            );
+        .catch((userErrors: { data: IApiError }) => {
+          if (userErrors.data.errors?.[0].reason.includes("Duplicate")) {
+            setCreateUserErrors({
+              email: "A user with this email address already exists",
+            });
+          } else if (
+            userErrors.data.errors?.[0].reason.includes("already invited")
+          ) {
+            setCreateUserErrors({
+              email: "A user with this email address has already been invited",
+            });
           } else {
-            dispatch(
-              renderFlash("error", "Could not create user. Please try again.")
-            );
+            renderFlash("error", "Could not create user. Please try again.");
           }
         })
         .finally(() => {
@@ -326,9 +294,7 @@ const MembersPage = ({
         usersAPI
           .update(userEditing.id, updatedAttrs)
           .then(() => {
-            dispatch(
-              renderFlash("success", `Successfully edited ${userName}.`)
-            );
+            renderFlash("success", `Successfully edited ${userName}.`);
 
             if (
               currentUser &&
@@ -344,34 +310,25 @@ const MembersPage = ({
                 window.location.href = "/";
               }
             } else {
-              refetchUsers(tableQueryData);
+              refetchUsers();
             }
+            setIsFormSubmitting(false);
+            toggleEditMemberModal();
           })
-          .catch(() => {
-            dispatch(
+          .catch((userErrors: { data: IApiError }) => {
+            if (userErrors.data.errors[0].reason.includes("already exists")) {
+              setEditUserErrors({
+                email: "A user with this email address already exists",
+              });
+            } else {
               renderFlash(
                 "error",
                 `Could not edit ${userName}. Please try again.`
-              )
-            );
-          })
-          .finally(() => {
-            setIsFormSubmitting(false);
+              );
+            }
           });
-      toggleEditMemberModal();
     },
-    [dispatch, toggleEditMemberModal, userEditing, refetchUsers]
-  );
-
-  const onQueryChange = useCallback(
-    (queryData) => {
-      if (members) {
-        setSearchString(queryData.searchQuery);
-        tableQueryData = { ...queryData, teamId };
-        refetchUsers(queryData);
-      }
-    },
-    [refetchUsers, teamId, setSearchString]
+    [toggleEditMemberModal, userEditing, refetchUsers]
   );
 
   const onActionSelection = (action: string, user: IUser): void => {
@@ -433,23 +390,23 @@ const MembersPage = ({
           </Link>
         )}
       </p>
-      {loadingUsersError ||
+      {loadingMembersError ||
       loadingTeamsError ||
-      (!currentTeam && !isLoadingTeams && !isLoadingUsers) ? (
+      (!currentTeam && !isLoadingTeams && !isLoadingMembers) ? (
         <TableDataError />
       ) : (
         <TableContainer
           resultsTitle={"members"}
           columns={tableHeaders}
-          data={members}
-          isLoading={isLoadingUsers}
+          data={members || []}
+          isLoading={isLoadingMembers}
           defaultSortHeader={"name"}
           defaultSortDirection={"asc"}
           onActionButtonClick={toggleAddUserModal}
           actionButtonText={"Add member"}
           actionButtonVariant={"brand"}
           hideActionButton={memberIds.length === 0 && searchString === ""}
-          onQueryChange={onQueryChange}
+          onQueryChange={({ searchQuery }) => setSearchString(searchQuery)}
           inputPlaceHolder={"Search"}
           emptyComponent={NoMembersComponent}
           showMarkAllPages={false}
@@ -466,7 +423,7 @@ const MembersPage = ({
           onCreateNewMember={toggleCreateMemberModal}
         />
       ) : null}
-      {showEditUserModal ? (
+      {showEditUserModal && (
         <EditUserModal
           editUserErrors={editUserErrors}
           onCancel={toggleEditMemberModal}
@@ -484,15 +441,13 @@ const MembersPage = ({
           isModifiedByGlobalAdmin={isGlobalAdmin}
           currentTeam={currentTeam}
         />
-      ) : null}
-      {showCreateUserModal ? (
+      )}
+      {showCreateUserModal && (
         <CreateUserModal
           createUserErrors={createUserErrors}
           onCancel={toggleCreateMemberModal}
           onSubmit={onCreateMemberSubmit}
-          defaultGlobalRole={userEditing?.global_role}
-          defaultTeamRole={userEditing?.role}
-          defaultTeams={userEditing?.teams}
+          defaultTeams={[{ id: teamId, name: "", role: "observer" }]}
           availableTeams={teams}
           isPremiumTier={isPremiumTier || false}
           smtpConfigured={smtpConfigured}
@@ -501,15 +456,15 @@ const MembersPage = ({
           isModifiedByGlobalAdmin={isGlobalAdmin}
           isFormSubmitting={isFormSubmitting}
         />
-      ) : null}
-      {showRemoveMemberModal && currentTeam ? (
+      )}
+      {showRemoveMemberModal && currentTeam && (
         <RemoveMemberModal
           memberName={userEditing?.name || ""}
           teamName={currentTeam.name}
           onCancel={toggleRemoveMemberModal}
           onSubmit={onRemoveMemberSubmit}
         />
-      ) : null}
+      )}
     </div>
   );
 };

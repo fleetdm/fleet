@@ -197,14 +197,28 @@ describe(
         cy.loginWithCySession("anna@organization.com", "user123#");
         cy.visit("/software/manage");
       });
-      it("allows global admin to click 'Manage automations' button", () => {
+      it("allows global admin to create webhook software vulnerability automation", () => {
         cy.getAttached(".manage-software-page__header-wrap").within(() => {
-          cy.findByRole("button", { name: /manage automations/i }).click();
-        });
-        cy.getAttached(".manage-automations-modal__button-wrap").within(() => {
           cy.findByRole("button", {
-            name: /cancel/i,
+            name: /manage automations/i,
           }).click();
+        });
+        cy.getAttached(".manage-automations-modal").within(() => {
+          cy.getAttached(".fleet-slider").click();
+          cy.getAttached("#webhook-radio-btn").next().click();
+        });
+        cy.getAttached("#webhook-url").click().type("www.foo.com/bar");
+        cy.findByRole("button", { name: /^Save$/ }).click();
+        // Confirm manage automations webhook was added successfully
+        cy.findByText(/updated vulnerability automations/i).should("exist");
+        cy.getAttached(".button-wrap").within(() => {
+          cy.findByRole("button", {
+            name: /manage automations/i,
+          }).click();
+        });
+        cy.getAttached(".manage-automations-modal").within(() => {
+          cy.getAttached(".fleet-slider--active").should("exist");
+          cy.getAttached("#webhook-url").should("exist");
         });
       });
     });
@@ -212,9 +226,6 @@ describe(
       beforeEach(() => {
         cy.loginWithCySession("anna@organization.com", "user123#");
         cy.visit("/queries/manage");
-      });
-      it("displays the 'Observer can run' column on the queries table", () => {
-        cy.contains(/observer can run/i);
       });
       it("allows admin add a new query", () => {
         cy.findByRole("button", { name: /new query/i }).click();
@@ -257,7 +268,7 @@ describe(
         cy.findByText(/run query/i).click({ force: true });
         cy.findByText(/select targets/i).should("exist");
         cy.findByText(/all hosts/i).click();
-        cy.findByText(/targets selected/i).should("exist"); // target count
+        cy.findByText(/hosts targeted/i).should("exist"); // target count
         cy.findByText(/run/i).click();
         cy.findByText(/querying selected hosts/i).should("exist"); // target count
       });
@@ -296,7 +307,7 @@ describe(
         cy.getAttached(".data-table__table").within(() => {
           cy.findByRole("button", { name: /filevault enabled/i }).click();
         });
-        cy.getAttached(".policy-form__button-wrap--new-policy").within(() => {
+        cy.getAttached(".policy-form__button-wrap").within(() => {
           cy.findByRole("button", { name: /run/i }).should("exist");
           cy.findByRole("button", { name: /save/i }).should("exist");
         });
@@ -327,6 +338,22 @@ describe(
       });
       it("hides assigning a user to a team", () => {
         cy.findByText(/team/i).should("not.exist");
+      });
+      it("allows admin to edit existing user password", () => {
+        cy.visit("/settings/users");
+        cy.getAttached("tbody").within(() => {
+          cy.findByText(/mary@organization.com/i)
+            .parent()
+            .next()
+            .within(() => cy.getAttached(".Select-placeholder").click());
+        });
+        cy.getAttached(".Select-menu").within(() => {
+          cy.findByText(/edit/i).click();
+        });
+        cy.getAttached(".create-user-form").within(() => {
+          cy.findByLabelText(/email/i).should("exist");
+          cy.findByLabelText(/password/i).should("exist");
+        });
       });
       it("verifies admin is not authorized to reach the Team Settings page", () => {
         cy.visit("/settings/teams");

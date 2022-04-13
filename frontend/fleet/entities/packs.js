@@ -6,18 +6,18 @@ import helpers from "fleet/helpers";
 export default (client) => {
   return {
     addLabel: ({ packID, labelID }) => {
-      const path = `/v1/fleet/packs/${packID}/labels/${labelID}`;
+      const path = `/latest/fleet/packs/${packID}/labels/${labelID}`;
 
       return client.authenticatedPost(client._endpoint(path));
     },
     addQuery: ({ packID, queryID }) => {
-      const endpoint = `/v1/fleet/packs/${packID}/queries/${queryID}`;
+      const endpoint = `/latest/fleet/packs/${packID}/queries/${queryID}`;
 
       return client.authenticatedPost(client._endpoint(endpoint));
     },
     create: ({ name, description, targets }) => {
       const { PACKS } = endpoints;
-      const packTargets = helpers.formatSelectedTargetsForApi(targets, true);
+      const packTargets = helpers.formatPackTargetsForApi(targets);
 
       return client
         .authenticatedPost(
@@ -53,7 +53,7 @@ export default (client) => {
       const updatePackEndpoint = `${client.baseURL}${PACKS}/${pack.id}`;
       let packTargets = null;
       if (targets) {
-        packTargets = helpers.formatSelectedTargetsForApi(targets, true);
+        packTargets = helpers.formatPackTargetsForApi(targets);
       }
 
       const packWithoutTargets = omit(updatedPack, "targets");

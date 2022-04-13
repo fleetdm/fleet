@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
@@ -14,6 +14,19 @@ const RemovePoliciesModal = ({
   onCancel,
   onSubmit,
 }: IRemovePoliciesModalProps): JSX.Element => {
+  useEffect(() => {
+    const listener = (event: KeyboardEvent) => {
+      if (event.code === "Enter" || event.code === "NumpadEnter") {
+        event.preventDefault();
+        onSubmit();
+      }
+    };
+    document.addEventListener("keydown", listener);
+    return () => {
+      document.removeEventListener("keydown", listener);
+    };
+  }, []);
+
   return (
     <Modal title={"Delete policies"} onExit={onCancel} className={baseClass}>
       <div className={baseClass}>

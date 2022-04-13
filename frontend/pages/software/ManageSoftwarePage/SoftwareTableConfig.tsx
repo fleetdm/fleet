@@ -3,7 +3,7 @@ import { Link } from "react-router";
 import ReactTooltip from "react-tooltip";
 
 import PATHS from "router/paths";
-import { ISoftware } from "interfaces/software";
+import { formatSoftwareType, ISoftware } from "interfaces/software";
 import { IVulnerability } from "interfaces/vulnerability";
 
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
@@ -44,16 +44,9 @@ interface IHeaderProps {
   };
 }
 
-interface IDataColumn {
-  title: string;
-  Header: ((props: IHeaderProps) => JSX.Element) | string;
-  accessor: string;
-  Cell: (props: ICellProps) => JSX.Element;
-  disableHidden?: boolean;
-  disableSortBy?: boolean;
-}
-
-const condense = (vulnerabilities: IVulnerability[]): string[] => {
+const condenseVulnerabilities = (
+  vulnerabilities: IVulnerability[]
+): string[] => {
   const condensed =
     (vulnerabilities?.length &&
       vulnerabilities
@@ -86,20 +79,31 @@ const softwareTableHeaders = [
     ),
   },
   {
+    title: "Type",
+    Header: "Type",
+    disableSortBy: true,
+    accessor: "source",
+    Cell: (cellProps: IStringCellProps): JSX.Element => (
+      <TextCell formatter={formatSoftwareType} value={cellProps.cell.value} />
+    ),
+  },
+  {
     title: "Vulnerabilities",
     Header: "Vulnerabilities",
     disableSortBy: true,
     accessor: "vulnerabilities",
     Cell: (cellProps: IVulnCellProps): JSX.Element => {
       const vulnerabilities = cellProps.cell.value || [];
-      const tooltipText = condense(vulnerabilities)?.map((value) => {
-        return (
-          <span key={`vuln_${value}`}>
-            {value}
-            <br />
-          </span>
-        );
-      });
+      const tooltipText = condenseVulnerabilities(vulnerabilities)?.map(
+        (value) => {
+          return (
+            <span key={`vuln_${value}`}>
+              {value}
+              <br />
+            </span>
+          );
+        }
+      );
 
       if (!vulnerabilities?.length) {
         return <span className="vulnerabilities text-muted">---</span>;
@@ -107,7 +111,7 @@ const softwareTableHeaders = [
       return (
         <>
           <span
-            className={`vulnerabilities ${
+            className={`text-cell vulnerabilities ${
               vulnerabilities.length > 1 ? "text-muted" : ""
             }`}
             data-tip
@@ -145,25 +149,21 @@ const softwareTableHeaders = [
     disableSortBy: false,
     accessor: "hosts_count",
     Cell: (cellProps: INumberCellProps): JSX.Element => (
-      <TextCell value={cellProps.cell.value} />
+      <span className="hosts-cell__wrapper">
+        <span className="hosts-cell__count">
+          <TextCell value={cellProps.cell.value} />
+        </span>
+        <span className="hosts-cell__link">
+          <Link
+            to={`${PATHS.MANAGE_HOSTS}?software_id=${cellProps.row.original.id}`}
+            className="software-link"
+          >
+            <span className="link-text">View all hosts</span>
+            <img alt="link to hosts filtered by software ID" src={Chevron} />
+          </Link>
+        </span>
+      </span>
     ),
-  },
-  {
-    title: "Actions",
-    Header: "",
-    disableSortBy: true,
-    accessor: "id",
-    Cell: (cellProps: INumberCellProps): JSX.Element => {
-      return (
-        <Link
-          to={`${PATHS.MANAGE_HOSTS}?software_id=${cellProps.cell.value}`}
-          className="software-link"
-        >
-          <span className="link-text">View all hosts</span>
-          <img alt="link to hosts filtered by software ID" src={Chevron} />
-        </Link>
-      );
-    },
   },
 ];
 

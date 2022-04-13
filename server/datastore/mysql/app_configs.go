@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -74,7 +75,10 @@ func (ds *Datastore) VerifyEnrollSecret(ctx context.Context, secret string) (*fl
 	var s fleet.EnrollSecret
 	err := sqlx.GetContext(ctx, ds.reader, &s, "SELECT team_id FROM enroll_secrets WHERE secret = ?", secret)
 	if err != nil {
-		return nil, ctxerr.New(ctx, "no matching secret found")
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ctxerr.New(ctx, "no matching secret found")
+		}
+		return nil, ctxerr.Wrap(ctx, err, "verify enroll secret")
 	}
 
 	return &s, nil

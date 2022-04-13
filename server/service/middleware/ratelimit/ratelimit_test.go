@@ -20,6 +20,7 @@ func TestLimit(t *testing.T) {
 	limiter := NewMiddleware(store)
 	endpoint := func(context.Context, interface{}) (interface{}, error) { return struct{}{}, nil }
 	wrapped := limiter.Limit(
+		"test_limit",
 		throttled.RateQuota{MaxRate: throttled.PerHour(1), MaxBurst: 0},
 	)(endpoint)
 

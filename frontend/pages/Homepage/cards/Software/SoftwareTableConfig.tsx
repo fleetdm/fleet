@@ -11,7 +11,7 @@ import Chevron from "../../../../../assets/images/icon-chevron-blue-16x16@2x.png
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
 interface ICellProps {
   cell: {
-    value: any;
+    value: string;
   };
   row: {
     original: ISoftware;

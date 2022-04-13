@@ -7,7 +7,7 @@ import (
 
 // GetHosts retrieves the list of all Hosts
 func (c *Client) GetHosts(query string) ([]HostResponse, error) {
-	verb, path := "GET", "/api/v1/fleet/hosts"
+	verb, path := "GET", "/api/latest/fleet/hosts"
 	var responseBody listHostsResponse
 	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query)
 	return responseBody.Hosts, err
@@ -16,14 +16,14 @@ func (c *Client) GetHosts(query string) ([]HostResponse, error) {
 // HostByIdentifier retrieves a host by the uuid, osquery_host_id, hostname, or
 // node_key.
 func (c *Client) HostByIdentifier(identifier string) (*HostDetailResponse, error) {
-	verb, path := "GET", "/api/v1/fleet/hosts/identifier/"+identifier
+	verb, path := "GET", "/api/latest/fleet/hosts/identifier/"+identifier
 	var responseBody getHostResponse
 	err := c.authenticatedRequest(nil, verb, path, &responseBody)
 	return responseBody.Host, err
 }
 
 func (c *Client) translateTransferHostsToIDs(hosts []string, label string, team string) ([]uint, uint, uint, error) {
-	verb, path := "POST", "/api/v1/fleet/translate"
+	verb, path := "POST", "/api/latest/fleet/translate"
 	var responseBody translatorResponse
 
 	var translatePayloads []fleet.TranslatePayload
@@ -88,7 +88,7 @@ func (c *Client) TransferHosts(hosts []string, label string, status, searchQuery
 	}
 
 	if len(hosts) != 0 {
-		verb, path := "POST", "/api/v1/fleet/hosts/transfer"
+		verb, path := "POST", "/api/latest/fleet/hosts/transfer"
 		var responseBody addHostsToTeamResponse
 		params := addHostsToTeamRequest{TeamID: ptr.Uint(teamID), HostIDs: hostIDs}
 		return c.authenticatedRequest(params, verb, path, &responseBody)
@@ -99,7 +99,7 @@ func (c *Client) TransferHosts(hosts []string, label string, status, searchQuery
 		labelIDPtr = &labelID
 	}
 
-	verb, path := "POST", "/api/v1/fleet/hosts/transfer/filter"
+	verb, path := "POST", "/api/latest/fleet/hosts/transfer/filter"
 	var responseBody addHostsToTeamByFilterResponse
 	params := addHostsToTeamByFilterRequest{TeamID: ptr.Uint(teamID), Filters: struct {
 		MatchQuery string           `json:"query"`

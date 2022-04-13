@@ -7,16 +7,11 @@ assignees: ''
 
 ---
 
-**Fleet version** (Head to the "My account" page in the Fleet UI or run `fleetctl --version`):
+**Fleet version**: _(head to the "My account" page in the Fleet UI or run `fleetctl --version`)_
 
-**Fleet tier** (Are you using the free (Fleet Free) or paid (Fleet Premium) tier?):
+**Operating system**: _(e.g. macOS 11.2.3)_
 
-**User role** (Which role are you assigned in Fleet? (Admin, Maintainer, or Observer)):
-> 3 roles are introduced in Fleet 4.0.0. If you're using a prior version of Fleet or don't know your assigned role, please feel free to leave this item blank.
-
-**Operating system** _(e.g. macOS 11.2.3)_: 
-
-**Web browser** _(e.g. Chrome 88.0.4324)_: 
+**Web browser**: _(e.g. Chrome 88.0.4324)_
 
 <hr/>
 
@@ -33,4 +28,4 @@ assignees: ''
 
 <!-- If this is an issue with the Fleet UI: Please also [answer this question](https://github.com/fleetdm/fleet/blob/main/CONTRIBUTING.md#6-is-this-an-issue-with-the-fleet-ui). -->
 
-<!-- If this is a performance issue: Please [follow these steps](https://fleetdm.com/docs/using-fleet/monitoring-fleet.md#debugging-performance-issues) to generate and attach a debug archive. -->
+<!-- If this is a performance issue: Please [follow these steps](https://fleetdm.com/docs/using-fleet/monitoring-fleet#debugging-performance-issues) to generate and attach a debug archive. -->

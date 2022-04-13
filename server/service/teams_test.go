@@ -14,7 +14,7 @@ import (
 func TestTeamAuth(t *testing.T) {
 	ds := new(mock.Store)
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
-	svc := newTestService(ds, nil, nil, TestServerOpts{License: license, SkipCreateTestUsers: true})
+	svc := newTestService(t, ds, nil, nil, TestServerOpts{License: license, SkipCreateTestUsers: true})
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil

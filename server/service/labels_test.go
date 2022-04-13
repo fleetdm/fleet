@@ -16,7 +16,7 @@ import (
 
 func TestLabelsAuth(t *testing.T) {
 	ds := new(mock.Store)
-	svc := newTestService(ds, nil, nil)
+	svc := newTestService(t, ds, nil, nil)
 
 	ds.NewLabelFunc = func(ctx context.Context, lbl *fleet.Label, opts ...fleet.OptionalArg) (*fleet.Label, error) {
 		return lbl, nil
@@ -139,7 +139,7 @@ func TestLabelsWithDS(t *testing.T) {
 }
 
 func testLabelsGetLabel(t *testing.T, ds *mysql.Datastore) {
-	svc := newTestService(ds, nil, nil)
+	svc := newTestService(t, ds, nil, nil)
 
 	label := &fleet.Label{
 		Name:  "foo",
@@ -155,7 +155,7 @@ func testLabelsGetLabel(t *testing.T, ds *mysql.Datastore) {
 }
 
 func testLabelsListLabels(t *testing.T, ds *mysql.Datastore) {
-	svc := newTestService(ds, nil, nil)
+	svc := newTestService(t, ds, nil, nil)
 	require.NoError(t, ds.MigrateData(context.Background()))
 
 	labels, err := svc.ListLabels(test.UserContext(test.UserAdmin), fleet.ListOptions{Page: 0, PerPage: 1000})

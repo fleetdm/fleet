@@ -5,7 +5,7 @@ import mocks from "test/mocks";
 
 const { targets: targetMocks } = mocks;
 
-describe("Kolide - API client (targets)", () => {
+describe("Fleet - API client (targets)", () => {
   afterEach(() => {
     nock.cleanAll();
     Fleet.setBearerToken(null);

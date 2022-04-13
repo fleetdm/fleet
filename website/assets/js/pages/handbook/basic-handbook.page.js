@@ -32,9 +32,19 @@ parasails.registerPage('basic-handbook', {
       debug: false,
       clickAnalytics: true,
       algoliaOptions: {
-        'facetFilters': ['section:handbook']
+        facetFilters: ['section:handbook']
       },
     });
+
+    // Handle hashes in urls when coming from an external page.
+    if(window.location.hash){
+      let possibleHashToScrollTo = _.trimLeft(window.location.hash, '#');
+      let hashToScrollTo = document.getElementById(possibleHashToScrollTo);
+      // If the hash matches a header's ID, we'll scroll to that section.
+      if(hashToScrollTo){
+        hashToScrollTo.scrollIntoView();
+      }
+    }
 
     this.subtopics = (() => {
       let subtopics;
@@ -47,7 +57,7 @@ parasails.registerPage('basic-handbook', {
         // Removing all apostrophes from the title to keep  _.kebabCase() from turning words like 'user’s' into 'user-s'
         let kebabCaseFriendlyTitle = title.replace(/[\’]/g, '');
         return {
-          title,
+          title: title.replace(/([\uE000-\uF8FF]|\uD83C[\uDF00-\uDFFF]|\uD83D[\uDC00-\uDDFF])/g, ''), // take out any emojis (they look weird in the menu)
           url: '#' + _.kebabCase(kebabCaseFriendlyTitle),
         };
       });

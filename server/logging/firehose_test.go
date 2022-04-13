@@ -17,14 +17,14 @@ import (
 
 var (
 	logs = []json.RawMessage{
-		json.RawMessage(`{"foo": "bar"}`),
-		json.RawMessage(`{"flim": "flam"}`),
-		json.RawMessage(`{"jim": "jom"}`),
+		json.RawMessage(`{"foo":"bar"}`),
+		json.RawMessage(`{"flim":"flam"}`),
+		json.RawMessage(`{"jim":"jom"}`),
 	}
 	logsWithNewlines = []json.RawMessage{
-		json.RawMessage(`{"foo": "bar"}` + "\n"),
-		json.RawMessage(`{"flim": "flam"}` + "\n"),
-		json.RawMessage(`{"jim": "jom"}` + "\n"),
+		json.RawMessage(`{"foo":"bar"}` + "\n"),
+		json.RawMessage(`{"flim":"flam"}` + "\n"),
+		json.RawMessage(`{"jim":"jom"}` + "\n"),
 	}
 )
 

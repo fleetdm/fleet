@@ -5,7 +5,7 @@ import mocks from "test/mocks";
 
 const { statusLabels: statusLabelMocks } = mocks;
 
-describe("Kolide - API client (status labels)", () => {
+describe("Fleet - API client (status labels)", () => {
   afterEach(() => {
     nock.cleanAll();
     Fleet.setBearerToken(null);

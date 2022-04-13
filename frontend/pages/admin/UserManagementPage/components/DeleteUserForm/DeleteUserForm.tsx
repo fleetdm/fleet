@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import Button from "components/buttons/Button";
 
 const baseClass = "delete-user-form";
@@ -14,6 +14,20 @@ const DeleteUserForm = ({
   onDelete,
   onCancel,
 }: IDeleteUserForm): JSX.Element => {
+  useEffect(() => {
+    const listener = (event: KeyboardEvent) => {
+      if (event.code === "Enter" || event.code === "NumpadEnter") {
+        event.preventDefault();
+        onDelete();
+      }
+    };
+
+    document.addEventListener("keydown", listener);
+    return () => {
+      document.removeEventListener("keydown", listener);
+    };
+  }, []);
+
   return (
     <div className={baseClass}>
       <p>

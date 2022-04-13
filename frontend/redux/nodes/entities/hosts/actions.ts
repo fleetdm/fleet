@@ -78,7 +78,7 @@ export const refetchHostSuccess = (data: any) => {
 };
 
 export const REFETCH_HOST_FAILURE = "REFETCH_HOST";
-export const refetchHostFailure = (errors: any) => {
+export const refetchHostFailure = (errors: IApiError) => {
   return { type: REFETCH_HOST_FAILURE, payload: { errors } };
 };
 
@@ -91,7 +91,7 @@ export const refetchHostStart = (host: IHost): any => {
         dispatch(refetchHostSuccess(data));
         return data;
       })
-      .catch((errors: any) => {
+      .catch((errors: IApiError) => {
         dispatch(refetchHostFailure(errors));
 
         throw errors;

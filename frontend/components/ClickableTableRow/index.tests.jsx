@@ -1,5 +1,6 @@
 import React from "react";
-import { mount } from "enzyme";
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 
 import ClickableTableRow from "./index";
 
@@ -13,14 +14,14 @@ const props = {
 
 describe("ClickableTableRow - component", () => {
   it("calls onDblClick when row is double clicked", () => {
-    const queryRow = mount(<ClickableTableRow {...props} />);
-    queryRow.find("tr").simulate("doubleclick");
+    render(<ClickableTableRow {...props} />);
+    userEvent.dblClick(screen.getByRole("row"));
     expect(dblClickSpy).toHaveBeenCalled();
   });
 
   it("calls onSelect when row is clicked", () => {
-    const queryRow = mount(<ClickableTableRow {...props} />);
-    queryRow.find("tr").simulate("click");
+    render(<ClickableTableRow {...props} />);
+    userEvent.click(screen.getByRole("row"));
     expect(clickSpy).toHaveBeenCalled();
   });
 });

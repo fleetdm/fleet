@@ -2,36 +2,31 @@
 
 import React, { useCallback, useContext, useEffect, useState } from "react";
 import { useQuery } from "react-query";
-import { useDispatch } from "react-redux";
-import { AppContext } from "context/app";
 import { InjectedRouter } from "react-router/lib/Router";
 import { find } from "lodash";
 
-// @ts-ignore
+import { AppContext } from "context/app";
+import { NotificationContext } from "context/notification"; // @ts-ignore
 import deepDifference from "utilities/deep_difference";
 import { ITeam } from "interfaces/team";
 import {
-  IGlobalScheduledQuery,
+  IScheduledQuery,
+  IEditScheduledQuery,
   ILoadAllGlobalScheduledQueriesResponse,
-} from "interfaces/global_scheduled_query";
-import {
-  ITeamScheduledQuery,
   ILoadAllTeamScheduledQueriesResponse,
-} from "interfaces/team_scheduled_query";
+} from "interfaces/scheduled_query";
 import fleetQueriesAPI from "services/entities/queries";
 import globalScheduledQueriesAPI from "services/entities/global_scheduled_queries";
 import teamScheduledQueriesAPI from "services/entities/team_scheduled_queries";
 import teamsAPI from "services/entities/teams";
 import usersAPI, { IGetMeResponse } from "services/entities/users";
-// @ts-ignore
-import { renderFlash } from "redux/nodes/notifications/actions";
-
 import sortUtils from "utilities/sort";
 import paths from "router/paths";
+
 import Button from "components/buttons/Button";
+import RevealButton from "components/buttons/RevealButton";
 import Spinner from "components/Spinner";
 import TeamsDropdown from "components/TeamsDropdown";
-import IconToolTip from "components/IconToolTip";
 import TableDataError from "components/TableDataError";
 import ScheduleListWrapper from "./components/ScheduleListWrapper";
 import ScheduleEditorModal from "./components/ScheduleEditorModal";
@@ -40,11 +35,10 @@ import RemoveScheduledQueryModal from "./components/RemoveScheduledQueryModal";
 const baseClass = "manage-schedule-page";
 
 const renderTable = (
+  router: InjectedRouter,
   onRemoveScheduledQueryClick: (selectIds: number[]) => void,
-  onEditScheduledQueryClick: (
-    selectedQuery: IGlobalScheduledQuery | ITeamScheduledQuery
-  ) => void,
-  allScheduledQueriesList: IGlobalScheduledQuery[] | ITeamScheduledQuery[],
+  onEditScheduledQueryClick: (selectedQuery: IEditScheduledQuery) => void,
+  allScheduledQueriesList: IScheduledQuery[],
   allScheduledQueriesError: Error | null,
   toggleScheduleEditorModal: () => void,
   isOnGlobalTeam: boolean,
@@ -56,6 +50,7 @@ const renderTable = (
     <TableDataError />
   ) : (
     <ScheduleListWrapper
+      router={router}
       onRemoveScheduledQueryClick={onRemoveScheduledQueryClick}
       onEditScheduledQueryClick={onEditScheduledQueryClick}
       allScheduledQueriesList={allScheduledQueriesList}
@@ -69,7 +64,8 @@ const renderTable = (
 };
 
 const renderAllTeamsTable = (
-  allTeamsScheduledQueriesList: IGlobalScheduledQuery[],
+  router: InjectedRouter,
+  allTeamsScheduledQueriesList: IScheduledQuery[],
   allTeamsScheduledQueriesError: Error | null,
   isOnGlobalTeam: boolean,
   selectedTeamData: ITeam | undefined,
@@ -81,6 +77,7 @@ const renderAllTeamsTable = (
   ) : (
     <div className={`${baseClass}__all-teams-table`}>
       <ScheduleListWrapper
+        router={router}
         inheritedQueries
         allScheduledQueriesList={allTeamsScheduledQueriesList}
         isOnGlobalTeam={isOnGlobalTeam}
@@ -114,7 +111,7 @@ const ManageSchedulePage = ({
   params: { team_id },
   router,
 }: ITeamSchedulesPageProps): JSX.Element => {
-  const dispatch = useDispatch();
+  const { renderFlash } = useContext(NotificationContext);
   const { MANAGE_PACKS, MANAGE_SCHEDULE, MANAGE_TEAM_SCHEDULE } = paths;
   const handleAdvanced = () => router.push(MANAGE_PACKS);
 
@@ -187,7 +184,7 @@ const ManageSchedulePage = ({
   } = useQuery<
     ILoadAllGlobalScheduledQueriesResponse,
     Error,
-    IGlobalScheduledQuery[]
+    IScheduledQuery[]
   >(["globalScheduledQueries"], () => globalScheduledQueriesAPI.loadAll(), {
     enabled: !!availableTeams,
     select: (data) => data.global_schedule,
@@ -215,11 +212,7 @@ const ManageSchedulePage = ({
     error: teamScheduledQueriesError,
     isLoading: isLoadingTeamScheduledQueries,
     refetch: refetchTeamScheduledQueries,
-  } = useQuery<
-    ILoadAllTeamScheduledQueriesResponse,
-    Error,
-    ITeamScheduledQuery[]
-  >(
+  } = useQuery<ILoadAllTeamScheduledQueriesResponse, Error, IScheduledQuery[]>(
     ["teamScheduledQueries", selectedTeamId],
     () => teamScheduledQueriesAPI.loadAll(selectedTeamId),
     {
@@ -309,9 +302,10 @@ const ManageSchedulePage = ({
   const [selectedQueryIds, setSelectedQueryIds] = useState<number[] | never[]>(
     []
   );
-  const [selectedScheduledQuery, setSelectedScheduledQuery] = useState<
-    IGlobalScheduledQuery | ITeamScheduledQuery
-  >();
+  const [
+    selectedScheduledQuery,
+    setSelectedScheduledQuery,
+  ] = useState<IEditScheduledQuery>();
 
   const toggleInheritedQueries = () => {
     setShowInheritedQueries(!showInheritedQueries);
@@ -338,7 +332,7 @@ const ManageSchedulePage = ({
   };
 
   const onEditScheduledQueryClick = (
-    selectedQuery: IGlobalScheduledQuery | ITeamScheduledQuery
+    selectedQuery: IEditScheduledQuery
   ): void => {
     toggleScheduleEditorModal();
     setSelectedScheduledQuery(selectedQuery); // edit modal renders
@@ -353,26 +347,21 @@ const ManageSchedulePage = ({
     const queryOrQueries = selectedQueryIds.length === 1 ? "query" : "queries";
     return Promise.all(promises)
       .then(() => {
-        dispatch(
-          renderFlash(
-            "success",
-            `Successfully removed scheduled ${queryOrQueries}.`
-          )
+        renderFlash(
+          "success",
+          `Successfully removed scheduled ${queryOrQueries}.`
         );
         toggleRemoveScheduledQueryModal();
         refetchScheduledQueries();
       })
       .catch(() => {
-        dispatch(
-          renderFlash(
-            "error",
-            `Unable to remove scheduled ${queryOrQueries}. Please try again.`
-          )
+        renderFlash(
+          "error",
+          `Unable to remove scheduled ${queryOrQueries}. Please try again.`
         );
         toggleRemoveScheduledQueryModal();
       });
   }, [
-    dispatch,
     selectedTeamId,
     selectedQueryIds,
     toggleRemoveScheduledQueryModal,
@@ -380,33 +369,27 @@ const ManageSchedulePage = ({
   ]);
 
   const onAddScheduledQuerySubmit = useCallback(
-    (
-      formData: IFormData,
-      editQuery: IGlobalScheduledQuery | ITeamScheduledQuery | undefined
-    ) => {
+    (formData: IFormData, editQuery: IEditScheduledQuery | undefined) => {
       if (editQuery) {
         const updatedAttributes = deepDifference(formData, editQuery);
 
-        const editResponse = selectedTeamId
-          ? teamScheduledQueriesAPI.update(editQuery, updatedAttributes)
-          : globalScheduledQueriesAPI.update(editQuery, updatedAttributes);
+        const editResponse =
+          editQuery.type === "team_scheduled_query"
+            ? teamScheduledQueriesAPI.update(editQuery, updatedAttributes)
+            : globalScheduledQueriesAPI.update(editQuery, updatedAttributes);
 
         editResponse
           .then(() => {
-            dispatch(
-              renderFlash(
-                "success",
-                `Successfully updated ${formData.name} in the schedule.`
-              )
+            renderFlash(
+              "success",
+              `Successfully updated ${formData.name} in the schedule.`
             );
             refetchScheduledQueries();
           })
           .catch(() => {
-            dispatch(
-              renderFlash(
-                "error",
-                "Could not update scheduled query. Please try again."
-              )
+            renderFlash(
+              "error",
+              "Could not update scheduled query. Please try again."
             );
           });
       } else {
@@ -416,26 +399,19 @@ const ManageSchedulePage = ({
 
         createResponse
           .then(() => {
-            dispatch(
-              renderFlash(
-                "success",
-                `Successfully added ${formData.name} to the schedule.`
-              )
+            renderFlash(
+              "success",
+              `Successfully added ${formData.name} to the schedule.`
             );
             refetchScheduledQueries();
           })
           .catch(() => {
-            dispatch(
-              renderFlash(
-                "error",
-                "Could not schedule query. Please try again."
-              )
-            );
+            renderFlash("error", "Could not schedule query. Please try again.");
           });
       }
       toggleScheduleEditorModal();
     },
-    [dispatch, selectedTeamId, toggleScheduleEditorModal]
+    [selectedTeamId, toggleScheduleEditorModal]
   );
 
   return (
@@ -510,6 +486,7 @@ const ManageSchedulePage = ({
             <Spinner />
           ) : (
             renderTable(
+              router,
               onRemoveScheduledQueryClick,
               onEditScheduledQueryClick,
               allScheduledQueriesList,
@@ -526,34 +503,22 @@ const ManageSchedulePage = ({
         {selectedTeamId &&
         inheritedScheduledQueriesList &&
         inheritedScheduledQueriesList.length > 0 ? (
-          <>
-            <span>
-              <Button
-                variant="unstyled"
-                className={`${showInheritedQueries ? "upcarat" : "rightcarat"} 
-                     ${baseClass}__inherited-queries-button`}
-                onClick={toggleInheritedQueries}
-              >
-                {showInheritedQueries
-                  ? `Hide ${inheritedScheduledQueriesList.length} inherited ${inheritedQueryOrQueries}`
-                  : `Show ${inheritedScheduledQueriesList.length} inherited ${inheritedQueryOrQueries}`}
-              </Button>
-            </span>
-            <div className={`${baseClass}__details`}>
-              <IconToolTip
-                isHtml
-                text={
-                  "\
-              <center><p>Queries from the “All teams”<br/>schedule run on this team’s hosts.</p></center>\
-            "
-                }
-              />
-            </div>
-          </>
+          <RevealButton
+            isShowing={showInheritedQueries}
+            baseClass={baseClass}
+            hideText={`Hide ${inheritedScheduledQueriesList.length} inherited ${inheritedQueryOrQueries}`}
+            showText={`Show ${inheritedScheduledQueriesList.length} inherited ${inheritedQueryOrQueries}`}
+            caretPosition={"before"}
+            tooltipHtml={
+              'Queries from the "All teams"<br/>schedule run on this team’s hosts.'
+            }
+            onClick={toggleInheritedQueries}
+          />
         ) : null}
         {showInheritedQueries &&
           inheritedScheduledQueriesList &&
           renderAllTeamsTable(
+            router,
             inheritedScheduledQueriesList,
             inheritedScheduledQueriesError,
             isOnGlobalTeam || false,

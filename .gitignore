@@ -58,8 +58,12 @@ terraform.tfstate*
 
 # generated installers
 fleet-osquery*
+desktop.app.tar.gz
 
 # residual files when running the cpe command
 cmd/cpe/etagenv
 cmd/cpe/cpe*.sqlite
 cmd/cpe/cpe*.sqlite.gz
+
+# Testing TUF server
+test_tuf

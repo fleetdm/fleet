@@ -1,21 +1,24 @@
-import { flatMap, omit, pick, size, memoize } from "lodash";
+import { isEmpty, flatMap, omit, pick, size, memoize, reduce } from "lodash";
 import md5 from "js-md5";
-import {
-  format,
-  formatDistanceToNow,
-  formatDuration,
-  isAfter,
-  millisecondsToHours,
-  millisecondsToSeconds,
-} from "date-fns";
+import { format, formatDistanceToNow, isAfter } from "date-fns";
 import yaml from "js-yaml";
 
-import { IConfigNested } from "interfaces/config";
+import { IConfig } from "interfaces/config";
+import { IHost } from "interfaces/host";
 import { ILabel } from "interfaces/label";
 import { IPack } from "interfaces/pack";
+import {
+  IScheduledQuery,
+  IPackQueryFormData,
+} from "interfaces/scheduled_query";
+import {
+  ISelectTargetsEntity,
+  ISelectedTargets,
+  IPackTargets,
+} from "interfaces/target";
 import { ITeam, ITeamSummary } from "interfaces/team";
 import { IUser } from "interfaces/user";
-import { IPackQueryFormData } from "interfaces/scheduled_query";
+import { IVulnerability } from "interfaces/vulnerability";
 
 import stringUtils from "utilities/strings";
 import sortUtils from "utilities/sort";
@@ -93,7 +96,7 @@ const labelStubs = [
 ];
 
 const filterTarget = (targetType: string) => {
-  return (target: any) => {
+  return (target: ISelectTargetsEntity) => {
     return target.target_type === targetType ? [target.id] : [];
   };
 };
@@ -181,7 +184,7 @@ export const formatConfigDataForServer = (config: any): any => {
 };
 
 // TODO: Finalize interface for config - see frontend\interfaces\config.ts
-export const frontendFormattedConfig = (config: IConfigNested) => {
+export const frontendFormattedConfig = (config: IConfig) => {
   const {
     org_info: orgInfo,
     server_settings: serverSettings,
@@ -226,19 +229,28 @@ const formatLabelResponse = (response: any): ILabel[] => {
 };
 
 export const formatSelectedTargetsForApi = (
-  selectedTargets: any,
-  appendID = false
-) => {
+  selectedTargets: ISelectTargetsEntity[]
+): ISelectedTargets => {
   const targets = selectedTargets || [];
   const hosts = flatMap(targets, filterTarget("hosts"));
   const labels = flatMap(targets, filterTarget("labels"));
   const teams = flatMap(targets, filterTarget("teams"));
 
-  if (appendID) {
-    return { host_ids: hosts, label_ids: labels, team_ids: teams };
-  }
+  const sortIds = (ids: Array<number | string>) =>
+    ids.sort((a, b) => Number(a) - Number(b));
 
-  return { hosts, labels, teams };
+  return {
+    hosts: sortIds(hosts),
+    labels: sortIds(labels),
+    teams: sortIds(teams),
+  };
+};
+
+export const formatPackTargetsForApi = (
+  targets: ISelectTargetsEntity[]
+): IPackTargets => {
+  const { hosts, labels, teams } = formatSelectedTargetsForApi(targets);
+  return { host_ids: hosts, label_ids: labels, team_ids: teams };
 };
 
 export const formatScheduledQueryForServer = (
@@ -282,7 +294,9 @@ export const formatScheduledQueryForServer = (
   return result;
 };
 
-export const formatScheduledQueryForClient = (scheduledQuery: any): any => {
+export const formatScheduledQueryForClient = (
+  scheduledQuery: IScheduledQuery
+): IScheduledQuery => {
   if (scheduledQuery.platform === "") {
     scheduledQuery.platform = "all";
   }
@@ -306,7 +320,9 @@ export const formatScheduledQueryForClient = (scheduledQuery: any): any => {
   return scheduledQuery;
 };
 
-export const formatGlobalScheduledQueryForServer = (scheduledQuery: any) => {
+export const formatGlobalScheduledQueryForServer = (
+  scheduledQuery: IScheduledQuery
+): IScheduledQuery => {
   const {
     interval,
     logging_type: loggingType,
@@ -341,8 +357,8 @@ export const formatGlobalScheduledQueryForServer = (scheduledQuery: any) => {
 };
 
 export const formatGlobalScheduledQueryForClient = (
-  scheduledQuery: any
-): any => {
+  scheduledQuery: IScheduledQuery
+): IScheduledQuery => {
   if (scheduledQuery.platform === "") {
     scheduledQuery.platform = "all";
   }
@@ -366,7 +382,9 @@ export const formatGlobalScheduledQueryForClient = (
   return scheduledQuery;
 };
 
-export const formatTeamScheduledQueryForServer = (scheduledQuery: any) => {
+export const formatTeamScheduledQueryForServer = (
+  scheduledQuery: IScheduledQuery
+) => {
   const {
     interval,
     logging_type: loggingType,
@@ -405,7 +423,9 @@ export const formatTeamScheduledQueryForServer = (scheduledQuery: any) => {
   return result;
 };
 
-export const formatTeamScheduledQueryForClient = (scheduledQuery: any): any => {
+export const formatTeamScheduledQueryForClient = (
+  scheduledQuery: IScheduledQuery
+): IScheduledQuery => {
   if (scheduledQuery.platform === "") {
     scheduledQuery.platform = "all";
   }
@@ -544,12 +564,13 @@ export const inMilliseconds = (nanoseconds: number): number => {
 };
 
 export const humanHostUptime = (uptimeInNanoseconds: number): string => {
-  const milliseconds = inMilliseconds(uptimeInNanoseconds);
-
-  return formatDuration(
-    { hours: millisecondsToHours(milliseconds) },
-    { format: ["hours"] }
+  const uptimeMilliseconds = inMilliseconds(uptimeInNanoseconds);
+  const restartDate = new Date();
+  restartDate.setMilliseconds(
+    restartDate.getMilliseconds() - uptimeMilliseconds
   );
+
+  return formatDistanceToNow(new Date(restartDate), { addSuffix: true });
 };
 
 export const humanHostLastSeen = (lastSeen: string): string => {
@@ -557,7 +578,7 @@ export const humanHostLastSeen = (lastSeen: string): string => {
 };
 
 export const humanHostEnrolled = (enrolled: string): string => {
-  return format(new Date(enrolled), "MMM d yyyy, HH:mm:ss");
+  return formatDistanceToNow(new Date(enrolled), { addSuffix: true });
 };
 
 export const humanHostMemory = (bytes: number): string => {
@@ -597,7 +618,6 @@ export const licenseExpirationWarning = (expiration: string): boolean => {
   return isAfter(new Date(), new Date(expiration));
 };
 
-// IQueryStats became any when adding in IGlobalScheduledQuery and ITeamScheduledQuery
 export const performanceIndicator = (
   scheduledQueryStats: IScheduledQueryStats
 ): string => {
@@ -652,6 +672,9 @@ export const secondsToDhms = (d: number): string => {
   const sDisplay = s > 0 ? s + (s === 1 ? " second" : " seconds") : "";
   return dDisplay + hDisplay + mDisplay + sDisplay;
 };
+
+export const abbreviateTimeUnits = (str: string): string =>
+  str.replace("minute", "min").replace("second", "sec");
 
 // TODO: Type any because ts files missing the following properties from type 'JSON': parse, stringify, [Symbol.toStringTag]
 export const syntaxHighlight = (json: any): string => {
@@ -716,6 +739,31 @@ export const getValidatedTeamId = (
   return validatedTeamId;
 };
 
+// returns a mixture of props from host
+export const normalizeEmptyValues = (
+  hostData: Partial<IHost>
+): { [key: string]: any } => {
+  return reduce(
+    hostData,
+    (result, value, key) => {
+      if ((Number.isFinite(value) && value !== 0) || !isEmpty(value)) {
+        Object.assign(result, { [key]: value });
+      } else {
+        Object.assign(result, { [key]: "---" });
+      }
+      return result;
+    },
+    {}
+  );
+};
+
+export const wrapFleetHelper = (
+  helperFn: (value: any) => string, // number or string or never
+  value: string
+): string => {
+  return value === "---" ? value : helperFn(value);
+};
+
 export default {
   addGravatarUrlToResource,
   formatConfigDataForServer,
@@ -727,6 +775,7 @@ export default {
   formatTeamScheduledQueryForClient,
   formatTeamScheduledQueryForServer,
   formatSelectedTargetsForApi,
+  formatPackTargetsForApi,
   generateRole,
   generateTeam,
   greyCell,
@@ -746,4 +795,6 @@ export default {
   frontendFormattedConfig,
   syntaxHighlight,
   getValidatedTeamId,
+  normalizeEmptyValues,
+  wrapFleetHelper,
 };

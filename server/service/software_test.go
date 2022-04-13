@@ -25,7 +25,7 @@ func TestService_ListSoftware(t *testing.T) {
 
 	user := &fleet.User{ID: 3, Email: "foo@bar.com", GlobalRole: ptr.String(fleet.RoleObserver)}
 
-	svc := newTestService(ds, nil, nil)
+	svc := newTestService(t, ds, nil, nil)
 	ctx := context.Background()
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
 

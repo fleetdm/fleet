@@ -13,7 +13,7 @@ import (
 
 func TestListActivities(t *testing.T) {
 	ds := new(mock.Store)
-	svc := newTestService(ds, nil, nil)
+	svc := newTestService(t, ds, nil, nil)
 
 	ds.ListActivitiesFunc = func(ctx context.Context, opts fleet.ListOptions) ([]*fleet.Activity, error) {
 		return []*fleet.Activity{

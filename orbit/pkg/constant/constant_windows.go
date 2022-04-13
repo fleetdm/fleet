@@ -1,4 +1,5 @@
-//+build windows
+//go:build windows
+// +build windows
 
 package constant
 
@@ -9,7 +10,6 @@ import (
 )
 
 const (
-	PlatformName = "windows"
 	// DefaultExecutableMode is the default file mode to apply to created
 	// executable files. For Windows this doesn't do anything besides setting
 	// read-only. See https://golang.org/pkg/os/#Chmod.

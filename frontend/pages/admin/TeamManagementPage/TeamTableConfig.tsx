@@ -14,12 +14,20 @@ interface IHeaderProps {
   };
 }
 
-interface ICellProps {
-  cell: {
-    value: any;
-  };
+interface IRowProps {
   row: {
     original: ITeam;
+  };
+}
+interface ICellProps extends IRowProps {
+  cell: {
+    value: string;
+  };
+}
+
+interface IDropdownCellProps extends IRowProps {
+  cell: {
+    value: IDropdownOption[];
   };
 }
 
@@ -27,9 +35,12 @@ interface IDataColumn {
   title: string;
   Header: ((props: IHeaderProps) => JSX.Element) | string;
   accessor: string;
-  Cell: (props: ICellProps) => JSX.Element;
+  Cell:
+    | ((props: ICellProps) => JSX.Element)
+    | ((props: IDropdownCellProps) => JSX.Element);
   disableHidden?: boolean;
   disableSortBy?: boolean;
+  sortType?: string;
 }
 
 interface ITeamTableData extends ITeam {
@@ -46,8 +57,9 @@ const generateTableHeaders = (
       title: "Name",
       Header: "Name",
       disableSortBy: true,
+      sortType: "caseInsensitive",
       accessor: "name",
-      Cell: (cellProps) => (
+      Cell: (cellProps: ICellProps) => (
         <LinkCell
           value={cellProps.cell.value}
           path={PATHS.TEAM_DETAILS_MEMBERS(cellProps.row.original.id)}
@@ -60,21 +72,25 @@ const generateTableHeaders = (
       Header: "Hosts",
       disableSortBy: true,
       accessor: "host_count",
-      Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
+      Cell: (cellProps: ICellProps) => (
+        <TextCell value={cellProps.cell.value} />
+      ),
     },
     {
       title: "Members",
       Header: "Members",
       disableSortBy: true,
       accessor: "user_count",
-      Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
+      Cell: (cellProps: ICellProps) => (
+        <TextCell value={cellProps.cell.value} />
+      ),
     },
     {
       title: "Actions",
       Header: "",
       disableSortBy: true,
       accessor: "actions",
-      Cell: (cellProps) => (
+      Cell: (cellProps: IDropdownCellProps) => (
         <DropdownCell
           options={cellProps.cell.value}
           onChange={(value: string) =>

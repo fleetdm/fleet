@@ -36,7 +36,8 @@ func (ds *Datastore) DeletePasswordResetRequestsForUser(ctx context.Context, use
 
 	return nil
 }
-func (ds *Datastore) FindPassswordResetByToken(ctx context.Context, token string) (*fleet.PasswordResetRequest, error) {
+
+func (ds *Datastore) FindPasswordResetByToken(ctx context.Context, token string) (*fleet.PasswordResetRequest, error) {
 	sqlStatement := `
                SELECT * FROM password_reset_requests
                WHERE token = ? LIMIT 1
@@ -48,5 +49,4 @@ func (ds *Datastore) FindPassswordResetByToken(ctx context.Context, token string
 	}
 
 	return passwordResetRequest, nil
-
 }

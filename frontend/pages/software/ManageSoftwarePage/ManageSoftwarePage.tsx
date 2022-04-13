@@ -1,18 +1,13 @@
 import React, { useCallback, useContext, useEffect, useState } from "react";
 import { useQuery } from "react-query";
-import { useDispatch } from "react-redux";
 import { InjectedRouter } from "react-router/lib/Router";
-import ReactTooltip from "react-tooltip";
-import { useDebouncedCallback } from "use-debounce/lib";
-import formatDistanceToNowStrict from "date-fns/formatDistanceToNowStrict";
+import { useDebouncedCallback } from "use-debounce";
 
 import { AppContext } from "context/app";
-import { IConfig, IConfigNested } from "interfaces/config";
-import { IWebhookSoftwareVulnerabilities } from "interfaces/webhook";
-// @ts-ignore
-import { getConfig } from "redux/nodes/app/actions";
-// @ts-ignore
-import { renderFlash } from "redux/nodes/notifications/actions";
+import { NotificationContext } from "context/notification";
+import { IConfig } from "interfaces/config";
+import { IJiraIntegration } from "interfaces/integration";
+import { IWebhookSoftwareVulnerabilities } from "interfaces/webhook"; // @ts-ignore
 import configAPI from "services/entities/config";
 import softwareAPI, {
   ISoftwareResponse,
@@ -33,13 +28,12 @@ import TableDataError from "components/TableDataError";
 import TeamsDropdownHeader, {
   ITeamsDropdownState,
 } from "components/PageHeader/TeamsDropdownHeader";
-
-import ExternalLinkIcon from "../../../../assets/images/open-new-tab-12x12@2x.png";
-import QuestionIcon from "../../../../assets/images/icon-question-16x16@2x.png";
+import renderLastUpdatedText from "components/LastUpdatedText";
 
 import softwareTableHeaders from "./SoftwareTableConfig";
 import ManageAutomationsModal from "./components/ManageAutomationsModal";
 import EmptySoftware from "../components/EmptySoftware";
+import ExternalLinkIcon from "../../../../assets/images/open-new-tab-12x12@2x.png";
 
 interface IManageSoftwarePageProps {
   router: InjectedRouter;
@@ -47,6 +41,15 @@ interface IManageSoftwarePageProps {
     pathname: string;
     query: { vulnerable?: boolean };
     search: string;
+  };
+}
+
+interface ISoftwareAutomations {
+  webhook_settings: {
+    vulnerabilities_webhook: IWebhookSoftwareVulnerabilities;
+  };
+  integrations: {
+    jira: IJiraIntegration[];
   };
 }
 interface IHeaderButtonsState extends ITeamsDropdownState {
@@ -62,7 +65,6 @@ const ManageSoftwarePage = ({
   router,
   location,
 }: IManageSoftwarePageProps): JSX.Element => {
-  const dispatch = useDispatch();
   const {
     availableTeams,
     currentTeam,
@@ -70,8 +72,13 @@ const ManageSoftwarePage = ({
     isGlobalAdmin,
     isGlobalMaintainer,
   } = useContext(AppContext);
+  const { renderFlash } = useContext(NotificationContext);
 
   const [isSoftwareEnabled, setIsSoftwareEnabled] = useState<boolean>();
+  const [
+    isVulnerabilityAutomationsEnabled,
+    setIsVulnerabilityAutomationsEnabled,
+  ] = useState<boolean>();
   const [filterVuln, setFilterVuln] = useState(
     location?.query?.vulnerable || false
   );
@@ -94,6 +101,18 @@ const ManageSoftwarePage = ({
   const { data: config } = useQuery(["config"], configAPI.loadAll, {
     onSuccess: (data) => {
       setIsSoftwareEnabled(data?.host_settings?.enable_software_inventory);
+      let jiraIntegrationEnabled = false;
+      if (data.integrations.jira) {
+        jiraIntegrationEnabled = data?.integrations.jira.some(
+          (integration: any) => {
+            return integration.enable_software_vulnerabilities;
+          }
+        );
+      }
+      setIsVulnerabilityAutomationsEnabled(
+        data?.webhook_settings?.vulnerabilities_webhook
+          .enable_vulnerabilities_webhook || jiraIntegrationEnabled
+      );
     },
   });
 
@@ -175,13 +194,12 @@ const ManageSoftwarePage = ({
     data: softwareVulnerabilitiesWebhook,
     isLoading: isLoadingSoftwareVulnerabilitiesWebhook,
     refetch: refetchSoftwareVulnerabilitiesWebhook,
-  } = useQuery<IConfigNested, Error, IWebhookSoftwareVulnerabilities>(
+  } = useQuery<IConfig, Error, IWebhookSoftwareVulnerabilities>(
     ["config"],
     () => configAPI.loadAll(),
     {
       enabled: canAddOrRemoveSoftwareWebhook,
-      select: (data: IConfigNested) =>
-        data.webhook_settings.vulnerabilities_webhook,
+      select: (data: IConfig) => data.webhook_settings.vulnerabilities_webhook,
     }
   );
 
@@ -216,43 +234,25 @@ const ManageSoftwarePage = ({
     toggleManageAutomationsModal();
   };
 
-  const onCreateWebhookSubmit = async ({
-    destination_url,
-    enable_vulnerabilities_webhook,
-  }: IWebhookSoftwareVulnerabilities) => {
+  const onCreateWebhookSubmit = async (
+    configSoftwareAutomations: ISoftwareAutomations
+  ) => {
     try {
-      const request = configAPI.update({
-        webhook_settings: {
-          vulnerabilities_webhook: {
-            destination_url,
-            enable_vulnerabilities_webhook,
-          },
-        },
-      });
+      const request = configAPI.update(configSoftwareAutomations);
       await request.then(() => {
-        dispatch(
-          renderFlash(
-            "success",
-            "Successfully updated vulnerability automations."
-          )
+        renderFlash(
+          "success",
+          "Successfully updated vulnerability automations."
         );
       });
     } catch {
-      dispatch(
-        renderFlash(
-          "error",
-          "Could not update vulnerability automations. Please try again."
-        )
+      renderFlash(
+        "error",
+        "Could not update vulnerability automations. Please try again."
       );
     } finally {
       toggleManageAutomationsModal();
       refetchSoftwareVulnerabilitiesWebhook();
-      // Config must be updated in both Redux and AppContext
-      dispatch(getConfig())
-        .then((configState: IConfig) => {
-          setConfig(configState);
-        })
-        .catch(() => false);
     }
   };
 
@@ -264,7 +264,7 @@ const ManageSoftwarePage = ({
     state: IHeaderButtonsState
   ): JSX.Element | null => {
     if (
-      (state.isGlobalAdmin || state.isGlobalMaintainer) &&
+      state.isGlobalAdmin &&
       (!state.isPremiumTier || state.teamId === 0) &&
       !state.isLoading
     ) {
@@ -320,11 +320,7 @@ const ManageSoftwarePage = ({
 
   const renderSoftwareCount = useCallback(() => {
     const count = softwareCount;
-    const lastUpdatedAt = software?.counts_updated_at
-      ? formatDistanceToNowStrict(new Date(software?.counts_updated_at), {
-          addSuffix: true,
-        })
-      : software?.counts_updated_at;
+    const lastUpdatedAt = software?.counts_updated_at;
 
     if (!isSoftwareEnabled || !lastUpdatedAt) {
       return null;
@@ -339,44 +335,20 @@ const ManageSoftwarePage = ({
     }
 
     // TODO: Use setInterval to keep last updated time current?
-    return count !== undefined ? (
-      <span
-        className={`${baseClass}__count ${
-          isFetchingCount ? "count-loading" : ""
-        }`}
-      >
-        {`${count} software item${count === 1 ? "" : "s"}`}
-        <span className="count-last-updated">
-          {`Last updated ${lastUpdatedAt}`}{" "}
-          <span className={`tooltip`}>
-            <span
-              className={`tooltip__tooltip-icon`}
-              data-tip
-              data-for="last-updated-tooltip"
-              data-tip-disable={false}
-            >
-              <img alt="question icon" src={QuestionIcon} />
-            </span>
-            <ReactTooltip
-              place="top"
-              type="dark"
-              effect="solid"
-              backgroundColor="#3e4771"
-              id="last-updated-tooltip"
-              data-html
-            >
-              <span className={`tooltip__tooltip-text`}>
-                Fleet periodically
-                <br />
-                queries all hosts
-                <br />
-                to retrieve software
-              </span>
-            </ReactTooltip>
-          </span>
-        </span>
-      </span>
-    ) : null;
+    if (count) {
+      return (
+        <div
+          className={`${baseClass}__count ${
+            isFetchingCount ? "count-loading" : ""
+          }`}
+        >
+          <span>{`${count} software item${count === 1 ? "" : "s"}`}</span>
+          {renderLastUpdatedText(lastUpdatedAt, "software")}
+        </div>
+      );
+    }
+
+    return null;
   }, [isFetchingCount, software, softwareCountError, softwareCount]);
 
   // TODO: retool this with react-router location descriptor objects
@@ -422,7 +394,7 @@ const ManageSoftwarePage = ({
     return (
       <Dropdown
         value={filterVuln}
-        className={`${baseClass}__status_dropdown`}
+        className={`${baseClass}__vuln_dropdown`}
         options={VULNERABLE_DROPDOWN_OPTIONS}
         searchable={false}
         onChange={onVulnFilterChange}
@@ -466,49 +438,54 @@ const ManageSoftwarePage = ({
     <div className={baseClass}>
       <div className={`${baseClass}__wrapper body-wrap`}>
         {renderHeader()}
-        {softwareError && !isFetchingSoftware ? (
-          <TableDataError />
-        ) : (
-          <TableContainer
-            columns={softwareTableHeaders}
-            data={(isSoftwareEnabled && software?.software) || []}
-            isLoading={isFetchingSoftware || isFetchingCount}
-            resultsTitle={"software items"}
-            emptyComponent={() =>
-              EmptySoftware(
-                (!isSoftwareEnabled && "disabled") ||
-                  (isCollectingInventory && "collecting") ||
-                  "default"
-              )
-            }
-            defaultSortHeader={"hosts_count"}
-            defaultSortDirection={"desc"}
-            manualSortBy
-            pageSize={PAGE_SIZE}
-            showMarkAllPages={false}
-            isAllPagesSelected={false}
-            disableNextPage={isLastPage}
-            searchable
-            inputPlaceHolder="Search software by name or vulnerabilities (CVEs)"
-            onQueryChange={onQueryChange}
-            additionalQueries={filterVuln ? "vulnerable" : ""} // additionalQueries serves as a trigger
-            // for the useDeepEffect hook to fire onQueryChange for events happeing outside of
-            // the TableContainer
-            customControl={renderVulnFilterDropdown}
-            renderCount={renderSoftwareCount}
-            renderFooter={renderTableFooter}
-            disableActionButton
-            hideActionButton
-            highlightOnHover
-          />
-        )}
-
+        <div className={`${baseClass}__table`}>
+          {softwareError && !isFetchingSoftware ? (
+            <TableDataError />
+          ) : (
+            <TableContainer
+              columns={softwareTableHeaders}
+              data={(isSoftwareEnabled && software?.software) || []}
+              isLoading={isFetchingSoftware || isFetchingCount}
+              resultsTitle={"software items"}
+              emptyComponent={() =>
+                EmptySoftware(
+                  (!isSoftwareEnabled && "disabled") ||
+                    (isCollectingInventory && "collecting") ||
+                    "default"
+                )
+              }
+              defaultSortHeader={"hosts_count"}
+              defaultSortDirection={"desc"}
+              manualSortBy
+              pageSize={PAGE_SIZE}
+              showMarkAllPages={false}
+              isAllPagesSelected={false}
+              disableNextPage={isLastPage}
+              searchable
+              inputPlaceHolder="Search software by name or vulnerabilities (CVEs)"
+              onQueryChange={onQueryChange}
+              additionalQueries={filterVuln ? "vulnerable" : ""} // additionalQueries serves as a trigger
+              // for the useDeepEffect hook to fire onQueryChange for events happeing outside of
+              // the TableContainer
+              customControl={renderVulnFilterDropdown}
+              stackControls
+              renderCount={renderSoftwareCount}
+              renderFooter={renderTableFooter}
+              disableActionButton
+              hideActionButton
+              highlightOnHover
+            />
+          )}
+        </div>
         {showManageAutomationsModal && (
           <ManageAutomationsModal
             onCancel={toggleManageAutomationsModal}
             onCreateWebhookSubmit={onCreateWebhookSubmit}
             togglePreviewPayloadModal={togglePreviewPayloadModal}
             showPreviewPayloadModal={showPreviewPayloadModal}
+            softwareVulnerabilityAutomationEnabled={
+              isVulnerabilityAutomationsEnabled
+            }
             softwareVulnerabilityWebhookEnabled={
               softwareVulnerabilitiesWebhook &&
               softwareVulnerabilitiesWebhook.enable_vulnerabilities_webhook

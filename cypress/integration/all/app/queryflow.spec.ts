@@ -56,8 +56,17 @@ describe("Query flow (seeded)", () => {
       cy.getAttached(".ace_scroller")
         .click()
         .type("{selectall}SELECT datetime, username FROM windows_crashes;");
-      cy.getAttached(".button--brand.query-form__save").click();
+      cy.getAttached(".query-form__save").click();
       cy.findByText(/query updated/i).should("be.visible");
+    });
+    it("saves an existing query as new query", () => {
+      cy.getAttached(".name__cell .button--text-link").eq(1).click();
+      cy.findByText(/run query/i).should("exist");
+      cy.getAttached(".ace_scroller")
+        .click()
+        .type("{selectall}SELECT datetime, username FROM windows_crashes;");
+      cy.getAttached(".query-form__save-as-new").click();
+      cy.findByText(/copy of/i).should("be.visible");
     });
     it("deletes an existing query", () => {
       cy.findByText(/detect linux hosts/i)

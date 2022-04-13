@@ -11,10 +11,12 @@ const baseClass = "packs-list-wrapper";
 const noPacksClass = "no-packs";
 
 interface IPacksListWrapperProps {
-  onRemovePackClick: any;
-  onEnablePackClick: any;
-  onDisablePackClick: any;
-  onCreatePackClick: any;
+  onRemovePackClick: (selectedTablePackIds: number[]) => void;
+  onEnablePackClick: (selectedTablePackIds: number[]) => void;
+  onDisablePackClick: (selectedTablePackIds: number[]) => void;
+  onCreatePackClick: (
+    event: React.MouseEvent<HTMLButtonElement, MouseEvent>
+  ) => void;
   packs?: IPack[];
   isLoading: boolean;
 }

@@ -170,6 +170,10 @@ type CountHostsInLabelFunc func(ctx context.Context, filter fleet.TeamFilter, li
 
 type ListHostDeviceMappingFunc func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error)
 
+type LoadHostByDeviceAuthTokenFunc func(ctx context.Context, authToken string) (*fleet.Host, error)
+
+type SetOrUpdateDeviceAuthTokenFunc func(ctx context.Context, hostID uint, authToken string) error
+
 type ListPoliciesForHostFunc func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error)
 
 type GetMunkiVersionFunc func(ctx context.Context, hostID uint) (string, error)
@@ -182,6 +186,10 @@ type AggregatedMDMStatusFunc func(ctx context.Context, teamID *uint) (fleet.Aggr
 
 type GenerateAggregatedMunkiAndMDMFunc func(ctx context.Context) error
 
+type OSVersionsFunc func(ctx context.Context, teamID *uint, platform *string) (*fleet.OSVersions, error)
+
+type UpdateOSVersionsFunc func(ctx context.Context) error
+
 type CountHostsInTargetsFunc func(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error)
 
 type HostIDsInTargetsFunc func(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets) ([]uint, error)
@@ -190,7 +198,7 @@ type NewPasswordResetRequestFunc func(ctx context.Context, req *fleet.PasswordRe
 
 type DeletePasswordResetRequestsForUserFunc func(ctx context.Context, userID uint) error
 
-type FindPassswordResetByTokenFunc func(ctx context.Context, token string) (*fleet.PasswordResetRequest, error)
+type FindPasswordResetByTokenFunc func(ctx context.Context, token string) (*fleet.PasswordResetRequest, error)
 
 type SessionByKeyFunc func(ctx context.Context, key string) (*fleet.Session, error)
 
@@ -198,7 +206,7 @@ type SessionByIDFunc func(ctx context.Context, id uint) (*fleet.Session, error)
 
 type ListSessionsForUserFunc func(ctx context.Context, id uint) ([]*fleet.Session, error)
 
-type NewSessionFunc func(ctx context.Context, session *fleet.Session) (*fleet.Session, error)
+type NewSessionFunc func(ctx context.Context, userID uint, sessionKey string) (*fleet.Session, error)
 
 type DestroySessionFunc func(ctx context.Context, session *fleet.Session) error
 
@@ -274,7 +282,9 @@ type SoftwareByIDFunc func(ctx context.Context, id uint) (*fleet.Software, error
 
 type CalculateHostsPerSoftwareFunc func(ctx context.Context, updatedAt time.Time) error
 
-type HostsByCPEsFunc func(ctx context.Context, cpes []string) ([]*fleet.CPEHost, error)
+type HostsByCPEsFunc func(ctx context.Context, cpes []string) ([]*fleet.HostShort, error)
+
+type HostsByCVEFunc func(ctx context.Context, cve string) ([]*fleet.HostShort, error)
 
 type NewActivityFunc func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error
 
@@ -326,6 +336,8 @@ type DeleteTeamPoliciesFunc func(ctx context.Context, teamID uint, ids []uint) (
 
 type TeamPolicyFunc func(ctx context.Context, teamID uint, policyID uint) (*fleet.Policy, error)
 
+type CleanupPolicyMembershipFunc func(ctx context.Context, now time.Time) error
+
 type LockFunc func(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error)
 
 type UnlockFunc func(ctx context.Context, name string, owner string) error
@@ -375,6 +387,12 @@ type VerifyEnrollSecretFunc func(ctx context.Context, secret string) (*fleet.Enr
 type EnrollHostFunc func(ctx context.Context, osqueryHostId string, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error)
 
 type SerialUpdateHostFunc func(ctx context.Context, host *fleet.Host) error
+
+type NewJobFunc func(ctx context.Context, job *fleet.Job) (*fleet.Job, error)
+
+type GetQueuedJobsFunc func(ctx context.Context, maxNumJobs int) ([]*fleet.Job, error)
+
+type UpdateJobFunc func(ctx context.Context, id uint, job *fleet.Job) (*fleet.Job, error)
 
 type InnoDBStatusFunc func(ctx context.Context) (string, error)
 
@@ -618,6 +636,12 @@ type DataStore struct {
 	ListHostDeviceMappingFunc        ListHostDeviceMappingFunc
 	ListHostDeviceMappingFuncInvoked bool
 
+	LoadHostByDeviceAuthTokenFunc        LoadHostByDeviceAuthTokenFunc
+	LoadHostByDeviceAuthTokenFuncInvoked bool
+
+	SetOrUpdateDeviceAuthTokenFunc        SetOrUpdateDeviceAuthTokenFunc
+	SetOrUpdateDeviceAuthTokenFuncInvoked bool
+
 	ListPoliciesForHostFunc        ListPoliciesForHostFunc
 	ListPoliciesForHostFuncInvoked bool
 
@@ -636,6 +660,12 @@ type DataStore struct {
 	GenerateAggregatedMunkiAndMDMFunc        GenerateAggregatedMunkiAndMDMFunc
 	GenerateAggregatedMunkiAndMDMFuncInvoked bool
 
+	OSVersionsFunc        OSVersionsFunc
+	OSVersionsFuncInvoked bool
+
+	UpdateOSVersionsFunc        UpdateOSVersionsFunc
+	UpdateOSVersionsFuncInvoked bool
+
 	CountHostsInTargetsFunc        CountHostsInTargetsFunc
 	CountHostsInTargetsFuncInvoked bool
 
@@ -648,8 +678,8 @@ type DataStore struct {
 	DeletePasswordResetRequestsForUserFunc        DeletePasswordResetRequestsForUserFunc
 	DeletePasswordResetRequestsForUserFuncInvoked bool
 
-	FindPassswordResetByTokenFunc        FindPassswordResetByTokenFunc
-	FindPassswordResetByTokenFuncInvoked bool
+	FindPasswordResetByTokenFunc        FindPasswordResetByTokenFunc
+	FindPasswordResetByTokenFuncInvoked bool
 
 	SessionByKeyFunc        SessionByKeyFunc
 	SessionByKeyFuncInvoked bool
@@ -777,6 +807,9 @@ type DataStore struct {
 	HostsByCPEsFunc        HostsByCPEsFunc
 	HostsByCPEsFuncInvoked bool
 
+	HostsByCVEFunc        HostsByCVEFunc
+	HostsByCVEFuncInvoked bool
+
 	NewActivityFunc        NewActivityFunc
 	NewActivityFuncInvoked bool
 
@@ -852,6 +885,9 @@ type DataStore struct {
 	TeamPolicyFunc        TeamPolicyFunc
 	TeamPolicyFuncInvoked bool
 
+	CleanupPolicyMembershipFunc        CleanupPolicyMembershipFunc
+	CleanupPolicyMembershipFuncInvoked bool
+
 	LockFunc        LockFunc
 	LockFuncInvoked bool
 
@@ -926,6 +962,15 @@ type DataStore struct {
 
 	SerialUpdateHostFunc        SerialUpdateHostFunc
 	SerialUpdateHostFuncInvoked bool
+
+	NewJobFunc        NewJobFunc
+	NewJobFuncInvoked bool
+
+	GetQueuedJobsFunc        GetQueuedJobsFunc
+	GetQueuedJobsFuncInvoked bool
+
+	UpdateJobFunc        UpdateJobFunc
+	UpdateJobFuncInvoked bool
 
 	InnoDBStatusFunc        InnoDBStatusFunc
 	InnoDBStatusFuncInvoked bool
@@ -1329,6 +1374,16 @@ func (s *DataStore) ListHostDeviceMapping(ctx context.Context, id uint) ([]*flee
 	return s.ListHostDeviceMappingFunc(ctx, id)
 }
 
+func (s *DataStore) LoadHostByDeviceAuthToken(ctx context.Context, authToken string) (*fleet.Host, error) {
+	s.LoadHostByDeviceAuthTokenFuncInvoked = true
+	return s.LoadHostByDeviceAuthTokenFunc(ctx, authToken)
+}
+
+func (s *DataStore) SetOrUpdateDeviceAuthToken(ctx context.Context, hostID uint, authToken string) error {
+	s.SetOrUpdateDeviceAuthTokenFuncInvoked = true
+	return s.SetOrUpdateDeviceAuthTokenFunc(ctx, hostID, authToken)
+}
+
 func (s *DataStore) ListPoliciesForHost(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
 	s.ListPoliciesForHostFuncInvoked = true
 	return s.ListPoliciesForHostFunc(ctx, host)
@@ -1359,6 +1414,16 @@ func (s *DataStore) GenerateAggregatedMunkiAndMDM(ctx context.Context) error {
 	return s.GenerateAggregatedMunkiAndMDMFunc(ctx)
 }
 
+func (s *DataStore) OSVersions(ctx context.Context, teamID *uint, platform *string) (*fleet.OSVersions, error) {
+	s.OSVersionsFuncInvoked = true
+	return s.OSVersionsFunc(ctx, teamID, platform)
+}
+
+func (s *DataStore) UpdateOSVersions(ctx context.Context) error {
+	s.UpdateOSVersionsFuncInvoked = true
+	return s.UpdateOSVersionsFunc(ctx)
+}
+
 func (s *DataStore) CountHostsInTargets(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error) {
 	s.CountHostsInTargetsFuncInvoked = true
 	return s.CountHostsInTargetsFunc(ctx, filter, targets, now)
@@ -1379,9 +1444,9 @@ func (s *DataStore) DeletePasswordResetRequestsForUser(ctx context.Context, user
 	return s.DeletePasswordResetRequestsForUserFunc(ctx, userID)
 }
 
-func (s *DataStore) FindPassswordResetByToken(ctx context.Context, token string) (*fleet.PasswordResetRequest, error) {
-	s.FindPassswordResetByTokenFuncInvoked = true
-	return s.FindPassswordResetByTokenFunc(ctx, token)
+func (s *DataStore) FindPasswordResetByToken(ctx context.Context, token string) (*fleet.PasswordResetRequest, error) {
+	s.FindPasswordResetByTokenFuncInvoked = true
+	return s.FindPasswordResetByTokenFunc(ctx, token)
 }
 
 func (s *DataStore) SessionByKey(ctx context.Context, key string) (*fleet.Session, error) {
@@ -1399,9 +1464,9 @@ func (s *DataStore) ListSessionsForUser(ctx context.Context, id uint) ([]*fleet.
 	return s.ListSessionsForUserFunc(ctx, id)
 }
 
-func (s *DataStore) NewSession(ctx context.Context, session *fleet.Session) (*fleet.Session, error) {
+func (s *DataStore) NewSession(ctx context.Context, userID uint, sessionKey string) (*fleet.Session, error) {
 	s.NewSessionFuncInvoked = true
-	return s.NewSessionFunc(ctx, session)
+	return s.NewSessionFunc(ctx, userID, sessionKey)
 }
 
 func (s *DataStore) DestroySession(ctx context.Context, session *fleet.Session) error {
@@ -1589,9 +1654,14 @@ func (s *DataStore) CalculateHostsPerSoftware(ctx context.Context, updatedAt tim
 	return s.CalculateHostsPerSoftwareFunc(ctx, updatedAt)
 }
 
-func (s *DataStore) HostsByCPEs(ctx context.Context, cpes []string) ([]*fleet.CPEHost, error) {
+func (s *DataStore) HostsByCPEs(ctx context.Context, cpes []string) ([]*fleet.HostShort, error) {
 	s.HostsByCPEsFuncInvoked = true
 	return s.HostsByCPEsFunc(ctx, cpes)
+}
+
+func (s *DataStore) HostsByCVE(ctx context.Context, cve string) ([]*fleet.HostShort, error) {
+	s.HostsByCVEFuncInvoked = true
+	return s.HostsByCVEFunc(ctx, cve)
 }
 
 func (s *DataStore) NewActivity(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {
@@ -1719,6 +1789,11 @@ func (s *DataStore) TeamPolicy(ctx context.Context, teamID uint, policyID uint) 
 	return s.TeamPolicyFunc(ctx, teamID, policyID)
 }
 
+func (s *DataStore) CleanupPolicyMembership(ctx context.Context, now time.Time) error {
+	s.CleanupPolicyMembershipFuncInvoked = true
+	return s.CleanupPolicyMembershipFunc(ctx, now)
+}
+
 func (s *DataStore) Lock(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error) {
 	s.LockFuncInvoked = true
 	return s.LockFunc(ctx, name, owner, expiration)
@@ -1842,6 +1917,21 @@ func (s *DataStore) EnrollHost(ctx context.Context, osqueryHostId string, nodeKe
 func (s *DataStore) SerialUpdateHost(ctx context.Context, host *fleet.Host) error {
 	s.SerialUpdateHostFuncInvoked = true
 	return s.SerialUpdateHostFunc(ctx, host)
+}
+
+func (s *DataStore) NewJob(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
+	s.NewJobFuncInvoked = true
+	return s.NewJobFunc(ctx, job)
+}
+
+func (s *DataStore) GetQueuedJobs(ctx context.Context, maxNumJobs int) ([]*fleet.Job, error) {
+	s.GetQueuedJobsFuncInvoked = true
+	return s.GetQueuedJobsFunc(ctx, maxNumJobs)
+}
+
+func (s *DataStore) UpdateJob(ctx context.Context, id uint, job *fleet.Job) (*fleet.Job, error) {
+	s.UpdateJobFuncInvoked = true
+	return s.UpdateJobFunc(ctx, id, job)
 }
 
 func (s *DataStore) InnoDBStatus(ctx context.Context) (string, error) {

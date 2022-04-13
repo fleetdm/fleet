@@ -6,7 +6,7 @@ import { scheduledQueryStub } from "test/stubs";
 
 const { scheduledQueries: scheduledQueryMocks } = mocks;
 
-describe("Kolide - API client (scheduled queries)", () => {
+describe("Fleet - API client (scheduled queries)", () => {
   afterEach(() => {
     nock.cleanAll();
     Fleet.setBearerToken(null);

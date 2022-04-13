@@ -260,7 +260,7 @@ func TestCachedTeamAgentOptions(t *testing.T) {
       "logger_tls_period": 10,
       "distributed_plugin": "tls",
       "disable_distributed": false,
-      "logger_tls_endpoint": "/api/v1/osquery/log",
+      "logger_tls_endpoint": "/api/osquery/log",
       "distributed_interval": 10,
       "distributed_tls_max_attempts": 3
     },
@@ -276,10 +276,12 @@ func TestCachedTeamAgentOptions(t *testing.T) {
 `)
 
 	testTeam := &fleet.Team{
-		ID:           1,
-		CreatedAt:    time.Now(),
-		Name:         "test",
-		AgentOptions: &testOptions,
+		ID:        1,
+		CreatedAt: time.Now(),
+		Name:      "test",
+		Config: fleet.TeamConfig{
+			AgentOptions: &testOptions,
+		},
 	}
 
 	deleted := false
@@ -306,10 +308,12 @@ func TestCachedTeamAgentOptions(t *testing.T) {
 {}
 `)
 	updateTeam := &fleet.Team{
-		ID:           testTeam.ID,
-		CreatedAt:    testTeam.CreatedAt,
-		Name:         testTeam.Name,
-		AgentOptions: &updateOptions,
+		ID:        testTeam.ID,
+		CreatedAt: testTeam.CreatedAt,
+		Name:      testTeam.Name,
+		Config: fleet.TeamConfig{
+			AgentOptions: &updateOptions,
+		},
 	}
 
 	_, err = ds.SaveTeam(context.Background(), updateTeam)

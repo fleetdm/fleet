@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	defaultFileMode = 0600
+	defaultFileMode = 0o600
 )
 
 func init() {

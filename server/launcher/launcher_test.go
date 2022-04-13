@@ -9,7 +9,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/health"
 	"github.com/fleetdm/fleet/v4/server/service/mock"
 	"github.com/go-kit/kit/log"
-	"github.com/kolide/osquery-go/plugin/distributed"
+	"github.com/kolide/launcher/pkg/service"
+	"github.com/osquery/osquery-go/plugin/distributed"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -18,7 +19,7 @@ func TestLauncherEnrollment(t *testing.T) {
 	launcher, tls := newTestService(t)
 	ctx := context.Background()
 
-	nodeKey, invalid, err := launcher.RequestEnrollment(ctx, "secret", "identifier")
+	nodeKey, invalid, err := launcher.RequestEnrollment(ctx, "secret", "identifier", service.EnrollmentDetails{})
 	require.Nil(t, err)
 	assert.True(t, tls.EnrollAgentFuncInvoked)
 	assert.False(t, invalid)
@@ -136,9 +137,12 @@ func newTLSService(t *testing.T) *mock.TLSService {
 
 		GetDistributedQueriesFunc: func(
 			ctx context.Context,
-		) (queries map[string]string, accelerate uint, err error) {
+		) (queries map[string]string, discovery map[string]string, accelerate uint, err error) {
 			queries = map[string]string{
 				"noop": `{"key": "value"}`,
+			}
+			discovery = map[string]string{
+				"noop": `select 1`,
 			}
 			return
 		},

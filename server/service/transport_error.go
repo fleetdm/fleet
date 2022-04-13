@@ -90,7 +90,11 @@ func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 			Message: "Validation Failed",
 			Errors:  e.Invalid(),
 		}
-		w.WriteHeader(http.StatusUnprocessableEntity)
+		if statusErr, ok := e.(statuser); ok {
+			w.WriteHeader(statusErr.Status())
+		} else {
+			w.WriteHeader(http.StatusUnprocessableEntity)
+		}
 		enc.Encode(ve)
 	case permissionErrorInterface:
 		pe := jsonError{
@@ -119,6 +123,10 @@ func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 			w.WriteHeader(http.StatusUnauthorized)
 			errMap["node_invalid"] = true
 		} else {
+			// TODO: osqueryError is not always the result of an internal error on
+			// our side, it is also used to represent a client error (invalid data,
+			// e.g. malformed json, carve too large, etc., so 4xx), are we returning
+			// a 500 because of some osquery-specific requirement?
 			w.WriteHeader(http.StatusInternalServerError)
 		}
 

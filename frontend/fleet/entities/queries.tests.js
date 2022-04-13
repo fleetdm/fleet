@@ -6,7 +6,7 @@ import { queryStub } from "test/stubs";
 
 const { queries: queryMocks } = mocks;
 
-describe("Kolide - API client (queries)", () => {
+describe("Fleet - API client (queries)", () => {
   afterEach(() => {
     nock.cleanAll();
     Fleet.setBearerToken(null);

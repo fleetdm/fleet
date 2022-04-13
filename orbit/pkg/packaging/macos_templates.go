@@ -84,12 +84,24 @@ var macosLaunchdTemplate = template.Must(template.New("").Option("missingkey=err
 		<key>ORBIT_FLEET_URL</key>
 		<string>{{ .FleetURL }}</string>
 		{{- end }}
+		{{- if .DisableUpdates }}
+		<key>ORBIT_DISABLE_UPDATES</key>
+		<string>true</string>
+		{{- end }}
 		<key>ORBIT_ORBIT_CHANNEL</key>
 		<string>{{ .OrbitChannel }}</string>
 		<key>ORBIT_OSQUERYD_CHANNEL</key>
 		<string>{{ .OsquerydChannel }}</string>
 		<key>ORBIT_UPDATE_URL</key>
 		<string>{{ .UpdateURL }}</string>
+		{{- if .Desktop }}
+		<key>ORBIT_FLEET_DESKTOP</key>
+		<string>true</string>
+		<key>ORBIT_DESKTOP_CHANNEL</key>
+		<string>{{ .DesktopChannel }}</string>
+		{{- end }}
+		<key>ORBIT_UPDATE_INTERVAL</key>
+		<string>{{ .OrbitUpdateInterval }}</string>
 	</dict>
 	<key>KeepAlive</key>
 	<true/>

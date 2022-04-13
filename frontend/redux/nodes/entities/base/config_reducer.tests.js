@@ -172,7 +172,7 @@ describe("ReduxConfig - reducer", () => {
       schema: schemas.USERS,
     });
     const { actions, reducer } = config;
-    const newUser = { ...userStub, name: "Kolide", something: "else" };
+    const newUser = { ...userStub, name: "Fleet", something: "else" };
 
     describe("successful action", () => {
       const updateSuccessAction = actions.successAction(

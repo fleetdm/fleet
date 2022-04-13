@@ -4,7 +4,7 @@ import { userStub } from "test/stubs";
 
 const { invites: inviteMocks } = mocks;
 
-describe("Kolide - API client (invites)", () => {
+describe("Fleet - API client (invites)", () => {
   afterEach(() => {
     Fleet.setBearerToken(null);
   });

@@ -1,13 +1,19 @@
 import React from "react";
 import classnames from "classnames";
 
-import IconToolTip from "components/IconToolTip";
-import { IOsqueryTable } from "interfaces/osquery_table"; // @ts-ignore
-import { osqueryTableNames } from "utilities/osquery_tables"; // @ts-ignore
-import Dropdown from "components/forms/fields/Dropdown"; // @ts-ignore
-import FleetIcon from "components/icons/FleetIcon"; // @ts-ignore
-import SecondarySidePanelContainer from "../SecondarySidePanelContainer";
+import { IOsqueryTable } from "interfaces/osquery_table";
+// @ts-ignore
+import { osqueryTableNames } from "utilities/osquery_tables";
+import { PLATFORM_DISPLAY_NAMES } from "utilities/constants";
 
+// @ts-ignore
+import Dropdown from "components/forms/fields/Dropdown";
+// @ts-ignore
+import FleetIcon from "components/icons/FleetIcon";
+import TooltipWrapper from "components/TooltipWrapper";
+
+// @ts-ignore
+import SecondarySidePanelContainer from "../SecondarySidePanelContainer";
 import AppleIcon from "../../../../assets/images/icon-apple-dark-20x20@2x.png";
 import LinuxIcon from "../../../../assets/images/icon-linux-dark-20x20@2x.png";
 import WindowsIcon from "../../../../assets/images/icon-windows-dark-20x20@2x.png";
@@ -49,8 +55,11 @@ const QuerySidePanel = ({
 
     return columns?.map((column) => (
       <li key={column.name} className={`${columnBaseClass}__item`}>
-        <span className={`${columnBaseClass}__name`}>{column.name}</span>
-        <IconToolTip text={column.description} />
+        <span className={`${columnBaseClass}__name`}>
+          <TooltipWrapper tipContent={column.description}>
+            {column.name}
+          </TooltipWrapper>
+        </span>
         <div className={`${columnBaseClass}__description`}>
           <span className={`${columnBaseClass}__type`}>
             {displayTypeForDataType(column.type)}
@@ -97,19 +106,21 @@ const QuerySidePanel = ({
         <p className={`${baseClass}__description`}>{description}</p>
       </div>
       <div className={`${baseClass}__os-availability`}>
-        <h2 className={`${baseClass}__header`}>OS Availability</h2>
+        <h2 className={`${baseClass}__header`}>Compatible with:</h2>
         <ul className={`${baseClass}__platforms`}>
           {platforms?.map((platform) => {
             if (platform === "all") {
               return (
                 <li key={platform}>
-                  <FleetIcon name="hosts" /> {platform}
+                  <FleetIcon name="hosts" />{" "}
+                  {PLATFORM_DISPLAY_NAMES[platform] || platform}
                 </li>
               );
             } else if (platform === "freebsd") {
               return (
                 <li key={platform}>
-                  <FleetIcon name="single-host" /> {platform}
+                  <FleetIcon name="single-host" />{" "}
+                  {PLATFORM_DISPLAY_NAMES[platform]}
                 </li>
               );
             }
@@ -141,7 +152,7 @@ const QuerySidePanel = ({
 
             return (
               <li key={platform}>
-                {icon} {platform}
+                {icon} {PLATFORM_DISPLAY_NAMES[platform] || platform}
               </li>
             );
           })}

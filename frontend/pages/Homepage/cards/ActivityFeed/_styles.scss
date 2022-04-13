@@ -3,7 +3,7 @@
   display: flex;
   flex-direction: column;
   position: relative;
-  min-height: 400px;
+  min-height: 592px;
 
   &__header-wrap {
     .form-field {
@@ -71,8 +71,8 @@
 
   &__load-activities-button {
     color: $core-vibrant-blue;
-    height: 20px;
     vertical-align: bottom;
+    padding: 6px;
 
     .fleeticon-chevronleft,
     .fleeticon-chevronright {
@@ -94,6 +94,11 @@
 
     &:first-of-type {
       margin-right: $pad-large;
+    }
+
+    &:hover,
+    &:focus {
+      background-color: $ui-vibrant-blue-10;
     }
   }
 
@@ -166,6 +171,8 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    margin-top: 40px; // Aligns with software table spinner
+    .loading-spinner {
+      margin-top: 33px;
+    }
   }
 }

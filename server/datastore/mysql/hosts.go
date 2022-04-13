@@ -309,6 +309,23 @@ func loadHostUsersDB(ctx context.Context, db sqlx.QueryerContext, hostID uint) (
 	return users, nil
 }
 
+// hostRefs are the tables referenced by hosts.
+//
+// Defined here for testing purposes.
+var hostRefs = []string{
+	"host_seen_times",
+	"host_software",
+	"host_users",
+	"host_emails",
+	"host_additional",
+	"scheduled_query_stats",
+	"label_membership",
+	"policy_membership",
+	"host_mdm",
+	"host_munki_info",
+	"host_device_auth",
+}
+
 func (ds *Datastore) DeleteHost(ctx context.Context, hid uint) error {
 	delHostRef := func(tx sqlx.ExtContext, table string) error {
 		_, err := tx.ExecContext(ctx, fmt.Sprintf(`DELETE FROM %s WHERE host_id=?`, table), hid)
@@ -322,19 +339,6 @@ func (ds *Datastore) DeleteHost(ctx context.Context, hid uint) error {
 		_, err := tx.ExecContext(ctx, `DELETE FROM hosts WHERE id = ?`, hid)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "delete host")
-		}
-
-		hostRefs := []string{
-			"host_seen_times",
-			"host_software",
-			"host_users",
-			"host_emails",
-			"host_additional",
-			"scheduled_query_stats",
-			"label_membership",
-			"policy_membership",
-			"host_mdm",
-			"host_munki_info",
 		}
 
 		for _, table := range hostRefs {
@@ -404,9 +408,9 @@ func (ds *Datastore) Host(ctx context.Context, id uint, skipLoadingExtras bool) 
 	return host, nil
 }
 
-func amountEnrolledHostsDB(db sqlx.Queryer) (int, error) {
+func amountEnrolledHostsDB(ctx context.Context, db sqlx.QueryerContext) (int, error) {
 	var amount int
-	err := sqlx.Get(db, &amount, `SELECT count(*) FROM hosts`)
+	err := sqlx.GetContext(ctx, db, &amount, `SELECT count(*) FROM hosts`)
 	if err != nil {
 		return 0, err
 	}
@@ -709,8 +713,8 @@ func (ds *Datastore) EnrollHost(ctx context.Context, osqueryHostID, nodeKey stri
 	return &host, nil
 }
 
-// GetContextTryStmt will attempt to run sqlx.GetContext on a cached statement if available, resorting to ds.reader.
-func (ds *Datastore) GetContextTryStmt(ctx context.Context, dest interface{}, query string, args ...interface{}) error {
+// getContextTryStmt will attempt to run sqlx.GetContext on a cached statement if available, resorting to ds.reader.
+func (ds *Datastore) getContextTryStmt(ctx context.Context, dest interface{}, query string, args ...interface{}) error {
 	var err error
 	//nolint the statements are closed in Datastore.Close.
 	if stmt := ds.loadOrPrepareStmt(ctx, query); stmt != nil {
@@ -727,7 +731,7 @@ func (ds *Datastore) LoadHostByNodeKey(ctx context.Context, nodeKey string) (*fl
 	query := `SELECT * FROM hosts WHERE node_key = ?`
 
 	var host fleet.Host
-	switch err := ds.GetContextTryStmt(ctx, &host, query, nodeKey); {
+	switch err := ds.getContextTryStmt(ctx, &host, query, nodeKey); {
 	case err == nil:
 		return &host, nil
 	case errors.Is(err, sql.ErrNoRows):
@@ -735,6 +739,41 @@ func (ds *Datastore) LoadHostByNodeKey(ctx context.Context, nodeKey string) (*fl
 	default:
 		return nil, ctxerr.Wrap(ctx, err, "find host")
 	}
+}
+
+// LoadHostByDeviceAuthToken loads the whole host identified by the device auth token.
+// If the token is invalid it returns a NotFoundError.
+func (ds *Datastore) LoadHostByDeviceAuthToken(ctx context.Context, authToken string) (*fleet.Host, error) {
+	const query = `
+    SELECT
+      h.*
+    FROM
+      host_device_auth hda
+    INNER JOIN
+      hosts h
+    ON
+      hda.host_id = h.id
+    WHERE hda.token = ?`
+
+	var host fleet.Host
+	switch err := sqlx.GetContext(ctx, ds.reader, &host, query, authToken); {
+	case err == nil:
+		return &host, nil
+	case errors.Is(err, sql.ErrNoRows):
+		return nil, ctxerr.Wrap(ctx, notFound("Host"))
+	default:
+		return nil, ctxerr.Wrap(ctx, err, "find host")
+	}
+}
+
+// SetOrUpdateDeviceAuthToken inserts or updates the auth token for a host.
+func (ds *Datastore) SetOrUpdateDeviceAuthToken(ctx context.Context, hostID uint, authToken string) error {
+	return ds.updateOrInsert(
+		ctx,
+		`UPDATE host_device_auth SET token=? WHERE host_id=?`,
+		`INSERT INTO host_device_auth(token, host_id) VALUES (?,?)`,
+		authToken, hostID,
+	)
 }
 
 func (ds *Datastore) MarkHostsSeen(ctx context.Context, hostIDs []uint, t time.Time) error {
@@ -771,33 +810,19 @@ func (ds *Datastore) MarkHostsSeen(ctx context.Context, hostIDs []uint, t time.T
 
 // SearchHosts performs a search on the hosts table using the following criteria:
 //	- Use the provided team filter.
-//	- Full-text search with the "query" argument (if query == "", then no fulltext matching is executed).
-// 	Full-text search is used even if "query" is a short or stopword.
-//	(what defines a short word is the "ft_min_word_len" VARIABLE, set to 4 by default in Fleet deployments).
+//	- Search hostname, uuid, hardware_serial, and primary_ip using LIKE (mimics ListHosts behavior)
 //	- An optional list of IDs to omit from the search.
-func (ds *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Host, error) {
-	var sqlb strings.Builder
-	sqlb.WriteString(`SELECT
+func (ds *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, matchQuery string, omit ...uint) ([]*fleet.Host, error) {
+	query := `SELECT
 		h.*,
 		COALESCE(hst.seen_time, h.created_at) AS seen_time
 	FROM hosts h
 	LEFT JOIN host_seen_times hst
-	ON (h.id=hst.host_id) WHERE`)
+	ON (h.id=hst.host_id) WHERE TRUE `
 
 	var args []interface{}
-	if len(query) > 0 {
-		sqlb.WriteString(` (
-				MATCH (hostname, uuid) AGAINST (? IN BOOLEAN MODE)
-				OR MATCH (primary_ip, primary_mac) AGAINST (? IN BOOLEAN MODE)
-			) AND`)
-		// Transform query argument and append the truncation operator "*" for MATCH.
-		// From Oracle docs: "If a word is specified with the truncation operator, it is not
-		// stripped from a boolean query, even if it is too short or a stopword."
-		hostQuery := transformQueryWithSuffix(query, "*")
-		// Needs quotes to avoid each "." marking a word boundary.
-		// TODO(lucas): Currently matching the primary_mac doesn't work, see #1959.
-		ipQuery := `"` + query + `"`
-		args = append(args, hostQuery, ipQuery)
+	if len(matchQuery) > 0 {
+		query, args = hostSearchLike(query, args, matchQuery, hostSearchColumns...)
 	}
 	var in interface{}
 	// use -1 if there are no values to omit.
@@ -807,17 +832,17 @@ func (ds *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, q
 		in = -1
 	}
 	args = append(args, in)
-	sqlb.WriteString(" id NOT IN (?) AND ")
-	sqlb.WriteString(ds.whereFilterHostsByTeams(filter, "h"))
-	sqlb.WriteString(` ORDER BY h.id DESC LIMIT 10`)
+	query += " AND id NOT IN (?) AND "
+	query += ds.whereFilterHostsByTeams(filter, "h")
+	query += ` ORDER BY h.id DESC LIMIT 10`
 
-	sql, args, err := sqlx.In(sqlb.String(), args...)
+	query, args, err := sqlx.In(query, args...)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "searching default hosts")
 	}
-	sql = ds.reader.Rebind(sql)
+	query = ds.reader.Rebind(query)
 	hosts := []*fleet.Host{}
-	if err := sqlx.SelectContext(ctx, ds.reader, &hosts, sql, args...); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader, &hosts, query, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "searching hosts")
 	}
 	return hosts, nil
@@ -996,41 +1021,11 @@ func (ds *Datastore) TotalAndUnseenHostsSince(ctx context.Context, daysCount int
 }
 
 func (ds *Datastore) DeleteHosts(ctx context.Context, ids []uint) error {
-	_, err := ds.deleteEntities(ctx, hostsTable, ids)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "deleting hosts")
+	for _, id := range ids {
+		if err := ds.DeleteHost(ctx, id); err != nil {
+			return ctxerr.Wrapf(ctx, err, "delete host %d", id)
+		}
 	}
-
-	query, args, err := sqlx.In(`DELETE FROM host_seen_times WHERE host_id in (?)`, ids)
-	if err != nil {
-		return ctxerr.Wrapf(ctx, err, "building delete host_seen_times query")
-	}
-
-	_, err = ds.writer.ExecContext(ctx, query, args...)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "deleting host seen times")
-	}
-
-	query, args, err = sqlx.In(`DELETE FROM host_emails WHERE host_id in (?)`, ids)
-	if err != nil {
-		return ctxerr.Wrapf(ctx, err, "building delete host_emails query")
-	}
-
-	_, err = ds.writer.ExecContext(ctx, query, args...)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "deleting host emails")
-	}
-
-	query, args, err = sqlx.In(`DELETE FROM pack_targets WHERE type=? AND target_id in (?)`, fleet.TargetHost, ids)
-	if err != nil {
-		return ctxerr.Wrapf(ctx, err, "building delete pack_targets query")
-	}
-
-	_, err = ds.writer.ExecContext(ctx, query, args...)
-	if err != nil {
-		return ctxerr.Wrapf(ctx, err, "deleting pack_targets for hosts")
-	}
-
 	return nil
 }
 
@@ -1052,7 +1047,7 @@ func (ds *Datastore) ListPoliciesForHost(ctx context.Context, host *fleet.Host) 
 	LEFT JOIN policy_membership pm ON (p.id=pm.policy_id AND host_id=?)
 	LEFT JOIN users u ON p.author_id = u.id
 	WHERE (p.team_id IS NULL OR p.team_id = (select team_id from hosts WHERE id = ?))
-	AND (p.platforms IS NULL OR p.platforms = "" OR FIND_IN_SET(?, p.platforms) != 0)`
+	AND (p.platforms IS NULL OR p.platforms = '' OR FIND_IN_SET(?, p.platforms) != 0)`
 
 	var policies []*fleet.HostPolicy
 	if err := sqlx.SelectContext(ctx, ds.reader, &policies, query, host.ID, host.ID, host.FleetPlatform()); err != nil {
@@ -1546,6 +1541,7 @@ func (ds *Datastore) UpdateHost(ctx context.Context, host *fleet.Host) error {
 			team_id = ?,
 			primary_ip = ?,
 			primary_mac = ?,
+			public_ip = ?,
 			refetch_requested = ?,
 			gigs_disk_space_available = ?,
 			percent_disk_space_available = ?
@@ -1582,6 +1578,7 @@ func (ds *Datastore) UpdateHost(ctx context.Context, host *fleet.Host) error {
 		host.TeamID,
 		host.PrimaryIP,
 		host.PrimaryMac,
+		host.PublicIP,
 		host.RefetchRequested,
 		host.GigsDiskSpaceAvailable,
 		host.PercentDiskSpaceAvailable,
@@ -1590,5 +1587,118 @@ func (ds *Datastore) UpdateHost(ctx context.Context, host *fleet.Host) error {
 	if err != nil {
 		return ctxerr.Wrapf(ctx, err, "save host with id %d", host.ID)
 	}
+	return nil
+}
+
+// OSVersions gets the aggregated os version host counts. If a non-nil teamID is passed, it will filter hosts by team.
+func (ds *Datastore) OSVersions(ctx context.Context, teamID *uint, platform *string) (*fleet.OSVersions, error) {
+	query := `
+SELECT
+    json_value,
+    updated_at
+FROM aggregated_stats
+WHERE
+    id = ? AND
+    type = 'os_versions'
+`
+
+	var row struct {
+		JSONValue *json.RawMessage `db:"json_value"`
+		UpdatedAt time.Time        `db:"updated_at"`
+	}
+
+	var args []interface{}
+	if teamID == nil { // all hosts
+		args = append(args, 0)
+	} else {
+		args = append(args, *teamID)
+	}
+
+	if err := sqlx.GetContext(ctx, ds.reader, &row, query, args...); err != nil {
+		return nil, err
+	}
+
+	osVersions := &fleet.OSVersions{
+		CountsUpdatedAt: row.UpdatedAt,
+	}
+
+	if row.JSONValue != nil {
+		err := json.Unmarshal(*row.JSONValue, &osVersions.OSVersions)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// filter by os versions by platform
+	if platform != nil {
+		var filtered []fleet.OSVersion
+		for _, osVersion := range osVersions.OSVersions {
+			if *platform == osVersion.Platform {
+				filtered = append(filtered, osVersion)
+			}
+		}
+		osVersions.OSVersions = filtered
+	}
+
+	// Sort by os versions. We can't control the order when using json_arrayagg
+	// See https://dev.mysql.com/doc/refman/5.7/en/aggregate-functions.html#function_json-arrayagg.
+	sort.Slice(osVersions.OSVersions, func(i, j int) bool { return osVersions.OSVersions[i].Name < osVersions.OSVersions[j].Name })
+
+	return osVersions, nil
+}
+
+func (ds *Datastore) UpdateOSVersions(ctx context.Context) error {
+	query := `
+INSERT INTO aggregated_stats (id, type, json_value)
+SELECT
+  team_id id,
+  'os_versions' type,
+  COALESCE(
+    JSON_ARRAYAGG(
+      JSON_OBJECT(
+        'hosts_count', hosts_count,
+        'name', name,
+        'platform', platform
+      )
+    ),
+    JSON_ARRAY()
+  ) json_value
+FROM
+  (
+    SELECT
+      COUNT(*) hosts_count,
+      h.os_version name,
+      h.platform,
+      0 team_id
+    FROM
+      hosts h
+    GROUP BY
+      h.os_version,
+      h.platform
+    UNION
+    SELECT
+      COUNT(*) hosts_count,
+      h.os_version name,
+      h.platform,
+      h.team_id
+    FROM
+      hosts h
+      JOIN teams t ON t.id = h.team_id
+    GROUP BY
+      h.os_version,
+      h.platform,
+      h.team_id
+  ) as team_os_versions
+GROUP BY
+  team_id
+ON DUPLICATE KEY UPDATE
+  json_value = VALUES(json_value),
+  updated_at = CURRENT_TIMESTAMP
+`
+	_, err := ds.writer.ExecContext(ctx, query)
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "update aggregated stats for os versions")
+	}
+
 	return nil
 }

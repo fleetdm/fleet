@@ -1,10 +1,11 @@
 import React, { useState, useContext, useEffect, useCallback } from "react";
-import { useDispatch } from "react-redux";
 import { useQuery } from "react-query";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 import { RouteProps } from "react-router/lib/Route";
 import { find, isEmpty, isEqual, omit } from "lodash";
 import ReactTooltip from "react-tooltip";
+import { format } from "date-fns";
+import FileSaver from "file-saver";
 
 import enrollSecretsAPI from "services/entities/enroll_secret";
 import labelsAPI from "services/entities/labels";
@@ -24,32 +25,29 @@ import PATHS from "router/paths";
 import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
 import { TableContext } from "context/table";
+import { NotificationContext } from "context/notification";
 import {
   IEnrollSecret,
   IEnrollSecretsResponse,
 } from "interfaces/enroll_secret";
+import { IApiError } from "interfaces/errors";
 import { IHost } from "interfaces/host";
 import { ILabel, ILabelFormData } from "interfaces/label";
 import { IPolicy } from "interfaces/policy";
 import { ISoftware } from "interfaces/software";
-import { ITeam } from "interfaces/team";
-// @ts-ignore
+import { ITeam } from "interfaces/team"; // @ts-ignore
 import deepDifference from "utilities/deep_difference";
 import sortUtils from "utilities/sort";
 import {
+  DEFAULT_CREATE_LABEL_ERRORS,
   PLATFORM_LABEL_DISPLAY_NAMES,
   PolicyResponse,
 } from "utilities/constants";
-// @ts-ignore
-import { renderFlash } from "redux/nodes/notifications/actions";
 
-import Button from "components/buttons/Button";
-// @ts-ignore
+import Button from "components/buttons/Button"; // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
-import HostSidePanel from "components/side_panels/HostSidePanel";
-// @ts-ignore
+import HostSidePanel from "components/side_panels/HostSidePanel"; // @ts-ignore
 import LabelForm from "components/forms/LabelForm";
-import Modal from "components/Modal";
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
 import TableContainer from "components/TableContainer";
 import TableDataError from "components/TableDataError";
@@ -78,15 +76,14 @@ import {
 import DeleteSecretModal from "../../../components/DeleteSecretModal";
 import SecretEditorModal from "../../../components/SecretEditorModal";
 import AddHostsModal from "../../../components/AddHostsModal";
-import EnrollSecretModal from "../../../components/EnrollSecretModal";
-// @ts-ignore
+import EnrollSecretModal from "../../../components/EnrollSecretModal"; // @ts-ignore
 import NoHosts from "./components/NoHosts";
 import EmptyHosts from "./components/EmptyHosts";
-import PoliciesFilter from "./components/PoliciesFilter";
-// @ts-ignore
+import PoliciesFilter from "./components/PoliciesFilter"; // @ts-ignore
 import EditColumnsModal from "./components/EditColumnsModal/EditColumnsModal";
 import TransferHostModal from "./components/TransferHostModal";
 import DeleteHostModal from "./components/DeleteHostModal";
+import DeleteLabelModal from "./components/DeleteLabelModal";
 import SoftwareVulnerabilities from "./components/SoftwareVulnerabilities";
 import EditColumnsIcon from "../../../../assets/images/icon-edit-columns-16x16@2x.png";
 import PencilIcon from "../../../../assets/images/icon-pencil-14x14@2x.png";
@@ -94,6 +91,7 @@ import TrashIcon from "../../../../assets/images/icon-trash-14x14@2x.png";
 import CloseIcon from "../../../../assets/images/icon-close-vibrant-blue-16x16@2x.png";
 import CloseIconBlack from "../../../../assets/images/icon-close-fleet-black-16x16@2x.png";
 import PolicyIcon from "../../../../assets/images/icon-policy-fleet-black-12x12@2x.png";
+import DownloadIcon from "../../../../assets/images/icon-download-12x12@2x.png";
 
 interface IManageHostsProps {
   route: RouteProps;
@@ -122,6 +120,7 @@ interface ITableQueryProps {
   sortDirection: string;
 }
 
+const CSV_HOSTS_TITLE = "Hosts";
 const baseClass = "manage-hosts";
 
 const ManageHostsPage = ({
@@ -130,8 +129,8 @@ const ManageHostsPage = ({
   params: routeParams,
   location,
 }: IManageHostsProps): JSX.Element => {
-  const dispatch = useDispatch();
   const queryParams = location.query;
+
   const {
     availableTeams,
     config,
@@ -149,6 +148,7 @@ const ManageHostsPage = ({
     setCurrentTeam,
     setCurrentUser,
   } = useContext(AppContext);
+  const { renderFlash } = useContext(NotificationContext);
 
   useQuery(["me"], () => usersAPI.me(), {
     onSuccess: ({ user, available_teams }: IGetMeResponse) => {
@@ -258,6 +258,9 @@ const ManageHostsPage = ({
     currentQueryOptions,
     setCurrentQueryOptions,
   ] = useState<ILoadHostsOptions>();
+  const [labelValidator, setLabelValidator] = useState<{
+    [key: string]: string;
+  }>(DEFAULT_CREATE_LABEL_ERRORS);
 
   // ======== end states
 
@@ -375,7 +378,6 @@ const ManageHostsPage = ({
     setShowEnrollSecretModal(!showEnrollSecretModal);
   };
 
-  // this is called when we click add or edit
   const toggleSecretEditorModal = () => {
     // open and closes add/edit modal
     setShowSecretEditorModal(!showSecretEditorModal);
@@ -397,6 +399,10 @@ const ManageHostsPage = ({
 
   const toggleAddHostsModal = () => {
     setShowAddHostsModal(!showAddHostsModal);
+  };
+
+  const toggleEditColumnsModal = () => {
+    setShowEditColumnsModal(!showEditColumnsModal);
   };
 
   const toggleAllMatchingHosts = (shouldSelect: boolean) => {
@@ -657,22 +663,18 @@ const ManageHostsPage = ({
 
   const onAddLabelClick = (evt: React.MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();
+
+    setLabelValidator(DEFAULT_CREATE_LABEL_ERRORS);
     router.push(`${PATHS.MANAGE_HOSTS}${NEW_LABEL_HASH}`);
   };
 
   const onEditLabelClick = (evt: React.MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();
+
+    setLabelValidator(DEFAULT_CREATE_LABEL_ERRORS);
     router.push(
       `${PATHS.MANAGE_HOSTS}/${getLabelSelected()}${EDIT_LABEL_HASH}`
     );
-  };
-
-  const onEditColumnsClick = () => {
-    setShowEditColumnsModal(true);
-  };
-
-  const onCancelColumns = () => {
-    setShowEditColumnsModal(false);
   };
 
   const onSaveColumns = (newHiddenColumns: string[]) => {
@@ -681,11 +683,7 @@ const ManageHostsPage = ({
     setShowEditColumnsModal(false);
   };
 
-  const onCancelAddLabel = () => {
-    router.goBack();
-  };
-
-  const onCancelEditLabel = () => {
+  const onCancelLabel = () => {
     router.goBack();
   };
 
@@ -810,21 +808,17 @@ const ManageHostsPage = ({
           queryParams,
         })
       );
-      dispatch(
-        renderFlash(
-          "success",
-          `Successfully ${selectedSecret ? "edited" : "added"} enroll secret.`
-        )
+      renderFlash(
+        "success",
+        `Successfully ${selectedSecret ? "edited" : "added"} enroll secret.`
       );
     } catch (error) {
       console.error(error);
-      dispatch(
-        renderFlash(
-          "error",
-          `Could not ${
-            selectedSecret ? "edit" : "add"
-          } enroll secret. Please try again.`
-        )
+      renderFlash(
+        "error",
+        `Could not ${
+          selectedSecret ? "edit" : "add"
+        } enroll secret. Please try again.`
       );
     }
   };
@@ -862,41 +856,40 @@ const ManageHostsPage = ({
           queryParams,
         })
       );
-      dispatch(renderFlash("success", `Successfully deleted enroll secret.`));
+      renderFlash("success", `Successfully deleted enroll secret.`);
     } catch (error) {
       console.error(error);
-      dispatch(
-        renderFlash(
-          "error",
-          "Could not delete enroll secret. Please try again."
-        )
-      );
+      renderFlash("error", "Could not delete enroll secret. Please try again.");
     }
   };
 
-  const onEditLabel = async (formData: ILabelFormData) => {
+  const onEditLabel = (formData: ILabelFormData) => {
     if (!selectedLabel) {
       console.error("Label isn't available. This should not happen.");
       return;
     }
 
     const updateAttrs = deepDifference(formData, selectedLabel);
-    try {
-      await labelsAPI.update(selectedLabel, updateAttrs);
-      refetchLabels();
-      router.push(`${PATHS.MANAGE_HOSTS}/${getLabelSelected()}`);
-      dispatch(
+
+    labelsAPI
+      .update(selectedLabel, updateAttrs)
+      .then(() => {
+        refetchLabels();
         renderFlash(
           "success",
           "Label updated. Try refreshing this page in just a moment to see the updated host count for your label."
-        )
-      );
-    } catch (error) {
-      console.error(error);
-      dispatch(
-        renderFlash("error", "Could not create label. Please try again.")
-      );
-    }
+        );
+        setLabelValidator({});
+      })
+      .catch((updateError: { data: IApiError }) => {
+        if (updateError.data.errors[0].reason.includes("Duplicate")) {
+          setLabelValidator({
+            name: "A label with this name already exists",
+          });
+        } else {
+          renderFlash("error", "Could not create label. Please try again.");
+        }
+      });
   };
 
   const onLabelClick = (label: ILabel) => {
@@ -910,25 +903,27 @@ const ManageHostsPage = ({
     setSelectedOsqueryTable(tableName);
   };
 
-  const onSaveAddLabel = async (formData: ILabelFormData) => {
-    try {
-      await labelsAPI.create(formData);
-      router.push(PATHS.MANAGE_HOSTS);
-      refetchLabels();
-
-      // TODO flash messages are not visible seemingly because of page renders
-      dispatch(
+  const onSaveAddLabel = (formData: ILabelFormData) => {
+    labelsAPI
+      .create(formData)
+      .then(() => {
+        router.push(PATHS.MANAGE_HOSTS);
         renderFlash(
           "success",
           "Label created. Try refreshing this page in just a moment to see the updated host count for your label."
-        )
-      );
-    } catch (error) {
-      console.error(error);
-      dispatch(
-        renderFlash("error", "Could not create label. Please try again.")
-      );
-    }
+        );
+        setLabelValidator({});
+        refetchLabels();
+      })
+      .catch((updateError: any) => {
+        if (updateError.data.errors[0].reason.includes("Duplicate")) {
+          setLabelValidator({
+            name: "A label with this name already exists",
+          });
+        } else {
+          renderFlash("error", "Could not create label. Please try again.");
+        }
+      });
   };
 
   const onDeleteLabel = async () => {
@@ -953,9 +948,7 @@ const ManageHostsPage = ({
       );
     } catch (error) {
       console.error(error);
-      dispatch(
-        renderFlash("error", "Could not delete label. Please try again.")
-      );
+      renderFlash("error", "Could not delete label. Please try again.");
     }
   };
 
@@ -1000,7 +993,7 @@ const ManageHostsPage = ({
           ? `Hosts successfully removed from teams.`
           : `Hosts successfully transferred to  ${team.name}.`;
 
-      dispatch(renderFlash("success", successMessage));
+      renderFlash("success", successMessage);
       setResetSelectedRows(true);
       refetchHosts({
         selectedLabels: selectedFilters,
@@ -1016,9 +1009,7 @@ const ManageHostsPage = ({
       setSelectedHostIds([]);
       setIsAllMatchingHostsSelected(false);
     } catch (error) {
-      dispatch(
-        renderFlash("error", "Could not transfer hosts. Please try again.")
-      );
+      renderFlash("error", "Could not transfer hosts. Please try again.");
     }
   };
 
@@ -1047,7 +1038,7 @@ const ManageHostsPage = ({
         selectedHostIds.length === 1 ? "Host" : "Hosts"
       } successfully deleted.`;
 
-      dispatch(renderFlash("success", successMessage));
+      renderFlash("success", successMessage);
       setResetSelectedRows(true);
       refetchHosts({
         selectedLabels: selectedFilters,
@@ -1064,13 +1055,11 @@ const ManageHostsPage = ({
       setSelectedHostIds([]);
       setIsAllMatchingHostsSelected(false);
     } catch (error) {
-      dispatch(
-        renderFlash(
-          "error",
-          `Could not delete ${
-            selectedHostIds.length === 1 ? "host" : "hosts"
-          }. Please try again.`
-        )
+      renderFlash(
+        "error",
+        `Could not delete ${
+          selectedHostIds.length === 1 ? "host" : "hosts"
+        }. Please try again.`
       );
     }
   };
@@ -1088,28 +1077,26 @@ const ManageHostsPage = ({
     />
   );
 
-  const renderPoliciesFilterBlock = () => {
-    return (
-      <div className={`${baseClass}__policies-filter-block`}>
-        <PoliciesFilter
-          policyResponse={policyResponse}
-          onChange={handleChangePoliciesFilter}
-        />
-        <div className={`${baseClass}__policies-filter-name-card`}>
-          <img src={PolicyIcon} alt="Policy" />
-          {policy?.name}
-          <Button
-            className={`${baseClass}__clear-policies-filter`}
-            onClick={handleClearPoliciesFilter}
-            variant={"small-text-icon"}
-            title={policy?.name}
-          >
-            <img src={CloseIcon} alt="Remove policy filter" />
-          </Button>
-        </div>
+  const renderPoliciesFilterBlock = () => (
+    <div className={`${baseClass}__policies-filter-block`}>
+      <PoliciesFilter
+        policyResponse={policyResponse}
+        onChange={handleChangePoliciesFilter}
+      />
+      <div className={`${baseClass}__policies-filter-name-card`}>
+        <img src={PolicyIcon} alt="Policy" />
+        {policy?.name}
+        <Button
+          className={`${baseClass}__clear-policies-filter`}
+          onClick={handleClearPoliciesFilter}
+          variant={"small-text-icon"}
+          title={policy?.name}
+        >
+          <img src={CloseIcon} alt="Remove policy filter" />
+        </Button>
       </div>
-    );
-  };
+    </div>
+  );
 
   const renderSoftwareFilterBlock = () => {
     if (softwareDetails) {
@@ -1157,120 +1144,68 @@ const ManageHostsPage = ({
   };
 
   const renderEditColumnsModal = () => {
-    if (!showEditColumnsModal || !config || !currentUser) {
+    if (!config || !currentUser) {
       return null;
     }
 
     return (
-      <Modal
-        title="Edit columns"
-        onExit={() => setShowEditColumnsModal(false)}
-        className={`${baseClass}__invite-modal`}
-      >
-        <EditColumnsModal
-          columns={generateAvailableTableHeaders(
-            config,
-            currentUser,
-            currentTeam
-          )}
-          hiddenColumns={hiddenColumns}
-          onSaveColumns={onSaveColumns}
-          onCancelColumns={onCancelColumns}
-        />
-      </Modal>
-    );
-  };
-
-  const renderSecretEditorModal = () => {
-    if (!canEnrollHosts || !showSecretEditorModal) {
-      return null;
-    }
-
-    return (
-      <SecretEditorModal
-        selectedTeam={currentTeam?.id || 0}
-        teams={teams || []}
-        onSaveSecret={onSaveSecret}
-        toggleSecretEditorModal={toggleSecretEditorModal}
-        selectedSecret={selectedSecret}
+      <EditColumnsModal
+        columns={generateAvailableTableHeaders(
+          config,
+          currentUser,
+          currentTeam
+        )}
+        hiddenColumns={hiddenColumns}
+        onSaveColumns={onSaveColumns}
+        onCancelColumns={toggleEditColumnsModal}
       />
     );
   };
 
-  const renderDeleteSecretModal = () => {
-    if (!canEnrollHosts || !showDeleteSecretModal) {
-      return null;
-    }
+  const renderSecretEditorModal = () => (
+    <SecretEditorModal
+      selectedTeam={currentTeam?.id || 0}
+      teams={teams || []}
+      onSaveSecret={onSaveSecret}
+      toggleSecretEditorModal={toggleSecretEditorModal}
+      selectedSecret={selectedSecret}
+    />
+  );
 
-    return (
-      <DeleteSecretModal
-        onDeleteSecret={onDeleteSecret}
-        selectedTeam={currentTeam?.id || 0}
-        teams={teams || []}
-        toggleDeleteSecretModal={toggleDeleteSecretModal}
-      />
-    );
-  };
+  const renderDeleteSecretModal = () => (
+    <DeleteSecretModal
+      onDeleteSecret={onDeleteSecret}
+      selectedTeam={currentTeam?.id || 0}
+      teams={teams || []}
+      toggleDeleteSecretModal={toggleDeleteSecretModal}
+    />
+  );
 
-  const renderEnrollSecretModal = () => {
-    if (!canEnrollHosts || !showEnrollSecretModal) {
-      return null;
-    }
+  const renderEnrollSecretModal = () => (
+    <EnrollSecretModal
+      selectedTeam={currentTeam?.id || 0}
+      teams={teams || []}
+      onReturnToApp={() => setShowEnrollSecretModal(false)}
+      toggleSecretEditorModal={toggleSecretEditorModal}
+      toggleDeleteSecretModal={toggleDeleteSecretModal}
+      setSelectedSecret={setSelectedSecret}
+      globalSecrets={globalSecrets}
+    />
+  );
 
-    return (
-      <EnrollSecretModal
-        selectedTeam={currentTeam?.id || 0}
-        teams={teams || []}
-        onReturnToApp={() => setShowEnrollSecretModal(false)}
-        toggleSecretEditorModal={toggleSecretEditorModal}
-        toggleDeleteSecretModal={toggleDeleteSecretModal}
-        setSelectedSecret={setSelectedSecret}
-        globalSecrets={globalSecrets}
-      />
-    );
-  };
+  const renderDeleteLabelModal = () => (
+    <DeleteLabelModal
+      onSubmit={onDeleteLabel}
+      onCancel={toggleDeleteLabelModal}
+    />
+  );
 
-  const renderDeleteLabelModal = () => {
-    if (!showDeleteLabelModal) {
-      return false;
-    }
-
-    return (
-      <Modal
-        title="Delete label"
-        onExit={toggleDeleteLabelModal}
-        className={`${baseClass}_delete-label__modal`}
-      >
-        <>
-          <p>Are you sure you wish to delete this label?</p>
-          <div className={`${baseClass}__modal-buttons`}>
-            <Button onClick={toggleDeleteLabelModal} variant="inverse-alert">
-              Cancel
-            </Button>
-            <Button onClick={onDeleteLabel} variant="alert">
-              Delete
-            </Button>
-          </div>
-        </>
-      </Modal>
-    );
-  };
-
-  const renderAddHostsModal = () => {
-    if (!showAddHostsModal) {
-      return null;
-    }
-
-    return (
-      <AddHostsModal
-        onCancel={toggleAddHostsModal}
-        selectedTeam={addHostsTeam}
-      />
-    );
-  };
+  const renderAddHostsModal = () => (
+    <AddHostsModal onCancel={toggleAddHostsModal} selectedTeam={addHostsTeam} />
+  );
 
   const renderTransferHostModal = () => {
-    if (!showTransferHostModal || !teams) {
+    if (!teams) {
       return null;
     }
 
@@ -1284,20 +1219,14 @@ const ManageHostsPage = ({
     );
   };
 
-  const renderDeleteHostModal = () => {
-    if (!showDeleteHostModal) {
-      return null;
-    }
-
-    return (
-      <DeleteHostModal
-        selectedHostIds={selectedHostIds}
-        onSubmit={onDeleteHostSubmit}
-        onCancel={toggleDeleteHostModal}
-        isAllMatchingHostsSelected={isAllMatchingHostsSelected}
-      />
-    );
-  };
+  const renderDeleteHostModal = () => (
+    <DeleteHostModal
+      selectedHostIds={selectedHostIds}
+      onSubmit={onDeleteHostSubmit}
+      onCancel={toggleDeleteHostModal}
+      isAllMatchingHostsSelected={isAllMatchingHostsSelected}
+    />
+  );
 
   const renderHeaderLabelBlock = () => {
     if (selectedLabel) {
@@ -1334,25 +1263,91 @@ const ManageHostsPage = ({
     return null;
   };
 
-  const renderHeader = () => {
-    return (
-      <div className={`${baseClass}__header`}>
-        <div className={`${baseClass}__text`}>
-          <div className={`${baseClass}__title`}>
-            {isFreeTier && <h1>Hosts</h1>}
-            {isPremiumTier &&
-              availableTeams &&
-              (availableTeams.length > 1 || isOnGlobalTeam) &&
-              renderTeamsFilterDropdown()}
-            {isPremiumTier &&
-              !isOnGlobalTeam &&
-              availableTeams &&
-              availableTeams.length === 1 && <h1>{availableTeams[0].name}</h1>}
-          </div>
+  const renderHeader = () => (
+    <div className={`${baseClass}__header`}>
+      <div className={`${baseClass}__text`}>
+        <div className={`${baseClass}__title`}>
+          {isFreeTier && <h1>Hosts</h1>}
+          {isPremiumTier &&
+            availableTeams &&
+            (availableTeams.length > 1 || isOnGlobalTeam) &&
+            renderTeamsFilterDropdown()}
+          {isPremiumTier &&
+            !isOnGlobalTeam &&
+            availableTeams &&
+            availableTeams.length === 1 && <h1>{availableTeams[0].name}</h1>}
         </div>
       </div>
-    );
+    </div>
+  );
+
+  const onExportHostsResults = async (
+    evt: React.MouseEvent<HTMLButtonElement>
+  ) => {
+    evt.preventDefault();
+
+    let options = {
+      selectedLabels: selectedFilters,
+      globalFilter: searchQuery,
+      sortBy,
+      teamId: currentTeam?.id,
+      policyId,
+      policyResponse,
+      softwareId,
+    };
+
+    options = {
+      ...options,
+      teamId: getValidatedTeamId(
+        availableTeams || [],
+        options.teamId as number,
+        currentUser,
+        isOnGlobalTeam as boolean
+      ),
+    };
+
+    if (queryParams.team_id) {
+      options.teamId = queryParams.team_id;
+    }
+
+    try {
+      const exportHostResults = await hostsAPI.exportHosts(options);
+
+      const formattedTime = format(new Date(), "yyyy-MM-dd");
+      const filename = `${CSV_HOSTS_TITLE} ${formattedTime}.csv`;
+      const file = new global.window.File([exportHostResults], filename, {
+        type: "text/csv",
+      });
+
+      FileSaver.saveAs(file);
+    } catch (error) {
+      console.error(error);
+      renderFlash("error", "Could not export hosts. Please try again.");
+    }
   };
+
+  const renderHostCount = useCallback(() => {
+    const count = filteredHostCount;
+
+    return (
+      <div
+        className={`${baseClass}__count ${
+          isHostCountLoading ? "count-loading" : ""
+        }`}
+      >
+        <span>{`${count} host${count === 1 ? "" : "s"}`}</span>
+        <Button
+          className={`${baseClass}__export-btn`}
+          onClick={onExportHostsResults}
+          variant="text-link"
+        >
+          <>
+            Export hosts <img alt="" src={DownloadIcon} />
+          </>
+        </Button>
+      </div>
+    );
+  }, [isHostCountLoading, filteredHostCount]);
 
   const renderActiveFilterBlock = () => {
     const showSelectedLabel =
@@ -1389,10 +1384,11 @@ const ManageHostsPage = ({
       return (
         <div className="body-wrap">
           <LabelForm
-            onCancel={onCancelAddLabel}
+            onCancel={onCancelLabel}
             onOsqueryTableSelect={onOsqueryTableSelect}
             handleSubmit={onSaveAddLabel}
             baseError={labelsError?.message || ""}
+            backendValidators={labelValidator}
           />
         </div>
       );
@@ -1403,10 +1399,11 @@ const ManageHostsPage = ({
         <div className="body-wrap">
           <LabelForm
             selectedLabel={selectedLabel}
-            onCancel={onCancelEditLabel}
+            onCancel={onCancelLabel}
             onOsqueryTableSelect={onOsqueryTableSelect}
             handleSubmit={onEditLabel}
             baseError={labelsError?.message || ""}
+            backendValidators={labelValidator}
             isEdit
           />
         </div>
@@ -1444,17 +1441,15 @@ const ManageHostsPage = ({
     return SidePanel;
   };
 
-  const renderStatusDropdown = () => {
-    return (
-      <Dropdown
-        value={getStatusSelected() || ALL_HOSTS_LABEL}
-        className={`${baseClass}__status_dropdown`}
-        options={HOST_SELECT_STATUSES}
-        searchable={false}
-        onChange={handleStatusDropdownChange}
-      />
-    );
-  };
+  const renderStatusDropdown = () => (
+    <Dropdown
+      value={getStatusSelected() || ALL_HOSTS_LABEL}
+      className={`${baseClass}__status_dropdown`}
+      options={HOST_SELECT_STATUSES}
+      searchable={false}
+      onChange={handleStatusDropdownChange}
+    />
+  );
 
   const renderTable = () => {
     if (
@@ -1532,13 +1527,13 @@ const ManageHostsPage = ({
         showMarkAllPages
         isAllPagesSelected={isAllMatchingHostsSelected}
         searchable
-        filteredCount={filteredHostCount}
+        renderCount={renderHostCount}
         searchToolTipText={
           "Search hosts by hostname, UUID, machine serial or IP address"
         }
         emptyComponent={EmptyHosts}
         customControl={renderStatusDropdown}
-        onActionButtonClick={onEditColumnsClick}
+        onActionButtonClick={toggleEditColumnsModal}
         onPrimarySelectActionClick={onDeleteHostsClick}
         onQueryChange={onTableQueryChange}
         toggleAllPagesSelected={toggleAllMatchingHosts}
@@ -1635,14 +1630,14 @@ const ManageHostsPage = ({
         </div>
       )}
       {renderSidePanel()}
-      {renderDeleteSecretModal()}
-      {renderSecretEditorModal()}
-      {renderEnrollSecretModal()}
-      {renderEditColumnsModal()}
-      {renderDeleteLabelModal()}
-      {renderAddHostsModal()}
-      {renderTransferHostModal()}
-      {renderDeleteHostModal()}
+      {canEnrollHosts && showDeleteSecretModal && renderDeleteSecretModal()}
+      {canEnrollHosts && showSecretEditorModal && renderSecretEditorModal()}
+      {canEnrollHosts && showEnrollSecretModal && renderEnrollSecretModal()}
+      {showEditColumnsModal && renderEditColumnsModal()}
+      {showDeleteLabelModal && renderDeleteLabelModal()}
+      {showAddHostsModal && renderAddHostsModal()}
+      {showTransferHostModal && renderTransferHostModal()}
+      {showDeleteHostModal && renderDeleteHostModal()}
     </div>
   );
 };

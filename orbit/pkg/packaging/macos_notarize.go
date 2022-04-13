@@ -13,7 +13,8 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func notarizePkg(pkgPath string) error {
+// Notarize will do the Notarization step. Note that the provided path must be a .zip or a .dmg.
+func Notarize(path, bundleIdentifier string) error {
 	username, ok := os.LookupEnv("AC_USERNAME")
 	if !ok {
 		return errors.New("AC_USERNAME must be set in environment")
@@ -27,8 +28,8 @@ func notarizePkg(pkgPath string) error {
 	info, err := notarize.Notarize(
 		context.Background(),
 		&notarize.Options{
-			File:     pkgPath,
-			BundleId: "com.fleetdm.orbit",
+			File:     path,
+			BundleId: bundleIdentifier,
 			Username: username,
 			Password: password,
 			Status: &statusHuman{
@@ -42,8 +43,27 @@ func notarizePkg(pkgPath string) error {
 
 	log.Info().Str("logs", info.LogFileURL).Msg("notarization completed")
 
-	if err := staple.Staple(context.Background(), &staple.Options{File: pkgPath}); err != nil {
+	return nil
+}
+
+// Staple will do the "stapling" step of Notarization. Note that this only works on .app and .dmg
+// (not .zip or plain binaries).
+func Staple(path string) error {
+	if err := staple.Staple(context.Background(), &staple.Options{File: path}); err != nil {
 		return fmt.Errorf("staple notarization: %w", err)
+	}
+
+	return nil
+}
+
+// NotarizeStaple will notarize and staple a macOS artifact.
+func NotarizeStaple(path, bundleIdentifier string) error {
+	if err := Notarize(path, bundleIdentifier); err != nil {
+		return err
+	}
+
+	if err := Staple(path); err != nil {
+		return err
 	}
 
 	return nil

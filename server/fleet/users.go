@@ -1,7 +1,11 @@
 package fleet
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
+	"time"
+	"unicode"
 
 	"github.com/fleetdm/fleet/v4/server"
 	"golang.org/x/crypto/bcrypt"
@@ -45,6 +49,74 @@ type UserTeam struct {
 	Role string `json:"role" db:"role"`
 }
 
+func (u UserTeam) MarshalJSON() ([]byte, error) {
+	x := struct {
+		ID          uint      `json:"id"`
+		CreatedAt   time.Time `json:"created_at"`
+		Name        string    `json:"name"`
+		Description string    `json:"description"`
+		TeamConfig
+		UserCount int             `json:"user_count"`
+		Users     []TeamUser      `json:"users,omitempty"`
+		HostCount int             `json:"host_count"`
+		Hosts     []Host          `json:"hosts,omitempty"`
+		Secrets   []*EnrollSecret `json:"secrets,omitempty"`
+		Role      string          `json:"role"`
+	}{
+		ID:          u.ID,
+		CreatedAt:   u.CreatedAt,
+		Name:        u.Name,
+		Description: u.Description,
+		TeamConfig:  u.Config,
+		UserCount:   u.UserCount,
+		Users:       u.Users,
+		HostCount:   u.HostCount,
+		Hosts:       u.Hosts,
+		Secrets:     u.Secrets,
+		Role:        u.Role,
+	}
+
+	return json.Marshal(x)
+}
+
+func (u *UserTeam) UnmarshalJSON(b []byte) error {
+	var x struct {
+		ID          uint      `json:"id"`
+		CreatedAt   time.Time `json:"created_at"`
+		Name        string    `json:"name"`
+		Description string    `json:"description"`
+		TeamConfig
+		UserCount int             `json:"user_count"`
+		Users     []TeamUser      `json:"users,omitempty"`
+		HostCount int             `json:"host_count"`
+		Hosts     []Host          `json:"hosts,omitempty"`
+		Secrets   []*EnrollSecret `json:"secrets,omitempty"`
+		Role      string          `json:"role"`
+	}
+
+	if err := json.Unmarshal(b, &x); err != nil {
+		return err
+	}
+
+	*u = UserTeam{
+		Team: Team{
+			ID:          x.ID,
+			CreatedAt:   x.CreatedAt,
+			Name:        x.Name,
+			Description: x.Description,
+			Config:      x.TeamConfig,
+			UserCount:   x.UserCount,
+			Users:       x.Users,
+			HostCount:   x.HostCount,
+			Hosts:       x.Hosts,
+			Secrets:     x.Secrets,
+		},
+		Role: x.Role,
+	}
+
+	return nil
+}
+
 // UserListOptions is additional options that can be set for listing users.
 type UserListOptions struct {
 	ListOptions
@@ -67,6 +139,116 @@ type UserPayload struct {
 	AdminForcedPasswordReset *bool       `json:"admin_forced_password_reset,omitempty"`
 	APIOnly                  *bool       `json:"api_only,omitempty"`
 	Teams                    *[]UserTeam `json:"teams,omitempty"`
+	NewPassword              *string     `json:"new_password,omitempty"`
+}
+
+func (p *UserPayload) VerifyInviteCreate() error {
+	invalid := &InvalidArgumentError{}
+	if p.Name == nil {
+		invalid.Append("name", "Full name missing required argument")
+	} else if *p.Name == "" {
+		invalid.Append("name", "Full name cannot be empty")
+	}
+
+	// we don't need a password for single sign on
+	if p.SSOInvite == nil || !*p.SSOInvite {
+		if p.Password == nil {
+			invalid.Append("password", "Password missing required argument")
+		} else if *p.Password == "" {
+			invalid.Append("password", "Password cannot be empty")
+		} else if err := ValidatePasswordRequirements(*p.Password); err != nil {
+			invalid.Append("password", err.Error())
+		}
+	}
+
+	if p.Email == nil {
+		invalid.Append("email", "Email missing required argument")
+	} else if *p.Email == "" {
+		invalid.Append("email", "Email cannot be empty")
+	}
+
+	if p.InviteToken == nil {
+		invalid.Append("invite_token", "Invite token missing required argument")
+	} else if *p.InviteToken == "" {
+		invalid.Append("invite_token", "Invite token cannot be empty")
+	}
+
+	if invalid.HasErrors() {
+		return invalid
+	}
+	return nil
+}
+
+func (p *UserPayload) VerifyAdminCreate() error {
+	invalid := &InvalidArgumentError{}
+	if p.Name == nil {
+		invalid.Append("name", "Full name missing required argument")
+	} else if *p.Name == "" {
+		invalid.Append("name", "Full name cannot be empty")
+	}
+
+	// we don't need a password for single sign on
+	if (p.SSOInvite == nil || !*p.SSOInvite) && (p.SSOEnabled == nil || !*p.SSOEnabled) {
+		if p.Password == nil {
+			invalid.Append("password", "Password missing required argument")
+		} else if *p.Password == "" {
+			invalid.Append("password", "Password cannot be empty")
+		}
+		// Skip password validation in the case of admin created users
+	}
+
+	if p.SSOEnabled != nil && *p.SSOEnabled && p.Password != nil && len(*p.Password) > 0 {
+		invalid.Append("password", "not allowed for SSO users")
+	}
+
+	if p.Email == nil {
+		invalid.Append("email", "Email missing required argument")
+	} else if *p.Email == "" {
+		invalid.Append("email", "Email cannot be empty")
+	}
+
+	if p.InviteToken != nil {
+		invalid.Append("invite_token", "Invite token should not be specified with admin user creation")
+	}
+
+	if invalid.HasErrors() {
+		return invalid
+	}
+	return nil
+}
+
+func (p *UserPayload) VerifyModify(ownUser bool) error {
+	invalid := &InvalidArgumentError{}
+	if p.Name != nil && *p.Name == "" {
+		invalid.Append("name", "Full name cannot be empty")
+	}
+
+	if p.Email != nil {
+		if *p.Email == "" {
+			invalid.Append("email", "Email cannot be empty")
+		}
+		// if the user is not an admin, or if an admin is changing their own email
+		// address a password is required.
+		if ownUser && p.Password == nil {
+			invalid.Append("password", "Password cannot be empty if email is changed")
+		}
+	}
+
+	if p.SSOEnabled != nil && *p.SSOEnabled && p.NewPassword != nil && len(*p.NewPassword) > 0 {
+		invalid.Append("new_password", "not allowed for SSO users")
+	}
+	if p.NewPassword != nil {
+		// if the user is not an admin, or if an admin is changing their own password
+		// a password is required.
+		if ownUser && p.Password == nil {
+			invalid.Append("password", "Old password cannot be empty")
+		}
+	}
+
+	if invalid.HasErrors() {
+		return invalid
+	}
+	return nil
 }
 
 // User creates a user from payload.
@@ -129,4 +311,32 @@ func (u *User) SetPassword(plaintext string, keySize, cost int) error {
 	u.Salt = salt
 	u.Password = hashed
 	return nil
+}
+
+// Requirements for user password:
+// at least 7 character length
+// at least 1 symbol
+// at least 1 number
+func ValidatePasswordRequirements(password string) error {
+	var (
+		number bool
+		symbol bool
+	)
+
+	for _, s := range password {
+		switch {
+		case unicode.IsNumber(s):
+			number = true
+		case unicode.IsPunct(s) || unicode.IsSymbol(s):
+			symbol = true
+		}
+	}
+
+	if len(password) >= 7 &&
+		number &&
+		symbol {
+		return nil
+	}
+
+	return errors.New("Password does not meet validation requirements")
 }

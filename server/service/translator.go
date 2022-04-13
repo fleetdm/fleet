@@ -60,7 +60,7 @@ func translateHostToID(ctx context.Context, ds fleet.Datastore, identifier strin
 	return host.ID, nil
 }
 
-func (svc Service) Translate(ctx context.Context, payloads []fleet.TranslatePayload) ([]fleet.TranslatePayload, error) {
+func (svc *Service) Translate(ctx context.Context, payloads []fleet.TranslatePayload) ([]fleet.TranslatePayload, error) {
 	var finalPayload []fleet.TranslatePayload
 
 	for _, payload := range payloads {

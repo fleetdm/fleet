@@ -13,6 +13,7 @@ We follow the guiding principles below to secure our company-owned devices:
 
 
 ### macOS devices
+> *Find more information about the process of implementing security on the Fleet blog. The first [Tales from Fleet security: securing the startup](https://blog.fleetdm.com/tales-from-fleet-security-securing-the-startup-448ea590ea3a) article covers the process of securing our laptops.*
 
 We use configuration profiles to standardize security settings for our Mac devices. We use [CIS Benchmark for macOS 12](https://www.cisecurity.org/benchmark/apple_os), as our configuration baseline, and adapt it to:
 * Suit a remote team
@@ -30,7 +31,7 @@ Our policy, which applies to Fleet owned laptops purchased via Apple's DEP (Devi
 | #   | Setting                                                                                |
 | --- | -------------------------------------------------------------------------------------- |
 | 1.1 | Ensure all Apple-provided software is current                                          |
-| 1.2 | Ensure auto update is enabled                                                          |                          |
+| 1.2 | Ensure auto update is enabled                                                          |
 | 1.4 | Ensure installation of app updates is enabled                                          |
 | 1.5 | Ensure system data files and security updates are downloaded automatically is enabled |
 | 1.6 | Ensure install of macOS updates is enabled                             |
@@ -245,7 +246,7 @@ We configure Chrome on company-owned devices with a basic policy.
 | --------------------------------------------------------- |
 | Enforce Chrome updates and Chrome restart within 48 hours |
 | Block intrusive ads                                       |
-| uBlock Origin ad blocker extension deployed               |
+| uBlock Origin adblocker extension deployed               |
 | Password manager extension deployed                       |
 | Chrome Endpoint Verification extension deployed           |
 
@@ -255,14 +256,458 @@ We configure Chrome on company-owned devices with a basic policy.
 
 **User experience impact**
 
-* Chrome needs to be restarted within 48 hours of patches being installed. The automatic restart happens after 19:00 and before 6:00 if the computer is running, and tabs are restored (except for incognito tabs).
+* Chrome needs to be restarted within 48 hours of patch installation. The automatic restart happens after 19:00 and before 6:00 if the computer is running and tabs are restored (except for incognito tabs).
 * Ads considered intrusive are blocked.
-* uBlock Origin is enabled by default, and is 100% configurable, improving security and performance of browsing.
+* uBlock Origin is enabled by default, and is 100% configurable, improving security and the performance of browsing.
 * Endpoint Verification is used to make access decisions based on the security posture of the device. For example, an outdated Mac could be prevented access to Google Drive.
 
 ### Personal mobile devices
 
-The use of personal devices is allowed for some applications, as long as the iOS or Android device is kept up to date.
+The use of personal devices is allowed for some applications, so long as the iOS or Android device's OS
+is kept up to date.
+
+## Hardware security keys
+
+If you do not already have a pair of hardware security keys, order [YubiKey 5C NFC security
+keys](https://www.yubico.com/ca/product/yubikey-5c-nfc-pack-of-2/) with your company card, or ask
+BizOps to get you one if you do not have a company card.
+
+### Are they YubiKeys or security keys?
+
+We use YubiKeys, a brand of hardware security keys that support the FIDO U2F protocol. You can use
+both terms interchangeably at Fleet. YubiKeys support more authentication protocols than regular
+security keys.
+
+### Who has to use security keys and why?
+
+Security keys are **strongly recommended** for everyone and **required** for team members with elevated privilege access. 
+
+Because they are the only type of Two-Factor Authentication (2FA) that prevents credentials from
+phishing, we will make them **mandatory for everyone** soon. 
+
+See the [Google Workspace security
+section](https://fleetdm.com/handbook/security#google-workspace-security-authentication) for more
+information on the security of different types of 2FA.
+
+### Goals
+
+Our goals with security keys are to:
+
+1. Eliminate the risk of credential phishing.
+2. Maintain the best user experience possible.
+3. Ensure team members can access systems as needed and that recovery procedures exist in case of a lost key.
+4. Ensure recovery mechanisms are safe to prevent attackers from bypassing 2FA completely.
+
+### Setting up security keys on Google
+
+We recommend setting up **three** security keys on your Google account for redundancy purposes: two
+YubiKeys and your phone as the third key.
+
+If you get a warning during this process about your keyboard not being identified, this is due to
+YubiKeys having a feature that can simulate a keyboard. Ignore the "Your keyboard cannot be
+identified" warning.
+
+1. Set up your first YubiKey by following [Google's
+   instructions](https://support.google.com/accounts/answer/6103523?hl=En). The instructions make
+   you enroll the key by following [this
+   link](https://myaccount.google.com/signinoptions/two-step-verification?flow=sk&opendialog=addsk).
+   When it comes to naming your keys, that is a name only used so you can identify which key was
+   registered. You can name them Key1 and Key2.
+2. Repeat the process with your 2nd YubiKey. 
+3. Configure your phone as [a security key](https://support.google.com/accounts/answer/9289445)  
+
+
+### Optional: getting rid of keyboard warnings
+
+1. Install YubiKey manager.You can do this from the **Managed Software Center** on managed Macs.
+   On other platforms, download it [from the official
+   website](https://www.yubico.com/support/download/yubikey-manager/#h-downloads)
+2. Open YubiKey manager with one of your keys connected.
+3. Go to the **Interfaces** tab.
+4. Uncheck the **OTP** checkboxes under **USB** and **NFC** and click *Save Interfaces*.
+5. Unplug your key and connect your 2nd one to repeat the process.
+
+
+### Optional: setting up security keys on GitHub
+
+1. Configure your two security keys to [access
+   GitHub](https://github.com/settings/two_factor_authentication/configure).
+2. If you are using a Mac, feel free to add it as a security key on GitHub. This brings most of the
+   advantages of the hardware security key, but allows you to log in by simply touching Touch ID as
+   your second factor.
+
+### FAQ
+
+1. Can I use my Fleet YubiKeys with personal accounts?
+
+**Answer**: We highly recommend that you do so. Facebook accounts, personal email, Twitter accounts,
+cryptocurrency trading sites and much more support FIDO U2F authentication, the standard used by
+security keys. Fleet will **never ask for your keys back**. They are yours to use everywhere you
+can.
+
+2. Can I use my phone as a security key?
+
+**Answer**: Yes. Google [provides
+instructions](https://support.google.com/accounts/answer/6103523?hl=En&co=GENIE.Platform%3DiOS&oco=1),
+and it works on Android devices as well as iPhones. When doing this, you will still need the YubiKey
+to access Google applications from the phone itself. 
+Since it requires Bluetooth, this option is also less reliable than using the USB-C security key.
+
+3. Can I leave my YubiKey connected to my laptop?
+
+**Answer**: Yes, unless you are traveling. We use security keys to eliminate the ability of
+attackers to phish our credentials remotely, not as any type of local security improvement. That
+being said, keeping it separate from the laptop when traveling means they are unlikely to both be
+lost or stolen at the same time.
+
+4. I've lost one of my keys, what do I do?
+
+**Answer**: Post in the `#g-security` channel ASAP so we can disable the key. IF you find it later, no
+worries, just enroll it again!
+
+5. I lost all of my keys and I'm locked out! What do I do?
+
+**Answer**: Post in the `#help-login` channel, or if you are locked out of Slack, contact your
+manager. You will be provided a way to log back in and make your phone your security key, until you
+receive new ones.
+
+6. Can I use security keys to log in from any device?
+
+**Answer**: The keys we use, YubiKeys 5C NFC, work over USB-C as well as NFC. They can be used on
+Mac/PC, Android as well as iPhone and iPad Pro with USB-C port. If some application or device does
+not support it, you can always browse to [g.co/sc](https://g.co/sc) from a device that does support
+security keys to generate a temporary code for the device that does not.
+
+7. Will I need my YubiKey every time I want to check my email?
+
+**Answer**: No. Using them does not make sessions shorter. For example, if using the GMail app on
+mobile, you'd need the keys to set up the app only.
+
+## GitHub Security
+Since Fleet makes open source software, we need to host and collaborate on code. We do this using GitHub.
+
+This section covers our GitHub configuration. Like everything we do, we aim for the right level of security and productivity.
+
+Because our code is open source, we are much more concerned about the integrity of the code than its confidentiality.
+This is why our configuration aims to protect what is in the code, but we spend no
+effort preventing "leaks" since almost everything is public anyway.
+
+If you are reading this from another organization that makes code that is not open-source, we
+recommend checking out [this guide](https://oops.computer/posts/safer-github-setup/).
+
+### Authentication
+
+Authentication is the lynchpin of security on Software-as-a-Service (SaaS) applications such as GitHub. It
+is also one of the few controls we have to secure SaaS apps in general.
+
+GitHub authentication differs from many SaaS products in one crucial way: accounts are global.
+Developers can carry their accounts from company to company and use them for open source projects.
+There is no reason to require company-specific GitHub accounts, as our code is public, and if it were
+not, we would enforce Single Sign-On (SSO) to access our organization.
+
+We enable *Require two-factor authentication* for everyone in the organization.
+
+Fleet requires two-factor authentication for everyone in the organization. We do not require Single Sign-on (SSO) -
+as most of the software we work on is open-source and accessible to external collaborators. If you can imagine, GitHub
+charges a [4x premium](https://sso.tax/) for this feature.
+
+### Code security and analysis
+
+
+| Code security and analysis feature | Setting                                                            | Note                                                                        |
+| ---------------------------------- | ------------------------------------------------------------------ | --------------------------------------------------------------------------- |
+| Dependency graph                   | Automatically enable for new private repositories + enabled on all | Default on all public repositories.                                               |
+| Dependabot alerts                  | Automatically enable for new repositories + enabled for all        | We want to be alerted if any dependency is vulnerable.                       |
+| Dependabot security updates        | Automatically enable for new repositories                          | This automatically creates PRs to fix vulnerable dependencies when possible. |
+
+### Member Privileges
+
+| Member privileges feature | Setting | Note                                                                                                                         |
+| ------------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Base permissions          | Write   | Admin is too powerful, as it allows reconfiguring the repositories themselves. Selecting *Write* provides the perfect balance!                 |
+| Repository creation       | None    | We want to limit repository creation and eventually automate it with the [GitHub Terraform provider](https://github.com/integrations/terraform-provider-github).     |
+| Repository forking        | ✅  | By default, we allow repository forking.                                                                                      |
+| Pages creation            | None    | We do not use GitHub pages, so we disable them to ensure people use our actual website or handbook, which are also in GitHub. |
+
+#### Admin repository permissions
+
+| Admin privileges feature                                                   | Member privileges feature | Note                                                                                                                                                                          |
+| -------------------------------------------------------------------------- | ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Allow members to change repository visibilities for this organization      | 🚫                   | Most of our repos are public, but for the few that are private we want to require org admin privileges to make them public                                                    |
+| Allow members to delete or transfer repositories for this organization     | 🚫                   | We want to require org admin privileges to be able to delete or transfer any repository.                                                                                       |
+| Allow repository administrators to delete issues for this organization     | 🚫                   | We want to require org admin privileges to be able to delete issues, which is something that is very rarely needed but could be, for example, if we received GitHub issue spam. |
+| Allow members to see comment author's profile name in private repositories | 🚫                   | We barely use private repositories, and have no need for this.                                                                                                                |
+| Allow users with read access to create discussions                         | 🚫                   | We do not currently use discussions and want people to use issues as much as possible.                                                                                       |
+| Allow members to create teams                                              | 🚫                   | We automate the management of GitHub teams with the [GitHub Terraform provider](https://github.com/integrations/terraform-provider-github).                            |
+
+### Team Discussions
+We do not use team discussions and therefore have disabled them. This is simply to avoid discussions
+being located in too many places and not security-related.
+
+### Repository Security
+
+#### Branch protection
+Branch protection is one of the most important settings to configure and the main reason we should not have members with administrative privileges on the repositories.
+
+Located in the Branches section of repository settings, we create a rule for **main** that applies:
+
+| Setting                                                          | Value | Note                                                                                                                  |
+| ---------------------------------------------------------------- | ----- | --------------------------------------------------------------------------------------------------------------------- |
+| Require a pull request before merging                            | ✅     | We enforce code reviews, which require PRs.                                                                           |
+| Require approvals                                                | 1️⃣   | We require approval from one person in the team.                                                                      |
+| Dismiss stale pull request approvals when new commits are pushed | ✅     | Without this, someone could get approval for a small, very nice PR then change everything about it!                   |
+| Require review from Code Owners                                  | 🗓     | We are working towards enabling this as our team grows and allows for more flexibility                                    |
+| Restrict who can dismiss pull request reviews                    | 🚫     | As we are a team working in multiple timezones, we want to allow dismissing reviews and getting another one.          |
+| Allow specified actors to bypass required pull requests          | 🚫     | We do not want anyone pushing directly to main.                                                                       |
+| Require status checks to pass before merging                     | ✅     | Because of our [monorepo](https://en.wikipedia.org/wiki/Monorepo#:~:text=In%20version%20control%20systems%2C%20a,as%20a%20'shared%20codebase'.), it is hard to pick many checks that work for all types of PRs, but we still enable this.     |
+| Require conversation resolution before merging                   | 🚫     | Reviewers should not approve a pull request if they do not think it's ready for merging.                                             |
+| Require signed commits                                           | 🗓     | We are working towards enabling this, manually keeping track of unverified commits.                                   |
+| Require linear history                                           | 🚫     | We do not currently use or enforce practices to generate a linear history.                                                                                                                      |
+| Include administrators                                           | ✅     | We want these rules to apply to *everyone*.                                                                           |
+| Restrict who can push to matching branches                       | 🚫     | Anyone in our organization should be able to merge PRs that get reviewed, and nobody should be able to push directly. |
+| Allow force pushes                                               | 🚫     | We do not have a need this, so we do not allow it.                                                             |
+| Allow deletions                                                  | 🚫     | We do not want ANYONE to be able to delete the *main* branch.                                                         |
+
+### Scanning tools
+Though not technically a part of GitHub itself, we feel like the security tools we use to scan our code, workflows, and GitHub configuration are part of our overall GitHub configuration.
+
+#### SAST and configuration scanning
+| Scanning Tool                                       | Purpose                                                                                                                                              | Configuration                                                                                                  |
+| --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| [OSSF Scorecard](https://github.com/ossf/scorecard) | Scan our GitHub repository for best practices and send problems to GitHub Security.                                                                  | [scorecard-analysis.yml](https://github.com/fleetdm/fleet/blob/main/.github/workflows/scorecards-analysis.yml) |
+| [CodeQL](https://codeql.github.com/)                | Discover vulnerabilities across our codebase, both in the backend and frontend code.                                                                 | [codeql-analysis.yml](https://github.com/fleetdm/fleet/blob/main/.github/workflows/codeql-analysis.yml)        |
+| [gosec](https://github.com/securego/gosec)          | Scan golang code for common security mistakes. We use gosec as one of the linters used by [golangci-lint](https://github.com/golangci/golangci-lint) | [golangci-lint.yml](https://github.com/fleetdm/fleet/blob/main/.github/workflows/golangci-lint.yml)            |
+
+We are planning on adding [tfsec](https://github.com/aquasecurity/tfsec) to scan for configuration vulnerabilities in the Terraform code provided to deploy Fleet infrastructure in the cloud. 
+Once we have full coverage from a static analysis point of view, we will evaluate dynamic analysis
+and fuzzing options.
+
+#### Dependabot
+As described in *Code security and analysis*, we use Dependabot for security updates to libraries.
+Our [dependabot.yml](https://github.com/fleetdm/fleet/blob/main/.github/dependabot.yml) only
+mentions GitHub actions. Security updates to all other dependencies are performed by Dependabot automatically, even though we do not configure all package managers explicitly in the configuration file, as is specified in the repository configuration. As GitHub actions have no impact on the Fleet software itself, we are
+simply more aggressive on updating actions even if the update does not resolve a vulnerability.
+
+### Actions configuration
+We configure GitHub Actions to have *Read repository contents permission* by default. This is
+located in *organization/settings/actions*. As our code is open-source, we allow all GitHub actions
+but limit their default privileges, so they do not create any additional risk. Additional permissions
+needed can be configured in the YAML file for each workflow.
+
+We pin actions to specific versions using a complete hash.
+
+### Automation
+We manage our GitHub configuration, creation of repositories, and team memberships manually. In the
+future, we will consider automating most of it using the [Terraform
+provider](https://github.com/integrations/terraform-provider-github) for GitHub. Our strategy for
+this will be similar to what is described in [this blog post](https://oops.computer/posts/github_automation/).
+
+## Google Workspace security
+Google Workspace is our collaboration tool and the source of truth for our user identities.
+A Google Workspace account has access to email, calendar, files, and external applications integrated with Google Authentication or SAML.
+At the same time, third-party applications installed by users can access the same data.
+
+To reduce the risk of malicious or vulnerable apps being used to steal data, we configure Google Workspace beyond the default settings. Our current configuration balances security and productivity and is a starting point for any organization looking to improve the security of Google Workspace.
+
+As Google frequently adds new features, feel free to submit a PR to edit this file if you discover a new one that we should use!
+
+### Authentication
+We cannot overstate the importance of securing authentication, especially in a platform that includes email and is used as a directory to log in to multiple applications.
+
+#### 2-Step Verification 
+Google's name for Two-Factor Authentication (2FA) or Multi-Factor Authentication (MFA) is 2-Step Verification (2-SV). No matter what we call it, it is the most critical feature to protect user accounts on Google Workspace or any other system.
+
+| 2FA Authentication methods from least to most secure                              | Weaknesses                                                                                                |
+| ----------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| No 2FA                                                                        | Credential theft is easy, and passwords are often leaked or easy to guess.                                |
+| SMS/Phone-based 2FA                                                           | Puts trust in the phone number itself, which attackers can hijack by [social engineering phone companies](https://www.vice.com/en/topic/sim-hijacking).      |
+| Time-based one-time password (TOTP - Google Authenticator type 6 digit codes) | Phishable as long as the attacker uses it within its short lifetime by intercepting the login form. |
+| App-based push notifications                                                  | Harder to phish than TOTP, but by sending a lot of prompts to a phone, a user might accidentally accept a nefarious notification.       |
+| Hardware security keys                                                        | [Most secure](https://krebsonsecurity.com/2018/07/google-security-keys-neutralized-employee-phishing/), but requires extra hardware or a recent smartphone. Configure this as soon as you receive your Fleet YubiKeys                                                                |
+
+**2-Step Verification in Google Workspace**
+
+We apply the following settings to *Security/2-Step Verification* to all users as the minimum baseline.
+
+| Setting name                               | Value                                              |
+| ------------------------------------------ | -------------------------------------------------- |
+| Allow users to turn on 2-Step Verification | On                                                 |
+| Enforcement                                | On                                                 |
+| New user enrollment period                 | 1 week                                             |
+| Frequency: Allow user to trust the device  | Off                                                |
+| Methods                                    | Any except verification codes via text, phone call |
+
+**Hardware security keys**
+
+We strongly recommend the use of hardware security keys. 
+
+Fleet configures privileged user accounts with a policy that enforces the use of hardware security
+keys. This prevents credential theft better than other methods of 2FA/2-SV. See [hardware security
+keys](https://fleetdm.com/handbook/security#hardware-security-keys) for information about the model we use, why and how to set
+them up, .
+
+
+#### Passwords
+As we enforce the use of 2-SV, passwords are less critical to the security of our accounts. We base our settings on [NIST 800-63B](https://pages.nist.gov/800-63-3/sp800-63b.html).
+
+Enforcing 2FA is a much more valuable control than enforcing the expiration of passwords, which usually results in users changing only a small portion of the password and following predictable patterns.
+
+We apply the following settings to *Security/Password management* to all users as the minimum baseline.
+
+
+| Setting name                                                            | Value         |
+| ----------------------------------------------------------------------- | ------------- |
+| Enforce strong password                                                 | Enabled       |
+| Length                                                                  | 8-100         |
+| Strength and length enforcement/enforce password policy at next sign-in | Enabled       |
+| Allow password reuse                                                    | Disabled      |
+| Expiration                                                              | Never expires |
+
+We also configure [Password Alert](https://support.google.com/chrome/a/answer/9696707?visit_id=637806265550953415-394435698&rd=1#zippy=) to warn users of password re-use. See [How we protect end-user devices](https://fleetdm.com/handbook/security#how-we-protect-end-user-devices).
+
+
+#### Account recovery
+Self-service account recovery is a feature we do not need, as we have enough Google administrators to support Fleet employees. As we secure accounts beyond the security level of most personal email accounts, it would not be logical to trust those personal accounts for recovery.
+
+We apply the following settings to *Security/Account Recovery* to all users as the minimum baseline.
+
+| Setting name                                               | Value |
+| ---------------------------------------------------------- | ----- |
+| Allow super admins to recover their account                | Off   |
+| Allow users and non-super admins to recover their account | Off   |
+
+First, we ensure we have a handful of administrators. Then, by not requiring password expiration, the number of issues related to passwords is reduced. Lastly, we can support locked-out users manually as the volume of issues is minimal.
+
+#### Less secure apps
+Less secure apps use legacy protocols that do not support secure authentication methods. We disable them, and as they are becoming rare, we have not noticed any issues from this setting.
+
+We apply the following settings to *Security/Less Secure Apps* to all users as the minimum baseline.
+
+| Setting name                                                                                            | Value                                            |
+| ------------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
+| Control user access to apps that use less secure sign-in technology and make accounts more vulnerable.  | Disable access to less secure apps (Recommended) |
+
+#### API Access
+Google Workspace makes it easy for users to add tools to their workflows, while having these tools authenticate to their Google applications and data via OAuth. We mark all Google services as *restricted* but do allow the use of OAuth for simple authentication and the use of less dangerous privileges on Gmail and Drive. We then approve applications that require more privileges on a case-by-case basis.
+
+This level of security allows users to authenticate to web applications with their Google account. This exposes little information beyond what they would provide in a form to create an account and it protects confidential data while keeping everything managed.
+
+>To get an application added to Fleet's Google Workspace security configuration, create an issue assigned to the security team in [this repository](https://github.com/fleetdm/confidential/issues).
+
+We mark every Google Service as *restricted* and recommend that anyone using Google Workspace mark at least the following as restricted in *Security/API Control/Google Services*:
+* Google Drive
+* Gmail
+* Calendar (Invites include sensitive info such as external participants, attachments, links to meetings, etc.)
+* Google Workspace Admin
+
+When marked as *trusted* applications that need access to data in our Google Workspace.
+
+### Rules and alerts
+
+Google provides many useful built-in alerts in *Security/Rules*. We enable most and tweak their severity levels as needed. When necessary, we visit the [Alert Center](https://admin.google.com/ac/ac) to investigate and close alerts.
+
+We have also created the following custom alerts. 
+
+| Alert On                                    | Created on                          | Purpose                                                                                                                                                                  | Notification         |
+| ------------------------------------------- | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------- |
+| Out of domain email forwarding              | Login audit log, filtered on event  | Attackers in control of an email account often configure forwarding as a way to establish persistence.                                                              | Alert Center + Email |
+| 2-step Verification disable                 | Login audit log, filtered on event  | Though we enforce 2-SV, if we accidentally allowed removing it, we want to know as soon as someone does so.                                                               | Alert Center + Email |
+| 2-step Verification Scratch Codes Generated | Admin audit log, filtered on event  | Scratch codes can be used to bypass 2-SV. An attacker with elevated privileges could leverage this to log in as a user.                           | Alert Center + Email |
+| Change Allowed 2-step Verification Methods  | Admin audit log, filtered on event  | We want to detect accidental or malicious downgrades of 2-SV configuration.                                                                                              | Alert Center + Email |
+| Change 2-Step Verification Start Date       | Admin audit log, filtered on event  | We want to detect accidental or malicious "downgrades" of 2-SV configuration.                                                                                              | Alert Center + Email |
+| Alert Deletion                              | Admin audit log, filtered on event  | For alerts to be a reliable control, we need to alert on alerts being disabled or changed.                                                                                | Alert Center + Email |
+| Alert Criteria Change                       | Admin audit log, filtered on event  | For alerts to be a reliable control, we need to alert on alerts being disabled or changed.                                                                                | Alert Center + Email |
+| Alert Receivers Change                      | Admin audit log, filtered on event  | For alerts to be a reliable control, we need to alert on alerts being disabled or changed.                                                                                | Alert Center + Email |
+| Dangerous download warning                  | Chrome audit log, filtered on event | As we roll out more Chrome security features, we want to track the things getting blocked so we can evaluate the usefulness of the feature and potential false positives. | Alert Center         |
+| Malware transfer                            | Chrome audit log, filtered on event | As we roll out more Chrome security features, we want to track the things getting blocked so we can evaluate the usefulness of the feature and potential false positives. | Alert Center         |
+| Password reuse                              | Chrome audit log, filtered on event | As we roll out more Chrome security features, we want to track the things getting blocked so we can evaluate the usefulness of the feature and potential false positives | Alert Center         |
+
+
+### Gmail
+
+#### Email authentication
+Email authentication makes it harder for other senders to pretend to be from Fleet. This improves trust in emails from fleetdm.com and makes it more difficult for anyone attempting to impersonate Fleet.
+
+We authenticate email with [DKIM](https://support.google.com/a/answer/174124?product_name=UnuFlow&hl=en&visit_id=637806265550953415-394435698&rd=1&src=supportwidget0&hl=en) and have a [DMARC](https://support.google.com/a/answer/2466580) policy to define how our outgoing email should be defined.
+
+The DKIM configuration under *Apps/Google Workspace/Settings for Gmail/Authenticate Email* simply consists of generating the key, publishing it to DNS, then enabling the feature 48 hours later.
+
+[DMARC](https://support.google.com/a/answer/2466580) is configured separately, at the DNS level, once DKIM is enforced.
+
+#### Email security
+
+Google Workspace includes multiple options in *Apps/Google Workspace/Settings for Gmail/Safety* that relate to how inbound email is handled.
+
+As email is one of the main vectors used by attackers, we ensure we protect it as much as possible. Attachments are frequently used to send malware. We apply the following settings to block common tactics.
+
+| Category                    | Setting name                                                    | Value   | Action                               | Note                                                                                                   |
+| --------------------------- | --------------------------------------------------------------- | ------- | ------------------------------------ | ------------------------------------------------------------------------------------------------------ |
+| Attachments                 | Protect against encrypted attachments from untrusted senders    | Enabled | Quarantine                           |                                                                                                        |
+| Attachments                 | Protect against attachments with scripts from untrusted senders | Enabled | Quarantine                           |                                                                                                        |
+| Attachments                 | Protect against anomalous attachment types in emails            | Enabled | Quarantine                           |                                                                                                        |
+| Attachments                 | Whitelist (*Google's term for allow-list*) the following uncommon filetypes                      | Empty   |                                    |                                                                                                        |
+| Attachments                 | Apply future recommended settings automatically                 | On      |                                    |                                                                                                        |
+| IMAP View time protections  | Enable IMAP link protection                                     | On      |                                   |  |
+| Links and external images   | Identify links behind shortened URLs                            | On      |                                      |                                                                                                        |
+| Links and external images   | Scan linked images                                              | On      |                                      |                                                                                                        |
+| Links and external images   | Show warning prompt for any click on links to untrusted domains | On      |                                      |                                                                                                        |
+| Links and external images   | Apply future recommended settings automatically                 | On      |                                      |                                                                                                        |
+| Spoofing and authentication | Protect against domain spoofing based on similar domain names   | On      | Keep email in inbox and show warning |                                                                                                        |
+| Spoofing and authentication | Protect against spoofing of employee names                      | On      | Keep email in inbox and show warning |                                                                                                        |
+| Spoofing and authentication | Protect against inbound emails spoofing your domain             | On      | Quarantine                           |                                                                                                        |
+| Spoofing and authentication | Protect against any unauthenticated emails                      | On      | Keep email in inbox and show warning |                                                                                                        |
+| Spoofing and authentication | Protect your Groups from inbound emails spoofing your domain    | On      | Quarantine                           |                                                                                                        |
+| Spoofing and authentication | Apply future recommended settings automatically                 | On      |                                      |                                                                                                        |
+| Manage quarantines | Notify periodically when messages are quarantine                   | On      |                                      |                                                                                                        |
+
+We enable *Apply future recommended settings automatically* to ensure we are secure by default. We would prefer to adjust this after seeing emails quarantined accidentally rather than missing out on new security features for email security.
+
+#### End-user access
+
+We recommend using the Gmail web interface on computers and the Gmail app on mobile devices. The user interface on the official applications includes security information that is not visible in standard mail clients (e.g., Mail on macOS). We do allow a few of them at the moment for specific workflows. 
+
+| Category                         | Setting name                                                                                                                                      | Value                                                                                                                                                                                                                        | Note                                                                                                                                                                                                                                                  |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| POP and IMAP access              | Enable IMAP access for all users                                                                                                                  | Restrict which mail clients users can use (OAuth mail clients only)                                                                                                                                                          |                                                                                                                                                                                                                                                       |
+|                                  | Clients                                                                                                                                           | (450232826690-0rm6bs9d2fps9tifvk2oodh3tasd7vl7.apps.googleusercontent.com, 946018238758-bi6ni53dfoddlgn97pk3b8i7nphige40.apps.googleusercontent.com, 406964657835-aq8lmia8j95dhl1a2bvharmfk3t1hgqj.apps.googleusercontent.com) | Those are the iOS, macOS built-in clients as well as Thunderbird. We plan to eventually only allow iOS, to limit the data cached on Macs and PCs.                                                                                         |
+|                                  | Enable POP access for all users                                                                                                                   | Disabled                                                                                                                                                                                                                     |                                                                                                                                                                                                                                                       |
+| Google Workspace Sync            | Enable Google Workspace Sync for Microsoft Outlook for my users                                                                                   | Disabled                                                                                                                                                                                                                     |                                                                                                                                                                                                                                                       |
+| Automatic forwarding             | Allow users to automatically forward incoming email to another address                                                                            | Enabled                                                                                                                                                                                                                      | We will eventually disable this in favor of custom routing rules for domains where we want to allow forwarding. There is no mechanism for allow-listing destination domains, so we rely on alerts when new forwarding rules are added. |
+| Allow per-user outbound gateways | Allow users to send mail through an external SMTP server when configuring a "from" address hosted outside your email domain                       | Disabled                                                                                                                                                                                                                     |                                                                                                                                                                                                                                                       |
+| Warn for external recipients     | Highlight any external recipients in a conversation. Warn users before they reply to email messages with external recipients who aren't in their contacts. | Enabled                                                                                                                                                                                                                      |                                                                                                                                                                                                                                                       |
+
+
+### Drive and Docs
+
+We use Google Drive and related applications for internal and external collaboration.
+
+#### Sharing settings
+
+| Category                  | Setting name                                                                                                                                                          | Value                                       | Note                                                                                                                                                                                                                                                                                                                                                                                         |
+| ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Sharing options           | Sharing outside of Fleet Device Management                                                                                                                            | On                                          |                                                                                                                                                                                                                                                                                                                                                                                              |
+| Sharing options           | For files owned by users in Fleet Device Management warn when sharing outside of Fleet Device Management                                                              | Enabled                                     |                                                                                                                                                                                                                                                                                                                                                                                              |
+| Sharing options           | Allow users in Fleet Device Management to send invitations to non-Google accounts outside Fleet Device Management                                                     | Enabled                                     |                                                                                                                                                                                                                                                                                                                                                                                              |
+| Sharing options           | When sharing outside of Fleet Device Management is allowed, users in Fleet Device Management can make files and published web content visible to anyone with the link | Enabled                                     |                                                                                                                                                                                                                                                                                                                                                                                              |
+| Sharing options           | Access Checker                                                                                                                                                        | Recipients only, or Fleet Device Management |                                                                                                                                                                                                                                                                                                                                                                                              |
+| Sharing options           | Distributing content outside of Fleet Device Management                                                                                                               | Only users in Fleet Device Management       | This prevents external contributors from sharing to other external contributors                                                                                                                                                                                                                                                                                                              |
+| Link sharing default      | When users in Fleet Device Management create items, the default link sharing access will be:                                                                          | Off                                         | We want the owners of new files to make a conscious decision around sharing, and to be secure by default                                                                                                                                                                                                                                                                                     |
+| Security update for files | Security update                                                                                                                                                       | Apply security update to all impacted files |                                                                                                                                                                                                                                                                                                                                                                                              |
+| Security update for files | Allow users to remove/apply the security update for files they own or manage                                                                                          | Enabled                                     | We have very few files impacted by [updates to link sharing](https://support.google.com/a/answer/10685032?amp;visit_id=637807141073031168-526258799&amp;rd=1&product_name=UnuFlow&p=update_drives&visit_id=637807141073031168-526258799&rd=2&src=supportwidget0). For some files meant to be public, we want users to be able to revert to the old URL that is more easily guessed.  |
+
+#### Features and applications
+
+| Category                             | Setting name                                                             | Value                                                                                                                           | Note                                                                                                                   |
+| ------------------------------------ | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| Offline                              | Control offline access using device policies                             | Enabled                                                                                                                         |                                                                                                                        |
+| Smart Compose                        | Allow users to see Smart Compose suggestions                             | Enabled                                                                                                                         |                                                                                                                        |
+| Google Drive for desktop             | Allow Google Drive for desktop in your organization                      | Off                                                                                                                             | To limit the amount of data stored on computers, we currently do not allow local sync. We may enable it in the future  |
+| Drive                                | Drive                                                                    | Do not allow Backup and Sync in your organization                                                                               |                                                                                                                        |
+| Drive SDK                            | Allow users to access Google Drive with the Drive SDK API                | Enabled                                                                                                                         | The applications trusted for access to Drive are controlled but require this to work.                                 |
+| Add-Ons                              | Allow users to install Google Docs add-ons from add-ons store            | Enabled                                                                                                                         | The applications trusted for access to Drive are controlled but require this to work.                                 |
+| Surface suggestions in Google Chrome | Surface suggestions in Google Chrome                                     | Allow Google Drive file suggestions for signed-in users whenever a new search is performed or a new tab is opened (recommended) |                                                                                                                        |
+| Creating new files on Drive          | Allow users to create and upload any file                                | On                                                                                                                              |                                                                                                                        |
+| Creating new files on Drive          | Allow users to create new Docs, Sheets, Slides, Drawings and Forms files | On                                                                                                                              |                                                                                                                        |
 
 ## Vulnerability management
 At Fleet, we handle software vulnerabilities no matter what their source is.
@@ -275,17 +720,37 @@ The process is simple:
 
 ### Timeline
 
-Fleet commits to remediating vulnerabilities according to the following:
+Fleet commits to remediating vulnerabilities on Fleet according to the following:
 
 
 | Severity                           | Triage | Mitigation | Remediation                               |
 | ---------------------------------- | ---------------- | ---------------- | ------------------------------------------------ |
-| Critical+ In-the-wild exploitation | 2 business hours | 24 hours         | 72 hours (unless mitigation downgrades severity) |
-| Critical                           | 4 business hours | 7 days           | 30 days                                          |
+| Critical+ In-the-wild exploitation | 2 business hours | 1 business day         | 3 business days (unless mitigation downgrades severity) |
+| Critical                           | 4 business hours | 7 business days           | 30 days                                          |
 | High                               | 2 business days  | 14 days          | 30 days                                          |
 | Medium                             | 1 week           | 60 days          | 60 days                                          |
 | Low                                | Best effort      | Best effort      | Best effort                                      |
 | Unspecified                        | 2 business days  | N/A              | N/A                                              |
+
+Refer to our commercial SLAs for more information on the definition of "business hours" and
+"business days".
+
+Other resources present in the Fleet repo but not as part of the Fleet product, like our website,
+are fixed on a case-by-case scenario depending on the risk.
+
+### Exceptions and extended timelines
+
+We may not be able to fix all vulnerabilities or fix them as rapidly as we would like. For example,
+a complex vulnerability reported to us that would require redesigning core parts of the Fleet
+architecture would not be fixable in 3 business days.
+
+For vulnerabilities reported by researchers: we ask and prefer to perform coordinated disclosure
+with the researcher. In some cases, we may take up to 90 days to fix complex issues, in which case
+we ask that the vulnerability remains private.
+
+For other vulnerabilities affecting Fleet or code used in Fleet, the Head of Security, CTO and CEO
+can accept the risk of patching them according to custom timelines, depending on the risk and
+possible temporary mitigations.
 
 ### Mapping of CVSSv3 scores to Fleet severity
 
@@ -321,13 +786,21 @@ Example Fleet vulnerability advisory: [CVE-2022-23600](https://github.com/fleetd
 
 ### Vulnerabilities in dependencies
 
-Fleet remediates vulnerabilities related to vulnerable dependencies, but we do not create security advisories on the Fleet repository unless we believe that the vulnerability could impact Fleet. In some situations where we believe it is warranted, we mention the updates in release notes. The best way of knowing what dependencies are required to use Fleet is to look at them directly  [in the repository](https://github.com/fleetdm/fleet/blob/main/package.json).
+Fleet remediates vulnerabilities related to vulnerable dependencies, but we do not create security advisories on the Fleet repository unless we believe that the vulnerability could impact Fleet. In some situations where we think it is warranted, we mention the updates in release notes. The best way of knowing what dependencies are required to use Fleet is to look at them directly  [in the repository](https://github.com/fleetdm/fleet/blob/main/package.json).
 
 We use [Dependabot](https://github.com/dependabot) to create pull requests to update vulnerable dependencies. You can find these PRs by filtering on the [*Dependabot*](https://github.com/fleetdm/fleet/pulls?q=is%3Apr+author%3Aapp%2Fdependabot+) author in the repository.
 
 We ensure the fixes to vulnerable dependencies are also performed according to our remediation timeline. We fix as many dependencies as possible in a single release.
 
+## Slack channels
+
+The following [Slack channels are maintained](https://fleetdm.com/handbook/company#group-slack-channels) by this group:
+
+| Slack channel                       | [DRI](https://fleetdm.com/handbook/company#group-slack-channels)    |
+|:------------------------------------|:--------------------------------------------------------------------|
+| `#g-security`                       | Guillaume Ross
+| `#help-login`                       | Guillaume Ross
+| `#help-tines`                       | Guillaume Ross
 
 
-
-<meta name="maintainedBy" value="GuillaumeRoss">
+<meta name="maintainedBy" value="guillaumeross">

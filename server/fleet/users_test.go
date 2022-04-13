@@ -42,3 +42,37 @@ func newTestUser(t *testing.T, password, email string) *User {
 		Email:    email,
 	}
 }
+
+func TestUserPasswordRequirements(t *testing.T) {
+	passwordTests := []struct {
+		password string
+		wantErr  bool
+	}{
+		{
+			password: "foobar",
+			wantErr:  true,
+		},
+		{
+			password: "foobarbaz",
+			wantErr:  true,
+		},
+		{
+			password: "foobarbaz!",
+			wantErr:  true,
+		},
+		{
+			password: "foobarbaz!3",
+		},
+	}
+
+	for _, tt := range passwordTests {
+		t.Run(tt.password, func(t *testing.T) {
+			err := ValidatePasswordRequirements(tt.password)
+			if tt.wantErr {
+				assert.NotNil(t, err)
+			} else {
+				assert.Nil(t, err)
+			}
+		})
+	}
+}

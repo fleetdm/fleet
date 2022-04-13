@@ -1,18 +1,12 @@
 /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
 import sendRequest from "services";
 import endpoints from "fleet/endpoints";
-import { IHost } from "interfaces/host";
-import { ILabel } from "interfaces/label";
-import { ITeam } from "interfaces/team";
+import { ITargetsAPIResponse, ISelectedTargets } from "interfaces/target";
 
 interface ITargetsProps {
   query?: string;
   queryId?: number | null;
-  selected?: {
-    hosts: IHost[];
-    labels: ILabel[];
-    teams: ITeam[];
-  };
+  selected: ISelectedTargets;
 }
 
 const defaultSelected = {
@@ -26,7 +20,7 @@ export default {
     query = "",
     queryId = null,
     selected = defaultSelected,
-  }: ITargetsProps) => {
+  }: ITargetsProps): Promise<ITargetsAPIResponse> => {
     const { TARGETS } = endpoints;
 
     return sendRequest("POST", TARGETS, {

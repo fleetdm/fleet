@@ -97,13 +97,17 @@ export interface IPackStats {
 export interface IHostPolicyQuery {
   id: number;
   hostname: string;
+  query_results?: unknown[];
   status?: string;
 }
 
-export interface IHostPolicyQueryError {
-  host_hostname: string;
-  osquery_version: string;
-  error: string;
+interface IGeoLocation {
+  country_iso: string;
+  city_name: string;
+  geometry?: {
+    type: string;
+    coordinates: number[];
+  };
 }
 
 export interface IHost {
@@ -134,6 +138,7 @@ export interface IHost {
   hardware_version: string;
   hardware_serial: string;
   computer_name: string;
+  public_ip: string;
   primary_ip: string;
   primary_mac: string;
   distributed_interval: number;
@@ -160,5 +165,6 @@ export interface IHost {
   munki?: IMunkiData;
   mdm?: IMDMData;
   policies: IHostPolicy[];
-  query_results?: [];
+  query_results?: unknown[];
+  geolocation?: IGeoLocation;
 }

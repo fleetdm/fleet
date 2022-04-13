@@ -8,7 +8,7 @@ import TextCell from "components/TableContainer/DataTable/TextCell";
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
 interface ICellProps {
   cell: {
-    value: any;
+    value: string;
   };
   row: {
     original: IDataTableMDMFormat;

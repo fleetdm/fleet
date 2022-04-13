@@ -79,7 +79,7 @@ const EditPackForm = ({
     setPackFormTargets(value);
   };
 
-  const onFormSubmit = () => {
+  const onFormSubmit = (): void => {
     if (packName === "") {
       return setErrors({
         ...errors,

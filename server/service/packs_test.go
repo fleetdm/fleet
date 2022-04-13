@@ -16,7 +16,7 @@ import (
 
 func TestGetPack(t *testing.T) {
 	ds := new(mock.Store)
-	svc := newTestService(ds, nil, nil)
+	svc := newTestService(t, ds, nil, nil)
 
 	ds.PackFunc = func(ctx context.Context, id uint) (*fleet.Pack, error) {
 		return &fleet.Pack{
@@ -36,7 +36,7 @@ func TestGetPack(t *testing.T) {
 
 func TestNewPackSavesTargets(t *testing.T) {
 	ds := new(mock.Store)
-	svc := newTestService(ds, nil, nil)
+	svc := newTestService(t, ds, nil, nil)
 
 	ds.NewPackFunc = func(ctx context.Context, pack *fleet.Pack, opts ...fleet.OptionalArg) (*fleet.Pack, error) {
 		return pack, nil
@@ -86,7 +86,7 @@ func TestPacksWithDS(t *testing.T) {
 }
 
 func testPacksModifyPack(t *testing.T, ds *mysql.Datastore) {
-	svc := newTestService(ds, nil, nil)
+	svc := newTestService(t, ds, nil, nil)
 	test.AddAllHostsLabel(t, ds)
 	users := createTestUsers(t, ds)
 
@@ -115,7 +115,7 @@ func testPacksModifyPack(t *testing.T, ds *mysql.Datastore) {
 }
 
 func testPacksListPacks(t *testing.T, ds *mysql.Datastore) {
-	svc := newTestService(ds, nil, nil)
+	svc := newTestService(t, ds, nil, nil)
 
 	queries, err := svc.ListPacks(test.UserContext(test.UserAdmin), fleet.PackListOptions{IncludeSystemPacks: false})
 	require.NoError(t, err)
@@ -186,7 +186,7 @@ func testPacksDeletePack(t *testing.T, ds *mysql.Datastore) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			svc := newTestService(ds, nil, nil)
+			svc := newTestService(t, ds, nil, nil)
 			if err := svc.DeletePack(tt.args.ctx, tt.args.name); (err != nil) != tt.wantErr {
 				t.Errorf("DeletePack() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -220,7 +220,7 @@ func testPacksDeletePackByID(t *testing.T, ds *mysql.Datastore) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			svc := newTestService(ds, nil, nil)
+			svc := newTestService(t, ds, nil, nil)
 			if err := svc.DeletePackByID(tt.args.ctx, tt.args.id); (err != nil) != tt.wantErr {
 				t.Errorf("DeletePackByID() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -290,7 +290,7 @@ func testPacksApplyPackSpecs(t *testing.T, ds *mysql.Datastore) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			svc := newTestService(ds, nil, nil)
+			svc := newTestService(t, ds, nil, nil)
 			got, err := svc.ApplyPackSpecs(tt.args.ctx, tt.args.specs)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ApplyPackSpecs() error = %v, wantErr %v", err, tt.wantErr)

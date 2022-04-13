@@ -5,7 +5,7 @@
 source $FLEET_ENV_PATH
 
 # Create teams
-create_team_endpoint="api/v1/fleet/teams"
+create_team_endpoint="api/latest/fleet/teams"
 
 # Create Apples
 data='{
@@ -20,7 +20,7 @@ data='{
 curl -X POST $CURL_FLAGS -H "Authorization: Bearer $TOKEN" "$SERVER_URL/$create_team_endpoint" -d "$data" --insecure
 
 # Create users
-create_user_endpoint="api/v1/fleet/users/admin"
+create_user_endpoint="api/latest/fleet/users/admin"
 
 # Create Anna
 data='{
@@ -71,6 +71,23 @@ data='{
     {
       "id": 2,
       "role": "maintainer"
+    }
+  ]
+}'
+curl -X POST $CURL_FLAGS -H "Authorization: Bearer $TOKEN" "$SERVER_URL/$create_user_endpoint" -d "$data" --insecure
+
+# Create Anita
+data='{
+  "name": "Anita T. Admin",
+  "email": "anita@organization.com",
+  "password": "user123#",
+  "invited_by": 1,
+  "global_role": null,
+  "admin_forced_password_reset": false,
+  "teams": [
+    {
+      "id": 1,
+      "role": "admin"
     }
   ]
 }'

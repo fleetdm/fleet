@@ -276,21 +276,21 @@ describe("Premium tier - Team observer/maintainer user", () => {
         cy.findByText(/apples/i).click();
         cy.findByText(/oranges/i).click();
 
-        // On maintaining team, not see the "Manage automations" button
-        cy.findByText(/manage automations/i).should("not.exist");
+        // On maintaining team, should see the "Manage automations" button
+        cy.findByText(/manage automations/i).should("exist");
         // On maintaining team, should see "add a policy" and "save" a policy
         cy.findByText(/add a policy/i).click();
 
         // Add a default policy
         cy.findByText(/gatekeeper enabled/i).click();
-        cy.getAttached(".policy-form__button-wrap--new-policy").within(() => {
+        cy.getAttached(".policy-form__button-wrap").within(() => {
           cy.findByRole("button", { name: /save policy/i }).click();
         });
         cy.findByRole("button", { name: /^Save$/ }).click();
         cy.findByText(/policy created/i).should("exist");
 
         // On maintaining team, should see "save" and "run" for a new policy
-        cy.getAttached(".policy-form__button-wrap--new-policy").within(() => {
+        cy.getAttached(".policy-form__button-wrap").within(() => {
           cy.findByRole("button", { name: /run/i }).should("exist");
           cy.findByRole("button", { name: /save/i }).should("exist");
         });

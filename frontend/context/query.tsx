@@ -4,7 +4,7 @@ import { find } from "lodash";
 // @ts-ignore
 import { osqueryTables } from "utilities/osquery_tables";
 import { DEFAULT_QUERY } from "utilities/constants";
-import { IOsqueryTable } from "interfaces/osquery_table";
+import { DEFAULT_OSQUERY_TABLE, IOsqueryTable } from "interfaces/osquery_table";
 
 type Props = {
   children: ReactNode;
@@ -26,7 +26,8 @@ type InitialStateType = {
 };
 
 const initialState = {
-  selectedOsqueryTable: find(osqueryTables, { name: "users" }),
+  selectedOsqueryTable:
+    find(osqueryTables, { name: "users" }) || DEFAULT_OSQUERY_TABLE,
   lastEditedQueryId: null,
   lastEditedQueryName: DEFAULT_QUERY.name,
   lastEditedQueryDescription: DEFAULT_QUERY.description,
@@ -50,7 +51,9 @@ const reducer = (state: any, action: any) => {
     case actions.SET_SELECTED_OSQUERY_TABLE:
       return {
         ...state,
-        selectedOsqueryTable: find(osqueryTables, { name: action.tableName }),
+        selectedOsqueryTable:
+          find(osqueryTables, { name: action.tableName }) ||
+          DEFAULT_OSQUERY_TABLE,
       };
     case actions.SET_LAST_EDITED_QUERY_INFO:
       return {

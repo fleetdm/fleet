@@ -20,7 +20,7 @@ interface IGetToggleAllRowsSelectedProps {
   checked: boolean;
   indeterminate: boolean;
   title: string;
-  onChange: () => any;
+  onChange: () => void;
   style: { cursor: string };
 }
 
@@ -35,7 +35,7 @@ interface IHeaderProps {
 
 interface ICellProps {
   cell: {
-    value: any;
+    value: string;
   };
   row: {
     original: IPack;
@@ -118,13 +118,6 @@ const generateTableHeaders = (): IDataColumn[] => {
       ),
     },
     {
-      title: "Status",
-      Header: "Status",
-      disableSortBy: true,
-      accessor: "status",
-      Cell: (cellProps) => <StatusCell value={cellProps.cell.value} />,
-    },
-    {
       title: "Hosts",
       Header: (cellProps) => (
         <HeaderCell
@@ -149,6 +142,13 @@ const generateTableHeaders = (): IDataColumn[] => {
       Cell: (cellProps: ICellProps): JSX.Element => (
         <TextCell value={format(new Date(cellProps.cell.value), "MM/dd/yy")} />
       ),
+    },
+    {
+      title: "Status",
+      Header: "Status",
+      disableSortBy: true,
+      accessor: "status",
+      Cell: (cellProps) => <StatusCell value={cellProps.cell.value} />,
     },
   ];
   return tableHeaders;

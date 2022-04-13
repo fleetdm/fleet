@@ -1,6 +1,12 @@
 .user-menu {
   button {
     background-color: transparent;
+    height: 50px;
+
+    &.focus-visible {
+      border: 1px solid $ui-vibrant-blue-10;
+      border-right: 0;
+    }
   }
 
   .dropdown-button__options {
@@ -12,7 +18,8 @@
       display: inline-block;
       min-width: 125px;
 
-      &:hover {
+      &:hover,
+      &:focus {
         background-color: $ui-vibrant-blue-10;
         color: $core-fleet-black;
       }

@@ -167,6 +167,14 @@ This process may take several minutes to complete as the Notarization process co
 
 After successful notarization, the generated "ticket" is automatically stapled to the package.
 
+#### Orbit Osquery Result and Status Logs
+
+If the `logger_path` configuration is set to `filesystem`, Orbit will store osquery's "result" and
+"status" logs to the following directories:
+  - Windows: C:\Program Files\Orbit\osquery_log
+  - macOS: /var/lib/orbit/osquery_log
+  - Linux: /var/lib/orbit/osquery_log
+
 #### Orbit Development
 
 For ease of development of Orbit, `fleetctl package` allows the generation of a package with a
@@ -182,9 +190,26 @@ Press Enter to continue, or Control-c to exit.
 
 If you want to run orbit from source directly, you can do the following:
 
-```sh 
-go run github.com/fleetdm/fleet/v4/orbit/cmd/orbit --root-dir /tmp/orbit -- --flagfile=flagfile.txt --verbose
+```sh
+go run github.com/fleetdm/fleet/v4/orbit/cmd/orbit \
+    --dev-mode \
+    --disable-updates \
+    --root-dir /tmp/orbit \
+    --fleet-url https://localhost:8080 \
+    --insecure \
+    --enroll-secret Pz3zC0NMDdZfb3FtqiLgwoexItojrYh/ \
+    -- --verbose
 ```
+
+Or, using a `flagfile.txt` for osqueryd:
+```sh 
+go run github.com/fleetdm/fleet/v4/orbit/cmd/orbit \
+    --dev-mode \
+    --disable-updates \
+    --root-dir /tmp/orbit \
+    -- --flagfile=flagfile.txt --verbose
+```
+
 
 ### Troubleshooting
 

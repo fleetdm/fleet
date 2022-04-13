@@ -1,10 +1,10 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import InfoBanner from "components/InfoBanner/InfoBanner";
 // @ts-ignore
-import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon";
+import InputField from "components/forms/fields/InputField";
 
 const baseClass = "create-team-modal";
 
@@ -15,17 +15,27 @@ export interface ICreateTeamFormData {
 interface ICreateTeamModalProps {
   onCancel: () => void;
   onSubmit: (formData: ICreateTeamFormData) => void;
+  backendValidators: { [key: string]: string };
 }
 
 const CreateTeamModal = ({
   onCancel,
   onSubmit,
+  backendValidators,
 }: ICreateTeamModalProps): JSX.Element => {
   const [name, setName] = useState("");
+  const [errors, setErrors] = useState<{ [key: string]: string }>(
+    backendValidators
+  );
+
+  useEffect(() => {
+    setErrors(backendValidators);
+  }, [backendValidators]);
 
   const onInputChange = useCallback(
     (value: string) => {
       setName(value);
+      setErrors({});
     },
     [setName]
   );
@@ -47,12 +57,14 @@ const CreateTeamModal = ({
         onSubmit={onFormSubmit}
         autoComplete="off"
       >
-        <InputFieldWithIcon
+        <InputField
           autofocus
           name="name"
           onChange={onInputChange}
+          label="Team name"
           placeholder="Team name"
           value={name}
+          error={errors.name}
         />
         <InfoBanner className={`${baseClass}__sandbox-info`}>
           <p className={`${baseClass}__info-header`}>

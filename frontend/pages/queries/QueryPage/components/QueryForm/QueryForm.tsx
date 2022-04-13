@@ -1,35 +1,37 @@
 import React, { useState, useContext, useEffect, KeyboardEvent } from "react";
-import { IAceEditor } from "react-ace/lib/types";
-import ReactTooltip from "react-tooltip";
+import { InjectedRouter } from "react-router";
 import { size } from "lodash";
-import { useDebouncedCallback } from "use-debounce/lib";
 import classnames from "classnames";
+import { useDebouncedCallback } from "use-debounce";
 
-import { addGravatarUrlToResource } from "fleet/helpers";
-// @ts-ignore
-import { listCompatiblePlatforms, parseSqlTables } from "utilities/sql_tools";
-
+import PATHS from "router/paths";
 import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
+import { NotificationContext } from "context/notification";
+import { addGravatarUrlToResource } from "fleet/helpers";
+import usePlatformCompatibility from "hooks/usePlatformCompatibility";
+import { IApiError } from "interfaces/errors";
 import { IQuery, IQueryFormData } from "interfaces/query";
+import queryAPI from "services/entities/queries";
 
+import { IAceEditor } from "react-ace/lib/types";
+import ReactTooltip from "react-tooltip";
 import Avatar from "components/Avatar";
-import FleetAce from "components/FleetAce";
-// @ts-ignore
+import FleetAce from "components/FleetAce"; // @ts-ignore
 import validateQuery from "components/forms/validators/validate_query";
 import Button from "components/buttons/Button";
+import RevealButton from "components/buttons/RevealButton";
 import Checkbox from "components/forms/fields/Checkbox";
 import Spinner from "components/Spinner";
-// @ts-ignore
 import AutoSizeInputField from "components/forms/fields/AutoSizeInputField";
 import NewQueryModal from "../NewQueryModal";
-import PlatformCompatibility from "../PlatformCompatibility";
 import InfoIcon from "../../../../../../assets/images/icon-info-purple-14x14@2x.png";
 import PencilIcon from "../../../../../../assets/images/icon-pencil-14x14@2x.png";
 
 const baseClass = "query-form";
 
 interface IQueryFormProps {
+  router: InjectedRouter;
   queryIdForEdit: number | null;
   showOpenSchemaActionText: boolean;
   storedQuery: IQuery | undefined;
@@ -44,7 +46,7 @@ interface IQueryFormProps {
 }
 
 const validateQuerySQL = (query: string) => {
-  const errors: { [key: string]: any } = {};
+  const errors: { [key: string]: string } = {};
   const { error: queryError, valid: queryValid } = validateQuery(query);
 
   if (!queryValid) {
@@ -56,6 +58,7 @@ const validateQuerySQL = (query: string) => {
 };
 
 const QueryForm = ({
+  router,
   queryIdForEdit,
   showOpenSchemaActionText,
   storedQuery,
@@ -69,14 +72,14 @@ const QueryForm = ({
   backendValidators,
 }: IQueryFormProps): JSX.Element => {
   const isEditMode = !!queryIdForEdit;
-  const [errors, setErrors] = useState<{ [key: string]: any }>({});
+  const [errors, setErrors] = useState<{ [key: string]: any }>({}); // string | null | undefined or boolean | undefined
   const [isSaveModalOpen, setIsSaveModalOpen] = useState<boolean>(false);
   const [showQueryEditor, setShowQueryEditor] = useState<boolean>(false);
-  const [compatiblePlatforms, setCompatiblePlatforms] = useState<string[]>([]);
   const [isEditingName, setIsEditingName] = useState<boolean>(false);
   const [isEditingDescription, setIsEditingDescription] = useState<boolean>(
     false
   );
+  const [isSaveAsNewLoading, setIsSaveAsNewLoading] = useState<boolean>(false);
 
   // Note: The QueryContext values should always be used for any mutable query data such as query name
   // The storedQuery prop should only be used to access immutable metadata such as author id
@@ -100,32 +103,29 @@ const QueryForm = ({
     isGlobalAdmin,
     isGlobalMaintainer,
   } = useContext(AppContext);
+  const { renderFlash } = useContext(NotificationContext);
 
-  const debounceCompatiblePlatforms = useDebouncedCallback(
-    (queryString: string) => {
-      setCompatiblePlatforms(
-        listCompatiblePlatforms(parseSqlTables(queryString))
-      );
-    },
-    300,
-    { leading: true }
-  );
+  const platformCompatibility = usePlatformCompatibility();
+  const { setCompatiblePlatforms } = platformCompatibility;
+
+  const debounceSQL = useDebouncedCallback((sql: string) => {
+    let valid = true;
+    const { valid: isValidated, errors: newErrors } = validateQuerySQL(sql);
+    valid = isValidated;
+
+    setErrors({
+      ...newErrors,
+    });
+  }, 500);
 
   queryIdForEdit = queryIdForEdit || 0;
 
   useEffect(() => {
-    if (queryIdForEdit === lastEditedQueryId) {
-      debounceCompatiblePlatforms(lastEditedQueryBody);
+    if (!isStoredQueryLoading && queryIdForEdit === lastEditedQueryId) {
+      setCompatiblePlatforms(lastEditedQueryBody);
     }
 
-    let valid = true;
-    const { valid: isValidated, errors: newErrors } = validateQuerySQL(
-      lastEditedQueryBody
-    );
-    valid = isValidated;
-    setErrors({
-      ...newErrors,
-    });
+    debounceSQL(lastEditedQueryBody);
   }, [lastEditedQueryBody, lastEditedQueryId]);
 
   const hasTeamMaintainerPermissions = isEditMode
@@ -168,7 +168,7 @@ const QueryForm = ({
     }
   };
 
-  const promptSaveQuery = (forceNew = false) => (
+  const promptSaveAsNewQuery = () => (
     evt: React.MouseEvent<HTMLButtonElement>
   ) => {
     evt.preventDefault();
@@ -186,7 +186,75 @@ const QueryForm = ({
     valid = isValidated;
 
     if (valid) {
-      if (!isEditMode || forceNew) {
+      setIsSaveAsNewLoading(true);
+
+      queryAPI
+        .create({
+          name: lastEditedQueryName,
+          description: lastEditedQueryDescription,
+          query: lastEditedQueryBody,
+          observer_can_run: lastEditedQueryObserverCanRun,
+        })
+        .then((response: { query: IQuery }) => {
+          setIsSaveAsNewLoading(false);
+          router.push(PATHS.EDIT_QUERY(response.query));
+          renderFlash("success", `Successfully added query.`);
+        })
+        .catch((createError: { data: IApiError }) => {
+          if (createError.data.errors[0].reason.includes("already exists")) {
+            queryAPI
+              .create({
+                name: `Copy of ${lastEditedQueryName}`,
+                description: lastEditedQueryDescription,
+                query: lastEditedQueryBody,
+                observer_can_run: lastEditedQueryObserverCanRun,
+              })
+              .then((response: { query: IQuery }) => {
+                setIsSaveAsNewLoading(false);
+                router.push(PATHS.EDIT_QUERY(response.query));
+                renderFlash(
+                  "success",
+                  `Successfully added query as "Copy of ${lastEditedQueryName}".`
+                );
+              })
+              .catch((createCopyError: { data: IApiError }) => {
+                if (
+                  createCopyError.data.errors[0].reason.includes(
+                    "already exists"
+                  )
+                ) {
+                  renderFlash(
+                    "error",
+                    `"Copy of ${lastEditedQueryName}" already exists. Please rename your query and try again.`
+                  );
+                }
+                setIsSaveAsNewLoading(false);
+              });
+          } else {
+            setIsSaveAsNewLoading(false);
+            renderFlash("error", "Could not create query. Please try again.");
+          }
+        });
+    }
+  };
+
+  const promptSaveQuery = () => (evt: React.MouseEvent<HTMLButtonElement>) => {
+    evt.preventDefault();
+
+    if (isEditMode && !lastEditedQueryName) {
+      return setErrors({
+        ...errors,
+        name: "Query name must be present",
+      });
+    }
+
+    let valid = true;
+    const { valid: isValidated } = validateQuerySQL(lastEditedQueryBody);
+
+    valid = isValidated;
+
+    if (valid) {
+      if (!isEditMode) {
         setIsSaveModalOpen(true);
       } else {
         onUpdate({
@@ -236,15 +304,11 @@ const QueryForm = ({
   };
 
   const renderPlatformCompatibility = () => {
-    if (
-      isStoredQueryLoading ||
-      queryIdForEdit !== lastEditedQueryId ||
-      !compatiblePlatforms.length
-    ) {
+    if (isStoredQueryLoading || queryIdForEdit !== lastEditedQueryId) {
       return null;
     }
 
-    return <PlatformCompatibility compatiblePlatforms={compatiblePlatforms} />;
+    return platformCompatibility.render();
   };
 
   const queryNameClasses = classnames("query-name-wrapper", {
@@ -335,14 +399,13 @@ const QueryForm = ({
         </div>
         <div className="author">{renderAuthor()}</div>
       </div>
-      <Button
-        className={`${baseClass}__toggle-sql`}
-        variant="text-link"
+      <RevealButton
+        isShowing={showQueryEditor}
+        baseClass={baseClass}
+        hideText="Hide SQL"
+        showText="Show SQL"
         onClick={() => setShowQueryEditor(!showQueryEditor)}
-        disabled={false}
-      >
-        {showQueryEditor ? "Hide SQL" : "Show SQL"}
-      </Button>
+      />
       {showQueryEditor && (
         <FleetAce
           value={lastEditedQueryBody}
@@ -374,6 +437,11 @@ const QueryForm = ({
   const renderForGlobalAdminOrAnyMaintainer = (
     <>
       <form className={`${baseClass}__wrapper`} autoComplete="off">
+        {isSaveAsNewLoading && (
+          <div className={`${baseClass}__loading-overlay`}>
+            <Spinner />
+          </div>
+        )}
         <div className={`${baseClass}__title-bar`}>
           <div className="name-description">
             {renderName()}
@@ -420,9 +488,9 @@ const QueryForm = ({
             <>
               {isEditMode && (
                 <Button
-                  className={`${baseClass}__save`}
+                  className={`${baseClass}__save-as-new`}
                   variant="text-link"
-                  onClick={promptSaveQuery(true)}
+                  onClick={promptSaveAsNewQuery()}
                   disabled={false}
                 >
                   Save as new
