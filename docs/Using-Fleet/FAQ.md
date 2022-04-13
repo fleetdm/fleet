@@ -126,15 +126,15 @@ Live query results are never logged to the filesystem of the Fleet server. See [
 
 You cannot. Scheduled query results are logged to whatever logging plugin you have configured and are not stored in the Fleet DB.
 
-However, the Fleet API exposes a significant amount of host information via the [`api/latest/fleet/hosts`](./REST-API.md#list-hosts) and the [`api/latest/fleet/hosts/{id}`](./REST-API.md#get-host) API endpoints. The `api/latest/fleet/hosts` [can even be configured to return additional host information](https://github.com/fleetdm/fleet/blob/9fb9da31f5462fa7dda4819a114bbdbc0252c347/docs/1-Using-Fleet/2-fleetctl-CLI.md#fleet-configuration-options).
+However, the Fleet API exposes a significant amount of host information via the [`api/latest/fleet/hosts`](./rest-api/README.md#list-hosts) and the [`api/latest/fleet/hosts/{id}`](./rest-api/README.md#get-host) API endpoints. The `api/latest/fleet/hosts` [can even be configured to return additional host information](https://github.com/fleetdm/fleet/blob/9fb9da31f5462fa7dda4819a114bbdbc0252c347/docs/1-Using-Fleet/2-fleetctl-CLI.md#fleet-configuration-options).
 
 As an example, let's say you want to retrieve a host's OS version, installed software, and kernel version:
 
-Each host’s OS version is available using the `api/latest/fleet/hosts` API endpoint. [Check out the API documentation for this endpoint](./REST-API.md#list-hosts).
+Each host’s OS version is available using the `api/latest/fleet/hosts` API endpoint. [Check out the API documentation for this endpoint](./rest-api/README.md#list-hosts).
 
 The ability to view each host’s installed software was released behind a feature flag in Fleet 3.11.0 and called Software inventory. [Check out the feature flag documentation for instructions on turning on Software inventory in Fleet](../Deploying/Configuration.md#feature-flags).
 
-Once the Software inventory feature is turned on, a list of a specific host’s installed software is available using the `api/latest/fleet/hosts/{id}` endpoint. [Check out the documentation for this endpoint](./REST-API.md#get-host).
+Once the Software inventory feature is turned on, a list of a specific host’s installed software is available using the `api/latest/fleet/hosts/{id}` endpoint. [Check out the documentation for this endpoint](./rest-api/README.md#get-host).
 
 It’s possible in Fleet to retrieve each host’s kernel version, using the Fleet API, through `additional_queries`. The Fleet configuration options yaml file includes an `additional_queries` property that allows you to append custom query results to the host details returned by the `api/latest/fleet/hosts` endpoint. [Check out an example configuration file with the additional_queries field](./fleetctl-CLI.md#fleet-configuration-options).
 
@@ -154,7 +154,7 @@ You can also do this by setting the `targets` field in the [YAML configuration f
 
 The following are reasons why a host may not be updating a policy's response:
 
-* The policy's query includes tables that are not compatible with this host's platform. For example, if your policy's query contains the [`apps` table](https://osquery.io/schema/5.0.1/#apps), which is only compatible on hosts running macOS, this policy will not update its response if this host is running Windows or Linux. 
+* The policy's query includes tables that are not compatible with this host's platform. For example, if your policy's query contains the [`apps` table](https://osquery.io/schema/5.0.1/#apps), which is only compatible on hosts running macOS, this policy will not update its response if this host is running Windows or Linux.
 
 * The policy's query includes invalid SQL syntax. If your policy's query includes invalid syntax, this policy will not update its response. You can check the syntax of your query by heading to the **Queries** page, selecting your query, and then selecting "Save."
 
@@ -198,7 +198,7 @@ fleetctl package --fleetctl package --type=deb --fleet-url=https://localhost:808
 ```
 ## Can I bundle osquery extensions into Orbit?
 
-This isn't supported yet, but we're working on it! 
+This isn't supported yet, but we're working on it!
 
 ## What happens to osquery logs if my Fleet server or my logging destination is offline?
 
@@ -222,7 +222,7 @@ This isn't currently supported, but we're working on it! You can track that issu
 
 ## Can I create reports based on historical data in Fleet?
 
-Currently, Fleet only stores the current state of your hosts (when they last communicated with Fleet). The best way at the moment to maintain historical data would be to use the [REST API](./REST-API.md) or the [`fleetctl` CLI](./fleetctl-CLI.md) to retrieve it manually. Then save the data you need to your schedule. 
+Currently, Fleet only stores the current state of your hosts (when they last communicated with Fleet). The best way at the moment to maintain historical data would be to use the [REST API](./rest-api/README.md) or the [`fleetctl` CLI](./fleetctl-CLI.md) to retrieve it manually. Then save the data you need to your schedule.
 
 ## When do I need fleetctl vs the REST API vs the Fleet UI?
 
@@ -230,4 +230,4 @@ Currently, Fleet only stores the current state of your hosts (when they last com
 
 The [REST API](https://fleetdm.com/docs/using-fleet/rest-api) is somewhat similar to fleetctl, but it tends to be used more by other computer programs rather than human users (although humans can use it too). For example, our [Fleet UI](https://fleetdm.com/docs/using-fleet/rest-api) talks to the server via the REST API. Folks can also use the REST API if they want to build their own programs that talk to the Fleet server.
 
-The [Fleet UI](https://fleetdm.com/docs/using-fleet/fleet-ui) is built for human users to make interfacing with the Fleet server user-friendly and visually appealing. It also makes things simpler and more accessible to a broader range of users. 
+The [Fleet UI](https://fleetdm.com/docs/using-fleet/fleet-ui) is built for human users to make interfacing with the Fleet server user-friendly and visually appealing. It also makes things simpler and more accessible to a broader range of users.
