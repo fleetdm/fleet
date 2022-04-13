@@ -394,8 +394,12 @@ The following [Slack channels are maintained](https://fleetdm.com/handbook/compa
 
 | Slack channel                       | [DRI](https://fleetdm.com/handbook/company#group-slack-channels)    |
 |:------------------------------------|:--------------------------------------------------------------------|
-| `#g-product`                        | Noah Talerman
-| `#help-qa`                          | Reed Haynes
+| `#help-product`                     | Noah Talerman                                                       |
+| `#help-qa`                          | Reed Haynes                                                         |
+| `#g-platform`                       | Zach Wasserman                                                      |
+| `#g-interface`                      | Noah Talerman                                                       |
+| `#g-agent`                          | Mo Zhu                                                              |
+
 
 
 
