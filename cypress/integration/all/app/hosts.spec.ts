@@ -29,7 +29,7 @@ describe("Hosts flow", () => {
       cy.visit("/hosts/manage");
 
       cy.getAttached(".manage-hosts").within(() => {
-        cy.getAttached(".manage-hosts__export-btn").click();
+        // cy.getAttached(".manage-hosts__export-btn").click(); // Feature pushed back from 4.13 release
         cy.contains("button", /add hosts/i).click();
       });
       cy.getAttached(".react-tabs").within(() => {
@@ -47,11 +47,13 @@ describe("Hosts flow", () => {
       // before each test run (seems to be related to issues with Cypress trashAssetsBeforeRun)
       if (Cypress.platform !== "win32") {
         // windows has issues with downloads location
-        const formattedTime = format(new Date(), "yyyy-MM-dd");
-        const filename = `Hosts ${formattedTime}.csv`;
-        cy.readFile(path.join(Cypress.config("downloadsFolder"), filename), {
-          timeout: 5000,
-        });
+
+        // Feature pushed back from 4.13 release
+        // const formattedTime = format(new Date(), "yyyy-MM-dd");
+        // const filename = `Hosts ${formattedTime}.csv`;
+        // cy.readFile(path.join(Cypress.config("downloadsFolder"), filename), {
+        //   timeout: 5000,
+        // });
         cy.readFile(
           path.join(Cypress.config("downloadsFolder"), "secret.txt"),
           {
