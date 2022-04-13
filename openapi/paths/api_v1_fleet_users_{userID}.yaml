@@ -18,3 +18,4 @@ get:
       $ref: ../components/responses/User.yaml
     '404':
       $ref: ../components/responses/NotFound.yaml
+  x-oapi-codegen-middlewares: ["auth-user"]

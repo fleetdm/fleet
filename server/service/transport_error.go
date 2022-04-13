@@ -65,20 +65,23 @@ type existsErrorInterface interface {
 	IsExists() bool
 }
 
+/*
 func encodeErrorAndTrySentry(sentryEnabled bool) func(ctx context.Context, err error, w http.ResponseWriter) {
 	if !sentryEnabled {
-		return encodeError
+		return EncodeError
 	}
 	return func(ctx context.Context, err error, w http.ResponseWriter) {
-		encodeError(ctx, err, w)
+		EncodeError(ctx, err, w)
 		sendToSentry(ctx, err)
 	}
 }
+*/
 
 // encode error and status header to the client
-func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
-	ctxerr.Handle(ctx, err)
+// TODO: move out of service?
+func EncodeError(w http.ResponseWriter, err error) {
 
+	// TODO: use temporary buffer to handle json encoding errors
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
 

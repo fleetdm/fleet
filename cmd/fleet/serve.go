@@ -46,6 +46,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/getsentry/sentry-go"
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
@@ -404,12 +405,23 @@ the way that the Fleet server works.
 				srv := &Server{
 					svc: svc,
 				}
-				// TODO: use options.BaseRouter to register websocket route
-				baseRouter := chi.NewRouter()
+
+				// TODO: extract to function
+				eh := errorstore.NewHandler(ctx, redisPool, logger, config.Logging.ErrorRetentionPeriod)
+
+				r := chi.NewRouter()
+				r.Use(middleware.RealIP)
+				r.Use(errorMiddleware(eh, logger))
+				r.Use(authMiddleware(svc))
+				// metrics, tracing
+
 				// TODO: use baseRouter.Handle to attach websocket route
+				// TODO: attach global middleware here eg setRequestsContexts
 				opts := openapi.ChiServerOptions{
-					BaseRouter: baseRouter,
+					BaseRouter: r,
 					Middlewares: map[string]openapi.MiddlewareFunc{
+						"auth-user":   authUserMiddleware(svc),
+						"auth-device": authDeviceMiddleware(svc),
 						"limit-login": limitMiddleware(limiterStore, "login", throttled.RateQuota{MaxRate: throttled.PerMin(10), MaxBurst: 9}),
 					},
 				}

@@ -2,9 +2,7 @@ package service
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
-	"io"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -19,6 +17,7 @@ import (
 // errBadRoute is used for mux errors
 var errBadRoute = errors.New("bad route")
 
+/*
 func encodeResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
 	// The has to happen first, if an error happens we'll redirect to an error
 	// page and the error will be logged
@@ -49,6 +48,7 @@ func encodeResponse(ctx context.Context, w http.ResponseWriter, response interfa
 	enc.SetIndent("", "  ")
 	return enc.Encode(response)
 }
+*/
 
 // statuser allows response types to implement a custom
 // http success status - default is 200 OK

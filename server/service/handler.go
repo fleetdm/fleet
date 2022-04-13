@@ -83,7 +83,7 @@ func MakeHandler(svc fleet.Service, config config.FleetConfig, logger kitlog.Log
 			setRequestsContexts(svc),
 		),
 		kithttp.ServerErrorHandler(&errorHandler{logger}),
-		kithttp.ServerErrorEncoder(encodeErrorAndTrySentry(config.Sentry.Dsn != "")),
+		// kithttp.ServerErrorEncoder(encodeErrorAndTrySentry(config.Sentry.Dsn != "")),
 		kithttp.ServerAfter(
 			kithttp.SetContentType("application/json; charset=utf-8"),
 			logRequestEnd(logger),
@@ -443,7 +443,7 @@ func newServer(e endpoint.Endpoint, decodeFn kithttp.DecodeRequestFunc, opts []k
 	// returning authz check missing instead of the more relevant error. Should be addressed as part
 	// of #4406.
 	e = authzcheck.NewMiddleware().AuthzCheck()(e)
-	return kithttp.NewServer(e, decodeFn, encodeResponse, opts...)
+	return kithttp.NewServer(e, decodeFn, nil, opts...)
 }
 
 // WithSetup is an http middleware that checks if setup procedures have been completed.
@@ -458,7 +458,7 @@ func WithSetup(svc fleet.Service, logger kitlog.Logger, next http.Handler) http.
 		configRouter.Handle("/api/v1/setup", kithttp.NewServer(
 			makeSetupEndpoint(svc, logger),
 			decodeSetupRequest,
-			encodeResponse,
+			nil,
 		))
 		// whitelist osqueryd endpoints
 		if rxOsquery.MatchString(r.URL.Path) {

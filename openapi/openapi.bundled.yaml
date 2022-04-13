@@ -28,7 +28,7 @@ paths:
 
         To get an API token for an SSO user, you can use the Fleet UI.
       x-oapi-codegen-middlewares:
-        - limit
+        - limit-login
       requestBody:
         required: true
         $ref: '#/components/requestBodies/Login'
@@ -58,6 +58,8 @@ paths:
           $ref: '#/components/responses/User'
         '404':
           $ref: '#/components/responses/NotFound'
+      x-oapi-codegen-middlewares:
+        - auth-user
   /api/v1/fleet/hosts:
     get:
       operationId: getHosts

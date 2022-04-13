@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"net/http"
 	"strings"
@@ -10,38 +9,6 @@ import (
 	"github.com/fleetdm/fleet/v4/openapi"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
-
-/*
-type ErrorContextKey struct{}
-
-type Handler func(w http.ResponseWriter, r *http.Request) error
-
-func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if err := h(w, r); err != nil {
-		// set the error in the request context
-		errPtr, ok := r.Context().Value(ErrorContextKey{}).(*error)
-		if !ok {
-			panic("request context does not contain error pointer")
-		}
-		*errPtr = err
-	}
-}
-*/
-
-// ErrorMiddleware accepts a callback that will be called if there is an error returned from the handler.
-func ErrorMiddleware(h func(w http.ResponseWriter, r *http.Request, err error)) openapi.MiddlewareFunc {
-	return func(next openapi.HandlerFunc) openapi.HandlerFunc {
-		return func(w http.ResponseWriter, r *http.Request) error {
-			var err error
-			ctx := context.WithValue(r.Context(), openapi.ErrorContextKey{}, &err)
-			next.ServeHTTP(w, r.WithContext(ctx))
-			if err != nil {
-				h(w, r, err)
-			}
-			return nil
-		}
-	}
-}
 
 type Server struct {
 	svc fleet.Service
