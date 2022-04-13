@@ -4,7 +4,7 @@
 
 When filing an issue, make sure to answer these five questions:
 
-#### 1. What version of Fleet are you using? 
+#### 1. What version of Fleet are you using?
 
 Copy the version from the "My account" page in the Fleet UI (located below the "Get API token" button) or by run the `fleetctl version --full` command.
 
@@ -40,13 +40,13 @@ Fleet currently uses GitHub as the central location for documentation.
 
 ### Markdown links
 
-Due to the structure of the Fleet documentation and GitHub's unique markdown files, there are several practices we'd like to call out if you're documentation changes include links to other locations within the Fleet docs. 
+Due to the structure of the Fleet documentation and GitHub's unique markdown files, there are several practices we'd like to call out if you're documentation changes include links to other locations within the Fleet docs.
 
 #### Relative links
 
-When including a link to a different file in the Fleet documentation please use relative links when possible. 
+When including a link to a different file in the Fleet documentation please use relative links when possible.
 
-For example, let's say you're working on changes in the Contribution docs and you'd like to add a link to the REST API docs. The relative link would look something like `../Using-Fleet/REST-API.md`.
+For example, let's say you're working on changes in the Contribution docs and you'd like to add a link to the REST API docs. The relative link would look something like `../Using-Fleet/rest-api/README.md`.
 
 #### Special characters in anchor links
 

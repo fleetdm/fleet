@@ -223,7 +223,7 @@ module.exports = {
 
             'docs': 'zwass',// (default for docs)
             'docs/images': ['noahtalerman', 'eashaw', 'mike-j-thomas'],
-            'docs/Using-Fleet/REST-API.md': 'lukeheath',
+            'docs/Using-Fleet/rest-api': 'lukeheath',
             'docs/Contributing/API-for-contributors.md': 'lukeheath',
             'docs/Deploying/FAQ.md': ['ksatter', 'dominuskelvin'],
             'docs/Contributing/FAQ.md': ['ksatter', 'dominuskelvin'],
