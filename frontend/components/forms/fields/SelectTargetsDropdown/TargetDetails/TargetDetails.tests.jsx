@@ -1,5 +1,5 @@
 import React from "react";
-import { mount } from "enzyme";
+import { fireEvent, render, screen } from "@testing-library/react";
 
 import TargetDetails from "components/forms/fields/SelectTargetsDropdown/TargetDetails";
 import Test from "test";
@@ -9,15 +9,15 @@ describe("TargetDetails - component", () => {
 
   describe("rendering", () => {
     it("does not render without a target", () => {
-      const Component = mount(<TargetDetails />);
+      const { container } = render(<TargetDetails />);
 
-      expect(Component.html()).toBeFalsy();
+      expect(container).toBeEmptyDOMElement();
     });
 
     it("renders when there is a target", () => {
-      const Component = mount(<TargetDetails {...defaultProps} />);
+      const { container } = render(<TargetDetails {...defaultProps} />);
 
-      expect(Component.length).toEqual(1);
+      expect(container).not.toBeEmptyDOMElement();
     });
 
     describe("when the target is a host", () => {
@@ -32,25 +32,27 @@ describe("TargetDetails - component", () => {
           platform: "platform",
           status: "status",
         };
-        const Component = mount(<TargetDetails target={target} />);
-        const componentText = Component.text();
+        render(<TargetDetails target={target} />);
 
-        expect(componentText).toContain(target.display_text);
-        expect(componentText).toContain(target.primary_mac);
-        expect(componentText).toContain(target.primary_ip);
-        expect(componentText).toContain("1.0 GB");
-        expect(componentText).toContain(target.osquery_version);
-        expect(componentText).toContain(target.os_version);
-        expect(componentText).toContain(target.platform);
-        expect(componentText).toContain(target.status);
+        expect(screen.getByText(target.display_text)).toBeInTheDocument();
+        expect(screen.getByText(target.primary_mac)).toBeInTheDocument();
+        expect(screen.getByText(target.primary_ip)).toBeInTheDocument();
+        expect(screen.getByText("1.0 GB")).toBeInTheDocument();
+        expect(screen.getByText(target.osquery_version)).toBeInTheDocument();
+        expect(screen.getByText(target.os_version)).toBeInTheDocument();
+        expect(screen.getByText(target.platform)).toBeInTheDocument();
+        expect(screen.getByText(target.status)).toBeInTheDocument();
       });
 
       it("renders a success check icon when the target is online", () => {
         const target = { ...Test.Stubs.hostStub, status: "online" };
-        const Component = mount(<TargetDetails target={target} />);
-        const FleetIcon = Component.find("FleetIcon");
-        const onlineIcon = FleetIcon.find(".host-target__icon--online");
-        const offlineIcon = FleetIcon.find(".host-target__icon--offline");
+        const { container } = render(<TargetDetails target={target} />);
+        const onlineIcon = container.querySelectorAll(
+          ".host-target__icon--online"
+        );
+        const offlineIcon = container.querySelectorAll(
+          ".host-target__icon--offline"
+        );
 
         expect(onlineIcon.length).toBeGreaterThan(
           0,
@@ -64,10 +66,13 @@ describe("TargetDetails - component", () => {
 
       it("renders a offline icon when the target is offline", () => {
         const target = { ...Test.Stubs.hostStub, status: "offline" };
-        const Component = mount(<TargetDetails target={target} />);
-        const FleetIcon = Component.find("FleetIcon");
-        const onlineIcon = FleetIcon.find(".host-target__icon--online");
-        const offlineIcon = FleetIcon.find(".host-target__icon--offline");
+        const { container } = render(<TargetDetails target={target} />);
+        const onlineIcon = container.querySelectorAll(
+          ".host-target__icon--online"
+        );
+        const offlineIcon = container.querySelectorAll(
+          ".host-target__icon--offline"
+        );
 
         expect(onlineIcon.length).toEqual(
           0,
@@ -90,20 +95,17 @@ describe("TargetDetails - component", () => {
         online: 10,
         query: "query",
       };
-      const Component = mount(<TargetDetails target={target} />);
 
       it("renders the label data", () => {
-        const componentText = Component.text();
-
-        expect(componentText).toContain("100% ONLINE");
-        expect(componentText).toContain(target.display_text);
-        expect(componentText).toContain(target.description);
+        render(<TargetDetails target={target} />);
+        expect(screen.getByText(/ONLINE/)).toBeInTheDocument();
+        expect(screen.getByText(target.display_text)).toBeInTheDocument();
+        expect(screen.getByText(target.description)).toBeInTheDocument();
       });
 
       it("renders a read-only AceEditor", () => {
-        const AceEditor = Component.find("ReactAce");
-
-        expect(AceEditor.prop("readOnly")).toEqual(true);
+        render(<TargetDetails target={target} />);
+        expect(screen.getByRole("textbox")).toHaveAttribute("readonly");
       });
     });
   });
@@ -111,22 +113,21 @@ describe("TargetDetails - component", () => {
   it("calls the handleBackToResults prop when the back button is clicked", () => {
     const labelSpy = jest.fn();
     const labelProps = { ...defaultProps, handleBackToResults: labelSpy };
-    const LabelComponent = mount(<TargetDetails {...labelProps} />);
-    const LabelBackButton = LabelComponent.find(".label-target__back");
+    const { rerender } = render(<TargetDetails {...labelProps} />);
+
+    fireEvent.click(screen.getByRole("button"));
+
+    expect(labelSpy).toHaveBeenCalled();
 
     const hostSpy = jest.fn();
     const hostProps = {
       target: Test.Stubs.hostStub,
       handleBackToResults: hostSpy,
     };
-    const HostComponent = mount(<TargetDetails {...hostProps} />);
-    const HostBackButton = HostComponent.find(".host-target__back");
 
-    LabelBackButton.simulate("click");
+    rerender(<TargetDetails {...hostProps} />);
 
-    expect(labelSpy).toHaveBeenCalled();
-
-    HostBackButton.simulate("click");
+    fireEvent.click(screen.getByRole("button"));
 
     expect(hostSpy).toHaveBeenCalled();
   });

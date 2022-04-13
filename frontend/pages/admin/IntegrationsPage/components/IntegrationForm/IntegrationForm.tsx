@@ -34,13 +34,13 @@ const IntegrationForm = ({
   const [formData, setFormData] = useState<IJiraIntegrationFormData>({
     url: integrationEditing?.url || "",
     username: integrationEditing?.username || "",
-    password: integrationEditing?.password || "",
+    apiToken: integrationEditing?.api_token || "",
     projectKey: integrationEditing?.project_key || "",
     enableSoftwareVulnerabilities:
       integrationEditing?.enable_software_vulnerabilities || false,
   });
 
-  const { url, username, password, projectKey } = formData;
+  const { url, username, apiToken, projectKey } = formData;
 
   const onInputChange = ({ name, value }: IFormField) => {
     setFormData({ ...formData, [name]: value });
@@ -55,7 +55,7 @@ const IntegrationForm = ({
       jiraIntegrationSubmitData.splice(integrationEditing.index, 1, {
         url,
         username,
-        password,
+        api_token: apiToken,
         project_key: projectKey,
       });
     } else {
@@ -65,7 +65,7 @@ const IntegrationForm = ({
         {
           url,
           username,
-          password,
+          api_token: apiToken,
           project_key: projectKey,
         },
       ];
@@ -110,11 +110,11 @@ const IntegrationForm = ({
         }
       />
       <InputField
-        name="password"
+        name="apiToken"
         onChange={onInputChange}
-        label="Jira password"
+        label="Jira API token"
         parseTarget
-        value={password}
+        value={apiToken}
       />
       <InputField
         name="projectKey"
@@ -140,7 +140,7 @@ const IntegrationForm = ({
             !(
               formData.url === "" ||
               formData.username === "" ||
-              formData.password === "" ||
+              formData.apiToken === "" ||
               formData.projectKey === ""
             )
           }
@@ -152,7 +152,7 @@ const IntegrationForm = ({
             disabled={
               formData.url === "" ||
               formData.username === "" ||
-              formData.password === "" ||
+              formData.apiToken === "" ||
               formData.projectKey === ""
             }
           >

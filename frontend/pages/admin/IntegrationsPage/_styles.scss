@@ -8,23 +8,6 @@
   }
 }
 
-.team-details__team-details {
-  .form-field--dropdown {
-    margin-bottom: 0;
-  }
-}
-
-.team-details.team-select-open {
-  .component__tabs-wrapper {
-    position: relative;
-    z-index: 2;
-  }
-  .members {
-    position: relative;
-    z-index: 1;
-  }
-}
-
 .no-integrations {
   display: flex;
   flex-direction: column;
@@ -109,7 +92,12 @@
     width: 350px;
   }
 }
-.hosts__cell {
+
+.logo__header {
+  width: 24px;
+}
+
+.logo__cell {
   img {
     width: 24px;
   }

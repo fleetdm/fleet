@@ -2,7 +2,7 @@
 
 You can configure automations in Fleet to send a webhook request if a certain condition is met.
 
-[Vulnerability automations](#policy-automations) send a webhook request if a new vulnerability (CVE) is
+[Vulnerability automations](#vulnerability-automations) send a webhook request if a new vulnerability (CVE) is
 detected on at least one host.
 
 [Policy automations](#policy-automations) send a webhook request if a policy is newly failing on at
@@ -17,7 +17,7 @@ Vulnerability automations send a webhook request if a new vulnerability (CVE) is
 found on at least one host.
 
 > Note that a CVE is "new" if it was published to the national vulnerability (NVD) database within
-> the last 2 days.
+> the last 30 days (by default).
 
 Fleet sends these webhook requests once every hour. If two new vulnerabilities are detected
 within the hour, two
@@ -54,10 +54,10 @@ POST https://server.com/example
 ## Policy automations
 
 Policy automations send a webhook request if a policy is newly failing on at
-least one host. 
+least one host.
 
 > Note that a policy is "newly failing" if a host updated its response from "no response" to "failing"
-> or from "passing" to "failing." 
+> or from "passing" to "failing."
 
 Fleet sends these webhook requests once per day. If two policies are newly failing
 within the day, two webhook requests are sent. This interval can be updated with the `webhook_settings.interval`
@@ -117,9 +117,9 @@ POST https://server.com/example
 
 ```json
 {
-  "text": "More than X% of your hosts have not checked into Fleet           
-           for more than X days. You’ve been sent this message  
-           because the Host status webhook is enabeld in your Fleet 
+  "text": "More than X% of your hosts have not checked into Fleet
+           for more than X days. You’ve been sent this message
+           because the Host status webhook is enabeld in your Fleet
            instance.",
   "data": {
     "unseen_hosts": 1,

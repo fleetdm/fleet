@@ -160,6 +160,7 @@ $base-class: "button";
     font-size: $x-small;
     font-weight: $bold;
     cursor: pointer;
+    white-space: nowrap;
 
     img {
       transform: scale(0.5);
@@ -280,12 +281,6 @@ $base-class: "button";
 
     &:focus {
       outline: none;
-    }
-
-    &:hover,
-    &:focus {
-      background-color: transparent;
-      box-shadow: none;
     }
   }
 
