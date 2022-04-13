@@ -1,7 +1,7 @@
 FROM alpine
 LABEL maintainer="Fleet Developers <hello@fleetdm.com>"
 
-RUN apk --update add ca-certificates
+RUN apk --update add ca-certificates jq
 
 # Create FleetDM group and user
 RUN addgroup -S fleet && adduser -S fleet -G fleet
