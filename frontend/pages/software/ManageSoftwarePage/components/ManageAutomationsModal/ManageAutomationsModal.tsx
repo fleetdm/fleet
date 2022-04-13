@@ -11,6 +11,7 @@ import {
 import { IConfig } from "interfaces/config";
 import configAPI from "services/entities/config";
 
+import ReactTooltip from "react-tooltip";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 import Modal from "components/Modal";
@@ -352,6 +353,15 @@ const ManageAutomationsModal = ({
           >
             Cancel
           </Button>
+          <div
+            data-tip
+            data-for="save-automation-button"
+            data-tip-disable={
+              !(
+                integrationsIndexed && integrationsIndexed.length === 0 && jiraEnabled
+              )
+            }
+          >
           <Button
             className={`${baseClass}__btn`}
             type="submit"
@@ -361,6 +371,23 @@ const ManageAutomationsModal = ({
           >
             Save
           </Button>
+          </div>
+                          <ReactTooltip
+                  className={`save-automation-button-tooltip`}
+                  place="bottom"
+                  type="dark"
+                  effect="solid"
+                  backgroundColor="#3e4771"
+                  id="save-automation-button"
+                  data-html
+                >
+                  <div
+                    className={`tooltip`}
+                    style={{ width: "152px", textAlign: "center" }}
+                  >
+                    Add an integration to create tickets for vulnerability automations
+                  </div>
+                </ReactTooltip>
         </div>
       </div>
     </Modal>
