@@ -1616,7 +1616,7 @@ WHERE
 
 	if err := sqlx.GetContext(ctx, ds.reader, &row, query, args...); err != nil {
 		if err == sql.ErrNoRows {
-			return &fleet.OSVersions{}, nil
+			return nil, ctxerr.Wrap(ctx, notFound("OSVersions"))
 		} else {
 			return nil, err
 		}
@@ -1678,17 +1678,23 @@ func (ds *Datastore) UpdateOSVersions(ctx context.Context) error {
 		}
 	}
 
-	sql := `
+	var insertArgs []interface{}
+	for id, counts := range countsByTeamId {
+		insertArgs = append(insertArgs, id, "os_versions", counts)
+	}
+
+	insertValues := strings.TrimSuffix(strings.Repeat("(?, ?, ?),", len(countsByTeamId)), ",")
+
+	sql := fmt.Sprintf(`
 INSERT INTO aggregated_stats (id, type, json_value) 
-VALUES (?, ?, ?) 
+VALUES %s 
 ON DUPLICATE KEY UPDATE
 	json_value = VALUES(json_value),
 	updated_at = CURRENT_TIMESTAMP
-`
-	for id, counts := range countsByTeamId {
-		if _, err := ds.writer.ExecContext(ctx, sql, id, "os_versions", counts); err != nil {
-			return ctxerr.Wrap(ctx, err, fmt.Sprint("update os versions for team id: ", id))
-		}
+`, insertValues)
+
+	if _, err := ds.writer.ExecContext(ctx, sql, insertArgs...); err != nil {
+		return ctxerr.Wrap(ctx, err, "update aggregated stats for os versions")
 	}
 
 	return nil
@@ -1699,8 +1705,7 @@ type osCounts struct {
 	OSVersions *json.RawMessage `db:"json_value"`
 }
 
-func (ds *Datastore) gatherOSCountsDB(ctx context.Context) (*[]osCounts, error,
-) {
+func (ds *Datastore) gatherOSCountsDB(ctx context.Context) (*[]osCounts, error) {
 	query := `
 SELECT
   team_id id,

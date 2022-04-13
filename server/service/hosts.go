@@ -927,7 +927,9 @@ func (svc *Service) OSVersions(ctx context.Context, teamID *uint, platform *stri
 	}
 
 	osVersions, err := svc.ds.OSVersions(ctx, teamID, platform)
-	if err != nil {
+	if err != nil && fleet.IsNotFound(err) {
+		osVersions = &fleet.OSVersions{}
+	} else if err != nil {
 		return nil, err
 	}
 
