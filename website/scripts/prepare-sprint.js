@@ -28,14 +28,17 @@ module.exports = {
   fn: async function () {
 
     sails.log('Running custom shell script... (`sails run prepare-sprint`)');
+    
+    // Ensure milestone exists in both fleetdm/fleet and fleetdm/confidential
+    // TODO
 
-    // For all issues in "✅ Ready for release":
+    // For all issues in "Engineering" board's "✅ Ready for release":
     // • close them
     // • remove from project
     // • set milestone for all issues (why? clean archive)
     // TODO
 
-    // For all issues in the "Product" board's "🦤 Estimated" column but only those in the next release:
+    // For all issues in the "Product" board's "✅ In development" column tagged with the next release (as opposed to the only other possible option: the release after that):
     // • move to "✅ In development"
     // • add to "Release" (engineering) board in "🥚 Ready" column
     // TODO
