@@ -104,7 +104,8 @@ When a new team member joins Fleet, they adopt the values, from day 1.  This way
 ### 🔴 Empathy
 Empathy leads to better understanding, better communication, and better decisions.  Try to understand what people may be going through, so you can help make it better.
 
-- Be customer-first.
+- Think and make customer-first choices.
+
   <!-- TODO: Figure out what to do with this commented-out bit.  I wrote it, but it's too long.  Maybe just delete it. (mikermcneil, feb 26, 2022)
 
   > #### Customer first
@@ -116,33 +117,34 @@ Empathy leads to better understanding, better communication, and better decision
   > 
   > You would rest easier, knowing that everyone who works at Fleet is seeking to deliver the experience they would want for themselves, in your shoes. -->
 - Consider your counterpart.
-  - For example: customers, contributors, colleagues, the other person in your Zoom meeting, the other folks in a Slack channel, the people who use software and APIs you build, the people following the processes you design.
-  - Ask questions as you would want to be asked.
-  - Assume positive intent.
+  - For example: keep in mind customers, contributors, colleagues, the other person in your Zoom meeting, the other folks in a Slack channel, the people who use software and APIs you build, the people following the processes you design.
+  - Ask questions in a way you would want to be asked.
+  - Assume others have positive intent.
   - Be kind.
-  - Quickly review pending changes where your review was requested. <!-- TODO: (when you are requested as a reviewer in GitHub, respond quickly.  If pull requests start to stack up, merge conflicts can arise, or the original author can forget, or lose context for why they were making the change.  The more pending changes there are, the harder it is to sort through what needs to be reviewed next.) -->
+  - Quickly review pending changes when your review is requested. <!-- TODO: (when you are requested as a reviewer in GitHub, respond quickly.  If pull requests start to stack up, merge conflicts can arise, or the original author can forget, or lose context for why they were making the change.  The more pending changes there are, the harder it is to sort through what needs to be reviewed next.) -->
+
   - Be punctual.
   - End meetings on time.
 - Role play as a user.
   - Don't be afraid to rely on your imagination to understand. <!-- TODO: (When making changes, put yourself in the mindset of the end user. Keep in mind how someone might use the product or process you're building for the first time, or how someone accustomed to the old way might react to a new change.) -->
   - Developers are users too (REST API, fleetctl, docs).
-  - The contributor experience matters (but product quality and commitments come first).
+  - Contributor experience matters (but product quality and commitments come first).
   - Bugs cause frustrating experiences and alienate users.
-  - Patch with care (upgrading to new releases of Fleet can be time-consuming for users running self-managed deployments). <!-- TODO: (patch releases are important for improving security, quality, and stability. Cut a patch release if there is a security concern, previously stable features are unusable, or if a new feature advertised in the current release is unusable.  But remember that people have to actually install these updates!) -->
+  - Create patches with care (upgrading to new releases of Fleet can be time-consuming for users running self-managed deployments). <!-- TODO: (patch releases are important for improving security, quality, and stability. Cut a patch release if there is a security concern, previously stable features are unusable, or if a new feature advertised in the current release is unusable.  But remember that people have to actually install these updates!) -->
   - Confusing error messages make people feel helpless and can fill them with despair.
   - Error messages deserve to be good (it's worth it to spend time on them).
-  - UI help text and labels deserve to be good (it's worth it to spend time on them).
-- Be hospitable. 
+  - UI help-text and labels deserve to be good (it's worth it to spend time on them).
+- Invest in hospitality.
   - "Be a helper."   -Mr. Rogers
   - Think and say [positive things](https://www.theatlantic.com/family/archive/2018/06/mr-rogers-neighborhood-talking-to-kids/562352/).
   - Use the `#thanks` channel to show genuine gratitude for other team member's actions.
   - Talking with users and contributors is time well spent.
   - Embrace the excitement of others (it's contagious).
   - Make small talk at the beginning of meetings.
-  - Be generous (go above and beyond; for example, the majority of the features Fleet releases [will always be free](https://fleetdm.com/pricing)).
+  - Be generous (go above and beyond; for example, the majority of the features Fleet releases [will always be free](https://fleetdm.com/pricing))
   - Apply customer service principles to all users, even if they never buy Fleet.
-  - Be our guest.
-- Better humanity.
+  - Treat everyone as our guest.
+  - Better humanity.
 
 
 ### 🟠 Ownership
@@ -152,6 +154,7 @@ Empathy leads to better understanding, better communication, and better decision
 - Take responsibility.
   - Think like an owner.
   - Follow through on commitments (actions match your words).
+
   - Own up to mistakes.
   - Understand why it matters (the goals of the work you are doing).
   - Consider the business impact (fast forward 12 months, consider the total cost of ownership over the eternity of maintenance).
@@ -159,52 +162,54 @@ Empathy leads to better understanding, better communication, and better decision
 - Be responsive.
   - Respond quickly, even if you can't take further action at that exact moment.
   - When you disagree, give your feedback; then agree and commit, or disagree and commit anyway.
-  - Favor short calls to long, asynchronous back and forth discussions in Slack.
+  - Favor short calls over long asynchronous back and forth discussions in Slack.
   - Procrastination is a symptom of not knowing what to do next (if you find yourself avoiding reading or responding to a message, schedule a Zoom call with the people you need to figure it out).
 - We win or lose together.
-  - Think about the big picture, beyond your individual team's goals
+  - Think about the big picture, beyond your individual team's goals.
   - Success equals creating value for customers.
   - You're not alone in this (there's a great community of people able and happy to help).
   - Don't be afraid to spend time helping users, customers, and contributors (including colleagues on other teams).
-  - Be proactive (ask other contributors how you can help, regardless of who is assigned to what).
-  - Get all the way done (help unblock team members and other contributors to deliver value).  <!-- TODO: (collaborate; help teammates see tasks through to completion) -->
+  - Be proactive (ask other contributors how you can help, regardless of who is assigned to what
+  - Finish tasks all the way before moving to something new (help unblock team members and other contributors to deliver value). 
+  - (collaborate; help teammates see tasks through to completion) -->
 - Take pride in your work.
-  - Be efficient (your time is valuable, your work matters, and your focus is a finite resource; it matters how you spend it).
+  - Be efficient (your time is valuable, your work matters, and your focus is a finite resource).
   - You don't need permission to be thoughtful.
   - Reread anything you write for users. <!-- TODO: (Check everything that a user might read for clarity, spelling errors, and to make sure that it provides value.) -->
   - Take your ideas seriously (great ideas come from everyone; write them out and see if they have merit).
   - Think for yourself, from first principles.
   - Use reason (believe in your brain's capacity to evaluate a solution or idea, regardless of how popular it is).
   - You are on a hero's journey (motivate yourself intrinsically with self-talk; even boring tasks are more motivating, fun, and effective when you care).
-- Better your results.
+  - Better your results.
+
 
 ### 🟢 Balance
 Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.org/wiki/Golden_mean_%28philosophy%29).
 
-- Remember to iterate.
+- Iterate your work.
   - Work in baby steps. <!-- TODO: (look for ways to make the smallest, minimally viable change. Small changes provide faster feedback, and help us to stay focused on quality) -->
   - Pick low-hanging fruit (deliver value quickly where you can).
   - Think ahead, then make the right decision for now.
-  - Look before you leap (when facing a non-trivial problem, get perspective before you dive in; what if there is a simpler solution?). <!-- TODO: When facing a (non-trivial) problem, take a step back before diving into fixing it - put the problem back in context, think about the actual goal and not just the issue itself, sometimes the obvious solution misses the end goal, sometimes a simpler solution will emerge, or it may just confirm that the fix is the right one and you can go ahead with better confidence -->
+  - Look before you leap (when facing a non-trivial problem, get perspective before you dive in; there may be a simpler solution). <!-- TODO: When facing a (non-trivial) problem, take a step back before diving into fixing it - put the problem back in context, think about the actual goal and not just the issue itself, sometimes the obvious solution misses the end goal, sometimes a simpler solution will emerge, or it may just confirm that the fix is the right one and you can go ahead with better confidence -->
 - Move quickly.
   - "Everything is in draft."
-  - Think, fast (balance thoughtfulness and planning with moving quickly).
-  - Aim to deliver daily.
-  - Move quicker than 90% of the humans you know.
-  - Resist gold-plating and avoid bike-shedding.
-- Less is more.
+  - Think fast (balance thoughtfulness and planning with moving quickly).
+  - Aim to deliver results daily.
+  - Move faster than 90% of the humans you know.
+  - Resist gold-plating and avoid [bike-shedding](https://en.wikipedia.org/wiki/Law_of_triviality).
+- Remember, less is more.
   - Focus on fewer tasks at one time.  <!-- TODO: (By focusing on fewer tasks at once, we are able to get more done, and to a higher standard, while feeling more positive about our work in the process.) -->
-  - Go for "boring solutions."
-  - Finish what you start, or at least throw it away loudly in case someone wants it.
+  - Go with "boring solutions."
+  - Finish what you start, or at least throw it away loudly in case someone else wants it.
   - Keep it simple (prioritize simplicity; people crave mental space in design, collaboration, and most areas of life). <!-- reduce cognitive load -->
   - Use fewer words (lots of text equals lots of work).
-  - Complete tasks as time allows  ("I would have written a shorter letter, but I did not have the time." -Blaise Pascal).
+  - As time allows  ("I would have written a shorter letter, but I did not have the time." -Blaise Pascal).
 - Make time for self-care.
-  - This will help you bring your best self when communicating with others, making decisions, etc.
+  - This helps you bring your best self when communicating with others, making decisions, etc.
   - Consider taking a break or going for a walk.
-  - Take time off; it is better to have 100% focus for 80% of the time than it is to have 80% focus for 100% of the time.
+  - Take time off (it is better to have 100% focus for 80% of the time than it is to have 80% focus for 100% of the time).
   - Think about how to best organize your day/work hours to fit your life and maximize your focus.
-- Better your focus.
+- Better focus.
 
 
 ### 🔵 Objectivity
