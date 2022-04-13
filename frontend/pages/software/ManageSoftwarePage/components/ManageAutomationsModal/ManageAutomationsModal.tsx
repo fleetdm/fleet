@@ -68,7 +68,7 @@ const ManageAutomationsModal = ({
   softwareVulnerabilityWebhookEnabled,
   currentDestinationUrl,
 }: IManageAutomationsModalProps): JSX.Element => {
-  const [destination_url, setDestinationUrl] = useState<string>(
+  const [destinationUrl, setDestinationUrl] = useState<string>(
     currentDestinationUrl || ""
   );
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
@@ -88,10 +88,10 @@ const ManageAutomationsModal = ({
   ] = useState<IJiraIntegration>();
 
   useDeepEffect(() => {
-    if (destination_url) {
+    if (destinationUrl) {
       setErrors({});
     }
-  }, [destination_url]);
+  }, [destinationUrl]);
 
   const { data: integrations } = useQuery<IConfig, Error, IJiraIntegration[]>(
     ["integrations"],
@@ -125,7 +125,7 @@ const ManageAutomationsModal = ({
     evt.preventDefault();
 
     const { valid: validUrl, errors: newErrors } = validateWebhookURL(
-      destination_url
+      destinationUrl
     );
     setErrors({
       ...errors,
@@ -136,7 +136,7 @@ const ManageAutomationsModal = ({
     const configSoftwareAutomations: ISoftwareAutomations = {
       webhook_settings: {
         vulnerabilities_webhook: {
-          destination_url,
+          destination_url: destinationUrl,
           enable_vulnerabilities_webhook: softwareVulnerabilityWebhookEnabled,
         },
       },
@@ -275,7 +275,7 @@ const ManageAutomationsModal = ({
           name="webhook-url"
           label={"Destination URL"}
           type={"text"}
-          value={destination_url}
+          value={destinationUrl}
           onChange={onURLChange}
           error={errors.url}
           hint={
@@ -358,7 +358,7 @@ const ManageAutomationsModal = ({
             data-for="save-automation-button"
             data-tip-disable={
               !(
-                integrationsIndexed && integrationsIndexed.length === 0 && jiraEnabled
+                integrationsIndexed && integrationsIndexed.length === 0 && jiraEnabled && softwareAutomationsEnabled
               )
             }
           >
@@ -367,7 +367,7 @@ const ManageAutomationsModal = ({
             type="submit"
             variant="brand"
             onClick={handleSaveAutomation}
-            disabled={jiraEnabled && !selectedIntegration}
+            disabled={softwareAutomationsEnabled && jiraEnabled && !selectedIntegration || softwareAutomationsEnabled && !jiraEnabled && destinationUrl === ""}
           >
             Save
           </Button>
