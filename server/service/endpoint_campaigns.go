@@ -3,7 +3,9 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -16,64 +18,72 @@ import (
 // Stream Distributed Query Campaign Results and Metadata
 ////////////////////////////////////////////////////////////////////////////////
 
-func makeStreamDistributedQueryCampaignResultsHandler(svc fleet.Service, logger kitlog.Logger) http.Handler {
+func makeStreamDistributedQueryCampaignResultsHandler(svc fleet.Service, logger kitlog.Logger) func(string) http.Handler {
 	opt := sockjs.DefaultOptions
 	opt.Websocket = true
 	opt.RawWebsocket = true
-	return sockjs.NewHandler("/api/latest/fleet/results", opt, func(session sockjs.Session) {
-		conn := &websocket.Conn{Session: session}
-		defer func() {
-			if p := recover(); p != nil {
-				logger.Log("err", p, "msg", "panic in result handler")
-				conn.WriteJSONError("panic in result handler")
+	return func(path string) http.Handler {
+		path = strings.TrimSuffix(path, "/")
+
+		fmt.Println(">>>>>> MOUNTING WEBSOCKET: ", path)
+		// TODO(mna): this doesn't work, of course, because this is what it receives:
+		// >>>>>> MOUNTING WEBSOCKET:  /api/{fleetversion:(?:v1|2022-04|latest)}/fleet/results
+
+		return sockjs.NewHandler(path, opt, func(session sockjs.Session) {
+			conn := &websocket.Conn{Session: session}
+			defer func() {
+				if p := recover(); p != nil {
+					logger.Log("err", p, "msg", "panic in result handler")
+					conn.WriteJSONError("panic in result handler")
+				}
+				session.Close(0, "none")
+			}()
+
+			// Receive the auth bearer token
+			token, err := conn.ReadAuthToken()
+			if err != nil {
+				logger.Log("err", err, "msg", "failed to read auth token")
+				return
 			}
-			session.Close(0, "none")
-		}()
 
-		// Receive the auth bearer token
-		token, err := conn.ReadAuthToken()
-		if err != nil {
-			logger.Log("err", err, "msg", "failed to read auth token")
-			return
-		}
+			// Authenticate with the token
+			vc, err := authViewer(context.Background(), string(token), svc)
+			if err != nil || !vc.CanPerformActions() {
+				logger.Log("err", err, "msg", "unauthorized viewer")
+				conn.WriteJSONError("unauthorized")
+				return
+			}
 
-		// Authenticate with the token
-		vc, err := authViewer(context.Background(), string(token), svc)
-		if err != nil || !vc.CanPerformActions() {
-			logger.Log("err", err, "msg", "unauthorized viewer")
-			conn.WriteJSONError("unauthorized")
-			return
-		}
+			ctx := viewer.NewContext(context.Background(), *vc)
 
-		ctx := viewer.NewContext(context.Background(), *vc)
+			msg, err := conn.ReadJSONMessage()
+			if err != nil {
+				logger.Log("err", err, "msg", "reading select_campaign JSON")
+				conn.WriteJSONError("error reading select_campaign")
+				return
+			}
+			if msg.Type != "select_campaign" {
+				logger.Log("err", "unexpected msg type, expected select_campaign", "msg-type", msg.Type)
+				conn.WriteJSONError("expected select_campaign")
+				return
+			}
 
-		msg, err := conn.ReadJSONMessage()
-		if err != nil {
-			logger.Log("err", err, "msg", "reading select_campaign JSON")
-			conn.WriteJSONError("error reading select_campaign")
-			return
-		}
-		if msg.Type != "select_campaign" {
-			logger.Log("err", "unexpected msg type, expected select_campaign", "msg-type", msg.Type)
-			conn.WriteJSONError("expected select_campaign")
-			return
-		}
+			var info struct {
+				CampaignID uint `json:"campaign_id"`
+			}
+			err = json.Unmarshal(*(msg.Data.(*json.RawMessage)), &info)
+			if err != nil {
+				logger.Log("err", err, "msg", "unmarshaling select_campaign data")
+				conn.WriteJSONError("error unmarshaling select_campaign data")
+				return
+			}
+			if info.CampaignID == 0 {
+				logger.Log("err", "campaign ID not set")
+				conn.WriteJSONError("0 is not a valid campaign ID")
+				return
+			}
 
-		var info struct {
-			CampaignID uint `json:"campaign_id"`
-		}
-		err = json.Unmarshal(*(msg.Data.(*json.RawMessage)), &info)
-		if err != nil {
-			logger.Log("err", err, "msg", "unmarshaling select_campaign data")
-			conn.WriteJSONError("error unmarshaling select_campaign data")
-			return
-		}
-		if info.CampaignID == 0 {
-			logger.Log("err", "campaign ID not set")
-			conn.WriteJSONError("0 is not a valid campaign ID")
-			return
-		}
-
-		svc.StreamCampaignResults(ctx, conn, info.CampaignID)
-	})
+			svc.StreamCampaignResults(ctx, conn, info.CampaignID)
+		})
+	}
 }

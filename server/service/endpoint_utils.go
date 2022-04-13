@@ -363,11 +363,15 @@ func (e *authEndpointer) DELETE(path string, f handlerFunc, v interface{}) {
 	e.handleEndpoint(path, f, v, "DELETE")
 }
 
-func (e *authEndpointer) Handler(verb, path string, handler http.Handler) {
-	e.handleHTTPHandler(path, handler, verb)
+// PathHandler registers a handler for the verb and path. The pathHandler is
+// a function that receives the actual path to which it will be mounted, and
+// returns the actual http.Handler that will handle this endpoint. This is for
+// when the handler needs to know on which path it was called.
+func (e *authEndpointer) PathHandler(verb, path string, pathHandler func(path string) http.Handler) {
+	e.handlePathHandler(path, pathHandler, verb)
 }
 
-func (e *authEndpointer) handleHTTPHandler(path string, h http.Handler, verb string) {
+func (e *authEndpointer) handlePathHandler(path string, pathHandler func(path string) http.Handler, verb string) {
 	versions := e.versions
 	if e.startingAtVersion != "" {
 		startIndex := -1
@@ -405,19 +409,24 @@ func (e *authEndpointer) handleHTTPHandler(path string, h http.Handler, verb str
 	versionedPath := strings.Replace(path, "/_version_/", fmt.Sprintf("/{fleetversion:(?:%s)}/", strings.Join(versions, "|")), 1)
 	nameAndVerb := getNameFromPathAndVerb(verb, path)
 	if e.usePathPrefix {
-		e.r.PathPrefix(versionedPath).Handler(h).Name(nameAndVerb).Methods(verb)
+		e.r.PathPrefix(versionedPath).Handler(pathHandler(versionedPath)).Name(nameAndVerb).Methods(verb)
 	} else {
-		e.r.Handle(versionedPath, h).Name(nameAndVerb).Methods(verb)
+		e.r.Handle(versionedPath, pathHandler(versionedPath)).Name(nameAndVerb).Methods(verb)
 	}
 	for _, alias := range e.alternativePaths {
 		nameAndVerb := getNameFromPathAndVerb(verb, alias)
 		versionedPath := strings.Replace(alias, "/_version_/", fmt.Sprintf("/{fleetversion:(?:%s)}/", strings.Join(versions, "|")), 1)
 		if e.usePathPrefix {
-			e.r.PathPrefix(versionedPath).Handler(h).Name(nameAndVerb).Methods(verb)
+			e.r.PathPrefix(versionedPath).Handler(pathHandler(versionedPath)).Name(nameAndVerb).Methods(verb)
 		} else {
-			e.r.Handle(versionedPath, h).Name(nameAndVerb).Methods(verb)
+			e.r.Handle(versionedPath, pathHandler(versionedPath)).Name(nameAndVerb).Methods(verb)
 		}
 	}
+}
+
+func (e *authEndpointer) handleHTTPHandler(path string, h http.Handler, verb string) {
+	self := func(_ string) http.Handler { return h }
+	e.handlePathHandler(path, self, verb)
 }
 
 func (e *authEndpointer) handleEndpoint(path string, f handlerFunc, v interface{}, verb string) {
