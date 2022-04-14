@@ -226,10 +226,11 @@ We want to recognize and congratulate community members for their contributions 
 Please see [Digital experience > Slack channels](https://fleetdm.com/handbook/brand#slack-channels).
 
 ## Rituals
-| How to perform ritual                                                                                                                                     | Frequency   | DRI                      |
-|-:————————————----------------------------------------------------------------------------------------------------------------------------------------------------|-——————------|-————————-----------------|
-| StackOverflow party - Search StackOverflow for “osquery”, answer questions with Grammarly, find a way to prominently feature Fleet in your StackOverflow profile | Weekly      | Rotation: community team |
-| Tweet as @fleetctl                                                                                                                                               | Daily (M-F) | Drew Baker               |
+| How to perform ritual                                                                                                                                            | Frequency   | DRI                      |   |   |
+|------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------|--------------------------|---|---|
+| StackOverflow party - Search StackOverflow for “osquery”, answer questions with Grammarly, find a way to prominently feature Fleet in your StackOverflow profile | Weekly      | Rotation: community team |   |   |
+| Tweet as @fleetctl                                                                                                                                               | Daily (M-F) | Drew Baker               |   |   |
+|                                                                                                                                                                  |             |                          |   |   |
 
 
 <meta name="maintainedBy" value="zwass">
