@@ -1614,12 +1614,12 @@ WHERE
 		args = append(args, *teamID)
 	}
 
-	if err := sqlx.GetContext(ctx, ds.reader, &row, query, args...); err != nil {
+	err := sqlx.GetContext(ctx, ds.reader, &row, query, args...)
+	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("OSVersions"))
-		} else {
-			return nil, err
 		}
+		return nil, err
 	}
 
 	osVersions := &fleet.OSVersions{
@@ -1654,12 +1654,12 @@ WHERE
 func (ds *Datastore) UpdateOSVersions(ctx context.Context) error {
 	counts, err := ds.gatherOSCountsDB(ctx)
 	if err != nil {
-		return ctxerr.Wrapf(ctx, err, "update aggregated stats for os versions")
+		return ctxerr.Wrapf(ctx, err, "gathering counts stats for os versions")
 	}
 
 	teams, err := ds.TeamsSummary(ctx)
 	if err != nil {
-		return ctxerr.Wrapf(ctx, err, "update aggregated stats for os versions")
+		return ctxerr.Wrapf(ctx, err, "getting team summary")
 	}
 
 	countsByTeamId := make(map[uint]*json.RawMessage)
