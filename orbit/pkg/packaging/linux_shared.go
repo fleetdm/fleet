@@ -121,8 +121,15 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 		log.Debug().Interface("file", c).Msg("added file")
 	}
 
-	// Build package
+	// Add empty folders to be created.
+	for _, emptyFolder := range []string{"/var/log/osquery", "/var/log/orbit"} {
+		contents = append(contents, (&files.Content{
+			Destination: emptyFolder,
+			Type:        "dir",
+		}).WithFileInfoDefaults())
+	}
 
+	// Build package
 	info := &nfpm.Info{
 		Name:        "fleet-osquery",
 		Version:     opt.Version,
@@ -132,10 +139,6 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 		Homepage:    "https://fleetdm.com",
 		Overridables: nfpm.Overridables{
 			Contents: contents,
-			EmptyFolders: []string{
-				"/var/log/osquery",
-				"/var/log/orbit",
-			},
 			Scripts: nfpm.Scripts{
 				PostInstall: postInstallPath,
 			},
