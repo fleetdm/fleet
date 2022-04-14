@@ -51,6 +51,12 @@ describe("Premium tier - Global Admin user", () => {
         .contains("Team")
         .should("be.visible");
     });
+    it("allows global admin to see and click 'Add hosts'", () => {
+      cy.getAttached(".button-wrap")
+        .contains("button", /add hosts/i)
+        .click();
+      cy.getAttached(".modal__content").contains("button", /done/i).click();
+    });
     it("allows global admin to add new enroll secret", () => {
       cy.getAttached(".button-wrap")
         .contains("button", /manage enroll secret/i)
@@ -169,6 +175,15 @@ describe("Premium tier - Global Admin user", () => {
         .click();
       cy.findByText(/transferred to apples/i).should("exist");
       cy.findByText(/team/i).next().contains("Apples");
+    });
+    it("allows global admin to create an operating system policy", () => {
+      cy.getAttached(".info-flex").within(() => {
+        cy.findByText(/ubuntu/i).should("exist");
+        cy.getAttached(".host-summary__os-policy-button").click();
+      });
+      cy.getAttached(".modal__content")
+        .findByRole("button", { name: /create new policy/i })
+        .should("exist");
     });
     it("allows global admin to create a custom query", () => {
       cy.getAttached(".host-details__query-button").click();
