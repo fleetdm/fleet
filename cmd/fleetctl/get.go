@@ -144,31 +144,38 @@ func printHostDetail(c *cli.Context, host *service.HostDetailResponse) error {
 	return printSpec(c, spec)
 }
 
-type updateIntervalConfigPresenter struct {
-	fleet.UpdateIntervalConfig
-	OSQueryDetail string `json:"osquery_detail"`
-	OSQueryPolicy string `json:"osquery_policy"`
-}
+type EnrichedAppConfigPresenter fleet.EnrichedAppConfig
 
-type vulnerabilitiesConfigPresenter struct {
-	fleet.VulnerabilitiesConfig
-	Periodicity               string `json:"periodicity"`
-	RecentVulnerabilityMaxAge string `json:"recent_vulnerability_max_age"`
-}
+func (eacp EnrichedAppConfigPresenter) MarshalJSON() ([]byte, error) {
+	type UpdateIntervalConfigPresenter struct {
+		OSQueryDetail string `json:"osquery_detail"`
+		OSQueryPolicy string `json:"osquery_policy"`
+		*fleet.UpdateIntervalConfig
+	}
 
-type enrichedAppConfigPresenter struct {
-	fleet.EnrichedAppConfig
-	UpdateInterval  updateIntervalConfigPresenter  `json:"update_interval,omitempty"`
-	Vulnerabilities vulnerabilitiesConfigPresenter `json:"vulnerabilities,omitempty"`
-}
+	type VulnerabilitiesConfigPresenter struct {
+		Periodicity               string `json:"periodicity"`
+		RecentVulnerabilityMaxAge string `json:"recent_vulnerability_max_age"`
+		*fleet.VulnerabilitiesConfig
+	}
 
-func newEnrichedAppConfigPresenter(eac fleet.EnrichedAppConfig) enrichedAppConfigPresenter {
-	config := enrichedAppConfigPresenter{EnrichedAppConfig: eac}
-	config.UpdateInterval.OSQueryDetail = eac.UpdateInterval.OSQueryDetail.String()
-	config.UpdateInterval.OSQueryPolicy = eac.UpdateInterval.OSQueryPolicy.String()
-	config.Vulnerabilities.Periodicity = eac.Vulnerabilities.Periodicity.String()
-	config.Vulnerabilities.RecentVulnerabilityMaxAge = eac.Vulnerabilities.RecentVulnerabilityMaxAge.String()
-	return config
+	return json.Marshal(&struct {
+		fleet.EnrichedAppConfig
+		UpdateInterval  UpdateIntervalConfigPresenter  `json:"update_interval,omitempty"`
+		Vulnerabilities VulnerabilitiesConfigPresenter `json:"vulnerabilities,omitempty"`
+	}{
+		EnrichedAppConfig: fleet.EnrichedAppConfig(eacp),
+		UpdateInterval: UpdateIntervalConfigPresenter{
+			eacp.UpdateInterval.OSQueryDetail.String(),
+			eacp.UpdateInterval.OSQueryPolicy.String(),
+			eacp.UpdateInterval,
+		},
+		Vulnerabilities: VulnerabilitiesConfigPresenter{
+			eacp.Vulnerabilities.Periodicity.String(),
+			eacp.Vulnerabilities.RecentVulnerabilityMaxAge.String(),
+			eacp.Vulnerabilities,
+		},
+	})
 }
 
 func printConfig(c *cli.Context, config interface{}) error {
@@ -587,7 +594,7 @@ func getAppConfigCommand() *cli.Command {
 			}
 
 			if c.Bool(includeServerConfigFlagName) {
-				err = printConfig(c, newEnrichedAppConfigPresenter(*config))
+				err = printConfig(c, EnrichedAppConfigPresenter(*config))
 			} else {
 				err = printConfig(c, config.AppConfig)
 			}
