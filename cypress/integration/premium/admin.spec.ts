@@ -512,48 +512,7 @@ describe("Premium tier - Global Admin user", () => {
       });
     });
   });
-  describe("Admin settings page", () => {
-    beforeEach(() => cy.visit("/settings/organization"));
-    it("allows global admin to access integrations settings", () => {
-      cy.getAttached(".react-tabs").within(() => {
-        cy.findByText(/integrations/i).click();
-      });
-    });
-    it("allows global admin to access team settings", () => {
-      cy.getAttached(".react-tabs").within(() => {
-        cy.findByText(/teams/i).click();
-      });
-      // Access the Settings - Team details page
-      cy.getAttached("tbody").within(() => {
-        cy.findByText(/apples/i).click();
-      });
-      cy.findByText(/apples/i).should("exist");
-      cy.findByText(/manage users with global access here/i).should("exist");
-    });
-    it("displays the 'Team' section in the create user modal", () => {
-      cy.getAttached(".react-tabs").within(() => {
-        cy.findByText(/users/i).click();
-      });
-      cy.findByRole("button", { name: /create user/i }).click();
-      cy.findByText(/assign teams/i).should("exist");
-    });
-    it("allows global admin to edit existing user password", () => {
-      cy.visit("/settings/users");
-      cy.getAttached("tbody").within(() => {
-        cy.findByText(/oliver@organization.com/i)
-          .parent()
-          .next()
-          .within(() => cy.getAttached(".Select-placeholder").click());
-      });
-      cy.getAttached(".Select-menu").within(() => {
-        cy.findByText(/edit/i).click();
-      });
-      cy.getAttached(".create-user-form").within(() => {
-        cy.findByLabelText(/email/i).should("exist");
-        cy.findByLabelText(/password/i).should("exist");
-      });
-    });
-  });
+
   describe("Query pages", () => {
     beforeEach(() => cy.visit("/queries/manage"));
     it("allows global admin to select teams targets for query", () => {

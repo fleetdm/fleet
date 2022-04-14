@@ -1,4 +1,4 @@
-export const getConfig = {
+const getConfig = {
   org_info: {
     org_name: "Fleet Test",
     org_logo_url: "",
