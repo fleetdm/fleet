@@ -188,7 +188,7 @@ graph TD;
     A--D
 ```
 
-## Community contributions (pull requests)
+## Community contributions
 
 The most important thing when community members contribute to Fleet is to show them we value their time and effort. We need to fget eyes on community pull requests quickly (within 1 business day) and get them pushed merged as soon as we can.
 
@@ -206,7 +206,7 @@ Each business day, the Community Engagement DRI will check open pull requests to
 
 When a new pull request is submitted by a community contributor (someone not a member of the Fleet organization):
 
-- Add the :community label.
+- Add the `:community` label.
 - Self-assign for review.
 - Check whether the PR can be merged, or needs to be reviewed by the Product team.
     - Things that generally don't need additional review:
@@ -239,26 +239,24 @@ For PRs that aren't ready to merge:
 
 If everything is good to go, approve the review.
 
-** Sometimes (typically for customers), a Fleet team member may take a PR to completion by adding the appropriate testing and code review improvements.
+** Sometimes (typically for contributions from users of Fleet Premium), a Fleet team member may be tasked with adding teests and making any needed changes. 
 
 ## Communicate with contributors
 
 Community contributions are awesome, and it's important that the contributor knows how much they are appreciated. The best way to do that is to keep in touch while we're working to get their PR approved.
 
-While each team member is responsible for monitoring their active issues and pull requests, the Community team will ultimately be responsible for ensuring that there aren't delays in communication.
+While each team member is responsible for monitoring their active issues and pull requests, the Community Engagement DRI will check in on pull requests with the `:community ` label daily to make sure everything is moving along. If there's a comment or question from the contributor that hasn't been addressed, reach out on Slack to try to get more information and update the contributor. 
 
-Every business day, the current DRI for community contributions will review outstanding pull requests with the :community label to ensure that the line of communication is being maintained and that all contributor comments and updates are addressed within one business day.
 
-If necessary, reach out in the appropriate slack channel for additional information.
+## Merge Community PRs
 
-Merge Community PRs
 When merging a pull request from a community contributor:
 
-Ensure that checklist for submitter is complete.
-Verify that all necessary reviews have been approved.
-Merge the PR.
-Thank and congratulate the contributor.
-Share with the team in the #help-promote channel of Fleet Slack to be publicized on social media. Those who contribute to Fleet and are recognized for their contributions often become great champions for the project.
+- Ensure that checklist for submitter is complete.
+- Verify that all necessary reviews have been approved.
+- Merge the PR.
+- Thank and congratulate the contributor.
+- Share with the team in the #help-promote channel of Fleet Slack to be publicized on social media. Those who contribute to Fleet and are recognized for their contributions often become great champions for the project.
 
 ## Fleet swag
 
