@@ -190,22 +190,75 @@ graph TD;
 
 ## Community contributions (pull requests)
 
-When community members contribute changes, Fleet’s top priority is to help them feel engaged. We acknowledge contributions as soon as possible, within 1 business day. We also drive to a resolution (close/merge) as soon as possible, though this may take longer than 1 business day.
+The most important thing when community members contribute to Fleet is to show them we value their time and effort. We need to fget eyes on community pull requests quickly (within 1 business day) and get them pushed merged as soon as we can.
 
-### Process
+## Process
 
-1. Decide if the change is acceptable (see below). If this will take time, acknowledge the contribution and let the user know that the team will respond. If you choose not to approve a change, first thank the contributor for their interest. Next, encourage them to open an issue or share their ideas before writing more code. Discussions can occur in the #fleet channel of osquery's Slack.
-2. Help the contributor make the content suitable for merging. Ensure appropriate manual and automated testing occurred. Also, confirm that changes to files and documentation are updated. Usually, this is best done with code review and coaching the user. Sometimes Fleet may complete a PR by improving testing and code review.
-3. After reviewing and addressing all the changes a PR needs, a Fleet team member may merge. Before merging, please use your best judgment. Double-check that CI is passing, documentation is updated, and a changes file is created.
-4. Once a PR is approved and merged, thank and congratulate the contributor. Next, share it with the team in the #help-promote channel of Fleet's Slack so they can promote it on social media. Recognized contributors often become project champions.
+The Community Engagememt DRI is responsible for keeping an eye out for new community contributions and either getting them merged in if possible and get the right eyes on them if they need to be reviewed. 
 
-Please refer to our [PRs from the community](https://docs.google.com/document/d/13r0vEhs9LOBdxWQWdZ8n5Ff9cyB3hQkTjI5OhcrHjVo/edit?usp=sharing) guide for more detailed information.
+Each business day, the Community Engagement DRI will check open pull requests to:
 
-### What is acceptable?
+1. Check for new pull requests (PRs) from the Fleet community. 
+2. Approve and merge any community PRs that are ready to go.
+3. Make sure there aren't any existing community PRs waiting for followup from Fleet. 
 
-Everyone can contribute bug fixes and improvements to the documentation, whether or not they work for Fleet. Working Standard Query Library(SQL) additions or fixes are acceptable with correct attribution. Please use your best judgment.
+### Identify Community Contributions
 
-[Product DRIs](./product.md#product-dris) should approve extensive changes and new features. Ask in the #g-product channel in Fleet's Slack for more information.
+When a new pull request is submitted by a community contributor (someone not a member of the Fleet organization):
+
+- Add the :community label.
+- Self-assign for review.
+- Check whether the PR can be merged, or needs to be reviewed by the Product team.
+    - Things that generally don't need additional review:
+        - Minor changes to the docs.
+        - Small bug fixes.
+        - Additions or fixes to the Standard Query Library(SQL) are (as long as the SQL works properly and they are attributed correctly).
+        - Use the community contribution guidelines and use your best judgement. 
+    - If a review is needed:
+        - Request review from the related DRI.
+        - Tag the DRI and the contributor in a comment on the PR letting everyone know why additional review is needed. Make sure to say thanks!
+        - Find any open issues that are related and make a note in the comments.
+
+#### Reviewing PRs from the community
+
+If you're assigned a comminity pull request for review, it is important to keep things moving for the contributor. The goal is to not go more than one business day without following up with the contributor.
+
+A PR should be merged if:
+    - It's a change that is needed and useful. 
+    - The CI is passing.
+    - Tests are in place.
+    - Documentation is updated.
+    - Changes file is created.
+
+For PRs that aren't ready to merge:
+    - Thank the contributor for their hard work and explain why we aren't merging the changes.
+    - Encourage the contributor to reach out in the #fleet channel of osquery Slack to get help from the rest of the community.
+    - Offer code review and coaching to help get the PR ready to go.**
+    - Keep an eye out for any updates or responses.
+
+
+If everything is good to go, approve the review.
+
+** Sometimes (typically for customers), a Fleet team member may take a PR to completion by adding the appropriate testing and code review improvements.
+
+## Communicate with contributors
+
+Community contributions are awesome, and it's important that the contributor knows how much they are appreciated. The best way to do that is to keep in touch while we're working to get their PR approved.
+
+While each team member is responsible for monitoring their active issues and pull requests, the Community team will ultimately be responsible for ensuring that there aren't delays in communication.
+
+Every business day, the current DRI for community contributions will review outstanding pull requests with the :community label to ensure that the line of communication is being maintained and that all contributor comments and updates are addressed within one business day.
+
+If necessary, reach out in the appropriate slack channel for additional information.
+
+Merge Community PRs
+When merging a pull request from a community contributor:
+
+Ensure that checklist for submitter is complete.
+Verify that all necessary reviews have been approved.
+Merge the PR.
+Thank and congratulate the contributor.
+Share with the team in the #help-promote channel of Fleet Slack to be publicized on social media. Those who contribute to Fleet and are recognized for their contributions often become great champions for the project.
 
 ## Fleet swag
 
