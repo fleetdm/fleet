@@ -282,7 +282,7 @@ token=$(fleetctl config get token | rev | cut -d ' ' -f 1 | rev)
 Then use `curl` to send a required password reset request to the REST API through the terminal:
 
 ```
-curl -d '{"new_password":"NewPassGoesHere"}' -H "Authorization: Bearer ${token}" -X POST https://fleet.corp.example.com/api/latest/fleet/perform_required_password_reset
+curl -d '{"new_password":"NewPassGoesHere"}' -H "Authorization: Bearer ${token}" -X POST https://fleet.corp.example.com/api/v1/fleet/perform_required_password_reset
 ```
 
 If you see a response like this, the request was successful:
@@ -339,7 +339,7 @@ Now, you can use the `context` flag to indicate which profile should be used rat
 
 ```
 fleetctl user create --email test@example.com --name "New User"
-Error: Failed to create user: POST /api/latest/fleet/users/admin received status 403 forbidden: forbidden
+Error: Failed to create user: POST /api/latest/v1/users/admin received status 403 forbidden: forbidden
 ```
 
 The user creation failed because the API-only user doesn't have the right permissions. Running the command with the admin `context` specified will succeed:
