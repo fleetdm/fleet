@@ -152,7 +152,8 @@ type updateIntervalConfigPresenter struct {
 
 type vulnerabilitiesConfigPresenter struct {
 	fleet.VulnerabilitiesConfig
-	Periodicity string `json:"periodicity"`
+	Periodicity               string `json:"periodicity"`
+	RecentVulnerabilityMaxAge string `json:"recent_vulnerability_max_age"`
 }
 
 type enrichedAppConfigPresenter struct {
@@ -166,6 +167,7 @@ func newEnrichedAppConfigPresenter(eac fleet.EnrichedAppConfig) enrichedAppConfi
 	config.UpdateInterval.OSQueryDetail = eac.UpdateInterval.OSQueryDetail.String()
 	config.UpdateInterval.OSQueryPolicy = eac.UpdateInterval.OSQueryPolicy.String()
 	config.Vulnerabilities.Periodicity = eac.Vulnerabilities.Periodicity.String()
+	config.Vulnerabilities.RecentVulnerabilityMaxAge = eac.Vulnerabilities.RecentVulnerabilityMaxAge.String()
 	return config
 }
 
