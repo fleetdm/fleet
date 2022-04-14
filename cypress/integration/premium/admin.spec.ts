@@ -51,101 +51,6 @@ describe("Premium tier - Global Admin user", () => {
         .contains("Team")
         .should("be.visible");
     });
-<<<<<<< HEAD
-    it("allows global admin to see and click 'Add hosts'", () => {
-      cy.getAttached(".button-wrap")
-        .contains("button", /add hosts/i)
-        .click();
-      cy.getAttached(".modal__content").contains("button", /done/i).click();
-=======
-    describe("Manage software page", () => {
-      beforeEach(() => cy.visit("/software/manage"));
-      it("allows global admin to create webhook software vulnerability automation", () => {
-        // seedIntegration() has one jira integration set to true
-        cy.getAttached(".manage-software-page__header-wrap").within(() => {
-          cy.findByRole("button", { name: /manage automations/i }).click();
-        });
-        cy.getAttached(".manage-automations-modal").within(() => {
-          cy.getAttached(".fleet-slider").click();
-          cy.getAttached(".fleet-slider").click();
-          cy.getAttached("#webhook-radio-btn").next().click();
-        });
-        cy.getAttached("#webhook-url").click().type("www.foo.com/bar");
-        cy.findByRole("button", { name: /^Save$/ }).click();
-        // Confirm manage automations webhook was added successfully
-        cy.findByText(/updated vulnerability automations/i).should("exist");
-        cy.getAttached(".button-wrap").within(() => {
-          cy.findByRole("button", {
-            name: /manage automations/i,
-          }).click();
-        });
-        cy.getAttached(".manage-automations-modal").within(() => {
-          cy.getAttached(".fleet-slider--active").should("exist");
-          cy.getAttached("#webhook-url").should("exist");
-        });
-      });
-      it("allows global admin to create jira integration software vulnerability automation", () => {
-        // seedIntegration() has one jira integration set to true
-        cy.getAttached(".manage-software-page__header-wrap").within(() => {
-          cy.findByRole("button", {
-            name: /manage automations/i,
-          }).click();
-        });
-        cy.getAttached(".manage-automations-modal").within(() => {
-          cy.getAttached(".fleet-slider").click();
-          cy.getAttached(".fleet-slider").click();
-          cy.getAttached("#ticket-radio-btn").next().click();
-          cy.findByText(/select jira integration/i).click();
-          cy.findByText(/project 2/i).click();
-        });
-
-        cy.findByRole("button", { name: /^Save$/ }).click();
-        // Confirm jira integration was added successfully
-        cy.findByText(/updated vulnerability automations/i).should("exist");
-        cy.getAttached(".button-wrap").within(() => {
-          cy.findByRole("button", {
-            name: /manage automations/i,
-          }).click();
-        });
-        cy.getAttached(".manage-automations-modal").within(() => {
-          cy.getAttached(".fleet-slider--active").should("exist");
-          cy.findByText(/project 2/i).should("exist");
-        });
-      });
-      it("allows global admin to disable software vulnerability automation", () => {
-        // seedIntegration() has one jira integration set to true
-        cy.getAttached(".manage-software-page__header-wrap").within(() => {
-          cy.findByRole("button", {
-            name: /manage automations/i,
-          }).click();
-        });
-        cy.getAttached(".manage-automations-modal").within(() => {
-          cy.getAttached(".fleet-slider").click();
-        });
-
-        cy.findByRole("button", { name: /^Save$/ }).click();
-        // Confirm integration was disabled successfully
-        cy.findByText(/updated vulnerability automations/i).should("exist");
-        cy.getAttached(".button-wrap").within(() => {
-          cy.findByRole("button", {
-            name: /manage automations/i,
-          }).click();
-        });
-        cy.getAttached(".manage-automations-modal").within(() => {
-          cy.findByText(/vulnerability automations disabled/i).should("exist");
-        });
-      });
-      it("hides manage automations button since all teams not selected", () => {
-        cy.getAttached(".manage-software-page__header-wrap").within(() => {
-          cy.getAttached(".Select").within(() => {
-            cy.findByText(/all teams/i).click();
-            cy.findByText(/apples/i).click();
-          });
-          cy.findByText(/manage automations/i).should("not.exist");
-        });
-      });
->>>>>>> 35f368998 (Cypress tests only)
-    });
     it("allows global admin to add new enroll secret", () => {
       cy.getAttached(".button-wrap")
         .contains("button", /manage enroll secret/i)
@@ -159,6 +64,93 @@ describe("Premium tier - Global Admin user", () => {
       cy.getAttached(".enroll-secret-modal__button-wrap")
         .contains("button", /done/i)
         .click();
+    });
+  });
+  describe("Manage software page", () => {
+    beforeEach(() => cy.visit("/software/manage"));
+    it("allows global admin to create webhook software vulnerability automation", () => {
+      // seedIntegration() has one jira integration set to true
+      cy.getAttached(".manage-software-page__header-wrap").within(() => {
+        cy.findByRole("button", { name: /manage automations/i }).click();
+      });
+      cy.getAttached(".manage-automations-modal").within(() => {
+        cy.getAttached(".fleet-slider").click();
+        cy.getAttached(".fleet-slider").click();
+        cy.getAttached("#webhook-radio-btn").next().click();
+      });
+      cy.getAttached("#webhook-url").click().type("www.foo.com/bar");
+      cy.findByRole("button", { name: /^Save$/ }).click();
+      // Confirm manage automations webhook was added successfully
+      cy.findByText(/updated vulnerability automations/i).should("exist");
+      cy.getAttached(".button-wrap").within(() => {
+        cy.findByRole("button", {
+          name: /manage automations/i,
+        }).click();
+      });
+      cy.getAttached(".manage-automations-modal").within(() => {
+        cy.getAttached(".fleet-slider--active").should("exist");
+        cy.getAttached("#webhook-url").should("exist");
+      });
+    });
+    it("allows global admin to create jira integration software vulnerability automation", () => {
+      // seedIntegration() has one jira integration set to true
+      cy.getAttached(".manage-software-page__header-wrap").within(() => {
+        cy.findByRole("button", {
+          name: /manage automations/i,
+        }).click();
+      });
+      cy.getAttached(".manage-automations-modal").within(() => {
+        cy.getAttached(".fleet-slider").click();
+        cy.getAttached(".fleet-slider").click();
+        cy.getAttached("#ticket-radio-btn").next().click();
+        cy.findByText(/select jira integration/i).click();
+        cy.findByText(/project 2/i).click();
+      });
+
+      cy.findByRole("button", { name: /^Save$/ }).click();
+      // Confirm jira integration was added successfully
+      cy.findByText(/updated vulnerability automations/i).should("exist");
+      cy.getAttached(".button-wrap").within(() => {
+        cy.findByRole("button", {
+          name: /manage automations/i,
+        }).click();
+      });
+      cy.getAttached(".manage-automations-modal").within(() => {
+        cy.getAttached(".fleet-slider--active").should("exist");
+        cy.findByText(/project 2/i).should("exist");
+      });
+    });
+    it("allows global admin to disable software vulnerability automation", () => {
+      // seedIntegration() has one jira integration set to true
+      cy.getAttached(".manage-software-page__header-wrap").within(() => {
+        cy.findByRole("button", {
+          name: /manage automations/i,
+        }).click();
+      });
+      cy.getAttached(".manage-automations-modal").within(() => {
+        cy.getAttached(".fleet-slider").click();
+      });
+
+      cy.findByRole("button", { name: /^Save$/ }).click();
+      // Confirm integration was disabled successfully
+      cy.findByText(/updated vulnerability automations/i).should("exist");
+      cy.getAttached(".button-wrap").within(() => {
+        cy.findByRole("button", {
+          name: /manage automations/i,
+        }).click();
+      });
+      cy.getAttached(".manage-automations-modal").within(() => {
+        cy.findByText(/vulnerability automations disabled/i).should("exist");
+      });
+    });
+    it("hides manage automations button since all teams not selected", () => {
+      cy.getAttached(".manage-software-page__header-wrap").within(() => {
+        cy.getAttached(".Select").within(() => {
+          cy.findByText(/all teams/i).click();
+          cy.findByText(/apples/i).click();
+        });
+        cy.findByText(/manage automations/i).should("not.exist");
+      });
     });
   });
   describe("Host details page", () => {
@@ -178,59 +170,6 @@ describe("Premium tier - Global Admin user", () => {
       cy.findByText(/transferred to apples/i).should("exist");
       cy.findByText(/team/i).next().contains("Apples");
     });
-<<<<<<< HEAD
-    it("allows global admin to create an operating system policy", () => {
-      cy.getAttached(".info-flex").within(() => {
-        cy.findByText(/ubuntu/i).should("exist");
-        cy.getAttached(".host-summary__os-policy-button").click();
-      });
-      cy.getAttached(".modal__content")
-        .findByRole("button", { name: /create new policy/i })
-        .should("exist");
-=======
-    describe("Admin settings page", () => {
-      beforeEach(() => cy.visit("/settings/organization"));
-      it("allows global admin to access integrations settings", () => {
-        cy.getAttached(".react-tabs").within(() => {
-          cy.findByText(/integrations/i).click();
-        });
-      });
-      it("allows global admin to access team settings", () => {
-        cy.getAttached(".react-tabs").within(() => {
-          cy.findByText(/teams/i).click();
-        });
-        // Access the Settings - Team details page
-        cy.getAttached("tbody").within(() => {
-          cy.findByText(/apples/i).click();
-        });
-        cy.findByText(/apples/i).should("exist");
-        cy.findByText(/manage users with global access here/i).should("exist");
-      });
-      it("displays the 'Team' section in the create user modal", () => {
-        cy.getAttached(".react-tabs").within(() => {
-          cy.findByText(/users/i).click();
-        });
-        cy.findByRole("button", { name: /create user/i }).click();
-        cy.findByText(/assign teams/i).should("exist");
-      });
-      it("allows global admin to edit existing user password", () => {
-        cy.visit("/settings/users");
-        cy.getAttached("tbody").within(() => {
-          cy.findByText(/oliver@organization.com/i)
-            .parent()
-            .next()
-            .within(() => cy.getAttached(".Select-placeholder").click());
-        });
-        cy.getAttached(".Select-menu").within(() => {
-          cy.findByText(/edit/i).click();
-        });
-        cy.getAttached(".create-user-form").within(() => {
-          cy.findByLabelText(/email/i).should("exist");
-          cy.findByLabelText(/password/i).should("exist");
-        });
-      });
->>>>>>> 35f368998 (Cypress tests only)
-    });
     it("allows global admin to create a custom query", () => {
       cy.getAttached(".host-details__query-button").click();
       cy.contains("button", /create custom query/i).should("exist");
@@ -247,37 +186,45 @@ describe("Premium tier - Global Admin user", () => {
       });
     });
   });
-  describe("Manage software page", () => {
-    beforeEach(() => cy.visit("/software/manage"));
-    it("allows global admin to create webhook software vulnerability automation", () => {
-      cy.getAttached(".manage-software-page__header-wrap").within(() => {
-        cy.findByRole("button", { name: /manage automations/i }).click();
-      });
-      cy.getAttached(".manage-automations-modal").within(() => {
-        cy.getAttached(".fleet-slider").click();
-        cy.getAttached("#webhook-radio-btn").next().click();
-      });
-      cy.getAttached("#webhook-url").click().type("www.foo.com/bar");
-      cy.findByRole("button", { name: /^Save$/ }).click();
-      // Confirm manage automations webhook was added successfully
-      cy.findByText(/updated vulnerability automations/i).should("exist");
-      cy.getAttached(".button-wrap").within(() => {
-        cy.findByRole("button", {
-          name: /manage automations/i,
-        }).click();
-      });
-      cy.getAttached(".manage-automations-modal").within(() => {
-        cy.getAttached(".fleet-slider--active").should("exist");
-        cy.getAttached("#webhook-url").should("exist");
+  describe("Admin settings page", () => {
+    beforeEach(() => cy.visit("/settings/organization"));
+    it("allows global admin to access integrations settings", () => {
+      cy.getAttached(".react-tabs").within(() => {
+        cy.findByText(/integrations/i).click();
       });
     });
-    it("hides manage automations button since all teams not selected", () => {
-      cy.getAttached(".manage-software-page__header-wrap").within(() => {
-        cy.getAttached(".Select").within(() => {
-          cy.findByText(/all teams/i).click();
-          cy.findByText(/apples/i).click();
-        });
-        cy.findByText(/manage automations/i).should("not.exist");
+    it("allows global admin to access team settings", () => {
+      cy.getAttached(".react-tabs").within(() => {
+        cy.findByText(/teams/i).click();
+      });
+      // Access the Settings - Team details page
+      cy.getAttached("tbody").within(() => {
+        cy.findByText(/apples/i).click();
+      });
+      cy.findByText(/apples/i).should("exist");
+      cy.findByText(/manage users with global access here/i).should("exist");
+    });
+    it("displays the 'Team' section in the create user modal", () => {
+      cy.getAttached(".react-tabs").within(() => {
+        cy.findByText(/users/i).click();
+      });
+      cy.findByRole("button", { name: /create user/i }).click();
+      cy.findByText(/assign teams/i).should("exist");
+    });
+    it("allows global admin to edit existing user password", () => {
+      cy.visit("/settings/users");
+      cy.getAttached("tbody").within(() => {
+        cy.findByText(/oliver@organization.com/i)
+          .parent()
+          .next()
+          .within(() => cy.getAttached(".Select-placeholder").click());
+      });
+      cy.getAttached(".Select-menu").within(() => {
+        cy.findByText(/edit/i).click();
+      });
+      cy.getAttached(".create-user-form").within(() => {
+        cy.findByLabelText(/email/i).should("exist");
+        cy.findByLabelText(/password/i).should("exist");
       });
     });
   });
