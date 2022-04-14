@@ -56,7 +56,6 @@ const App = ({ children, location, router }: IAppProps): JSX.Element => {
         setCurrentUser(user);
         setAvailableTeams(available_teams);
       } catch (error) {
-        console.log("error so push to login: ", error);
         router.push(PATHS.LOGIN);
       }
     };
