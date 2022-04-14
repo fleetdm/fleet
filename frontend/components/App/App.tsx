@@ -46,7 +46,7 @@ const App = ({ children, location, router }: IAppProps): JSX.Element => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
   useDeepEffect(() => {
-    if (location.pathname === "/setup") {
+    if (!location || location?.pathname === "/setup") {
       return;
     }
 
@@ -137,7 +137,7 @@ const App = ({ children, location, router }: IAppProps): JSX.Element => {
             <NotificationProvider>
               <ErrorBoundary
                 fallbackRender={renderErrorOverlay}
-                resetKeys={[location.pathname]}
+                resetKeys={[location?.pathname]}
               >
                 <div className={wrapperStyles}>{children}</div>
               </ErrorBoundary>
