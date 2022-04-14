@@ -91,51 +91,16 @@ The following [Slack channels are maintained](https://fleetdm.com/handbook/compa
 
 The following rituals are engaged in by the  directly responsible individual (DRI) and at the frequency specified for the ritual.
 
-### Social engagement ritual:
-Participate in 50 social media engagements per week.  
-DRI: Drew Baker
+| Ritual                       | Description                                         | DRI               |
+|:-----------------------------|:----------------------------------------------------|-------------------|
+| Social engagement ritual     | Participate in 50 social media engagements per week.| Drew Baker        |  
+| Daily Twitter ritual         | Post Fleet content on Twitter every weekday.        | Drew Baker        |
+| Daily LinkedIn ritual        | Post Fleet content to LinkedIn every weekday.       | Drew Baker        |
+| osQuery jobs ritual          | Post to @osqueryjobs two times per week.            | Drew Baker        |
+| Enriching leads ritual       | Follow the lead enrichment process every Friday.    | Drew Baker        |
+| Outside contributions ritual | Check pull requests for outside contributions every Monday. | Drew Baker|
+| Weekly blogpost ritual       | Publish Fleet blog post once per week. Promote blog posts on socials once per week.| Drew Baker|
+| Weekly ins and outs ritual   | Track ins and outs once per week.                   | Tim Kern          |
+| Podcast outreach ritual      | Conduct podcast outreach twice per week.            | Drew Baker        |
+| Monthly conference ritual    | Check for conference openings and for conference sponsorships on the 1st of every month. | Drew Baker|
 
-### Daily Twitter ritual:
-
-Post FleetDM content on Twitter every weekday.
-DRI: Drew Baker
-
-### Daily LinkedIn ritual:
-
-Post Fleet content to LinkedIn every weekday. 
-DRI: Drew Baker
-
-### osQuery jobs ritual:
-
-Post to @osqueryjobs two times per week.
-DRI: Drew Baker
-
-### Enriching leads ritual:
-
-Follow the lead enrichment process every Friday.
-DRI: Drew Baker
-
-### Outside contributions ritual:
-
-Check pull requests for outside contributions every Monday.
-DRI: Drew Baker
-
-### Weekly blogpost ritual:
-
-Publish Fleet blog post once per week.
-Promote blog posts on socials once per week.
-
-### Weekly ins and outs ritual:
-
-Track ins and outs once per week.
-DRI: Tim Kern
-
-### Podcast outreach ritual:
-
-Conduct podcast outreach twice per week.
-DRI: Drew Baker
-
-### Monthly conference ritual:
-
-Check for conference openings and for conference sponsorships on the 1st of every month.
-DRI: Drew Baker
