@@ -22,9 +22,14 @@ import Fleet404 from "pages/errors/Fleet404"; // @ts-ignore
 import Fleet500 from "pages/errors/Fleet500";
 import Spinner from "components/Spinner";
 
+interface IRouter extends InjectedRouter {
+  location: {
+    pathname: string;
+  };
+}
 interface IAppProps {
   children: JSX.Element;
-  router: InjectedRouter;
+  router: IRouter;
 }
 
 const App = ({ children, router }: IAppProps): JSX.Element => {
@@ -43,12 +48,19 @@ const App = ({ children, router }: IAppProps): JSX.Element => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
   useDeepEffect(() => {
+    console.log("router: ", router);
+
+    if (router.location.pathname === "/setup") {
+      return;
+    }
+
     const fetchCurrentUser = async () => {
       try {
         const { user, available_teams } = await usersAPI.me();
         setCurrentUser(user);
         setAvailableTeams(available_teams);
       } catch (error) {
+        console.log("error so push to login: ", error);
         router.push(PATHS.LOGIN);
       }
     };
@@ -99,7 +111,7 @@ const App = ({ children, router }: IAppProps): JSX.Element => {
     if (canGetEnrollSecret) {
       getEnrollSecret();
     }
-  }, [currentUser, isGlobalObserver, isOnlyObserver]);
+  }, [currentUser, isGlobalObserver, isOnlyObserver, router]);
 
   // "any" is used on purpose. We are using Axios but this
   // function expects a native React Error type, which is incompatible.
