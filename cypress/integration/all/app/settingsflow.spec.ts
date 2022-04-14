@@ -100,7 +100,7 @@ const getConfig = {
         username: "jira2@example.com",
         api_token: "jira123",
         project_key: "PROJECT 2",
-        enable_software_vulnerabilities: true,
+        enable_software_vulnerabilities: false,
       },
       {
         url: "https://fleetdm.atlassian.com",
@@ -190,7 +190,7 @@ const editConfig = {
         username: "jira0@example.com",
         api_token: "jira0123",
         project_key: "PROJECT 0",
-        enable_software_vulnerabilities: true,
+        enable_software_vulnerabilities: false,
       },
       {
         url: "https://fleetdm.atlassian.com",
