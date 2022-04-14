@@ -169,6 +169,7 @@ export interface IConfig {
     cve_feed_prefix_url: string;
     current_instance_checks: string;
     disable_data_sync: boolean;
+    recent_vulnerability_max_age: number;
   };
   // Note: `vulnerability_settings` is deprecated and should not be used
   // vulnerability_settings: {

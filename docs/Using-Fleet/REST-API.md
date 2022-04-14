@@ -2675,6 +2675,8 @@ load balancer timeout.
 
 > WARNING: This API endpoint collects responses in-memory (RAM) on the Fleet compute instance handling this request, which can overflow if the result set is large enough.  This has the potential to crash the process and/or cause an autoscaling event in your cloud provider, depending on how Fleet is deployed.
 
+Note: You can also retrieve live queries results over [websocket](https://fleetdm.com/docs/contributing/api-for-contributors#retrieve-live-query-results-standard-web-socket-api).
+
 `GET /api/latest/fleet/queries/run`
 
 #### Parameters
@@ -4785,7 +4787,8 @@ None.
     "cve_feed_prefix_url": "",
     "databases_path": "",
     "disable_data_sync": false,
-    "periodicity": 3600000000000
+    "periodicity": 3600000000000,
+    "recent_vulnerability_max_age": 2592000000000000
   }
 }
 ```
