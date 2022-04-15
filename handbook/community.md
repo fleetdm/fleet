@@ -224,7 +224,7 @@ We want to recognize and congratulate community members for their contributions 
 ## Rituals
 | How to perform ritual                                                                                                                                            | Frequency | DRI                      |
 |------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------|--------------------------|
-| StackOverflow party - Search StackOverflow for “osquery”, answer questions with Grammarly, and find a way to prominently feature Fleet in your StackOverflow profile | Weekly    | Rotation: community team |
+| StackOverflow party - Search StackOverflow for “osquery,” answer questions with Grammarly, and find a way to prominently feature Fleet in your StackOverflow profile | Weekly    | Rotation: community team |
 
 ## Slack channels
 
