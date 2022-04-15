@@ -209,20 +209,33 @@ const QueryResults = ({
   const renderErrorsTable = () => {
     return (
       <div className={`${baseClass}__error-table-container`}>
-        {errors && (
-          <span className={`${baseClass}__error-count`}>
-            {errors.length} error{errors.length !== 1 && "s"}
-          </span>
-        )}
-        <Button
-          className={`${baseClass}__export-btn`}
-          onClick={onExportErrorsResults}
-          variant="text-link"
-        >
-          <>
-            Export errors <img alt="" src={DownloadIcon} />
-          </>
-        </Button>
+        <div className={`${baseClass}__errors-table-header`}>
+          {errors && (
+            <span className={`${baseClass}__error-count`}>
+              {errors.length} error{errors.length !== 1 && "s"}
+            </span>
+          )}
+          <div className={`${baseClass}__errors-cta`}>
+            <Button
+              className={`${baseClass}__show-query-btn`}
+              onClick={onShowQueryModal}
+              variant="text-link"
+            >
+              <>
+                Show query <img alt="Show query" src={EyeIcon} />
+              </>
+            </Button>
+            <Button
+              className={`${baseClass}__export-btn`}
+              onClick={onExportErrorsResults}
+              variant="text-link"
+            >
+              <>
+                Export errors <img alt="" src={DownloadIcon} />
+              </>
+            </Button>
+          </div>
+        </div>
         <div className={`${baseClass}__error-table-wrapper`}>
           {renderTable(errors)}
         </div>
@@ -302,12 +315,7 @@ const QueryResults = ({
           <TabPanel>{renderErrorsTable()}</TabPanel>
         </Tabs>
       </TabsWrapper>
-      {showQueryModal && (
-        <ShowQueryModal
-          onCancel={onShowQueryModal}
-          liveQuery={"query string"}
-        />
-      )}
+      {showQueryModal && <ShowQueryModal onCancel={onShowQueryModal} />}
     </div>
   );
 };

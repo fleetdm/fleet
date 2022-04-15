@@ -2,6 +2,7 @@
   &__btn-wrap {
     display: flex;
     flex-direction: row-reverse;
+    margin: $pad-large 0 0;
   }
 
   &__btn {

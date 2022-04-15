@@ -1,33 +1,28 @@
-import React from "react";
+import React, { useContext } from "react";
+import { QueryContext } from "context/query";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
-// @ts-ignore
-import YamlAce from "components/YamlAce";
+import FleetAce from "components/FleetAce";
 
 const baseClass = "show-query-modal";
 
 interface IShowQueryModalProps {
   onCancel: () => void;
-  liveQuery: string;
 }
 
-const ShowQueryModal = ({
-  onCancel,
-  liveQuery,
-}: IShowQueryModalProps): JSX.Element => {
-  const handleAceInputChange = (value: string) => {};
+const ShowQueryModal = ({ onCancel }: IShowQueryModalProps): JSX.Element => {
+  const { lastEditedQueryBody } = useContext(QueryContext);
 
   return (
     <Modal title={"Query"} onExit={onCancel} className={baseClass}>
       <div className={`${baseClass}__show-query-modal`}>
-        <YamlAce
+        <FleetAce
+          value={lastEditedQueryBody}
+          name="query editor"
           wrapperClassName={`${baseClass}__text-editor-wrapper`}
-          onChange={handleAceInputChange}
-          name="liveQuery"
-          value={liveQuery}
+          readOnly
         />
-
         <div className={`${baseClass}__btn-wrap`}>
           <Button
             className={`${baseClass}__btn`}

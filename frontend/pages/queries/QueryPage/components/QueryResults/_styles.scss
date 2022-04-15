@@ -35,7 +35,8 @@
     }
   }
 
-  &__results-cta > *:not(:last-child) {
+  &__results-cta > *:not(:last-child),
+  &__errors-cta > *:not(:last-child) {
     margin-right: $pad-medium;
   }
 
@@ -80,7 +81,8 @@
     }
   }
 
-  &__results-table-header {
+  &__results-table-header,
+  &__errors-table-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
