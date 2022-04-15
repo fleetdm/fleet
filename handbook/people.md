@@ -332,6 +332,7 @@ Every two weeks our CEO Mike has a 1:1 meeting with our Investor Sid and there a
  - After the 1:1 meeting has happened, Charlie makes a copy of the original document, labels it "yyyy-mm-dd Backup copy of Mike from Fleet & Sid," and moves it to a private folder. 
  - Charlie will change the permissions on the new copy to share it with Mike and Zach and set Mike to be the file's owner. If there are any agenda items labeled "TODO", Charlie will make a comment in the backup copy to assign them to Mike.
  - Charlie prepares the original document by deleting the agenda items in the "Hallway" and "Feedback" sections, leaving only the "Vision" section.
+ - Charlie will update the monthly "All Hands" link and grant Sid viewing access. 
  - Charlie will send Mike links to the new document and the backup copy in a direct message in Slack. 
  - The day before the meeting, Nathan will prepare the "Vision" section of the original document. Nathan will collect and update information related to annual recurring revenue, new members in the `#fleet` channel in the osquery Slack, the number of new customers and opportunities from Salesforce, the total number of devices using Fleet, the company's current headcount, and banking information.
 
