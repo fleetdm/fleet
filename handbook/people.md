@@ -212,7 +212,7 @@ We evaluate and update compensation decisions yearly, shortly after the annivers
 
    >**_Note:_** *When hiring an international employee, Pilot.co recommends starting the hiring process a month before the new employee's start date.*
 
-## Steps after an offer is accepted
+### Steps after an offer is accepted
 
 1. Once an offer is accepted in writing, reply to the candidate, CCing Eric via his Fleet email address to introduce the candidate to him.
 
@@ -274,7 +274,7 @@ During their onboarding at Fleet, new team members are asked to schedule a sight
   - The walkie talkies (DMs).
   - The watering hole (#oooh-, #random, #news, #help-).
 
-## Onboarding a new advisor.
+## Onboarding a new advisor
 
 Advisor agreements are sent through [DocuSign](https://www.docusign.com/), using the "Advisor Agreement"
 template. To send a new advisor agreement, you'll need the new advisor's name and the number of shares they
