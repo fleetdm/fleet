@@ -423,40 +423,59 @@ func (s *liveQueriesTestSuite) TestCreateDistributedQueryCampaign() {
 	s.DoJSON("POST", "/api/latest/fleet/queries/run", nil, http.StatusUnprocessableEntity, &createResp)
 
 	// create with unknown query
-	s.DoJSON("POST", "/api/latest/fleet/queries/run", createDistributedQueryCampaignRequest{QueryID: ptr.Uint(9999)}, http.StatusNotFound, &createResp)
+	req := createDistributedQueryCampaignRequest{
+		QueryID: ptr.Uint(9999),
+		Selected: fleet.HostTargets{
+			HostIDs: []uint{1},
+		},
+	}
+	s.DoJSON("POST", "/api/latest/fleet/queries/run", req, http.StatusNotFound, &createResp)
 
-	// create with new query
-	s.DoJSON("POST", "/api/latest/fleet/queries/run", createDistributedQueryCampaignRequest{QuerySQL: "SELECT 1"}, http.StatusOK, &createResp)
-	assert.NotZero(t, createResp.Campaign.ID)
-	assert.Equal(t, fleet.QueryWaiting, createResp.Campaign.Status)
-	assert.Equal(t, uint(0), createResp.Campaign.Metrics.TotalHosts)
-	camp1 := *createResp.Campaign
+	// create with no hosts
+	req = createDistributedQueryCampaignRequest{
+		QuerySQL: "SELECT 1",
+	}
+	s.DoJSON("POST", "/api/latest/fleet/queries/run", req, http.StatusBadRequest, &createResp)
 
 	// wait a second to prevent duplicate name for new query
 	time.Sleep(time.Second)
 
 	// create with new query for specific hosts
-	s.DoJSON("POST", "/api/latest/fleet/queries/run", createDistributedQueryCampaignRequest{QuerySQL: "SELECT 2", Selected: fleet.HostTargets{HostIDs: []uint{h1.ID, h2.ID}}}, http.StatusOK, &createResp)
-	assert.NotEqual(t, camp1.ID, createResp.Campaign.ID)
+	req = createDistributedQueryCampaignRequest{
+		QuerySQL: "SELECT 2",
+		Selected: fleet.HostTargets{
+			HostIDs: []uint{h1.ID, h2.ID},
+		},
+	}
+	s.DoJSON("POST", "/api/latest/fleet/queries/run", req, http.StatusOK, &createResp)
+	camp1 := *createResp.Campaign
 	assert.Equal(t, uint(2), createResp.Campaign.Metrics.TotalHosts)
 
 	// wait a second to prevent duplicate name for new query
 	time.Sleep(time.Second)
 
 	// create by host name
-	s.DoJSON("POST", "/api/latest/fleet/queries/run_by_names", createDistributedQueryCampaignByNamesRequest{
-		QuerySQL: "SELECT 3", Selected: distributedQueryCampaignTargetsByNames{Hosts: []string{h1.Hostname}}},
-		http.StatusOK, &createResp)
+	req2 := createDistributedQueryCampaignByNamesRequest{
+		QuerySQL: "SELECT 3",
+		Selected: distributedQueryCampaignTargetsByNames{
+			Hosts: []string{h1.Hostname},
+		},
+	}
+	s.DoJSON("POST", "/api/latest/fleet/queries/run_by_names", req2, http.StatusOK, &createResp)
 	assert.NotEqual(t, camp1.ID, createResp.Campaign.ID)
 	assert.Equal(t, uint(1), createResp.Campaign.Metrics.TotalHosts)
 
 	// wait a second to prevent duplicate name for new query
 	time.Sleep(time.Second)
 
-	// create by unknown host name - it ignores the unknown names
-	s.DoJSON("POST", "/api/latest/fleet/queries/run_by_names", createDistributedQueryCampaignByNamesRequest{
-		QuerySQL: "SELECT 3", Selected: distributedQueryCampaignTargetsByNames{Hosts: []string{h1.Hostname + "ZZZZZ"}}},
-		http.StatusOK, &createResp)
+	// create by unknown host name - it ignores the unknown names. Must have at least 1 valid host
+	req2 = createDistributedQueryCampaignByNamesRequest{
+		QuerySQL: "SELECT 3",
+		Selected: distributedQueryCampaignTargetsByNames{
+			Hosts: []string{h1.Hostname, h2.Hostname + "ZZZZZ"},
+		},
+	}
+	s.DoJSON("POST", "/api/latest/fleet/queries/run_by_names", req2, http.StatusOK, &createResp)
 }
 
 func (s *liveQueriesTestSuite) TestOsqueryDistributedRead() {
