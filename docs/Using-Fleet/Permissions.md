@@ -38,7 +38,7 @@ The following table depicts various permissions levels for each role.
 | Create, edit, and delete policies for all hosts      |          | ✅         | ✅    |
 | Create, edit, and delete policies for all hosts assigned to team\*     |          | ✅         | ✅    |
 | Manage failing policy automations for all hosts      |          | ✅         | ✅    |
-| Create, edit, and delete users                       |          |            | ✅    |
+| Create, edit, view, and delete users                       |          |            | ✅    |
 | Add and remove team members\*                        |          |            | ✅    |
 | Create, edit, and delete teams\*                     |          |            | ✅    |
 | Create, edit, and delete enroll secrets              |          | ✅         | ✅    |
