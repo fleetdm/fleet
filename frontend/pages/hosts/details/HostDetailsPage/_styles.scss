@@ -41,6 +41,12 @@
       display: flex;
       flex-wrap: wrap;
 
+      @media screen and (max-width: 960px) {
+        div:nth-child(n + 5) {
+          display: none;
+        }
+      }
+
       .info-flex__item--title {
         margin-bottom: 2.5rem;
       }
