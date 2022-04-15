@@ -27,7 +27,7 @@ The following table depicts various permissions levels for each role.
 | Filter hosts by software                             | ✅       | ✅         | ✅    |
 | Filter software by team*                             | ✅       | ✅         | ✅    |
 | Manage vulnerability automations         |          | ✅         | ✅    |
-| Run saved queries as live queries against all hosts  | ✅       | ✅         | ✅    |
+| Run only designated, _observer can run_ ,queries as live queries against all hosts  | ✅       | ✅         | ✅    |
 | Run custom queries as live queries against all hosts |          | ✅         | ✅    |
 | Create, edit, and delete queries                     |          | ✅         | ✅    |
 | Create, edit, and delete scheduled queries for all hosts |          | ✅         | ✅    |
