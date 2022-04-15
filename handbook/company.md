@@ -24,23 +24,16 @@ The majority of the code, documentation, and content we create at Fleet is publi
 
 ## Why this way?
 
-### Why do we wireframe first?
-- Wireframing is called “drafting” at Fleet and is done in Figma.
-- Anyone can make a wireframe suggestion, and wireframes are easy to contribute without being code literate.
-- Drafting is completed for each change.
-- We can throw it away after changes. Coding first leaves verbiage that is difficult to update, if it ever gets done at all.
-- It allows you to simplify the creation and testing of error messages.
-- Iterating in wireframes first lets us do all this for:
-    - error messages.
-    - layouts.
-    - flows.
-    - interactions.
-    - help text.
-    - button text.
-    - forms.
-    - URLs.
-    - API parameters.
-    - API response data…[and more.](https://github.com/fleetdm/fleet/issues/4821)
+### Why do we use a wireframe-first approach?
+Wireframing (or "drafting," as we often refer to it at Fleet) provides a clear overview of page layout, information architecture, user flow, and functionality. The wireframe-first approach extends beyond what users see on their screens. Wireframe-first is also excellent for drafting APIs, config settings, CLI options, and even business processes. 
+
+He's why we use a wireframe-first approach at Fleet.
+
+- We create a wireframe for every change we make and favor small, iterative changes to deliver value quickly. 
+- We can think through the functionality and user experience more deeply by wireframing before committing any code. As a result, our coding decisions are clearer, and our code is cleaner and easier to maintain.
+- Content hierarchy, messaging, error states, interactions, URLs, API parameters, and API response data are all considered during the wireframing process (often with several rounds of review). This initial quality assurance means engineers can focus on their code and confidently catch any potential edge-cases or issues along the way.
+- Wireframing is accessible to people who understand our users but are not necessarily code-literate. So anyone can contribute a suggestion (at any level of fidelity). At the very least, you'll need a napkin and a pen, although we prefer to use Figma.
+- With Figma, thanks to its powerful component and auto-layout features, we can create high-fidelity wireframes - fast. We can iterate quickly without costing more work and less [sunk-cost fallacy](https://dictionary.cambridge.org/dictionary/english/sunk-cost-fallacy).
 
 ### Why mono repo?
 - One repo keeps all of the relevant work in one place. The only exception is when we're working on something confidential.
@@ -103,26 +96,19 @@ When a new team member joins Fleet, they adopt the values, from day 1.  This way
 
 ### 🔴 Empathy
 Empathy leads to better understanding, better communication, and better decisions.  Try to understand what people may be going through, so you can help make it better.
-
-- Think and make customer-first choices.
-
-  <!-- TODO: Figure out what to do with this commented-out bit.  I wrote it, but it's too long.  Maybe just delete it. (mikermcneil, feb 26, 2022)
-
+ <!-- TODO: Figure out what to do with this commented-out bit.  I wrote it, but it's too long.  Maybe just delete it. (mikermcneil, feb 26, 2022)
   > #### Customer first
   > At Fleet, we think about the customer first.  No matter what kind of work you are doing, you serve the customer.
-  > 
   > When customers buy Fleet, they trust us to provide the solution for important problems.
-  > 
   > Imagine you are the person making the decision to buy Fleet.  Imagine you are responsible for all of your organization's laptops and servers.  Imagine you log in to the product every day.  Imagine you are the developer writing code to integrate with Fleet's REST API.  Imagine you are deploying the server, or running the upgrade scripts.  Imagine you are responsible for keeping your organization's computers secure and running smoothly.
-  > 
-  > You would rest easier, knowing that everyone who works at Fleet is seeking to deliver the experience they would want for themselves, in your shoes. -->
-- Consider your counterpart.
+  > You would rest easier, knowing that everyone who works at Fleet is seeking to deliver the experience they would want for themselves, in your shoes. --> 
+  - Think and make customer-first choices.
+  - Consider your counterpart.
   - For example: keep in mind customers, contributors, colleagues, the other person in your Zoom meeting, the other folks in a Slack channel, the people who use software and APIs you build, the people following the processes you design.
   - Ask questions in a way you would want to be asked.
   - Assume others have positive intent.
   - Be kind.
   - Quickly review pending changes when your review is requested. <!-- TODO: (when you are requested as a reviewer in GitHub, respond quickly.  If pull requests start to stack up, merge conflicts can arise, or the original author can forget, or lose context for why they were making the change.  The more pending changes there are, the harder it is to sort through what needs to be reviewed next.) -->
-
   - Be punctual.
   - End meetings on time.
 - Role play as a user.
@@ -133,7 +119,7 @@ Empathy leads to better understanding, better communication, and better decision
   - Create patches with care (upgrading to new releases of Fleet can be time-consuming for users running self-managed deployments). <!-- TODO: (patch releases are important for improving security, quality, and stability. Cut a patch release if there is a security concern, previously stable features are unusable, or if a new feature advertised in the current release is unusable.  But remember that people have to actually install these updates!) -->
   - Confusing error messages make people feel helpless and can fill them with despair.
   - Error messages deserve to be good (it's worth it to spend time on them).
-  - UI help-text and labels deserve to be good (it's worth it to spend time on them).
+  - UI help text and labels deserve to be good (it's worth it to spend time on them).
 - Invest in hospitality.
   - "Be a helper."   -Mr. Rogers
   - Think and say [positive things](https://www.theatlantic.com/family/archive/2018/06/mr-rogers-neighborhood-talking-to-kids/562352/).
@@ -154,7 +140,6 @@ Empathy leads to better understanding, better communication, and better decision
 - Take responsibility.
   - Think like an owner.
   - Follow through on commitments (actions match your words).
-
   - Own up to mistakes.
   - Understand why it matters (the goals of the work you are doing).
   - Consider the business impact (fast forward 12 months, consider the total cost of ownership over the eternity of maintenance).
