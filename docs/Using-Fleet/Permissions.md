@@ -22,7 +22,7 @@ The following table depicts various permissions levels for each role.
 | Delete hosts                                         |          | ✅         | ✅    |
 | Transfer hosts between teams\*                       |          | ✅         | ✅    |
 | Create, edit, and delete labels                      |          | ✅         | ✅    |
-| Browse all software                                  | ✅       | ✅         | ✅    |
+| View all software                                  | ✅       | ✅         | ✅    |
 | Filter software by vulnerabilities                   | ✅       | ✅         | ✅    |
 | Filter hosts by software                             | ✅       | ✅         | ✅    |
 | Filter software by team*                             | ✅       | ✅         | ✅    |
