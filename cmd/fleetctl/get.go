@@ -144,9 +144,9 @@ func printHostDetail(c *cli.Context, host *service.HostDetailResponse) error {
 	return printSpec(c, spec)
 }
 
-type EnrichedAppConfigPresenter fleet.EnrichedAppConfig
+type enrichedAppConfigPresenter fleet.EnrichedAppConfig
 
-func (eacp EnrichedAppConfigPresenter) MarshalJSON() ([]byte, error) {
+func (eacp enrichedAppConfigPresenter) MarshalJSON() ([]byte, error) {
 	type UpdateIntervalConfigPresenter struct {
 		OSQueryDetail string `json:"osquery_detail"`
 		OSQueryPolicy string `json:"osquery_policy"`
@@ -594,7 +594,7 @@ func getAppConfigCommand() *cli.Command {
 			}
 
 			if c.Bool(includeServerConfigFlagName) {
-				err = printConfig(c, EnrichedAppConfigPresenter(*config))
+				err = printConfig(c, enrichedAppConfigPresenter(*config))
 			} else {
 				err = printConfig(c, config.AppConfig)
 			}
