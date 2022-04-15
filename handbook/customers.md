@@ -98,21 +98,6 @@ Fleet's self-service license dispenser is the best way to generate trial license
 
 To generate a trial license key for a larger deployment, [create an opportunity issue](https://github.com/fleetdm/confidential/issues/new/choose) for the customer and follow the instructions in the issue for generating a trial license key.
 
-## Slack channels
-
-The following [Slack channels are maintained](https://fleetdm.com/handbook/company#group-slack-channels) by this group:
-
-| Slack channel                       | [DRI](https://fleetdm.com/handbook/company#group-slack-channels)    |
-|:------------------------------------|:--------------------------------------------------------------------|
-| `#g-customer-engineering`           | Tony Gauda                                                          |
-| `#fleet-at-*` _(customer channels)_ | Tony Gauda                                                          |
-| `#help-sell`                        | Andrew Bare                                                         |
-| `#_from-prospective-customers`      | Andrew Bare                                                         |
-
-## Documentation updates
-
-Occasionally users will either email or Slack questions about product usage. We will track these requests and occasionally update our documentation to simplify things for our users. We have a Zapier integration that will automatically create an entry in our customer questions Google doc (in Slack, right-click on the customer question and select send to Zapier). At the end of the week, one of our team members will take each request in the spreadsheet and make any helpful documentation updates to help prevent similar questions in the future.
-
 ## Fleet rituals for customers
 
 The following rituals are engaged in by the  directly responsible individual (DRI) and at the frequency specified for the ritual.
@@ -132,6 +117,23 @@ The following rituals are engaged in by the  directly responsible individual (DR
 | Customer meetings | Check-in on how product and company is performing, provide updates on new product features or progress on customer requests.  Typically occur every Thursday, these are private meetings with one meeting for each individual commercial customer. | Tony Gauda |
 | Advisory meetings | Peer network feedback and Q& with other industry professionals. Mostly discussions on refining process. Vary somewhat in frequency, but occur at least once per quarter. | Tony Gauda |
 | Internal follow up ritual | Go through Fleet's internal Slack channels to check for any relevant new information or tasks from other teams. | Tony Gauda |
+
+
+
+## Slack channels
+
+The following [Slack channels are maintained](https://fleetdm.com/handbook/company#group-slack-channels) by this group:
+
+| Slack channel                       | [DRI](https://fleetdm.com/handbook/company#group-slack-channels)    |
+|:------------------------------------|:--------------------------------------------------------------------|
+| `#g-customer-engineering`           | Tony Gauda                                                          |
+| `#fleet-at-*` _(customer channels)_ | Tony Gauda                                                          |
+| `#help-sell`                        | Andrew Bare                                                         |
+| `#_from-prospective-customers`      | Andrew Bare                                                         |
+
+## Documentation updates
+
+Occasionally users will either email or Slack questions about product usage. We will track these requests and occasionally update our documentation to simplify things for our users. We have a Zapier integration that will automatically create an entry in our customer questions Google doc (in Slack, right-click on the customer question and select send to Zapier). At the end of the week, one of our team members will take each request in the spreadsheet and make any helpful documentation updates to help prevent similar questions in the future.
 
 
 
