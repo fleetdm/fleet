@@ -390,7 +390,7 @@ We track competitors' capabilities and adjacent (or commonly integrated) product
 
 ## Slack channels
 
-These groups maintain the following [Slack channels](https://fleetdm.com/handbook/company#group-slack-channels):
+This group maintains the following [Slack channels](https://fleetdm.com/handbook/company#group-slack-channels):
 
 | Slack channel                       | [DRI](https://fleetdm.com/handbook/company#group-slack-channels)    |
 |:------------------------------------|:--------------------------------------------------------------------|
