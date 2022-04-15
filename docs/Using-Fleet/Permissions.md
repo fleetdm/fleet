@@ -32,7 +32,7 @@ The following table depicts various permissions levels for each role.
 | Create, edit, and delete queries                     |          | ✅         | ✅    |
 | Create, edit, and delete scheduled queries for all hosts |          | ✅         | ✅    |
 | Create, edit, and delete scheduled queries for all hosts assigned to a team\*  |          | ✅         | ✅    |
-| Create, edit, and delete packs                       |          | ✅         | ✅    |
+| Create, edit, view, and delete packs                       |          | ✅         | ✅    |
 | View all policies                                  | ✅       | ✅         | ✅    |
 | Filter hosts using policies                          | ✅       | ✅         | ✅    |
 | Create, edit, and delete policies for all hosts      |          | ✅         | ✅    |
