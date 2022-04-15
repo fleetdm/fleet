@@ -15,7 +15,9 @@ import Spinner from "components/Spinner";
 import TableContainer from "components/TableContainer";
 import TabsWrapper from "components/TabsWrapper";
 import TooltipWrapper from "components/TooltipWrapper";
+import ShowQueryModal from "./ShowQueryModal";
 import DownloadIcon from "../../../../../../assets/images/icon-download-12x12@2x.png";
+import EyeIcon from "../../../../../../assets/images/icon-eye-16x16@2x.png";
 
 import resultsTableHeaders from "./QueryResultsTableConfig";
 
@@ -60,6 +62,7 @@ const QueryResults = ({
     targetsRespondedPercent,
     setTargetsRespondedPercent,
   ] = useState<number>(0);
+  const [showQueryModal, setShowQueryModal] = useState<boolean>(false);
 
   useEffect(() => {
     const calculatePercent =
@@ -119,6 +122,10 @@ const QueryResults = ({
     }
   };
 
+  const onShowQueryModal = () => {
+    setShowQueryModal(!showQueryModal);
+  };
+
   const onQueryDone = () => {
     setSelectedTargets([]);
     goToQueryEditor();
@@ -169,18 +176,31 @@ const QueryResults = ({
 
     return (
       <div className={`${baseClass}__results-table-container`}>
-        <span className={`${baseClass}__results-count`}>
-          {totalRowsCount} result{totalRowsCount !== 1 && "s"}
-        </span>
-        <Button
-          className={`${baseClass}__export-btn`}
-          onClick={onExportQueryResults}
-          variant="text-link"
-        >
-          <>
-            Export results <img alt="" src={DownloadIcon} />
-          </>
-        </Button>
+        <div className={`${baseClass}__results-table-header`}>
+          <span className={`${baseClass}__results-count`}>
+            {totalRowsCount} result{totalRowsCount !== 1 && "s"}
+          </span>
+          <div className={`${baseClass}__results-cta`}>
+            <Button
+              className={`${baseClass}__show-query-btn`}
+              onClick={onShowQueryModal}
+              variant="text-link"
+            >
+              <>
+                Show query <img alt="Show query" src={EyeIcon} />
+              </>
+            </Button>
+            <Button
+              className={`${baseClass}__export-btn`}
+              onClick={onExportQueryResults}
+              variant="text-link"
+            >
+              <>
+                Export results <img alt="Export results" src={DownloadIcon} />
+              </>
+            </Button>
+          </div>
+        </div>
         {renderTable(queryResults)}
       </div>
     );
@@ -282,6 +302,12 @@ const QueryResults = ({
           <TabPanel>{renderErrorsTable()}</TabPanel>
         </Tabs>
       </TabsWrapper>
+      {showQueryModal && (
+        <ShowQueryModal
+          onCancel={onShowQueryModal}
+          liveQuery={"query string"}
+        />
+      )}
     </div>
   );
 };

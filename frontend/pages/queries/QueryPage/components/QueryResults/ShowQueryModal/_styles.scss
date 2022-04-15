@@ -1,0 +1,18 @@
+.show-query-modal {
+  &__btn-wrap {
+    display: flex;
+    flex-direction: row-reverse;
+  }
+
+  &__btn {
+    margin-left: 12px;
+  }
+
+  .yaml-ace {
+    min-height: 0;
+  }
+
+  .yaml-ace__label {
+    height: 0;
+  }
+}

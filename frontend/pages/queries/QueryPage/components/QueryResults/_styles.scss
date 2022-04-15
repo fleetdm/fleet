@@ -35,9 +35,12 @@
     }
   }
 
-  &__export-btn {
-    padding-top: 28px;
+  &__results-cta > *:not(:last-child) {
+    margin-right: $pad-medium;
+  }
 
+  &__export-btn,
+  &__show-query-btn {
     img {
       width: 13px;
       height: 13px;
@@ -77,10 +80,16 @@
     }
   }
 
+  &__results-table-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: $pad-xlarge;
+  }
+
   &__results-count,
   &__error-count {
     font-size: $x-small;
     font-weight: $bold;
-    margin-right: $pad-medium;
   }
 }
