@@ -451,7 +451,7 @@ spec:
   query: SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;
   description: Checks to make sure that the Gatekeeper feature is enabled on macOS devices. Gatekeeper tries to ensure only trusted software is run on a mac machine.
   resolution: "To enable Gatekeeper, on the failing device, run the following command in the Terminal app: /usr/sbin/spctl --master-enable."
-  platforms: macOS
+  platform: darwin
   contributors: groob
 ---
 apiVersion: v1
@@ -461,10 +461,10 @@ spec:
   query: SELECT 1 FROM bitlocker_info where protection_status = 1;
   description: Checks to make sure that full disk encryption is enabled on Windows devices.
   resolution: "To get additional information, run the following osquery query on the failing device: SELECT * FROM bitlocker_info. In the
-  query results, if protection_status is 2, then the status cannot be determined. If it is 0, it is
-  considered unprotected. Use the additional results (percent_encrypted, conversion_status, etc.) to
-  help narrow down the specific reason why Windows considers the volume unprotected."
-  platforms: Windows
+    query results, if protection_status is 2, then the status cannot be determined. If it is 0, it is
+    considered unprotected. Use the additional results (percent_encrypted, conversion_status, etc.) to
+    help narrow down the specific reason why Windows considers the volume unprotected."
+  platform: windows
   contributors: defensivedepth
 ---
 apiVersion: v1
@@ -473,9 +473,8 @@ spec:
   name: Full disk encryption enabled (macOS)
   query: SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT "" AND filevault_status = 'on' LIMIT 1;
   description: Checks to make sure that full disk encryption (FileVault) is enabled on macOS devices.
-  resolution: "To enable full disk encryption, on the failing device, select System Preferences >
-  Security & Privacy > FileVault > Turn On FileVault."
-  platforms: macOS
+  resolution: To enable full disk encryption, on the failing device, select System Preferences > Security & Privacy > FileVault > Turn On FileVault.
+  platform: darwin
   contributors: groob
 ---
 apiVersion: v1
@@ -485,7 +484,7 @@ spec:
   query: SELECT 1 FROM disk_encryption WHERE encrypted=1 AND name LIKE '/dev/dm-1';
   description: Checks if the root drive is encrypted. There are many ways to encrypt Linux systems. This is the default on distributions such as Ubuntu.
   resolution: "Ensure the image deployed to your Linux workstation includes full disk encryption."
-  platforms: Linux
+  platform: linux
   contributors: GuillaumeRoss
 ---
 apiVersion: v1
@@ -495,7 +494,7 @@ spec:
   query: SELECT 1 FROM sip_config WHERE config_flag = 'sip' AND enabled = 1;
   description: Checks to make sure that the System Integrity Protection feature is enabled.
   resolution: "To enable System Integrity Protection, on the failing device, run the following command in the Terminal app: /usr/sbin/spctl --master-enable."
-  platforms: macOS
+  platform: darwin
   contributors: groob
 ---
 apiVersion: v1
@@ -505,7 +504,7 @@ spec:
   query: SELECT 1 FROM managed_policies WHERE domain = 'com.apple.loginwindow' AND name = 'com.apple.login.mcx.DisableAutoLoginClient' AND value = 1 LIMIT 1;
   description: "Required: You’re already enforcing a policy via Moble Device Management (MDM). Checks to make sure that the device user cannot log in to the device without a password."
   resolution: "The following example profile includes a setting to disable automatic login: https://github.com/gregneagle/profiles/blob/fecc73d66fa17b6fa78b782904cb47cdc1913aeb/loginwindow.mobileconfig#L64-L65."
-  platforms: macOS
+  platform: darwin
   contributors: groob
 ---
 apiVersion: v1
@@ -515,7 +514,7 @@ spec:
   query: SELECT 1 FROM managed_policies WHERE domain = 'com.apple.loginwindow' AND name = 'DisableGuestAccount' AND value = 1 LIMIT 1;
   description: "Required: You’re already enforcing a policy via Moble Device Management (MDM). Checks to make sure that guest accounts cannot be used to log in to the device without a password."
   resolution: "The following example profile includes a setting to disable guest users: https://github.com/gregneagle/profiles/blob/fecc73d66fa17b6fa78b782904cb47cdc1913aeb/loginwindow.mobileconfig#L68-L71."
-  platforms: macOS
+  platform: darwin
   contributors: groob
 ---
 apiVersion: v1
@@ -524,7 +523,7 @@ spec:
   name: Secure keyboard entry for Terminal.app enabled (macOS)
   query: SELECT 1 FROM managed_policies WHERE domain = 'com.apple.Terminal' AND name = 'SecureKeyboardEntry' AND value = 1 LIMIT 1;
   description: "Required: You’re already enforcing a policy via Moble Device Management (MDM). Checks to make sure that the Secure Keyboard Entry setting is enabled."
-  platforms: macOS
+  platform: darwin
   contributors: groob
 ---
 apiVersion: v1
@@ -563,9 +562,10 @@ spec:
   name: Antivirus healthy (macOS)
   query: SELECT score FROM (SELECT case when COUNT(*) = 2 then 1 ELSE 0 END AS score FROM plist WHERE (key = 'CFBundleShortVersionString' AND path = '/Library/Apple/System/Library/CoreServices/XProtect.bundle/Contents/Info.plist' AND value>=2155) OR (key = 'CFBundleShortVersionString' AND path = '/Library/Apple/System/Library/CoreServices/MRT.app/Contents/Info.plist' and value>=1.88)) WHERE score == 1;
   description: Checks the version of Malware Removal Tool (MRT) and the built-in macOS AV (Xprotect). Replace version numbers with latest version regularly.
-  resolution: "To enable automatic security definition updates, on the failing device, select System Preferences >
-  Software Update > Advanced > Turn on Install system data files and security updates."
-  platforms: macOS
+  resolution: To enable automatic security definition updates, on the failing device, select System
+    Preferences > Software Update > Advanced > Turn on Install system data files and security
+    updates.
+  platform: darwin
   contributors: GuillaumeRoss
 ---
 apiVersion: v1
@@ -575,7 +575,7 @@ spec:
   query: SELECT 1 from windows_security_center wsc CROSS JOIN windows_security_products wsp WHERE antivirus = 'Good' AND type = 'Antivirus' AND signatures_up_to_date=1;
   description: Checks the status of antivirus and signature updates from the Windows Security Center. 
   resolution: "Ensure Windows Defender or your third-party antivirus is running, up to date, and visible in the Windows Security Center."
-  platforms: Windows
+  platform: windows
   contributors: GuillaumeRoss
 ---
 apiVersion: v1
@@ -585,7 +585,7 @@ spec:
   query: SELECT score FROM (SELECT case when COUNT(*) = 2 then 1 ELSE 0 END AS score FROM processes WHERE (name = 'clamd') OR (name = 'freshclam')) WHERE score == 1;
   description: Checks that both ClamAV's daemon and its updater service (freshclam) are running. 
   resolution: "Ensure ClamAV and Freshclam are installed and running."
-  platforms: Linux
+  platform: linux
   contributors: GuillaumeRoss
 ---
 apiVersion: v1
@@ -595,7 +595,7 @@ spec:
   query: SELECT 1 from mdm WHERE enrolled='true';
   description: "Required: osquery deployed with Orbit, or manual installation of macadmins/osquery-extension. Checks that a Mac is enrolled to MDM. Add a AND on identity_certificate_uuid to check for a specific MDM."
   resolution: "Enroll device to MDM"
-  platforms: macOS
+  platform: darwin
   contributors: GuillaumeRoss
 ---
 apiVersion: v1
@@ -605,7 +605,7 @@ spec:
   query: SELECT 1 WHERE EXISTS (SELECT 1 FROM apps a1 WHERE a1.bundle_identifier = 'com.electron.dockerdesktop' AND a1.bundle_short_version>='4.6.1') OR NOT EXISTS (SELECT 1 FROM apps a2 WHERE a2.bundle_identifier = 'com.electron.dockerdesktop');
   description: "Checks if the application (Docker Desktop example) is installed and up to date, or not installed. Fails if the application is installed and on a lower version. You can copy this query and replace the bundle_identifier and bundle_version values to apply the same type of policy to other applications."
   resolution: "Update Docker or remove it if not used."
-  platforms: macOS
+  platform: darwin
   contributors: GuillaumeRoss
 ---
 apiVersion: v1
@@ -615,5 +615,5 @@ spec:
   query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM users CROSS JOIN user_ssh_keys USING (uid) WHERE encrypted='0');
   description: "Required: osquery must have Full Disk Access. Policy passes if all keys are encrypted, including if no keys are present."
   resolution: "Use this command to encrypt existing SSH keys by providing the path to the file: ssh-keygen -o -p -f /path/to/file"
-  platforms: macOS, Linux, Windows
+  platform: darwin,linux,windows
   contributors: GuillaumeRoss
