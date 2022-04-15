@@ -68,7 +68,9 @@ Users can be a member of multiple teams in Fleet.
 
 Users that are members of multiple teams can be assigned different roles for each team. For example, a user can be given access to the "Workstations" team and assigned the "Observer" role. This same user can be given access to the "Servers" team and assigned the "Maintainer" role.
 
-The following table depicts various permissions levels in a team.
+The following table depicts permissions levels in a team.
+
+All hosts, software, policies, etc. are exclusive to one team.
 
 | **Action**                                                   | Observer | Maintainer | Admin   |
 | ------------------------------------------------------------ | -------- | ---------- | ------- |
