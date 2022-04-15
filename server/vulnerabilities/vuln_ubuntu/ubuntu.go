@@ -32,6 +32,9 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+// maxChangelogSize is the maximum allowed size of a changelog.
+const maxChangelogSize = (10 << 20) // 10 MB
+
 func defaultCacheDir() (string, error) {
 	return filepath.Join("vuln", "ubuntu"), nil
 }
@@ -343,21 +346,32 @@ func processPKGURL(u *url.URL, parentDir string, verbose bool) error {
 			continue
 		}
 
-		destFileName := filepath.Join(destDir, filename)
+		//nolint:gosec // G305 (zip slip vulnerability) addressed by checking if relative path is outside of dest dir
+		path := filepath.Join(destDir, filename)
+
+		// address G305
+		rel, err := filepath.Rel(destDir, path)
+		if err != nil {
+			return err
+		}
+		if strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
+			return fmt.Errorf("%s is outside of %s", filename, destDir)
+		}
 
 		// create dirs
-		if err := os.MkdirAll(filepath.Dir(destFileName), 0o755); err != nil {
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 			return err
 		}
 
 		err = func() error {
-			f, err := os.Create(destFileName)
+			f, err := os.Create(path)
 			if err != nil {
 				return err
 			}
 			defer f.Close()
 
-			_, err = io.Copy(f, tr)
+			// address gosec G110, only copy up to a maximum number of bytes. 10 MB should be more than enough for a changelog
+			_, err = io.CopyN(f, tr, maxChangelogSize)
 			return err
 		}()
 		if err != nil {
