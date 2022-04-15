@@ -74,7 +74,7 @@ All hosts, software, policies, etc. are exclusive to one team.
 
 | **Action**                                                   | Team observer | Team maintainer | Team admin   |
 | ------------------------------------------------------------ | -------- | ---------- | ------- |
-| Browse hosts assigned to team                                | ✅       | ✅         | ✅       |
+| View hosts                               | ✅       | ✅         | ✅       |
 | Filter hosts assigned to team using labels                   | ✅       | ✅         | ✅       |
 | Target hosts assigned to team using labels                   | ✅       | ✅         | ✅       |
 | Enroll hosts to team                                         |          | ✅         | ✅       |
