@@ -1651,64 +1651,14 @@ WHERE
 	return osVersions, nil
 }
 
+// Aggregated stats for os versions are stored by team id with 0 representing the global case
+// If existing team has no hosts, we explicity set the json value as an empty array
 func (ds *Datastore) UpdateOSVersions(ctx context.Context) error {
-	counts, err := ds.gatherOSCountsDB(ctx)
-	if err != nil {
-		return ctxerr.Wrapf(ctx, err, "gathering counts stats for os versions")
-	}
-
-	teams, err := ds.TeamsSummary(ctx)
-	if err != nil {
-		return ctxerr.Wrapf(ctx, err, "getting team summary")
-	}
-
-	countsByTeamId := make(map[uint]*json.RawMessage)
-	for _, c := range *counts {
-		countsByTeamId[c.TeamID] = c.OSVersions
-	}
-
-	for _, t := range teams {
-		if countsByTeamId[t.ID] == nil {
-			var raw json.RawMessage
-			raw, err = json.Marshal([]fleet.OSVersion{})
-			if err != nil {
-				return err
-			}
-			countsByTeamId[t.ID] = &raw
-		}
-	}
-
-	var insertArgs []interface{}
-	for id, counts := range countsByTeamId {
-		insertArgs = append(insertArgs, id, "os_versions", counts)
-	}
-
-	insertValues := strings.TrimSuffix(strings.Repeat("(?, ?, ?),", len(countsByTeamId)), ",")
-
-	sql := fmt.Sprintf(`
-INSERT INTO aggregated_stats (id, type, json_value) 
-VALUES %s 
-ON DUPLICATE KEY UPDATE
-	json_value = VALUES(json_value),
-	updated_at = CURRENT_TIMESTAMP
-`, insertValues)
-
-	if _, err := ds.writer.ExecContext(ctx, sql, insertArgs...); err != nil {
-		return ctxerr.Wrap(ctx, err, "update aggregated stats for os versions")
-	}
-
-	return nil
-}
-
-type osCounts struct {
-	TeamID     uint             `db:"id"`
-	OSVersions *json.RawMessage `db:"json_value"`
-}
-
-func (ds *Datastore) gatherOSCountsDB(ctx context.Context) (*[]osCounts, error) {
-	query := `
+	sql := `
+INSERT INTO aggregated_stats (id, type, json_value)
 SELECT
   team_id id,
+  'os_versions' type,
   COALESCE(
     JSON_ARRAYAGG(
       JSON_OBJECT(
@@ -1747,14 +1697,30 @@ FROM
   ) as team_os_versions
 GROUP BY
   team_id
-
+UNION
+SELECT
+  t.id,
+  'os_versions' type,
+  JSON_ARRAY()
+FROM
+  teams t
+WHERE NOT EXISTS (
+  SELECT
+    id
+  FROM
+    hosts h
+  WHERE
+    t.id = h.team_id
+)
+ON DUPLICATE KEY UPDATE
+  json_value = VALUES(json_value),
+  updated_at = CURRENT_TIMESTAMP
 `
 
-	var counts []osCounts
-	err := sqlx.SelectContext(ctx, ds.reader, &counts, query)
+	_, err := ds.writer.ExecContext(ctx, sql)
 	if err != nil {
-		return nil, ctxerr.Wrapf(ctx, err, "gather aggregated stats for os versions")
+		return ctxerr.Wrapf(ctx, err, "update aggregated stats for os versions")
 	}
 
-	return &counts, nil
+	return nil
 }

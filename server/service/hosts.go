@@ -928,6 +928,13 @@ func (svc *Service) OSVersions(ctx context.Context, teamID *uint, platform *stri
 
 	osVersions, err := svc.ds.OSVersions(ctx, teamID, platform)
 	if err != nil && fleet.IsNotFound(err) {
+		// only return not found if invalid team id, otherwise API should return empty JSON array
+		if teamID != nil {
+			_, err := svc.ds.Team(ctx, *teamID)
+			if err != nil {
+				return nil, err
+			}
+		}
 		osVersions = &fleet.OSVersions{}
 	} else if err != nil {
 		return nil, err
