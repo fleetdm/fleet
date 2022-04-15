@@ -388,6 +388,19 @@ Fleet's feature flag guidelines borrows from GitLab's ["When to use feature flag
 
 We track the capabilities of competitors and adjacent (or commonly integrated) products in this [Google Doc](https://docs.google.com/document/d/1Bqdui6oQthdv5XtD5l7EZVB-duNRcqVRg7NVA4lCXeI/edit) (private).
 
+## Product rituals
+
+The following rituals are engaged in by the  directly responsible individual (DRI) and at the frequency specified for the ritual.
+
+| Ritual                       | Description                                         | DRI               |
+|:-----------------------------|:----------------------------------------------------|-------------------|
+| Product huddle | Occurs daily. "In progress" issues are discussed and any issues "ready for review" are placed on the list for the product design review call. On Mondays, issues are broken down into a week's work and added into "ready." Issues are moved out of "delivered" every Friday. | Noah Talerman |  
+| ✨Product design review      | Occurs every Thursday. Product team discusses "ready for review" items with CEO and the decision is made on whether to pass UI changes on to engineering. | Noah Talerman |
+| 🗣 Product office hours     | Occurs every Tuesday. Decision is made regarding which customer and community feature requests can be committed to in the next six weeks. Issues are created for any requests that don't already have one. | Noah Talerman |
+| 🎨UI/UX office hours      | Occurs every Wednesday. Decision is made regarding which community UX requests can be committed to in the next six weeks. Community UX questions are discussed, as are questions from the Slack community and internal Fleet team with the intention of providing answers to the question's originator.    | Noah Talerman |
+| 👀Product review      | Features and improvements in the upcoming release are presented and bugs, fixes and changes that should be made prior to release are discussed.  Occurs every three weeks.  | Noah Talerman |
+
+
 ## Slack channels
 
 The following [Slack channels are maintained](https://fleetdm.com/handbook/company#group-slack-channels) by this group:
