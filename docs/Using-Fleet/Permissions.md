@@ -15,25 +15,26 @@ The following table depicts various permissions levels for each role.
 | **Action**                                           | Observer | Maintainer | Admin |
 | ---------------------------------------------------- | -------- | ---------- | ----- |
 | View activity                                        | ✅       | ✅         | ✅    |
-| Browse all hosts                                     | ✅       | ✅         | ✅    |
+| View all hosts                                       | ✅       | ✅         | ✅    |
 | Filter hosts using labels                            | ✅       | ✅         | ✅    |
 | Target hosts using labels                            | ✅       | ✅         | ✅    |
 | Enroll hosts                                         |          | ✅         | ✅    |
 | Delete hosts                                         |          | ✅         | ✅    |
 | Transfer hosts between teams\*                       |          | ✅         | ✅    |
 | Create, edit, and delete labels                      |          | ✅         | ✅    |
-| View all software                                  | ✅       | ✅         | ✅    |
+| View all software                                    | ✅       | ✅         | ✅    |
 | Filter software by vulnerabilities                   | ✅       | ✅         | ✅    |
 | Filter hosts by software                             | ✅       | ✅         | ✅    |
 | Filter software by team*                             | ✅       | ✅         | ✅    |
-| Manage vulnerability automations         |          | ✅         | ✅    |
+| Manage vulnerability automations                     |          | ✅         | ✅    |
 | Run only designated, _observer can run_ ,queries as live queries against all hosts  | ✅       | ✅         | ✅    |
-| Run any query as live query against all hosts |          | ✅         | ✅    |
+| Run any query as live query against all hosts        |          | ✅         | ✅    |
 | Create, edit, and delete queries                     |          | ✅         | ✅    |
+| View all queries                                     | ✅       | ✅         | ✅    |
 | Create, edit, and delete scheduled queries for all hosts |          | ✅         | ✅    |
 | Create, edit, and delete scheduled queries for all hosts assigned to a team\*  |          | ✅         | ✅    |
 | Create, edit, view, and delete packs                       |          | ✅         | ✅    |
-| View all policies                                  | ✅       | ✅         | ✅    |
+| View all policies                                    | ✅       | ✅         | ✅    |
 | Filter hosts using policies                          | ✅       | ✅         | ✅    |
 | Create, edit, and delete policies for all hosts      |          | ✅         | ✅    |
 | Create, edit, and delete policies for all hosts assigned to team\*     |          | ✅         | ✅    |
@@ -45,7 +46,7 @@ The following table depicts various permissions levels for each role.
 | Create, edit, and delete enroll secrets for teams\*  |          | ✅         | ✅    |
 | Edit organization settings                           |          |            | ✅    |
 | Edit agent options                                   |          |            | ✅    |
-| Edit agent options for hosts assigned to teams\*    |          |            | ✅    |
+| Edit agent options for hosts assigned to teams\*     |          |            | ✅    |
 
 
 
@@ -74,7 +75,7 @@ All hosts, software, policies, etc. are exclusive to one team.
 
 | **Action**                                                   | Team observer | Team maintainer | Team admin   |
 | ------------------------------------------------------------ | -------- | ---------- | ------- |
-| View hosts                               | ✅       | ✅         | ✅       |
+| View hosts                                                   | ✅       | ✅         | ✅       |
 | Filter hosts assigned to team using labels                   | ✅       | ✅         | ✅       |
 | Target hosts assigned to team using labels                   | ✅       | ✅         | ✅       |
 | Enroll hosts to team                                         |          | ✅         | ✅       |
@@ -86,8 +87,8 @@ All hosts, software, policies, etc. are exclusive to one team.
 | Run custom queries as live queries on hosts assigned to team |          | ✅         | ✅       |
 | Create, edit, and delete queries _they authored only_        |          | ✅         | ✅       |
 | Create, edit, and delete schedule queries for all hosts assigned to team |          | ✅         | ✅       |
-| Browse policies for hosts assigned to team                   | ✅       | ✅         | ✅       |
-| Browse global (inherited) policies                           | ✅       | ✅         | ✅       |
+| View policies for hosts assigned to team                     | ✅       | ✅         | ✅       |
+| View global (inherited) policies                             | ✅       | ✅         | ✅       |
 | Filter hosts assigned to team using policies                 | ✅       | ✅         | ✅       |
 | Create, edit, and delete policies for all hosts assigned to team |          | ✅         | ✅       |
 | Add and remove team members                                  |          |            | ✅       |
