@@ -52,6 +52,10 @@ const App = ({ children, location, router }: IAppProps): JSX.Element => {
         setCurrentUser(user);
         setAvailableTeams(available_teams);
       } catch (error) {
+        console.error(error);
+        if (!location || location?.pathname === "/setup") {
+          return;
+        }
         router.push(PATHS.LOGIN);
       }
     };
@@ -70,9 +74,6 @@ const App = ({ children, location, router }: IAppProps): JSX.Element => {
 
     // on page refresh
     if (!currentUser && authToken()) {
-      if (!location || location?.pathname === "/setup") {
-        return;
-      }
       fetchCurrentUser();
     }
 
@@ -80,7 +81,7 @@ const App = ({ children, location, router }: IAppProps): JSX.Element => {
       setIsLoading(true);
       fetchConfig();
     }
-  }, [currentUser]);
+  }, [currentUser, location]);
 
   useDeepEffect(() => {
     const canGetEnrollSecret =
