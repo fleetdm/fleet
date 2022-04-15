@@ -88,7 +88,6 @@ const OperatingSystems = ({
 
   // Renders opaque information as host information is loading
   const opacity = showOperatingSystemsUI ? { opacity: 1 } : { opacity: 0 };
-  console.log("teamId: ", currentTeamId);
 
   // TODO: Error states? Product says if any card on homepage fails the whole page should 500. Is
   // that really what we want to happen? Do we want that to happen always? What if just one card
