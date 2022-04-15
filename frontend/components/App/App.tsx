@@ -46,10 +46,6 @@ const App = ({ children, location, router }: IAppProps): JSX.Element => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
   useDeepEffect(() => {
-    if (!location || location?.pathname === "/setup") {
-      return;
-    }
-
     const fetchCurrentUser = async () => {
       try {
         const { user, available_teams } = await usersAPI.me();
@@ -74,6 +70,9 @@ const App = ({ children, location, router }: IAppProps): JSX.Element => {
 
     // on page refresh
     if (!currentUser && authToken()) {
+      if (!location || location?.pathname === "/setup") {
+        return;
+      }
       fetchCurrentUser();
     }
 
