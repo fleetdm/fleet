@@ -101,7 +101,8 @@ Empathy leads to better understanding, better communication, and better decision
   > At Fleet, we think about the customer first.  No matter what kind of work you are doing, you serve the customer.
   > When customers buy Fleet, they trust us to provide the solution for important problems.
   > Imagine you are the person making the decision to buy Fleet.  Imagine you are responsible for all of your organization's laptops and servers.  Imagine you log in to the product every day.  Imagine you are the developer writing code to integrate with Fleet's REST API.  Imagine you are deploying the server, or running the upgrade scripts.  Imagine you are responsible for keeping your organization's computers secure and running smoothly.
-  > You would rest easier, knowing that everyone who works at Fleet is seeking to deliver the experience they would want for themselves, in your shoes. --> 
+  > You would rest easier, knowing that everyone who works at Fleet is seeking to deliver the experience they would want for themselves, in your shoes. 
+--> 
   - Think and make customer-first choices.
   - Consider your counterpart.
   - For example: keep in mind customers, contributors, colleagues, the other person in your Zoom meeting, the other folks in a Slack channel, the people who use software and APIs you build, the people following the processes you design.
@@ -116,7 +117,8 @@ Empathy leads to better understanding, better communication, and better decision
   - Developers are users too (REST API, fleetctl, docs).
   - Contributor experience matters (but product quality and commitments come first).
   - Bugs cause frustrating experiences and alienate users.
-  - Create patches with care (upgrading to new releases of Fleet can be time-consuming for users running self-managed deployments). <!-- TODO: (patch releases are important for improving security, quality, and stability. Cut a patch release if there is a security concern, previously stable features are unusable, or if a new feature advertised in the current release is unusable.  But remember that people have to actually install these updates!) -->
+  - Create patches with care (upgrading to new releases of Fleet can be time-consuming for users running self-managed deployments). 
+ <!-- TODO: (patch releases are important for improving security, quality, and stability. Cut a patch release if there is a security concern, previously stable features are unusable, or if a new feature advertised in the current release is unusable.  But remember that people have to actually install these updates!) -->
   - Confusing error messages make people feel helpless and can fill them with despair.
   - Error messages deserve to be good (it's worth it to spend time on them).
   - UI help text and labels deserve to be good (it's worth it to spend time on them).
