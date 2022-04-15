@@ -72,7 +72,7 @@ The following table depicts permissions levels in a team.
 
 All hosts, software, policies, etc. are exclusive to one team.
 
-| **Action**                                                   | Observer | Maintainer | Admin   |
+| **Action**                                                   | Team observer | Team maintainer | Team admin   |
 | ------------------------------------------------------------ | -------- | ---------- | ------- |
 | Browse hosts assigned to team                                | ✅       | ✅         | ✅       |
 | Filter hosts assigned to team using labels                   | ✅       | ✅         | ✅       |
