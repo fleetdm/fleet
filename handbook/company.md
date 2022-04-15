@@ -24,23 +24,16 @@ The majority of the code, documentation, and content we create at Fleet is publi
 
 ## Why this way?
 
-### Why do we wireframe first?
-- Wireframing is called “drafting” at Fleet and is done in Figma.
-- Anyone can make a wireframe suggestion, and wireframes are easy to contribute without being code literate.
-- Drafting is completed for each change.
-- We can throw it away after changes. Coding first leaves verbiage that is difficult to update, if it ever gets done at all.
-- It allows you to simplify the creation and testing of error messages.
-- Iterating in wireframes first lets us do all this for:
-    - error messages.
-    - layouts.
-    - flows.
-    - interactions.
-    - help text.
-    - button text.
-    - forms.
-    - URLs.
-    - API parameters.
-    - API response data…[and more.](https://github.com/fleetdm/fleet/issues/4821)
+### Why do we use a wireframe-first approach?
+Wireframing (or "drafting," as we often refer to it at Fleet) provides a clear overview of page layout, information architecture, user flow, and functionality. The wireframe-first approach extends beyond what users see on their screens. Wireframe-first is also excellent for drafting APIs, config settings, CLI options, and even business processes. 
+
+He's why we use a wireframe-first approach at Fleet.
+
+- We create a wireframe for every change we make and favor small, iterative changes to deliver value quickly. 
+- We can think through the functionality and user experience more deeply by wireframing before committing any code. As a result, our coding decisions are clearer, and our code is cleaner and easier to maintain.
+- Content hierarchy, messaging, error states, interactions, URLs, API parameters, and API response data are all considered during the wireframing process (often with several rounds of review). This initial quality assurance means engineers can focus on their code and confidently catch any potential edge-cases or issues along the way.
+- Wireframing is accessible to people who understand our users but are not necessarily code-literate. So anyone can contribute a suggestion (at any level of fidelity). At the very least, you'll need a napkin and a pen, although we prefer to use Figma.
+- With Figma, thanks to its powerful component and auto-layout features, we can create high-fidelity wireframes - fast. We can iterate quickly without costing more work and less [sunk-cost fallacy](https://dictionary.cambridge.org/dictionary/english/sunk-cost-fallacy).
 
 ### Why mono repo?
 - One repo keeps all of the relevant work in one place. The only exception is when we're working on something confidential.
