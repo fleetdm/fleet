@@ -329,11 +329,11 @@ At the end of the quarter, and at key points throughout the quarter (every 3 wee
 
 Every two weeks our CEO Mike has a 1:1 meeting with our Investor Sid and there are four parts our Digital Experience Team completes while constructing this document. 
 
- - A copy of the original document is created, labeled "yyyy-mm-dd Backup copy of Mike from Fleet & Sid," filed in a private folder, and then shared to Mike in a direct message on Slack by Charlie in People Operations on the same day after the 1:1 meeting has happened. 
- - Charlie in People Operations prepares the original document by looking for any changes since the last meeting, and removing information in the Feedback section on the same day after the 1:1 meeting has happened. 
- - Now that the document is prepped, Nathan in Operations collects and documents information related to Annual Recurring Revenue, new members in the osquery Slack channel, the number of new customers and opportunities from Salesforce, the company's current headcount, and finally banking information in the "Vision" section.
- - Nathan in Operations will send Mike the new document in a direct message in Slack on the Tuesday before the meeting. 
- - On the Wednesday or Thursday before the meeting, Mike will add the agenda items to the document. 
+ - After the 1:1 meeting has happened, Charlie makes a copy of the original document, labels it "yyyy-mm-dd Backup copy of Mike from Fleet & Sid," and moves it to a private folder. 
+ - Charlie will change the permissions on the new copy to share it with Mike and Zach and set Mike to be the file's owner. If there are any agenda items labeled "TODO", Charlie will make a comment in the backup copy to assign them to Mike.
+ - Charlie prepares the original document by deleting the agenda items in the "Hallway" and "Feedback" sections, leaving only the "Vision" section.
+ - Charlie will send Mike links to the new document and the backup copy in a direct message in Slack. 
+ - The day before the meeting, Nathan will prepare the "Vision" section of the original document. Nathan will collect and update information related to annual recurring revenue, new members in the `#fleet` channel in the osquery Slack, the number of new customers and opportunities from Salesforce, the total number of devices using Fleet, the company's current headcount, and banking information.
 
 ## Workiversaries
 
