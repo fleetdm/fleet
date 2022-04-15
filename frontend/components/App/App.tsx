@@ -54,6 +54,7 @@ const App = ({ children, location, router }: IAppProps): JSX.Element => {
       } catch (error) {
         console.error(error);
         if (!location || location?.pathname === "/setup") {
+          localStorage.removeItem("auth_token");
           return;
         }
         router.push(PATHS.LOGIN);
