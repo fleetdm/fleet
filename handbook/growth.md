@@ -73,20 +73,6 @@ Once a relevant sponsorship opportunity and its prospectus are reviewed:
  
 7. Once the above steps are completed, use the [Speaking events issue template](https://github.com/fleetdm/confidential/issues/new?assignees=mike-j-thomas&labels=&template=6-speaking-event.md&title=Speaking+event) to prepare speakers and participants for the event.
 
-## Slack channels
-
-The following [Slack channels are maintained](https://fleetdm.com/handbook/company#group-slack-channels) by this group:
-
-| Slack channel               | [DRI](https://fleetdm.com/handbook/company#group-slack-channels)    |
-|:----------------------------|:--------------------------------------------------------------------|
-| `#g-growth`                 | Tim Kern                                                            |
-| `#help-public-relations`    | Tim Kern                                                            |
-| `#help-promote`             | Tim Kern                                                            |
-| `#help-swag`                | Drew Baker                                                          |
-
-
-<meta name="maintainedBy" value="timmy-k">
-
 ## Growth rituals
 
 The following rituals are engaged in by the  directly responsible individual (DRI) and at the frequency specified for the ritual.
@@ -103,4 +89,19 @@ The following rituals are engaged in by the  directly responsible individual (DR
 | Weekly ins and outs ritual   | Track ins and outs once per week.                   | Tim Kern          |
 | Podcast outreach ritual      | Conduct podcast outreach twice per week.            | Drew Baker        |
 | Monthly conference ritual    | Check for conference openings and for conference sponsorships on the 1st of every month. | Drew Baker|
+
+## Slack channels
+
+The following [Slack channels are maintained](https://fleetdm.com/handbook/company#group-slack-channels) by this group:
+
+| Slack channel               | [DRI](https://fleetdm.com/handbook/company#group-slack-channels)    |
+|:----------------------------|:--------------------------------------------------------------------|
+| `#g-growth`                 | Tim Kern                                                            |
+| `#help-public-relations`    | Tim Kern                                                            |
+| `#help-promote`             | Tim Kern                                                            |
+| `#help-swag`                | Drew Baker                                                          |
+
+
+<meta name="maintainedBy" value="timmy-k">
+
 
