@@ -97,8 +97,8 @@ When a new team member joins Fleet, they adopt the values, from day 1.  This way
 ### 🔴 Empathy
 Empathy leads to better understanding, better communication, and better decisions.  Try to understand what people may be going through, so you can help make it better.
 
-  - Think and make customer-first choices.
-  - Consider your counterpart.
+- Think and make customer-first choices.
+- Consider your counterpart.
   - For example: keep in mind customers, contributors, colleagues, the other person in your Zoom meeting, the other folks in a Slack channel, the people who use software and APIs you build, the people following the processes you design.
   - Ask questions in a way you would want to be asked.
   - Assume others have positive intent.
