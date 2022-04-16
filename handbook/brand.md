@@ -125,6 +125,24 @@ In Figma:
   * Avoid using SVGs or icon fonts.
 3. Click the __Export__ button.
 
+## Brand rituals
+
+The following rituals are engaged in by the  directly responsible individual (DRI) and at the frequency specified for the ritual.
+
+| Ritual                       | Description                                         | DRI               |
+|:-----------------------------|:----------------------------------------------------|-------------------|
+| Kanban board check  | Check internal kanban boards and ensure tasks are on track and being pushed through to "delivered." Occurs daily. | Mike Thomas  |  
+| Documentation quality ritual      | Review pull requests for tone, brand consistenty and quality assurance before merging. Occurs daily. | Mike Thomas, Desmi Dizney |
+| Tweet review  | Review tweets for tone, brand consistency, and quality assurance. Occurs daily.    | Mike Thomas, Desmi Dizney   |
+| Slack monitoring     | Check Fleey/osQuery channels on Slack for community questions, ensure questions are responded to and logged. Occurs daily. | Kathy Satterlee, Kelvin Omereshone   |
+| Social channels check-in     | Check social channels for community questions and ensure they are responded to.  Generate dev advocacy related content. Occurs daily. | Kathy Satterlee, Kelvin Omereshone   |
+| Weekly blogpost review | Review blogposts for tone, brand consistency and quality assurance. | Mike Thomas, Desmi Dizney|
+| Weekly blogpost graphic | Create graphic for the weekly blogpost. | Mike Thomas |
+| Outside contributor follow up | Bring pull requests from outside contributors to engineering and ensure they are merged promptly and promoted. Occurs weekly. | Kathy Satterlee, Kelvin Omereshone |
+| FAQs documentation update | Turn questions answered from Fleet and osQuery Slack channels into FAQs in Fleet’s documentation. Occurs weekly. | Kathy Satterlee, Kelvin Omereshone |
+| Digital experience planning  | Prioritize and assigns issues to relevant personnel based off of current OKR goals. Occurs every three weeks in concurrence with the Fleet release cycle. | Mike Thomas  |
+| Browser compatability check  | Check for browser compatability once a month. | Mike Thomas |
+
 ## Slack channels
 
 The following [Slack channels are maintained](https://fleetdm.com/handbook/company#group-slack-channels) by this group:
