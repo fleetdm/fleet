@@ -37,6 +37,7 @@ const EditPackForm = ({
 
   const onChangePackName = (value: string) => {
     setPackName(value);
+    setErrors({});
   };
 
   const onChangePackDescription = (value: string) => {

@@ -121,7 +121,7 @@ const QueryForm = ({
   queryIdForEdit = queryIdForEdit || 0;
 
   useEffect(() => {
-    if (queryIdForEdit === lastEditedQueryId) {
+    if (!isStoredQueryLoading && queryIdForEdit === lastEditedQueryId) {
       setCompatiblePlatforms(lastEditedQueryBody);
     }
 

@@ -48,7 +48,6 @@ import Button from "components/buttons/Button"; // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 import HostSidePanel from "components/side_panels/HostSidePanel"; // @ts-ignore
 import LabelForm from "components/forms/LabelForm";
-import Modal from "components/Modal";
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
 import TableContainer from "components/TableContainer";
 import TableDataError from "components/TableDataError";
@@ -84,6 +83,7 @@ import PoliciesFilter from "./components/PoliciesFilter"; // @ts-ignore
 import EditColumnsModal from "./components/EditColumnsModal/EditColumnsModal";
 import TransferHostModal from "./components/TransferHostModal";
 import DeleteHostModal from "./components/DeleteHostModal";
+import DeleteLabelModal from "./components/DeleteLabelModal";
 import SoftwareVulnerabilities from "./components/SoftwareVulnerabilities";
 import EditColumnsIcon from "../../../../assets/images/icon-edit-columns-16x16@2x.png";
 import PencilIcon from "../../../../assets/images/icon-pencil-14x14@2x.png";
@@ -378,7 +378,6 @@ const ManageHostsPage = ({
     setShowEnrollSecretModal(!showEnrollSecretModal);
   };
 
-  // this is called when we click add or edit
   const toggleSecretEditorModal = () => {
     // open and closes add/edit modal
     setShowSecretEditorModal(!showSecretEditorModal);
@@ -400,6 +399,10 @@ const ManageHostsPage = ({
 
   const toggleAddHostsModal = () => {
     setShowAddHostsModal(!showAddHostsModal);
+  };
+
+  const toggleEditColumnsModal = () => {
+    setShowEditColumnsModal(!showEditColumnsModal);
   };
 
   const toggleAllMatchingHosts = (shouldSelect: boolean) => {
@@ -674,25 +677,13 @@ const ManageHostsPage = ({
     );
   };
 
-  const onEditColumnsClick = () => {
-    setShowEditColumnsModal(true);
-  };
-
-  const onCancelColumns = () => {
-    setShowEditColumnsModal(false);
-  };
-
   const onSaveColumns = (newHiddenColumns: string[]) => {
     localStorage.setItem("hostHiddenColumns", JSON.stringify(newHiddenColumns));
     setHiddenColumns(newHiddenColumns);
     setShowEditColumnsModal(false);
   };
 
-  const onCancelAddLabel = () => {
-    router.goBack();
-  };
-
-  const onCancelEditLabel = () => {
+  const onCancelLabel = () => {
     router.goBack();
   };
 
@@ -1086,28 +1077,26 @@ const ManageHostsPage = ({
     />
   );
 
-  const renderPoliciesFilterBlock = () => {
-    return (
-      <div className={`${baseClass}__policies-filter-block`}>
-        <PoliciesFilter
-          policyResponse={policyResponse}
-          onChange={handleChangePoliciesFilter}
-        />
-        <div className={`${baseClass}__policies-filter-name-card`}>
-          <img src={PolicyIcon} alt="Policy" />
-          {policy?.name}
-          <Button
-            className={`${baseClass}__clear-policies-filter`}
-            onClick={handleClearPoliciesFilter}
-            variant={"small-text-icon"}
-            title={policy?.name}
-          >
-            <img src={CloseIcon} alt="Remove policy filter" />
-          </Button>
-        </div>
+  const renderPoliciesFilterBlock = () => (
+    <div className={`${baseClass}__policies-filter-block`}>
+      <PoliciesFilter
+        policyResponse={policyResponse}
+        onChange={handleChangePoliciesFilter}
+      />
+      <div className={`${baseClass}__policies-filter-name-card`}>
+        <img src={PolicyIcon} alt="Policy" />
+        {policy?.name}
+        <Button
+          className={`${baseClass}__clear-policies-filter`}
+          onClick={handleClearPoliciesFilter}
+          variant={"small-text-icon"}
+          title={policy?.name}
+        >
+          <img src={CloseIcon} alt="Remove policy filter" />
+        </Button>
       </div>
-    );
-  };
+    </div>
+  );
 
   const renderSoftwareFilterBlock = () => {
     if (softwareDetails) {
@@ -1155,120 +1144,68 @@ const ManageHostsPage = ({
   };
 
   const renderEditColumnsModal = () => {
-    if (!showEditColumnsModal || !config || !currentUser) {
+    if (!config || !currentUser) {
       return null;
     }
 
     return (
-      <Modal
-        title="Edit columns"
-        onExit={() => setShowEditColumnsModal(false)}
-        className={`${baseClass}__invite-modal`}
-      >
-        <EditColumnsModal
-          columns={generateAvailableTableHeaders(
-            config,
-            currentUser,
-            currentTeam
-          )}
-          hiddenColumns={hiddenColumns}
-          onSaveColumns={onSaveColumns}
-          onCancelColumns={onCancelColumns}
-        />
-      </Modal>
-    );
-  };
-
-  const renderSecretEditorModal = () => {
-    if (!canEnrollHosts || !showSecretEditorModal) {
-      return null;
-    }
-
-    return (
-      <SecretEditorModal
-        selectedTeam={currentTeam?.id || 0}
-        teams={teams || []}
-        onSaveSecret={onSaveSecret}
-        toggleSecretEditorModal={toggleSecretEditorModal}
-        selectedSecret={selectedSecret}
+      <EditColumnsModal
+        columns={generateAvailableTableHeaders(
+          config,
+          currentUser,
+          currentTeam
+        )}
+        hiddenColumns={hiddenColumns}
+        onSaveColumns={onSaveColumns}
+        onCancelColumns={toggleEditColumnsModal}
       />
     );
   };
 
-  const renderDeleteSecretModal = () => {
-    if (!canEnrollHosts || !showDeleteSecretModal) {
-      return null;
-    }
+  const renderSecretEditorModal = () => (
+    <SecretEditorModal
+      selectedTeam={currentTeam?.id || 0}
+      teams={teams || []}
+      onSaveSecret={onSaveSecret}
+      toggleSecretEditorModal={toggleSecretEditorModal}
+      selectedSecret={selectedSecret}
+    />
+  );
 
-    return (
-      <DeleteSecretModal
-        onDeleteSecret={onDeleteSecret}
-        selectedTeam={currentTeam?.id || 0}
-        teams={teams || []}
-        toggleDeleteSecretModal={toggleDeleteSecretModal}
-      />
-    );
-  };
+  const renderDeleteSecretModal = () => (
+    <DeleteSecretModal
+      onDeleteSecret={onDeleteSecret}
+      selectedTeam={currentTeam?.id || 0}
+      teams={teams || []}
+      toggleDeleteSecretModal={toggleDeleteSecretModal}
+    />
+  );
 
-  const renderEnrollSecretModal = () => {
-    if (!canEnrollHosts || !showEnrollSecretModal) {
-      return null;
-    }
+  const renderEnrollSecretModal = () => (
+    <EnrollSecretModal
+      selectedTeam={currentTeam?.id || 0}
+      teams={teams || []}
+      onReturnToApp={() => setShowEnrollSecretModal(false)}
+      toggleSecretEditorModal={toggleSecretEditorModal}
+      toggleDeleteSecretModal={toggleDeleteSecretModal}
+      setSelectedSecret={setSelectedSecret}
+      globalSecrets={globalSecrets}
+    />
+  );
 
-    return (
-      <EnrollSecretModal
-        selectedTeam={currentTeam?.id || 0}
-        teams={teams || []}
-        onReturnToApp={() => setShowEnrollSecretModal(false)}
-        toggleSecretEditorModal={toggleSecretEditorModal}
-        toggleDeleteSecretModal={toggleDeleteSecretModal}
-        setSelectedSecret={setSelectedSecret}
-        globalSecrets={globalSecrets}
-      />
-    );
-  };
+  const renderDeleteLabelModal = () => (
+    <DeleteLabelModal
+      onSubmit={onDeleteLabel}
+      onCancel={toggleDeleteLabelModal}
+    />
+  );
 
-  const renderDeleteLabelModal = () => {
-    if (!showDeleteLabelModal) {
-      return false;
-    }
-
-    return (
-      <Modal
-        title="Delete label"
-        onExit={toggleDeleteLabelModal}
-        className={`${baseClass}_delete-label__modal`}
-      >
-        <>
-          <p>Are you sure you wish to delete this label?</p>
-          <div className={`${baseClass}__modal-buttons`}>
-            <Button onClick={toggleDeleteLabelModal} variant="inverse-alert">
-              Cancel
-            </Button>
-            <Button onClick={onDeleteLabel} variant="alert">
-              Delete
-            </Button>
-          </div>
-        </>
-      </Modal>
-    );
-  };
-
-  const renderAddHostsModal = () => {
-    if (!showAddHostsModal) {
-      return null;
-    }
-
-    return (
-      <AddHostsModal
-        onCancel={toggleAddHostsModal}
-        selectedTeam={addHostsTeam}
-      />
-    );
-  };
+  const renderAddHostsModal = () => (
+    <AddHostsModal onCancel={toggleAddHostsModal} selectedTeam={addHostsTeam} />
+  );
 
   const renderTransferHostModal = () => {
-    if (!showTransferHostModal || !teams) {
+    if (!teams) {
       return null;
     }
 
@@ -1282,20 +1219,14 @@ const ManageHostsPage = ({
     );
   };
 
-  const renderDeleteHostModal = () => {
-    if (!showDeleteHostModal) {
-      return null;
-    }
-
-    return (
-      <DeleteHostModal
-        selectedHostIds={selectedHostIds}
-        onSubmit={onDeleteHostSubmit}
-        onCancel={toggleDeleteHostModal}
-        isAllMatchingHostsSelected={isAllMatchingHostsSelected}
-      />
-    );
-  };
+  const renderDeleteHostModal = () => (
+    <DeleteHostModal
+      selectedHostIds={selectedHostIds}
+      onSubmit={onDeleteHostSubmit}
+      onCancel={toggleDeleteHostModal}
+      isAllMatchingHostsSelected={isAllMatchingHostsSelected}
+    />
+  );
 
   const renderHeaderLabelBlock = () => {
     if (selectedLabel) {
@@ -1332,25 +1263,23 @@ const ManageHostsPage = ({
     return null;
   };
 
-  const renderHeader = () => {
-    return (
-      <div className={`${baseClass}__header`}>
-        <div className={`${baseClass}__text`}>
-          <div className={`${baseClass}__title`}>
-            {isFreeTier && <h1>Hosts</h1>}
-            {isPremiumTier &&
-              availableTeams &&
-              (availableTeams.length > 1 || isOnGlobalTeam) &&
-              renderTeamsFilterDropdown()}
-            {isPremiumTier &&
-              !isOnGlobalTeam &&
-              availableTeams &&
-              availableTeams.length === 1 && <h1>{availableTeams[0].name}</h1>}
-          </div>
+  const renderHeader = () => (
+    <div className={`${baseClass}__header`}>
+      <div className={`${baseClass}__text`}>
+        <div className={`${baseClass}__title`}>
+          {isFreeTier && <h1>Hosts</h1>}
+          {isPremiumTier &&
+            availableTeams &&
+            (availableTeams.length > 1 || isOnGlobalTeam) &&
+            renderTeamsFilterDropdown()}
+          {isPremiumTier &&
+            !isOnGlobalTeam &&
+            availableTeams &&
+            availableTeams.length === 1 && <h1>{availableTeams[0].name}</h1>}
         </div>
       </div>
-    );
-  };
+    </div>
+  );
 
   const onExportHostsResults = async (
     evt: React.MouseEvent<HTMLButtonElement>
@@ -1407,6 +1336,8 @@ const ManageHostsPage = ({
         }`}
       >
         <span>{`${count} host${count === 1 ? "" : "s"}`}</span>
+        {/* Export all columns initially in 4.13 release but feature being pushed
+        back by product until we build client side filtering to export only selected columns
         <Button
           className={`${baseClass}__export-btn`}
           onClick={onExportHostsResults}
@@ -1415,7 +1346,7 @@ const ManageHostsPage = ({
           <>
             Export hosts <img alt="" src={DownloadIcon} />
           </>
-        </Button>
+        </Button> */}
       </div>
     );
   }, [isHostCountLoading, filteredHostCount]);
@@ -1455,7 +1386,7 @@ const ManageHostsPage = ({
       return (
         <div className="body-wrap">
           <LabelForm
-            onCancel={onCancelAddLabel}
+            onCancel={onCancelLabel}
             onOsqueryTableSelect={onOsqueryTableSelect}
             handleSubmit={onSaveAddLabel}
             baseError={labelsError?.message || ""}
@@ -1470,7 +1401,7 @@ const ManageHostsPage = ({
         <div className="body-wrap">
           <LabelForm
             selectedLabel={selectedLabel}
-            onCancel={onCancelEditLabel}
+            onCancel={onCancelLabel}
             onOsqueryTableSelect={onOsqueryTableSelect}
             handleSubmit={onEditLabel}
             baseError={labelsError?.message || ""}
@@ -1512,17 +1443,15 @@ const ManageHostsPage = ({
     return SidePanel;
   };
 
-  const renderStatusDropdown = () => {
-    return (
-      <Dropdown
-        value={getStatusSelected() || ALL_HOSTS_LABEL}
-        className={`${baseClass}__status_dropdown`}
-        options={HOST_SELECT_STATUSES}
-        searchable={false}
-        onChange={handleStatusDropdownChange}
-      />
-    );
-  };
+  const renderStatusDropdown = () => (
+    <Dropdown
+      value={getStatusSelected() || ALL_HOSTS_LABEL}
+      className={`${baseClass}__status_dropdown`}
+      options={HOST_SELECT_STATUSES}
+      searchable={false}
+      onChange={handleStatusDropdownChange}
+    />
+  );
 
   const renderTable = () => {
     if (
@@ -1606,7 +1535,7 @@ const ManageHostsPage = ({
         }
         emptyComponent={EmptyHosts}
         customControl={renderStatusDropdown}
-        onActionButtonClick={onEditColumnsClick}
+        onActionButtonClick={toggleEditColumnsModal}
         onPrimarySelectActionClick={onDeleteHostsClick}
         onQueryChange={onTableQueryChange}
         toggleAllPagesSelected={toggleAllMatchingHosts}
@@ -1703,14 +1632,14 @@ const ManageHostsPage = ({
         </div>
       )}
       {renderSidePanel()}
-      {renderDeleteSecretModal()}
-      {renderSecretEditorModal()}
-      {renderEnrollSecretModal()}
-      {renderEditColumnsModal()}
-      {renderDeleteLabelModal()}
-      {renderAddHostsModal()}
-      {renderTransferHostModal()}
-      {renderDeleteHostModal()}
+      {canEnrollHosts && showDeleteSecretModal && renderDeleteSecretModal()}
+      {canEnrollHosts && showSecretEditorModal && renderSecretEditorModal()}
+      {canEnrollHosts && showEnrollSecretModal && renderEnrollSecretModal()}
+      {showEditColumnsModal && renderEditColumnsModal()}
+      {showDeleteLabelModal && renderDeleteLabelModal()}
+      {showAddHostsModal && renderAddHostsModal()}
+      {showTransferHostModal && renderTransferHostModal()}
+      {showDeleteHostModal && renderDeleteHostModal()}
     </div>
   );
 };

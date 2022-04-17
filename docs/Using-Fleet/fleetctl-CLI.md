@@ -339,7 +339,7 @@ Now, you can use the `context` flag to indicate which profile should be used rat
 
 ```
 fleetctl user create --email test@example.com --name "New User"
-Error: Failed to create user: POST /api/v1/fleet/users/admin received status 403 forbidden: forbidden
+Error: Failed to create user: POST /api/latest/v1/users/admin received status 403 forbidden: forbidden
 ```
 
 The user creation failed because the API-only user doesn't have the right permissions. Running the command with the admin `context` specified will succeed:

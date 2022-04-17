@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/andygrunwald/go-jira"
@@ -13,8 +14,9 @@ import (
 )
 
 const (
-	maxRetries   = 5
-	retryBackoff = 300 * time.Millisecond
+	maxRetries           = 5
+	retryBackoff         = 300 * time.Millisecond
+	maxWaitForRetryAfter = 10 * time.Second
 )
 
 // Jira is a Jira client to be used to make requests to a jira external
@@ -116,6 +118,20 @@ func doWithRetry(fn func() (*jira.Response, error)) error {
 		if resp.StatusCode >= http.StatusInternalServerError {
 			// 500+ status, can be worth retrying
 			return err
+		}
+
+		if resp.StatusCode == http.StatusTooManyRequests {
+			// handle 429 rate-limits, see
+			// https://developer.atlassian.com/cloud/jira/platform/rate-limiting/
+			// for details.
+			rawAfter := resp.Header.Get("Retry-After")
+			afterSecs, err := strconv.ParseInt(rawAfter, 10, 0)
+			if err == nil && (time.Duration(afterSecs)*time.Second) < maxWaitForRetryAfter {
+				// the retry-after duration is reasonable, wait for it and return a
+				// retryable error so that we try again.
+				time.Sleep(time.Duration(afterSecs) * time.Second)
+				return errors.New("retry after requested delay")
+			}
 		}
 
 		// at this point, this is a non-retryable error

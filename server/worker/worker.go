@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
@@ -47,20 +48,33 @@ func (w *Worker) Register(jobs ...Job) {
 	}
 }
 
-func (w *Worker) QueueJob(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
-	job.State = fleet.JobStateQueued
-	return w.ds.NewJob(ctx, job)
+// QueueJob inserts a job to be processed by the worker for the job processor
+// identified by the name (e.g. "jira"). The args value is marshaled as JSON
+// and provided to the job processor when the job is executed.
+func QueueJob(ctx context.Context, ds fleet.Datastore, name string, args interface{}) (*fleet.Job, error) {
+	argsJSON, err := json.Marshal(args)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "marshal args")
+	}
+	job := &fleet.Job{
+		Name:  name,
+		Args:  (*json.RawMessage)(&argsJSON),
+		State: fleet.JobStateQueued,
+	}
+
+	return ds.NewJob(ctx, job)
 }
 
 // ProcessJobs processes all queued jobs.
 func (w *Worker) ProcessJobs(ctx context.Context) error {
+	const maxNumJobs = 100
 
-	// process jobs until there are none left
-	maxNumJobs := 100
+	// process jobs until there are none left or the context is cancelled
+	seen := make(map[uint]struct{})
 	for {
 		jobs, err := w.ds.GetQueuedJobs(ctx, maxNumJobs)
 		if err != nil {
-			return fmt.Errorf("get jobs: %w", err)
+			return ctxerr.Wrap(ctx, err, "get queued jobs")
 		}
 
 		if len(jobs) == 0 {
@@ -68,16 +82,27 @@ func (w *Worker) ProcessJobs(ctx context.Context) error {
 		}
 
 		for _, job := range jobs {
+			select {
+			case <-ctx.Done():
+				return ctxerr.Wrap(ctx, ctx.Err(), "context done")
+			default:
+			}
+
 			log := kitlog.With(w.log, "job_id", job.ID)
+
+			if _, ok := seen[job.ID]; ok {
+				level.Debug(log).Log("msg", "some jobs failed, retrying on next cron execution")
+				return nil
+			}
+			seen[job.ID] = struct{}{}
 
 			level.Debug(log).Log("msg", "processing job")
 
-			err := w.processJob(ctx, job)
-			if err != nil {
-				level.Error(log).Log("msg", "job failed", "err", err)
+			if err := w.processJob(ctx, job); err != nil {
+				level.Error(log).Log("msg", "process job", "err", err)
 				job.Error = err.Error()
 				if job.Retries < maxRetries {
-					level.Debug(log).Log("msg", "retrying job")
+					level.Debug(log).Log("msg", "will retry job")
 					job.Retries += 1
 				} else {
 					job.State = fleet.JobStateFailure
@@ -87,8 +112,10 @@ func (w *Worker) ProcessJobs(ctx context.Context) error {
 				job.Error = ""
 			}
 
-			_, err = w.ds.UpdateJob(ctx, job.ID, job)
-			if err != nil {
+			// When we update the job, the updated_at timestamp gets updated and the job gets "pushed" to the back
+			// of queue. GetQueuedJobs fetches jobs by updated_at, so it will not return the same job until the queue
+			// has been processed once.
+			if _, err := w.ds.UpdateJob(ctx, job.ID, job); err != nil {
 				level.Error(log).Log("update job", "err", err)
 			}
 		}
@@ -100,7 +127,7 @@ func (w *Worker) ProcessJobs(ctx context.Context) error {
 func (w *Worker) processJob(ctx context.Context, job *fleet.Job) error {
 	j, ok := w.registry[job.Name]
 	if !ok {
-		return fmt.Errorf("unknown job: %s", job.Name)
+		return ctxerr.Errorf(ctx, "unknown job: %s", job.Name)
 	}
 
 	var args json.RawMessage

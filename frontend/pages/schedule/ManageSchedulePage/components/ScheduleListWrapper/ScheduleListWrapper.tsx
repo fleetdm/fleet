@@ -19,14 +19,13 @@ import {
   generateTableHeaders,
   generateDataSet,
 } from "./ScheduleTableConfig";
-// @ts-ignore
 import scheduleSvg from "../../../../../../assets/images/no-schedule-322x138@2x.png";
 
 const baseClass = "schedule-list-wrapper";
 const noScheduleClass = "no-schedule";
 
 const TAGGED_TEMPLATES = {
-  hostsByTeamPRoute: (teamId: number | undefined | null) => {
+  hostsByTeamRoute: (teamId: number | undefined | null) => {
     return `${teamId ? `/?team_id=${teamId}` : ""}`;
   },
 };
@@ -77,7 +76,7 @@ const ScheduleListWrapper = ({
                     <a
                       href={
                         MANAGE_HOSTS +
-                        TAGGED_TEMPLATES.hostsByTeamPRoute(selectedTeamData.id)
+                        TAGGED_TEMPLATES.hostsByTeamRoute(selectedTeamData.id)
                       }
                     >
                       {selectedTeamData.name}

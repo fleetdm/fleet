@@ -215,7 +215,7 @@ type VulnerabilitiesWebhookSettings struct {
 type JiraIntegration struct {
 	URL                           string `json:"url"`
 	Username                      string `json:"username"`
-	Password                      string `json:"password"`
+	APIToken                      string `json:"api_token"`
 	ProjectKey                    string `json:"project_key"`
 	EnableSoftwareVulnerabilities bool   `json:"enable_software_vulnerabilities"`
 }
@@ -400,12 +400,13 @@ type UpdateIntervalConfig struct {
 // config file), not to be confused with VulnerabilitySettings which is the
 // configuration in AppConfig.
 type VulnerabilitiesConfig struct {
-	DatabasesPath         string        `json:"databases_path"`
-	Periodicity           time.Duration `json:"periodicity"`
-	CPEDatabaseURL        string        `json:"cpe_database_url"`
-	CVEFeedPrefixURL      string        `json:"cve_feed_prefix_url"`
-	CurrentInstanceChecks string        `json:"current_instance_checks"`
-	DisableDataSync       bool          `json:"disable_data_sync"`
+	DatabasesPath             string        `json:"databases_path"`
+	Periodicity               time.Duration `json:"periodicity"`
+	CPEDatabaseURL            string        `json:"cpe_database_url"`
+	CVEFeedPrefixURL          string        `json:"cve_feed_prefix_url"`
+	CurrentInstanceChecks     string        `json:"current_instance_checks"`
+	DisableDataSync           bool          `json:"disable_data_sync"`
+	RecentVulnerabilityMaxAge time.Duration `json:"recent_vulnerability_max_age"`
 }
 
 type LoggingPlugin struct {

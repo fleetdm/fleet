@@ -1,88 +1,151 @@
 .section--software {
-  .table-container__search-input {
-    width: 411px;
-  }
-  .data-table__table {
-    table-layout: fixed;
+  .table-container__header-left {
+    .controls {
+      // vulnerable software dropdown filter
+      .Select {
+        width: 219px;
 
-    th {
-      &:first-child {
-        width: 25%;
-        padding-right: 0px;
-      }
-      &:last-child {
-        width: 150px;
-        overflow: none;
-      }
+        .Select-menu-outer {
+          width: 364px;
+          max-height: 310px;
 
-      &.source__header {
-        width: 20%;
-      }
-    }
+          .Select-menu {
+            max-height: none;
+          }
+        }
+        .Select-value {
+          padding-left: $pad-medium;
+          padding-right: $pad-medium;
 
-    tr {
-      .software-link {
-        visibility: hidden;
-        img {
-          vertical-align: text-top;
+          &::before {
+            display: inline-block;
+            position: absolute;
+            padding: 5px 0 0 0; // centers spin
+            content: url(../assets/images/icon-filter-black-16x16@2x.png);
+            transform: scale(0.5);
+            height: 26px;
+            left: 2px;
+          }
+        }
+        .Select-value-label {
+          padding-left: $pad-large;
+          font-size: $small !important;
         }
       }
+    }
+  }
 
-      &:hover {
-        .software-link {
-          visibility: visible;
-          img {
-            width: 16px;
+  .data-table-block {
+    .data-table__table {
+      thead {
+        .name__header {
+          width: $col-md;
+        }
+        .version__header {
+          width: 0px;
+        }
+        .source__header {
+          display: none;
+          width: 0px;
+        }
+        .vulnerabilities__header {
+          display: none;
+          width: 0px;
+        }
+        .hosts_count__header {
+          border-right: 0;
+        }
+        @media (min-width: $break-990) {
+          .version__header {
+            width: $col-md;
+          }
+          .vulnerabilities__header {
+            display: table-cell;
+          }
+        }
+        @media (min-width: $break-1400) {
+          .source__header {
+            display: table-cell;
+            width: $col-md;
           }
         }
       }
-    }
 
-    td {
-      overflow: hidden;
-      text-overflow: ellipsis;
-
-      &:last-child {
-        text-overflow: unset;
+      tbody {
+        .name__cell,
+        .version__cell {
+          overflow: hidden;
+          white-space: nowrap;
+          text-overflow: ellipsis;
+        }
+        .source__cell {
+          display: none;
+          width: 0px;
+        }
+        .vulnerabilities__cell {
+          width: 0px;
+          display: none;
+        }
+        .hosts_count__cell {
+          .hosts-cell__wrapper {
+            display: flex;
+            justify-content: space-between;
+            .hosts-cell__count {
+              display: none;
+            }
+            .hosts-cell__link {
+              display: flex;
+            }
+          }
+        }
+        @media (min-width: $break-990) {
+          .vulnerabilities__cell {
+            display: table-cell;
+          }
+        }
+        @media (min-width: $break-1400) {
+          .source__cell {
+            display: table-cell;
+            width: $col-md;
+          }
+          .hosts_count__cell {
+            .hosts-cell__wrapper {
+              .hosts-cell__count {
+                display: flex;
+              }
+            }
+          }
+        }
       }
-    }
 
-    .name__cell,
-    .version__cell {
-      overflow: initial;
-      text-overflow: initial;
-    }
-  }
-}
-.host-details {
-  &__vuln_dropdown {
-    width: 219px;
+      tr {
+        .software-link {
+          color: $core-vibrant-blue;
+          visibility: hidden;
+          font-weight: bold;
+          text-decoration: none;
+          vertical-align: middle;
 
-    .Select-menu-outer {
-      width: 364px;
-      max-height: 310px;
+          a {
+            text-decoration: none;
+          }
+          img {
+            height: 16px;
+            width: 16px;
+            vertical-align: middle;
+          }
 
-      .Select-menu {
-        max-height: none;
+          .link-text {
+            padding-right: $pad-xxsmall;
+          }
+        }
+
+        &:hover {
+          .software-link {
+            visibility: visible;
+          }
+        }
       }
-    }
-    .Select-value {
-      padding-left: $pad-medium;
-      padding-right: $pad-medium;
-
-      &::before {
-        display: inline-block;
-        position: absolute;
-        padding: 5px 0 0 0; // centers spin
-        content: url(../assets/images/icon-filter-black-16x16@2x.png);
-        transform: scale(0.5);
-        height: 26px;
-        left: 2px;
-      }
-    }
-    .Select-value-label {
-      padding-left: $pad-large;
-      font-size: $small !important;
     }
   }
   .text-muted {

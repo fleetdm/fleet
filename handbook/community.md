@@ -221,8 +221,16 @@ We want to recognize and congratulate community members for their contributions 
 
 4. If available through the ordering process, add a thank you note for their contribution and "Feel free to tag us on Twitter."
 
+## Rituals
+| How to perform ritual                                                                                                                                            | Frequency | DRI                      |
+|------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------|--------------------------|
+| StackOverflow party - Search StackOverflow for “osquery,” answer questions with Grammarly, and find a way to prominently feature Fleet in your StackOverflow profile | Weekly    | Rotation: community team |
+
 ## Slack channels
 
 Please see [Digital experience > Slack channels](https://fleetdm.com/handbook/brand#slack-channels).
+
+
+
 
 <meta name="maintainedBy" value="zwass">

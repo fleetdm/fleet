@@ -2689,7 +2689,7 @@ func (s *integrationTestSuite) TestIntegrationsConfig() {
       "jira": [{
         "url": %q,
         "username": "ok",
-        "password": "bar",
+        "api_token": "bar",
         "project_key": "qux",
         "enable_software_vulnerabilities": true
       }]
@@ -2700,7 +2700,7 @@ func (s *integrationTestSuite) TestIntegrationsConfig() {
 	require.Len(t, config.Integrations.Jira, 1)
 	require.Equal(t, srv.URL, config.Integrations.Jira[0].URL)
 	require.Equal(t, "ok", config.Integrations.Jira[0].Username)
-	require.Equal(t, "bar", config.Integrations.Jira[0].Password)
+	require.Equal(t, "bar", config.Integrations.Jira[0].APIToken)
 	require.Equal(t, "qux", config.Integrations.Jira[0].ProjectKey)
 	require.True(t, config.Integrations.Jira[0].EnableSoftwareVulnerabilities)
 
@@ -2720,20 +2720,43 @@ func (s *integrationTestSuite) TestIntegrationsConfig() {
         {
           "url": %q,
           "username": "ok",
-          "password": "bar",
+          "api_token": "bar",
           "project_key": "qux",
           "enable_software_vulnerabilities": true
         },
         {
           "url": %[1]q,
           "username": "ok",
-          "password": "bar2",
+          "api_token": "bar2",
           "project_key": "qux2",
           "enable_software_vulnerabilities": true
         }
       ]
     }
   }`, srv.URL)), http.StatusUnprocessableEntity)
+
+	// even disabled integrations are tested for Jira connection and credentials,
+	// so this fails because the 2nd one uses the "fail" username.
+	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
+    "integrations": {
+      "jira": [
+        {
+          "url": %q,
+          "username": "ok",
+          "api_token": "bar",
+          "project_key": "qux",
+          "enable_software_vulnerabilities": true
+        },
+        {
+          "url": %[1]q,
+          "username": "fail",
+          "api_token": "bar2",
+          "project_key": "qux",
+          "enable_software_vulnerabilities": false
+        }
+      ]
+    }
+  }`, srv.URL)), http.StatusBadRequest)
 
 	// cannot enable webhook with a jira integration already enabled
 	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(`{
@@ -2753,7 +2776,7 @@ func (s *integrationTestSuite) TestIntegrationsConfig() {
       "jira": [{
         "url": %q,
         "username": "ok",
-        "password": "bar",
+        "api_token": "bar",
         "project_key": "qux",
         "enable_software_vulnerabilities": false
       }]
@@ -2774,7 +2797,7 @@ func (s *integrationTestSuite) TestIntegrationsConfig() {
       "jira": [{
         "url": %q,
         "username": "ok",
-        "password": "bar",
+        "api_token": "bar",
         "project_key": "qux",
         "enable_software_vulnerabilities": true
       }]
@@ -2787,7 +2810,7 @@ func (s *integrationTestSuite) TestIntegrationsConfig() {
       "jira": [{
         "url": %q,
         "username": "fail",
-        "password": "bar",
+        "api_token": "bar",
         "project_key": "qux",
         "enable_software_vulnerabilities": true
       }]
@@ -2809,7 +2832,7 @@ func (s *integrationTestSuite) TestIntegrationsConfig() {
       "jira": [{
         "url": %q,
         "username": "ok",
-        "password": "bar",
+        "api_token": "bar",
         "project_key": "qux",
         "enable_software_vulnerabilities": true
       }]

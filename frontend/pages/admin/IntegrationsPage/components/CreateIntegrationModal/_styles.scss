@@ -1,0 +1,32 @@
+.create-integration-modal {
+  a {
+    font-size: $x-small;
+    color: $core-vibrant-blue;
+    font-weight: $bold;
+    text-decoration: none;
+
+    img {
+      width: 12px;
+      height: 12px;
+      margin-left: 7px;
+    }
+  }
+
+  &__sandbox-info {
+    margin: $pad-medium 0;
+  }
+
+  &__info-header {
+    margin: 0;
+  }
+
+  &__btn-wrap {
+    display: flex;
+    flex-direction: row-reverse;
+    margin-top: $pad-xxlarge;
+  }
+
+  &__btn {
+    margin-left: 12px;
+  }
+}

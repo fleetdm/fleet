@@ -198,6 +198,7 @@ var envTemplate = template.Must(template.New("env").Parse(`
 ORBIT_UPDATE_URL={{ .UpdateURL }}
 ORBIT_ORBIT_CHANNEL={{ .OrbitChannel }}
 ORBIT_OSQUERYD_CHANNEL={{ .OsquerydChannel }}
+ORBIT_UPDATE_INTERVAL={{ .OrbitUpdateInterval }}
 {{ if .Insecure }}ORBIT_INSECURE=true{{ end }}
 {{ if .DisableUpdates }}ORBIT_DISABLE_UPDATES=true{{ end }}
 {{ if .FleetURL }}ORBIT_FLEET_URL={{.FleetURL}}{{ end }}

@@ -1,97 +1,119 @@
-const updateCampaignStateFromTotals = (campaign: any, { data }: any) => {
+import { ICampaign, ICampaignState } from "interfaces/campaign";
+import { IHost } from "interfaces/host";
+
+interface IResult {
+  type: "result";
+  data: {
+    distributed_query_execution_id: number;
+    error: string | null;
+    host: IHost;
+    rows: unknown[];
+  };
+}
+interface IStatus {
+  type: "status";
+  data: {
+    actual_results: number;
+    expected_result: number;
+    status: string;
+  };
+}
+
+interface ITotals {
+  type: "totals";
+  data: {
+    count: number;
+    missing_in_action: number;
+    offline: number;
+    online: number;
+  };
+}
+
+type ISocketData = IResult | IStatus | ITotals;
+
+const updateCampaignStateFromTotals = (
+  campaign: ICampaign,
+  { data: totals }: ITotals
+) => {
   return {
-    campaign: { ...campaign, totals: data },
+    campaign: { ...campaign, totals },
   };
 };
 
-const updateCampaignStateFromResults = (campaign: any, { data }: any) => {
-  const queryResults = campaign.query_results || [];
-  const errors = campaign.errors || [];
-  const hosts = campaign.hosts || [];
-  const { host, rows, error } = data;
-  host.query_results = rows;
-  const { hosts_count: hostsCount } = campaign;
-  const newHosts = [...hosts, host];
-  const newQueryResults = [...queryResults, ...rows];
-  let newHostsCount;
+const updateCampaignStateFromResults = (
+  campaign: ICampaign,
+  { data }: IResult
+) => {
+  const {
+    errors = [],
+    hosts = [],
+    hosts_count: hostsCount = { total: 0, failed: 0, successful: 0 },
+    query_results: queryResults = [],
+  } = campaign;
+  const { error, host, rows = [] } = data;
+
   let newErrors;
-  // Host's with osquery version above 4.4.0 receive an error message
-  // when the live query fails.
-  if (error) {
+  let newHosts;
+  let newHostsCount;
+
+  if (error || error === "") {
     const newFailed = hostsCount.failed + 1;
     const newTotal = hostsCount.successful + newFailed;
 
-    newHostsCount = {
-      successful: hostsCount.successful,
-      failed: newFailed,
-      total: newTotal,
-    };
-
-    newErrors = [
-      ...errors,
+    newErrors = errors.concat([
       {
-        host_hostname: host.hostname,
-        osquery_version: host.osquery_version,
-        error,
-      },
-    ];
-    // Host's with osquery version below 4.4.0 receive an empty error message
-    // when the live query fails so we create our own message.
-  } else if (error === "") {
-    const newFailed = hostsCount.failed + 1;
-    const newTotal = hostsCount.successful + newFailed;
-
-    newHostsCount = {
-      successful: hostsCount.successful,
-      failed: newFailed,
-      total: newTotal,
-    };
-    newErrors = [
-      ...errors,
-      {
-        host_hostname: host.hostname,
-        osquery_version: host.osquery_version,
+        host_hostname: host?.hostname,
+        osquery_version: host?.osquery_version,
         error:
+          error ||
+          // Hosts with osquery version below 4.4.0 receive an empty error message
+          // when the live query fails so we create our own message.
           "Error details require osquery 4.4.0+ (Launcher does not provide error details)",
       },
-    ];
+    ]);
+    newHostsCount = {
+      successful: hostsCount.successful,
+      failed: newFailed,
+      total: newTotal,
+    };
+    newHosts = hosts;
   } else {
     const newSuccessful = hostsCount.successful + 1;
     const newTotal = hostsCount.failed + newSuccessful;
 
+    newErrors = [...errors];
     newHostsCount = {
       successful: newSuccessful,
       failed: hostsCount.failed,
       total: newTotal,
     };
-    newErrors = [...errors];
+    const newHost = { ...host, query_results: rows };
+    newHosts = hosts.concat(newHost);
   }
 
   return {
     campaign: {
       ...campaign,
-      hosts: newHosts,
-      query_results: newQueryResults,
-      hosts_count: newHostsCount,
       errors: newErrors,
+      hosts: newHosts,
+      hosts_count: newHostsCount,
+      query_results: [...queryResults, ...rows],
     },
   };
 };
 
-const updateCampaignStateFromStatus = (campaign: any, { data }: any) => {
-  const { status } = data;
-  const updatedCampaign = { ...campaign, status };
-
+const updateCampaignStateFromStatus = (
+  campaign: ICampaign,
+  { data: { status } }: IStatus
+) => {
   return {
-    campaign: updatedCampaign,
-    queryIsRunning: data !== "finished",
+    campaign: { ...campaign, status },
+    queryIsRunning: status !== "finished",
   };
 };
 
-export const updateCampaignState = (socketData: any) => {
-  return (prevState: any) => {
-    const { campaign } = prevState;
-
+export const updateCampaignState = (socketData: ISocketData) => {
+  return ({ campaign }: ICampaignState) => {
     switch (socketData.type) {
       case "totals":
         return updateCampaignStateFromTotals(campaign, socketData);
