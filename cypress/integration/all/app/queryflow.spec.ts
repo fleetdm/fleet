@@ -85,7 +85,7 @@ describe("Query flow (seeded)", () => {
       cy.findByText(/successfully removed query/i).should("be.visible");
       cy.findByText(/detect linux hosts/i).should("not.exist");
     });
-    it.only("runs a live query", () => {
+    it("runs a live query", () => {
       cy.addDockerHost();
       cy.getAttached(".name__cell .button--text-link").first().click();
       cy.findByText(/run query/i).click();
