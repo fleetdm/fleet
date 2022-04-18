@@ -257,7 +257,9 @@ Investing in people and providing generous, prioritized training, especially up 
 
 
 ### Why handbook-first strategy?
-Documenting in the handbook allows Fleet to scale up and retain knowledge for consistency.
+Our handbook provides our all-remote team with up-to-date information about how to do things at Fleet. By adopting the handbook-first strategy, we can encourage a culture of self-service and self-learning, which is essential for daily a-synchronous work as part of an all-remote team.
+
+This strategy was inspired by the GitHub team, who use it to great effect. Check out their [short three-minute video](https://www.youtube.com/watch?v=aZrK8AQM8Ro) about their handbook-first approach.
 
 - Watch [this video about the handbook-first strategy](https://www.youtube.com/watch?v=aZrK8AQM8Ro).
 - For more details, see [GitLab’s handbook-first strategy](https://about.gitlab.com/company/culture/all-remote/handbook-first-documentation/).
