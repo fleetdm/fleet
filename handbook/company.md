@@ -214,7 +214,7 @@ He's why we use a wireframe-first approach at Fleet.
 - With Figma, thanks to its powerful component and auto-layout features, we can create high-fidelity wireframes - fast. We can iterate quickly without costing more work and less [sunk-cost fallacy](https://dictionary.cambridge.org/dictionary/english/sunk-cost-fallacy).
 
 ### Why do we use one repo?
-At Fleet, we keep everything in one repo. The only exception is when we're working on something confidential since GitHub does not allow confidential issues inside public repos.
+At Fleet, we keep everything in one repo. The only exception is when we're working on something confidential since GitHub does not allow confidential issues inside public repos. Here's why:
 
 - One repo keeps all of the relevant work in one place. 
 - One repo means that there is less to get lost. Think of it as if more repos take up a sprawling surface area that becomes unruly to manage and keep up with from day to day. This also makes it easy to find everything.
