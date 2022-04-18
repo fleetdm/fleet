@@ -1,2 +1,0 @@
-* Fix updated_at in aggregated stats not being updated. Affects counts_updated_at
-  returned from /api/v1/fleet/macadmins endpoint
