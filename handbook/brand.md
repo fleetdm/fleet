@@ -137,7 +137,7 @@ The following rituals are engaged in by the  directly responsible individual (DR
 | Slack monitoring     | Check Fleey/osQuery channels on Slack for community questions, ensure questions are responded to and logged. Occurs daily. | Kathy Satterlee, Kelvin Omereshone   |
 | Social channels check-in     | Check social channels for community questions and ensure they are responded to.  Generate dev advocacy related content. Occurs daily. | Kathy Satterlee, Kelvin Omereshone   |
 | Weekly blogpost review | Review blogposts for tone, brand consistency and quality assurance. | Mike Thomas, Desmi Dizney|
-| Weekly blogpost graphic | Create graphic for the weekly blogpost. | Mike Thomas |
+| Weekly article graphic | Weekly | Create a graphic for the weekly article | Mike Thomas |
 | Outside contributor follow up | Weekly | Bring pull requests from outside contributors to engineering and ensure they are merged promptly and promoted | Kathy Satterlee |
 | Documentation update | Weekly | Turn questions answered from Fleet and osquery Slack into FAQs in Fleet’s docs | Kathy Satterlee |
 | Digital experience planning  | Three weeks | Prioritize and assigns issues to relevant personnel based on current goals and quarterly OKRs | Mike Thomas |
