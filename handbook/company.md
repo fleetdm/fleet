@@ -218,7 +218,7 @@ At Fleet, we keep everything in one repo. The only exception is when we're worki
 
 - One repo is easier to manage. It has less surface area for keeping content up to date and reduces the risk of things getting lost and forgotten.
 - Our work is more visible and accessible to the community when all project pieces are available in one repo. 
-- One repo pools GitHub stars to reflect Fleet’s actual presence better.
+- One repo pools GitHub stars and more accurately reflects Fleet’s presence.
 - With only one repo, you can consolidate your automation and labels. Otherwise, you have to manage labels and automation across multiple repos, which can drift.
 
 
