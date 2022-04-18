@@ -88,6 +88,11 @@ const ManageAutomationsModal = ({
     selectedIntegration,
     setSelectedIntegration,
   ] = useState<IJiraIntegration>();
+  useDeepEffect(() => {
+    setSoftwareAutomationsEnabled(
+      softwareVulnerabilityAutomationEnabled || false
+    );
+  }, [softwareVulnerabilityAutomationEnabled]);
 
   useDeepEffect(() => {
     if (destinationUrl) {
