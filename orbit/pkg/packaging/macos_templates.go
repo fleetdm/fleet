@@ -78,7 +78,7 @@ var macosLaunchdTemplate = template.Must(template.New("").Option("missingkey=err
 		{{- end }}
 		{{- if .EnrollSecret }}
 		<key>ORBIT_ENROLL_SECRET_PATH</key>
-		<string>/var/lib/orbit/secret.txt</string>
+		<string>/opt/orbit/secret.txt</string>
 		{{- end }}
 		{{- if .FleetURL }}
 		<key>ORBIT_FLEET_URL</key>
@@ -109,7 +109,7 @@ var macosLaunchdTemplate = template.Must(template.New("").Option("missingkey=err
 	<string>com.fleetdm.orbit</string>
 	<key>ProgramArguments</key>
 	<array>
-		<string>/var/lib/orbit/bin/orbit/orbit</string>
+		<string>/opt/orbit/bin/orbit</string>
 	</array>
 	<key>RunAtLoad</key>
 	<true/>
