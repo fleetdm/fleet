@@ -1,1 +1,0 @@
-* Don't consider Docker network interfaces for primary IP on hosts.

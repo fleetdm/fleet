@@ -1,3 +1,61 @@
+## Fleet 4.13.0 (Apr 18, 2022)
+
+### This is a security release.
+
+* **Security**: Fix several post-authentication authorization issues. Only Fleet Premium users that
+  have team users are affected. Fleet Free users do not have access to the teams feature and are
+  unaffected. See the following security advisory for details: https://github.com/fleetdm/fleet/security/advisories/GHSA-pr2g-j78h-84cr
+
+* Improve performance of software inventory on Windows hosts.
+
+* Add `basic​_auth.username` and `basic_auth.password` [Prometheus configuration options](https://fleetdm.com/docs/deploying/configuration#prometheus). The `GET
+/metrics` API route is now disabled if these configuration options are left unspecified. 
+
+* Fleet Premium: Add ability to specify a team specific "Destination URL" for policy automations.
+This allows the user to configure Fleet to send a webhook request to a unique location for
+policies that belong to a specific team. Documentation on what data is included the webhook
+request and when the webhook request is sent can be found here on [fleedm.com/docs](https://fleetdm.com/docs/using-fleet/automations#vulnerability-automations)
+
+* Add ability to see the total number of hosts with a specific macOS version (ex. 12.3.1) on the
+**Home > macOS** page. This information is also available via the [`GET /os_versions` API route](https://fleetdm.com/docs/using-fleet/rest-api#get-host-os-versions).
+
+* Add ability to sort live query results in the Fleet UI.
+
+* Add a "Vulnerabilities" column to **Host details > Software** page. This allows the user see and search for specific vulnerabilities (CVEs) detected on a specific host.
+
+* Update vulnerability automations to fire anytime a vulnerability (CVE), that is detected on a
+  host, was published to the
+  National Vulnerability Database (NVD) in the last 30 days, is detected on a host. In previous
+  versions of Fleet, vulnerability automations would fire anytime a CVE was published to NVD in the
+  last 2 days.
+
+* Update the **Policies** page to ask the user to wait to see accurate passing and failing counts for new and recently edited policies.
+
+* Improve API-only (integration) users by removing the requirement to reset these users' passwords
+  before use. Documentation on how to use API-only users can be found here on [fleetdm.com/docs](https://fleetdm.com/docs/using-fleet/fleetctl-cli#using-fleetctl-with-an-api-only-user).
+
+* Improve the responsiveness of the Fleet UI by adding tablet screen width support for the **Software**,
+  **Queries**, **Schedule**, **Policies**, **Host details**, **Settings > Teams**, and **Settings > Users** pages.
+
+* Add Beta support for integrating with Jira to automatically create a Jira issue when a
+  new vulnerability (CVE) is detected on a host in Fleet. 
+
+* Add Beta support for Fleet Desktop on Windows. Fleet Desktop allows the device user to see
+information about their device. To add Fleet Desktop to a Windows device, first add the
+`--fleet-desktop` flag to the `fleectl package` command to generate a Fleet-osquery installer that
+includes Fleet Desktop. Then, open this installer on the device.
+
+* Fix a bug in which downloading [Fleet's vulnerability database](https://github.com/fleetdm/nvd) failed if the destination directory specified
+was not in the `tmp/` directory.
+
+* Fix a bug in which the "Updated at" time was not being updated for the "Mobile device management
+(MDM) enrollment" and "Munki versions" information on the **Home > macOS** page.
+
+* Fix a bug in which Fleet would consider Docker network interfaces to be a host's primary IP address.
+
+* Fix a bug in which tables in the Fleet UI would present misaligned buttons.
+
+* Fix a bug in which Fleet failed to connect to Redis in standalone mode.
 ## Fleet 4.12.1 (Apr 4, 2022)
 
 * Fix a bug in which a user could not log in with basic authentication. This only affects Fleet deployments that use a [MySQL read replica](https://fleetdm.com/docs/deploying/configuration#my-sql).
