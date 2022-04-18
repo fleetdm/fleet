@@ -217,7 +217,7 @@ He's why we use a wireframe-first approach at Fleet.
 At Fleet, we keep everything in one repo. The only exception is when we're working on something confidential since GitHub does not allow confidential issues inside public repos. Here's why:
 
 - One repo is easier to manage. It has less surface area for keeping content up to date and reduces the risk of things getting lost and forgotten.
-- One repo means that there is less to get lost. Think of it as if more repos take up a sprawling surface area that becomes unruly to manage and keep up with from day to day. This also makes it easy to find everything.
+- Our work is more visible and accessible to the community when all project pieces are available in one repo. 
 - One repo pools GitHub stars to reflect Fleet’s actual presence better.
 - With only one repo, you can consolidate your automation and labels. Otherwise, you have to manage labels and automation across multiple repos, which can drift.
 
