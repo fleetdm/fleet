@@ -115,12 +115,9 @@ func (svc *Service) AppConfig(ctx context.Context) (*fleet.AppConfig, error) {
 		ac.SMTPSettings.SMTPPassword = "********"
 	}
 
-	var jiraIntegrations []*fleet.JiraIntegration
 	for _, jiraIntegration := range ac.Integrations.Jira {
 		jiraIntegration.APIToken = "********"
-		jiraIntegrations = append(jiraIntegrations, jiraIntegration)
 	}
-	ac.Integrations.Jira = jiraIntegrations
 	return ac, nil
 }
 

@@ -331,8 +331,8 @@ func TestAppConfigSecretsObfuscated(t *testing.T) {
 
 			ac, err := svc.AppConfig(ctx)
 			require.NoError(t, err)
-			require.NotEqual(t, ac.SMTPSettings.SMTPPassword, "smtppassword")
-			require.NotEqual(t, ac.Integrations.Jira[0].APIToken, "jiratoken")
+			require.Equal(t, ac.SMTPSettings.SMTPPassword, "********")
+			require.Equal(t, ac.Integrations.Jira[0].APIToken, "********")
 		})
 	}
 }
