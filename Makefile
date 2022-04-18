@@ -306,6 +306,8 @@ endif
 #
 # Usage:
 # FLEET_DESKTOP_APPLE_AUTHORITY=foo FLEET_DESKTOP_VERSION=0.0.1 make desktop-app-tar-gz
+#
+# Output: desktop.app.tar.gz
 desktop-app-tar-gz:
 ifneq ($(shell uname), Darwin)
 	@echo "Makefile target desktop-app-tar-gz is only supported on macOS"
@@ -317,8 +319,43 @@ endif
 #
 # Usage:
 # FLEET_DESKTOP_VERSION=0.0.1 make desktop-windows
+#
+# Output: fleet-desktop.exe
 desktop-windows:
 	GOOS=windows GOARCH=amd64 go build -ldflags "-H=windowsgui" -o fleet-desktop.exe ./orbit/cmd/desktop
+
+# Build desktop executable for Linux.
+#
+# Usage:
+# FLEET_DESKTOP_VERSION=0.0.1 make desktop-linux
+#
+# Output: desktop.tar.gz
+desktop-linux:
+	docker build -f Dockerfile-desktop-linux -t desktop-linux-builder .
+	docker run --rm -v $(shell pwd):/output -it desktop-linux-builder /bin/bash -c "\
+		go build -o /output/fleet-desktop /usr/src/fleet/orbit/cmd/desktop && \
+		cp /usr/lib/x86_64-linux-gnu/libayatana-appindicator3.so.1 \
+		/usr/lib/x86_64-linux-gnu/libayatana-ido3-0.4.so.0 \
+		/usr/lib/x86_64-linux-gnu/libayatana-indicator3.so.7 \
+		/lib/x86_64-linux-gnu/libm.so.6 \
+		/usr/lib/x86_64-linux-gnu/libdbusmenu-gtk3.so.4 \
+		/usr/lib/x86_64-linux-gnu/libdbusmenu-glib.so.4 \
+		/output/ && cd /output && \
+		tar czf desktop.tar.gz \
+		fleet-desktop \
+		libayatana-appindicator3.so.1 \
+		libayatana-ido3-0.4.so.0 \
+		libayatana-indicator3.so.7 \
+		libdbusmenu-gtk3.so.4 \
+		libdbusmenu-glib.so.4 \
+		libm.so.6 && \
+		rm fleet-desktop \
+		libayatana-appindicator3.so.1 \
+		libayatana-ido3-0.4.so.0 \
+		libayatana-indicator3.so.7 \
+		libdbusmenu-gtk3.so.4 \
+		libdbusmenu-glib.so.4 \
+		libm.so.6"
 
 # db-replica-setup setups one main and one read replica MySQL instance for dev/testing.
 #	- Assumes the docker containers are already running (tools/mysql-replica-testing/docker-compose.yml)

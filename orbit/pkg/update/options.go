@@ -72,4 +72,11 @@ var (
 		Channel:    "stable",
 		TargetFile: constant.DesktopAppExecName + ".exe",
 	}
+
+	DesktopLinuxTarget = TargetInfo{
+		Platform:             "linux",
+		Channel:              "stable",
+		TargetFile:           "desktop.tar.gz",
+		ExtractedExecSubPath: []string{constant.DesktopAppExecName},
+	}
 )
