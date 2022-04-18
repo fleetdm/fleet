@@ -263,7 +263,7 @@ describe(
         cy.findByText("Save").click(); // we have 'save as new' also
         cy.findByText(/query updated/i).should("exist");
       });
-      it.only("allows admin to run a query", () => {
+      it("allows admin to run a query", () => {
         cy.findByText(/cypress test query/i).click({ force: true });
         cy.findByText(/run query/i).click({ force: true });
         cy.findByText(/select targets/i).should("exist");

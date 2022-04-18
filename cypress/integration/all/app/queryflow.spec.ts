@@ -9,7 +9,7 @@ describe("Query flow (empty)", () => {
     cy.viewport(1200, 660);
   });
   after(() => {
-    // cy.logout();
+    cy.logout();
   });
   describe("Manage queries page", () => {
     beforeEach(() => {
@@ -46,7 +46,7 @@ describe("Query flow (seeded)", () => {
     cy.viewport(1200, 660);
   });
   after(() => {
-    // cy.logout();
+    cy.logout();
   });
   describe("Manage queries page", () => {
     beforeEach(() => {
@@ -60,7 +60,8 @@ describe("Query flow (seeded)", () => {
       cy.findByText(/all hosts/i).click();
       cy.findByText(/hosts targeted/i).should("exist");
       cy.findByText(/run/i).click();
-      cy.wait(10000); // wait for live query to run
+      // Ensures live query runs
+      cy.wait(10000); // eslint-disable-line cypress/no-unnecessary-waiting
       cy.getAttached(".query-results__results-table-header").within(() => {
         cy.findByText(/show query/i).click();
       });
