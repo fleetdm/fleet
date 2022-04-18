@@ -351,7 +351,8 @@ type Datastore interface {
 	// After aggregation, it cleans up unused software (e.g. software installed
 	// on removed hosts, software uninstalled on hosts, etc.)
 	CalculateHostsPerSoftware(ctx context.Context, updatedAt time.Time) error
-	HostsByCPEs(ctx context.Context, cpes []string) ([]*CPEHost, error)
+	HostsByCPEs(ctx context.Context, cpes []string) ([]*HostShort, error)
+	HostsByCVE(ctx context.Context, cve string) ([]*HostShort, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// ActivitiesStore
@@ -518,6 +519,18 @@ type Datastore interface {
 	EnrollHost(ctx context.Context, osqueryHostId, nodeKey string, teamID *uint, cooldown time.Duration) (*Host, error)
 
 	SerialUpdateHost(ctx context.Context, host *Host) error
+
+	///////////////////////////////////////////////////////////////////////////////
+	// JobStore
+
+	// NewJob inserts a new job into the jobs table (queue).
+	NewJob(ctx context.Context, job *Job) (*Job, error)
+
+	// GetQueuedJobs gets queued jobs from the jobs table (queue).
+	GetQueuedJobs(ctx context.Context, maxNumJobs int) ([]*Job, error)
+
+	// UpdateJobs updates an existing job. Call this after processing a job.
+	UpdateJob(ctx context.Context, id uint, job *Job) (*Job, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Debug

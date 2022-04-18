@@ -29,6 +29,7 @@ DRIs help us collaborate efficiently by knowing exactly who is responsible and c
 | Final cut of what goes into each release | Zach Wasserman |
 | When we cut a release, version numbers, and whether to release | Zach Wasserman |
 | Release notes | Noah Talerman |
+| Documentation quality | Mike Thomas |
 | Publishing release blog post, and promoting releases | Mike Thomas |
 | fleetdm.com | Mike Thomas |
 | Self-service Fleet Premium license dispenser | Mike Thomas |
@@ -48,7 +49,17 @@ In brief, this means that as a Fleet team member, you may:
 
 For more developed thoughts about __spending guidelines and limits__, please read [GitLab's open expense policy](https://about.gitlab.com/handbook/spending-company-money/).
 
-### Purchasing a company-issued device.
+### Reimbursements
+
+We provide all of our team members with Brex cards for making purchases for the company. If a team member pays for work-related expenses with their personal funds, Fleet will reimburse them.
+
+Team members can request reimbursement through [Gusto](https://app.gusto.com/expenses) if they're in the US or [Pilot](https://pilot.co/) if they are an international team member. When submitting an expense report, team members need to provide the receipt, and a description of the expense.
+
+Operations will review the expense and reach out to the team member if they have any questions. When an expense is approved, the reimbursement will be added to the team member's next payroll.
+
+>Pilot handles reimbursements differently depending on if the international team member is classified as an employee or a contractor. If the reimbursement is for a contractor, Operations will need to add the expense reimbursement to an upcoming recurring payment or schedule the reimbursement as an off-cycle payment. If the reimbursement is for an employee, no other action is needed; Pilot will add the reimbursement to the team member's next payroll. 
+
+### Purchasing a company-issued device
 
 Fleet provides laptops for team members to use while working at Fleet. As soon as an offer is accepted, `eashaw` will reach out to the new team member to start this process. `Eashaw` will work with the new team member to get their laptop purchased and shipped to them.
 
@@ -119,6 +130,12 @@ schedule a time when you are not available. Many team members use the free tier 
 [reclaim.ai](https://reclaim.ai/) to synchronize personal event times (without event details) into
 their work calendars. It is also common practice to block out time for focused work.
 
+#### Modifying an event organized by someone else
+
+To edit an event where someone else at Fleet is the organizer, you can first subscribe to their calendar in Google Calendar, then edit the event on their calendar.  Your edits will automatically apply for all attendees.
+
+> This works because every fleetie grants edit access to everyone else at Fleet as part of onboarding.
+
 ### External meeting scheduling
 
 When scheduling external meetings, provide external participants with a
@@ -174,10 +191,10 @@ We evaluate and update compensation decisions yearly, shortly after the annivers
 
 4. After compensation has been determined, create two documents for the candidate:
 
-- [Exit scenarios (template)](https://docs.google.com/spreadsheets/d/1k2TzsFYR0QxlD-KGPxuhuvvlJMrCvLPo2z8s8oGChT0/copy)
-- [Informal offer email (template)](https://docs.google.com/document/d/1zpNN2LWzAj-dVBC8iOg9jLurNlSe7XWKU69j7ntWtbY/copy).
+   - [Exit scenarios (template)](https://docs.google.com/spreadsheets/d/1k2TzsFYR0QxlD-KGPxuhuvvlJMrCvLPo2z8s8oGChT0/copy)
+   - [Informal offer email (template)](https://docs.google.com/document/d/1zpNN2LWzAj-dVBC8iOg9jLurNlSe7XWKU69j7ntWtbY/copy).
 
-Change the name of the documents accordingly (e.g., "[candidate's name]'s copy of exit scenarios,") and link to the exit scenarios spreadsheet from the offer email.
+   Change the name of the documents accordingly (e.g., "[candidate's name]'s a copy of exit scenarios") and link to the exit scenarios spreadsheet from the offer email.
 
 5. Prepare the informal offer email. You'll need to add the following information to the template: 
    - Candidate's name and email address
@@ -187,9 +204,9 @@ Change the name of the documents accordingly (e.g., "[candidate's name]'s copy o
    - Equity offered to the candidate (make this information a link to the candidate's exit scenarios spreadsheet)
    - Benefits (determined by the candidate's location)
 
-6. Prepare the exit scenarios spreadsheet. Enter the percentage of equity offered to the candidate, and the spreadsheet will update to reflect this. 
+6. Prepare the exit scenarios spreadsheet. Enter the number of shares offered to the candidate, and the spreadsheet will update to reflect this. 
    
-      >**_Note:_** *Don't play with numbers in the exit scenarios spreadsheet. The revision history is visible to the candidate, and they might misunderstand.*
+   >**_Note:_** *Don't play with numbers in the exit scenarios spreadsheet. The revision history is visible to the candidate, and they might misunderstand.*
 
 7. Once both documents are complete, share the offer email draft, exit scenarios copy, and a link to the compensation decision, with Eric for confirmation.
 
@@ -201,15 +218,63 @@ Change the name of the documents accordingly (e.g., "[candidate's name]'s copy o
 
 1. Once an offer is accepted in writing, reply to the candidate, CCing Eric via his Fleet email address to introduce the candidate to him.
 
-2. If the new team member is in the United States, Eric will reach out to them and get any information needed (typically the new team member's home address and phone number) and send them a consulting or employment agreement through [Docusign](https://www.docusign.com/). If the new team member is an international employee or contractor, Eric will start the hiring process in [Pilot](https://pilot.co/).
+2. Eric creates a [hiring issue](https://github.com/fleetdm/confidential/blob/main/.github/ISSUE_TEMPLATE/hiring.md) for the new team member in the [fleetdm/confidential](https://github.com/fleetdm/confidential/issues) repo. Eric will use this issue to keep track of the hiring tasks for the new team member.
 
-   >**_Note:_** *International contractor and employment agreements are handled by Pilot.co when you start the hiring process.*
+3. Eric reaches out to the new team member via email to get any information he will need to prepare an agreement and add them to our payroll system.
 
-3. **For US employees/contractors:** After an agreement is signed and stored in the correct Google Drive folder, Eric will start onboarding the new team member in [Gusto](https://www.gusto.com/). If the new team member is a W-2 employee, Eric will reach out to them and schedule an I-9 verification meeting. 
+   - **For US team members**: Eric will send the new team member's agreement through [Docusign](https://www.docusign.com/).
+  After signing and storing an in the correct Google Drive folder, Eric will invite the new team member to onboard in [Gusto](https://www.gusto.com/). Eric will reach out to them if the new team member is a W-2 employee and schedule an I-9 verification meeting.
 
-   >**_Note:_** *If we're hiring in a new state, we'll have to register for state taxes and unemployment. This process can be handled by Gusto. Usually.*
+   >*If we're hiring in a new state, we'll have to register for state taxes and unemployment. This process can usually be handled by Gusto.*
 
-4. Before their first day at Fleet, Eric will create a [Google Workspace account](https://admin.google.com/ac/users) for the new team member, add them to the [Fleet Github organization](https://github.com/fleetdm), create an onboarding issue in the [fleetdm/confidential](https://github.com/fleetdm/confidential/issues) Github repo, and invite them to join the Fleet Slack. If the new team member needs to purchase a work computer, Eric will set them up with a [Brex](https://dashboard.brex.com/team/invite-user) card.
+   - **For international team members:** Eric enters the new team member's information into [Pilot](https://pilot.co/) to kick off their hiring process. Pilot creates an agreement for the new team member, and Eric reviews it to make sure that everything looks correct. After Eric confirms the information about the new hire Pilot invites the new team member to enter the rest of their information and informs Eric via email when the agreement has been signed.
+
+
+4. **As soon as we have a signed agreement with a new team member:** Eric reaches out to the new team member to provide them with a [work device](#purchasing-a-company-issued-device) and a pair of [YubiKeys](./security.md#hardware-security-keys). The new team member will be asked to send Eric a screenshot or link to their preferred device and configuration. Eric orders their device and Yubikeys using his Brex card and has them shipped directly to the new team member.
+
+   >*If the new team member is in the US and requests a MacBook, It will be purchased using our Apple business account. MacBooks purchased with this account will ship pre-configured and will be enrolled in our MDM.*
+
+5. **Two weeks before their first day at Fleet:** Eric creates a [Google Workspace account](https://admin.google.com/ac/users) for the new team member and invites them to join the [FleetDM](https://github.com/fleetdm) GitHub organization. 
+
+   When the new team member's work email is active, Eric will send invitations to join Fleet's Slack and to create Fleet managed 1Password and Zoom accounts with their Fleet email. Eric sends the sign-in instructions to the new team member, accompanied by a brief explanation of the invitations sent.
+
+6. **Before a new team member's first day:** Eric creates an onboarding issue in the [fleetdm/confidential](https://github.com/fleetdm/confidential/issues) GitHub repo for the new team member. Before creating the issue, Eric will go through it and comment on any steps that the new team member will not have to complete.
+
+### Team member onboarding
+
+It's important that every team member at Fleet takes the time to get fully trained and onboarded. 
+
+When a new team member joins Fleet, we create an onboarding issue for them in the [fleetdm/confidential](https://github.com/fleetdm/confidential) repo using this [issue template](https://github.com/fleetdm/confidential/blob/main/.github/ISSUE_TEMPLATE/onboarding.md). 
+
+We want to make sure that the new team member will be able to complete every task in their issue. To make sure the new team member is successful in their onboarding, we customize their issue by commenting on any tasks they won't need to complete.
+
+We believe onboarding and training should be taken seriously, and that the onboarding template is an essential source of truth and a good use of time for every single new hire. If managers see a step that they don't feel is necessary, they should make a pull request to the [onboarding template](https://github.com/fleetdm/confidential/blob/main/.github/ISSUE_TEMPLATE/onboarding.md) and request a review from People operations.
+
+#### Contributor experience training
+
+During their first week at Fleet, new team members are asked to schedule a contributor experience training call with People operations. During this call, the new team member will share their screen, and People operations will:
+
+- make sure emails are going to get seen and responded to quickly.
+- make sure Slack messages are going to get seen and responded to quickly.
+- Make sure you know where your issues are tracked, which kanban board you use, what the columns mean.
+- Make sure you can succeed with submitting a PR with the github web editor, modifying docs or handbook, and working with markdown.
+- talk about Google calendar.
+- give you a quick tour of the Fleet Google drive folder.
+
+#### Sightseeing Tour
+
+During their onboarding at Fleet, new team members are asked to schedule a sightseeing tour call with People operations. During this call, the new team member will participate in an interactive tour that includes:
+
+- GitHub issues: the living bloodstream of the company.
+- Kanban boards: the bulletin board of quests you can get, and how you update status and let folks know things are done.
+- Google Calendar: the future.
+- Gmail: like any mailbox; full of junk mail, plus some important things, so it is important to check carefully.
+- Salesforce: the Rolodex.
+- Google Docs: the archives.
+- Slack:
+  - The "office" (#g-, #general).
+  - The walkie talkies (DMs).
+  - The watering hole (#oooh-, #random, #news, #help-).
 
 ### Onboarding a new advisor.
 
@@ -259,6 +324,12 @@ At the end of the quarter, and at key points throughout the quarter (every 3 wee
 - Review topdown and departmental OKRs as they are turned in.
 - OKRs they are finalized 1 week from when topdown OKRs were initially reviewed.
 - Finalized OKRs are shared company-wide and at "all hands" and, at least to some degree, become public.
+
+## Workiversaries
+
+We're happy you've ventured a trip around the sun with Fleet. Let's celebrate!
+
+- Each Friday, if there are any upcoming workiversaries in the next 7 days, People Operations posts about them in #g-people and tags @mikermcneil to let them know.
 
 ## Slack channels
 

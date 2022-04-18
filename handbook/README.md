@@ -4,37 +4,63 @@
 
 The Fleet handbook is the central guide for how we run the company. As part of our value of [being transparent](./company.md#openness), the handbook is open to the world. We welcome feedback, and [contributions](./handbook.md#contributing-to-the-handbook), so please click to edit and suggest improvements throughout these pages.
 
-### Company
+### 🔭 Company
 
 [About Fleet](./company.md#about-fleet)
 
-[History](./company.md#history)
+[Culture](./company.md#culture)
 
 [Values](./company.md#values)
 
-[Culture](./company.md#culture)
+[Why this way?](./company.md#why-this-way)
 
-### People
+[History](./company.md#history)
 
-[Directly responsible individuals](./people.md#directly-resonsible-individuals)
+[Slack channels](./company.md#slack-channels)
 
-[Spending company money](./people.md#spending-company-money)
 
-[Paid time off](./people.md#paid-time-off)
+### ⛑ Security
 
-[Meetings](./people.md#meetings)
+[How we protect end-user devices](./security.md#how-we-protect-end-user-devices)
 
-[People ops](./people.md#people-ops)
+[Hardware security keys](./security.md#hardware-security-keys)
 
-[Slack channels](./people.md#slack-channels)
+[GitHub Security](./security.md#git-hub-security)
 
-### Engineering
+[Google Workspace security](./security.md#google-workspace-security)
+
+[Vulnerability management in Fleet](./security.md#vulnerability-management)
+
+### 💓 Brand
+
+[Communicating as Fleet](./brand.md#communicating-as-fleet)
+
+[Voice and tone guidelines](./brand.md#voice-and-grammar-guidelines)
+
+[Brand resources](./brand.md#brand-resources)
+
+[Email blasts](./brand.md#email-blasts)
+
+[Fleet website](./brand.md#website)
+
+### 🪂 Community
+
+[Communities](./community.md#communities)
+
+[Fleet docs](./community.md#fleet-docs)
+
+[Community contributions (pull requests)](./community.md#community-contributions-pull-requests)
+
+[Fleet swag](./community.md#fleet-swag)
+
+### 🚀 Engineering
 
 [Release process](./engineering.md#release-process)
+[On-call rotation](./community.md#On-call-rotation) 
 
-[Slack channels](./engineering.md#slack-channels)
+### ⚗️ Product
 
-### Product
+[Objectives and key results](./product.md#Objectives-and-key-results)
 
 [Product design process](./product.md#product-design-process)
 
@@ -48,41 +74,7 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Competition](./product.md#competition)
 
-[Slack channels](./product.md#slack-channels)
-
-### Security
-
-[How we protect end-user devices](./security.md#how-we-protect-end-user-devices)
-
-[How we secure GitHub](./security.md#git-hub-security)
-
-[Google Workspace security](./security.md#google-workspace-security)
-
-[Vulnerability management in Fleet](./security.md#vulnerability-management)
-
-[Slack channels](./security.md#slack-channels)
-
-### Brand
-
-[Communicating as Fleet](./brand.md#communicating-as-fleet)
-
-[Voice and grammar guidelines](./brand.md#voice-and-grammar-guidelines)
-
-[Brand resources](./brand.md#brand-resources)
-
-[Email blasts](./brand.md#email-blasts)
-
-[Website](./brand.md#website)
-
-### Customers
-
-[Customer succcess](./customers.md#customer-success)
-
-[Support process](./customers.md#support-process)
-
-[Slack channels](./customers.md#slack-channels)
-
-### Growth
+### 🪴 Growth
 
 [Posting on social media as Fleet](./growth.md#posting-on-social-media-as-fleet)
 
@@ -92,21 +84,39 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Sponsoring events](./growth.md#sponsoring-events)
 
-[Slack channels](./growth.md#slack-channels)
+### 🎈 Customers
 
-### Community
+[Customer succcess](./customers.md#customer-success)
 
-[Communities](./community.md#communities)
+[Support process](./customers.md#support-process)
 
-[Fleet docs](./community.md#fleet-docs)
+[Runbook](./customers.md#runbook)
 
-[Community contributions (pull requests)](./community.md#community-contributions-pull-requests)
+[Incident postmortems](./customers.md#incident-postmortems)
 
-[Fleet swag](./community.md#fleet-swag)
+[Customer codenames](./customers.md#customer-codenames)
 
-[Slack channels](./community.md#slack-channels)
+[Generating a trial license key](./customers.md#generating-a-trial-license-key)
+
+### 🧑‍🚀 People
+
+[Directly responsible individuals](./people.md#directly-resonsible-individuals)
+
+[Spending company money](./people.md#spending-company-money)
+
+[Paid time off](./people.md#paid-time-off)
+
+[Meetings](./people.md#meetings)
+
+[People ops](./people.md#people-ops)
+
+[Rituals](./people.md#rituals)
+
+[Workiversaries](./people.md#workiversaries)
 
 ### Handbook
+
+<!-- TODO: Merge this section into the main "Brand" page -->
 
 [About the handbook](./handbook.md#about-the-handbook)
 

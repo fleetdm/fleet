@@ -59,10 +59,6 @@ const publishedDateFmt = "2006-01-02T15:04Z" // not quite RFC3339
 var (
 	rxNVDCVEArchive = regexp.MustCompile(`nvdcve.*\.gz$`)
 
-	// max age to be considered a recent vulnerability (relative to NVD's published date)
-	// (a var to be able to change in tests)
-	recentVulnMaxAge = 2 * 24 * time.Hour
-
 	// this allows mocking the time package for tests, by default it is equivalent
 	// to the time functions, e.g. theClock.Now() == time.Now().
 	theClock clock.Clock = clock.C
@@ -124,7 +120,7 @@ func TranslateCPEToCVE(
 		recentVulns = make(map[string][]string)
 	}
 	for _, file := range files {
-		err := checkCVEs(ctx, ds, logger, cpes, file, recentVulns)
+		err := checkCVEs(ctx, ds, logger, cpes, file, recentVulns, config.Vulnerabilities.RecentVulnerabilityMaxAge)
 		if err != nil {
 			return nil, err
 		}
@@ -133,8 +129,15 @@ func TranslateCPEToCVE(
 	return recentVulns, nil
 }
 
-func checkCVEs(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
-	cpes []*wfn.Attributes, file string, recentVulns map[string][]string) error {
+func checkCVEs(
+	ctx context.Context,
+	ds fleet.Datastore,
+	logger kitlog.Logger,
+	cpes []*wfn.Attributes,
+	file string,
+	recentVulns map[string][]string,
+	recentVulnMaxAge time.Duration,
+) error {
 
 	dict, err := cvefeed.LoadJSONDictionary(file)
 	if err != nil {

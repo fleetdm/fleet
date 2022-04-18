@@ -4,13 +4,19 @@ import { push } from "react-router-redux";
 
 import Button from "components/buttons/Button/Button";
 
-interface ILinkCellProps<T> {
+interface ILinkCellProps {
   value: string;
   path: string;
   title?: string;
+  classes?: string;
 }
 
-const LinkCell = ({ value, path, title }: ILinkCellProps<any>): JSX.Element => {
+const LinkCell = ({
+  value,
+  path,
+  title,
+  classes = "w250",
+}: ILinkCellProps): JSX.Element => {
   const dispatch = useDispatch();
 
   const onClick = (): void => {
@@ -18,7 +24,12 @@ const LinkCell = ({ value, path, title }: ILinkCellProps<any>): JSX.Element => {
   };
 
   return (
-    <Button onClick={onClick} variant="text-link" title={title}>
+    <Button
+      className={`link-cell ${classes}`}
+      onClick={onClick}
+      variant="text-link"
+      title={title}
+    >
       {value}
     </Button>
   );

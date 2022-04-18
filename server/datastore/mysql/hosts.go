@@ -44,7 +44,7 @@ func (ds *Datastore) NewHost(ctx context.Context, host *fleet.Host) (*fleet.Host
 		config_tls_refresh,
 		refetch_requested
 	)
-	VALUES( ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,? )
+	VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 	result, err := ds.writer.ExecContext(
 		ctx,
@@ -348,7 +348,7 @@ func (ds *Datastore) DeleteHost(ctx context.Context, hid uint) error {
 			}
 		}
 
-		_, err = tx.ExecContext(ctx, `DELETE FROM pack_targets WHERE type=? AND target_id=?`, fleet.TargetHost, hid)
+		_, err = tx.ExecContext(ctx, `DELETE FROM pack_targets WHERE type = ? AND target_id = ?`, fleet.TargetHost, hid)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "deleting pack_targets for host %d", hid)
 		}
@@ -466,7 +466,7 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
 }
 
 func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, filter fleet.TeamFilter, params []interface{}) (string, []interface{}) {
-	policyMembershipJoin := "JOIN policy_membership pm ON (h.id=pm.host_id)"
+	policyMembershipJoin := "JOIN policy_membership pm ON (h.id = pm.host_id)"
 	if opt.PolicyIDFilter == nil {
 		policyMembershipJoin = ""
 	} else if opt.PolicyResponseFilter == nil {
@@ -475,12 +475,12 @@ func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, fil
 
 	softwareFilter := "TRUE"
 	if opt.SoftwareIDFilter != nil {
-		softwareFilter = "EXISTS (SELECT 1 FROM host_software hs WHERE hs.host_id=h.id AND hs.software_id=?)"
+		softwareFilter = "EXISTS (SELECT 1 FROM host_software hs WHERE hs.host_id = h.id AND hs.software_id = ?)"
 		params = append(params, opt.SoftwareIDFilter)
 	}
 
 	failingPoliciesJoin := `LEFT JOIN (
-		    SELECT host_id, count(*) as count FROM policy_membership WHERE passes=0
+		    SELECT host_id, count(*) as count FROM policy_membership WHERE passes = 0
 		    GROUP BY host_id
 		) as failing_policies ON (h.id=failing_policies.host_id)`
 	if opt.DisableFailingPolicies {
@@ -488,7 +488,7 @@ func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, fil
 	}
 
 	sql += fmt.Sprintf(`FROM hosts h
-		LEFT JOIN host_seen_times hst ON (h.id=hst.host_id)
+		LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
 		LEFT JOIN teams t ON (h.team_id = t.id)
 		%s
 		%s
@@ -591,7 +591,7 @@ func (ds *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fl
 				COALESCE(SUM(CASE WHEN DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL LEAST(distributed_interval, config_tls_refresh) + %d SECOND) <= ? AND DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL 30 DAY) >= ? THEN 1 ELSE 0 END), 0) offline,
 				COALESCE(SUM(CASE WHEN DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL LEAST(distributed_interval, config_tls_refresh) + %d SECOND) > ? THEN 1 ELSE 0 END), 0) online,
 				COALESCE(SUM(CASE WHEN DATE_ADD(created_at, INTERVAL 1 DAY) >= ? THEN 1 ELSE 0 END), 0) new
-			FROM hosts h LEFT JOIN host_seen_times hst ON (h.id=hst.host_id) WHERE %s
+			FROM hosts h LEFT JOIN host_seen_times hst ON (h.id = hst.host_id) WHERE %s
 			LIMIT 1;
 		`, fleet.OnlineIntervalBuffer, fleet.OnlineIntervalBuffer, whereClause)
 
@@ -688,7 +688,7 @@ func (ds *Datastore) EnrollHost(ctx context.Context, osqueryHostID, nodeKey stri
 			}
 		}
 		_, err = tx.ExecContext(ctx, `
-			INSERT INTO host_seen_times (host_id, seen_time) VALUES (?,?)
+			INSERT INTO host_seen_times (host_id, seen_time) VALUES (?, ?)
 			ON DUPLICATE KEY UPDATE seen_time = VALUES(seen_time)`,
 			hostID, time.Now().UTC())
 		if err != nil {
@@ -770,8 +770,8 @@ func (ds *Datastore) LoadHostByDeviceAuthToken(ctx context.Context, authToken st
 func (ds *Datastore) SetOrUpdateDeviceAuthToken(ctx context.Context, hostID uint, authToken string) error {
 	return ds.updateOrInsert(
 		ctx,
-		`UPDATE host_device_auth SET token=? WHERE host_id=?`,
-		`INSERT INTO host_device_auth(token, host_id) VALUES (?,?)`,
+		`UPDATE host_device_auth SET token = ? WHERE host_id = ?`,
+		`INSERT INTO host_device_auth (token, host_id) VALUES (?, ?)`,
 		authToken, hostID,
 	)
 }
@@ -818,7 +818,7 @@ func (ds *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, m
 		COALESCE(hst.seen_time, h.created_at) AS seen_time
 	FROM hosts h
 	LEFT JOIN host_seen_times hst
-	ON (h.id=hst.host_id) WHERE TRUE `
+	ON (h.id = hst.host_id) WHERE TRUE `
 
 	var args []interface{}
 	if len(matchQuery) > 0 {
@@ -977,7 +977,7 @@ func saveHostUsersDB(ctx context.Context, tx sqlx.ExtContext, hostID uint, users
 				user_type = VALUES(user_type),
 				groupname = VALUES(groupname),
 				shell = VALUES(shell),
-				removed_at=NULL`,
+				removed_at = NULL`,
 		insertValues,
 	)
 	if _, err := tx.ExecContext(ctx, insertSql, insertArgs...); err != nil {
@@ -1047,7 +1047,7 @@ func (ds *Datastore) ListPoliciesForHost(ctx context.Context, host *fleet.Host) 
 	LEFT JOIN policy_membership pm ON (p.id=pm.policy_id AND host_id=?)
 	LEFT JOIN users u ON p.author_id = u.id
 	WHERE (p.team_id IS NULL OR p.team_id = (select team_id from hosts WHERE id = ?))
-	AND (p.platforms IS NULL OR p.platforms = "" OR FIND_IN_SET(?, p.platforms) != 0)`
+	AND (p.platforms IS NULL OR p.platforms = '' OR FIND_IN_SET(?, p.platforms) != 0)`
 
 	var policies []*fleet.HostPolicy
 	if err := sqlx.SelectContext(ctx, ds.reader, &policies, query, host.ID, host.ID, host.FleetPlatform()); err != nil {
@@ -1229,7 +1229,7 @@ func (ds *Datastore) updateOrInsert(ctx context.Context, updateQuery string, ins
 func (ds *Datastore) SetOrUpdateMunkiVersion(ctx context.Context, hostID uint, version string) error {
 	if version == "" {
 		// Only update deleted_at if there wasn't any deleted at for this host
-		updateQuery := `UPDATE host_munki_info SET deleted_at=NOW() WHERE host_id=? AND deleted_at is NULL`
+		updateQuery := `UPDATE host_munki_info SET deleted_at = NOW() WHERE host_id = ? AND deleted_at is NULL`
 		_, err := ds.writer.ExecContext(ctx, updateQuery, hostID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err)
@@ -1238,8 +1238,8 @@ func (ds *Datastore) SetOrUpdateMunkiVersion(ctx context.Context, hostID uint, v
 	}
 	return ds.updateOrInsert(
 		ctx,
-		`UPDATE host_munki_info SET version=? WHERE host_id=?`,
-		`INSERT INTO host_munki_info(version, host_id) VALUES (?,?)`,
+		`UPDATE host_munki_info SET version = ? WHERE host_id = ?`,
+		`INSERT INTO host_munki_info (version, host_id) VALUES (?, ?)`,
 		version, hostID,
 	)
 }
@@ -1247,15 +1247,15 @@ func (ds *Datastore) SetOrUpdateMunkiVersion(ctx context.Context, hostID uint, v
 func (ds *Datastore) SetOrUpdateMDMData(ctx context.Context, hostID uint, enrolled bool, serverURL string, installedFromDep bool) error {
 	return ds.updateOrInsert(
 		ctx,
-		`UPDATE host_mdm SET enrolled=?, server_url=?, installed_from_dep=? WHERE host_id=?`,
-		`INSERT INTO host_mdm(enrolled, server_url, installed_from_dep, host_id) VALUES (?, ?, ?, ?)`,
+		`UPDATE host_mdm SET enrolled = ?, server_url = ?, installed_from_dep = ? WHERE host_id = ?`,
+		`INSERT INTO host_mdm (enrolled, server_url, installed_from_dep, host_id) VALUES (?, ?, ?, ?)`,
 		enrolled, serverURL, installedFromDep, hostID,
 	)
 }
 
 func (ds *Datastore) GetMunkiVersion(ctx context.Context, hostID uint) (string, error) {
 	var version string
-	err := sqlx.GetContext(ctx, ds.reader, &version, `SELECT version FROM host_munki_info WHERE deleted_at is NULL AND host_id=?`, hostID)
+	err := sqlx.GetContext(ctx, ds.reader, &version, `SELECT version FROM host_munki_info WHERE deleted_at is NULL AND host_id = ?`, hostID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return "", ctxerr.Wrap(ctx, notFound("MunkiInfo").WithID(hostID))
@@ -1272,7 +1272,7 @@ func (ds *Datastore) GetMDM(ctx context.Context, hostID uint) (bool, string, boo
 		ServerURL        string `db:"server_url"`
 		InstalledFromDep bool   `db:"installed_from_dep"`
 	}{}
-	err := sqlx.GetContext(ctx, ds.reader, &dest, `SELECT enrolled, server_url, installed_from_dep FROM host_mdm WHERE host_id=?`, hostID)
+	err := sqlx.GetContext(ctx, ds.reader, &dest, `SELECT enrolled, server_url, installed_from_dep FROM host_mdm WHERE host_id = ?`, hostID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return false, "", false, ctxerr.Wrap(ctx, notFound("MDM").WithID(hostID))
@@ -1295,7 +1295,7 @@ func (ds *Datastore) AggregatedMunkiVersion(ctx context.Context, teamID *uint) (
 	}
 	err := sqlx.GetContext(
 		ctx, ds.reader, &versionsJson,
-		`select json_value, updated_at from aggregated_stats where id=? and type='munki_versions'`,
+		`SELECT json_value, updated_at FROM aggregated_stats WHERE id = ? AND type = 'munki_versions'`,
 		id,
 	)
 	if err != nil {
@@ -1325,7 +1325,7 @@ func (ds *Datastore) AggregatedMDMStatus(ctx context.Context, teamID *uint) (fle
 	}
 	err := sqlx.GetContext(
 		ctx, ds.reader, &statusJson,
-		`select json_value, updated_at from aggregated_stats where id=? and type='mdm_status'`,
+		`select json_value, updated_at from aggregated_stats where id = ? and type = 'mdm_status'`,
 		id,
 	)
 	if err != nil {
@@ -1373,12 +1373,12 @@ func (ds *Datastore) generateAggregatedMunkiVersion(ctx context.Context, teamID 
 	args := []interface{}{}
 	if teamID != nil {
 		args = append(args, *teamID)
-		query += ` JOIN hosts h ON (h.id=hm.host_id) WHERE h.team_id=? AND `
+		query += ` JOIN hosts h ON (h.id = hm.host_id) WHERE h.team_id = ? AND `
 		id = *teamID
 	} else {
 		query += `  WHERE `
 	}
-	query += ` hm.deleted_at is NULL GROUP BY hm.version`
+	query += ` hm.deleted_at IS NULL GROUP BY hm.version`
 	err := sqlx.SelectContext(ctx, ds.reader, &versions, query, args...)
 	if err != nil {
 		return ctxerr.Wrapf(ctx, err, "getting aggregated data from host_munki")
@@ -1389,7 +1389,13 @@ func (ds *Datastore) generateAggregatedMunkiVersion(ctx context.Context, teamID 
 	}
 
 	_, err = ds.writer.ExecContext(ctx,
-		`INSERT INTO aggregated_stats(id, type, json_value) VALUES(?, ?, ?) ON DUPLICATE KEY UPDATE json_value=VALUES(json_value)`,
+		`
+INSERT INTO aggregated_stats (id, type, json_value)
+VALUES (?, ?, ?)
+ON DUPLICATE KEY UPDATE
+    json_value = VALUES(json_value),
+    updated_at = CURRENT_TIMESTAMP
+`,
 		id, "munki_versions", versionsJson,
 	)
 	if err != nil {
@@ -1412,7 +1418,7 @@ func (ds *Datastore) generateAggregatedMDMStatus(ctx context.Context, teamID *ui
 	args := []interface{}{}
 	if teamID != nil {
 		args = append(args, *teamID)
-		query += ` JOIN hosts h ON (h.id=hm.host_id) WHERE h.team_id=?`
+		query += ` JOIN hosts h ON (h.id = hm.host_id) WHERE h.team_id = ?`
 		id = *teamID
 	}
 	err := sqlx.GetContext(ctx, ds.reader, &status, query, args...)
@@ -1426,7 +1432,13 @@ func (ds *Datastore) generateAggregatedMDMStatus(ctx context.Context, teamID *ui
 	}
 
 	_, err = ds.writer.ExecContext(ctx,
-		`INSERT INTO aggregated_stats(id, type, json_value) VALUES(?, ?, ?) ON DUPLICATE KEY UPDATE json_value=VALUES(json_value)`,
+		`
+INSERT INTO aggregated_stats (id, type, json_value)
+VALUES (?, ?, ?)
+ON DUPLICATE KEY UPDATE
+    json_value = VALUES(json_value),
+    updated_at = CURRENT_TIMESTAMP
+`,
 		id, "mdm_status", statusJson,
 	)
 	if err != nil {

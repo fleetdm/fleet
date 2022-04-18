@@ -47,7 +47,7 @@ class FleetDetails extends Component {
             tabIndex={tabIndex}
             hint={[
               "Don’t include ",
-              <code key="hint">/v1</code>,
+              <code key="hint">/latest</code>,
               " or any other path.",
             ]}
             ref={(input) => {

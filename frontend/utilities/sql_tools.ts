@@ -28,8 +28,6 @@ interface IOsqueryTable {
   platforms: IOsqueryPlatform[];
 }
 
-export type IParserResult = Error | IOsqueryPlatform | string;
-
 type IPlatformDictionay = Record<string, IOsqueryPlatform[]>;
 
 const platformsByTableDictionary: IPlatformDictionay = (osqueryTables as IOsqueryTable[]).reduce(
@@ -67,9 +65,7 @@ const _visit = (
   }
 };
 
-export const filterCompatiblePlatforms = (
-  sqlTables: string[]
-): IOsqueryPlatform[] => {
+const filterCompatiblePlatforms = (sqlTables: string[]): IOsqueryPlatform[] => {
   if (!sqlTables.length) {
     return [...SUPPORTED_PLATFORMS]; // if a query has no tables but is still syntatically valid sql, it is treated as compatible with all platforms
   }
@@ -83,7 +79,7 @@ export const filterCompatiblePlatforms = (
   return SUPPORTED_PLATFORMS.filter((p) => compatiblePlatforms.includes(p));
 };
 
-export const parseSqlTables = (
+const parseSqlTables = (
   sqlString: string,
   includeCteTables = false
 ): string[] => {
@@ -118,30 +114,38 @@ export const parseSqlTables = (
 
     return results;
   } catch (err) {
-    // console.log(`Invalid query syntax: ${err.message}\n\n${sqlString}`);
+    // console.log(`sqlite-parser error: ${err}\n\n${sqlString}`);
 
-    throw err; // TODO
+    throw err;
   }
 };
 
-export const checkPlatformCompatibility = (
+const checkPlatformCompatibility = (
   sqlString: string,
   includeCteTables = false
-): IOsqueryPlatform[] => {
+): { platforms: IOsqueryPlatform[] | null; error: Error | null } => {
   let sqlTables: string[] | undefined;
   try {
     sqlTables = parseSqlTables(sqlString, includeCteTables);
   } catch (err) {
-    throw err;
+    return { platforms: null, error: new Error(`${err}`) };
   }
 
   if (sqlTables === undefined) {
-    throw new Error(
-      "Unexpected error checking platform compatibility: sqlTables are undefined"
-    );
+    return {
+      platforms: null,
+      error: new Error(
+        "Unexpected error checking platform compatibility: sqlTables are undefined"
+      ),
+    };
   }
 
-  return filterCompatiblePlatforms(sqlTables);
+  try {
+    const platforms = filterCompatiblePlatforms(sqlTables);
+    return { platforms, error: null };
+  } catch (err) {
+    return { platforms: null, error: new Error(`${err}`) };
+  }
 };
 
 export default checkPlatformCompatibility;

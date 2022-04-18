@@ -6,12 +6,12 @@ import helpers from "fleet/helpers";
 export default (client) => {
   return {
     addLabel: ({ packID, labelID }) => {
-      const path = `/v1/fleet/packs/${packID}/labels/${labelID}`;
+      const path = `/latest/fleet/packs/${packID}/labels/${labelID}`;
 
       return client.authenticatedPost(client._endpoint(path));
     },
     addQuery: ({ packID, queryID }) => {
-      const endpoint = `/v1/fleet/packs/${packID}/queries/${queryID}`;
+      const endpoint = `/latest/fleet/packs/${packID}/queries/${queryID}`;
 
       return client.authenticatedPost(client._endpoint(endpoint));
     },

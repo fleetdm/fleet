@@ -209,13 +209,13 @@
             )
           ) %>
 
-          <div class="d-block pb-3" purpose="next-steps-buttons" v-if="thisPage.title === 'Learn how to use Fleet'">
-            <h3 style="font-size: 24px;line-height: 28px;">Next steps</h3>
+          <div class="d-block pb-3" v-if="thisPage.title === 'Learn how to use Fleet'">
+            <h3 style="font-size: 24px; line-height: 28px;">Next steps</h3>
             <div class="d-sm-flex">
-              <a href="/docs/deploying" class="d-flex btn btn-primary btn-md justify-content-center mr-sm-3">
+              <a href="/docs/deploying" class="d-flex btn btn-primary btn-md justify-content-center mr-sm-3" purpose="next-steps-button">
                 Learn how to deploy Fleet
               </a>
-              <a href="/slack" target="_blank" class="d-flex btn btn-md btn-outline-secondary btn-slack justify-content-center align-items-center mt-3 mt-sm-0">
+              <a href="/slack" target="_blank" class="d-flex btn btn-md btn-outline-secondary justify-content-center align-items-center mt-3 mt-sm-0" purpose="next-steps-button">
                 <img class="pr-3" alt="Slack logo" src="/images/logo-slack-24x24@2x.png"/>
                 Ask for help on Slack
               </a>

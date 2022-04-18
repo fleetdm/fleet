@@ -286,7 +286,7 @@ func (svc *Service) InitiateSSO(ctx context.Context, redirectURL string) (string
 	settings := sso.Settings{
 		Metadata: metadata,
 		// Construct call back url to send to idp
-		AssertionConsumerServiceURL: serverURL + svc.config.Server.URLPrefix + "/api/v1/fleet/sso/callback",
+		AssertionConsumerServiceURL: serverURL + svc.config.Server.URLPrefix + "/api/latest/fleet/sso/callback",
 		SessionStore:                svc.ssoSessionStore,
 		OriginalURL:                 redirectURL,
 	}
@@ -425,7 +425,7 @@ func (svc *Service) CallbackSSO(ctx context.Context, auth fleet.Auth) (*fleet.SS
 	validator, err := sso.NewValidator(*metadata, sso.WithExpectedAudience(
 		appConfig.SSOSettings.EntityID,
 		appConfig.ServerSettings.ServerURL,
-		appConfig.ServerSettings.ServerURL+svc.config.Server.URLPrefix+"/api/v1/fleet/sso/callback", // ACS
+		appConfig.ServerSettings.ServerURL+svc.config.Server.URLPrefix+"/api/latest/fleet/sso/callback", // ACS
 	))
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "create validator from metadata")

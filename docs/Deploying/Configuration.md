@@ -47,7 +47,7 @@ The `fleet` binary contains several "commands". Similarly to how `git` has many 
 - `fleet prepare db`
 - `fleet serve`
 - `fleet version`
-- `fleet config_dump` 
+- `fleet config_dump`
 
 ### Options
 
@@ -89,7 +89,7 @@ FLEET_LOGGING_JSON=true \
 /usr/bin/fleet serve
 ```
 
-##### Using a YAML config file 
+##### Using a YAML config file
 
 ```
 echo '
@@ -2176,7 +2176,20 @@ To download the data streams, you can use `fleetctl vulnerability-data-stream --
   vulnerabilities:
   	disable_data_sync: true
   ```
-  
+
+##### recent_vulnerability_max_age
+
+Maximum age of a vulnerability (a CVE) to be considered "recent". The age is calculated based on the published date of the CVE in the [National Vulnerability Database](https://nvd.nist.gov/) (NVD). Recent vulnerabilities play a special role in Fleet's [automations](../Using-Fleet/Automations.md), as they are reported when discovered on a host if the vulnerabilities webhook or a vulnerability integration is enabled.
+
+- Default value: `720h` (30 days)
+- Environment variable: `FLEET_VULNERABILITIES_RECENT_VULNERABILITY_MAX_AGE`
+- Config file format:
+
+  ```
+  vulnerabilities:
+       recent_vulnerability_max_age: 48h
+  ```
+
 ##### Example YAML
 
 ```yaml
@@ -2187,8 +2200,8 @@ spec:
     databases_path: /some/path
     current_instance_checks: yes
     disable_data_sync: true
-
 ```
+
 #### GeoIP
 
 ##### database_path
@@ -2436,3 +2449,35 @@ If set then `fleet serve` will capture errors and panics and push them to Sentry
   ```
 
 <meta name="pageOrderInSection" value="300">
+
+#### Prometheus
+
+##### basic_auth.username
+
+Username to use for HTTP Basic Auth on the `/metrics` endpoint.
+If not set then the prometheus `/metrics` endpoint is disabled.
+
+- Default value: `""`
+- Environment variable: `FLEET_PROMETHEUS_BASIC_AUTH_USERNAME`
+- Config file format:
+
+  ```yaml
+  prometheus:
+    basic_auth:
+      username: "foo"
+  ```
+
+##### basic_auth.password
+
+Password to use for HTTP Basic Auth on the `/metrics` endpoint.
+If not set then the prometheus `/metrics` endpoint is disabled.
+
+- Default value: `""`
+- Environment variable: `FLEET_PROMETHEUS_BASIC_AUTH_PASSWORD`
+- Config file format:
+
+  ```yaml
+  prometheus:
+    basic_auth:
+      password: "bar"
+  ```

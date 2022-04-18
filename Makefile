@@ -178,6 +178,7 @@ deps-go:
 
 migration:
 	go run github.com/fleetdm/goose/cmd/goose -dir server/datastore/mysql/migrations/tables create $(name)
+	gofmt -w server/datastore/mysql/migrations/tables/*_$(name)*.go
 
 clean: clean-assets
 	rm -rf build vendor

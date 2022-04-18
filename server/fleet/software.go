@@ -43,6 +43,17 @@ func (Software) AuthzType() string {
 	return "software"
 }
 
+// AuthzSoftwareInventory is used for access controls on software inventory.
+type AuthzSoftwareInventory struct {
+	// TeamID is the ID of the team. A value of nil means global scope.
+	TeamID *uint `json:"team_id"`
+}
+
+// AuthzType implements authz.AuthzTyper.
+func (s *AuthzSoftwareInventory) AuthzType() string {
+	return "software_inventory"
+}
+
 type VulnerabilitiesSlice []SoftwareCVE
 
 // HostSoftware is the set of software installed on a specific host

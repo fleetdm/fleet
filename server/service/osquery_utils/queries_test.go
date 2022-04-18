@@ -26,15 +26,17 @@ func TestDetailQueryNetworkInterfaces(t *testing.T) {
 	assert.Equal(t, initialHost, host)
 
 	var rows []map[string]string
+	// docker interface should be skipped even though it shows up first
 	require.NoError(t, json.Unmarshal([]byte(`
 [
-  {"address":"127.0.0.1","mac":"00:00:00:00:00:00"},
-  {"address":"::1","mac":"00:00:00:00:00:00"},
-  {"address":"fe80::1%lo0","mac":"00:00:00:00:00:00"},
-  {"address":"fe80::df:429b:971c:d051%en0","mac":"f4:5c:89:92:57:5b"},
-  {"address":"192.168.1.3","mac":"f4:5d:79:93:58:5b"},
-  {"address":"fe80::241a:9aff:fe60:d80a%awdl0","mac":"27:1b:aa:60:e8:0a"},
-  {"address":"fe80::3a6f:582f:86c5:8296%utun0","mac":"00:00:00:00:00:00"}
+  {"address":"127.0.0.1","mac":"00:00:00:00:00:00","interface":"lo0"},
+  {"address":"::1","mac":"00:00:00:00:00:00","interface":"lo0"},
+  {"address":"fe80::1%lo0","mac":"00:00:00:00:00:00","interface":"lo0"},
+  {"address":"172.17.0.1","mac":"d3:4d:b3:3f:58:5b","interface":"docker0"},
+  {"address":"fe80::df:429b:971c:d051%en0","mac":"f4:5c:89:92:57:5b","interface":"en0"},
+  {"address":"192.168.1.3","mac":"f4:5d:79:93:58:5b","interface":"en0"},
+  {"address":"fe80::241a:9aff:fe60:d80a%awdl0","mac":"27:1b:aa:60:e8:0a","interface":"en0"},
+  {"address":"fe80::3a6f:582f:86c5:8296%utun0","mac":"00:00:00:00:00:00","interface":"utun0"}
 ]`),
 		&rows,
 	))
@@ -46,13 +48,13 @@ func TestDetailQueryNetworkInterfaces(t *testing.T) {
 	// Only IPv6
 	require.NoError(t, json.Unmarshal([]byte(`
 [
-  {"address":"127.0.0.1","mac":"00:00:00:00:00:00"},
-  {"address":"::1","mac":"00:00:00:00:00:00"},
-  {"address":"fe80::1%lo0","mac":"00:00:00:00:00:00"},
-  {"address":"fe80::df:429b:971c:d051%en0","mac":"f4:5c:89:92:57:5b"},
-  {"address":"2604:3f08:1337:9411:cbe:814f:51a6:e4e3","mac":"27:1b:aa:60:e8:0a"},
-  {"address":"3333:3f08:1337:9411:cbe:814f:51a6:e4e3","mac":"bb:1b:aa:60:e8:bb"},
-  {"address":"fe80::3a6f:582f:86c5:8296%utun0","mac":"00:00:00:00:00:00"}
+  {"address":"127.0.0.1","mac":"00:00:00:00:00:00","interface":"lo0"},
+  {"address":"::1","mac":"00:00:00:00:00:00","interface":"lo0"},
+  {"address":"fe80::1%lo0","mac":"00:00:00:00:00:00","interface":"lo0"},
+  {"address":"fe80::df:429b:971c:d051%en0","mac":"f4:5c:89:92:57:5b","interface":"en0"},
+  {"address":"2604:3f08:1337:9411:cbe:814f:51a6:e4e3","mac":"27:1b:aa:60:e8:0a","interface":"en0"},
+  {"address":"3333:3f08:1337:9411:cbe:814f:51a6:e4e3","mac":"bb:1b:aa:60:e8:bb","interface":"en0"},
+  {"address":"fe80::3a6f:582f:86c5:8296%utun0","mac":"00:00:00:00:00:00","interface":"utun0"}
 ]`),
 		&rows,
 	))
@@ -64,14 +66,14 @@ func TestDetailQueryNetworkInterfaces(t *testing.T) {
 	// IPv6 appears before IPv4 (v4 should be prioritized)
 	require.NoError(t, json.Unmarshal([]byte(`
 [
-  {"address":"127.0.0.1","mac":"00:00:00:00:00:00"},
-  {"address":"::1","mac":"00:00:00:00:00:00"},
-  {"address":"fe80::1%lo0","mac":"00:00:00:00:00:00"},
-  {"address":"fe80::df:429b:971c:d051%en0","mac":"f4:5c:89:92:57:5b"},
-  {"address":"2604:3f08:1337:9411:cbe:814f:51a6:e4e3","mac":"27:1b:aa:60:e8:0a"},
-  {"address":"205.111.43.79","mac":"ab:1b:aa:60:e8:0a"},
-  {"address":"205.111.44.80","mac":"bb:bb:aa:60:e8:0a"},
-  {"address":"fe80::3a6f:582f:86c5:8296%utun0","mac":"00:00:00:00:00:00"}
+  {"address":"127.0.0.1","mac":"00:00:00:00:00:00","interface":"lo0"},
+  {"address":"::1","mac":"00:00:00:00:00:00","interface":"lo0"},
+  {"address":"fe80::1%lo0","mac":"00:00:00:00:00:00","interface":"lo0"},
+  {"address":"fe80::df:429b:971c:d051%en0","mac":"f4:5c:89:92:57:5b","interface":"en0"},
+  {"address":"2604:3f08:1337:9411:cbe:814f:51a6:e4e3","mac":"27:1b:aa:60:e8:0a","interface":"en0"},
+  {"address":"205.111.43.79","mac":"ab:1b:aa:60:e8:0a","interface":"en1"},
+  {"address":"205.111.44.80","mac":"bb:bb:aa:60:e8:0a","interface":"en1"},
+  {"address":"fe80::3a6f:582f:86c5:8296%utun0","mac":"00:00:00:00:00:00","interface":"utun0"}
 ]`),
 		&rows,
 	))
@@ -83,12 +85,12 @@ func TestDetailQueryNetworkInterfaces(t *testing.T) {
 	// Only link-local/loopback
 	require.NoError(t, json.Unmarshal([]byte(`
 [
-  {"address":"127.0.0.1","mac":"00:00:00:00:00:00"},
-  {"address":"::1","mac":"00:00:00:00:00:00"},
-  {"address":"fe80::1%lo0","mac":"00:00:00:00:00:00"},
-  {"address":"fe80::df:429b:971c:d051%en0","mac":"f4:5c:89:92:57:5b"},
-  {"address":"fe80::241a:9aff:fe60:d80a%awdl0","mac":"27:1b:aa:60:e8:0a"},
-  {"address":"fe80::3a6f:582f:86c5:8296%utun0","mac":"00:00:00:00:00:00"}
+  {"address":"127.0.0.1","mac":"00:00:00:00:00:00","interface":"lo0"},
+  {"address":"::1","mac":"00:00:00:00:00:00","interface":"lo0"},
+  {"address":"fe80::1%lo0","mac":"00:00:00:00:00:00","interface":"lo0"},
+  {"address":"fe80::df:429b:971c:d051%en0","mac":"f4:5c:89:92:57:5b","interface":"en0"},
+  {"address":"fe80::241a:9aff:fe60:d80a%awdl0","mac":"27:1b:aa:60:e8:0a","interface":"en0"},
+  {"address":"fe80::3a6f:582f:86c5:8296%utun0","mac":"00:00:00:00:00:00","interface":"utun0"}
 ]`),
 		&rows,
 	))
@@ -317,7 +319,7 @@ func TestGetDetailQueries(t *testing.T) {
 		append(baseQueries, "users", "software_macos", "software_linux", "software_windows", "scheduled_query_stats"))
 }
 
-func TestDetailQuerysOSVersion(t *testing.T) {
+func TestDetailQueriesOSVersion(t *testing.T) {
 	var initialHost fleet.Host
 	host := initialHost
 

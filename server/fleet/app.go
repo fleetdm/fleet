@@ -123,7 +123,7 @@ type AppConfig struct {
 
 // EnrichedAppConfig contains the AppConfig along with additional fleet
 // instance configuration settings as returned by the
-// "GET /api/v1/fleet/config" API endpoint (and fleetctl get config).
+// "GET /api/latest/fleet/config" API endpoint (and fleetctl get config).
 type EnrichedAppConfig struct {
 	AppConfig
 
@@ -215,7 +215,7 @@ type VulnerabilitiesWebhookSettings struct {
 type JiraIntegration struct {
 	URL                           string `json:"url"`
 	Username                      string `json:"username"`
-	Password                      string `json:"password"`
+	APIToken                      string `json:"api_token"`
 	ProjectKey                    string `json:"project_key"`
 	EnableSoftwareVulnerabilities bool   `json:"enable_software_vulnerabilities"`
 }
@@ -235,7 +235,7 @@ func (c *AppConfig) ApplyDefaultsForNewInstalls() {
 	c.SMTPSettings.SMTPVerifySSLCerts = true
 	c.SMTPSettings.SMTPEnableTLS = true
 
-	agentOptions := json.RawMessage(`{"config": {"options": {"logger_plugin": "tls", "pack_delimiter": "/", "logger_tls_period": 10, "distributed_plugin": "tls", "disable_distributed": false, "logger_tls_endpoint": "/api/v1/osquery/log", "distributed_interval": 10, "distributed_tls_max_attempts": 3}, "decorators": {"load": ["SELECT uuid AS host_uuid FROM system_info;", "SELECT hostname AS hostname FROM system_info;"]}}, "overrides": {}}`)
+	agentOptions := json.RawMessage(`{"config": {"options": {"logger_plugin": "tls", "pack_delimiter": "/", "logger_tls_period": 10, "distributed_plugin": "tls", "disable_distributed": false, "logger_tls_endpoint": "/api/osquery/log", "distributed_interval": 10, "distributed_tls_max_attempts": 3}, "decorators": {"load": ["SELECT uuid AS host_uuid FROM system_info;", "SELECT hostname AS hostname FROM system_info;"]}}, "overrides": {}}`)
 	c.AgentOptions = &agentOptions
 
 	c.HostSettings.EnableSoftwareInventory = true
@@ -400,12 +400,13 @@ type UpdateIntervalConfig struct {
 // config file), not to be confused with VulnerabilitySettings which is the
 // configuration in AppConfig.
 type VulnerabilitiesConfig struct {
-	DatabasesPath         string        `json:"databases_path"`
-	Periodicity           time.Duration `json:"periodicity"`
-	CPEDatabaseURL        string        `json:"cpe_database_url"`
-	CVEFeedPrefixURL      string        `json:"cve_feed_prefix_url"`
-	CurrentInstanceChecks string        `json:"current_instance_checks"`
-	DisableDataSync       bool          `json:"disable_data_sync"`
+	DatabasesPath             string        `json:"databases_path"`
+	Periodicity               time.Duration `json:"periodicity"`
+	CPEDatabaseURL            string        `json:"cpe_database_url"`
+	CVEFeedPrefixURL          string        `json:"cve_feed_prefix_url"`
+	CurrentInstanceChecks     string        `json:"current_instance_checks"`
+	DisableDataSync           bool          `json:"disable_data_sync"`
+	RecentVulnerabilityMaxAge time.Duration `json:"recent_vulnerability_max_age"`
 }
 
 type LoggingPlugin struct {

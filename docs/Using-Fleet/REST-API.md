@@ -4776,7 +4776,8 @@ None.
     "cve_feed_prefix_url": "",
     "databases_path": "",
     "disable_data_sync": false,
-    "periodicity": 3600000000000
+    "periodicity": 3600000000000,
+    "recent_vulnerability_max_age": 2592000000000000
   }
 }
 ```

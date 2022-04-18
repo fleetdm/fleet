@@ -63,7 +63,7 @@ func TestLogin(t *testing.T) {
 		assert.Nil(t, err)
 
 		requestBody := io.NopCloser(bytes.NewBuffer(j))
-		resp, err := http.Post(server.URL+"/api/v1/fleet/login", "application/json", requestBody)
+		resp, err := http.Post(server.URL+"/api/latest/fleet/login", "application/json", requestBody)
 		require.Nil(t, err)
 		assert.Equal(t, tt.status, resp.StatusCode)
 
@@ -92,7 +92,7 @@ func TestLogin(t *testing.T) {
 		assert.NotEqual(t, "", sessions[0].Key)
 
 		// test logout
-		req, _ := http.NewRequest("POST", server.URL+"/api/v1/fleet/logout", nil)
+		req, _ := http.NewRequest("POST", server.URL+"/api/latest/fleet/logout", nil)
 		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", jsn.Token))
 		client := fleethttp.NewClient()
 		resp, err = client.Do(req)
@@ -186,7 +186,7 @@ func getTestAdminToken(t *testing.T, server *httptest.Server) string {
 	assert.Nil(t, err)
 
 	requestBody := io.NopCloser(bytes.NewBuffer(j))
-	resp, err := http.Post(server.URL+"/api/v1/fleet/login", "application/json", requestBody)
+	resp, err := http.Post(server.URL+"/api/latest/fleet/login", "application/json", requestBody)
 	require.Nil(t, err)
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 
@@ -204,7 +204,7 @@ func getTestAdminToken(t *testing.T, server *httptest.Server) string {
 func TestNoHeaderErrorsDifferently(t *testing.T) {
 	_, _, server := setupAuthTest(t)
 
-	req, _ := http.NewRequest("GET", server.URL+"/api/v1/fleet/users", nil)
+	req, _ := http.NewRequest("GET", server.URL+"/api/latest/fleet/users", nil)
 	client := fleethttp.NewClient()
 	resp, err := client.Do(req)
 	require.Nil(t, err)
@@ -223,7 +223,7 @@ func TestNoHeaderErrorsDifferently(t *testing.T) {
 }
 `, string(bodyBytes))
 
-	req, _ = http.NewRequest("GET", server.URL+"/api/v1/fleet/users", nil)
+	req, _ = http.NewRequest("GET", server.URL+"/api/latest/fleet/users", nil)
 	req.Header.Add("Authorization", "Bearer AAAA")
 	resp, err = client.Do(req)
 	require.Nil(t, err)
