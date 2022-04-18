@@ -262,7 +262,6 @@ Our handbook provides our all-remote team with up-to-date information about how 
 This strategy was inspired by the GitHub team, who use it to great effect. Check out their [short three-minute video](https://www.youtube.com/watch?v=aZrK8AQM8Ro) about their handbook-first approach.
 
 - Watch [this video about the handbook-first strategy](https://www.youtube.com/watch?v=aZrK8AQM8Ro).
-- For more details, see [GitLab’s handbook-first strategy](https://about.gitlab.com/company/culture/all-remote/handbook-first-documentation/).
 
 
 ### Why direct responsibility?
