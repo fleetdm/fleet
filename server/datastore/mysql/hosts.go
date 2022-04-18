@@ -1626,7 +1626,11 @@ WHERE
 		args = append(args, *teamID)
 	}
 
-	if err := sqlx.GetContext(ctx, ds.reader, &row, query, args...); err != nil {
+	err := sqlx.GetContext(ctx, ds.reader, &row, query, args...)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("OSVersions"))
+		}
 		return nil, err
 	}
 
@@ -1659,8 +1663,10 @@ WHERE
 	return osVersions, nil
 }
 
+// Aggregated stats for os versions are stored by team id with 0 representing the global case
+// If existing team has no hosts, we explicity set the json value as an empty array
 func (ds *Datastore) UpdateOSVersions(ctx context.Context) error {
-	query := `
+	sql := `
 INSERT INTO aggregated_stats (id, type, json_value)
 SELECT
   team_id id,
@@ -1703,11 +1709,27 @@ FROM
   ) as team_os_versions
 GROUP BY
   team_id
+UNION
+SELECT
+  t.id,
+  'os_versions' type,
+  JSON_ARRAY() json_value
+FROM
+  teams t
+WHERE NOT EXISTS (
+  SELECT
+    id
+  FROM
+    hosts h
+  WHERE
+    t.id = h.team_id
+)
 ON DUPLICATE KEY UPDATE
   json_value = VALUES(json_value),
   updated_at = CURRENT_TIMESTAMP
 `
-	_, err := ds.writer.ExecContext(ctx, query)
+
+	_, err := ds.writer.ExecContext(ctx, sql)
 	if err != nil {
 		return ctxerr.Wrapf(ctx, err, "update aggregated stats for os versions")
 	}
