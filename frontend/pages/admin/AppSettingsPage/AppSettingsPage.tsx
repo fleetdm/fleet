@@ -20,8 +20,6 @@ import HostStatusWebhook from "./cards/HostStatusWebhook";
 import UsageStats from "./cards/UsageStats";
 import AdvancedOptions from "./cards/AdvancedOptions";
 
-// import AppConfigForm from "components/forms/admin/AppConfigForm";
-
 export const baseClass = "app-settings";
 
 const AppSettingsPage = (): JSX.Element => {
@@ -86,19 +84,6 @@ const AppSettingsPage = (): JSX.Element => {
     },
     [appConfig]
   );
-
-  // WHY???
-  // Because Firefox and Safari don't support anchor links :-(
-  const scrollInto = (elementId: string) => {
-    const yOffset = -215; // headers and tabs
-    const element = document.getElementById(elementId);
-
-    if (element) {
-      const top =
-        element.getBoundingClientRect().top + window.pageYOffset + yOffset;
-      window.scrollTo({ top });
-    }
-  };
 
   const showSection = (linkString: string) => {
     setShowOrgInfo(false);
@@ -178,7 +163,6 @@ const AppSettingsPage = (): JSX.Element => {
               handleSubmit={onFormSubmit}
             />
           )}
-          {/* <AppConfigForm appConfig={appConfig} handleSubmit={onFormSubmit} /> */}
         </>
       );
     }
