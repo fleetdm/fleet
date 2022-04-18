@@ -23,7 +23,7 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [How we protect end-user devices](./security.md#how-we-protect-end-user-devices)
 
-[Hardware security keys] (./security.md#hardware-security-keys)
+[Hardware security keys](./security.md#hardware-security-keys)
 
 [GitHub Security](./security.md#git-hub-security)
 
@@ -56,11 +56,11 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 ### 🚀 Engineering
 
 [Release process](./engineering.md#release-process)
-[On-call rotation] (./community.md#On-call-rotation) 
+[On-call rotation](./community.md#On-call-rotation) 
 
 ### ⚗️ Product
 
-[Objectives and key results] (./product.md#Objectives-and-key-results)
+[Objectives and key results](./product.md#Objectives-and-key-results)
 
 [Product design process](./product.md#product-design-process)
 
@@ -90,13 +90,13 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Support process](./customers.md#support-process)
 
-[Runbook] (./customers.md#runbook)
+[Runbook](./customers.md#runbook)
 
-[Incident postmortems] (./customers.md#incident-postmortems)
+[Incident postmortems](./customers.md#incident-postmortems)
 
-[Customer codenames] (./customers.md#customer-codenames)
+[Customer codenames](./customers.md#customer-codenames)
 
-[Generating a trial license key] (./customers.md#generating-a-trial-license-key)
+[Generating a trial license key](./customers.md#generating-a-trial-license-key)
 
 ### 🧑‍🚀 People
 
@@ -110,9 +110,9 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [People ops](./people.md#people-ops)
 
-[Rituals] (./people.md#rituals)
+[Rituals](./people.md#rituals)
 
-[Workiversaries] (./people.md#workiversaries)
+[Workiversaries](./people.md#workiversaries)
 
 ### Handbook
 
