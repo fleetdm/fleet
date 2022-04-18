@@ -269,7 +269,7 @@ This strategy was inspired by GitHub, who use it to great effect. Check out this
 ### Why direct responsibility?
 We use the concept of [directly responsible individuals](https://fleetdm.com/handbook/people#directly-responsible-individuals) (DRIs) to know who is responsible for what. Every group maintains its own dedicated [handbook page](https://fleetdm.com/handbook), which is kept up to date with accurate, current information, including the group's [kanban board](https://github.com/orgs/fleetdm/projects?type=beta), Slack channels, and recurring tasks ("rituals").
 
-#### Why group Slack channels?
+### Why group Slack channels?
 Groups are organized around goals. Connecting people with the same goals helps them produce better results by fostering freer communication. While groups sometimes align with the organization chart, some groups consist of people who do not report to the same manager. For example, [product groups](https://fleetdm.com/handbook/product) like `#g-agent` include engineers, not just the product manager.
 
 Every group at Fleet maintains specific Slack channels, which all group members join and keep unmuted.  Everyone else at Fleet is encouraged to mute these channels, using them only as needed.  Each channel has a directly responsible individual responsible for keeping up with all new messages, even if they aren't explicitly mentioned (`@`).
