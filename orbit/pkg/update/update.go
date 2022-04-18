@@ -221,7 +221,7 @@ func (u *Updater) localTarget(target string) (*LocalTarget, error) {
 	lt := &LocalTarget{
 		Info: t,
 		Path: filepath.Join(
-			u.opt.RootDirectory, binDir, target, t.Platform, t.Channel, t.TargetFile,
+			u.opt.RootDirectory, binDir, t.TargetFile,
 		),
 	}
 	lt.ExecPath = lt.Path

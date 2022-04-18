@@ -24,13 +24,14 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	filesystemRoot := filepath.Join(tmpDir, "root")
-	if err := secure.MkdirAll(filesystemRoot, constant.DefaultDirMode); err != nil {
+	packageRoot := filepath.Join(tmpDir, "package")
+	if err := secure.MkdirAll(packageRoot, constant.DefaultDirMode); err != nil {
 		return "", fmt.Errorf("create root dir: %w", err)
 	}
-	orbitRoot := filepath.Join(filesystemRoot, "var", "lib", "orbit")
+
+	orbitRoot := filepath.Join(packageRoot, "opt", "orbit")
 	if err := secure.MkdirAll(orbitRoot, constant.DefaultDirMode); err != nil {
-		return "", fmt.Errorf("create orbit dir: %w", err)
+		return "", fmt.Errorf("create orbit root dir: %w", err)
 	}
 
 	// Initialize autoupdate metadata
@@ -60,11 +61,11 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 
 	// Write files
 
-	if err := writeSystemdUnit(opt, filesystemRoot); err != nil {
+	if err := writeSystemdUnit(packageRoot); err != nil {
 		return "", fmt.Errorf("write systemd unit: %w", err)
 	}
 
-	if err := writeEnvFile(opt, filesystemRoot); err != nil {
+	if err := writeEnvFile(opt, orbitRoot); err != nil {
 		return "", fmt.Errorf("write env file: %w", err)
 	}
 
@@ -90,27 +91,18 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 	// Pick up all file contents
 
 	contents := files.Contents{
-		&files.Content{
-			Source:      filepath.Join(filesystemRoot, "**"),
+		{
+			Source:      filepath.Join(packageRoot, "**"),
 			Destination: "/",
 		},
-		// Symlink current into /var/lib/orbit/bin/orbit/orbit
-		&files.Content{
-			Source:      "/var/lib/orbit/bin/orbit/linux/" + opt.OrbitChannel + "/orbit",
-			Destination: "/var/lib/orbit/bin/orbit/orbit",
-			Type:        "symlink",
-			FileInfo: &files.ContentFileInfo{
-				Mode: constant.DefaultExecutableMode | os.ModeSymlink,
-			},
+		// nfpm.Overridables.EmptyFolders is deprecated
+		{
+			Destination: "/var/log/osquery",
+			Type:        "dir",
 		},
-		// Symlink current into /usr/local/bin
-		&files.Content{
-			Source:      "/var/lib/orbit/bin/orbit/orbit",
-			Destination: "/usr/local/bin/orbit",
-			Type:        "symlink",
-			FileInfo: &files.ContentFileInfo{
-				Mode: constant.DefaultExecutableMode | os.ModeSymlink,
-			},
+		{
+			Destination: "/var/log/orbit",
+			Type:        "dir",
 		},
 	}
 	contents, err = files.ExpandContentGlobs(contents, false)
@@ -132,10 +124,6 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 		Homepage:    "https://fleetdm.com",
 		Overridables: nfpm.Overridables{
 			Contents: contents,
-			EmptyFolders: []string{
-				"/var/log/osquery",
-				"/var/log/orbit",
-			},
 			Scripts: nfpm.Scripts{
 				PostInstall: postInstallPath,
 			},
@@ -160,23 +148,22 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 	return filename, nil
 }
 
-func writeSystemdUnit(opt Options, rootPath string) error {
-	systemdRoot := filepath.Join(rootPath, "usr", "lib", "systemd", "system")
-	if err := secure.MkdirAll(systemdRoot, constant.DefaultDirMode); err != nil {
+func writeSystemdUnit(packageRoot string) error {
+	dir := filepath.Join(packageRoot, "usr", "lib", "systemd", "system")
+	if err := secure.MkdirAll(dir, constant.DefaultDirMode); err != nil {
 		return fmt.Errorf("create systemd dir: %w", err)
 	}
-	if err := ioutil.WriteFile(
-		filepath.Join(systemdRoot, "orbit.service"),
-		[]byte(`
-[Unit]
+
+	path := filepath.Join(dir, "orbit.service")
+	contents := []byte(`[Unit]
 Description=Orbit osquery
 After=network.service syslog.service
 StartLimitIntervalSec=0
 
 [Service]
 TimeoutStartSec=0
-EnvironmentFile=/etc/default/orbit
-ExecStart=/var/lib/orbit/bin/orbit/orbit
+EnvironmentFile=/opt/orbit/env/orbit
+ExecStart=/opt/orbit/bin/orbit
 Restart=always
 RestartSec=1
 KillMode=control-group
@@ -185,9 +172,9 @@ CPUQuota=20%
 
 [Install]
 WantedBy=multi-user.target
-`),
-		constant.DefaultFileMode,
-	); err != nil {
+`)
+
+	if err := ioutil.WriteFile(path, contents, constant.DefaultFileMode); err != nil {
 		return fmt.Errorf("write file: %w", err)
 	}
 
@@ -202,14 +189,14 @@ ORBIT_UPDATE_INTERVAL={{ .OrbitUpdateInterval }}
 {{ if .Insecure }}ORBIT_INSECURE=true{{ end }}
 {{ if .DisableUpdates }}ORBIT_DISABLE_UPDATES=true{{ end }}
 {{ if .FleetURL }}ORBIT_FLEET_URL={{.FleetURL}}{{ end }}
-{{ if .FleetCertificate }}ORBIT_FLEET_CERTIFICATE=/var/lib/orbit/fleet.pem{{ end }}
+{{ if .FleetCertificate }}ORBIT_FLEET_CERTIFICATE=/opt/orbit/fleet.pem{{ end }}
 {{ if .EnrollSecret }}ORBIT_ENROLL_SECRET={{.EnrollSecret}}{{ end }}
 {{ if .Debug }}ORBIT_DEBUG=true{{ end }}
 `))
 
-func writeEnvFile(opt Options, rootPath string) error {
-	envRoot := filepath.Join(rootPath, "etc", "default")
-	if err := secure.MkdirAll(envRoot, constant.DefaultDirMode); err != nil {
+func writeEnvFile(opt Options, orbitRoot string) error {
+	path := filepath.Join(orbitRoot, "env", "orbit")
+	if err := secure.MkdirAll(filepath.Dir(path), constant.DefaultDirMode); err != nil {
 		return fmt.Errorf("create env dir: %w", err)
 	}
 
@@ -218,11 +205,7 @@ func writeEnvFile(opt Options, rootPath string) error {
 		return fmt.Errorf("execute template: %w", err)
 	}
 
-	if err := ioutil.WriteFile(
-		filepath.Join(envRoot, "orbit"),
-		contents.Bytes(),
-		constant.DefaultFileMode,
-	); err != nil {
+	if err := ioutil.WriteFile(path, contents.Bytes(), constant.DefaultFileMode); err != nil {
 		return fmt.Errorf("write file: %w", err)
 	}
 
