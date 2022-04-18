@@ -223,7 +223,7 @@ At Fleet, we keep everything in one repo. The only exception is when we're worki
 
 
 ### Why organize work in team-based kanban boards?
-It is helpful to have a shared framework for how every team works, plans, and requests things from each other. Fleet's kanban boards are that framework. 3 goals:
+It's helpful to have a consistent framework for how every team works, plans, and requests things from each other. Fleet's kanban boards are that framework, and they cover three goals:
 
 - Intake: Give people from anywhere in the world the ability to request something from a particular team (i.e., add it to their backlog).
 - Planning: Give the team's manager and other team members a way to plan the next 3-week iteration of what the team is working on in a world (the board) where the team has ownership and feels confident making changes.
