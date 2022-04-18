@@ -452,6 +452,7 @@ spec:
   description: Checks to make sure that the Gatekeeper feature is enabled on macOS devices. Gatekeeper tries to ensure only trusted software is run on a mac machine.
   resolution: "To enable Gatekeeper, on the failing device, run the following command in the Terminal app: /usr/sbin/spctl --master-enable."
   platforms: macOS
+  platform: darwin
   contributors: groob
 ---
 apiVersion: v1
@@ -465,6 +466,7 @@ spec:
     considered unprotected. Use the additional results (percent_encrypted, conversion_status, etc.) to
     help narrow down the specific reason why Windows considers the volume unprotected."
   platforms: Windows
+  platform: windows
   contributors: defensivedepth
 ---
 apiVersion: v1
@@ -475,6 +477,7 @@ spec:
   description: Checks to make sure that full disk encryption (FileVault) is enabled on macOS devices.
   resolution: To enable full disk encryption, on the failing device, select System Preferences > Security & Privacy > FileVault > Turn On FileVault.
   platforms: macOS
+  platform: darwin
   contributors: groob
 ---
 apiVersion: v1
@@ -485,6 +488,7 @@ spec:
   description: Checks if the root drive is encrypted. There are many ways to encrypt Linux systems. This is the default on distributions such as Ubuntu.
   resolution: "Ensure the image deployed to your Linux workstation includes full disk encryption."
   platforms: Linux
+  platform: linux
   contributors: GuillaumeRoss
 ---
 apiVersion: v1
@@ -495,6 +499,7 @@ spec:
   description: Checks to make sure that the System Integrity Protection feature is enabled.
   resolution: "To enable System Integrity Protection, on the failing device, run the following command in the Terminal app: /usr/sbin/spctl --master-enable."
   platforms: macOS
+  platform: darwin
   contributors: groob
 ---
 apiVersion: v1
@@ -505,6 +510,7 @@ spec:
   description: "Required: You’re already enforcing a policy via Moble Device Management (MDM). Checks to make sure that the device user cannot log in to the device without a password."
   resolution: "The following example profile includes a setting to disable automatic login: https://github.com/gregneagle/profiles/blob/fecc73d66fa17b6fa78b782904cb47cdc1913aeb/loginwindow.mobileconfig#L64-L65."
   platforms: macOS
+  platform: darwin
   contributors: groob
 ---
 apiVersion: v1
@@ -515,6 +521,7 @@ spec:
   description: "Required: You’re already enforcing a policy via Moble Device Management (MDM). Checks to make sure that guest accounts cannot be used to log in to the device without a password."
   resolution: "The following example profile includes a setting to disable guest users: https://github.com/gregneagle/profiles/blob/fecc73d66fa17b6fa78b782904cb47cdc1913aeb/loginwindow.mobileconfig#L68-L71."
   platforms: macOS
+  platform: darwin
   contributors: groob
 ---
 apiVersion: v1
@@ -524,6 +531,7 @@ spec:
   query: SELECT 1 FROM managed_policies WHERE domain = 'com.apple.Terminal' AND name = 'SecureKeyboardEntry' AND value = 1 LIMIT 1;
   description: "Required: You’re already enforcing a policy via Moble Device Management (MDM). Checks to make sure that the Secure Keyboard Entry setting is enabled."
   platforms: macOS
+  platform: darwin
   contributors: groob
 ---
 apiVersion: v1
@@ -566,6 +574,7 @@ spec:
     Preferences > Software Update > Advanced > Turn on Install system data files and security
     updates.
   platforms: macOS
+  platform: darwin
   contributors: GuillaumeRoss
 ---
 apiVersion: v1
@@ -576,6 +585,7 @@ spec:
   description: Checks the status of antivirus and signature updates from the Windows Security Center. 
   resolution: "Ensure Windows Defender or your third-party antivirus is running, up to date, and visible in the Windows Security Center."
   platforms: Windows
+  platform: windows
   contributors: GuillaumeRoss
 ---
 apiVersion: v1
@@ -586,6 +596,7 @@ spec:
   description: Checks that both ClamAV's daemon and its updater service (freshclam) are running. 
   resolution: "Ensure ClamAV and Freshclam are installed and running."
   platforms: Linux
+  platform: linux
   contributors: GuillaumeRoss
 ---
 apiVersion: v1
@@ -596,6 +607,7 @@ spec:
   description: "Required: osquery deployed with Orbit, or manual installation of macadmins/osquery-extension. Checks that a Mac is enrolled to MDM. Add a AND on identity_certificate_uuid to check for a specific MDM."
   resolution: "Enroll device to MDM"
   platforms: macOS
+  platform: darwin
   contributors: GuillaumeRoss
 ---
 apiVersion: v1
@@ -606,6 +618,7 @@ spec:
   description: "Checks if the application (Docker Desktop example) is installed and up to date, or not installed. Fails if the application is installed and on a lower version. You can copy this query and replace the bundle_identifier and bundle_version values to apply the same type of policy to other applications."
   resolution: "Update Docker or remove it if not used."
   platforms: macOS
+  platform: darwin
   contributors: GuillaumeRoss
 ---
 apiVersion: v1
@@ -616,4 +629,5 @@ spec:
   description: "Required: osquery must have Full Disk Access. Policy passes if all keys are encrypted, including if no keys are present."
   resolution: "Use this command to encrypt existing SSH keys by providing the path to the file: ssh-keygen -o -p -f /path/to/file"
   platforms: macOS, Linux, Windows
+  platform: darwin,linux,windows
   contributors: GuillaumeRoss
