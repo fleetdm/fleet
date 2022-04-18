@@ -260,7 +260,7 @@ Autogenerating docs from code is not always the best way to make sure reference 
 
 
 ### Why handbook-first strategy?
-Our handbook provides our all-remote team with up-to-date information about how to do things at Fleet. By adopting the handbook-first strategy, we can encourage a culture of self-service and self-learning, which is essential for daily a-synchronous work as part of an all-remote team.
+The Fleet handbook provides team members with up-to-date information about how to do things in the company. By adopting the handbook-first strategy, we can encourage a culture of self-service and self-learning, which is essential for daily a-synchronous work as part of an all-remote team.
 
 This strategy was inspired by the GitHub team, who use it to great effect. Check out their [short three-minute video](https://www.youtube.com/watch?v=aZrK8AQM8Ro) about their handbook-first approach.
 
