@@ -1,3 +1,7 @@
+## Fleet 4.12.1 (Apr 4, 2022)
+
+* Fix a bug in which a user could not log in with basic authentication. This only affects Fleet deployments that use a [MySQL read replica](https://fleetdm.com/docs/deploying/configuration#my-sql).
+
 ## Fleet 4.12.0 (Mar 24, 2022)
 
 * Add ability to update which platform (macOS, Windows, Linux) a policy is checked on.

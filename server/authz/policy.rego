@@ -13,8 +13,12 @@ import input.subject
 read := "read"
 list := "list"
 write := "write"
+
+# User specific actions
 write_role := "write_role"
 change_password := "change_password"
+
+# Query specific actions
 run := "run"
 run_new := "run_new"
 
@@ -95,35 +99,31 @@ allow {
 
 ##
 # Users
+#
+# NOTE: More rules apply to users but they are implemented in Go code.
+# Our end goal is to move all the authorization logic here.
 ##
 
-# Any user can write self (besides role) and change their own password.
+# Any user can read and write self and change their own password.
 allow {
   object.type == "user"
   object.id == subject.id
   object.id != 0
-  action == [write, change_password][_]
+  action == [read, write, change_password][_]
 }
 
-# Any user can read other users.
-allow {
-  object.type == "user"
-  not is_null(subject)
-  action == read
-}
-
-# Admins can write all users + roles + change passwords.
+# Global admins can perform all operations on all users.
 allow {
   object.type == "user"
   subject.global_role == admin
-  action == [write, write_role, change_password][_]
+  action == [read, write, write_role, change_password][_]
 }
 
-## Team admins can create or edit new users, but not change their password.
+# Team admins can perform all operations on the team users (except changing their password).
 allow {
   object.type == "user"
   team_role(subject, object.teams[_].id) == admin
-  action == [write, write_role][_]
+  action == [read, write, write_role][_]
 }
 
 ##
@@ -141,9 +141,9 @@ allow {
 # Activities
 ##
 
-# All users can read activities
+# Only global users can read activities
 allow {
-  not is_null(subject)
+  not is_null(subject.global_role)
   object.type == "activity"
   action == read
 }
@@ -402,26 +402,41 @@ allow {
 # Packs
 ##
 
-# Global admins and maintainers can read/write all packs
+# Global admins and maintainers can read/write all packs.
 allow {
   object.type == "pack"
-  subject.global_role == [admin,maintainer][_]
+  subject.global_role == [admin, maintainer][_]
   action == [read, write][_]
 }
 
-# Team admins and maintainers can read global packs
+# All users can read the global pack.
 allow {
-  is_null(object.team_ids)
   object.type == "pack"
-  team_role(subject, subject.teams[_].id) == [admin,maintainer][_]
+  not is_null(subject)
+  object.is_global_pack == true
   action == read
 }
 
-# Team admins and maintainers can read/write their team packs
+# Team admins, maintainers and observers can read their team's pack.
+#
+# NOTE: Action "read" on a team's pack includes listing its scheduled queries.
 allow {
   object.type == "pack"
-  team_role(subject, object.team_ids[_]) == [admin,maintainer][_]
-  action == [read, write][_]
+  not is_null(object.pack_team_id)
+  team_role(subject, object.pack_team_id) == [admin, maintainer, observer][_]
+  action == read
+}
+
+# Team admins and maintainers can add/remove scheduled queries from/to their team's pack.
+#
+# NOTE: The team's pack is not editable per-se, it's a special pack to group
+# all the team's scheduled queries. So the "write" operation only covers
+# adding/removing scheduled queries from the pack.
+allow {
+  object.type == "pack"
+  not is_null(object.pack_team_id)
+  team_role(subject, object.pack_team_id) == [admin, maintainer][_]
+  action == write
 }
 
 ##
@@ -481,9 +496,17 @@ allow {
 # Software
 ##
 
-# All users can read software
+# Global users can read all software.
 allow {
-  not is_null(subject)
-  object.type == "software"
+  object.type == "software_inventory"
+  subject.global_role == [admin, maintainer, observer][_]
+  action == read
+}
+
+# Team users can read all software in their teams.
+allow {
+  not is_null(object.team_id)
+  object.type == "software_inventory"
+  team_role(subject, object.team_id) == [admin, maintainer, observer][_]
   action == read
 }

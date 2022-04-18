@@ -192,10 +192,7 @@ describe("Premium tier - Team Admin user", () => {
   });
   describe("Manage software page", () => {
     beforeEach(() => cy.visit("/software/manage"));
-    it("hides manage automations button since all teams not selected", () => {
-      cy.getAttached(".manage-software-page__header-wrap").within(() => {
-        cy.findByText(/apples/i).should("exist");
-      });
+    it("hides manage automations button", () => {
       cy.findByText(/manage automations/i).should("not.exist");
     });
   });
@@ -283,12 +280,6 @@ describe("Premium tier - Team Admin user", () => {
   });
   describe("Manage policies page", () => {
     beforeEach(() => cy.visit("/policies/manage"));
-    it("hides manage automations button when all teams not selected", () => {
-      cy.getAttached(".manage-policies-page__header-wrap").within(() => {
-        cy.findByText(/apples/i).should("exist");
-      });
-      cy.findByText(/manage automations/i).should("not.exist");
-    });
     it("allows team admin to add a new policy", () => {
       cy.getAttached(".button-wrap")
         .findByRole("button", { name: /add a policy/i })
@@ -358,7 +349,7 @@ describe("Premium tier - Team Admin user", () => {
       cy.findByText(/apples/i).should("exist");
     });
     it("displays the team admin controls", () => {
-      cy.findByRole("button", { name: /add member/i }).click();
+      cy.findByRole("button", { name: /create user/i }).click();
       cy.findByRole("button", { name: /cancel/i }).click();
       cy.findByRole("button", { name: /add hosts/i }).click();
       cy.findByRole("button", { name: /done/i }).click();

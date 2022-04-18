@@ -36,7 +36,7 @@ const EmptyOperatingSystems = (platform: IOsqueryPlatform): JSX.Element => (
     } operating systems detected`}</h1>
     <p>
       {`Did you add ${`${PLATFORM_DISPLAY_NAMES[platform]} ` || ""}hosts to
-      Fleet? Try again in a few seconds as the system catches up.`}
+      Fleet? Try again in about an hour as the system catches up.`}
     </p>
   </div>
 );
@@ -89,10 +89,6 @@ const OperatingSystems = ({
   // Renders opaque information as host information is loading
   const opacity = showOperatingSystemsUI ? { opacity: 1 } : { opacity: 0 };
 
-  // TODO: Error states? Product says if any card on homepage fails the whole page should 500. Is
-  // that really what we want to happen? Do we want that to happen always? What if just one card
-  // fails? What if platform or team filter is applied?
-  // Currenly none of the homepage cards behave this way AFAICT.
   return (
     <div className={baseClass}>
       {!showOperatingSystemsUI && (

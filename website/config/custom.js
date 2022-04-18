@@ -98,6 +98,7 @@ module.exports.custom = {
   // githubAccessToken: '…',
   // githubBotWebhookSecret: '…',
   // slackWebhookUrlForGithubBot: '…',
+  // mergeFreezeAccessToken: '…',
 
   //…
 
