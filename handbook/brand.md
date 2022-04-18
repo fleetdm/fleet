@@ -129,7 +129,7 @@ In Figma:
 
 The following rituals are engaged in by the  directly responsible individual (DRI) and at the frequency specified for the ritual.
 
-| Ritual                       | Description                                         | DRI               |
+| Ritual                       | Frequency                | Description                                         | DRI               |
 |:-----------------------------|:-----------------------------|:----------------------------------------------------|-------------------|
 | Documentation quality | Daily | Review pull requests for tone and brand consistency | Mike Thomas |
 | Tweet review | Daily | Review tweets for tone and brand consistency | Mike Thomas |
