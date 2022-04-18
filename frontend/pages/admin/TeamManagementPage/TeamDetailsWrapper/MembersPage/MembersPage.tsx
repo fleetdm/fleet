@@ -51,9 +51,13 @@ const MembersPage = ({
   const teamId = parseInt(team_id, 10);
 
   const { renderFlash } = useContext(NotificationContext);
-  const { config, isGlobalAdmin, currentUser, isPremiumTier } = useContext(
-    AppContext
-  );
+  const {
+    config,
+    currentUser,
+    isGlobalAdmin,
+    isPremiumTier,
+    isTeamAdmin,
+  } = useContext(AppContext);
 
   const smtpConfigured = config?.smtp_settings.configured || false;
   const canUseSso = config?.sso_settings.enable_sso || false;
@@ -137,14 +141,7 @@ const MembersPage = ({
   const toggleCreateMemberModal = useCallback(() => {
     setShowCreateUserModal(!showCreateUserModal);
     setShowAddMemberModal(false);
-    currentUser ? setUserEditing(currentUser) : setUserEditing(undefined);
-  }, [
-    showCreateUserModal,
-    currentUser,
-    setShowCreateUserModal,
-    setUserEditing,
-    setShowAddMemberModal,
-  ]);
+  }, [showCreateUserModal, setShowCreateUserModal, setShowAddMemberModal]);
 
   // FUNCTIONS
 
@@ -153,7 +150,10 @@ const MembersPage = ({
     teamsAPI
       .removeMembers(teamId, removedUsers)
       .then(() => {
-        renderFlash("success", `Successfully removed ${userEditing?.name}`);
+        renderFlash(
+          "success",
+          `Successfully removed ${userEditing?.name || "member"}`
+        );
         // If user removes self from team, redirect to home
         if (currentUser && currentUser.id === removedUsers.users[0].id) {
           window.location.href = "/";
@@ -178,12 +178,15 @@ const MembersPage = ({
     (newMembers: INewMembersBody) => {
       teamsAPI
         .addMembers(teamId, newMembers)
-        .then(() =>
+        .then(() => {
+          const count = newMembers.users.length;
           renderFlash(
             "success",
-            `${newMembers.users.length} members successfully added to ${currentTeam?.name}.`
-          )
-        )
+            `${count} ${
+              count === 1 ? "member" : "members"
+            } successfully added to ${currentTeam?.name}.`
+          );
+        })
         .catch(() =>
           renderFlash("error", "Could not add members. Please try again.")
         )
@@ -288,7 +291,10 @@ const MembersPage = ({
         usersAPI
           .update(userEditing.id, updatedAttrs)
           .then(() => {
-            renderFlash("success", `Successfully edited ${userName}.`);
+            renderFlash(
+              "success",
+              `Successfully edited ${userName || "member"}.`
+            );
 
             if (
               currentUser &&
@@ -317,7 +323,7 @@ const MembersPage = ({
             } else {
               renderFlash(
                 "error",
-                `Could not edit ${userName}. Please try again.`
+                `Could not edit ${userName || "member"}. Please try again.`
               );
             }
           });
@@ -349,13 +355,24 @@ const MembersPage = ({
                   Expecting to see new team members listed here? Try again in a
                   few seconds as the system catches up.
                 </p>
-                <Button
-                  variant="brand"
-                  className={`${noMembersClass}__create-button`}
-                  onClick={toggleAddUserModal}
-                >
-                  Add member
-                </Button>
+                {isGlobalAdmin && (
+                  <Button
+                    variant="brand"
+                    className={`${noMembersClass}__create-button`}
+                    onClick={toggleAddUserModal}
+                  >
+                    Add member
+                  </Button>
+                )}
+                {isTeamAdmin && (
+                  <Button
+                    variant="brand"
+                    className={`${noMembersClass}__create-button`}
+                    onClick={toggleCreateMemberModal}
+                  >
+                    Create user
+                  </Button>
+                )}
               </>
             ) : (
               <>
@@ -396,8 +413,10 @@ const MembersPage = ({
           isLoading={isLoadingMembers}
           defaultSortHeader={"name"}
           defaultSortDirection={"asc"}
-          onActionButtonClick={toggleAddUserModal}
-          actionButtonText={"Add member"}
+          onActionButtonClick={
+            isGlobalAdmin ? toggleAddUserModal : toggleCreateMemberModal
+          }
+          actionButtonText={isGlobalAdmin ? "Add member" : "Create user"}
           actionButtonVariant={"brand"}
           hideActionButton={memberIds.length === 0 && searchString === ""}
           onQueryChange={({ searchQuery }) => setSearchString(searchQuery)}
@@ -424,7 +443,7 @@ const MembersPage = ({
           onSubmit={onEditMemberSubmit}
           defaultName={userEditing?.name}
           defaultEmail={userEditing?.email}
-          defaultGlobalRole={userEditing?.global_role}
+          defaultGlobalRole={userEditing?.global_role || null}
           defaultTeamRole={userEditing?.role}
           defaultTeams={userEditing?.teams}
           availableTeams={teams || []}
