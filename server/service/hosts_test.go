@@ -436,24 +436,30 @@ func TestEmptyTeamOSVersions(t *testing.T) {
 
 	testVersions := []fleet.OSVersion{{HostsCount: 1, Name: "macOS 12.1", Platform: "darwin"}}
 
-	ds.TeamFunc = func(ctx context.Context, teamId uint) (*fleet.Team, error) {
-		if teamId == 404 {
-			return nil, &notFoundError{}
+	ds.TeamFunc = func(ctx context.Context, teamID uint) (*fleet.Team, error) {
+		if teamID == 1 {
+			return &fleet.Team{
+				Name: "team1",
+			}, nil
 		}
-		return &fleet.Team{
-			Name: "teamName",
-		}, nil
+		if teamID == 2 {
+			return &fleet.Team{
+				Name: "team2",
+			}, nil
+		}
+
+		return nil, notFoundError{}
 	}
+
 	ds.OSVersionsFunc = func(ctx context.Context, teamID *uint, platform *string) (*fleet.OSVersions, error) {
-		// mocks case where team exists but os version stats have not been gathered
-		if *teamID == 2 {
-			return nil, &notFoundError{}
+		if *teamID == 1 {
+			return &fleet.OSVersions{CountsUpdatedAt: time.Now(), OSVersions: testVersions}, nil
 		}
-		// mocks case where team does not exist
-		if *teamID == 3 {
-			return nil, fmt.Errorf("team does not exist")
+		if *teamID == 4 {
+			return nil, fmt.Errorf("some unknown error")
 		}
-		return &fleet.OSVersions{CountsUpdatedAt: time.Now(), OSVersions: testVersions}, nil
+
+		return nil, notFoundError{}
 	}
 
 	// team exists with stats
@@ -469,4 +475,10 @@ func TestEmptyTeamOSVersions(t *testing.T) {
 	// team does not exist
 	vers, err = svc.OSVersions(test.UserContext(test.UserAdmin), ptr.Uint(3), ptr.String("darwin"))
 	require.Error(t, err)
+	require.Equal(t, "not found", fmt.Sprint(err))
+
+	// some unknown error
+	vers, err = svc.OSVersions(test.UserContext(test.UserAdmin), ptr.Uint(4), ptr.String("darwin"))
+	require.Error(t, err)
+	require.Equal(t, "some unknown error", fmt.Sprint(err))
 }
