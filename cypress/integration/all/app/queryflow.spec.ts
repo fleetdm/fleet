@@ -96,7 +96,7 @@ describe("Query flow (seeded)", () => {
       cy.findByText(/copy of/i).should("be.visible");
     });
     it("deletes an existing query", () => {
-      cy.findByText(/detect linux hosts/i)
+      cy.findByText(/detect presence of authorized ssh keys/i)
         .parent()
         .parent()
         .within(() => {
@@ -107,7 +107,9 @@ describe("Query flow (seeded)", () => {
       cy.findByRole("button", { name: /delete/i }).click();
       cy.getAttached(".button--alert.remove-query-modal__btn").click();
       cy.findByText(/successfully removed query/i).should("be.visible");
-      cy.findByText(/detect linux hosts/i).should("not.exist");
+      cy.findByText(/detect presence of authorized ssh keys/i).should(
+        "not.exist"
+      );
     });
   });
   describe("Manage schedules page", () => {
