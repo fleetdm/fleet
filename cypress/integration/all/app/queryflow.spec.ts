@@ -53,6 +53,30 @@ describe("Query flow (seeded)", () => {
       cy.loginWithCySession();
       cy.visit("/queries/manage");
     });
+    it("runs a live query", () => {
+      cy.addDockerHost();
+      cy.getAttached(".name__cell .button--text-link").first().click();
+      cy.findByText(/run query/i).click();
+      cy.findByText(/all hosts/i).click();
+      cy.findByText(/hosts targeted/i).should("exist");
+      cy.findByText(/run/i).click();
+      cy.wait(10000); // wait for live query to run
+      cy.getAttached(".query-results__results-table-header").within(() => {
+        cy.findByText(/show query/i).click();
+      });
+      cy.getAttached(".show-query-modal").within(() => {
+        cy.findByText(/done/i).click();
+      });
+      cy.getAttached(".query-results__results-table-header").within(() => {
+        const formattedTime = format(new Date(), "MM-dd-yy hh-mm-ss");
+        cy.findByText(/export results/i).click();
+        const filename = `Query Results (${formattedTime}).csv`;
+        cy.readFile(path.join(Cypress.config("downloadsFolder"), filename), {
+          timeout: 5000,
+        });
+      });
+      cy.stopDockerHost();
+    });
     it("edits an existing query", () => {
       cy.getAttached(".name__cell .button--text-link").first().click();
       cy.findByText(/run query/i).should("exist");
@@ -84,30 +108,6 @@ describe("Query flow (seeded)", () => {
       cy.getAttached(".button--alert.remove-query-modal__btn").click();
       cy.findByText(/successfully removed query/i).should("be.visible");
       cy.findByText(/detect linux hosts/i).should("not.exist");
-    });
-    it("runs a live query", () => {
-      cy.addDockerHost();
-      cy.getAttached(".name__cell .button--text-link").first().click();
-      cy.findByText(/run query/i).click();
-      cy.findByText(/all hosts/i).click();
-      cy.findByText(/hosts targeted/i).should("exist");
-      cy.findByText(/run/i).click();
-      cy.wait(10000); // wait for live query to run
-      cy.getAttached(".query-results__results-table-header").within(() => {
-        cy.findByText(/show query/i).click();
-      });
-      cy.getAttached(".show-query-modal").within(() => {
-        cy.findByText(/done/i).click();
-      });
-      cy.getAttached(".query-results__results-table-header").within(() => {
-        const formattedTime = format(new Date(), "MM-dd-yy hh-mm-ss");
-        cy.findByText(/export results/i).click();
-        const filename = `Query Results (${formattedTime}).csv`;
-        cy.readFile(path.join(Cypress.config("downloadsFolder"), filename), {
-          timeout: 5000,
-        });
-      });
-      cy.stopDockerHost();
     });
   });
   describe("Manage schedules page", () => {
