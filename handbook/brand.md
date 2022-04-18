@@ -134,7 +134,7 @@ The following rituals are engaged in by the  directly responsible individual (DR
 | Kanban board check  | Check internal kanban boards and ensure tasks are on track and being pushed through to "delivered." Occurs daily. | Mike Thomas  |  
 | Documentation quality ritual      | Review pull requests for tone, brand consistenty and quality assurance before merging. Occurs daily. | Mike Thomas, Desmi Dizney |
 | Tweet review  | Review tweets for tone, brand consistency, and quality assurance. Occurs daily.    | Mike Thomas, Desmi Dizney   |
-| Slack monitoring     | Check Fleey/osQuery channels on Slack for community questions, ensure questions are responded to and logged. Occurs daily. | Kathy Satterlee, Kelvin Omereshone   |
+| Community Slack  | Daily   | Check Fleet and osquery Slack channels for community questions, ensure questions are responded to and logged | Kathy Satterlee |
 | Social media check-in     |  Daily | Check social media for community questions and ensure they are responded to.  Generate dev advocacy-related content | Kelvin Omereshone   |
 | Weekly article review | Weekly | Review articles for tone and brand consistency. | Mike Thomas |
 | Weekly article graphic | Weekly | Create a graphic for the weekly article | Mike Thomas |
