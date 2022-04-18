@@ -13,6 +13,7 @@ export type ButtonVariant =
   | "link"
   | "label"
   | "text-link"
+  | "text-nav"
   | "text-icon"
   | "inverse"
   | "inverse-alert"

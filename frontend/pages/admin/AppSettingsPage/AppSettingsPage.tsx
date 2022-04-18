@@ -1,4 +1,4 @@
-import React, { useCallback, useContext } from "react";
+import React, { useCallback, useContext, useState } from "react";
 import { useQuery } from "react-query";
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification"; // @ts-ignore
@@ -10,14 +10,38 @@ import deepDifference from "utilities/deep_difference";
 import { IConfig } from "interfaces/config";
 import { IApiError } from "interfaces/errors";
 
-// @ts-ignore
-import AppConfigForm from "components/forms/admin/AppConfigForm";
+import Button from "components/buttons/Button";
+import OrganizationInfo from "./cards/OrganizationInfo";
+import FleetWebAddress from "./cards/FleetWebAddress";
+import Saml from "./cards/Saml";
+import Smtp from "./cards/Smtp";
+import AgentOptions from "./cards/AgentOptions";
+import HostStatusWebhook from "./cards/HostStatusWebhook";
+import UsageStats from "./cards/UsageStats";
+import AdvancedOptions from "./cards/AdvancedOptions";
+
+// import AppConfigForm from "components/forms/admin/AppConfigForm";
 
 export const baseClass = "app-settings";
 
 const AppSettingsPage = (): JSX.Element => {
   const { renderFlash } = useContext(NotificationContext);
   const { setConfig } = useContext(AppContext);
+
+  const [showOrgInfo, setShowOrgInfo] = useState<boolean>(true);
+  const [showFleetWebAddress, setShowFleetWebAddress] = useState<boolean>(
+    false
+  );
+  const [showSaml, setShowSaml] = useState<boolean>(false);
+  const [showSmtp, setShowSmtp] = useState<boolean>(false);
+  const [showAgentOptions, setShowAgentOptions] = useState<boolean>(false);
+  const [showHostStatusWebhook, setShowHostStatusWebhook] = useState<boolean>(
+    false
+  );
+  const [showUsageStats, setShowUsageStats] = useState<boolean>(false);
+  const [showAdvancedOptions, setShowAdvancedOptions] = useState<boolean>(
+    false
+  );
 
   const {
     data: appConfig,
@@ -76,6 +100,89 @@ const AppSettingsPage = (): JSX.Element => {
     }
   };
 
+  const showSection = (linkString: string) => {
+    setShowOrgInfo(false);
+    setShowFleetWebAddress(false);
+    setShowSaml(false);
+    setShowSmtp(false);
+    setShowAgentOptions(false);
+    setShowHostStatusWebhook(false);
+    setShowUsageStats(false);
+    setShowAdvancedOptions(false);
+
+    switch (linkString) {
+      case "org-info":
+        setShowOrgInfo(true);
+        return;
+      case "fleet-web-address":
+        setShowFleetWebAddress(true);
+        return;
+      case "saml":
+        setShowSaml(true);
+        return;
+      case "smtp":
+        setShowSmtp(true);
+        return;
+      case "agent-options":
+        setShowAgentOptions(true);
+        return;
+      case "host-status-webhook":
+        setShowHostStatusWebhook(true);
+        return;
+      case "usage-stats":
+        setShowUsageStats(true);
+        return;
+      default:
+        setShowAdvancedOptions(true);
+        return;
+    }
+  };
+
+  const renderSection = () => {
+    if (!isLoadingConfig && appConfig) {
+      return (
+        <>
+          {showOrgInfo && (
+            <OrganizationInfo
+              appConfig={appConfig}
+              handleSubmit={onFormSubmit}
+            />
+          )}
+          {showFleetWebAddress && (
+            <FleetWebAddress
+              appConfig={appConfig}
+              handleSubmit={onFormSubmit}
+            />
+          )}
+          {showSaml && (
+            <Saml appConfig={appConfig} handleSubmit={onFormSubmit} />
+          )}
+          {showSmtp && (
+            <Smtp appConfig={appConfig} handleSubmit={onFormSubmit} />
+          )}
+          {showAgentOptions && (
+            <AgentOptions appConfig={appConfig} handleSubmit={onFormSubmit} />
+          )}
+          {showHostStatusWebhook && (
+            <HostStatusWebhook
+              appConfig={appConfig}
+              handleSubmit={onFormSubmit}
+            />
+          )}
+          {showUsageStats && (
+            <UsageStats appConfig={appConfig} handleSubmit={onFormSubmit} />
+          )}
+          {showAdvancedOptions && (
+            <AdvancedOptions
+              appConfig={appConfig}
+              handleSubmit={onFormSubmit}
+            />
+          )}
+          {/* <AppConfigForm appConfig={appConfig} handleSubmit={onFormSubmit} /> */}
+        </>
+      );
+    }
+  };
   return (
     <div className={`${baseClass} body-wrap`}>
       <p className={`${baseClass}__page-description`}>
@@ -85,46 +192,80 @@ const AppSettingsPage = (): JSX.Element => {
         <nav>
           <ul className={`${baseClass}__form-nav-list`}>
             <li>
-              <a onClick={() => scrollInto("organization-info")}>
+              <Button
+                className={`${baseClass}__nav-button`}
+                variant="text-nav"
+                onClick={() => showSection("org-info")}
+              >
                 Organization info
-              </a>
+              </Button>
             </li>
             <li>
-              <a onClick={() => scrollInto("fleet-web-address")}>
+              <Button
+                className={`${baseClass}__nav-button`}
+                variant="text-nav"
+                onClick={() => showSection("fleet-web-address")}
+              >
                 Fleet web address
-              </a>
+              </Button>
             </li>
             <li>
-              <a onClick={() => scrollInto("saml")}>
+              <Button
+                className={`${baseClass}__nav-button`}
+                variant="text-nav"
+                onClick={() => showSection("saml")}
+              >
                 SAML single sign on options
-              </a>
+              </Button>
             </li>
             <li>
-              <a onClick={() => scrollInto("smtp")}>SMTP options</a>
+              <Button
+                className={`${baseClass}__nav-button`}
+                variant="text-nav"
+                onClick={() => showSection("smtp")}
+              >
+                SMTP options
+              </Button>
             </li>
             <li>
-              <a onClick={() => scrollInto("agent-options")}>
+              <Button
+                className={`${baseClass}__nav-button`}
+                variant="text-nav"
+                onClick={() => showSection("agent-options")}
+              >
                 Global agent options
-              </a>
+              </Button>
             </li>
             <li>
-              <a onClick={() => scrollInto("host-status-webhook")}>
+              <Button
+                className={`${baseClass}__nav-button`}
+                variant="text-nav"
+                onClick={() => showSection("host-status-webhook")}
+              >
                 Host status webhook
-              </a>
+              </Button>
             </li>
             <li>
-              <a onClick={() => scrollInto("usage-stats")}>Usage statistics</a>
+              <Button
+                className={`${baseClass}__nav-button`}
+                variant="text-nav"
+                onClick={() => showSection("usage-stats")}
+              >
+                Usage statistics
+              </Button>
             </li>
             <li>
-              <a onClick={() => scrollInto("advanced-options")}>
+              <Button
+                className={`${baseClass}__nav-button`}
+                variant="text-nav"
+                onClick={() => showSection("advanced-options")}
+              >
                 Advanced options
-              </a>
+              </Button>
             </li>
           </ul>
         </nav>
-        {!isLoadingConfig && appConfig && (
-          <AppConfigForm appConfig={appConfig} handleSubmit={onFormSubmit} />
-        )}
+        {renderSection()}
       </div>
     </div>
   );
