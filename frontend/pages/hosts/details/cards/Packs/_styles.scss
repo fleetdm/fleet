@@ -16,17 +16,9 @@
           display: none;
           width: 0;
         }
-        .performance__header {
-          display: none;
-          width: 0;
-        }
         @media (min-width: $break-990) {
           .last_run__header {
             display: table-cell;
-          }
-          .performance__header {
-            display: table-cell;
-            width: $col-md;
           }
         }
       }
@@ -41,17 +33,9 @@
           display: none;
           width: 0;
         }
-        .performance__cell {
-          display: none;
-          width: 0;
-        }
         @media (min-width: $break-990) {
           .last_run__cell {
             display: table-cell;
-          }
-          .performance__cell {
-            display: table-cell;
-            width: $col-md;
           }
         }
       }

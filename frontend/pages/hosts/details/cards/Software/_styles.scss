@@ -48,19 +48,12 @@
           display: none;
           width: 0px;
         }
-        .vulnerabilities__header {
-          display: none;
-          width: 0px;
-        }
         .hosts_count__header {
           border-right: 0;
         }
         @media (min-width: $break-990) {
           .version__header {
             width: $col-md;
-          }
-          .vulnerabilities__header {
-            display: table-cell;
           }
         }
         @media (min-width: $break-1400) {
@@ -82,10 +75,6 @@
           display: none;
           width: 0px;
         }
-        .vulnerabilities__cell {
-          width: 0px;
-          display: none;
-        }
         .hosts_count__cell {
           .hosts-cell__wrapper {
             display: flex;
@@ -96,11 +85,6 @@
             .hosts-cell__link {
               display: flex;
             }
-          }
-        }
-        @media (min-width: $break-990) {
-          .vulnerabilities__cell {
-            display: table-cell;
           }
         }
         @media (min-width: $break-1400) {
