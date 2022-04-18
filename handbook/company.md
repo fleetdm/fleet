@@ -242,7 +242,7 @@ Releasing software iteratively gets changes and improvements into the hands of u
 
 
 ### Why the emphasis on training?
-Investing in people and providing generous, prioritized training, especially up front, helps contributors understand what is going on at Fleet. This is a prerequisite for helping people make better decisions at work and to feel confident while doing so. Keep in mind those who may feel like outsiders to the osquery (security/startup/IT) space.
+Investing in people and providing generous, prioritized training, especially up front, helps contributors understand what is going on at Fleet. By making training a prerequisite at Fleet, we can:
 - Creating a culture of helping others results in people feeling more comfortable and confident even if they aren’t familiar with osquery.
 - A sharp focus on training means things are written down.
 
