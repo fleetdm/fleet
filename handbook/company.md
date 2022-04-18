@@ -254,7 +254,6 @@ We prefer to generate our REST API reference docs the good old-fashioned way. By
 - Markdown is more accessible. Anyone can edit Fleet's docs directly from our website without needing coding experience. 
 - A single Markdown file reduces surface area sprawl that comes from spreading code comments across multiple files throughout the codebase. (see ["Why do we use one repo?"](why-do-we-use-one-repo). 
 - Generated docs can become just as outdated as handmade docs, except since they are generated, they become siloed and more difficult to edit.
-- Keeping the source of truth in code files confers less visibility/ accessibility/ modifiability for people without Golang coding experience.
 - Code comments are more difficult to locate and edit than a single Markdown file.
 - Autogenerating docs from code is not the only way to make sure reference docs accurately reflect the API.
 - As the Fleet REST API, documentation, and tools mature, a more declarative format such as OpenAPI might become the source of truth, but only after investing in a format and processes to make it visible, accessible, and modifiable for all contributors.
