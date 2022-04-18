@@ -248,7 +248,11 @@ Investing in people and providing generous, prioritized training, especially up 
 
 
 ### Why not continuously generate REST API reference docs from javadoc-style code comments?
-- Using Markdown allows anyone to edit Fleet's docs.
+We prefer to generate our REST API reference docs the good old-fashioned way. By hand. Here are a few of the drawbacks that we have experienced when generating docs via tools like Swagger or OpenAPI and some plus ones for doing it by hand with Markdown.
+
+- Markdown gives us more control over how the docs are compiled, what annotations we can include, and how we present the information to the end-user. 
+- Markdown is more accessible. Anyone can edit Fleet's docs directly from our website without needing coding experience. 
+- A single Markdown file reduces surface area sprawl that comes from spreading code comments across multiple files throughout the codebase. (see ["Why do we use one repo?"](why-do-we-use-one-repo). 
 - Generated docs become just as out of date as handmade docs, except since they are generated, they can become more difficult to edit and therefore gated/siloed.
 - Keeping the source of truth in code files confers less visibility/ accessibility/ modifiability for people without Golang coding experience.
 - Code comments are more difficult to locate and edit than a single Markdown file.
