@@ -2,7 +2,7 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "~> 3.74.0"
+      version = "~> 4.10.0"
     }
     docker = {
       source  = "kreuzwerker/docker"
@@ -31,11 +31,23 @@ provider "aws" {
   default_tags {
     tags = {
       environment = "fleet-demo-${terraform.workspace}"
-      terraform   = "https://github.com/fleetdm/fleet/tree/main/tools/demo-environment"
+      terraform   = "https://github.com/fleetdm/fleet/tree/main/infrastructure/demo"
       state       = "s3://fleet-loadtesting-tfstate/demo-environment"
     }
   }
 }
+provider "aws" {
+  alias  = "replica"
+  region = "us-west-1"
+  default_tags {
+    tags = {
+      environment = "fleet-demo-${terraform.workspace}"
+      terraform   = "https://github.com/fleetdm/fleet/tree/main/infrastructure/demo"
+      state       = "s3://fleet-loadtesting-tfstate/demo-environment"
+    }
+  }
+}
+
 
 provider "random" {}
 
@@ -108,16 +120,26 @@ module "pre-provisioner" {
 resource "aws_dynamodb_table" "lifecycle-table" {
   name         = "${local.prefix}-lifecycle"
   billing_mode = "PAY_PER_REQUEST"
-  hash_key     = "id"
-  range_key    = "state"
+  hash_key     = "ID"
+  range_key    = "State"
 
   attribute {
-    name = "id"
+    name = "ID"
     type = "S"
   }
 
   attribute {
-    name = "state"
+    name = "State"
     type = "S"
+  }
+}
+
+module "remote_state" {
+  source = "nozaq/remote-state-s3-backend/aws"
+  tags   = {}
+
+  providers = {
+    aws         = aws
+    aws.replica = aws.replica
   }
 }

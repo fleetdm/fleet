@@ -77,16 +77,18 @@ data "aws_iam_policy_document" "lambda" {
 }
 
 resource "aws_iam_role" "lambda" {
-  name = "${var.prefix}-lambda"
+  name = "${var.prefix}-preprovisioner"
 
   assume_role_policy = data.aws_iam_policy_document.lambda-assume-role.json
 }
 
 resource "aws_security_group" "lambda" {
-  name   = "${var.prefix}-lambda"
-  vpc_id = var.vpc_id
+  name        = "${var.prefix}-preprovisioner"
+  description = "security group for ${var.prefix}-preprovisioner"
+  vpc_id      = var.vpc_id
 
   egress {
+    description      = "egress to all"
     from_port        = 0
     to_port          = 0
     protocol         = "-1"
@@ -96,13 +98,24 @@ resource "aws_security_group" "lambda" {
 }
 
 resource "aws_lambda_function" "main" {
-  image_uri     = docker_registry_image.main.name
-  package_type  = "Image"
-  function_name = "${var.prefix}-lambda"
-  role          = aws_iam_role.lambda.arn
+  image_uri                      = docker_registry_image.main.name
+  package_type                   = "Image"
+  function_name                  = "${var.prefix}-preprovisioner"
+  role                           = aws_iam_role.lambda.arn
+  reserved_concurrent_executions = 0
   vpc_config {
     security_group_ids = [aws_security_group.lambda.id]
     subnet_ids         = var.private_subnets
+  }
+  environment {
+    variables = {
+      DYNAMODB_LIFECYCLE_TABLE = var.dynamodb_table.id
+      MAX_INSTANCES            = 2
+      QUEUED_INSTANCES         = 2
+    }
+  }
+  tracing_config {
+    mode = "Active"
   }
 }
 
@@ -138,4 +151,22 @@ resource "docker_registry_image" "main" {
     context     = "${path.module}/lambda/"
     pull_parent = true
   }
+}
+
+resource "aws_cloudwatch_event_rule" "main" {
+  name_prefix         = var.prefix
+  schedule_expression = "rate(5 minutes)"
+  is_enabled          = false
+}
+
+resource "aws_cloudwatch_event_target" "main" {
+  rule = aws_cloudwatch_event_rule.main.name
+  arn  = aws_lambda_function.main.arn
+}
+
+resource "aws_lambda_permission" "main" {
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.main.id
+  principal     = "events.amazonaws.com"
+  source_arn    = aws_cloudwatch_event_rule.main.arn
 }

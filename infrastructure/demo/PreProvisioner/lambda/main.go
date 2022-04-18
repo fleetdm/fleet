@@ -2,53 +2,135 @@ package main
 
 import (
 	"context"
-	"log"
-
-	"database/sql"
-	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/secretsmanager"
-	"github.com/awslabs/aws-lambda-go-api-proxy/gin"
-	"github.com/gin-gonic/gin"
+	"github.com/aws/aws-sdk-go/service/dynamodb"
+	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
+	"github.com/google/uuid"
 	flags "github.com/jessevdk/go-flags"
-
-	_ "github.com/go-sql-driver/mysql"
+	"log"
+	"os"
+	"os/exec"
 )
-
-var ginLambda *ginadapter.GinLambda
 
 type OptionsStruct struct {
 	LambdaExecutionEnv string `long:"lambda-execution-environment" env:"AWS_EXECUTION_ENV"`
-	MysqlUrlSecret     string `long:"mysql-url-secret" env:"MYSQL_URL_SECRET" required:"true"`
+    LifecycleTable     string `long:"dynamodb-lifecycle-table" env:"DYNAMODB_LIFECYCLE_TABLE" required:"true"`
+    MaxInstances       int64  `long:"max-instances" env:"MAX_INSTANCES" required:"true"`
+    QueuedInstances    int64  `long:"queued-instances" env:"QUEUED_INSTANCES" required:"true"`
 }
 
 var options = OptionsStruct{}
-var DB *sql.DB
 
-func Handler(ctx context.Context, req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-	// If no name is provided in the HTTP request body, throw an error
-	return ginLambda.ProxyWithContext(ctx, req)
+type LifecycleRecord struct {
+	ID    string
+	State string
 }
 
-func getSecretValue(secretId string) (string, error) {
-	svc := secretsmanager.New(session.New())
-	input := &secretsmanager.GetSecretValueInput{
-		SecretId: aws.String(secretId),
-	}
-
-	result, err := svc.GetSecretValue(input)
+func getInstancesCount() (int64, int64, error) {
+    log.Print("getInstancesCount")
+	svc := dynamodb.New(session.New())
+	// Example iterating over at most 3 pages of a Scan operation.
+	var count, unclaimedCount int64
+	err := svc.ScanPages(
+		&dynamodb.ScanInput{
+			TableName: aws.String(options.LifecycleTable),
+		},
+		func(page *dynamodb.ScanOutput, lastPage bool) bool {
+		    log.Print(page)
+			count += *page.Count
+			recs := []LifecycleRecord{}
+			if err := dynamodbattribute.UnmarshalListOfMaps(page.Items, &recs); err != nil {
+				log.Print(err)
+				return false
+			}
+			for _, i := range recs {
+				if i.State == "unclaimed" {
+					unclaimedCount++
+				}
+			}
+			return true
+		})
 	if err != nil {
-		return "", err
+		return 0, 0, err
 	}
+	return count, unclaimedCount, nil
+}
 
-	return *result.SecretString, nil
+type NullEvent struct{}
+
+func min(a, b int64) int64 {
+	// I really have to implement this myself?
+	if a < b {
+		return a
+	}
+	return b
+}
+
+func runCmd(args []string) error {
+	cmd := exec.Cmd{
+		Path:   "/terraform",
+		Dir:    "/deploy_terraform",
+		Stdout: os.Stdout,
+		Stderr: os.Stderr,
+		Args:   args,
+	}
+	return cmd.Run()
+}
+
+func initTerraform() error {
+	err := runCmd([]string{
+		"init",
+	})
+	return err
+}
+
+func runTerraform(workspace string) error {
+	err := runCmd([]string{
+		"workspace",
+		"new",
+		workspace,
+	})
+	if err != nil {
+		return err
+	}
+	err = runCmd([]string{
+		"apply",
+		"-auto-approve",
+	})
+	return err
+}
+
+func handler(ctx context.Context, name NullEvent) error {
+	// check if we need to do anything
+	totalCount, unclaimedCount, err := getInstancesCount()
+	if err != nil {
+		return err
+	}
+	if totalCount >= options.MaxInstances {
+		return nil
+	}
+	if unclaimedCount >= options.QueuedInstances {
+		return nil
+	}
+	numToReady := min(options.MaxInstances-totalCount, options.QueuedInstances-unclaimedCount)
+	// deploy terraform to initialize everything
+	for i := int64(0); i < numToReady; i++ {
+		if i == 0 {
+			if err := initTerraform(); err != nil {
+				return err
+			}
+		}
+		if err := runTerraform(uuid.New().String()); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func main() {
 	var err error
-	var mysqlConnString string
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 	// Get config from environment
 	parser := flags.NewParser(&options, flags.Default)
@@ -59,24 +141,11 @@ func main() {
 			log.Fatal(err)
 		}
 	}
-	if mysqlConnString, err = getSecretValue(options.MysqlUrlSecret); err != nil {
-		log.Fatal(err)
-	}
-	if DB, err = sql.Open("mysql", mysqlConnString); err != nil {
-		log.Fatal(err)
-	}
-
-	r := gin.Default()
-	r.GET("/ping", func(c *gin.Context) {
-		c.JSON(200, gin.H{
-			"message": "pong",
-		})
-	})
-
 	if options.LambdaExecutionEnv == "AWS_Lambda_go1.x" {
-		lambda.Start(Handler)
-		ginLambda = ginadapter.New(r)
+		lambda.Start(handler)
 	} else {
-		r.Run() // listen and serve on 0.0.0.0:8080 (for windows "localhost:8080")
+		if err = handler(context.Background(), NullEvent{}); err != nil {
+			log.Fatal(err)
+		}
 	}
 }

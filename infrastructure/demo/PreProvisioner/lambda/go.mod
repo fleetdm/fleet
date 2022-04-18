@@ -1,4 +1,4 @@
-module github.com/fleetdm/fleet/infrastructure/demo/JITProvisioner/lambda
+module github.com/fleetdm/fleet/infrastructure/demo/PreProvisioner/lambda
 
 go 1.18
 
@@ -8,6 +8,7 @@ require (
 	github.com/awslabs/aws-lambda-go-api-proxy v0.13.1
 	github.com/gin-gonic/gin v1.7.7
 	github.com/go-sql-driver/mysql v1.6.0
+	github.com/google/uuid v1.3.0
 	github.com/jessevdk/go-flags v1.5.0
 )
 
