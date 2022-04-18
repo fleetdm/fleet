@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -427,4 +428,45 @@ func TestRefetchHostUserInTeams(t *testing.T) {
 	require.NoError(t, svc.RefetchHost(test.UserContext(observer), host.ID))
 	assert.True(t, ds.HostLiteFuncInvoked)
 	assert.True(t, ds.UpdateHostRefetchRequestedFuncInvoked)
+}
+
+func TestEmptyTeamOSVersions(t *testing.T) {
+	ds := new(mock.Store)
+	svc := newTestService(t, ds, nil, nil)
+
+	testVersions := []fleet.OSVersion{{HostsCount: 1, Name: "macOS 12.1", Platform: "darwin"}}
+
+	ds.TeamFunc = func(ctx context.Context, teamId uint) (*fleet.Team, error) {
+		if teamId == 404 {
+			return nil, &notFoundError{}
+		}
+		return &fleet.Team{
+			Name: "teamName",
+		}, nil
+	}
+	ds.OSVersionsFunc = func(ctx context.Context, teamID *uint, platform *string) (*fleet.OSVersions, error) {
+		// mocks case where team exists but os version stats have not been gathered
+		if *teamID == 2 {
+			return nil, &notFoundError{}
+		}
+		// mocks case where team does not exist
+		if *teamID == 3 {
+			return nil, fmt.Errorf("team does not exist")
+		}
+		return &fleet.OSVersions{CountsUpdatedAt: time.Now(), OSVersions: testVersions}, nil
+	}
+
+	// team exists with stats
+	vers, err := svc.OSVersions(test.UserContext(test.UserAdmin), ptr.Uint(1), ptr.String("darwin"))
+	require.NoError(t, err)
+	assert.Len(t, vers.OSVersions, 1)
+
+	// team exists but no stats
+	vers, err = svc.OSVersions(test.UserContext(test.UserAdmin), ptr.Uint(2), ptr.String("darwin"))
+	require.NoError(t, err)
+	assert.Empty(t, vers.OSVersions)
+
+	// team does not exist
+	vers, err = svc.OSVersions(test.UserContext(test.UserAdmin), ptr.Uint(3), ptr.String("darwin"))
+	require.Error(t, err)
 }

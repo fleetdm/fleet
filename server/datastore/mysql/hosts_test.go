@@ -3920,6 +3920,10 @@ func testOSVersions(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	expected = []fleet.OSVersion{}
 	require.Equal(t, expected, osVersions.OSVersions)
+
+	// non-existent team
+	osVersions, err = ds.OSVersions(ctx, ptr.Uint(404), nil)
+	require.Error(t, err)
 }
 
 func testHostsDeleteHosts(t *testing.T, ds *Datastore) {

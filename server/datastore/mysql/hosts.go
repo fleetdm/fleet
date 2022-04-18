@@ -1701,7 +1701,7 @@ UNION
 SELECT
   t.id,
   'os_versions' type,
-  JSON_ARRAY()
+  JSON_ARRAY() json_value
 FROM
   teams t
 WHERE NOT EXISTS (
