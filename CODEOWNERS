@@ -12,3 +12,5 @@ go.mod @fleetdm/go
 
 # GitHub settings + actions
 /.github/ @zwass
+
+CHANGELOG.md @noahtalerman
