@@ -8,11 +8,18 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [About Fleet](./company.md#about-fleet)
 
-[History](./company.md#history)
+[Culture](./company.md#culture)
 
 [Values](./company.md#values)
 
-[Culture](./company.md#culture)
+[Why this way?](./company.md#why-this-way)
+
+[History](./company.md#history)
+
+[Slack channels](./company.md#slack-channels)
+
+
+
 
 ### ⛑ Security
 
