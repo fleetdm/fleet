@@ -226,7 +226,7 @@ At Fleet, we keep everything in one repo. The only exception is when we're worki
 It's helpful to have a consistent framework for how every team works, plans, and requests things from each other. Fleet's kanban boards are that framework, and they cover three goals:
 
 1. **Intake:** Give people from anywhere in the world the ability to request something from a particular team (i.e., add it to their backlog).
-- Planning: Give the team's manager and other team members a way to plan the next 3-week iteration of what the team is working on in a world (the board) where the team has ownership and feels confident making changes.
+2. **Planning:** Give the team's manager and other team members a way to plan the next three-week iteration of what the team is working on in a world (the board) where the team has ownership and feels confident making changes.
 - Shared to-do list: What should I work on next? Who needs help? What important work is still blocked? Is that bug fix merged yet? When will it be released? When will that new feature ship? What did I do yesterday?
 
 
