@@ -135,7 +135,7 @@ The following rituals are engaged in by the  directly responsible individual (DR
 | Documentation quality ritual      | Review pull requests for tone, brand consistenty and quality assurance before merging. Occurs daily. | Mike Thomas, Desmi Dizney |
 | Tweet review  | Review tweets for tone, brand consistency, and quality assurance. Occurs daily.    | Mike Thomas, Desmi Dizney   |
 | Slack monitoring     | Check Fleey/osQuery channels on Slack for community questions, ensure questions are responded to and logged. Occurs daily. | Kathy Satterlee, Kelvin Omereshone   |
-| Social channels check-in     | Check social channels for community questions and ensure they are responded to.  Generate dev advocacy related content. Occurs daily. | Kathy Satterlee, Kelvin Omereshone   |
+| Social media check-in     |  Daily | Check social media for community questions and ensure they are responded to.  Generate dev advocacy-related content | Kelvin Omereshone   |
 | Weekly blogpost review | Review blogposts for tone, brand consistency and quality assurance. | Mike Thomas, Desmi Dizney|
 | Weekly article graphic | Weekly | Create a graphic for the weekly article | Mike Thomas |
 | Outside contributor follow up | Weekly | Bring pull requests from outside contributors to engineering and ensure they are merged promptly and promoted | Kathy Satterlee |
