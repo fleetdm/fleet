@@ -238,7 +238,6 @@ The Fleet product is released every three weeks. By syncing the whole company to
 
 
 ### Why use agile methodology?
-- See [the agile manifesto](https://agilemanifesto.org/).
 - Releasing software iteratively results in it actually working, gets it into the hands of users faster, and makes contributors fitter, happier, and more productive.
 
 
