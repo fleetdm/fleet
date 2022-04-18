@@ -49,14 +49,14 @@ Users with the Admin role receive all permissions.
 
 `Applies only to Fleet Premium`
 
-Users in Fleet either have global access or team access. 
+Users in Fleet either have team access or global access. 
+
+Users with team access only have access to the hosts, software, schedules, and policies assigned to
+their team.
 
 Users with global access have access to all
 hosts, software, queries, schedules, and policies. Check out [the user permissions
 table](#user-permissions) above for global user permissions.
-
-Users with team access only have access to the hosts, software, schedules, and policies assigned to
-their team.
 
 Users can be a member of multiple teams in Fleet.
 
@@ -72,7 +72,7 @@ Users that are members of multiple teams can be assigned different roles for eac
 | Filter hosts by software                                     | ✅       | ✅         | ✅       |
 | Filter software                                              | ✅       | ✅         | ✅       |
 | Run only designated, _observer can run_ ,queries as live queries against all hosts  | ✅       | ✅         | ✅    |
-| Run any query as live query against all hosts        |          | ✅         | ✅    |
+| Run any query as live query        |          | ✅         | ✅    |
 | Create, edit, and delete only _self authored_ queries        |          | ✅         | ✅       |
 | Add, edit, and remove queries from the schedule                    |          | ✅         | ✅       |
 | View policies                                     | ✅       | ✅         | ✅       |
