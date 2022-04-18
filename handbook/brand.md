@@ -140,7 +140,7 @@ The following rituals are engaged in by the  directly responsible individual (DR
 | Weekly blogpost graphic | Create graphic for the weekly blogpost. | Mike Thomas |
 | Outside contributor follow up | Bring pull requests from outside contributors to engineering and ensure they are merged promptly and promoted. Occurs weekly. | Kathy Satterlee, Kelvin Omereshone |
 | FAQs documentation update | Turn questions answered from Fleet and osQuery Slack channels into FAQs in Fleet’s documentation. Occurs weekly. | Kathy Satterlee, Kelvin Omereshone |
-| Digital experience planning  | Prioritize and assigns issues to relevant personnel based off of current OKR goals. Occurs every three weeks in concurrence with the Fleet release cycle. | Mike Thomas  |
+| Digital experience planning  | Three weeks | Prioritize and assigns issues to relevant personnel based on current goals and quarterly OKRs | Mike Thomas |
 | Browser compatibility check | Monthly | Check browser compatibility for the website | Eric Shaw |
 
 ## Slack channels
