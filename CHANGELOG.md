@@ -4,7 +4,7 @@
 
 * **Security**: Fix several post-authentication authorization issues. Only Fleet Premium users that
   have team users are affected. Fleet Free users do not have access to the teams feature and are
-  unaffected. See <> for details.
+  unaffected. See the following security advisory for details: https://github.com/fleetdm/fleet/security/advisories/GHSA-pr2g-j78h-84cr
 
 * Improve performance of software inventory on Windows hosts.
 
