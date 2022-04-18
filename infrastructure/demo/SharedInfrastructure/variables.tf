@@ -13,3 +13,8 @@ variable "allowed_cidr_blocks" {
 variable "private_subnets" {
   type = list(string)
 }
+
+variable "allowed_security_groups" {
+  type    = list(string)
+  default = []
+}

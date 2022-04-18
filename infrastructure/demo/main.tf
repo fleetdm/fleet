@@ -1,18 +1,3 @@
-variable "region" {
-  default = "us-east-2"
-}
-
-provider "aws" {
-  region = var.region
-  default_tags {
-    tags = {
-      environment = "fleet-demo-${terraform.workspace}"
-      terraform   = "https://github.com/fleetdm/fleet/tree/main/tools/demo-environment"
-      state       = "s3://fleet-loadtesting-tfstate/demo-environment"
-    }
-  }
-}
-
 terraform {
   required_providers {
     aws = {
@@ -27,6 +12,10 @@ terraform {
       source  = "paultyng/git"
       version = "~> 0.1.0"
     }
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.1.2"
+    }
   }
   backend "s3" {
     bucket         = "fleet-loadtesting-tfstate"
@@ -36,9 +25,33 @@ terraform {
   }
 }
 
-data "aws_caller_identity" "current" {}
+
+provider "aws" {
+  region = "us-east-2"
+  default_tags {
+    tags = {
+      environment = "fleet-demo-${terraform.workspace}"
+      terraform   = "https://github.com/fleetdm/fleet/tree/main/tools/demo-environment"
+      state       = "s3://fleet-loadtesting-tfstate/demo-environment"
+    }
+  }
+}
+
+provider "random" {}
+
+data "aws_ecr_authorization_token" "token" {}
+provider "docker" {
+  # Configuration options
+  registry_auth {
+    address  = "${data.aws_caller_identity.current.account_id}.dkr.ecr.us-east-2.amazonaws.com"
+    username = data.aws_ecr_authorization_token.token.user_name
+    password = data.aws_ecr_authorization_token.token.password
+  }
+}
 
 provider "git" {}
+
+data "aws_caller_identity" "current" {}
 
 data "git_repository" "tf" {
   path = "${path.module}/../../"
@@ -75,10 +88,36 @@ module "vpc" {
 }
 
 module "shared-infrastructure" {
-  source              = "./SharedInfrastructure"
-  prefix              = local.prefix
-  vpc_id              = module.vpc.vpc_id
-  database_subnets    = module.vpc.database_subnets
-  allowed_cidr_blocks = module.vpc.private_subnets_cidr_blocks
-  private_subnets     = module.vpc.private_subnets
+  source                  = "./SharedInfrastructure"
+  prefix                  = local.prefix
+  vpc_id                  = module.vpc.vpc_id
+  database_subnets        = module.vpc.database_subnets
+  allowed_cidr_blocks     = module.vpc.private_subnets_cidr_blocks
+  private_subnets         = module.vpc.private_subnets
+  allowed_security_groups = [module.pre-provisioner.lambda_security_group.id]
+}
+
+module "pre-provisioner" {
+  source          = "./PreProvisioner"
+  prefix          = local.prefix
+  vpc_id          = module.vpc.vpc_id
+  dynamodb_table  = aws_dynamodb_table.lifecycle-table
+  private_subnets = module.vpc.private_subnets
+}
+
+resource "aws_dynamodb_table" "lifecycle-table" {
+  name         = "${local.prefix}-lifecycle"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "id"
+  range_key    = "state"
+
+  attribute {
+    name = "id"
+    type = "S"
+  }
+
+  attribute {
+    name = "state"
+    type = "S"
+  }
 }

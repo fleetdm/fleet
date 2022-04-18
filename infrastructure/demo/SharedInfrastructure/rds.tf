@@ -23,7 +23,7 @@ resource "aws_secretsmanager_secret_version" "database_password_secret_version" 
   secret_string = random_password.database_password.result
 }
 
-module "aurora_mysql" {
+module "main" {
   source  = "terraform-aws-modules/rds-aurora/aws"
   version = "6.2.0"
 
@@ -42,7 +42,7 @@ module "aurora_mysql" {
   vpc_id                          = var.vpc_id
   subnets                         = var.database_subnets
   create_security_group           = true
-  allowed_cidr_blocks             = var.allowed_cidr_blocks
+  allowed_security_groups         = var.allowed_security_groups
   kms_key_id                      = aws_kms_key.main.arn
   performance_insights_kms_key_id = aws_kms_key.main.arn
 
@@ -51,8 +51,8 @@ module "aurora_mysql" {
   apply_immediately   = true
   skip_final_snapshot = true
 
-  db_parameter_group_name         = aws_db_parameter_group.example_mysql.id
-  db_cluster_parameter_group_name = aws_rds_cluster_parameter_group.example_mysql.id
+  db_parameter_group_name         = aws_db_parameter_group.main.id
+  db_cluster_parameter_group_name = aws_rds_cluster_parameter_group.main.id
 
   scaling_configuration = {
     auto_pause               = true
@@ -63,13 +63,13 @@ module "aurora_mysql" {
   }
 }
 
-resource "aws_db_parameter_group" "example_mysql" {
+resource "aws_db_parameter_group" "main" {
   name        = "${var.prefix}-aurora-db-mysql-parameter-group"
   family      = "aurora-mysql5.7"
   description = "${var.prefix}-aurora-db-mysql-parameter-group"
 }
 
-resource "aws_rds_cluster_parameter_group" "example_mysql" {
+resource "aws_rds_cluster_parameter_group" "main" {
   name        = "${var.prefix}-aurora-mysql-cluster-parameter-group"
   family      = "aurora-mysql5.7"
   description = "${var.prefix}-aurora-mysql-cluster-parameter-group"
