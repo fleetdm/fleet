@@ -121,7 +121,7 @@ describe("Query flow (seeded)", () => {
       cy.getAttached(".no-schedule__schedule-button").click();
       cy.getAttached(".schedule-editor-modal__form").within(() => {
         cy.findByText(/select query/i).click();
-        cy.findByText(/detect presence/i).click();
+        cy.findByText(/get local/i).click();
         cy.findByText(/every day/i).click();
         cy.findByText(/every 6 hours/i).click();
         cy.findByText(/show advanced options/i).click();
