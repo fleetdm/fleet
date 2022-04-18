@@ -235,7 +235,6 @@ The Fleet product is released every three weeks. By syncing the whole company to
 
 - keep all team members (especially those who aren't directly involved with the core product) aware of the current version of Fleet and when the next release is shipping.
 - align project planning and milestones across all teams, which helps us schedule our content calendar and manage company-wide goals.
-- Other companies use a 4-week release cycle, but at Fleet, we like to move a little faster to get more done.
 
 
 ### Why use agile?
