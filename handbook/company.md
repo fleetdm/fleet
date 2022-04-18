@@ -231,7 +231,10 @@ It's helpful to have a consistent framework for how every team works, plans, and
 
 
 ### Why a three-week cadence?
-Fleet product is released every 3 weeks, so everyone in the company is synced up to this same schedule and is always aware of product releases even if they aren’t on the product team..
+The Fleet product is released every three weeks. By syncing the whole company to this schedule, we can:
+
+- keep all team members (especially those who aren't directly involved with the core product) aware of the current version of Fleet and when the next release is shipping.
+- align project planning and milestones across all teams, which helps us schedule our content calendar and manage company-wide goals.
 - Other companies use a 4-week release cycle, but at Fleet, we like to move a little faster to get more done.
 - Everyone knows when the new release is, so they also know when their work is due.
 
