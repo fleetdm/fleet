@@ -19,13 +19,13 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 [Slack channels](./company.md#slack-channels)
 
 
-
-
 ### ⛑ Security
 
 [How we protect end-user devices](./security.md#how-we-protect-end-user-devices)
 
-[How we secure GitHub](./security.md#git-hub-security)
+[Hardware security keys](./security.md#hardware-security-keys)
+
+[GitHub Security](./security.md#git-hub-security)
 
 [Google Workspace security](./security.md#google-workspace-security)
 
@@ -35,13 +35,13 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Communicating as Fleet](./brand.md#communicating-as-fleet)
 
-[Voice and grammar guidelines](./brand.md#voice-and-grammar-guidelines)
+[Voice and tone guidelines](./brand.md#voice-and-grammar-guidelines)
 
 [Brand resources](./brand.md#brand-resources)
 
 [Email blasts](./brand.md#email-blasts)
 
-[Website](./brand.md#website)
+[Fleet website](./brand.md#website)
 
 ### 🪂 Community
 
@@ -56,8 +56,11 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 ### 🚀 Engineering
 
 [Release process](./engineering.md#release-process)
+[On-call rotation](./community.md#On-call-rotation) 
 
 ### ⚗️ Product
+
+[Objectives and key results](./product.md#Objectives-and-key-results)
 
 [Product design process](./product.md#product-design-process)
 
@@ -87,6 +90,14 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Support process](./customers.md#support-process)
 
+[Runbook](./customers.md#runbook)
+
+[Incident postmortems](./customers.md#incident-postmortems)
+
+[Customer codenames](./customers.md#customer-codenames)
+
+[Generating a trial license key](./customers.md#generating-a-trial-license-key)
+
 ### 🧑‍🚀 People
 
 [Directly responsible individuals](./people.md#directly-resonsible-individuals)
@@ -98,6 +109,10 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 [Meetings](./people.md#meetings)
 
 [People ops](./people.md#people-ops)
+
+[Rituals](./people.md#rituals)
+
+[Workiversaries](./people.md#workiversaries)
 
 ### Handbook
 

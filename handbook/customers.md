@@ -42,6 +42,7 @@ L7: Congratulations, you’re ready to set up a new call.
 ### Next steps after a customer conversation
 After a customer conversation, it can sometimes feel like there are 1001 things to do, but it can be hard to know where to start.  Here are some tips:
 
+
 ## Support process
 
 This section outlines the customer and community support process at Fleet.
@@ -85,18 +86,27 @@ When creating a new issue, ensure the following:
 ### Responding to a request to change a credit card number
 To change a customer credit card number you identify the customer's account email, log into Stripe, and choose the subscriptions associated with that account. You can then email the customer an invoice and they can update the payment method on file.
 
+
 ## Incident postmortems
 At Fleet, we take customer incidents very seriously. After working with customers to resolve issues, we will conduct an internal postmortem to determine any documentation or coding changes to prevent similar incidents from happening in the future. Why? We strive to make Fleet the best osquery management platform globally, and we sincerely believe that starts with sharing lessons learned with the community to become stronger together.
 
 At Fleet, we do postmortem meetings for every production incident, whether it's a customer's environment or on fleetdm.com.
 
+
 ## Customer codenames
 Occasionally we will need to track public issues for customers that wish to remain anonymous on our public issue tracker. To do this, we choose an appropriate minor planet name from this [Wikipedia page](https://en.wikipedia.org/wiki/List_of_named_minor_planets_(alphabetical)) and create a label which we attach to the issue and any future issues for this customer.
+
 
 ## Generating a trial license key
 Fleet's self-service license dispenser is the best way to generate trial license keys for small deployments of Fleet Premium.
 
 To generate a trial license key for a larger deployment, [create an opportunity issue](https://github.com/fleetdm/confidential/issues/new/choose) for the customer and follow the instructions in the issue for generating a trial license key.
+
+
+## Documentation updates
+
+Occasionally users will either email or Slack questions about product usage. We will track these requests and occasionally update our documentation to simplify things for our users. We have a Zapier integration that will automatically create an entry in our customer questions Google doc (in Slack, right-click on the customer question and select send to Zapier). At the end of the week, one of our team members will take each request in the spreadsheet and make any helpful documentation updates to help prevent similar questions in the future.
+
 
 ## Fleet rituals for customers
 
@@ -119,7 +129,6 @@ The following rituals are engaged in by the  directly responsible individual (DR
 | Internal follow up ritual | Go through Fleet's internal Slack channels to check for any relevant new information or tasks from other teams. | Tony Gauda |
 
 
-
 ## Slack channels
 
 The following [Slack channels are maintained](https://fleetdm.com/handbook/company#group-slack-channels) by this group:
@@ -130,12 +139,6 @@ The following [Slack channels are maintained](https://fleetdm.com/handbook/compa
 | `#fleet-at-*` _(customer channels)_ | Tony Gauda                                                          |
 | `#help-sell`                        | Andrew Bare                                                         |
 | `#_from-prospective-customers`      | Andrew Bare                                                         |
-
-## Documentation updates
-
-Occasionally users will either email or Slack questions about product usage. We will track these requests and occasionally update our documentation to simplify things for our users. We have a Zapier integration that will automatically create an entry in our customer questions Google doc (in Slack, right-click on the customer question and select send to Zapier). At the end of the week, one of our team members will take each request in the spreadsheet and make any helpful documentation updates to help prevent similar questions in the future.
-
-
 
 
 <meta name="maintainedBy" value="tgauda">
