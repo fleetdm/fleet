@@ -178,22 +178,19 @@
     li {
       line-height: 24px;
       padding-bottom: 16px;
-      p {
+      p { // Making sure our list items stay a consistent size if the contents get wrapped in a <p> tag coverted from Markdown.
         margin-bottom: 0;
       }
-      ul {
-        list-style-type: circle;
-        padding-top: 8px;
+      ol, ul { // adding padding to nested lists
+        padding-top: 16px;
       }
     }
     ol {
       padding-left: 16px;
       li {
-
         padding-bottom: 16px;
       }
     }
-
     img {
       display: flex;
       width: calc(100% - 32px);
