@@ -1,5 +1,8 @@
-import React, { useCallback, useContext, useState } from "react";
+import React, { useCallback, useContext, useState, useEffect } from "react";
 import { useQuery } from "react-query";
+import { InjectedRouter, Params } from "react-router/lib/Router";
+import { Link } from "react-router";
+
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification"; // @ts-ignore
 
@@ -11,34 +14,49 @@ import { IConfig } from "interfaces/config";
 import { IApiError } from "interfaces/errors";
 
 import Button from "components/buttons/Button";
+import PATHS from "router/paths";
 import OrganizationInfo from "./cards/OrganizationInfo";
 import FleetWebAddress from "./cards/FleetWebAddress";
-import Saml from "./cards/Saml";
+import Sso from "./cards/Sso";
 import Smtp from "./cards/Smtp";
 import AgentOptions from "./cards/AgentOptions";
 import HostStatusWebhook from "./cards/HostStatusWebhook";
 import UsageStats from "./cards/UsageStats";
 import AdvancedOptions from "./cards/AdvancedOptions";
 
+interface IAppSettingsPageProps {
+  router: InjectedRouter; // v3
+  params: Params;
+}
+
 export const baseClass = "app-settings";
 
-const AppSettingsPage = (): JSX.Element => {
+const AppSettingsPage = ({
+  router,
+  params: { section: sectionTitle },
+}: IAppSettingsPageProps): JSX.Element => {
   const { renderFlash } = useContext(NotificationContext);
   const { setConfig } = useContext(AppContext);
 
-  const [showOrgInfo, setShowOrgInfo] = useState<boolean>(true);
+  const [showOrgInfo, setShowOrgInfo] = useState<boolean>(
+    sectionTitle === "info"
+  );
   const [showFleetWebAddress, setShowFleetWebAddress] = useState<boolean>(
-    false
+    sectionTitle === "webaddress"
   );
-  const [showSaml, setShowSaml] = useState<boolean>(false);
-  const [showSmtp, setShowSmtp] = useState<boolean>(false);
-  const [showAgentOptions, setShowAgentOptions] = useState<boolean>(false);
+  const [showSso, setShowSso] = useState<boolean>(sectionTitle === "sso");
+  const [showSmtp, setShowSmtp] = useState<boolean>(sectionTitle === "smtp");
+  const [showAgentOptions, setShowAgentOptions] = useState<boolean>(
+    sectionTitle === "agents"
+  );
   const [showHostStatusWebhook, setShowHostStatusWebhook] = useState<boolean>(
-    false
+    sectionTitle === "host-status-webhook"
   );
-  const [showUsageStats, setShowUsageStats] = useState<boolean>(false);
+  const [showUsageStats, setShowUsageStats] = useState<boolean>(
+    sectionTitle === "statistics"
+  );
   const [showAdvancedOptions, setShowAdvancedOptions] = useState<boolean>(
-    false
+    sectionTitle === "advanced"
   );
 
   const {
@@ -88,7 +106,7 @@ const AppSettingsPage = (): JSX.Element => {
   const showSection = (linkString: string) => {
     setShowOrgInfo(false);
     setShowFleetWebAddress(false);
-    setShowSaml(false);
+    setShowSso(false);
     setShowSmtp(false);
     setShowAgentOptions(false);
     setShowHostStatusWebhook(false);
@@ -96,32 +114,36 @@ const AppSettingsPage = (): JSX.Element => {
     setShowAdvancedOptions(false);
 
     switch (linkString) {
-      case "org-info":
-        setShowOrgInfo(true);
-        return;
-      case "fleet-web-address":
+      case "webaddress":
         setShowFleetWebAddress(true);
         return;
-      case "saml":
-        setShowSaml(true);
+      case "sso":
+        setShowSso(true);
         return;
       case "smtp":
         setShowSmtp(true);
         return;
-      case "agent-options":
+      case "agents":
         setShowAgentOptions(true);
         return;
       case "host-status-webhook":
         setShowHostStatusWebhook(true);
         return;
-      case "usage-stats":
+      case "statistics":
         setShowUsageStats(true);
         return;
-      default:
+      case "advanced":
         setShowAdvancedOptions(true);
+        return;
+      default:
+        setShowOrgInfo(true);
         return;
     }
   };
+
+  useEffect(() => {
+    showSection(sectionTitle);
+  }, [sectionTitle]);
 
   const renderSection = () => {
     if (!isLoadingConfig && appConfig) {
@@ -139,9 +161,7 @@ const AppSettingsPage = (): JSX.Element => {
               handleSubmit={onFormSubmit}
             />
           )}
-          {showSaml && (
-            <Saml appConfig={appConfig} handleSubmit={onFormSubmit} />
-          )}
+          {showSso && <Sso appConfig={appConfig} handleSubmit={onFormSubmit} />}
           {showSmtp && (
             <Smtp appConfig={appConfig} handleSubmit={onFormSubmit} />
           )}
@@ -176,76 +196,68 @@ const AppSettingsPage = (): JSX.Element => {
         <nav>
           <ul className={`${baseClass}__form-nav-list`}>
             <li>
-              <Button
-                className={`${baseClass}__nav-button`}
-                variant="text-nav"
-                onClick={() => showSection("org-info")}
+              <Link
+                className={`${baseClass}__nav-link`}
+                to={PATHS.ADMIN_SETTINGS_INFO}
               >
                 Organization info
-              </Button>
+              </Link>
             </li>
             <li>
-              <Button
-                className={`${baseClass}__nav-button`}
-                variant="text-nav"
-                onClick={() => showSection("fleet-web-address")}
+              <Link
+                className={`${baseClass}__nav-link`}
+                to={PATHS.ADMIN_SETTINGS_WEBADDRESS}
               >
                 Fleet web address
-              </Button>
+              </Link>
             </li>
             <li>
-              <Button
-                className={`${baseClass}__nav-button`}
-                variant="text-nav"
-                onClick={() => showSection("saml")}
+              <Link
+                className={`${baseClass}__nav-link`}
+                to={PATHS.ADMIN_SETTINGS_SSO}
               >
                 SAML single sign on options
-              </Button>
+              </Link>
             </li>
             <li>
-              <Button
-                className={`${baseClass}__nav-button`}
-                variant="text-nav"
-                onClick={() => showSection("smtp")}
+              <Link
+                className={`${baseClass}__nav-link`}
+                to={PATHS.ADMIN_SETTINGS_SMTP}
               >
                 SMTP options
-              </Button>
+              </Link>
             </li>
             <li>
-              <Button
-                className={`${baseClass}__nav-button`}
-                variant="text-nav"
-                onClick={() => showSection("agent-options")}
+              <Link
+                className={`${baseClass}__nav-link`}
+                to={PATHS.ADMIN_SETTINGS_AGENTS}
               >
                 Global agent options
-              </Button>
+              </Link>
             </li>
             <li>
-              <Button
-                className={`${baseClass}__nav-button`}
-                variant="text-nav"
-                onClick={() => showSection("host-status-webhook")}
+              <Link
+                className={`${baseClass}__nav-link`}
+                to={PATHS.ADMIN_SETTINGS_HOST_STATUS_WEBHOOK}
               >
                 Host status webhook
-              </Button>
+              </Link>
             </li>
             <li>
-              <Button
-                className={`${baseClass}__nav-button`}
-                variant="text-nav"
-                onClick={() => showSection("usage-stats")}
+              <Link
+                className={`${baseClass}__nav-link`}
+                to={PATHS.ADMIN_SETTINGS_STATISTICS}
               >
                 Usage statistics
-              </Button>
+              </Link>
             </li>
             <li>
-              <Button
-                className={`${baseClass}__nav-button`}
-                variant="text-nav"
-                onClick={() => showSection("advanced-options")}
+              <Link
+                className={`${baseClass}__nav-link`}
+                to={PATHS.ADMIN_SETTINGS_ADVANCED}
               >
                 Advanced options
-              </Button>
+              </Link>
             </li>
           </ul>
         </nav>
