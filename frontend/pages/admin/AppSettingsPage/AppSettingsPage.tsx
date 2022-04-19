@@ -37,24 +37,22 @@ const AppSettingsPage = ({
   const { renderFlash } = useContext(NotificationContext);
   const { setConfig } = useContext(AppContext);
 
-  const [showOrgInfo, setShowOrgInfo] = useState<boolean>(
-    sectionTitle === "info"
-  );
-  const [showFleetWebAddress, setShowFleetWebAddress] = useState<boolean>(
+  const [showInfo, setShowInfo] = useState<boolean>(sectionTitle === "info");
+  const [showWebAddress, setShowWebAddress] = useState<boolean>(
     sectionTitle === "webaddress"
   );
   const [showSso, setShowSso] = useState<boolean>(sectionTitle === "sso");
   const [showSmtp, setShowSmtp] = useState<boolean>(sectionTitle === "smtp");
-  const [showAgentOptions, setShowAgentOptions] = useState<boolean>(
+  const [showAgents, setShowAgents] = useState<boolean>(
     sectionTitle === "agents"
   );
   const [showHostStatusWebhook, setShowHostStatusWebhook] = useState<boolean>(
     sectionTitle === "host-status-webhook"
   );
-  const [showUsageStats, setShowUsageStats] = useState<boolean>(
+  const [showStatistics, setShowStatistics] = useState<boolean>(
     sectionTitle === "statistics"
   );
-  const [showAdvancedOptions, setShowAdvancedOptions] = useState<boolean>(
+  const [showAdvanced, setShowAdvanced] = useState<boolean>(
     sectionTitle === "advanced"
   );
 
@@ -103,18 +101,18 @@ const AppSettingsPage = ({
   );
 
   const showSection = (linkString: string) => {
-    setShowOrgInfo(false);
-    setShowFleetWebAddress(false);
+    setShowInfo(false);
+    setShowWebAddress(false);
     setShowSso(false);
     setShowSmtp(false);
-    setShowAgentOptions(false);
+    setShowAgents(false);
     setShowHostStatusWebhook(false);
-    setShowUsageStats(false);
-    setShowAdvancedOptions(false);
+    setShowStatistics(false);
+    setShowAdvanced(false);
 
     switch (linkString) {
       case "webaddress":
-        setShowFleetWebAddress(true);
+        setShowWebAddress(true);
         return;
       case "sso":
         setShowSso(true);
@@ -123,19 +121,19 @@ const AppSettingsPage = ({
         setShowSmtp(true);
         return;
       case "agents":
-        setShowAgentOptions(true);
+        setShowAgents(true);
         return;
       case "host-status-webhook":
         setShowHostStatusWebhook(true);
         return;
       case "statistics":
-        setShowUsageStats(true);
+        setShowStatistics(true);
         return;
       case "advanced":
-        setShowAdvancedOptions(true);
+        setShowAdvanced(true);
         return;
       default:
-        setShowOrgInfo(true);
+        setShowInfo(true);
         return;
     }
   };
@@ -148,17 +146,17 @@ const AppSettingsPage = ({
     if (!isLoadingConfig && appConfig) {
       return (
         <>
-          {showOrgInfo && (
+          {showInfo && (
             <Info appConfig={appConfig} handleSubmit={onFormSubmit} />
           )}
-          {showFleetWebAddress && (
+          {showWebAddress && (
             <WebAddress appConfig={appConfig} handleSubmit={onFormSubmit} />
           )}
           {showSso && <Sso appConfig={appConfig} handleSubmit={onFormSubmit} />}
           {showSmtp && (
             <Smtp appConfig={appConfig} handleSubmit={onFormSubmit} />
           )}
-          {showAgentOptions && (
+          {showAgents && (
             <AgentOptions appConfig={appConfig} handleSubmit={onFormSubmit} />
           )}
           {showHostStatusWebhook && (
@@ -167,16 +165,17 @@ const AppSettingsPage = ({
               handleSubmit={onFormSubmit}
             />
           )}
-          {showUsageStats && (
+          {showStatistics && (
             <Statistics appConfig={appConfig} handleSubmit={onFormSubmit} />
           )}
-          {showAdvancedOptions && (
+          {showAdvanced && (
             <Advanced appConfig={appConfig} handleSubmit={onFormSubmit} />
           )}
         </>
       );
     }
   };
+  0;
   return (
     <div className={`${baseClass} body-wrap`}>
       <p className={`${baseClass}__page-description`}>
@@ -187,7 +186,9 @@ const AppSettingsPage = ({
           <ul className={`${baseClass}__form-nav-list`}>
             <li>
               <Link
-                className={`${baseClass}__nav-link`}
+                className={`${baseClass}__nav-link${
+                  showInfo ? " active-nav" : ""
+                }`}
                 to={PATHS.ADMIN_SETTINGS_INFO}
               >
                 Organization info
@@ -195,7 +196,9 @@ const AppSettingsPage = ({
             </li>
             <li>
               <Link
-                className={`${baseClass}__nav-link`}
+                className={`${baseClass}__nav-link${
+                  showWebAddress ? " active-nav" : ""
+                }`}
                 to={PATHS.ADMIN_SETTINGS_WEBADDRESS}
               >
                 Fleet web address
@@ -203,7 +206,9 @@ const AppSettingsPage = ({
             </li>
             <li>
               <Link
-                className={`${baseClass}__nav-link`}
+                className={`${baseClass}__nav-link${
+                  showSso ? " active-nav" : ""
+                }`}
                 to={PATHS.ADMIN_SETTINGS_SSO}
               >
                 Single sign-on options
@@ -211,7 +216,9 @@ const AppSettingsPage = ({
             </li>
             <li>
               <Link
-                className={`${baseClass}__nav-link`}
+                className={`${baseClass}__nav-link${
+                  showSmtp ? " active-nav" : ""
+                }`}
                 to={PATHS.ADMIN_SETTINGS_SMTP}
               >
                 SMTP options
@@ -219,7 +226,9 @@ const AppSettingsPage = ({
             </li>
             <li>
               <Link
-                className={`${baseClass}__nav-link`}
+                className={`${baseClass}__nav-link${
+                  showAgents ? " active-nav" : ""
+                }`}
                 to={PATHS.ADMIN_SETTINGS_AGENTS}
               >
                 Global agent options
@@ -227,7 +236,9 @@ const AppSettingsPage = ({
             </li>
             <li>
               <Link
-                className={`${baseClass}__nav-link`}
+                className={`${baseClass}__nav-link${
+                  showHostStatusWebhook ? " active-nav" : ""
+                }`}
                 to={PATHS.ADMIN_SETTINGS_HOST_STATUS_WEBHOOK}
               >
                 Host status webhook
@@ -235,7 +246,9 @@ const AppSettingsPage = ({
             </li>
             <li>
               <Link
-                className={`${baseClass}__nav-link`}
+                className={`${baseClass}__nav-link${
+                  showStatistics ? " active-nav" : ""
+                }`}
                 to={PATHS.ADMIN_SETTINGS_STATISTICS}
               >
                 Usage statistics
@@ -243,7 +256,9 @@ const AppSettingsPage = ({
             </li>
             <li>
               <Link
-                className={`${baseClass}__nav-link`}
+                className={`${baseClass}__nav-link${
+                  showAdvanced ? " active-nav" : ""
+                }`}
                 to={PATHS.ADMIN_SETTINGS_ADVANCED}
               >
                 Advanced options
