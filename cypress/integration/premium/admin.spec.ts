@@ -564,6 +564,27 @@ describe("Premium tier - Global Admin user", () => {
       });
       cy.findByText(/successfully updated policy automations/i).should("exist");
     });
+    it("allows global admin to automate a team policy", () => {
+      cy.visit("/policies/manage");
+      cy.getAttached(".Select-control").within(() => {
+        cy.findByText(/all teams/i).click();
+      });
+      cy.getAttached(".Select-menu")
+        .contains(/apples/i)
+        .click();
+      cy.getAttached(".button-wrap")
+        .findByRole("button", { name: /manage automations/i })
+        .click();
+      cy.getAttached(".manage-automations-modal").within(() => {
+        cy.getAttached(".fleet-slider").click();
+        cy.getAttached(".fleet-checkbox__input").check({ force: true });
+        cy.getAttached("#webhook-url")
+          .clear()
+          .type("https://example.com/global_admin");
+        cy.findByText(/save/i).click();
+      });
+      cy.findByText(/successfully updated policy automations/i).should("exist");
+    });
     it("allows global admin to delete a team policy", () => {
       cy.visit("/policies/manage");
       cy.getAttached(".Select-control").within(() => {

@@ -3793,6 +3793,11 @@ func testOSVersions(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
+	team3, err := ds.NewTeam(context.Background(), &fleet.Team{
+		Name: "team3",
+	})
+	require.NoError(t, err)
+
 	// create some hosts for testing
 	hosts := []*fleet.Host{
 		{
@@ -3909,6 +3914,16 @@ func testOSVersions(t *testing.T, ds *Datastore) {
 		{HostsCount: 3, Name: "macOS 12.3.0", Platform: "darwin"},
 	}
 	require.Equal(t, expected, osVersions.OSVersions)
+
+	// team 3 (no hosts assigned to team)
+	osVersions, err = ds.OSVersions(ctx, &team3.ID, nil)
+	require.NoError(t, err)
+	expected = []fleet.OSVersion{}
+	require.Equal(t, expected, osVersions.OSVersions)
+
+	// non-existent team
+	osVersions, err = ds.OSVersions(ctx, ptr.Uint(404), nil)
+	require.Error(t, err)
 }
 
 func testHostsDeleteHosts(t *testing.T, ds *Datastore) {

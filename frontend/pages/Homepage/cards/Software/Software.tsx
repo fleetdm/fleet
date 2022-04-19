@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import React, { useContext, useState } from "react";
 import { useQuery } from "react-query";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 
+import { AppContext } from "context/app";
 import paths from "router/paths";
 import configAPI from "services/entities/config";
 import softwareAPI, { ISoftwareResponse } from "services/entities/software";
@@ -39,6 +40,10 @@ const Software = ({
   const [pageIndex, setPageIndex] = useState<number>(0);
   const [isSoftwareEnabled, setIsSoftwareEnabled] = useState<boolean>();
 
+  const { availableTeams, currentTeam, isOnGlobalTeam } = useContext(
+    AppContext
+  );
+
   const { data: config } = useQuery(["config"], configAPI.loadAll, {
     onSuccess: (data) => {
       setIsSoftwareEnabled(data?.host_settings?.enable_software_inventory);
@@ -71,8 +76,11 @@ const Software = ({
         teamId: currentTeamId,
       }),
     {
+      enabled:
+        isOnGlobalTeam ||
+        !!availableTeams?.find((t) => t.id === currentTeam?.id),
       keepPreviousData: true,
-      staleTime: 30000, // TODO: Discuss a reasonable staleTime given that counts are only updated infrequently?
+      staleTime: 30000, // stale time can be adjusted if fresher data is desired based on software inventory interval
       onSuccess: (data) => {
         setShowSoftwareUI(true);
         if (isSoftwareEnabled && data.software?.length !== 0) {
