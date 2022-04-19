@@ -172,18 +172,23 @@ func deleteUninstalledHostSoftwareDB(
 }
 
 func getOrGenerateSoftwareIdDB(ctx context.Context, tx sqlx.ExtContext, s fleet.Software) (uint, error) {
-	var existingId []int64
-	if err := sqlx.SelectContext(ctx, tx,
-		&existingId,
-		"SELECT id FROM software "+
-			"WHERE name = ? AND version = ? AND source = ? AND `release` = ? AND "+
-			"vendor = ? AND arch = ? AND bundle_identifier = ?",
-		s.Name, s.Version, s.Source, s.Release, s.Vendor, s.Arch, s.BundleIdentifier,
-	); err != nil {
+	var existingID []int64
+
+	getExistingID := func() error {
+		return sqlx.SelectContext(ctx, tx,
+			&existingID,
+			"SELECT id FROM software "+
+				"WHERE name = ? AND version = ? AND source = ? AND `release` = ? AND "+
+				"vendor = ? AND arch = ? AND bundle_identifier = ?",
+			s.Name, s.Version, s.Source, s.Release, s.Vendor, s.Arch, s.BundleIdentifier,
+		)
+	}
+
+	if err := getExistingID(); err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "get software")
 	}
-	if len(existingId) > 0 {
-		return uint(existingId[0]), nil
+	if len(existingID) > 0 {
+		return uint(existingID[0]), nil
 	}
 
 	_, err := tx.ExecContext(ctx,
@@ -196,9 +201,15 @@ func getOrGenerateSoftwareIdDB(ctx context.Context, tx sqlx.ExtContext, s fleet.
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "insert software")
 	}
-	// LastInsertId sometimes returns 0 as it's dependent on connections and how mysql is configured
-	// doing the select recursively is a bit slower, but most times, we won't end up in this situation
-	return getOrGenerateSoftwareIdDB(ctx, tx, s)
+
+	// LastInsertId sometimes returns 0 as it's dependent on connections and how mysql is configured.
+	if err := getExistingID(); err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "get software")
+	}
+	if len(existingID) > 0 {
+		return uint(existingID[0]), nil
+	}
+	return 0, doRetryErr
 }
 
 func insertNewInstalledHostSoftwareDB(
