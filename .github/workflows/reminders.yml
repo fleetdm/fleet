@@ -26,7 +26,7 @@ jobs:
               repository(name: "${repo}", owner: "${owner}") {
                 pullRequests (first: 100, states: OPEN) {
                   nodes {
-                    id
+                    number
                     reviewDecision
                   }
                 }
@@ -35,13 +35,12 @@ jobs:
             const pulls = response.repository.pullRequests.nodes;
 
             for (const pull of pulls) {
-              console.log(pull);
-              if (pull.id == 5209) {
+              if (pull.number == 5209) {
                 console.log('found match', pull);
                 await octokit.request('POST /repos/{owner}/{repo}/issues/{issue_number}/comments', {
                   owner,
                   repo,
-                  issue_number: pull.id,
+                  issue_number: pull.number,
                   body: 'Me too'
                 });
               }
