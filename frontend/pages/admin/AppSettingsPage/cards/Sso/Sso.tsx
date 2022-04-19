@@ -14,10 +14,7 @@ import {
 
 const baseClass = "app-config-form";
 
-const Saml = ({
-  appConfig,
-  handleSubmit,
-}: IAppConfigFormProps): JSX.Element => {
+const Sso = ({ appConfig, handleSubmit }: IAppConfigFormProps): JSX.Element => {
   const [formData, setFormData] = useState<any>({
     enableSSO: appConfig.sso_settings.enable_sso || false,
     idpName: appConfig.sso_settings.idp_name || "",
@@ -61,6 +58,11 @@ const Saml = ({
       if (!entityID) {
         errors.entity_id = "Entity ID must be present";
       }
+
+      if (entityID.length < 5) {
+        errors.entity_id = "Entity ID must be 5 or more characters";
+      }
+
       if (!idpName) {
         errors.idp_name = "Identity provider name must be present";
       }
@@ -93,7 +95,7 @@ const Saml = ({
     <form className={baseClass} onSubmit={onFormSubmit} autoComplete="off">
       <div className={`${baseClass}__section`}>
         <h2>
-          <a id="saml">SAML single sign on options</a>
+          <a id="sso">Single sign-on options</a>
         </h2>
         <div className={`${baseClass}__inputs`}>
           <Checkbox
@@ -102,7 +104,7 @@ const Saml = ({
             value={enableSSO}
             parseTarget
           >
-            Enable single sign on
+            Enable single sign-on
           </Checkbox>
         </div>
         <div className={`${baseClass}__inputs`}>
@@ -114,7 +116,7 @@ const Saml = ({
             parseTarget
             onBlur={validateForm}
             error={formErrors.idp_name}
-            tooltip="A required human friendly name for the identity provider that will provide single sign on authentication."
+            tooltip="A required human friendly name for the identity provider that will provide single sign-on authentication."
           />
         </div>
         <div className={`${baseClass}__inputs`}>
@@ -194,7 +196,7 @@ const Saml = ({
             value={enableSSOIDPLogin}
             parseTarget
           >
-            Allow SSO login initiated by Identity Provider
+            Allow SSO login initiated by identity provider
           </Checkbox>
         </div>
       </div>
@@ -209,4 +211,4 @@ const Saml = ({
   );
 };
 
-export default Saml;
+export default Sso;

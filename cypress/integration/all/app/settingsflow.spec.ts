@@ -294,9 +294,9 @@ describe("App settings flow", () => {
       );
     });
 
-    it("edits single sign on settings", () => {
-      cy.findByText(/saml single sign on options/i).click();
-      cy.findByLabelText(/enable single sign on/i).check({ force: true });
+    it("edits single sign-on settings", () => {
+      cy.findByText(/single sign-on options/i).click();
+      cy.findByLabelText(/enable single sign-on/i).check({ force: true });
 
       cy.findByLabelText(/identity provider name/i)
         .click({ force: true })
@@ -331,7 +331,7 @@ describe("App settings flow", () => {
 
       // confirm edits
       cy.visit("/settings/organization");
-      cy.findByText(/saml single sign on options/i).click();
+      cy.findByText(/single sign-on options/i).click();
       cy.findByLabelText(/identity provider name/i).should(
         "have.value",
         "Rachel"
@@ -401,7 +401,7 @@ describe("App settings flow", () => {
         "have.value",
         "rachelsusername"
       );
-      cy.findByText(/saml single sign on options/i).click();
+      cy.findByText(/single sign-on options/i).click();
 
       cy.getAttached("#metadataURL").should(
         "have.value",
@@ -451,6 +451,24 @@ describe("App settings flow", () => {
       cy.findByText(/select one/i).should("not.exist");
     });
 
+    it("edits usage statistics", () => {
+      cy.findByText(/usage statistics/i).click();
+      cy.findByLabelText(/enable usage statistics/i).check({
+        force: true,
+      });
+
+      cy.findByRole("button", { name: /save/i })
+        .invoke("attr", "disabled", false)
+        .click();
+
+      cy.findByText(/updated settings/i).should("exist");
+
+      // confirm edits
+      cy.visit("/settings/organization");
+      cy.findByText(/usage statistics/i).click();
+      cy.findByLabelText(/enable usage statistics/i).should("be.checked");
+    });
+
     it("edits advanced options", () => {
       cy.findByText(/advanced options/i).click();
       cy.findByLabelText(/domain/i)
@@ -480,6 +498,8 @@ describe("App settings flow", () => {
       cy.visit("/settings/organization");
       cy.findByText(/advanced options/i).click();
 
+      cy.findByLabelText(/verify ssl certs/i).should("be.checked");
+      cy.findByLabelText(/enable starttls/i).should("be.checked");
       cy.findByLabelText(/host expiry window/i).should("have.value", "5");
 
       // confirm smtp configured

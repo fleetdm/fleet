@@ -13,7 +13,7 @@ import {
 
 const baseClass = "app-config-form";
 
-const AdvancedOptions = ({
+const Advanced = ({
   appConfig,
   handleSubmit,
 }: IAppConfigFormProps): JSX.Element => {
@@ -183,4 +183,4 @@ const AdvancedOptions = ({
   );
 };
 
-export default AdvancedOptions;
+export default Advanced;

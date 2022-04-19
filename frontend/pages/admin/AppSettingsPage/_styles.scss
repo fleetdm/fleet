@@ -12,8 +12,7 @@
     font-weight: $regular;
     color: $core-fleet-black;
     border-bottom: solid 1px $ui-fleet-blue-15;
-    margin: 0 0 15px;
-    padding: 0 0 $pad-small;
+    margin: 0 0 $pad-xxlarge;
   }
 
   .fleeticon {
@@ -141,7 +140,7 @@
 
   &__section {
     @include clearfix;
-    margin: 0 0 $pad-xlarge;
+    margin: 0 0 $pad-large;
 
     .upcaret::after {
       content: url("../assets/images/icon-collapse-black-16x16@2x.png");
@@ -228,10 +227,13 @@
       }
     }
     &--usage {
-      margin-top: 24px;
+      margin-top: $pad-large;
+    }
+    &--preview {
+      margin: $pad-medium 0;
     }
     &--webhook {
-      margin-bottom: 24px;
+      margin-bottom: $pad-large;
     }
   }
 
@@ -286,6 +288,7 @@
     width: calc(
       100% - 2px
     ); // because the outline extended beyond the sticky page description
+    margin-bottom: $pad-medium;
   }
 
   &__usage-stats-preview-modal,

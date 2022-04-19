@@ -16,7 +16,7 @@ import { IAppConfigFormProps, IAppConfigFormErrors } from "../constants";
 
 const baseClass = "app-config-form";
 
-const AgentOptions = ({
+const Agents = ({
   appConfig,
   handleSubmit,
 }: IAppConfigFormProps): JSX.Element => {
@@ -114,4 +114,4 @@ const AgentOptions = ({
   );
 };
 
-export default AgentOptions;
+export default Agents;

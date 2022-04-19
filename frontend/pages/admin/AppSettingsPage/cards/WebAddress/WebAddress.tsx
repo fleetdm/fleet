@@ -11,7 +11,7 @@ import {
 
 const baseClass = "app-config-form";
 
-const FleetWebAddress = ({
+const WebAddress = ({
   appConfig,
   handleSubmit,
 }: IAppConfigFormProps): JSX.Element => {
@@ -87,4 +87,4 @@ const FleetWebAddress = ({
   );
 };
 
-export default FleetWebAddress;
+export default WebAddress;

@@ -144,94 +144,98 @@ const HostStatusWebhook = ({
   };
 
   return (
-    <form className={baseClass} onSubmit={onFormSubmit} autoComplete="off">
-      <div className={`${baseClass}__section`}>
-        <h2>
-          <a id="host-status-webhook">Host status webhook</a>
-        </h2>
-        <div className={`${baseClass}__host-status-webhook`}>
-          <p className={`${baseClass}__section-description`}>
-            Send an alert if a portion of your hosts go offline.
-          </p>
-          <Checkbox
-            onChange={handleInputChange}
-            name="enableHostStatusWebhook"
-            value={enableHostStatusWebhook}
-            parseTarget
-          >
-            Enable host status webhook
-          </Checkbox>
-          <p className={`${baseClass}__section-description`}>
-            A request will be sent to your configured <b>Destination URL</b> if
-            the configured <b>Percentage of hosts</b> have not checked into
-            Fleet for the configured <b>Number of days</b>.
-          </p>
-        </div>
-        <div className={`${baseClass}__inputs ${baseClass}__inputs--webhook`}>
-          <Button
-            type="button"
-            variant="inverse"
-            onClick={toggleHostStatusWebhookPreviewModal}
-          >
-            Preview request
-          </Button>
-        </div>
-        <div className={`${baseClass}__inputs`}>
-          <InputField
-            placeholder="https://server.com/example"
-            label="Destination URL"
-            onChange={handleInputChange}
-            name="hostStatusWebhookDestinationURL"
-            value={hostStatusWebhookDestinationURL}
-            parseTarget
-            onBlur={validateForm}
-            error={formErrors.destination_url}
-            tooltip={
-              "\
+    <>
+      <form className={baseClass} onSubmit={onFormSubmit} autoComplete="off">
+        <div className={`${baseClass}__section`}>
+          <h2>
+            <a id="host-status-webhook">Host status webhook</a>
+          </h2>
+          <div className={`${baseClass}__host-status-webhook`}>
+            <p className={`${baseClass}__section-description`}>
+              Send an alert if a portion of your hosts go offline.
+            </p>
+            <Checkbox
+              onChange={handleInputChange}
+              name="enableHostStatusWebhook"
+              value={enableHostStatusWebhook}
+              parseTarget
+            >
+              Enable host status webhook
+            </Checkbox>
+            <p className={`${baseClass}__section-description`}>
+              A request will be sent to your configured <b>Destination URL</b>{" "}
+              if the configured <b>Percentage of hosts</b> have not checked into
+              Fleet for the configured <b>Number of days</b>.
+            </p>
+          </div>
+          <div className={`${baseClass}__inputs ${baseClass}__inputs--webhook`}>
+            <Button
+              type="button"
+              variant="inverse"
+              onClick={toggleHostStatusWebhookPreviewModal}
+            >
+              Preview request
+            </Button>
+          </div>
+          <div className={`${baseClass}__inputs`}>
+            <InputField
+              placeholder="https://server.com/example"
+              label="Destination URL"
+              onChange={handleInputChange}
+              name="hostStatusWebhookDestinationURL"
+              value={hostStatusWebhookDestinationURL}
+              parseTarget
+              onBlur={validateForm}
+              error={formErrors.destination_url}
+              tooltip={
+                "\
                   <p>Provide a URL to deliver <br/>the webhook request to.</p>\
                 "
-            }
-          />
-        </div>
-        <div className={`${baseClass}__inputs ${baseClass}__host-percentage`}>
-          <Dropdown
-            label="Percentage of hosts"
-            options={percentageOfHosts}
-            onChange={handleInputChange}
-            name="hostStatusWebhookHostPercentage"
-            value={hostStatusWebhookHostPercentage}
-            parseTarget
-            tooltip={
-              "\
+              }
+            />
+          </div>
+          <div className={`${baseClass}__inputs ${baseClass}__host-percentage`}>
+            <Dropdown
+              label="Percentage of hosts"
+              options={percentageOfHosts}
+              onChange={handleInputChange}
+              name="hostStatusWebhookHostPercentage"
+              value={hostStatusWebhookHostPercentage}
+              parseTarget
+              tooltip={
+                "\
                   <p>Select the minimum percentage of hosts that<br/>must fail to check into Fleet in order to trigger<br/>the webhook request.</p>\
                 "
-            }
-          />
-        </div>
-        <div className={`${baseClass}__inputs ${baseClass}__days-count`}>
-          <Dropdown
-            label="Number of days"
-            options={numberOfDays}
-            onChange={handleInputChange}
-            name="hostStatusWebhookDaysCount"
-            value={hostStatusWebhookDaysCount}
-            parseTarget
-            tooltip={
-              "\
+              }
+            />
+          </div>
+          <div className={`${baseClass}__inputs ${baseClass}__days-count`}>
+            <Dropdown
+              label="Number of days"
+              options={numberOfDays}
+              onChange={handleInputChange}
+              name="hostStatusWebhookDaysCount"
+              value={hostStatusWebhookDaysCount}
+              parseTarget
+              tooltip={
+                "\
                   <p>Select the minimum number of days that the<br/>configured <b>Percentage of hosts</b> must fail to<br/>check into Fleet in order to trigger the<br/>webhook request.</p>\
                 "
-            }
-          />
+              }
+            />
+          </div>
         </div>
-      </div>
-      <Button
-        type="submit"
-        variant="brand"
-        disabled={Object.keys(formErrors).length > 0}
-      >
-        Save
-      </Button>
-    </form>
+        <Button
+          type="submit"
+          variant="brand"
+          disabled={Object.keys(formErrors).length > 0}
+        >
+          Save
+        </Button>
+      </form>
+      {showHostStatusWebhookPreviewModal &&
+        renderHostStatusWebhookPreviewModal()}
+    </>
   );
 };
 

@@ -15,7 +15,7 @@ import {
 
 const baseClass = "app-config-form";
 
-const OrganizationInfo = ({
+const Info = ({
   appConfig,
   handleSubmit,
 }: IAppConfigFormProps): JSX.Element => {
@@ -101,4 +101,4 @@ const OrganizationInfo = ({
   );
 };
 
-export default OrganizationInfo;
+export default Info;

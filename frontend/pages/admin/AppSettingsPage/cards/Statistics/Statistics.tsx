@@ -15,7 +15,7 @@ import {
 
 const baseClass = "app-config-form";
 
-const UsageStats = ({
+const Statistics = ({
   appConfig,
   handleSubmit,
 }: IAppConfigFormProps): JSX.Element => {
@@ -126,7 +126,7 @@ const UsageStats = ({
               Enable usage statistics
             </Checkbox>
           </div>
-          <div className={`${baseClass}__inputs ${baseClass}__inputs--usage`}>
+          <div className={`${baseClass}__inputs ${baseClass}__inputs--preview`}>
             <Button
               type="button"
               variant="inverse"
@@ -149,4 +149,4 @@ const UsageStats = ({
   );
 };
 
-export default UsageStats;
+export default Statistics;

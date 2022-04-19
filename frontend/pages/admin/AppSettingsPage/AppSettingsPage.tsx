@@ -13,16 +13,15 @@ import deepDifference from "utilities/deep_difference";
 import { IConfig } from "interfaces/config";
 import { IApiError } from "interfaces/errors";
 
-import Button from "components/buttons/Button";
 import PATHS from "router/paths";
-import OrganizationInfo from "./cards/OrganizationInfo";
-import FleetWebAddress from "./cards/FleetWebAddress";
+import Info from "./cards/Info";
+import WebAddress from "./cards/WebAddress";
 import Sso from "./cards/Sso";
 import Smtp from "./cards/Smtp";
-import AgentOptions from "./cards/AgentOptions";
+import AgentOptions from "./cards/Agents";
 import HostStatusWebhook from "./cards/HostStatusWebhook";
-import UsageStats from "./cards/UsageStats";
-import AdvancedOptions from "./cards/AdvancedOptions";
+import Statistics from "./cards/Statistics";
+import Advanced from "./cards/Advanced";
 
 interface IAppSettingsPageProps {
   router: InjectedRouter; // v3
@@ -150,16 +149,10 @@ const AppSettingsPage = ({
       return (
         <>
           {showOrgInfo && (
-            <OrganizationInfo
-              appConfig={appConfig}
-              handleSubmit={onFormSubmit}
-            />
+            <Info appConfig={appConfig} handleSubmit={onFormSubmit} />
           )}
           {showFleetWebAddress && (
-            <FleetWebAddress
-              appConfig={appConfig}
-              handleSubmit={onFormSubmit}
-            />
+            <WebAddress appConfig={appConfig} handleSubmit={onFormSubmit} />
           )}
           {showSso && <Sso appConfig={appConfig} handleSubmit={onFormSubmit} />}
           {showSmtp && (
@@ -175,13 +168,10 @@ const AppSettingsPage = ({
             />
           )}
           {showUsageStats && (
-            <UsageStats appConfig={appConfig} handleSubmit={onFormSubmit} />
+            <Statistics appConfig={appConfig} handleSubmit={onFormSubmit} />
           )}
           {showAdvancedOptions && (
-            <AdvancedOptions
-              appConfig={appConfig}
-              handleSubmit={onFormSubmit}
-            />
+            <Advanced appConfig={appConfig} handleSubmit={onFormSubmit} />
           )}
         </>
       );
@@ -190,7 +180,7 @@ const AppSettingsPage = ({
   return (
     <div className={`${baseClass} body-wrap`}>
       <p className={`${baseClass}__page-description`}>
-        Set your organization information and configure SAML and SMTP.
+        Set your organization information and configure SSO and SMTP
       </p>
       <div className={`${baseClass}__settings-form`}>
         <nav>
@@ -216,7 +206,7 @@ const AppSettingsPage = ({
                 className={`${baseClass}__nav-link`}
                 to={PATHS.ADMIN_SETTINGS_SSO}
               >
-                SAML single sign on options
+                Single sign-on options
               </Link>
             </li>
             <li>
