@@ -30,19 +30,21 @@ Another example to consider is industry jargon that may now be inappropriate. Wh
 
 ## Writing at Fleet
 
-Writing at Fleet shares the same principles as [Communicating at Fleet.](https://fleetdm.com/handbook/brand#communicating-as-fleet)  Every piece of content we write should be consistent with our company and brand values.
-
-Two such values are moving quickly and reducing time to value for our contributors and users (in this case, our readers). To help achieve these goals, writers need to own editing themselves and self-check their work. In this spirit, we encourage our writers and editors (yes, we still have editors, more on them later) to embrace the following design thinking principles:
+Writing at Fleet shares the same principles as [Communicating at Fleet.](https://fleetdm.com/handbook/brand#communicating-as-fleet) Every piece of content we write should be consistent with our company and brand values. To help succeed, we encourage our writers to apply a design thinking approach to their writing by following these principles:
 
 - **Empathize** - Who is the reader? Why will they read it? What do they hope to get from it?
 - **Define** - What are you writing about? What action do you want from the reader?
 - **Ideate and collaborate** - [Wireframe](https://fleetdm.com/handbook/company#why-this-way) an outline of what you plan to write. Interview team members or friends of Fleet to help you.
 - **Prototype** - Write a draft and see how it goes. Draft quickly, iterate and don't be scared to throw it out if it's not working. 
-- **Test** - Revise, edit, proofread, repeat. Revise, edit, proofread, repeat. Revise, edit, proofread, repeat. Ok, I think you get the idea 😵‍💫
+- **Test** - Revise, edit, proofread, repeat. Revise, edit, proofread, repeat. Revise, edit... Ok, you get the idea 😵‍💫
+
+### Editing written content
+
+Jokes above aside, testing is an important part of the design thinking approach to writing. It ties in with the spirit of our company value, Ownership. Part of that value is to move quickly and help unblock our team members and contributors to deliver value. When writing at Fleet, our writers need to take ownership of editing and self-check their work before publishing or submitting pull requests. Having an obsession with details is helpful. So is Grammarly, which all writers and editors (yes, we do have editors, more on them later) have access to. Let's take a look at that now. 
 
 ### Grammarly
 
-To help with the above, all writers and editors have access to Grammarly, which comes with a handy set of tools, including:
+All of our writers and editors have access to Grammarly, which comes with a handy set of tools, including:
 
 - **Style guide**, which helps us write consistently in the style of Fleet.
 - **Brand tones** to keep the tone of our messaging consistent with just the right amount of confidence, optimism, and joy.
@@ -52,9 +54,9 @@ Our favorite Grammarly feature is the tone detector. It's excellent for keeping 
 
 ## For editors
 
-We encourage and equip our writers to succeed by themselves in editing quests, but tpyos are inevitable. Here's where the Fleet editor steps in, and the following are our handy guides to editor bliss at Fleet. 
+While we encourage and equip our writers to succeed by themselves in editing quests, tpyos are inevitable. Here's where the Fleet editor steps in.  
 
-Let's start by looking at some common content types that require an editor pass.
+The following is our handy guide to editor bliss at Fleet, but first, let's start by looking at some common content types that require an editor pass. 
 
 - Recently merged Pull Requests to the handbook and docs.
 - Articles, release posts, and press releases.
@@ -72,7 +74,7 @@ We approach editing retrospectively for pull requests (PRs) to handbook and docs
   - [Docs history](https://github.com/fleetdm/fleet/commits/main/docs)
 3. From the list of recently merged PRs, look at the files changed for each and then:
   - Scan for typos and grammatical errors.
-  - Check that tone aligns with our [Communicating at Fleet.](https://fleetdm.com/handbook/brand#communicating-as-fleet) guidelines and that Grammarly's tone detector is on-brand.
+  - Check that tone aligns with our [Communicating at Fleet](https://fleetdm.com/handbook/brand#communicating-as-fleet) guidelines and that Grammarly's tone detector is on-brand.
   - Check that Markdown is formatted correctly.
   - **Remember**, Do not make edits to this page. It's already merged.
 4. Instead, navigate to the page in question on the website and submit a new PR to make edits - making sure to request a review from the maintainer of that page.
@@ -92,7 +94,7 @@ For making edits to published articles:
 1. Log in to Medium via fleetdm.com/blog.
 2. Find the article to edit and select "Edit story" from the hotdog menu (•••).
 3. Scan for typos and grammatical errors.
-4. Check that tone aligns with our [Communicating at Fleet.](https://fleetdm.com/handbook/brand#communicating-as-fleet) guidelines and that Grammarly's tone detector is on-brand.
+4. Check that tone aligns with our [Communicating at Fleet](https://fleetdm.com/handbook/brand#communicating-as-fleet) guidelines and that Grammarly's tone detector is on-brand.
 5. **Remember**, this article is already published, so if you're unsure about any edits, it doesn't hurt to check in with the original author.
 6. Hit "Save and publish," and you're all done.
 
