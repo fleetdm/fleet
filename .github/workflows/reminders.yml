@@ -1,0 +1,31 @@
+
+name: Reminders
+
+# Controls when the workflow will run
+on:
+  schedule:
+    - cron: "0 17 * * *"
+  pull_request: # TODO remove
+  
+  workflow_dispatch:
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  # This workflow contains a single job called "build"
+  reminders:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v6
+        with:
+          script: |
+            // Get a list of issues
+            // See: https://octokit.github.io/rest.js/#pagination
+            console.log(context);
+            const creator = context.payload.sender.login
+            const opts = github.rest.issues.listForRepo.endpoint.merge({
+              ...context.issue,
+              creator,
+              state: 'all'
+            })
+            const issues = await github.paginate(opts)
+            console.log(issues);
