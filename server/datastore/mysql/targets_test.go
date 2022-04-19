@@ -257,7 +257,7 @@ func testTargetsHostStatus(t *testing.T, ds *Datastore) {
 			// Save interval values
 			h.DistributedInterval = tt.distributedInterval
 			h.ConfigTLSRefresh = tt.configTLSRefresh
-			require.NoError(t, ds.SaveHost(context.Background(), h))
+			require.NoError(t, ds.UpdateHost(context.Background(), h))
 
 			// Mark seen
 			require.NoError(t, ds.MarkHostsSeen(context.Background(), []uint{h.ID}, tt.seenTime))

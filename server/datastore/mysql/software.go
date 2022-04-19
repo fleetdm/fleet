@@ -85,15 +85,6 @@ func (ds *Datastore) UpdateHostSoftware(ctx context.Context, hostID uint, softwa
 	})
 }
 
-func saveHostSoftwareDB(ctx context.Context, tx sqlx.ExtContext, host *fleet.Host) error {
-	if err := applyChangesForNewSoftwareDB(ctx, tx, host.ID, host.Software); err != nil {
-		return err
-	}
-
-	host.HostSoftware.Modified = false
-	return nil
-}
-
 func nothingChanged(current []fleet.Software, incoming []fleet.Software) bool {
 	if len(current) != len(incoming) {
 		return false
@@ -519,7 +510,6 @@ func loadCVEsBySoftware(
 }
 
 func (ds *Datastore) LoadHostSoftware(ctx context.Context, host *fleet.Host) error {
-	host.HostSoftware = fleet.HostSoftware{Modified: false}
 	software, err := listSoftwareDB(ctx, ds.reader, &host.ID, fleet.SoftwareListOptions{})
 	if err != nil {
 		return err
