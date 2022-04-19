@@ -31,5 +31,5 @@ jobs:
                   }
                 }
               }
-            }`)
+            }`.repository.pullRequests.nodes)
             console.log(pulls);
