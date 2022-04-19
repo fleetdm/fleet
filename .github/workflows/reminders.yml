@@ -22,7 +22,7 @@ jobs:
             // See: https://octokit.github.io/rest.js/#pagination
             const owner = context.payload.organization.login;
             const repo = context.payload.repository.name;
-            const pulls = await github.paginate(github.rest.pulls.listForRepo, {
+            const pulls = await github.paginate(github.rest.pulls.list, {
               state: 'open',
               owner,
               repo,
