@@ -20,18 +20,11 @@ jobs:
           script: |
             // Get a list of issues
             // See: https://octokit.github.io/rest.js/#pagination
-            const owner, repo = context.payload.organization.login, context.payload.repository.name;
-            console.log(context);
-            const creator = context.payload.sender.login
-            const opts = github.rest.issues.listForRepo.endpoint.merge({
-              ...context.issue,
-              creator,
-              state: 'all'
-            })
+            const owner = context.payload.organization.login;
+            const repo = context.payload.repository.name;
             const issues = await github.paginate(octokit.rest.issues.listForRepo, {
               state: 'open',
               owner,
               repo,
             })
-            const issues = await github.paginate(opts)
             console.log(issues.length, issues);
