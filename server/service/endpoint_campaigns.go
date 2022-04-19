@@ -26,7 +26,10 @@ func makeStreamDistributedQueryCampaignResultsHandler(svc fleet.Service, logger 
 	opt.RawWebsocket = true
 
 	return func(path string) http.Handler {
-		// expand the path's versions (with regex) to all literal paths (no regex)
+		// expand the path's versions (with regex) to all literal paths (no regex),
+		// because sockjs requires the (static, literal) path prefix as argument to
+		// create the handler so that it can trim it from the request's URL to get
+		// the special path values (such as the session id).
 		matches := reVersion.FindStringSubmatch(path)
 		if len(matches) == 0 {
 			panic("unexpected path, could not expand fleetversion: " + path)
@@ -96,8 +99,12 @@ func makeStreamDistributedQueryCampaignResultsHandler(svc fleet.Service, logger 
 			svc.StreamCampaignResults(ctx, conn, info.CampaignID)
 		}
 
+		// multiplex the requests to each literal path that this endpoint support,
+		// with the corresponding sockjs handler to handle that specific path.
 		mux := http.NewServeMux()
 		for _, lp := range literalPaths {
+			// important: sockjs' path must not have the trailing path, but the mux
+			// needs it in order to match it as a path prefix (subtree).
 			sockPath := strings.TrimSuffix(lp, "/")
 			mux.Handle(lp, sockjs.NewHandler(sockPath, opt, sockHandler))
 		}
