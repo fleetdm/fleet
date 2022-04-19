@@ -192,7 +192,9 @@ graph TD;
 
 The most important thing when community members contribute to Fleet is to show them we value their time and effort. We need to fget eyes on community pull requests quickly (within 1 business day) and get them pushed merged as soon as we can.
 
-## Process
+
+
+### DevRel process for managing community contributions
 
 The Community Engagememt DRI is responsible for keeping an eye out for new community contributions and either getting them merged in if possible and get the right eyes on them if they need to be reviewed. 
 
@@ -202,7 +204,7 @@ Each business day, the Community Engagement DRI will check open pull requests to
 2. Approve and merge any community PRs that are ready to go.
 3. Make sure there aren't any existing community PRs waiting for followup from Fleet. 
 
-### Identify Community Contributions
+#### Identify community contributions
 
 When a new pull request is submitted by a community contributor (someone not a member of the Fleet organization):
 
@@ -219,9 +221,26 @@ When a new pull request is submitted by a community contributor (someone not a m
         - Tag the DRI and the contributor in a comment on the PR letting everyone know why additional review is needed. Make sure to say thanks!
         - Find any open issues that are related and make a note in the comments.
 
-#### Reviewing PRs from the community
+#### Communicate with contributors
 
-If you're assigned a comminity pull request for review, it is important to keep things moving for the contributor. The goal is to not go more than one business day without following up with the contributor.
+Community contributions are awesome, and it's important that the contributor knows how much they are appreciated. The best way to do that is to keep in touch while we're working to get their PR approved.
+
+While each team member is responsible for monitoring their active issues and pull requests, the Community Engagement DRI will check in on pull requests with the `:community ` label daily to make sure everything is moving along. If there's a comment or question from the contributor that hasn't been addressed, reach out on Slack to try to get more information and update the contributor. 
+
+
+#### Merge Community PRs
+
+When merging a pull request from a community contributor:
+
+- Ensure that checklist for submitter is complete.
+- Verify that all necessary reviews have been approved.
+- Merge the PR.
+- Thank and congratulate the contributor.
+- Share with the team in the #help-promote channel of Fleet Slack to be publicized on social media. Those who contribute to Fleet and are recognized for their contributions often become great champions for the project.
+
+### Reviewing PRs from the community
+
+If you're assigned a community pull request for review, it is important to keep things moving for the contributor. The goal is to not go more than one business day without following up with the contributor.
 
 A PR should be merged if:
     - It's a change that is needed and useful. 
@@ -236,27 +255,9 @@ For PRs that aren't ready to merge:
     - Offer code review and coaching to help get the PR ready to go.**
     - Keep an eye out for any updates or responses.
 
-
 If everything is good to go, approve the review.
 
 ** Sometimes (typically for contributions from users of Fleet Premium), a Fleet team member may be tasked with adding teests and making any needed changes. 
-
-## Communicate with contributors
-
-Community contributions are awesome, and it's important that the contributor knows how much they are appreciated. The best way to do that is to keep in touch while we're working to get their PR approved.
-
-While each team member is responsible for monitoring their active issues and pull requests, the Community Engagement DRI will check in on pull requests with the `:community ` label daily to make sure everything is moving along. If there's a comment or question from the contributor that hasn't been addressed, reach out on Slack to try to get more information and update the contributor. 
-
-
-## Merge Community PRs
-
-When merging a pull request from a community contributor:
-
-- Ensure that checklist for submitter is complete.
-- Verify that all necessary reviews have been approved.
-- Merge the PR.
-- Thank and congratulate the contributor.
-- Share with the team in the #help-promote channel of Fleet Slack to be publicized on social media. Those who contribute to Fleet and are recognized for their contributions often become great champions for the project.
 
 ## Fleet swag
 
