@@ -91,7 +91,7 @@ For draft articles, please refer to [Publishing articles on fleetdm.com.](https:
 
 For making edits to published articles:
 
-1. Log in to Medium via fleetdm.com/blog.
+1. Log in to Medium via [fleetdm.com/blog](https://fleetdm.com/blog).
 2. Find the article to edit and select "Edit story" from the hotdog menu (•••).
 3. Scan for typos and grammatical errors.
 4. Check that tone aligns with our [Communicating at Fleet](https://fleetdm.com/handbook/brand#communicating-as-fleet) guidelines and that Grammarly's tone detector is on-brand.
