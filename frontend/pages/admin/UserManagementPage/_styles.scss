@@ -74,10 +74,6 @@
           display: none;
           width: 0;
         }
-        .email__header {
-          display: none;
-          width: 0;
-        }
         .actions__header {
           width: auto;
         }
@@ -105,11 +101,6 @@
           .teams__header {
             border-right: 1px solid $ui-fleet-blue-15;
           }
-          .email__header {
-            display: table-cell;
-            width: $col-lg;
-            border-right: none;
-          }
         }
       }
       tbody {
@@ -131,10 +122,6 @@
           display: none;
           max-width: $col-md;
         }
-        .email__cell {
-          display: none;
-          max-width: $col-md;
-        }
         .actions__cell {
           width: auto;
         }
@@ -145,11 +132,6 @@
         }
         @media (min-width: $break-1400) {
           .status__cell {
-            display: table-cell;
-          }
-        }
-        @media (min-width: $break-1600) {
-          .email__cell {
             display: table-cell;
           }
         }

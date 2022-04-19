@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -36,7 +37,9 @@ func getTeamScheduleEndpoint(ctx context.Context, request interface{}, svc fleet
 }
 
 func (svc Service) GetTeamScheduledQueries(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Pack{TeamIDs: []uint{teamID}}, fleet.ActionRead); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.Pack{
+		Type: ptr.String(fmt.Sprintf("team-%d", teamID)),
+	}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 
@@ -92,14 +95,15 @@ func teamScheduleQueryEndpoint(ctx context.Context, request interface{}, svc fle
 	if err != nil {
 		return teamScheduleQueryResponse{Err: err}, nil
 	}
-	_ = resp
 	return teamScheduleQueryResponse{
 		Scheduled: resp,
 	}, nil
 }
 
 func (svc Service) TeamScheduleQuery(ctx context.Context, teamID uint, q *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Pack{TeamIDs: []uint{teamID}}, fleet.ActionWrite); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.Pack{
+		Type: ptr.String(fmt.Sprintf("team-%d", teamID)),
+	}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
 
@@ -140,7 +144,9 @@ func modifyTeamScheduleEndpoint(ctx context.Context, request interface{}, svc fl
 }
 
 func (svc Service) ModifyTeamScheduledQueries(ctx context.Context, teamID uint, scheduledQueryID uint, query fleet.ScheduledQueryPayload) (*fleet.ScheduledQuery, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Pack{TeamIDs: []uint{teamID}}, fleet.ActionWrite); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.Pack{
+		Type: ptr.String(fmt.Sprintf("team-%d", teamID)),
+	}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
 
@@ -180,7 +186,9 @@ func deleteTeamScheduleEndpoint(ctx context.Context, request interface{}, svc fl
 }
 
 func (svc Service) DeleteTeamScheduledQueries(ctx context.Context, teamID uint, scheduledQueryID uint) error {
-	if err := svc.authz.Authorize(ctx, &fleet.Pack{TeamIDs: []uint{teamID}}, fleet.ActionWrite); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.Pack{
+		Type: ptr.String(fmt.Sprintf("team-%d", teamID)),
+	}, fleet.ActionWrite); err != nil {
 		return err
 	}
 	return svc.ds.DeleteScheduledQuery(ctx, scheduledQueryID)

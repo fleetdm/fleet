@@ -139,6 +139,7 @@ if [ -n "$GENERATE_PKGS" ]; then
     --insecure \
     --debug \
     --update-roots="$root_keys" \
+    --update-interval=10s \
     --update-url=http://$PKG_HOSTNAME:8081
 
   echo "Generating deb..."
@@ -149,6 +150,7 @@ if [ -n "$GENERATE_PKGS" ]; then
     --insecure \
     --debug \
     --update-roots="$root_keys" \
+    --update-interval=10s \
     --update-url=http://$DEB_HOSTNAME:8081
 
   echo "Generating rpm..."
@@ -159,6 +161,7 @@ if [ -n "$GENERATE_PKGS" ]; then
     --insecure \
     --debug \
     --update-roots="$root_keys" \
+    --update-interval=10s \
     --update-url=http://$RPM_HOSTNAME:8081
 
   echo "Generating msi..."
@@ -170,6 +173,7 @@ if [ -n "$GENERATE_PKGS" ]; then
     --insecure \
     --debug \
     --update-roots="$root_keys" \
+    --update-interval=10s \
     --update-url=http://$MSI_HOSTNAME:8081
 
   echo "Packages generated"

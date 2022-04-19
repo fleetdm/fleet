@@ -3,10 +3,13 @@ package main
 import (
 	"context"
 	"os"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities"
 	"github.com/fleetdm/fleet/v4/server/webhooks"
 	"github.com/fleetdm/fleet/v4/server/worker"
@@ -168,6 +171,7 @@ func cronVulnerabilities(
 		if config.Vulnerabilities.CurrentInstanceChecks == "auto" {
 			if locked, err := ds.Lock(ctx, lockKeyVulnerabilities, identifier, 1*time.Hour); err != nil {
 				level.Error(logger).Log("msg", "Error acquiring lock", "err", err)
+				sentry.CaptureException(err)
 				continue
 			} else if !locked {
 				level.Debug(logger).Log("msg", "Not the leader. Skipping...")
@@ -176,13 +180,52 @@ func cronVulnerabilities(
 		}
 
 		if !vulnDisabled {
-			recentVulns := checkVulnerabilities(ctx, ds, logger, vulnPath, config, appConfig.WebhookSettings.VulnerabilitiesWebhook)
-			if len(recentVulns) > 0 {
-				if err := webhooks.TriggerVulnerabilitiesWebhook(ctx, ds, kitlog.With(logger, "webhook", "vulnerabilities"),
-					recentVulns, appConfig, time.Now()); err != nil {
+			// refresh app config to check if webhook or any jira integration is
+			// enabled, as this can be changed dynamically.
+			if freshAppConfig, err := ds.AppConfig(ctx); err != nil {
+				level.Error(logger).Log("config", "couldn't refresh app config", "err", err)
+				sentry.CaptureException(err)
+				// continue with stale app config
+			} else {
+				appConfig = freshAppConfig
+			}
 
-					level.Error(logger).Log("err", "triggering vulnerabilities webhook", "details", err)
-					sentry.CaptureException(err)
+			var vulnAutomationEnabled bool
+
+			// only one of the webhook or a jira integration can be enabled at a
+			// time, enforced when updating the appconfig.
+			if appConfig.WebhookSettings.VulnerabilitiesWebhook.Enable {
+				vulnAutomationEnabled = true
+			} else {
+				for _, intg := range appConfig.Integrations.Jira {
+					if intg.EnableSoftwareVulnerabilities {
+						vulnAutomationEnabled = true
+						break
+					}
+				}
+			}
+
+			recentVulns := checkVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled)
+			if vulnAutomationEnabled && len(recentVulns) > 0 {
+				if appConfig.WebhookSettings.VulnerabilitiesWebhook.Enable {
+					// send recent vulnerabilities via webhook
+					if err := webhooks.TriggerVulnerabilitiesWebhook(ctx, ds, kitlog.With(logger, "webhook", "vulnerabilities"),
+						recentVulns, appConfig, time.Now()); err != nil {
+
+						level.Error(logger).Log("err", "triggering vulnerabilities webhook", "details", err)
+						sentry.CaptureException(err)
+					}
+				} else {
+					// queue job to create jira issues
+					if err := worker.QueueJiraJobs(
+						ctx,
+						ds,
+						kitlog.With(logger, "jira", "vulnerabilities"),
+						recentVulns,
+					); err != nil {
+						level.Error(logger).Log("err", "queueing vulnerabilities to jira", "details", err)
+						sentry.CaptureException(err)
+					}
 				}
 			}
 		}
@@ -207,7 +250,8 @@ func cronVulnerabilities(
 }
 
 func checkVulnerabilities(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
-	vulnPath string, config config.FleetConfig, vulnWebhookCfg fleet.VulnerabilitiesWebhookSettings) map[string][]string {
+	vulnPath string, config config.FleetConfig, collectRecentVulns bool,
+) map[string][]string {
 	err := vulnerabilities.TranslateSoftwareToCPE(ctx, ds, vulnPath, logger, config)
 	if err != nil {
 		level.Error(logger).Log("msg", "analyzing vulnerable software: Software->CPE", "err", err)
@@ -215,7 +259,7 @@ func checkVulnerabilities(ctx context.Context, ds fleet.Datastore, logger kitlog
 		return nil
 	}
 
-	recentVulns, err := vulnerabilities.TranslateCPEToCVE(ctx, ds, vulnPath, logger, config, vulnWebhookCfg.Enable)
+	recentVulns, err := vulnerabilities.TranslateCPEToCVE(ctx, ds, vulnPath, logger, config, collectRecentVulns)
 	if err != nil {
 		level.Error(logger).Log("msg", "analyzing vulnerable software: CPE->CVE", "err", err)
 		sentry.CaptureException(err)
@@ -334,26 +378,62 @@ func maybeTriggerFailingPoliciesWebhook(
 	}
 }
 
-func cronWorker(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, identifier string) {
+func cronWorker(
+	ctx context.Context,
+	ds fleet.Datastore,
+	logger kitlog.Logger,
+	identifier string,
+) {
+	const (
+		lockDuration        = 10 * time.Minute
+		lockAttemptInterval = 10 * time.Minute
+	)
+
 	logger = kitlog.With(logger, "cron", lockKeyWorker)
 
+	// create the worker and register the Jira job even if no jira integration
+	// is enabled, as that config can change live (and if it's not enabled,
+	// there won't be any records to process so it will mostly just sleep).
 	w := worker.NewWorker(ds, logger)
 
-	jira := worker.NewJira(ds, logger)
+	// leave the FleetURL and JiraClient fields empty for now, will be filled
+	// when the lock is acquired with the up-to-date config.
+	jira := &worker.Jira{
+		Datastore: ds,
+		Log:       logger,
+	}
 	w.Register(jira)
+
+	// create a JiraClient wrapper to introduce forced failures if configured
+	// to do so via the environment variable.
+	var failerClient *worker.TestJiraFailer
+	if forcedFailures := os.Getenv("FLEET_JIRA_CLIENT_FORCED_FAILURES"); forcedFailures != "" {
+		// format is "<modulo number>;<cve1>,<cve2>,<cve3>,..."
+		parts := strings.Split(forcedFailures, ";")
+		if len(parts) == 2 {
+			mod, _ := strconv.Atoi(parts[0])
+			cves := strings.Split(parts[1], ",")
+			if mod > 0 || len(cves) > 0 {
+				failerClient = &worker.TestJiraFailer{
+					FailCallCountModulo: mod,
+					AlwaysFailCVEs:      cves,
+				}
+			}
+		}
+	}
 
 	ticker := time.NewTicker(10 * time.Second)
 	for {
 		select {
 		case <-ticker.C:
 			level.Debug(logger).Log("waiting", "done")
-			ticker.Reset(10 * time.Minute)
+			ticker.Reset(lockAttemptInterval)
 		case <-ctx.Done():
 			level.Debug(logger).Log("exit", "done with cron.")
 			return
 		}
 
-		if locked, err := ds.Lock(ctx, lockKeyWorker, identifier, 10*time.Minute); err != nil {
+		if locked, err := ds.Lock(ctx, lockKeyWorker, identifier, lockDuration); err != nil {
 			level.Error(logger).Log("msg", "Error acquiring lock", "err", err)
 			continue
 		} else if !locked {
@@ -361,9 +441,57 @@ func cronWorker(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, i
 			continue
 		}
 
-		err := w.ProcessJobs(ctx)
+		// Read app config to be able to use the latest configuration for the Jira
+		// integration.
+		appConfig, err := ds.AppConfig(ctx)
 		if err != nil {
-			level.Error(logger).Log("msg", "Error processing jobs", "err", err)
+			level.Error(logger).Log("config", "couldn't read app config", "err", err)
+			sentry.CaptureException(err)
+			continue
 		}
+
+		// get the enabled jira config, if any
+		var jiraSettings *fleet.JiraIntegration
+		for _, intg := range appConfig.Integrations.Jira {
+			if intg.EnableSoftwareVulnerabilities {
+				jiraSettings = intg
+				break
+			}
+		}
+		if jiraSettings == nil {
+			// currently, Jira is the only job possible, so skip processing jobs if
+			// it is not enabled.
+			level.Debug(logger).Log("msg", "no Jira integration enabled")
+			continue
+		}
+
+		// create the client to make API calls to Jira
+		client, err := externalsvc.NewJiraClient(&externalsvc.JiraOptions{
+			BaseURL:           jiraSettings.URL,
+			BasicAuthUsername: jiraSettings.Username,
+			BasicAuthPassword: jiraSettings.APIToken,
+			ProjectKey:        jiraSettings.ProjectKey,
+		})
+		if err != nil {
+			level.Error(logger).Log("msg", "Error creating Jira client", "err", err)
+			sentry.CaptureException(err)
+			continue
+		}
+
+		// safe to update the Jira worker as it is not used concurrently
+		jira.FleetURL = appConfig.ServerSettings.ServerURL
+		if failerClient != nil && strings.Contains(jira.FleetURL, "fleetdm") {
+			failerClient.JiraClient = client
+			jira.JiraClient = failerClient
+		} else {
+			jira.JiraClient = client
+		}
+
+		workCtx, cancel := context.WithTimeout(ctx, lockDuration)
+		if err := w.ProcessJobs(workCtx); err != nil {
+			level.Error(logger).Log("msg", "Error processing jobs", "err", err)
+			sentry.CaptureException(err)
+		}
+		cancel() // don't use defer inside loop
 	}
 }

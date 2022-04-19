@@ -261,6 +261,21 @@ During their first week at Fleet, new team members are asked to schedule a contr
 - talk about Google calendar.
 - give you a quick tour of the Fleet Google drive folder.
 
+#### Sightseeing Tour
+
+During their onboarding at Fleet, new team members are asked to schedule a sightseeing tour call with People operations. During this call, the new team member will participate in an interactive tour that includes:
+
+- GitHub issues: the living bloodstream of the company.
+- Kanban boards: the bulletin board of quests you can get, and how you update status and let folks know things are done.
+- Google Calendar: the future.
+- Gmail: like any mailbox; full of junk mail, plus some important things, so it is important to check carefully.
+- Salesforce: the Rolodex.
+- Google Docs: the archives.
+- Slack:
+  - The "office" (#g-, #general).
+  - The walkie talkies (DMs).
+  - The watering hole (#oooh-, #random, #news, #help-).
+
 ### Onboarding a new advisor.
 
 Advisor agreements are sent through [DocuSign](https://www.docusign.com/), using the "Advisor Agreement"
@@ -309,6 +324,12 @@ At the end of the quarter, and at key points throughout the quarter (every 3 wee
 - Review topdown and departmental OKRs as they are turned in.
 - OKRs they are finalized 1 week from when topdown OKRs were initially reviewed.
 - Finalized OKRs are shared company-wide and at "all hands" and, at least to some degree, become public.
+
+## Workiversaries
+
+We're happy you've ventured a trip around the sun with Fleet. Let's celebrate!
+
+- Each Friday, if there are any upcoming workiversaries in the next 7 days, People Operations posts about them in #g-people and tags @mikermcneil to let them know.
 
 ## Slack channels
 

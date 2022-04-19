@@ -148,7 +148,7 @@ The following [Slack channels are maintained](https://fleetdm.com/handbook/compa
 
 | Slack channel                       | [DRI](https://fleetdm.com/handbook/company#group-slack-channels)    |
 |:------------------------------------|:--------------------------------------------------------------------|
-| `#g-core-engineering`               | Zach Wasserman
+| `#help-engineering`                 | Zach Wasserman
 | `#help-oncall`                      | Zach Wasserman
 | `#help-golang`                      | Zach Wasserman
 | `#help-frontend`                    | Luke Heath

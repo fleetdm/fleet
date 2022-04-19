@@ -6,6 +6,7 @@ import {
   IWebhookSoftwareVulnerabilities,
 } from "interfaces/webhook";
 import PropTypes from "prop-types";
+import { IIntegrations } from "./integration";
 
 export default PropTypes.shape({
   org_name: PropTypes.string,
@@ -168,6 +169,7 @@ export interface IConfig {
     cve_feed_prefix_url: string;
     current_instance_checks: string;
     disable_data_sync: boolean;
+    recent_vulnerability_max_age: number;
   };
   // Note: `vulnerability_settings` is deprecated and should not be used
   // vulnerability_settings: {
@@ -178,6 +180,7 @@ export interface IConfig {
     failing_policies_webhook: IWebhookFailingPolicies;
     vulnerabilities_webhook: IWebhookSoftwareVulnerabilities;
   };
+  integrations: IIntegrations;
   logging: {
     debug: boolean;
     json: boolean;

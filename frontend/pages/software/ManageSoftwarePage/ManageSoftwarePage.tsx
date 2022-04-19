@@ -6,6 +6,7 @@ import { useDebouncedCallback } from "use-debounce";
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 import { IConfig } from "interfaces/config";
+import { IJiraIntegration } from "interfaces/integration";
 import { IWebhookSoftwareVulnerabilities } from "interfaces/webhook"; // @ts-ignore
 import configAPI from "services/entities/config";
 import softwareAPI, {
@@ -42,6 +43,15 @@ interface IManageSoftwarePageProps {
     search: string;
   };
 }
+
+interface ISoftwareAutomations {
+  webhook_settings: {
+    vulnerabilities_webhook: IWebhookSoftwareVulnerabilities;
+  };
+  integrations: {
+    jira: IJiraIntegration[];
+  };
+}
 interface IHeaderButtonsState extends ITeamsDropdownState {
   isLoading: boolean;
 }
@@ -58,17 +68,21 @@ const ManageSoftwarePage = ({
   const {
     availableTeams,
     currentTeam,
-    setConfig,
     isGlobalAdmin,
     isGlobalMaintainer,
+    isOnGlobalTeam,
   } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
   const [isSoftwareEnabled, setIsSoftwareEnabled] = useState<boolean>();
   const [
-    softwareVulnerabilitiesWebhook,
-    setSoftwareVulnerabilitiesWebhook,
-  ] = useState<IWebhookSoftwareVulnerabilities>();
+    isVulnerabilityAutomationsEnabled,
+    setIsVulnerabilityAutomationsEnabled,
+  ] = useState<boolean>();
+  const [
+    recentVulnerabilityMaxAge,
+    setRecentVulnerabilityMaxAge,
+  ] = useState<number>();
   const [filterVuln, setFilterVuln] = useState(
     location?.query?.vulnerable || false
   );
@@ -91,6 +105,24 @@ const ManageSoftwarePage = ({
   const { data: config } = useQuery(["config"], configAPI.loadAll, {
     onSuccess: (data) => {
       setIsSoftwareEnabled(data?.host_settings?.enable_software_inventory);
+      let jiraIntegrationEnabled = false;
+      if (data.integrations.jira) {
+        jiraIntegrationEnabled = data?.integrations.jira.some(
+          (integration: any) => {
+            return integration.enable_software_vulnerabilities;
+          }
+        );
+      }
+      setIsVulnerabilityAutomationsEnabled(
+        data?.webhook_settings?.vulnerabilities_webhook
+          .enable_vulnerabilities_webhook || jiraIntegrationEnabled
+      );
+      // Convert from nanosecond to nearest day
+      setRecentVulnerabilityMaxAge(
+        Math.round(
+          data?.vulnerabilities?.recent_vulnerability_max_age / 86400000000000
+        )
+      );
     },
   });
 
@@ -130,6 +162,9 @@ const ManageSoftwarePage = ({
       return softwareAPI.load(params);
     },
     {
+      enabled:
+        isOnGlobalTeam ||
+        !!availableTeams?.find((t) => t.id === currentTeam?.id),
       keepPreviousData: true,
       staleTime: 30000, // stale time can be adjusted if fresher data is desired based on software inventory interval
     }
@@ -158,6 +193,9 @@ const ManageSoftwarePage = ({
       });
     },
     {
+      enabled:
+        isOnGlobalTeam ||
+        !!availableTeams?.find((t) => t.id === currentTeam?.id),
       keepPreviousData: true,
       staleTime: 30000, // stale time can be adjusted if fresher data is desired based on software inventory interval
       refetchOnWindowFocus: false,
@@ -168,18 +206,18 @@ const ManageSoftwarePage = ({
 
   const canAddOrRemoveSoftwareWebhook = isGlobalAdmin || isGlobalMaintainer;
 
-  const { isLoading: isLoadingConfig, refetch: refetchConfig } = useQuery<
-    IConfig,
-    Error
-  >(["config"], () => configAPI.loadAll(), {
-    enabled: canAddOrRemoveSoftwareWebhook,
-    onSuccess: (data) => {
-      setSoftwareVulnerabilitiesWebhook(
-        data.webhook_settings.vulnerabilities_webhook
-      );
-      setConfig(data);
-    },
-  });
+  const {
+    data: softwareVulnerabilitiesWebhook,
+    isLoading: isLoadingSoftwareVulnerabilitiesWebhook,
+    refetch: refetchSoftwareVulnerabilitiesWebhook,
+  } = useQuery<IConfig, Error, IWebhookSoftwareVulnerabilities>(
+    ["config"],
+    () => configAPI.loadAll(),
+    {
+      enabled: canAddOrRemoveSoftwareWebhook,
+      select: (data: IConfig) => data.webhook_settings.vulnerabilities_webhook,
+    }
+  );
 
   const onQueryChange = useDebouncedCallback(
     async ({
@@ -212,19 +250,11 @@ const ManageSoftwarePage = ({
     toggleManageAutomationsModal();
   };
 
-  const onCreateWebhookSubmit = async ({
-    destination_url,
-    enable_vulnerabilities_webhook,
-  }: IWebhookSoftwareVulnerabilities) => {
+  const onCreateWebhookSubmit = async (
+    configSoftwareAutomations: ISoftwareAutomations
+  ) => {
     try {
-      const request = configAPI.update({
-        webhook_settings: {
-          vulnerabilities_webhook: {
-            destination_url,
-            enable_vulnerabilities_webhook,
-          },
-        },
-      });
+      const request = configAPI.update(configSoftwareAutomations);
       await request.then(() => {
         renderFlash(
           "success",
@@ -238,7 +268,7 @@ const ManageSoftwarePage = ({
       );
     } finally {
       toggleManageAutomationsModal();
-      refetchConfig();
+      refetchSoftwareVulnerabilitiesWebhook();
     }
   };
 
@@ -250,7 +280,7 @@ const ManageSoftwarePage = ({
     state: IHeaderButtonsState
   ): JSX.Element | null => {
     if (
-      (state.isGlobalAdmin || state.isGlobalMaintainer) &&
+      state.isGlobalAdmin &&
       (!state.isPremiumTier || state.teamId === 0) &&
       !state.isLoading
     ) {
@@ -297,12 +327,12 @@ const ManageSoftwarePage = ({
         buttons={(state) =>
           renderHeaderButtons({
             ...state,
-            isLoading: isLoadingConfig,
+            isLoading: isLoadingSoftwareVulnerabilitiesWebhook,
           })
         }
       />
     );
-  }, [router, location, isLoadingConfig]);
+  }, [router, location, isLoadingSoftwareVulnerabilitiesWebhook]);
 
   const renderSoftwareCount = useCallback(() => {
     const count = softwareCount;
@@ -469,6 +499,9 @@ const ManageSoftwarePage = ({
             onCreateWebhookSubmit={onCreateWebhookSubmit}
             togglePreviewPayloadModal={togglePreviewPayloadModal}
             showPreviewPayloadModal={showPreviewPayloadModal}
+            softwareVulnerabilityAutomationEnabled={
+              isVulnerabilityAutomationsEnabled
+            }
             softwareVulnerabilityWebhookEnabled={
               softwareVulnerabilitiesWebhook &&
               softwareVulnerabilitiesWebhook.enable_vulnerabilities_webhook
@@ -478,6 +511,7 @@ const ManageSoftwarePage = ({
                 softwareVulnerabilitiesWebhook.destination_url) ||
               ""
             }
+            recentVulnerabilityMaxAge={recentVulnerabilityMaxAge}
           />
         )}
       </div>

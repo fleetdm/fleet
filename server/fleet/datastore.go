@@ -351,7 +351,8 @@ type Datastore interface {
 	// After aggregation, it cleans up unused software (e.g. software installed
 	// on removed hosts, software uninstalled on hosts, etc.)
 	CalculateHostsPerSoftware(ctx context.Context, updatedAt time.Time) error
-	HostsByCPEs(ctx context.Context, cpes []string) ([]*CPEHost, error)
+	HostsByCPEs(ctx context.Context, cpes []string) ([]*HostShort, error)
+	HostsByCVE(ctx context.Context, cve string) ([]*HostShort, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// ActivitiesStore

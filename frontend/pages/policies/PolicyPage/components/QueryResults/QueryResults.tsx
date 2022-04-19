@@ -55,7 +55,7 @@ const QueryResults = ({
   const { hosts: hostsOnline, hosts_count: hostsCount, errors } =
     campaign || {};
 
-  const totalRowsCount = get(campaign, ["query_results", "length"], 0);
+  const totalRowsCount = get(campaign, ["hosts_count", "successful"], 0);
 
   const [pageTitle, setPageTitle] = useState<string>(PAGE_TITLES.RUNNING);
   const [navTabIndex, setNavTabIndex] = useState(0);

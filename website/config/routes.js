@@ -162,6 +162,14 @@ module.exports.routes = {
     }
   },
 
+  'GET /g': {
+    action: 'view-landing',
+    locals: {
+      layout: 'layouts/layout-landing',
+      currentPage: 'landing',
+    }
+  },
+
 
 
   //  ╦  ╔═╗╔═╗╔═╗╔═╗╦ ╦  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗

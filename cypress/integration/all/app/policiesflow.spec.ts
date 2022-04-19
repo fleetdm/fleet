@@ -332,6 +332,8 @@ describe("Policies flow (seeded)", () => {
       cy.visit("/policies/manage");
     });
     it("links to manage host page filtered by policy", () => {
+      // Move internal clock forward 2 hours so that policies report host results
+      cy.clock(Date.now() + 1000 * 60 * 120);
       cy.getAttached(".failing_host_count__cell")
         .first()
         .within(() => {
