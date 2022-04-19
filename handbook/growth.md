@@ -77,18 +77,19 @@ Once a relevant sponsorship opportunity and its prospectus are reviewed:
 
 The following rituals are engaged in by the  directly responsible individual (DRI) and at the frequency specified for the ritual.
 
-| Ritual                       | Description                                         | DRI               |
-|:-----------------------------|:----------------------------------------------------|-------------------|
-| Social engagement ritual     | Participate in 50 social media engagements per week.| Drew Baker        |  
-| Daily Twitter ritual         | Post Fleet content on Twitter every weekday.        | Drew Baker        |
-| Daily LinkedIn ritual        | Post Fleet content to LinkedIn every weekday.       | Drew Baker        |
-| osQuery jobs ritual          | Post to @osqueryjobs two times per week.            | Drew Baker        |
-| Enriching leads ritual       | Follow the lead enrichment process every Friday.    | Drew Baker        |
-| Outside contributions ritual | Check pull requests for outside contributions every Monday. | Drew Baker|
-| Weekly blogpost ritual       | Publish Fleet blog post once per week. Promote blog posts on socials once per week.| Drew Baker|
-| Weekly ins and outs ritual   | Track ins and outs once per week.                   | Tim Kern          |
-| Podcast outreach ritual      | Conduct podcast outreach twice per week.            | Drew Baker        |
-| Monthly conference ritual    | Check for conference openings and for conference sponsorships on the 1st of every month. | Drew Baker|
+
+| Ritual                       | Frequency                | Description                                         | DRI               |
+|:-----------------------------|:-----------------------------|:----------------------------------------------------|-------------------|
+| Social engagement ritual     | Weeklly | Participate in 50 social media engagements per week.| Drew Baker        |  
+| Daily Twitter ritual         | Daily | Post Fleet content on Twitter.     | Drew Baker        |
+| Daily LinkedIn ritual        | Daily | Post Fleet content to LinkedIn.   | Drew Baker        |
+| osQuery jobs ritual          | Weekly | Post to @osqueryjobs two times per week.            | Drew Baker        |
+| Enriching leads ritual       | Weekly | Follow the lead enrichment process every Friday.    | Drew Baker        |
+| Outside contributions ritual | Weekly | Check pull requests for outside contributions every Monday. | Drew Baker|
+| Weekly blogpost ritual       | Weekly | Publish Fleet blog post once per week. Promote blog posts on socials once per week.| Drew Baker|
+| Weekly ins and outs ritual   | Weekly | Track ins and outs.        | Tim Kern          |
+| Podcast outreach ritual      | Weekly | Conduct podcast outreach twice per week.     | Drew Baker        |
+| Monthly conference ritual    | Monthly | Check for conference openings and for conference sponsorships on the 1st of every month. | Drew Baker|
 
 ## Slack channels
 
