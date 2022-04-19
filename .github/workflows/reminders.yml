@@ -42,7 +42,8 @@ jobs:
                   owner,
                   repo,
                   issue_number: pull.number,
-                  body: 'Me too'
+                  body: `[✨ Hey! Listen! ✨](https://www.youtube.com/watch?v=KN1WlLVoHSQ)
+                    This PR has been approved. Please merge it!`,
                 });
               }
             }
