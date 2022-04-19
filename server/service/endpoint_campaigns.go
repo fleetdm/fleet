@@ -3,8 +3,8 @@ package service
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
+	"regexp"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
@@ -18,18 +18,28 @@ import (
 // Stream Distributed Query Campaign Results and Metadata
 ////////////////////////////////////////////////////////////////////////////////
 
+var reVersion = regexp.MustCompile(`\{fleetversion:\(\?:([^\}\)]+)\)\}`)
+
 func makeStreamDistributedQueryCampaignResultsHandler(svc fleet.Service, logger kitlog.Logger) func(string) http.Handler {
 	opt := sockjs.DefaultOptions
 	opt.Websocket = true
 	opt.RawWebsocket = true
+
 	return func(path string) http.Handler {
-		path = strings.TrimSuffix(path, "/")
+		// expand the path's versions (with regex) to all literal paths (no regex)
+		matches := reVersion.FindStringSubmatch(path)
+		if len(matches) == 0 {
+			panic("unexpected path, could not expand fleetversion: " + path)
+		}
 
-		fmt.Println(">>>>>> MOUNTING WEBSOCKET: ", path)
-		// TODO(mna): this doesn't work, of course, because this is what it receives:
-		// >>>>>> MOUNTING WEBSOCKET:  /api/{fleetversion:(?:v1|2022-04|latest)}/fleet/results
+		versions := strings.Split(matches[1], "|")
+		literalPaths := make([]string, len(versions))
+		for i, ver := range versions {
+			lp := reVersion.ReplaceAllStringFunc(path, func(_ string) string { return ver })
+			literalPaths[i] = lp
+		}
 
-		return sockjs.NewHandler(path, opt, func(session sockjs.Session) {
+		sockHandler := func(session sockjs.Session) {
 			conn := &websocket.Conn{Session: session}
 			defer func() {
 				if p := recover(); p != nil {
@@ -84,6 +94,13 @@ func makeStreamDistributedQueryCampaignResultsHandler(svc fleet.Service, logger 
 			}
 
 			svc.StreamCampaignResults(ctx, conn, info.CampaignID)
-		})
+		}
+
+		mux := http.NewServeMux()
+		for _, lp := range literalPaths {
+			sockPath := strings.TrimSuffix(lp, "/")
+			mux.Handle(lp, sockjs.NewHandler(sockPath, opt, sockHandler))
+		}
+		return mux
 	}
 }
