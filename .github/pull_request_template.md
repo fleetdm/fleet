@@ -2,7 +2,7 @@
 
 If some of the following don't apply, delete the relevant line.
 
-- [ ] Changes file added (for user-visible changes)
+- [ ] Changes file added for user-visible changes (in `changes/` and/or `orbit/changes/`).
 - [ ] Documented any API changes (docs/Using-Fleet/REST-API.md)
 - [ ] Documented any permissions changes
 - [ ] Ensured that input data is properly validated, SQL injection is prevented (using placeholders for values in statements)
