@@ -23,7 +23,7 @@ jobs:
             const owner = context.payload.organization.login;
             const repo = context.payload.repository.name;
             const pulls = await github.graphql(`{
-              repository(name: ${repo}, owner: ${owner}) {
+              repository(name: "${repo}", owner: "${owner}") {
                 pullRequests (first: 100, states: OPEN) {
                   nodes {
                     url
