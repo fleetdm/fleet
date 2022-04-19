@@ -30,11 +30,11 @@ Another example to consider is industry jargon that may now be inappropriate. Wh
 
 ## Writing at Fleet
 
-Writing at Fleet shares the same principles as [Communicating at Fleet.](https://fleetdm.com/handbook/brand#communicating-as-fleet) Every piece of content we write should be consistent with our company and brand values. To help succeed, we encourage our writers to apply a design thinking approach to their writing by following these principles:
+Writing at Fleet shares the same principles as [Communicating as Fleet.](https://fleetdm.com/handbook/brand#communicating-as-fleet) Every piece of content we write should be consistent with our company and brand values. To help succeed, we encourage our writers to apply a design thinking approach to their writing by following these principles:
 
 - **Empathize** - Who is the reader? Why will they read it? What do they hope to get from it?
 - **Define** - What are you writing about? What action do you want from the reader?
-- **Ideate and collaborate** - [Wireframe](https://fleetdm.com/handbook/company#why-this-way) an outline of what you plan to write. Interview team members or friends of Fleet to help you.
+- **Ideate and collaborate** - Create an [outline](https://fleetdm.com/handbook/company#why-this-way) of what you plan to write. Interview team members or friends of Fleet to help you.
 - **Prototype** - Write a draft and see how it goes. Draft quickly, iterate and don't be scared to throw it out if it's not working. 
 - **Test** - Revise, edit, proofread, repeat. Revise, edit, proofread, repeat. Revise, edit... Ok, you get the idea 😵‍💫
 
@@ -74,7 +74,7 @@ We approach editing retrospectively for pull requests (PRs) to handbook and docs
   - [Docs history](https://github.com/fleetdm/fleet/commits/main/docs)
 3. From the list of recently merged PRs, look at the files changed for each and then:
   - Scan for typos and grammatical errors.
-  - Check that tone aligns with our [Communicating at Fleet](https://fleetdm.com/handbook/brand#communicating-as-fleet) guidelines and that Grammarly's tone detector is on-brand.
+  - Check that tone aligns with our [Communicating as Fleet](https://fleetdm.com/handbook/brand#communicating-as-fleet) guidelines and that Grammarly's tone detector is on-brand.
   - Check that Markdown is formatted correctly.
   - **Remember**, Do not make edits to this page. It's already merged.
 4. Instead, navigate to the page in question on the website and submit a new PR to make edits - making sure to request a review from the maintainer of that page.
@@ -94,7 +94,7 @@ For making edits to published articles:
 1. Log in to Medium via [fleetdm.com/blog](https://fleetdm.com/blog).
 2. Find the article to edit and select "Edit story" from the hotdog menu (•••).
 3. Scan for typos and grammatical errors.
-4. Check that tone aligns with our [Communicating at Fleet](https://fleetdm.com/handbook/brand#communicating-as-fleet) guidelines and that Grammarly's tone detector is on-brand.
+4. Check that tone aligns with our [Communicating as Fleet](https://fleetdm.com/handbook/brand#communicating-as-fleet) guidelines and that Grammarly's tone detector is on-brand.
 5. **Remember**, this article is already published, so if you're unsure about any edits, it doesn't hurt to check in with the original author.
 6. Hit "Save and publish," and you're all done.
 
