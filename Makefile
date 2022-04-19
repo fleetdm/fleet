@@ -175,6 +175,11 @@ deps-js:
 
 deps-go:
 	go mod download
+	$(eval UNAME_S := $(shell uname -s))
+ifeq ($(UNAME_S),Linux)
+	# Dependency required for Linux Fleet Desktop.
+	sudo apt-get install gcc libgtk-3-dev libayatana-appindicator3-dev
+endif
 
 migration:
 	go run github.com/fleetdm/goose/cmd/goose -dir server/datastore/mysql/migrations/tables create $(name)
