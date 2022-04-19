@@ -169,7 +169,7 @@ We configure our [working hours in Slack](https://slack.com/help/articles/360025
 We have specific channels for various topics, but we also have more general channels for the teams at Fleet.
 
 We use these prefixes to organize the Fleet Slack:
- * ***g-***: for team/group channels*(Note: "g-" is short for "group")*.
+ * ***g-***: for team/group channels *(Note: "g-" is short for "grupo")*.
  * ***oooh-***: used to discuss and share interesting information about a topic.
  * ***help-***: for asking for help on specific topics.
  * ***at*** or ***fleet-at***: for customer channels.
