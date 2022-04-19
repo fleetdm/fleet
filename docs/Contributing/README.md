@@ -1,25 +1,25 @@
 # Contribution
 
 ### [Building Fleet](./Building-Fleet.md) 
-Provides documentation about building the code, development infrastructure, and database migrations
+Here, Fleet holds documentation about building the code, development infrastructure, and database migrations.
 
 ### [Testing](./Testing.md) 
-Includes documentation about Fleet's full test suite and integration tests
+This section includes documentation about Fleet's full test suite and integration tests.
 
 ### [Migrations](./Migrations.md)
-Information about creating and updating database migrations
+Here is information about creating and updating database migrations.
 
 ### [Committing changes](./Committing-Changes.md) 
-Contains information about how to merge changes into the codebase
+This contains information on how to merge changes into the codebase.
 
 ### [Releasing Fleet](./Releasing-Fleet.md) 
-Provides a guide for Fleet's release process
+Explore Fleet’s release process guide.
 
 ### [Seeding data](./Seeding-Data.md) 
-Provides a guide for adding fake data to your development instance
+Look here for a guide on adding fake data to your development instance.
 
 ### [API for contributors](./API-for-contributors.md) 
-Provides documentation for Fleet API routes that are helpful when developing or contributing to Fleet
+Here is helpful documentation for Fleet API routes when developing or contributing to Fleet.
 
 ### [FAQ](./FAQ.md) 
-Includes commonly asked questions and answers about contributing to Fleet from the Fleet community
+This includes commonly asked questions and answers about contributing to Fleet as part of the Fleet community.
