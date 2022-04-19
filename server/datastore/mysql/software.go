@@ -289,13 +289,17 @@ func selectSoftwareSQL(hostID *uint, opts fleet.SoftwareListOptions) (string, []
 		goqu.COALESCE(goqu.I("scp.cpe"), "").As("generated_cpe"),
 	)
 
+	// TODO(mna): if we always want the last_opened_at timestamp, then we need to
+	// always join with that table. Oh but that would only be when a hostID is
+	// provided, I believe (otherwise the GROUP BY clause later would not make
+	// sense).
 	if hostID != nil || opts.TeamID != nil {
 		ds = ds.Join(
 			goqu.I("host_software").As("hs"),
 			goqu.On(
 				goqu.I("hs.software_id").Eq(goqu.I("s.id")),
 			),
-		)
+		).SelectAppend("hs.last_opened_at")
 	}
 
 	if hostID != nil {
