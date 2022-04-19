@@ -183,6 +183,9 @@
       }
       ol, ul { // adding padding to nested lists
         padding-top: 16px;
+        li:last-child { // removing the padding from the last item of nested lists
+          padding-bottom: 0px;
+        }
       }
     }
     ol {
