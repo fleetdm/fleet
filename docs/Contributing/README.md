@@ -1,4 +1,4 @@
-# Contribution
+# Contribute
 
 ### [Building Fleet](./Building-Fleet.md) 
 Provides documentation about building the code, development infrastructure, and database migrations
