@@ -8,11 +8,11 @@ To schedule an ad hoc meeting (a video chat with multiple people or a non-schedu
 ### Missed Zoom Meeting | Etiquette with Customers
 This is a tutorial on how to respond when someone from outside the company misses a call.
 
-#### 48 hours before a meeting
+#### 48 hours before a meeting 
 
 L1: Check the calendar invite to determine if the customer has accepted the invitation.
 
-L2: If the customer has not accepted the invitation, please reach out through appropriate channels to confirm attendance (ex: EAs, email, Slack).
+L2: If the customer has not accepted the invitation, please reach out through appropriate channels to confirm attendance (ex: EAs, email, Slack). 
 
 L3: Test the Zoom Meeting link to ensure that it is working.
 
@@ -39,17 +39,17 @@ L6: Repeat back to the customer the newly agreed-upon date and time, and the con
 
 L7: Congratulations, you’re ready to set up a new call.
 
-### Next steps after a customer conversation
-After a customer conversation, it can sometimes feel like there are 1,001 things to do, but it can be hard to know where to start.  Here are some tips:
+### Next steps after a customer conversation 
+After a customer conversation, it can sometimes feel like there are 1,001 things to do, but it can be hard to know where to start.  Here are some tips: 
 
 
 ## Support process
 
 This section outlines the customer and community support process at Fleet.
 
-- L1: Basic help desk resolution and service delivery -> CS team handles these with occasional support from L2
-- L2: In-depth technical support -> CS team with L2 onc-all technician
-- L3: Expert product and service support -> CS team liases with L2 and L3 on-call technician.
+- L1: Basic help desk resolution and service delivery -> CS team handles these with occasional support from L2 
+- L2: In-depth technical support -> CS team with L2 onc-all technician 
+- L3: Expert product and service support -> CS team liases with L2 and L3 on-call technician
 
 In each case, if possible, the resulting solution should be made clearer in the documentation and/or the FAQs.
 
