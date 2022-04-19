@@ -28,6 +28,86 @@ By Mr Rogering our writing we can emphasize positivity, optimism and encourage o
 
 Another example to consider is industry jargon that may now be inappropriate. While the term *"responsible vulnerability disclosure"* has been used for decades, it supposes that people who use a different process are *irresponsible*. Using *coordinated disclosure* is a more positive way to discuss the issue.
 
+## Writing at Fleet
+
+Writing at Fleet shares the same principles as [Communicating at Fleet.](https://fleetdm.com/handbook/brand#communicating-as-fleet)  Every piece of content we write should be consistent with our company and brand values.
+
+Two such values are moving quickly and reducing time to value for our contributors and users (in this case, our readers). To help achieve these goals, writers need to own editing themselves and self-check their work. In this spirit, we encourage our writers and editors (yes, we still have editors, more on them later) to embrace the following design thinking principles:
+
+- **Empathize** - Who is the reader? Why will they read it? What do they hope to get from it?
+- **Define** - What are you writing about? What action do you want from the reader?
+- **Ideate and collaborate** - [Wireframe](https://fleetdm.com/handbook/company#why-this-way) an outline of what you plan to write. Interview team members or friends of Fleet to help you.
+- **Prototype** - Write a draft and see how it goes. Draft quickly, iterate and don't be scared to throw it out if it's not working. 
+- **Test** - Revise, edit, proofread, repeat. Revise, edit, proofread, repeat. Revise, edit, proofread, repeat. Ok, I think you get the idea 😵‍💫
+
+### Grammarly
+
+To help with the above, all writers and editors have access to Grammarly, which comes with a handy set of tools, including:
+
+- **Style guide**, which helps us write consistently in the style of Fleet.
+- **Brand tones** to keep the tone of our messaging consistent with just the right amount of confidence, optimism, and joy.
+- **Snippets** to turn commonly used phrases, sentences, and paragraphs (such as calls to action, thank you messages, etc.) into consistent, reusable snippets to save time.
+
+Our favorite Grammarly feature is the tone detector. It's excellent for keeping messaging on-brand and helps alleviate the doubt that often comes along for the ride during a writing assignment. Take a look at [their video](https://youtu.be/3Ct5Tgg9Imc) that sums it up better than this.
+
+## For editors
+
+We encourage and equip our writers to succeed by themselves in editing quests, but tpyos are inevitable. Here's where the Fleet editor steps in, and the following are our handy guides to editor bliss at Fleet. 
+
+Let's start by looking at some common content types that require an editor pass.
+
+- Recently merged Pull Requests to the handbook and docs.
+- Articles, release posts, and press releases.
+- Social media posts
+
+### How to edit recently merged Pull Requests to the handbook and docs
+
+We approach editing retrospectively for pull requests (PRs) to handbook and docs pages. Remember our goal above about moving quickly and reducing time to value for our contributors? By editing for typos and grammatical errors after-the-fact, we avoid the editor becoming a bottleneck who blocks PRs from being merged quickly. Here's how to do it:
+
+> **Note:** Contributors are not required to request reviews from editors for handbook and docs changes.
+
+1. Check that the previous day's edits are formatted correctly on the website (more on this in the note below.)
+2. Use GitHub's history feed to see a list of all changes made over time to the handbook and docs. You can access the history feeds from the following links: 
+  - [Handbook history](https://github.com/fleetdm/fleet/commits/main/handbook) 
+  - [Docs history](https://github.com/fleetdm/fleet/commits/main/docs)
+3. From the list of recently merged PRs, look at the files changed for each and then:
+  - Scan for typos and grammatical errors.
+  - Check that tone aligns with our [Communicating at Fleet.](https://fleetdm.com/handbook/brand#communicating-as-fleet) guidelines and that Grammarly's tone detector is on-brand.
+  - Check that Markdown is formatted correctly.
+  - **Remember**, Do not make edits to this page. It's already merged.
+4. Instead, navigate to the page in question on the website and submit a new PR to make edits - making sure to request a review from the maintainer of that page.
+5. Comment on the original PR to keep track of your progress. Comments made will show up on the history feed. E.g., `"Edited, PR incoming"` or `"LGTM, no edits required."`
+6. Watch [this short video](https://www.loom.com/share/95d4525a7aae482b9f9a9470d446ce9c) to see this process in action.
+
+> **Note:** The Fleet website may render Markdown differently from GitHub's rich text preview. It's important to check that PRs merged by the editor are displaying as expected on the site. It can take a few minutes for merged PRs to appear on the live site, and therefore easy to move on and forget. It's good to start the ritual by looking at the site to check that the previous day's edits are displaying as they should.
+
+### How to edit articles, release posts, and press releases
+
+This type of content comes in two flavors: draft articles and published articles. 
+
+For draft articles, please refer to [Publishing articles on fleetdm.com.](https://docs.google.com/document/d/1cmyVgUAqAWKZj1e_Sgt6eY-nNySAYHH3qoEnhQusph0/edit?usp=sharing) 
+
+For making edits to published articles:
+
+1. Log in to Medium via fleetdm.com/blog.
+2. Find the article to edit and select "Edit story" from the hotdog menu (•••).
+3. Scan for typos and grammatical errors.
+4. Check that tone aligns with our [Communicating at Fleet.](https://fleetdm.com/handbook/brand#communicating-as-fleet) guidelines and that Grammarly's tone detector is on-brand.
+5. **Remember**, this article is already published, so if you're unsure about any edits, it doesn't hurt to check in with the original author.
+6. Hit "Save and publish," and you're all done.
+
+### How to edit social media posts
+
+In the world of the Fleet editor, there are two types of social media posts. Those that are scheduled to be published and those that are published already. 
+
+Refer to [Posting on social media as Fleet](https://fleetdm.com/handbook/growth#posting-on-social-media-as-fleet) for details on editing draft social media posts.
+
+Making edits to published social media posts gets a little tricky. Twitter, for example, doesn't allow editing of tweets, so the only way to make an edit is to remove the tweet and post it again.
+
+1. Post the tweet in #g-growth Slack channel and tag the Digital Experience lead.
+2. Access whether the tweet should be removed. There's a tradeoff between us striving for perfection vs. losing the engagements that the tweet may have already generated.
+3. Suggest edits in the Slack thread for the Growth team to include and re-post.
+
 ## Voice and tone guidelines
 
 ### How to use our name
