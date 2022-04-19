@@ -345,7 +345,8 @@ SELECT
   bundle_short_version AS version,
   'Application (macOS)' AS type,
   bundle_identifier AS bundle_identifier,
-  'apps' AS source
+  'apps' AS source,
+  last_opened_time AS last_opened_at
 FROM apps
 UNION
 SELECT
@@ -353,7 +354,8 @@ SELECT
   version AS version,
   'Package (Python)' AS type,
   '' AS bundle_identifier,
-  'python_packages' AS source
+  'python_packages' AS source,
+  0 AS last_opened_at
 FROM python_packages
 UNION
 SELECT
@@ -361,7 +363,8 @@ SELECT
   version AS version,
   'Browser plugin (Chrome)' AS type,
   '' AS bundle_identifier,
-  'chrome_extensions' AS source
+  'chrome_extensions' AS source,
+  0 AS last_opened_at
 FROM cached_users CROSS JOIN chrome_extensions USING (uid)
 UNION
 SELECT
@@ -369,7 +372,8 @@ SELECT
   version AS version,
   'Browser plugin (Firefox)' AS type,
   '' AS bundle_identifier,
-  'firefox_addons' AS source
+  'firefox_addons' AS source,
+  0 AS last_opened_at
 FROM cached_users CROSS JOIN firefox_addons USING (uid)
 UNION
 SELECT
@@ -377,7 +381,8 @@ SELECT
   version AS version,
   'Browser plugin (Safari)' AS type,
   '' AS bundle_identifier,
-  'safari_extensions' AS source
+  'safari_extensions' AS source,
+  0 AS last_opened_at
 FROM cached_users CROSS JOIN safari_extensions USING (uid)
 UNION
 SELECT
@@ -385,7 +390,8 @@ SELECT
   version AS version,
   'Package (Atom)' AS type,
   '' AS bundle_identifier,
-  'atom_packages' AS source
+  'atom_packages' AS source,
+  0 AS last_opened_at
 FROM cached_users CROSS JOIN atom_packages USING (uid)
 UNION
 SELECT
@@ -393,7 +399,8 @@ SELECT
   version AS version,
   'Package (Homebrew)' AS type,
   '' AS bundle_identifier,
-  'homebrew_packages' AS source
+  'homebrew_packages' AS source,
+  0 AS last_opened_at
 FROM homebrew_packages;
 `,
 	Platforms:        []string{"darwin"},
