@@ -109,6 +109,7 @@ Keep headings brief, organized, and in a logical order:
 Try to stay within 3 or 4 heading levels. Complicated documents may use more, but pages with a simpler structure are easier to read.
 
 ### Adding a link to the Fleet docs
+
 You can link documentation pages to each other using relative paths. For example, in `docs/Using-Fleet/Fleet-UI.md`, you can link to `docs/Using-Fleet/Permissions.md` by writing `[permissions](./Permissions.md)`. This will automatically transformed into the appropriate URL for `fleetdm.com/docs`.
 
 However, the `fleetdm.com/docs` compilation process does not account for relative links to directories **outside** of `/docs`.
@@ -215,11 +216,13 @@ When a new pull request is submitted by a community contributor (someone not a m
         - Minor changes to the docs.
         - Small bug fixes.
         - Additions or fixes to the Standard Query Library(SQL) are (as long as the SQL works properly and they are attributed correctly).
-        - Use the community contribution guidelines and use your best judgement. 
+        - Use the Please refer to our [PRs from the community](https://docs.google.com/document/d/13r0vEhs9LOBdxWQWdZ8n5Ff9cyB3hQkTjI5OhcrHjVo/edit?usp=sharing) guide and use your best judgement. 
     - If a review is needed:
-        - Request review from the related DRI.
+        - [Product DRIs](./product.md#product-dris) should approve extensive changes and new features. Ask in the #g-product channel in Fleet's Slack for more information.
         - Tag the DRI and the contributor in a comment on the PR letting everyone know why additional review is needed. Make sure to say thanks!
         - Find any open issues that are related and make a note in the comments.
+
+
 
 #### Communicate with contributors
 
