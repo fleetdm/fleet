@@ -175,10 +175,9 @@ deps-js:
 
 deps-go:
 	go mod download
-	$(eval UNAME_S := $(shell uname -s))
-ifeq ($(UNAME_S),Linux)
+ifeq ($(shell uname -s),Linux)
 	# Dependency required for Linux Fleet Desktop.
-	sudo apt-get install gcc libgtk-3-dev libayatana-appindicator3-dev
+	sudo apt-get install gcc libgtk-3-dev libayatana-appindicator3-dev -y
 endif
 
 migration:
