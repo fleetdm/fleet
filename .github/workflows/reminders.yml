@@ -35,7 +35,7 @@ jobs:
             const pulls = response.repository.pullRequests.nodes;
 
             for (const pull of pulls) {
-              if (id === 5209) {
+              if (pull.id === 5209) {
                 console.log('found match', pull);
                 await octokit.request('POST /repos/{owner}/{repo}/issues/{issue_number}/comments', {
                   owner,
