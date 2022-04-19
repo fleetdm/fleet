@@ -24,14 +24,12 @@ import Statistics from "./cards/Statistics";
 import Advanced from "./cards/Advanced";
 
 interface IAppSettingsPageProps {
-  router: InjectedRouter; // v3
   params: Params;
 }
 
 export const baseClass = "app-settings";
 
 const AppSettingsPage = ({
-  router,
   params: { section: sectionTitle },
 }: IAppSettingsPageProps): JSX.Element => {
   const { renderFlash } = useContext(NotificationContext);
@@ -134,7 +132,6 @@ const AppSettingsPage = ({
         return;
       default:
         setShowInfo(true);
-        return;
     }
   };
 
@@ -174,8 +171,10 @@ const AppSettingsPage = ({
         </>
       );
     }
+
+    return <></>;
   };
-  0;
+
   return (
     <div className={`${baseClass} body-wrap`}>
       <p className={`${baseClass}__page-description`}>

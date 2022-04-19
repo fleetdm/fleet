@@ -9,7 +9,6 @@ import OpenNewTabIcon from "../../../../../../assets/images/open-new-tab-12x12@2
 import {
   IAppConfigFormProps,
   IFormField,
-  IAppConfigFormErrors,
   usageStatsPreview,
 } from "../constants";
 
@@ -29,16 +28,8 @@ const Statistics = ({
 
   const { enableUsageStatistics } = formData;
 
-  const [formErrors, setFormErrors] = useState<IAppConfigFormErrors>({});
-
   const handleInputChange = ({ name, value }: IFormField) => {
     setFormData({ ...formData, [name]: value });
-  };
-
-  const validateForm = () => {
-    const errors: IAppConfigFormErrors = {};
-
-    setFormErrors(errors);
   };
 
   const toggleUsageStatsPreviewModal = () => {
@@ -136,11 +127,7 @@ const Statistics = ({
             </Button>
           </div>
         </div>
-        <Button
-          type="submit"
-          variant="brand"
-          disabled={Object.keys(formErrors).length > 0}
-        >
+        <Button type="submit" variant="brand">
           Save
         </Button>
       </form>

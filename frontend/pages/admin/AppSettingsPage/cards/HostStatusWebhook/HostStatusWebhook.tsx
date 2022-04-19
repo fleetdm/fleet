@@ -1,40 +1,20 @@
 import React, { useState, useEffect } from "react";
 import { syntaxHighlight } from "fleet/helpers";
 
-// @ts-ignore
-import constructErrorString from "utilities/yaml";
-import yaml from "js-yaml";
-
-import { IConfigFormData } from "interfaces/config";
-
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
-// @ts-ignore
-import OrgLogoIcon from "components/icons/OrgLogoIcon";
-// @ts-ignore
-import validateYaml from "components/forms/validators/validate_yaml";
-import validEmail from "components/forms/validators/valid_email";
-import validUrl from "components/forms/validators/valid_url";
-
-import InfoBanner from "components/InfoBanner/InfoBanner";
-// @ts-ignore
-import YamlAce from "components/YamlAce";
 import Modal from "components/Modal";
-import OpenNewTabIcon from "../../../../../assets/images/open-new-tab-12x12@2x.png";
 import {
   IAppConfigFormProps,
   IFormField,
   IAppConfigFormErrors,
-  authMethodOptions,
-  authTypeOptions,
   percentageOfHosts,
   numberOfDays,
   hostStatusPreview,
-  usageStatsPreview,
 } from "../constants";
 
 const baseClass = "app-config-form";

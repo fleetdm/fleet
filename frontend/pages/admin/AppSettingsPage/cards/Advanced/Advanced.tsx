@@ -152,6 +152,7 @@ const Advanced = ({
                 name="hostExpiryWindow"
                 value={hostExpiryWindow}
                 parseTarget
+                onBlur={validateForm}
                 error={formErrors.host_expiry_window}
                 tooltip={
                   "<p>If a host has not communicated with Fleet in the specified number of days, it will be removed.</p>"
