@@ -189,13 +189,13 @@ graph TD;
     A--D
 ```
 
-## Community contributions
+## Pull Requests
 
 The most important thing when community members contribute to Fleet is to show them we value their time and effort. We need to fget eyes on community pull requests quickly (within 1 business day) and get them pushed merged as soon as we can.
 
 
 
-### DevRel process for managing community contributions
+### Process for managing community contributions
 
 The Community Engagememt DRI is responsible for keeping an eye out for new community contributions and either getting them merged in if possible and get the right eyes on them if they need to be reviewed. 
 
