@@ -22,13 +22,14 @@ jobs:
             // See: https://octokit.github.io/rest.js/#pagination
             const owner = context.payload.organization.login;
             const repo = context.payload.repository.name;
-            const pulls = await github.paginate(github.rest.pulls.list, {
-              state: 'open',
-              owner,
-              repo,
-            })
-            console.log(pulls.length);
-            
-            for (const pull of pulls) {
-              console.log(pull);
-            }
+            const pulls = await github.graphql(`{
+              repository(name: ${repo}, owner: ${owner}) {
+                pullRequests (first: 100, states: OPEN) {
+                  nodes {
+                    url
+                    reviewDecision
+                  }
+                }
+              }
+            }`)
+            console.log(pulls);
