@@ -151,30 +151,6 @@ $base-class: "button";
     }
   }
 
-  &--text-nav {
-    @include button-variant(transparent);
-    border: 0;
-    box-shadow: none;
-    color: $core-fleet-black;
-    cursor: pointer;
-    margin: 0;
-    padding: 0;
-    height: auto;
-    line-height: normal;
-    font-weight: normal;
-
-    &:active {
-      box-shadow: none;
-      top: 0;
-      color: $core-vibrant-blue-over;
-    }
-
-    &:hover,
-    &:focus {
-      color: $core-vibrant-blue-over;
-    }
-  }
-
   &--text-icon {
     @include button-variant(transparent);
     padding: 0;
