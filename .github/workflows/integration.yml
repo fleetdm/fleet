@@ -50,7 +50,7 @@ jobs:
 
     # Download fleet and fleetctl binaries from last successful build on main
     - name: Download binaries
-      uses: dawidd6/action-download-artifact@09385b76de790122f4da9c82b17bccf858b9557c #v2.16.0
+      uses: dawidd6/action-download-artifact@b2abf1705491048a2d7074f7d90513044fd25d39 #v2.16.0
       with:
         workflow: build-binaries.yaml
         branch: main
@@ -92,7 +92,7 @@ jobs:
    steps:
     # Download fleet and fleetctl binaries from last successful build on main
     - name: Download binaries
-      uses: dawidd6/action-download-artifact@09385b76de790122f4da9c82b17bccf858b9557c #v2.16.0
+      uses: dawidd6/action-download-artifact@b2abf1705491048a2d7074f7d90513044fd25d39 #v2.16.0
       with:
         workflow: build-binaries.yaml
         branch: main
@@ -160,7 +160,7 @@ jobs:
         fleetctl config set --address ${{ needs.gen.outputs.address }} --token ${{ needs.login.outputs.token }}
 
     - name: Download binaries
-      uses: dawidd6/action-download-artifact@09385b76de790122f4da9c82b17bccf858b9557c #v2.16.0
+      uses: dawidd6/action-download-artifact@b2abf1705491048a2d7074f7d90513044fd25d39 #v2.16.0
       with:
         workflow: build-binaries.yaml
         branch: main
