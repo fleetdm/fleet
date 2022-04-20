@@ -2,6 +2,8 @@ package mysql
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -172,23 +174,26 @@ func deleteUninstalledHostSoftwareDB(
 }
 
 func getOrGenerateSoftwareIdDB(ctx context.Context, tx sqlx.ExtContext, s fleet.Software) (uint, error) {
-	var existingID []int64
-
-	getExistingID := func() error {
-		return sqlx.SelectContext(ctx, tx,
-			&existingID,
+	getExistingID := func() (int64, error) {
+		var existingID int64
+		if err := sqlx.GetContext(ctx, tx, &existingID,
 			"SELECT id FROM software "+
 				"WHERE name = ? AND version = ? AND source = ? AND `release` = ? AND "+
-				"vendor = ? AND arch = ? AND bundle_identifier = ?",
+				"vendor = ? AND arch = ? AND bundle_identifier = ? LIMIT 1",
 			s.Name, s.Version, s.Source, s.Release, s.Vendor, s.Arch, s.BundleIdentifier,
-		)
+		); err != nil {
+			return 0, err
+		}
+		return existingID, nil
 	}
 
-	if err := getExistingID(); err != nil {
+	switch id, err := getExistingID(); {
+	case err == nil:
+		return uint(id), nil
+	case errors.Is(err, sql.ErrNoRows):
+		// OK
+	default:
 		return 0, ctxerr.Wrap(ctx, err, "get software")
-	}
-	if len(existingID) > 0 {
-		return uint(existingID[0]), nil
 	}
 
 	_, err := tx.ExecContext(ctx,
@@ -202,14 +207,16 @@ func getOrGenerateSoftwareIdDB(ctx context.Context, tx sqlx.ExtContext, s fleet.
 		return 0, ctxerr.Wrap(ctx, err, "insert software")
 	}
 
-	// LastInsertId sometimes returns 0 as it's dependent on connections and how mysql is configured.
-	if err := getExistingID(); err != nil {
+	// LastInsertId sometimes returns 0 as it's dependent on connections and how mysql is
+	// configured.
+	switch id, err := getExistingID(); {
+	case err == nil:
+		return uint(id), nil
+	case errors.Is(err, sql.ErrNoRows):
+		return 0, doRetryErr
+	default:
 		return 0, ctxerr.Wrap(ctx, err, "get software")
 	}
-	if len(existingID) > 0 {
-		return uint(existingID[0]), nil
-	}
-	return 0, doRetryErr
 }
 
 func insertNewInstalledHostSoftwareDB(
