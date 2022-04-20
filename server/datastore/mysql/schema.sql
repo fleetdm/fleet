@@ -36,7 +36,7 @@ CREATE TABLE `app_config_json` (
   UNIQUE KEY `id` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
-INSERT INTO `app_config_json` VALUES (1,'{\"org_info\": {\"org_name\": \"\", \"org_logo_url\": \"\"}, \"integrations\": {\"jira\": null}, \"sso_settings\": {\"idp_name\": \"\", \"metadata\": \"\", \"entity_id\": \"\", \"enable_sso\": false, \"issuer_uri\": \"\", \"metadata_url\": \"\", \"idp_image_url\": \"\", \"enable_sso_idp_login\": false}, \"agent_options\": {\"config\": {\"options\": {\"logger_plugin\": \"tls\", \"pack_delimiter\": \"/\", \"logger_tls_period\": 10, \"distributed_plugin\": \"tls\", \"disable_distributed\": false, \"logger_tls_endpoint\": \"/api/osquery/log\", \"distributed_interval\": 10, \"distributed_tls_max_attempts\": 3}, \"decorators\": {\"load\": [\"SELECT uuid AS host_uuid FROM system_info;\", \"SELECT hostname AS hostname FROM system_info;\"]}}, \"overrides\": {}}, \"host_settings\": {\"enable_host_users\": true, \"enable_software_inventory\": false}, \"smtp_settings\": {\"port\": 587, \"domain\": \"\", \"server\": \"\", \"password\": \"\", \"user_name\": \"\", \"configured\": false, \"enable_smtp\": false, \"enable_ssl_tls\": true, \"sender_address\": \"\", \"enable_start_tls\": true, \"verify_ssl_certs\": true, \"authentication_type\": \"0\", \"authentication_method\": \"0\"}, \"server_settings\": {\"server_url\": \"\", \"enable_analytics\": false, \"deferred_save_host\": false, \"live_query_disabled\": false}, \"webhook_settings\": {\"interval\": \"24h0m0s\", \"host_status_webhook\": {\"days_count\": 0, \"destination_url\": \"\", \"host_percentage\": 0, \"enable_host_status_webhook\": false}, \"vulnerabilities_webhook\": {\"destination_url\": \"\", \"host_batch_size\": 0, \"enable_vulnerabilities_webhook\": false}, \"failing_policies_webhook\": {\"policy_ids\": null, \"destination_url\": \"\", \"host_batch_size\": 0, \"enable_failing_policies_webhook\": false}}, \"host_expiry_settings\": {\"host_expiry_window\": 0, \"host_expiry_enabled\": false}, \"vulnerability_settings\": {\"databases_path\": \"\"}}','2020-01-01 01:01:01','2020-01-01 01:01:01');
+INSERT INTO `app_config_json` VALUES (1,'{\"org_info\": {\"org_name\": \"\", \"org_logo_url\": \"\"}, \"integrations\": {\"jira\": null, \"zendesk\": null}, \"sso_settings\": {\"idp_name\": \"\", \"metadata\": \"\", \"entity_id\": \"\", \"enable_sso\": false, \"issuer_uri\": \"\", \"metadata_url\": \"\", \"idp_image_url\": \"\", \"enable_sso_idp_login\": false}, \"agent_options\": {\"config\": {\"options\": {\"logger_plugin\": \"tls\", \"pack_delimiter\": \"/\", \"logger_tls_period\": 10, \"distributed_plugin\": \"tls\", \"disable_distributed\": false, \"logger_tls_endpoint\": \"/api/osquery/log\", \"distributed_interval\": 10, \"distributed_tls_max_attempts\": 3}, \"decorators\": {\"load\": [\"SELECT uuid AS host_uuid FROM system_info;\", \"SELECT hostname AS hostname FROM system_info;\"]}}, \"overrides\": {}}, \"host_settings\": {\"enable_host_users\": true, \"enable_software_inventory\": false}, \"smtp_settings\": {\"port\": 587, \"domain\": \"\", \"server\": \"\", \"password\": \"\", \"user_name\": \"\", \"configured\": false, \"enable_smtp\": false, \"enable_ssl_tls\": true, \"sender_address\": \"\", \"enable_start_tls\": true, \"verify_ssl_certs\": true, \"authentication_type\": \"0\", \"authentication_method\": \"0\"}, \"server_settings\": {\"server_url\": \"\", \"enable_analytics\": false, \"deferred_save_host\": false, \"live_query_disabled\": false}, \"webhook_settings\": {\"interval\": \"24h0m0s\", \"host_status_webhook\": {\"days_count\": 0, \"destination_url\": \"\", \"host_percentage\": 0, \"enable_host_status_webhook\": false}, \"vulnerabilities_webhook\": {\"destination_url\": \"\", \"host_batch_size\": 0, \"enable_vulnerabilities_webhook\": false}, \"failing_policies_webhook\": {\"policy_ids\": null, \"destination_url\": \"\", \"host_batch_size\": 0, \"enable_failing_policies_webhook\": false}}, \"host_expiry_settings\": {\"host_expiry_window\": 0, \"host_expiry_enabled\": false}, \"vulnerability_settings\": {\"databases_path\": \"\"}}','2020-01-01 01:01:01','2020-01-01 01:01:01');
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `carve_blocks` (
@@ -193,7 +193,6 @@ CREATE TABLE `host_users` (
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `removed_at` timestamp NULL DEFAULT NULL,
   `user_type` varchar(255) DEFAULT NULL,
-  `shell` varchar(255) DEFAULT '',
   PRIMARY KEY (`host_id`,`uid`,`username`),
   UNIQUE KEY `idx_uid_username` (`host_id`,`uid`,`username`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -432,7 +431,6 @@ CREATE TABLE `policies` (
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `team_id` int(10) unsigned DEFAULT NULL,
-  `resolution` text,
   `name` varchar(255) NOT NULL,
   `query` mediumtext NOT NULL,
   `description` mediumtext NOT NULL,
@@ -543,7 +541,6 @@ CREATE TABLE `software` (
   `name` varchar(255) NOT NULL,
   `version` varchar(255) NOT NULL DEFAULT '',
   `source` varchar(64) NOT NULL,
-  `bundle_identifier` varchar(255) DEFAULT '',
   `release` varchar(64) NOT NULL DEFAULT '',
   `vendor` varchar(32) NOT NULL DEFAULT '',
   `arch` varchar(16) NOT NULL DEFAULT '',

@@ -97,6 +97,22 @@ func (svc *Service) makeTestJiraRequest(ctx context.Context, jiraSettings *fleet
 	return nil
 }
 
+func (svc *Service) makeTestZendeskRequest(ctx context.Context, zendeskSettings *fleet.ZendeskIntegration) error {
+	client, err := externalsvc.NewZendeskClient(&externalsvc.ZendeskOptions{
+		URL:      zendeskSettings.URL,
+		Email:    zendeskSettings.Email,
+		APIToken: zendeskSettings.APIToken,
+		GroupID:  zendeskSettings.GroupID,
+	})
+	if err != nil {
+		return &badRequestError{message: fmt.Sprintf("zendesk integration request failed: %s", err.Error())}
+	}
+	if _, err := client.GetGroup(ctx); err != nil {
+		return &badRequestError{message: fmt.Sprintf("zendesk integration request failed: %s", err.Error())}
+	}
+	return nil
+}
+
 func cleanupURL(url string) string {
 	return strings.TrimRight(strings.Trim(url, " \t\n"), "/")
 }

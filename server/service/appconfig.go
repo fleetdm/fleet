@@ -118,6 +118,11 @@ func (svc *Service) AppConfig(ctx context.Context) (*fleet.AppConfig, error) {
 	for _, jiraIntegration := range ac.Integrations.Jira {
 		jiraIntegration.APIToken = "********"
 	}
+
+	for _, zdIntegration := range ac.Integrations.Zendesk {
+		zdIntegration.APIToken = "********"
+	}
+
 	return ac, nil
 }
 
@@ -172,6 +177,14 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 		for i, settings := range appConfig.Integrations.Jira {
 			oldSettings := *settings
 			oldJiraSettings[i] = &oldSettings
+		}
+	}
+	var oldZendeskSettings []*fleet.ZendeskIntegration
+	if len(appConfig.Integrations.Jira) > 0 {
+		oldZendeskSettings = make([]*fleet.ZendeskIntegration, len(appConfig.Integrations.Zendesk))
+		for i, settings := range appConfig.Integrations.Zendesk {
+			oldSettings := *settings
+			oldZendeskSettings[i] = &oldSettings
 		}
 	}
 
@@ -231,6 +244,20 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 		}
 	}
 
+	// if Zendesk integration settings are modified or added, test it.
+	newZendeskSettings := appConfig.Integrations.Zendesk
+	for i, settings := range newZendeskSettings {
+		if i < len(oldZendeskSettings) && *oldZendeskSettings[i] == *settings {
+			// unchanged
+			continue
+		}
+
+		// new or updated, test it
+		if err := svc.makeTestZendeskRequest(ctx, settings); err != nil {
+			return nil, ctxerr.Wrapf(ctx, err, "Zendesk integration at index %d", i)
+		}
+	}
+
 	if err := svc.ds.SaveAppConfig(ctx, appConfig); err != nil {
 		return nil, err
 	}
@@ -272,11 +299,24 @@ func validateVulnerabilitiesAutomation(merged *fleet.AppConfig, invalid *fleet.I
 			jiraEnabledCount++
 		}
 	}
-	if webhookEnabled && jiraEnabledCount > 0 {
-		invalid.Append("vulnerabilities", "cannot enable both webhook vulnerabilities and jira integration automations")
+	var zendeskEnabledCount int
+	for _, zendesk := range merged.Integrations.Zendesk {
+		if zendesk.EnableSoftwareVulnerabilities {
+			zendeskEnabledCount++
+		}
+	}
+
+	if webhookEnabled && (jiraEnabledCount > 0 || zendeskEnabledCount > 0) {
+		invalid.Append("vulnerabilities", "cannot enable both webhook vulnerabilities and integration automations")
+	}
+	if jiraEnabledCount > 0 && zendeskEnabledCount > 0 {
+		invalid.Append("vulnerabilities", "cannot enable both jira integration and zendesk automations")
 	}
 	if jiraEnabledCount > 1 {
 		invalid.Append("vulnerabilities", "cannot enable more than one jira integration")
+	}
+	if zendeskEnabledCount > 1 {
+		invalid.Append("vulnerabilities", "cannot enable more than one zendesk integration")
 	}
 }
 
