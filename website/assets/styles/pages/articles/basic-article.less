@@ -1,36 +1,13 @@
 #basic-article {
-
+  padding: 0px 24px 0px 24px;
   h1 {
     font-size: 28px;
   }
-  h2 {
-    font-size: 24px;
-    margin-top: 24px;
-    margin-bottom: 24px;
+  hr {
+    margin-top: 40px;
+    margin-bottom: 40px;
+    border-top: 2px solid @core-vibrant-blue-15;
   }
-  h3 {
-    font-size: 20px;
-    margin-top: 24px;
-    margin-bottom: 24px;
-  }
-  h4 {
-    font-size: 16px;
-    margin-top: 24px;
-    margin-bottom: 24px;
-  }
-  p {
-
-  }
-  ul, ol {
-    padding-inline-start: 20px;
-  }
-  li {
-    padding-bottom: 16px;
-  }
-  li::marker {
-    color: @core-vibrant-blue;
-  }
-
 
   [purpose='article-title'] {
     padding-top: 80px;
@@ -39,6 +16,7 @@
       line-height: 38px
     }
   }
+
   [purpose='article-details'] {
     font-size: 14px;
     line-height: 20px;
@@ -54,14 +32,91 @@
   }
   [purpose='article-content'] {
     padding-top: 24px;
-    padding-bottom: 80px;
+    padding-bottom: 40px;
     h1:first-of-type {
       display: none;
     }
     img {
-      width: 100%;
-      padding: 0px 24px 24px 24px;
+      max-width: 100%;
+      width: auto;
+      height: 100%;
+      margin-left: auto;
+      margin-right: auto;
+      padding: 24px 0px 40px 0px;
+    }
+    a {
+      color: @core-vibrant-blue;
+    }
+    h2 {
+      font-size: 24px;
+      margin-top: 24px;
+      margin-bottom: 24px;
+    }
+    h3 {
+      font-size: 20px;
+      margin-top: 24px;
+      margin-bottom: 24px;
+    }
+    h4 {
+      font-size: 16px;
+      margin-top: 24px;
+      margin-bottom: 24px;
+    }
+    p {
+      font-size: 16px;
+      line-height: 24px;
+      margin-bottom: 24px;
+    }
+    ul, ol {
+      padding-left: 16px;
+    }
+    li {
+      padding-bottom: 16px;
+    }
+    li::marker {
+      color: @core-vibrant-blue;
+    }
+    code:not(.nohighlight) {
+      background: #F1F0FF;
+      padding: 4px 8px;
+      font-family: @code-font;
+      font-size: 13px;
+      line-height: 16px;
+      color: @core-fleet-black;
+    }
+    pre {
+      padding: 24px;
+      border: 1px solid #E2E4EA;
+      border-radius: 6px;
+      margin: 0px 0px 40px;
+      font-family: @code-font;
+      background: #F9FAFC;
+      white-space: break-spaces;
     }
   }
+  [purpose='bottom-cta'] {
+    padding-bottom: 80px;
+    [purpose='next-steps-button'] {
+      padding: 16px 32px;
+      line-height: 24px;
+      font-size: 16px;
+      img {
+        height: 24px;
+      }
+      a {
+        color: unset;
+      }
+    }
+  }
+  @media (max-width: 991px) {
+    [purpose='article-title'] {
+      padding-top: 60px;
+    }
+    [purpose='article-content'] {
+      padding-bottom: 0px;
+    }
+  }
+
+
 
 }
