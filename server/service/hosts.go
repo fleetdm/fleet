@@ -899,8 +899,8 @@ type osVersionsRequest struct {
 }
 
 type osVersionsResponse struct {
-	CountsUpdatedAt *time.Time        `json:"counts_updated_at,omitempty"`
-	OSVersions      []fleet.OSVersion `json:"os_versions,omitempty"`
+	CountsUpdatedAt *time.Time        `json:"counts_updated_at"`
+	OSVersions      []fleet.OSVersion `json:"os_versions"`
 	Err             error             `json:"error,omitempty"`
 }
 
@@ -926,7 +926,18 @@ func (svc *Service) OSVersions(ctx context.Context, teamID *uint, platform *stri
 	}
 
 	osVersions, err := svc.ds.OSVersions(ctx, teamID, platform)
-	if err != nil {
+	if err != nil && fleet.IsNotFound(err) {
+		// differentiate case where team was added after UpdateOSVersions last ran
+		if teamID != nil {
+			// most of the time, team should exist so checking here saves unnecessary db calls
+			_, err := svc.ds.Team(ctx, *teamID)
+			if err != nil {
+				return nil, err
+			}
+		}
+		// if team exists but stats have not yet been gathered, return empty JSON array
+		osVersions = &fleet.OSVersions{}
+	} else if err != nil {
 		return nil, err
 	}
 

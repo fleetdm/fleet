@@ -159,18 +159,22 @@ const QueryResults = ({
           Host that responded with results are marked <strong>Yes</strong>.
           Hosts that responded with no results are marked <strong>No</strong>.
         </InfoBanner>
-        <span className={`${baseClass}__results-count`}>
-          {totalRowsCount} result{totalRowsCount !== 1 && "s"}
-        </span>
-        <Button
-          className={`${baseClass}__export-btn`}
-          onClick={onExportQueryResults}
-          variant="text-link"
-        >
-          <>
-            Export results <img alt="" src={DownloadIcon} />
-          </>
-        </Button>
+        <div className={`${baseClass}__results-table-header`}>
+          <span className={`${baseClass}__results-count`}>
+            {totalRowsCount} result{totalRowsCount !== 1 && "s"}
+          </span>
+          <div className={`${baseClass}__results-cta`}>
+            <Button
+              className={`${baseClass}__export-btn`}
+              onClick={onExportQueryResults}
+              variant="text-link"
+            >
+              <>
+                Export results <img alt="" src={DownloadIcon} />
+              </>
+            </Button>
+          </div>
+        </div>
         <PolicyQueryListWrapper
           isLoading={false}
           policyHostsList={hostsOnline}
@@ -183,20 +187,24 @@ const QueryResults = ({
   const renderErrorsTable = () => {
     return (
       <div className={`${baseClass}__error-table-container`}>
-        {errors && (
-          <span className={`${baseClass}__error-count`}>
-            {errors.length} error{errors.length !== 1 && "s"}
-          </span>
-        )}
-        <Button
-          className={`${baseClass}__export-btn`}
-          onClick={onExportErrorsResults}
-          variant="text-link"
-        >
-          <>
-            Export errors <img alt="" src={DownloadIcon} />
-          </>
-        </Button>
+        <div className={`${baseClass}__errors-table-header`}>
+          {errors && (
+            <span className={`${baseClass}__error-count`}>
+              {errors.length} error{errors.length !== 1 && "s"}
+            </span>
+          )}
+          <div className={`${baseClass}__errors-cta`}>
+            <Button
+              className={`${baseClass}__export-btn`}
+              onClick={onExportErrorsResults}
+              variant="text-link"
+            >
+              <>
+                Export errors <img alt="" src={DownloadIcon} />
+              </>
+            </Button>
+          </div>
+        </div>
         <PolicyQueriesErrorsListWrapper
           isLoading={false}
           errorsList={errors}

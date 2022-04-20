@@ -208,7 +208,6 @@ func cronVulnerabilities(
 			recentVulns := checkVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled)
 			if vulnAutomationEnabled && len(recentVulns) > 0 {
 				if appConfig.WebhookSettings.VulnerabilitiesWebhook.Enable {
-
 					// send recent vulnerabilities via webhook
 					if err := webhooks.TriggerVulnerabilitiesWebhook(ctx, ds, kitlog.With(logger, "webhook", "vulnerabilities"),
 						recentVulns, appConfig, time.Now()); err != nil {
@@ -217,7 +216,6 @@ func cronVulnerabilities(
 						sentry.CaptureException(err)
 					}
 				} else {
-
 					// queue job to create jira issues
 					if err := worker.QueueJiraJobs(
 						ctx,
@@ -252,7 +250,8 @@ func cronVulnerabilities(
 }
 
 func checkVulnerabilities(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
-	vulnPath string, config config.FleetConfig, collectRecentVulns bool) map[string][]string {
+	vulnPath string, config config.FleetConfig, collectRecentVulns bool,
+) map[string][]string {
 	err := vulnerabilities.TranslateSoftwareToCPE(ctx, ds, vulnPath, logger, config)
 	if err != nil {
 		level.Error(logger).Log("msg", "analyzing vulnerable software: Software->CPE", "err", err)

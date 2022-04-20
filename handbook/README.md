@@ -35,6 +35,10 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Communicating as Fleet](./brand.md#communicating-as-fleet)
 
+[Writing at Fleet](./brand.md#writing-at-fleet)
+
+[For editors](./brand.md#for-editors)
+
 [Voice and tone guidelines](./brand.md#voice-and-grammar-guidelines)
 
 [Brand resources](./brand.md#brand-resources)
@@ -108,7 +112,17 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Meetings](./people.md#meetings)
 
-[People ops](./people.md#people-ops)
+[Slack](./people.md#slack)
+
+[Performance feedback](./people.md#performance-feedback)
+
+[Hiring a new team member](./people.md#hiring-a-new-team-member)
+
+[Team member onboarding](./people.md#team-member-onboarding)
+
+[Onboarding a new advisor](./people.md#onboarding-a-new-advisor)
+
+[Zapier and DocuSign](./people.md#zapier-and-docu-sign)
 
 [Rituals](./people.md#rituals)
 
