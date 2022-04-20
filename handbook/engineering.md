@@ -35,7 +35,7 @@ Our primary quality objectives are *customer service* and *defect reduction*. We
 - The number of bugs resolved per release cycle.
 - Stay abreast of what our community wants and the problems they're having.
 
-- make people feel heard and understood.
+- Make people feel heard and understood.
 
 - Celebrate contributions.
 
