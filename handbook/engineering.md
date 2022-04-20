@@ -107,7 +107,7 @@ There are four sources that the on-call engineer should monitor for activity:
 
 2. Community chatroom - https://osquery.slack.com, #fleet channel
 
-3. Reported bugs - [GitHub issues with the "bug" and ":reproduce" label](https://github.com/fleetdm/fleet/issues?q=is%3Aissue+is%3Aopen+label%3Abug+label%3A%3Areproduce). Please remove the ":reproduce" labels after you've followed up on the issue.
+3. Reported bugs - [GitHub issues with the "bug" and ":reproduce" label](https://github.com/fleetdm/fleet/issues?q=is%3Aissue+is%3Aopen+label%3Abug+label%3A%3Areproduce). Please remove the ":reproduce" label after you've followed up in the issue.
 
 4. Pull requests opened by the community - [GitHub open pull requests](https://github.com/fleetdm/fleet/pulls?q=is%3Apr+is%3Aopen)
 
