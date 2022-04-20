@@ -173,6 +173,12 @@
     width: 60%;
   }
 
+  &__yaml {
+    .app-config-form__section-description {
+      width: initial;
+    }
+  }
+
   &__inputs {
     width: 60%;
     float: left;
