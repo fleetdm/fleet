@@ -423,9 +423,9 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ne.GET("/api/_version_/fleet/invites/{token}", verifyInviteEndpoint, verifyInviteRequest{})
 	ne.POST("/api/_version_/fleet/reset_password", resetPasswordEndpoint, resetPasswordRequest{})
 	ne.POST("/api/_version_/fleet/logout", logoutEndpoint, nil)
-	ne.POST("/api/_version_/fleet/sso", initiateSSOEndpoint, initiateSSORequest{})
-	ne.POST("/api/_version_/fleet/sso/callback", makeCallbackSSOEndpoint(config.Server.URLPrefix), callbackSSORequest{})
-	ne.GET("/api/_version_/fleet/sso", settingsSSOEndpoint, nil)
+	ne.POST("/api/v1/fleet/sso", initiateSSOEndpoint, initiateSSORequest{})
+	ne.POST("/api/v1/fleet/sso/callback", makeCallbackSSOEndpoint(config.Server.URLPrefix), callbackSSORequest{})
+	ne.GET("/api/v1/fleet/sso", settingsSSOEndpoint, nil)
 
 	limiter := ratelimit.NewMiddleware(limitStore)
 	ne.
