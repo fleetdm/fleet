@@ -53,7 +53,7 @@ const App = ({ children, location, router }: IAppProps): JSX.Element => {
         setAvailableTeams(available_teams);
       } catch (error) {
         console.error(error);
-        
+
         local.removeItem("auth_token");
         return router.push(PATHS.LOGIN);
       }
