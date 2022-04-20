@@ -1,5 +1,3 @@
-// @ts-nocheck
-// better than a bunch of ts-ignore lines for non-ts components
 import React from "react";
 import {
   browserHistory,
@@ -7,9 +5,10 @@ import {
   IndexRoute,
   InjectedRouter,
   Route,
+  RouteComponent,
   Router,
 } from "react-router";
-import { Provider } from "react-redux";
+import { Provider } from "react-redux"; // @ts-ignore
 import { syncHistoryWithStore } from "react-router-redux";
 
 import AdminAppSettingsPage from "pages/admin/AppSettingsPage";
@@ -40,14 +39,12 @@ import ManageQueriesPage from "pages/queries/ManageQueriesPage";
 import ManagePacksPage from "pages/packs/ManagePacksPage";
 import ManagePoliciesPage from "pages/policies/ManagePoliciesPage";
 import ManageSchedulePage from "pages/schedule/ManageSchedulePage";
-import PackPageWrapper from "components/packs/PackPageWrapper";
 import PackComposerPage from "pages/packs/PackComposerPage";
 import PoliciesPageWrapper from "components/policies/PoliciesPageWrapper";
 import PolicyPage from "pages/policies/PolicyPage";
 import QueryPage from "pages/queries/QueryPage";
 import RegistrationPage from "pages/RegistrationPage";
 import ResetPasswordPage from "pages/ResetPasswordPage";
-import SchedulePageWrapper from "components/schedule/SchedulePageWrapper";
 import SoftwarePageWrapper from "components/software/SoftwarePageWrapper";
 import ApiOnlyUser from "pages/ApiOnlyUser";
 import Fleet403 from "pages/errors/Fleet403";
@@ -56,7 +53,7 @@ import UserSettingsPage from "pages/UserSettingsPage";
 import SettingsWrapper from "pages/admin/SettingsWrapper/SettingsWrapper";
 import MembersPage from "pages/admin/TeamManagementPage/TeamDetailsWrapper/MembersPage";
 import AgentOptionsPage from "pages/admin/TeamManagementPage/TeamDetailsWrapper/AgentOptionsPage";
-import PATHS from "router/paths";
+import PATHS from "router/paths"; // @ts-ignore
 import store from "redux/store";
 import AppProvider from "context/app";
 import RoutingProvider from "context/routing";
@@ -72,6 +69,7 @@ const history = syncHistoryWithStore(browserHistory, store);
 const AppWrapper = ({ children, router }: IAppWrapperProps) => (
   <AppProvider>
     <RoutingProvider>
+      {/* @ts-ignore */}
       <App router={router}>{children}</App>
     </RoutingProvider>
   </AppProvider>
@@ -94,7 +92,7 @@ const routes = (
         />
         <Route path="login/forgot" component={ForgotPasswordPage} />
         <Route path="login/reset" component={ResetPasswordPage} />
-        <Route component={AuthenticatedRoutes}>
+        <Route component={AuthenticatedRoutes as RouteComponent}>
           <Route path="email/change/:token" component={EmailTokenRedirect} />
           <Route path="logout" component={LogoutPage} />
           <Route component={CoreLayout}>
@@ -140,12 +138,12 @@ const routes = (
               />
               <Route path=":host_id" component={HostDetailsPage} />
             </Route>
-            <Route path="software" component={SoftwarePageWrapper}>
+            <Route path="software" component={SoftwarePageWrapper as RouteComponent}>
               <IndexRedirect to={"manage"} />
               <Route path="manage" component={ManageSoftwarePage} />
             </Route>
             <Route component={AuthGlobalAdminMaintainerRoutes}>
-              <Route path="packs" component={PackPageWrapper}>
+              <Route path="packs">
                 <IndexRedirect to={"manage"} />
                 <Route path="manage" component={ManagePacksPage} />
                 <Route path="new" component={PackComposerPage} />
@@ -156,7 +154,7 @@ const routes = (
               </Route>
             </Route>
             <Route component={AuthAnyMaintainerAnyAdminRoutes}>
-              <Route path="schedule" component={SchedulePageWrapper}>
+              <Route path="schedule">
                 <IndexRedirect to={"manage"} />
                 <Route path="manage" component={ManageSchedulePage} />
                 <Route
@@ -173,7 +171,7 @@ const routes = (
               </Route>
               <Route path=":id" component={QueryPage} />
             </Route>
-            <Route path="policies" component={PoliciesPageWrapper}>
+            <Route path="policies" component={PoliciesPageWrapper as RouteComponent}>
               <IndexRedirect to={"manage"} />
               <Route path="manage" component={ManagePoliciesPage} />
               <Route component={AuthAnyMaintainerAnyAdminRoutes}>
@@ -181,7 +179,7 @@ const routes = (
               </Route>
               <Route path=":id" component={PolicyPage} />
             </Route>
-            <Route path="profile" component={UserSettingsPage} />
+            <Route path="profile" component={UserSettingsPage as RouteComponent} />
           </Route>
         </Route>
         <Route path="/device/:device_auth_token" component={DeviceUserPage} />
