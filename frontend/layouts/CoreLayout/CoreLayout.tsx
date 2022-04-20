@@ -5,7 +5,7 @@ import { NotificationContext } from "context/notification";
 import { TableContext } from "context/table";
 
 import paths from "router/paths";
-import { useDeepEffect } from "utilities/hooks";
+import useDeepEffect from "hooks/useDeepEffect";
 import FlashMessage from "components/FlashMessage";
 import SiteTopNav from "components/top_nav/SiteTopNav";
 import { INotification } from "interfaces/notification";

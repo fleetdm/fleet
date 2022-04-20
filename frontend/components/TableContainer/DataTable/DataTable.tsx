@@ -18,7 +18,7 @@ import {
 import { isString, kebabCase, noop } from "lodash";
 import { useDebouncedCallback } from "use-debounce";
 
-import { useDeepEffect } from "utilities/hooks";
+import useDeepEffect from "hooks/useDeepEffect";
 import sort from "utilities/sort";
 import { AppContext } from "context/app";
 

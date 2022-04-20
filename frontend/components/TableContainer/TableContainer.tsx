@@ -10,7 +10,7 @@ import Pagination from "components/Pagination";
 import Button from "components/buttons/Button";
 import { ButtonVariant } from "components/buttons/Button/Button";
 // @ts-ignore
-import { useDeepEffect } from "utilities/hooks";
+import useDeepEffect from "hooks/useDeepEffect";
 import ReactTooltip from "react-tooltip";
 
 // @ts-ignore

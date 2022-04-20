@@ -11,7 +11,7 @@ import PolicyProvider from "context/policy";
 import NotificationProvider from "context/notification";
 import { AppContext } from "context/app";
 import local, { authToken } from "utilities/local";
-import { useDeepEffect } from "utilities/hooks";
+import useDeepEffect from "hooks/useDeepEffect";
 
 import usersAPI from "services/entities/users";
 import configAPI from "services/entities/config";
