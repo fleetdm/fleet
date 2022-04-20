@@ -27,8 +27,8 @@
             <div purpose="article-details" class="d-flex mt-auto flex-row align-items-center">
               <span><js-timestamp format="billing" :at="article.meta.publishedOn"></js-timestamp></span>
               <span class="px-2">|</span>
-              <img style="height: 32px; width: 32px; border-radius: 100%;" :src="'https://github.com/'+article.meta.author+'.png?size=200'">
-              <p class="pl-2 font-weight-bold">{{article.meta.author}}</p>
+              <img style="height: 32px; width: 32px; border-radius: 100%;" :src="'https://github.com/'+article.meta.authorsGitHubUserName+'.png?size=200'">
+              <p class="pl-2 font-weight-bold">{{article.meta.authorsFullName}}</p>
             </div>
           </div>
         </div>

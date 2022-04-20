@@ -31,7 +31,7 @@ module.exports = {
       throw {badConfig: 'builtStaticContent.markdownPages'};
     }
     let SECTION_URL_PREFIX = '/articles';
-    console.log(slug);
+
     let thisPage = _.find(sails.config.builtStaticContent.markdownPages, {
       url: _.trimRight(SECTION_URL_PREFIX + '/' + slug)
     });
@@ -53,6 +53,7 @@ module.exports = {
         throw 'notFound';
       }
     }
+
     let pageTitleForMeta;
     if(!thisPage.title) {
       // If thisPage.title is 'Readme.md', we're on the docs landing page and we'll follow the title format of the other top level pages.
