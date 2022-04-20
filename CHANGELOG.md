@@ -1,3 +1,7 @@
+## Fleet 4.13.1 (Apr 20, 2022)
+
+* Revert SSO-related URLs to use `/api/v1` instead of `/api/latest`.
+
 ## Fleet 4.13.0 (Apr 18, 2022)
 
 ### This is a security release.
