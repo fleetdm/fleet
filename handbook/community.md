@@ -266,6 +266,33 @@ For PRs that will not be merged:
 - Thanks the contributor for their effort and explain why the changes won't be merged.
 - Close the PR.
 
+## Updating Docs and FAQ
+
+When someone asks a question in a public channel, it's pretty safe to assume that they aren't the only person that's ever had the same question. In order to make sure the documentation is as useful as possible, the Community team gathers questions and uses them to make a weekly documentation update. 
+
+As a general goal, every question should be answered with a link to the Docs and/or result in an update to the Docs. 
+
+### Tracking
+
+When responding to a question or issue in the #fleet channel of the osquery Slack workspace, push the thread to Zapier using the `TODO: Update docs` Zap. This will add information about the thread to the [Slack Questions Spreadsheet](https://docs.google.com/spreadsheets/d/15AgmjlnV4oRW5m94N5q7DjeBBix8MANV9XLWRktMDGE/edit#gid=336721544). In the `Notes` field, you can include any information that you think will be helpful when making weekly doc updates. That may be something like:
+
+- Proposed change to the documentation.
+- Documentation link that was sent as a response.
+- Link to associated thread in `#help-oncall`.
+
+### Making the updates
+
+Every week, the Community Engagement DRI will:
+
+- Create a new `Weekly Doc Update` issue on Monday and add it to the [Community board](https://github.com/orgs/fleetdm/projects/36).
+- Review the Slack Questions Spreadsheet and ensure that any necessary updates to the documentation are made. 
+    - Update the spreadsheet to indicate what action was taken (Doc Change, FAQ added or None) and add notes. 
+- Set up a single PR to update the Docs. 
+    - In the notes, include a list of changes made as well as a link to the related thread. 
+- Bring any questions to DevRel Office Hours (time TBD).
+- Submit PR by end of day on Thursday. 
+- Once the PR is approved, share in #fleet channel of Osquery Slack Workspace and thank the community for being involved and asking questions. 
+
 ## Fleet swag
 
 We want to recognize and congratulate community members for their contributions to Fleet. Nominating a contributor for Fleet swag is a great way to show our appreciation.
