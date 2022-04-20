@@ -313,7 +313,7 @@ Cypress.Commands.add("loginSSO", () => {
 
         // Load the callback URL with the response from the IdP
         cy.visit({
-          url: "/api/latest/fleet/sso/callback",
+          url: "/api/v1/fleet/sso/callback",
           method: "POST",
           body: {
             SAMLResponse: saml,

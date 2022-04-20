@@ -146,7 +146,7 @@ module.exports.routes = {
     }
   },
 
-  'GET /landing': {
+  'GET /g': {
     action: 'view-landing',
     locals: {
       layout: 'layouts/layout-landing',
