@@ -121,7 +121,7 @@ const UserForm = ({
   });
 
   const [isGlobalUser, setIsGlobalUser] = useState<boolean>(
-    defaultGlobalRole !== null
+    !!defaultGlobalRole
   );
 
   useEffect(() => {

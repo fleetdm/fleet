@@ -219,6 +219,7 @@ const LabelForm = ({
         value={name}
         inputClassName={`${baseClass}__label-title`}
         label="Name"
+        placeholder="Label name"
       />
       <InputField
         name="description"
@@ -227,6 +228,7 @@ const LabelForm = ({
         inputClassName={`${baseClass}__label-description`}
         label="Description"
         type="textarea"
+        placeholder="Label description (optional)"
       />
       {!isManual && !isEdit && (
         <div className="form-field form-field--dropdown">

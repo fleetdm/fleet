@@ -44,7 +44,7 @@ export default {
   },
   SETUP: `/v1/setup`, // not a typo - hasn't been updated yet
   SOFTWARE: `/${API_VERSION}/fleet/software`,
-  SSO: `/${API_VERSION}/fleet/sso`,
+  SSO: `/v1/fleet/sso`,
   STATUS_LABEL_COUNTS: `/${API_VERSION}/fleet/host_summary`,
   STATUS_LIVE_QUERY: `/${API_VERSION}/fleet/status/live_query`,
   STATUS_RESULT_STORE: `/${API_VERSION}/fleet/status/result_store`,

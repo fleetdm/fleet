@@ -94,7 +94,7 @@ const NewQueryModal = ({
           inputClassName={`${baseClass}__query-save-modal-description`}
           label="Description"
           type="textarea"
-          placeholder="What information does your query reveal?"
+          placeholder="What information does your query reveal? (optional)"
         />
         <Checkbox
           name="observerCanRun"

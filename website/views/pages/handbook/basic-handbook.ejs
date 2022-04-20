@@ -1,11 +1,11 @@
 <div id="basic-handbook" v-cloak>
-  <div purpose="handbook-template" style="max-width: 1000px;" class="container-fluid p-0 px-lg-3 mb-5">
-    <div class="d-flex flex-column flex-md-row pt-lg-4 pb-lg-4 m-0">
+  <div purpose="handbook-template" style="max-width: 1000px;" class="container-fluid p-0 mb-5">
+    <div class="d-flex flex-column justify-content-between flex-lg-row pt-lg-4 pb-lg-4 m-0">
 
-      <div purpose="right-sidebar" class="order-md-last d-none d-md-block pb-3 pb-lg-0 pr-xl-0 right-sidebar">
+      <div purpose="right-sidebar" class="order-lg-last d-lg-block d-none pb-3 pb-lg-0 pr-xl-0 right-sidebar">
         <div purpose="maintainer" class="mb-lg-3">
           <h4>Maintained by:</h4>
-          <img class="maintainer-image" alt="The page maintainer's github profile picture" :src="'https://github.com/'+thisPage.meta.maintainedBy+'.png?size=200'">
+          <img alt="The page maintainer's github profile picture" :src="'https://github.com/'+thisPage.meta.maintainedBy+'.png?size=200'">
           <a style="margin-top: 24px;" :href="'https://github.com/fleetdm/fleet/edit/main/handbook/'+thisPage.sectionRelativeRepoPath"> Edit this page</a>
         </div>
         <div v-if="!isHandbookLandingPage">
@@ -13,7 +13,7 @@
           <div purpose="subtopics">
             <ul class="p-0 m-0">
               <li v-for="(subtopic, index) in subtopics" class="subtopic" :key="index">
-                <a :href="subtopic.url" :class="_isCurrentSection(subtopic, this.window.location) ? 'active' : 'pl-md-3'" @click="forceRender()">{{subtopic.title}}</a>
+                <a :href="subtopic.url" :class="_isCurrentSection(subtopic, this.window.location) ? 'active' : 'pl-lg-3'" @click="forceRender()">{{subtopic.title}}</a>
               </li>
             </ul>
           </div>
@@ -21,7 +21,7 @@
         <div class="border-bottom py-3 d-flex d-md-none"></div>
       </div>
 
-      <div class="d-flex flex-column pl-lg-5 handbook-content">
+      <div class="d-flex flex-column handbook-content">
 
         <div purpose="breadcrumbs" class="d-flex m-0 align-items-center breadcrumbs">
           <div class="d-flex" v-if="breadcrumbs.length > 1">
@@ -61,10 +61,10 @@
           </div>
         </div>
 
-        <div purpose="right-sidebar" class="d-block d-md-none pb-3 pb-lg-0 pr-xl-0 right-sidebar">
+        <div purpose="right-sidebar" class="d-block d-lg-none pb-3 pb-lg-0 pr-xl-0 right-sidebar">
           <div purpose="maintainer" class="mb-lg-3">
             <h4>Maintained by:</h4>
-            <img class="maintainer-image" alt="The page maintainer's github profile picture" :src="'https://github.com/'+thisPage.meta.maintainedBy+'.png?size=200'">
+            <img alt="The page maintainer's github profile picture" :src="'https://github.com/'+thisPage.meta.maintainedBy+'.png?size=200'">
             <a style="margin-top: 24px;" :href="'https://github.com/fleetdm/fleet/tree/main/handbook/'+thisPage.sectionRelativeRepoPath"> Edit this page</a>
           </div>
           <div v-if="!isHandbookLandingPage">
@@ -72,7 +72,7 @@
             <div purpose="subtopics">
               <ul class="p-0 m-0">
                 <li v-for="(subtopic, index) in subtopics" class="subtopic" :key="index">
-                  <a :href="subtopic.url" :class="_isCurrentSection(subtopic, this.window.location) ? 'active' : 'pl-md-3'" @click="forceRender()">{{subtopic.title}}</a>
+                  <a :href="subtopic.url" :class="_isCurrentSection(subtopic, this.window.location) ? 'active' : 'pl-lg-3'" @click="forceRender()">{{subtopic.title}}</a>
                 </li>
               </ul>
             </div>
@@ -81,7 +81,7 @@
         </div>
 
         <div purpose="content" id="body-content" class="content" parasails-has-no-page-script>
-
+          <div :purpose="[isHandbookLandingPage ? 'handbook-landing-page' : '' ]" >
           <%- partial(
             path.relative(
               path.dirname(__filename),
@@ -94,6 +94,7 @@
               )
             )
           ) %>
+          </div>
 
         </div>
       </div>

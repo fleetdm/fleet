@@ -22,6 +22,7 @@ import (
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/throttled/throttled/v2"
 	"github.com/throttled/throttled/v2/store/memstore"
 )
 
@@ -177,7 +178,7 @@ func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...TestServe
 	}
 
 	limitStore, _ := memstore.New(0)
-	r := MakeHandler(svc, config.FleetConfig{}, logger, limitStore)
+	r := MakeHandler(svc, config.FleetConfig{}, logger, limitStore, WithLoginRateLimit(throttled.PerMin(100)))
 	server := httptest.NewServer(r)
 	t.Cleanup(func() {
 		server.Close()

@@ -2136,14 +2136,6 @@ func testHostsSaveTonsOfUsers(t *testing.T, ds *Datastore) {
 			host1.Users = []fleet.HostUser{u1, u2}
 			host1.SeenTime = time.Now()
 			host1.Modified = true
-			soft := fleet.HostSoftware{
-				Modified: true,
-				Software: []fleet.Software{
-					{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
-					{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
-				},
-			}
-			host1.HostSoftware = soft
 			additional := json.RawMessage(`{"some":"thing"}`)
 			host1.Additional = &additional
 
@@ -2152,6 +2144,17 @@ func testHostsSaveTonsOfUsers(t *testing.T, ds *Datastore) {
 				errCh <- err
 				return
 			}
+
+			host1Software := []fleet.Software{
+				{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
+				{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
+			}
+			err = ds.UpdateHostSoftware(context.Background(), host1.ID, host1Software)
+			if err != nil {
+				errCh <- err
+				return
+			}
+
 			if atomic.AddInt32(&count1, 1) >= 100 {
 				return
 			}
@@ -2191,14 +2194,6 @@ func testHostsSaveTonsOfUsers(t *testing.T, ds *Datastore) {
 			host2.Users = []fleet.HostUser{u1, u2}
 			host2.SeenTime = time.Now()
 			host2.Modified = true
-			soft := fleet.HostSoftware{
-				Modified: true,
-				Software: []fleet.Software{
-					{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
-					{Name: "foo4", Version: "0.0.3", Source: "chrome_extensions"},
-				},
-			}
-			host2.HostSoftware = soft
 			additional := json.RawMessage(`{"some":"thing"}`)
 			host2.Additional = &additional
 
@@ -2207,6 +2202,17 @@ func testHostsSaveTonsOfUsers(t *testing.T, ds *Datastore) {
 				errCh <- err
 				return
 			}
+
+			host2Software := []fleet.Software{
+				{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
+				{Name: "foo4", Version: "0.0.3", Source: "chrome_extensions"},
+			}
+			err = ds.UpdateHostSoftware(context.Background(), host2.ID, host2Software)
+			if err != nil {
+				errCh <- err
+				return
+			}
+
 			if atomic.AddInt32(&count2, 1) >= 100 {
 				return
 			}
@@ -2219,7 +2225,7 @@ func testHostsSaveTonsOfUsers(t *testing.T, ds *Datastore) {
 		}
 	}()
 
-	ticker := time.NewTicker(10 * time.Second)
+	ticker := time.NewTicker(30 * time.Second)
 	go func() {
 		wg.Wait()
 		cancelFunc()
@@ -3793,6 +3799,11 @@ func testOSVersions(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
+	team3, err := ds.NewTeam(context.Background(), &fleet.Team{
+		Name: "team3",
+	})
+	require.NoError(t, err)
+
 	// create some hosts for testing
 	hosts := []*fleet.Host{
 		{
@@ -3909,6 +3920,16 @@ func testOSVersions(t *testing.T, ds *Datastore) {
 		{HostsCount: 3, Name: "macOS 12.3.0", Platform: "darwin"},
 	}
 	require.Equal(t, expected, osVersions.OSVersions)
+
+	// team 3 (no hosts assigned to team)
+	osVersions, err = ds.OSVersions(ctx, &team3.ID, nil)
+	require.NoError(t, err)
+	expected = []fleet.OSVersion{}
+	require.Equal(t, expected, osVersions.OSVersions)
+
+	// non-existent team
+	osVersions, err = ds.OSVersions(ctx, ptr.Uint(404), nil)
+	require.Error(t, err)
 }
 
 func testHostsDeleteHosts(t *testing.T, ds *Datastore) {

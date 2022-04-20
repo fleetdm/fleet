@@ -78,8 +78,7 @@ func policyDB(ctx context.Context, q sqlx.QueryerContext, id uint, teamID *uint)
 
 // SavePolicy updates some fields of the given policy on the datastore.
 //
-// Currently SavePolicy does not allow updating the team or platform of an existing policy,
-// such functionality will be implemented in #3220.
+// Currently SavePolicy does not allow updating the team of an existing policy.
 func (ds *Datastore) SavePolicy(ctx context.Context, p *fleet.Policy) error {
 	sql := `
 		UPDATE policies

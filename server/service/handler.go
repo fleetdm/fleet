@@ -75,8 +75,33 @@ func checkLicenseExpiration(svc fleet.Service) func(context.Context, http.Respon
 	}
 }
 
+type extraHandlerOpts struct {
+	loginRateLimit *throttled.Rate
+}
+
+// ExtraHandlerOption allows adding extra configuration to the HTTP handler.
+type ExtraHandlerOption func(*extraHandlerOpts)
+
+// WithLoginRateLimit configures the rate limit for the login endpoint.
+func WithLoginRateLimit(r throttled.Rate) ExtraHandlerOption {
+	return func(o *extraHandlerOpts) {
+		o.loginRateLimit = &r
+	}
+}
+
 // MakeHandler creates an HTTP handler for the Fleet server endpoints.
-func MakeHandler(svc fleet.Service, config config.FleetConfig, logger kitlog.Logger, limitStore throttled.GCRAStore) http.Handler {
+func MakeHandler(
+	svc fleet.Service,
+	config config.FleetConfig,
+	logger kitlog.Logger,
+	limitStore throttled.GCRAStore,
+	extra ...ExtraHandlerOption,
+) http.Handler {
+	var eopts extraHandlerOpts
+	for _, fn := range extra {
+		fn(&eopts)
+	}
+
 	fleetAPIOptions := []kithttp.ServerOption{
 		kithttp.ServerBefore(
 			kithttp.PopulateRequestContext, // populate the request context with common fields
@@ -98,7 +123,7 @@ func MakeHandler(svc fleet.Service, config config.FleetConfig, logger kitlog.Log
 
 	r.Use(publicIP)
 
-	attachFleetAPIRoutes(r, svc, config, logger, limitStore, fleetAPIOptions)
+	attachFleetAPIRoutes(r, svc, config, logger, limitStore, fleetAPIOptions, eopts)
 
 	// Results endpoint is handled different due to websockets use
 
@@ -203,14 +228,9 @@ func addMetrics(r *mux.Router) {
 	r.Walk(walkFn)
 }
 
-var (
-	// those are conceptually constants, but var so they can be changed in tests
-	forgotPasswordRateLimit = throttled.PerHour(10)
-	loginRateLimit          = throttled.PerMin(10)
-)
-
 func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetConfig,
 	logger kitlog.Logger, limitStore throttled.GCRAStore, opts []kithttp.ServerOption,
+	extra extraHandlerOpts,
 ) {
 	apiVersions := []string{"v1", "2022-04"}
 
@@ -413,8 +433,8 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ne.WithAltPaths("/api/v1/osquery/enroll").
 		POST("/api/osquery/enroll", enrollAgentEndpoint, enrollAgentRequest{})
 
-		// For some reason osquery does not provide a node key with the block data.
-		// Instead the carve session ID should be verified in the service method.
+	// For some reason osquery does not provide a node key with the block data.
+	// Instead the carve session ID should be verified in the service method.
 	ne.WithAltPaths("/api/v1/osquery/carve/block").
 		POST("/api/osquery/carve/block", carveBlockEndpoint, carveBlockRequest{})
 
@@ -423,17 +443,21 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ne.GET("/api/_version_/fleet/invites/{token}", verifyInviteEndpoint, verifyInviteRequest{})
 	ne.POST("/api/_version_/fleet/reset_password", resetPasswordEndpoint, resetPasswordRequest{})
 	ne.POST("/api/_version_/fleet/logout", logoutEndpoint, nil)
-	ne.POST("/api/_version_/fleet/sso", initiateSSOEndpoint, initiateSSORequest{})
-	ne.POST("/api/_version_/fleet/sso/callback", makeCallbackSSOEndpoint(config.Server.URLPrefix), callbackSSORequest{})
-	ne.GET("/api/_version_/fleet/sso", settingsSSOEndpoint, nil)
+	ne.POST("/api/v1/fleet/sso", initiateSSOEndpoint, initiateSSORequest{})
+	ne.POST("/api/v1/fleet/sso/callback", makeCallbackSSOEndpoint(config.Server.URLPrefix), callbackSSORequest{})
+	ne.GET("/api/v1/fleet/sso", settingsSSOEndpoint, nil)
 
 	limiter := ratelimit.NewMiddleware(limitStore)
 	ne.
-		WithCustomMiddleware(limiter.Limit("forgot_password", throttled.RateQuota{MaxRate: forgotPasswordRateLimit, MaxBurst: 9})).
+		WithCustomMiddleware(limiter.Limit("forgot_password", throttled.RateQuota{MaxRate: throttled.PerHour(10), MaxBurst: 9})).
 		POST("/api/_version_/fleet/forgot_password", forgotPasswordEndpoint, forgotPasswordRequest{})
 
-	ne.
-		WithCustomMiddleware(limiter.Limit("login", throttled.RateQuota{MaxRate: loginRateLimit, MaxBurst: 9})).
+	loginRateLimit := throttled.PerMin(10)
+	if extra.loginRateLimit != nil {
+		loginRateLimit = *extra.loginRateLimit
+	}
+
+	ne.WithCustomMiddleware(limiter.Limit("login", throttled.RateQuota{MaxRate: loginRateLimit, MaxBurst: 9})).
 		POST("/api/_version_/fleet/login", loginEndpoint, loginRequest{})
 }
 
