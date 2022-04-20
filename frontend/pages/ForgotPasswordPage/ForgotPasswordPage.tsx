@@ -64,7 +64,6 @@ const ForgotPasswordPage = () => {
       <StackedWhiteBoxes
         leadText={leadText}
         previousLocation={PATHS.LOGIN}
-        className="forgot-password"
       >
         {renderContent()}
       </StackedWhiteBoxes>
