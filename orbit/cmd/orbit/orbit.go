@@ -244,6 +244,18 @@ func main() {
 		opt.LocalStore = localStore
 		opt.InsecureTransport = c.Bool("insecure")
 
+		// migrate to new-style paths (linux only) if required.
+		log.Debug().Msg("attempting to migrate")
+
+		migrated, err := update.Migrate(opt)
+		if err != nil {
+			return fmt.Errorf("migrate: %w", err)
+		}
+		if migrated {
+			// TODO: is it necessary to restart?
+			return fmt.Errorf("migrate: exit main")
+		}
+
 		var (
 			updater      *update.Updater
 			osquerydPath string

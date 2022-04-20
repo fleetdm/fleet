@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/rs/zerolog/log"
@@ -121,7 +119,7 @@ func (r *Runner) updateAction() (bool, error) {
 		if !bytes.Equal(r.localHashes[target], metaHash) {
 			// Update detected
 			log.Info().Str("target", target).Msg("update detected")
-			if err := r.updateTarget(target); err != nil {
+			if _, err := r.updater.Get(target); err != nil {
 				return didUpdate, fmt.Errorf("update %s: %w", target, err)
 			}
 			log.Info().Str("target", target).Msg("update completed")
@@ -132,30 +130,6 @@ func (r *Runner) updateAction() (bool, error) {
 	}
 
 	return didUpdate, nil
-}
-
-func (r *Runner) updateTarget(target string) error {
-	localTarget, err := r.updater.Get(target)
-	if err != nil {
-		return fmt.Errorf("get binary: %w", err)
-	}
-	path := localTarget.ExecPath
-
-	if target != "orbit" {
-		return nil
-	}
-
-	// Symlink Orbit binary
-	linkPath := filepath.Join(r.updater.opt.RootDirectory, "bin", "orbit", filepath.Base(path))
-	// Rename the old file otherwise overwrite fails
-	if err := os.Rename(linkPath, linkPath+".old"); err != nil {
-		return fmt.Errorf("move old symlink current: %w", err)
-	}
-	if err := os.Symlink(path, linkPath); err != nil {
-		return fmt.Errorf("symlink current: %w", err)
-	}
-
-	return nil
 }
 
 func (r *Runner) Interrupt(err error) {

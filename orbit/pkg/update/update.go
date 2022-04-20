@@ -14,12 +14,14 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 
 	"github.com/fatih/color"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
+	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -549,6 +551,185 @@ func (u *Updater) initializeDirectories() error {
 		if err != nil {
 			return fmt.Errorf("initialize directories: %w", err)
 		}
+	}
+
+	return nil
+}
+
+type FileMigration struct {
+	OldPath string
+	NewPath string
+}
+
+// Migrate mirates a previous installation to the new-style paths (linux only). If it returns true, then a migration
+// occured and orbit should exit.
+func Migrate(opt Options) (bool, error) {
+	if runtime.GOOS != "linux" {
+		return false, nil
+	}
+
+	// check if executable is located in root dir
+	executable, err := os.Executable()
+	if err != nil {
+		return false, fmt.Errorf("get executable path: %w", err)
+	}
+
+	rel, err := filepath.Rel(opt.RootDirectory, executable)
+	if err != nil {
+		return false, fmt.Errorf("get relative path: %w", err)
+	}
+	if len(rel) < len(executable) {
+		// nothing to do
+		return false, nil
+	}
+
+	log.Info().Msg("migrating to new orbit root directory")
+
+	// find the old root dir, which contains bin/
+	path := executable
+	for path != "/" && filepath.Base(path) != "bin" {
+		path = filepath.Dir(path)
+	}
+	if path == "/" {
+		return false, errors.New("old root dir not found")
+	}
+	oldRoot := filepath.Dir(path)
+
+	// migrate binaries and config files
+
+	// binaries
+	var migrations []FileMigration
+	for target, targetInfo := range opt.Targets {
+		migrations = append(migrations, FileMigration{
+			OldPath: filepath.Join(oldRoot, "bin", target, targetInfo.Platform, targetInfo.Channel, targetInfo.TargetFile),
+			NewPath: filepath.Join(opt.RootDirectory, "bin", targetInfo.TargetFile),
+		})
+	}
+
+	// config files
+	migrations = append(migrations, []FileMigration{
+		{
+			OldPath: filepath.Join("/", "etc", "default", "orbit"),
+			NewPath: filepath.Join(opt.RootDirectory, "env", "orbit"),
+		},
+		{
+			OldPath: filepath.Join(oldRoot, "certs.pem"),
+			NewPath: filepath.Join(opt.RootDirectory, "certs.pem"),
+		},
+		{
+			OldPath: filepath.Join(oldRoot, "osquery.flags"),
+			NewPath: filepath.Join(opt.RootDirectory, "osquery.flags"),
+		},
+		{
+			OldPath: filepath.Join(oldRoot, "tuf-metadata.json"),
+			NewPath: filepath.Join(opt.RootDirectory, "tuf-metadata.json"),
+		},
+	}...)
+
+	for _, migration := range migrations {
+		log.Info().Msgf("moving %s to %s", migration.OldPath, migration.NewPath)
+		err := os.MkdirAll(filepath.Dir(migration.NewPath), constant.DefaultDirMode)
+		if err != nil {
+			return false, err
+		}
+
+		// make sure all these files have the same permissions
+		err = file.CopyWithPerms(migration.OldPath, migration.NewPath)
+		if err != nil {
+			return false, fmt.Errorf("move %s to %s: %w", migration.OldPath, migration.NewPath, err)
+		}
+	}
+
+	// update paths in systemd service file
+	servicePath := filepath.Join("/", "usr", "lib", "systemd", "system", "orbit.service")
+	log.Debug().Msgf("updating paths in %s", servicePath)
+	b, err := os.ReadFile(servicePath)
+	if err != nil {
+		return false, err
+	}
+
+	re, err := regexp.Compile(`(?m)^(EnvironmentFile=).*`)
+	if err != nil {
+		return false, err
+	}
+	environmentFilePath := filepath.Join(opt.RootDirectory, "env", "orbit")
+	b = re.ReplaceAll(b, []byte("$1"+environmentFilePath))
+
+	re, err = regexp.Compile(`(?m)^(ExecStart=).*`)
+	if err != nil {
+		return false, err
+	}
+	orbitPath := filepath.Join(opt.RootDirectory, "bin", "orbit")
+	b = re.ReplaceAll(b, []byte("$1"+orbitPath))
+
+	err = os.WriteFile(servicePath, b, 0)
+	if err != nil {
+		return false, fmt.Errorf("write %s: %w", servicePath, err)
+	}
+
+	// call daemon-reload so that it restarts the service with the updated orbit.service unit file
+	systemctlPath, err := exec.LookPath("systemctl")
+	if err != nil && err != exec.ErrNotFound {
+		return false, fmt.Errorf("find systemctl in path: %w", err)
+	} else if err == nil {
+		log.Debug().Msg("reloading unit files ...")
+		cmd := exec.Command(systemctlPath, "daemon-reload")
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			return false, fmt.Errorf("systemctl daemon-reload returned an error: %s: %w", string(out), err)
+		}
+	}
+
+	// clean up old files
+	removePaths := []string{
+		oldRoot,
+		filepath.Join("etc", "default", "orbit"),
+		filepath.Join("usr", "local", "bin", "orbit"),
+	}
+	for _, path := range removePaths {
+		log.Debug().Msgf("removing %s", path)
+		if err := os.RemoveAll(path); err != nil {
+			return false, err
+		}
+	}
+
+	return true, nil
+}
+
+func copyFile(src, dst string) (int64, error) {
+	srcInfo, err := os.Stat(src)
+	if err != nil {
+		return 0, fmt.Errorf("wtf1: %s %w", src, err)
+	}
+
+	if !srcInfo.Mode().IsRegular() {
+		return 0, fmt.Errorf("%s is not a regular file", src)
+	}
+
+	srcF, err := os.Open(src)
+	if err != nil {
+		return 0, fmt.Errorf("wtf: %s %w", src, err)
+	}
+	defer srcF.Close()
+
+	dstF, err := os.Create(dst)
+	if err != nil {
+		return 0, err
+	}
+	defer dstF.Close()
+
+	nBytes, err := io.Copy(dstF, srcF)
+	return nBytes, err
+}
+
+func copyPermissions(src, dst string) error {
+	sfi, err := os.Lstat(src)
+	if err != nil {
+		return err
+	}
+
+	if err := os.Chmod(dst, sfi.Mode()); err != nil {
+		return err
 	}
 
 	return nil
