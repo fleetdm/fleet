@@ -276,12 +276,6 @@ module.exports = {
 
               });//∞
 
-              // for article pages, we'll grab the first image in the article and attach the url to that page.
-              let imagesInArticlePages = [];
-              if(sectionRepoPath === 'articles') {
-                imagesInArticlePages = htmlString.match(/img src=\"(https?:\/\/[^"]+)/g);
-              }
-
               // Extract metadata from markdown.
               // > • Parsing meta tags (consider renaming them to just <meta>- or by now there's probably a more standard way of embedding semantics in markdown files; prefer to use that): https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L180-L183
               // >   See also https://github.com/mikermcneil/machinepack-markdown/blob/5d8cee127e8ce45c702ec9bbb2b4f9bc4b7fafac/machines/parse-docmeta-tags.js#L42-L47
@@ -343,44 +337,46 @@ module.exports = {
                 }
               }
 
-              let authorData;
-              // Checking the metadata on /blog pages, and adding the category to the each article's 'sectionRepoPath.
+              // Checking the metadata on /articles pages, and adding the category to the each article's URL.
               if(sectionRepoPath === 'articles/') {
-                if(embeddedMetadata.author) {
-                  // let authorsGithubData = {};
-                  // authorsGithubData = await sails.helpers.http.get.with({
-                  //   url: 'https://api.github.com/users/' + encodeURIComponent(embeddedMetadata.author),
-                  //   headers: { 'User-Agent': 'Fleet-Standard-Query-Library', Accept: 'application/vnd.github.v3+json' }
-                  // });
-                  // authorData = {
-                  //   name: authorsGithubData.name,
-                  //   handle: authorsGithubData.login,
-                  //   avatarUrl: authorsGithubData.avatar_url,
-                  //   htmlUrl: authorsGithubData.html_url,
-                  // };
+                if(!embeddedMetadata.authorsGitHubUserName) {
+                  // Throwing an error if the article doesn't have a authorsGitHubUserName meta tag
+                  throw new Error(`Failed compiling markdown content: An article page is missing a authorsGitHubUserName meta tag (<meta name="authorsGitHubUserName" value="">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, add a meta tag with the authors GitHub username.`);
+                }
+                if(!embeddedMetadata.authorsFullName) {
+                  // Throwing an error if the article doesn't have a authorsFullName meta tag
+                  throw new Error(`Failed compiling markdown content: An article page is missing a authorsGitHubUserName meta tag (<meta name="authorsGitHubUserName" value="">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, add a meta tag with the authors GitHub username.`);
+                }
+                if(!embeddedMetadata.articleTitle) {
+                  // Throwing an error if the article doesn't have a articleTitle meta tag
+                  throw new Error(`Failed compiling markdown content: An article page is missing a articleTitle meta tag (<meta name="articleTitle" value="">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, add a meta tag with the title of the article.`);
+                }
+                if(embeddedMetadata.publishedOn) {
+                  if(!embeddedMetadata.publishedOn.match(/^([0-9]{4})-(1[0-2]|0[1-9])-(3[01]|0[1-9]|[12][0-9])$/g)){
+                    // Throwing an error if an article page's publishedOn meta value is an invalid ISO date string
+                    throw new Error(`Failed compiling markdown content: An article page has an invalid publishedOn value (<meta name="publishedOn" value="${embeddedMetadata.publishedOn}">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, add a meta tag with the ISO formatted date the article was published on`);
+                  }
                 } else {
-                  // If the page is not a Readme or a FAQ, we'll throw an error if its missing a pageOrderInSection meta tag.
-                  throw new Error(`Failed compiling markdown content: A Non FAQ or README Documentation page is missing a pageOrderInSection meta tag (<meta name="pageOrderInSection" value="">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, add a meta tag with a number higher than 0.`);
+                  // Throwing an error if the article is missing a 'publishedOn' meta tag
+                  throw new Error(`Failed compiling markdown content: An article page is missing a publishedOn meta tag (<meta name="publishedOn" value="2022-04-19">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, add a meta tag with the ISO formatted date the article was published on`);
                 }
-                if(!embeddedMetadata.title) {
-                  //todo error
-                }
-                if(!embeddedMetadata.publishedOn) {
-                  //todo error
-                }
-                if(!embeddedMetadata.category) {
-                  //todo error
+                if(embeddedMetadata.category) {
+                  // Throwing an error if the article has an invalid category.
+                  embeddedMetadata.category = embeddedMetadata.category.toLowerCase();
+                  let validArticleCategories = ['product', 'security', 'engineering', 'success stories', 'announcements', 'guides', 'releases' ];
+                  if(!validArticleCategories.includes(embeddedMetadata.category)) {
+                    throw new Error(`Failed compiling markdown content: An article page has an invalid category meta tag (<meta name="category" value="${embeddedMetadata.category}">) at "${path.join(topLvlRepoPath, pageSourcePath)}". To resolve, change the meta tag to a valid category, one of: ${validArticleCategories}`);
+                  }
+                } else {
+                  // throwing an error if the article is missing a category meta tag
+                  throw new Error(`Failed compiling markdown content: An article page is missing a category meta tag (<meta name="category" value="guides">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, add a meta tag with the category of the article`);
                 }
                 // For article pages, we'll attach the category to the `rootRelativeUrlPath`.
+                // If the article is categorized as 'product' we'll replace the category with 'use-cases', or if it is categorized as 'success story' we'll replace it with 'device-management'
                 rootRelativeUrlPath = (
-                  (
-                    SECTION_INFOS_BY_SECTION_REPO_PATHS[sectionRepoPath].urlPrefix +
-                    '/' + embeddedMetadata.category + '/' +
-                    (
-                      pageUnextensionedLowercasedRelPath
-                      .split(/\//).map((fileOrFolderName) => encodeURIComponent(fileOrFolderName.replace(/^[0-9]+[\-]+/,''))).join('/')// « Get URL-friendly by encoding characters and stripping off ordering prefixes (like the "1-" in "1-Using-Fleet") for all folder and file names in the path.
-                    )
-                  )
+                  '/articles/' +
+                  (embeddedMetadata.category === 'product' ? 'use-cases' : embeddedMetadata.category === 'success stories' ? 'device-management' : embeddedMetadata.category) + '/' +
+                  (pageUnextensionedLowercasedRelPath.split(/\//).map((fileOrFolderName) => encodeURIComponent(fileOrFolderName.replace(/^[0-9]+[\-]+/,''))).join('/'))
                 );
               }
 
