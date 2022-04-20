@@ -15,7 +15,11 @@
   }
 
   .table-container {
-    margin-top: $pad-small;
+    margin-top: 0;
+  }
+
+  .data-table__wrapper {
+    margin-top: 0;
   }
 
   .table-container__header {

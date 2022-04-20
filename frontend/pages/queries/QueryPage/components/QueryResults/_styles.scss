@@ -40,11 +40,17 @@
     margin-right: $pad-medium;
   }
 
-  &__export-btn,
+  &__export-btn {
+    img {
+      width: 13px;
+      margin-left: 8px;
+      position: relative;
+      bottom: 2px;
+    }
+  }
   &__show-query-btn {
     img {
       width: 13px;
-      height: 13px;
       margin-left: 8px;
     }
   }
