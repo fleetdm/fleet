@@ -10,7 +10,7 @@ module.exports = {
   inputs: {
     slug : {
       description: 'The relative path to the blog page from within this route.',
-      example: 'blog/supported-browsers',
+      example: 'guides/deploying-fleet-on-render',
       type: 'string',
       defaultsTo: ''
     }
@@ -30,10 +30,8 @@ module.exports = {
     if (!_.isObject(sails.config.builtStaticContent) || !_.isArray(sails.config.builtStaticContent.markdownPages) || !sails.config.builtStaticContent.compiledPagePartialsAppPath) {
       throw {badConfig: 'builtStaticContent.markdownPages'};
     }
-    let SECTION_URL_PREFIX = '/articles';
-
     let thisPage = _.find(sails.config.builtStaticContent.markdownPages, {
-      url: _.trimRight(SECTION_URL_PREFIX + '/' + slug)
+      url: _.trimRight('/' + slug)
     });
     let needsRedirectMaybe = (!thisPage);
 
@@ -43,7 +41,7 @@ module.exports = {
       let modifiedslug = slug.toLowerCase().replace(multipleSlashesRegex, '/');
       // Finding the appropriate page content using the modified slug.
       let revisedPage = _.find(sails.config.builtStaticContent.markdownPages, {
-        url: _.trimRight(SECTION_URL_PREFIX + '/' + _.trim(modifiedslug, '/'), '/')
+        url: _.trimRight('/' + _.trim(modifiedslug, '/'), '/')
       });
       if(revisedPage) {
         // If we matched a page with the modified slug, then redirect to that.
@@ -53,17 +51,18 @@ module.exports = {
         throw 'notFound';
       }
     }
-
+    // Setting the pages meta title and description from the articles meta tags.
+    // Note: Every article page will have a 'articleTitle' and a 'authorsFullName' meta tag.
+    // if they are undefined, we'll use the generic title and description set in layout.ejs
     let pageTitleForMeta;
-    if(!thisPage.title) {
-      // If thisPage.title is 'Readme.md', we're on the docs landing page and we'll follow the title format of the other top level pages.
-      pageTitleForMeta = 'Blog | Fleet for osquery';
-    } else {
-      // Otherwise we'll use the page title provided and format it accordingly.
-      pageTitleForMeta = thisPage.title + ' | Fleet blog';
+    if(thisPage.meta.articleTitle) {
+      pageTitleForMeta = thisPage.meta.articleTitle + ' | Fleet for osquery';
     }
-    // Setting the meta description for this page if one was provided, otherwise setting a generic description.
-    let pageDescriptionForMeta = thisPage.meta.description ? thisPage.meta.description : 'Fleet';
+    let pageDescriptionForMeta;
+    if(!thisPage.meta.articleTitle || !thisPage.meta.authorsFullName) {
+      pageDescriptionForMeta = thisPage.meta.articleTitle +' by '+thisPage.meta.authorsFullName+'.';
+    }
+
     // Respond with view.
     return {
       path: require('path'),

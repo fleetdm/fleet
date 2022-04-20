@@ -374,7 +374,7 @@ module.exports = {
                 // For article pages, we'll attach the category to the `rootRelativeUrlPath`.
                 // If the article is categorized as 'product' we'll replace the category with 'use-cases', or if it is categorized as 'success story' we'll replace it with 'device-management'
                 rootRelativeUrlPath = (
-                  '/articles/' +
+                  '/' +
                   (embeddedMetadata.category === 'product' ? 'use-cases' : embeddedMetadata.category === 'success stories' ? 'device-management' : embeddedMetadata.category) + '/' +
                   (pageUnextensionedLowercasedRelPath.split(/\//).map((fileOrFolderName) => encodeURIComponent(fileOrFolderName.replace(/^[0-9]+[\-]+/,''))).join('/'))
                 );
