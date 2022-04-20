@@ -35,7 +35,7 @@ We’re also going to need to set up some environment variables and a disk to mo
 - `MYSQL_ROOT_PASSWORD=supersecurerootpw`
 - `MYSQL_USER=fleet`
 
-Disks
+### Disks
 
 - Name: `mysql`
 - Mount Path: `/var/lib/mysql`
