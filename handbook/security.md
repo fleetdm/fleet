@@ -383,7 +383,7 @@ security keys to generate a temporary code for the device that does not.
 **Answer**: No. Using them does not make sessions shorter. For example, if using the GMail app on
 mobile, you'd need the keys to set up the app only.
 
-## GitHub Security
+## GitHub security
 Since Fleet makes open source software, we need to host and collaborate on code. We do this using GitHub.
 
 This section covers our GitHub configuration. Like everything we do, we aim for the right level of security and productivity.
@@ -420,7 +420,7 @@ charges a [4x premium](https://sso.tax/) for this feature.
 | Dependabot alerts                  | Automatically enable for new repositories + enabled for all        | We want to be alerted if any dependency is vulnerable.                       |
 | Dependabot security updates        | Automatically enable for new repositories                          | This automatically creates PRs to fix vulnerable dependencies when possible. |
 
-### Member Privileges
+### Member privileges
 
 | Member privileges feature | Setting | Note                                                                                                                         |
 | ------------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------- |
@@ -440,11 +440,11 @@ charges a [4x premium](https://sso.tax/) for this feature.
 | Allow users with read access to create discussions                         | 🚫                   | We do not currently use discussions and want people to use issues as much as possible.                                                                                       |
 | Allow members to create teams                                              | 🚫                   | We automate the management of GitHub teams with the [GitHub Terraform provider](https://github.com/integrations/terraform-provider-github).                            |
 
-### Team Discussions
+### Team discussions
 We do not use team discussions and therefore have disabled them. This is simply to avoid discussions
 located in too many places and not security-related.
 
-### Repository Security
+### Repository security
 
 #### Branch protection
 Branch protection is one of the most important settings to configure and the main reason we should not have members with administrative privileges on the repositories.
@@ -525,7 +525,7 @@ Google's name for Two-Factor Authentication (2FA) or Multi-Factor Authentication
 | App-based push notifications                                                  | Harder to phish than TOTP, but by sending a lot of prompts to a phone, a user might accidentally accept a nefarious notification.       |
 | Hardware security keys                                                        | [Most secure](https://krebsonsecurity.com/2018/07/google-security-keys-neutralized-employee-phishing/) but requires extra hardware or a recent smartphone. Configure this as soon as you receive your Fleet YubiKeys                                                                |
 
-**2-Step Verification in Google Workspace**
+##### 2-Step verification in Google Workspace
 
 We apply the following settings to *Security/2-Step Verification* to all users as the minimum baseline.
 
@@ -537,7 +537,7 @@ We apply the following settings to *Security/2-Step Verification* to all users a
 | Frequency: Allow user to trust the device  | Off                                                |
 | Methods                                    | Any except verification codes via text, phone call |
 
-**Hardware security keys**
+##### Hardware security keys
 
 We strongly recommend using hardware security keys. 
 
@@ -587,7 +587,7 @@ We apply the following settings to *Security/Less Secure Apps* to all users as t
 | ------------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
 | Control user access to apps that use less secure sign-in technology and make accounts more vulnerable.  | Disable access to less secure apps (Recommended) |
 
-#### API Access
+#### API access
 Google Workspace makes it easy for users to add tools to their workflows while having these tools authenticate to their Google applications and data via OAuth. We mark all Google services as *restricted* but do allow the use of OAuth for simple authentication and the use of less dangerous privileges on Gmail and Drive. We then approve applications that require more privileges on a case-by-case basis.
 
 This level of security allows users to authenticate to web applications with their Google accounts. This exposes little information beyond what they would provide in a form to create an account, and it protects confidential data while keeping everything managed.
