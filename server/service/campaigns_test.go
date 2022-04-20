@@ -72,7 +72,7 @@ func TestLiveQueryAuth(t *testing.T) {
 		return target, nil
 	}
 	ds.HostIDsInTargetsFunc = func(ctx context.Context, filters fleet.TeamFilter, targets fleet.HostTargets) ([]uint, error) {
-		return nil, nil
+		return []uint{1}, nil
 	}
 	ds.HostIDsByNameFunc = func(ctx context.Context, filter fleet.TeamFilter, names []string) ([]uint, error) {
 		return nil, nil

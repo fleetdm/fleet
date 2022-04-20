@@ -80,6 +80,14 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 	if err := writePostInstall(opt, postInstallPath); err != nil {
 		return "", fmt.Errorf("write postinstall script: %w", err)
 	}
+	preRemovePath := filepath.Join(tmpDir, "preremove.sh")
+	if err := writePreRemove(opt, preRemovePath); err != nil {
+		return "", fmt.Errorf("write preremove script: %w", err)
+	}
+	postRemovePath := filepath.Join(tmpDir, "postremove.sh")
+	if err := writePostRemove(opt, postRemovePath); err != nil {
+		return "", fmt.Errorf("write postremove script: %w", err)
+	}
 
 	if opt.FleetCertificate != "" {
 		if err := writeCertificate(opt, orbitRoot); err != nil {
@@ -121,8 +129,15 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 		log.Debug().Interface("file", c).Msg("added file")
 	}
 
-	// Build package
+	// Add empty folders to be created.
+	for _, emptyFolder := range []string{"/var/log/osquery", "/var/log/orbit"} {
+		contents = append(contents, (&files.Content{
+			Destination: emptyFolder,
+			Type:        "dir",
+		}).WithFileInfoDefaults())
+	}
 
+	// Build package
 	info := &nfpm.Info{
 		Name:        "fleet-osquery",
 		Version:     opt.Version,
@@ -132,12 +147,10 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 		Homepage:    "https://fleetdm.com",
 		Overridables: nfpm.Overridables{
 			Contents: contents,
-			EmptyFolders: []string{
-				"/var/log/osquery",
-				"/var/log/orbit",
-			},
 			Scripts: nfpm.Scripts{
 				PostInstall: postInstallPath,
+				PreRemove:   preRemovePath,
+				PostRemove:  postRemovePath,
 			},
 		},
 	}
@@ -252,6 +265,31 @@ func writePostInstall(opt Options, path string) error {
 	}
 
 	if err := ioutil.WriteFile(path, contents.Bytes(), constant.DefaultFileMode); err != nil {
+		return fmt.Errorf("write file: %w", err)
+	}
+
+	return nil
+}
+
+func writePreRemove(opt Options, path string) error {
+	if err := ioutil.WriteFile(path, []byte(`#!/bin/sh
+
+set -e
+
+systemctl stop orbit.service
+systemctl disable orbit.service
+`), constant.DefaultFileMode); err != nil {
+		return fmt.Errorf("write file: %w", err)
+	}
+
+	return nil
+}
+
+func writePostRemove(opt Options, path string) error {
+	if err := ioutil.WriteFile(path, []byte(`#!/bin/sh
+
+rm -rf /var/lib/orbit /var/log/orbit /usr/local/bin/orbit /etc/default/orbit /usr/lib/systemd/system/orbit.service
+`), constant.DefaultFileMode); err != nil {
 		return fmt.Errorf("write file: %w", err)
 	}
 
