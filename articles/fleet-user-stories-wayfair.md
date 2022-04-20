@@ -36,4 +36,3 @@ Fleet very fast, after a release or two. What I hope to see in Fleet are the fol
 <meta name="authorsFullName" value="Mike Thomas">
 <meta name="publishedOn" value="2021-08-20">
 <meta name="articleTitle" value="Fleet user stories — Wayfair">
-<meta name="heroImageURL" value="https://miro.medium.com/1*7BTPQ_RRbL9h9YkxT8caDQ.jpeg">

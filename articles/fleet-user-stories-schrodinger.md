@@ -31,4 +31,3 @@ I’ll admit to not liking SQL much. It would be handy to have a query builder f
 <meta name="authorsFullName" value="Mike Thomas">
 <meta name="publishedOn" value="2021-09-10">
 <meta name="articleTitle" value="Fleet user stories — Schrödinger">
-<meta name="heroImageURL" value="https://miro.medium.com/1*uAZ-YhsFJIhNCl1Cz-lVxQ.jpeg">
