@@ -213,6 +213,7 @@ Use code blocks for longer or more detailed chunks of code or any time you have 
 code block
 ```
 ````
+
 Will render correctly as:
 
 ```
