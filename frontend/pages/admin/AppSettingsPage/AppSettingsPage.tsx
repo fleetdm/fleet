@@ -48,6 +48,10 @@ const AppSettingsPage = ({
     },
   });
 
+  const isNavItemActive = (navItem: string) => {
+    return navItem === activeSection ? "active-nav" : "";
+  };
+
   const onFormSubmit = useCallback(
     (formData: IConfig) => {
       const diff = deepDifference(formData, appConfig);
@@ -135,8 +139,7 @@ const AppSettingsPage = ({
           <ul className={`${baseClass}__form-nav-list`}>
             <li>
               <Link
-                className={`${baseClass}__nav-link${
-                  activeSection === "info" ? " active-nav" : ""
+                className={`${baseClass}__nav-link ${isNavItemActive("info")}
                 }`}
                 to={PATHS.ADMIN_SETTINGS_INFO}
               >
@@ -145,9 +148,9 @@ const AppSettingsPage = ({
             </li>
             <li>
               <Link
-                className={`${baseClass}__nav-link${
-                  activeSection === "webaddress" ? " active-nav" : ""
-                }`}
+                className={`${baseClass}__nav-link ${isNavItemActive(
+                  "webaddress"
+                )}`}
                 to={PATHS.ADMIN_SETTINGS_WEBADDRESS}
               >
                 Fleet web address
@@ -155,9 +158,7 @@ const AppSettingsPage = ({
             </li>
             <li>
               <Link
-                className={`${baseClass}__nav-link${
-                  activeSection === "sso" ? " active-nav" : ""
-                }`}
+                className={`${baseClass}__nav-link ${isNavItemActive("sso")}`}
                 to={PATHS.ADMIN_SETTINGS_SSO}
               >
                 Single sign-on options
@@ -165,9 +166,7 @@ const AppSettingsPage = ({
             </li>
             <li>
               <Link
-                className={`${baseClass}__nav-link${
-                  activeSection === "smtp" ? " active-nav" : ""
-                }`}
+                className={`${baseClass}__nav-link$ ${isNavItemActive("smtp")}`}
                 to={PATHS.ADMIN_SETTINGS_SMTP}
               >
                 SMTP options
@@ -175,9 +174,9 @@ const AppSettingsPage = ({
             </li>
             <li>
               <Link
-                className={`${baseClass}__nav-link${
-                  activeSection === "agents" ? " active-nav" : ""
-                }`}
+                className={`${baseClass}__nav-link ${isNavItemActive(
+                  "agents"
+                )}`}
                 to={PATHS.ADMIN_SETTINGS_AGENTS}
               >
                 Global agent options
@@ -185,9 +184,9 @@ const AppSettingsPage = ({
             </li>
             <li>
               <Link
-                className={`${baseClass}__nav-link${
-                  activeSection === "host-status-webhook" ? " active-nav" : ""
-                }`}
+                className={`${baseClass}__nav-link ${isNavItemActive(
+                  "host-status-webhook"
+                )}`}
                 to={PATHS.ADMIN_SETTINGS_HOST_STATUS_WEBHOOK}
               >
                 Host status webhook
@@ -195,9 +194,9 @@ const AppSettingsPage = ({
             </li>
             <li>
               <Link
-                className={`${baseClass}__nav-link${
-                  activeSection === "statistics" ? " active-nav" : ""
-                }`}
+                className={`${baseClass}__nav-link ${isNavItemActive(
+                  "statistics"
+                )}`}
                 to={PATHS.ADMIN_SETTINGS_STATISTICS}
               >
                 Usage statistics
@@ -205,9 +204,9 @@ const AppSettingsPage = ({
             </li>
             <li>
               <Link
-                className={`${baseClass}__nav-link${
-                  activeSection === "advanced" ? " active-nav" : ""
-                }`}
+                className={`${baseClass}__nav-link ${isNavItemActive(
+                  "advanced"
+                )}`}
                 to={PATHS.ADMIN_SETTINGS_ADVANCED}
               >
                 Advanced options

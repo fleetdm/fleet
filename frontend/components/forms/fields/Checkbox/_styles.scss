@@ -86,4 +86,10 @@
     padding-left: $pad-small;
     display: inline;
   }
+
+  &__label-tooltip {
+    font-size: $x-small;
+    padding-left: $pad-small;
+    display: inherit;
+  }
 }

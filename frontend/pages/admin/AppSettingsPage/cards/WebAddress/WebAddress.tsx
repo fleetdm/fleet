@@ -55,9 +55,7 @@ const WebAddress = ({
   return (
     <form className={baseClass} onSubmit={onFormSubmit} autoComplete="off">
       <div className={`${baseClass}__section`}>
-        <h2>
-          <a id="fleet-web-address">Fleet web address</a>
-        </h2>
+        <h2>Fleet web address</h2>
         <div className={`${baseClass}__inputs`}>
           <InputField
             label="Fleet app URL"

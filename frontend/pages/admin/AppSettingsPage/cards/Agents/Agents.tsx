@@ -64,9 +64,7 @@ const Agents = ({
   return (
     <form className={baseClass} onSubmit={onFormSubmit} autoComplete="off">
       <div className={`${baseClass}__section`}>
-        <h2>
-          <a id="agent-options">Global agent options</a>
-        </h2>
+        <h2>Global agent options</h2>
         <div className={`${baseClass}__yaml`}>
           <p className={`${baseClass}__section-description`}>
             This code will be used by osquery when it checks for configuration

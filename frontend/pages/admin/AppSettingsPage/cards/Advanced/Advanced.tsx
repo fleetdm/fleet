@@ -92,9 +92,7 @@ const Advanced = ({
   return (
     <form className={baseClass} onSubmit={onFormSubmit} autoComplete="off">
       <div className={`${baseClass}__section`}>
-        <h2>
-          <a id="advanced-options">Advanced options</a>
-        </h2>
+        <h2>Advanced options</h2>
         <div className={`${baseClass}__advanced-options`}>
           <p className={`${baseClass}__section-description`}>
             Most users do not need to modify these options.

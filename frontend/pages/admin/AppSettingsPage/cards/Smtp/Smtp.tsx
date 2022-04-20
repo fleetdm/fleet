@@ -157,23 +157,21 @@ const Smtp = ({
     <form className={baseClass} onSubmit={onFormSubmit} autoComplete="off">
       <div className={`${baseClass}__section`}>
         <h2>
-          <a id="smtp">
-            SMTP options{" "}
-            <small
-              className={`smtp-options smtp-options--${
-                appConfig.smtp_settings.configured
-                  ? "configured"
-                  : "notconfigured"
-              }`}
-            >
-              STATUS:{" "}
-              <em>
-                {appConfig.smtp_settings.configured
-                  ? "CONFIGURED"
-                  : "NOT CONFIGURED"}
-              </em>
-            </small>
-          </a>
+          SMTP options{" "}
+          <small
+            className={`smtp-options smtp-options--${
+              appConfig.smtp_settings.configured
+                ? "configured"
+                : "notconfigured"
+            }`}
+          >
+            STATUS:{" "}
+            <em>
+              {appConfig.smtp_settings.configured
+                ? "CONFIGURED"
+                : "NOT CONFIGURED"}
+            </em>
+          </small>
         </h2>
         <div className={`${baseClass}__inputs`}>
           <Checkbox

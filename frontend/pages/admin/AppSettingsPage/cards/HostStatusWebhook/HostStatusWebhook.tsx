@@ -127,9 +127,7 @@ const HostStatusWebhook = ({
     <>
       <form className={baseClass} onSubmit={onFormSubmit} autoComplete="off">
         <div className={`${baseClass}__section`}>
-          <h2>
-            <a id="host-status-webhook">Host status webhook</a>
-          </h2>
+          <h2>Host status webhook</h2>
           <div className={`${baseClass}__host-status-webhook`}>
             <p className={`${baseClass}__section-description`}>
               Send an alert if a portion of your hosts go offline.

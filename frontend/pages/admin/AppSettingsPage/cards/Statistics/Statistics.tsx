@@ -85,9 +85,7 @@ const Statistics = ({
     <>
       <form className={baseClass} onSubmit={onFormSubmit} autoComplete="off">
         <div className={`${baseClass}__section`}>
-          <h2>
-            <a id="usage-stats">Usage statistics</a>
-          </h2>
+          <h2>Usage statistics</h2>
           <p className={`${baseClass}__section-description`}>
             Help improve Fleet by sending anonymous usage statistics.
             <br />

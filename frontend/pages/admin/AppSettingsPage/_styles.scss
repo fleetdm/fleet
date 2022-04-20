@@ -139,10 +139,8 @@
     }
 
     h2 {
-      a {
-        color: $core-fleet-black;
-        scroll-margin-top: 210px; // used to push down anchor to visible area when there are sticky headers
-      }
+      padding-bottom: $pad-small;
+      max-width: 65%;
     }
 
     .smtp-options {
@@ -241,6 +239,8 @@
       width: 120px;
       border: 1px solid $ui-fleet-blue-15;
       background-color: $ui-light-grey;
+      position: relative;
+      bottom: -20px;
     }
 
     p {
@@ -261,9 +261,7 @@
   }
 
   &__yaml {
-    width: calc(
-      100% - 2px
-    ); // because the outline extended beyond the sticky page description
+    width: calc(90% - 50px);
     margin-bottom: $pad-medium;
   }
 

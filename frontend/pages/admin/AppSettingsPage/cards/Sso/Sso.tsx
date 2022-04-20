@@ -94,9 +94,7 @@ const Sso = ({ appConfig, handleSubmit }: IAppConfigFormProps): JSX.Element => {
   return (
     <form className={baseClass} onSubmit={onFormSubmit} autoComplete="off">
       <div className={`${baseClass}__section`}>
-        <h2>
-          <a id="sso">Single sign-on options</a>
-        </h2>
+        <h2>Single sign-on options</h2>
         <div className={`${baseClass}__inputs`}>
           <Checkbox
             onChange={handleInputChange}
