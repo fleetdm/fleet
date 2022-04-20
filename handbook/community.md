@@ -189,9 +189,9 @@ graph TD;
     A--D
 ```
 
-## Pull Requests
+## Pull requests
 
-The most important thing when community members contribute to Fleet is to show them we value their time and effort. We need to fget eyes on community pull requests quickly (within 1 business day) and get them pushed merged as soon as we can.
+The most important thing when community members contribute to Fleet is to show them we value their time and effort. We need to get eyes on community pull requests quickly (within 1 business day) and get them merged as soon as we can.
 
 
 
@@ -246,21 +246,23 @@ When merging a pull request from a community contributor:
 If you're assigned a community pull request for review, it is important to keep things moving for the contributor. The goal is to not go more than one business day without following up with the contributor.
 
 A PR should be merged if:
-    - It's a change that is needed and useful. 
-    - The CI is passing.
-    - Tests are in place.
-    - Documentation is updated.
-    - Changes file is created.
+
+- It's a change that is needed and useful. 
+- The CI is passing.
+- Tests are in place.
+- Documentation is updated.
+- Changes file is created.
 
 For PRs that aren't ready to merge:
-    - Thank the contributor for their hard work and explain why we aren't merging the changes.
-    - Encourage the contributor to reach out in the #fleet channel of osquery Slack to get help from the rest of the community.
-    - Offer code review and coaching to help get the PR ready to go.**
-    - Keep an eye out for any updates or responses.
+
+- Thank the contributor for their hard work and explain why we aren't merging the changes.
+- Encourage the contributor to reach out in the #fleet channel of osquery Slack to get help from the rest of the community.
+- Offer code review and coaching to help get the PR ready to go (see note below)
+- Keep an eye out for any updates or responses.
+
+> Sometimes (typically for Fleet customers), a Fleet team member may add tests and make any necessary changes to merge the PR. 
 
 If everything is good to go, approve the review.
-
-** Sometimes (typically for contributions from users of Fleet Premium), a Fleet team member may be tasked with adding teests and making any needed changes. 
 
 ## Fleet swag
 
