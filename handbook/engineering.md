@@ -37,7 +37,7 @@ Our primary quality objectives are *customer service* and *defect reduction*. We
 
 - make people feel heard and understood.
 
-- celebrate contributions.
+- Celebrate contributions.
 
 - triage bugs, identify community feature requests, community pull requests, and community questions.
 
