@@ -31,7 +31,9 @@ The on-call engineer is responsible for responding to technical Slack comments, 
 ### Goals
 Our primary quality objectives are *customer service* and *defect reduction*. We use the following Key Performance Indicators (KPIs) to measure our success with these goals:
 
-- become familiar with and stay abreast of what our community wants and the problems they're having.
+- Customer response time.
+- The number of bugs resolved per release cycle.
+- Stay abreast of what our community wants and the problems they're having.
 
 - make people feel heard and understood.
 
