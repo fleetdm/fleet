@@ -101,7 +101,7 @@ Premium support for support/troubleshooting: **All versions**
 
 ### Sources
 
-There are four sources where the on-call engineer should monitor for activity:
+There are four sources that the on-call engineer should monitor for activity:
 
 1. Customer Slack channels - Found under the "Connections" section in Slack. These channels are usually titled "at-insert-customer-name-here."
 
