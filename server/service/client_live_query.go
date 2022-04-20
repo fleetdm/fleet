@@ -90,7 +90,7 @@ func (c *Client) LiveQueryWithContext(ctx context.Context, query string, labels 
 	if flag.Lookup("test.v") != nil {
 		wssURL.Scheme = "ws"
 	}
-	wssURL.Path = c.urlPrefix + "/api/v1/fleet/results/websocket"
+	wssURL.Path = c.urlPrefix + "/api/latest/fleet/results/websocket"
 	conn, _, err := dialer.Dial(wssURL.String(), nil)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "upgrade live query result websocket")
