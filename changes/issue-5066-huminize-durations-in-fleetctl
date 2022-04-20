@@ -1,0 +1,2 @@
+- All duration settings returned by `fleetctl get config --include-server-config` were changed from
+  nanoseconds to an easy to read format.

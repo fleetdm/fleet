@@ -71,9 +71,6 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 	// only admin can see smtp, sso, and host expiry settings
 	if vc.User.GlobalRole != nil && *vc.User.GlobalRole == fleet.RoleAdmin {
 		smtpSettings = config.SMTPSettings
-		if smtpSettings.SMTPPassword != "" {
-			smtpSettings.SMTPPassword = "********"
-		}
 		ssoSettings = config.SSOSettings
 		hostExpirySettings = config.HostExpirySettings
 		agentOptions = config.AgentOptions
@@ -109,7 +106,19 @@ func (svc *Service) AppConfig(ctx context.Context) (*fleet.AppConfig, error) {
 		}
 	}
 
-	return svc.ds.AppConfig(ctx)
+	ac, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if ac.SMTPSettings.SMTPPassword != "" {
+		ac.SMTPSettings.SMTPPassword = "********"
+	}
+
+	for _, jiraIntegration := range ac.Integrations.Jira {
+		jiraIntegration.APIToken = "********"
+	}
+	return ac, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////

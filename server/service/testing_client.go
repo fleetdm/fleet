@@ -17,7 +17,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"github.com/throttled/throttled/v2"
 )
 
 type withDS struct {
@@ -46,7 +45,6 @@ type withServer struct {
 func (ts *withServer) SetupSuite(dbName string) {
 	ts.withDS.SetupSuite(dbName)
 
-	loginRateLimit = throttled.PerMin(100)
 	rs := pubsub.NewInmemQueryResults()
 	users, server := RunServerForTestsWithDS(ts.s.T(), ts.ds, TestServerOpts{Rs: rs})
 	ts.server = server
@@ -149,7 +147,7 @@ func (ts *withServer) getTestToken(email string, password string) string {
 	defer resp.Body.Close()
 	assert.Equal(ts.s.T(), http.StatusOK, resp.StatusCode)
 
-	var jsn = struct {
+	jsn := struct {
 		User  *fleet.User         `json:"user"`
 		Token string              `json:"token"`
 		Err   []map[string]string `json:"errors,omitempty"`

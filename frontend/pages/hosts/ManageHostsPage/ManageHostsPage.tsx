@@ -1336,6 +1336,8 @@ const ManageHostsPage = ({
         }`}
       >
         <span>{`${count} host${count === 1 ? "" : "s"}`}</span>
+        {/* Export all columns initially in 4.13 release but feature being pushed
+        back by product until we build client side filtering to export only selected columns
         <Button
           className={`${baseClass}__export-btn`}
           onClick={onExportHostsResults}
@@ -1344,7 +1346,7 @@ const ManageHostsPage = ({
           <>
             Export hosts <img alt="" src={DownloadIcon} />
           </>
-        </Button>
+        </Button> */}
       </div>
     );
   }, [isHostCountLoading, filteredHostCount]);

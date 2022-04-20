@@ -28,8 +28,25 @@
     if (sails.config.environment === 'production') { %>
     <% /* Google Analytics, Google Tag Manager, Snitcher etc. */ %>
     <!-- Global site tag (gtag.js) - Google Analytics -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=UA-182153798-1"></script>
-    <script>window.dataLayer = window.dataLayer || []; function gtag(){dataLayer.push(arguments);} gtag('js', new Date()); gtag('config', 'UA-182153798-1');</script>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-JC3DRNY1GV"></script>
+    <script>window.dataLayer = window.dataLayer || []; function gtag(){dataLayer.push(arguments);} gtag('js', new Date()); gtag('config', 'G-JC3DRNY1GV');
+    </script>
+    <%/* Meta pixel code */%>
+    <script>
+      !function(f,b,e,v,n,t,s)
+      {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+      n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+      if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+      n.queue=[];t=b.createElement(e);t.async=!0;
+      t.src=v;s=b.getElementsByTagName(e)[0];
+      s.parentNode.insertBefore(t,s)}(window, document,'script',
+      'https://connect.facebook.net/en_US/fbevents.js');
+      fbq('init', '673041690615149');
+      fbq('track', 'PageView');
+    </script>
+    <noscript>
+      <img alt="Meta pixel" height="1" width="1" style="display:none" src="https://www.facebook.com/tr?id=673041690615149&ev=PageView&noscript=1"/>
+    </noscript>
     <%/* Snitcher analytics code */%>
     <script>
       !function(i,s,o,g,r,a,m){i.Ip2cObject=o;i[o]||(i[o]=function(){
@@ -312,6 +329,7 @@
     <script src="/js/pages/get-started.page.js"></script>
     <script src="/js/pages/handbook/basic-handbook.page.js"></script>
     <script src="/js/pages/homepage.page.js"></script>
+    <script src="/js/pages/landing.page.js"></script>
     <script src="/js/pages/legal/privacy.page.js"></script>
     <script src="/js/pages/legal/terms.page.js"></script>
     <script src="/js/pages/platform.page.js"></script>

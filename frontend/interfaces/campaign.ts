@@ -11,20 +11,10 @@ export default PropTypes.shape({
   online: PropTypes.number,
 });
 
-export interface ICampaignQueryResult {
-  build_distro: string;
-  build_platform: string;
-  config_hash: string;
-  config_valid: string;
-  extensions: string;
+export interface ICampaignError {
   host_hostname: string;
-  instance_id: string;
-  pid: string;
-  platform_mask: string;
-  start_time: string;
-  uuid: string;
-  version: string;
-  watcher: string;
+  osquery_version: string;
+  error: string;
 }
 
 export interface ICampaign {
@@ -32,7 +22,7 @@ export interface ICampaign {
     [key: string]: any;
   };
   created_at: string;
-  errors: any;
+  errors: ICampaignError[];
   hosts: IHost[];
   hosts_count: {
     total: number;
@@ -41,7 +31,7 @@ export interface ICampaign {
   };
   id: number;
   query_id: number;
-  query_results: ICampaignQueryResult[];
+  query_results: unknown[];
   status: string;
   totals: {
     count: number;
@@ -53,6 +43,7 @@ export interface ICampaign {
   user_id: number;
 }
 
+// TODO: review use of ICampaignState to see if legacy code can be removed
 export interface ICampaignState {
   campaign: ICampaign;
   observerShowSql: boolean;

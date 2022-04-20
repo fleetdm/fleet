@@ -11,7 +11,6 @@ import (
 	"testing"
 	"time"
 
-	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -294,15 +293,11 @@ func TestEndpointer(t *testing.T) {
 
 	e := newUserAuthenticatedEndpointer(svc, fleetAPIOptions, r, "v1", "2021-11")
 	nopHandler := func(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
-		if authctx, ok := authz_ctx.FromContext(ctx); ok {
-			authctx.SetChecked()
-		}
+		setAuthCheckedOnPreAuthErr(ctx)
 		return "nop", nil
 	}
 	overrideHandler := func(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
-		if authctx, ok := authz_ctx.FromContext(ctx); ok {
-			authctx.SetChecked()
-		}
+		setAuthCheckedOnPreAuthErr(ctx)
 		return "override", nil
 	}
 

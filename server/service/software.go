@@ -44,7 +44,9 @@ func listSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 }
 
 func (svc Service) ListSoftware(ctx context.Context, opt fleet.SoftwareListOptions) ([]fleet.Software, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Software{}, fleet.ActionRead); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.AuthzSoftwareInventory{
+		TeamID: opt.TeamID,
+	}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 
@@ -82,7 +84,9 @@ func countSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.S
 }
 
 func (svc Service) CountSoftware(ctx context.Context, opt fleet.SoftwareListOptions) (int, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Software{}, fleet.ActionRead); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.AuthzSoftwareInventory{
+		TeamID: opt.TeamID,
+	}, fleet.ActionRead); err != nil {
 		return 0, err
 	}
 

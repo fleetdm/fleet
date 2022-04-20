@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"os"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -206,7 +208,6 @@ func cronVulnerabilities(
 			recentVulns := checkVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled)
 			if vulnAutomationEnabled && len(recentVulns) > 0 {
 				if appConfig.WebhookSettings.VulnerabilitiesWebhook.Enable {
-
 					// send recent vulnerabilities via webhook
 					if err := webhooks.TriggerVulnerabilitiesWebhook(ctx, ds, kitlog.With(logger, "webhook", "vulnerabilities"),
 						recentVulns, appConfig, time.Now()); err != nil {
@@ -215,7 +216,6 @@ func cronVulnerabilities(
 						sentry.CaptureException(err)
 					}
 				} else {
-
 					// queue job to create jira issues
 					if err := worker.QueueJiraJobs(
 						ctx,
@@ -250,7 +250,8 @@ func cronVulnerabilities(
 }
 
 func checkVulnerabilities(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
-	vulnPath string, config config.FleetConfig, collectRecentVulns bool) map[string][]string {
+	vulnPath string, config config.FleetConfig, collectRecentVulns bool,
+) map[string][]string {
 	err := vulnerabilities.TranslateSoftwareToCPE(ctx, ds, vulnPath, logger, config)
 	if err != nil {
 		level.Error(logger).Log("msg", "analyzing vulnerable software: Software->CPE", "err", err)
@@ -403,6 +404,24 @@ func cronWorker(
 	}
 	w.Register(jira)
 
+	// create a JiraClient wrapper to introduce forced failures if configured
+	// to do so via the environment variable.
+	var failerClient *worker.TestJiraFailer
+	if forcedFailures := os.Getenv("FLEET_JIRA_CLIENT_FORCED_FAILURES"); forcedFailures != "" {
+		// format is "<modulo number>;<cve1>,<cve2>,<cve3>,..."
+		parts := strings.Split(forcedFailures, ";")
+		if len(parts) == 2 {
+			mod, _ := strconv.Atoi(parts[0])
+			cves := strings.Split(parts[1], ",")
+			if mod > 0 || len(cves) > 0 {
+				failerClient = &worker.TestJiraFailer{
+					FailCallCountModulo: mod,
+					AlwaysFailCVEs:      cves,
+				}
+			}
+		}
+	}
+
 	ticker := time.NewTicker(10 * time.Second)
 	for {
 		select {
@@ -461,7 +480,12 @@ func cronWorker(
 
 		// safe to update the Jira worker as it is not used concurrently
 		jira.FleetURL = appConfig.ServerSettings.ServerURL
-		jira.JiraClient = client
+		if failerClient != nil && strings.Contains(jira.FleetURL, "fleetdm") {
+			failerClient.JiraClient = client
+			jira.JiraClient = failerClient
+		} else {
+			jira.JiraClient = client
+		}
 
 		workCtx, cancel := context.WithTimeout(ctx, lockDuration)
 		if err := w.ProcessJobs(workCtx); err != nil {

@@ -11,6 +11,7 @@ import {
 import { IConfig } from "interfaces/config";
 import configAPI from "services/entities/config";
 
+import ReactTooltip from "react-tooltip";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 import Modal from "components/Modal";
@@ -43,6 +44,7 @@ interface IManageAutomationsModalProps {
   softwareVulnerabilityAutomationEnabled?: boolean;
   softwareVulnerabilityWebhookEnabled?: boolean;
   currentDestinationUrl?: string;
+  recentVulnerabilityMaxAge?: number;
 }
 
 const validateWebhookURL = (url: string) => {
@@ -66,8 +68,9 @@ const ManageAutomationsModal = ({
   softwareVulnerabilityAutomationEnabled,
   softwareVulnerabilityWebhookEnabled,
   currentDestinationUrl,
+  recentVulnerabilityMaxAge,
 }: IManageAutomationsModalProps): JSX.Element => {
-  const [destination_url, setDestinationUrl] = useState<string>(
+  const [destinationUrl, setDestinationUrl] = useState<string>(
     currentDestinationUrl || ""
   );
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
@@ -85,12 +88,17 @@ const ManageAutomationsModal = ({
     selectedIntegration,
     setSelectedIntegration,
   ] = useState<IJiraIntegration>();
+  useDeepEffect(() => {
+    setSoftwareAutomationsEnabled(
+      softwareVulnerabilityAutomationEnabled || false
+    );
+  }, [softwareVulnerabilityAutomationEnabled]);
 
   useDeepEffect(() => {
-    if (destination_url) {
+    if (destinationUrl) {
       setErrors({});
     }
-  }, [destination_url]);
+  }, [destinationUrl]);
 
   const { data: integrations } = useQuery<IConfig, Error, IJiraIntegration[]>(
     ["integrations"],
@@ -124,7 +132,7 @@ const ManageAutomationsModal = ({
     evt.preventDefault();
 
     const { valid: validUrl, errors: newErrors } = validateWebhookURL(
-      destination_url
+      destinationUrl
     );
     setErrors({
       ...errors,
@@ -135,7 +143,7 @@ const ManageAutomationsModal = ({
     const configSoftwareAutomations: ISoftwareAutomations = {
       webhook_settings: {
         vulnerabilities_webhook: {
-          destination_url,
+          destination_url: destinationUrl,
           enable_vulnerabilities_webhook: softwareVulnerabilityWebhookEnabled,
         },
       },
@@ -225,7 +233,8 @@ const ManageAutomationsModal = ({
         <div className={`${baseClass}__software-automation-description`}>
           <p>
             A ticket will be created in your <b>Integration</b> if a detected
-            vulnerability (CVE) was published in the last 30 days.
+            vulnerability (CVE) was published in the last{" "}
+            {recentVulnerabilityMaxAge || "30"} days.
           </p>
         </div>
         {integrationsIndexed && integrationsIndexed.length > 0 ? (
@@ -266,7 +275,8 @@ const ManageAutomationsModal = ({
         <div className={`${baseClass}__software-automation-description`}>
           <p>
             A request will be sent to your configured <b>Destination URL</b> if
-            a detected vulnerability (CVE) was published in the last 30 days.
+            a detected vulnerability (CVE) was published in the last{" "}
+            {recentVulnerabilityMaxAge || "30"} days.
           </p>
         </div>
         <InputField
@@ -274,7 +284,7 @@ const ManageAutomationsModal = ({
           name="webhook-url"
           label={"Destination URL"}
           type={"text"}
-          value={destination_url}
+          value={destinationUrl}
           onChange={onURLChange}
           error={errors.url}
           hint={
@@ -352,15 +362,51 @@ const ManageAutomationsModal = ({
           >
             Cancel
           </Button>
-          <Button
-            className={`${baseClass}__btn`}
-            type="submit"
-            variant="brand"
-            onClick={handleSaveAutomation}
-            disabled={jiraEnabled && !selectedIntegration}
+          <div
+            data-tip
+            data-for="save-automation-button"
+            data-tip-disable={
+              !(
+                integrationsIndexed &&
+                integrationsIndexed.length === 0 &&
+                jiraEnabled &&
+                softwareAutomationsEnabled
+              )
+            }
           >
-            Save
-          </Button>
+            <Button
+              className={`${baseClass}__btn`}
+              type="submit"
+              variant="brand"
+              onClick={handleSaveAutomation}
+              disabled={
+                (softwareAutomationsEnabled &&
+                  jiraEnabled &&
+                  !selectedIntegration) ||
+                (softwareAutomationsEnabled &&
+                  !jiraEnabled &&
+                  destinationUrl === "")
+              }
+            >
+              Save
+            </Button>
+          </div>
+          <ReactTooltip
+            className={`save-automation-button-tooltip`}
+            place="bottom"
+            type="dark"
+            effect="solid"
+            backgroundColor="#3e4771"
+            id="save-automation-button"
+            data-html
+          >
+            <div
+              className={`tooltip`}
+              style={{ width: "152px", textAlign: "center" }}
+            >
+              Add an integration to create tickets for vulnerability automations
+            </div>
+          </ReactTooltip>
         </div>
       </div>
     </Modal>

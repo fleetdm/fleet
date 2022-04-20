@@ -52,7 +52,7 @@ func (q *DetailQuery) RunsForPlatform(platform string) bool {
 // fleet.Host data model. This map should not be modified at runtime.
 var detailQueries = map[string]DetailQuery{
 	"network_interface": {
-		Query: `select address, mac
+		Query: `select ia.address, id.mac, id.interface
                         from interface_details id join interface_addresses ia
                                on ia.interface = id.interface where length(mac) > 0
                                order by (ibytes + obytes) desc`,
@@ -74,6 +74,13 @@ var detailQueries = map[string]DetailQuery{
 
 				// Skip link-local and loopback interfaces
 				if ip.IsLinkLocalUnicast() || ip.IsLoopback() {
+					continue
+				}
+
+				// Skip docker interfaces as these are sometimes heavily
+				// trafficked, but rarely the interface that Fleet users want to
+				// see. https://github.com/fleetdm/fleet/issues/4754.
+				if strings.Contains(row["interface"], "docker") {
 					continue
 				}
 
