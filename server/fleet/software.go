@@ -37,6 +37,10 @@ type Software struct {
 	// CountsUpdatedAt is the timestamp when the hosts count was last updated
 	// for that software, filled only if hosts count is requested.
 	CountsUpdatedAt time.Time `json:"-" db:"counts_updated_at"`
+	// LastOpenedAt is the timestamp when that software was last opened on the
+	// corresponding host. Only filled when the software list is requested for
+	// a specific host (host_id is provided).
+	LastOpenedAt *time.Time `json:"last_opened_at,omitempty" db:"last_opened_at"`
 }
 
 func (Software) AuthzType() string {
