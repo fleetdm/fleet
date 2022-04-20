@@ -206,7 +206,7 @@ We evaluate and update compensation decisions yearly, shortly after the annivers
    
    >**_Note:_** *Don't play with numbers in the exit scenarios spreadsheet. The revision history is visible to the candidate, and they might misunderstand.*
 
-7. Once both documents are complete, share the offer email draft, exit scenarios copy, and a link to the compensation decision, with Eric for confirmation.
+7. Once both documents are complete, share the offer email draft, exit scenarios copy, and a link to the compensation decision, with Mike and Eric for CEO approval before sending offer email out.
 
 8. After Eric confirms that everything is correct, Mike or Zach will send the offer email. The offer email is copied directly from Google drive and sent to the candidate. When they send the offer, Mike or Zach will edit the permissions of the exit scenarios sheet and share with the candidate.
 
