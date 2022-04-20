@@ -11,7 +11,6 @@ import (
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/gorilla/mux"
@@ -24,11 +23,6 @@ func encodeResponse(ctx context.Context, w http.ResponseWriter, response interfa
 	// The has to happen first, if an error happens we'll redirect to an error
 	// page and the error will be logged
 	if page, ok := response.(htmlPage); ok {
-		// if the response is also an errorer and has an error, log it
-		if e, ok := response.(errorer); ok && e.error() != nil {
-			logging.WithErr(ctx, e.error())
-		}
-
 		w.Header().Set("Content-Type", "text/html; charset=UTF-8")
 		_, err := io.WriteString(w, page.html())
 		return err
