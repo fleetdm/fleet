@@ -115,6 +115,7 @@ module "pre-provisioner" {
   vpc_id          = module.vpc.vpc_id
   dynamodb_table  = aws_dynamodb_table.lifecycle-table
   private_subnets = module.vpc.private_subnets
+  remote_state    = module.remote_state
 }
 
 resource "aws_dynamodb_table" "lifecycle-table" {

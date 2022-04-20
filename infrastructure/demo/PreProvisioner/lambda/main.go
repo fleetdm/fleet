@@ -9,6 +9,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/google/uuid"
 	flags "github.com/jessevdk/go-flags"
+	cp "github.com/otiai10/copy"
 	"log"
 	"os"
 	"os/exec"
@@ -16,9 +17,9 @@ import (
 
 type OptionsStruct struct {
 	LambdaExecutionEnv string `long:"lambda-execution-environment" env:"AWS_EXECUTION_ENV"`
-    LifecycleTable     string `long:"dynamodb-lifecycle-table" env:"DYNAMODB_LIFECYCLE_TABLE" required:"true"`
-    MaxInstances       int64  `long:"max-instances" env:"MAX_INSTANCES" required:"true"`
-    QueuedInstances    int64  `long:"queued-instances" env:"QUEUED_INSTANCES" required:"true"`
+	LifecycleTable     string `long:"dynamodb-lifecycle-table" env:"DYNAMODB_LIFECYCLE_TABLE" required:"true"`
+	MaxInstances       int64  `long:"max-instances" env:"MAX_INSTANCES" required:"true"`
+	QueuedInstances    int64  `long:"queued-instances" env:"QUEUED_INSTANCES" required:"true"`
 }
 
 var options = OptionsStruct{}
@@ -29,7 +30,7 @@ type LifecycleRecord struct {
 }
 
 func getInstancesCount() (int64, int64, error) {
-    log.Print("getInstancesCount")
+	log.Print("getInstancesCount")
 	svc := dynamodb.New(session.New())
 	// Example iterating over at most 3 pages of a Scan operation.
 	var count, unclaimedCount int64
@@ -38,7 +39,7 @@ func getInstancesCount() (int64, int64, error) {
 			TableName: aws.String(options.LifecycleTable),
 		},
 		func(page *dynamodb.ScanOutput, lastPage bool) bool {
-		    log.Print(page)
+			log.Print(page)
 			count += *page.Count
 			recs := []LifecycleRecord{}
 			if err := dynamodbattribute.UnmarshalListOfMaps(page.Items, &recs); err != nil {
@@ -71,17 +72,19 @@ func min(a, b int64) int64 {
 func runCmd(args []string) error {
 	cmd := exec.Cmd{
 		Path:   "/terraform",
-		Dir:    "/deploy_terraform",
+		Dir:    "/tmp/deploy_terraform",
 		Stdout: os.Stdout,
 		Stderr: os.Stderr,
-		Args:   args,
+		Args:   append([]string{"/terraform"}, args...),
 	}
+	log.Printf("%+v\n", cmd)
 	return cmd.Run()
 }
 
 func initTerraform() error {
 	err := runCmd([]string{
 		"init",
+		"-backend-config=backend.conf",
 	})
 	return err
 }
@@ -103,6 +106,10 @@ func runTerraform(workspace string) error {
 }
 
 func handler(ctx context.Context, name NullEvent) error {
+	// Copy terraform files to their proper place
+	if err := cp.Copy("/deploy_terraform", "/tmp/deploy_terraform"); err != nil {
+		return err
+	}
 	// check if we need to do anything
 	totalCount, unclaimedCount, err := getInstancesCount()
 	if err != nil {

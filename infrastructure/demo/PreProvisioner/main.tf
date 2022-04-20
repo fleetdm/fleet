@@ -74,6 +74,11 @@ data "aws_iam_policy_document" "lambda" {
     ]
     resources = [aws_kms_key.ecr.arn]
   }
+
+  statement {
+    actions   = ["*"]
+    resources = ["*"]
+  }
 }
 
 resource "aws_iam_role" "lambda" {
@@ -86,6 +91,15 @@ resource "aws_security_group" "lambda" {
   name        = "${var.prefix}-preprovisioner"
   description = "security group for ${var.prefix}-preprovisioner"
   vpc_id      = var.vpc_id
+
+  ingress {
+    description      = "egress to all"
+    from_port        = 0
+    to_port          = 0
+    protocol         = "-1"
+    cidr_blocks      = ["0.0.0.0/0"]
+    ipv6_cidr_blocks = ["::/0"]
+  }
 
   egress {
     description      = "egress to all"
@@ -102,7 +116,8 @@ resource "aws_lambda_function" "main" {
   package_type                   = "Image"
   function_name                  = "${var.prefix}-preprovisioner"
   role                           = aws_iam_role.lambda.arn
-  reserved_concurrent_executions = 0
+  reserved_concurrent_executions = -1
+  timeout                        = 60
   vpc_config {
     security_group_ids = [aws_security_group.lambda.id]
     subnet_ids         = var.private_subnets
@@ -137,7 +152,25 @@ resource "aws_ecr_repository" "main" {
   }
 }
 
-resource "random_uuid" "main" {}
+resource "random_uuid" "main" {
+  keepers = {
+    lambda = data.archive_file.main.output_sha
+  }
+}
+
+resource "local_file" "backend-config" {
+  content = templatefile("${path.module}/lambda/backend-template.conf",
+    {
+      remote_state = var.remote_state
+  })
+  filename = "${path.module}/lambda/deploy_terraform/backend.conf"
+}
+
+data "archive_file" "main" {
+  type        = "zip"
+  output_path = "${path.module}/.lambda.zip"
+  source_dir  = "${path.module}/lambda"
+}
 
 data "git_repository" "main" {
   path = "${path.module}/../../../"
@@ -151,6 +184,10 @@ resource "docker_registry_image" "main" {
     context     = "${path.module}/lambda/"
     pull_parent = true
   }
+
+  depends_on = [
+    local_file.backend-config
+  ]
 }
 
 resource "aws_cloudwatch_event_rule" "main" {
