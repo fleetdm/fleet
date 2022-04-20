@@ -409,7 +409,6 @@ module.exports = {
                 lastModifiedAt: lastModifiedAt,
                 htmlId: htmlId,
                 pageOrderInSectionPath: pageOrderInSection,
-                // author: authorData,
                 sectionRelativeRepoPath: sectionRelativeRepoPath,
                 meta: _.omit(embeddedMetadata, ['title', 'pageOrderInSection'])
               });
