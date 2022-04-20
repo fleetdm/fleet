@@ -191,9 +191,7 @@ graph TD;
 
 ## Pull requests
 
-The most important thing when community members contribute to Fleet is to show them we value their time and effort. We need to get eyes on community pull requests quickly (within 1 business day) and get them merged as soon as we can.
-
-
+The most important thing when community members contribute to Fleet is to show them we value their time and effort. We need to get eyes on community pull requests quickly (within 1 business day) and get them merged or give feedback as soon as we can.
 
 ### Process for managing community contributions
 
@@ -218,7 +216,7 @@ When a new pull request is submitted by a community contributor (someone not a m
         - Additions or fixes to the Standard Query Library(SQL) are (as long as the SQL works properly and they are attributed correctly).
         - Use the Please refer to our [PRs from the community](https://docs.google.com/document/d/13r0vEhs9LOBdxWQWdZ8n5Ff9cyB3hQkTjI5OhcrHjVo/edit?usp=sharing) guide and use your best judgement. 
     - If a review is needed:
-        - [Product DRIs](./product.md#product-dris) should approve extensive changes and new features. Ask in the #g-product channel in Fleet's Slack for more information.
+        - Request review from the [Product DRI](./product.md#product-dris). They should approve extensive changes and new features. Ask in the #g-product channel in Fleet's Slack for more information.
         - Tag the DRI and the contributor in a comment on the PR letting everyone know why additional review is needed. Make sure to say thanks!
         - Find any open issues that are related and make a note in the comments.
 
@@ -263,6 +261,11 @@ For PRs that aren't ready to merge:
 > Sometimes (typically for Fleet customers), a Fleet team member may add tests and make any necessary changes to merge the PR. 
 
 If everything is good to go, approve the review.
+
+For PRs that will not be merged:
+
+- Thanks the contributor for their effort and explain why the changes won't be merged.
+- Close the PR.
 
 ## Fleet swag
 
