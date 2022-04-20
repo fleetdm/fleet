@@ -68,6 +68,22 @@ module.exports.routes = {
     }
   },
 
+  'GET /articles': {
+    skipAssets: false,
+    action: 'articles/view-articles',
+    locals: {
+      currentPage: 'articles',
+    }
+  },
+
+  'GET /articles/*': {
+    skipAssets: false,
+    action: 'articles/view-basic-article',
+    locals: {
+      currentPage: 'articles',
+    }
+  },// handles /blog and /blog/foo
+
   'GET /docs/?*': {
     skipAssets: false,
     action: 'docs/view-basic-documentation',
