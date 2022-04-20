@@ -188,6 +188,54 @@ graph TD;
     A--D
 ```
 
+### Formatting code in the Fleet docs
+
+You can format code in markdown using `inline code` or `code blocks`. 
+
+#### Inline code
+
+Use 'inline code' formatting to add emphasis to commands or bits of syntax within a line of text using backticks:
+
+```
+Text with `inline code`
+```
+
+Will render correctly as:
+
+Text with `inline code`
+
+#### Code blocks
+
+Use code blocks for longer or more detailed chunks of code or any time you have only code in a line without text using triple backticks on the line before and after your code:
+
+````
+```
+code block
+```
+````
+Will render correctly as:
+
+```
+code block
+```
+
+When writing a code block for a specific syntax, include a keyword to enable syntax highlighting. You can see a list of the available keywords [here](https://github.com/jincheng9/markdown_supported_languages). 
+
+For example:
+
+````
+```yaml
+key:
+  key: value
+```
+````
+
+Will render with YAML syntex highlighting:
+
+```yaml
+key:
+  key: value
+```
 ## Pull requests
 
 The most important thing when community members contribute to Fleet is to show them we value their time and effort. We need to get eyes on community pull requests quickly (within 1 business day) and get them merged or give feedback as soon as we can.
