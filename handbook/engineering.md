@@ -44,7 +44,6 @@ Our primary quality objectives are *customer service* and *defect reduction*. We
 ### How?
 
 - Folks who post a new comment in Slack or issue on GitHub **must** receive a response from the on-call engineer **within 1 business day**. The response doesn't need to include an immediate answer.
-
 - The on-call engineer can discuss any items that require assistance at the end of the daily standup. They are also requested to attend the "Customer experience standup" where they can bring questions and stay abreast of what's happening with our customers.
 
 - If you do not understand a question or comment raised, [request more details](#requesting-more-details) to best understand the next steps.
