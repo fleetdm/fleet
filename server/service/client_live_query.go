@@ -75,7 +75,7 @@ func (c *Client) LiveQueryWithContext(ctx context.Context, query string, labels 
 	var responseBody createDistributedQueryCampaignResponse
 	err := c.authenticatedRequest(req, verb, path, &responseBody)
 	if err != nil {
-		return nil, ctxerr.Errorf(ctx, "create live query: %s", responseBody.Err)
+		return nil, ctxerr.Errorf(ctx, "create live query: %v", err)
 	}
 
 	// Copy default dialer but skip cert verification if set.
