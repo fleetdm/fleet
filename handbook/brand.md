@@ -33,14 +33,14 @@ Another example to consider is industry jargon that may now be inappropriate. Wh
 Writing at Fleet shares the same principles as [Communicating as Fleet.](https://fleetdm.com/handbook/brand#communicating-as-fleet) Every piece of content we write should be consistent with our company and brand values. To help succeed, we encourage our writers to apply a design thinking approach to their writing by following these principles:
 
 - **Empathize** - Who is the reader? Why will they read it? What do they hope to get from it?
-- **Define** - What are you writing about? What action do you want from the reader?
+- **Define** - What is the subject of your writing? What action do you want from the reader?
 - **Ideate and collaborate** - Create an [outline](https://fleetdm.com/handbook/company#why-this-way) of what you plan to write. Interview team members or friends of Fleet to help you.
-- **Prototype** - Write a draft and see how it goes. Draft quickly, iterate and don't be scared to throw it out if it's not working. 
+- **Prototype** - Write a draft and see how it goes. Draft quickly, iterate, and don't be scared to throw it out if it's not working. 
 - **Test** - Revise, edit, proofread, repeat. Revise, edit, proofread, repeat. Revise, edit... Ok, you get the idea 😵‍💫
 
 ### Editing written content
 
-Jokes above aside, testing is an important part of the design thinking approach to writing. It ties in with the spirit of our company value, Ownership. Part of that value is to move quickly and help unblock our team members and contributors to deliver value. When writing at Fleet, our writers need to take ownership of editing and self-check their work before publishing or submitting pull requests. Having an obsession with details is helpful. So is Grammarly, which all writers and editors (yes, we do have editors, more on them later) have access to. Let's take a look at that now. 
+Jokes above aside, testing is an integral part of the design thinking approach to writing. It ties in with the spirit of our company value, Ownership. Part of that value is to move quickly and help unblock our team members and contributors to deliver value. When writing at Fleet, our writers need to take ownership of editing and self-check their work before publishing or submitting pull requests. Having an obsession with details is helpful. So is Grammarly, to which all writers and editors (yes, we do have editors, more on them later) have access. Let's take a look at that now. 
 
 ### Grammarly
 
@@ -58,11 +58,11 @@ While we encourage and equip our writers to succeed by themselves in editing que
 
 The following is our handy guide to editor bliss at Fleet, but first, let's start by looking at some common content types that require an editor pass. 
 
-- Recently merged Pull Requests to the handbook and docs.
-- Articles, release posts, and press releases.
-- Social media posts
+- How do you find recently merged Pull Requests for the handbook and docs?
+- What is the best way to edit articles, release posts, and press releases?
+- Look into the editor protocol for social media posts.
 
-### How to edit recently merged Pull Requests to the handbook and docs
+### How to edit recently merged Pull Requests for the handbook and docs
 
 We approach editing retrospectively for pull requests (PRs) to handbook and docs pages. Remember our goal above about moving quickly and reducing time to value for our contributors? By editing for typos and grammatical errors after-the-fact, we avoid the editor becoming a bottleneck who blocks PRs from being merged quickly. Here's how to do it:
 
@@ -81,7 +81,7 @@ We approach editing retrospectively for pull requests (PRs) to handbook and docs
 5. Comment on the original PR to keep track of your progress. Comments made will show up on the history feed. E.g., `"Edited, PR incoming"` or `"LGTM, no edits required."`
 6. Watch [this short video](https://www.loom.com/share/95d4525a7aae482b9f9a9470d446ce9c) to see this process in action.
 
-> **Note:** The Fleet website may render Markdown differently from GitHub's rich text preview. It's important to check that PRs merged by the editor are displaying as expected on the site. It can take a few minutes for merged PRs to appear on the live site, and therefore easy to move on and forget. It's good to start the ritual by looking at the site to check that the previous day's edits are displaying as they should.
+> **Note:** The Fleet website may render Markdown differently from GitHub's rich text preview. It's essential to check that PRs merged by the editor are displaying as expected on the site. It can take a few minutes for merged PRs to appear on the live site, and therefore easy to move on and forget. It's good to start the ritual by looking at the site to check that the previous day's edits are displaying as they should.
 
 ### How to edit articles, release posts, and press releases
 
@@ -100,14 +100,14 @@ For making edits to published articles:
 
 ### How to edit social media posts
 
-In the world of the Fleet editor, there are two types of social media posts. Those that are scheduled to be published and those that are published already. 
+In the world of the Fleet editor, there are two types of social media posts; those scheduled to be published and those published already. 
 
 Refer to [Posting on social media as Fleet](https://fleetdm.com/handbook/growth#posting-on-social-media-as-fleet) for details on editing draft social media posts.
 
 Making edits to published social media posts gets a little tricky. Twitter, for example, doesn't allow editing of tweets, so the only way to make an edit is to remove the tweet and post it again.
 
-1. Post the tweet in #g-growth Slack channel and tag the Digital Experience lead.
-2. Access whether the tweet should be removed. There's a tradeoff between us striving for perfection vs. losing the engagements that the tweet may have already generated.
+1. Post the tweet in the #g-growth Slack channel and tag the Digital Experience lead.
+2. Decide whether to remove the tweet. There's a tradeoff between us striving for perfection vs. losing the engagements that the tweet may have already generated.
 3. Suggest edits in the Slack thread for the Growth team to include and re-post.
 
 ## Voice and tone guidelines
