@@ -149,3 +149,4 @@ That’s it! We have successfully deployed and configured a Fleet instance! Rend
 <meta name="authorsFullName" value="Ben Edwards">
 <meta name="publishedOn" value="2021-09-21">
 <meta name="articleTitle" value="Deploying Fleet on Render">
+<meta name="articleThumbnail" value="https://miro.medium.com/1*Ai8I3fIS8p0afb8dBWqS-A.jpeg">
