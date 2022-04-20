@@ -4,7 +4,7 @@
 
 The Fleet handbook is inspired by the [GitLab team handbook](https://about.gitlab.com/handbook/about/).  It shares the same [advantages](https://about.gitlab.com/handbook/about/#advantages) and will probably undergo a similar [evolution](https://about.gitlab.com/handbook/ceo/#evolution-of-the-handbook).
 
-While [GitLab's handbook](https://about.gitlab.com/handbook/) inspires this handbook , it is nowhere near as complete (yet!)  We will continue adding and updating information in this handbook and gradually migrating information from [Fleet's shared Google Drive folder](https://drive.google.com/drive/u/0/folders/1StSOI3HNcsl9VleXxNWfUBT2co7h44OG) as time allows.
+While [GitLab's handbook](https://about.gitlab.com/handbook/) inspires this handbook, it is nowhere near as complete (yet!)  We will continue adding and updating this handbook and gradually migrating information from [Fleet's shared Google Drive folder](https://drive.google.com/drive/u/0/folders/1StSOI3HNcsl9VleXxNWfUBT2co7h44OG) as time allows.
 
 ## Handbook style guide
 
