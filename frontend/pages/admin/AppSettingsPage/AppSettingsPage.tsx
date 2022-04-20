@@ -1,6 +1,6 @@
 import React, { useCallback, useContext, useState, useEffect } from "react";
 import { useQuery } from "react-query";
-import { InjectedRouter, Params } from "react-router/lib/Router";
+import { Params } from "react-router/lib/Router";
 import { Link } from "react-router";
 
 import { AppContext } from "context/app";
@@ -35,24 +35,7 @@ const AppSettingsPage = ({
   const { renderFlash } = useContext(NotificationContext);
   const { setConfig } = useContext(AppContext);
 
-  const [showInfo, setShowInfo] = useState<boolean>(sectionTitle === "info");
-  const [showWebAddress, setShowWebAddress] = useState<boolean>(
-    sectionTitle === "webaddress"
-  );
-  const [showSso, setShowSso] = useState<boolean>(sectionTitle === "sso");
-  const [showSmtp, setShowSmtp] = useState<boolean>(sectionTitle === "smtp");
-  const [showAgents, setShowAgents] = useState<boolean>(
-    sectionTitle === "agents"
-  );
-  const [showHostStatusWebhook, setShowHostStatusWebhook] = useState<boolean>(
-    sectionTitle === "host-status-webhook"
-  );
-  const [showStatistics, setShowStatistics] = useState<boolean>(
-    sectionTitle === "statistics"
-  );
-  const [showAdvanced, setShowAdvanced] = useState<boolean>(
-    sectionTitle === "advanced"
-  );
+  const [activeSection, setActiveSection] = useState<string>("info");
 
   const {
     data: appConfig,
@@ -98,74 +81,41 @@ const AppSettingsPage = ({
     [appConfig]
   );
 
-  const showSection = (linkString: string) => {
-    setShowInfo(false);
-    setShowWebAddress(false);
-    setShowSso(false);
-    setShowSmtp(false);
-    setShowAgents(false);
-    setShowHostStatusWebhook(false);
-    setShowStatistics(false);
-    setShowAdvanced(false);
-
-    switch (linkString) {
-      case "webaddress":
-        setShowWebAddress(true);
-        return;
-      case "sso":
-        setShowSso(true);
-        return;
-      case "smtp":
-        setShowSmtp(true);
-        return;
-      case "agents":
-        setShowAgents(true);
-        return;
-      case "host-status-webhook":
-        setShowHostStatusWebhook(true);
-        return;
-      case "statistics":
-        setShowStatistics(true);
-        return;
-      case "advanced":
-        setShowAdvanced(true);
-        return;
-      default:
-        setShowInfo(true);
-    }
-  };
-
   useEffect(() => {
-    showSection(sectionTitle);
+    if (sectionTitle) {
+      setActiveSection(sectionTitle);
+    }
   }, [sectionTitle]);
 
   const renderSection = () => {
     if (!isLoadingConfig && appConfig) {
       return (
         <>
-          {showInfo && (
+          {activeSection === "info" && (
             <Info appConfig={appConfig} handleSubmit={onFormSubmit} />
           )}
-          {showWebAddress && (
+          {activeSection === "webaddress" && (
             <WebAddress appConfig={appConfig} handleSubmit={onFormSubmit} />
           )}
-          {showSso && <Sso appConfig={appConfig} handleSubmit={onFormSubmit} />}
-          {showSmtp && (
+          {activeSection === "sso" && (
+            <Sso appConfig={appConfig} handleSubmit={onFormSubmit} />
+          )}
+          {activeSection === "smtp" && (
             <Smtp appConfig={appConfig} handleSubmit={onFormSubmit} />
           )}
-          {showAgents && (
+          {activeSection === "agents" && (
             <AgentOptions appConfig={appConfig} handleSubmit={onFormSubmit} />
           )}
-          {showHostStatusWebhook && (
+          {activeSection === "host-status-webhook" && (
             <HostStatusWebhook
               appConfig={appConfig}
               handleSubmit={onFormSubmit}
             />
           )}
-          {showStatistics && (
+          {activeSection === "statistics" && (
             <Statistics appConfig={appConfig} handleSubmit={onFormSubmit} />
           )}
-          {showAdvanced && (
+          {activeSection === "advanced" && (
             <Advanced appConfig={appConfig} handleSubmit={onFormSubmit} />
           )}
         </>
@@ -186,7 +136,7 @@ const AppSettingsPage = ({
             <li>
               <Link
                 className={`${baseClass}__nav-link${
-                  showInfo ? " active-nav" : ""
+                  activeSection === "info" ? " active-nav" : ""
                 }`}
                 to={PATHS.ADMIN_SETTINGS_INFO}
               >
@@ -196,7 +146,7 @@ const AppSettingsPage = ({
             <li>
               <Link
                 className={`${baseClass}__nav-link${
-                  showWebAddress ? " active-nav" : ""
+                  activeSection === "webaddress" ? " active-nav" : ""
                 }`}
                 to={PATHS.ADMIN_SETTINGS_WEBADDRESS}
               >
@@ -206,7 +156,7 @@ const AppSettingsPage = ({
             <li>
               <Link
                 className={`${baseClass}__nav-link${
-                  showSso ? " active-nav" : ""
+                  activeSection === "sso" ? " active-nav" : ""
                 }`}
                 to={PATHS.ADMIN_SETTINGS_SSO}
               >
@@ -216,7 +166,7 @@ const AppSettingsPage = ({
             <li>
               <Link
                 className={`${baseClass}__nav-link${
-                  showSmtp ? " active-nav" : ""
+                  activeSection === "smtp" ? " active-nav" : ""
                 }`}
                 to={PATHS.ADMIN_SETTINGS_SMTP}
               >
@@ -226,7 +176,7 @@ const AppSettingsPage = ({
             <li>
               <Link
                 className={`${baseClass}__nav-link${
-                  showAgents ? " active-nav" : ""
+                  activeSection === "agents" ? " active-nav" : ""
                 }`}
                 to={PATHS.ADMIN_SETTINGS_AGENTS}
               >
@@ -236,7 +186,7 @@ const AppSettingsPage = ({
             <li>
               <Link
                 className={`${baseClass}__nav-link${
-                  showHostStatusWebhook ? " active-nav" : ""
+                  activeSection === "host-status-webhook" ? " active-nav" : ""
                 }`}
                 to={PATHS.ADMIN_SETTINGS_HOST_STATUS_WEBHOOK}
               >
@@ -246,7 +196,7 @@ const AppSettingsPage = ({
             <li>
               <Link
                 className={`${baseClass}__nav-link${
-                  showStatistics ? " active-nav" : ""
+                  activeSection === "statistics" ? " active-nav" : ""
                 }`}
                 to={PATHS.ADMIN_SETTINGS_STATISTICS}
               >
@@ -256,7 +206,7 @@ const AppSettingsPage = ({
             <li>
               <Link
                 className={`${baseClass}__nav-link${
-                  showAdvanced ? " active-nav" : ""
+                  activeSection === "advanced" ? " active-nav" : ""
                 }`}
                 to={PATHS.ADMIN_SETTINGS_ADVANCED}
               >
