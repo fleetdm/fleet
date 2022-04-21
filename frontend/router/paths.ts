@@ -7,9 +7,17 @@ export default {
   ROOT: `${URL_PREFIX}/`,
   HOME: `${URL_PREFIX}/dashboard`,
   ADMIN_USERS: `${URL_PREFIX}/settings/users`,
-  ADMIN_SETTINGS: `${URL_PREFIX}/settings/organization`,
   ADMIN_INTEGRATIONS: `${URL_PREFIX}/settings/integrations`,
   ADMIN_TEAMS: `${URL_PREFIX}/settings/teams`,
+  ADMIN_SETTINGS: `${URL_PREFIX}/settings/organization`,
+  ADMIN_SETTINGS_INFO: `${URL_PREFIX}/settings/organization/info`,
+  ADMIN_SETTINGS_WEBADDRESS: `${URL_PREFIX}/settings/organization/webaddress`,
+  ADMIN_SETTINGS_SSO: `${URL_PREFIX}/settings/organization/sso`,
+  ADMIN_SETTINGS_SMTP: `${URL_PREFIX}/settings/organization/smtp`,
+  ADMIN_SETTINGS_AGENTS: `${URL_PREFIX}/settings/organization/agents`,
+  ADMIN_SETTINGS_HOST_STATUS_WEBHOOK: `${URL_PREFIX}/settings/organization/host-status-webhook`,
+  ADMIN_SETTINGS_STATISTICS: `${URL_PREFIX}/settings/organization/statistics`,
+  ADMIN_SETTINGS_ADVANCED: `${URL_PREFIX}/settings/organization/advanced`,
   ALL_PACKS: `${URL_PREFIX}/packs/all`,
   EDIT_PACK: (packId: number): string => {
     return `${URL_PREFIX}/packs/${packId}/edit`;
