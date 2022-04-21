@@ -247,7 +247,7 @@ func main() {
 		// migrate to new-style paths (linux only) if required.
 		log.Debug().Msg("attempting to migrate")
 
-		migrated, err := update.Migrate(opt)
+		migrated, err := update.MigrateRoot(opt)
 		if err != nil {
 			return fmt.Errorf("migrate: %w", err)
 		}
