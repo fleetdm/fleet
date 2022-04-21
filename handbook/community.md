@@ -286,7 +286,7 @@ Every week, the Community Engagement DRI will:
 
 - Create a new `Weekly Doc Update` issue on Monday and add it to the [Community board](https://github.com/orgs/fleetdm/projects/36).
 - Review the Slack Questions Spreadsheet and ensure that any necessary updates to the documentation are made. 
-    - Update the spreadsheet to indicate what action was taken (Doc Change, FAQ added or None) and add notes. 
+    - Update the spreadsheet to indicate what action was taken (Doc change, FAQ added, or None) and add notes if need be. 
 - Set up a single PR to update the Docs. 
     - In the notes, include a list of changes made as well as a link to the related thread. 
 - Bring any questions to DevRel Office Hours (time TBD).
