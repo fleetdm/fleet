@@ -47,6 +47,8 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Fleet website](./brand.md#website)
 
+[Rituals](./brand.md#rituals)
+
 ### 🪂 Community
 
 [Communities](./community.md#communities)
