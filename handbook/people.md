@@ -241,14 +241,14 @@ We evaluate and update compensation decisions yearly, shortly after the annivers
 
 ### For registering a new state in Gusto:
 
-- For Business description: Fleet Device Management seeks to build a buyer-based, open-core business that will help organizations monitor and manage their devices; whether they’re the servers providing the backbone for websites and apps, or devices like laptops and smartphones that employees use to do their work.
+- For the business description: Fleet Device Management seeks to build a buyer-based, open-core business that will help organizations monitor and manage their devices, whether they’re the servers providing the backbone for websites and apps or devices like laptops and smartphones that employees use to do their work.
 - Industry NAICS (2017) code: 511210
 - On what date did you incorporate or form your business?: 09/15/2020
 - In what month does your fiscal year end?: December
-- Who is the company signatory? The CEO, Mike McNeil.  To get Mike's birthday and social security number, access the “People ops" vault in [1password](https://fleetdevicemanagement.1password.com/vaults/dsnfsvutwfdibmip2fqmuy2yee/allitems/p5vzkihppzaupeclamoapg743a), look up "Mike McNeil", and check out the custom fields.
-- For the CEO's latest ownership percentage, open up [Carta](https://app.carta.com/corporations/1234715/captable/investors/detailed/) and view "Capitalization" > "By stakeholder".
-- Where are executed documents related to state tax fillings uploaded in Google Drive?
-"Key Documents" > "People Ops" > "Tax".
+- Who is the company signatory? The CEO, Mike McNeil.  To get Mike's birthday and social security number, access the “People ops" vault in [1Password](https://fleetdevicemanagement.1password.com/vaults/dsnfsvutwfdibmip2fqmuy2yee/allitems/p5vzkihppzaupeclamoapg743a), look up "Mike McNeil," and check out the custom fields.
+- For the CEO's latest ownership percentage, open up [Carta](https://app.carta.com/corporations/1234715/captable/investors/detailed/) and view "Capitalization" > "By stakeholder."
+- Where are executed documents related to state tax filings uploaded in Google Drive?
+"Key Documents" > "People Ops" > "Tax."
 
 ## Team member onboarding
 
