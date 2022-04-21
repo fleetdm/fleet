@@ -74,7 +74,7 @@ We approach editing retrospectively for pull requests (PRs) to handbook and docs
   - [Docs history](https://github.com/fleetdm/fleet/commits/main/docs)
 3. From the list of recently merged PRs, look at the files changed for each and then:
   - Scan for typos and grammatical errors.
-  - Check that tone aligns with our [Communicating as Fleet](https://fleetdm.com/handbook/brand#communicating-as-fleet) guidelines and that Grammarly's tone detector is on-brand.
+  - Check that the tone aligns with our [Communicating as Fleet](https://fleetdm.com/handbook/brand#communicating-as-fleet) guidelines and that Grammarly's tone detector is on-brand.
   - Check that Markdown is formatted correctly.
   - **Remember**, Do not make edits to this page. It's already merged.
 4. Instead, navigate to the page in question on the website and submit a new PR to make edits - making sure to request a review from the maintainer of that page.
@@ -91,10 +91,10 @@ For draft articles, please refer to [Publishing articles on fleetdm.com.](https:
 
 For making edits to published articles:
 
-1. Log in to Medium via [fleetdm.com/blog](https://fleetdm.com/blog).
+1. Log in to [Medium](https://fleetdm.com/blog).
 2. Find the article to edit and select "Edit story" from the hotdog menu (•••).
 3. Scan for typos and grammatical errors.
-4. Check that tone aligns with our [Communicating as Fleet](https://fleetdm.com/handbook/brand#communicating-as-fleet) guidelines and that Grammarly's tone detector is on-brand.
+4. Check that the tone aligns with our [Communicating as Fleet](https://fleetdm.com/handbook/brand#communicating-as-fleet) guidelines and that Grammarly's tone detector is on-brand.
 5. **Remember**, this article is already published, so if you're unsure about any edits, it doesn't hurt to check in with the original author.
 6. Hit "Save and publish," and you're all done.
 
@@ -206,6 +206,23 @@ In Figma:
   * File extension might be .jpg or .png.
   * Avoid using SVGs or icon fonts.
 3. Click the __Export__ button.
+
+## Brand rituals
+
+The following rituals are engaged in by the  directly responsible individual (DRI) and at the frequency specified for the ritual.
+
+| Ritual                       | Frequency                | Description                                         | DRI               |
+|:-----------------------------|:-----------------------------|:----------------------------------------------------|-------------------|
+| Documentation quality | Daily | Review pull requests for tone and brand consistency | Mike Thomas |
+| Tweet review | Daily | Review tweets for tone and brand consistency | Mike Thomas |
+| Community Slack  | Daily   | Check Fleet and osquery Slack channels for community questions, ensure questions are responded to and logged | Kathy Satterlee |
+| Social media check-in     |  Daily | Check social media for community questions and ensure they are responded to.  Generate dev advocacy-related content | Kelvin Omereshone   |
+| Weekly article review | Weekly | Review articles for tone and brand consistency. | Mike Thomas |
+| Weekly article graphic | Weekly | Create a graphic for the weekly article | Mike Thomas |
+| Outside contributor follow up | Weekly | Bring pull requests from outside contributors to engineering and ensure they are merged promptly and promoted | Kathy Satterlee |
+| Documentation update | Weekly | Turn questions answered from Fleet and osquery Slack into FAQs in Fleet’s docs | Kathy Satterlee |
+| Digital experience planning  | Three weeks | Prioritize and assigns issues to relevant personnel based on current goals and quarterly OKRs | Mike Thomas |
+| Browser compatibility check | Monthly | Check browser compatibility for the website | Eric Shaw |
 
 ## Slack channels
 

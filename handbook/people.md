@@ -287,6 +287,12 @@ Once the agreement is sent, add a new row to the [advisory board spreadsheet](ht
 When the agreement is completed, make sure it is in the correct Google Drive folder, and ask the new
 advisor to add us on [Linkedin](https://www.linkedin.com/company/71111416), [Crunchbase](https://www.crunchbase.com/organization/fleet-device-management) and [Angellist](https://angel.co/company/fleetdm).
 
+## Onboarding a new consultant
+
+Consultant agreements are sent through [Docusign](https://www.docusign.com/), using the "Consulting Agreement" template. To send a new consulting agreement, you'll need the new consultant's name, the term of the service, a summary of the services provided and the consultant's fee. 
+
+Then hit send!  After all signatures are there, it will automatically be uploaded to the appropriate Google Drive folder by our automation, and a Slack message will appear in the `#g-people` channel.
+
 ## Zapier and DocuSign
 
 We use Zapier to automate how completed DocuSign envelopes are formatted and stored. This process ensures we store signed documents in the correct folder and that filenames are formatted consistently. 

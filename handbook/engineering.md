@@ -141,6 +141,19 @@ Every week, the on-call engineer changes. Here are some tips for making this han
    helpful for the former on-call to remain available for any conversations they were deeply involved
    in, so use your judgment on which threads to handoff.
 
+## Rituals
+
+The following rituals are engaged in by the  directly responsible individual (DRI) and at the frequency specified for the ritual.
+
+| Ritual                       | Frequency                | Description                                         | DRI               |
+|:-----------------------------|:-----------------------------|:----------------------------------------------------|-------------------|
+| Stand up | Daily | Discuss items being worked during the current iteration and any blockers. | Zach Wasserman |
+| Pull request review | Daily | Engineers go through pull requests on which their review has been requested. | Zach Wasserman |
+| Engineering group discussions | Weekly | Engineering groups meet to discuss issues in depth that are too big or complex to discuss adequately during a stand up. | Zach Wasserman |
+| On-call handoff | Weekly | Handoff the on-call engineering responsibilities to the next on-call engineer. | Zach Wasserman |
+| Release ritual | Every three weeks | Go through the process of releasing the next iteration of Fleet. | Zach Wasserman |
+
+
 ## Slack channels
 
 The following [Slack channels are maintained](https://fleetdm.com/handbook/company#group-slack-channels) by this group:
