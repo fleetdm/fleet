@@ -10,7 +10,7 @@ import QueryProvider from "context/query";
 import PolicyProvider from "context/policy";
 import NotificationProvider from "context/notification";
 import { AppContext } from "context/app";
-import { authToken } from "utilities/local"; // @ts-ignore
+import local, { authToken } from "utilities/local";
 import { useDeepEffect } from "utilities/hooks";
 
 import usersAPI from "services/entities/users";
@@ -53,11 +53,9 @@ const App = ({ children, location, router }: IAppProps): JSX.Element => {
         setAvailableTeams(available_teams);
       } catch (error) {
         console.error(error);
-        if (!location || location?.pathname === "/setup") {
-          localStorage.removeItem("auth_token");
-          return;
-        }
-        router.push(PATHS.LOGIN);
+
+        local.removeItem("auth_token");
+        return router.push(PATHS.LOGIN);
       }
     };
 
