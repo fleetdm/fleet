@@ -270,7 +270,7 @@ For PRs that will not be merged:
 
 When someone asks a question in a public channel, it's pretty safe to assume that they aren't the only person looking for an answer to the same question. To make our docs as helpful as possible, the Community team gathers these questions and uses them to make a weekly documentation update. 
 
-As a general goal, every question should be answered with a link to the Docs and/or result in an update to the Docs. 
+Our goal is for every question to be answered with a link to the docs and/or result in a documentation update.
 
 ### Tracking
 
