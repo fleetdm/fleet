@@ -194,7 +194,7 @@ The most important thing when community members contribute to Fleet is to show t
 
 ### Process for managing community contributions
 
-The Community Engagememt DRI is responsible for keeping an eye out for new community contributions and either getting them merged in if possible and get the right eyes on them if they need to be reviewed. 
+The Community Engagement DRI is responsible for keeping an eye out for new community contributions and either getting them merged if possible or getting the right eyes on them if a review is needed. 
 
 Each business day, the Community Engagement DRI will check open pull requests to:
 
