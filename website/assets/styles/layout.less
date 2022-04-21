@@ -17,6 +17,11 @@ html, body {
 }
 
 [purpose='page-header'] {
+    // rules for sticky nav transitions
+    transition-property: all;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 500ms;
+
   // Mobile navigation menu
   [purpose='mobile-nav'] {
     position: fixed;
@@ -103,9 +108,19 @@ html, body {
   }
 } // Homepage header styles
 &.homepage-header {
-  position: absolute;
+  z-index: 9999;
+  position: fixed;
+  top: 0;
   left: 0;
   right: 0;
+  &.sticky {
+    background-color: #fff;
+    [purpose='header-nav'] {
+        a {
+            color: #192147;
+        }
+    }
+   }
   [purpose='header-btn'] {
     color: #ffffff;
     cursor: unset;
@@ -126,13 +141,10 @@ html, body {
     right: 0;
     // border-bottom: 1px solid #e2e4ea;
     // box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
-    position: sticky;
-    top: 0px;
-    background-color: #fff;
     z-index: 9999;
-    transition-property: transform;
-    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-    transition-duration: 0.5s;
+    position: sticky;
+    top: 0;
+    background-color: #fff;
   .current-page {
     color: #6a67fe;
     svg {

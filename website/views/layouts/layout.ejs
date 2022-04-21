@@ -289,14 +289,27 @@
 
     <script>
         var lastScrollTop = 0;
-        var header = document.querySelector('.header')
+        var header = document.querySelector('.header') || document.querySelector('.homepage-header')
+
         window.addEventListener('scroll', windowedScrolled)
 
         function windowedScrolled() {
             var scrollTop = window.pageYOffset || document.documentElement.scrollTop
+            var fleetLogo = header.querySelector('img')
+            if(scrollTop == 0 && header.classList.contains('homepage-header')) {
+                header.classList.remove('sticky')
+                fleetLogo.src = '/images/logo-white-118x48@2x.png'
+                fleetLogo.style = 'width: 118px; height: 48px;'
+                return;
+            }
             if (scrollTop > lastScrollTop && scrollTop > window.innerHeight) {
                 header.classList.add('translate-y-0')
             } else {
+                if(header.classList.contains('homepage-header') && scrollTop > window.innerHeight * 0.2) {
+                    header.classList.add('sticky')
+                    fleetLogo.src = '/images/logo-blue-162x92@2x.png'
+                    fleetLogo.style = 'height: 92px; width: 162px;'
+                }
                 header.classList.remove('translate-y-0')
             }
             lastScrollTop = scrollTop
