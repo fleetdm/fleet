@@ -226,7 +226,7 @@ We evaluate and update compensation decisions yearly, shortly after the annivers
   After signing and storing an in the correct Google Drive folder, Eric will invite the new team member to onboard in [Gusto](https://www.gusto.com/). Eric will reach out to them if the new team member is a W-2 employee and schedule an I-9 verification meeting.
 
    >*If we're hiring in a new state, we'll have to register for state taxes and unemployment. This process can usually be handled by Gusto.*
-   
+
    - **For international team members:** Eric enters the new team member's information into [Pilot](https://pilot.co/) to kick off their hiring process. Pilot creates an agreement for the new team member, and Eric reviews it to make sure that everything looks correct. After Eric confirms the information about the new hire Pilot invites the new team member to enter the rest of their information and informs Eric via email when the agreement has been signed.
 
 4. **As soon as we have a signed agreement with a new team member:** Eric reaches out to the new team member to provide them with a [work device](#purchasing-a-company-issued-device) and a pair of [YubiKeys](./security.md#hardware-security-keys). The new team member will be asked to send Eric a screenshot or link to their preferred device and configuration. Eric orders their device and Yubikeys using his Brex card and has them shipped directly to the new team member.
@@ -239,15 +239,15 @@ We evaluate and update compensation decisions yearly, shortly after the annivers
 
 6. **Before a new team member's first day:** Eric creates an onboarding issue in the [fleetdm/confidential](https://github.com/fleetdm/confidential/issues) GitHub repo for the new team member. Before creating the issue, Eric will go through it and comment on any steps that the new team member will not have to complete.
 
- ### For registering a new state in Gusto:
+### For registering a new state in Gusto:
 
-  - For Business description: Fleet Device Management seeks to build a buyer-based, open-core business that will help organizations monitor and manage their devices; whether they’re the servers providing the backbone for websites and apps, or devices like laptops and smartphones that employees use to do their work.
-  - Industry NAICS (2017) code: 511210
-  - On what date did you incorporate or form your business?: 09/15/2020
-  - In what month does your fiscal year end?: December
-  - Who is the company signatory? The CEO, Mike McNeil.  To get Mike's birthday and social security number, access the “People ops" vault in [1password](https://fleetdevicemanagement.1password.com/vaults/dsnfsvutwfdibmip2fqmuy2yee/allitems/p5vzkihppzaupeclamoapg743a), look up "Mike McNeil", and check out the custom fields.
-  - For the CEO's latest ownership percentage, open up [Carta](https://app.carta.com/corporations/1234715/captable/investors/detailed/) and view "Capitalization" > "By stakeholder".
-  - Where are executed documents related to state tax fillings uploaded in Google Drive?
+- For Business description: Fleet Device Management seeks to build a buyer-based, open-core business that will help organizations monitor and manage their devices; whether they’re the servers providing the backbone for websites and apps, or devices like laptops and smartphones that employees use to do their work.
+- Industry NAICS (2017) code: 511210
+- On what date did you incorporate or form your business?: 09/15/2020
+- In what month does your fiscal year end?: December
+- Who is the company signatory? The CEO, Mike McNeil.  To get Mike's birthday and social security number, access the “People ops" vault in [1password](https://fleetdevicemanagement.1password.com/vaults/dsnfsvutwfdibmip2fqmuy2yee/allitems/p5vzkihppzaupeclamoapg743a), look up "Mike McNeil", and check out the custom fields.
+- For the CEO's latest ownership percentage, open up [Carta](https://app.carta.com/corporations/1234715/captable/investors/detailed/) and view "Capitalization" > "By stakeholder".
+- Where are executed documents related to state tax fillings uploaded in Google Drive?
 "Key Documents" > "People Ops" > "Tax".
 
 ### Team member onboarding
