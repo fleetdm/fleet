@@ -213,14 +213,10 @@ The following rituals are engaged in by the  directly responsible individual (DR
 
 | Ritual                       | Frequency                | Description                                         | DRI               |
 |:-----------------------------|:-----------------------------|:----------------------------------------------------|-------------------|
-| Documentation quality | Daily | Review pull requests for tone and brand consistency | Mike Thomas |
-| Tweet review | Daily | Review tweets for tone and brand consistency | Mike Thomas |
-| Community Slack  | Daily   | Check Fleet and osquery Slack channels for community questions, ensure questions are responded to and logged | Kathy Satterlee |
-| Social media check-in     |  Daily | Check social media for community questions and ensure they are responded to.  Generate dev advocacy-related content | Kelvin Omereshone   |
+| Documentation quality | Daily | Review pull requests to the docs for spelling, punctuation and grammar. | Desmi Dizney |
+| Tweet review | Daily | Review pull requests to the handbook for spelling, punctuation and grammar. | Desmi Dizney |
 | Weekly article review | Weekly | Review articles for tone and brand consistency. | Mike Thomas |
 | Weekly article graphic | Weekly | Create a graphic for the weekly article | Mike Thomas |
-| Outside contributor follow up | Weekly | Bring pull requests from outside contributors to engineering and ensure they are merged promptly and promoted | Kathy Satterlee |
-| Documentation update | Weekly | Turn questions answered from Fleet and osquery Slack into FAQs in Fleet’s docs | Kathy Satterlee |
 | Digital experience planning  | Three weeks | Prioritize and assigns issues to relevant personnel based on current goals and quarterly OKRs | Mike Thomas |
 | Browser compatibility check | Monthly | Check browser compatibility for the website | Eric Shaw |
 
