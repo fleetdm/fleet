@@ -290,7 +290,7 @@ Every week, the Community Engagement DRI will:
 - Set up a single PR to update the Docs. 
     - In the notes, include a list of changes made as well as a link to the related thread. 
 - Bring any questions to DevRel Office Hours (time TBD).
-- Submit PR by end of day on Thursday. 
+- Submit the PR by the end of the day on Thursday. 
 - Once the PR is approved, share in #fleet channel of Osquery Slack Workspace and thank the community for being involved and asking questions. 
 
 ## Fleet swag
