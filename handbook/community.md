@@ -221,9 +221,12 @@ We want to recognize and congratulate community members for their contributions 
 4. If available through the ordering process, add a thank you note for their contribution and "Feel free to tag us on Twitter."
 
 ## Rituals
+
+Directly Responsible Individuals (DRI) engage in the ritual(s) below at the frequency specified.
+
 | How to perform ritual                                                                                                                                            | Frequency | DRI                      |
 |------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------|--------------------------|
-| StackOverflow party - Search StackOverflow for “osquery,” answer questions with Grammarly, and find a way to prominently feature Fleet in your StackOverflow profile | Weekly    | Rotation: community team |
+| StackOverflow party - Search StackOverflow for “osquery,” answer questions with Grammarly, and finds a way to prominently feature Fleet in your StackOverflow profile | Weekly    | Rotation: community team |
 
 ## Slack channels
 
