@@ -392,10 +392,6 @@ We track the capabilities of competitors and adjacent (or commonly integrated) p
 
 The following rituals are engaged in by the  directly responsible individual (DRI) and at the frequency specified for the ritual.
 
-## Brand rituals
-
-The following rituals are engaged in by the  directly responsible individual (DRI) and at the frequency specified for the ritual.
-
 | Ritual                       | Frequency                | Description                                         | DRI               |
 |:-----------------------------|:-----------------------------|:----------------------------------------------------|-------------------|
 | Product huddle | Daily | "In progress" issues are discussed and any issues "ready for review" are placed on the list for the product design review call. On Mondays, issues are broken down into a week's work and added into "ready." Issues are moved out of "delivered" every Friday. | Noah Talerman |
