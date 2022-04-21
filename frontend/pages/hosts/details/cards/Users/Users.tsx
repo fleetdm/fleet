@@ -4,7 +4,8 @@ import { IHostUser } from "interfaces/host_users";
 import TableContainer from "components/TableContainer";
 
 import generateUsersTableHeaders from "./UsersTable/UsersTableConfig";
-import EmptyUsers from "./EmptyUsers";
+// import EmptyUsers from "./EmptyUsers";
+import EmptyState from "../EmptyState";
 
 interface ISearchQueryData {
   searchQuery: string;
@@ -29,6 +30,10 @@ const Users = ({
 }: IUsersProps): JSX.Element => {
   const tableHeaders = generateUsersTableHeaders();
 
+  const EmptyUserSearch = () => (
+    <EmptyState title="users" reason="empty-search" />
+  );
+
   if (users) {
     return (
       <div className="section section--users">
@@ -45,7 +50,7 @@ const Users = ({
             inputPlaceHolder={"Search users by username"}
             onQueryChange={onUsersTableSearchChange}
             resultsTitle={"users"}
-            emptyComponent={EmptyUsers}
+            emptyComponent={EmptyUserSearch}
             showMarkAllPages={false}
             isAllPagesSelected={false}
             searchable
