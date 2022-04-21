@@ -263,7 +263,7 @@ If everything is good to go, approve the review.
 
 For PRs that will not be merged:
 
-- Thanks the contributor for their effort and explain why the changes won't be merged.
+- Thank the contributor for their effort and explain why their suggestions won't be merged.
 - Close the PR.
 
 ## Fleet swag
