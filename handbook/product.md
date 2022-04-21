@@ -6,59 +6,59 @@
 
 ## Job to be done
 
-Every product should have a single job that it strives to do. At Fleet we use the [Jobs to be Done
+Every product should have a single job that it strives to do. At Fleet, we use the [Jobs to be Done
 (JTBD) framework](https://about.gitlab.com/handbook/engineering/ux/jobs-to-be-done/). Fleet's
 overarching job to be done is the following:
 
-"I need a way to see what laptops and servers I have, and what I need to do to keep them secure and
+"I need a way to see what laptops and servers I have and what I need to do to keep them secure and
 compliant."
 
 ## Objectives and key results
 
-Fleet uses objectives and key results (OKRs) so that the organization is aligned on measurable
+Fleet uses objectives and key results (OKRs) to align the organization with measurable
 goals.
 
-The product team is responsible for sub-OKRs that contribute to organization wide OKRs.
+The product team is responsible for sub-OKRs that contribute to organization-wide OKRs.
 
 ### Q2 OKRs
 
-The following Q2 OKRs Google doc lists the "Product" sub-OKRs under each organization wide OKR:
+The following Q2 OKRs Google doc lists the "Product" sub-OKRs under each organization-wide OKR:
 
 [Q2 OKRs](https://docs.google.com/document/d/1SfzdeY0mLXSg1Ew0N4yhJppakCgGnDW7Bf8xpKkBczo/edit#heading=h.krtfhfsshh3u)
 
 ## Q1 2022 product objectives
 
-In Q1 2022, Fleet set company wide objectives. The product team was reponsible for
-the product objectives that contributed to the company wide objectives.
+In Q1 2022, Fleet set companywide objectives. The product team was responsible for
+the product objectives that contributed to the company-wide objectives.
 
-The following list includes the company wide objectives, product objectives ("How?" sections) and whether or not the
+The following list includes the company wide objectives, product objectives ("How?" sections), and whether or not the
 product team hit or missed each objective:
 
 #### Ultimate source of truth
 
 Fleet + osquery gives organizations the ability to see an almost [endless amount of
 data](https://osquery.io/schema/5.1.0/) for all their devices. We want to build on this reputation
-by always providing the freshest, most accurate, and most understandable data possible
+by consistently providing the freshest, most accurate, and most understandable data possible
 in the UI and API.
 
 ##### How?
 
 - Solve the "Undetermined" performance impact limitation for new scheduled queries as well as
-reflect unfinished policy runs in the UI/API (Miss)
-- Only advertise working osquery tables inside the product (looking at you `wifi_networks` table)
-  (Miss)
+reflect unfinished policy runs in the UI/API (Miss).
+- Only advertise working osquery tables inside the product by looking at you `wifi_networks` table
+  (Miss).
 
 #### Programmable
 
-Fleet differentiate's itself from other security tools by providing a simple and easy to use API and
+Fleet differentiates itself from other security tools by providing a simple and easy-to-use API and
 CLI tool (fleetctl). This allows users and customers to leverage Fleet's superb ability to gather
-device data in ways that are unique to their organization.
+device data in unique ways to their organization.
 
 ##### How?
 
 - Add integrations for policy and vulnerability automations as well as get closer to parity with
-  other vulnerability management solutions. (Miss)
-- Roll up software and vulnerabilities across the entire organization and teams.(Hit)
+  other vulnerability management solutions(Miss).
+- Roll up software and vulnerabilities across the entire organization and teams(Hit).
 
 #### Who's watching the watchers
 
@@ -73,13 +73,13 @@ Kandji, and SimpleMDM. (Hit)
 
 #### Self-service, 2-way IT
 
-Fleet is poised to enable an organization's employees to resolve issues with their devices on their own. Not only does this save time for IT administrators and security practitioners but it also builds
-trust so that an organization can focus on achieving their business outcomes together.
+Fleet is poised to enable an organization's employees to resolve issues with their devices on their own. This saves for IT administrators and security practitioners, but it also builds
+trust so that an organization can focus on achieving its business outcomes together.
 
 ##### How?
 
-- Enable end users to self serve issues with their devices using Fleet Desktop. (Miss)
-- Enable end users to see what information is collected about their device (scope transparency). (Hit)
+- Enable end-users to self-serve issues with their devices using Fleet Desktop(Miss).
+- Enable end-users to see what information is collected about their device by maintaining the scope transparency(Hit).
 
 #### Easy to use
 
@@ -87,10 +87,10 @@ We'd like to make maintaining secure laptops and servers as easy as possible.
 
 ##### How?
 
-- Improve the standard query library so that it includes 80% of the most common
-policies that any organization needs. (Miss)
+- Improve the standard query library to include 80% of the most common
+policies that any organization needs(Miss).
 
-## Product process
+## Product design process
 
 The product team is responsible for product design tasks. These include drafting
 changes to the Fleet product, reviewing and collecting feedback from engineering, sales, customer success, and marketing counterparts, and delivering
@@ -120,17 +120,17 @@ these changes to the engineering team.
 
 ### Deliver
 
-* Once your work is complete and all feedback is addressed, make sure that the issue is updated with
+* Once your work is complete and all feedback is addressed, ensure that the issue is updated with
   a link to the correct page in the Fleet EE (scratchpad) Figma. This page is where the design
   specifications live.
 
-* Add the issue to the 🏛 Architect column in [the 🛸 Product project](https://github.com/orgs/fleetdm/projects/27). This way, an architect on the engineering team knows that the issue is ready for engineering specification and later,
+* Add the issue to the 🏛 Architect column in [the 🛸 Product project](https://github.com/orgs/fleetdm/projects/27). This way, an architect on the engineering team knows that the issue is ready for engineering specifications and later,
   engineering estimation.
 
 #### Priority drafting
 
-Priority drafting is the revision of drafted changes that are currently being developed by
-the engineering team. The goal of priority drafting is to quickly adapt to unknown edge cases and
+Priority drafting is the revision of drafted changes currently being developed by
+the engineering team. Priority drafting aims to quickly adapt to unknown edge cases and
 changing specification while ensuring
 that Fleet meets our brand and quality guidelines. 
 
@@ -144,12 +144,12 @@ Priority drafting occurs in the following scenarios:
 
 What happens during priority drafting?
 
-1. Everyone on the product team and engineering team is made aware that a drafted change was brought back
+1. Everyone on the product and engineering teams is aware that a drafted change was brought back
    to drafting and prioritized. 
 
 2. Drafts are updated to cover edge cases or reduce functionality.
 
-3. UI changes are reviewed and the UI changes are brought back to the engineering team to continue
+3. UI changes are reviewed, and the UI changes are brought back to the engineering team to continue
   the development task.
 
 ## Product quality
@@ -160,24 +160,24 @@ To try Fleet locally for QA purposes, run `fleetctl preview`, which defaults to 
 
 To target a different version of Fleet, use the `--tag` flag to target any tag in [Docker Hub](https://hub.docker.com/r/fleetdm/fleet/tags?page=1&ordering=last_updated), including any git commit hash or branch name.  For example, to QA the latest code on the `main` branch of fleetdm/fleet, you can run: `fleetctl preview --tag=main`
 
-To start preview without starting the simulated hosts, use the `--no-hosts` flag (eg. `fleetctl preview --no-hosts`).
+To start preview without starting the simulated hosts, use the `--no-hosts` flag (e.g. `fleetctl preview --no-hosts`).
 
 ### Why human-oriented QA?
 
-Automated tests are important, but they can't catch everything.  Many issues are hard to notice until a human looks empathetically at the user experience, whether that's in the user interface, the REST API, or the command line.
+Automated tests are important, but they can't catch everything.  Many issues are hard to notice until a human looks empathetically at the user experience, whether in the user interface, the REST API, or the command line.
 
-The goal of quality assurance is to catch unexpected behavior prior to release:
-- bugs
-- edge cases
-- error message UX
-- developer experience using the API/CLI
-- operator experience looking at logs
+The goal of quality assurance is to catch unexpected behavior before release:
+- Bugs
+- Edge cases
+- Error message UX
+- Developer experience using the API/CLI
+- Operator experience looking at logs
 - API response time latency
 - UI comprehensibility
-- simplicity
-- data accuracy
-- perceived data freshness
-- the product’s ability to save users from themselves
+- Simplicity
+- Data accuracy
+- Perceived data freshness
+- Product’s ability to save users from themselves
 
 
 ### Collecting bugs
@@ -186,11 +186,11 @@ All QA steps should be possible using `fleetctl preview`.  Please refer to [docs
 
 Please start the manual QA process by creating a blank GitHub issue. As you complete each of the
 flows, record a list of the bugs you encounter in this new issue. Each item in this list should
-contain one sentence describing the bug and a screenshot if the item is a frontend bug.
+contain one sentence describing the bug and a screenshot of the item if it is a frontend bug.
 
 ### Fleet UI
 
-For all following flows, please refer to the [permissions documentation](https://fleetdm.com/docs/using-fleet/permissions) to ensure that actions are limited to the appropriate user type. Any users with access beyond what this document lists as availale should be considered a bug and reported for either documentation updates or investigation.
+For all following flows, please refer to the [permissions documentation](https://fleetdm.com/docs/using-fleet/permissions) to ensure that actions are limited to the appropriate user type. Any users with access beyond what this document lists as available should be considered a bug and reported for either documentation updates or investigation.
 
 #### Set up flow
 
@@ -212,7 +212,7 @@ You should be able to see and select the "Query" button on this host's **Host de
 
 `Flow is covered by e2e testing`
 
-Create a new label by selecting "Add a new label" on the Hosts page. Make sure it correctly filters the host on the hosts page.
+Create a new label by selecting "Add a new label" on the host's page. Make sure it correctly filters the host on the host's page.
 
 Edit this label. Confirm users can only edit the "Name" and "Description" fields for a label. Users cannot edit the "Query" field because label queries are immutable.
 
@@ -239,7 +239,7 @@ Add a query as a saved query to the pack. Remove this query. Delete the pack.
 
 #### My account flow
 
-Head to the My account page by selecting the dropdown icon next to your avatar in the top navigation. Select "My account" and successfully update your password. Please do this with an extra user created for this purpose to maintain accessibility of `fleetctl preview` admin user.
+Head to the My Account page by selecting the dropdown icon next to your avatar in the top navigation. Select "My account" and successfully update your password. Please do this with an extra user created for this purpose to maintain the accessibility of `fleetctl preview` admin user.
 
 
 ### fleetctl CLI
@@ -248,7 +248,7 @@ Head to the My account page by selecting the dropdown icon next to your avatar i
 
 Successfully set up Fleet by running the `fleetctl setup` command.
 
-You may have to wipe your local MySQL database in order to successfully set up Fleet. Check out the [Clear your local MySQL database](#clear-your-local-mysql-database) section of this document for instructions.
+You may have to wipe your local MySQL database in order to set up Fleet successfully. Check out the [Clear your local MySQL database](#clear-your-local-mysql-database) section of this document for instructions.
 
 #### Login and logout flow
 
@@ -260,7 +260,7 @@ Successfully logout by running the `fleetctl logout` command. Then, log in again
 
 Run the `fleetctl get hosts` command.
 
-You should see your local machine returned. If your host isn't showing up, you may have to reenroll your local machine. Check out the [Orbit for osquery documentation](https://github.com/fleetdm/fleet/blob/main/orbit/README.md) for instructions on generating and installing an Orbit package.
+You should see your local machine returned. If your host isn't showing up, you may have to re-enroll your local machine. Check out the [Orbit for osquery documentation](https://github.com/fleetdm/fleet/blob/main/orbit/README.md) for instructions on generating and installing an Orbit package.
 
 #### Query flow
 
@@ -303,16 +303,16 @@ Logout of your current user and log in with the newly created user.
 
 ## UI design
 
-### Communicating design changes to the engineering team
-For something NEW that has been added to [Figma Fleet EE (current, dev-ready)](https://www.figma.com/file/qpdty1e2n22uZntKUZKEJl/?node-id=0%3A1):
+### Communicating design changes to the engineering team.
+Something NEW that has been added to [Figma Fleet EE (current, dev-ready)](https://www.figma.com/file/qpdty1e2n22uZntKUZKEJl/?node-id=0%3A1):
 1. Create a new [GitHub issue](https://github.com/fleetdm/fleet/issues/new)
-2. Detail the required changes (including page links to the relevant layouts), then assign it to the __“Initiatives”__ project.
+2. Detail the required changes (including page links to the relevant layouts), then assign the issue to the __“Initiatives”__ project.
 
 <img src="https://user-images.githubusercontent.com/78363703/129840932-67d55b5b-8e0e-4fb9-9300-5d458e1b91e4.png" alt="Assign to Initiatives project"/>
 
-> ___NOTE:___ Artwork and layouts in Figma Fleet EE (current) are final assets, ready for implementation. Therefore, it’s important NOT to use the “idea” label, as designs in this document are more than ideas - they are something that WILL be implemented._
+> ___NOTE:___ Artwork and layouts in Figma Fleet EE (current) are final assets, ready for implementation. Therefore, it’s important NOT to use the “idea” label, as designs in this document are more than ideas - they are something that WILL be implemented.
 
-3. Navigate to the [Initiatives project](https://github.com/orgs/fleetdm/projects/8), and hit “+ Add cards”, pick the new issue, and drag it into the “🤩Inspire me” column. 
+3. Navigate to the [Initiatives project](https://github.com/orgs/fleetdm/projects/8), hit “+ Add cards,” pick the new issue, and drag it into the “🤩Inspire me” column. 
 
 <img src="https://user-images.githubusercontent.com/78363703/129840496-54ea4301-be20-46c2-9138-b70bff7198d0.png" alt="Add cards"/>
 
@@ -320,7 +320,7 @@ For something NEW that has been added to [Figma Fleet EE (current, dev-ready)](h
 
 ### Communicating unplanned design changes
 
-For issues related to something that was ALREADY in Figma Fleet EE (current, dev-ready), but __implemented differently__, e.g, padding/spacing inconsistency etc. Create a [bug issue](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&template=bug-report.md&title=) and detail the required changes.
+For issues related to something that was ALREADY in Figma Fleet EE (current, dev-ready), but __implemented differently__, e.g. padding/spacing inconsistency, etc. Create a [bug issue](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&template=bug-report.md&title=) and detail the required changes.
 
 ### Design conventions
 
@@ -340,17 +340,17 @@ For a link that navigates the user to an external site (ex. fleetdm.com/docs), u
 
 ## Release 
 
-This section outlines the communication between the product team and growth team and product team
+This section outlines the communication between the product team, growth team, product team,
 and customer success team prior to a release of Fleet.
 
 ### Goal
 
-Keep the business up to date with improvements and changes to the Fleet product so that all stakeholders are able to communicate
+Keep the business up to date with improvements and changes to the Fleet product so that all stakeholders are can communicate
 with customers and users.
 
 ### Blog post
 
-The product team is responsible for providing the [growth team](./brand.md) with necessary information for writing
+The product team is responsible for providing the [growth team](./brand.md) with the necessary information for writing
 the release blog post. This is accomplished by filing a release blog post issue and adding
 the issue to the growth board on GitHub.
 
@@ -358,11 +358,11 @@ The release blog post issue includes a list of the primary features included in 
 release. This list of features should point the reader to the GitHub issue that explains each
 feature in more detail.
 
-An example release blog post issue can be found [here](https://github.com/fleetdm/fleet/issues/3465).
+Find an example release blog post issue [here](https://github.com/fleetdm/fleet/issues/3465).
 
 ### Customer announcement
 
-The product team is responsible for providing the [customer success team](./customers.md) with necessary information
+The product team is responsible for providing the [customer success team](./customers.md) with the necessary information
 for writing a release customer announcement. This is accomplished by filing a release customer announcement issue and adding
 the issue to the customer success board on GitHub. 
 
@@ -370,32 +370,49 @@ the issue to the customer success board on GitHub.
 The release blog post issue is filed in the private fleetdm/confidential repository because the
 comment section may contain private information about Fleet's customers.
 
-An example release customer announcement blog post issue can be found [here](https://github.com/fleetdm/confidential/issues/747).
+Find an example release customer announcement blog post issue [here](https://github.com/fleetdm/confidential/issues/747).
 
 ## Feature flags
 
 In Fleet, features are placed behind feature flags if the changes could affect Fleet's availability of existing functionalities.
 
-The following highlights should be considered when deciding if feature flags should be leveraged:
+The following highlights should be considered when deciding if we should leverage feature flags:
 
 - The feature flag must be disabled by default.
 - The feature flag will not be permanent. This means that the individual who decides that a feature flag should be introduced is responsible for creating an issue to track the feature's progress towards removing the feature flag and including the feature in a stable release.
 - The feature flag will not be advertised. For example, advertising in the documentation on fleetdm.com/docs, release notes, release blog posts, and Twitter.
 
-Fleet's feature flag guidelines borrows from GitLab's ["When to use feature flags" section](https://about.gitlab.com/handbook/product-development-flow/feature-flag-lifecycle/#when-to-use-feature-flags) of their handbook. Check out [GitLab's "Feature flags only when needed" video](https://www.youtube.com/watch?v=DQaGqyolOd8) for an explanation on the costs of introducing feature flags.
+Fleet's feature flag guidelines was borrowed from GitLab's ["When to use feature flags" section](https://about.gitlab.com/handbook/product-development-flow/feature-flag-lifecycle/#when-to-use-feature-flags) of their handbook. Check out [GitLab's "Feature flags only when needed" video](https://www.youtube.com/watch?v=DQaGqyolOd8) for an explanation of the costs of introducing feature flags.
 
 ## Competition
 
-We track the capabilities of competitors and adjacent (or commonly integrated) products in this [Google Doc](https://docs.google.com/document/d/1Bqdui6oQthdv5XtD5l7EZVB-duNRcqVRg7NVA4lCXeI/edit) (private).
+We track competitors' capabilities and adjacent (or commonly integrated) products in this [Google Doc](https://docs.google.com/document/d/1Bqdui6oQthdv5XtD5l7EZVB-duNRcqVRg7NVA4lCXeI/edit) (private).
+
+## Product rituals
+
+The following rituals are engaged in by the  directly responsible individual (DRI) and at the frequency specified for the ritual.
+
+| Ritual                       | Frequency                | Description                                         | DRI               |
+|:-----------------------------|:-----------------------------|:----------------------------------------------------|-------------------|
+| Product huddle | Daily | "In progress" issues are discussed and any issues "ready for review" are placed on the list for the product design review call. On Mondays, issues are broken down into a week's work and added into "ready." Issues are moved out of "delivered" every Friday. | Noah Talerman |
+| 🗣 Product office hours  | Weekly (Tuesdays) | Decision is made regarding which customer and community feature requests can be committed to in the next six weeks. Issues are created for any requests that don't already have one. | Noah Talerman |
+| 🎨UI/UX office hours      | Weekly (Wednesdays) | Decision is made regarding which community UX requests can be committed to in the next six weeks. Community UX questions are discussed, as are questions from the Slack community and internal Fleet team with the intention of providing answers to the question's originator.    | Noah Talerman |
+| ✨Product design review  | Weekly (Thursdays) | Product team discusses "ready for review" items and the decision is made on whether the UI changes are ready for engineering specification, and later, implementation. | Noah Talerman |
+| 👀Product review      | Every three weeks | Features and improvements in the upcoming release are presented. Bugs, fixes and changes that should be made prior to release are discussed.  | Noah Talerman |
+
 
 ## Slack channels
 
-The following [Slack channels are maintained](https://fleetdm.com/handbook/company#group-slack-channels) by this group:
+This group maintains the following [Slack channels](https://fleetdm.com/handbook/company#group-slack-channels):
 
 | Slack channel                       | [DRI](https://fleetdm.com/handbook/company#group-slack-channels)    |
 |:------------------------------------|:--------------------------------------------------------------------|
-| `#g-product`                        | Noah Talerman
-| `#help-qa`                          | Reed Haynes
+| `#help-product`                     | Noah Talerman                                                       |
+| `#help-qa`                          | Reed Haynes                                                         |
+| `#g-platform`                       | Zach Wasserman                                                      |
+| `#g-interface`                      | Noah Talerman                                                       |
+| `#g-agent`                          | Mo Zhu                                                              |
+
 
 
 

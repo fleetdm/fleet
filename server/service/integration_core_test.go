@@ -2643,6 +2643,7 @@ func (s *integrationTestSuite) TestVulnerabilitiesWebhookConfig() {
 	t := s.T()
 
 	s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(`{
+		"integrations": {"jira": []},
 		"webhook_settings": {
     		"vulnerabilities_webhook": {
      	 		"enable_vulnerabilities_webhook": true,
@@ -2700,7 +2701,7 @@ func (s *integrationTestSuite) TestIntegrationsConfig() {
 	require.Len(t, config.Integrations.Jira, 1)
 	require.Equal(t, srv.URL, config.Integrations.Jira[0].URL)
 	require.Equal(t, "ok", config.Integrations.Jira[0].Username)
-	require.Equal(t, "bar", config.Integrations.Jira[0].APIToken)
+	require.Equal(t, "********", config.Integrations.Jira[0].APIToken)
 	require.Equal(t, "qux", config.Integrations.Jira[0].ProjectKey)
 	require.True(t, config.Integrations.Jira[0].EnableSoftwareVulnerabilities)
 
