@@ -6,12 +6,9 @@ import { PLATFORM_LABEL_DISPLAY_ORDER } from "utilities/constants";
 import { escapeRegEx } from "utilities/regex";
 
 import Spinner from "components/Spinner";
-import Button from "components/buttons/Button";
-// @ts-ignore
-import InputField from "components/forms/fields/InputField";
-// @ts-ignore
-import PanelGroup from "components/side_panels/HostSidePanel/PanelGroup";
-// @ts-ignore
+import Button from "components/buttons/Button"; // @ts-ignore
+import InputField from "components/forms/fields/InputField"; // @ts-ignore
+import PanelGroup from "components/side_panels/HostSidePanel/PanelGroup"; // @ts-ignore
 import SecondarySidePanelContainer from "components/side_panels/SecondarySidePanelContainer";
 
 import PlusIcon from "../../../../assets/images/icon-plus-16x16@2x.png";

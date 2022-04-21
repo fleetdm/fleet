@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 
 import Modal from "components/Modal";
 import Spinner from "components/Spinner";
-// @ts-ignore
 import {
   IJiraIntegration,
   IJiraIntegrationIndexed,

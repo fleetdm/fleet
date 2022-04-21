@@ -9,7 +9,7 @@ import teamsAPI from "services/entities/teams";
 
 import Button from "components/buttons/Button"; // @ts-ignore
 import FleetIcon from "components/icons/FleetIcon";
-import TableContainer from "components/TableContainer"; // @ts-ignore
+import TableContainer from "components/TableContainer";
 import TableDataError from "components/TableDataError";
 import CreateTeamModal from "./components/CreateTeamModal";
 import DeleteTeamModal from "./components/DeleteTeamModal";

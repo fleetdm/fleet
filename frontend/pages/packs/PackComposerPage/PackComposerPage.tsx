@@ -10,7 +10,7 @@ import { ITargetsAPIResponse } from "interfaces/target";
 import { IEditPackFormData } from "interfaces/pack";
 
 import { getError } from "services";
-import packsAPI from "services/entities/packs"; // @ts-ignore
+import packsAPI from "services/entities/packs";
 
 import PackForm from "components/forms/packs/PackForm"; // @ts-ignore
 import PackInfoSidePanel from "components/side_panels/PackInfoSidePanel";

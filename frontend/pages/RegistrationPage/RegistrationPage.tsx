@@ -2,7 +2,7 @@ import React, { useContext, useState, useEffect } from "react";
 import { InjectedRouter } from "react-router";
 import { max } from "lodash";
 
-import paths from "router/paths"; // @ts-ignore
+import paths from "router/paths";
 import { AppContext } from "context/app";
 import usersAPI from "services/entities/users";
 import local from "utilities/local";

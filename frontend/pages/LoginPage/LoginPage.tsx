@@ -10,10 +10,9 @@ import local from "utilities/local";
 import sessionsAPI from "services/entities/sessions";
 import formatErrorResponse from "utilities/format_error_response";
 
-// @ts-ignore
 import AuthenticationFormWrapper from "components/AuthenticationFormWrapper"; // @ts-ignore
-import LoginForm from "components/forms/LoginForm"; // @ts-ignore
-import LoginSuccessfulPage from "pages/LoginSuccessfulPage"; // @ts-ignore
+import LoginForm from "components/forms/LoginForm";
+import LoginSuccessfulPage from "pages/LoginSuccessfulPage";
 
 interface ILoginPageProps {
   router: InjectedRouter; // v3

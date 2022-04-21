@@ -1,16 +1,16 @@
 import React, { useState, useContext, useEffect } from "react";
 import { InjectedRouter } from "react-router";
 import { formatDistanceToNow } from "date-fns";
-import { authToken } from "utilities/local"; // @ts-ignore
-import { stringToClipboard } from "utilities/copy_text";
 
 import { AppContext } from "context/app";
-import { NotificationContext } from "context/notification"; // @ts-ignore
+import { NotificationContext } from "context/notification";
 import { IVersionData } from "interfaces/version";
-import { IUser } from "interfaces/user"; // @ts-ignore
-import deepDifference from "utilities/deep_difference";
+import { IUser } from "interfaces/user";
 import usersAPI from "services/entities/users";
 import versionAPI from "services/entities/version";
+import { authToken } from "utilities/local";
+import { stringToClipboard } from "utilities/copy_text";
+import deepDifference from "utilities/deep_difference";
 import formatErrorResponse from "utilities/format_error_response";
 import { generateRole, generateTeam, greyCell } from "utilities/helpers";
 

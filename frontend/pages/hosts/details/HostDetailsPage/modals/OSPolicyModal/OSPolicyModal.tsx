@@ -1,8 +1,6 @@
 import React, { useState } from "react";
 
 import { humanHostDetailUpdated } from "utilities/helpers";
-
-// @ts-ignore
 import { stringToClipboard } from "utilities/copy_text";
 
 // @ts-ignore

@@ -1,4 +1,3 @@
-// @ts-ignore
 import filterArrayByHash from "utilities/filter_array_by_hash";
 
 describe("filterArrayByHash", () => {

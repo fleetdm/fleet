@@ -2,8 +2,7 @@ import React from "react";
 import { syntaxHighlight } from "utilities/helpers";
 
 import Modal from "components/Modal";
-import Button from "components/buttons/Button";
-// @ts-ignore
+import Button from "components/buttons/Button"; // @ts-ignore
 import FleetIcon from "components/icons/FleetIcon";
 
 const baseClass = "preview-data-modal";

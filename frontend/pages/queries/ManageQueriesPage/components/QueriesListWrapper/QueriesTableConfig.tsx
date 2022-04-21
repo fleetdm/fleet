@@ -11,7 +11,6 @@ import { IQuery } from "interfaces/query";
 import { IUser } from "interfaces/user";
 import { addGravatarUrlToResource } from "utilities/helpers";
 
-// @ts-ignore
 import Avatar from "components/Avatar";
 import Checkbox from "components/forms/fields/Checkbox";
 import LinkCell from "components/TableContainer/DataTable/LinkCell/LinkCell";

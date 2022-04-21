@@ -10,8 +10,7 @@ import {
 } from "interfaces/integration";
 import { IApiError } from "interfaces/errors";
 
-import Button from "components/buttons/Button";
-// @ts-ignore
+import Button from "components/buttons/Button"; // @ts-ignore
 import FleetIcon from "components/icons/FleetIcon";
 import { DEFAULT_CREATE_INTEGRATION_ERRORS } from "utilities/constants";
 

@@ -1,6 +1,5 @@
 import React, { useState } from "react";
-import { useDebouncedCallback } from "use-debounce";
-// @ts-ignore
+import { useDebouncedCallback } from "use-debounce"; // @ts-ignore
 import InputField from "../InputField";
 
 const baseClass = "search-field";

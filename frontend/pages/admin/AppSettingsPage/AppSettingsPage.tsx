@@ -4,11 +4,8 @@ import { Params } from "react-router/lib/Router";
 import { Link } from "react-router";
 
 import { AppContext } from "context/app";
-import { NotificationContext } from "context/notification"; // @ts-ignore
-
+import { NotificationContext } from "context/notification";
 import configAPI from "services/entities/config";
-
-// @ts-ignore
 import deepDifference from "utilities/deep_difference";
 import { IConfig } from "interfaces/config";
 import { IApiError } from "interfaces/errors";

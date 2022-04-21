@@ -6,10 +6,10 @@ import { NotificationContext } from "context/notification";
 import { formatSelectedTargetsForApi } from "utilities/helpers";
 
 import queryAPI from "services/entities/queries";
-import campaignHelpers from "utilities/campaign_helpers"; // @ts-ignore
-import debounce from "utilities/debounce"; // @ts-ignore
-import { BASE_URL, DEFAULT_CAMPAIGN_STATE } from "utilities/constants"; // @ts-ignore
-import local from "utilities/local"; // @ts-ignore
+import campaignHelpers from "utilities/campaign_helpers";
+import debounce from "utilities/debounce";
+import { BASE_URL, DEFAULT_CAMPAIGN_STATE } from "utilities/constants";
+import local from "utilities/local";
 import { ICampaign, ICampaignState } from "interfaces/campaign";
 import { IQuery } from "interfaces/query";
 import { ITarget } from "interfaces/target";

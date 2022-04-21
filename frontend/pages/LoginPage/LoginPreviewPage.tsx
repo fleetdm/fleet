@@ -2,14 +2,13 @@ import React, { useState, useEffect, useContext } from "react";
 import { InjectedRouter } from "react-router";
 
 import paths from "router/paths";
-import { AppContext } from "context/app"; // @ts-ignore
+import { AppContext } from "context/app";
 import sessionsAPI from "services/entities/sessions";
 import local from "utilities/local";
 
-// @ts-ignore
-import LoginSuccessfulPage from "pages/LoginSuccessfulPage"; // @ts-ignore
+import LoginSuccessfulPage from "pages/LoginSuccessfulPage";
 import AuthenticationFormWrapper from "components/AuthenticationFormWrapper"; // @ts-ignore
-import LoginForm from "components/forms/LoginForm"; // @ts-ignore
+import LoginForm from "components/forms/LoginForm";
 
 interface ILoginPreviewPageProps {
   router: InjectedRouter; // v3

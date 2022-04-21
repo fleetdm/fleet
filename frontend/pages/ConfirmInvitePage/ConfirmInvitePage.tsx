@@ -9,7 +9,6 @@ import paths from "router/paths";
 import usersAPI from "services/entities/users";
 import formatErrorResponse from "utilities/format_error_response";
 
-// @ts-ignore
 import AuthenticationFormWrapper from "components/AuthenticationFormWrapper"; // @ts-ignore
 import ConfirmInviteForm from "components/forms/ConfirmInviteForm";
 
