@@ -1,6 +1,7 @@
 import React from "react";
 
 import ExternalLinkIcon from "../../../../../../assets/images/open-new-tab-12x12@2x.png";
+import DisableIcon from "../../../../../../assets/images/icon-action-disable-red-16x16@2x.png";
 
 const baseClass = "empty-state";
 
@@ -59,7 +60,10 @@ const EmptyState = ({ title, reason }: IEmptyStateProps): JSX.Element => {
         <div className={`${baseClass} empty-${title}`}>
           <div className={`${baseClass}__inner`}>
             <div className={`${baseClass}__empty-list`}>
-              <h1>No {title} collected from this host.</h1>
+              <h1>
+                <img alt="Disable icon" src={DisableIcon} />
+                No {title} collected from this host.
+              </h1>
               <p>
                 Check out the Fleet documentation on{" "}
                 <a
