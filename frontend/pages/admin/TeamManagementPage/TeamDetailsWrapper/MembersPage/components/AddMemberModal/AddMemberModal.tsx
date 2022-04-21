@@ -1,7 +1,7 @@
 import React, { useCallback, useState, useEffect } from "react";
 
 import { INewMembersBody, ITeam } from "interfaces/team";
-import endpoints from "fleet/endpoints";
+import endpoints from "utilities/endpoints";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import AutocompleteDropdown from "pages/admin/TeamManagementPage/TeamDetailsWrapper/MembersPage/components/AutocompleteDropdown";

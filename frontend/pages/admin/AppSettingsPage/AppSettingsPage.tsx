@@ -54,6 +54,10 @@ const AppSettingsPage = ({
 
   const onFormSubmit = useCallback(
     (formData: IConfig) => {
+      if (!appConfig) {
+        return false;
+      }
+
       const diff = deepDifference(formData, appConfig);
       // send all formData.agent_options because diff overrides all agent options
       diff.agent_options = formData.agent_options;

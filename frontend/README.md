@@ -67,13 +67,6 @@ typical directory structure for a component is as follows:
     by it's directory name. Without this file the component name would have to
     be duplicated during imports (`components/ComponentName` vs. `components/ComponentName/ComponentName`).
 
-### [app_constants](./app_constants)
-
-The app_constants directory exports the constants used in the app. Examples
-include the app's URL paths, settings, and http statuses. When building features
-that require constants, the constants should be added here for accessibility
-throughout the application.
-
 ### [components](./components)
 
 The component directory contains the React components rendered by pages. They

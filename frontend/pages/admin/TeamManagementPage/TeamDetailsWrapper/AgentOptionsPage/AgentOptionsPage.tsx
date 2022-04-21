@@ -5,7 +5,7 @@ import yaml from "js-yaml";
 
 import { NotificationContext } from "context/notification";
 import { ITeam } from "interfaces/team";
-import endpoints from "fleet/endpoints";
+import endpoints from "utilities/endpoints";
 import teamsAPI from "services/entities/teams";
 import osqueryOptionsAPI from "services/entities/osquery_options";
 

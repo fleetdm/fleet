@@ -12,7 +12,7 @@ import deepDifference from "utilities/deep_difference";
 import usersAPI from "services/entities/users";
 import versionAPI from "services/entities/version";
 import formatErrorResponse from "utilities/format_error_response";
-import { generateRole, generateTeam, greyCell } from "fleet/helpers";
+import { generateRole, generateTeam, greyCell } from "utilities/helpers";
 
 import Avatar from "components/Avatar";
 import Button from "components/buttons/Button"; // @ts-ignore

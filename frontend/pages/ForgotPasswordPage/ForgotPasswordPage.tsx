@@ -61,10 +61,7 @@ const ForgotPasswordPage = () => {
 
   return (
     <AuthenticationFormWrapper>
-      <StackedWhiteBoxes
-        leadText={leadText}
-        previousLocation={PATHS.LOGIN}
-      >
+      <StackedWhiteBoxes leadText={leadText} previousLocation={PATHS.LOGIN}>
         {renderContent()}
       </StackedWhiteBoxes>
     </AuthenticationFormWrapper>

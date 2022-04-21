@@ -6,7 +6,7 @@ import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
 import { IInvite } from "interfaces/invite";
 import { IUser } from "interfaces/user";
 import { IDropdownOption } from "interfaces/dropdownOption";
-import { generateRole, generateTeam, greyCell } from "fleet/helpers";
+import { generateRole, generateTeam, greyCell } from "utilities/helpers";
 import DropdownCell from "../../../components/TableContainer/DataTable/DropdownCell";
 
 interface IHeaderProps {

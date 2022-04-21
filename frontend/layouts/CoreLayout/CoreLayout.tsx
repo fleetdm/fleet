@@ -9,7 +9,7 @@ import useDeepEffect from "hooks/useDeepEffect";
 import FlashMessage from "components/FlashMessage";
 import SiteTopNav from "components/top_nav/SiteTopNav";
 import { INotification } from "interfaces/notification";
-import { licenseExpirationWarning } from "fleet/helpers";
+import { licenseExpirationWarning } from "utilities/helpers";
 
 interface ICoreLayoutProps {
   children: React.ReactNode;

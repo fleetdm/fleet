@@ -6,7 +6,7 @@ import formatDistanceToNowStrict from "date-fns/formatDistanceToNowStrict";
 import activitiesAPI, {
   IActivitiesResponse,
 } from "services/entities/activities";
-import { addGravatarUrlToResource } from "fleet/helpers";
+import { addGravatarUrlToResource } from "utilities/helpers";
 
 import { IActivity, ActivityType } from "interfaces/activity";
 

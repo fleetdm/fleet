@@ -8,7 +8,7 @@ import PATHS from "router/paths";
 import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
 import { NotificationContext } from "context/notification";
-import { addGravatarUrlToResource } from "fleet/helpers";
+import { addGravatarUrlToResource } from "utilities/helpers";
 import usePlatformCompatibility from "hooks/usePlatformCompatibility";
 import { IApiError } from "interfaces/errors";
 import { IQuery, IQueryFormData } from "interfaces/query";

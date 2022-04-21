@@ -55,7 +55,7 @@ import { IActionButtonProps } from "components/TableContainer/DataTable/ActionBu
 import TeamsDropdown from "components/TeamsDropdown";
 import Spinner from "components/Spinner";
 
-import { getValidatedTeamId } from "fleet/helpers";
+import { getValidatedTeamId } from "utilities/helpers";
 import {
   defaultHiddenColumns,
   generateVisibleTableColumns,

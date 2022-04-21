@@ -10,12 +10,12 @@ interface IAuthenticationFormWrapperProps {
 const baseClass = "auth-form-wrapper";
 
 const AuthenticationFormWrapper = ({
-  children
+  children,
 }: IAuthenticationFormWrapperProps) => (
-    <div className={baseClass}>
-      <img alt="Fleet" src={fleetLogoText} className={`${baseClass}__logo`} />
-      {children}
-    </div>
-  );
+  <div className={baseClass}>
+    <img alt="Fleet" src={fleetLogoText} className={`${baseClass}__logo`} />
+    {children}
+  </div>
+);
 
 export default AuthenticationFormWrapper;

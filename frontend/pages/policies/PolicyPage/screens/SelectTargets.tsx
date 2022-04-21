@@ -3,7 +3,7 @@ import { Row } from "react-table";
 import { forEach, isEmpty, remove, unionBy } from "lodash";
 import { useDebouncedCallback } from "use-debounce";
 
-import { formatSelectedTargetsForApi } from "fleet/helpers";
+import { formatSelectedTargetsForApi } from "utilities/helpers";
 import useQueryTargets, { ITargetsQueryResponse } from "hooks/useQueryTargets";
 import { ITarget } from "interfaces/target";
 import { ILabel } from "interfaces/label";

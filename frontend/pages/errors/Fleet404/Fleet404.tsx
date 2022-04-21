@@ -34,8 +34,7 @@ const Fleet404 = () => (
         <span>404:</span> Oops, sorry we can&apos;t find that page!
       </h1>
       <p>
-        The page you are looking for has either moved, or doesn&apos;t
-        exist.
+        The page you are looking for has either moved, or doesn&apos;t exist.
       </p>
       <div className={`${baseClass}__button-wrapper`}>
         <a

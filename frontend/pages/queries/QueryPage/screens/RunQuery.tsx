@@ -3,7 +3,7 @@ import SockJS from "sockjs-client";
 
 import { QueryContext } from "context/query";
 import { NotificationContext } from "context/notification";
-import { formatSelectedTargetsForApi } from "fleet/helpers";
+import { formatSelectedTargetsForApi } from "utilities/helpers";
 
 import queryAPI from "services/entities/queries";
 import campaignHelpers from "utilities/campaign_helpers"; // @ts-ignore

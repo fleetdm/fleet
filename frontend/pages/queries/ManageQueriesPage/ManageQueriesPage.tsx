@@ -12,7 +12,7 @@ import { pick } from "lodash";
 import { AppContext } from "context/app";
 import { TableContext } from "context/table";
 import { NotificationContext } from "context/notification";
-import { performanceIndicator } from "fleet/helpers";
+import { performanceIndicator } from "utilities/helpers";
 import { IOsqueryPlatform } from "interfaces/platform";
 import { IQuery } from "interfaces/query";
 import fleetQueriesAPI from "services/entities/queries";

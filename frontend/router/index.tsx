@@ -74,10 +74,7 @@ const routes = (
       <Route path="setup" component={RegistrationPage} />
       <Route path="previewlogin" component={LoginPreviewPage} />
       <Route path="login" component={LoginPage} />
-      <Route
-        path="login/invites/:invite_token"
-        component={ConfirmInvitePage}
-      />
+      <Route path="login/invites/:invite_token" component={ConfirmInvitePage} />
       <Route
         path="login/ssoinvites/:invite_token"
         component={ConfirmSSOInvitePage}
@@ -95,14 +92,8 @@ const routes = (
             <Route component={SettingsWrapper}>
               <Route component={AuthenticatedAdminRoutes}>
                 <Route path="organization" component={AdminAppSettingsPage} />
-                <Route
-                  path="organization/:section"
-                  component={AdminAppSettingsPage}
-                />
-                <Route
-                  path="integrations"
-                  component={AdminIntegrationsPage}
-                />
+                <Route path="organization/:section" component={AdminAppSettingsPage} />
+                <Route path="integrations" component={AdminIntegrationsPage} />
                 <Route path="users" component={AdminUserManagementPage} />
                 <Route path="teams" component={AdminTeamManagementPage} />
               </Route>
@@ -115,10 +106,7 @@ const routes = (
           <Route path="hosts">
             <IndexRedirect to={"manage"} />
             <Route path="manage" component={ManageHostsPage} />
-            <Route
-              path="manage/labels/:label_id"
-              component={ManageHostsPage}
-            />
+            <Route path="manage/labels/:label_id" component={ManageHostsPage} />
             <Route path="manage/:active_label" component={ManageHostsPage} />
             <Route
               path="manage/labels/:label_id/:active_label"
@@ -171,7 +159,10 @@ const routes = (
             </Route>
             <Route path=":id" component={PolicyPage} />
           </Route>
-          <Route path="profile" component={UserSettingsPage as RouteComponent} />
+          <Route
+            path="profile"
+            component={UserSettingsPage as RouteComponent}
+          />
         </Route>
       </Route>
       <Route path="/device/:device_auth_token" component={DeviceUserPage} />
