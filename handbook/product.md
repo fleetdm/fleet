@@ -400,6 +400,49 @@ The following rituals are engaged in by the  directly responsible individual (DR
 | ✨ Product design review  | Weekly (Thursdays) | Product team discusses "ready for review" items and the decision is made on whether the UI changes are ready for engineering specification, and later, implementation. | Noah Talerman |
 | 👀 Product review      | Every three weeks | Features and improvements in the upcoming release are presented. Bugs, fixes and changes that should be made prior to release are discussed.  | Noah Talerman |
 
+### Intake process
+
+Intake for new product ideas (feature requests) happens at the 🗣 Product office hours ritual.
+
+At 🗣 Product office hours, all feature requests are discussed and either prioritized or ejected.
+
+A feature request is prioritized when perceived as an important near-term priority by the business.
+When this happens, a release date is tentatively set (within 6 weeks).
+
+A feature request is ejected when competing priorities are perceived as a more important near-term priority by the business.
+
+#### Why this way?
+
+At Fleet, we use objectives and key results (OKRs) to align the organization with measurable goals.
+These OKRs fill up a large portion, but not all, of planning (drafting, wireframing, spec'ing, etc.) and
+engineering capacity. 
+
+This means that there is always some capacity to prioritize feature requests advocated for by customers, Fleet team members, and members of the
+greater Fleet community.
+
+> Note that bugs are always prioritized.
+
+At Fleet, we'd like to be able to tell everyone if their feature
+request is prioritized or ejected within 1 week of the request.
+
+The 🗣 Product office hours acts as a recurring ritual to make sure that everyone receives a
+response within this timeframe.
+
+#### Making a feature request
+
+To make a feature request, or advocate for a feature request from a customer or community member, all members of the Fleet organization are asked to add their name and a description of the
+feature request to the list in the 🗣 Product office hours section of the following Google doc:
+https://docs.google.com/document/d/10B4eDXHjM9lFob6VcBDFEzYR424QRH3EuTpRLbhWyzM/edit#heading=h.w2b5x42h9sgy
+
+Everyone is encouraged to attend the 🗣 Product office hours call. Feature requests will be
+discussed from top to bottom while prioritizing attendee feature requests. 
+
+This
+means that, if the individual that added a feature request is
+not in attendance, the feature request will discussed towards the end of the call if there's time..
+
+All 🗣 Product office hours are recorded and uploaded to the shared Google drive.
+
 
 ## Slack channels
 
