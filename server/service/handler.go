@@ -124,15 +124,6 @@ func MakeHandler(
 	r.Use(publicIP)
 
 	attachFleetAPIRoutes(r, svc, config, logger, limitStore, fleetAPIOptions, eopts)
-
-	// Results endpoint is handled different due to websockets use
-
-	// TODO: this would not work once v1 is deprecated - note that the handler too uses the /v1/ path
-	// and this routes on path prefix, not exact path (unlike the authendpointer struct).
-	r.PathPrefix("/api/v1/fleet/results/").
-		Handler(makeStreamDistributedQueryCampaignResultsHandler(svc, logger)).
-		Name("distributed_query_results")
-
 	addMetrics(r)
 
 	return r
@@ -446,6 +437,12 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ne.POST("/api/v1/fleet/sso", initiateSSOEndpoint, initiateSSORequest{})
 	ne.POST("/api/v1/fleet/sso/callback", makeCallbackSSOEndpoint(config.Server.URLPrefix), callbackSSORequest{})
 	ne.GET("/api/v1/fleet/sso", settingsSSOEndpoint, nil)
+	// the websocket distributed query results endpoint is a bit different - the
+	// provided path is a prefix, not an exact match, and it is not a go-kit
+	// endpoint but a raw http.Handler. It uses the NoAuthEndpointer because
+	// authentication is done when the websocket session is established, inside
+	// the handler.
+	ne.UsePathPrefix().PathHandler("GET", "/api/_version_/fleet/results/", makeStreamDistributedQueryCampaignResultsHandler(svc, logger))
 
 	limiter := ratelimit.NewMiddleware(limitStore)
 	ne.
@@ -477,13 +474,16 @@ func WithSetup(svc fleet.Service, logger kitlog.Logger, next http.Handler) http.
 	rxOsquery := regexp.MustCompile(`^/api/[^/]+/osquery`)
 	return func(w http.ResponseWriter, r *http.Request) {
 		configRouter := http.NewServeMux()
-		// TODO: hard-codes v1 as a path fragment, which would probably not work once we
-		// deprecate it for newer versions, unless we want to treat the setup differently (not versioned?)
-		configRouter.Handle("/api/v1/setup", kithttp.NewServer(
+		srv := kithttp.NewServer(
 			makeSetupEndpoint(svc, logger),
 			decodeSetupRequest,
 			encodeResponse,
-		))
+		)
+		// NOTE: support setup on both /v1/ and version-less, in the future /v1/
+		// will be dropped.
+		configRouter.Handle("/api/v1/setup", srv)
+		configRouter.Handle("/api/setup", srv)
+
 		// whitelist osqueryd endpoints
 		if rxOsquery.MatchString(r.URL.Path) {
 			next.ServeHTTP(w, r)

@@ -436,12 +436,12 @@ const UserForm = ({
           disabled={!canUseSso}
           wrapperClassName={`${baseClass}__invite-admin`}
           tooltip={`
-              Enabling single sign on for a user requires that SSO is first enabled for the organization.
+              Enabling single sign-on for a user requires that SSO is first enabled for the organization.
               <br /><br />
               Users with Admin role can configure SSO in <strong>Settings &gt; Organization settings</strong>.
             `}
         >
-          Enable single sign on
+          Enable single sign-on
         </Checkbox>
         <p className={`${baseClass}__sso-input sublabel`}>
           Password authentication will be disabled for this user.
