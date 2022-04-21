@@ -268,7 +268,7 @@ For PRs that will not be merged:
 
 ## Updating Docs and FAQ
 
-When someone asks a question in a public channel, it's pretty safe to assume that they aren't the only person that's ever had the same question. In order to make sure the documentation is as useful as possible, the Community team gathers questions and uses them to make a weekly documentation update. 
+When someone asks a question in a public channel, it's pretty safe to assume that they aren't the only person looking for an answer to the same question. To make our docs as helpful as possible, the Community team gathers these questions and uses them to make a weekly documentation update. 
 
 As a general goal, every question should be answered with a link to the Docs and/or result in an update to the Docs. 
 
