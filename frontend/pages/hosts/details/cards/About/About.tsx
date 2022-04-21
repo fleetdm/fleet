@@ -33,7 +33,7 @@ const About = ({
           <span className="info-grid__data">{aboutData.hardware_serial}</span>
         </div>
         <div className="info-grid__block">
-          <span className="info-grid__header">Internal IP address</span>
+          <span className="info-grid__header">Private IP address</span>
           <span className="info-grid__data">{aboutData.primary_ip}</span>
         </div>
         <div className="info-grid__block">
