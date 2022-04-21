@@ -278,7 +278,7 @@ When responding to a question or issue in the [#fleet](https://osquery.slack.com
 
 - Proposed change to the documentation.
 - Documentation link that was sent as a response.
-- Link to associated thread in `#help-oncall`.
+- Link to associated thread in [#help-oncall](https://fleetdm.slack.com/archives/C024DGVCABZ).
 
 ### Making the updates
 
