@@ -122,10 +122,17 @@ html, body {
   }
 } // Non-homepage header styles
 &.header {
-  left: 0;
-  right: 0;
-  border-bottom: 1px solid #e2e4ea;
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+    left: 0;
+    right: 0;
+    // border-bottom: 1px solid #e2e4ea;
+    // box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+    position: sticky;
+    top: 0px;
+    background-color: #fff;
+    z-index: 9999;
+    transition-property: transform;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 0.5s;
   .current-page {
     color: #6a67fe;
     svg {
@@ -244,4 +251,9 @@ body.detected-mobile {
 
     }
   }
+}
+
+// Some utilities for the sticky nav behaviour
+.translate-y-0 {
+    transform: translateY(-95px);
 }
