@@ -23,12 +23,14 @@ interface ISoftwareTableProps {
   isLoading: boolean;
   software: ISoftware[];
   deviceUser?: boolean;
+  softwareInventoryEnabled?: boolean;
 }
 
 const SoftwareTable = ({
   isLoading,
   software,
   deviceUser,
+  softwareInventoryEnabled,
 }: ISoftwareTableProps): JSX.Element => {
   const tableSoftware: ITableSoftware[] = software.map((s) => {
     return {
@@ -79,6 +81,15 @@ const SoftwareTable = ({
   const EmptySoftwareSearch = () => (
     <EmptyState title="software" reason="empty-search" />
   );
+
+  if (!softwareInventoryEnabled) {
+    return (
+      <div className="section section--software">
+        <p className="section__header">Software</p>
+        <EmptyState title="software" reason="disabled" />
+      </div>
+    );
+  }
 
   return (
     <div className="section section--software">
