@@ -190,7 +190,7 @@ graph TD;
 
 ## Pull requests
 
-The most important thing when community members contribute to Fleet is to show them we value their time and effort. We need to get eyes on community pull requests quickly (within 1 business day) and get them merged or give feedback as soon as we can.
+When community members contribute to Fleet, the most important thing is to show them we value their time and effort. We need to get eyes on community pull requests quickly (within one business day) and get them merged or give feedback as soon as possible.
 
 ### Process for managing community contributions
 
