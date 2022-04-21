@@ -27,7 +27,7 @@ We actually don’t use a SIEM for this reason. We rely on alerts and signals fr
 I’ll admit to not liking SQL much. It would be handy to have a query builder for simpler queries. For more advanced queries, perhaps something like Logica that compiles down to SQL but can be nicer to use would be interesting. There’s also a lot of confusion I see from newcomers to osquery and Fleet who want to know where to get results from scheduled queries. Some detailed documentation on possible solutions for this (ELK, or maybe BigQuery?) would go a long way to getting people started.
 
 <meta name="category" value="success stories">
-<meta name="authorsGitHubUserName" value="mike-j-thomas">
-<meta name="authorsFullName" value="Mike Thomas">
+<meta name="authorGitHubUsername" value="mike-j-thomas">
+<meta name="authorFullName" value="Mike Thomas">
 <meta name="publishedOn" value="2021-09-10">
 <meta name="articleTitle" value="Fleet user stories — Schrödinger">

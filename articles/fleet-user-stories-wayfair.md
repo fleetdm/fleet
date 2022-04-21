@@ -32,7 +32,7 @@ Fleet very fast, after a release or two. What I hope to see in Fleet are the fol
 - Ability to create a notebook, list of queries that you can run ad-hoc like normal queries, which makes the IR process easier if you want to run and gather lots of data at once.
 
 <meta name="category" value="success stories">
-<meta name="authorsGitHubUserName" value="mike-j-thomas">
-<meta name="authorsFullName" value="Mike Thomas">
+<meta name="authorGitHubUsername" value="mike-j-thomas">
+<meta name="authorFullName" value="Mike Thomas">
 <meta name="publishedOn" value="2021-08-20">
 <meta name="articleTitle" value="Fleet user stories — Wayfair">

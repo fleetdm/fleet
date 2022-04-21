@@ -145,7 +145,7 @@ That’s it! We have successfully deployed and configured a Fleet instance! Rend
 
 
 <meta name="category" value="guides">
-<meta name="authorsGitHubUserName" value="edwardsb">
-<meta name="authorsFullName" value="Ben Edwards">
+<meta name="authorGitHubUsername" value="edwardsb">
+<meta name="authorFullName" value="Ben Edwards">
 <meta name="publishedOn" value="2021-09-21">
 <meta name="articleTitle" value="Deploying Fleet on Render">

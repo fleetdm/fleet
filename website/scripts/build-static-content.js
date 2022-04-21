@@ -339,13 +339,13 @@ module.exports = {
 
               // Checking the metadata on /articles pages, and adding the category to the each article's URL.
               if(sectionRepoPath === 'articles/') {
-                if(!embeddedMetadata.authorsGitHubUserName) {
-                  // Throwing an error if the article doesn't have a authorsGitHubUserName meta tag
-                  throw new Error(`Failed compiling markdown content: An article page is missing a authorsGitHubUserName meta tag (<meta name="authorsGitHubUserName" value="">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, add a meta tag with the authors GitHub username.`);
+                if(!embeddedMetadata.authorGitHubUsername) {
+                  // Throwing an error if the article doesn't have a authorGitHubUsername meta tag
+                  throw new Error(`Failed compiling markdown content: An article page is missing a authorGitHubUsername meta tag (<meta name="authorGitHubUsername" value="">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, add a meta tag with the authors GitHub username.`);
                 }
-                if(!embeddedMetadata.authorsFullName) {
-                  // Throwing an error if the article doesn't have a authorsFullName meta tag
-                  throw new Error(`Failed compiling markdown content: An article page is missing a authorsGitHubUserName meta tag (<meta name="authorsGitHubUserName" value="">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, add a meta tag with the authors GitHub username.`);
+                if(!embeddedMetadata.authorFullName) {
+                  // Throwing an error if the article doesn't have a authorFullName meta tag
+                  throw new Error(`Failed compiling markdown content: An article page is missing a authorFullName meta tag (<meta name="authorFullName" value="">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, add a meta tag with the authors GitHub username.`);
                 }
                 if(!embeddedMetadata.articleTitle) {
                   // Throwing an error if the article doesn't have a articleTitle meta tag

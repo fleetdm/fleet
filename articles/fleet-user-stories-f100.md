@@ -41,7 +41,7 @@ You guys have done things well in a lot of ways, and I’m like; “this makes s
 I love Fleet. It was stupid simple to set up once we were engaged with y’all. You’ve been really responsive to feature requests and help. The fleetctl thing was especially helpful. It was something that I could have done myself, but y’all did it in a day. It’s things like this that have large knock-on effects.
 
 <meta name="category" value="success stories">
-<meta name="authorsGitHubUserName" value="mike-j-thomas">
-<meta name="authorsFullName" value="Mike Thomas">
+<meta name="authorGitHubUsername" value="mike-j-thomas">
+<meta name="authorFullName" value="Mike Thomas">
 <meta name="publishedOn" value="2021-09-29">
 <meta name="articleTitle" value="Fleet user stories — F100">

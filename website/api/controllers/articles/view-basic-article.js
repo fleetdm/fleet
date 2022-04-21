@@ -52,15 +52,15 @@ module.exports = {
       }
     }
     // Setting the pages meta title and description from the articles meta tags.
-    // Note: Every article page will have a 'articleTitle' and a 'authorsFullName' meta tag.
+    // Note: Every article page will have a 'articleTitle' and a 'authorFullName' meta tag.
     // if they are undefined, we'll use the generic title and description set in layout.ejs
     let pageTitleForMeta;
     if(thisPage.meta.articleTitle) {
       pageTitleForMeta = thisPage.meta.articleTitle + ' | Fleet for osquery';
     }
     let pageDescriptionForMeta;
-    if(!thisPage.meta.articleTitle || !thisPage.meta.authorsFullName) {
-      pageDescriptionForMeta = thisPage.meta.articleTitle +' by '+thisPage.meta.authorsFullName+'.';
+    if(!thisPage.meta.articleTitle || !thisPage.meta.authorFullName) {
+      pageDescriptionForMeta = thisPage.meta.articleTitle +' by '+thisPage.meta.authorFullName+'.';
     }
 
     // Respond with view.
