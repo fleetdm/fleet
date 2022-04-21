@@ -74,7 +74,7 @@ We approach editing retrospectively for pull requests (PRs) to handbook and docs
   - [Docs history](https://github.com/fleetdm/fleet/commits/main/docs)
 3. From the list of recently merged PRs, look at the files changed for each and then:
   - Scan for typos and grammatical errors.
-  - Check that tone aligns with our [Communicating as Fleet](https://fleetdm.com/handbook/brand#communicating-as-fleet) guidelines and that Grammarly's tone detector is on-brand.
+  - Check that the tone aligns with our [Communicating as Fleet](https://fleetdm.com/handbook/brand#communicating-as-fleet) guidelines and that Grammarly's tone detector is on-brand.
   - Check that Markdown is formatted correctly.
   - **Remember**, Do not make edits to this page. It's already merged.
 4. Instead, navigate to the page in question on the website and submit a new PR to make edits - making sure to request a review from the maintainer of that page.
@@ -94,7 +94,7 @@ For making edits to published articles:
 1. Log in to [Medium](https://fleetdm.com/blog).
 2. Find the article to edit and select "Edit story" from the hotdog menu (•••).
 3. Scan for typos and grammatical errors.
-4. Check that tone aligns with our [Communicating as Fleet](https://fleetdm.com/handbook/brand#communicating-as-fleet) guidelines and that Grammarly's tone detector is on-brand.
+4. Check that the tone aligns with our [Communicating as Fleet](https://fleetdm.com/handbook/brand#communicating-as-fleet) guidelines and that Grammarly's tone detector is on-brand.
 5. **Remember**, this article is already published, so if you're unsure about any edits, it doesn't hurt to check in with the original author.
 6. Hit "Save and publish," and you're all done.
 
