@@ -209,7 +209,7 @@ In Figma:
 
 ## Rituals
 
-Directly Responsible Individuals (DRI) engage in the rituals below at the frequency specified for the ritual.
+Directly Responsible Individuals (DRI) engage in the rituals below at the frequency specified.
 
 | Ritual                       | Frequency                | Description                                         | DRI               |
 |:-----------------------------|:-----------------------------|:----------------------------------------------------|-------------------|
