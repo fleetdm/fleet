@@ -455,7 +455,7 @@ If the `name` is not already associated with an existing team, this API route cr
 | ------------- | ------ | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | name          | string | body | **Required.** The team's name.                                                                                                                                                                                                                          |
 | agent_options | string | body | **Required.** The agent options spec that is applied to the hosts assigned to the specified to team. These agent agent options completely override the global agent options specified in the [`GET /api/v1/fleet/config API route`](#get-configuration)  |
-| secrets       | list   | body | **Required.** A list of plain text strings used as the enroll secrets.                                                                                                                                                                                  |
+| secrets       | list   | body | **Required.** A list of plain text strings is used as the enroll secrets.                                                                                                                                                                                  |
 
 #### Example
 
