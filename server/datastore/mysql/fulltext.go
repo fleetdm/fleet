@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-var mysqlFTSSymbolRegexp = regexp.MustCompile("[-+]+")
+var mysqlFTSSymbolRegexp = regexp.MustCompile("[-+@]+")
 
 // queryMinLength returns true if the query argument is longer than a "short" word.
 // What defines a "short" word is MySQL's "ft_min_word_len" VARIABLE, generally set

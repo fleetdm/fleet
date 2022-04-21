@@ -113,6 +113,8 @@ var (
 	usersTable    = entity{"users"}
 )
 
+var doRetryErr = errors.New("fleet datastore retry")
+
 // retryableError determines whether a MySQL error can be retried. By default
 // errors are considered non-retryable. Only errors that we know have a
 // possibility of succeeding on a retry should return true in this function.
@@ -124,6 +126,9 @@ func retryableError(err error) bool {
 		case mysqlerr.ER_LOCK_DEADLOCK, mysqlerr.ER_LOCK_WAIT_TIMEOUT:
 			return true
 		}
+	}
+	if errors.Is(err, doRetryErr) {
+		return true
 	}
 
 	return false

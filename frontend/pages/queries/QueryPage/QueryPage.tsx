@@ -3,13 +3,12 @@ import { useQuery, useMutation } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 
-// @ts-ignore
-import Fleet from "fleet";
 import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
 import { QUERIES_PAGE_STEPS, DEFAULT_QUERY } from "utilities/constants";
 import queryAPI from "services/entities/queries";
 import hostAPI from "services/entities/hosts";
+import statusAPI from "services/entities/status";
 import { IHost } from "interfaces/host";
 import { IQueryFormData, IQuery } from "interfaces/query";
 import { ITarget } from "interfaces/target";
@@ -122,7 +121,7 @@ const QueryPage = ({
   );
 
   const detectIsFleetQueryRunnable = () => {
-    Fleet.status.live_query().catch(() => {
+    statusAPI.live_query().catch(() => {
       setIsLiveQueryRunnable(false);
     });
   };

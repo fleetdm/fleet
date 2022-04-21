@@ -174,14 +174,12 @@ We use these prefixes to organize the Fleet Slack:
  * ***help-***: for asking for help on specific topics.
  * ***at*** or ***fleet-at***: for customer channels.
 
-## People ops
-
-### Performance feedback
+## Performance feedback
 At Fleet, performance feedback is a continuous process. We give feedback (especially negative) as soon as possible. Most feedback will happen during 1:1 meetings, if not sooner.
 
 We evaluate and update compensation decisions yearly, shortly after the anniversary of a team member's start date.
 
-### Hiring a new team member
+## Hiring a new team member
 
 1. Reach out to Mike and Zach and give them an opportunity to meet the candidate.
 
@@ -240,7 +238,7 @@ We evaluate and update compensation decisions yearly, shortly after the annivers
 
 6. **Before a new team member's first day:** Eric creates an onboarding issue in the [fleetdm/confidential](https://github.com/fleetdm/confidential/issues) GitHub repo for the new team member. Before creating the issue, Eric will go through it and comment on any steps that the new team member will not have to complete.
 
-### Team member onboarding
+## Team member onboarding
 
 It's important that every team member at Fleet takes the time to get fully trained and onboarded. 
 
@@ -250,7 +248,7 @@ We want to make sure that the new team member will be able to complete every tas
 
 We believe onboarding and training should be taken seriously, and that the onboarding template is an essential source of truth and a good use of time for every single new hire. If managers see a step that they don't feel is necessary, they should make a pull request to the [onboarding template](https://github.com/fleetdm/confidential/blob/main/.github/ISSUE_TEMPLATE/onboarding.md) and request a review from People operations.
 
-#### Contributor experience training
+### Contributor experience training
 
 During their first week at Fleet, new team members are asked to schedule a contributor experience training call with People operations. During this call, the new team member will share their screen, and People operations will:
 
@@ -261,7 +259,7 @@ During their first week at Fleet, new team members are asked to schedule a contr
 - talk about Google calendar.
 - give you a quick tour of the Fleet Google drive folder.
 
-#### Sightseeing Tour
+### Sightseeing Tour
 
 During their onboarding at Fleet, new team members are asked to schedule a sightseeing tour call with People operations. During this call, the new team member will participate in an interactive tour that includes:
 
@@ -276,7 +274,7 @@ During their onboarding at Fleet, new team members are asked to schedule a sight
   - The walkie talkies (DMs).
   - The watering hole (#oooh-, #random, #news, #help-).
 
-### Onboarding a new advisor.
+## Onboarding a new advisor
 
 Advisor agreements are sent through [DocuSign](https://www.docusign.com/), using the "Advisor Agreement"
 template. To send a new advisor agreement, you'll need the new advisor's name and the number of shares they
@@ -289,7 +287,7 @@ Once the agreement is sent, add a new row to the [advisory board spreadsheet](ht
 When the agreement is completed, make sure it is in the correct Google Drive folder, and ask the new
 advisor to add us on [Linkedin](https://www.linkedin.com/company/71111416), [Crunchbase](https://www.crunchbase.com/organization/fleet-device-management) and [Angellist](https://angel.co/company/fleetdm).
 
-### Zapier and DocuSign
+## Zapier and DocuSign
 
 We use Zapier to automate how completed DocuSign envelopes are formatted and stored. This process ensures we store signed documents in the correct folder and that filenames are formatted consistently. 
 
@@ -324,6 +322,17 @@ At the end of the quarter, and at key points throughout the quarter (every 3 wee
 - Review topdown and departmental OKRs as they are turned in.
 - OKRs they are finalized 1 week from when topdown OKRs were initially reviewed.
 - Finalized OKRs are shared company-wide and at "all hands" and, at least to some degree, become public.
+
+### 1:1 Mike:Sid Document Preparation
+
+Every two weeks our CEO Mike has a 1:1 meeting with our Investor Sid and there are four parts our Digital Experience Team completes while constructing this document. 
+
+ - After the 1:1 meeting has happened, Charlie makes a copy of the original document, labels it "yyyy-mm-dd Backup copy of Mike from Fleet & Sid," and moves it to a private folder. 
+ - Charlie will change the permissions on the new copy to share it with Mike and Zach and set Mike to be the file's owner. If there are any agenda items labeled "TODO", Charlie will make a comment in the backup copy to assign them to Mike.
+ - Charlie prepares the original document by deleting the agenda items in the "Hallway" and "Feedback" sections, leaving only the "Vision" section.
+ - Charlie will update the monthly "All Hands" link and grant Sid viewing access. 
+ - Charlie will send Mike links to the new document and the backup copy in a direct message in Slack. 
+ - The day before the meeting, Nathan will prepare the "Vision" section of the original document. Nathan will collect and update information related to annual recurring revenue, new members in the `#fleet` channel in the osquery Slack, the number of new customers and opportunities from Salesforce, the total number of devices using Fleet, the company's current headcount, and banking information.
 
 ## Workiversaries
 

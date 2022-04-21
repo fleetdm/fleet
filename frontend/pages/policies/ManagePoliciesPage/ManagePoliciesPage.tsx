@@ -138,6 +138,7 @@ const ManagePolicyPage = ({
 
   const canAddOrRemovePolicy =
     isGlobalAdmin || isGlobalMaintainer || isTeamMaintainer || isTeamAdmin;
+  const canManageAutomations = isGlobalAdmin || isTeamAdmin;
 
   const { isLoading: isLoadingWebhooks, refetch: refetchWebhooks } = useQuery<
     IConfig | ILoadTeamResponse,
@@ -364,7 +365,7 @@ const ManagePolicyPage = ({
             </div>
           </div>
           <div className={`${baseClass} button-wrap`}>
-            {canAddOrRemovePolicy &&
+            {canManageAutomations &&
               !isLoadingWebhooks &&
               !isLoadingGlobalPolicies && (
                 <Button

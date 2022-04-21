@@ -531,7 +531,7 @@ func (d *desktopRunner) actor() (func() error, func(error)) {
 // execute makes sure the fleet-desktop application is running.
 //
 // We have to support the scenario where the user closes its sessions (log out).
-// To support this, we add retries to execuser.Run. Basically retry execuser.Run until it succeds,
+// To support this, we add retries to execuser.Run. Basically retry execuser.Run until it succeeds,
 // which will happen when the user logs in.
 // Once fleet-desktop is started, the process is monitored (user processes get killed when the user
 // closes all its sessions).

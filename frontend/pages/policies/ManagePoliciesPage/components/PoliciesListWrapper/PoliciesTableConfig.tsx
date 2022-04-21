@@ -125,6 +125,7 @@ const generateTableHeaders = (options: {
           accessor: "name",
           Cell: (cellProps: ICellProps): JSX.Element => (
             <LinkCell
+              classes="w250-sm"
               value={cellProps.cell.value}
               path={PATHS.EDIT_POLICY(cellProps.row.original)}
             />

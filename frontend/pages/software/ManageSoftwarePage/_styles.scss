@@ -204,10 +204,6 @@
                 display: none;
                 width: 0;
               }
-              .vulnerabilities__header {
-                display: none;
-                width: 0;
-              }
               .hosts_count__header {
                 width: auto;
                 border-right: 0;
@@ -215,9 +211,6 @@
               @media (min-width: $break-990) {
                 .version__header {
                   width: $col-md;
-                }
-                .vulnerabilities__header {
-                  display: table-cell;
                 }
               }
               @media (min-width: $break-1400) {
@@ -239,9 +232,6 @@
                 width: 0;
               }
               .vulnerabilities__cell {
-                width: 0;
-                display: none;
-
                 .text-muted {
                   color: $ui-fleet-black-50;
                 }
@@ -251,9 +241,6 @@
                 .hosts-cell__wrapper {
                   display: flex;
                   justify-content: space-between;
-                  .hosts-cell__count {
-                    display: none;
-                  }
                   .hosts-cell__link {
                     display: flex;
                   }
@@ -262,16 +249,6 @@
               @media (min-width: $break-990) {
                 .version_cell {
                   width: $col-md;
-                }
-                .vulnerabilities__cell {
-                  display: table-cell;
-                }
-                .hosts_count__cell {
-                  .hosts-cell__wrapper {
-                    .hosts-cell__count {
-                      display: flex;
-                    }
-                  }
                 }
               }
               @media (min-width: $break-1400) {
