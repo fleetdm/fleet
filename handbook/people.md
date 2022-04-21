@@ -311,7 +311,7 @@ When the final signature is added to an envelope in Docusign, it is marked as co
       link: drive.google.com/[destinationFolderID]
    ```
 
-## Rituals
+## PeopleOps Rituals
 
 ### OKR Planning
 
@@ -339,6 +339,21 @@ Every two weeks our CEO Mike has a 1:1 meeting with our Investor Sid and there a
 We're happy you've ventured a trip around the sun with Fleet. Let's celebrate!
 
 - Each Friday, if there are any upcoming workiversaries in the next 7 days, People Operations posts about them in #g-people and tags @mikermcneil to let them know.
+
+
+## BizOps Rituals
+
+The following rituals are engaged in by the  directly responsible individual (DRI) and at the frequency specified for the ritual.
+
+| Ritual                       | Frequency                | Description                                         | DRI               |
+|:-----------------------------|:-----------------------------|:----------------------------------------------------|-------------------|
+| AP invoice monitoring | Daily | Look for new accounts payable invoices and ensure that Fleet's suppliers are paid. | Nathanael Holliday |
+| Brex reconciliation | Montly | Make sure all company issued credit card transactions have memos explaining what the purchase is for. | Nathanael Holliday |
+| Monthly accounting | Monthly | Use the monthly accounting template in GitHub to go through the process of validating Fleet's books. | Nathanael Holliday |
+| US contractor payroll | Monthly | Sync contractor hours to payments in Gusto and run payroll for the month. | |
+| Weekly department updates | Weekly | Updates from managers on what their departments accomplished for the week are logged in the cloud and disseminated on Slack. | | 
+| Hours update | Weekly | Screenshots of contractor hours as shown in Gusto are sent via Slack to each contractor's manager with no further action necessary if everything appears normal. | |
+| 501c update | Annually | File California 501c |  | 
 
 ## Slack channels
 
