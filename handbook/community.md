@@ -254,7 +254,7 @@ For PRs that aren't ready to merge:
 
 - Thank the contributor for their hard work and explain why we can't merge the changes yet.
 - Encourage the contributor to reach out in the #fleet channel of osquery Slack to get help from the rest of the community.
-- Offer code review and coaching to help get the PR ready to go (see note below)
+- Offer a code review and coaching to help get the PR ready to merge (see note below).
 - Keep an eye out for any updates or responses.
 
 > Sometimes (typically for Fleet customers), a Fleet team member may add tests and make any necessary changes to merge the PR. 
