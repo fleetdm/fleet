@@ -200,7 +200,7 @@ Each business day, the Community Engagement DRI will check open pull requests to
 
 1. Check for new pull requests (PRs) from the Fleet community. 
 2. Approve and merge any community PRs that are ready to go.
-3. Make sure there aren't any existing community PRs waiting for followup from Fleet. 
+3. Make sure there aren't any existing community PRs waiting for a follow-up from Fleet. 
 
 #### Identify community contributions
 
