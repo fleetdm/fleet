@@ -291,7 +291,7 @@ Every week, the Community Engagement DRI will:
     - In the notes, include a list of changes made as well as a link to the related thread. 
 - Bring any questions to DevRel Office Hours (time TBD).
 - Submit the PR by the end of the day on Thursday. 
-- Once the PR is approved, share in #fleet channel of Osquery Slack Workspace and thank the community for being involved and asking questions. 
+- Once the PR is approved, share in the [#fleet channel](https://osquery.slack.com/archives/C01DXJL16D8) of Osquery Slack Workspace and thank the community for being involved and asking questions. 
 
 ## Fleet swag
 
