@@ -232,7 +232,7 @@ While each team member is responsible for monitoring their active issues and pul
 
 When merging a pull request from a community contributor:
 
-- Ensure that checklist for submitter is complete.
+- Ensure that the checklist for the submitter is complete.
 - Verify that all necessary reviews have been approved.
 - Merge the PR.
 - Thank and congratulate the contributor.
