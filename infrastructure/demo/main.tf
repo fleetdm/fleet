@@ -116,6 +116,8 @@ module "pre-provisioner" {
   dynamodb_table  = aws_dynamodb_table.lifecycle-table
   private_subnets = module.vpc.private_subnets
   remote_state    = module.remote_state
+  mysql_secret    = module.shared-infrastructure.mysql_secret
+  eks_cluster     = module.shared-infrastructure.eks_cluster
 }
 
 resource "aws_dynamodb_table" "lifecycle-table" {

@@ -17,19 +17,19 @@ terraform {
       version = "2.5.1"
     }
   }
-  backend "s3" {} // TODO setup backend config
+  backend "s3" {}
 }
 
 provider "helm" {
   kubernetes {
     host                   = var.cluster_endpoint
     cluster_ca_certificate = base64decode(var.cluster_ca_cert)
-    exec {
-      api_version = "client.authentication.k8s.io/v1alpha1"
-      args        = ["eks", "get-token", "--cluster-name", var.cluster_name]
-      command     = "aws"
-    }
+    token                  = data.aws_eks_cluster_auth.cluster.token
   }
+}
+
+data "aws_eks_cluster_auth" "cluster" {
+  name = var.eks_cluster
 }
 
 provider "mysql" {
@@ -37,6 +37,11 @@ provider "mysql" {
   username = jsondecode(data.aws_secretsmanager_secret_version.mysql.secret_string)["username"]
   password = jsondecode(data.aws_secretsmanager_secret_version.mysql.secret_string)["password"]
 }
+
+variable "mysql_secret" {}
+variable "eks_cluster" {}
+variable "cluster_endpoint" {}
+variable "cluster_ca_cert" {}
 
 resource "mysql_user" "main" {
   user               = random_string.db.id

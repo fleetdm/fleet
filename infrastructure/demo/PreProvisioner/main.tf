@@ -111,13 +111,18 @@ resource "aws_security_group" "lambda" {
   }
 }
 
+data "aws_eks_cluster" "cluster" {
+  name = var.eks_cluster.eks_cluster_id
+}
+
 resource "aws_lambda_function" "main" {
   image_uri                      = docker_registry_image.main.name
   package_type                   = "Image"
   function_name                  = "${var.prefix}-preprovisioner"
   role                           = aws_iam_role.lambda.arn
   reserved_concurrent_executions = -1
-  timeout                        = 60
+  timeout                        = 600
+  memory_size                    = 512
   vpc_config {
     security_group_ids = [aws_security_group.lambda.id]
     subnet_ids         = var.private_subnets
@@ -127,6 +132,12 @@ resource "aws_lambda_function" "main" {
       DYNAMODB_LIFECYCLE_TABLE = var.dynamodb_table.id
       MAX_INSTANCES            = 2
       QUEUED_INSTANCES         = 2
+
+      TF_VAR_mysql_secret       = var.mysql_secret.id
+      TF_VAR_mysql_cluster_name = var.eks_cluster.eks_cluster_id
+      TF_VAR_cluster_endpoint   = data.aws_eks_cluster.cluster.endpoint
+      TF_VAR_cluster_ca_cert    = data.aws_eks_cluster.cluster.certificate_authority.0.data
+      TF_VAR_eks_cluster        = var.eks_cluster.eks_cluster_id
     }
   }
   tracing_config {

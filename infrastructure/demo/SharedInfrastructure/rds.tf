@@ -23,6 +23,24 @@ resource "aws_secretsmanager_secret_version" "database_password_secret_version" 
   secret_string = random_password.database_password.result
 }
 
+resource "aws_secretsmanager_secret" "mysql" {
+  name       = "/fleet/database/password/mysql-${random_pet.db_secret_postfix.id}"
+  kms_key_id = aws_kms_key.main.id
+}
+
+output "mysql_secret" {
+  value = aws_secretsmanager_secret.mysql
+}
+
+resource "aws_secretsmanager_secret_version" "mysql" {
+  secret_id = aws_secretsmanager_secret.mysql.id
+  secret_string = jsonencode({
+    endpoint = module.main.cluster_endpoint
+    username = module.main.cluster_master_username
+    password = module.main.cluster_master_password
+  })
+}
+
 module "main" {
   source  = "terraform-aws-modules/rds-aurora/aws"
   version = "6.2.0"

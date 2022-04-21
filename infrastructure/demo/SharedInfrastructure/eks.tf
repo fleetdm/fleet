@@ -23,6 +23,10 @@ provider "kubectl" {
   apply_retry_count      = 5
 }
 
+output "eks_cluster" {
+  value = module.aws-eks-accelerator-for-terraform
+}
+
 terraform {
   required_providers {
     kubectl = {
