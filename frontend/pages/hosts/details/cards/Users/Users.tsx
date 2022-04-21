@@ -4,7 +4,6 @@ import { IHostUser } from "interfaces/host_users";
 import TableContainer from "components/TableContainer";
 
 import generateUsersTableHeaders from "./UsersTable/UsersTableConfig";
-// import EmptyUsers from "./EmptyUsers";
 import EmptyState from "../EmptyState";
 
 interface ISearchQueryData {

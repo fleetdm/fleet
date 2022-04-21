@@ -24,7 +24,7 @@ const EmptyState = ({ title, reason }: IEmptyStateProps): JSX.Element => {
   switch (reason) {
     case "empty-search":
       return (
-        <div className={`${baseClass} empty-${title}`}>
+        <div className={`${baseClass} empty-${title} empty-search`}>
           <div className={`${baseClass}__inner`}>
             <div className={`${baseClass}__empty-filter-results`}>
               <h1>No {title} matched your search criteria.</h1>

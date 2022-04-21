@@ -9,7 +9,7 @@
     flex-direction: row;
 
     h1 {
-      font-size: $small;
+      font-size: $x-small;
       font-weight: $bold;
       margin-bottom: $pad-medium;
     }
@@ -40,7 +40,7 @@
     img {
       width: 12px;
       height: 12px;
-      margin-left: 6px;
+      margin-left: 4px;
     }
   }
 
@@ -49,4 +49,9 @@
     flex-direction: column;
     width: 350px;
   }
+}
+
+.empty-search {
+  margin-top: $pad-small;
+  align-items: center;
 }
