@@ -106,6 +106,10 @@ const routes = (
                 <Route component={AuthenticatedAdminRoutes}>
                   <Route path="organization" component={AdminAppSettingsPage} />
                   <Route
+                    path="organization/:section"
+                    component={AdminAppSettingsPage}
+                  />
+                  <Route
                     path="integrations"
                     component={AdminIntegrationsPage}
                   />

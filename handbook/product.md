@@ -388,6 +388,19 @@ Fleet's feature flag guidelines was borrowed from GitLab's ["When to use feature
 
 We track competitors' capabilities and adjacent (or commonly integrated) products in this [Google Doc](https://docs.google.com/document/d/1Bqdui6oQthdv5XtD5l7EZVB-duNRcqVRg7NVA4lCXeI/edit) (private).
 
+## Product rituals
+
+The following rituals are engaged in by the  directly responsible individual (DRI) and at the frequency specified for the ritual.
+
+| Ritual                       | Frequency                | Description                                         | DRI               |
+|:-----------------------------|:-----------------------------|:----------------------------------------------------|-------------------|
+| 🎙 Product huddle | Daily | "In progress" issues are discussed and any issues "ready for review" are placed on the list for the product design review call. On Mondays, issues are broken down into a week's work and added into "ready." Issues are moved out of "delivered" every Friday. | Noah Talerman |
+| 🗣 Product office hours  | Weekly (Tuesdays) | Decision is made regarding which customer and community feature requests can be committed to in the next six weeks. Issues are created for any requests that don't already have one. | Noah Talerman |
+| 🎨 UI/UX huddle      | Weekly (Wednesdays) | "In progress" issues are discussed and any issues "ready for review" are placed on the list for the product design review call. Separate time from 🎙 Product huddle so Mike Thomas can make it.    | Noah Talerman |
+| ✨ Product design review  | Weekly (Thursdays) | Product team discusses "ready for review" items and the decision is made on whether the UI changes are ready for engineering specification, and later, implementation. | Noah Talerman |
+| 👀 Product review      | Every three weeks | Features and improvements in the upcoming release are presented. Bugs, fixes and changes that should be made prior to release are discussed.  | Noah Talerman |
+
+
 ## Slack channels
 
 This group maintains the following [Slack channels](https://fleetdm.com/handbook/company#group-slack-channels):
