@@ -4,7 +4,8 @@ import { useQuery } from "react-query";
 import FileSaver from "file-saver";
 
 import { NotificationContext } from "context/notification";
-import { AppContext } from "context/app"; // @ts-ignore
+import { AppContext } from "context/app";
+// @ts-ignore
 import { stringToClipboard } from "utilities/copy_text";
 import { ITeam } from "interfaces/team";
 import { IEnrollSecret } from "interfaces/enroll_secret";
@@ -12,7 +13,8 @@ import { IEnrollSecret } from "interfaces/enroll_secret";
 import configAPI from "services/entities/config";
 
 import Button from "components/buttons/Button";
-import RevealButton from "components/buttons/RevealButton"; // @ts-ignore
+import RevealButton from "components/buttons/RevealButton";
+// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import TooltipWrapper from "components/TooltipWrapper";
 import TabsWrapper from "components/TabsWrapper";

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 
 import { IPolicy } from "interfaces/policy";
 import { IWebhookFailingPolicies } from "interfaces/webhook";
-import { useDeepEffect } from "utilities/hooks";
+import useDeepEffect from "hooks/useDeepEffect";
 import { size } from "lodash";
 
 import Modal from "components/Modal";

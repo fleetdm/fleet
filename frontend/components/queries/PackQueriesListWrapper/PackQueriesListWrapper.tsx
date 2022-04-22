@@ -1,10 +1,10 @@
 import React, { useState } from "react";
-// @ts-ignore
+
 import simpleSearch from "utilities/simple_search";
+import { IScheduledQuery } from "interfaces/scheduled_query";
+
 import TableContainer, { ITableQueryData } from "components/TableContainer";
 import Button from "components/buttons/Button";
-// @ts-ignore
-import { IScheduledQuery } from "interfaces/scheduled_query";
 import EmptySearch from "./EmptySearch";
 import {
   generateTableHeaders,

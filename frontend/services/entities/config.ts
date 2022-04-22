@@ -2,7 +2,7 @@
 
 import sendRequest from "services";
 import sendMockRequest from "services/mock_service";
-import endpoints from "fleet/endpoints";
+import endpoints from "utilities/endpoints";
 import { IConfig } from "interfaces/config";
 
 export default {
