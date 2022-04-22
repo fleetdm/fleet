@@ -28,6 +28,8 @@ DRIs help us collaborate efficiently by knowing exactly who is responsible and c
 | Quality of fleetctl (and other tools) | Tomás Touceda |
 | Final cut of what goes into each release | Zach Wasserman |
 | When we cut a release, version numbers, and whether to release | Zach Wasserman |
+| When a feature is advertised as "beta" | Zach Wasserman |
+| When a feature is placed behind a feature flag | Zach Wasserman |
 | Release notes | Noah Talerman |
 | Documentation quality | Mike Thomas |
 | Publishing release blog post, and promoting releases | Mike Thomas |

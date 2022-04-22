@@ -372,14 +372,30 @@ comment section may contain private information about Fleet's customers.
 
 Find an example release customer announcement blog post issue [here](https://github.com/fleetdm/confidential/issues/747).
 
+## Beta features
+
+At Fleet, features are advertised as "beta" if there are concerns that the feature may not work as intended in certain Fleet
+deployments. For example, these concerns could be related to the feature's performance in Fleet
+deployments with hundreds of thousands of hosts.
+
+The following highlights should be considered when deciding if we promote a as "beta:"
+
+- The feature will not be advertised as "beta" permanently. This means that the individual who is directly
+  responsible (DRI) that a feature is advertised as "beta" is responsible for creating an issue that
+  explains why the feature is advertised as "beta" and tracks the feature's progress towards advertising the feature as "stable."
+- The feature will be advertised as "beta" in the documentation on fleetdm.com/docs, release notes, release blog posts, and Twitter.
+
 ## Feature flags
 
-In Fleet, features are placed behind feature flags if the changes could affect Fleet's availability of existing functionalities.
+At Fleet, features are placed behind feature flags if the changes could affect Fleet's availability of existing functionalities.
 
 The following highlights should be considered when deciding if we should leverage feature flags:
 
 - The feature flag must be disabled by default.
-- The feature flag will not be permanent. This means that the individual who decides that a feature flag should be introduced is responsible for creating an issue to track the feature's progress towards removing the feature flag and including the feature in a stable release.
+- The feature flag will not be permanent. This means that the individual who is directly responsible
+ (DRI) that a feature flag should be introduced is responsible for creating an issue to track the
+  feature's progress towards removing the feature flag and including the feature in a stable
+  release.
 - The feature flag will not be advertised. For example, advertising in the documentation on fleetdm.com/docs, release notes, release blog posts, and Twitter.
 
 Fleet's feature flag guidelines was borrowed from GitLab's ["When to use feature flags" section](https://about.gitlab.com/handbook/product-development-flow/feature-flag-lifecycle/#when-to-use-feature-flags) of their handbook. Check out [GitLab's "Feature flags only when needed" video](https://www.youtube.com/watch?v=DQaGqyolOd8) for an explanation of the costs of introducing feature flags.
