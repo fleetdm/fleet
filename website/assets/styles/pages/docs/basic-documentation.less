@@ -542,8 +542,13 @@
       [purpose='right-sidebar'] {
         min-width: 190px;
         max-width: 210px;
-
+        position: sticky;
+        top: 40px;
+        height: fit-content;
         [purpose='subtopics'] {
+          max-height: 80vh;
+          // height: auto;
+          overflow-y: scroll;
           color: @core-fleet-black;
           padding-top: 4px;
           padding-bottom: 4px;
