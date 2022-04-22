@@ -109,7 +109,7 @@ var macosLaunchdTemplate = template.Must(template.New("").Option("missingkey=err
 	<string>com.fleetdm.orbit</string>
 	<key>ProgramArguments</key>
 	<array>
-		<string>/opt/orbit/bin/orbit</string>
+		<string>/opt/orbit/bin/orbit/orbit</string>
 	</array>
 	<key>RunAtLoad</key>
 	<true/>
