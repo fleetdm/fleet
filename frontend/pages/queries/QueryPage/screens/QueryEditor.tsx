@@ -8,8 +8,8 @@ import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
 import { NotificationContext } from "context/notification";
 import { IQueryFormData, IQuery } from "interfaces/query";
-import PATHS from "router/paths"; // @ts-ignore
-import debounce from "utilities/debounce"; // @ts-ignore
+import PATHS from "router/paths";
+import debounce from "utilities/debounce";
 import deepDifference from "utilities/deep_difference";
 
 import QueryForm from "pages/queries/QueryPage/components/QueryForm";

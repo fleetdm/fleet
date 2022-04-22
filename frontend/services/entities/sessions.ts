@@ -1,6 +1,6 @@
 import sendRequest from "services";
-import endpoints from "fleet/endpoints";
-import helpers from "fleet/helpers";
+import endpoints from "utilities/endpoints";
+import helpers from "utilities/helpers";
 
 interface ICreateSessionProps {
   email: string;

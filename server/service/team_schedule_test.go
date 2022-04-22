@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
@@ -15,7 +16,10 @@ func TestTeamScheduleAuth(t *testing.T) {
 	svc := newTestService(t, ds, nil, nil)
 
 	ds.EnsureTeamPackFunc = func(ctx context.Context, teamID uint) (*fleet.Pack, error) {
-		return &fleet.Pack{ID: 999}, nil
+		return &fleet.Pack{
+			ID:   999,
+			Type: ptr.String(fmt.Sprintf("team-%d", teamID)),
+		}, nil
 	}
 	ds.ListScheduledQueriesInPackWithStatsFunc = func(ctx context.Context, id uint, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error) {
 		return nil, nil
@@ -76,7 +80,7 @@ func TestTeamScheduleAuth(t *testing.T) {
 			"team observer, belongs to team",
 			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}}},
 			true,
-			true,
+			false,
 		},
 		{
 			"team maintainer, DOES NOT belong to team",

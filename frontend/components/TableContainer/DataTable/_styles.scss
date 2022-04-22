@@ -278,4 +278,15 @@
       padding-left: $pad-xsmall;
     }
   }
+  @media screen and (max-width: 1025px) {
+    .data-table {
+      tbody {
+        td {
+          .w250-sm {
+            max-width: calc(250px - 48px);
+          }
+        }
+      }
+    }
+  }
 }

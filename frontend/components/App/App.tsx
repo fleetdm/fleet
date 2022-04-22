@@ -10,24 +10,30 @@ import QueryProvider from "context/query";
 import PolicyProvider from "context/policy";
 import NotificationProvider from "context/notification";
 import { AppContext } from "context/app";
-import { authToken } from "utilities/local"; // @ts-ignore
-import { useDeepEffect } from "utilities/hooks";
+import local, { authToken } from "utilities/local";
+import useDeepEffect from "hooks/useDeepEffect";
 
 import usersAPI from "services/entities/users";
 import configAPI from "services/entities/config";
 
-import { ErrorBoundary } from "react-error-boundary"; // @ts-ignore
-import Fleet403 from "pages/errors/Fleet403"; // @ts-ignore
-import Fleet404 from "pages/errors/Fleet404"; // @ts-ignore
+import { ErrorBoundary } from "react-error-boundary";
+// @ts-ignore
+import Fleet403 from "pages/errors/Fleet403";
+// @ts-ignore
+import Fleet404 from "pages/errors/Fleet404";
+// @ts-ignore
 import Fleet500 from "pages/errors/Fleet500";
 import Spinner from "components/Spinner";
 
 interface IAppProps {
   children: JSX.Element;
   router: InjectedRouter;
+  location?: {
+    pathname: string;
+  };
 }
 
-const App = ({ children, router }: IAppProps): JSX.Element => {
+const App = ({ children, location, router }: IAppProps): JSX.Element => {
   const queryClient = new QueryClient();
   const {
     currentUser,
@@ -49,7 +55,10 @@ const App = ({ children, router }: IAppProps): JSX.Element => {
         setCurrentUser(user);
         setAvailableTeams(available_teams);
       } catch (error) {
-        router.push(PATHS.LOGIN);
+        console.error(error);
+
+        local.removeItem("auth_token");
+        return router.push(PATHS.LOGIN);
       }
     };
 
@@ -74,7 +83,7 @@ const App = ({ children, router }: IAppProps): JSX.Element => {
       setIsLoading(true);
       fetchConfig();
     }
-  }, [currentUser]);
+  }, [currentUser, location]);
 
   useDeepEffect(() => {
     const canGetEnrollSecret =
@@ -99,7 +108,7 @@ const App = ({ children, router }: IAppProps): JSX.Element => {
     if (canGetEnrollSecret) {
       getEnrollSecret();
     }
-  }, [currentUser, isGlobalObserver, isOnlyObserver]);
+  }, [currentUser, isGlobalObserver, isOnlyObserver, location]);
 
   // "any" is used on purpose. We are using Axios but this
   // function expects a native React Error type, which is incompatible.
@@ -130,7 +139,7 @@ const App = ({ children, router }: IAppProps): JSX.Element => {
             <NotificationProvider>
               <ErrorBoundary
                 fallbackRender={renderErrorOverlay}
-                resetKeys={[location.pathname]}
+                resetKeys={[location?.pathname]}
               >
                 <div className={wrapperStyles}>{children}</div>
               </ErrorBoundary>

@@ -4,7 +4,8 @@ import { InjectedRouter } from "react-router";
 import paths from "router/paths";
 import usersAPI from "services/entities/users";
 
-import Button from "components/buttons/Button"; // @ts-ignore
+import Button from "components/buttons/Button";
+// @ts-ignore
 import fleetLogoText from "../../../assets/images/fleet-logo-text-white.svg";
 
 interface IApiOnlyUserProps {

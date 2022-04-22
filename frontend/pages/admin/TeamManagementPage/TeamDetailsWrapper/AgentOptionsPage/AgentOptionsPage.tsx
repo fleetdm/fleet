@@ -5,12 +5,13 @@ import yaml from "js-yaml";
 
 import { NotificationContext } from "context/notification";
 import { ITeam } from "interfaces/team";
-import endpoints from "fleet/endpoints";
+import endpoints from "utilities/endpoints";
 import teamsAPI from "services/entities/teams";
 import osqueryOptionsAPI from "services/entities/osquery_options";
 
 // @ts-ignore
-import validateYaml from "components/forms/validators/validate_yaml"; // @ts-ignore
+import validateYaml from "components/forms/validators/validate_yaml";
+// @ts-ignore
 import OsqueryOptionsForm from "components/forms/admin/OsqueryOptionsForm";
 import InfoBanner from "components/InfoBanner/InfoBanner";
 import OpenNewTabIcon from "../../../../../../assets/images/open-new-tab-12x12@2x.png";

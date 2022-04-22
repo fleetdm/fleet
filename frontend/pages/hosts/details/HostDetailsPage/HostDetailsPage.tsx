@@ -35,7 +35,7 @@ import Spinner from "components/Spinner";
 import Button from "components/buttons/Button";
 import TabsWrapper from "components/TabsWrapper";
 
-import { normalizeEmptyValues, wrapFleetHelper } from "fleet/helpers";
+import { normalizeEmptyValues, wrapFleetHelper } from "utilities/helpers";
 
 import HostSummaryCard from "../cards/HostSummary";
 import AboutCard from "../cards/About";

@@ -8,10 +8,13 @@ import { IUserFormErrors } from "interfaces/user";
 
 import Button from "components/buttons/Button";
 import validatePresence from "components/forms/validators/validate_presence";
-import validEmail from "components/forms/validators/valid_email"; // @ts-ignore
-import validPassword from "components/forms/validators/valid_password"; // @ts-ignore
+import validEmail from "components/forms/validators/valid_email";
+// @ts-ignore
+import validPassword from "components/forms/validators/valid_password";
+// @ts-ignore
 import InputField from "components/forms/fields/InputField";
-import Checkbox from "components/forms/fields/Checkbox"; // @ts-ignore
+import Checkbox from "components/forms/fields/Checkbox";
+// @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 import Radio from "components/forms/fields/Radio";
 import InfoBanner from "components/InfoBanner/InfoBanner";
@@ -121,7 +124,7 @@ const UserForm = ({
   });
 
   const [isGlobalUser, setIsGlobalUser] = useState<boolean>(
-    defaultGlobalRole !== null
+    !!defaultGlobalRole
   );
 
   useEffect(() => {
@@ -436,12 +439,12 @@ const UserForm = ({
           disabled={!canUseSso}
           wrapperClassName={`${baseClass}__invite-admin`}
           tooltip={`
-              Enabling single sign on for a user requires that SSO is first enabled for the organization.
+              Enabling single sign-on for a user requires that SSO is first enabled for the organization.
               <br /><br />
               Users with Admin role can configure SSO in <strong>Settings &gt; Organization settings</strong>.
             `}
         >
-          Enable single sign on
+          Enable single sign-on
         </Checkbox>
         <p className={`${baseClass}__sso-input sublabel`}>
           Password authentication will be disabled for this user.

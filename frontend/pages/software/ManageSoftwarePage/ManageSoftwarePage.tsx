@@ -7,7 +7,7 @@ import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 import { IConfig } from "interfaces/config";
 import { IJiraIntegration } from "interfaces/integration";
-import { IWebhookSoftwareVulnerabilities } from "interfaces/webhook"; // @ts-ignore
+import { IWebhookSoftwareVulnerabilities } from "interfaces/webhook";
 import configAPI from "services/entities/config";
 import softwareAPI, {
   ISoftwareResponse,
@@ -68,9 +68,9 @@ const ManageSoftwarePage = ({
   const {
     availableTeams,
     currentTeam,
-    setConfig,
     isGlobalAdmin,
     isGlobalMaintainer,
+    isOnGlobalTeam,
   } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
@@ -79,6 +79,10 @@ const ManageSoftwarePage = ({
     isVulnerabilityAutomationsEnabled,
     setIsVulnerabilityAutomationsEnabled,
   ] = useState<boolean>();
+  const [
+    recentVulnerabilityMaxAge,
+    setRecentVulnerabilityMaxAge,
+  ] = useState<number>();
   const [filterVuln, setFilterVuln] = useState(
     location?.query?.vulnerable || false
   );
@@ -112,6 +116,12 @@ const ManageSoftwarePage = ({
       setIsVulnerabilityAutomationsEnabled(
         data?.webhook_settings?.vulnerabilities_webhook
           .enable_vulnerabilities_webhook || jiraIntegrationEnabled
+      );
+      // Convert from nanosecond to nearest day
+      setRecentVulnerabilityMaxAge(
+        Math.round(
+          data?.vulnerabilities?.recent_vulnerability_max_age / 86400000000000
+        )
       );
     },
   });
@@ -152,6 +162,9 @@ const ManageSoftwarePage = ({
       return softwareAPI.load(params);
     },
     {
+      enabled:
+        isOnGlobalTeam ||
+        !!availableTeams?.find((t) => t.id === currentTeam?.id),
       keepPreviousData: true,
       staleTime: 30000, // stale time can be adjusted if fresher data is desired based on software inventory interval
     }
@@ -180,6 +193,9 @@ const ManageSoftwarePage = ({
       });
     },
     {
+      enabled:
+        isOnGlobalTeam ||
+        !!availableTeams?.find((t) => t.id === currentTeam?.id),
       keepPreviousData: true,
       staleTime: 30000, // stale time can be adjusted if fresher data is desired based on software inventory interval
       refetchOnWindowFocus: false,
@@ -495,6 +511,7 @@ const ManageSoftwarePage = ({
                 softwareVulnerabilitiesWebhook.destination_url) ||
               ""
             }
+            recentVulnerabilityMaxAge={recentVulnerabilityMaxAge}
           />
         )}
       </div>
