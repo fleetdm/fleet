@@ -3,12 +3,10 @@ package worker
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -34,7 +32,7 @@ func TestZendeskRun(t *testing.T) {
 			w.WriteHeader(501)
 			return
 		}
-		if !strings.Contains(r.URL.Path, "/api/v2/tickets") {
+		if r.URL.Path != "/api/v2/tickets.json" {
 			w.WriteHeader(502)
 			return
 		}
@@ -48,7 +46,7 @@ func TestZendeskRun(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	client, err := externalsvc.NewZendeskTestClient(&externalsvc.ZendeskOptions{URL: fmt.Sprintf("%s/api/v2/tickets", srv.URL)})
+	client, err := externalsvc.NewZendeskTestClient(&externalsvc.ZendeskOptions{URL: srv.URL})
 	require.NoError(t, err)
 
 	zendesk := &Zendesk{

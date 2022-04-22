@@ -446,7 +446,7 @@ func cronWorker(
 	// to do so via the environment variable.
 	// format is "<modulo number>;<cve1>,<cve2>,<cve3>,..."
 	jiraFailerClient := newFailerClient(os.Getenv("FLEET_JIRA_CLIENT_FORCED_FAILURES"))
-	// zendeskFailerClient := newFailerClient(os.Getenv("FLEET_ZENDESK_CLIENT_FORCED_FAILURES"))
+	zendeskFailerClient := newFailerClient(os.Getenv("FLEET_ZENDESK_CLIENT_FORCED_FAILURES"))
 
 	ticker := time.NewTicker(10 * time.Second)
 	for {
@@ -544,12 +544,12 @@ func cronWorker(
 
 			// safe to update the worker as it is not used concurrently
 			zendesk.FleetURL = appConfig.ServerSettings.ServerURL
-			// if zendeskFailerClient != nil && strings.Contains(zendesk.FleetURL, "fleetdm") {
-			// 	zendeskFailerClient.ZendeskClient = client
-			// 	zendesk.ZendeskClient = zendeskFailerClient
-			// } else {
-			// 	jira.JiraClient = client
-			// }
+			if zendeskFailerClient != nil && strings.Contains(zendesk.FleetURL, "fleetdm") {
+				zendeskFailerClient.ZendeskClient = client
+				zendesk.ZendeskClient = zendeskFailerClient
+			} else {
+				zendesk.ZendeskClient = client
+			}
 			zendesk.ZendeskClient = client
 
 		}
@@ -563,8 +563,8 @@ func cronWorker(
 	}
 }
 
-func newFailerClient(forcedFailures string) *worker.TestJiraFailer {
-	var failerClient *worker.TestJiraFailer
+func newFailerClient(forcedFailures string) *worker.TestAutomationFailer {
+	var failerClient *worker.TestAutomationFailer
 	if forcedFailures != "" {
 
 		parts := strings.Split(forcedFailures, ";")
@@ -572,7 +572,7 @@ func newFailerClient(forcedFailures string) *worker.TestJiraFailer {
 			mod, _ := strconv.Atoi(parts[0])
 			cves := strings.Split(parts[1], ",")
 			if mod > 0 || len(cves) > 0 {
-				failerClient = &worker.TestJiraFailer{
+				failerClient = &worker.TestAutomationFailer{
 					FailCallCountModulo: mod,
 					AlwaysFailCVEs:      cves,
 				}

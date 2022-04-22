@@ -2,7 +2,6 @@ package externalsvc
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -17,6 +16,11 @@ func TestZendesk(t *testing.T) {
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		countCalls++
+
+		if r.URL.Path != "/api/v2/tickets.json" {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
 
 		switch _, t, _ := r.BasicAuth(); t {
 		case "fail":
@@ -41,14 +45,13 @@ func TestZendesk(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	testURL := fmt.Sprintf("%s/api/v2/tickets", srv.URL)
-	testCmt := zendesk.TicketComment{Body: "test comment"}
+	testCmt := &zendesk.TicketComment{Body: "test comment"}
 
 	t.Run("failure", func(t *testing.T) {
 		countCalls = 0
 
 		client, err := NewZendeskTestClient(&ZendeskOptions{
-			URL:      testURL,
+			URL:      srv.URL,
 			Email:    "fail",
 			APIToken: "fail",
 		})
@@ -67,7 +70,7 @@ func TestZendesk(t *testing.T) {
 		countCalls = 0
 
 		client, err := NewZendeskTestClient(&ZendeskOptions{
-			URL:      testURL,
+			URL:      srv.URL,
 			Email:    "retrysmall",
 			APIToken: "retrysmall",
 		})
@@ -88,7 +91,7 @@ func TestZendesk(t *testing.T) {
 		countCalls = 0
 
 		client, err := NewZendeskTestClient(&ZendeskOptions{
-			URL:      testURL,
+			URL:      srv.URL,
 			Email:    "retrybig",
 			APIToken: "retrybig",
 		})
@@ -107,7 +110,7 @@ func TestZendesk(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		countCalls = 0
 		client, err := NewZendeskTestClient(&ZendeskOptions{
-			URL:      testURL,
+			URL:      srv.URL,
 			Email:    "ok",
 			APIToken: "ok",
 		})

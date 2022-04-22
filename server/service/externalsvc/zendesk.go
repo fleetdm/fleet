@@ -146,8 +146,8 @@ func NewZendeskTestClient(opts *ZendeskOptions) (*Zendesk, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	client.SetEndpointURL(opts.URL)
+	testURL := fmt.Sprint(opts.URL, "/api/v2")
+	client.SetEndpointURL(testURL)
 	client.SetCredential(zendesk.NewAPITokenCredential(opts.Email, opts.APIToken))
 
 	return &Zendesk{

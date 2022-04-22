@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"html/template"
 	"sort"
-	"sync"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -64,8 +63,6 @@ type Zendesk struct {
 	Datastore     fleet.Datastore
 	Log           kitlog.Logger
 	ZendeskClient ZendeskClient
-
-	mu sync.Mutex
 }
 
 // Name returns the name of the job.
@@ -112,7 +109,7 @@ func (z *Zendesk) Run(ctx context.Context, argsJSON json.RawMessage) error {
 	// TODO: what else do we want to include in the new ticket?
 	ticket := &zendesk.Ticket{
 		Subject: summary,
-		Comment: zendesk.TicketComment{Body: description},
+		Comment: &zendesk.TicketComment{Body: description},
 	}
 
 	createdTicket, err := z.ZendeskClient.CreateTicket(ctx, ticket)
