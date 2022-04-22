@@ -4,7 +4,8 @@ import { Link } from "react-router";
 import PATHS from "router/paths";
 
 // @ts-ignore
-import fleetLogoText from "../../../../assets/images/fleet-logo-text-white.svg"; // @ts-ignore
+import fleetLogoText from "../../../../assets/images/fleet-logo-text-white.svg";
+// @ts-ignore
 import backgroundImg from "../../../../assets/images/403.svg";
 
 const baseClass = "fleet-403";

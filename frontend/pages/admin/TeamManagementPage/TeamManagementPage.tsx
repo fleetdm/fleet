@@ -7,7 +7,8 @@ import { ITeam } from "interfaces/team";
 import { IApiError } from "interfaces/errors";
 import teamsAPI from "services/entities/teams";
 
-import Button from "components/buttons/Button"; // @ts-ignore
+import Button from "components/buttons/Button";
+// @ts-ignore
 import FleetIcon from "components/icons/FleetIcon";
 import TableContainer from "components/TableContainer";
 import TableDataError from "components/TableDataError";

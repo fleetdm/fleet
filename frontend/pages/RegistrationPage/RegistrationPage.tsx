@@ -8,8 +8,10 @@ import usersAPI from "services/entities/users";
 import local from "utilities/local";
 
 // @ts-ignore
-import RegistrationForm from "components/forms/RegistrationForm"; // @ts-ignore
-import Breadcrumbs from "./Breadcrumbs"; // @ts-ignore
+import RegistrationForm from "components/forms/RegistrationForm";
+// @ts-ignore
+import Breadcrumbs from "./Breadcrumbs";
+// @ts-ignore
 import fleetLogoText from "../../../assets/images/fleet-logo-text-white.svg";
 
 interface IRegistrationPageProps {

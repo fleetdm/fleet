@@ -10,7 +10,8 @@ import local from "utilities/local";
 import sessionsAPI from "services/entities/sessions";
 import formatErrorResponse from "utilities/format_error_response";
 
-import AuthenticationFormWrapper from "components/AuthenticationFormWrapper"; // @ts-ignore
+import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
+// @ts-ignore
 import LoginForm from "components/forms/LoginForm";
 import LoginSuccessfulPage from "pages/LoginSuccessfulPage";
 

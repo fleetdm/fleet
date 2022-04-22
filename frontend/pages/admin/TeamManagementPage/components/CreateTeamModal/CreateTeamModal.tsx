@@ -2,7 +2,8 @@ import React, { useState, useCallback, useEffect } from "react";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
-import InfoBanner from "components/InfoBanner/InfoBanner"; // @ts-ignore
+import InfoBanner from "components/InfoBanner/InfoBanner";
+// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 
 const baseClass = "create-team-modal";

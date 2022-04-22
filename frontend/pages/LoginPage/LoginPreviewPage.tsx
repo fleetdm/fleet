@@ -7,7 +7,8 @@ import sessionsAPI from "services/entities/sessions";
 import local from "utilities/local";
 
 import LoginSuccessfulPage from "pages/LoginSuccessfulPage";
-import AuthenticationFormWrapper from "components/AuthenticationFormWrapper"; // @ts-ignore
+import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
+// @ts-ignore
 import LoginForm from "components/forms/LoginForm";
 
 interface ILoginPreviewPageProps {

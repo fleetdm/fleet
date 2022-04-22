@@ -11,12 +11,14 @@ import {
 import { IConfig } from "interfaces/config";
 import configAPI from "services/entities/config";
 
-import ReactTooltip from "react-tooltip"; // @ts-ignore
+import ReactTooltip from "react-tooltip";
+// @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import Slider from "components/forms/fields/Slider";
-import Radio from "components/forms/fields/Radio"; // @ts-ignore
+import Radio from "components/forms/fields/Radio";
+// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 
 import { IWebhookSoftwareVulnerabilities } from "interfaces/webhook";

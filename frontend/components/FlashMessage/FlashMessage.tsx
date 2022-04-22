@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
 import classnames from "classnames";
 
-import { INotification } from "interfaces/notification"; // @ts-ignore
+import { INotification } from "interfaces/notification";
+// @ts-ignore
 import FleetIcon from "components/icons/FleetIcon";
 import Button from "components/buttons/Button";
 

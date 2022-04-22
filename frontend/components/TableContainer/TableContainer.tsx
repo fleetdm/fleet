@@ -4,7 +4,8 @@ import { Row } from "react-table";
 import ReactTooltip from "react-tooltip";
 import useDeepEffect from "hooks/useDeepEffect";
 
-import SearchField from "components/forms/fields/SearchField"; // @ts-ignore
+import SearchField from "components/forms/fields/SearchField";
+// @ts-ignore
 import Pagination from "components/Pagination";
 import Button from "components/buttons/Button";
 import { ButtonVariant } from "components/buttons/Button/Button";

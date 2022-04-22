@@ -18,7 +18,8 @@ import { IQuery } from "interfaces/query";
 import fleetQueriesAPI from "services/entities/queries";
 import PATHS from "router/paths";
 import checkPlatformCompatibility from "utilities/sql_tools";
-import Button from "components/buttons/Button"; // @ts-ignore
+import Button from "components/buttons/Button";
+// @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 import Spinner from "components/Spinner";
 import TableDataError from "components/TableDataError";

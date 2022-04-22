@@ -6,7 +6,8 @@ import { osqueryTableNames } from "utilities/osquery_tables";
 import { PLATFORM_DISPLAY_NAMES } from "utilities/constants";
 
 // @ts-ignore
-import Dropdown from "components/forms/fields/Dropdown"; // @ts-ignore
+import Dropdown from "components/forms/fields/Dropdown";
+// @ts-ignore
 import FleetIcon from "components/icons/FleetIcon";
 import TooltipWrapper from "components/TooltipWrapper";
 

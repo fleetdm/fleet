@@ -18,8 +18,10 @@ import {
   VULNERABLE_DROPDOWN_OPTIONS,
 } from "utilities/constants";
 
-import Button from "components/buttons/Button"; // @ts-ignore
-import Dropdown from "components/forms/fields/Dropdown"; // @ts-ignore
+import Button from "components/buttons/Button";
+// @ts-ignore
+import Dropdown from "components/forms/fields/Dropdown";
+// @ts-ignore
 import Spinner from "components/Spinner";
 import TableContainer, { ITableQueryData } from "components/TableContainer";
 import TableDataError from "components/TableDataError";

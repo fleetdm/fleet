@@ -9,7 +9,8 @@ import configAPI from "services/entities/config";
 import formatErrorResponse from "utilities/format_error_response";
 
 // @ts-ignore
-import ResetPasswordForm from "components/forms/ResetPasswordForm"; // @ts-ignore
+import ResetPasswordForm from "components/forms/ResetPasswordForm";
+// @ts-ignore
 import StackedWhiteBoxes from "components/StackedWhiteBoxes";
 import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
 

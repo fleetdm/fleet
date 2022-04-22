@@ -15,12 +15,17 @@ import formatErrorResponse from "utilities/format_error_response";
 import { generateRole, generateTeam, greyCell } from "utilities/helpers";
 
 import Avatar from "components/Avatar";
-import Button from "components/buttons/Button"; // @ts-ignore
-import ChangeEmailForm from "components/forms/ChangeEmailForm"; // @ts-ignore
-import ChangePasswordForm from "components/forms/ChangePasswordForm"; // @ts-ignore
-import FleetIcon from "components/icons/FleetIcon"; // @ts-ignore
+import Button from "components/buttons/Button";
+// @ts-ignore
+import ChangeEmailForm from "components/forms/ChangeEmailForm";
+// @ts-ignore
+import ChangePasswordForm from "components/forms/ChangePasswordForm";
+// @ts-ignore
+import FleetIcon from "components/icons/FleetIcon";
+// @ts-ignore
 import InputField from "components/forms/fields/InputField";
-import Modal from "components/Modal"; // @ts-ignore
+import Modal from "components/Modal";
+// @ts-ignore
 import UserSettingsForm from "components/forms/UserSettingsForm";
 
 const baseClass = "user-settings";

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 
 import Modal from "components/Modal";
-import InfoBanner from "components/InfoBanner/InfoBanner"; // @ts-ignore
+import InfoBanner from "components/InfoBanner/InfoBanner";
+// @ts-ignore
 import FleetIcon from "components/icons/FleetIcon";
 import Spinner from "components/Spinner";
 import { IJiraIntegration } from "interfaces/integration";

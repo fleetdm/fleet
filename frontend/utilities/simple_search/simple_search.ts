@@ -1,6 +1,10 @@
 import { filter, includes } from "lodash";
 
-const simpleSearch = (searchQuery = "", dictionary: any) => {
+interface IDictionary {
+  [key: string]: any;
+}
+
+const simpleSearch = (searchQuery = "", dictionary: IDictionary) => {
   const lowerSearchQuery = searchQuery.toLowerCase();
 
   const filterResults = filter(dictionary, (item) => {

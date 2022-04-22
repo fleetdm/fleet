@@ -3,8 +3,10 @@ import React, { useState } from "react";
 import { stringToClipboard } from "utilities/copy_text";
 import { IEnrollSecret } from "interfaces/enroll_secret";
 
-import Button from "components/buttons/Button"; // @ts-ignore
-import InputField from "components/forms/fields/InputField"; // @ts-ignore
+import Button from "components/buttons/Button";
+// @ts-ignore
+import InputField from "components/forms/fields/InputField";
+// @ts-ignore
 import FleetIcon from "components/icons/FleetIcon";
 import EyeIcon from "../../../../assets/images/icon-eye-16x16@2x.png";
 import EditIcon from "../../../../assets/images/icon-pencil-14x14@2x.png";

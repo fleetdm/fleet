@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useEffect } from "react";
 
-import Modal from "components/Modal"; // @ts-ignore
+import Modal from "components/Modal";
+// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
 

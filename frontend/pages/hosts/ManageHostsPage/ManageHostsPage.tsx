@@ -44,7 +44,8 @@ import {
   PolicyResponse,
 } from "utilities/constants";
 
-import Button from "components/buttons/Button"; // @ts-ignore
+import Button from "components/buttons/Button";
+// @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 import HostSidePanel from "components/side_panels/HostSidePanel";
 import LabelForm from "components/forms/LabelForm";
@@ -79,7 +80,8 @@ import AddHostsModal from "../../../components/AddHostsModal";
 import EnrollSecretModal from "../../../components/EnrollSecretModal";
 import NoHosts from "./components/NoHosts";
 import EmptyHosts from "./components/EmptyHosts";
-import PoliciesFilter from "./components/PoliciesFilter"; // @ts-ignore
+import PoliciesFilter from "./components/PoliciesFilter";
+// @ts-ignore
 import EditColumnsModal from "./components/EditColumnsModal/EditColumnsModal";
 import TransferHostModal from "./components/TransferHostModal";
 import DeleteHostModal from "./components/DeleteHostModal";

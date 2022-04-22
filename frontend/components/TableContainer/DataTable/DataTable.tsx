@@ -22,7 +22,8 @@ import useDeepEffect from "hooks/useDeepEffect";
 import sort from "utilities/sort";
 import { AppContext } from "context/app";
 
-import Button from "components/buttons/Button"; // @ts-ignore
+import Button from "components/buttons/Button";
+// @ts-ignore
 import FleetIcon from "components/icons/FleetIcon";
 import Spinner from "components/Spinner";
 import { ButtonVariant } from "components/buttons/Button/Button";

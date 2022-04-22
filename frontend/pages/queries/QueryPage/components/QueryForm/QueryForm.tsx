@@ -17,7 +17,8 @@ import queryAPI from "services/entities/queries";
 import { IAceEditor } from "react-ace/lib/types";
 import ReactTooltip from "react-tooltip";
 import Avatar from "components/Avatar";
-import FleetAce from "components/FleetAce"; // @ts-ignore
+import FleetAce from "components/FleetAce";
+// @ts-ignore
 import validateQuery from "components/forms/validators/validate_query";
 import Button from "components/buttons/Button";
 import RevealButton from "components/buttons/RevealButton";

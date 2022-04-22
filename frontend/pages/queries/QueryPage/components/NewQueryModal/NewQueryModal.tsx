@@ -4,7 +4,8 @@ import { size } from "lodash";
 import { IQueryFormData } from "interfaces/query";
 import useDeepEffect from "hooks/useDeepEffect";
 
-import Checkbox from "components/forms/fields/Checkbox"; // @ts-ignore
+import Checkbox from "components/forms/fields/Checkbox";
+// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";

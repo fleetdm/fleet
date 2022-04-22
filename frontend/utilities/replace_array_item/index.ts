@@ -1,4 +1,8 @@
-const replaceArrayItem = (array: any[], item: any, replacement: any) => {
+const replaceArrayItem = (
+  array: unknown[],
+  item: unknown,
+  replacement: unknown
+) => {
   const index = array.indexOf(item);
 
   if (index === -1) {

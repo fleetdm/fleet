@@ -1,4 +1,5 @@
-import { flatMap, sortBy } from "lodash"; // @ts-ignore
+import { flatMap, sortBy } from "lodash";
+// @ts-ignore
 import osqueryTablesJSON from "../osquery_tables.json";
 
 export const normalizeTables = (

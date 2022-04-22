@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 
 import { ITeam } from "interfaces/team";
-import Checkbox from "components/forms/fields/Checkbox"; // @ts-ignore
+import Checkbox from "components/forms/fields/Checkbox";
+// @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 
 interface ITeamCheckboxListItem extends ITeam {

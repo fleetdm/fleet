@@ -8,7 +8,8 @@ import usersAPI from "services/entities/users";
 import sessionsAPI from "services/entities/sessions";
 import formatErrorResponse from "utilities/format_error_response";
 
-import AuthenticationFormWrapper from "components/AuthenticationFormWrapper"; // @ts-ignore
+import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
+// @ts-ignore
 import ConfirmSSOInviteForm from "components/forms/ConfirmSSOInviteForm";
 
 interface IConfirmSSOInvitePageProps {

@@ -5,7 +5,8 @@ import usersAPI from "services/entities/users";
 import formatErrorResponse from "utilities/format_error_response";
 
 // @ts-ignore
-import ForgotPasswordForm from "components/forms/ForgotPasswordForm"; // @ts-ignore
+import ForgotPasswordForm from "components/forms/ForgotPasswordForm";
+// @ts-ignore
 import StackedWhiteBoxes from "components/StackedWhiteBoxes";
 import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
 

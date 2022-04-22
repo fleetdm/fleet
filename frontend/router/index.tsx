@@ -62,7 +62,6 @@ interface IAppWrapperProps {
 const AppWrapper = ({ children, router }: IAppWrapperProps) => (
   <AppProvider>
     <RoutingProvider>
-      {/* @ts-ignore */}
       <App router={router}>{children}</App>
     </RoutingProvider>
   </AppProvider>
@@ -92,7 +91,10 @@ const routes = (
             <Route component={SettingsWrapper}>
               <Route component={AuthenticatedAdminRoutes}>
                 <Route path="organization" component={AdminAppSettingsPage} />
-                <Route path="organization/:section" component={AdminAppSettingsPage} />
+                <Route
+                  path="organization/:section"
+                  component={AdminAppSettingsPage}
+                />
                 <Route path="integrations" component={AdminIntegrationsPage} />
                 <Route path="users" component={AdminUserManagementPage} />
                 <Route path="teams" component={AdminTeamManagementPage} />

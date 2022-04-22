@@ -7,7 +7,8 @@ import {
   IJiraIntegrationIndexed,
 } from "interfaces/integration";
 
-import Button from "components/buttons/Button"; // @ts-ignore
+import Button from "components/buttons/Button";
+// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 
 const baseClass = "integration-form";
