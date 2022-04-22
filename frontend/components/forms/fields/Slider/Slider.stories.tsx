@@ -2,7 +2,6 @@ import React from "react";
 import { Meta, Story } from "@storybook/react";
 import { noop } from "lodash";
 
-// @ts-ignore
 import Slider from ".";
 
 import "../../../../index.scss";

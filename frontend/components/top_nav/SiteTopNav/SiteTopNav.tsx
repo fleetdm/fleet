@@ -7,7 +7,8 @@ import { IConfig } from "interfaces/config";
 import { AppContext } from "context/app";
 
 import LinkWithContext from "components/LinkWithContext";
-import UserMenu from "components/top_nav/UserMenu"; // @ts-ignore
+import UserMenu from "components/top_nav/UserMenu";
+// @ts-ignore
 import OrgLogoIcon from "components/icons/OrgLogoIcon";
 
 import navItems, { INavItem } from "./navItems";

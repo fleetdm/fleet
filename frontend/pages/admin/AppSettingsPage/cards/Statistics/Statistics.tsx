@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { syntaxHighlight } from "fleet/helpers";
+import { syntaxHighlight } from "utilities/helpers";
 
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";

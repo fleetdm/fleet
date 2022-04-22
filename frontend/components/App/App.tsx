@@ -11,23 +11,26 @@ import PolicyProvider from "context/policy";
 import NotificationProvider from "context/notification";
 import { AppContext } from "context/app";
 import local, { authToken } from "utilities/local";
-import { useDeepEffect } from "utilities/hooks";
+import useDeepEffect from "hooks/useDeepEffect";
 
 import usersAPI from "services/entities/users";
 import configAPI from "services/entities/config";
 
-import { ErrorBoundary } from "react-error-boundary"; // @ts-ignore
-import Fleet403 from "pages/errors/Fleet403"; // @ts-ignore
-import Fleet404 from "pages/errors/Fleet404"; // @ts-ignore
+import { ErrorBoundary } from "react-error-boundary";
+// @ts-ignore
+import Fleet403 from "pages/errors/Fleet403";
+// @ts-ignore
+import Fleet404 from "pages/errors/Fleet404";
+// @ts-ignore
 import Fleet500 from "pages/errors/Fleet500";
 import Spinner from "components/Spinner";
 
 interface IAppProps {
   children: JSX.Element;
-  location: {
+  router: InjectedRouter;
+  location?: {
     pathname: string;
   };
-  router: InjectedRouter;
 }
 
 const App = ({ children, location, router }: IAppProps): JSX.Element => {

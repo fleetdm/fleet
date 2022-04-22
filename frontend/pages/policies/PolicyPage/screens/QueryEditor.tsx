@@ -7,8 +7,8 @@ import teamPoliciesAPI from "services/entities/team_policies";
 import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
 import { NotificationContext } from "context/notification";
-import PATHS from "router/paths"; // @ts-ignore
-import debounce from "utilities/debounce"; // @ts-ignore
+import PATHS from "router/paths";
+import debounce from "utilities/debounce";
 import deepDifference from "utilities/deep_difference";
 import { IPolicyFormData, IPolicy } from "interfaces/policy";
 
