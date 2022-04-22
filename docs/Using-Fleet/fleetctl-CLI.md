@@ -271,7 +271,9 @@ fleetctl user create --name "API User" --email api@example.com --password temp!p
 
 ### Reset the password
 
-When a new user is created, a password reset is needed before that user can perform queries. Since an API-only user cannot log in to the Fleet UI, this is done through the REST API. We'll be doing this through the terminal using `curl`.
+> If you are using the most recent version of Fleet, you can skip to the [next section](#using-fleetctl-as-the-new-user).
+
+In versions prior to Fleet 4.13, a password reset is needed before the new user can perform queries. Since an API-only user cannot log in to the Fleet UI, this is done through the REST API. We'll be doing this through the terminal using `curl`.
 
 First, log in to the new user account using `fleetctl login`. Once you're logged in successfully to the API-only user, set up a variable to hold the user's token:
 
@@ -313,7 +315,7 @@ unset token
 
 ### Use fleetctl as the new user
 
-Now that the password is reset, you will need to log in again using the updated password with `fleetctl login`. You'll now be able to perform tasks using `fleetctl` as your new API-only user.
+Now that your new user is all set up, you will need to log in with `fleetctl login`. You'll now be able to perform tasks using `fleetctl` as your new API-only user.
 
 ### Switching users
 

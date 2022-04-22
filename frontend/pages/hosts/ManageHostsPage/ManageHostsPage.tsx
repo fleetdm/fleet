@@ -1531,7 +1531,7 @@ const ManageHostsPage = ({
         searchable
         renderCount={renderHostCount}
         searchToolTipText={
-          "Search hosts by hostname, UUID, machine serial or IP address"
+          "Search hosts by hostname, UUID, machine serial or private IP address"
         }
         emptyComponent={EmptyHosts}
         customControl={renderStatusDropdown}
