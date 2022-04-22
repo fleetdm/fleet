@@ -162,8 +162,6 @@ The following [Slack channels are maintained](https://fleetdm.com/handbook/compa
 |:------------------------------------|:--------------------------------------------------------------------|
 | `#help-engineering`                 | Zach Wasserman
 | `#help-oncall`                      | Zach Wasserman
-| `#help-golang`                      | Zach Wasserman
-| `#help-frontend`                    | Luke Heath
 | `#_pov-environments`                | Ben Edwards
 
 
