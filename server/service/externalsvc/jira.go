@@ -13,12 +13,6 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 )
 
-const (
-	maxRetries           = 5
-	retryBackoff         = 300 * time.Millisecond
-	maxWaitForRetryAfter = 10 * time.Second
-)
-
 // Jira is a Jira client to be used to make requests to a jira external
 // service.
 type Jira struct {

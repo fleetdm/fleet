@@ -190,24 +190,41 @@ func cronVulnerabilities(
 				appConfig = freshAppConfig
 			}
 
-			var vulnAutomationEnabled bool
+			var vulnAutomationEnabled string
 
-			// only one of the webhook or a jira integration can be enabled at a
+			// only one vuln automation (i.e. webhook or integration) can be enabled at a
 			// time, enforced when updating the appconfig.
 			if appConfig.WebhookSettings.VulnerabilitiesWebhook.Enable {
-				vulnAutomationEnabled = true
-			} else {
-				for _, intg := range appConfig.Integrations.Jira {
-					if intg.EnableSoftwareVulnerabilities {
-						vulnAutomationEnabled = true
-						break
+				vulnAutomationEnabled = "webhook"
+			}
+			// check for jira integrations
+			for _, j := range appConfig.Integrations.Jira {
+				if j.EnableSoftwareVulnerabilities {
+					if vulnAutomationEnabled != "" {
+						level.Error(logger).Log("err", "more than one automation enabled")
+						// TODO: additional error handling?
 					}
+					vulnAutomationEnabled = "jira"
+					break
 				}
 			}
+			// check for zendesk integrations
+			for _, z := range appConfig.Integrations.Zendesk {
+				if z.EnableSoftwareVulnerabilities {
+					if vulnAutomationEnabled != "" {
+						level.Error(logger).Log("err", "more than one automation enabled")
+						// TODO: additional error handling?
+					}
+					vulnAutomationEnabled = "zendesk"
+					break
+				}
+			}
+			level.Debug(logger).Log("vulnAutomationEnabled", vulnAutomationEnabled)
 
-			recentVulns := checkVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled)
-			if vulnAutomationEnabled && len(recentVulns) > 0 {
-				if appConfig.WebhookSettings.VulnerabilitiesWebhook.Enable {
+			recentVulns := checkVulnerabilities(ctx, ds, logger, vulnPath, config, (vulnAutomationEnabled != ""))
+			if len(recentVulns) > 0 || true {
+				switch vulnAutomationEnabled {
+				case "webhook":
 					// send recent vulnerabilities via webhook
 					if err := webhooks.TriggerVulnerabilitiesWebhook(ctx, ds, kitlog.With(logger, "webhook", "vulnerabilities"),
 						recentVulns, appConfig, time.Now()); err != nil {
@@ -215,7 +232,9 @@ func cronVulnerabilities(
 						level.Error(logger).Log("err", "triggering vulnerabilities webhook", "details", err)
 						sentry.CaptureException(err)
 					}
-				} else {
+
+				// TODO: what about jobs that get queued but are not run before reconfig automations?
+				case "jira":
 					// queue job to create jira issues
 					if err := worker.QueueJiraJobs(
 						ctx,
@@ -226,6 +245,20 @@ func cronVulnerabilities(
 						level.Error(logger).Log("err", "queueing vulnerabilities to jira", "details", err)
 						sentry.CaptureException(err)
 					}
+
+				case "zendesk":
+					// queue job to create zendesk ticket
+					if err := worker.QueueZendeskJobs(
+						ctx,
+						ds,
+						kitlog.With(logger, "zendesk", "vulnerabilities"),
+						recentVulns,
+					); err != nil {
+						level.Error(logger).Log("err", "queueing vulnerabilities to jira", "details", err)
+						sentry.CaptureException(err)
+					}
+
+				default:
 				}
 			}
 		}
@@ -252,6 +285,7 @@ func cronVulnerabilities(
 func checkVulnerabilities(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 	vulnPath string, config config.FleetConfig, collectRecentVulns bool,
 ) map[string][]string {
+	level.Debug(logger).Log("collectRecentVulns", collectRecentVulns)
 	err := vulnerabilities.TranslateSoftwareToCPE(ctx, ds, vulnPath, logger, config)
 	if err != nil {
 		level.Error(logger).Log("msg", "analyzing vulnerable software: Software->CPE", "err", err)
@@ -385,42 +419,34 @@ func cronWorker(
 	identifier string,
 ) {
 	const (
-		lockDuration        = 10 * time.Minute
-		lockAttemptInterval = 10 * time.Minute
+		lockDuration        = 10 * time.Second
+		lockAttemptInterval = 10 * time.Second
 	)
 
 	logger = kitlog.With(logger, "cron", lockKeyWorker)
 
-	// create the worker and register the Jira job even if no jira integration
-	// is enabled, as that config can change live (and if it's not enabled,
+	// create the worker and register the Jira and Zendesk jobs even if no
+	// integration is enabled, as that config can change live (and if it's not
 	// there won't be any records to process so it will mostly just sleep).
 	w := worker.NewWorker(ds, logger)
-
-	// leave the FleetURL and JiraClient fields empty for now, will be filled
-	// when the lock is acquired with the up-to-date config.
 	jira := &worker.Jira{
 		Datastore: ds,
 		Log:       logger,
 	}
-	w.Register(jira)
-
-	// create a JiraClient wrapper to introduce forced failures if configured
-	// to do so via the environment variable.
-	var failerClient *worker.TestJiraFailer
-	if forcedFailures := os.Getenv("FLEET_JIRA_CLIENT_FORCED_FAILURES"); forcedFailures != "" {
-		// format is "<modulo number>;<cve1>,<cve2>,<cve3>,..."
-		parts := strings.Split(forcedFailures, ";")
-		if len(parts) == 2 {
-			mod, _ := strconv.Atoi(parts[0])
-			cves := strings.Split(parts[1], ",")
-			if mod > 0 || len(cves) > 0 {
-				failerClient = &worker.TestJiraFailer{
-					FailCallCountModulo: mod,
-					AlwaysFailCVEs:      cves,
-				}
-			}
-		}
+	zendesk := &worker.Zendesk{
+		Datastore: ds,
+		Log:       logger,
 	}
+	// leave the url and client fields empty for now, will be filled
+	// when the lock is acquired with the up-to-date config.
+	w.Register(jira)
+	w.Register(zendesk)
+
+	// create client wrappers to introduce forced failures if configured
+	// to do so via the environment variable.
+	// format is "<modulo number>;<cve1>,<cve2>,<cve3>,..."
+	jiraFailerClient := newFailerClient(os.Getenv("FLEET_JIRA_CLIENT_FORCED_FAILURES"))
+	// zendeskFailerClient := newFailerClient(os.Getenv("FLEET_ZENDESK_CLIENT_FORCED_FAILURES"))
 
 	ticker := time.NewTicker(10 * time.Second)
 	for {
@@ -458,33 +484,74 @@ func cronWorker(
 				break
 			}
 		}
-		if jiraSettings == nil {
-			// currently, Jira is the only job possible, so skip processing jobs if
-			// it is not enabled.
-			level.Debug(logger).Log("msg", "no Jira integration enabled")
+
+		// get the enabled zendesk config, if any
+		var zendeskSettings *fleet.ZendeskIntegration
+		for _, intg := range appConfig.Integrations.Zendesk {
+			if intg.EnableSoftwareVulnerabilities {
+				zendeskSettings = intg
+				break
+			}
+		}
+		if jiraSettings != nil && zendeskSettings != nil {
+			level.Error(logger).Log("err", "more than one automation enabled")
+			// TODO: additional error handling?
+		}
+
+		if jiraSettings == nil && zendeskSettings == nil {
+			// skip processing jobs if no integrations are enabled.
+			level.Debug(logger).Log("msg", "no automations enabled")
 			continue
 		}
 
-		// create the client to make API calls to Jira
-		client, err := externalsvc.NewJiraClient(&externalsvc.JiraOptions{
-			BaseURL:           jiraSettings.URL,
-			BasicAuthUsername: jiraSettings.Username,
-			BasicAuthPassword: jiraSettings.APIToken,
-			ProjectKey:        jiraSettings.ProjectKey,
-		})
-		if err != nil {
-			level.Error(logger).Log("msg", "Error creating Jira client", "err", err)
-			sentry.CaptureException(err)
-			continue
+		if jiraSettings != nil {
+			// create the client to make API calls to Jira
+			client, err := externalsvc.NewJiraClient(&externalsvc.JiraOptions{
+				BaseURL:           jiraSettings.URL,
+				BasicAuthUsername: jiraSettings.Username,
+				BasicAuthPassword: jiraSettings.APIToken,
+				ProjectKey:        jiraSettings.ProjectKey,
+			})
+			if err != nil {
+				level.Error(logger).Log("msg", "Error creating Jira client", "err", err)
+				sentry.CaptureException(err)
+				continue
+			}
+
+			// safe to update the Jira worker as it is not used concurrently
+			jira.FleetURL = appConfig.ServerSettings.ServerURL
+			if jiraFailerClient != nil && strings.Contains(jira.FleetURL, "fleetdm") {
+				jiraFailerClient.JiraClient = client
+				jira.JiraClient = jiraFailerClient
+			} else {
+				jira.JiraClient = client
+			}
 		}
 
-		// safe to update the Jira worker as it is not used concurrently
-		jira.FleetURL = appConfig.ServerSettings.ServerURL
-		if failerClient != nil && strings.Contains(jira.FleetURL, "fleetdm") {
-			failerClient.JiraClient = client
-			jira.JiraClient = failerClient
-		} else {
-			jira.JiraClient = client
+		if zendeskSettings != nil {
+			// create the client to make API calls to Zendesk
+			client, err := externalsvc.NewZendeskClient(&externalsvc.ZendeskOptions{
+				URL:      zendeskSettings.URL,
+				Email:    zendeskSettings.Email,
+				APIToken: zendeskSettings.APIToken,
+				GroupID:  zendeskSettings.GroupID,
+			})
+			if err != nil {
+				level.Error(logger).Log("msg", "Error creating Zendesk client", "err", err)
+				sentry.CaptureException(err)
+				continue
+			}
+
+			// safe to update the worker as it is not used concurrently
+			zendesk.FleetURL = appConfig.ServerSettings.ServerURL
+			// if zendeskFailerClient != nil && strings.Contains(zendesk.FleetURL, "fleetdm") {
+			// 	zendeskFailerClient.ZendeskClient = client
+			// 	zendesk.ZendeskClient = zendeskFailerClient
+			// } else {
+			// 	jira.JiraClient = client
+			// }
+			zendesk.ZendeskClient = client
+
 		}
 
 		workCtx, cancel := context.WithTimeout(ctx, lockDuration)
@@ -494,4 +561,23 @@ func cronWorker(
 		}
 		cancel() // don't use defer inside loop
 	}
+}
+
+func newFailerClient(forcedFailures string) *worker.TestJiraFailer {
+	var failerClient *worker.TestJiraFailer
+	if forcedFailures != "" {
+
+		parts := strings.Split(forcedFailures, ";")
+		if len(parts) == 2 {
+			mod, _ := strconv.Atoi(parts[0])
+			cves := strings.Split(parts[1], ",")
+			if mod > 0 || len(cves) > 0 {
+				failerClient = &worker.TestJiraFailer{
+					FailCallCountModulo: mod,
+					AlwaysFailCVEs:      cves,
+				}
+			}
+		}
+	}
+	return failerClient
 }

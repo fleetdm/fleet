@@ -15,13 +15,6 @@ import (
 	"github.com/nukosuke/go-zendesk/zendesk"
 )
 
-// // TODO: move these up to package?
-// const (
-// 	maxRetries           = 5
-// 	retryBackoff         = 300 * time.Millisecond
-// 	maxWaitForRetryAfter = 10 * time.Second
-// )
-
 // Zendesk is a Zendesk client to be used to make requests to a zendesk external
 // service.
 type Zendesk struct {
@@ -70,7 +63,7 @@ func (z *Zendesk) GetGroup(ctx context.Context) (*zendesk.Group, error) {
 	var group *zendesk.Group
 	id, err := strconv.Atoi(z.groupID)
 	if err != nil {
-		return nil, err // TODO
+		return nil, err
 	}
 
 	op := func() (interface{}, error) {
@@ -108,7 +101,6 @@ func doZendeskWithRetry(fn func() (interface{}, error)) error {
 		if err == nil {
 			return nil
 		}
-
 		// TODO: do we need this?
 		var netErr net.Error
 		if errors.As(err, &netErr) {
@@ -146,4 +138,20 @@ func doZendeskWithRetry(fn func() (interface{}, error)) error {
 
 	boff := backoff.WithMaxRetries(backoff.NewConstantBackOff(retryBackoff), uint64(maxRetries))
 	return backoff.Retry(op, boff)
+}
+
+// overrides endpoint url with full server url instead of just setting the subdomain
+func NewZendeskTestClient(opts *ZendeskOptions) (*Zendesk, error) {
+	client, err := zendesk.NewClient(fleethttp.NewClient())
+	if err != nil {
+		return nil, err
+	}
+
+	client.SetEndpointURL(opts.URL)
+	client.SetCredential(zendesk.NewAPITokenCredential(opts.Email, opts.APIToken))
+
+	return &Zendesk{
+		client:  client,
+		groupID: opts.GroupID,
+	}, nil
 }
