@@ -543,11 +543,10 @@
         min-width: 190px;
         max-width: 210px;
         position: sticky;
-        top: 40px;
+        top: 90px;
         height: fit-content;
         [purpose='subtopics'] {
-          max-height: 80vh;
-          // height: auto;
+          max-height: calc(~'80vh - 90px'); //To prevent the sidenav being anchored to the bottom of the page if it has overflow.
           overflow-y: scroll;
           color: @core-fleet-black;
           padding-top: 4px;
