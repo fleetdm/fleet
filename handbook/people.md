@@ -301,9 +301,9 @@ advisor to add us on [Linkedin](https://www.linkedin.com/company/71111416), [Cru
 
 ## Onboarding a new consultant
 
-Consultant agreements are sent through [Docusign](https://www.docusign.com/), using the "Consulting Agreement" template. To send a new consulting agreement, you'll need the new consultant's name, the term of the service, a summary of the services provided and the consultant's fee. 
+Consultant agreements are sent through [DocuSign](https://www.docusign.com/), using the "Consulting Agreement" template. To send a new consulting agreement, you'll need the new consultant's name, the term of the service, a summary of the services provided and the consultant's fee. 
 
-Then hit send!  After all signatures are there, it will automatically be uploaded to the appropriate Google Drive folder by our automation, and a Slack message will appear in the `#g-people` channel.
+Then hit send!  After all of the signatures are there, the completed document will automatically be uploaded to the appropriate Google Drive folder by our automation, and a Slack message will appear in the `#g-people` channel.
 
 ## Zapier and DocuSign
 
