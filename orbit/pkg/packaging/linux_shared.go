@@ -120,16 +120,16 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 				Mode: constant.DefaultExecutableMode | os.ModeSymlink,
 			},
 		},
-		// nfpm.Overridables.EmptyFolders is deprecated
-		{
-			Destination: "/var/log/osquery",
-			Type:        "dir",
-		},
-		{
-			Destination: "/var/log/orbit",
-			Type:        "dir",
-		},
 	}
+
+	// Add empty folders to be created.
+	for _, emptyFolder := range []string{"/var/log/osquery", "/var/log/orbit"} {
+		contents = append(contents, (&files.Content{
+			Destination: emptyFolder,
+			Type:        "dir",
+		}).WithFileInfoDefaults())
+	}
+
 	contents, err = files.ExpandContentGlobs(contents, false)
 	if err != nil {
 		return "", fmt.Errorf("glob contents: %w", err)
