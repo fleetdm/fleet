@@ -2586,7 +2586,7 @@ Deletes the query specified by name.
 
 #### Example
 
-`DELETE /api/v1/fleet/queries/{name}`
+`DELETE /api/v1/fleet/queries/query_title`
 
 ##### Default response
 
