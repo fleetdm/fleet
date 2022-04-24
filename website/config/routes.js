@@ -68,6 +68,14 @@ module.exports.routes = {
     }
   },
 
+  'r|/((device-management|security|releases|engineering|guides|announcements|use-cases)/(.+))$|': {
+    skipAssets: false,
+    action: 'articles/view-basic-article',
+    locals: {
+      currentPage: 'articles',
+    }
+  },// handles /device-management/foo, /security/foo, /releases/foo, /engineering/foo, /guides/foo, /announcements/foo, /use-cases/foo
+
   'GET /docs/?*': {
     skipAssets: false,
     action: 'docs/view-basic-documentation',
@@ -146,7 +154,7 @@ module.exports.routes = {
     }
   },
 
-  'GET /landing': {
+  'GET /g': {
     action: 'view-landing',
     locals: {
       layout: 'layouts/layout-landing',

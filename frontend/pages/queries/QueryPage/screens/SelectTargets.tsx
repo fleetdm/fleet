@@ -3,7 +3,7 @@ import { Row } from "react-table";
 import { forEach, isEmpty, remove, unionWith } from "lodash";
 import { useDebouncedCallback } from "use-debounce";
 
-import { formatSelectedTargetsForApi } from "fleet/helpers";
+import { formatSelectedTargetsForApi } from "utilities/helpers";
 import useQueryTargets, { ITargetsQueryResponse } from "hooks/useQueryTargets";
 import {
   ITarget,
@@ -15,7 +15,6 @@ import { ILabel } from "interfaces/label";
 import { ITeam } from "interfaces/team";
 import { IHost } from "interfaces/host";
 
-// @ts-ignore
 import TargetsInput from "components/TargetsInput";
 import Button from "components/buttons/Button";
 import Spinner from "components/Spinner";

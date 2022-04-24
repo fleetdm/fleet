@@ -47,6 +47,8 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Fleet website](./brand.md#website)
 
+[Rituals](./brand.md#rituals)
+
 ### 🪂 Community
 
 [Communities](./community.md#communities)
@@ -60,6 +62,7 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 ### 🚀 Engineering
 
 [Release process](./engineering.md#release-process)
+
 [On-call rotation](./community.md#On-call-rotation) 
 
 ### ⚗️ Product
@@ -112,7 +115,17 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Meetings](./people.md#meetings)
 
-[People ops](./people.md#people-ops)
+[Slack](./people.md#slack)
+
+[Performance feedback](./people.md#performance-feedback)
+
+[Hiring a new team member](./people.md#hiring-a-new-team-member)
+
+[Team member onboarding](./people.md#team-member-onboarding)
+
+[Onboarding a new advisor](./people.md#onboarding-a-new-advisor)
+
+[Zapier and DocuSign](./people.md#zapier-and-docu-sign)
 
 [Rituals](./people.md#rituals)
 

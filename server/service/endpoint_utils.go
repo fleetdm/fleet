@@ -287,6 +287,7 @@ type authEndpointer struct {
 	endingAtVersion   string
 	alternativePaths  []string
 	customMiddleware  []endpoint.Middleware
+	usePathPrefix     bool
 }
 
 func newDeviceAuthenticatedEndpointer(svc fleet.Service, logger log.Logger, opts []kithttp.ServerOption, r *mux.Router, versions ...string) *authEndpointer {
@@ -347,22 +348,30 @@ func getNameFromPathAndVerb(verb, path string) string {
 }
 
 func (e *authEndpointer) POST(path string, f handlerFunc, v interface{}) {
-	e.handle(path, f, v, "POST")
+	e.handleEndpoint(path, f, v, "POST")
 }
 
 func (e *authEndpointer) GET(path string, f handlerFunc, v interface{}) {
-	e.handle(path, f, v, "GET")
+	e.handleEndpoint(path, f, v, "GET")
 }
 
 func (e *authEndpointer) PATCH(path string, f handlerFunc, v interface{}) {
-	e.handle(path, f, v, "PATCH")
+	e.handleEndpoint(path, f, v, "PATCH")
 }
 
 func (e *authEndpointer) DELETE(path string, f handlerFunc, v interface{}) {
-	e.handle(path, f, v, "DELETE")
+	e.handleEndpoint(path, f, v, "DELETE")
 }
 
-func (e *authEndpointer) handle(path string, f handlerFunc, v interface{}, verb string) {
+// PathHandler registers a handler for the verb and path. The pathHandler is
+// a function that receives the actual path to which it will be mounted, and
+// returns the actual http.Handler that will handle this endpoint. This is for
+// when the handler needs to know on which path it was called.
+func (e *authEndpointer) PathHandler(verb, path string, pathHandler func(path string) http.Handler) {
+	e.handlePathHandler(path, pathHandler, verb)
+}
+
+func (e *authEndpointer) handlePathHandler(path string, pathHandler func(path string) http.Handler, verb string) {
 	versions := e.versions
 	if e.startingAtVersion != "" {
 		startIndex := -1
@@ -399,13 +408,30 @@ func (e *authEndpointer) handle(path string, f handlerFunc, v interface{}, verb 
 
 	versionedPath := strings.Replace(path, "/_version_/", fmt.Sprintf("/{fleetversion:(?:%s)}/", strings.Join(versions, "|")), 1)
 	nameAndVerb := getNameFromPathAndVerb(verb, path)
-	endpoint := e.makeEndpoint(f, v)
-	e.r.Handle(versionedPath, endpoint).Name(nameAndVerb).Methods(verb)
+	if e.usePathPrefix {
+		e.r.PathPrefix(versionedPath).Handler(pathHandler(versionedPath)).Name(nameAndVerb).Methods(verb)
+	} else {
+		e.r.Handle(versionedPath, pathHandler(versionedPath)).Name(nameAndVerb).Methods(verb)
+	}
 	for _, alias := range e.alternativePaths {
 		nameAndVerb := getNameFromPathAndVerb(verb, alias)
 		versionedPath := strings.Replace(alias, "/_version_/", fmt.Sprintf("/{fleetversion:(?:%s)}/", strings.Join(versions, "|")), 1)
-		e.r.Handle(versionedPath, endpoint).Name(nameAndVerb).Methods(verb)
+		if e.usePathPrefix {
+			e.r.PathPrefix(versionedPath).Handler(pathHandler(versionedPath)).Name(nameAndVerb).Methods(verb)
+		} else {
+			e.r.Handle(versionedPath, pathHandler(versionedPath)).Name(nameAndVerb).Methods(verb)
+		}
 	}
+}
+
+func (e *authEndpointer) handleHTTPHandler(path string, h http.Handler, verb string) {
+	self := func(_ string) http.Handler { return h }
+	e.handlePathHandler(path, self, verb)
+}
+
+func (e *authEndpointer) handleEndpoint(path string, f handlerFunc, v interface{}, verb string) {
+	endpoint := e.makeEndpoint(f, v)
+	e.handleHTTPHandler(path, endpoint, verb)
 }
 
 func (e *authEndpointer) makeEndpoint(f handlerFunc, v interface{}) http.Handler {
@@ -444,5 +470,11 @@ func (e *authEndpointer) WithAltPaths(paths ...string) *authEndpointer {
 func (e *authEndpointer) WithCustomMiddleware(mws ...endpoint.Middleware) *authEndpointer {
 	ae := *e
 	ae.customMiddleware = mws
+	return &ae
+}
+
+func (e *authEndpointer) UsePathPrefix() *authEndpointer {
+	ae := *e
+	ae.usePathPrefix = true
 	return &ae
 }

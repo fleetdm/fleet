@@ -2,7 +2,7 @@ import React from "react";
 import { uniqueId } from "lodash";
 
 import { IQueryStats } from "interfaces/query_stats";
-import { performanceIndicator, secondsToHms } from "fleet/helpers";
+import { performanceIndicator, secondsToHms } from "utilities/helpers";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import PillCell from "components/TableContainer/DataTable/PillCell";

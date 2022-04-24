@@ -2,7 +2,8 @@ import React from "react";
 import { Meta, Story } from "@storybook/react";
 import { noop } from "lodash";
 
-import { IDropdownOption } from "interfaces/dropdownOption"; // @ts-ignore
+import { IDropdownOption } from "interfaces/dropdownOption";
+// @ts-ignore
 import Dropdown from ".";
 
 import "../../../../index.scss";

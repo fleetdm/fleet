@@ -58,7 +58,7 @@ parasails.registerPage('new-license', {
 
     clickGoToDashboard: async function() {
       this.syncing = true;
-      window.location = '/customers/dashboard';
+      window.location = '/customers/dashboard?order-complete';
     },
 
     submittedQuoteForm: async function(quote) {

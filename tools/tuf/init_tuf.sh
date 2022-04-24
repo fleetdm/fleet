@@ -76,7 +76,7 @@ function create_repository() {
       rm desktop.app.tar.gz
     fi
 
-    # Add Fleet Desktop application on  (if enabled).
+    # Add Fleet Desktop application on windows (if enabled).
     if [[ $system == "windows" && -n "$FLEET_DESKTOP" ]]; then
       FLEET_DESKTOP_VERSION=42.0.0 \
       make desktop-windows

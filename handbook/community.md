@@ -24,7 +24,7 @@ Fleet's documentation and handbook are written in [Markdown](https://about.gitla
 When making changes to the Fleet docs or handbook, there are a few differences in how the Markdown will render on GitHub and the Fleet website.
 
 #### Linebreaks and newlines
-Any time you need to add a line break in Markdown, you should add a new line. It is vital to make sure paragraphs are separated by new lines otherwise they will render as the same HTML element.
+Any time you need to add a line break in Markdown, you should add a new line. It is vital to make sure paragraphs are separated by new lines otherwise, they will render as the same HTML element.
 
 For example, if you were adding this section to the docs:
 
@@ -33,12 +33,12 @@ line one
 line two
 ```
 
-The Markdown would render on the Fleet Website as:
+The Markdown would render on the Fleet website as:
 
 line one
 line two
 
-To ensure formatting is consistent across GitHub and the Fleet website, you'll need to add a new line anywhere you want a line break. For example, if we separate the lines with a new line:
+To ensure formatting is consistent across GitHub and the Fleet website, you need to add a new line anywhere you want a line break. For example, if we separate the lines with a new line:
 
 ```
 line one
@@ -109,20 +109,19 @@ Keep headings brief, organized, and in a logical order:
 Try to stay within 3 or 4 heading levels. Complicated documents may use more, but pages with a simpler structure are easier to read.
 
 ### Adding a link to the Fleet docs
-You can link documentation pages to each other using relative paths. For example, in `docs/Using-Fleet/Fleet-UI.md`, you can link to `docs/Using-Fleet/Permissions.md` by writing `[permissions](./Permissions.md)`. This will automatically transformed into the appropriate URL for `fleetdm.com/docs`.
+You can link documentation pages to each other using relative paths. For example, in `docs/Using-Fleet/Fleet-UI.md`, you can link to `docs/Using-Fleet/Permissions.md` by writing `[permissions](./Permissions.md)`. This will automatically transform into the appropriate URL for `fleetdm.com/docs`.
 
 However, the `fleetdm.com/docs` compilation process does not account for relative links to directories **outside** of `/docs`.
 This is why it’s essential to follow the file path exactly when adding a link to Fleet docs.
-
-In the Fleet documentation, when directly linking to a specific section, always format the spaces within a section name to use a hyphen  "-" instead of an underscore "_". For example, when linking to the `osquery_result_log_plugin` section of the configuration reference docs, use a relative link like the following: `./Configuration.md#osquery-result-log-plugin`.
+When directly linking to a specific section, always format the spaces within a section name to use a hyphen instead of an underscore. For example, when linking to the `osquery_result_log_plugin` section of the configuration reference docs, use a relative link like the following: `./Configuration.md#osquery-result-log-plugin`.
 
 ### Linking to a location on GitHub
 When adding a link to a location on GitHub outside of `/docs`, be sure to use the canonical form of the URL.
 
-To do this, navigate to the file's location on GitHub, and press "y" to transform the URL into its canonical form.
+Navigate to the file's location on GitHub, and press "y" to transform the URL into its canonical form.
 
 ### How to fix a broken link
-For instances in which a broken link is discovered on fleetdm.com, always check if the link is a relative link to a directory outside of `/docs`. 
+For instances when a broken link is discovered on fleetdm.com, always check if the link is a relative link to a directory outside of `/docs`. 
 
 An example of a link that lives outside of `/docs` is:
 
@@ -130,15 +129,15 @@ An example of a link that lives outside of `/docs` is:
 ../../tools/app/prometheus
 ```
 
-If the link lives outside `/docs`, head to the file's location on GitHub (in this case, [https://github.com/fleetdm/fleet/blob/main/tools/app/prometheus.yml)](https://github.com/fleetdm/fleet/blob/main/tools/app/prometheus.yml)), and press "y" to transform the URL into its canonical form ([https://github.com/fleetdm/fleet/blob/194ad5963b0d55bdf976aa93f3de6cabd590c97a/tools/app/prometheus.yml](https://github.com/fleetdm/fleet/blob/194ad5963b0d55bdf976aa93f3de6cabd590c97a/tools/app/prometheus.yml)). Replace the relative link with this link in the markdown file.
+If the link lives outside `/docs`, head to the file's location on GitHub (in this case, [https://github.com/fleetdm/fleet/blob/main/tools/app/prometheus.yml)](https://github.com/fleetdm/fleet/blob/main/tools/app/prometheus.yml)), and press "y" to transform the URL into its canonical form ([https://github.com/fleetdm/fleet/blob/194ad5963b0d55bdf976aa93f3de6cabd590c97a/tools/app/prometheus.yml](https://github.com/fleetdm/fleet/blob/194ad5963b0d55bdf976aa93f3de6cabd590c97a/tools/app/prometheus.yml)). Replace the relative link with this link in the Markdown file.
 
 > Note that the instructions above also apply to adding links in the Fleet handbook.
 
 ### Ordering a page in the Fleet docs
-The order we display documentation pages on fleetdm.com is determined by `pageOrderInSection` meta tags. These pages are sorted in their respective section by the `pageOrderInSection` value in **ascending** order. Every markdown file (except readme and faq pages) in the `docs/` folder must have a meta tag with a positive 'pageOrderInSection' value.
+The order we display documentation pages on fleetdm.com is determined by `pageOrderInSection` meta tags. These pages are sorted in their respective sections in **ascending** order by the `pageOrderInSection` value. Every Markdown file (except readme and faq pages) in the `docs/` folder must have a meta tag with a positive 'pageOrderInSection' value.
 
 
-We leave large gaps between values to make future changes easier. For example, the first page in the "Using Fleet" section of the docs has a `pageOrderInSection` value of 100, and the next page has a value of 200. The significant difference between values allows us to add, remove and reorder pages without the need for changing the value of multiple pages at a time.
+We leave large gaps between values to make future changes easier. For example, the first page in the "Using Fleet" section of the docs has a `pageOrderInSection` value of 100, and the next page has a value of 200. The significant difference between values allows us to add, remove and reorder pages without changing the value of multiple pages at a time.
 
 When adding or reordering a page, try to leave as much room between values as possible. If you were adding a new page that would go between the two pages from the example above, you would add `<meta name="pageOrderInSection" value="150">` to the page.
 
@@ -147,12 +146,12 @@ Try to keep images in the docs at a minimum. Images can be a quick way to help u
 
 When adding images to the Fleet documentation, follow these guidelines:
 - Keep the images as simple as possible to maintain. Screenshots can get out of date quickly as UIs change.
-- Exclude unnecessary images. An image should be used to help emphasize information in the docs, not replace it.
-- Minimize images per doc page. More than one or two per page can get overwhelming, for doc maintainers and users.
+- Exclude unnecessary images. Images should be used to help emphasize information in the docs, not replace it.
+- Minimize images per doc page. For doc maintainers and users, more than one or two per page can get overwhelming.
 - The goal is for the docs to look good on every form factor, from 320px window width all the way up to infinity. Full window screenshots and images with too much padding on the sides will be less than the width of the user's screen. When adding a large image, make sure it is easily readable at all widths.
 
 Images can be added to the docs using the Markdown image link format, e.g. `![Schedule Query Sidebar](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/schedule-query-modal.png)`
-The images used in the docs live in `docs/images/`. Note that you must provide the URL of the image in the Fleet Github repo for it to display properly on both Github and the Fleet website.
+The images used in the docs live in `docs/images/`. Note that you must provide the URL of the image in the Fleet GitHub repo for it to display properly on both GitHub and the Fleet website.
 
 > Note that the instructions above also apply to adding images in the Fleet handbook.
 
@@ -190,7 +189,7 @@ graph TD;
 
 ## Community contributions (pull requests)
 
-When community members contribute changes, Fleet’s top priority is to help them feel engaged. We acknowledge contributions as soon as possible, within 1 business day. We also drive to a resolution (close/merge) as soon as possible, though this may take longer than 1 business day.
+When community members contribute changes, Fleet’s top priority is to help them feel engaged. We acknowledge contributions as quickly as possible, within 1 business day. We also drive to a resolution (close/merge) as soon as possible, though this may take longer than 1 business day.
 
 ### Process
 
