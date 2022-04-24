@@ -28,9 +28,13 @@ func run(path string, opts eopts) error {
 		arg = append(arg, fmt.Sprintf("%s=%s", nv[0], nv[1]))
 	}
 	arg = append(arg,
-		// NOTE(lucas): We default to display 0, revisit when working on
-		// multi-user/multi-session support.
+		// TODO(lucas): Default to display 0, revisit when working on
+		// multi-user/multi-session support. This assumes there's only
+		// one desktop session and belongs to the user returned in `getLoginUID'.
 		"DISPLAY=:0",
+		// DBUS_SESSION_BUS_ADDRESS sets the location of the user login session bus.
+		// Required by the libayatana-appindicator3 library to display a tray icon
+		// on the desktop session.
 		fmt.Sprintf("DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/%d/bus", user.id),
 		fmt.Sprintf("LD_LIBRARY_PATH=%s:%s", filepath.Dir(path), os.ExpandEnv("$LD_LIBRARY_PATH")),
 		path,
