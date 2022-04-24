@@ -17,7 +17,7 @@
     <meta name="twitter:title" content="<%= typeof pageTitleForMeta !== 'undefined' ? pageTitleForMeta : 'Open source device management' %>" />
     <meta name="twitter:description" content="<%= typeof pageDescriptionForMeta !== 'undefined' ? pageDescriptionForMeta : 'Open source software, built on osquery. With Fleet you can ask important questions about your devices. Whatever operating system, wherever they live.' %>" />
     <meta name="twitter:image" content="https://fleetdm.com/images/fleet-logo-square@2x.png" />
-    <% /* Script tagisHomepage)lly be included further down the page- but any
+    <% /* Script tags should normally be included further down the page- but any
     scripts that load fonts (e.g. Fontawesome ≥v5) are special exceptions to the
     rule. (Include them up here along with any hard-coded «link» tags for Typekit,
     Google Fonts, etc. - above the «body» to prevent the page flickering when fonts
@@ -117,9 +117,9 @@
                 <div id="mobileNavbarToggleUseCases" purpose="mobile-dropdown" class="collapse align-items-start" data-parent="#mobileDropdowns">
                   <a href="/platform">How it works</a>
                   <span>SUCCESS STORIES</span>
-                  <a class="pl-3" href="/device-management/fleet-user-stories-wayfair">Wayfair</a>
-                  <a class="pl-3" href="/device-management/fleet-user-stories-schrodinger">Schrödinger</a>
-                  <a class="pl-3" href="/device-management/fleet-user-stories-f100">F100 security & networking co.</a>
+                  <a class="pl-3" href="https://blog.fleetdm.com/fleet-user-stories-e492a08cebfc">Wayfair</a>
+                  <a class="pl-3" href="https://blog.fleetdm.com/fleet-user-stories-200c94ca8a10">Schrödinger</a>
+                  <a class="pl-3" href="https://blog.fleetdm.com/fleet-user-stories-e5dc300b9e1c">F100 security & networking co.</a>
                 </div>
               </div>
               <hr>
@@ -130,8 +130,8 @@
                   <a href="https://github.com/fleetdm/fleet/releases">Releases</a>
                   <a href="/queries">Query library</a>
                   <span>GUIDES</span>
-                  <a class="pl-3" href="/guides/deploying-fleet-on-aws-with-terraform">Deploy on AWS with Terraform</a>
-                  <a class="pl-3" href="/guides/deploying-fleet-on-render">Deploy on Render</a>
+                  <a class="pl-3" href="https://blog.fleetdm.com/deploying-fleet-on-aws-with-terraform-a58a908e8d40">Deploy on AWS with Terraform</a>
+                  <a class="pl-3" href="https://blog.fleetdm.com/deploying-fleet-on-render-2d743aed213f">Deploy on Render</a>
                 </div>
               </div>
               <hr>
@@ -158,9 +158,9 @@
                 <a class="dropdown-item mb-1" href="/platform">How it works</a>
                 <div class="dropdown-divider"></div>
                 <h6 class="muted dropdown-header">SUCCESS STORIES</h6>
-                <a class="dropdown-item mb-1" href="/device-management/fleet-user-stories-wayfair">Wayfair</a>
-                <a class="dropdown-item mb-1" href="/device-management/fleet-user-stories-schrodinger">Schrödinger</a>
-                <a class="dropdown-item" href="/device-management/fleet-user-stories-f100">F100 security & networking co.</a>
+                <a class="dropdown-item mb-1" href="https://blog.fleetdm.com/fleet-user-stories-e492a08cebfc">Wayfair</a>
+                <a class="dropdown-item mb-1" href="https://blog.fleetdm.com/fleet-user-stories-200c94ca8a10">Schrödinger</a>
+                <a class="dropdown-item" href="https://blog.fleetdm.com/fleet-user-stories-e5dc300b9e1c">F100 security & networking co.</a>
               </div>
             </div>
             <div purpose="dropdown-button" class="btn-group">
@@ -171,8 +171,8 @@
                 <a class="dropdown-item mb-1" href="/queries">Query library</a>
                 <div class="dropdown-divider"></div>
                 <span class="muted dropdown-header">GUIDES</span>
-                <a class="dropdown-item mb-1" href="/guides/deploying-fleet-on-aws-with-terraform">Deploy on AWS with Terraform</a>
-                <a class="dropdown-item" href="/guides/deploying-fleet-on-render">Deploy on Render</a>
+                <a class="dropdown-item mb-1" href="https://blog.fleetdm.com/deploying-fleet-on-aws-with-terraform-a58a908e8d40">Deploy on AWS with Terraform</a>
+                <a class="dropdown-item" href="https://blog.fleetdm.com/deploying-fleet-on-render-2d743aed213f">Deploy on Render</a>
               </div>
             </div>
             <div purpose="dropdown-button" class="btn-group">
@@ -283,29 +283,11 @@
     <%/* Stripe.js */%>
     <script src="https://js.stripe.com/v3/"></script>
 
-    <%/* Linkedin Ads Insight tag */%>
-    <script type="text/javascript">
-    _linkedin_partner_id = "4365817";
-    window._linkedin_data_partner_ids = window._linkedin_data_partner_ids || [];
-    window._linkedin_data_partner_ids.push(_linkedin_partner_id);
-    </script><script type="text/javascript">
-    (function(l) {
-    if (!l){window.lintrk = function(a,b){window.lintrk.q.push([a,b])};
-    window.lintrk.q=[]}
-    var s = document.getElementsByTagName("script")[0];
-    var b = document.createElement("script");
-    b.type = "text/javascript";b.async = true;
-    b.src = "https://snap.licdn.com/li.lms-analytics/insight.min.js";
-    s.parentNode.insertBefore(b, s);})(window.lintrk);
-    </script>
-    <noscript>
-    <img height="1" width="1" style="display:none;" alt="" src="https://px.ads.linkedin.com/collect/?pid=4365817&fmt=gif" />
-    </noscript>
-
     <% /* Delete the global `self` to help avoid client-side bugs.
     (see https://developer.mozilla.org/en-US/docs/Web/API/Window/self) */ %>
     <script>delete window.self;</script>
 
+    <% /* Sticky header */ %>
     <script>
         var lastScrollTop = 0;
         var header = document.querySelector('.header') || document.querySelector('.homepage-header')
@@ -321,10 +303,10 @@
                 fleetLogo.style = 'width: 118px; height: 48px;'
                 return;
             }
-            if (scrollTop > lastScrollTop && scrollTop > window.innerHeight) {
+            if (scrollTop > lastScrollTop && scrollTop > header.innerHeight) {
                 header.classList.add('translate-y-0')
-            } else {
-                if(header.classList.contains('homepage-header') && scrollTop > window.innerHeight * 0.2) {
+             } else {
+                if(header.classList.contains('homepage-header') && scrollTop > header.clientHeight) {
                     header.classList.add('sticky')
                     fleetLogo.src = '/images/logo-blue-162x92@2x.png'
                     fleetLogo.style = 'height: 92px; width: 162px;'
@@ -363,7 +345,6 @@
     <script src="/js/pages/account/account-overview.page.js"></script>
     <script src="/js/pages/account/edit-password.page.js"></script>
     <script src="/js/pages/account/edit-profile.page.js"></script>
-    <script src="/js/pages/articles/basic-article.page.js"></script>
     <script src="/js/pages/contact.page.js"></script>
     <script src="/js/pages/customers/dashboard.page.js"></script>
     <script src="/js/pages/customers/new-license.page.js"></script>
@@ -483,7 +464,5 @@
       });
     });
     </script>
-
-
   </body>
 </html>
