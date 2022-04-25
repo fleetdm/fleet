@@ -3271,6 +3271,7 @@ func testHostsListHostDeviceMapping(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
+	// add device mapping for host
 	ds.writer.ExecContext(ctx, `INSERT INTO host_emails (host_id, email, source) VALUES (?, ?, ?)`,
 		h.ID, "a@b.c", "src1")
 	ds.writer.ExecContext(ctx, `INSERT INTO host_emails (host_id, email, source) VALUES (?, ?, ?)`,
@@ -3278,17 +3279,74 @@ func testHostsListHostDeviceMapping(t *testing.T, ds *Datastore) {
 	ds.writer.ExecContext(ctx, `INSERT INTO host_emails (host_id, email, source) VALUES (?, ?, ?)`,
 		h.ID, "a@b.c", "src2")
 
-	dms, err := ds.ListHostDeviceMapping(ctx, h.ID+1)
-	require.NoError(t, err)
-	require.Len(t, dms, 0)
-
-	dms, err = ds.ListHostDeviceMapping(ctx, h.ID)
+	dms, err := ds.ListHostDeviceMapping(ctx, h.ID)
 	require.NoError(t, err)
 	assertHostDeviceMapping(t, dms, []*fleet.HostDeviceMapping{
 		{Email: "a@b.c", Source: "src1"},
 		{Email: "a@b.c", Source: "src2"},
 		{Email: "b@b.c", Source: "src1"},
 	})
+
+	// non-existent host should have empty device mapping
+	dms, err = ds.ListHostDeviceMapping(ctx, h.ID+1)
+	require.NoError(t, err)
+	require.Len(t, dms, 0)
+
+	// create additional hosts to test device mapping of multiple hosts in ListHosts results
+	h2, err := ds.NewHost(ctx, &fleet.Host{
+		ID:              2,
+		OsqueryHostID:   "2",
+		NodeKey:         "2",
+		Platform:        "linux",
+		Hostname:        "host2",
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+	})
+	require.NoError(t, err)
+
+	// add device mapping for second host
+	ds.writer.ExecContext(ctx, `INSERT INTO host_emails (host_id, email, source) VALUES (?, ?, ?)`,
+		h2.ID, "a@b.c", "src2")
+
+	// create third host with no device mapping
+	_, err = ds.NewHost(ctx, &fleet.Host{
+		ID:              3,
+		OsqueryHostID:   "3",
+		NodeKey:         "3",
+		Platform:        "linux",
+		Hostname:        "host3",
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+	})
+	require.NoError(t, err)
+
+	hosts := listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{}, 3)
+
+	hostsByID := make(map[uint]*fleet.Host)
+	for _, hst := range hosts {
+		hostsByID[hst.ID] = hst
+	}
+
+	var dm []*fleet.HostDeviceMapping
+
+	// device mapping for host 1
+	err = json.Unmarshal(*hostsByID[1].DeviceMapping, &dm)
+	require.NoError(t, err)
+	assert.Len(t, dm, 3)
+
+	// device mapping for host 2
+	err = json.Unmarshal(*hostsByID[2].DeviceMapping, &dm)
+	require.NoError(t, err)
+	assert.Len(t, dm, 1)
+	assert.Equal(t, "a@b.c", dm[0].Email)
+	assert.Equal(t, "src2", dm[0].Source)
+
+	// no device mapping for host 3
+	assert.Nil(t, hostsByID[3].DeviceMapping)
 }
 
 func testHostsReplaceHostDeviceMapping(t *testing.T, ds *Datastore) {
