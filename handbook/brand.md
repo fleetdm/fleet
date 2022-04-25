@@ -209,7 +209,7 @@ In Figma:
 
 ## Rituals
 
-Directly Responsible Individuals (DRI) engage in the rituals below at the frequency specified.
+The following table lists the Brand group's rituals, frequency, and Directly Responsible Individual (DRI).
 
 | Ritual                       | Frequency                | Description                                         | DRI               |
 |:-----------------------------|:-----------------------------|:----------------------------------------------------|-------------------|
