@@ -6,8 +6,8 @@ import { useDebouncedCallback } from "use-debounce";
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 import { IConfig } from "interfaces/config";
-import { IJiraIntegration } from "interfaces/integration";
-import { IWebhookSoftwareVulnerabilities } from "interfaces/webhook";
+import { IJiraIntegration, IZendeskIntegration } from "interfaces/integration";
+import { IWebhookSoftwareVulnerabilities } from "interfaces/webhook"; // @ts-ignore
 import configAPI from "services/entities/config";
 import softwareAPI, {
   ISoftwareResponse,
@@ -50,6 +50,7 @@ interface ISoftwareAutomations {
   };
   integrations: {
     jira: IJiraIntegration[];
+    zendesk: IZendeskIntegration[];
   };
 }
 interface IHeaderButtonsState extends ITeamsDropdownState {

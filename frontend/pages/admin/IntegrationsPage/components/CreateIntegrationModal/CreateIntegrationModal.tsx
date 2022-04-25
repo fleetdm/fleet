@@ -6,14 +6,14 @@ import Dropdown from "components/forms/fields/Dropdown";
 // @ts-ignore
 import FleetIcon from "components/icons/FleetIcon";
 import Spinner from "components/Spinner";
-import { IJiraIntegration, IIntegrations } from "interfaces/integration";
+import { IIntegration, IIntegrations } from "interfaces/integration";
 import IntegrationForm from "../IntegrationForm";
 
 const baseClass = "create-integration-modal";
 
 interface ICreateIntegrationModalProps {
   onCancel: () => void;
-  onSubmit: (jiraIntegrationSubmitData: IJiraIntegration[]) => void;
+  onSubmit: (integrationSubmitData: IIntegration[]) => void;
   serverErrors?: { base: string; email: string };
   backendValidators: { [key: string]: string };
   integrations: IIntegrations;

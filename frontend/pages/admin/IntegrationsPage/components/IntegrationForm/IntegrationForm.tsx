@@ -2,8 +2,6 @@ import React, { FormEvent, useState, useEffect } from "react";
 import ReactTooltip from "react-tooltip";
 
 import {
-  IJiraIntegration,
-  IZendeskIntegration,
   IIntegrationFormData,
   IIntegrationTableData,
   IIntegration,
@@ -18,7 +16,7 @@ const baseClass = "integration-form";
 
 interface IIntegrationFormProps {
   onCancel: () => void;
-  onSubmit: (jiraIntegrationSubmitData: IJiraIntegration[]) => void;
+  onSubmit: (untegrationSubmitData: IIntegration[]) => void;
   integrationEditing?: IIntegrationTableData;
   integrations: IIntegrations;
   integrationEditingUrl?: string;
@@ -79,35 +77,62 @@ const IntegrationForm = ({
   };
 
   // IntegrationForm component can be used to create a new jira integration or edit an existing jira integration so submitData will be assembled accordingly
-  const createSubmitData = (): IJiraIntegration[] => {
+  const createSubmitData = (): IIntegration[] => {
     let jiraIntegrationSubmitData = jiraIntegrations;
+    let zendeskIntegrationSubmitData = zendeskIntegrations;
 
-    if (
-      integrationEditing &&
-      integrationEditing.originalIndex &&
-      integrationEditing.username
-    ) {
-      // Edit existing integration using array replacement
-      jiraIntegrationSubmitData.splice(integrationEditing.originalIndex, 1, {
-        url,
-        username: username || "",
-        api_token: apiToken,
-        project_key: projectKey || "",
-      });
-    } else {
-      // Create new integration at end of array
-      jiraIntegrationSubmitData = [
-        ...jiraIntegrationSubmitData,
-        {
+    if (integrationEditingType === "jira") {
+      if (
+        integrationEditing &&
+        integrationEditing.originalIndex &&
+        integrationEditing.username
+      ) {
+        // Edit existing integration using array replacement
+        jiraIntegrationSubmitData.splice(integrationEditing.originalIndex, 1, {
           url,
           username: username || "",
           api_token: apiToken,
           project_key: projectKey || "",
+        });
+      } else {
+        // Create new integration at end of array
+        jiraIntegrationSubmitData = [
+          ...jiraIntegrationSubmitData,
+          {
+            url,
+            username: username || "",
+            api_token: apiToken,
+            project_key: projectKey || "",
+          },
+        ];
+      }
+      return jiraIntegrationSubmitData;
+    }
+    if (
+      integrationEditing &&
+      integrationEditing.originalIndex &&
+      integrationEditing.email
+    ) {
+      // Edit existing integration using array replacement
+      zendeskIntegrationSubmitData.splice(integrationEditing.originalIndex, 1, {
+        url,
+        email: email || "",
+        api_token: apiToken,
+        group_id: groupId || "",
+      });
+    } else {
+      // Create new integration at end of array
+      zendeskIntegrationSubmitData = [
+        ...zendeskIntegrationSubmitData,
+        {
+          url,
+          email: email || "",
+          api_token: apiToken,
+          group_id: groupId || "",
         },
       ];
     }
-
-    return jiraIntegrationSubmitData;
+    return zendeskIntegrationSubmitData;
   };
 
   const onFormSubmit = (evt: FormEvent): void => {

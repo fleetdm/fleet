@@ -81,10 +81,13 @@ const ManageAutomationsModal = ({
     softwareAutomationsEnabled,
     setSoftwareAutomationsEnabled,
   ] = useState<boolean>(softwareVulnerabilityAutomationEnabled || false);
-  const [jiraEnabled, setJiraEnabled] = useState<boolean>(
+  const [integrationEnabled, setIntegrationEnabled] = useState<boolean>(
     !softwareVulnerabilityWebhookEnabled
   );
-  const [integrationsIndexed, setIntegrationsIndexed] = useState<
+  const [jiraIntegrationsIndexed, setJiraIntegrationsIndexed] = useState<
+    IIntegration[]
+  >();
+  const [zendeskIntegrationsIndexed, setZendeskIntegrationsIndexed] = useState<
     IIntegration[]
   >();
   const [
@@ -112,17 +115,32 @@ const ManageAutomationsModal = ({
       },
       onSuccess: (data) => {
         if (data) {
+          // Jira integrations
           const addJiraIndexed = data.jira.map((integration, index) => {
-            // TODO: handle zendesk as well
             return { ...integration, originalIndex: index, type: "jira" };
           });
-          setIntegrationsIndexed(addJiraIndexed);
+          setJiraIntegrationsIndexed(addJiraIndexed);
           const currentSelectedJiraIntegration = addJiraIndexed.find(
             (integration) => {
               return integration.enable_software_vulnerabilities === true;
             }
           );
           setSelectedIntegration(currentSelectedJiraIntegration);
+          // Zendesk integrations
+          const addZendeskIndexed = data.zendesk.map((integration, index) => {
+            return {
+              ...integration,
+              originalIndex: index,
+              type: "zendesk",
+            };
+          });
+          setZendeskIntegrationsIndexed(addZendeskIndexed);
+          const currentSelectedZendeskIntegration = addZendeskIndexed.find(
+            (integration) => {
+              return integration.enable_software_vulnerabilities === true;
+            }
+          );
+          setSelectedIntegration(currentSelectedZendeskIntegration);
         }
       },
     }
@@ -159,7 +177,9 @@ const ManageAutomationsModal = ({
 
     const updateSoftwareAutomation = () => {
       if (!softwareAutomationsEnabled) {
-        // set enable_vulnerabilities_webhook to false and all jira.enable_software_vulnerabilities to false
+        // set enable_vulnerabilities_webhook
+        // jira.enable_software_vulnerabilities
+        // and zendesk.enable_software_vulnerabilities to false
         configSoftwareAutomations.webhook_settings.vulnerabilities_webhook.enable_vulnerabilities_webhook = false;
         const disableAllJira = configSoftwareAutomations.integrations.jira.map(
           (integration) => {
@@ -167,13 +187,24 @@ const ManageAutomationsModal = ({
           }
         );
         configSoftwareAutomations.integrations.jira = disableAllJira;
+        const disableAllZendesk = configSoftwareAutomations.integrations.zendesk.map(
+          (integration) => {
+            return {
+              ...integration,
+              enable_software_vulnerabilities: false,
+            };
+          }
+        );
+        configSoftwareAutomations.integrations.zendesk = disableAllZendesk;
         return;
       }
-      if (!jiraEnabled) {
+      if (!integrationEnabled) {
         if (!validUrl) {
           return;
         }
-        // set enable_vulnerabilities_webhook to true and all jira.enable_software_vulnerabilities to false
+        // set enable_vulnerabilities_webhook to true
+        // all jira.enable_software_vulnerabilities to false
+        // all zendesk.enable_software_vulnerabilities to false
         configSoftwareAutomations.webhook_settings.vulnerabilities_webhook.enable_vulnerabilities_webhook = true;
         const disableAllJira = configSoftwareAutomations.integrations.jira.map(
           (integration) => {
@@ -184,21 +215,46 @@ const ManageAutomationsModal = ({
           }
         );
         configSoftwareAutomations.integrations.jira = disableAllJira;
+        const disableAllZendesk = configSoftwareAutomations.integrations.zendesk.map(
+          (integration) => {
+            return {
+              ...integration,
+              enable_software_vulnerabilities: false,
+            };
+          }
+        );
+        configSoftwareAutomations.integrations.zendesk = disableAllZendesk;
         return;
       }
-      // set enable_vulnerabilities_webhook to false and all jira.enable_software_vulnerabilities to false
-      // except the one jira integration selected
+      // set enable_vulnerabilities_webhook to false
+      // all jira.enable_software_vulnerabilities to false
+      // all zendesk.enable_software_vulnerabilities to false
+      // except the one integration selected
       configSoftwareAutomations.webhook_settings.vulnerabilities_webhook.enable_vulnerabilities_webhook = false;
       const enableSelectedJiraIntegrationOnly = configSoftwareAutomations.integrations.jira.map(
         (integration, index) => {
           return {
             ...integration,
             enable_software_vulnerabilities:
-              index === selectedIntegration?.originalIndex,
+              selectedIntegration?.type === "jira"
+                ? index === selectedIntegration?.originalIndex
+                : false,
           };
         }
       );
       configSoftwareAutomations.integrations.jira = enableSelectedJiraIntegrationOnly;
+      const enableSelectedZendeskIntegrationOnly = configSoftwareAutomations.integrations.zendesk.map(
+        (integration, index) => {
+          return {
+            ...integration,
+            enable_software_vulnerabilities:
+              selectedIntegration?.type === "zendesk"
+                ? index === selectedIntegration?.originalIndex
+                : false,
+          };
+        }
+      );
+      configSoftwareAutomations.integrations.zendesk = enableSelectedZendeskIntegrationOnly;
     };
 
     updateSoftwareAutomation();
@@ -207,7 +263,7 @@ const ManageAutomationsModal = ({
   };
 
   const createIntegrationDropdownOptions = () => {
-    const integrationOptions = integrationsIndexed?.map((i) => {
+    const integrationOptions = jiraIntegrationsIndexed?.map((i) => {
       return {
         value: String(i.originalIndex),
         label: `${i.url} - ${i.project_key}`,
@@ -219,7 +275,7 @@ const ManageAutomationsModal = ({
   const onChangeSelectIntegration = (selectIntegrationIndex: string) => {
     const integrationWithIndex:
       | IIntegration
-      | undefined = integrationsIndexed?.find(
+      | undefined = jiraIntegrationsIndexed?.find(
       (integ: IIntegration) =>
         integ.originalIndex === parseInt(selectIntegrationIndex, 10)
     );
@@ -228,7 +284,7 @@ const ManageAutomationsModal = ({
 
   const onRadioChange = (jira: boolean): ((evt: string) => void) => {
     return () => {
-      setJiraEnabled(jira);
+      setIntegrationEnabled(jira);
     };
   };
 
@@ -242,7 +298,7 @@ const ManageAutomationsModal = ({
             {recentVulnerabilityMaxAge || "30"} days.
           </p>
         </div>
-        {integrationsIndexed && integrationsIndexed.length > 0 ? (
+        {jiraIntegrationsIndexed && jiraIntegrationsIndexed.length > 0 ? (
           <Dropdown
             searchable
             options={createIntegrationDropdownOptions()}
@@ -338,7 +394,7 @@ const ManageAutomationsModal = ({
                 className={`${baseClass}__radio-input`}
                 label={"Ticket"}
                 id={"ticket-radio-btn"}
-                checked={jiraEnabled}
+                checked={integrationEnabled}
                 value={"ticket"}
                 name={"ticket"}
                 onChange={onRadioChange(true)}
@@ -347,13 +403,13 @@ const ManageAutomationsModal = ({
                 className={`${baseClass}__radio-input`}
                 label={"Webhook"}
                 id={"webhook-radio-btn"}
-                checked={!jiraEnabled}
+                checked={!integrationEnabled}
                 value={"webhook"}
                 name={"webhook"}
                 onChange={onRadioChange(false)}
               />
             </div>
-            {jiraEnabled ? renderTicket() : renderWebhook()}
+            {integrationEnabled ? renderTicket() : renderWebhook()}
           </div>
           {!softwareAutomationsEnabled && (
             <div className={`${baseClass}__overlay`} />
@@ -372,9 +428,9 @@ const ManageAutomationsModal = ({
             data-for="save-automation-button"
             data-tip-disable={
               !(
-                integrationsIndexed &&
-                integrationsIndexed.length === 0 &&
-                jiraEnabled &&
+                jiraIntegrationsIndexed &&
+                jiraIntegrationsIndexed.length === 0 &&
+                integrationEnabled &&
                 softwareAutomationsEnabled
               )
             }
@@ -386,10 +442,10 @@ const ManageAutomationsModal = ({
               onClick={handleSaveAutomation}
               disabled={
                 (softwareAutomationsEnabled &&
-                  jiraEnabled &&
+                  integrationEnabled &&
                   !selectedIntegration) ||
                 (softwareAutomationsEnabled &&
-                  !jiraEnabled &&
+                  !integrationEnabled &&
                   destinationUrl === "")
               }
             >

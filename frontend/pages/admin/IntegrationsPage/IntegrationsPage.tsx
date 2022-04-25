@@ -163,6 +163,9 @@ const IntegrationsPage = (): JSX.Element => {
 
   const onCreateSubmit = useCallback(
     (jiraIntegrationSubmitData: IIntegration[]) => {
+      console.log("jiraIntegrationSubmitData", jiraIntegrationSubmitData);
+
+      debugger;
       setTestingConnection(true);
       configAPI
         .update({ integrations: { jira: jiraIntegrationSubmitData } })
@@ -220,8 +223,6 @@ const IntegrationsPage = (): JSX.Element => {
 
   const onDeleteSubmit = useCallback(() => {
     if (integrationEditing) {
-      // TODO: added .jira to be on jira
-      // need to add zendesk as well
       console.log("integrationEditing", integrationEditing);
 
       const deleteIntegrationDestination = () => {
@@ -270,49 +271,69 @@ const IntegrationsPage = (): JSX.Element => {
   }, [integrationEditing, toggleDeleteIntegrationModal]);
 
   const onEditSubmit = useCallback(
-    (jiraIntegrationSubmitData: IIntegration[]) => {
-      // if (integrationEditing) {
-      //   setTestingConnection(true);
-      //   configAPI
-      //     .update({ integrations: { jira: jiraIntegrationSubmitData } })
-      //     .then(() => {
-      //       renderFlash(
-      //         "success",
-      //         <>
-      //           Successfully edited{" "}
-      //           <b>
-      //             {jiraIntegrationSubmitData[integrationEditing?.index].url}
-      //           </b>
-      //         </>
-      //       );
-      //       setBackendValidators({});
-      //       setTestingConnection(false);
-      //       setShowEditIntegrationModal(false);
-      //       refetchIntegrations();
-      //     })
-      //     .catch((editError: { data: IApiError }) => {
-      //       if (editError.data.message.includes("Validation Failed")) {
-      //         renderFlash("error", VALIDATION_FAILED_ERROR);
-      //       }
-      //       if (editError.data.message.includes("Bad request")) {
-      //         renderFlash("error", BAD_REQUEST_ERROR);
-      //       }
-      //       if (editError.data.message.includes("Unknown Error")) {
-      //         renderFlash("error", UNKNOWN_ERROR);
-      //       } else {
-      //         renderFlash(
-      //           "error",
-      //           <>
-      //             Could not edit <b>{integrationEditing?.url}</b>. Please try
-      //             again.
-      //           </>
-      //         );
-      //       }
-      //     })
-      //     .finally(() => {
-      //       setTestingConnection(false);
-      //     });
-      // }
+    (integratinoSubmitData: IIntegration[]) => {
+      if (integrationEditing) {
+        setTestingConnection(true);
+
+        console.log("integrationEditing", integrationEditing);
+
+        const editIntegrationDestination = () => {
+          if (integrationEditing.type === "jira") {
+            return configAPI.update({
+              integrations: { jira: integratinoSubmitData },
+            });
+          }
+          console.log("What is sent to the API upon editing zendesk", {
+            integrations: { zendesk: integrations?.zendesk },
+          });
+          // return configAPI.update({
+          //   integrations: { zendesk: integrationSubmitData },
+          // });
+          // TODO: replace call below with call above
+          return configAPI.update({
+            integrations: { jira: integratinoSubmitData },
+          });
+        };
+
+        editIntegrationDestination()
+          .then(() => {
+            renderFlash(
+              "success",
+              <>
+                Successfully edited{" "}
+                <b>
+                  {integratinoSubmitData[integrationEditing?.originalIndex].url}
+                </b>
+              </>
+            );
+            setBackendValidators({});
+            setTestingConnection(false);
+            setShowEditIntegrationModal(false);
+            refetchIntegrations();
+          })
+          .catch((editError: { data: IApiError }) => {
+            if (editError.data.message.includes("Validation Failed")) {
+              renderFlash("error", VALIDATION_FAILED_ERROR);
+            }
+            if (editError.data.message.includes("Bad request")) {
+              renderFlash("error", BAD_REQUEST_ERROR);
+            }
+            if (editError.data.message.includes("Unknown Error")) {
+              renderFlash("error", UNKNOWN_ERROR);
+            } else {
+              renderFlash(
+                "error",
+                <>
+                  Could not edit <b>{integrationEditing?.url}</b>. Please try
+                  again.
+                </>
+              );
+            }
+          })
+          .finally(() => {
+            setTestingConnection(false);
+          });
+      }
     },
     [integrationEditing, toggleEditIntegrationModal]
   );
