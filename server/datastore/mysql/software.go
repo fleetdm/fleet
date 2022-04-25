@@ -68,10 +68,10 @@ func uniqueStringToSoftware(s string) fleet.Software {
 	}
 }
 
-func softwareSliceToSet(softwares []fleet.Software) map[string]struct{} {
-	result := make(map[string]struct{})
+func softwareSliceToMap(softwares []fleet.Software) map[string]fleet.Software {
+	result := make(map[string]fleet.Software)
 	for _, s := range softwares {
-		result[softwareToUniqueString(s)] = struct{}{}
+		result[softwareToUniqueString(s)] = s
 	}
 	return result
 }
@@ -149,7 +149,7 @@ func applyChangesForNewSoftwareDB(ctx context.Context, tx sqlx.ExtContext, hostI
 	}
 
 	current := softwareSliceToIdMap(storedCurrentSoftware)
-	incoming := softwareSliceToSet(software)
+	incoming := softwareSliceToMap(software)
 
 	if err = deleteUninstalledHostSoftwareDB(ctx, tx, hostID, current, incoming); err != nil {
 		return err
@@ -162,19 +162,20 @@ func applyChangesForNewSoftwareDB(ctx context.Context, tx sqlx.ExtContext, hostI
 	return nil
 }
 
+// delete host_software that is in current map, but not in incoming map.
 func deleteUninstalledHostSoftwareDB(
 	ctx context.Context,
 	tx sqlx.ExecerContext,
 	hostID uint,
-	currentIdmap map[string]uint,
-	incomingBitmap map[string]struct{},
+	currentIDMap map[string]uint,
+	incomingMap map[string]fleet.Software,
 ) error {
 	var deletesHostSoftware []interface{}
 	deletesHostSoftware = append(deletesHostSoftware, hostID)
 
-	for currentKey := range currentIdmap {
-		if _, ok := incomingBitmap[currentKey]; !ok {
-			deletesHostSoftware = append(deletesHostSoftware, currentIdmap[currentKey])
+	for currentKey, currentID := range currentIDMap {
+		if _, ok := incomingMap[currentKey]; !ok {
+			deletesHostSoftware = append(deletesHostSoftware, currentID)
 		}
 	}
 	if len(deletesHostSoftware) <= 1 {
@@ -237,31 +238,36 @@ func getOrGenerateSoftwareIdDB(ctx context.Context, tx sqlx.ExtContext, s fleet.
 	}
 }
 
+// insert host_software that is in incoming map, but not in current map.
 func insertNewInstalledHostSoftwareDB(
 	ctx context.Context,
 	tx sqlx.ExtContext,
 	hostID uint,
-	currentIdmap map[string]uint,
-	incomingBitmap map[string]struct{},
+	currentIDMap map[string]uint,
+	incomingMap map[string]fleet.Software,
 ) error {
 	var insertsHostSoftware []interface{}
-	incomingOrdered := make([]string, 0, len(incomingBitmap))
-	for s := range incomingBitmap {
+
+	incomingOrdered := make([]string, 0, len(incomingMap))
+	for s := range incomingMap {
 		incomingOrdered = append(incomingOrdered, s)
 	}
 	sort.Strings(incomingOrdered)
+
 	for _, s := range incomingOrdered {
-		if _, ok := currentIdmap[s]; !ok {
+		if _, ok := currentIDMap[s]; !ok {
 			id, err := getOrGenerateSoftwareIdDB(ctx, tx, uniqueStringToSoftware(s))
 			if err != nil {
 				return err
 			}
-			insertsHostSoftware = append(insertsHostSoftware, hostID, id)
+			sw := incomingMap[s]
+			insertsHostSoftware = append(insertsHostSoftware, hostID, id, sw.LastOpenedAt)
 		}
 	}
+
 	if len(insertsHostSoftware) > 0 {
-		values := strings.TrimSuffix(strings.Repeat("(?,?),", len(insertsHostSoftware)/2), ",")
-		sql := fmt.Sprintf(`INSERT IGNORE INTO host_software (host_id, software_id) VALUES %s`, values)
+		values := strings.TrimSuffix(strings.Repeat("(?,?,?),", len(insertsHostSoftware)/3), ",")
+		sql := fmt.Sprintf(`INSERT IGNORE INTO host_software (host_id, software_id, last_opened_at) VALUES %s`, values)
 		if _, err := tx.ExecContext(ctx, sql, insertsHostSoftware...); err != nil {
 			return ctxerr.Wrap(ctx, err, "insert host software")
 		}

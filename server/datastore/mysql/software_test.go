@@ -224,26 +224,28 @@ func testSoftwareHostDuplicates(t *testing.T, ds *Datastore) {
 
 	longName := strings.Repeat("a", 260)
 
-	incoming := make(map[string]struct{})
-	soft2Key := softwareToUniqueString(fleet.Software{
+	incoming := make(map[string]fleet.Software)
+	sw := fleet.Software{
 		Name:    longName + "b",
 		Version: "0.0.1",
 		Source:  "chrome_extension",
-	})
-	incoming[soft2Key] = struct{}{}
+	}
+	soft2Key := softwareToUniqueString(sw)
+	incoming[soft2Key] = sw
 
 	tx, err := ds.writer.Beginx()
 	require.NoError(t, err)
 	require.NoError(t, insertNewInstalledHostSoftwareDB(context.Background(), tx, host1.ID, make(map[string]uint), incoming))
 	require.NoError(t, tx.Commit())
 
-	incoming = make(map[string]struct{})
-	soft3Key := softwareToUniqueString(fleet.Software{
+	incoming = make(map[string]fleet.Software)
+	sw = fleet.Software{
 		Name:    longName + "c",
 		Version: "0.0.1",
 		Source:  "chrome_extension",
-	})
-	incoming[soft3Key] = struct{}{}
+	}
+	soft3Key := softwareToUniqueString(sw)
+	incoming[soft3Key] = sw
 
 	tx, err = ds.writer.Beginx()
 	require.NoError(t, err)
