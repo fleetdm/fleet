@@ -3,30 +3,30 @@
 ## Customer success
 
 ### Scheduling meetings with customers
-To schedule an ad hoc meeting with a Fleet customer, use the ["Customer meeting" Calendly link](https://calendly.com/fleetdm/customer).
+To schedule an [ad hoc meeting](https://www.vocabulary.com/dictionary/ad%20hoc) with a Fleet customer, use the ["Customer meeting" Calendly link](https://calendly.com/fleetdm/customer).
 
 ### Documenting calls with customers
-When we do prospect calls, add the name of the customer in both the google doc title and the heading, ex. "Charlie (Fleet)".  This makes it easier when searching for the document later. 
+When we do prospect calls, add the customer's name in both the google doc title and the heading, ex. "Charlie (Fleet)."  This makes it easier when searching for the document later. 
 
 ### Missed Zoom Meeting | Etiquette with Customers
 This is a tutorial on how to respond when someone from outside the company misses a call.
 
 #### 48 hours before a meeting
 - Check the calendar invite to determine if the customer has accepted the invitation.
-- If the customer has not accepted the invitation please reach out through appropriate channels to confirm attendance (Ex: EAs, Email, Slack).
+- If the customer has not accepted the invitation, please reach out through appropriate channels to confirm attendance (Ex: EAs, Email, Slack).
 - Test the Zoom Meeting link to ensure that it is working.
 - Ensure that agenda documents are attached and accessible to meeting attendees (as appropriate to the situation).
 
 #### Day of meeting
-- Join meeting 2-3 minutes prior to the meeting start time.
-- If the customer does not join the call after 3-minutes, contact the customer with:
+- Join the meeting two to three minutes before the start time.
+- If the customer does not join the call after three minutes, contact the customer with:
   - Slack, if we have a shared channel.
-  - Email, using the email address from the calendar invite.
+  - email, using the email address from the calendar invite.
   - LinkedIn, send a direct message.
-  - Phone, try finding their number to text and/or call (as appropriate to the device type: landline vs cell phone).
-- In these communications to the customer remember to approach the situation with empathy. Anything could have happened.
-- Be ready to supply an alternative date and time to reschedule the call. Suggest 2-3 options for the customer to choose from.
-- Ensure that contact information is accurate and that meeting invites can be received and accessed by the customer.
+  - phone, try finding their number to text and/or call (as appropriate to the device type: landline vs. cell phone).
+- In these communications to the customer, remember to approach the situation with empathy. Anything could have happened.
+- Be ready to supply an alternative date and time to reschedule the call. Suggest two to three options from which the customer can choose.
+- Ensure that contact information is accurate and that he customer can receive and access meeting invites.
 - Repeat back to the customer the newly agreed upon date and time, as well as the contact information.
 - Congratulations, you’re ready to set up a new call.
 
@@ -37,11 +37,15 @@ After a customer conversation, it can sometimes feel like there are 1001 things 
 This section outlines the customer and community support process at Fleet.
 - Basic help desk resolution and service delivery -> CS team handles these with occasional support from L2
 - In-depth technical suppport -> CS team with L2 oncall technician
-- Expert product and service support -> CS team liases with L2 and L3 oncall technician.
-In each case, if possible, the resulting solution should be made more clear in the documentation and/or the FAQs.
+- Expert product and service support -> CS team liaises with L2 and L3 on-call technicians.
+
+If possible, the resulting solution should be more straightforward in each case in the documentation and/or the FAQs.
+
 The support process is accomplished via on-call rotation and the weekly on-call retro meeting.
-The on-call engineer is responsible for responding to technical Slack comments, Slack threads, and GitHub issues raised by customers and the community which cannot handled by the Customer Success team.
-Slack messages have a 24 hour SLA and the Slack channel should have a notice at the top explaining so.
+
+The on-call engineer holds responsibility for reponses to technical Slack comments, Slack threads, and GitHub issues raised by customers and the community, which the Customer Success team cannot handle.
+
+Slack messages have a 24-hour SLA and the Slack channel should have a notice at the top explaining so.
 
 The weekly on-call retro at Fleet provides time to discuss highlights and answer the following questions about the previous week's on-call:
 
