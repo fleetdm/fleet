@@ -6,7 +6,9 @@ import PATHS from "router/paths";
 
 import {
   IJiraIntegration,
-  IJiraIntegrationIndexed,
+  IZendeskIntegration,
+  IIntegration,
+  IIntegrations,
 } from "interfaces/integration";
 import { IConfig } from "interfaces/config";
 import configAPI from "services/entities/config";
@@ -33,6 +35,7 @@ interface ISoftwareAutomations {
   };
   integrations: {
     jira: IJiraIntegration[];
+    zendesk: IZendeskIntegration[];
   };
 }
 
@@ -82,12 +85,12 @@ const ManageAutomationsModal = ({
     !softwareVulnerabilityWebhookEnabled
   );
   const [integrationsIndexed, setIntegrationsIndexed] = useState<
-    IJiraIntegrationIndexed[]
+    IIntegration[]
   >();
   const [
     selectedIntegration,
     setSelectedIntegration,
-  ] = useState<IJiraIntegration>();
+  ] = useState<IIntegration>();
   useDeepEffect(() => {
     setSoftwareAutomationsEnabled(
       softwareVulnerabilityAutomationEnabled || false
@@ -100,20 +103,21 @@ const ManageAutomationsModal = ({
     }
   }, [destinationUrl]);
 
-  const { data: integrations } = useQuery<IConfig, Error, IJiraIntegration[]>(
+  const { data: integrations } = useQuery<IConfig, Error, IIntegrations>(
     ["integrations"],
     () => configAPI.loadAll(),
     {
       select: (data: IConfig) => {
-        return data.integrations.jira;
+        return data.integrations;
       },
       onSuccess: (data) => {
         if (data) {
-          const addIndex = data.map((integration, index) => {
-            return { ...integration, index };
+          const addJiraIndexed = data.jira.map((integration, index) => {
+            // TODO: handle zendesk as well
+            return { ...integration, originalIndex: index, type: "jira" };
           });
-          setIntegrationsIndexed(addIndex);
-          const currentSelectedJiraIntegration = addIndex.find(
+          setIntegrationsIndexed(addJiraIndexed);
+          const currentSelectedJiraIntegration = addJiraIndexed.find(
             (integration) => {
               return integration.enable_software_vulnerabilities === true;
             }
@@ -148,7 +152,8 @@ const ManageAutomationsModal = ({
         },
       },
       integrations: {
-        jira: integrations || [],
+        jira: integrations?.jira || [],
+        zendesk: integrations?.zendesk || [],
       },
     };
 
@@ -189,7 +194,7 @@ const ManageAutomationsModal = ({
           return {
             ...integration,
             enable_software_vulnerabilities:
-              index === selectedIntegration?.index,
+              index === selectedIntegration?.originalIndex,
           };
         }
       );
@@ -204,7 +209,7 @@ const ManageAutomationsModal = ({
   const createIntegrationDropdownOptions = () => {
     const integrationOptions = integrationsIndexed?.map((i) => {
       return {
-        value: String(i.index),
+        value: String(i.originalIndex),
         label: `${i.url} - ${i.project_key}`,
       };
     });
@@ -213,10 +218,10 @@ const ManageAutomationsModal = ({
 
   const onChangeSelectIntegration = (selectIntegrationIndex: string) => {
     const integrationWithIndex:
-      | IJiraIntegrationIndexed
+      | IIntegration
       | undefined = integrationsIndexed?.find(
-      (integ: IJiraIntegrationIndexed) =>
-        integ.index === parseInt(selectIntegrationIndex, 10)
+      (integ: IIntegration) =>
+        integ.originalIndex === parseInt(selectIntegrationIndex, 10)
     );
     setSelectedIntegration(integrationWithIndex);
   };
@@ -243,7 +248,7 @@ const ManageAutomationsModal = ({
             options={createIntegrationDropdownOptions()}
             onChange={onChangeSelectIntegration}
             placeholder={"Select Jira integration"}
-            value={selectedIntegration?.index}
+            value={selectedIntegration?.originalIndex}
             label={"Integration"}
             wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--frequency`}
             hint={

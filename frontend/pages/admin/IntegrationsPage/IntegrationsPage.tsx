@@ -1,12 +1,16 @@
 import React, { useState, useContext, useCallback } from "react";
 import { useQuery } from "react-query";
+import memoize from "memoize-one";
 
 import { NotificationContext } from "context/notification";
 import { IConfig } from "interfaces/config";
 import {
   IJiraIntegration,
-  IJiraIntegrationIndexed,
-  IJiraIntegrationFormErrors,
+  IZendeskIntegration,
+  IIntegration,
+  IIntegrationFormData,
+  IIntegrationFormErrors,
+  IIntegrations,
 } from "interfaces/integration";
 import { IApiError } from "interfaces/errors";
 
@@ -25,7 +29,8 @@ import EditIntegrationModal from "./components/EditIntegrationModal";
 
 import {
   generateTableHeaders,
-  generateDataSet,
+  // generateDataSet,
+  combineDataSets,
 } from "./IntegrationsTableConfig";
 
 const baseClass = "integrations-management";
@@ -51,9 +56,15 @@ const IntegrationsPage = (): JSX.Element => {
   const [
     integrationEditing,
     setIntegrationEditing,
-  ] = useState<IJiraIntegrationIndexed>();
-  const [integrationsIndexed, setIntegrationsIndexed] = useState<
-    IJiraIntegrationIndexed[]
+  ] = useState<IIntegrationFormData>();
+  const [jiraIntegrations, setJiraIntegrations] = useState<
+    IJiraIntegration[]
+  >();
+  const [zendeskIntegrations, setZendeskIntegrations] = useState<
+    IZendeskIntegration[]
+  >();
+  const [combinedIntegrations, setCombinedIntegrations] = useState<
+    IIntegration[]
   >();
   const [backendValidators, setBackendValidators] = useState<{
     [key: string]: string;
@@ -61,7 +72,7 @@ const IntegrationsPage = (): JSX.Element => {
   const [
     createIntegrationError,
     setCreateIntegrationError,
-  ] = useState<IJiraIntegrationFormErrors>(DEFAULT_CREATE_INTEGRATION_ERRORS);
+  ] = useState<IIntegrationFormErrors>(DEFAULT_CREATE_INTEGRATION_ERRORS);
   const [testingConnection, setTestingConnection] = useState<boolean>(false);
 
   const {
@@ -69,23 +80,44 @@ const IntegrationsPage = (): JSX.Element => {
     isLoading: isLoadingIntegrations,
     error: loadingIntegrationsError,
     refetch: refetchIntegrations,
-  } = useQuery<IConfig, Error, IJiraIntegration[]>(
+  } = useQuery<IConfig, Error, IIntegrations>(
     ["integrations"],
     () => configAPI.loadAll(),
     {
       select: (data: IConfig) => {
-        return data.integrations.jira;
+        return data.integrations;
       },
       onSuccess: (data) => {
         if (data) {
-          const addIndex = data.map((integration, index) => {
-            return { ...integration, index };
-          });
-          setIntegrationsIndexed(addIndex);
+          setJiraIntegrations(data.jira);
+          const mockZendeskData = {
+            zendesk: [
+              {
+                url: "https://example1.zendesk.com",
+                email: "admin@example.com",
+                api_token: "abc123",
+                group_id: "12345678",
+                enable_software_vulnerabilities: true,
+              },
+              {
+                url: "https://example2.zendesk.com",
+                email: "maintainer@example.com",
+                api_token: "abc123",
+                group_id: "12345678",
+                enable_software_vulnerabilities: false,
+              },
+            ],
+          };
+          // TODO: Change mockZendeskData to data.zendesk eventually
+          setZendeskIntegrations(mockZendeskData.zendesk);
         }
       },
     }
   );
+
+  const combineJiraAndZendesk = memoize(() => {
+    return combineDataSets(jiraIntegrations || [], zendeskIntegrations || []);
+  });
 
   const toggleAddIntegrationModal = useCallback(() => {
     setShowAddIntegrationModal(!showAddIntegrationModal);
@@ -97,7 +129,7 @@ const IntegrationsPage = (): JSX.Element => {
   ]);
 
   const toggleDeleteIntegrationModal = useCallback(
-    (integration?: IJiraIntegrationIndexed) => {
+    (integration?: IIntegrationFormData) => {
       setShowDeleteIntegrationModal(!showDeleteIntegrationModal);
       integration
         ? setIntegrationEditing(integration)
@@ -111,7 +143,7 @@ const IntegrationsPage = (): JSX.Element => {
   );
 
   const toggleEditIntegrationModal = useCallback(
-    (integration?: IJiraIntegrationIndexed) => {
+    (integration?: IIntegrationFormData) => {
       setShowEditIntegrationModal(!showEditIntegrationModal);
       setBackendValidators({});
       integration
@@ -127,7 +159,7 @@ const IntegrationsPage = (): JSX.Element => {
   );
 
   const onCreateSubmit = useCallback(
-    (jiraIntegrationSubmitData: IJiraIntegration[]) => {
+    (jiraIntegrationSubmitData: IIntegration[]) => {
       setTestingConnection(true);
       configAPI
         .update({ integrations: { jira: jiraIntegrationSubmitData } })
@@ -184,85 +216,87 @@ const IntegrationsPage = (): JSX.Element => {
   );
 
   const onDeleteSubmit = useCallback(() => {
-    if (integrationEditing) {
-      integrations?.splice(integrationEditing.index, 1);
-      configAPI
-        .update({ integrations: { jira: integrations } })
-        .then(() => {
-          renderFlash(
-            "success",
-            <>
-              Successfully deleted <b>{integrationEditing.url}</b>
-            </>
-          );
-        })
-        .catch(() => {
-          renderFlash(
-            "error",
-            <>
-              Could not delete <b>{integrationEditing.url}</b>. Please try
-              again.
-            </>
-          );
-        })
-        .finally(() => {
-          refetchIntegrations();
-          toggleDeleteIntegrationModal();
-        });
-    }
+    // if (integrationEditing) {
+    //   // TODO: added .jira to be on jira
+    //   // need to add zendesk as well
+    //   integrations?.jira.splice(integrationEditing.originalIndex, 1);
+    //   configAPI
+    //     .update({ integrations: { jira: integrations } })
+    //     .then(() => {
+    //       renderFlash(
+    //         "success",
+    //         <>
+    //           Successfully deleted <b>{integrationEditing.url}</b>
+    //         </>
+    //       );
+    //     })
+    //     .catch(() => {
+    //       renderFlash(
+    //         "error",
+    //         <>
+    //           Could not delete <b>{integrationEditing.url}</b>. Please try
+    //           again.
+    //         </>
+    //       );
+    //     })
+    //     .finally(() => {
+    //       refetchIntegrations();
+    //       toggleDeleteIntegrationModal();
+    //     });
+    // }
   }, [integrationEditing, toggleDeleteIntegrationModal]);
 
   const onEditSubmit = useCallback(
-    (jiraIntegrationSubmitData: IJiraIntegration[]) => {
-      if (integrationEditing) {
-        setTestingConnection(true);
-        configAPI
-          .update({ integrations: { jira: jiraIntegrationSubmitData } })
-          .then(() => {
-            renderFlash(
-              "success",
-              <>
-                Successfully edited{" "}
-                <b>
-                  {jiraIntegrationSubmitData[integrationEditing?.index].url}
-                </b>
-              </>
-            );
-            setBackendValidators({});
-            setTestingConnection(false);
-            setShowEditIntegrationModal(false);
-            refetchIntegrations();
-          })
-          .catch((editError: { data: IApiError }) => {
-            if (editError.data.message.includes("Validation Failed")) {
-              renderFlash("error", VALIDATION_FAILED_ERROR);
-            }
-            if (editError.data.message.includes("Bad request")) {
-              renderFlash("error", BAD_REQUEST_ERROR);
-            }
-            if (editError.data.message.includes("Unknown Error")) {
-              renderFlash("error", UNKNOWN_ERROR);
-            } else {
-              renderFlash(
-                "error",
-                <>
-                  Could not edit <b>{integrationEditing?.url}</b>. Please try
-                  again.
-                </>
-              );
-            }
-          })
-          .finally(() => {
-            setTestingConnection(false);
-          });
-      }
+    (jiraIntegrationSubmitData: IIntegration[]) => {
+      // if (integrationEditing) {
+      //   setTestingConnection(true);
+      //   configAPI
+      //     .update({ integrations: { jira: jiraIntegrationSubmitData } })
+      //     .then(() => {
+      //       renderFlash(
+      //         "success",
+      //         <>
+      //           Successfully edited{" "}
+      //           <b>
+      //             {jiraIntegrationSubmitData[integrationEditing?.index].url}
+      //           </b>
+      //         </>
+      //       );
+      //       setBackendValidators({});
+      //       setTestingConnection(false);
+      //       setShowEditIntegrationModal(false);
+      //       refetchIntegrations();
+      //     })
+      //     .catch((editError: { data: IApiError }) => {
+      //       if (editError.data.message.includes("Validation Failed")) {
+      //         renderFlash("error", VALIDATION_FAILED_ERROR);
+      //       }
+      //       if (editError.data.message.includes("Bad request")) {
+      //         renderFlash("error", BAD_REQUEST_ERROR);
+      //       }
+      //       if (editError.data.message.includes("Unknown Error")) {
+      //         renderFlash("error", UNKNOWN_ERROR);
+      //       } else {
+      //         renderFlash(
+      //           "error",
+      //           <>
+      //             Could not edit <b>{integrationEditing?.url}</b>. Please try
+      //             again.
+      //           </>
+      //         );
+      //       }
+      //     })
+      //     .finally(() => {
+      //       setTestingConnection(false);
+      //     });
+      // }
     },
     [integrationEditing, toggleEditIntegrationModal]
   );
 
   const onActionSelection = (
     action: string,
-    integration: IJiraIntegrationIndexed
+    integration: IIntegrationFormData
   ): void => {
     switch (action) {
       case "edit":
@@ -310,9 +344,11 @@ const IntegrationsPage = (): JSX.Element => {
   };
 
   const tableHeaders = generateTableHeaders(onActionSelection);
-  const tableData = integrationsIndexed
-    ? generateDataSet(integrationsIndexed)
-    : [];
+  // const tableData = jiraIntegrationsIndexed
+  //   ? generateDataSet(jiraIntegrationsIndexed)
+  //   : [];
+
+  const tableData = combineJiraAndZendesk();
 
   return (
     <div className={`${baseClass}`}>
@@ -331,7 +367,10 @@ const IntegrationsPage = (): JSX.Element => {
           defaultSortDirection={"asc"}
           actionButtonText={"Add integration"}
           actionButtonVariant={"brand"}
-          hideActionButton={!integrations || integrations.length === 0}
+          hideActionButton={
+            !integrations
+            // TODO: is this correct?
+          }
           onActionButtonClick={toggleAddIntegrationModal}
           resultsTitle={"integrations"}
           emptyComponent={NoIntegrationsComponent}
@@ -345,7 +384,7 @@ const IntegrationsPage = (): JSX.Element => {
           onCancel={toggleAddIntegrationModal}
           onSubmit={onCreateSubmit}
           backendValidators={backendValidators}
-          integrations={integrations || []}
+          integrations={integrations?.jira || []}
           testingConnection={testingConnection}
         />
       )}
@@ -356,12 +395,12 @@ const IntegrationsPage = (): JSX.Element => {
           url={integrationEditing?.url || ""}
         />
       )}
-      {showEditIntegrationModal && (
+      {showEditIntegrationModal && integrations && (
         <EditIntegrationModal
           onCancel={toggleEditIntegrationModal}
           onSubmit={onEditSubmit}
           backendValidators={backendValidators}
-          integrations={integrations || []}
+          integrations={integrations}
           integrationEditing={integrationEditing}
           testingConnection={testingConnection}
         />

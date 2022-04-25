@@ -3,8 +3,9 @@ import ReactTooltip from "react-tooltip";
 
 import {
   IJiraIntegration,
-  IJiraIntegrationFormData,
-  IJiraIntegrationIndexed,
+  IZendeskIntegration,
+  IIntegrationFormData,
+  IIntegration,
 } from "interfaces/integration";
 
 import Button from "components/buttons/Button";
@@ -16,8 +17,15 @@ const baseClass = "integration-form";
 interface IIntegrationFormProps {
   onCancel: () => void;
   onSubmit: (jiraIntegrationSubmitData: IJiraIntegration[]) => void;
-  integrationEditing?: IJiraIntegrationIndexed;
+  integrationEditing?: IIntegrationFormData;
   integrations: IJiraIntegration[];
+  integrationEditingUrl?: string;
+  integrationEditingUsername?: string;
+  integrationEditingEmail?: string;
+  integrationEditingApiToken?: string;
+  integrationEditingProjectKey?: string;
+  integrationEditingGroupId?: string;
+  integrationEnableSoftwareVulnerabilities?: boolean;
 }
 
 interface IFormField {
@@ -30,15 +38,34 @@ const IntegrationForm = ({
   onSubmit,
   integrationEditing,
   integrations,
+  integrationEditingUrl,
+  integrationEditingUsername,
+  integrationEditingEmail,
+  integrationEditingApiToken,
+  integrationEditingProjectKey,
+  integrationEditingGroupId,
+  integrationEnableSoftwareVulnerabilities,
 }: IIntegrationFormProps): JSX.Element => {
-  const [formData, setFormData] = useState<IJiraIntegrationFormData>({
-    url: integrationEditing?.url || "",
-    username: integrationEditing?.username || "",
-    apiToken: integrationEditing?.api_token || "",
-    projectKey: integrationEditing?.project_key || "",
+  const [formData, setFormData] = useState<IIntegrationFormData>({
+    url: integrationEditingUrl || "",
+    username: integrationEditingUsername || "",
+    apiToken: integrationEditingApiToken || "",
+    projectKey: integrationEditingProjectKey || "",
     enableSoftwareVulnerabilities:
-      integrationEditing?.enable_software_vulnerabilities || false,
+      integrationEnableSoftwareVulnerabilities || false,
   });
+
+  // const [
+  //   zendeskFormData,
+  //   setZendeskFormData,
+  // ] = useState<IZendeskIntegrationFormData>({
+  //   url: integrationEditingUrl || "",
+  //   email: integrationEditingEmail || "",
+  //   apiToken: integrationEditingApiToken || "",
+  //   groupId: integrationEditingGroupId || "",
+  //   enableSoftwareVulnerabilities:
+  //     integrationEnableSoftwareVulnerabilities || false,
+  // });
 
   const { url, username, apiToken, projectKey } = formData;
 
@@ -50,13 +77,17 @@ const IntegrationForm = ({
   const createSubmitData = (): IJiraIntegration[] => {
     let jiraIntegrationSubmitData = integrations;
 
-    if (integrationEditing) {
+    if (
+      integrationEditing &&
+      integrationEditing.originalIndex &&
+      integrationEditing.username
+    ) {
       // Edit existing integration using array replacement
-      jiraIntegrationSubmitData.splice(integrationEditing.index, 1, {
+      jiraIntegrationSubmitData.splice(integrationEditing.originalIndex, 1, {
         url,
-        username,
+        username: username || "",
         api_token: apiToken,
-        project_key: projectKey,
+        project_key: projectKey || "",
       });
     } else {
       // Create new integration at end of array
@@ -64,9 +95,9 @@ const IntegrationForm = ({
         ...jiraIntegrationSubmitData,
         {
           url,
-          username,
+          username: username || "",
           api_token: apiToken,
-          project_key: projectKey,
+          project_key: projectKey || "",
         },
       ];
     }

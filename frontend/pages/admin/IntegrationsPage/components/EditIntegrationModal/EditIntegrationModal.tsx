@@ -3,8 +3,9 @@ import React, { useState, useEffect } from "react";
 import Modal from "components/Modal";
 import Spinner from "components/Spinner";
 import {
-  IJiraIntegration,
-  IJiraIntegrationIndexed,
+  IIntegration,
+  IIntegrations,
+  IIntegrationFormData,
 } from "interfaces/integration";
 import IntegrationForm from "../IntegrationForm";
 
@@ -12,10 +13,10 @@ const baseClass = "edit-team-modal";
 
 interface IEditIntegrationModalProps {
   onCancel: () => void;
-  onSubmit: (jiraIntegrationSubmitData: IJiraIntegration[]) => void;
+  onSubmit: (jiraIntegrationSubmitData: IIntegration[]) => void;
   backendValidators: { [key: string]: string };
-  integrations: IJiraIntegration[];
-  integrationEditing?: IJiraIntegrationIndexed;
+  integrations: IIntegrations;
+  integrationEditing?: IIntegrationFormData;
   testingConnection: boolean;
 }
 
@@ -46,8 +47,16 @@ const EditIntegrationModal = ({
         <IntegrationForm
           onCancel={onCancel}
           onSubmit={onSubmit}
-          integrations={integrations}
+          integrations={integrations.jira}
           integrationEditing={integrationEditing}
+          integrationEditingUrl={integrationEditing?.url || ""}
+          integrationEditingEmail={integrationEditing?.email || ""}
+          integrationEditingApiToken={integrationEditing?.apiToken || ""}
+          integrationEditingProjectKey={integrationEditing?.projectKey || ""}
+          integrationEditingGroupId={integrationEditing?.groupId || ""}
+          integrationEnableSoftwareVulnerabilities={
+            integrationEditing?.enableSoftwareVulnerabilities || false
+          }
         />
       )}
     </Modal>

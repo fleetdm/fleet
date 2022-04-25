@@ -5,7 +5,9 @@ import DropdownCell from "components/TableContainer/DataTable/DropdownCell";
 
 import {
   IJiraIntegration,
-  IJiraIntegrationIndexed,
+  IZendeskIntegration,
+  IIntegration,
+  IIntegrationFormData,
 } from "interfaces/integration";
 import { IDropdownOption } from "interfaces/dropdownOption";
 
@@ -20,7 +22,7 @@ interface IHeaderProps {
 
 interface IRowProps {
   row: {
-    original: IJiraIntegrationIndexed;
+    original: IIntegrationFormData;
   };
 }
 interface ICellProps extends IRowProps {
@@ -57,7 +59,7 @@ export interface IIntegrationTableData extends IJiraIntegration {
 const generateTableHeaders = (
   actionSelectHandler: (
     value: string,
-    integration: IJiraIntegrationIndexed
+    integration: IIntegrationFormData
   ) => void
 ): IDataColumn[] => {
   return [
@@ -113,28 +115,82 @@ const generateActionDropdownOptions = (): IDropdownOption[] => {
   ];
 };
 
-const enhanceIntegrationData = (
-  integrations: IJiraIntegrationIndexed[]
-): IIntegrationTableData[] => {
-  return Object.values(integrations).map((integration) => {
+// old
+// const enhanceIntegrationData = (
+//   integrations: IJiraIntegrationIndexed[]
+// ): IIntegrationTableData[] => {
+//   return Object.values(integrations).map((integration) => {
+//     return {
+//       url: integration.url,
+//       username: integration.username,
+//       api_token: integration.api_token,
+//       project_key: integration.project_key,
+//       actions: generateActionDropdownOptions(),
+//       enable_software_vulnerabilities:
+//         integration.enable_software_vulnerabilities,
+//       name: `${integration.url} - ${integration.project_key}`,
+//       index: integration.index,
+//     };
+//   });
+// };
+
+const enhanceJiraData = (jiraIntegrations: IJiraIntegration[]): any[] => {
+  return jiraIntegrations.map((integration, index) => {
     return {
       url: integration.url,
       username: integration.username,
-      api_token: integration.api_token,
-      project_key: integration.project_key,
-      actions: generateActionDropdownOptions(),
-      enable_software_vulnerabilities:
+      apiToken: integration.api_token,
+      projectKey: integration.project_key,
+      enableSoftwareVulnerabilities:
         integration.enable_software_vulnerabilities,
       name: `${integration.url} - ${integration.project_key}`,
-      index: integration.index,
+      actions: generateActionDropdownOptions(),
+      originalIndex: index,
+      type: "jira",
     };
   });
 };
 
-const generateDataSet = (
-  integrations: IJiraIntegrationIndexed[]
-): IIntegrationTableData[] => {
-  return [...enhanceIntegrationData(integrations)];
+const enhanceZendeskData = (
+  zendeskIntegrations: IZendeskIntegration[]
+): any[] => {
+  return zendeskIntegrations.map((integration, index) => {
+    return {
+      url: integration.url,
+      email: integration.email,
+      apiToken: integration.api_token,
+      groupId: integration.group_id,
+      enableSoftwareVulnerabilities:
+        integration.enable_software_vulnerabilities,
+      name: `${integration.url} - ${integration.group_id}`,
+      actions: generateActionDropdownOptions(),
+      originalIndex: index,
+      type: "zendesk",
+    };
+  });
 };
 
-export { generateTableHeaders, generateDataSet };
+const combineDataSets = (
+  jiraIntegrations: IJiraIntegration[],
+  zendeskIntegrations: IZendeskIntegration[]
+): any[] => {
+  const combine = [
+    ...enhanceJiraData(jiraIntegrations),
+    ...enhanceZendeskData(zendeskIntegrations),
+  ];
+  return combine.map((integration, index) => {
+    return { ...integration, tableIndex: index };
+  });
+};
+
+// const generateDataSet = (
+//   integrations: IJiraIntegrationIndexed[]
+// ): IIntegrationTableData[] => {
+//   return [...enhanceIntegrationData(integrations)];
+// };
+
+export {
+  generateTableHeaders,
+  // generateDataSet,
+  combineDataSets,
+};
