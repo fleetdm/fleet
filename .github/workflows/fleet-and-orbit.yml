@@ -39,7 +39,7 @@ jobs:
     strategy:
       matrix:
         go-version: ['^1.17.0']
-        mysql: ['mysql:5.7.21']
+        mysql: ['mysql:5.7']
     runs-on: ubuntu-latest
     needs: gen
     steps:
