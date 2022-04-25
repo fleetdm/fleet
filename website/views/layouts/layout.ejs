@@ -292,9 +292,9 @@
         var lastScrollTop = 0;
         var header = document.querySelector('.header') || document.querySelector('.homepage-header')
 
-        window.addEventListener('scroll', windowedScrolled)
+        window.addEventListener('scroll', windowScrolled)
 
-        function windowedScrolled() {
+        function windowScrolled() {
             var scrollTop = window.pageYOffset || document.documentElement.scrollTop
             var fleetLogo = header.querySelector('img')
             if(scrollTop == 0 && header.classList.contains('homepage-header')) {
