@@ -319,6 +319,8 @@ ifneq ($(shell uname), Darwin)
 endif
 	go run ./tools/desktop macos
 
+FLEET_DESKTOP_VERSION ?= unknown
+
 # Build desktop executable for Windows.
 #
 # Usage:
@@ -326,7 +328,7 @@ endif
 #
 # Output: fleet-desktop.exe
 desktop-windows:
-	GOOS=windows GOARCH=amd64 go build -ldflags "-H=windowsgui" -o fleet-desktop.exe ./orbit/cmd/desktop
+	GOOS=windows GOARCH=amd64 go build -ldflags "-H=windowsgui -X=main.version=$(FLEET_DESKTOP_VERSION)" -o fleet-desktop.exe ./orbit/cmd/desktop
 
 # Build desktop executable for Linux.
 #
@@ -337,7 +339,7 @@ desktop-windows:
 desktop-linux:
 	docker build -f Dockerfile-desktop-linux -t desktop-linux-builder .
 	docker run --rm -v $(shell pwd):/output -it desktop-linux-builder /bin/bash -c "\
-		go build -o /output/fleet-desktop /usr/src/fleet/orbit/cmd/desktop && \
+		go build -o /output/fleet-desktop -ldflags "-X=main.version=$(FLEET_DESKTOP_VERSION)" /usr/src/fleet/orbit/cmd/desktop && \
 		cp /usr/lib/x86_64-linux-gnu/libayatana-appindicator3.so.1 \
 		/usr/lib/x86_64-linux-gnu/libayatana-ido3-0.4.so.0 \
 		/usr/lib/x86_64-linux-gnu/libayatana-indicator3.so.7 \

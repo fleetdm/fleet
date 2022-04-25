@@ -282,12 +282,13 @@ func writePostInstall(opt Options, path string) error {
 }
 
 func writePreRemove(opt Options, path string) error {
+	// We add `|| true` in case the service is not running
+	// or has been manually disabled already. Otherwise,
+	// uninstallation fails.
 	if err := ioutil.WriteFile(path, []byte(`#!/bin/sh
 
-set -e
-
-systemctl stop orbit.service
-systemctl disable orbit.service
+systemctl stop orbit.service || true
+systemctl disable orbit.service || true
 `), constant.DefaultFileMode); err != nil {
 		return fmt.Errorf("write file: %w", err)
 	}
