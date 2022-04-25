@@ -318,6 +318,7 @@ These humans might be working within the "Interface" group itself, insofar as th
 - Bring value to Fleet users through delivery of new features and iteration on existing features.
 - Increase adoption and stickiness of features.
 - Keep the graphical user interface, REST API, fleetctl, and SDKs like Postman reliable, minimal, consistent, and easy to use.
+- Promote stability of the API, introducing breaking changes only through the documented [API versioning](https://fleetdm.com/docs/contributing/api-versioning#what-kind-of-versioning-will-we-use-for-the-api) strategy, or at major version releases.
 - Ensure observance of semantic versioning for the Fleet API and config between releases, so that only major versions include breaking changes.
 - Delight users of Fleet's API, UI, SDKs, and documentation with a simple, secure, widely-adopted user and developer experience.
 - **Improve Fleet’s feature-value and ease of use.**
