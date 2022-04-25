@@ -9,9 +9,8 @@ import PATHS from "router/paths";
 import permissionsUtils from "utilities/permissions";
 import { IQuery } from "interfaces/query";
 import { IUser } from "interfaces/user";
-import { addGravatarUrlToResource } from "fleet/helpers";
+import { addGravatarUrlToResource } from "utilities/helpers";
 
-// @ts-ignore
 import Avatar from "components/Avatar";
 import Checkbox from "components/forms/fields/Checkbox";
 import LinkCell from "components/TableContainer/DataTable/LinkCell/LinkCell";

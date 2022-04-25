@@ -4,7 +4,6 @@ import React from "react";
 
 import { IDataColumn } from "interfaces/datatable_config";
 
-// @ts-ignore
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import StatusCell from "components/TableContainer/DataTable/StatusCell/StatusCell";
 import RemoveIcon from "../../../assets/images/icon-action-remove-20x20@2x.png";

@@ -1,4 +1,4 @@
-describe("Dashboard)", () => {
+describe("Dashboard", () => {
   before(() => {
     Cypress.session.clearAllSavedSessions();
     cy.setup();

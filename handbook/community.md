@@ -110,7 +110,7 @@ Try to stay within 3 or 4 heading levels. Complicated documents may use more, bu
 
 ### Adding a link to the Fleet docs
 
-You can link documentation pages to each other using relative paths. For example, in `docs/Using-Fleet/Fleet-UI.md`, you can link to `docs/Using-Fleet/Permissions.md` by writing `[permissions](./Permissions.md)`. This will automatically transformed into the appropriate URL for `fleetdm.com/docs`.
+You can link documentation pages to each other using relative paths. For example, in `docs/Using-Fleet/Fleet-UI.md`, you can link to `docs/Using-Fleet/Permissions.md` by writing `[permissions](./Permissions.md)`. This will automatically be transformed into the appropriate URL for `fleetdm.com/docs`.
 
 However, the `fleetdm.com/docs` compilation process does not account for relative links to directories **outside** of `/docs`.
 This is why it’s essential to follow the file path exactly when adding a link to Fleet docs.
@@ -194,13 +194,14 @@ The most important thing when community members contribute to Fleet is to show t
 
 ### Process for managing community contributions
 
-The Community Engagememt DRI is responsible for keeping an eye out for new community contributions and either getting them merged in if possible and get the right eyes on them if they need to be reviewed. 
+The Community Engagement DRI is responsible for keeping an eye out for new community contributions and either getting them merged in if possible and get the right eyes on them if they need to be reviewed. 
 
 Each business day, the Community Engagement DRI will check open pull requests to:
 
 1. Check for new pull requests (PRs) from the Fleet community. 
 2. Approve and merge any community PRs that are ready to go.
 3. Make sure there aren't any existing community PRs waiting for followup from Fleet. 
+
 
 #### Identify community contributions
 
@@ -212,31 +213,30 @@ When a new pull request is submitted by a community contributor (someone not a m
     - Things that generally don't need additional review:
         - Minor changes to the docs.
         - Small bug fixes.
-        - Additions or fixes to the Standard Query Library(SQL) are (as long as the SQL works properly and they are attributed correctly).
-        - Use the Please refer to our [PRs from the community](https://docs.google.com/document/d/13r0vEhs9LOBdxWQWdZ8n5Ff9cyB3hQkTjI5OhcrHjVo/edit?usp=sharing) guide and use your best judgement. 
+
+        - Additions or fixes to the Standard Query Library (as long as the SQL works properly and is attributed correctly).
     - If a review is needed:
         - Request review from the [Product DRI](./product.md#product-dris). They should approve extensive changes and new features. Ask in the #g-product channel in Fleet's Slack for more information.
-        - Tag the DRI and the contributor in a comment on the PR letting everyone know why additional review is needed. Make sure to say thanks!
+        - Tag the DRI and the contributor in a comment on the PR, letting everyone know why an additional review is needed. Make sure to say thanks!
         - Find any open issues that are related and make a note in the comments.
 
-
+> Please refer to our [PRs from the community](https://docs.google.com/document/d/13r0vEhs9LOBdxWQWdZ8n5Ff9cyB3hQkTjI5OhcrHjVo/edit?usp=sharing) guide and use your best judgment. 
 
 #### Communicate with contributors
 
 Community contributions are awesome, and it's important that the contributor knows how much they are appreciated. The best way to do that is to keep in touch while we're working to get their PR approved.
 
-While each team member is responsible for monitoring their active issues and pull requests, the Community Engagement DRI will check in on pull requests with the `:community ` label daily to make sure everything is moving along. If there's a comment or question from the contributor that hasn't been addressed, reach out on Slack to try to get more information and update the contributor. 
-
+While each team member is responsible for monitoring their active issues and pull requests, the Community Engagement DRI will check in on pull requests with the `:community ` label daily to make sure everything is moving along. If there's a comment or question from the contributor that hasn't been addressed, reach out on Slack to get more information and update the contributor. 
 
 #### Merge Community PRs
 
 When merging a pull request from a community contributor:
 
-- Ensure that checklist for submitter is complete.
+- Ensure that the checklist for the submitter is complete.
 - Verify that all necessary reviews have been approved.
 - Merge the PR.
 - Thank and congratulate the contributor.
-- Share with the team in the #help-promote channel of Fleet Slack to be publicized on social media. Those who contribute to Fleet and are recognized for their contributions often become great champions for the project.
+- Share the merged PR with the team in the #help-promote channel of Fleet Slack to be publicized on social media. Those who contribute to Fleet and are recognized for their contributions often become great champions for the project.
 
 ### Reviewing PRs from the community
 
