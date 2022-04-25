@@ -975,7 +975,7 @@ Note that live queries are automatically cancelled if this method is not called 
 #### Example script to handle request and response
 
 ```
-const socket = new WebSocket('wss://<your-base-url>/api/v1/fleet/results/websocket');
+const socket = new WebSocket('wss://<your-base-url>/api/v1/fleet/results/websockets');
 
 socket.onopen = () => {
   socket.send(JSON.stringify({ type: 'auth', data: { token: <auth-token> } }));

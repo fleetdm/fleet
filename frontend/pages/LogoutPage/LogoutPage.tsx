@@ -9,7 +9,7 @@ interface ILogoutPageProps {
   router: InjectedRouter;
 }
 
-const LogoutPage = ({ router }: ILogoutPageProps): boolean => {
+const LogoutPage = ({ router }: ILogoutPageProps) => {
   const { renderFlash } = useContext(NotificationContext);
 
   useEffect(() => {
@@ -23,15 +23,14 @@ const LogoutPage = ({ router }: ILogoutPageProps): boolean => {
       } catch (response) {
         console.error(response);
         router.goBack();
-        renderFlash("error", "Unable to log out of your account");
-        return false;
+        return renderFlash("error", "Unable to log out of your account");
       }
     };
 
     logoutUser();
   }, []);
 
-  return false;
+  return null;
 };
 
 export default LogoutPage;

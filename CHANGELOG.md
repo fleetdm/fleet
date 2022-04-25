@@ -1,3 +1,9 @@
+## Fleet 4.13.1 (Apr 20, 2022)
+
+* Fixes an SSO login issue introduced in 4.13.0.
+
+* Fixes authorization errors encountered on the frontend login and live query pages.
+
 ## Fleet 4.13.0 (Apr 18, 2022)
 
 ### This is a security release.

@@ -16,7 +16,8 @@ import packsAPI from "services/entities/packs";
 import queriesAPI from "services/entities/queries";
 import scheduledQueriesAPI from "services/entities/scheduled_queries";
 
-import PATHS from "router/paths"; // @ts-ignore
+import PATHS from "router/paths";
+// @ts-ignore
 import deepDifference from "utilities/deep_difference";
 
 import EditPackForm from "components/forms/packs/EditPackForm";
