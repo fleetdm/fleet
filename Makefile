@@ -338,7 +338,7 @@ desktop-windows:
 # Output: desktop.tar.gz
 desktop-linux:
 	docker build -f Dockerfile-desktop-linux -t desktop-linux-builder .
-	docker run --rm -v $(shell pwd):/output -it desktop-linux-builder /bin/bash -c "\
+	docker run --rm -v $(shell pwd):/output desktop-linux-builder /bin/bash -c "\
 		go build -o /output/fleet-desktop -ldflags "-X=main.version=$(FLEET_DESKTOP_VERSION)" /usr/src/fleet/orbit/cmd/desktop && \
 		cp /usr/lib/x86_64-linux-gnu/libayatana-appindicator3.so.1 \
 		/usr/lib/x86_64-linux-gnu/libayatana-ido3-0.4.so.0 \
