@@ -19,7 +19,7 @@ Learn the process for how to release Fleet.
 Look here for a guide on adding fake data to your development instance.
 
 ### [API for contributors](./API-for-contributors.md) 
-Here is helpful documentation for Fleet API routes when developing or contributing to Fleet.
+Get to grips with Fleet API routes. This documentation is helpful for developing or contributing to Fleet.
 
 ### [FAQ](./FAQ.md) 
 This includes commonly asked questions and answers about contributing to Fleet as part of the Fleet community.
