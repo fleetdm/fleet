@@ -5,7 +5,7 @@ import { isEqual, noop } from "lodash";
 
 import targetsAPI from "services/entities/targets";
 import targetInterface from "interfaces/target";
-import { formatSelectedTargetsForApi } from "fleet/helpers";
+import { formatSelectedTargetsForApi } from "utilities/helpers";
 import Input from "./SelectTargetsInput";
 import Menu from "./SelectTargetsMenu";
 

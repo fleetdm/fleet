@@ -2,7 +2,6 @@ import React from "react";
 import classnames from "classnames";
 
 import { IOsqueryTable } from "interfaces/osquery_table";
-// @ts-ignore
 import { osqueryTableNames } from "utilities/osquery_tables";
 import { PLATFORM_DISPLAY_NAMES } from "utilities/constants";
 

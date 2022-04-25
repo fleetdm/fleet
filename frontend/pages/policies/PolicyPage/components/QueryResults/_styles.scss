@@ -45,11 +45,13 @@
       height: 13px;
       margin-left: 8px;
       position: relative;
-      top: -2px;
+      bottom: 2px;
     }
   }
 
   .table-container {
+    margin-top: 0;
+
     &__header {
       display: none;
     }
@@ -79,10 +81,17 @@
     }
   }
 
+  &__results-table-header,
+  &__errors-table-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: $pad-xlarge;
+  }
+
   &__results-count,
   &__error-count {
     font-size: $x-small;
     font-weight: $bold;
-    margin-right: $pad-medium;
   }
 }

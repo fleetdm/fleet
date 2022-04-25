@@ -7,7 +7,7 @@ import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 import { IConfig } from "interfaces/config";
 import { IJiraIntegration } from "interfaces/integration";
-import { IWebhookSoftwareVulnerabilities } from "interfaces/webhook"; // @ts-ignore
+import { IWebhookSoftwareVulnerabilities } from "interfaces/webhook";
 import configAPI from "services/entities/config";
 import softwareAPI, {
   ISoftwareResponse,

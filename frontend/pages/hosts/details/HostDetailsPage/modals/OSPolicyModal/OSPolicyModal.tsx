@@ -1,8 +1,6 @@
 import React, { useState } from "react";
 
-import { humanHostDetailUpdated } from "fleet/helpers";
-
-// @ts-ignore
+import { humanHostDetailUpdated } from "utilities/helpers";
 import { stringToClipboard } from "utilities/copy_text";
 
 // @ts-ignore

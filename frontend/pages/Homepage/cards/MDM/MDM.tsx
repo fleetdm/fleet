@@ -5,7 +5,6 @@ import macadminsAPI from "services/entities/macadmins";
 import { IMacadminAggregate, IDataTableMDMFormat } from "interfaces/macadmins";
 
 import TableContainer from "components/TableContainer";
-// @ts-ignore
 import Spinner from "components/Spinner";
 import renderLastUpdatedText from "components/LastUpdatedText";
 import generateTableHeaders from "./MDMTableConfig";
