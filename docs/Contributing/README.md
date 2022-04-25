@@ -13,7 +13,7 @@ Here is information about creating and updating database migrations.
 This contains information on how to merge changes into the codebase.
 
 ### [Releasing Fleet](./Releasing-Fleet.md) 
-Explore Fleet’s release process guide.
+Learn the process for how to release Fleet.
 
 ### [Seeding data](./Seeding-Data.md) 
 Look here for a guide on adding fake data to your development instance.
