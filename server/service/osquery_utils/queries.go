@@ -715,6 +715,21 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 			continue
 		}
 
+		var lastOpenedAt time.Time
+		if lastOpenedRaw := row["last_opened_at"]; lastOpenedRaw != "" {
+			if lastOpenedEpoch, err := strconv.ParseFloat(lastOpenedRaw, 64); err != nil {
+				level.Debug(logger).Log(
+					"msg", "host reported software with invalid last opened timestamp",
+					"host", host.Hostname,
+					"version", version,
+					"name", name,
+					"last_opened_at", lastOpenedRaw,
+				)
+			} else {
+				lastOpenedAt = time.Unix(int64(lastOpenedEpoch), 0)
+			}
+		}
+
 		s := fleet.Software{
 			Name:             name,
 			Version:          version,
@@ -724,6 +739,9 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 			Release: row["release"],
 			Vendor:  row["vendor"],
 			Arch:    row["arch"],
+		}
+		if !lastOpenedAt.IsZero() {
+			s.LastOpenedAt = &lastOpenedAt
 		}
 		software = append(software, s)
 	}

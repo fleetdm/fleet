@@ -107,18 +107,36 @@ func nothingChanged(current []fleet.Software, incoming []fleet.Software) bool {
 		return false
 	}
 
-	currentBitmap := make(map[string]bool)
+	currentMap := make(map[string]fleet.Software)
 	for _, s := range current {
-		currentBitmap[softwareToUniqueString(s)] = true
+		currentMap[softwareToUniqueString(s)] = s
 	}
 	for _, s := range incoming {
-		if _, ok := currentBitmap[softwareToUniqueString(s)]; !ok {
+		cur, ok := currentMap[softwareToUniqueString(s)]
+		if !ok {
 			return false
+		}
+
+		// if the incoming software has a last opened at timestamp and it differs
+		// significantly from the current timestamp (or there is no current
+		// timestamp), then consider that something changed.
+		if s.LastOpenedAt != nil {
+			if cur.LastOpenedAt == nil {
+				return false
+			}
+
+			oldLast := *cur.LastOpenedAt
+			newLast := *s.LastOpenedAt
+			if newLast.Sub(oldLast) >= minLastOpenedAtDiff {
+				return false
+			}
 		}
 	}
 
 	return true
 }
+
+const minLastOpenedAtDiff = time.Hour
 
 func applyChangesForNewSoftwareDB(ctx context.Context, tx sqlx.ExtContext, hostID uint, software []fleet.Software) error {
 	storedCurrentSoftware, err := listSoftwareDB(ctx, tx, &hostID, fleet.SoftwareListOptions{SkipLoadingCVEs: true})
