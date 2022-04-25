@@ -8,7 +8,7 @@ import {
   performanceIndicator,
   secondsToDhms,
   abbreviateTimeUnits,
-} from "fleet/helpers";
+} from "utilities/helpers";
 import { IScheduledQuery } from "interfaces/scheduled_query";
 import { IDropdownOption } from "interfaces/dropdownOption";
 

@@ -1,5 +1,4 @@
 import axios, { AxiosError, AxiosResponse } from "axios";
-// @ts-ignore
 import local from "utilities/local";
 import URL_PREFIX from "router/url_prefix";
 

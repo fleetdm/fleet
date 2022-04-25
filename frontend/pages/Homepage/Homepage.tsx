@@ -12,7 +12,8 @@ import sortUtils from "utilities/sort";
 import { PLATFORM_DROPDOWN_OPTIONS } from "utilities/constants";
 
 import TeamsDropdown from "components/TeamsDropdown";
-import Spinner from "components/Spinner"; // @ts-ignore
+import Spinner from "components/Spinner";
+// @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 import useInfoCard from "./components/InfoCard";
 import HostsStatus from "./cards/HostsStatus";

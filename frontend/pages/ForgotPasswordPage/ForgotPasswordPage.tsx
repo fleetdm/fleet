@@ -2,10 +2,12 @@ import React, { useEffect, useState } from "react";
 
 import PATHS from "router/paths";
 import usersAPI from "services/entities/users";
+import formatErrorResponse from "utilities/format_error_response";
 
-import formatErrorResponse from "utilities/format_error_response"; // @ts-ignore
-import ForgotPasswordForm from "components/forms/ForgotPasswordForm"; // @ts-ignore
-import StackedWhiteBoxes from "components/StackedWhiteBoxes"; // @ts-ignore
+// @ts-ignore
+import ForgotPasswordForm from "components/forms/ForgotPasswordForm";
+// @ts-ignore
+import StackedWhiteBoxes from "components/StackedWhiteBoxes";
 import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
 
 const ForgotPasswordPage = () => {
@@ -61,11 +63,7 @@ const ForgotPasswordPage = () => {
 
   return (
     <AuthenticationFormWrapper>
-      <StackedWhiteBoxes
-        leadText={leadText}
-        previousLocation={PATHS.LOGIN}
-        className="forgot-password"
-      >
+      <StackedWhiteBoxes leadText={leadText} previousLocation={PATHS.LOGIN}>
         {renderContent()}
       </StackedWhiteBoxes>
     </AuthenticationFormWrapper>
