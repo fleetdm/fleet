@@ -235,7 +235,7 @@ func testSoftwareHostDuplicates(t *testing.T, ds *Datastore) {
 
 	tx, err := ds.writer.Beginx()
 	require.NoError(t, err)
-	require.NoError(t, insertNewInstalledHostSoftwareDB(context.Background(), tx, host1.ID, make(map[string]uint), incoming))
+	require.NoError(t, insertNewInstalledHostSoftwareDB(context.Background(), tx, host1.ID, make(map[string]fleet.Software), incoming))
 	require.NoError(t, tx.Commit())
 
 	incoming = make(map[string]fleet.Software)
@@ -249,7 +249,7 @@ func testSoftwareHostDuplicates(t *testing.T, ds *Datastore) {
 
 	tx, err = ds.writer.Beginx()
 	require.NoError(t, err)
-	require.NoError(t, insertNewInstalledHostSoftwareDB(context.Background(), tx, host1.ID, make(map[string]uint), incoming))
+	require.NoError(t, insertNewInstalledHostSoftwareDB(context.Background(), tx, host1.ID, make(map[string]fleet.Software), incoming))
 	require.NoError(t, tx.Commit())
 }
 
@@ -311,20 +311,80 @@ func testSoftwareAllCPEs(t *testing.T, ds *Datastore) {
 }
 
 func testSoftwareNothingChanged(t *testing.T, ds *Datastore) {
-	assert.False(t, nothingChanged(nil, []fleet.Software{{}}))
-	assert.True(t, nothingChanged(nil, nil))
-	assert.True(t, nothingChanged(
-		[]fleet.Software{{Name: "A", Version: "1.0", Source: "ASD"}},
-		[]fleet.Software{{Name: "A", Version: "1.0", Source: "ASD"}},
-	))
-	assert.False(t, nothingChanged(
-		[]fleet.Software{{Name: "A", Version: "1.1", Source: "ASD"}},
-		[]fleet.Software{{Name: "A", Version: "1.0", Source: "ASD"}},
-	))
-	assert.False(t, nothingChanged(
-		[]fleet.Software{{Name: "A", Version: "1.0", Source: "ASD"}},
-		[]fleet.Software{{Name: "A", Version: "1.0", Source: "ASD"}, {Name: "B", Version: "1.0", Source: "ASD"}},
-	))
+	cases := []struct {
+		desc     string
+		current  []fleet.Software
+		incoming []fleet.Software
+		want     bool
+	}{
+		{"both nil", nil, nil, true},
+		{"different len", nil, []fleet.Software{{}}, false},
+
+		{
+			"identical",
+			[]fleet.Software{{Name: "A", Version: "1.0", Source: "ASD"}},
+			[]fleet.Software{{Name: "A", Version: "1.0", Source: "ASD"}},
+			true,
+		},
+		{
+			"different version",
+			[]fleet.Software{{Name: "A", Version: "1.1", Source: "ASD"}},
+			[]fleet.Software{{Name: "A", Version: "1.0", Source: "ASD"}},
+			false,
+		},
+		{
+			"new software",
+			[]fleet.Software{{Name: "A", Version: "1.0", Source: "ASD"}},
+			[]fleet.Software{{Name: "A", Version: "1.0", Source: "ASD"}, {Name: "B", Version: "1.0", Source: "ASD"}},
+			false,
+		},
+		{
+			"removed software",
+			[]fleet.Software{{Name: "A", Version: "1.0", Source: "ASD"}, {Name: "B", Version: "1.0", Source: "ASD"}},
+			[]fleet.Software{{Name: "A", Version: "1.0", Source: "ASD"}},
+			false,
+		},
+		{
+			"identical with similar last open",
+			[]fleet.Software{{Name: "A", Version: "1.0", Source: "ASD", LastOpenedAt: ptr.Time(time.Now())}},
+			[]fleet.Software{{Name: "A", Version: "1.0", Source: "ASD", LastOpenedAt: ptr.Time(time.Now())}},
+			true,
+		},
+		{
+			"identical with no new last open",
+			[]fleet.Software{{Name: "A", Version: "1.0", Source: "ASD", LastOpenedAt: ptr.Time(time.Now())}},
+			[]fleet.Software{{Name: "A", Version: "1.0", Source: "ASD"}},
+			true,
+		},
+		{
+			"identical but added last open",
+			[]fleet.Software{{Name: "A", Version: "1.0", Source: "ASD"}},
+			[]fleet.Software{{Name: "A", Version: "1.0", Source: "ASD", LastOpenedAt: ptr.Time(time.Now())}},
+			false,
+		},
+		{
+			"identical but significantly changed last open",
+			[]fleet.Software{{Name: "A", Version: "1.0", Source: "ASD", LastOpenedAt: ptr.Time(time.Now().Add(-365 * 24 * time.Hour))}},
+			[]fleet.Software{{Name: "A", Version: "1.0", Source: "ASD", LastOpenedAt: ptr.Time(time.Now())}},
+			false,
+		},
+		{
+			"identical but insignificantly changed last open",
+			[]fleet.Software{{Name: "A", Version: "1.0", Source: "ASD", LastOpenedAt: ptr.Time(time.Now().Add(-time.Second))}},
+			[]fleet.Software{{Name: "A", Version: "1.0", Source: "ASD", LastOpenedAt: ptr.Time(time.Now())}},
+			true,
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			got := nothingChanged(c.current, c.incoming)
+			if c.want {
+				require.True(t, got)
+			} else {
+				require.False(t, got)
+			}
+		})
+	}
 }
 
 func testSoftwareLoadSupportsTonsOfCVEs(t *testing.T, ds *Datastore) {

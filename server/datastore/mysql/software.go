@@ -76,14 +76,6 @@ func softwareSliceToMap(softwares []fleet.Software) map[string]fleet.Software {
 	return result
 }
 
-func softwareSliceToIdMap(softwareSlice []fleet.Software) map[string]uint {
-	result := make(map[string]uint)
-	for _, s := range softwareSlice {
-		result[softwareToUniqueString(s)] = s.ID
-	}
-	return result
-}
-
 // UpdateHostSoftware updates the software list of a host.
 // The update consists of deleting existing entries that are not in the given `software`
 // slice, updating existing entries and inserting new entries.
@@ -148,7 +140,7 @@ func applyChangesForNewSoftwareDB(ctx context.Context, tx sqlx.ExtContext, hostI
 		return nil
 	}
 
-	current := softwareSliceToIdMap(storedCurrentSoftware)
+	current := softwareSliceToMap(storedCurrentSoftware)
 	incoming := softwareSliceToMap(software)
 
 	if err = deleteUninstalledHostSoftwareDB(ctx, tx, hostID, current, incoming); err != nil {
@@ -156,6 +148,10 @@ func applyChangesForNewSoftwareDB(ctx context.Context, tx sqlx.ExtContext, hostI
 	}
 
 	if err = insertNewInstalledHostSoftwareDB(ctx, tx, hostID, current, incoming); err != nil {
+		return err
+	}
+
+	if err = updateModifiedHostSoftwareDB(ctx, tx, hostID, current, incoming); err != nil {
 		return err
 	}
 
@@ -167,15 +163,15 @@ func deleteUninstalledHostSoftwareDB(
 	ctx context.Context,
 	tx sqlx.ExecerContext,
 	hostID uint,
-	currentIDMap map[string]uint,
+	currentMap map[string]fleet.Software,
 	incomingMap map[string]fleet.Software,
 ) error {
 	var deletesHostSoftware []interface{}
 	deletesHostSoftware = append(deletesHostSoftware, hostID)
 
-	for currentKey, currentID := range currentIDMap {
+	for currentKey, curSw := range currentMap {
 		if _, ok := incomingMap[currentKey]; !ok {
-			deletesHostSoftware = append(deletesHostSoftware, currentID)
+			deletesHostSoftware = append(deletesHostSoftware, curSw.ID)
 		}
 	}
 	if len(deletesHostSoftware) <= 1 {
@@ -243,7 +239,7 @@ func insertNewInstalledHostSoftwareDB(
 	ctx context.Context,
 	tx sqlx.ExtContext,
 	hostID uint,
-	currentIDMap map[string]uint,
+	currentMap map[string]fleet.Software,
 	incomingMap map[string]fleet.Software,
 ) error {
 	var insertsHostSoftware []interface{}
@@ -255,7 +251,7 @@ func insertNewInstalledHostSoftwareDB(
 	sort.Strings(incomingOrdered)
 
 	for _, s := range incomingOrdered {
-		if _, ok := currentIDMap[s]; !ok {
+		if _, ok := currentMap[s]; !ok {
 			id, err := getOrGenerateSoftwareIdDB(ctx, tx, uniqueStringToSoftware(s))
 			if err != nil {
 				return err
@@ -272,6 +268,47 @@ func insertNewInstalledHostSoftwareDB(
 			return ctxerr.Wrap(ctx, err, "insert host software")
 		}
 	}
+
+	return nil
+}
+
+// update host_software when incoming software has a significantly more
+// recent last opened timestamp.
+func updateModifiedHostSoftwareDB(
+	ctx context.Context,
+	tx sqlx.ExtContext,
+	hostID uint,
+	currentMap map[string]fleet.Software,
+	incomingMap map[string]fleet.Software,
+) error {
+	/*
+		var updateHostSoftware []interface{}
+
+		incomingOrdered := make([]string, 0, len(incomingMap))
+		for s := range incomingMap {
+			incomingOrdered = append(incomingOrdered, s)
+		}
+		sort.Strings(incomingOrdered)
+
+		for _, s := range incomingOrdered {
+			if _, ok := currentIDMap[s]; !ok {
+				id, err := getOrGenerateSoftwareIdDB(ctx, tx, uniqueStringToSoftware(s))
+				if err != nil {
+					return err
+				}
+				sw := incomingMap[s]
+				insertsHostSoftware = append(insertsHostSoftware, hostID, id, sw.LastOpenedAt)
+			}
+		}
+
+		if len(insertsHostSoftware) > 0 {
+			values := strings.TrimSuffix(strings.Repeat("(?,?,?),", len(insertsHostSoftware)/3), ",")
+			sql := fmt.Sprintf(`INSERT IGNORE INTO host_software (host_id, software_id, last_opened_at) VALUES %s`, values)
+			if _, err := tx.ExecContext(ctx, sql, insertsHostSoftware...); err != nil {
+				return ctxerr.Wrap(ctx, err, "insert host software")
+			}
+		}
+	*/
 
 	return nil
 }
