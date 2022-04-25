@@ -219,7 +219,7 @@ When a new pull request is submitted by a community contributor (someone not a m
         - Tag the DRI and the contributor in a comment on the PR letting everyone know why additional review is needed. Make sure to say thanks!
         - Find any open issues that are related and make a note in the comments.
 
-
+> Please refer to our [PRs from the community](https://docs.google.com/document/d/13r0vEhs9LOBdxWQWdZ8n5Ff9cyB3hQkTjI5OhcrHjVo/edit?usp=sharing) guide and use your best judgment. 
 
 #### Communicate with contributors
 
