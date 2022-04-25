@@ -2,7 +2,6 @@ import React, { KeyboardEvent } from "react";
 import { Meta, Story } from "@storybook/react";
 import { noop } from "lodash";
 
-// @ts-ignore
 import AutoSizeInputField from ".";
 
 import "../../../../index.scss";

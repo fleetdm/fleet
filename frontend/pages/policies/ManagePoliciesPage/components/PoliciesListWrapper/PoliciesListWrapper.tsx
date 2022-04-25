@@ -8,7 +8,6 @@ import { ITeamSummary } from "interfaces/team";
 import Spinner from "components/Spinner";
 import TableContainer from "components/TableContainer";
 import { generateTableHeaders, generateDataSet } from "./PoliciesTableConfig";
-// @ts-ignore
 import policySvg from "../../../../../../assets/images/no-policy-323x138@2x.png";
 
 const baseClass = "policies-list-wrapper";
