@@ -215,7 +215,7 @@ When a new pull request is submitted by a community contributor (someone not a m
         - Additions or fixes to the Standard Query Library (as long as the SQL works properly and is attributed correctly).
     - If a review is needed:
         - Request review from the [Product DRI](./product.md#product-dris). They should approve extensive changes and new features. Ask in the #g-product channel in Fleet's Slack for more information.
-        - Tag the DRI and the contributor in a comment on the PR letting everyone know why additional review is needed. Make sure to say thanks!
+        - Tag the DRI and the contributor in a comment on the PR, letting everyone know why an additional review is needed. Make sure to say thanks!
         - Find any open issues that are related and make a note in the comments.
 
 > Please refer to our [PRs from the community](https://docs.google.com/document/d/13r0vEhs9LOBdxWQWdZ8n5Ff9cyB3hQkTjI5OhcrHjVo/edit?usp=sharing) guide and use your best judgment. 
