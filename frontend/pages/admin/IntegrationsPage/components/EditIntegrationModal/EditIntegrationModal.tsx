@@ -40,24 +40,32 @@ const EditIntegrationModal = ({
     <Modal title={"Edit integration"} onExit={onCancel} className={baseClass}>
       {testingConnection ? (
         <div className={`${baseClass}__testing-connection`}>
-          <b>Testing connection to Jira</b>
+          <b>Testing connection</b>
           <Spinner />
         </div>
       ) : (
-        <IntegrationForm
-          onCancel={onCancel}
-          onSubmit={onSubmit}
-          integrations={integrations}
-          integrationEditing={integrationEditing}
-          integrationEditingUrl={integrationEditing?.url || ""}
-          integrationEditingEmail={integrationEditing?.email || ""}
-          integrationEditingApiToken={integrationEditing?.apiToken || ""}
-          integrationEditingProjectKey={integrationEditing?.projectKey || ""}
-          integrationEditingGroupId={integrationEditing?.groupId || ""}
-          integrationEnableSoftwareVulnerabilities={
-            integrationEditing?.enableSoftwareVulnerabilities || false
-          }
-        />
+        <>
+          <p>
+            <b>Ticket destination:</b>
+            <br />
+            {integrationEditing?.type === "jira" ? "Jira" : "Zendesk"}
+          </p>
+          <IntegrationForm
+            onCancel={onCancel}
+            onSubmit={onSubmit}
+            integrations={integrations}
+            integrationEditing={integrationEditing}
+            integrationEditingUrl={integrationEditing?.url || ""}
+            integrationEditingEmail={integrationEditing?.email || ""}
+            integrationEditingApiToken={integrationEditing?.apiToken || ""}
+            integrationEditingProjectKey={integrationEditing?.projectKey || ""}
+            integrationEditingGroupId={integrationEditing?.groupId || ""}
+            integrationEnableSoftwareVulnerabilities={
+              integrationEditing?.enableSoftwareVulnerabilities || false
+            }
+            integrationEditingType={integrationEditing?.type}
+          />
+        </>
       )}
     </Modal>
   );

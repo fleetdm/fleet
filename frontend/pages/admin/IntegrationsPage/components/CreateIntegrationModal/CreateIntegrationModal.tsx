@@ -49,7 +49,7 @@ const CreateIntegrationModal = ({
     <Modal title={"Add integration"} onExit={onCancel} className={baseClass}>
       {testingConnection ? (
         <div className={`${baseClass}__testing-connection`}>
-          <b>Testing connection to Jira</b>
+          <b>Testing connection</b>
           <Spinner />
         </div>
       ) : (

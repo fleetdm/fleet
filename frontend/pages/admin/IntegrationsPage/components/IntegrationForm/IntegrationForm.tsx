@@ -27,6 +27,7 @@ interface IIntegrationFormProps {
   integrationEditingProjectKey?: string;
   integrationEditingGroupId?: string;
   integrationEnableSoftwareVulnerabilities?: boolean;
+  integrationEditingType?: string;
   destination?: string;
 }
 
@@ -47,8 +48,10 @@ const IntegrationForm = ({
   integrationEditingProjectKey,
   integrationEditingGroupId,
   integrationEnableSoftwareVulnerabilities,
+  integrationEditingType,
   destination,
 }: IIntegrationFormProps): JSX.Element => {
+  console.log("integrationEditingType", integrationEditingType);
   const { jira: jiraIntegrations, zendesk: zendeskIntegrations } = integrations;
   const [formData, setFormData] = useState<IIntegrationFormData>({
     url: integrationEditingUrl || "",
@@ -61,12 +64,12 @@ const IntegrationForm = ({
       integrationEnableSoftwareVulnerabilities || false,
   });
   const [integrationDestination, setIntegrationDestination] = useState<string>(
-    integrationEditing?.type || destination || "jira"
+    integrationEditingType || destination || "jira"
   );
 
   useEffect(() => {
-    setIntegrationDestination(destination || "jira");
-  }, [destination]);
+    setIntegrationDestination(destination || integrationEditingType || "jira");
+  }, [destination, integrationEditingType]);
 
   const { url, username, email, apiToken, projectKey, groupId } = formData;
 
@@ -238,7 +241,7 @@ const IntegrationForm = ({
             className={`tooltip`}
             style={{ width: "152px", textAlign: "center" }}
           >
-            Complete all fields to save the integration
+            Complete all fields to save the integration.
           </div>
         </ReactTooltip>
         <Button
