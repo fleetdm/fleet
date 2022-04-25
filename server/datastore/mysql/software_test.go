@@ -1059,10 +1059,11 @@ func testUpdateHostSoftware(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	validateSoftware(tup{name: "qux"}, tup{"bar", lastYear}, tup{"baz", now}) // baz hasn't been updated to nowish, too small diff
 
-	// more changes: bar still unchanged, baz and qux to future
+	// more changes: bar receives a date further in the past, baz and qux to future
+	lastLastYear := lastYear.Add(-365 * 24 * time.Hour)
 	future := now.Add(3 * 24 * time.Hour)
 	sw = []fleet.Software{
-		{Name: "bar", Version: "0.0.2", Source: "test", GenerateCPE: "cpe_bar"},
+		{Name: "bar", Version: "0.0.2", Source: "test", GenerateCPE: "cpe_bar", LastOpenedAt: &lastLastYear},
 		{Name: "baz", Version: "0.0.3", Source: "test", GenerateCPE: "cpe_baz", LastOpenedAt: &future},
 		{Name: "qux", Version: "0.0.4", Source: "test", GenerateCPE: "cpe_qux", LastOpenedAt: &future},
 	}
