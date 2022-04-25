@@ -356,7 +356,7 @@ func selectSoftwareSQL(hostID *uint, opts fleet.SoftwareListOptions) (string, []
 			),
 		)
 		if hostID != nil {
-			ds.SelectAppend("hs.last_opened_at")
+			ds = ds.SelectAppend("hs.last_opened_at")
 		}
 	}
 

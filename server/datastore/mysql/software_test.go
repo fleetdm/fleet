@@ -37,6 +37,7 @@ func TestSoftware(t *testing.T) {
 		{"ListVulnerableSoftwareBySource", testListVulnerableSoftwareBySource},
 		{"DeleteVulnerabilitiesByCPECVE", testDeleteVulnerabilitiesByCPECVE},
 		{"HostsByCVE", testHostsByCVE},
+		{"UpdateHostSoftware", testUpdateHostSoftware},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -986,4 +987,86 @@ func testHostsByCVE(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, hosts, 1)
 	require.Equal(t, hosts[0].Hostname, "host2")
+}
+
+func testUpdateHostSoftware(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	now := time.Now()
+	lastYear := now.Add(-365 * 24 * time.Hour)
+
+	// sort software slice by last opened at timestamp
+	genSortFn := func(sl []fleet.Software) func(l, r int) bool {
+		return func(l, r int) bool {
+			lsw, rsw := sl[l], sl[r]
+			lts, rts := lsw.LastOpenedAt, rsw.LastOpenedAt
+			switch {
+			case lts == nil && rts == nil:
+				return true
+			case lts == nil && rts != nil:
+				return true
+			case lts != nil && rts == nil:
+				return false
+			default:
+				return (*lts).Before(*rts) || ((*lts).Equal(*rts) && lsw.Name < rsw.Name)
+			}
+		}
+	}
+
+	host := test.NewHost(t, ds, "host", "", "hostkey", "hostuuid", time.Now())
+
+	type tup struct {
+		name string
+		ts   time.Time
+	}
+	validateSoftware := func(expect ...tup) {
+		err := ds.LoadHostSoftware(ctx, host)
+		require.NoError(t, err)
+
+		require.Len(t, host.Software, len(expect))
+		sort.Slice(host.Software, genSortFn(host.Software))
+
+		for i, sw := range host.Software {
+			want := expect[i]
+			require.Equal(t, want.name, sw.Name)
+
+			if want.ts.IsZero() {
+				require.Nil(t, sw.LastOpenedAt)
+			} else {
+				require.WithinDuration(t, want.ts, *sw.LastOpenedAt, time.Second)
+			}
+		}
+	}
+
+	// set the initial software list
+	sw := []fleet.Software{
+		{Name: "foo", Version: "0.0.1", Source: "test", GenerateCPE: "cpe_foo"},
+		{Name: "bar", Version: "0.0.2", Source: "test", GenerateCPE: "cpe_bar", LastOpenedAt: &lastYear},
+		{Name: "baz", Version: "0.0.3", Source: "test", GenerateCPE: "cpe_baz", LastOpenedAt: &now},
+	}
+	err := ds.UpdateHostSoftware(ctx, host.ID, sw)
+	require.NoError(t, err)
+	validateSoftware(tup{name: "foo"}, tup{"bar", lastYear}, tup{"baz", now})
+
+	// make changes: remove foo, add qux, no new timestamp on bar, small ts change on baz
+	nowish := now.Add(3 * time.Second)
+	sw = []fleet.Software{
+		{Name: "bar", Version: "0.0.2", Source: "test", GenerateCPE: "cpe_bar"},
+		{Name: "baz", Version: "0.0.3", Source: "test", GenerateCPE: "cpe_baz", LastOpenedAt: &nowish},
+		{Name: "qux", Version: "0.0.4", Source: "test", GenerateCPE: "cpe_qux"},
+	}
+	err = ds.UpdateHostSoftware(ctx, host.ID, sw)
+	require.NoError(t, err)
+	validateSoftware(tup{name: "qux"}, tup{"bar", lastYear}, tup{"baz", now}) // baz hasn't been updated to nowish, too small diff
+
+	// more changes: bar still unchanged, baz and qux to future
+	future := now.Add(3 * 24 * time.Hour)
+	sw = []fleet.Software{
+		{Name: "bar", Version: "0.0.2", Source: "test", GenerateCPE: "cpe_bar"},
+		{Name: "baz", Version: "0.0.3", Source: "test", GenerateCPE: "cpe_baz", LastOpenedAt: &future},
+		{Name: "qux", Version: "0.0.4", Source: "test", GenerateCPE: "cpe_qux", LastOpenedAt: &future},
+	}
+	err = ds.UpdateHostSoftware(ctx, host.ID, sw)
+	require.NoError(t, err)
+	validateSoftware(tup{"bar", lastYear}, tup{"baz", future}, tup{"qux", future})
 }
