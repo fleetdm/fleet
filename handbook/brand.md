@@ -33,7 +33,7 @@ Another example to consider is industry jargon that may now be inappropriate. Wh
 Writing at Fleet shares the same principles as [Communicating as Fleet.](https://fleetdm.com/handbook/brand#communicating-as-fleet) Every piece of content we write should be consistent with our company and brand values. To help succeed, we encourage our writers to apply a design thinking approach to their writing by following these principles:
 
 - **Empathize** - Who is the reader? Why will they read it? What do they hope to get from it?
-- **Define** - What is the subject of your writing? What action do you want from the reader?
+- **Define** - What is the subject? What action do you want from the reader?
 - **Ideate and collaborate** - Create an [outline](https://fleetdm.com/handbook/company#why-this-way) of what you plan to write. Interview team members or friends of Fleet to help you.
 - **Prototype** - Write a draft and see how it goes. Draft quickly, iterate, and don't be scared to throw it out if it's not working. 
 - **Test** - Revise, edit, proofread, repeat. Revise, edit, proofread, repeat. Revise, edit... Ok, you get the idea 😵‍💫
