@@ -158,7 +158,7 @@ jobs:
         SECRET=$(echo $SECRET_JSON | jq -r '.spec.secrets[0].secret')
         echo "Secret: $SECRET"
         echo "Hostname: $(hostname -s)"
-        fleetctl package --type pkg --fleet-url=${{ needs.gen.outputs.address }} --enroll-secret=$SECRET --orbit-channel=${{ matrix.orbit-channel }} --osqueryd-channel=${{ matrix.osqueryd-channel }}
+        fleetctl package --type pkg --fleet-url=${{ needs.gen.outputs.address }} --enroll-secret=$SECRET --orbit-channel=${{ matrix.orbit-channel }} --osqueryd-channel=${{ matrix.osqueryd-channel }} --fleet-desktop
         sudo installer -pkg fleet-osquery.pkg -target /
         until fleetctl get hosts | grep -iF $(hostname -s);
         do
@@ -230,7 +230,7 @@ jobs:
         SECRET=$(echo $SECRET_JSON | jq -r '.spec.secrets[0].secret')
         echo "Secret: $SECRET"
         echo "Hostname: $(hostname -s)"
-        fleetctl package --type msi --fleet-url=${{ needs.gen.outputs.address }} --enroll-secret=$SECRET  --orbit-channel=${{ matrix.orbit-channel }} --osqueryd-channel=${{ matrix.osqueryd-channel }}
+        fleetctl package --type msi --fleet-url=${{ needs.gen.outputs.address }} --enroll-secret=$SECRET --orbit-channel=${{ matrix.orbit-channel }} --osqueryd-channel=${{ matrix.osqueryd-channel }} --fleet-desktop
         mv fleet-osquery.msi orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}.msi
 
     - name: Upload MSI
