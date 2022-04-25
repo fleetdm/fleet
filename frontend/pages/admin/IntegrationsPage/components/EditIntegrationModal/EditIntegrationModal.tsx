@@ -47,7 +47,7 @@ const EditIntegrationModal = ({
         <IntegrationForm
           onCancel={onCancel}
           onSubmit={onSubmit}
-          integrations={integrations.jira}
+          integrations={integrations}
           integrationEditing={integrationEditing}
           integrationEditingUrl={integrationEditing?.url || ""}
           integrationEditingEmail={integrationEditing?.email || ""}

@@ -1,4 +1,4 @@
-import React, { FormEvent, useState } from "react";
+import React, { FormEvent, useState, useEffect } from "react";
 import ReactTooltip from "react-tooltip";
 
 import {
@@ -6,6 +6,7 @@ import {
   IZendeskIntegration,
   IIntegrationFormData,
   IIntegration,
+  IIntegrations,
 } from "interfaces/integration";
 
 import Button from "components/buttons/Button";
@@ -18,7 +19,7 @@ interface IIntegrationFormProps {
   onCancel: () => void;
   onSubmit: (jiraIntegrationSubmitData: IJiraIntegration[]) => void;
   integrationEditing?: IIntegrationFormData;
-  integrations: IJiraIntegration[];
+  integrations: IIntegrations;
   integrationEditingUrl?: string;
   integrationEditingUsername?: string;
   integrationEditingEmail?: string;
@@ -26,6 +27,7 @@ interface IIntegrationFormProps {
   integrationEditingProjectKey?: string;
   integrationEditingGroupId?: string;
   integrationEnableSoftwareVulnerabilities?: boolean;
+  destination?: string;
 }
 
 interface IFormField {
@@ -45,29 +47,28 @@ const IntegrationForm = ({
   integrationEditingProjectKey,
   integrationEditingGroupId,
   integrationEnableSoftwareVulnerabilities,
+  destination,
 }: IIntegrationFormProps): JSX.Element => {
+  const { jira: jiraIntegrations, zendesk: zendeskIntegrations } = integrations;
   const [formData, setFormData] = useState<IIntegrationFormData>({
     url: integrationEditingUrl || "",
     username: integrationEditingUsername || "",
+    email: integrationEditingEmail || "",
     apiToken: integrationEditingApiToken || "",
     projectKey: integrationEditingProjectKey || "",
+    groupId: integrationEditingGroupId || "",
     enableSoftwareVulnerabilities:
       integrationEnableSoftwareVulnerabilities || false,
   });
+  const [integrationDestination, setIntegrationDestination] = useState<string>(
+    integrationEditing?.type || destination || "jira"
+  );
 
-  // const [
-  //   zendeskFormData,
-  //   setZendeskFormData,
-  // ] = useState<IZendeskIntegrationFormData>({
-  //   url: integrationEditingUrl || "",
-  //   email: integrationEditingEmail || "",
-  //   apiToken: integrationEditingApiToken || "",
-  //   groupId: integrationEditingGroupId || "",
-  //   enableSoftwareVulnerabilities:
-  //     integrationEnableSoftwareVulnerabilities || false,
-  // });
+  useEffect(() => {
+    setIntegrationDestination(destination || "jira");
+  }, [destination]);
 
-  const { url, username, apiToken, projectKey } = formData;
+  const { url, username, email, apiToken, projectKey, groupId } = formData;
 
   const onInputChange = ({ name, value }: IFormField) => {
     setFormData({ ...formData, [name]: value });
@@ -75,7 +76,7 @@ const IntegrationForm = ({
 
   // IntegrationForm component can be used to create a new jira integration or edit an existing jira integration so submitData will be assembled accordingly
   const createSubmitData = (): IJiraIntegration[] => {
-    let jiraIntegrationSubmitData = integrations;
+    let jiraIntegrationSubmitData = jiraIntegrations;
 
     if (
       integrationEditing &&
@@ -121,48 +122,77 @@ const IntegrationForm = ({
         autofocus
         name="url"
         onChange={onInputChange}
-        label="Jira site URL"
+        label="URL"
         placeholder="https://jira.example.com"
         parseTarget
         value={url}
       />
-      <InputField
-        name="username"
-        onChange={onInputChange}
-        label="Jira username"
-        placeholder="name@example.com"
-        parseTarget
-        value={username}
-        tooltip={
-          "\
+      {integrationDestination === "jira" ? (
+        <InputField
+          name="username"
+          onChange={onInputChange}
+          label="Username"
+          placeholder="name@example.com"
+          parseTarget
+          value={username}
+          tooltip={
+            "\
               This user must have “Create issues” for the project <br/> \
               in which the issues are created. \
             "
-        }
-      />
+          }
+        />
+      ) : (
+        <InputField
+          name="email"
+          onChange={onInputChange}
+          label="Email"
+          placeholder="name@example.com"
+          parseTarget
+          value={email}
+        />
+      )}
       <InputField
         name="apiToken"
         onChange={onInputChange}
-        label="Jira API token"
+        label="API token"
         parseTarget
         value={apiToken}
       />
-      <InputField
-        name="projectKey"
-        onChange={onInputChange}
-        label="Jira project key"
-        placeholder="JRAEXAMPLE"
-        parseTarget
-        value={projectKey}
-        tooltip={
-          "\
+      {integrationDestination === "jira" ? (
+        <InputField
+          name="projectKey"
+          onChange={onInputChange}
+          label="Project key"
+          placeholder="JRAEXAMPLE"
+          parseTarget
+          value={projectKey}
+          tooltip={
+            "\
               To find the Jira project key, head to your project in <br /> \
               Jira. Your project key is in URL. For example, in <br /> \
               “jira.example.com/projects/JRAEXAMPLE,” <br /> \
               “JRAEXAMPLE” is your project key. \
             "
-        }
-      />
+          }
+        />
+      ) : (
+        <InputField
+          name="groupId"
+          onChange={onInputChange}
+          label="Group ID"
+          placeholder="JRAEXAMPLE"
+          parseTarget
+          value={groupId}
+          tooltip={
+            "\
+              To find the Zendesk group ID, select <b>Admin > <br /> \
+              People > Groups</b>. Find the group and select it. <br /> \
+              The group ID will appear in the search field. \
+            "
+          }
+        />
+      )}
       <div className={`${baseClass}__btn-wrap`}>
         <div
           data-tip
@@ -181,10 +211,15 @@ const IntegrationForm = ({
             type="submit"
             variant="brand"
             disabled={
-              formData.url === "" ||
-              formData.username === "" ||
-              formData.apiToken === "" ||
-              formData.projectKey === ""
+              destination === "jira"
+                ? formData.url === "" ||
+                  formData.username === "" ||
+                  formData.apiToken === "" ||
+                  formData.projectKey === ""
+                : formData.url === "" ||
+                  formData.email === "" ||
+                  formData.apiToken === "" ||
+                  formData.groupId === ""
             }
           >
             Save

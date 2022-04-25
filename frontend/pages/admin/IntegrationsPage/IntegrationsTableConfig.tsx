@@ -12,6 +12,7 @@ import {
 import { IDropdownOption } from "interfaces/dropdownOption";
 
 import JiraIcon from "../../../../assets/images/icon-jira-24x24@2x.png";
+import ZendeskIcon from "../../../../assets/images/icon-zendesk-27x20@2x.png";
 
 interface IHeaderProps {
   column: {
@@ -68,8 +69,15 @@ const generateTableHeaders = (
       Header: "",
       disableSortBy: true,
       sortType: "caseInsensitive",
-      accessor: "logo",
-      Cell: () => <img src={JiraIcon} alt="jira-icon" />,
+      accessor: "type",
+      Cell: (cellProps: ICellProps) => {
+        return (
+          <img
+            src={cellProps.cell.value === "jira" ? JiraIcon : ZendeskIcon}
+            alt="integration-icon"
+          />
+        );
+      },
     },
     {
       title: "Name",

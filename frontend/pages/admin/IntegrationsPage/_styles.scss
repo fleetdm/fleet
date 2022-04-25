@@ -93,12 +93,13 @@
   }
 }
 
-.logo__header {
-  width: 24px;
+.type__header {
+  width: 27px;
 }
 
-.logo__cell {
+.type__cell {
   img {
-    width: 24px;
+    width: 100%;
+    vertical-align: middle;
   }
 }

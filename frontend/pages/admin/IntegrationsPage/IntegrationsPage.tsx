@@ -384,7 +384,7 @@ const IntegrationsPage = (): JSX.Element => {
           onCancel={toggleAddIntegrationModal}
           onSubmit={onCreateSubmit}
           backendValidators={backendValidators}
-          integrations={integrations?.jira || []}
+          integrations={integrations || { jira: [], zendesk: [] }}
           testingConnection={testingConnection}
         />
       )}
