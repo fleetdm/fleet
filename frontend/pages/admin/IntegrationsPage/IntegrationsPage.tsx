@@ -9,6 +9,7 @@ import {
   IZendeskIntegration,
   IIntegration,
   IIntegrationFormData,
+  IIntegrationTableData,
   IIntegrationFormErrors,
   IIntegrations,
 } from "interfaces/integration";
@@ -56,16 +57,16 @@ const IntegrationsPage = (): JSX.Element => {
   const [
     integrationEditing,
     setIntegrationEditing,
-  ] = useState<IIntegrationFormData>();
+  ] = useState<IIntegrationTableData>();
   const [jiraIntegrations, setJiraIntegrations] = useState<
     IJiraIntegration[]
   >();
   const [zendeskIntegrations, setZendeskIntegrations] = useState<
     IZendeskIntegration[]
   >();
-  const [combinedIntegrations, setCombinedIntegrations] = useState<
-    IIntegration[]
-  >();
+  // const [combinedIntegrations, setCombinedIntegrations] = useState<
+  //   IIntegration[]
+  // >();
   const [backendValidators, setBackendValidators] = useState<{
     [key: string]: string;
   }>({});
@@ -129,7 +130,9 @@ const IntegrationsPage = (): JSX.Element => {
   ]);
 
   const toggleDeleteIntegrationModal = useCallback(
-    (integration?: IIntegrationFormData) => {
+    (integration?: IIntegrationTableData) => {
+      console.log("integration deleting", integration);
+
       setShowDeleteIntegrationModal(!showDeleteIntegrationModal);
       integration
         ? setIntegrationEditing(integration)
@@ -143,7 +146,7 @@ const IntegrationsPage = (): JSX.Element => {
   );
 
   const toggleEditIntegrationModal = useCallback(
-    (integration?: IIntegrationFormData) => {
+    (integration?: IIntegrationTableData) => {
       setShowEditIntegrationModal(!showEditIntegrationModal);
       setBackendValidators({});
       integration
@@ -216,34 +219,54 @@ const IntegrationsPage = (): JSX.Element => {
   );
 
   const onDeleteSubmit = useCallback(() => {
-    // if (integrationEditing) {
-    //   // TODO: added .jira to be on jira
-    //   // need to add zendesk as well
-    //   integrations?.jira.splice(integrationEditing.originalIndex, 1);
-    //   configAPI
-    //     .update({ integrations: { jira: integrations } })
-    //     .then(() => {
-    //       renderFlash(
-    //         "success",
-    //         <>
-    //           Successfully deleted <b>{integrationEditing.url}</b>
-    //         </>
-    //       );
-    //     })
-    //     .catch(() => {
-    //       renderFlash(
-    //         "error",
-    //         <>
-    //           Could not delete <b>{integrationEditing.url}</b>. Please try
-    //           again.
-    //         </>
-    //       );
-    //     })
-    //     .finally(() => {
-    //       refetchIntegrations();
-    //       toggleDeleteIntegrationModal();
-    //     });
-    // }
+    if (integrationEditing) {
+      // TODO: added .jira to be on jira
+      // need to add zendesk as well
+      console.log("integrationEditing", integrationEditing);
+
+      const deleteIntegrationDestination = () => {
+        if (integrationEditing.type === "jira") {
+          integrations?.jira.splice(integrationEditing.originalIndex, 1);
+          return configAPI.update({
+            integrations: { jira: integrations?.jira },
+          });
+        }
+        integrations?.zendesk.splice(integrationEditing.originalIndex, 1);
+        console.log("What is sent to the API upon deleting zendesk", {
+          integrations: { zendesk: integrations?.zendesk },
+        });
+        // return configAPI.update({
+        //   integrations: { zendesk: integrations?.zendesk },
+        // });
+        // TODO: replace call below with call above
+        return configAPI.update({
+          integrations: { jira: integrations?.jira },
+        });
+      };
+
+      deleteIntegrationDestination()
+        .then(() => {
+          renderFlash(
+            "success",
+            <>
+              Successfully deleted <b>{integrationEditing.url}</b>
+            </>
+          );
+        })
+        .catch(() => {
+          renderFlash(
+            "error",
+            <>
+              Could not delete <b>{integrationEditing.url}</b>. Please try
+              again.
+            </>
+          );
+        })
+        .finally(() => {
+          refetchIntegrations();
+          toggleDeleteIntegrationModal();
+        });
+    }
   }, [integrationEditing, toggleDeleteIntegrationModal]);
 
   const onEditSubmit = useCallback(
@@ -296,7 +319,7 @@ const IntegrationsPage = (): JSX.Element => {
 
   const onActionSelection = (
     action: string,
-    integration: IIntegrationFormData
+    integration: IIntegrationTableData
   ): void => {
     switch (action) {
       case "edit":
@@ -344,6 +367,7 @@ const IntegrationsPage = (): JSX.Element => {
   };
 
   const tableHeaders = generateTableHeaders(onActionSelection);
+  // TODO: Old, should be ready to delete
   // const tableData = jiraIntegrationsIndexed
   //   ? generateDataSet(jiraIntegrationsIndexed)
   //   : [];
@@ -392,7 +416,7 @@ const IntegrationsPage = (): JSX.Element => {
         <DeleteIntegrationModal
           onCancel={toggleDeleteIntegrationModal}
           onSubmit={onDeleteSubmit}
-          url={integrationEditing?.url || ""}
+          name={integrationEditing?.name || ""}
         />
       )}
       {showEditIntegrationModal && integrations && (

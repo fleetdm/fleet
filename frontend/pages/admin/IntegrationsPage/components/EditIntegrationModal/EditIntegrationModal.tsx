@@ -5,7 +5,7 @@ import Spinner from "components/Spinner";
 import {
   IIntegration,
   IIntegrations,
-  IIntegrationFormData,
+  IIntegrationTableData,
 } from "interfaces/integration";
 import IntegrationForm from "../IntegrationForm";
 
@@ -16,7 +16,7 @@ interface IEditIntegrationModalProps {
   onSubmit: (jiraIntegrationSubmitData: IIntegration[]) => void;
   backendValidators: { [key: string]: string };
   integrations: IIntegrations;
-  integrationEditing?: IIntegrationFormData;
+  integrationEditing?: IIntegrationTableData;
   testingConnection: boolean;
 }
 
@@ -56,6 +56,7 @@ const EditIntegrationModal = ({
             integrations={integrations}
             integrationEditing={integrationEditing}
             integrationEditingUrl={integrationEditing?.url || ""}
+            integrationEditingUsername={integrationEditing?.username || ""}
             integrationEditingEmail={integrationEditing?.email || ""}
             integrationEditingApiToken={integrationEditing?.apiToken || ""}
             integrationEditingProjectKey={integrationEditing?.projectKey || ""}

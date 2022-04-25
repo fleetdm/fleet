@@ -5,6 +5,7 @@ import {
   IJiraIntegration,
   IZendeskIntegration,
   IIntegrationFormData,
+  IIntegrationTableData,
   IIntegration,
   IIntegrations,
 } from "interfaces/integration";
@@ -18,7 +19,7 @@ const baseClass = "integration-form";
 interface IIntegrationFormProps {
   onCancel: () => void;
   onSubmit: (jiraIntegrationSubmitData: IJiraIntegration[]) => void;
-  integrationEditing?: IIntegrationFormData;
+  integrationEditing?: IIntegrationTableData;
   integrations: IIntegrations;
   integrationEditingUrl?: string;
   integrationEditingUsername?: string;
@@ -201,12 +202,15 @@ const IntegrationForm = ({
           data-tip
           data-for="create-integration-button"
           data-tip-disable={
-            !(
-              formData.url === "" ||
-              formData.username === "" ||
-              formData.apiToken === "" ||
-              formData.projectKey === ""
-            )
+            !(integrationDestination === "jira"
+              ? formData.url === "" ||
+                formData.username === "" ||
+                formData.apiToken === "" ||
+                formData.projectKey === ""
+              : formData.url === "" ||
+                formData.email === "" ||
+                formData.apiToken === "" ||
+                formData.groupId === "")
           }
         >
           <Button
@@ -214,7 +218,7 @@ const IntegrationForm = ({
             type="submit"
             variant="brand"
             disabled={
-              destination === "jira"
+              integrationDestination === "jira"
                 ? formData.url === "" ||
                   formData.username === "" ||
                   formData.apiToken === "" ||

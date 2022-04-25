@@ -25,6 +25,7 @@ export interface IIntegration {
   originalIndex?: number;
   type?: string;
   tableIndex?: number;
+  name?: string;
 }
 
 export interface IIntegrationFormData {
@@ -35,10 +36,15 @@ export interface IIntegrationFormData {
   projectKey?: string;
   groupId?: string;
   enableSoftwareVulnerabilities?: boolean;
-  originalIndex?: number;
-  type?: string;
-  tableIndex?: number;
 }
+
+export interface IIntegrationTableData extends IIntegrationFormData {
+  originalIndex: number;
+  type: string;
+  tableIndex: number;
+  name: string;
+}
+
 export interface IIntegrationFormErrors {
   url?: string | null;
   email?: string | null;

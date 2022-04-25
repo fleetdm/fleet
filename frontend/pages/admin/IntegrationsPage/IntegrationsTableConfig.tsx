@@ -8,6 +8,7 @@ import {
   IZendeskIntegration,
   IIntegration,
   IIntegrationFormData,
+  IIntegrationTableData as IIntegrationCompleteData,
 } from "interfaces/integration";
 import { IDropdownOption } from "interfaces/dropdownOption";
 
@@ -23,7 +24,7 @@ interface IHeaderProps {
 
 interface IRowProps {
   row: {
-    original: IIntegrationFormData;
+    original: IIntegrationTableData;
   };
 }
 interface ICellProps extends IRowProps {
@@ -50,7 +51,7 @@ interface IDataColumn {
   sortType?: string;
 }
 
-export interface IIntegrationTableData extends IJiraIntegration {
+export interface IIntegrationTableData extends IIntegrationCompleteData {
   actions: IDropdownOption[];
   name: string;
 }
@@ -60,7 +61,7 @@ export interface IIntegrationTableData extends IJiraIntegration {
 const generateTableHeaders = (
   actionSelectHandler: (
     value: string,
-    integration: IIntegrationFormData
+    integration: IIntegrationTableData
   ) => void
 ): IDataColumn[] => {
   return [
