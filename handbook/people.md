@@ -190,18 +190,18 @@ Every new position being created goes through this process before interviewing, 
 
 Proposed positions get added to:
 - "Roles" doc (stubbed out job description with "TODO" is fine). Only "Responsibilities" and "Experience" are needed and to Fleeties doc (leave start date blank).
-- Create a private "#hiring-xxxxxx-2022" Slack channel (where "xxxxxx" is job title) and invite CEO and Charlie.
+- Create a private "#hiring-xxxxxx-2022" Slack channel (where "xxxxxx" is the job title). Invite the CEO and Charlie.
 
 In that channel, post a message proposing the position:
   - At-mention CEO (@mikermcneil) and Charlie (@charlie).
-  - Include link to job description in "Roles" (even if it's a stub).
-  - Include link to Fleeties document.
+  - Include a link to the job description in "Roles" (even if it's a stub).
+  - Include a link to Fleeties document.
 
 After getting CEO approval, create a position in Breezy.
 
 ### Creating a new position in Breezy
 
-> TODO: document how to post job on fleetdm.com/apply using Breezy and manage the hiring process 
+<?TODO: document how to post a job on fleetdm.com/apply using Breezy and manage the hiring process?>
 
 ### Hiring a new team member
 
