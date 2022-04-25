@@ -272,8 +272,11 @@ func insertNewInstalledHostSoftwareDB(
 	return nil
 }
 
-// update host_software when incoming software has a significantly more
-// recent last opened timestamp.
+// update host_software when incoming software has a significantly more recent
+// last opened timestamp (or didn't have on in currentMap). Note that it only
+// processes software that is in both current and incoming maps, as the case
+// where it is only in incoming is already handled by
+// insertNewInstalledHostSoftwareDB.
 func updateModifiedHostSoftwareDB(
 	ctx context.Context,
 	tx sqlx.ExtContext,
@@ -281,34 +284,29 @@ func updateModifiedHostSoftwareDB(
 	currentMap map[string]fleet.Software,
 	incomingMap map[string]fleet.Software,
 ) error {
-	/*
-		var updateHostSoftware []interface{}
+	const stmt = `UPDATE host_software SET last_opened_at = ? WHERE host_id = ? AND software_id = ?`
 
-		incomingOrdered := make([]string, 0, len(incomingMap))
-		for s := range incomingMap {
-			incomingOrdered = append(incomingOrdered, s)
-		}
-		sort.Strings(incomingOrdered)
-
-		for _, s := range incomingOrdered {
-			if _, ok := currentIDMap[s]; !ok {
-				id, err := getOrGenerateSoftwareIdDB(ctx, tx, uniqueStringToSoftware(s))
-				if err != nil {
-					return err
-				}
-				sw := incomingMap[s]
-				insertsHostSoftware = append(insertsHostSoftware, hostID, id, sw.LastOpenedAt)
-			}
+	var keysToUpdate []string
+	for key, newSw := range incomingMap {
+		curSw, ok := currentMap[key]
+		if !ok || newSw.LastOpenedAt == nil {
+			// software must also exist in current map, and new software must have a
+			// last opened at timestamp (otherwise we don't overwrite the old one)
+			continue
 		}
 
-		if len(insertsHostSoftware) > 0 {
-			values := strings.TrimSuffix(strings.Repeat("(?,?,?),", len(insertsHostSoftware)/3), ",")
-			sql := fmt.Sprintf(`INSERT IGNORE INTO host_software (host_id, software_id, last_opened_at) VALUES %s`, values)
-			if _, err := tx.ExecContext(ctx, sql, insertsHostSoftware...); err != nil {
-				return ctxerr.Wrap(ctx, err, "insert host software")
-			}
+		if curSw.LastOpenedAt == nil || (*newSw.LastOpenedAt).Sub(*curSw.LastOpenedAt) >= minLastOpenedAtDiff {
+			keysToUpdate = append(keysToUpdate, key)
 		}
-	*/
+	}
+	sort.Strings(keysToUpdate)
+
+	for _, key := range keysToUpdate {
+		curSw, newSw := currentMap[key], incomingMap[key]
+		if _, err := tx.ExecContext(ctx, stmt, newSw.LastOpenedAt, hostID, curSw.ID); err != nil {
+			return ctxerr.Wrap(ctx, err, "update host software")
+		}
+	}
 
 	return nil
 }

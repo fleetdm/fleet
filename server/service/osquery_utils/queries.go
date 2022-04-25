@@ -726,7 +726,7 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 					"last_opened_at", lastOpenedRaw,
 				)
 			} else {
-				lastOpenedAt = time.Unix(int64(lastOpenedEpoch), 0)
+				lastOpenedAt = time.Unix(int64(lastOpenedEpoch), 0).UTC()
 			}
 		}
 
