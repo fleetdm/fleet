@@ -303,7 +303,7 @@
                 fleetLogo.style = 'width: 118px; height: 48px;'
                 return;
             }
-            if (scrollTop > lastScrollTop && scrollTop > header.innerHeight) {
+            if (scrollTop > lastScrollTop && scrollTop > window.innerHeight) {
                 header.classList.add('translate-y-0')
              } else {
                 if(header.classList.contains('homepage-header') && scrollTop > header.clientHeight) {
