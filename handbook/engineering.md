@@ -138,11 +138,8 @@ Our primary quality objectives are *customer service* and *defect reduction*. We
 - Customer response time.
 - The number of bugs resolved per release cycle.
 - Stay abreast of what our community wants and the problems they're having.
-
 - Make people feel heard and understood.
-
 - Celebrate contributions.
-
 - Triage bugs, identify community feature requests, community pull requests, and community questions.
 
 ### How?
@@ -184,9 +181,6 @@ If the feature is requested by anyone other than a customer (ex. user in #fleet 
 It is often a good idea to let the original poster (OP) close their issue themselves since they are usually well equipped to decide whether the issue is resolved.   In some cases, circling back with the OP can be impractical, and for the sake of speed, issues might get closed.
 
 Keep in mind that this can feel jarring to the OP.  The effect is worse if issues are closed automatically by a bot (See [balderashy/sails#3423](https://github.com/balderdashy/sails/issues/3423#issuecomment-169751072) and [balderdashy/sails#4057](https://github.com/balderdashy/sails/issues/4057) for examples of this).
-
-To provide another way of tracking status without closing issues altogether, consider using the
-green labels that begin with "+".  To explore them, type `+` from GitHub's label picker.
 
 ### Version support
 
@@ -258,6 +252,12 @@ The following rituals are engaged in by the  directly responsible individual (DR
 | Release ritual | Every three weeks | Go through the process of releasing the next iteration of Fleet. | Zach Wasserman |
 
 
+## Project boards
+
+[🚀 Release](https://github.com/orgs/fleetdm/projects/40) - The current release (daily go-to board) for engineers.
+
+[🔮 Planning](https://github.com/orgs/fleetdm/projects/41) - Planning for the next release (shared with product).
+
 ## Slack channels
 
 The following [Slack channels are maintained](https://fleetdm.com/handbook/company#group-slack-channels) by this group:
@@ -265,7 +265,9 @@ The following [Slack channels are maintained](https://fleetdm.com/handbook/compa
 | Slack channel                       | [DRI](https://fleetdm.com/handbook/company#group-slack-channels)    |
 |:------------------------------------|:--------------------------------------------------------------------|
 | `#help-engineering`                 | Zach Wasserman
-| `#help-oncall`                      | Zach Wasserman
+| `#g-platform`                       | Tomás Touceda
+| `#g-interface`                      | Luke Heath
+| `#g-agent`                          | Zach Wasserman
 | `#_pov-environments`                | Ben Edwards
 
 
