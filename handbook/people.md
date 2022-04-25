@@ -176,12 +176,6 @@ We use these prefixes to organize the Fleet Slack:
 
 
 ## Performance feedback
-
-At Fleet, performance feedback is a continuous process. We give feedback (especially negative) as soon as possible. Most feedback will happen during 1:1 meetings, if not sooner.
-
-## People ops
-
-### Performance feedback
 At Fleet, performance feedback is a continuous process. We give feedback (particularly negative) as soon as possible. Most feedback will happen during 1:1 meetings, if not sooner.
 
 We evaluate and update compensation decisions yearly, shortly after the anniversary of a team member's start date.
@@ -384,7 +378,7 @@ Every two weeks our CEO Mike has a 1:1 meeting with our Investor Sid and there a
  - Charlie will send Mike links to the new document and the backup copy in a direct message in Slack. 
  - The day before the meeting, Nathan will prepare the "Vision" section of the original document. Nathan will collect and update information related to annual recurring revenue, new members in the `#fleet` channel in the osquery Slack, the number of new customers and opportunities from Salesforce, the total number of devices using Fleet, the company's current headcount, and banking information.
 
-## Workiversaries
+### Workiversaries
 
 We're happy you've ventured a trip around the sun with Fleet. Let's celebrate!
 
