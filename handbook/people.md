@@ -180,7 +180,28 @@ At Fleet, performance feedback is a continuous process. We give feedback (partic
 
 We evaluate and update compensation decisions yearly, shortly after the anniversary of a team member's start date.
 
-## Hiring a new team member
+## Growing the team
+
+### Creating a new position
+
+Every new position being created goes through this process before interviewing, accepting applicants, or extending offers.
+
+Proposed positions get added to:
+- "Roles" doc (stubbed out job description with "TODO" is fine). Only "Responsibilities" and "Experience" are needed and to Fleeties doc (leave start date blank).
+- Create a private "#hiring-xxxxxx-2022" Slack channel (where "xxxxxx" is job title) and invite CEO and Charlie.
+
+In that channel, post a message proposing the position:
+  - At-mention CEO (@mikermcneil) and Charlie (@charlie).
+  - Include link to job description in "Roles" (even if it's a stub).
+  - Include link to Fleeties document.
+
+After getting CEO approval, create a position in Breezy.
+
+### Creating a new position in Breezy
+
+> TODO: document how to post job on fleetdm.com/apply using Breezy and manage the hiring process 
+
+### Hiring a new team member
 
 1. Reach out to Mike and Zach and give them an opportunity to meet the candidate.
 
@@ -210,6 +231,12 @@ We evaluate and update compensation decisions yearly, shortly after the annivers
 7. Once both documents are complete, share the offer email draft, exit scenarios copy, and a link to the compensation decision, with Eric for confirmation.
 
 8. After Eric confirms that everything is correct, Mike or Zach will send the offer email. The offer email is copied directly from Google drive and sent to the candidate. When they send the offer, Mike or Zach will edit the permissions of the exit scenarios sheet and share it with the candidate.
+
+9. The CEO will confirm:
+  - The "Roles" document has the job description and "Responsibilities" and "Experience" are both listed and look accurate.
+  - The Fleeties document has the correct manager and job title, and that the start date is not entered yet (so we can tell an offer has not been extended).
+  - The candidate's LinkedIn link and preferred pronoun are listed. 
+  - That it makes business sense to make this hire by evaluating the likely cost in terms of base and equity pay, and reviewing the stock options pool.
 
    >**_Note:_** *When hiring an international employee, Pilot.co recommends starting the hiring process a month before the new employee's start date.*
 
