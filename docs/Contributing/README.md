@@ -1,7 +1,7 @@
 # Contribute
 
 ### [Building Fleet](./Building-Fleet.md) 
-Here, Fleet holds documentation about building the code, development infrastructure, and database migrations.
+Learn about building the code, development infrastructure, and database migrations.
 
 ### [Testing](./Testing.md) 
 This section includes documentation about Fleet's full test suite and integration tests.
