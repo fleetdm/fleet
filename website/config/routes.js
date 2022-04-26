@@ -68,13 +68,6 @@ module.exports.routes = {
     }
   },
 
-  'GET /articles': {
-    skipAssets: false,
-    action: 'articles/view-articles',
-    locals: {
-      currentPage: 'articles',
-    }
-  },
 
   'r|/((device-management|security|releases|engineering|guides|announcements|use-cases)/(.+))$|': {
     skipAssets: false,
@@ -83,6 +76,14 @@ module.exports.routes = {
       currentPage: 'articles',
     }
   },// handles /device-management/foo, /security/foo, /releases/foo, /engineering/foo, /guides/foo, /announcements/foo, /use-cases/foo
+
+  'r|/((device-management|security|releases|engineering|guides|announcements|use-cases|articles))/*$|category': {
+    skipAssets: false,
+    action: 'articles/view-articles',
+    locals: {
+      currentPage: 'articles',
+    }
+  },
 
   'GET /docs/?*': {
     skipAssets: false,
@@ -219,6 +220,8 @@ module.exports.routes = {
   'GET /login':                      '/customers/login',
   'GET /slack':                      (_, res) => { res.status(301).redirect('https://osquery.fleetdm.com/c/fleet'); },
   'GET /docs/using-fleet/updating-fleet': '/docs/deploying/upgrading-fleet',
+  'GET /blog':                   '/articles',
+  'GET /brand':                  '/logos',
 
   // Sitemap
   // =============================================================================================================
@@ -231,8 +234,6 @@ module.exports.routes = {
   // Things that are not webpages here (in the Sails app) yet, but could be in the future.  For now they are just
   // redirects to somewhere else EXTERNAL to the Sails app.
   'GET /security':               'https://github.com/fleetdm/fleet/security/policy',
-  'GET /brand':                  '/contact',// FUTURE: a page like sailsjs.com/logos
-  'GET /blog':                   'https://blog.fleetdm.com',// Currently, Fleet's blog lives outside of this website source code (the Sails app).  We always link to fleetdm.com/blog, but since the blog lives elsewhere, we redirect to it.
   'GET /hall-of-fame':           'https://github.com/fleetdm/fleet/pulse',
   'GET /apply':                  'https://fleet-device-management.breezy.hr',
   'GET /jobs':                   'https://fleet-device-management.breezy.hr',
