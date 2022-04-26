@@ -21,6 +21,8 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 ### ⛑ Security
 
+[Account recovery process](./security.md#account-recovery-process)
+
 [How we protect end-user devices](./security.md#how-we-protect-end-user-devices)
 
 [Hardware security keys](./security.md#hardware-security-keys)
