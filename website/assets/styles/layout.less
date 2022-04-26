@@ -110,19 +110,26 @@ html, body {
 &.homepage-header {
   z-index: 9999;
   position: fixed;
+  color: #ffffff;
   top: 0;
   left: 0;
   right: 0;
   &.sticky {
     background-color: #fff;
+    color: #192147;
+
+    .btn.btn-link {
+        color: #192147;
+    }
+
     [purpose='header-nav'] {
         a {
             color: #192147;
         }
+
     }
    }
   [purpose='header-btn'] {
-    color: #ffffff;
     cursor: unset;
     font-family: @navigation-font;
     font-weight: @bold;
