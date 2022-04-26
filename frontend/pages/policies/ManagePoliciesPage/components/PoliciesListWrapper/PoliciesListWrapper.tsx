@@ -11,7 +11,6 @@ import Spinner from "components/Spinner";
 import TableContainer from "components/TableContainer";
 import { generateTableHeaders, generateDataSet } from "./PoliciesTableConfig";
 import policySvg from "../../../../../../assets/images/no-policy-323x138@2x.png";
-import ExternalURLIcon from "../../../../../../assets/images/icon-external-url-12x12@2x.png";
 
 const baseClass = "policies-list-wrapper";
 const noPoliciesClass = "no-policies";
