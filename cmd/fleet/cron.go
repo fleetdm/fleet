@@ -213,7 +213,6 @@ func cronVulnerabilities(
 				if z.EnableSoftwareVulnerabilities {
 					if vulnAutomationEnabled != "" {
 						level.Error(logger).Log("err", "more than one automation enabled")
-						// TODO: additional error handling?
 					}
 					vulnAutomationEnabled = "zendesk"
 					break
@@ -494,7 +493,6 @@ func cronWorker(
 		}
 		if jiraSettings != nil && zendeskSettings != nil {
 			level.Error(logger).Log("err", "more than one automation enabled")
-			// TODO: additional error handling?
 		}
 
 		if jiraSettings == nil && zendeskSettings == nil {
@@ -505,52 +503,22 @@ func cronWorker(
 
 		if jiraSettings != nil {
 			// create the client to make API calls to Jira
-			client, err := externalsvc.NewJiraClient(&externalsvc.JiraOptions{
-				BaseURL:           jiraSettings.URL,
-				BasicAuthUsername: jiraSettings.Username,
-				BasicAuthPassword: jiraSettings.APIToken,
-				ProjectKey:        jiraSettings.ProjectKey,
-			})
-			if err != nil {
-				level.Error(logger).Log("msg", "Error creating Jira client", "err", err)
-				sentry.CaptureException(err)
-				continue
-			}
-
-			// safe to update the Jira worker as it is not used concurrently
-			jira.FleetURL = appConfig.ServerSettings.ServerURL
-			if jiraFailerClient != nil && strings.Contains(jira.FleetURL, "fleetdm") {
-				jiraFailerClient.JiraClient = client
-				jira.JiraClient = jiraFailerClient
-			} else {
-				jira.JiraClient = client
-			}
-		}
-
-		if zendeskSettings != nil {
-			// create the client to make API calls to Zendesk
-			client, err := externalsvc.NewZendeskClient(&externalsvc.ZendeskOptions{
-				URL:      zendeskSettings.URL,
-				Email:    zendeskSettings.Email,
-				APIToken: zendeskSettings.APIToken,
-				GroupID:  zendeskSettings.GroupID,
-			})
+			err := setJiraClient(jira, jiraSettings, appConfig, logger, jiraFailerClient)
 			if err != nil {
 				level.Error(logger).Log("msg", "Error creating Zendesk client", "err", err)
 				sentry.CaptureException(err)
 				continue
 			}
+		}
 
-			// safe to update the worker as it is not used concurrently
-			zendesk.FleetURL = appConfig.ServerSettings.ServerURL
-			if zendeskFailerClient != nil && strings.Contains(zendesk.FleetURL, "fleetdm") {
-				zendeskFailerClient.ZendeskClient = client
-				zendesk.ZendeskClient = zendeskFailerClient
-			} else {
-				zendesk.ZendeskClient = client
+		if zendeskSettings != nil {
+			// create the client to make API calls to Zendesk
+			err := setZendeskClient(zendesk, zendeskSettings, appConfig, logger, zendeskFailerClient)
+			if err != nil {
+				level.Error(logger).Log("msg", "Error creating Zendesk client", "err", err)
+				sentry.CaptureException(err)
+				continue
 			}
-			zendesk.ZendeskClient = client
-
 		}
 
 		workCtx, cancel := context.WithTimeout(ctx, lockDuration)
@@ -560,6 +528,56 @@ func cronWorker(
 		}
 		cancel() // don't use defer inside loop
 	}
+}
+
+func setJiraClient(jira *worker.Jira, jiraSettings *fleet.JiraIntegration, appConfig *fleet.AppConfig, logger kitlog.Logger, failerClient *worker.TestAutomationFailer) error {
+	client, err := externalsvc.NewJiraClient(&externalsvc.JiraOptions{
+		BaseURL:           jiraSettings.URL,
+		BasicAuthUsername: jiraSettings.Username,
+		BasicAuthPassword: jiraSettings.APIToken,
+		ProjectKey:        jiraSettings.ProjectKey,
+	})
+	if err != nil {
+		level.Error(logger).Log("msg", "Error creating Jira client", "err", err)
+		sentry.CaptureException(err)
+		return err
+	}
+
+	// safe to update the Jira worker as it is not used concurrently
+	jira.FleetURL = appConfig.ServerSettings.ServerURL
+	if failerClient != nil && strings.Contains(jira.FleetURL, "fleetdm") {
+		failerClient.JiraClient = client
+		jira.JiraClient = failerClient
+	} else {
+		jira.JiraClient = client
+	}
+
+	return nil
+}
+
+func setZendeskClient(zendesk *worker.Zendesk, zendeskSettings *fleet.ZendeskIntegration, appConfig *fleet.AppConfig, logger kitlog.Logger, failerClient *worker.TestAutomationFailer) error {
+	client, err := externalsvc.NewZendeskClient(&externalsvc.ZendeskOptions{
+		URL:      zendeskSettings.URL,
+		Email:    zendeskSettings.Email,
+		APIToken: zendeskSettings.APIToken,
+		GroupID:  zendeskSettings.GroupID,
+	})
+	if err != nil {
+		level.Error(logger).Log("msg", "Error creating Zendesk client", "err", err)
+		sentry.CaptureException(err)
+		return err
+	}
+
+	// safe to update the worker as it is not used concurrently
+	zendesk.FleetURL = appConfig.ServerSettings.ServerURL
+	if failerClient != nil && strings.Contains(zendesk.FleetURL, "fleetdm") {
+		failerClient.ZendeskClient = client
+		zendesk.ZendeskClient = failerClient
+	} else {
+		zendesk.ZendeskClient = client
+	}
+
+	return nil
 }
 
 func newFailerClient(forcedFailures string) *worker.TestAutomationFailer {

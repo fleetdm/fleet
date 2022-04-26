@@ -184,7 +184,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 
 	// TODO: enforce unique group id?
 	var oldZendeskSettings []*fleet.ZendeskIntegration
-	if len(appConfig.Integrations.Jira) > 0 {
+	if len(appConfig.Integrations.Zendesk) > 0 {
 		oldZendeskSettings = make([]*fleet.ZendeskIntegration, len(appConfig.Integrations.Zendesk))
 		for i, settings := range appConfig.Integrations.Zendesk {
 			oldSettings := *settings

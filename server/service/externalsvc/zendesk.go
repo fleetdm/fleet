@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -18,7 +19,7 @@ import (
 // Zendesk is a Zendesk client to be used to make requests to the Zendesk external service.
 type Zendesk struct {
 	client  *zendesk.Client
-	groupID string
+	groupID int64
 }
 
 // ZendeskOptions defines the options to configure a Zendesk client.
@@ -26,11 +27,14 @@ type ZendeskOptions struct {
 	URL      string
 	Email    string
 	APIToken string
-	GroupID  string
+	GroupID  int64
 }
 
 // NewZendeskClient returns a Zendesk client to use to make requests to the Zendesk external service.
 func NewZendeskClient(opts *ZendeskOptions) (*Zendesk, error) {
+	if os.Getenv("TEST_ZENDESK_CLIENT") == "true" {
+		return NewZendeskTestClient(opts)
+	}
 	client, err := zendesk.NewClient(fleethttp.NewClient())
 	if err != nil {
 		return nil, err
@@ -60,13 +64,9 @@ func NewZendeskClient(opts *ZendeskOptions) (*Zendesk, error) {
 // existence of the group.
 func (z *Zendesk) GetGroup(ctx context.Context) (*zendesk.Group, error) {
 	var group *zendesk.Group
-	id, err := strconv.Atoi(z.groupID)
-	if err != nil {
-		return nil, err
-	}
 
 	op := func() (interface{}, error) {
-		g, err := z.client.GetGroup(ctx, int64(id))
+		g, err := z.client.GetGroup(ctx, z.groupID)
 		group = &g
 		return group, err
 	}

@@ -225,7 +225,7 @@ type ZendeskIntegration struct {
 	URL                           string `json:"url"`
 	Email                         string `json:"email"`
 	APIToken                      string `json:"api_token"`
-	GroupID                       string `json:"group_id"`
+	GroupID                       int64  `json:"group_id"`
 	EnableSoftwareVulnerabilities bool   `json:"enable_software_vulnerabilities"`
 }
 

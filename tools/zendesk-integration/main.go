@@ -25,7 +25,7 @@ func main() {
 	var (
 		zendeskURL     = flag.String("zendesk-url", "", "The Zendesk instance URL")
 		zendeskEmail   = flag.String("zendesk-email", "", "The Zendesk email")
-		zendeskGroupID = flag.String("zendesk-group-id", "", "The Zendesk group id")
+		zendeskGroupID = flag.Int64("zendesk-group-id", 0, "The Zendesk group id")
 		fleetURL       = flag.String("fleet-url", "https://localhost:8080", "The Fleet server URL")
 		cve            = flag.String("cve", "", "The CVE to create a Zendesk issue for")
 		hostsCount     = flag.Int("hosts-count", 1, "The number of hosts to match the CVE")
@@ -41,7 +41,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "-zendesk-username is required")
 		os.Exit(1)
 	}
-	if *zendeskGroupID == "" {
+	if *zendeskGroupID <= 0 {
 		fmt.Fprintf(os.Stderr, "-zendesk-project-key is required")
 		os.Exit(1)
 	}
