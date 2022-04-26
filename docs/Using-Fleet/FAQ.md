@@ -25,7 +25,7 @@
 - [Why am I seeing "unknown certificate error" when adding hosts to my dev server?](#why-am-i-seeing-"unknown-certificate-error"-when-adding-hosts-to-my-dev-server)
 - [Can I hide known vulnerabilities that I feel are insignificant?](#can-i-hide-known-vulnerabilities-that-i-feel-are-insignificant)
 - [Can I create reports based on historical data in Fleet?](#can-i-create-reports-based-on-historical-data-in-fleet)
-- [Why can't I log in to `fleetctl` using a new API-only user?](#why-cant-i-log-in-to-fleetctl-using-a-new-api-only-user)
+- [Why can't I run queries with `fleetctl` using a new API-only user?](#why-cant-i-run-queries-with-fleetctl-using-a-new-api-only-user)
 
 ## What do I need to do to switch from Kolide Fleet to FleetDM Fleet?
 
@@ -233,44 +233,8 @@ The [REST API](https://fleetdm.com/docs/using-fleet/rest-api) is somewhat simila
 
 The [Fleet UI](https://fleetdm.com/docs/using-fleet/fleet-ui) is built for human users to make interfacing with the Fleet server user-friendly and visually appealing. It also makes things simpler and more accessible to a broader range of users. 
 
-## Why can't I log in to `fleetctl` using a new API-only user?
+## Why can't I run queries with `fleetctl` using a new API-only user?
 
-In versions prior to Fleet 4.13, a password reset is needed before the new user can perform queries. Since an API-only user cannot log in to the Fleet UI, this is done through the REST API. We'll be doing this through the terminal using `curl`.
+In versions prior to Fleet 4.13, a password reset is needed before a new API-only user can perform queries. You can find detailed instructions for setting that up [here[(https://github.com/fleetdm/fleet/blob/a1eba3d5b945cb3339004dd1181526c137dc901c/docs/Using-Fleet/fleetctl-CLI.md#reset-the-password)
 
-First, log in to the new user account using `fleetctl login`. Once you're logged in successfully to the API-only user, set up a variable to hold the user's token:
 
-```
-token=$(fleetctl config get token | rev | cut -d ' ' -f 1 | rev)
-```
-
-Then use `curl` to send a required password reset request to the REST API through the terminal:
-
-```
-curl -d '{"new_password":"NewPassGoesHere"}' -H "Authorization: Bearer ${token}" -X POST https://fleet.corp.example.com/api/v1/fleet/perform_required_password_reset
-```
-
-If you see a response like this, the request was successful:
-
-```
-{
-  "user": {
-    "created_at": "2022-03-16T20:42:00Z",
-    "updated_at": "2022-03-16T20:42:00Z",
-    "id": 52,
-    "name": "API User",
-    "email": "api@example.com",
-    "force_password_reset": false,
-    "gravatar_url": "",
-    "sso_enabled": false,
-    "global_role": "observer",
-    "api_only": true,
-    "teams": []
-  }
-}
-```
-
-While the original token is no longer valid, it's never a bad idea to clear variables out once you're done with them:
-
-```
-unset token
-```
