@@ -3279,7 +3279,12 @@ func testHostDeviceMapping(t *testing.T, ds *Datastore) {
 	ds.writer.ExecContext(ctx, `INSERT INTO host_emails (host_id, email, source) VALUES (?, ?, ?)`,
 		h.ID, "a@b.c", "src2")
 
-	dms, err := ds.ListHostDeviceMapping(ctx, h.ID)
+	// non-existent host should have empty device mapping
+	dms, err := ds.ListHostDeviceMapping(ctx, h.ID+1)
+	require.NoError(t, err)
+	require.Len(t, dms, 0)
+
+	dms, err = ds.ListHostDeviceMapping(ctx, h.ID)
 	require.NoError(t, err)
 	assertHostDeviceMapping(t, dms, []*fleet.HostDeviceMapping{
 		{Email: "a@b.c", Source: "src1"},

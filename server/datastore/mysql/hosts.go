@@ -420,12 +420,14 @@ func amountEnrolledHostsDB(ctx context.Context, db sqlx.QueryerContext) (int, er
 func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
 	sql := `SELECT
 		h.*,
+		COALESCE(hst.seen_time, h.created_at) AS seen_time,
+		t.name AS team_name,
 		dm.device_mapping
-		`
+	`
 
 	failingPoliciesSelect := `,
-			coalesce(failing_policies.count, 0) as failing_policies_count,
-			coalesce(failing_policies.count, 0) as total_issues_count
+		coalesce(failing_policies.count, 0) as failing_policies_count,
+		coalesce(failing_policies.count, 0) as total_issues_count
 	`
 	if opt.DisableFailingPolicies {
 		failingPoliciesSelect = ""
