@@ -6,7 +6,7 @@ import { InjectedRouter } from "react-router/lib/Router";
 import { find } from "lodash";
 
 import { AppContext } from "context/app";
-import { NotificationContext } from "context/notification"; // @ts-ignore
+import { NotificationContext } from "context/notification";
 import deepDifference from "utilities/deep_difference";
 import { ITeam } from "interfaces/team";
 import {

@@ -76,13 +76,13 @@ module.exports.routes = {
     }
   },
 
-  'GET /articles/*': {
+  'r|/((device-management|security|releases|engineering|guides|announcements|use-cases)/(.+))$|': {
     skipAssets: false,
     action: 'articles/view-basic-article',
     locals: {
       currentPage: 'articles',
     }
-  },// handles /blog and /blog/foo
+  },// handles /device-management/foo, /security/foo, /releases/foo, /engineering/foo, /guides/foo, /announcements/foo, /use-cases/foo
 
   'GET /docs/?*': {
     skipAssets: false,

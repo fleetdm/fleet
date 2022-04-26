@@ -86,7 +86,7 @@ func queryCommand() *cli.Command {
 			}
 
 			if flHosts == "" && flLabels == "" {
-				return errors.New("No hosts or labels targeted")
+				return errors.New("No hosts or labels targeted. Please provide either --hosts or --labels.")
 			}
 
 			if flQuery != "" && flQueryName != "" {

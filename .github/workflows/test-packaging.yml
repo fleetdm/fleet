@@ -1,5 +1,10 @@
 name: Test packaging
 
+# This workflow tests packaging of Fleet-osquery with the
+# `fleetctl package' command. It fetches the targets: orbit,
+# osquery and fleet-desktop from the default (Fleet's) TUF server,
+# https://tuf.fleetctl.com.
+
 on:
   push:
     branches:
@@ -8,6 +13,8 @@ on:
   pull_request:
     paths:
       - '**.go'
+      - '.github/workflows/test-packaging.yml'
+  workflow_dispatch: # Manual
 
 permissions:
   contents: read
@@ -61,5 +68,11 @@ jobs:
     - name: Build MSI
       run: ./build/fleetctl package --type msi --enroll-secret=foo --fleet-url=https://localhost:8080
 
+    - name: Build MSI with Fleet Desktop
+      run: ./build/fleetctl package --type msi --enroll-secret=foo --fleet-url=https://localhost:8080 --fleet-desktop
+
     - name: Build PKG
       run: ./build/fleetctl package --type pkg --enroll-secret=foo --fleet-url=https://localhost:8080
+
+    - name: Build PKG with Fleet Desktop
+      run: ./build/fleetctl package --type pkg --enroll-secret=foo --fleet-url=https://localhost:8080 --fleet-desktop

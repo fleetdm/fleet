@@ -1,4 +1,4 @@
-import endpoints from "fleet/endpoints";
+import endpoints from "utilities/endpoints";
 import { IActivity } from "interfaces/activity";
 import sendRequest from "services";
 

@@ -2,6 +2,8 @@ package mysql
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -172,18 +174,26 @@ func deleteUninstalledHostSoftwareDB(
 }
 
 func getOrGenerateSoftwareIdDB(ctx context.Context, tx sqlx.ExtContext, s fleet.Software) (uint, error) {
-	var existingId []int64
-	if err := sqlx.SelectContext(ctx, tx,
-		&existingId,
-		"SELECT id FROM software "+
-			"WHERE name = ? AND version = ? AND source = ? AND `release` = ? AND "+
-			"vendor = ? AND arch = ? AND bundle_identifier = ?",
-		s.Name, s.Version, s.Source, s.Release, s.Vendor, s.Arch, s.BundleIdentifier,
-	); err != nil {
-		return 0, ctxerr.Wrap(ctx, err, "get software")
+	getExistingID := func() (int64, error) {
+		var existingID int64
+		if err := sqlx.GetContext(ctx, tx, &existingID,
+			"SELECT id FROM software "+
+				"WHERE name = ? AND version = ? AND source = ? AND `release` = ? AND "+
+				"vendor = ? AND arch = ? AND bundle_identifier = ? LIMIT 1",
+			s.Name, s.Version, s.Source, s.Release, s.Vendor, s.Arch, s.BundleIdentifier,
+		); err != nil {
+			return 0, err
+		}
+		return existingID, nil
 	}
-	if len(existingId) > 0 {
-		return uint(existingId[0]), nil
+
+	switch id, err := getExistingID(); {
+	case err == nil:
+		return uint(id), nil
+	case errors.Is(err, sql.ErrNoRows):
+		// OK
+	default:
+		return 0, ctxerr.Wrap(ctx, err, "get software")
 	}
 
 	_, err := tx.ExecContext(ctx,
@@ -196,9 +206,17 @@ func getOrGenerateSoftwareIdDB(ctx context.Context, tx sqlx.ExtContext, s fleet.
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "insert software")
 	}
-	// LastInsertId sometimes returns 0 as it's dependent on connections and how mysql is configured
-	// doing the select recursively is a bit slower, but most times, we won't end up in this situation
-	return getOrGenerateSoftwareIdDB(ctx, tx, s)
+
+	// LastInsertId sometimes returns 0 as it's dependent on connections and how mysql is
+	// configured.
+	switch id, err := getExistingID(); {
+	case err == nil:
+		return uint(id), nil
+	case errors.Is(err, sql.ErrNoRows):
+		return 0, doRetryErr
+	default:
+		return 0, ctxerr.Wrap(ctx, err, "get software")
+	}
 }
 
 func insertNewInstalledHostSoftwareDB(
