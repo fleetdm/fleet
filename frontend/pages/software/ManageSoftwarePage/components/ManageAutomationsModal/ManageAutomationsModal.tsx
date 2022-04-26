@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useQuery } from "react-query";
 
 import { Link } from "react-router";
@@ -90,6 +90,9 @@ const ManageAutomationsModal = ({
   const [zendeskIntegrationsIndexed, setZendeskIntegrationsIndexed] = useState<
     IIntegration[]
   >();
+  const [allIntegrationsIndexed, setAllIntegrationsIndexed] = useState<
+    IIntegration[]
+  >();
   const [
     selectedIntegration,
     setSelectedIntegration,
@@ -127,13 +130,34 @@ const ManageAutomationsModal = ({
           );
           setSelectedIntegration(currentSelectedJiraIntegration);
           // Zendesk integrations
-          const addZendeskIndexed = data.zendesk.map((integration, index) => {
-            return {
-              ...integration,
-              originalIndex: index,
-              type: "zendesk",
-            };
-          });
+          const mockZendeskData = {
+            zendesk: [
+              {
+                url: "https://example1.zendesk.com",
+                email: "admin@example.com",
+                api_token: "abc123",
+                group_id: "12345678",
+                enable_software_vulnerabilities: true,
+              },
+              {
+                url: "https://example2.zendesk.com",
+                email: "maintainer@example.com",
+                api_token: "abc123",
+                group_id: "12345678",
+                enable_software_vulnerabilities: false,
+              },
+            ],
+          };
+          // TODO: Change mockZendeskData to data.zendesk eventually
+          const addZendeskIndexed = mockZendeskData.zendesk.map(
+            (integration, index) => {
+              return {
+                ...integration,
+                originalIndex: index,
+                type: "zendesk",
+              };
+            }
+          );
           setZendeskIntegrationsIndexed(addZendeskIndexed);
           const currentSelectedZendeskIntegration = addZendeskIndexed.find(
             (integration) => {
@@ -145,6 +169,23 @@ const ManageAutomationsModal = ({
       },
     }
   );
+
+  useEffect(() => {
+    if (jiraIntegrationsIndexed && zendeskIntegrationsIndexed) {
+      const combineDataSets = jiraIntegrationsIndexed.concat(
+        zendeskIntegrationsIndexed
+      );
+    }
+    setAllIntegrationsIndexed(
+      zendeskIntegrationsIndexed?.map((integration, index) => {
+        return { ...integration, dropdownIndex: index };
+      })
+    );
+  }, [
+    jiraIntegrationsIndexed,
+    zendeskIntegrationsIndexed,
+    setAllIntegrationsIndexed,
+  ]);
 
   const onURLChange = (value: string) => {
     setDestinationUrl(value);
@@ -263,10 +304,10 @@ const ManageAutomationsModal = ({
   };
 
   const createIntegrationDropdownOptions = () => {
-    const integrationOptions = jiraIntegrationsIndexed?.map((i) => {
+    const integrationOptions = allIntegrationsIndexed?.map((i) => {
       return {
         value: String(i.originalIndex),
-        label: `${i.url} - ${i.project_key}`,
+        label: `${i.url} - ${i.project_key || i.group_id}`,
       };
     });
     return integrationOptions;
@@ -275,16 +316,18 @@ const ManageAutomationsModal = ({
   const onChangeSelectIntegration = (selectIntegrationIndex: string) => {
     const integrationWithIndex:
       | IIntegration
-      | undefined = jiraIntegrationsIndexed?.find(
+      | undefined = allIntegrationsIndexed?.find(
       (integ: IIntegration) =>
         integ.originalIndex === parseInt(selectIntegrationIndex, 10)
     );
     setSelectedIntegration(integrationWithIndex);
   };
 
-  const onRadioChange = (jira: boolean): ((evt: string) => void) => {
+  const onRadioChange = (
+    enableIntegration: boolean
+  ): ((evt: string) => void) => {
     return () => {
-      setIntegrationEnabled(jira);
+      setIntegrationEnabled(enableIntegration);
     };
   };
 
@@ -298,12 +341,14 @@ const ManageAutomationsModal = ({
             {recentVulnerabilityMaxAge || "30"} days.
           </p>
         </div>
-        {jiraIntegrationsIndexed && jiraIntegrationsIndexed.length > 0 ? (
+        {(jiraIntegrationsIndexed && jiraIntegrationsIndexed.length > 0) ||
+        (zendeskIntegrationsIndexed &&
+          zendeskIntegrationsIndexed.length > 0) ? (
           <Dropdown
             searchable
             options={createIntegrationDropdownOptions()}
             onChange={onChangeSelectIntegration}
-            placeholder={"Select Jira integration"}
+            placeholder={"Select integration"}
             value={selectedIntegration?.originalIndex}
             label={"Integration"}
             wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--frequency`}

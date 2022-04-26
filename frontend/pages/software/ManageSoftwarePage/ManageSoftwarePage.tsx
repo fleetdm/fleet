@@ -114,9 +114,19 @@ const ManageSoftwarePage = ({
           }
         );
       }
+      let zendeskIntegrationEnabled = false;
+      if (data.integrations.zendesk) {
+        zendeskIntegrationEnabled = data?.integrations.zendesk.some(
+          (integration: any) => {
+            return integration.enable_software_vulnerabilities;
+          }
+        );
+      }
       setIsVulnerabilityAutomationsEnabled(
         data?.webhook_settings?.vulnerabilities_webhook
-          .enable_vulnerabilities_webhook || jiraIntegrationEnabled
+          .enable_vulnerabilities_webhook ||
+          jiraIntegrationEnabled ||
+          zendeskIntegrationEnabled
       );
       // Convert from nanosecond to nearest day
       setRecentVulnerabilityMaxAge(
