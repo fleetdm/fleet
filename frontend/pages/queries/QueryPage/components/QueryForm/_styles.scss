@@ -180,6 +180,10 @@
     }
   }
 
+  &__text-editor-wrapper {
+    padding-top: $pad-small;
+  }
+
   &__button-wrap--save-query-button:first-child {
     margin-right: $pad-medium;
   }
