@@ -4,10 +4,13 @@ import { noop, size } from "lodash";
 import { useDebouncedCallback } from "use-debounce";
 
 import { ILabel, ILabelFormData } from "interfaces/label";
-import Button from "components/buttons/Button"; // @ts-ignore
-import Dropdown from "components/forms/fields/Dropdown"; // @ts-ignore
+import Button from "components/buttons/Button";
+// @ts-ignore
+import Dropdown from "components/forms/fields/Dropdown";
+// @ts-ignore
 import InputField from "components/forms/fields/InputField";
-import FleetAce from "components/FleetAce"; // @ts-ignore
+import FleetAce from "components/FleetAce";
+// @ts-ignore
 import validateQuery from "components/forms/validators/validate_query";
 
 interface ILabelFormProps {

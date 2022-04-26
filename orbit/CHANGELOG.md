@@ -1,3 +1,9 @@
+## Orbit 0.0.9 (Apr 20, 2022)
+
+* Add Fleet Desktop Beta support for Windows.
+
+* Make update interval configurable and increase default from 10s to 15m.
+
 ## Orbit 0.0.8 (Mar 25, 2022)
 
 - Fix `orbit shell` command to successfully run when Orbit is already running as daemon.

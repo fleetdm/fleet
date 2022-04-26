@@ -453,6 +453,7 @@ This is the callback endpoint that the identity provider will use to send securi
 ## Hosts
 
 - [List hosts](#list-hosts)
+- [Count hosts](#count-hosts)
 - [Get hosts summary](#get-hosts-summary)
 - [Get host](#get-host)
 - [Get host by identifier](#get-host-by-identifier)
@@ -463,6 +464,8 @@ This is the callback endpoint that the identity provider will use to send securi
 - [Bulk delete hosts by filter or ids](#bulk-delete-hosts-by-filter-or-ids)
 - [Get host's Google Chrome profiles](#get-hosts-google-chrome-profiles)
 - [Get host's mobile device management (MDM) and Munki information](#get-hosts-mobile-device-management-mdm-and-munki-information)
+- [Get aggregated host's mobile device management (MDM) and Munki information](#get-aggregated-hosts-mobile-device-management-mdm-and-munki-information)
+- [Get host OS versions](#get-host-os-versions)
 - [Get hosts report in CSV](#get-hosts-report-in-csv)
 
 ### List hosts
@@ -1687,7 +1690,6 @@ Deletes the label specified by ID.
 - [Get user information](#get-user-information)
 - [Modify user](#modify-user)
 - [Delete user](#delete-user)
-- [Promote or demote user](#promote-or-demote-user)
 - [Require password reset](#require-password-reset)
 - [List a user's sessions](#list-a-users-sessions)
 - [Delete a user's sessions](#delete-a-users-sessions)
@@ -4571,10 +4573,15 @@ The returned lists are filtered based on the hosts the requesting user has acces
 - [Get certificate](#get-certificate)
 - [Get configuration](#get-configuration)
 - [Modify configuration](#modify-configuration)
+- [Get global enroll secrets](#get-global-enroll-secrets)
+- [Modify global enroll secrets](#modify-global-enroll-secrets)
+- [Get enroll secrets for a team](#get-enroll-secrets-for-a-team)
+- [Modify enroll secrets for a team](i#modify-enroll-secrets-for-a-team)
 - [Create invite](#create-invite)
 - [List invites](#list-invites)
 - [Delete invite](#delete-invite)
 - [Verify invite](#verify-invite)
+- [Update invite](#update-invite)
 - [Version](#version)
 
 The Fleet server exposes a handful of API endpoints that handle the configuration of Fleet as well as endpoints that manage invitation and enroll secret operations. All the following endpoints require prior authentication meaning you must first log in successfully before calling any of the endpoints documented below.
@@ -5643,6 +5650,12 @@ Retrieves the specified carve block. This endpoint retrieves the data that was c
 
 ## Teams
 
+- [List teams](#list-teams)
+- [Get team](#get-team)
+- [Create team](#create-team)
+- [Modify team](#modify-team)
+- [Delete team](#delete-team)
+
 ### List teams
 
 _Available in Fleet Premium_
@@ -6133,6 +6146,7 @@ _Available in Fleet Premium_
 
 ## Translator
 
+- [Translate IDs](#translate-i-ds)
 ### Translate IDs
 
 Transforms a host name into a host id. For example, the Fleet UI use this endpoint when sending live queries to a set of hosts.
@@ -6223,6 +6237,8 @@ Transforms a host name into a host id. For example, the Fleet UI use this endpoi
 
 ## Software
 
+- [List all software](#list-all-software)
+- [Count software](#count-software)
 ### List all software
 
 `GET /api/v1/fleet/software`

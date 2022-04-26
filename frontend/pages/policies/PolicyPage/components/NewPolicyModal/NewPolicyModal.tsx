@@ -5,7 +5,7 @@ import { PolicyContext } from "context/policy";
 import { IPlatformSelector } from "hooks/usePlaformSelector";
 import { IPolicyFormData } from "interfaces/policy";
 import { IPlatformString } from "interfaces/platform";
-import { useDeepEffect } from "utilities/hooks";
+import useDeepEffect from "hooks/useDeepEffect";
 
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";

@@ -7,7 +7,7 @@ import {
   humanHostMemory,
   humanHostDetailUpdated,
   wrapFleetHelper,
-} from "fleet/helpers";
+} from "utilities/helpers";
 import IssueIcon from "../../../../../../assets/images/icon-issue-fleet-black-50-16x16@2x.png";
 
 const baseClass = "host-summary";

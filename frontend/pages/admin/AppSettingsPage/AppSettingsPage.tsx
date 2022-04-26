@@ -1,23 +1,38 @@
-import React, { useCallback, useContext } from "react";
+import React, { useCallback, useContext, useState, useEffect } from "react";
 import { useQuery } from "react-query";
+import { Params } from "react-router/lib/Router";
+import { Link } from "react-router";
+
 import { AppContext } from "context/app";
-import { NotificationContext } from "context/notification"; // @ts-ignore
-
+import { NotificationContext } from "context/notification";
 import configAPI from "services/entities/config";
-
-// @ts-ignore
 import deepDifference from "utilities/deep_difference";
 import { IConfig } from "interfaces/config";
 import { IApiError } from "interfaces/errors";
 
-// @ts-ignore
-import AppConfigForm from "components/forms/admin/AppConfigForm";
+import PATHS from "router/paths";
+import Info from "./cards/Info";
+import WebAddress from "./cards/WebAddress";
+import Sso from "./cards/Sso";
+import Smtp from "./cards/Smtp";
+import AgentOptions from "./cards/Agents";
+import HostStatusWebhook from "./cards/HostStatusWebhook";
+import Statistics from "./cards/Statistics";
+import Advanced from "./cards/Advanced";
+
+interface IAppSettingsPageProps {
+  params: Params;
+}
 
 export const baseClass = "app-settings";
 
-const AppSettingsPage = (): JSX.Element => {
+const AppSettingsPage = ({
+  params: { section: sectionTitle },
+}: IAppSettingsPageProps): JSX.Element => {
   const { renderFlash } = useContext(NotificationContext);
   const { setConfig } = useContext(AppContext);
+
+  const [activeSection, setActiveSection] = useState<string>("info");
 
   const {
     data: appConfig,
@@ -30,8 +45,16 @@ const AppSettingsPage = (): JSX.Element => {
     },
   });
 
+  const isNavItemActive = (navItem: string) => {
+    return navItem === activeSection ? "active-nav" : "";
+  };
+
   const onFormSubmit = useCallback(
     (formData: IConfig) => {
+      if (!appConfig) {
+        return false;
+      }
+
       const diff = deepDifference(formData, appConfig);
       // send all formData.agent_options because diff overrides all agent options
       diff.agent_options = formData.agent_options;
@@ -63,68 +86,136 @@ const AppSettingsPage = (): JSX.Element => {
     [appConfig]
   );
 
-  // WHY???
-  // Because Firefox and Safari don't support anchor links :-(
-  const scrollInto = (elementId: string) => {
-    const yOffset = -215; // headers and tabs
-    const element = document.getElementById(elementId);
-
-    if (element) {
-      const top =
-        element.getBoundingClientRect().top + window.pageYOffset + yOffset;
-      window.scrollTo({ top });
+  useEffect(() => {
+    if (sectionTitle) {
+      setActiveSection(sectionTitle);
     }
+  }, [sectionTitle]);
+
+  const renderSection = () => {
+    if (!isLoadingConfig && appConfig) {
+      return (
+        <>
+          {activeSection === "info" && (
+            <Info appConfig={appConfig} handleSubmit={onFormSubmit} />
+          )}
+          {activeSection === "webaddress" && (
+            <WebAddress appConfig={appConfig} handleSubmit={onFormSubmit} />
+          )}
+          {activeSection === "sso" && (
+            <Sso appConfig={appConfig} handleSubmit={onFormSubmit} />
+          )}
+          {activeSection === "smtp" && (
+            <Smtp appConfig={appConfig} handleSubmit={onFormSubmit} />
+          )}
+          {activeSection === "agents" && (
+            <AgentOptions appConfig={appConfig} handleSubmit={onFormSubmit} />
+          )}
+          {activeSection === "host-status-webhook" && (
+            <HostStatusWebhook
+              appConfig={appConfig}
+              handleSubmit={onFormSubmit}
+            />
+          )}
+          {activeSection === "statistics" && (
+            <Statistics appConfig={appConfig} handleSubmit={onFormSubmit} />
+          )}
+          {activeSection === "advanced" && (
+            <Advanced appConfig={appConfig} handleSubmit={onFormSubmit} />
+          )}
+        </>
+      );
+    }
+
+    return <></>;
   };
 
   return (
     <div className={`${baseClass} body-wrap`}>
       <p className={`${baseClass}__page-description`}>
-        Set your organization information and configure SAML and SMTP.
+        Set your organization information and configure SSO and SMTP
       </p>
       <div className={`${baseClass}__settings-form`}>
         <nav>
           <ul className={`${baseClass}__form-nav-list`}>
             <li>
-              <a onClick={() => scrollInto("organization-info")}>
+              <Link
+                className={`${baseClass}__nav-link ${isNavItemActive("info")}
+                }`}
+                to={PATHS.ADMIN_SETTINGS_INFO}
+              >
                 Organization info
-              </a>
+              </Link>
             </li>
             <li>
-              <a onClick={() => scrollInto("fleet-web-address")}>
+              <Link
+                className={`${baseClass}__nav-link ${isNavItemActive(
+                  "webaddress"
+                )}`}
+                to={PATHS.ADMIN_SETTINGS_WEBADDRESS}
+              >
                 Fleet web address
-              </a>
+              </Link>
             </li>
             <li>
-              <a onClick={() => scrollInto("saml")}>
-                SAML single sign on options
-              </a>
+              <Link
+                className={`${baseClass}__nav-link ${isNavItemActive("sso")}`}
+                to={PATHS.ADMIN_SETTINGS_SSO}
+              >
+                Single sign-on options
+              </Link>
             </li>
             <li>
-              <a onClick={() => scrollInto("smtp")}>SMTP options</a>
+              <Link
+                className={`${baseClass}__nav-link$ ${isNavItemActive("smtp")}`}
+                to={PATHS.ADMIN_SETTINGS_SMTP}
+              >
+                SMTP options
+              </Link>
             </li>
             <li>
-              <a onClick={() => scrollInto("agent-options")}>
+              <Link
+                className={`${baseClass}__nav-link ${isNavItemActive(
+                  "agents"
+                )}`}
+                to={PATHS.ADMIN_SETTINGS_AGENTS}
+              >
                 Global agent options
-              </a>
+              </Link>
             </li>
             <li>
-              <a onClick={() => scrollInto("host-status-webhook")}>
+              <Link
+                className={`${baseClass}__nav-link ${isNavItemActive(
+                  "host-status-webhook"
+                )}`}
+                to={PATHS.ADMIN_SETTINGS_HOST_STATUS_WEBHOOK}
+              >
                 Host status webhook
-              </a>
+              </Link>
             </li>
             <li>
-              <a onClick={() => scrollInto("usage-stats")}>Usage statistics</a>
+              <Link
+                className={`${baseClass}__nav-link ${isNavItemActive(
+                  "statistics"
+                )}`}
+                to={PATHS.ADMIN_SETTINGS_STATISTICS}
+              >
+                Usage statistics
+              </Link>
             </li>
             <li>
-              <a onClick={() => scrollInto("advanced-options")}>
+              <Link
+                className={`${baseClass}__nav-link ${isNavItemActive(
+                  "advanced"
+                )}`}
+                to={PATHS.ADMIN_SETTINGS_ADVANCED}
+              >
                 Advanced options
-              </a>
+              </Link>
             </li>
           </ul>
         </nav>
-        {!isLoadingConfig && appConfig && (
-          <AppConfigForm appConfig={appConfig} handleSubmit={onFormSubmit} />
-        )}
+        {renderSection()}
       </div>
     </div>
   );

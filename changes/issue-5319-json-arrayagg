@@ -1,0 +1,2 @@
+* Remove usage of JSON_ARRAYAGG in sql queries. Not supported in MySQL < 5.7.22 and
+  AWS RDS Aurora used in Terraform.
