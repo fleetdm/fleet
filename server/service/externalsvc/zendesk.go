@@ -15,8 +15,7 @@ import (
 	"github.com/nukosuke/go-zendesk/zendesk"
 )
 
-// Zendesk is a Zendesk client to be used to make requests to a zendesk external
-// service.
+// Zendesk is a Zendesk client to be used to make requests to the Zendesk external service.
 type Zendesk struct {
 	client  *zendesk.Client
 	groupID string
@@ -30,15 +29,15 @@ type ZendeskOptions struct {
 	GroupID  string
 }
 
-// NewZendeskClient returns a Zendesk client to use to make requests to a zendesk
-// external service.
+// NewZendeskClient returns a Zendesk client to use to make requests to the Zendesk external service.
 func NewZendeskClient(opts *ZendeskOptions) (*Zendesk, error) {
 	client, err := zendesk.NewClient(fleethttp.NewClient())
 	if err != nil {
 		return nil, err
 	}
 
-	parts := strings.Split(opts.URL, "//")
+	url := strings.Trim(opts.URL, "/")
+	parts := strings.Split(url, "//")
 	if len(parts) < 2 {
 		return nil, fmt.Errorf("invalid zendesk url: %s", opts.URL)
 	}

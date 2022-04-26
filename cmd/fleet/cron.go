@@ -285,7 +285,6 @@ func cronVulnerabilities(
 func checkVulnerabilities(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 	vulnPath string, config config.FleetConfig, collectRecentVulns bool,
 ) map[string][]string {
-	level.Debug(logger).Log("collectRecentVulns", collectRecentVulns)
 	err := vulnerabilities.TranslateSoftwareToCPE(ctx, ds, vulnPath, logger, config)
 	if err != nil {
 		level.Error(logger).Log("msg", "analyzing vulnerable software: Software->CPE", "err", err)
@@ -419,8 +418,8 @@ func cronWorker(
 	identifier string,
 ) {
 	const (
-		lockDuration        = 10 * time.Second
-		lockAttemptInterval = 10 * time.Second
+		lockDuration        = 10 * time.Minute
+		lockAttemptInterval = 10 * time.Minute
 	)
 
 	logger = kitlog.With(logger, "cron", lockKeyWorker)

@@ -514,7 +514,7 @@ spec:
     enable_software_inventory: false
   integrations:
     jira: null
-	zendesk: null
+    zendesk: null
   license:
     expiration: "0001-01-01T00:00:00Z"
     tier: free
