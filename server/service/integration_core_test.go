@@ -2679,11 +2679,17 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 			case "fail":
 				w.WriteHeader(http.StatusUnauthorized)
 			}
-		} else if r.URL.Path != "/api/2/groups/122" && r.URL.Path != "/api/2/groups/123" {
+		} else if r.URL.Path == "/api/v2/groups/122.json" {
 			switch _, t, _ := r.BasicAuth(); t {
 			case "ok":
-				w.Write([]byte(zendeskGroupResponsePayload))
-
+				w.Write([]byte(`{"group": {"id": 122,"name": "test122"}}`))
+			case "fail":
+				w.WriteHeader(http.StatusUnauthorized)
+			}
+		} else if r.URL.Path == "/api/v2/groups/123.json" {
+			switch _, t, _ := r.BasicAuth(); t {
+			case "ok":
+				w.Write([]byte(`{"group": {"id": 123,"name": "test123"}}`))
 			case "fail":
 				w.WriteHeader(http.StatusUnauthorized)
 			}
@@ -2933,6 +2939,19 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 			"zendesk": [{
 				"url": %q,
 				"UNKNOWN_FIELD": "foo"
+			}]
+		}
+	}`, srv.URL)), http.StatusBadRequest)
+
+	// unknown group id fails as bad request
+	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
+		"integrations": {
+			"zendesk": [{
+				"url": %q,
+				"email": "ok@example.com",
+				"api_token": "ok",
+				"group_id": 999,
+				"enable_software_vulnerabilities": true
 			}]
 		}
 	}`, srv.URL)), http.StatusBadRequest)
@@ -4471,13 +4490,4 @@ const (
     "lastIssueUpdateTime": "2022-04-05T04:51:35.670+0000"
   }
 }`
-	// example response from the Zendesk docs
-	zendeskGroupResponsePayload = `{
-
-			"created_at": "2009-08-26T00:07:08Z",
-			"id": 122,
-			"name": "MCs",
-			"updated_at": "2010-05-13T00:07:08Z"
-		
-	}`
 )

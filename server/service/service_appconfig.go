@@ -107,8 +107,12 @@ func (svc *Service) makeTestZendeskRequest(ctx context.Context, zendeskSettings 
 	if err != nil {
 		return &badRequestError{message: fmt.Sprintf("zendesk integration request failed: %s", err.Error())}
 	}
-	if _, err := client.GetGroup(ctx); err != nil {
+	grp, err := client.GetGroup(ctx)
+	if err != nil {
 		return &badRequestError{message: fmt.Sprintf("zendesk integration request failed: %s", err.Error())}
+	}
+	if grp.ID != zendeskSettings.GroupID {
+		return &badRequestError{message: fmt.Sprint("zendesk integration request failed: no matching group id", grp.ID, zendeskSettings.GroupID)}
 	}
 	return nil
 }

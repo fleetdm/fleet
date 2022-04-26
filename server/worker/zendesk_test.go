@@ -40,13 +40,14 @@ func TestZendeskRun(t *testing.T) {
 		body, err := ioutil.ReadAll(r.Body)
 		require.NoError(t, err)
 		require.Contains(t, string(body), `"subject":"Vulnerability CVE-1234-5678 detected on 1 host(s)"`)
+		require.Contains(t, string(body), `"group_id":123`)
 
 		w.WriteHeader(http.StatusCreated)
 		w.Write([]byte(`{}`))
 	}))
 	defer srv.Close()
 
-	client, err := externalsvc.NewZendeskTestClient(&externalsvc.ZendeskOptions{URL: srv.URL})
+	client, err := externalsvc.NewZendeskTestClient(&externalsvc.ZendeskOptions{URL: srv.URL, GroupID: int64(123)})
 	require.NoError(t, err)
 
 	zendesk := &Zendesk{

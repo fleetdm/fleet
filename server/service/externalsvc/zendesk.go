@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -40,13 +41,11 @@ func NewZendeskClient(opts *ZendeskOptions) (*Zendesk, error) {
 		return nil, err
 	}
 
-	url := strings.Trim(opts.URL, "/")
-	parts := strings.Split(url, "//")
-	if len(parts) < 2 {
-		return nil, fmt.Errorf("invalid zendesk url: %s", opts.URL)
+	url, err := url.Parse(opts.URL)
+	if err != nil {
+		return nil, err
 	}
-	host := parts[1]
-	subparts := strings.Split(host, ".") // TODO: confirm this will track zendesk subdomain format; confirm no custom domains
+	subparts := strings.Split(url.Host, ".")
 	subdomain := subparts[0]
 
 	client.SetSubdomain(subdomain)
@@ -80,8 +79,9 @@ func (z *Zendesk) GetGroup(ctx context.Context) (*zendesk.Group, error) {
 // CreateTicket creates a ticket on the Zendesk server targeted by the Zendesk client.
 // It returns the created ticket or an error.
 func (z *Zendesk) CreateTicket(ctx context.Context, ticket *zendesk.Ticket) (*zendesk.Ticket, error) {
-	var createdTicket *zendesk.Ticket
+	ticket.GroupID = z.groupID
 
+	var createdTicket *zendesk.Ticket
 	op := func() (interface{}, error) {
 		t, err := z.client.CreateTicket(ctx, *ticket)
 		createdTicket = &t
