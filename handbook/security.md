@@ -794,7 +794,7 @@ We ensure the fixes to vulnerable dependencies are also performed according to o
 
 ## Rituals
 
-The following table lists the Product group's rituals, frequency, and Directly Responsible Individual (DRI).
+The following table lists the Security group's rituals, frequency, and Directly Responsible Individual (DRI).
 
 | Ritual                       | Frequency                | Description                                         | DRI               |
 |:-----------------------------|:-----------------------------|:----------------------------------------------------|-------------------|
