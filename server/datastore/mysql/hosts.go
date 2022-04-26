@@ -1672,13 +1672,13 @@ SELECT
   team_id id,
   'os_versions' type,
   COALESCE(
-    JSON_ARRAYAGG(
+    CONCAT('[', GROUP_CONCAT(
       JSON_OBJECT(
         'hosts_count', hosts_count,
         'name', name,
         'platform', platform
       )
-    ),
+    ), ']'),
     JSON_ARRAY()
   ) json_value
 FROM

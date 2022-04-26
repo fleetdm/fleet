@@ -2,8 +2,6 @@
 import "core-js/stable";
 import "regenerator-runtime/runtime";
 
-import { configure } from "enzyme";
-import Adapter from "enzyme-adapter-react-16";
 import nock from "nock";
 
 // for testing-library utils
@@ -62,8 +60,6 @@ nock("http://localhost:8080")
     build_date: "2021-03-31T20:05:51Z",
     build_user: "zwass",
   });
-
-configure({ adapter: new Adapter() });
 
 global.document.queryCommandEnabled = jest.fn();
 global.document.execCommand = jest.fn();

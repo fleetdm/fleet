@@ -42,7 +42,7 @@ func TestLiveQueryWithContext(t *testing.T) {
 			}
 			err := json.NewEncoder(w).Encode(resp)
 			assert.NoError(t, err)
-		case "/api/v1/fleet/results/websocket":
+		case "/api/latest/fleet/results/websocket":
 			ws, _ := upgrader.Upgrade(w, r, nil)
 			defer ws.Close()
 

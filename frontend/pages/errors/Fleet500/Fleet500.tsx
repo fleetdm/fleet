@@ -3,8 +3,10 @@ import { Link } from "react-router";
 
 import PATHS from "router/paths";
 
-import Button from "components/buttons/Button"; // @ts-ignore
-import fleetLogoText from "../../../../assets/images/fleet-logo-text-white.svg"; // @ts-ignore
+import Button from "components/buttons/Button";
+// @ts-ignore
+import fleetLogoText from "../../../../assets/images/fleet-logo-text-white.svg";
+// @ts-ignore
 import backgroundImg from "../../../../assets/images/500.svg";
 import githubLogo from "../../../../assets/images/github-mark-white-24x24@2x.png";
 import slackLogo from "../../../../assets/images/logo-slack-24x24@2x.png";

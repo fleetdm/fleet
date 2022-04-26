@@ -1,8 +1,6 @@
 import React, { useCallback } from "react";
 import { kebabCase } from "lodash";
 
-// ignore TS error for now until these are rewritten in ts.
-// @ts-ignore
 import { ButtonVariant } from "components/buttons/Button/Button";
 import Button from "../../../buttons/Button";
 import CloseIcon from "../../../../../assets/images/icon-close-vibrant-blue-16x16@2x.png";
