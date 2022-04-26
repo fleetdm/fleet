@@ -402,16 +402,16 @@ The following rituals are engaged in by the  directly responsible individual (DR
 
 ### Intake process
 
-Intake for new product ideas (feature requests) happens at the "Product office hours" meeting.
+Intake for new product ideas (requests) happens at the "Product office hours" meeting.
 
-At the "Product office hours" meeting, all feature requests are weighed. When a feature request is
+At the "Product office hours" meeting, all requests are weighed. When a request is
 weighed, it is prioritized or ejected.
 
-A feature request is prioritized when perceived as an important near-term priority by the business.
-When this happens, the feature request is set to be released into the hands of the Fleet community
+A request is prioritized when perceived as an important near-term priority by the business.
+When this happens, the request is set to be released into the hands of the Fleet community
 within 6 weeks.
 
-A feature request is ejected when competing priorities are perceived as a more important near-term priority by the business.
+A request is ejected when competing priorities are perceived as a more important near-term priority by the business.
 
 #### Why this way?
 
@@ -419,30 +419,26 @@ At Fleet, we use objectives and key results (OKRs) to align the organization wit
 These OKRs fill up a large portion, but not all, of planning (drafting, wireframing, spec'ing, etc.) and
 engineering capacity. 
 
-This means that there is always some capacity to prioritize feature requests advocated for by customers, Fleet team members, and members of the
+This means that there is always some capacity to prioritize requests advocated for by customers, Fleet team members, and members of the
 greater Fleet community.
 
 > Note that bugs are always prioritized.
 
-At Fleet, the requestor is told whether their feature
+At Fleet, the requestor is told whether their
 request is prioritized or ejected within 1 business day from when the request is weighed.
 
-The "Product office hours" meeting is a recurring ritual to make sure that everyone receives a
-response within this timeframe.
+The "Product office hours" meeting is a recurring ritual to make sure that all requests are weighed.
 
-#### Making a feature request
+#### Making a request
 
-To make a feature request, or advocate for a feature request from a customer or community member, all members of the Fleet organization are asked to add their name and a description of the
-feature request to the list in the ["Product office hours" Google
+To make a request, or advocate for a request from a customer or community member, all members of the Fleet organization are asked to add their name and a description of the request to the list in the ["Product office hours" Google
 doc](https://docs.google.com/document/d/10B4eDXHjM9lFob6VcBDFEzYR424QRH3EuTpRLbhWyzM/edit#heading=h.w2b5x42h9sgy),
 then attend the next scheduled "Product office hours" meeting.
 
-All members of the Fleet organization are welcome to attend the "Product office hours meeting." Feature requests will be
-discussed from top to bottom while prioritizing attendee feature requests. 
+All members of the Fleet organization are welcome to attend the "Product office hours meeting." Requests will be
+discussed from top to bottom while prioritizing attendee requests. 
 
-This
-means that, if the individual that added a feature request is
-not in attendance, the feature request will discussed towards the end of the call if there's time.
+This means that, if the individual that added a feature request is not in attendance, the feature request will discussed towards the end of the call if there's time.
 
 All "Product office hours" meetings are recorded and uploaded to the shared Google drive.
 
