@@ -404,10 +404,12 @@ The following rituals are engaged in by the  directly responsible individual (DR
 
 Intake for new product ideas (feature requests) happens at the "Product office hours" meeting.
 
-At the "Product office hours" meeting, all feature requests are discussed and either prioritized or ejected.
+At the "Product office hours" meeting, all feature requests are weighed. When a feature request is
+weighed, it is prioritized or ejected.
 
 A feature request is prioritized when perceived as an important near-term priority by the business.
-When this happens, a release date is tentatively set (within 6 weeks).
+When this happens, the feature request is set to be released into the hands of the Fleet community
+within 6 weeks.
 
 A feature request is ejected when competing priorities are perceived as a more important near-term priority by the business.
 
@@ -422,8 +424,8 @@ greater Fleet community.
 
 > Note that bugs are always prioritized.
 
-At Fleet, we'd like to be able to tell everyone if their feature
-request is prioritized or ejected within 1 week of the request.
+At Fleet, the requestor is told whether their feature
+request is prioritized or ejected within 1 business day from when the request is weighed.
 
 The "Product office hours" meeting is a recurring ritual to make sure that everyone receives a
 response within this timeframe.
