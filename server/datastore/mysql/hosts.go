@@ -115,7 +115,7 @@ func (ds *Datastore) SaveHost(ctx context.Context, host *fleet.Host) error {
 	}
 
 	if host.HostSoftware.Modified && ac.HostSettings.EnableSoftwareInventory && len(host.HostSoftware.Software) > 0 {
-		if err := saveHostSoftwareDB(ctx, ds.writer, host); err != nil {
+		if err := saveHostSoftwareDB(ctx, ds.writer, host, ds.minLastOpenedAtDiff); err != nil {
 			return ctxerr.Wrap(ctx, err, "failed to save host software")
 		}
 	}
