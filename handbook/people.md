@@ -311,7 +311,7 @@ When the final signature is added to an envelope in Docusign, it is marked as co
       link: drive.google.com/[destinationFolderID]
    ```
 
-## PeopleOps Rituals
+## PeopleOps
 
 ### OKR Planning
 
