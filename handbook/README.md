@@ -57,6 +57,8 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Pull requests](./community.md#pull-requests)
 
+[Updating docs and FAQ](./community.md#updating-docs-and-faq)
+
 [Fleet swag](./community.md#fleet-swag)
 
 ### 🚀 Engineering
