@@ -378,11 +378,11 @@ At Fleet, features are advertised as "beta" if there are concerns that the featu
 deployments. For example, these concerns could be related to the feature's performance in Fleet
 deployments with hundreds of thousands of hosts.
 
-The following highlights should be considered when deciding if we promote a as "beta:"
+The following highlights should be considered when deciding if we promote a feature as "beta:"
 
-- The feature will not be advertised as "beta" permanently. This means that the individual who is directly
-  responsible (DRI) that a feature is advertised as "beta" is responsible for creating an issue that
-  explains why the feature is advertised as "beta" and tracks the feature's progress towards advertising the feature as "stable."
+- The feature will not be advertised as "beta" permanently. This means that the Directly
+  Responsible Individual (DRI) who decides a feature is advertised as "beta" is also responsible for creating an issue that
+  explains why the feature is advertised as "beta" and tracking the feature's progress towards advertising the feature as "stable."
 - The feature will be advertised as "beta" in the documentation on fleetdm.com/docs, release notes, release blog posts, and Twitter.
 
 ## Feature flags
@@ -392,8 +392,8 @@ At Fleet, features are placed behind feature flags if the changes could affect F
 The following highlights should be considered when deciding if we should leverage feature flags:
 
 - The feature flag must be disabled by default.
-- The feature flag will not be permanent. This means that the individual who is directly responsible
- (DRI) that a feature flag should be introduced is responsible for creating an issue to track the
+- The feature flag will not be permanent. This means that the Directly Responsible Individual
+ (DRI) who decides a feature flag should be introduced is also responsible for creating an issue to track the
   feature's progress towards removing the feature flag and including the feature in a stable
   release.
 - The feature flag will not be advertised. For example, advertising in the documentation on fleetdm.com/docs, release notes, release blog posts, and Twitter.
