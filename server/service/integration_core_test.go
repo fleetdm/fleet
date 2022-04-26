@@ -2113,11 +2113,36 @@ func (s *integrationTestSuite) TestHostDeviceMapping() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", hosts[1].ID), nil, http.StatusOK, &listResp)
 	require.Len(t, listResp.DeviceMapping, 0)
 
-	// search host by email address finds the corresponding host
 	var listHosts listHostsResponse
+	// list hosts response includes device mappings
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHosts)
+	require.Len(t, listHosts.Hosts, 3)
+	hostsByID := make(map[uint]HostResponse)
+	for _, h := range listHosts.Hosts {
+		hostsByID[h.ID] = h
+	}
+	var dm []*fleet.HostDeviceMapping
+
+	// device mapping for host 1
+	err := json.Unmarshal(*hostsByID[1].DeviceMapping, &dm)
+	require.NoError(t, err)
+	assert.Len(t, dm, 2)
+	assert.Equal(t, "a@b.c", dm[0].Email)
+	assert.Equal(t, "google_chrome_profiles", dm[0].Source)
+
+	// no device mapping for other hosts
+	assert.Nil(t, hostsByID[2].DeviceMapping)
+	assert.Nil(t, hostsByID[3].DeviceMapping)
+
+	// search host by email address finds the corresponding host
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHosts, "query", "a@b.c")
 	require.Len(t, listHosts.Hosts, 1)
 	assert.Equal(t, hosts[0].ID, listHosts.Hosts[0].ID)
+	err = json.Unmarshal(*listHosts.Hosts[0].DeviceMapping, &dm)
+	require.NoError(t, err)
+	assert.Len(t, dm, 2)
+	assert.Equal(t, "a@b.c", dm[0].Email)
+	assert.Equal(t, "google_chrome_profiles", dm[0].Source)
 
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHosts, "query", "c@b.c")
 	require.Len(t, listHosts.Hosts, 0)
