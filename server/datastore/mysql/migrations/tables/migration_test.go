@@ -43,7 +43,7 @@ const (
 func newDBConnForTests(t *testing.T) *sqlx.DB {
 	db, err := sqlx.Open(
 		"mysql",
-		fmt.Sprintf("%s:%s@tcp(%s)/?multiStatements=true", testUsername, testPassword, testAddress),
+		fmt.Sprintf("%s:%s@tcp(%s)/?charset=utf8mb4&parseTime=true&loc=UTC&multiStatements=true", testUsername, testPassword, testAddress),
 	)
 	require.NoError(t, err)
 	_, err = db.Exec(fmt.Sprintf("DROP DATABASE IF EXISTS %s; CREATE DATABASE %s; USE %s;", t.Name(), t.Name(), t.Name()))

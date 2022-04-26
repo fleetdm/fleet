@@ -1,7 +1,6 @@
 import React from "react";
 import { Meta, Story } from "@storybook/react";
 
-// @ts-ignore
 import InfoBanner from ".";
 import { IInfoBannerProps } from "./InfoBanner";
 

@@ -55,6 +55,7 @@ module.exports = {
       'timmy-k',
       'zwinnerman-fleetdm',
       'hollidayn',
+      'juan-fdz-hawa',
     ];
     let GITHUB_USERNAME_OF_DRI_FOR_LABELS = 'noahtalerman';// « Used below
 
@@ -274,6 +275,29 @@ module.exports = {
             event: 'APPROVE'
           }, baseHeaders);
         }
+
+        // And also unfreeze and re-freeze to temporarily allow merging.
+        // [?] https://github.com/fleetdm/fleet/issues/5179
+        if (isAutoApproved) {
+
+          let mergeFreezeReport = await sails.helpers.http.get('https://www.mergefreeze.com/api/branches/fleetdm/fleet/main', { access_token: sails.config.custom.mergeFreezeAccessToken });//eslint-disable-line camelcase
+          if (mergeFreezeReport.frozen) {
+            await sails.helpers.http.post('https://www.mergefreeze.com/api/branches/fleetdm/fleet/main', { frozen: false, access_token: sails.config.custom.mergeFreezeAccessToken, user_name: 'fleet-release' });//eslint-disable-line camelcase
+
+            // Then, in the background, 2 minutes later...
+            setTimeout(()=>{
+              sails.helpers.http.post('https://www.mergefreeze.com/api/branches/fleetdm/fleet/main', { frozen: true, access_token: sails.config.custom.mergeFreezeAccessToken, user_name: 'fleet-release' })//eslint-disable-line camelcase
+              .exec((err)=>{
+                if (err) {
+                  sails.log.error('Background instruction failed: Unexpected error re-freezing repo (see https://github.com/fleetdm/fleet/issues/5179 for background):', err);
+                }
+                sails.log.info('Re-freeze completed successfully.');
+              });//_∏_
+            }, 2*60*1000);//_∏_
+          }//ﬁ
+
+        }//ﬁ
+
       }
     } else if (ghNoun === 'issue_comment' && ['created'].includes(action) && (issueOrPr&&issueOrPr.state === 'open')) {
       //   ██████╗ ██████╗ ███╗   ███╗███╗   ███╗███████╗███╗   ██╗████████╗

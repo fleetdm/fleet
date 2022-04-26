@@ -1,0 +1,1 @@
+* Fix deprecation warning message when generating `deb` and `rpm` packages with `fleetctl package`.

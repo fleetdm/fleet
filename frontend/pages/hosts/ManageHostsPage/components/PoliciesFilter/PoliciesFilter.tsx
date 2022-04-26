@@ -1,8 +1,9 @@
 import React from "react";
 
+import { PolicyResponse } from "utilities/constants";
+
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
-import { PolicyResponse } from "utilities/constants";
 
 interface IPoliciesFilterProps {
   policyResponse: PolicyResponse;

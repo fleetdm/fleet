@@ -22,7 +22,7 @@ Want to add your own query?
   spec:
     name: What is your query called? Please use a human readable query name.
     platforms: What operating systems support your query? This can usually be determined by the osquery tables included in your query. Heading to the https://osquery.io/schema webpage to see which operating systems are supported by the tables you include.
-    description: Describe your query. What does information does your query reveal?
+    description: Describe your query. What does information does your query reveal? (optional)
     query: Insert query here
     purpose: What is the goal of running your query? Ex. Detection
     remediation: Are there any remediation steps to resolve the detection triggered by your query? If not, insert "N/A."

@@ -7,7 +7,7 @@ import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 import { IConfig } from "interfaces/config";
 import { IJiraIntegration } from "interfaces/integration";
-import { IWebhookSoftwareVulnerabilities } from "interfaces/webhook"; // @ts-ignore
+import { IWebhookSoftwareVulnerabilities } from "interfaces/webhook";
 import configAPI from "services/entities/config";
 import softwareAPI, {
   ISoftwareResponse,
@@ -68,9 +68,9 @@ const ManageSoftwarePage = ({
   const {
     availableTeams,
     currentTeam,
-    setConfig,
     isGlobalAdmin,
     isGlobalMaintainer,
+    isOnGlobalTeam,
   } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
@@ -162,6 +162,9 @@ const ManageSoftwarePage = ({
       return softwareAPI.load(params);
     },
     {
+      enabled:
+        isOnGlobalTeam ||
+        !!availableTeams?.find((t) => t.id === currentTeam?.id),
       keepPreviousData: true,
       staleTime: 30000, // stale time can be adjusted if fresher data is desired based on software inventory interval
     }
@@ -190,6 +193,9 @@ const ManageSoftwarePage = ({
       });
     },
     {
+      enabled:
+        isOnGlobalTeam ||
+        !!availableTeams?.find((t) => t.id === currentTeam?.id),
       keepPreviousData: true,
       staleTime: 30000, // stale time can be adjusted if fresher data is desired based on software inventory interval
       refetchOnWindowFocus: false,

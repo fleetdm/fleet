@@ -3,6 +3,10 @@
 As an open-core company, Fleet endeavors to build a community of engaged users, customers, and
 contributors. The purpose of the growth team is to own and improve the growth funnel to drive awareness, adoption, and referrals of Fleet while honoring the ideals and voice of the open source community, and our company values.
 
+## Positioning
+
+Effective market positioning is crucial to the growth of any software product. Fleet needs to maintain a unique, valuable position in the minds of our users. We keep assertions on our positioning in this [Google Doc](https://docs.google.com/document/d/1sttTxm6B-acvZuQuGt7kkKn-_IVXM0sLwStnjnpIU9Y/edit?usp=sharing) (private). It will be updated quarterly based on the feedback of users, customers, team members, and other stakeholders. Feedback can be provided as a comment in the document or by posting in the `#g-growth` Slack channel. 
+
 ## Posting on social media as Fleet
 
 Posting to social media should follow a [personable tone](https://fleetdm.com/handbook/brand#communicating-as-fleet) and strive to deliver useful information across our social accounts.

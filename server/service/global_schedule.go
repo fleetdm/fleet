@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -36,7 +37,9 @@ func getGlobalScheduleEndpoint(ctx context.Context, request interface{}, svc fle
 }
 
 func (svc *Service) GetGlobalScheduledQueries(ctx context.Context, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Pack{}, fleet.ActionRead); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.Pack{
+		Type: ptr.String("global"),
+	}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 
@@ -88,7 +91,9 @@ func globalScheduleQueryEndpoint(ctx context.Context, request interface{}, svc f
 }
 
 func (svc *Service) GlobalScheduleQuery(ctx context.Context, sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Pack{}, fleet.ActionRead); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.Pack{
+		Type: ptr.String("global"),
+	}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 
@@ -131,7 +136,9 @@ func modifyGlobalScheduleEndpoint(ctx context.Context, request interface{}, svc 
 }
 
 func (svc *Service) ModifyGlobalScheduledQueries(ctx context.Context, id uint, query fleet.ScheduledQueryPayload) (*fleet.ScheduledQuery, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Pack{}, fleet.ActionWrite); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.Pack{
+		Type: ptr.String("global"),
+	}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
 
@@ -170,8 +177,22 @@ func deleteGlobalScheduleEndpoint(ctx context.Context, request interface{}, svc 
 }
 
 func (svc *Service) DeleteGlobalScheduledQueries(ctx context.Context, id uint) error {
-	if err := svc.authz.Authorize(ctx, &fleet.Pack{}, fleet.ActionWrite); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.Pack{
+		Type: ptr.String("global"),
+	}, fleet.ActionWrite); err != nil {
 		return err
+	}
+
+	globalPack, err := svc.ds.EnsureGlobalPack(ctx)
+	if err != nil {
+		return err
+	}
+	scheduledQuery, err := svc.ds.ScheduledQuery(ctx, id)
+	if err != nil {
+		return err
+	}
+	if scheduledQuery.PackID != globalPack.ID {
+		return fmt.Errorf("scheduled query %d is not global", id)
 	}
 
 	return svc.DeleteScheduledQuery(ctx, id)

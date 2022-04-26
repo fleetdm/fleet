@@ -7,10 +7,7 @@ import React, { useCallback } from "react";
 import { Async, OnChangeHandler, Option } from "react-select";
 import classnames from "classnames";
 
-// ignore TS error for now until these are rewritten in ts.
-// @ts-ignore
 import local from "utilities/local";
-// @ts-ignore
 import debounce from "utilities/debounce";
 import permissionUtils from "utilities/permissions";
 import { IDropdownOption } from "interfaces/dropdownOption";

@@ -1,8 +1,6 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
 import { noop } from "lodash";
-// ignore TS error for now until these are rewritten in ts.
-// @ts-ignore
 import DataTable from "./DataTable";
 
 const DEFAULT_PAGE_SIZE = 100;

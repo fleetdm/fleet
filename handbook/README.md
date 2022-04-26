@@ -8,17 +8,24 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [About Fleet](./company.md#about-fleet)
 
-[History](./company.md#history)
+[Culture](./company.md#culture)
 
 [Values](./company.md#values)
 
-[Culture](./company.md#culture)
+[Why this way?](./company.md#why-this-way)
+
+[History](./company.md#history)
+
+[Slack channels](./company.md#slack-channels)
+
 
 ### ⛑ Security
 
 [How we protect end-user devices](./security.md#how-we-protect-end-user-devices)
 
-[How we secure GitHub](./security.md#git-hub-security)
+[Hardware security keys](./security.md#hardware-security-keys)
+
+[GitHub Security](./security.md#git-hub-security)
 
 [Google Workspace security](./security.md#google-workspace-security)
 
@@ -28,13 +35,19 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Communicating as Fleet](./brand.md#communicating-as-fleet)
 
-[Voice and grammar guidelines](./brand.md#voice-and-grammar-guidelines)
+[Writing at Fleet](./brand.md#writing-at-fleet)
+
+[For editors](./brand.md#for-editors)
+
+[Voice and tone guidelines](./brand.md#voice-and-grammar-guidelines)
 
 [Brand resources](./brand.md#brand-resources)
 
 [Email blasts](./brand.md#email-blasts)
 
-[Website](./brand.md#website)
+[Fleet website](./brand.md#website)
+
+[Rituals](./brand.md#rituals)
 
 ### 🪂 Community
 
@@ -42,7 +55,9 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Fleet docs](./community.md#fleet-docs)
 
-[Community contributions (pull requests)](./community.md#community-contributions-pull-requests)
+[Pull requests](./community.md#pull-requests)
+
+[Updating docs and FAQ](./community.md#updating-docs-and-faq)
 
 [Fleet swag](./community.md#fleet-swag)
 
@@ -50,7 +65,11 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Release process](./engineering.md#release-process)
 
+[On-call rotation](./community.md#On-call-rotation) 
+
 ### ⚗️ Product
+
+[Objectives and key results](./product.md#Objectives-and-key-results)
 
 [Product design process](./product.md#product-design-process)
 
@@ -80,6 +99,14 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Support process](./customers.md#support-process)
 
+[Runbook](./customers.md#runbook)
+
+[Incident postmortems](./customers.md#incident-postmortems)
+
+[Customer codenames](./customers.md#customer-codenames)
+
+[Generating a trial license key](./customers.md#generating-a-trial-license-key)
+
 ### 🧑‍🚀 People
 
 [Directly responsible individuals](./people.md#directly-resonsible-individuals)
@@ -90,7 +117,21 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Meetings](./people.md#meetings)
 
-[People ops](./people.md#people-ops)
+[Slack](./people.md#slack)
+
+[Performance feedback](./people.md#performance-feedback)
+
+[Hiring a new team member](./people.md#hiring-a-new-team-member)
+
+[Team member onboarding](./people.md#team-member-onboarding)
+
+[Onboarding a new advisor](./people.md#onboarding-a-new-advisor)
+
+[Zapier and DocuSign](./people.md#zapier-and-docu-sign)
+
+[Rituals](./people.md#rituals)
+
+[Workiversaries](./people.md#workiversaries)
 
 ### Handbook
 

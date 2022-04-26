@@ -9,12 +9,14 @@ import classnames from "classnames";
 import { pick } from "lodash";
 
 import PATHS from "router/paths";
+import configAPI from "services/entities/config";
 import hostAPI from "services/entities/hosts";
 import queryAPI from "services/entities/queries";
 import teamAPI from "services/entities/teams";
 import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
 import { NotificationContext } from "context/notification";
+import { IConfig } from "interfaces/config";
 import {
   IHost,
   IDeviceMappingResponse,
@@ -35,7 +37,7 @@ import Spinner from "components/Spinner";
 import Button from "components/buttons/Button";
 import TabsWrapper from "components/TabsWrapper";
 
-import { normalizeEmptyValues, wrapFleetHelper } from "fleet/helpers";
+import { normalizeEmptyValues, wrapFleetHelper } from "utilities/helpers";
 
 import HostSummaryCard from "../cards/HostSummary";
 import AboutCard from "../cards/About";
@@ -203,6 +205,14 @@ const HostDetailsPage = ({
       select: (data: IMacadminsResponse) => data.macadmins,
     }
   );
+
+  const { data: hostSettings } = useQuery<
+    IConfig,
+    Error,
+    { enable_host_users: boolean; enable_software_inventory: boolean }
+  >(["config"], () => configAPI.loadAll(), {
+    select: (data: IConfig) => data.host_settings,
+  });
 
   const refetchExtensions = () => {
     deviceMapping !== null && refetchDeviceMapping();
@@ -582,10 +592,15 @@ const HostDetailsPage = ({
               usersState={usersState}
               isLoading={isLoadingHost}
               onUsersTableSearchChange={onUsersTableSearchChange}
+              hostUsersEnabled={hostSettings?.enable_host_users}
             />
           </TabPanel>
           <TabPanel>
-            <SoftwareCard isLoading={isLoadingHost} software={hostSoftware} />
+            <SoftwareCard
+              isLoading={isLoadingHost}
+              software={hostSoftware}
+              softwareInventoryEnabled={hostSettings?.enable_software_inventory}
+            />
           </TabPanel>
           <TabPanel>
             <ScheduleCard
