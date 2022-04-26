@@ -351,7 +351,13 @@
     "version": "{{ .Version }}",
     "type": "Application (macOS)",
     "bundle_identifier": "{{ .BundleIdentifier }}",
-    "source": "apps"
+    "source": "apps",
+    {{/* Note that in Go < 1.18, `{{ or (and .LastOpendedAt .LastOpenedAt.Unix) "" }}` won't work as expected because "and" and "or" don't short circuit. This was changed in Go 1.18 */}}
+    {{if .LastOpenedAt}}
+    "last_opened_at": "{{ .LastOpenedAt.Unix }}"
+    {{else}}
+    "last_opened_at": ""
+    {{end}}
   }
   {{- end }}
 ]
