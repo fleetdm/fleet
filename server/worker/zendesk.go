@@ -66,7 +66,7 @@ type Zendesk struct {
 }
 
 // Name returns the name of the job.
-func (j *Zendesk) Name() string {
+func (z *Zendesk) Name() string {
 	return zendeskName
 }
 
