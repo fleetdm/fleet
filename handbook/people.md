@@ -343,7 +343,7 @@ We're happy you've ventured a trip around the sun with Fleet. Let's celebrate!
 
 ## Rituals
 
-The following rituals are engaged in by the  directly responsible individual (DRI) and at the frequency specified for the ritual.
+The following table lists the People group's rituals, frequency, and Directly Responsible Individual (DRI).
 
 | Ritual                       | Frequency                | Description                                         | DRI               |
 |:-----------------------------|:-----------------------------|:----------------------------------------------------|-------------------|
