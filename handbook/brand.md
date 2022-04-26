@@ -215,7 +215,7 @@ The following table lists the Brand group's rituals, frequency, and Directly Res
 |:-----------------------------|:-----------------------------|:----------------------------------------------------|-------------------|
 | Documentation quality | Daily | Review pull requests for tone and brand consistency. | Mike Thomas |
 | Tweet review | Daily | Review tweets for tone and brand consistency. | Mike Thomas |
-| Community Slack  | Daily   | Check Fleet and osquery Slack channels for community questions and ensure questions are responded to and logged. | Kathy Satterlee |
+| Community Slack  | Daily   | Check Fleet and osquery Slack channels for community questions and make sure questions are responded to and logged. | Kathy Satterlee |
 | Social media check-in     |  Daily | Check social media for community questions and ensure they are responded to.  Generate dev advocacy-related content. | Kelvin Omereshone   |
 | Weekly article review | Weekly | Review articles for tone and brand consistency. | Mike Thomas |
 | Weekly article graphic | Weekly | Create a graphic for the weekly article. | Mike Thomas |
