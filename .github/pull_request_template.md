@@ -7,4 +7,5 @@ If some of the following don't apply, delete the relevant line.
 - [ ] Documented any permissions changes
 - [ ] Ensured that input data is properly validated, SQL injection is prevented (using placeholders for values in statements)
 - [ ] Added/updated tests
+- [ ] Added/updated osquery-perf counterpart
 - [ ] Manual QA for all new/changed functionality

@@ -164,6 +164,127 @@ The following [Slack channels are maintained](https://fleetdm.com/handbook/compa
 | `#help-oncall`                      | Zach Wasserman
 | `#_pov-environments`                | Ben Edwards
 
+## Scaling gotchas
+
+### Overall
+
+Nowadays, fleet, as a Go server, scales horizontally very well. It’s not very CPU or memory intensive. In terms of load in infrastructure, from highest to lowest is: MySQL, Redis, fleet.
+
+In general, if burning a bit of CPU or memory on the fleet side allows us to reduce the load on MySQL or Redis, we should do so.
+
+In a lot of cases, caching helps but given that we are not doing load balancing based on host id (i.e. make sure that the same host ends up in the same fleet server) this goes only so far. Caching host specific data is not done because round robin LB means all fleet instances end up circling the total list of hosts.
+
+### How to prevent most of this
+
+The best way we’ve got so far to prevent any scaling issues is to load test things. **Every new feature must have their corresponding osquery-perf implementation as part of the PR and it should be tested at a scale that is reasonable for the feature**.
+
+Besides that, you should consider the answer(s) to the following question: how can I know that the feature I’m working on is working and performing well enough? Add any logs, metrics, anything that will help us debug and understand what’s happening when things unavoidably go wrong or take longer than anticipated.
+
+**HOWEVER** (and forgive this Captain Obvious comment): do NOT optimize before you KNOW you have to. Don’t hesitate to take an extra day on your feature/bug work to load test things properly.
+
+## What have we learned so far
+
+This is a document that evolves and will likely always be incomplete. If you feel like something is missing either add it or bring it up in any way you consider.
+
+## Foreign keys and locking
+
+Among the first things you learn in database data modeling is: if one table references a row in another, that reference should be a foreign key. This provides a lot of assurances and makes coding basic things much simpler.
+
+However, this database feature doesn’t come without a cost. The one to focus on here is locking and here’s a great summary of the issue: https://www.percona.com/blog/2006/12/12/innodb-locking-and-foreign-keys/
+
+The tldr is: understand very well how a table will be used. If we do bulk inserts/updates, InnoDB might lock more than you anticipate and cause issues. This is not an argument to not do bulk inserts/updates, but to be very careful when you add a foreign key.
+
+In particular, host_id is a foreign key we’ve been skipping in all the new additional host data tables. Which is not something that comes for free, as with that we have to keep the data consistent by hand with cleanups.
+
+### Insert on duplicate update
+
+It’s very important to understand how a table will be used. If rows are inserted once and then updated many times, an easy reflex is to do an INSERT … ON DUPLICATE KEY UPDATE. While technically correct, it will be more performant to try to do an update and if it fails because there are no rows, then do an insert for the row. This means that it’ll fail once, and then it’ll update without issues, while on the INSERT … ON DUPLICATE KEY UPDATE it will try to insert and 99% of the times it will go into the ON DUPLICATE KEY UPDATE.
+
+This approach has a caveat, which is that it introduces a race condition between the UPDATE and the INSERT where another INSERT might happen in between the two, making the second INSERT fail. With the right constraints (and depending on the details of the problem), this is not a big problem. Alternatively, the INSERT could be one with an ON DUPLICATE KEY UPDATE at the end to recover from this scenario.
+
+This is subtle, but an insert will update indexes, check constraints, etc. While an update might sometimes not do any of that, depending on what is being updated.
+
+While not a performance gotcha, if you do use INSERT … ON DUPLICATE KEY UPDATE beware of the fact that LastInsertId will return non zero only if the INSERT portion happens. [If an update happens, the LastInsertId will be 0](https://github.com/fleetdm/fleet/blob/1aff4a4231ccff4d80889b46b57ed12c5ba1ae14/server/datastore/mysql/mysql.go#L925-L953).
+
+### Host extra data and JOINs
+
+Indexes are great. But like most good things, the trick is in the dosage. Too many indexes can be a performance killer on inserts/updates. Not enough and it kills the performance of selects.
+
+Data that is calculated on the fly cannot be indexed though, unless it’s precalculated (see counts section below for more on this.)
+
+Host data is among the data that changes the most and grows the most in terms of what we store. It used to be that we used to add more columns in the host table for the extra data in some cases.
+
+Nowadays, we don’t update the host table structure unless we really really REALLY need to. Instead we create adjacent tables that reference a host by id (without a FK). These tables can then be JOINed with the host table whenever needed.
+
+This approach works well for most cases. And for now it should be the default when gathering more data from hosts in Fleet. However, it’s not a perfect approach as it has its limits.
+
+JOINing too many tables, sorting based on the JOINed table, etc, can have a big performance impact on selects.
+
+One strategy that works sometimes is to select and filter the adjacent table with the right indexes and then JOIN the host table to that. This works when only filtering/sorting by one adjacent table. And pagination can be tricky.
+
+Solutions can become a curse too. Be mindful of when we might cross that threshold between good and bad performance.
+
+### What db tables matter more when thinking about performance
+
+While we need to be careful about how we handle everything in the database, not every table is the same. The host and host_* tables are the main cases where we have to be careful when using them in any way.
+
+However, beware of tables that either go through async aggregation processes (such as scheduled_query and scheduled_query_stats) or those that are read often as part of the osquery distributed/read and config endpoints.
+
+### Expose more host data in the host listing
+
+Particularly with extra host data (think MDM, Munki, Chrome profiles, etc) another gotcha is that some users have built scripts that go through all hosts by using our list host endpoint. This means that any extra data we add might cause this process to be too slow or timeout (this has happened in the past).
+
+Beware of this, and consider gating the extra data behind a query parameter to allow for a performance backwards compatible API that also can expose all the data that might be needed in other use cases.
+
+Calculated data is also tricky in the host listing API at scale, as those calculations have to happen for each host row. This can be extra problematic if the sort happens on the calculated data, as all data has to be calculated across all hosts before being able to sort and limit the results (more on this below).
+
+### Understand main use-cases for queries
+
+Beware of the main use cases for an API, which sounds obvious, but it’s not necessarily the case. For instance, we build the software listing endpoint. This endpoint listed software alongside the host counts that had that particular software installed. The way it was designed was properly performant: list the first 8 software items, then count hosts for those software ids.
+
+The problem came later when we learned that we missed an important detail: the UI wanted to sort by amount of host count so that the most popular software appeared on the top of this.
+
+This resulted in basically a full host_software table scan per each software row to calculate the count per software. And then sort and limit. The API worked in the simple case, but it timed out for most customers in the real world.
+
+### On constantly changing data
+
+A very complex thing to do well is show presence data in a somewhat real time fashion. In the case of Fleet, that is host seen_time which is what we use to define if a host is online or offline.
+
+Host seen_time is updated with basically every check-in from a host of any kind. Hosts check in every 10 seconds by default. Given that it’s a timestamp reflecting the last time a host contacted Fleet for anything, it’s always different.
+
+While we are doing a few things to make this better, it is still a big performance pain point we have. In particular, we are updating it in bulk. It used to be a column of the hosts table, which caused a lot of locking. Now it’s an adjacent table without FK.
+
+Luckily, we don’t have anything else (at least up to the time of this writing) that changes as often as seen_time. However, other features such as software last used can cause similar issues. Which is why we’ve punted that feature for now, but it’s likely that it’ll happen.
+
+### Counts and aggregated data
+
+UX is key for any software. APIs that take longer than 500ms to respond can cause UX issues. Counting things in the database is a tricky thing to do.
+
+In the ideal case, the count query will be covered by an index and be extremely fast. In the worst case, the query will be counting filtering on calculated data, which results in a full (multi) table scan on big tables.
+
+One way to solve this is to pre-calculate data in an async fashion. So we would have a cron that once every hour or so would count whatever we want counted, store the counts, and then counting things is as fast as reading a row in a table.
+
+This approach has a handful of issues:
+
+- The accuracy of the data is worse. We will never get truly accurate counts (the “real time” count the API returns could change 1ms after we get the value).
+- Depending on how many ways we want to count things we will have to calculate and store all of them.
+- Communicating to the user the interval at which things update can sometimes be tricky.
+
+All of this said, Fleet and osquery work in an “update at an interval” fashion. So we have exactly 1 pattern to communicate to the user and then they can understand the way most things work in the system.
+
+### Caching data such as app config
+
+Caching is a usual strategy to solve some performance issues. In the case of fleet level data, such as app config (of which we will only have 1 of), is easy and we cache at the fleet server instance level, refreshing the value every 1 second. App config gets queried with virtually every request, and with this we reduce drastically how many times the database is hit with that query. The side effect is that a config would take 1 minute to get updated in each fleet instance, which is a price we are willing to pay.
+
+Caching host level data is a different matter, though. Given that fleet is usually deployed in infrastructure where the load balancer distributes the load in a round robin like fashion (or maybe other algorithms, but nothing aware of anything within Fleet itself). Then virtually all hosts end up being seen by all fleet instances. So caching host level data (in the worst case) results in having a copy of all the hosts in each fleet instance and refreshing that at an interval.
+
+Caching at the Fleet instance level is a great strategy if it can reasonably handle big deployments, as Fleet utilizes very little RAM.
+
+Another place to cache things would be Redis. The improvement here is that all instances will see the same cache. However, Redis can also be a performance bottleneck depending on how it’s used.
+
+### Redis SCAN
+
+Redis has solved a lot of scaling problems in general, but it’s not devoid of scaling problems of its own. In particular, we learned that the SCAN command scans the whole key space before it does the filtering. This can be very slow depending on the state of the system. If Redis is slow, a lot suffers from it.
 
 
 <meta name="maintainedBy" value="zwass">
