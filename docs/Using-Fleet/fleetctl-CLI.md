@@ -273,7 +273,7 @@ fleetctl user create --name "API User" --email api@example.com --password temp!p
 
 Now that your new user is all set up, you will need to log in with `fleetctl login`. You'll now be able to perform tasks using `fleetctl` as your new API-only user.
 
-> If you are using a version of Fleet older than `4.13.0`, you will need to [reset the API-only user's password](./FAQ.md#why-cant-i-log-in-to-fleetctl-using-a-new-api-only-user) before logging in for the first time. 
+> If you are using a version of Fleet older than `4.13.0`, you will need to [reset the API-only user's password](https://github.com/fleetdm/fleet/blob/a1eba3d5b945cb3339004dd1181526c137dc901c/docs/Using-Fleet/fleetctl-CLI.md#reset-the-password) before running queries. 
 
 ### Switching users
 
