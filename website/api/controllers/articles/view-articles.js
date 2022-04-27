@@ -32,8 +32,8 @@ module.exports = {
       throw {badConfig: 'builtStaticContent.markdownPages'};
     }
     let articles = [];
-    if (category === '' || category === 'articles') {
-      // If no category was provided (TODO: why would this happen?) or the user navigates to `/articles`, we'll show all articles
+    if (category === 'articles') {
+      // If the category is `/articles` we'll show all articles
       articles = sails.config.builtStaticContent.markdownPages.filter((page)=>{
         if(_.startsWith(page.htmlId, 'articles')) {
           return page;
