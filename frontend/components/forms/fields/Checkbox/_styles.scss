@@ -40,7 +40,7 @@
 
   &__tick {
     @include size(20px);
-    @include position(absolute, 4px null null 0);
+    @include position(absolute, 3px null null 0);
     display: inline-block;
 
     &::after {
