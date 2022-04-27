@@ -2,8 +2,8 @@
 import sendRequest from "services";
 import { omit } from "lodash";
 
-import endpoints from "fleet/endpoints";
-import { formatPackTargetsForApi } from "fleet/helpers";
+import endpoints from "utilities/endpoints";
+import { formatPackTargetsForApi } from "utilities/helpers";
 import { ISelectTargetsEntity } from "interfaces/target";
 import { IUpdatePack } from "interfaces/pack";
 

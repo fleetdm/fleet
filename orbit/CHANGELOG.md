@@ -1,3 +1,7 @@
+## Orbit 0.0.10 (Apr 26, 2022)
+
+* Revert Orbit osquery remote paths to use `v1`.
+
 ## Orbit 0.0.9 (Apr 20, 2022)
 
 * Add Fleet Desktop Beta support for Windows.

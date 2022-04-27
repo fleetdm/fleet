@@ -35,7 +35,7 @@ import { IHost } from "interfaces/host";
 import { ILabel, ILabelFormData } from "interfaces/label";
 import { IPolicy } from "interfaces/policy";
 import { ISoftware } from "interfaces/software";
-import { ITeam } from "interfaces/team"; // @ts-ignore
+import { ITeam } from "interfaces/team";
 import deepDifference from "utilities/deep_difference";
 import sortUtils from "utilities/sort";
 import {
@@ -44,9 +44,10 @@ import {
   PolicyResponse,
 } from "utilities/constants";
 
-import Button from "components/buttons/Button"; // @ts-ignore
+import Button from "components/buttons/Button";
+// @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
-import HostSidePanel from "components/side_panels/HostSidePanel"; // @ts-ignore
+import HostSidePanel from "components/side_panels/HostSidePanel";
 import LabelForm from "components/forms/LabelForm";
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
 import TableContainer from "components/TableContainer";
@@ -55,7 +56,7 @@ import { IActionButtonProps } from "components/TableContainer/DataTable/ActionBu
 import TeamsDropdown from "components/TeamsDropdown";
 import Spinner from "components/Spinner";
 
-import { getValidatedTeamId } from "fleet/helpers";
+import { getValidatedTeamId } from "utilities/helpers";
 import {
   defaultHiddenColumns,
   generateVisibleTableColumns,
@@ -76,10 +77,11 @@ import {
 import DeleteSecretModal from "../../../components/DeleteSecretModal";
 import SecretEditorModal from "../../../components/SecretEditorModal";
 import AddHostsModal from "../../../components/AddHostsModal";
-import EnrollSecretModal from "../../../components/EnrollSecretModal"; // @ts-ignore
+import EnrollSecretModal from "../../../components/EnrollSecretModal";
 import NoHosts from "./components/NoHosts";
 import EmptyHosts from "./components/EmptyHosts";
-import PoliciesFilter from "./components/PoliciesFilter"; // @ts-ignore
+import PoliciesFilter from "./components/PoliciesFilter";
+// @ts-ignore
 import EditColumnsModal from "./components/EditColumnsModal/EditColumnsModal";
 import TransferHostModal from "./components/TransferHostModal";
 import DeleteHostModal from "./components/DeleteHostModal";
@@ -1531,7 +1533,7 @@ const ManageHostsPage = ({
         searchable
         renderCount={renderHostCount}
         searchToolTipText={
-          "Search hosts by hostname, UUID, machine serial or IP address"
+          "Search hosts by hostname, UUID, machine serial or private IP address"
         }
         emptyComponent={EmptyHosts}
         customControl={renderStatusDropdown}

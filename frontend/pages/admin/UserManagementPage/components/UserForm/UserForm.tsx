@@ -8,10 +8,13 @@ import { IUserFormErrors } from "interfaces/user";
 
 import Button from "components/buttons/Button";
 import validatePresence from "components/forms/validators/validate_presence";
-import validEmail from "components/forms/validators/valid_email"; // @ts-ignore
-import validPassword from "components/forms/validators/valid_password"; // @ts-ignore
+import validEmail from "components/forms/validators/valid_email";
+// @ts-ignore
+import validPassword from "components/forms/validators/valid_password";
+// @ts-ignore
 import InputField from "components/forms/fields/InputField";
-import Checkbox from "components/forms/fields/Checkbox"; // @ts-ignore
+import Checkbox from "components/forms/fields/Checkbox";
+// @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 import Radio from "components/forms/fields/Radio";
 import InfoBanner from "components/InfoBanner/InfoBanner";

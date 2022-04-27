@@ -1,6 +1,6 @@
 /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
 import sendRequest from "services";
-import endpoints from "fleet/endpoints";
+import endpoints from "utilities/endpoints";
 import { ITargetsAPIResponse, ISelectedTargets } from "interfaces/target";
 import appendTargetTypeToTargets from "utilities/append_target_type_to_targets";
 

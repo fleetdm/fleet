@@ -1170,9 +1170,6 @@ func TestNewDistributedQueryCampaign(t *testing.T) {
 	ds.LabelQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
 	}
-	ds.SaveHostFunc = func(ctx context.Context, host *fleet.Host) error {
-		return nil
-	}
 	var gotQuery *fleet.Query
 	ds.NewQueryFunc = func(ctx context.Context, query *fleet.Query, opts ...fleet.OptionalArg) (*fleet.Query, error) {
 		gotQuery = query
@@ -1997,7 +1994,6 @@ func TestObserversCanOnlyRunDistributedCampaigns(t *testing.T) {
 	ds.LabelQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
 	}
-	ds.SaveHostFunc = func(ctx context.Context, host *fleet.Host) error { return nil }
 	ds.NewDistributedQueryCampaignFunc = func(ctx context.Context, camp *fleet.DistributedQueryCampaign) (*fleet.DistributedQueryCampaign, error) {
 		camp.ID = 21
 		return camp, nil

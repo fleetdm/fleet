@@ -1,7 +1,6 @@
 // @ts-ignore
 import sqliteParser from "sqlite-parser";
 import { intersection, isPlainObject } from "lodash";
-// @ts-ignore
 import { osqueryTables } from "utilities/osquery_tables";
 import {
   IOsqueryPlatform,

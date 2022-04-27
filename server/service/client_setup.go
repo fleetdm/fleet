@@ -23,9 +23,9 @@ func (c *Client) Setup(email, name, password, org string) (string, error) {
 		ServerURL: &c.addr,
 	}
 
-	response, err := c.Do("POST", "/api/setup", "", params)
+	response, err := c.Do("POST", "/api/v1/setup", "", params)
 	if err != nil {
-		return "", fmt.Errorf("POST /api/setup: %w", err)
+		return "", fmt.Errorf("POST /api/v1/setup: %w", err)
 	}
 	defer response.Body.Close()
 
