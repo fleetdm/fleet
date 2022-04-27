@@ -13,7 +13,10 @@ const baseClass = "create-integration-modal";
 
 interface ICreateIntegrationModalProps {
   onCancel: () => void;
-  onSubmit: (integrationSubmitData: IIntegration[]) => void;
+  onSubmit: (
+    integrationSubmitData: IIntegration[],
+    integrationDestination: string
+  ) => void;
   serverErrors?: { base: string; email: string };
   backendValidators: { [key: string]: string };
   integrations: IIntegrations;
@@ -54,7 +57,7 @@ const CreateIntegrationModal = ({
         </div>
       ) : (
         <>
-          <p className={`${baseClass}__info-header`}>
+          <div className={`${baseClass}__info-header`}>
             <Dropdown
               label="Ticket destination"
               name="destination"
@@ -72,7 +75,7 @@ const CreateIntegrationModal = ({
               Suggest a new destination&nbsp;
               <FleetIcon name="external-link" />
             </a>
-          </p>
+          </div>
           <IntegrationForm
             onCancel={onCancel}
             onSubmit={onSubmit}

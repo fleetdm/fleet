@@ -30,7 +30,6 @@ import EditIntegrationModal from "./components/EditIntegrationModal";
 
 import {
   generateTableHeaders,
-  // generateDataSet,
   combineDataSets,
 } from "./IntegrationsTableConfig";
 
@@ -162,24 +161,31 @@ const IntegrationsPage = (): JSX.Element => {
   );
 
   const onCreateSubmit = useCallback(
-    (jiraIntegrationSubmitData: IIntegration[]) => {
-      console.log("jiraIntegrationSubmitData", jiraIntegrationSubmitData);
+    (integrationSubmitData: IIntegration[], integrationDestination: string) => {
+      // TODO: remove console.logs
+      console.log("integrationSubmitData", integrationSubmitData);
+      console.log("integrationDestination", integrationDestination);
 
+      // Updates either integrations.jira or integrations.zendesk
+      const destination = () => {
+        if (integrationDestination === "jira") {
+          return { jira: integrationSubmitData };
+        }
+        if (integrationDestination === "zendesk") {
+          return { zendesk: integrationSubmitData };
+        }
+      };
       debugger;
       setTestingConnection(true);
       configAPI
-        .update({ integrations: { jira: jiraIntegrationSubmitData } })
+        .update({ integrations: destination })
         .then(() => {
           renderFlash(
             "success",
             <>
               Successfully added{" "}
               <b>
-                {
-                  jiraIntegrationSubmitData[
-                    jiraIntegrationSubmitData.length - 1
-                  ].url
-                }
+                {integrationSubmitData[integrationSubmitData.length - 1].url}
               </b>
             </>
           );
@@ -202,11 +208,7 @@ const IntegrationsPage = (): JSX.Element => {
               <>
                 Could not add{" "}
                 <b>
-                  {
-                    jiraIntegrationSubmitData[
-                      jiraIntegrationSubmitData.length - 1
-                    ].url
-                  }
+                  {integrationSubmitData[integrationSubmitData.length - 1].url}
                 </b>
                 . Please try again.
               </>
