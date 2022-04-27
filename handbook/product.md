@@ -402,22 +402,19 @@ The following rituals are engaged in by the  directly responsible individual (DR
 
 ### Intake process
 
-Intake for new product ideas (requests) happens at the "Product office hours" meeting.
+Intake for new product ideas (requests) happens at the 🗣 Product office hours meeting.
 
-At the "Product office hours" meeting, all requests are weighed. When a request is
-weighed, it is prioritized or ejected.
+At the 🗣 Product office hours meeting, all requests are weighed. When a request is weighed, it is prioritized or ejected.
 
-A request is prioritized when perceived as an important near-term priority by the business.
-When this happens, the request is set to be released into the hands of the Fleet community
-within 6 weeks.
+A request is prioritized when perceived as an important near-term priority by the business. When this happens, the request is set to be estimated or deferred within the next 5 business days.
 
 A request is ejected when competing priorities are perceived as a more important near-term priority by the business.
 
 #### Why this way?
 
 At Fleet, we use objectives and key results (OKRs) to align the organization with measurable goals.
-These OKRs fill up a large portion, but not all, of planning (drafting, wireframing, spec'ing, etc.) and
-engineering capacity. 
+These OKRs fill up a large portion, but not all, of planning (drafting, wireframing, spec'ing, etc.)
+and engineering capacity. 
 
 This means that there is always some capacity to prioritize requests advocated for by customers, Fleet team members, and members of the
 greater Fleet community.
@@ -427,20 +424,22 @@ greater Fleet community.
 At Fleet, the requestor is told whether their
 request is prioritized or ejected within 1 business day from when the request is weighed.
 
-The "Product office hours" meeting is a recurring ritual to make sure that all requests are weighed.
+The 🗣 Product office hours meeting is a recurring ritual to make sure that all requests are weighed.
 
 #### Making a request
 
-To make a request, or advocate for a request from a customer or community member, all members of the Fleet organization are asked to add their name and a description of the request to the list in the ["Product office hours" Google
-doc](https://docs.google.com/document/d/10B4eDXHjM9lFob6VcBDFEzYR424QRH3EuTpRLbhWyzM/edit#heading=h.w2b5x42h9sgy),
-then attend the next scheduled "Product office hours" meeting.
+To make a request, or advocate for a request from a customer or community member, all members of the Fleet organization are asked to add their name and a description of the request to the list in the [🗣 Product office hours Google
+doc](https://docs.google.com/document/d/1mwu5WfdWBWwJ2C3zFDOMSUC9QCyYuKP4LssO_sIHDd0/edit#heading=h.zahrflvvks7q),
+then attend the next scheduled 🗣 Product office hours meeting.
 
-All members of the Fleet organization are welcome to attend the "Product office hours meeting." Requests will be
-discussed from top to bottom while prioritizing attendee requests. 
+All members of the Fleet organization are welcome to attend the 🗣 Product office hours meeting. Requests will be
+weighed from top to bottom while prioritizing attendee requests. 
 
 This means that, if the individual that added a feature request is not in attendance, the feature request will discussed towards the end of the call if there's time.
 
-All "Product office hours" meetings are recorded and uploaded to the shared Google drive.
+All 🗣 Product office hours meetings are recorded and uploaded to the [🗣 Product office hours
+folder](https://drive.google.com/drive/folders/1nsjqDyX5WDQ0HJhg_2yOaqBu4J-hqRIW) in the shared
+Google drive.
 
 
 ## Slack channels
