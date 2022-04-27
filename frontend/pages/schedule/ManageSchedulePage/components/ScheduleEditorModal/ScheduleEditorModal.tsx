@@ -239,7 +239,7 @@ const ScheduleEditorModal = ({
 
   return (
     <Modal
-      title={editQuery?.name || "Schedule editor"}
+      title={editQuery?.query_name || "Schedule editor"}
       onExit={onCancel}
       className={baseClass}
     >
