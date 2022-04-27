@@ -230,8 +230,8 @@ describe("Premium tier - Maintainer user", () => {
         cy.findByText(/manage hosts/i).should("not.exist");
       });
       it("allows global maintainer to add a new policy", () => {
-        cy.getAttached(".button-wrap")
-          .findByRole("button", { name: /add a polic/i })
+        cy.getAttached(".policies-list-wrapper__action-button-container")
+          .findByRole("button", { name: /add a policy/i })
           .click();
         // Add a default policy
         cy.findByText(/gatekeeper enabled/i).click();
