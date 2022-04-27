@@ -4,7 +4,6 @@ import { InjectedRouter } from "react-router";
 import { QueryClient, QueryClientProvider } from "react-query";
 import classnames from "classnames";
 
-import PATHS from "router/paths";
 import TableProvider from "context/table";
 import QueryProvider from "context/query";
 import PolicyProvider from "context/policy";
@@ -28,9 +27,11 @@ import Spinner from "components/Spinner";
 interface IAppProps {
   children: JSX.Element;
   router: InjectedRouter;
-  location: {
-    pathname: string;
-  };
+  location:
+    | {
+        pathname: string;
+      }
+    | undefined;
 }
 
 const App = ({ children, location, router }: IAppProps): JSX.Element => {
@@ -79,7 +80,7 @@ const App = ({ children, location, router }: IAppProps): JSX.Element => {
     if (authToken()) {
       fetchCurrentUser();
     }
-  }, [location.pathname]);
+  }, [location?.pathname]);
 
   useDeepEffect(() => {
     const canGetEnrollSecret =
