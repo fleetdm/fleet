@@ -231,7 +231,9 @@ The output should be similar or identical to:
 Executable=/opt/orbit/bin/orbit/macos/edge/orbit
 designated => identifier "com.fleetdm.orbit" and anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] /* exists */ and certificate leaf[field.1.2.840.113635.100.6.1.13] /* exists */ and certificate leaf[subject.OU] = "8VBZ3948LU"
 ```
-> NOTE: For old versions of Orbit (< `v0.0.11`), use the `/private/var/lib/orbit` path instead of the `/opt/orbit`.
+
+> **NOTE:** Depending on the version of `fleetctl` used to package and install Orbit, the executable path may be different.
+> Fleetctl versions <= 4.13.2 would install orbit to `/var/lib/orbit` instead of `/opt/orbit`.
 
 Note down the **executable path** and the entire **identifier**.
 
