@@ -1,10 +1,4 @@
 .enroll-secret-modal {
-  &__button-wrap {
-    display: flex;
-    justify-content: flex-end;
-    margin: $pad-large 0 0;
-  }
-
   &__reveal-secret {
     float: right;
     text-decoration: none;
