@@ -11,6 +11,10 @@ Effective security is a team effort involving the participation and support of e
 ### Acceptable Use of End-user Computing
 *Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [https://creativecommons.org/licenses/by-sa/4.0/](CC BY-SA 4 license).*
 
+| Policy owner   | Effective date |
+| -------------- | -------------- |
+| @GuillaumeRoss | 2022-06-01     |
+
 Fleet requires all workforce members to comply with the following acceptable use requirements and procedures, such that:
 
 1. Use of Fleet computing systems is subject to monitoring by Fleet IT and/or Security teams.
