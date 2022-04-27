@@ -14,7 +14,7 @@ on:
   workflow_dispatch:
 
 env:
-  OSQUERY_VERSION: 5.2.2
+  OSQUERY_VERSION: 5.2.3
 
 permissions:
   contents: read

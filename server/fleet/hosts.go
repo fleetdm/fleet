@@ -127,8 +127,6 @@ type Host struct {
 	PercentDiskSpaceAvailable float64 `json:"percent_disk_space_available" db:"percent_disk_space_available" csv:"percent_disk_space_available"`
 
 	HostIssues `json:"issues,omitempty" csv:"-"`
-
-	Modified bool `json:"-" csv:"-"`
 }
 
 type HostIssues struct {

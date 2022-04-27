@@ -28,6 +28,8 @@ DRIs help us collaborate efficiently by knowing exactly who is responsible and c
 | Quality of fleetctl (and other tools) | Tomás Touceda |
 | Final cut of what goes into each release | Zach Wasserman |
 | When we cut a release, version numbers, and whether to release | Zach Wasserman |
+| When a feature is advertised as "beta" | Zach Wasserman |
+| When a feature is placed behind a feature flag | Zach Wasserman |
 | Release notes | Noah Talerman |
 | Documentation quality | Mike Thomas |
 | Publishing release blog post, and promoting releases | Mike Thomas |
@@ -174,14 +176,34 @@ We use these prefixes to organize the Fleet Slack:
  * ***help-***: for asking for help on specific topics.
  * ***at*** or ***fleet-at***: for customer channels.
 
-## People ops
 
-### Performance feedback
+## Performance feedback
 At Fleet, performance feedback is a continuous process. We give feedback (particularly negative) as soon as possible. Most feedback will happen during 1:1 meetings, if not sooner.
 
 We evaluate and update compensation decisions yearly, shortly after the anniversary of a team member's start date.
 
-## Hiring a new team member
+## Growing the team
+
+### Creating a new position
+
+Every new position being created goes through this process before interviewing, accepting applicants, or extending offers.
+
+Proposed positions get added to:
+- "Roles" doc (stubbed out job description with "TODO" is fine). Only "Responsibilities" and "Experience" are needed and to Fleeties doc (leave start date blank).
+- Create a private "#hiring-xxxxxx-2022" Slack channel (where "xxxxxx" is job title) and invite CEO and Charlie.
+
+In that channel, post a message proposing the position:
+  - At-mention CEO (@mikermcneil) and Charlie (@charlie).
+  - Include link to job description in "Roles" (even if it's a stub).
+  - Include link to Fleeties document.
+
+After getting CEO approval, create a position in Breezy.
+
+### Creating a new position in Breezy
+
+> TODO: document how to post job on fleetdm.com/apply using Breezy and manage the hiring process 
+
+### Hiring a new team member
 
 1. Reach out to Mike and Zach and give them an opportunity to meet the candidate.
 
@@ -211,6 +233,12 @@ We evaluate and update compensation decisions yearly, shortly after the annivers
 7. Once both documents are complete, share the offer email draft, exit scenarios copy, and a link to the compensation decision, with Eric for confirmation.
 
 8. After Eric confirms that everything is correct, Mike or Zach will send the offer email. The offer email is copied directly from Google drive and sent to the candidate. When they send the offer, Mike or Zach will edit the permissions of the exit scenarios sheet and share it with the candidate.
+
+9. The CEO will confirm:
+  - The "Roles" document has the job description and "Responsibilities" and "Experience" are both listed and look accurate.
+  - The Fleeties document has the correct manager and job title, and that the start date is not entered yet (so we can tell an offer has not been extended).
+  - The candidate's LinkedIn link and preferred pronoun are listed. 
+  - That it makes business sense to make this hire by evaluating the likely cost in terms of base and equity pay, and reviewing the stock options pool.
 
    >**_Note:_** *When hiring an international employee, Pilot.co recommends starting the hiring process a month before the new employee's start date.*
 
@@ -340,6 +368,7 @@ At the end of the quarter and key points throughout the quarter (every three wee
 - Review topdown and departmental OKRs as they are turned in.
 - OKRs are finalized one week from when topdown OKRs were initially reviewed.
 - Finalized OKRs are shared company-wide and at the "All hands" meeting and, at least to some degree, become public.
+- Throughout the quarter, Mike and Zach have OKR preplanning meetings (every three weeks) to prepare OKRs for the upcoming quarter. 
 
 ### 1:1 Mike:Sid Document Preparation
 
@@ -352,7 +381,7 @@ Every two weeks our CEO Mike has a 1:1 meeting with our Investor Sid and there a
  - Charlie will send Mike links to the new document and the backup copy in a direct message in Slack. 
  - The day before the meeting, Nathan will prepare the "Vision" section of the original document. Nathan will collect and update information related to annual recurring revenue, new members in the `#fleet` channel in the osquery Slack, the number of new customers and opportunities from Salesforce, the total number of devices using Fleet, the company's current headcount, and banking information.
 
-## Workiversaries
+### Workiversaries
 
 We're happy you've ventured a trip around the sun with Fleet. Let's celebrate!
 
