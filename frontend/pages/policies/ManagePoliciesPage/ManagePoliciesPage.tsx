@@ -17,7 +17,6 @@ import configAPI from "services/entities/config";
 import globalPoliciesAPI from "services/entities/global_policies";
 import teamPoliciesAPI from "services/entities/team_policies";
 import teamsAPI from "services/entities/teams";
-import usersAPI, { IGetMeResponse } from "services/entities/users";
 
 import Button from "components/buttons/Button";
 import RevealButton from "components/buttons/RevealButton";
@@ -30,7 +29,7 @@ import AddPolicyModal from "./components/AddPolicyModal";
 import RemovePoliciesModal from "./components/RemovePoliciesModal";
 
 interface IManagePoliciesPageProps {
-  router: InjectedRouter; // v3
+  router: InjectedRouter;
   location: {
     action: string;
     hash: string;
@@ -96,13 +95,6 @@ const ManagePolicyPage = ({
   useEffect(() => {
     setLastEditedQueryPlatform(null);
   }, []);
-
-  useQuery(["me"], () => usersAPI.me(), {
-    onSuccess: ({ user, available_teams }: IGetMeResponse) => {
-      setCurrentUser(user);
-      setAvailableTeams(available_teams);
-    },
-  });
 
   const {
     data: globalPolicies,

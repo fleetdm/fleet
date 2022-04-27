@@ -1,4 +1,4 @@
-import React, { useContext, useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import { AxiosResponse } from "axios";
 import { InjectedRouter } from "react-router";
 import { QueryClient, QueryClientProvider } from "react-query";
@@ -28,7 +28,7 @@ import Spinner from "components/Spinner";
 interface IAppProps {
   children: JSX.Element;
   router: InjectedRouter;
-  location?: {
+  location: {
     pathname: string;
   };
 }
@@ -48,42 +48,38 @@ const App = ({ children, location, router }: IAppProps): JSX.Element => {
 
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
-  useDeepEffect(() => {
-    const fetchCurrentUser = async () => {
-      try {
-        const { user, available_teams } = await usersAPI.me();
-        setCurrentUser(user);
-        setAvailableTeams(available_teams);
-      } catch (error) {
-        console.error(error);
+  const fetchConfig = async () => {
+    try {
+      const config = await configAPI.loadAll();
+      setConfig(config);
+    } catch (error) {
+      console.error(error);
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+    return true;
+  };
 
-        local.removeItem("auth_token");
-        return router.push(PATHS.LOGIN);
-      }
-    };
+  const fetchCurrentUser = async () => {
+    try {
+      const { user, available_teams } = await usersAPI.me();
+      setCurrentUser(user);
+      setAvailableTeams(available_teams);
+      fetchConfig();
+    } catch (error) {
+      console.log(error);
+      local.removeItem("auth_token");
+      window.location.href = "/login";
+    }
+    return true;
+  };
 
-    const fetchConfig = async () => {
-      try {
-        const config = await configAPI.loadAll();
-        setConfig(config);
-      } catch (error) {
-        console.error(error);
-        return false;
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    // on page refresh
-    if (!currentUser && authToken()) {
+  useEffect(() => {
+    if (authToken()) {
       fetchCurrentUser();
     }
-
-    if (currentUser) {
-      setIsLoading(true);
-      fetchConfig();
-    }
-  }, [currentUser, location]);
+  }, [location.pathname]);
 
   useDeepEffect(() => {
     const canGetEnrollSecret =
@@ -108,7 +104,7 @@ const App = ({ children, location, router }: IAppProps): JSX.Element => {
     if (canGetEnrollSecret) {
       getEnrollSecret();
     }
-  }, [currentUser, isGlobalObserver, isOnlyObserver, location]);
+  }, [currentUser, isGlobalObserver, isOnlyObserver]);
 
   // "any" is used on purpose. We are using Axios but this
   // function expects a native React Error type, which is incompatible.

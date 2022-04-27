@@ -82,7 +82,7 @@ const LoginPage = ({ router }: ILoginPageProps) => {
       if (user.force_password_reset) {
         return router.push(RESET_PASSWORD);
       }
-
+      console.log("go home");
       return router.push(redirectLocation || HOME);
     } catch (response) {
       const errorObject = formatErrorResponse(response);

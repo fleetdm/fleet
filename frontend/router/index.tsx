@@ -56,13 +56,18 @@ import RoutingProvider from "context/routing";
 interface IAppWrapperProps {
   children: JSX.Element;
   router: InjectedRouter;
+  location?: {
+    pathname: string;
+  };
 }
 
 // App.tsx needs the context for user and config
-const AppWrapper = ({ children, router }: IAppWrapperProps) => (
+const AppWrapper = ({ children, router, location }: IAppWrapperProps) => (
   <AppProvider>
     <RoutingProvider>
-      <App router={router}>{children}</App>
+      <App router={router} location={location}>
+        {children}
+      </App>
     </RoutingProvider>
   </AppProvider>
 );
