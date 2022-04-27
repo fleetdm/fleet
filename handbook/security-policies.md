@@ -9,7 +9,7 @@ Internet/Intranet/Extranet-related systems, including but not limited to compute
 Effective security is a team effort involving the participation and support of every Fleet Device Management Inc employee or contractor who deals with information and/or information systems. It is the responsibility of every team member to read and understand this policy, and to conduct their activities accordingly.
 
 ### Acceptable Use of End-user Computing
-*Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [https://creativecommons.org/licenses/by-sa/4.0/](CC BY-SA 4 license).*
+*Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)*
 
 | Policy owner   | Effective date |
 | -------------- | -------------- |
