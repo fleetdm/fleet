@@ -128,8 +128,6 @@ type Host struct {
 
 	HostIssues `json:"issues,omitempty" csv:"-"`
 
-	Modified bool `json:"-" csv:"-"`
-
 	DeviceMapping *json.RawMessage `json:"device_mapping" db:"device_mapping" csv:"device_mapping"`
 }
 
