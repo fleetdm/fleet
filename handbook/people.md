@@ -368,6 +368,7 @@ At the end of the quarter and key points throughout the quarter (every three wee
 - Review topdown and departmental OKRs as they are turned in.
 - OKRs are finalized one week from when topdown OKRs were initially reviewed.
 - Finalized OKRs are shared company-wide and at the "All hands" meeting and, at least to some degree, become public.
+- Throughout the quarter, Mike and Zach have OKR preplanning meetings (every three weeks) to prepare OKRs for the upcoming quarter. 
 
 ### 1:1 Mike:Sid Document Preparation
 

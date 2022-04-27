@@ -96,48 +96,6 @@ func (ds *Datastore) SerialUpdateHost(ctx context.Context, host *fleet.Host) err
 	}
 }
 
-func (ds *Datastore) SaveHost(ctx context.Context, host *fleet.Host) error {
-	if err := ds.UpdateHost(ctx, host); err != nil {
-		return err
-	}
-
-	// Save host pack stats only if it is non-nil. Empty stats should be
-	// represented by an empty slice.
-	if host.PackStats != nil {
-		if err := saveHostPackStatsDB(ctx, ds.writer, host.ID, host.PackStats); err != nil {
-			return err
-		}
-	}
-
-	ac, err := ds.AppConfig(ctx)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "failed to get app config to see if we need to update host users and inventory")
-	}
-
-	if host.HostSoftware.Modified && ac.HostSettings.EnableSoftwareInventory && len(host.HostSoftware.Software) > 0 {
-		if err := saveHostSoftwareDB(ctx, ds.writer, host, ds.minLastOpenedAtDiff); err != nil {
-			return ctxerr.Wrap(ctx, err, "failed to save host software")
-		}
-	}
-
-	if host.Modified {
-		if host.Additional != nil {
-			if err := saveHostAdditionalDB(ctx, ds.writer, host.ID, host.Additional); err != nil {
-				return ctxerr.Wrap(ctx, err, "failed to save host additional")
-			}
-		}
-
-		if ac.HostSettings.EnableHostUsers && len(host.Users) > 0 {
-			if err := saveHostUsersDB(ctx, ds.writer, host.ID, host.Users); err != nil {
-				return ctxerr.Wrap(ctx, err, "failed to save host users")
-			}
-		}
-	}
-
-	host.Modified = false
-	return nil
-}
-
 func (ds *Datastore) SaveHostPackStats(ctx context.Context, hostID uint, stats []fleet.PackStats) error {
 	return saveHostPackStatsDB(ctx, ds.writer, hostID, stats)
 }
