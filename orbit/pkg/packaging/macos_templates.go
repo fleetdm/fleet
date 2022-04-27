@@ -33,8 +33,8 @@ var macosDistributionTemplate = template.Must(template.New("").Option("missingke
 var macosPostinstallTemplate = template.Must(template.New("").Option("missingkey=error").Parse(
 	`#!/bin/bash
 
-ln -sf /var/lib/orbit/bin/orbit/macos/{{.OrbitChannel}}/orbit /var/lib/orbit/bin/orbit/orbit
-ln -sf /var/lib/orbit/bin/orbit/orbit /usr/local/bin/orbit
+ln -sf /opt/orbit/bin/orbit/macos/{{.OrbitChannel}}/orbit /opt/orbit/bin/orbit/orbit
+ln -sf /opt/orbit/bin/orbit/orbit /usr/local/bin/orbit
 
 {{ if .StartService -}}
 DAEMON_LABEL="com.fleetdm.orbit"
@@ -74,7 +74,7 @@ var macosLaunchdTemplate = template.Must(template.New("").Option("missingkey=err
 		{{- end }}
 		{{- if .FleetCertificate }}
 		<key>ORBIT_FLEET_CERTIFICATE</key>
-		<string>/var/lib/orbit/fleet.pem</string>
+		<string>/opt/orbit/fleet.pem</string>
 		{{- end }}
 		{{- if .EnrollSecret }}
 		<key>ORBIT_ENROLL_SECRET_PATH</key>

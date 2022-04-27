@@ -102,7 +102,7 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 			Source:      filepath.Join(rootDir, "**"),
 			Destination: "/",
 		},
-		// Symlink current into /var/lib/orbit/bin/orbit/orbit
+		// Symlink current into /opt/orbit/bin/orbit/orbit
 		&files.Content{
 			Source:      "/opt/orbit/bin/orbit/linux/" + opt.OrbitChannel + "/orbit",
 			Destination: "/opt/orbit/bin/orbit/orbit",
@@ -289,7 +289,7 @@ systemctl disable orbit.service
 func writePostRemove(opt Options, path string) error {
 	if err := ioutil.WriteFile(path, []byte(`#!/bin/sh
 
-rm -rf /var/lib/orbit /var/log/orbit /usr/local/bin/orbit /etc/default/orbit /usr/lib/systemd/system/orbit.service
+rm -rf /var/lib/orbit /var/log/orbit /usr/local/bin/orbit /etc/default/orbit /usr/lib/systemd/system/orbit.service /opt/orbit
 `), constant.DefaultFileMode); err != nil {
 		return fmt.Errorf("write file: %w", err)
 	}
