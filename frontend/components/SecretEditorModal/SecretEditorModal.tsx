@@ -97,7 +97,7 @@ const SecretEditorModal = ({
             hint={"Must contain at least 32 characters."}
           />
         </div>
-        <div className={`${baseClass}__button-wrap`}>
+        <div className="modal-button-wrap">
           <Button onClick={onSaveSecretClick} className="button button--brand">
             Save
           </Button>

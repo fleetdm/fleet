@@ -81,7 +81,7 @@ const EditColumnsModal = ({
             );
           })}
         </div>
-        <div className={"button-actions"}>
+        <div className="modal-button-wrap">
           <Button onClick={onCancelColumns} variant={"inverse"}>
             Cancel
           </Button>

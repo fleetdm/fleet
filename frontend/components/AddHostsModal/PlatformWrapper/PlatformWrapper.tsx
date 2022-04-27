@@ -461,7 +461,7 @@ const PlatformWrapper = ({
           })}
         </Tabs>
       </TabsWrapper>
-      <div className={`${baseClass}__button-wrap`}>
+      <div className="modal-button-wrap">
         <Button onClick={onCancel} className="button button--brand">
           Done
         </Button>

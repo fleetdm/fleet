@@ -13,6 +13,7 @@ The Fleet front-end is a Single Page Application using React with Typescript and
   - [React Context](#react-context)
   - [Fleet API Calls](#fleet-api-calls)
   - [Page Routing](#page-routing)
+  - [Styles](#styles)
   - [Other](#other)
 
 ## Running the Fleet web app
@@ -318,6 +319,17 @@ const PageOrComponent = ({
   );
 };
 ```
+
+### Styles
+Below are a few need-to-knows about what's available in Fleet's CSS:
+
+**Modals**
+1) When creating a modal with a form inside, the action buttons (cancel, save, delete, etc.) should
+   be wrapped in the `modal-button-wrap` class to keep unified styles.
+
+**Forms**
+1) When creating a form, **not** in a modal, use the class `${baseClass}__button-wrap` for the
+   action buttons (cancel, save, delete, etc.) and proceed to style as needed.
 
 ### Other
 

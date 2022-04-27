@@ -35,7 +35,7 @@ const DeleteHostModal = ({
           To prevent re-enrollment, you can uninstall osquery on the host or
           revoke the host&apos;s enroll secret.
         </p>
-        <div className={`${baseClass}__button-wrap modal-btn-wrap`}>
+        <div className="modal-button-wrap">
           <Button onClick={onCancel} variant="inverse-alert">
             Cancel
           </Button>

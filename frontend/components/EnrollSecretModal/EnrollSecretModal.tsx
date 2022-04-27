@@ -107,7 +107,7 @@ const EnrollSecretModal = ({
             </>
           </Button>
         </div>
-        <div className={`${baseClass}__button-wrap`}>
+        <div className="modal-button-wrap">
           <Button onClick={onReturnToApp} className="button button--brand">
             Done
           </Button>
