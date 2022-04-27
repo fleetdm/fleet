@@ -356,7 +356,7 @@
     {{if .LastOpenedAt}}
     "last_opened_at": "{{ .LastOpenedAt.Unix }}"
     {{else}}
-    "last_opened_at": ""
+    "last_opened_at": "-1"
     {{end}}
   }
   {{- end }}
