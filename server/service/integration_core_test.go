@@ -13,6 +13,7 @@ import (
 	"net/url"
 	"os"
 	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 	"testing"
@@ -4224,6 +4225,68 @@ func (s *integrationTestSuite) TestModifyUser() {
 	require.NoError(t, json.NewDecoder(resp.Body).Decode(&loginResp))
 	resp.Body.Close()
 	require.Equal(t, u.ID, loginResp.User.ID)
+}
+
+func (s *integrationTestSuite) TestGetHostLastOpenedAt() {
+	t := s.T()
+
+	host, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         t.Name() + "1",
+		UUID:            t.Name() + "1",
+		Hostname:        t.Name() + "foo.local",
+		PrimaryIP:       "192.168.1.1",
+		PrimaryMac:      "30-65-EC-6F-C4-58",
+	})
+	require.NoError(t, err)
+	require.NotNil(t, host)
+
+	today := time.Now()
+	yesterday := today.Add(-24 * time.Hour)
+	software := []fleet.Software{
+		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
+		{Name: "bar", Version: "0.0.3", Source: "apps", LastOpenedAt: &today},
+		{Name: "baz", Version: "0.0.4", Source: "apps", LastOpenedAt: &yesterday},
+	}
+	require.NoError(t, s.ds.UpdateHostSoftware(context.Background(), host.ID, software))
+
+	var getHostResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+	require.Equal(t, host.ID, getHostResp.Host.ID)
+	require.Len(t, getHostResp.Host.Software, len(software))
+
+	sort.Slice(getHostResp.Host.Software, func(l, r int) bool {
+		lsw, rsw := getHostResp.Host.Software[l], getHostResp.Host.Software[r]
+		return lsw.Name < rsw.Name
+	})
+	// bar, baz, foo, in this order
+	wantTs := []time.Time{today, yesterday, time.Time{}}
+	for i, want := range wantTs {
+		sw := getHostResp.Host.Software[i]
+		if want.IsZero() {
+			require.Nil(t, sw.LastOpenedAt)
+		} else {
+			require.WithinDuration(t, want, *sw.LastOpenedAt, time.Second)
+		}
+	}
+
+	// listing hosts does not return the last opened at timestamp, only the GET /hosts/{id} endpoint
+	var listHostsResp listHostsResponse
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsResp)
+
+	var hostSeen bool
+	for _, h := range listHostsResp.Hosts {
+		if h.ID == host.ID {
+			hostSeen = true
+		}
+		for _, sw := range h.Software {
+			require.Nil(t, sw.LastOpenedAt)
+		}
+	}
+	require.True(t, hostSeen)
 }
 
 func (s *integrationTestSuite) TestHostsReportDownload() {

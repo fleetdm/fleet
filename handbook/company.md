@@ -293,4 +293,16 @@ The following [Slack channels are maintained](https://fleetdm.com/handbook/compa
 | `#thanks`                   | N/A _(say thank you)_
 | `#random`                   | N/A _(be random)_
 
+
+## Labels
+
+We use special characters to define label types.
+
+| Special character | Label type  | Rules        | Examples                            |
+|:------------------|:------------|:-------------|:------------------------------------|
+| `#`               | Noun        | One only     | `#platform`, `#interface`, `#agent`
+| `:`               | Verb        | One or more  | `:dev`, `:research`, `:design`
+| `~`               | Adjective   | One or more  | `~blocked`, `~frontend`, `~backend`
+| `!`               | OKR         | One only     | `!vuln`, `!desktop`, `!upgrade`
+
 <meta name="maintainedBy" value="mikermcneil">
