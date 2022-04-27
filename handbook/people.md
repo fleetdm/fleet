@@ -350,10 +350,11 @@ The following table lists the People group's rituals, frequency, and Directly Re
 | AP invoice monitoring | Daily | Look for new accounts payable invoices and ensure that Fleet's suppliers are paid. | Nathanael Holliday |
 | Brex reconciliation | Montly | Make sure all company issued credit card transactions have memos explaining what the purchase is for. | Nathanael Holliday |
 | Monthly accounting | Monthly | Use the monthly accounting template in GitHub to go through the process of validating Fleet's books. | Nathanael Holliday |
-| US contractor payroll | Monthly | Sync contractor hours to payments in Gusto and run payroll for the month. | |
-| Weekly department updates | Weekly | Updates from managers on what their departments accomplished for the week are logged in the cloud and disseminated on Slack. | | 
-| Hours update | Weekly | Screenshots of contractor hours as shown in Gusto are sent via Slack to each contractor's manager with no further action necessary if everything appears normal. | |
-| 501c update | Annually | File California 501c |  | 
+| US contractor payroll | Monthly | Sync contractor hours to payments in Gusto and run payroll for the month. | Charlie Chance |
+| 1:1 Mike:Sid Document Prep | Bi-weekly | Run through the document preparation GitHub issue for Mike's call with Sid. | Nathanael Holliday |
+| Weekly department updates | Weekly | Updates from managers on what their departments accomplished for the week are logged in the cloud and disseminated on Slack. | Charlie Chance | 
+| Hours update | Weekly | Screenshots of contractor hours as shown in Gusto are sent via Slack to each contractor's manager with no further action necessary if everything appears normal. | Charlie Chance |
+| 550C update | Annually | File California 550C. | Charlie Chance | 
 
 ## Slack channels
 
