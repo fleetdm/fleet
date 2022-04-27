@@ -168,7 +168,7 @@ describe("Premium tier - Maintainer user", () => {
           cy.findByText(/apples/i).should("exist");
           cy.findByText(/oranges/i).click();
         });
-        cy.getAttached(".transfer-host-modal modal-cta-wrap")
+        cy.getAttached(".transfer-host-modal .modal-cta-wrap")
           .contains("button", /transfer/i)
           .click();
         cy.findByText(/transferred to oranges/i).should("exist");
