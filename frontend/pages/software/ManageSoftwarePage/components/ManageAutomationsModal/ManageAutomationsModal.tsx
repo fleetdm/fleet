@@ -28,6 +28,7 @@ import useDeepEffect from "hooks/useDeepEffect";
 import _, { size } from "lodash";
 
 import PreviewPayloadModal from "../PreviewPayloadModal";
+import { combineDataSets } from "pages/admin/UserManagementPage/UsersTableConfig";
 
 interface ISoftwareAutomations {
   webhook_settings: {
@@ -97,6 +98,9 @@ const ManageAutomationsModal = ({
     selectedIntegration,
     setSelectedIntegration,
   ] = useState<IIntegration>();
+
+  console.log("selectedIntegration", selectedIntegration);
+
   useDeepEffect(() => {
     setSoftwareAutomationsEnabled(
       softwareVulnerabilityAutomationEnabled || false
@@ -137,7 +141,7 @@ const ManageAutomationsModal = ({
                 email: "admin@example.com",
                 api_token: "abc123",
                 group_id: "12345678",
-                enable_software_vulnerabilities: true,
+                enable_software_vulnerabilities: false,
               },
               {
                 url: "https://example2.zendesk.com",
@@ -175,12 +179,24 @@ const ManageAutomationsModal = ({
       const combineDataSets = jiraIntegrationsIndexed.concat(
         zendeskIntegrationsIndexed
       );
+      setAllIntegrationsIndexed(
+        combineDataSets?.map((integration, index) => {
+          return { ...integration, dropdownIndex: index };
+        })
+      );
+    } else if (jiraIntegrationsIndexed) {
+      setAllIntegrationsIndexed(
+        jiraIntegrationsIndexed?.map((integration, index) => {
+          return { ...integration, dropdownIndex: index };
+        })
+      );
+    } else {
+      setAllIntegrationsIndexed(
+        zendeskIntegrationsIndexed?.map((integration, index) => {
+          return { ...integration, dropdownIndex: index };
+        })
+      );
     }
-    setAllIntegrationsIndexed(
-      zendeskIntegrationsIndexed?.map((integration, index) => {
-        return { ...integration, dropdownIndex: index };
-      })
-    );
   }, [
     jiraIntegrationsIndexed,
     zendeskIntegrationsIndexed,
@@ -306,7 +322,7 @@ const ManageAutomationsModal = ({
   const createIntegrationDropdownOptions = () => {
     const integrationOptions = allIntegrationsIndexed?.map((i) => {
       return {
-        value: String(i.originalIndex),
+        value: String(i.dropdownIndex),
         label: `${i.url} - ${i.project_key || i.group_id}`,
       };
     });
@@ -318,7 +334,7 @@ const ManageAutomationsModal = ({
       | IIntegration
       | undefined = allIntegrationsIndexed?.find(
       (integ: IIntegration) =>
-        integ.originalIndex === parseInt(selectIntegrationIndex, 10)
+        integ.dropdownIndex === parseInt(selectIntegrationIndex, 10)
     );
     setSelectedIntegration(integrationWithIndex);
   };
@@ -349,7 +365,7 @@ const ManageAutomationsModal = ({
             options={createIntegrationDropdownOptions()}
             onChange={onChangeSelectIntegration}
             placeholder={"Select integration"}
-            value={selectedIntegration?.originalIndex}
+            value={selectedIntegration?.dropdownIndex}
             label={"Integration"}
             wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--frequency`}
             hint={

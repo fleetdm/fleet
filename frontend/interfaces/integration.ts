@@ -25,6 +25,7 @@ export interface IIntegration {
   originalIndex?: number;
   type?: string;
   tableIndex?: number;
+  dropdownIndex?: number;
   name?: string;
 }
 
