@@ -354,7 +354,7 @@ const ManageAutomationsModal = ({
             <div className={`${baseClass}__overlay`} />
           )}
         </div>
-        <div className="modal-button-wrap">
+        <div className="modal-cta-wrap">
           <Button
             className={`${baseClass}__btn`}
             onClick={onReturnToApp}

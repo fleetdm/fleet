@@ -31,7 +31,7 @@ const DeleteLabelModal = ({
     <Modal title="Delete label" onExit={onCancel} className={baseClass}>
       <>
         <p>Are you sure you wish to delete this label?</p>
-        <div className="modal-button-wrap">
+        <div className="modal-cta-wrap">
           <Button onClick={onCancel} variant="inverse-alert">
             Cancel
           </Button>

@@ -256,7 +256,7 @@ const LabelForm = ({
           </p>
         </div>
       )}
-      <div className="modal-button-wrap">
+      <div className="modal-cta-wrap">
         <Button
           className={`${baseClass}__cancel-btn`}
           onClick={onCancel}
