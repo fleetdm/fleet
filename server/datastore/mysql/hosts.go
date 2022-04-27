@@ -470,11 +470,11 @@ func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, fil
 	deviceMappingJoin := `LEFT JOIN (
 		SELECT
 			he.host_id,
-			GROUP_CONCAT("[", he.dmap, "]") AS device_mapping
+			GROUP_CONCAT('[', he.dmap, ']') AS device_mapping
 		FROM (
 			SELECT
 				host_id,
-				GROUP_CONCAT(JSON_OBJECT("email", email, "source", source)) AS dmap
+				GROUP_CONCAT(JSON_OBJECT('email', email, 'source', source)) AS dmap
 			FROM
 				host_emails
 			GROUP BY
@@ -832,23 +832,8 @@ func (ds *Datastore) MarkHostsSeen(ctx context.Context, hostIDs []uint, t time.T
 func (ds *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, matchQuery string, omit ...uint) ([]*fleet.Host, error) {
 	query := `SELECT
 		h.*,
-		COALESCE(hst.seen_time, h.created_at) AS seen_time,
-		dm.device_mapping
+		COALESCE(hst.seen_time, h.created_at) AS seen_time
 	FROM hosts h
-	LEFT JOIN (
-	SELECT
-		he.host_id,
-		GROUP_CONCAT("[", he.dmap, "]") AS device_mapping
-	FROM (
-		SELECT
-			host_id,
-			GROUP_CONCAT(JSON_OBJECT("email", email, "source", source)) AS dmap
-		FROM
-			host_emails
-		GROUP BY
-			host_id) he
-	GROUP BY
-		host_id) dm ON (h.id = dm.host_id)
 	LEFT JOIN host_seen_times hst
 	ON (h.id = hst.host_id) WHERE TRUE `
 

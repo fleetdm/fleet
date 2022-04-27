@@ -3339,11 +3339,20 @@ func testHostDeviceMapping(t *testing.T, ds *Datastore) {
 	var dm []*fleet.HostDeviceMapping
 
 	// device mapping for host 1
+	require.NotNil(t, *hostsByID[1].DeviceMapping)
 	err = json.Unmarshal(*hostsByID[1].DeviceMapping, &dm)
 	require.NoError(t, err)
-	assert.Len(t, dm, 3)
+	var emails []string
+	var sources []string
+	for _, e := range dm {
+		emails = append(emails, e.Email)
+		sources = append(sources, e.Source)
+	}
+	assert.ElementsMatch(t, []string{"a@b.c", "b@b.c", "a@b.c"}, emails)
+	assert.ElementsMatch(t, []string{"src1", "src1", "src2"}, sources)
 
 	// device mapping for host 2
+	require.NotNil(t, *hostsByID[2].DeviceMapping)
 	err = json.Unmarshal(*hostsByID[2].DeviceMapping, &dm)
 	require.NoError(t, err)
 	assert.Len(t, dm, 1)
@@ -3352,16 +3361,6 @@ func testHostDeviceMapping(t *testing.T, ds *Datastore) {
 
 	// no device mapping for host 3
 	assert.Nil(t, hostsByID[3].DeviceMapping)
-
-	// SearchHosts also includes device mapping
-	hostsSearchResult, err := ds.SearchHosts(ctx, fleet.TeamFilter{User: test.UserAdmin}, "host1")
-	require.NoError(t, err)
-	assert.Len(t, hostsSearchResult, 1)
-	err = json.Unmarshal(*hostsSearchResult[0].DeviceMapping, &dm)
-	require.NoError(t, err)
-	assert.Len(t, dm, 3)
-	assert.Equal(t, "a@b.c", dm[0].Email)
-	assert.Equal(t, "src1", dm[0].Source)
 }
 
 func testHostsReplaceHostDeviceMapping(t *testing.T, ds *Datastore) {
