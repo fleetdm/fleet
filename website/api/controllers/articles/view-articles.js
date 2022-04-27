@@ -33,19 +33,23 @@ module.exports = {
     }
     let articles = [];
     if (category === '' || category === 'articles') {
+      // If no category was provided (TODO: why would this happen?) or the user navigates to `/articles`, we'll show all articles
       articles = sails.config.builtStaticContent.markdownPages.filter((page)=>{
         if(_.startsWith(page.htmlId, 'articles')) {
           return page;
         }
       });
+      // setting the category to all
       category = 'all';
     } else {
+      // if the user navigates to a URL for a specific category, we'll only display articles in that category
       articles = sails.config.builtStaticContent.markdownPages.filter((page)=>{
         if(_.startsWith(page.url, '/'+category)) {
           return page;
         }
       });
     }
+
     return {
       path: require('path'),
       articles,

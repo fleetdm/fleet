@@ -19,7 +19,7 @@
         <h1>{{articleCategory}}</h1>
         <p>{{categoryDescription}}</p>
       </div>
-      <div purpose="articles" class="card-deck d-flex justify-content-center">
+      <div purpose="articles" class="card-deck d-flex justify-content-center" v-if="selectedArticles.length > 0">
         <div purpose="article-card" class="card" v-for="article in selectedArticles">
           <a purpose="article-card-link" :href="article.url">
             <img style="width: 100%; height: auto;" :src="[article.meta.articleImageUrl ? article.meta.articleImageUrl : '/images/press-kit/press-kit-fleet-logo-white-preview-600x336@2x.png']" alt="Article hero image">
@@ -42,6 +42,9 @@
         </div>
         <div purpose="article-card" class="card invisible mb-0">
         </div>
+      </div>
+      <div v-else>
+        <h2 class="text-muted mx-auto">No articles to display</h2>
       </div>
     </div>
   </div>
