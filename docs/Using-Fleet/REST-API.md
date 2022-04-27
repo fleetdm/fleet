@@ -1,22 +1,22 @@
 # REST API
 
 - [Overview](#overview)
-- [Authentication](#authentication)
-- [Hosts](#hosts)
-- [Labels](#labels)
-- [Users](#users)
-- [Sessions](#sessions)
-- [Queries](#queries)
-- [Schedule](#schedule)
-- [Packs](#packs)
-- [Policies](#policies)
 - [Activities](#activities)
-- [Targets](#targets)
+- [Authentication](#authentication)
 - [Fleet configuration](#fleet-configuration)
 - [File carving](#file-carving)
+- [Hosts](#hosts)
+- [Labels](#labels)
+- [Packs](#packs)
+- [Policies](#policies)
+- [Queries](#queries)
+- [Schedule](#schedule)
+- [Sessions](#sessions)
+- [Software](#software)
+- [Targets](#targets)
 - [Teams](#teams)
 - [Translator](#translator)
-- [Software](#software)
+- [Users](#users)
 
 ## Overview
 
