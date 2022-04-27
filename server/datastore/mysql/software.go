@@ -81,11 +81,11 @@ func softwareSliceToMap(softwares []fleet.Software) map[string]fleet.Software {
 // slice, updating existing entries and inserting new entries.
 func (ds *Datastore) UpdateHostSoftware(ctx context.Context, hostID uint, software []fleet.Software) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		return applyChangesForNewSoftwareDB(ctx, tx, hostID, software)
+		return applyChangesForNewSoftwareDB(ctx, tx, hostID, software, ds.minLastOpenedAtDiff)
 	})
 }
 
-func nothingChanged(current []fleet.Software, incoming []fleet.Software) bool {
+func nothingChanged(current, incoming []fleet.Software, minLastOpenedAtDiff time.Duration) bool {
 	if len(current) != len(incoming) {
 		return false
 	}
@@ -119,15 +119,19 @@ func nothingChanged(current []fleet.Software, incoming []fleet.Software) bool {
 	return true
 }
 
-const minLastOpenedAtDiff = time.Hour
-
-func applyChangesForNewSoftwareDB(ctx context.Context, tx sqlx.ExtContext, hostID uint, software []fleet.Software) error {
+func applyChangesForNewSoftwareDB(
+	ctx context.Context,
+	tx sqlx.ExtContext,
+	hostID uint,
+	software []fleet.Software,
+	minLastOpenedAtDiff time.Duration,
+) error {
 	storedCurrentSoftware, err := listSoftwareDB(ctx, tx, &hostID, fleet.SoftwareListOptions{SkipLoadingCVEs: true})
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "loading current software for host")
 	}
 
-	if nothingChanged(storedCurrentSoftware, software) {
+	if nothingChanged(storedCurrentSoftware, software, minLastOpenedAtDiff) {
 		return nil
 	}
 
@@ -142,7 +146,7 @@ func applyChangesForNewSoftwareDB(ctx context.Context, tx sqlx.ExtContext, hostI
 		return err
 	}
 
-	if err = updateModifiedHostSoftwareDB(ctx, tx, hostID, current, incoming); err != nil {
+	if err = updateModifiedHostSoftwareDB(ctx, tx, hostID, current, incoming, minLastOpenedAtDiff); err != nil {
 		return err
 	}
 
@@ -274,6 +278,7 @@ func updateModifiedHostSoftwareDB(
 	hostID uint,
 	currentMap map[string]fleet.Software,
 	incomingMap map[string]fleet.Software,
+	minLastOpenedAtDiff time.Duration,
 ) error {
 	const stmt = `UPDATE host_software SET last_opened_at = ? WHERE host_id = ? AND software_id = ?`
 
