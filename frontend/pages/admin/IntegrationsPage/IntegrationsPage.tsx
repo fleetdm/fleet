@@ -178,7 +178,7 @@ const IntegrationsPage = (): JSX.Element => {
       debugger;
       setTestingConnection(true);
       configAPI
-        .update({ integrations: destination })
+        .update({ integrations: destination() })
         .then(() => {
           renderFlash(
             "success",
