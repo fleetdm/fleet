@@ -63,7 +63,7 @@ const DeviceUserPage = ({
       refetchOnReconnect: false,
       refetchOnWindowFocus: false,
       retry: false,
-      select: (data: IDeviceMappingResponse) => data.device_mapping
+      select: (data: IDeviceMappingResponse) => data.device_mapping,
     }
   );
 
