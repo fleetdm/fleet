@@ -357,7 +357,7 @@ When the final signature is added to an envelope in DocuSign, it is marked as co
       link: drive.google.com/[destinationFolderID]
    ```
 
-## Rituals
+## PeopleOps
 
 ### OKR Planning
 
@@ -386,6 +386,24 @@ Every two weeks our CEO Mike has a 1:1 meeting with our Investor Sid and there a
 We're happy you've ventured a trip around the sun with Fleet. Let's celebrate!
 
 - Each Friday, if there are any upcoming workiversaries in the next seven days, People Operations posts about them in #g-people and tags @mikermcneil to let them know.
+
+
+## Rituals
+
+The following table lists the People group's rituals, frequency, and Directly Responsible Individual (DRI).
+
+| Ritual                       | Frequency                | Description                                         | DRI               |
+|:-----------------------------|:-----------------------------|:----------------------------------------------------|-------------------|
+| AP invoice monitoring | Daily | Look for new accounts payable invoices and ensure that Fleet's suppliers are paid. | Nathanael Holliday |
+| Weekly department updates | Weekly | Updates from managers on what their departments accomplished for the week are logged in the cloud and disseminated on Slack. | Charlie Chance | 
+| Hours update | Weekly | Screenshots of contractor hours as shown in Gusto are sent via Slack to each contractor's manager with no further action necessary if everything appears normal. | Charlie Chance |
+| Prepare Mike and Sid's 1:1 Doc | Bi-weekly | Run through the document preparation GitHub issue for Mike's call with Sid. | Nathanael Holliday |
+| OKR review | Every three weeks | Review the status of each OKR. | Mike Thomas |
+| Brex reconciliation | Monthly | Make sure all company-issued credit card transactions include memos. | Nathanael Holliday |
+| Monthly accounting | Monthly | Use the monthly accounting template in GitHub to go through the process of validating Fleet's books. | Nathanael Holliday |
+| US contractor payroll | Monthly | Sync contractor hours to payments in Gusto and run payroll for the month. | Charlie Chance |
+| OKR planning | Quarterly | Plan the next quarter's OKRs. | Mike Thomas |
+| 550C update | Annually | File California 550C. | Charlie Chance | 
 
 ## Slack channels
 
