@@ -355,7 +355,7 @@ The following table lists the People group's rituals, frequency, and Directly Re
 | Brex reconciliation | Monthly | Make sure all company-issued credit card transactions include memos. | Nathanael Holliday |
 | Monthly accounting | Monthly | Use the monthly accounting template in GitHub to go through the process of validating Fleet's books. | Nathanael Holliday |
 | US contractor payroll | Monthly | Sync contractor hours to payments in Gusto and run payroll for the month. | Charlie Chance |
-| OKR planning | Quarterly and every three weeks | Review the status of each OKR. | |
+| OKR planning | Quarterly | Plan the next quarter's OKRs. | Mike Thomas |
 | 550C update | Annually | File California 550C. | Charlie Chance | 
 
 ## Slack channels
