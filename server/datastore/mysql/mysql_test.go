@@ -761,6 +761,8 @@ func generateTestCert(t *testing.T) (string, string) {
 }
 
 func TestNewUsesRegisterTLS(t *testing.T) {
+	t.Skip("known issue: https://github.com/fleetdm/fleet/issues/5377")
+
 	dbName := t.Name()
 
 	ca, _ := generateTestCert(t)
