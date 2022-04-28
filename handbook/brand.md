@@ -223,6 +223,8 @@ The following table lists the Brand group's rituals, frequency, and Directly Res
 | Documentation update | Weekly | Turn questions answered from Fleet and osquery Slack into FAQs in Fleet’s docs. | Kathy Satterlee |
 | Digital experience planning  | Three weeks | Prioritize and assigns issues to relevant personnel based on current goals and quarterly OKRs. | Mike Thomas |
 | Browser compatibility check | Monthly | Check browser compatibility for the website. | Eric Shaw |
+| Handbook editor pass | Monthly | Edit for copy and content. | Desmi Dizney |
+| Docs editor pass | Weekly | Edit 2 sections a week until completed. | Desmi Dizney |
 
 ## Slack channels
 
