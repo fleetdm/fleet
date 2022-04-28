@@ -87,7 +87,7 @@ The following table lists the Growth group's rituals, frequency, and Directly Re
 | Enriching leads ritual       | Weekly | Follow the lead enrichment process every Friday.    | Drew Baker        |
 | Outside contributions | Weekly | Check pull requests for outside contributions every Monday. | Drew Baker|
 | Weekly article       | Weekly | Publish an article and promote it on social media. | Drew Baker|
-| Weekly ins and outs ritual   | Weekly | Track ins and outs.        | Tim Kern          |
+| Weekly ins and outs   | Weekly | Track Growth team ins and outs.        | Tim Kern          |
 | Podcast outreach ritual      | Weekly | Conduct podcast outreach twice per week.     | Drew Baker        |
 | Monthly conference ritual    | Monthly | Check for conference openings and for conference sponsorships on the 1st of every month. | Drew Baker|
 
