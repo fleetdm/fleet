@@ -82,22 +82,17 @@ const TransferHostModal = ({
             </Link>
           </p>
         ) : null}
-        <div className={`${baseClass}__btn-wrap`}>
+        <div className="modal-cta-wrap">
+          <Button onClick={onCancel} variant="inverse">
+            Cancel
+          </Button>
           <Button
             disabled={selectedTeam === undefined}
-            className={`${baseClass}__btn`}
             type="button"
             variant="brand"
             onClick={onSubmitTransferHost}
           >
             Transfer
-          </Button>
-          <Button
-            className={`${baseClass}__btn`}
-            onClick={onCancel}
-            variant="inverse"
-          >
-            Cancel
           </Button>
         </div>
       </form>
