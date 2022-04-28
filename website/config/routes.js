@@ -68,14 +68,13 @@ module.exports.routes = {
     }
   },
 
-
   'r|/((device-management|securing|releases|engineering|guides|announcements|use-cases)/(.+))$|': {
     skipAssets: false,
     action: 'articles/view-basic-article',
     locals: {
       currentPage: 'articles',
     }
-  },// handles /device-management/foo, /security/foo, /releases/foo, /engineering/foo, /guides/foo, /announcements/foo, /use-cases/foo
+  },// handles /device-management/foo, /securing/foo, /releases/foo, /engineering/foo, /guides/foo, /announcements/foo, /use-cases/foo
 
   'r|/((device-management|securing|releases|engineering|guides|announcements|use-cases|articles))/*$|category': {
     skipAssets: false,
@@ -83,7 +82,7 @@ module.exports.routes = {
     locals: {
       currentPage: 'articles',
     }
-  },
+  },// Handles the article landing page /articles, and the article cateogry pages (e.g. /device-management, /securing, /releases, etc)
 
   'GET /docs/?*': {
     skipAssets: false,
