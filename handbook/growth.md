@@ -84,7 +84,7 @@ The following table lists the Growth group's rituals, frequency, and Directly Re
 | Daily LinkedIn post        | Daily | Post Fleet-related content to LinkedIn.   | Drew Baker        |
 | Social engagement     | Weekly | Participate in 50 social media engagements per week.| Drew Baker        |  
 | Osquery Jobs          | Weekly | Post to @osqueryjobs twice a week.            | Drew Baker        |
-| Enriching leads ritual       | Weekly | Follow the lead enrichment process every Friday.    | Drew Baker        |
+| Enrich Salesforce leads       | Weekly | Follow the Salesforce lead enrichment process every Friday.    | Drew Baker        |
 | Outside contributions | Weekly | Check pull requests for outside contributions every Monday. | Drew Baker|
 | Weekly article       | Weekly | Publish an article and promote it on social media. | Drew Baker|
 | Weekly ins and outs   | Weekly | Track Growth team ins and outs.        | Tim Kern          |
