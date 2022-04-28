@@ -1,22 +1,22 @@
 # REST API
 
 - [Overview](#overview)
-- [Authentication](#authentication)
-- [Hosts](#hosts)
-- [Labels](#labels)
-- [Users](#users)
-- [Sessions](#sessions)
-- [Queries](#queries)
-- [Schedule](#schedule)
-- [Packs](#packs)
-- [Policies](#policies)
 - [Activities](#activities)
-- [Targets](#targets)
+- [Authentication](#authentication)
 - [Fleet configuration](#fleet-configuration)
 - [File carving](#file-carving)
+- [Hosts](#hosts)
+- [Labels](#labels)
+- [Packs](#packs)
+- [Policies](#policies)
+- [Queries](#queries)
+- [Schedule](#schedule)
+- [Sessions](#sessions)
+- [Software](#software)
+- [Targets](#targets)
 - [Teams](#teams)
 - [Translator](#translator)
-- [Software](#software)
+- [Users](#users)
 
 ## Overview
 
@@ -447,6 +447,1246 @@ This is the callback endpoint that the identity provider will use to send securi
 
 `Status: 200`
 
+
+---
+
+## Activities
+
+### List activities
+
+Returns a list of the activities that have been performed in Fleet. The following types of activity are included:
+
+- Created pack
+- Edited pack
+- Deleted pack
+- Applied pack with fleetctl
+- Created policy
+- Edited policy
+- Deleted policy
+- Applied policy with fleetctl
+- Created saved query
+- Edited saved query
+- Deleted saved query
+- Applied query with fleetctl
+- Ran live query
+- Created team - _Available in Fleet Premium_
+- Deleted team - _Available in Fleet Premium_
+
+`GET /api/v1/fleet/activities`
+
+#### Parameters
+
+| Name            | Type    | In    | Description                                                                                                                   |
+| --------------- | ------- | ----- | ----------------------------------------------------------------------------------------------------------------------------- |
+| page            | integer | query | Page number of the results to fetch.                                                                                          |
+| per_page        | integer | query | Results per page.                                                                                                             |
+| order_key       | string  | query | What to order results by. Can be any column in the `activites` table.                                                         |
+| order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`. |
+
+#### Example
+
+`GET /api/v1/fleet/activities?page=0&per_page=10&order_key=created_at&order_direction=desc`
+
+##### Default response
+
+```json
+{
+  "activities": [
+    {
+      "created_at": "2021-07-30T13:41:07Z",
+      "id": 24,
+      "actor_full_name": "name",
+      "actor_id": 1,
+      "actor_gravatar": "",
+      "actor_email": "name@example.com",
+      "type": "live_query",
+      "details": {
+        "targets_count": 231
+      }
+    },
+    {
+      "created_at": "2021-07-29T15:35:33Z",
+      "id": 23,
+      "actor_full_name": "name",
+      "actor_id": 1,
+      "actor_gravatar": "",
+      "actor_email": "name@example.com",
+      "type": "deleted_multiple_saved_query",
+      "details": {
+        "query_ids": [
+          2,
+          24,
+          25
+        ]
+      }
+    },
+    {
+      "created_at": "2021-07-29T14:40:30Z",
+      "id": 22,
+      "actor_full_name": "name",
+      "actor_id": 1,
+      "actor_gravatar": "",
+      "actor_email": "name@example.com",
+      "type": "created_team",
+      "details": {
+        "team_id": 3,
+        "team_name": "Oranges"
+      }
+    },
+    {
+      "created_at": "2021-07-29T14:40:27Z",
+      "id": 21,
+      "actor_full_name": "name",
+      "actor_id": 1,
+      "actor_gravatar": "",
+      "actor_email": "name@example.com",
+      "type": "created_team",
+      "details": {
+        "team_id": 2,
+        "team_name": "Apples"
+      }
+    },
+    {
+      "created_at": "2021-07-27T14:35:08Z",
+      "id": 20,
+      "actor_full_name": "name",
+      "actor_id": 1,
+      "actor_gravatar": "",
+      "actor_email": "name@example.com",
+      "type": "created_pack",
+      "details": {
+        "pack_id": 2,
+        "pack_name": "New pack"
+      }
+    },
+    {
+      "created_at": "2021-07-27T13:25:21Z",
+      "id": 19,
+      "actor_full_name": "name",
+      "actor_id": 1,
+      "actor_gravatar": "",
+      "actor_email": "name@example.com",
+      "type": "live_query",
+      "details": {
+        "targets_count": 14
+      }
+    },
+    {
+      "created_at": "2021-07-27T13:25:14Z",
+      "id": 18,
+      "actor_full_name": "name",
+      "actor_id": 1,
+      "actor_gravatar": "",
+      "actor_email": "name@example.com",
+      "type": "live_query",
+      "details": {
+        "targets_count": 14
+      }
+    },
+    {
+      "created_at": "2021-07-26T19:28:24Z",
+      "id": 17,
+      "actor_full_name": "name",
+      "actor_id": 1,
+      "actor_gravatar": "",
+      "actor_email": "name@example.com",
+      "type": "live_query",
+      "details": {
+        "target_counts": 1
+      }
+    },
+    {
+      "created_at": "2021-07-26T17:27:37Z",
+      "id": 16,
+      "actor_full_name": "name",
+      "actor_id": 1,
+      "actor_gravatar": "",
+      "actor_email": "name@example.com",
+      "type": "live_query",
+      "details": {
+        "target_counts": 14
+      }
+    },
+    {
+      "created_at": "2021-07-26T17:27:08Z",
+      "id": 15,
+      "actor_full_name": "name",
+      "actor_id": 1,
+      "actor_gravatar": "",
+      "actor_email": "name@example.com",
+      "type": "live_query",
+      "details": {
+        "target_counts": 14
+      }
+    }
+  ]
+}
+
+```
+
+---
+
+## File carving
+
+- [List carves](#list-carves)
+- [Get carve](#get-carve)
+- [Get carve block](#get-carve-block)
+
+Fleet supports osquery's file carving functionality as of Fleet 3.3.0. This allows the Fleet server to request files (and sets of files) from osquery agents, returning the full contents to Fleet.
+
+To initiate a file carve using the Fleet API, you can use the [live query](#run-live-query) or [scheduled query](#add-scheduled-query-to-a-pack) endpoints to run a query against the `carves` table.
+
+For more information on executing a file carve in Fleet, go to the [File carving with Fleet docs](../Using-Fleet/fleetctl-CLI.md#file-carving-with-fleet).
+
+### List carves
+
+Retrieves a list of the non expired carves. Carve contents remain available for 24 hours after the first data is provided from the osquery client.
+
+`GET /api/v1/fleet/carves`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/v1/fleet/carves`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "carves": [
+    {
+      "id": 1,
+      "created_at": "2021-02-23T22:52:01Z",
+      "host_id": 7,
+      "name": "macbook-pro.local-2021-02-23T22:52:01Z-fleet_distributed_query_30",
+      "block_count": 1,
+      "block_size": 2000000,
+      "carve_size": 2048,
+      "carve_id": "c6958b5f-4c10-4dc8-bc10-60aad5b20dc8",
+      "request_id": "fleet_distributed_query_30",
+      "session_id": "065a1dc3-40ad-441c-afff-80c2ad7dac28",
+      "expired": false,
+      "max_block": 0
+    },
+    {
+      "id": 2,
+      "created_at": "2021-02-23T22:53:03Z",
+      "host_id": 7,
+      "name": "macbook-pro.local-2021-02-23T22:53:03Z-fleet_distributed_query_31",
+      "block_count": 2,
+      "block_size": 2000000,
+      "carve_size": 3400704,
+      "carve_id": "2b9170b9-4e11-4569-a97c-2f18d18bec7a",
+      "request_id": "fleet_distributed_query_31",
+      "session_id": "f73922ed-40a4-4e98-a50a-ccda9d3eb755",
+      "expired": false,
+      "max_block": 1
+    }
+  ]
+}
+```
+
+### Get carve
+
+Retrieves the specified carve.
+
+`GET /api/v1/fleet/carves/{id}`
+
+#### Parameters
+
+| Name | Type    | In   | Description                           |
+| ---- | ------- | ---- | ------------------------------------- |
+| id   | integer | path | **Required.** The desired carve's ID. |
+
+#### Example
+
+`GET /api/v1/fleet/carves/1`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "carve": {
+    "id": 1,
+    "created_at": "2021-02-23T22:52:01Z",
+    "host_id": 7,
+    "name": "macbook-pro.local-2021-02-23T22:52:01Z-fleet_distributed_query_30",
+    "block_count": 1,
+    "block_size": 2000000,
+    "carve_size": 2048,
+    "carve_id": "c6958b5f-4c10-4dc8-bc10-60aad5b20dc8",
+    "request_id": "fleet_distributed_query_30",
+    "session_id": "065a1dc3-40ad-441c-afff-80c2ad7dac28",
+    "expired": false,
+    "max_block": 0
+  }
+}
+```
+
+### Get carve block
+
+Retrieves the specified carve block. This endpoint retrieves the data that was carved.
+
+`GET /api/v1/fleet/carves/{id}/block/{block_id}`
+
+#### Parameters
+
+| Name     | Type    | In   | Description                                 |
+| -------- | ------- | ---- | ------------------------------------------- |
+| id       | integer | path | **Required.** The desired carve's ID.       |
+| block_id | integer | path | **Required.** The desired carve block's ID. |
+
+#### Example
+
+`GET /api/v1/fleet/carves/1/block/0`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+    "data": "aG9zdHMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA..."
+}
+```
+---
+
+## Fleet configuration
+
+- [Get certificate](#get-certificate)
+- [Get configuration](#get-configuration)
+- [Modify configuration](#modify-configuration)
+- [Get global enroll secrets](#get-global-enroll-secrets)
+- [Modify global enroll secrets](#modify-global-enroll-secrets)
+- [Get enroll secrets for a team](#get-enroll-secrets-for-a-team)
+- [Modify enroll secrets for a team](i#modify-enroll-secrets-for-a-team)
+- [Create invite](#create-invite)
+- [List invites](#list-invites)
+- [Delete invite](#delete-invite)
+- [Verify invite](#verify-invite)
+- [Update invite](#update-invite)
+- [Version](#version)
+
+The Fleet server exposes a handful of API endpoints that handle the configuration of Fleet as well as endpoints that manage invitation and enroll secret operations. All the following endpoints require prior authentication meaning you must first log in successfully before calling any of the endpoints documented below.
+
+### Get certificate
+
+Returns the Fleet certificate.
+
+`GET /api/v1/fleet/config/certificate`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/v1/fleet/config/certificate`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "certificate_chain": <certificate_chain>
+}
+```
+
+### Get configuration
+
+Returns all information about the Fleet's configuration.
+
+`GET /api/v1/fleet/config`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/v1/fleet/config`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "org_info": {
+    "org_name": "fleet",
+    "org_logo_url": ""
+  },
+  "server_settings": {
+    "server_url": "https://localhost:8080",
+    "live_query_disabled": false,
+    "enable_analytics": true
+  },
+  "smtp_settings": {
+    "enable_smtp": false,
+    "configured": false,
+    "sender_address": "",
+    "server": "",
+    "port": 587,
+    "authentication_type": "authtype_username_password",
+    "user_name": "",
+    "password": "********",
+    "enable_ssl_tls": true,
+    "authentication_method": "authmethod_plain",
+    "domain": "",
+    "verify_ssl_certs": true,
+    "enable_start_tls": true
+  },
+  "sso_settings": {
+    "entity_id": "",
+    "issuer_uri": "",
+    "idp_image_url": "",
+    "metadata": "",
+    "metadata_url": "",
+    "idp_name": "",
+    "enable_sso": false,
+    "enable_sso_idp_login": false
+  },
+  "host_expiry_settings": {
+    "host_expiry_enabled": false,
+    "host_expiry_window": 0
+  },
+  "host_settings": {
+    "additional_queries": null
+  },
+  "agent_options": {
+    "spec": {
+      "config": {
+        "options": {
+          "logger_plugin": "tls",
+          "pack_delimiter": "/",
+          "logger_tls_period": 10,
+          "distributed_plugin": "tls",
+          "disable_distributed": false,
+          "logger_tls_endpoint": "/api/v1/osquery/log",
+          "distributed_interval": 10,
+          "distributed_tls_max_attempts": 3
+        },
+        "decorators": {
+          "load": [
+            "SELECT uuid AS host_uuid FROM system_info;",
+            "SELECT hostname AS hostname FROM system_info;"
+          ]
+        }
+      },
+      "overrides": {}
+    }
+  },
+  "license": {
+    "tier": "free",
+    "expiration": "0001-01-01T00:00:00Z"
+  },
+  "logging": {
+      "debug": false,
+      "json": false,
+      "result": {
+          "plugin": "firehose",
+          "config": {
+              "region": "us-east-1",
+              "status_stream": "",
+              "result_stream": "result-topic"
+          }
+      },
+      "status": {
+          "plugin": "filesystem",
+          "config": {
+              "status_log_file": "foo_status",
+              "result_log_file": "",
+              "enable_log_rotation": false,
+              "enable_log_compression": false
+          }
+      }
+  },
+  "license": {
+    "tier": "free",
+    "organization": "fleet",
+    "device_count": 100,
+    "expiration": "2021-12-31T19:00:00-05:00",
+    "note": ""
+  },
+  "vulnerability_settings": {
+    "databases_path": ""
+  },
+  "webhook_settings": {
+    "host_status_webhook": {
+      "enable_host_status_webhook": true,
+      "destination_url": "https://server.com",
+      "host_percentage": 5,
+      "days_count": 7
+    },
+    "failing_policies_webhook":{
+      "enable_failing_policies_webhook":true,
+      "destination_url": "https://server.com",
+      "policy_ids": [1, 2, 3],
+      "host_batch_size": 1000
+    },
+    "vulnerabilities_webhook":{
+      "enable_vulnerabilities_webhook":true,
+      "destination_url": "https://server.com",
+      "host_batch_size": 1000
+    }
+  },
+  "integrations": {
+    "jira": null
+  },
+  "logging": {
+    "debug": false,
+    "json": false,
+    "result": {
+        "plugin": "filesystem",
+        "config": {
+          "status_log_file": "/var/folders/xh/bxm1d2615tv3vrg4zrxq540h0000gn/T/osquery_status",
+          "result_log_file": "/var/folders/xh/bxm1d2615tv3vrg4zrxq540h0000gn/T/osquery_result",
+          "enable_log_rotation": false,
+          "enable_log_compression": false
+        }
+      },
+    "status": {
+      "plugin": "filesystem",
+      "config": {
+        "status_log_file": "/var/folders/xh/bxm1d2615tv3vrg4zrxq540h0000gn/T/osquery_status",
+        "result_log_file": "/var/folders/xh/bxm1d2615tv3vrg4zrxq540h0000gn/T/osquery_result",
+        "enable_log_rotation": false,
+        "enable_log_compression": false
+      }
+    }
+  },
+  "update_interval": {
+    "osquery_detail": 3600000000000,
+    "osquery_policy": 3600000000000
+  },
+  "vulnerabilities": {
+    "cpe_database_url": "",
+    "current_instance_checks": "auto",
+    "cve_feed_prefix_url": "",
+    "databases_path": "",
+    "disable_data_sync": false,
+    "periodicity": 3600000000000,
+    "recent_vulnerability_max_age": 2592000000000000
+  }
+}
+```
+
+### Modify configuration
+
+Modifies the Fleet's configuration with the supplied information.
+
+`PATCH /api/v1/fleet/config`
+
+#### Parameters
+
+| Name                  | Type    | In   | Description                                                                                                                                                                            |
+| --------------------- | ------- | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| org_name              | string  | body | _Organization information_. The organization name.                                                                                                                                     |
+| org_logo_url          | string  | body | _Organization information_. The URL for the organization logo.                                                                                                                         |
+| server_url            | string  | body | _Server settings_. The Fleet server URL.                                                                                                                                               |
+| live_query_disabled   | boolean | body | _Server settings_. Whether the live query capabilities are disabled.                                                                                                                   |
+| enable_smtp           | boolean | body | _SMTP settings_. Whether SMTP is enabled for the Fleet app.                                                                                                                            |
+| sender_address        | string  | body | _SMTP settings_. The sender email address for the Fleet app. An invitation email is an example of the emails that may use this sender address                                          |
+| server                | string  | body | _SMTP settings_. The SMTP server for the Fleet app.                                                                                                                                    |
+| port                  | integer | body | _SMTP settings_. The SMTP port for the Fleet app.                                                                                                                                      |
+| authentication_type   | string  | body | _SMTP settings_. The authentication type used by the SMTP server. Options include `"authtype_username_and_password"` or `"none"`                                                       |
+| username_name         | string  | body | _SMTP settings_. The username used to authenticate requests made to the SMTP server.                                                                                                   |
+| password              | string  | body | _SMTP settings_. The password used to authenticate requests made to the SMTP server.                                                                                                   |
+| enable_ssl_tls        | boolean | body | _SMTP settings_. Whether or not SSL and TLS are enabled for the SMTP server.                                                                                                           |
+| authentication_method | string  | body | _SMTP settings_. The authentication method used to make authenticate requests to SMTP server. Options include `"authmethod_plain"`, `"authmethod_cram_md5"`, and `"authmethod_login"`. |
+| domain                | string  | body | _SMTP settings_. The domain for the SMTP server.                                                                                                                                       |
+| verify_ssl_certs      | boolean | body | _SMTP settings_. Whether or not SSL certificates are verified by the SMTP server. Turn this off (not recommended) if you use a self-signed certificate.                                |
+| enabled_start_tls     | boolean | body | _SMTP settings_. Detects if STARTTLS is enabled in your SMTP server and starts to use it.                                                                                              |
+| enabled_sso           | boolean | body | _SSO settings_. Whether or not SSO is enabled for the Fleet application. If this value is true, you must also include most of the SSO settings parameters below.                       |
+| entity_id             | string  | body | _SSO settings_. The required entity ID is a URI that you use to identify Fleet when configuring the identity provider.                                                                 |
+| issuer_uri            | string  | body | _SSO settings_. The URI you provide here must exactly match the Entity ID field used in the identity provider configuration.                                                           |
+| idp_image_url         | string  | body | _SSO settings_. An optional link to an image such as a logo for the identity provider.                                                                                                 |
+| metadata              | string  | body | _SSO settings_. Metadata provided by the identity provider. Either metadata or a metadata URL must be provided.                                                                        |
+| metadata_url          | string  | body | _SSO settings_. A URL that references the identity provider metadata. If available from the identity provider, this is the preferred means of providing metadata.                      |
+| host_expiry_enabled   | boolean | body | _Host expiry settings_. When enabled, allows automatic cleanup of hosts that have not communicated with Fleet in some number of days.                                                  |
+| host_expiry_window    | integer | body | _Host expiry settings_. If a host has not communicated with Fleet in the specified number of days, it will be removed.                                                                 |
+| agent_options         | objects | body | The agent_options spec that is applied to all hosts. In Fleet 4.0.0 the `api/v1/fleet/spec/osquery_options` endpoints were removed.                                                    |
+| enable_host_status_webhook    | boolean | body | _webhook_settings.host_status_webhook settings_. Whether or not the host status webhook is enabled.                                                                 |
+| destination_url       | string | body | _webhook_settings.host_status_webhook settings_. The URL to deliver the webhook request to.                                                     |
+| host_percentage       | integer | body | _webhook_settings.host_status_webhook settings_. The minimum percentage of hosts that must fail to check in to Fleet in order to trigger the webhook request.                                                              |
+| days_count            | integer | body | _webhook_settings.host_status_webhook settings_. The minimum number of days that the configured `host_percentage` must fail to check in to Fleet in order to trigger the webhook request.                                |
+| enable_failing_policies_webhook   | boolean | body | _webhook_settings.failing_policies_webhook settings_. Whether or not the failing policies webhook is enabled. |
+| destination_url       | string | body | _webhook_settings.failing_policies_webhook settings_. The URL to deliver the webhook requests to.                                                     |
+| policy_ids            | array | body | _webhook_settings.failing_policies_webhook settings_. List of policy IDs to enable failing policies webhook.                                                              |
+| host_batch_size       | integer | body | _webhook_settings.failing_policies_webhook settings_. Maximum number of hosts to batch on failing policy webhook requests. The default, 0, means no batching (all hosts failing a policy are sent on one request). |
+| enable_vulnerabilities_webhook   | boolean | body | _webhook_settings.vulnerabilities_webhook settings_. Whether or not the vulnerabilities webhook is enabled. |
+| destination_url       | string | body | _webhook_settings.vulnerabilities_webhook settings_. The URL to deliver the webhook requests to.                                                     |
+| host_batch_size       | integer | body | _webhook_settings.vulnerabilities_webhook settings_. Maximum number of hosts to batch on vulnerabilities webhook requests. The default, 0, means no batching (all vulnerable hosts are sent on one request). |
+| enable_software_vulnerabilities | boolean | body | _integrations.jira[] settings_. Whether or not that Jira integration is enabled. Only one vulnerabilities automation can be enabled at a given time (enable_vulnerabilities_webhook and enable_software_vulnerabilities). |
+| url                   | string | body | _integrations.jira[] settings_. The URL of the Jira server to integrate with. |
+| username              | string | body | _integrations.jira[] settings_. The Jira username to use for this Jira integration. |
+| password              | string | body | _integrations.jira[] settings_. The password of the Jira username to use for this Jira integration. |
+| project_key           | string | body | _integrations.jira[] settings_. The Jira project key to use for this integration. Jira tickets will be created in this project. |
+| additional_queries    | boolean | body | Whether or not additional queries are enabled on hosts.                                                                                                                                |
+
+#### Example
+
+`PATCH /api/v1/fleet/config`
+
+##### Request body
+
+```json
+{
+  "org_info": {
+    "org_name": "Fleet Device Management",
+    "org_logo_url": "https://fleetdm.com/logo.png"
+  },
+  "smtp_settings": {
+    "enable_smtp": true,
+    "server": "localhost",
+    "port": "1025"
+  }
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "org_info": {
+    "org_name": "Fleet Device Management",
+    "org_logo_url": "https://fleetdm.com/logo.png"
+  },
+  "server_settings": {
+    "server_url": "https://localhost:8080",
+    "live_query_disabled": false
+  },
+  "smtp_settings": {
+    "enable_smtp": true,
+    "configured": true,
+    "sender_address": "",
+    "server": "localhost",
+    "port": 1025,
+    "authentication_type": "authtype_username_none",
+    "user_name": "",
+    "password": "********",
+    "enable_ssl_tls": true,
+    "authentication_method": "authmethod_plain",
+    "domain": "",
+    "verify_ssl_certs": true,
+    "enable_start_tls": true
+  },
+  "sso_settings": {
+    "entity_id": "",
+    "issuer_uri": "",
+    "idp_image_url": "",
+    "metadata": "",
+    "metadata_url": "",
+    "idp_name": "",
+    "enable_sso": false
+  },
+  "host_expiry_settings": {
+    "host_expiry_enabled": false,
+    "host_expiry_window": 0
+  },
+  "host_settings": {
+    "additional_queries": null
+  },
+  "license": {
+    "tier": "free",
+    "expiration": "0001-01-01T00:00:00Z"
+  },
+  "agent_options": {
+    "spec": {
+      "config": {
+        "options": {
+          "logger_plugin": "tls",
+          "pack_delimiter": "/",
+          "logger_tls_period": 10,
+          "distributed_plugin": "tls",
+          "disable_distributed": false,
+          "logger_tls_endpoint": "/api/v1/osquery/log",
+          "distributed_interval": 10,
+          "distributed_tls_max_attempts": 3
+        },
+        "decorators": {
+          "load": [
+            "SELECT uuid AS host_uuid FROM system_info;",
+            "SELECT hostname AS hostname FROM system_info;"
+          ]
+        }
+      },
+      "overrides": {}
+    }
+  },
+    "vulnerability_settings": {
+    "databases_path": ""
+  },
+  "webhook_settings": {
+    "host_status_webhook": {
+      "enable_host_status_webhook": true,
+      "destination_url": "https://server.com",
+      "host_percentage": 5,
+      "days_count": 7
+    },
+    "failing_policies_webhook":{
+      "enable_failing_policies_webhook":true,
+      "destination_url": "https://server.com",
+      "policy_ids": [1, 2, 3],
+      "host_batch_size": 1000
+    },
+    "vulnerabilities_webhook":{
+      "enable_vulnerabilities_webhook":true,
+      "destination_url": "https://server.com",
+      "host_batch_size": 1000
+    }
+  },
+  "integrations": {
+    "jira": [
+      {
+        "url": "https://jiraserver.com",
+        "username": "some_user",
+        "password": "sec4et!",
+        "project_key": "jira_project",
+        "enable_software_vulnerabilities": false
+      }
+    ]
+  },
+  "logging": {
+      "debug": false,
+      "json": false,
+      "result": {
+          "plugin": "firehose",
+          "config": {
+              "region": "us-east-1",
+              "status_stream": "",
+              "result_stream": "result-topic"
+          }
+      },
+      "status": {
+          "plugin": "filesystem",
+          "config": {
+              "status_log_file": "foo_status",
+              "result_log_file": "",
+              "enable_log_rotation": false,
+              "enable_log_compression": false
+          }
+      }
+  }
+}
+```
+
+### Get global enroll secrets
+
+Returns the valid global enroll secrets.
+
+`GET /api/v1/fleet/spec/enroll_secret`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/v1/fleet/spec/enroll_secret`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+    "spec": {
+        "secrets": [
+            {
+                "secret": "vhPzPOnCMOMoqSrLxKxzSADyqncayacB",
+                "created_at": "2021-11-12T20:24:57Z"
+            },
+            {
+                "secret": "jZpexWGiXmXaFAKdrdttFHdJBqEnqlVF",
+                "created_at": "2021-11-12T20:24:57Z"
+            }
+        ]
+    }
+}
+```
+
+### Modify global enroll secrets
+
+Replaces all existing global enroll secrets.
+
+`POST /api/v1/fleet/spec/enroll_secret`
+
+#### Parameters
+
+| Name      | Type    | In   | Description                                                        |
+| --------- | ------- | ---- | ------------------------------------------------------------------ |
+| spec      | object  | body | **Required**. Attribute "secrets" must be a list of enroll secrets |
+#### Example
+
+Replace all global enroll secrets with a new enroll secret.
+
+`POST /api/v1/fleet/spec/enroll_secret`
+
+##### Request body
+
+```json
+{
+    "spec": {
+        "secrets": [
+            {
+                "secret": "KuSkYFsHBQVlaFtqOLwoUIWniHhpvEhP",
+            }
+        ]
+    }
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{}
+```
+
+#### Example
+
+Delete all global enroll secrets.
+
+`POST /api/v1/fleet/spec/enroll_secret`
+
+##### Request body
+
+```json
+{
+    "spec": {
+        "secrets": []
+    }
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{}
+```
+
+### Get enroll secrets for a team
+
+Returns the valid team enroll secrets.
+
+`GET /api/v1/fleet/teams/{id}/secrets`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/v1/fleet/teams/1/secrets`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "secrets": [
+    {
+      "created_at": "2021-06-16T22:05:49Z",
+      "secret": "aFtH2Nq09hrvi73ErlWNQfa7M53D3rPR",
+      "team_id": 1
+    }
+  ]
+}
+```
+
+
+### Modify enroll secrets for a team
+
+Replaces all existing team enroll secrets.
+
+`PATCH /api/v1/fleet/teams/{id}/secrets`
+
+#### Parameters
+
+| Name      | Type    | In   | Description                            |
+| --------- | ------- | ---- | -------------------------------------- |
+| id        | integer | path | **Required**. The team's id.           |
+| secrets   | array   | body | **Required**. A list of enroll secrets |
+
+#### Example
+
+Replace all of a team's existing enroll secrets with a new enroll secret
+
+`PATCH /api/v1/fleet/teams/2/secrets`
+
+##### Request body
+
+```json
+{
+  "secrets": [
+    {
+      "secret": "n07v32y53c237734m3n201153c237",
+    }
+  ]
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "secrets": [
+    {
+      "secret": "n07v32y53c237734m3n201153c237",
+      "created_at": "0001-01-01T00:00:00Z",
+    }
+  ]
+}
+```
+
+#### Example
+
+Delete all of a team's existing enroll secrets
+
+`PATCH /api/v1/fleet/teams/2/secrets`
+
+##### Request body
+
+```json
+{
+  "secrets": []
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "secrets": null
+}
+```
+
+### Create invite
+
+`POST /api/v1/fleet/invites`
+
+#### Parameters
+
+| Name        | Type    | In   | Description                                                                                                                                           |
+| ----------- | ------- | ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| global_role | string  | body | Role the user will be granted. Either a global role is needed, or a team role.                                                                        |
+| email       | string  | body | **Required.** The email of the invited user. This email will receive the invitation link.                                                             |
+| name        | string  | body | **Required.** The name of the invited user.                                                                                                           |
+| sso_enabled | boolean | body | **Required.** Whether or not SSO will be enabled for the invited user.                                                                                |
+| teams       | list    | body | _Available in Fleet Premium_ A list of the teams the user is a member of. Each item includes the team's ID and the user's role in the specified team. |
+
+#### Example
+
+##### Request body
+
+```json
+{
+  "email": "john_appleseed@example.com",
+  "name": "John",
+  "sso_enabled": false,
+  "global_role": null,
+  "teams": [
+    {
+      "id": 2,
+      "role": "observer"
+    },
+    {
+      "id": 3,
+      "role": "maintainer"
+    }
+  ]
+}
+```
+
+`POST /api/v1/fleet/invites`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "invite": {
+    "created_at": "0001-01-01T00:00:00Z",
+    "updated_at": "0001-01-01T00:00:00Z",
+    "id": 3,
+    "invited_by": 1,
+    "email": "john_appleseed@example.com",
+    "name": "John",
+    "sso_enabled": false,
+    "teams": [
+      {
+        "id": 10,
+        "created_at": "0001-01-01T00:00:00Z",
+        "name": "Apples",
+        "description": "",
+        "agent_options": null,
+        "user_count": 0,
+        "host_count": 0,
+        "role": "observer"
+      },
+      {
+        "id": 14,
+        "created_at": "0001-01-01T00:00:00Z",
+        "name": "Best of the Best Engineering",
+        "description": "",
+        "agent_options": null,
+        "user_count": 0,
+        "host_count": 0,
+        "role": "maintainer"
+      }
+    ]
+  }
+}
+```
+
+### List invites
+
+Returns a list of the active invitations in Fleet.
+
+`GET /api/v1/fleet/invites`
+
+#### Parameters
+
+| Name            | Type   | In    | Description                                                                                                                   |
+| --------------- | ------ | ----- | ----------------------------------------------------------------------------------------------------------------------------- |
+| order_key       | string | query | What to order results by. Can be any column in the invites table.                                                             |
+| order_direction | string | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`. |
+| query           | string | query | Search query keywords. Searchable fields include `name` and `email`.                                                          |
+
+#### Example
+
+`GET /api/v1/fleet/invites`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "invites": [
+    {
+      "created_at": "0001-01-01T00:00:00Z",
+      "updated_at": "0001-01-01T00:00:00Z",
+      "id": 3,
+      "email": "john_appleseed@example.com",
+      "name": "John",
+      "sso_enabled": false,
+      "global_role": "admin",
+      "teams": []
+    },
+    {
+      "created_at": "0001-01-01T00:00:00Z",
+      "updated_at": "0001-01-01T00:00:00Z",
+      "id": 4,
+      "email": "bob_marks@example.com",
+      "name": "Bob",
+      "sso_enabled": false,
+      "global_role": "admin",
+      "teams": []
+    },
+  ]
+}
+```
+
+### Delete invite
+
+Delete the specified invite from Fleet.
+
+`DELETE /api/v1/fleet/invites/{id}`
+
+#### Parameters
+
+| Name | Type    | In   | Description                  |
+| ---- | ------- | ---- | ---------------------------- |
+| id   | integer | path | **Required.** The user's id. |
+
+#### Example
+
+`DELETE /api/v1/fleet/invites/{id}`
+
+##### Default response
+
+`Status: 200`
+
+
+### Verify invite
+
+Verify the specified invite.
+
+`GET /api/v1/fleet/invites/{token}`
+
+#### Parameters
+
+| Name  | Type    | In   | Description                            |
+| ----- | ------- | ---- | -------------------------------------- |
+| token | integer | path | **Required.** The user's invite token. |
+
+#### Example
+
+`GET /api/v1/fleet/invites/{token}`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+    "invite": {
+        "created_at": "2021-01-15T00:58:33Z",
+        "updated_at": "2021-01-15T00:58:33Z",
+        "id": 4,
+        "email": "steve@example.com",
+        "name": "Steve",
+        "sso_enabled": false,
+        "global_role": "admin",
+        "teams": []
+    }
+}
+```
+
+##### Not found
+
+`Status: 404`
+
+```json
+{
+    "message": "Resource Not Found",
+    "errors": [
+        {
+            "name": "base",
+            "reason": "Invite with token <token> was not found in the datastore"
+        }
+    ]
+}
+```
+
+### Update invite
+
+`PATCH /api/v1/fleet/invites/{id}`
+
+#### Parameters
+
+| Name        | Type    | In   | Description                                                                                                                                           |
+| ----------- | ------- | ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| global_role | string  | body | Role the user will be granted. Either a global role is needed, or a team role.                                                                        |
+| email       | string  | body | The email of the invited user. Updates on the email won't resend the invitation.                                                             |
+| name        | string  | body | The name of the invited user.                                                                                                           |
+| sso_enabled | boolean | body | Whether or not SSO will be enabled for the invited user.                                                                                |
+| teams       | list    | body | _Available in Fleet Premium_ A list of the teams the user is a member of. Each item includes the team's ID and the user's role in the specified team. |
+
+#### Example
+
+`PATCH /api/v1/fleet/invites/123`
+
+##### Request body
+
+```json
+{
+  "email": "john_appleseed@example.com",
+  "name": "John",
+  "sso_enabled": false,
+  "global_role": null,
+  "teams": [
+    {
+      "id": 2,
+      "role": "observer"
+    },
+    {
+      "id": 3,
+      "role": "maintainer"
+    }
+  ]
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "invite": {
+    "created_at": "0001-01-01T00:00:00Z",
+    "updated_at": "0001-01-01T00:00:00Z",
+    "id": 3,
+    "invited_by": 1,
+    "email": "john_appleseed@example.com",
+    "name": "John",
+    "sso_enabled": false,
+    "teams": [
+      {
+        "id": 10,
+        "created_at": "0001-01-01T00:00:00Z",
+        "name": "Apples",
+        "description": "",
+        "agent_options": null,
+        "user_count": 0,
+        "host_count": 0,
+        "role": "observer"
+      },
+      {
+        "id": 14,
+        "created_at": "0001-01-01T00:00:00Z",
+        "name": "Best of the Best Engineering",
+        "description": "",
+        "agent_options": null,
+        "user_count": 0,
+        "host_count": 0,
+        "role": "maintainer"
+      }
+    ]
+  }
+}
+```
+
+### Version
+
+Get version and build information from the Fleet server.
+
+`GET /api/v1/fleet/version`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/v1/fleet/version`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "version": "3.9.0-93-g1b67826f-dirty",
+  "branch": "version",
+  "revision": "1b67826fe4bf40b2f45ec53e01db9bf467752e74",
+  "go_version": "go1.15.7",
+  "build_date": "2021-03-27T00:28:48Z",
+  "build_user": "zwass"
+}
+```
 
 ---
 
@@ -1683,6 +2923,7 @@ Deletes the label specified by ID.
 
 ---
 
+<<<<<<< HEAD
 ## Users
 
 - [List all users](#list-all-users)
@@ -3170,6 +4411,8 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 ---
 
+=======
+>>>>>>> 15a3d1f66 (feat: order REST API entities alphabetically)
 ## Packs
 
 - [Create pack](#create-pack)
@@ -4237,34 +5480,643 @@ Either `query` or `query_id` must be provided.
 
 ---
 
-## Activities
+## Queries
 
-### List activities
+- [Get query](#get-query)
+- [List queries](#list-queries)
+- [Create query](#create-query)
+- [Modify query](#modify-query)
+- [Delete query](#delete-query)
+- [Delete query by ID](#delete-query-by-id)
+- [Delete queries](#delete-queries)
+- [Run live query](#run-live-query)
 
-Returns a list of the activities that have been performed in Fleet. The following types of activity are included:
+### Get query
 
-- Created pack
-- Edited pack
-- Deleted pack
-- Applied pack with fleetctl
-- Created policy
-- Edited policy
-- Deleted policy
-- Applied policy with fleetctl
-- Created saved query
-- Edited saved query
-- Deleted saved query
-- Applied query with fleetctl
-- Ran live query
-- Created team - _Available in Fleet Premium_
-- Deleted team - _Available in Fleet Premium_
+Returns the query specified by ID.
 
-`GET /api/v1/fleet/activities`
+`GET /api/v1/fleet/queries/{id}`
+
+#### Parameters
+
+| Name | Type    | In   | Description                                |
+| ---- | ------- | ---- | ------------------------------------------ |
+| id   | integer | path | **Required**. The id of the desired query. |
+
+#### Example
+
+`GET /api/v1/fleet/queries/31`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "query": {
+    "created_at": "2021-01-19T17:08:24Z",
+    "updated_at": "2021-01-19T17:08:24Z",
+    "id": 31,
+    "name": "centos_hosts",
+    "description": "",
+    "query": "select 1 from os_version where platform = \"centos\";",
+    "saved": true,
+    "observer_can_run": true,
+    "author_id": 1,
+    "author_name": "John",
+    "author_email": "john@example.com",
+    "packs": [
+      {
+        "created_at": "2021-01-19T17:08:31Z",
+        "updated_at": "2021-01-19T17:08:31Z",
+        "id": 14,
+        "name": "test_pack",
+        "description": "",
+        "platform": "",
+        "disabled": false
+      }
+    ]
+  }
+}
+```
+
+### List queries
+
+Returns a list of all queries in the Fleet instance.
+
+`GET /api/v1/fleet/queries`
+
+#### Parameters
+
+| Name            | Type   | In    | Description                                                                                                                   |
+| --------------- | ------ | ----- | ----------------------------------------------------------------------------------------------------------------------------- |
+| order_key       | string | query | What to order results by. Can be any column in the queries table.                                                             |
+| order_direction | string | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`. |
+
+#### Example
+
+`GET /api/v1/fleet/queries`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+"queries": [
+  {
+    "created_at": "2021-01-04T21:19:57Z",
+    "updated_at": "2021-01-04T21:19:57Z",
+    "id": 1,
+    "name": "query1",
+    "description": "query",
+    "query": "SELECT * FROM osquery_info",
+    "saved": true,
+    "observer_can_run": true,
+    "author_id": 1,
+    "author_name": "noah",
+    "author_email": "noah@example.com",
+    "packs": [
+      {
+        "created_at": "2021-01-05T21:13:04Z",
+        "updated_at": "2021-01-07T19:12:54Z",
+        "id": 1,
+        "name": "Pack",
+        "description": "Pack",
+        "platform": "",
+        "disabled": true
+      }
+    ],
+    "stats": {
+      "system_time_p50": 1.32,
+      "system_time_p95": 4.02,
+      "user_time_p50": 3.55,
+      "user_time_p95": 3.00,
+      "total_executions": 3920
+    }
+  },
+  {
+    "created_at": "2021-01-19T17:08:24Z",
+    "updated_at": "2021-01-19T17:08:24Z",
+    "id": 3,
+    "name": "osquery_schedule",
+    "description": "Report performance stats for each file in the query schedule.",
+    "query": "select name, interval, executions, output_size, wall_time, (user_time/executions) as avg_user_time, (system_time/executions) as avg_system_time, average_memory, last_executed from osquery_schedule;",
+    "saved": true,
+    "observer_can_run": true,
+    "author_id": 1,
+    "author_name": "noah",
+    "author_email": "noah@example.com",
+    "packs": [
+      {
+        "created_at": "2021-01-19T17:08:31Z",
+        "updated_at": "2021-01-19T17:08:31Z",
+        "id": 14,
+        "name": "test_pack",
+        "description": "",
+        "platform": "",
+        "disabled": false
+      }
+    ]
+  },
+]
+```
+
+### Create query
+
+`POST /api/v1/fleet/queries`
+
+#### Parameters
+
+| Name             | Type   | In   | Description                                                                                                                                            |
+| ---------------- | ------ | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| name             | string | body | **Required**. The name of the query.                                                                                                                   |
+| query            | string | body | **Required**. The query in SQL syntax.                                                                                                                 |
+| description      | string | body | The query's description.                                                                                                                               |
+| observer_can_run | bool   | body | Whether or not users with the `observer` role can run the query. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). |
+
+#### Example
+
+`POST /api/v1/fleet/queries`
+
+##### Request body
+
+```json
+{
+  "description": "This is a new query.",
+  "name": "new_query",
+  "query": "SELECT * FROM osquery_info"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "query": {
+    "created_at": "0001-01-01T00:00:00Z",
+    "updated_at": "0001-01-01T00:00:00Z",
+    "id": 288,
+    "name": "new_query",
+    "description": "This is a new query.",
+    "query": "SELECT * FROM osquery_info",
+    "saved": true,
+    "author_id": 1,
+    "author_name": "",
+    "author_email": "",
+    "observer_can_run": true,
+    "packs": []
+  }
+}
+```
+
+### Modify query
+
+Returns the query specified by ID.
+
+`PATCH /api/v1/fleet/queries/{id}`
+
+#### Parameters
+
+| Name             | Type    | In   | Description                                                                                                                                            |
+| ---------------- | ------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| id               | integer | path | **Required.** The ID of the query.                                                                                                                     |
+| name             | string  | body | The name of the query.                                                                                                                                 |
+| query            | string  | body | The query in SQL syntax.                                                                                                                               |
+| description      | string  | body | The query's description.                                                                                                                               |
+| observer_can_run | bool    | body | Whether or not users with the `observer` role can run the query. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). |
+
+#### Example
+
+`PATCH /api/v1/fleet/queries/2`
+
+##### Request body
+
+```json
+{
+  "name": "new_title_for_my_query"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "query": {
+    "created_at": "2021-01-22T17:23:27Z",
+    "updated_at": "2021-01-22T17:23:27Z",
+    "id": 288,
+    "name": "new_title_for_my_query",
+    "description": "This is a new query.",
+    "query": "SELECT * FROM osquery_info",
+    "saved": true,
+    "author_id": 1,
+    "author_name": "noah",
+    "observer_can_run": true,
+    "packs": []
+  }
+}
+```
+
+### Delete query
+
+Deletes the query specified by name.
+
+`DELETE /api/v1/fleet/queries/{name}`
+
+#### Parameters
+
+| Name | Type   | In   | Description                          |
+| ---- | ------ | ---- | ------------------------------------ |
+| name | string | path | **Required.** The name of the query. |
+
+#### Example
+
+`DELETE /api/v1/fleet/queries/{name}`
+
+##### Default response
+
+`Status: 200`
+
+
+### Delete query by ID
+
+Deletes the query specified by ID.
+
+`DELETE /api/v1/fleet/queries/id/{id}`
+
+#### Parameters
+
+| Name | Type    | In   | Description                        |
+| ---- | ------- | ---- | ---------------------------------- |
+| id   | integer | path | **Required.** The ID of the query. |
+
+#### Example
+
+`DELETE /api/v1/fleet/queries/id/28`
+
+##### Default response
+
+`Status: 200`
+
+
+### Delete queries
+
+Deletes the queries specified by ID. Returns the count of queries successfully deleted.
+
+`POST /api/v1/fleet/queries/delete`
+
+#### Parameters
+
+| Name | Type | In   | Description                           |
+| ---- | ---- | ---- | ------------------------------------- |
+| ids  | list | body | **Required.** The IDs of the queries. |
+
+#### Example
+
+`POST /api/v1/fleet/queries/delete`
+
+##### Request body
+
+```json
+{
+  "ids": [
+    2, 24, 25
+  ]
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "deleted": 3
+}
+```
+
+### Run live query
+
+Run one or more live queries against the specified hosts and responds with the results
+collected after 25 seconds.
+
+If multiple queries are provided, they run concurrently. Response time is capped at 25 seconds from
+when the API request was received, regardless of how many queries you are running, and regardless
+whether all results have been gathered or not. This API does not return any results until the fixed
+time period elapses, at which point all of the collected results are returned.
+
+The fixed time period is configurable via environment variable on the Fleet server (eg.
+`FLEET_LIVE_QUERY_REST_PERIOD=90s`). If setting a higher value, be sure that you do not exceed your
+load balancer timeout.
+
+> WARNING: This API endpoint collects responses in-memory (RAM) on the Fleet compute instance handling this request, which can overflow if the result set is large enough.  This has the potential to crash the process and/or cause an autoscaling event in your cloud provider, depending on how Fleet is deployed.
+
+`GET /api/v1/fleet/queries/run`
+
+#### Parameters
+
+
+| Name      | Type   | In   | Description                                   |
+| --------- | ------ | ---- | --------------------------------------------- |
+| query_ids | array  | body | **Required**. The IDs of the saved queries to run. |
+| host_ids  | array  | body | **Required**. The IDs of the hosts to target. |
+
+#### Example
+
+`GET /api/v1/fleet/queries/run`
+
+##### Request body
+
+```json
+{
+  "query_ids": [ 1, 2 ],
+  "host_ids": [ 1, 4, 34, 27 ]
+}
+```
+
+##### Default response
+
+```json
+{
+  "summary": {
+    "targeted_host_count": 4,
+    "responded_host_count": 2
+  },
+  "live_query_results": [
+    {
+      "query_id": 2,
+      "results": [
+        {
+          "host_id": 1,
+          "rows": [
+            {
+              "build_distro": "10.12",
+              "build_platform": "darwin",
+              "config_hash": "7bb99fa2c8a998c9459ec71da3a84d66c592d6d3",
+              "config_valid": "1",
+              "extensions": "active",
+              "instance_id": "9a2ec7bf-4946-46ea-93bf-455e0bcbd068",
+              "pid": "23413",
+              "platform_mask": "21",
+              "start_time": "1635194306",
+              "uuid": "4C182AC7-75F7-5AF4-A74B-1E165ED35742",
+              "version": "4.9.0",
+              "watcher": "23412"
+            }
+          ],
+          "error": null
+        },
+        {
+          "host_id": 2,
+          "rows": [],
+          "error": "no such table: os_version"
+        }
+      ]
+    }
+  ]
+}
+```
+---
+
+## Schedule
+
+- [Get schedule](#get-schedule)
+- [Add query to schedule](#add-query-to-schedule)
+- [Edit query in schedule](#edit-query-in-schedule)
+- [Remove query from schedule](#remove-query-from-schedule)
+
+`In Fleet 4.1.0, the Schedule feature was introduced.`
+
+Fleet’s query schedule lets you add queries which are executed on your devices at regular intervals.
+
+For those familiar with osquery query packs, Fleet's query schedule can be thought of as a query pack built into Fleet. Instead of creating a query pack and then adding queries, just add queries to Fleet's query schedule to start running them against all your devices.
+
+### Get schedule
+
+`GET /api/v1/fleet/global/schedule`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/v1/fleet/global/schedule`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "global_schedule": [
+    {
+      "created_at": "0001-01-01T00:00:00Z",
+      "updated_at": "0001-01-01T00:00:00Z",
+      "id": 4,
+      "pack_id": 1,
+      "name": "arp_cache",
+      "query_id": 2,
+      "query_name": "arp_cache",
+      "query": "select * from arp_cache;",
+      "interval": 120,
+      "snapshot": true,
+      "removed": null,
+      "platform": "",
+      "version": "",
+      "shard": null,
+      "denylist": null,
+      "stats": {
+        "system_time_p50": 1.32,
+        "system_time_p95": 4.02,
+        "user_time_p50": 3.55,
+        "user_time_p95": 3.00,
+        "total_executions": 3920
+      }
+    },
+    {
+      "created_at": "0001-01-01T00:00:00Z",
+      "updated_at": "0001-01-01T00:00:00Z",
+      "id": 5,
+      "pack_id": 1,
+      "name": "disk_encryption",
+      "query_id": 7,
+      "query_name": "disk_encryption",
+      "query": "select * from disk_encryption;",
+      "interval": 86400,
+      "snapshot": true,
+      "removed": null,
+      "platform": "",
+      "version": "",
+      "shard": null,
+      "denylist": null,
+      "stats": {
+        "system_time_p50": 1.32,
+        "system_time_p95": 4.02,
+        "user_time_p50": 3.55,
+        "user_time_p95": 3.00,
+        "total_executions": 3920
+      }
+    }
+  ]
+}
+```
+
+### Add query to schedule
+
+`POST /api/v1/fleet/global/schedule`
+
+#### Parameters
+
+| Name     | Type    | In   | Description                                                                                                                      |
+| -------- | ------- | ---- | -------------------------------------------------------------------------------------------------------------------------------- |
+| query_id | integer | body | **Required.** The query's ID.                                                                                                    |
+| interval | integer | body | **Required.** The amount of time, in seconds, the query waits before running.                                                    |
+| snapshot | boolean | body | **Required.** Whether the queries logs show everything in its current state.                                                     |
+| removed  | boolean | body | Whether "removed" actions should be logged. Default is `null`.                                                                   |
+| platform | string  | body | The computer platform where this query will run (other platforms ignored). Empty value runs on all platforms. Default is `null`. |
+| shard    | integer | body | Restrict this query to a percentage (1-100) of target hosts. Default is `null`.                                                  |
+| version  | string  | body | The minimum required osqueryd version installed on a host. Default is `null`.                                                    |
+
+#### Example
+
+`POST /api/v1/fleet/global/schedule`
+
+##### Request body
+
+```json
+{
+  "interval": 86400,
+  "query_id": 2,
+  "snapshot": true
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "scheduled": {
+    "created_at": "0001-01-01T00:00:00Z",
+    "updated_at": "0001-01-01T00:00:00Z",
+    "id": 1,
+    "pack_id": 5,
+    "name": "arp_cache",
+    "query_id": 2,
+    "query_name": "arp_cache",
+    "query": "select * from arp_cache;",
+    "interval": 86400,
+    "snapshot": true,
+    "removed": null,
+    "platform": "",
+    "version": "",
+    "shard": null,
+    "denylist": null
+  }
+}
+```
+
+> Note that the `pack_id` is included in the response object because Fleet's Schedule feature uses osquery query packs under the hood.
+
+### Edit query in schedule
+
+`PATCH /api/v1/fleet/global/schedule/{id}`
+
+#### Parameters
+
+| Name     | Type    | In   | Description                                                                                                   |
+| -------- | ------- | ---- | ------------------------------------------------------------------------------------------------------------- |
+| id       | integer | path | **Required.** The scheduled query's ID.                                                                       |
+| interval | integer | body | The amount of time, in seconds, the query waits before running.                                               |
+| snapshot | boolean | body | Whether the queries logs show everything in its current state.                                                |
+| removed  | boolean | body | Whether "removed" actions should be logged.                                                                   |
+| platform | string  | body | The computer platform where this query will run (other platforms ignored). Empty value runs on all platforms. |
+| shard    | integer | body | Restrict this query to a percentage (1-100) of target hosts.                                                  |
+| version  | string  | body | The minimum required osqueryd version installed on a host.                                                    |
+
+#### Example
+
+`PATCH /api/v1/fleet/global/schedule/5`
+
+##### Request body
+
+```json
+{
+  "interval": 604800,
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "scheduled": {
+    "created_at": "2021-07-16T14:40:15Z",
+    "updated_at": "2021-07-16T14:40:15Z",
+    "id": 5,
+    "pack_id": 1,
+    "name": "arp_cache",
+    "query_id": 2,
+    "query_name": "arp_cache",
+    "query": "select * from arp_cache;",
+    "interval": 604800,
+    "snapshot": true,
+    "removed": null,
+    "platform": "",
+    "shard": null,
+    "denylist": null
+  }
+}
+```
+
+### Remove query from schedule
+
+`DELETE /api/v1/fleet/global/schedule/{id}`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`DELETE /api/v1/fleet/global/schedule/5`
+
+##### Default response
+
+`Status: 200`
+
+
+---
+
+### Team schedule
+
+- [Get team schedule](#get-team-schedule)
+- [Add query to team schedule](#add-query-to-team-schedule)
+- [Edit query in team schedule](#edit-query-in-team-schedule)
+- [Remove query from team schedule](#remove-query-from-team-schedule)
+
+`In Fleet 4.2.0, the Team Schedule feature was introduced.`
+
+This allows you to easily configure scheduled queries that will impact a whole team of devices.
+
+#### Get team schedule
+
+`GET /api/v1/fleet/teams/{id}/schedule`
 
 #### Parameters
 
 | Name            | Type    | In    | Description                                                                                                                   |
 | --------------- | ------- | ----- | ----------------------------------------------------------------------------------------------------------------------------- |
+| id              | integer | path  | **Required**. The team's ID.                                                                                                  |
 | page            | integer | query | Page number of the results to fetch.                                                                                          |
 | per_page        | integer | query | Results per page.                                                                                                             |
 | order_key       | string  | query | What to order results by. Can be any column in the `activites` table.                                                         |
@@ -4272,145 +6124,356 @@ Returns a list of the activities that have been performed in Fleet. The followin
 
 #### Example
 
-`GET /api/v1/fleet/activities?page=0&per_page=10&order_key=created_at&order_direction=desc`
+`GET /api/v1/fleet/teams/2/schedule`
 
 ##### Default response
 
+`Status: 200`
+
 ```json
 {
-  "activities": [
+  "scheduled": [
     {
-      "created_at": "2021-07-30T13:41:07Z",
-      "id": 24,
-      "actor_full_name": "name",
-      "actor_id": 1,
-      "actor_gravatar": "",
-      "actor_email": "name@example.com",
-      "type": "live_query",
-      "details": {
-        "targets_count": 231
+      "created_at": "0001-01-01T00:00:00Z",
+      "updated_at": "0001-01-01T00:00:00Z",
+      "id": 4,
+      "pack_id": 2,
+      "name": "arp_cache",
+      "query_id": 2,
+      "query_name": "arp_cache",
+      "query": "select * from arp_cache;",
+      "interval": 120,
+      "snapshot": true,
+      "platform": "",
+      "version": "",
+      "removed": null,
+      "shard": null,
+      "denylist": null,
+      "stats": {
+        "system_time_p50": 1.32,
+        "system_time_p95": 4.02,
+        "user_time_p50": 3.55,
+        "user_time_p95": 3.00,
+        "total_executions": 3920
       }
     },
     {
-      "created_at": "2021-07-29T15:35:33Z",
-      "id": 23,
-      "actor_full_name": "name",
-      "actor_id": 1,
-      "actor_gravatar": "",
-      "actor_email": "name@example.com",
-      "type": "deleted_multiple_saved_query",
-      "details": {
-        "query_ids": [
-          2,
-          24,
-          25
-        ]
-      }
-    },
-    {
-      "created_at": "2021-07-29T14:40:30Z",
-      "id": 22,
-      "actor_full_name": "name",
-      "actor_id": 1,
-      "actor_gravatar": "",
-      "actor_email": "name@example.com",
-      "type": "created_team",
-      "details": {
-        "team_id": 3,
-        "team_name": "Oranges"
-      }
-    },
-    {
-      "created_at": "2021-07-29T14:40:27Z",
-      "id": 21,
-      "actor_full_name": "name",
-      "actor_id": 1,
-      "actor_gravatar": "",
-      "actor_email": "name@example.com",
-      "type": "created_team",
-      "details": {
-        "team_id": 2,
-        "team_name": "Apples"
-      }
-    },
-    {
-      "created_at": "2021-07-27T14:35:08Z",
-      "id": 20,
-      "actor_full_name": "name",
-      "actor_id": 1,
-      "actor_gravatar": "",
-      "actor_email": "name@example.com",
-      "type": "created_pack",
-      "details": {
-        "pack_id": 2,
-        "pack_name": "New pack"
-      }
-    },
-    {
-      "created_at": "2021-07-27T13:25:21Z",
-      "id": 19,
-      "actor_full_name": "name",
-      "actor_id": 1,
-      "actor_gravatar": "",
-      "actor_email": "name@example.com",
-      "type": "live_query",
-      "details": {
-        "targets_count": 14
-      }
-    },
-    {
-      "created_at": "2021-07-27T13:25:14Z",
-      "id": 18,
-      "actor_full_name": "name",
-      "actor_id": 1,
-      "actor_gravatar": "",
-      "actor_email": "name@example.com",
-      "type": "live_query",
-      "details": {
-        "targets_count": 14
-      }
-    },
-    {
-      "created_at": "2021-07-26T19:28:24Z",
-      "id": 17,
-      "actor_full_name": "name",
-      "actor_id": 1,
-      "actor_gravatar": "",
-      "actor_email": "name@example.com",
-      "type": "live_query",
-      "details": {
-        "target_counts": 1
-      }
-    },
-    {
-      "created_at": "2021-07-26T17:27:37Z",
-      "id": 16,
-      "actor_full_name": "name",
-      "actor_id": 1,
-      "actor_gravatar": "",
-      "actor_email": "name@example.com",
-      "type": "live_query",
-      "details": {
-        "target_counts": 14
-      }
-    },
-    {
-      "created_at": "2021-07-26T17:27:08Z",
-      "id": 15,
-      "actor_full_name": "name",
-      "actor_id": 1,
-      "actor_gravatar": "",
-      "actor_email": "name@example.com",
-      "type": "live_query",
-      "details": {
-        "target_counts": 14
+      "created_at": "0001-01-01T00:00:00Z",
+      "updated_at": "0001-01-01T00:00:00Z",
+      "id": 5,
+      "pack_id": 3,
+      "name": "disk_encryption",
+      "query_id": 7,
+      "query_name": "disk_encryption",
+      "query": "select * from disk_encryption;",
+      "interval": 86400,
+      "snapshot": true,
+      "removed": null,
+      "platform": "",
+      "version": "",
+      "shard": null,
+      "denylist": null,
+      "stats": {
+        "system_time_p50": 1.32,
+        "system_time_p95": 4.02,
+        "user_time_p50": 3.55,
+        "user_time_p95": 3.00,
+        "total_executions": 3920
       }
     }
   ]
 }
-
 ```
 
+#### Add query to team schedule
+
+`POST /api/v1/fleet/teams/{id}/schedule`
+
+#### Parameters
+
+| Name     | Type    | In   | Description                                                                                                                      |
+| -------- | ------- | ---- | -------------------------------------------------------------------------------------------------------------------------------- |
+| id       | integer | path | **Required.** The teams's ID.                                                                                                    |
+| query_id | integer | body | **Required.** The query's ID.                                                                                                    |
+| interval | integer | body | **Required.** The amount of time, in seconds, the query waits before running.                                                    |
+| snapshot | boolean | body | **Required.** Whether the queries logs show everything in its current state.                                                     |
+| removed  | boolean | body | Whether "removed" actions should be logged. Default is `null`.                                                                   |
+| platform | string  | body | The computer platform where this query will run (other platforms ignored). Empty value runs on all platforms. Default is `null`. |
+| shard    | integer | body | Restrict this query to a percentage (1-100) of target hosts. Default is `null`.                                                  |
+| version  | string  | body | The minimum required osqueryd version installed on a host. Default is `null`.                                                    |
+
+#### Example
+
+`POST /api/v1/fleet/teams/2/schedule`
+
+##### Request body
+
+```json
+{
+  "interval": 86400,
+  "query_id": 2,
+  "snapshot": true,
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "scheduled": {
+    "created_at": "0001-01-01T00:00:00Z",
+    "updated_at": "0001-01-01T00:00:00Z",
+    "id": 1,
+    "pack_id": 5,
+    "name": "arp_cache",
+    "query_id": 2,
+    "query_name": "arp_cache",
+    "query": "select * from arp_cache;",
+    "interval": 86400,
+    "snapshot": true,
+    "removed": null,
+    "shard": null,
+    "denylist": null
+  }
+}
+```
+
+#### Edit query in team schedule
+
+`PATCH /api/v1/fleet/teams/{team_id}/schedule/{scheduled_query_id}`
+
+#### Parameters
+
+| Name               | Type    | In   | Description                                                                                                   |
+| ------------------ | ------- | ---- | ------------------------------------------------------------------------------------------------------------- |
+| team_id            | integer | path | **Required.** The team's ID.                                                                                  |
+| scheduled_query_id | integer | path | **Required.** The scheduled query's ID.                                                                       |
+| interval           | integer | body | The amount of time, in seconds, the query waits before running.                                               |
+| snapshot           | boolean | body | Whether the queries logs show everything in its current state.                                                |
+| removed            | boolean | body | Whether "removed" actions should be logged.                                                                   |
+| platform           | string  | body | The computer platform where this query will run (other platforms ignored). Empty value runs on all platforms. |
+| shard              | integer | body | Restrict this query to a percentage (1-100) of target hosts.                                                  |
+| version            | string  | body | The minimum required osqueryd version installed on a host.                                                    |
+
+#### Example
+
+`PATCH /api/v1/fleet/teams/2/schedule/5`
+
+##### Request body
+
+```json
+{
+  "interval": 604800,
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "scheduled": {
+    "created_at": "2021-07-16T14:40:15Z",
+    "updated_at": "2021-07-16T14:40:15Z",
+    "id": 5,
+    "pack_id": 1,
+    "name": "arp_cache",
+    "query_id": 2,
+    "query_name": "arp_cache",
+    "query": "select * from arp_cache;",
+    "interval": 604800,
+    "snapshot": true,
+    "removed": null,
+    "platform": "",
+    "shard": null,
+    "denylist": null
+  }
+}
+```
+
+#### Remove query from team schedule
+
+`DELETE /api/v1/fleet/teams/{team_id}/schedule/{scheduled_query_id}`
+
+#### Parameters
+
+| Name               | Type    | In   | Description                             |
+| ------------------ | ------- | ---- | --------------------------------------- |
+| team_id            | integer | path | **Required.** The team's ID.            |
+| scheduled_query_id | integer | path | **Required.** The scheduled query's ID. |
+
+#### Example
+
+`DELETE /api/v1/fleet/teams/2/schedule/5`
+
+##### Default response
+
+`Status: 200`
+
+
+---
+
+## Sessions
+
+- [Get session info](#get-session-info)
+- [Delete session](#delete-session)
+
+### Get session info
+
+Returns the session information for the session specified by ID.
+
+`GET /api/v1/fleet/sessions/{id}`
+
+#### Parameters
+
+| Name | Type    | In   | Description                                  |
+| ---- | ------- | ---- | -------------------------------------------- |
+| id   | integer | path | **Required**. The ID of the desired session. |
+
+#### Example
+
+`GET /api/v1/fleet/sessions/1`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "session_id": 1,
+  "user_id": 1,
+  "created_at": "2021-03-02T18:41:34Z"
+}
+```
+
+### Delete session
+
+Deletes the session specified by ID. When the user associated with the session next attempts to access Fleet, they will be asked to log in.
+
+`DELETE /api/v1/fleet/sessions/{id}`
+
+#### Parameters
+
+| Name | Type    | In   | Description                                  |
+| ---- | ------- | ---- | -------------------------------------------- |
+| id   | integer | path | **Required**. The id of the desired session. |
+
+#### Example
+
+`DELETE /api/v1/fleet/sessions/1`
+
+##### Default response
+
+`Status: 200`
+
+
+---
+
+## Software
+
+- [List all software](#list-all-software)
+- [Count software](#count-software)
+### List all software
+
+`GET /api/v1/fleet/software`
+
+#### Parameters
+
+| Name                    | Type    | In    | Description                                                                                                                                                                                                                                                                                                                                 |
+| ----------------------- | ------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| page                    | integer | query | Page number of the results to fetch.                                                                                                                                                                                                                                                                                                        |
+| per_page                | integer | query | Results per page.                                                                                                                                                                                                                                                                                                                           |
+| order_key               | string  | query | What to order results by. Can be ordered by the following fields: `name`, `hosts_count`. Defaults to the hosts count, descending.                                                                                                                                                                                                           |
+| order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default if not provided is `asc`.                                                                                                                                                                                               |
+| query                   | string  | query | Search query keywords. Searchable fields include `name`, `version`, and `cve`.                                                                                                                                                                                                                                                                                    |
+| team_id                 | integer | query | _Available in Fleet Premium_ Filters the software to only include the software installed on the hosts that are assigned to the specified team.                                                                                                                                                                                              |
+| vulnerable              | bool    | query | If true or 1, only list software that has detected vulnerabilities                                                                                                                                                                                                                                                                          |
+
+#### Example
+
+`GET /api/v1/fleet/software`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+    "counts_updated_at": "2022-01-01 12:32:00",
+    "software": [
+      {
+        "id": 4,
+        "name": "osquery",
+        "version": "2.1.11",
+        "source": "rpm_packages",
+        "generated_cpe": "",
+        "vulnerabilities": null,
+        "hosts_count": 456
+      },
+      {
+        "id": 3,
+        "name": "osquery",
+        "version": "2.1.11",
+        "source": "rpm_packages",
+        "generated_cpe": "",
+        "vulnerabilities": null,
+        "hosts_count": 345
+      },
+      {
+        "id": 2,
+        "name": "Figma.app",
+        "version": "2.1.11",
+        "source": "Application (macOS)",
+        "generated_cpe": "",
+        "vulnerabilities": null,
+        "hosts_count": 234
+      },
+      {
+        "id": 1,
+        "name": "Chrome.app",
+        "version": "2.1.11",
+        "source": "Application (macOS)",
+        "generated_cpe": "",
+        "vulnerabilities": null,
+        "hosts_count": 123
+      }
+    ]
+  }
+}
+```
+
+### Count software
+
+`GET /api/v1/fleet/software/count`
+
+#### Parameters
+
+| Name                    | Type    | In    | Description                                                                                                                                                                                                                                                                                                                                 |
+| ----------------------- | ------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| page                    | integer | query | Allowed for compatibility with GET /api/v1/fleet/software but ignored                                                                                                                                                                                                                                                                       |
+| per_page                | integer | query | Allowed for compatibility with GET /api/v1/fleet/software but ignored                                                                                                                                                                                                                                                                       |
+| order_key               | string  | query | Allowed for compatibility with GET /api/v1/fleet/software but ignored                                                                                                                                                                                                                                                                       |
+| order_direction         | string  | query | Allowed for compatibility with GET /api/v1/fleet/software but ignored                                                                                                                                                                                                                                                                       |
+| query                   | string  | query | Search query keywords. Searchable fields include `name`.                                                                                                                                                                                                                                                                                    |
+| team_id                 | integer | query | _Available in Fleet Premium_ Filters the software to only include the software installed on the hosts that are assigned to the specified team.                                                                                                                                                                                                   |
+| vulnerable              | bool    | query | If true or 1, only list software that has detected vulnerabilities                                                                                                                                                                                                                                                                          |
+
+#### Example
+
+`GET /api/v1/fleet/software/count`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "count": 43
+}
+```
 ---
 
 ## Targets
@@ -4564,1071 +6627,6 @@ The returned lists are filtered based on the hosts the requesting user has acces
   "targets_online": 1,
   "targets_offline": 0,
   "targets_missing_in_action": 0
-}
-```
-
----
-
-## Fleet configuration
-
-- [Get certificate](#get-certificate)
-- [Get configuration](#get-configuration)
-- [Modify configuration](#modify-configuration)
-- [Get global enroll secrets](#get-global-enroll-secrets)
-- [Modify global enroll secrets](#modify-global-enroll-secrets)
-- [Get enroll secrets for a team](#get-enroll-secrets-for-a-team)
-- [Modify enroll secrets for a team](i#modify-enroll-secrets-for-a-team)
-- [Create invite](#create-invite)
-- [List invites](#list-invites)
-- [Delete invite](#delete-invite)
-- [Verify invite](#verify-invite)
-- [Update invite](#update-invite)
-- [Version](#version)
-
-The Fleet server exposes a handful of API endpoints that handle the configuration of Fleet as well as endpoints that manage invitation and enroll secret operations. All the following endpoints require prior authentication meaning you must first log in successfully before calling any of the endpoints documented below.
-
-### Get certificate
-
-Returns the Fleet certificate.
-
-`GET /api/v1/fleet/config/certificate`
-
-#### Parameters
-
-None.
-
-#### Example
-
-`GET /api/v1/fleet/config/certificate`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "certificate_chain": <certificate_chain>
-}
-```
-
-### Get configuration
-
-Returns all information about the Fleet's configuration.
-
-`GET /api/v1/fleet/config`
-
-#### Parameters
-
-None.
-
-#### Example
-
-`GET /api/v1/fleet/config`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "org_info": {
-    "org_name": "fleet",
-    "org_logo_url": ""
-  },
-  "server_settings": {
-    "server_url": "https://localhost:8080",
-    "live_query_disabled": false,
-    "enable_analytics": true
-  },
-  "smtp_settings": {
-    "enable_smtp": false,
-    "configured": false,
-    "sender_address": "",
-    "server": "",
-    "port": 587,
-    "authentication_type": "authtype_username_password",
-    "user_name": "",
-    "password": "********",
-    "enable_ssl_tls": true,
-    "authentication_method": "authmethod_plain",
-    "domain": "",
-    "verify_ssl_certs": true,
-    "enable_start_tls": true
-  },
-  "sso_settings": {
-    "entity_id": "",
-    "issuer_uri": "",
-    "idp_image_url": "",
-    "metadata": "",
-    "metadata_url": "",
-    "idp_name": "",
-    "enable_sso": false,
-    "enable_sso_idp_login": false
-  },
-  "host_expiry_settings": {
-    "host_expiry_enabled": false,
-    "host_expiry_window": 0
-  },
-  "host_settings": {
-    "additional_queries": null
-  },
-  "agent_options": {
-    "spec": {
-      "config": {
-        "options": {
-          "logger_plugin": "tls",
-          "pack_delimiter": "/",
-          "logger_tls_period": 10,
-          "distributed_plugin": "tls",
-          "disable_distributed": false,
-          "logger_tls_endpoint": "/api/v1/osquery/log",
-          "distributed_interval": 10,
-          "distributed_tls_max_attempts": 3
-        },
-        "decorators": {
-          "load": [
-            "SELECT uuid AS host_uuid FROM system_info;",
-            "SELECT hostname AS hostname FROM system_info;"
-          ]
-        }
-      },
-      "overrides": {}
-    }
-  },
-  "license": {
-    "tier": "free",
-    "expiration": "0001-01-01T00:00:00Z"
-  },
-  "logging": {
-      "debug": false,
-      "json": false,
-      "result": {
-          "plugin": "firehose",
-          "config": {
-              "region": "us-east-1",
-              "status_stream": "",
-              "result_stream": "result-topic"
-          }
-      },
-      "status": {
-          "plugin": "filesystem",
-          "config": {
-              "status_log_file": "foo_status",
-              "result_log_file": "",
-              "enable_log_rotation": false,
-              "enable_log_compression": false
-          }
-      }
-  },
-  "license": {
-    "tier": "free",
-    "organization": "fleet",
-    "device_count": 100,
-    "expiration": "2021-12-31T19:00:00-05:00",
-    "note": ""
-  },
-  "vulnerability_settings": {
-    "databases_path": ""
-  },
-  "webhook_settings": {
-    "host_status_webhook": {
-      "enable_host_status_webhook": true,
-      "destination_url": "https://server.com",
-      "host_percentage": 5,
-      "days_count": 7
-    },
-    "failing_policies_webhook":{
-      "enable_failing_policies_webhook":true,
-      "destination_url": "https://server.com",
-      "policy_ids": [1, 2, 3],
-      "host_batch_size": 1000
-    },
-    "vulnerabilities_webhook":{
-      "enable_vulnerabilities_webhook":true,
-      "destination_url": "https://server.com",
-      "host_batch_size": 1000
-    }
-  },
-  "integrations": {
-    "jira": null
-  },
-  "logging": {
-    "debug": false,
-    "json": false,
-    "result": {
-        "plugin": "filesystem",
-        "config": {
-          "status_log_file": "/var/folders/xh/bxm1d2615tv3vrg4zrxq540h0000gn/T/osquery_status",
-          "result_log_file": "/var/folders/xh/bxm1d2615tv3vrg4zrxq540h0000gn/T/osquery_result",
-          "enable_log_rotation": false,
-          "enable_log_compression": false
-        }
-      },
-    "status": {
-      "plugin": "filesystem",
-      "config": {
-        "status_log_file": "/var/folders/xh/bxm1d2615tv3vrg4zrxq540h0000gn/T/osquery_status",
-        "result_log_file": "/var/folders/xh/bxm1d2615tv3vrg4zrxq540h0000gn/T/osquery_result",
-        "enable_log_rotation": false,
-        "enable_log_compression": false
-      }
-    }
-  },
-  "update_interval": {
-    "osquery_detail": 3600000000000,
-    "osquery_policy": 3600000000000
-  },
-  "vulnerabilities": {
-    "cpe_database_url": "",
-    "current_instance_checks": "auto",
-    "cve_feed_prefix_url": "",
-    "databases_path": "",
-    "disable_data_sync": false,
-    "periodicity": 3600000000000,
-    "recent_vulnerability_max_age": 2592000000000000
-  }
-}
-```
-
-### Modify configuration
-
-Modifies the Fleet's configuration with the supplied information.
-
-`PATCH /api/v1/fleet/config`
-
-#### Parameters
-
-| Name                  | Type    | In   | Description                                                                                                                                                                            |
-| --------------------- | ------- | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| org_name              | string  | body | _Organization information_. The organization name.                                                                                                                                     |
-| org_logo_url          | string  | body | _Organization information_. The URL for the organization logo.                                                                                                                         |
-| server_url            | string  | body | _Server settings_. The Fleet server URL.                                                                                                                                               |
-| live_query_disabled   | boolean | body | _Server settings_. Whether the live query capabilities are disabled.                                                                                                                   |
-| enable_smtp           | boolean | body | _SMTP settings_. Whether SMTP is enabled for the Fleet app.                                                                                                                            |
-| sender_address        | string  | body | _SMTP settings_. The sender email address for the Fleet app. An invitation email is an example of the emails that may use this sender address                                          |
-| server                | string  | body | _SMTP settings_. The SMTP server for the Fleet app.                                                                                                                                    |
-| port                  | integer | body | _SMTP settings_. The SMTP port for the Fleet app.                                                                                                                                      |
-| authentication_type   | string  | body | _SMTP settings_. The authentication type used by the SMTP server. Options include `"authtype_username_and_password"` or `"none"`                                                       |
-| username_name         | string  | body | _SMTP settings_. The username used to authenticate requests made to the SMTP server.                                                                                                   |
-| password              | string  | body | _SMTP settings_. The password used to authenticate requests made to the SMTP server.                                                                                                   |
-| enable_ssl_tls        | boolean | body | _SMTP settings_. Whether or not SSL and TLS are enabled for the SMTP server.                                                                                                           |
-| authentication_method | string  | body | _SMTP settings_. The authentication method used to make authenticate requests to SMTP server. Options include `"authmethod_plain"`, `"authmethod_cram_md5"`, and `"authmethod_login"`. |
-| domain                | string  | body | _SMTP settings_. The domain for the SMTP server.                                                                                                                                       |
-| verify_ssl_certs      | boolean | body | _SMTP settings_. Whether or not SSL certificates are verified by the SMTP server. Turn this off (not recommended) if you use a self-signed certificate.                                |
-| enabled_start_tls     | boolean | body | _SMTP settings_. Detects if STARTTLS is enabled in your SMTP server and starts to use it.                                                                                              |
-| enabled_sso           | boolean | body | _SSO settings_. Whether or not SSO is enabled for the Fleet application. If this value is true, you must also include most of the SSO settings parameters below.                       |
-| entity_id             | string  | body | _SSO settings_. The required entity ID is a URI that you use to identify Fleet when configuring the identity provider.                                                                 |
-| issuer_uri            | string  | body | _SSO settings_. The URI you provide here must exactly match the Entity ID field used in the identity provider configuration.                                                           |
-| idp_image_url         | string  | body | _SSO settings_. An optional link to an image such as a logo for the identity provider.                                                                                                 |
-| metadata              | string  | body | _SSO settings_. Metadata provided by the identity provider. Either metadata or a metadata URL must be provided.                                                                        |
-| metadata_url          | string  | body | _SSO settings_. A URL that references the identity provider metadata. If available from the identity provider, this is the preferred means of providing metadata.                      |
-| host_expiry_enabled   | boolean | body | _Host expiry settings_. When enabled, allows automatic cleanup of hosts that have not communicated with Fleet in some number of days.                                                  |
-| host_expiry_window    | integer | body | _Host expiry settings_. If a host has not communicated with Fleet in the specified number of days, it will be removed.                                                                 |
-| agent_options         | objects | body | The agent_options spec that is applied to all hosts. In Fleet 4.0.0 the `api/v1/fleet/spec/osquery_options` endpoints were removed.                                                    |
-| enable_host_status_webhook    | boolean | body | _webhook_settings.host_status_webhook settings_. Whether or not the host status webhook is enabled.                                                                 |
-| destination_url       | string | body | _webhook_settings.host_status_webhook settings_. The URL to deliver the webhook request to.                                                     |
-| host_percentage       | integer | body | _webhook_settings.host_status_webhook settings_. The minimum percentage of hosts that must fail to check in to Fleet in order to trigger the webhook request.                                                              |
-| days_count            | integer | body | _webhook_settings.host_status_webhook settings_. The minimum number of days that the configured `host_percentage` must fail to check in to Fleet in order to trigger the webhook request.                                |
-| enable_failing_policies_webhook   | boolean | body | _webhook_settings.failing_policies_webhook settings_. Whether or not the failing policies webhook is enabled. |
-| destination_url       | string | body | _webhook_settings.failing_policies_webhook settings_. The URL to deliver the webhook requests to.                                                     |
-| policy_ids            | array | body | _webhook_settings.failing_policies_webhook settings_. List of policy IDs to enable failing policies webhook.                                                              |
-| host_batch_size       | integer | body | _webhook_settings.failing_policies_webhook settings_. Maximum number of hosts to batch on failing policy webhook requests. The default, 0, means no batching (all hosts failing a policy are sent on one request). |
-| enable_vulnerabilities_webhook   | boolean | body | _webhook_settings.vulnerabilities_webhook settings_. Whether or not the vulnerabilities webhook is enabled. |
-| destination_url       | string | body | _webhook_settings.vulnerabilities_webhook settings_. The URL to deliver the webhook requests to.                                                     |
-| host_batch_size       | integer | body | _webhook_settings.vulnerabilities_webhook settings_. Maximum number of hosts to batch on vulnerabilities webhook requests. The default, 0, means no batching (all vulnerable hosts are sent on one request). |
-| enable_software_vulnerabilities | boolean | body | _integrations.jira[] settings_. Whether or not that Jira integration is enabled. Only one vulnerabilities automation can be enabled at a given time (enable_vulnerabilities_webhook and enable_software_vulnerabilities). |
-| url                   | string | body | _integrations.jira[] settings_. The URL of the Jira server to integrate with. |
-| username              | string | body | _integrations.jira[] settings_. The Jira username to use for this Jira integration. |
-| password              | string | body | _integrations.jira[] settings_. The password of the Jira username to use for this Jira integration. |
-| project_key           | string | body | _integrations.jira[] settings_. The Jira project key to use for this integration. Jira tickets will be created in this project. |
-| additional_queries    | boolean | body | Whether or not additional queries are enabled on hosts.                                                                                                                                |
-
-#### Example
-
-`PATCH /api/v1/fleet/config`
-
-##### Request body
-
-```json
-{
-  "org_info": {
-    "org_name": "Fleet Device Management",
-    "org_logo_url": "https://fleetdm.com/logo.png"
-  },
-  "smtp_settings": {
-    "enable_smtp": true,
-    "server": "localhost",
-    "port": "1025"
-  }
-}
-```
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "org_info": {
-    "org_name": "Fleet Device Management",
-    "org_logo_url": "https://fleetdm.com/logo.png"
-  },
-  "server_settings": {
-    "server_url": "https://localhost:8080",
-    "live_query_disabled": false
-  },
-  "smtp_settings": {
-    "enable_smtp": true,
-    "configured": true,
-    "sender_address": "",
-    "server": "localhost",
-    "port": 1025,
-    "authentication_type": "authtype_username_none",
-    "user_name": "",
-    "password": "********",
-    "enable_ssl_tls": true,
-    "authentication_method": "authmethod_plain",
-    "domain": "",
-    "verify_ssl_certs": true,
-    "enable_start_tls": true
-  },
-  "sso_settings": {
-    "entity_id": "",
-    "issuer_uri": "",
-    "idp_image_url": "",
-    "metadata": "",
-    "metadata_url": "",
-    "idp_name": "",
-    "enable_sso": false
-  },
-  "host_expiry_settings": {
-    "host_expiry_enabled": false,
-    "host_expiry_window": 0
-  },
-  "host_settings": {
-    "additional_queries": null
-  },
-  "license": {
-    "tier": "free",
-    "expiration": "0001-01-01T00:00:00Z"
-  },
-  "agent_options": {
-    "spec": {
-      "config": {
-        "options": {
-          "logger_plugin": "tls",
-          "pack_delimiter": "/",
-          "logger_tls_period": 10,
-          "distributed_plugin": "tls",
-          "disable_distributed": false,
-          "logger_tls_endpoint": "/api/v1/osquery/log",
-          "distributed_interval": 10,
-          "distributed_tls_max_attempts": 3
-        },
-        "decorators": {
-          "load": [
-            "SELECT uuid AS host_uuid FROM system_info;",
-            "SELECT hostname AS hostname FROM system_info;"
-          ]
-        }
-      },
-      "overrides": {}
-    }
-  },
-    "vulnerability_settings": {
-    "databases_path": ""
-  },
-  "webhook_settings": {
-    "host_status_webhook": {
-      "enable_host_status_webhook": true,
-      "destination_url": "https://server.com",
-      "host_percentage": 5,
-      "days_count": 7
-    },
-    "failing_policies_webhook":{
-      "enable_failing_policies_webhook":true,
-      "destination_url": "https://server.com",
-      "policy_ids": [1, 2, 3],
-      "host_batch_size": 1000
-    },
-    "vulnerabilities_webhook":{
-      "enable_vulnerabilities_webhook":true,
-      "destination_url": "https://server.com",
-      "host_batch_size": 1000
-    }
-  },
-  "integrations": {
-    "jira": [
-      {
-        "url": "https://jiraserver.com",
-        "username": "some_user",
-        "password": "sec4et!",
-        "project_key": "jira_project",
-        "enable_software_vulnerabilities": false
-      }
-    ]
-  },
-  "logging": {
-      "debug": false,
-      "json": false,
-      "result": {
-          "plugin": "firehose",
-          "config": {
-              "region": "us-east-1",
-              "status_stream": "",
-              "result_stream": "result-topic"
-          }
-      },
-      "status": {
-          "plugin": "filesystem",
-          "config": {
-              "status_log_file": "foo_status",
-              "result_log_file": "",
-              "enable_log_rotation": false,
-              "enable_log_compression": false
-          }
-      }
-  }
-}
-```
-
-### Get global enroll secrets
-
-Returns the valid global enroll secrets.
-
-`GET /api/v1/fleet/spec/enroll_secret`
-
-#### Parameters
-
-None.
-
-#### Example
-
-`GET /api/v1/fleet/spec/enroll_secret`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-    "spec": {
-        "secrets": [
-            {
-                "secret": "vhPzPOnCMOMoqSrLxKxzSADyqncayacB",
-                "created_at": "2021-11-12T20:24:57Z"
-            },
-            {
-                "secret": "jZpexWGiXmXaFAKdrdttFHdJBqEnqlVF",
-                "created_at": "2021-11-12T20:24:57Z"
-            }
-        ]
-    }
-}
-```
-
-### Modify global enroll secrets
-
-Replaces all existing global enroll secrets.
-
-`POST /api/v1/fleet/spec/enroll_secret`
-
-#### Parameters
-
-| Name      | Type    | In   | Description                                                        |
-| --------- | ------- | ---- | ------------------------------------------------------------------ |
-| spec      | object  | body | **Required**. Attribute "secrets" must be a list of enroll secrets |
-#### Example
-
-Replace all global enroll secrets with a new enroll secret.
-
-`POST /api/v1/fleet/spec/enroll_secret`
-
-##### Request body
-
-```json
-{
-    "spec": {
-        "secrets": [
-            {
-                "secret": "KuSkYFsHBQVlaFtqOLwoUIWniHhpvEhP",
-            }
-        ]
-    }
-}
-```
-
-##### Default response
-
-`Status: 200`
-
-```json
-{}
-```
-
-#### Example
-
-Delete all global enroll secrets.
-
-`POST /api/v1/fleet/spec/enroll_secret`
-
-##### Request body
-
-```json
-{
-    "spec": {
-        "secrets": []
-    }
-}
-```
-
-##### Default response
-
-`Status: 200`
-
-```json
-{}
-```
-
-### Get enroll secrets for a team
-
-Returns the valid team enroll secrets.
-
-`GET /api/v1/fleet/teams/{id}/secrets`
-
-#### Parameters
-
-None.
-
-#### Example
-
-`GET /api/v1/fleet/teams/1/secrets`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "secrets": [
-    {
-      "created_at": "2021-06-16T22:05:49Z",
-      "secret": "aFtH2Nq09hrvi73ErlWNQfa7M53D3rPR",
-      "team_id": 1
-    }
-  ]
-}
-```
-
-
-### Modify enroll secrets for a team
-
-Replaces all existing team enroll secrets.
-
-`PATCH /api/v1/fleet/teams/{id}/secrets`
-
-#### Parameters
-
-| Name      | Type    | In   | Description                            |
-| --------- | ------- | ---- | -------------------------------------- |
-| id        | integer | path | **Required**. The team's id.           |
-| secrets   | array   | body | **Required**. A list of enroll secrets |
-
-#### Example
-
-Replace all of a team's existing enroll secrets with a new enroll secret
-
-`PATCH /api/v1/fleet/teams/2/secrets`
-
-##### Request body
-
-```json
-{
-  "secrets": [
-    {
-      "secret": "n07v32y53c237734m3n201153c237",
-    }
-  ]
-}
-```
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "secrets": [
-    {
-      "secret": "n07v32y53c237734m3n201153c237",
-      "created_at": "0001-01-01T00:00:00Z",
-    }
-  ]
-}
-```
-
-#### Example
-
-Delete all of a team's existing enroll secrets
-
-`PATCH /api/v1/fleet/teams/2/secrets`
-
-##### Request body
-
-```json
-{
-  "secrets": []
-}
-```
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "secrets": null
-}
-```
-
-### Create invite
-
-`POST /api/v1/fleet/invites`
-
-#### Parameters
-
-| Name        | Type    | In   | Description                                                                                                                                           |
-| ----------- | ------- | ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| global_role | string  | body | Role the user will be granted. Either a global role is needed, or a team role.                                                                        |
-| email       | string  | body | **Required.** The email of the invited user. This email will receive the invitation link.                                                             |
-| name        | string  | body | **Required.** The name of the invited user.                                                                                                           |
-| sso_enabled | boolean | body | **Required.** Whether or not SSO will be enabled for the invited user.                                                                                |
-| teams       | list    | body | _Available in Fleet Premium_ A list of the teams the user is a member of. Each item includes the team's ID and the user's role in the specified team. |
-
-#### Example
-
-##### Request body
-
-```json
-{
-  "email": "john_appleseed@example.com",
-  "name": "John",
-  "sso_enabled": false,
-  "global_role": null,
-  "teams": [
-    {
-      "id": 2,
-      "role": "observer"
-    },
-    {
-      "id": 3,
-      "role": "maintainer"
-    }
-  ]
-}
-```
-
-`POST /api/v1/fleet/invites`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "invite": {
-    "created_at": "0001-01-01T00:00:00Z",
-    "updated_at": "0001-01-01T00:00:00Z",
-    "id": 3,
-    "invited_by": 1,
-    "email": "john_appleseed@example.com",
-    "name": "John",
-    "sso_enabled": false,
-    "teams": [
-      {
-        "id": 10,
-        "created_at": "0001-01-01T00:00:00Z",
-        "name": "Apples",
-        "description": "",
-        "agent_options": null,
-        "user_count": 0,
-        "host_count": 0,
-        "role": "observer"
-      },
-      {
-        "id": 14,
-        "created_at": "0001-01-01T00:00:00Z",
-        "name": "Best of the Best Engineering",
-        "description": "",
-        "agent_options": null,
-        "user_count": 0,
-        "host_count": 0,
-        "role": "maintainer"
-      }
-    ]
-  }
-}
-```
-
-### List invites
-
-Returns a list of the active invitations in Fleet.
-
-`GET /api/v1/fleet/invites`
-
-#### Parameters
-
-| Name            | Type   | In    | Description                                                                                                                   |
-| --------------- | ------ | ----- | ----------------------------------------------------------------------------------------------------------------------------- |
-| order_key       | string | query | What to order results by. Can be any column in the invites table.                                                             |
-| order_direction | string | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`. |
-| query           | string | query | Search query keywords. Searchable fields include `name` and `email`.                                                          |
-
-#### Example
-
-`GET /api/v1/fleet/invites`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "invites": [
-    {
-      "created_at": "0001-01-01T00:00:00Z",
-      "updated_at": "0001-01-01T00:00:00Z",
-      "id": 3,
-      "email": "john_appleseed@example.com",
-      "name": "John",
-      "sso_enabled": false,
-      "global_role": "admin",
-      "teams": []
-    },
-    {
-      "created_at": "0001-01-01T00:00:00Z",
-      "updated_at": "0001-01-01T00:00:00Z",
-      "id": 4,
-      "email": "bob_marks@example.com",
-      "name": "Bob",
-      "sso_enabled": false,
-      "global_role": "admin",
-      "teams": []
-    },
-  ]
-}
-```
-
-### Delete invite
-
-Delete the specified invite from Fleet.
-
-`DELETE /api/v1/fleet/invites/{id}`
-
-#### Parameters
-
-| Name | Type    | In   | Description                  |
-| ---- | ------- | ---- | ---------------------------- |
-| id   | integer | path | **Required.** The user's id. |
-
-#### Example
-
-`DELETE /api/v1/fleet/invites/{id}`
-
-##### Default response
-
-`Status: 200`
-
-
-### Verify invite
-
-Verify the specified invite.
-
-`GET /api/v1/fleet/invites/{token}`
-
-#### Parameters
-
-| Name  | Type    | In   | Description                            |
-| ----- | ------- | ---- | -------------------------------------- |
-| token | integer | path | **Required.** The user's invite token. |
-
-#### Example
-
-`GET /api/v1/fleet/invites/{token}`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-    "invite": {
-        "created_at": "2021-01-15T00:58:33Z",
-        "updated_at": "2021-01-15T00:58:33Z",
-        "id": 4,
-        "email": "steve@example.com",
-        "name": "Steve",
-        "sso_enabled": false,
-        "global_role": "admin",
-        "teams": []
-    }
-}
-```
-
-##### Not found
-
-`Status: 404`
-
-```json
-{
-    "message": "Resource Not Found",
-    "errors": [
-        {
-            "name": "base",
-            "reason": "Invite with token <token> was not found in the datastore"
-        }
-    ]
-}
-```
-
-### Update invite
-
-`PATCH /api/v1/fleet/invites/{id}`
-
-#### Parameters
-
-| Name        | Type    | In   | Description                                                                                                                                           |
-| ----------- | ------- | ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| global_role | string  | body | Role the user will be granted. Either a global role is needed, or a team role.                                                                        |
-| email       | string  | body | The email of the invited user. Updates on the email won't resend the invitation.                                                             |
-| name        | string  | body | The name of the invited user.                                                                                                           |
-| sso_enabled | boolean | body | Whether or not SSO will be enabled for the invited user.                                                                                |
-| teams       | list    | body | _Available in Fleet Premium_ A list of the teams the user is a member of. Each item includes the team's ID and the user's role in the specified team. |
-
-#### Example
-
-`PATCH /api/v1/fleet/invites/123`
-
-##### Request body
-
-```json
-{
-  "email": "john_appleseed@example.com",
-  "name": "John",
-  "sso_enabled": false,
-  "global_role": null,
-  "teams": [
-    {
-      "id": 2,
-      "role": "observer"
-    },
-    {
-      "id": 3,
-      "role": "maintainer"
-    }
-  ]
-}
-```
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "invite": {
-    "created_at": "0001-01-01T00:00:00Z",
-    "updated_at": "0001-01-01T00:00:00Z",
-    "id": 3,
-    "invited_by": 1,
-    "email": "john_appleseed@example.com",
-    "name": "John",
-    "sso_enabled": false,
-    "teams": [
-      {
-        "id": 10,
-        "created_at": "0001-01-01T00:00:00Z",
-        "name": "Apples",
-        "description": "",
-        "agent_options": null,
-        "user_count": 0,
-        "host_count": 0,
-        "role": "observer"
-      },
-      {
-        "id": 14,
-        "created_at": "0001-01-01T00:00:00Z",
-        "name": "Best of the Best Engineering",
-        "description": "",
-        "agent_options": null,
-        "user_count": 0,
-        "host_count": 0,
-        "role": "maintainer"
-      }
-    ]
-  }
-}
-```
-
-### Version
-
-Get version and build information from the Fleet server.
-
-`GET /api/v1/fleet/version`
-
-#### Parameters
-
-None.
-
-#### Example
-
-`GET /api/v1/fleet/version`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "version": "3.9.0-93-g1b67826f-dirty",
-  "branch": "version",
-  "revision": "1b67826fe4bf40b2f45ec53e01db9bf467752e74",
-  "go_version": "go1.15.7",
-  "build_date": "2021-03-27T00:28:48Z",
-  "build_user": "zwass"
-}
-```
-
----
-
-## File carving
-
-- [List carves](#list-carves)
-- [Get carve](#get-carve)
-- [Get carve block](#get-carve-block)
-
-Fleet supports osquery's file carving functionality as of Fleet 3.3.0. This allows the Fleet server to request files (and sets of files) from osquery agents, returning the full contents to Fleet.
-
-To initiate a file carve using the Fleet API, you can use the [live query](#run-live-query) or [scheduled query](#add-scheduled-query-to-a-pack) endpoints to run a query against the `carves` table.
-
-For more information on executing a file carve in Fleet, go to the [File carving with Fleet docs](../Using-Fleet/fleetctl-CLI.md#file-carving-with-fleet).
-
-### List carves
-
-Retrieves a list of the non expired carves. Carve contents remain available for 24 hours after the first data is provided from the osquery client.
-
-`GET /api/v1/fleet/carves`
-
-#### Parameters
-
-None.
-
-#### Example
-
-`GET /api/v1/fleet/carves`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "carves": [
-    {
-      "id": 1,
-      "created_at": "2021-02-23T22:52:01Z",
-      "host_id": 7,
-      "name": "macbook-pro.local-2021-02-23T22:52:01Z-fleet_distributed_query_30",
-      "block_count": 1,
-      "block_size": 2000000,
-      "carve_size": 2048,
-      "carve_id": "c6958b5f-4c10-4dc8-bc10-60aad5b20dc8",
-      "request_id": "fleet_distributed_query_30",
-      "session_id": "065a1dc3-40ad-441c-afff-80c2ad7dac28",
-      "expired": false,
-      "max_block": 0
-    },
-    {
-      "id": 2,
-      "created_at": "2021-02-23T22:53:03Z",
-      "host_id": 7,
-      "name": "macbook-pro.local-2021-02-23T22:53:03Z-fleet_distributed_query_31",
-      "block_count": 2,
-      "block_size": 2000000,
-      "carve_size": 3400704,
-      "carve_id": "2b9170b9-4e11-4569-a97c-2f18d18bec7a",
-      "request_id": "fleet_distributed_query_31",
-      "session_id": "f73922ed-40a4-4e98-a50a-ccda9d3eb755",
-      "expired": false,
-      "max_block": 1
-    }
-  ]
-}
-```
-
-### Get carve
-
-Retrieves the specified carve.
-
-`GET /api/v1/fleet/carves/{id}`
-
-#### Parameters
-
-| Name | Type    | In   | Description                           |
-| ---- | ------- | ---- | ------------------------------------- |
-| id   | integer | path | **Required.** The desired carve's ID. |
-
-#### Example
-
-`GET /api/v1/fleet/carves/1`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "carve": {
-    "id": 1,
-    "created_at": "2021-02-23T22:52:01Z",
-    "host_id": 7,
-    "name": "macbook-pro.local-2021-02-23T22:52:01Z-fleet_distributed_query_30",
-    "block_count": 1,
-    "block_size": 2000000,
-    "carve_size": 2048,
-    "carve_id": "c6958b5f-4c10-4dc8-bc10-60aad5b20dc8",
-    "request_id": "fleet_distributed_query_30",
-    "session_id": "065a1dc3-40ad-441c-afff-80c2ad7dac28",
-    "expired": false,
-    "max_block": 0
-  }
-}
-```
-
-### Get carve block
-
-Retrieves the specified carve block. This endpoint retrieves the data that was carved.
-
-`GET /api/v1/fleet/carves/{id}/block/{block_id}`
-
-#### Parameters
-
-| Name     | Type    | In   | Description                                 |
-| -------- | ------- | ---- | ------------------------------------------- |
-| id       | integer | path | **Required.** The desired carve's ID.       |
-| block_id | integer | path | **Required.** The desired carve block's ID. |
-
-#### Example
-
-`GET /api/v1/fleet/carves/1/block/0`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-    "data": "aG9zdHMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA..."
 }
 ```
 
@@ -6220,30 +7218,47 @@ Transforms a host name into a host id. For example, the Fleet UI use this endpoi
   ]
 }
 ```
+---
 
-## Software
+## Users
 
-- [List all software](#list-all-software)
-- [Count software](#count-software)
-### List all software
+- [List all users](#list-all-users)
+- [Create a user account with an invitation](#create-a-user-account-with-an-invitation)
+- [Create a user account without an invitation](#create-a-user-account-without-an-invitation)
+- [Get user information](#get-user-information)
+- [Modify user](#modify-user)
+- [Delete user](#delete-user)
+- [Require password reset](#require-password-reset)
+- [List a user's sessions](#list-a-users-sessions)
+- [Delete a user's sessions](#delete-a-users-sessions)
 
-`GET /api/v1/fleet/software`
+The Fleet server exposes a handful of API endpoints that handles common user management operations. All the following endpoints require prior authentication meaning you must first log in successfully before calling any of the endpoints documented below.
+
+### List all users
+
+Returns a list of all enabled users
+
+`GET /api/v1/fleet/users`
 
 #### Parameters
 
-| Name                    | Type    | In    | Description                                                                                                                                                                                                                                                                                                                                 |
-| ----------------------- | ------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| page                    | integer | query | Page number of the results to fetch.                                                                                                                                                                                                                                                                                                        |
-| per_page                | integer | query | Results per page.                                                                                                                                                                                                                                                                                                                           |
-| order_key               | string  | query | What to order results by. Can be ordered by the following fields: `name`, `hosts_count`. Defaults to the hosts count, descending.                                                                                                                                                                                                           |
-| order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default if not provided is `asc`.                                                                                                                                                                                               |
-| query                   | string  | query | Search query keywords. Searchable fields include `name`, `version`, and `cve`.                                                                                                                                                                                                                                                                                    |
-| team_id                 | integer | query | _Available in Fleet Premium_ Filters the software to only include the software installed on the hosts that are assigned to the specified team.                                                                                                                                                                                              |
-| vulnerable              | bool    | query | If true or 1, only list software that has detected vulnerabilities                                                                                                                                                                                                                                                                          |
+| Name            | Type    | In    | Description                                                                                                                   |
+| --------------- | ------- | ----- | ----------------------------------------------------------------------------------------------------------------------------- |
+| query           | string  | query | Search query keywords. Searchable fields include `name` and `email`.                                                          |
+| order_key       | string  | query | What to order results by. Can be any column in the users table.                                                               |
+| order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`. |
+| page            | integer | query | Page number of the results to fetch.                                                                                          |
+| query           | string  | query | Search query keywords. Searchable fields include `name` and `email`.                                                          |
+| per_page        | integer | query | Results per page.                                                                                                             |
+| team_id         | string  | query | _Available in Fleet Premium_ Filters the users to only include users in the specified team.                                   |
 
 #### Example
 
-`GET /api/v1/fleet/software`
+`GET /api/v1/fleet/users`
+
+##### Request query parameters
+
+None.
 
 ##### Default response
 
@@ -6251,68 +7266,279 @@ Transforms a host name into a host id. For example, the Fleet UI use this endpoi
 
 ```json
 {
-    "counts_updated_at": "2022-01-01 12:32:00",
-    "software": [
+  "users": [
+    {
+      "created_at": "2020-12-10T03:52:53Z",
+      "updated_at": "2020-12-10T03:52:53Z",
+      "id": 1,
+      "name": "Jane Doe",
+      "email": "janedoe@example.com",
+      "force_password_reset": false,
+      "gravatar_url": "",
+      "sso_enabled": false,
+      "global_role": null,
+      "api_only": false,
+      "teams": [
+        {
+          "id": 1,
+          "created_at": "0001-01-01T00:00:00Z",
+          "name": "workstations",
+          "description": "",
+          "role": "admin"
+        }
+      ]
+    }
+  ]
+}
+```
+
+##### Failed authentication
+
+`Status: 401 Authentication Failed`
+
+```json
+{
+  "message": "Authentication Failed",
+  "errors": [
+    {
+      "name": "base",
+      "reason": "Authentication failed"
+    }
+  ]
+}
+```
+
+### Create a user account with an invitation
+
+Creates a user account after an invited user provides registration information and submits the form.
+
+`POST /api/v1/fleet/users`
+
+#### Parameters
+
+| Name                  | Type   | In   | Description                                                                                                                                                                                                                                                                                                                                              |
+| --------------------- | ------ | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| email                 | string | body | **Required**. The email address of the user.                                                                                                                                                                                                                                                                                                             |
+| invite_token          | string | body | **Required**. Token provided to the user in the invitation email.                                                                                                                                                                                                                                                                                        |
+| name                  | string | body | **Required**. The name of the user.                                                                                                                                                                                                                                                                                                                      |
+| password              | string | body | The password chosen by the user (if not SSO user).                                                                                                                                                                                                                                                                                                       |
+| password_confirmation | string | body | Confirmation of the password chosen by the user.                                                                                                                                                                                                                                                                                                         |
+| global_role           | string | body | The role assigned to the user. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). If `global_role` is specified, `teams` cannot be specified.                                                                                                                                                                         |
+| teams                 | array  | body | _Available in Fleet Premium_ The teams and respective roles assigned to the user. Should contain an array of objects in which each object includes the team's `id` and the user's `role` on each team. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). If `teams` is specified, `global_role` cannot be specified. |
+
+#### Example
+
+`POST /api/v1/fleet/users`
+
+##### Request query parameters
+
+```json
+{
+  "email": "janedoe@example.com",
+  "invite_token": "SjdReDNuZW5jd3dCbTJtQTQ5WjJTc2txWWlEcGpiM3c=",
+  "name": "janedoe",
+  "password": "test-123",
+  "password_confirmation": "test-123",
+  "teams": [
+    {
+      "id": 2,
+      "role": "observer"
+    },
+    {
+      "id": 4,
+      "role": "observer"
+    }
+  ]
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "user": {
+    "created_at": "0001-01-01T00:00:00Z",
+    "updated_at": "0001-01-01T00:00:00Z",
+    "id": 2,
+    "name": "janedoe",
+    "email": "janedoe@example.com",
+    "enabled": true,
+    "force_password_reset": false,
+    "gravatar_url": "",
+    "sso_enabled": false,
+    "global_role": "admin",
+    "teams": []
+  }
+}
+```
+
+##### Failed authentication
+
+`Status: 401 Authentication Failed`
+
+```json
+{
+  "message": "Authentication Failed",
+  "errors": [
+    {
+      "name": "base",
+      "reason": "Authentication failed"
+    }
+  ]
+}
+```
+
+##### Expired or used invite code
+
+`Status: 404 Resource Not Found`
+
+```json
+{
+  "message": "Resource Not Found",
+  "errors": [
+    {
+      "name": "base",
+      "reason": "Invite with token SjdReDNuZW5jd3dCbTJtQTQ5WjJTc2txWWlEcGpiM3c= was not found in the datastore"
+    }
+  ]
+}
+```
+
+##### Validation failed
+
+`Status: 422 Validation Failed`
+
+The same error will be returned whenever one of the required parameters fails the validation.
+
+```json
+{
+  "message": "Validation Failed",
+  "errors": [
+    {
+      "name": "name",
+      "reason": "cannot be empty"
+    }
+  ]
+}
+```
+
+### Create a user account without an invitation
+
+Creates a user account without requiring an invitation, the user is enabled immediately.
+By default, the user will be forced to reset its password upon first login.
+
+`POST /api/v1/fleet/users/admin`
+
+#### Parameters
+
+| Name        | Type    | In   | Description                                                                                                                                                                                                                                                                                                                                              |
+| ----------- | ------- | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| email       | string  | body | **Required**. The user's email address.                                                                                                                                                                                                                                                                                                                  |
+| name        | string  | body | **Required**. The user's full name or nickname.                                                                                                                                                                                                                                                                                                          |
+| password    | string  | body | The user's password (required for non-SSO users).                                                                                                                                                                                                                                                                                                        |
+| sso_enabled | boolean | body | Whether or not SSO is enabled for the user.                                                                                                                                                                                                                                                                                                              |
+| api_only    | boolean | body | User is an "API-only" user (cannot use web UI) if true.                                                                                                                                                                                                                                                                                                  |
+| global_role | string  | body | The role assigned to the user. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). If `global_role` is specified, `teams` cannot be specified.                                                                                                                                                                         |
+| admin_forced_password_reset    | boolean | body | Sets whether the user will be forced to reset its password upon first login (default=true) |
+| teams       | array   | body | _Available in Fleet Premium_ The teams and respective roles assigned to the user. Should contain an array of objects in which each object includes the team's `id` and the user's `role` on each team. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). If `teams` is specified, `global_role` cannot be specified. |
+
+#### Example
+
+`POST /api/v1/fleet/users/admin`
+
+##### Request body
+
+```json
+{
+  "name": "Jane Doe",
+  "email": "janedoe@example.com",
+  "password": "test-123",
+  "teams": [
+    {
+      "id": 2,
+      "role": "observer"
+    },
+    {
+      "id": 3,
+      "role": "maintainer"
+    },
+  ]
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "user": {
+    "created_at": "0001-01-01T00:00:00Z",
+    "updated_at": "0001-01-01T00:00:00Z",
+    "id": 5,
+    "name": "Jane Doe",
+    "email": "janedoe@example.com",
+    "enabled": true,
+    "force_password_reset": false,
+    "gravatar_url": "",
+    "sso_enabled": false,
+    "api_only": false,
+    "global_role": null,
+    "teams": [
       {
-        "id": 4,
-        "name": "osquery",
-        "version": "2.1.11",
-        "source": "rpm_packages",
-        "generated_cpe": "",
-        "vulnerabilities": null,
-        "hosts_count": 456
+        "id": 2,
+        "role": "observer"
       },
       {
         "id": 3,
-        "name": "osquery",
-        "version": "2.1.11",
-        "source": "rpm_packages",
-        "generated_cpe": "",
-        "vulnerabilities": null,
-        "hosts_count": 345
+        "role": "maintainer"
       },
-      {
-        "id": 2,
-        "name": "Figma.app",
-        "version": "2.1.11",
-        "source": "Application (macOS)",
-        "generated_cpe": "",
-        "vulnerabilities": null,
-        "hosts_count": 234
-      },
-      {
-        "id": 1,
-        "name": "Chrome.app",
-        "version": "2.1.11",
-        "source": "Application (macOS)",
-        "generated_cpe": "",
-        "vulnerabilities": null,
-        "hosts_count": 123
-      }
     ]
   }
 }
 ```
 
-### Count software
+##### User doesn't exist
 
-`GET /api/v1/fleet/software/count`
+`Status: 404 Resource Not Found`
+
+```json
+{
+  "message": "Resource Not Found",
+  "errors": [
+    {
+      "name": "base",
+      "reason": "User with id=1 was not found in the datastore"
+    }
+  ]
+}
+```
+
+### Get user information
+
+Returns all information about a specific user.
+
+`GET /api/v1/fleet/users/{id}`
 
 #### Parameters
 
-| Name                    | Type    | In    | Description                                                                                                                                                                                                                                                                                                                                 |
-| ----------------------- | ------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| page                    | integer | query | Allowed for compatibility with GET /api/v1/fleet/software but ignored                                                                                                                                                                                                                                                                       |
-| per_page                | integer | query | Allowed for compatibility with GET /api/v1/fleet/software but ignored                                                                                                                                                                                                                                                                       |
-| order_key               | string  | query | Allowed for compatibility with GET /api/v1/fleet/software but ignored                                                                                                                                                                                                                                                                       |
-| order_direction         | string  | query | Allowed for compatibility with GET /api/v1/fleet/software but ignored                                                                                                                                                                                                                                                                       |
-| query                   | string  | query | Search query keywords. Searchable fields include `name`.                                                                                                                                                                                                                                                                                    |
-| team_id                 | integer | query | _Available in Fleet Premium_ Filters the software to only include the software installed on the hosts that are assigned to the specified team.                                                                                                                                                                                                   |
-| vulnerable              | bool    | query | If true or 1, only list software that has detected vulnerabilities                                                                                                                                                                                                                                                                          |
+| Name | Type    | In   | Description                  |
+| ---- | ------- | ---- | ---------------------------- |
+| id   | integer | path | **Required**. The user's id. |
 
 #### Example
 
-`GET /api/v1/fleet/software/count`
+`GET /api/v1/fleet/users/2`
+
+##### Request query parameters
+
+```json
+{
+  "id": 1
+}
+```
 
 ##### Default response
 
@@ -6320,8 +7546,271 @@ Transforms a host name into a host id. For example, the Fleet UI use this endpoi
 
 ```json
 {
-  "count": 43
+  "user": {
+    "created_at": "2020-12-10T05:20:25Z",
+    "updated_at": "2020-12-10T05:24:27Z",
+    "id": 2,
+    "name": "Jane Doe",
+    "email": "janedoe@example.com",
+    "force_password_reset": false,
+    "gravatar_url": "",
+    "sso_enabled": false,
+    "global_role": "admin",
+    "api_only": false,
+    "teams": []
+  }
 }
 ```
 
+##### User doesn't exist
+
+`Status: 404 Resource Not Found`
+
+```json
+{
+  "message": "Resource Not Found",
+  "errors": [
+    {
+      "name": "base",
+      "reason": "User with id=5 was not found in the datastore"
+    }
+  ]
+}
+```
+
+### Modify user
+
+`PATCH /api/v1/fleet/users/{id}`
+
+#### Parameters
+
+| Name        | Type    | In   | Description                                                                                                                                                                                                                                                                                                                                              |
+| ----------- | ------- | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| id          | integer | path | **Required**. The user's id.                                                                                                                                                                                                                                                                                                                             |
+| name        | string  | body | The user's name.                                                                                                                                                                                                                                                                                                                                         |
+| position    | string  | body | The user's position.                                                                                                                                                                                                                                                                                                                                     |
+| email       | string  | body | The user's email.                                                                                                                                                                                                                                                                                                                                        |
+| sso_enabled | boolean | body | Whether or not SSO is enabled for the user.                                                                                                                                                                                                                                                                                                              |
+| api_only    | boolean | body | User is an "API-only" user (cannot use web UI) if true.                                                                                                                                                                                                                                                                                                  |
+| password    | string  | body | The user's current password, required to change the user's own email or password (not required for an admin to modify another user).                                                                                                                                                                                                                     |
+| new_password| string  | body | The user's new password. |
+| global_role | string  | body | The role assigned to the user. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). If `global_role` is specified, `teams` cannot be specified.                                                                                                                                                                         |
+| teams       | array   | body | _Available in Fleet Premium_ The teams and respective roles assigned to the user. Should contain an array of objects in which each object includes the team's `id` and the user's `role` on each team. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). If `teams` is specified, `global_role` cannot be specified. |
+
+#### Example
+
+`PATCH /api/v1/fleet/users/2`
+
+##### Request body
+
+```json
+{
+  "name": "Jane Doe",
+  "global_role": "admin"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "user": {
+    "created_at": "2021-02-03T16:11:06Z",
+    "updated_at": "2021-02-03T16:11:06Z",
+    "id": 2,
+    "name": "Jane Doe",
+    "email": "janedoe@example.com",
+    "global_role": "admin",
+    "force_password_reset": false,
+    "gravatar_url": "",
+    "sso_enabled": false,
+    "api_only": false,
+    "teams": []
+  }
+}
+```
+
+#### Example (modify a user's teams)
+
+`PATCH /api/v1/fleet/users/2`
+
+##### Request body
+
+```json
+{
+  "teams": [
+    {
+      "id": 1,
+      "role": "observer"
+    },
+    {
+      "id": 2,
+      "role": "maintainer"
+    }
+  ]
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "user": {
+    "created_at": "2021-02-03T16:11:06Z",
+    "updated_at": "2021-02-03T16:11:06Z",
+    "id": 2,
+    "name": "Jane Doe",
+    "email": "janedoe@example.com",
+    "enabled": true,
+    "force_password_reset": false,
+    "gravatar_url": "",
+    "sso_enabled": false,
+    "global_role": "admin",
+    "teams": [
+      {
+        "id": 2,
+        "role": "observer"
+      },
+      {
+        "id": 3,
+        "role": "maintainer"
+      },
+    ]
+  }
+}
+```
+
+### Delete user
+
+Delete the specified user from Fleet.
+
+`DELETE /api/v1/fleet/users/{id}`
+
+#### Parameters
+
+| Name | Type    | In   | Description                  |
+| ---- | ------- | ---- | ---------------------------- |
+| id   | integer | path | **Required**. The user's id. |
+
+#### Example
+
+`DELETE /api/v1/fleet/users/3`
+
+##### Default response
+
+`Status: 200`
+
+
+### Require password reset
+
+The selected user is logged out of Fleet and required to reset their password during the next attempt to log in. This also revokes all active Fleet API tokens for this user. Returns the user object.
+
+`POST /api/v1/fleet/users/{id}/require_password_reset`
+
+#### Parameters
+
+| Name  | Type    | In   | Description                                                                                    |
+| ----- | ------- | ---- | ---------------------------------------------------------------------------------------------- |
+| id    | integer | path | **Required**. The user's id.                                                                   |
+| reset | boolean | body | Whether or not the user is required to reset their password during the next attempt to log in. |
+
+#### Example
+
+`POST /api/v1/fleet/users/{id}/require_password_reset`
+
+##### Request body
+
+```json
+{
+  "require": true
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "user": {
+    "created_at": "2021-02-23T22:23:34Z",
+    "updated_at": "2021-02-23T22:28:52Z",
+    "id": 2,
+    "name": "Jane Doe",
+    "email": "janedoe@example.com",
+    "force_password_reset": true,
+    "gravatar_url": "",
+    "sso_enabled": false,
+    "global_role": "observer",
+    "teams": []
+  }
+}
+```
+
+### List a user's sessions
+
+Returns a list of the user's sessions in Fleet.
+
+`GET /api/v1/fleet/users/{id}/sessions`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/v1/fleet/users/1/sessions`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "sessions": [
+    {
+      "session_id": 2,
+      "user_id": 1,
+      "created_at": "2021-02-03T16:12:50Z"
+    },
+    {
+      "session_id": 3,
+      "user_id": 1,
+      "created_at": "2021-02-09T23:40:23Z"
+    },
+    {
+      "session_id": 6,
+      "user_id": 1,
+      "created_at": "2021-02-23T22:23:58Z"
+    }
+  ]
+}
+```
+
+### Delete a user's sessions
+
+Deletes the selected user's sessions in Fleet. Also deletes the user's API token.
+
+`DELETE /api/v1/fleet/users/{id}/sessions`
+
+#### Parameters
+
+| Name | Type    | In   | Description                               |
+| ---- | ------- | ---- | ----------------------------------------- |
+| id   | integer | path | **Required**. The ID of the desired user. |
+
+#### Example
+
+`DELETE /api/v1/fleet/users/1/sessions`
+
+##### Default response
+
+`Status: 200`
+
+
+---
 <meta name="pageOrderInSection" value="400">
