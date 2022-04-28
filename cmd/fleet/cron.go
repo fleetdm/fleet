@@ -202,7 +202,6 @@ func cronVulnerabilities(
 				if j.EnableSoftwareVulnerabilities {
 					if vulnAutomationEnabled != "" {
 						level.Error(logger).Log("err", "more than one automation enabled")
-						// TODO: additional error handling?
 					}
 					vulnAutomationEnabled = "jira"
 					break
@@ -221,7 +220,7 @@ func cronVulnerabilities(
 			level.Debug(logger).Log("vulnAutomationEnabled", vulnAutomationEnabled)
 
 			recentVulns := checkVulnerabilities(ctx, ds, logger, vulnPath, config, (vulnAutomationEnabled != ""))
-			if len(recentVulns) > 0 || true {
+			if len(recentVulns) > 0 {
 				switch vulnAutomationEnabled {
 				case "webhook":
 					// send recent vulnerabilities via webhook
@@ -232,7 +231,6 @@ func cronVulnerabilities(
 						sentry.CaptureException(err)
 					}
 
-				// TODO: what about jobs that get queued but are not run before reconfig automations?
 				case "jira":
 					// queue job to create jira issues
 					if err := worker.QueueJiraJobs(

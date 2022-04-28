@@ -172,7 +172,6 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 
 	oldSmtpSettings := appConfig.SMTPSettings
 
-	// TODO: enforce unique project key?
 	var oldJiraSettings []*fleet.JiraIntegration
 	if len(appConfig.Integrations.Jira) > 0 {
 		oldJiraSettings = make([]*fleet.JiraIntegration, len(appConfig.Integrations.Jira))
@@ -182,7 +181,6 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 		}
 	}
 
-	// TODO: enforce unique group id?
 	var oldZendeskSettings []*fleet.ZendeskIntegration
 	if len(appConfig.Integrations.Zendesk) > 0 {
 		oldZendeskSettings = make([]*fleet.ZendeskIntegration, len(appConfig.Integrations.Zendesk))

@@ -100,7 +100,6 @@ func doZendeskWithRetry(fn func() (interface{}, error)) error {
 		if err == nil {
 			return nil
 		}
-		// TODO: do we need this?
 		var netErr net.Error
 		if errors.As(err, &netErr) {
 			if netErr.Temporary() || netErr.Timeout() {
