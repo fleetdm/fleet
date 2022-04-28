@@ -229,10 +229,10 @@ describe("Premium tier - Team observer/maintainer user", () => {
         cy.getAttached(".enroll-secret-modal__add-secret")
           .contains("button", /add secret/i)
           .click();
-        cy.getAttached(".secret-editor-modal__button-wrap")
+        cy.getAttached(".secret-editor-modal .modal-cta-wrap")
           .contains("button", /save/i)
           .click();
-        cy.getAttached(".enroll-secret-modal__button-wrap")
+        cy.getAttached(".enroll-secret-modal .modal-cta-wrap")
           .contains("button", /done/i)
           .click();
       });

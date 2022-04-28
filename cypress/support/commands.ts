@@ -89,11 +89,11 @@ Cypress.Commands.add("seedQueries", () => {
       observer_can_run: false,
     },
     {
-      name:
-        "Detect Linux hosts with high severity vulnerable versions of OpenSSL",
+      name: "Get local user accounts",
       query:
-        "SELECT name AS name, version AS version, 'deb_packages' AS source FROM deb_packages WHERE name LIKE 'openssl%' UNION SELECT name AS name, version AS version, 'apt_sources' AS source FROM apt_sources WHERE name LIKE 'openssl%' UNION SELECT name AS name, version AS version, 'rpm_packages' AS source FROM rpm_packages WHERE name LIKE 'openssl%';",
-      description: "Retrieves the OpenSSL version.",
+        "SELECT uid, gid, username, description,directory, shell FROM users;",
+      description:
+        "Local user accounts (including domain accounts that have logged on locally (Windows)).",
       observer_can_run: false,
     },
   ];
@@ -313,7 +313,7 @@ Cypress.Commands.add("loginSSO", () => {
 
         // Load the callback URL with the response from the IdP
         cy.visit({
-          url: "/api/latest/fleet/sso/callback",
+          url: "/api/v1/fleet/sso/callback",
           method: "POST",
           body: {
             SAMLResponse: saml,

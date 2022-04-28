@@ -1197,6 +1197,19 @@ Applies only when `osquery_enable_async_host_processing` is enabled. Order of ma
   	async_host_redis_scan_keys_count: 100
   ```
 
+##### osquery_min_software_last_opened_at_diff
+
+Minimum time difference between the software's "last opened at" timestamp reported by osquery and the last timestamp saved for that software on that host. This helps minimize the number of updates required when a host reports its installed software information, resulting in less load on the database. If there is no existing timestamp for the software on that host (or if the software was not installed on that host previously), the new timestamp is automatically saved.
+
+- Default value: 1h
+- Environment variable: `FLEET_OSQUERY_MIN_SOFTWARE_LAST_OPENED_AT_DIFF`
+- Config file format:
+
+  ```
+  osquery:
+  	min_software_last_opened_at_diff: 4h
+  ```
+
 ##### Example YAML
 
 ```yaml
@@ -2312,7 +2325,7 @@ _**Note that the email being used in the SAML Assertion must match a user that a
 Setting up the service provider (Fleet) with an identity provider generally requires the following information:
 
 - _Assertion Consumer Service_ - This is the call back URL that the identity provider
-  will use to send security assertions to Fleet. In Okta, this field is called _Single sign on URL_. On Google it is "ACS URL". The value that you supply will be a fully qualified URL consisting of your Fleet web address and the callback path `/api/v1/fleet/sso/callback`. For example, if your Fleet web address is https://fleet.example.com, then the value you would use in the identity provider configuration would be:
+  will use to send security assertions to Fleet. In Okta, this field is called _single sign on URL_. On Google it is "ACS URL." The value that you supply will be a fully qualified URL consisting of your Fleet web address and the callback path `/api/v1/fleet/sso/callback`. For example, if your Fleet web address is https://fleet.example.com, then the value you would use in the identity provider configuration would be:
 
   ```
   https://fleet.example.com/api/v1/fleet/sso/callback

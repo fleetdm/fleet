@@ -3,7 +3,8 @@ import { Meta, Story } from "@storybook/react";
 import { noop } from "lodash";
 
 import { DEFAULT_GRAVATAR_LINK } from "utilities/constants";
-import Avatar from "components/Avatar"; // @ts-ignore
+import Avatar from "components/Avatar";
+// @ts-ignore
 import DropdownButton from ".";
 
 import "../../../index.scss";

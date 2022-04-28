@@ -34,5 +34,6 @@ module.exports.policies = {
   'view-platform': true,
   'view-landing': true,
   'deliver-demo-signup': true,
+  'articles/*': true,
 
 };

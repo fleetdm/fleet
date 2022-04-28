@@ -25,6 +25,7 @@
 - [Why am I seeing "unknown certificate error" when adding hosts to my dev server?](#why-am-i-seeing-"unknown-certificate-error"-when-adding-hosts-to-my-dev-server)
 - [Can I hide known vulnerabilities that I feel are insignificant?](#can-i-hide-known-vulnerabilities-that-i-feel-are-insignificant)
 - [Can I create reports based on historical data in Fleet?](#can-i-create-reports-based-on-historical-data-in-fleet)
+- [Why can't I run queries with `fleetctl` using a new API-only user?](#why-cant-i-run-queries-with-fleetctl-using-a-new-api-only-user)
 
 ## What do I need to do to switch from Kolide Fleet to FleetDM Fleet?
 
@@ -128,7 +129,7 @@ You cannot. Scheduled query results are logged to whatever logging plugin you ha
 
 However, the Fleet API exposes a significant amount of host information via the [`api/v1/fleet/hosts`](./REST-API.md#list-hosts) and the [`api/v1/fleet/hosts/{id}`](./REST-API.md#get-host) API endpoints. The `api/v1/fleet/hosts` [can even be configured to return additional host information](https://github.com/fleetdm/fleet/blob/9fb9da31f5462fa7dda4819a114bbdbc0252c347/docs/1-Using-Fleet/2-fleetctl-CLI.md#fleet-configuration-options).
 
-As an example, let's say you want to retrieve a host's OS version, installed software, and kernel version:
+For example, let's say you want to retrieve a host's OS version, installed software, and kernel version:
 
 Each host’s OS version is available using the `api/v1/fleet/hosts` API endpoint. [Check out the API documentation for this endpoint](./REST-API.md#list-hosts).
 
@@ -136,7 +137,7 @@ The ability to view each host’s installed software was released behind a featu
 
 Once the Software inventory feature is turned on, a list of a specific host’s installed software is available using the `api/v1/fleet/hosts/{id}` endpoint. [Check out the documentation for this endpoint](./REST-API.md#get-host).
 
-It’s possible in Fleet to retrieve each host’s kernel version, using the Fleet API, through `additional_queries`. The Fleet configuration options yaml file includes an `additional_queries` property that allows you to append custom query results to the host details returned by the `api/v1/fleet/hosts` endpoint. [Check out an example configuration file with the additional_queries field](./fleetctl-CLI.md#fleet-configuration-options).
+It’s possible in Fleet to retrieve each host’s kernel version, using the Fleet API, through `additional_queries`. The Fleet configuration options YAML file includes an `additional_queries` property that allows you to append custom query results to the host details returned by the `api/v1/fleet/hosts` endpoint. [Check out an example configuration file with the additional_queries field](./fleetctl-CLI.md#fleet-configuration-options).
 
 ## How do I automatically add hosts to packs when the hosts enroll to Fleet?
 
@@ -231,3 +232,9 @@ Currently, Fleet only stores the current state of your hosts (when they last com
 The [REST API](https://fleetdm.com/docs/using-fleet/rest-api) is somewhat similar to fleetctl, but it tends to be used more by other computer programs rather than human users (although humans can use it too). For example, our [Fleet UI](https://fleetdm.com/docs/using-fleet/rest-api) talks to the server via the REST API. Folks can also use the REST API if they want to build their own programs that talk to the Fleet server.
 
 The [Fleet UI](https://fleetdm.com/docs/using-fleet/fleet-ui) is built for human users to make interfacing with the Fleet server user-friendly and visually appealing. It also makes things simpler and more accessible to a broader range of users. 
+
+## Why can't I run queries with `fleetctl` using a new API-only user?
+
+In versions prior to Fleet 4.13, a password reset is needed before a new API-only user can perform queries. You can find detailed instructions for setting that up [here](https://github.com/fleetdm/fleet/blob/a1eba3d5b945cb3339004dd1181526c137dc901c/docs/Using-Fleet/fleetctl-CLI.md#reset-the-password).
+
+

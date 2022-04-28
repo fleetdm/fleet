@@ -38,9 +38,6 @@ func TestStreamCampaignResultsClosesReditOnWSClose(t *testing.T) {
 	ds.LabelQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
 	}
-	ds.SaveHostFunc = func(ctx context.Context, host *fleet.Host) error {
-		return nil
-	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}
@@ -92,10 +89,11 @@ func TestStreamCampaignResultsClosesReditOnWSClose(t *testing.T) {
 	_, err := svc.NewDistributedQueryCampaign(viewerCtx, q, nil, fleet.HostTargets{HostIDs: []uint{2}, LabelIDs: []uint{1}})
 	require.NoError(t, err)
 
-	s := httptest.NewServer(makeStreamDistributedQueryCampaignResultsHandler(svc, kitlog.NewNopLogger()))
+	pathHandler := makeStreamDistributedQueryCampaignResultsHandler(svc, kitlog.NewNopLogger())
+	s := httptest.NewServer(pathHandler("/api/latest/fleet/results/"))
 	defer s.Close()
 	// Convert http://127.0.0.1 to ws://127.0.0.1
-	u := "ws" + strings.TrimPrefix(s.URL, "http") + "/api/v1/fleet/results/websocket"
+	u := "ws" + strings.TrimPrefix(s.URL, "http") + "/api/latest/fleet/results/websocket"
 
 	// Connect to the server
 	dialer := &websocket.Dialer{

@@ -1,6 +1,6 @@
 import React from "react";
 import formatDistanceToNowStrict from "date-fns/formatDistanceToNowStrict";
-import { abbreviateTimeUnits } from "fleet/helpers";
+import { abbreviateTimeUnits } from "utilities/helpers";
 
 import TooltipWrapper from "components/TooltipWrapper";
 

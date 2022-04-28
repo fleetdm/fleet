@@ -21,6 +21,8 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 ### ⛑ Security
 
+[Account recovery process](./security.md#account-recovery-process)
+
 [How we protect end-user devices](./security.md#how-we-protect-end-user-devices)
 
 [Hardware security keys](./security.md#hardware-security-keys)
@@ -30,6 +32,10 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 [Google Workspace security](./security.md#google-workspace-security)
 
 [Vulnerability management in Fleet](./security.md#vulnerability-management)
+
+### 📜 Security policies
+
+[Acceptable use policy](./security-policies.md#acceptable-use-policy)
 
 ### 💓 Brand
 
@@ -47,19 +53,24 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Fleet website](./brand.md#website)
 
+[Rituals](./brand.md#rituals)
+
 ### 🪂 Community
 
 [Communities](./community.md#communities)
 
 [Fleet docs](./community.md#fleet-docs)
 
-[Community contributions (pull requests)](./community.md#community-contributions-pull-requests)
+[Pull requests](./community.md#pull-requests)
+
+[Updating docs and FAQ](./community.md#updating-docs-and-faq)
 
 [Fleet swag](./community.md#fleet-swag)
 
 ### 🚀 Engineering
 
 [Release process](./engineering.md#release-process)
+
 [On-call rotation](./community.md#On-call-rotation) 
 
 ### ⚗️ Product
@@ -112,7 +123,17 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Meetings](./people.md#meetings)
 
-[People ops](./people.md#people-ops)
+[Slack](./people.md#slack)
+
+[Performance feedback](./people.md#performance-feedback)
+
+[Hiring a new team member](./people.md#hiring-a-new-team-member)
+
+[Team member onboarding](./people.md#team-member-onboarding)
+
+[Onboarding a new advisor](./people.md#onboarding-a-new-advisor)
+
+[Zapier and DocuSign](./people.md#zapier-and-docu-sign)
 
 [Rituals](./people.md#rituals)
 

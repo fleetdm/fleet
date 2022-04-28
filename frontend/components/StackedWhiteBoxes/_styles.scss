@@ -1,7 +1,6 @@
 .stacked-white-boxes {
-  @include position(absolute, null null null 50%);
   transition: opacity 300ms ease-in;
-  margin: $pad-xxlarge 0 0 -262px;
+  margin: 2.5rem auto;
   width: 516px;
 
   &--loading {
