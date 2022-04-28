@@ -175,6 +175,8 @@ const IntegrationsPage = (): JSX.Element => {
           return { zendesk: integrationSubmitData };
         }
       };
+
+      // TODO: Remove debugger
       debugger;
       setTestingConnection(true);
       configAPI
@@ -225,6 +227,7 @@ const IntegrationsPage = (): JSX.Element => {
 
   const onDeleteSubmit = useCallback(() => {
     if (integrationEditing) {
+      // TODO: Remove console log
       console.log("integrationEditing", integrationEditing);
 
       const deleteIntegrationDestination = () => {
@@ -235,15 +238,12 @@ const IntegrationsPage = (): JSX.Element => {
           });
         }
         integrations?.zendesk.splice(integrationEditing.originalIndex, 1);
+        // TODO: Remove console log
         console.log("What is sent to the API upon deleting zendesk", {
           integrations: { zendesk: integrations?.zendesk },
         });
-        // return configAPI.update({
-        //   integrations: { zendesk: integrations?.zendesk },
-        // });
-        // TODO: replace call below with call above
         return configAPI.update({
-          integrations: { jira: integrations?.jira },
+          integrations: { zendesk: integrations?.zendesk },
         });
       };
 
@@ -273,27 +273,23 @@ const IntegrationsPage = (): JSX.Element => {
   }, [integrationEditing, toggleDeleteIntegrationModal]);
 
   const onEditSubmit = useCallback(
-    (integratinoSubmitData: IIntegration[]) => {
+    (integrationSubmitData: IIntegration[]) => {
       if (integrationEditing) {
         setTestingConnection(true);
-
+        // TODO: Remove console log
         console.log("integrationEditing", integrationEditing);
 
         const editIntegrationDestination = () => {
           if (integrationEditing.type === "jira") {
             return configAPI.update({
-              integrations: { jira: integratinoSubmitData },
+              integrations: { jira: integrationSubmitData },
             });
           }
           console.log("What is sent to the API upon editing zendesk", {
             integrations: { zendesk: integrations?.zendesk },
           });
-          // return configAPI.update({
-          //   integrations: { zendesk: integrationSubmitData },
-          // });
-          // TODO: replace call below with call above
           return configAPI.update({
-            integrations: { jira: integratinoSubmitData },
+            integrations: { zendesk: integrationSubmitData },
           });
         };
 
@@ -304,7 +300,7 @@ const IntegrationsPage = (): JSX.Element => {
               <>
                 Successfully edited{" "}
                 <b>
-                  {integratinoSubmitData[integrationEditing?.originalIndex].url}
+                  {integrationSubmitData[integrationEditing?.originalIndex].url}
                 </b>
               </>
             );
