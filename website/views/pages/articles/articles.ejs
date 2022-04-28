@@ -23,7 +23,6 @@
         <div purpose="article-card" class="card" v-for="article in selectedArticles">
           <a purpose="article-card-link" :href="article.url">
             <img style="width: 100%; height: auto;" :src="[article.meta.articleImageUrl ? article.meta.articleImageUrl : '/images/press-kit/press-kit-fleet-logo-white-preview-600x336@2x.png']" alt="Article hero image">
-            <!-- <img style="width: 100%; height: auto;" :src="['/images/articles/'+]" alt="Article hero image"> -->
           </a>
           <div purpose="article-card-body" class="card-body d-flex flex-column">
             <a purpose="category-link" :href="article.url.split('/')[1]" class="pb-2">{{article.meta.category}}</a>
