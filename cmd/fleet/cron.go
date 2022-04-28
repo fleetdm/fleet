@@ -503,7 +503,7 @@ func cronWorker(
 			// create the client to make API calls to Jira
 			err := setJiraClient(jira, jiraSettings, appConfig, logger, jiraFailerClient)
 			if err != nil {
-				level.Error(logger).Log("msg", "Error creating Zendesk client", "err", err)
+				level.Error(logger).Log("msg", "Error creating JIRA client", "err", err)
 				sentry.CaptureException(err)
 				continue
 			}
