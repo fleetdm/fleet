@@ -47,3 +47,4 @@ Zach Wasserman — CTO, Fleet
 <meta name="authorFullName" value="Zach Wasserman">
 <meta name="publishedOn" value="2020-01-05">
 <meta name="articleTitle" value="A new Fleet">
+<meta name="articleImageUrl" value="https://miro.medium.com/max/1400/1*Lr6moo5NCy4Sm49NL6EswQ.jpeg">

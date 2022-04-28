@@ -39,3 +39,4 @@ Fleet
 <meta name="authorFullName" value="Mike Thomas">
 <meta name="publishedOn" value="2021-10-08">
 <meta name="articleTitle" value="Happy 1st anniversary, Fleet.">
+<meta name="articleImageUrl" value="https://miro.medium.com/max/1400/1*zCLe1aP9ytZ-Ea7b22_dbA.png">

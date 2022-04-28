@@ -31,3 +31,4 @@ Through developing Fleet in the open, we’ve validated that the spirit of openn
 <meta name="authorFullName" value="Zach Wasserman">
 <meta name="publishedOn" value="2022-01-20">
 <meta name="articleTitle" value="The next step for Fleet: our $5M seed round 🌱">
+<meta name="articleImageUrl" value="https://miro.medium.com/max/1400/1*bKfNH5xP8B6AZUms7KchGg.png">
