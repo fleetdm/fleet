@@ -276,17 +276,12 @@ When Kolide's attention shifted away from Fleet and towards their separate, user
 ### 2020: Fleet was incorporated
 Zach partnered with our CEO, Mike McNeil, to found a new, independent company: Fleet Device Management Inc.  In November 2020, we [announced](https://medium.com/fleetdm/a-new-fleet-d4096c7de978) the transition and kicked off the logistics of moving the GitHub repository.
 
-## Weekly updates
+## Rituals
 
-Every Friday, a company update is posted in `#general`. 
-
-The process for this is:
-- Thursday afternoon, Charlie will create a new thread in the #help-manage channel and ask managers to reply with a summary of what their team did in the past week.
-- Friday afternoon, Charlie goes into the ["🌈 Weekly updates" spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0) updates the KPIs for that week, Charlie will not update the growth KPIs (columns `L` through `T`) these will be updated at a later date. 
-Friday evening, Charlie will combine the manager's updates into one message and format the content consistently.
-   - If we have new team members joining Fleet, Charlie will add an announcement to the update. The announcement will include the team member's name, job title, and start date.
-- Charlie posts the formatted update in `#general` and includes a link to the ["🌈 Weekly updates" spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0)
-- At the start of the next week, Drew will update the Growth KPIs for the previous week.
+|Ritual |Frequency | Description | DRI|
+|-------|:---------|:------------|:---|
+| Weekly update reminder | Weekly | On Thursday, Charlie starts a thread in the `#help-manage` channel and ask managers to reply to the thread with a summary of what their team did in the past week. | Charlie Chance |
+| Weekly update | Weekly | On Friday, Charlie updates the KPIs in the ["🌈 Weekly updates" spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0), combines the updates from managers into a single message, and adds any hiring announcements. Charlie posts the company update in the `#general` channel. | Charlie Chance |
 
 ## Slack channels
 
