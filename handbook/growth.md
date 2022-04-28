@@ -80,7 +80,6 @@ The following table lists the Growth group's rituals, frequency, and Directly Re
 
 | Ritual                       | Frequency                | Description                                         | DRI               |
 |:-----------------------------|:-----------------------------|:----------------------------------------------------|-------------------|
-| Social engagement ritual     | Weeklly | Participate in 50 social media engagements per week.| Drew Baker        |  
 | Daily Twitter ritual         | Daily | Post Fleet content on Twitter.     | Drew Baker        |
 | Daily LinkedIn ritual        | Daily | Post Fleet content to LinkedIn.   | Drew Baker        |
 | osQuery jobs ritual          | Weekly | Post to @osqueryjobs two times per week.            | Drew Baker        |
