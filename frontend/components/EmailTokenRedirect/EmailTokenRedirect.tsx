@@ -5,7 +5,7 @@ import { Params } from "react-router/lib/Router";
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
-import { useDeepEffect } from "utilities/hooks";
+import useDeepEffect from "hooks/useDeepEffect";
 import usersAPI from "services/entities/users";
 
 interface IEmailTokenRedirectProps {

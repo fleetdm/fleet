@@ -6,7 +6,7 @@ import {
   humanQueryLastRun,
   performanceIndicator,
   secondsToHms,
-} from "fleet/helpers";
+} from "utilities/helpers";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import PillCell from "components/TableContainer/DataTable/PillCell";

@@ -15,10 +15,10 @@ import {
   useSortBy,
   useTable,
 } from "react-table";
-import { isString, kebabCase, noop } from "lodash";
+import { kebabCase, noop } from "lodash";
 import { useDebouncedCallback } from "use-debounce";
 
-import { useDeepEffect } from "utilities/hooks";
+import useDeepEffect from "hooks/useDeepEffect";
 import sort from "utilities/sort";
 import { AppContext } from "context/app";
 
@@ -27,7 +27,6 @@ import Button from "components/buttons/Button";
 import FleetIcon from "components/icons/FleetIcon";
 import Spinner from "components/Spinner";
 import { ButtonVariant } from "components/buttons/Button/Button";
-// @ts-ignore
 import ActionButton, { IActionButtonProps } from "./ActionButton";
 
 const baseClass = "data-table-block";

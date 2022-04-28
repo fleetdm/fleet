@@ -80,6 +80,27 @@ jobs:
         ./build/fleetctl get hosts
         echo "Success! $EXPECTED hosts enrolled."
 
+    - name: Slack Notification
+      if: failure()
+      uses: slackapi/slack-github-action@16b6c78ee73689a627b65332b34e5d409c7299da # v1.18.0
+      with:
+        payload: |
+          {
+            "text": "${{ job.status }}\n${{ github.event.pull_request.html_url || github.event.head.html_url }}",
+            "blocks": [
+              {
+                "type": "section",
+                "text": {
+                  "type": "mrkdwn",
+                  "text": "Integration test result: ${{ job.status }}\nhttps://github.com/fleetdm/fleet/actions/runs/${{  github.run_id }}\n${{ github.event.pull_request.html_url || github.event.head.html_url }}"
+                }
+              }
+            ]
+          }
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_G_PLATFORM_WEBHOOK_URL }}
+        SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+
     - name: Cleanup tunnel
       if: always()
       run: cloudflared tunnel --origincert cert.pem delete --force ${{ needs.gen.outputs.subdomain }}    
@@ -137,7 +158,7 @@ jobs:
         SECRET=$(echo $SECRET_JSON | jq -r '.spec.secrets[0].secret')
         echo "Secret: $SECRET"
         echo "Hostname: $(hostname -s)"
-        fleetctl package --type pkg --fleet-url=${{ needs.gen.outputs.address }} --enroll-secret=$SECRET --orbit-channel=${{ matrix.orbit-channel }} --osqueryd-channel=${{ matrix.osqueryd-channel }}
+        fleetctl package --type pkg --fleet-url=${{ needs.gen.outputs.address }} --enroll-secret=$SECRET --orbit-channel=${{ matrix.orbit-channel }} --osqueryd-channel=${{ matrix.osqueryd-channel }} --fleet-desktop
         sudo installer -pkg fleet-osquery.pkg -target /
         until fleetctl get hosts | grep -iF $(hostname -s);
         do
@@ -209,7 +230,7 @@ jobs:
         SECRET=$(echo $SECRET_JSON | jq -r '.spec.secrets[0].secret')
         echo "Secret: $SECRET"
         echo "Hostname: $(hostname -s)"
-        fleetctl package --type msi --fleet-url=${{ needs.gen.outputs.address }} --enroll-secret=$SECRET  --orbit-channel=${{ matrix.orbit-channel }} --osqueryd-channel=${{ matrix.osqueryd-channel }}
+        fleetctl package --type msi --fleet-url=${{ needs.gen.outputs.address }} --enroll-secret=$SECRET --orbit-channel=${{ matrix.orbit-channel }} --osqueryd-channel=${{ matrix.osqueryd-channel }} --fleet-desktop
         mv fleet-osquery.msi orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}.msi
 
     - name: Upload MSI

@@ -1,12 +1,14 @@
 import React, { useCallback, useState } from "react";
 import { Link } from "react-router";
 import PATHS from "router/paths";
-import Modal from "components/Modal";
-import Button from "components/buttons/Button";
+
+import { ITeam } from "interfaces/team";
+
 // ignore TS error for now until these are rewritten in ts.
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
-import { ITeam } from "interfaces/team";
+import Modal from "components/Modal";
+import Button from "components/buttons/Button";
 
 interface ITransferHostModal {
   isGlobalAdmin: boolean;
@@ -80,22 +82,17 @@ const TransferHostModal = ({
             </Link>
           </p>
         ) : null}
-        <div className={`${baseClass}__btn-wrap`}>
+        <div className="modal-cta-wrap">
+          <Button onClick={onCancel} variant="inverse">
+            Cancel
+          </Button>
           <Button
             disabled={selectedTeam === undefined}
-            className={`${baseClass}__btn`}
             type="button"
             variant="brand"
             onClick={onSubmitTransferHost}
           >
             Transfer
-          </Button>
-          <Button
-            className={`${baseClass}__btn`}
-            onClick={onCancel}
-            variant="inverse"
-          >
-            Cancel
           </Button>
         </div>
       </form>

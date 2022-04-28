@@ -10,8 +10,10 @@ import { IEditScheduledQuery } from "interfaces/scheduled_query";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import RevealButton from "components/buttons/RevealButton";
-import InfoBanner from "components/InfoBanner/InfoBanner"; // @ts-ignore
-import Dropdown from "components/forms/fields/Dropdown"; // @ts-ignore
+import InfoBanner from "components/InfoBanner/InfoBanner";
+// @ts-ignore
+import Dropdown from "components/forms/fields/Dropdown";
+// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import {
   FREQUENCY_DROPDOWN_OPTIONS,
@@ -237,7 +239,7 @@ const ScheduleEditorModal = ({
 
   return (
     <Modal
-      title={editQuery?.name || "Schedule editor"}
+      title={editQuery?.query_name || "Schedule editor"}
       onExit={onCancel}
       className={baseClass}
     >
@@ -340,16 +342,11 @@ const ScheduleEditorModal = ({
               Preview data
             </Button>
           </div>
-          <div className={`${baseClass}__cta-btn-wrap`}>
-            <Button
-              className={`${baseClass}__btn`}
-              onClick={onCancel}
-              variant="inverse"
-            >
+          <div className="modal-cta-wrap">
+            <Button onClick={onCancel} variant="inverse">
               Cancel
             </Button>
             <Button
-              className={`${baseClass}__btn`}
               type="button"
               variant="brand"
               onClick={onFormSubmit}

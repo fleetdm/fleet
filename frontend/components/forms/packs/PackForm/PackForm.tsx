@@ -7,7 +7,8 @@ import { ITarget, ITargetsAPIResponse } from "interfaces/target";
 import { IEditPackFormData } from "interfaces/pack";
 
 // @ts-ignore
-import InputField from "components/forms/fields/InputField"; // @ts-ignore
+import InputField from "components/forms/fields/InputField";
+// @ts-ignore
 import SelectTargetsDropdown from "components/forms/fields/SelectTargetsDropdown";
 
 const baseClass = "pack-form";

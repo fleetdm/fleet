@@ -1,19 +1,15 @@
 import React, { useState, useCallback, useRef } from "react";
 import classnames from "classnames";
 import { Row } from "react-table";
+import ReactTooltip from "react-tooltip";
+import useDeepEffect from "hooks/useDeepEffect";
 
-// ignore TS error for now until these are rewritten in ts.
-// @ts-ignore
 import SearchField from "components/forms/fields/SearchField";
 // @ts-ignore
 import Pagination from "components/Pagination";
 import Button from "components/buttons/Button";
 import { ButtonVariant } from "components/buttons/Button/Button";
-// @ts-ignore
-import { useDeepEffect } from "utilities/hooks";
-import ReactTooltip from "react-tooltip";
 
-// @ts-ignore
 import DataTable from "./DataTable/DataTable";
 import TableContainerUtils from "./TableContainerUtils";
 import { IActionButtonProps } from "./DataTable/ActionButton";
