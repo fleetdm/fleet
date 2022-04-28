@@ -35,6 +35,9 @@ const (
 type HostListOptions struct {
 	ListOptions
 
+	// DeviceMapping joins device user email mapping for each host if available
+	DeviceMapping bool
+
 	// AdditionalFilters selects which host additional fields should be
 	// populated.
 	AdditionalFilters []string

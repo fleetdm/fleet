@@ -379,9 +379,14 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
 	sql := `SELECT
 		h.*,
 		COALESCE(hst.seen_time, h.created_at) AS seen_time,
-		t.name AS team_name,
-		dm.device_mapping
+		t.name AS team_name
 	`
+
+	if opt.DeviceMapping {
+		sql += `, 
+			dm.device_mapping
+		`
+	}
 
 	failingPoliciesSelect := `,
 		coalesce(failing_policies.count, 0) as failing_policies_count,
@@ -427,18 +432,15 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
 func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, filter fleet.TeamFilter, params []interface{}) (string, []interface{}) {
 	deviceMappingJoin := `LEFT JOIN (
 		SELECT
-			he.host_id,
-			GROUP_CONCAT('[', he.dmap, ']') AS device_mapping
-		FROM (
-			SELECT
-				host_id,
-				GROUP_CONCAT(JSON_OBJECT('email', email, 'source', source)) AS dmap
-			FROM
-				host_emails
-			GROUP BY
-				host_id) he
+			host_id,
+			CONCAT('[', GROUP_CONCAT(JSON_OBJECT('email', email, 'source', source)), ']') AS device_mapping
+		FROM
+			host_emails
 		GROUP BY
-			host_id) dm ON (h.id = dm.host_id)`
+			host_id) dm ON dm.host_id = h.id`
+	if !opt.DeviceMapping {
+		deviceMappingJoin = ""
+	}
 
 	policyMembershipJoin := "JOIN policy_membership pm ON (h.id = pm.host_id)"
 	if opt.PolicyIDFilter == nil {

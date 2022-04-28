@@ -2116,7 +2116,7 @@ func (s *integrationTestSuite) TestHostDeviceMapping() {
 
 	var listHosts listHostsResponse
 	// list hosts response includes device mappings
-	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHosts)
+	s.DoJSON("GET", "/api/latest/fleet/hosts?device_mapping=true", nil, http.StatusOK, &listHosts)
 	require.Len(t, listHosts.Hosts, 3)
 	hostsByID := make(map[uint]HostResponse)
 	for _, h := range listHosts.Hosts {
@@ -2146,7 +2146,7 @@ func (s *integrationTestSuite) TestHostDeviceMapping() {
 	assert.Nil(t, hostsByID[hosts[2].ID].DeviceMapping)
 
 	// search host by email address finds the corresponding host
-	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHosts, "query", "a@b.c")
+	s.DoJSON("GET", "/api/latest/fleet/hosts?device_mapping=true", nil, http.StatusOK, &listHosts, "query", "a@b.c")
 	require.Len(t, listHosts.Hosts, 1)
 	require.Equal(t, host1.ID, listHosts.Hosts[0].ID)
 	require.NotNil(t, listHosts.Hosts[0].DeviceMapping)
@@ -2163,7 +2163,7 @@ func (s *integrationTestSuite) TestHostDeviceMapping() {
 	assert.Equal(t, "google_chrome_profiles", dm[0].Source)
 	assert.Equal(t, "google_chrome_profiles", dm[1].Source)
 
-	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHosts, "query", "c@b.c")
+	s.DoJSON("GET", "/api/latest/fleet/hosts?device_mapping=true", nil, http.StatusOK, &listHosts, "query", "c@b.c")
 	require.Len(t, listHosts.Hosts, 0)
 }
 
@@ -3990,7 +3990,7 @@ func (s *integrationTestSuite) TestGetHostLastOpenedAt() {
 		return lsw.Name < rsw.Name
 	})
 	// bar, baz, foo, in this order
-	wantTs := []time.Time{today, yesterday, time.Time{}}
+	wantTs := []time.Time{today, yesterday, {}}
 	for i, want := range wantTs {
 		sw := getHostResp.Host.Software[i]
 		if want.IsZero() {
