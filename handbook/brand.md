@@ -207,9 +207,9 @@ In Figma:
   * Avoid using SVGs or icon fonts.
 3. Click the __Export__ button.
 
-## Brand rituals
+## Rituals
 
-The following rituals are engaged in by the  directly responsible individual (DRI) and at the frequency specified for the ritual.
+The following table lists the Brand group's rituals, frequency, and Directly Responsible Individual (DRI).
 
 | Ritual                       | Frequency                | Description                                         | DRI               |
 |:-----------------------------|:-----------------------------|:----------------------------------------------------|-------------------|
@@ -219,6 +219,8 @@ The following rituals are engaged in by the  directly responsible individual (DR
 | Weekly article review | Weekly | Review articles for tone and brand consistency. | Mike Thomas |
 | Weekly article graphic | Weekly | Create a graphic for the weekly article | Mike Thomas |
 | Digital experience planning  | Three weeks | Prioritize and assigns issues to relevant personnel based on current goals and quarterly OKRs | Mike Thomas |
+| OKR review  | Three weeks | Review the status of current OKRs. | Mike Thomas |
+| OKR planning  | Quarterly | Plan next quarter's OKRs | Mike Thomas |
 | Browser compatibility check | Monthly | Check browser compatibility for the website | Eric Shaw |
 
 ## Slack channels
