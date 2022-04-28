@@ -372,10 +372,10 @@ At the end of the quarter and key points throughout the quarter (every three wee
 
 ### 1:1 Mike:Sid Document Preparation
 
-Every two weeks our CEO Mike has a 1:1 meeting with our Investor Sid and there are four parts our Digital Experience Team completes while constructing this document. 
+Every two weeks, our CEO Mike has a 1:1 meeting with our Investor Sid. The Digital Experience Team completes four parts while constructing the associated document. 
 
  - After the 1:1 meeting has happened, Charlie makes a copy of the original document, labels it "yyyy-mm-dd Backup copy of Mike from Fleet & Sid," and moves it to a private folder. 
- - Charlie will change the permissions on the new copy to share it with Mike and Zach and set Mike to be the file's owner. If there are any agenda items labeled "TODO", Charlie will make a comment in the backup copy to assign them to Mike.
+ - Charlie will change the permissions on the new copy to share it with Mike and Zach and set Mike to be the file's owner. If there are any agenda items labeled "TODO," Charlie will comment in the backup copy to assign them to Mike.
  - Charlie prepares the original document by deleting the agenda items in the "Hallway" and "Feedback" sections, leaving only the "Vision" section.
  - Charlie will update the monthly "All Hands" link and grant Sid viewing access. 
  - Charlie will send Mike links to the new document and the backup copy in a direct message in Slack. 
