@@ -104,12 +104,6 @@
     }
   }
 
-  &__button-wrap {
-    display: flex;
-    justify-content: flex-end;
-    margin: $pad-xxlarge 0 0;
-  }
-
   &__certificate-loading {
     color: $ui-fleet-black-50;
     padding-top: $pad-xsmall;

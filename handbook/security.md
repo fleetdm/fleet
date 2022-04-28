@@ -1,5 +1,31 @@
 # Security
 
+## Account recovery process
+
+As an all-remote company, we do not have the luxury of seeing each other or are able to ask for help in person. Instead, we require live video confirmation of someone's identity before performing recovery and this applies to all Fleet company accounts, from internal systems to SaaS accounts.
+
+| Participant | Role                                                                                                                                                 |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Requester   | Requests recovery for their own account                                                                |
+| Recoverer   | Person with access to perform the recovery who monitors *#help-login*                                                                                                                               |
+| Identifier  | Person that visually identifies the requester in a video call. The identifier can be the recoverer or a person the recoverer can recognize visually |
+
+
+Here are the steps we take for the recovery process:
+
+
+1. If the requester still has access to Slack, they ask for help in *#help-login*. If they do not have access to Slack, they can contact their manager or a teammate over the phone via voice or texting, and they will post in *#help-login* for the requester.
+2. A recoverer acknowledges the request in #help-login using the "eyes" emoji 👀.
+3. The recoverer identifies the requester through a live video call.
+* If the recoverer does not know the requester well enough to positively identify them visually, the
+  recoverer can ask a colleague whom they recognize to act as the identifier. **All three must be
+  live on a video call at the same time.**
+*  For example, if the recoverer does not recognize Guillaume but can recognize Zach, they should ask Zach to identify Guillaume. Using the requester's manager or a direct teammate is recommended, as it increases the chances they see each other on video frequently.
+4. If the recoverer recognizes the requester, or has the identity confirmed by the person acting as
+   the identifier, they can perform the recovery and update the thread in *#help-login*.
+* If the recoverer is not 100% satisfied with identification, they do **NOT** proceed, and post to #g-security to engage the security team immediately.
+
+
 ## How we protect end-user devices
 
 At Fleet, we believe that a good user experience empowers contributors.
@@ -792,20 +818,22 @@ We use [Dependabot](https://github.com/dependabot) to create pull requests to up
 
 We ensure the fixes to vulnerable dependencies are also performed according to our remediation timeline. We fix as many dependencies as possible in a single release.
 
-## Security Rituals
+## Rituals
+
+The following table lists the Security group's rituals, frequency, and Directly Responsible Individual (DRI).
 
 | Ritual                       | Frequency                | Description                                         | DRI               |
 |:-----------------------------|:-----------------------------|:----------------------------------------------------|-------------------|
-| Security notifications check | Daily | Check Slack, Google, Vanta and Fleet dogfood for security related notifications. | Guillaume Ross |
+| Security notifications check | Daily | Check Slack, Google, Vanta, and Fleet dogfood for security-related notifications. | Guillaume Ross |
 | GitHub check | Weekly | Check GitHub security issues for anything pending analysis or prioritization. | Guillaume Ross |
-| Iteration planning | Every three weeks | Prioritize issues in GitHub security project for the next iteration. | Guillaume Ross |
+| Iteration planning | Every three weeks | Prioritize issues in the GitHub security project for the next iteration. | Guillaume Ross |
 | YubiKey adoption | Monthly | Track YubiKey adoption in Google workspace and follow up with those that aren't using it. | Guillaume Ross |
-| Dogfood policy update | Monthly | Edit Fleet dogfood policies that check for version numbers of Chrome, Docker and macOS. | Guillaume Ross |
-| Security blog post | Monthly | Publish a security related blog post to Fleet's blog. | Guillaume Ross |
+| Dogfood policy update | Monthly | Edit Fleet dogfood policies that check for Chrome, Docker, and macOS version numbers. | Guillaume Ross |
+| Security blog post | Monthly | Publish a security-related blog post to Fleet's blog. | Guillaume Ross |
 | Security lunch & learn | Monthly | Educational live stream session on cybersecurity for Fleet employees, sessions are later shared for public consumption on YouTube. | Guillaume Ross |
 | MDM device enrollment | Quarterly | Provide export of MDM enrolled devices to ops team. | Guillaume Ross |
 | Access revalidation | Quarterly | Review critical access groups to make sure they contain only relevant people. | Guillaume Ross |
-| Snyk scan | Quarterly | Scan Fleet repo with Snyk to identify important vulnerabilities that were not identified by GitHub. | Guillaume Ross |
+| Snyk scan | Quarterly | Scan Fleet repo with Snyk to identify important vulnerabilities that GitHub did not identify. | Guillaume Ross |
 | Security conference review | Quarterly | Look at upcoming security conferences and work with the growth team to determine whether Fleet should submit to attend. | Guillaume Ross |
 | Security policy update | Annually | Update security policies and have them approved by the CEO. | Guillaume Ross |
 
