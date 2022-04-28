@@ -81,7 +81,7 @@ The following table lists the Growth group's rituals, frequency, and Directly Re
 | Ritual                       | Frequency                | Description                                         | DRI               |
 |:-----------------------------|:-----------------------------|:----------------------------------------------------|-------------------|
 | Daily tweet         | Daily | Post Fleet content on Twitter.     | Drew Baker        |
-| Daily LinkedIn post        | Daily | Post Fleet-related content to LinkedIn.   | Drew Baker        |
+| Daily LinkedIn post        | Daily | Post Fleet content to LinkedIn.   | Drew Baker        |
 | Social engagement     | Weekly | Participate in 50 social media engagements per week.| Drew Baker        |  
 | Osquery Jobs          | Weekly | Post to @osqueryjobs twice a week.            | Drew Baker        |
 | Enrich Salesforce leads       | Weekly | Follow the Salesforce lead enrichment process every Friday.    | Drew Baker        |
