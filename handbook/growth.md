@@ -75,7 +75,7 @@ Once a relevant sponsorship opportunity and its prospectus are reviewed:
 
 ## Growth rituals
 
-The following rituals are engaged in by the  directly responsible individual (DRI) and at the frequency specified for the ritual.
+The following table lists the Growth group's rituals, frequency, and Directly Responsible Individual (DRI).
 
 
 | Ritual                       | Frequency                | Description                                         | DRI               |
