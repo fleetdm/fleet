@@ -108,25 +108,25 @@ To generate a trial license key for a larger deployment, [create an opportunity 
 Occasionally users will either email or Slack questions about product usage. We will track these requests and occasionally update our documentation to simplify things for our users. We have a Zapier integration that will automatically create an entry in our customer questions Google doc (in Slack, right-click on the customer question and select send to Zapier). At the end of the week, one of our team members will take each request in the spreadsheet and make any helpful documentation updates to help prevent similar questions in the future.
 
 
-## Fleet rituals for customers
+## Rituals
 
-The following rituals are engaged in by the  directly responsible individual (DRI) and at the frequency specified for the ritual.
+The following table lists the Customers group's rituals, frequency, and Directly Responsible Individual (DRI).
 
 | Ritual                       | Frequency                | Description                                         | DRI               |
 |:-----------------------------|:-----------------------------|:----------------------------------------------------|-------------------|
 | Overnight customer feedback  | Daily | Check Slack for customer feedback that occurred outside of usual business hours.| Tony Gauda       |  
-| Customer Slack channel monitoring | Daily | Continuously monitor Slack for customer feedback, feature requests, reported bugs, etc. and respond <1 hour.   | Tony Gauda        |
+| Customer Slack channel monitoring | Daily | Continuously monitor Slack for customer feedback, feature requests, reported bugs, etc., and respond in less than an hour.   | Tony Gauda        |
+| Customer follow up | Daily | Follow up and tag appropriate personnel for follow up on customer items in progress and items that remain unresolved. | Tony Gauda |
+| Internal follow up | Daily | Go through Fleet's internal Slack channels to check for any relevant new information or tasks from other teams. | Tony Gauda |
 | Customer debrief | Weekly | Discuss customer questions, requests and issues with the product team. | Tony Gauda  |
-| Stand up ritual | 3-4x/week | Information sharing and issue prioritization meeting with the engineering team. | Tony Gauda |
-| Customer follow up ritual | Daily | Follow up and tag appropriate personnel for follow up on customer items in progress and items that remain unresolved. | Tony Gauda |
+| Stand-up | Weekly | Meet with the Engineering team three to four times a week to share information and prioritize issues. | Tony Gauda |
 | Customer request backlog | Weekly | Check-in before product office hours to ensure that all information necessary has been gathered before presenting customer requests and feedback to the product team. | Tony Gauda |
 | Product office hours | Weekly | Present tickets and items brought to Fleet's attention by customers that are interesting from a product perspective and advocate for customer requests. | Tony Gauda |
-| Sales huddle | Bi-monthly | Meet with sales team to gain sales pipeline visibility for business intelligence and product development purposes, such as testing scalability for potential customer's needs, predicting product success obstacles, etc. | Tony Gauda |
+| Customer meetings | Weekly | Check-in on how product and company is performing, provide updates on new product features or progress on customer requests.  These are private meetings with one meeting for each individual commercial customer. | Tony Gauda |
 | Product review | Every three weeks | Meet with product team to gain product pipeline visibility in order to gather info on new features and fixes in the next release. | Tony Gauda |
 | Release announcements | Every three weeks | Update customers on new features and resolved issues in an upcoming release. | Tony Gauda        |
-| Customer meetings | Weekly | Check-in on how product and company is performing, provide updates on new product features or progress on customer requests.  These are private meetings with one meeting for each individual commercial customer. | Tony Gauda |
+| Sales huddle | Bi-monthly | Meet with sales team to gain sales pipeline visibility for business intelligence and product development purposes, such as testing scalability for potential customer's needs, predicting product success obstacles, etc. | Tony Gauda |
 | Advisory meetings | Quarterly | Peer network feedback and Q& with other industry professionals. Mostly discussions on refining process. | Tony Gauda |
-| Internal follow up ritual | Daily | Go through Fleet's internal Slack channels to check for any relevant new information or tasks from other teams. | Tony Gauda |
 
 
 ## Slack channels
