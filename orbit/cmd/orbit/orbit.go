@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/build"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/execuser"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/insecure"
@@ -32,13 +33,6 @@ import (
 	gopsutil_process "github.com/shirou/gopsutil/v3/process"
 	"github.com/urfave/cli/v2"
 	"gopkg.in/natefinch/lumberjack.v2"
-)
-
-var (
-	// Flags set by goreleaser during build
-	version = ""
-	commit  = ""
-	date    = ""
 )
 
 func main() {
@@ -146,7 +140,7 @@ func main() {
 	}
 	app.Action = func(c *cli.Context) error {
 		if c.Bool("version") {
-			fmt.Println("orbit " + version)
+			fmt.Println("orbit " + build.Version)
 			return nil
 		}
 
@@ -677,9 +671,9 @@ var versionCommand = &cli.Command{
 	Usage: "Get the orbit version",
 	Flags: []cli.Flag{},
 	Action: func(c *cli.Context) error {
-		fmt.Println("orbit " + version)
-		fmt.Println("commit - " + commit)
-		fmt.Println("date - " + date)
+		fmt.Println("orbit " + build.Version)
+		fmt.Println("commit - " + build.Commit)
+		fmt.Println("date - " + build.Date)
 		return nil
 	},
 }
