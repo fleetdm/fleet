@@ -77,6 +77,24 @@ Once a relevant sponsorship opportunity and its prospectus are reviewed:
  
 7. Once the above steps are completed, use the [Speaking events issue template](https://github.com/fleetdm/confidential/issues/new?assignees=mike-j-thomas&labels=&template=6-speaking-event.md&title=Speaking+event) to prepare speakers and participants for the event.
 
+## Growth rituals
+
+The following table lists the Growth group's rituals, frequency, and Directly Responsible Individual (DRI).
+
+
+| Ritual                       | Frequency                | Description                                         | DRI               |
+|:-----------------------------|:-----------------------------|:----------------------------------------------------|-------------------|
+| Daily tweet         | Daily | Post Fleet content on Twitter.     | Drew Baker        |
+| Daily LinkedIn post        | Daily | Post Fleet content to LinkedIn.   | Drew Baker        |
+| Social engagement     | Weekly | Participate in 50 social media engagements per week.| Drew Baker        |  
+| Osquery Jobs          | Weekly | Post to @osqueryjobs twice a week.            | Drew Baker        |
+| Enrich Salesforce leads       | Weekly | Follow the Salesforce lead enrichment process every Friday.    | Drew Baker        |
+| Outside contributions | Weekly | Check pull requests for outside contributions every Monday. | Drew Baker|
+| Weekly article       | Weekly | Publish an article and promote it on social media. | Drew Baker|
+| Weekly ins and outs   | Weekly | Track Growth team ins and outs.        | Tim Kern          |
+| Podcast outreach      | Weekly | Conduct podcast outreach twice a week.     | Drew Baker        |
+| Monthly conference checks    | Monthly | Check for conference openings and sponsorship opportunities on the 1st of every month. | Drew Baker|
+
 ## Slack channels
 
 The following [Slack channels are maintained](https://fleetdm.com/handbook/company#group-slack-channels) by this group:
@@ -90,3 +108,5 @@ The following [Slack channels are maintained](https://fleetdm.com/handbook/compa
 
 
 <meta name="maintainedBy" value="timmy-k">
+
+
