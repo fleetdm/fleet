@@ -3,6 +3,10 @@
 As an open-core company, Fleet endeavors to build a community of engaged users, customers, and
 contributors. The purpose of the growth team is to own and improve the growth funnel to drive awareness, adoption, and referrals of Fleet while honoring the ideals and voice of the open source community, and our company values.
 
+## Positioning
+
+Effective market positioning is crucial to the growth of any software product. Fleet needs to maintain a unique, valuable position in the minds of our users. We keep assertions on our positioning in this [Google Doc](https://docs.google.com/document/d/1sttTxm6B-acvZuQuGt7kkKn-_IVXM0sLwStnjnpIU9Y/edit?usp=sharing) (private). It will be updated quarterly based on the feedback of users, customers, team members, and other stakeholders. Feedback can be provided as a comment in the document or by posting in the `#g-growth` Slack channel. 
+
 ## Posting on social media as Fleet
 
 Posting to social media should follow a [personable tone](https://fleetdm.com/handbook/brand#communicating-as-fleet) and strive to deliver useful information across our social accounts.
@@ -73,6 +77,24 @@ Once a relevant sponsorship opportunity and its prospectus are reviewed:
  
 7. Once the above steps are completed, use the [Speaking events issue template](https://github.com/fleetdm/confidential/issues/new?assignees=mike-j-thomas&labels=&template=6-speaking-event.md&title=Speaking+event) to prepare speakers and participants for the event.
 
+## Growth rituals
+
+The following table lists the Growth group's rituals, frequency, and Directly Responsible Individual (DRI).
+
+
+| Ritual                       | Frequency                | Description                                         | DRI               |
+|:-----------------------------|:-----------------------------|:----------------------------------------------------|-------------------|
+| Daily tweet         | Daily | Post Fleet content on Twitter.     | Drew Baker        |
+| Daily LinkedIn post        | Daily | Post Fleet content to LinkedIn.   | Drew Baker        |
+| Social engagement     | Weekly | Participate in 50 social media engagements per week.| Drew Baker        |  
+| Osquery Jobs          | Weekly | Post to @osqueryjobs twice a week.            | Drew Baker        |
+| Enrich Salesforce leads       | Weekly | Follow the Salesforce lead enrichment process every Friday.    | Drew Baker        |
+| Outside contributions | Weekly | Check pull requests for outside contributions every Monday. | Drew Baker|
+| Weekly article       | Weekly | Publish an article and promote it on social media. | Drew Baker|
+| Weekly ins and outs   | Weekly | Track Growth team ins and outs.        | Tim Kern          |
+| Podcast outreach      | Weekly | Conduct podcast outreach twice a week.     | Drew Baker        |
+| Monthly conference checks    | Monthly | Check for conference openings and sponsorship opportunities on the 1st of every month. | Drew Baker|
+
 ## Slack channels
 
 The following [Slack channels are maintained](https://fleetdm.com/handbook/company#group-slack-channels) by this group:
@@ -86,3 +108,5 @@ The following [Slack channels are maintained](https://fleetdm.com/handbook/compa
 
 
 <meta name="maintainedBy" value="timmy-k">
+
+

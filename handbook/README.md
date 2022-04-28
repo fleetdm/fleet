@@ -21,6 +21,8 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 ### ⛑ Security
 
+[Account recovery process](./security.md#account-recovery-process)
+
 [How we protect end-user devices](./security.md#how-we-protect-end-user-devices)
 
 [Hardware security keys](./security.md#hardware-security-keys)
@@ -30,6 +32,10 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 [Google Workspace security](./security.md#google-workspace-security)
 
 [Vulnerability management in Fleet](./security.md#vulnerability-management)
+
+### 📜 Security policies
+
+[Acceptable use policy](./security-policies.md#acceptable-use-policy)
 
 ### 💓 Brand
 
@@ -55,7 +61,9 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Fleet docs](./community.md#fleet-docs)
 
-[Community contributions (pull requests)](./community.md#community-contributions-pull-requests)
+[Pull requests](./community.md#pull-requests)
+
+[Updating docs and FAQ](./community.md#updating-docs-and-faq)
 
 [Fleet swag](./community.md#fleet-swag)
 

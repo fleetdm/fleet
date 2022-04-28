@@ -94,25 +94,6 @@ const LabelForm = ({
     debounceSQL(query);
   }, [query]);
 
-  useEffect(() => {
-    const listener = (event: KeyboardEvent) => {
-      if (event.code === "Enter" || event.code === "NumpadEnter") {
-        event.preventDefault();
-        handleSubmit({
-          name,
-          query,
-          description,
-          platform,
-        });
-      }
-    };
-
-    document.addEventListener("keydown", listener);
-    return () => {
-      document.removeEventListener("keydown", listener);
-    };
-  }, [name, query, description, platform]);
-
   const onLoad = (editor: IAceEditor) => {
     editor.setOptions({
       enableLinking: true,
@@ -256,7 +237,7 @@ const LabelForm = ({
           </p>
         </div>
       )}
-      <div className={`${baseClass}__button-wrap`}>
+      <div className="modal-cta-wrap">
         <Button
           className={`${baseClass}__cancel-btn`}
           onClick={onCancel}

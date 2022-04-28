@@ -239,7 +239,7 @@ const ScheduleEditorModal = ({
 
   return (
     <Modal
-      title={editQuery?.name || "Schedule editor"}
+      title={editQuery?.query_name || "Schedule editor"}
       onExit={onCancel}
       className={baseClass}
     >
@@ -342,16 +342,11 @@ const ScheduleEditorModal = ({
               Preview data
             </Button>
           </div>
-          <div className={`${baseClass}__cta-btn-wrap`}>
-            <Button
-              className={`${baseClass}__btn`}
-              onClick={onCancel}
-              variant="inverse"
-            >
+          <div className="modal-cta-wrap">
+            <Button onClick={onCancel} variant="inverse">
               Cancel
             </Button>
             <Button
-              className={`${baseClass}__btn`}
               type="button"
               variant="brand"
               onClick={onFormSubmit}

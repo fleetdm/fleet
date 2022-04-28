@@ -4,7 +4,7 @@ import { IHostUser } from "interfaces/host_users";
 import TableContainer from "components/TableContainer";
 
 import generateUsersTableHeaders from "./UsersTable/UsersTableConfig";
-import EmptyUsers from "./EmptyUsers";
+import EmptyState from "../EmptyState";
 
 interface ISearchQueryData {
   searchQuery: string;
@@ -19,6 +19,7 @@ interface IUsersProps {
   usersState: { username: string }[];
   isLoading: boolean;
   onUsersTableSearchChange: (queryData: ISearchQueryData) => void;
+  hostUsersEnabled?: boolean;
 }
 
 const Users = ({
@@ -26,34 +27,19 @@ const Users = ({
   usersState,
   isLoading,
   onUsersTableSearchChange,
+  hostUsersEnabled,
 }: IUsersProps): JSX.Element => {
   const tableHeaders = generateUsersTableHeaders();
 
-  if (users) {
+  const EmptyUserSearch = () => (
+    <EmptyState title="users" reason="empty-search" />
+  );
+
+  if (!hostUsersEnabled) {
     return (
       <div className="section section--users">
         <p className="section__header">Users</p>
-        {users.length === 0 ? (
-          <p className="results__data">No users were detected on this host.</p>
-        ) : (
-          <TableContainer
-            columns={tableHeaders}
-            data={usersState}
-            isLoading={isLoading}
-            defaultSortHeader={"username"}
-            defaultSortDirection={"asc"}
-            inputPlaceHolder={"Search users by username"}
-            onQueryChange={onUsersTableSearchChange}
-            resultsTitle={"users"}
-            emptyComponent={EmptyUsers}
-            showMarkAllPages={false}
-            isAllPagesSelected={false}
-            searchable
-            wideSearch
-            filteredCount={usersState.length}
-            isClientSidePagination
-          />
-        )}
+        <EmptyState title="users" reason="disabled" />
       </div>
     );
   }
@@ -61,7 +47,27 @@ const Users = ({
   return (
     <div className="section section--users">
       <p className="section__header">Users</p>
-      <p className="results__data">No users were detected on this host.</p>
+      {users?.length ? (
+        <TableContainer
+          columns={tableHeaders}
+          data={usersState}
+          isLoading={isLoading}
+          defaultSortHeader={"username"}
+          defaultSortDirection={"asc"}
+          inputPlaceHolder={"Search users by username"}
+          onQueryChange={onUsersTableSearchChange}
+          resultsTitle={"users"}
+          emptyComponent={EmptyUserSearch}
+          showMarkAllPages={false}
+          isAllPagesSelected={false}
+          searchable
+          wideSearch
+          filteredCount={usersState.length}
+          isClientSidePagination
+        />
+      ) : (
+        <EmptyState title="users" />
+      )}
     </div>
   );
 };
