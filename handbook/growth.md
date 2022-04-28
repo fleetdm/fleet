@@ -89,7 +89,7 @@ The following table lists the Growth group's rituals, frequency, and Directly Re
 | Weekly article       | Weekly | Publish an article and promote it on social media. | Drew Baker|
 | Weekly ins and outs   | Weekly | Track Growth team ins and outs.        | Tim Kern          |
 | Podcast outreach      | Weekly | Conduct podcast outreach twice a week.     | Drew Baker        |
-| Monthly conference ritual    | Monthly | Check for conference openings and for conference sponsorships on the 1st of every month. | Drew Baker|
+| Monthly conference checks    | Monthly | Check for conference openings and sponsorship opportunities on the 1st of every month. | Drew Baker|
 
 ## Slack channels
 
