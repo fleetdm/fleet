@@ -85,7 +85,7 @@ The following table lists the Growth group's rituals, frequency, and Directly Re
 | Social engagement     | Weekly | Participate in 50 social media engagements per week.| Drew Baker        |  
 | Osquery Jobs          | Weekly | Post to @osqueryjobs twice a week.            | Drew Baker        |
 | Enriching leads ritual       | Weekly | Follow the lead enrichment process every Friday.    | Drew Baker        |
-| Outside contributions ritual | Weekly | Check pull requests for outside contributions every Monday. | Drew Baker|
+| Outside contributions | Weekly | Check pull requests for outside contributions every Monday. | Drew Baker|
 | Weekly blogpost ritual       | Weekly | Publish Fleet blog post once per week. Promote blog posts on socials once per week.| Drew Baker|
 | Weekly ins and outs ritual   | Weekly | Track ins and outs.        | Tim Kern          |
 | Podcast outreach ritual      | Weekly | Conduct podcast outreach twice per week.     | Drew Baker        |
