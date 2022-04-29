@@ -67,7 +67,7 @@ The following is our handy guide to editor bliss at Fleet, but first, let's star
 Our handbook and docs pages are written in Markdown and are editable from our website (via GitHub). Follow the instructions below to propose an edit to the handbook or docs.
 1. Click the "Edit page" button from the relevant handbook or docs page on [fleetdm.com](www.fleetdm.com) (this will take you to the GitHub editor).
 2. Make your suggested edits in the GitLab editor.
-- From the Propose changes dialog, at the bottom of the page, give your proposed edit a title and optional description (these help page maintainers to easily understood the proposed changes).
+3. From the Propose changes dialog, at the bottom of the page, give your proposed edit a title and optional description (these help page maintainers quickly understand the proposed changes).
 4. Hit Propose change which will open a new pull request (PR).
 - Request a review from the page maintainer, and finally, press “Create pull request.”
 - GitHub will run a series of automated checks, and notify the reviewer. At this point you are done, and can safely close the browser page at any time.
