@@ -200,6 +200,19 @@ module.exports = {
               // > • What about images referenced in markdown files? :: They need to be referenced using an absolute URL src-- e.g. ![](https://fleetdm.com/images/foo.png)   See also https://github.com/fleetdm/fleet/issues/706#issuecomment-884641081 for reasoning.
               // > • What about GitHub-style emojis like `:white_check_mark:`?  :: Use actual unicode emojis instead.  Need to revisit this?  Visit https://github.com/fleetdm/fleet/pull/1380/commits/19a6e5ffc70bf41569293db44100e976f3e2bda7 for more info.
               let mdString = await sails.helpers.fs.read(pageSourcePath);
+
+              // Finding all of the H2 headings on handbook pages, and creating an array of objects.
+              // Each object in the array of contains the hash link for that section and the heading text.
+              let sectionTitlesForHandbookIndex = [];
+              if(sectionRepoPath === 'handbook/') {
+                for( let link of (mdString.match(/(\n\#\#\s.+)\n/g, '$1')||[])) {
+                  let sectionInHandbookPage = {};
+                  sectionInHandbookPage.headingTitle = link.replace('\n## ','').replace('\n', '');
+                  sectionInHandbookPage.hashLink = rootRelativeUrlPath+'#'+_.kebabCase(sectionInHandbookPage.headingTitle);
+                  sectionTitlesForHandbookIndex.push(sectionInHandbookPage);
+                }
+              }
+
               mdString = mdString.replace(/(```)([a-zA-Z0-9\-]*)(\s*\n)/g, '$1\n' + '<!-- __LANG=%' + '$2' + '%__ -->' + '$3'); // « Based on the github-flavored markdown's language annotation, (e.g. ```js```) add a temporary marker to code blocks that can be parsed post-md-compilation when this is HTML.  Note: This is an HTML comment because it is easy to over-match and "accidentally" add it underneath each code block as well (being an HTML comment ensures it doesn't show up or break anything).  For more information, see https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L198-L202
               let htmlString = await sails.helpers.strings.toHtml(mdString);
               htmlString = (// « Add the appropriate class to the `<code>` based on the temporary "LANG" markers that were just added above
@@ -314,9 +327,9 @@ module.exports = {
               }
 
 
-              // If the page has a pageOrderInSection meta tag, we'll use that to sort pages in their bottom level sections.
+              // If this handbook or documentation page has a pageOrderInSection meta tag, we'll use that to sort pages in their bottom level sections.
               let pageOrderInSection;
-              if(sectionRepoPath === 'docs/') {
+              if(sectionRepoPath === 'docs/' || sectionRepoPath === 'handbook/') {
                 // Set a flag to determine if the page is a readme (e.g. /docs/Using-Fleet/configuration-files/readme.md) or a FAQ page.
                 // READMEs in subfolders and FAQ pages don't have pageOrderInSection values, they are always sorted at the end of sections.
                 let isPageAReadmeOrFAQ = (_.last(pageUnextensionedLowercasedRelPath.split(/\//)) === 'faq' || _.last(pageUnextensionedLowercasedRelPath.split(/\//)) === 'readme');
@@ -415,6 +428,7 @@ module.exports = {
                 title: pageTitle,
                 lastModifiedAt: lastModifiedAt,
                 htmlId: htmlId,
+                sectionTitlesForHandbookIndex: sectionTitlesForHandbookIndex.length > 0 ? sectionTitlesForHandbookIndex : undefined,
                 pageOrderInSectionPath: pageOrderInSection,
                 sectionRelativeRepoPath: sectionRelativeRepoPath,
                 meta: _.omit(embeddedMetadata, ['title', 'pageOrderInSection'])

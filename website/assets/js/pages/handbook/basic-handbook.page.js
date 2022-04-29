@@ -7,6 +7,7 @@ parasails.registerPage('basic-handbook', {
     showHandbookNav: false,
     breadcrumbs: [],
     subtopics: [],
+    handbookIndexLinks: [], // For the generated handbook index.
 
   },
 
@@ -63,6 +64,23 @@ parasails.registerPage('basic-handbook', {
       });
       return subtopics;
     })();
+    // If this is the handbook landing page, we'll populate the handbookIndexLinks array with links
+    // from each handbook page's sectionTitlesForHandbookIndex array.
+    if(this.isHandbookLandingPage) {
+      let handbookPages = [];
+      for (let page of this.markdownPages) {
+        if(_.startsWith(page.url, '/handbook') && page.title !== 'Readme.md'){
+          let handbookPage = {
+            pageTitle: page.title,
+            pageLinks: page.sectionTitlesForHandbookIndex,
+            pageRank: page.pageOrderInSectionPath,
+          };
+          handbookPages.push(handbookPage);
+        }
+      }
+      // Sorting the array of Handbook heading links by the page's pageOrderInSectionPath value.
+      this.handbookIndexLinks = _.sortBy(handbookPages, 'pageRank');
+    }
   },
 
   //  ╦╔╗╔╔╦╗╔═╗╦═╗╔═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
