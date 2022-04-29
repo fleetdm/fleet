@@ -197,6 +197,17 @@ In that channel, post a message proposing the position:
   - Include link to job description in "Roles" (even if it's a stub).
   - Include link to Fleeties document.
 
+The CEO will confirm:
+  - The "Roles" document has the job description and "Responsibilities" and "Experience" are both listed and look accurate.
+  - The Fleeties document has the correct manager and job title, and that the start date is not entered yet (so we can tell the position is proposed, but not planned, yet).
+  - An anticipated salary and equity range, and whether this fits into the budget and equity plan.
+  - Whether Fleet can open this position at this time.
+
+The CEO will then:
+- Set a tentative start date in the Fleeties doc
+- Set tentative compensation in the budget and equity plan
+- Reply confirming the new position is approved.
+
 After getting CEO approval, create a position in Breezy.
 
 ### Creating a new position in Breezy
@@ -205,42 +216,41 @@ After getting CEO approval, create a position in Breezy.
 
 ### Hiring a new team member
 
-1. Reach out to Mike and Zach and give them an opportunity to meet the candidate.
+1. Reach out to People Operations, who will research compensation using [Pave](https://www.pave.com), making sure to adjust for the cost of living where the candidate will do the work. *If unsure of your findings, ask for help from the CEO.*
 
-2. Research compensation using [Pave](https://www.pave.com), making sure to adjust for the cost of living where the candidate will do the work. *If you're unsure of your findings, ask for help from Mike.*
+2. People Ops will document this decision in the [compensation decisions document](https://docs.google.com/document/d/1NQ-IjcOTbyFluCWqsFLMfP4SvnopoXDcX0civ-STS5c/edit) for future reference.
 
-3. Share the compensation information you've gathered with Eric. Eric will confirm the information with Mike and document this decision in the [compensation decisions document](https://docs.google.com/document/d/1NQ-IjcOTbyFluCWqsFLMfP4SvnopoXDcX0civ-STS5c/edit) for future reference.
-
-4. After compensation has been determined, create two documents for the candidate:
+3. After compensation has been determined, People Ops will create two documents for the candidate:
 
    - [Exit scenarios (template)](https://docs.google.com/spreadsheets/d/1k2TzsFYR0QxlD-KGPxuhuvvlJMrCvLPo2z8s8oGChT0/copy)
    - [Informal offer email (template)](https://docs.google.com/document/d/1zpNN2LWzAj-dVBC8iOg9jLurNlSe7XWKU69j7ntWtbY/copy)
 
-   Change the name of the documents accordingly (e.g., "[candidate's name]'s a copy of exit scenarios") and link to the exit scenarios spreadsheet from the offer email.
+People Ops will change the name of the documents accordingly (e.g., "[candidate's name]'s a copy of exit scenarios") and link to the exit scenarios spreadsheet from the offer email.
 
-5. Prepare the informal offer email. You'll need to add the following information to the template: 
+4. People Ops will prepare the informal offer email. You'll need to add the following information to the template: 
    - Candidate's name and email address
    - Candidate's start date
    - Candidate's compensation
-   - Candidate's reporting manager
+   - Candidate's manager (the person they report to)
    - Equity offered to the candidate (make this information a link to the candidate's exit scenarios spreadsheet)
    - Benefits (determined by the candidate's location)
 
-6. Prepare the exit scenarios spreadsheet. Enter the number of shares offered to the candidate, and the spreadsheet will update to reflect this. 
+5. Prepare the exit scenarios spreadsheet. Enter the number of shares offered to the candidate, and the spreadsheet will update to reflect this. 
    
    >**_Note:_** *Don't play with numbers in the exit scenarios spreadsheet. The revision history is visible to the candidate, and they might misunderstand.*
 
-7. Once both documents are complete, share the offer email draft, exit scenarios copy, and a link to the compensation decision, with Mike and Eric for CEO approval before sending offer email out.
+6. Once both documents are complete, People Ops will share the offer email draft, exit scenarios copy, and a link to the compensation decision with the CEO for approval before sending the offer email out.
 
-8. After Eric confirms that everything is correct, Mike or Zach will send the offer email. The offer email is copied directly from Google drive and sent to the candidate. When they send the offer, Mike or Zach will edit the permissions of the exit scenarios sheet and share it with the candidate.
-
-9. The CEO will confirm:
-  - The "Roles" document has the job description and "Responsibilities" and "Experience" are both listed and look accurate.
-  - The Fleeties document has the correct manager and job title, and that the start date is not entered yet (so we can tell an offer has not been extended).
-  - The candidate's LinkedIn link and preferred pronoun are listed. 
-  - That it makes business sense to make this hire by evaluating the likely cost in terms of base and equity pay, and reviewing the stock options pool.
+The CEO will confirm:
+  - The compensation decision has been documented sufficiently, and adjusted for cost of living.
+  - The candidate's LinkedIn URL and preferred pronoun are listed. 
+  - That it still makes business sense to make this offer by evaluating the likely cost in terms of base and equity pay, and reviewing the stock options pool.
 
    >**_Note:_** *When hiring an international employee, Pilot.co recommends starting the hiring process a month before the new employee's start date.*
+
+7. After obtaining CEO approval, People Ops will confirm that everything is correct, and loop in either the CEO or CTO, who will send the offer email. The offer email is copied directly from Google Drive into Gmail and sent to the candidate. When they send the offer, the CEO or CTO will edit the permissions of the exit scenarios sheet and share it with the candidate.
+
+
 
 ### Steps after an offer is accepted
 
