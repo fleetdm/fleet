@@ -171,28 +171,32 @@ const Software = ({
               )}
             </TabPanel>
             <TabPanel>
-              <TableContainer
-                columns={tableHeaders}
-                data={software?.software || []}
-                isLoading={isSoftwareFetching}
-                defaultSortHeader={DEFAULT_SORT_HEADER}
-                defaultSortDirection={DEFAULT_SORT_DIRECTION}
-                hideActionButton
-                resultsTitle={"software"}
-                emptyComponent={() =>
-                  EmptySoftware(
-                    (!isSoftwareEnabled && "disabled") ||
-                      (isCollectingInventory && "collecting") ||
-                      "default"
-                  )
-                }
-                showMarkAllPages={false}
-                isAllPagesSelected={false}
-                disableCount
-                disableActionButton
-                pageSize={PAGE_SIZE}
-                onQueryChange={onQueryChange}
-              />
+              {!isSoftwareFetching && errorSoftware ? (
+                <TableDataError />
+              ) : (
+                <TableContainer
+                  columns={tableHeaders}
+                  data={software?.software || []}
+                  isLoading={isSoftwareFetching}
+                  defaultSortHeader={DEFAULT_SORT_HEADER}
+                  defaultSortDirection={DEFAULT_SORT_DIRECTION}
+                  hideActionButton
+                  resultsTitle={"software"}
+                  emptyComponent={() =>
+                    EmptySoftware(
+                      (!isSoftwareEnabled && "disabled") ||
+                        (isCollectingInventory && "collecting") ||
+                        "default"
+                    )
+                  }
+                  showMarkAllPages={false}
+                  isAllPagesSelected={false}
+                  disableCount
+                  disableActionButton
+                  pageSize={PAGE_SIZE}
+                  onQueryChange={onQueryChange}
+                />
+              )}
             </TabPanel>
           </Tabs>
         </TabsWrapper>
