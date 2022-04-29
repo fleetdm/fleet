@@ -76,7 +76,7 @@ module.exports.routes = {
     }
   },// handles /device-management/foo, /securing/foo, /releases/foo, /engineering/foo, /guides/foo, /announcements/foo, /use-cases/foo
 
-  'r|/((device-management|securing|releases|engineering|guides|announcements|use-cases|articles))/*$|category': {
+  'r|^/((device-management|securing|releases|engineering|guides|announcements|use-cases|articles))/*$|category': {
     skipAssets: false,
     action: 'articles/view-articles',
     locals: {
