@@ -24,7 +24,7 @@ import Dropdown from "components/forms/fields/Dropdown";
 // @ts-ignore
 import Spinner from "components/Spinner";
 import TableContainer, { ITableQueryData } from "components/TableContainer";
-import TableDataError from "components/TableDataError";
+import TableDataError from "components/DataError";
 import TeamsDropdownHeader, {
   ITeamsDropdownState,
 } from "components/PageHeader/TeamsDropdownHeader";
