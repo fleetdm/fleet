@@ -56,7 +56,7 @@ Our favorite Grammarly feature is the tone detector. It's excellent for keeping 
 
 While we encourage and equip our writers to succeed by themselves in editing quests, tpyos are inevitable. Here's where the Fleet editor steps in.  
 
-The following is our handy guide to editor bliss at Fleet, but first, let's start by looking at some common content types that require an editor pass. 
+The following is our handy guide to editor bliss at Fleet, but first, let's start by listing common content types that require an editor pass. 
 
 - Docs and Handbook pages.
 
