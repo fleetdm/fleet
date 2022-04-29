@@ -249,29 +249,60 @@ func listSoftwareDB(
 		return nil, ctxerr.Wrap(ctx, err, "sql build")
 	}
 
-	var result []fleet.Software
-	if err := sqlx.SelectContext(ctx, q, &result, sql, args...); err != nil {
+	var results []softwareCVE
+	if err := sqlx.SelectContext(ctx, q, &results, sql, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "select host software")
 	}
 
-	if opts.SkipLoadingCVEs {
-		return result, nil
+	var softwares []fleet.Software
+	var lastID uint
+	var software fleet.Software
+	for _, result := range results {
+		if result.ID != lastID {
+			softwares = append(softwares, software)
+			software = result.Software
+		}
+
+		// TODO: add scores
+		software.Vulnerabilities = append(software.Vulnerabilities, fleet.SoftwareCVE{
+			CVE: fleet.CVE{
+				ID: result.CVE,
+			},
+		})
+
+		lastID = result.ID
+	}
+	if lastID > 0 {
+		softwares = append(softwares, software)
 	}
 
-	cvesBySoftware, err := loadCVEsBySoftware(ctx, q, hostID, opts)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "load CVEs by software")
-	}
-	for i := range result {
-		result[i].Vulnerabilities = cvesBySoftware[result[i].ID]
-	}
-	return result, nil
+	/*
+		if opts.SkipLoadingCVEs {
+			return result, nil
+		}
+
+		cvesBySoftware, err := loadCVEsBySoftware(ctx, q, hostID, opts)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "load CVEs by software")
+		}
+		for i := range result {
+			result[i].Vulnerabilities = cvesBySoftware[result[i].ID]
+		}
+	*/
+
+	return softwares, nil
+}
+
+type softwareCVE struct {
+	fleet.Software
+	CVE string `db:"cve"`
 }
 
 func selectSoftwareSQL(hostID *uint, opts fleet.SoftwareListOptions) (string, []interface{}, error) {
 	ds := dialect.From(goqu.I("software").As("s")).Select(
 		"s.*",
 		goqu.COALESCE(goqu.I("scp.cpe"), "").As("generated_cpe"),
+		"scv.cve",
 	)
 
 	if hostID != nil || opts.TeamID != nil {
@@ -295,14 +326,6 @@ func selectSoftwareSQL(hostID *uint, opts fleet.SoftwareListOptions) (string, []
 			),
 		).Where(goqu.I("h.team_id").Eq(opts.TeamID))
 	}
-
-	ds = ds.GroupBy(
-		goqu.I("s.id"),
-		goqu.I("s.name"),
-		goqu.I("s.version"),
-		goqu.I("s.source"),
-		goqu.I("generated_cpe"),
-	)
 
 	if opts.VulnerableOnly {
 		ds = ds.Join(
