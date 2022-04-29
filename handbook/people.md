@@ -188,25 +188,28 @@ We evaluate and update compensation decisions yearly, shortly after the annivers
 
 Every new position being created goes through this process before interviewing, accepting applicants, or extending offers.
 
-Proposed positions get added to:
-- "Roles" doc (stubbed out job description with "TODO" is fine). Only "Responsibilities" and "Experience" are needed and to Fleeties doc (leave start date blank).
-- Create a private "#hiring-xxxxxx-2022" Slack channel (where "xxxxxx" is job title) and invite CEO and Charlie.
+1. Add the proposed position to ["Fleeties"](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) as a new row, with a blank start date.  Be sure to include job title, manager, and department.
+2. Add a job description to the ["Roles"](https://docs.google.com/document/d/1wS5jFfrZtO4xMH-3U_S8pE59gNXOTR3rS1WWD8pkq9E/edit#heading=h.5z24knw25190).  Include only "Responsibilities" and "Experience". (These will be inserted into the existing job description template.)
+- Create a private "#hiring-xxxxxx-2022" Slack channel (where "xxxxxx" is job title) and invite the CEO and People Operations (Charlie Chance).
+  - People Ops is the DRI for `#hiring-xxxxx-2022` Slack channels.
 
 In that channel, post a message proposing the position:
-  - At-mention CEO (@mikermcneil) and Charlie (@charlie).
-  - Include link to job description in "Roles" (even if it's a stub).
+  - Include link to the job description in "Roles".
   - Include link to Fleeties document.
 
-The CEO will confirm:
-  - The "Roles" document has the job description and "Responsibilities" and "Experience" are both listed and look accurate.
-  - The Fleeties document has the correct manager and job title, and that the start date is not entered yet (so we can tell the position is proposed, but not planned, yet).
-  - An anticipated salary and equity range, and whether this fits into the budget and equity plan.
-  - Whether Fleet can open this position at this time.
+People Ops will:
+  - Confirm the "Roles" document has the job description, consisting only of "Responsibilities" and "Experience", and that both look accurate, grammatically correct, and otherwise ready to post in a public job description.
+  - Confirm the "Fleeties" document has a manager, job title, and department, and that the start date is not entered yet (so we can tell the position is proposed, but not planned, yet).
+  - Determine an anticipated salary and equity range using Pave, then add that research to "Compensation decisions" as a new heading.
+  - Share a direct link to the new heading in "Compensation decisions" with the CEO.
 
 The CEO will then:
-- Set a tentative start date in the Fleeties doc
-- Set tentative compensation in the budget and equity plan
-- Reply confirming the new position is approved.
+  - Determine whether this fits into the budget and equity plan.
+  - Decide whether Fleet will open this position at this time.
+  - Set tentative compensation in the budget and equity plan.
+  - Set a tentative start date in the Fleeties doc to indicate this position is now part of the hiring plan.
+  - Reply in the `#hiring-xxxxx-2022` Slack channel, at-mentioning the original proposer, to let them know the new position is approved.
+
 
 After getting CEO approval, create a position in Breezy.
 
@@ -216,18 +219,18 @@ After getting CEO approval, create a position in Breezy.
 
 ### Hiring a new team member
 
-1. Reach out to People Operations, who will research compensation using [Pave](https://www.pave.com), making sure to adjust for the cost of living where the candidate will do the work. *If unsure of your findings, ask for help from the CEO.*
+1. At-mention People Operations in the `#hiring-xxxxx-2022` channel and indicate that you would like to make an offer to the candidate.  Include the candidate's name, personal email address, where the candidate would be working, and any other important considerations about the candidate (the timeframe for their start date, their status to work legally in their country of residence, etc.)
 
-2. People Ops will document this decision in the [compensation decisions document](https://docs.google.com/document/d/1NQ-IjcOTbyFluCWqsFLMfP4SvnopoXDcX0civ-STS5c/edit) for future reference.
+2. People Operations will check compensation using [Pave](https://www.pave.com), making sure to adjust for the cost of living where the candidate will do the work.  *If unsure of your findings, ask for help from the CEO.*  People Ops will then document this decision in the [compensation decisions document](https://docs.google.com/document/d/1NQ-IjcOTbyFluCWqsFLMfP4SvnopoXDcX0civ-STS5c/edit) for future reference.
 
-3. After compensation has been determined, People Ops will create two documents for the candidate:
+3. After compensation has been determined, People Ops will make copies of two different documents and customize them for this candidate, based on these templates:
 
    - [Exit scenarios (template)](https://docs.google.com/spreadsheets/d/1k2TzsFYR0QxlD-KGPxuhuvvlJMrCvLPo2z8s8oGChT0/copy)
    - [Informal offer email (template)](https://docs.google.com/document/d/1zpNN2LWzAj-dVBC8iOg9jLurNlSe7XWKU69j7ntWtbY/copy)
 
 People Ops will change the name of the documents accordingly (e.g., "[candidate's name]'s a copy of exit scenarios") and link to the exit scenarios spreadsheet from the offer email.
 
-4. People Ops will prepare the informal offer email. You'll need to add the following information to the template: 
+4. People Ops will prepare the informal offer email, with help from the CEO.  Post in the `#g-people` Slack channel and at-mention the CEO for assistance with determining number of shares.  You'll need to add the following information to the template: 
    - Candidate's name and email address
    - Candidate's start date
    - Candidate's compensation
@@ -243,8 +246,11 @@ People Ops will change the name of the documents accordingly (e.g., "[candidate'
 
 The CEO will confirm:
   - The compensation decision has been documented sufficiently, and adjusted for cost of living.
-  - The candidate's LinkedIn URL and preferred pronoun are listed. 
+  - The equity plan and budget are up to date with the actual offer that is about to be sent.
+  - That Fleeties doc now reflects the actual start date from the offer email, as well as the candidate's name, LinkedIn URL, and preferred pronoun are listed. 
   - That it still makes business sense to make this offer by evaluating the likely cost in terms of base and equity pay, and reviewing the stock options pool.
+
+The CEO will then post a message in the `#hiring-xxxxx-2022` Slack channel to indicate that the offer is approved.
 
    >**_Note:_** *When hiring an international employee, Pilot.co recommends starting the hiring process a month before the new employee's start date.*
 
