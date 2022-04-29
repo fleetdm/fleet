@@ -201,7 +201,7 @@ After getting CEO approval, create a position in Breezy.
 
 ### Creating a new position in Breezy
 
-<?TODO: document how to post a job on fleetdm.com/apply using Breezy and manage the hiring process?>
+> TODO: document how to post a job on fleetdm.com/apply using Breezy and manage the hiring process
 
 ### Hiring a new team member
 
