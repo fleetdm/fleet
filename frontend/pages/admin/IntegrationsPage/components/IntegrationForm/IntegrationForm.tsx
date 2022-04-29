@@ -27,7 +27,7 @@ interface IIntegrationFormProps {
   integrationEditingEmail?: string;
   integrationEditingApiToken?: string;
   integrationEditingProjectKey?: string;
-  integrationEditingGroupId?: string;
+  integrationEditingGroupId?: number;
   integrationEnableSoftwareVulnerabilities?: boolean;
   integrationEditingType?: string;
   destination?: string;
@@ -61,7 +61,7 @@ const IntegrationForm = ({
     email: integrationEditingEmail || "",
     apiToken: integrationEditingApiToken || "",
     projectKey: integrationEditingProjectKey || "",
-    groupId: integrationEditingGroupId || "",
+    groupId: integrationEditingGroupId || 0,
     enableSoftwareVulnerabilities:
       integrationEnableSoftwareVulnerabilities || false,
   });
@@ -127,7 +127,7 @@ const IntegrationForm = ({
         url,
         email: email || "",
         api_token: apiToken,
-        group_id: groupId || "",
+        group_id: groupId || 0,
       });
     } else {
       console.log("Create new zendesk integration");
@@ -138,7 +138,7 @@ const IntegrationForm = ({
           url,
           email: email || "",
           api_token: apiToken,
-          group_id: groupId || "",
+          group_id: parseInt(groupId as any) || 0,
         },
       ];
     }
@@ -220,7 +220,8 @@ const IntegrationForm = ({
           name="groupId"
           onChange={onInputChange}
           label="Group ID"
-          placeholder="JRAEXAMPLE"
+          placeholder="12345678"
+          type="number"
           parseTarget
           value={groupId}
           tooltip={
@@ -245,7 +246,7 @@ const IntegrationForm = ({
               : formData.url === "" ||
                 formData.email === "" ||
                 formData.apiToken === "" ||
-                formData.groupId === "")
+                formData.groupId === 0)
           }
         >
           <Button
@@ -261,7 +262,7 @@ const IntegrationForm = ({
                 : formData.url === "" ||
                   formData.email === "" ||
                   formData.apiToken === "" ||
-                  formData.groupId === ""
+                  formData.groupId === 0
             }
           >
             Save

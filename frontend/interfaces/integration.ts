@@ -10,7 +10,7 @@ export interface IZendeskIntegration {
   url: string;
   email: string;
   api_token: string;
-  group_id: string;
+  group_id: number;
   enable_software_vulnerabilities?: boolean;
 }
 
@@ -20,7 +20,7 @@ export interface IIntegration {
   email?: string;
   api_token: string;
   project_key?: string;
-  group_id?: string;
+  group_id?: number;
   enable_software_vulnerabilities?: boolean;
   originalIndex?: number;
   type?: string;
@@ -35,7 +35,7 @@ export interface IIntegrationFormData {
   email?: string;
   apiToken: string;
   projectKey?: string;
-  groupId?: string;
+  groupId?: number;
   enableSoftwareVulnerabilities?: boolean;
 }
 
@@ -51,7 +51,7 @@ export interface IIntegrationFormErrors {
   email?: string | null;
   username?: string | null;
   apiToken?: string | null;
-  groupId?: string | null;
+  groupId?: number | null;
   projectKey?: string | null;
   enableSoftwareVulnerabilities?: boolean;
 }

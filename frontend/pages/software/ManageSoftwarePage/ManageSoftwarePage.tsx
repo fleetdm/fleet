@@ -268,24 +268,24 @@ const ManageSoftwarePage = ({
       "configSoftwareAutomations being sent to API:",
       configSoftwareAutomations
     );
-    // TODO: Uncomment when API is merged
-    // try {
-    //   const request = configAPI.update(configSoftwareAutomations);
-    //   await request.then(() => {
-    //     renderFlash(
-    //       "success",
-    //       "Successfully updated vulnerability automations."
-    //     );
-    //   });
-    // } catch {
-    //   renderFlash(
-    //     "error",
-    //     "Could not update vulnerability automations. Please try again."
-    //   );
-    // } finally {
-    //   toggleManageAutomationsModal();
-    //   refetchSoftwareVulnerabilitiesWebhook();
-    // }
+    // TODO: API is merged, this should work
+    try {
+      const request = configAPI.update(configSoftwareAutomations);
+      await request.then(() => {
+        renderFlash(
+          "success",
+          "Successfully updated vulnerability automations."
+        );
+        refetchSoftwareVulnerabilitiesWebhook();
+      });
+    } catch {
+      renderFlash(
+        "error",
+        "Could not update vulnerability automations. Please try again."
+      );
+    } finally {
+      toggleManageAutomationsModal();
+    }
   };
 
   const onTeamSelect = () => {

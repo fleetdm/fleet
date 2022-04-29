@@ -60,7 +60,7 @@ const EditIntegrationModal = ({
             integrationEditingEmail={integrationEditing?.email || ""}
             integrationEditingApiToken={integrationEditing?.apiToken || ""}
             integrationEditingProjectKey={integrationEditing?.projectKey || ""}
-            integrationEditingGroupId={integrationEditing?.groupId || ""}
+            integrationEditingGroupId={integrationEditing?.groupId || 0}
             integrationEnableSoftwareVulnerabilities={
               integrationEditing?.enableSoftwareVulnerabilities || false
             }
