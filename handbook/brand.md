@@ -216,12 +216,14 @@ The following table lists the Brand group's rituals, frequency, and Directly Res
 | Documentation quality | Daily | Review pull requests to the docs for spelling, punctuation and grammar. | Desmi Dizney |
 | Handbook quality | Daily | Review pull requests to the handbook for spelling, punctuation and grammar. | Desmi Dizney |
 | Tweet review | Daily | Review tweets for tone and brand consistency. | Mike Thomas |
-| Weekly article review | Weekly | Review articles for tone and brand consistency. | Mike Thomas |
-| Weekly article graphic | Weekly | Create a graphic for the weekly article | Mike Thomas |
+| Article review | Weekly | Review articles for tone and brand consistency. | Mike Thomas |
+| Article graphic | Weekly | Create a graphic for the weekly article | Mike Thomas |
+| Docs editor pass | Weekly | Edit two sections a week until completed. | Desmi Dizney |
 | Digital experience planning  | Three weeks | Prioritize and assigns issues to relevant personnel based on current goals and quarterly OKRs | Mike Thomas |
 | OKR review  | Three weeks | Review the status of current OKRs. | Mike Thomas |
-| OKR planning  | Quarterly | Plan next quarter's OKRs | Mike Thomas |
+| Handbook editor pass | Monthly | Edit for copy and content. | Desmi Dizney |
 | Browser compatibility check | Monthly | Check browser compatibility for the website | Eric Shaw |
+| OKR planning  | Quarterly | Plan next quarter's OKRs | Mike Thomas |
 
 ## Slack channels
 
