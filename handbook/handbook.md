@@ -32,5 +32,5 @@ To contribute to a handbook page:
 
 All done!
 
-
+<meta name="pageOrderInSection" value="1000">
 <meta name="maintainedBy" value="mike-j-thomas">

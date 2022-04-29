@@ -239,4 +239,6 @@ These groups maintain the following [Slack channels](https://fleetdm.com/handboo
 | `#help-brex-memos`          | Nathan Holliday
 
 
+<meta name="pageOrderInSection" value="300">
 <meta name="maintainedBy" value="mike-j-thomas">
+<meta name="title" value="💓 Brand">

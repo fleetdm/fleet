@@ -44,3 +44,5 @@ Fleet requires all workforce members to comply with the following acceptable use
 13. The use of Fleet company accounts on "shared" computers, such as hotel kiosk systems, is strictly prohibited.
 
 <meta name="maintainedBy" value="guillaumeross">
+<meta name="pageOrderInSection" value="210">
+<meta name="title" value="📜 Security policies">

@@ -850,3 +850,5 @@ This group maintains the following [Slack channels](https://fleetdm.com/handbook
 
 
 <meta name="maintainedBy" value="guillaumeross">
+<meta name="pageOrderInSection" value="200">
+<meta name="title" value="⛑ Security">

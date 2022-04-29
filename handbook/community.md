@@ -323,7 +323,6 @@ The following rituals are engaged in by the  directly responsible individual (DR
 
 Please see [Digital experience > Slack channels](https://fleetdm.com/handbook/brand#slack-channels).
 
-
-
-
 <meta name="maintainedBy" value="zwass">
+<meta name="pageOrderInSection" value="400">
+<meta name="title" value="🪂 Community">

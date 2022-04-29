@@ -120,4 +120,5 @@ The following [Slack channels are maintained](https://fleetdm.com/handbook/compa
 
 
 <meta name="maintainedBy" value="tgauda">
-
+<meta name="pageOrderInSection" value="800">
+<meta name="title" value="🎈 Customers">

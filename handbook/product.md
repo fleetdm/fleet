@@ -473,3 +473,5 @@ This group maintains the following [Slack channels](https://fleetdm.com/handbook
 
 
 <meta name="maintainedBy" value="noahtalerman">
+<meta name="pageOrderInSection" value="600">
+<meta name="title" value="⚗️ Product">
