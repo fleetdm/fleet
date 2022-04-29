@@ -780,7 +780,9 @@ func TestNewUsesRegisterTLS(t *testing.T) {
 	// This fails because the certificate mysql is using is different than the one generated here
 	_, err := newDSWithConfig(t, dbName, mysqlConfig)
 	require.Error(t, err)
-	require.Equal(t, "x509: certificate is not valid for any names, but wanted to match localhost", err.Error())
+	// TODO: we're using a Regexp because the message is different depending on the version of mysql,
+	// we should refactor and use different error types instead.
+	require.Regexp(t, "^(x509|tls)", err.Error())
 }
 
 func TestWhereFilterTeams(t *testing.T) {

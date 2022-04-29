@@ -2589,7 +2589,7 @@ Deletes the query specified by name.
 
 #### Example
 
-`DELETE /api/v1/fleet/queries/{name}`
+`DELETE /api/v1/fleet/queries/my_query`
 
 ##### Default response
 
@@ -3989,13 +3989,13 @@ Team policies work the same as policies, but at the team level.
 
 ### List team policies
 
-`GET /api/v1/fleet/teams/{team_id}/policies`
+`GET /api/v1/fleet/teams/{id}/policies`
 
 #### Parameters
 
 | Name               | Type    | In   | Description                                                                                                   |
 | ------------------ | ------- | ---- | ------------------------------------------------------------------------------------------------------------- |
-| team_id            | integer | url  | Defines what team id to operate on                                                                            |
+| id            | integer | url  | Required. Defines what team id to operate on                                                                            |
 
 #### Example
 

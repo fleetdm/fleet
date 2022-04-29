@@ -135,10 +135,6 @@ func main() {
 			Usage: "Log to this file path in addition to stderr",
 		},
 		&cli.BoolFlag{
-			Name:  "dev-darwin-legacy-targets",
-			Usage: "Use darwin legacy target (flag only used on darwin)",
-		},
-		&cli.BoolFlag{
 			Name:    "fleet-desktop",
 			Usage:   "Launch Fleet Desktop application (flag currently only used on darwin)",
 			EnvVars: []string{"ORBIT_FLEET_DESKTOP"},
@@ -217,10 +213,6 @@ func main() {
 		}
 
 		opt := update.DefaultOptions
-
-		if runtime.GOOS == "darwin" && c.Bool("dev-darwin-legacy-targets") {
-			opt.Targets = update.DarwinLegacyTargets
-		}
 
 		if c.Bool("fleet-desktop") {
 			switch runtime.GOOS {

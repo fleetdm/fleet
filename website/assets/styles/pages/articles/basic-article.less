@@ -46,6 +46,7 @@
     }
     a {
       color: @core-vibrant-blue;
+      word-break: break-word;
     }
     h2 {
       font-size: 24px;
@@ -92,6 +93,27 @@
       font-family: @code-font;
       background: #F9FAFC;
       white-space: break-spaces;
+    }
+    blockquote {
+      margin: 16px 0 32px;
+      background: #F7F7FC;
+      border: 1px solid @core-vibrant-blue-50;
+      padding: 16px;
+      border-radius: 8px;
+      display: inline-flex;
+      img {
+        display: flex;
+        margin: 4px 12px 0 0;
+        height: 16px;
+        width: 16px;
+        padding: 0px;
+      }
+      p {
+        display: block;
+        margin-bottom: 0px;
+        line-height: 24px;
+        font-size: 16px;
+      }
     }
   }
   [purpose='bottom-cta'] {

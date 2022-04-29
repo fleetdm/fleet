@@ -296,7 +296,7 @@ is kept up to date.
 
 If you do not already have a pair of hardware security keys, order [YubiKey 5C NFC security
 keys](https://www.yubico.com/ca/product/yubikey-5c-nfc-pack-of-2/) with your company card, or ask
-BizOps to get you one if you do not have a company card.
+for help in [#help-login](https://fleetdm.com/handbook/security#slack-channels) to get you one if you do not have a company card.
 
 ### Are they YubiKeys or security keys?
 
@@ -308,7 +308,7 @@ security keys.
 
 Security keys are **strongly recommended** for everyone and **required** for team members with elevated privilege access. 
 
-Because they are the only type of Two-Factor Authentication (2FA) that prevents credentials from
+Because they are the only type of Two-Factor Authentication (2FA) that protects credentials from
 phishing, we will make them **mandatory for everyone** soon. 
 
 See the [Google Workspace security
@@ -350,7 +350,7 @@ identified" warning.
    website](https://www.yubico.com/support/download/yubikey-manager/#h-downloads).
 2. Open the YubiKey manager with one of your keys connected.
 3. Go to the **Interfaces** tab.
-4. Uncheck the **OTP** checkboxes under **USB** and **NFC** and click *Save Interfaces*.
+4. Uncheck the **OTP** checkboxes under **USB** and click *Save Interfaces*.
 5. Unplug your key and connect your 2nd one to repeat the process.
 
 
