@@ -127,7 +127,7 @@ const NewPolicyModal = ({
           inputClassName={`${baseClass}__policy-save-modal-resolution`}
           label="Resolution"
           type="textarea"
-          placeholder="What are the steps a device owner should take to resolve a host that fails this policy? (optional)"
+          placeholder="What steps should a device owner take to resolve a host that fails this policy? (optional)"
         />
         {platformSelector.render()}
         <div

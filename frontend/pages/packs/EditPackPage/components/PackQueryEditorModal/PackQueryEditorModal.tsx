@@ -222,22 +222,17 @@ const PackQueryEditorModal = ({
           type="number"
         />
 
-        <div className={`${baseClass}__btn-wrap`}>
+        <div className="modal-cta-wrap">
+          <Button onClick={onCancel} variant="inverse">
+            Cancel
+          </Button>
           <Button
-            className={`${baseClass}__btn`}
             type="button"
             variant="brand"
             onClick={onFormSubmit}
             disabled={!selectedQuery && !editQuery}
           >
             {editQuery?.name ? "Save" : "Add query"}
-          </Button>
-          <Button
-            className={`${baseClass}__btn`}
-            onClick={onCancel}
-            variant="inverse"
-          >
-            Cancel
           </Button>
         </div>
       </form>

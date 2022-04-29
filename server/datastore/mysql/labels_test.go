@@ -79,8 +79,10 @@ func testLabelsAddAllHosts(deferred bool, t *testing.T, db *Datastore) {
 		require.Nil(t, err, "enrollment should succeed")
 		hosts = append(hosts, *host)
 	}
+
 	host.Platform = "darwin"
-	require.NoError(t, db.SaveHost(context.Background(), host))
+	err = db.UpdateHost(context.Background(), host)
+	require.NoError(t, err)
 
 	// No labels to check
 	queries, err := db.LabelQueriesForHost(context.Background(), host)
@@ -706,10 +708,12 @@ func testLabelsSave(t *testing.T, db *Datastore) {
 
 func testLabelsQueriesForCentOSHost(t *testing.T, db *Datastore) {
 	host, err := db.EnrollHost(context.Background(), "0", "0", nil, 0)
-	require.Nil(t, err, "enrollment should succeed")
+	require.NoError(t, err, "enrollment should succeed")
+
 	host.Platform = "rhel"
 	host.OSVersion = "CentOS 6"
-	require.NoError(t, db.SaveHost(context.Background(), host))
+	err = db.UpdateHost(context.Background(), host)
+	require.NoError(t, err)
 
 	label, err := db.NewLabel(context.Background(), &fleet.Label{
 		UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{

@@ -623,7 +623,7 @@ describe("App settings flow", () => {
       cy.intercept("GET", "/api/latest/fleet/config", deleteConfig).as(
         "deletedIntegration"
       );
-      cy.getAttached(".delete-integration-modal__btn-wrap")
+      cy.getAttached(".delete-integration-modal .modal-cta-wrap")
         .contains("button", /delete/i)
         .click();
       cy.wait("@deleteIntegration").then((configStub) => {

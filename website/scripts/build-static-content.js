@@ -371,11 +371,18 @@ module.exports = {
                   // throwing an error if the article is missing a category meta tag
                   throw new Error(`Failed compiling markdown content: An article page is missing a category meta tag (<meta name="category" value="guides">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, add a meta tag with the category of the article`);
                 }
+                if(embeddedMetadata.articleImageUrl) {
+                  // Checking the value of `articleImageUrl` meta tags, and throwing an error if it is not a link to an image.
+                  let isValidImageUrl = embeddedMetadata.articleImageUrl.match(/^https?:\/\/(.+)(\.png|\.jpg|\.jpeg)$/g);
+                  if(!isValidImageUrl) {
+                    throw new Error(`Failed compiling markdown content: An article page has an invalid a articleImageUrl meta tag (<meta name="articleImageUrl" value="${embeddedMetadata.articleImageUrl}">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, change the value of the meta tag to be a URL`);
+                  }
+                }
                 // For article pages, we'll attach the category to the `rootRelativeUrlPath`.
                 // If the article is categorized as 'product' we'll replace the category with 'use-cases', or if it is categorized as 'success story' we'll replace it with 'device-management'
                 rootRelativeUrlPath = (
                   '/' +
-                  (embeddedMetadata.category === 'product' ? 'use-cases' : embeddedMetadata.category === 'success stories' ? 'device-management' : embeddedMetadata.category) + '/' +
+                  (embeddedMetadata.category === 'product' ? 'use-cases' : embeddedMetadata.category === 'success stories' ? 'device-management' : embeddedMetadata.category === 'security' ? 'securing' : embeddedMetadata.category) + '/' +
                   (pageUnextensionedLowercasedRelPath.split(/\//).map((fileOrFolderName) => encodeURIComponent(fileOrFolderName.replace(/^[0-9]+[\-]+/,''))).join('/'))
                 );
               }

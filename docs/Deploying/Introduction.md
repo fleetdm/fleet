@@ -50,6 +50,7 @@ Fleet uses Redis to ingest and queue the results of distributed queries, cache d
 In order for osqueryd clients to connect, the connection to Fleet must use TLS. The TLS connection may be terminated by Fleet itself, or by a proxy serving traffic to Fleet.
 
 - The CNAME or one of the Subject Alternate Names (SANs) on the certificate must match the hostname that osquery clients use to connect to the server/proxy.
+- If you intend to have your Fleet instance on a subdomain, your certificate can have a wildcard SAN. So `fleet.example.com` should match a SAN of `*.example.com`
 - If self-signed certificates are used, the full certificate chain must be provided to osquery via the `--tls_server_certs` flag.
 - If Fleet terminates TLS, consider using an ECDSA (rather than RSA) certificate, as RSA certificates have been associated with [performance problems in Fleet due to Go's standard library TLS implementation](https://github.com/fleetdm/fleet/issues/655).
 
