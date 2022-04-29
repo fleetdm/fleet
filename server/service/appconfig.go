@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"net/url"
@@ -172,21 +173,34 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 
 	oldSmtpSettings := appConfig.SMTPSettings
 
-	var oldJiraSettings []*fleet.JiraIntegration
-	if len(appConfig.Integrations.Jira) > 0 {
-		oldJiraSettings = make([]*fleet.JiraIntegration, len(appConfig.Integrations.Jira))
-		for i, settings := range appConfig.Integrations.Jira {
-			oldSettings := *settings
-			oldJiraSettings[i] = &oldSettings
+	// we need the config from the datastore because API tokens are obfuscated at the service layer
+	storedConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+	storedJira := storedConfig.Integrations.Jira
+	storedZendesk := storedConfig.Integrations.Zendesk
+
+	oldJiraByProjectKey := make(map[string]*fleet.JiraIntegration)
+	if len(storedJira) > 0 {
+		for _, settings := range storedJira {
+			if _, ok := oldJiraByProjectKey[settings.ProjectKey]; ok {
+				// each jira integration must have unique project key
+				return nil, ctxerr.Wrap(ctx, fmt.Errorf("duplicate Jira integration for project key %s", settings.ProjectKey))
+			}
+			oldJiraByProjectKey[settings.ProjectKey] = settings
 		}
 	}
 
-	var oldZendeskSettings []*fleet.ZendeskIntegration
-	if len(appConfig.Integrations.Zendesk) > 0 {
-		oldZendeskSettings = make([]*fleet.ZendeskIntegration, len(appConfig.Integrations.Zendesk))
-		for i, settings := range appConfig.Integrations.Zendesk {
-			oldSettings := *settings
-			oldZendeskSettings[i] = &oldSettings
+	oldZendeskByGroupID := make(map[int64]*fleet.ZendeskIntegration)
+	if len(storedZendesk) > 0 {
+		for _, settings := range storedZendesk {
+			old := oldZendeskByGroupID[settings.GroupID]
+			if old != nil {
+				// each zendesk integration must have unique group id
+				return nil, ctxerr.Wrap(ctx, fmt.Errorf("duplicate Zendesk integration for group id %v", settings.GroupID))
+			}
+			oldZendeskByGroupID[settings.GroupID] = settings
 		}
 	}
 
@@ -233,32 +247,66 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 	}
 
 	// if Jira integration settings are modified or added, test it.
-	newJiraSettings := appConfig.Integrations.Jira
-	for i, settings := range newJiraSettings {
-		if i < len(oldJiraSettings) && *oldJiraSettings[i] == *settings {
-			// unchanged
-			continue
+	var newJiraConfig []*fleet.JiraIntegration
+	newJiraByProjectKey := make(map[string]*fleet.JiraIntegration)
+	for i, new := range newAppConfig.Integrations.Jira {
+		// first check for project key uniqueness
+		if _, ok := newJiraByProjectKey[new.ProjectKey]; ok {
+			return nil, ctxerr.Wrap(ctx, &badRequestError{message: fmt.Sprintf("duplicate Jira integration for project key %s", new.ProjectKey)})
+		}
+		newJiraByProjectKey[new.ProjectKey] = new
+
+		// check if existing integration is being edited
+		if old, ok := oldJiraByProjectKey[new.ProjectKey]; ok {
+			if *old == *new {
+				newJiraConfig = append(newJiraConfig, old)
+				// no further validtion for unchanged integration
+				continue
+			}
+			// use stored API token if request does not contain new token
+			if new.APIToken == "" || new.APIToken == "********" {
+				new.APIToken = old.APIToken
+			}
 		}
 
 		// new or updated, test it
-		if err := svc.makeTestJiraRequest(ctx, settings); err != nil {
+		if err := svc.makeTestJiraRequest(ctx, new); err != nil {
 			return nil, ctxerr.Wrapf(ctx, err, "Jira integration at index %d", i)
 		}
+		newJiraConfig = append(newJiraConfig, new)
 	}
+	appConfig.Integrations.Jira = newJiraConfig
 
 	// if Zendesk integration settings are modified or added, test it.
-	newZendeskSettings := appConfig.Integrations.Zendesk
-	for i, settings := range newZendeskSettings {
-		if i < len(oldZendeskSettings) && *oldZendeskSettings[i] == *settings {
-			// unchanged
-			continue
+	var newZendeskConfig []*fleet.ZendeskIntegration
+	newZendeskByGroupID := make(map[int64]*fleet.ZendeskIntegration)
+	for i, new := range newAppConfig.Integrations.Zendesk {
+		// first check for group id uniqueness
+		if _, ok := newZendeskByGroupID[new.GroupID]; ok {
+			return nil, ctxerr.Wrap(ctx, &badRequestError{message: fmt.Sprintf("duplicate Zendesk integration for group id %v", new.GroupID)})
+		}
+		newZendeskByGroupID[new.GroupID] = new
+
+		// check if existing integration is being edited
+		if old, ok := oldZendeskByGroupID[new.GroupID]; ok {
+			if *old == *new {
+				newZendeskConfig = append(newZendeskConfig, old)
+				// no further validtion for unchanged integration
+				continue
+			}
+			// use stored API token if request does not contain new token
+			if new.APIToken == "" || new.APIToken == "********" {
+				new.APIToken = old.APIToken
+			}
 		}
 
 		// new or updated, test it
-		if err := svc.makeTestZendeskRequest(ctx, settings); err != nil {
+		if err := svc.makeTestZendeskRequest(ctx, new); err != nil {
 			return nil, ctxerr.Wrapf(ctx, err, "Zendesk integration at index %d", i)
 		}
+		newZendeskConfig = append(newZendeskConfig, new)
 	}
+	appConfig.Integrations.Zendesk = newZendeskConfig
 
 	if err := svc.ds.SaveAppConfig(ctx, appConfig); err != nil {
 		return nil, err

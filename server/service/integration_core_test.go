@@ -2680,6 +2680,14 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 			case "fail":
 				w.WriteHeader(http.StatusUnauthorized)
 			}
+		} else if r.URL.Path == "/rest/api/2/project/qux2" {
+			switch usr, _, _ := r.BasicAuth(); usr {
+			case "ok":
+				w.Write([]byte(jiraProjectResponsePayload))
+
+			case "fail":
+				w.WriteHeader(http.StatusUnauthorized)
+			}
 		} else if r.URL.Path == "/api/v2/groups/122.json" {
 			switch _, t, _ := r.BasicAuth(); t {
 			case "ok":
@@ -2720,12 +2728,186 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 	require.Equal(t, "qux", config.Integrations.Jira[0].ProjectKey)
 	require.True(t, config.Integrations.Jira[0].EnableSoftwareVulnerabilities)
 
+	// add a second, disabled Jira integration
+	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
+		"integrations": {
+			"jira": [
+				{
+					"url": %q,
+					"username": "ok",
+					"api_token": "bar",
+					"project_key": "qux",
+					"enable_software_vulnerabilities": true
+				},
+				{
+					"url": %[1]q,
+					"username": "ok",
+					"api_token": "bar",
+					"project_key": "qux2",
+					"enable_software_vulnerabilities": false
+				}
+			]
+		}
+	}`, srv.URL)), http.StatusOK)
+
+	config = s.getConfig()
+	require.Len(t, config.Integrations.Jira, 2)
+
+	// first integration
+	require.Equal(t, srv.URL, config.Integrations.Jira[0].URL)
+	require.Equal(t, "ok", config.Integrations.Jira[0].Username)
+	require.Equal(t, "********", config.Integrations.Jira[0].APIToken)
+	require.Equal(t, "qux", config.Integrations.Jira[0].ProjectKey)
+	require.True(t, config.Integrations.Jira[0].EnableSoftwareVulnerabilities)
+
+	// second integration
+	require.Equal(t, srv.URL, config.Integrations.Jira[1].URL)
+	require.Equal(t, "ok", config.Integrations.Jira[1].Username)
+	require.Equal(t, "********", config.Integrations.Jira[1].APIToken)
+	require.Equal(t, "qux2", config.Integrations.Jira[1].ProjectKey)
+	require.False(t, config.Integrations.Jira[1].EnableSoftwareVulnerabilities)
+
+	// delete first Jira integration
+	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
+		"integrations": {
+			"jira": [
+				{
+					"url": %q,
+					"username": "ok",
+					"project_key": "qux2",
+					"enable_software_vulnerabilities": false
+				}
+			]
+		}
+	}`, srv.URL)), http.StatusOK)
+
+	config = s.getConfig()
+	require.Len(t, config.Integrations.Jira, 1)
+	require.Equal(t, "qux2", config.Integrations.Jira[0].ProjectKey)
+
+	// replace Jira integration
+	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
+		"integrations": {
+			"jira": [
+				{
+					"url": %q,
+					"username": "ok",
+					"api_token": "ok",
+					"project_key": "qux",
+					"enable_software_vulnerabilities": true
+				}
+			]
+		}
+	}`, srv.URL)), http.StatusOK)
+
+	config = s.getConfig()
+	require.Len(t, config.Integrations.Jira, 1)
+	require.Equal(t, "qux", config.Integrations.Jira[0].ProjectKey)
+
+	// try adding Jira integration without sending API token
+	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
+		"integrations": {
+			"jira": [
+				{
+					"url": %q,
+					"username": "ok",
+					"api_token": "ok",
+					"project_key": "qux",
+					"enable_software_vulnerabilities": true
+				},
+				{
+					"url": %[1]q,
+					"username": "ok",
+					"project_key": "qux2",
+					"enable_software_vulnerabilities": false
+				}
+			]
+		}
+	}`, srv.URL)), http.StatusBadRequest)
+
+	// try adding Jira integration with masked API token
+	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
+		"integrations": {
+			"jira": [
+				{
+					"url": %q,
+					"username": "ok",
+					"api_token": "ok",
+					"project_key": "qux",
+					"enable_software_vulnerabilities": true
+				},
+				{
+					"url": %[1]q,
+					"username": "ok",
+					"api_token": "********",
+					"project_key": "qux2",
+					"enable_software_vulnerabilities": false
+				}
+			]
+		}
+	}`, srv.URL)), http.StatusBadRequest)
+
+	// edit Jira integration without sending API token
+	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
+		"integrations": {
+			"jira": [
+				{
+					"url": %q,
+					"username": "ok",
+					"project_key": "qux",
+					"enable_software_vulnerabilities": false
+				}
+			]
+		}
+	}`, srv.URL)), http.StatusOK)
+
+	config = s.getConfig()
+	require.Len(t, config.Integrations.Jira, 1)
+	require.Equal(t, "qux", config.Integrations.Jira[0].ProjectKey)
+	require.False(t, config.Integrations.Jira[0].EnableSoftwareVulnerabilities)
+
+	// edit Jira integration with masked API token
+	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
+		"integrations": {
+			"jira": [
+				{
+					"url": %q,
+					"username": "ok",
+					"api_token": "********",
+					"project_key": "qux",
+					"enable_software_vulnerabilities": true
+				}
+			]
+		}
+	}`, srv.URL)), http.StatusOK)
+
+	config = s.getConfig()
+	require.Len(t, config.Integrations.Jira, 1)
+	require.Equal(t, "qux", config.Integrations.Jira[0].ProjectKey)
+	require.True(t, config.Integrations.Jira[0].EnableSoftwareVulnerabilities)
+
+	// unknown fields fails as bad request
 	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
 		"integrations": {
 			"jira": [{
 				"url": %q,
 				"UNKNOWN_FIELD": "foo"
 			}]
+		}
+	}`, srv.URL)), http.StatusBadRequest)
+
+	// unknown project key fails as bad request
+	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
+		"integrations": {
+			"jira": [
+				{
+					"url": %q,
+					"username": "ok",
+					"api_token": "********",
+					"project_key": "qux3",
+					"enable_software_vulnerabilities": true
+				}
+			]
 		}
 	}`, srv.URL)), http.StatusBadRequest)
 
@@ -2750,6 +2932,28 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 			]
 		}
 	}`, srv.URL)), http.StatusUnprocessableEntity)
+
+	// cannot have two jira integrations with the same project key
+	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
+		"integrations": {
+			"jira": [
+				{
+					"url": %q,
+					"username": "ok",
+					"api_token": "bar",
+					"project_key": "qux",
+					"enable_software_vulnerabilities": true
+				},
+				{
+					"url": %[1]q,
+					"username": "ok",
+					"api_token": "bar2",
+					"project_key": "qux",
+					"enable_software_vulnerabilities": false
+				}
+			]
+		}
+	}`, srv.URL)), http.StatusBadRequest)
 
 	// even disabled integrations are tested for Jira connection and credentials,
 	// so this fails because the 2nd one uses the "fail" username.
@@ -2866,7 +3070,8 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 	// remove all integrations
 	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(`{
 		"integrations": {
-			"jira": []
+			"jira": [],
+			"zendesk": []
 		}
 	}`), http.StatusOK)
 
@@ -2934,6 +3139,129 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 	require.Equal(t, int64(123), config.Integrations.Zendesk[1].GroupID)
 	require.False(t, config.Integrations.Zendesk[1].EnableSoftwareVulnerabilities)
 
+	// delete first Zendesk integration
+	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
+		"integrations": {
+			"zendesk": [
+				{
+					"url": %q,
+					"email": "test123@example.com",
+					"group_id": 123,
+					"enable_software_vulnerabilities": false
+				}
+			]
+		}
+	}`, srv.URL)), http.StatusOK)
+
+	config = s.getConfig()
+	require.Len(t, config.Integrations.Jira, 0)
+	require.Len(t, config.Integrations.Zendesk, 1)
+	require.Equal(t, int64(123), config.Integrations.Zendesk[0].GroupID)
+
+	// replace Zendesk integration
+	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
+		"integrations": {
+			"zendesk": [
+				{
+					"url": %q,
+					"email": "ok@example.com",
+					"api_token": "ok",
+					"group_id": 122,
+					"enable_software_vulnerabilities": true
+				}
+			]
+		}
+	}`, srv.URL)), http.StatusOK)
+
+	config = s.getConfig()
+	require.Len(t, config.Integrations.Jira, 0)
+	require.Len(t, config.Integrations.Zendesk, 1)
+	require.Equal(t, int64(122), config.Integrations.Zendesk[0].GroupID)
+
+	// try adding Zendesk integration without sending API token
+	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
+		"integrations": {
+			"zendesk": [
+				{
+					"url": %q,
+					"email": "ok@example.com",
+					"api_token": "ok",
+					"group_id": 122,
+					"enable_software_vulnerabilities": true
+				},
+				{
+					"url": %[1]q,
+					"email": "test123@example.com",
+					"group_id": 123,
+					"enable_software_vulnerabilities": false
+				}
+			]
+		}
+	}`, srv.URL)), http.StatusBadRequest)
+
+	// try adding Zendesk integration with masked API token
+	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
+		"integrations": {
+			"zendesk": [
+				{
+					"url": %q,
+					"email": "ok@example.com",
+					"api_token": "ok",
+					"group_id": 122,
+					"enable_software_vulnerabilities": true
+				},
+				{
+					"url": %[1]q,
+					"email": "test123@example.com",
+					"api_token": "********",
+					"group_id": 123,
+					"enable_software_vulnerabilities": false
+				}
+			]
+		}
+	}`, srv.URL)), http.StatusBadRequest)
+
+	// edit Zendesk integration without sending API token
+	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
+		"integrations": {
+			"zendesk": [
+				{
+					"url": %q,
+					"email": "ok@example.com",
+					"group_id": 122,
+					"enable_software_vulnerabilities": false
+				}
+			]
+		}
+	}`, srv.URL)), http.StatusOK)
+
+	config = s.getConfig()
+	require.Len(t, config.Integrations.Jira, 0)
+	require.Len(t, config.Integrations.Zendesk, 1)
+	require.Equal(t, int64(122), config.Integrations.Zendesk[0].GroupID)
+	require.False(t, config.Integrations.Zendesk[0].EnableSoftwareVulnerabilities)
+
+	// edit Zendesk integration with masked API token
+	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
+		"integrations": {
+			"zendesk": [
+				{
+					"url": %q,
+					"email": "ok@example.com",
+					"api_token": "********",
+					"group_id": 122,
+					"enable_software_vulnerabilities": true
+				}
+			]
+		}
+	}`, srv.URL)), http.StatusOK)
+
+	config = s.getConfig()
+	require.Len(t, config.Integrations.Jira, 0)
+	require.Len(t, config.Integrations.Zendesk, 1)
+	require.Equal(t, int64(122), config.Integrations.Zendesk[0].GroupID)
+	require.True(t, config.Integrations.Zendesk[0].EnableSoftwareVulnerabilities)
+
 	// unknown fields fails as bad request
 	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
 		"integrations": {
@@ -2979,6 +3307,28 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 		}
 	}`, srv.URL)), http.StatusUnprocessableEntity)
 
+	// cannot have two zendesk integrations with the same group id
+	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
+		"integrations": {
+			"zendesk": [
+				{
+					"url": %q,
+					"email": "ok@example.com",
+					"api_token": "ok",
+					"group_id": 122,
+					"enable_software_vulnerabilities": true
+				},
+				{
+					"url": %[1]q,
+					"email": "not.ok@example.com",
+					"api_token": "ok",
+					"group_id": 122,
+					"enable_software_vulnerabilities": false
+				}
+			]
+		}
+	}`, srv.URL)), http.StatusBadRequest)
+
 	// even disabled integrations are tested for Zendesk connection and credentials,
 	// so this fails because the 2nd one uses the "fail" token.
 	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
@@ -2995,7 +3345,7 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 					"url": %[1]q,
 					"email": "not.ok@example.com",
 					"api_token": "fail",
-					"group_id": 122,
+					"group_id": 123,
 					"enable_software_vulnerabilities": false
 				}
 			]
@@ -4263,7 +4613,7 @@ func (s *integrationTestSuite) TestGetHostLastOpenedAt() {
 		return lsw.Name < rsw.Name
 	})
 	// bar, baz, foo, in this order
-	wantTs := []time.Time{today, yesterday, time.Time{}}
+	wantTs := []time.Time{today, yesterday, {}}
 	for i, want := range wantTs {
 		sw := getHostResp.Host.Software[i]
 		if want.IsZero() {
