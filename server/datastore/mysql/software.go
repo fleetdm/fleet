@@ -391,13 +391,22 @@ func countSoftwareDB(
 	opts.ListOptions = fleet.ListOptions{
 		MatchQuery: opts.ListOptions.MatchQuery,
 	}
-	sql, args, err := selectSoftwareSQL(hostID, opts)
+
+	ds := dialect.From(goqu.I("software").As("s")).Select(
+		"s.*",
+		goqu.COALESCE(goqu.I("scp.cpe"), "").As("generated_cpe"),
+		"scv.cve",
+	)
+
+	ds = appendListOptionsToSelect(ds, opts.ListOptions)
+
+	sql, args, err := ds.ToSQL()
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "sql build")
 	}
 
 	var result int
-	if err := sqlx.GetContext(ctx, q, &result, "select count(*) as count from ("+sql+") s", args...); err != nil {
+	if err := sqlx.GetContext(ctx, q, &result, sql, args...); err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "count host software")
 	}
 	return result, nil
