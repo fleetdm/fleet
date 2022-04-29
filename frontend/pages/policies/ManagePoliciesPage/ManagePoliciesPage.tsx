@@ -328,6 +328,9 @@ const ManagePolicyPage = ({
     }
   }, [availableTeams]);
 
+  const showCtaButtons =
+    (!!teamId && teamPolicies) || (!teamId && globalPolicies);
+
   return !availableTeams ? (
     <Spinner />
   ) : (
@@ -356,30 +359,32 @@ const ManagePolicyPage = ({
               </div>
             </div>
           </div>
-          <div className={`${baseClass} button-wrap`}>
-            {canManageAutomations &&
-              !isLoadingWebhooks &&
-              !isLoadingGlobalPolicies && (
-                <Button
-                  onClick={toggleManageAutomationsModal}
-                  className={`${baseClass}__manage-automations button`}
-                  variant="inverse"
-                >
-                  <span>Manage automations</span>
-                </Button>
+          {showCtaButtons && (
+            <div className={`${baseClass} button-wrap`}>
+              {canManageAutomations &&
+                !isLoadingWebhooks &&
+                !isLoadingGlobalPolicies && (
+                  <Button
+                    onClick={toggleManageAutomationsModal}
+                    className={`${baseClass}__manage-automations button`}
+                    variant="inverse"
+                  >
+                    <span>Manage automations</span>
+                  </Button>
+                )}
+              {canAddOrRemovePolicy && (
+                <div className={`${baseClass}__action-button-container`}>
+                  <Button
+                    variant="brand"
+                    className={`${baseClass}__select-policy-button`}
+                    onClick={onAddPolicyClick}
+                  >
+                    Add a policy
+                  </Button>
+                </div>
               )}
-            {canAddOrRemovePolicy && (
-              <div className={`${baseClass}__action-button-container`}>
-                <Button
-                  variant="brand"
-                  className={`${baseClass}__select-policy-button`}
-                  onClick={onAddPolicyClick}
-                >
-                  Add a policy
-                </Button>
-              </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
         <div className={`${baseClass}__description`}>
           {showTeamDescription ? (
@@ -404,6 +409,7 @@ const ManagePolicyPage = ({
               <PoliciesListWrapper
                 policiesList={teamPolicies || []}
                 isLoading={isLoadingTeamPolicies && isLoadingWebhooks}
+                onAddPolicyClick={onAddPolicyClick}
                 onRemovePoliciesClick={onRemovePoliciesClick}
                 canAddOrRemovePolicy={canAddOrRemovePolicy}
                 currentTeam={currentTeam}
@@ -419,6 +425,7 @@ const ManagePolicyPage = ({
               <PoliciesListWrapper
                 policiesList={globalPolicies || []}
                 isLoading={isLoadingGlobalPolicies && isLoadingWebhooks}
+                onAddPolicyClick={onAddPolicyClick}
                 onRemovePoliciesClick={onRemovePoliciesClick}
                 canAddOrRemovePolicy={canAddOrRemovePolicy}
                 currentTeam={currentTeam}

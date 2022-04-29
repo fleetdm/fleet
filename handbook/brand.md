@@ -62,6 +62,20 @@ The following is our handy guide to editor bliss at Fleet, but first, let's star
 - Articles, release posts, and press releases.
 - Social media posts.
 
+### How to make edits with GitHub
+
+Our handbook and docs pages are written in Markdown and are editable from our website (via GitHub). Follow the instructions below to propose an edit to the handbook or docs.
+1. Click the "Edit page" button from the relevant handbook or docs page on [fleetdm.com](https://www.fleetdm.com) (this will take you to the GitHub editor).
+2. Make your suggested edits in the GitHub editor.
+3. From the Propose changes dialog, at the bottom of the page, give your proposed edit a title and optional description (these help page maintainers quickly understand the proposed changes).
+4. Hit Propose change which will open a new pull request (PR).
+5. Request a review from the page maintainer, and finally, press “Create pull request.”
+6. GitHub will run a series of automated checks and notify the reviewer. At this point, you are done and can safely close the browser page at any time.
+
+> Keep PR titles short and clear. E.g., "Edit to handbook Product group" 
+>
+> Check the “Files changed” section on the Open a pull request page to double check your proposed changes.
+
 ### How to edit recently merged Pull Requests for the handbook and docs
 
 We approach editing retrospectively for pull requests (PRs) to handbook and docs pages. Remember our goal above about moving quickly and reducing time to value for our contributors? By editing for typos and grammatical errors after-the-fact, we avoid the editor becoming a bottleneck who blocks PRs from being merged quickly. Here's how to do it:
