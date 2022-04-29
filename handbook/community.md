@@ -307,9 +307,9 @@ We want to recognize and congratulate community members for their contributions 
 
 4. If available through the ordering process, add a thank you note for their contribution and "Feel free to tag us on Twitter."
 
-## Community rituals
+## Rituals
 
-The following rituals are engaged in by the  directly responsible individual (DRI) and at the frequency specified for the ritual.
+The following table lists the Community group's rituals, frequency, and Directly Responsible Individual (DRI).
 
 | Ritual                       | Frequency                | Description                                         | DRI               |
 |:-----------------------------|:-----------------------------|:----------------------------------------------------|-------------------|
@@ -321,9 +321,13 @@ The following rituals are engaged in by the  directly responsible individual (DR
 
 ## Slack channels
 
-Please see [Digital experience > Slack channels](https://fleetdm.com/handbook/brand#slack-channels).
+This group maintains the following [Slack channels](https://fleetdm.com/handbook/company#group-slack-channels):
+
+| Slack channel               | [DRI](https://fleetdm.com/handbook/company#group-slack-channels)    |
+|:----------------------------|:--------------------------------------------------------------------|
+| `#g-community`              | Kathy Satterlee
 
 
 
 
-<meta name="maintainedBy" value="zwass">
+<meta name="maintainedBy" value="ksatter">
