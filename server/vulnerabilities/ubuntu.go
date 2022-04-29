@@ -59,11 +59,11 @@ func ubuntuPostProcessing(
 		// filter fixed cves
 		var cves []string
 		for _, vulnerability := range sw.Vulnerabilities {
-			if _, ok := fixedCVEs[vulnerability.CVE]; ok {
-				cves = append(cves, vulnerability.CVE)
+			if _, ok := fixedCVEs[vulnerability.CVE.ID]; ok {
+				cves = append(cves, vulnerability.CVE.ID)
 				fixedVulns = append(fixedVulns, fleet.SoftwareVulnerability{
 					CPEID: sw.CPEID,
-					CVE:   vulnerability.CVE,
+					CVE:   vulnerability.CVE.ID,
 				})
 			}
 		}

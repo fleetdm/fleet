@@ -6,8 +6,16 @@ import (
 )
 
 type SoftwareCVE struct {
-	CVE         string `json:"cve" db:"cve"`
+	CVE         `json:"cve" db:"cve"`
 	DetailsLink string `json:"details_link" db:"details_link"`
+}
+
+type CVE struct {
+	ID             string
+	CVSSScore      *float64
+	CVSSVector     *string
+	EPSSScore      *float64
+	EPSSPercentile *float64
 }
 
 // Software is a named and versioned piece of software installed on a device.

@@ -239,7 +239,10 @@ var dialect = goqu.Dialect("mysql")
 // listSoftwareDB returns all the software installed in the given hostID and list options.
 // If hostID is nil, then the method will look into the installed software of all hosts.
 func listSoftwareDB(
-	ctx context.Context, q sqlx.QueryerContext, hostID *uint, opts fleet.SoftwareListOptions,
+	ctx context.Context,
+	q sqlx.QueryerContext,
+	hostID *uint,
+	opts fleet.SoftwareListOptions,
 ) ([]fleet.Software, error) {
 	sql, args, err := selectSoftwareSQL(hostID, opts)
 	if err != nil {
@@ -385,6 +388,10 @@ func loadCVEsBySoftware(
 	ds := dialect.From(goqu.I("host_software").As("hs")).SelectDistinct(
 		goqu.I("hs.software_id"),
 		goqu.I("scv.cve"),
+		goqu.I("c.cvss_score"),
+		goqu.I("c.cvss_vector"),
+		goqu.I("c.epss_score"),
+		goqu.I("c.epss_percentile"),
 	).Join(
 		goqu.I("hosts").As("h"),
 		goqu.On(
@@ -399,6 +406,11 @@ func loadCVEsBySoftware(
 		goqu.I("software_cve").As("scv"),
 		goqu.On(
 			goqu.I("scp.id").Eq(goqu.I("scv.cpe_id")),
+		),
+	).Join(
+		goqu.I("cves").As("c"),
+		goqu.On(
+			goqu.I("c.cve").Eq(goqu.I("scv.cve")),
 		),
 	)
 
@@ -422,12 +434,13 @@ func loadCVEsBySoftware(
 
 	cvesBySoftware := make(map[uint]fleet.VulnerabilitiesSlice)
 	for rows.Next() {
-		var id uint
-		var cve string
-		if err := rows.Scan(&id, &cve); err != nil {
+		var softwareID uint
+		var cve fleet.CVE
+		err := rows.Scan(&softwareID, &cve.ID, &cve.CVSSScore, &cve.CVSSVector, &cve.EPSSScore, &cve.EPSSPercentile)
+		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "scanning cve")
 		}
-		cvesBySoftware[id] = append(cvesBySoftware[id], fleet.SoftwareCVE{
+		cvesBySoftware[softwareID] = append(cvesBySoftware[softwareID], fleet.SoftwareCVE{
 			CVE:         cve,
 			DetailsLink: fmt.Sprintf("https://nvd.nist.gov/vuln/detail/%s", cve),
 		})
@@ -568,7 +581,8 @@ func (ds *Datastore) ListVulnerableSoftwareBySource(ctx context.Context, source 
 	for _, sc := range softwareCVEs {
 		for _, cve := range strings.Split(sc.CVEs, ",") {
 			sc.Software.Vulnerabilities = append(sc.Software.Vulnerabilities, fleet.SoftwareCVE{
-				CVE:         cve,
+				// TODO: fix
+				// CVE:         cve,
 				DetailsLink: fmt.Sprintf("https://nvd.nist.gov/vuln/detail/%s", cve),
 			})
 		}
@@ -628,7 +642,8 @@ func (ds *Datastore) SoftwareByID(ctx context.Context, id uint) (*fleet.Software
 		}
 
 		software.Vulnerabilities = append(software.Vulnerabilities, fleet.SoftwareCVE{
-			CVE:         cve,
+			// TODO: fix
+			// CVE:         cve,
 			DetailsLink: fmt.Sprintf("https://nvd.nist.gov/vuln/detail/%s", cve),
 		})
 	}

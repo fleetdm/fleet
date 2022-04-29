@@ -56,11 +56,11 @@ func centosPostProcessing(
 		}
 		var cves []string
 		for _, vulnerability := range software.Vulnerabilities {
-			if _, ok := pkgFixedCVEs[vulnerability.CVE]; ok {
-				cves = append(cves, vulnerability.CVE)
+			if _, ok := pkgFixedCVEs[vulnerability.CVE.ID]; ok {
+				cves = append(cves, vulnerability.CVE.ID)
 				fixedCVEs = append(fixedCVEs, fleet.SoftwareVulnerability{
 					CPEID: software.CPEID,
-					CVE:   vulnerability.CVE,
+					CVE:   vulnerability.CVE.ID,
 				})
 			}
 		}
