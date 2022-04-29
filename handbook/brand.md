@@ -70,7 +70,7 @@ Our handbook and docs pages are written in Markdown and are editable from our we
 3. From the Propose changes dialog, at the bottom of the page, give your proposed edit a title and optional description (these help page maintainers quickly understand the proposed changes).
 4. Hit Propose change which will open a new pull request (PR).
 5. Request a review from the page maintainer, and finally, press “Create pull request.”
-6 GitHub will run a series of automated checks and notify the reviewer. At this point, you are done and can safely close the browser page at any time.
+6. GitHub will run a series of automated checks and notify the reviewer. At this point, you are done and can safely close the browser page at any time.
 
 > Keep PR titles short and clear. E.g., "Edit to handbook Product group" 
 >
