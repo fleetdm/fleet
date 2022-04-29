@@ -59,6 +59,8 @@ While we encourage and equip our writers to succeed by themselves in editing que
 The following is our handy guide to editor bliss at Fleet, but first, let's start by listing common content types that require an editor pass. 
 
 - Docs and Handbook pages.
+- Articles, release posts, and press releases.
+- Social media posts.
 
 ### How to edit recently merged Pull Requests for the handbook and docs
 
