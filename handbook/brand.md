@@ -232,7 +232,6 @@ These groups maintain the following [Slack channels](https://fleetdm.com/handboo
 | `#g-digital-experience`     | Mike Thomas
 | `#oooh-websites`            | Mike Thomas
 | `#oooh-automation`          | Mike McNeil
-| `#g-community`              | Kathy Satterlee
 | `#g-people`                 | Eric Shaw
 | `#help-onboarding`          | Eric Shaw
 | `#help-finance`             | Eric Shaw
