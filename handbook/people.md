@@ -245,15 +245,17 @@ People Ops will change the name of the documents accordingly (e.g., "[candidate'
 The CEO will confirm:
   - The compensation decision has been documented sufficiently, and adjusted for cost of living.
   - The equity plan and budget are up to date with the actual offer that is about to be sent.
-  - That Fleeties doc now reflects the actual start date from the offer email, as well as the candidate's name, LinkedIn URL, and preferred pronoun are listed. 
-  - That it still makes business sense to make this offer by evaluating the likely cost in terms of base and equity pay, and reviewing the stock options pool.
+  - The Fleeties doc now reflects the actual start date from the offer email, as well as the candidate's name, LinkedIn URL, and preferred pronoun.
+  - It still makes business sense to make this offer, by reviewing the budget and equity plan.
 
 The CEO will then post a message in the `#hiring-xxxxx-2022` Slack channel to indicate that the offer is approved.
 
    >**_Note:_** *When hiring an international employee, Pilot.co recommends starting the hiring process a month before the new employee's start date.*
 
-7. After obtaining CEO approval, People Ops will confirm that everything is correct, and loop in either the CEO or CTO, who will send the offer email. The offer email is copied directly from Google Drive into Gmail and sent to the candidate. When they send the offer, the CEO or CTO will edit the permissions of the exit scenarios sheet and share it with the candidate.
-
+7. After obtaining CEO approval, People Ops will confirm that everything is correct, and loop in either the CEO or CTO, who will send the offer email.
+  - The offer email is copied directly from Google Drive into Gmail before being sent to the candidate.
+  - When sending the offer, the CEO or CTO will edit the permissions of the exit scenarios sheet so it is accessible for the candidate.
+  - People Ops is cc'd on the offer email, but will not participate in the email thread until after the offer is accepted.
 
 
 ### Steps after an offer is accepted
