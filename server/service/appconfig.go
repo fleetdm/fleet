@@ -166,41 +166,36 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 		return nil, err
 	}
 
-	appConfig, err := svc.AppConfig(ctx)
+	// we need the config from the datastore because API tokens are obfuscated at the service layer
+	// we will retrieve the obfuscated config before we return
+	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	oldSmtpSettings := appConfig.SMTPSettings
 
-	// we need the config from the datastore because API tokens are obfuscated at the service layer
-	storedConfig, err := svc.ds.AppConfig(ctx)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
-	}
-	storedJira := storedConfig.Integrations.Jira
-	storedZendesk := storedConfig.Integrations.Zendesk
-
-	oldJiraByProjectKey := make(map[string]*fleet.JiraIntegration)
+	storedJira := appConfig.Integrations.Jira
+	storedJiraByProjectKey := make(map[string]fleet.JiraIntegration)
 	if len(storedJira) > 0 {
 		for _, settings := range storedJira {
-			if _, ok := oldJiraByProjectKey[settings.ProjectKey]; ok {
+			if _, ok := storedJiraByProjectKey[settings.ProjectKey]; ok {
 				// each jira integration must have unique project key
 				return nil, ctxerr.Wrap(ctx, fmt.Errorf("duplicate Jira integration for project key %s", settings.ProjectKey))
 			}
-			oldJiraByProjectKey[settings.ProjectKey] = settings
+			storedJiraByProjectKey[settings.ProjectKey] = *settings
 		}
 	}
 
-	oldZendeskByGroupID := make(map[int64]*fleet.ZendeskIntegration)
+	storedZendesk := appConfig.Integrations.Zendesk
+	storedZendeskByGroupID := make(map[int64]fleet.ZendeskIntegration)
 	if len(storedZendesk) > 0 {
 		for _, settings := range storedZendesk {
-			old := oldZendeskByGroupID[settings.GroupID]
-			if old != nil {
+			if _, ok := storedZendeskByGroupID[settings.GroupID]; ok {
 				// each zendesk integration must have unique group id
 				return nil, ctxerr.Wrap(ctx, fmt.Errorf("duplicate Zendesk integration for group id %v", settings.GroupID))
 			}
-			oldZendeskByGroupID[settings.GroupID] = settings
+			storedZendeskByGroupID[settings.GroupID] = *settings
 		}
 	}
 
@@ -257,9 +252,9 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 		newJiraByProjectKey[new.ProjectKey] = new
 
 		// check if existing integration is being edited
-		if old, ok := oldJiraByProjectKey[new.ProjectKey]; ok {
-			if *old == *new {
-				newJiraConfig = append(newJiraConfig, old)
+		if old, ok := storedJiraByProjectKey[new.ProjectKey]; ok {
+			if old == *new {
+				newJiraConfig = append(newJiraConfig, &old)
 				// no further validtion for unchanged integration
 				continue
 			}
@@ -288,9 +283,9 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 		newZendeskByGroupID[new.GroupID] = new
 
 		// check if existing integration is being edited
-		if old, ok := oldZendeskByGroupID[new.GroupID]; ok {
-			if *old == *new {
-				newZendeskConfig = append(newZendeskConfig, old)
+		if old, ok := storedZendeskByGroupID[new.GroupID]; ok {
+			if old == *new {
+				newZendeskConfig = append(newZendeskConfig, &old)
 				// no further validtion for unchanged integration
 				continue
 			}
@@ -311,7 +306,14 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 	if err := svc.ds.SaveAppConfig(ctx, appConfig); err != nil {
 		return nil, err
 	}
-	return appConfig, nil
+
+	// retrieve new app config with obfuscated secrets
+	obfuscatedConfig, err := svc.AppConfig(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return obfuscatedConfig, nil
 }
 
 func validateSSOSettings(p fleet.AppConfig, existing *fleet.AppConfig, invalid *fleet.InvalidArgumentError) {
