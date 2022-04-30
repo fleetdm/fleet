@@ -1,9 +1,7 @@
 import React, { useCallback, useContext, useEffect } from "react";
-import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router/lib/Router";
 
 import { AppContext, IAppContext } from "context/app";
-import usersAPI, { IGetMeResponse } from "services/entities/users";
 
 import TeamsDropdown from "../TeamsDropdown/TeamsDropdown";
 
@@ -79,13 +77,6 @@ const TeamsDropdownHeader = ({
     isTeamAdmin,
     isOnlyObserver,
   };
-
-  useQuery(["me"], () => usersAPI.me(), {
-    onSuccess: ({ user, available_teams }: IGetMeResponse) => {
-      setCurrentUser(user);
-      setAvailableTeams(available_teams);
-    },
-  });
 
   const findAvailableTeam = (id: number) => {
     return availableTeams?.find((t) => t.id === id);

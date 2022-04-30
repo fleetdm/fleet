@@ -152,3 +152,4 @@ Setting up all the required infrastructure to run a dedicated web service in AWS
 <meta name="authorFullName" value="Ben Edwards">
 <meta name="publishedOn" value="2021-11-30">
 <meta name="articleTitle" value="Deploying Fleet on AWS with Terraform">
+<meta name="articleImageUrl" value="https://miro.medium.com/1*IzLHvDlUTDj3SXzLUQqPYA.png">
