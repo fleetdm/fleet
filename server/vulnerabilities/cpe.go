@@ -143,7 +143,6 @@ func CPEFromSoftware(db *sqlx.DB, software *fleet.Software) (string, error) {
 	targetSW := ""
 	switch software.Source {
 	case "apps":
-		targetSW = "macos"
 	case "python_packages":
 		targetSW = "python"
 	case "chrome_extensions":
