@@ -190,20 +190,18 @@ Every new position being created goes through this process before interviewing, 
 
 1. Add the proposed position to ["Fleeties"](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) as a new row, with a blank start date.  Be sure to include job title, manager, and department.
 2. Add a job description to the ["Roles"](https://docs.google.com/document/d/1wS5jFfrZtO4xMH-3U_S8pE59gNXOTR3rS1WWD8pkq9E/edit#heading=h.5z24knw25190).  Include only "Responsibilities" and "Experience". (These will be inserted into the existing job description template.)
-- Create a private "#hiring-xxxxxx-2022" Slack channel (where "xxxxxx" is job title) and invite the CEO and People Operations (Charlie Chance).
-  - People Ops is the DRI for `#hiring-xxxxx-2022` Slack channels.
-
-In that channel, post a message proposing the position:
+3. Create a private "#hiring-xxxxxx-2022" Slack channel (where "xxxxxx" is job title) and invite the CEO (Mike McNeil) and People Operations (Charlie Chance).
+  - People Ops is the DRI for all `#hiring-xxxxx-2022` Slack channels.
+4. In that channel, post a message proposing the position:
+  - At-mention CEO (@mikermcneil) and Charlie (@charlie).
   - Include link to the job description in "Roles".
   - Include link to Fleeties document.
-
-People Ops will:
+5. People Ops will:
   - Confirm the "Roles" document has the job description, consisting only of "Responsibilities" and "Experience", and that both look accurate, grammatically correct, and otherwise ready to post in a public job description.
   - Confirm the "Fleeties" document has a manager, job title, and department, and that the start date is not entered yet (so we can tell the position is proposed, but not planned, yet).
   - Determine an anticipated salary and equity range using Pave, then add that research to "Compensation decisions" as a new heading.
   - Share a direct link to the new heading in "Compensation decisions" with the CEO.
-
-The CEO will then:
+6. The CEO will then:
   - Determine whether this fits into the budget and equity plan.
   - Decide whether Fleet will open this position at this time.
   - Set tentative compensation in the budget and equity plan.
@@ -215,7 +213,7 @@ After getting CEO approval, create a position in Breezy.
 
 ### Creating a new position in Breezy
 
-> TODO: document how to post job on fleetdm.com/apply using Breezy and manage the hiring process 
+> TODO: document how to post a job on fleetdm.com/apply using Breezy and manage the hiring process
 
 ### Hiring a new team member
 
