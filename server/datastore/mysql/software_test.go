@@ -66,7 +66,6 @@ func testSoftwareSaveHost(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.UpdateHostSoftware(context.Background(), host2.ID, software2))
 
 	require.NoError(t, ds.LoadHostSoftware(context.Background(), host1))
-	assert.False(t, host1.HostSoftware.Modified)
 	test.ElementsMatchSkipIDAndHostCount(t, software1, host1.HostSoftware.Software)
 
 	soft1ByID, err := ds.SoftwareByID(context.Background(), host1.HostSoftware.Software[0].ID)
@@ -75,7 +74,6 @@ func testSoftwareSaveHost(t *testing.T, ds *Datastore) {
 	assert.Equal(t, host1.HostSoftware.Software[0], *soft1ByID)
 
 	require.NoError(t, ds.LoadHostSoftware(context.Background(), host2))
-	assert.False(t, host2.HostSoftware.Modified)
 	test.ElementsMatchSkipIDAndHostCount(t, software2, host2.HostSoftware.Software)
 
 	software1 = []fleet.Software{
@@ -89,11 +87,9 @@ func testSoftwareSaveHost(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.UpdateHostSoftware(context.Background(), host2.ID, software2))
 
 	require.NoError(t, ds.LoadHostSoftware(context.Background(), host1))
-	assert.False(t, host1.HostSoftware.Modified)
 	test.ElementsMatchSkipIDAndHostCount(t, software1, host1.HostSoftware.Software)
 
 	require.NoError(t, ds.LoadHostSoftware(context.Background(), host2))
-	assert.False(t, host2.HostSoftware.Modified)
 	test.ElementsMatchSkipIDAndHostCount(t, software2, host2.HostSoftware.Software)
 
 	software1 = []fleet.Software{
@@ -104,7 +100,6 @@ func testSoftwareSaveHost(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.UpdateHostSoftware(context.Background(), host1.ID, software1))
 
 	require.NoError(t, ds.LoadHostSoftware(context.Background(), host1))
-	assert.False(t, host1.HostSoftware.Modified)
 	test.ElementsMatchSkipIDAndHostCount(t, software1, host1.HostSoftware.Software)
 
 	software2 = []fleet.Software{
@@ -115,7 +110,6 @@ func testSoftwareSaveHost(t *testing.T, ds *Datastore) {
 	}
 	require.NoError(t, ds.UpdateHostSoftware(context.Background(), host2.ID, software2))
 	require.NoError(t, ds.LoadHostSoftware(context.Background(), host2))
-	assert.False(t, host2.HostSoftware.Modified)
 	test.ElementsMatchSkipIDAndHostCount(t, software2, host2.HostSoftware.Software)
 
 	software2 = []fleet.Software{
@@ -126,7 +120,6 @@ func testSoftwareSaveHost(t *testing.T, ds *Datastore) {
 	}
 	require.NoError(t, ds.UpdateHostSoftware(context.Background(), host2.ID, software2))
 	require.NoError(t, ds.LoadHostSoftware(context.Background(), host2))
-	assert.False(t, host2.HostSoftware.Modified)
 	test.ElementsMatchSkipIDAndHostCount(t, software2, host2.HostSoftware.Software)
 }
 
@@ -378,7 +371,7 @@ func testSoftwareNothingChanged(t *testing.T, ds *Datastore) {
 	}
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {
-			got := nothingChanged(c.current, c.incoming)
+			got := nothingChanged(c.current, c.incoming, defaultMinLastOpenedAtDiff)
 			if c.want {
 				require.True(t, got)
 			} else {

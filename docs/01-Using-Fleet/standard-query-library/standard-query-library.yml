@@ -60,7 +60,7 @@ kind: query
 spec:
   name: Get installed FreeBSD software
   platforms: FreeBSD
-  description: Get all software installed on a FreeBSD computer, including browser plugins and installed packages. Note, this does not include other running processes in the processes table.
+  description: Get all software installed on a FreeBSD computer, including browser plugins and installed packages. Note that this does not include other running processes in the processes table.
   query: SELECT name AS name, version AS version, 'Browser plugin (Chrome)' AS type, 'chrome_extensions' AS source FROM chrome_extensions UNION SELECT name AS name, version AS version, 'Browser plugin (Firefox)' AS type, 'firefox_addons' AS source FROM firefox_addons UNION SELECT name AS name, version AS version, 'Package (Atom)' AS type, 'atom_packages' AS source FROM atom_packages UNION SELECT name AS name, version AS version, 'Package (Python)' AS type, 'python_packages' AS source FROM python_packages UNION SELECT name AS name, version AS version, 'Package (pkg)' AS type, 'pkg_packages' AS source FROM pkg_packages;
   purpose: Informational
   tags: inventory
@@ -71,7 +71,7 @@ kind: query
 spec:
   name: Get installed Linux software
   platforms: Linux
-  description: Get all software installed on a Linux computer, including browser plugins and installed packages. Note, this does not include other running processes in the processes table.
+  description: Get all software installed on a Linux computer, including browser plugins and installed packages. Note that this does not include other running processes in the processes table.
   query: SELECT name AS name, version AS version, 'Package (APT)' AS type, 'apt_sources' AS source FROM apt_sources UNION SELECT name AS name, version AS version, 'Package (deb)' AS type, 'deb_packages' AS source FROM deb_packages UNION SELECT package AS name, version AS version, 'Package (Portage)' AS type, 'portage_packages' AS source FROM portage_packages UNION SELECT name AS name, version AS version, 'Package (RPM)' AS type, 'rpm_packages' AS source FROM rpm_packages UNION SELECT name AS name, '' AS version, 'Package (YUM)' AS type, 'yum_sources' AS source FROM yum_sources UNION SELECT name AS name, version AS version, 'Package (NPM)' AS type, 'npm_packages' AS source FROM npm_packages UNION SELECT name AS name, version AS version, 'Package (Atom)' AS type, 'atom_packages' AS source FROM atom_packages UNION SELECT name AS name, version AS version, 'Package (Python)' AS type, 'python_packages' AS source FROM python_packages;
   purpose: Informational
   tags: inventory, built-in
@@ -82,7 +82,7 @@ kind: query
 spec:
   name: Get installed macOS software
   platforms: macOS
-  description: Get all software installed on a macOS computer, including apps, browser plugins, and installed packages. Note, this does not include other running processes in the processes table.
+  description: Get all software installed on a macOS computer, including apps, browser plugins, and installed packages. Note that this does not include other running processes in the processes table.
   query: SELECT name AS name, bundle_short_version AS version, 'Application (macOS)' AS type, 'apps' AS source FROM apps UNION SELECT name AS name, version AS version, 'Package (Python)' AS type, 'python_packages' AS source FROM python_packages UNION SELECT name AS name, version AS version, 'Browser plugin (Chrome)' AS type, 'chrome_extensions' AS source FROM chrome_extensions UNION SELECT name AS name, version AS version, 'Browser plugin (Firefox)' AS type, 'firefox_addons' AS source FROM firefox_addons UNION SELECT name As name, version AS version, 'Browser plugin (Safari)' AS type, 'safari_extensions' AS source FROM safari_extensions UNION SELECT name AS name, version AS version, 'Package (Homebrew)' AS type, 'homebrew_packages' AS source FROM homebrew_packages;
   purpose: Informational
   tags: inventory, built-in
@@ -104,7 +104,7 @@ kind: query
 spec:
   name: Get installed Windows software
   platforms: Windows
-  description: Get all software installed on a Windows computer, including programs, browser plugins, and installed packages. Note, this does not include other running processes in the processes table.
+  description: Get all software installed on a Windows computer, including programs, browser plugins, and installed packages. Note that this does not include other running processes in the processes table.
   query: SELECT name AS name, version AS version, 'Program (Windows)' AS type, 'programs' AS source FROM programs UNION SELECT name AS name, version AS version, 'Package (Python)' AS type, 'python_packages' AS source FROM python_packages UNION SELECT name AS name, version AS version, 'Browser plugin (IE)' AS type, 'ie_extensions' AS source FROM ie_extensions UNION SELECT name AS name, version AS version, 'Browser plugin (Chrome)' AS type, 'chrome_extensions' AS source FROM chrome_extensions UNION SELECT name AS name, version AS version, 'Browser plugin (Firefox)' AS type, 'firefox_addons' AS source FROM firefox_addons UNION SELECT name AS name, version AS version, 'Package (Chocolatey)' AS type, 'chocolatey_packages' AS source FROM chocolatey_packages UNION SELECT name AS name, version AS version, 'Package (Atom)' AS type, 'atom_packages' AS source FROM atom_packages;
   purpose: Informational
   tags: inventory, built-in
@@ -147,7 +147,7 @@ spec:
 apiVersion: v1
 kind: query
 spec:
-  name: Get unencrypted SSH keys for domain joined accounts
+  name: Get unencrypted SSH keys for domain-joined accounts
   platforms: macOS, Linux, Windows, FreeBSD
   description: Identify SSH keys created without a passphrase which can be used in Lateral Movement (MITRE. TA0008)
   query: SELECT uid, username, description, path, encrypted FROM users CROSS JOIN user_ssh_keys using (uid) WHERE encrypted=0 and username in (SELECT distinct(username) FROM last);
@@ -208,7 +208,7 @@ spec:
   name: Get local user accounts
   platforms: macOS, Linux, Windows, FreeBSD
   description: Local user accounts (including domain accounts that have logged on locally (Windows)).
-  query: SELECT uid, gid, username, description,directory, shell FROM users;
+  query: SELECT uid, gid, username, description, directory, shell FROM users;
   purpose: Informational
   tags: hunting, inventory
   contributors: anelshaer
@@ -218,7 +218,7 @@ kind: query
 spec:
   name: Get active user accounts on servers
   platforms: Linux
-  description: Domain Joined environment normally have root or other service account only and users are SSH-ing using their Domain Accounts.
+  description: Domain Joined environments normally have root or other service only account and users are SSH-ing using their Domain Accounts.
   query: SELECT * FROM shadow WHERE password_status='active' and username!='root';
   purpose: Informational
   tags: hunting, inventory, Active Directory
@@ -299,7 +299,7 @@ spec:
   name: Get local administrator accounts on macOS
   platforms: macOS
   description: The query allows you to check macOS systems for local administrator accounts.
-  query: SELECT uid, username, type, groupname FROM users u JOIN groups g ON g.gid = u.gid;
+  query: SELECT uid, username, type, group name FROM users u JOIN groups g ON g.gid = u.gid;
   purpose: Informational
   tags: hunting, inventory
   contributors: alphabrevity
@@ -320,7 +320,7 @@ kind: query
 spec:
   name: Get whether TeamViewer is installed/running
   platforms: Windows
-  description: Looks for the TeamViewer service running on machines. This is used often when attackers gain access to a machine, running TeamViewer to allow them to access a machine.
+  description: Looks for the TeamViewer service running on machines. This is often used when attackers gain access to a machine, running TeamViewer to allow them to access a machine.
   query: SELECT display_name,status,s.pid,p.path FROM services AS s JOIN processes AS p USING(pid) WHERE s.name LIKE "%teamviewer%";
   purpose: Informational
   tags: hunting, inventory
@@ -331,7 +331,7 @@ kind: query
 spec:
   name: Get malicious Python backdoors
   platforms: macOS, Linux, Windows
-  description: Watches for the backdoored Python packages installed on system. See (http://www.nbu.gov.sk/skcsirt-sa-20170909-pypi/index.html)
+  description: Watches for the backdoored Python packages installed on the system. See (http://www.nbu.gov.sk/skcsirt-sa-20170909-pypi/index.html)
   query: SELECT CASE cnt WHEN 0 THEN "NONE_INSTALLED" ELSE "INSTALLED" END AS "Malicious Python Packages", package_name, package_version FROM (SELECT COUNT(name) AS cnt, name AS package_name, version AS package_version, path AS package_path FROM python_packages WHERE package_name IN ('acqusition', 'apidev-coop', 'bzip', 'crypt', 'django-server', 'pwd', 'setup-tools', 'telnet', 'urlib3', 'urllib'));
   purpose: Informational
   tags: hunting, inventory, malware
@@ -351,10 +351,10 @@ spec:
 apiVersion: v1
 kind: query
 spec:
-  name: Get shimcache table
+  name: Get Shimcache table
   platforms: Windows
   description: Returns forensic data showing evidence of likely file execution, in addition to the last modified timestamp of the file, order of execution, full file path order of execution, and the order in which files were executed.
-  query: select * from shimcache
+  query: select * from Shimcache
   purpose: Informational
   tags: hunting
   contributors: puffyCid
@@ -481,8 +481,8 @@ spec:
   description: Checks to make sure that the Gatekeeper feature is enabled on macOS devices. Gatekeeper tries to ensure only trusted software is run on a mac machine.
   resolution: "To enable Gatekeeper, on the failing device, run the following command in the Terminal app: /usr/sbin/spctl --master-enable."
   platforms: macOS
-  platform: darwin
   tags: compliance, hardening, built-in
+  platform: Darwin
   contributors: groob
 ---
 apiVersion: v1
@@ -508,8 +508,8 @@ spec:
   description: Checks to make sure that full disk encryption (FileVault) is enabled on macOS devices.
   resolution: To enable full disk encryption, on the failing device, select System Preferences > Security & Privacy > FileVault > Turn On FileVault.
   platforms: macOS
-  platform: darwin
   tags: compliance, hardening, built-in
+  platform: Darwin
   contributors: groob
 ---
 apiVersion: v1
@@ -532,8 +532,8 @@ spec:
   description: Checks to make sure that the System Integrity Protection feature is enabled.
   resolution: "To enable System Integrity Protection, on the failing device, run the following command in the Terminal app: /usr/sbin/spctl --master-enable."
   platforms: macOS
-  platform: darwin
   tags: compliance, malware, hardening, built-in
+  platform: Darwin
   contributors: groob
 ---
 apiVersion: v1
@@ -544,8 +544,8 @@ spec:
   description: "Required: You’re already enforcing a policy via Moble Device Management (MDM). Checks to make sure that the device user cannot log in to the device without a password."
   resolution: "The following example profile includes a setting to disable automatic login: https://github.com/gregneagle/profiles/blob/fecc73d66fa17b6fa78b782904cb47cdc1913aeb/loginwindow.mobileconfig#L64-L65."
   platforms: macOS
-  platform: darwin
   tags: compliance, hardening, built-in
+  platform: Darwin
   contributors: groob
 ---
 apiVersion: v1
@@ -556,8 +556,8 @@ spec:
   description: "Required: You’re already enforcing a policy via Moble Device Management (MDM). Checks to make sure that guest accounts cannot be used to log in to the device without a password."
   resolution: "The following example profile includes a setting to disable guest users: https://github.com/gregneagle/profiles/blob/fecc73d66fa17b6fa78b782904cb47cdc1913aeb/loginwindow.mobileconfig#L68-L71."
   platforms: macOS
-  platform: darwin
   tags: compliance, hardening, built-in
+  platform: Darwin
   contributors: groob
 ---
 apiVersion: v1
@@ -567,8 +567,8 @@ spec:
   query: SELECT 1 FROM managed_policies WHERE domain = 'com.apple.Terminal' AND name = 'SecureKeyboardEntry' AND value = 1 LIMIT 1;
   description: "Required: You’re already enforcing a policy via Moble Device Management (MDM). Checks to make sure that the Secure Keyboard Entry setting is enabled."
   platforms: macOS
-  platform: darwin
   tags: compliance, hardening, built-in
+  platform: Darwin
   contributors: groob
 ---
 apiVersion: v1
@@ -614,7 +614,7 @@ spec:
     Preferences > Software Update > Advanced > Turn on Install system data files and security
     updates.
   platforms: macOS
-  platform: darwin
+  platform: Darwin
   tags: compliance, malware, hardening, built-in
   contributors: GuillaumeRoss
 ---
@@ -626,7 +626,7 @@ spec:
   description: Checks the status of antivirus and signature updates from the Windows Security Center. 
   resolution: "Ensure Windows Defender or your third-party antivirus is running, up to date, and visible in the Windows Security Center."
   platforms: Windows
-  platform: windows
+  platform: Windows
   tags: compliance, malware, hardening, built-in
   contributors: GuillaumeRoss
 ---
@@ -638,8 +638,8 @@ spec:
   description: Checks that both ClamAV's daemon and its updater service (freshclam) are running. 
   resolution: "Ensure ClamAV and Freshclam are installed and running."
   platforms: Linux
-  platform: linux
   tags: compliance, malware, hardening, built-in
+  platform: Linux
   contributors: GuillaumeRoss
 ---
 apiVersion: v1
@@ -647,11 +647,11 @@ kind: policy
 spec:
   name: MDM Enrolled (macOS)
   query: SELECT 1 from mdm WHERE enrolled='true';
-  description: "Required: osquery deployed with Orbit, or manual installation of macadmins/osquery-extension. Checks that a Mac is enrolled to MDM. Add a AND on identity_certificate_uuid to check for a specific MDM."
+  description: "Required: osquery deployed with Orbit, or manual installation of macadmins/osquery-extension. Checks that a mac is enrolled to MDM. Add a AND on identity_certificate_uuid to check for a specific MDM."
   resolution: "Enroll device to MDM"
   platforms: macOS
-  platform: darwin
   tags: compliance, hardening, built-in
+  platform: Darwin
   contributors: GuillaumeRoss
 ---
 apiVersion: v1
@@ -662,8 +662,8 @@ spec:
   description: "Checks if the application (Docker Desktop example) is installed and up to date, or not installed. Fails if the application is installed and on a lower version. You can copy this query and replace the bundle_identifier and bundle_version values to apply the same type of policy to other applications."
   resolution: "Update Docker or remove it if not used."
   platforms: macOS
-  platform: darwin
   tags: inventory, vulnerability, built-in
+  platform: Darwin
   contributors: GuillaumeRoss
 ---
 apiVersion: v1
@@ -674,6 +674,6 @@ spec:
   description: "Required: osquery must have Full Disk Access. Policy passes if all keys are encrypted, including if no keys are present."
   resolution: "Use this command to encrypt existing SSH keys by providing the path to the file: ssh-keygen -o -p -f /path/to/file"
   platforms: macOS, Linux, Windows
-  platform: darwin,linux,windows
+  platform: Darwin, Linux, Windows
   tags: compliance, SSH, built-in
   contributors: GuillaumeRoss
