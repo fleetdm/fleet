@@ -305,12 +305,17 @@ func selectSoftwareSQL(hostID *uint, opts fleet.SoftwareListOptions) (string, []
 		"s.vendor",
 		"s.arch",
 		goqu.COALESCE(goqu.I("scp.cpe"), "").As("generated_cpe"),
-		"c.cve",
-		"c.cvss_score",
-		"c.cvss_vector",
-		"c.epss_score",
-		"c.epss_percentile",
 	)
+
+	if !opts.SkipLoadingCVEs {
+		ds = ds.SelectAppend(
+			"c.cve",
+			"c.cvss_score",
+			"c.cvss_vector",
+			"c.epss_score",
+			"c.epss_percentile",
+		)
+	}
 
 	if hostID != nil || opts.TeamID != nil {
 		ds = ds.
@@ -348,11 +353,14 @@ func selectSoftwareSQL(hostID *uint, opts fleet.SoftwareListOptions) (string, []
 			Join(
 				goqu.I("software_cve").As("scv"),
 				goqu.On(goqu.I("scp.id").Eq(goqu.I("scv.cpe_id"))),
-			).
-			Join(
-				goqu.I("cves").As("c"),
-				goqu.On(goqu.I("c.cve").Eq(goqu.I("scv.cve"))),
 			)
+		if !opts.SkipLoadingCVEs {
+			ds = ds.
+				Join(
+					goqu.I("cves").As("c"),
+					goqu.On(goqu.I("c.cve").Eq(goqu.I("scv.cve"))),
+				)
+		}
 	} else {
 		ds = ds.
 			LeftJoin(
@@ -364,11 +372,14 @@ func selectSoftwareSQL(hostID *uint, opts fleet.SoftwareListOptions) (string, []
 			LeftJoin(
 				goqu.I("software_cve").As("scv"),
 				goqu.On(goqu.I("scp.id").Eq(goqu.I("scv.cpe_id"))),
-			).
-			LeftJoin(
-				goqu.I("cves").As("c"),
-				goqu.On(goqu.I("c.cve").Eq(goqu.I("scv.cve"))),
 			)
+		if !opts.SkipLoadingCVEs {
+			ds = ds.
+				Join(
+					goqu.I("cves").As("c"),
+					goqu.On(goqu.I("c.cve").Eq(goqu.I("scv.cve"))),
+				)
+		}
 	}
 
 	if match := opts.MatchQuery; match != "" {
