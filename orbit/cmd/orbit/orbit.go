@@ -322,7 +322,7 @@ func main() {
 
 		if !c.Bool("disable-updates") {
 			targets := []string{"orbit", "osqueryd"}
-			if c.Bool("fleet-desktop") && (runtime.GOOS == "darwin" || runtime.GOOS == "windows") {
+			if c.Bool("fleet-desktop") {
 				targets = append(targets, "desktop")
 			}
 			updateRunner, err := update.NewRunner(updater, update.RunnerOptions{
