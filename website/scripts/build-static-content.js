@@ -50,8 +50,8 @@ module.exports = {
               let formattedTags = [];
               for (let tag of tagsToFormat) {
                 if(tag !== '') {// « Ignoring any blank tags caused by trailing commas in the YAML.
-                  // Formatting tags in sentence case, and removing any extra whitespace.
-                  formattedTags.push(_.capitalize(_.trim(tag)));
+                  // Removing any extra whitespace from tags.
+                  formattedTags.push(_.trim(tag));
                 }
               }
               // Removing any duplicate tags.
