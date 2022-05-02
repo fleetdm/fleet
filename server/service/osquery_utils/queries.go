@@ -316,7 +316,7 @@ FROM logical_drives WHERE file_system = 'NTFS' LIMIT 1;`,
 		Platforms:        []string{"darwin"},
 	},
 	"google_chrome_profiles": {
-		Query:            `SELECT email FROM google_chrome_profiles WHERE NOT ephemeral`,
+		Query:            `SELECT email FROM google_chrome_profiles WHERE NOT ephemeral AND email <> ''`,
 		DirectIngestFunc: directIngestChromeProfiles,
 		Discovery:        discoveryTable("google_chrome_profiles"),
 	},
