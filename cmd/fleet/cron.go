@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"errors"
-	"fmt"
 	"os"
 	"strconv"
 	"strings"
@@ -262,8 +261,9 @@ func cronVulnerabilities(
 					}
 
 				default:
-					level.Error(logger).Log("err", "attempting to process vuln automations", "details", "no automation enabled")
-					sentry.CaptureException(fmt.Errorf("attempting to process vuln automations: no automation enabled"))
+					err = errors.New("no vuln automations enabled")
+					level.Error(logger).Log("err", "attempting to process vuln automations", err)
+					sentry.CaptureException(err)
 				}
 			}
 		}
