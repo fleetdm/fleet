@@ -250,4 +250,4 @@ To migrate from Fleet Free to Fleet Premium, once you get a Fleet license, set i
 
 ## Will my older version of Fleet work with Redis 6?
 
-Most likely, yes! While we'd definitely reccomend keeping Fleet up to date in order to take advantage of new features and bug patches, most legacy versions should work with Redis 6. Just keep in mind that we likely haven't tested your particular combination so you may run into some unforseen hiccups. 
+Most likely, yes! While we'd definitely recommend keeping Fleet up to date in order to take advantage of new features and bug patches, most legacy versions should work with Redis 6. Just keep in mind that we likely haven't tested your particular combination so that you may run into some unforeseen hiccups. 
