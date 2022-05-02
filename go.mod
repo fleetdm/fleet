@@ -12,7 +12,7 @@ require (
 	github.com/VividCortex/mysqlerr v0.0.0-20170204212430-6c6b55f8796f
 	github.com/WatchBeam/clock v0.0.0-20170901150240-b08e6b4da7ea
 	github.com/XSAM/otelsql v0.10.0
-	github.com/andygrunwald/go-jira v1.15.1 // indirect
+	github.com/andygrunwald/go-jira v1.15.1
 	github.com/antchfx/htmlquery v1.2.4 // indirect
 	github.com/antchfx/xmlquery v1.3.9 // indirect
 	github.com/aws/aws-sdk-go v1.40.34
