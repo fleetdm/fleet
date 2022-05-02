@@ -3145,6 +3145,8 @@ Deletes the label specified by ID.
 
 ### Delete pack
 
+Delete pack by name.
+
 `DELETE /api/v1/fleet/packs/{name}`
 
 #### Parameters
