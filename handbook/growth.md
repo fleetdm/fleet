@@ -98,6 +98,8 @@ The following table lists the Growth group's rituals, frequency, and Directly Re
 | Weekly ins and outs   | Weekly | Track Growth team ins and outs.        | Tim Kern          |
 | Podcast outreach      | Weekly | Conduct podcast outreach twice a week.     | Drew Baker        |
 | Monthly conference checks    | Monthly | Check for conference openings and sponsorship opportunities on the 1st of every month. | Drew Baker|
+| Salesforce contributor experience checkup | Monthly | Ensure all users see a detailed view of contacts, opportunities, accounts, and leads. | Nathan Holliday |
+
 
 ## Slack channels
 
