@@ -255,63 +255,71 @@ func listSoftwareDB(
 	}
 
 	var softwares []fleet.Software
-	var lastID uint
-	var software fleet.Software
+	ids := make(map[uint]int) // map of ids to index into softwares
 	for _, result := range results {
-		if result.ID != lastID {
-			softwares = append(softwares, software)
-			software = result.Software
+		idx, ok := ids[result.ID]
+		if !ok {
+			idx = len(softwares)
+			softwares = append(softwares, result.Software)
+			ids[result.ID] = idx
 		}
 
-		// TODO: add scores
-		software.Vulnerabilities = append(software.Vulnerabilities, fleet.SoftwareCVE{
-			CVE: fleet.CVE{
-				ID: result.CVE,
-			},
-		})
-
-		lastID = result.ID
+		// handle null cve from left join
+		if result.CVE != nil {
+			cveID := *result.CVE
+			cve := fleet.SoftwareCVE{
+				CVE: fleet.CVE{
+					ID:             cveID,
+					CVSSScore:      result.CVSSScore,
+					CVSSVector:     result.CVSSVector,
+					EPSSScore:      result.EPSSScore,
+					EPSSPercentile: result.EPSSPercentile,
+				},
+				DetailsLink: fmt.Sprintf("https://nvd.nist.gov/vuln/detail/%s", cveID),
+			}
+			softwares[idx].Vulnerabilities = append(softwares[idx].Vulnerabilities, cve)
+		}
 	}
-	if lastID > 0 {
-		softwares = append(softwares, software)
-	}
-
-	/*
-		if opts.SkipLoadingCVEs {
-			return result, nil
-		}
-
-		cvesBySoftware, err := loadCVEsBySoftware(ctx, q, hostID, opts)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "load CVEs by software")
-		}
-		for i := range result {
-			result[i].Vulnerabilities = cvesBySoftware[result[i].ID]
-		}
-	*/
 
 	return softwares, nil
 }
 
+// softwareCVE is used for left joins with cve
 type softwareCVE struct {
 	fleet.Software
-	CVE string `db:"cve"`
+	CVE            *string  `db:"cve"`
+	CVSSScore      *float64 `db:"cvss_score"`
+	CVSSVector     *string  `db:"cvss_vector"`
+	EPSSScore      *float64 `db:"epss_score"`
+	EPSSPercentile *float64 `db:"epss_percentile"`
 }
 
 func selectSoftwareSQL(hostID *uint, opts fleet.SoftwareListOptions) (string, []interface{}, error) {
 	ds := dialect.From(goqu.I("software").As("s")).Select(
-		"s.*",
+		"s.id",
+		"s.name",
+		"s.version",
+		"s.source",
+		"s.bundle_identifier",
+		"s.release",
+		"s.vendor",
+		"s.arch",
 		goqu.COALESCE(goqu.I("scp.cpe"), "").As("generated_cpe"),
-		"scv.cve",
+		"c.cve",
+		"c.cvss_score",
+		"c.cvss_vector",
+		"c.epss_score",
+		"c.epss_percentile",
 	)
 
 	if hostID != nil || opts.TeamID != nil {
-		ds = ds.Join(
-			goqu.I("host_software").As("hs"),
-			goqu.On(
-				goqu.I("hs.software_id").Eq(goqu.I("s.id")),
-			),
-		)
+		ds = ds.
+			Join(
+				goqu.I("host_software").As("hs"),
+				goqu.On(
+					goqu.I("hs.software_id").Eq(goqu.I("s.id")),
+				),
+			)
 	}
 
 	if hostID != nil {
@@ -319,37 +327,48 @@ func selectSoftwareSQL(hostID *uint, opts fleet.SoftwareListOptions) (string, []
 	}
 
 	if opts.TeamID != nil {
-		ds = ds.Join(
-			goqu.I("hosts").As("h"),
-			goqu.On(
-				goqu.I("hs.host_id").Eq(goqu.I("h.id")),
-			),
-		).Where(goqu.I("h.team_id").Eq(opts.TeamID))
+		ds = ds.
+			Join(
+				goqu.I("hosts").As("h"),
+				goqu.On(
+					goqu.I("hs.host_id").Eq(goqu.I("h.id")),
+				),
+			).
+			Where(goqu.I("h.team_id").Eq(opts.TeamID))
 	}
 
 	if opts.VulnerableOnly {
-		ds = ds.Join(
-			goqu.I("software_cpe").As("scp"),
-			goqu.On(
-				goqu.I("s.id").Eq(goqu.I("scp.software_id")),
-			),
-		).Join(
-			goqu.I("software_cve").As("scv"),
-			goqu.On(goqu.I("scp.id").Eq(goqu.I("scv.cpe_id"))),
-		)
-	} else {
-		ds = ds.LeftJoin(
-			goqu.I("software_cpe").As("scp"),
-			goqu.On(
-				goqu.I("s.id").Eq(goqu.I("scp.software_id")),
-			),
-		)
-		if opts.MatchQuery != "" {
-			ds = ds.LeftJoin(
+		ds = ds.
+			Join(
+				goqu.I("software_cpe").As("scp"),
+				goqu.On(
+					goqu.I("s.id").Eq(goqu.I("scp.software_id")),
+				),
+			).
+			Join(
 				goqu.I("software_cve").As("scv"),
 				goqu.On(goqu.I("scp.id").Eq(goqu.I("scv.cpe_id"))),
+			).
+			Join(
+				goqu.I("cves").As("c"),
+				goqu.On(goqu.I("c.cve").Eq(goqu.I("scv.cve"))),
 			)
-		}
+	} else {
+		ds = ds.
+			LeftJoin(
+				goqu.I("software_cpe").As("scp"),
+				goqu.On(
+					goqu.I("s.id").Eq(goqu.I("scp.software_id")),
+				),
+			).
+			LeftJoin(
+				goqu.I("software_cve").As("scv"),
+				goqu.On(goqu.I("scp.id").Eq(goqu.I("scv.cpe_id"))),
+			).
+			LeftJoin(
+				goqu.I("cves").As("c"),
+				goqu.On(goqu.I("c.cve").Eq(goqu.I("scv.cve"))),
+			)
 	}
 
 	if match := opts.MatchQuery; match != "" {
@@ -364,10 +383,11 @@ func selectSoftwareSQL(hostID *uint, opts fleet.SoftwareListOptions) (string, []
 	}
 
 	if opts.WithHostCounts {
-		ds = ds.Join(
-			goqu.I("software_host_counts").As("shc"),
-			goqu.On(goqu.I("s.id").Eq(goqu.I("shc.software_id"))),
-		).
+		ds = ds.
+			Join(
+				goqu.I("software_host_counts").As("shc"),
+				goqu.On(goqu.I("s.id").Eq(goqu.I("shc.software_id"))),
+			).
 			Where(goqu.I("shc.hosts_count").Gt(0)).
 			SelectAppend(
 				goqu.I("shc.hosts_count"),
@@ -380,6 +400,7 @@ func selectSoftwareSQL(hostID *uint, opts fleet.SoftwareListOptions) (string, []
 			ds = ds.Where(goqu.I("shc.team_id").Eq(0))
 		}
 	}
+
 	ds = appendListOptionsToSelect(ds, opts.ListOptions)
 
 	return ds.ToSQL()
@@ -389,99 +410,31 @@ func countSoftwareDB(
 	ctx context.Context, q sqlx.QueryerContext, hostID *uint, opts fleet.SoftwareListOptions,
 ) (int, error) {
 	opts.ListOptions = fleet.ListOptions{
-		MatchQuery: opts.ListOptions.MatchQuery,
+		MatchQuery: opts.MatchQuery,
 	}
 
-	ds := dialect.From(goqu.I("software").As("s")).Select(
-		"s.*",
-		goqu.COALESCE(goqu.I("scp.cpe"), "").As("generated_cpe"),
-		"scv.cve",
-	)
-
-	ds = appendListOptionsToSelect(ds, opts.ListOptions)
-
-	sql, args, err := ds.ToSQL()
+	sql, args, err := selectSoftwareSQL(hostID, opts)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "sql build")
 	}
 
-	var result int
-	if err := sqlx.GetContext(ctx, q, &result, sql, args...); err != nil {
+	sql = `
+SELECT
+    COUNT(DISTINCT s.id)
+FROM (
+` + sql + `
+)
+`
+
+	var count int
+	if err := sqlx.GetContext(ctx, q, &count, sql, args...); err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "count host software")
 	}
-	return result, nil
+
+	return count, nil
 }
 
-// loadCVEsbySoftware loads all the CVEs on software installed on the given hostID and list options.
-// If hostID is nil, then the method will look into the installed software of all hosts.
-func loadCVEsBySoftware(
-	ctx context.Context, q sqlx.QueryerContext, hostID *uint, opt fleet.SoftwareListOptions,
-) (map[uint]fleet.VulnerabilitiesSlice, error) {
-	ds := dialect.From(goqu.I("host_software").As("hs")).SelectDistinct(
-		goqu.I("hs.software_id"),
-		goqu.I("scv.cve"),
-		goqu.I("c.cvss_score"),
-		goqu.I("c.cvss_vector"),
-		goqu.I("c.epss_score"),
-		goqu.I("c.epss_percentile"),
-	).Join(
-		goqu.I("hosts").As("h"),
-		goqu.On(
-			goqu.I("hs.host_id").Eq(goqu.I("h.id")),
-		),
-	).Join(
-		goqu.I("software_cpe").As("scp"),
-		goqu.On(
-			goqu.I("hs.software_id").Eq(goqu.I("scp.software_id")),
-		),
-	).Join(
-		goqu.I("software_cve").As("scv"),
-		goqu.On(
-			goqu.I("scp.id").Eq(goqu.I("scv.cpe_id")),
-		),
-	).Join(
-		goqu.I("cves").As("c"),
-		goqu.On(
-			goqu.I("c.cve").Eq(goqu.I("scv.cve")),
-		),
-	)
-
-	if hostID != nil {
-		ds = ds.Where(goqu.I("hs.host_id").Eq(hostID))
-	}
-	if opt.TeamID != nil {
-		ds = ds.Where(goqu.I("h.team_id").Eq(opt.TeamID))
-	}
-
-	sql, args, err := ds.ToSQL()
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "sql2 build")
-	}
-
-	rows, err := q.QueryxContext(ctx, sql, args...)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "load host software")
-	}
-	defer rows.Close()
-
-	cvesBySoftware := make(map[uint]fleet.VulnerabilitiesSlice)
-	for rows.Next() {
-		var softwareID uint
-		var cve fleet.CVE
-		err := rows.Scan(&softwareID, &cve.ID, &cve.CVSSScore, &cve.CVSSVector, &cve.EPSSScore, &cve.EPSSPercentile)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "scanning cve")
-		}
-		cvesBySoftware[softwareID] = append(cvesBySoftware[softwareID], fleet.SoftwareCVE{
-			CVE:         cve,
-			DetailsLink: fmt.Sprintf("https://nvd.nist.gov/vuln/detail/%s", cve),
-		})
-	}
-	if err := rows.Err(); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "error iterating through cve rows")
-	}
-	return cvesBySoftware, nil
-}
+// TODO: populate cve details link
 
 func (ds *Datastore) LoadHostSoftware(ctx context.Context, host *fleet.Host) error {
 	host.HostSoftware = fleet.HostSoftware{Modified: false}
