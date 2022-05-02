@@ -360,6 +360,12 @@ Consultant agreements are sent through [DocuSign](https://www.docusign.com/), us
 
 Then hit send!  After all of the signatures are there, the completed document will automatically be uploaded to the appropriate Google Drive folder by our automation, and a Slack message will appear in the `#g-people` channel.
 
+## Updating a consultant's fee
+
+ - Direct message Charlie with rate change information.
+ - Charlie will post the information to `#g-people` and tag the CEO for approval.
+ - After CEO approval, Charlie will issue a new contractor agreement with the updated fee via DocuSign.
+
 ## Zapier and DocuSign
 
 We use Zapier to automate how completed DocuSign envelopes are formatted and stored. This process ensures we store signed documents in the correct folder and that filenames are formatted consistently. 
