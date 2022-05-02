@@ -2115,13 +2115,56 @@ func (s *integrationTestSuite) TestHostDeviceMapping() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", hosts[1].ID), nil, http.StatusOK, &listResp)
 	require.Len(t, listResp.DeviceMapping, 0)
 
-	// search host by email address finds the corresponding host
 	var listHosts listHostsResponse
-	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHosts, "query", "a@b.c")
-	require.Len(t, listHosts.Hosts, 1)
-	assert.Equal(t, hosts[0].ID, listHosts.Hosts[0].ID)
+	// list hosts response includes device mappings
+	s.DoJSON("GET", "/api/latest/fleet/hosts?device_mapping=true", nil, http.StatusOK, &listHosts)
+	require.Len(t, listHosts.Hosts, 3)
+	hostsByID := make(map[uint]HostResponse)
+	for _, h := range listHosts.Hosts {
+		hostsByID[h.ID] = h
+	}
+	var dm []*fleet.HostDeviceMapping
 
-	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHosts, "query", "c@b.c")
+	// device mapping for host 1
+	host1 := hosts[0]
+	require.NotNil(t, *hostsByID[host1.ID].DeviceMapping)
+
+	err := json.Unmarshal(*hostsByID[host1.ID].DeviceMapping, &dm)
+	require.NoError(t, err)
+	assert.Len(t, dm, 2)
+
+	var emails []string
+	for _, e := range dm {
+		emails = append(emails, e.Email)
+	}
+	assert.Contains(t, emails, "a@b.c")
+	assert.Contains(t, emails, "b@b.c")
+	assert.Equal(t, "google_chrome_profiles", dm[0].Source)
+	assert.Equal(t, "google_chrome_profiles", dm[1].Source)
+
+	// no device mapping for other hosts
+	assert.Nil(t, hostsByID[hosts[1].ID].DeviceMapping)
+	assert.Nil(t, hostsByID[hosts[2].ID].DeviceMapping)
+
+	// search host by email address finds the corresponding host
+	s.DoJSON("GET", "/api/latest/fleet/hosts?device_mapping=true", nil, http.StatusOK, &listHosts, "query", "a@b.c")
+	require.Len(t, listHosts.Hosts, 1)
+	require.Equal(t, host1.ID, listHosts.Hosts[0].ID)
+	require.NotNil(t, listHosts.Hosts[0].DeviceMapping)
+
+	err = json.Unmarshal(*listHosts.Hosts[0].DeviceMapping, &dm)
+	require.NoError(t, err)
+	assert.Len(t, dm, 2)
+
+	for _, e := range dm {
+		emails = append(emails, e.Email)
+	}
+	assert.Contains(t, emails, "a@b.c")
+	assert.Contains(t, emails, "b@b.c")
+	assert.Equal(t, "google_chrome_profiles", dm[0].Source)
+	assert.Equal(t, "google_chrome_profiles", dm[1].Source)
+
+	s.DoJSON("GET", "/api/latest/fleet/hosts?device_mapping=true", nil, http.StatusOK, &listHosts, "query", "c@b.c")
 	require.Len(t, listHosts.Hosts, 0)
 }
 
