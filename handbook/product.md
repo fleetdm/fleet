@@ -404,6 +404,47 @@ Fleet's feature flag guidelines was borrowed from GitLab's ["When to use feature
 
 We track competitors' capabilities and adjacent (or commonly integrated) products in this [Google Doc](https://docs.google.com/document/d/1Bqdui6oQthdv5XtD5l7EZVB-duNRcqVRg7NVA4lCXeI/edit) (private).
 
+### Intake process
+
+Intake for new product ideas (requests) happens at the 🗣 Product office hours meeting.
+
+At the 🗣 Product office hours meeting, the product team weighs all requests. When the team weighs a request, it is prioritized or put to the side.
+
+The team prioritizes a request when the business perceives it as an immediate priority. When this happens, the team sets the request to be estimated or deferred within 5 business days.
+
+The team puts a request to the side when the business perceives competing priorities are perceives as more pressing in the immediate moment.
+
+#### Why this way?
+
+At Fleet, we use objectives and key results (OKRs) to align the organization with measurable goals.
+These OKRs fill up a large portion, but not all, of planning (drafting, wireframing, spec'ing, etc.)
+and engineering capacity. 
+
+This means there is always some capacity to prioritize requests advocated for by customers, Fleet team members, and members of the
+greater Fleet community.
+
+> Note Fleet always prioritizes bugs.
+
+At Fleet, we tell the requestor whether their
+request is prioritized or put to the side within one business day from when the team weighs the request.
+
+The 🗣 Product office hours meeting is a recurring ritual to make sure that the team weighs all requests.
+
+#### Making a request
+
+To make a request or advocate for a request from a customer or community member,  Fleet asks all members of the organization to add their name and a description of the request to the list in the [🗣 Product office hours Google
+doc](https://docs.google.com/document/d/1mwu5WfdWBWwJ2C3zFDOMSUC9QCyYuKP4LssO_sIHDd0/edit#heading=h.zahrflvvks7q).
+Then attend the next scheduled 🗣 Product office hours meeting.
+
+All members of the Fleet organization are welcome to attend the 🗣 Product office hours meeting. Requests will be
+weighed from top to bottom while prioritizing attendee requests. 
+
+This means that if the individual that added a feature request is not in attendance, the feature request will be discussed towards the end of the call if there's time.
+
+All 🗣 Product office hours meetings are recorded and uploaded to the [🗣 Product office hours
+folder](https://drive.google.com/drive/folders/1nsjqDyX5WDQ0HJhg_2yOaqBu4J-hqRIW) in the shared
+Google drive.
+
 ## Rituals
 
 Directly Responsible Individuals (DRI) engage in the ritual(s) below at the frequency specified.
@@ -416,46 +457,6 @@ Directly Responsible Individuals (DRI) engage in the ritual(s) below at the freq
 | ✨ Product design review  | Weekly (Thursdays) | The Product team discusses "ready for review" items and makes the decision on whether the UI changes are ready for engineering specification and later implementation. | Noah Talerman |
 | 👀 Product review      | Every three weeks | Fleeties present features and improvements in the upcoming release. A discussion is held about bugs, fixes and changes to be made prior to release.  | Noah Talerman |
 
-### Intake process
-
-Intake for new product ideas (requests) happens at the 🗣 Product office hours meeting.
-
-At the 🗣 Product office hours meeting, all requests are weighed. When a request is weighed, it is prioritized or ejected.
-
-A request is prioritized when perceived as an important near-term priority by the business. When this happens, the request is set to be estimated or deferred within the next 5 business days.
-
-A request is ejected when competing priorities are perceived as a more important near-term priority by the business.
-
-#### Why this way?
-
-At Fleet, we use objectives and key results (OKRs) to align the organization with measurable goals.
-These OKRs fill up a large portion, but not all, of planning (drafting, wireframing, spec'ing, etc.)
-and engineering capacity. 
-
-This means that there is always some capacity to prioritize requests advocated for by customers, Fleet team members, and members of the
-greater Fleet community.
-
-> Note that bugs are always prioritized.
-
-At Fleet, the requestor is told whether their
-request is prioritized or ejected within 1 business day from when the request is weighed.
-
-The 🗣 Product office hours meeting is a recurring ritual to make sure that all requests are weighed.
-
-#### Making a request
-
-To make a request, or advocate for a request from a customer or community member, all members of the Fleet organization are asked to add their name and a description of the request to the list in the [🗣 Product office hours Google
-doc](https://docs.google.com/document/d/1mwu5WfdWBWwJ2C3zFDOMSUC9QCyYuKP4LssO_sIHDd0/edit#heading=h.zahrflvvks7q),
-then attend the next scheduled 🗣 Product office hours meeting.
-
-All members of the Fleet organization are welcome to attend the 🗣 Product office hours meeting. Requests will be
-weighed from top to bottom while prioritizing attendee requests. 
-
-This means that, if the individual that added a feature request is not in attendance, the feature request will discussed towards the end of the call if there's time.
-
-All 🗣 Product office hours meetings are recorded and uploaded to the [🗣 Product office hours
-folder](https://drive.google.com/drive/folders/1nsjqDyX5WDQ0HJhg_2yOaqBu4J-hqRIW) in the shared
-Google drive.
 
 ## Slack channels
 
