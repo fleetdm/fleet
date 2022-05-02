@@ -1,7 +1,6 @@
 import React from "react";
 
 import ExternalLinkIcon from "../../../../../../assets/images/open-new-tab-12x12@2x.png";
-import DisableIcon from "../../../../../../assets/images/icon-action-disable-red-16x16@2x.png";
 
 const baseClass = "empty-state";
 
