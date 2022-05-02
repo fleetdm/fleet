@@ -50,7 +50,7 @@ Fleet requires all workforce members to comply with the following acceptable use
 | -------------- | -------------- |
 | @GuillaumeRoss | 2022-06-01     |
 
-Fleet is committed to ensuring all workforce members actively address security and compliance in their roles at Fleet. We encourage self management and reward the right behaviors. This policy specifies acceptable use of end-user computing devices and technology. Additionally, training is imperative to assuring an understanding of current best practices, the different types and sensitivities of data, and the sanctions associated with non-compliance.
+Fleet is committed to ensuring all workforce members participate in security and compliance in their roles at Fleet. We encourage self-management and reward the right behaviors. 
 
 Fleet policy requires all workforce members to comply with the HR Security Policy.
 
@@ -62,26 +62,20 @@ Fleet policy requires that:
 
 3. Employees will perform an onboarding process that familiarizes them with the environments, systems, security requirements, and procedures Fleet has in place. Employees will also have ongoing security awareness training that is audited.
 
-4. Employee offboarding will include reiterating any duties and responsibilities still valid after terminations, verifying that access to any Fleet systems has been removed, as well as ensuring that all company-owned assets are returned.
+4. Employee offboarding will include reiterating any duties and responsibilities still valid after terminations, verifying that access to any Fleet systems has been removed, and ensuring that all company-owned assets are returned.
 
 5. Fleet and its employees will take reasonable measures to ensure no sensitive data is transmitted via digital communications such as email or posted on social media outlets.
 
 6. Fleet will maintain a list of prohibited activities that will be part of onboarding procedures and have training available if/when the list of those activities changes.
 
-7. A fair disciplinary process will be utilized for employees that are suspected of committing breaches of security. Multiple factors will be considered when deciding the response, such as whether or not this was a first offense, training, business contracts, etc. Fleet reserves the right to terminate employees in the case of serious cases of misconduct.
+7. A fair disciplinary process will be used for employees that are suspected of committing breaches of security. Multiple factors will be considered when deciding the response, such as whether or not this was a first offense, training, business contracts, etc. Fleet reserves the right to terminate employees in the case of serious cases of misconduct.
 
-#### Organization structure
+8. Fleet will maintain a reporting structure that aligns with the organization's business lines and/or individual's functional roles. The list of employees and reporting structure must be available to [all employees](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0).
 
-A reporting structure has been established that aligns with the organization's business lines and/or individual's functional roles. The list of employees and reporting structure is available to [all employees](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0).
+9. Employees will receive regular feedback and acknowledgment from their managers and peers. Managers will give constant feedback on performance, including but not limited to during regular one-on-one meetings.
 
-#### Performance reviews and feedback
+10. Fleet will publish job descriptions for available positions and conducts interviews to assess a candidate's technical skills as well as soft skills prior to hiring.
 
-Employees receive regular feedback and acknowledgment from their managers and peers. Managers give constant feedback on performance, including but not limited to during regular one-on-one meetings. 
-
-### Employee Screening Procedures
-
-Fleet publishes job descriptions for available positions and conducts interviews to assess a candidate's technical skills as well as soft skills prior to hiring.
-
-Background checks of an employee or contractor is performed by operations and/or the hiring team prior to the start date of employment.
-
+11. Background checks of an employee or contractor must be performed by operations and/or the hiring team prior to the start date of employment.
+ 
 <meta name="maintainedBy" value="guillaumeross">
