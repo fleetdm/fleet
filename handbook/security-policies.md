@@ -43,4 +43,57 @@ Fleet requires all workforce members to comply with the following acceptable use
 
 13. The use of Fleet company accounts on "shared" computers, such as hotel kiosk systems, is strictly prohibited.
 
+### Access control policy
+
+Fleet requires all workforce members to comply with the following acceptable use requirements and procedures, such that:
+
+1. Access to all computing resources, including servers, end-user computing devices, network equipment, services and applications, must be protected by strong authentication, authorization, and auditing.
+
+2. Interactive user access to production systems must be associated to an account or login unique to each user.
+
+3. All credentials, including user passwords, service accounts, and access keys, must meet the length, complexity, age, and rotation requirements defined in Fleet security standards.
+
+4. Use strong password and two-factor authentication (2FA) whenever possible to authenticate to all computing resources (including both devices and applications).
+
+5. 2FA is required to access any critical system or resource, including but not limited to resources in Fleet production environments.
+
+6. Unused accounts, passwords, access keys must be removed within 30 days.
+
+7. A unique access key or service account must be used for different application or user access.
+
+8. Authenticated sessions must time out after a defined period of inactivity.
+
+#### Access authorization and termination
+
+Fleet policy requires that
+
+1. Access authorization shall be implemented using role-based access control (RBAC) or similar mechanism.
+
+2. Standard access based on a user's job role may be pre-provisioned during employee onboarding. All subsequent access requests to computing resources must be approved by the requestor’s manager, prior to granting and provisioning of access.
+
+3. Access to critical resources, such as production environments, must be approved by the security team in addition to the requestor’s manager.
+
+4. Access must be reviewed on a regular basis and revoked if no longer needed.
+
+5. Upon termination of employment, all system access must be revoked and user accounts terminated within 24 hours or one business day, whichever is shorter.
+
+6. All system access must be reviewed at least annually and whenever a user's job role changes.
+
+#### Shared secrets management
+
+Fleet policy requires that
+
+1. Use of shared credentials/secrets must be minimized.
+
+2. If required by business operations, secrets/credentials must be shared securely and stored in encrypted vaults that meet the Fleet data encryption standards.
+
+#### Privileged access management
+
+Fleet policy requires that
+
+1. Automation with service accounts must be used to configure production systems when technically feasible.
+
+2. Use of high privilege accounts must only be performed when absolutely necessary.
+
+
 <meta name="maintainedBy" value="guillaumeross">
