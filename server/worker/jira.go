@@ -112,7 +112,7 @@ func (j *Jira) Run(ctx context.Context, argsJSON json.RawMessage) error {
 	issue := &jira.Issue{
 		Fields: &jira.IssueFields{
 			Type: jira.IssueType{
-				Name: "Bug",
+				Name: "Task",
 			},
 			Summary:     summary,
 			Description: description,
