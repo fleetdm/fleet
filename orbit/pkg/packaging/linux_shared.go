@@ -24,11 +24,11 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	filesystemRoot := filepath.Join(tmpDir, "root")
-	if err := secure.MkdirAll(filesystemRoot, constant.DefaultDirMode); err != nil {
+	rootDir := filepath.Join(tmpDir, "root")
+	if err := secure.MkdirAll(rootDir, constant.DefaultDirMode); err != nil {
 		return "", fmt.Errorf("create root dir: %w", err)
 	}
-	orbitRoot := filepath.Join(filesystemRoot, "var", "lib", "orbit")
+	orbitRoot := filepath.Join(rootDir, "opt", "orbit")
 	if err := secure.MkdirAll(orbitRoot, constant.DefaultDirMode); err != nil {
 		return "", fmt.Errorf("create orbit dir: %w", err)
 	}
@@ -60,11 +60,11 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 
 	// Write files
 
-	if err := writeSystemdUnit(opt, filesystemRoot); err != nil {
+	if err := writeSystemdUnit(opt, rootDir); err != nil {
 		return "", fmt.Errorf("write systemd unit: %w", err)
 	}
 
-	if err := writeEnvFile(opt, filesystemRoot); err != nil {
+	if err := writeEnvFile(opt, rootDir); err != nil {
 		return "", fmt.Errorf("write env file: %w", err)
 	}
 
@@ -99,13 +99,13 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 
 	contents := files.Contents{
 		&files.Content{
-			Source:      filepath.Join(filesystemRoot, "**"),
+			Source:      filepath.Join(rootDir, "**"),
 			Destination: "/",
 		},
-		// Symlink current into /var/lib/orbit/bin/orbit/orbit
+		// Symlink current into /opt/orbit/bin/orbit/orbit
 		&files.Content{
-			Source:      "/var/lib/orbit/bin/orbit/linux/" + opt.OrbitChannel + "/orbit",
-			Destination: "/var/lib/orbit/bin/orbit/orbit",
+			Source:      "/opt/orbit/bin/orbit/linux/" + opt.OrbitChannel + "/orbit",
+			Destination: "/opt/orbit/bin/orbit/orbit",
 			Type:        "symlink",
 			FileInfo: &files.ContentFileInfo{
 				Mode: constant.DefaultExecutableMode | os.ModeSymlink,
@@ -113,20 +113,13 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 		},
 		// Symlink current into /usr/local/bin
 		&files.Content{
-			Source:      "/var/lib/orbit/bin/orbit/orbit",
+			Source:      "/opt/orbit/bin/orbit/orbit",
 			Destination: "/usr/local/bin/orbit",
 			Type:        "symlink",
 			FileInfo: &files.ContentFileInfo{
 				Mode: constant.DefaultExecutableMode | os.ModeSymlink,
 			},
 		},
-	}
-	contents, err = files.ExpandContentGlobs(contents, false)
-	if err != nil {
-		return "", fmt.Errorf("glob contents: %w", err)
-	}
-	for _, c := range contents {
-		log.Debug().Interface("file", c).Msg("added file")
 	}
 
 	// Add empty folders to be created.
@@ -135,6 +128,14 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 			Destination: emptyFolder,
 			Type:        "dir",
 		}).WithFileInfoDefaults())
+	}
+
+	contents, err = files.ExpandContentGlobs(contents, false)
+	if err != nil {
+		return "", fmt.Errorf("glob contents: %w", err)
+	}
+	for _, c := range contents {
+		log.Debug().Interface("file", c).Msg("added file")
 	}
 
 	// Build package
@@ -189,7 +190,7 @@ StartLimitIntervalSec=0
 [Service]
 TimeoutStartSec=0
 EnvironmentFile=/etc/default/orbit
-ExecStart=/var/lib/orbit/bin/orbit/orbit
+ExecStart=/opt/orbit/bin/orbit/orbit
 Restart=always
 RestartSec=1
 KillMode=control-group
@@ -215,7 +216,7 @@ ORBIT_UPDATE_INTERVAL={{ .OrbitUpdateInterval }}
 {{ if .Insecure }}ORBIT_INSECURE=true{{ end }}
 {{ if .DisableUpdates }}ORBIT_DISABLE_UPDATES=true{{ end }}
 {{ if .FleetURL }}ORBIT_FLEET_URL={{.FleetURL}}{{ end }}
-{{ if .FleetCertificate }}ORBIT_FLEET_CERTIFICATE=/var/lib/orbit/fleet.pem{{ end }}
+{{ if .FleetCertificate }}ORBIT_FLEET_CERTIFICATE=/opt/orbit/fleet.pem{{ end }}
 {{ if .EnrollSecret }}ORBIT_ENROLL_SECRET={{.EnrollSecret}}{{ end }}
 {{ if .Debug }}ORBIT_DEBUG=true{{ end }}
 `))
@@ -288,7 +289,7 @@ systemctl disable orbit.service
 func writePostRemove(opt Options, path string) error {
 	if err := ioutil.WriteFile(path, []byte(`#!/bin/sh
 
-rm -rf /var/lib/orbit /var/log/orbit /usr/local/bin/orbit /etc/default/orbit /usr/lib/systemd/system/orbit.service
+rm -rf /var/lib/orbit /var/log/orbit /usr/local/bin/orbit /etc/default/orbit /usr/lib/systemd/system/orbit.service /opt/orbit
 `), constant.DefaultFileMode); err != nil {
 		return fmt.Errorf("write file: %w", err)
 	}

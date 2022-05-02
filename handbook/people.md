@@ -189,17 +189,17 @@ We evaluate and update compensation decisions yearly, shortly after the annivers
 Every new position being created goes through this process before interviewing, accepting applicants, or extending offers.
 
 1. Add the proposed position to ["Fleeties"](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) as a new row, with a blank start date.  Be sure to include job title, manager, and department.
-2. Add a job description to the ["Roles"](https://docs.google.com/document/d/1wS5jFfrZtO4xMH-3U_S8pE59gNXOTR3rS1WWD8pkq9E/edit#heading=h.5z24knw25190).  Include only "Responsibilities" and "Experience". (These will be inserted into the existing job description template.)
-3. Create a private "#hiring-xxxxxx-2022" Slack channel (where "xxxxxx" is job title) and invite the CEO (Mike McNeil) and People Operations (Charlie Chance).
+2. Add a job description to the ["Roles."](https://docs.google.com/document/d/1wS5jFfrZtO4xMH-3U_S8pE59gNXOTR3rS1WWD8pkq9E/edit#heading=h.5z24knw25190)  Include only "Responsibilities" and "Experience." (These will be inserted into the existing job description template.)
+3. Create a private "#hiring-xxxxxx-2022" Slack channel (where "xxxxxx" is the job title) and invite the CEO (Mike McNeil) and People Operations (Charlie Chance).
   - People Ops is the DRI for all `#hiring-xxxxx-2022` Slack channels.
 4. In that channel, post a message proposing the position:
   - At-mention CEO (@mikermcneil) and Charlie (@charlie).
-  - Include link to the job description in "Roles".
-  - Include link to Fleeties document.
+  - Include a link to the job description in "Roles."
+  - Include a link to the Fleeties document.
 5. People Ops will:
-  - Confirm the "Roles" document has the job description, consisting only of "Responsibilities" and "Experience", and that both look accurate, grammatically correct, and otherwise ready to post in a public job description.
-  - Confirm the "Fleeties" document has a manager, job title, and department, and that the start date is not entered yet (so we can tell the position is proposed, but not planned, yet).
-  - Determine an anticipated salary and equity range using Pave, then add that research to "Compensation decisions" as a new heading.
+  - Confirm the "Roles" document has the job description, consisting only of "Responsibilities" and "Experience," and that both look accurate, grammatically correct, and otherwise ready to post in a public job description.
+  - Confirm the "Fleeties" document has a manager, job title, and department, and that the start date is not entered yet (so we can tell the position is proposed but not planned, yet).
+  - Using Pave, determine an anticipated salary and equity range, then add that research to "Compensation decisions" as a new heading.
   - Share a direct link to the new heading in "Compensation decisions" with the CEO.
 6. The CEO will then:
   - Determine whether this fits into the budget and equity plan.
@@ -232,14 +232,14 @@ If you've been invited to "book with us" you'll have a Zoom meeting with the hir
 
 2. People Operations will check compensation using [Pave](https://www.pave.com), making sure to adjust for the cost of living where the candidate will do the work.  *If unsure of your findings, ask for help from the CEO.*  People Ops will then document this decision in the [compensation decisions document](https://docs.google.com/document/d/1NQ-IjcOTbyFluCWqsFLMfP4SvnopoXDcX0civ-STS5c/edit) for future reference.
 
-3. After compensation has been determined, People Ops will make copies of two different documents and customize them for this candidate, based on these templates:
+3. After you have determined compensation, People Ops will make copies of two different documents and customize them for this candidate based on these templates:
 
    - [Exit scenarios (template)](https://docs.google.com/spreadsheets/d/1k2TzsFYR0QxlD-KGPxuhuvvlJMrCvLPo2z8s8oGChT0/copy)
    - [Informal offer email (template)](https://docs.google.com/document/d/1zpNN2LWzAj-dVBC8iOg9jLurNlSe7XWKU69j7ntWtbY/copy)
 
 People Ops will change the name of the documents accordingly (e.g., "[candidate's name]'s a copy of exit scenarios") and link to the exit scenarios spreadsheet from the offer email.
 
-4. People Ops will prepare the informal offer email, with help from the CEO.  Post in the `#g-people` Slack channel and at-mention the CEO for assistance with determining number of shares.  You'll need to add the following information to the template: 
+4. People Ops will prepare the informal offer email with help from the CEO.  Post in the `#g-people` Slack channel and at-mention the CEO for assistance with determining the number of shares.  You'll need to add the following information to the template: 
    - Candidate's name and email address
    - Candidate's start date
    - Candidate's compensation
@@ -254,18 +254,18 @@ People Ops will change the name of the documents accordingly (e.g., "[candidate'
 6. Once both documents are complete, People Ops will share the offer email draft, exit scenarios copy, and a link to the compensation decision with the CEO for approval before sending the offer email out.
 
 The CEO will confirm:
-  - The compensation decision has been documented sufficiently, and adjusted for cost of living.
+  - The compensation decision has been documented sufficiently and adjusted for the cost of living.
   - The equity plan and budget are up to date with the actual offer that is about to be sent.
   - The Fleeties doc now reflects the actual start date from the offer email, as well as the candidate's name, LinkedIn URL, and preferred pronoun.
-  - It still makes business sense to make this offer, by reviewing the budget and equity plan.
+  - It still makes business sense to make this offer by reviewing the budget and equity plan.
 
 The CEO will then post a message in the `#hiring-xxxxx-2022` Slack channel to indicate that the offer is approved.
 
    >**_Note:_** *When hiring an international employee, Pilot.co recommends starting the hiring process a month before the new employee's start date.*
 
-7. After obtaining CEO approval, People Ops will confirm that everything is correct, and loop in either the CEO or CTO, who will send the offer email.
+7. After obtaining CEO approval, People Ops will confirm everything is correct and loop in either the CEO or CTO, who will send the offer email.
   - The offer email is copied directly from Google Drive into Gmail before being sent to the candidate.
-  - When sending the offer, the CEO or CTO will edit the permissions of the exit scenarios sheet so it is accessible for the candidate.
+  - When sending the offer, the CEO or CTO will edit the permissions of the exit scenarios sheet, so it is accessible to the candidate.
   - People Ops is cc'd on the offer email, but will not participate in the email thread until after the offer is accepted.
 
 
