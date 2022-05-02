@@ -255,7 +255,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 		if old, ok := storedJiraByProjectKey[new.ProjectKey]; ok {
 			if old == *new {
 				newJiraConfig = append(newJiraConfig, &old)
-				// no further validtion for unchanged integration
+				// no further validation for unchanged integration
 				continue
 			}
 			// use stored API token if request does not contain new token
@@ -286,10 +286,12 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 		if old, ok := storedZendeskByGroupID[new.GroupID]; ok {
 			if old == *new {
 				newZendeskConfig = append(newZendeskConfig, &old)
-				// no further validtion for unchanged integration
+				// no further validation for unchanged integration
 				continue
 			}
 			// use stored API token if request does not contain new token
+			// intended only as a short-term accommodation for the frontend
+			// will be redesigned in dedicated endpoint for integration config
 			if new.APIToken == "" || new.APIToken == "********" {
 				new.APIToken = old.APIToken
 			}

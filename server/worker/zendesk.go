@@ -106,7 +106,6 @@ func (z *Zendesk) Run(ctx context.Context, argsJSON json.RawMessage) error {
 	}
 	description := buf.String()
 
-	// TODO: what else do we want to include in the new ticket?
 	ticket := &zendesk.Ticket{
 		Subject: summary,
 		Comment: &zendesk.TicketComment{Body: description},

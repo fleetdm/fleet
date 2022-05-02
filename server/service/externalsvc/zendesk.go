@@ -94,6 +94,7 @@ func (z *Zendesk) CreateTicket(ctx context.Context, ticket *zendesk.Ticket) (*ze
 	return createdTicket, nil
 }
 
+// TODO: find approach to consolidate overlapping logic for jira and zendesk retries
 func doZendeskWithRetry(fn func() (interface{}, error)) error {
 	op := func() error {
 		_, err := fn()

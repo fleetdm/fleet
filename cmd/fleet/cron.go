@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"os"
 	"strconv"
 	"strings"
@@ -201,7 +202,9 @@ func cronVulnerabilities(
 			for _, j := range appConfig.Integrations.Jira {
 				if j.EnableSoftwareVulnerabilities {
 					if vulnAutomationEnabled != "" {
-						level.Error(logger).Log("err", "more than one automation enabled")
+						err := errors.New("more than one automation enabled: jira check")
+						level.Error(logger).Log("err", err)
+						sentry.CaptureException(err)
 					}
 					vulnAutomationEnabled = "jira"
 					break
@@ -211,7 +214,9 @@ func cronVulnerabilities(
 			for _, z := range appConfig.Integrations.Zendesk {
 				if z.EnableSoftwareVulnerabilities {
 					if vulnAutomationEnabled != "" {
-						level.Error(logger).Log("err", "more than one automation enabled")
+						err := errors.New("more than one automation enabled: zendesk check")
+						level.Error(logger).Log("err", err)
+						sentry.CaptureException(err)
 					}
 					vulnAutomationEnabled = "zendesk"
 					break
@@ -251,11 +256,13 @@ func cronVulnerabilities(
 						kitlog.With(logger, "zendesk", "vulnerabilities"),
 						recentVulns,
 					); err != nil {
-						level.Error(logger).Log("err", "queueing vulnerabilities to jira", "details", err)
+						level.Error(logger).Log("err", "queueing vulnerabilities to zendesk", "details", err)
 						sentry.CaptureException(err)
 					}
 
 				default:
+					level.Error(logger).Log("err", "attempting to process vuln automations", "details", "no automation enabled")
+					sentry.CaptureException(err)
 				}
 			}
 		}
@@ -489,8 +496,11 @@ func cronWorker(
 				break
 			}
 		}
+
 		if jiraSettings != nil && zendeskSettings != nil {
+			// skip processing jobs if more than one integration is enabled.
 			level.Error(logger).Log("err", "more than one automation enabled")
+			continue
 		}
 
 		if jiraSettings == nil && zendeskSettings == nil {

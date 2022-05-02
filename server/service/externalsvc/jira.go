@@ -94,6 +94,7 @@ func (j *Jira) CreateIssue(ctx context.Context, issue *jira.Issue) (*jira.Issue,
 	return createdIssue, nil
 }
 
+// TODO: find approach to consolidate overlapping logic for jira and zendesk retries
 func doWithRetry(fn func() (*jira.Response, error)) error {
 	op := func() error {
 		resp, err := fn()
