@@ -5,6 +5,8 @@ import paths from "router/paths";
 
 import { IPolicyStats } from "interfaces/policy";
 import { ITeamSummary } from "interfaces/team";
+
+import Button from "components/buttons/Button";
 import Spinner from "components/Spinner";
 import TableContainer from "components/TableContainer";
 import { generateTableHeaders, generateDataSet } from "./PoliciesTableConfig";
@@ -22,6 +24,7 @@ const TAGGED_TEMPLATES = {
 interface IPoliciesListWrapperProps {
   policiesList: IPolicyStats[];
   isLoading: boolean;
+  onAddPolicyClick?: () => void;
   onRemovePoliciesClick: (selectedTableIds: number[]) => void;
   resultsTitle?: string;
   canAddOrRemovePolicy?: boolean;
@@ -33,6 +36,7 @@ interface IPoliciesListWrapperProps {
 const PoliciesListWrapper = ({
   policiesList,
   isLoading,
+  onAddPolicyClick,
   onRemovePoliciesClick,
   resultsTitle,
   canAddOrRemovePolicy,
@@ -85,6 +89,17 @@ const PoliciesListWrapper = ({
                 changes.
               </p>
             </div>
+            {canAddOrRemovePolicy && (
+              <div className={`${baseClass}__action-button-container`}>
+                <Button
+                  variant="brand"
+                  className={`${baseClass}__select-policy-button`}
+                  onClick={onAddPolicyClick}
+                >
+                  Add a policy
+                </Button>
+              </div>
+            )}
           </div>
         </div>
       </div>
