@@ -18,6 +18,7 @@ import (
 	"strings"
 
 	"github.com/fatih/color"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/build"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
@@ -97,7 +98,10 @@ func New(opt Options) (*Updater, error) {
 		InsecureSkipVerify: opt.InsecureTransport,
 	}))
 
-	remoteStore, err := client.HTTPRemoteStore(opt.ServerURL, nil, httpClient)
+	remoteOpt := &client.HTTPRemoteOptions{
+		UserAgent: fmt.Sprintf("orbit/%s (%s %s)", build.Version, runtime.GOOS, runtime.GOARCH),
+	}
+	remoteStore, err := client.HTTPRemoteStore(opt.ServerURL, remoteOpt, httpClient)
 	if err != nil {
 		return nil, fmt.Errorf("init remote store: %w", err)
 	}
