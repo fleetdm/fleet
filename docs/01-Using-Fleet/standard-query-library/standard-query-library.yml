@@ -618,7 +618,7 @@ spec:
   description: "Checks if the application (Docker Desktop example) is installed and up to date, or not installed. Fails if the application is installed and on a lower version. You can copy this query and replace the bundle_identifier and bundle_version values to apply the same type of policy to other applications."
   resolution: "Update Docker or remove it if not used."
   platforms: macOS
-  platform: darwin
+  platform: Darwin
   contributors: GuillaumeRoss
 ---
 apiVersion: v1
