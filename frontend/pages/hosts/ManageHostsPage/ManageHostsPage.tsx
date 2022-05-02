@@ -1586,7 +1586,7 @@ const ManageHostsPage = ({
           <div className="header-wrap">
             {renderHeader()}
             <div className={`${baseClass} button-wrap`}>
-              {canEnrollHosts && (
+              {canEnrollHosts && !hasHostErrors && !hasHostCountErrors && (
                 <Button
                   onClick={() => setShowEnrollSecretModal(true)}
                   className={`${baseClass}__enroll-hosts button`}
@@ -1596,6 +1596,8 @@ const ManageHostsPage = ({
                 </Button>
               )}
               {canEnrollHosts &&
+                !hasHostErrors &&
+                !hasHostCountErrors &&
                 !(
                   getStatusSelected() === ALL_HOSTS_LABEL &&
                   selectedLabel?.count === 0

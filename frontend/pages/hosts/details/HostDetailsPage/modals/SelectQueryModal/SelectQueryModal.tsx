@@ -82,12 +82,7 @@ const SelectQueryModal = ({
 
   const results = (): JSX.Element => {
     if (queryErrors) {
-      return (
-        <div className={`${baseClass}__no-queries`}>
-          <DataError />
-          {!isOnlyObserver && customQueryButton()}
-        </div>
-      );
+      return <DataError />;
     }
 
     if (!queriesFilter && queriesCount === 0) {

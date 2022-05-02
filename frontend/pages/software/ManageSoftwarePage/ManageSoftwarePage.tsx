@@ -280,6 +280,7 @@ const ManageSoftwarePage = ({
     state: IHeaderButtonsState
   ): JSX.Element | null => {
     if (
+      !softwareError &&
       state.isGlobalAdmin &&
       (!state.isPremiumTier || state.teamId === 0) &&
       !state.isLoading
