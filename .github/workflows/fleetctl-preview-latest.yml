@@ -60,6 +60,6 @@ jobs:
       run: |
         ./build/fleetctl preview --std-query-lib-file-path $(pwd)/docs/01-Using-Fleet/standard-query-library/standard-query-library.yml
         sleep 10
-        fleetctl get hosts | tee hosts.txt
+        ./build/fleetctl get hosts | tee hosts.txt
         [ $( cat hosts.txt | grep online | wc -l) -eq 8 ]
       shell: bash
