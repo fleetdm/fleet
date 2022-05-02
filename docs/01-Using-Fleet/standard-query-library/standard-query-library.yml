@@ -19,7 +19,7 @@ spec:
   query: SELECT username, authorized_keys. * FROM users CROSS JOIN authorized_keys USING (uid);
   purpose: Informational
   remediation: Check out the linked table (https://github.com/fleetdm/fleet/blob/32b4d53e7f1428ce43b0f9fa52838cbe7b413eed/handbook/queries/detect-hosts-with-high-severity-vulnerable-versions-of-openssl.md#table-of-vulnerable-openssl-versions) to determine if the installed version is a high severity vulnerability and view the corresponding CVE(s)
-  tags: built-in, SSH
+  tags: built-in, ssh
   contributors: mike-j-thomas
 ---
 apiVersion: v1
@@ -30,7 +30,7 @@ spec:
   description: List authorized_keys for each user on the system.
   query: SELECT *  FROM users CROSS JOIN  authorized_keys USING(uid) WHERE  username IN (SELECT distinct(username) FROM last);
   purpose: Informational
-  tags: Active Directory, SSH
+  tags: active directory, ssh
   contributors: anelshaer
 ---
 apiVersion: v1
@@ -41,7 +41,7 @@ spec:
   description: Retrieve application, system, and mobile app crash logs.
   query: SELECT uid, datetime, responsible, exception_type, identifier, version, crash_path FROM users CROSS JOIN crashes USING (uid);
   purpose: Informational
-  tags: Troubleshooting
+  tags: troubleshooting
   contributors: zwass
 ---
 apiVersion: v1
@@ -140,7 +140,7 @@ spec:
   description: Identify SSH keys created without a passphrase which can be used in Lateral Movement (MITRE. TA0008)
   query: SELECT uid, username, description, path, encrypted FROM users CROSS JOIN user_ssh_keys using (uid) WHERE encrypted=0;
   purpose: Informational
-  tags: inventory, compliance, SSH, built-in
+  tags: inventory, compliance, ssh, built-in
   remediation: First, make the user aware about the impact of SSH keys.  Then rotate the unencrypted keys detected.
   contributors: anelshaer
 ---
@@ -152,7 +152,7 @@ spec:
   description: Identify SSH keys created without a passphrase which can be used in Lateral Movement (MITRE. TA0008)
   query: SELECT uid, username, description, path, encrypted FROM users CROSS JOIN user_ssh_keys using (uid) WHERE encrypted=0 and username in (SELECT distinct(username) FROM last);
   purpose: Informational
-  tags: inventory, compliance, SSH, Active Directory
+  tags: inventory, compliance, ssh, active directory
   remediation: First, make the user aware about the impact of SSH keys.  Then rotate the unencrypted keys detected.
   contributors: anelshaer
 ---
@@ -164,7 +164,7 @@ spec:
   description: Detect any processes that run with LD_PRELOAD environment variable
   query: SELECT env.pid, env.key, env.value, p.name,p.path, p.cmdline, p.cwd FROM process_envs env join processes p USING (pid) WHERE key='LD_PRELOAD';
   purpose: Informational
-  tags: hunting, ATTACK, T1574
+  tags: hunting, ATTACK, t1574
   remediation: Identify the process/binary detected and confirm with the system's owner.
   contributors: anelshaer
 ---
@@ -176,7 +176,7 @@ spec:
   description: Detect any processes that run with DYLD_INSERT_LIBRARIES environment variable
   query: SELECT env.pid, env.key, env.value, p.name,p.path, p.cmdline, p.cwd FROM process_envs env join processes p USING (pid) WHERE key='DYLD_INSERT_LIBRARIES';
   purpose: Informational
-  tags: hunting, ATTACK, T1574
+  tags: hunting, ATTACK, t1574
   remediation: Identify the process/binary detected and confirm with the system's owner.
   contributors: anelshaer
 ---
@@ -187,7 +187,7 @@ spec:
   platforms: macOS, Linux
   description: Line-parsed /etc/hosts
   query: SELECT * FROM etc_hosts WHERE address not in ('127.0.0.1', '::1');
-  purpose: Informational
+  purpose: informational
   tags: hunting, inventory
   contributors: anelshaer
 ---
@@ -198,7 +198,7 @@ spec:
   platforms: macOS, Linux, Windows, FreeBSD
   description: Network interfaces MAC address
   query: SELECT a.interface, a.address, d.mac FROM interface_addresses a JOIN interface_details d USING (interface) WHERE address not in ('127.0.0.1', '::1');
-  purpose: Informational
+  purpose: informational
   tags: hunting, inventory
   contributors: anelshaer
 ---
@@ -209,7 +209,7 @@ spec:
   platforms: macOS, Linux, Windows, FreeBSD
   description: Local user accounts (including domain accounts that have logged on locally (Windows)).
   query: SELECT uid, gid, username, description, directory, shell FROM users;
-  purpose: Informational
+  purpose: informational
   tags: hunting, inventory
   contributors: anelshaer
 ---
@@ -220,7 +220,7 @@ spec:
   platforms: Linux
   description: Domain Joined environments normally have root or other service only account and users are SSH-ing using their Domain Accounts.
   query: SELECT * FROM shadow WHERE password_status='active' and username!='root';
-  purpose: Informational
+  purpose: informational
   tags: hunting, inventory, Active Directory
   contributors: anelshaer
 ---
@@ -235,7 +235,7 @@ spec:
     (SELECT username FROM users WHERE uid=p.uid) AS username
     FROM processes as p WHERE cmdline like 'nmap%';
   purpose: Informational
-  tags: hunting, ATTACK, T1046
+  tags: hunting, ATTACK, t1046
   contributors: anelshaer
 ---
 apiVersion: v1
@@ -267,7 +267,7 @@ spec:
   platforms: macOS, Linux, Windows
   description: Collects the local user accounts and their respective user group.
   query: SELECT uid, username, type, groupname FROM users u JOIN groups g ON g.gid = u.gid;
-  purpose: Informational
+  purpose: informational
   tags: inventory
   contributors: noahtalerman
 ---
@@ -279,7 +279,7 @@ spec:
   description: Lists all processes of which the binary which launched them no longer exists on disk. Attackers often delete files from disk after launching process to mask presence.
   query: SELECT name, path, pid FROM processes WHERE on_disk = 0;
   purpose: Incident response
-  tags: huting, built-in
+  tags: hunting, built-in
   contributors: alphabrevity
 ---
 apiVersion: v1
@@ -675,5 +675,5 @@ spec:
   resolution: "Use this command to encrypt existing SSH keys by providing the path to the file: ssh-keygen -o -p -f /path/to/file"
   platforms: macOS, Linux, Windows
   platform: Darwin, Linux, Windows
-  tags: compliance, SSH, built-in
+  tags: compliance, ssh, built-in
   contributors: GuillaumeRoss
