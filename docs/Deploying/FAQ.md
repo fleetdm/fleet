@@ -19,6 +19,7 @@
 - [Should I use multiple enroll secrets?](#should-i-use-multiple-enroll-secrets)
 - [How can enroll secrets be rotated?](#how-can-enroll-secrets-be-rotated)
 - [What API endpoints should I expose to the public internet?](#what-api-endpoints-should-i-expose-to-the-public-internet)
+- [Will my older version of Fleet work with Redis 6?](#will-my-older-version-of-fleet-work-with-redis-6)
 
 ## How do I get support for working with Fleet?
 
@@ -246,3 +247,7 @@ Fleet requires at least MySQL version 5.7.
 ## How do I migrate from Fleet Free to Fleet Premium?
 
 To migrate from Fleet Free to Fleet Premium, once you get a Fleet license, set it as a parameter to `fleet serve` either as an environment variable using `FLEET_LICENSE_KEY` or in the Fleet's config file. See [here](https://fleetdm.com/docs/deploying/configuration#license) for more details. Note: You don't need to redeploy Fleet after the migration.
+
+## Will my older version of Fleet work with Redis 6?
+
+Most likely, yes! While we'd definitely reccomend keeping Fleet up to date in order to take advantage of new features and bug patches, most legacy versions should work with Redis 6. Just keep in mind that we likely haven't tested your particular combination so you may run into some unforseen hiccups. 

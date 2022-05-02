@@ -308,15 +308,26 @@ We want to recognize and congratulate community members for their contributions 
 4. If available through the ordering process, add a thank you note for their contribution and "Feel free to tag us on Twitter."
 
 ## Rituals
-| How to perform ritual                                                                                                                                            | Frequency | DRI                      |
-|------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------|--------------------------|
-| StackOverflow party - Search StackOverflow for “osquery,” answer questions with Grammarly, and find a way to prominently feature Fleet in your StackOverflow profile | Weekly    | Rotation: community team |
+
+The following table lists the Community group's rituals, frequency, and Directly Responsible Individual (DRI).
+
+| Ritual                       | Frequency                | Description                                         | DRI               |
+|:-----------------------------|:-----------------------------|:----------------------------------------------------|-------------------|
+| Community Slack  | Daily   | Check Fleet and osquery Slack channels for community questions, ensure questions are responded to and logged. | Kathy Satterlee |
+| Social media check-in     |  Daily | Check social media for community questions and ensure they are responded to.  Generate dev advocacy-related content. | Kelvin Omereshone   |
+| Outside contributor follow up | Weekly | Bring pull requests from outside contributors to engineering and ensure they are merged promptly and promoted. | Kathy Satterlee |
+| Documentation update | Weekly | Turn questions answered from Fleet and osquery Slack into FAQs in Fleet’s docs. | Kathy Satterlee |
+| StackOverflow  | Weekly | Search StackOverflow for “osquery,” answer questions with Grammarly, and find a way to prominently feature Fleet in your StackOverflow profile. | Rotation: Community team |
 
 ## Slack channels
 
-Please see [Digital experience > Slack channels](https://fleetdm.com/handbook/brand#slack-channels).
+This group maintains the following [Slack channels](https://fleetdm.com/handbook/company#group-slack-channels):
+
+| Slack channel               | [DRI](https://fleetdm.com/handbook/company#group-slack-channels)    |
+|:----------------------------|:--------------------------------------------------------------------|
+| `#g-community`              | Kathy Satterlee
 
 
 
 
-<meta name="maintainedBy" value="zwass">
+<meta name="maintainedBy" value="ksatter">
