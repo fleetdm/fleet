@@ -3,13 +3,9 @@
 - [Signing installers](#signing-installers)
 - [Plain osquery](#plain-osquery)
 
-Fleet is powered by the open source osquery tool. To add a host to Fleet, you must install osquery on this host.
-
-The recommended way to install osquery and add your host to Fleet is with an osquery installer. Fleet provides the tools to generate an osquery installer with the `fleetctl package` command.
+The recommended way to add your host to Fleet is with an osquery installer. Fleet provides the tools to generate an osquery installer with the `fleetctl package` command.
 
 To use the `fleetctl package` command, you must first install the `fleetctl` command-line tool. Instructions for installing `fleetctl` can be found on [here](https://fleetdm.com/get-started)
-
-Fleet supports other methods for adding your hosts to Fleet such as the [plain osquery binaries](#plain-osquery) or [Kolide Osquery Launcher](https://github.com/kolide/launcher/blob/master/docs/launcher.md#connecting-to-fleet).
 
 ## Osquery installer
 
@@ -95,6 +91,8 @@ The following command-line flags allow you to further configure an osquery insta
 | --verbose   |             Log detailed information when building the package (default: false) |
 | --help, -h    |             show help (default: `false`) |
 
+
+Fleet supports other methods for adding your hosts to Fleet such as the [plain osquery binaries](#plain-osquery) or [Kolide Osquery Launcher](https://github.com/kolide/launcher/blob/master/docs/launcher.md#connecting-to-fleet)
 
 ## Plain osquery
 
@@ -225,7 +223,7 @@ On a system with osquery installed via the Fleet osquery installer (Orbit), obta
 codesign -dr - /private/var/lib/orbit/bin/orbit/macos/edge/orbit
 ```
 
-The output should be similar or identical to: 
+The output should be similar or identical to:
 
 ```
 Executable=/private/var/lib/orbit/bin/orbit/macos/edge/orbit
@@ -240,7 +238,7 @@ Osqueryd will inherit the privileges from Orbit and does not need explicit permi
 Depending on your MDM, this might be possible in the UI or require a custom profile. If your MDM has a feature to configure *Policy Preferences*, follow these steps:
 
 1. Configure the identifier type to “path”
-2. Paste the full path to Orbit as the identifier. 
+2. Paste the full path to Orbit as the identifier.
 3. Paste the full code signing identifier into the code requirement field.
 4. Allow “Access all files”. Access to Downloads, Documents etc is inherited from this.
 
