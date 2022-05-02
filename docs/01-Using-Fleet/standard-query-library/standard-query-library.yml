@@ -482,7 +482,7 @@ spec:
   resolution: "To enable Gatekeeper, on the failing device, run the following command in the Terminal app: /usr/sbin/spctl --master-enable."
   platforms: macOS
   tags: compliance, hardening, built-in
-  platform: Darwin
+  platform: darwin
   contributors: groob
 ---
 apiVersion: v1
@@ -509,7 +509,7 @@ spec:
   resolution: To enable full disk encryption, on the failing device, select System Preferences > Security & Privacy > FileVault > Turn On FileVault.
   platforms: macOS
   tags: compliance, hardening, built-in
-  platform: Darwin
+  platform: darwin
   contributors: groob
 ---
 apiVersion: v1
@@ -533,7 +533,7 @@ spec:
   resolution: "To enable System Integrity Protection, on the failing device, run the following command in the Terminal app: /usr/sbin/spctl --master-enable."
   platforms: macOS
   tags: compliance, malware, hardening, built-in
-  platform: Darwin
+  platform: darwin
   contributors: groob
 ---
 apiVersion: v1
@@ -545,7 +545,7 @@ spec:
   resolution: "The following example profile includes a setting to disable automatic login: https://github.com/gregneagle/profiles/blob/fecc73d66fa17b6fa78b782904cb47cdc1913aeb/loginwindow.mobileconfig#L64-L65."
   platforms: macOS
   tags: compliance, hardening, built-in
-  platform: Darwin
+  platform: darwin
   contributors: groob
 ---
 apiVersion: v1
@@ -557,7 +557,7 @@ spec:
   resolution: "The following example profile includes a setting to disable guest users: https://github.com/gregneagle/profiles/blob/fecc73d66fa17b6fa78b782904cb47cdc1913aeb/loginwindow.mobileconfig#L68-L71."
   platforms: macOS
   tags: compliance, hardening, built-in
-  platform: Darwin
+  platform: darwin
   contributors: groob
 ---
 apiVersion: v1
@@ -568,7 +568,7 @@ spec:
   description: "Required: You’re already enforcing a policy via Moble Device Management (MDM). Checks to make sure that the Secure Keyboard Entry setting is enabled."
   platforms: macOS
   tags: compliance, hardening, built-in
-  platform: Darwin
+  platform: darwin
   contributors: groob
 ---
 apiVersion: v1
@@ -614,8 +614,8 @@ spec:
     Preferences > Software Update > Advanced > Turn on Install system data files and security
     updates.
   platforms: macOS
-  platform: Darwin
   tags: compliance, malware, hardening, built-in
+  platform: darwin
   contributors: GuillaumeRoss
 ---
 apiVersion: v1
@@ -626,8 +626,8 @@ spec:
   description: Checks the status of antivirus and signature updates from the Windows Security Center. 
   resolution: "Ensure Windows Defender or your third-party antivirus is running, up to date, and visible in the Windows Security Center."
   platforms: Windows
-  platform: Windows
   tags: compliance, malware, hardening, built-in
+  platform: windows
   contributors: GuillaumeRoss
 ---
 apiVersion: v1
@@ -639,7 +639,7 @@ spec:
   resolution: "Ensure ClamAV and Freshclam are installed and running."
   platforms: Linux
   tags: compliance, malware, hardening, built-in
-  platform: Linux
+  platform: linux
   contributors: GuillaumeRoss
 ---
 apiVersion: v1
@@ -651,7 +651,7 @@ spec:
   resolution: "Enroll device to MDM"
   platforms: macOS
   tags: compliance, hardening, built-in
-  platform: Darwin
+  platform: darwin
   contributors: GuillaumeRoss
 ---
 apiVersion: v1
@@ -663,7 +663,7 @@ spec:
   resolution: "Update Docker or remove it if not used."
   platforms: macOS
   tags: inventory, vulnerability, built-in
-  platform: Darwin
+  platform: darwin
   contributors: GuillaumeRoss
 ---
 apiVersion: v1
@@ -674,6 +674,7 @@ spec:
   description: "Required: osquery must have Full Disk Access. Policy passes if all keys are encrypted, including if no keys are present."
   resolution: "Use this command to encrypt existing SSH keys by providing the path to the file: ssh-keygen -o -p -f /path/to/file"
   platforms: macOS, Linux, Windows
-  platform: Darwin, Linux, Windows
   tags: compliance, ssh, built-in
+  contributors: GuillaumeRoss
+  platform: darwin,linux,windows
   contributors: GuillaumeRoss
