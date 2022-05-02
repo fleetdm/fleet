@@ -96,17 +96,17 @@ The following table lists the Customers group's rituals, frequency, and Directly
 |:-----------------------------|:-----------------------------|:----------------------------------------------------|-------------------|
 | Overnight customer feedback  | Daily | Check Slack for customer feedback that occurred outside of usual business hours.| Tony Gauda       |  
 | Customer Slack channel monitoring | Daily | Continuously monitor Slack for customer feedback, feature requests, reported bugs, etc., and respond in less than an hour.   | Tony Gauda        |
-| Customer follow up | Daily | Follow up and tag appropriate personnel for follow up on customer items in progress and items that remain unresolved. | Tony Gauda |
-| Internal follow up | Daily | Go through Fleet's internal Slack channels to check for any relevant new information or tasks from other teams. | Tony Gauda |
-| Customer debrief | Weekly | Discuss customer questions, requests and issues with the product team. | Tony Gauda  |
+| Customer follow-up | Daily | Follow-up and tag appropriate personnel for follow up on customer items in progress and items that remain unresolved. | Tony Gauda |
+| Internal follow-up | Daily | Go through Fleet's internal Slack channels to check for any relevant new information or tasks from other teams. | Tony Gauda |
+| Customer debriefs | Weekly | Discuss customer questions, requests, and issues with the Product team. | Tony Gauda  |
 | Stand-up | Weekly | Meet with the Engineering team three to four times a week to share information and prioritize issues. | Tony Gauda |
-| Customer request backlog | Weekly | Check-in before product office hours to ensure that all information necessary has been gathered before presenting customer requests and feedback to the product team. | Tony Gauda |
+| Customer request backlog | Weekly | Check-in before product office hours to ensure that all information necessary has been gathered before presenting customer requests and feedback to the Product team. | Tony Gauda |
 | Product office hours | Weekly | Present tickets and items brought to Fleet's attention by customers that are interesting from a product perspective and advocate for customer requests. | Tony Gauda |
-| Customer meetings | Weekly | Check-in on how product and company is performing, provide updates on new product features or progress on customer requests.  These are private meetings with one meeting for each individual commercial customer. | Tony Gauda |
-| Product review | Every three weeks | Meet with product team to gain product pipeline visibility in order to gather info on new features and fixes in the next release. | Tony Gauda |
-| Release announcements | Every three weeks | Update customers on new features and resolved issues in an upcoming release. | Tony Gauda        |
-| Sales huddle | Bi-monthly | Meet with sales team to gain sales pipeline visibility for business intelligence and product development purposes, such as testing scalability for potential customer's needs, predicting product success obstacles, etc. | Tony Gauda |
-| Advisory meetings | Quarterly | Peer network feedback and Q& with other industry professionals. Mostly discussions on refining process. | Tony Gauda |
+| Customer meetings | Weekly | Check-in on how product and company are performing, provide updates on new product features or progress on customer requests.  These are private meetings with one meeting for each individual commercial customer. | Tony Gauda |
+| Product review | Every three weeks | Meet with the Product team to gain product pipeline visibility in order to gather info on new features and fixes in the next release. | Tony Gauda |
+| Release announcements | Every three weeks | Update customers on new features and resolve issues in an upcoming release. | Tony Gauda        |
+| Sales huddle | Bi-monthly | Meet with Sales team to gain sales pipeline visibility for business intelligence and product development purposes, such as testing scalability for potential customer's needs, predicting product success obstacles, etc. | Tony Gauda |
+| Advisory meetings | Quarterly | Peer network feedback and Q& with other industry professionals. Mostly discussions on the refining process. | Tony Gauda |
 
 ## Slack channels
 The following [Slack channels are maintained](https://fleetdm.com/handbook/company#group-slack-channels) by this group:
