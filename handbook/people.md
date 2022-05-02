@@ -215,6 +215,17 @@ After getting CEO approval, create a position in Breezy.
 
 > TODO: document how to post a job on fleetdm.com/apply using Breezy and manage the hiring process
 
+### Interviewing at Fleet
+
+We're glad you're interested in joining the team! 
+
+Here are some of the things you can anticipate throughout this process:
+  - We try to reply by email within 1 business day from the time when the application arrives.
+  - You may receieve a rejection email (Bummer, consider applying again in the future).
+  - You may receive an invitation to "book with us."
+
+If you've been invited to "book with us" you'll have a Zoom meeting with the hiring team to discuss next steps. 
+
 ### Hiring a new team member
 
 1. At-mention People Operations in the `#hiring-xxxxx-2022` channel and indicate that you would like to make an offer to the candidate.  Include the candidate's name, personal email address, where the candidate would be working, and any other important considerations about the candidate (the timeframe for their start date, their status to work legally in their country of residence, etc.)
