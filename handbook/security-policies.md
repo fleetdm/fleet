@@ -43,4 +43,39 @@ Fleet requires all workforce members to comply with the following acceptable use
 
 13. The use of Fleet company accounts on "shared" computers, such as hotel kiosk systems, is strictly prohibited.
 
+### Encryption policy
+*Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)*
+
+| Policy owner   | Effective date |
+| -------------- | -------------- |
+| @GuillaumeRoss | 2022-06-01     |
+
+Fleet requires all workforce members to comply with the encryption policy, such that:
+
+1. All Fleet-owned workstations must be encrypted, enforced by the IT and/or security team.
+
+2. Confidential data must be stored in a manner that supports user access logs.
+
+3. All Production Data at rest is stored on encrypted volumes.
+
+4. Volume encryption keys and machines that generate volume encryption keys are protected from unauthorized access. Volume encryption key material is protected with access controls such that the key material is only accessible by privileged accounts.
+
+5. Encrypted volumes use strong cipher algorithms, key strength, and key management process as defined below.
+
+6. Data is protected in transit using recent TLS versions with ciphers recognized as secure.
+
+#### Local Disk/Volume Encryption
+
+Encryption and key management for local disk encryption of end-user devices follow the defined best practices for Windows, macOS, and Linux/Unix operating systems, such as Bitlocker and FileVault. 
+
+#### Protecting Data In Transit
+
+1. All external data transmission is encrypted end-to-end. This includes, but is not limited to, cloud infrastructure and third party vendors and applications.
+
+2. Transmission encryption keys and systems that generate keys are protected from unauthorized access. Transmission encryption key materials are protected with access controls, and may only be accessed by privileged accounts.
+
+3. TLS endpoints must score at least an "A" on SSLLabs.com.
+
+4. Transmission encryption keys are limited to use for one year and then must be regenerated.
+
 <meta name="maintainedBy" value="guillaumeross">
