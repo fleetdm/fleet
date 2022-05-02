@@ -151,6 +151,8 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Workiversaries](./people.md#workiversaries)
 
+[Weekly updates](./people.md#weekly-updates)
+
 [Rituals](./people.md#rituals)
 
 
