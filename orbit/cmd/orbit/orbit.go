@@ -36,6 +36,7 @@ import (
 )
 
 func main() {
+
 	app := cli.NewApp()
 	app.Name = "Orbit osquery"
 	app.Usage = "A powered-up, (near) drop-in replacement for osquery"
@@ -47,7 +48,7 @@ func main() {
 		&cli.StringFlag{
 			Name:    "root-dir",
 			Usage:   "Root directory for Orbit state",
-			Value:   update.DefaultOptions.RootDirectory,
+			Value:   "", // need to check if explicitly set
 			EnvVars: []string{"ORBIT_ROOT_DIR"},
 		},
 		&cli.BoolFlag{
@@ -138,6 +139,20 @@ func main() {
 		if c.Bool("version") {
 			fmt.Println("orbit " + build.Version)
 			return nil
+		}
+
+		// handle old installations, which had default root dir set to /var/lib/orbit
+		if c.String("root-dir") == "" {
+			rootDir := update.DefaultOptions.RootDirectory
+
+			executable, err := os.Executable()
+			if err != nil {
+				return fmt.Errorf("failed to get orbit executable: %w", err)
+			}
+			if strings.HasPrefix(executable, "/var/lib/orbit") {
+				rootDir = "/var/lib/orbit"
+			}
+			c.Set("root-dir", rootDir)
 		}
 
 		var logFile io.Writer
