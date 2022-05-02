@@ -61,19 +61,12 @@ const EmptyState = ({ title, reason }: IEmptyStateProps): JSX.Element => {
           <div className={`${baseClass}__inner`}>
             <div className={`${baseClass}__empty-list`}>
               <h1>
-                <img alt="Disable icon" src={DisableIcon} />
-                No {title} collected from this host.
+                No {title === "software" ? "installed software" : title}{" "}
+                detected on this host.
               </h1>
               <p>
-                Check out the Fleet documentation on{" "}
-                <a
-                  href="https://fleetdm.com/docs/using-fleet/faq#why-is-my-host-not-returning-vitals"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  how to troubleshoot{" "}
-                  <img alt="External link" src={ExternalLinkIcon} />
-                </a>
+                Expecting to see {title}? Try again in a few seconds as the
+                system catches up.
               </p>
             </div>
           </div>
