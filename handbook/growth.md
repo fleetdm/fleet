@@ -7,6 +7,10 @@ contributors. The purpose of the growth team is to own and improve the growth fu
 
 Effective market positioning is crucial to the growth of any software product. Fleet needs to maintain a unique, valuable position in the minds of our users. We keep assertions on our positioning in this [Google Doc](https://docs.google.com/document/d/1sttTxm6B-acvZuQuGt7kkKn-_IVXM0sLwStnjnpIU9Y/edit?usp=sharing) (private). It will be updated quarterly based on the feedback of users, customers, team members, and other stakeholders. Feedback can be provided as a comment in the document or by posting in the `#g-growth` Slack channel. 
 
+## Growth One-pager
+
+Fleet's growth one-pager can be found in this [Google Doc](https://drive.google.com/file/d/1o0gHCVonNbjjsk8iI-mgVw5O-o-AhJ5t/view?usp=sharing).
+
 ## Lead Enrichment
 
 Fleet's lead enrichment process can be found in this [Google Doc](https://docs.google.com/document/d/1zOv39O989bPRNTIcLNNE4ESUI5Ry2XII3XuRpJqNN7g/edit?usp=sharing) (private).
