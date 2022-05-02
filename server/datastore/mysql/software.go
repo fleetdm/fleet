@@ -39,7 +39,7 @@ func softwareToUniqueString(s fleet.Software) string {
 	if s.Release != "" || s.Vendor != "" || s.Arch != "" {
 		ss = append(ss, s.Release, s.Vendor, s.Arch)
 	}
-	return strings.Join(ss, "\u0000")
+	return strings.Join(ss, "\u0000") // unicode null separated string
 }
 
 func uniqueStringToSoftware(s string) fleet.Software {
