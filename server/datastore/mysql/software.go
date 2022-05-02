@@ -434,7 +434,7 @@ SELECT
     COUNT(DISTINCT s.id)
 FROM (
 ` + sql + `
-)
+) s
 `
 
 	var count int
