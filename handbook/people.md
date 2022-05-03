@@ -294,6 +294,13 @@ The CEO will then post a message in the `#hiring-xxxxx-2022` Slack channel to in
 
 6. **Before a new team member's first day:** Eric creates an onboarding issue in the [fleetdm/confidential](https://github.com/fleetdm/confidential/issues) GitHub repo for the new team member. Before creating the issue, Eric will go through it and comment on any steps that the new team member will not have to complete.
 
+### CorpNet state registration process
+
+   In CorpNet, select "place an order for an existing business" we’ll need to have Foreign Registration and Payroll Tax Registration done.
+   - You can have CorpNet do this by emailing the account rep "Subject: Fleet Device Management: State - Foreign Registration and Payroll Tax Registration" (this takes about two weeks).
+   - You can do this between you and CorpNet by selecting "Foreign Qualification," place the order, and email the confirmation to the rep for Payroll registration (this is a short turnaround).
+   - You can do this on your own by visting the state's "Secretary of State" website and check that the company name is available. To register online you'll need: the EIN, business address, information about the owners and their percentages, first date of business, sales within the state, and the business type (usually get an email right away for approval ~24-48 hrs). 
+
 ## Team member onboarding
 
 It's important that every team member at Fleet takes the time to get fully trained and onboarded. 
