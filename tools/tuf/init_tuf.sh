@@ -115,6 +115,7 @@ root_keys=$(./build/fleetctl updates roots --path $TUF_PATH)
 echo "#########"
 echo "To generate packages set the following options in 'fleetctl package':"
 echo "--update-roots='$root_keys' --update-url=http://localhost:8081"
+echo "You can also pass the above flags to 'fleetctl preview'."
 echo "#########"
 
 echo "Running TUF server..."

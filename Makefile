@@ -284,7 +284,7 @@ db-backup:
 db-restore:
 	./tools/backup_db/restore.sh
 
-# Generate osqueryd.tar.gz bundle from osquery.io.
+# Generate osqueryd.app.tar.gz bundle from osquery.io.
 #
 # Usage:
 # make osqueryd-app-tar-gz version=5.1.0 out-path=.
