@@ -1,14 +1,14 @@
 /**
- * Component when there is an error retrieving a page in fleet
+ * Component when there is an error retrieving schedule set up in fleet
  */
 import React from "react";
 
 import OpenNewTabIcon from "../../../assets/images/open-new-tab-12x12@2x.png";
 import ErrorIcon from "../../../assets/images/icon-error-16x16@2x.png";
 
-const baseClass = "page-error";
+const baseClass = "data-error";
 
-const ScheduleError = (): JSX.Element => {
+const DataError = (): JSX.Element => {
   return (
     <div className={`${baseClass}`}>
       <div className={`${baseClass}__inner`}>
@@ -35,4 +35,4 @@ const ScheduleError = (): JSX.Element => {
   );
 };
 
-export default ScheduleError;
+export default DataError;
