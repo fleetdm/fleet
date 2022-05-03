@@ -18,23 +18,25 @@ paginate: true
     --color-header-shadow: transparent;
   }
 </style>
-# Fleet Security awareness
+# Fleet security awareness
 
-2022-05 version
+| Version |
+| ------- |
+| 2022-05 |
 
-## About this training
+## About this
 
-* All new Fleeties + every Fleetie once a year
-* Focuses on tools we use at Fleet
-* Also applies to securing your personal devices and accounts
-* Under 15 minutes
+* To be done on hire and annually. 
+* Focuses on tools we use.
+* Also applies to securing your personal devices and accounts.
+* Less than 15 minutes.
 
 More info in our [handbook](https://fleetdm.com/handbook/security#security-awareness-training)
 
 ## Enrolling your Fleet laptop (MDM)
 
 ### Which ones?
-**Fleet owned Macs.**
+**Fleet owned Macs**
 
 * Most work allowed from personal devices.
 * Personal computers allowed on internal Fleet instance.
@@ -43,36 +45,40 @@ More info in our [handbook](https://fleetdm.com/handbook/security#security-aware
 ## Enrolling your Fleet laptop (MDM)
 ### Why?
 
-* MDM will [configure your Mac
-  securely](https://fleetdm.com/handbook/security#how-we-protect-end-user-devices).
+* MDM will [configure your Mac securely](https://fleetdm.com/handbook/security#how-we-protect-end-user-devices).
 * It will push osquery and enroll you to our [dogfood instance of Fleet](https://dogfood.fleetdm.com/dashboard).
 * Provides a catalog of apps you can install easily
 
 [Enrollment
 instructions](https://docs.google.com/document/d/1vRrI9x5ch_Yuw2ihq3JDkNcxP32KhDt5RXasQ9A5Bmk/edit) (Private)
 
-## 2-Factor authentication and passwords
+## Authentication and passwords
 
 Password "best practices" can be confusing.
 
 Ours are simple:
 
 1. Single Sign-On (SSO)
-2. 2FA all the things.
-3. Long, unique passwords. 
+2. 2FA (Two-factor authentication) all the things
+3. Long, unique passwords
 
-## What type of 2-Factor authentication?
+## What type of 2FA?
 
 From best to worst:
-1. [Hardware security
-   keys](https://fleetdm.com/handbook/security#hardware-security-keys)
+1. [Hardware security keys](https://fleetdm.com/handbook/security#hardware-security-keys)
 2. App/push notification based
-3. Time-based One Time Password (TOTP) - rotating 6 digit codes
+3. Time-based One Time Password (TOTP)
 4. SMS/Voice
 
 [Details](https://fleetdm.com/handbook/security#2-step-verification)
 
 [Lunch & Learn on 2FA methods](https://www.youtube.com/watch?v=0JnE4ezgu6Q)
+
+## 2FA
+
+1. Enable it on your Google and GitHub accounts.
+2. Ensure Yubikeys are on your way.
+3. When you receive them, add them to your accounts and let *#g-security* know.
 
 ## Password manager
 
@@ -80,20 +86,24 @@ From best to worst:
 * Generate random passwords for everything that does not support SSO.
 * Avoid sharing passwords when it can be avoided. If it can't, share with the password manager.
 
-## Phishing and social engineering in general
+## Phishing
 
 Phishing can look real. 
 
-* Take this quiz to learn how to spot most phishing on gmail: https://phishingquiz.withgoogle.com/
-* Use gmail directly (mobile app or web). Other mail clients do not show the same useful warnings
-* Assume some phishing is so well targeted that you can't spot it
+* Take this quiz: https://phishingquiz.withgoogle.com/.
+* Use Gmail directly (mobile app or web).
+* Assume phishing can be so well targeted that you can't spot it.
+
+Ask around!
+
+![bg contain right:33%](assets/gmail_warnings.png)
 
 ## Report phishing
 
 ![bg left](assets/report_phishing.png)
 
 * Directly in Gmail
-* In #g-security when it feels like "better" phishing
+* In *#g-security* when it feels like "better" phishing
 
 ## Business email compromise
 BEC leverages our willingness to help people.
@@ -109,42 +119,51 @@ We have a strict process related to payments and wire transfers. If you are in t
 ## Working from shady networks and cool locations
 
 * We assume all networks are shady.
-* Fleet enrolled laptops have firewalls configured + the protocols we use are encrypted, and can be
-  used on public Wi-Fi.
+* Fleet enrolled laptops have firewalls configured + the protocols we use are encrypted and can be used on public Wi-Fi.
 
 ## Installing apps
 
 Install apps from the following sources:
 
-1. Our Managed Software Center
-2. Package managers such as *brew* or *apt*
-3. Official websites of vendors / open-source projects
+1. Our Managed Software Center.
+2. Package managers such as *brew* or *apt*.
+3. Official websites of vendors / open-source projects.
 
-## Adding apps to Google Workspace
+## Apps and Google Workspace
+
+Apps are only allowed automatically if they do not access confidential data.
+
+If you need an app hooked up, let's discuss it in *#g-security*!
 
 ## Browser extensions
 
-### Keeping stuff up to date
+An ad-blocker [for Chrome](https://chrome.google.com/webstore/detail/ublock-origin/cjpalhdlnbpafiamejdnhcphjbkeiagm?hl=en) is provided on Fleet-managed computers.
+
+* Limit extension usage to well trusted ones.
+* Disable extensions you do not use.
+* If in doubt, ask about it in *#g-security*!
+
+## Keeping stuff up to date
 Enrolled laptops will have their OS and Chrome kept up to date.
 
 1. Install updates promptly
 2. Update your package manager if you use one (`brew update && brew upgrade`)
 3. Enable automatic updates on your mobile devices
 
-## What to do if you leaked something to GitHub
+## What if you leaked something to GitHub
 Undoing git history is complicated. Consider this secret forever leaked.
 
 1. Post about it in #g-security.
 2. Get ready to rotate said secret!
 3. If it was not an actual "secret" but sensitive information in an issue, delete the comment/post **including the history**.
 
-## If...you lose your laptop
+## If... you lose your laptop
 
 1. Don't panic. It's encrypted.
 2. Post about it in #g-security.
 3. In the thread in #g-security, inform someone from the BizOps team. They'll help you get a new one ASAP!
 
-## If...you lose your Yubikey(s)
+## If... you lose your Yubikey(s)
 
 1. Don't panic.
 2. Post about it in #g-security.
