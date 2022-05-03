@@ -289,14 +289,20 @@ const IntegrationsPage = (): JSX.Element => {
         const editIntegrationDestination = () => {
           if (integrationEditing.type === "jira") {
             return configAPI.update({
-              integrations: { jira: integrationSubmitData },
+              integrations: {
+                jira: integrationSubmitData,
+                zendesk: zendeskIntegrations,
+              },
             });
           }
           console.log("What is sent to the API upon editing zendesk", {
             integrations: { zendesk: integrations?.zendesk },
           });
           return configAPI.update({
-            integrations: { zendesk: integrationSubmitData },
+            integrations: {
+              zendesk: integrationSubmitData,
+              jira: jiraIntegrations,
+            },
           });
         };
 
