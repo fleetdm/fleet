@@ -30,16 +30,6 @@
     }
   }
 
-  &__modal-btn-wrap {
-    display: flex;
-    flex-direction: row-reverse;
-
-    .button {
-      margin-left: 15px;
-      width: 120px;
-    }
-  }
-
   .button img {
     transform: scale(0.5);
   }

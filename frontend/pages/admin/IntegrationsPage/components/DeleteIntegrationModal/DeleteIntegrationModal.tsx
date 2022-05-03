@@ -37,21 +37,12 @@ const DeleteIntegrationModal = ({
           <span className={`${baseClass}__url`}>{url}</span> integration.
         </p>
         <p>The automations that use this integration will be turned off.</p>
-        <div className={`${baseClass}__btn-wrap`}>
-          <Button
-            className={`${baseClass}__btn`}
-            type="button"
-            onClick={onSubmit}
-            variant="alert"
-          >
-            Delete
-          </Button>
-          <Button
-            className={`${baseClass}__btn`}
-            onClick={onCancel}
-            variant="inverse-alert"
-          >
+        <div className="modal-cta-wrap">
+          <Button onClick={onCancel} variant="inverse-alert">
             Cancel
+          </Button>
+          <Button type="button" onClick={onSubmit} variant="alert">
+            Delete
           </Button>
         </div>
       </form>

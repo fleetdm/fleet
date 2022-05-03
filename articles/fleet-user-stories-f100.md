@@ -45,3 +45,4 @@ I love Fleet. It was stupid simple to set up once we were engaged with y’all. 
 <meta name="authorFullName" value="Mike Thomas">
 <meta name="publishedOn" value="2021-09-29">
 <meta name="articleTitle" value="Fleet user stories — F100">
+<meta name="articleImageUrl" value="https://miro.medium.com/1*7BTPQ_RRbL9h9YkxT8caDQ.jpeg">

@@ -178,7 +178,7 @@ the way that the Fleet server works.
 			var carveStore fleet.CarveStore
 			mailService := mail.NewService()
 
-			opts := []mysql.DBOption{mysql.Logger(logger)}
+			opts := []mysql.DBOption{mysql.Logger(logger), mysql.WithFleetConfig(&config)}
 			if config.MysqlReadReplica.Address != "" {
 				opts = append(opts, mysql.Replica(&config.MysqlReadReplica))
 			}
@@ -451,7 +451,11 @@ the way that the Fleet server works.
 
 			rootMux.Handle("/api/", apiHandler)
 			rootMux.Handle("/", frontendHandler)
-			rootMux.Handle("/debug/", service.MakeDebugHandler(svc, config, logger, eh, ds))
+
+			debugHandler := &debugMux{
+				fleetAuthenticatedHandler: service.MakeDebugHandler(svc, config, logger, eh, ds),
+			}
+			rootMux.Handle("/debug/", debugHandler)
 
 			if path, ok := os.LookupEnv("FLEET_TEST_PAGE_PATH"); ok {
 				// test that we can load this
@@ -477,7 +481,7 @@ the way that the Fleet server works.
 				if err != nil {
 					initFatal(err, "generating debug token")
 				}
-				rootMux.Handle("/debug/", http.StripPrefix("/debug/", netbug.AuthHandler(debugToken)))
+				debugHandler.tokenAuthenticatedHandler = http.StripPrefix("/debug/", netbug.AuthHandler(debugToken))
 				fmt.Printf("*** Debug mode enabled ***\nAccess the debug endpoints at /debug/?token=%s\n", url.QueryEscape(debugToken))
 			}
 
@@ -759,4 +763,23 @@ func argsToString(args []driver.NamedValue) string {
 	}
 	allArgs.WriteString("}")
 	return allArgs.String()
+}
+
+// The debugMux directs the request to either the fleet-authenticated handler,
+// which is the standard handler for debug endpoints (using a Fleet
+// authorization bearer token), or to the token-authenticated handler if a
+// query-string token is provided and such a handler is set. The only wayt to
+// set this handler is if the --debug flag was provided to the fleet serve
+// command.
+type debugMux struct {
+	fleetAuthenticatedHandler http.Handler
+	tokenAuthenticatedHandler http.Handler
+}
+
+func (m *debugMux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Query().Has("token") && m.tokenAuthenticatedHandler != nil {
+		m.tokenAuthenticatedHandler.ServeHTTP(w, r)
+		return
+	}
+	m.fleetAuthenticatedHandler.ServeHTTP(w, r)
 }

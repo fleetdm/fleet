@@ -68,18 +68,10 @@ func uniqueStringToSoftware(s string) fleet.Software {
 	}
 }
 
-func softwareSliceToSet(softwares []fleet.Software) map[string]struct{} {
-	result := make(map[string]struct{})
+func softwareSliceToMap(softwares []fleet.Software) map[string]fleet.Software {
+	result := make(map[string]fleet.Software)
 	for _, s := range softwares {
-		result[softwareToUniqueString(s)] = struct{}{}
-	}
-	return result
-}
-
-func softwareSliceToIdMap(softwareSlice []fleet.Software) map[string]uint {
-	result := make(map[string]uint)
-	for _, s := range softwareSlice {
-		result[softwareToUniqueString(s)] = s.ID
+		result[softwareToUniqueString(s)] = s
 	}
 	return result
 }
@@ -89,49 +81,62 @@ func softwareSliceToIdMap(softwareSlice []fleet.Software) map[string]uint {
 // slice, updating existing entries and inserting new entries.
 func (ds *Datastore) UpdateHostSoftware(ctx context.Context, hostID uint, software []fleet.Software) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		return applyChangesForNewSoftwareDB(ctx, tx, hostID, software)
+		return applyChangesForNewSoftwareDB(ctx, tx, hostID, software, ds.minLastOpenedAtDiff)
 	})
 }
 
-func saveHostSoftwareDB(ctx context.Context, tx sqlx.ExtContext, host *fleet.Host) error {
-	if err := applyChangesForNewSoftwareDB(ctx, tx, host.ID, host.Software); err != nil {
-		return err
-	}
-
-	host.HostSoftware.Modified = false
-	return nil
-}
-
-func nothingChanged(current []fleet.Software, incoming []fleet.Software) bool {
+func nothingChanged(current, incoming []fleet.Software, minLastOpenedAtDiff time.Duration) bool {
 	if len(current) != len(incoming) {
 		return false
 	}
 
-	currentBitmap := make(map[string]bool)
+	currentMap := make(map[string]fleet.Software)
 	for _, s := range current {
-		currentBitmap[softwareToUniqueString(s)] = true
+		currentMap[softwareToUniqueString(s)] = s
 	}
 	for _, s := range incoming {
-		if _, ok := currentBitmap[softwareToUniqueString(s)]; !ok {
+		cur, ok := currentMap[softwareToUniqueString(s)]
+		if !ok {
 			return false
+		}
+
+		// if the incoming software has a last opened at timestamp and it differs
+		// significantly from the current timestamp (or there is no current
+		// timestamp), then consider that something changed.
+		if s.LastOpenedAt != nil {
+			if cur.LastOpenedAt == nil {
+				return false
+			}
+
+			oldLast := *cur.LastOpenedAt
+			newLast := *s.LastOpenedAt
+			if newLast.Sub(oldLast) >= minLastOpenedAtDiff {
+				return false
+			}
 		}
 	}
 
 	return true
 }
 
-func applyChangesForNewSoftwareDB(ctx context.Context, tx sqlx.ExtContext, hostID uint, software []fleet.Software) error {
+func applyChangesForNewSoftwareDB(
+	ctx context.Context,
+	tx sqlx.ExtContext,
+	hostID uint,
+	software []fleet.Software,
+	minLastOpenedAtDiff time.Duration,
+) error {
 	storedCurrentSoftware, err := listSoftwareDB(ctx, tx, &hostID, fleet.SoftwareListOptions{SkipLoadingCVEs: true})
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "loading current software for host")
 	}
 
-	if nothingChanged(storedCurrentSoftware, software) {
+	if nothingChanged(storedCurrentSoftware, software, minLastOpenedAtDiff) {
 		return nil
 	}
 
-	current := softwareSliceToIdMap(storedCurrentSoftware)
-	incoming := softwareSliceToSet(software)
+	current := softwareSliceToMap(storedCurrentSoftware)
+	incoming := softwareSliceToMap(software)
 
 	if err = deleteUninstalledHostSoftwareDB(ctx, tx, hostID, current, incoming); err != nil {
 		return err
@@ -141,22 +146,27 @@ func applyChangesForNewSoftwareDB(ctx context.Context, tx sqlx.ExtContext, hostI
 		return err
 	}
 
+	if err = updateModifiedHostSoftwareDB(ctx, tx, hostID, current, incoming, minLastOpenedAtDiff); err != nil {
+		return err
+	}
+
 	return nil
 }
 
+// delete host_software that is in current map, but not in incoming map.
 func deleteUninstalledHostSoftwareDB(
 	ctx context.Context,
 	tx sqlx.ExecerContext,
 	hostID uint,
-	currentIdmap map[string]uint,
-	incomingBitmap map[string]struct{},
+	currentMap map[string]fleet.Software,
+	incomingMap map[string]fleet.Software,
 ) error {
 	var deletesHostSoftware []interface{}
 	deletesHostSoftware = append(deletesHostSoftware, hostID)
 
-	for currentKey := range currentIdmap {
-		if _, ok := incomingBitmap[currentKey]; !ok {
-			deletesHostSoftware = append(deletesHostSoftware, currentIdmap[currentKey])
+	for currentKey, curSw := range currentMap {
+		if _, ok := incomingMap[currentKey]; !ok {
+			deletesHostSoftware = append(deletesHostSoftware, curSw.ID)
 		}
 	}
 	if len(deletesHostSoftware) <= 1 {
@@ -219,33 +229,78 @@ func getOrGenerateSoftwareIdDB(ctx context.Context, tx sqlx.ExtContext, s fleet.
 	}
 }
 
+// insert host_software that is in incoming map, but not in current map.
 func insertNewInstalledHostSoftwareDB(
 	ctx context.Context,
 	tx sqlx.ExtContext,
 	hostID uint,
-	currentIdmap map[string]uint,
-	incomingBitmap map[string]struct{},
+	currentMap map[string]fleet.Software,
+	incomingMap map[string]fleet.Software,
 ) error {
 	var insertsHostSoftware []interface{}
-	incomingOrdered := make([]string, 0, len(incomingBitmap))
-	for s := range incomingBitmap {
+
+	incomingOrdered := make([]string, 0, len(incomingMap))
+	for s := range incomingMap {
 		incomingOrdered = append(incomingOrdered, s)
 	}
 	sort.Strings(incomingOrdered)
+
 	for _, s := range incomingOrdered {
-		if _, ok := currentIdmap[s]; !ok {
+		if _, ok := currentMap[s]; !ok {
 			id, err := getOrGenerateSoftwareIdDB(ctx, tx, uniqueStringToSoftware(s))
 			if err != nil {
 				return err
 			}
-			insertsHostSoftware = append(insertsHostSoftware, hostID, id)
+			sw := incomingMap[s]
+			insertsHostSoftware = append(insertsHostSoftware, hostID, id, sw.LastOpenedAt)
 		}
 	}
+
 	if len(insertsHostSoftware) > 0 {
-		values := strings.TrimSuffix(strings.Repeat("(?,?),", len(insertsHostSoftware)/2), ",")
-		sql := fmt.Sprintf(`INSERT IGNORE INTO host_software (host_id, software_id) VALUES %s`, values)
+		values := strings.TrimSuffix(strings.Repeat("(?,?,?),", len(insertsHostSoftware)/3), ",")
+		sql := fmt.Sprintf(`INSERT IGNORE INTO host_software (host_id, software_id, last_opened_at) VALUES %s`, values)
 		if _, err := tx.ExecContext(ctx, sql, insertsHostSoftware...); err != nil {
 			return ctxerr.Wrap(ctx, err, "insert host software")
+		}
+	}
+
+	return nil
+}
+
+// update host_software when incoming software has a significantly more recent
+// last opened timestamp (or didn't have on in currentMap). Note that it only
+// processes software that is in both current and incoming maps, as the case
+// where it is only in incoming is already handled by
+// insertNewInstalledHostSoftwareDB.
+func updateModifiedHostSoftwareDB(
+	ctx context.Context,
+	tx sqlx.ExtContext,
+	hostID uint,
+	currentMap map[string]fleet.Software,
+	incomingMap map[string]fleet.Software,
+	minLastOpenedAtDiff time.Duration,
+) error {
+	const stmt = `UPDATE host_software SET last_opened_at = ? WHERE host_id = ? AND software_id = ?`
+
+	var keysToUpdate []string
+	for key, newSw := range incomingMap {
+		curSw, ok := currentMap[key]
+		if !ok || newSw.LastOpenedAt == nil {
+			// software must also exist in current map, and new software must have a
+			// last opened at timestamp (otherwise we don't overwrite the old one)
+			continue
+		}
+
+		if curSw.LastOpenedAt == nil || (*newSw.LastOpenedAt).Sub(*curSw.LastOpenedAt) >= minLastOpenedAtDiff {
+			keysToUpdate = append(keysToUpdate, key)
+		}
+	}
+	sort.Strings(keysToUpdate)
+
+	for _, key := range keysToUpdate {
+		curSw, newSw := currentMap[key], incomingMap[key]
+		if _, err := tx.ExecContext(ctx, stmt, newSw.LastOpenedAt, hostID, curSw.ID); err != nil {
+			return ctxerr.Wrap(ctx, err, "update host software")
 		}
 	}
 
@@ -296,6 +351,9 @@ func selectSoftwareSQL(hostID *uint, opts fleet.SoftwareListOptions) (string, []
 				goqu.I("hs.software_id").Eq(goqu.I("s.id")),
 			),
 		)
+		if hostID != nil {
+			ds = ds.SelectAppend("hs.last_opened_at")
+		}
 	}
 
 	if hostID != nil {
@@ -457,7 +515,6 @@ func loadCVEsBySoftware(
 }
 
 func (ds *Datastore) LoadHostSoftware(ctx context.Context, host *fleet.Host) error {
-	host.HostSoftware = fleet.HostSoftware{Modified: false}
 	software, err := listSoftwareDB(ctx, ds.reader, &host.ID, fleet.SoftwareListOptions{})
 	if err != nil {
 		return err

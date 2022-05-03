@@ -1,3 +1,7 @@
+## Fleet 4.13.2 (Apr 25, 2022)
+
+* Fix a bug with os versions not being updated. Affected deployments using MySQL < 5.7.22 or equivalent AWS RDS Aurora < 2.10.1.
+
 ## Fleet 4.13.1 (Apr 20, 2022)
 
 * Fixes an SSO login issue introduced in 4.13.0.
