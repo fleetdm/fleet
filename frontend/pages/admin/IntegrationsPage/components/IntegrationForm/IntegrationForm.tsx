@@ -67,6 +67,7 @@ const IntegrationForm = ({
   const [integrationDestination, setIntegrationDestination] = useState<string>(
     integrationEditingType || destination || "jira"
   );
+  const [urlError, setUrlError] = useState<string | null>(null);
 
   useEffect(() => {
     setIntegrationDestination(destination || integrationEditingType || "jira");
@@ -76,6 +77,16 @@ const IntegrationForm = ({
 
   const onInputChange = ({ name, value }: IFormField) => {
     setFormData({ ...formData, [name]: value });
+  };
+
+  const validateForm = () => {
+    let error = null;
+
+    if (url.slice(0, 8) !== "https://") {
+      error = "URL must begin with https://";
+    }
+
+    setUrlError(error);
   };
 
   // IntegrationForm component can be used to create a new integration or edit an existing integration so submitData will be assembled accordingly
@@ -164,6 +175,8 @@ const IntegrationForm = ({
         }
         parseTarget
         value={url}
+        error={urlError}
+        onBlur={validateForm}
       />
       {integrationDestination === "jira" ? (
         <InputField
@@ -249,10 +262,12 @@ const IntegrationForm = ({
             disabled={
               integrationDestination === "jira"
                 ? formData.url === "" ||
+                  formData.url.slice(0, 8) !== "https://" ||
                   formData.username === "" ||
                   formData.apiToken === "" ||
                   formData.projectKey === ""
                 : formData.url === "" ||
+                  formData.url.slice(0, 8) !== "https://" ||
                   formData.email === "" ||
                   formData.apiToken === "" ||
                   formData.groupId === 0
