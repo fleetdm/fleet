@@ -1,7 +1,9 @@
 package mysql
 
 import (
+	"bytes"
 	"context"
+	"crypto/md5"
 	"fmt"
 	"sort"
 	"strings"
@@ -87,16 +89,100 @@ func softwareSliceToIdMap(softwareSlice []fleet.Software) map[string]uint {
 // slice, updating existing entries and inserting new entries.
 func (ds *Datastore) UpdateHostSoftware(ctx context.Context, hostID uint, software []fleet.Software) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		return applyChangesForNewSoftwareDB(ctx, tx, hostID, software)
+		return updateHostSoftware(ctx, tx, hostID, software)
 	})
 }
 
 func saveHostSoftwareDB(ctx context.Context, tx sqlx.ExtContext, host *fleet.Host) error {
-	if err := applyChangesForNewSoftwareDB(ctx, tx, host.ID, host.Software); err != nil {
+	if err := updateHostSoftware(ctx, tx, host.ID, host.Software); err != nil {
 		return err
 	}
 
 	host.HostSoftware.Modified = false
+	return nil
+}
+
+func updateHostSoftware(ctx context.Context, tx sqlx.ExtContext, hostID uint, software []fleet.Software) error {
+	q := `
+SELECT
+    s.id,
+    s.name,
+    s.version,
+    s.source,
+    s.bundle_identifier,
+    s.release,
+    s.vendor,
+    s.arch
+FROM
+    software s
+    JOIN host_software hs on hs.software_id = s.id
+WHERE
+    hs.host_id = ?
+`
+	var current []fleet.Software
+	err := sqlx.SelectContext(ctx, tx, &software, q, hostID)
+	if err != nil {
+		return err
+	}
+
+	added, removed := diffSoftware(current, software)
+	if len(added) == 0 && len(removed) == 0 {
+		return nil
+	}
+
+	if len(added) > 0 {
+		q := `INSERT IGNORE INTO software (name, version, source, ` + "`release`" + `, vendor, arch, bundle_identifier) VALUES (?, ?, ?, ?, ?, ?, ?)`
+
+		// if there is no id, need to insert into software table first
+		for i, s := range added {
+			if s.ID != 0 {
+				continue
+			}
+
+			res, err := tx.ExecContext(ctx, q, s.Name, s.Version, s.Source, s.Release, s.Vendor, s.Arch, s.BundleIdentifier)
+			if err != nil {
+				return err
+			}
+
+			id, err := res.LastInsertId()
+			if err != nil {
+				return err
+			}
+
+			added[i].ID = uint(id)
+		}
+
+		values := strings.TrimSuffix(strings.Repeat("(?, ?),", len(added)), ",")
+		q = fmt.Sprintf(`INSERT IGNORE INTO host_software (host_id, software_id) VALUES %s`, values)
+		var args []interface{}
+		for _, s := range added {
+			args = append(args, hostID, s.ID)
+		}
+
+		_, err := tx.ExecContext(ctx, q, args...)
+		if err != nil {
+			return err
+		}
+	}
+
+	if len(removed) > 0 {
+		q := `DELETE FROM host_software WHERE ID in (?)`
+		ids := make([]uint, len(removed))
+		for i, s := range removed {
+			ids[i] = s.ID
+		}
+
+		q, args, err := sqlx.In(q, ids)
+		if err != nil {
+			return err
+		}
+
+		_, err = tx.ExecContext(ctx, q, args...)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -118,28 +204,62 @@ func nothingChanged(current []fleet.Software, incoming []fleet.Software) bool {
 	return true
 }
 
-func applyChangesForNewSoftwareDB(ctx context.Context, tx sqlx.ExtContext, hostID uint, software []fleet.Software) error {
-	storedCurrentSoftware, err := listSoftwareDB(ctx, tx, &hostID, fleet.SoftwareListOptions{SkipLoadingCVEs: true})
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "loading current software for host")
+func hashSoftware(s fleet.Software) []byte {
+	h := md5.New()
+	h.Write([]byte(s.Name))
+	h.Write([]byte(s.Version))
+	h.Write([]byte(s.Source))
+	h.Write([]byte(s.BundleIdentifier))
+	h.Write([]byte(s.Release))
+	h.Write([]byte(s.Vendor))
+	h.Write([]byte(s.Arch))
+	return h.Sum(nil)
+}
+
+type softwareByHash []fleet.Software
+
+func (sl softwareByHash) Len() int      { return len(sl) }
+func (sl softwareByHash) Swap(i, j int) { sl[i], sl[j] = sl[j], sl[i] }
+func (sl softwareByHash) Less(i, j int) bool {
+	h1 := hashSoftware(sl[i])
+	h2 := hashSoftware(sl[2])
+	return bytes.Compare(h1, h2) < 0
+}
+
+func diffSoftware(a, b []fleet.Software) ([]fleet.Software, []fleet.Software) {
+	sort.Sort(softwareByHash(a))
+	sort.Sort(softwareByHash(b))
+
+	var added []fleet.Software
+	var removed []fleet.Software
+
+	i, j := 0, 0
+	for i < len(a) && j < len(b) {
+		hashA := hashSoftware(a[i])
+		hashB := hashSoftware(b[j])
+
+		switch bytes.Compare(hashA, hashB) {
+		case -1:
+			added = append(added, a[i])
+			i++
+		case 0:
+			i++
+			j++
+		case +1:
+			removed = append(removed, b[j])
+			j++
+		}
+	}
+	for i < len(a) {
+		removed = append(removed, a[i])
+		i++
+	}
+	for j < len(b) {
+		added = append(added, b[j])
+		j++
 	}
 
-	if nothingChanged(storedCurrentSoftware, software) {
-		return nil
-	}
-
-	current := softwareSliceToIdMap(storedCurrentSoftware)
-	incoming := softwareSliceToSet(software)
-
-	if err = deleteUninstalledHostSoftwareDB(ctx, tx, hostID, current, incoming); err != nil {
-		return err
-	}
-
-	if err = insertNewInstalledHostSoftwareDB(ctx, tx, hostID, current, incoming); err != nil {
-		return err
-	}
-
-	return nil
+	return added, removed
 }
 
 func deleteUninstalledHostSoftwareDB(
