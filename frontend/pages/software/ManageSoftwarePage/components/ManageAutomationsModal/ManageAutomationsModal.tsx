@@ -121,53 +121,35 @@ const ManageAutomationsModal = ({
         return data.integrations;
       },
       onSuccess: (data) => {
-        if (data) {
-          // Jira integrations
-          const addJiraIndexed = data.jira.map((integration, index) => {
-            return { ...integration, originalIndex: index, type: "jira" };
-          });
-          setJiraIntegrationsIndexed(addJiraIndexed);
-          const currentSelectedJiraIntegration = addJiraIndexed.find(
-            (integration) => {
-              return integration.enable_software_vulnerabilities === true;
-            }
-          );
-          setSelectedIntegration(currentSelectedJiraIntegration);
-          // Zendesk integrations
-          // const mockZendeskData = {
-          //   zendesk: [
-          //     {
-          //       url: "https://example1.zendesk.com",
-          //       email: "admin@example.com",
-          //       api_token: "abc123",
-          //       group_id: 12345678,
-          //       enable_software_vulnerabilities: false,
-          //     },
-          //     {
-          //       url: "https://example2.zendesk.com",
-          //       email: "maintainer@example.com",
-          //       api_token: "abc123",
-          //       group_id: 12345678,
-          //       enable_software_vulnerabilities: false,
-          //     },
-          //   ],
-          // };
-          // TODO: Change mockZendeskData to data.zendesk eventually
-          const addZendeskIndexed = data.zendesk.map((integration, index) => {
-            return {
-              ...integration,
-              originalIndex: index,
-              type: "zendesk",
-            };
-          });
-          setZendeskIntegrationsIndexed(addZendeskIndexed);
-          const currentSelectedZendeskIntegration = addZendeskIndexed.find(
-            (integration) => {
-              return integration.enable_software_vulnerabilities === true;
-            }
-          );
-          setSelectedIntegration(currentSelectedZendeskIntegration);
-        }
+        // Set jira and zendesk ntegrations
+        const addJiraIndexed = data.jira
+          ? data.jira.map((integration, index) => {
+              return { ...integration, originalIndex: index, type: "jira" };
+            })
+          : [];
+        setJiraIntegrationsIndexed(addJiraIndexed);
+        const currentSelectedJiraIntegration = addJiraIndexed.find(
+          (integration) => {
+            return integration.enable_software_vulnerabilities === true;
+          }
+        );
+        setSelectedIntegration(currentSelectedJiraIntegration);
+        const addZendeskIndexed = data.zendesk
+          ? data.zendesk.map((integration, index) => {
+              return {
+                ...integration,
+                originalIndex: index,
+                type: "zendesk",
+              };
+            })
+          : [];
+        setZendeskIntegrationsIndexed(addZendeskIndexed);
+        const currentSelectedZendeskIntegration = addZendeskIndexed.find(
+          (integration) => {
+            return integration.enable_software_vulnerabilities === true;
+          }
+        );
+        setSelectedIntegration(currentSelectedZendeskIntegration);
       },
     }
   );
@@ -179,18 +161,6 @@ const ManageAutomationsModal = ({
       );
       setAllIntegrationsIndexed(
         combineDataSets?.map((integration, index) => {
-          return { ...integration, dropdownIndex: index };
-        })
-      );
-    } else if (jiraIntegrationsIndexed) {
-      setAllIntegrationsIndexed(
-        jiraIntegrationsIndexed?.map((integration, index) => {
-          return { ...integration, dropdownIndex: index };
-        })
-      );
-    } else {
-      setAllIntegrationsIndexed(
-        zendeskIntegrationsIndexed?.map((integration, index) => {
           return { ...integration, dropdownIndex: index };
         })
       );
@@ -318,6 +288,7 @@ const ManageAutomationsModal = ({
   };
 
   const createIntegrationDropdownOptions = () => {
+    console.log("allIntegrationsIndexed", allIntegrationsIndexed);
     const integrationOptions = allIntegrationsIndexed?.map((i) => {
       return {
         value: String(i.dropdownIndex),
@@ -346,6 +317,15 @@ const ManageAutomationsModal = ({
   };
 
   const renderTicket = () => {
+    console.log(
+      "jira",
+      jiraIntegrationsIndexed && jiraIntegrationsIndexed.length > 0
+    );
+    console.log(
+      "zendesk",
+      zendeskIntegrationsIndexed && zendeskIntegrationsIndexed.length > 0
+    );
+
     return (
       <div className={`${baseClass}__ticket`}>
         <div className={`${baseClass}__software-automation-description`}>
@@ -487,8 +467,10 @@ const ManageAutomationsModal = ({
             data-for="save-automation-button"
             data-tip-disable={
               !(
-                jiraIntegrationsIndexed &&
-                jiraIntegrationsIndexed.length === 0 &&
+                ((jiraIntegrationsIndexed &&
+                  jiraIntegrationsIndexed.length === 0) ||
+                  (zendeskIntegrationsIndexed &&
+                    zendeskIntegrationsIndexed.length === 0)) &&
                 integrationEnabled &&
                 softwareAutomationsEnabled
               )
