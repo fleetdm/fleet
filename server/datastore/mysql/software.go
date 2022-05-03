@@ -131,14 +131,16 @@ WHERE
 	}
 
 	if len(added) > 0 {
-		// find the actually new software
-		var hashes []string
-		for _, s := range added {
+		// find the actually new software, maybe it exists already
+		hashes := make([]string, len(added))
+		ids := make(map[string]int, len(added))
+		for i, s := range added {
 			if s.ID != 0 {
 				continue
 			}
-
-			hashes = append(hashes, hex.EncodeToString(hashSoftware(s)))
+			h := hex.EncodeToString(hashSoftware(s))
+			hashes[i] = h
+			ids[h] = i
 		}
 
 		q := "SELECT name, version, source, `release`, vendor, arch, bundle_identifier from software where hash in (?)"
@@ -147,38 +149,46 @@ WHERE
 			return err
 		}
 
-		q = `INSERT INTO software (name, version, source, ` + "`release`" + `, vendor, arch, bundle_identifier) VALUES (?, ?, ?, ?, ?, ?, ?)`
-
-		var newSoftware []fleet.Software
-		newSoftwareIDs := make(map[uint]int)
-
-		// if there is no id, need to insert into software table first
-		for i, s := range added {
-			if s.ID != 0 {
-				continue
-			}
-
-			res, err := tx.ExecContext(ctx, q, s.Name, s.Version, s.Source, s.Release, s.Vendor, s.Arch, s.BundleIdentifier)
-			if err != nil {
-				return err
-			}
-
-			id, err := res.LastInsertId()
-			if err != nil {
-				return err
-			}
-
-			added[i].ID = uint(id)
+		var all []fleet.Software
+		err = ds.writer.SelectContext(ctx, &all, q, args...)
+		if err != nil {
+			return err
 		}
 
-		values := strings.TrimSuffix(strings.Repeat("(?, ?),", len(added)), ",")
+		newSoftware, _ := diffSoftware(all, added)
+
+		values := strings.TrimSuffix(strings.Repeat("(?, ?, ?, ?, ?, ?, ?), ", len(added)), ", ")
+		q = `INSERT INTO software (name, version, source, ` + "`release`" + `, vendor, arch, bundle_identifier) VALUES ` + values
+
+		args = nil
+		for _, s := range newSoftware {
+			args = append(args, s.Name, s.Version, s.Source, s.Release, s.Vendor, s.Arch, s.BundleIdentifier)
+		}
+
+		result, err := ds.writer.ExecContext(ctx, q, args...)
+		if err != nil {
+			return err
+		}
+
+		// update the ids for inserted software
+		lastInsertID, _ := result.LastInsertId()
+
+		for _, s := range newSoftware {
+			h := hex.EncodeToString(hashSoftware(s))
+			i := ids[h]
+			added[i].ID = uint(lastInsertID)
+			lastInsertID++
+		}
+
+		// finally, map software to host
+		values = strings.TrimSuffix(strings.Repeat("(?, ?), ", len(added)), ", ")
 		q = fmt.Sprintf(`INSERT IGNORE INTO host_software (host_id, software_id) VALUES %s`, values)
-		var args []interface{}
+		args = nil
 		for _, s := range added {
 			args = append(args, hostID, s.ID)
 		}
 
-		_, err := tx.ExecContext(ctx, q, args...)
+		_, err = ds.writer.ExecContext(ctx, q, args...)
 		if err != nil {
 			return err
 		}
