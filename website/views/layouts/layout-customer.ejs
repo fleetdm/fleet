@@ -83,11 +83,11 @@
 
       <div style="background-color: #FFFFFF;" class="header" purpose="page-header">
         <div style="max-width: 1248px; height: 94px;" class="container-fluid d-flex align-items-center justify-content-between pt-3 pb-3 px-3 px-md-4">
-          <a class="" href="/" style="max-width: 118px;">
+          <a href="/" style="max-width: 118px;">
             <img alt="Fleet logo" src="/images/logo-blue-162x92@2x.png" style="height: 92px; width: 162px;"/>
           </a>
-          <div>
-            <a href="/logout" class="header-link justify-content-end px-3 py-2 text-decoration-none <%= _.has(me, 'id') ? 'd-flex' : 'd-none' %>" style="text-decoration: none; line-height: 23px;">Log out</a>
+          <div purpose="header-nav">
+            <a href="/logout" class="justify-content-end px-3 py-2 text-decoration-none <%= _.has(me, 'id') ? 'd-flex' : 'd-none' %>" style="text-decoration: none; line-height: 23px;">Log out</a>
           </div>
         </div>
       </div>
@@ -176,6 +176,8 @@
     <script src="/js/pages/account/account-overview.page.js"></script>
     <script src="/js/pages/account/edit-password.page.js"></script>
     <script src="/js/pages/account/edit-profile.page.js"></script>
+    <script src="/js/pages/articles/articles.page.js"></script>
+    <script src="/js/pages/articles/basic-article.page.js"></script>
     <script src="/js/pages/contact.page.js"></script>
     <script src="/js/pages/customers/dashboard.page.js"></script>
     <script src="/js/pages/customers/new-license.page.js"></script>

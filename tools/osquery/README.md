@@ -4,8 +4,6 @@ The files in this directory are intended to assist with Fleet development.
 
 - `docker-compose.yml`: This docker-compose file helps with starting `osqueryd` instances for testing Fleet. More on this [below](#testing-with-containerized-osqueryd).
 
-- `example_config.json`: An example config file with insecure default passwords. Useful for testing in a local dev environment, but should /never/ be used in production.
-
 - `example_osquery.conf`: An example osquery config file that sets up basic configuration for distributed queries.
 
 - `example_osquery.flags`: An example osquery flagfile setting the config options that must be loaded before the full JSON config.

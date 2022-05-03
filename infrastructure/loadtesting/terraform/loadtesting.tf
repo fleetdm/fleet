@@ -8,13 +8,13 @@ resource "aws_ecs_service" "loadtest" {
   deployment_maximum_percent         = 200
 
   network_configuration {
-    subnets         = module.vpc.private_subnets
+    subnets         = data.terraform_remote_state.shared.outputs.vpc.private_subnets
     security_groups = [aws_security_group.backend.id]
   }
 }
 
 resource "aws_ecs_task_definition" "loadtest" {
-  family                   = "fleet-loadtest"
+  family                   = "${local.prefix}-loadtest"
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
   execution_role_arn       = aws_iam_role.main.arn
@@ -52,7 +52,7 @@ resource "aws_ecs_task_definition" "loadtest" {
           "go", "run", "/go/fleet/cmd/osquery-perf/agent.go",
           "-enroll_secret", data.aws_secretsmanager_secret_version.enroll_secret.secret_string,
           "-host_count", "5000",
-          "-server_url", "http://${aws_alb.internal.dns_name}",
+          "-server_url", "http://${data.terraform_remote_state.shared.outputs.alb-internal.dns_name}",
           "-node_key_file", "nodekeys",
           "--policy_pass_prob", "0.5",
           "--start_period", "5m",
@@ -65,14 +65,5 @@ resource "aws_ecs_task_definition" "loadtest" {
 }
 
 data "aws_secretsmanager_secret_version" "enroll_secret" {
-  secret_id = aws_secretsmanager_secret.enroll_secret.id
-}
-
-resource "aws_secretsmanager_secret" "enroll_secret" {
-  name       = "/fleet/loadtest/enroll/${random_pet.enroll_secret_postfix.id}"
-  kms_key_id = aws_kms_key.main.id
-}
-
-resource "random_pet" "enroll_secret_postfix" {
-  length = 1
+  secret_id = data.terraform_remote_state.shared.outputs.enroll_secret.id
 }

@@ -15,9 +15,11 @@ describe("Policies flow (empty)", () => {
       cy.visit("/policies/manage");
     });
     it("creates a custom policy", () => {
-      cy.getAttached(".manage-policies-page__header-wrap").within(() => {
-        cy.findByText(/add a policy/i).click();
-      });
+      cy.getAttached(".policies-list-wrapper__action-button-container").within(
+        () => {
+          cy.findByText(/add a policy/i).click();
+        }
+      );
       cy.findByText(/create your own policy/i).click();
       cy.getAttached(".ace_scroller")
         .click({ force: true })

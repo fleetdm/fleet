@@ -4,7 +4,7 @@ import { noop } from "lodash";
 import AceEditor from "react-ace";
 import classnames from "classnames";
 
-import { humanHostMemory } from "fleet/helpers";
+import { humanHostMemory } from "utilities/helpers";
 import FleetIcon from "components/icons/FleetIcon";
 import PlatformIcon from "components/icons/PlatformIcon";
 import targetInterface from "interfaces/target";

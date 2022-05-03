@@ -56,7 +56,7 @@ const TargetsInput = ({
         tabIndex={tabIndex}
         iconPosition="start"
         label="Target specific hosts"
-        placeholder="Search hosts by hostname, UUID, MAC address"
+        placeholder="Search hosts by hostname, UUID, MAC address, or private IP address"
         onChange={setSearchText}
       />
       {isActiveSearch && (

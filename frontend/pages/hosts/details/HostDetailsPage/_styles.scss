@@ -357,16 +357,6 @@
     margin: 0;
   }
 
-  .modal-btn-wrap {
-    display: flex;
-    justify-content: flex-end;
-
-    .button--inverse-alert,
-    .button--inverse {
-      margin-right: $pad-small;
-    }
-  }
-
   .buttons {
     display: flex;
     align-items: center;

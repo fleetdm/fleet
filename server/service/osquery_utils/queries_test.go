@@ -417,3 +417,27 @@ func TestDirectIngestOrbitInfo(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, ds.SetOrUpdateDeviceAuthTokenFuncInvoked)
 }
+
+func TestDirectIngestChromeProfiles(t *testing.T) {
+	ds := new(mock.Store)
+	ds.ReplaceHostDeviceMappingFunc = func(ctx context.Context, hostID uint, mapping []*fleet.HostDeviceMapping) error {
+		require.Equal(t, hostID, uint(1))
+		require.Equal(t, mapping, []*fleet.HostDeviceMapping{
+			{HostID: hostID, Email: "test@example.com", Source: "google_chrome_profiles"},
+			{HostID: hostID, Email: "test+2@example.com", Source: "google_chrome_profiles"},
+		})
+		return nil
+	}
+
+	host := fleet.Host{
+		ID: 1,
+	}
+
+	err := directIngestChromeProfiles(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{
+		{"email": "test@example.com"},
+		{"email": "test+2@example.com"},
+	}, false)
+
+	require.NoError(t, err)
+	require.True(t, ds.ReplaceHostDeviceMappingFuncInvoked)
+}

@@ -1,4 +1,16 @@
 .manage-queries-page {
+  a {
+    font-size: $x-small;
+    color: $core-vibrant-blue;
+    font-weight: $bold;
+    text-decoration: none;
+
+    img {
+      transform: scale(0.5);
+      vertical-align: bottom;
+    }
+  }
+
   &__header-wrap {
     height: 38px;
     display: flex;
@@ -244,11 +256,6 @@
           font-size: $small;
           font-weight: $bold;
           margin-bottom: $pad-medium;
-        }
-
-        img {
-          width: 176px;
-          margin-right: $pad-xlarge;
         }
 
         p {

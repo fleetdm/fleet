@@ -1,6 +1,8 @@
 import React from "react";
-import { useDispatch } from "react-redux";
-import { push } from "react-router-redux";
+
+// using browserHistory directly because "router"
+// is difficult to pass as a prop
+import { browserHistory } from "react-router";
 
 import Button from "components/buttons/Button/Button";
 
@@ -17,10 +19,8 @@ const LinkCell = ({
   title,
   classes = "w250",
 }: ILinkCellProps): JSX.Element => {
-  const dispatch = useDispatch();
-
   const onClick = (): void => {
-    dispatch(push(path));
+    browserHistory.push(path);
   };
 
   return (

@@ -319,11 +319,8 @@ describe(
               cy.getAttached(".fleet-checkbox__input").check({ force: true });
             });
         });
-        // cy.get(".fleet-checkbox__input").check({ force: true });
         cy.findByRole("button", { name: /delete/i }).click();
-        // Can't figure out how attach findByRole onto modal button
-        // Can't use findByText because delete button under modal
-        cy.get(".remove-pack-modal__btn-wrap > .button--alert")
+        cy.get(".remove-pack-modal .modal-cta-wrap")
           .contains("button", /delete/i)
           .click();
         cy.findByText(/successfully deleted/i).should("be.visible");

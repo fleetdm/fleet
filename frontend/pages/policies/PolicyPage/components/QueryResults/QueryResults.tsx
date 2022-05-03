@@ -5,12 +5,11 @@ import { format } from "date-fns";
 import FileSaver from "file-saver";
 import { get } from "lodash";
 
-// @ts-ignore
-import convertToCSV from "utilities/convert_to_csv"; // @ts-ignore
+import convertToCSV from "utilities/convert_to_csv";
 import { ICampaign } from "interfaces/campaign";
 import { ITarget } from "interfaces/target";
 
-import Button from "components/buttons/Button"; // @ts-ignore
+import Button from "components/buttons/Button";
 import Spinner from "components/Spinner";
 import TabsWrapper from "components/TabsWrapper";
 import InfoBanner from "components/InfoBanner";
