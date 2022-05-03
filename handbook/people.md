@@ -294,24 +294,12 @@ The CEO will then post a message in the `#hiring-xxxxx-2022` Slack channel to in
 
 6. **Before a new team member's first day:** Eric creates an onboarding issue in the [fleetdm/confidential](https://github.com/fleetdm/confidential/issues) GitHub repo for the new team member. Before creating the issue, Eric will go through it and comment on any steps that the new team member will not have to complete.
 
-### For registering a new state in Gusto:
-
-- For the business description: Fleet Device Management seeks to build a buyer-based, open-core business that will help organizations monitor and manage their devices, whether they’re the servers providing the backbone for websites and apps or devices like laptops and smartphones that employees use to do their work.
-- Industry NAICS (2017) code: 511210
-- On what date did you incorporate or form your business?: 09/15/2020
-- In what month does your fiscal year end?: December
-- Who is the company signatory? The CEO, Mike McNeil.  To get Mike's birthday and social security number, access the “People ops" vault in [1Password](https://fleetdevicemanagement.1password.com/vaults/dsnfsvutwfdibmip2fqmuy2yee/allitems/p5vzkihppzaupeclamoapg743a), look up "Mike McNeil," and check out the custom fields.
-- For the CEO's latest ownership percentage, open up [Carta](https://app.carta.com/corporations/1234715/captable/investors/detailed/) and view "Capitalization" > "By stakeholder."
-- Where are executed documents related to state tax filings uploaded in Google Drive?
-"Key Documents" > "People Ops" > "Tax."
-
 ### CorpNet state registration process
 
    In CorpNet, select "place an order for an existing business" we’ll need to have Foreign Registration and Payroll Tax Registration done.
    - You can have CorpNet do this by emailing the account rep "Subject: Fleet Device Management: State - Foreign Registration and Payroll Tax Registration" (this takes about two weeks).
    - You can do this between you and CorpNet by selecting "Foreign Qualification," place the order, and email the confirmation to the rep for Payroll registration (this is a short turnaround).
    - You can do this on your own by visting the state's "Secretary of State" website and check that the company name is available. To register online you'll need: the EIN, business address, information about the owners and their percentages, first date of business, sales within the state, and the business type (usually get an email right away for approval ~24-48 hrs). 
-    
 
 ## Team member onboarding
 
