@@ -166,8 +166,20 @@ jobs:
           sleep 1
         done
 
+    - name: Upload Orbit logs
+      if: always()
+      uses: actions/upload-artifact@6673cd052c4cd6fcf4b4e6e60ea986c889389535 # v2
+      with:
+        name: orbit-macos-${{ matrix.orbit-channel }}-${{ matrix.osqueryd-channel }}-logs
+        path: |
+          /var/log/orbit
+
+    - name: Uninstall Orbit
+      run: |
+        ./orbit/tools/cleanup/cleanup_macos.sh
+
   orbit-ubuntu:
-    timeout-minutes: 10
+    timeout-minutes: 15
     strategy:
       matrix:
         orbit-channel: [ 'stable', 'edge' ]
@@ -216,7 +228,7 @@ jobs:
       if: always()
       uses: actions/upload-artifact@6673cd052c4cd6fcf4b4e6e60ea986c889389535 # v2
       with:
-        name: orbit-${{ matrix.orbit-channel }}-${{ matrix.osqueryd-channel }}-logs
+        name: orbit-ubuntu-${{ matrix.orbit-channel }}-${{ matrix.osqueryd-channel }}-logs
         path: |
           orbit-logs
 
@@ -225,7 +237,7 @@ jobs:
         sudo apt remove fleet-osquery -y
 
   orbit-windows-build:
-    timeout-minutes: 10
+    timeout-minutes: 15
     strategy:
       matrix:
         orbit-channel: [ 'stable', 'edge' ]
@@ -260,7 +272,7 @@ jobs:
       uses: mxschmitt/action-tmate@8b4e4ac71822ed7e0ad5fb3d1c33483e9e8fb270 # v3
 
   orbit-windows:
-    timeout-minutes: 10
+    timeout-minutes: 15
     strategy:
       matrix:
         orbit-channel: [ 'stable', 'edge' ]
@@ -289,3 +301,11 @@ jobs:
     # We can't very accurately check the install on these Windows hosts since the hostnames tend to
     # overlap and we can't control the hostnames. Instead we just return and have the run-server job
     # wait until the expected number of hosts enroll.
+
+    - name: Upload Orbit logs
+      if: always()
+      uses: actions/upload-artifact@6673cd052c4cd6fcf4b4e6e60ea986c889389535 # v2
+      with:
+        name: orbit-windows-${{ matrix.orbit-channel }}-${{ matrix.osqueryd-channel }}-logs
+        path: |
+          C:\Windows\system32\config\systemprofile\AppData\Local\FleetDM\Orbit\Logs\orbit-osquery.log
