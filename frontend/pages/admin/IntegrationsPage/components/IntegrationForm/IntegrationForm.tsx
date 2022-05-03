@@ -53,7 +53,6 @@ const IntegrationForm = ({
   integrationEditingType,
   destination,
 }: IIntegrationFormProps): JSX.Element => {
-  console.log("integrationEditingType", integrationEditingType);
   const { jira: jiraIntegrations, zendesk: zendeskIntegrations } = integrations;
   const [formData, setFormData] = useState<IIntegrationFormData>({
     url: integrationEditingUrl || "",
@@ -79,21 +78,19 @@ const IntegrationForm = ({
     setFormData({ ...formData, [name]: value });
   };
 
-  // IntegrationForm component can be used to create a new jira integration or edit an existing jira integration so submitData will be assembled accordingly
+  // IntegrationForm component can be used to create a new integration or edit an existing integration so submitData will be assembled accordingly
   const createSubmitData = (): IIntegration[] => {
     let jiraIntegrationSubmitData = jiraIntegrations || [];
     let zendeskIntegrationSubmitData = zendeskIntegrations || [];
 
-    console.log("jiraIntegrationSubmitData", jiraIntegrationSubmitData);
-    console.log("zendeskIntegrationSubmitData", zendeskIntegrationSubmitData);
-
+    // Editing through UI is temporarily deprecated in 4.14
     if (integrationDestination === "jira") {
       if (
         integrationEditing &&
-        integrationEditing.originalIndex &&
+        (integrationEditing.originalIndex ||
+          integrationEditing.originalIndex === 0) &&
         integrationEditing.username
       ) {
-        console.log("Edit existing jira integration");
         // Edit existing jira integration using array replacement
         jiraIntegrationSubmitData.splice(integrationEditing.originalIndex, 1, {
           url,
@@ -102,7 +99,6 @@ const IntegrationForm = ({
           project_key: projectKey || "",
         });
       } else {
-        console.log("Create new jira integration");
         // Create new jira integration at end of array
         jiraIntegrationSubmitData = [
           ...jiraIntegrationSubmitData,
@@ -116,18 +112,12 @@ const IntegrationForm = ({
       }
       return jiraIntegrationSubmitData;
     }
-    console.log("integrationEditing", integrationEditing);
-    console.log(
-      "integrationEditing.originalIndex",
-      integrationEditing?.originalIndex
-    );
-    console.log("integrationEditing.email", integrationEditing?.email);
     if (
       integrationEditing &&
-      integrationEditing.originalIndex &&
+      (integrationEditing.originalIndex ||
+        integrationEditing.originalIndex === 0) &&
       integrationEditing.email
     ) {
-      console.log("Edit existing zendesk jira integration");
       // Edit existing zendesk integration using array replacement
       zendeskIntegrationSubmitData.splice(integrationEditing.originalIndex, 1, {
         url,
@@ -136,7 +126,6 @@ const IntegrationForm = ({
         group_id: groupId || 0,
       });
     } else {
-      console.log("Create new zendesk integration");
       // Create new zendesk integration at end of array
       zendeskIntegrationSubmitData = [
         ...zendeskIntegrationSubmitData,

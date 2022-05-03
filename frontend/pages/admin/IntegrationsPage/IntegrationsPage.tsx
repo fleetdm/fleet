@@ -8,7 +8,6 @@ import {
   IJiraIntegration,
   IZendeskIntegration,
   IIntegration,
-  IIntegrationFormData,
   IIntegrationTableData,
   IIntegrationFormErrors,
   IIntegrations,
@@ -130,8 +129,6 @@ const IntegrationsPage = (): JSX.Element => {
 
   const toggleDeleteIntegrationModal = useCallback(
     (integration?: IIntegrationTableData) => {
-      console.log("integration deleting", integration);
-
       setShowDeleteIntegrationModal(!showDeleteIntegrationModal);
       integration
         ? setIntegrationEditing(integration)
@@ -162,10 +159,6 @@ const IntegrationsPage = (): JSX.Element => {
 
   const onCreateSubmit = useCallback(
     (integrationSubmitData: IIntegration[], integrationDestination: string) => {
-      // TODO: remove console.logs
-      console.log("integrationSubmitData", integrationSubmitData);
-      console.log("integrationDestination", integrationDestination);
-
       // Updates either integrations.jira or integrations.zendesk
       const destination = () => {
         if (integrationDestination === "jira") {
@@ -225,9 +218,6 @@ const IntegrationsPage = (): JSX.Element => {
 
   const onDeleteSubmit = useCallback(() => {
     if (integrationEditing) {
-      // TODO: Remove console log
-      console.log("integrationEditing", integrationEditing);
-
       const deleteIntegrationDestination = () => {
         if (integrationEditing.type === "jira") {
           integrations?.jira.splice(integrationEditing.originalIndex, 1);
@@ -239,13 +229,6 @@ const IntegrationsPage = (): JSX.Element => {
           });
         }
         integrations?.zendesk.splice(integrationEditing.originalIndex, 1);
-        // TODO: Remove console log
-        console.log("What is sent to the API upon deleting zendesk", {
-          integrations: {
-            zendesk: integrations?.zendesk,
-            jira: jiraIntegrations,
-          },
-        });
         return configAPI.update({
           integrations: {
             zendesk: integrations?.zendesk,
@@ -283,11 +266,7 @@ const IntegrationsPage = (): JSX.Element => {
     (integrationSubmitData: IIntegration[]) => {
       if (integrationEditing) {
         setTestingConnection(true);
-        // TODO: Remove console log
-        console.log("integrationEditing", integrationEditing);
 
-        console.log("integrationSubmitData", integrationSubmitData);
-        debugger;
         const editIntegrationDestination = () => {
           if (integrationEditing.type === "jira") {
             return configAPI.update({
@@ -297,9 +276,6 @@ const IntegrationsPage = (): JSX.Element => {
               },
             });
           }
-          console.log("What is sent to the API upon editing zendesk", {
-            integrations: { zendesk: integrations?.zendesk },
-          });
           return configAPI.update({
             integrations: {
               zendesk: integrationSubmitData,
@@ -420,6 +396,7 @@ const IntegrationsPage = (): JSX.Element => {
           defaultSortHeader={"name"}
           defaultSortDirection={"asc"}
           actionButtonText={"Add integration"}
+          hideActionButton={!tableData?.length}
           actionButtonVariant={"brand"}
           onActionButtonClick={toggleAddIntegrationModal}
           resultsTitle={"integrations"}

@@ -117,36 +117,12 @@ const generateTableHeaders = (
 const generateActionDropdownOptions = (): IDropdownOption[] => {
   return [
     {
-      label: "Edit",
-      disabled: false,
-      value: "edit",
-    },
-    {
       label: "Delete",
       disabled: false,
       value: "delete",
     },
   ];
 };
-
-// old
-// const enhanceIntegrationData = (
-//   integrations: IJiraIntegrationIndexed[]
-// ): IIntegrationTableData[] => {
-//   return Object.values(integrations).map((integration) => {
-//     return {
-//       url: integration.url,
-//       username: integration.username,
-//       api_token: integration.api_token,
-//       project_key: integration.project_key,
-//       actions: generateActionDropdownOptions(),
-//       enable_software_vulnerabilities:
-//         integration.enable_software_vulnerabilities,
-//       name: `${integration.url} - ${integration.project_key}`,
-//       index: integration.index,
-//     };
-//   });
-// };
 
 const enhanceJiraData = (jiraIntegrations: IJiraIntegration[]): any[] => {
   return jiraIntegrations.map((integration, index) => {
@@ -197,14 +173,4 @@ const combineDataSets = (
   });
 };
 
-// const generateDataSet = (
-//   integrations: IJiraIntegrationIndexed[]
-// ): IIntegrationTableData[] => {
-//   return [...enhanceIntegrationData(integrations)];
-// };
-
-export {
-  generateTableHeaders,
-  // generateDataSet,
-  combineDataSets,
-};
+export { generateTableHeaders, combineDataSets };
