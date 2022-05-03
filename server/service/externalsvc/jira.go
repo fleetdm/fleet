@@ -13,12 +13,6 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 )
 
-const (
-	maxRetries           = 5
-	retryBackoff         = 300 * time.Millisecond
-	maxWaitForRetryAfter = 10 * time.Second
-)
-
 // Jira is a Jira client to be used to make requests to a jira external
 // service.
 type Jira struct {
@@ -100,6 +94,7 @@ func (j *Jira) CreateIssue(ctx context.Context, issue *jira.Issue) (*jira.Issue,
 	return createdIssue, nil
 }
 
+// TODO: find approach to consolidate overlapping logic for jira and zendesk retries
 func doWithRetry(fn func() (*jira.Response, error)) error {
 	op := func() error {
 		resp, err := fn()

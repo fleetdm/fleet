@@ -12,7 +12,7 @@ require (
 	github.com/VividCortex/mysqlerr v0.0.0-20170204212430-6c6b55f8796f
 	github.com/WatchBeam/clock v0.0.0-20170901150240-b08e6b4da7ea
 	github.com/XSAM/otelsql v0.10.0
-	github.com/andygrunwald/go-jira v1.15.1 // indirect
+	github.com/andygrunwald/go-jira v1.15.1
 	github.com/antchfx/htmlquery v1.2.4 // indirect
 	github.com/antchfx/xmlquery v1.3.9 // indirect
 	github.com/aws/aws-sdk-go v1.40.34
@@ -68,6 +68,7 @@ require (
 	github.com/mitchellh/gon v0.2.3
 	github.com/mna/redisc v1.3.2
 	github.com/ngrok/sqlmw v0.0.0-20211220175533-9d16fdc47b31
+	github.com/nukosuke/go-zendesk v0.12.0
 	github.com/oklog/run v1.1.0
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/open-policy-agent/opa v0.24.0
@@ -91,7 +92,7 @@ require (
 	github.com/stretchr/objx v0.3.0 // indirect
 	github.com/stretchr/testify v1.7.1
 	github.com/temoto/robotstxt v1.1.2 // indirect
-	github.com/theupdateframework/go-tuf v0.0.0-20220121203041-e3557e322879
+	github.com/theupdateframework/go-tuf v0.2.0
 	github.com/throttled/throttled/v2 v2.8.0
 	github.com/tj/assert v0.0.3
 	github.com/ulikunitz/xz v0.5.10

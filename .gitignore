@@ -5,6 +5,7 @@
 build
 vendor
 node_modules
+dist
 
 # generated artifacts
 assets/bundle*.*

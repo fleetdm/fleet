@@ -260,6 +260,15 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		hopt.DisableFailingPolicies = boolVal
 	}
 
+	deviceMapping := r.URL.Query().Get("device_mapping")
+	if deviceMapping != "" {
+		boolVal, err := strconv.ParseBool(deviceMapping)
+		if err != nil {
+			return hopt, err
+		}
+		hopt.DeviceMapping = boolVal
+	}
+
 	return hopt, nil
 }
 
