@@ -43,10 +43,10 @@ module "aurora_mysql" { #tfsec:ignore:aws-rds-enable-performance-insights-encryp
   create_security_group  = true
   allowed_cidr_blocks    = data.terraform_remote_state.shared.outputs.vpc.private_subnets_cidr_blocks
 
-  replica_count         = var.scale_down ? 0 : 1
+  replica_count         = 1
   replica_scale_enabled = true
-  replica_scale_min     = var.scale_down ? 0 : 1
-  replica_scale_max     = var.scale_down ? 0 : 3
+  replica_scale_min     = 1
+  replica_scale_max     = 1
   snapshot_identifier   = "arn:aws:rds:us-east-2:917007347864:cluster-snapshot:cleaned"
 
   monitoring_interval           = 60
