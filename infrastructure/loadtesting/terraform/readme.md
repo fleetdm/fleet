@@ -10,7 +10,7 @@ If you require changes beyond whats described here, contact @zwinnerman-fleetdm.
 
 ### Running migrations
 After applying terraform with the commands above:
-`aws ecs run-task --region us-east-2 --cluster fleet-backend --task-definition fleet-migrate:"$(terraform output -raw fleet_migration_revision)" --launch-type FARGATE --network-configuration "awsvpcConfiguration={subnets="$(terraform output -raw fleet_migration_subnets)",securityGroups="$(terraform output -raw fleet_migration_security_groups)"}"`
+`aws ecs run-task --region us-east-2 --cluster fleet-"$(terraform workspace show)"-backend --task-definition fleet-"$(terraform workspace show)"-migrate:"$(terraform output -raw fleet_migration_revision)" --launch-type FARGATE --network-configuration "awsvpcConfiguration={subnets="$(terraform output -raw fleet_migration_subnets)",securityGroups="$(terraform output -raw fleet_migration_security_groups)"}"`
 
 ### Running a loadtest
 We run simulated hosts in containers of 5,000 at a time. Once the infrastructure is running, you can run the following command:

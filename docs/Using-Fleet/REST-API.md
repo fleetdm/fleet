@@ -1030,6 +1030,11 @@ Modifies the Fleet's configuration with the supplied information.
 | username              | string | body | _integrations.jira[] settings_. The Jira username to use for this Jira integration. |
 | password              | string | body | _integrations.jira[] settings_. The password of the Jira username to use for this Jira integration. |
 | project_key           | string | body | _integrations.jira[] settings_. The Jira project key to use for this integration. Jira tickets will be created in this project. |
+| enable_software_vulnerabilities | boolean | body | _integrations.zendesk[] settings_. Whether or not that Zendesk integration is enabled. Only one vulnerabilities automation can be enabled at a given time (enable_vulnerabilities_webhook and enable_software_vulnerabilities). |
+| url                   | string | body | _integrations.zendesk[] settings_. The URL of the Zendesk server to integrate with. |
+| email              | string | body | _integrations.zendesk[] settings_. The Zendesk user email to use for this Zendesk integration. |
+| api_token              | string | body | _integrations.zendesk[] settings_. The Zendesk API token to use for this Zendesk integration. |
+| group_id           | string | body | _integrations.zendesk[] settings_. The Zendesk group id to use for this integration. Zendesk tickets will be created in this group. |
 | additional_queries    | boolean | body | Whether or not additional queries are enabled on hosts.                                                                                                                                |
 
 #### Example
@@ -1728,7 +1733,11 @@ None.
 | policy_id               | integer | query | The ID of the policy to filter hosts by. `policy_response` must also be specified with `policy_id`.                                                                                                                                                                                                                                         |
 | policy_response         | string  | query | Valid options are `passing` or `failing`.  `policy_id` must also be specified with `policy_response`.                                                                                                                                                                                                                                       |
 | software_id             | integer | query | The ID of the software to filter hosts by.                                                                                                                                                                                                                                         |
-
+           |
+| device_mapping          | boolean | query | Indicates whether `device_mapping` should be included
+for each host. See ["Get host's Google Chrome profiles](#get-host's-google-chrome-profiles) for
+more information about this feature.
+### Get host's Google Chrome profiles
 If `additional_info_filters` is not specified, no `additional` information will be returned.
 
 #### Example
@@ -2013,7 +2022,7 @@ If the scheduled queries haven't run on the host yet, the stats have zero values
         "id": 6,
         "name": "All Hosts",
         "description": "All hosts which have enrolled in Fleet",
-        "query": "select 1;",
+        "query": "SELECT 1;",
         "platform": "",
         "label_type": "builtin",
         "label_membership_type": "dynamic"
@@ -2024,7 +2033,7 @@ If the scheduled queries haven't run on the host yet, the stats have zero values
         "id": 9,
         "name": "CentOS Linux",
         "description": "All CentOS hosts",
-        "query": "select 1 from os_version where platform = 'centos' or name like '%centos%'",
+        "query": "SELECT 1 FROM os_version WHERE platform = 'centos' OR name LIKE '%centos%'",
         "platform": "",
         "label_type": "builtin",
         "label_membership_type": "dynamic"
@@ -2048,7 +2057,7 @@ If the scheduled queries haven't run on the host yet, the stats have zero values
       {
         "id": 1,
         "name": "SomeQuery",
-        "query": "select * from foo;",
+        "query": "SELECT * FROM foo;",
         "description": "this is a query",
         "resolution": "fix with these steps...",
         "platform": "windows,linux",
@@ -2057,7 +2066,7 @@ If the scheduled queries haven't run on the host yet, the stats have zero values
       {
         "id": 2,
         "name": "SomeQuery2",
-        "query": "select * from bar;",
+        "query": "SELECT * FROM bar;",
         "description": "this is another query",
         "resolution": "fix with these other steps...",
         "platform": "darwin",
@@ -2066,7 +2075,7 @@ If the scheduled queries haven't run on the host yet, the stats have zero values
       {
         "id": 3,
         "name": "SomeQuery3",
-        "query": "select * from baz;",
+        "query": "SELECT * FROM baz;",
         "description": "",
         "resolution": "",
         "platform": "",
@@ -2591,7 +2600,7 @@ Creates a dynamic label.
 {
   "name": "Ubuntu hosts",
   "description": "Filters ubuntu hosts",
-  "query": "select 1 from os_version where platform = 'ubuntu';",
+  "query": "SELECT 1 FROM os_version WHERE platform = 'ubuntu';",
   "platform": ""
 }
 ```
@@ -2608,7 +2617,7 @@ Creates a dynamic label.
     "id": 1,
     "name": "Ubuntu hosts",
     "description": "Filters ubuntu hosts",
-    "query": "select 1 from os_version where platform = 'ubuntu';",
+    "query": "SELECT 1 FROM os_version WHERE platform = 'ubuntu';",
     "label_type": "regular",
     "label_membership_type": "dynamic",
     "display_text": "Ubuntu hosts",
@@ -2658,7 +2667,7 @@ Modifies the specified label. Note: Label queries and platforms are immutable. T
     "id": 1,
     "name": "Ubuntu hosts",
     "description": "Filters ubuntu hosts",
-    "query": "select 1 from os_version where platform = 'ubuntu';",
+    "query": "SELECT 1 FROM os_version WHERE platform = 'ubuntu';",
     "platform": "darwin",
     "label_type": "regular",
     "label_membership_type": "dynamic",
@@ -2697,7 +2706,7 @@ Returns the specified label.
     "id": 12,
     "name": "Ubuntu",
     "description": "Filters ubuntu hosts",
-    "query": "select 1 from os_version where platform = 'ubuntu';",
+    "query": "SELECT 1 FROM os_version WHERE platform = 'ubuntu';",
     "label_type": "regular",
     "label_membership_type": "dynamic",
     "display_text": "Ubuntu",
@@ -2738,7 +2747,7 @@ Returns a list of all the labels in Fleet.
       "id": 6,
       "name": "All Hosts",
       "description": "All hosts which have enrolled in Fleet",
-      "query": "select 1;",
+      "query": "SELECT 1;",
       "label_type": "builtin",
       "label_membership_type": "dynamic",
       "host_count": 7,
@@ -2752,7 +2761,7 @@ Returns a list of all the labels in Fleet.
       "id": 7,
       "name": "macOS",
       "description": "All macOS hosts",
-      "query": "select 1 from os_version where platform = 'darwin';",
+      "query": "SELECT 1 FROM os_version WHERE platform = 'darwin';",
       "platform": "darwin",
       "label_type": "builtin",
       "label_membership_type": "dynamic",
@@ -2767,7 +2776,7 @@ Returns a list of all the labels in Fleet.
       "id": 8,
       "name": "Ubuntu Linux",
       "description": "All Ubuntu hosts",
-      "query": "select 1 from os_version where platform = 'ubuntu';",
+      "query": "SELECT 1 FROM os_version WHERE platform = 'ubuntu';",
       "platform": "ubuntu",
       "label_type": "builtin",
       "label_membership_type": "dynamic",
@@ -2782,7 +2791,7 @@ Returns a list of all the labels in Fleet.
       "id": 9,
       "name": "CentOS Linux",
       "description": "All CentOS hosts",
-      "query": "select 1 from os_version where platform = 'centos' or name like '%centos%'",
+      "query": "SELECT 1 FROM os_version WHERE platform = 'centos' OR name LIKE '%centos%'",
       "label_type": "builtin",
       "label_membership_type": "dynamic",
       "host_count": 3,
@@ -2796,7 +2805,7 @@ Returns a list of all the labels in Fleet.
       "id": 10,
       "name": "MS Windows",
       "description": "All Windows hosts",
-      "query": "select 1 from os_version where platform = 'windows';",
+      "query": "SELECT 1 FROM os_version WHERE platform = 'windows';",
       "platform": "windows",
       "label_type": "builtin",
       "label_membership_type": "dynamic",
@@ -3136,6 +3145,8 @@ Deletes the label specified by ID.
 
 ### Delete pack
 
+Delete pack by name.
+
 `DELETE /api/v1/fleet/packs/{name}`
 
 #### Parameters
@@ -3235,7 +3246,7 @@ Deletes the label specified by ID.
       "name": "osquery_info",
       "query_id": 22,
       "query_name": "osquery_info",
-      "query": "select i.*, p.resident_size, p.user_time, p.system_time, time.minutes as counter from osquery_info i, processes p, time where p.pid = i.pid;",
+      "query": "SELECT i.*, p.resident_size, p.user_time, p.system_time, time.minutes AS counter FROM osquery_info i, processes p, time WHERE p.pid = i.pid;",
       "interval": 6667,
       "snapshot": true,
       "removed": false,
@@ -3298,7 +3309,7 @@ Deletes the label specified by ID.
     "name": "osquery_events",
     "query_id": 23,
     "query_name": "osquery_events",
-    "query": "select name, publisher, type, subscriptions, events, active from osquery_events;",
+    "query": "SELECT name, publisher, type, subscriptions, events, active FROM osquery_events;",
     "interval": 120,
     "snapshot": false,
     "removed": true,
@@ -3337,7 +3348,7 @@ Deletes the label specified by ID.
     "name": "osquery_events",
     "query_id": 23,
     "query_name": "osquery_events",
-    "query": "select name, publisher, type, subscriptions, events, active from osquery_events;",
+    "query": "SELECT name, publisher, type, subscriptions, events, active FROM osquery_events;",
     "interval": 120,
     "snapshot": false,
     "removed": true,
@@ -3391,7 +3402,7 @@ Deletes the label specified by ID.
     "name": "osquery_events",
     "query_id": 23,
     "query_name": "osquery_events",
-    "query": "select name, publisher, type, subscriptions, events, active from osquery_events;",
+    "query": "SELECT name, publisher, type, subscriptions, events, active FROM osquery_events;",
     "interval": 120,
     "snapshot": false,
     "removed": true,
@@ -5111,7 +5122,7 @@ The returned lists are filtered based on the hosts the requesting user has acces
         "id": 6,
         "name": "All Hosts",
         "description": "All hosts which have enrolled in Fleet",
-        "query": "select 1;",
+        "query": "SELECT 1;",
         "label_type": "builtin",
         "label_membership_type": "dynamic",
         "host_count": 5,
@@ -5372,8 +5383,8 @@ _Available in Fleet Premium_
             },
             "decorators": {
               "load": [
-                "select uuid as host_uuid from system_info;",
-                "select hostname as hostname from system_info;"
+                "SELECT uuid AS host_uuid FROM system_info;",
+                "SELECT hostname AS hostname FROM system_info;"
               ]
             }
           },

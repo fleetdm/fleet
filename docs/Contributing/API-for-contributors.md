@@ -52,9 +52,9 @@ None.
     {
       "name": "osquery_schedule",
       "description": "Report performance stats for each file in the query schedule.",
-      "query": "select name, interval, executions, output_size, wall_time, (user_time/executions) as avg_user_time, (system_time/executions) as avg_system_time, average_memory, last_executed from osquery_schedule;"
+      "query": "SELECT name, interval, executions, output_size, wall_time, (user_time/executions) AS avg_user_time, (system_time/executions) AS avg_system_time, average_memory, last_executed FROM osquery_schedule;"
     }
-  ]
+]
 }
 ```
 
@@ -536,7 +536,7 @@ If the `label_membership_type` is set to `manual`, the `hosts` property must als
     {
       "name": "Ubuntu",
       "description": "Filters ubuntu hosts",
-      "query": "select 1 from os_version where platform = 'ubuntu';",
+      "query": "SELECT 1 FROM os_version WHERE platform = 'ubuntu';",
       "label_membership_type": "dynamic"
     },
     {
@@ -576,7 +576,7 @@ None.
       "id": 6,
       "name": "All Hosts",
       "description": "All hosts which have enrolled in Fleet",
-      "query": "select 1;",
+      "query": "SELECT 1;",
       "label_type": "builtin",
       "label_membership_type": "dynamic"
     },
@@ -584,7 +584,7 @@ None.
       "id": 7,
       "name": "macOS",
       "description": "All macOS hosts",
-      "query": "select 1 from os_version where platform = 'darwin';",
+      "query": "SELECT 1 FROM os_version WHERE platform = 'darwin';",
       "platform": "darwin",
       "label_type": "builtin",
       "label_membership_type": "dynamic"
@@ -593,7 +593,7 @@ None.
       "id": 8,
       "name": "Ubuntu Linux",
       "description": "All Ubuntu hosts",
-      "query": "select 1 from os_version where platform = 'ubuntu';",
+      "query": "SELECT 1 FROM os_version WHERE platform = 'ubuntu';",
       "platform": "ubuntu",
       "label_type": "builtin",
       "label_membership_type": "dynamic"
@@ -602,7 +602,7 @@ None.
       "id": 9,
       "name": "CentOS Linux",
       "description": "All CentOS hosts",
-      "query": "select 1 from os_version where platform = 'centos' or name like '%centos%'",
+      "query": "SELECT 1 FROM os_version WHERE platform = 'centos' OR name LIKE '%centos%'",
       "label_type": "builtin",
       "label_membership_type": "dynamic"
     },
@@ -610,7 +610,7 @@ None.
       "id": 10,
       "name": "MS Windows",
       "description": "All Windows hosts",
-      "query": "select 1 from os_version where platform = 'windows';",
+      "query": "SELECT 1 FROM os_version WHERE platform = 'windows';",
       "platform": "windows",
       "label_type": "builtin",
       "label_membership_type": "dynamic"
@@ -619,7 +619,7 @@ None.
       "id": 11,
       "name": "Ubuntu",
       "description": "Filters ubuntu hosts",
-      "query": "select 1 from os_version where platform = 'ubuntu';",
+      "query": "SELECT 1 FROM os_version WHERE platform = 'ubuntu';",
       "label_membership_type": "dynamic"
     }
   ]
@@ -787,7 +787,7 @@ One of `query` and `query_id` must be specified.
 
 ```json
 {
-  "query": "select instance_id from system_info",
+  "query": "SELECT instance_id FROM system_info",
   "selected": {
     "hosts": [171]
   }
@@ -826,7 +826,7 @@ One of `query` and `query_id` must be specified.
 
 ```json
 {
-  "query": "select instance_id from system_info;",
+  "query": "SELECT instance_id FROM system_info;",
   "selected": {
     "labels": [7]
   }
@@ -922,7 +922,7 @@ One of `query` and `query_id` must be specified.
 
 ```json
 {
-  "query": "select instance_id from system_info",
+  "query": "SELECT instance_id FROM system_info",
   "selected": {
     "labels": ["All Hosts"]
   }
