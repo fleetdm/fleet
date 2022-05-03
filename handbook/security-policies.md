@@ -52,7 +52,7 @@ Fleet requires all workforce members to comply with the following acceptable use
 
 Fleet requires all workforce members to comply with the encryption policy, such that:
 
-1. All Fleet-owned workstations must be encrypted, enforced by the IT and/or security team.
+1. The storage drives of all Fleet-owned workstations must be encrypted, enforced by the IT and/or security team.
 
 2. Confidential data must be stored in a manner that supports user access logs.
 
@@ -64,11 +64,11 @@ Fleet requires all workforce members to comply with the encryption policy, such 
 
 6. Data is protected in transit using recent TLS versions with ciphers recognized as secure.
 
-#### Local Disk/Volume Encryption
+#### Local disk/volume encryption
 
 Encryption and key management for local disk encryption of end-user devices follow the defined best practices for Windows, macOS, and Linux/Unix operating systems, such as Bitlocker and FileVault. 
 
-#### Protecting Data In Transit
+#### Protecting data in transit
 
 1. All external data transmission is encrypted end-to-end. This includes, but is not limited to, cloud infrastructure and third party vendors and applications.
 
