@@ -206,6 +206,18 @@ jobs:
           sudo systemctl status orbit.service || true
           sleep 1
         done
+        sudo journalctl -u orbit.service > orbit-logs
+
+    - name: Upload Orbit logs
+      if: always()
+      uses: actions/upload-artifact@6673cd052c4cd6fcf4b4e6e60ea986c889389535 # v2
+      with:
+        name: orbit-${{ matrix.orbit-channel }}-${{ matrix.osqueryd-channel }}-logs
+        path: |
+          orbit-logs
+
+    - name: Uninstall Orbit
+      run: |
         sudo apt remove fleet-osquery -y
 
   orbit-windows-build:
