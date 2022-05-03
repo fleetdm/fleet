@@ -26,20 +26,20 @@ paginate: true
 
 ## About this
 
-* To be done on hire and annually. 
-* Focuses on tools we use.
-* Also applies to securing your personal devices and accounts.
-* Less than 15 minutes.
+* This is done upon hire and annually. 
+* It focuses on the tools we use.
+* It also applies to securing your personal devices and accounts.
+* This takes less than 15 minutes.
 
-More info in our [handbook](https://fleetdm.com/handbook/security#security-awareness-training)
+More info is available in our [handbook](https://fleetdm.com/handbook/security#security-awareness-training).
 
 ## Enrolling your Fleet laptop (MDM)
 
 ### Which ones?
-**Fleet owned Macs**
+**Fleet-owned Macs**
 
-* Most work allowed from personal devices.
-* Personal computers allowed on internal Fleet instance.
+* Most work is allowed from personal devices.
+* Personal computers are allowed on internal Fleet instances.
 * You probably don't want MDM on your personal Mac.
 
 ## Enrolling your Fleet laptop (MDM)
@@ -47,7 +47,7 @@ More info in our [handbook](https://fleetdm.com/handbook/security#security-aware
 
 * MDM will [configure your Mac securely](https://fleetdm.com/handbook/security#how-we-protect-end-user-devices).
 * It will push osquery and enroll you to our [dogfood instance of Fleet](https://dogfood.fleetdm.com/dashboard).
-* Provides a catalog of apps you can install easily
+* This provides a catalog of apps you can install easily.
 
 [Enrollment
 instructions](https://docs.google.com/document/d/1vRrI9x5ch_Yuw2ihq3JDkNcxP32KhDt5RXasQ9A5Bmk/edit) (Private)
@@ -67,7 +67,7 @@ Ours are simple:
 From best to worst:
 1. [Hardware security keys](https://fleetdm.com/handbook/security#hardware-security-keys)
 2. App/push notification based
-3. Time-based One Time Password (TOTP)
+3. Time-based One-Time Password (TOTP)
 4. SMS/Voice
 
 [Details](https://fleetdm.com/handbook/security#2-step-verification)
@@ -77,12 +77,12 @@ From best to worst:
 ## 2FA
 
 1. Enable it on your Google and GitHub accounts.
-2. Ensure Yubikeys are on your way.
+2. Make sure Yubikeys are on thei way.
 3. When you receive them, add them to your accounts and let *#g-security* know.
 
 ## Password manager
 
-* Install the password manager from the "Managed Software Center". 
+* Install the password manager from the "Managed Software Center." 
 * Generate random passwords for everything that does not support SSO.
 * Avoid sharing passwords when it can be avoided. If it can't, share with the password manager.
 
@@ -108,7 +108,7 @@ Ask around!
 ## Business email compromise
 BEC leverages our willingness to help people.
 
-* Always check the **from** on email. If the **from** is FleetDM.com, it could still be phishing. If it's not, it very likely IS.
+* Always check the "**from**" on email. If the **from** is FleetDM.com, it could still be phishing. If it's not, it very likely IS.
 * Beware of emergencies, pressure and anything related to money transfers or purchases
 
 
@@ -119,7 +119,7 @@ We have a strict process related to payments and wire transfers. If you are in t
 ## Working from shady networks and cool locations
 
 * We assume all networks are shady.
-* Fleet enrolled laptops have firewalls configured + the protocols we use are encrypted and can be used on public Wi-Fi.
+* Fleet enrolled laptops have firewalls configured, + the protocols we use are encrypted and can be used on public Wi-Fi.
 
 ## Installing apps
 
@@ -127,11 +127,11 @@ Install apps from the following sources:
 
 1. Our Managed Software Center.
 2. Package managers such as *brew* or *apt*.
-3. Official websites of vendors / open-source projects.
+3. Official websites of vendors / open source projects.
 
 ## Apps and Google Workspace
 
-Apps are only allowed automatically if they do not access confidential data.
+Apps are only automatically allowed if they do not access confidential data.
 
 If you need an app hooked up, let's discuss it in *#g-security*!
 
@@ -139,23 +139,23 @@ If you need an app hooked up, let's discuss it in *#g-security*!
 
 An ad-blocker [for Chrome](https://chrome.google.com/webstore/detail/ublock-origin/cjpalhdlnbpafiamejdnhcphjbkeiagm?hl=en) is provided on Fleet-managed computers.
 
-* Limit extension usage to well trusted ones.
+* Limit extension usage to well-trusted ones.
 * Disable extensions you do not use.
-* If in doubt, ask about it in *#g-security*!
+* If in doubt, ask about it in *#g-security*.
 
 ## Keeping stuff up to date
 Enrolled laptops will have their OS and Chrome kept up to date.
 
-1. Install updates promptly
-2. Update your package manager if you use one (`brew update && brew upgrade`)
-3. Enable automatic updates on your mobile devices
+1. Install updates promptly.
+2. Update your package manager if you use one (`brew update && brew upgrade`).
+3. Enable automatic updates on your mobile devices.
 
 ## What if you leaked something to GitHub
 Undoing git history is complicated. Consider this secret forever leaked.
 
 1. Post about it in #g-security.
 2. Get ready to rotate said secret!
-3. If it was not an actual "secret" but sensitive information in an issue, delete the comment/post **including the history**.
+3. If it was not an actual "secret" but sensitive information in an issue, delete the comment/post, **including the history**.
 
 ## If... you lose your laptop
 
@@ -167,7 +167,7 @@ Undoing git history is complicated. Consider this secret forever leaked.
 
 1. Don't panic.
 2. Post about it in #g-security.
-3. Your key will be disabled. New ones will be ordered, but in the mean time you can use your phone
+3. Your key will be disabled. New ones will be ordered, but in the meantime, you can use your phone
    [as a security
    key](https://support.google.com/accounts/answer/9289445?hl=en&co=GENIE.Platform%3DAndroid).
 4. If you find your keys after they've been disabled, just set them up again!
