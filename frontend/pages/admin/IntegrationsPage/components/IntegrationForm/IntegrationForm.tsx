@@ -116,6 +116,12 @@ const IntegrationForm = ({
       }
       return jiraIntegrationSubmitData;
     }
+    console.log("integrationEditing", integrationEditing);
+    console.log(
+      "integrationEditing.originalIndex",
+      integrationEditing?.originalIndex
+    );
+    console.log("integrationEditing.email", integrationEditing?.email);
     if (
       integrationEditing &&
       integrationEditing.originalIndex &&

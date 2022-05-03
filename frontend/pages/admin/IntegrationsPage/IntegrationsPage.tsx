@@ -286,6 +286,8 @@ const IntegrationsPage = (): JSX.Element => {
         // TODO: Remove console log
         console.log("integrationEditing", integrationEditing);
 
+        console.log("integrationSubmitData", integrationSubmitData);
+        debugger;
         const editIntegrationDestination = () => {
           if (integrationEditing.type === "jira") {
             return configAPI.update({
