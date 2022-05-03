@@ -80,25 +80,6 @@ const IntegrationsPage = (): JSX.Element => {
       onSuccess: (data) => {
         if (data) {
           setJiraIntegrations(data.jira);
-          // const mockZendeskData = {
-          //   zendesk: [
-          //     {
-          //       url: "https://example1.zendesk.com",
-          //       email: "admin@example.com",
-          //       api_token: "abc123",
-          //       group_id: 12345678,
-          //       enable_software_vulnerabilities: true,
-          //     },
-          //     {
-          //       url: "https://example2.zendesk.com",
-          //       email: "maintainer@example.com",
-          //       api_token: "abc123",
-          //       group_id: 12345678,
-          //       enable_software_vulnerabilities: false,
-          //     },
-          //   ],
-          // };
-          // 5/3/22 Changed mockZendeskData to data.zendesk
           setZendeskIntegrations(data.zendesk);
         }
       },

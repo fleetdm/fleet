@@ -157,7 +157,11 @@ const IntegrationForm = ({
         name="url"
         onChange={onInputChange}
         label="URL"
-        placeholder="https://jira.example.com"
+        placeholder={
+          integrationDestination === "jira"
+            ? "https://example.atlassian.net"
+            : "https://example.zendesk.com"
+        }
         parseTarget
         value={url}
       />
@@ -169,12 +173,6 @@ const IntegrationForm = ({
           placeholder="name@example.com"
           parseTarget
           value={username}
-          tooltip={
-            "\
-              This user must have “Create issues” for the project <br/> \
-              in which the issues are created. \
-            "
-          }
         />
       ) : (
         <InputField
@@ -215,10 +213,10 @@ const IntegrationForm = ({
           name="groupId"
           onChange={onInputChange}
           label="Group ID"
-          placeholder="12345678"
+          placeholder="28134038"
           type="number"
           parseTarget
-          value={groupId}
+          value={groupId === 0 ? null : groupId}
           tooltip={
             "\
               To find the Zendesk group ID, select <b>Admin > <br /> \
