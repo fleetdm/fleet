@@ -126,7 +126,7 @@ type OsqueryConfig struct {
 	AsyncHostUpdateBatch             int           `yaml:"async_host_update_batch"`
 	AsyncHostRedisPopCount           int           `yaml:"async_host_redis_pop_count"`
 	AsyncHostRedisScanKeysCount      int           `yaml:"async_host_redis_scan_keys_count"`
-	MinSoftwareLastOpenedAtDiff      time.Duration `yaml:"min_software_last_opened_at_diff"`
+	//MinSoftwareLastOpenedAtDiff      time.Duration `yaml:"min_software_last_opened_at_diff"`
 }
 
 // LoggingConfig defines configs related to logging
@@ -466,8 +466,8 @@ func (man Manager) addConfigs() {
 		"Batch size to pop items from redis in async collection")
 	man.addConfigInt("osquery.async_host_redis_scan_keys_count", 1000,
 		"Batch size to scan redis keys in async collection")
-	man.addConfigDuration("osquery.min_software_last_opened_at_diff", 1*time.Hour,
-		"Minimum time difference of the software's last opened timestamp (compared to the last one saved) to trigger an update to the database")
+	//man.addConfigDuration("osquery.min_software_last_opened_at_diff", 1*time.Hour,
+	//	"Minimum time difference of the software's last opened timestamp (compared to the last one saved) to trigger an update to the database")
 
 	// Logging
 	man.addConfigBool("logging.debug", false,
@@ -685,7 +685,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			AsyncHostUpdateBatch:             man.getConfigInt("osquery.async_host_update_batch"),
 			AsyncHostRedisPopCount:           man.getConfigInt("osquery.async_host_redis_pop_count"),
 			AsyncHostRedisScanKeysCount:      man.getConfigInt("osquery.async_host_redis_scan_keys_count"),
-			MinSoftwareLastOpenedAtDiff:      man.getConfigDuration("osquery.min_software_last_opened_at_diff"),
+			//MinSoftwareLastOpenedAtDiff:      man.getConfigDuration("osquery.min_software_last_opened_at_diff"),
 		},
 		Logging: LoggingConfig{
 			Debug:                man.getConfigBool("logging.debug"),

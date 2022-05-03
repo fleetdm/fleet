@@ -71,7 +71,7 @@ func TracingEnabled(lconfig *config.LoggingConfig) DBOption {
 // that must be used in the datastore layer can be captured here.
 func WithFleetConfig(conf *config.FleetConfig) DBOption {
 	return func(o *dbOptions) error {
-		o.minLastOpenedAtDiff = conf.Osquery.MinSoftwareLastOpenedAtDiff
+		//o.minLastOpenedAtDiff = conf.Osquery.MinSoftwareLastOpenedAtDiff
 		return nil
 	}
 }

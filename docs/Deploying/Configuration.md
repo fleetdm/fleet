@@ -1197,19 +1197,6 @@ Applies only when `osquery_enable_async_host_processing` is enabled. Order of ma
   	async_host_redis_scan_keys_count: 100
   ```
 
-##### osquery_min_software_last_opened_at_diff
-
-The minimum time difference between the software's "last opened at" timestamp reported by osquery and the last timestamp saved for that software on that host helps minimize the number of updates required when a host reports its installed software information, resulting in less load on the database. If there is no existing timestamp for the software on that host (or if the software was not installed on that host previously), the new timestamp is automatically saved.
-
-- Default value: 1h
-- Environment variable: `FLEET_OSQUERY_MIN_SOFTWARE_LAST_OPENED_AT_DIFF`
-- Config file format:
-
-  ```
-  osquery:
-  	min_software_last_opened_at_diff: 4h
-  ```
-
 ##### Example YAML
 
 ```yaml
