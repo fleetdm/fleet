@@ -412,7 +412,7 @@ At the 🗣 Product office hours meeting, the product team weighs all requests. 
 
 The team prioritizes a request when the business perceives it as an immediate priority. When this happens, the team sets the request to be estimated or deferred within 5 business days.
 
-The team puts a request to the side when the business perceives competing priorities are perceives as more pressing in the immediate moment.
+The team puts a request to the side when the business perceives competing priorities as more pressing in the immediate moment.
 
 #### Why this way?
 
