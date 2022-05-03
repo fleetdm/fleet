@@ -167,7 +167,7 @@ jobs:
         done
 
   orbit-ubuntu:
-    timeout-minutes: 15
+    timeout-minutes: 10
     strategy:
       matrix:
         orbit-channel: [ 'stable', 'edge' ]
@@ -206,6 +206,10 @@ jobs:
           sudo systemctl status orbit.service || true
           sleep 1
         done
+
+    - name: Collect orbit logs
+      if: always()
+      run: |
         sudo journalctl -u orbit.service > orbit-logs
 
     - name: Upload Orbit logs
@@ -221,7 +225,7 @@ jobs:
         sudo apt remove fleet-osquery -y
 
   orbit-windows-build:
-    timeout-minutes: 15
+    timeout-minutes: 10
     strategy:
       matrix:
         orbit-channel: [ 'stable', 'edge' ]
@@ -256,7 +260,7 @@ jobs:
       uses: mxschmitt/action-tmate@8b4e4ac71822ed7e0ad5fb3d1c33483e9e8fb270 # v3
 
   orbit-windows:
-    timeout-minutes: 15
+    timeout-minutes: 10
     strategy:
       matrix:
         orbit-channel: [ 'stable', 'edge' ]
