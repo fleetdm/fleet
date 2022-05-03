@@ -35,6 +35,9 @@ const (
 type HostListOptions struct {
 	ListOptions
 
+	// DeviceMapping joins device user email mapping for each host if available
+	DeviceMapping bool
+
 	// AdditionalFilters selects which host additional fields should be
 	// populated.
 	AdditionalFilters []string
@@ -127,6 +130,8 @@ type Host struct {
 	PercentDiskSpaceAvailable float64 `json:"percent_disk_space_available" db:"percent_disk_space_available" csv:"percent_disk_space_available"`
 
 	HostIssues `json:"issues,omitempty" csv:"-"`
+
+	DeviceMapping *json.RawMessage `json:"device_mapping" db:"device_mapping" csv:"device_mapping"`
 }
 
 type HostIssues struct {

@@ -1030,6 +1030,11 @@ Modifies the Fleet's configuration with the supplied information.
 | username              | string | body | _integrations.jira[] settings_. The Jira username to use for this Jira integration. |
 | password              | string | body | _integrations.jira[] settings_. The password of the Jira username to use for this Jira integration. |
 | project_key           | string | body | _integrations.jira[] settings_. The Jira project key to use for this integration. Jira tickets will be created in this project. |
+| enable_software_vulnerabilities | boolean | body | _integrations.zendesk[] settings_. Whether or not that Zendesk integration is enabled. Only one vulnerabilities automation can be enabled at a given time (enable_vulnerabilities_webhook and enable_software_vulnerabilities). |
+| url                   | string | body | _integrations.zendesk[] settings_. The URL of the Zendesk server to integrate with. |
+| email              | string | body | _integrations.zendesk[] settings_. The Zendesk user email to use for this Zendesk integration. |
+| api_token              | string | body | _integrations.zendesk[] settings_. The Zendesk API token to use for this Zendesk integration. |
+| group_id           | string | body | _integrations.zendesk[] settings_. The Zendesk group id to use for this integration. Zendesk tickets will be created in this group. |
 | additional_queries    | boolean | body | Whether or not additional queries are enabled on hosts.                                                                                                                                |
 
 #### Example
@@ -1728,7 +1733,11 @@ None.
 | policy_id               | integer | query | The ID of the policy to filter hosts by. `policy_response` must also be specified with `policy_id`.                                                                                                                                                                                                                                         |
 | policy_response         | string  | query | Valid options are `passing` or `failing`.  `policy_id` must also be specified with `policy_response`.                                                                                                                                                                                                                                       |
 | software_id             | integer | query | The ID of the software to filter hosts by.                                                                                                                                                                                                                                         |
-
+           |
+| device_mapping          | boolean | query | Indicates whether `device_mapping` should be included
+for each host. See ["Get host's Google Chrome profiles](#get-host's-google-chrome-profiles) for
+more information about this feature.
+### Get host's Google Chrome profiles
 If `additional_info_filters` is not specified, no `additional` information will be returned.
 
 #### Example
@@ -3135,6 +3144,8 @@ Deletes the label specified by ID.
 ```
 
 ### Delete pack
+
+Delete pack by name.
 
 `DELETE /api/v1/fleet/packs/{name}`
 

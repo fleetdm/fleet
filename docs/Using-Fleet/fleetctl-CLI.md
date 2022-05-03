@@ -269,53 +269,11 @@ If you'd like your API-only user to have a different access level than the defau
 fleetctl user create --name "API User" --email api@example.com --password temp!pass --api-only --global-role admin
 ```
 
-### Reset the password
-
-> If you are using the most recent version of Fleet, you can skip to the [next section](#using-fleetctl-as-the-new-user).
-
-In versions prior to Fleet 4.13, a password reset is needed before the new user can perform queries. Since an API-only user cannot log in to the Fleet UI, this is done through the REST API. We'll be doing this through the terminal using `curl`.
-
-First, log in to the new user account using `fleetctl login`. Once you're logged in successfully to the API-only user, set up a variable to hold the user's token:
-
-```
-token=$(fleetctl config get token | rev | cut -d ' ' -f 1 | rev)
-```
-
-Then use `curl` to send a required password reset request to the REST API through the terminal:
-
-```
-curl -d '{"new_password":"NewPassGoesHere"}' -H "Authorization: Bearer ${token}" -X POST https://fleet.corp.example.com/api/v1/fleet/perform_required_password_reset
-```
-
-If you see a response like this, the request was successful:
-
-```
-{
-  "user": {
-    "created_at": "2022-03-16T20:42:00Z",
-    "updated_at": "2022-03-16T20:42:00Z",
-    "id": 52,
-    "name": "API User",
-    "email": "api@example.com",
-    "force_password_reset": false,
-    "gravatar_url": "",
-    "sso_enabled": false,
-    "global_role": "observer",
-    "api_only": true,
-    "teams": []
-  }
-}
-```
-
-While the original token is no longer valid, it's never a bad idea to clear variables out once you're done with them:
-
-```
-unset token
-```
-
 ### Use fleetctl as the new user
 
 Now that your new user is all set up, you will need to log in with `fleetctl login`. You'll now be able to perform tasks using `fleetctl` as your new API-only user.
+
+> If you are using a version of Fleet older than `4.13.0`, you will need to [reset the API-only user's password](https://github.com/fleetdm/fleet/blob/a1eba3d5b945cb3339004dd1181526c137dc901c/docs/Using-Fleet/fleetctl-CLI.md#reset-the-password) before running queries. 
 
 ### Switching users
 
