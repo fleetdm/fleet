@@ -321,10 +321,6 @@ func updatesTimestampFunc(c *cli.Context) error {
 		return fmt.Errorf("make timestamp: %w", err)
 	}
 
-	if err := repo.SetTimestampVersion(3968); err != nil { // change to next version
-		return fmt.Errorf("set timestamp version: %w", err)
-	}
-
 	if err := repo.Commit(); err != nil {
 		return fmt.Errorf("commit repo: %w", err)
 	}
