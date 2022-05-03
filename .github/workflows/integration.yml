@@ -166,13 +166,20 @@ jobs:
           sleep 1
         done
 
+    - name: Collect orbit logs
+      if: always()
+      run: |
+        mkdir orbit-logs
+        sudo cp /var/log/orbit/orbit.stdout.log orbit-logs/
+        sudo cp /var/log/orbit/orbit.stderr.log orbit-logs/
+
     - name: Upload Orbit logs
       if: always()
       uses: actions/upload-artifact@6673cd052c4cd6fcf4b4e6e60ea986c889389535 # v2
       with:
         name: orbit-macos-${{ matrix.orbit-channel }}-${{ matrix.osqueryd-channel }}-logs
         path: |
-          /var/log/orbit
+          orbit-logs
 
     - name: Uninstall Orbit
       run: |
