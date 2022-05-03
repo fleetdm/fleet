@@ -176,8 +176,6 @@ const IntegrationsPage = (): JSX.Element => {
         }
       };
 
-      // TODO: Remove debugger
-      debugger;
       setTestingConnection(true);
       configAPI
         .update({ integrations: destination() })
@@ -386,10 +384,6 @@ const IntegrationsPage = (): JSX.Element => {
   };
 
   const tableHeaders = generateTableHeaders(onActionSelection);
-  // TODO: Old, should be ready to delete
-  // const tableData = jiraIntegrationsIndexed
-  //   ? generateDataSet(jiraIntegrationsIndexed)
-  //   : [];
 
   const tableData = combineJiraAndZendesk();
 
@@ -410,10 +404,6 @@ const IntegrationsPage = (): JSX.Element => {
           defaultSortDirection={"asc"}
           actionButtonText={"Add integration"}
           actionButtonVariant={"brand"}
-          hideActionButton={
-            !integrations
-            // TODO: is this correct?
-          }
           onActionButtonClick={toggleAddIntegrationModal}
           resultsTitle={"integrations"}
           emptyComponent={NoIntegrationsComponent}

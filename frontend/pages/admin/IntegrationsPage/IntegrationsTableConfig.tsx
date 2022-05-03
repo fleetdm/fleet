@@ -73,10 +73,15 @@ const generateTableHeaders = (
       accessor: "type",
       Cell: (cellProps: ICellProps) => {
         return (
-          <img
-            src={cellProps.cell.value === "jira" ? JiraIcon : ZendeskIcon}
-            alt="integration-icon"
-          />
+          <div className={"logo-cell"}>
+            <img
+              src={cellProps.cell.value === "jira" ? JiraIcon : ZendeskIcon}
+              alt="integration-icon"
+              className={
+                cellProps.cell.value === "jira" ? "jira-icon" : "zendesk-icon"
+              }
+            />
+          </div>
         );
       },
     },
