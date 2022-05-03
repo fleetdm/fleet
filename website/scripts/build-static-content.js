@@ -50,8 +50,8 @@ module.exports = {
               let formattedTags = [];
               for (let tag of tagsToFormat) {
                 if(tag !== '') {// « Ignoring any blank tags caused by trailing commas in the YAML.
-                  // Removing any extra whitespace from tags.
-                  formattedTags.push(_.trim(tag));
+                  // Removing any extra whitespace from tags and changing them to be in lower case.
+                  formattedTags.push(_.trim(tag.toLowerCase()));
                 }
               }
               // Removing any duplicate tags.
