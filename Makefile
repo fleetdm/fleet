@@ -339,29 +339,17 @@ desktop-windows:
 desktop-linux:
 	docker build -f Dockerfile-desktop-linux -t desktop-linux-builder .
 	docker run --rm -v $(shell pwd):/output desktop-linux-builder /bin/bash -c "\
-		go build -o /output/fleet-desktop -ldflags "-X=main.version=$(FLEET_DESKTOP_VERSION)" /usr/src/fleet/orbit/cmd/desktop && \
+		mkdir /output/fleet-desktop && \
+		go build -o /output/fleet-desktop/fleet-desktop -ldflags "-X=main.version=$(FLEET_DESKTOP_VERSION)" /usr/src/fleet/orbit/cmd/desktop && \
 		cp /usr/lib/x86_64-linux-gnu/libayatana-appindicator3.so.1 \
 		/usr/lib/x86_64-linux-gnu/libayatana-ido3-0.4.so.0 \
 		/usr/lib/x86_64-linux-gnu/libayatana-indicator3.so.7 \
 		/lib/x86_64-linux-gnu/libm.so.6 \
 		/usr/lib/x86_64-linux-gnu/libdbusmenu-gtk3.so.4 \
 		/usr/lib/x86_64-linux-gnu/libdbusmenu-glib.so.4 \
-		/output/ && cd /output && \
-		tar czf desktop.tar.gz \
-		fleet-desktop \
-		libayatana-appindicator3.so.1 \
-		libayatana-ido3-0.4.so.0 \
-		libayatana-indicator3.so.7 \
-		libdbusmenu-gtk3.so.4 \
-		libdbusmenu-glib.so.4 \
-		libm.so.6 && \
-		rm fleet-desktop \
-		libayatana-appindicator3.so.1 \
-		libayatana-ido3-0.4.so.0 \
-		libayatana-indicator3.so.7 \
-		libdbusmenu-gtk3.so.4 \
-		libdbusmenu-glib.so.4 \
-		libm.so.6"
+		/output/fleet-desktop && cd /output && \
+		tar czf desktop.tar.gz fleet-desktop && \
+		rm -r fleet-desktop"
 
 # db-replica-setup setups one main and one read replica MySQL instance for dev/testing.
 #	- Assumes the docker containers are already running (tools/mysql-replica-testing/docker-compose.yml)
