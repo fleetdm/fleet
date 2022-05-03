@@ -74,7 +74,7 @@ CREATE TABLE `carve_metadata` (
 CREATE TABLE `cves` (
   `cve` varchar(20) NOT NULL,
   `cvss_score` double(4,2) DEFAULT NULL,
-  `epss_probability` double(4,2) DEFAULT NULL,
+  `epss_probability` double(6,5) DEFAULT NULL,
   `cisa_known_exploit` tinyint(1) DEFAULT NULL,
   PRIMARY KEY (`cve`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

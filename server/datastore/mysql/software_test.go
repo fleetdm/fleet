@@ -466,7 +466,7 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 
 	foo001 := fleet.Software{
 		Name: "foo", Version: "0.0.1", Source: "chrome_extensions", GenerateCPE: "somecpe",
-		Vulnerabilities: fleet.VulnerabilitiesSlice{
+		Vulnerabilities: fleet.Vulnerabilities{
 			{CVE: "cve-321-432-543", DetailsLink: "https://nvd.nist.gov/vuln/detail/cve-321-432-543"},
 			{CVE: "cve-333-444-555", DetailsLink: "https://nvd.nist.gov/vuln/detail/cve-333-444-555"},
 		},
@@ -837,13 +837,13 @@ func insertVulnSoftwareForTest(t *testing.T, ds *Datastore) {
 		},
 		{
 			Name: "foo.chrome", Version: "0.0.3", Source: "chrome_extensions", GenerateCPE: "cpe_foo_chrome_3",
-			Vulnerabilities: fleet.VulnerabilitiesSlice{
+			Vulnerabilities: fleet.Vulnerabilities{
 				{CVE: "cve-123-456-789", DetailsLink: "https://nvd.nist.gov/vuln/detail/cve-123-456-789"},
 			},
 		},
 		{
 			Name: "bar.rpm", Version: "0.0.3", Source: "rpm_packages", GenerateCPE: "cpe_bar_rpm",
-			Vulnerabilities: fleet.VulnerabilitiesSlice{
+			Vulnerabilities: fleet.Vulnerabilities{
 				{CVE: "cve-321-432-543", DetailsLink: "https://nvd.nist.gov/vuln/detail/cve-321-432-543"},
 				{CVE: "cve-333-444-555", DetailsLink: "https://nvd.nist.gov/vuln/detail/cve-333-444-555"},
 			},

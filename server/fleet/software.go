@@ -2,9 +2,12 @@ package fleet
 
 import "time"
 
-type SoftwareCVE struct {
-	CVE         string `json:"cve" db:"cve"`
-	DetailsLink string `json:"details_link" db:"details_link"`
+type CVE struct {
+	CVE              string   `json:"cve" db:"cve"`
+	DetailsLink      string   `json:"details_link" db:"-"`
+	CVSSScore        *float64 `json:"cvss_score" db:"cvss_score"`
+	EPSSProbability  *float64 `json:"epss_probability" db:"epss_probability"`
+	CISAKnownExploit *bool    `json:"cisa_known_exploit" db:"cisa_known_exploit"`
 }
 
 // Software is a named and versioned piece of software installed on a device.
@@ -30,7 +33,7 @@ type Software struct {
 	// GenerateCPE is the CPE23 string that corresponds to the current software
 	GenerateCPE string `json:"generated_cpe" db:"generated_cpe"`
 	// Vulnerabilities lists all the found CVEs for the CPE
-	Vulnerabilities VulnerabilitiesSlice `json:"vulnerabilities"`
+	Vulnerabilities Vulnerabilities `json:"vulnerabilities"`
 	// HostsCount indicates the number of hosts with that software, filled only
 	// if explicitly requested.
 	HostsCount int `json:"hosts_count,omitempty" db:"hosts_count"`
@@ -58,7 +61,7 @@ func (s *AuthzSoftwareInventory) AuthzType() string {
 	return "software_inventory"
 }
 
-type VulnerabilitiesSlice []SoftwareCVE
+type Vulnerabilities []CVE
 
 // HostSoftware is the set of software installed on a specific host
 type HostSoftware struct {
