@@ -90,26 +90,26 @@ const IntegrationsPage = (): JSX.Element => {
       onSuccess: (data) => {
         if (data) {
           setJiraIntegrations(data.jira);
-          const mockZendeskData = {
-            zendesk: [
-              {
-                url: "https://example1.zendesk.com",
-                email: "admin@example.com",
-                api_token: "abc123",
-                group_id: 12345678,
-                enable_software_vulnerabilities: true,
-              },
-              {
-                url: "https://example2.zendesk.com",
-                email: "maintainer@example.com",
-                api_token: "abc123",
-                group_id: 12345678,
-                enable_software_vulnerabilities: false,
-              },
-            ],
-          };
-          // TODO: Change mockZendeskData to data.zendesk eventually
-          setZendeskIntegrations(mockZendeskData.zendesk);
+          // const mockZendeskData = {
+          //   zendesk: [
+          //     {
+          //       url: "https://example1.zendesk.com",
+          //       email: "admin@example.com",
+          //       api_token: "abc123",
+          //       group_id: 12345678,
+          //       enable_software_vulnerabilities: true,
+          //     },
+          //     {
+          //       url: "https://example2.zendesk.com",
+          //       email: "maintainer@example.com",
+          //       api_token: "abc123",
+          //       group_id: 12345678,
+          //       enable_software_vulnerabilities: false,
+          //     },
+          //   ],
+          // };
+          // 5/3/22 Changed mockZendeskData to data.zendesk
+          setZendeskIntegrations(data.zendesk);
         }
       },
     }
@@ -169,10 +169,10 @@ const IntegrationsPage = (): JSX.Element => {
       // Updates either integrations.jira or integrations.zendesk
       const destination = () => {
         if (integrationDestination === "jira") {
-          return { jira: integrationSubmitData };
+          return { jira: integrationSubmitData, zendesk: zendeskIntegrations };
         }
         if (integrationDestination === "zendesk") {
-          return { zendesk: integrationSubmitData };
+          return { zendesk: integrationSubmitData, jira: jiraIntegrations };
         }
       };
 
@@ -232,16 +232,25 @@ const IntegrationsPage = (): JSX.Element => {
         if (integrationEditing.type === "jira") {
           integrations?.jira.splice(integrationEditing.originalIndex, 1);
           return configAPI.update({
-            integrations: { jira: integrations?.jira },
+            integrations: {
+              jira: integrations?.jira,
+              zendesk: zendeskIntegrations,
+            },
           });
         }
         integrations?.zendesk.splice(integrationEditing.originalIndex, 1);
         // TODO: Remove console log
         console.log("What is sent to the API upon deleting zendesk", {
-          integrations: { zendesk: integrations?.zendesk },
+          integrations: {
+            zendesk: integrations?.zendesk,
+            jira: jiraIntegrations,
+          },
         });
         return configAPI.update({
-          integrations: { zendesk: integrations?.zendesk },
+          integrations: {
+            zendesk: integrations?.zendesk,
+            jira: jiraIntegrations,
+          },
         });
       };
 

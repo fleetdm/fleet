@@ -134,34 +134,32 @@ const ManageAutomationsModal = ({
           );
           setSelectedIntegration(currentSelectedJiraIntegration);
           // Zendesk integrations
-          const mockZendeskData = {
-            zendesk: [
-              {
-                url: "https://example1.zendesk.com",
-                email: "admin@example.com",
-                api_token: "abc123",
-                group_id: 12345678,
-                enable_software_vulnerabilities: false,
-              },
-              {
-                url: "https://example2.zendesk.com",
-                email: "maintainer@example.com",
-                api_token: "abc123",
-                group_id: 12345678,
-                enable_software_vulnerabilities: false,
-              },
-            ],
-          };
+          // const mockZendeskData = {
+          //   zendesk: [
+          //     {
+          //       url: "https://example1.zendesk.com",
+          //       email: "admin@example.com",
+          //       api_token: "abc123",
+          //       group_id: 12345678,
+          //       enable_software_vulnerabilities: false,
+          //     },
+          //     {
+          //       url: "https://example2.zendesk.com",
+          //       email: "maintainer@example.com",
+          //       api_token: "abc123",
+          //       group_id: 12345678,
+          //       enable_software_vulnerabilities: false,
+          //     },
+          //   ],
+          // };
           // TODO: Change mockZendeskData to data.zendesk eventually
-          const addZendeskIndexed = mockZendeskData.zendesk.map(
-            (integration, index) => {
-              return {
-                ...integration,
-                originalIndex: index,
-                type: "zendesk",
-              };
-            }
-          );
+          const addZendeskIndexed = data.zendesk.map((integration, index) => {
+            return {
+              ...integration,
+              originalIndex: index,
+              type: "zendesk",
+            };
+          });
           setZendeskIntegrationsIndexed(addZendeskIndexed);
           const currentSelectedZendeskIntegration = addZendeskIndexed.find(
             (integration) => {

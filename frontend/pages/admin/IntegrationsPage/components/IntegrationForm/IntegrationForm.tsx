@@ -59,7 +59,8 @@ const IntegrationForm = ({
     url: integrationEditingUrl || "",
     username: integrationEditingUsername || "",
     email: integrationEditingEmail || "",
-    apiToken: integrationEditingApiToken || "",
+    // apiToken: integrationEditingApiToken || "",
+    apiToken: "",
     projectKey: integrationEditingProjectKey || "",
     groupId: integrationEditingGroupId || 0,
     enableSoftwareVulnerabilities:
@@ -191,13 +192,13 @@ const IntegrationForm = ({
           value={email}
         />
       )}
-      <InputField
+      {/* <InputField
         name="apiToken"
         onChange={onInputChange}
         label="API token"
         parseTarget
         value={apiToken}
-      />
+      /> */}
       {integrationDestination === "jira" ? (
         <InputField
           name="projectKey"
@@ -257,11 +258,10 @@ const IntegrationForm = ({
               integrationDestination === "jira"
                 ? formData.url === "" ||
                   formData.username === "" ||
-                  formData.apiToken === "" ||
+                  // formData.apiToken === "" ||
                   formData.projectKey === ""
                 : formData.url === "" ||
                   formData.email === "" ||
-                  formData.apiToken === "" ||
                   formData.groupId === 0
             }
           >
