@@ -35,6 +35,10 @@ var macosPostinstallTemplate = template.Must(template.New("").Option("missingkey
 
 ln -sf /opt/orbit/bin/orbit/macos/{{.OrbitChannel}}/orbit /opt/orbit/bin/orbit/orbit
 ln -sf /opt/orbit/bin/orbit/orbit /usr/local/bin/orbit
+{{ if .LegacyVarLibSymlink }}
+# Symlink needed to support old versions of orbit.
+ln -sf /opt/orbit /var/lib/orbit
+{{- end }}
 
 {{ if .StartService -}}
 DAEMON_LABEL="com.fleetdm.orbit"

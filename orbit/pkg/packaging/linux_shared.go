@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"text/template"
 
+	"github.com/Masterminds/semver"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
@@ -57,6 +58,14 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 		// We set the package version to orbit's latest version.
 		opt.Version = updatesData.OrbitVersion
 	}
+
+	varLibSymlink := false
+	if orbitSemVer, err := semver.NewVersion(updatesData.OrbitVersion); err == nil {
+		if orbitSemVer.LessThan(semver.MustParse("0.0.11")) {
+			varLibSymlink = true
+		}
+	}
+	// If err != nil we assume non-legacy Orbit.
 
 	// Write files
 
@@ -128,6 +137,19 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 			Destination: emptyFolder,
 			Type:        "dir",
 		}).WithFileInfoDefaults())
+	}
+
+	if varLibSymlink {
+		contents = append(contents,
+			// Symlink needed to support old versions of orbit.
+			&files.Content{
+				Source:      "/opt/orbit",
+				Destination: "/var/lib/orbit",
+				Type:        "symlink",
+				FileInfo: &files.ContentFileInfo{
+					Mode: os.ModeSymlink,
+				},
+			})
 	}
 
 	contents, err = files.ExpandContentGlobs(contents, false)
