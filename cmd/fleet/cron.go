@@ -8,10 +8,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/oval"
 	"github.com/fleetdm/fleet/v4/server/webhooks"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/getsentry/sentry-go"
@@ -225,6 +227,10 @@ func cronVulnerabilities(
 			level.Debug(logger).Log("vulnAutomationEnabled", vulnAutomationEnabled)
 
 			recentVulns := checkVulnerabilities(ctx, ds, logger, vulnPath, config, (vulnAutomationEnabled != ""))
+
+			// TODO: merge results
+			checkOvalVulnerabilities(ctx, ds, logger, vulnPath, config)
+
 			if len(recentVulns) > 0 {
 				switch vulnAutomationEnabled {
 				case "webhook":
@@ -287,6 +293,21 @@ func cronVulnerabilities(
 	}
 }
 
+func checkOvalVulnerabilities(
+	ctx context.Context,
+	ds fleet.Datastore,
+	logger kitlog.Logger,
+	vulnPath string,
+	config config.FleetConfig,
+) {
+	client := fleethttp.NewClient()
+	err := oval.AutoSync(ctx, client, ds, logger, vulnPath, config)
+	if err != nil {
+		level.Error(logger).Log("msg", "updating oval definitions", "err", err)
+		sentry.CaptureException(err)
+	}
+}
+
 func checkVulnerabilities(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 	vulnPath string, config config.FleetConfig, collectRecentVulns bool,
 ) map[string][]string {
@@ -303,6 +324,7 @@ func checkVulnerabilities(ctx context.Context, ds fleet.Datastore, logger kitlog
 		sentry.CaptureException(err)
 		return nil
 	}
+
 	return recentVulns
 }
 
