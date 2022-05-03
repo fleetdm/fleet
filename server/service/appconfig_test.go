@@ -288,7 +288,7 @@ func TestAppConfigSecretsObfuscated(t *testing.T) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{
 			SMTPSettings: fleet.SMTPSettings{SMTPPassword: "smtppassword"},
-			Integrations: fleet.Integrations{Jira: []*fleet.JiraIntegration{{APIToken: "jiratoken"}}},
+			Integrations: fleet.Integrations{Jira: []*fleet.JiraIntegration{{APIToken: "jiratoken"}}, Zendesk: []*fleet.ZendeskIntegration{{APIToken: "zendesktoken"}}},
 		}, nil
 	}
 
@@ -333,6 +333,7 @@ func TestAppConfigSecretsObfuscated(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, ac.SMTPSettings.SMTPPassword, "********")
 			require.Equal(t, ac.Integrations.Jira[0].APIToken, "********")
+			require.Equal(t, ac.Integrations.Zendesk[0].APIToken, "********")
 		})
 	}
 }

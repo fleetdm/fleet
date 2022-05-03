@@ -13,7 +13,6 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
-	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -38,6 +37,9 @@ const (
 	noHostsFlagName         = "no-hosts"
 	orbitChannel            = "orbit-channel"
 	osquerydChannel         = "osqueryd-channel"
+	updateURL               = "update-url"
+	updateRootKeys          = "update-roots"
+	stdQueryLibFilePath     = "std-query-lib-file-path"
 )
 
 func previewCommand() *cli.Command {
@@ -84,6 +86,21 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 				Name:  osquerydChannel,
 				Usage: "Use a custom osqueryd channel",
 				Value: "stable",
+			},
+			&cli.StringFlag{
+				Name:  updateURL,
+				Usage: "Use a custom update TUF URL",
+				Value: "",
+			},
+			&cli.StringFlag{
+				Name:  updateRootKeys,
+				Usage: "Use custom update TUF root keys",
+				Value: "",
+			},
+			&cli.StringFlag{
+				Name:  stdQueryLibFilePath,
+				Usage: "Use custom standard query library yml file",
+				Value: "",
 			},
 		},
 		Action: func(c *cli.Context) error {
@@ -217,9 +234,19 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			client.SetToken(token)
 
 			fmt.Println("Loading standard query library...")
-			buf, err := downloadStandardQueryLibrary()
-			if err != nil {
-				return fmt.Errorf("failed to download standard query library: %w", err)
+			var buf []byte
+			if fp := c.String(stdQueryLibFilePath); fp != "" {
+				var err error
+				buf, err = ioutil.ReadFile(fp)
+				if err != nil {
+					return fmt.Errorf("failed to read standard query library file %q: %w", fp, err)
+				}
+			} else {
+				var err error
+				buf, err = downloadStandardQueryLibrary()
+				if err != nil {
+					return fmt.Errorf("failed to download standard query library: %w", err)
+				}
 			}
 
 			err = applyYamlBytes(c, buf, client)
@@ -260,7 +287,7 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			if !c.Bool(noHostsFlagName) {
 				fmt.Println("Enrolling local host...")
 
-				if err := downloadOrbitAndStart(previewDir, secrets.Secrets[0].Secret, address, c.String(orbitChannel), c.String(osquerydChannel)); err != nil {
+				if err := downloadOrbitAndStart(previewDir, secrets.Secrets[0].Secret, address, c.String(orbitChannel), c.String(osquerydChannel), c.String(updateURL), c.String(updateRootKeys)); err != nil {
 					return fmt.Errorf("downloading orbit and osqueryd: %w", err)
 				}
 
@@ -374,9 +401,6 @@ func unzip(r *zip.Reader, branch string) error {
 		path := f.Name
 		path = strings.Replace(path, replacePath, previewDir, 1)
 
-		// We don't need to check for directory traversal as we are already
-		// trusting the validity of this ZIP file.
-
 		if f.FileInfo().IsDir() {
 			if err := os.MkdirAll(path, f.Mode()); err != nil {
 				return err
@@ -400,6 +424,10 @@ func unzip(r *zip.Reader, branch string) error {
 	}
 
 	for _, f := range r.File {
+		// Prevent zip-slip attack.
+		if strings.Contains(f.Name, "..") {
+			return fmt.Errorf("invalid path in zip: %q", f.Name)
+		}
 		err := extractAndWriteFile(f)
 		if err != nil {
 			return err
@@ -574,6 +602,13 @@ func previewResetCommand() *cli.Command {
 				return fmt.Errorf("Failed to stop orbit: %w", err)
 			}
 
+			if err := os.RemoveAll(filepath.Join(previewDir, "tuf-metadata.json")); err != nil {
+				return fmt.Errorf("failed to remove preview update metadata file: %w", err)
+			}
+			if err := os.RemoveAll(filepath.Join(previewDir, "bin")); err != nil {
+				return fmt.Errorf("failed to remove preview bin directory: %w", err)
+			}
+
 			fmt.Println("Fleet preview server and dependencies reset. Start again with fleetctl preview.")
 
 			return nil
@@ -614,7 +649,7 @@ func processNameMatches(pid int, expectedPrefix string) (bool, error) {
 	return strings.HasPrefix(strings.ToLower(process.Executable()), strings.ToLower(expectedPrefix)), nil
 }
 
-func downloadOrbitAndStart(destDir, enrollSecret, address, orbitChannel, osquerydChannel string) error {
+func downloadOrbitAndStart(destDir, enrollSecret, address, orbitChannel, osquerydChannel, updateURL, updateRoots string) error {
 	// Stop any current intance of orbit running, otherwise the configured enroll secret
 	// won't match the generated in the preview run.
 	if err := stopOrbit(destDir); err != nil {
@@ -635,17 +670,18 @@ func downloadOrbitAndStart(destDir, enrollSecret, address, orbitChannel, osquery
 
 	updateOpt := update.DefaultOptions
 
-	if runtime.GOOS == "darwin" {
-		// We need to initialize updates for latest orbit which does not
-		// support .app bundle yet.
-		updateOpt.Targets = update.DarwinLegacyTargets
-	}
-
 	// Override default channels with the provided values.
 	updateOpt.Targets.SetTargetChannel("orbit", orbitChannel)
 	updateOpt.Targets.SetTargetChannel("osqueryd", osquerydChannel)
 
 	updateOpt.RootDirectory = destDir
+
+	if updateURL != "" {
+		updateOpt.ServerURL = updateURL
+	}
+	if updateRoots != "" {
+		updateOpt.RootKeys = updateRoots
+	}
 
 	if _, err := packaging.InitializeUpdates(updateOpt); err != nil {
 		return fmt.Errorf("initialize updates: %w", err)

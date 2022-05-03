@@ -1,23 +1,22 @@
-.empty-users {
+.empty-state {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  margin-top: 80px;
-  margin-bottom: 80px;
+  align-items: flex-start;
+  margin: 0;
 
   &__inner {
     display: flex;
     flex-direction: row;
 
     h1 {
-      font-size: $small;
+      font-size: $x-small;
       font-weight: $bold;
       margin-bottom: $pad-medium;
     }
 
     img {
       width: 176px;
-      margin-right: 34px;
+      margin-right: $pad-small;
     }
 
     p {
@@ -36,13 +35,18 @@
       font-size: $x-small;
       font-weight: $bold;
       text-decoration: none;
-      margin-left: $pad-xsmall;
     }
 
     img {
       width: 12px;
       height: 12px;
-      margin-left: 6px;
+      margin-left: 4px;
+    }
+  }
+
+  &__empty-list {
+    h1 {
+      font-size: $small;
     }
   }
 
@@ -51,4 +55,9 @@
     flex-direction: column;
     width: 350px;
   }
+}
+
+.empty-search {
+  margin-top: $pad-small;
+  align-items: center;
 }

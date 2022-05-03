@@ -131,6 +131,7 @@ const TeamDetailsWrapper = ({
   }>({});
 
   const { refetch: refetchMe } = useQuery(["me"], () => usersAPI.me(), {
+    enabled: false,
     onSuccess: ({ user, available_teams }: IGetMeResponse) => {
       setCurrentUser(user);
       setAvailableTeams(available_teams);

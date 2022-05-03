@@ -28,11 +28,11 @@ func BuildPkg(opt Options) (string, error) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	filesystemRoot := filepath.Join(tmpDir, "root")
-	if err := secure.MkdirAll(filesystemRoot, constant.DefaultDirMode); err != nil {
+	rootDir := filepath.Join(tmpDir, "root")
+	if err := secure.MkdirAll(rootDir, constant.DefaultDirMode); err != nil {
 		return "", fmt.Errorf("create root dir: %w", err)
 	}
-	orbitRoot := filepath.Join(filesystemRoot, "var", "lib", "orbit")
+	orbitRoot := filepath.Join(rootDir, "opt", "orbit")
 	if err := secure.MkdirAll(orbitRoot, constant.DefaultDirMode); err != nil {
 		return "", fmt.Errorf("create orbit dir: %w", err)
 	}
@@ -91,7 +91,7 @@ func BuildPkg(opt Options) (string, error) {
 	}
 
 	if opt.StartService {
-		if err := writeLaunchd(opt, filesystemRoot); err != nil {
+		if err := writeLaunchd(opt, rootDir); err != nil {
 			return "", fmt.Errorf("write launchd: %w", err)
 		}
 	}
