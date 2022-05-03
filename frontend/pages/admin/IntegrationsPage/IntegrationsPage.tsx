@@ -9,7 +9,6 @@ import {
   IZendeskIntegration,
   IIntegration,
   IIntegrationTableData,
-  IIntegrationFormErrors,
   IIntegrations,
 } from "interfaces/integration";
 import { IApiError } from "interfaces/errors";
@@ -17,7 +16,6 @@ import { IApiError } from "interfaces/errors";
 import Button from "components/buttons/Button";
 // @ts-ignore
 import FleetIcon from "components/icons/FleetIcon";
-import { DEFAULT_CREATE_INTEGRATION_ERRORS } from "utilities/constants";
 
 import configAPI from "services/entities/config";
 
@@ -62,16 +60,9 @@ const IntegrationsPage = (): JSX.Element => {
   const [zendeskIntegrations, setZendeskIntegrations] = useState<
     IZendeskIntegration[]
   >();
-  // const [combinedIntegrations, setCombinedIntegrations] = useState<
-  //   IIntegration[]
-  // >();
   const [backendValidators, setBackendValidators] = useState<{
     [key: string]: string;
   }>({});
-  const [
-    createIntegrationError,
-    setCreateIntegrationError,
-  ] = useState<IIntegrationFormErrors>(DEFAULT_CREATE_INTEGRATION_ERRORS);
   const [testingConnection, setTestingConnection] = useState<boolean>(false);
 
   const {
@@ -164,9 +155,7 @@ const IntegrationsPage = (): JSX.Element => {
         if (integrationDestination === "jira") {
           return { jira: integrationSubmitData, zendesk: zendeskIntegrations };
         }
-        if (integrationDestination === "zendesk") {
-          return { zendesk: integrationSubmitData, jira: jiraIntegrations };
-        }
+        return { zendesk: integrationSubmitData, jira: jiraIntegrations };
       };
 
       setTestingConnection(true);

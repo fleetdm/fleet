@@ -42,7 +42,7 @@ export interface IIntegrationFormData {
 export interface IIntegrationTableData extends IIntegrationFormData {
   originalIndex: number;
   type: string;
-  tableIndex: number;
+  tableIndex?: number;
   name: string;
 }
 

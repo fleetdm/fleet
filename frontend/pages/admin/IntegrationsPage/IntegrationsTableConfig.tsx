@@ -6,8 +6,6 @@ import DropdownCell from "components/TableContainer/DataTable/DropdownCell";
 import {
   IJiraIntegration,
   IZendeskIntegration,
-  IIntegration,
-  IIntegrationFormData,
   IIntegrationTableData as IIntegrationCompleteData,
 } from "interfaces/integration";
 import { IDropdownOption } from "interfaces/dropdownOption";
@@ -124,7 +122,9 @@ const generateActionDropdownOptions = (): IDropdownOption[] => {
   ];
 };
 
-const enhanceJiraData = (jiraIntegrations: IJiraIntegration[]): any[] => {
+const enhanceJiraData = (
+  jiraIntegrations: IJiraIntegration[]
+): IIntegrationTableData[] => {
   return jiraIntegrations.map((integration, index) => {
     return {
       url: integration.url,
@@ -143,7 +143,7 @@ const enhanceJiraData = (jiraIntegrations: IJiraIntegration[]): any[] => {
 
 const enhanceZendeskData = (
   zendeskIntegrations: IZendeskIntegration[]
-): any[] => {
+): IIntegrationTableData[] => {
   return zendeskIntegrations.map((integration, index) => {
     return {
       url: integration.url,
@@ -163,7 +163,7 @@ const enhanceZendeskData = (
 const combineDataSets = (
   jiraIntegrations: IJiraIntegration[],
   zendeskIntegrations: IZendeskIntegration[]
-): any[] => {
+): IIntegrationTableData[] => {
   const combine = [
     ...enhanceJiraData(jiraIntegrations),
     ...enhanceZendeskData(zendeskIntegrations),

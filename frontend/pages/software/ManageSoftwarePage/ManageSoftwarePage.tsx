@@ -6,7 +6,11 @@ import { useDebouncedCallback } from "use-debounce";
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 import { IConfig } from "interfaces/config";
-import { IJiraIntegration, IZendeskIntegration } from "interfaces/integration";
+import {
+  IJiraIntegration,
+  IZendeskIntegration,
+  IIntegration,
+} from "interfaces/integration";
 import { IWebhookSoftwareVulnerabilities } from "interfaces/webhook"; // @ts-ignore
 import configAPI from "services/entities/config";
 import softwareAPI, {
@@ -109,7 +113,7 @@ const ManageSoftwarePage = ({
       let jiraIntegrationEnabled = false;
       if (data.integrations.jira) {
         jiraIntegrationEnabled = data?.integrations.jira.some(
-          (integration: any) => {
+          (integration: IIntegration) => {
             return integration.enable_software_vulnerabilities;
           }
         );
@@ -117,7 +121,7 @@ const ManageSoftwarePage = ({
       let zendeskIntegrationEnabled = false;
       if (data.integrations.zendesk) {
         zendeskIntegrationEnabled = data?.integrations.zendesk.some(
-          (integration: any) => {
+          (integration: IIntegration) => {
             return integration.enable_software_vulnerabilities;
           }
         );

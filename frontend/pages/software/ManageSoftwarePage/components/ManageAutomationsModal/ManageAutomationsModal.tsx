@@ -28,7 +28,6 @@ import useDeepEffect from "hooks/useDeepEffect";
 import _, { size } from "lodash";
 
 import PreviewPayloadModal from "../PreviewPayloadModal";
-import { combineDataSets } from "pages/admin/UserManagementPage/UsersTableConfig";
 
 interface ISoftwareAutomations {
   webhook_settings: {
@@ -126,12 +125,6 @@ const ManageAutomationsModal = ({
             })
           : [];
         setJiraIntegrationsIndexed(addJiraIndexed);
-        const currentSelectedJiraIntegration = addJiraIndexed.find(
-          (integration) => {
-            return integration.enable_software_vulnerabilities === true;
-          }
-        );
-        setSelectedIntegration(currentSelectedJiraIntegration);
         const addZendeskIndexed = data.zendesk
           ? data.zendesk.map((integration, index) => {
               return {
@@ -142,12 +135,6 @@ const ManageAutomationsModal = ({
             })
           : [];
         setZendeskIntegrationsIndexed(addZendeskIndexed);
-        const currentSelectedZendeskIntegration = addZendeskIndexed.find(
-          (integration) => {
-            return integration.enable_software_vulnerabilities === true;
-          }
-        );
-        setSelectedIntegration(currentSelectedZendeskIntegration);
       },
     }
   );
@@ -168,6 +155,17 @@ const ManageAutomationsModal = ({
     zendeskIntegrationsIndexed,
     setAllIntegrationsIndexed,
   ]);
+
+  useEffect(() => {
+    if (allIntegrationsIndexed) {
+      const currentSelectedIntegration = allIntegrationsIndexed.find(
+        (integration) => {
+          return integration.enable_software_vulnerabilities === true;
+        }
+      );
+      setSelectedIntegration(currentSelectedIntegration);
+    }
+  }, [allIntegrationsIndexed]);
 
   const onURLChange = (value: string) => {
     setDestinationUrl(value);
