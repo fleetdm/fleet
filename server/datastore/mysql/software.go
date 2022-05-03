@@ -112,56 +112,61 @@ SELECT
     s.bundle_identifier,
     s.release,
     s.vendor,
-    s.arch
+    s.arch,
+    s.hash,
+    hs.host_id
 FROM
     software s
-    JOIN host_software hs on hs.software_id = s.id
+    LEFT JOIN host_software hs ON hs.software_id = s.id AND hs.host_id = ?
 WHERE
-    hs.host_id = ?
+    s.hash IN (?)
 `
-	var current []fleet.Software
-	err := ds.writer.SelectContext(ctx, &software, q, hostID)
+
+	// compute hahses, find existing software, and whether it is already mapped to the host
+	hashes := make([]string, len(software))
+	indexes := make(map[string]int, len(software))
+	for i, s := range software {
+		if s.ID != 0 {
+			continue
+		}
+		h := hex.EncodeToString(hashSoftware(s))
+		hashes[i] = h
+		indexes[h] = i
+	}
+
+	q, args, err := sqlx.In(q, hostID, hashes)
 	if err != nil {
 		return err
 	}
 
-	added, removed := diffSoftware(current, software)
-	if len(added) == 0 && len(removed) == 0 {
-		return nil
+	var results []struct {
+		fleet.Software
+		Hash   string `db:"hash"`
+		HostID *uint  `db:"host_id"` // in the host_software table
+	}
+	err = ds.writer.SelectContext(ctx, &results, q, args...)
+	if err != nil {
+		return err
 	}
 
+	var current []fleet.Software
+	exists := make(map[string]struct{})
+	for _, s := range results {
+		current = append(current, s.Software)
+		if s.HostID != nil {
+			h := hex.EncodeToString(hashSoftware(s.Software))
+			exists[h] = struct{}{}
+		}
+	}
+
+	// insert the new software and update the ids
+	added, _ := diffSoftware(current, software)
 	if len(added) > 0 {
-		// find the actually new software, maybe it exists already
-		hashes := make([]string, len(added))
-		ids := make(map[string]int, len(added))
-		for i, s := range added {
-			if s.ID != 0 {
-				continue
-			}
-			h := hex.EncodeToString(hashSoftware(s))
-			hashes[i] = h
-			ids[h] = i
-		}
-
-		q := "SELECT name, version, source, `release`, vendor, arch, bundle_identifier from software where hash in (?)"
-		q, args, err := sqlx.In(q, hashes)
-		if err != nil {
-			return err
-		}
-
-		var all []fleet.Software
-		err = ds.writer.SelectContext(ctx, &all, q, args...)
-		if err != nil {
-			return err
-		}
-
-		newSoftware, _ := diffSoftware(all, added)
-
 		values := strings.TrimSuffix(strings.Repeat("(?, ?, ?, ?, ?, ?, ?), ", len(added)), ", ")
 		q = `INSERT INTO software (name, version, source, ` + "`release`" + `, vendor, arch, bundle_identifier) VALUES ` + values
 
-		args = nil
-		for _, s := range newSoftware {
+		var args []interface{}
+		for _, s := range added {
 			args = append(args, s.Name, s.Version, s.Source, s.Release, s.Vendor, s.Arch, s.BundleIdentifier)
 		}
 
@@ -170,46 +175,49 @@ WHERE
 			return err
 		}
 
-		// update the ids for inserted software
+		// add software to current with ids
 		lastInsertID, _ := result.LastInsertId()
-
-		for _, s := range newSoftware {
-			h := hex.EncodeToString(hashSoftware(s))
-			i := ids[h]
-			added[i].ID = uint(lastInsertID)
-			lastInsertID++
-		}
-
-		// finally, map software to host
-		values = strings.TrimSuffix(strings.Repeat("(?, ?), ", len(added)), ", ")
-		q = fmt.Sprintf(`INSERT IGNORE INTO host_software (host_id, software_id) VALUES %s`, values)
-		args = nil
 		for _, s := range added {
-			args = append(args, hostID, s.ID)
-		}
-
-		_, err = ds.writer.ExecContext(ctx, q, args...)
-		if err != nil {
-			return err
+			s := s
+			s.ID = uint(lastInsertID)
+			current = append(current, s)
+			lastInsertID++
 		}
 	}
 
-	if len(removed) > 0 {
-		q := `DELETE FROM host_software WHERE ID in (?)`
-		ids := make([]uint, len(removed))
-		for i, s := range removed {
-			ids[i] = s.ID
+	// insert new rows into host_software
+	ids := make([]uint, len(software))
+	var insertIDs []uint
+	for i, s := range software {
+		ids = append(ids, s.ID)
+		h := hashes[i]
+		if _, ok := exists[h]; !ok {
+			insertIDs = append(insertIDs, s.ID)
 		}
+	}
 
-		q, args, err := sqlx.In(q, ids)
-		if err != nil {
-			return err
-		}
+	values := strings.TrimSuffix(strings.Repeat("(?, ?), ", len(ids)), ", ")
+	q = fmt.Sprintf(`INSERT INTO host_software (host_id, software_id) VALUES %s`, values)
+	args = nil
+	for _, id := range insertIDs {
+		args = append(args, hostID, id)
+	}
 
-		_, err = tx.ExecContext(ctx, q, args...)
-		if err != nil {
-			return err
-		}
+	_, err = ds.writer.ExecContext(ctx, q, args...)
+	if err != nil {
+		return err
+	}
+
+	// remove old host_software
+	q = `DELETE FROM host_software WHERE host_id = ? AND software_id NOT IN (?)`
+	q, args, err = sqlx.In(q, hostID, ids)
+	if err != nil {
+		return err
+	}
+
+	_, err = ds.writer.ExecContext(ctx, q, args...)
+	if err != nil {
+		return err
 	}
 
 	return nil
