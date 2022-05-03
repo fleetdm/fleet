@@ -142,7 +142,7 @@ It's possible to specify the password via the `--password` flag or the `$PASSWOR
 To run a simple query against all hosts, you might run something like the following:
 
 ```
-fleetctl query --query 'select * from osquery_info;' --labels='All Hosts' > results.json
+fleetctl query --query 'SELECT * FROM osquery_info;' --labels='All Hosts' > results.json
 ⠂  100% responded (100% online) | 1/1 targeted hosts (1/1 online)
 ^C
 ```
@@ -248,7 +248,7 @@ apiVersion: v1
 kind: query
 spec:
   name: processes
-  query: select * from processes
+  query: SELECT * FROM processes
 ```
 
 ## Using fleetctl with an API-only user

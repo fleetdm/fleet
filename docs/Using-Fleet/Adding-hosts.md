@@ -225,7 +225,7 @@ On a system with osquery installed via the Fleet osquery installer (Orbit), obta
 codesign -dr - /opt/orbit/bin/orbit/macos/edge/orbit
 ```
 
-The output should be similar or identical to: 
+The output should be similar or identical to:
 
 ```
 Executable=/opt/orbit/bin/orbit/macos/edge/orbit
@@ -243,7 +243,7 @@ Osqueryd will inherit the privileges from Orbit and does not need explicit permi
 Depending on your MDM, this might be possible in the UI or require a custom profile. If your MDM has a feature to configure *Policy Preferences*, follow these steps:
 
 1. Configure the identifier type to “path”
-2. Paste the full path to Orbit as the identifier. 
+2. Paste the full path to Orbit as the identifier.
 3. Paste the full code signing identifier into the code requirement field.
 4. Allow “Access all files”. Access to Downloads, Documents etc is inherited from this.
 
