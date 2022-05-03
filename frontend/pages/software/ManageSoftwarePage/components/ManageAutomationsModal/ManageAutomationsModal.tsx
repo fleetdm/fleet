@@ -99,8 +99,6 @@ const ManageAutomationsModal = ({
     setSelectedIntegration,
   ] = useState<IIntegration>();
 
-  console.log("selectedIntegration", selectedIntegration);
-
   useDeepEffect(() => {
     setSoftwareAutomationsEnabled(
       softwareVulnerabilityAutomationEnabled || false
@@ -121,7 +119,7 @@ const ManageAutomationsModal = ({
         return data.integrations;
       },
       onSuccess: (data) => {
-        // Set jira and zendesk ntegrations
+        // Set jira and zendesk integrations
         const addJiraIndexed = data.jira
           ? data.jira.map((integration, index) => {
               return { ...integration, originalIndex: index, type: "jira" };
@@ -288,7 +286,6 @@ const ManageAutomationsModal = ({
   };
 
   const createIntegrationDropdownOptions = () => {
-    console.log("allIntegrationsIndexed", allIntegrationsIndexed);
     const integrationOptions = allIntegrationsIndexed?.map((i) => {
       return {
         value: String(i.dropdownIndex),
@@ -317,15 +314,6 @@ const ManageAutomationsModal = ({
   };
 
   const renderTicket = () => {
-    console.log(
-      "jira",
-      jiraIntegrationsIndexed && jiraIntegrationsIndexed.length > 0
-    );
-    console.log(
-      "zendesk",
-      zendeskIntegrationsIndexed && zendeskIntegrationsIndexed.length > 0
-    );
-
     return (
       <div className={`${baseClass}__ticket`}>
         <div className={`${baseClass}__software-automation-description`}>

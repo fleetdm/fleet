@@ -264,11 +264,6 @@ const ManageSoftwarePage = ({
   const onCreateWebhookSubmit = async (
     configSoftwareAutomations: ISoftwareAutomations
   ) => {
-    console.log(
-      "configSoftwareAutomations being sent to API:",
-      configSoftwareAutomations
-    );
-    // TODO: API is merged, this should work
     try {
       const request = configAPI.update(configSoftwareAutomations);
       await request.then(() => {

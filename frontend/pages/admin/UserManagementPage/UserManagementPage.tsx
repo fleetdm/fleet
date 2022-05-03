@@ -158,8 +158,6 @@ const UserManagementPage = ({ router }: IUserManagementProps): JSX.Element => {
 
   const combineUsersAndInvites = memoize(
     (usersData, invitesData, currentUserId) => {
-      console.log("usersData", usersData);
-      console.log("invitesData", invitesData);
       return combineDataSets(usersData, invitesData, currentUserId);
     }
   );
