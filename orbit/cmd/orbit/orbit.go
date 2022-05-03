@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/build"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/execuser"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/insecure"
@@ -34,14 +35,8 @@ import (
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
-var (
-	// Flags set by goreleaser during build
-	version = ""
-	commit  = ""
-	date    = ""
-)
-
 func main() {
+
 	app := cli.NewApp()
 	app.Name = "Orbit osquery"
 	app.Usage = "A powered-up, (near) drop-in replacement for osquery"
@@ -53,7 +48,7 @@ func main() {
 		&cli.StringFlag{
 			Name:    "root-dir",
 			Usage:   "Root directory for Orbit state",
-			Value:   update.DefaultOptions.RootDirectory,
+			Value:   "", // need to check if explicitly set
 			EnvVars: []string{"ORBIT_ROOT_DIR"},
 		},
 		&cli.BoolFlag{
@@ -142,8 +137,22 @@ func main() {
 	}
 	app.Action = func(c *cli.Context) error {
 		if c.Bool("version") {
-			fmt.Println("orbit " + version)
+			fmt.Println("orbit " + build.Version)
 			return nil
+		}
+
+		// handle old installations, which had default root dir set to /var/lib/orbit
+		if c.String("root-dir") == "" {
+			rootDir := update.DefaultOptions.RootDirectory
+
+			executable, err := os.Executable()
+			if err != nil {
+				return fmt.Errorf("failed to get orbit executable: %w", err)
+			}
+			if strings.HasPrefix(executable, "/var/lib/orbit") {
+				rootDir = "/var/lib/orbit"
+			}
+			c.Set("root-dir", rootDir)
 		}
 
 		var logFile io.Writer
@@ -669,9 +678,9 @@ var versionCommand = &cli.Command{
 	Usage: "Get the orbit version",
 	Flags: []cli.Flag{},
 	Action: func(c *cli.Context) error {
-		fmt.Println("orbit " + version)
-		fmt.Println("commit - " + commit)
-		fmt.Println("date - " + date)
+		fmt.Println("orbit " + build.Version)
+		fmt.Println("commit - " + build.Commit)
+		fmt.Println("date - " + build.Date)
 		return nil
 	},
 }
