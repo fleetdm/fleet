@@ -21,6 +21,8 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 ### ⛑ Security
 
+[Account recovery process](./security.md#account-recovery-process)
+
 [How we protect end-user devices](./security.md#how-we-protect-end-user-devices)
 
 [Hardware security keys](./security.md#hardware-security-keys)
@@ -30,6 +32,12 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 [Google Workspace security](./security.md#google-workspace-security)
 
 [Vulnerability management in Fleet](./security.md#vulnerability-management)
+
+[Rituals](./security.md#rituals)
+
+### 📜 Security policies
+
+[Acceptable use policy](./security-policies.md#acceptable-use-policy)
 
 ### 💓 Brand
 
@@ -47,20 +55,29 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Fleet website](./brand.md#website)
 
+[Rituals](./brand.md#rituals)
+
 ### 🪂 Community
 
 [Communities](./community.md#communities)
 
 [Fleet docs](./community.md#fleet-docs)
 
-[Community contributions (pull requests)](./community.md#community-contributions-pull-requests)
+[Pull requests](./community.md#pull-requests)
+
+[Updating docs and FAQ](./community.md#updating-docs-and-faq)
 
 [Fleet swag](./community.md#fleet-swag)
+
+[Rituals](./community.md#rituals)
 
 ### 🚀 Engineering
 
 [Release process](./engineering.md#release-process)
+
 [On-call rotation](./community.md#On-call-rotation) 
+
+[Rituals](./engineering.md#rituals)
 
 ### ⚗️ Product
 
@@ -78,6 +95,8 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Competition](./product.md#competition)
 
+[Rituals](./product.md#rituals)
+
 ### 🪴 Growth
 
 [Posting on social media as Fleet](./growth.md#posting-on-social-media-as-fleet)
@@ -87,6 +106,8 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 [Press releases](./growth.md#press-releases)
 
 [Sponsoring events](./growth.md#sponsoring-events)
+
+[Rituals](./growth.md#rituals)
 
 ### 🎈 Customers
 
@@ -102,6 +123,8 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Generating a trial license key](./customers.md#generating-a-trial-license-key)
 
+[Rituals](./customers.md#rituals)
+
 ### 🧑‍🚀 People
 
 [Directly responsible individuals](./people.md#directly-resonsible-individuals)
@@ -112,11 +135,27 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Meetings](./people.md#meetings)
 
-[People ops](./people.md#people-ops)
+[Slack](./people.md#slack)
+
+[Performance feedback](./people.md#performance-feedback)
+
+[Creating a new position](./people.md#creating-a-new-position)
+
+[Hiring a new team member](./people.md#hiring-a-new-team-member)
+
+[Interviewing at Fleet](./people.md#interviewing-at-Fleet)
+
+[Team member onboarding](./people.md#team-member-onboarding)
+
+[Onboarding a new advisor](./people.md#onboarding-a-new-advisor)
+
+[Zapier and DocuSign](./people.md#zapier-and-docu-sign)
+
+[Workiversaries](./people.md#workiversaries)
 
 [Rituals](./people.md#rituals)
 
-[Workiversaries](./people.md#workiversaries)
+
 
 ### Handbook
 

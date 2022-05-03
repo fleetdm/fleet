@@ -1,3 +1,6 @@
+import * as path from "path";
+import { format } from "date-fns";
+
 describe("Query flow (empty)", () => {
   before(() => {
     Cypress.session.clearAllSavedSessions();
@@ -50,6 +53,31 @@ describe("Query flow (seeded)", () => {
       cy.loginWithCySession();
       cy.visit("/queries/manage");
     });
+    it("runs a live query", () => {
+      cy.addDockerHost();
+      cy.getAttached(".name__cell .button--text-link").first().click();
+      cy.findByText(/run query/i).click();
+      cy.findByText(/all hosts/i).click();
+      cy.findByText(/hosts targeted/i).should("exist");
+      cy.findByText(/run/i).click();
+      // Ensures live query runs
+      cy.wait(10000); // eslint-disable-line cypress/no-unnecessary-waiting
+      cy.getAttached(".query-results__results-table-header").within(() => {
+        cy.findByText(/show query/i).click();
+      });
+      cy.getAttached(".show-query-modal").within(() => {
+        cy.findByText(/done/i).click();
+      });
+      cy.getAttached(".query-results__results-table-header").within(() => {
+        const formattedTime = format(new Date(), "MM-dd-yy hh-mm-ss");
+        cy.findByText(/export results/i).click();
+        const filename = `Query Results (${formattedTime}).csv`;
+        cy.readFile(path.join(Cypress.config("downloadsFolder"), filename), {
+          timeout: 5000,
+        });
+      });
+      cy.stopDockerHost();
+    });
     it("edits an existing query", () => {
       cy.getAttached(".name__cell .button--text-link").first().click();
       cy.findByText(/run query/i).should("exist");
@@ -69,7 +97,7 @@ describe("Query flow (seeded)", () => {
       cy.findByText(/copy of/i).should("be.visible");
     });
     it("deletes an existing query", () => {
-      cy.findByText(/detect linux hosts/i)
+      cy.findByText(/detect presence of authorized ssh keys/i)
         .parent()
         .parent()
         .within(() => {
@@ -78,9 +106,13 @@ describe("Query flow (seeded)", () => {
           });
         });
       cy.findByRole("button", { name: /delete/i }).click();
-      cy.getAttached(".button--alert.remove-query-modal__btn").click();
+      cy.getAttached(".remove-query-modal .modal-cta-wrap").within(() => {
+        cy.findByRole("button", { name: /delete/i }).click();
+      });
       cy.findByText(/successfully removed query/i).should("be.visible");
-      cy.findByText(/detect linux hosts/i).should("not.exist");
+      cy.findByText(/detect presence of authorized ssh keys/i).should(
+        "not.exist"
+      );
     });
   });
   describe("Manage schedules page", () => {
@@ -92,7 +124,7 @@ describe("Query flow (seeded)", () => {
       cy.getAttached(".no-schedule__schedule-button").click();
       cy.getAttached(".schedule-editor-modal__form").within(() => {
         cy.findByText(/select query/i).click();
-        cy.findByText(/detect presence/i).click();
+        cy.findByText(/get local/i).click();
         cy.findByText(/every day/i).click();
         cy.findByText(/every 6 hours/i).click();
         cy.findByText(/show advanced options/i).click();
@@ -115,7 +147,9 @@ describe("Query flow (seeded)", () => {
             cy.getAttached(".input-field").click().type("50");
           }
         );
-        cy.getAttached(".schedule-editor-modal__btn-wrap").within(() => {
+        cy.getAttached(
+          ".schedule-editor-modal__btn-wrap .modal-cta-wrap"
+        ).within(() => {
           cy.findByRole("button", { name: /schedule/i }).click();
         });
       });
@@ -148,9 +182,11 @@ describe("Query flow (seeded)", () => {
           cy.findByText(/action/i).click();
           cy.findByText(/remove/i).click();
         });
-      cy.getAttached(".remove-scheduled-query-modal__btn-wrap").within(() => {
-        cy.findByRole("button", { name: /remove/i }).click();
-      });
+      cy.getAttached(".remove-scheduled-query-modal .modal-cta-wrap").within(
+        () => {
+          cy.findByRole("button", { name: /remove/i }).click();
+        }
+      );
       cy.findByText(/successfully removed/i).should("be.visible");
     });
   });

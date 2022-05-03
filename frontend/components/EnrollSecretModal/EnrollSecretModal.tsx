@@ -1,10 +1,11 @@
 import React, { useEffect } from "react";
-import Modal from "components/Modal";
-import Button from "components/buttons/Button";
-// @ts-ignore
-import EnrollSecretTable from "components/EnrollSecretTable";
+
 import { ITeam } from "interfaces/team";
 import { IEnrollSecret } from "interfaces/enroll_secret";
+
+import Modal from "components/Modal";
+import Button from "components/buttons/Button";
+import EnrollSecretTable from "components/EnrollSecretTable";
 
 import PlusIcon from "../../../assets/images/icon-plus-16x16@2x.png";
 
@@ -106,7 +107,7 @@ const EnrollSecretModal = ({
             </>
           </Button>
         </div>
-        <div className={`${baseClass}__button-wrap`}>
+        <div className="modal-cta-wrap">
           <Button onClick={onReturnToApp} className="button button--brand">
             Done
           </Button>

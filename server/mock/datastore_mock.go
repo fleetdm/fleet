@@ -138,8 +138,6 @@ type AsyncBatchUpdateLabelTimestampFunc func(ctx context.Context, ids []uint, ts
 
 type NewHostFunc func(ctx context.Context, host *fleet.Host) (*fleet.Host, error)
 
-type SaveHostFunc func(ctx context.Context, host *fleet.Host) error
-
 type DeleteHostFunc func(ctx context.Context, hid uint) error
 
 type HostFunc func(ctx context.Context, id uint, skipLoadingExtras bool) (*fleet.Host, error)
@@ -587,9 +585,6 @@ type DataStore struct {
 
 	NewHostFunc        NewHostFunc
 	NewHostFuncInvoked bool
-
-	SaveHostFunc        SaveHostFunc
-	SaveHostFuncInvoked bool
 
 	DeleteHostFunc        DeleteHostFunc
 	DeleteHostFuncInvoked bool
@@ -1292,11 +1287,6 @@ func (s *DataStore) AsyncBatchUpdateLabelTimestamp(ctx context.Context, ids []ui
 func (s *DataStore) NewHost(ctx context.Context, host *fleet.Host) (*fleet.Host, error) {
 	s.NewHostFuncInvoked = true
 	return s.NewHostFunc(ctx, host)
-}
-
-func (s *DataStore) SaveHost(ctx context.Context, host *fleet.Host) error {
-	s.SaveHostFuncInvoked = true
-	return s.SaveHostFunc(ctx, host)
 }
 
 func (s *DataStore) DeleteHost(ctx context.Context, hid uint) error {

@@ -23,7 +23,7 @@ jobs:
       matrix:
         os: [ubuntu-latest]
         go-version: ['^1.17.8']
-        mysql: ["mysql:5.7", "mysql:8"]
+        mysql: ["mysql:5.7.21", "mysql:8.0.28"]
     runs-on: ${{ matrix.os }}
 
     env:
@@ -32,7 +32,7 @@ jobs:
 
     steps:
     - name: Install Go
-      uses: actions/setup-go@bfdd3570ce990073878bf10f6b2d79082de49492 # v2
+      uses: actions/setup-go@f6164bd8c8acb4a71fb2791a8b6c4024ff038dab # v2
       with:
         go-version: ${{ matrix.go-version }}
 
@@ -86,5 +86,5 @@ jobs:
             ]
           }
       env:
-        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_CORE_ENGINEERING_WEBHOOK_URL }}
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_G_PLATFORM_WEBHOOK_URL }}
         SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK

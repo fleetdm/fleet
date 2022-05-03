@@ -2,7 +2,8 @@ import React from "react";
 import { Meta, Story } from "@storybook/react";
 import { noop } from "lodash";
 
-import { ITarget } from "interfaces/target"; // @ts-ignore
+import { ITarget } from "interfaces/target";
+// @ts-ignore
 import SelectedTargetsDropdown from ".";
 
 import "../../../../index.scss";

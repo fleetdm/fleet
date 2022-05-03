@@ -5,7 +5,7 @@ import { PolicyContext } from "context/policy";
 import { IPlatformSelector } from "hooks/usePlaformSelector";
 import { IPolicyFormData } from "interfaces/policy";
 import { IPlatformString } from "interfaces/platform";
-import { useDeepEffect } from "utilities/hooks";
+import useDeepEffect from "hooks/useDeepEffect";
 
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
@@ -118,7 +118,7 @@ const NewPolicyModal = ({
           value={description}
           inputClassName={`${baseClass}__policy-save-modal-description`}
           label="Description"
-          placeholder="Add a description here"
+          placeholder="Add a description here (optional)"
         />
         <InputField
           name="resolution"
@@ -127,7 +127,7 @@ const NewPolicyModal = ({
           inputClassName={`${baseClass}__policy-save-modal-resolution`}
           label="Resolution"
           type="textarea"
-          placeholder="What are the steps a device owner should take to resolve a host that fails this policy?"
+          placeholder="What steps should a device owner take to resolve a host that fails this policy? (optional)"
         />
         {platformSelector.render()}
         <div

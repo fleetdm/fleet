@@ -505,3 +505,53 @@ func TestBasicAuthHandler(t *testing.T) {
 		})
 	}
 }
+
+func TestDebugMux(t *testing.T) {
+	h1 := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(200) })
+	h2 := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(400) })
+
+	cases := []struct {
+		desc string
+		mux  debugMux
+		tok  string
+		want int
+	}{
+		{
+			"only fleet auth handler, no token",
+			debugMux{fleetAuthenticatedHandler: h1},
+			"",
+			200,
+		},
+		{
+			"only fleet auth handler, with token",
+			debugMux{fleetAuthenticatedHandler: h1},
+			"token",
+			200,
+		},
+		{
+			"both handlers, no token",
+			debugMux{fleetAuthenticatedHandler: h1, tokenAuthenticatedHandler: h2},
+			"",
+			200,
+		},
+		{
+			"both handlers, with token",
+			debugMux{fleetAuthenticatedHandler: h1, tokenAuthenticatedHandler: h2},
+			"token",
+			400,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			path := "/debug/pprof"
+			if c.tok != "" {
+				path += "?token=" + c.tok
+			}
+			req := httptest.NewRequest("GET", path, nil)
+			res := httptest.NewRecorder()
+			c.mux.ServeHTTP(res, req)
+			require.Equal(t, c.want, res.Code)
+		})
+	}
+}

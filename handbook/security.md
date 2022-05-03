@@ -1,5 +1,31 @@
 # Security
 
+## Account recovery process
+
+As an all-remote company, we do not have the luxury of seeing each other or are able to ask for help in person. Instead, we require live video confirmation of someone's identity before performing recovery and this applies to all Fleet company accounts, from internal systems to SaaS accounts.
+
+| Participant | Role                                                                                                                                                 |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Requester   | Requests recovery for their own account                                                                |
+| Recoverer   | Person with access to perform the recovery who monitors *#help-login*                                                                                                                               |
+| Identifier  | Person that visually identifies the requester in a video call. The identifier can be the recoverer or a person the recoverer can recognize visually |
+
+
+Here are the steps we take for the recovery process:
+
+
+1. If the requester still has access to Slack, they ask for help in *#help-login*. If they do not have access to Slack, they can contact their manager or a teammate over the phone via voice or texting, and they will post in *#help-login* for the requester.
+2. A recoverer acknowledges the request in #help-login using the "eyes" emoji 👀.
+3. The recoverer identifies the requester through a live video call.
+* If the recoverer does not know the requester well enough to positively identify them visually, the
+  recoverer can ask a colleague whom they recognize to act as the identifier. **All three must be
+  live on a video call at the same time.**
+*  For example, if the recoverer does not recognize Guillaume but can recognize Zach, they should ask Zach to identify Guillaume. Using the requester's manager or a direct teammate is recommended, as it increases the chances they see each other on video frequently.
+4. If the recoverer recognizes the requester, or has the identity confirmed by the person acting as
+   the identifier, they can perform the recovery and update the thread in *#help-login*.
+* If the recoverer is not 100% satisfied with identification, they do **NOT** proceed, and post to #g-security to engage the security team immediately.
+
+
 ## How we protect end-user devices
 
 At Fleet, we believe that a good user experience empowers contributors.
@@ -270,7 +296,7 @@ is kept up to date.
 
 If you do not already have a pair of hardware security keys, order [YubiKey 5C NFC security
 keys](https://www.yubico.com/ca/product/yubikey-5c-nfc-pack-of-2/) with your company card, or ask
-BizOps to get you one if you do not have a company card.
+for help in [#help-login](https://fleetdm.com/handbook/security#slack-channels) to get you one if you do not have a company card.
 
 ### Are they YubiKeys or security keys?
 
@@ -282,7 +308,7 @@ security keys.
 
 Security keys are **strongly recommended** for everyone and **required** for team members with elevated privilege access. 
 
-Because they are the only type of Two-Factor Authentication (2FA) that prevents credentials from
+Because they are the only type of Two-Factor Authentication (2FA) that protects credentials from
 phishing, we will make them **mandatory for everyone** soon. 
 
 See the [Google Workspace security
@@ -324,7 +350,7 @@ identified" warning.
    website](https://www.yubico.com/support/download/yubikey-manager/#h-downloads).
 2. Open the YubiKey manager with one of your keys connected.
 3. Go to the **Interfaces** tab.
-4. Uncheck the **OTP** checkboxes under **USB** and **NFC** and click *Save Interfaces*.
+4. Uncheck the **OTP** checkboxes under **USB** and click *Save Interfaces*.
 5. Unplug your key and connect your 2nd one to repeat the process.
 
 
@@ -383,7 +409,7 @@ security keys to generate a temporary code for the device that does not.
 **Answer**: No. Using them does not make sessions shorter. For example, if using the GMail app on
 mobile, you'd need the keys to set up the app only.
 
-## GitHub Security
+## GitHub security
 Since Fleet makes open source software, we need to host and collaborate on code. We do this using GitHub.
 
 This section covers our GitHub configuration. Like everything we do, we aim for the right level of security and productivity.
@@ -420,7 +446,7 @@ charges a [4x premium](https://sso.tax/) for this feature.
 | Dependabot alerts                  | Automatically enable for new repositories + enabled for all        | We want to be alerted if any dependency is vulnerable.                       |
 | Dependabot security updates        | Automatically enable for new repositories                          | This automatically creates PRs to fix vulnerable dependencies when possible. |
 
-### Member Privileges
+### Member privileges
 
 | Member privileges feature | Setting | Note                                                                                                                         |
 | ------------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------- |
@@ -440,11 +466,11 @@ charges a [4x premium](https://sso.tax/) for this feature.
 | Allow users with read access to create discussions                         | 🚫                   | We do not currently use discussions and want people to use issues as much as possible.                                                                                       |
 | Allow members to create teams                                              | 🚫                   | We automate the management of GitHub teams with the [GitHub Terraform provider](https://github.com/integrations/terraform-provider-github).                            |
 
-### Team Discussions
+### Team discussions
 We do not use team discussions and therefore have disabled them. This is simply to avoid discussions
 located in too many places and not security-related.
 
-### Repository Security
+### Repository security
 
 #### Branch protection
 Branch protection is one of the most important settings to configure and the main reason we should not have members with administrative privileges on the repositories.
@@ -525,7 +551,7 @@ Google's name for Two-Factor Authentication (2FA) or Multi-Factor Authentication
 | App-based push notifications                                                  | Harder to phish than TOTP, but by sending a lot of prompts to a phone, a user might accidentally accept a nefarious notification.       |
 | Hardware security keys                                                        | [Most secure](https://krebsonsecurity.com/2018/07/google-security-keys-neutralized-employee-phishing/) but requires extra hardware or a recent smartphone. Configure this as soon as you receive your Fleet YubiKeys                                                                |
 
-**2-Step Verification in Google Workspace**
+##### 2-Step verification in Google Workspace
 
 We apply the following settings to *Security/2-Step Verification* to all users as the minimum baseline.
 
@@ -537,7 +563,7 @@ We apply the following settings to *Security/2-Step Verification* to all users a
 | Frequency: Allow user to trust the device  | Off                                                |
 | Methods                                    | Any except verification codes via text, phone call |
 
-**Hardware security keys**
+##### Hardware security keys
 
 We strongly recommend using hardware security keys. 
 
@@ -587,7 +613,7 @@ We apply the following settings to *Security/Less Secure Apps* to all users as t
 | ------------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
 | Control user access to apps that use less secure sign-in technology and make accounts more vulnerable.  | Disable access to less secure apps (Recommended) |
 
-#### API Access
+#### API access
 Google Workspace makes it easy for users to add tools to their workflows while having these tools authenticate to their Google applications and data via OAuth. We mark all Google services as *restricted* but do allow the use of OAuth for simple authentication and the use of less dangerous privileges on Gmail and Drive. We then approve applications that require more privileges on a case-by-case basis.
 
 This level of security allows users to authenticate to web applications with their Google accounts. This exposes little information beyond what they would provide in a form to create an account, and it protects confidential data while keeping everything managed.
@@ -791,6 +817,26 @@ Fleet remediates vulnerabilities related to vulnerable dependencies, but we do n
 We use [Dependabot](https://github.com/dependabot) to create pull requests to update vulnerable dependencies. You can find these PRs by filtering on the [*Dependabot*](https://github.com/fleetdm/fleet/pulls?q=is%3Apr+author%3Aapp%2Fdependabot+) author in the repository.
 
 We ensure the fixes to vulnerable dependencies are also performed according to our remediation timeline. We fix as many dependencies as possible in a single release.
+
+## Rituals
+
+The following table lists the Security group's rituals, frequency, and Directly Responsible Individual (DRI).
+
+| Ritual                       | Frequency                | Description                                         | DRI               |
+|:-----------------------------|:-----------------------------|:----------------------------------------------------|-------------------|
+| Security notifications check | Daily | Check Slack, Google, Vanta, and Fleet dogfood for security-related notifications. | Guillaume Ross |
+| GitHub check | Weekly | Check GitHub security issues for anything pending analysis or prioritization. | Guillaume Ross |
+| Iteration planning | Every three weeks | Prioritize issues in the GitHub security project for the next iteration. | Guillaume Ross |
+| YubiKey adoption | Monthly | Track YubiKey adoption in Google workspace and follow up with those that aren't using it. | Guillaume Ross |
+| Dogfood policy update | Monthly | Edit Fleet dogfood policies that check for Chrome, Docker, and macOS version numbers. | Guillaume Ross |
+| Security blog post | Monthly | Publish a security-related blog post to Fleet's blog. | Guillaume Ross |
+| Security lunch & learn | Monthly | Educational live stream session on cybersecurity for Fleet employees, sessions are later shared for public consumption on YouTube. | Guillaume Ross |
+| MDM device enrollment | Quarterly | Provide export of MDM enrolled devices to ops team. | Guillaume Ross |
+| Access revalidation | Quarterly | Review critical access groups to make sure they contain only relevant people. | Guillaume Ross |
+| Snyk scan | Quarterly | Scan Fleet repo with Snyk to identify important vulnerabilities that GitHub did not identify. | Guillaume Ross |
+| Security conference review | Quarterly | Look at upcoming security conferences and work with the growth team to determine whether Fleet should submit to attend. | Guillaume Ross |
+| Security policy update | Annually | Update security policies and have them approved by the CEO. | Guillaume Ross |
+
 
 ## Slack channels
 

@@ -7,7 +7,7 @@ import { useDebouncedCallback } from "use-debounce";
 import { size } from "lodash";
 import classnames from "classnames";
 
-import { addGravatarUrlToResource } from "fleet/helpers";
+import { addGravatarUrlToResource } from "utilities/helpers";
 import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
 import usePlatformCompatibility from "hooks/usePlatformCompatibility";
