@@ -99,7 +99,7 @@ The following table lists the Growth group's rituals, frequency, and Directly Re
 | Enrich Salesforce leads       | Weekly | Follow the Salesforce lead enrichment process every Friday.    | Drew Baker        |
 | Outside contributions | Weekly | Check pull requests for outside contributions every Monday. | Drew Baker|
 | Weekly article       | Weekly | Publish an article and promote it on social media. | Drew Baker|
-| Missed Demo Follow up | Weekly | Email all leads who missed a scheduled demo | Andrew Bare
+| Missed Demo Follow up | Weekly | Email all leads who missed a scheduled demo | Andrew Bare |
 | Weekly ins and outs   | Weekly | Track Growth team ins and outs.        | Tim Kern          |
 | Podcast outreach      | Weekly | Conduct podcast outreach twice a week.     | Drew Baker        |
 | Weekly Update      | Weekly | Update the Growth KPIs in the ["🌈 Weekly updates" spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0). | Drew Baker        |
