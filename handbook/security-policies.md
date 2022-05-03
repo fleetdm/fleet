@@ -50,7 +50,7 @@ Fleet policy requires that:
 
 1. Fleet software engineering and product development is required to follow security best practices. Product should be "Secure by Design" and "Secure by Default".
 
-2. Quality assurance activities must be performed.  This may include
+2. Quality assurance activities will be performed.  This may include
 
   * peer code reviews prior to merging new code into the main development branch
     (e.g. master branch); and
