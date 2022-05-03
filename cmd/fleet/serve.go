@@ -291,6 +291,12 @@ the way that the Fleet server works.
 			level.Info(logger).Log("component", "redis", "mode", redisPool.Mode())
 
 			ds = cached_mysql.New(ds)
+			/*
+			   // TODO: clarify condition to add the host count check for hard enrollment limit.
+			   if license.DeviceCount > 0 && license is for Fleet Demo? {
+			     ds = mysqlredis.New(ds, redisPool)
+			   }
+			*/
 			resultStore := pubsub.NewRedisQueryResults(redisPool, config.Redis.DuplicateResults)
 			liveQueryStore := live_query.NewRedisLiveQuery(redisPool)
 			ssoSessionStore := sso.NewSessionStore(redisPool)
