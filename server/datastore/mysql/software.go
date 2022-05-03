@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/md5"
+	"encoding/hex"
 	"fmt"
 	"sort"
 	"strings"
@@ -88,21 +89,20 @@ func softwareSliceToIdMap(softwareSlice []fleet.Software) map[string]uint {
 // The update consists of deleting existing entries that are not in the given `software`
 // slice, updating existing entries and inserting new entries.
 func (ds *Datastore) UpdateHostSoftware(ctx context.Context, hostID uint, software []fleet.Software) error {
-	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		return updateHostSoftware(ctx, tx, hostID, software)
-	})
+	return updateHostSoftware(ctx, ds, hostID, software)
 }
 
 func saveHostSoftwareDB(ctx context.Context, tx sqlx.ExtContext, host *fleet.Host) error {
-	if err := updateHostSoftware(ctx, tx, host.ID, host.Software); err != nil {
-		return err
-	}
-
-	host.HostSoftware.Modified = false
 	return nil
+	// if err := updateHostSoftware(ctx, tx, host.ID, host.Software); err != nil {
+	// 	return err
+	// }
+
+	// host.HostSoftware.Modified = false
+	// return nil
 }
 
-func updateHostSoftware(ctx context.Context, tx sqlx.ExtContext, hostID uint, software []fleet.Software) error {
+func updateHostSoftware(ctx context.Context, ds *Datastore, hostID uint, software []fleet.Software) error {
 	q := `
 SELECT
     s.id,
@@ -120,7 +120,7 @@ WHERE
     hs.host_id = ?
 `
 	var current []fleet.Software
-	err := sqlx.SelectContext(ctx, tx, &software, q, hostID)
+	err := ds.writer.SelectContext(ctx, &software, q, hostID)
 	if err != nil {
 		return err
 	}
@@ -131,7 +131,26 @@ WHERE
 	}
 
 	if len(added) > 0 {
-		q := `INSERT IGNORE INTO software (name, version, source, ` + "`release`" + `, vendor, arch, bundle_identifier) VALUES (?, ?, ?, ?, ?, ?, ?)`
+		// find the actually new software
+		var hashes []string
+		for _, s := range added {
+			if s.ID != 0 {
+				continue
+			}
+
+			hashes = append(hashes, hex.EncodeToString(hashSoftware(s)))
+		}
+
+		q := "SELECT name, version, source, `release`, vendor, arch, bundle_identifier from software where hash in (?)"
+		q, args, err := sqlx.In(q, hashes)
+		if err != nil {
+			return err
+		}
+
+		q = `INSERT INTO software (name, version, source, ` + "`release`" + `, vendor, arch, bundle_identifier) VALUES (?, ?, ?, ?, ?, ?, ?)`
+
+		var newSoftware []fleet.Software
+		newSoftwareIDs := make(map[uint]int)
 
 		// if there is no id, need to insert into software table first
 		for i, s := range added {
