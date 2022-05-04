@@ -8,8 +8,7 @@ import Modal from "components/Modal";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 
-import OpenNewTabIcon from "../../../../../../../assets/images/open-new-tab-12x12@2x.png";
-import ErrorIcon from "../../../../../../../assets/images/icon-error-16x16@2x.png";
+import DataError from "components/DataError";
 
 export interface ISelectQueryModalProps {
   onCancel: () => void;
@@ -83,27 +82,7 @@ const SelectQueryModal = ({
 
   const results = (): JSX.Element => {
     if (queryErrors) {
-      return (
-        <div className={`${baseClass}__no-queries`}>
-          <span className="info__header">
-            <img src={ErrorIcon} alt="error icon" id="error-icon" />
-            Something&apos;s gone wrong.
-          </span>
-          <span className="info__data">Refresh the page or log in again.</span>
-          <span className="info__data">
-            If this keeps happening, please&nbsp;
-            <a
-              href="https://github.com/fleetdm/fleet/issues"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              file an issue
-              <img src={OpenNewTabIcon} alt="open new tab" id="new-tab-icon" />
-            </a>
-          </span>
-          {!isOnlyObserver && customQueryButton()}
-        </div>
-      );
+      return <DataError />;
     }
 
     if (!queriesFilter && queriesCount === 0) {

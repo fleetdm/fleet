@@ -61,6 +61,7 @@ terraform.tfstate*
 fleet-osquery*
 desktop.app.tar.gz
 osqueryd.app.tar.gz
+desktop.tar.gz
 
 # residual files when running the cpe command
 cmd/cpe/etagenv
