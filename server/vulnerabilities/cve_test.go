@@ -109,7 +109,7 @@ func TestTranslateCPEToCVE(t *testing.T) {
 		curlCPE := "cpe:2.3:a:haxx:curl:-:*:*:*:*:*:*:*"
 
 		// consider recent vulnerabilities to be anything published in 2018
-		theClock = clock.NewMockClock(time.Date(2019, 0o1, 0o1, 0, 0, 0, 0, time.UTC))
+		theClock = clock.NewMockClock(time.Date(2019, 1, 1, 0, 0, 0, 0, time.UTC))
 		defer func() { theClock = clock.C }()
 
 		safeDS := &threadSafeDSMock{Store: ds}

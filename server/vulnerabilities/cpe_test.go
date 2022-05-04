@@ -101,7 +101,7 @@ func TestSyncCPEDatabase(t *testing.T) {
 	require.Error(t, err)
 
 	// and we make the db older than the release
-	newTime := time.Date(2000, 0o1, 0o1, 0o1, 0o1, 0o1, 0o1, time.UTC)
+	newTime := time.Date(2000, 1, 1, 1, 1, 1, 1, time.UTC)
 	err = os.Chtimes(dbPath, newTime, newTime)
 	require.NoError(t, err)
 
