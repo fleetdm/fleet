@@ -219,7 +219,6 @@ describe("Premium tier - Team observer/maintainer user", () => {
         cy.getAttached(".team_name__cell").within(() => {
           cy.findByText(/oranges/i).should("exist");
         });
-        cy.contains(/oranges/i);
         cy.getAttached(".button-wrap")
           .contains("button", /add hosts/i)
           .click();

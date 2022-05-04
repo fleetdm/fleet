@@ -249,6 +249,7 @@ describe("Premium tier - Team Admin user", () => {
       cy.findByText(/successfully added/i).should("be.visible");
     });
     it("edit a team's scheduled query successfully", () => {
+      cy.getAttached(".manage-schedule-page");
       cy.getAttached("tbody>tr")
         .should("have.length", 1)
         .within(() => {
@@ -266,6 +267,7 @@ describe("Premium tier - Team Admin user", () => {
       cy.findByText(/successfully updated/i).should("be.visible");
     });
     it("remove a team's scheduled query successfully", () => {
+      cy.getAttached(".manage-schedule-page");
       cy.getAttached("tbody>tr")
         .should("have.length", 1)
         .within(() => {
