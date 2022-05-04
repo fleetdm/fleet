@@ -359,7 +359,6 @@ func (svc *Service) GetHostSummary(ctx context.Context, teamID *uint, platform *
 
 	var linuxCount uint
 	for _, p := range hostSummary.Platforms {
-		// TODO: how to handle "linux" vs. other platform names included in HostLinuxOSs
 		if fleet.IsLinux(p.Platform) {
 			linuxCount += p.HostsCount
 		}
@@ -371,7 +370,8 @@ func (svc *Service) GetHostSummary(ctx context.Context, teamID *uint, platform *
 		return nil, err
 	}
 
-	// TODO: should query for "All linux" label be updated to track names in HostLinuxOSs
+	// TODO: should query for "All linux" label be updated to use `platform` from `os_version` table
+	// so that the label tracks the way platforms are handled here in the host summary?
 	var builtinLabels []*fleet.LabelSummary
 	for _, l := range labelsSummary {
 		if l.LabelType == fleet.LabelTypeBuiltIn {
