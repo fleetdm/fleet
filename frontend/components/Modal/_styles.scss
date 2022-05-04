@@ -20,6 +20,16 @@
         font-size: $x-small;
       }
     }
+
+    .modal-cta-wrap {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: $pad-large;
+
+      :nth-child(2) {
+        margin-left: $pad-medium;
+      }
+    }
   }
 
   &__ex {

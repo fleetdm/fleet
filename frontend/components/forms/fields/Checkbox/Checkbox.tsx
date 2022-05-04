@@ -75,15 +75,16 @@ const Checkbox = (props: ICheckboxProps) => {
           }}
         />
         <span className={checkBoxTickClass} />
-        <span className={`${checkBoxClass}__label`}>
-          {tooltip ? (
+
+        {tooltip ? (
+          <span className={`${checkBoxClass}__label-tooltip`}>
             <TooltipWrapper tipContent={tooltip}>
               {children as string}
             </TooltipWrapper>
-          ) : (
-            <>{children}</>
-          )}
-        </span>
+          </span>
+        ) : (
+          <span className={`${checkBoxClass}__label`}>{children} </span>
+        )}
       </label>
     </FormField>
   );

@@ -7,7 +7,7 @@ import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 import { IConfig } from "interfaces/config";
 import { IJiraIntegration } from "interfaces/integration";
-import { IWebhookSoftwareVulnerabilities } from "interfaces/webhook"; // @ts-ignore
+import { IWebhookSoftwareVulnerabilities } from "interfaces/webhook";
 import configAPI from "services/entities/config";
 import softwareAPI, {
   ISoftwareResponse,
@@ -24,7 +24,7 @@ import Dropdown from "components/forms/fields/Dropdown";
 // @ts-ignore
 import Spinner from "components/Spinner";
 import TableContainer, { ITableQueryData } from "components/TableContainer";
-import TableDataError from "components/TableDataError";
+import TableDataError from "components/DataError";
 import TeamsDropdownHeader, {
   ITeamsDropdownState,
 } from "components/PageHeader/TeamsDropdownHeader";
@@ -280,6 +280,7 @@ const ManageSoftwarePage = ({
     state: IHeaderButtonsState
   ): JSX.Element | null => {
     if (
+      !softwareError &&
       state.isGlobalAdmin &&
       (!state.isPremiumTier || state.teamId === 0) &&
       !state.isLoading

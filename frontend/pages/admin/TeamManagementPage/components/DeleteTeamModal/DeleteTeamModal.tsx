@@ -41,20 +41,11 @@ const DeleteTeamModal = ({
           access to Fleet.
         </p>
         <p className={`${baseClass}__warning`}>This action cannot be undone.</p>
-        <div className={`${baseClass}__btn-wrap`}>
-          <Button
-            className={`${baseClass}__btn`}
-            type="button"
-            onClick={onSubmit}
-            variant="alert"
-          >
+        <div className="modal-cta-wrap">
+          <Button type="button" onClick={onSubmit} variant="alert">
             Delete
           </Button>
-          <Button
-            className={`${baseClass}__btn`}
-            onClick={onCancel}
-            variant="inverse-alert"
-          >
+          <Button onClick={onCancel} variant="inverse-alert">
             Cancel
           </Button>
         </div>

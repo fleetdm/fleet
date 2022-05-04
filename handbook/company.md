@@ -192,7 +192,7 @@ Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.
 ### Why do we use a wireframe-first approach?
 Wireframing (or "drafting," as we often refer to it at Fleet) provides a clear overview of page layout, information architecture, user flow, and functionality. The wireframe-first approach extends beyond what users see on their screens. Wireframe-first is also excellent for drafting APIs, config settings, CLI options, and even business processes. 
 
-He's why we use a wireframe-first approach at Fleet.
+Here's why we use a wireframe-first approach at Fleet.
 
 - We create a wireframe for every change we make and favor small, iterative changes to deliver value quickly. 
 - We can think through the functionality and user experience more deeply by wireframing before committing any code. As a result, our coding decisions are clearer, and our code is cleaner and easier to maintain.
@@ -276,6 +276,12 @@ When Kolide's attention shifted away from Fleet and towards their separate, user
 ### 2020: Fleet was incorporated
 Zach partnered with our CEO, Mike McNeil, to found a new, independent company: Fleet Device Management Inc.  In November 2020, we [announced](https://medium.com/fleetdm/a-new-fleet-d4096c7de978) the transition and kicked off the logistics of moving the GitHub repository.
 
+## Rituals
+
+|Ritual |Frequency | Description | DRI|
+|-------|:---------|:------------|:---|
+| Weekly update reminder | Weekly | On Thursday, Charlie starts a thread in the `#help-manage` channel and ask managers to reply to the thread with a summary of what their team did in the past week. | Charlie Chance |
+| Weekly update | Weekly | On Friday, Charlie updates the KPIs in the ["🌈 Weekly updates" spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0), combines the updates from managers into a single message, and adds any hiring announcements. Charlie posts the company update in the `#general` channel. | Charlie Chance |
 
 ## Slack channels
 
@@ -292,5 +298,17 @@ The following [Slack channels are maintained](https://fleetdm.com/handbook/compa
 | `#general`                  | N/A _(announce something company-wide)_
 | `#thanks`                   | N/A _(say thank you)_
 | `#random`                   | N/A _(be random)_
+
+
+## Labels
+
+We use special characters to define label types.
+
+| Special character | Label type  | Rules        | Examples                            |
+|:------------------|:------------|:-------------|:------------------------------------|
+| `#`               | Noun        | One only     | `#platform`, `#interface`, `#agent`
+| `:`               | Verb        | One or more  | `:dev`, `:research`, `:design`
+| `~`               | Adjective   | One or more  | `~blocked`, `~frontend`, `~backend`
+| `!`               | OKR         | One only     | `!vuln`, `!desktop`, `!upgrade`
 
 <meta name="maintainedBy" value="mikermcneil">

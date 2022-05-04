@@ -10,10 +10,10 @@ import local from "utilities/local";
 import sessionsAPI from "services/entities/sessions";
 import formatErrorResponse from "utilities/format_error_response";
 
+import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
 // @ts-ignore
-import AuthenticationFormWrapper from "components/AuthenticationFormWrapper"; // @ts-ignore
-import LoginForm from "components/forms/LoginForm"; // @ts-ignore
-import LoginSuccessfulPage from "pages/LoginSuccessfulPage"; // @ts-ignore
+import LoginForm from "components/forms/LoginForm";
+import LoginSuccessfulPage from "pages/LoginSuccessfulPage";
 
 interface ILoginPageProps {
   router: InjectedRouter; // v3
@@ -82,7 +82,6 @@ const LoginPage = ({ router }: ILoginPageProps) => {
       if (user.force_password_reset) {
         return router.push(RESET_PASSWORD);
       }
-
       return router.push(redirectLocation || HOME);
     } catch (response) {
       const errorObject = formatErrorResponse(response);

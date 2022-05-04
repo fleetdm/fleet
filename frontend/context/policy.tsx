@@ -1,7 +1,6 @@
 import React, { createContext, useReducer, ReactNode } from "react";
 import { find } from "lodash";
 
-// @ts-ignore
 import { osqueryTables } from "utilities/osquery_tables";
 import { IOsqueryTable, DEFAULT_OSQUERY_TABLE } from "interfaces/osquery_table";
 import { IPlatformString } from "interfaces/platform";

@@ -142,7 +142,7 @@ It's possible to specify the password via the `--password` flag or the `$PASSWOR
 To run a simple query against all hosts, you might run something like the following:
 
 ```
-fleetctl query --query 'select * from osquery_info;' --labels='All Hosts' > results.json
+fleetctl query --query 'SELECT * FROM osquery_info;' --labels='All Hosts' > results.json
 ⠂  100% responded (100% online) | 1/1 targeted hosts (1/1 online)
 ^C
 ```
@@ -248,7 +248,7 @@ apiVersion: v1
 kind: query
 spec:
   name: processes
-  query: select * from processes
+  query: SELECT * FROM processes
 ```
 
 ## Using fleetctl with an API-only user
@@ -269,51 +269,11 @@ If you'd like your API-only user to have a different access level than the defau
 fleetctl user create --name "API User" --email api@example.com --password temp!pass --api-only --global-role admin
 ```
 
-### Reset the password
-
-When a new user is created, a password reset is needed before that user can perform queries. Since an API-only user cannot log in to the Fleet UI, this is done through the REST API. We'll be doing this through the terminal using `curl`.
-
-First, log in to the new user account using `fleetctl login`. Once you're logged in successfully to the API-only user, set up a variable to hold the user's token:
-
-```
-token=$(fleetctl config get token | rev | cut -d ' ' -f 1 | rev)
-```
-
-Then use `curl` to send a required password reset request to the REST API through the terminal:
-
-```
-curl -d '{"new_password":"NewPassGoesHere"}' -H "Authorization: Bearer ${token}" -X POST https://fleet.corp.example.com/api/v1/fleet/perform_required_password_reset
-```
-
-If you see a response like this, the request was successful:
-
-```
-{
-  "user": {
-    "created_at": "2022-03-16T20:42:00Z",
-    "updated_at": "2022-03-16T20:42:00Z",
-    "id": 52,
-    "name": "API User",
-    "email": "api@example.com",
-    "force_password_reset": false,
-    "gravatar_url": "",
-    "sso_enabled": false,
-    "global_role": "observer",
-    "api_only": true,
-    "teams": []
-  }
-}
-```
-
-While the original token is no longer valid, it's never a bad idea to clear variables out once you're done with them:
-
-```
-unset token
-```
-
 ### Use fleetctl as the new user
 
-Now that the password is reset, you will need to log in again using the updated password with `fleetctl login`. You'll now be able to perform tasks using `fleetctl` as your new API-only user.
+Now that your new user is all set up, you will need to log in with `fleetctl login`. You'll now be able to perform tasks using `fleetctl` as your new API-only user.
+
+> If you are using a version of Fleet older than `4.13.0`, you will need to [reset the API-only user's password](https://github.com/fleetdm/fleet/blob/a1eba3d5b945cb3339004dd1181526c137dc901c/docs/Using-Fleet/fleetctl-CLI.md#reset-the-password) before running queries. 
 
 ### Switching users
 

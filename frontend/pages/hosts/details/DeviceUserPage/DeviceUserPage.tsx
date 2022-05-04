@@ -11,13 +11,13 @@ import { NotificationContext } from "context/notification";
 import deviceUserAPI from "services/entities/device_user";
 import { IHost, IDeviceMappingResponse } from "interfaces/host";
 import { ISoftware } from "interfaces/software";
-import PageError from "components/PageError";
+import PageError from "components/DataError";
 // @ts-ignore
 import OrgLogoIcon from "components/icons/OrgLogoIcon";
 import Spinner from "components/Spinner";
 import Button from "components/buttons/Button";
 import TabsWrapper from "components/TabsWrapper";
-import { normalizeEmptyValues, wrapFleetHelper } from "fleet/helpers";
+import { normalizeEmptyValues, wrapFleetHelper } from "utilities/helpers";
 
 import HostSummaryCard from "../cards/HostSummary";
 import AboutCard from "../cards/About";
@@ -63,11 +63,7 @@ const DeviceUserPage = ({
       refetchOnReconnect: false,
       refetchOnWindowFocus: false,
       retry: false,
-      select: (data: IDeviceMappingResponse) =>
-        data.device_mapping &&
-        data.device_mapping.filter(
-          (deviceUser) => deviceUser.email && deviceUser.email.length
-        ),
+      select: (data: IDeviceMappingResponse) => data.device_mapping,
     }
   );
 

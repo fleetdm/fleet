@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/build"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/execuser"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/insecure"
@@ -34,14 +35,8 @@ import (
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
-var (
-	// Flags set by goreleaser during build
-	version = ""
-	commit  = ""
-	date    = ""
-)
-
 func main() {
+
 	app := cli.NewApp()
 	app.Name = "Orbit osquery"
 	app.Usage = "A powered-up, (near) drop-in replacement for osquery"
@@ -53,7 +48,7 @@ func main() {
 		&cli.StringFlag{
 			Name:    "root-dir",
 			Usage:   "Root directory for Orbit state",
-			Value:   update.DefaultOptions.RootDirectory,
+			Value:   "", // need to check if explicitly set
 			EnvVars: []string{"ORBIT_ROOT_DIR"},
 		},
 		&cli.BoolFlag{
@@ -135,10 +130,6 @@ func main() {
 			Usage: "Log to this file path in addition to stderr",
 		},
 		&cli.BoolFlag{
-			Name:  "dev-darwin-legacy-targets",
-			Usage: "Use darwin legacy target (flag only used on darwin)",
-		},
-		&cli.BoolFlag{
 			Name:    "fleet-desktop",
 			Usage:   "Launch Fleet Desktop application (flag currently only used on darwin)",
 			EnvVars: []string{"ORBIT_FLEET_DESKTOP"},
@@ -146,8 +137,22 @@ func main() {
 	}
 	app.Action = func(c *cli.Context) error {
 		if c.Bool("version") {
-			fmt.Println("orbit " + version)
+			fmt.Println("orbit " + build.Version)
 			return nil
+		}
+
+		// handle old installations, which had default root dir set to /var/lib/orbit
+		if c.String("root-dir") == "" {
+			rootDir := update.DefaultOptions.RootDirectory
+
+			executable, err := os.Executable()
+			if err != nil {
+				return fmt.Errorf("failed to get orbit executable: %w", err)
+			}
+			if strings.HasPrefix(executable, "/var/lib/orbit") {
+				rootDir = "/var/lib/orbit"
+			}
+			c.Set("root-dir", rootDir)
 		}
 
 		var logFile io.Writer
@@ -218,16 +223,14 @@ func main() {
 
 		opt := update.DefaultOptions
 
-		if runtime.GOOS == "darwin" && c.Bool("dev-darwin-legacy-targets") {
-			opt.Targets = update.DarwinLegacyTargets
-		}
-
 		if c.Bool("fleet-desktop") {
 			switch runtime.GOOS {
 			case "darwin":
 				opt.Targets["desktop"] = update.DesktopMacOSTarget
 			case "windows":
 				opt.Targets["desktop"] = update.DesktopWindowsTarget
+			case "linux":
+				opt.Targets["desktop"] = update.DesktopLinuxTarget
 			default:
 				log.Fatal().Str("GOOS", runtime.GOOS).Msg("unsupported GOOS for desktop target")
 			}
@@ -320,7 +323,7 @@ func main() {
 
 		if !c.Bool("disable-updates") {
 			targets := []string{"orbit", "osqueryd"}
-			if c.Bool("fleet-desktop") && (runtime.GOOS == "darwin" || runtime.GOOS == "windows") {
+			if c.Bool("fleet-desktop") {
 				targets = append(targets, "desktop")
 			}
 			updateRunner, err := update.NewRunner(updater, update.RunnerOptions{
@@ -482,7 +485,7 @@ func main() {
 		}))
 		g.Add(ext.Execute, ext.Interrupt)
 
-		if c.Bool("fleet-desktop") && (runtime.GOOS == "darwin" || runtime.GOOS == "windows") {
+		if c.Bool("fleet-desktop") {
 			desktopRunner := newDesktopRunner(desktopPath, fleetURL, deviceAuthToken, c.Bool("insecure"))
 			g.Add(desktopRunner.actor())
 		}
@@ -556,7 +559,7 @@ func (d *desktopRunner) execute() error {
 
 	for {
 		// First retry logic to start fleet-desktop.
-		if done := retry(30*time.Second, d.interruptCh, func() bool {
+		if done := retry(30*time.Second, false, d.interruptCh, func() bool {
 			// Orbit runs as root user on Unix and as SYSTEM (Windows Service) user on Windows.
 			// To be able to run the desktop application (mostly to register the icon in the system tray)
 			// we need to run the application as the login user.
@@ -571,7 +574,8 @@ func (d *desktopRunner) execute() error {
 		}
 
 		// Second retry logic to monitor fleet-desktop.
-		if done := retry(30*time.Second, d.interruptCh, func() bool {
+		// Call with waitFirst=true to give some time for the process to start.
+		if done := retry(30*time.Second, true, d.interruptCh, func() bool {
 			switch _, err := getProcessByName(constant.DesktopAppExecName); {
 			case err == nil:
 				return true // all good, process is running, retry.
@@ -588,14 +592,17 @@ func (d *desktopRunner) execute() error {
 	}
 }
 
-func retry(d time.Duration, done chan struct{}, fn func() bool) bool {
+func retry(d time.Duration, waitFirst bool, done chan struct{}, fn func() bool) bool {
 	ticker := time.NewTicker(d)
 	defer ticker.Stop()
 
 	for {
-		if retry := fn(); !retry {
-			return false
+		if !waitFirst {
+			if retry := fn(); !retry {
+				return false
+			}
 		}
+		waitFirst = false
 		select {
 		case <-done:
 			return true
@@ -677,9 +684,9 @@ var versionCommand = &cli.Command{
 	Usage: "Get the orbit version",
 	Flags: []cli.Flag{},
 	Action: func(c *cli.Context) error {
-		fmt.Println("orbit " + version)
-		fmt.Println("commit - " + commit)
-		fmt.Println("date - " + date)
+		fmt.Println("orbit " + build.Version)
+		fmt.Println("commit - " + build.Commit)
+		fmt.Println("date - " + build.Date)
 		return nil
 	},
 }
