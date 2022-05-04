@@ -110,7 +110,7 @@ Try to stay within 3 or 4 heading levels. Complicated documents may use more, bu
 
 ### SQL statements
 
-Within the Fleet docs, all SQL reserved words are uppercase, all identifiers such as tables and columns are lowercase. Here is an example:
+When adding SQL statements, all SQL reserved words should be uppercase and all identifiers (such as tables and columns) should be lowercase. Here is an example:
 
 ```sql
    SELECT days, hours, total_seconds FROM uptime;
